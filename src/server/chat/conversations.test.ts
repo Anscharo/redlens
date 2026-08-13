@@ -10,7 +10,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun
 import { SignJWT } from "jose";
 
 interface Conv { id: string; user_id: string; title: string | null; title_source: string; updated_at: string }
-interface StoredMsg { id: string; conversation_id: string; role: string; content: string; created_at: string; tool_calls: unknown }
+interface StoredMsg {
+  id: string; conversation_id: string; role: string; content: string; created_at: string; tool_calls: unknown;
+  context_tokens: number | null;
+}
 
 let conversations: Conv[] = [];
 let msgs: StoredMsg[] = [];
@@ -21,27 +24,45 @@ function nowIso(): string {
   return new Date(Date.now() + idCounter).toISOString();
 }
 
+// The newest assistant message's context_tokens for a conversation — mirrors
+// the LATERAL/subselect both real queries use (newest by created_at DESC).
+function newestAssistantContextTokens(convId: string): number | null {
+  const assistants = msgs
+    .filter((m) => m.conversation_id === convId && m.role === "assistant")
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return assistants[0]?.context_tokens ?? null;
+}
+
 function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
   const text = strings.join("?").replace(/\s+/g, " ").trim();
   queryLog.push({ text, values });
 
   if (text.includes("FROM conversations c") && text.includes("JOIN messages m")) {
-    const [userId] = values as [string];
+    // Value order mirrors the template: the LEAST() budget param precedes the
+    // WHERE user_id param.
+    const [budget, userId] = values as [number, string];
     const rows = conversations
       .filter((c) => c.user_id === userId)
       .filter((c) => msgs.some((m) => m.conversation_id === c.id && m.role === "assistant"))
-      .map((c) => ({
-        id: c.id, title: c.title, updated_at: c.updated_at,
-        message_count: msgs.filter((m) => m.conversation_id === c.id).length,
-      }))
+      .map((c) => {
+        const convMsgs = msgs.filter((m) => m.conversation_id === c.id);
+        return {
+          id: c.id, title: c.title, updated_at: c.updated_at,
+          message_count: convMsgs.length,
+          context_tokens: newestAssistantContextTokens(c.id),
+          history_chars: Math.min(convMsgs.reduce((s, m) => s + m.content.length, 0), budget),
+        };
+      })
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
       .slice(0, 100);
     return Promise.resolve(rows);
   }
-  if (text.includes("SELECT id, title, updated_at FROM conversations WHERE id") && text.includes("AND user_id")) {
+  if (text.includes("FROM conversations c WHERE c.id") && text.includes("AND c.user_id")) {
     const [id, userId] = values as [string, string];
     const c = conversations.find((x) => x.id === id && x.user_id === userId);
-    return Promise.resolve(c ? [{ id: c.id, title: c.title, updated_at: c.updated_at }] : []);
+    return Promise.resolve(
+      c ? [{ id: c.id, title: c.title, updated_at: c.updated_at, context_tokens: newestAssistantContextTokens(c.id) }] : [],
+    );
   }
   if (text.includes("FROM messages WHERE conversation_id") && text.includes("LIMIT 200")) {
     const [id] = values as [string];
@@ -132,7 +153,7 @@ function seedConversation(over: Partial<Conv> & { id: string; user_id: string })
 }
 
 function seedMessage(over: Partial<StoredMsg> & { conversation_id: string; role: string }): StoredMsg {
-  const m: StoredMsg = { id: `msg-${msgs.length}`, content: "hi", created_at: nowIso(), tool_calls: null, ...over };
+  const m: StoredMsg = { id: `msg-${msgs.length}`, content: "hi", created_at: nowIso(), tool_calls: null, context_tokens: null, ...over };
   msgs.push(m);
   return m;
 }
@@ -203,6 +224,48 @@ describe("GET /api/chat/conversations (list)", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("set-cookie")).not.toBeNull();
   });
+
+  it("carries the newest assistant message's contextTokens per row", async () => {
+    const token = await authed();
+    seedConversation({ id: "c-1", user_id: "user-1" });
+    seedMessage({ conversation_id: "c-1", role: "user" });
+    seedMessage({ conversation_id: "c-1", role: "assistant", context_tokens: 4_200 });
+    // A later assistant reply supersedes the earlier one's context_tokens.
+    seedMessage({ conversation_id: "c-1", role: "assistant", context_tokens: 9_100 });
+
+    const res = await handleConversations(req("/api/chat/conversations", { cookie: token }));
+    const body = (await res.json()) as { id: string; contextTokens: number | null; contextEstimated: boolean }[];
+    expect(body.find((c) => c.id === "c-1")!.contextTokens).toBe(9_100);
+    expect(body.find((c) => c.id === "c-1")!.contextEstimated).toBe(false);
+  });
+
+  it("falls back to an estimate (flagged) for legacy rows with no measured context", async () => {
+    const token = await authed();
+    seedConversation({ id: "c-legacy", user_id: "user-1" });
+    seedMessage({ conversation_id: "c-legacy", role: "user", content: "a".repeat(1_000) });
+    // Legacy row (predates the column, or no usage chunk was ever seen): null.
+    seedMessage({ conversation_id: "c-legacy", role: "assistant", content: "b".repeat(7_000), context_tokens: null });
+
+    const res = await handleConversations(req("/api/chat/conversations", { cookie: token }));
+    const body = (await res.json()) as { id: string; contextTokens: number | null; contextEstimated: boolean }[];
+    const row = body.find((c) => c.id === "c-legacy")!;
+    // 8,000 chars of stored text / 4 chars-per-token.
+    expect(row.contextTokens).toBe(2_000);
+    expect(row.contextEstimated).toBe(true);
+  });
+
+  it("caps the estimate at the windowHistory replay budget", async () => {
+    const token = await authed();
+    seedConversation({ id: "c-huge", user_id: "user-1" });
+    // 40k chars stored, but only 24k (the replay budget) can ever re-enter
+    // context — the estimate must reflect the cap, not the raw size.
+    seedMessage({ conversation_id: "c-huge", role: "user", content: "q".repeat(10_000) });
+    seedMessage({ conversation_id: "c-huge", role: "assistant", content: "a".repeat(30_000), context_tokens: null });
+
+    const res = await handleConversations(req("/api/chat/conversations", { cookie: token }));
+    const body = (await res.json()) as { id: string; contextTokens: number | null; contextEstimated: boolean }[];
+    expect(body.find((c) => c.id === "c-huge")!.contextTokens).toBe(6_000); // 24_000 / 4
+  });
 });
 
 describe("GET /api/chat/conversations/:id (detail)", () => {
@@ -229,6 +292,29 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
     expect(body.title).toBe("A Title");
     expect(body.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
     expect(body.messages[1].toolCalls).toEqual([{ name: "atlas_search", args: { q: "x" }, ok: true, bytes: 42 }]);
+  });
+
+  it("carries top-level contextTokens from the newest assistant message", async () => {
+    const token = await authed();
+    seedConversation({ id: "c-1", user_id: "user-1" });
+    seedMessage({ conversation_id: "c-1", role: "user" });
+    seedMessage({ conversation_id: "c-1", role: "assistant", context_tokens: 3_000 });
+    seedMessage({ conversation_id: "c-1", role: "assistant", context_tokens: 7_500 });
+
+    const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+    const body = (await res.json()) as { contextTokens: number | null };
+    expect(body.contextTokens).toBe(7_500);
+  });
+
+  it("contextTokens is null when no assistant message has one", async () => {
+    const token = await authed();
+    seedConversation({ id: "c-2", user_id: "user-1" });
+    seedMessage({ conversation_id: "c-2", role: "user" });
+    seedMessage({ conversation_id: "c-2", role: "assistant" });
+
+    const res = await handleConversations(req("/api/chat/conversations/c-2", { cookie: token }));
+    const body = (await res.json()) as { contextTokens: number | null };
+    expect(body.contextTokens).toBeNull();
   });
 });
 

@@ -21,17 +21,18 @@ import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation
 import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
 import { gatedChat } from "./verify/stream-link-gate.ts";
 import { createCitationGate } from "./verify/definition-block-gate.ts";
+import { isUncheckableAnswer, judgeSmalltalk } from "./verify/smalltalk.ts";
 import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
 import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
 import { atlasDescribe } from "./tools/tools.ts";
 import { adviseRecovery, type Recovery } from "./verify/advisor.ts";
-import { captureError, type ErrorContext } from "../posthog-node.ts";
+import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type DoneEvent = Extract<ChatEvent, { type: "done" }>;
 
 export interface CheckRowMeta {
-  kind: "round_checks" | "verify" | "verify_recheck" | "advisor_recovery";
+  kind: "round_checks" | "verify" | "verify_recheck" | "advisor_recovery" | "smalltalk_judge";
   model: string | null;
   action: "annotate" | "revised" | null;
   verdict: unknown;
@@ -78,6 +79,18 @@ function describeCall(name: string, args: Record<string, unknown>): string {
   if (typeof q === "string") return `Searching the atlas for “${q.slice(0, 80)}”…`;
   if (name === "atlas_get") return "Reading documents…";
   return `Consulting ${name}…`;
+}
+
+// Copy for the verification stages. A turn can reach the audit with nothing
+// retrieved — a meta-question, or a follow-up answered from the conversation —
+// and "against 0 sources" reads as a broken counter rather than a state. A
+// count is printed only when it is real; the call site suppresses the stage
+// entirely when there is no basis to name at all (see `grounded`), so the
+// sourceless branch here only ever describes conversation grounding.
+function checkingDetail(citations: number, sources: number): string {
+  const subject = citations > 0 ? `${citations} cited claim${citations === 1 ? "" : "s"}` : "the answer";
+  if (sources > 0) return `Cross-checking ${subject} against ${sources} source${sources === 1 ? "" : "s"}…`;
+  return `Cross-checking ${subject} against earlier turns of this conversation…`;
 }
 
 function verifyEvent(
@@ -357,6 +370,21 @@ export async function* runVerifiedChat(opts: {
     judge = null; // new evidence — rebuild on the next link
   };
 
+  // ── Small-talk judge (concurrent — never blocks the answer) ──────────────
+  // Fired alongside the conversationalist, not after it, so its ruling has
+  // resolved by the time the stream ends. Question-side gates keep it to at
+  // most one tiny call per conversation: only the FIRST user message (later
+  // turns lean on conversation context and always audit), and only when the
+  // message itself contains nothing groundable — "what is A.1.6?" needs no
+  // judge to be ruled factual. judgeSmalltalk never rejects (fail-closed
+  // internally), so an unconsumed promise is safe to abandon.
+  const smalltalkJudgeModel = opts.jsonCall ? config.chatSmalltalkJudgeModel : "";
+  const firstTurn = opts.messages.filter((m) => m.role === "user").length <= 1;
+  const judgePromise =
+    smalltalkJudgeModel && firstTurn && isUncheckableAnswer(opts.question)
+      ? judgeSmalltalk({ call: opts.jsonCall!, model: smalltalkJudgeModel, question: opts.question, signal: opts.signal, obs: opts.obs })
+      : null;
+
   // ── Conversationalist pass (answer streams at full speed) ────────────────
   let done: DoneEvent | null = null;
   for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd, obs: opts.obs }), makeGate)) {
@@ -392,6 +420,45 @@ export async function* runVerifiedChat(opts: {
     return;
   }
 
+  // ── Small-talk bypass ────────────────────────────────────────────────────
+  // Skips the audit for pure greetings — behind deterministic conditions plus
+  // the concurrent judge above, every one fail-closed toward auditing:
+  //   1. the judge fired at all (model configured + FIRST user message of the
+  //      conversation + the question itself contains nothing groundable);
+  //   2. zero tool rounds — the conversationalist itself judged no atlas was
+  //      needed (the system prompt tells it plain conversation is tool-free);
+  //   3. the answer contains nothing checkable — no doc numbers, links
+  //      (markdown or bare autolink), reference labels, addresses, figures,
+  //      or slug/code spans (smalltalk.ts) — a zero-tool answer that cites
+  //      or quantifies is exactly the hallucination case the verifier exists
+  //      for;
+  //   4. the judge, given the USER MESSAGE, rules it expects no factual
+  //      content. This closes the hole the answer-side predicate can't see:
+  //      "is the fee governance-controlled?" answered with a marker-free
+  //      "Yes." Judge failure/timeout/garbage = not small talk = full audit.
+  // On bypass the answer returns immediately — no comparing/checking ticker,
+  // no verify chip. Citation repair is provably a no-op here (condition 3
+  // rejects every link/label shape), so it is skipped too. The judge call is
+  // always recorded in checksMeta when it fired — even if the ruling is
+  // discarded because tools ran or the answer is checkable — so its tokens
+  // land in message_checks and count toward the rate-limit window like every
+  // other harness call. The prompt is tiny (a few-line classifier + the user
+  // message, maxTokens 50), but it is still a billed call.
+  if (judgePromise) {
+    const judge = await judgePromise; // long since resolved — it raced the whole answer
+    checksMeta.push({
+      kind: "smalltalk_judge", model: smalltalkJudgeModel, action: null,
+      verdict: { smalltalk: judge.smalltalk }, overall: null,
+      inputTokens: judge.usage?.input ?? null, outputTokens: judge.usage?.output ?? null,
+      generationId: judge.generationId, latencyMs: judge.latencyMs,
+    });
+    if (done.toolCalls.length === 0 && !done.lengthCapped && isUncheckableAnswer(done.content) && judge.smalltalk) {
+      captureEvent("chat_smalltalk_bypass", opts.obs, { chars: done.content.length });
+      yield finish(done);
+      return;
+    }
+  }
+
   // ── Verification (deterministic always; model audit when configured) ─────
   // Reference-link normalization, then citation repair, on the FULL tool texts (the verifier evidence
   // budget doesn't apply to free string scans). The streaming gate already
@@ -409,12 +476,26 @@ export async function* runVerifiedChat(opts: {
   const evidence = evidenceFromTranscript(done.transcript);
   let toolTexts: string[];
   let checks: CheckReport;
-  // Entering verification is itself progress worth surfacing in staged mode —
-  // the route stays mode-unaware, so this fires unconditionally on every
-  // audited answer (the guard above already confirms checks are on and there's
-  // a non-empty answer to compare); streaming mode just forwards it like any
-  // other status event.
-  yield { type: "status", stage: "comparing", detail: "Comparing the draft against the retrieved sources…" };
+  // Earlier-turn answers count as grounding for follow-ups (the system prompt
+  // says so), so the verifier gets them as one [E-prev] entry alongside the
+  // schema — otherwise every "summarize what you said" turn flags unsupported.
+  // Hoisted above the status events because it is also half of `grounded`.
+  const prevEvidence = priorTurnsEvidence(done.transcript);
+  // Entering verification is progress worth surfacing in staged mode — but only
+  // when there is something to name as the basis: this turn's retrievals, or
+  // earlier turns of the conversation. With neither (a tool-free answer that
+  // still carries groundable content — pure small talk exited above) the audit
+  // still runs, silently — announcing a comparison against nothing is worse
+  // than no ticker at all, and the verdict badge is the outcome channel either
+  // way. The route stays mode-unaware; streaming mode just forwards these like
+  // any other status event.
+  const grounded = evidence.length > 0 || prevEvidence !== null;
+  if (grounded) {
+    yield {
+      type: "status", stage: "comparing",
+      detail: evidence.length > 0 ? "Comparing the draft against the retrieved sources…" : "Comparing the draft against the conversation so far…",
+    };
+  }
   try {
     toolTexts = toolTextsOf(done.transcript);
     const { refs, repair, identifiers } = normalizeAndRepair(done.content, toolTexts, opts.ix);
@@ -432,10 +513,6 @@ export async function* runVerifiedChat(opts: {
   }
 
   const verifierModel = opts.jsonCall ? config.chatVerifierModel : "";
-  // Earlier-turn answers count as grounding for follow-ups (the system prompt
-  // says so), so the verifier gets them as one [E-prev] entry alongside the
-  // schema — otherwise every "summarize what you said" turn flags unsupported.
-  const prevEvidence = priorTurnsEvidence(done.transcript);
   // constEvidence is computed PER audited answer (done.content vs revDone.content
   // below), not once — the two answers can mention different parameters.
   const baseEvidence = (turnEvidence: EvidenceEntry[], answerText: string) => {
@@ -444,10 +521,7 @@ export async function* runVerifiedChat(opts: {
   };
   let verdict: Verdict | null = null;
   if (verifierModel) {
-    yield {
-      type: "status", stage: "checking",
-      detail: `Cross-checking ${checks.citations.length || "the"} cited claim${checks.citations.length === 1 ? "" : "s"} against ${evidence.length} source${evidence.length === 1 ? "" : "s"}…`,
-    };
+    if (grounded) yield { type: "status", stage: "checking", detail: checkingDetail(checks.citations.length, evidence.length) };
     const { run, modelLabel } = await runAudit({
       jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
       answer: done.content, evidence: baseEvidence(evidence, done.content), checks, signal: opts.signal, obs: opts.obs,
@@ -580,6 +654,11 @@ export async function* runVerifiedChat(opts: {
     type: "done",
     content: revDone.content,
     usage: { input: done.usage.input + revDone.usage.input, output: done.usage.output + revDone.usage.output },
+    // The revised run's context is the CURRENT one — it replayed the whole
+    // transcript through a fresh round, so its own contextTokens (falling
+    // back to the original's only if the revision never saw a usage chunk)
+    // describes what the shipped answer was actually produced against.
+    contextTokens: revDone.contextTokens ?? done.contextTokens,
     generationId: revDone.generationId ?? done.generationId,
     toolCalls: [...done.toolCalls, ...revDone.toolCalls],
     lengthCapped: revDone.lengthCapped, // the revised answer is what's finalized

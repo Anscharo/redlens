@@ -88,6 +88,9 @@ export function useChatStream(handlers: StreamHandlers = {}) {
   // reactively. The ref stays — send()'s closure over convIdRef.current is
   // what lets a reply land on the right conversation without re-subscribing.
   const [conversationId, setConversationId] = useState<string | null>(null);
+  // True context size of the last completed turn (last llm round's
+  // prompt_tokens), for the Composer's context pie. Null when unknown.
+  const [contextTokens, setContextTokens] = useState<number | null>(null);
   const convIdRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -142,6 +145,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     setMessages([]);
     setError(null);
     setStreaming(false);
+    setContextTokens(null);
   }, []);
 
   // Seeds the stream with a restored conversation (or clears to a fresh chat
@@ -152,7 +156,10 @@ export function useChatStream(handlers: StreamHandlers = {}) {
   // newly hydrated array and corrupt it. Aborting first — before the
   // request even changes — closes that window (see the
   // chat-conversation-memory plan §6).
-  const hydrate = useCallback((id: string | null, msgs: ChatMsg[]) => {
+  // `contextTokens` seeds the pie from the restored conversation's newest
+  // assistant turn (ConversationDetail.contextTokens); defaults to null for
+  // a fresh chat and any caller that predates this field.
+  const hydrate = useCallback((id: string | null, msgs: ChatMsg[], contextTokens: number | null = null) => {
     abortRef.current?.abort();
     abortRef.current = null;
     convIdRef.current = id;
@@ -160,6 +167,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     setMessages(msgs);
     setError(null);
     setStreaming(false);
+    setContextTokens(contextTokens);
   }, []);
 
   const dispatch = useCallback(
@@ -275,6 +283,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             // silently) must not spin forever.
             ...(m.verify?.status === "checking" ? { verify: undefined } : {}),
           }));
+          setContextTokens(ev.contextTokens ?? null);
           break;
         case "error":
           setError(ev.message);
@@ -362,6 +371,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             // a stale reference as a real failure.
             convIdRef.current = null;
             setConversationId(null);
+            setContextTokens(null);
             finalizeLast({ failed: true });
             setStreaming(false);
             return {};
@@ -433,5 +443,5 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     [streaming, dispatch, patchLast, finalizeLast, finalizeIfPending, handlers],
   );
 
-  return { messages, streaming, error, conversationId, send, stop, reset, hydrate };
+  return { messages, streaming, error, conversationId, contextTokens, send, stop, reset, hydrate };
 }

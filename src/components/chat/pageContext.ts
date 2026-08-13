@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useSearchParams } from "wouter";
-import { ROUTES, REPORT_CHAT_TOOLS } from "../../lib/routes";
+import { ROUTES, REPORT_CHAT_TOOLS, REPORT_TITLES } from "../../lib/routes";
 import { loadAtlas } from "../../lib/docs";
 
 // Mirrors the server's PageContext (src/server/chat/system-prompt.ts) plus the
@@ -23,13 +23,17 @@ export interface PageContextView extends PageContext {
   chip: string; // composer context chip (mono)
 }
 
-const REPORT_NAMES: Record<string, string> = {
-  [ROUTES.REPORTS_OF_RESPONSIBILITIES]: "Op Facilitator Responsibilities",
-  [ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES]: "Operational GovOps Responsibilities",
-  [ROUTES.REPORTS_ACTIVE_DATA]: "Active Data Index",
-  [ROUTES.REPORTS_REWARDS]: "Integrator Reward Relationships",
-  [ROUTES.REPORTS_PROCESSES]: "Process Inventory",
-};
+// Resolve a /reports/<id>[/…] path to its display title via REPORT_TITLES.
+// Exact slug first; then the first path segment so CrossView sub-pages
+// (/reports/crossview/concepts) still name the parent report. The reports
+// index and unknown sub-pages (e.g. risk-rules/rubric) return undefined.
+export function reportTitleForPath(location: string): string | undefined {
+  const prefix = "/reports/";
+  if (!location.startsWith(prefix)) return undefined;
+  const rest = location.slice(prefix.length);
+  if (!rest) return undefined;
+  return REPORT_TITLES[rest] ?? REPORT_TITLES[rest.split("/")[0]!];
+}
 
 function deslug(slug: string): string {
   return slug
@@ -94,9 +98,10 @@ export function usePageContext(): PageContextView {
     };
   }
 
-  // Reports. When the report has a backing atlas_report_* tool, the chat can
-  // load and query the report itself — surface that in the launcher/composer.
-  const reportName = REPORT_NAMES[location];
+  // Reports. Every titled report is name-aware (launcher + system prompt).
+  // When it also has a backing atlas_report_* tool, the chat can load/query
+  // the report itself — tool + active filter only attach in that case.
+  const reportName = reportTitleForPath(location);
   if (reportName) {
     const reportTool = REPORT_CHAT_TOOLS[location];
     // The report's header search box is the shared global query param `q`; pass
@@ -107,10 +112,10 @@ export function usePageContext(): PageContextView {
       reportName,
       reportTool,
       reportFilter,
-      short: reportTool ? `Ask about the ${reportName} report` : "Ask the Sky Atlas",
-      placeholder: reportTool ? `Ask about the ${reportName} report…` : "Ask about the Sky Atlas…",
+      short: `Ask about the ${reportName} report`,
+      placeholder: `Ask about the ${reportName} report…`,
       label: reportName,
-      chip: reportTool ? "report" : "reports",
+      chip: "report",
     };
   }
 

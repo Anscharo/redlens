@@ -131,11 +131,17 @@ const sliceRound = (model: string) => Array(SLICES.length).fill(model);
 function withModels(verifier: string, advisor: string, fn: () => Promise<void>): Promise<void> {
   const pv = config.chatVerifierModel;
   const pa = config.chatAdvisorModel;
+  const pj = config.chatSmalltalkJudgeModel;
   config.chatVerifierModel = verifier;
   config.chatAdvisorModel = advisor;
+  // The judge slot defaults ON in config — zero it here so every test
+  // exercises the audit path it was written for; bypass tests opt back in
+  // with the nested withJudge wrapper below.
+  config.chatSmalltalkJudgeModel = "";
   return fn().finally(() => {
     config.chatVerifierModel = pv;
     config.chatAdvisorModel = pa;
+    config.chatSmalltalkJudgeModel = pj;
   });
 }
 
@@ -157,6 +163,141 @@ test("no model slots: pass-through + status ticker; done carries checksMeta; san
     expect("transcript" in wire).toBe(false);
     expect("checksMeta" in wire).toBe(false);
     expect(wire.content).toBe("Answer.");
+  }));
+
+// ── Small-talk bypass ──────────────────────────────────────────────────────
+// Config-gates the judge slot the same way withModels gates verifier/advisor.
+function withJudge(model: string, fn: () => Promise<void>): Promise<void> {
+  const prev = config.chatSmalltalkJudgeModel;
+  config.chatSmalltalkJudgeModel = model;
+  return fn().finally(() => {
+    config.chatSmalltalkJudgeModel = prev;
+  });
+}
+// Wraps a JsonCall so the judge's distinctive prompt gets a scripted ruling
+// and every other call falls through to the inner fake — content dispatch,
+// same principle as identifySlice.
+function withJudgeRuling(inner: JsonCall, ruling: string, judgeCalls: { model: string }[] = []): JsonCall {
+  return async (params) => {
+    const sys = typeof params.messages[0]?.content === "string" ? params.messages[0].content : "";
+    if (sys.includes('{"smalltalk"')) {
+      judgeCalls.push({ model: params.model });
+      return { text: ruling, usage: { input: 5, output: 2 }, generationId: "gen-judge", latencyMs: 3 };
+    }
+    return inner(params);
+  };
+}
+const GREETING = "Hello! How can I help you with the Sky Atlas?";
+
+test("small-talk bypass: zero tools + uncheckable answer + judge says smalltalk → no audit", () =>
+  withModels("strong/verifier", "chat/advisor", () =>
+    withJudge("fast/judge", async () => {
+      const sliceCalls: { model: string }[] = [];
+      const judgeCalls: { model: string }[] = [];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hello", maxIterations: 3,
+          stream: fakeStream([[textChunk(GREETING), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({ claims: [slicePass()] }, sliceCalls), '{"smalltalk": true}', judgeCalls),
+        }),
+      );
+      // Straight to done: no comparing/checking ticker, no verify chip, no
+      // slice calls — only the one judge call, recorded in checksMeta.
+      expect(kinds(events)).toEqual(["token", "done"]);
+      expect(judgeCalls).toEqual([{ model: "fast/judge" }]);
+      expect(sliceCalls).toEqual([]);
+      const done = lastDone(events);
+      expect(done.content).toBe(GREETING);
+      expect(done.checksMeta.map((c) => c.kind)).toEqual(["smalltalk_judge"]);
+    })));
+
+test("judge rules the question expects facts → full audit runs despite an uncheckable answer", () =>
+  withModels("strong/verifier", "chat/advisor", () =>
+    withJudge("fast/judge", async () => {
+      const judgeCalls: { model: string }[] = [];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "is the fee governance-controlled?", maxIterations: 3,
+          stream: fakeStream([[textChunk("Yes, that is governed."), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({ claims: [slicePass()] }), '{"smalltalk": false}', judgeCalls),
+        }),
+      );
+      expect(judgeCalls.length).toBe(1);
+      expect(events.some((e) => e.type === "verify_result")).toBe(true);
+      expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["smalltalk_judge", "round_checks", "verify"]);
+    })));
+
+test("a zero-tool answer with groundable content is never bypassed — even a smalltalk ruling can't skip the audit", () =>
+  withModels("strong/verifier", "chat/advisor", () =>
+    withJudge("fast/judge", async () => {
+      const judgeCalls: { model: string }[] = [];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([[textChunk("A.1.6 covers that."), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({ claims: [slicePass()] }), '{"smalltalk": true}', judgeCalls),
+        }),
+      );
+      // The judge FIRED (concurrently, on the uncheckable first message) but
+      // its favorable ruling is not consulted: the answer cited without
+      // tools — the hallucination case — so the audit runs regardless. The
+      // call still lands in checksMeta so its tokens count toward the
+      // rate-limit window.
+      expect(judgeCalls.length).toBe(1);
+      expect(events.some((e) => e.type === "verify_result")).toBe(true);
+      const meta = lastDone(events).checksMeta;
+      expect(meta.map((c) => c.kind).slice(0, 3)).toEqual(["smalltalk_judge", "round_checks", "verify"]);
+      expect(meta[0].inputTokens).toBe(5);
+      expect(meta[0].outputTokens).toBe(2);
+    })));
+
+test("the judge never fires on a groundable QUESTION — 'what is A.1.6?' needs no model to be ruled factual", () =>
+  withModels("strong/verifier", "chat/advisor", () =>
+    withJudge("fast/judge", async () => {
+      const judgeCalls: { model: string }[] = [];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "what is A.1.6?", maxIterations: 3,
+          stream: fakeStream([[textChunk(GREETING), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({ claims: [slicePass()] }), '{"smalltalk": true}', judgeCalls),
+        }),
+      );
+      expect(judgeCalls).toEqual([]);
+      expect(events.some((e) => e.type === "verify_result")).toBe(true);
+    })));
+
+test("the judge never fires past the first user message — later turns always audit", () =>
+  withModels("strong/verifier", "chat/advisor", () =>
+    withJudge("fast/judge", async () => {
+      const judgeCalls: { model: string }[] = [];
+      const history: Msg[] = [
+        { role: "user", content: "what governs the fee?" },
+        { role: "assistant", content: "The fee is governed by A.1.6." },
+        { role: "user", content: "thanks!" },
+      ];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: history, question: "thanks!", maxIterations: 3,
+          stream: fakeStream([[textChunk("You're welcome!"), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({ claims: [slicePass()] }), '{"smalltalk": true}', judgeCalls),
+        }),
+      );
+      expect(judgeCalls).toEqual([]);
+      expect(events.some((e) => e.type === "verify_result")).toBe(true);
+    })));
+
+test("no judge model configured → bypass disabled outright, greetings get the full audit", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    const sliceCalls: { model: string }[] = [];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hello", maxIterations: 3,
+        stream: fakeStream([[textChunk(GREETING), finishChunk("stop")]]),
+        jsonCall: fakeSlicedJson({ claims: [slicePass()] }, sliceCalls),
+      }),
+    );
+    expect(sliceCalls.map((c) => c.model)).toEqual(sliceRound("strong/verifier"));
+    expect(events.some((e) => e.type === "verify_result")).toBe(true);
   }));
 
 test("deterministic-only mode stays quiet on clean answers, flags invalid citations", () =>
@@ -269,43 +410,96 @@ test("deterministic-only mode flags fabricated doc numbers as hard failures", ()
     expect(verify && verify.type === "verify_result" && verify.invalidDocNos).toEqual(["Q.99.42.7"]);
   }));
 
-test("verifier pass: checking status, verify_result pass, no advisor call", () =>
+test("verifier pass: checking status counts real sources, verify_result pass, no advisor call", () =>
   withModels("strong/verifier", "chat/advisor", async () => {
     const jsonCalls: { model: string }[] = [];
+    const rounds = [
+      [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+      [textChunk("Answer."), finishChunk("stop")],
+    ];
     const events = await collect(
       runVerifiedChat({
         ix, messages: [userMsg], question: "hi", maxIterations: 3,
-        stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+        stream: fakeStream(rounds),
         jsonCall: fakeSlicedJson({ claims: [slicePass()] }, jsonCalls),
       }),
     );
-    expect(kinds(events)).toEqual(["token", "status:comparing", "status:checking", "verify_result", "done"]);
+    expect(kinds(events)).toEqual([
+      "status:querying", "tool_call", "tool_result", "token",
+      "status:comparing", "status:checking", "verify_result", "done",
+    ]);
+    // One tool result → one evidence entry: singular, and never "0 sources".
+    const checking = events.find((e) => e.type === "status" && e.stage === "checking")!;
+    expect(checking.type === "status" && checking.detail).toBe("Cross-checking the answer against 1 source…");
     const verify = events.find((e) => e.type === "verify_result")!;
     expect(verify.type === "verify_result" && verify.overall).toBe("pass");
     expect(jsonCalls.map((c) => c.model)).toEqual(sliceRound("strong/verifier")); // advisor never ran
     expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify"]);
   }));
 
-test("comparing status precedes the audit whenever checks are on and the answer is non-empty", () =>
+test("comparing status fires on a grounded turn even with no verifier model", () =>
   withModels("", "", async () => {
     // No verifier/advisor model configured — deterministic checks alone still
     // enter the verification block, so "comparing" fires even without a
     // "checking" status right behind it.
+    const rounds = [
+      [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+      [textChunk("Answer."), finishChunk("stop")],
+    ];
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], question: "hi", maxIterations: 3, stream: fakeStream(rounds) }),
+    );
+    expect(kinds(events)).toEqual(["status:querying", "tool_call", "tool_result", "token", "status:comparing", "done"]);
+  }));
+
+test("ungrounded turn: verification stages are suppressed, the audit still runs", () =>
+  withModels("strong/verifier", "", async () => {
+    // Nothing retrieved this turn and no earlier turns to fall back on, so
+    // there is no basis to name — "against 0 sources" must never be announced.
+    // The audit itself is unchanged (a no-retrieval answer is the most
+    // hallucination-prone case); only the ticker goes quiet.
     const events = await collect(
       runVerifiedChat({
         ix, messages: [userMsg], question: "hi", maxIterations: 3,
         stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+        jsonCall: fakeSlicedJson({ claims: [slicePass()] }),
       }),
     );
-    expect(kinds(events)).toEqual(["token", "status:comparing", "done"]);
+    expect(kinds(events)).toEqual(["token", "verify_result", "done"]);
+    expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify"]);
+  }));
+
+test("no tools but earlier turns: the stages name the conversation as the basis", () =>
+  withModels("strong/verifier", "", async () => {
+    const history: Msg[] = [
+      { role: "user", content: "what is the stability scope?" },
+      { role: "assistant", content: "The Stability Scope covers…" },
+      { role: "user", content: "summarize that" },
+    ];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: history, question: "summarize that", maxIterations: 3,
+        stream: fakeStream([[textChunk("In short: it covers…"), finishChunk("stop")]]),
+        jsonCall: fakeSlicedJson({ claims: [slicePass()] }),
+      }),
+    );
+    const details = events.filter((e) => e.type === "status").map((e) => (e.type === "status" ? e.detail : ""));
+    expect(details).toEqual([
+      "Comparing the draft against the conversation so far…",
+      "Cross-checking the answer against earlier turns of this conversation…",
+    ]);
   }));
 
 test("comparing status is absent when the answer is empty or checks are off", () =>
   withModels("", "", async () => {
+    // Both turns are grounded (a tool round runs), so an absent "comparing"
+    // here is attributable to the empty answer / checks being off, not to the
+    // ungrounded suppression the tests above cover.
+    const toolRound = [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")];
     const emptyEvents = await collect(
       runVerifiedChat({
         ix, messages: [userMsg], question: "hi", maxIterations: 3,
-        stream: fakeStream([[finishChunk("stop")]]),
+        stream: fakeStream([toolRound, [finishChunk("stop")]]),
       }),
     );
     expect(emptyEvents.some((e) => e.type === "status" && e.stage === "comparing")).toBe(false);
@@ -316,7 +510,7 @@ test("comparing status is absent when the answer is empty or checks are off", ()
       const checksOffEvents = await collect(
         runVerifiedChat({
           ix, messages: [userMsg], question: "hi", maxIterations: 3,
-          stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+          stream: fakeStream([toolRound, [textChunk("Answer."), finishChunk("stop")]]),
         }),
       );
       expect(checksOffEvents.some((e) => e.type === "status" && e.stage === "comparing")).toBe(false);
@@ -397,7 +591,11 @@ test("sliced mode: four concurrent slice audits merge into one verdict + pass ba
 test("verifier fail → advisor rewrite → revision replaces answer → re-verify once", () =>
   withModels("strong/verifier", "chat/advisor", async () => {
     const jsonCalls: { model: string }[] = [];
+    // A tool round first so the turn is grounded — the verification stages are
+    // suppressed on a turn with no basis to compare against (see the
+    // ungrounded test above), and this test is about the revision sequence.
     const rounds = [
+      [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
       [textChunk("Bad answer."), finishChunk("stop"), usageChunk(100, 10)],
       [textChunk("Fixed answer."), finishChunk("stop"), usageChunk(50, 5)],
     ];
@@ -416,7 +614,8 @@ test("verifier fail → advisor rewrite → revision replaces answer → re-veri
     // FIRST audit — the re-verify pass after revision is a separate code path
     // that the orchestrator change in this PR does not touch.
     expect(kinds(events)).toEqual([
-      "token", "status:comparing", "status:checking", "verify_result",
+      "status:querying", "tool_call", "tool_result", "token",
+      "status:comparing", "status:checking", "verify_result",
       "status:advising", "status:revising", "clear",
       "token", "status:checking", "verify_result", "done",
     ]);
@@ -464,7 +663,7 @@ test("a lone unsupported claim warns without buying a full transcript replay", (
         jsonCall: fakeSlicedJson({ claims: [sliceWarn(1)] }, jsonCalls),
       }),
     );
-    expect(kinds(events)).toEqual(["token", "status:comparing", "status:checking", "verify_result", "done"]);
+    expect(kinds(events)).toEqual(["token", "verify_result", "done"]); // ungrounded: stages stay quiet
     const verify = events.find((e) => e.type === "verify_result")!;
     expect(verify.type === "verify_result" && verify.overall).toBe("warn");
     // Amber badge, no advisor, no revision — the answer stands as written.

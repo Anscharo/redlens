@@ -13,7 +13,7 @@ vi.mock("../../lib/docs", () => ({
   loadAtlas: () => (atlasRejects ? Promise.reject(new Error("boom")) : Promise.resolve({ docs })),
 }));
 
-import { usePageContext } from "./pageContext";
+import { reportTitleForPath, usePageContext } from "./pageContext";
 
 afterEach(() => {
   cleanup();
@@ -24,6 +24,16 @@ function wrap(path: string) {
   const { hook } = memoryLocation({ path, record: true });
   return ({ children }: { children: React.ReactNode }) => <Router hook={hook}>{children}</Router>;
 }
+
+describe("reportTitleForPath", () => {
+  it("resolves titled report slugs and CrossView sub-pages; skips index and unknown paths", () => {
+    expect(reportTitleForPath("/reports/stale-dates")).toBe("Stale Dates");
+    expect(reportTitleForPath("/reports/crossview/concepts")).toBe("Atlas CrossView");
+    expect(reportTitleForPath("/reports")).toBeUndefined();
+    expect(reportTitleForPath("/reports/")).toBeUndefined();
+    expect(reportTitleForPath("/atlas")).toBeUndefined();
+  });
+});
 
 describe("usePageContext", () => {
   it("returns the generic Sky Atlas context on an unrecognized route", () => {
@@ -74,17 +84,27 @@ describe("usePageContext", () => {
     const { result } = renderHook(() => usePageContext(), {
       wrapper: wrap("/reports/of-responsibilities?q=budget"),
     });
-    expect(result.current.reportName).toBe("Op Facilitator Responsibilities");
+    expect(result.current.reportName).toBe("Operational Facilitator Responsibilities");
     expect(result.current.reportTool).toBeTruthy();
     expect(result.current.reportFilter).toBe("budget");
+    expect(result.current.short).toBe("Ask about the Operational Facilitator Responsibilities report");
     expect(result.current.chip).toBe("report");
   });
 
-  it("derives report context without a backing tool (generic reports chip)", () => {
-    const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/reports/processes") });
-    expect(result.current.reportName).toBe("Process Inventory");
+  it("derives name-aware context for reports without a backing tool", () => {
+    const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/reports/stale-dates") });
+    expect(result.current.reportName).toBe("Stale Dates");
     expect(result.current.reportTool).toBeUndefined();
-    expect(result.current.chip).toBe("reports");
     expect(result.current.reportFilter).toBeUndefined();
+    expect(result.current.short).toBe("Ask about the Stale Dates report");
+    expect(result.current.chip).toBe("report");
+  });
+
+  it("names CrossView sub-pages after the parent report title", () => {
+    const { result } = renderHook(() => usePageContext(), {
+      wrapper: wrap("/reports/crossview/concepts"),
+    });
+    expect(result.current.reportName).toBe("Atlas CrossView");
+    expect(result.current.reportTool).toBeUndefined();
   });
 });

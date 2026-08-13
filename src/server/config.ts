@@ -217,6 +217,12 @@ export const config = {
   // this also doubles as the fallback for an invalid per-request override
   // (ChatBody.delivery in chat.ts). Resolved via envEnum above.
   chatDeliveryMode,
+  // The model context window the UI meters against (context-size indicator).
+  // Sized to the SMALLEST model in the deployed routing chains (haiku, 200k),
+  // not the primary's 256k — an OpenRouter failover sends the same full
+  // context, so the honest ceiling is the chain minimum. Swap alongside
+  // CHAT_MODEL / CHAT_MODEL_* when the chains change.
+  chatContextWindowTokens: Number(process.env.CHAT_CONTEXT_WINDOW_TOKENS ?? 200_000),
   // NOTE: the OFFLINE HTML-era curation model knobs (selector/cluster/frontier/audit)
   // used to live here but had zero runtime readers in src/server — every reader is
   // one of the scripts/htmlhist/*.mjs offline tools. Moved to
@@ -264,6 +270,16 @@ export const config = {
   // Escalation-only recovery model; chat-tier is fine (recovery planning is
   // easier than verification). Empty = advisor off.
   chatAdvisorModel: process.env.CHAT_ADVISOR_MODEL ?? "",
+  // Small-talk bypass judge — one tiny question-side classification ("does
+  // this message expect factual content?") that is the FINAL gate on skipping
+  // the audit for pure greetings (chat-orchestrator.ts + verify/smalltalk.ts).
+  // Defaults ON with the 2026-08-13 bakeoff winner (scripts/aux/
+  // eval-smalltalk-judge.ts: 100% on the 42-case set, 0 dangerous errors,
+  // 0 call failures, p50 722ms — beat gemma-4-31b's 22% timeout rate,
+  // nemotron-lightning's misrulings, and gpt-oss-safeguard's all-greetings-
+  // are-factual). Set CHAT_SMALLTALK_JUDGE_MODEL="" (empty) to disable the
+  // bypass outright — fail-closed: no judge, no skip, every turn audits.
+  chatSmalltalkJudgeModel: process.env.CHAT_SMALLTALK_JUDGE_MODEL ?? "google/gemma-4-26b-a4b-it",
   // Deterministic checks (free, pure code) — independent of the model slots.
   chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
   // Deterministic pre-lookup (glossary + entity match on the user's message)

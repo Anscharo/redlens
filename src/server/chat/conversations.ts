@@ -5,12 +5,26 @@
 import { sql } from "../db.ts";
 import { getSessionUser } from "../session.ts";
 import { json } from "../http.ts";
+import { HISTORY_BUDGET_CHARS } from "./chat-history.ts";
+
+// Rough chars-per-token for the estimated-context fallback below. Estimation
+// only — measured rows never touch it.
+const CHARS_PER_TOKEN = 4;
 
 interface ConversationListOut {
   id: string;
   title: string | null;
   updatedAt: string;
   messageCount: number;
+  // The newest assistant message's context_tokens — the real per-round
+  // context size (see migration 020), not the cumulative input_tokens. For
+  // legacy conversations that predate the column (no measured value on any
+  // row), this falls back to an ESTIMATE — stored message chars, capped at
+  // the windowHistory replay budget, over CHARS_PER_TOKEN — flagged below.
+  contextTokens: number | null;
+  // True when contextTokens is the estimate, not a measured prompt size —
+  // the UI renders it with a "~".
+  contextEstimated: boolean;
 }
 
 interface MessageOut {
@@ -24,6 +38,12 @@ interface ConversationDetailOut {
   id: string;
   title: string | null;
   updatedAt: string;
+  // MEASURED-only, unlike the list: the newest assistant message's
+  // context_tokens, null when unmeasured — deliberately NO estimate fallback
+  // here. This value seeds the live panel's context meter/edge line, which
+  // turns red near full; showing a chars/4 guess there as a hot warning would
+  // mislead, whereas the list card renders its estimate as a muted "~" note.
+  contextTokens: number | null;
   messages: MessageOut[];
 }
 
@@ -43,18 +63,38 @@ const MAX_TITLE_LEN = 120;
 // fires after persistAssistant). EXISTS(...role='assistant') is what hides
 // it. The JOIN stays alongside it only because messageCount is displayed.
 async function listConversations(userId: string): Promise<ConversationListOut[]> {
+  // Aggregate + LIMIT first, then the LATERAL over the surviving ≤100 rows —
+  // joined before the GROUP BY, its execution count would be plan-dependent
+  // (potentially once per message row); this shape caps it at 100 regardless
+  // of what the planner picks.
   const rows = (await sql`
-    SELECT c.id, c.title, c.updated_at, count(m.id)::int AS message_count
-    FROM conversations c
-    JOIN messages m ON m.conversation_id = c.id
-    WHERE c.user_id = ${userId}
-      AND EXISTS (SELECT 1 FROM messages a WHERE a.conversation_id = c.id AND a.role = 'assistant')
-    GROUP BY c.id, c.title, c.updated_at
-    ORDER BY c.updated_at DESC
-    LIMIT 100
-  `) as { id: string; title: string | null; updated_at: string | Date; message_count: number }[];
+    SELECT t.id, t.title, t.updated_at, t.message_count, t.history_chars, last.context_tokens
+    FROM (
+      SELECT c.id, c.title, c.updated_at, count(m.id)::int AS message_count,
+        LEAST(COALESCE(sum(length(m.content)), 0), ${HISTORY_BUDGET_CHARS})::int AS history_chars
+      FROM conversations c
+      JOIN messages m ON m.conversation_id = c.id
+      WHERE c.user_id = ${userId}
+        AND EXISTS (SELECT 1 FROM messages a WHERE a.conversation_id = c.id AND a.role = 'assistant')
+      GROUP BY c.id, c.title, c.updated_at
+      ORDER BY c.updated_at DESC
+      LIMIT 100
+    ) t
+    LEFT JOIN LATERAL (
+      SELECT lm.context_tokens FROM messages lm
+      WHERE lm.conversation_id = t.id AND lm.role = 'assistant'
+      ORDER BY lm.created_at DESC LIMIT 1
+    ) last ON true
+    ORDER BY t.updated_at DESC
+  `) as { id: string; title: string | null; updated_at: string | Date; message_count: number; context_tokens: number | null; history_chars: number }[];
   return rows.map((r) => ({
     id: r.id, title: r.title, updatedAt: new Date(r.updated_at).toISOString(), messageCount: r.message_count,
+    // history_chars is already capped at the replay budget, so the estimate
+    // is "what replaying this conversation's text could cost", not its raw
+    // size — an upper bound that ignores truncation of old turns, and a
+    // lower bound in that it excludes the system prompt and tool results.
+    contextTokens: r.context_tokens ?? Math.ceil(r.history_chars / CHARS_PER_TOKEN),
+    contextEstimated: r.context_tokens == null,
   }));
 }
 
@@ -63,8 +103,12 @@ async function listConversations(userId: string): Promise<ConversationListOut[]>
 // windowHistory() in chat-history.ts.
 async function getConversation(userId: string, id: string): Promise<ConversationDetailOut | null> {
   const owned = (await sql`
-    SELECT id, title, updated_at FROM conversations WHERE id = ${id} AND user_id = ${userId}
-  `) as { id: string; title: string | null; updated_at: string | Date }[];
+    SELECT c.id, c.title, c.updated_at,
+      (SELECT lm.context_tokens FROM messages lm
+       WHERE lm.conversation_id = c.id AND lm.role = 'assistant'
+       ORDER BY lm.created_at DESC LIMIT 1) AS context_tokens
+    FROM conversations c WHERE c.id = ${id} AND c.user_id = ${userId}
+  `) as { id: string; title: string | null; updated_at: string | Date; context_tokens: number | null }[];
   if (!owned.length) return null;
   const conv = owned[0];
   const rows = (await sql`
@@ -78,6 +122,7 @@ async function getConversation(userId: string, id: string): Promise<Conversation
     id: conv.id,
     title: conv.title,
     updatedAt: new Date(conv.updated_at).toISOString(),
+    contextTokens: conv.context_tokens,
     messages: rows.map((r) => ({
       role: r.role, content: r.content, createdAt: new Date(r.created_at).toISOString(), toolCalls: r.tool_calls,
     })),

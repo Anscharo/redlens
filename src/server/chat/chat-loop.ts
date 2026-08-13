@@ -18,6 +18,7 @@ import { checkExportArtifact } from "./tools/export-verify.ts";
 import { config } from "../config.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
+import { isRepetitionLoop } from "./repetition-guard.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type Chunk = OpenAI.Chat.Completions.ChatCompletionChunk;
@@ -55,6 +56,12 @@ export type ChatEvent =
       type: "done";
       content: string;
       usage: { input: number; output: number };
+      // The LAST llm round's usage.prompt_tokens seen this turn — the real
+      // context size of the round that produced the shipped answer. NOT the
+      // same as usage.input above, which ACCUMULATES prompt_tokens across
+      // every tool round and overstates context 2-3x on a multi-round turn.
+      // null if no usage chunk was ever seen (e.g. aborted before one arrived).
+      contextTokens: number | null;
       generationId: string | null;
       toolCalls: ToolCallRecord[];
       // True when the final completion hit config.chatMaxOutputTokens and was
@@ -107,6 +114,12 @@ const FINAL_TURN_INSTRUCTION =
 const COMPOSE_STEER =
   "Your research budget is exhausted — no tools are available. Using ONLY the evidence in the conversation above, write your final answer now. If the evidence does not answer the question, state plainly what you searched for and what was not found; a precise, honest summary of the gap IS the correct answer. Do not mention tools or further searches.";
 
+// One-shot rewrite after the deterministic repetition handbrake trips (see
+// repetition-guard.ts). The degenerate draft is cleared from the client and
+// never pushed onto msgs — this steer alone asks for a clean rewrite.
+const REPETITION_STEER =
+  "Your previous draft collapsed into repetitive nonsense (the same phrase or character looping). Discard it entirely. Write the complete answer once, cleanly, with no repeated filler. If the evidence does not answer the question, say so briefly — do not pad.";
+
 // Injected transiently on every mid-loop turn after the first tool round. The
 // chat model tends to over-search — simple single-document questions were
 // burning 4–6 rounds before answering. This nudges "answer as soon as the
@@ -129,21 +142,27 @@ export async function* runChat(opts: {
   const toolCalls: ToolCallRecord[] = [];
   let usageIn = 0;
   let usageOut = 0;
+  let contextTokens: number | null = null;
   let generationId: string | null = null;
 
-  // One-shot compose guard: a no-tools request with the answer-or-abstain
-  // steer. Yields tokens like a normal answer round; tool-call deltas a model
-  // emits anyway are ignored (there is nothing left to execute them with).
-  // The steer rides only the request, never lands in msgs — same policy as
-  // FINAL_TURN_INSTRUCTION.
-  async function* composeFinal(): AsyncGenerator<ChatEvent, { content: string; lengthCapped: boolean }> {
+  // One-shot no-tools text attempt (compose guard / repetition rewrite). Yields
+  // tokens like a normal answer round; tool-call deltas a model emits anyway
+  // are ignored. The steer rides only the request, never lands in msgs. Mid-
+  // stream repetition aborts the provider call (local AbortController) and
+  // returns degenerated:true so the caller can clear + decide.
+  async function* forcedTextAttempt(
+    steer: string,
+  ): AsyncGenerator<ChatEvent, { content: string; lengthCapped: boolean; degenerated: boolean }> {
     let content = "";
     let finishReason: string | null = null;
+    let degenerated = false;
+    const ac = new AbortController();
+    const signal = opts.signal ? AbortSignal.any([opts.signal, ac.signal]) : ac.signal;
     const stream = opts.stream({
-      messages: [...msgs, { role: "system", content: COMPOSE_STEER }],
+      messages: [...msgs, { role: "system", content: steer }],
       tools: CHAT_TOOLS,
       toolChoice: "none",
-      signal: opts.signal,
+      signal,
     });
     for await (const chunk of stream) {
       if (opts.signal?.aborted) break;
@@ -151,15 +170,25 @@ export async function* runChat(opts: {
       const choice = chunk.choices?.[0];
       if (choice?.delta?.content) {
         content += choice.delta.content;
+        if (isRepetitionLoop(content)) {
+          degenerated = true;
+          ac.abort();
+          break;
+        }
         yield { type: "token", text: choice.delta.content };
       }
       if (choice?.finish_reason) finishReason = choice.finish_reason;
       if (chunk.usage) {
         usageIn += chunk.usage.prompt_tokens ?? 0;
         usageOut += chunk.usage.completion_tokens ?? 0;
+        // A repetition-rewrite/compose request's prompt IS the current
+        // context — this must update contextTokens too, not just the
+        // main-loop site below, or a turn that ends via forcedTextAttempt
+        // reports a stale/null context size.
+        if (chunk.usage.prompt_tokens) contextTokens = chunk.usage.prompt_tokens;
       }
     }
-    return { content, lengthCapped: finishReason === "length" };
+    return { content, lengthCapped: finishReason === "length", degenerated };
   }
 
   for (let iter = 0; iter < max; iter++) {
@@ -172,15 +201,20 @@ export async function* runChat(opts: {
     const steer = last ? FINAL_TURN_INSTRUCTION : iter > 0 ? EARLY_ANSWER_NUDGE : null;
     const turnMsgs: Msg[] = steer ? [...msgs, { role: "system", content: steer }] : msgs;
 
+    // Per-round controller so a mid-stream repetition trip can abort the
+    // provider call without treating the user's signal as cancelled.
+    const roundAc = new AbortController();
+    const roundSignal = opts.signal ? AbortSignal.any([opts.signal, roundAc.signal]) : roundAc.signal;
     const stream = opts.stream({
       messages: turnMsgs,
       tools: CHAT_TOOLS,
       toolChoice: last ? "none" : "auto",
-      signal: opts.signal,
+      signal: roundSignal,
     });
 
     let content = "";
     let finishReason: string | null = null;
+    let degenerated = false;
     const pending = new Map<number, PendingCall>();
 
     for await (const chunk of stream) {
@@ -194,6 +228,11 @@ export async function* runChat(opts: {
       const choice = chunk.choices?.[0];
       if (choice?.delta?.content) {
         content += choice.delta.content;
+        if (isRepetitionLoop(content)) {
+          degenerated = true;
+          roundAc.abort();
+          break;
+        }
         yield { type: "token", text: choice.delta.content };
       }
       for (const tc of choice?.delta?.tool_calls ?? []) {
@@ -211,10 +250,42 @@ export async function* runChat(opts: {
       if (chunk.usage) {
         usageIn += chunk.usage.prompt_tokens ?? 0;
         usageOut += chunk.usage.completion_tokens ?? 0;
+        // Overwrite (not accumulate) — this is the real per-round context
+        // size, and only the LAST round's value describes the context the
+        // shipped answer was produced against.
+        if (chunk.usage.prompt_tokens) contextTokens = chunk.usage.prompt_tokens;
       }
     }
 
     if (opts.signal?.aborted) break;
+
+    // Repetition handbrake: wipe whatever streamed, rewrite once with no tools.
+    // The bad draft never enters msgs. A second degeneration ships empty rather
+    // than looping retries (same one-shot policy as the compose guard).
+    if (degenerated) {
+      captureEvent("chat_loop_repetition", opts.obs, { iter, chars: content.length });
+      yield { type: "clear" };
+      const rewritten = yield* forcedTextAttempt(REPETITION_STEER);
+      let finalContent = rewritten.content;
+      let capped = rewritten.lengthCapped;
+      if (rewritten.degenerated || isRepetitionLoop(finalContent)) {
+        captureEvent("chat_loop_repetition_retry_failed", opts.obs, { chars: finalContent.length });
+        yield { type: "clear" };
+        finalContent = "";
+        capped = false;
+      }
+      yield {
+        type: "done",
+        content: finalContent,
+        usage: { input: usageIn, output: usageOut },
+        contextTokens,
+        generationId,
+        toolCalls,
+        lengthCapped: capped,
+        transcript: finalContent ? [...msgs, { role: "assistant", content: finalContent }] : [...msgs],
+      };
+      return;
+    }
 
     // A tool round. Trust the accumulated `pending` map directly rather than
     // gating on finish_reason === "tool_calls": OpenRouter fans a tier out
@@ -345,18 +416,27 @@ export async function* runChat(opts: {
     // Otherwise this streamed content is the final answer. If the round came
     // back EMPTY (not aborted), the compose guard buys exactly one more
     // no-tools attempt before the turn is allowed to end — an empty second
-    // attempt ships as-is rather than retrying forever.
+    // attempt ships as-is rather than retrying forever. A compose that itself
+    // degenerates into a repetition loop is cleared the same way.
     let finalContent = content;
     let capped = finishReason === "length";
     if (!finalContent.trim() && !opts.signal?.aborted) {
-      const composed = yield* composeFinal();
-      finalContent = composed.content;
-      capped = composed.lengthCapped;
+      const composed = yield* forcedTextAttempt(COMPOSE_STEER);
+      if (composed.degenerated || isRepetitionLoop(composed.content)) {
+        captureEvent("chat_loop_repetition", opts.obs, { iter, chars: composed.content.length, stage: "compose" });
+        yield { type: "clear" };
+        finalContent = "";
+        capped = false;
+      } else {
+        finalContent = composed.content;
+        capped = composed.lengthCapped;
+      }
     }
     yield {
       type: "done",
       content: finalContent,
       usage: { input: usageIn, output: usageOut },
+      contextTokens,
       generationId,
       toolCalls,
       lengthCapped: capped,
@@ -367,5 +447,5 @@ export async function* runChat(opts: {
 
   // Reached only if aborted, or maxIterations somehow exhausted without a text
   // answer. Emit a terminal event so callers can persist + close cleanly.
-  yield { type: "done", content: "", usage: { input: usageIn, output: usageOut }, generationId, toolCalls, lengthCapped: false, transcript: [...msgs] };
+  yield { type: "done", content: "", usage: { input: usageIn, output: usageOut }, contextTokens, generationId, toolCalls, lengthCapped: false, transcript: [...msgs] };
 }
