@@ -239,12 +239,16 @@ test("a zero-tool answer with groundable content is never bypassed — even a sm
         }),
       );
       // The judge FIRED (concurrently, on the uncheckable first message) but
-      // its favorable ruling is never consulted: the answer cited without
-      // tools — the hallucination case — so the audit runs regardless, and
-      // the unconsumed ruling leaves no checksMeta row.
+      // its favorable ruling is not consulted: the answer cited without
+      // tools — the hallucination case — so the audit runs regardless. The
+      // call still lands in checksMeta so its tokens count toward the
+      // rate-limit window.
       expect(judgeCalls.length).toBe(1);
       expect(events.some((e) => e.type === "verify_result")).toBe(true);
-      expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify"]);
+      const meta = lastDone(events).checksMeta;
+      expect(meta.map((c) => c.kind).slice(0, 3)).toEqual(["smalltalk_judge", "round_checks", "verify"]);
+      expect(meta[0].inputTokens).toBe(5);
+      expect(meta[0].outputTokens).toBe(2);
     })));
 
 test("the judge never fires on a groundable QUESTION — 'what is A.1.6?' needs no model to be ruled factual", () =>

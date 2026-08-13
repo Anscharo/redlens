@@ -22,6 +22,11 @@ describe("isUncheckableAnswer", () => {
     expect(isUncheckableAnswer("Check [this](https://example.com).")).toBe(false);
   });
 
+  it("fails on a bare URL with no digits (autolink, not markdown)", () => {
+    expect(isUncheckableAnswer("See https://sky.money for more.")).toBe(false);
+    expect(isUncheckableAnswer("http://forum.sky.money/t/hello")).toBe(false);
+  });
+
   it("fails on a reference-style citation label", () => {
     expect(isUncheckableAnswer("The rule requires it [1]")).toBe(false);
   });

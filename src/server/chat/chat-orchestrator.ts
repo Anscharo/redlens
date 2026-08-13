@@ -427,10 +427,11 @@ export async function* runVerifiedChat(opts: {
   //      conversation + the question itself contains nothing groundable);
   //   2. zero tool rounds — the conversationalist itself judged no atlas was
   //      needed (the system prompt tells it plain conversation is tool-free);
-  //   3. the answer contains nothing checkable — no doc numbers, links,
-  //      reference labels, addresses, figures, or slug/code spans
-  //      (smalltalk.ts) — a zero-tool answer that cites or quantifies is
-  //      exactly the hallucination case the verifier exists for;
+  //   3. the answer contains nothing checkable — no doc numbers, links
+  //      (markdown or bare autolink), reference labels, addresses, figures,
+  //      or slug/code spans (smalltalk.ts) — a zero-tool answer that cites
+  //      or quantifies is exactly the hallucination case the verifier exists
+  //      for;
   //   4. the judge, given the USER MESSAGE, rules it expects no factual
   //      content. This closes the hole the answer-side predicate can't see:
   //      "is the fee governance-controlled?" answered with a marker-free
@@ -438,10 +439,12 @@ export async function* runVerifiedChat(opts: {
   // On bypass the answer returns immediately — no comparing/checking ticker,
   // no verify chip. Citation repair is provably a no-op here (condition 3
   // rejects every link/label shape), so it is skipped too. The judge call is
-  // recorded in checksMeta (on the paths that consult it) so its tokens land
-  // in message_checks and count toward the rate-limit window like every other
-  // harness call.
-  if (judgePromise && done.toolCalls.length === 0 && !done.lengthCapped && isUncheckableAnswer(done.content)) {
+  // always recorded in checksMeta when it fired — even if the ruling is
+  // discarded because tools ran or the answer is checkable — so its tokens
+  // land in message_checks and count toward the rate-limit window like every
+  // other harness call. The prompt is tiny (a few-line classifier + the user
+  // message, maxTokens 50), but it is still a billed call.
+  if (judgePromise) {
     const judge = await judgePromise; // long since resolved — it raced the whole answer
     checksMeta.push({
       kind: "smalltalk_judge", model: smalltalkJudgeModel, action: null,
@@ -449,7 +452,7 @@ export async function* runVerifiedChat(opts: {
       inputTokens: judge.usage?.input ?? null, outputTokens: judge.usage?.output ?? null,
       generationId: judge.generationId, latencyMs: judge.latencyMs,
     });
-    if (judge.smalltalk) {
+    if (done.toolCalls.length === 0 && !done.lengthCapped && isUncheckableAnswer(done.content) && judge.smalltalk) {
       captureEvent("chat_smalltalk_bypass", opts.obs, { chars: done.content.length });
       yield finish(done);
       return;

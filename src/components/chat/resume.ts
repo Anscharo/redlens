@@ -1,9 +1,12 @@
-// Reload-resume snapshot for the chat widget. While the panel is open,
-// ChatWidget keeps this snapshot current (and re-stamps it on pagehide, the
-// reliable reload/close signal); an explicit close clears it. On mount, a
-// snapshot fresher than RESUME_WINDOW_MS reopens the panel on the same
-// conversation — so a page refresh mid-chat lands back exactly where it was,
-// while returning to a long-dead tab starts collapsed as usual.
+// Reload-resume snapshot for the chat widget. sessionStorage (not
+// localStorage): per-tab, so two open chats don't overwrite each other and
+// closing one doesn't wipe another's snapshot. Survives a reload, dies with
+// the tab. While the panel is open, ChatWidget keeps this snapshot current
+// (and re-stamps it on pagehide, the reliable reload/close signal); an
+// explicit close clears it. On mount, a snapshot fresher than
+// RESUME_WINDOW_MS reopens the panel on the same conversation — so a page
+// refresh mid-chat lands back exactly where it was, while a brand-new tab
+// (or a long-dead one) starts collapsed as usual.
 const KEY = "rlc-resume";
 
 export const RESUME_WINDOW_MS = 30_000;
@@ -15,18 +18,18 @@ export interface ResumeSnapshot {
 }
 
 export function writeResume(s: ResumeSnapshot): void {
-  localStorage.setItem(KEY, JSON.stringify(s));
+  sessionStorage.setItem(KEY, JSON.stringify(s));
 }
 
 export function clearResume(): void {
-  localStorage.removeItem(KEY);
+  sessionStorage.removeItem(KEY);
 }
 
 // Returns the snapshot only while it's still fresh; stale or malformed reads
 // are null AND cleared, so an expired snapshot can't linger around to confuse
 // a later session.
 export function readFreshResume(now = Date.now()): ResumeSnapshot | null {
-  const raw = localStorage.getItem(KEY);
+  const raw = sessionStorage.getItem(KEY);
   if (!raw) return null;
   try {
     const s = JSON.parse(raw) as Partial<ResumeSnapshot>;

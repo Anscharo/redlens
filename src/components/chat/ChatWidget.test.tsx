@@ -106,6 +106,7 @@ function sse(events: ChatEvent[]): ReadableStream<Uint8Array> {
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   document.body.className = "";
   getConversation.mockReset();
 });
@@ -113,6 +114,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  sessionStorage.clear();
   document.body.className = "";
   vi.clearAllMocks();
   vi.unstubAllGlobals();
@@ -357,7 +359,7 @@ describe("ChatWidget conversation memory", () => {
 
 describe("ChatWidget reload-resume", () => {
   const freshSnapshot = (over: Record<string, unknown> = {}) =>
-    localStorage.setItem("rlc-resume", JSON.stringify({ at: Date.now(), conversationId: null, title: null, ...over }));
+    sessionStorage.setItem("rlc-resume", JSON.stringify({ at: Date.now(), conversationId: null, title: null, ...over }));
 
   it("reopens immediately (no launcher) from a fresh snapshot and tracks a resumed open", () => {
     freshSnapshot();
@@ -383,7 +385,7 @@ describe("ChatWidget reload-resume", () => {
   });
 
   it("stays collapsed when the snapshot is older than 30s", () => {
-    localStorage.setItem(
+    sessionStorage.setItem(
       "rlc-resume",
       JSON.stringify({ at: Date.now() - 31_000, conversationId: "conv-7", title: null }),
     );
@@ -396,12 +398,12 @@ describe("ChatWidget reload-resume", () => {
   it("writes a snapshot while open and re-stamps it on pagehide", () => {
     renderWidget();
     fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
-    const first = JSON.parse(localStorage.getItem("rlc-resume")!) as { at: number };
+    const first = JSON.parse(sessionStorage.getItem("rlc-resume")!) as { at: number };
     expect(first.at).toBeGreaterThan(0);
     vi.useFakeTimers();
     vi.setSystemTime(first.at + 5_000);
     fireEvent(window, new Event("pagehide"));
-    const stamped = JSON.parse(localStorage.getItem("rlc-resume")!) as { at: number };
+    const stamped = JSON.parse(sessionStorage.getItem("rlc-resume")!) as { at: number };
     expect(stamped.at).toBe(first.at + 5_000);
     vi.useRealTimers();
   });
@@ -409,15 +411,26 @@ describe("ChatWidget reload-resume", () => {
   it("clears the snapshot on an explicit close, so a reload right after stays collapsed", () => {
     renderWidget();
     fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
-    expect(localStorage.getItem("rlc-resume")).not.toBeNull();
+    expect(sessionStorage.getItem("rlc-resume")).not.toBeNull();
     fireEvent.click(screen.getByText("close-panel"));
-    expect(localStorage.getItem("rlc-resume")).toBeNull();
+    expect(sessionStorage.getItem("rlc-resume")).toBeNull();
   });
 
   it("clears the snapshot on Escape-close too", () => {
     renderWidget();
     fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(localStorage.getItem("rlc-resume")).toBeNull();
+    expect(sessionStorage.getItem("rlc-resume")).toBeNull();
+  });
+
+  it("does not resume from a leftover localStorage snapshot (other-tab residue)", () => {
+    localStorage.setItem(
+      "rlc-resume",
+      JSON.stringify({ at: Date.now(), conversationId: "other-tab", title: "Nope" }),
+    );
+    renderWidget();
+    expect(screen.queryByTestId("chat-panel")).toBeNull();
+    expect(screen.getByLabelText("Open the Atlas agent")).toBeInTheDocument();
+    expect(getConversation).not.toHaveBeenCalled();
   });
 });
