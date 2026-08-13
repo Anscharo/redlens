@@ -37,8 +37,9 @@ const docByDocNo = new Map(Object.values(docs).map((d) => [d.doc_no, d]));
 const entityById = new Map(relations.entities.map((e) => [e.id, e]));
 
 // Curated Preamble definition docs — keep in sync with DEFINITION_UUIDS in
-// src/lib/govopsResponsibilities.ts.
-const DEFINITION_UUIDS = [
+// src/lib/govopsResponsibilities.ts. Enforced by scripts_tests/govops-uuid-sync.test.ts
+// (edit both together — that test fails otherwise).
+export const DEFINITION_UUIDS = [
   "1e73ee4b-823d-406a-af54-223b43bc8e42", // A.0.1.1.47 — GovOps
   "80c7e2e1-a2af-47dd-80c7-aee6823cca91", // A.0.1.1.48 — Operational Executor GovOps
   "e512e890-629f-450f-a14d-a3ea06a369c0", // A.0.1.1.49 — Core Council GovOps
