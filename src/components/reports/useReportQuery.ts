@@ -2,13 +2,15 @@
 // filter is a URL param (shareable, back-button-safe) and every toggle emits
 // ONE event shape:
 //
-//   report_filter { report, filter_kind, value, active }
+//   report_filter { report, filter_type, value, active }
 //
-// `filter_kind` is the dimension (chain, category, precision…), `value` is the
+// `filter_type` is the dimension (chain, category, precision…), `value` is the
 // resulting filter value — null when the click CLEARS the filter — and `active`
 // says whether the dimension is now filtering. Reports used to split between
-// `filter_type`/`value` and `filter_kind`/`slug`; routing every toggle through
-// these hooks is what keeps that from drifting apart again.
+// `filter_type`/`value` and `filter_kind`/`slug`; we unified on `filter_type`
+// because it was the majority schema AND the one every saved PostHog insight
+// references — routing every toggle through these hooks is what keeps the
+// split from reopening.
 import { useEffect, useMemo, useRef, useTransition } from "react";
 import { track } from "../../lib/analytics";
 import { useUrlState, urlEnum, urlEnumList, type UrlCodec } from "../../hooks/useUrlState";
@@ -28,7 +30,7 @@ export function trackReportFilter(
   value: string | number | null,
   active: boolean,
 ): void {
-  track("report_filter", { report, filter_kind: kind, value, active });
+  track("report_filter", { report, filter_type: kind, value, active });
 }
 
 /** `report_view`, once per mount, as soon as the page has data (`ready`).

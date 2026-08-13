@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The report filter hooks are the single source of the `report_filter` event
-// shape — one `filter_kind` property across every report, `value` null when a
+// shape — one `filter_type` property across every report, `value` null when a
 // click CLEARS the filter. These tests pin that contract (a rename here breaks
 // PostHog dashboards) plus the URL round-trip each hook owns.
 import { describe, it, expect, vi, afterEach } from "vitest";
@@ -38,7 +38,7 @@ describe("report filter hooks", () => {
     expect(result.current[0]).toBe("Spark");
     expect(track).toHaveBeenLastCalledWith("report_filter", {
       report: "active-data",
-      filter_kind: "agent",
+      filter_type: "agent",
       value: "Spark",
       active: true,
     });
@@ -47,20 +47,20 @@ describe("report filter hooks", () => {
     expect(result.current[0]).toBeNull();
     expect(track).toHaveBeenLastCalledWith("report_filter", {
       report: "active-data",
-      filter_kind: "agent",
+      filter_type: "agent",
       value: null,
       active: false,
     });
   });
 
-  it("useReportFilter takes an explicit filter_kind when it differs from the param", () => {
+  it("useReportFilter takes an explicit filter_type when it differs from the param", () => {
     const { result } = renderHook(() => useReportFilter("oea-assessment", "cat", codec, "category"), {
       wrapper: wrapperFor("/"),
     });
     act(() => result.current[1]("assignment"));
     expect(track).toHaveBeenLastCalledWith("report_filter", {
       report: "oea-assessment",
-      filter_kind: "category",
+      filter_type: "category",
       value: "assignment",
       active: true,
     });
@@ -77,7 +77,7 @@ describe("report filter hooks", () => {
     expect(result.current[0]).toBe("all");
     expect(track).toHaveBeenLastCalledWith("report_filter", {
       report: "processes",
-      filter_kind: "status",
+      filter_type: "status",
       value: null,
       active: false,
     });
@@ -92,7 +92,7 @@ describe("report filter hooks", () => {
     expect(result.current[0]).toBe("list");
     expect(track).toHaveBeenLastCalledWith("report_filter", {
       report: "mod-frequency",
-      filter_kind: "tab",
+      filter_type: "tab",
       value: "list",
       active: true,
     });
@@ -100,7 +100,7 @@ describe("report filter hooks", () => {
     expect(result.current[0]).toBe("timeline");
     expect(track).toHaveBeenLastCalledWith("report_filter", {
       report: "mod-frequency",
-      filter_kind: "tab",
+      filter_type: "tab",
       value: "timeline",
       active: false,
     });
@@ -117,7 +117,7 @@ describe("report filter hooks", () => {
     expect(result.current[0]).toEqual(["sc"]);
     expect(track).toHaveBeenLastCalledWith("report_filter", {
       report: "risk-rules",
-      filter_kind: "domain",
+      filter_type: "domain",
       value: null,
       active: false,
     });
@@ -132,7 +132,7 @@ describe("report filter hooks", () => {
     expect(result.current[0]).toBe(true);
     expect(track).toHaveBeenLastCalledWith("report_filter", {
       report: "processes",
-      filter_kind: "show_ignored",
+      filter_type: "show_ignored",
       value: null,
       active: true,
     });

@@ -227,7 +227,7 @@
         "x layer"
       ],
       "rpcUrl": "https://rpc.xlayer.tech",
-      "explorer": "https://www.oklink.com/x-layer/evm/",
+      "explorer": "https://www.oklink.com/x-layer/evm/address/",
       "nativeToken": {
         "symbol": "OKB",
         "decimals": 18
