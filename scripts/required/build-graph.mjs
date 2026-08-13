@@ -13,12 +13,13 @@
  *
  * Reads:
  *   public/docs.json
+ *   public/addresses.atlas.json
  *   public/addresses.json
- *   public/chain-state.json
  *
  * Writes:
- *   public/graph.json        — full export for local inspection / D1 sync input
- *   public/relations.json    — lean browser payload
+ *   public/graph.json           — full export for local inspection / D1 sync input
+ *   public/relations.json       — lean browser payload
+ *   public/addresses.atlas.json — enriched in place (Phase 4.5)
  */
 
 import fs from "node:fs";
@@ -28,11 +29,7 @@ import { execSync } from "node:child_process";
 
 import {
   slugify,
-  normalizeKey,
-  buildNameIndex,
-  resolveAliasedEntity,
   makeEntity,
-  ancestorByStripping,
 } from "../lib/graph-patterns.mjs";
 import { checkGateTripwires, warnDriftCount } from "../lib/graph-tripwires.mjs";
 import { extractMultisigs } from "../lib/graph-multisigs.mjs";
@@ -40,14 +37,11 @@ import { extractTransfers } from "../lib/graph-transfers.mjs";
 import { extractBridges } from "../lib/graph-bridges.mjs";
 import { extractOmni } from "../lib/graph-omni.mjs";
 import { extractTransitions } from "../lib/graph-transitions.mjs";
-import {
-  parseMarkdownTable,
-  extractEthAddresses,
-  extractUrl,
-} from "../lib/table-parser.mjs";
 import { extractEntities } from "../lib/graph-entities.mjs";
 import { extractDocEdges } from "../lib/graph-doc-edges.mjs";
 import { extractEntityEdges } from "../lib/graph-entity-edges.mjs";
+import { extractActiveData } from "../lib/graph-active-data.mjs";
+import { enrichAddresses } from "../lib/graph-address-enrich.mjs";
 import {
   ETH_ADDR_RE,
   SOL_ADDR_RE,
@@ -69,9 +63,9 @@ const ROOT = path.resolve(__dirname, "../..");
 
 // Isolation overrides (preview builds) — see build-index.mjs for the rationale.
 // OUT_DIR holds the artifacts this build owns (docs/addresses.atlas in, graph/
-// relations/addresses.atlas out). ONCHAIN_DIR holds inputs reused from main
-// (addresses.json, chain-state.json) which a preview does NOT rebuild — it
-// defaults to OUT_DIR so the main build reads them from public/ as before.
+// relations/addresses.atlas out). ONCHAIN_DIR holds addresses.json, reused
+// from main, which a preview does NOT rebuild — it defaults to OUT_DIR so the
+// main build reads it from public/ as before.
 const ATLAS_SRC_DIR = process.env.ATLAS_SRC_DIR ?? path.join(ROOT, "vendor/next-gen-atlas");
 const OUT_DIR = process.env.ATLAS_OUT_DIR ?? path.join(ROOT, "public");
 const ONCHAIN_DIR = process.env.ATLAS_ONCHAIN_DIR ?? OUT_DIR;
@@ -119,29 +113,6 @@ function resolveLabel(atlas, onChain) {
 // before Phase 1 entity extraction reads it). No pre-population needed here.
 const addressesRaw = {};
 console.log(`  ${Object.keys(addressesAtlas).length} atlas, ${Object.keys(addressesOnChain).length} on-chain`);
-
-console.log("Loading chain-state.json…");
-const chainState = JSON.parse(fs.readFileSync(path.join(ONCHAIN_DIR, "chain-state.json"), "utf8"));
-const chainStateByAddr = {};
-if (chainState.chains) {
-  for (const [chain, data] of Object.entries(chainState.chains)) {
-    for (const [addr, values] of Object.entries(data.values ?? {})) {
-      chainStateByAddr[addr.toLowerCase()] = {
-        chain,
-        block: data.block ?? data.slot ?? null,
-        values,
-      };
-    }
-  }
-} else {
-  for (const [addr, values] of Object.entries(chainState.values ?? {})) {
-    chainStateByAddr[addr.toLowerCase()] = {
-      chain: "ethereum",
-      block: chainState.block ?? null,
-      values,
-    };
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Phase 2.6: Annotate addresses from doc content
@@ -410,317 +381,14 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
 // ---------------------------------------------------------------------------
 // Phase 2.7: Active Data table entity extraction
 //
-// Parses three Active Data tables that contain named actors not captured by
-// the prose-pattern phases above:
-//   - Current Aligned Delegates  (5f584db8) — delegate_org, is_active=1
-//   - Derecognized Delegates     (e7aec672) — delegate_org, is_active=0
-//   - SRC Membership Registry    (d9c6ed16) — src_member, is_active=1
-//
-// For existing delegate_org entities (bootstrapped from chainlog addresses),
-// enriches meta with forum_url and updates has_address edge role metadata.
-// Creates new entities for delegates absent from the chainlog (e.g. BLUE,
-// Cloaky) and registers their addresses in addressesAtlas (written to
-// public/addresses.atlas.json, further enriched in Phase 4.5) and
-// addressesRaw (reflected in the Phase 3 address count).
+// Parses Active Data tables that contain named actors not captured by the
+// prose-pattern phases above (Current Aligned Delegates, Derecognized
+// Delegates, SRC Membership Registry, Current Authorized Forum Accounts,
+// Aligned Delegate Breach Registry) plus a drift detector for every other
+// Active Data table in the atlas. See scripts/lib/graph-active-data.mjs and
+// .claude/skills/parse-atlas/SKILL.md Pattern 16.
 // ---------------------------------------------------------------------------
-{
-  const CURRENT_DELEGATES_UUID  = "5f584db8-f8d8-4118-988c-b2bc3f68ceb7";
-  const DERECOGNIZED_UUID       = "e7aec672-ed19-4329-aaf7-736950be2eb7";
-  const SRC_UUID                = "d9c6ed16-5b0d-4a6f-bb43-387398090afc";
-  const FORUM_ACCOUNTS_UUID     = "b71564fd-22e0-4c69-99d1-5b23fc1fa329"; // A.2.7.1.1.1.1.4.0.6.1
-  const BREACH_REGISTRY_UUID    = "1ddd9cf6-3f93-4a33-8c1d-80405eec1ffb"; // A.1.6.6.1.3.0.6.1
-  // Tables we deliberately do not extract (the drift detector skips them):
-  // Registered Spell Checklists — external GitHub URLs, no graph value.
-  // Current/Previous Sky Direct Exposures (triaged 2026-08-11, issues #260/#262,
-  // atlas c077dc3) — rows name assets/pools ("Treasury Bills", "Uniswap Pools"),
-  // not actors, and attribution ("Investments by Grove in ... on Ethereum
-  // Mainnet") lives in a free-text Description cell. None of the existing
-  // entity_types fit a designated-exposure row; modeling one (and parsing the
-  // attribution prose) is a deliberate deferral, not a mechanical regex
-  // extension — see parse-atlas SKILL.md Pattern 16 addendum.
-  const KNOWN_UNEXTRACTED_TABLES = new Set([
-    "93f5b36b-06a7-4282-9fd7-14e0cbafd08e", // A.1.10.2.5.1.3.2.0.6.1
-    "5f368e33-7a82-4244-a9ba-f285193ec043", // A.2.2.10.1.1.1.1.2.0.6.1 List Of Current Sky Direct Exposures
-    "86fce840-f7f3-4617-bb58-d04db8731c9d", // A.2.2.10.1.1.1.1.3.0.6.1 List Of Previous Sky Direct Exposures
-  ]);
-
-  // Reverse map: address (no chain suffix) → entity id, from existing has_address edges
-  const addrToEntityId = new Map();
-  for (const edge of edges) {
-    if (edge.edgeType === "has_address" && edge.fromType === "entity") {
-      addrToEntityId.set(edge.toId.split(":")[0], edge.fromId);
-    }
-  }
-  const entityById = new Map([...entityMap.values()].map((e) => [e.id, e]));
-
-  function addTableEntity(slug, name, et, isActive, defDocId, meta) {
-    const entity = makeEntity(slug, name, et, {
-      defining_doc_id: defDocId,
-      is_active: isActive,
-      meta,
-    });
-    entityMap.set(slug, entity);
-    entityById.set(entity.id, entity);
-    return entity;
-  }
-
-  function addTableEdge(fromId, fromType, toId, toType, edgeType, meta) {
-    edges.push({ fromId, fromType, toId, toType, edgeType, meta: meta ? JSON.stringify(meta) : undefined });
-  }
-
-  // Record a short-name alias ("Redline") on an entity resolved by its full
-  // name ("Redline Facilitation Group") via resolveAliasedEntity's prefix
-  // fallback, so entity search (entity-resolve.ts scoreEntity) can still find
-  // it on the short form once the two rows have merged into one entity.
-  function addAlias(entity, alias) {
-    const m = JSON.parse(entity.meta ?? "{}");
-    const aliases = new Set(m.aliases ?? []);
-    aliases.add(alias);
-    m.aliases = [...aliases];
-    entity.meta = JSON.stringify(m);
-  }
-
-  let enriched = 0, created = 0, derecognized = 0, srcMembers = 0;
-  const skyGovernance = entityMap.get("sky-governance");
-
-  // --- Table 1: Current Aligned Delegates ---
-  const delegatesDoc = docById.get(CURRENT_DELEGATES_UUID);
-  if (delegatesDoc) {
-    for (const row of parseMarkdownTable(delegatesDoc.content ?? "")) {
-      const name = row["Delegate Name"]?.trim();
-      if (!name) continue;
-      const eaAddr = extractEthAddresses(row["EA Address"] ?? "")[0];
-      const contractAddr = extractEthAddresses(row["Delegation Contract"] ?? "")[0];
-      const forumUrl = extractUrl(row["Forum Post"] ?? "");
-      if (!eaAddr) continue;
-
-      const existingId = addrToEntityId.get(eaAddr);
-      const entity = existingId ? entityById.get(existingId) : null;
-
-      if (entity) {
-        // Enrich: add forum_url to meta, update has_address edge roles.
-        // Also upgrade ecosystem_actor → delegate_org (e.g. entities that appear
-        // in the ERG list get created as ecosystem_actor first; delegate table wins).
-        if (entity.entity_type === "ecosystem_actor") entity.entity_type = "delegate_org";
-        const m = JSON.parse(entity.meta ?? "{}");
-        if (forumUrl) m.forum_url = forumUrl;
-        entity.meta = JSON.stringify(m);
-
-        for (const edge of edges) {
-          if (edge.edgeType !== "has_address" || edge.fromId !== entity.id) continue;
-          const addr = edge.toId.split(":")[0];
-          if (addr === eaAddr) edge.meta = JSON.stringify({ role: "ea_address" });
-          else if (contractAddr && addr === contractAddr) edge.meta = JSON.stringify({ role: "delegation_contract" });
-        }
-        enriched++;
-      } else {
-        // New entity — register addresses, emit has_address edges
-        const s = slugify(name);
-        const ent = addTableEntity(s, name, "delegate_org", 1, CURRENT_DELEGATES_UUID, {
-          source: "active_data_table",
-          forum_url: forumUrl,
-        });
-        for (const [addr, role] of [[eaAddr, "ea_address"], [contractAddr, "delegation_contract"]]) {
-          if (!addr) continue;
-          if (!addressesAtlas[addr]) {
-            const label = role === "ea_address" ? name : `${name} Delegation Contract`;
-            addressesAtlas[addr] = { chain: "ethereum", chains: ["ethereum"], roles: ["delegate"], entityLabel: label };
-            addressesRaw[addr] = { ...addressesAtlas[addr], label, aliases: [] };
-          }
-          addTableEdge(ent.id, "entity", `${addr}:ethereum`, "address", "has_address", { role });
-        }
-        created++;
-      }
-
-      const rowEntityId = entity?.id ?? entityMap.get(slugify(name))?.id;
-      addTableEdge(rowEntityId, "entity", CURRENT_DELEGATES_UUID, "doc", "listed_in", null);
-      // Inclusion in this registry IS Aligned Delegate recognition (Pattern 10).
-      // The doc used to be a prose list (handled in Phase 2 as a fallback);
-      // as a table, the role edges are emitted here.
-      if (rowEntityId && skyGovernance) {
-        edges.push({
-          fromId: rowEntityId, fromType: "entity", toId: skyGovernance.id, toType: "entity",
-          edgeType: "aligned_delegate_for", sourceDocNos: [delegatesDoc.doc_no],
-        });
-      }
-    }
-  }
-
-  // --- Table 2: Derecognized Alignment Conservers ---
-  const derecognizedDoc = docById.get(DERECOGNIZED_UUID);
-  if (derecognizedDoc) {
-    for (const row of parseMarkdownTable(derecognizedDoc.content ?? "")) {
-      const name = row["Identity"]?.trim();
-      if (!name || name === "-") continue;
-      const s = slugify(name);
-      if (entityMap.has(s)) continue;
-      const ent = addTableEntity(s, name, "delegate_org", 0, DERECOGNIZED_UUID, {
-        source: "active_data_table",
-        derecognition_date: row["Date"]?.trim(),
-        forum_url: extractUrl(row["Reasoning Post"] ?? ""),
-      });
-      addTableEdge(ent.id, "entity", DERECOGNIZED_UUID, "doc", "listed_in", null);
-      derecognized++;
-    }
-  }
-
-  // --- Table 3: SRC Membership Registry ---
-  const srcDoc = docById.get(SRC_UUID);
-  if (srcDoc) {
-    for (const row of parseMarkdownTable(srcDoc.content ?? "")) {
-      const name = row["Name or Alias"]?.trim();
-      if (!name) continue;
-      const s = slugify(name);
-      if (entityMap.has(s)) continue;
-      const ent = addTableEntity(s, name, "src_member", 1, SRC_UUID, {
-        source: "active_data_table",
-        domain_expertise: row["Domain Expertise"]?.trim(),
-        start_date: row["Start Date"]?.trim(),
-        term_status: row["Term Status"]?.trim(),
-        standing: row["Standing"]?.trim(),
-      });
-      const govRaw = row["Verified Governance Address"]?.trim();
-      if (govRaw && govRaw !== "N/A") {
-        for (const addr of extractEthAddresses(govRaw)) {
-          if (!addressesAtlas[addr]) {
-            addressesAtlas[addr] = { chain: "ethereum", chains: ["ethereum"], roles: ["governance"], entityLabel: name };
-            addressesRaw[addr] = { ...addressesAtlas[addr], label: name, aliases: [] };
-          }
-          addTableEdge(ent.id, "entity", `${addr}:ethereum`, "address", "has_address", { role: "governance" });
-        }
-      }
-      addTableEdge(ent.id, "entity", SRC_UUID, "doc", "listed_in", null);
-      srcMembers++;
-    }
-  }
-
-  // --- Table 4: Current Authorized Forum Accounts ---
-  // Columns: Entity Name | Role | Entity Handle | Handles of Authorized
-  // Representatives. Row entities get meta.forum_handle; each rep handle
-  // becomes an ecosystem_actor (st="individual") with an authorized_rep_for
-  // edge to the org. Reps that resolve to existing orgs (e.g. "SoterLabs" for
-  // Amatsu) reuse that entity rather than creating an individual.
-  let forumRows = 0, forumReps = 0;
-  const forumDoc = docById.get(FORUM_ACCOUNTS_UUID);
-  if (forumDoc) {
-    const nameIndex = buildNameIndex(entityMap);
-    const registerInIndex = (e) => {
-      for (const key of [normalizeKey(e.name), normalizeKey(e.slug)])
-        if (key && !nameIndex.has(key)) nameIndex.set(key, e);
-    };
-    for (const row of parseMarkdownTable(forumDoc.content ?? "")) {
-      const name = row["Entity Name"]?.trim();
-      if (!name || name === "N/A") continue;
-      let entity = resolveAliasedEntity(nameIndex, entityMap, name);
-      if (!entity) {
-        entity = addTableEntity(slugify(name), name, "ecosystem_actor", 1, FORUM_ACCOUNTS_UUID, {
-          source: "forum_accounts_table",
-        });
-        registerInIndex(entity);
-      } else {
-        nameIndex.set(normalizeKey(name), entity); // cache the short-name alias too
-        if (normalizeKey(name) !== normalizeKey(entity.name) && normalizeKey(name) !== normalizeKey(entity.slug))
-          addAlias(entity, name);
-      }
-      const handle = row["Entity Handle"]?.trim();
-      const role = row["Role"]?.trim();
-      const m = JSON.parse(entity.meta ?? "{}");
-      if (handle && handle !== "N/A") m.forum_handle = handle;
-      if (role && role !== "N/A") m.forum_role = role;
-      entity.meta = JSON.stringify(m);
-      addTableEdge(entity.id, "entity", FORUM_ACCOUNTS_UUID, "doc", "listed_in", {
-        handle: handle !== "N/A" ? handle : undefined,
-        role: role !== "N/A" ? role : undefined,
-      });
-      forumRows++;
-
-      const repsRaw = (row["Handles of Authorized Representatives"] ?? "")
-        .replace(/\s*\([^)]*\)\s*/g, " ")
-        .trim();
-      if (!repsRaw || repsRaw === "N/A") continue;
-      for (const handleName of repsRaw.split(/,\s*/).map((s) => s.trim()).filter(Boolean)) {
-        let rep = resolveAliasedEntity(nameIndex, entityMap, handleName);
-        if (!rep) {
-          rep = addTableEntity(slugify(handleName), handleName, "ecosystem_actor", 1, FORUM_ACCOUNTS_UUID, {
-            source: "forum_accounts_table",
-            forum_handle: handleName,
-          });
-          rep.subtype = "individual";
-          registerInIndex(rep);
-        } else {
-          nameIndex.set(normalizeKey(handleName), rep); // cache the short-name alias too
-          if (normalizeKey(handleName) !== normalizeKey(rep.name) && normalizeKey(handleName) !== normalizeKey(rep.slug))
-            addAlias(rep, handleName);
-        }
-        if (rep.id === entity.id) continue;
-        addTableEdge(rep.id, "entity", entity.id, "entity", "authorized_rep_for", {
-          handle: handleName,
-        });
-        forumReps++;
-      }
-    }
-  } else {
-    console.warn(`  Phase 2.7: Forum Accounts doc (${FORUM_ACCOUNTS_UUID}) not found`);
-  }
-
-  // --- Table 5: Aligned Delegate Breach Registry ---
-  // Columns: Date | Identity | Breach Tier | Reasoning Post. Rows are dated
-  // governance events attached to existing delegate entities via listed_in.
-  let breaches = 0;
-  const breachDoc = docById.get(BREACH_REGISTRY_UUID);
-  if (breachDoc) {
-    const nameIndex = buildNameIndex(entityMap);
-    for (const row of parseMarkdownTable(breachDoc.content ?? "")) {
-      const identity = row["Identity"]?.trim();
-      if (!identity) continue;
-      let entity = nameIndex.get(normalizeKey(identity));
-      if (!entity) {
-        entity = addTableEntity(slugify(identity), identity, "delegate_org", 1, BREACH_REGISTRY_UUID, {
-          source: "breach_registry_table",
-        });
-        nameIndex.set(normalizeKey(identity), entity);
-      }
-      addTableEdge(entity.id, "entity", BREACH_REGISTRY_UUID, "doc", "listed_in", {
-        date: row["Date"]?.trim(),
-        breach_tier: row["Breach Tier"]?.trim(),
-        reasoning_url: extractUrl(row["Reasoning Post"] ?? "") ?? undefined,
-      });
-      breaches++;
-    }
-  } else {
-    console.warn(`  Phase 2.7: Breach Registry doc (${BREACH_REGISTRY_UUID}) not found`);
-  }
-
-  console.log(
-    `\n  Phase 2.7: ${enriched} delegates enriched, ${created} created,` +
-    ` ${derecognized} derecognized, ${srcMembers} SRC members,` +
-    ` ${forumRows} forum rows (${forumReps} rep edges), ${breaches} breaches`,
-  );
-
-  // --- Drift detector: Active Data tables we are not extracting ---
-  // Fires when any Active Data doc outside the handled/known-ignored sets
-  // gains table rows — e.g. the 29 per-instance payment ledgers (all empty
-  // today) or the Registered Multisigs registry. Loud by design.
-  const HANDLED_TABLE_UUIDS = new Set([
-    CURRENT_DELEGATES_UUID, DERECOGNIZED_UUID, SRC_UUID, FORUM_ACCOUNTS_UUID, BREACH_REGISTRY_UUID,
-  ]);
-  let driftWarnings = 0;
-  for (const d of allDocs) {
-    if (d.type !== "Active Data") continue;
-    if (HANDLED_TABLE_UUIDS.has(d.id) || KNOWN_UNEXTRACTED_TABLES.has(d.id)) continue;
-    const rows = parseMarkdownTable(d.content ?? "").filter((row) =>
-      Object.values(row).some((v) => v && v.trim()),
-    );
-    if (!rows.length) continue;
-    driftWarnings++;
-    console.warn(
-      `  [drift] unextracted Active Data table: ${d.doc_no} "${d.title}" (${d.id}, ${rows.length} rows)`,
-    );
-  }
-  if (driftWarnings) {
-    console.warn(`  [drift] ${driftWarnings} Active Data table(s) contain rows but are not extracted`);
-  }
-}
+extractActiveData(allDocs, docById, entityMap, edges, addressesAtlas, addressesRaw);
 
 // ---------------------------------------------------------------------------
 // Phase 2.8: Multisigs, transfer events, integration partners
@@ -972,96 +640,31 @@ console.log(`  relations.json written (${(relSize / 1024).toFixed(0)} KB)`);
 // Phase 4.5: Enrich addresses.atlas.json with graph-derived annotations
 //
 // Mutates addressesAtlas in place (the atlas-only artifact). Never touches
-// addresses.json (on-chain data). Five passes, each only fills gaps:
-//   4.5a — ICD-param: roles + entityLabel from structured ICD params
-//   4.5b — Entity-linked: entityLabel from graph entities via labelToAddresses
-//   4.5c — Parent-titled: "Address" docs → parent doc title
-//   4.5d — Doc-titled: any address-bearing doc with a descriptive title
-//   4.5e — Chainlog/Etherscan fallback: last resort from on-chain data
+// addresses.json (on-chain data). Five passes, each only fills gaps — see
+// scripts/lib/graph-address-enrich.mjs for the pass-by-pass breakdown.
 // ---------------------------------------------------------------------------
 {
-  let icdUpdated = 0, icdMissing = 0, icdRechained = 0;
-  let entityLabeled = 0, parentLabeled = 0, titleLabeled = 0, chainlogFallback = 0;
-
-  // 4.5a
-  for (const [addr, ann] of icdAnnotations) {
-    const entry = addressesAtlas[addr];
-    if (!entry) { icdMissing++; continue; }
-    entry.roles = [...new Set([...ann.roles, ...(entry.roles ?? [])])];
-    if (ann.entityLabel) entry.entityLabel = ann.entityLabel;
-    // A chain the ICD states outright beats build-index's prose/heading
-    // heuristic — a `Token Address (Avalanche)` param key or a `Network` param
-    // is structured data about this exact address. It becomes the primary and
-    // joins `chains` (the address may still be on the others too).
-    if (ann.chain) {
-      entry.chains = [...new Set([ann.chain, ...(entry.chains ?? [entry.chain])])];
-      if (ann.chain !== entry.chain) {
-        entry.chain = ann.chain;
-        icdRechained++;
-      }
-    }
-    icdUpdated++;
-  }
-
-  // 4.5b
   const { labelToAddresses } = entityContext;
-  for (const [slug, addrList] of labelToAddresses) {
-    const entity = entityMap.get(slug);
-    if (!entity) continue;
-    for (const { addr } of addrList) {
-      const entry = addressesAtlas[addr];
-      if (!entry || entry.entityLabel) continue;
-      entry.entityLabel = entity.name;
-      entityLabeled++;
-    }
-  }
-
-  // 4.5c
-  const GENERIC_TITLE = /^address(?:es)?$/i;
-  for (const doc of allDocs) {
-    if (!GENERIC_TITLE.test(doc.title.trim()) || !doc.addressRefs?.length) continue;
-    // Parent via doc_no arithmetic, not parentId: heading depth caps at 6, and
-    // these generic "Address" leaves sit well below that in the artifact trees.
-    const parentDoc = ancestorByStripping(doc, 1, docByDocNo);
-    if (!parentDoc) continue;
-    for (const addr of doc.addressRefs) {
-      const entry = addressesAtlas[addr.toLowerCase()] ?? addressesAtlas[addr];
-      if (!entry || entry.entityLabel) continue;
-      entry.entityLabel = parentDoc.title;
-      parentLabeled++;
-    }
-  }
-
-  // 4.5d
-  const SKIP_TITLE_D = /^address(?:es)?$|^parameters?$/i;
-  for (const doc of allDocs) {
-    if (!doc.addressRefs?.length || SKIP_TITLE_D.test(doc.title.trim())) continue;
-    for (const addr of doc.addressRefs) {
-      const entry = addressesAtlas[addr.toLowerCase()] ?? addressesAtlas[addr];
-      if (!entry || entry.entityLabel) continue;
-      entry.entityLabel = doc.title;
-      titleLabeled++;
-    }
-  }
-
-  // 4.5e: chainlog/Etherscan fallback — pull from on-chain file
-  for (const [addr, entry] of Object.entries(addressesAtlas)) {
-    if (entry.entityLabel) continue;
-    const onChain = addressesOnChain[addr] ?? {};
-    const fallback = onChain.chainlogId ?? onChain.etherscanName ?? null;
-    if (fallback) { entry.entityLabel = fallback; chainlogFallback++; }
-  }
+  const stats = enrichAddresses({
+    allDocs,
+    docByDocNo,
+    addressesAtlas,
+    addressesOnChain,
+    icdAnnotations,
+    entityMap,
+    labelToAddresses,
+  });
 
   fs.writeFileSync(path.join(OUT_DIR, "addresses.atlas.json"), JSON.stringify({ atlasCommit, addresses: addressesAtlas }));
   console.log(
     `  Atlas enrichment:` +
-    ` ${icdUpdated} ICD` +
-    (icdMissing ? ` (${icdMissing} not in prose)` : "") +
-    (icdRechained ? ` [${icdRechained} chain corrected]` : "") +
-    `, ${entityLabeled} entity-linked` +
-    `, ${parentLabeled} parent-titled` +
-    `, ${titleLabeled} doc-titled` +
-    `, ${chainlogFallback} chainlog-fallback`,
+    ` ${stats.icdUpdated} ICD` +
+    (stats.icdMissing ? ` (${stats.icdMissing} not in prose)` : "") +
+    (stats.icdRechained ? ` [${stats.icdRechained} chain corrected]` : "") +
+    `, ${stats.entityLabeled} entity-linked` +
+    `, ${stats.parentLabeled} parent-titled` +
+    `, ${stats.titleLabeled} doc-titled` +
+    `, ${stats.chainlogFallback} chainlog-fallback`,
   );
 }
 
