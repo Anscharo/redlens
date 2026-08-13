@@ -18,3 +18,9 @@ export function isLogicLine(file: string, lineNo: number): boolean;
  * COVERAGE_CHANGED_MIN / COVERAGE_CHANGED_GRACE.
  */
 export function meetsChangedMin(changedCovered: number, changedTotal: number, min?: number, grace?: number): boolean;
+/**
+ * Merge per-runner LCOV reports (file → line → hits). For multi-runner files,
+ * the runner with the greatest total hits defines the executable line set;
+ * hits sum across runners over that set only.
+ */
+export function mergeLcovReports(reports: Array<Map<string, Map<number, number>>>): Map<string, Map<number, number>>;
