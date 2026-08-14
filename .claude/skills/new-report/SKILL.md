@@ -9,7 +9,8 @@ description: >
   scoped in-report search, analytics, result counts, and registration.
   Keywords: report, reports, new report, add a report, /reports, ReportId,
   ReportsIndex, CSV export, download CSV, FilterPills, CategoryPills, useUrlState,
-  report_view, report_filter, report_export, active data index, stale dates.
+  ReportShell, useReportQuery, useReportFilter, report_view, report_filter,
+  report_export, active data index, stale dates.
 license: MIT
 metadata:
   author: anscharo
@@ -22,6 +23,27 @@ public, shareable, auditable artifacts — treat consistency across them as a fe
 Work from an existing report as the reference implementation: **`ActiveDataReport.tsx`**
 + **`activeDataIndex.ts`** is the fullest example (data module, CSV, URL filters,
 analytics, counts).
+
+## Rule zero: build the page on the shared harness
+
+Every report page renders inside **`ReportShell`** (`src/components/reports/ReportShell.tsx`)
+and wires its filters through the **`useReportQuery.ts` hooks** — the harness owns the page
+chrome and the analytics, so pages can't forget or fork them:
+
+- `ReportShell` renders the eyebrow/h1/description, the `controls` slot (pills), the
+  `FilterSummary`, the count + CSV row (`count`/`actions` props — `actions` is normally
+  `<DownloadCsvButton/>`), the loading state (`loading`), the shared no-rows line (`noRows`),
+  and a `fullWidth` slot for wide scrolling tables. It also sets the document title and fires
+  `report_view` once `ready` (extra properties via `viewProps`) — **pages never call
+  `useDocumentTitle` or `track("report_view")` themselves.**
+- Filter state comes from `useReportFilter` / `useReportEnum` / `useReportSelect` /
+  `useReportList` / `useReportSwitch` (`src/components/reports/useReportQuery.ts`). Each wraps
+  `useUrlState` and emits the one canonical `report_filter` event
+  (`{ report, filter_type, value, active }`) through `trackReportFilter` — **never call
+  `track("report_filter")` directly**, and never invent a second property name for the
+  dimension (`filter_type` is the unified schema every saved PostHog insight references).
+- Parse the header-box query with `useReportQuery(query, mode)` and filter rows through the
+  shared `reportFilter.ts` logic.
 
 ## The three non-negotiables
 
@@ -43,12 +65,12 @@ analytics, counts).
    `DownloadCsvButton` fires `track("report_export", { report: "<slug>", format: "csv", scope, row_count })`
    on click (`scope` is `"full"` or `"filtered"`).
 
-2. **Filtering, via the shared filter UI.** Use `useUrlState` so every filter/tab lives
-   in a URL param (shareable, bookmarkable, back-button-safe). Render filters with the
-   shared **`FilterPills`** / **`CategoryPills`** components and the `data-active` styling
-   pattern — do not invent a new filter chrome. Compose multiple filters in distinct params
-   (e.g. `?agent=…&entity=…&cat=…`). Fire
-   `track("report_filter", { report: "<slug>", filter_type, value, active })` on toggle.
+2. **Filtering, via the shared filter UI.** State lives in the `useReportQuery.ts` hooks
+   (rule zero) so every filter/tab is a URL param (shareable, bookmarkable, back-button-safe)
+   and every toggle emits the canonical `report_filter` event automatically. Render filters
+   with the shared **`FilterPills`** / **`CategoryPills`** components and the `data-active`
+   styling pattern — do not invent a new filter chrome. Compose multiple filters in distinct
+   params (e.g. `?agent=…&entity=…&cat=…`).
 
 3. **In-report search.** Typing in the header search box while on a report route sets the
    local `q` URL param instead of redirecting to atlas search (the scoped-search infra in
@@ -71,8 +93,11 @@ analytics, counts).
      the right section. (`report_open` is auto-tracked in `App.tsx` on route entry — don't
      re-add it.)
 
-6. **Result count + empty state.** Show `{filtered.length} <unit>` near the controls, and a
-   plain empty-state message when a filter/search yields zero rows (never a blank page).
+6. **Result count + empty state.** Pass `count` (e.g. `` `${filtered.length} <unit>` ``) and
+   `noRows={filtered.length === 0}` to `ReportShell` — it renders the count row and the shared
+   no-rows line (never a blank page). The one sanctioned exception is a count that belongs
+   inside a tab panel: render `ReportCountRow` there yourself (Modification Frequency is the
+   example).
 
 6a. **CSV rows referencing an atlas doc always carry a `UUID` column** (the raw `doc.id`,
    never a doc_no — see the doc_no-vs-UUID rule) **plus an `Atlas Link` column** built with
@@ -105,15 +130,17 @@ analytics, counts).
    (`src/lib/dutyCollapse.ts`) for `sources`-shaped rows, or `oeaCsvRowCount`
    (`src/lib/oeaReport.ts`) as the pattern for a differently-shaped collapse.
 
-7. **`track("report_view", { report: "<slug>" })`** once on mount, and
-   **`useDocumentTitle("<Title>: Sky Atlas by Redline")`**.
+7. **`report_view` + document title come from `ReportShell`** (rule zero) — pass `report`,
+   `title`, and `ready` (defaults to `!loading`); extra event properties (row counts, rubric
+   version…) go in `viewProps`. Never fire `report_view` or set the title by hand.
 
 8. **Deterministic sort.** Sort rows by a stable key (`localeCompare(…, { numeric: true })`
    over a doc_no/title) so table order and CSV order are reproducible across visits.
 
-9. **Loading & error states.** Data loads (`loadAtlas` / `loadGraph` / etc.) run in parallel;
-   render a loading state while pending and a visible error state on failure — never an
-   eternal spinner.
+9. **Loading & error states.** Data loads (`loadAtlas` / `loadGraph` / etc.) run in parallel
+   (use `useLoaded` from `src/hooks/useAtlasData.ts` rather than a bespoke effect); pass
+   `loading` to `ReportShell` for the pending state, and render a visible error state on
+   failure — never an eternal spinner.
 
 10. **Freshness.** If the report asserts anything time-relative (dates, "upcoming"),
     recompute client-side on every visit rather than baking it into a build artifact — see
@@ -134,10 +161,11 @@ analytics, counts).
 - [ ] `DownloadCsvButton` wired with both full + filtered exports via `src/lib/csv.ts` (escaping correct)
 - [ ] CSV rows include a `UUID` + `Atlas Link` (`atlasUrl()`) column per referenced doc
 - [ ] No CSV row merges multiple docs — collapsed table rows are expanded 1-doc-per-row
-- [ ] Filters URL-synced via `useUrlState` + `FilterPills`/`CategoryPills`
+- [ ] Page renders inside `ReportShell`; filters use the `useReportQuery.ts` hooks
+- [ ] Filters URL-synced (via the hooks) + rendered with `FilterPills`/`CategoryPills`
 - [ ] Header search filters the report in place (`q` param)
 - [ ] Pure `src/lib/<name>Index.ts` + colocated `.test.ts`
 - [ ] Registered in `types.ts`, `routes.ts`, `App.tsx`, `ReportsIndex.tsx`
-- [ ] Result count + empty state; loading + error states
-- [ ] `report_view` / `report_filter` / `report_export` tracked; `useDocumentTitle` set
+- [ ] `count`/`noRows`/`loading` passed to the shell; visible error state on load failure
+- [ ] `report_export` tracked via `DownloadCsvButton` (`report_view`/`report_filter` come from the harness)
 - [ ] Deterministic sort; `patch-notes.md` bullet added

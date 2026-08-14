@@ -14,6 +14,8 @@ import { readdirSync, copyFileSync, existsSync, unlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
+import { stepsFor } from "../lib/build-steps.mjs";
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SUBMODULE = path.join(ROOT, "vendor/next-gen-atlas");
 
@@ -26,13 +28,9 @@ function run(cmd, args, opts = {}) {
 run("git", ["-C", SUBMODULE, "fetch", "origin", "main"]);
 run("git", ["-C", SUBMODULE, "checkout", "origin/main"]);
 
-// 2. Regenerate markdown-derived artifacts (data only; order matches the
-// Dockerfile builder stage's build:* sequence).
-run("bun", ["scripts/required/build-index.mjs"]);
-run("bun", ["scripts/required/build-graph.mjs"]);
-run("bun", ["scripts/required/build-glossary.mjs"]);
-run("bun", ["scripts/required/build-oea-report.ts"]);
-run("bun", ["scripts/required/build-manifest.mjs"]);
+// 2. Regenerate markdown-derived artifacts (data only) — the `refresh` profile
+// of scripts/lib/build-steps.mjs, which records the opt-outs and why.
+for (const step of stepsFor("refresh")) run("bun", [step.script]);
 
 // 3. Publish browser-facing artifacts. The SPA is served from dist/, but the
 // build writes public/; vite mirrors public/→dist/ only at image-build time, so

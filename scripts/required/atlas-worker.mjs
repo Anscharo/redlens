@@ -34,6 +34,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { SQL } from "bun";
 import { touchSyncHeartbeat } from "../lib/worker-heartbeat.mjs";
+import { stepsFor } from "../lib/build-steps.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SUBMODULE = path.join(ROOT, "vendor/next-gen-atlas");
@@ -172,17 +173,15 @@ async function main() {
     run("git", ["-C", SUBMODULE, "checkout", "origin/main"]);
   }
 
-  console.log("atlas-worker: build-index…");
-  run("bun", ["scripts/required/build-index.mjs"]);
-
-  // build-graph enriches addresses.atlas.json (Phase 4.5: ICD-derived roles,
-  // entity/doc-title labels) before sync.ts reads it — otherwise atlas_addresses
-  // is persisted with only the structural Phase-2.6 annotation.
-  console.log("atlas-worker: build-graph…");
-  run("bun", ["scripts/required/build-graph.mjs"]);
-
-  console.log("atlas-worker: build-oea-report…");
-  run("bun", ["scripts/required/build-oea-report.ts"]);
+  // The `worker` profile of scripts/lib/build-steps.mjs (which records what
+  // this profile skips, and why). build-graph runs BEFORE sync.ts because it
+  // enriches addresses.atlas.json (Phase 4.5: ICD-derived roles, entity/
+  // doc-title labels) — otherwise atlas_addresses is persisted with only the
+  // structural Phase-2.6 annotation.
+  for (const step of stepsFor("worker")) {
+    console.log(`atlas-worker: ${step.name}…`);
+    run("bun", [step.script]);
+  }
 
   // ── Structural sync → advances sync_state.atlas_sha ──────────────────────
   console.log("atlas-worker: sync.ts…");

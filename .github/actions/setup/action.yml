@@ -1,0 +1,42 @@
+name: Setup toolchain
+description: >-
+  pnpm + Node 24 (with the pnpm cache), optionally Bun, optionally a frozen
+  install. The post-checkout half of the setup block every workflow job repeats.
+
+# Checkout deliberately stays in the calling workflow: a repo-local action is
+# only resolvable AFTER the repo is on disk, so `./.github/actions/setup` cannot
+# check itself out. Everything downstream of checkout lives here.
+#
+# Step order is load-bearing in one place: pnpm/action-setup must run before
+# actions/setup-node, because `cache: pnpm` needs pnpm on PATH to locate the
+# store. Bun leads so adopting jobs render in the order they already had.
+#
+# Node is pinned to 24 here on purpose — a `node-version` input would re-open the
+# per-job drift this action exists to close. A job that genuinely needs another
+# version should keep its own block (and say why) rather than parameterise this.
+
+inputs:
+  bun:
+    description: 'Install Bun as well ("true" / "false"). Jobs that run `bun` or a bun-runner pnpm script need it.'
+    default: "false"
+  install:
+    description: 'Run `pnpm install --frozen-lockfile` ("true" / "false"). Set false in jobs that restore a packed node_modules artifact instead.'
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+      if: inputs.bun == 'true'
+
+    - uses: pnpm/action-setup@v6
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+        cache: pnpm
+
+    - name: Install dependencies
+      if: inputs.install == 'true'
+      shell: bash
+      run: pnpm install --frozen-lockfile

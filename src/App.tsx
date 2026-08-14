@@ -30,9 +30,12 @@ import { useDataSource } from "./lib/dataSource";
 import { chatEnabled } from "./lib/chatEnabled";
 
 // Deliberately NOT in lib/lazyRoutes.tsx: this stays local to App.tsx, right
-// next to the __CHAT_ENABLED__ guard it's only ever rendered behind, so that
-// guard's dead-code-elimination proof (chat-off builds strip the whole
-// ConversationsPage chunk) isn't disturbed by crossing a module boundary.
+// next to the __CHAT_ENABLED__ guard it's only ever rendered behind, so the
+// guard's dead-code-elimination reasoning isn't disturbed by crossing a module
+// boundary. Note the chunk itself is still EMITTED in chat-off builds — this
+// unconditional lazy() keeps the dynamic import reachable for Rollup — but
+// nothing ever fetches it: the route is unregistered and the widget unmounted
+// (verified by worktree A/B, 2026-08-12). Runtime isolation is the guarantee.
 const ConversationsPage = lazy(() =>
   lazyRetry(() => import("./components/conversations/ConversationsPage")).then((m) => ({
     default: m.ConversationsPage,
@@ -286,8 +289,9 @@ export default function App() {
             </Route>
             {/* __CHAT_ENABLED__ (bare, build-time define) MUST stay the outer
                 guard here — it's what lets the minifier prove this whole
-                branch (and the ConversationsPage chunk) dead and strip it out
-                of chat-off builds. chatEnabled() alone is a function call the
+                render branch dead and strip it out of chat-off builds (the
+                ConversationsPage chunk is still emitted — see the lazy() note
+                above — but never fetched). chatEnabled() alone is a function call the
                 minifier can't evaluate at build time, so chat would ship even
                 when disabled. Do not "simplify" this to chatEnabled() alone.
                 `!preview` is also load-bearing: ConversationsPage calls the
