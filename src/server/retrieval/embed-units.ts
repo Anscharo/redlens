@@ -26,6 +26,7 @@ export const CHUNK_ROOT_MAX = 200;
 export const GROUP_POLICIES = [
   "one_to_one",
   "icd_params",
+  "icd_params_breadcrumbs",
   "directory_direct",
   "directory_descendants",
   "hub_stubs",
@@ -179,13 +180,17 @@ function oneToOneUnit(node: AtlasNode, family = "one_to_one"): EmbedUnit {
   return { anchorId: node.id, memberIds: [node.id], text, hash: oneToOneHash(node), family };
 }
 
-function breadcrumbUnit(node: AtlasNode, byDocNo: Map<string, AtlasNode>, crumbDepth?: number): EmbedUnit {
+// Bounded breadcrumb string ("parent > grandparent") with a trailing "\n\n", or
+// "" when the node has no (non-generic) ancestors. crumbDepth keeps only the N
+// nearest ancestors; ancestorTitles is root→leaf so slice(-N) is the tail.
+function crumbPrefix(node: AtlasNode, byDocNo: Map<string, AtlasNode>, crumbDepth?: number): string {
   let crumbs = ancestorTitles(node, byDocNo);
-  // ancestorTitles is root→leaf, so the nearest ancestors (parent, grandparent)
-  // are at the tail — slice(-N) keeps exactly those.
   if (crumbDepth && crumbDepth > 0) crumbs = crumbs.slice(-crumbDepth);
-  const body = buildEmbedText(node);
-  const text = crumbs.length ? `${crumbs.join(" > ")}\n\n${body}` : body;
+  return crumbs.length ? `${crumbs.join(" > ")}\n\n` : "";
+}
+
+function breadcrumbUnit(node: AtlasNode, byDocNo: Map<string, AtlasNode>, crumbDepth?: number): EmbedUnit {
+  const text = `${crumbPrefix(node, byDocNo, crumbDepth)}${buildEmbedText(node)}`;
   return makeUnit(node.id, [node.id], text, "breadcrumbs");
 }
 
@@ -240,9 +245,11 @@ function icdParamUnits(
   byId: Map<string, AtlasNode>,
   childrenByDocNo: Map<string, AtlasNode[]>,
   cap: number | undefined,
+  crumbOpts?: { byDocNo: Map<string, AtlasNode>; crumbDepth?: number },
 ): { units: EmbedUnit[]; grouped: Set<string> } {
   const units: EmbedUnit[] = [];
   const grouped = new Set<string>();
+  const family = crumbOpts ? "icd_params_breadcrumbs" : "icd_params";
   for (const icd of docs) {
     if (!isICD(icd)) continue;
     const kids = childrenByDocNo.get(icd.doc_no) ?? [];
@@ -258,10 +265,15 @@ function icdParamUnits(
     }
     const memberSet = new Set(members.map((n) => n.id));
     const params = extractInstanceParams(icd, childrenByDocNo) as Record<string, [string, string, string]>;
-    const text = kvText(icd.title, params);
+    // Fused policy prepends the ICD's own (bounded) breadcrumb to the grouped
+    // anchor — ancestral context (primitive/scope) that disambiguates
+    // near-duplicate instances, on top of the folded param key:values. Only the
+    // grouped anchors change text; standalone docs stay one_to_one downstream.
+    const prefix = crumbOpts ? crumbPrefix(icd, crumbOpts.byDocNo, crumbOpts.crumbDepth) : "";
+    const text = `${prefix}${kvText(icd.title, params)}`;
     if (cap && members.length > cap) {
-      const split = splitBySubgroup(paramsDoc, memberSet, byId, childrenByDocNo, cap, "icd_params", (sub, _m) =>
-        kvText(`${icd.title} — ${sub.title}`, params),
+      const split = splitBySubgroup(paramsDoc, memberSet, byId, childrenByDocNo, cap, family, (sub, _m) =>
+        `${prefix}${kvText(`${icd.title} — ${sub.title}`, params)}`,
       );
       for (const u of split) {
         units.push(u);
@@ -269,7 +281,7 @@ function icdParamUnits(
       }
       continue;
     }
-    units.push(makeUnit(icd.id, members.map((n) => n.id), text, "icd_params"));
+    units.push(makeUnit(icd.id, members.map((n) => n.id), text, family));
     for (const n of members) if (n.id !== icd.id) grouped.add(n.id);
   }
   return { units, grouped };
@@ -317,6 +329,8 @@ export function buildUnits(docs: AtlasNode[], policy: GroupPolicy, opts: UnitBui
 
   let extra: { units: EmbedUnit[]; grouped: Set<string> };
   if (policy === "icd_params") extra = icdParamUnits(docs, byId, childrenByDocNo, cap);
+  else if (policy === "icd_params_breadcrumbs")
+    extra = icdParamUnits(docs, byId, childrenByDocNo, cap, { byDocNo, crumbDepth: opts.crumbDepth });
   else if (policy === "directory_direct") extra = directoryUnits(docs, childrenByDocNo, cap, "direct");
   else if (policy === "directory_descendants") extra = directoryUnits(docs, childrenByDocNo, cap, "descendants");
   else extra = directoryUnits(docs, childrenByDocNo, cap, "hub");

@@ -141,6 +141,26 @@ describe("buildUnits policies", () => {
     expect(foldedIds(units).has("opd")).toBe(false);
   });
 
+  it("icd_params_breadcrumbs folds like icd_params but prepends the ICD's bounded breadcrumb", () => {
+    const gp = n("gp", "A.6.1.1.1.2", "Spark");
+    const par = n("par", "A.6.1.1.1.2.1", "SparkLend");
+    const fusedDocs = [gp, par, ...docs];
+    const units = buildUnits(fusedDocs, "icd_params_breadcrumbs", { crumbDepth: 2 });
+    const icdUnit = units.find((u) => u.anchorId === "icd")!;
+    // Still folds the Parameters subtree like icd_params.
+    expect(icdUnit.memberIds.sort()).toEqual(["icd", "net", "params", "tok"].sort());
+    expect(icdUnit.family).toBe("icd_params_breadcrumbs");
+    // Anchor text leads with the parent+grandparent crumb, then the kv params.
+    expect(icdUnit.text.startsWith("Spark > SparkLend\n\n")).toBe(true);
+    expect(icdUnit.text).toContain("Network: Ethereum Mainnet");
+    expect(icdUnit.text).toContain("Token: USDS");
+    // Standalone (unfolded) docs stay one_to_one — no crumb, so they reuse
+    // an existing one_to_one embedding rather than becoming a cache miss.
+    const opdUnit = units.find((u) => u.anchorId === "opd")!;
+    expect(opdUnit.text).toBe(buildEmbedText(opd));
+    expect(opdUnit.hash).toBe(contentHash(opd));
+  });
+
   it("icd_params over-cap splits rather than dropping members", () => {
     const units = buildUnits(docs, "icd_params", { cap: 2 });
     const folded = foldedIds(units);
