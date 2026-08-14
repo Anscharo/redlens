@@ -65,14 +65,16 @@
         rel="stylesheet"
     /></noscript>
     <!-- preload: fetched promptly on the main thread on first render. Only the
-         flat, NON-atlas-versioned artifacts are hinted here — addresses.json and
-         chain-state.json are on-chain/shared and keep stable URLs. Atlas-versioned
-         artifacts (docs/glossary/addresses.atlas/relations) are now served from
-         the per-sha /api/atlas/<sha>/ base injected at runtime, so they can't be
+         flat, NON-atlas-versioned STATIC FILES are hinted here — addresses.json
+         is on-chain/shared and keeps a stable URL. Atlas-versioned artifacts
+         (docs/glossary/addresses.atlas/relations) are now served from the
+         per-sha /api/atlas/<sha>/ base injected at runtime, so they can't be
          hinted from static HTML; their workers/loaders fetch them immediately on
-         app start regardless. -->
+         app start regardless. The contract-state snapshot used to be hinted here
+         too, back when it was a committed public/chain-state.json; it now comes
+         from Postgres via GET /api/chain-state and is deliberately NOT hinted or
+         SW-cached — a stale on-chain read is a data bug, not a speedup. -->
     <link rel="preload" href="/addresses.json" as="fetch" crossorigin />
-    <link rel="preload" href="/chain-state.json" as="fetch" crossorigin />
   </head>
   <body>
     <div id="root"></div>

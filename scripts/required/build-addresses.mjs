@@ -59,7 +59,7 @@ const chainlog = await fetchChainlog();
 if (!chainlog || Object.keys(chainlog).length === 0) {
   console.error(
     "Chainlog fetch failed or returned empty — refusing to overwrite public/addresses.json.\n" +
-    "Doing so would strip every chainlogId and make snap:chainstate write an empty chain-state.json.\n" +
+    "Doing so would strip every chainlogId and leave snap:chainstate with no contracts to sweep.\n" +
     "Keeping the existing committed artifacts; retry when chainlog.skyeco.com is reachable.",
   );
   process.exit(1);

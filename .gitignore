@@ -16,8 +16,10 @@ base-coverage-areas.json
 
 # Atlas-derived artifacts — built ephemerally at container startup / by the
 # in-process updater / by the history worker. Never committed.
-# Keep: public/addresses.json (Etherscan), public/chain-state.json (RPC),
-#        public/processes*.json (curated), public/favicon.svg etc. (static).
+# Keep: public/addresses.json (Etherscan), public/processes*.json (curated),
+#        public/favicon.svg etc. (static). The contract-state snapshot is no
+#        longer a file at all — it lives in the Postgres chain_state table,
+#        fetched by the atlas worker and served from GET /api/chain-state.
 public/docs.json
 public/docs-shallow.json
 public/docs-deep.json
