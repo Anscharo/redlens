@@ -23,17 +23,9 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: oven-sh/setup-bun@v2
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          bun: "true"
 
       - name: Build atlas artifacts
         run: pnpm build:index && pnpm build:glossary && pnpm build:graph

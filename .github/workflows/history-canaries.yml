@@ -19,17 +19,9 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - uses: oven-sh/setup-bun@v2
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          bun: "true"
 
       # Build index + graph so build-history can load agentNamePrefixes
       - name: Build index

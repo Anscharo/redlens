@@ -4,10 +4,13 @@
  *
  *   pnpm build:at <atlas-commit-sha>
  *
+ * The step list is the `buildAt` profile in scripts/lib/build-steps.mjs.
+ *
  * Offline artifact set (deterministic, no external APIs required):
- *   build:index    → docs.json, search-index.json
- *   build:graph    → graph.json, relations.json
- *   build:manifest → manifest.json
+ *   build:index      → docs.json, search-index.json
+ *   build:graph      → graph.json, relations.json
+ *   build:oea-report → oea-report.json
+ *   build:manifest   → manifest.json
  *
  * Conditional step (runs when credentials are available):
  *   build:addresses  — runs if ETHERSCAN_API_KEY is set
@@ -25,6 +28,8 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { stepsFor } from "../lib/build-steps.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const ATLAS = path.join(ROOT, "vendor/next-gen-atlas");
@@ -58,21 +63,21 @@ const resolvedSha = execSync("git rev-parse HEAD", { cwd: ATLAS, encoding: "utf8
 console.log(`atlas checked out at ${resolvedSha}\n`);
 
 // ---------------------------------------------------------------------------
-// Build pipeline
+// Build pipeline — the `buildAt` profile of scripts/lib/build-steps.mjs (which
+// also records what this profile deliberately skips, and why).
 // ---------------------------------------------------------------------------
-run("pnpm build:index");
-
-if (process.env.ETHERSCAN_API_KEY) {
-  console.log("\nETHERSCAN_API_KEY present — running build:addresses");
-  run("pnpm build:addresses");
-} else {
-  console.log("\nNo ETHERSCAN_API_KEY — skipping build:addresses");
+for (const step of stepsFor("buildAt")) {
+  // The one conditional step: addresses needs an Etherscan key, so an offline
+  // repro build runs the rest of the chain without it.
+  if (step.id === "addresses") {
+    if (!process.env.ETHERSCAN_API_KEY) {
+      console.log("\nNo ETHERSCAN_API_KEY — skipping build:addresses");
+      continue;
+    }
+    console.log("\nETHERSCAN_API_KEY present — running build:addresses");
+  }
+  run(`pnpm ${step.pnpmScript}`);
 }
-
-run("pnpm build:graph");
-run("pnpm build:oea-report");
-
-run("pnpm build:manifest");
 
 // ---------------------------------------------------------------------------
 // Summary
