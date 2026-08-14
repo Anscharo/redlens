@@ -276,7 +276,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Your viewing history",
         what: "A record of what you have been reading — recent and most-viewed documents, the areas of the Atlas you spend time in, and the report pages you came back to.",
         how: [
-          'Open it from the menu button in the top-right corner, from "History" in the profile menu once signed in, or from the "history" link in the footer.',
+          'Open it from the menu button in the top-right corner, or from "History" in the profile menu once signed in.',
           "Each card lists what you visited with a view count beside it; document links go straight back into the reader.",
           'Document trees group your reading by document number — open a tree to see the documents behind its count.',
           "Report and Radar rows remember the filters you had set, so the link restores that same view.",

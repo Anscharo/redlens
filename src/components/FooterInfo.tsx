@@ -2,7 +2,6 @@ const BASE = import.meta.env.BASE_URL;
 const REPO = __REPO_URL__;
 const PROVENANCE_HREF = `${BASE}provenance`;
 const PRIVACY_HREF = `${BASE}privacy`;
-const HISTORY_HREF = `${BASE}history`;
 // Deep-link to the app's build commit when git gave a real sha; fall back to the
 // repo root for "dev" builds (git unavailable at build time → /commit/dev 404s).
 const APP_COMMIT_HREF = __COMMIT_HASH__ === "dev" ? REPO : `${REPO}/commit/${__COMMIT_HASH__}`;
