@@ -13,8 +13,9 @@
 // fixture reset per test.
 //
 // FILESYSTEM SAFETY — main() reads docs.json/addresses.atlas.json/
-// addresses.json/chain-state.json from config.publicDir and writes NOTHING to
-// disk itself (every "write" goes through the mocked `sql`). config.publicDir
+// addresses.json from config.publicDir and writes NOTHING to disk itself (every
+// "write" goes through the mocked `sql`; the on-chain snapshot is a DB row now,
+// not chain-state.json, so it arrives through the same mock). config.publicDir
 // is pointed at a fresh temp dir in beforeEach and restored in afterEach —
 // directly in the hook bodies, not through a separate helper that returns a
 // promise from inside a sync try/finally (that pattern silently reverts the
@@ -31,15 +32,22 @@ interface FakeDb {
   prevSha: string | null; // sync_state.atlas_sha before this run; null = empty table
   before: { id: string; content_hash: string }[]; // existing atlas_doc_meta rows
   staleAddrCount: number; // rows the atlas_addresses GC delete reports removing
+  // The chain_state row (migration 020) — null = no snapshot stored yet.
+  chainState: { block: string | null; values: Record<string, unknown> } | null;
+  chainStateError: string | null; // make the chain_state SELECT reject
 }
-let fakeDb: FakeDb = { prevSha: null, before: [], staleAddrCount: 0 };
+const emptyFakeDb = (): FakeDb => ({
+  prevSha: null, before: [], staleAddrCount: 0, chainState: null, chainStateError: null,
+});
+let fakeDb: FakeDb = emptyFakeDb();
 function resetFakeDb(): void {
-  fakeDb = { prevSha: null, before: [], staleAddrCount: 0 };
+  fakeDb = emptyFakeDb();
 }
 
 interface UnsafeCall {
   kind: "doc-upsert" | "doc-delete" | "addr-upsert" | "unknown";
   paramsLength: number;
+  params: unknown[];
 }
 let unsafeCalls: UnsafeCall[] = [];
 let began = false;
@@ -80,7 +88,7 @@ const tx = Object.assign(txTag, {
         : query.includes("INSERT INTO atlas_addresses")
           ? "addr-upsert"
           : "unknown";
-    unsafeCalls.push({ kind, paramsLength: params.length });
+    unsafeCalls.push({ kind, paramsLength: params.length, params });
     return [];
   },
 });
@@ -92,6 +100,12 @@ async function sqlTag(strings: TemplateStringsArray, ..._values: unknown[]): Pro
   }
   if (text.includes("SELECT id, content_hash FROM atlas_doc_meta")) {
     return fakeDb.before;
+  }
+  if (text.includes("FROM chain_state")) {
+    if (fakeDb.chainStateError) throw new Error(fakeDb.chainStateError);
+    return fakeDb.chainState
+      ? [{ block: fakeDb.chainState.block, values: fakeDb.chainState.values, fetched_at: new Date() }]
+      : [];
   }
   throw new Error(`sync.test.ts: unmocked sql template query: ${text}`);
 }
@@ -227,10 +241,6 @@ describe("main()", () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "sync-main-"));
     prevPublicDir = config.publicDir;
     config.publicDir = dir;
-    // Always required — main() reads chain-state.json unconditionally (no
-    // existsSync guard, unlike addresses.json), so every test needs at least
-    // an empty one present.
-    fs.writeFileSync(path.join(dir, "chain-state.json"), "{}");
   });
   afterEach(() => {
     // MUST restore config.publicDir — config is a shared singleton read by
@@ -343,6 +353,52 @@ describe("main()", () => {
     const addrUpsert = unsafeCalls.find((c) => c.kind === "addr-upsert");
     expect(addrUpsert?.paramsLength).toBe(2 * ADDR_COLS); // 2 rows (ethereum + base) for the one address
     expect(logs.some((l) => l.includes("addresses: 2 upserted, 3 stale removed"))).toBe(true);
+  });
+
+  it("joins the stored chain_state row (migration 020) onto the address rows it snapshotted", async () => {
+    writeDocs("new-sha", { a: doc("a", "A.1", "alpha") });
+    writeAddrAtlas("new-sha", {
+      "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA": {
+        chain: "ethereum", chains: ["ethereum"], roles: [], aliases: [], expectedTokens: [],
+      },
+    });
+    fakeDb.prevSha = "old-sha";
+    // The flat snapshot shape the worker stores: mainnet-only, address keys lowercased.
+    fakeDb.chainState = {
+      block: "25741379",
+      values: { "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": { wards: "1" } },
+    };
+
+    await main({ runMigrations: noopMigrations, force: false });
+
+    const addrUpsert = unsafeCalls.find((c) => c.kind === "addr-upsert")!;
+    // chain_state is the 12th of the 14 addrCols (see ADDR_COLS above).
+    const chainState = addrUpsert.params[11] as { block: number; wards: string };
+    expect(chainState).toMatchObject({ block: 25741379, wards: "1" });
+  });
+
+  it("degrades to no chain_state (and still syncs) when the chain_state read fails", async () => {
+    writeDocs("new-sha", { a: doc("a", "A.1", "alpha") });
+    writeAddrAtlas("new-sha", {
+      "0xccc": { chain: "ethereum", chains: ["ethereum"], roles: [], aliases: [], expectedTokens: [] },
+    });
+    fakeDb.prevSha = "old-sha";
+    fakeDb.chainStateError = "relation \"chain_state\" does not exist";
+
+    // captureLog() only patches console.log; the degradation notice is a warn.
+    const warns: string[] = [];
+    const origWarn = console.warn;
+    console.warn = (...a: unknown[]) => void warns.push(a.map(String).join(" "));
+    const { restore } = captureLog();
+    try {
+      await expect(main({ runMigrations: noopMigrations, force: false })).resolves.toBeUndefined();
+    } finally {
+      restore();
+      console.warn = origWarn;
+    }
+    const addrUpsert = unsafeCalls.find((c) => c.kind === "addr-upsert")!;
+    expect(addrUpsert.params[11]).toBeNull(); // chain_state column
+    expect(warns.some((l) => l.includes("chain_state read failed"))).toBe(true);
   });
 
   it("tolerates a missing addresses.json (on-chain enrichment is optional — existsSync-gated, unlike the other 3 artifacts)", async () => {

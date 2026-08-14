@@ -4,14 +4,13 @@ import { useSWUpdate } from "../hooks/useSWUpdate";
 import { useAtlasVersion } from "../hooks/useAtlasVersion";
 import { useBuildBehind } from "../hooks/useBuildBehind";
 import { loadAtlas } from "../lib/docs";
+import { loadChainState } from "../lib/chainstate";
 import { loadHealth } from "../lib/health";
 import { liveAtlasSha } from "../lib/atlasBase";
 import { useDataSource } from "../lib/dataSource";
 import { StatusPill } from "./StatusPill";
 import { FooterInfo } from "./FooterInfo";
 import { FooterHint } from "./FooterHint";
-
-const BASE = import.meta.env.BASE_URL;
 
 // Plain reload: artifacts are served from immutable per-sha URLs, so the fresh
 // no-cache HTML carries the new sha and the app fetches new URLs the cache has
@@ -38,9 +37,12 @@ export function Footer() {
   const atlasNeedsUpdate = useAtlasVersion(preview ? null : liveAtlasSha());
 
   useEffect(() => {
-    // chain state is reused from main even in preview (on-chain, shared).
-    fetch(`${BASE}chain-state.json`)
-      .then((r) => r.json())
+    // Chain state is reused from main even in preview (on-chain, shared, served
+    // by /api/chain-state). loadChainState() is the same module-level cached
+    // promise the reader's annotations use, so the footer costs no extra
+    // request — and its empty-on-failure fallback keeps `block` null when the
+    // server has no snapshot yet (DB-less dev).
+    loadChainState()
       .then((d) => { if (d.block) setBlock(d.block); })
       .catch(() => {});
     if (preview) {

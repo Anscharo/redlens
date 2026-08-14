@@ -456,6 +456,16 @@ export const config = {
   // env changes and break that test.
   atlasUpdateEscalateAfter: Number(process.env.ATLAS_UPDATE_ESCALATE_AFTER ?? 3),
 
+  // On-chain snapshot cadence (chain-state.ts, read by the atlas worker's
+  // chain-state step). The worker cycle runs every ~12 minutes; the multicall
+  // sweep must NOT. Each cycle reads the stored snapshot's fetched_at and only
+  // refetches when it is older than this — so RPC spend is one batch per
+  // interval, not per cycle. 86400 = daily; 604800 = weekly (what the retired
+  // chainstate-update PR cadence used to give us). THE authoritative default:
+  // scripts/required/atlas-worker.mjs reads it from here, not from its own env
+  // parse.
+  chainstateRefreshSeconds: Number(process.env.CHAINSTATE_REFRESH_SECONDS ?? 86_400),
+
   // Runtime freshness health thresholds (history/freshness.ts) — see that
   // file's header comment for the full status-derivation rationale; this is
   // just the env-parsed defaults.

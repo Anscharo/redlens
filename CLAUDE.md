@@ -10,7 +10,7 @@ A search-first interface for the Sky ecosystem's [next-gen-atlas](https://github
 pnpm build:index     # parses content/** → public/docs.json + public/search-index.json + public/addresses.atlas.json (chain only; annotation added by build-graph)
 pnpm build:glossary  # extracts Definitions sections → public/glossary.json
 pnpm build:addresses # chainlog + Etherscan enrichment → public/addresses.json (on-chain fields only)
-pnpm snap:chainstate  # viem multicall snapshots → public/chain-state.json
+pnpm snap:chainstate  # viem multicall snapshots → upsert the single-row chain_state table in Postgres (needs DATABASE_URL; refuses to replace a good snapshot with an empty fetch). Deliberately OFF the `pnpm build` chain: the Railway atlas worker runs this on its own time gate (CHAINSTATE_REFRESH_SECONDS, default daily) and the frontend reads it back through GET /api/chain-state. This entry point is the manual fetch→DB escape hatch.
 pnpm build:graph     # Phase 2.6 annotates addresses; relation extraction → public/graph.json + public/relations.json; Phase 4.5 enriches public/addresses.atlas.json
 pnpm build:history   # git log of atlas submodule → upsert atlas_history in Postgres (DB sink, reads its own incremental cursor); ALSO upserts the committed public/history-html-era.json (pre-#117 HTML-era reconstruction) AND public/history-pre-era.json (pre-git origins, if present) idempotently each run so dev + Railway serve them; add --out-json to write public/history/<uuid>.json instead (DB-less, used by canary tests); --full forces a full walk
 pnpm prehist:genesis  # (ancient-history branch) bridges the recovered Atlas v2 genesis snapshot (2024-09-02) to the repo's real root commit → public/history-pre-era.json; see scripts/prehist/HISTORY.md

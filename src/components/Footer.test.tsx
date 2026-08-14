@@ -8,6 +8,7 @@ import { useSWUpdate } from "../hooks/useSWUpdate";
 import { useAtlasVersion } from "../hooks/useAtlasVersion";
 import { useBuildBehind } from "../hooks/useBuildBehind";
 import { loadAtlas } from "../lib/docs";
+import { loadChainState } from "../lib/chainstate";
 import { loadHealth } from "../lib/health";
 import { useDataSource } from "../lib/dataSource";
 
@@ -16,6 +17,7 @@ vi.mock("../hooks/useSWUpdate", () => ({ useSWUpdate: vi.fn() }));
 vi.mock("../hooks/useAtlasVersion", () => ({ useAtlasVersion: vi.fn() }));
 vi.mock("../hooks/useBuildBehind", () => ({ useBuildBehind: vi.fn() }));
 vi.mock("../lib/docs", () => ({ loadAtlas: vi.fn() }));
+vi.mock("../lib/chainstate", () => ({ loadChainState: vi.fn() }));
 vi.mock("../lib/health", () => ({ loadHealth: vi.fn() }));
 vi.mock("../lib/dataSource", () => ({ useDataSource: vi.fn() }));
 
@@ -30,15 +32,15 @@ beforeEach(() => {
   (useBuildBehind as unknown as Mock).mockReturnValue(false);
   (useDataSource as unknown as Mock).mockReturnValue({ base: "/", preview: null });
   (loadHealth as unknown as Mock).mockResolvedValue(null);
+  // The footer's block comes from the shared chain-state loader (/api/chain-state),
+  // which already degrades a failed/absent snapshot to empty values itself.
+  (loadChainState as unknown as Mock).mockResolvedValue({ block: "", values: {} });
   (loadAtlas as unknown as Mock).mockResolvedValue({ atlasCommit: "abc123def456", docs: {} });
   // liveAtlasSha() (real, unmocked — see src/lib/atlasBase.ts) reads this.
   (window as unknown as { __ATLAS_SHA__?: string }).__ATLAS_SHA__ = LIVE_SHA;
 
   vi.spyOn(globalThis, "fetch").mockImplementation((url: string | URL | Request) => {
     const u = String(url);
-    if (u.includes("chain-state.json")) {
-      return Promise.resolve(new Response(JSON.stringify({}), { status: 200 }));
-    }
     if (u.includes("meta.json")) {
       return Promise.resolve(new Response(JSON.stringify({ repo: "some/preview-repo" }), { status: 200 }));
     }
@@ -146,14 +148,8 @@ describe("Footer", () => {
     expect(useAtlasVersion).toHaveBeenCalledWith(LIVE_SHA);
   });
 
-  it("renders the chain-state block link once the block is fetched", async () => {
-    (globalThis.fetch as unknown as Mock).mockImplementation((url: string | URL | Request) => {
-      const u = String(url);
-      if (u.includes("chain-state.json")) {
-        return Promise.resolve(new Response(JSON.stringify({ block: "12345678" }), { status: 200 }));
-      }
-      return Promise.resolve(new Response(null, { status: 404 }));
-    });
+  it("renders the chain-state block link once the snapshot resolves", async () => {
+    (loadChainState as unknown as Mock).mockResolvedValue({ block: "12345678", values: {} });
     render(<Footer />);
     await waitFor(() => expect(screen.getByText("12,345,678")).toBeInTheDocument());
     expect(screen.getByText("12,345,678").closest("a")).toHaveAttribute(
