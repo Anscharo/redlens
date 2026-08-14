@@ -100,7 +100,12 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
     ? (config.embedGroupPolicy as GroupPolicy)
     : "one_to_one";
   const cap = config.embedGroupCap && Number.isFinite(config.embedGroupCap) ? config.embedGroupCap : undefined;
-  const units = buildUnits(docs, policy, cap !== undefined ? { cap } : {});
+  const crumbDepth =
+    config.embedCrumbDepth && Number.isFinite(config.embedCrumbDepth) ? config.embedCrumbDepth : undefined;
+  const units = buildUnits(docs, policy, {
+    ...(cap !== undefined ? { cap } : {}),
+    ...(crumbDepth !== undefined ? { crumbDepth } : {}),
+  });
   const folded = [...foldedIds(units)];
 
   // Stable order so progress/restarts are deterministic.

@@ -166,6 +166,11 @@ export const config = {
   // Optional per-unit member cap for grouping policies. Unset = no quality cap
   // (the CHUNK_ROOT_MAX safety rail in embed-units.ts still applies).
   embedGroupCap: process.env.EMBED_GROUP_CAP ? Number(process.env.EMBED_GROUP_CAP) : undefined,
+  // Breadcrumb depth for the breadcrumbs / icd_params_breadcrumbs policies:
+  // keep only the N nearest ancestors (parent, grandparent, …) in the prepended
+  // crumb. Unset = full root→leaf chain. The eval-backed candidate
+  // icd_params_breadcrumbs was validated at depth 2 (see eval-retrieval.ts).
+  embedCrumbDepth: process.env.EMBED_CRUMB_DEPTH ? Number(process.env.EMBED_CRUMB_DEPTH) : undefined,
   // NOTE: EMBED_BATCH (sync-embeddings.ts's per-request embedding batch size)
   // is intentionally NOT a config key — it's parsed by that file's own
   // `batchSizeFromEnv(env)`, a single named, already-tested function that
