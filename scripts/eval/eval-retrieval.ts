@@ -7,6 +7,8 @@
  *   pnpm eval:retrieval -- --backend tfidf --policies icd_params --caps 26,33
  *   pnpm eval:retrieval -- --backend tfidf --hybrid --collapse
  *   pnpm eval:retrieval -- --backend openrouter --models qwen/qwen3-embedding-8b,openai/text-embedding-3-large --subset 40
+ *   pnpm eval:retrieval -- --backend openrouter --reuse-db --models qwen/qwen3-embedding-8b --policies one_to_one,breadcrumbs --subset 40
+ *     ^ reuse a prod/staging DATABASE_URL's embeddings by content_hash (read-only); only cache-miss units are embedded
  *   pnpm eval:retrieval -- --rerank bm25
  *   pnpm eval:retrieval -- --prefix "Instruct: Given a web search query, retrieve relevant passages that answer the query\\nQuery: "
  *
@@ -58,6 +60,7 @@ const MODELS = flag("models")[0]?.split(",") ?? [config.embedModel];
 const RERANK = (flag("rerank")[0] ?? "none") as "none" | "bm25";
 const COLLAPSE = argv.includes("--collapse");
 const HYBRID = argv.includes("--hybrid");
+const REUSE_DB = argv.includes("--reuse-db");
 const PREFIX = flag("prefix")[0] ?? "";
 const SUBSET = flag("subset")[0] ? Number(flag("subset")[0]) : undefined;
 const K = Number(flag("k")[0] ?? 10);
@@ -200,6 +203,59 @@ async function embedUnitsOpenRouter(units: EmbedUnit[], model: string): Promise<
   }
 }
 
+function parseVecLiteral(s: string): number[] {
+  return s.replace(/^\[|\]$/g, "").split(",").map(Number);
+}
+
+// Read-only: pull embeddings from DATABASE_URL keyed by content_hash. A unit
+// whose embed TEXT is byte-identical to an already-embedded doc (same
+// content_hash) reuses that vector instead of paying to re-embed it — e.g. the
+// one_to_one baseline is ~fully covered by a prod/staging DB, and only the docs
+// a grouping/breadcrumb policy actually rewrites are cache misses. content_hash
+// keys the text, NOT the model, so the DB must have been embedded with the SAME
+// model as `--models` (mixing embedding spaces silently wrecks rankings) —
+// hence --reuse-db is single-model and never writes to the DB.
+async function loadCachedVectors(): Promise<Map<string, number[]>> {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("--reuse-db requires DATABASE_URL (a read-only embedding cache)");
+  const { SQL } = await import("bun");
+  const sql = new SQL({ url, max: 2 });
+  const out = new Map<string, number[]>();
+  try {
+    const rows = (await sql`SELECT DISTINCT ON (content_hash) content_hash, embedding::text AS embedding FROM atlas_doc_embeddings`) as {
+      content_hash: string;
+      embedding: string;
+    }[];
+    for (const r of rows) out.set(r.content_hash, parseVecLiteral(r.embedding));
+  } finally {
+    await sql.end();
+  }
+  return out;
+}
+
+// Embed only the distinct miss-hashes (dedup identical texts across units),
+// returning hash→vector. Progress logs every batch since a big miss set (a
+// breadcrumb policy rewrites most docs) is otherwise silent for minutes.
+async function embedMissesByHash(units: EmbedUnit[], cache: Map<string, number[]>, model: string): Promise<Map<string, number[]>> {
+  const missByHash = new Map<string, string>();
+  for (const u of units) if (!cache.has(u.hash)) missByHash.set(u.hash, u.text);
+  const entries = [...missByHash.entries()];
+  const fresh = new Map<string, number[]>();
+  const prev = config.embedModel;
+  config.embedModel = model;
+  try {
+    for (let i = 0; i < entries.length; i += 50) {
+      const slice = entries.slice(i, i + 50);
+      const vecs = await embedBatch(slice.map(([, text]) => text));
+      slice.forEach(([hash], j) => fresh.set(hash, vecs[j]!));
+      console.log(`    embedded ${Math.min(i + 50, entries.length)}/${entries.length} distinct misses`);
+    }
+  } finally {
+    config.embedModel = prev;
+  }
+  return fresh;
+}
+
 function rankTfidf(query: string, units: EmbedUnit[], vecs: Map<string, number>[], idf: Map<string, number>, k: number): { id: string; text: string; score: number }[] {
   const qv = tfidfVec(tokenize(query), idf);
   return units
@@ -287,6 +343,21 @@ interface ArmResult {
 const results: ArmResult[] = [];
 const capList = CAPS.length > 0 ? CAPS : [CAP !== undefined && !Number.isNaN(CAP) ? CAP : null];
 
+let cachedVectors: Map<string, number[]> | null = null;
+if (REUSE_DB) {
+  if (BACKEND !== "openrouter") {
+    console.error("--reuse-db reuses neural vectors; pass --backend openrouter.");
+    process.exit(1);
+  }
+  if (MODELS.length !== 1) {
+    console.error("--reuse-db is single-model (the DB was embedded with one model); pass exactly one --models value matching it.");
+    process.exit(1);
+  }
+  console.log(`loading cached embeddings from DATABASE_URL (read-only) — must be embedded with ${MODELS[0]}…`);
+  cachedVectors = await loadCachedVectors();
+  console.log(`  cache: ${cachedVectors.size} distinct content_hashes`);
+}
+
 let lexUnits: EmbedUnit[] | null = null;
 let lexIdf: Map<string, number> | null = null;
 let lexVecs: Map<string, number>[] | null = null;
@@ -314,6 +385,18 @@ for (const policy of POLICIES) {
         const toks = units.map((u) => tokenize(u.text));
         idf = idfMap(toks);
         tfidfVecs = toks.map((t) => tfidfVec(t, idf!));
+      } else if (REUSE_DB && cachedVectors) {
+        const fresh = await embedMissesByHash(units, cachedVectors, model);
+        let reused = 0;
+        neural = units.map((u) => {
+          const hit = cachedVectors!.get(u.hash);
+          if (hit) {
+            reused++;
+            return hit;
+          }
+          return fresh.get(u.hash)!;
+        });
+        console.log(`  ${policy}: reused ${reused}/${units.length} from DB, embedded ${units.length - reused} with ${model}`);
       } else {
         console.log(`  embedding ${units.length} units with ${model}…`);
         neural = await embedUnitsOpenRouter(units, model);
