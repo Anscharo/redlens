@@ -81,7 +81,7 @@ export function VisitsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
             <VisitCard
               title="Recently viewed documents"
-              blurb={`the last ${RECENT_DOCS} Atlas documents you opened, newest first`}
+              blurb={`The last ${RECENT_DOCS} Atlas documents you opened, newest first`}
               empty={view.recentDocs.length === 0}
               showCount={false}
             >
@@ -92,7 +92,7 @@ export function VisitsPage() {
 
             <VisitCard
               title="Most viewed documents"
-              blurb={`your top ${TOP_DOCS} Atlas documents by number of visits`}
+              blurb={`Your top ${TOP_DOCS} Atlas documents by number of visits`}
               empty={view.topDocs.length === 0}
             >
               {view.topDocs.map((d) => (
@@ -102,7 +102,7 @@ export function VisitsPage() {
 
             <VisitCard
               title="Most viewed document trees"
-              blurb={`your top ${TOP_TREES} areas of the Atlas, grouped by document number — open one to see the documents behind its count`}
+              blurb={`Your top ${TOP_TREES} areas of the Atlas, grouped by document number — open one to see the documents behind its count`}
               empty={view.topTrees.length === 0}
             >
               <TreeRows trees={view.topTrees} />
@@ -110,7 +110,7 @@ export function VisitsPage() {
 
             <VisitCard
               title="Recently viewed reports & radar"
-              blurb={`the last ${RECENT_PAGES} report and Radar pages you opened, with the filters you had set`}
+              blurb={`The last ${RECENT_PAGES} report and Radar pages you opened, with the filters you had set`}
               empty={view.recentPages.length === 0}
             >
               <PageRows pages={view.recentPages} />
