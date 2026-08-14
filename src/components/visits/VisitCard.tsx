@@ -5,11 +5,15 @@ export function VisitCard({
   title,
   blurb,
   empty,
+  showCount = true,
   children,
 }: {
   title: string;
   blurb: string;
   empty: boolean;
+  /** Whether the rows carry a view count — off for the recency card, which is
+   *  answering "when", not "how often". */
+  showCount?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -22,13 +26,13 @@ export function VisitCard({
           <h2 className="text-base font-semibold" style={{ color: "var(--tan)" }}>
             {title}
           </h2>
-          {!empty && (
+          {!empty && showCount && (
             <span className="mono text-[11px] uppercase tracking-wider shrink-0" style={{ color: "var(--tan-3)" }}>
               View Count
             </span>
           )}
         </div>
-        <p className="mono text-[11px] mt-1" style={{ color: "var(--gray)" }}>
+        <p className="mono text-[13px] mt-1" style={{ color: "var(--gray)" }}>
           {blurb}
         </p>
       </header>
@@ -37,9 +41,7 @@ export function VisitCard({
           Nothing here yet.
         </p>
       ) : (
-        <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-          {children}
-        </div>
+        <div className="visit-rows">{children}</div>
       )}
     </article>
   );

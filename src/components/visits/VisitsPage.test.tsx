@@ -46,6 +46,27 @@ describe("VisitsPage", () => {
     expect(screen.getByText(/No history yet/)).toBeInTheDocument();
   });
 
+  it("leaves the view count off the recency card — it answers when, not how often", () => {
+    log = {
+      events: [
+        { path: "/atlas?id=a", label: "Deep governance doc", at: Date.now() - 3 * 3600_000 },
+        { path: "/atlas?id=a", label: "Deep governance doc", at: Date.now() - 2 * 3600_000 },
+      ],
+      loaded: true,
+    };
+    render(<VisitsPage />);
+    const recent = screen
+      .getByText("Recently viewed documents")
+      .closest("article")!;
+    expect(recent).not.toHaveTextContent("View Count");
+    expect(recent).toHaveTextContent("2 hours ago"); // when, not how often
+    expect(recent.querySelectorAll(".tabular-nums")).toHaveLength(0); // no count cells
+    // The same document still carries its count on the most-viewed card.
+    const top = screen.getByText("Most viewed documents").closest("article")!;
+    expect(top).toHaveTextContent("View Count");
+    expect(top.querySelectorAll(".tabular-nums")).toHaveLength(1);
+  });
+
   it("lists visited documents with their counts once docs.json lands", async () => {
     log = {
       events: [

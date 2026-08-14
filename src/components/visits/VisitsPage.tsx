@@ -65,7 +65,7 @@ export function VisitsPage() {
             </button>
           )}
         </div>
-        <p className="mono text-[11px] mb-6" style={{ color: "var(--gray)" }}>
+        <p className="mono text-[13px] mb-6" style={{ color: "var(--gray)" }}>
           Kept in this browser only — never sent to a server, and not tied to an account.
           Visits older than 180 days are forgotten.
         </p>
@@ -83,9 +83,10 @@ export function VisitsPage() {
               title="Recently viewed documents"
               blurb={`the last ${RECENT_DOCS} Atlas documents you opened, newest first`}
               empty={view.recentDocs.length === 0}
+              showCount={false}
             >
               {view.recentDocs.map((d) => (
-                <DocRow key={d.id} path={d.path} docNo={d.docNo} label={d.label} count={d.count} at={d.last} />
+                <DocRow key={d.id} path={d.path} docNo={d.docNo} label={d.label} at={d.last} />
               ))}
             </VisitCard>
 

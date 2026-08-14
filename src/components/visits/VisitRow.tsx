@@ -12,7 +12,8 @@ export function LeaderRow({
   indent = false,
 }: {
   children: React.ReactNode;
-  count: number;
+  /** The view count. Omitted on the recency card, which counts nothing. */
+  count?: number;
   /** Small right-aligned note before the count (e.g. how long ago). Sits
    *  OUTSIDE the truncating name, so a long title can't clip it away. */
   meta?: React.ReactNode;
@@ -34,16 +35,19 @@ export function LeaderRow({
           {meta}
         </span>
       )}
-      <span className="mono text-xs shrink-0 tabular-nums" style={{ color: "var(--tan-3)" }}>
-        {count.toLocaleString()}
-      </span>
+      {count !== undefined && (
+        <span className="mono text-xs shrink-0 tabular-nums" style={{ color: "var(--tan-3)" }}>
+          {count.toLocaleString()}
+        </span>
+      )}
     </div>
   );
 }
 
 /** A visited atlas document: its doc number (when the doc is still in this
  *  atlas build) then its title, linking into the reader. `at` adds when it was
- *  last opened, in words — the recent list's whole point is when. */
+ *  last opened, in words — the recent list's whole point is when; `count` is
+ *  left off there for the same reason. */
 export function DocRow({
   path,
   docNo,
@@ -55,7 +59,7 @@ export function DocRow({
   path: string;
   docNo: string | null;
   label: string;
-  count: number;
+  count?: number;
   at?: number;
   indent?: boolean;
 }) {
