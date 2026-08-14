@@ -11,6 +11,7 @@ import { runVerifiedChat, sanitizeDone, type HarnessEvent, type HarnessDone } fr
 import { SLICES } from "./verify/sliced-verifier.ts";
 import type { SliceName } from "./verify/verifier-slices.ts";
 import { atlasDescribe } from "./tools/tools.ts";
+import { findParamsMentioned } from "./verify/param-checks.ts";
 
 type Chunk = OpenAI.Chat.Completions.ChatCompletionChunk;
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -519,6 +520,29 @@ test("comparing status is absent when the answer is empty or checks are off", ()
     }
   }));
 
+// A sentence the [E-const] matcher (param-checks.ts's findParamsMentioned)
+// resolves to a real param row, DERIVED from the live index rather than named.
+// This test used to hardcode Keel's "USDS Mint Maximum" doc as verified
+// real-corpus ground truth; an upstream regrouping deleted that doc and the
+// test failed on atlas content, not on orchestrator behaviour. Any single doc
+// can vanish the same way, so pick whatever the served atlas currently offers:
+// a row whose OWNING DOC'S TITLE is what a model would actually write (the
+// `byTitle` path — terse kv names like "maxamount" never appear in prose), and
+// whose sentence matches few enough rows that its own name survives
+// chat-orchestrator.ts's CONST_EVIDENCE_CAP truncation.
+const CONST_EVIDENCE_CAP = 40;
+function titleMatchableParam(): { text: string; name: string } {
+  for (const row of ix.params.rows) {
+    const title = ix.docMap.get(row.uuid)?.title;
+    if (!title || !row.owner) continue; // owner tokens are what pass findParamsMentioned's owner gate
+    const text = `${row.owner}'s ${title} is ${row.value}.`;
+    const hits = findParamsMentioned(text, ix);
+    if (hits.length > CONST_EVIDENCE_CAP) continue;
+    if (hits.some((h) => h.row.uuid === row.uuid && h.byTitle)) return { text, name: row.name };
+  }
+  throw new Error("no title-matchable param row in the served atlas — [E-const] has nothing to key on");
+}
+
 test("[E-const] standing evidence: included when the answer mentions a known parameter, absent otherwise", () =>
   withModels("strong/verifier", "", async () => {
     // Keyed by slice (via identifySlice), not push order — "overreach" gets no
@@ -531,10 +555,7 @@ test("[E-const] standing evidence: included when the answer mentions a known par
       capturedBySlice.set(identifySlice(msgs), msgs.map((m) => m.content as string).join("\n"));
       return { text: SLICE_EMPTY, usage: { input: 10, output: 5 }, generationId: "g", latencyMs: 5 };
     };
-    // Keel's "USDS Mint Maximum" doc (verified real-corpus ground truth, see
-    // docs/research/synlang-wiki.md §3.1 background) — a known, safely
-    // title-matchable parameter (verify-checks.ts's findParamsMentioned).
-    const withParam = "Keel's USDS mint maximum is 10,000 USDS.";
+    const { text: withParam, name } = titleMatchableParam();
     await collect(
       runVerifiedChat({
         ix, messages: [userMsg], question: "hi", maxIterations: 3,
@@ -545,7 +566,7 @@ test("[E-const] standing evidence: included when the answer mentions a known par
     const claimsPrompt = capturedBySlice.get("claims")!;
     expect(claimsPrompt).toContain("[E-const]");
     expect(claimsPrompt).toContain("atlas_param_table");
-    expect(claimsPrompt).toContain("maxamount");
+    expect(claimsPrompt).toContain(name);
 
     capturedBySlice.clear();
     const withoutParam = "The weather report has nothing to do with atlas governance parameters.";
