@@ -33,7 +33,10 @@ describe("timeAgo", () => {
   });
 
   it("falls back to a date once relative age stops meaning anything", () => {
-    expect(ago(40 * DAY)).toBe("Jul 5");
-    expect(ago(400 * DAY)).toBe("Jul 10, 2025"); // a different year keeps the year
+    // Day-of-month is deliberately not pinned: the fallback formats in the
+    // viewer's timezone, so a fixed instant lands on either side of midnight
+    // depending on where the test runs.
+    expect(ago(40 * DAY)).toMatch(/^Jul \d+$/); // same year: no year shown
+    expect(ago(400 * DAY)).toMatch(/^Jul \d+, 2025$/); // a different year keeps it
   });
 });

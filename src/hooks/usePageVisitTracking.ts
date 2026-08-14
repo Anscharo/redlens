@@ -1,15 +1,15 @@
 import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "wouter";
-import { recordVisit } from "../lib/visitHistory";
+import { recordVisit, updateVisitParams } from "../lib/visitHistory";
 import { PAGE_TITLES, REPORT_TITLES, ROUTES } from "../lib/routes";
 
 const REPORT_PREFIX = `${ROUTES.REPORTS}/`;
 
 // How long the filter state must hold still before it is written. These routes
 // sync filters to the URL as you type (the in-report search box writes ?q= on
-// every keystroke), and a changed querystring is a new row — so without this a
-// twenty-character filter would append twenty rows to the log, inflate that
-// report's visit count, and churn IndexedDB on the navigation path.
+// every keystroke), so without this every keystroke would hit IndexedDB. The
+// settled write AMENDS the arrival row rather than appending — changing a
+// report's filters is not another view of it.
 const FILTER_SETTLE_MS = 1200;
 
 /** The visit label for a location, or null when it isn't centrally tracked.
@@ -44,16 +44,18 @@ export function usePageVisitTracking(location: string): void {
       lastLocation.current = null;
       return;
     }
-    const write = () => void recordVisit({ path: location, label, base, params: search });
-    // Arriving on the page is recorded at once (with whatever filters the URL
-    // already carried, e.g. a shared link). Only later filter edits wait for
-    // the user to settle.
+    // Arriving on the page is the visit, recorded at once with whatever filters
+    // the URL already carried (e.g. a shared link). Later filter edits only
+    // update those stored filters, once the user settles.
     if (lastLocation.current !== location) {
       lastLocation.current = location;
-      write();
+      void recordVisit({ path: location, label, base, params: search });
       return;
     }
-    const timer = setTimeout(write, FILTER_SETTLE_MS);
+    const timer = setTimeout(
+      () => void updateVisitParams({ path: location, base, params: search }),
+      FILTER_SETTLE_MS,
+    );
     return () => clearTimeout(timer);
   }, [location, search, base]);
 }

@@ -9,6 +9,7 @@ import {
   visitHref,
   summarize,
   recordVisit,
+  updateVisitParams,
   getEvents,
   clearHistory,
   type VisitEvent,
@@ -166,6 +167,39 @@ describe("recordVisit", () => {
     const events = await getEvents();
     expect(events).toHaveLength(1);
     expect(events[0].path).toBe("/preview/42/atlas?id=a"); // separated from live /atlas?id=a
+  });
+});
+
+describe("updateVisitParams", () => {
+  it("rewrites the filters on the last visit instead of counting another one", async () => {
+    await recordVisit({ path: "/reports/rewards", label: "Rewards" });
+    await updateVisitParams({ path: "/reports/rewards", params: "q=usds" });
+    const events = await getEvents();
+    expect(events).toHaveLength(1); // amended, not appended
+    expect(events[0].params).toBe("q=usds");
+    expect(summarize(events)[0].count).toBe(1); // filtering isn't another view
+  });
+
+  it("finds the row again when the page was visited before this session", async () => {
+    // Seeded directly: no in-memory record of the append (i.e. after a reload).
+    await idb.add<VisitEvent>({ path: "/reports/rewards", label: "Rewards", at: 1 });
+    await idb.add<VisitEvent>({ path: "/reports/rewards", label: "Rewards", at: 9 });
+    await updateVisitParams({ path: "/reports/rewards", params: "cat=spark" });
+    const rows = (await getEvents()).filter((e) => e.path === "/reports/rewards");
+    expect(rows).toHaveLength(2);
+    expect(rows.find((e) => e.at === 9)?.params).toBe("cat=spark"); // the newest one
+    expect(rows.find((e) => e.at === 1)?.params).toBeUndefined();
+  });
+
+  it("clears the stored filters when the page is left unfiltered", async () => {
+    await recordVisit({ path: "/reports/rewards", label: "Rewards", params: "q=usds" });
+    await updateVisitParams({ path: "/reports/rewards", params: "" });
+    expect((await getEvents())[0].params).toBeUndefined();
+  });
+
+  it("no-ops for a path with nothing recorded yet", async () => {
+    await updateVisitParams({ path: "/reports/never-opened", params: "q=x" });
+    expect(await getEvents()).toEqual([]);
   });
 });
 

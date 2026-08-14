@@ -1,4 +1,5 @@
 import type { AtlasBundle } from "./docsTypes";
+import type { Product } from "./productArea";
 import { docIdFromPath, summarize, visitHref, type VisitEvent, type VisitSummary } from "./visitHistory";
 import { buildTrees, type TreeVisit } from "./visitTrees";
 
@@ -34,6 +35,12 @@ export interface PageVisit {
   filters: [string, string][]; // decoded [label, value] chips
   count: number;
 }
+
+// The visit kinds this page actually renders. Searches and "other" routes are
+// still logged (useSearchTracking), but no card shows them — so they must not
+// make the page look non-empty, which would swap "No history yet" for four
+// "Nothing here yet" cards and a clear-history button.
+const SHOWN_KINDS = new Set<Product>(["reader", "reports", "radar"]);
 
 export interface HistoryView {
   recentDocs: DocVisit[];
@@ -102,8 +109,8 @@ export function buildHistoryView(
   atlas: Pick<AtlasBundle, "docs" | "docNoToId"> | null = null,
 ): HistoryView {
   // Preview visits are excluded everywhere: reviewing a proposed atlas isn't
-  // reading history of the live one.
-  const rows = summarize(events).filter((r) => r.kind !== "preview");
+  // reading history of the live one (and preview isn't a shown kind anyway).
+  const rows = summarize(events).filter((r) => SHOWN_KINDS.has(r.kind));
 
   const docVisits = rows
     .filter((r) => r.kind === "reader")

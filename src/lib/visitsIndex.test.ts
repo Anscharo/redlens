@@ -96,6 +96,15 @@ describe("buildHistoryView", () => {
     expect(v.recentPages).toHaveLength(2);
   });
 
+  it("treats a log of only searches as empty — no card renders them", () => {
+    // useSearchTracking logs searches; the page shows none, so they must not
+    // turn "No history yet" into four "Nothing here yet" cards.
+    const v = buildHistoryView([visit("/?q=facilitator", "facilitator", 10)], ATLAS);
+    expect(v.empty).toBe(true);
+    expect(v.recentDocs).toEqual([]);
+    expect(v.recentPages).toEqual([]);
+  });
+
   it("reports an empty log", () => {
     expect(buildHistoryView([], ATLAS).empty).toBe(true);
     expect(buildHistoryView(events, ATLAS).empty).toBe(false);

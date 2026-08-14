@@ -6,8 +6,10 @@ import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 
 const recordVisit = vi.fn();
+const updateVisitParams = vi.fn();
 vi.mock("../lib/visitHistory", () => ({
   recordVisit: (...a: unknown[]) => recordVisit(...a),
+  updateVisitParams: (...a: unknown[]) => updateVisitParams(...a),
 }));
 
 function wrapperFor(path: string, base = "") {
@@ -22,6 +24,7 @@ function wrapperFor(path: string, base = "") {
 beforeEach(() => {
   vi.resetModules();
   recordVisit.mockClear();
+  updateVisitParams.mockClear();
 });
 
 afterEach(() => {
@@ -51,7 +54,7 @@ describe("usePageVisitTracking", () => {
     );
   });
 
-  it("collapses a burst of filter edits into one write", async () => {
+  it("amends the filters after a burst of edits, without recording another visit", async () => {
     vi.useFakeTimers();
     const { usePageVisitTracking } = await import("./usePageVisitTracking");
     const { hook, navigate } = memoryLocation({ path: "/reports/rewards", record: true });
@@ -59,16 +62,20 @@ describe("usePageVisitTracking", () => {
       <Router hook={hook}>{children}</Router>
     );
     renderHook(() => usePageVisitTracking("/reports/rewards"), { wrapper });
-    expect(recordVisit).toHaveBeenCalledTimes(1); // the arrival
+    expect(recordVisit).toHaveBeenCalledTimes(1); // the arrival IS the visit
 
     // Typing into the in-report filter box rewrites ?q= on every keystroke.
     for (const q of ["u", "us", "usd", "usds"]) {
       act(() => navigate(`/reports/rewards?q=${q}`));
     }
-    expect(recordVisit).toHaveBeenCalledTimes(1); // nothing written mid-burst
+    expect(updateVisitParams).not.toHaveBeenCalled(); // nothing written mid-burst
     act(() => vi.advanceTimersByTime(2000));
-    expect(recordVisit).toHaveBeenCalledTimes(2);
-    expect(recordVisit).toHaveBeenLastCalledWith(expect.objectContaining({ params: "q=usds" }));
+    expect(updateVisitParams).toHaveBeenCalledTimes(1);
+    expect(updateVisitParams).toHaveBeenLastCalledWith(
+      expect.objectContaining({ path: "/reports/rewards", params: "q=usds" }),
+    );
+    // Filtering never counts as a second view of the page.
+    expect(recordVisit).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
 

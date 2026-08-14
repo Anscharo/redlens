@@ -180,6 +180,21 @@ async function refresh(): Promise<void> {
   emit();
 }
 
+// Push a change into the live snapshot — but only while something is actually
+// rendering it. `hydrated` stays true for the session once /me/history has been
+// opened, so without this guard every later navigation would copy the whole log
+// (up to MAX_ROWS) for no listener. Mark it stale instead and re-read on the
+// next subscribe.
+function publish(next: (events: VisitEvent[]) => VisitEvent[]): void {
+  if (!hydrated) return;
+  if (listeners.size === 0) {
+    stale = true;
+    return;
+  }
+  snapshot = { events: next(snapshot.events), loaded: snapshot.loaded };
+  emit();
+}
+
 function subscribe(cb: () => void): () => void {
   listeners.add(cb);
   if (!hydrated || stale) {
@@ -198,6 +213,9 @@ export function useVisitLog(): VisitLog {
 // --- writes / queries ------------------------------------------------------
 
 const lastRecorded = new Map<string, number>(); // canonical path → last `at`
+// canonical path → the row we last appended for it, carrying its IndexedDB key
+// so updateVisitParams can rewrite that row instead of appending a new one.
+const lastRow = new Map<string, VisitEvent>();
 let writesSincePrune = PRUNE_EVERY; // prune on the first write of the session
 
 async function prune(now: number): Promise<void> {
@@ -236,24 +254,48 @@ export async function recordVisit(input: {
 
   const event: VisitEvent = { path, label: input.label, at: now };
   if (params) event.params = params;
-  await idb.add<VisitEvent>(event);
+  const id = await idb.add<VisitEvent>(event);
+  if (id !== null) {
+    event.id = id;
+    lastRow.set(path, event);
+  }
 
   if (++writesSincePrune >= PRUNE_EVERY) {
     writesSincePrune = 0;
     await prune(now);
   }
-  // Append-only: extend the live snapshot in place rather than re-reading the
-  // store — but only while something is actually rendering it. `hydrated` stays
-  // true for the session once /history has been opened, so without this guard
-  // every later navigation would copy the whole log (up to MAX_ROWS) for no
-  // listener. Mark it stale instead and re-read on the next subscribe.
-  if (!hydrated) return;
-  if (listeners.size === 0) {
-    stale = true;
-    return;
+  publish((events) => [...events, event]);
+}
+
+/**
+ * Rewrite the filters on the most recent visit to `path` WITHOUT recording a
+ * new one. Changing a report's filters isn't another view of it — appending
+ * here would inflate that page's count every time the user typed in the filter
+ * box — but the stored filters should still be the ones last in effect, so the
+ * history link restores where you actually left off.
+ *
+ * No-ops when nothing has been recorded for the path yet (nothing to amend).
+ */
+export async function updateVisitParams(input: {
+  path: string;
+  base?: string;
+  params?: string | URLSearchParams;
+}): Promise<void> {
+  const path = (input.base ?? "") + canonicalPath(input.path);
+  const params = input.params ? normalizeParams(input.params) : "";
+  let row = lastRow.get(path);
+  if (!row) {
+    // Arrived before this session's memory (e.g. a reload): find the newest
+    // stored row for the path.
+    const events = await idb.getAll<VisitEvent>();
+    for (const e of events) if (e.path === path && (!row || e.at >= row.at)) row = e;
   }
-  snapshot = { events: [...snapshot.events, event], loaded: snapshot.loaded };
-  emit();
+  if (!row || row.id === undefined || (row.params ?? "") === params) return;
+
+  const updated: VisitEvent = { ...row, params: params || undefined };
+  await idb.put<VisitEvent>(updated);
+  lastRow.set(path, updated);
+  publish((events) => events.map((e) => (e.id === updated.id ? updated : e)));
 }
 
 /** Read all events, optionally only those on/after `since`. */
@@ -266,5 +308,6 @@ export async function getEvents(opts: { since?: number } = {}): Promise<VisitEve
 export async function clearHistory(): Promise<void> {
   await idb.clear();
   lastRecorded.clear();
+  lastRow.clear();
   if (hydrated) await refresh();
 }
