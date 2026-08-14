@@ -21,10 +21,13 @@
  * eval-backed candidate default (EMBED_GROUP_POLICY=icd_params_breadcrumbs +
  * EMBED_CRUMB_DEPTH=2); code default stays one_to_one so no deploy auto-re-embeds:
  *
- *   icd_params_breadcrumbs  recall@10 0.819  exact 0.677  disambig 0.700  mrr 0.578  — WINNER (only ~206 anchors re-embed)
- *   icd_params              recall@10 0.813  exact 0.587  disambig 0.400  mrr 0.553  — grouping helps recall, not disambig
- *   one_to_one              recall@10 0.742  exact 0.529  disambig 0.375  mrr 0.541  — current production
- *   breadcrumbs (depth2)    recall@10 0.652  exact 0.568  disambig 0.625            — disambig up, recall regresses
+ *   icd_params_breadcrumbs       recall@10 0.819  exact 0.677  disambig 0.700  mrr 0.578  — WINNER (only ~206 anchors re-embed)
+ *   icd_params                   recall@10 0.813  exact 0.587  disambig 0.400  mrr 0.553  — grouping helps recall, not disambig
+ *   one_to_one                   recall@10 0.742  exact 0.529  disambig 0.375  mrr 0.541  — current production
+ *   breadcrumbs (depth2)         recall@10 0.652  exact 0.568  disambig 0.625            — disambig up, recall regresses
+ *   icd_full_params_breadcrumbs  recall@10 0.781  exact 0.548  disambig 0.350  mrr 0.554  — full member prose+kv DILUTES the
+ *                                distinctive param values (disambig/icd-param slices fall back to ~baseline); WORSE than the
+ *                                kv-only fused. Lexical already indexes full prose, so keep the semantic anchor compact. Do not ship.
  *
  * Directional TF-IDF result (2026-08-14, 155 queries, distinctive-instance
  * disambiguation; offline proxy — it ranked breadcrumbs top, which the neural
