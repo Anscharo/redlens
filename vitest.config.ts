@@ -33,6 +33,9 @@ export default defineConfig({
         "src/test/**",
         "src/vite-env.d.ts",
         "src/server/migrations/**",
+        // Offline one-off eval tooling, not shippable code — explicitly out of
+        // coverage even though the include patterns above don't reach it today.
+        "scripts/aux/eval-smalltalk-judge.ts",
         // run-thread.mjs moved here from scripts/htmlhist/ (W3-2, directory-moves) — a
         // pure relocation, not new coverage scope. Its only importers (prepare-html-
         // history.mjs, thread-structural.mjs, scripts/prehist/genesis-bridge.mjs) are

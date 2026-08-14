@@ -20,9 +20,9 @@ export function useChatSession(open: boolean) {
   const { user, openAuth } = useAuth();
   const authed = !!user;
 
-  const { usage, commons, refresh } = useUsage(authed && open);
+  const { usage, commons, contextWindow, refresh } = useUsage(authed && open);
   const [rateLimit, setRateLimit] = useRateLimitLock(commons, refresh);
-  const { messages, streaming, error, conversationId, send, stop, reset, hydrate } = useChatStream({
+  const { messages, streaming, error, conversationId, contextTokens, send, stop, reset, hydrate } = useChatStream({
     onDone: () => void refresh(),
     onAuthError: openAuth,
   });
@@ -50,7 +50,7 @@ export function useChatSession(open: boolean) {
       try {
         const detail = await getConversation(id);
         if (requestIdRef.current !== reqId) return; // superseded — discard
-        hydrate(detail.id, toChatMsgs(detail.messages));
+        hydrate(detail.id, toChatMsgs(detail.messages), detail.contextTokens ?? null);
         setTitle(detail.title ?? presetTitle);
       } catch {
         // Never surface a fetch failure as an error banner here — a stale or
@@ -75,8 +75,10 @@ export function useChatSession(open: boolean) {
     send,
     stop,
     conversationId,
+    contextTokens,
     usage,
     commons,
+    contextWindow,
     refresh,
     rateLimit,
     setRateLimit,

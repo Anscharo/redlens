@@ -102,7 +102,9 @@ New event types (server union + mirrored in `src/components/chat/api.ts`; old cl
     invalidCitations: string[] }
 ```
 
-Status details are derived from harness state at zero model cost, e.g. `querying`: "Searching the atlas for 'Stability Scope facilitators'…" (from tool args); `reading`: "Reading 6 documents…"; `checking`: "Cross-checking 7 claims against 4 sources…" (claim count from citation extraction); `advising`: "Answer didn't fully check out — conferring with advisor…"; `revising`: "Revising with corrections…".
+Status details are derived from harness state at zero model cost, e.g. `querying`: "Searching the atlas for 'Stability Scope facilitators'…" (from tool args); `reading`: "Reading 6 documents…"; `checking`: "Cross-checking 7 cited claims against 4 sources…" (claim count from citation extraction); `advising`: "Answer didn't fully check out — conferring with advisor…"; `revising`: "Revising with corrections…".
+
+The verification stages (`comparing`, `checking`) are **only emitted when the turn has a basis to name** — retrievals this turn, or earlier turns of the conversation. A turn with neither (a meta-question answered without tools) runs the same audit silently rather than announcing a comparison against nothing; counts are printed only when they are real, so no detail ever reads "against 0 sources". Zero cited claims degrades the subject to "the answer", not a zero count.
 
 Ordering guarantees: `meta` first, `done` always terminal; `verify_result` lands between the last `token` and `done`; a revision emits `verify_result(fail)` → `status:advising` → `status:revising` → `clear` → tokens → second `verify_result` → `done`. The existing `clear` semantics already reset the client's answer buffer, so revision reuses it unchanged.
 

@@ -1,11 +1,5 @@
-import { useRef, type ChangeEvent, type KeyboardEvent } from "react";
+import { useRef, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
 import { PinIcon, SendIcon } from "./glyphs";
-import { UsageNote } from "./UsageNote";
-import { CommonsNote } from "./CommonsNote";
-import { ErrorNote } from "./ErrorNote";
-import { RateLimitNote } from "./RateLimitNote";
-import type { UsageWindow, CommonsPool } from "./api";
-import type { RateLimitState } from "./types";
 
 interface ComposerProps {
   draft: string;
@@ -13,13 +7,13 @@ interface ComposerProps {
   onSend: () => void;
   onStop: () => void;
   streaming: boolean;
-  rateLimit: RateLimitState | null; // non-null while a 429 lock is in force
-  onRecheckUsage: () => void; // "Check now" on the commons lock — hits /api/usage, never /api/chat
-  error: string | null; // last failed-turn message (suppressed while rateLimit is set)
+  locked?: boolean; // a 429 lock is in force — input disabled, hint shows "locked"
+  // Notice slot above the input — ChatPanel composes RateLimitNote/ErrorNote
+  // here (and owns the "error is suppressed while rate-limited" policy, since
+  // it owns both pieces of state). The composer just provides the position.
+  notice?: ReactNode;
   placeholder: string;
   chip: string;
-  usage: UsageWindow | null;
-  commons: CommonsPool | null;
   // True while useChatSession's openConversation() is awaiting its GET — the
   // panel already shows "Loading conversation…" in the thread, but nothing
   // upstream stopped the composer itself from accepting input during that
@@ -27,6 +21,10 @@ interface ComposerProps {
   // the PREVIOUS conversationId (or none), so it's posted to the wrong
   // conversation instead of the one the user just opened.
   historyLoading?: boolean;
+  // Footer slot, rendered below the input — ChatPanel passes the LimitsMeter
+  // here. Composition instead of props: the composer doesn't consume any of
+  // the meter's data, so it shouldn't have to thread it through.
+  children?: ReactNode;
 }
 
 // Auto-growing textarea + context chip + send/stop. Enter sends, Shift+Enter
@@ -37,17 +35,15 @@ export function Composer({
   onSend,
   onStop,
   streaming,
-  rateLimit,
-  onRecheckUsage,
-  error,
+  locked,
+  notice,
   placeholder,
   chip,
-  usage,
-  commons,
   historyLoading,
+  children,
 }: ComposerProps) {
   const taRef = useRef<HTMLTextAreaElement>(null);
-  const locked = !!rateLimit || !!historyLoading;
+  const disabled = !!locked || !!historyLoading;
 
   const autoGrow = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const ta = e.target;
@@ -59,7 +55,7 @@ export function Composer({
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!streaming && draft.trim() && !locked) {
+      if (!streaming && draft.trim() && !disabled) {
         onSend();
         if (taRef.current) taRef.current.style.height = "auto";
       }
@@ -68,7 +64,7 @@ export function Composer({
 
   return (
     <div className="rlc-composer">
-      {rateLimit ? <RateLimitNote rateLimit={rateLimit} onRecheck={onRecheckUsage} /> : <ErrorNote message={error} />}
+      {notice}
       <div className="rlc-inputwrap">
         <textarea
           ref={taRef}
@@ -78,7 +74,7 @@ export function Composer({
           value={draft}
           onChange={autoGrow}
           onKeyDown={onKey}
-          disabled={locked}
+          disabled={disabled}
         />
         <div className="rlc-composer-row">
           <span className="rlc-chip">
@@ -101,7 +97,7 @@ export function Composer({
                 onSend();
                 if (taRef.current) taRef.current.style.height = "auto";
               }}
-              disabled={!draft.trim() || locked}
+              disabled={!draft.trim() || disabled}
               title="Send"
               aria-label="Send"
             >
@@ -110,8 +106,7 @@ export function Composer({
           )}
         </div>
       </div>
-      <CommonsNote commons={commons} />
-      <UsageNote usage={usage} />
+      {children}
     </div>
   );
 }

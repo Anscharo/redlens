@@ -1,4 +1,4 @@
-import { humanizeReset } from "./UsageNote";
+import { humanizeReset } from "./LimitsMeter";
 import type { RateLimitState } from "./types";
 
 // Panel-level lock notice shown above the composer while a 429 is in force.

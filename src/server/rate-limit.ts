@@ -73,5 +73,9 @@ export async function handleUsage(req: Request): Promise<Response> {
   const session = await getSessionUser(req);
   if (!session) return json({ error: "unauthenticated" }, 401);
   const [window, global] = await Promise.all([getWindowUsage(session.user.id), fetchCommons()]);
-  return json({ window, ...(global ? { global } : {}) }, 200, session.refresh);
+  return json(
+    { window, contextWindowTokens: config.chatContextWindowTokens, ...(global ? { global } : {}) },
+    200,
+    session.refresh,
+  );
 }

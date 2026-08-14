@@ -93,6 +93,7 @@ describe("handleChat", () => {
   let savedJwtSecret: string;
   let savedOpenrouterKey: string;
   let savedTitleModel: string;
+  let savedJudgeModel: string;
 
   afterAll(() => {
     // Restore config mutations so later files don't inherit a truthy
@@ -100,12 +101,14 @@ describe("handleChat", () => {
     config.jwtSecret = savedJwtSecret;
     config.openrouterApiKey = savedOpenrouterKey;
     config.chatTitleModel = savedTitleModel;
+    config.chatSmalltalkJudgeModel = savedJudgeModel;
   });
 
   beforeAll(() => {
     savedJwtSecret = config.jwtSecret;
     savedOpenrouterKey = config.openrouterApiKey;
     savedTitleModel = config.chatTitleModel;
+    savedJudgeModel = config.chatSmalltalkJudgeModel;
     config.jwtSecret ||= "test-jwt-secret";
     config.openrouterApiKey ||= "test-key";
     // Off by default for every pre-existing test (see the file-header note on
@@ -114,6 +117,11 @@ describe("handleChat", () => {
     // against the per-test fetch mock swaps below. The "titling" describe
     // block turns it back on for its own tests.
     config.chatTitleModel = "";
+    // Same reason, judge slot (defaults ON in config): a concurrent
+    // smalltalk-judge call on a marker-free first message would consume one
+    // of a test's scripted SSE rounds. Bypass behavior is covered in
+    // chat-orchestrator.test.ts, not here.
+    config.chatSmalltalkJudgeModel = "";
     setIndexes(loadIndexes());
     // Same shared-dispatcher install llm.test.ts performs — idempotent,
     // whichever file's beforeAll runs first wins the install.
@@ -452,6 +460,9 @@ describe("handleChat", () => {
       const done = events.find((e) => e.type === "done");
       expect(done).toBeDefined();
       expect(done.content).toBe("Hello from the atlas.");
+      // contextTokens survives sanitizeDone onto the wire (sseResponse's fixture
+      // usage chunk carries prompt_tokens: 5) — the pinned wire contract's SSE point.
+      expect(done.contextTokens).toBe(5);
       // Internal harness fields must be stripped off the wire by sanitizeDone.
       expect(done.transcript).toBeUndefined();
       expect(done.checksMeta).toBeUndefined();
@@ -728,6 +739,41 @@ describe("persistAssistant — usage ledger", () => {
     expect(usageInserts).toHaveLength(1);
     // (input: 100 + 30 = 130, output: 40 + 10 = 50) — not just done.usage's 100/40.
     expect(usageInserts[0].values).toEqual(["user-1", "conv-1", 130, 50]);
+  });
+
+  it("persists context_tokens on the messages row — the LAST round's prompt_tokens, not the cumulative usage.input", async () => {
+    installPersistHandlers();
+    const done = {
+      type: "done",
+      content: "answer",
+      usage: { input: 3_000, output: 40 }, // cumulative across rounds
+      contextTokens: 1_900, // last round only — what the shown answer actually saw
+      generationId: "gen-ctx",
+      toolCalls: [],
+      lengthCapped: false,
+      transcript: [],
+      checksMeta: [],
+    };
+
+    await persistAssistant("user-1", "conv-ctx", done as any, 50);
+
+    const msgInsert = queryLog.find((q) => q.text.includes("INSERT INTO messages") && q.text.includes("RETURNING id"));
+    expect(msgInsert).toBeDefined();
+    expect(msgInsert!.text).toContain("context_tokens");
+    expect(msgInsert!.values).toEqual(["conv-ctx", "answer", null, 3_000, 40, 1_900, "gen-ctx", 50]);
+  });
+
+  it("persists context_tokens as null when the turn never saw a usage chunk", async () => {
+    installPersistHandlers();
+    const done = {
+      type: "done", content: "answer", usage: { input: 0, output: 0 }, contextTokens: null,
+      generationId: null, toolCalls: [], lengthCapped: false, transcript: [], checksMeta: [],
+    };
+
+    await persistAssistant("user-1", "conv-nulled", done as any, 5);
+
+    const msgInsert = queryLog.find((q) => q.text.includes("INSERT INTO messages") && q.text.includes("RETURNING id"));
+    expect(msgInsert!.values).toEqual(["conv-nulled", "answer", null, 0, 0, null, null, 5]);
   });
 
   it("still inserts a usage_events row (zero harness tokens) when checksMeta is empty", async () => {

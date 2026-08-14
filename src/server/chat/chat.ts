@@ -335,9 +335,9 @@ export async function persistAssistant(
   let inserted: { id: string }[];
   try {
     inserted = (await sql`
-      INSERT INTO messages (conversation_id, role, content, tool_calls, input_tokens, output_tokens, generation_id, latency_ms)
+      INSERT INTO messages (conversation_id, role, content, tool_calls, input_tokens, output_tokens, context_tokens, generation_id, latency_ms)
       VALUES (${convId}, 'assistant', ${done.content}, ${toolCalls}::jsonb,
-              ${done.usage.input}, ${done.usage.output}, ${done.generationId}, ${latencyMs})
+              ${done.usage.input}, ${done.usage.output}, ${done.contextTokens ?? null}, ${done.generationId}, ${latencyMs})
       RETURNING id
     `) as { id: string }[];
   } catch (err) {

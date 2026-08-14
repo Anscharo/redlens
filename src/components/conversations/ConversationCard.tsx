@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MAX_CONVERSATION_TITLE_LEN, type ConversationSummary } from "../../lib/conversationsApi";
+import { formatTokens } from "../../lib/formatTokens";
 
 const UNTITLED = "Untitled chat";
 
@@ -103,6 +104,8 @@ export function ConversationCard({
 
       <p className="text-xs text-tan-3 mb-3">
         {conversation.messageCount} {conversation.messageCount === 1 ? "message" : "messages"}
+        {conversation.contextTokens != null &&
+          ` · ${conversation.contextEstimated ? "~" : ""}${formatTokens(conversation.contextTokens)} context`}
       </p>
 
       <div className="flex gap-2">

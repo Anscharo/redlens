@@ -62,6 +62,9 @@ export type ChatEvent =
       usage: { input: number; output: number };
       generationId: string | null;
       toolCalls: ToolCallRecord[];
+      // True context size of the turn (last llm round's prompt_tokens).
+      // Optional so an older server (pre this field) still parses.
+      contextTokens?: number | null;
     }
   | { type: "error"; message: string };
 
