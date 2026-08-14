@@ -13,6 +13,7 @@ const DOCS: Record<string, AtlasNode> = {
   a: node("a", "A.3.1.1", "Deep governance doc"),
   b: node("b", "A.3.1.2", "Another governance doc"),
   tree: node("tree", "A.3.1", "Governance branch"),
+  scope: node("scope", "A.3", "The Financial Scope"),
 };
 
 let log: { events: VisitEvent[]; loaded: boolean } = { events: [], loaded: true };
@@ -62,6 +63,34 @@ describe("VisitsPage", () => {
     expect(link).toHaveAttribute("href", "/atlas?id=a");
   });
 
+  it("says how long ago each recent document was opened", () => {
+    log = {
+      events: [
+        { path: "/atlas?id=a", label: "Deep governance doc", at: Date.now() - 3 * 3600_000 },
+        { path: "/atlas?id=b", label: "Another governance doc", at: Date.now() - 40_000 },
+      ],
+      loaded: true,
+    };
+    render(<VisitsPage />);
+    expect(screen.getByText("3 hours ago")).toBeInTheDocument();
+    expect(screen.getByText("just now")).toBeInTheDocument();
+  });
+
+  it("heads a tree with its wildcard pattern, scope and root document", async () => {
+    log = {
+      events: [
+        { path: "/atlas?id=a", label: "Deep governance doc", at: 10 },
+        { path: "/atlas?id=b", label: "Another governance doc", at: 30 },
+      ],
+      loaded: true,
+    };
+    render(<VisitsPage />);
+    const toggle = await screen.findByRole("button", { name: /A\.3\.1\.X/ });
+    expect(toggle).toHaveTextContent("A.3.1.X…");
+    expect(toggle).toHaveTextContent("The Financial Scope");
+    expect(toggle).toHaveTextContent("Governance branch");
+  });
+
   it("opens a tree to reveal the documents behind its count", async () => {
     log = {
       events: [
@@ -71,7 +100,7 @@ describe("VisitsPage", () => {
       loaded: true,
     };
     render(<VisitsPage />);
-    const toggle = await screen.findByRole("button", { name: /A\.3\.1.*Governance branch/ });
+    const toggle = await screen.findByRole("button", { name: /A\.3\.1\.X/ });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");

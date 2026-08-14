@@ -48,7 +48,7 @@ export function VisitsPage() {
 
   return (
     <div className="px-6 py-8">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <p className="mono text-xs text-tan-3 mb-1">history</p>
         <div className="flex items-baseline justify-between gap-4 mb-2">
           <h1 className="text-xl font-semibold" style={{ color: "var(--tan)" }}>
@@ -65,27 +65,27 @@ export function VisitsPage() {
             </button>
           )}
         </div>
-        <p className="mono text-[10px] mb-6" style={{ color: "var(--gray)" }}>
+        <p className="mono text-[11px] mb-6" style={{ color: "var(--gray)" }}>
           Kept in this browser only — never sent to a server, and not tied to an account.
           Visits older than 180 days are forgotten.
         </p>
 
         {!loaded ? (
-          <p className="mono text-xs text-tan-3">Loading…</p>
+          <p className="mono text-[13px] text-tan-3">Loading…</p>
         ) : view.empty ? (
-          <p className="mono text-xs text-tan-3">
+          <p className="mono text-[13px] text-tan-3">
             No history yet — read a document, open a report, or visit an actor on the Radar,
             and it will show up here.
           </p>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
             <VisitCard
               title="Recently viewed documents"
               blurb={`the last ${RECENT_DOCS} Atlas documents you opened, newest first`}
               empty={view.recentDocs.length === 0}
             >
               {view.recentDocs.map((d) => (
-                <DocRow key={d.id} path={d.path} docNo={d.docNo} label={d.label} count={d.count} />
+                <DocRow key={d.id} path={d.path} docNo={d.docNo} label={d.label} count={d.count} at={d.last} />
               ))}
             </VisitCard>
 

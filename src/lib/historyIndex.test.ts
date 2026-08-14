@@ -29,6 +29,7 @@ const DOCS: Record<string, AtlasNode> = {
   a311: node("a311", "A.3.1.1", "Deep governance doc"),
   a312: node("a312", "A.3.1.2", "Another governance doc"),
   a321: node("a321", "A.3.2.1", "A different branch"),
+  scope3: node("scope3", "A.3", "The Financial Scope"),
   tree31: node("tree31", "A.3.1", "Governance branch"),
   [AGENT_SCOPE_UUID]: node(AGENT_SCOPE_UUID, "A.6", "The Agent Scope"),
   ag1: node("ag1", "A.6.1.2.3.4", "Spark artifact leaf"),
@@ -58,13 +59,22 @@ describe("docIdFromPath", () => {
 describe("treeKeyFor", () => {
   it("groups an ordinary scope on three segments", () => {
     expect(treeKeyFor("A.3.1.4.5.6", "A.6")).toBe("A.3.1");
-    expect(treeKeyFor("A.3.1", "A.6")).toBe("A.3.1");
-    expect(treeKeyFor("A.3", "A.6")).toBe("A.3"); // shorter than the width
+    expect(treeKeyFor("A.3.1", "A.6")).toBe("A.3.1"); // exactly the width: the root
   });
 
   it("groups the Agent Scope on five", () => {
     expect(treeKeyFor("A.6.1.2.3.4", "A.6")).toBe("A.6.1.2.3");
     expect(treeKeyFor("A.6.1.2.3", "A.6")).toBe("A.6.1.2.3");
+  });
+
+  it("gives no tree to a document above the grouping level", () => {
+    expect(treeKeyFor("A.3", "A.6")).toBeNull(); // a Scope
+    expect(treeKeyFor("A", "A.6")).toBeNull();
+    // Inside the Agent Scope the floor is five, so the artifact lists are above it.
+    expect(treeKeyFor("A.6", "A.6")).toBeNull();
+    expect(treeKeyFor("A.6.1", "A.6")).toBeNull();
+    expect(treeKeyFor("A.6.1.1", "A.6")).toBeNull();
+    expect(treeKeyFor("A.6.1.1.1", "A.6")).toBe("A.6.1.1.1"); // the agent itself
   });
 
   it("follows the Agent Scope through a renumbering", () => {
@@ -78,9 +88,9 @@ describe("treeKeyFor", () => {
     expect(treeKeyFor("A.60.1.2.3.4", "A.6")).toBe("A.60.1");
   });
 
-  it("puts all Needed Research in one tree", () => {
-    expect(treeKeyFor("NR-4", "A.6")).toBe("NR");
-    expect(treeKeyFor("NR-11", "A.6")).toBe("NR");
+  it("gives no tree to Needed Research (no dotted number)", () => {
+    expect(treeKeyFor("NR-4", "A.6")).toBeNull();
+    expect(treeKeyFor("NR-11", "A.6")).toBeNull();
   });
 });
 
@@ -142,6 +152,36 @@ describe("buildHistoryView", () => {
     expect(gov.label).toBe("Governance branch"); // titled from the tree's own node
     expect(gov.id).toBe("tree31");
     expect(gov.docs.map((d) => d.id)).toEqual(["a311", "a312"]); // most-viewed first
+  });
+
+  it("labels a tree with its wildcard pattern, owning scope, and root document", () => {
+    const v = buildHistoryView(events, DOCS);
+    const gov = v.topTrees.find((t) => t.key === "A.3.1")!;
+    expect(gov.pattern).toBe("A.3.1.X…");
+    expect(gov.owner).toBe("The Financial Scope"); // the enclosing Scope
+    expect(gov.label).toBe("Governance branch"); // the document at the top of the tree
+  });
+
+  it("names an agent tree after the agent, whose artifact root is the tree root", () => {
+    const v = buildHistoryView(events, DOCS);
+    const agent = v.topTrees.find((t) => t.key === "A.6.1.2.3")!;
+    expect(agent.pattern).toBe("A.6.1.2.3.X…");
+    // Owner and root document coincide here — the renderer prints it once.
+    expect(agent.owner).toBe("Spark artifacts");
+    expect(agent.label).toBe("Spark artifacts");
+  });
+
+  it("leaves documents above the grouping level out of the trees", () => {
+    const v = buildHistoryView(
+      [
+        visit("/atlas?id=scope3", "The Financial Scope", 10), // a Scope: 2 segments
+        visit("/atlas?id=nr", "Some needed research", 20), // NR-4: no dotted number
+        visit(`/atlas?id=${AGENT_SCOPE_UUID}`, "The Agent Scope", 30),
+      ],
+      DOCS,
+    );
+    expect(v.topDocs).toHaveLength(3); // still listed as documents
+    expect(v.topTrees).toEqual([]); // but none of them forms a tree
   });
 
   it("ranks trees by summed views", () => {

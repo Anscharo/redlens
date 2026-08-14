@@ -13,24 +13,27 @@ export function VisitCard({
   children: React.ReactNode;
 }) {
   return (
-    <article className="rounded border p-4" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+    <article
+      className="rounded border p-4 h-fit"
+      style={{ borderColor: "var(--border)", background: "var(--bg-deep)" }}
+    >
       <header className="mb-3">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-semibold" style={{ color: "var(--tan)" }}>
+          <h2 className="text-base font-semibold" style={{ color: "var(--tan)" }}>
             {title}
           </h2>
           {!empty && (
-            <span className="mono text-[10px] uppercase tracking-wider shrink-0" style={{ color: "var(--tan-3)" }}>
+            <span className="mono text-[11px] uppercase tracking-wider shrink-0" style={{ color: "var(--tan-3)" }}>
               View Count
             </span>
           )}
         </div>
-        <p className="mono text-[10px] mt-1" style={{ color: "var(--gray)" }}>
+        <p className="mono text-[11px] mt-1" style={{ color: "var(--gray)" }}>
           {blurb}
         </p>
       </header>
       {empty ? (
-        <p className="mono text-xs" style={{ color: "var(--tan-3)" }}>
+        <p className="mono text-[13px]" style={{ color: "var(--tan-3)" }}>
           Nothing here yet.
         </p>
       ) : (

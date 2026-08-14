@@ -55,10 +55,10 @@ describe("ProfileButton signed out", () => {
     expect(screen.queryByText("Continue with GitHub")).toBeNull();
   });
 
-  it("links History at /history and closes the menu on click", () => {
+  it("links History at /me/history and closes the menu on click", () => {
     render(<ProfileButton />);
     fireEvent.click(screen.getByRole("button", { name: "Menu" }));
-    expect(screen.getByText("History").closest("a")).toHaveAttribute("href", "/history");
+    expect(screen.getByText("History").closest("a")).toHaveAttribute("href", "/me/history");
     fireEvent.click(screen.getByText("History"));
     expect(screen.queryByRole("menu")).toBeNull();
   });
@@ -98,7 +98,7 @@ describe("ProfileButton signed in", () => {
     user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada"));
-    expect(screen.getByText("History").closest("a")).toHaveAttribute("href", "/history");
+    expect(screen.getByText("History").closest("a")).toHaveAttribute("href", "/me/history");
     const labels = Array.from(document.querySelectorAll(".rlc-menu-item")).map((el) => el.textContent);
     const historyIdx = labels.findIndex((t) => t?.includes("History"));
     const collectionsIdx = labels.findIndex((t) => t?.includes("Collections"));

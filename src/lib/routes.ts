@@ -13,7 +13,7 @@ export const ROUTES = {
   COLLECTIONS: "/collections",
   SHARED_COLLECTION: "/c/:id",
   CONVERSATIONS: "/conversations",
-  HISTORY: "/history",
+  HISTORY: "/me/history",
   REPORTS: "/reports",
   REPORTS_CROSSVIEW: "/reports/crossview",
   REPORTS_CROSSVIEW_CONCEPTS: "/reports/crossview/concepts",

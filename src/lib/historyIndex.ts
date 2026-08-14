@@ -25,13 +25,21 @@ export const AGENT_SCOPE_UUID = "4a08ca6c-e652-49e4-9b79-4831b20e600a";
 
 /** Doc-number segments a tree groups on, inside vs outside the Agent Scope.
  *  Agent artifacts nest one scope deeper (scope → artifacts → agent → area),
- *  so grouping them at 3 would collapse every agent into one bucket. */
+ *  so grouping them at 3 would collapse every agent into one bucket.
+ *  These are also a FLOOR: a document shallower than its width is above any
+ *  tree (a Scope, or the Agent Scope's artifact lists) and joins none — it
+ *  would otherwise form a stub "tree" that is really just itself. */
 const TREE_SEGMENTS = 3;
 const AGENT_TREE_SEGMENTS = 5;
 
-/** Needed Research has no dotted number (global `NR-X`), so the whole set is
- *  its own tree rather than one tree per document. */
-const NR_TREE_KEY = "NR";
+/** The segments the grouping fixes, then a literal X for the varying rest —
+ *  "A.1.1.X…" reads as "everything under A.1.1". */
+const TREE_WILDCARD = ".X…";
+
+/** Scope = the top-level node, addressed by the first two doc_no segments. */
+function scopeDocNo(docNo: string): string {
+  return docNo.split(".").slice(0, 2).join(".");
+}
 
 export interface DocVisit {
   id: string; // atlas node uuid
@@ -43,9 +51,14 @@ export interface DocVisit {
 }
 
 export interface TreeVisit {
-  key: string; // doc_no prefix ("A.3.1", "A.6.1.2.3") or "NR"
+  key: string; // doc_no prefix — "A.3.1", or "A.6.1.1.1" inside the Agent Scope
+  pattern: string; // the key with the varying tail spelled out: "A.3.1.X…"
   id: string | null; // the prefix's own atlas node, when one exists
-  label: string; // that node's title, else the key itself
+  /** Whose part of the Atlas this is: the owning Scope's title, or — inside the
+   *  Agent Scope, where the tree root IS an agent's artifact — that agent's
+   *  name. Null when the atlas can't resolve it. */
+  owner: string | null;
+  label: string; // the title of the document at the top of the tree
   count: number; // views summed across the group
   last: number;
   docs: DocVisit[]; // members, most-viewed first
@@ -82,14 +95,19 @@ export function docIdFromPath(path: string): string | null {
 
 /** The tree a doc number belongs to — its first N segments, where N is deeper
  *  inside the Agent Scope. `agentScopeDocNo` is that scope's current number
- *  (resolved by UUID); pass null to group everything at the shallow width. */
-export function treeKeyFor(docNo: string, agentScopeDocNo: string | null): string {
-  if (docNo.startsWith("NR-")) return NR_TREE_KEY;
+ *  (resolved by UUID); pass null to group everything at the shallow width.
+ *  Returns null for a document that sits above every tree: one shallower than
+ *  the grouping width, or Needed Research (global `NR-X`, no dotted number and
+ *  so no tree to belong to). */
+export function treeKeyFor(docNo: string, agentScopeDocNo: string | null): string | null {
+  if (docNo.startsWith("NR-")) return null;
   const inAgentScope =
     !!agentScopeDocNo &&
     (docNo === agentScopeDocNo || docNo.startsWith(`${agentScopeDocNo}.`));
   const width = inAgentScope ? AGENT_TREE_SEGMENTS : TREE_SEGMENTS;
-  return docNo.split(".").slice(0, width).join(".");
+  const parts = docNo.split(".");
+  if (parts.length < width) return null;
+  return parts.slice(0, width).join(".");
 }
 
 // Friendly names for the filter keys the reports and radar pages sync to the
@@ -144,24 +162,35 @@ function toPageVisit(row: VisitSummary): PageVisit {
 }
 
 // Group visited docs into trees. Docs missing from this atlas build (docNo null)
-// have no number to group on and are skipped; the tree's own node supplies the
-// heading title when the prefix resolves to a real document.
+// have no number to group on and are skipped, as are docs above every tree (see
+// treeKeyFor); the tree's own node supplies the heading title when the prefix
+// resolves to a real document.
 function buildTrees(docVisits: DocVisit[], docs: Record<string, AtlasNode> | null): TreeVisit[] {
   const byDocNo = new Map<string, AtlasNode>();
   if (docs) for (const n of Object.values(docs)) byDocNo.set(n.doc_no, n);
   const agentScopeDocNo = docs?.[AGENT_SCOPE_UUID]?.doc_no ?? null;
+  const inAgentScope = (key: string) =>
+    !!agentScopeDocNo && key.startsWith(`${agentScopeDocNo}.`);
 
   const trees = new Map<string, TreeVisit>();
   for (const d of docVisits) {
     if (!d.docNo) continue;
     const key = treeKeyFor(d.docNo, agentScopeDocNo);
+    if (!key) continue;
     let tree = trees.get(key);
     if (!tree) {
-      const node = key === NR_TREE_KEY ? undefined : byDocNo.get(key);
+      const node = byDocNo.get(key);
+      // Inside the Agent Scope the tree root is the agent's own artifact node,
+      // so it names the agent; elsewhere the owner is the enclosing Scope.
+      const owner = inAgentScope(key)
+        ? node?.title ?? null
+        : byDocNo.get(scopeDocNo(key))?.title ?? null;
       tree = {
         key,
+        pattern: `${key}${TREE_WILDCARD}`,
         id: node?.id ?? null,
-        label: node?.title ?? (key === NR_TREE_KEY ? "Needed Research" : key),
+        owner,
+        label: node?.title ?? key,
         count: 0,
         last: 0,
         docs: [],
