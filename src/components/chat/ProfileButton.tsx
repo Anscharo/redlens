@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "./auth";
 import { usePrefs, type ChatPrefs } from "./usePrefs";
-import { SignInButtons } from "./SignInButtons";
+import { SignedOutMenu } from "./SignedOutMenu";
+import { MenuGlyph } from "./glyphs";
 import { Link } from "../Link";
 import { chatEnabled } from "../../lib/chatEnabled";
 import { ROUTES } from "../../lib/routes";
 
-// NavBar profile control. Signed-out: a mono "sign in" pill → dropdown with a
-// provider choice (GitHub / Google), both routing through the shared openAuth.
-// Signed-in: avatar → dropdown with name, an Account sub-panel (a reduce-motion
-// switch persisted to localStorage, plus Delete account), and Sign out.
+// NavBar profile control. Signed-out: a menu pill → dropdown with Sign in
+// (a sub-panel offering GitHub / Google, both routing through the shared
+// openAuth) and History — see SignedOutMenu. Signed-in: avatar → dropdown with
+// name, an Account sub-panel (a reduce-motion switch persisted to localStorage,
+// plus Delete account), History, Collections, and Sign out.
 // Per the FE handoff we omit the GitHub @handle (not returned by /api/auth/me).
 export function ProfileButton() {
   const { user, signOut, deleteAccount } = useAuth();
@@ -33,12 +35,19 @@ export function ProfileButton() {
   if (!user) {
     return (
       <div ref={ref} className="relative shrink-0">
-        <button className="rlc-signin" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open}>
-          sign in
+        <button
+          className="rlc-signin"
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label="Menu"
+          title="Menu"
+        >
+          <MenuGlyph />
         </button>
         {open && (
           <div className="rlc-menu" role="menu">
-            <SignInButtons variant="menu" source="chat" />
+            <SignedOutMenu onNavigate={() => setOpen(false)} />
           </div>
         )}
       </div>
@@ -71,7 +80,12 @@ export function ProfileButton() {
                 <span className="text-tan-3 enlargen">→</span>
               </button>
               <div className="border-t border-border" />
-              <Link className="rlc-menu-item" to="/collections" onClick={() => setOpen(false)}>
+              <Link className="rlc-menu-item" to={ROUTES.HISTORY} onClick={() => setOpen(false)}>
+                <span>History</span>
+                <span className="text-tan-3 enlargen">→</span>
+              </Link>
+              <div className="border-t border-border" />
+              <Link className="rlc-menu-item" to={ROUTES.COLLECTIONS} onClick={() => setOpen(false)}>
                 <span>Collections</span>
                 <span className="text-tan-3 enlargen">→</span>
               </Link>

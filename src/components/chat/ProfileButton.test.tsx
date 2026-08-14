@@ -32,14 +32,35 @@ afterEach(() => {
 });
 
 describe("ProfileButton signed out", () => {
-  it("shows a sign-in pill and opens a menu with sign-in options on click", () => {
+  it("opens a menu offering Sign in and History", () => {
     render(<ProfileButton />);
-    const pill = screen.getByText("sign in");
-    expect(pill).toBeInTheDocument();
+    const pill = screen.getByRole("button", { name: "Menu" });
     expect(screen.queryByRole("menu")).toBeNull();
     fireEvent.click(pill);
     expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(screen.getByText("Sign in")).toBeInTheDocument();
+    expect(screen.getByText("History")).toBeInTheDocument();
+    // Providers live one level down, so the menu itself stays two entries.
+    expect(screen.queryByText("Continue with GitHub")).toBeNull();
+  });
+
+  it("reveals the providers from the Sign in entry, and comes back", () => {
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    fireEvent.click(screen.getByText("Sign in"));
     expect(screen.getByText("Continue with GitHub")).toBeInTheDocument();
+    expect(screen.getByText("Continue with Google")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("← sign in"));
+    expect(screen.getByText("History")).toBeInTheDocument();
+    expect(screen.queryByText("Continue with GitHub")).toBeNull();
+  });
+
+  it("links History at /history and closes the menu on click", () => {
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    expect(screen.getByText("History").closest("a")).toHaveAttribute("href", "/history");
+    fireEvent.click(screen.getByText("History"));
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 
   it("closes the menu on outside click", () => {
@@ -49,7 +70,7 @@ describe("ProfileButton signed out", () => {
         <div data-testid="outside" />
       </div>,
     );
-    fireEvent.click(screen.getByText("sign in"));
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
     expect(screen.getByRole("menu")).toBeInTheDocument();
     fireEvent.mouseDown(screen.getByTestId("outside"));
     expect(screen.queryByRole("menu")).toBeNull();
@@ -71,6 +92,18 @@ describe("ProfileButton signed in", () => {
     expect(screen.getByText("Account")).toBeInTheDocument();
     expect(screen.getByText("Collections")).toBeInTheDocument();
     expect(screen.getByText("Sign out")).toBeInTheDocument();
+  });
+
+  it("offers History above Collections", () => {
+    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByAltText("Ada"));
+    expect(screen.getByText("History").closest("a")).toHaveAttribute("href", "/history");
+    const labels = Array.from(document.querySelectorAll(".rlc-menu-item")).map((el) => el.textContent);
+    const historyIdx = labels.findIndex((t) => t?.includes("History"));
+    const collectionsIdx = labels.findIndex((t) => t?.includes("Collections"));
+    expect(historyIdx).toBeGreaterThanOrEqual(0);
+    expect(collectionsIdx).toBe(historyIdx + 1);
   });
 
   it("shows a Conversations item directly below Collections when chatEnabled() is true", () => {

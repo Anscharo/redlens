@@ -4,6 +4,8 @@ import * as idb from "./idb";
 import {
   canonicalPath,
   kindForPath,
+  normalizeParams,
+  visitHref,
   summarize,
   recordVisit,
   getEvents,
@@ -53,6 +55,33 @@ describe("kindForPath", () => {
   });
 });
 
+describe("normalizeParams", () => {
+  it("sorts and drops empty values so equal filter sets compare equal", () => {
+    expect(normalizeParams("q=usds&cat=spark")).toBe("cat=spark&q=usds");
+    expect(normalizeParams("cat=spark&q=usds")).toBe("cat=spark&q=usds");
+    expect(normalizeParams("cat=&q=usds")).toBe("q=usds");
+    expect(normalizeParams("")).toBe("");
+  });
+
+  it("accepts a URLSearchParams and percent-encodes values", () => {
+    expect(normalizeParams(new URLSearchParams({ q: "a & b" }))).toBe("q=a%20%26%20b");
+  });
+
+  it("drops an over-long value rather than storing it", () => {
+    const long = "x".repeat(200);
+    expect(normalizeParams(`expanded=${long}&cat=spark`)).toBe("cat=spark");
+  });
+});
+
+describe("visitHref", () => {
+  it("re-attaches the filters to the stored path", () => {
+    expect(visitHref({ path: "/reports/rewards", params: "cat=spark" })).toBe("/reports/rewards?cat=spark");
+    expect(visitHref({ path: "/reports/rewards" })).toBe("/reports/rewards");
+    // The reader path already carries its identity query.
+    expect(visitHref({ path: "/atlas?id=a", params: "view=history" })).toBe("/atlas?id=a&view=history");
+  });
+});
+
 describe("summarize", () => {
   it("groups by path: count, most-recent label, last timestamp", () => {
     const events: VisitEvent[] = [
@@ -67,6 +96,17 @@ describe("summarize", () => {
     expect(alpha.last).toBe(30);
     expect(alpha.kind).toBe("reader");
     expect(rows).toHaveLength(2);
+  });
+
+  it("groups a page under one path however its filters were set, keeping the newest", () => {
+    const rows = summarize([
+      { path: "/reports/rewards", label: "Rewards", at: 10, params: "cat=a" },
+      { path: "/reports/rewards", label: "Rewards", at: 30, params: "cat=b" },
+      { path: "/reports/rewards", label: "Rewards", at: 20 },
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].count).toBe(3);
+    expect(rows[0].params).toBe("cat=b"); // filters from the most recent visit
   });
 });
 
@@ -84,6 +124,21 @@ describe("recordVisit", () => {
     await recordVisit({ path: "/atlas?id=a", label: "Alpha" });
     await recordVisit({ path: "/atlas?id=a", label: "Alpha" }); // immediate repeat
     expect(await getEvents()).toHaveLength(1);
+  });
+
+  it("stores the filters set on the page", async () => {
+    await recordVisit({ path: "/reports/rewards", label: "Rewards", params: "q=usds&cat=spark" });
+    const events = await getEvents();
+    expect(events[0].path).toBe("/reports/rewards");
+    expect(events[0].params).toBe("cat=spark&q=usds");
+  });
+
+  it("records a filter change but still de-dupes an unchanged repeat", async () => {
+    await recordVisit({ path: "/reports/rewards", label: "Rewards", params: "cat=a" });
+    await recordVisit({ path: "/reports/rewards", label: "Rewards", params: "cat=a" });
+    expect(await getEvents()).toHaveLength(1);
+    await recordVisit({ path: "/reports/rewards", label: "Rewards", params: "cat=b" });
+    expect(await getEvents()).toHaveLength(2);
   });
 
   it("records distinct paths separately", async () => {

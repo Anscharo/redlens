@@ -2,6 +2,7 @@ const BASE = import.meta.env.BASE_URL;
 const REPO = __REPO_URL__;
 const PROVENANCE_HREF = `${BASE}provenance`;
 const PRIVACY_HREF = `${BASE}privacy`;
+const HISTORY_HREF = `${BASE}history`;
 // Deep-link to the app's build commit when git gave a real sha; fall back to the
 // repo root for "dev" builds (git unavailable at build time → /commit/dev 404s).
 const APP_COMMIT_HREF = __COMMIT_HASH__ === "dev" ? REPO : `${REPO}/commit/${__COMMIT_HASH__}`;
@@ -67,6 +68,12 @@ export function FooterInfo({ block, atlasCommit, atlasRepo, nodeCount, buildDate
       <FooterItem title="data flow, scripts, outputs — how each claim is traced back to Sky Atlas.md">
         <a href={PROVENANCE_HREF} className="hover:underline" style={{ color: "var(--tan-3)" }}>
           provenance
+        </a>
+      </FooterItem>
+      <Sep />
+      <FooterItem title="what you have been reading — kept in this browser only">
+        <a href={HISTORY_HREF} className="hover:underline" style={{ color: "var(--tan-3)" }}>
+          history
         </a>
       </FooterItem>
       <Sep />

@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-08-14
+- Added a History page showing the Atlas documents, document trees and report pages you have been reading, kept in your browser only
+
 ## 2026-08-13
 - Fixed the reader's "cited by" and relations lists staying empty for the rest of a session after a failed load
 
