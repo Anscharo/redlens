@@ -11,9 +11,9 @@
 // themselves and restore the PINNED empty state (not ambient) in afterEach,
 // so the pin holds for every case that follows them.
 import { test, expect, beforeAll, afterAll, afterEach } from "bun:test";
-import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, type Hit } from "./search.ts";
+import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, attributeSemanticHits, filterByType, type Hit } from "./search.ts";
 import { config } from "../config.ts";
-import type { Indexes } from "./indexes.ts";
+import type { AtlasNode, Indexes } from "./indexes.ts";
 
 let prevKey: string;
 beforeAll(() => {
@@ -122,6 +122,46 @@ test("buildAgentSnippet windows around the hit and stays a literal substring", (
 test("buildAgentSnippet on a short doc returns it whole with no ellipses", () => {
   expect(buildAgentSnippet("Short body text.", "body")).toBe("Short body text.");
   expect(buildAgentSnippet("", "body")).toBe("");
+});
+
+test("attributeSemanticHits fuses a semantic parent with a lexical descendant onto the child", () => {
+  const parent: AtlasNode = {
+    id: "p", doc_no: "A.1.1", title: "Parent", type: "Core", depth: 3,
+    parentId: null, content: "parent body", order: 0, addressRefs: [],
+  };
+  const child: AtlasNode = {
+    id: "c", doc_no: "A.1.1.1", title: "Network", type: "Core", depth: 4,
+    parentId: "p", content: "Ethereum Mainnet", order: 0, addressRefs: [],
+  };
+  const ix = { docMap: new Map([["p", parent], ["c", child]]) } as Indexes;
+  const lex: Hit[] = [{ id: "c", rank: 0, score: 10, source: "lexical" }];
+  const sem: Hit[] = [{ id: "p", rank: 0, score: 0.9, source: "semantic", memberIds: ["p", "c"] }];
+  const out = attributeSemanticHits("network", lex, sem, ix);
+  expect(out[0]!.id).toBe("c");
+  expect(out[0]!.via?.group_id).toBe("p");
+  expect(out[0]!.via?.match_scope).toBe("child");
+  const merged = rrfMerge(lex, out);
+  expect(merged).toHaveLength(1);
+  expect(merged[0]!.id).toBe("c");
+  expect(merged[0]!.sources.sort()).toEqual(["lexical", "semantic"]);
+});
+
+test("filterByType runs after leaf-pick so a Core child of a grouped Section parent is kept", () => {
+  const parent: AtlasNode = {
+    id: "p", doc_no: "A.1.1", title: "Parent", type: "Section", depth: 3,
+    parentId: null, content: "parent body", order: 0, addressRefs: [],
+  };
+  const child: AtlasNode = {
+    id: "c", doc_no: "A.1.1.1", title: "Network", type: "Core", depth: 4,
+    parentId: "p", content: "Ethereum Mainnet", order: 0, addressRefs: [],
+  };
+  const ix = { docMap: new Map([["p", parent], ["c", child]]) } as Indexes;
+  const lex: Hit[] = [];
+  const sem: Hit[] = [{ id: "p", rank: 0, score: 0.9, source: "semantic", memberIds: ["p", "c"] }];
+  const attributed = attributeSemanticHits("network", lex, sem, ix);
+  expect(attributed[0]!.id).toBe("c");
+  expect(filterByType(attributed, ix, "Core")).toHaveLength(1);
+  expect(filterByType(attributed, ix, "Section")).toHaveLength(0);
 });
 
 test("rrfMerge fuses ranks, dedups by id, and records both sources", () => {

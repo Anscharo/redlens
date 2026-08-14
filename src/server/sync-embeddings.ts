@@ -8,9 +8,9 @@ import { join } from "node:path";
 import { sql, toVectorLiteral } from "./db.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
-import { buildEmbedText, contentHash } from "./retrieval/embed-text.ts";
 import { embedBatch, EMBED_DIM } from "./retrieval/embed.ts";
 import type { AtlasNode } from "./retrieval/indexes.ts";
+import { buildUnits, foldedIds, GROUP_POLICIES, type GroupPolicy } from "./retrieval/embed-units.ts";
 
 // Per-request embedding batch size (how many texts per OpenRouter call). There
 // is no total cap: the content_hash diff already bounds each run to new/changed
@@ -94,15 +94,30 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
     ),
   );
 
+  const byId = new Map(docs.map((d) => [d.id, d]));
+
+  const policy = (GROUP_POLICIES as readonly string[]).includes(config.embedGroupPolicy)
+    ? (config.embedGroupPolicy as GroupPolicy)
+    : "one_to_one";
+  const cap = config.embedGroupCap && Number.isFinite(config.embedGroupCap) ? config.embedGroupCap : undefined;
+  const units = buildUnits(docs, policy, cap !== undefined ? { cap } : {});
+  const folded = [...foldedIds(units)];
+
   // Stable order so progress/restarts are deterministic.
-  const queue = docs
-    .map((d) => ({ id: d.id, doc_no: d.doc_no, text: buildEmbedText(d), hash: contentHash(d) }))
+  const queue = units
+    .map((u) => {
+      const anchor = byId.get(u.anchorId);
+      return { id: u.anchorId, doc_no: anchor?.doc_no ?? "", text: u.text, hash: u.hash, memberIds: u.memberIds };
+    })
     .filter((q) => have.get(q.id) !== q.hash)
     .sort((a, b) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true }));
 
   const total = queue.length;
-  console.log(`sync:embeddings — ${docs.length} docs, ${total} stale/new to embed`);
+  console.log(`sync:embeddings — ${docs.length} docs, ${units.length} units (${policy}), ${total} stale/new to embed`);
   if (total === 0) {
+    if (folded.length) {
+      await sql.unsafe(`DELETE FROM atlas_doc_embeddings WHERE doc_id = ANY($1::uuid[])`, [folded]);
+    }
     await sql.end();
     return;
   }
@@ -125,18 +140,21 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
     const valuesSql = slice
       .map((s, j) => {
         const b = params.length;
-        params.push(s.id, toVectorLiteral(vecs[j]), s.hash, atlasSha);
-        return `($${b + 1}, $${b + 2}::vector, $${b + 3}, $${b + 4})`;
+        params.push(s.id, toVectorLiteral(vecs[j]), s.hash, atlasSha, s.memberIds);
+        return `($${b + 1}, $${b + 2}::vector, $${b + 3}, $${b + 4}, $${b + 5}::uuid[])`;
       })
       .join(",");
     await sql.unsafe(
-      `INSERT INTO atlas_doc_embeddings (doc_id, embedding, content_hash, atlas_sha) VALUES ${valuesSql}
+      `INSERT INTO atlas_doc_embeddings (doc_id, embedding, content_hash, atlas_sha, member_ids) VALUES ${valuesSql}
        ON CONFLICT (doc_id) DO UPDATE SET
-         embedding = excluded.embedding, content_hash = excluded.content_hash, atlas_sha = excluded.atlas_sha`,
+         embedding = excluded.embedding, content_hash = excluded.content_hash, atlas_sha = excluded.atlas_sha, member_ids = excluded.member_ids`,
       params,
     );
     done += slice.length;
     if (done % 500 < deps.batch || done === total) console.log(`  ${done}/${total}`);
+  }
+  if (folded.length) {
+    await sql.unsafe(`DELETE FROM atlas_doc_embeddings WHERE doc_id = ANY($1::uuid[])`, [folded]);
   }
   console.log(
     `sync:embeddings — done (${done} vectors${skipped ? `, ${skipped} skipped (retry next run)` : ""}, atlas ${atlasSha.slice(0, 12)})`,

@@ -4,7 +4,7 @@
 // intersected. Ports the CF worker's logic with D1 recursive CTEs replaced by
 // graphology traversals + the in-memory doc map, and Vectorize by pgvector.
 import { type Indexes, type AtlasNode, ancestorChain, descendantIds, resolveNode } from "./indexes.ts";
-import { runLexical, runSemantic, rrfMerge, buildAgentSnippet, extractPhrases, matchesPhrases, type SemanticResult } from "./search.ts";
+import { runLexical, runSemantic, rrfMerge, attributeSemanticHits, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type SemanticResult, type Via } from "./search.ts";
 import { resolveEntity } from "./entity-resolve.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { sql } from "../db.ts";
@@ -272,7 +272,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   }
 
   // ── search ───────────────────────────────────────────────────────────────────
-  let searchHits: { id: string; rrf_score: number; score: number; sources: string[]; snippet?: string }[] = [];
+  let searchHits: { id: string; rrf_score: number; score: number; sources: string[]; snippet?: string; via?: Via }[] = [];
   // Populated only when a.q ran the search leg; surfaces a degraded-to-
   // lexical-only semantic leg into the result envelope below.
   let semSkipped: string | null = null;
@@ -288,9 +288,9 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
         (err): SemanticResult => ({ hits: [], skipped: (err as Error).message }),
       ),
     ]);
-    const sem = semResult.hits;
+    const sem = attributeSemanticHits(a.q, lex, semResult.hits, ix);
     semSkipped = semResult.skipped;
-    let merged = rrfMerge(lex, sem);
+    let merged = filterByType(rrfMerge(lex, sem), ix, a.target_type);
     // Quoted phrases require an exact match — same shared post-filter
     // atlas_search applies, so the two tools agree on phrase queries.
     if (phrases.length || casePhrases.length) {
@@ -299,7 +299,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
         return n ? matchesPhrases(n.title, n.content, phrases, casePhrases) : false;
       });
     }
-    searchHits = merged.map((m) => ({ id: m.id, rrf_score: m.rrf_score, score: m.score, sources: m.sources }));
+    searchHits = merged.map((m) => ({ id: m.id, rrf_score: m.rrf_score, score: m.score, sources: m.sources, via: m.via }));
   }
 
   // ── intersect / narrow ────────────────────────────────────────────────────────
@@ -324,6 +324,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
       ...(a.enrich ? {} : { snippet: buildAgentSnippet(n.content, a.q ?? "") }),
       score: h.rrf_score || h.score,
       sources: h.sources,
+      ...(h.via ? { via: h.via } : {}),
     };
   });
   return withBudget(results, {

@@ -80,6 +80,7 @@ curl -s "https://us.i.posthog.com/api/surveys/?token=<phc_project_key>" \
 |----------|-------|----------|
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | Yes |
 | `OPENROUTER_API_KEY` | same key as web service | For embeddings |
+| `EMBED_GROUP_POLICY` | `one_to_one` (default) | Optional grouping for `atlas_doc_embeddings`. `icd_params` / `breadcrumbs` / `directory_direct` / `hub_stubs` are bakeoff arms — run `pnpm eval:retrieval -- --backend openrouter` before switching. Default stays 1:1 until a neural win. |
 | `GITHUB_TOKEN` | a PAT with `repo:read` scope | For PR history data |
 
 ---

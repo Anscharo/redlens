@@ -33,7 +33,7 @@ function resetFakeDb(): void {
 }
 
 interface UnsafeCall {
-  kind: "dim-check" | "embed-upsert" | "unknown";
+  kind: "dim-check" | "embed-upsert" | "embed-delete" | "unknown";
   paramsLength: number;
 }
 let unsafeCalls: UnsafeCall[] = [];
@@ -50,6 +50,10 @@ async function unsafeMock(query: string, params?: unknown[]): Promise<unknown> {
   }
   if (query.includes("INSERT INTO atlas_doc_embeddings")) {
     unsafeCalls.push({ kind: "embed-upsert", paramsLength: (params ?? []).length });
+    return [];
+  }
+  if (query.includes("DELETE FROM atlas_doc_embeddings")) {
+    unsafeCalls.push({ kind: "embed-delete", paramsLength: (params ?? []).length });
     return [];
   }
   unsafeCalls.push({ kind: "unknown", paramsLength: 0 });
@@ -268,7 +272,7 @@ describe("main()", () => {
     }
     expect(embedCalls).toBe(0);
     expect(ended).toBe(true);
-    expect(logs.some((l) => l.includes("1 docs, 0 stale/new to embed"))).toBe(true);
+    expect(logs.some((l) => l.includes("1 docs") && l.includes("0 stale/new to embed"))).toBe(true);
   });
 
   it("embeds new/changed docs, upserts one row per doc with the right params, and logs the done count", async () => {
@@ -295,7 +299,7 @@ describe("main()", () => {
 
     expect(embedTexts).toEqual([[buildEmbedText(dA), buildEmbedText(dB)]]); // one batch, both stale docs
     const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert");
-    expect(upsert?.paramsLength).toBe(2 * 4); // 2 docs × (doc_id, vector, hash, atlas_sha)
+    expect(upsert?.paramsLength).toBe(2 * 5); // 2 docs × (doc_id, vector, hash, atlas_sha, member_ids)
     expect(ended).toBe(true);
     expect(logs.some((l) => l.includes("done (2 vectors"))).toBe(true);
   });
@@ -369,6 +373,6 @@ describe("main()", () => {
       sleep: instantSleep,
     });
     const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert");
-    expect(upsert?.paramsLength).toBe(1 * 4); // only "b" made it into the upsert
+    expect(upsert?.paramsLength).toBe(1 * 5); // only "b" made it into the upsert
   });
 });

@@ -5,6 +5,8 @@ import { sql, toVectorLiteral } from "../db.ts";
 import { embedQuery } from "./embed.ts";
 import { config } from "../config.ts";
 import { compactProse } from "../../lib/shortenTitle.ts";
+import { rewriteSemanticHit, type Via } from "./embed-units.ts";
+export type { Via };
 
 const RRF_K = 60;
 
@@ -23,6 +25,8 @@ export interface Hit {
   rank: number;
   score: number;
   source: "lexical" | "semantic";
+  memberIds?: string[];
+  via?: Via;
 }
 
 // `skipped` carries a short reason when the semantic leg failed at RUNTIME
@@ -41,6 +45,7 @@ export interface MergedHit {
   sources: string[];
   rrf_score: number;
   score: number;
+  via?: Via;
 }
 
 // Match the frontend lexical search (src/workers/search.worker.ts): prefix on,
@@ -85,20 +90,27 @@ export async function runSemantic(
     const lit = toVectorLiteral(vec);
     const overFetch = type ? Math.min(k * 4, 200) : k;
     const rows = (await sql.unsafe(
-      `SELECT m.id, m.type, 1 - (e.embedding <=> $1::vector) AS score
+      `SELECT m.id, m.type, e.member_ids, 1 - (e.embedding <=> $1::vector) AS score
        FROM atlas_doc_embeddings e JOIN atlas_doc_meta m ON m.id = e.doc_id
        ORDER BY e.embedding <=> $1::vector LIMIT $2`,
       [lit, overFetch],
-    )) as { id: string; type: string; score: number }[];
+    )) as { id: string; type: string; score: number; member_ids?: string[] | null }[];
 
     const out: Hit[] = [];
     for (const r of rows) {
       // Rows are ordered by ascending distance (descending cosine), so once one
       // falls below the relevance floor, every later row does too — stop.
       if (r.score < config.semanticMinScore) break;
-      if (type && r.type !== type) continue;
-      out.push({ id: r.id, rank: out.length, score: r.score, source: "semantic" });
-      if (out.length >= k) break;
+      // Do not type-filter here: a grouped parent may have a different type
+      // from the leaf we rewrite to. Callers filter after attributeSemanticHits.
+      out.push({
+        id: r.id,
+        rank: out.length,
+        score: r.score,
+        source: "semantic",
+        memberIds: r.member_ids && r.member_ids.length > 0 ? r.member_ids : undefined,
+      });
+      if (out.length >= overFetch) break;
     }
     return { hits: out, skipped: null };
   } catch (err) {
@@ -117,13 +129,35 @@ export function rrfMerge(lex: Hit[], sem: Hit[]): MergedHit[] {
     if (prev) {
       prev.rrf_score += inc;
       if (!prev.sources.includes(h.source)) prev.sources.push(h.source);
+      if (h.via && !prev.via) prev.via = h.via;
     } else {
-      acc.set(h.id, { id: h.id, sources: [h.source], rrf_score: inc, score: h.score });
+      acc.set(h.id, { id: h.id, sources: [h.source], rrf_score: inc, score: h.score, via: h.via });
     }
   };
   for (const h of lex) bump(h);
   for (const h of sem) bump(h);
   return [...acc.values()].sort((a, b) => b.rrf_score - a.rrf_score);
+}
+
+// Attribute grouped semantic hits to a leaf (term overlap) and fuse a
+// parent/child pair onto the more specific id before RRF, so lexical child +
+// semantic parent become one hit.
+export function attributeSemanticHits(query: string, lex: Hit[], sem: Hit[], ix: Indexes): Hit[] {
+  const lexNos = lex.map((h) => {
+    const n = ix.docMap.get(h.id);
+    return { id: h.id, doc_no: n?.doc_no ?? "" };
+  });
+  return sem.map((h) => {
+    const rw = rewriteSemanticHit(query, h.id, h.memberIds, lexNos, ix.docMap);
+    return { ...h, id: rw.id, via: rw.via };
+  });
+}
+
+// Type / phrase filters run AFTER leaf-pick so a quoted leaf value is not
+// dropped because the semantic row still had the parent id / parent type.
+export function filterByType<T extends { id: string }>(hits: T[], ix: Indexes, type: string | undefined): T[] {
+  if (!type) return hits;
+  return hits.filter((h) => ix.docMap.get(h.id)?.type === type);
 }
 
 // Substring snippet around the first matched query term (minisearch gives no

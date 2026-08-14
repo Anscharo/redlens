@@ -158,6 +158,14 @@ export const config = {
   // commons meter is simply absent and the shared-pool gate never fires.
   openrouterManagementKey: process.env.OPENROUTER_MANAGEMENT_KEY ?? "",
   embedModel: process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b",
+  // Grouping policy for atlas_doc_embeddings. Default one_to_one keeps today's
+  // 1:1 vectors (and their content_hash) so a deploy without a bakeoff winner
+  // does not re-embed the corpus. icd_params / directory_direct / etc. are
+  // selected after scripts/eval/eval-retrieval.ts.
+  embedGroupPolicy: process.env.EMBED_GROUP_POLICY ?? "one_to_one",
+  // Optional per-unit member cap for grouping policies. Unset = no quality cap
+  // (the CHUNK_ROOT_MAX safety rail in embed-units.ts still applies).
+  embedGroupCap: process.env.EMBED_GROUP_CAP ? Number(process.env.EMBED_GROUP_CAP) : undefined,
   // NOTE: EMBED_BATCH (sync-embeddings.ts's per-request embedding batch size)
   // is intentionally NOT a config key — it's parsed by that file's own
   // `batchSizeFromEnv(env)`, a single named, already-tested function that

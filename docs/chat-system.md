@@ -147,8 +147,12 @@ and advisor with a true request-cancelling timeout.
 Embeddings use `EMBED_MODEL` (default `qwen/qwen3-embedding-8b`, native 4096
 dims) sliced + L2-renormalized client-side to `EMBED_DIM = 1024` — a constant
 locked to the `vector(1024)` column and HNSW index. `sync-embeddings.ts` is a
-separate best-effort lane, incremental by `content_hash`, that keeps
-`atlas_doc_embeddings` current.
+separate best-effort lane, incremental by unit `content_hash`, that keeps
+`atlas_doc_embeddings` current. Default grouping is one vector per doc
+(`EMBED_GROUP_POLICY=one_to_one`); `icd_params` folds Instance Configuration
+Document parameter leaves into the parent vector. Hybrid search attributes a
+grouped hit to the matching child and fuses ancestor/descendant lexical+semantic
+pairs onto the more specific doc (`via` on the tool result).
 
 ## 8. Data model (Postgres)
 

@@ -109,7 +109,14 @@ async function main() {
       SELECT COUNT(*)::int AS n FROM atlas_doc_meta m
       WHERE NOT EXISTS (
         SELECT 1 FROM atlas_doc_embeddings e
-        WHERE e.doc_id = m.id AND e.content_hash = m.content_hash
+        WHERE e.doc_id = m.id AND (
+          (cardinality(COALESCE(e.member_ids, '{}')) <= 1 AND e.content_hash = m.content_hash)
+          OR cardinality(COALESCE(e.member_ids, '{}')) > 1
+        )
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM atlas_doc_embeddings e
+        WHERE cardinality(COALESCE(e.member_ids, '{}')) > 1 AND m.id = ANY(e.member_ids)
       )
     `.then((r) => r[0]?.n ?? 0).catch(() => 1), // default 1 → don't skip if query fails
   ]);
