@@ -6,11 +6,15 @@ description: >
   state placement, and data attributes. Use when asked to review a component,
   a frontend PR or diff, audit src/components/**, check whether code follows
   the component principles, assess a11y, or do a frontend code-quality pass.
-  Covers what to grep for, the severity ordering, findings format, and the
-  known-debt list that should NOT be reported as findings.
-  Keywords: review, code review, frontend review, react review, audit,
-  component quality, accessibility audit, a11y review, props API review,
-  check principles, PR review, src/components, components.build.
+  Use it alongside the generic code-review skill whenever the code under
+  review is React/frontend — it adds the component-specific dimensions that a
+  general correctness review does not cover. Covers what to grep for, the
+  severity ordering, findings format, and the known-debt list that should NOT
+  be reported as findings.
+  Keywords: review, code review, frontend review, react review, review this
+  component, audit, component quality, accessibility audit, a11y review,
+  props API review, does this follow the principles, components.build
+  compliance, PR review, diff review, src/components.
 license: MIT
 metadata:
   author: anscharo

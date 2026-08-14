@@ -9,10 +9,11 @@ description: >
   a value/defaultValue/onChange prop pair, fixing re-render or stale-state
   bugs, or reviewing effects and memoization.
   Keywords: state, useState, useReducer, controlled, uncontrolled,
-  defaultValue, onValueChange, useControllableState, lifting state, context,
-  createContext, provider, useUrlState, URL state, useSyncExternalStore,
-  localStorage, useMemo, useCallback, memo, useEffect, derived state,
-  re-render, data-state, workers, useLoaded.
+  defaultValue, onValueChange, useControllableState, lifting state up, prop
+  drilling, custom hook, context, createContext, provider, useUrlState, URL
+  state, query param, useSyncExternalStore, localStorage, useMemo,
+  useCallback, memo, useEffect, derived state, stale state, re-render,
+  data-state, workers, useLoaded, data fetching.
 license: MIT
 metadata:
   author: anscharo

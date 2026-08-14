@@ -1,19 +1,21 @@
 ---
 name: react-components
 description: >
-  How to create or update a React component in RedLens, following the
-  components.build specification (composition, types, accessibility, data
-  attributes). Use whenever adding a new component under src/components/**,
-  splitting an oversized component, changing a component's props API, adding
-  a compound/multi-part component, or reworking an existing component's
-  markup. Covers the one-component-one-element rule, extending native HTML
-  props, compound Root/Trigger/Content composition, the as / asChild
-  polymorphism choice, semantic HTML + ARIA baselines, and data-slot /
-  data-state.
-  Keywords: react component, new component, add a component, component API,
-  props, ComponentProps, compound component, Root Trigger Content, asChild,
-  as prop, polymorphic, data-slot, data-state, accessibility, aria, keyboard,
-  split component, src/components, components.build.
+  How to create, update, refactor, or split a React component in RedLens,
+  following the components.build specification (composition, types,
+  accessibility, data attributes). Use when adding a component under
+  src/components/**, extracting or splitting a component that has grown too
+  big, changing a component's props API, building a compound/multi-part
+  component (dialog, menu, tabs, accordion, panel), or reworking a
+  component's markup, ARIA, or keyboard behaviour. Covers
+  one-component-one-element, extending native HTML props, Root/Trigger/Content
+  composition, as / asChild, semantic HTML + ARIA, and data-slot / data-state.
+  Keywords: react component, new component, add a component, refactor
+  component, extract component, split component, component too big, component
+  API, props, ComponentProps, compound component, Root Trigger Content,
+  asChild, as prop, polymorphic, data-slot, data-state, accessibility, a11y,
+  aria, keyboard navigation, focus management, semantic HTML, src/components,
+  components.build.
 license: MIT
 metadata:
   author: anscharo
