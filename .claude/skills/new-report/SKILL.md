@@ -23,6 +23,21 @@ Work from an existing report as the reference implementation: **`ActiveDataRepor
 + **`activeDataIndex.ts`** is the fullest example (data module, CSV, URL filters,
 analytics, counts).
 
+## The citation dictate comes first (CLAUDE.md, non-negotiable)
+
+Before the mechanics below: a report is an auditable Atlas artifact. **Every concrete
+normative claim it makes — anything that says what "must" / "has to" / "needs to" /
+"should" happen, or a threshold ("≥ 7 signers", "at least", "minimum of", "required",
+"cannot", "prohibited") — must cite the Atlas doc that dictates it, _in context_**:
+inline (a `doc_no` like `A.2.7.1.1.1.1.4`, a UUID, or an `/atlas?id=…` link — a "Source"
+cell on the same table row counts), or a footnote the claim references directly. A
+detached trailing "References" section does **not** satisfy this. This applies to every
+report surface — the table/cards on the site, the CSV, and any prose exported to a file
+or Notion. If you cannot find the dictating doc, soften the claim to describe what the
+atlas *says* rather than declaring a requirement. Validate a drafted markdown/file report
+with `pnpm cite:check <file>`; the Notion publisher enforces the same gate and refuses
+uncited normative claims. See CLAUDE.md "Citation dictate".
+
 ## The three non-negotiables
 
 1. **CSV download — two buttons, via the shared `DownloadCsvButton`.** Render
@@ -131,6 +146,7 @@ analytics, counts).
 
 ## Definition of done
 
+- [ ] **Every normative claim ("must"/"needs to"/"should"/threshold) cites its dictating Atlas doc in context** (inline or a directly-referenced footnote); a markdown/file export passes `pnpm cite:check`
 - [ ] `DownloadCsvButton` wired with both full + filtered exports via `src/lib/csv.ts` (escaping correct)
 - [ ] CSV rows include a `UUID` + `Atlas Link` (`atlasUrl()`) column per referenced doc
 - [ ] No CSV row merges multiple docs — collapsed table rows are expanded 1-doc-per-row
