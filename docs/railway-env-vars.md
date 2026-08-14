@@ -80,7 +80,8 @@ curl -s "https://us.i.posthog.com/api/surveys/?token=<phc_project_key>" \
 |----------|-------|----------|
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | Yes |
 | `OPENROUTER_API_KEY` | same key as web service | For embeddings |
-| `EMBED_GROUP_POLICY` | `one_to_one` (default) | Optional grouping for `atlas_doc_embeddings`. `icd_params` / `breadcrumbs` / `directory_direct` / `hub_stubs` are bakeoff arms — run `pnpm eval:retrieval -- --backend openrouter` before switching. Default stays 1:1 until a neural win. |
+| `EMBED_GROUP_POLICY` | `one_to_one` (default) | Optional grouping for `atlas_doc_embeddings`. `icd_params` / `breadcrumbs` / `directory_direct` / `hub_stubs` are bakeoff arms — run `pnpm eval:retrieval -- --backend openrouter` before switching. Default stays 1:1 until a neural win. **Eval-backed candidate:** `icd_params_breadcrumbs` + `EMBED_CRUMB_DEPTH=2` (2026-08-14 neural+hybrid bakeoff — best recall/exact/disambiguation). Switching re-embeds ~206 anchors on the next `sync:embeddings` (incremental by `content_hash`). |
+| `EMBED_CRUMB_DEPTH` | unset (full chain) | For `breadcrumbs` / `icd_params_breadcrumbs`: keep only the N nearest ancestors (parent, grandparent) in the prepended crumb. Set to `2` for the candidate above. |
 | `GITHUB_TOKEN` | a PAT with `repo:read` scope | For PR history data |
 
 ---

@@ -150,7 +150,11 @@ locked to the `vector(1024)` column and HNSW index. `sync-embeddings.ts` is a
 separate best-effort lane, incremental by unit `content_hash`, that keeps
 `atlas_doc_embeddings` current. Default grouping is one vector per doc
 (`EMBED_GROUP_POLICY=one_to_one`); `icd_params` folds Instance Configuration
-Document parameter leaves into the parent vector. Hybrid search attributes a
+Document parameter leaves into the parent vector. The eval-backed candidate is
+`icd_params_breadcrumbs` (+`EMBED_CRUMB_DEPTH=2`), which additionally prepends
+the ICD's parent/grandparent breadcrumb to the grouped anchor — best recall and
+disambiguation in the 2026-08-14 neural+hybrid bakeoff (see
+`scripts/eval/eval-retrieval.ts`). Hybrid search attributes a
 grouped hit to the matching child and fuses ancestor/descendant lexical+semantic
 pairs onto the more specific doc (`via` on the tool result).
 

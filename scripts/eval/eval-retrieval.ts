@@ -16,9 +16,19 @@
  * (offline proxy for grouping architecture — not a substitute for the neural
  * bakeoff). Writes .cache/eval-retrieval.json.
  *
+ * NEURAL result (2026-08-14, qwen/qwen3-embedding-8b, 155 queries, HYBRID
+ * lex+semantic; baseline reused from a staging DB via --reuse-db). WINNER and
+ * eval-backed candidate default (EMBED_GROUP_POLICY=icd_params_breadcrumbs +
+ * EMBED_CRUMB_DEPTH=2); code default stays one_to_one so no deploy auto-re-embeds:
+ *
+ *   icd_params_breadcrumbs  recall@10 0.819  exact 0.677  disambig 0.700  mrr 0.578  — WINNER (only ~206 anchors re-embed)
+ *   icd_params              recall@10 0.813  exact 0.587  disambig 0.400  mrr 0.553  — grouping helps recall, not disambig
+ *   one_to_one              recall@10 0.742  exact 0.529  disambig 0.375  mrr 0.541  — current production
+ *   breadcrumbs (depth2)    recall@10 0.652  exact 0.568  disambig 0.625            — disambig up, recall regresses
+ *
  * Directional TF-IDF result (2026-08-14, 155 queries, distinctive-instance
- * disambiguation; not a substitute for Qwen3). Production default stays
- * one_to_one until `--backend openrouter` is run with a key.
+ * disambiguation; offline proxy — it ranked breadcrumbs top, which the neural
+ * run above overturned, so do NOT ship on the TF-IDF proxy alone):
  *
  *   breadcrumbs           recall@10 0.858  exact 0.858  disambig 1.000  — best first-stage
  *   icd_params            recall@10 0.845  exact 0.806  disambig 0.825  — beats 1:1; control 0.800 (no regression)
@@ -30,8 +40,8 @@
  *   hybrid (lex 1:1 + units)  no lift vs ANN-only on this proxy
  *   bm25 rerank@50→10     icd_params 0.916 / disambig 1.000 — TF-IDF+BM25 artifact; do not ship
  *
- * Model bakeoff: `OPENROUTER_API_KEY` unset in this environment — harness ready
- * (`--backend openrouter --models … --subset 40`). Do not flip EMBED_MODEL.
+ * Model bakeoff: `--backend openrouter --models … --subset 40`. Do not flip
+ * EMBED_MODEL (grouping policy, not the model, is the win above).
  */
 import fs from "node:fs";
 import path from "node:path";
