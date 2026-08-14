@@ -51,6 +51,9 @@ export interface UnitBuildOpts {
   // Soft per-unit member cap. Over-cap units split by first-level subgroups;
   // a subgroup still over cap falls back to 1:1 rather than truncating.
   cap?: number;
+  // breadcrumbs only: keep just the N nearest ancestors (parent, grandparent, …)
+  // instead of the whole root→leaf chain. undefined/0 = full chain (default).
+  crumbDepth?: number;
 }
 
 export function isDocNoDescendant(child: string, ancestor: string): boolean {
@@ -176,8 +179,11 @@ function oneToOneUnit(node: AtlasNode, family = "one_to_one"): EmbedUnit {
   return { anchorId: node.id, memberIds: [node.id], text, hash: oneToOneHash(node), family };
 }
 
-function breadcrumbUnit(node: AtlasNode, byDocNo: Map<string, AtlasNode>): EmbedUnit {
-  const crumbs = ancestorTitles(node, byDocNo);
+function breadcrumbUnit(node: AtlasNode, byDocNo: Map<string, AtlasNode>, crumbDepth?: number): EmbedUnit {
+  let crumbs = ancestorTitles(node, byDocNo);
+  // ancestorTitles is root→leaf, so the nearest ancestors (parent, grandparent)
+  // are at the tail — slice(-N) keeps exactly those.
+  if (crumbDepth && crumbDepth > 0) crumbs = crumbs.slice(-crumbDepth);
   const body = buildEmbedText(node);
   const text = crumbs.length ? `${crumbs.join(" > ")}\n\n${body}` : body;
   return makeUnit(node.id, [node.id], text, "breadcrumbs");
@@ -307,7 +313,7 @@ export function buildUnits(docs: AtlasNode[], policy: GroupPolicy, opts: UnitBui
   const cap = opts.cap;
 
   if (policy === "one_to_one") return docs.map((d) => oneToOneUnit(d));
-  if (policy === "breadcrumbs") return docs.map((d) => breadcrumbUnit(d, byDocNo));
+  if (policy === "breadcrumbs") return docs.map((d) => breadcrumbUnit(d, byDocNo, opts.crumbDepth));
 
   let extra: { units: EmbedUnit[]; grouped: Set<string> };
   if (policy === "icd_params") extra = icdParamUnits(docs, byId, childrenByDocNo, cap);

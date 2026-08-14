@@ -61,6 +61,7 @@ const RERANK = (flag("rerank")[0] ?? "none") as "none" | "bm25";
 const COLLAPSE = argv.includes("--collapse");
 const HYBRID = argv.includes("--hybrid");
 const REUSE_DB = argv.includes("--reuse-db");
+const CRUMB_DEPTH = flag("crumb-depth")[0] ? Number(flag("crumb-depth")[0]) : undefined;
 const PREFIX = flag("prefix")[0] ?? "";
 const SUBSET = flag("subset")[0] ? Number(flag("subset")[0]) : undefined;
 const K = Number(flag("k")[0] ?? 10);
@@ -335,6 +336,7 @@ interface ArmResult {
   hybrid: boolean;
   prefix: boolean;
   cap: number | null;
+  crumb_depth: number | null;
   units: number;
   query_embed_ms: { p50: number | null; p95: number | null };
   metrics: ReturnType<typeof metrics>;
@@ -374,8 +376,11 @@ for (const policy of POLICIES) {
     continue;
   }
   for (const cap of capList) {
-    const units = buildUnits(docs, policy, cap != null ? { cap } : {});
-    console.log(`policy=${policy} cap=${cap ?? "none"} units=${units.length} backend=${BACKEND}`);
+    const opts = { ...(cap != null ? { cap } : {}), ...(CRUMB_DEPTH ? { crumbDepth: CRUMB_DEPTH } : {}) };
+    const units = buildUnits(docs, policy, opts);
+    console.log(
+      `policy=${policy} cap=${cap ?? "none"}${CRUMB_DEPTH ? ` crumbDepth=${CRUMB_DEPTH}` : ""} units=${units.length} backend=${BACKEND}`,
+    );
 
     for (const model of MODELS) {
       let tfidfVecs: Map<string, number>[] | null = null;
@@ -458,6 +463,7 @@ for (const policy of POLICIES) {
         hybrid: HYBRID,
         prefix: Boolean(PREFIX),
         cap: cap,
+        crumb_depth: CRUMB_DEPTH ?? null,
         units: units.length,
         query_embed_ms: { p50: pctTimes(qEmbedMs, 50), p95: pctTimes(qEmbedMs, 95) },
         metrics: m,
