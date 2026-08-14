@@ -72,12 +72,10 @@ export const PROFILES = {
   // `addresses` is conditional there (only with ETHERSCAN_API_KEY); the gate
   // lives in build-at.mjs, the ordering lives here.
   // Opt-outs: bundle/tools/ts/vite (not atlas-derived data).
-  // FLAGGED: `glossary` is missing and probably shouldn't be — build-manifest
-  // digests glossary.json, so a build:at leaves the manifest either without a
-  // glossary entry or hashing a glossary from some *other* atlas commit. Left
-  // as-is deliberately (this package is a wiring refactor, zero behaviour
-  // change); adding it is a follow-up with its own manifest-diff review.
-  buildAt: ["index", "addresses", "graph", "oea-report", "manifest"],
+  // `glossary` was missing until 2026-08-14 — build-manifest digests
+  // glossary.json, so a build:at left the manifest either without a glossary
+  // entry or hashing a glossary built from some *other* atlas commit.
+  buildAt: ["index", "glossary", "addresses", "graph", "oea-report", "manifest"],
 
   // scripts/required/refresh-atlas-build.mjs — subprocess for the in-process
   // updater's git path. Opt-outs: addresses (needs API keys), bundle/tools/ts/
