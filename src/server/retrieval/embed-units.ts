@@ -27,6 +27,7 @@ export const GROUP_POLICIES = [
   "one_to_one",
   "icd_params",
   "icd_params_breadcrumbs",
+  "icd_full_params_breadcrumbs",
   "directory_direct",
   "directory_descendants",
   "hub_stubs",
@@ -245,11 +246,20 @@ function icdParamUnits(
   byId: Map<string, AtlasNode>,
   childrenByDocNo: Map<string, AtlasNode[]>,
   cap: number | undefined,
-  crumbOpts?: { byDocNo: Map<string, AtlasNode>; crumbDepth?: number },
+  crumbOpts?: { byDocNo: Map<string, AtlasNode>; crumbDepth?: number; fullProse?: boolean },
 ): { units: EmbedUnit[]; grouped: Set<string> } {
   const units: EmbedUnit[] = [];
   const grouped = new Set<string>();
-  const family = crumbOpts ? "icd_params_breadcrumbs" : "icd_params";
+  const fullProse = crumbOpts?.fullProse ?? false;
+  const family = !crumbOpts
+    ? "icd_params"
+    : fullProse
+      ? "icd_full_params_breadcrumbs"
+      : "icd_params_breadcrumbs";
+  // fullProse keeps every folded member's whole text (no summarization loss),
+  // then appends the structured param key:values; otherwise just the kv summary.
+  const anchorText = (prefix: string, members: AtlasNode[], kv: string) =>
+    fullProse ? `${prefix}${members.map((m) => buildEmbedText(m)).join("\n\n")}\n\n${kv}` : `${prefix}${kv}`;
   for (const icd of docs) {
     if (!isICD(icd)) continue;
     const kids = childrenByDocNo.get(icd.doc_no) ?? [];
@@ -265,15 +275,15 @@ function icdParamUnits(
     }
     const memberSet = new Set(members.map((n) => n.id));
     const params = extractInstanceParams(icd, childrenByDocNo) as Record<string, [string, string, string]>;
-    // Fused policy prepends the ICD's own (bounded) breadcrumb to the grouped
+    // Fused policies prepend the ICD's own (bounded) breadcrumb to the grouped
     // anchor — ancestral context (primitive/scope) that disambiguates
-    // near-duplicate instances, on top of the folded param key:values. Only the
-    // grouped anchors change text; standalone docs stay one_to_one downstream.
+    // near-duplicate instances. Only the grouped anchors change text; standalone
+    // docs stay one_to_one downstream.
     const prefix = crumbOpts ? crumbPrefix(icd, crumbOpts.byDocNo, crumbOpts.crumbDepth) : "";
-    const text = `${prefix}${kvText(icd.title, params)}`;
+    const text = anchorText(prefix, members, kvText(icd.title, params));
     if (cap && members.length > cap) {
-      const split = splitBySubgroup(paramsDoc, memberSet, byId, childrenByDocNo, cap, family, (sub, _m) =>
-        `${prefix}${kvText(`${icd.title} — ${sub.title}`, params)}`,
+      const split = splitBySubgroup(paramsDoc, memberSet, byId, childrenByDocNo, cap, family, (sub, subMembers) =>
+        anchorText(prefix, subMembers, kvText(`${icd.title} — ${sub.title}`, params)),
       );
       for (const u of split) {
         units.push(u);
@@ -331,6 +341,8 @@ export function buildUnits(docs: AtlasNode[], policy: GroupPolicy, opts: UnitBui
   if (policy === "icd_params") extra = icdParamUnits(docs, byId, childrenByDocNo, cap);
   else if (policy === "icd_params_breadcrumbs")
     extra = icdParamUnits(docs, byId, childrenByDocNo, cap, { byDocNo, crumbDepth: opts.crumbDepth });
+  else if (policy === "icd_full_params_breadcrumbs")
+    extra = icdParamUnits(docs, byId, childrenByDocNo, cap, { byDocNo, crumbDepth: opts.crumbDepth, fullProse: true });
   else if (policy === "directory_direct") extra = directoryUnits(docs, childrenByDocNo, cap, "direct");
   else if (policy === "directory_descendants") extra = directoryUnits(docs, childrenByDocNo, cap, "descendants");
   else extra = directoryUnits(docs, childrenByDocNo, cap, "hub");

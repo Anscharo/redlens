@@ -161,6 +161,28 @@ describe("buildUnits policies", () => {
     expect(opdUnit.hash).toBe(contentHash(opd));
   });
 
+  it("icd_full_params_breadcrumbs keeps folded members' full prose plus the param kv and breadcrumb", () => {
+    const gp = n("gp", "A.6.1.1.1.2", "Spark");
+    const par = n("par", "A.6.1.1.1.2.1", "SparkLend");
+    const fusedDocs = [gp, par, ...docs];
+    const units = buildUnits(fusedDocs, "icd_full_params_breadcrumbs", { crumbDepth: 2 });
+    const icdUnit = units.find((u) => u.anchorId === "icd")!;
+    expect(icdUnit.memberIds.sort()).toEqual(["icd", "net", "params", "tok"].sort());
+    expect(icdUnit.family).toBe("icd_full_params_breadcrumbs");
+    // breadcrumb first
+    expect(icdUnit.text.startsWith("Spark > SparkLend\n\n")).toBe(true);
+    // full prose of folded members is present (not just the kv summary)
+    expect(icdUnit.text).toContain(buildEmbedText(net)); // "Network\n\nEthereum Mainnet"
+    expect(icdUnit.text).toContain(buildEmbedText(tok)); // "Token\n\nUSDS"
+    expect(icdUnit.text).toContain(buildEmbedText(params));
+    // and the structured param kv is still appended
+    expect(icdUnit.text).toContain("Network: Ethereum Mainnet");
+    expect(icdUnit.text).toContain("Token: USDS");
+    // strictly more content than the kv-only fused policy
+    const kvOnly = buildUnits(fusedDocs, "icd_params_breadcrumbs", { crumbDepth: 2 }).find((u) => u.anchorId === "icd")!;
+    expect(icdUnit.text.length).toBeGreaterThan(kvOnly.text.length);
+  });
+
   it("icd_params over-cap splits rather than dropping members", () => {
     const units = buildUnits(docs, "icd_params", { cap: 2 });
     const folded = foldedIds(units);
