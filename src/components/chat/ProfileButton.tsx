@@ -3,7 +3,7 @@ import { useAuth } from "./auth";
 import { usePrefs, type ChatPrefs } from "./usePrefs";
 import { SignedOutMenu } from "./SignedOutMenu";
 import { MenuGlyph } from "./glyphs";
-import { Link } from "../Link";
+import { MenuButton, MenuLink, MenuRule } from "./MenuRow";
 import { chatEnabled } from "../../lib/chatEnabled";
 import { ROUTES } from "../../lib/routes";
 
@@ -54,6 +54,7 @@ export function ProfileButton() {
     );
   }
 
+  const close = () => setOpen(false);
   const name = user.name ?? "Signed in";
 
   return (
@@ -74,31 +75,19 @@ export function ProfileButton() {
                   <div className="rlc-menu-name">{name}</div>
                 </div>
               </div>
-              <div className="border-t border-border" />
-              <button className="rlc-menu-item" onClick={() => setShowPrefs(true)}>
-                <span>Account</span>
-                <span className="text-tan-3 enlargen">→</span>
-              </button>
-              <div className="border-t border-border" />
-              <Link className="rlc-menu-item" to={ROUTES.HISTORY} onClick={() => setOpen(false)}>
-                <span>History</span>
-                <span className="text-tan-3 enlargen">→</span>
-              </Link>
-              <div className="border-t border-border" />
-              <Link className="rlc-menu-item" to={ROUTES.COLLECTIONS} onClick={() => setOpen(false)}>
-                <span>Collections</span>
-                <span className="text-tan-3 enlargen">→</span>
-              </Link>
+              <MenuRule />
+              <MenuButton label="Account" onClick={() => setShowPrefs(true)} />
+              <MenuRule />
+              <MenuLink to={ROUTES.HISTORY} label="History" onNavigate={close} />
+              <MenuRule />
+              <MenuLink to={ROUTES.COLLECTIONS} label="Collections" onNavigate={close} />
               {chatEnabled() && (
                 <>
-                  <div className="border-t border-border" />
-                  <Link className="rlc-menu-item" to={ROUTES.CONVERSATIONS} onClick={() => setOpen(false)}>
-                    <span>Conversations</span>
-                    <span className="text-tan-3">→</span>
-                  </Link>
+                  <MenuRule />
+                  <MenuLink to={ROUTES.CONVERSATIONS} label="Conversations" onNavigate={close} />
                 </>
               )}
-              <div className="border-t border-border" />
+              <MenuRule />
               <button
                 className="rlc-menu-item"
                 onClick={() => {
@@ -117,14 +106,14 @@ export function ProfileButton() {
               >
                 <span>← account</span>
               </button>
-              <div className="border-t border-border" />
+              <MenuRule />
               <PrefSwitch label="Reduce motion" prefKey="reduceMotion" prefs={prefs} setPref={setPref} />
               <div className="px-3 pt-2 pb-[11px]">
                 <div className="mono text-[9.5px] text-gray leading-normal">
                   surfaced from local storage · syncs per-browser
                 </div>
               </div>
-              <div className="border-t border-border" />
+              <MenuRule />
               <button
                 className="rlc-menu-item text-[12.5px] text-red"
                 onClick={() => {

@@ -3,13 +3,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import * as idb from "./idb";
 import {
   canonicalPath,
+  docIdFromPath,
   kindForPath,
   normalizeParams,
   visitHref,
   summarize,
   recordVisit,
   getEvents,
-  topVisited,
   clearHistory,
   type VisitEvent,
 } from "./visitHistory";
@@ -37,6 +37,19 @@ describe("canonicalPath", () => {
     // Matches how useSearchTracking builds the path: encodeURIComponent(query).
     const q = "a & b # c";
     expect(canonicalPath(`/?q=${encodeURIComponent(q)}`)).toBe(`/?q=${encodeURIComponent(q.toLowerCase())}`);
+  });
+});
+
+describe("docIdFromPath", () => {
+  it("reads the node id back out of a reader path", () => {
+    expect(docIdFromPath(canonicalPath("/atlas?id=abc"))).toBe("abc");
+    expect(docIdFromPath("/preview/7/atlas?id=abc")).toBe("abc"); // survives the router base
+  });
+
+  it("returns null for anything that isn't a reader path", () => {
+    expect(docIdFromPath("/reports/rewards")).toBeNull();
+    expect(docIdFromPath("/atlas")).toBeNull();
+    expect(docIdFromPath("/?q=vat")).toBeNull();
   });
 });
 
@@ -156,53 +169,6 @@ describe("recordVisit", () => {
   });
 });
 
-describe("topVisited", () => {
-  // Seed the log directly (bypassing recordVisit's dedupe/clock) to build counts.
-  async function seed() {
-    await idb.add<VisitEvent>({ path: "/atlas?id=a", label: "A", at: 1 });
-    await idb.add<VisitEvent>({ path: "/atlas?id=a", label: "A2", at: 5 });
-    await idb.add<VisitEvent>({ path: "/radar/x", label: "X", at: 3 });
-  }
-
-  it("orders by visit count, tiebreak most-recent, newest label", async () => {
-    await seed();
-    const top = await topVisited();
-    expect(top[0].path).toBe("/atlas?id=a");
-    expect(top[0].count).toBe(2);
-    expect(top[0].label).toBe("A2");
-    expect(top[1].path).toBe("/radar/x");
-  });
-
-  it("filters by kind", async () => {
-    await seed();
-    const readers = await topVisited({ kind: "reader" });
-    expect(readers).toHaveLength(1);
-    expect(readers[0].path).toBe("/atlas?id=a");
-  });
-
-  it("filters by since and limits with n", async () => {
-    await seed();
-    const recent = await topVisited({ since: 4 });
-    // only at>=4 events: the second /atlas?id=a visit
-    expect(recent).toHaveLength(1);
-    expect(recent[0].path).toBe("/atlas?id=a");
-    expect(recent[0].count).toBe(1);
-    expect(await topVisited({ n: 1 })).toHaveLength(1);
-  });
-
-  it("excludes preview visits by default, includes them on request", async () => {
-    await idb.add<VisitEvent>({ path: "/atlas?id=a", label: "A", at: 1 });
-    await idb.add<VisitEvent>({ path: "/preview/42/atlas?id=b", label: "B (preview)", at: 2 });
-
-    const live = await topVisited();
-    expect(live.map((r) => r.path)).toEqual(["/atlas?id=a"]); // preview omitted
-
-    const preview = await topVisited({ kind: "preview" });
-    expect(preview.map((r) => r.path)).toEqual(["/preview/42/atlas?id=b"]);
-    expect(preview[0].kind).toBe("preview");
-  });
-});
-
 describe("idb retention helpers", () => {
   it("deleteBefore removes rows older than the cutoff", async () => {
     for (const at of [1, 2, 3, 4]) await idb.add<VisitEvent>({ path: `/radar/${at}`, label: `${at}`, at });
@@ -228,7 +194,6 @@ describe("resilience", () => {
     try {
       await expect(recordVisit({ path: "/atlas?id=z", label: "Z" })).resolves.toBeUndefined();
       await expect(getEvents()).resolves.toEqual([]);
-      await expect(topVisited()).resolves.toEqual([]);
     } finally {
       globalThis.indexedDB = saved;
       idb.__resetForTests();

@@ -23,6 +23,11 @@ vi.mock("../../lib/chatEnabled", () => ({ chatEnabled: () => chatEnabledOn }));
 
 import { ProfileButton } from "./ProfileButton";
 
+// .rlc-menu-item elements aren't given role="menuitem" in the markup, so read
+// the rows straight from the DOM. Order is the property under test.
+const menuLabels = () =>
+  Array.from(document.querySelectorAll(".rlc-menu-item")).map((el) => el.textContent);
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -94,40 +99,21 @@ describe("ProfileButton signed in", () => {
     expect(screen.getByText("Sign out")).toBeInTheDocument();
   });
 
-  it("offers History above Collections", () => {
-    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
-    render(<ProfileButton />);
-    fireEvent.click(screen.getByAltText("Ada"));
-    expect(screen.getByText("History").closest("a")).toHaveAttribute("href", "/me/history");
-    const labels = Array.from(document.querySelectorAll(".rlc-menu-item")).map((el) => el.textContent);
-    const historyIdx = labels.findIndex((t) => t?.includes("History"));
-    const collectionsIdx = labels.findIndex((t) => t?.includes("Collections"));
-    expect(historyIdx).toBeGreaterThanOrEqual(0);
-    expect(collectionsIdx).toBe(historyIdx + 1);
-  });
-
-  it("shows a Conversations item directly below Collections when chatEnabled() is true", () => {
+  it("lists the destinations in order, with History linked", () => {
     user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
     chatEnabledOn = true;
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada"));
-    expect(screen.getByText("Conversations")).toBeInTheDocument();
-    // .rlc-menu-item elements aren't given role="menuitem" in the markup, so
-    // assert ordering by walking the DOM directly.
-    const labels = Array.from(document.querySelectorAll(".rlc-menu-item")).map((el) => el.textContent);
-    const collectionsIdx = labels.findIndex((t) => t?.includes("Collections"));
-    const conversationsIdx = labels.findIndex((t) => t?.includes("Conversations"));
-    expect(collectionsIdx).toBeGreaterThanOrEqual(0);
-    expect(conversationsIdx).toBe(collectionsIdx + 1);
+    expect(menuLabels()).toEqual(["Account→", "History→", "Collections→", "Conversations→", "Sign out"]);
+    expect(screen.getByText("History").closest("a")).toHaveAttribute("href", "/me/history");
   });
 
-  it("hides the Conversations item when chatEnabled() is false", () => {
+  it("drops the Conversations row when chatEnabled() is false", () => {
     user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
     chatEnabledOn = false;
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada"));
-    expect(screen.getByText("Collections")).toBeInTheDocument();
-    expect(screen.queryByText("Conversations")).toBeNull();
+    expect(menuLabels()).toEqual(["Account→", "History→", "Collections→", "Sign out"]);
   });
 
   it("closes the menu when the Conversations link is clicked", () => {

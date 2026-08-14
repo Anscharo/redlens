@@ -1,44 +1,36 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { loadDocs } from "../../lib/docs";
+import { useLoaded } from "../../hooks/useAtlasData";
+import { loadAtlas } from "../../lib/docs";
 import { useDataSource } from "../../lib/dataSource";
-import { clearHistory, useVisitLog } from "../../lib/visitHistory";
+import { clearHistory, RETENTION_DAYS, useVisitLog } from "../../lib/visitHistory";
 import {
   buildHistoryView,
   RECENT_DOCS,
   RECENT_PAGES,
   TOP_DOCS,
   TOP_TREES,
-} from "../../lib/historyIndex";
+} from "../../lib/visitsIndex";
 import { track } from "../../lib/analytics";
-import type { AtlasNode } from "../../types";
 import { VisitCard } from "./VisitCard";
 import { DocRow } from "./VisitRow";
 import { TreeRows } from "./TreeRows";
 import { PageRows } from "./PageRows";
 
-// /history — what this browser has been reading. Everything here is derived
+// /me/history — what this browser has been reading. Everything here is derived
 // from the local IndexedDB visit log (src/lib/visitHistory.ts): no account, no
 // server call, nothing to sign in for. Doc titles and numbers are refreshed
-// against docs.json when it lands, but the page renders from the log alone
-// first, so it never waits on the atlas bundle.
+// against the atlas bundle when it lands, but the page renders from the log
+// alone first, so it never waits on it.
 export function VisitsPage() {
   useDocumentTitle("Your Viewing History");
   const { base } = useDataSource();
   const { events, loaded } = useVisitLog();
-  const [docs, setDocs] = useState<Record<string, AtlasNode> | null>(null);
+  // soft: the page is fully readable without the atlas — doc numbers and tree
+  // headings are the only things it adds, so a failed load must not blank it.
+  const atlas = useLoaded(() => loadAtlas(base), { soft: true });
 
-  useEffect(() => {
-    let alive = true;
-    loadDocs(base)
-      .then((d) => alive && setDocs(d))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [base]);
-
-  const view = useMemo(() => buildHistoryView(events, docs), [events, docs]);
+  const view = useMemo(() => buildHistoryView(events, atlas), [events, atlas]);
 
   const clear = async () => {
     if (!window.confirm("Clear your viewing history in this browser? This can't be undone.")) return;
@@ -67,7 +59,7 @@ export function VisitsPage() {
         </div>
         <p className="mono text-[13px] mb-6" style={{ color: "var(--gray)" }}>
           Kept in this browser only — never sent to a server, and not tied to an account.
-          Visits older than 180 days are forgotten.
+          Visits older than {RETENTION_DAYS} days are forgotten.
         </p>
 
         {!loaded ? (

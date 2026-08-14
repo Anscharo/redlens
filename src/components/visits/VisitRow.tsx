@@ -8,15 +8,15 @@ import { timeAgo } from "../../lib/timeAgo";
 export function LeaderRow({
   children,
   count,
-  meta,
+  at,
   indent = false,
 }: {
   children: React.ReactNode;
   /** The view count. Omitted on the recency card, which counts nothing. */
   count?: number;
-  /** Small right-aligned note before the count (e.g. how long ago). Sits
-   *  OUTSIDE the truncating name, so a long title can't clip it away. */
-  meta?: React.ReactNode;
+  /** When this was last opened. Rendered OUTSIDE the truncating name, so a long
+   *  title can't clip it away. */
+  at?: number;
   indent?: boolean;
 }) {
   return (
@@ -30,9 +30,9 @@ export function LeaderRow({
         className="flex-1 self-center border-b border-dotted min-w-[1rem]"
         style={{ borderColor: "var(--border)" }}
       />
-      {meta && (
+      {at !== undefined && (
         <span className="mono text-[11px] shrink-0 whitespace-nowrap" style={{ color: "var(--gray)" }}>
-          {meta}
+          {timeAgo(at)}
         </span>
       )}
       {count !== undefined && (
@@ -64,7 +64,7 @@ export function DocRow({
   indent?: boolean;
 }) {
   return (
-    <LeaderRow count={count} indent={indent} meta={at !== undefined ? timeAgo(at) : undefined}>
+    <LeaderRow count={count} at={at} indent={indent}>
       <Link to={path} className="text-[15px] hover:underline" style={{ color: "var(--tan-2)" }}>
         {docNo && (
           <span className="mono text-xs mr-2" style={{ color: "var(--tan-3)" }}>

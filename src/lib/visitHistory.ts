@@ -1,10 +1,11 @@
 import { useSyncExternalStore } from "react";
 import * as idb from "./idb";
 import { productForPath, type Product } from "./productArea";
+import { ROUTES } from "./routes";
 
 // Append-only, browser-local log of what the user visits (docs, reports, radar
-// actors, searches). Read UI: /history (src/components/visits/), which derives
-// its four cards from this log via src/lib/historyIndex.ts. Stored in IndexedDB
+// actors, searches). Read UI: /me/history (src/components/visits/), which
+// derives its four cards from this log via src/lib/visitsIndex.ts. Stored in IndexedDB
 // (see idb.ts): an append-only log grows unbounded, which localStorage's
 // synchronous ~5 MB cap can't hold, and IndexedDB is async + indexable. Fully
 // anonymous and never leaves the browser (no server, no PostHog, no PII) —
@@ -37,7 +38,10 @@ export interface VisitSummary {
 }
 
 const DEDUPE_MS = 30_000; // ignore a repeat of the same path+params within this window
-const RETENTION_MS = 180 * 24 * 60 * 60 * 1000; // forget visits older than ~180 days
+/** How long a visit is kept. Exported so the UI can state the real number
+ *  instead of repeating "180 days" in prose that silently goes stale. */
+export const RETENTION_DAYS = 180;
+const RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000;
 const MAX_ROWS = 5_000; // best-effort soft cap; oldest rows evicted past this (trimToMax isn't atomic)
 const PRUNE_EVERY = 20; // amortize retention/cap enforcement across writes
 
@@ -104,6 +108,14 @@ export function visitHref(row: { path: string; params?: string }): string {
   return `${row.path}${row.path.includes("?") ? "&" : "?"}${row.params}`;
 }
 
+/** The atlas node id a stored reader path points at, or null — the inverse of
+ *  canonicalPath's /atlas branch, and deliberately next to it so the two can't
+ *  drift apart. Tolerates the `/preview/<id>` router-base prefix. */
+export function docIdFromPath(path: string): string | null {
+  const { pathname, params } = splitPath(path);
+  return pathname.endsWith(ROUTES.ATLAS) ? params.get("id") : null;
+}
+
 // Which product surface a stored path belongs to. productForPath already covers
 // every case (incl. /preview/<id>/… → "preview" via its /preview prefix, and / →
 // "search"); we only strip the query first so the exact "/" match survives a
@@ -152,6 +164,9 @@ export interface VisitLog {
 
 let snapshot: VisitLog = { events: [], loaded: false };
 let hydrated = false;
+// Set when a visit lands with no subscriber: the snapshot is now behind the
+// store, so the next subscribe re-reads instead of trusting it.
+let stale = false;
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -167,8 +182,9 @@ async function refresh(): Promise<void> {
 
 function subscribe(cb: () => void): () => void {
   listeners.add(cb);
-  if (!hydrated) {
+  if (!hydrated || stale) {
     hydrated = true;
+    stale = false;
     void refresh();
   }
   return () => listeners.delete(cb);
@@ -177,11 +193,6 @@ function subscribe(cb: () => void): () => void {
 /** Reactive view of the raw event log plus whether the first read has landed. */
 export function useVisitLog(): VisitLog {
   return useSyncExternalStore(subscribe, () => snapshot, () => snapshot);
-}
-
-/** Reactive view of the raw event log. Returns [] until the first async read. */
-export function useVisitHistory(): VisitEvent[] {
-  return useVisitLog().events;
 }
 
 // --- writes / queries ------------------------------------------------------
@@ -231,36 +242,24 @@ export async function recordVisit(input: {
     writesSincePrune = 0;
     await prune(now);
   }
-  // Append-only: extend the live snapshot in place rather than re-reading the store.
-  if (hydrated) {
-    snapshot = { events: [...snapshot.events, event], loaded: snapshot.loaded };
-    emit();
+  // Append-only: extend the live snapshot in place rather than re-reading the
+  // store — but only while something is actually rendering it. `hydrated` stays
+  // true for the session once /history has been opened, so without this guard
+  // every later navigation would copy the whole log (up to MAX_ROWS) for no
+  // listener. Mark it stale instead and re-read on the next subscribe.
+  if (!hydrated) return;
+  if (listeners.size === 0) {
+    stale = true;
+    return;
   }
+  snapshot = { events: [...snapshot.events, event], loaded: snapshot.loaded };
+  emit();
 }
 
 /** Read all events, optionally only those on/after `since`. */
 export async function getEvents(opts: { since?: number } = {}): Promise<VisitEvent[]> {
   const events = await idb.getAll<VisitEvent>();
   return opts.since ? events.filter((e) => e.at >= opts.since!) : events;
-}
-
-/**
- * "Most visited" — group the log by canonical path, filter by kind/since, sort
- * by visit count (tiebreak most-recent). The query a future UI will call.
- *
- * Preview visits (kind "preview") are excluded by default so atlas-PR review
- * activity never pollutes "most visited"; pass `{ kind: "preview" }` to get them.
- */
-export async function topVisited(
-  opts: { kind?: Product; n?: number; since?: number } = {},
-): Promise<VisitSummary[]> {
-  const events = await getEvents({ since: opts.since });
-  let rows = summarize(events);
-  rows = opts.kind
-    ? rows.filter((r) => r.kind === opts.kind)
-    : rows.filter((r) => r.kind !== "preview");
-  rows.sort((a, b) => b.count - a.count || b.last - a.last);
-  return opts.n ? rows.slice(0, opts.n) : rows;
 }
 
 /** Wipe the entire log. */

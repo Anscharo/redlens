@@ -1,5 +1,5 @@
 import { Link } from "../Link";
-import type { PageVisit } from "../../lib/historyIndex";
+import type { PageVisit } from "../../lib/visitsIndex";
 import { LeaderRow } from "./VisitRow";
 
 // A visited report / radar page. The link restores the filters that were set on

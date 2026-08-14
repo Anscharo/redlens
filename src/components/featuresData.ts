@@ -282,7 +282,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Report and Radar rows remember the filters you had set, so the link restores that same view.",
           'Wipe the record at any time with "clear history".',
         ],
-        note: "No sign-in needed — the record is kept in this browser only, never sent to a server, and visits older than 180 days are forgotten. A different browser or device has its own separate history.",
+        note: "No sign-in needed — the record is kept in this browser only and never sent to a server; the page itself states how long visits are kept. A different browser or device has its own separate history.",
       },
       {
         name: "Sending feedback",

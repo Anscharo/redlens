@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SignInButtons } from "./SignInButtons";
-import { Link } from "../Link";
+import { MenuButton, MenuLink, MenuRule } from "./MenuRow";
 import { ROUTES } from "../../lib/routes";
 
 // The signed-out nav menu: two entries, "Sign in" (which opens the provider
@@ -19,7 +19,7 @@ export function SignedOutMenu({ onNavigate }: { onNavigate: () => void }) {
         >
           <span>← sign in</span>
         </button>
-        <div className="border-t border-border" />
+        <MenuRule />
         <SignInButtons variant="menu" source="nav" />
       </>
     );
@@ -27,15 +27,9 @@ export function SignedOutMenu({ onNavigate }: { onNavigate: () => void }) {
 
   return (
     <>
-      <button className="rlc-menu-item" onClick={() => setShowSignIn(true)}>
-        <span>Sign in</span>
-        <span className="text-tan-3 enlargen">→</span>
-      </button>
-      <div className="border-t border-border" />
-      <Link className="rlc-menu-item" to={ROUTES.HISTORY} onClick={onNavigate}>
-        <span>History</span>
-        <span className="text-tan-3 enlargen">→</span>
-      </Link>
+      <MenuButton label="Sign in" onClick={() => setShowSignIn(true)} />
+      <MenuRule />
+      <MenuLink to={ROUTES.HISTORY} label="History" onNavigate={onNavigate} />
     </>
   );
 }

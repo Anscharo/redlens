@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { act } from "@testing-library/react";
 import { renderHook, cleanup } from "@testing-library/react";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
@@ -40,7 +41,7 @@ describe("usePageVisitTracking", () => {
     });
   });
 
-  it("captures the filters set on the page", async () => {
+  it("captures the filters already in the URL on arrival", async () => {
     const { usePageVisitTracking } = await import("./usePageVisitTracking");
     renderHook(() => usePageVisitTracking("/reports/rewards"), {
       wrapper: wrapperFor("/reports/rewards?cat=spark&q=usds"),
@@ -48,6 +49,27 @@ describe("usePageVisitTracking", () => {
     expect(recordVisit).toHaveBeenCalledWith(
       expect.objectContaining({ params: "cat=spark&q=usds" }),
     );
+  });
+
+  it("collapses a burst of filter edits into one write", async () => {
+    vi.useFakeTimers();
+    const { usePageVisitTracking } = await import("./usePageVisitTracking");
+    const { hook, navigate } = memoryLocation({ path: "/reports/rewards", record: true });
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <Router hook={hook}>{children}</Router>
+    );
+    renderHook(() => usePageVisitTracking("/reports/rewards"), { wrapper });
+    expect(recordVisit).toHaveBeenCalledTimes(1); // the arrival
+
+    // Typing into the in-report filter box rewrites ?q= on every keystroke.
+    for (const q of ["u", "us", "usd", "usds"]) {
+      act(() => navigate(`/reports/rewards?q=${q}`));
+    }
+    expect(recordVisit).toHaveBeenCalledTimes(1); // nothing written mid-burst
+    act(() => vi.advanceTimersByTime(2000));
+    expect(recordVisit).toHaveBeenCalledTimes(2);
+    expect(recordVisit).toHaveBeenLastCalledWith(expect.objectContaining({ params: "q=usds" }));
+    vi.useRealTimers();
   });
 
   it("records the radar and constellations pages too", async () => {
