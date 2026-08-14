@@ -174,3 +174,12 @@ Remaining items from the full-branch audit (the bug fixes landed in the same PR 
 - ~~Staged delivery~~ **Implemented 2026-08-07** (docs/plans/chat-staged-delivery.md has the live shape): `CHAT_DELIVERY_MODE`/body `delivery` switch on the SSE route (staged = suppress token/clear, synthetic `synthesizing`/`finalizing` stages, `comparing` from the orchestrator), client stage checklist + `useRevealOnDone` display-stream + "staged" pref toggle. **Default stays `streaming`** until the staged-vs-streaming A/B (PostHog `chat_delivery` property) measures — don't flip it without that.
 
 ### Other / background
+
+## Cursor Cloud specific instructions
+
+Environment is provisioned by the startup update script (`pnpm install` + `pnpm pull-atlas`) plus a snapshot that already has Node (via nvm, ≥22.22 — a transitive dep requires it), pnpm (corepack), Bun (symlinked at `/usr/local/bin/bun`), and Docker installed. Non-obvious runtime caveats:
+
+- **Start the Docker daemon before `pnpm dev`.** This container has no systemd init, so `systemctl start docker` does not work — run `sudo dockerd` in a background/tmux session and wait for it to come up. `pnpm dev`'s preflight brings up the `redlens-pg` Postgres container itself, but it needs a running daemon first (or use `DEV_NO_DB=1 pnpm dev` for a reader-only, DB-less run). See the "Local dev" section above for what `pnpm dev` orchestrates and the `DEV_NO_*` escape hatches.
+- **Dev serves the app on Vite `:5173`, the Bun API on `:3000`.** In dev, atlas artifacts (`docs.json`, `search-index.json`, …) are served by Vite from `public/`; the Bun server only serves them under `/api/atlas/<sha>/`. So `curl localhost:3000/docs.json` 404s by design — hit `:5173` for the artifacts and the SPA. `GET :3000/api/health` returns the sync status (`atlas_sha`/`db_sha` match when healthy).
+- **The `boot-embeddings` step can fail noisily when `OPENROUTER_API_KEY` is set**, with a `PostgresError: malformed array literal`. This is the optional semantic-embeddings background task; it does not crash the server or block the core reader/search/graph/reports (lexical MiniSearch search is unaffected and `/api/health` stays OK). Ignore it for reader/search work, or run without the key set to silence it.
+- **Bun runs off pnpm's `node_modules`** — no separate `bun install` is needed just to run the server/worker. Only run `bun install` (to keep `bun.lock` in sync) when you change `package.json` deps, per the two-lockfiles convention above.
