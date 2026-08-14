@@ -71,12 +71,6 @@ export function FooterInfo({ block, atlasCommit, atlasRepo, nodeCount, buildDate
         </a>
       </FooterItem>
       <Sep />
-      <FooterItem title="what you have been reading — kept in this browser only">
-        <a href={HISTORY_HREF} className="hover:underline" style={{ color: "var(--tan-3)" }}>
-          history
-        </a>
-      </FooterItem>
-      <Sep />
       <FooterItem title="what data we collect and how it's used">
         <a href={PRIVACY_HREF} className="hover:underline" style={{ color: "var(--tan-3)" }}>
           privacy
