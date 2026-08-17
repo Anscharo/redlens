@@ -13,6 +13,7 @@ export const ROUTES = {
   COLLECTIONS: "/collections",
   SHARED_COLLECTION: "/c/:id",
   CONVERSATIONS: "/conversations",
+  HISTORY: "/me/history",
   REPORTS: "/reports",
   REPORTS_CROSSVIEW: "/reports/crossview",
   REPORTS_CROSSVIEW_CONCEPTS: "/reports/crossview/concepts",
@@ -60,7 +61,8 @@ export function usesWindowScroll(location: string): boolean {
     location.startsWith(ROUTES.REPORTS) ||
     location.startsWith(ROUTES.RADAR) ||
     location === ROUTES.COLLECTIONS ||
-    location === ROUTES.CONVERSATIONS
+    location === ROUTES.CONVERSATIONS ||
+    location === ROUTES.HISTORY
   );
 }
 
@@ -109,8 +111,16 @@ export const REPORT_CHAT_TOOLS: Partial<Record<string, string>> = {
   [ROUTES.REPORTS_REWARDS]: "atlas_report_rewards",
 };
 
+// Top-level pages that carry a constant title, for the same consumers as
+// REPORT_TITLES below. Keyed by route. /radar/<slug> is deliberately absent —
+// its title is the actor's name, which only the page itself knows.
+export const PAGE_TITLES: Record<string, string> = {
+  [ROUTES.RADAR]: "Radar",
+  [ROUTES.CONSTELLATIONS]: "Constellations",
+};
+
 // Canonical report id → display title. Single source of truth shared by the
-// reports index (ReportsIndex) and visit-history capture (useReportVisitTracking).
+// reports index (ReportsIndex) and visit-history capture (usePageVisitTracking).
 // Keyed by report id (the /reports/<id> slug); the rubric sub-page is deliberately
 // absent (it's prose, not a listed report).
 export const REPORT_TITLES: Record<string, string> = {

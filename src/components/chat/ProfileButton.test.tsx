@@ -23,6 +23,11 @@ vi.mock("../../lib/chatEnabled", () => ({ chatEnabled: () => chatEnabledOn }));
 
 import { ProfileButton } from "./ProfileButton";
 
+// .rlc-menu-item elements aren't given role="menuitem" in the markup, so read
+// the rows straight from the DOM. Order is the property under test.
+const menuLabels = () =>
+  Array.from(document.querySelectorAll(".rlc-menu-item")).map((el) => el.textContent);
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -32,14 +37,35 @@ afterEach(() => {
 });
 
 describe("ProfileButton signed out", () => {
-  it("shows a sign-in pill and opens a menu with sign-in options on click", () => {
+  it("opens a menu offering Sign in and History", () => {
     render(<ProfileButton />);
-    const pill = screen.getByText("sign in");
-    expect(pill).toBeInTheDocument();
+    const pill = screen.getByRole("button", { name: "Menu" });
     expect(screen.queryByRole("menu")).toBeNull();
     fireEvent.click(pill);
     expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(screen.getByText("Sign in")).toBeInTheDocument();
+    expect(screen.getByText("History")).toBeInTheDocument();
+    // Providers live one level down, so the menu itself stays two entries.
+    expect(screen.queryByText("Continue with GitHub")).toBeNull();
+  });
+
+  it("reveals the providers from the Sign in entry, and comes back", () => {
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    fireEvent.click(screen.getByText("Sign in"));
     expect(screen.getByText("Continue with GitHub")).toBeInTheDocument();
+    expect(screen.getByText("Continue with Google")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("← sign in"));
+    expect(screen.getByText("History")).toBeInTheDocument();
+    expect(screen.queryByText("Continue with GitHub")).toBeNull();
+  });
+
+  it("links History at /me/history and closes the menu on click", () => {
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    expect(screen.getByText("History").closest("a")).toHaveAttribute("href", "/me/history");
+    fireEvent.click(screen.getByText("History"));
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 
   it("closes the menu on outside click", () => {
@@ -49,7 +75,7 @@ describe("ProfileButton signed out", () => {
         <div data-testid="outside" />
       </div>,
     );
-    fireEvent.click(screen.getByText("sign in"));
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
     expect(screen.getByRole("menu")).toBeInTheDocument();
     fireEvent.mouseDown(screen.getByTestId("outside"));
     expect(screen.queryByRole("menu")).toBeNull();
@@ -73,28 +99,21 @@ describe("ProfileButton signed in", () => {
     expect(screen.getByText("Sign out")).toBeInTheDocument();
   });
 
-  it("shows a Conversations item directly below Collections when chatEnabled() is true", () => {
+  it("lists the destinations in order, with History linked", () => {
     user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
     chatEnabledOn = true;
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada"));
-    expect(screen.getByText("Conversations")).toBeInTheDocument();
-    // .rlc-menu-item elements aren't given role="menuitem" in the markup, so
-    // assert ordering by walking the DOM directly.
-    const labels = Array.from(document.querySelectorAll(".rlc-menu-item")).map((el) => el.textContent);
-    const collectionsIdx = labels.findIndex((t) => t?.includes("Collections"));
-    const conversationsIdx = labels.findIndex((t) => t?.includes("Conversations"));
-    expect(collectionsIdx).toBeGreaterThanOrEqual(0);
-    expect(conversationsIdx).toBe(collectionsIdx + 1);
+    expect(menuLabels()).toEqual(["Account→", "History→", "Collections→", "Conversations→", "Sign out"]);
+    expect(screen.getByText("History").closest("a")).toHaveAttribute("href", "/me/history");
   });
 
-  it("hides the Conversations item when chatEnabled() is false", () => {
+  it("drops the Conversations row when chatEnabled() is false", () => {
     user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
     chatEnabledOn = false;
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada"));
-    expect(screen.getByText("Collections")).toBeInTheDocument();
-    expect(screen.queryByText("Conversations")).toBeNull();
+    expect(menuLabels()).toEqual(["Account→", "History→", "Collections→", "Sign out"]);
   });
 
   it("closes the menu when the Conversations link is clicked", () => {

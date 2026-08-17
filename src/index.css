@@ -1385,6 +1385,15 @@ button.atlas-node-expand-all:focus-visible {
   border-color: var(--accent);
 }
 
+/* ─── /history visit cards: hairlines between rows ───
+   Tailwind's divide-y leaves the colour at currentColor — against the cards'
+   tan row text that reads as bright white rules. This is the same idea at a
+   fraction of the weight: --border, thinned further so the rows separate
+   without the list looking ruled. */
+.visit-rows > * + * {
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
 /* ─── Shared badge (surface bg + border) ─── */
 .badge {
   background: var(--surface);

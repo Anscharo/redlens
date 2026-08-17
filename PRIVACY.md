@@ -72,6 +72,11 @@ each one needs.
   fair-use limits and stop automated spam. Just reading the atlas sets no
   cookies at all.
 - We store a few **preferences** (such as display settings) in your browser.
+- Your **viewing history** — the documents, reports and searches you open — is
+  logged in your browser's own storage so the History page can show you what
+  you have been reading. It never leaves your browser, is not tied to your
+  account, is forgotten after 180 days, and you can erase it at any time with
+  "clear history" on that page.
 - Analytics uses temporary session storage, not cookies, and clears when you
   close the tab.
 

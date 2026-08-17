@@ -44,6 +44,7 @@ export const FeaturesPage = lazyImport(() => import("../components/FeaturesPage"
 export const RadarPage = lazyImport(() => import("../components/radar/RadarPage"), "RadarPage");
 export const CrossViewPage = lazyImport(() => import("../components/crossview/CrossViewPage"), "CrossViewPage");
 export const AdminEntry = lazyImport(() => import("../admin/AdminEntry"), "AdminEntry");
+export const VisitsPage = lazyImport(() => import("../components/visits/VisitsPage"), "VisitsPage");
 export const CollectionsPage = lazyImport(() => import("../components/collections/CollectionsPage"), "CollectionsPage");
 export const SharedCollectionOpener = lazyImport(
   () => import("../components/collections/SharedCollectionOpener"),
@@ -103,4 +104,5 @@ export const SIMPLE_ROUTES: SimpleRoute[] = [
   { path: ROUTES.REPORTS_CROSSVIEW, Component: CrossViewPage, props: () => ({ tab: "shape" }) },
   { path: ROUTES.FEATURES, Component: FeaturesPage },
   { path: ROUTES.COLLECTIONS, Component: CollectionsPage },
+  { path: ROUTES.HISTORY, Component: VisitsPage },
 ];
