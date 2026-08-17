@@ -12,7 +12,6 @@ import {
   classifyIcd,
   buildChildrenIndex,
   extractInstanceParams,
-  // @ts-expect-error — .mjs without types; runtime-only import.
 } from "../scripts/lib/graph-instances.mjs";
 
 function mkDoc(id: string, doc_no: string, title: string, opts: Partial<Record<string, unknown>> = {}) {
