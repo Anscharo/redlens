@@ -6,7 +6,6 @@
  *
  * Used by:
  *   - scripts/required/check-processes-dirty.mjs (atlas-update dirty check)
- *   - scripts/aux/processes-bootstrap.mjs (initial seed)
  *
  * Recall is ~85%: authors consistently use "Process Definition" / "Cycle" /
  * "Workflow" in titles, but generic containers ("Implementation", "Stages")

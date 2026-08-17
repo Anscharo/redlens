@@ -1,9 +1,21 @@
-name: Chainstate Update
+name: On-chain Address Refresh
+
+# Weekly refresh of the COMMITTED on-chain address metadata: public/addresses.json
+# plus the .cache/etherscan ABI cache it (and the atlas worker's chain-state
+# snapshot) are built from.
+#
+# The contract-state snapshot itself is NOT built here any more — public/chain-state.json
+# is decommitted, and the Railway atlas worker fetches the snapshot straight into
+# Postgres on its own time gate (CHAINSTATE_REFRESH_SECONDS, default daily). What
+# remains here is the part that must stay in git: the address metadata that
+# build-graph reads at build time, and the ABI cache that ships in the worker
+# image. The workflow file/branch/label names keep their historical
+# "chainstate-update" spelling — they exist in GitHub already.
 
 on:
   workflow_dispatch:
   schedule:
-    # Weekly Sunday 22:00 UTC. Self-aborts if on-chain artifacts are unchanged.
+    # Weekly Sunday 22:00 UTC. Self-aborts if the on-chain artifacts are unchanged.
     - cron: "0 22 * * 0"
 
 permissions:
@@ -30,24 +42,17 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
 
       # build:addresses reads gitignored addresses.atlas.json from build:index.
       - name: Build index
         run: pnpm build:index
 
       # Refresh committed addresses.json + Etherscan cache. Degrades gracefully
-      # on flaky Etherscan calls — snap:chainstate still runs against the
-      # existing committed artifacts. REFRESH_PROXY_CACHE re-verifies cached
-      # proxy metadata so a proxy upgraded since last week is picked up.
+      # on flaky Etherscan calls — an unchanged tree just means no PR.
+      # REFRESH_PROXY_CACHE re-verifies cached proxy metadata so a proxy upgraded
+      # since last week is picked up (the worker's snapshot reads view functions
+      # off the IMPLEMENTATION ABI, so a stale proxy entry silently narrows it).
       # BLOCKSCOUT_API_KEY (optional) raises the Blockscout rate limit used for
       # Robinhood Chain + as the Etherscan fallback.
       - name: Refresh on-chain address metadata
@@ -58,39 +63,18 @@ jobs:
           REFRESH_PROXY_CACHE: "1"
         run: pnpm build:addresses
 
-      - name: Snapshot chain state
-        env:
-          # Optional — falls back to CHAIN_RPC.ethereum in scripts/lib/chains.mjs.
-          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
-        run: pnpm snap:chainstate
-
       - name: Check for changes
         id: diff
         run: |
-          # chain-state.json embeds a live block number that changes every run,
-          # so compare only its `.values` payload — a pure block bump is not a
-          # real on-chain change and must not open a no-op PR.
-          values_changed=false
-          if [ -f public/chain-state.json ]; then
-            NEW_VALUES=$(node -e "console.log(JSON.stringify(JSON.parse(require('fs').readFileSync('public/chain-state.json','utf8')).values))")
-            OLD_VALUES=$(git show HEAD:public/chain-state.json 2>/dev/null \
-              | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.stringify(JSON.parse(s).values))}catch{console.log('')}})")
-            [ "$NEW_VALUES" != "$OLD_VALUES" ] && values_changed=true
-          fi
           # addresses.json + Etherscan cache: use `git status --porcelain` so NEW
           # untracked cache files are detected too (git diff --quiet ignores them).
-          meta_changed=false
-          [ -n "$(git status --porcelain -- public/addresses.json .cache/etherscan)" ] && meta_changed=true
-
-          if [ "$values_changed" = true ] || [ "$meta_changed" = true ]; then
+          if [ -n "$(git status --porcelain -- public/addresses.json .cache/etherscan)" ]; then
             echo "proceed=true" >> "$GITHUB_OUTPUT"
-            BLOCK=$(node -e "console.log(JSON.parse(require('fs').readFileSync('public/chain-state.json','utf8')).block)")
-            echo "block=$BLOCK" >> "$GITHUB_OUTPUT"
-            echo "On-chain values or address metadata changed (values_changed=$values_changed meta_changed=$meta_changed)."
-            git status --porcelain -- public/chain-state.json public/addresses.json .cache/etherscan
+            echo "Address metadata changed."
+            git status --porcelain -- public/addresses.json .cache/etherscan
           else
             echo "proceed=false" >> "$GITHUB_OUTPUT"
-            echo "On-chain values + address metadata unchanged (block-only bump ignored) — nothing to commit."
+            echo "Address metadata unchanged — nothing to commit."
           fi
 
       - name: Commit and push to chainstate-update branch
@@ -102,8 +86,8 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -B "$BRANCH"
-          git add public/chain-state.json public/addresses.json .cache/etherscan
-          git commit -m "chore: refresh chainstate snapshot"
+          git add public/addresses.json .cache/etherscan
+          git commit -m "chore: refresh on-chain address metadata"
           git push origin "$BRANCH" --force
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
@@ -112,20 +96,19 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          BLOCK="${{ steps.diff.outputs.block }}"
           BRANCH="${{ steps.push.outputs.branch }}"
 
           gh label create chainstate-update --force \
             --color 1D76DB \
-            --description "Automated weekly chainstate snapshot refresh"
+            --description "Automated weekly on-chain address metadata refresh"
 
           EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING" ]; then
             echo "PR #$EXISTING already open for $BRANCH — nothing to do."
           else
             gh pr create \
-              --title "chore: refresh chainstate snapshot" \
-              --body "Automated weekly refresh of on-chain contract values at Ethereum block \`${BLOCK}\`." \
+              --title "chore: refresh on-chain address metadata" \
+              --body "Automated weekly refresh of \`public/addresses.json\` and the Etherscan ABI cache. The contract-state snapshot is fetched by the Railway atlas worker into Postgres and is not part of this PR." \
               --label "chainstate-update" \
               --base main \
               --head "$BRANCH"

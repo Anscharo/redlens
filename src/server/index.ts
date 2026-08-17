@@ -26,6 +26,7 @@ import { handleFeedback } from "./feedback.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history/history.ts";
 import { handleBalances } from "./balances/balances.ts";
+import { handleChainState } from "./chain-state.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
 import { handleModTimeline } from "./history/mod-timeline.ts";
 import { registerSSEClient } from "./sse.ts";
@@ -415,6 +416,12 @@ export function buildRoutes() {
 
     // On-chain token balances for the addresses report (GET cached, POST refresh).
     "/api/balances": { GET: (req: Request) => handleBalances(req), POST: (req: Request) => handleBalances(req) },
+
+    // The on-chain contract-state snapshot (was the committed
+    // public/chain-state.json). Ungated like /api/balances — the reader shows
+    // on-chain values to everyone, signed in or not. The atlas worker writes
+    // the row; this only reads it.
+    "/api/chain-state": () => handleChainState(),
 
     // Auth + collections need only a logged-in session (usersEnabled); chat +
     // usage additionally need chatEnabled (itself AND-gated by usersEnabled).

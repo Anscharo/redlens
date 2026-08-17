@@ -64,23 +64,12 @@ jobs:
             echo "Already at latest (${OLD:0:7})."
           fi
 
-      # census:risk, census:concepts and census:chains run under bun (they import
-      # src/lib/riskRules.ts / conceptsCensus.ts / explorer.ts directly).
-      - uses: oven-sh/setup-bun@v2
-        if: steps.atlas.outputs.proceed == 'true'
-
-      - uses: pnpm/action-setup@v6
-        if: steps.atlas.outputs.proceed == 'true'
-
-      - uses: actions/setup-node@v4
+      # bun: census:risk, census:concepts and census:chains run under it (they
+      # import src/lib/riskRules.ts / conceptsCensus.ts / explorer.ts directly).
+      - uses: ./.github/actions/setup
         if: steps.atlas.outputs.proceed == 'true'
         with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        if: steps.atlas.outputs.proceed == 'true'
-        run: pnpm install --frozen-lockfile
+          bun: "true"
 
       # All build warnings ([drift], anchor-not-found, did-not-parse, unknown
       # document type, …) go through console.warn → stderr. Capture stderr

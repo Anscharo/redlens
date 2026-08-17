@@ -3,7 +3,7 @@ import { useLocation, useSearchParams, Switch, Route, Redirect } from "wouter";
 import { useSearchInput } from "./hooks/useSearchInput";
 import { useNavigation } from "./hooks/useNavigation";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
-import { useReportVisitTracking } from "./hooks/useReportVisitTracking";
+import { usePageVisitTracking } from "./hooks/usePageVisitTracking";
 import { useModifierKeyAttrs } from "./hooks/useModifierKeyAttrs";
 import { useContextHints } from "./hooks/useContextHints";
 import { track } from "./lib/analytics";
@@ -30,9 +30,12 @@ import { useDataSource } from "./lib/dataSource";
 import { chatEnabled } from "./lib/chatEnabled";
 
 // Deliberately NOT in lib/lazyRoutes.tsx: this stays local to App.tsx, right
-// next to the __CHAT_ENABLED__ guard it's only ever rendered behind, so that
-// guard's dead-code-elimination proof (chat-off builds strip the whole
-// ConversationsPage chunk) isn't disturbed by crossing a module boundary.
+// next to the __CHAT_ENABLED__ guard it's only ever rendered behind, so the
+// guard's dead-code-elimination reasoning isn't disturbed by crossing a module
+// boundary. Note the chunk itself is still EMITTED in chat-off builds — this
+// unconditional lazy() keeps the dynamic import reachable for Rollup — but
+// nothing ever fetches it: the route is unregistered and the widget unmounted
+// (verified by worktree A/B, 2026-08-12). Runtime isolation is the guarantee.
 const ConversationsPage = lazy(() =>
   lazyRetry(() => import("./components/conversations/ConversationsPage")).then((m) => ({
     default: m.ConversationsPage,
@@ -83,9 +86,10 @@ export default function App() {
 
   // Analytics: init + per-route $pageview tagged with the product super property.
   usePageAnalytics(location);
-  // Browser-local visit log: record report page views (docs/actors/searches are
-  // captured at their own sites, where the human label is available).
-  useReportVisitTracking(location);
+  // Browser-local visit log: record report / radar / constellations page views
+  // with their filter state (docs, actors and searches are captured at their own
+  // sites, where the human label is available). Surfaced on /history.
+  usePageVisitTracking(location);
 
   // Enter in the search box jumps focus to the first result (entity hit or doc).
   // Returns whether a result was actually focused, so SearchBar only swallows
@@ -286,8 +290,9 @@ export default function App() {
             </Route>
             {/* __CHAT_ENABLED__ (bare, build-time define) MUST stay the outer
                 guard here — it's what lets the minifier prove this whole
-                branch (and the ConversationsPage chunk) dead and strip it out
-                of chat-off builds. chatEnabled() alone is a function call the
+                render branch dead and strip it out of chat-off builds (the
+                ConversationsPage chunk is still emitted — see the lazy() note
+                above — but never fetched). chatEnabled() alone is a function call the
                 minifier can't evaluate at build time, so chat would ship even
                 when disabled. Do not "simplify" this to chatEnabled() alone.
                 `!preview` is also load-bearing: ConversationsPage calls the

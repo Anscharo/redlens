@@ -29,7 +29,7 @@ vi.mock("./hooks/useNavigation", () => ({
   useNavigation: () => ({ navigateToNode: vi.fn(), handleViewChange: vi.fn() }),
 }));
 vi.mock("./hooks/usePageAnalytics", () => ({ usePageAnalytics: vi.fn() }));
-vi.mock("./hooks/useReportVisitTracking", () => ({ useReportVisitTracking: vi.fn() }));
+vi.mock("./hooks/usePageVisitTracking", () => ({ usePageVisitTracking: vi.fn() }));
 vi.mock("./components/SearchBar", () => ({ SearchBar: () => <div data-testid="search-bar" /> }));
 vi.mock("./components/SearchResults", () => ({ SearchResults: () => <div data-testid="search-results" /> }));
 vi.mock("./components/atlas/AtlasView", () => ({ AtlasView: () => <div data-testid="atlas-view" /> }));

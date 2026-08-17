@@ -21,6 +21,7 @@ import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson, writeDocsSpli
 import { refreshInPlaceFromDisk, writeSearchIndex } from "./atlas-refresh.ts";
 import { broadcastAtlasUpdate } from "./sse.ts";
 import { MAIN_STORE, publishBundle } from "./bundle-store.ts";
+import { stepsFor } from "../../scripts/lib/build-steps.mjs";
 import type { AtlasNode, DocMetaRow } from "./retrieval/indexes.ts";
 
 export type Decision = "idle" | "build";
@@ -307,17 +308,16 @@ export async function runRefreshFromDb(log: (m: string) => void, spawn: SpawnFn 
     const addrAtlas = groupAddrRowsToAtlas(addrRows);
     writeFileSync(join(config.publicDir, "addresses.atlas.json"), JSON.stringify({ atlasCommit: dbSha, addresses: addrAtlas }));
 
-    // 3. build-graph subprocess (reads docs.json → graph.json, relations.json; enriches addresses.atlas.json)
-    const { code: gc } = await spawn("bun", ["scripts/required/build-graph.mjs"]);
-    if (gc !== 0) throw new Error(`build-graph exited ${gc}`);
+    // 3. Build subprocesses — the `updater` profile of scripts/lib/build-steps.mjs.
+    //    build-graph reads docs.json → graph.json, relations.json (and enriches
+    //    addresses.atlas.json); build-glossary + the report views read
+    //    docs.json/relations.json. No build-index: docs.json came from DB rows.
+    for (const step of stepsFor("updater")) {
+      const { code } = await spawn("bun", [step.script!]);
+      if (code !== 0) throw new Error(`${step.name} exited ${code}`);
+    }
 
-    // 4. build-glossary + report views (read docs.json/relations.json)
-    const { code: glc } = await spawn("bun", ["scripts/required/build-glossary.mjs"]);
-    if (glc !== 0) throw new Error(`build-glossary exited ${glc}`);
-    const { code: oea } = await spawn("bun", ["scripts/required/build-oea-report.ts"]);
-    if (oea !== 0) throw new Error(`build-oea-report exited ${oea}`);
-
-    // 5. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk
+    // 4. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk
     //    writes it). /app/public is a SYMLINK to /app/dist in the built image
     //    (see Dockerfile), so a naive copy would target its own source — skip the
     //    copy entirely in that case and treat public/ itself as the served dir

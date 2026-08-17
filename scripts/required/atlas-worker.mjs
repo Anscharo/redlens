@@ -25,11 +25,16 @@
 //   GITHUB_TOKEN        — for `gh api` PR metadata in build-history
 //   OPENROUTER_API_KEY  — for embeddings (skipped if unset)
 //   ATLAS_WORKER_FULL   — set to "1" to force a full history rebuild
+//   ETH_RPC_URL         — mainnet RPC for the chain-state snapshot (falls back
+//                         to the public CHAIN_RPC.ethereum endpoint)
+//   CHAINSTATE_REFRESH_SECONDS — how old the stored snapshot may get before the
+//                         chain-state step refetches it (default 86400 = daily)
 import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { SQL } from "bun";
 import { touchSyncHeartbeat } from "../lib/worker-heartbeat.mjs";
+import { stepsFor } from "../lib/build-steps.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SUBMODULE = path.join(ROOT, "vendor/next-gen-atlas");
@@ -100,6 +105,30 @@ async function main() {
     console.warn(`atlas-worker: pr-state sweep skipped — ${e.message}`);
   }
 
+  // ── Chain-state snapshot (time-gated) ─────────────────────────────────────
+  // Also before the atlas early-exit: on-chain state changes independently of
+  // atlas commits, and this is the last point where `db` is still open. The
+  // cycle runs every ~12 minutes but the multicall sweep must NOT — the gate
+  // reads the stored snapshot's fetched_at and only refetches past
+  // CHAINSTATE_REFRESH_SECONDS (config.ts, default daily), so RPC spend is one
+  // batch per interval. Best-effort: a rate-limited RPC never fails the sync.
+  if (NO_FETCH) {
+    console.log("atlas-worker: chain-state skipped (--no-fetch) — run `pnpm snap:chainstate` to populate it locally");
+  } else {
+    try {
+      const { maybeRefreshChainState } = await import("../../src/server/chain-state.ts");
+      const { fetchChainState } = await import("./fetch-chain-state.mjs");
+      const res = await maybeRefreshChainState(db, { fetchSnapshot: () => fetchChainState() });
+      console.log(
+        res.refreshed
+          ? `atlas-worker: chain-state refreshed (was ${res.reason}) — block ${res.block}`
+          : `atlas-worker: chain-state fresh (${res.ageSeconds}s old, block ${res.block}) — no RPC fetch`,
+      );
+    } catch (e) {
+      console.warn(`atlas-worker: chain-state step skipped — ${e.message}`);
+    }
+  }
+
   // ── Lightweight check ─────────────────────────────────────────────────────
   console.log("atlas-worker: checking upstream atlas SHA…");
   const [upstreamSha, syncState, staleCount] = await Promise.all([
@@ -151,17 +180,15 @@ async function main() {
     run("git", ["-C", SUBMODULE, "checkout", "origin/main"]);
   }
 
-  console.log("atlas-worker: build-index…");
-  run("bun", ["scripts/required/build-index.mjs"]);
-
-  // build-graph enriches addresses.atlas.json (Phase 4.5: ICD-derived roles,
-  // entity/doc-title labels) before sync.ts reads it — otherwise atlas_addresses
-  // is persisted with only the structural Phase-2.6 annotation.
-  console.log("atlas-worker: build-graph…");
-  run("bun", ["scripts/required/build-graph.mjs"]);
-
-  console.log("atlas-worker: build-oea-report…");
-  run("bun", ["scripts/required/build-oea-report.ts"]);
+  // The `worker` profile of scripts/lib/build-steps.mjs (which records what
+  // this profile skips, and why). build-graph runs BEFORE sync.ts because it
+  // enriches addresses.atlas.json (Phase 4.5: ICD-derived roles, entity/
+  // doc-title labels) — otherwise atlas_addresses is persisted with only the
+  // structural Phase-2.6 annotation.
+  for (const step of stepsFor("worker")) {
+    console.log(`atlas-worker: ${step.name}…`);
+    run("bun", [step.script]);
+  }
 
   // ── Structural sync → advances sync_state.atlas_sha ──────────────────────
   console.log("atlas-worker: sync.ts…");

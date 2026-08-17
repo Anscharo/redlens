@@ -87,9 +87,19 @@ function deleteWhile(
   });
 }
 
-export function add<T>(record: T): Promise<void> {
+/** Append a record, returning its generated key (null when IndexedDB is
+ *  unavailable or the write failed) so the caller can update the row later. */
+export function add<T>(record: T): Promise<number | null> {
+  return withStore("readwrite", null, async (s) => {
+    const key = await wrap(s.add(record as unknown as Record<string, unknown>));
+    return typeof key === "number" ? key : null;
+  });
+}
+
+/** Overwrite an existing record in place (keyed by its `id`). */
+export function put<T>(record: T): Promise<void> {
   return withStore("readwrite", undefined, async (s) => {
-    await wrap(s.add(record as unknown as Record<string, unknown>));
+    await wrap(s.put(record as unknown as Record<string, unknown>));
   });
 }
 

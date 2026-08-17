@@ -171,7 +171,7 @@ export const areas = [
   {
     id: "scripts-lib-graph",
     label: "Scripts lib · Graph extraction",
-    match: [/^scripts\/lib\/(graph-bridges|graph-doc-edges|graph-duties|graph-entities|graph-entity-edges|graph-instances|graph-multisigs|graph-omni|graph-patterns|graph-transfers|graph-transitions|graph-tripwires)\.mjs$/],
+    match: [/^scripts\/lib\/(graph-active-data|graph-address-enrich|graph-bridges|graph-doc-edges|graph-duties|graph-entities|graph-entity-edges|graph-instances|graph-multisigs|graph-omni|graph-patterns|graph-transfers|graph-transitions|graph-tripwires)\.mjs$/],
   },
   {
     id: "scripts-lib-address",

@@ -44,16 +44,10 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # census:risk and census:concepts run under bun.
-      - uses: oven-sh/setup-bun@v2
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v4
+      # bun: census:risk and census:concepts run under it.
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          bun: "true"
 
       # Same wholesale stderr capture as atlas-update.yml — now also carrying
       # the [drift] tripwire and [drift-count] lines from graph-tripwires.mjs.

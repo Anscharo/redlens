@@ -5,13 +5,16 @@
 //   bun src/server/sync.ts            # sha-gated: skips if already current
 //   bun src/server/sync.ts --force    # sync regardless of sha
 //
-// Reads: public/{docs,addresses.atlas,addresses,chain-state}.json
+// Reads: public/{docs,addresses.atlas,addresses}.json + the chain_state row
+// (migration 020 — the on-chain snapshot is DB-resident, not a file, since the
+// atlas worker took over fetching it).
 // History is written by build-history.mjs (DB sink) in the worker, not here.
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { sql, waitForDb } from "./db.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
+import { readChainState } from "./chain-state.ts";
 import type { AtlasNode } from "./retrieval/indexes.ts";
 import { nodeToDocRow, buildChainStateByAddr, buildAddrRows } from "./retrieval/doc-rows.ts";
 
@@ -87,8 +90,20 @@ export async function main(deps: SyncDeps = realSyncDeps) {
   const addrOnChain = existsSync(pub("addresses.json"))
     ? readJson<Record<string, { chainlogId?: string; etherscanName?: string; isContract?: boolean; codeByChain?: Record<string, boolean>; presentOnChains?: string[]; isProxy?: boolean; implementation?: string }>>("addresses.json")
     : {};
-  const chainStateRaw = readJson<{ chains?: Record<string, { block?: number; slot?: number; values?: Record<string, unknown> }>; block?: number; values?: Record<string, unknown> }>("chain-state.json");
-  const chainStateByAddr = buildChainStateByAddr(chainStateRaw);
+  // The chain-state snapshot lives in Postgres (migration 020), written by the
+  // atlas worker's time-gated step — it used to be public/chain-state.json.
+  // Read it here so atlas_addresses.chain_state keeps its meaning; a missing row
+  // (fresh DB, or a dev box that never ran `pnpm snap:chainstate`) or a read
+  // failure degrades to no chain_state rather than aborting the whole sync.
+  // Snapshot freshness in atlas_addresses is therefore bounded by the ATLAS
+  // sync cadence, not the snapshot cadence — see the note in chain-state.ts.
+  const stored = await readChainState().catch((e: Error) => {
+    console.warn(`sync:atlas — chain_state read failed (${e.message}) — continuing without on-chain values`);
+    return null;
+  });
+  const chainStateByAddr = buildChainStateByAddr(
+    stored ? { block: Number(stored.block) || undefined, values: stored.values } : {},
+  );
   const addrRows = buildAddrRows(addrAtlas, addrOnChain, chainStateByAddr, atlasSha);
 
   // jsonb columns need an explicit ::jsonb cast on the placeholder — the values
