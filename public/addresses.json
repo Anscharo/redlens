@@ -840,7 +840,7 @@
       "ethereum",
       "plasma"
     ],
-    "chainlogId": "PRYSM_SUBPROXY",
+    "chainlogId": "OSERO_SUBPROXY",
     "etherscanName": "SubProxy",
     "isContract": true,
     "isProxy": false,
@@ -5740,7 +5740,7 @@
     "chains": [
       "ethereum"
     ],
-    "chainlogId": "PRYSM_STARGUARD",
+    "chainlogId": "OSERO_STARGUARD",
     "etherscanName": "StarGuard",
     "isContract": true,
     "isProxy": false,
