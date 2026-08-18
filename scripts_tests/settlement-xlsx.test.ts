@@ -4,12 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 // @ts-expect-error — .mjs without types
-import {
-  VENUE_HEADERS,
-  parseWorkbook,
-  parseReportsDir,
-  reconcile,
-} from "../scripts/lib/settlement-xlsx.mjs";
+import { VENUE_HEADERS, parseWorkbook, parseReportsDir, reconcile } from "../scripts/lib/settlement-xlsx.mjs";
 
 const HEADER = [...VENUE_HEADERS];
 

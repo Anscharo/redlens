@@ -37,8 +37,8 @@ describe("collapseVenues", () => {
 
 describe("layoutVenueSankey", () => {
   it("returns an empty layout when nothing flows", () => {
-    expect(layoutVenueSankey([]).nodes).toEqual([]);
-    expect(layoutVenueSankey([v({ id: "z" })]).nodes).toEqual([]);
+    expect(layoutVenueSankey([], "Spark").nodes).toEqual([]);
+    expect(layoutVenueSankey([v({ id: "z" })], "Spark").nodes).toEqual([]);
   });
 
   it("builds a left venue node and a Sky sink for a single P2S flow", () => {

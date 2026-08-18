@@ -70,7 +70,7 @@ export function collapseVenues(
 
 export function layoutVenueSankey(
   venues: readonly SankeyVenue[],
-  primeLabel: string,
+  primeLabel = "Prime",
   width = 720,
 ): SankeyLayout {
   if (venues.length === 0) return { width, height: 0, nodes: [], links: [] };
