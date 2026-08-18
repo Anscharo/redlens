@@ -65,3 +65,23 @@ export function toVectorLiteral(vec: number[]): string {
 export function toUuidArrayLiteral(ids: readonly string[]): string {
   return `{${ids.join(",")}}`;
 }
+
+// Inverse of toUuidArrayLiteral. Bun.sql does not decode uuid[] into a JS array
+// — SELECT returns the Postgres text form `{uuid,uuid}` (or `{}`). Passing that
+// string through as Hit.memberIds made rewriteSemanticHit throw `ids.map is not
+// a function` and fail the e2e atlas_query smoke (PR #286).
+//
+// Also accepts a real string[] so a future bun that does decode arrays still
+// works, and a bare uuid (one-element column read as a scalar).
+export function fromUuidArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((v) => String(v)).filter((s) => s.length > 0);
+  if (typeof value !== "string" || value.length === 0) return [];
+  const inner = value.startsWith("{") && value.endsWith("}") ? value.slice(1, -1) : value;
+  if (!inner) return [];
+  const out: string[] = [];
+  for (const part of inner.split(",")) {
+    const s = part.trim().replace(/^"|"$/g, "");
+    if (s) out.push(s);
+  }
+  return out;
+}

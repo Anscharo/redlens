@@ -1,7 +1,7 @@
 // Search: lexical (minisearch, in-memory) + semantic (pgvector) + RRF merge.
 // Both legs return id+rank+score; callers resolve full nodes from the doc map.
 import { type Indexes } from "./indexes.ts";
-import { sql, toVectorLiteral, toUuidArrayLiteral } from "../db.ts";
+import { sql, toVectorLiteral, toUuidArrayLiteral, fromUuidArray } from "../db.ts";
 import { embedQuery } from "./embed.ts";
 import { config } from "../config.ts";
 import { compactProse } from "../../lib/shortenTitle.ts";
@@ -98,7 +98,7 @@ export async function runSemantic(
        WHERE NOT e.attribution_only
        ORDER BY e.embedding <=> $1::vector LIMIT $2`,
       [lit, overFetch],
-    )) as { id: string; type: string; score: number; member_ids?: string[] | null }[];
+    )) as { id: string; type: string; score: number; member_ids?: unknown }[];
 
     const out: Hit[] = [];
     for (const r of rows) {
@@ -107,12 +107,13 @@ export async function runSemantic(
       if (r.score < config.semanticMinScore) break;
       // Do not type-filter here: a grouped parent may have a different type
       // from the leaf we rewrite to. Callers filter after attributeSemanticHits.
+      const memberIds = fromUuidArray(r.member_ids);
       out.push({
         id: r.id,
         rank: out.length,
         score: r.score,
         source: "semantic",
-        memberIds: r.member_ids && r.member_ids.length > 0 ? r.member_ids : undefined,
+        memberIds: memberIds.length > 0 ? memberIds : undefined,
       });
       if (out.length >= overFetch) break;
     }

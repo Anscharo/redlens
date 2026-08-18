@@ -110,6 +110,14 @@ describe("pickLeaf / rewriteSemanticHit", () => {
     expect(isDocNoDescendant(code.doc_no, net.doc_no)).toBe(false);
   });
 
+  it("treats a non-array memberIds (Postgres uuid[] text) as the anchor alone, not a crash", () => {
+    // Defense in depth: search.ts now parses the wire string, but a leftover
+    // `{uuid,uuid}` must not throw `ids.map is not a function`.
+    const out = rewriteSemanticHit("network", "icd", "{icd,net,code}" as unknown as string[], [], docMap);
+    expect(out.id).toBe("icd");
+    expect(out.via).toBeUndefined();
+  });
+
   it("weights title matches above content matches", () => {
     expect(leafScore("network", net)).toBeGreaterThan(leafScore("network", code));
   });

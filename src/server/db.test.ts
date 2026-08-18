@@ -52,6 +52,20 @@ test("toVectorLiteral formats a number[] as a pgvector bracket literal", async (
   expect(toVectorLiteral([1])).toBe("[1]");
 });
 
+test("fromUuidArray accepts a JS array, a Postgres text literal, and empty/null", async () => {
+  const { fromUuidArray } = await freshDb();
+  const a = "575ab954-d26c-460e-8a11-ebe7f5586dff";
+  const b = "9a8120c4-0a5b-426f-97a5-283c708413f5";
+  expect(fromUuidArray([a, b])).toEqual([a, b]);
+  expect(fromUuidArray(`{${a},${b}}`)).toEqual([a, b]);
+  expect(fromUuidArray(`{${a}}`)).toEqual([a]);
+  expect(fromUuidArray("{}")).toEqual([]);
+  expect(fromUuidArray("")).toEqual([]);
+  expect(fromUuidArray(null)).toEqual([]);
+  expect(fromUuidArray(undefined)).toEqual([]);
+  expect(fromUuidArray(a)).toEqual([a]);
+});
+
 test("toUuidArrayLiteral formats a uuid[] as a Postgres brace literal", async () => {
   // A STRING, never a JS array: Bun.sql sends a bound JS array's first element as a
   // scalar, which Postgres rejects with `malformed array literal`. That was the real

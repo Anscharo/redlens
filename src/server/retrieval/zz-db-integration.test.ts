@@ -258,4 +258,33 @@ describe("atlasQuery — semantic search leg (DB-backed, mocked)", () => {
     const ids = (res.results as { id: string }[]).map((r) => r.id);
     expect(ids).toContain("a");
   });
+
+  it("does not throw when Bun returns member_ids as a Postgres uuid[] text literal", async () => {
+    // Live bun SELECT of uuid[] yields `{uuid,uuid}`, not string[]. rewriteSemanticHit
+    // used to call `.map` on that string and fail the e2e atlas_query smoke.
+    const parent = node({
+      id: "p",
+      doc_no: "A.1.1",
+      title: "Parent Instance",
+      content: "parent body",
+    });
+    const child = node({
+      id: "c",
+      doc_no: "A.1.1.1",
+      title: "Network",
+      content: "Ethereum Mainnet",
+    });
+    const ix = buildIndexes([parent, child], [], [], { atlasCommit: "t" });
+    unsafeImpl = (query) => {
+      if (query.includes("ORDER BY e.embedding")) {
+        return Promise.resolve([
+          { id: "p", type: "Core", score: 0.95, member_ids: "{p,c}" },
+        ]);
+      }
+      return Promise.resolve([]);
+    };
+    const res = await atlasQuery(ix, { q: "network", k: 10, enrich: false });
+    const ids = (res.results as { id: string }[]).map((r) => r.id);
+    expect(ids).toContain("c");
+  });
 });

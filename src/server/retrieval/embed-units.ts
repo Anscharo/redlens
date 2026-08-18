@@ -310,7 +310,7 @@ export function rewriteSemanticHit(
 ): { id: string; via?: Via } {
   const anchor = docMap.get(semId);
   if (!anchor) return { id: semId };
-  const ids = memberIds && memberIds.length > 0 ? memberIds : [semId];
+  const ids = Array.isArray(memberIds) && memberIds.length > 0 ? memberIds : [semId];
   const members = ids.map((id) => docMap.get(id)).filter((n): n is AtlasNode => !!n);
   const picked = pickLeaf(query, members, anchor, semantic);
   let id = picked.node.id;
