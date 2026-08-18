@@ -12,7 +12,10 @@
 //     └── build-history        (atlas_history — DB sink, reads its own cursor)
 //
 // Lightweight check: if upstream git SHA matches sync_state.atlas_sha AND no
-// stale embeddings exist, exits immediately (no work needed).
+// stale 1:1 embeddings exist, skip fetch/build — but still run sync-embeddings.
+// Grouping metadata (attribution_only / member_ids) can go stale on a policy
+// switch without a content_hash miss, and the coverage SELECT below cannot see
+// that. sync-embeddings is incremental: a no-op when hashes AND flags match.
 //
 // Usage:
 //   bun scripts/required/atlas-worker.mjs
@@ -157,9 +160,21 @@ async function main() {
   const noStaleEmbeds = NO_FETCH ? true : staleCount === 0;
 
   if (!full && alreadyCurrent && noStaleEmbeds) {
-    console.log(`atlas-worker: already current at ${(syncState ?? "").slice(0, 12)} — nothing to do`);
+    console.log(`atlas-worker: already current at ${(syncState ?? "").slice(0, 12)} — skipping fetch/build`);
     await touchSyncHeartbeat(db);
     await db.close();
+    // Hash coverage can be complete while grouping metadata is stale
+    // (one_to_one → icd_params): folded members keep their 1:1 content_hash so
+    // the SELECT above doesn't see them. Reconcile here; sync-embeddings is a
+    // no-op when hashes AND attribution_only already match.
+    if (!NO_FETCH) {
+      try {
+        console.log("atlas-worker: reconciling embeddings (policy/grouping metadata)");
+        run("bun", ["src/server/sync-embeddings.ts"]);
+      } catch (e) {
+        console.warn(`atlas-worker: embeddings reconcile skipped — ${e.message}`);
+      }
+    }
     process.exit(0);
   }
 

@@ -22,10 +22,16 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AtlasNode } from "./retrieval/indexes.ts";
 import { buildEmbedText, contentHash } from "./retrieval/embed-text.ts";
+import { buildUnits, foldedIds } from "./retrieval/embed-units.ts";
 
 interface FakeDb {
   colType: string | null; // e.g. "vector(1024)"; null = pg_attribute has no row yet (table/column not migrated)
-  have: { doc_id: string; content_hash: string }[]; // existing atlas_doc_embeddings rows
+  have: {
+    doc_id: string;
+    content_hash: string;
+    attribution_only?: boolean;
+    member_ids?: unknown;
+  }[]; // existing atlas_doc_embeddings rows
 }
 let fakeDb: FakeDb = { colType: "vector(1024)", have: [] };
 function resetFakeDb(): void {
@@ -33,8 +39,9 @@ function resetFakeDb(): void {
 }
 
 interface UnsafeCall {
-  kind: "dim-check" | "embed-upsert" | "embed-delete" | "unknown";
+  kind: "dim-check" | "embed-upsert" | "embed-meta-update" | "embed-delete" | "unknown";
   paramsLength: number;
+  params?: unknown[];
 }
 let unsafeCalls: UnsafeCall[] = [];
 let ended = false;
@@ -49,7 +56,11 @@ async function unsafeMock(query: string, params?: unknown[]): Promise<unknown> {
     return fakeDb.colType ? [{ t: fakeDb.colType }] : [];
   }
   if (query.includes("INSERT INTO atlas_doc_embeddings")) {
-    unsafeCalls.push({ kind: "embed-upsert", paramsLength: (params ?? []).length });
+    unsafeCalls.push({ kind: "embed-upsert", paramsLength: (params ?? []).length, params: params ?? [] });
+    return [];
+  }
+  if (query.includes("UPDATE atlas_doc_embeddings")) {
+    unsafeCalls.push({ kind: "embed-meta-update", paramsLength: (params ?? []).length, params: params ?? [] });
     return [];
   }
   if (query.includes("DELETE FROM atlas_doc_embeddings")) {
@@ -62,7 +73,7 @@ async function unsafeMock(query: string, params?: unknown[]): Promise<unknown> {
 
 async function sqlTag(strings: TemplateStringsArray, ..._values: unknown[]): Promise<unknown[]> {
   const text = strings.join("?");
-  if (text.includes("SELECT doc_id, content_hash FROM atlas_doc_embeddings")) {
+  if (text.includes("FROM atlas_doc_embeddings") && text.includes("content_hash")) {
     return fakeDb.have;
   }
   throw new Error(`sync-embeddings.test.ts: unmocked sql template query: ${text}`);
@@ -203,6 +214,7 @@ describe("withRetry", () => {
 describe("main()", () => {
   let dir: string;
   let prevPublicDir: string;
+  let prevPolicy: string;
   const noopMigrations = async () => [];
   const failEmbed = async (): Promise<number[][]> => {
     throw new Error("should not be called");
@@ -214,6 +226,7 @@ describe("main()", () => {
     resetRecording();
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "sync-embeddings-main-"));
     prevPublicDir = config.publicDir;
+    prevPolicy = config.embedGroupPolicy;
     config.publicDir = dir;
   });
   afterEach(() => {
@@ -223,6 +236,7 @@ describe("main()", () => {
     // full story of the bug this guards against (it corrupted unrelated
     // chat/verify suites under the full pnpm test:server run).
     config.publicDir = prevPublicDir;
+    config.embedGroupPolicy = prevPolicy;
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -376,5 +390,134 @@ describe("main()", () => {
     });
     const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert");
     expect(upsert?.paramsLength).toBe(1 * 6); // only "b" made it into the upsert
+  });
+
+  function icdFixture(): Record<string, AtlasNode> {
+    // Same tree embed-units.test.ts uses to prove icd_params folding.
+    const icd = doc("icd", "A.6.1.1.1.2.1.1", "The documents herein define this instance.", {
+      title: "Spark Foo Instance Configuration Document",
+    });
+    const params = doc("params", "A.6.1.1.1.2.1.1.1", "The documents herein define the parameters.", {
+      title: "Parameters",
+    });
+    const net = doc("net", "A.6.1.1.1.2.1.1.1.1", "Ethereum Mainnet", { title: "Network" });
+    const tok = doc("tok", "A.6.1.1.1.2.1.1.1.2", "USDS", { title: "Token" });
+    const opd = doc("opd", "A.6.1.1.1.2.1.1.2", "Long process prose about how to operate.", {
+      title: "Operational Process Definition",
+    });
+    return { icd, params, net, tok, opd };
+  }
+
+  it("policy switch one_to_one → icd_params: re-embeds grouped anchors; flips folded rows to attribution_only without re-embedding them", async () => {
+    const nodes = icdFixture();
+    writeDocs("sha1", nodes);
+    fakeDb.have = Object.values(nodes).map((d) => ({
+      doc_id: d.id,
+      content_hash: contentHash(d),
+      attribution_only: false,
+      member_ids: [d.id],
+    }));
+    config.embedGroupPolicy = "icd_params";
+
+    const units = buildUnits(Object.values(nodes), "icd_params");
+    const icdUnit = units.find((u) => u.anchorId === "icd")!;
+    const folded = [...foldedIds(units)];
+    expect(folded.sort()).toEqual(["net", "params", "tok"]);
+
+    let embedTexts: string[][] = [];
+    const { logs, restore } = captureLog();
+    try {
+      await main({
+        runMigrations: noopMigrations,
+        embedBatch: async (texts) => {
+          embedTexts.push(texts);
+          return texts.map(() => [0.1]);
+        },
+        batch: 50,
+        sleep: instantSleep,
+      });
+    } finally {
+      restore();
+    }
+
+    expect(embedTexts).toEqual([[icdUnit.text]]);
+    const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert")!;
+    expect(upsert.params).toContain("icd");
+    expect(upsert.params).not.toContain("net");
+    expect(upsert.params).not.toContain("params");
+    expect(upsert.params).not.toContain("tok");
+    expect(upsert.params).not.toContain("opd");
+
+    const meta = unsafeCalls.find((c) => c.kind === "embed-meta-update")!;
+    expect(meta).toBeDefined();
+    for (const id of folded) expect(meta.params).toContain(id);
+    expect(meta.params).not.toContain("opd");
+    expect(meta.params).not.toContain("icd");
+    // 3 folded rows × (doc_id, atlas_sha, member_ids, attribution_only)
+    expect(meta.paramsLength).toBe(3 * 4);
+    expect(logs.some((l) => l.includes("1 stale/new to embed") && l.includes("3 grouping metadata"))).toBe(true);
+    expect(ended).toBe(true);
+  });
+
+  it("already-grouped rows (including Postgres uuid[] text) with matching hash and flags are a no-op", async () => {
+    const nodes = icdFixture();
+    writeDocs("sha1", nodes);
+    config.embedGroupPolicy = "icd_params";
+    const units = buildUnits(Object.values(nodes), "icd_params");
+    const folded = foldedIds(units);
+    fakeDb.have = [
+      ...units.map((u) => ({
+        doc_id: u.anchorId,
+        content_hash: u.hash,
+        attribution_only: false,
+        // Bun.sql returns uuid[] as `{uuid,uuid}` — sync must not treat that as stale.
+        member_ids: `{${u.memberIds.join(",")}}`,
+      })),
+      ...[...folded].map((id) => ({
+        doc_id: id,
+        content_hash: contentHash(nodes[id]!),
+        attribution_only: true,
+        member_ids: `{${id}}`,
+      })),
+    ];
+
+    let embedCalls = 0;
+    await main({
+      runMigrations: noopMigrations,
+      embedBatch: async () => {
+        embedCalls++;
+        return [];
+      },
+      batch: 50,
+      sleep: instantSleep,
+    });
+    expect(embedCalls).toBe(0);
+    expect(unsafeCalls.some((c) => c.kind === "embed-upsert")).toBe(false);
+    expect(unsafeCalls.some((c) => c.kind === "embed-meta-update")).toBe(false);
+    expect(ended).toBe(true);
+  });
+
+  it("does not mark folded members attribution_only when the grouped-anchor embed fails", async () => {
+    const nodes = icdFixture();
+    writeDocs("sha1", nodes);
+    fakeDb.have = Object.values(nodes).map((d) => ({
+      doc_id: d.id,
+      content_hash: contentHash(d),
+      attribution_only: false,
+      member_ids: [d.id],
+    }));
+    config.embedGroupPolicy = "icd_params";
+
+    await main({
+      runMigrations: noopMigrations,
+      embedBatch: async () => {
+        throw new Error("openrouter down");
+      },
+      batch: 50,
+      sleep: instantSleep,
+    });
+    expect(unsafeCalls.some((c) => c.kind === "embed-upsert")).toBe(false);
+    expect(unsafeCalls.some((c) => c.kind === "embed-meta-update")).toBe(false);
+    expect(ended).toBe(true);
   });
 });
