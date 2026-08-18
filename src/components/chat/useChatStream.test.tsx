@@ -168,6 +168,103 @@ describe("useChatStream event dispatch", () => {
     expect(result.current.messages.at(-1)?.content).toBe("");
   });
 
+  it("finalizes a stream that closes cleanly without a terminal event (no forever-pending turn)", async () => {
+    // Proxy cut / server crash mid-turn: stages arrived, "done"/"error" never
+    // did. Staged mode renders its checklist on !done, so an unfinalized
+    // message would pulse forever behind a re-enabled input.
+    mockChat([
+      { type: "meta", conversationId: "c1", delivery: "staged" },
+      { type: "status", stage: "querying", detail: "Searching…" },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const last = result.current.messages.at(-1);
+    expect(last?.done).toBe(true);
+    expect(last?.failed).toBe(true);
+    expect(last?.statusLine).toBeNull();
+    expect(result.current.streaming).toBe(false);
+    // Not the generic error banner — the turn's own "didn't come through" copy.
+    expect(result.current.error).toBeNull();
+  });
+
+  it("does not mark a normally terminated stream as failed", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.messages.at(-1)?.failed).toBeUndefined();
+    expect(result.current.messages.at(-1)?.content).toBe("ok");
+  });
+
+  it("sets contextTokens from the 'done' event's contextTokens field", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      {
+        type: "done",
+        content: "ok",
+        usage: { input: 1, output: 1 },
+        generationId: null,
+        toolCalls: [],
+        contextTokens: 18200,
+      },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.contextTokens).toBe(18200);
+  });
+
+  it("treats a missing contextTokens on 'done' as null (older server)", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.contextTokens).toBeNull();
+  });
+
+  it("treats an explicit null contextTokens on 'done' as null", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      {
+        type: "done",
+        content: "ok",
+        usage: { input: 1, output: 1 },
+        generationId: null,
+        toolCalls: [],
+        contextTokens: null,
+      },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.contextTokens).toBeNull();
+  });
+
+  it("keeps a partially streamed answer when the stream is truncated", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      { type: "token", text: "half an ans" },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.messages.at(-1)?.content).toBe("half an ans");
+    expect(result.current.messages.at(-1)?.done).toBe(true);
+  });
+
   it("skips a heartbeat/comment frame with no data: line", async () => {
     mockRaw([
       ": heartbeat\n\n",
@@ -472,6 +569,26 @@ describe("useChatStream hydrate", () => {
     expect(result.current.messages).toEqual([]);
   });
 
+  it("seeds contextTokens from the optional third argument", () => {
+    const { result } = renderHook(() => useChatStream());
+    act(() => {
+      result.current.hydrate(
+        "conv-1",
+        [{ role: "assistant", content: "hi", trace: [], rounds: 0, sources: [], done: true }],
+        18200,
+      );
+    });
+    expect(result.current.contextTokens).toBe(18200);
+  });
+
+  it("defaults contextTokens to null when the third argument is omitted", () => {
+    const { result } = renderHook(() => useChatStream());
+    act(() => {
+      result.current.hydrate("conv-1", [{ role: "user", content: "hi", trace: [], rounds: 0, sources: [], done: true }]);
+    });
+    expect(result.current.contextTokens).toBeNull();
+  });
+
   it("aborts an in-flight stream first, so a late (already-inflight) event cannot corrupt the newly hydrated array", async () => {
     const encoder = new TextEncoder();
     let controllerRef: ReadableStreamDefaultController<Uint8Array> | undefined;
@@ -545,6 +662,19 @@ describe("useChatStream 404 conversation_not_found", () => {
     expect(result.current.streaming).toBe(false);
   });
 
+  it("also clears contextTokens (the dead conversation's pie must not survive into the fresh chat)", async () => {
+    mockStatus(404, { error: "conversation_not_found" });
+    const { result } = renderHook(() => useChatStream());
+    act(() => {
+      result.current.hydrate("dead-conv", [], 18200);
+    });
+    expect(result.current.contextTokens).toBe(18200);
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.contextTokens).toBeNull();
+  });
+
   it("a 404 with a different/no error body still surfaces as the generic error", async () => {
     mockStatus(404, { error: "not_found" });
     const { result } = renderHook(() => useChatStream());
@@ -608,5 +738,164 @@ describe("useChatStream stop/reset", () => {
     expect(result.current.messages).toEqual([]);
     expect(result.current.error).toBeNull();
     expect(result.current.streaming).toBe(false);
+  });
+
+  it("reset() clears contextTokens", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      {
+        type: "done",
+        content: "hi",
+        usage: { input: 1, output: 1 },
+        generationId: null,
+        toolCalls: [],
+        contextTokens: 18200,
+      },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.contextTokens).toBe(18200);
+
+    act(() => {
+      result.current.reset();
+    });
+    expect(result.current.contextTokens).toBeNull();
+  });
+});
+
+describe("useChatStream staged delivery: meta capture + stageLog", () => {
+  it("captures delivery from the meta event onto the message", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1", delivery: "staged" },
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.messages.at(-1)?.delivery).toBe("staged");
+  });
+
+  it("leaves delivery undefined when meta omits it", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.messages.at(-1)?.delivery).toBeUndefined();
+  });
+
+  it("appends a new stageLog row per distinct stage, in order", async () => {
+    mockChat([
+      { type: "status", stage: "querying", detail: "Searching…" },
+      { type: "status", stage: "comparing", detail: "Comparing 2 results…" },
+      { type: "status", stage: "finalizing" },
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const log = result.current.messages.at(-1)?.stageLog;
+    expect(log).toEqual([
+      { stage: "querying", detail: "Searching…", at: 0 },
+      { stage: "comparing", detail: "Comparing 2 results…", at: 1 },
+      { stage: "finalizing", detail: null, at: 2 },
+    ]);
+  });
+
+  it("coalesces consecutive same-stage events into one row, keeping the latest detail", async () => {
+    mockChat([
+      { type: "status", stage: "querying", detail: "Searching atlas_search…" },
+      { type: "status", stage: "querying", detail: "Searching atlas_get…" },
+      { type: "status", stage: "checking", detail: "Auditing…" },
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const log = result.current.messages.at(-1)?.stageLog;
+    expect(log).toEqual([
+      { stage: "querying", detail: "Searching atlas_get…", at: 0 },
+      { stage: "checking", detail: "Auditing…", at: 1 },
+    ]);
+  });
+
+  it("a stage recorded before stop() survives finalizeLast — stop() doesn't wipe stageLog", async () => {
+    let controllerRef: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controllerRef = controller;
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(stream, { status: 200 }))));
+    const { result } = renderHook(() => useChatStream());
+
+    let sendPromise: Promise<unknown> | undefined;
+    act(() => {
+      sendPromise = result.current.send("question");
+    });
+    await waitFor(() => expect(result.current.streaming).toBe(true));
+
+    const encoder = new TextEncoder();
+    controllerRef!.enqueue(
+      encoder.encode(`data: ${JSON.stringify({ type: "status", stage: "querying", detail: "Searching…" })}\n\n`),
+    );
+    await waitFor(() =>
+      expect(result.current.messages.at(-1)?.stageLog).toEqual([{ stage: "querying", detail: "Searching…", at: 0 }]),
+    );
+
+    act(() => {
+      result.current.stop();
+    });
+    expect(result.current.messages.at(-1)?.stageLog).toEqual([{ stage: "querying", detail: "Searching…", at: 0 }]);
+    expect(result.current.messages.at(-1)?.done).toBe(true);
+
+    // Unblock and finish the stream so nothing leaks into later tests.
+    await act(async () => {
+      controllerRef!.close();
+      await sendPromise;
+    });
+  });
+});
+
+describe("useChatStream send(delivery) → POST body", () => {
+  function fetchMockWithBody() {
+    return vi.fn((_url: string, _init?: RequestInit) =>
+      Promise.resolve(
+        new Response(
+          sse([{ type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] }]),
+          { status: 200 },
+        ),
+      ),
+    );
+  }
+
+  it("includes delivery in the request body when provided", async () => {
+    const fetchMock = fetchMockWithBody();
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question", undefined, "staged");
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(body.delivery).toBe("staged");
+  });
+
+  it("omits delivery from the request body when not provided", async () => {
+    const fetchMock = fetchMockWithBody();
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(body.delivery).toBeUndefined();
   });
 });

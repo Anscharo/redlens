@@ -10,24 +10,18 @@ function setup(over: Partial<React.ComponentProps<typeof Composer>> = {}) {
   const onDraftChange = vi.fn();
   const onSend = vi.fn();
   const onStop = vi.fn();
-  const onRecheckUsage = vi.fn();
   const props = {
     draft: "",
     onDraftChange,
     onSend,
     onStop,
     streaming: false,
-    rateLimit: null,
-    onRecheckUsage,
-    error: null,
     placeholder: "Ask…",
     chip: "atlas",
-    usage: null,
-    commons: null,
     ...over,
   };
   const utils = render(<Composer {...props} />);
-  return { ...utils, onDraftChange, onSend, onStop, onRecheckUsage };
+  return { ...utils, onDraftChange, onSend, onStop };
 }
 
 describe("Composer", () => {
@@ -56,42 +50,25 @@ describe("Composer", () => {
     expect(onSend).toHaveBeenCalled();
   });
 
-  it("disables the send button and textarea when rate-limited", () => {
-    setup({ draft: "hi", rateLimit: { message: "slow down", kind: "token" } });
+  // Which note appears (429 lock vs failed-turn error, and the lock winning)
+  // is ChatPanel's policy now — it composes the `notice` slot; ChatPanel.test
+  // covers it against the real session. Composer only knows `locked`.
+  it("disables the send button and textarea when locked", () => {
+    setup({ draft: "hi", locked: true });
     expect(screen.getByLabelText("Send")).toBeDisabled();
     expect(screen.getByPlaceholderText("Ask…")).toBeDisabled();
     expect(screen.getByText("locked")).toBeInTheDocument();
   });
 
-  it("does not send on Enter while rate-limited", () => {
-    const { onSend } = setup({ draft: "hi", rateLimit: { message: "slow down", kind: "token" } });
+  it("does not send on Enter while locked", () => {
+    const { onSend } = setup({ draft: "hi", locked: true });
     fireEvent.keyDown(screen.getByPlaceholderText("Ask…"), { key: "Enter", shiftKey: false });
     expect(onSend).not.toHaveBeenCalled();
   });
 
-  it("shows the token-window lock note with a countdown and no recheck button", () => {
-    setup({ rateLimit: { message: "Usage limit reached.", resetsAt: new Date(Date.now() + 5 * 60_000).toISOString(), kind: "token" } });
-    expect(screen.getByText("Usage limit reached.")).toBeInTheDocument();
-    expect(screen.getByText(/You can send again in/)).toBeInTheDocument();
-    expect(screen.queryByText("Check now")).toBeNull();
-  });
-
-  it("shows the commons lock note with a recheck button that calls onRecheckUsage", () => {
-    const { onRecheckUsage } = setup({ rateLimit: { message: "Shared pool is out of credits.", kind: "commons" } });
-    expect(screen.getByText("Shared pool is out of credits.")).toBeInTheDocument();
-    const btn = screen.getByText("Check now");
-    fireEvent.click(btn);
-    expect(onRecheckUsage).toHaveBeenCalled();
-  });
-
-  it("shows the error note (not the lock note) when a turn failed and no lock is active", () => {
-    setup({ error: "the model errored" });
-    expect(screen.getByText(/the model errored/)).toBeInTheDocument();
-  });
-
-  it("suppresses the error note while a rate-limit lock is active", () => {
-    setup({ error: "the model errored", rateLimit: { message: "slow down", kind: "token" } });
-    expect(screen.queryByText(/the model errored/)).toBeNull();
+  it("renders the notice slot above the input", () => {
+    setup({ notice: <p data-testid="notice-slot">any note</p> });
+    expect(screen.getByTestId("notice-slot")).toBeInTheDocument();
   });
 
   it("sends on Enter (without shift) when not streaming/disabled and has a trimmed draft", () => {
@@ -148,12 +125,20 @@ describe("Composer", () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
-  it("renders UsageNote and CommonsNote when data is present", () => {
-    setup({
-      usage: { tokens: 10, limit: 100, resetsAt: new Date(Date.now() + 60000).toISOString(), exceeded: false, windowMinutes: 60 },
-      commons: { used: 1, total: 10, remaining: 9 },
-    });
-    expect(screen.getByText(/used 10% of your token window/)).toBeInTheDocument();
-    expect(screen.getByText(/left of \$10.00/)).toBeInTheDocument();
+});
+
+// The limits meter reaches the composer by COMPOSITION — ChatPanel builds
+// <LimitsMeter …/> and passes it as children, so the composer never sees the
+// meter's data. Meter behavior is covered in LimitsMeter.test.tsx; ChatPanel's
+// test covers the real wiring. This only proves the footer slot renders.
+describe("Composer footer slot", () => {
+  it("renders its children below the input", () => {
+    setup({ children: <div data-testid="footer-slot">meter goes here</div> });
+    expect(screen.getByTestId("footer-slot")).toBeInTheDocument();
+  });
+
+  it("renders nothing extra when no children are passed", () => {
+    setup();
+    expect(screen.queryByTestId("footer-slot")).toBeNull();
   });
 });

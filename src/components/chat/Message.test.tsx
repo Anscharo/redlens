@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Message } from "./Message";
 import type { ChatMsg } from "./useChatStream";
@@ -11,7 +11,7 @@ vi.mock("../../lib/analytics", () => ({ track: vi.fn() }));
 afterEach(cleanup);
 
 function baseMsg(over: Partial<ChatMsg>): ChatMsg {
-  return { role: "assistant", content: "", trace: [], rounds: 0, sources: [], done: false, ...over };
+  return { role: "assistant", content: "", trace: [], rounds: 0, sources: [], done: false, stageLog: [], ...over };
 }
 
 describe("Message", () => {
@@ -160,5 +160,184 @@ describe("Message", () => {
       />,
     );
     expect(screen.getByText("verified against the atlas")).toBeInTheDocument();
+  });
+});
+
+describe("Message staged-mode stage checklist", () => {
+  it("renders the checklist (labels + active detail) while !done, empty content, stageLog non-empty", () => {
+    render(
+      <Message
+        msg={baseMsg({
+          delivery: "staged",
+          stageLog: [
+            { stage: "querying", detail: "Searching the atlas for facilitator rewards…", at: 0 },
+          ],
+        })}
+        streaming
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Looking for evidence")).toBeInTheDocument();
+    expect(screen.getByText("Searching the atlas for facilitator rewards…")).toBeInTheDocument();
+    // The old plain thinking placeholder is superseded once a stage row exists.
+    expect(screen.queryByText("searching the stars…")).toBeNull();
+  });
+
+  it("coalesces to the latest row as active; earlier rows show only their label", () => {
+    render(
+      <Message
+        msg={baseMsg({
+          delivery: "staged",
+          stageLog: [
+            { stage: "querying", detail: "Searching…", at: 0 },
+            { stage: "checking", detail: "Auditing 3 claims…", at: 1 },
+          ],
+        })}
+        streaming
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Looking for evidence")).toBeInTheDocument();
+    expect(screen.getByText("Verifying content")).toBeInTheDocument();
+    expect(screen.getByText("Auditing 3 claims…")).toBeInTheDocument();
+    // Only the active (last) row shows a detail line.
+    expect(screen.queryByText("Searching…")).toBeNull();
+  });
+
+  it("hides the checklist once content is non-empty, even mid-stream (streaming mode unaffected)", () => {
+    const msg = baseMsg({
+      delivery: "staged",
+      content: "",
+      stageLog: [{ stage: "querying", detail: "Searching…", at: 0 }],
+    });
+    const { rerender } = render(<Message msg={msg} streaming showTrace={false} onAtlas={vi.fn()} />);
+    expect(screen.getByText("Looking for evidence")).toBeInTheDocument();
+
+    rerender(<Message msg={{ ...msg, content: "partial token text" }} streaming showTrace={false} onAtlas={vi.fn()} />);
+    expect(screen.queryByText("Looking for evidence")).toBeNull();
+    expect(screen.getByText("partial token text")).toBeInTheDocument();
+    expect(document.querySelector(".rlc-caret")).toBeInTheDocument();
+  });
+
+  it("never shows the checklist in explicit streaming mode — the old placeholder keeps the pre-token window", () => {
+    render(
+      <Message
+        msg={baseMsg({ delivery: "streaming", content: "", statusLine: "searching…", stageLog: [{ stage: "querying", detail: "Searching…", at: 0 }] })}
+        streaming
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Looking for evidence")).toBeNull();
+    expect(screen.getByText("searching…")).toBeInTheDocument();
+  });
+
+  it("an unstamped delivery falls back to the classic ticker, not the staged checklist", () => {
+    // A degraded/older server that never sends `delivery` on meta. Unknown
+    // mode must degrade to the historical UI, not opt the user into the new
+    // one — chat.ts stamps the field on the first frame, so in-flight staged
+    // turns always have it by the time a stage row exists.
+    render(
+      <Message
+        msg={baseMsg({ content: "", statusLine: "searching…", stageLog: [{ stage: "querying", detail: "Searching…", at: 0 }] })}
+        streaming
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Looking for evidence")).toBeNull();
+    expect(screen.getByText("searching…")).toBeInTheDocument();
+  });
+
+  it("streaming mode keeps the plain empty bubble on an empty done turn (no stopped row)", () => {
+    render(
+      <Message
+        msg={baseMsg({ delivery: "streaming", done: true, content: "", stageLog: [{ stage: "querying", detail: null, at: 0 }] })}
+        streaming={false}
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Stopped before an answer was ready.")).toBeNull();
+  });
+
+  it("shows a muted stopped row for an aborted staged turn (done, empty content, stages ran)", () => {
+    render(
+      <Message
+        msg={baseMsg({ delivery: "staged", done: true, content: "", stageLog: [{ stage: "querying", detail: "Searching…", at: 0 }] })}
+        streaming={false}
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Stopped before an answer was ready.")).toBeInTheDocument();
+  });
+
+  it("renders an unrecognized stage's raw name, capitalized", () => {
+    render(
+      <Message
+        msg={baseMsg({ delivery: "staged", stageLog: [{ stage: "escalating", detail: null, at: 0 }] })}
+        streaming
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Escalating")).toBeInTheDocument();
+  });
+});
+
+describe("Message staged-mode reveal", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    document.body.classList.remove("rlc-nomotion");
+  });
+
+  it("types out the final answer once, gated on content being empty right before done", () => {
+    const msg = baseMsg({ content: "", stageLog: [{ stage: "finalizing", detail: null, at: 0 }] });
+    const { rerender } = render(<Message msg={msg} streaming showTrace={false} onAtlas={vi.fn()} />);
+
+    const full = "The Operational Facilitator budget is signed off by the Prime Agent each quarter.";
+    act(() => {
+      rerender(<Message msg={{ ...msg, content: full, done: true }} streaming={false} showTrace={false} onAtlas={vi.fn()} />);
+    });
+    // Mid-reveal: not yet the full text, but visibly progressing (a caret shows).
+    expect(screen.queryByText(full)).toBeNull();
+    expect(document.querySelector(".rlc-caret")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(3000); // well past the ~1.8s cap
+    });
+    expect(screen.getByText(full)).toBeInTheDocument();
+    expect(document.querySelector(".rlc-caret")).toBeNull();
+  });
+
+  it("does NOT re-animate a streaming-mode done (content already present beforehand)", () => {
+    const msg = baseMsg({ content: "Hello", done: false });
+    const { rerender } = render(<Message msg={msg} streaming showTrace={false} onAtlas={vi.fn()} />);
+
+    act(() => {
+      rerender(<Message msg={{ ...msg, content: "Hello world", done: true }} streaming={false} showTrace={false} onAtlas={vi.fn()} />);
+    });
+    // Full text is immediately present — no interval needed to catch up.
+    expect(screen.getByText("Hello world")).toBeInTheDocument();
+    expect(document.querySelector(".rlc-caret")).toBeNull();
+  });
+
+  it("reveals instantly under prefers-reduced-motion (rlc-nomotion)", () => {
+    document.body.classList.add("rlc-nomotion");
+    const msg = baseMsg({ content: "", stageLog: [{ stage: "finalizing", detail: null, at: 0 }] });
+    const { rerender } = render(<Message msg={msg} streaming showTrace={false} onAtlas={vi.fn()} />);
+
+    const full = "Instant under reduced motion.";
+    act(() => {
+      rerender(<Message msg={{ ...msg, content: full, done: true }} streaming={false} showTrace={false} onAtlas={vi.fn()} />);
+    });
+    expect(screen.getByText(full)).toBeInTheDocument();
+    expect(document.querySelector(".rlc-caret")).toBeNull();
   });
 });

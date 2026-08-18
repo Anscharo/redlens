@@ -3,7 +3,7 @@
 // typo tolerance, the boilerplate-sibling margin, and candidate ranking.
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types
-import { orderedWordContainment, sameDocScore, wordEq, bestByContainment, findContainer } from "../scripts/htmlhist/ordered-containment.mjs";
+import { orderedWordContainment, sameDocScore, wordEq, bestByContainment, findContainer } from "../scripts/lib/ordered-containment.mjs";
 
 describe("orderedWordContainment", () => {
   it("is 1 when all of a's words appear in order in b (b may add text)", () => {

@@ -13,6 +13,7 @@ interface Params {
     }) => void;
   } | null>;
   onNavigate: (id: string) => void;
+  onShiftNavigate?: (id: string) => void;
   setFocusedIndex: (i: number) => void;
   setExpandedIds: (fn: (prev: Set<string>) => Set<string>) => void;
 }
@@ -24,6 +25,7 @@ export function useTreeKeyboard({
   expandedIds,
   listRef,
   onNavigate,
+  onShiftNavigate,
   setFocusedIndex,
   setExpandedIds,
 }: Params) {
@@ -77,10 +79,18 @@ export function useTreeKeyboard({
         case "Enter": {
           e.preventDefault();
           const entry = visibleNodes[idx];
-          if (entry) {
-            onNavigate(entry.node.id);
-            setFocusedIndex(-1);
+          if (!entry) break;
+          // Shift+Enter is the keyboard twin of shift-clicking a row: open it
+          // in the comparison pane. The cursor deliberately stays put — the
+          // point of the split pane is to keep arrowing through the tree
+          // against it, which a reset to -1 would throw away. Plain Enter is a
+          // destination, so it still hands the tree back.
+          if (e.shiftKey && onShiftNavigate) {
+            onShiftNavigate(entry.node.id);
+            break;
           }
+          onNavigate(entry.node.id);
+          setFocusedIndex(-1);
           break;
         }
       }
@@ -92,6 +102,7 @@ export function useTreeKeyboard({
       expandedIds,
       listRef,
       onNavigate,
+      onShiftNavigate,
       setFocusedIndex,
       setExpandedIds,
     ],

@@ -76,7 +76,7 @@ describe("ConversationsPage — signed in", () => {
   it("renders a ConversationCard per conversation and wires row click → openChat + track", () => {
     mocks.user = { id: "u1" };
     mocks.conversations = [
-      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3 },
+      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null },
     ];
     render(<ConversationsPage />);
     expect(screen.getByText("Mine")).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe("ConversationsPage — signed in", () => {
   it("Delete: confirms, then calls remove + track", async () => {
     mocks.user = { id: "u1" };
     mocks.conversations = [
-      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3 },
+      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null },
     ];
     vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<ConversationsPage />);
@@ -102,7 +102,7 @@ describe("ConversationsPage — signed in", () => {
   it("Delete: cancelling the confirm dialog skips remove", () => {
     mocks.user = { id: "u1" };
     mocks.conversations = [
-      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3 },
+      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null },
     ];
     vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<ConversationsPage />);
@@ -113,7 +113,7 @@ describe("ConversationsPage — signed in", () => {
   it("Rename: wires through to the rename() hook function and tracks it", async () => {
     mocks.user = { id: "u1" };
     mocks.conversations = [
-      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3 },
+      { id: "c1", title: "Mine", updatedAt: "2026-01-01T00:00:00.000Z", messageCount: 3, contextTokens: null },
     ];
     render(<ConversationsPage />);
     fireEvent.click(screen.getByText("Rename"));

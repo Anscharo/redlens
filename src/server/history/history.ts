@@ -1,8 +1,15 @@
 // GET /api/history/:nodeId — serve atlas_history rows for a single node.
 // Replaces the former public/history/<uuid>.json static files.
 import { sql } from "../db.ts";
+import { json } from "../http.ts";
 import { BATCH_MAX, type HistoryEntry, type DiffLine } from "../../lib/history.ts";
 import { UUID_RE } from "../../lib/patterns.ts";
+
+// Every non-2xx below carries the `{ error }` envelope the rest of the API uses
+// (auth.ts, collections.ts, conversations.ts) instead of an empty body, so a
+// client can read one shape everywhere. The STATUS codes are unchanged and
+// remain the contract: src/lib/history.ts's fetchCached treats 404 as a stable
+// "no data" (cached) and anything else as transient (evicted, retried).
 
 // Postgres stores "content" / "structural" (chatbot-plan vocabulary);
 // the frontend HistoryEntry uses "modified" / "moved".
@@ -93,7 +100,7 @@ export function toEntry(row: HistoryQueryRow): HistoryEntry {
 
 export async function handleHistory(_req: Request, pathname: string): Promise<Response> {
   const nodeId = pathname.slice("/api/history/".length);
-  if (!UUID_RE.test(nodeId)) return new Response(null, { status: 404 });
+  if (!UUID_RE.test(nodeId)) return json({ error: "not_found" }, 404);
 
   try {
     const rows = await sql<HistoryQueryRow[]>`
@@ -115,7 +122,7 @@ export async function handleHistory(_req: Request, pathname: string): Promise<Re
       headers: { "Cache-Control": "public, max-age=300" },
     });
   } catch {
-    return new Response(null, { status: 503 });
+    return json({ error: "unavailable" }, 503);
   }
 }
 
@@ -128,10 +135,10 @@ export async function handleHistoryBatch(req: Request): Promise<Response> {
   try {
     body = await req.json();
   } catch {
-    return new Response(null, { status: 400 });
+    return json({ error: "bad_request" }, 400);
   }
   const raw = (body as { ids?: unknown })?.ids;
-  if (!Array.isArray(raw)) return new Response(null, { status: 400 });
+  if (!Array.isArray(raw)) return json({ error: "bad_request" }, 400);
 
   const ids = [...new Set(raw.filter((x): x is string => typeof x === "string" && UUID_RE.test(x)))].slice(
     0,
@@ -162,6 +169,6 @@ export async function handleHistoryBatch(req: Request): Promise<Response> {
     for (const row of rows) (out[row.doc_id] ??= []).push(toEntry(row));
     return Response.json(out);
   } catch {
-    return new Response(null, { status: 503 });
+    return json({ error: "unavailable" }, 503);
   }
 }

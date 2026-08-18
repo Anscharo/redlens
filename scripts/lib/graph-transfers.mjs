@@ -36,12 +36,20 @@
  * warned about individually.
  */
 
-import { slugify, normalizeKey, buildNameIndex, isGrantDoc } from "./graph-patterns.mjs";
+import {
+  normalizeKey,
+  buildNameIndex,
+  isGrantDoc,
+  bulletField,
+  makeWarn,
+  createProseParty,
+} from "./graph-patterns.mjs";
+import { ETH_ADDR_SRC } from "./address-chains.mjs";
 
-const AMOUNT_LINE_RE = /^[-*]\s*(.+?)\s+amount:\s*([\d,.]+)\s*$/gim;
-const RECIPIENT_RE = /^[-*]\s*Recipient:\s*(.+?)\s*$/im;
-const RECIPIENT_ADDR_RE = /^[-*]\s*Recipient Address:\s*`?(0x[0-9a-fA-F]{40})`?\s*$/im;
-const TX_HASH_RE = /^[-*]\s*Transaction Hash:\s*`?(0x[0-9a-fA-F]{64})`?\s*$/im;
+const AMOUNT_LINE_RE = bulletField(String.raw`(.+?)\s+amount`, String.raw`([\d,.]+)`, "gim");
+const RECIPIENT_RE = bulletField("Recipient", String.raw`(.+?)`);
+const RECIPIENT_ADDR_RE = bulletField("Recipient Address", `\`?(${ETH_ADDR_SRC})\`?`);
+const TX_HASH_RE = bulletField("Transaction Hash", "`?(0x[0-9a-fA-F]{64})`?");
 
 // "X transferred 6.5 billion SPK tokens from … to the Y." / "X will transfer
 // SPK tokens … to the Y." Amount group is optional (some planned transfers
@@ -121,7 +129,7 @@ export function extractTransfers(allDocs, docById, docByDocNo, entityMap, edges,
     grants: 0, genesis: 0, authorizations: 0, allocations: 0, budgetTransfers: 0,
     planned: 0, dataGaps: 0, warnings: 0,
   };
-  const warn = (msg) => { stats.warnings++; console.warn(`  transfers: ${msg}`); };
+  const warn = makeWarn("  transfers:", stats);
 
   function resolveParty(rawName, sourceDoc, { create = true } = {}) {
     let name = rawName.trim().replace(/^the\s+/i, "").trim();
@@ -139,13 +147,7 @@ export function extractTransfers(allDocs, docById, docByDocNo, entityMap, edges,
       nameIndex.get(normalizeKey(`${name} Multisig`));
     if (direct) return direct;
     if (!create) return null;
-    const et = /\bFoundation$/i.test(name) ? "foundation" : "ecosystem_actor";
-    const created = addEntity(slugify(name), name, et, null, null, {
-      source: "transfer_party",
-      source_doc_no: sourceDoc.doc_no,
-    });
-    nameIndex.set(normalizeKey(name), created);
-    return created;
+    return createProseParty(addEntity, nameIndex, name, "transfer_party", sourceDoc);
   }
 
   function addTransfer(from, to, sourceDoc, meta) {

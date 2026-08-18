@@ -15,15 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
 
       - name: Pack installed workspace
         run: tar -czf workspace-deps.tgz node_modules
@@ -52,15 +44,18 @@ jobs:
       - name: Restore installed workspace
         run: tar -xzf workspace-deps.tgz
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: pnpm
+          install: "false"
 
       - name: Build index
         run: pnpm build:index
+
+      # Fails the PR check if the build didn't account for every document in the
+      # atlas source — so an atlas bump pushed outside atlas-update.yml (which
+      # gates this before opening its PR) still cannot merge an empty atlas.
+      - name: Verify the build read the whole atlas
+        run: pnpm check:atlas
 
       - name: Build glossary
         run: pnpm build:glossary
@@ -85,6 +80,9 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+
+      - name: Unused files/exports (knip)
+        run: pnpm knip
 
       - name: Check patch notes
         run: pnpm check:patch-notes
@@ -117,12 +115,9 @@ jobs:
       - name: Restore atlas artifacts
         run: tar -xzf atlas-artifacts.tgz
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: pnpm
+          install: "false"
 
       - name: Verify graph snapshots
         run: pnpm test:snap
@@ -152,12 +147,9 @@ jobs:
       - name: Restore atlas artifacts
         run: tar -xzf atlas-artifacts.tgz
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: pnpm
+          install: "false"
 
       - name: Run Vitest coverage
         run: pnpm test:coverage
@@ -197,14 +189,10 @@ jobs:
       - name: Restore atlas artifacts
         run: tar -xzf atlas-artifacts.tgz
 
-      - uses: oven-sh/setup-bun@v2
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: pnpm
+          bun: "true"
+          install: "false"
 
       - name: Run Bun coverage
         run: pnpm test:server:coverage
@@ -237,12 +225,9 @@ jobs:
       - name: Restore installed workspace
         run: tar -xzf workspace-deps.tgz
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: pnpm
+          install: "false"
 
       # Read main's precomputed coverage baseline (produced once per push to main
       # by coverage-baseline.yml) instead of rebuilding + re-running both suites
@@ -275,6 +260,12 @@ jobs:
         run: pnpm coverage:areas
         env:
           COVERAGE_CHANGED_MIN: "85"
+          # 85% of changed logic lines, or all but one of them — whichever is
+          # kinder. A percentage can't resolve a 3-line diff (0/33/67/100), so
+          # one uncovered guard used to score 67% and fail a gate that a
+          # 100-line PR clears with 15 uncovered lines. The same rule is applied
+          # to the whole diff, so the per-area grace can't stack across meters.
+          COVERAGE_CHANGED_GRACE: "1"
           COVERAGE_BASE_REF: origin/${{ github.base_ref || 'main' }}
           COVERAGE_BASELINE_JSON: base-coverage-areas.json
 
@@ -360,14 +351,10 @@ jobs:
       - name: Restore atlas artifacts
         run: tar -xzf atlas-artifacts.tgz
 
-      - uses: oven-sh/setup-bun@v2
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: pnpm
+          bun: "true"
+          install: "false"
 
       - name: Type check server
         run: pnpm exec tsc -p tsconfig.server.json --noEmit

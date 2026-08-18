@@ -21,6 +21,8 @@ metadata:
 **Source of truth for Atlas document structure:** `vendor/next-gen-atlas/ATLAS_MARKDOWN_SYNTAX.md`
 Read that file before making any changes to graph extraction logic. This skill summarises what we've learned and must stay in sync with it.
 
+**File layout is not part of this skill.** How the atlas groups documents into files has changed twice (monolith → one `document.md` per node → ~16 composed files) and is deliberately isolated in `scripts/lib/atlas-source.mjs` + `scripts/lib/atlas-git-source.mjs`. Everything below is about markdown *content*, which those regroupings left byte-identical. Never re-derive a doc's identity, depth, or parentage from a file path.
+
 **This skill should be updated** whenever a new relationship pattern is discovered in the Atlas — through reading the markdown, using the MCP tools, or noticing a structural convention not yet captured here. Add it under the appropriate section with an Atlas source reference (doc_no or UUID).
 
 ---
@@ -638,7 +640,15 @@ These utilities are reusable for any future Active Data table added to Phase 2.7
 
 **`aligned_delegate_for` emission moved here:** the Current Aligned Delegates doc is a table (no longer a prose list), so Phase 2.7 Table 1 also emits `aligned_delegate_for`: `entity(delegate) → entity(Sky Governance)` per row, source `[registry doc_no]`. The Phase 2 prose path (Pattern 10) remains as a fallback should the atlas revert to a list.
 
-**Drift detector:** after table extraction, every `type="Active Data"` doc with ≥1 non-empty table row that is neither extracted (`HANDLED_TABLE_UUIDS`) nor deliberately ignored (`KNOWN_UNEXTRACTED_TABLES` — currently only Registered Spell Checklists `93f5b36b`, external URLs) produces a loud `[drift]` warning. This is the tripwire for the **29 per-instance payment-ledger Active Data stubs** ("List Of Integration Boost Payments" etc. — all empty today) and the empty Registered Multisigs registry (`7d966e5e`): the moment the atlas populates one, the build says so.
+**Drift detector:** after table extraction, every `type="Active Data"` doc with ≥1 non-empty table row that is neither extracted (`HANDLED_TABLE_UUIDS`) nor deliberately ignored (`KNOWN_UNEXTRACTED_TABLES`) produces a loud `[drift]` warning. This is the tripwire for the **29 per-instance payment-ledger Active Data stubs** ("List Of Integration Boost Payments" etc. — all empty today) and the empty Registered Multisigs registry (`7d966e5e`): the moment the atlas populates one, the build says so.
+
+`KNOWN_UNEXTRACTED_TABLES` triage:
+
+| UUID | Table | Verdict |
+| --- | --- | --- |
+| `93f5b36b` (`A.1.10.2.5.1.3.2.0.6.1`) | Registered Spell Checklists | External GitHub URLs — no graph value, permanent exclusion. |
+| `5f368e33` (`A.2.2.10.1.1.1.1.2.0.6.1`) | List Of Current Sky Direct Exposures | **Genuine gap, extraction deferred** (modeling decision, triaged 2026-08-11 for issues #260/#262 at atlas `c077dc3`). Rows name assets/pools ("Treasury Bills", "Peg Stability Modules", "Uniswap Pools"), not actors — none of the existing `entity_type`s fit a designated-exposure row, and the investing party ("Investments by Grove in ... on Ethereum Mainnet") sits in free-text `Description` prose rather than a structured column. First populated this atlas bump (was empty before, hence never fired the detector). |
+| `86fce840` (`A.2.2.10.1.1.1.1.3.0.6.1`) | List Of Previous Sky Direct Exposures | Same verdict as above — companion "Previous" registry (adds an `Ended` column), first populated in the same bump. |
 
 ### Pattern 17: Multisigs (`scripts/lib/graph-multisigs.mjs`, Phase 2.8)
 

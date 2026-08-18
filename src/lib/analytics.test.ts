@@ -30,6 +30,14 @@ beforeEach(() => {
 });
 
 describe("analytics (disabled — no VITE_POSTHOG_KEY)", () => {
+  beforeEach(() => {
+    // Hermetic: a developer's .env.local commonly sets a real VITE_POSTHOG_KEY,
+    // which Vite loads into import.meta.env for every test run regardless of
+    // this suite's intent. Force it unset so analyticsEnabled reflects "no key"
+    // on every machine, not just ones with a bare checkout.
+    vi.stubEnv("VITE_POSTHOG_KEY", undefined);
+  });
+
   it("analyticsEnabled is false and every call is a silent no-op", async () => {
     const a = await freshModule();
     expect(a.analyticsEnabled).toBe(false);
@@ -48,6 +56,8 @@ describe("analytics (disabled — no VITE_POSTHOG_KEY)", () => {
 describe("analytics (enabled — VITE_POSTHOG_KEY set)", () => {
   beforeEach(() => {
     vi.stubEnv("VITE_POSTHOG_KEY", "test-key-123");
+    sessionStorage.removeItem("rl-forced-reload-from");
+    delete (window as unknown as { __ATLAS_SHA__?: string }).__ATLAS_SHA__;
   });
 
   it("initAnalytics inits posthog exactly once and registers super properties", async () => {
@@ -64,6 +74,40 @@ describe("analytics (enabled — VITE_POSTHOG_KEY set)", () => {
     expect(props.app_commit).toBe("test"); // vitest.config.ts's __COMMIT_HASH__ stub
     expect(props.atlas_commit).toBeNull(); // window.__ATLAS_SHA__ unset
     expect(props.$geoip_disable).toBe(true);
+    // jsdom's Navigation Timing entry list is empty, so this exercises the
+    // `?? "unknown"` fallback rather than a real "navigate"/"reload" value.
+    expect(props.nav_type).toBe("unknown");
+  });
+
+  it("fires shell_uninjected when window.__ATLAS_SHA__ isn't a valid 40-hex sha", async () => {
+    const a = await freshModule();
+    a.initAnalytics(); // __ATLAS_SHA__ unset in this test env
+    expect(mockCapture).toHaveBeenCalledWith(
+      "shell_uninjected",
+      expect.objectContaining({ raw: "", nav_type: "unknown" }),
+    );
+  });
+
+  it("does not fire shell_uninjected when window.__ATLAS_SHA__ is a valid sha", async () => {
+    (window as unknown as { __ATLAS_SHA__?: string }).__ATLAS_SHA__ = "a".repeat(40);
+    const a = await freshModule();
+    a.initAnalytics();
+    expect(mockCapture).not.toHaveBeenCalledWith("shell_uninjected", expect.anything());
+    delete (window as unknown as { __ATLAS_SHA__?: string }).__ATLAS_SHA__;
+  });
+
+  it("fires forced_reload and clears the key when atlasBase.ts left one behind", async () => {
+    sessionStorage.setItem("rl-forced-reload-from", "deadbeef");
+    const a = await freshModule();
+    a.initAnalytics();
+    expect(mockCapture).toHaveBeenCalledWith("forced_reload", { from: "deadbeef", to: null });
+    expect(sessionStorage.getItem("rl-forced-reload-from")).toBeNull();
+  });
+
+  it("does not fire forced_reload when no key is stashed", async () => {
+    const a = await freshModule();
+    a.initAnalytics();
+    expect(mockCapture).not.toHaveBeenCalledWith("forced_reload", expect.anything());
   });
 
   it("register/track/captureException/pageview call straight through to posthog", async () => {

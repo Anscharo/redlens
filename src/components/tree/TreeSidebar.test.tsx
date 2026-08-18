@@ -98,6 +98,7 @@ afterEach(() => {
   mocks.dataSource = { base: "/api/atlas/x/", preview: null };
   mocks.track.mockClear();
   mocks.scrollToRow.mockClear();
+  sessionStorage.clear();
 });
 
 // root(A.1) → mid(A.1.2) → leaf(A.1.2.3) → deep(A.1.2.3.4)
@@ -302,6 +303,27 @@ describe("TreeSidebar keyboard navigation", () => {
     expect(onNavigate).toHaveBeenCalledWith("root");
   });
 
+  // The keyboard twin of shift-clicking a row. The cursor deliberately stays on
+  // the row so you can keep arrowing the tree against the pane you just opened.
+  it("Shift+Enter opens the split pane and keeps the row focused", () => {
+    mocks.bundle = makeAtlasBundle(tree());
+    const { onNavigate, onShiftNavigate } = setup();
+    const treeEl = screen.getByRole("tree");
+    fireEvent.keyDown(treeEl, { key: "ArrowDown" });
+    fireEvent.keyDown(treeEl, { key: "Enter", shiftKey: true });
+    expect(onShiftNavigate).toHaveBeenCalledWith("root");
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(screen.getByRole("treeitem").className).toContain("is-focused");
+  });
+
+  // The arrow keys only work while this container holds focus, so the footer
+  // only advertises them then — useContextHints reads the marker on focusin.
+  it("marks the container so the footer can advertise the arrow keys", () => {
+    mocks.bundle = makeAtlasBundle(tree());
+    setup();
+    expect(screen.getByRole("tree")).toHaveAttribute("data-focus-hint", "tree");
+  });
+
   // S1: mouse-collapsing an ancestor of a keyboard-focused row shrinks
   // visibleNodes out from under focusedIndex. Before the fix this threw
   // (Enter/ArrowRight/ArrowLeft dereferenced visibleNodes[staleIdx].node,
@@ -431,11 +453,19 @@ function chain() {
 }
 
 describe("TreeSidebar shift-click cascade", () => {
+  let setItemSpy: ReturnType<typeof vi.spyOn>;
   beforeEach(() => {
     vi.useFakeTimers();
+    // The expansion-persistence effect calls sessionStorage.setItem on every
+    // expandedIds change, and jsdom's Storage impl queues a setTimeout(0) to
+    // dispatch a "storage" event — invisible in real use, but it pollutes the
+    // vi.getTimerCount() assertions below, which are about the cascade's own
+    // ticks. Stub it out here; persistence itself is covered separately.
+    setItemSpy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {});
   });
   afterEach(() => {
     vi.useRealTimers();
+    setItemSpy.mockRestore();
   });
 
   it("shift-clicks a chevron and unfolds three levels one tick at a time, then stops", () => {
@@ -513,5 +543,40 @@ describe("TreeSidebar shift-click cascade", () => {
       "leaf",
     ]);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("TreeSidebar expansion persistence (sessionStorage)", () => {
+  it("restores expanded rows from sessionStorage on mount", () => {
+    sessionStorage.setItem("rl-tree-expanded", JSON.stringify(["root"]));
+    mocks.bundle = makeAtlasBundle(tree());
+    setup();
+    // root pre-expanded from storage: mid + sib + nr1 are visible alongside it.
+    const ids = screen.getAllByRole("treeitem").map((el) => el.getAttribute("data-node-id"));
+    expect(ids).toEqual(["root", "mid", "sib", "nr1"]);
+  });
+
+  it("persists expansion to sessionStorage after a toggle", () => {
+    mocks.bundle = makeAtlasBundle(tree());
+    setup();
+    fireEvent.click(screen.getByRole("button"));
+    expect(JSON.parse(sessionStorage.getItem("rl-tree-expanded")!)).toEqual(["root"]);
+  });
+
+  it("falls back to an empty set on malformed sessionStorage content", () => {
+    sessionStorage.setItem("rl-tree-expanded", "not json");
+    mocks.bundle = makeAtlasBundle(tree());
+    setup();
+    expect(screen.getAllByRole("treeitem")).toHaveLength(1); // collapsed, as if empty
+  });
+
+  it("skips persisting when the restored set is enormous (> 2000 ids)", () => {
+    const many = Array.from({ length: 2001 }, (_, i) => `id-${i}`);
+    sessionStorage.setItem("rl-tree-expanded", JSON.stringify(many));
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+    mocks.bundle = makeAtlasBundle(tree());
+    setup();
+    expect(setItemSpy).not.toHaveBeenCalledWith("rl-tree-expanded", expect.anything());
+    setItemSpy.mockRestore();
   });
 });

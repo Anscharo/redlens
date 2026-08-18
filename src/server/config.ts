@@ -25,6 +25,18 @@ const githubAuthEnabled =
   usersEnabled && (process.env.GITHUB_CLIENT_ID ?? "") !== "" && (process.env.GITHUB_CLIENT_SECRET ?? "") !== "";
 const googleAuthEnabled =
   usersEnabled && (process.env.GOOGLE_CLIENT_ID ?? "") !== "" && (process.env.GOOGLE_CLIENT_SECRET ?? "") !== "";
+// Master gate for private atlas previews (github-app.ts + downstream). A
+// separate GitHub App (not the OAuth login app) must be installed on the
+// private repo, AND logins must be on (we need an immutable provider user id
+// to bind the permission check to), AND github auth specifically (the
+// permission check is keyed on GitHub login). When false the feature is
+// completely inert: no installation lookups happen, and public previews
+// behave exactly as they did before this feature existed.
+const privatePreviewsEnabled =
+  usersEnabled &&
+  githubAuthEnabled &&
+  !!(process.env.GITHUB_APP_ID) &&
+  !!(process.env.GITHUB_APP_PRIVATE_KEY);
 // CSV of the providers this environment offers, injected into index.html
 // ({{AUTH_PROVIDERS}}) so the frontend renders exactly the configured buttons.
 // Empty when the login surface is off or no provider is configured.
@@ -50,6 +62,23 @@ const railwayEnv = (process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.RAILWAY_
 const canonicalHostRedirect =
   process.env.CANONICAL_HOST_REDIRECT === "1" ||
   (process.env.CANONICAL_HOST_REDIRECT !== "0" && railwayEnv === "production");
+
+// Env enum resolution, in one place. Every mode-style setting wants the same
+// three things — trim (a stray space in a Railway variable is invisible in the
+// dashboard), match exactly, and SAY SO on an unrecognized value instead of
+// silently falling back. Written per-setting, one of them always ends up as a
+// bare cast that quietly resolves a typo to the wrong mode.
+function envEnum<T extends string>(name: string, allowed: readonly T[], fallback: T): T {
+  const raw = (process.env[name] ?? "").trim();
+  if (!raw) return fallback;
+  const hit = allowed.find((a) => a === raw);
+  if (hit) return hit;
+  console.warn(`[config] ${name}="${raw}" is not one of ${allowed.join(", ")} — using "${fallback}".`);
+  return fallback;
+}
+
+// See the chatDeliveryMode field below for what the two modes mean.
+const chatDeliveryMode = envEnum("CHAT_DELIVERY_MODE", ["streaming", "staged"] as const, "streaming");
 
 export const config = {
   port,
@@ -80,6 +109,7 @@ export const config = {
   githubAuthEnabled,
   googleAuthEnabled,
   authProvidersCsv,
+  privatePreviewsEnabled,
 
   // Public origin used to build the OAuth redirect URI and post-login redirects.
   // Railway sets RAILWAY_PUBLIC_DOMAIN; locally we fall back to the bound port.
@@ -128,6 +158,12 @@ export const config = {
   // commons meter is simply absent and the shared-pool gate never fires.
   openrouterManagementKey: process.env.OPENROUTER_MANAGEMENT_KEY ?? "",
   embedModel: process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b",
+  // NOTE: EMBED_BATCH (sync-embeddings.ts's per-request embedding batch size)
+  // is intentionally NOT a config key — it's parsed by that file's own
+  // `batchSizeFromEnv(env)`, a single named, already-tested function that
+  // takes an injectable env object so tests can assert the parsing directly
+  // without env mutation + reimport. Duplicating the `?? 50` default here
+  // would just create a second place for it to drift.
 
   // Semantic search relevance floor (cosine, 0..1). pgvector's ORDER BY returns
   // the k nearest docs regardless of absolute similarity, so a query with few
@@ -139,7 +175,13 @@ export const config = {
   // Hard ceiling on the query-time embed call. embedBatch retries with backoff
   // (~15s worst case); the retrieve path must not hang on a flaky provider, so
   // if the embed exceeds this we drop the semantic leg and answer lexical-only.
-  semanticEmbedTimeoutMs: Number(process.env.SEMANTIC_EMBED_TIMEOUT_MS ?? 4000),
+  // 10s, not lower: measured 2026-08-06 (scripts/aux/measure-embed.ts) the
+  // provider tail is p50 0.3-1.3s but p95 5-10s with no 429s/retries — the old
+  // 4s cap (an e2e-derived number) silently degraded ~1/3 of chat turns to
+  // lexical-only, which reads as "the atlas doesn't say" answers. Waiting
+  // covers both independent outliers AND correlated slow windows; the main
+  // consumer is the chat loop, where retrieval quality outranks a few seconds.
+  semanticEmbedTimeoutMs: Number(process.env.SEMANTIC_EMBED_TIMEOUT_MS ?? 10_000),
   // In-process LRU for query-time embeddings. Doc embeddings are cached in
   // Postgres by content_hash, but query strings weren't cached at all — every
   // semantic atlas_query/atlas_search paid a fresh OpenRouter round-trip, even
@@ -166,31 +208,27 @@ export const config = {
   // isn't free: titling only re-fires at turns 4 and 10, so a conversation
   // that ends at turn 1-3 keeps its truncated slice(0,60) seed title forever.
   chatTitleTimeoutMs: Number(process.env.CHAT_TITLE_TIMEOUT_MS ?? 20_000),
-  // Selector for the OFFLINE HTML-era auto-curator's pass-2 (LLM∩matcher): proposes a
-  // predecessor per case; a case LOCKS only when this pick agrees with the matcher, so a
-  // wrong pick / JSON failure just falls through to the human — never a bad lock. Picked by
-  // the model bakeoff (scripts/htmlhist/curation-model-bakeoff.mjs): mistral-nemo had the best
-  // hard-case accuracy (97%) at the lowest cost. Decoupled from chatModel so live chat and
-  // the curation selector swap independently. Offline tooling only.
-  curationSelectorModel: process.env.CURATION_SELECTOR_MODEL ?? "mistralai/mistral-nemo",
-  // Models for the OFFLINE auto-curator's CLUSTER pass (joint assignment over near-identical
-  // siblings that share candidates). A subject LOCKS only when these DIFFERENT-family models
-  // agree AND the pick is globally conflict-free — a stronger, more independent signal than
-  // LLM∩matcher, since the matcher is exactly what fails on these. CSV, ≥2 distinct families.
-  // Anthropic side is claude-haiku-4.5 (cheap) rather than sonnet: the two-family agreement lock
-  // is a cross-family CHECK on deepseek's pick, so the Anthropic model only needs to be a competent
-  // independent voter — haiku suffices and the cluster pass is the only place it runs. Offline only.
-  curationClusterModels: (process.env.CURATION_CLUSTER_MODELS ?? "deepseek/deepseek-v4-flash,anthropic/claude-haiku-4.5")
-    .split(",").map((s) => s.trim()).filter(Boolean),
-  // Frontier model the OFFLINE HTML-era auto-curator escalates UNCERTAIN cases to
-  // (pass 3, opt-in via --frontier). Pricier than the selector; only the contested residual
-  // is routed here. deepseek-v4-pro won the bakeoff's frontier slot (94% hard-acc, 0 JSON
-  // failures). Never used by the runtime chat/curation page — offline tooling only.
-  curationFrontierModel: process.env.CURATION_FRONTIER_MODEL ?? "deepseek/deepseek-v4-pro",
-  // Cheap second model the OFFLINE decision audit (scripts/htmlhist/audit-html-decisions.mjs) uses to
-  // independently re-pick each curation predecessor; disagreements with the recorded decision are
-  // flagged for pass-2 review. Offline review tooling only — never the runtime chat/curation page.
-  curationAuditModel: process.env.CURATION_AUDIT_MODEL ?? "google/gemma-4-31b-it",
+  // Chat delivery mode (docs/plans/chat-staged-delivery.md): "streaming" forwards
+  // answer tokens live as today (stream + post-hoc verify badge); "staged"
+  // suppresses tokens behind honest progress stages and reveals the answer only
+  // once, verified (possibly revised), in the terminal `done` event. Default
+  // stays "streaming" until the staged A/B measures perceived latency — an
+  // unrecognized value normalizes to "streaming" rather than throwing, since
+  // this also doubles as the fallback for an invalid per-request override
+  // (ChatBody.delivery in chat.ts). Resolved via envEnum above.
+  chatDeliveryMode,
+  // The model context window the UI meters against (context-size indicator).
+  // Sized to the SMALLEST model in the deployed routing chains (haiku, 200k),
+  // not the primary's 256k — an OpenRouter failover sends the same full
+  // context, so the honest ceiling is the chain minimum. Swap alongside
+  // CHAT_MODEL / CHAT_MODEL_* when the chains change.
+  chatContextWindowTokens: Number(process.env.CHAT_CONTEXT_WINDOW_TOKENS ?? 200_000),
+  // NOTE: the OFFLINE HTML-era curation model knobs (selector/cluster/frontier/audit)
+  // used to live here but had zero runtime readers in src/server — every reader is
+  // one of the scripts/htmlhist/*.mjs offline tools. Moved to
+  // scripts/htmlhist/curation-models.mjs so this module stays scoped to what the
+  // live server actually reads. See that file for the model choices + rationale.
+
   // Hard server-side cap on agentic tool rounds (system-prompt budget is advisory).
   // Every round replays the full context, so round count — not token count — is
   // the dominant latency driver (a 30-turn in-repo eval measured median 82s, max
@@ -223,12 +261,25 @@ export const config = {
 
   // Chat reliability harness (docs/plans/chat-reliability-harness.md).
   // Final claim-audit model — should be a stronger, DIFFERENT-family model than
-  // chatModel (cross-family independence, same rationale as curationClusterModels).
+  // chatModel (cross-family independence).
   // Empty = model verification off; deterministic checks still run.
   chatVerifierModel: process.env.CHAT_VERIFIER_MODEL ?? "",
+  // Optional per-slice model overrides, "claims=m1,figures=m2,…" — slices not
+  // named fall back to chatVerifierModel. Lets roles use different models.
+  chatVerifierSliceModels: process.env.CHAT_VERIFIER_SLICE_MODELS ?? "",
   // Escalation-only recovery model; chat-tier is fine (recovery planning is
   // easier than verification). Empty = advisor off.
   chatAdvisorModel: process.env.CHAT_ADVISOR_MODEL ?? "",
+  // Small-talk bypass judge — one tiny question-side classification ("does
+  // this message expect factual content?") that is the FINAL gate on skipping
+  // the audit for pure greetings (chat-orchestrator.ts + verify/smalltalk.ts).
+  // Defaults ON with the 2026-08-13 bakeoff winner (scripts/aux/
+  // eval-smalltalk-judge.ts: 100% on the 42-case set, 0 dangerous errors,
+  // 0 call failures, p50 722ms — beat gemma-4-31b's 22% timeout rate,
+  // nemotron-lightning's misrulings, and gpt-oss-safeguard's all-greetings-
+  // are-factual). Set CHAT_SMALLTALK_JUDGE_MODEL="" (empty) to disable the
+  // bypass outright — fail-closed: no judge, no skip, every turn audits.
+  chatSmalltalkJudgeModel: process.env.CHAT_SMALLTALK_JUDGE_MODEL ?? "google/gemma-4-26b-a4b-it",
   // Deterministic checks (free, pure code) — independent of the model slots.
   chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
   // Deterministic pre-lookup (glossary + entity match on the user's message)
@@ -241,6 +292,11 @@ export const config = {
   // never blocks on the audit — the answer already streamed). The verifier is a
   // stronger, slower model than the advisor, so its deadline is more generous.
   chatVerifierTimeoutMs: Number(process.env.CHAT_VERIFIER_TIMEOUT_MS ?? 20_000),
+  // Per-slice deadline for the sliced path. Slices run CONCURRENTLY (the turn
+  // pays ~one slice latency, post-stream), so this can sit well above the
+  // single-prompt cap: the 2026-08-06 bakeoff measured gemma claims-slice p50
+  // at 23.6s — a 20s deadline would kill over half of them.
+  chatVerifierSliceTimeoutMs: Number(process.env.CHAT_VERIFIER_SLICE_TIMEOUT_MS ?? 45_000),
   // Retrieval-trouble escalation threshold: ≥N empty/error tool results in a turn.
   chatAdvisorTriggerEmptyResults: Number(process.env.CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS ?? 2),
   // Unsupported-claim escalation threshold. A recovery cycle replays the ENTIRE
@@ -280,6 +336,12 @@ export const config = {
 
   // MCP transport mount path (streamable HTTP, no auth this phase).
   mcpPath: process.env.MCP_PATH ?? "/mcp",
+  // Per-tool-response byte budget (chat/output-budget.ts fitToBudget). MCP
+  // clients have a bounded context window, so a single 300-600KB tool response
+  // overflows the very assistant that called it (observed on atlas_entity /
+  // atlas_entity_params for Prime Agents). Budget counts chars of JSON (~1
+  // byte each); tune via env.
+  mcpMaxResultChars: Number(process.env.MCP_MAX_RESULT_CHARS ?? 200_000),
 
   // This app's git commit, surfaced in tool response _meta for provenance
   // ("which build answered"). Railway injects RAILWAY_GIT_COMMIT_SHA at deploy;
@@ -291,6 +353,14 @@ export const config = {
   // GITHUB_TOKEN does PR/branch resolution + tarball downloads (previously only
   // the worker needed GitHub access).
   githubToken: process.env.GITHUB_TOKEN ?? "",
+  // Private atlas previews (github-app.ts): a SEPARATE GitHub App from the
+  // OAuth login app, installed by the owner of a private repo they want
+  // previewable. githubAppPrivateKey is a PEM string; Railway env vars often
+  // carry it with literal "\n" escapes instead of real newlines — that
+  // normalization happens in github-app.ts, NOT here, so this stays a plain
+  // passthrough of whatever the operator pasted.
+  githubAppId: process.env.GITHUB_APP_ID ?? "",
+  githubAppPrivateKey: process.env.GITHUB_APP_PRIVATE_KEY ?? "",
   // Commons limit: max NEW previews analyzed per UTC day (re-builds of known
   // SHAs are exempt). Global cap on concurrent builds, and per-build timeout.
   // Quota pools, all per UTC day (see preview/trust.ts for tiers):
@@ -302,16 +372,65 @@ export const config = {
   previewTrustedForkDailyQuota: Number(process.env.PREVIEW_TRUSTED_FORK_DAILY_QUOTA ?? 10),
   previewForkDailyQuota: Number(process.env.PREVIEW_FORK_DAILY_QUOTA ?? 7),
   previewUnknownForkDailyQuota: Number(process.env.PREVIEW_UNKNOWN_FORK_DAILY_QUOTA ?? 2),
+  // Per-repo daily cap on NEW private-preview analyses. Separate pool from the
+  // fork tiers above: installation is itself the trust grant for a private
+  // repo, so private previews don't share the fork trust pools.
+  previewPrivateDailyQuota: Number(process.env.PREVIEW_PRIVATE_DAILY_QUOTA ?? 20),
   previewMaxConcurrentBuilds: Number(process.env.PREVIEW_MAX_CONCURRENT_BUILDS ?? 2),
   previewBuildTimeoutMs: Number(process.env.PREVIEW_BUILD_TIMEOUT_MS ?? 120_000),
   // Background bundle sweeper (preview/sweeper.ts): blocked-sha takedowns,
   // stale-vs-main eviction, LRU cap — all on a timer, not just after builds.
   previewSweepIntervalMs: Number(process.env.PREVIEW_SWEEP_INTERVAL_MS ?? 600_000),
+  // Grace window (preview/sweeper.ts) before a stale-vs-main bundle is swept, so
+  // an actively-browsed preview isn't yanked mid-session — the next visit
+  // rebuilds against current main instead.
+  previewSweepGraceMs: Number(process.env.PREVIEW_SWEEP_GRACE_MS ?? 600_000),
+  // Preview bundle LRU retention count (bundle-store.ts's PREVIEW_STORE) —
+  // distinct from atlasBundleKeep below, which is the MAIN/live-atlas store.
+  previewCacheKeep: Number(process.env.PREVIEW_CACHE_KEEP ?? 20),
+  // Preview tarball extraction caps (preview/tarball.ts). maxBytes bounds the
+  // FULL decompressed archive (the whole tar is gunzipped so Bun.Archive can
+  // parse it safely), not content/ alone. Measured 2026-06: the live atlas
+  // archive is ~33.5MB decompressed (content/ + a 12MB Static/ + the 3.4MB
+  // composed monolith + sync/). 64MB gives ~90% growth headroom and caps a
+  // fork's decompression bomb.
+  previewMaxDecompressedBytes: Number(process.env.PREVIEW_MAX_DECOMPRESSED_BYTES ?? 64 * 1024 * 1024),
+  previewMaxDocs: Number(process.env.PREVIEW_MAX_DOCS ?? 20_000),
+  // Minimum GitHub account age (days) for an unscored fork owner to land in the
+  // "unknown" tier instead of "refused" (preview/trust.ts tierFor).
+  previewMinAccountAgeDays: Number(process.env.PREVIEW_MIN_ACCOUNT_AGE_DAYS ?? 30),
 
   // Artifact + static-bundle locations.
   publicDir: resolve(ROOT, "public"),
   distDir: resolve(ROOT, "dist"),
   root: ROOT,
+
+  // Feedback tool (/api/feedback): free-text bug reports, always usable
+  // regardless of usersEnabled/chatEnabled — anonymous submission is the
+  // common case. Defaults ON; FEEDBACK_ENABLED=0 turns the route 404 without
+  // touching the login/chat gates above.
+  feedbackEnabled: process.env.FEEDBACK_ENABLED !== "0",
+  // Raw-body cap, checked against actual bytes (never Content-Length — see
+  // feedback.ts). Generous for a bug report + console buffer, far below
+  // anything worth worrying about server-side.
+  feedbackMaxBytes: Number(process.env.FEEDBACK_MAX_BYTES ?? 32_768),
+  // Postgres-backed rate limits, keyed on COALESCE(user_id::text,
+  // submitter_key) — see feedback.ts's rateLimitAndDedupe. Two windows
+  // (hour + day) so a burst is stopped without locking an engaged user out
+  // for a week; signed-in users get a higher ceiling than anonymous ones.
+  feedbackAnonPerHour: Number(process.env.FEEDBACK_ANON_PER_HOUR ?? 3),
+  feedbackAnonPerDay: Number(process.env.FEEDBACK_ANON_PER_DAY ?? 10),
+  feedbackUserPerHour: Number(process.env.FEEDBACK_USER_PER_HOUR ?? 15),
+  feedbackUserPerDay: Number(process.env.FEEDBACK_USER_PER_DAY ?? 50),
+  // Global circuit breaker across ALL submitters (cookie-rotating flood
+  // defense) — the one layer per-submitter keying can't stop.
+  feedbackGlobalPerDay: Number(process.env.FEEDBACK_GLOBAL_PER_DAY ?? 500),
+  // PostHog survey forward (feature-flagged OFF by default — empty = skip
+  // entirely, the row is still written). Set both to enable: the survey id
+  // groups responses, the question id is the property PostHog expects
+  // ($survey_response_<questionId>).
+  feedbackSurveyId: process.env.FEEDBACK_SURVEY_ID ?? "",
+  feedbackSurveyQuestion: process.env.FEEDBACK_SURVEY_QUESTION_ID ?? "",
 
   // Per-SHA immutable atlas bundle store (src/server/bundle-store.ts). The live
   // atlas serves artifacts from <atlasBundleRoot>/<sha>/<name>.json, mirroring
@@ -321,5 +440,36 @@ export const config = {
   atlasBundleRoot: resolve(process.env.ATLAS_BUNDLE_ROOT ?? resolve(ROOT, "public/atlas")),
   // Retention is ONLY a swap-window buffer (loads in flight when a bump lands),
   // NOT continuity for stale tabs — open tabs are forced forward on drift/404.
-  atlasBundleKeep: Number(process.env.ATLAS_BUNDLE_KEEP ?? 2),
+  // 4 (not 2) widens that buffer, shrinking the window where a page pinned to
+  // a recent sha 404s after pruning and has to force-reload.
+  atlasBundleKeep: Number(process.env.ATLAS_BUNDLE_KEEP ?? 4),
+
+  // In-process atlas updater (atlas-updater.ts): loud-log + freshness "stuck"
+  // threshold — consecutive failed/non-converged rebuild attempts before
+  // escalating from warn to ERROR logs. NOTE: ATLAS_UPDATE_ENABLED,
+  // ATLAS_UPDATE_INTERVAL_MS, and ATLAS_UPDATE_MAX_BACKOFF_MS deliberately stay
+  // as raw process.env reads in atlas-updater.ts rather than config keys here —
+  // they're read at CALL time (inside startUpdater()/backoffMs()), and
+  // atlas-updater.test.ts mutates process.env then calls those functions
+  // directly without a cache-busting reimport; routing them through config.ts
+  // (frozen at config.ts's own first import) would silently stop tracking
+  // env changes and break that test.
+  atlasUpdateEscalateAfter: Number(process.env.ATLAS_UPDATE_ESCALATE_AFTER ?? 3),
+
+  // On-chain snapshot cadence (chain-state.ts, read by the atlas worker's
+  // chain-state step). The worker cycle runs every ~12 minutes; the multicall
+  // sweep must NOT. Each cycle reads the stored snapshot's fetched_at and only
+  // refetches when it is older than this — so RPC spend is one batch per
+  // interval, not per cycle. 86400 = daily; 604800 = weekly (what the retired
+  // chainstate-update PR cadence used to give us). THE authoritative default:
+  // scripts/required/atlas-worker.mjs reads it from here, not from its own env
+  // parse.
+  chainstateRefreshSeconds: Number(process.env.CHAINSTATE_REFRESH_SECONDS ?? 86_400),
+
+  // Runtime freshness health thresholds (history/freshness.ts) — see that
+  // file's header comment for the full status-derivation rationale; this is
+  // just the env-parsed defaults.
+  atlasStaleSeconds: Number(process.env.ATLAS_STALE_SECONDS ?? 3600),
+  atlasStuckSeconds: Number(process.env.ATLAS_STUCK_SECONDS ?? 30 * 60),
+  atlasUpdaterDeadSeconds: Number(process.env.ATLAS_UPDATER_DEAD_SECONDS ?? 300),
 };

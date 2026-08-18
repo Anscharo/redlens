@@ -149,6 +149,8 @@ e. **Set the worker variables:**
 | `GITHUB_TOKEN` | **yes** | `gh pr view` for history PR metadata — no stored creds in container |
 | `OPENROUTER_API_KEY` | optional | Embeddings — skipped gracefully if unset |
 | `ATLAS_WORKER_FULL=1` | optional | Force a full history rebuild from the beginning |
+| `CHAINSTATE_REFRESH_SECONDS` | optional | Age past which the worker re-runs the contract-state multicall sweep (default `86400`, daily; `604800` for the weekly cadence the old committed-file workflow had) |
+| `ETH_RPC_URL` | optional | Mainnet RPC for that sweep; the public `CHAIN_RPC.ethereum` default is used when unset |
 
 ## 5. Configure services and deploy
 
@@ -449,7 +451,7 @@ Add these under repo **Settings → Environments → `atlas-update-main-bypass`*
 | `ATLAS_BOT_PRIVATE_KEY` | Full contents of the `.pem` from step 8b | Both workflows (App token mint) |
 | `ETHERSCAN_API_KEY` | [Etherscan API key](https://etherscan.io/apidashboard) | `chainstate-update.yml` (`build:addresses`); also atlas-update on bumps |
 | `BLOCKSCOUT_API_KEY` | Blockscout API key (optional) | `chainstate-update.yml` (`build:addresses`); raises the Blockscout rate limit used for Robinhood Chain + as the Etherscan fallback |
-| `ETH_RPC_URL` | Ethereum mainnet RPC URL (optional) | `chainstate-update.yml` (`snap:chainstate`); overrides the `CHAIN_RPC.ethereum` default if set |
+| `ETH_RPC_URL` | Ethereum mainnet RPC URL (optional) | Railway **worker** service (its time-gated chain-state sweep) and manual `snap:chainstate` runs; overrides the `CHAIN_RPC.ethereum` default if set |
 
 RPC endpoints live per chain in `scripts/lib/chains.mjs` (`CHAIN_RPC`, free
 public endpoints), so no `ETH_RPC_URL` secret is required — set one only to
@@ -457,9 +459,12 @@ override the default when the public endpoint rate-limits. `pnpm census:chains
 --rpc` round-trips `eth_chainId` against every endpoint to confirm each one
 still answers for the chain id the registry claims.
 
-On-chain data (`addresses.json`, `chain-state.json`) refreshes weekly via
-`.github/workflows/chainstate-update.yml` (Sunday 22:00 UTC) — separate from
-the hourly atlas submodule loop.
+Committed on-chain data (`addresses.json` plus the `.cache/etherscan` ABI cache)
+refreshes weekly via `.github/workflows/chainstate-update.yml` (Sunday 22:00 UTC)
+— separate from the hourly atlas submodule loop. The contract-state snapshot is
+NOT part of that loop: it is decommitted, and the Railway atlas worker fetches it
+straight into the Postgres `chain_state` table on its own time gate
+(`CHAINSTATE_REFRESH_SECONDS`, default daily).
 
 ---
 
@@ -473,9 +478,15 @@ the hourly atlas submodule loop.
   new content.
 - **Submodule pointer in git** stays current via the hourly atlas-update
   workflow, keeping CI + graph snapshots in sync.
-- **On-chain data** (`addresses.json`, `chain-state.json`) refreshes weekly
-  via the `chainstate-update` workflow (Sunday 22:00 UTC) — separate from the
-  hourly atlas submodule loop.
+- **Committed on-chain data** (`addresses.json`, `.cache/etherscan`) refreshes
+  weekly via the `chainstate-update` workflow (Sunday 22:00 UTC) — separate from
+  the hourly atlas submodule loop.
+- **Contract-state snapshot** refreshes on the atlas worker's own time gate
+  (`CHAINSTATE_REFRESH_SECONDS`, default daily): one `SELECT fetched_at` per
+  ~12-minute cycle, multicall sweep only past the gate, upserted into the
+  single-row `chain_state` table and served from `GET /api/chain-state`. The
+  row populates on the worker's first post-deploy cycle; until then the route
+  503s and the footer shows no on-chain values.
 
 ## Troubleshooting
 

@@ -19,6 +19,16 @@ describe("explorerUrl", () => {
     expect(explorerUrl(SOL)).toBe(EXPLORER.solana + SOL);
   });
 
+  it("does not shape-detect solana off an anchor-defeating length (proves SOL_RE stays the ^...$-anchored exact form, not a body-only match)", () => {
+    // SOL is 43 chars; +2 more base58 chars makes 45 — one longer than the
+    // {43,44} the anchored regex allows. A non-anchored/body-only regex would
+    // still match a 44-char substring and misresolve this to solana; the
+    // anchored form requires the WHOLE value to fit, so it falls through to
+    // the ethereum default.
+    const tooLong = SOL + "11";
+    expect(explorerUrl(tooLong)).toBe(EXPLORER.ethereum + tooLong);
+  });
+
   it("defaults EVM-shaped addresses to ethereum", () => {
     expect(explorerUrl(EVM)).toBe(EXPLORER.ethereum + EVM);
   });

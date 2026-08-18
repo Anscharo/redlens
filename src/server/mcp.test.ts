@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import MiniSearch from "minisearch";
 import { MultiDirectedGraph } from "graphology";
 import { loadIndexes, setIndexes, type Indexes } from "./retrieval/indexes.ts";
+import { buildParamIndex } from "../lib/paramIndex.ts";
 
 let previousIndexes: Indexes;
 
@@ -55,6 +56,8 @@ function emptyIndexes(): Indexes {
     entityBySlug: new Map(),
     entityById: new Map(),
     glossary: new Map(),
+    params: buildParamIndex(new Map()),
+    liveness: new Map(),
     meta: { atlasCommit: "atlas-sha" },
   };
 }

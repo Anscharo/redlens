@@ -6,15 +6,37 @@
 // address / query land alongside in Task #6 once the pg + embedding layers
 // exist; they take the same Indexes plus a SQL handle.
 import { type Indexes, ancestorChain, resolveNode, type AtlasNode } from "../../retrieval/indexes.ts";
-import { runLexical, runSemantic, rrfMerge, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit } from "../../retrieval/search.ts";
+import { runLexical, runSemantic, rrfMerge, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { statsSection } from "./tools-stats.ts";
 import { censusesSection } from "./tools-censuses.ts";
 import { sql } from "../../db.ts";
 import { normalizeAddress } from "../../../../scripts/lib/address-chains.mjs";
+import type { Liveness } from "../../../lib/liveness.ts";
 
 export interface ToolResult {
   [k: string]: unknown;
+}
+
+// ── liveness tagging (docs/research/synlang-wiki.md §3.2) ──────────────────
+// Every call site that emits doc rows decorates them via this one lookup, so
+// the scaffold/placeholder tag is never re-derived. Docs absent from
+// `ix.liveness` are settled, so the field is OMITTED (not `liveness: null`) —
+// most rows carry no field at all.
+export function livenessOf(ix: Indexes, id: string): { liveness?: Liveness } {
+  const tag = ix.liveness.get(id);
+  return tag ? { liveness: tag } : {};
+}
+
+// Neutral framing is load-bearing: on the real corpus 932/962 scaffold tags
+// are lifecycle status-bucket directories where empty is EXPECTED, not a
+// finding. Envelope-level (once per response), never repeated per row.
+export const LIVENESS_HINT =
+  "liveness:scaffold = an empty container (normal for lifecycle directories) — its existence does NOT establish that the thing it would hold exists. liveness:placeholder = content not yet specified.";
+
+export function withLivenessHint<T extends ToolResult>(envelope: T, rows: unknown[]): T {
+  const hasTag = rows.some((r) => !!r && typeof r === "object" && (r as { liveness?: unknown }).liveness);
+  return hasTag ? { ...envelope, liveness_hint: LIVENESS_HINT } : envelope;
 }
 
 // ── atlas_describe ──────────────────────────────────────────────────────────
@@ -93,7 +115,7 @@ function enrichGet(ix: Indexes, node: AtlasNode) {
   // Drop contentHash — a 64-char digest that's pure noise to a reader/LLM and
   // the single biggest wasted-bytes field per node.
   const { contentHash: _hash, ...rest } = node;
-  return { ...rest, ancestors: ancestorChain(ix, node.id) };
+  return { ...rest, ancestors: ancestorChain(ix, node.id), ...livenessOf(ix, node.id) };
 }
 
 export function atlasGet(ix: Indexes, id: string | string[]): ToolResult {
@@ -102,7 +124,11 @@ export function atlasGet(ix: Indexes, id: string | string[]): ToolResult {
 
   if (!isBulk) {
     const node = resolveNode(ix, inputs[0]);
-    return node ? enrichGet(ix, node) : { error: "Not found" };
+    if (!node) return { error: "Not found" };
+    const enriched = enrichGet(ix, node);
+    // Single-node calls have no wrapper envelope — the node itself IS the
+    // response, so the hint (if any) rides alongside its own `liveness` field.
+    return withLivenessHint(enriched, [enriched]);
   }
 
   const results = inputs.map((q) => {
@@ -110,7 +136,8 @@ export function atlasGet(ix: Indexes, id: string | string[]): ToolResult {
     return node ? enrichGet(ix, node) : { query: q, error: "Not found" };
   });
   const { kept, truncated } = fitToBudget(results);
-  return { count: kept.length, ...(truncated ? { requested: results.length, truncated: true, hint: TRUNCATION_HINT } : {}), results: kept };
+  const envelope = { count: kept.length, ...(truncated ? { requested: results.length, truncated: true, hint: TRUNCATION_HINT } : {}), results: kept };
+  return withLivenessHint(envelope, kept);
 }
 
 // ── atlas_search (lexical | semantic | hybrid) ───────────────────────────────
@@ -126,10 +153,16 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
   const hasPhrases = phrases.length > 0 || casePhrases.length > 0;
   const fetchK = mode === "lexical" && !hasPhrases ? k : Math.min(k * 4, 200);
 
-  const [lex, sem] = await Promise.all([
+  const [lex, semResult] = await Promise.all([
     mode === "semantic" ? Promise.resolve([]) : Promise.resolve(runLexical(ix, query, type, fetchK)),
-    mode === "lexical" ? Promise.resolve([]) : runSemantic(ix, query, type, fetchK).catch(() => []),
+    mode === "lexical"
+      ? Promise.resolve<SemanticResult>({ hits: [], skipped: null })
+      // runSemantic no longer throws on a normal degraded-leg failure; this
+      // catch is defensive-only, preserving the reason rather than the old
+      // information-destroying `.catch(() => [])`.
+      : runSemantic(ix, query, type, fetchK).catch((err) => ({ hits: [], skipped: (err as Error).message })),
   ]);
+  const sem = semResult.hits;
 
   let merged: MergedHit[];
   if (mode === "lexical") merged = lex.map((h) => ({ id: h.id, sources: ["lexical"], rrf_score: 0, score: h.score }));
@@ -154,8 +187,19 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
     snippet: buildAgentSnippet(n.content, query),
     score: m.rrf_score || m.score,
     sources: m.sources,
+    ...livenessOf(ix, n.id),
   }));
-  return { count: results.length, mode, phrase_filter: [...phrases, ...casePhrases], results };
+  // Only present when the requested mode actually wanted a semantic leg (a
+  // pure lexical search never runs one, so there's nothing to report skipping).
+  const wantedSemantic = mode === "semantic" || mode === "hybrid";
+  const envelope = {
+    count: results.length,
+    mode,
+    phrase_filter: [...phrases, ...casePhrases],
+    ...(wantedSemantic && semResult.skipped ? { semantic_skipped: semResult.skipped } : {}),
+    results,
+  };
+  return withLivenessHint(envelope, results);
 }
 
 // ── atlas_get_address ─────────────────────────────────────────────────────────

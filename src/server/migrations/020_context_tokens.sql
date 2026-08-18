@@ -1,0 +1,13 @@
+-- Context-size indicator (chat UI): the real per-round context size behind an
+-- assistant message, distinct from the existing input_tokens column.
+-- input_tokens is done.usage.input, which ACCUMULATES prompt_tokens across
+-- every tool round of a turn — a 3-round turn's input_tokens is roughly the
+-- sum of three overlapping prompts, overstating the model's actual context
+-- window usage 2-3x. context_tokens is the LAST round's prompt_tokens only
+-- (chat-loop.ts's contextTokens) — what the model that produced the shipped
+-- answer actually saw.
+--
+-- No backfill: legacy rows only have the cumulative input_tokens, and
+-- deriving a last-round estimate from it would misrepresent history as
+-- measured when it's guessed. Nullable + left NULL for every pre-existing row.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS context_tokens INT;

@@ -2,7 +2,7 @@
 // vitest) — src/server is excluded from vitest. These functions are fully
 // in-memory (no SQL), so a hand-built Indexes fixture is enough.
 import { test, expect } from "bun:test";
-import { atlasTraverse, atlasEntity, atlasEntities, atlasEdges, atlasEntityParams } from "./tools-graph.ts";
+import { atlasTraverse, atlasEntity, atlasEntities, atlasEdges, atlasEntityParams, atlasNeighbors, atlasFilter } from "./tools-graph.ts";
 import { atlasGet, atlasDescribe } from "./tools.ts";
 import { buildSystemPrompt, validReportTool } from "../system-prompt.ts";
 import { matchEntities } from "../../retrieval/entity-resolve.ts";
@@ -91,6 +91,10 @@ function makeIx(): Indexes {
     entityById: new Map(entities.map((e) => [e.id, e])),
     // atlas_describe's shape section reads these.
     glossary: new Map(),
+    // Every doc settled (no scaffold/placeholder tags) — the liveness-tagging
+    // paths (docRow decoration in atlasNeighbors/atlasFilter/atlasEntity) still
+    // read this map even when it's empty.
+    liveness: new Map(),
     meta: {},
   } as unknown as Indexes;
 }
@@ -205,6 +209,61 @@ test("atlas_entity_params(entity) selects instance docs and filters by subtype",
   const byId = atlasEntityParams(ix, { id: "D2", limit: 50 }) as { instances: Array<{ id: string }>; available_subtypes?: string[] };
   expect(byId.instances.map((i) => i.id)).toEqual(["D2"]);
   expect(byId.available_subtypes).toBeUndefined();
+});
+
+// ── liveness tagging (docs/research/synlang-wiki.md §3.2) ────────────────────
+// makeIx() builds `liveness` as an empty Map (no census machinery run over
+// this hand-built fixture) — populate it directly per test to exercise the
+// tagging plumbing without re-deriving conceptsCensus heuristics here.
+test("atlas_neighbors tags parent/sibling/child rows with liveness and adds the envelope hint", () => {
+  const ix = makeIx();
+  ix.liveness.set("D2", "placeholder"); // sibling of D1
+  ix.liveness.set("P1", "scaffold"); // child of D1
+  const res = atlasNeighbors(ix, "D1", 8) as {
+    parent: Record<string, unknown>;
+    siblings: Array<Record<string, unknown>>;
+    children: Array<Record<string, unknown>>;
+    liveness_hint?: string;
+  };
+  expect(res.siblings.find((s) => s.id === "D2")!.liveness).toBe("placeholder");
+  expect(res.children.find((c) => c.id === "P1")!.liveness).toBe("scaffold");
+  expect(res.parent.liveness).toBeUndefined(); // D0 untagged
+  expect(res.liveness_hint).toContain("liveness:scaffold");
+});
+
+test("atlas_neighbors tags the target itself — the one node the call is about", () => {
+  const ix = makeIx();
+  ix.liveness.set("D1", "scaffold");
+  const res = atlasNeighbors(ix, "D1", 8) as { target: Record<string, unknown>; liveness_hint?: string };
+  expect(res.target.liveness).toBe("scaffold");
+  // A scaffold target alone must raise the envelope hint, even when every
+  // neighbour row is settled.
+  expect(res.liveness_hint).toContain("liveness:scaffold");
+});
+
+test("atlas_filter tags result rows with liveness and adds the envelope hint only when a row is flagged", () => {
+  const ix = makeIx();
+  ix.liveness.set("P1", "scaffold");
+  const flagged = atlasFilter(ix, { type: "Core", limit: 200, include_content: false }) as {
+    results: Array<Record<string, unknown>>;
+    liveness_hint?: string;
+  };
+  expect(flagged.results.find((r) => r.id === "P1")!.liveness).toBe("scaffold");
+  expect(flagged.liveness_hint).toBeDefined();
+
+  const clean = atlasFilter(ix, { type: "Active Data", limit: 200, include_content: false }) as { liveness_hint?: string };
+  expect(clean.liveness_hint).toBeUndefined();
+});
+
+test("atlas_entity tags `nodes` rows with liveness and adds the envelope hint", () => {
+  const ix = makeIx();
+  ix.liveness.set("P3", "placeholder");
+  const res = atlasEntity(ix, "ent", { limit: 50, offset: 0, include_content: false }) as {
+    nodes: Array<Record<string, unknown>>;
+    liveness_hint?: string;
+  };
+  expect(res.nodes.find((n) => n.id === "P3")!.liveness).toBe("placeholder");
+  expect(res.liveness_hint).toBeDefined();
 });
 
 // ── entity resolution: free text → entity ────────────────────────────────────

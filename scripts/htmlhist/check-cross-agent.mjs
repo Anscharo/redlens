@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
-import { loadHtmlAt } from "./atlas-html.mjs";
+import { loadHtmlAt } from "../lib/atlas-html.mjs";
 import { contentDupCounts, occKey } from "./history-occkey.mjs";
 
 const ROOT = process.cwd();

@@ -26,6 +26,11 @@ import {
   ancestorByStripping,
   primitiveRootFor,
   extractAssignment,
+  bulletField,
+  makeWarn,
+  groupChildrenByParent,
+  MD_URL_RE,
+  UUID_SRC,
 } from "./graph-patterns.mjs";
 
 function entity(slug: string, name: string) {
@@ -160,6 +165,119 @@ describe("doc_no / title predicates", () => {
     expect(isICD(doc("A.1", "Spark MetaMorpho Instance Configuration Document"))).toBe(true);
     expect(isICD(doc("A.1", "Spark MetaMorpho Instance Configuration Document Location"))).toBe(false);
     expect(isICD(doc("A.1", "Active Instances Directory"))).toBe(false);
+  });
+});
+
+// The bullet-KV tables in graph-transfers/graph-multisigs are built by
+// `bulletField` instead of being spelled out. Each case below pins the factory
+// output to the literal that used to live at the call site — .source AND
+// .flags, because a dropped `g` silently changes `.matchAll`/`.match` semantics
+// rather than failing loudly.
+describe("bulletField", () => {
+  const cases: Array<[string, RegExp, RegExp]> = [
+    // graph-transfers.mjs — A.2.13 grant docs
+    [
+      "AMOUNT_LINE_RE",
+      bulletField(String.raw`(.+?)\s+amount`, String.raw`([\d,.]+)`, "gim"),
+      /^[-*]\s*(.+?)\s+amount:\s*([\d,.]+)\s*$/gim,
+    ],
+    ["RECIPIENT_RE", bulletField("Recipient", String.raw`(.+?)`), /^[-*]\s*Recipient:\s*(.+?)\s*$/im],
+    [
+      "RECIPIENT_ADDR_RE",
+      bulletField("Recipient Address", "`?(0x[0-9a-fA-F]{40})`?"),
+      /^[-*]\s*Recipient Address:\s*`?(0x[0-9a-fA-F]{40})`?\s*$/im,
+    ],
+    [
+      "TX_HASH_RE",
+      bulletField("Transaction Hash", "`?(0x[0-9a-fA-F]{64})`?"),
+      /^[-*]\s*Transaction Hash:\s*`?(0x[0-9a-fA-F]{64})`?\s*$/im,
+    ],
+    // graph-multisigs.mjs — "- Soter Labs: 2 signers"
+    [
+      "SIGNER_BULLET_COUNT_RE",
+      bulletField(String.raw`([^:\n]+?)`, String.raw`(\d+)\s*signers?`, "gim"),
+      /^[-*]\s*([^:\n]+?):\s*(\d+)\s*signers?\s*$/gim,
+    ],
+  ];
+
+  for (const [name, built, literal] of cases) {
+    it(`compiles ${name} identically to the hand-written literal`, () => {
+      expect(built.source).toBe(literal.source);
+      expect(built.flags).toBe(literal.flags);
+    });
+  }
+
+  it("returns a fresh object per call (callers reset lastIndex on the /g ones)", () => {
+    const a = bulletField("Recipient", String.raw`(.+?)`, "gim");
+    const b = bulletField("Recipient", String.raw`(.+?)`, "gim");
+    expect(a).not.toBe(b);
+  });
+});
+
+describe("makeWarn", () => {
+  it("counts into the module's stats and keeps its console prefix verbatim", () => {
+    const stats = { warnings: 0 };
+    const seen: string[] = [];
+    const original = console.warn;
+    console.warn = (msg: string) => void seen.push(msg);
+    try {
+      makeWarn("  bridge:", stats)("roster yielded no names: A.1.2");
+      makeWarn("  [omni]", stats)("no category sentence matched");
+    } finally {
+      console.warn = original;
+    }
+    expect(stats.warnings).toBe(2);
+    expect(seen).toEqual(["  bridge: roster yielded no names: A.1.2", "  [omni] no category sentence matched"]);
+  });
+});
+
+describe("groupChildrenByParent", () => {
+  const d = (doc_no: string, kind: string) => ({ doc_no, kind });
+
+  it("slots children under their parent doc_no, first writer winning per kind", () => {
+    const docs = [
+      d("A.1.1.1", "threshold"),
+      d("A.1.1.2", "signers"),
+      d("A.1.1.3", "signers"), // second signers doc under the same parent
+      d("A.2.1.1", "threshold"),
+      d("A.9.9.9", ""),
+    ];
+    const byParent = groupChildrenByParent(docs, (x) => x.kind || null);
+    expect([...byParent.keys()]).toEqual(["A.1.1", "A.2.1"]);
+    expect(byParent.get("A.1.1")).toEqual({ threshold: docs[0], signers: docs[1] });
+    expect(byParent.get("A.2.1")).toEqual({ threshold: docs[3] });
+  });
+
+  it("still groups children whose parent doc does not exist", () => {
+    // Deliberate: the caller decides what an orphaned group means (both
+    // Pattern 17 and 21 skip it), so grouping must not require resolution.
+    const byParent = groupChildrenByParent([d("A.404.1", "roster")], (x) => x.kind || null);
+    expect(byParent.has("A.404")).toBe(true);
+  });
+});
+
+describe("MD_URL_RE / UUID_SRC", () => {
+  it("captures a markdown link URL", () => {
+    expect("Discord is located at [here](https://discord.gg/sky).".match(MD_URL_RE)?.[1]).toBe(
+      "https://discord.gg/sky",
+    );
+  });
+
+  it("composes IMPLEMENTS_RE identically to its former literal", () => {
+    // graph-doc-edges.mjs 2e builds this from UUID_SRC instead of retyping it.
+    const built = new RegExp(String.raw`\bSee\s+\[([^\]]+)\]\((${UUID_SRC})\)`, "i");
+    expect(built.source).toBe(
+      /\bSee\s+\[([^\]]+)\]\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/i
+        .source,
+    );
+    expect(built.flags).toBe("i");
+  });
+
+  it("keeps UUID_LINK_RE byte-identical to its former literal", () => {
+    const literal =
+      /\[([^\]]*)\]\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/gi;
+    expect(UUID_LINK_RE.source).toBe(literal.source);
+    expect(UUID_LINK_RE.flags).toBe(literal.flags);
   });
 });
 

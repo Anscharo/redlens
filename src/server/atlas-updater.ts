@@ -12,14 +12,16 @@
 // staleness on the few-times-a-week cadence), and escalates to ERROR logs +
 // the freshness "stuck" status after ESCALATE_AFTER consecutive failures.
 import { spawn } from "node:child_process";
-import { writeFileSync, existsSync, readdirSync, copyFileSync, unlinkSync } from "node:fs";
+import { writeFileSync, readFileSync, existsSync, readdirSync, copyFileSync, unlinkSync, realpathSync } from "node:fs";
 import { join } from "node:path";
+import { gzipSync } from "node:zlib";
 import { config } from "./config.ts";
 import { sql } from "./db.ts";
 import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson, writeDocsSplit } from "./retrieval/indexes.ts";
 import { refreshInPlaceFromDisk, writeSearchIndex } from "./atlas-refresh.ts";
 import { broadcastAtlasUpdate } from "./sse.ts";
 import { MAIN_STORE, publishBundle } from "./bundle-store.ts";
+import { stepsFor } from "../../scripts/lib/build-steps.mjs";
 import type { AtlasNode, DocMetaRow } from "./retrieval/indexes.ts";
 
 export type Decision = "idle" | "build";
@@ -60,6 +62,10 @@ export function decide(s: {
 }
 
 // Exponential backoff from the poll interval, capped. failures>=1.
+// ATLAS_UPDATE_MAX_BACKOFF_MS is read here (call time), not via config.ts —
+// this fn is unit-tested directly (see backoffMs tests in atlas-updater.test.ts),
+// and a config.ts field would freeze at config.ts's own first import instead of
+// tracking env at call time.
 export function backoffMs(failures: number, base: number): number {
   const cap = Number(process.env.ATLAS_UPDATE_MAX_BACKOFF_MS ?? 30 * 60_000);
   return Math.min(base * 2 ** Math.min(failures - 1, 20), cap);
@@ -81,7 +87,7 @@ export function nextDivergedSince(
 }
 
 // Loud-log + freshness "stuck" threshold (consecutive failed/non-converged builds).
-const ESCALATE_AFTER = Number(process.env.ATLAS_UPDATE_ESCALATE_AFTER ?? 3);
+const ESCALATE_AFTER = config.atlasUpdateEscalateAfter;
 
 // Single source of truth for updater state — read by freshness.ts (to tell a
 // benign "syncing" from a genuinely "stuck" updater) and mutated only by the
@@ -139,7 +145,10 @@ export function isUpdaterEnabled(): boolean {
   return updaterEnabled;
 }
 
-function spawnCollect(
+// Exported so a test can drive it directly with a trivial/fast command (e.g.
+// `bun -e`) instead of only ever reaching it indirectly through a real
+// build-graph/sync-embeddings subprocess spawn.
+export function spawnCollect(
   cmd: string,
   args: string[],
   capture: boolean,
@@ -157,6 +166,17 @@ function spawnCollect(
     child.on("error", () => resolve({ code: 1, stdout }));
   });
 }
+
+// The narrow slice of spawnCollect that runRefreshFromDb/startBootEmbeddings
+// need (always capture=false — both just check the exit code). Injectable so
+// tests can exercise the surrounding control flow (which subprocess ran, in
+// what order, what a failure does) without actually shelling out to
+// build-graph.mjs/sync-embeddings.ts — those write real files under the
+// REAL public/ (this fn doesn't know about a test's config.publicDir override,
+// since it's a separate `bun` process) and, for sync-embeddings.ts, dial a
+// real DB/OpenRouter. Real callers keep using the default (unchanged behavior).
+export type SpawnFn = (cmd: string, args: string[]) => Promise<{ code: number; stdout: string }>;
+const realSpawn: SpawnFn = (cmd, args) => spawnCollect(cmd, args, false);
 
 // Poll sync_state.atlas_sha (fast, same-process DB connection; replaces git ls-remote).
 export async function getDbAtlasSha(): Promise<string | null> {
@@ -181,6 +201,19 @@ export function dropStaleSearchIndex(publicDir: string): boolean {
   if (!existsSync(p)) return false;
   unlinkSync(p);
   return true;
+}
+
+// True when `a` and `b` resolve to the same real directory — the Docker image
+// symlinks /app/public → /app/dist (see Dockerfile), so a naive public/*.json
+// → dist/*.json mirror would copy a file onto itself. A path that doesn't
+// exist yet (e.g. a dev checkout with no dist/ build) can't be compared and
+// is treated as "not the same", same as any other realpathSync failure.
+export function sameRealDir(a: string, b: string): boolean {
+  try {
+    return realpathSync(a) === realpathSync(b);
+  } catch {
+    return false;
+  }
 }
 
 export interface AddrReadRow {
@@ -226,8 +259,11 @@ export function groupAddrRowsToAtlas(
 // Rebuild public/docs.json + public/addresses.atlas.json from Postgres, then
 // run build-graph and build-glossary subprocesses (they read docs.json), then
 // mirror all public/*.json → dist/. Returns the atlas sha actually built (read
-// inside the snapshot) on success, or null on failure/refusal.
-async function runRefreshFromDb(log: (m: string) => void): Promise<string | null> {
+// inside the snapshot) on success, or null on failure/refusal. Exported (with
+// an injectable spawn, default real) so the refuse/happy-path/subprocess-
+// failure branches are all testable without shelling out for real — see
+// SpawnFn's header comment.
+export async function runRefreshFromDb(log: (m: string) => void, spawn: SpawnFn = realSpawn): Promise<string | null> {
   try {
     // ── ⑥ single consistent snapshot: read the sha AND the rows in ONE
     //    transaction, so the sha we stamp into docs.json always matches the
@@ -272,19 +308,27 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
     const addrAtlas = groupAddrRowsToAtlas(addrRows);
     writeFileSync(join(config.publicDir, "addresses.atlas.json"), JSON.stringify({ atlasCommit: dbSha, addresses: addrAtlas }));
 
-    // 3. build-graph subprocess (reads docs.json → graph.json, relations.json; enriches addresses.atlas.json)
-    const { code: gc } = await spawnCollect("bun", ["scripts/required/build-graph.mjs"], false);
-    if (gc !== 0) throw new Error(`build-graph exited ${gc}`);
+    // 3. Build subprocesses — the `updater` profile of scripts/lib/build-steps.mjs.
+    //    build-graph reads docs.json → graph.json, relations.json (and enriches
+    //    addresses.atlas.json); build-glossary + the report views read
+    //    docs.json/relations.json. No build-index: docs.json came from DB rows.
+    for (const step of stepsFor("updater")) {
+      const { code } = await spawn("bun", [step.script!]);
+      if (code !== 0) throw new Error(`${step.name} exited ${code}`);
+    }
 
-    // 4. build-glossary + report views (read docs.json/relations.json)
-    const { code: glc } = await spawnCollect("bun", ["scripts/required/build-glossary.mjs"], false);
-    if (glc !== 0) throw new Error(`build-glossary exited ${glc}`);
-    const { code: oea } = await spawnCollect("bun", ["scripts/required/build-oea-report.ts"], false);
-    if (oea !== 0) throw new Error(`build-oea-report exited ${oea}`);
-
-    // 5. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk writes it).
+    // 4. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk
+    //    writes it). /app/public is a SYMLINK to /app/dist in the built image
+    //    (see Dockerfile), so a naive copy would target its own source — skip the
+    //    copy entirely in that case and treat public/ itself as the served dir
+    //    for the .gz refresh below (an in-place refresh, not a mirror).
     const distDir = config.distDir;
-    if (existsSync(distDir)) {
+    const distIsPublicDir = sameRealDir(config.publicDir, distDir);
+    let servedDir: string | null = null;
+    if (distIsPublicDir) {
+      servedDir = config.publicDir;
+      log("refresh-from-db: mirror skipped (dist/ is public/, same directory)");
+    } else if (existsSync(distDir)) {
       let n = 0;
       for (const f of readdirSync(config.publicDir)) {
         if (f.endsWith(".json") && f !== "search-index.json") {
@@ -295,6 +339,36 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
       const si = join(distDir, "search-index.json");
       if (existsSync(si)) unlinkSync(si);
       log(`refresh-from-db: mirrored ${n} json → dist/`);
+      servedDir = distDir;
+    }
+
+    // Regenerate stale .gz siblings: the Dockerfile pre-gzips several flat
+    // artifacts at image build time (docs.json, search-index.json,
+    // relations.json, glossary.json, oea-report.json), but this refresh only
+    // rewrites the flat .json — the request handler prefers `<file>.gz` for
+    // every gzip-accepting client (see index.ts's static handler), so an
+    // un-regenerated .gz would serve image-build-time data forever. Only
+    // refresh a .gz that already exists — never create a new one; and derive
+    // the set from what's actually on disk rather than hardcoding the
+    // Dockerfile's list, so this self-maintains if that list changes.
+    // search-index.json is the one exception: its fresh flat file doesn't
+    // exist yet at this point (dropped by dropStaleSearchIndex below, then
+    // rewritten AFTER this function returns by refreshInPlaceFromDisk), so
+    // there is nothing correct to gzip here — unlink its stale .gz instead so
+    // gzip clients fall through to the identity branch (which now also
+    // carries Vary: Accept-Encoding) until the next successful mirror.
+    if (servedDir) {
+      const siGz = join(servedDir, "search-index.json.gz");
+      if (existsSync(siGz)) unlinkSync(siGz);
+      let regenerated = 0;
+      for (const f of readdirSync(servedDir)) {
+        if (!f.endsWith(".json") || f === "search-index.json") continue;
+        const gz = join(servedDir, `${f}.gz`);
+        if (!existsSync(gz)) continue;
+        writeFileSync(gz, gzipSync(readFileSync(join(servedDir, f)), { level: 9 }));
+        regenerated++;
+      }
+      if (regenerated) log(`refresh-from-db: regenerated ${regenerated} stale .gz sibling(s)`);
     }
 
     // Unconditional (not gated on distDir existing) since it's a public/
@@ -310,8 +384,11 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
 
 // Seed embeddings only on first boot (table empty). After that, the atlas
 // worker cron keeps them current. Detached + best-effort so a slow OpenRouter
-// never blocks the health check. Skipped without an API key.
-export function startBootEmbeddings(): void {
+// never blocks the health check. Skipped without an API key. `spawn` injectable
+// (default real) for the same reason as runRefreshFromDb — the real path
+// launches a genuine `bun src/server/sync-embeddings.ts` that dials a real
+// DB/OpenRouter, which a test must never trigger.
+export function startBootEmbeddings(spawn: SpawnFn = realSpawn): void {
   if (!config.openrouterApiKey) {
     console.log("boot-embeddings: skipped (OPENROUTER_API_KEY not set)");
     return;
@@ -325,7 +402,7 @@ export function startBootEmbeddings(): void {
       }
     } catch { /* proceed — table may not exist yet */ }
     console.log("boot-embeddings: seeding empty table (detached, best-effort)");
-    spawnCollect("bun", ["src/server/sync-embeddings.ts"], false)
+    spawn("bun", ["src/server/sync-embeddings.ts"])
       .then(({ code }) => console.log(`boot-embeddings: exited ${code}`))
       .catch((e) => console.warn(`boot-embeddings: spawn error ${(e as Error).message}`));
   })();
@@ -490,11 +567,20 @@ export function makeTickDeps(log: (m: string) => void, intervalMs: number): Tick
   };
 }
 
-export function startUpdater(): void {
+// Returns a stop handle. The server never calls it (the loop runs for the life
+// of the process), but a test that starts the updater must be able to cancel the
+// pending timer and clear `updaterEnabled` again — otherwise the flag leaks into
+// every later test file, and bun does not order test files predictably.
+export function startUpdater(): { stop: () => void } {
+  // ATLAS_UPDATE_ENABLED and ATLAS_UPDATE_INTERVAL_MS are read here (call time),
+  // not via config.ts — atlas-updater.test.ts mutates process.env then calls
+  // startUpdater() directly without a cache-busting reimport, which requires
+  // these to track live env rather than whatever config.ts froze at its own
+  // first import.
   const disabled = process.env.ATLAS_UPDATE_ENABLED === "0" || process.env.ATLAS_UPDATE_ENABLED === "false";
   if (disabled) {
     console.log("atlas-updater: disabled via ATLAS_UPDATE_ENABLED=0 (kill switch)");
-    return;
+    return { stop: () => {} };
   }
   updaterEnabled = true;
 
@@ -510,8 +596,13 @@ export function startUpdater(): void {
   // loop can NEVER surface an unhandled rejection or die: tick() is fully
   // try/catch/finally today, but passing it bare to setTimeout would drop a
   // rejected promise on the floor if a future edit ever threw outside that guard.
-  const schedule = () =>
-    setTimeout(() => void tick().catch((e) => log(`tick rejected: ${(e as Error).message}`)), intervalMs).unref?.();
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let stopped = false;
+  const schedule = () => {
+    if (stopped) return;
+    timer = setTimeout(() => void tick().catch((e) => log(`tick rejected: ${(e as Error).message}`)), intervalMs);
+    timer.unref?.();
+  };
 
   async function tick(): Promise<void> {
     try {
@@ -525,6 +616,15 @@ export function startUpdater(): void {
   }
 
   schedule();
+
+  return {
+    stop: () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      timer = null;
+      updaterEnabled = false;
+    },
+  };
 }
 
 function short(sha: string | null): string {

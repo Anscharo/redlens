@@ -1,13 +1,34 @@
 // atlasQuery integration-ish tests over an in-memory index built with
 // buildIndexes (no DB, no live artifacts) — mirrors entity-resolve.test.ts's
 // fixture style. Every case here deliberately avoids the DB-touching paths
-// (history filters need Postgres; the semantic search leg needs
-// config.openrouterApiKey, which is unset in this test env and short-circuits
-// runSemantic to []), so atlasQuery only exercises pure in-memory logic.
+// (history filters need Postgres) and the semantic search leg.
+//
+// The semantic leg is FORCED off below rather than assumed off. It short-
+// circuits to [] only when `config.openrouterApiKey` is falsy, and that used to
+// be left to ambient env — but bun auto-loads `.env.local`, so any developer
+// with a real OPENROUTER_API_KEY exported turned every `q:` case here into a
+// live embedding request, and on a network hiccup embed.ts retries 4× with
+// 1s/2s/4s/8s of real sleep (~15s per call). beforeAll/afterAll pin the key to
+// "" and put it back, so the file behaves identically with or without a key.
+//
+// config.databaseUrl is deliberately NOT stubbed: no case here reaches a `sql`
+// call site, and db.ts constructs its client once at import time, so mutating
+// the config afterwards would be theatre rather than a guard. The real DB call
+// sites are covered in zz-db-integration.test.ts, which mocks the module.
 // Run under `bun test`.
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import { buildIndexes, type AtlasNode, type Entity, type Edge } from "./indexes.ts";
 import { atlasQuery } from "./query.ts";
+import { config } from "../config.ts";
+
+let prevKey: string;
+beforeAll(() => {
+  prevKey = config.openrouterApiKey;
+  config.openrouterApiKey = "";
+});
+afterAll(() => {
+  config.openrouterApiKey = prevKey;
+});
 
 function node(over: Partial<AtlasNode> = {}): AtlasNode {
   return {
@@ -63,6 +84,9 @@ function buildFixture() {
   const keeperDoc = node({ id: "keeper-doc", doc_no: "A.2", title: "Keeper Network Data Report", type: "Core", depth: 2, parentId: "root", order: 2, content: "Keeper Network reports usage data. Status: Inactive." });
   const primitiveDoc = node({ id: "prim-1", doc_no: "A.3", title: "Some Primitive", type: "Primitive Instance", depth: 2, parentId: "root", order: 3, content: "a primitive instance" });
   const childOfSpark = node({ id: "spark-child", doc_no: "A.1.1", title: "Spark Child", type: "Core", depth: 3, parentId: "spark-doc", order: 1, content: "child content" });
+  // Empty, childless doc — buildLivenessMap's childless-empty-stub rule tags
+  // it "placeholder" with no extra fixture machinery.
+  const emptyStub = node({ id: "empty-stub", doc_no: "A.4", title: "Empty Stub", type: "Core", depth: 2, parentId: "root", order: 4, content: "" });
 
   const spark = entity({ id: "spark-ent", slug: "spark", name: "Spark", entity_type: "ecosystem_actor" });
   const keeper = entity({ id: "keeper-ent", slug: "keeper-network", name: "Keeper Network", entity_type: "ecosystem_actor" });
@@ -76,10 +100,10 @@ function buildFixture() {
     edge({ from_id: "spark-doc", from_type: "doc", to_id: "keeper-ent", to_type: "entity", edge_type: "cites_entity" }),
   ];
 
-  const docs = [root, sparkDoc, keeperDoc, primitiveDoc, childOfSpark];
+  const docs = [root, sparkDoc, keeperDoc, primitiveDoc, childOfSpark, emptyStub];
   const entities = [spark, keeper];
   const ix = buildIndexes(docs, entities, edges, { atlasCommit: "test" });
-  return { ix, root, sparkDoc, keeperDoc, primitiveDoc, childOfSpark, spark, keeper };
+  return { ix, root, sparkDoc, keeperDoc, primitiveDoc, childOfSpark, emptyStub, spark, keeper };
 }
 
 describe("atlasQuery — validation", () => {
@@ -160,7 +184,7 @@ describe("atlasQuery — entity_narrow", () => {
 });
 
 describe("atlasQuery — search / hybrid_graph", () => {
-  it("plain q performs lexical search (semantic leg is off — no OPENROUTER_API_KEY)", async () => {
+  it("plain q performs lexical search (semantic leg forced off — see the file header)", async () => {
     const { ix } = buildFixture();
     const res = await atlasQuery(ix, { q: "savings rate", k: 10, enrich: false });
     expect(res.mode).toBe("search");
@@ -246,5 +270,22 @@ describe("atlasQuery — ancestor_id filter", () => {
     const { ix } = buildFixture();
     const res = await atlasQuery(ix, { target_type: "Primitive Instance", ancestor_id: "does-not-exist", k: 10, enrich: false });
     expect((res.results as { id: string }[]).map((r) => r.id)).toEqual(["prim-1"]);
+  });
+});
+
+describe("atlasQuery — liveness tagging (docs/research/synlang-wiki.md §3.2)", () => {
+  it("tags a liveness-flagged doc row and adds the envelope-level hint", async () => {
+    const { ix } = buildFixture();
+    const res = await atlasQuery(ix, { target_type: "Core", k: 10, enrich: false });
+    const rows = res.results as Array<{ id: string; liveness?: string }>;
+    expect(rows.find((r) => r.id === "empty-stub")?.liveness).toBe("placeholder");
+    expect(rows.find((r) => r.id === "spark-doc")?.liveness).toBeUndefined();
+    expect(res.liveness_hint).toContain("liveness:placeholder");
+  });
+
+  it("omits the hint entirely when no result row is flagged", async () => {
+    const { ix } = buildFixture();
+    const res = await atlasQuery(ix, { target_type: "Primitive Instance", k: 10, enrich: false });
+    expect(res.liveness_hint).toBeUndefined();
   });
 });

@@ -1,7 +1,7 @@
 // Graph-traversal and structural-filter tools that run entirely in-memory.
 // No DB access — all data comes from the Indexes (docs, entities, edges).
 import { type Indexes, resolveNode, descendantIds, type AtlasNode, type Entity } from "../../retrieval/indexes.ts";
-import { type ToolResult } from "./tools.ts";
+import { type ToolResult, livenessOf, withLivenessHint } from "./tools.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { matchEntities, resolveEntity } from "../../retrieval/entity-resolve.ts";
 import { entityAddresses } from "./tools-entity-addresses.ts";
@@ -65,12 +65,17 @@ export function atlasNeighbors(ix: Indexes, id: string, window: number): ToolRes
     .slice(0, window * 2);
   const children = (ix.childrenIndex.get(target.id) ?? []).slice(0, window);
 
-  return {
-    target: docRow(target),
-    parent: parent ? docRow(parent) : null,
-    siblings: siblings.map(docRow),
-    children: children.map(docRow),
-  };
+  // The target carries its own liveness tag too — it's the one node the call is
+  // about, so a scaffold there is the most load-bearing signal in the envelope
+  // (an untagged target read as settled is exactly the overclaim liveness
+  // exists to prevent).
+  const targetRow = { ...docRow(target), ...livenessOf(ix, target.id) };
+  const parentRow = parent ? { ...docRow(parent), ...livenessOf(ix, parent.id) } : null;
+  const siblingRows = siblings.map((s) => ({ ...docRow(s), ...livenessOf(ix, s.id) }));
+  const childRows = children.map((c) => ({ ...docRow(c), ...livenessOf(ix, c.id) }));
+
+  const envelope = { target: targetRow, parent: parentRow, siblings: siblingRows, children: childRows };
+  return withLivenessHint(envelope, [targetRow, ...(parentRow ? [parentRow] : []), ...siblingRows, ...childRows]);
 }
 
 // ── atlas_traverse ─────────────────────────────────────────────────────────
@@ -201,7 +206,10 @@ export function atlasEntity(
 
   const filtered = type ? collect.filter((n) => n.type === type) : collect;
   const page = filtered.slice(offset, offset + limit);
-  const rows = page.map((n) => (include_content ? { ...docRow(n), content: n.content } : docRow(n)));
+  const rows = page.map((n) => ({
+    ...(include_content ? { ...docRow(n), content: n.content } : docRow(n)),
+    ...livenessOf(ix, n.id),
+  }));
   const { kept: nodes, truncated } = fitToBudget(rows);
 
   const responsibilities = ix.edges
@@ -226,7 +234,7 @@ export function atlasEntity(
     })
     .filter(Boolean);
 
-  return {
+  const envelope = {
     entity: name,
     resolved: { slug: entity.slug, name: entity.name, entity_type: entity.entity_type, subtype: entity.subtype },
     alternatives,
@@ -244,6 +252,7 @@ export function atlasEntity(
     responsibilities,
     activeData,
   };
+  return withLivenessHint(envelope, nodes);
 }
 
 // ── atlas_entities (discovery / resolution) ──────────────────────────────────
@@ -383,7 +392,7 @@ export function atlasFilter(
     if (patternRe && !patternRe.test(n.doc_no)) continue;
     if (depth_min != null && n.depth < depth_min) continue;
     if (depth_max != null && n.depth > depth_max) continue;
-    const row: Record<string, unknown> = docRow(n);
+    const row: Record<string, unknown> = { ...docRow(n), ...livenessOf(ix, n.id) };
     row.parent_id = n.parentId;
     if (include_content) row.content = n.content;
     results.push(row);
@@ -391,7 +400,8 @@ export function atlasFilter(
   }
   results.sort((a, b) => String(a.doc_no).localeCompare(String(b.doc_no)));
   const { kept, truncated } = fitToBudget(results);
-  return { count: kept.length, ...(truncated ? { total: results.length, truncated: true, hint: TRUNCATION_HINT } : {}), results: kept };
+  const envelope = { count: kept.length, ...(truncated ? { total: results.length, truncated: true, hint: TRUNCATION_HINT } : {}), results: kept };
+  return withLivenessHint(envelope, kept);
 }
 
 // ── atlas_entity_params ────────────────────────────────────────────────────

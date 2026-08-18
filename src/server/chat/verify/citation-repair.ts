@@ -10,14 +10,14 @@
 // as the authority — before the deterministic checks, which validate the
 // repaired answer; stripped links are folded back in as hard failures by the
 // orchestrator.
-import { UUID_RE } from "../../../lib/patterns.ts";
+import { DOC_NO_CORE, UUID_RE } from "../../../lib/patterns.ts";
 import { normalizeForMatch } from "./verify-checks.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 
 // Link text often leads with a doc_no ("A.1.6 - Title") — a real one
 // identifies the doc directly; either way it's stripped before title
-// matching. Same DOC_NO_CORE shape as verify-checks.
-const DOC_NO_LEAD = /^((?:[A-Z]{1,3}(?:\.\d+)+(?:\.var\d+)?|NR-\d+))(?:\s*[-–—:]\s*|\s*$)/;
+// matching. Built from the shared DOC_NO_CORE (src/lib/patterns.ts).
+const DOC_NO_LEAD = new RegExp(String.raw`^(` + DOC_NO_CORE + String.raw`)(?:\s*[-–—:]\s*|\s*$)`);
 
 export interface CitationRepair {
   content: string;

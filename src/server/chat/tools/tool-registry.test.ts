@@ -122,6 +122,7 @@ const ARGS: Record<string, Record<string, unknown>> = {
   atlas_entity: { name: "ent" },
   atlas_filter: { type: "Core" },
   atlas_entity_params: { id: "D1" },
+  atlas_params: { q: "governance duties" },
   atlas_history: { id: "D1", with_diff: true },
   atlas_recent_changes: {},
   atlas_history_stats: { include_top_docs: true, include_prs: true, group_by: ["doc_type"] },

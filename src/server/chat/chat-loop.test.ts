@@ -59,9 +59,36 @@ test("plain answer: streams tokens, no tools, terminal done carries usage + gen 
   if (done.type === "done") {
     expect(done.content).toBe("Hello world");
     expect(done.usage).toEqual({ input: 120, output: 8 });
+    expect(done.contextTokens).toBe(120);
     expect(done.generationId).toBe("gen-abc");
     expect(done.toolCalls).toHaveLength(0);
   }
+});
+
+test("contextTokens is the LAST round's prompt_tokens, not the cumulative usage.input", async () => {
+  // Three rounds, each emitting its own usage chunk. usage.input accumulates
+  // (per include_usage semantics — one request per round); contextTokens must
+  // instead reflect only the round that produced the shipped answer.
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls"), usageChunk(500, 20)],
+    [toolChunk("atlas_describe", '{"sections":["all"]}'), finishChunk("tool_calls"), usageChunk(1_200, 15)],
+    [textChunk("Final answer."), finishChunk("stop"), usageChunk(1_900, 10)],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 4 }));
+  const done = events.at(-1)!;
+  expect(done.type).toBe("done");
+  if (done.type === "done") {
+    expect(done.usage).toEqual({ input: 500 + 1_200 + 1_900, output: 20 + 15 + 10 });
+    expect(done.contextTokens).toBe(1_900); // last round only, not the sum
+  }
+});
+
+test("contextTokens is null when no usage chunk was ever seen", async () => {
+  const rounds = [[textChunk("No usage reported."), finishChunk("stop")]];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []) }));
+  const done = events.at(-1)!;
+  expect(done.type).toBe("done");
+  expect(done.type === "done" && done.contextTokens).toBeNull();
 });
 
 test("tool round: leaked pre-tool content triggers clear, then executes + answers", async () => {
@@ -136,14 +163,16 @@ test("final turn injects the answer-now instruction, only on the forced-text rou
   expect(hasInstruction(captured[1])).toBe(true);
 });
 
-test("maxIterations=1 forces tool_choice:none on the only call", async () => {
+test("maxIterations=1 forces tool_choice:none; a defiant empty round gets one compose attempt", async () => {
   const captured: Captured[] = [];
-  // Even if the model WANTS a tool, max=1 means the single call is forced to text.
+  // Even if the model WANTS a tool, max=1 means the single call is forced to
+  // text. Its defiant tool_calls leave content empty, so the compose guard
+  // buys exactly one more no-tools request.
   const rounds = [[toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")]];
   const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 1 }));
 
-  expect(captured).toHaveLength(1);
-  expect(captured[0].toolChoice).toBe("none");
+  expect(captured).toHaveLength(2);
+  expect(captured.every((c) => c.toolChoice === "none")).toBe(true);
   // No tool executed; terminal done emitted.
   expect(events.some((e) => e.type === "tool_call")).toBe(false);
   expect(events.at(-1)!.type).toBe("done");
@@ -393,4 +422,106 @@ test("aborted signal short-circuits to a terminal done", async () => {
   expect(events).toHaveLength(1);
   expect(events[0].type).toBe("done");
   expect(events[0].type === "done" && events[0].content).toBe("");
+});
+
+test("compose guard: empty forced-text round buys one no-tools compose attempt", async () => {
+  const captured: Captured[] = [];
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    // Forced-text final round: model defiantly emits tool calls anyway →
+    // content stays empty (the exact 2026-08-06 A/B empty-answer shape).
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    [textChunk("Composed answer."), finishChunk("stop"), usageChunk(80, 12)],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 2 }));
+
+  expect(captured).toHaveLength(3); // 1 tool round + forced-text + compose
+  expect(captured[1].toolChoice).toBe("none");
+  expect(captured[2].toolChoice).toBe("none");
+  const steer = captured[2].messages?.at(-1);
+  expect(steer?.role).toBe("system");
+  expect(String(steer?.content)).toContain("research budget is exhausted");
+
+  const done = events.at(-1)!;
+  expect(done.type).toBe("done");
+  if (done.type === "done") {
+    expect(done.content).toBe("Composed answer.");
+    expect(done.usage.output).toBe(12); // compose usage accumulated
+    // forcedTextAttempt (the compose guard's no-tools round) must update
+    // contextTokens too — its prompt IS the current context.
+    expect(done.contextTokens).toBe(80);
+    expect(done.transcript.at(-1)).toEqual({ role: "assistant", content: "Composed answer." });
+    // The steer must NOT land in the transcript (transient, like FINAL_TURN_INSTRUCTION).
+    expect(done.transcript.some((m) => m.role === "system" && String(m.content).includes("research budget"))).toBe(false);
+  }
+});
+
+test("compose guard: a second empty response ships as-is — exactly one extra attempt", async () => {
+  const captured: Captured[] = [];
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    [finishChunk("stop")], // forced-text round: empty
+    [finishChunk("stop")], // compose attempt: also empty
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 2 }));
+
+  expect(captured).toHaveLength(3); // no retry loop beyond the single compose
+  const done = events.at(-1)!;
+  expect(done.type === "done" && done.content).toBe("");
+});
+
+test("repetition handbrake: clears a character loop and rewrites once", async () => {
+  const captured: Captured[] = [];
+  const loop = "a".repeat(120);
+  const rounds = [
+    [textChunk(loop), finishChunk("stop")],
+    [textChunk("Clean answer about the atlas."), finishChunk("stop"), usageChunk(50, 8)],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured) }));
+
+  expect(captured).toHaveLength(2);
+  const steer = captured[1].messages?.at(-1);
+  expect(steer?.role).toBe("system");
+  expect(String(steer?.content)).toContain("repetitive nonsense");
+  expect(captured[1].toolChoice).toBe("none");
+
+  // Degenerate tokens must not reach the client: the tipping chunk is withheld,
+  // and a clear is emitted before the rewrite tokens.
+  expect(events.some((e) => e.type === "token" && e.text.includes("aaa"))).toBe(false);
+  const clearIdx = events.findIndex((e) => e.type === "clear");
+  const tokenIdx = events.findIndex((e) => e.type === "token");
+  expect(clearIdx).toBeGreaterThanOrEqual(0);
+  expect(tokenIdx).toBeGreaterThan(clearIdx);
+
+  const done = events.at(-1)!;
+  expect(done.type === "done" && done.content).toBe("Clean answer about the atlas.");
+  // Bad draft never lands in the transcript.
+  expect(done.type === "done" && done.transcript.some((m) => typeof m.content === "string" && m.content.includes("aaa"))).toBe(false);
+});
+
+test("repetition handbrake: phrase loop ('the same as') clears and rewrites", async () => {
+  const captured: Captured[] = [];
+  const rounds = [
+    [textChunk("L'atlas is " + "the same as ".repeat(14)), finishChunk("stop")],
+    [textChunk("Rewritten."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured) }));
+
+  expect(captured).toHaveLength(2);
+  expect(events.some((e) => e.type === "clear")).toBe(true);
+  expect(events.at(-1)).toMatchObject({ type: "done", content: "Rewritten." });
+});
+
+test("repetition handbrake: a second degeneration ships empty — no retry loop", async () => {
+  const captured: Captured[] = [];
+  const loop = "same as the ".repeat(14);
+  const rounds = [
+    [textChunk(loop), finishChunk("stop")],
+    [textChunk(loop), finishChunk("stop")], // rewrite also loops
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured) }));
+
+  expect(captured).toHaveLength(2); // exactly one rewrite
+  expect(events.filter((e) => e.type === "clear").length).toBe(2);
+  expect(events.at(-1)).toMatchObject({ type: "done", content: "" });
 });

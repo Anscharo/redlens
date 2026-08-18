@@ -15,6 +15,11 @@ import type { AtlasNode } from "../types";
 // within this file uses them directly.
 export const SCOPE_A1_UUID = "18ac7dd3-c646-4352-9b0d-d01a2932d7d1"; // A.1 "The Governance Scope"
 export const SCOPE_A2_UUID = "1ce14bd8-c7b3-4f74-a152-292a8d8ebed0"; // A.2 "The Support Scope"
+// A.6 "The Agent Scope" — the anchor for anything that has to reason about
+// agent artifacts (they nest a level deeper than the other scopes). Lives here
+// beside its siblings, and DOM-free, so both the frontend and the server can
+// import it.
+export const AGENT_SCOPE_UUID = "4a08ca6c-e652-49e4-9b79-4831b20e600a";
 
 // Curated taxonomy seed — group → article/scope root UUIDs (see docs/atlas-map.md §2).
 // This is the embryo of the P1 chunk registry. Exported for the server's
@@ -39,7 +44,7 @@ export const GROUPS: GroupSpec[] = [
   { name: "Financial machinery", roots: ["d56538fc-2220-491a-a4d2-7ad6e461d707" /* A.3 */] },
   { name: "Protocol machinery", roots: ["5c20d9af-0bb9-4ca1-a944-1e2cb6f8bb6b" /* A.4 */] },
   { name: "Accessibility", roots: ["99b1b47d-3c7a-4859-ac00-8c0849f9070e" /* A.5 */] },
-  { name: "Agent artifacts", roots: ["4a08ca6c-e652-49e4-9b79-4831b20e600a" /* A.6 */] },
+  { name: "Agent artifacts", roots: [AGENT_SCOPE_UUID /* A.6 */] },
 ];
 
 // Types live here (not in crossview.ts) so the server can import this module

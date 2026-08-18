@@ -8,10 +8,12 @@ export const ROUTES = {
   PROVENANCE: "/provenance",
   PRIVACY: "/privacy",
   UPDATES: "/updates",
+  FEATURES: "/features",
   CONNECT: "/connect",
   COLLECTIONS: "/collections",
   SHARED_COLLECTION: "/c/:id",
   CONVERSATIONS: "/conversations",
+  HISTORY: "/me/history",
   REPORTS: "/reports",
   REPORTS_CROSSVIEW: "/reports/crossview",
   REPORTS_CROSSVIEW_CONCEPTS: "/reports/crossview/concepts",
@@ -38,6 +40,31 @@ export const NAV_PAGE_ROUTES: Record<NavPage, string> = {
   radar: ROUTES.RADAR,
   reports: ROUTES.REPORTS,
 };
+
+// Which top-nav section (if any) a location belongs to, for highlighting the
+// active nav item and picking the search scope. Prefix-matched since e.g.
+// every /reports/* sub-route counts as "reports".
+export function activeNavPageFor(location: string): NavPage | null {
+  if (location.startsWith(ROUTES.CONSTELLATIONS)) return "constellations";
+  if (location.startsWith(ROUTES.REPORTS)) return "reports";
+  if (location.startsWith(ROUTES.RADAR)) return "radar";
+  if (location.startsWith(ROUTES.ATLAS)) return "atlas";
+  return null;
+}
+
+// Window-scroll mode: routes that don't need the "fixed shell, inner scroll"
+// layout opt in here. The root grows with content (min-h-dvh) and the
+// overflow-hidden wrappers are dropped, so the browser's native
+// history.scrollRestoration handles back/forward for free.
+export function usesWindowScroll(location: string): boolean {
+  return (
+    location.startsWith(ROUTES.REPORTS) ||
+    location.startsWith(ROUTES.RADAR) ||
+    location === ROUTES.COLLECTIONS ||
+    location === ROUTES.CONVERSATIONS ||
+    location === ROUTES.HISTORY
+  );
+}
 
 export type SearchScope = "atlas" | "constellations" | "radar" | "reports";
 
@@ -71,10 +98,10 @@ export const REPORT_SCOPE_CONFIG: Partial<Record<string, ScopeConfig>> = {
 };
 
 // Reports whose data is also exposed to the chat agent as a one-call
-// `atlas_report_*` tool. Keyed by report route → tool name. Only these reports
-// get the "I'm viewing this report and can pull/query it" chat treatment; the
-// reports absent here (processes, stale-dates, oea-assessment, risk-rules) have
-// no backing chat tool, so the chat stays in its generic atlas mode there.
+// `atlas_report_*` tool. Keyed by report route → tool name. Every report in
+// REPORT_TITLES is name-aware in chat (launcher + system prompt); only these
+// get the stronger "pull/query this report in one call" treatment. Add a tool
+// here when analytics show a report page is used enough to justify one.
 // The tool names are validated server-side (src/server/chat/system-prompt.ts)
 // against the live tool registry before they ever reach the model.
 export const REPORT_CHAT_TOOLS: Partial<Record<string, string>> = {
@@ -84,8 +111,16 @@ export const REPORT_CHAT_TOOLS: Partial<Record<string, string>> = {
   [ROUTES.REPORTS_REWARDS]: "atlas_report_rewards",
 };
 
+// Top-level pages that carry a constant title, for the same consumers as
+// REPORT_TITLES below. Keyed by route. /radar/<slug> is deliberately absent —
+// its title is the actor's name, which only the page itself knows.
+export const PAGE_TITLES: Record<string, string> = {
+  [ROUTES.RADAR]: "Radar",
+  [ROUTES.CONSTELLATIONS]: "Constellations",
+};
+
 // Canonical report id → display title. Single source of truth shared by the
-// reports index (ReportsIndex) and visit-history capture (useReportVisitTracking).
+// reports index (ReportsIndex) and visit-history capture (usePageVisitTracking).
 // Keyed by report id (the /reports/<id> slug); the rubric sub-page is deliberately
 // absent (it's prose, not a listed report).
 export const REPORT_TITLES: Record<string, string> = {

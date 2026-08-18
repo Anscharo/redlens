@@ -70,7 +70,10 @@ export const CATEGORY_LABELS: Record<OGResponsibility["category"], string> = {
 
 // Stable Preamble definitions of the GovOps role, keyed by UUID (doc_nos in
 // ./data/govops-definition-docs.json are for human reference only — not stable).
-const DEFINITION_UUIDS = definitionDocs.map((d) => d.uuid);
+// Keep in sync with DEFINITION_UUIDS in scripts/required/check-govops-census.mjs.
+// Enforced by scripts_tests/govops-uuid-sync.test.ts (edit both together — that
+// test fails otherwise).
+export const DEFINITION_UUIDS = definitionDocs.map((d) => d.uuid);
 
 const CORE_ROLE_RE = /\bCore\s*GovOps\b/i;
 const ANY_GOVOPS_RE = /gov[\s-]*ops/i;

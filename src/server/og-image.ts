@@ -35,6 +35,47 @@ export type CardSpec =
   | { kind: "connect" }
   | { kind: "preview"; label: string };
 
+// The subset of CardSpec reachable through the /api/og.png?kind=… query
+// string. `doc` is out-of-band — it's served by /api/og/<id>.png (a resolved
+// lookup, not a query param) — so it's excluded here rather than left for
+// cardToQuery to reject at runtime.
+//
+// cardToQuery/cardFromQuery are a paired contract: og.ts builds every
+// og:image URL by calling cardToQuery() on a CardSpec object literal, so a
+// typo'd kind string is now a compile error there, not a silently-wrong URL.
+// cardFromQuery is the HTTP-boundary decoder for /api/og.png — an external,
+// possibly malformed request still degrades to the default card there; that
+// degradation is correct for the boundary, it's the internal string-building
+// that's been made impossible to typo.
+export type QueryCardSpec = Exclude<CardSpec, { kind: "doc" }>;
+
+// Encode a QueryCardSpec as the /api/og.png query string (always leads with
+// `kind`, matching the shape cardFromQuery expects).
+export function cardToQuery(spec: QueryCardSpec): string {
+  switch (spec.kind) {
+    case "radar":
+      return "kind=radar";
+    case "radarActor":
+      return `kind=radar-actor&name=${encodeURIComponent(spec.agent)}`;
+    case "reports":
+      return "kind=reports";
+    case "report":
+      return `kind=report&name=${encodeURIComponent(spec.name)}`;
+    case "connect":
+      return "kind=connect";
+    case "preview":
+      return `kind=preview&label=${encodeURIComponent(spec.label)}`;
+    case "default":
+      return "kind=default";
+    default: {
+      // Exhaustiveness guard: a new QueryCardSpec variant with no case above
+      // is a compile error here, not a silent default-card degradation.
+      const _exhaustive: never = spec;
+      return _exhaustive;
+    }
+  }
+}
+
 // Fonts resolved relative to this module (not cwd) so the path holds wherever
 // the server is launched from. Loaded once, lazily, on first render.
 let fonts: { name: string; data: Buffer; weight: 400 | 600 | 700; style: "normal" }[] | null = null;
@@ -178,9 +219,11 @@ function cardNode(spec: CardSpec) {
   };
 }
 
-// Parse the /api/og.png query into a CardSpec (doc is served by /api/og/<id>.png,
-// not this route). Unknown/missing kind → the default wordmark card.
-export function cardFromQuery(params: URLSearchParams): CardSpec {
+// Parse the /api/og.png query into a QueryCardSpec (doc is served by
+// /api/og/<id>.png, not this route — see QueryCardSpec above). Unknown/missing
+// kind → the default wordmark card; this is the HTTP boundary, so a malformed
+// external request degrading gracefully is correct here.
+export function cardFromQuery(params: URLSearchParams): QueryCardSpec {
   switch (params.get("kind")) {
     case "radar":
       return { kind: "radar" };
@@ -231,6 +274,13 @@ async function cached(key: string, render: () => Promise<Buffer | null>): Promis
     cache.set(key, png);
   }
   return png;
+}
+
+// Test seam: the cache is module-level, so tests that assert on memoization
+// (identical Buffer instance in, identical instance out) would otherwise depend
+// on whatever earlier tests left behind. Never called by the server.
+export function __resetOgCache(): void {
+  cache.clear();
 }
 
 // Doc card key = UUID prefix + doc number + title (+ preview label), so a doc

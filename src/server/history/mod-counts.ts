@@ -9,6 +9,7 @@
 // title-only renames (content rows with no diff and no change_kind) are
 // excluded.
 import { sql } from "../db.ts";
+import { json } from "../http.ts";
 import { toIsoDate } from "./history.ts";
 import { COUNTED_CONTENT_EDIT as COUNTED } from "./history-db.ts";
 
@@ -41,6 +42,7 @@ export async function handleModCounts(): Promise<Response> {
       { headers: { "Cache-Control": "public, max-age=300" } },
     );
   } catch {
-    return new Response(null, { status: 503 });
+    // Same status as before, now with the shared `{ error }` envelope (http.ts).
+    return json({ error: "unavailable" }, 503);
   }
 }

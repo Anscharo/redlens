@@ -23,17 +23,9 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: oven-sh/setup-bun@v2
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          bun: "true"
 
       - name: Build atlas artifacts
         run: pnpm build:index && pnpm build:glossary && pnpm build:graph
@@ -50,7 +42,7 @@ jobs:
       # the baseline; the changed-line gate is meaningless here (HEAD == origin/main)
       # and must never fail the baseline producer.
       - name: Compute coverage baseline
-        run: node scripts/required/coverage-areas.mjs
+        run: node scripts/aux/coverage-areas.mjs
         env:
           COVERAGE_AREAS_JSON: base-coverage-areas.json
           COVERAGE_CHANGED_MIN: "0"

@@ -22,6 +22,13 @@ const ICD_TITLE_RE = /^(.+?)\s+Instance Configuration Document$/i;
 // match this prefix, so they pass through unchanged.
 const EXEC_PREFIX_RE = /^Operational Executor Agent\s+/i;
 
+/** An agent artifact's display name: the title minus the redundant "Operational
+ *  Executor Agent " prefix. Shared so every surface naming an agent (search
+ *  gutter labels, the /me/history tree headings) says the same short name. */
+export function agentShortName(title: string): string {
+  return title.replace(EXEC_PREFIX_RE, "").trim();
+}
+
 // Self + ancestors, reconstructed from doc_no prefixes rather than parentId.
 // The heading-depth cap (6) makes parentId unreliable for deep nodes, but ICDs
 // nest far deeper than that (e.g. A.6.1.1.3.2.5.2.3.1), so prefix lookup via
@@ -37,7 +44,7 @@ export function computeLabels(doc: AtlasNode, byDocNo: Map<string, AtlasNode>): 
   const labels: HitLabel[] = [];
   const agent = chain.find((n) => AGENT_DOCNO_RE.test(n.doc_no));
   if (agent) {
-    labels.push({ kind: "agent", text: agent.title.replace(EXEC_PREFIX_RE, "").trim() });
+    labels.push({ kind: "agent", text: agentShortName(agent.title) });
   } else {
     const scope = chain.find((n) => SCOPE_DOCNO_RE.test(n.doc_no));
     if (scope) labels.push({ kind: "scope", text: scope.title });

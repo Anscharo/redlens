@@ -3,11 +3,14 @@ import { beforeEach, describe, expect, it } from "vitest";
 import * as idb from "./idb";
 import {
   canonicalPath,
+  docIdFromPath,
   kindForPath,
+  normalizeParams,
+  visitHref,
   summarize,
   recordVisit,
+  updateVisitParams,
   getEvents,
-  topVisited,
   clearHistory,
   type VisitEvent,
 } from "./visitHistory";
@@ -38,6 +41,19 @@ describe("canonicalPath", () => {
   });
 });
 
+describe("docIdFromPath", () => {
+  it("reads the node id back out of a reader path", () => {
+    expect(docIdFromPath(canonicalPath("/atlas?id=abc"))).toBe("abc");
+    expect(docIdFromPath("/preview/7/atlas?id=abc")).toBe("abc"); // survives the router base
+  });
+
+  it("returns null for anything that isn't a reader path", () => {
+    expect(docIdFromPath("/reports/rewards")).toBeNull();
+    expect(docIdFromPath("/atlas")).toBeNull();
+    expect(docIdFromPath("/?q=vat")).toBeNull();
+  });
+});
+
 describe("kindForPath", () => {
   it("derives the product surface from the path", () => {
     expect(kindForPath("/atlas?id=abc")).toBe("reader");
@@ -50,6 +66,33 @@ describe("kindForPath", () => {
     expect(kindForPath("/preview/42/atlas?id=abc")).toBe("preview");
     expect(kindForPath("/preview/42/?q=foo")).toBe("preview"); // preview beats search
     expect(kindForPath("/preview/42/reports/stale-dates")).toBe("preview");
+  });
+});
+
+describe("normalizeParams", () => {
+  it("sorts and drops empty values so equal filter sets compare equal", () => {
+    expect(normalizeParams("q=usds&cat=spark")).toBe("cat=spark&q=usds");
+    expect(normalizeParams("cat=spark&q=usds")).toBe("cat=spark&q=usds");
+    expect(normalizeParams("cat=&q=usds")).toBe("q=usds");
+    expect(normalizeParams("")).toBe("");
+  });
+
+  it("accepts a URLSearchParams and percent-encodes values", () => {
+    expect(normalizeParams(new URLSearchParams({ q: "a & b" }))).toBe("q=a%20%26%20b");
+  });
+
+  it("drops an over-long value rather than storing it", () => {
+    const long = "x".repeat(200);
+    expect(normalizeParams(`expanded=${long}&cat=spark`)).toBe("cat=spark");
+  });
+});
+
+describe("visitHref", () => {
+  it("re-attaches the filters to the stored path", () => {
+    expect(visitHref({ path: "/reports/rewards", params: "cat=spark" })).toBe("/reports/rewards?cat=spark");
+    expect(visitHref({ path: "/reports/rewards" })).toBe("/reports/rewards");
+    // The reader path already carries its identity query.
+    expect(visitHref({ path: "/atlas?id=a", params: "view=history" })).toBe("/atlas?id=a&view=history");
   });
 });
 
@@ -67,6 +110,17 @@ describe("summarize", () => {
     expect(alpha.last).toBe(30);
     expect(alpha.kind).toBe("reader");
     expect(rows).toHaveLength(2);
+  });
+
+  it("groups a page under one path however its filters were set, keeping the newest", () => {
+    const rows = summarize([
+      { path: "/reports/rewards", label: "Rewards", at: 10, params: "cat=a" },
+      { path: "/reports/rewards", label: "Rewards", at: 30, params: "cat=b" },
+      { path: "/reports/rewards", label: "Rewards", at: 20 },
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].count).toBe(3);
+    expect(rows[0].params).toBe("cat=b"); // filters from the most recent visit
   });
 });
 
@@ -86,6 +140,21 @@ describe("recordVisit", () => {
     expect(await getEvents()).toHaveLength(1);
   });
 
+  it("stores the filters set on the page", async () => {
+    await recordVisit({ path: "/reports/rewards", label: "Rewards", params: "q=usds&cat=spark" });
+    const events = await getEvents();
+    expect(events[0].path).toBe("/reports/rewards");
+    expect(events[0].params).toBe("cat=spark&q=usds");
+  });
+
+  it("records a filter change but still de-dupes an unchanged repeat", async () => {
+    await recordVisit({ path: "/reports/rewards", label: "Rewards", params: "cat=a" });
+    await recordVisit({ path: "/reports/rewards", label: "Rewards", params: "cat=a" });
+    expect(await getEvents()).toHaveLength(1);
+    await recordVisit({ path: "/reports/rewards", label: "Rewards", params: "cat=b" });
+    expect(await getEvents()).toHaveLength(2);
+  });
+
   it("records distinct paths separately", async () => {
     await recordVisit({ path: "/atlas?id=a", label: "Alpha" });
     await recordVisit({ path: "/radar/x", label: "X" });
@@ -101,50 +170,36 @@ describe("recordVisit", () => {
   });
 });
 
-describe("topVisited", () => {
-  // Seed the log directly (bypassing recordVisit's dedupe/clock) to build counts.
-  async function seed() {
-    await idb.add<VisitEvent>({ path: "/atlas?id=a", label: "A", at: 1 });
-    await idb.add<VisitEvent>({ path: "/atlas?id=a", label: "A2", at: 5 });
-    await idb.add<VisitEvent>({ path: "/radar/x", label: "X", at: 3 });
-  }
-
-  it("orders by visit count, tiebreak most-recent, newest label", async () => {
-    await seed();
-    const top = await topVisited();
-    expect(top[0].path).toBe("/atlas?id=a");
-    expect(top[0].count).toBe(2);
-    expect(top[0].label).toBe("A2");
-    expect(top[1].path).toBe("/radar/x");
+describe("updateVisitParams", () => {
+  it("rewrites the filters on the last visit instead of counting another one", async () => {
+    await recordVisit({ path: "/reports/rewards", label: "Rewards" });
+    await updateVisitParams({ path: "/reports/rewards", params: "q=usds" });
+    const events = await getEvents();
+    expect(events).toHaveLength(1); // amended, not appended
+    expect(events[0].params).toBe("q=usds");
+    expect(summarize(events)[0].count).toBe(1); // filtering isn't another view
   });
 
-  it("filters by kind", async () => {
-    await seed();
-    const readers = await topVisited({ kind: "reader" });
-    expect(readers).toHaveLength(1);
-    expect(readers[0].path).toBe("/atlas?id=a");
+  it("finds the row again when the page was visited before this session", async () => {
+    // Seeded directly: no in-memory record of the append (i.e. after a reload).
+    await idb.add<VisitEvent>({ path: "/reports/rewards", label: "Rewards", at: 1 });
+    await idb.add<VisitEvent>({ path: "/reports/rewards", label: "Rewards", at: 9 });
+    await updateVisitParams({ path: "/reports/rewards", params: "cat=spark" });
+    const rows = (await getEvents()).filter((e) => e.path === "/reports/rewards");
+    expect(rows).toHaveLength(2);
+    expect(rows.find((e) => e.at === 9)?.params).toBe("cat=spark"); // the newest one
+    expect(rows.find((e) => e.at === 1)?.params).toBeUndefined();
   });
 
-  it("filters by since and limits with n", async () => {
-    await seed();
-    const recent = await topVisited({ since: 4 });
-    // only at>=4 events: the second /atlas?id=a visit
-    expect(recent).toHaveLength(1);
-    expect(recent[0].path).toBe("/atlas?id=a");
-    expect(recent[0].count).toBe(1);
-    expect(await topVisited({ n: 1 })).toHaveLength(1);
+  it("clears the stored filters when the page is left unfiltered", async () => {
+    await recordVisit({ path: "/reports/rewards", label: "Rewards", params: "q=usds" });
+    await updateVisitParams({ path: "/reports/rewards", params: "" });
+    expect((await getEvents())[0].params).toBeUndefined();
   });
 
-  it("excludes preview visits by default, includes them on request", async () => {
-    await idb.add<VisitEvent>({ path: "/atlas?id=a", label: "A", at: 1 });
-    await idb.add<VisitEvent>({ path: "/preview/42/atlas?id=b", label: "B (preview)", at: 2 });
-
-    const live = await topVisited();
-    expect(live.map((r) => r.path)).toEqual(["/atlas?id=a"]); // preview omitted
-
-    const preview = await topVisited({ kind: "preview" });
-    expect(preview.map((r) => r.path)).toEqual(["/preview/42/atlas?id=b"]);
-    expect(preview[0].kind).toBe("preview");
+  it("no-ops for a path with nothing recorded yet", async () => {
+    await updateVisitParams({ path: "/reports/never-opened", params: "q=x" });
+    expect(await getEvents()).toEqual([]);
   });
 });
 
@@ -173,7 +228,6 @@ describe("resilience", () => {
     try {
       await expect(recordVisit({ path: "/atlas?id=z", label: "Z" })).resolves.toBeUndefined();
       await expect(getEvents()).resolves.toEqual([]);
-      await expect(topVisited()).resolves.toEqual([]);
     } finally {
       globalThis.indexedDB = saved;
       idb.__resetForTests();

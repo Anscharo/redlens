@@ -154,6 +154,11 @@ export function SearchBar({
               aria-autocomplete="list"
               value={query}
               onChange={onChange}
+              // The footer hint changes while focus stays put, as the dropdown
+              // opens and closes under a stationary caret. useContextHints
+              // re-reads this attribute when it changes, so it can just carry
+              // whichever hint is currently true.
+              data-focus-hint={showRecent ? "search-recents" : "search"}
               onFocus={dd.handlers.onFocus}
               // Also open when clicking an already-focused input (no focus event fires then).
               onPointerDown={dd.handlers.onPointerDown}

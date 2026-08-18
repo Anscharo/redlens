@@ -41,15 +41,16 @@ mock.module("../db.ts", () => ({
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
 }));
 
-// NOTE on title.ts: deliberately NOT mocked via mock.module here. bun:test
-// imports every test file's module-level code (running mock.module calls
-// immediately) before running any file's hooks/tests, so a mock.module("./
-// title.ts", ...) registered here would permanently replace the module for
-// the REST OF THE PROCESS — including title.test.ts's own `await
-// import("./title.ts")`, which needs the real thing since title.ts is what
-// IT tests. (Confirmed empirically: mock.restore() does not undo
-// mock.module — that's only for mock.fn()/spyOn — so there is no way to
-// "unmock" it later in this file either.) Instead, titling is controlled via
+// NOTE on title.ts: deliberately NOT mocked via mock.module here. A
+// mock.module("./title.ts", ...) registered here would permanently replace the
+// module for every test file bun loads AFTER this one — potentially including
+// title.test.ts's own `await import("./title.ts")`, which needs the real thing
+// since title.ts is what IT tests. Two things verified empirically on bun
+// 1.3.11: mock.restore() does NOT undo mock.module (that's only for
+// mock.fn()/spyOn), so there is no way to "unmock" it later in this file; and
+// bun does not order test files alphabetically — it walks them in directory
+// order, which differs between checkouts — so "title.test.ts happens to run
+// first here" is luck, not a guarantee. Instead, titling is controlled via
 // config.chatTitleModel: left at "" (see beforeAll below) for every
 // pre-existing test, which makes titleConversation an immediate no-op (its
 // first line is `if (!model) return;`) — zero network calls, so there's
@@ -92,6 +93,7 @@ describe("handleChat", () => {
   let savedJwtSecret: string;
   let savedOpenrouterKey: string;
   let savedTitleModel: string;
+  let savedJudgeModel: string;
 
   afterAll(() => {
     // Restore config mutations so later files don't inherit a truthy
@@ -99,12 +101,14 @@ describe("handleChat", () => {
     config.jwtSecret = savedJwtSecret;
     config.openrouterApiKey = savedOpenrouterKey;
     config.chatTitleModel = savedTitleModel;
+    config.chatSmalltalkJudgeModel = savedJudgeModel;
   });
 
   beforeAll(() => {
     savedJwtSecret = config.jwtSecret;
     savedOpenrouterKey = config.openrouterApiKey;
     savedTitleModel = config.chatTitleModel;
+    savedJudgeModel = config.chatSmalltalkJudgeModel;
     config.jwtSecret ||= "test-jwt-secret";
     config.openrouterApiKey ||= "test-key";
     // Off by default for every pre-existing test (see the file-header note on
@@ -113,6 +117,11 @@ describe("handleChat", () => {
     // against the per-test fetch mock swaps below. The "titling" describe
     // block turns it back on for its own tests.
     config.chatTitleModel = "";
+    // Same reason, judge slot (defaults ON in config): a concurrent
+    // smalltalk-judge call on a marker-free first message would consume one
+    // of a test's scripted SSE rounds. Bypass behavior is covered in
+    // chat-orchestrator.test.ts, not here.
+    config.chatSmalltalkJudgeModel = "";
     setIndexes(loadIndexes());
     // Same shared-dispatcher install llm.test.ts performs — idempotent,
     // whichever file's beforeAll runs first wins the install.
@@ -154,6 +163,181 @@ describe("handleChat", () => {
     return (async () => sseResponse(text)) as unknown as typeof fetch;
   }
 
+  // Chunk-array SSE builder for scripting multi-event rounds (staged-delivery
+  // tests): each entry is one `data:` frame, closed with [DONE].
+  function sseChunksResponse(chunks: unknown[]): Response {
+    const body = chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join("") + "data: [DONE]\n\n";
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(body));
+          controller.close();
+        },
+      }),
+      { status: 200, headers: { "content-type": "text/event-stream" } },
+    );
+  }
+
+  // Each call to fetch returns the NEXT queued round's SSE response (one
+  // round = one HTTP request in chat-loop.ts) — the last round repeats if
+  // fetch is called more times than there are rounds. Lets a test script a
+  // tool round followed by an answer round through the REAL openai client.
+  function multiRoundSse(rounds: unknown[][]): typeof fetch {
+    let i = 0;
+    return (async () => sseChunksResponse(rounds[Math.min(i++, rounds.length - 1)])) as unknown as typeof fetch;
+  }
+
+  describe("delivery mode", () => {
+    async function events(res: Response): Promise<any[]> {
+      const text = await res.text();
+      return text
+        .split("\n\n")
+        .filter((l) => l.startsWith("data: "))
+        .map((l) => JSON.parse(l.slice("data: ".length)));
+    }
+
+    it("meta carries the effective delivery mode, defaulting to streaming", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hi.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "hello" }));
+        const [meta] = await events(res);
+        expect(meta.delivery).toBe("streaming");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("body.delivery overrides the configured default", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hi.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "hello", delivery: "staged" }));
+        const [meta] = await events(res);
+        expect(meta.delivery).toBe("staged");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("staged mode, simple turn (no tools): no tokens, exactly one synthesizing status, finalizing right before done", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hi there.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "hello", delivery: "staged" }));
+        const evs = await events(res);
+        expect(evs.some((e) => e.type === "token")).toBe(false);
+        expect(evs.filter((e) => e.type === "status" && e.stage === "synthesizing")).toHaveLength(1);
+        const doneIdx = evs.findIndex((e) => e.type === "done");
+        expect(evs[doneIdx - 1]).toMatchObject({ type: "status", stage: "finalizing" });
+        expect(evs[doneIdx].content).toBe("Hi there.");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("an invalid body.delivery falls back to the configured default instead of erroring", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hi.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "hello", delivery: "yolo" }));
+        expect(res.status).toBe(200);
+        const [meta] = await events(res);
+        expect(meta.delivery).toBe("streaming"); // config default, unchanged by the bogus value
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("config.chatDeliveryMode supplies the default when body omits delivery", async () => {
+      installHappyHandlers();
+      const prevMode = config.chatDeliveryMode;
+      config.chatDeliveryMode = "staged";
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hi.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "hello" }));
+        const [meta] = await events(res);
+        expect(meta.delivery).toBe("staged");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+        config.chatDeliveryMode = prevMode;
+      }
+    });
+
+    it("streaming mode (default) emits token events end to end with no synthesizing/finalizing statuses", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hello from the atlas.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "What's new?", delivery: "streaming" }));
+        const evs = await events(res);
+        const tokenText = evs.filter((e) => e.type === "token").map((e) => e.text).join("");
+        expect(tokenText).toBe("Hello from the atlas.");
+        expect(evs.some((e) => e.type === "clear")).toBe(false);
+        expect(evs.some((e) => e.type === "status" && (e.stage === "synthesizing" || e.stage === "finalizing"))).toBe(false);
+        expect(evs.find((e) => e.type === "done").content).toBe("Hello from the atlas.");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("staged mode suppresses token+clear, announces one synthesizing status per generation burst, and finalizes right before done", async () => {
+      installHappyHandlers();
+      // Round 1: pre-tool content ("Thinking...", discarded via `clear`) then a
+      // tool call — a real, no-network tool (see chat-orchestrator.test.ts's
+      // use of the same call). Round 2: the final answer, no more tools.
+      const round1 = [
+        { id: "gen-r1", choices: [{ index: 0, delta: { content: "Thinking..." }, finish_reason: null }] },
+        {
+          id: "gen-r1",
+          choices: [
+            {
+              index: 0,
+              delta: { tool_calls: [{ index: 0, id: "call_1", type: "function", function: { name: "atlas_describe", arguments: "{}" } }] },
+              finish_reason: null,
+            },
+          ],
+        },
+        { id: "gen-r1", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
+        { id: "gen-r1", choices: [], usage: { prompt_tokens: 10, completion_tokens: 3, total_tokens: 13 } },
+      ];
+      const round2 = [
+        { id: "gen-r2", choices: [{ index: 0, delta: { content: "Final answer." }, finish_reason: null }] },
+        { id: "gen-r2", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+        { id: "gen-r2", choices: [], usage: { prompt_tokens: 20, completion_tokens: 4, total_tokens: 24 } },
+      ];
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = multiRoundSse([round1, round2]);
+      try {
+        const res = await handleChat(await authedRequest({ message: "Describe the atlas structure using a lookup.", delivery: "staged" }));
+        const evs = await events(res);
+
+        expect(evs.some((e) => e.type === "token")).toBe(false);
+        expect(evs.some((e) => e.type === "clear")).toBe(false);
+
+        const synthIdx = evs.map((e, i) => (e.type === "status" && e.stage === "synthesizing" ? i : -1)).filter((i) => i >= 0);
+        expect(synthIdx).toHaveLength(2); // one per burst: pre-tool noise, then the real answer
+
+        const toolCallIdx = evs.findIndex((e) => e.type === "tool_call");
+        expect(toolCallIdx).toBeGreaterThan(-1);
+        expect(synthIdx[0]).toBeLessThan(toolCallIdx); // burst 1 announced before the tool round
+        expect(synthIdx[1]).toBeGreaterThan(toolCallIdx); // burst 2 announced after it (tool_call reset the burst)
+
+        const doneIdx = evs.findIndex((e) => e.type === "done");
+        expect(doneIdx).toBeGreaterThan(0);
+        expect(evs[doneIdx - 1]).toMatchObject({ type: "status", stage: "finalizing" });
+        expect(evs[doneIdx].content).toBe("Final answer.");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+  });
+
   async function authedRequest(body: unknown): Promise<Request> {
     const cookie = await signSession({ id: "user-1", provider: "github" });
     return new Request("http://x/api/chat", {
@@ -167,10 +351,16 @@ describe("handleChat", () => {
   // history is just the just-inserted user message (plus `priorAssistants`
   // synthetic prior assistant rows, for the turn-count titling tests), rate
   // window has headroom.
-  function installHappyHandlers(opts: { convId?: string; tokens?: number; priorAssistants?: number } = {}) {
+  function installHappyHandlers(
+    opts: { convId?: string; tokens?: number; priorAssistants?: number; userText?: string } = {},
+  ) {
     const convId = opts.convId ?? "conv-1";
     const history = [
-      { role: "user", content: "hi" },
+      // userText lets the titling suite stamp a per-turn marker into the first
+      // user row: buildTitleTranscript carries that row through verbatim, so
+      // the marker reaches the titling request body and a captured call can be
+      // attributed to the exact turn that produced it (see runTurn below).
+      { role: "user", content: opts.userText ?? "hi" },
       ...Array.from({ length: opts.priorAssistants ?? 0 }, () => ({ role: "assistant", content: "prior answer" })),
     ];
     sqlHandlers.push((text) => {
@@ -270,6 +460,9 @@ describe("handleChat", () => {
       const done = events.find((e) => e.type === "done");
       expect(done).toBeDefined();
       expect(done.content).toBe("Hello from the atlas.");
+      // contextTokens survives sanitizeDone onto the wire (sseResponse's fixture
+      // usage chunk carries prompt_tokens: 5) — the pinned wire contract's SSE point.
+      expect(done.contextTokens).toBe(5);
       // Internal harness fields must be stripped off the wire by sanitizeDone.
       expect(done.transcript).toBeUndefined();
       expect(done.checksMeta).toBeUndefined();
@@ -323,21 +516,33 @@ describe("handleChat", () => {
   // OpenAI's non-streaming JSON mode) and answers each appropriately,
   // capturing the titling call's request body for assertions.
   describe("titling", () => {
+    type TitleCall = { model: string; messages: unknown[] };
+
+    // ONE cumulative capture for the whole block, installed for the block's
+    // lifetime rather than swapped per turn. The previous per-turn swap was
+    // the source of a real flake: titling is fire-and-forget, so a turn that
+    // DID fire could have its call land after its own runTurn() returned and
+    // be recorded against the NEXT turn's freshly-installed array — turning
+    // "turn 4 fires" into "turn 5 also fired". Under CPU contention that
+    // reproduced on ~10/12 full-suite runs. Every call now lands in one list
+    // and is attributed by the per-turn marker it carries, so a late arrival
+    // can only ever be credited to the turn that actually produced it.
+    const allTitleCalls: TitleCall[] = [];
+    let prevImpl: typeof fetch | undefined;
+    let turnSeq = 0;
+
     beforeAll(() => {
       config.chatTitleModel = "test/title-model";
-    });
-    afterAll(() => {
-      config.chatTitleModel = "";
-    });
-
-    function titlingFetchImpl(answerText: string, titleCalls: { model: string; messages: unknown[] }[]): typeof fetch {
-      return (async (_url: unknown, init?: RequestInit) => {
-        const parsed = init?.body ? (JSON.parse(init.body as string) as { stream?: boolean; model: string; messages: unknown[] }) : ({} as any);
-        if (parsed.stream) return sseResponse(answerText);
+      prevImpl = g.__llmFetchCurrentImpl;
+      g.__llmFetchCurrentImpl = (async (_url: unknown, init?: RequestInit) => {
+        const parsed = init?.body
+          ? (JSON.parse(init.body as string) as { stream?: boolean; model: string; messages: unknown[] })
+          : ({} as any);
+        if (parsed.stream) return sseResponse("An answer.");
         // Non-streaming JSON-mode call — the titling call (the verifier is
         // the only other JSON-mode caller in chat.ts, and it stays off here
         // since config.chatVerifierModel defaults to "").
-        titleCalls.push(parsed);
+        allTitleCalls.push(parsed);
         return new Response(
           JSON.stringify({
             id: "gen-title-1",
@@ -347,61 +552,88 @@ describe("handleChat", () => {
           { status: 200, headers: { "content-type": "application/json" } },
         );
       }) as unknown as typeof fetch;
+    });
+    afterAll(() => {
+      config.chatTitleModel = "";
+      g.__llmFetchCurrentImpl = prevImpl;
+    });
+
+    function callsFor(marker: string): TitleCall[] {
+      return allTitleCalls.filter((c) => JSON.stringify(c.messages).includes(marker));
     }
 
-    async function runTurn(priorAssistants: number): Promise<{ model: string; messages: unknown[] }[]> {
+    // Drive one turn and return its marker. The marker is stamped into the
+    // first user row of the mocked history, which buildTitleTranscript carries
+    // verbatim into the titling request body.
+    async function runTurn(priorAssistants: number): Promise<string> {
+      const marker = `turn-marker-${++turnSeq}`;
       // sqlHandlers is a shared queue with no per-call scoping (afterEach only
       // resets it BETWEEN it() blocks) — reset it explicitly here so a test
       // that calls runTurn more than once (e.g. "does not fire on turn 2 or
       // 3") doesn't have its second call still matched by the first call's
       // stale handler.
       sqlHandlers = [];
-      installHappyHandlers({ priorAssistants });
-      const prevImpl = g.__llmFetchCurrentImpl!;
-      const titleCalls: { model: string; messages: unknown[] }[] = [];
-      g.__llmFetchCurrentImpl = titlingFetchImpl("An answer.", titleCalls);
-      try {
-        const res = await handleChat(await authedRequest({ message: "a question" }));
-        await res.text(); // drains the SSE stream itself
-        // The titling call is genuinely fire-and-forget, several real async
-        // ticks deep (callWithTimeout → the JsonCall → the openai SDK's own
-        // internal awaits before it calls fetch) — unlike a directly-injected
-        // stub, those ticks aren't guaranteed to have all resolved by the time
-        // res.text() settles. Flush a macrotask so they do.
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        return titleCalls;
-      } finally {
-        g.__llmFetchCurrentImpl = prevImpl;
+      installHappyHandlers({ priorAssistants, userText: marker, convId: `conv-${marker}` });
+      const res = await handleChat(await authedRequest({ message: "a question" }));
+      await res.text(); // drains the SSE stream itself
+      return marker;
+    }
+
+    // Poll (no fixed sleep) until this turn's titling call shows up. The call
+    // is several real async ticks deep — callWithTimeout → the JsonCall → the
+    // openai SDK's own internal awaits before it reaches fetch — and on a
+    // loaded runner those ticks can take far longer than any constant we'd
+    // hardcode, so wait on the condition instead of on the clock.
+    async function awaitTitleCall(marker: string, timeoutMs = 10_000): Promise<TitleCall[]> {
+      const deadline = Date.now() + timeoutMs;
+      while (callsFor(marker).length === 0 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 2));
       }
+      return callsFor(marker);
+    }
+
+    // Proving a turn did NOT title can't be done by waiting a fixed interval —
+    // that only proves "not yet". Instead use a barrier: run a control turn
+    // that MUST title and wait for its call. chat.ts invokes
+    // `void titleConversation(...)` synchronously before the SSE stream
+    // closes, so a titling chain for the turn under test would already have
+    // started before res.text() resolved — strictly before the control turn
+    // began. Both chains are the same shape, so once the control's call has
+    // landed, the turn's would have landed too if it were ever coming.
+    async function expectNoTitle(priorAssistants: number) {
+      const marker = await runTurn(priorAssistants);
+      const control = await runTurn(0);
+      expect(await awaitTitleCall(control)).toHaveLength(1);
+      expect(callsFor(marker)).toHaveLength(0);
     }
 
     it("fires on turn 1 (priorAssistants=0)", async () => {
-      const calls = await runTurn(0);
+      const calls = await awaitTitleCall(await runTurn(0));
       expect(calls.length).toBe(1);
       expect(calls[0].model).toBe("test/title-model");
     });
 
     it("does not fire on turn 2 or 3", async () => {
-      expect((await runTurn(1)).length).toBe(0);
-      expect((await runTurn(2)).length).toBe(0);
+      await expectNoTitle(1);
+      await expectNoTitle(2);
     });
 
     it("fires on turn 4 (priorAssistants=3)", async () => {
-      expect((await runTurn(3)).length).toBe(1);
+      expect(await awaitTitleCall(await runTurn(3))).toHaveLength(1);
     });
 
     it("does not fire on turns 5 through 9", async () => {
       for (const priorAssistants of [4, 5, 6, 7, 8]) {
-        expect((await runTurn(priorAssistants)).length).toBe(0);
+        await expectNoTitle(priorAssistants);
       }
     });
 
     it("fires on turn 10 (priorAssistants=9)", async () => {
-      expect((await runTurn(9)).length).toBe(1);
+      expect(await awaitTitleCall(await runTurn(9))).toHaveLength(1);
     });
 
     it("does not fire on turn 11 or later", async () => {
-      expect((await runTurn(10)).length).toBe(0);
+      await expectNoTitle(10);
     });
 
     it("is unawaited — a real provider failure on the titling call doesn't affect the SSE stream", async () => {
@@ -507,6 +739,41 @@ describe("persistAssistant — usage ledger", () => {
     expect(usageInserts).toHaveLength(1);
     // (input: 100 + 30 = 130, output: 40 + 10 = 50) — not just done.usage's 100/40.
     expect(usageInserts[0].values).toEqual(["user-1", "conv-1", 130, 50]);
+  });
+
+  it("persists context_tokens on the messages row — the LAST round's prompt_tokens, not the cumulative usage.input", async () => {
+    installPersistHandlers();
+    const done = {
+      type: "done",
+      content: "answer",
+      usage: { input: 3_000, output: 40 }, // cumulative across rounds
+      contextTokens: 1_900, // last round only — what the shown answer actually saw
+      generationId: "gen-ctx",
+      toolCalls: [],
+      lengthCapped: false,
+      transcript: [],
+      checksMeta: [],
+    };
+
+    await persistAssistant("user-1", "conv-ctx", done as any, 50);
+
+    const msgInsert = queryLog.find((q) => q.text.includes("INSERT INTO messages") && q.text.includes("RETURNING id"));
+    expect(msgInsert).toBeDefined();
+    expect(msgInsert!.text).toContain("context_tokens");
+    expect(msgInsert!.values).toEqual(["conv-ctx", "answer", null, 3_000, 40, 1_900, "gen-ctx", 50]);
+  });
+
+  it("persists context_tokens as null when the turn never saw a usage chunk", async () => {
+    installPersistHandlers();
+    const done = {
+      type: "done", content: "answer", usage: { input: 0, output: 0 }, contextTokens: null,
+      generationId: null, toolCalls: [], lengthCapped: false, transcript: [], checksMeta: [],
+    };
+
+    await persistAssistant("user-1", "conv-nulled", done as any, 5);
+
+    const msgInsert = queryLog.find((q) => q.text.includes("INSERT INTO messages") && q.text.includes("RETURNING id"));
+    expect(msgInsert!.values).toEqual(["conv-nulled", "answer", null, 0, 0, null, null, 5]);
   });
 
   it("still inserts a usage_events row (zero harness tokens) when checksMeta is empty", async () => {

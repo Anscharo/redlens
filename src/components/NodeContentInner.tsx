@@ -86,7 +86,13 @@ function MarkdownLink({
   // (tx-hash and other external links carry no such property).
   const addrProp = node?.properties?.["data-address"];
   const address = typeof addrProp === "string" ? addrProp : null;
-  return address ? <AddressTooltip address={address}>{link}</AddressTooltip> : link;
+  return address ? (
+    <AddressTooltip address={address} href={href}>
+      {link}
+    </AddressTooltip>
+  ) : (
+    link
+  );
 }
 
 const components: Components = {

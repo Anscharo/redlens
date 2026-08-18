@@ -17,7 +17,7 @@ import {
   archiveUrl,
 } from "./tarball.ts";
 import { previewPaths, artifactPath, bundleReady, writeMeta, evictLru } from "./cache.ts";
-import { pathToDocNo, mapChangedDocs } from "./pr-diff.ts";
+import { diffSnapshots, type Snapshot } from "./snapshot.ts";
 
 // ---------------------------------------------------------------------------
 // resolve
@@ -180,58 +180,77 @@ test("archiveUrl points at the resolved (fork) repo", () => {
 });
 
 // ---------------------------------------------------------------------------
-// pr-diff (accurate diff from GitHub PR files)
+// snapshot diff (layout-agnostic: compares documents by uuid, not by filename)
 // ---------------------------------------------------------------------------
 
-test("pathToDocNo maps content document paths, skips non-docs", () => {
-  expect(pathToDocNo("content/A/2/2/4/document.md")).toBe("A.2.2.4");
-  expect(pathToDocNo("content/NR/1/document.md")).toBe("NR-1");
-  expect(pathToDocNo("content/A/1/_index.md")).toBeNull(); // nav, not a doc
-  expect(pathToDocNo("Sky Atlas/Sky Atlas.md")).toBeNull();
-  expect(pathToDocNo("README.md")).toBeNull();
+function snap(docs: [string, string, string, string?][]): Snapshot {
+  return new Map(
+    docs.map(([id, doc_no, content, title]) => [id, { id, doc_no, content, title: title ?? doc_no }]),
+  );
+}
+
+test("diffSnapshots splits added / changed / removed by document identity", () => {
+  const base = snap([
+    ["id-keep", "A.1", "unchanged"],
+    ["id-edit", "A.2", "before"],
+    ["id-gone", "A.3", "deleted"],
+  ]);
+  const head = snap([
+    ["id-keep", "A.1", "unchanged"],
+    ["id-edit", "A.2", "after"],
+    ["id-new", "A.4", "brand new"],
+  ]);
+  const d = diffSnapshots(base, head);
+  expect(d.added).toEqual(["id-new"]);
+  expect(d.changed).toEqual(["id-edit"]);
+  expect(d.removed).toEqual(["id-gone"]);
 });
 
-test("mapChangedDocs: added→added, modified→changed, removed/_index skipped", () => {
-  const docNoToId = new Map([["A.2.2.4", "id-a"], ["A.9", "id-b"], ["NR-1", "id-nr"]]);
-  const diff = mapChangedDocs(
-    [
-      { filename: "content/A/2/2/4/document.md", status: "added" },
-      { filename: "content/A/9/document.md", status: "modified" },
-      { filename: "content/NR/1/document.md", status: "removed" }, // gone → skip
-      { filename: "content/A/1/_index.md", status: "modified" }, // nav → skip
-      { filename: "content/A/unknown/document.md", status: "added" }, // not in index → skip
-    ],
-    docNoToId,
-  );
-  expect(diff.added).toEqual(["id-a"]);
-  expect(diff.changed).toEqual(["id-b"]);
+test("diffSnapshots: a renumbered or renamed doc is CHANGED, not added", () => {
+  const base = snap([["id-a", "A.2", "same body", "Old Title"]]);
+  // same uuid, new doc number and new title, identical body
+  const head = snap([["id-a", "A.7", "same body", "New Title"]]);
+  const d = diffSnapshots(base, head);
+  expect(d.added).toEqual([]);
+  expect(d.changed).toEqual(["id-a"]);
+  expect(d.removed).toEqual([]);
 });
 
-test("mapChangedDocs: doc identity trumps file status when mainIds is given", () => {
-  const docNoToId = new Map([["A.1", "new-uuid"], ["A.2", "old-uuid"]]);
-  const diff = mapChangedDocs(
-    [
-      // modified file, but the doc inside carries a uuid main doesn't have → ADDED
-      { filename: "content/A/1/document.md", status: "modified" },
-      // added file, but the uuid exists in main (doc moved/renumbered) → CHANGED
-      { filename: "content/A/2/document.md", status: "added" },
-    ],
-    docNoToId,
-    new Set(["old-uuid", "other-uuid"]),
-  );
-  expect(diff.added).toEqual(["new-uuid"]);
-  expect(diff.changed).toEqual(["old-uuid"]);
+test("diffSnapshots: a new uuid in a reused doc number is ADDED, its occupant REMOVED", () => {
+  const base = snap([["old-uuid", "A.5", "original"]]);
+  const head = snap([["new-uuid", "A.5", "replacement"]]);
+  const d = diffSnapshots(base, head);
+  expect(d.added).toEqual(["new-uuid"]);
+  expect(d.removed).toEqual(["old-uuid"]);
+  expect(d.changed).toEqual([]);
+});
+
+test("diffSnapshots prefers contentHash when present", () => {
+  const base: Snapshot = new Map([["id", { id: "id", doc_no: "A.1", title: "T", content: "x", contentHash: "h1" }]]);
+  // body text differs but the hash is the same → not a change (hash is authoritative)
+  const head: Snapshot = new Map([["id", { id: "id", doc_no: "A.1", title: "T", content: "y", contentHash: "h1" }]]);
+  expect(diffSnapshots(base, head).changed).toEqual([]);
 });
 
 // ---------------------------------------------------------------------------
 // tarball
 // ---------------------------------------------------------------------------
 
-test("gunzipCapped aborts a decompression bomb mid-stream", async () => {
-  const bomb = Bun.gzipSync(new Uint8Array(40 * 1024 * 1024)); // 40MB of zeros → tiny gz
-  expect(bomb.length).toBeLessThan(200_000);
-  await expect(gunzipCapped(Readable.from(Buffer.from(bomb)), 15 * 1024 * 1024)).rejects.toBeInstanceOf(CapExceededError);
-});
+// The property under test is the expansion ratio, not the absolute size: a
+// tiny gz that decompresses past the cap must reject. Sizes are kept small
+// (8MB expanding from a few KB, 1MB cap) because gzipping tens of megabytes is
+// pure CPU — at 40MB/15MB this test ran close enough to bun's 5s default
+// budget that a loaded CI runner tipped it over. Timeout is also stated
+// explicitly rather than inherited, so the budget doesn't silently shrink.
+test(
+  "gunzipCapped aborts a decompression bomb mid-stream",
+  async () => {
+    const bomb = Bun.gzipSync(new Uint8Array(8 * 1024 * 1024)); // 8MB of zeros → tiny gz
+    expect(bomb.length).toBeLessThan(64_000);
+    await expect(gunzipCapped(Readable.from(Buffer.from(bomb)), 1024 * 1024)).rejects.toBeInstanceOf(CapExceededError);
+  },
+  30_000,
+);
 
 test("gunzipCapped returns small payloads intact", async () => {
   const payload = Buffer.from("hello content tree");
@@ -272,6 +291,19 @@ test("extractContentArchive: extracts content/**, ignores junk, counts docs", as
   expect(fs.existsSync(path.join(srcDir, "content/A/1/_index.md"))).toBe(true);
   // junk is extracted alongside but the build only reads content/, so it's harmless;
   // what matters is srcDir/content is the parse root.
+  fs.rmSync(atlasDir, { recursive: true, force: true });
+});
+
+test("extractContentArchive: counts documents in the consolidated layout too", async () => {
+  // Counting `document.md` files alone returned 0 here, which made the maxDocs
+  // cap inert and reported docCount: 0 on every preview after upstream #294.
+  const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+  const bucket = [1, 2, 3].map((n) => `## A.${n} - Doc${n} [Core]  <!-- UUID: ${uuid(n)} -->\n\nbody\n`).join("\n");
+  const gz = makeAtlasTarGz({ "A.1 - The-Governance-Scope.md": bucket, "README.md": "not a bucket" });
+  const plain = Buffer.from(Bun.gunzipSync(gz as unknown as Uint8Array<ArrayBuffer>));
+  const atlasDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-"));
+  const { docCount } = await extractContentArchive(plain, atlasDir);
+  expect(docCount).toBe(3); // one file, three documents
   fs.rmSync(atlasDir, { recursive: true, force: true });
 });
 
@@ -324,9 +356,12 @@ test("bundleReady + evictLru keep newest, drop unfinished", () => {
   // an unfinished bundle (atlas only, no out/docs.json)
   fs.mkdirSync(previewPaths("partial", root).srcDir, { recursive: true });
 
-  // bump s3 as most-recent, then keep only 1
-  const future = new Date(Date.now() + 10_000);
-  fs.utimesSync(previewPaths("s3", root).dir, future, future);
+  // Make s3 the most-recent, then keep only 1. Age the OTHERS into the past
+  // rather than pushing s3 into the future: some container filesystems
+  // (overlayfs, NFS) clamp or round a future mtime back to now, which would
+  // silently destroy the ordering this test depends on.
+  const past = new Date(Date.now() - 10_000);
+  for (const s of ["s1", "s2", "partial"]) fs.utimesSync(previewPaths(s, root).dir, past, past);
   const evicted = evictLru(1, root);
   expect(evicted).toContain("partial"); // unfinished always dropped
   expect(bundleReady("s3", root)).toBe(true); // newest kept

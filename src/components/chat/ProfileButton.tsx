@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "./auth";
 import { usePrefs, type ChatPrefs } from "./usePrefs";
-import { SignInButtons } from "./SignInButtons";
-import { Link } from "../Link";
+import { SignedOutMenu } from "./SignedOutMenu";
+import { MenuGlyph } from "./glyphs";
+import { MenuButton, MenuLink, MenuRule } from "./MenuRow";
 import { chatEnabled } from "../../lib/chatEnabled";
 import { ROUTES } from "../../lib/routes";
 
-// NavBar profile control. Signed-out: a mono "sign in" pill → dropdown with a
-// provider choice (GitHub / Google), both routing through the shared openAuth.
-// Signed-in: avatar → dropdown with name, an Account sub-panel (a reduce-motion
-// switch persisted to localStorage, plus Delete account), and Sign out.
+// NavBar profile control. Signed-out: a menu pill → dropdown with Sign in
+// (a sub-panel offering GitHub / Google, both routing through the shared
+// openAuth) and History — see SignedOutMenu. Signed-in: avatar → dropdown with
+// name, an Account sub-panel (a reduce-motion switch persisted to localStorage,
+// plus Delete account), History, Collections, and Sign out.
 // Per the FE handoff we omit the GitHub @handle (not returned by /api/auth/me).
 export function ProfileButton() {
   const { user, signOut, deleteAccount } = useAuth();
@@ -33,18 +35,26 @@ export function ProfileButton() {
   if (!user) {
     return (
       <div ref={ref} className="relative shrink-0">
-        <button className="rlc-signin" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open}>
-          sign in
+        <button
+          className="rlc-signin"
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label="Menu"
+          title="Menu"
+        >
+          <MenuGlyph />
         </button>
         {open && (
           <div className="rlc-menu" role="menu">
-            <SignInButtons variant="menu" source="chat" />
+            <SignedOutMenu onNavigate={() => setOpen(false)} />
           </div>
         )}
       </div>
     );
   }
 
+  const close = () => setOpen(false);
   const name = user.name ?? "Signed in";
 
   return (
@@ -65,26 +75,19 @@ export function ProfileButton() {
                   <div className="rlc-menu-name">{name}</div>
                 </div>
               </div>
-              <div className="border-t border-border" />
-              <button className="rlc-menu-item" onClick={() => setShowPrefs(true)}>
-                <span>Account</span>
-                <span className="text-tan-3 enlargen">→</span>
-              </button>
-              <div className="border-t border-border" />
-              <Link className="rlc-menu-item" to="/collections" onClick={() => setOpen(false)}>
-                <span>Collections</span>
-                <span className="text-tan-3 enlargen">→</span>
-              </Link>
+              <MenuRule />
+              <MenuButton label="Account" onClick={() => setShowPrefs(true)} />
+              <MenuRule />
+              <MenuLink to={ROUTES.HISTORY} label="History" onNavigate={close} />
+              <MenuRule />
+              <MenuLink to={ROUTES.COLLECTIONS} label="Collections" onNavigate={close} />
               {chatEnabled() && (
                 <>
-                  <div className="border-t border-border" />
-                  <Link className="rlc-menu-item" to={ROUTES.CONVERSATIONS} onClick={() => setOpen(false)}>
-                    <span>Conversations</span>
-                    <span className="text-tan-3">→</span>
-                  </Link>
+                  <MenuRule />
+                  <MenuLink to={ROUTES.CONVERSATIONS} label="Conversations" onNavigate={close} />
                 </>
               )}
-              <div className="border-t border-border" />
+              <MenuRule />
               <button
                 className="rlc-menu-item"
                 onClick={() => {
@@ -103,14 +106,14 @@ export function ProfileButton() {
               >
                 <span>← account</span>
               </button>
-              <div className="border-t border-border" />
+              <MenuRule />
               <PrefSwitch label="Reduce motion" prefKey="reduceMotion" prefs={prefs} setPref={setPref} />
               <div className="px-3 pt-2 pb-[11px]">
                 <div className="mono text-[9.5px] text-gray leading-normal">
                   surfaced from local storage · syncs per-browser
                 </div>
               </div>
-              <div className="border-t border-border" />
+              <MenuRule />
               <button
                 className="rlc-menu-item text-[12.5px] text-red"
                 onClick={() => {

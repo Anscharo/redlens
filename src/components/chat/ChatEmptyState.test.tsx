@@ -49,11 +49,20 @@ describe("ChatEmptyState greeting + starters", () => {
     expect(screen.getByText("Trace the governance path for an Atlas amendment.")).toBeInTheDocument();
   });
 
-  it("shows report-flavored copy and starters on a report page", () => {
+  it("shows tool-backed report copy and starters when reportTool is set", () => {
     listConversations.mockResolvedValue([]);
     renderEmpty({ context: { ...baseContext, reportName: "Rewards", reportTool: "atlas_report_rewards" } });
     expect(screen.getByText("Viewing the Rewards report")).toBeInTheDocument();
     expect(screen.getByText("Summarize the Rewards report.")).toBeInTheDocument();
+    expect(screen.getByText(/pull this full report in one call/i)).toBeInTheDocument();
+  });
+
+  it("shows name-aware copy without promising a one-call pull when there is no reportTool", () => {
+    listConversations.mockResolvedValue([]);
+    renderEmpty({ context: { ...baseContext, reportName: "Stale Dates" } });
+    expect(screen.getByText("Viewing the Stale Dates report")).toBeInTheDocument();
+    expect(screen.getByText("What is the Stale Dates report about?")).toBeInTheDocument();
+    expect(screen.queryByText(/pull this full report in one call/i)).toBeNull();
   });
 
   it("calls onSend with the starter text and tracks the click", () => {

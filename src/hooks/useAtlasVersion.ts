@@ -11,6 +11,9 @@ import { loadHealth } from "../lib/health";
 //   that happen while the page is open.
 //
 // Both channels no-op silently on GH Pages (no backend → fetch/EventSource fail).
+// `loadedCommit` is the atlas sha this page was served/pinned with (Footer
+// passes liveAtlasSha() — the injected window.__ATLAS_SHA__ — not a value read
+// back from health, or the mount check below would just compare it to itself).
 export function useAtlasVersion(loadedCommit: string | null) {
   const [needsUpdate, setNeedsUpdate] = useState(false);
 

@@ -27,7 +27,14 @@
  * names, reports a warning instead of dropping data silently.
  */
 
-import { slugify, normalizeKey, buildNameIndex, parseNameList } from "./graph-patterns.mjs";
+import {
+  slugify,
+  normalizeKey,
+  buildNameIndex,
+  parseNameList,
+  makeWarn,
+  groupChildrenByParent,
+} from "./graph-patterns.mjs";
 
 const ROSTER_RE = /The validators for the (.+?) are (.+?)\./;
 const QUORUM_RE = /The quorum requirement for the (.+?) is (\d+)\/(\d+)/;
@@ -42,20 +49,12 @@ function childKind(title) {
 export function extractBridges(allDocs, docById, docByDocNo, entityMap, edges, addEntity) {
   const nameIndex = buildNameIndex(entityMap);
   const stats = { roots: 0, validatorEdges: 0, created: 0, warnings: 0 };
-  const warn = (msg) => { stats.warnings++; console.warn(`  bridge: ${msg}`); };
+  const warn = makeWarn("  bridge:", stats);
 
-  // Group candidate children by parent doc_no. Container docs also titled
-  // "Validators" ("The documents herein specify…") never match ROSTER_RE, so
-  // they cannot complete a pair.
-  const byParent = new Map(); // parent doc_no → { roster?, quorum? }
-  for (const d of allDocs) {
-    const kind = childKind(d.title);
-    if (!kind) continue;
-    const parentDocNo = d.doc_no.split(".").slice(0, -1).join(".");
-    let slot = byParent.get(parentDocNo);
-    if (!slot) { slot = {}; byParent.set(parentDocNo, slot); }
-    if (!slot[kind]) slot[kind] = d;
-  }
+  // Group candidate children by parent doc_no (slot shape: { roster?, quorum? }).
+  // Container docs also titled "Validators" ("The documents herein specify…")
+  // never match ROSTER_RE, so they cannot complete a pair.
+  const byParent = groupChildrenByParent(allDocs, (d) => childKind(d.title));
 
   for (const [parentDocNo, slot] of [...byParent.entries()].sort()) {
     if (!slot.roster || !slot.quorum) continue;

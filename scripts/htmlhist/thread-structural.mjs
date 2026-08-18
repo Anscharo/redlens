@@ -20,7 +20,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { seedHtmlEra, SEED_HTML, MD117 } from "./run-thread.mjs";
+import { seedHtmlEra, SEED_HTML, MD117 } from "../lib/run-thread.mjs";
 import { anchoredAlign } from "./history-anchored-align.mjs";
 import { contentDupCounts, occKey } from "./history-occkey.mjs";
 

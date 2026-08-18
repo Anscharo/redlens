@@ -41,9 +41,11 @@ const ARTIFACTS = [
   "search-index.json",
   "addresses.atlas.json",
   "addresses.json",
-  // chain-state.json excluded — its blockNumber increments on every build:snapshot
-  // run, which would change the manifest hash even when atlas content is unchanged.
-  // Block number is read from chain-state.json directly by sync-d1.mjs at sync time.
+  // No chain-state entry: the on-chain snapshot is no longer a file at all. It
+  // lives in Postgres (migration 020), fetched by the atlas worker and served
+  // from /api/chain-state — nothing for a build manifest to hash. It was
+  // excluded even as a file, because its block number moved on every run and
+  // would have changed the manifest hash with the atlas content unchanged.
   "glossary.json",
   "relations.json",
   "oea-report.json",

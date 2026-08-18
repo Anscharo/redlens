@@ -14,12 +14,27 @@ import { spawn } from "node:child_process";
 import { config } from "../config.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts";
-import { fetchPreviewFiles, mapChangedDocs, type PreviewFiles } from "./pr-diff.ts";
+import { fetchPreviewFiles, type PreviewFiles } from "./pr-diff.ts";
 import { contentDiff } from "./patch-diff.ts";
+import {
+  diffSnapshots,
+  loadBaseSnapshot,
+  snapshotFromDocsJson,
+  type Snapshot,
+} from "./snapshot.ts";
+import type { DiffLine } from "../../lib/history";
 import { detectIdentitySwaps } from "./identity.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
-import { upsertPreview, isKnownSha, isBlockedSha, previewsTodayCount, previewsTodayCountForOwner } from "./db.ts";
+import {
+  upsertPreview,
+  isKnownSha,
+  isBlockedSha,
+  previewsTodayCount,
+  previewsTodayCountForOwner,
+  previewsTodayCountForRepo,
+} from "./db.ts";
 import { isFork, repoOwner, makeGhClient, type Resolved } from "./resolve.ts";
+import { installationToken, appInstallUrl } from "./github-app.ts";
 import { computeTrust, effectivePrTier, type TrustTier } from "./trust.ts";
 
 export type PreviewErrorCode =
@@ -32,7 +47,15 @@ export type PreviewErrorCode =
   | "cap-exceeded"
   | "build-failed"
   | "rate-limited"
-  | "quota-exceeded";
+  | "quota-exceeded"
+  // Private-preview error codes. This module only ever emits app-not-installed
+  // (installation lookup/token mint failed); auth-required/forbidden/unavailable
+  // are emitted by the request handler (login-gate / collaborator-check) but
+  // share this type so the PreviewEvent.code union compiles for both.
+  | "app-not-installed"
+  | "auth-required"
+  | "forbidden"
+  | "unavailable";
 
 export interface PreviewEvent {
   phase: "resolving" | "fetching" | "building" | "ready" | "failed";
@@ -108,7 +131,11 @@ function release(): void {
 // stderr is captured (and still forwarded to the server log) so a failed build
 // can tell the user WHAT was malformed — e.g. parseTree invariant violations
 // pinpointing the bad document — instead of a generic "could not be built".
-function spawnBuild(args: string[], env: Record<string, string>): Promise<{ code: number; stderr: string }> {
+// Exported so its real subprocess behavior (exit code + stderr capture) is
+// unit-testable directly against a trivial `bun -e` script, without needing the
+// actual build pipeline scripts — the DI seam on BuildDeps only lets tests swap
+// this out, never exercise the real implementation itself.
+export function spawnBuild(args: string[], env: Record<string, string>): Promise<{ code: number; stderr: string }> {
   return new Promise((resolve) => {
     let stderr = "";
     const child = spawn("bun", args, {
@@ -127,8 +154,9 @@ function spawnBuild(args: string[], env: Record<string, string>): Promise<{ code
 }
 
 // Trim subprocess stderr to a user-displayable reason: the last few meaningful
-// lines (the invariant/exception summary), minus stack-trace noise.
-function buildErrorTail(stderr: string): string | undefined {
+// lines (the invariant/exception summary), minus stack-trace noise. Exported
+// for direct unit testing of the trimming rules.
+export function buildErrorTail(stderr: string): string | undefined {
   const lines = stderr
     .split("\n")
     .filter((l) => l.trim() && !/^\s*at /.test(l) && !/^\s*\d+ \|/.test(l) && !/^\s*\^\s*$/.test(l) && !/^Bun v/.test(l));
@@ -178,14 +206,23 @@ export async function countNewAddresses(outDir: string, mainDir: string = config
       console.error(`[preview] countNewAddresses: failed to read address maps for ${outDir}:`, e);
       return undefined;
     }
+  /* v8 ignore start -- unreachable: `attempt < 2` bounds the loop to attempts 0
+   * and 1, and both always `return` from inside the loop (success above, or the
+   * attempt-1 failure branch above), so the loop can never complete normally and
+   * fall out to the statement below. It only exists so the function has a total
+   * return type; there is no input that reaches past the loop. */
   }
   return undefined;
+  /* v8 ignore stop */
 }
 
 // Is this preview a FORK preview? PRs are publicly proposed against canonical,
 // so they're never fork-treated — even though a PR's head repo usually IS a
-// fork. Only bare branch/sha previews of non-canonical repos count.
-function isForkPreview(resolved: Resolved): boolean {
+// fork. Only bare branch/sha previews of non-canonical repos count. Exported
+// for direct unit testing (also reachable indirectly via runBuild, but a fork
+// build's meta-shaping needs a fully-mocked build to reach, so a direct test
+// is the cheap way to pin this predicate on its own).
+export function isForkPreview(resolved: Resolved): boolean {
   return !resolved.pr && isFork(resolved.repo);
 }
 
@@ -197,7 +234,11 @@ function isForkPreview(resolved: Resolved): boolean {
 //        share those fork pools — burner-PR spam can only drain the 2/day pool.
 //   bare fork branch → score the fork OWNER; refused tier rejects the build;
 //        trusted owners get their own per-owner pool.
-async function forkGate(
+// Exported for direct unit testing: it's already a BuildDeps field (so runBuild
+// call sites can fake it), but that DI seam only lets tests SWAP it out — the
+// real implementation's own branches (this function's body) are only exercised
+// by calling it directly, stubbing globalThis.fetch beneath computeTrust.
+export async function forkGate(
   resolved: Resolved,
 ): Promise<{ tier?: TrustTier; count: () => Promise<number>; quota: number } | "fork-not-trusted"> {
   if (!resolved.pr && !isFork(resolved.repo)) {
@@ -243,24 +284,81 @@ export function baseMeta(resolved: Resolved, sha: string, docCount: number, t0: 
   };
 }
 
-async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
+// The side-effecting collaborators runBuild reaches across module boundaries:
+// DB reads/writes, the GitHub-App installation token, the tarball fetch, and the
+// child-process build steps. Injected (defaulting to the real ones) so the
+// private/public build orchestration — the trust/quota branch, installation-token
+// acquisition, app-not-installed, and the private meta shaping — is exercisable in
+// a hermetic test without a real subprocess, GitHub round-trip, or Postgres. The
+// live server always uses realBuildDeps via getOrStartBuild; DI is test-only.
+export interface BuildDeps {
+  isBlockedSha: (sha: string) => Promise<boolean>;
+  isKnownSha: (sha: string) => Promise<boolean>;
+  previewsTodayCountForRepo: (repo: string) => Promise<number>;
+  forkGate: typeof forkGate;
+  installationToken: (repo: string) => Promise<string | null>;
+  fetchAndExtract: typeof fetchAndExtract;
+  spawnBuild: typeof spawnBuild;
+  upsertPreview: (meta: PreviewMeta) => Promise<void>;
+}
+
+const realBuildDeps: BuildDeps = {
+  isBlockedSha,
+  isKnownSha,
+  previewsTodayCountForRepo,
+  forkGate,
+  installationToken,
+  fetchAndExtract,
+  spawnBuild,
+  upsertPreview,
+};
+
+async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realBuildDeps): Promise<void> {
   const sha = resolved.sha;
   const paths = previewPaths(sha);
   const t0 = Date.now();
+  // Private previews (branch-only grammar, see resolve.ts) are gated on GitHub
+  // App installation, not fork/trust screening — installation IS the trust
+  // grant, since only someone who can install the App on the repo can produce
+  // a preview of it at all.
+  const priv = !!resolved.private;
   try {
     // Admin takedown: a blocked sha never rebuilds.
-    if (await isBlockedSha(sha)) {
+    if (await deps.isBlockedSha(sha)) {
       fail(f, sha, "not-found");
       return;
     }
-    const gate = await forkGate(resolved);
-    if (gate === "fork-not-trusted") {
-      fail(f, sha, "fork-not-trusted");
-      return;
+    let gate: { tier?: TrustTier; count: () => Promise<number>; quota: number } | undefined;
+    if (priv) {
+      // Quota gates only NEW analyses; re-builds of a known sha are free.
+      if (!(await deps.isKnownSha(sha)) && (await deps.previewsTodayCountForRepo(resolved.repo)) >= config.previewPrivateDailyQuota) {
+        fail(f, sha, "quota-exceeded");
+        return;
+      }
+    } else {
+      const g = await deps.forkGate(resolved);
+      if (g === "fork-not-trusted") {
+        fail(f, sha, "fork-not-trusted");
+        return;
+      }
+      gate = g;
+      // Quota gates only NEW analyses; re-builds of a known sha are free.
+      if (!(await deps.isKnownSha(sha)) && (await gate.count()) >= gate.quota) {
+        fail(f, sha, "quota-exceeded");
+        return;
+      }
     }
-    // Quota gates only NEW analyses; re-builds of a known sha are free.
-    if (!(await isKnownSha(sha)) && (await gate.count()) >= gate.quota) {
-      fail(f, sha, "quota-exceeded");
+    // Private previews fetch via an installation token (the service token in
+    // config.githubToken has no access to a private repo); public previews keep
+    // the existing service-token path. Checked before acquiring the build slot
+    // so a dead installation never occupies a concurrency slot.
+    const token = priv ? await deps.installationToken(resolved.repo) : config.githubToken;
+    // Only the private path can yield null here (installationToken failed);
+    // the public path is config.githubToken, always a string. Narrowing on
+    // `== null` proves `token: string` below without a non-null assertion.
+    if (token == null) {
+      // Carry the install URL so the client can offer a one-click install action.
+      fail(f, sha, "app-not-installed", (await appInstallUrl().catch(() => null)) ?? undefined);
       return;
     }
     await acquire();
@@ -270,7 +368,10 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
       // overlaps the tarball fetch + the whole build. For canonical previews a
       // failure is non-fatal (serve-time vs-main fallback); for forks a failed
       // compare means no shared history with main → the build is rejected.
-      const filesP: Promise<{ ok: true; v: PreviewFiles } | { ok: false }> = config.githubToken
+      // Private previews skip this entirely — no PR/fork compare is meaningful
+      // for a private-repo branch, and the service token can't see it anyway.
+      const wantCompare = !priv && !!config.githubToken;
+      const filesP: Promise<{ ok: true; v: PreviewFiles } | { ok: false }> = wantCompare
         ? fetchPreviewFiles(resolved, config.githubToken).then(
             (v) => ({ ok: true as const, v }),
             () => ({ ok: false as const }),
@@ -279,26 +380,31 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
 
       fs.rmSync(paths.dir, { recursive: true, force: true });
       fs.mkdirSync(paths.outDir, { recursive: true });
-      const { srcDir, docCount } = await fetchAndExtract(resolved.repo, sha, config.githubToken, paths.srcDir);
+      const { srcDir, docCount } = await deps.fetchAndExtract(resolved.repo, sha, token, paths.srcDir, undefined, {
+        apiTarball: priv,
+      });
 
       emit(f, { phase: "building", sha });
       const base = { ATLAS_SRC_DIR: srcDir, ATLAS_OUT_DIR: paths.outDir, ATLAS_COMMIT: sha };
       // build-index strictness (parseTree invariants) makes a malformed PR exit
       // non-zero → build-failed (with the violation surfaced), never a 500.
-      const index = await spawnBuild(["scripts/required/build-index.mjs"], base);
+      const index = await deps.spawnBuild(["scripts/required/build-index.mjs"], base);
       if (index.code !== 0) return fail(f, sha, "build-failed", buildErrorTail(index.stderr));
       // graph + glossary both consume only build-index's docs.json and write
       // disjoint files (graph: graph/relations/addresses.atlas; glossary:
       // glossary) — run them concurrently.
       const [graph, glossary] = await Promise.all([
-        spawnBuild(["scripts/required/build-graph.mjs"], { ...base, ATLAS_ONCHAIN_DIR: config.publicDir }),
-        spawnBuild(["scripts/required/build-glossary.mjs"], { ATLAS_OUT_DIR: paths.outDir }),
+        deps.spawnBuild(["scripts/required/build-graph.mjs"], { ...base, ATLAS_ONCHAIN_DIR: config.publicDir }),
+        deps.spawnBuild(["scripts/required/build-glossary.mjs"], { ATLAS_OUT_DIR: paths.outDir }),
       ]);
       if (graph.code !== 0 || glossary.code !== 0)
         return fail(f, sha, "build-failed", buildErrorTail(graph.code !== 0 ? graph.stderr : glossary.stderr));
 
-      const fork = isForkPreview(resolved);
-      const filesR = await filesP;
+      // A private repo is structurally `isFork` (any non-canonical repo is) but
+      // must never get fork treatment: no not-derived rejection (no compare was
+      // attempted above) and no fork banner fields on its meta.
+      const fork = !priv && isForkPreview(resolved);
+      const filesR = priv ? ({ ok: false as const }) : await filesP;
       // Shared-history screen: a fork whose compare vs main failed (no common
       // ancestor / unknown commit) is not a derivative of the atlas — reject.
       if (fork && !filesR.ok) return fail(f, sha, "not-derived");
@@ -314,14 +420,14 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
       }
       // Effective tier rides on every screened preview (PR + fork) — drives the
       // banner warnings, interstitial, and pool accounting. forkOwner stays
-      // fork-only (a PR with a fork head is still a PR preview).
-      meta.trustTier = gate.tier;
+      // fork-only (a PR with a fork head is still a PR preview). Private
+      // previews were never trust/fork-screened above, so neither applies.
+      if (!priv) meta.trustTier = gate!.tier;
       if (fork) {
         meta.forkOwner = repoOwner(resolved.repo);
         if (filesR.ok) {
           meta.aheadBy = filesR.v.aheadBy;
           meta.behindBy = filesR.v.behindBy;
-          if (filesR.v.truncated) meta.diffTruncated = true;
         }
         const newAddrs = await countNewAddresses(paths.outDir);
         // Fail closed: an unreadable main map is NOT "zero new addresses" — flag
@@ -330,29 +436,54 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
         if (newAddrs === undefined) meta.addressCheckFailed = true;
         else meta.newAddresses = newAddrs;
       }
+      if (priv) {
+        meta.private = true;
+        // No GitHub compare was attempted for private previews, but the
+        // swapped-payment-address screen is a purely local file compare (this
+        // bundle's addresses.atlas.json vs main's) — still worth running.
+        const newAddrs = await countNewAddresses(paths.outDir);
+        if (newAddrs === undefined) meta.addressCheckFailed = true;
+        else meta.newAddresses = newAddrs;
+      }
       writeMeta(sha, meta);
-      await upsertPreview(meta);
+      await deps.upsertPreview(meta);
       // Accurate merge-base diff (PR, branch, or fork), written into the bundle as
       // two artifacts: diff.json (added/changed ids — eager, drives markers) and
       // patches.json (id → DiffLine[] — lazy, drives preview history). For
       // canonical previews a failure is non-fatal: no diff.json → serve-time
       // vs-main fallback.
       try {
-        if (filesR.ok) {
-          const nodes = Object.values(
-            JSON.parse(fs.readFileSync(path.join(paths.outDir, "docs.json"), "utf8")).nodes,
-          ) as { doc_no: string; id: string; title?: string; content?: string }[];
-          const byId = new Map(nodes.map((n) => [n.id, n]));
-          const docNoToId = new Map(nodes.map((n) => [n.doc_no, n.id]));
-          // Identity-aware added/changed split: a doc uuid absent from the live
-          // atlas is NEW even if its file was "modified" (and vice versa).
+        if (filesR.ok && filesR.v.mergeBase) {
+          const byId = snapshotFromDocsJson(paths.outDir);
           const mainDocs = getIndexes().docMap;
-          const mainIds = mainDocs.size > 0 ? new Set(mainDocs.keys()) : undefined;
-          const { added, changed, patches, noPatch } = mapChangedDocs(filesR.v.files, docNoToId, mainIds);
-          // For CHANGED docs, GitHub's per-path patch can cross doc identities
-          // (renumbering moves docs between paths). Replace it with an identity
-          // diff — this uuid's content here vs on the live atlas — and record
-          // renumberings explicitly.
+          // Which docs this preview adds/changes, by DOCUMENT IDENTITY rather
+          // than by changed filename. Filenames stopped identifying documents
+          // when the atlas consolidated ~11k document.md files into ~16 composed
+          // files (upstream #294) — one changed file now spans a whole Scope.
+          // Comparing uuid-keyed snapshots is layout-blind, so it survives that
+          // regrouping and the next one.
+          const base = await loadBaseSnapshot(
+            filesR.v.mergeBase,
+            path.join(paths.dir, "base"),
+            // Same injected fetcher, token, and tarball route the head build used
+            // — only reachable on the public path (private previews set
+            // wantCompare = false), but it must not diverge if that ever changes.
+            (s, dir) =>
+              deps.fetchAndExtract(resolved.repo, s, token, dir, undefined, { apiTarball: priv }),
+            { atlasCommit: getIndexes().meta.atlasCommit, snapshot: () => mainDocs as Snapshot },
+          );
+          const { added, changed } = diffSnapshots(base, byId);
+          // An ADDED doc has no prior content anywhere — render its body as pure
+          // additions. CHANGED docs get their patch from the vs-main identity
+          // diff below.
+          const patches: Record<string, DiffLine[]> = {};
+          for (const id of added) {
+            const dl = contentDiff("", byId.get(id)?.content ?? "");
+            if (dl.length) patches[id] = dl;
+          }
+          // For CHANGED docs the rendered redline is this uuid's content here vs
+          // on the LIVE atlas (what the reader is comparing against on screen),
+          // and renumberings are recorded explicitly.
           const renumbered: Record<string, [string, string]> = {};
           for (const id of changed) {
             const mainNode = mainDocs.get(id);
@@ -399,7 +530,10 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
             JSON.stringify({ added, changed, renumbered, reusedSlot, identitySwap, formerUuid }),
           );
           fs.writeFileSync(path.join(paths.outDir, "patches.json"), JSON.stringify(patches));
-          if (noPatch > 0) console.warn(`[preview] ${sha.slice(0, 8)}: ${noPatch} changed doc(s) had no patch (binary/truncated/rename)`);
+        } else if (filesR.ok) {
+          // No merge base from GitHub → no trustworthy base side. Skip diff.json
+          // rather than guess; the reader falls back to the serve-time vs-main diff.
+          console.warn(`[preview] ${sha.slice(0, 8)}: no merge base — skipping doc-level diff`);
         }
       } catch {
         /* diff endpoint falls back to vs-main */
@@ -429,4 +563,38 @@ export function getOrStartBuild(resolved: Resolved): Inflight {
   // short-circuits via bundleReady on the next request.
   f.promise = runBuild(f, resolved).finally(() => inflight.delete(sha));
   return f;
+}
+
+/** Test-only sibling of getOrStartBuild that threads injected deps through,
+ *  while still going through the REAL inflight map — unlike __runBuildForTest
+ *  (which builds a standalone Inflight the map never sees), this is what lets a
+ *  test exercise the dedup map itself: the concurrency semaphore shared across
+ *  distinct shas, and subscribeBuild/emit's fan-out + dedup for a sha that's
+ *  actually tracked. Never called by the server; getOrStartBuild always uses
+ *  realBuildDeps with no override. */
+export function __getOrStartBuildForTest(resolved: Resolved, deps: Partial<BuildDeps>): Inflight {
+  const sha = resolved.sha;
+  const existing = inflight.get(sha);
+  if (existing) return existing;
+  const f: Inflight = { sha, current: { phase: "fetching", sha }, subscribers: new Set(), done: false, promise: Promise.resolve() };
+  inflight.set(sha, f);
+  f.promise = runBuild(f, resolved, { ...realBuildDeps, ...deps }).finally(() => inflight.delete(sha));
+  return f;
+}
+
+/** Test-only: run a single build to completion against injected deps and resolve
+ *  to the terminal PreviewEvent (`f.current`). Bypasses the inflight map/SSE hub
+ *  (covered elsewhere) so the private/public build orchestration can be exercised
+ *  hermetically — no real subprocess, GitHub round-trip, or Postgres. Never called
+ *  by the server; getOrStartBuild always uses realBuildDeps. */
+export async function __runBuildForTest(resolved: Resolved, deps: Partial<BuildDeps>): Promise<PreviewEvent> {
+  const f: Inflight = {
+    sha: resolved.sha,
+    current: { phase: "fetching", sha: resolved.sha },
+    subscribers: new Set(),
+    done: false,
+    promise: Promise.resolve(),
+  };
+  await runBuild(f, resolved, { ...realBuildDeps, ...deps });
+  return f.current;
 }

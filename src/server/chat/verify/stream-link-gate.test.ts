@@ -95,7 +95,7 @@ async function* emit(events: ChatEvent[]): AsyncIterable<ChatEvent> {
   for (const ev of events) yield ev;
 }
 const token = (text: string): ChatEvent => ({ type: "token", text });
-const DONE: ChatEvent = { type: "done", content: "", usage: { input: 0, output: 0 }, generationId: null, toolCalls: [], lengthCapped: false, transcript: [] };
+const DONE: ChatEvent = { type: "done", content: "", usage: { input: 0, output: 0 }, contextTokens: null, generationId: null, toolCalls: [], lengthCapped: false, transcript: [] };
 
 test("gatedChat: gates tokens, resets on clear, flushes the tail before done", async () => {
   const events: ChatEvent[] = [

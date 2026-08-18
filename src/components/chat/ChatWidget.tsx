@@ -7,6 +7,7 @@ import { ChatPanel } from "./ChatPanel";
 import { useChatSession } from "./useChatSession";
 import { usePageContext } from "./pageContext";
 import { track } from "../../lib/analytics";
+import { clearResume, readFreshResume, writeResume, type ResumeSnapshot } from "./resume";
 import type { Placement } from "./types";
 import "./chat.css";
 
@@ -27,7 +28,12 @@ function readPlacement(): Placement {
 // and the rate-limit lock all survive minimize/reopen (chat-conversation-
 // memory plan §5: lift the state out, don't wrap the app in a provider).
 export function ChatWidget() {
-  const [open, setOpen] = useState(false);
+  // Reload-resume (resume.ts): read once on first render; a fresh snapshot
+  // (chat was open < RESUME_WINDOW_MS ago) opens the panel immediately — no
+  // launcher flash — and the mount effect below rehydrates its conversation.
+  const resumeRef = useRef<ResumeSnapshot | null | undefined>(undefined);
+  if (resumeRef.current === undefined) resumeRef.current = readFreshResume();
+  const [open, setOpen] = useState(resumeRef.current !== null);
   const [placement, setPlacement] = useState<Placement>(readPlacement);
   const [, navigate] = useLocation();
   const context = usePageContext();
@@ -47,6 +53,35 @@ export function ChatWidget() {
       return true;
     });
   }, []);
+
+  // An explicit close is a decision — a reload right after must NOT reopen,
+  // so it clears the snapshot along with closing.
+  const closeChat = useCallback(() => {
+    setOpen(false);
+    clearResume();
+  }, []);
+
+  // Finish the resume: reopen the same conversation the refresh interrupted.
+  // Runs once (the ref is consumed); a stale/deleted id degrades to a fresh
+  // chat inside openConversation's own catch.
+  useEffect(() => {
+    const r = resumeRef.current;
+    if (!r) return;
+    resumeRef.current = null;
+    track("chat_open", { product: "chat", resumed: true });
+    if (r.conversationId) void openConversation(r.conversationId, r.title);
+  }, [openConversation]);
+
+  // While open, keep the snapshot current (open + which conversation), and
+  // re-stamp it on pagehide — the reliable "page is going away" signal — so
+  // `at` reflects the moment of the reload, not the last state change.
+  useEffect(() => {
+    if (!open) return;
+    const stamp = () => writeResume({ at: Date.now(), conversationId, title: session.title });
+    stamp();
+    window.addEventListener("pagehide", stamp);
+    return () => window.removeEventListener("pagehide", stamp);
+  }, [open, conversationId, session.title]);
 
   // Cross-route command channel (src/lib/chatOpen.tsx): another page (e.g. a
   // conversation list row) asked to open a specific conversation here.
@@ -76,12 +111,12 @@ export function ChatWidget() {
         e.preventDefault();
         openChat();
       } else if (e.key === "Escape") {
-        setOpen(false);
+        closeChat();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openChat]);
+  }, [openChat, closeChat]);
 
   // Drive the layout push: only when anchored AND open does the shell reserve a
   // right gutter. Cleared on close, placement change, or unmount.
@@ -111,7 +146,7 @@ export function ChatWidget() {
   return (
     <ChatPanel
       session={session}
-      onClose={() => setOpen(false)}
+      onClose={closeChat}
       context={context}
       onAtlas={onAtlas}
       placement={placement}

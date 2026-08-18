@@ -21,9 +21,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync, spawnSync } from "node:child_process";
-import crypto from "node:crypto";
-import { HEADING_RE, unquoteYamlName } from "../lib/atlas-parser.mjs";
+import { execSync } from "node:child_process";
+import {
+  ATLAS_FILE,
+  CONTENT_DIR,
+  makeAtlasGitSource,
+} from "../lib/atlas-git-source.mjs";
 import {
   classifyDiff,
   classifyPrTitle,
@@ -53,27 +56,22 @@ const FULL = process.argv.includes("--full");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
 const ATLAS_REPO = path.join(ROOT, "vendor/next-gen-atlas");
-const ATLAS_FILE = "Sky Atlas/Sky Atlas.md";
-const CONTENT_DIR = "content";
 const OUT_DIR = path.join(ROOT, "public/history");
 const PR_CACHE_DIR = path.join(ROOT, ".cache/github-prs");
 const REPO = "sky-ecosystem/next-gen-atlas";
 
 // ---------------------------------------------------------------------------
 // Git helpers
+//
+// Layout detection and per-commit snapshot loading live in atlas-git-source.mjs
+// — one seam covering all three layouts the atlas has shipped (monolithic,
+// atomized, consolidated), so nothing below needs to know which one a commit is in.
 // ---------------------------------------------------------------------------
 
-function git(args, opts = {}) {
-  return execSync(`git ${args}`, {
-    cwd: ATLAS_REPO,
-    encoding: "utf8",
-    maxBuffer: 100 * 1024 * 1024,
-    ...opts,
-  }).trim();
-}
+const { git, loadSnapshot } = makeAtlasGitSource(ATLAS_REPO);
 
 /** Get all commits (oldest-first) that touch either the legacy monolithic
- *  Sky Atlas.md or the atomized content/ tree (post-PR #236). */
+ *  Sky Atlas.md or the content/ tree (both the atomized and consolidated eras). */
 function getCommits() {
   const raw = git(
     `log --reverse --format="%H %aI %s" -- "${ATLAS_FILE}" "${CONTENT_DIR}"`,
@@ -87,193 +85,6 @@ function getCommits() {
     });
 }
 
-/** Returns "atomized" if the commit's tree has content/, "monolithic" if it
- *  has the old Sky Atlas.md, or null if neither (shouldn't happen given the
- *  commit set we enumerate). */
-function detectFormat(hash) {
-  const out = git(
-    `ls-tree --name-only ${hash} -- "${ATLAS_FILE}" "${CONTENT_DIR}"`,
-  );
-  const has = new Set(out.split("\n").filter(Boolean));
-  if (has.has(CONTENT_DIR)) return "atomized";
-  if (has.has(ATLAS_FILE)) return "monolithic";
-  return null;
-}
-
-/** Read the legacy monolithic atlas file at a specific commit */
-function readMonolithicAt(hash) {
-  try {
-    return git(`show ${hash}:"${ATLAS_FILE}"`);
-  } catch {
-    return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Parse atlas into uuid → { doc_no, title, type, contentHash, content }
-// ---------------------------------------------------------------------------
-
-function makeNodeEntry(doc_no, title, type, content, path) {
-  return {
-    doc_no,
-    title,
-    type,
-    content,
-    path,
-    contentHash: crypto.createHash("md5").update(content).digest("hex"),
-  };
-}
-
-function parseMonolithic(text) {
-  const nodes = new Map();
-  if (!text) return nodes;
-
-  const lines = text.split("\n");
-  let cur = null;
-  let buf = [];
-
-  // All monolithic-format nodes share the same path: the single source file.
-  // This makes `prev.path !== curr.path` cleanly detect the cutover (atomization)
-  // and any post-cutover doc moves, while never firing within the monolithic era.
-  const monoPath = ATLAS_FILE;
-
-  function flush() {
-    if (cur) {
-      const content = buf.join("\n").trim();
-      cur.entry.content = content;
-      cur.entry.contentHash = crypto.createHash("md5").update(content).digest("hex");
-    }
-  }
-
-  for (const line of lines) {
-    const m = line.match(HEADING_RE);
-    if (m) {
-      flush();
-      const [, , doc_no, title, type, id] = m;
-      const entry = { doc_no, title, type, contentHash: "", content: "", path: monoPath };
-      nodes.set(id, entry);
-      cur = { id, entry };
-      buf = [];
-    } else if (cur) {
-      buf.push(line);
-    }
-  }
-  flush();
-  return nodes;
-}
-
-// ---------------------------------------------------------------------------
-// Atomized-format reader (post-PR #236)
-// ---------------------------------------------------------------------------
-
-/** Strip frontmatter + the markdown heading line from a document.md body.
- *  Returns the trimmed body string used for hashing/diffing.
- *
- *  Equivalence with parseMonolithic: in the composed file, each node's
- *  contentLines are exactly the lines between its heading and the next.
- *  In document.md those are exactly the lines after the leading heading
- *  line that sits below the frontmatter — once both are trimmed, the
- *  byte stream is identical, so contentHashes agree across formats. */
-function extractBody(raw) {
-  const lines = raw.split("\n");
-  let i = 0;
-
-  // Frontmatter: --- ... ---
-  if (lines[0] === "---") {
-    i = 1;
-    while (i < lines.length && lines[i] !== "---") i++;
-    i++; // past closing ---
-  }
-
-  // Skip blanks before the heading line
-  while (i < lines.length && lines[i].trim() === "") i++;
-
-  // Skip the markdown heading (e.g. "## A.0 - Atlas Preamble [Scope]")
-  if (i < lines.length && /^#{1,6} /.test(lines[i])) i++;
-
-  return lines.slice(i).join("\n").trim();
-}
-
-/** Parse the document.md frontmatter for the fields we care about.
- *  Frontmatter is a small subset of YAML (`key: value` per line); a hand
- *  parser is fine here and avoids pulling in a YAML dep. Unquoting (both
- *  quoting styles `decompose.py` emits) is shared with atlas-parser.mjs's
- *  parseDocumentMd via unquoteYamlName. */
-function parseFrontmatter(raw) {
-  const lines = raw.split("\n");
-  if (lines[0] !== "---") return null;
-  const out = {};
-  for (let i = 1; i < lines.length; i++) {
-    if (lines[i] === "---") break;
-    const m = lines[i].match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
-    if (m) out[m[1]] = unquoteYamlName(m[2]);
-  }
-  return out;
-}
-
-/** Walk content/**\/document.md at a commit, using one ls-tree + one
- *  cat-file --batch invocation. Returns the same Map shape as parseMonolithic. */
-function loadAtomizedAt(hash) {
-  const lsTree = git(`ls-tree -r ${hash} -- "${CONTENT_DIR}"`);
-  const blobs = []; // [{sha, path}]
-  for (const line of lsTree.split("\n")) {
-    if (!line) continue;
-    // Format: <mode> <type> <sha>\t<path>
-    const tabIdx = line.indexOf("\t");
-    if (tabIdx < 0) continue;
-    const meta = line.slice(0, tabIdx).split(/\s+/);
-    const filePath = line.slice(tabIdx + 1);
-    if (meta[1] !== "blob") continue;
-    if (!filePath.endsWith("/document.md")) continue;
-    blobs.push({ sha: meta[2], path: filePath });
-  }
-
-  if (blobs.length === 0) return new Map();
-
-  // Bulk-read all blobs in one cat-file --batch invocation.
-  const input = blobs.map((b) => b.sha).join("\n") + "\n";
-  const res = spawnSync("git", ["cat-file", "--batch"], {
-    cwd: ATLAS_REPO,
-    input,
-    maxBuffer: 500 * 1024 * 1024,
-  });
-  if (res.status !== 0) {
-    throw new Error(`git cat-file --batch failed: ${res.stderr?.toString() ?? ""}`);
-  }
-  const buf = res.stdout;
-
-  const nodes = new Map();
-  let pos = 0;
-  for (const blob of blobs) {
-    // Header line: "<sha> <type> <size>\n"
-    const nl = buf.indexOf(0x0a, pos);
-    if (nl < 0) throw new Error(`malformed cat-file output for ${blob.path}`);
-    const header = buf.slice(pos, nl).toString("utf8");
-    const parts = header.split(" ");
-    if (parts[0] !== blob.sha || parts[1] !== "blob") {
-      throw new Error(`cat-file header mismatch for ${blob.path}: got ${header}`);
-    }
-    const size = parseInt(parts[2], 10);
-    const start = nl + 1;
-    const raw = buf.slice(start, start + size).toString("utf8");
-    pos = start + size + 1; // skip trailing \n after blob
-
-    const fm = parseFrontmatter(raw);
-    if (!fm || !fm.id) continue; // not a document.md we recognize
-    const body = extractBody(raw);
-    nodes.set(fm.id, makeNodeEntry(fm.docNo, fm.name, fm.type, body, blob.path));
-  }
-  return nodes;
-}
-
-/** Format-aware snapshot loader: returns the same Map<uuid,…> shape
- *  regardless of which atlas representation existed at <hash>. */
-function loadSnapshot(hash) {
-  const fmt = detectFormat(hash);
-  if (fmt === "monolithic") return parseMonolithic(readMonolithicAt(hash));
-  if (fmt === "atomized") return loadAtomizedAt(hash);
-  return new Map();
-}
 
 // ---------------------------------------------------------------------------
 // Line/word diff machinery lives in the shared core (src/lib/diffCore.ts),

@@ -7,6 +7,10 @@ on:
         description: "Bump submodule even if atlas SHA hasn't changed"
         type: boolean
         default: false
+      max_doc_drop:
+        description: "Share of documents allowed to disappear in one bump (0-1). Raise only to accept a deliberate upstream deletion."
+        type: string
+        default: "0.1"
   schedule:
     # Hourly. Self-aborts if the atlas submodule SHA hasn't advanced.
     - cron: "0 * * * *"
@@ -60,23 +64,12 @@ jobs:
             echo "Already at latest (${OLD:0:7})."
           fi
 
-      # census:risk, census:concepts and census:chains run under bun (they import
-      # src/lib/riskRules.ts / conceptsCensus.ts / explorer.ts directly).
-      - uses: oven-sh/setup-bun@v2
-        if: steps.atlas.outputs.proceed == 'true'
-
-      - uses: pnpm/action-setup@v6
-        if: steps.atlas.outputs.proceed == 'true'
-
-      - uses: actions/setup-node@v4
+      # bun: census:risk, census:concepts and census:chains run under it (they
+      # import src/lib/riskRules.ts / conceptsCensus.ts / explorer.ts directly).
+      - uses: ./.github/actions/setup
         if: steps.atlas.outputs.proceed == 'true'
         with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        if: steps.atlas.outputs.proceed == 'true'
-        run: pnpm install --frozen-lockfile
+          bun: "true"
 
       # All build warnings ([drift], anchor-not-found, did-not-parse, unknown
       # document type, …) go through console.warn → stderr. Capture stderr
@@ -84,6 +77,20 @@ jobs:
       - name: Build index
         if: steps.atlas.outputs.proceed == 'true'
         run: pnpm build:index 2> >(tee -a /tmp/atlas-warnings.log >&2)
+
+      # MERGE GATE. This PR auto-merges, so nothing downstream is watching: an
+      # atlas the build could not fully read would land on main unattended and
+      # from there into Postgres and the live site. Runs BEFORE the commit,
+      # push, and PR steps, so a bad bump never becomes a mergeable PR at all.
+      #
+      # `--against` compares with the atlas commit we are bumping FROM, so a
+      # mass upstream deletion also stops here for review. To accept one
+      # deliberately, re-run this workflow with a higher `max_doc_drop`.
+      - name: Verify the build read the whole atlas
+        if: steps.atlas.outputs.proceed == 'true'
+        env:
+          ATLAS_MAX_DOC_DROP: ${{ inputs.max_doc_drop || '0.1' }}
+        run: pnpm check:atlas --against "${{ steps.atlas.outputs.old_full }}"
 
       # Refresh the committed, Etherscan-enriched addresses.json so on-chain
       # addresses introduced by the bump are present — otherwise docs.json gains
@@ -179,6 +186,49 @@ jobs:
             gh pr merge "$PR_NUM" --auto --rebase
             echo "Opened PR #${PR_NUM} with auto-merge (rebase) enabled."
           fi
+
+      # A blocked bump is a standing condition, not a transient error: every
+      # later hourly run hits the same atlas SHA and fails the same way. Say so
+      # once, loudly, instead of leaving a red run in the Actions tab that only
+      # the weekly healer sweep would notice.
+      - name: Report a blocked bump
+        if: failure() && steps.atlas.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh label create atlas-blocked --force \
+            --color B60205 \
+            --description "An atlas bump failed its safety gate and will not merge"
+
+          TITLE="Atlas bump to ${{ steps.atlas.outputs.short }} is blocked"
+          OPEN=$(gh issue list --state open --label atlas-blocked --json number,title \
+            --jq ".[] | select(.title == \"$TITLE\") | .number" | head -1)
+          if [ -n "$OPEN" ]; then
+            echo "Already reported in #$OPEN."
+            exit 0
+          fi
+
+          gh issue create --title "$TITLE" --label atlas-blocked --body "$(cat <<'BODY'
+          The hourly atlas bump `${{ steps.atlas.outputs.old }}` → `${{ steps.atlas.outputs.short }}`
+          failed a safety gate and **no PR was opened**. The atlas will stay pinned at
+          `${{ steps.atlas.outputs.old }}` — every later hourly run will fail the same way — until
+          this is resolved.
+
+          See the run log for which check failed:
+          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          If it was `check:atlas`, the build did not account for every document in the
+          atlas source. The usual cause is upstream regrouping its files again (it has
+          done so twice: #236 atomized the monolith, #294 consolidated the tree). Add a
+          layout arm to `scripts/lib/atlas-source.mjs` and `scripts/lib/atlas-git-source.mjs`,
+          then prove the regrouping is content-neutral:
+
+              node scripts/aux/ab-parse-check.mjs vendor/next-gen-atlas <extracted-new-tree>
+
+          If instead upstream deliberately deleted a large share of the atlas, re-run this
+          workflow from the Actions tab with a higher `max_doc_drop` to accept it.
+          BODY
+          )"
 
       # Surface drift signals in a GitHub issue for analysis. The @claude
       # mention triggers .github/workflows/claude.yml — but ONLY because the

@@ -1,5 +1,5 @@
 import { toAnchorId } from "../../lib/anchorId";
-import type { ActiveFilter, Pill } from "../../lib/reportChains";
+import type { ActiveFilter, EntityFilter, Pill } from "../../lib/reportChains";
 
 export function FilterPills({
   label,
@@ -12,7 +12,7 @@ export function FilterPills({
   items: Pill[];
   kind: "govops" | "facilitator" | "executor";
   filter: ActiveFilter;
-  onToggle: (next: ActiveFilter) => void;
+  onToggle: (next: EntityFilter) => void;
 }) {
   if (!items.length) return null;
   return (
@@ -42,7 +42,7 @@ export function PrimePills({
 }: {
   agents: string[];
   filter: ActiveFilter;
-  onToggle: (next: ActiveFilter) => void;
+  onToggle: (next: EntityFilter) => void;
 }) {
   if (!agents.length) return null;
   return (

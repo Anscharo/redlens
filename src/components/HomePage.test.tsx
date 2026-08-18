@@ -45,6 +45,16 @@ describe("HomePage", () => {
     expect(screen.getByRole("link", { name: /CrossView/ })).toHaveAttribute("href", "/reports/crossview");
   });
 
+  it("renders the features banner ABOVE the cards — it's the first-time reader's entry point", () => {
+    render(<HomePage />, { wrapper: wrap() });
+    const banner = screen.getByRole("link", { name: /New here\? See everything you can do/ });
+    expect(banner).toHaveAttribute("href", "/features");
+    // Order matters: the banner has to precede the first card in the document,
+    // otherwise it sits below the grid where a newcomer never reaches it.
+    const firstCard = screen.getByRole("link", { name: /Reader/ });
+    expect(banner.compareDocumentPosition(firstCard)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
   it("renders the patch notes section", () => {
     render(<HomePage />, { wrapper: wrap() });
     expect(screen.getByRole("heading", { name: "Recent improvements" })).toBeInTheDocument();

@@ -15,21 +15,24 @@ import type { Indexes } from "../retrieval/indexes.ts";
 import { config } from "../config.ts";
 import { createRoundChecker, type RoundTelemetry } from "./verify/round-checks.ts";
 import { runDeterministicChecks, type CheckReport } from "./verify/verify-checks.ts";
+import { findParamsMentioned } from "./verify/param-checks.ts";
 import { createLinkJudge, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
 import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation-normalize.ts";
 import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
 import { gatedChat } from "./verify/stream-link-gate.ts";
 import { createCitationGate } from "./verify/definition-block-gate.ts";
-import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifyOverall } from "./verify/verifier.ts";
+import { isUncheckableAnswer, judgeSmalltalk } from "./verify/smalltalk.ts";
+import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
+import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
 import { atlasDescribe } from "./tools/tools.ts";
 import { adviseRecovery, type Recovery } from "./verify/advisor.ts";
-import { captureError, type ErrorContext } from "../posthog-node.ts";
+import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type DoneEvent = Extract<ChatEvent, { type: "done" }>;
 
 export interface CheckRowMeta {
-  kind: "round_checks" | "verify" | "verify_recheck" | "advisor_recovery";
+  kind: "round_checks" | "verify" | "verify_recheck" | "advisor_recovery" | "smalltalk_judge";
   model: string | null;
   action: "annotate" | "revised" | null;
   verdict: unknown;
@@ -42,7 +45,12 @@ export interface CheckRowMeta {
 
 export type HarnessEvent =
   | ChatEvent
-  | { type: "status"; stage: "querying" | "reading" | "checking" | "advising" | "revising"; detail?: string }
+  // "comparing" is emitted here, by the orchestrator (see the verification
+  // block below). "synthesizing"/"finalizing" are staged-delivery-only stages
+  // synthesized by the SSE route (chat.ts) from token/done events — the
+  // orchestrator never yields them; they're in this union because it's the
+  // wire type both files share.
+  | { type: "status"; stage: "querying" | "reading" | "checking" | "advising" | "revising" | "comparing" | "synthesizing" | "finalizing"; detail?: string }
   | {
       type: "verify_result";
       overall: VerifyOverall;
@@ -54,6 +62,7 @@ export type HarnessEvent =
       docNoMismatches: string[];
       ungroundedQuotes: string[];
       ungroundedAddresses: string[];
+      paramMismatches: string[];
     };
 
 export type HarnessDone = DoneEvent & { checksMeta: CheckRowMeta[] };
@@ -70,6 +79,18 @@ function describeCall(name: string, args: Record<string, unknown>): string {
   if (typeof q === "string") return `Searching the atlas for “${q.slice(0, 80)}”…`;
   if (name === "atlas_get") return "Reading documents…";
   return `Consulting ${name}…`;
+}
+
+// Copy for the verification stages. A turn can reach the audit with nothing
+// retrieved — a meta-question, or a follow-up answered from the conversation —
+// and "against 0 sources" reads as a broken counter rather than a state. A
+// count is printed only when it is real; the call site suppresses the stage
+// entirely when there is no basis to name at all (see `grounded`), so the
+// sourceless branch here only ever describes conversation grounding.
+function checkingDetail(citations: number, sources: number): string {
+  const subject = citations > 0 ? `${citations} cited claim${citations === 1 ? "" : "s"}` : "the answer";
+  if (sources > 0) return `Cross-checking ${subject} against ${sources} source${sources === 1 ? "" : "s"}…`;
+  return `Cross-checking ${subject} against earlier turns of this conversation…`;
 }
 
 function verifyEvent(
@@ -89,6 +110,7 @@ function verifyEvent(
     docNoMismatches: checks.docNoMismatches,
     ungroundedQuotes: checks.ungroundedQuotes,
     ungroundedAddresses: checks.ungroundedAddresses,
+    paramMismatches: checks.paramMismatches,
   };
 }
 
@@ -193,6 +215,37 @@ const schemaEvidence = (ix: Indexes): EvidenceEntry => ({
   content: JSON.stringify(atlasDescribe(ix)),
 });
 
+// [E-const]: deterministic parameter-table rows the answer text mentions
+// (docs/research/synlang-wiki.md §3.1) — evidence for the VERIFIER only,
+// never the answerer's prompt/loop (a measured ~6x loop-amplification cost is
+// why). Protects a correct answer that states a well-known frozen parameter
+// without re-retrieving it this turn from a false "unsupported" verdict, and
+// gives the absence contract (verify/absence.ts) something to refute a false
+// absence claim against. Uses the same broadened name-or-title matcher as the
+// Task-1 hard check (param-checks.ts's findParamsMentioned) — a false
+// positive here is cheap (one extra evidence row, not a wrongful failure), so
+// the ambiguous-doc suppression the hard check needs is deliberately skipped.
+const CONST_EVIDENCE_CAP = 40;
+function constEvidence(ix: Indexes, answerText: string): EvidenceEntry | null {
+  const matches = findParamsMentioned(answerText, ix);
+  if (matches.length === 0) return null;
+  const ranked = [...matches]
+    .sort((a, b) => {
+      const aOwner = a.row.owner ? 0 : 1;
+      const bOwner = b.row.owner ? 0 : 1;
+      return aOwner !== bOwner ? aOwner - bOwner : b.row.name.length - a.row.name.length;
+    })
+    .slice(0, CONST_EVIDENCE_CAP);
+  return {
+    label: "[E-const]",
+    tool: "atlas_param_table",
+    args: "(deterministic parameter-table rows matching the answer — derived from the served atlas at index build)",
+    content: JSON.stringify(
+      ranked.map(({ row }) => ({ name: row.name, value: row.value, unit: row.unit, owner: row.owner, doc_no: row.doc_no, uuid: row.uuid })),
+    ),
+  };
+}
+
 // One line per hard deterministic failure — fed to the advisor and the revision
 // steer so recovery targets the exact fabrication, not just "audit failed".
 function describeCheckFailures(checks: CheckReport): string[] {
@@ -203,12 +256,35 @@ function describeCheckFailures(checks: CheckReport): string[] {
     ...checks.ungroundedQuotes.map((q) => `quoted text not found in any retrieved source: "${q.slice(0, 80)}"`),
     ...checks.ungroundedAddresses.map((a) => `address ${a} appears in no tool result this turn — remove it or replace it with an address you actually retrieved`),
     ...checks.ungroundedCitationValues.map((v) => `${v} — cite the value to the document that actually contains it, or drop the figure`),
+    ...checks.paramMismatches.map((m) => `${m} — state the correct atlas value instead`),
     ...(checks.lengthCapped ? ["the previous answer was cut off by the output length limit before it finished — write a complete, more concise answer that fits"] : []),
   ];
 }
 
 function retrievalTrouble(t: RoundTelemetry): boolean {
   return t.emptyResults + t.errorResults >= config.chatAdvisorTriggerEmptyResults || t.repeatedQueries >= 2;
+}
+
+// One model audit of an answer: four concurrent narrow auditors
+// (verify/sliced-verifier.ts), one per failure class (claims/figures/sets/
+// overreach), over the same evidence. `modelLabel` is what the check row
+// records as `model`.
+async function runAudit(params: {
+  jsonCall: JsonCall;
+  ix: Indexes;
+  question: string;
+  answer: string;
+  evidence: EvidenceEntry[];
+  checks: CheckReport;
+  signal?: AbortSignal;
+  obs?: ErrorContext;
+}): Promise<{ run: VerifierRun; modelLabel: string }> {
+  const models = sliceModels();
+  const run = await runSlicedVerifier({
+    call: params.jsonCall, models, ix: params.ix, question: params.question, answer: params.answer,
+    evidence: params.evidence, checks: params.checks, signal: params.signal, obs: params.obs,
+  });
+  return { run, modelLabel: `sliced(${[...new Set(Object.values(models))].join(",")})` };
 }
 
 // Corrective-run steering per advisor action. The revision run's base is the
@@ -294,6 +370,21 @@ export async function* runVerifiedChat(opts: {
     judge = null; // new evidence — rebuild on the next link
   };
 
+  // ── Small-talk judge (concurrent — never blocks the answer) ──────────────
+  // Fired alongside the conversationalist, not after it, so its ruling has
+  // resolved by the time the stream ends. Question-side gates keep it to at
+  // most one tiny call per conversation: only the FIRST user message (later
+  // turns lean on conversation context and always audit), and only when the
+  // message itself contains nothing groundable — "what is A.1.6?" needs no
+  // judge to be ruled factual. judgeSmalltalk never rejects (fail-closed
+  // internally), so an unconsumed promise is safe to abandon.
+  const smalltalkJudgeModel = opts.jsonCall ? config.chatSmalltalkJudgeModel : "";
+  const firstTurn = opts.messages.filter((m) => m.role === "user").length <= 1;
+  const judgePromise =
+    smalltalkJudgeModel && firstTurn && isUncheckableAnswer(opts.question)
+      ? judgeSmalltalk({ call: opts.jsonCall!, model: smalltalkJudgeModel, question: opts.question, signal: opts.signal, obs: opts.obs })
+      : null;
+
   // ── Conversationalist pass (answer streams at full speed) ────────────────
   let done: DoneEvent | null = null;
   for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd, obs: opts.obs }), makeGate)) {
@@ -329,6 +420,45 @@ export async function* runVerifiedChat(opts: {
     return;
   }
 
+  // ── Small-talk bypass ────────────────────────────────────────────────────
+  // Skips the audit for pure greetings — behind deterministic conditions plus
+  // the concurrent judge above, every one fail-closed toward auditing:
+  //   1. the judge fired at all (model configured + FIRST user message of the
+  //      conversation + the question itself contains nothing groundable);
+  //   2. zero tool rounds — the conversationalist itself judged no atlas was
+  //      needed (the system prompt tells it plain conversation is tool-free);
+  //   3. the answer contains nothing checkable — no doc numbers, links
+  //      (markdown or bare autolink), reference labels, addresses, figures,
+  //      or slug/code spans (smalltalk.ts) — a zero-tool answer that cites
+  //      or quantifies is exactly the hallucination case the verifier exists
+  //      for;
+  //   4. the judge, given the USER MESSAGE, rules it expects no factual
+  //      content. This closes the hole the answer-side predicate can't see:
+  //      "is the fee governance-controlled?" answered with a marker-free
+  //      "Yes." Judge failure/timeout/garbage = not small talk = full audit.
+  // On bypass the answer returns immediately — no comparing/checking ticker,
+  // no verify chip. Citation repair is provably a no-op here (condition 3
+  // rejects every link/label shape), so it is skipped too. The judge call is
+  // always recorded in checksMeta when it fired — even if the ruling is
+  // discarded because tools ran or the answer is checkable — so its tokens
+  // land in message_checks and count toward the rate-limit window like every
+  // other harness call. The prompt is tiny (a few-line classifier + the user
+  // message, maxTokens 50), but it is still a billed call.
+  if (judgePromise) {
+    const judge = await judgePromise; // long since resolved — it raced the whole answer
+    checksMeta.push({
+      kind: "smalltalk_judge", model: smalltalkJudgeModel, action: null,
+      verdict: { smalltalk: judge.smalltalk }, overall: null,
+      inputTokens: judge.usage?.input ?? null, outputTokens: judge.usage?.output ?? null,
+      generationId: judge.generationId, latencyMs: judge.latencyMs,
+    });
+    if (done.toolCalls.length === 0 && !done.lengthCapped && isUncheckableAnswer(done.content) && judge.smalltalk) {
+      captureEvent("chat_smalltalk_bypass", opts.obs, { chars: done.content.length });
+      yield finish(done);
+      return;
+    }
+  }
+
   // ── Verification (deterministic always; model audit when configured) ─────
   // Reference-link normalization, then citation repair, on the FULL tool texts (the verifier evidence
   // budget doesn't apply to free string scans). The streaming gate already
@@ -346,6 +476,26 @@ export async function* runVerifiedChat(opts: {
   const evidence = evidenceFromTranscript(done.transcript);
   let toolTexts: string[];
   let checks: CheckReport;
+  // Earlier-turn answers count as grounding for follow-ups (the system prompt
+  // says so), so the verifier gets them as one [E-prev] entry alongside the
+  // schema — otherwise every "summarize what you said" turn flags unsupported.
+  // Hoisted above the status events because it is also half of `grounded`.
+  const prevEvidence = priorTurnsEvidence(done.transcript);
+  // Entering verification is progress worth surfacing in staged mode — but only
+  // when there is something to name as the basis: this turn's retrievals, or
+  // earlier turns of the conversation. With neither (a tool-free answer that
+  // still carries groundable content — pure small talk exited above) the audit
+  // still runs, silently — announcing a comparison against nothing is worse
+  // than no ticker at all, and the verdict badge is the outcome channel either
+  // way. The route stays mode-unaware; streaming mode just forwards these like
+  // any other status event.
+  const grounded = evidence.length > 0 || prevEvidence !== null;
+  if (grounded) {
+    yield {
+      type: "status", stage: "comparing",
+      detail: evidence.length > 0 ? "Comparing the draft against the retrieved sources…" : "Comparing the draft against the conversation so far…",
+    };
+  }
   try {
     toolTexts = toolTextsOf(done.transcript);
     const { refs, repair, identifiers } = normalizeAndRepair(done.content, toolTexts, opts.ix);
@@ -363,25 +513,22 @@ export async function* runVerifiedChat(opts: {
   }
 
   const verifierModel = opts.jsonCall ? config.chatVerifierModel : "";
-  // Earlier-turn answers count as grounding for follow-ups (the system prompt
-  // says so), so the verifier gets them as one [E-prev] entry alongside the
-  // schema — otherwise every "summarize what you said" turn flags unsupported.
-  const prevEvidence = priorTurnsEvidence(done.transcript);
-  const baseEvidence = (turnEvidence: EvidenceEntry[]) =>
-    [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...turnEvidence];
+  // constEvidence is computed PER audited answer (done.content vs revDone.content
+  // below), not once — the two answers can mention different parameters.
+  const baseEvidence = (turnEvidence: EvidenceEntry[], answerText: string) => {
+    const ce = constEvidence(opts.ix, answerText);
+    return [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...(ce ? [ce] : []), ...turnEvidence];
+  };
   let verdict: Verdict | null = null;
   if (verifierModel) {
-    yield {
-      type: "status", stage: "checking",
-      detail: `Cross-checking ${checks.citations.length || "the"} cited claim${checks.citations.length === 1 ? "" : "s"} against ${evidence.length} source${evidence.length === 1 ? "" : "s"}…`,
-    };
-    const run = await runVerifier({
-      call: opts.jsonCall!, model: verifierModel, question: opts.question,
-      answer: done.content, evidence: baseEvidence(evidence), checks, telemetry, signal: opts.signal, obs: opts.obs,
+    if (grounded) yield { type: "status", stage: "checking", detail: checkingDetail(checks.citations.length, evidence.length) };
+    const { run, modelLabel } = await runAudit({
+      jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
+      answer: done.content, evidence: baseEvidence(evidence, done.content), checks, signal: opts.signal, obs: opts.obs,
     });
     verdict = run.verdict;
     checksMeta.push({
-      kind: "verify", model: verifierModel, action: null, verdict: run.verdict,
+      kind: "verify", model: modelLabel, action: null, verdict: run.verdict,
       overall: computeOverall(checks, run.verdict),
       inputTokens: run.usage?.input ?? null, outputTokens: run.usage?.output ?? null,
       generationId: run.generationId, latencyMs: run.latencyMs,
@@ -489,13 +636,13 @@ export async function* runVerifiedChat(opts: {
   let revVerdict: Verdict | null = null;
   if (verifierModel && !opts.signal?.aborted) {
     yield { type: "status", stage: "checking", detail: "Re-checking the revised answer…" };
-    const rerun = await runVerifier({
-      call: opts.jsonCall!, model: verifierModel, question: opts.question,
-      answer: revDone.content, evidence: baseEvidence(revEvidence), checks: revChecks, telemetry: checker.telemetry(), signal: opts.signal, obs: opts.obs,
+    const { run: rerun, modelLabel } = await runAudit({
+      jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
+      answer: revDone.content, evidence: baseEvidence(revEvidence, revDone.content), checks: revChecks, signal: opts.signal, obs: opts.obs,
     });
     revVerdict = rerun.verdict;
     checksMeta.push({
-      kind: "verify_recheck", model: verifierModel, action: "revised", verdict: rerun.verdict,
+      kind: "verify_recheck", model: modelLabel, action: "revised", verdict: rerun.verdict,
       overall: computeOverall(revChecks, rerun.verdict),
       inputTokens: rerun.usage?.input ?? null, outputTokens: rerun.usage?.output ?? null,
       generationId: rerun.generationId, latencyMs: rerun.latencyMs,
@@ -507,6 +654,11 @@ export async function* runVerifiedChat(opts: {
     type: "done",
     content: revDone.content,
     usage: { input: done.usage.input + revDone.usage.input, output: done.usage.output + revDone.usage.output },
+    // The revised run's context is the CURRENT one — it replayed the whole
+    // transcript through a fresh round, so its own contextTokens (falling
+    // back to the original's only if the revision never saw a usage chunk)
+    // describes what the shipped answer was actually produced against.
+    contextTokens: revDone.contextTokens ?? done.contextTokens,
     generationId: revDone.generationId ?? done.generationId,
     toolCalls: [...done.toolCalls, ...revDone.toolCalls],
     lengthCapped: revDone.lengthCapped, // the revised answer is what's finalized

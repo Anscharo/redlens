@@ -96,7 +96,7 @@ const CONTAINER_RE = /^(the (sub)?documents (herein|below)|this (article|section
 // exclusion only applies while the doc's current content still hashes to
 // that value. An entry with NO quoteHash (not yet backfilled) falls back to
 // the old unconditional-exclude behavior, so this is non-breaking pre-backfill
-// — see scripts/aux/backfill-risk-non-rule-hashes.mjs.
+// — backfilled via a one-time script, since removed (see git history).
 const nonRuleByUuid = new Map(riskNonRuleDocs.map((d) => [d.uuid, d as { uuid: string; docNo: string; reason: string; quoteHash?: string }]));
 
 // A tiny, dependency-free, synchronous hash (FNV-1a). enumerateRiskCandidates

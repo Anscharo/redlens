@@ -216,6 +216,24 @@
       }
     },
     {
+      "chain": "xlayer",
+      "chainId": 196,
+      "aliases": [
+        "xlayer",
+        "x layer"
+      ],
+      "proseHints": [
+        "xlayer",
+        "x layer"
+      ],
+      "rpcUrl": "https://rpc.xlayer.tech",
+      "explorer": "https://www.oklink.com/x-layer/evm/address/",
+      "nativeToken": {
+        "symbol": "OKB",
+        "decimals": 18
+      }
+    },
+    {
       "chain": "ethereum",
       "chainId": 1,
       "aliases": [
