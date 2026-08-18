@@ -9,6 +9,7 @@ import {
   loadSettlements,
   resetSettlementsCache,
   reportsForPrime,
+  settlementPrimeKeys,
   formatMonth,
   formatUsd,
   revenueGap,
@@ -76,6 +77,15 @@ describe("reportsForPrime / revenueGap", () => {
   it("returns that prime's reports oldest-first", () => {
     expect(reportsForPrime(bundle, "spark").map((r) => r.month)).toEqual(["2026-06", "2026-07"]);
     expect(reportsForPrime(bundle, "keel")).toEqual([]);
+  });
+
+  it("matches a composite-party slug and ignores case; not foundations", () => {
+    expect(settlementPrimeKeys("spark-party")).toEqual(["spark-party", "spark"]);
+    expect(settlementPrimeKeys("Spark")).toEqual(["spark"]);
+    expect(reportsForPrime(bundle, "SPARK").map((r) => r.month)).toEqual(["2026-06", "2026-07"]);
+    expect(reportsForPrime(bundle, "spark-party").map((r) => r.month)).toEqual(["2026-06", "2026-07"]);
+    expect(reportsForPrime(bundle, "spark-foundation")).toEqual([]);
+    expect(reportsForPrime(bundle, "grove-party")).toEqual([bundle.reports[1]]);
   });
 
   it("is the absolute gap between Σ revenueToPrime and the headline", () => {

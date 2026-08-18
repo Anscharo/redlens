@@ -91,6 +91,16 @@ describe("ActorSettlements", () => {
     expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
   });
 
+  it("resolves Spark's workbooks from the composite-party slug", async () => {
+    window.history.pushState({}, "", "/radar/spark-party/settlements");
+    render(<ActorSettlements slug="spark-party" name="Spark" />);
+    await waitFor(() => expect(screen.getByText("Kept by Spark")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "2026-07 source" })).toHaveAttribute(
+      "href",
+      "https://github.com/soterlabs/settlement-reports/tree/main/reports/spark/2026-07",
+    );
+  });
+
   it("explains when a slug has no MSC workbooks", async () => {
     const { rerender } = render(<ActorSettlements slug="spark" name="Spark" />);
     await screen.findByText("Kept by Spark");

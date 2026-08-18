@@ -54,6 +54,15 @@ describe("ActorSettlementTeaser", () => {
     expect(screen.getByTestId("msc-teaser")).toBe(figure.closest(".msc-teaser"));
   });
 
+  it("treats the composite-party slug as the prime", async () => {
+    render(<ActorSettlementTeaser slug="spark-party" />);
+    await waitFor(() => expect(screen.getByText("$100 to Sky")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: /full cycle/ })).toHaveAttribute(
+      "href",
+      "/radar/spark-party/settlements",
+    );
+  });
+
   it("renders nothing for a slug with no MSC workbooks", async () => {
     const { rerender } = render(<ActorSettlementTeaser slug="spark" />);
     await screen.findByText("$100 to Sky");

@@ -62,8 +62,27 @@ export function resetSettlementsCache(): void {
   cached = null;
 }
 
-export function reportsForPrime(bundle: SettlementsBundle, prime: string): SettlementReport[] {
-  return bundle.reports.filter((r) => r.prime === prime).sort((a, b) => a.month.localeCompare(b.month));
+/**
+ * Which Soter `reports/<prime>/` folders a radar slug should read.
+ *
+ * Folders are the Prime Agent slug (`spark`). Composite-party pages use
+ * the same display name with a `-party` suffix (`spark-party`) and would
+ * miss an exact-slug match. Foundations / multisigs (`spark-foundation`)
+ * stay unmatched. Pattern and Launch Agent 7 have no published workbooks.
+ */
+export function settlementPrimeKeys(slug: string): string[] {
+  const s = slug.trim().toLowerCase();
+  if (!s) return [];
+  const keys = [s];
+  if (s.endsWith("-party")) keys.push(s.slice(0, -"-party".length));
+  return keys;
+}
+
+export function reportsForPrime(bundle: SettlementsBundle, slug: string): SettlementReport[] {
+  const keys = new Set(settlementPrimeKeys(slug));
+  return bundle.reports
+    .filter((r) => keys.has(r.prime.toLowerCase()))
+    .sort((a, b) => a.month.localeCompare(b.month));
 }
 
 export function formatMonth(ym: string): string {

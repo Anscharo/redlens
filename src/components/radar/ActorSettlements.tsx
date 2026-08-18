@@ -43,7 +43,7 @@ export function ActorSettlements({ slug, name }: Props) {
   const hasVenues = report.venues.some(
     (v) => Math.abs(v.profitToSky) + Math.abs(v.profitToGrove) >= 1,
   );
-  const workbook = `${SOURCE}/tree/main/reports/${slug}/${month}`;
+  const workbook = `${SOURCE}/tree/main/reports/${report.prime}/${month}`;
 
   return (
     <>
