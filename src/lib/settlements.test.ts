@@ -16,8 +16,14 @@ import {
   demandSideRevenue,
   isDemandSideCycle,
   teaserFigure,
-  barPair,
+  summaryThreeWay,
+  threeWayPeaks,
+  barFillStyle,
   headlineFigures,
+  activeDemandSeries,
+  hasMultiVenuePnl,
+  hasVenueAum,
+  collapseAum,
   EMPTY_SETTLEMENTS,
   type SettlementHeadline,
   type SettlementReport,
@@ -148,28 +154,78 @@ describe("demand-side cycles", () => {
     expect(teaserFigure(keel)).toEqual({ amount: 36_231, suffix: "kept" });
   });
 
-  it("plots demand as the kept bar when Sky and P2G are both ~0", () => {
-    expect(barPair(report())).toEqual({ sky: 60, prime: 40 });
-    expect(barPair(keel)).toEqual({ sky: 0, prime: 36_231 });
+  it("splits the Summary into Sky / supply kept / demand-side", () => {
+    expect(summaryThreeWay(report())).toEqual({ month: "2026-07", sky: 60, kept: 40, demand: 0 });
+    expect(summaryThreeWay(keel)).toEqual({ month: "2026-07", sky: 0, kept: 0, demand: 36_231 });
+    expect(summaryThreeWay(report({ headline: { ...report().headline, profitToGrove: -20 } })).kept).toBe(-20);
   });
 
-  it("lists demand-side figures instead of the three supply-side totals", () => {
-    expect(headlineFigures(report(), "Spark").map((f) => f.label)).toEqual([
+  it("places a signed kept bar below the zero line", () => {
+    const { peakPos, peakNeg } = threeWayPeaks([
+      { month: "2026-01", sky: 80, kept: -20, demand: 10 },
+    ]);
+    expect(peakPos).toBe(80);
+    expect(peakNeg).toBe(20);
+    const neg = barFillStyle(-20, peakPos, peakNeg);
+    const pos = barFillStyle(80, peakPos, peakNeg);
+    expect(neg).toEqual({ bottom: "0%", height: "20%" });
+    expect(pos).toEqual({ bottom: "20%", height: "80%" });
+  });
+
+  it("lists the three-way figures, plus CoF when it is non-zero", () => {
+    expect(headlineFigures(report()).map((f) => f.label)).toEqual([
       "To Sky",
-      "Kept by Spark",
+      "Supply kept",
+      "Demand-side",
       "Cost of funds",
     ]);
-    expect(headlineFigures(keel, "Keel")).toEqual([
+    expect(headlineFigures(keel)).toEqual([
+      { label: "To Sky", value: 0 },
+      { label: "Supply kept", value: 0 },
       { label: "Demand-side", value: 36_231 },
-      { label: "Agent rate", value: 32_004 },
-      { label: "Distribution rewards", value: 4_227 },
     ]);
-    expect(headlineFigures(skybase, "Skybase").map((f) => f.label)).toEqual([
+    expect(headlineFigures(skybase).map((f) => f.label)).toEqual([
+      "To Sky",
+      "Supply kept",
       "Demand-side",
-      "Agent rate",
-      "Distribution rewards",
-      "Accessibility rewards",
     ]);
+  });
+
+  it("activates demand-series that appear in any month", () => {
+    expect(activeDemandSeries([keel]).map((s) => s.key)).toEqual(["agentRate", "distributionRewards"]);
+    expect(activeDemandSeries([skybase]).map((s) => s.key)).toEqual([
+      "agentRate",
+      "distributionRewards",
+      "gar",
+    ]);
+    expect(activeDemandSeries([report()])).toEqual([]);
+  });
+
+  it("counts multi-venue PnL and AUM separately", () => {
+    expect(hasMultiVenuePnl(report())).toBe(false);
+    expect(hasMultiVenuePnl(keel)).toBe(false);
+    expect(hasMultiVenuePnl(report({
+      venues: [
+        { id: "a", label: "A", chain: "", synthetic: false, revenueToPrime: 1, cofAlloc: 0, profitToSky: 10, profitToGrove: 0 },
+        { id: "b", label: "B", chain: "", synthetic: false, revenueToPrime: 1, cofAlloc: 0, profitToSky: 5, profitToGrove: 0 },
+      ],
+    }))).toBe(true);
+    expect(hasVenueAum(report({ venues: [{ ...report().venues[0]!, valueEom: 1_000 }] }))).toBe(true);
+    expect(hasVenueAum(keel)).toBe(false);
+  });
+
+  it("folds AUM tails into Other", () => {
+    const many = Array.from({ length: 15 }, (_, i) => ({
+      id: `v${i}`,
+      label: `V${i}`,
+      synthetic: false,
+      valueEom: 15 - i,
+    }));
+    const out = collapseAum(many, 4);
+    expect(out).toHaveLength(5);
+    expect(out[0]!.id).toBe("v0");
+    expect(out[4]!.label).toMatch(/Other venues \(11\)/);
+    expect(out[4]!.valueEom).toBe(many.slice(4).reduce((n, v) => n + v.valueEom, 0));
   });
 });
 

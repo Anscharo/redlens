@@ -13,6 +13,8 @@ export interface SettlementVenue {
   cofAlloc: number;
   profitToSky: number;
   profitToGrove: number;
+  /** End-of-month position; parsed from the workbook, 0 when absent. */
+  valueEom?: number;
 }
 
 export interface SettlementHeadline {
@@ -155,39 +157,117 @@ export function teaserFigure(report: SettlementReport): { amount: number; suffix
   return { amount: sky, suffix: "to Sky" };
 }
 
-export function barPair(report: SettlementReport): { sky: number; prime: number } {
-  if (isDemandSideCycle(report)) {
-    return { sky: 0, prime: demandSideRevenue(report.headline) };
-  }
-  return { sky: report.headline.skyRevenue, prime: report.headline.profitToGrove };
+/** Summary three-way: Sky take, supply-side kept (P2G), demand-side. */
+export interface ThreeWayMonth {
+  month: string;
+  sky: number;
+  kept: number;
+  demand: number;
 }
 
-export function headlineFigures(
-  report: SettlementReport,
-  name: string,
-): { label: string; value: number }[] {
-  if (isDemandSideCycle(report)) {
-    const h = report.headline;
-    const rows: { label: string; value: number }[] = [
-      { label: "Demand-side", value: demandSideRevenue(h) },
-    ];
-    if (Math.abs(h.agentRate ?? 0) >= NEAR_ZERO) {
-      rows.push({ label: "Agent rate", value: h.agentRate ?? 0 });
+export function summaryThreeWay(report: SettlementReport): ThreeWayMonth {
+  return {
+    month: report.month,
+    sky: report.headline.skyRevenue,
+    kept: report.headline.profitToGrove,
+    demand: demandSideRevenue(report.headline),
+  };
+}
+
+export function threeWayPeaks(months: readonly ThreeWayMonth[]): { peakPos: number; peakNeg: number } {
+  let peakPos = 0;
+  let peakNeg = 0;
+  for (const m of months) {
+    for (const v of [m.sky, m.kept, m.demand]) {
+      if (v >= 0) peakPos = Math.max(peakPos, v);
+      else peakNeg = Math.max(peakNeg, -v);
     }
-    if (Math.abs(h.distributionRewards ?? 0) >= NEAR_ZERO) {
-      rows.push({ label: "Distribution rewards", value: h.distributionRewards ?? 0 });
-    }
-    if (Math.abs(h.gar ?? 0) >= NEAR_ZERO) {
-      rows.push({ label: "Accessibility rewards", value: h.gar ?? 0 });
-    }
-    if (Math.abs(h.chroniclePoints ?? 0) >= NEAR_ZERO) {
-      rows.push({ label: "Chronicle points", value: h.chroniclePoints ?? 0 });
-    }
-    return rows;
   }
+  return { peakPos: Math.max(peakPos, 1), peakNeg };
+}
+
+export function barFillStyle(
+  value: number,
+  peakPos: number,
+  peakNeg: number,
+): { bottom: string; height: string } | null {
+  const span = Math.max(1, peakPos + peakNeg);
+  const zero = (peakNeg / span) * 100;
+  const h = (Math.abs(value) / span) * 100;
+  if (h < 0.4) return null;
+  if (value >= 0) return { bottom: `${zero}%`, height: `${h}%` };
+  return { bottom: `${zero - h}%`, height: `${h}%` };
+}
+
+export const DEMAND_SERIES = [
+  { key: "agentRate", label: "Agent rate", barClass: "msc-bar-rate" },
+  { key: "distributionRewards", label: "Distribution rewards", barClass: "msc-bar-dr" },
+  { key: "gar", label: "Accessibility rewards", barClass: "msc-bar-gar" },
+  { key: "chroniclePoints", label: "Chronicle points", barClass: "msc-bar-chronicle" },
+] as const;
+
+export type DemandKey = (typeof DEMAND_SERIES)[number]["key"];
+
+export function demandPart(h: SettlementHeadline, key: DemandKey): number {
+  return h[key] ?? 0;
+}
+
+export function activeDemandSeries(reports: readonly SettlementReport[]) {
+  return DEMAND_SERIES.filter((s) =>
+    reports.some((r) => Math.abs(demandPart(r.headline, s.key)) >= NEAR_ZERO),
+  );
+}
+
+export function venuePnlCount(report: SettlementReport): number {
+  return report.venues.filter(
+    (v) => Math.abs(v.profitToSky) + Math.abs(v.profitToGrove) >= NEAR_ZERO,
+  ).length;
+}
+
+export function hasMultiVenuePnl(report: SettlementReport): boolean {
+  return venuePnlCount(report) >= 2;
+}
+
+export function hasVenueAum(report: SettlementReport): boolean {
+  return report.venues.some((v) => Math.abs(v.valueEom ?? 0) >= NEAR_ZERO);
+}
+
+export function collapseAum(
+  venues: readonly Pick<SettlementVenue, "id" | "label" | "synthetic" | "valueEom">[],
+  topN = 12,
+  minAbs = 1,
+): { id: string; label: string; synthetic: boolean; valueEom: number }[] {
+  const kept = venues
+    .map((v) => ({
+      id: v.id,
+      label: v.label || v.id,
+      synthetic: v.synthetic,
+      valueEom: v.valueEom ?? 0,
+    }))
+    .filter((v) => Math.abs(v.valueEom) >= minAbs)
+    .sort((a, b) => Math.abs(b.valueEom) - Math.abs(a.valueEom));
+  if (kept.length <= topN) return kept;
+  const head = kept.slice(0, topN);
+  const tail = kept.slice(topN);
   return [
-    { label: "To Sky", value: report.headline.skyRevenue },
-    { label: `Kept by ${name}`, value: report.headline.profitToGrove },
-    { label: "Cost of funds", value: report.headline.cof },
+    ...head,
+    {
+      id: "_other",
+      label: `Other venues (${tail.length})`,
+      synthetic: false,
+      valueEom: tail.reduce((n, v) => n + v.valueEom, 0),
+    },
   ];
+}
+
+export function headlineFigures(report: SettlementReport): { label: string; value: number }[] {
+  const rows = [
+    { label: "To Sky", value: report.headline.skyRevenue },
+    { label: "Supply kept", value: report.headline.profitToGrove },
+    { label: "Demand-side", value: demandSideRevenue(report.headline) },
+  ];
+  if (Math.abs(report.headline.cof) >= NEAR_ZERO) {
+    rows.push({ label: "Cost of funds", value: report.headline.cof });
+  }
+  return rows;
 }

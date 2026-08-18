@@ -6,13 +6,13 @@ import {
   reportsForPrime,
   formatUsd,
   revenueGap,
-  hasVenuePnl,
-  isDemandSideCycle,
-  barPair,
+  summaryThreeWay,
+  activeDemandSeries,
   headlineFigures,
 } from "../../lib/settlements";
 import { SettlementBars } from "./SettlementBars";
-import { SettlementSankey, SettlementVenueTable } from "./SettlementSankey";
+import { SettlementDemandBars } from "./SettlementDemandBars";
+import { ActorSettlementVenues } from "./ActorSettlementVenues";
 
 const mscCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
@@ -33,6 +33,7 @@ export function ActorSettlements({ slug, name }: Props) {
   const [msc, setMsc] = useUrlState("msc", mscCodec);
   const month = months.includes(msc ?? "") ? msc! : latest;
   const report = reports.find((r) => r.month === month) ?? null;
+  const demandSeries = useMemo(() => activeDemandSeries(reports), [reports]);
 
   if (!bundle) return null;
   if (!report || !month) {
@@ -44,9 +45,8 @@ export function ActorSettlements({ slug, name }: Props) {
   }
 
   const gap = revenueGap(report);
-  const hasVenues = hasVenuePnl(report);
-  const demandSide = isDemandSideCycle(report);
   const workbook = `${SOURCE}/tree/main/reports/${report.prime}/${month}`;
+  const selectMonth = (m: string) => setMsc(m === latest ? null : m);
 
   return (
     <>
@@ -58,12 +58,12 @@ export function ActorSettlements({ slug, name }: Props) {
         </a>
       </p>
       <SettlementBars
-        months={reports.map((r) => ({ month: r.month, ...barPair(r) }))}
+        months={reports.map(summaryThreeWay)}
         selected={month}
-        onSelect={(m) => setMsc(m === latest ? null : m)}
+        onSelect={selectMonth}
       />
       <div className="flex flex-wrap gap-x-6 gap-y-1 mb-4 text-sm">
-        {headlineFigures(report, name).map((f) => (
+        {headlineFigures(report).map((f) => (
           <Figure key={f.label} label={f.label} value={f.value} />
         ))}
       </div>
@@ -73,19 +73,13 @@ export function ActorSettlements({ slug, name }: Props) {
           (unattributed to any venue).
         </p>
       )}
-      {hasVenues ? (
-        <>
-          <SettlementSankey venues={report.venues} primeLabel={name} />
-          <SettlementVenueTable venues={report.venues} primeLabel={name} />
-        </>
-      ) : (
-        <p className="text-sm italic" style={{ color: "var(--tan-3)" }}>
-          Published workbooks list no venue-level PnL for {name}.
-          {demandSide
-            ? " Demand-side figures are agent rate and rewards; Sky's take is zero."
-            : ""}
-        </p>
-      )}
+      <SettlementDemandBars
+        reports={reports}
+        series={demandSeries}
+        selected={month}
+        onSelect={selectMonth}
+      />
+      <ActorSettlementVenues report={report} name={name} />
     </>
   );
 }

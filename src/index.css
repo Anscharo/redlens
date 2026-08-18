@@ -1823,9 +1823,15 @@ button.atlas-node-expand-all:focus-visible {
   cursor: pointer;
   color: var(--tan-3);
 }
-.msc-bar-track {
+.msc-bar-cluster {
   display: flex;
-  flex-direction: column-reverse;
+  align-items: stretch;
+  gap: 3px;
+  height: 88px;
+}
+.msc-bar-track,
+.msc-bar-stack {
+  position: relative;
   height: 88px;
   width: 22px;
   background: var(--bg-deep);
@@ -1833,15 +1839,37 @@ button.atlas-node-expand-all:focus-visible {
   border-radius: 2px;
   overflow: hidden;
 }
-.msc-bar-col:hover .msc-bar-track {
+.msc-bar-cluster .msc-bar-track {
+  width: 10px;
+  height: 100%;
+}
+.msc-bar-stack {
+  display: flex;
+  flex-direction: column-reverse;
+}
+.msc-bar-col:hover .msc-bar-track,
+.msc-bar-col:hover .msc-bar-stack {
   border-color: var(--accent);
 }
 .msc-bar-col[data-active="true"] {
   color: var(--tan);
 }
-.msc-bar-col[data-active="true"] .msc-bar-track {
+.msc-bar-col[data-active="true"] .msc-bar-track,
+.msc-bar-col[data-active="true"] .msc-bar-stack {
   border-color: var(--red);
   box-shadow: inset 0 0 0 1px var(--red);
+}
+.msc-bar-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.msc-bar-zero {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--border);
 }
 .msc-bar-sky {
   background: var(--accent);
@@ -1850,6 +1878,49 @@ button.atlas-node-expand-all:focus-visible {
 .msc-bar-prime {
   background: var(--entity-delegate-org);
   width: 100%;
+}
+.msc-bar-demand,
+.msc-bar-rate {
+  background: var(--entity-facilitator-org);
+  width: 100%;
+}
+.msc-bar-dr {
+  background: var(--entity-govops-org);
+  width: 100%;
+}
+.msc-bar-gar {
+  background: var(--entity-foundation);
+  width: 100%;
+}
+.msc-bar-chronicle {
+  background: var(--entity-bridge);
+  width: 100%;
+}
+.msc-aum {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.msc-aum-row {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) 1fr 4.5rem;
+  gap: 10px;
+  align-items: center;
+}
+.msc-aum-track {
+  height: 8px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.msc-aum-fill {
+  display: block;
+  height: 100%;
+  background: var(--entity-development-company);
 }
 .msc-sankey {
   width: 100%;
