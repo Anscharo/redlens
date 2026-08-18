@@ -25,6 +25,15 @@ const FIXTURE: SettlementsBundle = {
       headline: { primeAgentRevenue: 200, skyRevenue: 100, profitToGrove: 40, cof: 50, sdeRevenue: 50 },
       venues: [],
     },
+    {
+      prime: "keel",
+      month: "2026-07",
+      settleVersion: "0.4.0",
+      generatedAt: null,
+      period: null,
+      headline: { primeAgentRevenue: 0, skyRevenue: 0, profitToGrove: 0, cof: 0, sdeRevenue: 0, agentRate: 32004, distributionRewards: 4227, primeAgentTotalRevenue: 36231 },
+      venues: [],
+    },
   ],
 };
 
@@ -60,6 +69,16 @@ describe("ActorSettlementTeaser", () => {
     expect(screen.getByRole("link", { name: /full cycle/ })).toHaveAttribute(
       "href",
       "/radar/spark-party/settlements",
+    );
+  });
+
+  it("shows Keel's demand-side total as kept when Sky's take is zero", async () => {
+    render(<ActorSettlementTeaser slug="keel" />);
+    await waitFor(() => expect(screen.getByText("$36,231 kept")).toBeInTheDocument());
+    expect(screen.queryByText("$0 to Sky")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /full cycle/ })).toHaveAttribute(
+      "href",
+      "/radar/keel/settlements",
     );
   });
 

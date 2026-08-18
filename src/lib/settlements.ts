@@ -21,6 +21,12 @@ export interface SettlementHeadline {
   profitToGrove: number;
   cof: number;
   sdeRevenue: number;
+  /** Demand-side Summary rows. Present on parsed workbooks; optional in tests. */
+  agentRate?: number;
+  distributionRewards?: number;
+  chroniclePoints?: number;
+  gar?: number;
+  primeAgentTotalRevenue?: number;
 }
 
 export interface SettlementReport {
@@ -104,4 +110,84 @@ export function formatUsd(n: number, compact = false): string {
 export function revenueGap(report: SettlementReport): number {
   const sum = report.venues.reduce((n, v) => n + v.revenueToPrime, 0);
   return Math.abs(sum - report.headline.primeAgentRevenue);
+}
+
+/** USD amounts under $1 are treated as empty (rounding dust, not a take). */
+const NEAR_ZERO = 1;
+
+/** Agent rate + DR + Chronicle + GAR, falling back to the Summary unlabeled total. */
+export function demandSideRevenue(h: SettlementHeadline): number {
+  const parts =
+    (h.agentRate ?? 0) +
+    (h.distributionRewards ?? 0) +
+    (h.chroniclePoints ?? 0) +
+    (h.gar ?? 0);
+  if (Math.abs(parts) >= NEAR_ZERO) return parts;
+  return h.primeAgentTotalRevenue ?? 0;
+}
+
+export function hasVenuePnl(report: SettlementReport): boolean {
+  return report.venues.some(
+    (v) => Math.abs(v.profitToSky) + Math.abs(v.profitToGrove) >= NEAR_ZERO,
+  );
+}
+
+/**
+ * Demand-side-only cycle (Keel, Skybase): no venue PnL, Sky's take is ~$0,
+ * but the prime-side Summary still has agent rate / rewards.
+ */
+export function isDemandSideCycle(report: SettlementReport): boolean {
+  return (
+    !hasVenuePnl(report) &&
+    Math.abs(report.headline.skyRevenue) < NEAR_ZERO &&
+    Math.abs(demandSideRevenue(report.headline)) >= NEAR_ZERO
+  );
+}
+
+export function teaserFigure(report: SettlementReport): { amount: number; suffix: string } {
+  const sky = report.headline.skyRevenue;
+  if (Math.abs(sky) >= NEAR_ZERO) return { amount: sky, suffix: "to Sky" };
+  if (isDemandSideCycle(report)) {
+    return { amount: demandSideRevenue(report.headline), suffix: "kept" };
+  }
+  const kept = report.headline.profitToGrove;
+  if (Math.abs(kept) >= NEAR_ZERO) return { amount: kept, suffix: "kept" };
+  return { amount: sky, suffix: "to Sky" };
+}
+
+export function barPair(report: SettlementReport): { sky: number; prime: number } {
+  if (isDemandSideCycle(report)) {
+    return { sky: 0, prime: demandSideRevenue(report.headline) };
+  }
+  return { sky: report.headline.skyRevenue, prime: report.headline.profitToGrove };
+}
+
+export function headlineFigures(
+  report: SettlementReport,
+  name: string,
+): { label: string; value: number }[] {
+  if (isDemandSideCycle(report)) {
+    const h = report.headline;
+    const rows: { label: string; value: number }[] = [
+      { label: "Demand-side", value: demandSideRevenue(h) },
+    ];
+    if (Math.abs(h.agentRate ?? 0) >= NEAR_ZERO) {
+      rows.push({ label: "Agent rate", value: h.agentRate ?? 0 });
+    }
+    if (Math.abs(h.distributionRewards ?? 0) >= NEAR_ZERO) {
+      rows.push({ label: "Distribution rewards", value: h.distributionRewards ?? 0 });
+    }
+    if (Math.abs(h.gar ?? 0) >= NEAR_ZERO) {
+      rows.push({ label: "Accessibility rewards", value: h.gar ?? 0 });
+    }
+    if (Math.abs(h.chroniclePoints ?? 0) >= NEAR_ZERO) {
+      rows.push({ label: "Chronicle points", value: h.chroniclePoints ?? 0 });
+    }
+    return rows;
+  }
+  return [
+    { label: "To Sky", value: report.headline.skyRevenue },
+    { label: `Kept by ${name}`, value: report.headline.profitToGrove },
+    { label: "Cost of funds", value: report.headline.cof },
+  ];
 }

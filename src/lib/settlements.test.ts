@@ -13,7 +13,13 @@ import {
   formatMonth,
   formatUsd,
   revenueGap,
+  demandSideRevenue,
+  isDemandSideCycle,
+  teaserFigure,
+  barPair,
+  headlineFigures,
   EMPTY_SETTLEMENTS,
+  type SettlementHeadline,
   type SettlementReport,
   type SettlementsBundle,
 } from "./settlements";
@@ -91,6 +97,79 @@ describe("reportsForPrime / revenueGap", () => {
   it("is the absolute gap between Σ revenueToPrime and the headline", () => {
     expect(revenueGap(report())).toBe(10);
     expect(revenueGap(report({ headline: { ...report().headline, primeAgentRevenue: 90 } }))).toBe(0);
+  });
+});
+
+const KEEL_HEADLINE: SettlementHeadline = {
+  primeAgentRevenue: 0,
+  skyRevenue: 0,
+  profitToGrove: 0,
+  cof: 0,
+  sdeRevenue: 0,
+  agentRate: 32_004,
+  distributionRewards: 4_227,
+  chroniclePoints: 0,
+  gar: 0,
+  primeAgentTotalRevenue: 36_231,
+};
+
+describe("demand-side cycles", () => {
+  const keel = report({
+    prime: "keel",
+    venues: [],
+    headline: KEEL_HEADLINE,
+  });
+  const skybase = report({
+    prime: "skybase",
+    venues: [],
+    headline: {
+      ...KEEL_HEADLINE,
+      agentRate: 37_629,
+      distributionRewards: 95_303,
+      gar: 105_174,
+      primeAgentTotalRevenue: 238_106,
+    },
+  });
+
+  it("sums agent rate and rewards, falling back to the Summary total", () => {
+    expect(demandSideRevenue(KEEL_HEADLINE)).toBe(36_231);
+    expect(demandSideRevenue({ ...KEEL_HEADLINE, agentRate: 0, distributionRewards: 0 })).toBe(36_231);
+    expect(demandSideRevenue(report().headline)).toBe(0);
+  });
+
+  it("flags Keel/Skybase, not Spark", () => {
+    expect(isDemandSideCycle(keel)).toBe(true);
+    expect(isDemandSideCycle(skybase)).toBe(true);
+    expect(isDemandSideCycle(report())).toBe(false);
+  });
+
+  it("teases Sky's take when present, else the demand-side total as kept", () => {
+    expect(teaserFigure(report())).toEqual({ amount: 60, suffix: "to Sky" });
+    expect(teaserFigure(keel)).toEqual({ amount: 36_231, suffix: "kept" });
+  });
+
+  it("plots demand as the kept bar when Sky and P2G are both ~0", () => {
+    expect(barPair(report())).toEqual({ sky: 60, prime: 40 });
+    expect(barPair(keel)).toEqual({ sky: 0, prime: 36_231 });
+  });
+
+  it("lists demand-side figures instead of the three supply-side totals", () => {
+    expect(headlineFigures(report(), "Spark").map((f) => f.label)).toEqual([
+      "To Sky",
+      "Kept by Spark",
+      "Cost of funds",
+    ]);
+    expect(headlineFigures(keel, "Keel")).toEqual([
+      { label: "Demand-side", value: 36_231 },
+      { label: "Agent rate", value: 32_004 },
+      { label: "Distribution rewards", value: 4_227 },
+    ]);
+    expect(headlineFigures(skybase, "Skybase").map((f) => f.label)).toEqual([
+      "Demand-side",
+      "Agent rate",
+      "Distribution rewards",
+      "Accessibility rewards",
+    ]);
   });
 });
 

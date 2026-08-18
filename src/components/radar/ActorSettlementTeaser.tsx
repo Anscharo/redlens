@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "../Link";
 import { useLoaded } from "../../hooks/useAtlasData";
-import { loadSettlements, reportsForPrime, formatMonth, formatUsd } from "../../lib/settlements";
+import { loadSettlements, reportsForPrime, formatMonth, formatUsd, teaserFigure } from "../../lib/settlements";
 import { settlementsHref } from "../../lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
 
@@ -17,6 +17,7 @@ export function ActorSettlementTeaser({ slug }: Props) {
     return rows[rows.length - 1] ?? null;
   }, [bundle, slug]);
   if (!latest) return null;
+  const figure = teaserFigure(latest);
 
   return (
     <section
@@ -32,7 +33,7 @@ export function ActorSettlementTeaser({ slug }: Props) {
         {formatMonth(latest.month)}
       </p>
       <p className="mono text-lg" style={{ color: "var(--tan)" }}>
-        {formatUsd(latest.headline.skyRevenue)} to Sky
+        {formatUsd(figure.amount)} {figure.suffix}
       </p>
       <Link
         to={settlementsHref(slug)}

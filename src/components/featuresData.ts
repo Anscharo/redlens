@@ -162,7 +162,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "Monthly settlement charts",
-        what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows last month's amount to Sky; a full cycle page has the stacked-bar history and venue Sankey.",
+        what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows last month's take (Sky's share, or the agent's demand-side total when Sky's take is zero); a full cycle page has the stacked-bar history and, when the workbook lists venues, a Sankey.",
         how: [
           "Open a Prime Agent on Radar (Spark, Grove, Obex, …).",
           "The Monthly settlement card in the top right shows the latest cycle; the `full cycle` link under the figure opens the charts.",

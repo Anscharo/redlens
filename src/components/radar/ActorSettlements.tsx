@@ -6,6 +6,10 @@ import {
   reportsForPrime,
   formatUsd,
   revenueGap,
+  hasVenuePnl,
+  isDemandSideCycle,
+  barPair,
+  headlineFigures,
 } from "../../lib/settlements";
 import { SettlementBars } from "./SettlementBars";
 import { SettlementSankey, SettlementVenueTable } from "./SettlementSankey";
@@ -40,9 +44,8 @@ export function ActorSettlements({ slug, name }: Props) {
   }
 
   const gap = revenueGap(report);
-  const hasVenues = report.venues.some(
-    (v) => Math.abs(v.profitToSky) + Math.abs(v.profitToGrove) >= 1,
-  );
+  const hasVenues = hasVenuePnl(report);
+  const demandSide = isDemandSideCycle(report);
   const workbook = `${SOURCE}/tree/main/reports/${report.prime}/${month}`;
 
   return (
@@ -55,18 +58,14 @@ export function ActorSettlements({ slug, name }: Props) {
         </a>
       </p>
       <SettlementBars
-        months={reports.map((r) => ({
-          month: r.month,
-          sky: r.headline.skyRevenue,
-          prime: r.headline.profitToGrove,
-        }))}
+        months={reports.map((r) => ({ month: r.month, ...barPair(r) }))}
         selected={month}
         onSelect={(m) => setMsc(m === latest ? null : m)}
       />
       <div className="flex flex-wrap gap-x-6 gap-y-1 mb-4 text-sm">
-        <Figure label="To Sky" value={report.headline.skyRevenue} />
-        <Figure label={`Kept by ${name}`} value={report.headline.profitToGrove} />
-        <Figure label="Cost of funds" value={report.headline.cof} />
+        {headlineFigures(report, name).map((f) => (
+          <Figure key={f.label} label={f.label} value={f.value} />
+        ))}
       </div>
       {gap > 1 && (
         <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
@@ -82,6 +81,9 @@ export function ActorSettlements({ slug, name }: Props) {
       ) : (
         <p className="text-sm italic" style={{ color: "var(--tan-3)" }}>
           Published workbooks list no venue-level PnL for {name}.
+          {demandSide
+            ? " Demand-side figures are agent rate and rewards; Sky's take is zero."
+            : ""}
         </p>
       )}
     </>

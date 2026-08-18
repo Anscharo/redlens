@@ -45,7 +45,7 @@ const FIXTURE: SettlementsBundle = {
       settleVersion: "0.4.0",
       generatedAt: null,
       period: null,
-      headline: { primeAgentRevenue: 0, skyRevenue: 1, profitToGrove: 0, cof: 0, sdeRevenue: 1 },
+      headline: { primeAgentRevenue: 0, skyRevenue: 0, profitToGrove: 0, cof: 0, sdeRevenue: 0, agentRate: 32004, distributionRewards: 4227, primeAgentTotalRevenue: 36231 },
       venues: [],
     },
   ],
@@ -89,6 +89,15 @@ describe("ActorSettlements", () => {
     render(<ActorSettlements slug="keel" name="Keel" />);
     await waitFor(() => screen.getByText(/no venue-level PnL for Keel/));
     expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
+    expect(screen.getByText("Demand-side")).toBeInTheDocument();
+    expect(screen.getByText("$36,231")).toBeInTheDocument();
+    expect(screen.getByText("Agent rate")).toBeInTheDocument();
+    expect(screen.getByText("$32,004")).toBeInTheDocument();
+    expect(screen.getByText("Distribution rewards")).toBeInTheDocument();
+    expect(screen.getByText("$4,227")).toBeInTheDocument();
+    expect(screen.queryByText("To Sky")).not.toBeInTheDocument();
+    expect(screen.queryByText("Kept by Keel")).not.toBeInTheDocument();
+    expect(screen.getByText(/Sky's take is zero/)).toBeInTheDocument();
   });
 
   it("resolves Spark's workbooks from the composite-party slug", async () => {
