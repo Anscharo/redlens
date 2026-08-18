@@ -150,15 +150,11 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
   const policy = (GROUP_POLICIES as readonly string[]).includes(config.embedGroupPolicy)
     ? (config.embedGroupPolicy as GroupPolicy)
     : "one_to_one";
-  const cap = config.embedGroupCap && Number.isFinite(config.embedGroupCap) ? config.embedGroupCap : undefined;
-  const crumbDepth =
-    config.embedCrumbDepth && Number.isFinite(config.embedCrumbDepth) ? config.embedCrumbDepth : undefined;
-  const crumbRoot = config.embedCrumbRoot || undefined;
-  const units = buildUnits(docs, policy, {
-    ...(cap !== undefined ? { cap } : {}),
-    ...(crumbDepth !== undefined ? { crumbDepth } : {}),
-    ...(crumbRoot !== undefined ? { crumbRoot } : {}),
-  });
+  // No opts: cap and crumb depth/root were env knobs that measured as no-ops and
+  // were removed. Policies carry their own defaults (kv_records_breadcrumbs keeps the
+  // root crumb internally because that one IS load-bearing — without it 13 units come
+  // out byte-identical to another, i.e. duplicate vectors nothing can rank apart).
+  const units = buildUnits(docs, policy, {});
   const folded = [...foldedIds(units)];
   // Folded members used to be DELETED. They are now embedded 1:1 and stored with
   // attribution_only = true (migration 023): excluded from search, read only to decide
@@ -262,7 +258,10 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
       .map((s) => {
         const b = params.length;
         params.push(s.id, atlasSha, toUuidArrayLiteral(s.memberIds), s.attributionOnly);
-        return `($${b + 1}, $${b + 2}, $${b + 3}::uuid[], $${b + 4}::boolean)`;
+        // doc_id MUST be cast: an uncast parameter in a VALUES list is inferred as
+        // text, and the join below then compares uuid = text — "operator does not
+        // exist: uuid = text". Every column in a VALUES row needs its own type.
+        return `($${b + 1}::uuid, $${b + 2}, $${b + 3}::uuid[], $${b + 4}::boolean)`;
       })
       .join(",");
     await sql.unsafe(

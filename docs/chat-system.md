@@ -151,19 +151,24 @@ separate best-effort lane, incremental by unit `content_hash`, that keeps
 `atlas_doc_embeddings` current. Embed text is `title + content` with markdown
 links collapsed to their anchor text (93% of atlas links target a bare doc UUID,
 which is pure token cost in a vector) — stripping happens only in
-`buildEmbedText`, never in the parser or the lexical index. Default grouping is
-one vector per doc
-(`EMBED_GROUP_POLICY=one_to_one`); `icd_params` folds Instance Configuration
-Document parameter leaves into the parent vector. The eval-backed candidate is
-`icd_params_breadcrumbs` with `EMBED_CRUMB_DEPTH` left unset, which additionally prepends
-the ICD's parent/grandparent breadcrumb to the grouped anchor — best recall and
-disambiguation in the 2026-08-14 neural+hybrid bakeoff (see
-`scripts/eval/eval-retrieval.ts`). `kv_records_breadcrumbs` is a further,
-still-unevaluated bakeoff arm: it composes on top of the ICD pass — running it
-first — then folds other generic key/value record subtrees (multisig records,
-contract-address blocks, risk-parameter blocks) into one compact anchor each,
-same recipe, different families. The default remains `one_to_one`. Hybrid search attributes a
-grouped hit to the matching child and fuses ancestor/descendant lexical+semantic
+`buildEmbedText`, never in the parser or the lexical index.
+
+Grouping is `kv_records_breadcrumbs`, a code constant rather than an env var. It
+folds an Instance Configuration Document's parameter leaves — and other key/value
+records (multisigs, contract-address blocks, risk-parameter blocks) — into one
+compact anchor each, prefixed with a bounded ancestor breadcrumb. Decided
+2026-08-18: it beat one-vector-per-doc on every metric (exact 0.642 vs 0.447,
+disambiguation 0.550 vs 0.150, prose control 0.875 vs 0.800) with no slice
+regressing. The decisive case is a parameter leaf like `Network / Ethereum
+Mainnet`, too short to retrieve as its own vector — exact match on that slice went
+from 3 of 40 to 18 of 40. See `scripts/eval/eval-retrieval.ts`'s header.
+
+Folded members keep their own vector, flagged `attribution_only` (migration 023)
+and excluded from search: once a group is retrieved, the query is re-embedded with
+the retrieved anchor titles stripped out — inside a group the instance name
+discriminates nothing — and members are scored against that residual to pick the
+leaf. One extra embed per query, with a lexical fallback on any failure. Hybrid
+search then fuses ancestor/descendant lexical+semantic
 pairs onto the more specific doc (`via` on the tool result).
 
 ## 8. Data model (Postgres)

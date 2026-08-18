@@ -1,5 +1,5 @@
 // Embedding *units*: one vector can cover one doc or a small parent+children
-// group. Grouping policy is a bakeoff variable (EMBED_GROUP_POLICY); this
+// group. The shipping policy is a code constant (config.embedGroupPolicy); this
 // module is the single source of truth for unit text, hashing, tree
 // containment, and query-time leaf attribution.
 //
@@ -689,7 +689,7 @@ export function buildUnits(docs: AtlasNode[], policy: GroupPolicy, opts: UnitBui
   else if (policy === "icd_full_params_breadcrumbs")
     extra = icdParamUnits(docs, byId, childrenByDocNo, cap, { ...crumbOpts, fullProse: true });
   else if (policy === "kv_records_breadcrumbs") {
-    // Composed, because EMBED_GROUP_POLICY is a single value: run the already
+    // Composed, because a policy is a single value: run the already
     // eval-won ICD pass first, then the generic kv pass over whatever it didn't
     // claim. Grouped ICD anchors are claimed too, so the generic pass can't fold a
     // subtree that an ICD unit already owns.

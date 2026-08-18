@@ -11,7 +11,6 @@ const ENV_KEYS = [
   "APP_URL", "RAILWAY_PUBLIC_DOMAIN", "CANONICAL_HOST_REDIRECT", "DATABASE_URL",
   "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT",
   "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENROUTER_MANAGEMENT_KEY", "EMBED_MODEL",
-  "EMBED_GROUP_POLICY", "EMBED_GROUP_CAP", "EMBED_CRUMB_DEPTH", "EMBED_CRUMB_ROOT",
   "SEMANTIC_MIN_SCORE", "SEMANTIC_EMBED_TIMEOUT_MS", "QUERY_EMBED_CACHE_SIZE", "CHAT_MODEL",
   "CHAT_DELIVERY_MODE",
   "CHAT_MAX_ITERATIONS", "CHAT_TEMPERATURE", "CHAT_MAX_OUTPUT_TOKENS",
@@ -73,10 +72,6 @@ test("defaults when no env is set", async () => {
   expect(config.databaseUrl).toBe("postgres://redlens:redlens@localhost:5432/redlens");
   expect(config.openrouterBaseUrl).toBe("https://openrouter.ai/api/v1");
   expect(config.embedModel).toBe("qwen/qwen3-embedding-8b");
-  expect(config.embedGroupPolicy).toBe("one_to_one");
-  expect(config.embedGroupCap).toBeUndefined();
-  expect(config.embedCrumbDepth).toBeUndefined();
-  expect(config.embedCrumbRoot).toBeUndefined();
   expect(config.semanticMinScore).toBe(0.3);
   expect(config.semanticEmbedTimeoutMs).toBe(10_000);
   expect(config.queryEmbedCacheSize).toBe(512);
@@ -143,10 +138,6 @@ test("all env overrides take effect", async () => {
     OPENROUTER_BASE_URL: "https://custom.example/v1",
     OPENROUTER_MANAGEMENT_KEY: "mgmt-key",
     EMBED_MODEL: "custom-embed",
-    EMBED_GROUP_POLICY: "icd_params",
-    EMBED_GROUP_CAP: "32",
-    EMBED_CRUMB_DEPTH: "2",
-    EMBED_CRUMB_ROOT: "true",
     SEMANTIC_MIN_SCORE: "0.5",
     SEMANTIC_EMBED_TIMEOUT_MS: "1234",
     QUERY_EMBED_CACHE_SIZE: "10",
@@ -213,10 +204,6 @@ test("all env overrides take effect", async () => {
   expect(config.openrouterBaseUrl).toBe("https://custom.example/v1");
   expect(config.openrouterManagementKey).toBe("mgmt-key");
   expect(config.embedModel).toBe("custom-embed");
-  expect(config.embedGroupPolicy).toBe("icd_params");
-  expect(config.embedGroupCap).toBe(32);
-  expect(config.embedCrumbDepth).toBe(2);
-  expect(config.embedCrumbRoot).toBe(true);
   expect(config.semanticMinScore).toBe(0.5);
   expect(config.semanticEmbedTimeoutMs).toBe(1234);
   expect(config.queryEmbedCacheSize).toBe(10);

@@ -16,6 +16,32 @@
  * (offline proxy for grouping architecture — not a substitute for the neural
  * bakeoff). Writes .cache/eval-retrieval.json.
  *
+ * ══ DECISION (2026-08-18) — kv_records_breadcrumbs, hardcoded, no env var ══
+ * First comparison made on BOTH the paraphrased query set AND production's semantic
+ * leaf attribution. Every earlier policy number was measured with at least one of
+ * those wrong. Neural, hybrid, --reuse-db, 179 queries:
+ *
+ *                        recall  exact  disambig   mrr
+ *   one_to_one            0.877  0.447    0.150   0.676
+ *   icd_params_bc         0.899  0.620    0.475   0.702
+ *   kv_records_bc         0.905  0.642    0.550   0.738   <- WINNER
+ *
+ *   icd-disambiguation exact   6/40  ->  19/40  ->  22/40
+ *   icd-param exact            3/40  ->  17/40  ->  18/40
+ *   control                    0.800 ->  0.875  ->  0.875   (no regression; better)
+ *   directory / hub / kv-record  flat or better on every arm
+ *
+ * Monotone on every headline metric, nothing regresses, and `control` — ordinary
+ * prose queries, the overfitting guard — IMPROVES. icd-param exact rising 3/40 ->
+ * 18/40 is the thin-doc problem this work exists to fix: with 1:1 vectors a
+ * 30-character param leaf cannot be retrieved; folded into a compact anchor it is
+ * found, and attribution then recovers the leaf.
+ *
+ * EMBED_GROUP_POLICY is gone with this decision. Bakeoff arms live on the eval's
+ * --policies flag, which is where experiments belong; a deployment env var that
+ * nobody sets is a bug source, not flexibility. Adopting re-embeds ~920 anchors and
+ * writes ~4,630 attribution_only rows on the next sync:embeddings.
+ *
  * ══ CURRENT RESULT (2026-08-18, rewritten paraphrased query set, 179 queries) ══
  * Neural, hybrid, --reuse-db, policy=icd_params_breadcrumbs. Breadcrumb strategy has
  * NO MEASURABLE EFFECT:
@@ -264,6 +290,7 @@ import {
 } from "../../src/server/retrieval/embed-units.ts";
 import { generateRetrievalQueries, type RetrievalQuery } from "./eval-retrieval-queries.ts";
 import { lexicalOverlap } from "./eval-retrieval-paraphrase.ts";
+import { contentHash as oneToOneHash } from "../../src/server/retrieval/embed-text.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const argv = process.argv.slice(2);
@@ -290,6 +317,17 @@ const PREFIX = flag("prefix")[0] ?? "";
 const SUBSET = flag("subset")[0] ? Number(flag("subset")[0]) : undefined;
 const K = Number(flag("k")[0] ?? 10);
 const RERANK_POOL = 50;
+// Matches search.ts's RESIDUAL_ANCHOR_K — the measured peak (51% at top-20).
+const RESIDUAL_ANCHOR_K = 20;
+
+// Local copy of search.ts's residualQuery (importing search.ts would drag in Bun's
+// SQL and the whole server DB layer for a pure string helper).
+function residualQueryText(query: string, anchorTitles: string[]): string {
+  const strip = new Set<string>();
+  for (const t of anchorTitles) for (const w of t.toLowerCase().match(/[a-z0-9]+/g) ?? []) strip.add(w);
+  const kept = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !strip.has(w));
+  return kept.length ? kept.join(" ") : query;
+}
 const OUT = flag("out")[0] ?? path.join(ROOT, ".cache", "eval-retrieval.json");
 
 function tokenize(s: string): string[] {
@@ -501,6 +539,11 @@ function attributeRank(
   docMap: Map<string, AtlasNode>,
   k: number,
   lexHits: { id: string; doc_no: string }[] = [],
+  // Semantic leaf scorer, mirroring what search.ts builds in production. WITHOUT it
+  // this harness measured lexical attribution (~34% accurate) while production runs
+  // the residual-embedding one (~51%) — so a policy comparison run here would have
+  // been decided by the wrong attribution, and attribution is the larger effect.
+  semantic?: (id: string) => number | undefined,
 ): string[] {
   const byAnchor = new Map(units.map((u) => [u.anchorId, u]));
   const lex =
@@ -516,7 +559,7 @@ function attributeRank(
   const seen = new Set<string>();
   for (const r of ranked) {
     const u = byAnchor.get(r.id);
-    const rw = rewriteSemanticHit(query, r.id, u?.memberIds, lex, docMap);
+    const rw = rewriteSemanticHit(query, r.id, u?.memberIds, lex, docMap, semantic);
     if (seen.has(rw.id)) continue;
     seen.add(rw.id);
     ids.push(rw.id);
@@ -696,6 +739,10 @@ for (const policy of POLICIES) {
 
       const ranked: string[][] = [];
       const qEmbedMs: number[] = [];
+      // Anchor index built ONCE per arm. Looking this up with units.find() inside the
+      // per-query/per-pool loops was ~179 x 50 x 11,340 array scans and made the run
+      // look hung.
+      const unitByAnchor = new Map(units.map((u) => [u.anchorId, u]));
       for (const q of queries) {
         const qText = BACKEND === "openrouter" && PREFIX ? `${PREFIX}${q.query}` : q.query;
         let pool: { id: string; text: string; score: number }[];
@@ -726,6 +773,46 @@ for (const policy of POLICIES) {
         if (RERANK === "bm25") pool = bm25Rerank(q.query, pool).slice(0, K);
         else pool = pool.slice(0, HYBRID ? RERANK_POOL : K);
 
+        // Semantic leaf attribution, mirroring search.ts's buildLeafScorer: strip the
+        // top-K retrieved anchor titles from the query, embed that residual ONCE, and
+        // score members by cosine against their own vectors. Neural arms only — the
+        // TF-IDF backend has no query vector to compare against.
+        let leafScorer: ((id: string) => number | undefined) | undefined;
+        // Only worth an embed when something in the pool is actually a GROUP. For
+        // one_to_one every unit is a single doc, so there is nothing to attribute and
+        // the residual call would be 179 wasted round-trips per run.
+        const poolHasGroup = pool.some((r) => (unitByAnchor.get(r.id)?.memberIds.length ?? 0) > 1);
+        if (BACKEND === "openrouter" && cachedVectors && poolHasGroup) {
+          const anchorTitles = pool
+            .slice(0, RESIDUAL_ANCHOR_K)
+            .map((r) => docMap.get(r.id)?.title)
+            .filter((t): t is string => !!t);
+          const residual = residualQueryText(q.query, anchorTitles);
+          const prev2 = config.embedModel;
+          config.embedModel = model;
+          let rv: number[];
+          try {
+            rv = await embedQuery(residual);
+          } finally {
+            config.embedModel = prev2;
+          }
+          const scoreById = new Map<string, number>();
+          for (const r of pool) {
+            const u = unitByAnchor.get(r.id);
+            if ((u?.memberIds.length ?? 0) <= 1) continue; // singletons need no attribution
+            for (const mid of u?.memberIds ?? []) {
+              if (scoreById.has(mid)) continue;
+              const n = docMap.get(mid);
+              const v = n ? cachedVectors.get(oneToOneHash(n)) : undefined;
+              if (!v) continue;
+              let sc = 0;
+              for (let j = 0; j < rv.length; j++) sc += rv[j]! * v[j]!;
+              scoreById.set(mid, sc);
+            }
+          }
+          if (scoreById.size >= 2) leafScorer = (id: string) => scoreById.get(id);
+        }
+
         let lexHits: { id: string; doc_no: string }[] = [];
         if (HYBRID && lexUnits && lexVecs && lexIdf) {
           const lexPool = rankTfidf(q.query, lexUnits, lexVecs, lexIdf, K);
@@ -733,10 +820,10 @@ for (const policy of POLICIES) {
             const n = docMap.get(r.id);
             return { id: r.id, doc_no: n?.doc_no ?? "" };
           });
-          const semIds = attributeRank(q.query, pool, units, docMap, K, lexHits);
+          const semIds = attributeRank(q.query, pool, units, docMap, K, lexHits, leafScorer);
           ranked.push(rrfFuse(lexHits.map((h) => h.id), semIds, K));
         } else {
-          ranked.push(attributeRank(q.query, pool.slice(0, K), units, docMap, K, lexHits));
+          ranked.push(attributeRank(q.query, pool.slice(0, K), units, docMap, K, lexHits, leafScorer));
         }
       }
 

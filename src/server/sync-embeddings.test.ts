@@ -52,22 +52,22 @@ function resetRecording(): void {
 
 async function unsafeMock(query: string, params?: unknown[]): Promise<unknown> {
   if (query.includes("format_type")) {
-    unsafeCalls.push({ kind: "dim-check", paramsLength: 0 });
+    unsafeCalls.push({ kind: "dim-check", paramsLength: 0, query });
     return fakeDb.colType ? [{ t: fakeDb.colType }] : [];
   }
   if (query.includes("INSERT INTO atlas_doc_embeddings")) {
-    unsafeCalls.push({ kind: "embed-upsert", paramsLength: (params ?? []).length, params: params ?? [] });
+    unsafeCalls.push({ kind: "embed-upsert", paramsLength: (params ?? []).length, params: params ?? [], query });
     return [];
   }
   if (query.includes("UPDATE atlas_doc_embeddings")) {
-    unsafeCalls.push({ kind: "embed-meta-update", paramsLength: (params ?? []).length, params: params ?? [] });
+    unsafeCalls.push({ kind: "embed-meta-update", paramsLength: (params ?? []).length, params: params ?? [], query });
     return [];
   }
   if (query.includes("DELETE FROM atlas_doc_embeddings")) {
-    unsafeCalls.push({ kind: "embed-delete", paramsLength: (params ?? []).length });
+    unsafeCalls.push({ kind: "embed-delete", paramsLength: (params ?? []).length, query });
     return [];
   }
-  unsafeCalls.push({ kind: "unknown", paramsLength: 0 });
+  unsafeCalls.push({ kind: "unknown", paramsLength: 0, query });
   throw new Error(`sync-embeddings.test.ts: unmocked sql.unsafe query: ${query}`);
 }
 
@@ -243,6 +243,66 @@ describe("main()", () => {
   function writeDocs(atlasCommit: string, nodes: Record<string, AtlasNode>) {
     fs.writeFileSync(path.join(dir, "docs.json"), JSON.stringify({ atlasCommit, nodes }));
   }
+
+  it("casts doc_id in the grouping-metadata UPDATE (uuid = text otherwise)", async () => {
+    // An uncast parameter in a VALUES row is inferred as text, so the join
+    // `WHERE e.doc_id = v.doc_id` compares uuid = text and Postgres refuses with
+    // "operator does not exist: uuid = text". A mock accepts any SQL, so this
+    // asserts on the STATEMENT the code actually builds — the only way to catch it
+    // without a live database.
+    const icd = "11111111-1111-1111-1111-111111111111";
+    const params = "22222222-2222-2222-2222-222222222222";
+    const net = "33333333-3333-3333-3333-333333333333";
+    const tok = "44444444-4444-4444-4444-444444444444";
+    writeDocs("sha1", {
+      [icd]: doc(icd, "A.6.1.1.1.2.1.1", "Spark Foo Instance Configuration Document", { title: "Spark Foo Instance Configuration Document" }),
+      [params]: doc(params, "A.6.1.1.1.2.1.1.1", "The documents herein define the parameters.", { title: "Parameters" }),
+      [net]: doc(net, "A.6.1.1.1.2.1.1.1.1", "Ethereum Mainnet", { title: "Network" }),
+      [tok]: doc(tok, "A.6.1.1.1.2.1.1.1.2", "USDS", { title: "Token" }),
+    });
+    config.embedGroupPolicy = "icd_params";
+    // The metadata path fires only when content_hash is UNCHANGED but grouping
+    // metadata differs, so seed the fake DB with each unit's current hash and stale
+    // metadata (attribution_only false, no member_ids). Building the units here is
+    // the only way to know the anchor's grouped hash.
+    const { buildUnits: build } = await import("./retrieval/embed-units.ts");
+    const nodes = [
+      doc(icd, "A.6.1.1.1.2.1.1", "Spark Foo Instance Configuration Document", { title: "Spark Foo Instance Configuration Document" }),
+      doc(params, "A.6.1.1.1.2.1.1.1", "The documents herein define the parameters.", { title: "Parameters" }),
+      doc(net, "A.6.1.1.1.2.1.1.1.1", "Ethereum Mainnet", { title: "Network" }),
+      doc(tok, "A.6.1.1.1.2.1.1.1.2", "USDS", { title: "Token" }),
+    ];
+    fakeDb.have = build(nodes, "icd_params", {}).map((u) => ({
+      doc_id: u.anchorId,
+      content_hash: u.hash,
+      attribution_only: false,
+      member_ids: "{}",
+    })) as never;
+    const log = captureLog();
+    try {
+      await main({
+        runMigrations: noopMigrations,
+        embedBatch: async (texts: string[]) => texts.map(() => [1]),
+        batch: 50,
+        sleep: instantSleep,
+      });
+    } finally {
+      log.restore();
+    }
+    const meta = unsafeCalls.find((c) => c.kind === "embed-meta-update");
+    expect(meta).toBeDefined();
+    {
+      const q = String(meta!.query);
+      const row = q.slice(q.indexOf("(VALUES") + 7, q.indexOf(") AS v"));
+      expect(row).toMatch(/\$\d+::uuid[,)]/); // doc_id
+      expect(row).toContain("::uuid[]"); // member_ids
+      expect(row).toContain("::boolean"); // attribution_only
+    }
+    // The upsert path must be type-safe too: member_ids is a uuid[] column.
+    const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert");
+    expect(upsert).toBeDefined();
+    expect(String(upsert!.query)).toContain("::uuid[]");
+  });
 
   it("throws a clear error when the live vector column dimension does not match EMBED_DIM — never silently embeds at the wrong size", async () => {
     fakeDb.colType = "vector(512)"; // wrong — EMBED_DIM (embed.ts) is 1024
