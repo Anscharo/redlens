@@ -160,8 +160,9 @@ export const config = {
   embedModel: process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b",
   // Grouping policy for atlas_doc_embeddings. Default one_to_one keeps today's
   // 1:1 vectors (and their content_hash) so a deploy without a bakeoff winner
-  // does not re-embed the corpus. icd_params / directory_direct / etc. are
-  // selected after scripts/eval/eval-retrieval.ts.
+  // does not re-embed the corpus. icd_params / directory_direct / etc., and
+  // now kv_records_breadcrumbs, are additional bakeoff arms selected after
+  // scripts/eval/eval-retrieval.ts.
   embedGroupPolicy: process.env.EMBED_GROUP_POLICY ?? "one_to_one",
   // Optional per-unit member cap for grouping policies. Unset = no quality cap
   // (the CHUNK_ROOT_MAX safety rail in embed-units.ts still applies).
@@ -171,6 +172,16 @@ export const config = {
   // crumb. Unset = full root→leaf chain. The eval-backed candidate
   // icd_params_breadcrumbs was validated at depth 2 (see eval-retrieval.ts).
   embedCrumbDepth: process.env.EMBED_CRUMB_DEPTH ? Number(process.env.EMBED_CRUMB_DEPTH) : undefined,
+  // Keep the ROOT ancestor in the breadcrumb in addition to the N nearest
+  // (embedCrumbDepth). "1"/"true" (case-insensitive) = true; unset or anything
+  // else = false/undefined. kv_records_breadcrumbs already defaults this ON
+  // internally (see embed-units.ts's crumbRoot) because it's a correctness
+  // property of that policy, not a tuning knob — this env var is for
+  // evaluating root-keeping on the OTHER breadcrumb policies, not required to
+  // turn it on for kv_records_breadcrumbs.
+  embedCrumbRoot: process.env.EMBED_CRUMB_ROOT
+    ? ["1", "true"].includes(process.env.EMBED_CRUMB_ROOT.toLowerCase())
+    : undefined,
   // NOTE: EMBED_BATCH (sync-embeddings.ts's per-request embedding batch size)
   // is intentionally NOT a config key — it's parsed by that file's own
   // `batchSizeFromEnv(env)`, a single named, already-tested function that

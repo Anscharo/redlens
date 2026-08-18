@@ -22,6 +22,7 @@ mock.module("./db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
+  toUuidArrayLiteral: (ids: readonly string[]) => `{${ids.join(",")}}`,
 }));
 
 const { bucketBounds, getWindowUsage, handleUsage } = await import("./rate-limit.ts");

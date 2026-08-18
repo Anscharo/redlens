@@ -6,7 +6,7 @@
 // address / query land alongside in Task #6 once the pg + embedding layers
 // exist; they take the same Indexes plus a SQL handle.
 import { type Indexes, ancestorChain, resolveNode, type AtlasNode } from "../../retrieval/indexes.ts";
-import { runLexical, runSemantic, rrfMerge, attributeSemanticHits, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
+import { runLexical, runSemantic, rrfMerge, attributeSemanticHits, buildLeafScorer, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { statsSection } from "./tools-stats.ts";
 import { censusesSection } from "./tools-censuses.ts";
@@ -162,7 +162,7 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
       // information-destroying `.catch(() => [])`.
       : runSemantic(ix, query, type, fetchK).catch((err) => ({ hits: [], skipped: (err as Error).message })),
   ]);
-  const sem = attributeSemanticHits(query, lex, semResult.hits, ix);
+  const sem = attributeSemanticHits(query, lex, semResult.hits, ix, await buildLeafScorer(query, semResult.hits, ix));
 
   let merged: MergedHit[];
   if (mode === "lexical") merged = lex.map((h) => ({ id: h.id, sources: ["lexical"], rrf_score: 0, score: h.score }));

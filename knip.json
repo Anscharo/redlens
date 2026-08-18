@@ -10,6 +10,7 @@
     "scripts/aux/test-addresses.mjs",
     "scripts/aux/unlabeled-addresses.mjs",
     "scripts/aux/measure-embed.ts",
+    "scripts/aux/leaf-attribution-experiment.ts",
     "scripts/aux/atlas-history/**",
     "scripts/htmlhist/check-cross-agent.mjs",
     "scripts/htmlhist/export-decisions-judge.mjs",

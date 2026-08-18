@@ -80,6 +80,7 @@ mock.module("./db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
+  toUuidArrayLiteral: (ids: readonly string[]) => `{${ids.join(",")}}`,
 }));
 
 const { main, batchSizeFromEnv, withRetry } = await import("./sync-embeddings.ts");
@@ -299,7 +300,7 @@ describe("main()", () => {
 
     expect(embedTexts).toEqual([[buildEmbedText(dA), buildEmbedText(dB)]]); // one batch, both stale docs
     const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert");
-    expect(upsert?.paramsLength).toBe(2 * 5); // 2 docs × (doc_id, vector, hash, atlas_sha, member_ids)
+    expect(upsert?.paramsLength).toBe(2 * 6); // 2 docs × (doc_id, vector, hash, atlas_sha, member_ids, attribution_only)
     expect(ended).toBe(true);
     expect(logs.some((l) => l.includes("done (2 vectors"))).toBe(true);
   });
@@ -373,6 +374,6 @@ describe("main()", () => {
       sleep: instantSleep,
     });
     const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert");
-    expect(upsert?.paramsLength).toBe(1 * 5); // only "b" made it into the upsert
+    expect(upsert?.paramsLength).toBe(1 * 6); // only "b" made it into the upsert
   });
 });

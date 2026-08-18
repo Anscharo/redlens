@@ -52,6 +52,19 @@ test("toVectorLiteral formats a number[] as a pgvector bracket literal", async (
   expect(toVectorLiteral([1])).toBe("[1]");
 });
 
+test("toUuidArrayLiteral formats a uuid[] as a Postgres brace literal", async () => {
+  // A STRING, never a JS array: Bun.sql sends a bound JS array's first element as a
+  // scalar, which Postgres rejects with `malformed array literal`. That was the real
+  // boot-embeddings failure on atlas_doc_embeddings.member_ids.
+  const { toUuidArrayLiteral } = await freshDb();
+  const a = "575ab954-d26c-460e-8a11-ebe7f5586dff";
+  const b = "9a8120c4-0a5b-426f-97a5-283c708413f5";
+  expect(toUuidArrayLiteral([a])).toBe(`{${a}}`);
+  expect(toUuidArrayLiteral([a, b])).toBe(`{${a},${b}}`);
+  expect(toUuidArrayLiteral([])).toBe("{}");
+  expect(typeof toUuidArrayLiteral([a])).toBe("string");
+});
+
 // Point db.ts's `sql` at a guaranteed-unreachable target BEFORE importing it, so
 // waitForDb can never connect — independent of whether a real Postgres is
 // reachable in this environment. The CI "Railway server" job runs this same

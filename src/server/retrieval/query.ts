@@ -4,7 +4,7 @@
 // intersected. Ports the CF worker's logic with D1 recursive CTEs replaced by
 // graphology traversals + the in-memory doc map, and Vectorize by pgvector.
 import { type Indexes, type AtlasNode, ancestorChain, descendantIds, resolveNode } from "./indexes.ts";
-import { runLexical, runSemantic, rrfMerge, attributeSemanticHits, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type SemanticResult, type Via } from "./search.ts";
+import { runLexical, runSemantic, rrfMerge, attributeSemanticHits, buildLeafScorer, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type SemanticResult, type Via } from "./search.ts";
 import { resolveEntity } from "./entity-resolve.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { sql } from "../db.ts";
@@ -288,7 +288,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
         (err): SemanticResult => ({ hits: [], skipped: (err as Error).message }),
       ),
     ]);
-    const sem = attributeSemanticHits(a.q, lex, semResult.hits, ix);
+    const sem = attributeSemanticHits(a.q, lex, semResult.hits, ix, await buildLeafScorer(a.q, semResult.hits, ix));
     semSkipped = semResult.skipped;
     let merged = filterByType(rrfMerge(lex, sem), ix, a.target_type);
     // Quoted phrases require an exact match — same shared post-filter

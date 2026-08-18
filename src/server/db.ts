@@ -50,3 +50,18 @@ export async function waitForDb(attempts = 12, sleep: (ms: number) => Promise<un
 export function toVectorLiteral(vec: number[]): string {
   return `[${vec.join(",")}]`;
 }
+
+// Format a uuid[] as a Postgres array literal: {a,b,c}. Pair with `::uuid[]`.
+//
+// REQUIRED — do not pass a JS array as a bound parameter for an array column.
+// Bun.sql does not encode JS arrays as Postgres arrays: it sends the first element
+// as a scalar, and Postgres fails with `malformed array literal` / "Array value
+// must start with {". This surfaced as the noisy boot-embeddings failure on
+// atlas_doc_embeddings.member_ids.
+//
+// Safe unquoted for UUIDs specifically: they can't contain a comma, brace or quote,
+// and the `::uuid[]` cast validates every element. For text[] use a jsonb round-trip
+// (`${JSON.stringify(xs)}::jsonb`) instead — arbitrary strings need real quoting.
+export function toUuidArrayLiteral(ids: readonly string[]): string {
+  return `{${ids.join(",")}}`;
+}

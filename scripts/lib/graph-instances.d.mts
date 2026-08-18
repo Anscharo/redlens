@@ -23,3 +23,8 @@ export function extractInstanceParams<T extends { id: string; doc_no: string; ti
   icd: { doc_no: string },
   childrenByDocNo: Map<string, T[]>,
 ): Record<string, [string, string, string]>;
+// Same walk, pointed at any param-container root (not just an ICD's `Parameters`).
+export function extractParamsFromRoot<T extends { id: string; doc_no: string; title: string; content?: string }>(
+  rootDoc: T | undefined | null,
+  childrenByDocNo: Map<string, T[]>,
+): Record<string, [string, string, string]>;

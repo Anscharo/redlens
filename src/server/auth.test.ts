@@ -11,6 +11,7 @@ mock.module("./db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
+  toUuidArrayLiteral: (ids: readonly string[]) => `{${ids.join(",")}}`,
 }));
 
 // Stub `arctic` so the OAuth start + callback flows run without hitting GitHub or

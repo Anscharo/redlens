@@ -10,8 +10,8 @@
 // real sleep on any hiccup). The runSemantic failure-path tests set the key
 // themselves and restore the PINNED empty state (not ambient) in afterEach,
 // so the pin holds for every case that follows them.
-import { test, expect, beforeAll, afterAll, afterEach } from "bun:test";
-import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, attributeSemanticHits, filterByType, type Hit } from "./search.ts";
+import { test, expect, describe, beforeAll, afterAll, afterEach } from "bun:test";
+import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
 import { config } from "../config.ts";
 import type { AtlasNode, Indexes } from "./indexes.ts";
 
@@ -197,4 +197,25 @@ test("matchesPhrases requires every case-insensitive AND case-sensitive phrase",
   expect(matchesPhrases("usds token", "x", [], ["USDS"])).toBe(false);
   // all-of semantics: one missing → false
   expect(matchesPhrases("USDS savings rate", "x", ["savings rate"], ["MISSING"])).toBe(false);
+});
+
+describe("residualQuery", () => {
+  it("removes words the retrieved groups already account for", () => {
+    // The instance name dominates the query embedding, so members win by echoing it
+    // rather than by answering. Inside a group that name discriminates nothing.
+    const q = "which chain does Ethereum Mainnet - Fluid sUSDS ERC4626 Vault run on";
+    const out = residualQuery(q, ["Ethereum Mainnet - Fluid sUSDS ERC4626 Vault Instance Configuration Document"]);
+    expect(out).toBe("which chain does run on");
+  });
+
+  it("strips the union of several anchor titles", () => {
+    const out = residualQuery("who controls Grove Freezer Multisig", ["Grove Multisigs", "Freezer Multisig"]);
+    expect(out).toBe("who controls");
+  });
+
+  it("keeps the original query when everything would be stripped", () => {
+    // An empty residual carries no signal at all; the unstripped query is strictly better.
+    const q = "Freezer Multisig";
+    expect(residualQuery(q, ["Freezer Multisig"])).toBe(q);
+  });
 });

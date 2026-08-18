@@ -21,7 +21,6 @@
 //      `discard`/`replace` exclude docs from results immediately, before cleanup.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { contentHash } from "./retrieval/embed-text.ts";
 import { config } from "./config.ts";
 import { buildGraph, readArtifactsFromDisk } from "./retrieval/indexes.ts";
 import type { AtlasNode, Edge, Entity, Indexes } from "./retrieval/indexes.ts";
@@ -36,10 +35,41 @@ export function isEmptyDelta(d: DocDelta): boolean {
   return d.added.length === 0 && d.changed.length === 0 && d.removed.length === 0;
 }
 
-// Compute the doc-level delta by comparing per-doc `contentHash` (title+content,
-// renumber-stable) — the same hash sync.ts and sync-embeddings.ts key on, so
-// "changed" means one thing across all three lanes. `id`-only comparison would
-// miss modifications (the common case), hence hashing.
+// The change lane compares the served title + content directly. Deliberately NOT
+// the embed hash from embed-text.ts — the two lanes want opposite sensitivity and
+// no longer share a key:
+//
+//   - the EMBEDDING lane wants insensitivity. contentHash() ignores doc_no (so a
+//     renumber doesn't churn 11k vectors) and, since links are stripped before
+//     embedding, ignores link targets too.
+//   - this CHANGE lane needs to see edits to what the server actually serves. A
+//     link retargeted behind unchanged anchor text is invisible to the embed hash,
+//     which would silently drop such an atlas PR from the preview /diff.json and
+//     leave MCP/chat serving stale text.
+//
+// Why compare the served fields directly rather than the parser hash
+// (`contentHash`, the node_content_hash column)? It is tempting, since it does see
+// link targets, but:
+//   1. it covers the BODY ONLY (atlas-parser.mjs seals `_lines`, which never
+//      includes the heading line), so it cannot see a rename on its own;
+//   2. it is optional on AtlasNode and NULL-able in atlas_doc_meta, so a bare
+//      compare reads a missing hash as "unchanged" — the worst failure mode;
+//   3. it is carried alongside the content rather than derived from it here, so it
+//      can disagree with the content it describes — a caller that edits `content`
+//      without recomputing would be silently classified unchanged. `content`
+//      cannot disagree with itself.
+// Comparing the two fields we actually serve is simpler, strictly more robust, and
+// cheaper than before (no sha256 at all), and it short-circuits on the title.
+//
+// Not covered, all pre-existing and unchanged by this split (the embed hash was
+// equally blind to them): a heading-only edit to `doc_no`, `type`, `parentId`, or
+// `order`. `type` is a MiniSearch-indexed field, so that one is a real if rare gap.
+// Widening the comparison is a separate decision — it would make a renumber PR
+// report every doc as changed.
+function sameServedDoc(a: AtlasNode, b: AtlasNode): boolean {
+  return a.title === b.title && (a.content ?? "") === (b.content ?? "");
+}
+
 export function diffDocs(oldDocs: Map<string, AtlasNode>, newDocs: AtlasNode[]): DocDelta {
   const added: AtlasNode[] = [];
   const changed: AtlasNode[] = [];
@@ -49,7 +79,7 @@ export function diffDocs(oldDocs: Map<string, AtlasNode>, newDocs: AtlasNode[]):
     newIds.add(doc.id);
     const prev = oldDocs.get(doc.id);
     if (!prev) added.push(doc);
-    else if (contentHash(prev) !== contentHash(doc)) changed.push(doc);
+    else if (!sameServedDoc(prev, doc)) changed.push(doc);
   }
 
   const removed: string[] = [];

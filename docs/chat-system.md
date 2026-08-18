@@ -148,13 +148,21 @@ Embeddings use `EMBED_MODEL` (default `qwen/qwen3-embedding-8b`, native 4096
 dims) sliced + L2-renormalized client-side to `EMBED_DIM = 1024` — a constant
 locked to the `vector(1024)` column and HNSW index. `sync-embeddings.ts` is a
 separate best-effort lane, incremental by unit `content_hash`, that keeps
-`atlas_doc_embeddings` current. Default grouping is one vector per doc
+`atlas_doc_embeddings` current. Embed text is `title + content` with markdown
+links collapsed to their anchor text (93% of atlas links target a bare doc UUID,
+which is pure token cost in a vector) — stripping happens only in
+`buildEmbedText`, never in the parser or the lexical index. Default grouping is
+one vector per doc
 (`EMBED_GROUP_POLICY=one_to_one`); `icd_params` folds Instance Configuration
 Document parameter leaves into the parent vector. The eval-backed candidate is
-`icd_params_breadcrumbs` (+`EMBED_CRUMB_DEPTH=2`), which additionally prepends
+`icd_params_breadcrumbs` with `EMBED_CRUMB_DEPTH` left unset, which additionally prepends
 the ICD's parent/grandparent breadcrumb to the grouped anchor — best recall and
 disambiguation in the 2026-08-14 neural+hybrid bakeoff (see
-`scripts/eval/eval-retrieval.ts`). Hybrid search attributes a
+`scripts/eval/eval-retrieval.ts`). `kv_records_breadcrumbs` is a further,
+still-unevaluated bakeoff arm: it composes on top of the ICD pass — running it
+first — then folds other generic key/value record subtrees (multisig records,
+contract-address blocks, risk-parameter blocks) into one compact anchor each,
+same recipe, different families. The default remains `one_to_one`. Hybrid search attributes a
 grouped hit to the matching child and fuses ancestor/descendant lexical+semantic
 pairs onto the more specific doc (`via` on the tool result).
 
