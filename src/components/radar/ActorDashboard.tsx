@@ -107,7 +107,7 @@ export function ActorDashboard({ profile }: Props) {
   return (
     <div className="flex-1 px-6 py-6 min-w-0">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-8">
-        <div className="min-w-0">
+        <div className="lg:col-span-2 min-w-0">
           {/* Header */}
           <div className="flex items-start gap-3 mb-6">
             <div className="flex-1">
@@ -149,6 +149,10 @@ export function ActorDashboard({ profile }: Props) {
             <ActorChain chain={chain} currentSlug={entity.slug} />
           </div>
 
+          <ActorSettlements slug={entity.slug} name={entity.name} />
+        </div>
+
+        <div className="min-w-0">
           {/* Contact — governance channels + emergency response (Prime Agents) */}
           <ActorContact contact={profile.contact} />
 
@@ -210,10 +214,6 @@ export function ActorDashboard({ profile }: Props) {
             <ActorHistory profile={profile} />
           </Section>
         </aside>
-
-        <div className="lg:col-span-2 min-w-0">
-          <ActorSettlements slug={entity.slug} name={entity.name} />
-        </div>
 
         {rewardsAgent && (
           <div className="lg:col-span-2 min-w-0">
