@@ -9,17 +9,19 @@ import { buildSidebarActors, buildActorProfile } from "../../lib/actorIndex";
 import { buildPrimitiveStats } from "../../lib/primitiveStats";
 import { ActorList } from "./ActorList";
 import { ActorDashboard } from "./ActorDashboard";
+import { ActorSettlementsPage } from "./ActorSettlementsPage";
 import { PrimitiveDashboard } from "./PrimitiveDashboard";
 import { Drawer, DrawerToggle } from "../Drawer";
 import { Loading } from "../Loading";
 import { RadarProvider } from "./RadarContext";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { recordVisit } from "../../lib/visitHistory";
-import { actorHref } from "../../lib/routes";
+import { actorHref, settlementsHref } from "../../lib/routes";
 
 interface Props {
   query: string;
   actorSlug?: string;
+  page?: "settlements";
 }
 
 interface InnerProps extends Props {
@@ -27,7 +29,7 @@ interface InnerProps extends Props {
   onDrawerClose: () => void;
 }
 
-function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps) {
+function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: InnerProps) {
   const { base } = useDataSource(); // data-source base (/api/...), NOT the router base
   const { base: routerBase } = useRouter(); // "" live / /preview/<id> in preview
   const docs = use(loadDocs(base));
@@ -56,19 +58,24 @@ function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps
     return buildActorProfile(actorSlug, graph, docs, rewardsIndex, allActiveDataRows);
   }, [actorSlug, graph, docs, rewardsIndex, allActiveDataRows]);
 
-  useDocumentTitle(
-    actorSlug
-      ? profile
-        ? `${profile.entity.name} Radar: Sky Atlas by Redline`
-        : null
-      : "Redline Radar for Sky Atlas",
-  );
+  const title = !actorSlug
+    ? "Redline Radar for Sky Atlas"
+    : !profile
+      ? null
+      : page === "settlements"
+        ? `${profile.entity.name} monthly settlement · Radar: Sky Atlas by Redline`
+        : `${profile.entity.name} Radar: Sky Atlas by Redline`;
+  useDocumentTitle(title);
 
-  // Append the actor page to the browser-local visit log once its profile loads.
+  // Append the actor (or settlements) page to the visit log once the profile loads.
   useEffect(() => {
     if (!actorSlug || !profile) return;
-    void recordVisit({ path: actorHref(actorSlug), label: profile.entity.name, base: routerBase });
-  }, [actorSlug, profile, routerBase]);
+    const path = page === "settlements" ? settlementsHref(actorSlug) : actorHref(actorSlug);
+    const label = page === "settlements"
+      ? `${profile.entity.name} · Monthly settlement`
+      : profile.entity.name;
+    void recordVisit({ path, label, base: routerBase });
+  }, [actorSlug, profile, routerBase, page]);
 
   return (
     <RadarProvider value={{ docs }}>
@@ -84,6 +91,8 @@ function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps
         <PrimitiveDashboard agents={primitiveStats} />
       ) : !profile ? (
         <Loading>actor not found</Loading>
+      ) : page === "settlements" ? (
+        <ActorSettlementsPage profile={profile} />
       ) : (
         <ActorDashboard profile={profile} />
       )}
@@ -91,7 +100,7 @@ function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps
   );
 }
 
-export function RadarPage({ query, actorSlug }: Props) {
+export function RadarPage({ query, actorSlug, page }: Props) {
   const [location] = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -115,6 +124,7 @@ export function RadarPage({ query, actorSlug }: Props) {
         <RadarLoaded
           query={query}
           actorSlug={actorSlug}
+          page={page}
           drawerOpen={drawerOpen}
           onDrawerClose={() => setDrawerOpen(false)}
         />

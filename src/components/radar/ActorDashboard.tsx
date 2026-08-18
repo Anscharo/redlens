@@ -10,7 +10,7 @@ import { ActorResponsibilities } from "./ActorResponsibilities";
 import { ActorRewards } from "./ActorRewards";
 import { ActorInstances } from "./ActorInstances";
 import { ActorHistory } from "./ActorHistory";
-import { ActorSettlements } from "./ActorSettlements";
+import { ActorSettlementTeaser } from "./ActorSettlementTeaser";
 
 interface Props {
   profile: ActorProfile;
@@ -149,7 +149,7 @@ export function ActorDashboard({ profile }: Props) {
             <ActorChain chain={chain} currentSlug={entity.slug} />
           </div>
 
-          <ActorSettlements slug={entity.slug} name={entity.name} />
+          <ActorSettlementTeaser slug={entity.slug} />
         </div>
 
         <div className="min-w-0">

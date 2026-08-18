@@ -66,8 +66,7 @@ afterEach(() => {
 describe("ActorSettlements", () => {
   it("renders Spark figures, the Sankey, and the venue table for the latest month", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Monthly settlement" })).toBeInTheDocument());
-    expect(screen.getByText("Kept by Spark")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Kept by Spark")).toBeInTheDocument());
     expect(screen.getByLabelText(/Venue flows to Sky and Spark/)).toBeInTheDocument();
     expect(screen.getAllByText("SparkLend USDS").length).toBeGreaterThan(0);
     expect(screen.getByText("synthetic")).toBeInTheDocument();
@@ -80,7 +79,7 @@ describe("ActorSettlements", () => {
 
   it("switches month from the bar control", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
-    await waitFor(() => screen.getByRole("heading", { name: "Monthly settlement" }));
+    await waitFor(() => screen.getByText("Kept by Spark"));
     fireEvent.click(screen.getByRole("button", { name: /Jun 2026/ }));
     expect(screen.getAllByText("June venue").length).toBeGreaterThan(0);
     expect(screen.queryByText("SparkLend USDS")).not.toBeInTheDocument();
@@ -92,10 +91,10 @@ describe("ActorSettlements", () => {
     expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
   });
 
-  it("renders nothing for a slug with no MSC workbooks", async () => {
+  it("explains when a slug has no MSC workbooks", async () => {
     const { rerender } = render(<ActorSettlements slug="spark" name="Spark" />);
-    await screen.findByRole("heading", { name: "Monthly settlement" });
+    await screen.findByText("Kept by Spark");
     rerender(<ActorSettlements slug="spark-proxy" name="Spark Proxy" />);
-    expect(screen.queryByRole("heading", { name: "Monthly settlement" })).not.toBeInTheDocument();
+    expect(screen.getByText(/No published Monthly Settlement Cycle workbooks for Spark Proxy/)).toBeInTheDocument();
   });
 });

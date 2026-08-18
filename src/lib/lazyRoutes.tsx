@@ -68,9 +68,10 @@ export interface SimpleRoute {
 // Report/page routes that are just <Suspense><Component .../></Suspense> with
 // no route params and no custom children — rendered by App.tsx's Switch with
 // one .map() instead of repeating that wrapper by hand. Routes needing
-// :param-derived props (RADAR_ACTOR, SHARED_COLLECTION), a custom child
-// (SEARCH_HINTS), a redirect, the __CHAT_ENABLED__-guarded CONVERSATIONS
-// route, or the admin catch-all stay explicit in App.tsx.
+// :param-derived props (RADAR_ACTOR, RADAR_ACTOR_SETTLEMENTS,
+// SHARED_COLLECTION), a custom child (SEARCH_HINTS), a redirect, the
+// __CHAT_ENABLED__-guarded CONVERSATIONS route, or the admin catch-all stay
+// explicit in App.tsx.
 export const SIMPLE_ROUTES: SimpleRoute[] = [
   { path: ROUTES.REPORTS, Component: ReportsIndex, props: (c) => ({ query: c.query }) },
   { path: ROUTES.REPORTS_OF_RESPONSIBILITIES, Component: OpFacilitatorsReport, props: (c) => ({ query: c.query, mode: c.mode }) },

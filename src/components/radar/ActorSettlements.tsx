@@ -7,7 +7,6 @@ import {
   formatUsd,
   revenueGap,
 } from "../../lib/settlements";
-import { HEADER_OFFSET } from "../../lib/layout";
 import { SettlementBars } from "./SettlementBars";
 import { SettlementSankey, SettlementVenueTable } from "./SettlementSankey";
 
@@ -31,7 +30,14 @@ export function ActorSettlements({ slug, name }: Props) {
   const month = months.includes(msc ?? "") ? msc! : latest;
   const report = reports.find((r) => r.month === month) ?? null;
 
-  if (!bundle || !report || !month) return null;
+  if (!bundle) return null;
+  if (!report || !month) {
+    return (
+      <p className="text-sm italic" style={{ color: "var(--tan-3)" }}>
+        No published Monthly Settlement Cycle workbooks for {name}.
+      </p>
+    );
+  }
 
   const gap = revenueGap(report);
   const hasVenues = report.venues.some(
@@ -40,13 +46,7 @@ export function ActorSettlements({ slug, name }: Props) {
   const workbook = `${SOURCE}/tree/main/reports/${slug}/${month}`;
 
   return (
-    <section id="msc" className="mb-8" style={{ scrollMarginTop: HEADER_OFFSET }}>
-      <h2
-        className="mono text-[10px] uppercase tracking-wider mb-3"
-        style={{ color: "var(--tan-3)" }}
-      >
-        Monthly settlement
-      </h2>
+    <>
       <p className="text-xs mb-4" style={{ color: "var(--tan-3)" }}>
         From Soter Labs' published Monthly Settlement Cycle workbooks — OEA
         calculations, not the on-chain GovOps spell.{" "}
@@ -84,7 +84,7 @@ export function ActorSettlements({ slug, name }: Props) {
           Published workbooks list no venue-level PnL for {name}.
         </p>
       )}
-    </section>
+    </>
   );
 }
 

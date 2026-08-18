@@ -162,10 +162,10 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "Monthly settlement charts",
-        what: "On primes that publish a Monthly Settlement Cycle workbook, a stacked-bar history and a venue Sankey of Profit to Sky vs profit kept by the agent.",
+        what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows last month's amount to Sky; a full cycle page has the stacked-bar history and venue Sankey.",
         how: [
           "Open a Prime Agent on Radar (Spark, Grove, Obex, …).",
-          "Scroll to Monthly settlement; the month bars pick the cycle, defaulting to the latest.",
+          "The Monthly settlement block shows the latest cycle; the `full cycle` link opens the charts.",
         ],
         note: "Hidden when settlements.json has not been built (`pnpm settlements:parse`). Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
       },

@@ -20,7 +20,7 @@ vi.mock("./ActorResponsibilities", () => ({ ActorResponsibilities: () => <div da
 vi.mock("./ActorInstances", () => ({ ActorInstances: () => <div data-testid="instances" /> }));
 vi.mock("./ActorRewards", () => ({ ActorRewards: () => <div data-testid="rewards" /> }));
 vi.mock("./ActorHistory", () => ({ ActorHistory: () => <div data-testid="history" /> }));
-vi.mock("./ActorSettlements", () => ({ ActorSettlements: () => <div data-testid="settlements" /> }));
+vi.mock("./ActorSettlementTeaser", () => ({ ActorSettlementTeaser: () => <div data-testid="settlements" /> }));
 
 import { ActorDashboard } from "./ActorDashboard";
 
@@ -54,6 +54,7 @@ describe("ActorDashboard header", () => {
     render(<ActorDashboard profile={profile()} />);
     expect(screen.getByRole("heading", { name: "Spark" })).toBeInTheDocument();
     expect(screen.getByText("Prime Agent")).toBeInTheDocument();
+    expect(screen.getByTestId("settlements")).toBeInTheDocument();
   });
 
   it("shows 'Executor Agent' for a non-prime agent", () => {
