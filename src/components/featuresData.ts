@@ -160,6 +160,15 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "See primitives and which actors have activated them.",
         how: ["From Radar, open a primitive to view its dashboard and activation matrix."],
       },
+      {
+        name: "Monthly settlement charts",
+        what: "On primes that publish a Monthly Settlement Cycle workbook, a stacked-bar history and a venue Sankey of Profit to Sky vs profit kept by the agent.",
+        how: [
+          "Open a Prime Agent on Radar (Spark, Grove, Obex, …).",
+          "Scroll to Monthly settlement; the month bars pick the cycle, defaulting to the latest.",
+        ],
+        note: "Hidden when settlements.json has not been built (`pnpm settlements:parse`). Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
+      },
     ],
   },
   {

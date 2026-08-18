@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-08-18
+- Added Monthly Settlement Cycle charts on Prime Agent Radar pages
+
 ## 2026-08-14
 - Added a History page showing the Atlas documents, document trees and report pages you have been reading, kept in your browser only
 

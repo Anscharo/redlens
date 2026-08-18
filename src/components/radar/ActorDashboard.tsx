@@ -10,6 +10,7 @@ import { ActorResponsibilities } from "./ActorResponsibilities";
 import { ActorRewards } from "./ActorRewards";
 import { ActorInstances } from "./ActorInstances";
 import { ActorHistory } from "./ActorHistory";
+import { ActorSettlements } from "./ActorSettlements";
 
 interface Props {
   profile: ActorProfile;
@@ -209,6 +210,10 @@ export function ActorDashboard({ profile }: Props) {
             <ActorHistory profile={profile} />
           </Section>
         </aside>
+
+        <div className="lg:col-span-2 min-w-0">
+          <ActorSettlements slug={entity.slug} name={entity.name} />
+        </div>
 
         {rewardsAgent && (
           <div className="lg:col-span-2 min-w-0">

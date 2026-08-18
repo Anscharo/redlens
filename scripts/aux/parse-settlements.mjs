@@ -5,8 +5,9 @@
  *
  * DELIBERATELY NOT PART OF `pnpm build`. The build is offline and
  * deterministic (REPRO=1); fetching settlement-reports would make the
- * same atlas SHA produce different artifacts. Run this by hand (or
- * later from a worker) when the published workbooks move.
+ * same atlas SHA produce different artifacts. Run this by hand, or let
+ * the Docker image bake `dist/settlements.json` after `build:vite`.
+ * A fetch failure there is a warning, not a failed image.
  *
  * Flags:
  *   --dir <path>  local reports/ tree or settlement-reports checkout
