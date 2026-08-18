@@ -44,16 +44,10 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      # census:risk and census:concepts run under bun.
-      - uses: oven-sh/setup-bun@v2
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v4
+      # bun: census:risk and census:concepts run under it.
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          bun: "true"
 
       # Same wholesale stderr capture as atlas-update.yml — now also carrying
       # the [drift] tripwire and [drift-count] lines from graph-tripwires.mjs.
@@ -62,6 +56,12 @@ jobs:
           pnpm build:index 2> >(tee -a /tmp/healer-warnings.log >&2)
           pnpm build:graph 2> >(tee -a /tmp/healer-warnings.log >&2)
           pnpm build:glossary 2> >(tee -a /tmp/healer-warnings.log >&2)
+
+      # Same gate the hourly bump runs before opening its PR. Here it answers a
+      # different question: is main ITSELF still whole? An auto-merged bump that
+      # slipped through, or an atlas that regrouped between bumps, shows up here.
+      - name: Verify the build read the whole atlas
+        run: pnpm check:atlas 2> >(tee -a /tmp/healer-warnings.log >&2)
 
       - name: Run censuses in verify mode
         run: |
@@ -101,8 +101,12 @@ jobs:
           fi
           echo "old_atlas=${OLD_ATLAS:0:7}" >> "$GITHUB_OUTPUT"
           echo "now_atlas=${NOW_ATLAS:0:7}" >> "$GITHUB_OUTPUT"
-          git -C vendor/next-gen-atlas log --oneline --stat=100 \
-            "$OLD_ATLAS..$NOW_ATLAS" > /tmp/upstream-log.txt 2>/dev/null || true
+          # No per-document changed-list is derived from git here. `--stat` only
+          # named documents while the atlas stored one per file; it lists bucket
+          # files now (`content/A.1 - The-Governance-Scope.md | 1841 +++---`),
+          # which still LOOKS like a signal and would be read as one. The triage
+          # agent calls atlas_recent_changes instead — sourced from atlas_history,
+          # so it is layout-blind and carries doc_no + title + UUID + PR.
           git -C vendor/next-gen-atlas diff "$OLD_ATLAS" "$NOW_ATLAS" \
             -- ATLAS_MARKDOWN_SYNTAX.md > /tmp/spec-diff.txt 2>/dev/null || true
 
@@ -259,14 +263,6 @@ jobs:
               echo '```'
               echo "</details>"
               echo
-            fi
-            if [ -s /tmp/upstream-log.txt ]; then
-              echo "<details><summary>Upstream atlas commits this week</summary>"
-              echo
-              echo '```'
-              head -c 8000 /tmp/upstream-log.txt
-              echo '```'
-              echo "</details>"
             fi
           } > /tmp/health-issue.md
 

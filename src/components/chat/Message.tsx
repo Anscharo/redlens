@@ -2,7 +2,9 @@ import { SparkMark } from "./glyphs";
 import { AtlasMarkdown, balanceFences, extractSources } from "./markdown";
 import { Sources } from "./Sources";
 import { ExportChips } from "./ExportChips";
+import { StageList } from "./StageList";
 import { ToolTrace } from "./ToolTrace";
+import { useRevealOnDone } from "./useRevealOnDone";
 import { VerifyBadge } from "./VerifyBadge";
 import type { ChatMsg } from "./useChatStream";
 
@@ -29,7 +31,35 @@ function AssistantTurn({
   onAtlas: (uuid: string) => void;
 }) {
   const empty = !msg.content;
+  const stageLog = msg.stageLog ?? [];
+  const { display, revealing } = useRevealOnDone(msg.content, msg.done);
   const sources = msg.done ? extractSources(msg.content) : [];
+
+  // Staged mode never streams tokens, so content stays empty until `done` —
+  // once the checklist's own !done guard flips (done arrives), it stops being
+  // eligible regardless of `revealing`, which is what "suppress the stage
+  // list while revealing" reduces to. The explicit delivery gate keeps the
+  // DEFAULT streaming mode visually unchanged pre-first-token (its old
+  // placeholder ticker) until the staged A/B measures — stageLog accumulates
+  // in both modes, so without the gate the checklist would leak into
+  // streaming's pre-token window.
+  //
+  // Opt-IN on the exact value, not opt-out of "streaming": `undefined` means
+  // the server never stamped the field (a degraded/older server, or a
+  // hydrated message), and the classic ticker is the right fallback for an
+  // unknown mode — treating unknown as staged made the new UI the default for
+  // exactly the servers least able to drive it. Safe because chat.ts sends
+  // `meta` (carrying delivery) as the FIRST frame of every stream, before any
+  // status event that could populate stageLog.
+  // One condition — a staged turn with stages run and no answer yet — split by
+  // whether it is still going or has stopped. An aborted staged turn gets a
+  // muted stopped row instead of a blank bubble, which would look broken
+  // rather than intentionally stopped.
+  const stagedBlank = msg.delivery === "staged" && empty && stageLog.length > 0;
+  const showChecklist = stagedBlank && !msg.done;
+  const stoppedEmpty = stagedBlank && msg.done;
+  const shownContent = !msg.done ? balanceFences(msg.content) : revealing ? balanceFences(display) : display;
+
   return (
     <div className="rlc-turn mb-[18px]">
       <div className="flex items-center gap-[7px] mb-[7px]">
@@ -37,7 +67,9 @@ function AssistantTurn({
         <span className="rlc-agent-label">atlas agent</span>
       </div>
       {showTrace && <ToolTrace trace={msg.trace} rounds={msg.rounds} />}
-      {streaming && empty ? (
+      {showChecklist ? (
+        <StageList entries={stageLog} />
+      ) : streaming && empty ? (
         <div className="rlc-thinking">
           <span className="rlc-twinkle">✦</span> {msg.statusLine ?? "searching the stars…"}
         </div>
@@ -45,17 +77,20 @@ function AssistantTurn({
         // The stream broke (SSE "error" event or a fetch/read exception) before
         // any content arrived — say so plainly instead of leaving a silent,
         // answer-shaped blank. Not run through AtlasMarkdown so it can never be
-        // mistaken for a real (if terse) assistant reply.
+        // mistaken for a real (if terse) assistant reply. Ranked above the
+        // staged "stopped" row: a failed staged turn is an error, not a stop.
         <div className="rlc-turn-error">
           <span className="rlc-turn-error-icon" aria-hidden="true">
             ⚠
           </span>{" "}
           This reply didn’t come through. Send another message to try again.
         </div>
+      ) : stoppedEmpty ? (
+        <p className="rlc-stopped">Stopped before an answer was ready.</p>
       ) : (
         <>
-          <AtlasMarkdown content={streaming ? balanceFences(msg.content) : msg.content} onAtlas={onAtlas} />
-          {streaming && <span className="rlc-caret" />}
+          <AtlasMarkdown content={shownContent} onAtlas={onAtlas} />
+          {(streaming || revealing) && <span className="rlc-caret" />}
           {streaming && msg.statusLine && (
             <div className="rlc-thinking rlc-statusline">
               <span className="rlc-twinkle">✦</span> {msg.statusLine}

@@ -3,7 +3,6 @@
 // carry an in-context Atlas reference (inline or a directly-referenced footnote).
 
 import { describe, it, expect } from "vitest";
-// @ts-expect-error — dependency-free ESM module, no types
 import {
   analyzeReportCitations,
   hasCitation,

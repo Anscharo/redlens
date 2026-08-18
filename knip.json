@@ -2,11 +2,28 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "tags": ["-lintignore"],
   "ignoreExportsUsedInFile": true,
+  "ignoreBinaries": ["docker-compose"],
   "ignore": [
     "vendor/**",
     "scripts/aux/ab-parse-check.mjs",
+    "scripts/aux/eval-smalltalk-judge.ts",
     "scripts/aux/test-addresses.mjs",
-    "scripts/aux/unlabeled-addresses.mjs"
+    "scripts/aux/unlabeled-addresses.mjs",
+    "scripts/aux/measure-embed.ts",
+    "scripts/aux/atlas-history/**",
+    "scripts/htmlhist/check-cross-agent.mjs",
+    "scripts/htmlhist/export-decisions-judge.mjs",
+    "scripts/htmlhist/render-decisions.mjs",
+    "scripts/lib/address-chains.d.mts",
+    "scripts/lib/atlas-source.d.mts",
+    "scripts/lib/build-steps.d.mts",
+    "scripts/lib/chain-candidates.d.mts",
+    "scripts/lib/chains.d.mts",
+    "scripts/lib/report-citations.d.mts",
+    "scripts/lib/solana-accounts.d.mts",
+    "scripts/lib/solana-pda.d.mts",
+    "scripts/aux/coverage-areas.d.mts",
+    "scripts/required/check-govops-census.d.mts"
   ],
   "workspaces": {
     ".": {}

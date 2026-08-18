@@ -11,7 +11,7 @@
 // The pure census compute itself (conceptsCensus.ts) is already covered by
 // vitest (src/lib/conceptsCensus.test.ts) — this file only covers the
 // script-side integration: file I/O, baseline diffing, exit code.
-import { test, expect, beforeAll, afterAll } from "bun:test";
+import { test, expect, beforeEach, afterEach } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -51,7 +51,11 @@ function runScript(args: string[] = []): { status: number | null; stdout: string
   return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
 }
 
-beforeAll(() => {
+// A fresh scratch root per test: these tests used to share one fixture (later
+// tests asserting against a baseline an earlier test wrote), so neither
+// `--test-name-pattern` on a single test nor any reordering worked. Each test
+// now builds whatever baseline/corpus state it asserts against.
+beforeEach(() => {
   tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "concepts-census-guard-"));
   fs.mkdirSync(path.join(tmpRoot, "scripts/required"), { recursive: true });
   fs.mkdirSync(path.join(tmpRoot, "scripts/lib"), { recursive: true });
@@ -74,7 +78,7 @@ beforeAll(() => {
   fs.writeFileSync(path.join(tmpRoot, "public/docs.json"), JSON.stringify(makeDocs()));
 });
 
-afterAll(() => {
+afterEach(() => {
   fs.rmSync(tmpRoot, { recursive: true, force: true });
 });
 
@@ -96,6 +100,7 @@ test("--update creates the baseline and exits 0", () => {
 });
 
 test("rerun against an unchanged corpus is silent (no drift) and exits 0", () => {
+  runScript(["--update"]); // baseline for the same corpus this test then rechecks
   const r = runScript();
   expect(r.status).toBe(0);
   expect(r.stderr).toBe("");
@@ -103,7 +108,8 @@ test("rerun against an unchanged corpus is silent (no drift) and exits 0", () =>
 });
 
 test("an injected new registry member triggers a [drift] warning, still exits 0", () => {
-  fs.writeFileSync(
+  runScript(["--update"]); // baseline the two-member corpus …
+  fs.writeFileSync( // … then add a third member
     path.join(tmpRoot, "public/docs.json"),
     JSON.stringify(
       makeDocs({

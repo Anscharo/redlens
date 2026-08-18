@@ -5,30 +5,51 @@
 //   bun src/server/sync.ts            # sha-gated: skips if already current
 //   bun src/server/sync.ts --force    # sync regardless of sha
 //
-// Reads: public/{docs,addresses.atlas,addresses,chain-state}.json
+// Reads: public/{docs,addresses.atlas,addresses}.json + the chain_state row
+// (migration 020 — the on-chain snapshot is DB-resident, not a file, since the
+// atlas worker took over fetching it).
 // History is written by build-history.mjs (DB sink) in the worker, not here.
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { sql, waitForDb } from "./db.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
+import { readChainState } from "./chain-state.ts";
 import type { AtlasNode } from "./retrieval/indexes.ts";
 import { nodeToDocRow, buildChainStateByAddr, buildAddrRows } from "./retrieval/doc-rows.ts";
 
-const FORCE = process.argv.includes("--force");
-const pub = (f: string) => join(config.publicDir, f);
-const readJson = <T>(f: string): T => JSON.parse(readFileSync(pub(f), "utf8")) as T;
+// Exported (not just a module-level constant) so a test can drive both branches
+// of the --force gate without needing a literal `--force` in the test runner's
+// own argv. Behavior at the real call site is unchanged: realSyncDeps below
+// still reads it from process.argv exactly once, at import time, same as before.
+export function forceFromArgv(argv: string[] = process.argv): boolean {
+  return argv.includes("--force");
+}
+export const pub = (f: string) => join(config.publicDir, f);
+export const readJson = <T>(f: string): T => JSON.parse(readFileSync(pub(f), "utf8")) as T;
 
-async function chunked<T>(rows: T[], size: number, fn: (chunk: T[]) => Promise<void>) {
+export async function chunked<T>(rows: T[], size: number, fn: (chunk: T[]) => Promise<void>) {
   for (let i = 0; i < rows.length; i += size) await fn(rows.slice(i, i + size));
 }
 
-async function main() {
+// Injected so main() is testable without a real Postgres connection or a
+// literal --force argv — mirrors preview/build.ts's BuildDeps/realBuildDeps.
+// `sql` itself deliberately stays OUT of this seam and a direct top-of-file
+// import: every DB-touching *.test.ts in this codebase fakes it via
+// mock.module("./db.ts", …) instead (see db.test.ts / migrate.test.ts), so
+// sync.ts keeps that same convention rather than inventing a second one.
+export interface SyncDeps {
+  runMigrations: () => Promise<string[]>;
+  force: boolean;
+}
+const realSyncDeps: SyncDeps = { runMigrations, force: forceFromArgv() };
+
+export async function main(deps: SyncDeps = realSyncDeps) {
   const startedAt = new Date();
   console.log("sync:atlas — waiting for db…");
   await waitForDb(); // tolerate Railway's private-network / fresh-PG boot lag
   console.log("sync:atlas — running migrations…");
-  await runMigrations();
+  await deps.runMigrations();
 
   console.log("sync:atlas — reading docs.json…");
   const docsFile = readJson<{ atlasCommit?: string; nodes: Record<string, AtlasNode> }>("docs.json");
@@ -37,7 +58,7 @@ async function main() {
 
   const prevState = await sql`SELECT atlas_sha FROM sync_state WHERE id = 1`;
   const prevSha: string | null = prevState[0]?.atlas_sha ?? null;
-  if (!FORCE && prevSha === atlasSha) {
+  if (!deps.force && prevSha === atlasSha) {
     console.log(`sync:atlas — already current at ${atlasSha.slice(0, 12)} (use --force to re-sync)`);
     await sql.end();
     return;
@@ -69,8 +90,20 @@ async function main() {
   const addrOnChain = existsSync(pub("addresses.json"))
     ? readJson<Record<string, { chainlogId?: string; etherscanName?: string; isContract?: boolean; codeByChain?: Record<string, boolean>; presentOnChains?: string[]; isProxy?: boolean; implementation?: string }>>("addresses.json")
     : {};
-  const chainStateRaw = readJson<{ chains?: Record<string, { block?: number; slot?: number; values?: Record<string, unknown> }>; block?: number; values?: Record<string, unknown> }>("chain-state.json");
-  const chainStateByAddr = buildChainStateByAddr(chainStateRaw);
+  // The chain-state snapshot lives in Postgres (migration 020), written by the
+  // atlas worker's time-gated step — it used to be public/chain-state.json.
+  // Read it here so atlas_addresses.chain_state keeps its meaning; a missing row
+  // (fresh DB, or a dev box that never ran `pnpm snap:chainstate`) or a read
+  // failure degrades to no chain_state rather than aborting the whole sync.
+  // Snapshot freshness in atlas_addresses is therefore bounded by the ATLAS
+  // sync cadence, not the snapshot cadence — see the note in chain-state.ts.
+  const stored = await readChainState().catch((e: Error) => {
+    console.warn(`sync:atlas — chain_state read failed (${e.message}) — continuing without on-chain values`);
+    return null;
+  });
+  const chainStateByAddr = buildChainStateByAddr(
+    stored ? { block: Number(stored.block) || undefined, values: stored.values } : {},
+  );
   const addrRows = buildAddrRows(addrAtlas, addrOnChain, chainStateByAddr, atlasSha);
 
   // jsonb columns need an explicit ::jsonb cast on the placeholder — the values
@@ -167,8 +200,22 @@ async function main() {
   await sql.end();
 }
 
-main().catch((err) => {
-  console.error("sync:atlas — fatal error:", err?.message ?? err);
-  console.error(err?.stack ?? "");
-  process.exit(1);
-});
+// Only run when launched directly (`bun src/server/sync.ts`) — every caller
+// (package.json sync:atlas, atlas-worker.mjs, atlas-updater.ts's boot-embeddings
+// spawn, index.ts's post-preview-build spawn) shells out to this file as a
+// subprocess rather than importing it, but without this guard a plain
+// `import "./sync.ts"` (e.g. from a test) would kick off a real DB sync as a
+// side effect of module load. import.meta.main is only ever true for a real
+// `bun src/server/sync.ts` run, never for a module loaded by `bun test` — so
+// this catch handler (the fatal-error → process.exit(1) path) has no unit-test
+// technique that can execute it; main() itself is exercised directly and
+// thoroughly in sync.test.ts.
+/* v8 ignore start -- boot-only; see the comment above */
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error("sync:atlas — fatal error:", err?.message ?? err);
+    console.error(err?.stack ?? "");
+    process.exit(1);
+  });
+}
+/* v8 ignore stop */

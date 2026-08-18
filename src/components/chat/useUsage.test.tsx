@@ -15,21 +15,23 @@ describe("useUsage", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("fetches usage + commons when enabled and populates both", async () => {
+  it("fetches usage + commons + contextWindow when enabled and populates all three", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
           window: { tokens: 5, limit: 100, resetsAt: "2026-01-01", exceeded: false, windowMinutes: 60 },
           global: { used: 1, total: 10, remaining: 9 },
+          contextWindowTokens: 128000,
         }),
     } as Response);
     const { result } = renderHook(() => useUsage(true));
     await waitFor(() => expect(result.current.usage?.tokens).toBe(5));
     expect(result.current.commons).toEqual({ used: 1, total: 10, remaining: 9 });
+    expect(result.current.contextWindow).toBe(128000);
   });
 
-  it("sets commons to null when the global field is absent (feature off)", async () => {
+  it("sets commons and contextWindow to null when both are absent (feature off / older server)", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ window: { tokens: 5, limit: 100, resetsAt: "x", exceeded: false, windowMinutes: 60 } }),
@@ -37,6 +39,7 @@ describe("useUsage", () => {
     const { result } = renderHook(() => useUsage(true));
     await waitFor(() => expect(result.current.usage?.tokens).toBe(5));
     expect(result.current.commons).toBeNull();
+    expect(result.current.contextWindow).toBeNull();
   });
 
   it("leaves state untouched on a non-ok response", async () => {

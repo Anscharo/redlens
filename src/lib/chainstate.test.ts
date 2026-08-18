@@ -1,6 +1,9 @@
-// loadChainState must not permanently cache a fetch failure as empty
-// chain-state — a transient blip should be retried on the next call instead
-// of silently returning empty on-chain values for the rest of the session.
+// loadChainState reads the snapshot from /api/chain-state (a Postgres row the
+// atlas worker refreshes — it used to be the committed public/chain-state.json)
+// and must not permanently cache a failure as empty chain-state: a transient
+// blip, or a server whose worker hasn't stored a first snapshot yet (503),
+// should be retried on the next call instead of silently returning empty
+// on-chain values for the rest of the session.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -17,10 +20,12 @@ describe("loadChainState", () => {
 
   it("evicts the cache on failure so a later call re-fetches instead of reusing empty state", async () => {
     let calls = 0;
-    globalThis.fetch = vi.fn(async () => {
+    const urls: string[] = [];
+    globalThis.fetch = vi.fn(async (url: string) => {
       calls++;
-      return { ok: false, status: 500, json: async () => ({}) } as Response;
-    });
+      urls.push(String(url));
+      return { ok: false, status: 503, json: async () => ({}) } as Response;
+    }) as unknown as typeof fetch;
 
     const { loadChainState } = await import("./chainstate");
     const first = await loadChainState();
@@ -31,6 +36,7 @@ describe("loadChainState", () => {
     const second = await loadChainState();
     expect(calls).toBe(2);
     expect(second).toEqual({ block: "", values: {} });
+    expect(urls).toEqual(["/api/chain-state", "/api/chain-state"]);
   });
 
   it("resolves normally and caches on success", async () => {

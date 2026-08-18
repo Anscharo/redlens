@@ -50,6 +50,7 @@ function baseData(visibleNodes: VisibleNode[]): TreeRowData {
     isPreview: false,
     sidebarWidth: 242,
     cradle: null,
+    canCascade: true,
     onNavigate: () => {},
     onToggle: () => {},
     onReveal: () => {},
@@ -110,6 +111,45 @@ describe("TreeRow ARIA semantics", () => {
     const row = screen.getByRole("treeitem");
     expect(row).toHaveAttribute("aria-selected", "false");
     expect(row).toHaveAttribute("aria-expanded", "false");
+  });
+});
+
+// The footer hint (useContextHints) reads these markers off the DOM, so the
+// attribute is the only seam. It answers "what can I do here" WITHOUT the
+// modifier held — the ::after labels in index.css only appear once you already
+// know to press Shift.
+describe("TreeRow footer-hint markers", () => {
+  // On the title alone. Shift-click works anywhere on the row, but marking the
+  // row itself fired the hint while crossing the chiclets and the chevron too,
+  // so it was up almost constantly.
+  it("marks the title — not the whole row — as the shift-click surface", () => {
+    const visibleNodes: VisibleNode[] = [{ node: node(), hasChildren: true, treeDepth: 1 }];
+    render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...baseData(visibleNodes)} />);
+    const row = screen.getByRole("treeitem");
+    expect(row).not.toHaveAttribute("data-mod-hint");
+    expect(row.querySelector('[data-mod-hint="split"]')?.textContent).toBe("A Title");
+  });
+
+  it("marks the chevron by direction, so the hint names the move it will make", () => {
+    const visibleNodes: VisibleNode[] = [{ node: node({ id: "n6" }), hasChildren: true, treeDepth: 1 }];
+    const collapsed = baseData(visibleNodes);
+    const { rerender } = render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...collapsed} />);
+    expect(screen.getByRole("button")).toHaveAttribute("data-mod-hint", "cascade");
+
+    rerender(
+      <TreeRow index={0} style={{}} ariaAttributes={aria} {...collapsed} expandedIds={new Set(["n6"])} />,
+    );
+    expect(screen.getByRole("button")).toHaveAttribute("data-mod-hint", "cascade-collapse");
+  });
+
+  // Selected-only view skips the shift branch in toggleExpand, so shift-click
+  // there is a plain one-level toggle — advertising the cascade would promise a
+  // move the chevron won't make. TreeSidebar passes canCascade for that reason.
+  it("offers no chevron hint where shift-click doesn't cascade", () => {
+    const visibleNodes: VisibleNode[] = [{ node: node({ id: "n7" }), hasChildren: true, treeDepth: 1 }];
+    const data = { ...baseData(visibleNodes), canCascade: false };
+    render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...data} />);
+    expect(screen.getByRole("button")).not.toHaveAttribute("data-mod-hint");
   });
 });
 

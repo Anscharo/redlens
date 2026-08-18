@@ -29,7 +29,7 @@ vi.mock("./hooks/useNavigation", () => ({
   useNavigation: () => ({ navigateToNode: vi.fn(), handleViewChange: vi.fn() }),
 }));
 vi.mock("./hooks/usePageAnalytics", () => ({ usePageAnalytics: vi.fn() }));
-vi.mock("./hooks/useReportVisitTracking", () => ({ useReportVisitTracking: vi.fn() }));
+vi.mock("./hooks/usePageVisitTracking", () => ({ usePageVisitTracking: vi.fn() }));
 vi.mock("./components/SearchBar", () => ({ SearchBar: () => <div data-testid="search-bar" /> }));
 vi.mock("./components/SearchResults", () => ({ SearchResults: () => <div data-testid="search-results" /> }));
 vi.mock("./components/atlas/AtlasView", () => ({ AtlasView: () => <div data-testid="atlas-view" /> }));
@@ -127,6 +127,22 @@ describe("App", () => {
   it("renders the crossview shape tab at /reports/crossview", async () => {
     render(<App />, { wrapper: wrap("/reports/crossview") });
     expect(await screen.findByTestId("crossview-page")).toHaveTextContent("crossview:shape");
+  });
+
+  it("renders the crossview glossary tab at its own route, not the shared shape tab", async () => {
+    // Guards the SIMPLE_ROUTES table (src/lib/lazyRoutes.tsx): all four
+    // CrossView routes share one Component but each supplies its own `tab`
+    // via props() — this would stay green even if every entry accidentally
+    // shared one closure, so it's paired with the shape-tab test above.
+    render(<App />, { wrapper: wrap("/reports/crossview/glossary") });
+    expect(await screen.findByTestId("crossview-page")).toHaveTextContent("crossview:glossary");
+  });
+
+  it("redirects the removed Contents tab URL to /reports/crossview", async () => {
+    const { hook, history } = memoryLocation({ path: "/reports/crossview/contents", record: true });
+    render(<App />, { wrapper: ({ children }) => <Router hook={hook}>{children}</Router> });
+    await screen.findByTestId("crossview-page");
+    expect(history?.at(-1)).toBe("/reports/crossview");
   });
 
   it("redirects the legacy /library/:tab* URL to /reports/crossview/:tab", async () => {

@@ -25,6 +25,9 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import process from "node:process";
 
+import { detectLayout } from "../lib/atlas-source.mjs";
+import { stepById, stepsFor } from "../lib/build-steps.mjs";
+
 const GREEN = "\x1b[32m";
 const YELLOW = "\x1b[33m";
 const RED = "\x1b[31m";
@@ -135,9 +138,8 @@ function runWorker() {
     return false;
   }
   // The worker builds index+graph but not glossary or derived report views;
-  // refresh them for the synced sha.
-  run("pnpm", ["build:glossary"]);
-  run("pnpm", ["build:oea-report"]);
+  // refresh them for the synced sha (the `devWorkerTail` profile).
+  for (const step of stepsFor("devWorkerTail")) run("pnpm", [step.pnpmScript]);
   return true;
 }
 
@@ -147,17 +149,28 @@ function ensureArtifacts() {
   if (truthy(process.env.DEV_NO_BUILD)) return;
   if (existsSync("public/docs.json")) {
     if (!existsSync("public/oea-report.json") && existsSync("public/relations.json")) {
+      const oea = stepById("oea-report").pnpmScript;
       log("OEA report artifact missing — building it from existing docs + graph…");
-      if (run("pnpm", ["build:oea-report"]).status !== 0) fail("`pnpm build:oea-report` failed — see output above.");
+      if (run("pnpm", [oea]).status !== 0) fail(`\`pnpm ${oea}\` failed — see output above.`);
     }
     return;
   }
-  if (!existsSync("vendor/next-gen-atlas/content")) {
-    fail("Atlas submodule isn't populated. Run `pnpm pull-atlas` first, then `pnpm dev`.");
+  // Layout-aware: the bare `content/` existence check this replaced stayed true
+  // after upstream #294 emptied the tree of document.md files, so a checkout the
+  // build could not read looked fine here and failed obscurely later.
+  try {
+    log(`Atlas checkout detected as the ${detectLayout("vendor/next-gen-atlas")} layout.`);
+  } catch (e) {
+    fail(
+      `Atlas submodule isn't usable: ${e.message}\n` +
+        "Run `pnpm pull-atlas` first, then `pnpm dev`.",
+    );
   }
-  log("Atlas artifacts missing — building (index → graph → glossary → oea-report)…");
-  for (const t of ["build:index", "build:graph", "build:glossary", "build:oea-report"]) {
-    if (run("pnpm", [t]).status !== 0) fail(`\`pnpm ${t}\` failed — see output above.`);
+  // The `devArtifacts` profile of scripts/lib/build-steps.mjs.
+  const steps = stepsFor("devArtifacts");
+  log(`Atlas artifacts missing — building (${steps.map((s) => s.id).join(" → ")})…`);
+  for (const { pnpmScript } of steps) {
+    if (run("pnpm", [pnpmScript]).status !== 0) fail(`\`pnpm ${pnpmScript}\` failed — see output above.`);
   }
 }
 
@@ -168,7 +181,7 @@ function ensureArtifacts() {
 function ensureBundle() {
   if (truthy(process.env.DEV_NO_BUILD) || !existsSync("public/docs.json")) return;
   log("Publishing per-sha atlas bundle (public/atlas/<sha>/)…");
-  if (run("bun", ["scripts/required/build-bundle.ts"]).status !== 0) {
+  if (run("bun", [stepById("bundle").script]).status !== 0) {
     warn("build:bundle didn't finish cleanly — /api/atlas/<sha>/ may 404 until rebuilt.");
   }
 }
@@ -178,7 +191,7 @@ function ensureBundle() {
 // docs.json/the worker at all. Cheap; just keep it fresh every boot.
 function ensureToolsCatalog() {
   if (truthy(process.env.DEV_NO_BUILD)) return;
-  if (run("bun", ["scripts/required/build-tools.ts"]).status !== 0) {
+  if (run("bun", [stepById("tools").script]).status !== 0) {
     warn("build:tools didn't finish cleanly — /connect's tool list may be stale or missing.");
   }
 }

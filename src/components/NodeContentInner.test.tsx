@@ -91,7 +91,12 @@ describe("address hover tooltip", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.getByRole("tooltip")).toHaveTextContent("Test Multisig");
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Test Multisig");
+    // Shortened explorer link at the bottom, pointing at the same href the
+    // linkified address itself resolved to.
+    const explorerLink = screen.getByRole("link", { name: `etherscan.io/address/${EVM.slice(0, 8)}...` });
+    expect(explorerLink).toHaveAttribute("href", `https://etherscan.io/address/${EVM}`);
   });
 });
 

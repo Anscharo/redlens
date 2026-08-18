@@ -5663,7 +5663,7 @@ exports[`allocation-system sub-doc content > Osero > Ethereum Mainnet - SparkLen
     "title": "Maximum Exposure",
   },
   {
-    "content": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 100%.",
+    "content": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 25%.",
     "title": "Capital Ratio Requirement",
   },
   {
@@ -11064,6 +11064,96 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Uniswap 
 ]
 `;
 
+exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Uniswap v4 rlUSD/USDS Pool 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the Uniswap v4 rlUSD/USDS Pool Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Uniswap v4",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDS and rlUSD",
+    "title": "Asset Supplied By Spark Liquidity Layer",
+  },
+  {
+    "content": "rlUSDUSDS",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0x9035721b23481db3888fd201b9c2b26dbc3af60258bca65e669f2ed98dc8eb4f\`",
+    "title": "Pool ID",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The current \`maxAmount,\` \`slope\`, slippage, ticks, and fee for this conduit’s inflow/outflow/swap are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The inflow rate limits are:
+
+- \`maxAmount\`: 10,000,000
+- \`slope\`: 50,000,000 per day",
+    "title": "Inflow Rate Limits",
+  },
+  {
+    "content": "The outflow rate limits are:
+
+- \`maxAmount\`: Unlimited",
+    "title": "Outflow Rate Limits",
+  },
+  {
+    "content": "The swap rate limits are:
+
+- \`maxAmount\`: 5,000,000
+- \`slope\`: 100,000,000 per day",
+    "title": "Swap Rate Limits",
+  },
+  {
+    "content": "Max slippage: 0.1%",
+    "title": "Maximum Slippage",
+  },
+  {
+    "content": "- Min lower tick limit: -10 (-0.1%)
+- Max upper tick limit: 10 (+0.1%)",
+    "title": "Tick Range and Width",
+  },
+  {
+    "content": "0.0005%",
+    "title": "Swap Fee",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+]
+`;
+
 exports[`allocation-system sub-doc content > Spark > Robinhood Chain - Spark Savings v2 USDG 1`] = `
 [
   {
@@ -11177,33 +11267,146 @@ exports[`allocation-system sub-doc content > Spark > Robinhood Chain - Spark Sav
 ]
 `;
 
+exports[`allocation-system sub-doc content > Spark > X Layer - Spark Savings v2 USDT 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the Spark Savings v2 USDT Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "X Layer",
+    "title": "Network",
+  },
+  {
+    "content": "Spark Savings Protocol",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDT",
+    "title": "Asset Supplied By Users",
+  },
+  {
+    "content": "spUSDT",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xc358c90D32375721Cb3924320Fdc2F8B694347Ca\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0x779Ded0c9e1022225f8E0630b35a9b54bE713736\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The specific \`maxAmount\` and \`slope\` for this conduit's inflow/outflow are not defined for this Instance.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+  {
+    "content": "The documents herein contain operational parameters or configuration details unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer parameters.",
+    "title": "Instance-specific Operational Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xdCe929A335C75a1676EF5957A4D7a3b928C48820\`",
+    "title": "Spark Vault v2 Implementation",
+  },
+  {
+    "content": "\`0xCF5af6F53ceC74B791cb4182aC778ca9CD323510\`",
+    "title": "Default admin",
+  },
+  {
+    "content": "\`0x9449ed367C60ea757544fd990B57e1C2D0Ec3A94\`",
+    "title": "Setter",
+  },
+  {
+    "content": "\`0x83A914C361bB729EB6BEBC8C7bA993667A0E6Df8\`",
+    "title": "Taker",
+  },
+  {
+    "content": "The subdocuments herein define the current configuration of the risk parameters.",
+    "title": "Risk Parameters Current Configuration",
+  },
+  {
+    "content": "The Risk parameters are:
+
+- Supply cap: 750,000,000 USDT
+- Max yield: 6%
+- Current yield (at launch): 0%",
+    "title": "Spark Savings USDT Risk Parameters",
+  },
+  {
+    "content": "The current \`maxAmount\` for this conduit's take and transferAssets operations are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The take rate limits are:
+
+- \`maxAmount\`: Unlimited",
+    "title": "Take Rate Limits",
+  },
+  {
+    "content": "The transferAssets rate limits are:
+
+- \`maxAmount\`: Unlimited",
+    "title": "TransferAssets Rate Limits",
+  },
+]
+`;
+
 exports[`edge type counts > all edge types and their counts 1`] = `
 {
   "active_data_for": 78,
-  "aligned_delegate_for": 12,
+  "aligned_delegate_for": 9,
   "annotates": 101,
   "can_modify_signers_of": 29,
-  "cites": 2107,
+  "cites": 2113,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 408,
+  "defines_entity": 410,
   "duty_for": 865,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 9,
   "governance_channel": 10,
-  "has_address": 285,
+  "has_address": 281,
   "has_status": 136,
   "holds_role_for": 5,
   "implements": 188,
-  "instance_of": 200,
+  "instance_of": 202,
   "integration_partner_of": 10,
   "invocation_of": 5,
-  "invoked_by": 205,
-  "listed_in": 51,
-  "located_at": 198,
-  "mentions": 669,
+  "invoked_by": 207,
+  "listed_in": 52,
+  "located_at": 200,
+  "mentions": 675,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -11211,7 +11414,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "prime_foundation_of": 5,
   "process_step_responsible_party_for": 32,
   "provides_services_to": 2,
-  "proxies_to": 83,
+  "proxies_to": 81,
   "ranked_delegate_for": 3,
   "responsible_party_for": 65,
   "signer_of": 63,
@@ -11478,14 +11681,11 @@ exports[`governance edges > active_data_for — AD doc → ADC doc 1`] = `
 exports[`governance edges > aligned_delegate_for 1`] = `
 [
   "AegisD → Sky Governance",
-  "AxisLegati → Sky Governance",
   "Blue → Sky Governance",
   "Bonapublica → Sky Governance",
   "Brendan Navigator → Sky Governance",
   "Cloaky → Sky Governance",
-  "Excel → Sky Governance",
   "Max Staking Yield → Sky Governance",
-  "OPEX → Sky Governance",
   "PBG → Sky Governance",
   "Tango → Sky Governance",
   "WBC → Sky Governance",
@@ -12959,6 +13159,29 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.1",
+    "name": "Ethereum Mainnet - Uniswap v4 rlUSD/USDS Pool",
+    "params": {
+      "Asset Supplied By Spark Liquidity Layer": "USDS and rlUSD",
+      "Inflow Rate Limits / maxAmount": "10,000,000",
+      "Inflow Rate Limits / slope": "50,000,000 per day",
+      "Maximum Slippage": "Max slippage: 0.1%",
+      "Network": "Ethereum Mainnet",
+      "Outflow Rate Limits / maxAmount": "Unlimited",
+      "Pool ID": "0x9035721b23481db3888fd201b9c2b26dbc3af60258bca65e669f2ed98dc8eb4f",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Swap Fee": "0.0005%",
+      "Swap Rate Limits / maxAmount": "5,000,000",
+      "Swap Rate Limits / slope": "100,000,000 per day",
+      "Target Protocol": "Uniswap v4",
+      "Tick Range and Width": "- Min lower tick limit: -10 (-0.1%)
+- Max upper tick limit: 10 (+0.1%)",
+      "Token": "rlUSDUSDS",
+    },
+    "slug": "spark-allocation-system-ethereum-mainnet-uniswap-v4-rlusd-usds-pool",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
     "name": "Ethereum Mainnet - Uniswap v4 USDG/USDS Pool",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDS and USDG",
@@ -13056,6 +13279,22 @@ exports[`instances > allocation-system instances 1`] = `
       "Underlying Asset Address": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
     },
     "slug": "spark-allocation-system-robinhood-chain-spark-savings-v2-usdg",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
+    "name": "X Layer - Spark Savings v2 USDT",
+    "params": {
+      "Asset Supplied By Users": "USDT",
+      "Network": "X Layer",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Rate Limits": "The specific \`maxAmount\` and \`slope\` for this conduit's inflow/outflow are not defined for this Instance.",
+      "Target Protocol": "Spark Savings Protocol",
+      "Token": "spUSDT",
+      "Token Address": "0xc358c90D32375721Cb3924320Fdc2F8B694347Ca",
+      "Underlying Asset Address": "0x779Ded0c9e1022225f8E0630b35a9b54bE713736",
+    },
+    "slug": "spark-allocation-system-x-layer-spark-savings-v2-usdt",
     "status": "Active",
   },
   {
@@ -14319,7 +14558,7 @@ exports[`instances > allocation-system instances 1`] = `
     "name": "Ethereum Mainnet - SparkLend USDS",
     "params": {
       "Asset Supplied By Osero Liquidity Layer": "USDS",
-      "Capital Ratio Requirement": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 100%.",
+      "Capital Ratio Requirement": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 25%.",
       "Deposit Rate Limits / maxAmount": "5,000,000 USDS",
       "Deposit Rate Limits / slope": "5,000,000 USDS per day",
       "Inflow RateLimitID": "0x5534da2f28b3dd200cb0042c0876cd6e2beca93d3232c366ec077018c82da73d",
@@ -14572,7 +14811,7 @@ exports[`instances > instance counts by type 1`] = `
 {
   "agent-creation": 8,
   "agent-token": 8,
-  "allocation-system": 118,
+  "allocation-system": 120,
   "core-governance-reward": 1,
   "distribution-reward": 13,
   "ecosystem-upkeep-fee": 8,

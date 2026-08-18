@@ -99,9 +99,9 @@ export function createMcpServer(reqCtx?: McpRequestContext): McpServer {
           errorMessage = (e as Error).message?.slice(0, 300);
           throw e;
         } finally {
-          // Every MCP tool call funnels through here regardless of which of the
-          // 15 tools was invoked — the one hook point for "what people are using
-          // the MCP for" (tool) and "what they're trying to find" (params).
+          // Every MCP tool call funnels through here regardless of which tool was
+          // invoked — the one hook point for "what people are using the MCP for"
+          // (tool) and "what they're trying to find" (params).
           const client = server.server.getClientVersion();
           // distinct_id groups calls in PostHog. reqCtx.sessionId is the echoed/minted
           // Mcp-Session-Id (see index.ts) — same value for every call in one agent

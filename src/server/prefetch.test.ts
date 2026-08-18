@@ -50,6 +50,10 @@ const ix = buildIndexes(
       "asset-liability-management-rental",
       { agent_doc_id: "d-spark-agent" },
     ),
+    // Raw (non-JSON.stringify'd) meta: ownerAgentName's JSON.parse must fail
+    // closed (null agent, not a thrown error) on a malformed row rather than
+    // taking down the whole prefetch lookup for every entity in the response.
+    { id: "e-glitch", slug: "glitch-primitive", name: "Glitch Primitive", entity_type: "primitive", subtype: null, defining_doc_id: null, is_active: 1, meta: "{not valid json" },
   ],
   [],
   { atlasCommit: "test" },
@@ -141,6 +145,12 @@ describe("matchQuestionEntities", () => {
 
   it("leaves agent null for entity types that aren't one-per-agent", () => {
     const hit = matchQuestionEntities(ix, "tell me about spark")[0];
+    expect(hit.agent).toBeNull();
+  });
+
+  it("leaves agent null (not a thrown error) when an agent-scoped entity's meta is malformed JSON", () => {
+    const hit = matchQuestionEntities(ix, "glitch primitive")[0];
+    expect(hit.slug).toBe("glitch-primitive");
     expect(hit.agent).toBeNull();
   });
 });

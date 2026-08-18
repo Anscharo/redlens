@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useUrlState, urlEnum } from "../../hooks/useUrlState";
-import { track } from "../../lib/analytics";
+import { trackReportFilter } from "./useReportQuery";
 import {
   loadModTimeline,
   type TimelineGranularity,
@@ -66,7 +66,7 @@ export function useModFrequencyTimeline() {
 
   const onGranularity = (g: TimelineGranularity) => {
     setGranularity(g);
-    track("report_filter", { report: "mod-frequency", filter_type: "timeline_granularity", value: g, active: g !== "month" });
+    trackReportFilter("mod-frequency", "timeline_granularity", g, g !== "month");
   };
 
   return { granularity, onGranularity, buckets, title: GRANULARITY_TITLE[granularity] };

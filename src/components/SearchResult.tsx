@@ -36,6 +36,14 @@ const LABEL_NAME: Record<HitLabel["kind"], string> = {
   agent: "var(--tan)",
 };
 
+// Hover title: the ICD tag is expanded to its full name so the tooltip adds
+// information instead of repeating the pill's own "ICD NAME" text verbatim.
+function labelTitle(label: HitLabel): string {
+  if (label.kind === "icd") return `Instance Configuration Document for ${label.text}`;
+  const tag = LABEL_TAG[label.kind];
+  return tag ? `${tag}: ${label.text}` : label.text;
+}
+
 function GutterLabel({ label }: { label: HitLabel }) {
   const accent = LABEL_ACCENT[label.kind];
   const tag = LABEL_TAG[label.kind];
@@ -47,7 +55,7 @@ function GutterLabel({ label }: { label: HitLabel }) {
         background: `color-mix(in srgb, ${accent} 15%, transparent)`,
         border: `1px solid color-mix(in srgb, ${accent} 55%, transparent)`,
       }}
-      title={tag ? `${tag}: ${label.text}` : label.text}
+      title={labelTitle(label)}
     >
       {tag && <span className="mr-1" style={{ color: accent }}>{tag}</span>}
       {label.text}

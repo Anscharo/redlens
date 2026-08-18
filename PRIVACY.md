@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 23 July 2026_
+_Last updated: 11 August 2026_
 
 This is the privacy policy for the Sky Atlas reader at **atlas.redline.support**
 ("the app"). It is written to be short and plain.
@@ -25,6 +25,16 @@ anything else traceable back to you.
 - **Chatbot quality data** — the questions asked and the AI's answers are also
   fed into anonymous analytics to measure and improve answer quality. This copy
   is keyed to a random conversation id, **not** to your account or identity.
+- **Feedback you send** — if you use the feedback button you can write to us
+  without signing in. We store what you write, plus details about the page you
+  were on: its address, the atlas version you were viewing, **a copy of the
+  recent technical messages your browser logged** (the developer console),
+  **a short list of the last few things you clicked** before opening the form,
+  and which browser and device you were using.
+  Together those are what let us reproduce the problem. That list records which
+  buttons and links you used — never what you typed, and nothing from your
+  chatbot conversations or the search box. Anonymous feedback is keyed to a
+  random id, not to you. Please don't include anything sensitive in the message.
 
 ## 2. Data that IS linked to you
 
@@ -55,9 +65,18 @@ each one needs.
 
 ## 4. Cookies and browser storage
 
-- A **sign-in cookie** keeps you logged in after you authenticate. It's the only
-  cookie we set, and only if you sign in.
+- A **sign-in cookie** keeps you logged in after you authenticate. It is set
+  only if you sign in.
+- A **feedback cookie** is set the first time you send feedback, and only then.
+  It holds a random id with nothing personal in it, and exists so we can apply
+  fair-use limits and stop automated spam. Just reading the atlas sets no
+  cookies at all.
 - We store a few **preferences** (such as display settings) in your browser.
+- Your **viewing history** — the documents, reports and searches you open — is
+  logged in your browser's own storage so the History page can show you what
+  you have been reading. It never leaves your browser, is not tied to your
+  account, is forgotten after 180 days, and you can erase it at any time with
+  "clear history" on that page.
 - Analytics uses temporary session storage, not cookies, and clears when you
   close the tab.
 
@@ -65,13 +84,17 @@ each one needs.
 
 Anonymous analytics is retained by our analytics provider on a rolling basis.
 Account details, chats, and Collections are kept until you delete them (see
-section 6).
+section 6). Feedback is kept for as long as the issue it reports is useful to
+us.
 
 ## 6. Your choices and rights
 
 - **Delete your account and data** — open your profile menu and go to
   **Preferences → Delete account**. This permanently deletes your account along
-  with all of your chats and Collections.
+  with all of your chats and Collections. Any feedback you sent is unlinked from
+  your account rather than deleted, so the bug reports stay usable — once
+  unlinked it is no longer connected to you. If you want a feedback message
+  removed outright, contact us (section 8).
 - You can use the atlas reader without signing in at all; the chatbot and saved
   Collections are the only features that need an account.
 

@@ -166,6 +166,15 @@ export default defineConfig(() => {
         ],
       },
       workbox: {
+        // Inline the workbox runtime into sw.js instead of emitting a separate
+        // /workbox-<hash>.js that sw.js importScripts()es. The update algorithm
+        // re-fetches an installed worker's stored import URLs, and every deploy
+        // rebuilds dist/ wholesale — so once a hash stops shipping, that URL
+        // 404s (index.ts serves a clean 404 for it by design) and the worker can
+        // never update again. No import, no such failure.
+        inlineWorkboxRuntime: true,
+        // Drop precaches left by superseded builds rather than accumulating them.
+        cleanupOutdatedCaches: true,
         // Don't precache large/dynamic data files — they're handled by runtime caching.
         // index.html is ALSO excluded on purpose: the built HTML carries an unreplaced
         // `window.__ATLAS_SHA__ = "{{ATLAS_SHA}}"` placeholder that the Bun server fills
@@ -181,7 +190,6 @@ export default defineConfig(() => {
           "**/addresses.json",
           "**/addresses.atlas.json",
           "**/relations.json",
-          "**/chain-state.json",
           "**/history/**",
         ],
         // navigateFallback disabled (vite-plugin-pwa defaults it to "index.html").
@@ -209,11 +217,14 @@ export default defineConfig(() => {
             },
           },
           {
-            // Flat, NON-atlas-versioned files (addresses.json, chain-state.json,
-            // manifest.json): network-first (fast to fetch, worth having fresh).
-            // glossary.json is now sha-keyed → caught by the CacheFirst rule above,
-            // so it's deliberately absent here.
-            urlPattern: /\/(addresses(?:\.atlas)?|chain-state|manifest)\.json$/,
+            // Flat, NON-atlas-versioned files (addresses.json, manifest.json):
+            // network-first (fast to fetch, worth having fresh). glossary.json is
+            // now sha-keyed → caught by the CacheFirst rule above, so it's
+            // deliberately absent here. The chain-state snapshot left this rule
+            // when it stopped being a file: /api/chain-state is a DB read, and no
+            // /api/* route is SW-cached (a cached snapshot would be a stale-data
+            // bug, not a speedup).
+            urlPattern: /\/(addresses(?:\.atlas)?|manifest)\.json$/,
             handler: "NetworkFirst",
             options: {
               cacheName: "atlas-data-small",

@@ -94,6 +94,29 @@ describe("OGCategoryTable", () => {
     expect(screen.getByRole("link", { name: "Prime One" })).toBeInTheDocument();
   });
 
+  // Behavior change (approved 2026-08-12): the Prime chip source is now the
+  // same unified fallback the Facilitator table and govopsRowsToCSV use, so a
+  // duty row that carries only a single `agent` (no `agents` array) shows its
+  // Prime chip instead of an empty cell. Data-neutral on the current
+  // derivation — op-duty/core-duty rows only ever carry `agents` today — but
+  // the table and the CSV can no longer disagree.
+  it("shows the Prime chip for an op-duty row carrying a single `agent` (unified fallback)", () => {
+    const rows: OGResponsibility[] = [
+      {
+        docNo: "A.1b",
+        uuid: "u1b",
+        title: "Single-agent Duty",
+        duty: "must do Y",
+        category: "op-duty",
+        govops: "GovOps Org",
+        agent: "Prime One",
+      },
+    ];
+    render(<OGCategoryTable cat="op-duty" label="Op Duty" rows={rows} chains={chains} />);
+    expect(screen.getByRole("columnheader", { name: "Prime" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Prime One" })).toBeInTheDocument();
+  });
+
   it("shows both GovOps and Prime columns for active-data rows (single-agent AgentChips branch)", () => {
     const rows: OGResponsibility[] = [
       {

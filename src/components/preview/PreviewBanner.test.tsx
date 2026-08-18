@@ -103,4 +103,31 @@ describe("PreviewBanner", () => {
     renderBanner(PREVIEW_SOURCE);
     await waitFor(() => expect(screen.getByText(/couldn't verify new on-chain addresses/)).toBeTruthy());
   });
+
+  it("renders a PRIVATE PREVIEW chip and copy for a private preview, taking precedence over FORK/PREVIEW", async () => {
+    mockMeta({
+      sha: "ghi",
+      repo: "acme/secret-atlas",
+      ref: "feature",
+      kind: "branch",
+      private: true,
+    });
+    renderBanner(PREVIEW_SOURCE);
+
+    expect(await screen.findByText("PRIVATE PREVIEW")).toBeTruthy();
+    expect(screen.queryByText("PREVIEW")).toBeNull();
+    expect(screen.queryByText("FORK PREVIEW")).toBeNull();
+    expect(screen.getByText(/a private preview of/)).toBeTruthy();
+  });
+
+  it("shows the new-address safety warning for a private preview even though it's not a fork", async () => {
+    // The server doesn't set forkOwner for private previews, so isFork is
+    // false — the warning must be gated on private too, not just isFork.
+    mockMeta({
+      sha: "ghi", repo: "acme/secret-atlas", ref: "feature", kind: "branch",
+      private: true, newAddresses: 2,
+    });
+    renderBanner(PREVIEW_SOURCE);
+    await waitFor(() => expect(screen.getByText(/2 new on-chain addresses/)).toBeTruthy());
+  });
 });

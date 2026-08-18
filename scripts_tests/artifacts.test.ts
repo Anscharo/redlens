@@ -1,9 +1,9 @@
 // Cross-artifact consistency.
 //
 // Each artifact in public/ is produced by a different script at a different
-// time. Ensure references never dangle across the boundary — an address in
-// chain-state.json that isn't in addresses.json means someone edited one
-// without rebuilding the other.
+// time. Ensure references never dangle across the boundary — a doc_no cited by
+// a relations.json edge that no longer exists in docs.json means someone edited
+// one without rebuilding the other.
 
 import { describe, it, expect } from "vitest";
 import fs from "fs";
@@ -23,7 +23,6 @@ const docs = (loadJson<{ nodes: Record<string, AtlasNode> }>("docs.json")?.nodes
 const addresses = loadJson<Record<string, AddressInfo>>("addresses.json");
 const atlasAddresses = loadJson<{ addresses: Record<string, { chain: string }> }>("addresses.atlas.json")?.addresses ?? null;
 const glossary = loadJson<{ terms: Record<string, { nodeId: string }[]> }>("glossary.json")?.terms ?? null;
-const chainState = loadJson<{ block: string; values: Record<string, unknown> }>("chain-state.json");
 const relations = loadJson<{
   entities: { id: string; slug: string }[];
   edges: { f: string; t: string; e: string; s?: string[] }[];
@@ -44,8 +43,8 @@ describe("cross-artifact consistency", () => {
     // catastrophic desync (addresses.json effectively unrelated to docs.json —
     // e.g. never rebuilt across many bumps, or hand-edited wholesale). A single
     // bump adds a handful of addresses; the bound must absorb several bumps'
-    // worth of lag without tripping. See chain-state ⊂ addresses (next test)
-    // for the strict edit-without-rebuild guard.
+    // worth of lag without tripping. Every ref is still guaranteed a chain
+    // entry by the addresses.atlas.json test below.
     if (!addresses) return;
     const MAX_MISSING_RATIO = 0.05; // catastrophic-desync high-water mark
 
@@ -68,13 +67,6 @@ describe("cross-artifact consistency", () => {
         `  ${orphanInAddresses.length} stale entries in addresses.json (no longer referenced by any node)`,
       );
     }
-  });
-
-  it("chain-state.json addresses are a subset of addresses.json", () => {
-    if (!chainState || !addresses) return;
-    const known = new Set(Object.keys(addresses));
-    const unknown = Object.keys(chainState.values).filter((a) => !known.has(a));
-    expect(unknown).toEqual([]);
   });
 
   it("every relations.json edge source_doc_nos resolves to a real doc_no", () => {

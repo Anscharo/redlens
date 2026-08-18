@@ -5,8 +5,9 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { buildIndexes, type AtlasNode, type Edge, type Indexes } from "./retrieval/indexes.ts";
-import { diffDocs, patchDocs, isEmptyDelta, applyInPlaceUpdate, writeSearchIndex } from "./atlas-refresh.ts";
+import { diffDocs, patchDocs, isEmptyDelta, applyInPlaceUpdate, writeSearchIndex, refreshInPlaceFromDisk } from "./atlas-refresh.ts";
 import { atlasQuery } from "./retrieval/query.ts";
+import { config } from "./config.ts";
 
 function doc(id: string, over: Partial<AtlasNode> = {}): AtlasNode {
   return {
@@ -103,6 +104,26 @@ describe("patchDocs", () => {
     patchDocs(ix, diffDocs(ix.docMap, [doc("a", { doc_no: "A.9", content: "alpha v2" })]));
     expect(ix.byDocNo.get("A.9")?.id).toBe("a");
     expect(ix.byDocNo.has("A.1")).toBe(false);
+  });
+
+  it("rebuilds childrenIndex for a SECOND sibling under an existing parent (array-push path, not just first-child)", () => {
+    const ix = buildIndexes([doc("p", { content: "parent" }), doc("a", { parentId: "p", order: 0, content: "alpha" })], [], [], {});
+    expect(ix.childrenIndex.get("p")?.map((d) => d.id)).toEqual(["a"]);
+
+    // "b" is a second child of "p": childrenIndex.get("p") already holds an
+    // array (from "a") when rebuildDerivedMaps processes "b", so this exercises
+    // the arr.push(d) branch — every earlier test here only ever added a
+    // parent's FIRST child, which takes the `else childrenIndex.set(...)` path.
+    patchDocs(
+      ix,
+      diffDocs(ix.docMap, [
+        doc("p", { content: "parent" }),
+        doc("a", { parentId: "p", order: 0, content: "alpha" }),
+        doc("b", { parentId: "p", order: 1, content: "bravo" }),
+      ]),
+    );
+
+    expect(ix.childrenIndex.get("p")?.map((d) => d.id)).toEqual(["a", "b"]);
   });
 
   it("atlas_query is lean by default and inlines deduped ancestors when enriched", async () => {
@@ -202,5 +223,47 @@ describe("writeSearchIndex", () => {
     const publicJson = fs.readFileSync(path.join(publicDir, "search-index.json"), "utf8");
     expect(publicJson).toBe(JSON.stringify({ marker: 1 }));
     expect(fs.existsSync(missingDistDir)).toBe(false);
+  });
+});
+
+// The disk-orchestration wrapper used by the in-process updater's happy path
+// (atlas-updater.ts's applyInPlace). Unlike applyInPlaceUpdate above (pure, in
+// memory) this actually reads config.publicDir off disk and re-serializes
+// search-index.json — the two things every layer above it (runRefreshFromDb's
+// dropStaleSearchIndex, the fallback rebuild) assumes happened.
+describe("refreshInPlaceFromDisk", () => {
+  it("reads fresh artifacts off config.publicDir, patches the GIVEN indexes in place, and re-emits search-index.json", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-refresh-inplace-"));
+    const prevPublicDir = config.publicDir;
+    const prevDistDir = config.distDir;
+    config.publicDir = dir;
+    config.distDir = path.join(dir, "no-dist-here"); // absent on purpose — best-effort mirror only
+    try {
+      fs.writeFileSync(
+        path.join(dir, "docs.json"),
+        JSON.stringify({
+          atlasCommit: "disk-sha",
+          nodes: { a: { id: "a", doc_no: "A", title: "A", type: "Core", depth: 1, parentId: null, content: "alpha zebraword", order: 0, addressRefs: [] } },
+        }),
+      );
+      fs.writeFileSync(path.join(dir, "graph.json"), JSON.stringify({ meta: { atlasCommit: "disk-sha" }, entities: [], edges: [] }));
+
+      // "b" only exists on the PRE-refresh in-memory ix, not in the fresh disk
+      // artifacts — it must come out as removed, same as applyInPlaceUpdate's
+      // own contract, but reached through the disk-reading wrapper this time.
+      const ix = buildIndexes([doc("a", { content: "alpha zebraword" }), doc("b", { content: "bravo, gone on disk" })], [], [], { atlasCommit: "old-sha" });
+      const delta = refreshInPlaceFromDisk(ix);
+
+      expect(delta.removed).toEqual(["b"]);
+      expect(ix.meta.atlasCommit).toBe("disk-sha"); // patched IN PLACE, not swapped
+      expect(ix.docMap.has("b")).toBe(false);
+
+      const written = fs.readFileSync(path.join(dir, "search-index.json"), "utf8");
+      expect(JSON.parse(written)).toEqual(ix.mini.toJSON()); // re-serialized from the PATCHED mini, not stale
+    } finally {
+      config.publicDir = prevPublicDir;
+      config.distDir = prevDistDir;
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

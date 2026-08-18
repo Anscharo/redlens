@@ -23,6 +23,12 @@ export function extractLinkedIds(node: AtlasNode): string[] {
   return ids;
 }
 
+/** The Scope a doc_no belongs to — its first two segments ("A.1"). Scopes are
+ *  the two-segment nodes, so this is the doc_no of the enclosing Scope. */
+export function scopeDocNo(docNo: string): string {
+  return docNo.split(".").slice(0, 2).join(".");
+}
+
 export function buildAncestors(
   docs: Record<string, AtlasNode>,
   docNoToId: Map<string, string>,

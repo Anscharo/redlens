@@ -7,7 +7,6 @@ const PRIVACY_HREF = `${BASE}privacy`;
 const APP_COMMIT_HREF = __COMMIT_HASH__ === "dev" ? REPO : `${REPO}/commit/${__COMMIT_HASH__}`;
 
 type FooterInfoProps = {
-  hasStatus: boolean;
   block: string | null;
   atlasCommit: string | null;
   atlasRepo: string;
@@ -16,81 +15,79 @@ type FooterInfoProps = {
 };
 
 // The build-info row: chain state → atlas commit + doc count → build date →
-// provenance/privacy → src (this build's commit). Centers when no status pill
-// leads; when a status pill shows it stays left-packed behind a leading Sep.
-export function FooterInfo({ hasStatus, block, atlasCommit, atlasRepo, nodeCount, buildDate }: FooterInfoProps) {
+// provenance/privacy → src (this build's commit). Always centered — the status
+// pills and the contextual hint overlay the footer's left corner (see Footer /
+// FooterHint) rather than sharing the flow, so nothing ever shoves this row.
+export function FooterInfo({ block, atlasCommit, atlasRepo, nodeCount, buildDate }: FooterInfoProps) {
   return (
-    <>
-      {hasStatus && <Sep />}
-      <div className={`flex items-center overflow-hidden${hasStatus ? "" : " mx-auto"}`}>
-        {block && (
-          <>
-            <FooterItem>
-              <a
-                href={`https://etherscan.io/block/${block}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline"
-                style={{ color: "var(--tan-3)" }}
-              >
-                <span className="hidden sm:inline">chain state @ block&nbsp;</span>
-                {Number(block).toLocaleString()}
-              </a>
-            </FooterItem>
-            <Sep />
-          </>
-        )}
-        {atlasCommit && (
+    <div className="flex items-center overflow-hidden mx-auto">
+      {block && (
+        <>
           <FooterItem>
             <a
-              href={`https://github.com/${atlasRepo}/commit/${atlasCommit}`}
+              href={`https://etherscan.io/block/${block}`}
               target="_blank"
               rel="noopener noreferrer"
               className="hover:underline"
               style={{ color: "var(--tan-3)" }}
             >
-              <span className="hidden sm:inline">atlas&nbsp;</span>
-              {atlasCommit.slice(0, 7)}
+              <span className="hidden sm:inline">chain state @ block&nbsp;</span>
+              {Number(block).toLocaleString()}
             </a>
-            {nodeCount > 0 && (
-              <span style={{ color: "var(--tan-3)" }}>
-                &nbsp;·&nbsp;{nodeCount.toLocaleString()}&nbsp;
-                <span className="hidden sm:inline">docs</span>
-              </span>
-            )}
           </FooterItem>
-        )}
-        {atlasCommit && <Sep />}
-        <FooterItem>
-          <span className="hidden sm:inline">updated </span>
-          {buildDate}
-        </FooterItem>
-        <Sep />
-        <FooterItem title="data flow, scripts, outputs — how each claim is traced back to Sky Atlas.md">
-          <a href={PROVENANCE_HREF} className="hover:underline" style={{ color: "var(--tan-3)" }}>
-            provenance
-          </a>
-        </FooterItem>
-        <Sep />
-        <FooterItem title="what data we collect and how it's used">
-          <a href={PRIVACY_HREF} className="hover:underline" style={{ color: "var(--tan-3)" }}>
-            privacy
-          </a>
-        </FooterItem>
-        <Sep />
+          <Sep />
+        </>
+      )}
+      {atlasCommit && (
         <FooterItem>
           <a
-            href={APP_COMMIT_HREF}
+            href={`https://github.com/${atlasRepo}/commit/${atlasCommit}`}
             target="_blank"
             rel="noopener noreferrer"
             className="hover:underline"
-            style={{ color: "var(--accent)" }}
+            style={{ color: "var(--tan-3)" }}
           >
-            src&nbsp;{__COMMIT_HASH__}
+            <span className="hidden sm:inline">atlas&nbsp;</span>
+            {atlasCommit.slice(0, 7)}
           </a>
+          {nodeCount > 0 && (
+            <span style={{ color: "var(--tan-3)" }}>
+              &nbsp;·&nbsp;{nodeCount.toLocaleString()}&nbsp;
+              <span className="hidden sm:inline">docs</span>
+            </span>
+          )}
         </FooterItem>
-      </div>
-    </>
+      )}
+      {atlasCommit && <Sep />}
+      <FooterItem>
+        <span className="hidden sm:inline">updated </span>
+        {buildDate}
+      </FooterItem>
+      <Sep />
+      <FooterItem title="data flow, scripts, outputs — how each claim is traced back to Sky Atlas.md">
+        <a href={PROVENANCE_HREF} className="hover:underline" style={{ color: "var(--tan-3)" }}>
+          provenance
+        </a>
+      </FooterItem>
+      <Sep />
+      <FooterItem title="what data we collect and how it's used">
+        <a href={PRIVACY_HREF} className="hover:underline" style={{ color: "var(--tan-3)" }}>
+          privacy
+        </a>
+      </FooterItem>
+      <Sep />
+      <FooterItem>
+        <a
+          href={APP_COMMIT_HREF}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:underline"
+          style={{ color: "var(--accent)" }}
+        >
+          src&nbsp;{__COMMIT_HASH__}
+        </a>
+      </FooterItem>
+    </div>
   );
 }
 

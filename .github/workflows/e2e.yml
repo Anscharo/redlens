@@ -92,15 +92,7 @@ jobs:
           fi
           echo "url=${URL}" >> "$GITHUB_OUTPUT"
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup
 
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium

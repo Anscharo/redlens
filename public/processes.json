@@ -54,6 +54,13 @@
     "status": "active"
   },
   {
+    "uuid": "82f9f4b9-76db-4ad7-94af-200ffe7c3b75",
+    "category": "Agent & Primitive Lifecycle",
+    "shape": "child",
+    "status": "active",
+    "stepCount": 5
+  },
+  {
     "uuid": "18386a64-1f20-4495-99a0-2271c7d607b0",
     "category": "Agent & Primitive Lifecycle",
     "shape": "child",
@@ -361,6 +368,13 @@
     "status": "active"
   },
   {
+    "uuid": "a67d672a-83f4-46db-adfc-f08004d3f152",
+    "category": "Executive & Spell Processes",
+    "shape": "child",
+    "status": "active",
+    "stepCount": 4
+  },
+  {
     "uuid": "0ed7559c-5877-4968-8bcc-9d47207cc904",
     "category": "Executive & Spell Processes",
     "shape": "child",
@@ -410,10 +424,52 @@
     "status": "active"
   },
   {
+    "uuid": "73a667ee-a1e3-409f-8a79-f31d848f898a",
+    "category": "Executive & Spell Processes",
+    "shape": "inline",
+    "status": "active",
+    "stepCount": 3
+  },
+  {
+    "uuid": "2c0d1147-497f-4f0a-a9f1-99b8773ae2d2",
+    "category": "Executive & Spell Processes",
+    "shape": "inline",
+    "status": "active",
+    "stepCount": 3
+  },
+  {
+    "uuid": "3c374c29-b5c2-4812-bb99-de17f9116fa2",
+    "category": "Executive & Spell Processes",
+    "shape": "inline",
+    "status": "active",
+    "stepCount": 2
+  },
+  {
+    "uuid": "d27661ef-2870-4837-819d-992042ceefe0",
+    "category": "Executive & Spell Processes",
+    "shape": "inline",
+    "status": "active",
+    "stepCount": 2
+  },
+  {
+    "uuid": "5df5c86a-7efa-4c04-afda-dd9f3a21e596",
+    "category": "Executive & Spell Processes",
+    "shape": "inline",
+    "status": "active",
+    "stepCount": 2
+  },
+  {
     "uuid": "3aa5bc98-91ce-4588-b345-a96af8ba2366",
     "category": "Executive & Spell Processes",
     "shape": "child",
     "status": "active"
+  },
+  {
+    "uuid": "a8334e19-fedb-48fb-a38c-f18666ccc8e6",
+    "category": "Executive & Spell Processes",
+    "shape": "child",
+    "status": "active",
+    "stepCount": 6
   },
   {
     "uuid": "2de4d031-e079-415e-b982-66a4efa78c05",
@@ -549,6 +605,20 @@
     "status": "active"
   },
   {
+    "uuid": "c2eda7f5-882c-49cb-802b-91845a0c7889",
+    "category": "Personnel & Delegation",
+    "shape": "inline",
+    "status": "active",
+    "stepCount": 4
+  },
+  {
+    "uuid": "e150148c-b8ba-413f-9502-8702c7749de5",
+    "category": "Personnel & Delegation",
+    "shape": "inline",
+    "status": "active",
+    "stepCount": 2
+  },
+  {
     "uuid": "688247c6-c4ed-49e3-96f3-c6a7475d89eb",
     "category": "Settlement & Financial",
     "shape": "inline",
@@ -559,13 +629,6 @@
     "category": "Settlement & Financial",
     "shape": "inline",
     "status": "active"
-  },
-  {
-    "uuid": "3f3162cc-c83c-471d-9dfa-1e0ccada4261",
-    "category": "Settlement & Financial",
-    "shape": "inline",
-    "status": "active",
-    "stepCount": 3
   },
   {
     "uuid": "05fb732b-de55-4886-81a7-7c5d4c13d2d2",

@@ -4,7 +4,13 @@
 node_modules
 redlens-mcp/node_modules
 dist
-.cache
+# .cache is scratch — EXCEPT the committed Etherscan ABI cache, which the atlas
+# worker's chain-state step reads at RUNTIME: fetch-chain-state.mjs builds its
+# multicall list from .cache/etherscan/1/<addr>.json. Without it the worker
+# would fetch a snapshot with zero calls. `.cache/*` + a `!` exception is the
+# reliable form (an excluded directory can't be re-entered by a bare `!dir`).
+.cache/*
+!.cache/etherscan
 *.log
 .env.local
 .DS_Store

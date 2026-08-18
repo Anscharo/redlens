@@ -12,11 +12,19 @@ export const STARTERS = [
   "Trace the governance path for an Atlas amendment.",
 ];
 
-// Starters shown when the chat opens on a report page that has a backing
-// atlas_report_* tool — they steer the user toward querying the report itself.
-const reportStarters = (name: string): string[] => [
+// Starters when the chat opens on a report with a backing atlas_report_* tool —
+// they steer the user toward querying the report itself.
+const reportToolStarters = (name: string): string[] => [
   `Summarize the ${name} report.`,
   "What are the most notable rows here, and why?",
+  "Where does this report's data come from in the atlas?",
+];
+
+// Name-only report pages (no atlas_report_* tool yet) — don't promise a one-call
+// pull; just acknowledge the page and point at the atlas.
+const reportNameStarters = (name: string): string[] => [
+  `What is the ${name} report about?`,
+  "What am I looking at on this page?",
   "Where does this report's data come from in the atlas?",
 ];
 
@@ -49,12 +57,19 @@ export function ChatEmptyState({ authed, context, onSend, onOpenConversation }: 
     };
   }, [authed]);
 
-  const onReport = !!context.reportTool && !!context.reportName;
+  const onReport = !!context.reportName;
+  const hasReportTool = !!context.reportTool;
   const title = onReport ? `Viewing the ${context.reportName} report` : "Ask the Atlas";
-  const body = onReport
+  const body = hasReportTool
     ? "I can pull this full report in one call and answer questions about it — total it, filter it, or dig into any single row. Ask away."
-    : "A research agent over the Sky Atlas. It already knows the page you're on — answers cite atlas docs you can open inline.";
-  const starters = onReport ? reportStarters(context.reportName!) : STARTERS;
+    : onReport
+      ? "I can see which report you're on — ask about what you're looking at and I'll ground answers in the atlas."
+      : "A research agent over the Sky Atlas. It already knows the page you're on — answers cite atlas docs you can open inline.";
+  const starters = hasReportTool
+    ? reportToolStarters(context.reportName!)
+    : onReport
+      ? reportNameStarters(context.reportName!)
+      : STARTERS;
 
   return (
     <div className="pt-2">

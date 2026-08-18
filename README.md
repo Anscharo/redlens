@@ -67,7 +67,7 @@ Copy `.env.example` to `.env.local` and fill in:
 
 ```
 ETHERSCAN_API_KEY=   # https://etherscan.io/apidashboard — needed for build:addresses
-ETH_RPC_URL=         # optional; overrides the chains.mjs default for snap:chainstate
+ETH_RPC_URL=         # optional; mainnet RPC for the chain-state snapshot (snap:chainstate / the atlas worker)
 ```
 
 RPC endpoints live per chain in `scripts/lib/chains.mjs` (`CHAIN_RPC`, free public
@@ -87,18 +87,19 @@ pnpm preview # serve the production build locally
 
 ## Build pipeline
 
-`pnpm build` runs six data-extraction stages in order before the TypeScript and Vite steps:
+`pnpm build` runs five data-extraction stages in order before the TypeScript and Vite steps:
 
 | Stage | What it does |
 |---|---|
 | `build:index` | Parses Sky Atlas.md → node index + full-text search index |
 | `build:glossary` | Extracts Definitions sections → glossary lookup |
 | `build:addresses` | Enriches on-chain addresses from chainlog + Etherscan → address metadata |
-| `snap:chainstate` | Reads view-function values via RPC → chain state pinned to a block |
 | `build:graph` | Extracts typed relationships from the atlas text → graph artifacts |
 | `build:manifest` | sha256 digest of all artifacts → integrity manifest |
 
-Each stage can also be run individually. 
+Each stage can also be run individually.
+
+The on-chain contract-state snapshot is **not** a build stage: it lives in Postgres, fetched on a time gate by the Railway atlas worker (`CHAINSTATE_REFRESH_SECONDS`, default daily) and served from `/api/chain-state`. `pnpm snap:chainstate` is the manual escape hatch — one RPC sweep, straight into the same table (needs `DATABASE_URL`).
 
 ### Build at any historical atlas commit
 
@@ -171,7 +172,6 @@ Setup instructions for common clients live on the in-app **`/connect`** page. Th
 |---|---|
 | `check-atlas-pr.sh` | Build the repo against a next-gen-atlas PR and diff artifacts (`pnpm check:pr`) |
 | `tva.sh` | Full-history build + test sweep |
-| `walk-timeline.sh` | Walks the atlas commit timeline running builds |
 | `test-addresses.mjs` | Ad-hoc dumps from address metadata |
 | `unlabeled-addresses.mjs` | Lists addresses with no resolved label for triage |
 | `processes-triage.sh` | Reconcile the curated process inventory against atlas drift (`pnpm processes:triage`): syncs `main`, creates a branch, runs the `processes-triage` Claude skill interactively, then commits + pushes + opens a PR. Add `--dry-run` to skip git ops. Add `--issue N` to link the PR (`Closes #N`) to the `processes-review` issue opened by atlas-update.yml |

@@ -14,16 +14,24 @@ import type { AtlasNode } from "./retrieval/indexes.ts";
 
 // Per-request embedding batch size (how many texts per OpenRouter call). There
 // is no total cap: the content_hash diff already bounds each run to new/changed
-// docs, so we always embed the whole stale set.
-const BATCH = Number(process.env.EMBED_BATCH ?? 50);
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// docs, so we always embed the whole stale set. Exported (rather than a bare
+// module constant) so a test can assert the env parsing directly.
+export function batchSizeFromEnv(env: NodeJS.ProcessEnv = process.env): number {
+  return Number(env.EMBED_BATCH ?? 50);
+}
 
 // Retry transient embedding failures (flaky OpenRouter) with exponential backoff.
 // Per-batch upserts mean partial progress already persists; a batch that still
 // fails after retries is skipped (stays stale, retried next run) rather than
 // aborting the whole reconcile. See docs/plans/atlas-runtime-freshness-inprocess.md.
-async function withRetry<T>(fn: () => Promise<T>, attempts: number): Promise<T> {
+// `sleep` is injectable purely as a test seam (mirrors db.ts's waitForDb) so a
+// test can assert the retry count/backoff schedule without burning the real
+// multi-second exponential-backoff wall clock.
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  attempts: number,
+  sleep: (ms: number) => Promise<unknown> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<T> {
   let lastErr: unknown;
   for (let a = 1; a <= attempts; a++) {
     try {
@@ -40,8 +48,26 @@ async function withRetry<T>(fn: () => Promise<T>, attempts: number): Promise<T> 
   throw lastErr;
 }
 
-async function main() {
-  await runMigrations();
+// Injected so main() is testable without a real Postgres connection, real
+// OpenRouter calls, or the real backoff wall clock — mirrors preview/build.ts's
+// BuildDeps/realBuildDeps. `sql` stays OUT of this seam and a direct top-of-file
+// import: every DB-touching *.test.ts in this codebase fakes it via
+// mock.module("./db.ts", …) instead (see db.test.ts / migrate.test.ts).
+export interface EmbedDeps {
+  runMigrations: () => Promise<string[]>;
+  embedBatch: (texts: string[]) => Promise<number[][]>;
+  batch: number;
+  sleep: (ms: number) => Promise<unknown>;
+}
+const realEmbedDeps: EmbedDeps = {
+  runMigrations,
+  embedBatch: (texts) => embedBatch(texts),
+  batch: batchSizeFromEnv(),
+  sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+};
+
+export async function main(deps: EmbedDeps = realEmbedDeps) {
+  await deps.runMigrations();
 
   // Guard: the EMBED_DIM code constant must match the column's fixed dimension
   // (both are locked to the migration). A mismatch would make every INSERT fail
@@ -83,11 +109,11 @@ async function main() {
 
   let done = 0;
   let skipped = 0;
-  for (let i = 0; i < total; i += BATCH) {
-    const slice = queue.slice(i, Math.min(i + BATCH, total));
+  for (let i = 0; i < total; i += deps.batch) {
+    const slice = queue.slice(i, Math.min(i + deps.batch, total));
     let vecs: number[][];
     try {
-      vecs = await withRetry(() => embedBatch(slice.map((s) => s.text)), 3);
+      vecs = await withRetry(() => deps.embedBatch(slice.map((s) => s.text)), 3, deps.sleep);
     } catch (e) {
       skipped += slice.length;
       console.warn(`  batch @${i} (${slice.length} docs) failed after retries: ${(e as Error).message} — skipping; retried next run`);
@@ -110,7 +136,7 @@ async function main() {
       params,
     );
     done += slice.length;
-    if (done % 500 < BATCH || done === total) console.log(`  ${done}/${total}`);
+    if (done % 500 < deps.batch || done === total) console.log(`  ${done}/${total}`);
   }
   console.log(
     `sync:embeddings — done (${done} vectors${skipped ? `, ${skipped} skipped (retry next run)` : ""}, atlas ${atlasSha.slice(0, 12)})`,
@@ -118,4 +144,12 @@ async function main() {
   await sql.end();
 }
 
-await main();
+// Only run when launched directly (`bun src/server/sync-embeddings.ts`) — every
+// caller (package.json sync:embeddings, atlas-worker.mjs, atlas-updater.ts's
+// boot-embeddings spawn) shells out to this file as a subprocess rather than
+// importing it, but without this guard a plain `import "./sync-embeddings.ts"`
+// (e.g. from a test) would kick off a real DB + OpenRouter run as a side effect
+// of module load.
+if (import.meta.main) {
+  await main();
+}

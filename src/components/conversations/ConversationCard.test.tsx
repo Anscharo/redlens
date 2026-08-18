@@ -17,6 +17,7 @@ function conversation(over: Partial<ConversationSummary> = {}): ConversationSumm
     title: "My Conversation",
     updatedAt: "2026-01-15T00:00:00.000Z",
     messageCount: 4,
+    contextTokens: null,
     ...over,
   };
 }
@@ -28,6 +29,38 @@ describe("ConversationCard", () => {
     );
     expect(screen.getByText("My Conversation")).toBeInTheDocument();
     expect(screen.getByText("4 messages")).toBeInTheDocument();
+  });
+
+  it("appends the context size next to the message count when known", () => {
+    render(
+      <ConversationCard
+        conversation={conversation({ contextTokens: 18200 })}
+        onOpen={() => {}}
+        onRename={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(screen.getByText("4 messages · 18.2k context")).toBeInTheDocument();
+  });
+
+  it("prefixes an estimated context size with ~", () => {
+    render(
+      <ConversationCard
+        conversation={conversation({ contextTokens: 5200, contextEstimated: true })}
+        onOpen={() => {}}
+        onRename={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    expect(screen.getByText("4 messages · ~5.2k context")).toBeInTheDocument();
+  });
+
+  it("omits the context size (no placeholder) when null", () => {
+    render(
+      <ConversationCard conversation={conversation({ contextTokens: null })} onOpen={() => {}} onRename={() => {}} onDelete={() => {}} />,
+    );
+    expect(screen.getByText("4 messages")).toBeInTheDocument();
+    expect(screen.queryByText(/context/)).toBeNull();
   });
 
   it("shows singular 'message' for a single-message conversation", () => {

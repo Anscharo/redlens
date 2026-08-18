@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { apiUrl, type ChatEvent, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
+import { apiUrl, type ChatEvent, type Delivery, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
 import type { PageContext } from "./pageContext";
 import type { RateLimitState } from "./types";
 import { downloadFile } from "../../lib/csvDownload";
@@ -36,6 +36,16 @@ export interface ExportArtifact {
   bytes: number;
 }
 
+// One row per distinct stage the harness has entered, in arrival order. `at`
+// is the entry's position in stageLog, not a wall-clock timestamp — keeps
+// render output deterministic (see CLAUDE.md deterministic-builds convention,
+// which this mirrors for UI state even though it isn't a build artifact).
+export interface StageLogEntry {
+  stage: string;
+  detail: string | null;
+  at: number;
+}
+
 export interface ChatMsg {
   role: "user" | "assistant";
   content: string;
@@ -51,6 +61,11 @@ export interface ChatMsg {
   // from a genuinely empty response.
   failed?: boolean;
   exports?: ExportArtifact[]; // files handed to the user this session (live only)
+  // Staged-mode progress checklist (populated in both modes; only rendered in
+  // staged). Optional because hydrated/persisted messages (hydrate.ts) predate
+  // it and never need it — send() seeds [] on live turns; readers `?? []`.
+  stageLog?: StageLogEntry[];
+  delivery?: Delivery; // captured from `meta`
 }
 
 export interface SendResult {
@@ -73,6 +88,9 @@ export function useChatStream(handlers: StreamHandlers = {}) {
   // reactively. The ref stays — send()'s closure over convIdRef.current is
   // what lets a reply land on the right conversation without re-subscribing.
   const [conversationId, setConversationId] = useState<string | null>(null);
+  // True context size of the last completed turn (last llm round's
+  // prompt_tokens), for the Composer's context pie. Null when unknown.
+  const [contextTokens, setContextTokens] = useState<number | null>(null);
   const convIdRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -107,6 +125,11 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     [patchLast],
   );
 
+  // Finalize only a still-running turn — see the call after the read loop.
+  const finalizeIfPending = useCallback(() => {
+    patchLast((m) => (m.role !== "assistant" || m.done ? m : { ...m, done: true, statusLine: null, failed: true }));
+  }, [patchLast]);
+
   const stop = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
@@ -122,6 +145,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     setMessages([]);
     setError(null);
     setStreaming(false);
+    setContextTokens(null);
   }, []);
 
   // Seeds the stream with a restored conversation (or clears to a fresh chat
@@ -132,7 +156,10 @@ export function useChatStream(handlers: StreamHandlers = {}) {
   // newly hydrated array and corrupt it. Aborting first — before the
   // request even changes — closes that window (see the
   // chat-conversation-memory plan §6).
-  const hydrate = useCallback((id: string | null, msgs: ChatMsg[]) => {
+  // `contextTokens` seeds the pie from the restored conversation's newest
+  // assistant turn (ConversationDetail.contextTokens); defaults to null for
+  // a fresh chat and any caller that predates this field.
+  const hydrate = useCallback((id: string | null, msgs: ChatMsg[], contextTokens: number | null = null) => {
     abortRef.current?.abort();
     abortRef.current = null;
     convIdRef.current = id;
@@ -140,6 +167,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     setMessages(msgs);
     setError(null);
     setStreaming(false);
+    setContextTokens(contextTokens);
   }, []);
 
   const dispatch = useCallback(
@@ -148,19 +176,34 @@ export function useChatStream(handlers: StreamHandlers = {}) {
         case "meta":
           convIdRef.current = ev.conversationId;
           setConversationId(ev.conversationId);
+          if (ev.delivery) patchLast((m) => ({ ...m, delivery: ev.delivery }));
           break;
         case "token":
           // Answer is streaming — the status ticker yields to the live text.
           patchLast((m) => ({ ...m, content: m.content + ev.text, statusLine: null }));
           break;
         case "status":
-          patchLast((m) => ({
-            ...m,
-            statusLine: ev.detail ?? `${ev.stage}…`,
-            ...(ev.stage === "checking" && !m.verify
-              ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [] } }
-              : {}),
-          }));
+          patchLast((m) => {
+            // Coalesce consecutive same-stage events into one row (querying
+            // fires once per tool call — the row shows the latest detail); a
+            // different stage appends a new row. `at` is the row's array
+            // index at the moment it's first appended, and never changes on
+            // a later detail-only update.
+            const log = m.stageLog ?? [];
+            const last = log[log.length - 1];
+            const stageLog =
+              last && last.stage === ev.stage
+                ? [...log.slice(0, -1), { ...last, detail: ev.detail ?? null }]
+                : [...log, { stage: ev.stage, detail: ev.detail ?? null, at: log.length }];
+            return {
+              ...m,
+              statusLine: ev.detail ?? `${ev.stage}…`,
+              stageLog,
+              ...(ev.stage === "checking" && !m.verify
+                ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [] } }
+                : {}),
+            };
+          });
           break;
         case "verify_result":
           patchLast((m) => ({
@@ -240,6 +283,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             // silently) must not spin forever.
             ...(m.verify?.status === "checking" ? { verify: undefined } : {}),
           }));
+          setContextTokens(ev.contextTokens ?? null);
           break;
         case "error":
           setError(ev.message);
@@ -251,7 +295,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
   );
 
   const send = useCallback(
-    async (text: string, pageContext?: PageContext): Promise<SendResult> => {
+    async (text: string, pageContext?: PageContext, delivery?: Delivery): Promise<SendResult> => {
       const trimmed = text.trim();
       if (!trimmed || streaming) return {};
       setError(null);
@@ -261,8 +305,8 @@ export function useChatStream(handlers: StreamHandlers = {}) {
 
       setMessages((prev) => [
         ...prev,
-        { role: "user", content: trimmed, trace: [], rounds: 0, sources: [], done: true },
-        { role: "assistant", content: "", trace: [], rounds: 0, sources: [], done: false },
+        { role: "user", content: trimmed, trace: [], rounds: 0, sources: [], done: true, stageLog: [] },
+        { role: "assistant", content: "", trace: [], rounds: 0, sources: [], done: false, stageLog: [] },
       ]);
       setStreaming(true);
 
@@ -281,6 +325,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             message: trimmed,
             conversationId: convIdRef.current ?? undefined,
             pageContext,
+            ...(delivery ? { delivery } : {}),
           }),
           signal: ctrl.signal,
         });
@@ -326,6 +371,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             // a stale reference as a real failure.
             convIdRef.current = null;
             setConversationId(null);
+            setContextTokens(null);
             finalizeLast({ failed: true });
             setStreaming(false);
             return {};
@@ -371,6 +417,16 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             dispatch(ev);
           }
         }
+        // The stream ended. If a terminal event ("done"/"error") came through
+        // it already marked the message done and this no-ops; if the connection
+        // was simply cut (proxy, server crash mid-turn) nothing else ever
+        // would, and staged mode's checklist — which renders on `!done` —
+        // would pulse forever behind an already-re-enabled input. Asking the
+        // message whether it is still pending beats tracking a second list of
+        // which event types count as terminal. `failed` only surfaces copy when
+        // the answer is empty (Message.tsx); a partially streamed answer just
+        // freezes as-is, which is what streaming mode already degraded to.
+        finalizeIfPending();
       } catch (err) {
         // AbortError (user pressed stop / closed) is expected — not an error.
         if ((err as Error).name !== "AbortError") {
@@ -384,8 +440,8 @@ export function useChatStream(handlers: StreamHandlers = {}) {
       }
       return {};
     },
-    [streaming, dispatch, patchLast, finalizeLast, handlers],
+    [streaming, dispatch, patchLast, finalizeLast, finalizeIfPending, handlers],
   );
 
-  return { messages, streaming, error, conversationId, send, stop, reset, hydrate };
+  return { messages, streaming, error, conversationId, contextTokens, send, stop, reset, hydrate };
 }

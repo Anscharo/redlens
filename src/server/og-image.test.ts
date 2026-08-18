@@ -1,7 +1,28 @@
-import { describe, it, expect } from "bun:test";
-import { truncateTitle, titleFontSize, getOgImage, getCardImage, cardFromQuery, renderCard, ogCacheKey, type CardSpec } from "./og-image.ts";
+import { describe, it, expect, beforeEach } from "bun:test";
+import {
+  truncateTitle,
+  titleFontSize,
+  getOgImage,
+  getCardImage,
+  cardFromQuery,
+  cardToQuery,
+  renderCard,
+  ogCacheKey,
+  __resetOgCache,
+  type CardSpec,
+  type QueryCardSpec,
+} from "./og-image.ts";
 
 const PNG_MAGIC = "89504e470d0a1a0a";
+
+// Rasterization needs the optional native toolchain (satori + @resvg/resvg-js).
+// og-image.ts deliberately degrades to a null return when a native binary is
+// missing, so on such a platform "did it produce a PNG?" is a capability
+// question, not a product assertion — probe once and skip those cases instead of
+// failing the suite. Probed at module scope, not in beforeAll: it.skipIf is
+// evaluated while the describe bodies run, which is before any hook fires.
+// renderCard bypasses the memo cache, so the probe can't seed it.
+const renderable = (await renderCard({ kind: "default" })) !== null;
 
 describe("truncateTitle", () => {
   it("leaves short titles unchanged", () => {
@@ -27,23 +48,27 @@ describe("titleFontSize", () => {
 describe("getOgImage", () => {
   const UUID = "56b15d7d-cdd4-4594-bd95-4f094564ac04";
 
-  it("renders a valid PNG and memoizes repeat calls", async () => {
+  // These assert on cache *identity* (same Buffer instance), so start each from
+  // an empty module-level LRU rather than whatever an earlier test left in it.
+  beforeEach(__resetOgCache);
+
+  it.skipIf(!renderable)("renders a valid PNG and memoizes repeat calls", async () => {
     const a = await getOgImage(UUID, "Accessibility Scope", "A.1");
     expect(a).not.toBeNull();
     // PNG magic bytes.
-    expect(a!.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+    expect(a!.subarray(0, 8).toString("hex")).toBe(PNG_MAGIC);
     expect(a!.length).toBeGreaterThan(1000);
     const b = await getOgImage(UUID, "Accessibility Scope", "A.1");
     expect(b).toBe(a!); // same cached buffer instance
   });
 
-  it("re-renders when the title or doc number changes (UUID unchanged)", async () => {
+  it.skipIf(!renderable)("re-renders when the title or doc number changes (UUID unchanged)", async () => {
     const a = await getOgImage(UUID, "Accessibility Scope", "A.1");
     const retitled = await getOgImage(UUID, "Accessibility Scope Renamed", "A.1");
     const renumbered = await getOgImage(UUID, "Accessibility Scope", "A.2");
     expect(retitled).not.toBe(a!); // title edit → fresh card, not the stale one
     expect(renumbered).not.toBe(a!); // doc_no edit → fresh card
-    expect(retitled!.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+    expect(retitled!.subarray(0, 8).toString("hex")).toBe(PNG_MAGIC);
   });
 
   it("ogCacheKey combines UUID prefix, doc number, preview, and title", () => {
@@ -51,7 +76,7 @@ describe("getOgImage", () => {
     expect(ogCacheKey(UUID, "Title", "A.1", "PR #1")).toBe("56b15d7d-c|A.1|PR #1|Title");
   });
 
-  it("a preview doc card re-renders vs the live one", async () => {
+  it.skipIf(!renderable)("a preview doc card re-renders vs the live one", async () => {
     const live = await getOgImage(UUID, "Accessibility Scope", "A.1");
     const prev = await getOgImage(UUID, "Accessibility Scope", "A.1", "PR #184");
     expect(prev).not.toBe(live!);
@@ -72,6 +97,40 @@ describe("cardFromQuery", () => {
   });
 });
 
+// cardToQuery (og.ts's encoder) and cardFromQuery (the /api/og.png decoder)
+// are a paired contract — every variant must survive the round trip, and a
+// query string that isn't one cardToQuery could have produced must still
+// degrade to the default card rather than erroring or fabricating a card.
+describe("cardToQuery / cardFromQuery round-trip", () => {
+  const SPECS: QueryCardSpec[] = [
+    { kind: "default" },
+    { kind: "radar" },
+    { kind: "radarActor", agent: "Spark Protocol" },
+    { kind: "reports" },
+    { kind: "report", name: "Stale Dates" },
+    { kind: "connect" },
+    { kind: "preview", label: "PR #184" },
+  ];
+
+  it("every QueryCardSpec variant encodes then decodes back to itself", () => {
+    for (const spec of SPECS) {
+      const query = cardToQuery(spec);
+      expect(cardFromQuery(new URLSearchParams(query))).toEqual(spec);
+    }
+  });
+
+  it("percent-encodes name/label values that contain query-syntax characters", () => {
+    const query = cardToQuery({ kind: "report", name: "R&D / Risk" });
+    expect(query).toBe("kind=report&name=R%26D%20%2F%20Risk");
+    expect(cardFromQuery(new URLSearchParams(query))).toEqual({ kind: "report", name: "R&D / Risk" });
+  });
+
+  it("malformed/unrecognized kind degrades to the default card", () => {
+    expect(cardFromQuery(new URLSearchParams("kind=totally-bogus"))).toEqual({ kind: "default" });
+    expect(cardFromQuery(new URLSearchParams("name=Spark"))).toEqual({ kind: "default" }); // kind missing entirely
+  });
+});
+
 describe("renderCard / getCardImage", () => {
   const KINDS: CardSpec[] = [
     { kind: "default" },
@@ -89,7 +148,9 @@ describe("renderCard / getCardImage", () => {
     { kind: "doc", docNo: "A.1", title: "Scope", preview: "PR #184" }, // preview eyebrow branch
   ];
 
-  it("renders a valid PNG for every card kind", async () => {
+  beforeEach(__resetOgCache); // see the getOgImage block — same cache-identity reason
+
+  it.skipIf(!renderable)("renders a valid PNG for every card kind", async () => {
     for (const spec of KINDS) {
       const png = await renderCard(spec);
       expect(png).not.toBeNull();
@@ -97,7 +158,7 @@ describe("renderCard / getCardImage", () => {
     }
   });
 
-  it("getCardImage memoizes by spec", async () => {
+  it.skipIf(!renderable)("getCardImage memoizes by spec", async () => {
     const a = await getCardImage({ kind: "radar" });
     const b = await getCardImage({ kind: "radar" });
     expect(b).toBe(a!);

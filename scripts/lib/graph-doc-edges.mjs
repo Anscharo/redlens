@@ -13,6 +13,8 @@ import {
   isICD,
   isGlobalActivationStatus,
   ancestorByStripping,
+  primitiveRootFor,
+  UUID_SRC,
 } from "./graph-patterns.mjs";
 import { buildKnownPrimitives, classifyIcd } from "./graph-instances.mjs";
 
@@ -63,13 +65,17 @@ export function extractDocEdges(allDocs, docById, docByDocNo, entityByDocId) {
   console.log(`  ${citeCount} cites edges`);
 
   // --- 2e. implements (primitive root → global primitive in A.2.2) ---
-  const IMPLEMENTS_RE =
-    /\bSee\s+\[([^\]]+)\]\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/i;
+  // Same link shape as UUID_LINK_RE but anchored on the literal "See " lead-in
+  // and non-global (only the first citation counts), so it composes the shared
+  // UUID source rather than reusing the compiled regex.
+  const IMPLEMENTS_RE = new RegExp(String.raw`\bSee\s+\[([^\]]+)\]\((${UUID_SRC})\)`, "i");
   for (const d of allDocs) {
+    // fragile: doc_no prefix — the Prime Agent artifacts root (A.6.1.1)
     if (!d.doc_no.startsWith("A.6.1.1.")) continue;
     const m = (d.content ?? "").match(IMPLEMENTS_RE);
     if (!m) continue;
     const targetDoc = docById.get(m[2]);
+    // fragile: doc_no prefix — the global Primitives section (A.2.2)
     if (targetDoc && targetDoc.doc_no.startsWith("A.2.2.")) {
       addEdge(d.id, "doc", targetDoc.id, "doc", "implements", [d.doc_no]);
     }
@@ -83,12 +89,10 @@ export function extractDocEdges(allDocs, docById, docByDocNo, entityByDocId) {
   // status. Also emit entity→entity `invoked_by` from the Instance/Invocation
   // to its Prime Agent so they surface clustered around their agent. ---
   const knownPrimitives = buildKnownPrimitives(docById);
+  // fragile: doc_no prefix — the Prime Agent artifacts root (A.6.1.1)
   for (const d of allDocs.filter((d) => isICD(d) && d.doc_no.startsWith("A.6.1.1."))) {
-    // Inline primitiveRootFor so we don't need to re-import it here.
-    const m = d.doc_no.match(/^(A\.6\.1\.1\.\d+\.2\.\d+\.\d+)(?:$|\.)/);
-    if (!m) continue;
-    const primRoot = docByDocNo.get(m[1]);
-    if (!primRoot || !/Primitive$/i.test(primRoot.title)) continue;
+    const primRoot = primitiveRootFor(d, docByDocNo);
+    if (!primRoot) continue;
     const { kind, status } = classifyIcd(d, primRoot, docByDocNo);
     const isUnknownPrimitive = !knownPrimitives.has(primRoot.title);
     const metaObj = {
@@ -120,6 +124,7 @@ export function extractDocEdges(allDocs, docById, docByDocNo, entityByDocId) {
 
   // --- 2h. has_status (primitive root → Global Activation Status) ---
   for (const d of allDocs.filter(
+    // fragile: doc_no prefix — the Prime Agent artifacts root (A.6.1.1)
     (d) => isGlobalActivationStatus(d) && d.doc_no.startsWith("A.6.1.1."),
   )) {
     const primRoot = ancestorByStripping(d, 2, docByDocNo);

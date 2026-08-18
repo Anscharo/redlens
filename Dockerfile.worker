@@ -12,7 +12,8 @@
 FROM oven/bun:1.3
 
 # git: walk atlas commit history + runtime git ls-remote check.
-# python3: build-history.mjs calls compose.py (needed for pre-PR-236 commits).
+# python3: upstream sync/ tooling (compose.py etc.) for ad-hoc checks. The
+#   history walk reads every layout natively via scripts/lib/atlas-git-source.mjs.
 # gh: `gh api` calls for PR metadata (title, author, body).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git python3 ca-certificates curl gnupg \

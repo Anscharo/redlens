@@ -20,6 +20,12 @@ test("isEmptyResult: all-empty arrays without substance = empty", () => {
   expect(isEmptyResult('{"hits":[],"node":{"title":"T"}}')).toBe(false);
 });
 
+test("isEmptyResult: semantic_skipped is health metadata, not substance — a degraded-but-empty search still counts as empty", () => {
+  expect(isEmptyResult('{"count":0,"results":[],"semantic_skipped":"embed timed out after 10000ms"}')).toBe(true);
+  // Still substantive when a REAL field carries content alongside the skip note.
+  expect(isEmptyResult('{"results":[],"semantic_skipped":"embed timed out after 10000ms","node":{"title":"T"}}')).toBe(false);
+});
+
 test("normalizeCall canonicalizes arg order, case, and whitespace", () => {
   expect(normalizeCall("atlas_search", { q: "Star  Facilitator", k: 5 })).toBe(
     normalizeCall("atlas_search", { k: 5, q: "star facilitator" }),
@@ -54,4 +60,54 @@ test("checker accumulates rounds, duplicates, empties, and errors", () => {
   expect(t.errorResults).toBe(1);
   expect(t.repeatedQueries).toBe(1);
   expect(t.notes.length).toBeGreaterThanOrEqual(4);
+});
+
+test("checker counts a semantic_skipped tool result and notes the degraded reason, without double-counting it as empty", () => {
+  const c = createRoundChecker();
+  const round = (iter: number, calls: RoundInfo["calls"], results: RoundInfo["results"]): RoundInfo => ({ iter, calls, results });
+
+  c.record(
+    round(
+      0,
+      [{ name: "atlas_search", args: { q: "star", mode: "hybrid" } }],
+      [
+        {
+          name: "atlas_search",
+          ok: true,
+          content: '{"count":0,"results":[],"semantic_skipped":"embed timed out after 10000ms"}',
+          truncated: false,
+        },
+      ],
+    ),
+  );
+
+  const t = c.telemetry();
+  expect(t.semanticSkips).toBe(1);
+  expect(t.emptyResults).toBe(1); // still empty — semantic_skipped isn't substance
+  expect(t.notes).toContain("round 1: semantic search degraded to lexical-only (embed timed out after 10000ms)");
+});
+
+test("checker counts semantic_skipped even when the same result also carries real hits (not empty)", () => {
+  const c = createRoundChecker();
+  const round = (iter: number, calls: RoundInfo["calls"], results: RoundInfo["results"]): RoundInfo => ({ iter, calls, results });
+
+  c.record(
+    round(
+      0,
+      [{ name: "atlas_search", args: { q: "star", mode: "hybrid" } }],
+      [
+        {
+          name: "atlas_search",
+          ok: true,
+          content: '{"count":1,"mode":"hybrid","results":[{"id":"x"}],"semantic_skipped":"embeddings 502: bad gateway"}',
+          truncated: false,
+        },
+      ],
+    ),
+  );
+
+  const t = c.telemetry();
+  expect(t.semanticSkips).toBe(1);
+  expect(t.emptyResults).toBe(0);
+  expect(t.notes).toContain("round 1: semantic search degraded to lexical-only (embeddings 502: bad gateway)");
 });

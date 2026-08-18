@@ -1,6 +1,14 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { absolutizeAtlasLinks, atlasHref, atlasUrl, ROUTES, REPORT_TITLES } from "./routes";
+import {
+  absolutizeAtlasLinks,
+  atlasHref,
+  atlasUrl,
+  ROUTES,
+  REPORT_TITLES,
+  activeNavPageFor,
+  usesWindowScroll,
+} from "./routes";
 
 describe("atlasUrl", () => {
   it("builds an absolute link off window.location.origin in a browser context", () => {
@@ -38,5 +46,34 @@ describe("CrossView route registration", () => {
     // ROUTES.REPORTS_* constant; crossview's slug ("crossview") is the same
     // last segment as its ROUTES.REPORTS_CROSSVIEW route.
     expect(ROUTES.REPORTS_CROSSVIEW.split("/").pop()).toBe("crossview");
+  });
+});
+
+describe("activeNavPageFor", () => {
+  it("prefix-matches each nav section, including sub-routes", () => {
+    expect(activeNavPageFor(ROUTES.ATLAS)).toBe("atlas");
+    expect(activeNavPageFor(ROUTES.CONSTELLATIONS)).toBe("constellations");
+    expect(activeNavPageFor(ROUTES.RADAR_ACTOR.replace(":slug", "keel"))).toBe("radar");
+    expect(activeNavPageFor(ROUTES.REPORTS_ONCHAIN_ADDRESSES)).toBe("reports");
+  });
+
+  it("returns null off-nav (home, standalone pages)", () => {
+    expect(activeNavPageFor(ROUTES.HOME)).toBeNull();
+    expect(activeNavPageFor(ROUTES.PRIVACY)).toBeNull();
+  });
+});
+
+describe("usesWindowScroll", () => {
+  it("opts reports, radar, collections, and conversations into window scroll", () => {
+    expect(usesWindowScroll(ROUTES.REPORTS)).toBe(true);
+    expect(usesWindowScroll(ROUTES.REPORTS_ONCHAIN_ADDRESSES)).toBe(true);
+    expect(usesWindowScroll(ROUTES.RADAR)).toBe(true);
+    expect(usesWindowScroll(ROUTES.COLLECTIONS)).toBe(true);
+    expect(usesWindowScroll(ROUTES.CONVERSATIONS)).toBe(true);
+  });
+
+  it("leaves the fixed-shell layout for the atlas reader and home", () => {
+    expect(usesWindowScroll(ROUTES.ATLAS)).toBe(false);
+    expect(usesWindowScroll(ROUTES.HOME)).toBe(false);
   });
 });

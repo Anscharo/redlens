@@ -16,8 +16,25 @@ export interface VerifyClaim {
   status: "supported" | "unsupported" | "contradicted";
 }
 
+// docs/plans/chat-staged-delivery.md. "streaming" (default) is today's
+// token-by-token render; "staged" suppresses token/clear and renders an honest
+// stage progression, revealing the verified answer once in `done`.
+export type Delivery = "streaming" | "staged";
+
+// Full stage vocabulary post staged-delivery: the original harness stages plus
+// comparing/synthesizing/finalizing, which only ever fire in staged mode.
+export type Stage =
+  | "querying"
+  | "reading"
+  | "checking"
+  | "advising"
+  | "revising"
+  | "comparing"
+  | "synthesizing"
+  | "finalizing";
+
 export type ChatEvent =
-  | { type: "meta"; conversationId: string }
+  | { type: "meta"; conversationId: string; delivery?: Delivery }
   | { type: "token"; text: string }
   | { type: "clear" }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
@@ -26,7 +43,7 @@ export type ChatEvent =
   // `content` is the whole file; the client auto-downloads it and keeps a
   // button to re-download (see useChatStream `export` case).
   | { type: "export"; format: "markdown" | "csv"; filename: string; mime: string; content: string; bytes: number }
-  | { type: "status"; stage: "querying" | "reading" | "checking" | "advising" | "revising"; detail?: string }
+  | { type: "status"; stage: Stage; detail?: string }
   | {
       type: "verify_result";
       overall: VerifyOverall;
@@ -45,6 +62,9 @@ export type ChatEvent =
       usage: { input: number; output: number };
       generationId: string | null;
       toolCalls: ToolCallRecord[];
+      // True context size of the turn (last llm round's prompt_tokens).
+      // Optional so an older server (pre this field) still parses.
+      contextTokens?: number | null;
     }
   | { type: "error"; message: string };
 

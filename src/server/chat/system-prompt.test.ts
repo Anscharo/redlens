@@ -3,7 +3,7 @@
 // network/DB), plus the pure helpers pageContextLine / validReportTool.
 import { describe, it, expect } from "bun:test";
 import { loadIndexes } from "../retrieval/indexes.ts";
-import { buildSystemPrompt, pageContextLine, validReportTool } from "./system-prompt.ts";
+import { agentArtifactRoster, buildSystemPrompt, pageContextLine, validReportTool } from "./system-prompt.ts";
 
 const ix = loadIndexes();
 
@@ -55,11 +55,23 @@ describe("validReportTool", () => {
   });
 });
 
+describe("agentArtifactRoster", () => {
+  it("lists each live agent with its A.6 root and the ownership rule", () => {
+    const roster = agentArtifactRoster(ix);
+    expect(roster).not.toBeNull();
+    expect(roster).toContain("Every document under an agent's root belongs to that agent");
+    expect(roster).toMatch(/Prime Agents: .*Spark @ A\.6\.1\.1\.1/);
+    expect(roster).toMatch(/Executor Agents: .*Amatsu @ A\.6\.1\.2\.1/);
+  });
+});
+
 describe("buildSystemPrompt", () => {
   it("builds a prompt with atlas structure, entity chains, tools, and citation rules — no page context", () => {
     const prompt = buildSystemPrompt(ix);
     expect(prompt).toContain("Sky Atlas by Redline assistant");
     expect(prompt).toContain("## Atlas structure");
+    expect(prompt).toContain("The atlas is a tree of");
+    expect(prompt).toContain("Every document under an agent's root belongs to that agent");
     expect(prompt).toContain("## Entity traversal (live graph)");
     expect(prompt).toContain("## Tools");
     expect(prompt).toContain("atlas_query");
@@ -90,15 +102,19 @@ describe("buildSystemPrompt", () => {
     }
   });
 
+  // The date is injected rather than recomputed after the call: a run that
+  // straddles UTC midnight would otherwise compare two different days.
   it("includes today's date and the atlas commit when present", () => {
-    const prompt = buildSystemPrompt(ix);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = "2026-02-14";
+    const prompt = buildSystemPrompt(ix, undefined, "inline", today);
     expect(prompt).toContain(`Today's date is ${today}`);
     if (ix.meta?.atlasCommit) {
       expect(prompt).toContain(`commit ${ix.meta.atlasCommit.slice(0, 7)}`);
     } else {
       expect(prompt).toContain("(unknown commit)");
     }
+    // …and the default (no injection) still stamps a real ISO date.
+    expect(buildSystemPrompt(ix)).toMatch(/Today's date is \d{4}-\d{2}-\d{2}\./);
   });
 
   it("appends a Current page section when ctx has a page context", () => {
@@ -131,6 +147,13 @@ describe("buildSystemPrompt", () => {
     const prompt = buildSystemPrompt(ix, { reportName: "Fake", reportTool: "atlas_report_nonexistent" });
     expect(prompt).toContain("## Current page");
     expect(prompt).not.toContain("This report is backed by");
+  });
+
+  it("names a report page without a tool and still treats 'this' as the report", () => {
+    const prompt = buildSystemPrompt(ix, { path: "/reports/stale-dates", reportName: "Stale Dates" });
+    expect(prompt).toContain('Report: Stale Dates');
+    expect(prompt).not.toContain("This report is backed by");
+    expect(prompt).toContain('as that report unless they say otherwise');
   });
 
   it("truncates a long reportFilter to 100 chars", () => {

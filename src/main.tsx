@@ -12,6 +12,16 @@ import { DataSourceContext, DEFAULT_SOURCE } from "./lib/dataSource";
 import { PreviewGate } from "./components/preview/PreviewGate";
 import { PreviewHome } from "./components/preview/PreviewHome";
 import { restoreAuthReturn } from "./lib/authReturn";
+import { installConsoleCapture } from "./lib/consoleCapture";
+import { installInteractionCapture } from "./lib/lastInteraction";
+
+// Installed here, at module scope, rather than in App.tsx or a React effect:
+// StrictMode double-invokes effects (which would double-patch console
+// methods), and PreviewHome/PreviewGate bypass App entirely — this line runs
+// for every surface. Module scope also means it's live before first render,
+// so boot-time errors are captured for the feedback tool from the start.
+installConsoleCapture();
+installInteractionCapture();
 
 const baseNoSlash = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -21,7 +31,14 @@ const baseNoSlash = import.meta.env.BASE_URL.replace(/\/$/, "");
 function Root() {
   const { pathname } = window.location;
   if (pathname === `${baseNoSlash}/preview` || pathname === `${baseNoSlash}/preview/`) {
-    return <PreviewHome />;
+    // AuthProvider so the index can show the same account/sign-in control the
+    // live app has (needed to view private previews). apiUrl is absolute
+    // (`/api/…`), so no DataSource/Router context is required here.
+    return (
+      <AuthProvider>
+        <PreviewHome />
+      </AuthProvider>
+    );
   }
   const m = pathname.match(new RegExp(`^${baseNoSlash}/preview/([^/]+)`));
   if (m) {

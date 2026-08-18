@@ -10,14 +10,17 @@
 //      which keeps every extracted path inside the target dir (verified: `../`
 //      traversal entries are collapsed in-bounds, never escape).
 //
-// Only the archive's `<top>/content/**` is used by the build (parseTree reads
-// ATLAS_SRC_DIR/content); other top-level files (README, sync/, …) are extracted
-// alongside but ignored. ATLAS_SRC_DIR is the single top-level dir.
+// Only the archive's `<top>/content/**` is used by the build (atlas-source.mjs
+// reads ATLAS_SRC_DIR and detects the layout there); other top-level files
+// (README, sync/, …) are extracted alongside but ignored. ATLAS_SRC_DIR is the
+// single top-level dir.
 
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { createGunzip } from "node:zlib";
+import { bucketFromFilename } from "../../../scripts/lib/atlas-source.mjs";
+import { config } from "../config.ts";
 
 export interface ExtractCaps {
   maxBytes: number;
@@ -29,8 +32,8 @@ export interface ExtractCaps {
 // 3.4MB composed monolith + sync/). 64MB gives ~90% growth headroom and caps a
 // fork's decompression bomb. Tunable via env without a code change.
 export const DEFAULT_CAPS: ExtractCaps = {
-  maxBytes: Number(process.env.PREVIEW_MAX_DECOMPRESSED_BYTES ?? 64 * 1024 * 1024),
-  maxDocs: Number(process.env.PREVIEW_MAX_DOCS ?? 20_000),
+  maxBytes: config.previewMaxDecompressedBytes,
+  maxDocs: config.previewMaxDocs,
 };
 
 export class CapExceededError extends Error {}
@@ -40,11 +43,37 @@ export function archiveUrl(repo: string, sha: string): string {
   return `https://github.com/${repo}/archive/${sha}.tar.gz`;
 }
 
-export async function fetchArchive(repo: string, sha: string, token: string): Promise<ReadableStream<Uint8Array>> {
-  const res = await fetch(archiveUrl(repo, sha), {
-    headers: { "user-agent": "redlens-preview", ...(token ? { authorization: `Bearer ${token}` } : {}) },
-    redirect: "follow",
-  });
+/** The API tarball endpoint (vs. the web archive host above) — required for
+ *  private repos: an installation-token Bearer isn't honored on
+ *  github.com/.../archive/..., only on api.github.com. GitHub 302s this to a
+ *  signed, unauthenticated codeload URL, hence redirect:"follow". */
+export function apiTarballUrl(repo: string, sha: string): string {
+  return `https://api.github.com/repos/${repo}/tarball/${sha}`;
+}
+
+export interface FetchArchiveOpts {
+  apiTarball?: boolean;
+}
+
+export async function fetchArchive(
+  repo: string,
+  sha: string,
+  token: string,
+  opts?: FetchArchiveOpts,
+): Promise<ReadableStream<Uint8Array>> {
+  const res = opts?.apiTarball
+    ? await fetch(apiTarballUrl(repo, sha), {
+        headers: {
+          "user-agent": "redlens-preview",
+          authorization: `Bearer ${token}`,
+          "x-github-api-version": "2022-11-28",
+        },
+        redirect: "follow",
+      })
+    : await fetch(archiveUrl(repo, sha), {
+        headers: { "user-agent": "redlens-preview", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        redirect: "follow",
+      });
   if (res.status === 404) throw new SourceGoneError(`archive 404 for ${repo}@${sha}`);
   if (!res.ok || !res.body) throw new Error(`archive fetch failed ${res.status} for ${repo}@${sha}`);
   return res.body;
@@ -78,6 +107,11 @@ export async function gunzipCapped(input: Readable, maxBytes: number): Promise<B
   return Buffer.concat(chunks);
 }
 
+// Documents in an extracted content/ tree, whichever layout it is in. Counting
+// `document.md` files alone silently returned 0 for the consolidated layout —
+// which made the maxDocs cap inert and reported docCount: 0 on every preview.
+const HEADING_UUID_RE = /<!-- UUID: [0-9a-f-]{36} -->/g;
+
 function countDocs(dir: string): number {
   let n = 0;
   const stack = [dir];
@@ -90,8 +124,15 @@ function countDocs(dir: string): number {
       continue;
     }
     for (const e of entries) {
-      if (e.isDirectory()) stack.push(path.join(d, e.name));
-      else if (e.name === "document.md") n++;
+      if (e.isDirectory()) {
+        stack.push(path.join(d, e.name));
+      } else if (e.name === "document.md") {
+        n++; // atomized: one file, one document
+      } else if (bucketFromFilename(e.name)) {
+        // consolidated: one composed file, many documents — count the headings.
+        const text = fs.readFileSync(path.join(d, e.name), "utf8");
+        n += text.match(HEADING_UUID_RE)?.length ?? 0;
+      }
     }
   }
   return n;
@@ -137,8 +178,9 @@ export async function fetchAndExtract(
   token: string,
   atlasDir: string,
   caps: ExtractCaps = DEFAULT_CAPS,
+  opts?: FetchArchiveOpts,
 ): Promise<{ srcDir: string; docCount: number }> {
-  const body = await fetchArchive(repo, sha, token);
+  const body = await fetchArchive(repo, sha, token, opts);
   const plainTar = await gunzipCapped(Readable.fromWeb(body as any), caps.maxBytes);
   return extractContentArchive(plainTar, atlasDir, caps);
 }

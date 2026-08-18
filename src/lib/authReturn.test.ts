@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   stashAuthReturn,
   takeAuthReturn,
@@ -56,5 +56,37 @@ describe("restoreAuthReturn", () => {
     restoreAuthReturn();
     expect(window.location.pathname + window.location.search).toBe("/atlas?id=x");
     expect(takeAuthReturn()).toBeNull();
+  });
+});
+
+describe("restoreAuthReturn — preview destinations", () => {
+  let originalLocation: Location;
+  beforeEach(() => {
+    originalLocation = window.location;
+  });
+  afterEach(() => {
+    Object.defineProperty(window, "location", { value: originalLocation, writable: true });
+  });
+
+  it("does a full navigation (not an in-place rewrite) for a /preview/... destination", () => {
+    // PreviewGate never mounts off a bare history.replaceState — a real
+    // navigation is required so the freshly-set session cookie is present
+    // when the gate re-runs its access check.
+    window.history.replaceState(null, "", "/");
+    stashAuthReturn("/preview/pull-88");
+    const replace = vi.fn();
+    Object.defineProperty(window, "location", {
+      value: { pathname: "/", search: "", replace },
+      writable: true,
+    });
+    restoreAuthReturn();
+    expect(replace).toHaveBeenCalledWith("/preview/pull-88");
+  });
+
+  it("still uses history.replaceState (no reload) for a normal, non-preview destination", () => {
+    window.history.replaceState(null, "", "/");
+    stashAuthReturn("/atlas?id=abc");
+    restoreAuthReturn();
+    expect(window.location.pathname + window.location.search).toBe("/atlas?id=abc");
   });
 });

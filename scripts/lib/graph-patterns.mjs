@@ -16,7 +16,7 @@ export function slugify(name) {
 // always yields the same id, so entities created in different build phases
 // reconcile to one node. This is the entity-identity primitive for the whole
 // graph — keep it the single definition.
-export function slugToId(slug) {
+function slugToId(slug) {
   const h = crypto.createHash("sha256").update(slug).digest("hex");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
 }
@@ -80,13 +80,64 @@ export const ACTIVE_ECOSYSTEM_ACTORS_UUID = "1ef5767b-60bc-446a-af45-4eccdb20c02
 // that the A.1.7.1 walk is still finding the right section.
 export const CCRA_BINDING_UUID = "51b1fe46-2251-4078-a805-e2b40aaaf729";
 
-export const UUID_LINK_RE =
-  /\[([^\]]*)\]\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/gi;
+// Canonical UUID source fragment. Exported as a *source string* so callers that
+// embed a UUID inside a larger pattern (doc-edges' IMPLEMENTS_RE) compose it
+// instead of retyping the five hex groups.
+export const UUID_SRC = String.raw`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`;
+export const UUID_LINK_RE = new RegExp(String.raw`\[([^\]]*)\]\((${UUID_SRC})\)`, "gi");
+// A markdown link's URL — "[text](https://…)". Used by table-parser's
+// extractUrl (Active Data cells) and by the omni Discord edge (Pattern 22).
+export const MD_URL_RE = /\((https?:\/\/[^)]+)\)/;
 export const COMPRISES_RE = /The party ['‘]([^'’]+)['’] comprises\s+(.+?)\./i;
 // Atomic parties use a different sentence shape — "The party 'X' is <descriptor>."
 // (e.g. A.2.8.2.2.1.1.4 Moonbow: "…is the entity owning relevant intellectual
 // property."). The party still signs the accord, it just has no members to list.
 export const ATOMIC_PARTY_RE = /The party ['‘]([^'’]+)['’]\s+is\b/i;
+
+// The atlas writes structured fields as bullet key/value lines:
+//   "- Recipient: Sky Frontier Foundation"
+//   "- Soter Labs: 2 signers"
+// Both halves are REGEX SOURCE, not literals — the factory escapes nothing, so
+// a label may itself capture ("(.+?)\\s+amount"). Returns a fresh RegExp per
+// call: callers hold these as module consts and reset `lastIndex` on the /g
+// ones, which a shared object would break.
+export function bulletField(labelSrc, valueSrc, flags = "im") {
+  return new RegExp(String.raw`^[-*]\s*${labelSrc}:\s*${valueSrc}\s*$`, flags);
+}
+
+// Per-module warning emitter. Every Phase 2.8 pattern is "never-silent": a doc
+// that looks like one of its shapes but fails to parse warns instead of being
+// dropped, and the count rides home in the module's stats line. `tag` is the
+// module's console prefix, kept verbatim ("  bridge:", "  [omni]").
+export function makeWarn(tag, stats) {
+  return (msg) => {
+    stats.warnings++;
+    console.warn(`${tag} ${msg}`);
+  };
+}
+
+// Group docs by parent doc_no, slotting each by a caller-supplied child-kind
+// classifier. The shape behind Patterns 17 and 21: both detect a root by the
+// SET of children it owns, never by the root's own title (multisig roots are
+// not uniformly titled; "Validators" containers share a title with rosters).
+// Keys on the doc_no string rather than resolving the parent doc, because a
+// parent that does not exist must still collect its children (the caller
+// decides what an orphaned group means). First writer wins per (parent, kind).
+export function groupChildrenByParent(allDocs, kindOf) {
+  const byParent = new Map(); // parent doc_no → { [kind]: doc }
+  for (const d of allDocs) {
+    const kind = kindOf(d);
+    if (!kind) continue;
+    const parentDocNo = d.doc_no.split(".").slice(0, -1).join(".");
+    let slot = byParent.get(parentDocNo);
+    if (!slot) {
+      slot = {};
+      byParent.set(parentDocNo, slot);
+    }
+    if (!slot[kind]) slot[kind] = d;
+  }
+  return byParent;
+}
 
 // ---------------------------------------------------------------------------
 // Entity name resolution helpers
@@ -119,6 +170,21 @@ export function buildNameIndex(entityMap) {
 // forms silently mint two separate entity nodes for the same real org. Only
 // resolves when exactly one entity matches, so a generic short name can't
 // misfire onto an unrelated longer one.
+// Mint the fallback entity for a party the atlas names in prose but that no
+// other pattern defined ("VoteWizard", "Spark Assets Foundation"). The kind is
+// inferred from the name alone, so the caller's `source` tag is the only record
+// of which pattern minted it. Registers the entity in the caller's name index
+// so a second mention resolves instead of minting a duplicate.
+export function createProseParty(addEntity, nameIndex, name, source, sourceDoc) {
+  const et = /\bFoundation$/i.test(name) ? "foundation" : "ecosystem_actor";
+  const created = addEntity(slugify(name), name, et, null, null, {
+    source,
+    source_doc_no: sourceDoc.doc_no,
+  });
+  nameIndex.set(normalizeKey(name), created);
+  return created;
+}
+
 export function resolveAliasedEntity(nameIndex, entityMap, name) {
   const exact = nameIndex.get(normalizeKey(name));
   if (exact) return exact;

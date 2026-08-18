@@ -178,7 +178,7 @@ describe("ModFrequencyReport timeline tab", () => {
 describe("ModFrequencyReport sum-by tab", () => {
   it("summarizes docs matching the active filter per category against the category's full total, for both section and type", async () => {
     render(<ModFrequencyReport query="" mode="broad" />);
-    expect(screen.getByText("loading…")).toBeInTheDocument();
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
     clickTab("sum by");
 
     // A.2 category: scope, edited, fresh, once = 4 docs; default filter is

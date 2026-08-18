@@ -13,12 +13,12 @@ interface PreviewMeta {
   prAuthor?: string;
   prState?: string;
   forkOwner?: string;
+  private?: boolean;
   trustTier?: string;
   aheadBy?: number;
   behindBy?: number;
   newAddresses?: number;
   addressCheckFailed?: boolean;
-  diffTruncated?: boolean;
 }
 
 const CANONICAL_REPO = "sky-ecosystem/next-gen-atlas";
@@ -43,8 +43,12 @@ export function PreviewBanner() {
   if (!preview) return null;
 
   // forkOwner is only set by the server for true fork previews — a PR whose
-  // head lives on a fork is still a PR preview, not a fork preview.
+  // head lives on a fork is still a PR preview, not a fork preview. Private
+  // previews never set forkOwner (the server doesn't compute fork lineage for
+  // them), so isFork is already false there — private just takes precedence
+  // in the chip/label.
   const isFork = !!meta?.forkOwner;
+  const isPrivate = !!meta?.private;
   const label = meta?.prTitle ? `${meta.ref} — ${meta.prTitle}` : meta?.ref ?? preview.id;
   const src = meta ? sourceUrl(meta) : null;
   const srcLabel = meta?.kind === "pr" ? "view PR on GitHub ↗" : meta?.kind === "branch" ? "view branch ↗" : "view commit ↗";
@@ -58,10 +62,10 @@ export function PreviewBanner() {
       }}
     >
       <span style={{ color: isFork ? "var(--red)" : "var(--accent)", fontWeight: 600, letterSpacing: "0.05em" }}>
-        {isFork ? "FORK PREVIEW" : "PREVIEW"}
+        {isPrivate ? "PRIVATE PREVIEW" : isFork ? "FORK PREVIEW" : "PREVIEW"}
       </span>
       <span>
-        Viewing {isFork ? "unreviewed fork" : "preview"}{" "}
+        Viewing {isPrivate ? "a private preview of" : isFork ? "unreviewed fork" : "preview"}{" "}
         {src ? (
           <a href={src} target="_blank" rel="noreferrer" style={{ color: "var(--tan)", textDecoration: "underline" }}>
             <strong>{label}</strong>
@@ -82,19 +86,14 @@ export function PreviewBanner() {
           author has no PRs accepted into the atlas
         </span>
       )}
-      {isFork && (meta!.newAddresses ?? 0) > 0 && (
+      {(isFork || isPrivate) && (meta!.newAddresses ?? 0) > 0 && (
         <span className="mono text-xs" style={{ color: "var(--red)" }}>
           ⚠ {meta!.newAddresses} new on-chain address{meta!.newAddresses === 1 ? "" : "es"}
         </span>
       )}
-      {isFork && meta!.addressCheckFailed && (
+      {(isFork || isPrivate) && meta!.addressCheckFailed && (
         <span className="mono text-xs" style={{ color: "var(--red)" }}>
           ⚠ couldn't verify new on-chain addresses
-        </span>
-      )}
-      {isFork && meta!.diffTruncated && (
-        <span className="mono text-xs" style={{ color: "var(--tan-3)" }}>
-          change markers may be incomplete
         </span>
       )}
       {src && (

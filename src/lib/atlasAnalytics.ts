@@ -1,7 +1,7 @@
 import type { AtlasNode } from "../types";
 import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
-import { buildAncestors } from "./atlasHelpers";
+import { buildAncestors, scopeDocNo } from "./atlasHelpers";
 
 // Properties attached to a `doc_view` event. All UUIDs / enums / public titles —
 // no PII. `node_id` (UUID) is the stable identity; `doc_no` is a human label only.
@@ -25,11 +25,6 @@ export interface DocViewProps {
   entity_slug?: string;
   entity_type?: string;
   [key: string]: unknown;
-}
-
-// Scope = the top-level node, addressed by the first two doc_no segments ("A.1").
-function scopeDocNo(docNo: string): string {
-  return docNo.split(".").slice(0, 2).join(".");
 }
 
 interface AtlasCounts {
