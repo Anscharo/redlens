@@ -498,7 +498,7 @@ function icdParamUnits(
   // addressed by (the ICD itself for its canonical `Parameters` block; the
   // container for a sibling block, so the two stay separately addressable);
   // `root` is the subtree supplying the kv values.
-  const emit = (icd: AtlasNode, anchor: AtlasNode, root: AtlasNode, kvTitle: string) => {
+  const emit = (anchor: AtlasNode, root: AtlasNode, kvTitle: string) => {
     const members: AtlasNode[] = [anchor];
     const walk = [root];
     while (walk.length) {
@@ -533,10 +533,10 @@ function icdParamUnits(
   for (const icd of docs) {
     if (!isICD(icd)) continue;
     const { primary, extra } = paramRoots(icd, childrenByDocNo);
-    if (primary) emit(icd, icd, primary, icd.title);
+    if (primary) emit(icd, primary, icd.title);
     // Sibling containers keep the instance name in the kv title so the unit is
     // still attributable when the container title alone is generic.
-    for (const root of extra) emit(icd, root, root, `${icd.title} — ${root.title}`);
+    for (const root of extra) emit(root, root, `${icd.title} — ${root.title}`);
   }
   return { units, grouped };
 }
