@@ -12,6 +12,7 @@ mock.module("./db.ts", () => ({
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
   toUuidArrayLiteral: (ids: readonly string[]) => `{${ids.join(",")}}`,
+  fromUuidArray: (v: unknown) => Array.isArray(v) ? v.map(String) : [],
 }));
 
 // Stub `arctic` so the OAuth start + callback flows run without hitting GitHub or

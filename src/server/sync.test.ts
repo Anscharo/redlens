@@ -128,6 +128,7 @@ mock.module("./db.ts", () => ({
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
   toUuidArrayLiteral: (ids: readonly string[]) => `{${ids.join(",")}}`,
+  fromUuidArray: (v: unknown) => Array.isArray(v) ? v.map(String) : [],
 }));
 
 const { main, chunked, readJson, pub, forceFromArgv } = await import("./sync.ts");

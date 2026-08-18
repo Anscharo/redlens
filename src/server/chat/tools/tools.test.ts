@@ -16,6 +16,7 @@ function mockDb(rows: unknown[] = []) {
     sql: fn,
     toVectorLiteral: (v: number[]) => `[${v.join(",")}]`,
     toUuidArrayLiteral: (ids: readonly string[]) => `{${ids.join(",")}}`,
+    fromUuidArray: (v: unknown) => Array.isArray(v) ? v.map(String) : [],
     dbTarget: () => "mock:5432/db",
     waitForDb: async () => {},
   }));
