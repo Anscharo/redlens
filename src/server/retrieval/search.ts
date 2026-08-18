@@ -1,7 +1,8 @@
 // Search: lexical (minisearch, in-memory) + semantic (pgvector) + RRF merge.
 // Both legs return id+rank+score; callers resolve full nodes from the doc map.
 import { type Indexes } from "./indexes.ts";
-import { sql, toVectorLiteral, toUuidArrayLiteral, fromUuidArray } from "../db.ts";
+import { sql, toVectorLiteral, toUuidArrayLiteral } from "../db.ts";
+import { fromUuidArray } from "../pg-array.ts";
 import { embedQuery } from "./embed.ts";
 import { config } from "../config.ts";
 import { compactProse } from "../../lib/shortenTitle.ts";

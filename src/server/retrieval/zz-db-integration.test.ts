@@ -302,33 +302,3 @@ describe("atlasQuery — semantic search leg (DB-backed, mocked)", () => {
     expect((res.results as { id: string }[]).map((r) => r.id)).toContain("c");
   });
 });
-
-describe("fromUuidArray (real db.ts export)", () => {
-  // db.test.ts loads db.ts via `?realdb=N`, which bun coverage attributes to a
-  // different specifier — so those cases don't count toward src/server/db.ts.
-  // This file already holds the real namespace; hit every branch here.
-  const fromUuidArray = baseExports.fromUuidArray as (v: unknown) => string[];
-  const a = "575ab954-d26c-460e-8a11-ebe7f5586dff";
-  const b = "9a8120c4-0a5b-426f-97a5-283c708413f5";
-
-  it("decodes JS arrays, postgres text literals, quoted elements, and empties", () => {
-    expect(fromUuidArray([a, b])).toEqual([a, b]);
-    expect(fromUuidArray([a, ""])).toEqual([a]);
-    expect(fromUuidArray(`{${a},${b}}`)).toEqual([a, b]);
-    expect(fromUuidArray(`{"${a}","${b}"}`)).toEqual([a, b]);
-    expect(fromUuidArray(`{${a},,${b}}`)).toEqual([a, b]);
-    expect(fromUuidArray("{}")).toEqual([]);
-    expect(fromUuidArray("")).toEqual([]);
-    expect(fromUuidArray(null)).toEqual([]);
-    expect(fromUuidArray(undefined)).toEqual([]);
-    expect(fromUuidArray(1)).toEqual([]);
-    expect(fromUuidArray(a)).toEqual([a]);
-  });
-
-  it("toUuidArrayLiteral round-trips on the same real export", () => {
-    const toUuidArrayLiteral = baseExports.toUuidArrayLiteral as (ids: readonly string[]) => string;
-    expect(toUuidArrayLiteral([a])).toBe(`{${a}}`);
-    expect(toUuidArrayLiteral([a, b])).toBe(`{${a},${b}}`);
-    expect(toUuidArrayLiteral([])).toBe("{}");
-  });
-});
