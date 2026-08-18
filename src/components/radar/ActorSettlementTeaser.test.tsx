@@ -51,6 +51,7 @@ describe("ActorSettlementTeaser", () => {
     expect(link).toHaveAttribute("href", "/radar/spark/settlements");
     expect(figure.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(figure.closest(".msc-teaser")).toBeTruthy();
+    expect(screen.getByTestId("msc-teaser")).toBe(figure.closest(".msc-teaser"));
   });
 
   it("renders nothing for a slug with no MSC workbooks", async () => {

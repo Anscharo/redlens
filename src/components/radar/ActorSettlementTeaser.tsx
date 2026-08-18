@@ -19,7 +19,12 @@ export function ActorSettlementTeaser({ slug }: Props) {
   if (!latest) return null;
 
   return (
-    <section id="msc" className="msc-teaser" style={{ scrollMarginTop: HEADER_OFFSET }}>
+    <section
+      id="msc"
+      className="msc-teaser"
+      data-testid="msc-teaser"
+      style={{ scrollMarginTop: HEADER_OFFSET }}
+    >
       <h2 className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>
         Monthly settlement
       </h2>

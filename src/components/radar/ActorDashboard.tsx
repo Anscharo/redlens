@@ -107,42 +107,41 @@ export function ActorDashboard({ profile }: Props) {
   return (
     <div className="flex-1 px-6 py-6 min-w-0">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-8">
-        <div className="lg:col-span-2 min-w-0">
+        <div className="lg:col-span-2 min-w-0 flow-root">
+          {/* Floated first → top-right of the agent header; null if no MSC workbook. */}
+          <ActorSettlementTeaser slug={entity.slug} />
           {/* Header */}
-          <div className="flex items-start justify-between gap-4 mb-6">
-            <div className="flex-1 min-w-0">
-              <p className="mono text-xs mb-1" style={{ color: "var(--tan-3)" }}>
-                radar
-              </p>
-              <h1 className="text-xl font-semibold" style={{ color: "var(--tan)" }}>
-                {entity.name}
-              </h1>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span
-                  className="mono text-[11px] px-1.5 py-0.5 rounded"
-                  style={{ border: `1px solid ${color}`, color }}
+          <div className="mb-6">
+            <p className="mono text-xs mb-1" style={{ color: "var(--tan-3)" }}>
+              radar
+            </p>
+            <h1 className="text-xl font-semibold" style={{ color: "var(--tan)" }}>
+              {entity.name}
+            </h1>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span
+                className="mono text-[11px] px-1.5 py-0.5 rounded"
+                style={{ border: `1px solid ${color}`, color }}
+              >
+                {typeLabel}
+              </span>
+              {definingDoc && (
+                <AtlasLink
+                  to={atlasHref(definingDoc.id)}
+                  className="mono text-[10px] text-accent hover:underline"
                 >
-                  {typeLabel}
-                </span>
-                {definingDoc && (
-                  <AtlasLink
-                    to={atlasHref(definingDoc.id)}
-                    className="mono text-[10px] text-accent hover:underline"
-                  >
-                    {definingDoc.doc_no} <span className="enlargen">→</span>
-                  </AtlasLink>
-                )}
-                {partOfComposite?.slug && (
-                  <Link
-                    to={actorHref(partOfComposite.slug)}
-                    className="mono text-[10px] text-tan-3 hover:text-accent hover:underline"
-                  >
-                    part of {partOfComposite.name} <span className="enlargen">→</span>
-                  </Link>
-                )}
-              </div>
+                  {definingDoc.doc_no} <span className="enlargen">→</span>
+                </AtlasLink>
+              )}
+              {partOfComposite?.slug && (
+                <Link
+                  to={actorHref(partOfComposite.slug)}
+                  className="mono text-[10px] text-tan-3 hover:text-accent hover:underline"
+                >
+                  part of {partOfComposite.name} <span className="enlargen">→</span>
+                </Link>
+              )}
             </div>
-            <ActorSettlementTeaser slug={entity.slug} />
           </div>
 
           {/* Chain — always shown */}

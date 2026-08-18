@@ -1793,9 +1793,10 @@ button.atlas-node-expand-all:focus-visible {
 
 /* ─── MSC settlement charts (radar actor page) ─── */
 .msc-teaser {
-  flex-shrink: 0;
-  min-width: 11rem;
-  padding: 10px 12px 12px;
+  float: right;
+  width: 14.5rem;
+  margin: 0 0 1rem 1.25rem;
+  padding: 12px 14px 14px;
   border: 1px solid var(--border);
   border-radius: 3px;
   background: var(--surface);
@@ -1803,6 +1804,13 @@ button.atlas-node-expand-all:focus-visible {
 .msc-teaser-link {
   display: inline-block;
   margin-top: 6px;
+}
+@media (max-width: 639px) {
+  .msc-teaser {
+    float: none;
+    width: 100%;
+    margin: 0 0 1rem 0;
+  }
 }
 .msc-bar-col {
   display: flex;

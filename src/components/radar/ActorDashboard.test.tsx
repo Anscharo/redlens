@@ -57,6 +57,13 @@ describe("ActorDashboard header", () => {
     expect(screen.getByTestId("settlements")).toBeInTheDocument();
   });
 
+  it("places the MSC teaser before the name so it floats to the top-right", () => {
+    render(<ActorDashboard profile={profile()} />);
+    const teaser = screen.getByTestId("settlements");
+    const name = screen.getByRole("heading", { name: "Spark" });
+    expect(teaser.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("shows 'Executor Agent' for a non-prime agent", () => {
     render(<ActorDashboard profile={profile({ entity: entity({ st: "operational_executor" }) })} />);
     expect(screen.getByText("Executor Agent")).toBeInTheDocument();
