@@ -287,4 +287,48 @@ describe("atlasQuery — semantic search leg (DB-backed, mocked)", () => {
     const ids = (res.results as { id: string }[]).map((r) => r.id);
     expect(ids).toContain("c");
   });
+
+  it("also accepts member_ids already decoded as a JS array", async () => {
+    const parent = node({ id: "p", doc_no: "A.1.1", title: "Parent Instance", content: "parent body" });
+    const child = node({ id: "c", doc_no: "A.1.1.1", title: "Network", content: "Ethereum Mainnet" });
+    const ix = buildIndexes([parent, child], [], [], { atlasCommit: "t" });
+    unsafeImpl = (query) => {
+      if (query.includes("ORDER BY e.embedding")) {
+        return Promise.resolve([{ id: "p", type: "Core", score: 0.95, member_ids: ["p", "c"] }]);
+      }
+      return Promise.resolve([]);
+    };
+    const res = await atlasQuery(ix, { q: "network", k: 10, enrich: false });
+    expect((res.results as { id: string }[]).map((r) => r.id)).toContain("c");
+  });
+});
+
+describe("fromUuidArray (real db.ts export)", () => {
+  // db.test.ts loads db.ts via `?realdb=N`, which bun coverage attributes to a
+  // different specifier — so those cases don't count toward src/server/db.ts.
+  // This file already holds the real namespace; hit every branch here.
+  const fromUuidArray = baseExports.fromUuidArray as (v: unknown) => string[];
+  const a = "575ab954-d26c-460e-8a11-ebe7f5586dff";
+  const b = "9a8120c4-0a5b-426f-97a5-283c708413f5";
+
+  it("decodes JS arrays, postgres text literals, quoted elements, and empties", () => {
+    expect(fromUuidArray([a, b])).toEqual([a, b]);
+    expect(fromUuidArray([a, ""])).toEqual([a]);
+    expect(fromUuidArray(`{${a},${b}}`)).toEqual([a, b]);
+    expect(fromUuidArray(`{"${a}","${b}"}`)).toEqual([a, b]);
+    expect(fromUuidArray(`{${a},,${b}}`)).toEqual([a, b]);
+    expect(fromUuidArray("{}")).toEqual([]);
+    expect(fromUuidArray("")).toEqual([]);
+    expect(fromUuidArray(null)).toEqual([]);
+    expect(fromUuidArray(undefined)).toEqual([]);
+    expect(fromUuidArray(1)).toEqual([]);
+    expect(fromUuidArray(a)).toEqual([a]);
+  });
+
+  it("toUuidArrayLiteral round-trips on the same real export", () => {
+    const toUuidArrayLiteral = baseExports.toUuidArrayLiteral as (ids: readonly string[]) => string;
+    expect(toUuidArrayLiteral([a])).toBe(`{${a}}`);
+    expect(toUuidArrayLiteral([a, b])).toBe(`{${a},${b}}`);
+    expect(toUuidArrayLiteral([])).toBe("{}");
+  });
 });
