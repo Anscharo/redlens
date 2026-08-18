@@ -4,6 +4,7 @@
 // preview/db.test.ts. __resetAccessCacheForTest() runs in beforeEach so one
 // test's cached decision can't leak into the next.
 import { test, expect, mock, beforeEach, afterEach, afterAll } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "../pg-array.ts";
 import crypto from "node:crypto";
 import { config } from "../config.ts";
 import { __resetCachesForTest } from "./github-app.ts";
@@ -65,8 +66,11 @@ mock.module("../db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
-  toUuidArrayLiteral: (ids: readonly string[]) => `{${ids.join(",")}}`,
-  fromUuidArray: (v: unknown) => Array.isArray(v) ? v.map(String) : [],
+  // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+  // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+  // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+  toUuidArrayLiteral,
+  fromUuidArray,
 }));
 
 const { authorizePreviewAccess, __resetAccessCacheForTest } = await import("./access.ts");

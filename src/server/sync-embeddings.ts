@@ -33,12 +33,19 @@ interface WantedRow {
 }
 
 // Empty uuid[] is the column default and means "this row is itself" (migration 022).
+//
+// Set comparison, not positional: member_ids records WHICH docs a vector covers,
+// and nothing downstream reads it as a sequence — search.ts hands it to
+// `doc_id = ANY(...)` and pickLeaf re-sorts by score. Comparing positionally
+// would make a harmless reordering inside buildUnits look like drift and rewrite
+// every grouped row for nothing.
 function memberIdsEqual(docId: string, stored: unknown, expected: readonly string[]): boolean {
   const parsed = fromUuidArray(stored);
   const have = parsed.length === 0 ? [docId] : parsed;
   if (have.length !== expected.length) return false;
-  for (let i = 0; i < have.length; i++) if (have[i] !== expected[i]) return false;
-  return true;
+  const wanted = new Set(expected);
+  // Set sizes too, so a duplicated id can't pass an equal-length subset check.
+  return new Set(have).size === wanted.size && have.every((id) => wanted.has(id));
 }
 
 // Folded members stay searchable until their grouped anchor vector actually

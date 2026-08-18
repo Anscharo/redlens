@@ -17,6 +17,7 @@
 // before an awaited internal read runs — see the bug fixed in
 // atlas-updater.test.ts's withPublicDir for why that matters.
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "./pg-array.ts";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -42,6 +43,11 @@ interface UnsafeCall {
   kind: "dim-check" | "embed-upsert" | "embed-meta-update" | "embed-delete" | "unknown";
   paramsLength: number;
   params?: unknown[];
+  // The SQL text itself, not just its shape: the `::uuid` / `::uuid[]` casts in
+  // the metadata UPDATE are load-bearing (without them Postgres infers the
+  // VALUES columns as text and `e.doc_id = v.doc_id` fails uuid = text), and a
+  // cast can only be asserted against the generated string.
+  query: string;
 }
 let unsafeCalls: UnsafeCall[] = [];
 let ended = false;
@@ -91,8 +97,11 @@ mock.module("./db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
-  toUuidArrayLiteral: (ids: readonly string[]) => `{${ids.join(",")}}`,
-  fromUuidArray: (v: unknown) => Array.isArray(v) ? v.map(String) : [],
+  // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+  // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+  // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+  toUuidArrayLiteral,
+  fromUuidArray,
 }));
 
 const { main, batchSizeFromEnv, withRetry } = await import("./sync-embeddings.ts");
@@ -243,6 +252,62 @@ describe("main()", () => {
   function writeDocs(atlasCommit: string, nodes: Record<string, AtlasNode>) {
     fs.writeFileSync(path.join(dir, "docs.json"), JSON.stringify({ atlasCommit, nodes }));
   }
+
+  it("treats reordered member_ids as unchanged — member_ids is a set, not a sequence", async () => {
+    // memberIdsEqual used to compare position by position, so any reordering inside
+    // buildUnits would read as drift and rewrite every grouped row's metadata for no
+    // behavioural change. Nothing downstream reads the order (search.ts passes it to
+    // `doc_id = ANY(...)`, pickLeaf re-sorts by score), so this must be a no-op run.
+    const icd = "11111111-1111-1111-1111-111111111111";
+    const params = "22222222-2222-2222-2222-222222222222";
+    const net = "33333333-3333-3333-3333-333333333333";
+    const tok = "44444444-4444-4444-4444-444444444444";
+    const nodes = [
+      doc(icd, "A.6.1.1.1.2.1.1", "Spark Foo Instance Configuration Document", { title: "Spark Foo Instance Configuration Document" }),
+      doc(params, "A.6.1.1.1.2.1.1.1", "The documents herein define the parameters.", { title: "Parameters" }),
+      doc(net, "A.6.1.1.1.2.1.1.1.1", "Ethereum Mainnet", { title: "Network" }),
+      doc(tok, "A.6.1.1.1.2.1.1.1.2", "USDS", { title: "Token" }),
+    ];
+    writeDocs("sha1", Object.fromEntries(nodes.map((n) => [n.id, n])));
+    config.embedGroupPolicy = "icd_params";
+
+    const { buildUnits: build } = await import("./retrieval/embed-units.ts");
+    const { contentHash } = await import("./retrieval/embed-text.ts");
+    const units = build(nodes, "icd_params", {});
+    const anchors = new Set(units.map((u) => u.anchorId));
+    const foldedIds = [...new Set(units.flatMap((u) => u.memberIds))].filter((id) => !anchors.has(id));
+    expect(foldedIds.length).toBeGreaterThan(0); // otherwise the case isn't exercised
+
+    // Everything already correct EXCEPT member_ids order, which is reversed.
+    fakeDb.have = [
+      ...units.map((u) => ({
+        doc_id: u.anchorId,
+        content_hash: u.hash,
+        attribution_only: false,
+        member_ids: `{${[...u.memberIds].reverse().join(",")}}`,
+      })),
+      ...foldedIds.map((id) => ({
+        doc_id: id,
+        content_hash: contentHash(nodes.find((n) => n.id === id)!),
+        attribution_only: true,
+        member_ids: `{${id}}`,
+      })),
+    ] as never;
+
+    const log = captureLog();
+    try {
+      await main({
+        runMigrations: noopMigrations,
+        embedBatch: failEmbed, // any embed at all is a failure here
+        batch: 50,
+        sleep: instantSleep,
+      });
+    } finally {
+      log.restore();
+    }
+    expect(unsafeCalls.find((c) => c.kind === "embed-meta-update")).toBeUndefined();
+    expect(unsafeCalls.find((c) => c.kind === "embed-upsert")).toBeUndefined();
+  });
 
   it("casts doc_id in the grouping-metadata UPDATE (uuid = text otherwise)", async () => {
     // An uncast parameter in a VALUES row is inferred as text, so the join

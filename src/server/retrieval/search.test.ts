@@ -14,6 +14,8 @@ import { test, expect, describe, it, beforeAll, afterAll, afterEach } from "bun:
 import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
 import { config } from "../config.ts";
 import type { AtlasNode, Indexes } from "./indexes.ts";
+import fs from "node:fs";
+import path from "node:path";
 
 let prevKey: string;
 beforeAll(() => {
@@ -217,5 +219,27 @@ describe("residualQuery", () => {
     // An empty residual carries no signal at all; the unstripped query is strictly better.
     const q = "Freezer Multisig";
     expect(residualQuery(q, ["Freezer Multisig"])).toBe(q);
+  });
+});
+
+describe("the semantic ANN query and the index that serves it", () => {
+  // Migration 024 makes the HNSW index PARTIAL on `NOT attribution_only`, which
+  // is what stops a `LIMIT k` scan from spending slots on rows the query then
+  // filters away (grouping puts ~5 attribution-only rows in the table per
+  // searchable anchor). Postgres only uses a partial index when the query's
+  // predicate implies the index's — so if these two drift apart, nothing errors:
+  // the planner silently falls back to a sequential scan over every vector, and
+  // 024 also dropped the full-table HNSW that used to catch it.
+  const readSrc = (rel: string): string => fs.readFileSync(path.join(import.meta.dir, rel), "utf8");
+
+  it("filter on the same predicate", () => {
+    const query = readSrc("./search.ts");
+    const migration = readSrc("../migrations/024_searchable_hnsw.sql");
+
+    // Alias-insensitive: search.ts writes `e.attribution_only`, the index `attribution_only`.
+    const predicate = /WHERE NOT (?:\w+\.)?attribution_only/;
+    expect(query).toMatch(predicate);
+    expect(migration).toMatch(predicate);
+    expect(migration).toContain("USING hnsw (embedding vector_cosine_ops)");
   });
 });

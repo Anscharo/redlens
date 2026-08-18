@@ -11,6 +11,7 @@
 // src/server` run.
 
 import { test, expect, mock, afterAll, beforeEach } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "../pg-array.ts";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -47,8 +48,11 @@ mock.module("../db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
-  toUuidArrayLiteral: (ids: readonly string[]) => `{${ids.join(",")}}`,
-  fromUuidArray: (v: unknown) => Array.isArray(v) ? v.map(String) : [],
+  // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+  // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+  // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+  toUuidArrayLiteral,
+  fromUuidArray,
 }));
 
 afterAll(() => mock.restore());

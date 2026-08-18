@@ -4,6 +4,7 @@
 // pass; this file targets atlasGet's bulk/truncation branches, atlasSearch's
 // mode/phrase-filter branches, and atlasGetAddress's DB + graph-edge path.
 import { test, expect, mock, beforeEach } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
 import { config } from "../../config.ts";
 
@@ -15,8 +16,11 @@ function mockDb(rows: unknown[] = []) {
   mock.module("../../db.ts", () => ({
     sql: fn,
     toVectorLiteral: (v: number[]) => `[${v.join(",")}]`,
-    toUuidArrayLiteral: (ids: readonly string[]) => `{${ids.join(",")}}`,
-    fromUuidArray: (v: unknown) => Array.isArray(v) ? v.map(String) : [],
+    // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+    // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+    // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+    toUuidArrayLiteral,
+    fromUuidArray,
     dbTarget: () => "mock:5432/db",
     waitForDb: async () => {},
   }));

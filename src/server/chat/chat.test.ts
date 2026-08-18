@@ -11,6 +11,7 @@
 // mocked via the same shared dispatcher llm.test.ts installs (see its
 // comment — required because the openai client singleton is process-wide).
 import { afterAll, afterEach, beforeAll, describe, expect, it, mock, test } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "../pg-array.ts";
 
 type Row = Record<string, unknown>;
 type SqlHandler = (text: string, values: unknown[]) => Row[] | undefined;
@@ -39,8 +40,11 @@ mock.module("../db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
-  toUuidArrayLiteral: (ids: readonly string[]) => `{${ids.join(",")}}`,
-  fromUuidArray: (v: unknown) => Array.isArray(v) ? v.map(String) : [],
+  // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+  // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+  // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+  toUuidArrayLiteral,
+  fromUuidArray,
 }));
 
 // NOTE on title.ts: deliberately NOT mocked via mock.module here. A
