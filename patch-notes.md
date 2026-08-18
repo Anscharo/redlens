@@ -35,7 +35,7 @@
 
 
 ## 2026-08-18
-- Added Monthly Settlement Cycle charts for Prime Agents, with last month's total on the actor page and a full cycle page for the rest
+- Added Monthly Settlement Cycle charts for Prime Agents, with last month's total in a card on the actor page and a full cycle page for the rest
 
 ## 2026-08-14
 - Added a History page showing the Atlas documents, document trees and report pages you have been reading, kept in your browser only

@@ -46,8 +46,11 @@ describe("ActorSettlementTeaser", () => {
     await waitFor(() => expect(screen.getByText("$100 to Sky")).toBeInTheDocument());
     expect(screen.getByText("Jul 2026")).toBeInTheDocument();
     expect(screen.queryByText("$10 to Sky")).not.toBeInTheDocument();
+    const figure = screen.getByText("$100 to Sky");
     const link = screen.getByRole("link", { name: /full cycle/ });
     expect(link).toHaveAttribute("href", "/radar/spark/settlements");
+    expect(figure.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(figure.closest(".msc-teaser")).toBeTruthy();
   });
 
   it("renders nothing for a slug with no MSC workbooks", async () => {

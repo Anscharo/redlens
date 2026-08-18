@@ -109,8 +109,8 @@ export function ActorDashboard({ profile }: Props) {
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-8">
         <div className="lg:col-span-2 min-w-0">
           {/* Header */}
-          <div className="flex items-start gap-3 mb-6">
-            <div className="flex-1">
+          <div className="flex items-start justify-between gap-4 mb-6">
+            <div className="flex-1 min-w-0">
               <p className="mono text-xs mb-1" style={{ color: "var(--tan-3)" }}>
                 radar
               </p>
@@ -142,14 +142,13 @@ export function ActorDashboard({ profile }: Props) {
                 )}
               </div>
             </div>
+            <ActorSettlementTeaser slug={entity.slug} />
           </div>
 
           {/* Chain — always shown */}
           <div className="mb-6">
             <ActorChain chain={chain} currentSlug={entity.slug} />
           </div>
-
-          <ActorSettlementTeaser slug={entity.slug} />
         </div>
 
         <div className="min-w-0">
