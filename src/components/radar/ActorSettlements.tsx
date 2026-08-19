@@ -90,7 +90,12 @@ function Figure({ label, value }: { label: string; value: number }) {
       <div className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>
         {label}
       </div>
-      <div className="mono text-lg" style={{ color: "var(--tan)" }}>{formatUsd(value)}</div>
+      <div
+        className="mono text-lg"
+        style={{ color: value < 0 ? "var(--accent)" : "var(--tan)" }}
+      >
+        {formatUsd(value)}
+      </div>
     </div>
   );
 }

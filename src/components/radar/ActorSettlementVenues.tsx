@@ -5,6 +5,7 @@ import {
   isDemandSideCycle,
   type SettlementReport,
 } from "../../lib/settlements";
+import { Tooltip } from "../Tooltip";
 import { SettlementSankey, SettlementVenueTable } from "./SettlementSankey";
 import { SettlementAum } from "./SettlementAum";
 
@@ -31,22 +32,26 @@ export function ActorSettlementVenues({ report, name }: { report: SettlementRepo
     <>
       {toggle && (
         <div role="group" aria-label="Venue view" className="flex gap-2 mb-3">
-          <button
-            type="button"
-            className="scope-pill mono text-[10px] uppercase tracking-wider px-2 py-1"
-            data-active={view === "pnl" ? "true" : undefined}
-            onClick={() => setView("pnl")}
-          >
-            PnL
-          </button>
-          <button
-            type="button"
-            className="scope-pill mono text-[10px] uppercase tracking-wider px-2 py-1"
-            data-active={view === "aum" ? "true" : undefined}
-            onClick={() => setView("aum")}
-          >
-            AUM
-          </button>
+          <Tooltip content="Profit & Loss">
+            <button
+              type="button"
+              className="scope-pill mono text-[10px] uppercase tracking-wider px-2 py-1"
+              data-active={view === "pnl" ? "true" : undefined}
+              onClick={() => setView("pnl")}
+            >
+              PnL
+            </button>
+          </Tooltip>
+          <Tooltip content="Assets Under Management">
+            <button
+              type="button"
+              className="scope-pill mono text-[10px] uppercase tracking-wider px-2 py-1"
+              data-active={view === "aum" ? "true" : undefined}
+              onClick={() => setView("aum")}
+            >
+              AUM
+            </button>
+          </Tooltip>
         </div>
       )}
       {showPnl && (

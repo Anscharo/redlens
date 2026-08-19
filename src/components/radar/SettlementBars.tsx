@@ -67,7 +67,12 @@ function ThreeWayTrack({
   return (
     <span className="msc-bar-track">
       {peakNeg > 0 && <span className="msc-bar-zero" style={{ bottom: `${zero}%` }} />}
-      {fill && <span className={`msc-bar-fill ${barClass}`} style={fill} />}
+      {fill && (
+        <span
+          className={`msc-bar-fill ${value < 0 ? "msc-bar-loss" : barClass}`}
+          style={fill}
+        />
+      )}
     </span>
   );
 }
