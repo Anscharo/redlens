@@ -14,7 +14,6 @@
 // atlas words dominate. Deterministic matching knows subjects; the embedding
 // knows shape. Hence: regex fires on its own, and the similarity lane fires
 // only when the question names no real atlas subject and is not small talk.
-import { embed, cosineSim } from "@ternlight/base";
 import { config } from "../config.ts";
 import { matchGlossary, matchQuestionEntities } from "../prefetch.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
@@ -59,14 +58,39 @@ export function isSmallTalk(question: string): boolean {
   return words.length > 0 && words.every((w) => SMALLTALK_WORDS.has(w));
 }
 
+// @ternlight/base is loaded lazily, on first actual use, rather than as a
+// top-level import. A static import here would sit on the process boot path
+// (index.ts -> chat.ts -> registry.ts -> this module, loaded unconditionally
+// regardless of whether chat is enabled), so a WASM instantiate failure
+// (missing file in the runtime image, an incompatible Bun build, no WASM
+// support) would take down the whole server — health, MCP, static, not just
+// chat — before it ever binds a port. Loading here instead means
+// CHAT_SKILL_SIMILARITY=0 never touches the WASM at all (every caller below
+// checks the flag first), and a genuine load failure degrades this one lane
+// to regex-only instead of crashing the process.
+type Ternlight = typeof import("@ternlight/base");
+let ternlight: Ternlight | null | undefined;
+function loadTernlight(): Ternlight | null {
+  if (ternlight === undefined) {
+    try {
+      ternlight = require("@ternlight/base") as Ternlight;
+    } catch (err) {
+      console.error("[skills] @ternlight/base failed to load — similarity lane disabled, falling back to regex-only triggers:", err);
+      ternlight = null;
+    }
+  }
+  return ternlight;
+}
+
 const prototypeVectors = new Map<string, Float32Array>();
-function protoVec(text: string): Float32Array {
+function protoVec(tl: Ternlight, text: string): Float32Array {
   let v = prototypeVectors.get(text);
-  if (!v) prototypeVectors.set(text, (v = embed(text)));
+  if (!v) prototypeVectors.set(text, (v = tl.embed(text)));
   return v;
 }
 
-const bestSim = (v: Float32Array, prototypes: string[]) => Math.max(...prototypes.map((p) => cosineSim(v, protoVec(p))));
+const bestSim = (tl: Ternlight, v: Float32Array, prototypes: string[]) =>
+  Math.max(...prototypes.map((p) => tl.cosineSim(v, protoVec(tl, p))));
 
 // Doc titles are the expensive half of the subject check (one pass over every
 // document), and Indexes is rebuilt only when the atlas moves — so cache the
@@ -110,8 +134,10 @@ export function namesAtlasSubject(ix: Indexes, question: string): boolean {
 export function looksLikeSkillQuestion(ix: Indexes, question: string, prototypes: string[]): boolean {
   if (!config.chatSkillSimilarity || prototypes.length === 0) return false;
   if (isSmallTalk(question) || namesAtlasSubject(ix, question)) return false;
-  const v = embed(question); // not cached — see protoVec
-  return bestSim(v, prototypes) - bestSim(v, ATLAS_PROTOTYPES) >= config.chatSkillSimilarityMargin;
+  const tl = loadTernlight();
+  if (!tl) return false;
+  const v = tl.embed(question); // not cached — see protoVec
+  return bestSim(tl, v, prototypes) - bestSim(tl, v, ATLAS_PROTOTYPES) >= config.chatSkillSimilarityMargin;
 }
 
 /**
@@ -133,11 +159,13 @@ export function rankPrototypeSets(
   sets: Record<string, string[]>,
   negatives: string[],
 ): { slug: string; score: number; margin: number }[] {
-  const v = embed(question); // not cached — see protoVec
-  const negScore = bestSim(v, negatives);
+  const tl = loadTernlight();
+  if (!tl) return [];
+  const v = tl.embed(question); // not cached — see protoVec
+  const negScore = bestSim(tl, v, negatives);
   return Object.entries(sets)
     .map(([slug, prototypes]) => {
-      const score = bestSim(v, prototypes);
+      const score = bestSim(tl, v, prototypes);
       return { slug, score, margin: score - negScore };
     })
     .sort((a, b) => b.margin - a.margin);
