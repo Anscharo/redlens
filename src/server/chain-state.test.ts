@@ -10,6 +10,7 @@
 // directly and need no mock.module. Only handleChainState() reaches for the
 // shared `sql`, which is why that one gets the module mock.
 import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "./pg-array.ts";
 
 interface Recorded {
   text: string;
@@ -36,6 +37,11 @@ mock.module("./db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
+  // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+  // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+  // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+  toUuidArrayLiteral,
+  fromUuidArray,
 }));
 
 const { readChainState, upsertChainState, maybeRefreshChainState, handleChainState } =

@@ -4,9 +4,11 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Structural metadata only — no content, no tsv. content_hash = sha256(title + content)
--- (see embed-text.ts); excludes doc_no/parent/depth so a pure renumber doesn't
--- churn embeddings.
+-- Structural metadata only — no content, no tsv. content_hash = sha256 of the
+-- EMBED text (title + link-stripped content — see embed-text.ts); excludes
+-- doc_no/parent/depth so a pure renumber doesn't churn embeddings, and excludes
+-- markdown link targets for the same reason. It is an embedding-staleness key, NOT
+-- a general "did this doc change" key — see sameServedDoc in atlas-refresh.ts.
 CREATE TABLE IF NOT EXISTS atlas_doc_meta (
   id            UUID PRIMARY KEY,
   doc_no        TEXT NOT NULL,

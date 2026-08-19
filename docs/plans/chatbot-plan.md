@@ -373,7 +373,7 @@
 
   ### Build-side requirements
 
-  - **`build-index`** writes `content_hash` per doc into `docs.json` — `sha256` of **content + title only**, excluding `doc_no`/`parent_id`/`depth`. This exclusion is load-bearing: it's what lets a pure renumber (PR #235-style) land as `structural`, not `content`, so it doesn't trigger embedding rewrites or memory invalidation.
+  - **`build-index`** writes `content_hash` per doc into `docs.json` — `sha256` of **content + title only**, excluding `doc_no`/`parent_id`/`depth`. This exclusion is load-bearing: it's what lets a pure renumber (PR #235-style) land as `structural`, not `content`, so it doesn't trigger embedding rewrites or memory invalidation. *(As shipped, the embed hash lives in `embed-text.ts` and additionally strips markdown links, extending the same "don't churn vectors for a non-semantic edit" logic to link targets.)*
   - **`build-addresses`/`build-graph`** write `content_hash` per address (hash of the merged annotation record) into `addresses.atlas.json`.
   - **`build-history`** already emits per-revision change events — this is a *reconciliation*, not greenfield. It currently produces `change_type` ∈ `added | modified | removed | moved` (used today on the radar pages) and hashes full content with **md5**. Three deltas to align with this schema: (1) map the vocabulary — `modified`→`content`, `moved`→`structural`, `added`/`removed` unchanged; (2) hash **content + title only** (excluding doc_no/parent/depth) so a pure renumber lands as `structural`/`moved`, matching the `build-index` hash above; (3) switch md5→`sha256`. Stays deterministic — fits `REPRO=1`.
 

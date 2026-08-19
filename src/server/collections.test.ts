@@ -7,6 +7,7 @@
 // session.ts is NOT mocked — a real signed JWT (mirrors auth.test.ts's DELETE
 // /api/auth/me tests) drives the auth-gated routes.
 import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "./pg-array.ts";
 
 interface Col {
   id: string;
@@ -131,6 +132,11 @@ mock.module("./db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
+  // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+  // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+  // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+  toUuidArrayLiteral,
+  fromUuidArray,
 }));
 
 const { handleCollections, handleSharedCollection } = await import("./collections.ts");

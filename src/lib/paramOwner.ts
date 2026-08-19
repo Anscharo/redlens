@@ -42,7 +42,7 @@ const GENERIC_SINGLE_WORD_TITLES = new Set([
   "resources", "specification", "calculation", "details", "scope",
 ]);
 
-function isGenericAncestor(node: AtlasNode): boolean {
+export function isGenericAncestor(node: AtlasNode): boolean {
   const t = node.title.trim();
   return (
     GENERIC_ANCESTOR_TYPES.has(node.type) ||

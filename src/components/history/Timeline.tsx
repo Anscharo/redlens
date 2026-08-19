@@ -45,15 +45,25 @@ interface RowProps {
 
 function Rail({ dot, fuzz, hideTop }: RowProps) {
   return (
-    <div className="relative shrink-0 self-stretch" style={{ width: RAIL_W }} aria-hidden="true">
+    <div
+      className="relative shrink-0 self-stretch"
+      style={{ width: RAIL_W }}
+      aria-hidden="true"
+      data-timeline-rail
+    >
       {!dot ? (
-        !hideTop && <span className="absolute" style={{ ...LINE, top: 0, bottom: BLEED }} />
+        !hideTop && (
+          <span className="absolute" style={{ ...LINE, top: 0, bottom: BLEED }} data-timeline-segment="vertical" />
+        )
       ) : (
         <>
-          {!hideTop && <span className="absolute" style={{ ...LINE, top: 0, height: NODE_TOP }} />}
+          {!hideTop && (
+            <span className="absolute" style={{ ...LINE, top: 0, height: NODE_TOP }} data-timeline-segment="vertical" />
+          )}
           <span
             className="absolute"
             style={{ ...(fuzz ? FUZZ_LINE : LINE), top: NODE_TOP, bottom: BLEED }}
+            data-timeline-segment="vertical"
           />
           {/* Tick from the dot across the gutter gap to where the date starts, so
               the node reads as attached to its entry rather than floating beside it. */}
@@ -69,6 +79,7 @@ function Rail({ dot, fuzz, hideTop }: RowProps) {
           />
           <span
             className="absolute rounded-full"
+            data-timeline-dot
             style={{
               ...CENTER,
               top: NODE_TOP,
@@ -92,7 +103,9 @@ export function TimelineRow({ children, ...rail }: RowProps & { children: ReactN
       <Rail {...rail} />
       {/* Dotted rows own the vertical rhythm (the dot centers on line 1 through
           PAD_Y); connective blocks bring their own margins. */}
-      <div className={rail.dot ? "min-w-0 flex-1 py-2.5" : "min-w-0 flex-1"}>{children}</div>
+      <div className={rail.dot ? "min-w-0 flex-1 py-2.5" : "min-w-0 flex-1"} data-timeline-content>
+        {children}
+      </div>
     </div>
   );
 }

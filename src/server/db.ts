@@ -50,3 +50,5 @@ export async function waitForDb(attempts = 12, sleep: (ms: number) => Promise<un
 export function toVectorLiteral(vec: number[]): string {
   return `[${vec.join(",")}]`;
 }
+
+export { toUuidArrayLiteral, fromUuidArray } from "./pg-array.ts";

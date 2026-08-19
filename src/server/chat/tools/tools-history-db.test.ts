@@ -6,6 +6,7 @@
 // (bun's mock.module patches the module in place — see tool-registry.test.ts's
 // header comment for why this works regardless of import order).
 import { test, expect, mock, beforeEach } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
 
 function mockDb(rows: unknown[] | ((callIndex: number) => unknown[])) {
@@ -18,6 +19,11 @@ function mockDb(rows: unknown[] | ((callIndex: number) => unknown[])) {
   mock.module("../../db.ts", () => ({
     sql: fn,
     toVectorLiteral: (v: number[]) => `[${v.join(",")}]`,
+    // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+    // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+    // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+    toUuidArrayLiteral,
+    fromUuidArray,
     dbTarget: () => "mock:5432/db",
     waitForDb: async () => {},
   }));

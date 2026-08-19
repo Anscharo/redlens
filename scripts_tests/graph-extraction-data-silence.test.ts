@@ -4,7 +4,6 @@
 import { describe, it, expect } from "vitest";
 // @ts-expect-error untyped .mjs build-script module
 import { extractTransfers } from "../scripts/lib/graph-transfers.mjs";
-// @ts-expect-error untyped .mjs build-script module
 import { deriveInstanceName } from "../scripts/lib/graph-instances.mjs";
 
 function entity(slug: string, name: string, entity_type = "ecosystem_actor", subtype: string | null = null): any {

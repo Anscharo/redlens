@@ -479,11 +479,21 @@ always relative to *current* main without baking a moving target into the SHA-ke
 (which stays a pure function of the preview SHA — immutable, required for the P2 bucket
 option). The compare itself is a hash-map walk, microseconds.
 
-**Hash discipline**: the diff hash is `contentHash` from `src/server/embed-text.ts` —
-`sha256(title + "\n\n" + content.trim())` — computed **identically on both sides** (main side
-already stored in `atlas_doc_meta.content_hash`; preview side computed by the server over the
-parsed bundle). Never use the parser's `contentHash` field from docs.json for diffing — that
-is `sha256(raw content lines)`, a different definition kept only for docs.json byte-identity.
+**Hash discipline**: the diff no longer uses a hash at all. `diffDocs` compares the served
+`title` + `content` directly (`sameServedDoc` in `src/server/atlas-refresh.ts`), because both
+available hashes are unfit for this job:
+
+- `contentHash` from `src/server/retrieval/embed-text.ts` is the *embedding*-staleness key. It
+  strips markdown links before hashing, so a PR that only retargets a link would be invisible
+  here — the diff would silently omit it.
+- the parser's `contentHash` field from docs.json (`sha256(raw content lines)`) does see link
+  targets, but covers the body only (no title), is optional/NULL-able, and — being carried
+  alongside the content rather than derived from it here — can disagree with the content it
+  describes.
+
+Comparing the two fields we actually serve is strictly more sensitive than either hash and
+cheaper than both (no sha256 per doc). Still renumber-stable: a pure doc_no change is not a
+diff entry.
 
 - Green bottom border on tree-view entry + `CollapsibleNode` area for `added` / `changed`. (P1)
 - Word-level green underline of new/updated segments → **P2** (needs per-doc text diff).
