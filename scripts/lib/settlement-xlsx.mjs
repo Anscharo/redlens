@@ -10,6 +10,10 @@
  * "Period inflow" on the sheet is value_eom − value_som (a proxy in
  * build_settlement_xlsx.py), not MSC period_inflow. Mapped as
  * positionDelta.
+ *
+ * See .claude/skills/settlement-reports/SKILL.md for what each reconcile()
+ * delta actually detects (dCof is the load-bearing one), the fail-loud
+ * Summary contract, and the known upstream blocks that do not foot.
  */
 
 import fs from "node:fs";

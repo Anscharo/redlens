@@ -3,6 +3,11 @@ import { fetchJson } from "./verify";
 // MSC workbooks from soterlabs/settlement-reports. Independent of the atlas
 // SHA, so this is loaded from BASE_URL /settlements.json — not /api/atlas/<sha>/.
 // The file is gitignored and baked at Docker image build (or `pnpm settlements:parse`).
+//
+// See .claude/skills/settlement-reports/SKILL.md before changing how any
+// figure is derived: supply-side revenue is prime_agent_revenue − cof (NOT
+// Σ per-venue profitToGrove), and cost of funds is a component of what goes
+// to Sky, not a fourth flow.
 
 export interface SettlementVenue {
   id: string;
