@@ -6,7 +6,7 @@
 // address / query land alongside in Task #6 once the pg + embedding layers
 // exist; they take the same Indexes plus a SQL handle.
 import { type Indexes, ancestorChain, resolveNode, type AtlasNode } from "../../retrieval/indexes.ts";
-import { runLexical, runSemantic, rrfMerge, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
+import { runLexical, runSemantic, rrfMerge, attributeSemanticHits, buildLeafScorer, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { statsSection } from "./tools-stats.ts";
 import { censusesSection } from "./tools-censuses.ts";
@@ -162,12 +162,13 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
       // information-destroying `.catch(() => [])`.
       : runSemantic(ix, query, type, fetchK).catch((err) => ({ hits: [], skipped: (err as Error).message })),
   ]);
-  const sem = semResult.hits;
+  const sem = attributeSemanticHits(query, lex, semResult.hits, ix, await buildLeafScorer(query, semResult.hits, ix));
 
   let merged: MergedHit[];
   if (mode === "lexical") merged = lex.map((h) => ({ id: h.id, sources: ["lexical"], rrf_score: 0, score: h.score }));
-  else if (mode === "semantic") merged = sem.map((h) => ({ id: h.id, sources: ["semantic"], rrf_score: 0, score: h.score }));
+  else if (mode === "semantic") merged = sem.map((h) => ({ id: h.id, sources: ["semantic"], rrf_score: 0, score: h.score, via: h.via }));
   else merged = rrfMerge(lex, sem);
+  merged = filterByType(merged, ix, type);
 
   const resolved = merged
     .map((m) => ({ m, n: ix.docMap.get(m.id) }))
@@ -187,6 +188,7 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
     snippet: buildAgentSnippet(n.content, query),
     score: m.rrf_score || m.score,
     sources: m.sources,
+    ...(m.via ? { via: m.via } : {}),
     ...livenessOf(ix, n.id),
   }));
   // Only present when the requested mode actually wanted a semantic leg (a

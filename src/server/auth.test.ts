@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "./pg-array.ts";
 
 let inserted: unknown[] = [];
 let rows: unknown[] = [{ id: "user-1" }];
@@ -11,6 +12,11 @@ mock.module("./db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
+  // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+  // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+  // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+  toUuidArrayLiteral,
+  fromUuidArray,
 }));
 
 // Stub `arctic` so the OAuth start + callback flows run without hitting GitHub or

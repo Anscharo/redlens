@@ -48,8 +48,8 @@ export default defineConfig({
       ],
     },
     // src/server runs under `bun test` (it imports Bun's SQL, absent in node-vitest).
-    // scripts/eval/eval-verifier-mutations.test.ts is likewise a bun test (imports
-    // bun:test + src/server/indexes) — it runs under `test:server`, not vitest.
+    // scripts/eval/*.test.ts files that import bun:test run under `test:server`,
+    // not vitest (eval-verifier-mutations + eval-retrieval-queries).
     // e2e/** are Playwright specs (browser/API against a live deploy) — never vitest.
     // Component tests that need a DOM opt in individually via a `// @vitest-environment jsdom` pragma.
     exclude: [
@@ -59,6 +59,7 @@ export default defineConfig({
       "graph-snapshots/**",
       "src/server/**",
       "scripts/eval/eval-verifier-mutations.test.ts",
+      "scripts/eval/eval-retrieval-queries.test.ts",
       "e2e/**",
     ],
   },

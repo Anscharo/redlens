@@ -11,7 +11,7 @@
 // History is written by build-history.mjs (DB sink) in the worker, not here.
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { sql, waitForDb } from "./db.ts";
+import { sql, waitForDb, toUuidArrayLiteral } from "./db.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
 import { readChainState } from "./chain-state.ts";
@@ -155,7 +155,7 @@ export async function main(deps: SyncDeps = realSyncDeps) {
     });
     if (removedDocIds.length) {
       await chunked(removedDocIds, 5000, async (chunk) => {
-        await tx.unsafe(`DELETE FROM atlas_doc_meta WHERE id = ANY($1::uuid[])`, [`{${chunk.join(',')}}`]);
+        await tx.unsafe(`DELETE FROM atlas_doc_meta WHERE id = ANY($1::uuid[])`, [toUuidArrayLiteral(chunk)]);
       });
     }
     await chunked(addrRows, 1000, async (chunk) => {

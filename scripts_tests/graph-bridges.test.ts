@@ -5,7 +5,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 // @ts-expect-error — .mjs without types; runtime-only import.
 import { extractBridges } from "../scripts/lib/graph-bridges.mjs";
-// @ts-expect-error — .mjs without types; runtime-only import.
 import { makeEntity } from "../scripts/lib/graph-patterns.mjs";
 
 afterEach(() => vi.restoreAllMocks());

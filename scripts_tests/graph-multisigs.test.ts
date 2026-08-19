@@ -6,7 +6,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 // @ts-expect-error — .mjs without types; runtime-only import.
 import { extractMultisigs, parseSignerGroups } from "../scripts/lib/graph-multisigs.mjs";
-// @ts-expect-error — .mjs without types; runtime-only import.
 import { makeEntity } from "../scripts/lib/graph-patterns.mjs";
 
 afterEach(() => vi.restoreAllMocks());

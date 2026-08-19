@@ -17,15 +17,22 @@
 // before an awaited internal read runs — see the bug fixed in
 // atlas-updater.test.ts's withPublicDir for why that matters.
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "./pg-array.ts";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AtlasNode } from "./retrieval/indexes.ts";
 import { buildEmbedText, contentHash } from "./retrieval/embed-text.ts";
+import { buildUnits, foldedIds } from "./retrieval/embed-units.ts";
 
 interface FakeDb {
   colType: string | null; // e.g. "vector(1024)"; null = pg_attribute has no row yet (table/column not migrated)
-  have: { doc_id: string; content_hash: string }[]; // existing atlas_doc_embeddings rows
+  have: {
+    doc_id: string;
+    content_hash: string;
+    attribution_only?: boolean;
+    member_ids?: unknown;
+  }[]; // existing atlas_doc_embeddings rows
 }
 let fakeDb: FakeDb = { colType: "vector(1024)", have: [] };
 function resetFakeDb(): void {
@@ -33,8 +40,14 @@ function resetFakeDb(): void {
 }
 
 interface UnsafeCall {
-  kind: "dim-check" | "embed-upsert" | "unknown";
+  kind: "dim-check" | "embed-upsert" | "embed-meta-update" | "embed-delete" | "unknown";
   paramsLength: number;
+  params?: unknown[];
+  // The SQL text itself, not just its shape: the `::uuid` / `::uuid[]` casts in
+  // the metadata UPDATE are load-bearing (without them Postgres infers the
+  // VALUES columns as text and `e.doc_id = v.doc_id` fails uuid = text), and a
+  // cast can only be asserted against the generated string.
+  query: string;
 }
 let unsafeCalls: UnsafeCall[] = [];
 let ended = false;
@@ -45,20 +58,28 @@ function resetRecording(): void {
 
 async function unsafeMock(query: string, params?: unknown[]): Promise<unknown> {
   if (query.includes("format_type")) {
-    unsafeCalls.push({ kind: "dim-check", paramsLength: 0 });
+    unsafeCalls.push({ kind: "dim-check", paramsLength: 0, query });
     return fakeDb.colType ? [{ t: fakeDb.colType }] : [];
   }
   if (query.includes("INSERT INTO atlas_doc_embeddings")) {
-    unsafeCalls.push({ kind: "embed-upsert", paramsLength: (params ?? []).length });
+    unsafeCalls.push({ kind: "embed-upsert", paramsLength: (params ?? []).length, params: params ?? [], query });
     return [];
   }
-  unsafeCalls.push({ kind: "unknown", paramsLength: 0 });
+  if (query.includes("UPDATE atlas_doc_embeddings")) {
+    unsafeCalls.push({ kind: "embed-meta-update", paramsLength: (params ?? []).length, params: params ?? [], query });
+    return [];
+  }
+  if (query.includes("DELETE FROM atlas_doc_embeddings")) {
+    unsafeCalls.push({ kind: "embed-delete", paramsLength: (params ?? []).length, query });
+    return [];
+  }
+  unsafeCalls.push({ kind: "unknown", paramsLength: 0, query });
   throw new Error(`sync-embeddings.test.ts: unmocked sql.unsafe query: ${query}`);
 }
 
 async function sqlTag(strings: TemplateStringsArray, ..._values: unknown[]): Promise<unknown[]> {
   const text = strings.join("?");
-  if (text.includes("SELECT doc_id, content_hash FROM atlas_doc_embeddings")) {
+  if (text.includes("FROM atlas_doc_embeddings") && text.includes("content_hash")) {
     return fakeDb.have;
   }
   throw new Error(`sync-embeddings.test.ts: unmocked sql template query: ${text}`);
@@ -76,6 +97,11 @@ mock.module("./db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
+  // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+  // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+  // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+  toUuidArrayLiteral,
+  fromUuidArray,
 }));
 
 const { main, batchSizeFromEnv, withRetry } = await import("./sync-embeddings.ts");
@@ -197,6 +223,7 @@ describe("withRetry", () => {
 describe("main()", () => {
   let dir: string;
   let prevPublicDir: string;
+  let prevPolicy: string;
   const noopMigrations = async () => [];
   const failEmbed = async (): Promise<number[][]> => {
     throw new Error("should not be called");
@@ -208,6 +235,7 @@ describe("main()", () => {
     resetRecording();
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "sync-embeddings-main-"));
     prevPublicDir = config.publicDir;
+    prevPolicy = config.embedGroupPolicy;
     config.publicDir = dir;
   });
   afterEach(() => {
@@ -217,12 +245,129 @@ describe("main()", () => {
     // full story of the bug this guards against (it corrupted unrelated
     // chat/verify suites under the full pnpm test:server run).
     config.publicDir = prevPublicDir;
+    config.embedGroupPolicy = prevPolicy;
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
   function writeDocs(atlasCommit: string, nodes: Record<string, AtlasNode>) {
     fs.writeFileSync(path.join(dir, "docs.json"), JSON.stringify({ atlasCommit, nodes }));
   }
+
+  it("treats reordered member_ids as unchanged — member_ids is a set, not a sequence", async () => {
+    // memberIdsEqual used to compare position by position, so any reordering inside
+    // buildUnits would read as drift and rewrite every grouped row's metadata for no
+    // behavioural change. Nothing downstream reads the order (search.ts passes it to
+    // `doc_id = ANY(...)`, pickLeaf re-sorts by score), so this must be a no-op run.
+    const icd = "11111111-1111-1111-1111-111111111111";
+    const params = "22222222-2222-2222-2222-222222222222";
+    const net = "33333333-3333-3333-3333-333333333333";
+    const tok = "44444444-4444-4444-4444-444444444444";
+    const nodes = [
+      doc(icd, "A.6.1.1.1.2.1.1", "Spark Foo Instance Configuration Document", { title: "Spark Foo Instance Configuration Document" }),
+      doc(params, "A.6.1.1.1.2.1.1.1", "The documents herein define the parameters.", { title: "Parameters" }),
+      doc(net, "A.6.1.1.1.2.1.1.1.1", "Ethereum Mainnet", { title: "Network" }),
+      doc(tok, "A.6.1.1.1.2.1.1.1.2", "USDS", { title: "Token" }),
+    ];
+    writeDocs("sha1", Object.fromEntries(nodes.map((n) => [n.id, n])));
+    config.embedGroupPolicy = "icd_params";
+
+    const { buildUnits: build } = await import("./retrieval/embed-units.ts");
+    const { contentHash } = await import("./retrieval/embed-text.ts");
+    const units = build(nodes, "icd_params", {});
+    const anchors = new Set(units.map((u) => u.anchorId));
+    const foldedIds = [...new Set(units.flatMap((u) => u.memberIds))].filter((id) => !anchors.has(id));
+    expect(foldedIds.length).toBeGreaterThan(0); // otherwise the case isn't exercised
+
+    // Everything already correct EXCEPT member_ids order, which is reversed.
+    fakeDb.have = [
+      ...units.map((u) => ({
+        doc_id: u.anchorId,
+        content_hash: u.hash,
+        attribution_only: false,
+        member_ids: `{${[...u.memberIds].reverse().join(",")}}`,
+      })),
+      ...foldedIds.map((id) => ({
+        doc_id: id,
+        content_hash: contentHash(nodes.find((n) => n.id === id)!),
+        attribution_only: true,
+        member_ids: `{${id}}`,
+      })),
+    ] as never;
+
+    const log = captureLog();
+    try {
+      await main({
+        runMigrations: noopMigrations,
+        embedBatch: failEmbed, // any embed at all is a failure here
+        batch: 50,
+        sleep: instantSleep,
+      });
+    } finally {
+      log.restore();
+    }
+    expect(unsafeCalls.find((c) => c.kind === "embed-meta-update")).toBeUndefined();
+    expect(unsafeCalls.find((c) => c.kind === "embed-upsert")).toBeUndefined();
+  });
+
+  it("casts doc_id in the grouping-metadata UPDATE (uuid = text otherwise)", async () => {
+    // An uncast parameter in a VALUES row is inferred as text, so the join
+    // `WHERE e.doc_id = v.doc_id` compares uuid = text and Postgres refuses with
+    // "operator does not exist: uuid = text". A mock accepts any SQL, so this
+    // asserts on the STATEMENT the code actually builds — the only way to catch it
+    // without a live database.
+    const icd = "11111111-1111-1111-1111-111111111111";
+    const params = "22222222-2222-2222-2222-222222222222";
+    const net = "33333333-3333-3333-3333-333333333333";
+    const tok = "44444444-4444-4444-4444-444444444444";
+    writeDocs("sha1", {
+      [icd]: doc(icd, "A.6.1.1.1.2.1.1", "Spark Foo Instance Configuration Document", { title: "Spark Foo Instance Configuration Document" }),
+      [params]: doc(params, "A.6.1.1.1.2.1.1.1", "The documents herein define the parameters.", { title: "Parameters" }),
+      [net]: doc(net, "A.6.1.1.1.2.1.1.1.1", "Ethereum Mainnet", { title: "Network" }),
+      [tok]: doc(tok, "A.6.1.1.1.2.1.1.1.2", "USDS", { title: "Token" }),
+    });
+    config.embedGroupPolicy = "icd_params";
+    // The metadata path fires only when content_hash is UNCHANGED but grouping
+    // metadata differs, so seed the fake DB with each unit's current hash and stale
+    // metadata (attribution_only false, no member_ids). Building the units here is
+    // the only way to know the anchor's grouped hash.
+    const { buildUnits: build } = await import("./retrieval/embed-units.ts");
+    const nodes = [
+      doc(icd, "A.6.1.1.1.2.1.1", "Spark Foo Instance Configuration Document", { title: "Spark Foo Instance Configuration Document" }),
+      doc(params, "A.6.1.1.1.2.1.1.1", "The documents herein define the parameters.", { title: "Parameters" }),
+      doc(net, "A.6.1.1.1.2.1.1.1.1", "Ethereum Mainnet", { title: "Network" }),
+      doc(tok, "A.6.1.1.1.2.1.1.1.2", "USDS", { title: "Token" }),
+    ];
+    fakeDb.have = build(nodes, "icd_params", {}).map((u) => ({
+      doc_id: u.anchorId,
+      content_hash: u.hash,
+      attribution_only: false,
+      member_ids: "{}",
+    })) as never;
+    const log = captureLog();
+    try {
+      await main({
+        runMigrations: noopMigrations,
+        embedBatch: async (texts: string[]) => texts.map(() => [1]),
+        batch: 50,
+        sleep: instantSleep,
+      });
+    } finally {
+      log.restore();
+    }
+    const meta = unsafeCalls.find((c) => c.kind === "embed-meta-update");
+    expect(meta).toBeDefined();
+    {
+      const q = String(meta!.query);
+      const row = q.slice(q.indexOf("(VALUES") + 7, q.indexOf(") AS v"));
+      expect(row).toMatch(/\$\d+::uuid[,)]/); // doc_id
+      expect(row).toContain("::uuid[]"); // member_ids
+      expect(row).toContain("::boolean"); // attribution_only
+    }
+    // The upsert path must be type-safe too: member_ids is a uuid[] column.
+    const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert");
+    expect(upsert).toBeDefined();
+    expect(String(upsert!.query)).toContain("::uuid[]");
+  });
 
   it("throws a clear error when the live vector column dimension does not match EMBED_DIM — never silently embeds at the wrong size", async () => {
     fakeDb.colType = "vector(512)"; // wrong — EMBED_DIM (embed.ts) is 1024
@@ -268,7 +413,7 @@ describe("main()", () => {
     }
     expect(embedCalls).toBe(0);
     expect(ended).toBe(true);
-    expect(logs.some((l) => l.includes("1 docs, 0 stale/new to embed"))).toBe(true);
+    expect(logs.some((l) => l.includes("1 docs") && l.includes("0 stale/new to embed"))).toBe(true);
   });
 
   it("embeds new/changed docs, upserts one row per doc with the right params, and logs the done count", async () => {
@@ -295,7 +440,7 @@ describe("main()", () => {
 
     expect(embedTexts).toEqual([[buildEmbedText(dA), buildEmbedText(dB)]]); // one batch, both stale docs
     const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert");
-    expect(upsert?.paramsLength).toBe(2 * 4); // 2 docs × (doc_id, vector, hash, atlas_sha)
+    expect(upsert?.paramsLength).toBe(2 * 6); // 2 docs × (doc_id, vector, hash, atlas_sha, member_ids, attribution_only)
     expect(ended).toBe(true);
     expect(logs.some((l) => l.includes("done (2 vectors"))).toBe(true);
   });
@@ -369,6 +514,135 @@ describe("main()", () => {
       sleep: instantSleep,
     });
     const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert");
-    expect(upsert?.paramsLength).toBe(1 * 4); // only "b" made it into the upsert
+    expect(upsert?.paramsLength).toBe(1 * 6); // only "b" made it into the upsert
+  });
+
+  function icdFixture(): Record<string, AtlasNode> {
+    // Same tree embed-units.test.ts uses to prove icd_params folding.
+    const icd = doc("icd", "A.6.1.1.1.2.1.1", "The documents herein define this instance.", {
+      title: "Spark Foo Instance Configuration Document",
+    });
+    const params = doc("params", "A.6.1.1.1.2.1.1.1", "The documents herein define the parameters.", {
+      title: "Parameters",
+    });
+    const net = doc("net", "A.6.1.1.1.2.1.1.1.1", "Ethereum Mainnet", { title: "Network" });
+    const tok = doc("tok", "A.6.1.1.1.2.1.1.1.2", "USDS", { title: "Token" });
+    const opd = doc("opd", "A.6.1.1.1.2.1.1.2", "Long process prose about how to operate.", {
+      title: "Operational Process Definition",
+    });
+    return { icd, params, net, tok, opd };
+  }
+
+  it("policy switch one_to_one → icd_params: re-embeds grouped anchors; flips folded rows to attribution_only without re-embedding them", async () => {
+    const nodes = icdFixture();
+    writeDocs("sha1", nodes);
+    fakeDb.have = Object.values(nodes).map((d) => ({
+      doc_id: d.id,
+      content_hash: contentHash(d),
+      attribution_only: false,
+      member_ids: [d.id],
+    }));
+    config.embedGroupPolicy = "icd_params";
+
+    const units = buildUnits(Object.values(nodes), "icd_params");
+    const icdUnit = units.find((u) => u.anchorId === "icd")!;
+    const folded = [...foldedIds(units)];
+    expect(folded.sort()).toEqual(["net", "params", "tok"]);
+
+    let embedTexts: string[][] = [];
+    const { logs, restore } = captureLog();
+    try {
+      await main({
+        runMigrations: noopMigrations,
+        embedBatch: async (texts) => {
+          embedTexts.push(texts);
+          return texts.map(() => [0.1]);
+        },
+        batch: 50,
+        sleep: instantSleep,
+      });
+    } finally {
+      restore();
+    }
+
+    expect(embedTexts).toEqual([[icdUnit.text]]);
+    const upsert = unsafeCalls.find((c) => c.kind === "embed-upsert")!;
+    expect(upsert.params).toContain("icd");
+    expect(upsert.params).not.toContain("net");
+    expect(upsert.params).not.toContain("params");
+    expect(upsert.params).not.toContain("tok");
+    expect(upsert.params).not.toContain("opd");
+
+    const meta = unsafeCalls.find((c) => c.kind === "embed-meta-update")!;
+    expect(meta).toBeDefined();
+    for (const id of folded) expect(meta.params).toContain(id);
+    expect(meta.params).not.toContain("opd");
+    expect(meta.params).not.toContain("icd");
+    // 3 folded rows × (doc_id, atlas_sha, member_ids, attribution_only)
+    expect(meta.paramsLength).toBe(3 * 4);
+    expect(logs.some((l) => l.includes("1 stale/new to embed") && l.includes("3 grouping metadata"))).toBe(true);
+    expect(ended).toBe(true);
+  });
+
+  it("already-grouped rows (including Postgres uuid[] text) with matching hash and flags are a no-op", async () => {
+    const nodes = icdFixture();
+    writeDocs("sha1", nodes);
+    config.embedGroupPolicy = "icd_params";
+    const units = buildUnits(Object.values(nodes), "icd_params");
+    const folded = foldedIds(units);
+    fakeDb.have = [
+      ...units.map((u) => ({
+        doc_id: u.anchorId,
+        content_hash: u.hash,
+        attribution_only: false,
+        // Bun.sql returns uuid[] as `{uuid,uuid}` — sync must not treat that as stale.
+        member_ids: `{${u.memberIds.join(",")}}`,
+      })),
+      ...[...folded].map((id) => ({
+        doc_id: id,
+        content_hash: contentHash(nodes[id]!),
+        attribution_only: true,
+        member_ids: `{${id}}`,
+      })),
+    ];
+
+    let embedCalls = 0;
+    await main({
+      runMigrations: noopMigrations,
+      embedBatch: async () => {
+        embedCalls++;
+        return [];
+      },
+      batch: 50,
+      sleep: instantSleep,
+    });
+    expect(embedCalls).toBe(0);
+    expect(unsafeCalls.some((c) => c.kind === "embed-upsert")).toBe(false);
+    expect(unsafeCalls.some((c) => c.kind === "embed-meta-update")).toBe(false);
+    expect(ended).toBe(true);
+  });
+
+  it("does not mark folded members attribution_only when the grouped-anchor embed fails", async () => {
+    const nodes = icdFixture();
+    writeDocs("sha1", nodes);
+    fakeDb.have = Object.values(nodes).map((d) => ({
+      doc_id: d.id,
+      content_hash: contentHash(d),
+      attribution_only: false,
+      member_ids: [d.id],
+    }));
+    config.embedGroupPolicy = "icd_params";
+
+    await main({
+      runMigrations: noopMigrations,
+      embedBatch: async () => {
+        throw new Error("openrouter down");
+      },
+      batch: 50,
+      sleep: instantSleep,
+    });
+    expect(unsafeCalls.some((c) => c.kind === "embed-upsert")).toBe(false);
+    expect(unsafeCalls.some((c) => c.kind === "embed-meta-update")).toBe(false);
+    expect(ended).toBe(true);
   });
 });

@@ -6,6 +6,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { buildIndexes, type AtlasNode, type Edge, type Indexes } from "./retrieval/indexes.ts";
 import { diffDocs, patchDocs, isEmptyDelta, applyInPlaceUpdate, writeSearchIndex, refreshInPlaceFromDisk } from "./atlas-refresh.ts";
+import { contentHash as embedContentHash } from "./retrieval/embed-text.ts";
 import { atlasQuery } from "./retrieval/query.ts";
 import { config } from "./config.ts";
 
@@ -62,6 +63,42 @@ describe("diffDocs", () => {
     const old = new Map<string, AtlasNode>([["a", doc("a", { doc_no: "A.1", content: "alpha" })]]);
     const next = [doc("a", { doc_no: "A.2", parentId: "x", order: 9, content: "alpha" })];
     expect(isEmptyDelta(diffDocs(old, next))).toBe(true);
+  });
+
+  // The change lane keys on the PARSER hash + title, deliberately not the embed
+  // hash — which is blind to link targets because links are stripped before
+  // embedding. Without this, an atlas PR that only retargets a link would vanish
+  // from the preview /diff.json and the server would serve stale text.
+  it("detects a link-target-only edit that the embed hash cannot see", () => {
+    const before = { title: "T", content: "See [Label](uuid-one)." };
+    const after = { title: "T", content: "See [Label](uuid-two)." };
+    // Precondition: the embed hash really is blind here, because links are
+    // stripped before embedding. This is why the two lanes use different keys.
+    expect(embedContentHash(before)).toBe(embedContentHash(after));
+
+    const old = new Map<string, AtlasNode>([["a", doc("a", before)]]);
+    expect(diffDocs(old, [doc("a", after)]).changed.map((d) => d.id)).toEqual(["a"]);
+  });
+
+  it("detects a title-only edit", () => {
+    const old = new Map<string, AtlasNode>([["a", doc("a", { title: "Old Name", content: "same" })]]);
+    const next = [doc("a", { title: "New Name", content: "same" })];
+    expect(diffDocs(old, next).changed.map((d) => d.id)).toEqual(["a"]);
+  });
+
+  it("does not trust a carried contentHash over the content itself", () => {
+    // A node whose `content` was edited without recomputing `contentHash` must
+    // still count as changed. Keying on the hash would classify this unchanged —
+    // exactly the trap preview/handler.test.ts's `{...orig, content: …}` fixture
+    // walks into, and the reason this compares the served fields directly.
+    const old = new Map<string, AtlasNode>([["a", doc("a", { content: "alpha", contentHash: "same-stale-hash" })]]);
+    const next = [doc("a", { content: "alpha EDITED", contentHash: "same-stale-hash" })];
+    expect(diffDocs(old, next).changed.map((d) => d.id)).toEqual(["a"]);
+  });
+
+  it("treats identical title+content as unchanged regardless of contentHash presence", () => {
+    const old = new Map<string, AtlasNode>([["a", doc("a", { content: "alpha" })]]);
+    expect(isEmptyDelta(diffDocs(old, [doc("a", { content: "alpha", contentHash: "whatever" })]))).toBe(true);
   });
 });
 
