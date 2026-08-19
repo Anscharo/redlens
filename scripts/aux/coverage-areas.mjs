@@ -237,16 +237,20 @@ function fmtDelta(value) {
   return `${sign}${value.toFixed(2)} pts`;
 }
 
-// Merge per-runner LCOV reports. For a file that several runners recorded, the
-// runner that actually EXERCISED it (greatest total hits) is authoritative for
-// which lines are executable; hits still sum across every runner, but only over
-// that authoritative line set. The reason is the same failure class isLogicLine()
-// documents for comments: a runner that merely IMPORTED the file (bun reaching
-// src/lib via a src/server import) emits DA:0 rows for lines the exercising
-// runner's instrumentation doesn't consider executable at all — `export function`
-// headers, multi-line condition continuations — and a naive union manufactures
-// permanently-uncovered lines out of fully tested code. A file only one runner
-// recorded keeps that runner's lines untouched.
+// Merge per-runner LCOV reports. Hits always sum. The line set is the
+// intersection of every runner's instrumented lines, plus any line at least
+// one runner actually executed (hits > 0).
+//
+// Picking the runner with the greatest total hits (the previous rule) failed
+// when bun both imported a scripts/lib helper (pickAtlasCommit, hundreds of
+// hits) AND emitted DA:0 rows for functions it never called (`gitHead`,
+// `stampAtlasCommit`) and for object-literal continuations v8 does not
+// consider executable. Those zeros became the denominator and failed the
+// changed-line gate on code vitest had fully tested. Intersection drops the
+// phantom DA:0 extras; the hits>0 union keeps a line only one runner executed
+// (e.g. vitest's catch-body `return null` when bun attributed the same catch
+// to a different line). A file only one runner recorded keeps that runner's
+// lines untouched.
 export function mergeLcovReports(reports) {
   const perFile = new Map();
   for (const report of reports) {
@@ -261,21 +265,24 @@ export function mergeLcovReports(reports) {
       merged.set(file, fileReports[0]);
       continue;
     }
-    let authoritative = fileReports[0];
-    let bestTotal = -1;
-    for (const lines of fileReports) {
-      let total = 0;
-      for (const hits of lines.values()) total += hits;
-      if (total > bestTotal) {
-        bestTotal = total;
-        authoritative = lines;
+    const intersection = new Set(fileReports[0].keys());
+    for (const lines of fileReports.slice(1)) {
+      for (const n of [...intersection]) {
+        if (!lines.has(n)) intersection.delete(n);
       }
     }
     const out = new Map();
-    for (const lineNo of authoritative.keys()) {
+    const add = (lineNo) => {
+      if (out.has(lineNo)) return;
       let sum = 0;
       for (const lines of fileReports) sum += lines.get(lineNo) ?? 0;
       out.set(lineNo, sum);
+    };
+    for (const n of intersection) add(n);
+    for (const lines of fileReports) {
+      for (const [n, hits] of lines) {
+        if (hits > 0) add(n);
+      }
     }
     merged.set(file, out);
   }
