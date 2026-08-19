@@ -162,9 +162,12 @@ Both in `scripts/build_settlement_xlsx.py`, both from using `_block`
    Invariant 1 — ignore the block's total and compute `par − cof`.
 2. **`Sky Revenue (max)` is inverted.** Addends sum to `2·cof − sky_gross`
    against a printed total of `sky_gross`; the real relation is `sky_gross −
-   reduction = cof`. Affects 29 of 36 (foots only for Obex, where the
-   reduction is 0). Display-only; RedLens does not read it. The same figures
-   are rendered *correctly* on the `Sky Revenue` sheet as indented `↳` rows.
+   reduction = cof`. The block is present on 22 of 36 and fails to foot on
+   15 (Spark, Grove, Osero). It foots only for Obex (reduction = 0). Keel
+   and Skybase omit the block (`sky_gross = 0`). Display-only; RedLens does
+   not read it. The Sky Revenue sheet dumps the same three numbers as `↳`
+   rows without a false total — the children still do not add to the parent.
+   Independent verification: `docs/reviews/2026-08-19-soter-xlsx-footing.md`.
 
 ## Audit runbook
 
