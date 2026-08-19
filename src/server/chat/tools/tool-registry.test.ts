@@ -13,6 +13,7 @@
 // tools-history.test.ts's pure summarizeHistoryStats tests), so this is about
 // exercising the handler wiring, not re-testing DB query logic.
 import { test, expect, mock, beforeEach } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
 import { ATLAS_TOOLS, TOOLS_BY_NAME, toolDescription, type AtlasTool } from "./tool-registry.ts";
 import { execToolDetailed } from "./llm-tools.ts";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
@@ -25,6 +26,11 @@ function mockDb(rows: unknown[] = []) {
   mock.module("../../db.ts", () => ({
     sql: fn,
     toVectorLiteral: (v: number[]) => `[${v.join(",")}]`,
+    // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+    // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+    // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+    toUuidArrayLiteral,
+    fromUuidArray,
     dbTarget: () => "mock:5432/db",
     waitForDb: async () => {},
   }));

@@ -1,16 +1,71 @@
 // sync:embeddings — reconcile pgvector embeddings against the atlas. Separate,
-// best-effort lane: never blocks structural sync. Incremental by content_hash —
-// only new/changed docs are re-embedded; a re-run after a clean sync is a no-op.
+// best-effort lane: never blocks structural sync. Incremental by content_hash
+// AND grouping metadata (attribution_only / member_ids): only new/changed docs
+// are re-embedded; a policy switch that keeps a folded member's 1:1 hash still
+// UPDATEs the flags so those rows stop competing in search. A re-run after a
+// clean sync is a no-op.
 //
 //   bun src/server/sync-embeddings.ts   # embed all new/changed docs
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { sql, toVectorLiteral } from "./db.ts";
+import { sql, toVectorLiteral, toUuidArrayLiteral } from "./db.ts";
+import { fromUuidArray } from "./pg-array.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
-import { buildEmbedText, contentHash } from "./retrieval/embed-text.ts";
 import { embedBatch, EMBED_DIM } from "./retrieval/embed.ts";
 import type { AtlasNode } from "./retrieval/indexes.ts";
+import { buildUnits, foldedIds, GROUP_POLICIES, type EmbedUnit, type GroupPolicy } from "./retrieval/embed-units.ts";
+import { buildEmbedText, contentHash } from "./retrieval/embed-text.ts";
+
+interface HaveRow {
+  hash: string;
+  attributionOnly: boolean;
+  memberIds: unknown;
+}
+
+interface WantedRow {
+  id: string;
+  doc_no: string;
+  text: string;
+  hash: string;
+  memberIds: string[];
+  attributionOnly: boolean;
+}
+
+// Empty uuid[] is the column default and means "this row is itself" (migration 022).
+//
+// Set comparison, not positional: member_ids records WHICH docs a vector covers,
+// and nothing downstream reads it as a sequence — search.ts hands it to
+// `doc_id = ANY(...)` and pickLeaf re-sorts by score. Comparing positionally
+// would make a harmless reordering inside buildUnits look like drift and rewrite
+// every grouped row for nothing.
+function memberIdsEqual(docId: string, stored: unknown, expected: readonly string[]): boolean {
+  const parsed = fromUuidArray(stored);
+  const have = parsed.length === 0 ? [docId] : parsed;
+  if (have.length !== expected.length) return false;
+  const wanted = new Set(expected);
+  // Set sizes too, so a duplicated id can't pass an equal-length subset check.
+  return new Set(have).size === wanted.size && have.every((id) => wanted.has(id));
+}
+
+// Folded members stay searchable until their grouped anchor vector actually
+// exists: flipping attribution_only first would hide them while search still
+// has the old 1:1 parent. Owner-ready = upserted this run, or already stored
+// at the grouped unit's hash (a previous run embedded the anchor).
+function groupingAnchorReady(
+  memberId: string,
+  units: EmbedUnit[],
+  have: Map<string, HaveRow>,
+  upserted: Set<string>,
+): boolean {
+  for (const u of units) {
+    if (u.anchorId === memberId || !u.memberIds.includes(memberId)) continue;
+    if (upserted.has(u.anchorId)) return true;
+    const h = have.get(u.anchorId);
+    if (h && h.hash === u.hash) return true;
+  }
+  return false;
+}
 
 // Per-request embedding batch size (how many texts per OpenRouter call). There
 // is no total cap: the content_hash diff already bounds each run to new/changed
@@ -88,29 +143,88 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
   const atlasSha: string = docsFile.atlasCommit ?? "unknown";
   const docs = Object.values(docsFile.nodes);
 
-  const have = new Map<string, string>(
-    (await sql`SELECT doc_id, content_hash FROM atlas_doc_embeddings`).map(
-      (r: { doc_id: string; content_hash: string }) => [r.doc_id, r.content_hash],
-    ),
+  const have = new Map<string, HaveRow>(
+    (
+      await sql`SELECT doc_id, content_hash, attribution_only, member_ids FROM atlas_doc_embeddings`
+    ).map((r: { doc_id: string; content_hash: string; attribution_only: boolean; member_ids: unknown }) => [
+      r.doc_id,
+      { hash: r.content_hash, attributionOnly: Boolean(r.attribution_only), memberIds: r.member_ids },
+    ]),
   );
 
-  // Stable order so progress/restarts are deterministic.
-  const queue = docs
-    .map((d) => ({ id: d.id, doc_no: d.doc_no, text: buildEmbedText(d), hash: contentHash(d) }))
-    .filter((q) => have.get(q.id) !== q.hash)
-    .sort((a, b) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true }));
+  const byId = new Map(docs.map((d) => [d.id, d]));
 
-  const total = queue.length;
-  console.log(`sync:embeddings — ${docs.length} docs, ${total} stale/new to embed`);
-  if (total === 0) {
+  const policy = (GROUP_POLICIES as readonly string[]).includes(config.embedGroupPolicy)
+    ? (config.embedGroupPolicy as GroupPolicy)
+    : "one_to_one";
+  // No opts: cap and crumb depth/root were env knobs that measured as no-ops and
+  // were removed. Policies carry their own defaults (kv_records_breadcrumbs keeps the
+  // root crumb internally because that one IS load-bearing — without it 13 units come
+  // out byte-identical to another, i.e. duplicate vectors nothing can rank apart).
+  const units = buildUnits(docs, policy, {});
+  const folded = [...foldedIds(units)];
+  // Folded members used to be DELETED. They are now embedded 1:1 and stored with
+  // attribution_only = true (migration 023): excluded from search, read only to decide
+  // WHICH member of an already-retrieved group a query wanted. That step was measured
+  // at 34% accurate with term overlap vs ~51% against vectors, and is the single
+  // largest loss in the pipeline — retrieval finds the right group for essentially
+  // every ICD query and attribution throws two thirds of them away.
+  const foldedSet = new Set(folded);
+  const attributionUnits: WantedRow[] = folded
+    .map((id) => byId.get(id))
+    .filter((d): d is NonNullable<typeof d> => !!d)
+    .map((d) => ({
+      id: d.id,
+      doc_no: d.doc_no,
+      text: buildEmbedText(d),
+      hash: contentHash(d),
+      memberIds: [d.id],
+      attributionOnly: true,
+    }));
+
+  // Folded members keep contentHash(d) — the same 1:1 hash they had before
+  // grouping — so a policy switch (one_to_one → icd_params) is invisible to a
+  // hash-only stale check. Those rows still need attribution_only / member_ids
+  // written or they keep competing in search.ts's WHERE NOT attribution_only.
+  const wanted: WantedRow[] = units
+    .map((u) => {
+      const anchor = byId.get(u.anchorId);
+      return {
+        id: u.anchorId,
+        doc_no: anchor?.doc_no ?? "",
+        text: u.text,
+        hash: u.hash,
+        memberIds: u.memberIds,
+        attributionOnly: foldedSet.has(u.anchorId),
+      };
+    })
+    .concat(attributionUnits);
+
+  const byDocNo = (a: WantedRow, b: WantedRow) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true });
+  const toEmbed = wanted.filter((q) => {
+    const h = have.get(q.id);
+    return !h || h.hash !== q.hash;
+  }).sort(byDocNo);
+  const toMeta = wanted.filter((q) => {
+    const h = have.get(q.id);
+    if (!h || h.hash !== q.hash) return false;
+    return h.attributionOnly !== q.attributionOnly || !memberIdsEqual(q.id, h.memberIds, q.memberIds);
+  }).sort(byDocNo);
+
+  const total = toEmbed.length;
+  console.log(
+    `sync:embeddings — ${docs.length} docs, ${units.length} units (${policy}), ${total} stale/new to embed, ${toMeta.length} grouping metadata`,
+  );
+  if (total === 0 && toMeta.length === 0) {
     await sql.end();
     return;
   }
 
   let done = 0;
   let skipped = 0;
+  const upserted = new Set<string>();
   for (let i = 0; i < total; i += deps.batch) {
-    const slice = queue.slice(i, Math.min(i + deps.batch, total));
+    const slice = toEmbed.slice(i, Math.min(i + deps.batch, total));
     let vecs: number[][];
     try {
       vecs = await withRetry(() => deps.embedBatch(slice.map((s) => s.text)), 3, deps.sleep);
@@ -125,21 +239,50 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
     const valuesSql = slice
       .map((s, j) => {
         const b = params.length;
-        params.push(s.id, toVectorLiteral(vecs[j]), s.hash, atlasSha);
-        return `($${b + 1}, $${b + 2}::vector, $${b + 3}, $${b + 4})`;
+        params.push(s.id, toVectorLiteral(vecs[j]), s.hash, atlasSha, toUuidArrayLiteral(s.memberIds), s.attributionOnly);
+        return `($${b + 1}, $${b + 2}::vector, $${b + 3}, $${b + 4}, $${b + 5}::uuid[], $${b + 6})`;
       })
       .join(",");
     await sql.unsafe(
-      `INSERT INTO atlas_doc_embeddings (doc_id, embedding, content_hash, atlas_sha) VALUES ${valuesSql}
+      `INSERT INTO atlas_doc_embeddings (doc_id, embedding, content_hash, atlas_sha, member_ids, attribution_only) VALUES ${valuesSql}
        ON CONFLICT (doc_id) DO UPDATE SET
-         embedding = excluded.embedding, content_hash = excluded.content_hash, atlas_sha = excluded.atlas_sha`,
+         embedding = excluded.embedding, content_hash = excluded.content_hash, atlas_sha = excluded.atlas_sha,
+         member_ids = excluded.member_ids, attribution_only = excluded.attribution_only`,
       params,
     );
     done += slice.length;
+    for (const s of slice) upserted.add(s.id);
     if (done % 500 < deps.batch || done === total) console.log(`  ${done}/${total}`);
   }
+
+  // Embed grouped anchors BEFORE hiding folded 1:1 rows. A failed parent embed
+  // must not flip children to attribution_only or they vanish from search while
+  // the parent still has its old 1:1 vector.
+  const metaNow = toMeta.filter((q) => !q.attributionOnly || groupingAnchorReady(q.id, units, have, upserted));
+  if (metaNow.length) {
+    const params: unknown[] = [];
+    const valuesSql = metaNow
+      .map((s) => {
+        const b = params.length;
+        params.push(s.id, atlasSha, toUuidArrayLiteral(s.memberIds), s.attributionOnly);
+        // doc_id MUST be cast: an uncast parameter in a VALUES list is inferred as
+        // text, and the join below then compares uuid = text — "operator does not
+        // exist: uuid = text". Every column in a VALUES row needs its own type.
+        return `($${b + 1}::uuid, $${b + 2}, $${b + 3}::uuid[], $${b + 4}::boolean)`;
+      })
+      .join(",");
+    await sql.unsafe(
+      `UPDATE atlas_doc_embeddings AS e SET
+         atlas_sha = v.atlas_sha, member_ids = v.member_ids, attribution_only = v.attribution_only
+       FROM (VALUES ${valuesSql}) AS v(doc_id, atlas_sha, member_ids, attribution_only)
+       WHERE e.doc_id = v.doc_id`,
+      params,
+    );
+  }
+
+  const metaNote = metaNow.length ? `, ${metaNow.length} metadata` : "";
   console.log(
-    `sync:embeddings — done (${done} vectors${skipped ? `, ${skipped} skipped (retry next run)` : ""}, atlas ${atlasSha.slice(0, 12)})`,
+    `sync:embeddings — done (${done} vectors${skipped ? `, ${skipped} skipped (retry next run)` : ""}${metaNote}, atlas ${atlasSha.slice(0, 12)})`,
   );
   await sql.end();
 }

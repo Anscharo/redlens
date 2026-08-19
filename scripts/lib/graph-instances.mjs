@@ -227,17 +227,22 @@ function expandBulletList(content, outerTitle) {
   return out.length ? out : null;
 }
 
-// Walk down from the Parameters doc under an ICD and flatten leaves into
+// Walk down from ANY param-container root and flatten leaves into
 // { key: [formattedValue, srcUuid, srcDocNo] }. Handles both flat (DR/IB/
 // agent-token) and nested (Allocation System: Parameters → Instance Identifiers
 // → Network) variants. Key = leaf title. On title collision, prefix with
 // "{parentTitle} / " to disambiguate.
-export function extractInstanceParams(icd, childrenByDocNo) {
-  const direct = childrenByDocNo.get(icd.doc_no) ?? [];
-  const paramsDoc = direct.find((c) => c.title === "Parameters");
-  if (!paramsDoc) return {};
+//
+// Root-agnostic on purpose: an ICD's canonical `Parameters` child is only one such
+// container. `Instance-specific Operational Parameters` (23 ICDs) holds Contract
+// Addresses / Risk Parameters blocks in exactly the same shape, and the embedding
+// lane folds those too — so the walk lives here, pointed at a root, rather than
+// being duplicated. Callers that want the canonical ICD behavior use
+// extractInstanceParams below.
+export function extractParamsFromRoot(rootDoc, childrenByDocNo) {
+  if (!rootDoc) return {};
   const params = {};
-  const pending = [{ doc: paramsDoc, parents: [] }];
+  const pending = [{ doc: rootDoc, parents: [] }];
   while (pending.length) {
     const { doc, parents } = pending.shift();
     const kids = childrenByDocNo.get(doc.doc_no) ?? [];
@@ -268,4 +273,15 @@ export function extractInstanceParams(icd, childrenByDocNo) {
     }
   }
   return params;
+}
+
+// The canonical ICD case: params under the ICD's `Parameters` child. Unchanged
+// contract — the graph build (graph-entities.mjs) and the eval query generator
+// both depend on exactly this behavior.
+export function extractInstanceParams(icd, childrenByDocNo) {
+  const direct = childrenByDocNo.get(icd.doc_no) ?? [];
+  return extractParamsFromRoot(
+    direct.find((c) => c.title === "Parameters"),
+    childrenByDocNo,
+  );
 }

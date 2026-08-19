@@ -12,6 +12,7 @@
 // imports fetch-balances.ts. Mocking the npm dependency both files already
 // share, and letting the real fetch-balances.ts run against it, avoids that.
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "../pg-array.ts";
 import * as realViem from "viem";
 import type { BalancesResponse } from "../../lib/balances.ts";
 
@@ -90,6 +91,11 @@ mock.module("../db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
+  // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+  // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+  // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+  toUuidArrayLiteral,
+  fromUuidArray,
 }));
 
 // Every address on "ethereum" resolves to a real RPC URL from the canonical

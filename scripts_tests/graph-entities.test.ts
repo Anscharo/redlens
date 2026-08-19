@@ -14,7 +14,6 @@ import {
   RANKED_DELEGATE_UUIDS,
   SPELL_TEAM_UUID,
   ACTIVE_ECOSYSTEM_ACTORS_UUID,
-  // @ts-expect-error — .mjs without types; runtime-only import.
 } from "../scripts/lib/graph-patterns.mjs";
 import type { AtlasNode } from "../src/types";
 

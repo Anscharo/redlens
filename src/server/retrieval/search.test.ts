@@ -10,10 +10,12 @@
 // real sleep on any hiccup). The runSemantic failure-path tests set the key
 // themselves and restore the PINNED empty state (not ambient) in afterEach,
 // so the pin holds for every case that follows them.
-import { test, expect, beforeAll, afterAll, afterEach } from "bun:test";
-import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, type Hit } from "./search.ts";
+import { test, expect, describe, it, beforeAll, afterAll, afterEach } from "bun:test";
+import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
 import { config } from "../config.ts";
-import type { Indexes } from "./indexes.ts";
+import type { AtlasNode, Indexes } from "./indexes.ts";
+import fs from "node:fs";
+import path from "node:path";
 
 let prevKey: string;
 beforeAll(() => {
@@ -124,6 +126,46 @@ test("buildAgentSnippet on a short doc returns it whole with no ellipses", () =>
   expect(buildAgentSnippet("", "body")).toBe("");
 });
 
+test("attributeSemanticHits fuses a semantic parent with a lexical descendant onto the child", () => {
+  const parent: AtlasNode = {
+    id: "p", doc_no: "A.1.1", title: "Parent", type: "Core", depth: 3,
+    parentId: null, content: "parent body", order: 0, addressRefs: [],
+  };
+  const child: AtlasNode = {
+    id: "c", doc_no: "A.1.1.1", title: "Network", type: "Core", depth: 4,
+    parentId: "p", content: "Ethereum Mainnet", order: 0, addressRefs: [],
+  };
+  const ix = { docMap: new Map([["p", parent], ["c", child]]) } as Indexes;
+  const lex: Hit[] = [{ id: "c", rank: 0, score: 10, source: "lexical" }];
+  const sem: Hit[] = [{ id: "p", rank: 0, score: 0.9, source: "semantic", memberIds: ["p", "c"] }];
+  const out = attributeSemanticHits("network", lex, sem, ix);
+  expect(out[0]!.id).toBe("c");
+  expect(out[0]!.via?.group_id).toBe("p");
+  expect(out[0]!.via?.match_scope).toBe("child");
+  const merged = rrfMerge(lex, out);
+  expect(merged).toHaveLength(1);
+  expect(merged[0]!.id).toBe("c");
+  expect(merged[0]!.sources.sort()).toEqual(["lexical", "semantic"]);
+});
+
+test("filterByType runs after leaf-pick so a Core child of a grouped Section parent is kept", () => {
+  const parent: AtlasNode = {
+    id: "p", doc_no: "A.1.1", title: "Parent", type: "Section", depth: 3,
+    parentId: null, content: "parent body", order: 0, addressRefs: [],
+  };
+  const child: AtlasNode = {
+    id: "c", doc_no: "A.1.1.1", title: "Network", type: "Core", depth: 4,
+    parentId: "p", content: "Ethereum Mainnet", order: 0, addressRefs: [],
+  };
+  const ix = { docMap: new Map([["p", parent], ["c", child]]) } as Indexes;
+  const lex: Hit[] = [];
+  const sem: Hit[] = [{ id: "p", rank: 0, score: 0.9, source: "semantic", memberIds: ["p", "c"] }];
+  const attributed = attributeSemanticHits("network", lex, sem, ix);
+  expect(attributed[0]!.id).toBe("c");
+  expect(filterByType(attributed, ix, "Core")).toHaveLength(1);
+  expect(filterByType(attributed, ix, "Section")).toHaveLength(0);
+});
+
 test("rrfMerge fuses ranks, dedups by id, and records both sources", () => {
   const lex: Hit[] = [
     { id: "a", rank: 0, score: 9, source: "lexical" },
@@ -157,4 +199,47 @@ test("matchesPhrases requires every case-insensitive AND case-sensitive phrase",
   expect(matchesPhrases("usds token", "x", [], ["USDS"])).toBe(false);
   // all-of semantics: one missing → false
   expect(matchesPhrases("USDS savings rate", "x", ["savings rate"], ["MISSING"])).toBe(false);
+});
+
+describe("residualQuery", () => {
+  it("removes words the retrieved groups already account for", () => {
+    // The instance name dominates the query embedding, so members win by echoing it
+    // rather than by answering. Inside a group that name discriminates nothing.
+    const q = "which chain does Ethereum Mainnet - Fluid sUSDS ERC4626 Vault run on";
+    const out = residualQuery(q, ["Ethereum Mainnet - Fluid sUSDS ERC4626 Vault Instance Configuration Document"]);
+    expect(out).toBe("which chain does run on");
+  });
+
+  it("strips the union of several anchor titles", () => {
+    const out = residualQuery("who controls Grove Freezer Multisig", ["Grove Multisigs", "Freezer Multisig"]);
+    expect(out).toBe("who controls");
+  });
+
+  it("keeps the original query when everything would be stripped", () => {
+    // An empty residual carries no signal at all; the unstripped query is strictly better.
+    const q = "Freezer Multisig";
+    expect(residualQuery(q, ["Freezer Multisig"])).toBe(q);
+  });
+});
+
+describe("the semantic ANN query and the index that serves it", () => {
+  // Migration 024 makes the HNSW index PARTIAL on `NOT attribution_only`, which
+  // is what stops a `LIMIT k` scan from spending slots on rows the query then
+  // filters away (grouping puts ~5 attribution-only rows in the table per
+  // searchable anchor). Postgres only uses a partial index when the query's
+  // predicate implies the index's — so if these two drift apart, nothing errors:
+  // the planner silently falls back to a sequential scan over every vector, and
+  // 024 also dropped the full-table HNSW that used to catch it.
+  const readSrc = (rel: string): string => fs.readFileSync(path.join(import.meta.dir, rel), "utf8");
+
+  it("filter on the same predicate", () => {
+    const query = readSrc("./search.ts");
+    const migration = readSrc("../migrations/024_searchable_hnsw.sql");
+
+    // Alias-insensitive: search.ts writes `e.attribution_only`, the index `attribution_only`.
+    const predicate = /WHERE NOT (?:\w+\.)?attribution_only/;
+    expect(query).toMatch(predicate);
+    expect(migration).toMatch(predicate);
+    expect(migration).toContain("USING hnsw (embedding vector_cosine_ops)");
+  });
 });

@@ -5,6 +5,7 @@
 // (readFileSync is not mocked) but never executed against a real DB — the fake
 // connections just record what they were asked to run.
 import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { toUuidArrayLiteral, fromUuidArray } from "./pg-array.ts";
 
 let queries: string[] = [];
 let appliedIds: string[] = [];
@@ -55,6 +56,11 @@ mock.module("./db.ts", () => ({
   dbTarget: () => "mock-db",
   waitForDb: () => Promise.resolve(),
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
+  // Real impls, never re-stubbed: `Array.isArray("{uuid,uuid}")` is false, so a
+  // hand-rolled stub silently returns [] for what Bun.sql actually hands back.
+  // See pg-array.ts; enforced by scripts/aux/audit-mock-modules.mjs.
+  toUuidArrayLiteral,
+  fromUuidArray,
 }));
 
 const { migrationFiles, runMigrations } = await import("./migrate.ts");
