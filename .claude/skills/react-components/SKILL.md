@@ -9,11 +9,11 @@ description: >
   component (dialog, menu, tabs, accordion, panel), or reworking a
   component's markup, ARIA, or keyboard behaviour. Covers
   one-component-one-element, extending native HTML props, Root/Trigger/Content
-  composition, as / asChild, semantic HTML + ARIA, and data-slot / data-state.
+  composition, as / asChild, semantic HTML + ARIA, and data-state.
   Keywords: react component, new component, add a component, refactor
   component, extract component, split component, component too big, component
   API, props, ComponentProps, compound component, Root Trigger Content,
-  asChild, as prop, polymorphic, data-slot, data-state, accessibility, a11y,
+  asChild, as prop, polymorphic, data-state, accessibility, a11y,
   aria, keyboard navigation, focus management, semantic HTML, src/components,
   components.build.
 license: MIT
@@ -35,6 +35,15 @@ For visual/token work use the **`ui-look-and-feel`** skill instead.
 
 **If you are building a `/reports/<slug>` page, stop and use the `new-report` skill** —
 it is the canonical checklist for that surface. Come back here for the components it renders.
+
+## Scope: new and changed code only — never retrofit
+
+Most of this codebase predates these rules and does not follow them: 2 of 177 components
+extend `React.ComponentProps`, 2 export a `<Name>Props` type, 5 spread props at all. **That is
+expected and is not a defect to go fix.** Apply these rules to the component you are creating
+or substantially reworking. Do not open sweeping conformance PRs, do not "fix" a neighbouring
+file because you noticed it, and do not treat an existing component's shape as a bug. Where a
+rule below is aspirational rather than established practice, it is marked **[new code]**.
 
 ## 0. Classify before you build
 
@@ -72,11 +81,23 @@ Split it into `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardFooter`
 stated payoff: maximum customisation, no prop drilling, caller-controlled semantic HTML,
 direct control over ARIA, and one simple mental model.
 
+**The working budget: about 6 props.** Past that, ask whether the extra props are really
+*parts* of the component wearing a prop disguise — a `title`, a `footer`, an `actions` node —
+and split instead. This is a design signal, not a lint rule; a component with 8 genuinely
+scalar props is fine, one with 8 `ReactNode` slots is a composition waiting to happen.
+52 component files currently take slot-shaped props, so expect to meet them.
+
+**Known exception — `ReportShell`.** It takes ~17 props in a deliberately fixed slot order
+(title → description → controls → filter summary → count + actions → body) because it also
+owns `useDocumentTitle` and the `report_view` event *so a new report cannot forget them*.
+That centralisation is the point, and 13 pages depend on it. **Don't refactor it, and don't
+cite it as precedent** — it is the shape this section is steering new components away from.
+
 This is also how you satisfy the RedLens size rules — **max ~150 lines per file, max 3
 components per file** (and only if 2 of them are under 8 lines). 31 files currently exceed
 150 lines; those are known debt, to be split when you touch them, not in a big-bang refactor.
 
-## 2. Extend the native element's props
+## 2. Extend the native element's props **[new code]**
 
 ```tsx
 export type FilterPillProps = React.ComponentProps<"button"> & {
@@ -89,7 +110,10 @@ export function FilterPill({ active, ...props }: FilterPillProps) {
 }
 ```
 
-Rules, all from `types`:
+Rules, all from `types`. These are the least-established rules in this skill — the existing
+precedents are `Link.tsx` and `AtlasLink.tsx`, which use
+`interface X extends Omit<ComponentPropsWithoutRef<"a">, "href">`. Apply them to new
+components; leave existing ones alone.
 
 - **Extend the wrapped element**: `React.ComponentProps<"div" | "button" | "input" | "a" | "form">`.
   Extending an existing component? `ComponentProps<typeof Thing>`.
@@ -161,8 +185,9 @@ the tree is overwhelmingly real `<button>`s, with a single `<div onClick>` in pr
 - **The four ARIA rules**: don't use ARIA if semantic HTML will do; don't change native
   semantics unnecessarily; every interactive element must be keyboard accessible; never hide
   a focusable element from assistive tech.
-- **Every interactive element needs an accessible name.** Icon-only buttons take `aria-label`
-  (or an `sr-only` span), with the glyph marked `aria-hidden="true"`.
+- **Every interactive element needs an accessible name.** Icon-only buttons take **`aria-label`**
+  — the house convention, 47 uses — with the glyph marked `aria-hidden="true"`. (Tailwind's
+  built-in `sr-only` utility also works, but no component uses it today; prefer `aria-label`.)
 - **Declare and implement a keyboard map** for every interactive component. The spec's
   standard maps: menu → `ArrowDown`/`ArrowUp`/`Home`/`End`/`Escape`; dropdown → adds
   `Enter`/`Space`, wrapping at both ends; tabs → `ArrowLeft`/`ArrowRight`/`Home`/`End` plus
@@ -175,9 +200,12 @@ the tree is overwhelmingly real `<button>`s, with a single `<div onClick>` in pr
 - **Announce async changes** with `aria-live="polite"` (or `role="alert"` /
   `aria-live="assertive"` for errors) and `aria-busy` while loading — `StatusPill.tsx` does this.
 - **Labels, not placeholders.** A placeholder disappears when typing.
-- Prefer `aria-disabled` + an explanation over bare `disabled` on a submit button, so the user
-  can focus it and learn why it is unavailable.
-- Touch targets: 44×44px minimum.
+- **Use the native `disabled` attribute.** The spec suggests preferring `aria-disabled` +
+  an explanation; RedLens has deliberately kept native `disabled` (18 uses, no `aria-disabled`).
+  Follow the house rule. If a disabled control genuinely needs to explain itself, add the
+  explanation as adjacent text rather than switching the mechanism.
+- Touch targets: 44×44px minimum **for new interactive controls**. Not retrofitted — this is
+  not currently enforced repo-wide.
 
 `oxlint` runs with the React plugin and catches a slice of this automatically (`pnpm lint`),
 but it will not tell you a keyboard map is missing.
@@ -191,17 +219,21 @@ the prop list, and makes state *combinations* unstylable.
 Instead put the state on the element and let CSS select it:
 
 ```tsx
-<div data-state={isOpen ? "open" : "closed"} data-slot="dialog" {...props} />
+<div data-state={isOpen ? "open" : "closed"} {...props} />
 ```
 
-- **`data-state`** for visual state — `open`/`closed`, `active`/`inactive`, `on`/`off`.
-  Related: `data-disabled`, `data-loading`, `data-orientation`, `data-side`, `data-align`,
-  `data-placeholder`. For `disabled`, set the data attribute **in addition to** the native one.
-- **`data-slot`** for a stable identifier a parent or global CSS can target without depending
-  on element types or private class names. Names are **kebab-case, specific, purpose-based**:
-  `search-input`, `submit-button`, `card-header`, `error-message` — not `input` (too generic),
-  `blueButton` (styling), `div-wrapper` (implementation detail), or `mainContent` (camelCase).
+- **`data-state`** for visual state, with the spec's shared vocabulary — `open`/`closed`,
+  `active`/`inactive`, `on`/`off`. Related: `data-disabled`, `data-loading`,
+  `data-orientation`, `data-side`, `data-align`, `data-placeholder`.
+  **Use `data-state` for new components** rather than inventing another one-off boolean.
+  The existing tree has grown 16 ad-hoc attributes (`data-active`, `data-open`, `data-on`,
+  `data-hot`, `data-copied`, `data-status`, `data-place`, …) against one real `data-state`
+  (`StageList.tsx`) — consistent naming is the point, so converge going forward.
+  **Do not rename existing ones**; their selectors are wired into `index.css` and `chat.css`.
 - **Props** remain the right home for variants, sizes, behaviour, and event handlers.
+- **`data-slot` is not used in RedLens** and should not be introduced. The spec uses it as a
+  stable hook for cross-component CSS targeting; this codebase targets with semantic classes
+  instead. Zero occurrences — keep it that way.
 
 This matches how RedLens already works: `FilterPills.tsx` toggles `data-active` and lets
 `.scope-pill` in `src/index.css` do the rest. Per `CLAUDE.md`: *don't add hover/click logic in
@@ -232,13 +264,13 @@ component spreads `...props` or it will silently swallow the behaviour.
 
 ## Definition of done
 
-- [ ] One element per exported component; file under ~150 lines; ≤3 components per file
+- [ ] One element per exported component; ~6 props as the working budget; file under ~150 lines; ≤3 components per file
 - [ ] Props extend `React.ComponentProps<…>`; **spread last**; `<Name>Props` exported; custom props JSDoc'd
 - [ ] No prop name collides with a native HTML attribute
 - [ ] Named export; no `React.FC`; `import type` for types
 - [ ] Derived/row-building logic sits in `src/lib/`, not in the component
 - [ ] Semantic element chosen first; accessible name present; keyboard map implemented; focus via `:focus-visible`
-- [ ] State exposed as `data-*`, not per-state class props; `data-slot` kebab-case and specific
+- [ ] State exposed as `data-*`, not per-state class props; new components use `data-state` vocabulary (no `data-slot`)
 - [ ] Co-located `Foo.test.tsx` with `// @vitest-environment jsdom` on line 1
 - [ ] `pnpm lint`, `pnpm build:ts` (or `tsc -b`), and `pnpm test` pass
 - [ ] User-visible? → `patch-notes.md` bullet **and** `src/components/featuresData.ts` entry
