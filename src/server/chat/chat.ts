@@ -13,7 +13,7 @@ import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
 import { routeTier, resolveTierModels, citationStyleFor } from "./model-router.ts";
 import { runVerifiedChat, sanitizeDone, type HarnessEvent, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
-import { runSkills, skillRound } from "../skills/registry.ts";
+import { runSkills, skillRound, summarizeSkills } from "../skills/registry.ts";
 import { windowHistory } from "./chat-history.ts";
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
@@ -202,6 +202,15 @@ export async function handleChat(req: Request): Promise<Response> {
       // delivery rides on meta so the client knows staged is active without
       // guessing from the absence of token events.
       send({ type: "meta", conversationId: convId, tier: route.tier, delivery: mode });
+
+      // Skills ran before the model did, and they shape the answer — so say so
+      // rather than letting injected context look like the model knowing
+      // things. Both surfaces the client already has: a trace row per skill,
+      // and a stage the ticker/checklist shows like any other step.
+      if (skills) {
+        send({ type: "skills", skills: skills.used, bytes: skills.content.length });
+        send({ type: "status", stage: "recalling", detail: summarizeSkills(skills) });
+      }
 
       // Staged mode never streams the draft: token/clear are swallowed, and a
       // "synthesizing" status stands in for the first suppressed token of each

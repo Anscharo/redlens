@@ -391,6 +391,9 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 }
 .rlc-trace-arrow-ok { color: var(--terminal-green); }
 .rlc-trace-arrow-err { color: var(--red); }
+/* Skill rows are recalled context, not a call the model made — the twinkle
+   matches the one the status ticker uses for the same work. */
+.rlc-trace-arrow-skill { color: var(--accent); }
 .rlc-trace-name { color: var(--accent); }
 .rlc-trace-arg { color: var(--tan-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rlc-trace-meta { color: var(--gray); }
