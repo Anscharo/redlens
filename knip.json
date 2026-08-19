@@ -25,6 +25,7 @@
     "scripts/lib/solana-accounts.d.mts",
     "scripts/lib/solana-pda.d.mts",
     "scripts/lib/atlas-commit.d.mts",
+    "scripts/lib/deploy-skip.d.mts",
     "scripts/lib/graph-patterns.d.mts",
     "scripts/lib/graph-instances.d.mts",
     "scripts/aux/coverage-areas.d.mts",
