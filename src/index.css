@@ -1938,19 +1938,8 @@ button.atlas-node-expand-all:focus-visible {
   opacity: 0.45;
   cursor: pointer;
 }
-.msc-venue-pnl[data-dimmed="true"] .msc-sankey-link,
-.msc-venue-pnl[data-dimmed="true"] .msc-sankey-venue {
-  opacity: 0.14;
-}
-.msc-venue-pnl[data-dimmed="true"] .msc-sankey-link[data-lit="true"],
-.msc-venue-pnl[data-dimmed="true"] .msc-sankey-venue[data-lit="true"] {
-  opacity: 0.92;
-}
 .msc-sankey-node {
   cursor: pointer;
-}
-.msc-venue-pnl[data-dimmed="true"] .msc-sankey-venue[data-lit="true"] .msc-sankey-node-label {
-  fill: var(--tan);
 }
 .msc-sankey-amount {
   fill: var(--tan-3);
@@ -1958,13 +1947,10 @@ button.atlas-node-expand-all:focus-visible {
 .msc-venue-row {
   cursor: pointer;
 }
-.msc-venue-pnl[data-dimmed="true"] .msc-venue-row {
+.msc-venue-pnl:has([data-venue]:hover) .msc-sankey-link,
+.msc-venue-pnl:has([data-venue]:hover) .msc-sankey-venue {
+  opacity: 0.14;
+}
+.msc-venue-pnl:has([data-venue]:hover) .msc-venue-row {
   opacity: 0.38;
-}
-.msc-venue-pnl[data-dimmed="true"] .msc-venue-row[data-lit="true"] {
-  opacity: 1;
-  background: var(--row-hover);
-}
-.msc-venue-pnl[data-dimmed="true"] .msc-venue-row[data-lit="true"] td:first-child span:first-child {
-  color: var(--tan);
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { formatUsd } from "../../lib/settlements";
 import {
   collapseVenues,
@@ -23,12 +23,25 @@ function venueOutLines(v: SankeyVenue, primeLabel: string): string[] {
   return lines;
 }
 
-function syncVenueHover(root: HTMLElement | null, venueId: string | null) {
-  if (!root) return;
-  root.toggleAttribute("data-dimmed", venueId != null);
-  root.querySelectorAll("[data-venue]").forEach((el) => {
-    el.toggleAttribute("data-lit", venueId != null && el.getAttribute("data-venue") === venueId);
-  });
+/** Static CSS can't match "same data-venue as the hovered element" — emit one rule per id. */
+function VenueHoverStyles({ ids }: { ids: string[] }) {
+  if (ids.length === 0) return null;
+  const rules = ids.map((id) => {
+    const s = CSS.escape(id);
+    return `
+.msc-venue-pnl:has([data-venue="${s}"]:hover) [data-venue="${s}"] { opacity: 0.92; }
+.msc-venue-pnl:has([data-venue="${s}"]:hover) tr[data-venue="${s}"] {
+  opacity: 1;
+  background: var(--row-hover);
+}
+.msc-venue-pnl:has([data-venue="${s}"]:hover) tr[data-venue="${s}"] td:first-child span:first-child {
+  color: var(--tan);
+}
+.msc-venue-pnl:has([data-venue="${s}"]:hover) .msc-sankey-venue[data-venue="${s}"] .msc-sankey-node-label {
+  fill: var(--tan);
+}`;
+  }).join("");
+  return <style>{rules}</style>;
 }
 
 function SankeyLinkPath({ l }: { l: SankeyLink }) {
@@ -165,33 +178,15 @@ export function SettlementVenuePnl({
   venues: SankeyVenue[];
   primeLabel: string;
 }) {
-  const rootRef = useRef<HTMLDivElement>(null);
   const rows = useMemo(() => collapseVenues(venues), [venues]);
   const layout = useMemo(() => layoutVenueSankey(rows, primeLabel), [rows, primeLabel]);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    const onOver = (e: MouseEvent) => {
-      const hit = (e.target as Element).closest("[data-venue]");
-      syncVenueHover(root, hit?.getAttribute("data-venue") ?? null);
-    };
-    const onOut = (e: MouseEvent) => {
-      const next = e.relatedTarget;
-      if (!next || !root.contains(next as Node)) syncVenueHover(root, null);
-    };
-    root.addEventListener("mouseover", onOver);
-    root.addEventListener("mouseleave", onOut);
-    return () => {
-      root.removeEventListener("mouseover", onOver);
-      root.removeEventListener("mouseleave", onOut);
-    };
-  }, []);
+  const venueIds = useMemo(() => rows.map((v) => v.id), [rows]);
 
   if (layout.nodes.length === 0) return null;
 
   return (
-    <div ref={rootRef} className="msc-venue-pnl">
+    <div className="msc-venue-pnl">
+      <VenueHoverStyles ids={venueIds} />
       <SettlementSankeyView rows={rows} layout={layout} primeLabel={primeLabel} />
       <SettlementVenueTable rows={rows} primeLabel={primeLabel} />
     </div>

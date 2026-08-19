@@ -153,17 +153,13 @@ describe("ActorSettlements", () => {
     expect(screen.getByText("$402.00M")).toBeInTheDocument();
   });
 
-  it("links sankey flows and venue table rows on hover", async () => {
+  it("tags sankey flows and venue table rows with matching data-venue ids", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => expect(screen.getByRole("table")).toBeInTheDocument());
     const row = screen.getByRole("cell", { name: /SparkLend USDS/ }).closest("tr")!;
-    fireEvent.mouseOver(row);
-    expect(document.querySelector(".msc-venue-pnl")).toHaveAttribute("data-dimmed");
-    expect(row).toHaveAttribute("data-lit");
-    expect(document.querySelector('.msc-sankey-link[data-lit]')).toBeInTheDocument();
-    fireEvent.mouseLeave(document.querySelector(".msc-venue-pnl")!);
-    expect(document.querySelector(".msc-venue-pnl")).not.toHaveAttribute("data-dimmed");
-    expect(row).not.toHaveAttribute("data-lit");
+    expect(row).toHaveAttribute("data-venue", "S1");
+    expect(document.querySelector('.msc-sankey-link[data-venue="S1"]')).toBeInTheDocument();
+    expect(document.querySelector('.msc-sankey-venue[data-venue="S1"]')).toBeInTheDocument();
   });
 
   it("resolves Spark's workbooks from the composite-party slug", async () => {
