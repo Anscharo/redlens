@@ -25,9 +25,9 @@ export function SettlementSankey({ venues, primeLabel }: { venues: SankeyVenue[]
           d={l.path}
           fill={
             l.signed < 0
-              ? "var(--error-text)"
+              ? "var(--accent)"
               : l.to === "sky"
-                ? "var(--accent)"
+                ? "var(--depth-4)"
                 : "var(--entity-delegate-org)"
           }
         >
@@ -41,7 +41,7 @@ export function SettlementSankey({ venues, primeLabel }: { venues: SankeyVenue[]
             y={n.y}
             width={n.width}
             height={n.height}
-            fill={n.kind === "sky" ? "var(--accent)" : n.kind === "prime" ? "var(--entity-delegate-org)" : "var(--border)"}
+            fill={n.kind === "sky" ? "var(--depth-4)" : n.kind === "prime" ? "var(--entity-delegate-org)" : "var(--border)"}
           />
           <text
             x={n.kind === "venue" ? n.x - 6 : n.x + n.width + 6}
@@ -92,13 +92,13 @@ export function SettlementVenueTable({
             </td>
             <td
               className="py-1 text-right mono text-[11px]"
-              style={{ color: v.profitToSky < 0 ? "var(--error-text)" : "var(--tan-2)" }}
+              style={{ color: v.profitToSky < 0 ? "var(--accent)" : "var(--tan-2)" }}
             >
               {formatUsd(v.profitToSky)}
             </td>
             <td
               className="py-1 text-right mono text-[11px]"
-              style={{ color: v.profitToGrove < 0 ? "var(--error-text)" : "var(--tan-2)" }}
+              style={{ color: v.profitToGrove < 0 ? "var(--accent)" : "var(--tan-2)" }}
             >
               {formatUsd(v.profitToGrove)}
             </td>
