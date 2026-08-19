@@ -33,6 +33,8 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-08-19
+- Fixed Atlas addresses and history sometimes being unavailable after an update
 
 ## 2026-08-18
 - Chat and MCP search now collapse a parent document and its matching child into one result, and can name which child matched
