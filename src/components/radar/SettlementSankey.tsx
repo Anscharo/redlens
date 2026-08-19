@@ -193,14 +193,6 @@ export function SettlementVenuePnl({
   );
 }
 
-/** @deprecated Use SettlementVenuePnl for linked sankey + table hover sync. */
-export function SettlementSankey({ venues, primeLabel }: { venues: SankeyVenue[]; primeLabel: string }) {
-  const rows = useMemo(() => collapseVenues(venues), [venues]);
-  const layout = useMemo(() => layoutVenueSankey(rows, primeLabel), [rows, primeLabel]);
-  if (layout.nodes.length === 0) return null;
-  return <SettlementSankeyView rows={rows} layout={layout} primeLabel={primeLabel} />;
-}
-
 export function SettlementVenueTable({
   rows: rowsProp,
   venues,
