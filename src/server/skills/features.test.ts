@@ -43,12 +43,28 @@ describe("features skill triggers", () => {
       "what are the features of the Stability Scope?",
       "what can i do to become a facilitator?",
       "what can i do about an unresolved dispute?",
+      // DIRECT[0] used to fire on any "with" — these are governance questions.
+      "what can i do with the Stability Scope?",
+      "what can I do with a surplus buffer?",
+      "what can I do with SKY tokens?",
+      "what can I do with this document?",
+      "what can I do with a facilitator?",
       "how do i find the stability rate?", // how-to shape, atlas object
       "where is the Keel Accord defined?",
       "who is keel?",
       "completely unrelated question about nothing",
     ]) {
       expect(matchesFeaturesQuestion(q)).toBe(false);
+    }
+  });
+
+  it("still treats 'what can I do with <app thing>' as a product question", () => {
+    for (const q of [
+      "what can i do with redline sky atlas?",
+      "what can i do with this app?",
+      "what can i do with reports and csv export?",
+    ]) {
+      expect(matchesFeaturesQuestion(q)).toBe(true);
     }
   });
 
