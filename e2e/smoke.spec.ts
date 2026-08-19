@@ -54,9 +54,11 @@ test.describe("deployed MCP integration", () => {
     }
 
     expect(address, "live Atlas search returned no document with an address reference").toBeTruthy();
+    // Match atlas_get_address / ingest: EVM keys are lowercased, Solana base58 is not.
+    const canonical = address!.startsWith("0x") ? address!.toLowerCase() : address!;
     const payload = await callTool<AddressPayload>(request, "atlas_get_address", { address });
     expect(payload.records, `address ${address} from document ${sourceId} had no database records`).not.toHaveLength(0);
-    expect(payload.records.some((record) => record.address === address!.toLowerCase())).toBe(true);
+    expect(payload.records.some((record) => record.address === canonical)).toBe(true);
     expect(Array.isArray(payload.edges)).toBe(true);
   });
 });
