@@ -31,26 +31,20 @@ on:
         description: "Required with atlas_preview_canary_pr: exact current head SHA to test"
         required: false
         type: string
+      run_canaries:
+        description: "Also run cron/external-state history and Atlas-preview canaries"
+        required: false
+        default: false
+        type: boolean
+
+# Railway can emit multiple successful deployment events for services in the
+# same PR environment. Only the newest build may test that environment's mutable
+# URL; otherwise an older SHA can pass against newer code.
+concurrency:
+  group: e2e-${{ github.event_name == 'deployment_status' && github.event.deployment_status.environment || github.event.inputs.url }}
+  cancel-in-progress: true
 
 jobs:
-  # Always runs on deployment_status so we can see exactly what Railway emits
-  # (state, environment, environment_url, …) even when the e2e job is skipped.
-  # Remove once the e2e gate below is confirmed firing on PR envs.
-  debug-deployment:
-    if: github.event_name == 'deployment_status'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Dump deployment_status payload
-        env:
-          DEPLOYMENT_STATUS: ${{ toJSON(github.event.deployment_status) }}
-          DEPLOYMENT: ${{ toJSON(github.event.deployment) }}
-        run: |
-          echo "state=${{ github.event.deployment_status.state }}"
-          echo "environment=${{ github.event.deployment_status.environment }}"
-          echo "environment_url=${{ github.event.deployment_status.environment_url }}"
-          echo "::group::deployment_status"; echo "$DEPLOYMENT_STATUS"; echo "::endgroup::"
-          echo "::group::deployment"; echo "$DEPLOYMENT"; echo "::endgroup::"
-
   e2e:
     # Manual dispatch always runs. For deployment_status, gate on a successful
     # PR-environment deploy. Railway's `environment` is like
@@ -94,26 +88,52 @@ jobs:
 
       - uses: ./.github/actions/setup
 
+      # Browser blobs live in ~/.cache/ms-playwright (~114MB for Chromium).
+      # OS packages from --with-deps are NOT in this cache (they install onto
+      # the runner), so a hit still runs apt — it just skips the download.
+      # That download is the long pole: deploy readiness is polled later in
+      # e2e/global-setup.ts and does not overlap this step. Recent PR deploys
+      # were already healthy in ~1s after install finished, so a cache hit is
+      # real wall-clock savings rather than hiding a database wait.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Let preview deploy settle
-        run: sleep 60
-
-      - name: Run E2E
+      - name: Run core E2E
         run: pnpm test:e2e
         env:
           BASE_URL: ${{ steps.target.outputs.url }}
-          # Lets the opt-in preview canary query the GitHub API without hitting
-          # the 60/hr unauthenticated limit. Normal PR deploy runs skip it.
+          EXPECTED_APP_COMMIT: ${{ github.event.deployment.sha }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/core
+          PLAYWRIGHT_OUTPUT_DIR: test-results/core
+
+      - name: Run opt-in canaries
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_canaries }}
+        run: pnpm test:e2e:canary
+        env:
+          BASE_URL: ${{ steps.target.outputs.url }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/canary
+          PLAYWRIGHT_OUTPUT_DIR: test-results/canary
+          # Lets the preview canary query the GitHub API without hitting the
+          # 60/hr unauthenticated limit.
           GITHUB_TOKEN: ${{ github.token }}
           ATLAS_PREVIEW_CANARY_PR: ${{ github.event.inputs.atlas_preview_canary_pr }}
           ATLAS_PREVIEW_CANARY_SHA: ${{ github.event.inputs.atlas_preview_canary_sha }}
 
-      - name: Upload Playwright report
+      - name: Upload Playwright diagnostics
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: playwright-report/
+          name: playwright-diagnostics-${{ github.run_attempt }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: error
           retention-days: 7

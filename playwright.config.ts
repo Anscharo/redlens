@@ -3,26 +3,37 @@ import { defineConfig, devices } from "@playwright/test";
 // L3 browser/API E2E. The target is a LIVE deploy (the Railway per-PR
 // environment), not a server we boot here — so there is intentionally no
 // `webServer` block. BASE_URL is injected by the e2e.yml workflow from the
-// Railway `deployment_status` event's environment_url
-// (https://redlens-redlens-pr-<N>.up.railway.app). Locally, point it at any
-// running instance: `BASE_URL=http://localhost:3000 pnpm test:e2e`.
+// Railway deployment environment. Locally, point it at any running instance:
+// `BASE_URL=http://localhost:3000 pnpm test:e2e`.
 const baseURL = process.env.BASE_URL;
+const chromium = { ...devices["Desktop Chrome"] };
 
 export default defineConfig({
   testDir: "./e2e",
+  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? "test-results",
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: true,
   // Fail the run if a `test.only` was committed by accident.
   forbidOnly: !!process.env.CI,
-  // The target is a real network deploy — a couple of retries absorb cold
-  // starts and transient blips without masking genuine regressions.
-  retries: process.env.CI ? 2 : 0,
-  reporter: process.env.CI ? [["github"], ["list"]] : "list",
+  // Readiness and MCP helpers absorb transport startup separately. One browser
+  // retry keeps a trace without turning persistent faults into false greens.
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? [["github"], ["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL,
     trace: "on-first-retry",
+    screenshot: "only-on-failure",
   },
   projects: [
-    // Chromium only to start; add Firefox/WebKit later if cross-browser matters.
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "core",
+      testMatch: /(?:smoke|search|reader)\.spec\.ts/,
+      use: chromium,
+    },
+    {
+      name: "canary",
+      testMatch: /(?:history|preview)\.spec\.ts/,
+      use: chromium,
+    },
   ],
 });

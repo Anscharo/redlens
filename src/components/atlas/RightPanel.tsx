@@ -289,7 +289,7 @@ export function RightPanel({
             )}
           </div>
         ) : (
-          <div className="px-4 py-5">
+          <div className="px-4 py-5" data-testid="history-panel">
             <ErrorBoundary resetKey={id} fallback={(error) => <InlineError error={error} />}>
               {preview ? <PreviewHistory nodeId={id} /> : <NodeHistory nodeId={id} />}
             </ErrorBoundary>
