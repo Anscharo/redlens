@@ -35,7 +35,38 @@ describe("assessStructuralSnapshot", () => {
   });
 });
 
+function fakeDb(rows: { docs: Record<string, unknown>; addresses: Record<string, unknown> }) {
+  return ((strings: TemplateStringsArray) => {
+    const sql = String.raw({ raw: strings });
+    if (sql.includes("FROM atlas_doc_meta")) return Promise.resolve([rows.docs]);
+    if (sql.includes("FROM atlas_addresses")) return Promise.resolve([rows.addresses]);
+    return Promise.reject(new Error(`unexpected query: ${sql}`));
+  }) as never;
+}
+
 describe("inspectStructuralSnapshot", () => {
+  it("maps a complete current SHA snapshot as healthy", async () => {
+    const result = await inspectStructuralSnapshot(
+      fakeDb({
+        docs: { total: 11_340, current: 11_340, with_address_refs: 193 },
+        addresses: { total: 438, current: 438 },
+      }),
+      "atlas-sha",
+    );
+    expect(result).toMatchObject({ ...HEALTHY, healthy: true, reasons: [] });
+  });
+
+  it("treats a missing sync SHA as incomplete without querying", async () => {
+    const result = await inspectStructuralSnapshot((() => {
+      throw new Error("integrity check must not query when sync_state has no SHA");
+    }) as never, null);
+    expect(result.healthy).toBe(false);
+    expect(result.reasons).toEqual([
+      "sync_state has no atlas SHA",
+      "no current atlas_doc_meta rows",
+    ]);
+  });
+
   it("turns a failed integrity query into a repair decision", async () => {
     const db = (() => Promise.reject(new Error("relation does not exist"))) as never;
     const result = await inspectStructuralSnapshot(db, "atlas-sha");
