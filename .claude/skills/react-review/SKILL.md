@@ -31,6 +31,11 @@ skill is the *auditing* procedure, not a restatement of the rules.
 distribution — RedLens uses neither. Visual/token review belongs to **`ui-look-and-feel`**;
 report-surface completeness belongs to **`new-report`**.
 
+**Review the diff, not the repository.** Most of this codebase predates these rules and does
+not follow them. Items marked **[new/changed components only]** apply solely to code the diff
+adds or reworks — raising them against untouched files produces a review nobody can act on.
+§4 lists what is never a finding.
+
 ## 1. Scope the review, then run the machines
 
 Establish what changed before reading anything:
@@ -61,8 +66,8 @@ accessible name makes the review harder to act on.
    `rg -n '<div[^>]*onClick' src/components -g '!*.test.tsx'` — production code currently has
    exactly one, the modal backdrop in `Drawer.tsx`, which is legitimate. Any new hit needs a
    reason why a `<button>` won't do. Same check for `<span onClick>`.
-3. **Missing accessible name.** Icon-only buttons with no `aria-label` / `sr-only` text; check
-   any new `<button>` whose children are a single glyph or icon component.
+3. **Missing accessible name.** Icon-only buttons with no `aria-label` (the house convention,
+   47 uses); check any new `<button>` whose children are a single glyph or icon component.
 4. **Missing keyboard map.** Any component with `role="menu" | "tab" | "tree" | "listbox" |
    "dialog"` or a custom popup must implement its arrow/Home/End/Escape handling and focus
    management. `rg -n 'role="(menu|tab|tablist|tree|listbox|dialog|combobox)"' src/components`,
@@ -71,25 +76,27 @@ accessible name makes the review harder to act on.
    focusable; roles on elements that don't support them; invalid state values.
 6. **Meaning by colour alone**; error states without `aria-invalid` + `aria-describedby`.
 7. **Focus suppressed.** `outline: none` on `:focus` with no `:focus-visible` replacement.
-8. **State bugs**: a `value` prop copied into `useState`; a component that switches between
-   controlled and uncontrolled; a `useSyncExternalStore` snapshot returning a fresh object;
-   an effect that writes state derivable during render; missing cleanup.
+8. **State bugs**: a prop copied into `useState`; a `useSyncExternalStore` snapshot returning
+   a fresh object; an effect that writes state derivable during render; missing cleanup.
 
 ### B. API and composition
 
 9. **One component rendering several structural elements** with `title`/`footer`/`icon`-style
    escape-hatch props — should be split into parts (`Root`/`Item`/`Trigger`/`Content`/
    `Header`/`Title`/`Description`/`Footer`).
-10. **Props that don't extend the native element** — no `React.ComponentProps<…>`, so callers
-    can't pass `id`, `aria-*`, `data-*`, or handlers. Grep: `rg -n 'ComponentProps' src/components`.
-11. **Props type not exported**, or not named `<ComponentName>Props`.
+10. **[new/changed components only] Props that don't extend the native element** — no
+    `React.ComponentProps<…>`, so callers can't pass `id`, `aria-*`, `data-*`, or handlers.
+    Only 2 of 177 components do this today; do not raise it against untouched files.
+11. **[new/changed components only] Props type not exported**, or not named `<ComponentName>Props`.
 12. **Prop name colliding with a native attribute** (`title`, `type`, `value`, `size`, `content`)
     where an override was not intended.
 13. **Custom props with no JSDoc.**
 14. **Per-state className props** (`openClassName`, `activeClassName`, `classes={{…}}`) instead of
     `data-state` / `data-active`. Grep: `rg -n 'ClassName[?]?:' src/components`.
-15. **`data-slot` naming**: must be kebab-case, specific, purpose-based — not `input`,
-    `blueButton`, `div-wrapper`, or camelCase.
+15. **Prop-count budget**: a new component past ~6 props, especially with several `ReactNode`
+    slots, is usually a composition in disguise — suggest splitting. `ReportShell` (~17 props)
+    is a deliberate, documented exception; do not flag it or components that merely use it.
+    Do **not** ask for `data-slot` — it is not used in this codebase.
 16. **Polymorphism defects** (only where `as`/`asChild` is used): `any`-typed polymorphic props,
     a `div` default instead of a semantic one, invalid nesting, ARIA implied by the new element
     left unset, an inline-defined component passed to `as`, or an `asChild` child that doesn't
@@ -149,6 +156,16 @@ Reporting these as new problems makes reviews noisy and trains people to ignore 
   records these as known debt to be split *when touched*. Flag it only if the diff makes such a
   file meaningfully longer.
 - **Absence of `cn` / `tailwind-merge` / CVA** — deliberately not used here.
+- **Absence of `data-slot`** — deliberately not used here.
+- **Native `disabled` instead of `aria-disabled`** — the house choice (18 vs 0).
+- **Ad-hoc `data-*` names on existing components** (`data-active`, `data-open`, `data-hot`, …).
+  New components should prefer the shared `data-state` vocabulary, but existing selectors are
+  wired into `index.css` / `chat.css` and must not be renamed on a whim.
+- **Existing components that don't extend `React.ComponentProps`, don't export a `<Name>Props`
+  type, or don't spread props** — that describes ~175 of 177 files. Only raise it for code the
+  diff actually adds or reworks.
+- **Fully-controlled components with domain-named callbacks** (`onToggle`, `onSelect`,
+  `onNavigate`) — the house pattern. Do not ask for `value`/`defaultValue`/`onValueChange`.
 - **Absence of `asChild` / Radix `Slot`** — not a dependency; don't request one speculatively.
 - **Tailwind utilities mixed with semantic classes and CSS-variable tokens** — that is the
   documented three-layer styling system, not drift.

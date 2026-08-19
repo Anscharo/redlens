@@ -2,14 +2,13 @@
 name: react-state
 description: >
   How to decide where React state lives in RedLens and how to expose it —
-  local vs URL vs context vs external store vs worker/loader data — plus the
-  components.build controlled/uncontrolled contract. Use when adding state to
-  a component, lifting or colocating state, choosing between useState and
-  useUrlState, adding a context provider, wiring useSyncExternalStore, adding
-  a value/defaultValue/onChange prop pair, fixing re-render or stale-state
-  bugs, or reviewing effects and memoization.
-  Keywords: state, useState, useReducer, controlled, uncontrolled,
-  defaultValue, onValueChange, useControllableState, lifting state up, prop
+  local vs URL vs context vs external store vs worker/loader data. Use when
+  adding state to a component, lifting or colocating state, choosing between
+  useState and useUrlState, adding a context provider, wiring
+  useSyncExternalStore, designing a component's value + callback props, or
+  fixing re-render, derived-state or stale-state bugs.
+  Keywords: state, useState, useReducer, controlled component, callback prop,
+  lifting state up, prop
   drilling, custom hook, context, createContext, provider, useUrlState, URL
   state, query param, useSyncExternalStore, localStorage, useMemo,
   useCallback, memo, useEffect, derived state, stale state, re-render,
@@ -22,10 +21,10 @@ metadata:
 
 # Managing Component State
 
-The [components.build](https://www.components.build) rule for state is short: *the best
-components support both controlled and uncontrolled use*. Everything else here is about
-choosing the **narrowest place** state can live in RedLens, and making that state visible to
-CSS and to tests.
+This skill is about choosing the **narrowest place** state can live in RedLens, and making
+that state visible to CSS and to tests. Where [components.build](https://www.components.build)
+and RedLens practice disagree — notably on controlled/uncontrolled dual mode (§2) — the house
+pattern wins and the divergence is called out explicitly.
 
 Pairs with the **`react-components`** skill (composition, props, accessibility, data attributes).
 
@@ -98,44 +97,39 @@ the relations graph (`graph.worker.ts`) own their own indexes; components talk t
 **inline** or Vite won't compile the worker, and the data-source base travels in the worker
 `name` (read as `self.name`), never a query param.
 
-## 2. Controlled and uncontrolled
+## 2. Components are controlled; the page owns the state
 
-A component is **uncontrolled** when it holds its own state and exposes `defaultValue`;
-**controlled** when the parent owns the value and passes `value` + a change callback. The spec
-says components should support both — that is what makes them usable in a form, in a URL-driven
-page, and standalone.
+The spec recommends every input-like component support **both** controlled and uncontrolled
+use, merged with Radix's `useControllableState`. **RedLens deliberately does not do this** —
+and new components should follow the house pattern, not the spec here.
 
-The prop trio is a naming contract:
+The house pattern is **fully controlled, with domain-named callbacks**. State lives in the
+page (usually in the URL); components receive the current value and report intent upward:
 
 ```tsx
-type StepperProps = {
-  /** Controlled value. Presence of this prop switches the component to controlled mode. */
-  value?: number;
-  /** Initial value in uncontrolled mode. */
-  defaultValue?: number;
-  /** Called on every change, in both modes. */
-  onValueChange?: (value: number) => void;
-};
+export function ScopePills({
+  filter,
+  onToggle,
+}: {
+  filter: ActiveFilter;
+  onToggle: (next: EntityFilter) => void;
+}) { /* … */ }
 ```
 
-Rules that keep both modes honest:
+Measured practice: **zero** `defaultValue` props, **zero** `onValueChange`, and no dual-mode
+component anywhere. Callbacks are named for what they mean — `onNavigate` (16), `onToggle`
+(10), `onClose` (7), `onSelect` (6), `onMark`/`onUnmark` — not for the generic value they
+carry. Keep that vocabulary.
 
-- **`value === undefined` means uncontrolled.** Decide once, on the presence of the prop.
-- **Never switch modes mid-life.** A component that starts controlled must stay controlled;
-  flipping is the source of "my input went read-only" bugs.
-- **`onValueChange` fires in both modes.** Callers must be able to observe changes without
-  taking ownership of the value.
-- **Don't copy a `value` prop into `useState`.** That is the derived-state bug again.
+Do **not** introduce `value`/`defaultValue`/`onValueChange` trios, and do **not** add
+`@radix-ui/react-use-controllable-state`; it is not a dependency, and any dependency change
+must update **both `pnpm-lock.yaml` and `bun.lock` in the same commit** or the Railway Docker
+build fails on `bun install --frozen-lockfile`.
 
-The spec's recommended implementation is Radix's `useControllableState`
-(`{ prop, defaultProp, onChange }` → `[value, setValue]`). It is **not currently a dependency
-here**, and adding one means updating **both `pnpm-lock.yaml` and `bun.lock` in the same
-commit** — `bun install --frozen-lockfile` fails the Railway Docker build otherwise. For a
-single component, hand-rolling the same contract is fine; reach for the dependency only if
-several components need it.
+The one rule from the spec that still binds, because it is a real bug class:
 
-Most RedLens "state" is genuinely URL state, so the common shape is: the page owns the value
-via `useUrlState` and passes it down controlled, while leaf components stay uncontrolled.
+- **Don't copy a prop into `useState`.** If the parent owns the value, read it from props.
+  Mirroring it into local state is how the two get out of sync.
 
 ## 3. Make state visible to CSS, not to JS branches
 
@@ -145,8 +139,10 @@ Reflect state on the DOM as a data attribute and let the stylesheet react:
 <button data-active={active ? "true" : undefined} className="scope-pill" />
 ```
 
-`data-state` (`open`/`closed`, `active`/`inactive`), plus `data-disabled`, `data-loading`,
-`data-orientation`, `data-side`. Per `CLAUDE.md`: *don't add hover/click logic in JS when CSS
+Prefer the shared `data-state` vocabulary for new components (`open`/`closed`,
+`active`/`inactive`), plus `data-disabled`, `data-loading`, `data-orientation`, `data-side`.
+Existing components use 16 ad-hoc attributes (`data-active`, `data-open`, `data-hot`, …) whose
+selectors are wired into `index.css` — leave those alone. Per `CLAUDE.md`: *don't add hover/click logic in JS when CSS
 will do it.* This also gives tests and DevTools a stable thing to assert on. Full
 naming rules are in the `react-components` skill.
 
@@ -173,9 +169,9 @@ Tests are **co-located** (`Foo.tsx` ↔ `Foo.test.tsx`) and DOM tests opt in wit
 
 - Test through the public surface with `@testing-library/react` + `user-event`: render, act,
   assert on what the user sees, not on internal state.
-- Test **both modes** of a controlled/uncontrolled component: uncontrolled updates on its own;
-  controlled does nothing until the parent re-renders with a new `value`, and calls
-  `onValueChange` either way.
+- Test a controlled component the way it is used: assert it **calls its callback** with the
+  right argument, and that it renders the value it was given. It should not change what it
+  displays until the parent re-renders it with a new prop.
 - Pure logic extracted to `src/lib/` gets its own test with no React at all — that is the whole
   reason it lives there.
 - Hooks in `src/hooks/` each have a co-located test; follow the neighbours.
@@ -188,7 +184,7 @@ Tests are **co-located** (`Foo.tsx` ↔ `Foo.test.tsx`) and DOM tests opt in wit
 - [ ] New context exports its value type, co-locates `useX()`, and memoizes the provider value
 - [ ] Any `useSyncExternalStore` snapshot is referentially stable
 - [ ] Remote data goes through `useLoaded` + `useDataSource()`, never a bare `fetch`
-- [ ] Controlled/uncontrolled: `value` / `defaultValue` / `onValueChange`, mode fixed at birth, no prop→state copy
+- [ ] Components stay fully controlled with domain-named callbacks; no `defaultValue`/`onValueChange` trio; no prop→state copy
 - [ ] State reflected as `data-*` for CSS instead of JS class branching
 - [ ] Effects clean up; dep arrays honest; `memo` only on list rows
 - [ ] Co-located tests cover both modes; `// @vitest-environment jsdom` on line 1 for DOM tests
