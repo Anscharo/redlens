@@ -67,8 +67,11 @@ from this turn's tool results). The citation FORMAT those rules ask for is
 per-model: inline `[Title](/atlas/<uuid>)` by default, reference-style (a
 `[label]: /atlas/<uuid>` definition block at the top, `[text][label]` in prose)
 only for models listed in `CHAT_REFERENCE_CITATION_MODELS` — which defaults to
-the strong chain, the only tier where the format measured clean. The pipeline
-accepts both from every model regardless; see
+the literal list of models measured clean for the format (`openai/gpt-5.6-luna`,
+`openai/gpt-5-mini`), independent of whichever model currently sits in
+`CHAT_MODEL_STRONG`, so
+swapping the strong tier doesn't silently change what format an unmeasured
+model gets asked for. The pipeline accepts both from every model regardless; see
 `docs/plans/reference-citations.md`. History is windowed to a hard char budget
 (`chat-history.ts`). A deterministic **prefetch**
 (`prefetch.ts`) matches the message against the glossary and entity roster and,

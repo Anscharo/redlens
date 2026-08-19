@@ -114,6 +114,35 @@ export function looksLikeSkillQuestion(ix: Indexes, question: string, prototypes
   return bestSim(v, prototypes) - bestSim(v, ATLAS_PROTOTYPES) >= config.chatSkillSimilarityMargin;
 }
 
+/**
+ * Rank several prototype SETS against one question — the routing case a
+ * single skill's `prototypes` array can't express (skills/types.ts): "which
+ * one of N buckets, if any" rather than "does this one skill fire". One embed
+ * call, scored against every set and a single shared negative set, sorted by
+ * margin descending so a caller can take the top few above its own threshold.
+ *
+ * Deliberately does NOT apply ATLAS_PROTOTYPES or isSmallTalk itself — unlike
+ * the single-skill case, a router's competing class isn't always "atlas vs
+ * app" (the concept-census lane's competing class is "cross-cutting analysis
+ * vs specific document lookup", a different negative set — see
+ * concepts-prefetch.ts's CENSUS_NEGATIVE_PROTOTYPES). Callers own their own
+ * suppressors and pass whatever negative set fits their routing decision.
+ */
+export function rankPrototypeSets(
+  question: string,
+  sets: Record<string, string[]>,
+  negatives: string[],
+): { slug: string; score: number; margin: number }[] {
+  const v = embed(question); // not cached — see protoVec
+  const negScore = bestSim(v, negatives);
+  return Object.entries(sets)
+    .map(([slug, prototypes]) => {
+      const score = bestSim(v, prototypes);
+      return { slug, score, margin: score - negScore };
+    })
+    .sort((a, b) => b.margin - a.margin);
+}
+
 // Exported for the bakeoff, so eval and production can never diverge on the
 // negative prototypes or the small-talk rule.
 export { ATLAS_PROTOTYPES };
