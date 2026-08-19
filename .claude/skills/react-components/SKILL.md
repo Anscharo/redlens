@@ -38,9 +38,10 @@ it is the canonical checklist for that surface. Come back here for the component
 
 ## Scope: new and changed code only — never retrofit
 
-Most of this codebase predates these rules and does not follow them: 2 of 177 components
-extend `React.ComponentProps`, 2 export a `<Name>Props` type, 5 spread props at all. **That is
-expected and is not a defect to go fix.** Apply these rules to the component you are creating
+Most of this codebase predates these rules and does not follow them. Today only `Link.tsx`
+and `AtlasLink.tsx` extend `React.ComponentProps`; only `NavBarProps` and `ReportShellProps`
+are exported prop types; a handful of components spread `...props` at all. **That is expected
+and is not a defect to go fix.** Apply these rules to the component you are creating
 or substantially reworking. Do not open sweeping conformance PRs, do not "fix" a neighbouring
 file because you noticed it, and do not treat an existing component's shape as a bug. Where a
 rule below is aspirational rather than established practice, it is marked **[new code]**.
@@ -85,7 +86,7 @@ direct control over ARIA, and one simple mental model.
 *parts* of the component wearing a prop disguise — a `title`, a `footer`, an `actions` node —
 and split instead. This is a design signal, not a lint rule; a component with 8 genuinely
 scalar props is fine, one with 8 `ReactNode` slots is a composition waiting to happen.
-52 component files currently take slot-shaped props, so expect to meet them.
+Plenty of existing files take slot-shaped props, so expect to meet them.
 
 **Known exception — `ReportShell`.** It takes ~17 props in a deliberately fixed slot order
 (title → description → controls → filter summary → count + actions → body) because it also
@@ -106,7 +107,7 @@ export type FilterPillProps = React.ComponentProps<"button"> & {
 };
 
 export function FilterPill({ active, ...props }: FilterPillProps) {
-  return <button data-active={active ? "true" : undefined} {...props} />;
+  return <button data-state={active ? "active" : "inactive"} {...props} />;
 }
 ```
 
@@ -125,7 +126,7 @@ components; leave existing ones alone.
   it — `title` on a `div` is the classic trap. Use `heading` instead.
 - **JSDoc every custom prop.** It is the component's only API documentation here.
 
-RedLens specifics: **named exports only** (183 of them; the only two `export default` in
+RedLens specifics: **named exports only** (the only two `export default` in
 `src/` are `App.tsx` and `NodeContentInner.tsx`, and lazy routes bridge named→default via
 `lazyImport` in `src/lib/lazyRoutes.tsx`). **No `React.FC`** — zero usages, plain function
 declarations only. `verbatimModuleSyntax` is on, so type-only imports must be `import type`.
@@ -141,21 +142,25 @@ When a component starts accumulating props that describe *parts* of it, break it
 cooperating subcomponents that share state through context.
 
 ```tsx
-const AccordionContext = createContext<{ open: boolean; setOpen: (o: boolean) => void }>({
+const AccordionContext = createContext<{ open: boolean; onToggle: (open: boolean) => void }>({
   open: false,
-  setOpen: () => {},
+  onToggle: () => {},
 });
 
 export type AccordionRootProps = React.ComponentProps<"div"> & {
   open: boolean;
-  setOpen: (open: boolean) => void;
+  onToggle: (open: boolean) => void;
 };
 
-export const Root = ({ children, open, setOpen, ...props }: AccordionRootProps) => (
-  <AccordionContext.Provider value={{ open, setOpen }}>
-    <div {...props}>{children}</div>
-  </AccordionContext.Provider>
-);
+export const Root = ({ children, open, onToggle, ...props }: AccordionRootProps) => {
+  // Memoized: a fresh object literal here re-renders every consumer on every render.
+  const value = useMemo(() => ({ open, onToggle }), [open, onToggle]);
+  return (
+    <AccordionContext.Provider value={value}>
+      <div {...props}>{children}</div>
+    </AccordionContext.Provider>
+  );
+};
 ```
 
 Use the spec's naming vocabulary so the API is guessable:
@@ -186,7 +191,7 @@ the tree is overwhelmingly real `<button>`s, with a single `<div onClick>` in pr
   semantics unnecessarily; every interactive element must be keyboard accessible; never hide
   a focusable element from assistive tech.
 - **Every interactive element needs an accessible name.** Icon-only buttons take **`aria-label`**
-  — the house convention, 47 uses — with the glyph marked `aria-hidden="true"`. (Tailwind's
+  — the house convention throughout the tree — with the glyph marked `aria-hidden="true"`. (Tailwind's
   built-in `sr-only` utility also works, but no component uses it today; prefer `aria-label`.)
 - **Declare and implement a keyboard map** for every interactive component. The spec's
   standard maps: menu → `ArrowDown`/`ArrowUp`/`Home`/`End`/`Escape`; dropdown → adds
@@ -226,7 +231,7 @@ Instead put the state on the element and let CSS select it:
   `active`/`inactive`, `on`/`off`. Related: `data-disabled`, `data-loading`,
   `data-orientation`, `data-side`, `data-align`, `data-placeholder`.
   **Use `data-state` for new components** rather than inventing another one-off boolean.
-  The existing tree has grown 16 ad-hoc attributes (`data-active`, `data-open`, `data-on`,
+  The existing tree has grown a dozen-plus ad-hoc attributes (`data-active`, `data-open`, `data-on`,
   `data-hot`, `data-copied`, `data-status`, `data-place`, …) against one real `data-state`
   (`StageList.tsx`) — consistent naming is the point, so converge going forward.
   **Do not rename existing ones**; their selectors are wired into `index.css` and `chat.css`.
@@ -253,9 +258,14 @@ Only when a component genuinely needs to render as a different element.
   merging, or ref forwarding: `const Comp = asChild ? Slot : "div"`. It also eliminates
   wrapper hell (`<button><button/></button>`).
 
-Neither exists in `src/` today. `asChild` requires `@radix-ui/react-slot`, and **any dependency
-change must update both `pnpm-lock.yaml` and `bun.lock` in the same commit** — `bun install
---frozen-lockfile` fails the Railway Docker build otherwise. Don't add it speculatively.
+There is **no generic polymorphic `as` and no `asChild`/`Slot` in `src/` today** — but
+`StatusPill.tsx` already ships the narrow version of this: `as?: "span" | "button"` as a
+discriminated union, which is the preferred shape here. Prefer a closed union over an open
+`React.ElementType` generic unless you genuinely need arbitrary elements.
+
+`asChild` requires `@radix-ui/react-slot`, and **any dependency change must update both
+`pnpm-lock.yaml` and `bun.lock` in the same commit** — `bun install --frozen-lockfile` fails
+the Railway Docker build otherwise. Don't add it speculatively.
 
 If you do support `asChild`: single element child only (no fragments, no multiple children),
 document it with the spec's exact JSDoc ("Change the default rendered element for the one

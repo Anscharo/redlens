@@ -38,8 +38,7 @@ Derived state duplicated into `useState` + `useEffect` is the most common bug in
 codebase's shape of code. RedLens uses exactly one `useReducer`, and only as a force-render
 bump (`src/components/AddressTooltip.tsx`) — that is the intended rarity.
 
-**1. Local `useState`.** Default for anything one subtree owns: hover, open/closed, draft
-input. 78 sites.
+**1. Local `useState`.** Default for anything one subtree owns: hover, open/closed, draft input.
 
 **2. URL state — `useUrlState`** (`src/hooks/useUrlState.ts`). Use this whenever the state is
 something a user would reasonably **bookmark, share, or reach with the back button**: the
@@ -92,7 +91,9 @@ serve live (`/api/atlas/<sha>/`) and preview (`/api/preview/<sha>/`) with no for
 
 **6. Worker-owned state.** Search (`search.worker.ts`), the docs tree (`atlas.worker.ts`), and
 the relations graph (`graph.worker.ts`) own their own indexes; components talk to them through
-`useSearch`, `useAtlasData`, and `useGraphEdges`. Load-bearing and easy to break:
+`useSearch`, `useAtlasData`, `useGraphEdges`, and `useConstellationsWorker` (a second consumer
+of `graph.worker.ts` — reuse the existing hooks rather than standing up a fourth worker).
+Load-bearing and easy to break:
 `new Worker(new URL("...", import.meta.url), { type: "module", name: base })` must stay
 **inline** or Vite won't compile the worker, and the data-source base travels in the worker
 `name` (read as `self.name`), never a query param.
@@ -117,9 +118,9 @@ export function ScopePills({
 ```
 
 Measured practice: **zero** `defaultValue` props, **zero** `onValueChange`, and no dual-mode
-component anywhere. Callbacks are named for what they mean — `onNavigate` (16), `onToggle`
-(10), `onClose` (7), `onSelect` (6), `onMark`/`onUnmark` — not for the generic value they
-carry. Keep that vocabulary.
+component anywhere. Callbacks are named for what they mean — `onNavigate`, `onToggle`,
+`onClose`, `onSelect`, `onMark`/`onUnmark` — not for the generic value they carry. Keep that
+vocabulary.
 
 Do **not** introduce `value`/`defaultValue`/`onValueChange` trios, and do **not** add
 `@radix-ui/react-use-controllable-state`; it is not a dependency, and any dependency change
@@ -141,7 +142,7 @@ Reflect state on the DOM as a data attribute and let the stylesheet react:
 
 Prefer the shared `data-state` vocabulary for new components (`open`/`closed`,
 `active`/`inactive`), plus `data-disabled`, `data-loading`, `data-orientation`, `data-side`.
-Existing components use 16 ad-hoc attributes (`data-active`, `data-open`, `data-hot`, …) whose
+Existing components use a dozen-plus ad-hoc attributes (`data-active`, `data-open`, `data-hot`, …) whose
 selectors are wired into `index.css` — leave those alone. Per `CLAUDE.md`: *don't add hover/click logic in JS when CSS
 will do it.* This also gives tests and DevTools a stable thing to assert on. Full
 naming rules are in the `react-components` skill.
@@ -156,8 +157,11 @@ naming rules are in the `react-components` skill.
   components defined inside components (which remounts the whole subtree every render).
 - **Memoize derived rows, not everything.** The local pattern: `useMemo` for derived collections
   (`ActiveDataReport.tsx` memoizes each derivation stage), `useCallback` for handlers passed to
-  memoized children, and `memo()` reserved for **list rows** — `SearchResult`,
-  `CollapsibleNode`, `AtlasReader`, `TreeRow`. The house form is
+  memoized children, and `memo()` reserved for components that re-render in bulk —
+  chiefly list/result rows (`SearchResult`, `RelatedNode`, `CollapsibleNode`) and the
+  `ModFrequency*` chart suite; there are ~17 sites. Note `TreeRow` is **not** memoized (it is a
+  react-window row, which already virtualizes) and `AtlasReader` is a pane rather than a row —
+  don't treat the list as exhaustive or as a rule that everything else must match. The house form is
   `export const X = memo(function X({…}: Props) {…})` so the component keeps its name in
   DevTools and stack traces.
 - Expensive but interruptible updates can use `useTransition` (`useReportQuery.ts`).
@@ -187,5 +191,5 @@ Tests are **co-located** (`Foo.tsx` ↔ `Foo.test.tsx`) and DOM tests opt in wit
 - [ ] Components stay fully controlled with domain-named callbacks; no `defaultValue`/`onValueChange` trio; no prop→state copy
 - [ ] State reflected as `data-*` for CSS instead of JS class branching
 - [ ] Effects clean up; dep arrays honest; `memo` only on list rows
-- [ ] Co-located tests cover both modes; `// @vitest-environment jsdom` on line 1 for DOM tests
+- [ ] Co-located tests assert value-in / callback-out; `// @vitest-environment jsdom` on line 1 for DOM tests
 - [ ] `pnpm lint`, `pnpm build:ts`, `pnpm test` pass
