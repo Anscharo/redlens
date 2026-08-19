@@ -6,9 +6,9 @@ description: >
   state placement, and data attributes. Use when asked to review a component,
   a frontend PR or diff, audit src/components/**, check whether code follows
   the component principles, assess a11y, or do a frontend code-quality pass.
-  Use it alongside the generic code-review skill whenever the code under
-  review is React/frontend — it adds the component-specific dimensions that a
-  general correctness review does not cover. Covers what to grep for, the
+  Use it alongside a general correctness review (e.g. Claude Code's built-in
+  code-review) whenever the code under review is React/frontend — it adds the
+  component-specific dimensions such a review does not cover. Covers what to grep for, the
   severity ordering, findings format, and the known-debt list that should NOT
   be reported as findings.
   Keywords: review, code review, frontend review, react review, review this
@@ -24,7 +24,8 @@ metadata:
 # Reviewing a RedLens Front End
 
 Reviews check code against the [components.build](https://www.components.build) principles as
-adopted in the **`react-components`** and **`react-state`** skills. Read those first — this
+adopted in the **`react-components`** and **`react-state`** skills (this repo ships no generic
+code-review skill of its own; Claude Code's built-in one is separate). Read those first — this
 skill is the *auditing* procedure, not a restatement of the rules.
 
 **Out of scope:** class-merging/styling helpers (`cn`, `tailwind-merge`, CVA) and package
@@ -66,8 +67,9 @@ accessible name makes the review harder to act on.
    `rg -n '<div[^>]*onClick' src/components -g '!*.test.tsx'` — production code currently has
    exactly one, the modal backdrop in `Drawer.tsx`, which is legitimate. Any new hit needs a
    reason why a `<button>` won't do. Same check for `<span onClick>`.
-3. **Missing accessible name.** Icon-only buttons with no `aria-label` (the house convention,
-   47 uses); check any new `<button>` whose children are a single glyph or icon component.
+3. **Missing accessible name.** Icon-only buttons with no `aria-label` (the house convention —
+   `sr-only` text is not used here); check any new `<button>` whose children are a single glyph
+   or icon component.
 4. **Missing keyboard map.** Any component with `role="menu" | "tab" | "tree" | "listbox" |
    "dialog"` or a custom popup must implement its arrow/Home/End/Escape handling and focus
    management. `rg -n 'role="(menu|tab|tablist|tree|listbox|dialog|combobox)"' src/components`,
@@ -86,7 +88,7 @@ accessible name makes the review harder to act on.
    `Header`/`Title`/`Description`/`Footer`).
 10. **[new/changed components only] Props that don't extend the native element** — no
     `React.ComponentProps<…>`, so callers can't pass `id`, `aria-*`, `data-*`, or handlers.
-    Only 2 of 177 components do this today; do not raise it against untouched files.
+    Only `Link.tsx` and `AtlasLink.tsx` do this today; do not raise it against untouched files.
 11. **[new/changed components only] Props type not exported**, or not named `<ComponentName>Props`.
 12. **Prop name colliding with a native attribute** (`title`, `type`, `value`, `size`, `content`)
     where an override was not intended.
@@ -106,8 +108,11 @@ accessible name makes the review harder to act on.
 
 17. **Shareable state kept local.** A tab, filter, or selection in `useState` that a user would
     expect to bookmark or reach with the back button belongs in `useUrlState`.
-18. **Bare `fetch` for atlas artifacts** instead of `useLoaded` + `useDataSource()`.
-    Grep: `rg -n 'fetch\(' src/components`.
+18. **Bare `fetch` for atlas artifacts** (`docs.json`, `graph.json`, `relations.json`,
+    `glossary.json`, `addresses*.json`, `search-index.json`) instead of `useLoaded` +
+    `useDataSource()`. Grep: `rg -n 'fetch\(' src/components -g '!*.test.tsx'` — but note ~11
+    legitimate hits already exist (preview `meta.json`, `api/preview/*`, chat/auth/usage API
+    routes). Those are **not** `useLoaded` bugs; only atlas artifacts are.
 19. **Worker construction not inline** — `new Worker(new URL(...), { type: "module", name })`
     must stay inline or Vite won't compile it.
 20. **Context provider value rebuilt every render** (object literal, no `useMemo`), or a consumer
@@ -162,7 +167,7 @@ Reporting these as new problems makes reviews noisy and trains people to ignore 
   New components should prefer the shared `data-state` vocabulary, but existing selectors are
   wired into `index.css` / `chat.css` and must not be renamed on a whim.
 - **Existing components that don't extend `React.ComponentProps`, don't export a `<Name>Props`
-  type, or don't spread props** — that describes ~175 of 177 files. Only raise it for code the
+  type, or don't spread props** — that describes nearly every file in the tree. Only raise it for code the
   diff actually adds or reworks.
 - **Fully-controlled components with domain-named callbacks** (`onToggle`, `onSelect`,
   `onNavigate`) — the house pattern. Do not ask for `value`/`defaultValue`/`onValueChange`.
