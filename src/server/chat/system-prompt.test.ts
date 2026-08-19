@@ -79,6 +79,16 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("## Current page");
   });
 
+  // The atlas is the documents; entities/relations/addresses/params/censuses
+  // are OUR parse of them. Presenting one as the other is the failure this
+  // line exists to prevent — it is also what the features skill's vocabulary
+  // block reinforces when the question is about the app (skills/features.ts).
+  it("says the graph is our extraction, not atlas text", () => {
+    const prompt = buildSystemPrompt(ix);
+    expect(prompt).toContain("RedLens's own EXTRACTION from the atlas documents");
+    expect(prompt).toContain("our extraction shows");
+  });
+
   // Which format the prompt ASKS for is per-model (docs/plans/reference-citations.md):
   // the bakeoff measured the definition block working on the strong tier and
   // misfiring on the default one. Inline is the default because it is the form

@@ -1,20 +1,15 @@
-// Deterministic pre-lookup for /api/chat: before the first LLM request, match
-// the user's message against the glossary (longest-phrase-first over the
-// alias-flattened lookup) and the entity roster (name/slug containment), and
-// seed the findings as a synthetic tool round in the transcript. High-precision
-// lanes only — no speculative search — so a hit is always worth the tokens and
-// a miss injects nothing. Because it rides the transcript as a real-looking
-// tool exchange, the verifier evidence, quote-grounding, and citation checks
-// all consume it with zero changes (evidenceFromTranscript walks tool messages
-// generically).
-import type OpenAI from "openai";
+// The glossary and entity lanes of the deterministic pre-lookup: match the
+// user's message against the glossary (longest-phrase-first over the
+// alias-flattened lookup) and the entity roster (name/slug containment).
+// High-precision lanes only — no speculative search — so a hit is always worth
+// the tokens and a miss injects nothing.
+//
+// Both are wrapped as skills and assembled into the injected tool round by
+// skills/registry.ts, which is where a new lane goes.
 import type { Indexes, Entity } from "./retrieval/indexes.ts";
 import type { GlossaryEntry } from "../lib/glossaryLookup.ts";
 import { matchEntities, entityAliases } from "./retrieval/entity-resolve.ts";
 import { entityKindLabel } from "./retrieval/entity-kind.ts";
-import { censusPrefetchRows, CENSUSES_NOTE } from "./concepts-prefetch.ts";
-
-type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
 const MAX_DEFINITIONS = 6;
 // 8 Prime Agents today, each minting its own row for a shared primitive/instance
@@ -27,12 +22,6 @@ const MAX_NGRAM = 6;
 // Only true filler for unigram glossary matching — same philosophy as
 // entity-resolve.ts: never domain words, which are load-bearing in terms.
 const STOP = new Set(["the", "a", "an", "of", "and", "or", "for", "to", "in", "is", "are", "what", "who", "how", "does", "do"]);
-
-export const PREFETCH_TOOL_NAME = "atlas_prefetch";
-
-const NOTE =
-  "Deterministic pre-lookup over the user's message (glossary term match + entity name match) — ran before you, at zero cost. " +
-  "If these definitions and entities already answer the question, answer directly now with citations to the doc_ids below; otherwise use tools as normal.";
 
 interface DefinitionRow {
   term: string;
@@ -175,20 +164,15 @@ export function matchQuestionEntities(ix: Indexes, question: string): EntityRow[
   return out;
 }
 
-export interface Prefetch {
-  content: string; // the tool-result JSON the model reads
-  definitions: number;
-  entities: number;
-  censuses: number;
-}
-
-export function buildPrefetch(ix: Indexes, question: string): Prefetch | null {
-  const definitions: DefinitionRow[] = [];
+// Definition rows for every glossary term the question names, capped and
+// truncated. The glossary skill's payload (skills/registry.ts).
+export function definitionRows(ix: Indexes, question: string): DefinitionRow[] {
+  const rows: DefinitionRow[] = [];
   for (const { entries } of matchGlossary(ix, question)) {
     for (const e of entries) {
-      if (definitions.length >= MAX_DEFINITIONS) break;
+      if (rows.length >= MAX_DEFINITIONS) return rows;
       const doc = ix.docMap.get(e.nodeId);
-      definitions.push({
+      rows.push({
         term: e.term,
         definition: e.content.length > DEFINITION_MAX_CHARS ? `${e.content.slice(0, DEFINITION_MAX_CHARS)}…` : e.content,
         doc_id: e.nodeId,
@@ -197,38 +181,5 @@ export function buildPrefetch(ix: Indexes, question: string): Prefetch | null {
       });
     }
   }
-  const entities = matchQuestionEntities(ix, question);
-  // Concepts lane: cross-cutting census summaries (counts only, drill-down
-  // via atlas_describe) for questions phrased in census vocabulary — see
-  // concepts-prefetch.ts.
-  const censuses = censusPrefetchRows(ix, question);
-  if (definitions.length === 0 && entities.length === 0 && censuses.length === 0) return null;
-
-  return {
-    content: JSON.stringify({
-      note: NOTE,
-      definitions,
-      entities,
-      ...(censuses.length ? { censuses_note: CENSUSES_NOTE, censuses } : {}),
-    }),
-    definitions: definitions.length,
-    entities: entities.length,
-    censuses: censuses.length,
-  };
-}
-
-// The synthetic tool round appended after the latest user message: an assistant
-// tool_call + its result, in OpenAI wire shape. Regenerated fresh each turn
-// (only user/assistant contents persist), so every turn prefetches its own
-// message. The verifier and citation checks pick it up as ordinary evidence.
-export function prefetchRound(question: string, prefetch: Prefetch): Msg[] {
-  const id = "call_prefetch";
-  return [
-    {
-      role: "assistant",
-      content: null,
-      tool_calls: [{ id, type: "function", function: { name: PREFETCH_TOOL_NAME, arguments: JSON.stringify({ text: question.slice(0, 200) }) } }],
-    },
-    { role: "tool", tool_call_id: id, content: prefetch.content },
-  ];
+  return rows;
 }

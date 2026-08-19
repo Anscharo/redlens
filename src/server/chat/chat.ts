@@ -13,7 +13,7 @@ import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
 import { routeTier, resolveTierModels, citationStyleFor } from "./model-router.ts";
 import { runVerifiedChat, sanitizeDone, type HarnessEvent, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
-import { buildPrefetch, prefetchRound } from "../prefetch.ts";
+import { runSkills, skillRound } from "../skills/registry.ts";
 import { windowHistory } from "./chat-history.ts";
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
@@ -170,12 +170,14 @@ export async function handleChat(req: Request): Promise<Response> {
     ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 
-  // Deterministic pre-lookup (glossary + entity match, pure code, ~ms): seed a
-  // synthetic tool round after the user message so definition/entity questions
-  // can answer in ONE request instead of tool-round → answer-round. Injects
-  // nothing on a miss; the harness treats it as ordinary turn evidence.
-  const prefetch = config.chatPrefetch ? buildPrefetch(ix, body.message) : null;
-  if (prefetch) messages.push(...prefetchRound(body.message, prefetch));
+  // Skills (skills/registry.ts): deterministic, pure-code context blocks that
+  // fire on the question — glossary definitions, entity rows, concept censuses,
+  // app documentation. Seeded as a synthetic tool round after the user message
+  // so a question they already answer needs ONE request instead of tool-round →
+  // answer-round. Injects nothing on a miss; the harness treats what they do
+  // inject as ordinary turn evidence.
+  const skills = config.chatPrefetch ? runSkills({ ix, question: body.message, page: body.pageContext }) : null;
+  if (skills) messages.push(...skillRound(body.message, skills));
 
   const startedAt = Date.now();
   const encoder = new TextEncoder();
