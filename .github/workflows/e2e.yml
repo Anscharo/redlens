@@ -88,6 +88,21 @@ jobs:
 
       - uses: ./.github/actions/setup
 
+      # Browser blobs live in ~/.cache/ms-playwright (~114MB for Chromium).
+      # OS packages from --with-deps are NOT in this cache (they install onto
+      # the runner), so a hit still runs apt — it just skips the download.
+      # That download is the long pole: deploy readiness is polled later in
+      # e2e/global-setup.ts and does not overlap this step. Recent PR deploys
+      # were already healthy in ~1s after install finished, so a cache hit is
+      # real wall-clock savings rather than hiding a database wait.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
