@@ -12,11 +12,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import MiniSearch from "minisearch";
 
 import { loadAtlasSource } from "../lib/atlas-source.mjs";
+import { gitHead, stampAtlasCommit } from "../lib/atlas-commit.mjs";
 import {
   ETH_ADDR_RE,
   SOL_ADDR_RE,
@@ -237,10 +237,7 @@ console.log(`\n${total} unique addresses extracted`);
 for (const [c, n] of Object.entries(byChain).sort((a, b) => b[1] - a[1]))
   console.log(`  ${c.padEnd(12)} ${n}`);
 
-const atlasCommit = process.env.ATLAS_COMMIT ?? (() => {
-  try { return execSync("git rev-parse HEAD", { cwd: ATLAS_SRC_DIR, encoding: "utf8" }).trim(); }
-  catch { return "unknown"; }
-})();
+const atlasCommit = stampAtlasCommit(process.env.ATLAS_COMMIT, gitHead(ATLAS_SRC_DIR));
 
 // `detected` is merge bookkeeping, not part of the artifact contract. `chains`
 // is: it lists every chain the atlas places this address on, and always

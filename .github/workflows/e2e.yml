@@ -15,6 +15,11 @@ name: E2E
 #     directly rather than looking it up). Useful to smoke the workflow before
 #     it's on main (a deployment_status workflow only fires once its file is on
 #     the default branch) or to re-run E2E on demand.
+#
+# Markdown-only PRs (skills, CLAUDE.md, plans — anything the app does not
+# `?raw`-import) should not reach here: railway.toml watchPatterns skip the
+# deploy. This job still no-ops if Railway emits a status anyway, so Playwright
+# does not wait on a PR env that will never converge for a docs-only change.
 on:
   deployment_status:
   workflow_dispatch:
@@ -37,6 +42,10 @@ on:
         default: false
         type: boolean
 
+permissions:
+  contents: read
+  pull-requests: read
+
 # Railway can emit multiple successful deployment events for services in the
 # same PR environment. Only the newest build may test that environment's mutable
 # URL; otherwise an older SHA can pass against newer code.
@@ -58,10 +67,66 @@ jobs:
        contains(github.event.deployment_status.environment, 'pr-'))
     runs-on: ubuntu-latest
     steps:
+      # Inline (not a repo script) so a skills-only PR that doesn't contain
+      # scripts/lib/deploy-skip.mjs still skips. Allowlist = APP_READ_MARKDOWN
+      # in that module: patch-notes.md, PRIVACY.md,
+      # docs/risk-assessment-rubric.md, docs/crossview/concepts.md,
+      # docs/crossview/concepts-audit.md.
+      - name: Skip markdown-only PRs
+        id: gate
+        if: github.event_name == 'deployment_status'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENV_NAME: ${{ github.event.deployment_status.environment }}
+        run: |
+          set -euo pipefail
+          SLUG="$(printf '%s' "$ENV_NAME" | awk -F'/' '{print $NF}' | xargs)"
+          PR="$(printf '%s' "$SLUG" | sed -nE 's/.*pr-([a-f0-9]+-)?([0-9]+)$/\2/p')"
+          skip=false
+          reason=""
+          if [ -z "$PR" ]; then
+            echo "could not parse a PR number from '${ENV_NAME}'; running E2E"
+          else
+            files="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --jq '.[].filename' || true)"
+            if [ -z "$files" ]; then
+              echo "PR #${PR} file list empty; running E2E"
+            else
+              relevant=""
+              while IFS= read -r f; do
+                [ -z "$f" ] && continue
+                case "$f" in
+                  patch-notes.md|PRIVACY.md|docs/risk-assessment-rubric.md|docs/crossview/concepts.md|docs/crossview/concepts-audit.md)
+                    relevant=1
+                    ;;
+                  *.md|*.MD)
+                    ;;
+                  *)
+                    relevant=1
+                    ;;
+                esac
+              done <<< "$files"
+              if [ -z "$relevant" ]; then
+                skip=true
+                reason="PR #${PR} only changes markdown the app does not read; skipping E2E"
+                echo "$reason"
+              else
+                echo "PR #${PR} has deploy-relevant files; running E2E"
+              fi
+            fi
+          fi
+          echo "skip=${skip}" >> "$GITHUB_OUTPUT"
+          echo "reason=${reason}" >> "$GITHUB_OUTPUT"
+
+      - name: Markdown-only — skipping E2E
+        if: ${{ steps.gate.outputs.skip == 'true' }}
+        run: echo "${{ steps.gate.outputs.reason }}"
+
       - uses: actions/checkout@v5
+        if: ${{ github.event_name == 'workflow_dispatch' || steps.gate.outputs.skip != 'true' }}
 
       - name: Resolve target URL
         id: target
+        if: ${{ github.event_name == 'workflow_dispatch' || steps.gate.outputs.skip != 'true' }}
         env:
           ENV_NAME: ${{ github.event.deployment_status.environment }}
           URL_INPUT: ${{ github.event.inputs.url }}
@@ -87,6 +152,7 @@ jobs:
           echo "url=${URL}" >> "$GITHUB_OUTPUT"
 
       - uses: ./.github/actions/setup
+        if: ${{ github.event_name == 'workflow_dispatch' || steps.gate.outputs.skip != 'true' }}
 
       # Browser blobs live in ~/.cache/ms-playwright (~114MB for Chromium).
       # OS packages from --with-deps are NOT in this cache (they install onto
@@ -96,6 +162,7 @@ jobs:
       # were already healthy in ~1s after install finished, so a cache hit is
       # real wall-clock savings rather than hiding a database wait.
       - name: Cache Playwright browsers
+        if: ${{ github.event_name == 'workflow_dispatch' || steps.gate.outputs.skip != 'true' }}
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
@@ -104,9 +171,11 @@ jobs:
             ${{ runner.os }}-playwright-
 
       - name: Install Playwright browser
+        if: ${{ github.event_name == 'workflow_dispatch' || steps.gate.outputs.skip != 'true' }}
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run core E2E
+        if: ${{ github.event_name == 'workflow_dispatch' || steps.gate.outputs.skip != 'true' }}
         run: pnpm test:e2e
         env:
           BASE_URL: ${{ steps.target.outputs.url }}
@@ -128,7 +197,7 @@ jobs:
           ATLAS_PREVIEW_CANARY_SHA: ${{ github.event.inputs.atlas_preview_canary_sha }}
 
       - name: Upload Playwright diagnostics
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || steps.gate.outputs.skip != 'true') }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-diagnostics-${{ github.run_attempt }}

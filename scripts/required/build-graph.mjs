@@ -25,7 +25,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync } from "node:child_process";
 
 import {
   slugify,
@@ -57,6 +56,7 @@ import {
 } from "../lib/address-annotate.mjs";
 import { normalizeChainLabel } from "../lib/chains.mjs";
 import { codeUnitCompare } from "../lib/natural-sort.mjs";
+import { gitHead, stampAtlasCommit } from "../lib/atlas-commit.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -69,10 +69,6 @@ const ROOT = path.resolve(__dirname, "../..");
 const ATLAS_SRC_DIR = process.env.ATLAS_SRC_DIR ?? path.join(ROOT, "vendor/next-gen-atlas");
 const OUT_DIR = process.env.ATLAS_OUT_DIR ?? path.join(ROOT, "public");
 const ONCHAIN_DIR = process.env.ATLAS_ONCHAIN_DIR ?? OUT_DIR;
-const atlasCommit = process.env.ATLAS_COMMIT ?? (() => {
-  try { return execSync("git rev-parse HEAD", { cwd: ATLAS_SRC_DIR, encoding: "utf8" }).trim(); }
-  catch { return "unknown"; }
-})();
 
 // ---------------------------------------------------------------------------
 // Load inputs
@@ -80,6 +76,10 @@ const atlasCommit = process.env.ATLAS_COMMIT ?? (() => {
 
 console.log("Loading docs.json…");
 const rawDocs = JSON.parse(fs.readFileSync(path.join(OUT_DIR, "docs.json"), "utf8"));
+// Prefer docs.json's stamp over git: the runtime image has no atlas checkout,
+// so `git rev-parse` would write "unknown" and the in-process updater could
+// never converge live SHA to sync_state.atlas_sha.
+const atlasCommit = stampAtlasCommit(process.env.ATLAS_COMMIT, rawDocs.atlasCommit, gitHead(ATLAS_SRC_DIR));
 const allDocs = Object.values(rawDocs.nodes);
 console.log(`  ${allDocs.length} docs`);
 

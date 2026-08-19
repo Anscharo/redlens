@@ -15,7 +15,10 @@ RUN bun install --frozen-lockfile
 COPY . .
 
 # Clone the atlas. Railway strips .git from the build context so submodule
-# init cannot work — a direct clone gives us the content we need.
+# init cannot work — a direct clone gives us the content we need. Stamp
+# ATLAS_COMMIT from that clone: `git rev-parse` inside bun/node can fail
+# (dubious-ownership) and silently write atlasCommit "unknown", which then
+# never matches Postgres and E2E waits forever on /api/health.
 # Login features (auth, saved Collections) + chat ship DISABLED by default, gated
 # by two runtime service variables: USERS_ENABLED (auth + Collections) and
 # CHAT_ENABLED (chat, which additionally requires users). Railway forwards a
@@ -47,6 +50,10 @@ ARG RAILWAY_GIT_COMMIT_SHA=""
 RUN rm -rf vendor/next-gen-atlas \
  && git clone --depth 1 --single-branch --branch main \
       https://github.com/sky-ecosystem/next-gen-atlas vendor/next-gen-atlas \
+ && git config --global --add safe.directory /app/vendor/next-gen-atlas \
+ && export ATLAS_COMMIT="$(git -C vendor/next-gen-atlas rev-parse HEAD)" \
+ && test -n "$ATLAS_COMMIT" \
+ && echo "Dockerfile: atlas ${ATLAS_COMMIT}" \
  && bun run build:index \
  && bun run build:graph \
  && bun run build:glossary \
