@@ -16,6 +16,12 @@ export interface SkillContext {
   question: string;
   /** Where the user is in the app, when the client sent it. */
   page?: PageContext;
+  /**
+   * The registry's similarity lane matched this skill's `prototypes` — the
+   * question looks like one this skill answers even though its deterministic
+   * trigger missed. A skill may still decline; it is a signal, not an order.
+   */
+  semanticHit?: boolean;
 }
 
 export interface SkillBlock {
@@ -40,6 +46,15 @@ export interface Skill {
    * ones ran — this is that copy, owned by the skill rather than the UI.
    */
   summarize(count: number): string;
+  /**
+   * Example questions this skill answers. When present, the registry also
+   * scores the turn against them (skills/similarity.ts) and sets
+   * `semanticHit`, so a skill can fire on phrasing its own trigger never
+   * anticipated. Omit for lanes where the match IS the extraction — the
+   * glossary and entity skills have to know WHICH term or entity to inject,
+   * which a similarity score cannot tell them.
+   */
+  prototypes?: string[];
   /** Returns null (or a zero count) when the turn doesn't call for it. */
   run(ctx: SkillContext): SkillBlock | null;
 }

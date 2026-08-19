@@ -3,7 +3,7 @@
 // so a drift in the guide shows up here.
 import { describe, it, expect } from "bun:test";
 import { featuresSkill, matchesFeaturesQuestion } from "./features.ts";
-import { FEATURE_GROUPS } from "../../components/featuresData.ts";
+import { FEATURE_GROUPS } from "../../lib/featuresData.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 
 const ix = {} as Indexes; // this skill reads no atlas data

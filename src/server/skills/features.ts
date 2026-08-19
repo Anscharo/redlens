@@ -1,6 +1,6 @@
 // The product-documentation skill: when the question is about what can be DONE
 // here rather than what the atlas SAYS, inject the Features guide
-// (src/components/featuresData.ts — the app's single source of truth for "what
+// (src/lib/featuresData.ts — the app's single source of truth for "what
 // can this app do", the same data /features renders) so the answer describes
 // the real app instead of the model's guess at one.
 //
@@ -13,7 +13,7 @@
 //   2. THE ATLAS vs OUR EXTRACTION — the atlas is the source documents;
 //      entities, relations, addresses, params, censuses and every report built
 //      on them are RedLens's parse of those documents, not atlas text.
-import { FEATURE_GROUPS, type FeatureGroup } from "../../components/featuresData.ts";
+import { FEATURE_GROUPS, type FeatureGroup } from "../../lib/featuresData.ts";
 import type { Skill, SkillBlock, SkillContext } from "./types.ts";
 
 // `how` steps are ~60% of the guide's bulk. Every area ships its name/what/note
@@ -45,6 +45,22 @@ const APP_REF = /\b(app|application|site|website|platform|tool|redlens?|redline|
 const HOW_TO = /\b(how (do|can) i|where (do|can) i|where is|can i)\b/i;
 const APP_ARTIFACT =
   /\b(csv|exports?|downloads?|buttons?|pages?|tabs?|panels?|sidebars?|shortcuts?|keyboard|bookmarks?|urls?|links?|filters?|columns?|toggles?|dark mode|themes?|sign(ing)? in|accounts?|collections?|mcp|previews?|constellations?|radar|reports?)\b/i;
+
+// Example questions for the registry's similarity lane (skills/similarity.ts),
+// which catches the phrasings no regex anticipates — "show me around", "what
+// should i try first?". Kept here, next to the deterministic trigger, because
+// they describe the same intent; the bakeoff imports these rather than keeping
+// its own copy, so eval and production cannot drift.
+export const FEATURES_PROTOTYPES = [
+  "what can this app do?",
+  "what features does this site have?",
+  "how do i use this tool?",
+  "what can you do?",
+  "show me around the app",
+  "how do i export data from a page?",
+  "where do i click to change a setting?",
+  "what is this website for?",
+];
 
 export function matchesFeaturesQuestion(question: string): boolean {
   if (DIRECT.some((re) => re.test(question))) return true;
@@ -144,10 +160,13 @@ export const featuresSkill: Skill = {
   what: "RedLens product documentation (the /features guide) for questions about what the app or this chat can do.",
   // Count is areas, which means nothing to a reader — name the thing instead.
   summarize: () => "the app's features guide",
-  run({ question, page }: SkillContext): SkillBlock | null {
-    // Being ON the features page is itself the question, for a follow-up like
-    // "what does this cover?" that names nothing.
-    if (!matchesFeaturesQuestion(question) && page?.path !== "/features") return null;
+  prototypes: FEATURES_PROTOTYPES,
+  run({ question, page, semanticHit }: SkillContext): SkillBlock | null {
+    // Three ways in: the deterministic trigger, the registry's similarity lane
+    // (phrasings the trigger never anticipated), and being ON the features
+    // page — itself the question, for a follow-up like "what does this cover?"
+    // that names nothing.
+    if (!matchesFeaturesQuestion(question) && !semanticHit && page?.path !== "/features") return null;
     const detailed = detailGroups(question);
     return {
       key: "app_features",

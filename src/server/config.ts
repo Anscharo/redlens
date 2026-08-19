@@ -301,6 +301,20 @@ export const config = {
   // seeded as a synthetic tool round before the first LLM request — saves a
   // tool round trip on definition/entity questions. Free, pure code.
   chatPrefetch: process.env.CHAT_PREFETCH !== "0",
+  // Similarity lane for skill triggers (skills/similarity.ts): an on-device
+  // embedding (ternlight, ~2ms, no network) catches product questions phrased
+  // in words no regex anticipates ("show me around", "what should i try
+  // first?"). Second lane only — it never overrides the deterministic one, and
+  // it is suppressed when the question names a real atlas subject.
+  chatSkillSimilarity: process.env.CHAT_SKILL_SIMILARITY !== "0",
+  // Margin (best skill prototype − best atlas prototype) at which the lane
+  // fires. Deliberately PERMISSIVE: injected context is read by a large model
+  // that can ignore a block it doesn't need, so over-injecting costs ~2k
+  // discarded tokens while under-injecting can lose the answer. -0.05 is the
+  // recall knee measured by `pnpm eval:skills --embed` (89% of product
+  // questions, where recall stops improving); raising it trades recovered
+  // questions for fewer false fires.
+  chatSkillSimilarityMargin: Number(process.env.CHAT_SKILL_SIMILARITY_MARGIN ?? -0.05),
   // Evidence digest budget for the final audit, newest-round-first.
   chatVerifierEvidenceMaxChars: Number(process.env.CHAT_VERIFIER_EVIDENCE_MAX_CHARS ?? 60_000),
   // Hard cap on the verifier call; timeout → null → "unverified" badge (chat
