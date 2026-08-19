@@ -17,7 +17,7 @@ function setup(over: Partial<React.ComponentProps<typeof LimitsMeter>> = {}) {
 
 const usage62 = { tokens: 62, limit: 100, resetsAt: "2026-01-01T00:41:00Z", exceeded: false, windowMinutes: 60 } satisfies UsageWindow;
 
-describe("LimitsMeter binding-limit selection", () => {
+describe("LimitsMeter displayed-limit selection", () => {
   it("shows context window when it's the only known limit", () => {
     setup({ contextTokens: 18200, contextWindowTokens: 128000 });
     expect(screen.getByText("context window · 14% · 18.2k / 128k")).toBeInTheDocument();
@@ -35,13 +35,27 @@ describe("LimitsMeter binding-limit selection", () => {
     expect(screen.getByText("shared credits · 87% used · $2.60 left")).toBeInTheDocument();
   });
 
-  it("picks whichever known fraction is highest, skipping unknowns", () => {
+  // The rule: context is what this chat is spending, so it stays on screen even
+  // when an account-wide limit happens to sit at a higher fraction.
+  it("shows context even when another limit's fraction is higher", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
-    // context 14%, time 62% (binding), commons unknown.
-    setup({ contextTokens: 18200, contextWindowTokens: 128000, usage: usage62 });
-    expect(screen.getByText("time limit · 62% · resets in 41 min")).toBeInTheDocument();
-    expect(screen.queryByText(/^context window/)).toBeNull();
+    // context 14%, time 62%, commons 87% — context still wins.
+    setup({
+      contextTokens: 18200,
+      contextWindowTokens: 128000,
+      usage: usage62,
+      commons: { used: 17.4, total: 20, remaining: 2.6 },
+    });
+    expect(screen.getByText("context window · 14% · 18.2k / 128k")).toBeInTheDocument();
+    expect(screen.queryByText(/^time limit/)).toBeNull();
+  });
+
+  it("falls back to the fullest known limit while context is still unknown", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    setup({ usage: usage62, commons: { used: 17.4, total: 20, remaining: 2.6 } }); // 62% vs 87%
+    expect(screen.getByText("shared credits · 87% used · $2.60 left")).toBeInTheDocument();
   });
 
   it("renders an empty (track-only) pie and no summary line when all three are unknown", () => {
@@ -58,28 +72,95 @@ describe("LimitsMeter binding-limit selection", () => {
   });
 });
 
+// The two account-wide limits take the meter over only once they're about to
+// run out first: the time window strictly above 95%, the shared pool at 99.5%
+// or more. Below that, this chat's own context is the useful number.
+describe("LimitsMeter takeover thresholds", () => {
+  const ctx14 = { contextTokens: 18200, contextWindowTokens: 128000 };
+  const usageAt = (pct: number) =>
+    ({ tokens: pct, limit: 100, resetsAt: "2026-01-01T00:41:00Z", exceeded: false, windowMinutes: 60 }) satisfies UsageWindow;
+  const pieStroke = () => screen.getByRole("button", { name: /— limits$/ }).querySelectorAll("circle")[1];
+
+  it("hands the meter to the time limit above 95%", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    setup({ ...ctx14, usage: usageAt(96) });
+    expect(screen.getByText("time limit · 96% · resets in 41 min")).toBeInTheDocument();
+    expect(pieStroke()).toHaveAttribute("stroke", "var(--warn)");
+  });
+
+  it("keeps context at exactly 95% — the threshold is strictly above", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    setup({ ...ctx14, usage: usageAt(95) });
+    expect(screen.getByText("context window · 14% · 18.2k / 128k")).toBeInTheDocument();
+    expect(pieStroke()).toHaveAttribute("stroke", "var(--accent)");
+  });
+
+  it("hands the meter to shared credits at exactly 99.5%", () => {
+    setup({ ...ctx14, commons: { used: 199, total: 200, remaining: 1 } });
+    expect(screen.getByText("shared credits · 100% used · $1.00 left")).toBeInTheDocument(); // 99.5 rounds to 100
+    expect(pieStroke()).toHaveAttribute("stroke", "var(--lilac)");
+  });
+
+  it("keeps context just below the shared-credits threshold", () => {
+    setup({ ...ctx14, commons: { used: 19.88, total: 20, remaining: 0.12 } }); // 99.4%
+    expect(screen.getByText("context window · 14% · 18.2k / 128k")).toBeInTheDocument();
+  });
+
+  it("shows the fuller of the two when both are past their thresholds", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    // time 99.8% vs commons 99.5% — time runs out first.
+    setup({ ...ctx14, usage: usageAt(99.8), commons: { used: 199, total: 200, remaining: 1 } });
+    expect(screen.getByText("time limit · 100% · resets in 41 min")).toBeInTheDocument();
+    // commons 99.9% vs time 96% — commons runs out first.
+    cleanup();
+    setup({ ...ctx14, usage: usageAt(96), commons: { used: 1998, total: 2000, remaining: 0.02 } });
+    expect(screen.getByText("shared credits · 100% used · $0.02 left")).toBeInTheDocument();
+  });
+});
+
 describe("LimitsMeter shared-credits drained pool", () => {
   it("treats total <= 0 as 100% full (the hard-gate state), not unknown", () => {
     setup({ commons: { used: 0, total: 0, remaining: 0 } });
     expect(screen.getByText("shared credits · 100% used · $0.00 left")).toBeInTheDocument();
   });
+
+  it("takes the meter over from a healthy context window", () => {
+    setup({ contextTokens: 18200, contextWindowTokens: 128000, commons: { used: 0, total: 0, remaining: 0 } });
+    expect(screen.getByText("shared credits · 100% used · $0.00 left")).toBeInTheDocument();
+  });
 });
 
-describe("LimitsMeter hot state", () => {
-  it("colors the pie and summary hot at >= 90%", () => {
+// The pie's color says WHICH limit is on screen; the summary text still turns
+// red past 90% to say how urgent it is. The two are independent now — a hot
+// limit no longer repaints the pie, or every takeover would look identical.
+describe("LimitsMeter hot state and per-limit colors", () => {
+  it("marks the summary hot at >= 90% without changing the pie's identity color", () => {
     setup({ commons: { used: 18, total: 20, remaining: 2 } }); // exactly 90%
-    const summary = screen.getByText("shared credits · 90% used · $2.00 left");
-    expect(summary).toHaveAttribute("data-hot", "true");
+    expect(screen.getByText("shared credits · 90% used · $2.00 left")).toHaveAttribute("data-hot", "true");
     const pie = screen.getByRole("button", { name: /— limits$/ });
-    expect(pie.querySelectorAll("circle")[1]).toHaveAttribute("stroke", "var(--error-text)");
+    expect(pie.querySelectorAll("circle")[1]).toHaveAttribute("stroke", "var(--lilac)");
   });
 
-  it("stays the accent color below 90%", () => {
+  it("leaves the summary cool below 90%", () => {
     setup({ commons: { used: 17, total: 20, remaining: 3 } }); // 85%
-    const summary = screen.getByText("shared credits · 85% used · $3.00 left");
-    expect(summary).toHaveAttribute("data-hot", "false");
-    const pie = screen.getByRole("button", { name: /— limits$/ });
-    expect(pie.querySelectorAll("circle")[1]).toHaveAttribute("stroke", "var(--accent)");
+    expect(screen.getByText("shared credits · 85% used · $3.00 left")).toHaveAttribute("data-hot", "false");
+  });
+
+  it("gives each limit its own pie color", () => {
+    setup({ contextTokens: 18200, contextWindowTokens: 128000 });
+    const stroke = () => screen.getByRole("button", { name: /— limits$/ }).querySelectorAll("circle")[1];
+    expect(stroke()).toHaveAttribute("stroke", "var(--accent)"); // context
+    cleanup();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    setup({ usage: usage62 });
+    expect(stroke()).toHaveAttribute("stroke", "var(--warn)"); // time
+    cleanup();
+    setup({ commons: { used: 17.4, total: 20, remaining: 2.6 } });
+    expect(stroke()).toHaveAttribute("stroke", "var(--lilac)"); // commons
   });
 });
 
