@@ -276,12 +276,13 @@ const markerObj = {
 void [MARKER_LOGIC, MARKER_TRAILING, markerObj];
 
 // ── mergeLcovReports ─────────────────────────────────────────────────────────
-// The multi-runner merge must not let an import-only runner's DA:0 rows add
-// phantom "uncovered" lines to a file another runner fully exercises. Bun emits
-// DA records for `export function` headers and multi-line condition
-// continuations that v8 never considers executable; before the authoritative-
-// line-set rule, those rows permanently failed the changed-line gate for any
-// src/lib helper that a src/server module merely imports (routes.ts, PR #279).
+// The multi-runner merge must not let one runner's DA:0 rows add phantom
+// "uncovered" lines to a file another runner fully exercises. Bun emits DA
+// records for `export function` headers and multi-line object-literal
+// continuations that v8 never considers executable. A greatest-total-hits
+// line set used to keep those zeros whenever bun imported the file enough
+// times (atlas-commit.mjs via indexes.ts). Intersection ∪ hits>0 drops them
+// (routes.ts, PR #279; atlas-commit.mjs, PR #304).
 describe("mergeLcovReports", () => {
   const m = (entries: Array<[number, number]>) => new Map(entries);
 
@@ -296,13 +297,34 @@ describe("mergeLcovReports", () => {
     expect(lines.get(58)).toBeUndefined();
   });
 
-  it("sums hits across runners over the authoritative line set", () => {
+  it("sums hits and drops extra DA:0 rows only one runner emitted", () => {
     const a = new Map([["f.ts", m([[10, 1]])]]);
     const b = new Map([["f.ts", m([[10, 2], [11, 0]])]]);
     const merged = mergeLcovReports([a, b]);
-    // b has the greater total (2 > 1) → its line set {10, 11} wins; hits sum.
+    // b's extra DA:0 is the bun object-literal / export-header class — not in
+    // the intersection, never executed, so it must not enter the denominator.
     expect(merged.get("f.ts")!.get(10)).toBe(3);
+    expect(merged.get("f.ts")!.get(11)).toBeUndefined();
+  });
+
+  it("keeps a DA:0 line that every runner instrumented", () => {
+    const a = new Map([["f.ts", m([[10, 5], [11, 0]])]]);
+    const b = new Map([["f.ts", m([[10, 1], [11, 0]])]]);
+    const merged = mergeLcovReports([a, b]);
+    expect(merged.get("f.ts")!.get(10)).toBe(6);
     expect(merged.get("f.ts")!.get(11)).toBe(0);
+  });
+
+  it("keeps a line only one runner executed even when the other never emitted it", () => {
+    // atlas-commit.mjs: bun never calls gitHead (DA:0 on its catch header) but
+    // vitest does (hits on the catch body's `return null`). Greatest-total-hits
+    // used to drop the vitest line and fail the gate on bun's phantom zero.
+    const vitest = new Map([["f.ts", m([[10, 2], [38, 1]])]]);
+    const bun = new Map([["f.ts", m([[10, 40], [37, 0]])]]);
+    const merged = mergeLcovReports([vitest, bun]);
+    expect(merged.get("f.ts")!.get(10)).toBe(42);
+    expect(merged.get("f.ts")!.get(38)).toBe(1);
+    expect(merged.get("f.ts")!.get(37)).toBeUndefined();
   });
 
   it("keeps a single runner's lines untouched, including all-zero files", () => {

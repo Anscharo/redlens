@@ -14,6 +14,7 @@ import { MINISEARCH_OPTIONS } from "../../lib/searchOptions.ts";
 import { buildLookup, type Glossary, type GlossaryEntry } from "../../lib/glossaryLookup.ts";
 import { buildParamIndex, type ParamIndex } from "../../lib/paramIndex.ts";
 import { buildLivenessMap, type Liveness } from "../../lib/liveness.ts";
+import { pickAtlasCommit } from "../../../scripts/lib/atlas-commit.mjs";
 
 // One canonical AtlasNode (src/types.ts). Re-exported so existing
 // `import { AtlasNode } from "./indexes.ts"` sites keep working, but there is now
@@ -183,7 +184,10 @@ export function readArtifactsFromDisk(): Artifacts {
   }
 
   const meta: Record<string, string | null> = {
-    atlasCommit: (graphJson.meta?.atlasCommit as string | undefined) ?? rawDocs.atlasCommit ?? null,
+    // Skip the "unknown" sentinel (git rev-parse failed / runtime image has no
+    // git). graph.json used to win even when it was "unknown" and docs.json
+    // already held the real DB sha, so the updater never reported convergence.
+    atlasCommit: pickAtlasCommit(graphJson.meta?.atlasCommit, rawDocs.atlasCommit),
     appCommit: null,
     generatedAt: null,
   };

@@ -709,6 +709,24 @@ describe("runRefreshFromDb", () => {
     expect(logs.some((l) => l.includes("refresh-from-db error: build-graph exited 3"))).toBe(true);
   });
 
+  it("stamps ATLAS_COMMIT=db sha for build subprocesses and restores it afterwards", async () => {
+    fakeDb.syncStateAtlasSha = A;
+    const prev = process.env.ATLAS_COMMIT;
+    let seen: string | undefined;
+    const fakeSpawn: SpawnFn = async () => {
+      seen = process.env.ATLAS_COMMIT;
+      return { code: 0, stdout: "" };
+    };
+    try {
+      await withPublicDir(() => runRefreshFromDb(() => {}, fakeSpawn));
+      expect(seen).toBe(A);
+    } finally {
+      if (prev === undefined) delete process.env.ATLAS_COMMIT;
+      else process.env.ATLAS_COMMIT = prev;
+    }
+    expect(process.env.ATLAS_COMMIT).toBe(prev);
+  });
+
   it("a failed build-oea-report (the LAST of the three gates) still aborts and returns null", async () => {
     fakeDb.syncStateAtlasSha = A;
     const calls: string[] = [];
