@@ -2,19 +2,12 @@ import { useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { atlasHref } from "../../lib/routes";
+import { DEFINITION_RE, normalizeLabel, parseDefinitions, unwrapCodeCitations } from "./citations";
 
 // Agent citations are markdown links of the form [Title](/atlas/<uuid>)
 // (system-prompt.ts forces UUID hrefs). We intercept those, SPA-navigate via
 // onAtlas, and let any other href fall through to a normal new-tab link.
 const ATLAS_HREF_RE = /^\/atlas\/([0-9a-f-]{36})$/i;
-
-// Reference-style citations: a definition block (`[label]: /atlas/<uuid>`,
-// normally at the top of the answer, but may appear anywhere) plus
-// `[text][label]` usages elsewhere in the prose. Label matching is
-// case-insensitive and whitespace-normalized, per CommonMark. Up to 3 leading
-// spaces are tolerated (CommonMark allows that much indentation before a
-// definition still counts). See docs/plans/reference-citations.md.
-const DEFINITION_RE = /^[ \t]{0,3}\[([^\]\n]+)\]:\s*\/atlas\/([0-9a-f-]{36})\s*$/gim;
 
 // One combined scan over the answer text, tried most-specific-first at each
 // `[`:
@@ -36,10 +29,6 @@ const DEFINITION_RE = /^[ \t]{0,3}\[([^\]\n]+)\]:\s*\/atlas\/([0-9a-f-]{36})\s*$
 // the answer can't bridge across lines into what looks like a real citation.
 const CITATION_SCAN_RE =
   /\[([^\]\n]+)\]\(\/atlas\/([0-9a-f-]{36})\)|\[([^\]\n]+)\]\[([^\]\n]+)\]|\[([^\]\n]+)\]/gi;
-
-function normalizeLabel(label: string): string {
-  return label.trim().toLowerCase().replace(/\s+/g, " ");
-}
 
 export interface Source {
   uuid: string;
@@ -66,11 +55,7 @@ export interface Source {
 // matching definition is dropped as non-citation prose rather than
 // corrupting the list.
 export function extractSources(content: string): Source[] {
-  const definitions = new Map<string, string>(); // normalized label -> lowercased uuid
-  for (const m of content.matchAll(DEFINITION_RE)) {
-    const label = normalizeLabel(m[1]);
-    if (!definitions.has(label)) definitions.set(label, m[2].toLowerCase());
-  }
+  const definitions = parseDefinitions(content); // normalized label -> lowercased uuid
 
   // A definition line's own `[label]` is a declaration, not a use — but now
   // that a bare bracket can resolve as a shortcut reference, scanning it
@@ -149,7 +134,7 @@ export function AtlasMarkdown({ content, onAtlas }: { content: string; onAtlas: 
   return (
     <div className="rlc-md">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {content}
+        {unwrapCodeCitations(content)}
       </ReactMarkdown>
     </div>
   );
