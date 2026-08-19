@@ -14,6 +14,7 @@ import {
   formatUsd,
   revenueGap,
   demandSideRevenue,
+  supplyKept,
   isDemandSideCycle,
   teaserFigure,
   summaryThreeWay,
@@ -137,10 +138,15 @@ describe("demand-side cycles", () => {
     },
   });
 
-  it("sums agent rate and rewards, falling back to the Summary total", () => {
+  it("sums agent rate and rewards, and never falls back to the prime-side total", () => {
     expect(demandSideRevenue(KEEL_HEADLINE)).toBe(36_231);
-    expect(demandSideRevenue({ ...KEEL_HEADLINE, agentRate: 0, distributionRewards: 0 })).toBe(36_231);
     expect(demandSideRevenue(report().headline)).toBe(0);
+    // primeAgentTotalRevenue is supply + demand. Returning it here when the
+    // demand parts are zero double-counts the whole cycle against
+    // supplyKept + skyRevenue, so it must stay 0.
+    expect(
+      demandSideRevenue({ ...KEEL_HEADLINE, agentRate: 0, distributionRewards: 0 }),
+    ).toBe(0);
   });
 
   it("flags Keel/Skybase, not Spark", () => {
@@ -155,9 +161,11 @@ describe("demand-side cycles", () => {
   });
 
   it("splits the Summary into Sky / supply kept / demand-side", () => {
-    expect(summaryThreeWay(report())).toEqual({ month: "2026-07", sky: 60, kept: 40, demand: 0 });
+    // kept is prime_agent_revenue (100) − cof (40), not profitToGrove (40).
+    expect(summaryThreeWay(report())).toEqual({ month: "2026-07", sky: 60, kept: 60, demand: 0 });
     expect(summaryThreeWay(keel)).toEqual({ month: "2026-07", sky: 0, kept: 0, demand: 36_231 });
-    expect(summaryThreeWay(report({ headline: { ...report().headline, profitToGrove: -20 } })).kept).toBe(-20);
+    const loss = report({ headline: { ...report().headline, primeAgentRevenue: 20, cof: 40 } });
+    expect(summaryThreeWay(loss).kept).toBe(-20);
   });
 
   it("places a signed kept bar below the zero line", () => {
@@ -172,13 +180,17 @@ describe("demand-side cycles", () => {
     expect(pos).toEqual({ bottom: "20%", height: "80%" });
   });
 
-  it("lists the three-way figures, plus CoF when it is non-zero", () => {
-    expect(headlineFigures(report()).map((f) => f.label)).toEqual([
-      "To Sky",
-      "Supply kept",
-      "Demand-side",
-      "Cost of funds",
+  it("lists the three flows, with CoF as a component of To Sky", () => {
+    // CoF is not a fourth destination — it is the money already shown as
+    // "To Sky" (settlement-cycle derives cof = sky_revenue − sde_revenue),
+    // so it renders as a marked component and never as a peer row.
+    expect(headlineFigures(report())).toEqual([
+      { label: "To Sky", value: 60 },
+      { label: "of which cost of funds", value: 40, component: true },
+      { label: "Supply kept", value: 60 },
+      { label: "Demand-side", value: 0 },
     ]);
+    expect(headlineFigures(report()).filter((f) => !f.component)).toHaveLength(3);
     expect(headlineFigures(keel)).toEqual([
       { label: "To Sky", value: 0 },
       { label: "Supply kept", value: 0 },
@@ -189,6 +201,26 @@ describe("demand-side cycles", () => {
       "Supply kept",
       "Demand-side",
     ]);
+  });
+
+  it("keeps supply kept on the prime-level basis, not the venue-row sum", () => {
+    // Regression: "Supply kept" used to read headline.profitToGrove (Σ
+    // per-venue Profit to Grove). That sum drops prime-level revenue with
+    // no venue row and the sUSDS spread reimbursement — on Spark it ran
+    // ~$1.0M/month low and disagreed with Soter's published summary.md.
+    const r = report({
+      headline: { ...report().headline, primeAgentRevenue: 8_602_621, cof: 5_755_899 },
+      venues: [{ ...report().venues[0], profitToGrove: 2_652_602 }],
+    });
+    expect(supplyKept(r)).toBe(2_846_722);
+    expect(supplyKept(r)).not.toBe(r.headline.profitToGrove);
+  });
+
+  it("three-way split foots to prime revenue + demand + SDE", () => {
+    const r = report();
+    const { sky, kept, demand } = summaryThreeWay(r);
+    const h = r.headline;
+    expect(sky + kept + demand).toBe(h.primeAgentRevenue + demand + h.sdeRevenue);
   });
 
   it("activates demand-series that appear in any month", () => {

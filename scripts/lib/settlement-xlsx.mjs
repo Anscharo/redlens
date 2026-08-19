@@ -40,6 +40,24 @@ export const VENUE_HEADERS = Object.freeze([
 
 export const SYNTHETIC_VENUE_IDS = Object.freeze(["SPREAD", "PSM_CURVE_DEDUCT"]);
 
+/**
+ * Summary rows this parser must find. `cellNum` returns 0 for a missing
+ * cell and 0 is a LEGITIMATE value here (Keel/Skybase genuinely run at
+ * CoF 0), so a renamed label is otherwise indistinguishable from a real
+ * zero. Upstream already spells CoF two ways — "CoF on utilized" in the
+ * xlsx, "prime cost of funds" in summary.md — so treat a miss as a
+ * layout change and throw, exactly as parseVenues does for its headers.
+ */
+export const REQUIRED_SUMMARY_ROWS = Object.freeze([
+  "prime_agent_revenue",
+  "+ agent_rate",
+  "CoF on utilized",
+  "+ SDE revenue",
+]);
+
+/** Block totals (the unlabeled bold row that closes each Summary block). */
+export const REQUIRED_SUMMARY_TOTALS = Object.freeze(["prime", "sky", "comparison"]);
+
 const POSITION_ONLY_RE = /^position-only venues/i;
 const SKIP_PRIMES = new Set(["non_msc", "sky_total"]);
 
@@ -93,19 +111,35 @@ export function reconcile(report) {
   const p2s = sum(report.venues.map((v) => v.profitToSky));
   const p2g = sum(report.venues.map((v) => v.profitToGrove));
   const rev = sum(report.venues.map((v) => v.revenueToPrime));
+  const cofAlloc = sum(report.venues.map((v) => v.cofAlloc));
+  const spread = sum(report.venues.map((v) => v.spreadReimb));
+  const h = report.headline;
   return {
     sumProfitToSky: p2s,
     sumProfitToGrove: p2g,
     sumRevenueToPrime: rev,
-    // Identities the xlsx actually keeps:
-    //   Σ Profit to Sky   ≡ headline.skyRevenue
-    //   Σ Profit to Grove ≡ headline.profitToGrove  (Comparison-block total)
-    // grove_sheet.py also claims Σ P2G ≡ prime_agent_revenue; that is not
-    // what the sheet contains (P2G = revenue − cof_alloc, so the sum is
-    // ~prime_agent_revenue − CoF, plus Spark's non-venue PSM3 gap).
-    dSky: Math.abs(p2s - report.headline.skyRevenue),
-    dP2G: Math.abs(p2g - report.headline.profitToGrove),
-    dRevenue: Math.abs(rev - report.headline.primeAgentRevenue),
+    sumCofAlloc: cofAlloc,
+    sumSpreadReimb: spread,
+    // dSky / dP2G restate the venue table against block totals derived from
+    // that same table, so they are ~0 by construction and detect very
+    // little. dCof is the one that bites: grove_sheet.py allocates the
+    // GROSS CoF across venues and refunds the sUSDS spread inside Profit
+    // to Sky, so Σ CoF alloc − Σ Spread Reimb ≡ headline.cof. A renamed
+    // "CoF on utilized" label (which parses as 0) breaks it immediately.
+    dSky: Math.abs(p2s - h.skyRevenue),
+    dP2G: Math.abs(p2g - h.profitToGrove),
+    dRevenue: Math.abs(rev - h.primeAgentRevenue),
+    dCof: Math.abs(cofAlloc - spread - h.cof),
+    // supplyKept is the prime's supply-side revenue as settlement-cycle
+    // itself defines it (load/summary.py: prime_agent_revenue − prime_cof).
+    // NOT Σ Profit to Grove: that sum drops prime-level revenue with no
+    // venue row (PSM3 sUSDS appreciation) and the spread reimbursement.
+    supplyKept: h.primeAgentRevenue - h.cof,
+    // The workbook's Comparison block prints prime_agent_revenue and −CoF
+    // as addends but totals them with Σ Profit to Grove, so it does not
+    // foot. Informational, not a flag — it is an upstream rendering bug we
+    // measure rather than one we can fix here.
+    dComparisonFoot: Math.abs(h.primeAgentRevenue - h.cof - h.profitToGrove),
   };
 }
 
@@ -229,7 +263,13 @@ function parseSummary(ws) {
   let settleVersion = null;
   let generatedAt = null;
   let section = null;
+  const seen = new Set();
+  const totals = new Set();
   const last = lastRow(ws);
+  const mark = (key, value) => {
+    seen.add(key);
+    return value;
+  };
 
   for (let r = 1; r <= last; r++) {
     const row = ws.getRow(r);
@@ -269,25 +309,39 @@ function parseSummary(ws) {
         if (section === "prime") headline.primeAgentTotalRevenue = n;
         else if (section === "sky") headline.skyRevenue = n;
         else if (section === "comparison") headline.profitToGrove = n;
+        totals.add(section);
         section = null;
       }
       continue;
     }
 
     if (section === "prime") {
-      if (al.startsWith("prime_agent_revenue")) headline.primeAgentRevenue = cellNum(b);
-      else if (al.startsWith("+ agent_rate")) headline.agentRate = cellNum(b);
+      if (al.startsWith("prime_agent_revenue")) headline.primeAgentRevenue = mark("prime_agent_revenue", cellNum(b));
+      else if (al.startsWith("+ agent_rate")) headline.agentRate = mark("+ agent_rate", cellNum(b));
       else if (al.startsWith("+ distribution_rewards")) headline.distributionRewards = cellNum(b);
       else if (al.startsWith("+ chronicle_points")) headline.chroniclePoints = cellNum(b);
       else if (al.startsWith("+ governance_accessibility_rewards")) headline.gar = cellNum(b);
       continue;
     }
     if (section === "sky") {
-      if (al.startsWith("cof on utilized")) headline.cof = cellNum(b);
-      else if (al.includes("sde revenue")) headline.sdeRevenue = cellNum(b);
+      if (al.startsWith("cof on utilized")) headline.cof = mark("CoF on utilized", cellNum(b));
+      else if (al.includes("sde revenue")) headline.sdeRevenue = mark("+ SDE revenue", cellNum(b));
       continue;
     }
     // comparison rows are only used for the unlabeled total
+  }
+
+  const missing = REQUIRED_SUMMARY_ROWS.filter((k) => !seen.has(k));
+  if (missing.length) {
+    throw new Error(
+      `Summary sheet missing required row(s): ${missing.join(", ")}. ` +
+        `A renamed label parses as 0, which is indistinguishable from a real zero — ` +
+        `verify the new wording upstream, then update REQUIRED_SUMMARY_ROWS.`,
+    );
+  }
+  const missingTotals = REQUIRED_SUMMARY_TOTALS.filter((k) => !totals.has(k));
+  if (missingTotals.length) {
+    throw new Error(`Summary sheet missing block total row(s): ${missingTotals.join(", ")}`);
   }
 
   return { headline, period, settleVersion, generatedAt };

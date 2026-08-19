@@ -117,15 +117,35 @@ export function revenueGap(report: SettlementReport): number {
 /** USD amounts under $1 are treated as empty (rounding dust, not a take). */
 const NEAR_ZERO = 1;
 
-/** Agent rate + DR + Chronicle + GAR, falling back to the Summary unlabeled total. */
+/**
+ * Agent rate + DR + Chronicle + GAR — the Summary's Prime-side addends
+ * other than prime_agent_revenue.
+ *
+ * Deliberately has no fallback to `primeAgentTotalRevenue`: that is the
+ * WHOLE prime-side total (supply + demand), already counted by
+ * `supplyKept` and `skyRevenue`, so returning it here would double-count
+ * the entire cycle. The parser now throws when `+ agent_rate` is missing,
+ * so these parts are always readable.
+ */
 export function demandSideRevenue(h: SettlementHeadline): number {
-  const parts =
-    (h.agentRate ?? 0) +
-    (h.distributionRewards ?? 0) +
-    (h.chroniclePoints ?? 0) +
-    (h.gar ?? 0);
-  if (Math.abs(parts) >= NEAR_ZERO) return parts;
-  return h.primeAgentTotalRevenue ?? 0;
+  return (h.agentRate ?? 0) + (h.distributionRewards ?? 0) + (h.chroniclePoints ?? 0) + (h.gar ?? 0);
+}
+
+/**
+ * The Prime's supply-side revenue: what it keeps from the venue book after
+ * paying Sky.
+ *
+ * `prime_agent_revenue − cost of funds`, which is how settlement-cycle
+ * itself defines it (`src/settle/load/summary.py`) and what its published
+ * summary.md prints. Explicitly NOT `headline.profitToGrove` (the
+ * Comparison block's Σ per-venue "Profit to Grove"): that sum is built
+ * from a pro-rata CoF allocation the pipeline calls "a display choice
+ * without a defensible formula", and it silently drops prime-level
+ * revenue with no venue row (PSM3 sUSDS appreciation) plus the sUSDS
+ * spread reimbursement. On Spark those two omissions ran to ~$1.0M/month.
+ */
+export function supplyKept(report: SettlementReport): number {
+  return report.headline.primeAgentRevenue - report.headline.cof;
 }
 
 export function hasVenuePnl(report: SettlementReport): boolean {
@@ -152,7 +172,7 @@ export function teaserFigure(report: SettlementReport): { amount: number; suffix
   if (isDemandSideCycle(report)) {
     return { amount: demandSideRevenue(report.headline), suffix: "kept" };
   }
-  const kept = report.headline.profitToGrove;
+  const kept = supplyKept(report);
   if (Math.abs(kept) >= NEAR_ZERO) return { amount: kept, suffix: "kept" };
   return { amount: sky, suffix: "to Sky" };
 }
@@ -169,7 +189,7 @@ export function summaryThreeWay(report: SettlementReport): ThreeWayMonth {
   return {
     month: report.month,
     sky: report.headline.skyRevenue,
-    kept: report.headline.profitToGrove,
+    kept: supplyKept(report),
     demand: demandSideRevenue(report.headline),
   };
 }
@@ -260,14 +280,31 @@ export function collapseAum(
   ];
 }
 
-export function headlineFigures(report: SettlementReport): { label: string; value: number }[] {
-  const rows = [
-    { label: "To Sky", value: report.headline.skyRevenue },
-    { label: "Supply kept", value: report.headline.profitToGrove },
-    { label: "Demand-side", value: demandSideRevenue(report.headline) },
-  ];
-  if (Math.abs(report.headline.cof) >= NEAR_ZERO) {
-    rows.push({ label: "Cost of funds", value: report.headline.cof });
+export interface HeadlineFigure {
+  label: string;
+  value: number;
+  /** A breakdown of the figure above it, not a flow of its own. */
+  component?: boolean;
+}
+
+/**
+ * The three ways a settled dollar can end up, plus cost of funds shown as
+ * what it is: a part of Sky's take, not a fourth destination.
+ *
+ * Cost of funds IS the money sent to Sky — settlement-cycle derives it as
+ * `sky_revenue − sde_revenue`, so the two differ only by Sky Direct
+ * Exposure (zero for Obex, <0.5% for Spark). Listing it as a peer of
+ * "To Sky" invited readers to add the row and count Sky's take twice.
+ */
+export function headlineFigures(report: SettlementReport): HeadlineFigure[] {
+  const { skyRevenue, cof } = report.headline;
+  const rows: HeadlineFigure[] = [{ label: "To Sky", value: skyRevenue }];
+  if (Math.abs(cof) >= NEAR_ZERO) {
+    rows.push({ label: "of which cost of funds", value: cof, component: true });
   }
+  rows.push(
+    { label: "Supply kept", value: supplyKept(report) },
+    { label: "Demand-side", value: demandSideRevenue(report.headline) },
+  );
   return rows;
 }
