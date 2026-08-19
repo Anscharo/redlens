@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { formatUsd } from "../../lib/settlements";
 import {
   collapseVenues,
@@ -11,19 +11,9 @@ import { Tooltip } from "../Tooltip";
 
 const LABEL_MAX = 26;
 
-type HighlightProps = {
-  highlightId: string | null;
-  onHighlight: (id: string | null) => void;
-};
-
 function linkFill(l: SankeyLink): string {
   if (l.signed < 0) return "var(--accent)";
   return l.to === "sky" ? "var(--depth-4)" : "var(--entity-delegate-org)";
-}
-
-function linkTip(l: SankeyLink, label: string, primeLabel: string): string {
-  const dest = l.to === "sky" ? "Sky" : primeLabel;
-  return `${label} → ${dest}: ${formatUsd(l.signed)}`;
 }
 
 function venueOutLines(v: SankeyVenue, primeLabel: string): string[] {
@@ -33,30 +23,22 @@ function venueOutLines(v: SankeyVenue, primeLabel: string): string[] {
   return lines;
 }
 
-function SankeyLinkPath({
-  l,
-  label,
-  primeLabel,
-  highlightId,
-  onHighlight,
-}: {
-  l: SankeyLink;
-  label: string;
-  primeLabel: string;
-} & HighlightProps) {
-  const hi = highlightId === l.from;
+function syncVenueHover(root: HTMLElement | null, venueId: string | null) {
+  if (!root) return;
+  root.toggleAttribute("data-dimmed", venueId != null);
+  root.querySelectorAll("[data-venue]").forEach((el) => {
+    el.toggleAttribute("data-lit", venueId != null && el.getAttribute("data-venue") === venueId);
+  });
+}
+
+function SankeyLinkPath({ l }: { l: SankeyLink }) {
   return (
-    <Tooltip content={linkTip(l, label, primeLabel)} delay={400}>
-      <path
-        className="msc-sankey-link"
-        data-highlight={hi ? "true" : undefined}
-        d={l.path}
-        fill={linkFill(l)}
-        onMouseEnter={() => onHighlight(l.from)}
-      >
-        <title>{linkTip(l, label, primeLabel)}</title>
-      </path>
-    </Tooltip>
+    <path
+      className="msc-sankey-link"
+      data-venue={l.from}
+      d={l.path}
+      fill={linkFill(l)}
+    />
   );
 }
 
@@ -64,32 +46,19 @@ function SankeyVenueNode({
   n,
   v,
   primeLabel,
-  highlightId,
-  onHighlight,
 }: {
   n: SankeyNode;
   v: SankeyVenue;
   primeLabel: string;
-} & HighlightProps) {
+}) {
   const truncated = n.label.length > LABEL_MAX;
   const display = truncated ? `${n.label.slice(0, LABEL_MAX - 1)}…` : n.label;
   const outLines = venueOutLines(v, primeLabel);
-  const hi = highlightId === n.id;
   const labelY = n.y + n.height / 2 - (outLines.length > 1 ? 5 : 0);
 
   const node = (
-    <g
-      className="msc-sankey-node msc-sankey-venue"
-      data-highlight={hi ? "true" : undefined}
-      onMouseEnter={() => onHighlight(n.id)}
-    >
-      <rect
-        x={n.x}
-        y={n.y}
-        width={n.width}
-        height={n.height}
-        fill="var(--border)"
-      />
+    <g className="msc-sankey-node msc-sankey-venue" data-venue={n.id}>
+      <rect x={n.x} y={n.y} width={n.width} height={n.height} fill="var(--border)" />
       <text
         x={n.x - 6}
         y={labelY}
@@ -156,13 +125,11 @@ function SettlementSankeyView({
   rows,
   layout,
   primeLabel,
-  highlightId,
-  onHighlight,
 }: {
   rows: SankeyVenue[];
   layout: ReturnType<typeof layoutVenueSankey>;
   primeLabel: string;
-} & HighlightProps) {
+}) {
   const byId = useMemo(() => new Map(rows.map((v) => [v.id, v])), [rows]);
   const skyTotal = useMemo(() => rows.reduce((n, v) => n + v.profitToSky, 0), [rows]);
   const primeTotal = useMemo(() => rows.reduce((n, v) => n + v.profitToGrove, 0), [rows]);
@@ -176,29 +143,13 @@ function SettlementSankeyView({
       style={{ color: "var(--tan-2)" }}
     >
       {layout.links.map((l) => (
-        <SankeyLinkPath
-          key={`${l.from}-${l.to}`}
-          l={l}
-          label={byId.get(l.from)?.label ?? l.from}
-          primeLabel={primeLabel}
-          highlightId={highlightId}
-          onHighlight={onHighlight}
-        />
+        <SankeyLinkPath key={`${l.from}-${l.to}`} l={l} />
       ))}
       {layout.nodes.map((n) => {
         if (n.kind === "venue") {
           const v = byId.get(n.id);
           if (!v) return null;
-          return (
-            <SankeyVenueNode
-              key={n.id}
-              n={n}
-              v={v}
-              primeLabel={primeLabel}
-              highlightId={highlightId}
-              onHighlight={onHighlight}
-            />
-          );
+          return <SankeyVenueNode key={n.id} n={n} v={v} primeLabel={primeLabel} />;
         }
         const total = n.id === "sky" ? skyTotal : primeTotal;
         return <SankeySinkNode key={n.id} n={n} total={total} />;
@@ -214,32 +165,35 @@ export function SettlementVenuePnl({
   venues: SankeyVenue[];
   primeLabel: string;
 }) {
-  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const rows = useMemo(() => collapseVenues(venues), [venues]);
   const layout = useMemo(() => layoutVenueSankey(rows, primeLabel), [rows, primeLabel]);
-  const dimmed = highlightId != null;
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const onOver = (e: MouseEvent) => {
+      const hit = (e.target as Element).closest("[data-venue]");
+      syncVenueHover(root, hit?.getAttribute("data-venue") ?? null);
+    };
+    const onOut = (e: MouseEvent) => {
+      const next = e.relatedTarget;
+      if (!next || !root.contains(next as Node)) syncVenueHover(root, null);
+    };
+    root.addEventListener("mouseover", onOver);
+    root.addEventListener("mouseleave", onOut);
+    return () => {
+      root.removeEventListener("mouseover", onOver);
+      root.removeEventListener("mouseleave", onOut);
+    };
+  }, []);
 
   if (layout.nodes.length === 0) return null;
 
   return (
-    <div
-      className="msc-venue-pnl"
-      data-dimmed={dimmed ? "true" : undefined}
-      onMouseLeave={() => setHighlightId(null)}
-    >
-      <SettlementSankeyView
-        rows={rows}
-        layout={layout}
-        primeLabel={primeLabel}
-        highlightId={highlightId}
-        onHighlight={setHighlightId}
-      />
-      <SettlementVenueTable
-        rows={rows}
-        primeLabel={primeLabel}
-        highlightId={highlightId}
-        onHighlight={setHighlightId}
-      />
+    <div ref={rootRef} className="msc-venue-pnl">
+      <SettlementSankeyView rows={rows} layout={layout} primeLabel={primeLabel} />
+      <SettlementVenueTable rows={rows} primeLabel={primeLabel} />
     </div>
   );
 }
@@ -249,29 +203,17 @@ export function SettlementSankey({ venues, primeLabel }: { venues: SankeyVenue[]
   const rows = useMemo(() => collapseVenues(venues), [venues]);
   const layout = useMemo(() => layoutVenueSankey(rows, primeLabel), [rows, primeLabel]);
   if (layout.nodes.length === 0) return null;
-  return (
-    <SettlementSankeyView
-      rows={rows}
-      layout={layout}
-      primeLabel={primeLabel}
-      highlightId={null}
-      onHighlight={() => {}}
-    />
-  );
+  return <SettlementSankeyView rows={rows} layout={layout} primeLabel={primeLabel} />;
 }
 
 export function SettlementVenueTable({
   rows: rowsProp,
   venues,
   primeLabel,
-  highlightId = null,
-  onHighlight,
 }: {
   rows?: SankeyVenue[];
   venues?: SankeyVenue[];
   primeLabel: string;
-  highlightId?: string | null;
-  onHighlight?: (id: string | null) => void;
 }) {
   const rows = rowsProp ?? collapseVenues(venues ?? []);
   if (rows.length === 0) return null;
@@ -289,8 +231,7 @@ export function SettlementVenueTable({
           <tr
             key={v.id}
             className="msc-venue-row border-t border-[var(--border)]"
-            data-highlight={highlightId === v.id ? "true" : undefined}
-            onMouseEnter={() => onHighlight?.(v.id)}
+            data-venue={v.id}
           >
             <td className="py-1 pr-3">
               <span style={{ color: "var(--tan-2)" }}>{v.label}</span>

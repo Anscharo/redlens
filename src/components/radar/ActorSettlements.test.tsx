@@ -157,12 +157,13 @@ describe("ActorSettlements", () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => expect(screen.getByRole("table")).toBeInTheDocument());
     const row = screen.getByRole("cell", { name: /SparkLend USDS/ }).closest("tr")!;
-    fireEvent.mouseEnter(row);
-    expect(row).toHaveAttribute("data-highlight", "true");
-    expect(document.querySelector(".msc-venue-pnl")).toHaveAttribute("data-dimmed", "true");
-    expect(document.querySelector('.msc-sankey-link[data-highlight="true"]')).toBeInTheDocument();
+    fireEvent.mouseOver(row);
+    expect(document.querySelector(".msc-venue-pnl")).toHaveAttribute("data-dimmed");
+    expect(row).toHaveAttribute("data-lit");
+    expect(document.querySelector('.msc-sankey-link[data-lit]')).toBeInTheDocument();
     fireEvent.mouseLeave(document.querySelector(".msc-venue-pnl")!);
-    expect(row).not.toHaveAttribute("data-highlight");
+    expect(document.querySelector(".msc-venue-pnl")).not.toHaveAttribute("data-dimmed");
+    expect(row).not.toHaveAttribute("data-lit");
   });
 
   it("resolves Spark's workbooks from the composite-party slug", async () => {
