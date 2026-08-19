@@ -92,7 +92,12 @@
    (not the full panel) — bottom-anchored fill, same context pct as the pie.
    Anchors to .rlc-thread-wrap (position:relative), which exactly spans the
    thread between header and composer. Hidden entirely (unrendered) when pct
-   is unknown; never intercepts clicks. */
+   is unknown. It hosts the title tooltip that says what the bar is, so it does
+   take pointer events — but only over its painted 2px, deliberately without a
+   widened target: it overlays the thread's left padding, and the thread
+   scroller is its SIBLING, not its ancestor, so anything a wide strip swallowed
+   (clicks, and the wheel) would not chain into the thread. The fill widens the
+   target instead, where there's a visible mark to aim at. */
 .rlc-ctxline {
   position: absolute;
   left: 0;
@@ -100,7 +105,6 @@
   bottom: 0;
   width: 2px;
   background: color-mix(in srgb, var(--border) 40%, transparent);
-  pointer-events: none;
 }
 .rlc-ctxline-fill {
   position: absolute;
@@ -109,6 +113,17 @@
   width: 100%;
   background: var(--accent);
   transition: height 0.3s ease-out;
+  pointer-events: auto;
+}
+/* Widens the hover target from the painted 2px to 8px around the fill, and
+   keeps it reachable while the fill is only a few px tall. The tooltip is the
+   track's, shown via the normal nearest-ancestor-title fallback. 8px stays
+   inside .rlc-thread's 16px left padding, so it never sits over content. */
+.rlc-ctxline-fill::after {
+  content: "";
+  position: absolute;
+  inset: auto -6px 0 0;
+  height: max(100%, 28px);
 }
 .rlc-ctxline-fill[data-hot="true"] { background: var(--error-text); }
 /* float (default): a docked card in the bottom-right corner */

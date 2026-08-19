@@ -62,9 +62,17 @@ describe("ContextLine", () => {
     render(<ContextLine pct={14} />);
     const line = document.querySelector(".rlc-ctxline");
     expect(line).toHaveAttribute("aria-hidden", "true");
+    // The bar's only self-explanation — a native tooltip, like the pie's, on
+    // the track so a hover anywhere along the bar answers.
+    expect(line).toHaveAttribute("title", "Context window · 14% used · this chat");
     const fill = document.querySelector(".rlc-ctxline-fill") as HTMLElement;
     expect(fill.style.height).toBe("14%");
     expect(fill).toHaveAttribute("data-hot", "false");
+  });
+
+  it("rounds the pct in its tooltip", () => {
+    render(<ContextLine pct={14.6} />);
+    expect(document.querySelector(".rlc-ctxline")).toHaveAttribute("title", "Context window · 15% used · this chat");
   });
 
   it("marks data-hot at pct >= 90", () => {

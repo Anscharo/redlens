@@ -49,12 +49,19 @@ export function ContextPie({ pct, label, color = "var(--accent)", open, onToggle
 
 // Thin bottom-anchored fill along the left edge of the conversation area —
 // always the CONTEXT pct specifically, unlike the pie, which meters whichever
-// limit is currently binding. Hidden entirely (not an empty 0% sliver) when
+// limit is currently displayed. Hidden entirely (not an empty 0% sliver) when
 // unknown — there's nothing to show, as opposed to "context measured at 0".
+//
+// The title is the only thing that says what a bare 2px bar is metering; it
+// stays a native tooltip, matching the pie and the header buttons. It sits on
+// the TRACK so the whole length of the bar answers a hover — at 14% context,
+// putting it on the fill alone would leave most of the bar inert. Still
+// aria-hidden: this is a decorative twin of the pie, whose aria-label already
+// reads the same number out.
 export function ContextLine({ pct }: { pct: number | null }) {
   if (pct === null) return null;
   return (
-    <div className="rlc-ctxline" aria-hidden="true">
+    <div className="rlc-ctxline" aria-hidden="true" title={`Context window · ${Math.round(pct)}% used · this chat`}>
       <div className="rlc-ctxline-fill" data-hot={pct >= HOT_PCT} style={{ height: `${pct}%` }} />
     </div>
   );
