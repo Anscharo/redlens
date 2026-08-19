@@ -34,6 +34,7 @@ export const SKILLS: Skill[] = [
   {
     id: "glossary",
     what: "Atlas definitions for glossary terms named in the question (longest-phrase-first, plural + typo tolerant).",
+    summarize: (n) => `${n} glossary definition${n === 1 ? "" : "s"}`,
     run: ({ ix, question }) => {
       const rows = definitionRows(ix, question);
       return { key: "definitions", value: rows, count: rows.length };
@@ -42,6 +43,7 @@ export const SKILLS: Skill[] = [
   {
     id: "entities",
     what: "Roster rows for entities the question names in full (slug/name/alias containment).",
+    summarize: (n) => `${n} entit${n === 1 ? "y" : "ies"} from the roster`,
     run: ({ ix, question }) => {
       const rows = matchQuestionEntities(ix, question);
       return { key: "entities", value: rows, count: rows.length };
@@ -50,6 +52,7 @@ export const SKILLS: Skill[] = [
   {
     id: "censuses",
     what: "Concept-census summaries (counts only) for questions phrased in census vocabulary.",
+    summarize: (n) => `${n} census summar${n === 1 ? "y" : "ies"} (our own analysis)`,
     run: ({ ix, question }) => {
       const rows = censusPrefetchRows(ix, question);
       return { key: "censuses", value: rows, note: CENSUSES_NOTE, count: rows.length };
@@ -61,6 +64,9 @@ export const SKILLS: Skill[] = [
 export interface SkillInjection {
   content: string; // the tool-result JSON the model reads
   counts: Record<string, number>; // rows per skill id — telemetry, and what fired
+  /** What ran, in the user's words — the SSE route shows this in the trace
+   *  and the stage ticker, so injected context is never silent work. */
+  used: { id: string; summary: string }[];
 }
 
 // Run every skill against the turn. Returns null when none fires, which is the
@@ -68,6 +74,7 @@ export interface SkillInjection {
 export function runSkills(ctx: SkillContext): SkillInjection | null {
   const payload: Record<string, unknown> = { note: NOTE };
   const counts: Record<string, number> = {};
+  const used: SkillInjection["used"] = [];
 
   for (const skill of SKILLS) {
     const block = skill.run(ctx);
@@ -75,10 +82,18 @@ export function runSkills(ctx: SkillContext): SkillInjection | null {
     payload[block.key] = block.value;
     if (block.note) payload[`${block.key}_note`] = block.note;
     counts[skill.id] = block.count;
+    used.push({ id: skill.id, summary: skill.summarize(block.count) });
   }
 
-  if (Object.keys(counts).length === 0) return null;
-  return { content: JSON.stringify(payload), counts };
+  if (used.length === 0) return null;
+  return { content: JSON.stringify(payload), counts, used };
+}
+
+// "a", "a and b", "a, b and c" — the stage-ticker line for what just ran.
+export function summarizeSkills(injection: SkillInjection): string {
+  const parts = injection.used.map((u) => u.summary);
+  const list = parts.length <= 1 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+  return `Recalled ${list}`;
 }
 
 // The synthetic tool round appended after the latest user message: an assistant

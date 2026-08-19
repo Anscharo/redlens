@@ -142,6 +142,8 @@ function shapeGroup(g: FeatureGroup, detailed: boolean) {
 export const featuresSkill: Skill = {
   id: "features",
   what: "RedLens product documentation (the /features guide) for questions about what the app or this chat can do.",
+  // Count is areas, which means nothing to a reader — name the thing instead.
+  summarize: () => "the app's features guide",
   run({ question, page }: SkillContext): SkillBlock | null {
     // Being ON the features page is itself the question, for a follow-up like
     // "what does this cover?" that names nothing.

@@ -52,6 +52,59 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("useChatStream skills", () => {
+  // Skills are deterministic context the server injected before the model ran
+  // (src/server/skills). They shape the answer, so the turn shows them rather
+  // than letting them look like the model simply knowing things.
+  it("puts each fired skill in the trace, ahead of the tool calls that followed", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      {
+        type: "skills",
+        skills: [
+          { id: "glossary", summary: "2 glossary definitions" },
+          { id: "features", summary: "the app's features guide" },
+        ],
+        bytes: 8000,
+      },
+      { type: "status", stage: "recalling", detail: "Recalled 2 glossary definitions and the app's features guide" },
+      { type: "tool_call", name: "atlas_query", args: { search: "one" } },
+      { type: "tool_result", name: "atlas_query", ok: true, bytes: 10 },
+      { type: "done", content: "Answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("what can this app do?");
+    });
+
+    const trace = result.current.messages.at(-1)!.trace;
+    expect(trace.map((t) => t.name)).toEqual(["glossary", "features", "atlas_query"]);
+    expect(trace[0]).toMatchObject({ kind: "skill", summary: "2 glossary definitions", ok: true });
+    // A skill has no call to pair with a result — it never sits unresolved.
+    expect(trace.slice(0, 2).every((t) => t.ok === true)).toBe(true);
+  });
+
+  it("logs the recall as a stage, like any other step of the turn", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1", delivery: "staged" },
+      { type: "skills", skills: [{ id: "entities", summary: "1 entity from the roster" }] },
+      { type: "status", stage: "recalling", detail: "Recalled 1 entity from the roster" },
+      { type: "done", content: "Answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("who is keel?");
+    });
+
+    expect(result.current.messages.at(-1)?.stageLog?.[0]).toMatchObject({
+      stage: "recalling",
+      detail: "Recalled 1 entity from the roster",
+    });
+  });
+});
+
 describe("useChatStream tool round accounting", () => {
   it("counts a new tool round after the previous tool results complete, even without intervening tokens", async () => {
     mockChat([

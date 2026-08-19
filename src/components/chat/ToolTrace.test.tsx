@@ -58,3 +58,30 @@ describe("ToolTrace", () => {
     expect(screen.getByText("100 B")).toBeInTheDocument();
   });
 });
+
+describe("ToolTrace skill rows", () => {
+  // The app-documentation answer needs no tool call at all — the header must
+  // not claim an atlas lookup that never happened.
+  it("says only what happened on a skills-only turn", () => {
+    const trace: TraceRow[] = [
+      { name: "features", args: {}, ok: true, bytes: null, kind: "skill", summary: "the app's features guide" },
+    ];
+    render(<ToolTrace trace={trace} rounds={0} />);
+    expect(screen.getByText("recalled 1 thing")).toBeInTheDocument();
+  });
+
+  it("shows a fired skill by its summary, with no call arrow or byte size", () => {
+    const trace: TraceRow[] = [
+      { name: "glossary", args: {}, ok: true, bytes: null, kind: "skill", summary: "2 glossary definitions" },
+      { name: "atlas_get", args: { id: "doc-1" }, ok: true, bytes: 500 },
+    ];
+    render(<ToolTrace trace={trace} rounds={1} />);
+    expect(screen.getByText("recalled 1 thing · looked up 1 thing over the atlas")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button"));
+    expect(screen.getByText("2 glossary definitions")).toBeInTheDocument();
+    expect(screen.getByText("recalled")).toBeInTheDocument();
+    // The tool row keeps its own treatment.
+    expect(screen.getByText("id: doc-1")).toBeInTheDocument();
+    expect(screen.getByText("500 B")).toBeInTheDocument();
+  });
+});

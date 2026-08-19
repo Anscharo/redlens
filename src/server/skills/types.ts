@@ -34,6 +34,12 @@ export interface Skill {
   id: string;
   /** One line for humans: what this skill knows, and when it fires. */
   what: string;
+  /**
+   * User-facing phrase for what it just contributed ("2 glossary definitions").
+   * Skills are invisible work that shapes the answer, so the chat says which
+   * ones ran — this is that copy, owned by the skill rather than the UI.
+   */
+  summarize(count: number): string;
   /** Returns null (or a zero count) when the turn doesn't call for it. */
   run(ctx: SkillContext): SkillBlock | null;
 }

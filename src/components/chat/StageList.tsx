@@ -4,6 +4,7 @@ import type { StageLogEntry } from "./useChatStream";
 // (forward-compat with a server that adds one before the client updates)
 // fall back to a capitalized raw label instead of disappearing.
 const STAGE_LABEL: Record<string, string> = {
+  recalling: "Recalling context",
   querying: "Looking for evidence",
   reading: "Reading documents",
   comparing: "Comparing results",
