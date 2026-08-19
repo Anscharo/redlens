@@ -24,14 +24,20 @@ const MAX_DETAIL_GROUPS = 3;
 // Phrasings that ask about the product on their own. The negative lookahead on
 // the first is load-bearing: "what can I do to become a facilitator" and "what
 // can I do about the deficit" are governance questions wearing this shape.
+// `with` is handled separately (DO_WITH below) — the old `with the atlas`
+// lookahead still let "what can I do with the Stability Scope" through.
 const DIRECT: RegExp[] = [
-  /\bwhat (can|could) (i|you|we|users?) (do|see|ask)\b(?!\s+(to|about|if|when|before|after|for|with the atlas)\b)/i,
+  /\bwhat (can|could) (i|you|we|users?) (do|see|ask)\b(?!\s+(to|about|if|when|before|after|for)\b)/i,
   /\bwhat (can|does) (this app|the app|this site|this tool|redlens?|redline(?: sky)? atlas|you) (do|offer|support|provide)\b/i,
   /\bwhat (features?|capabilit(y|ies)|functionalit(y|ies)) (exist|are there|are available|do you have|does it have)\b/i,
   /\bwhat (is|are) (redlens?|redline(?: sky)? atlas|this app|this site|this tool)\b/i,
   /\bhow do i (use|get started with|navigate) (this|the app|redlens?)\b/i,
   /\bwhat else can (you|i)\b/i,
 ];
+
+// "what can I do with X" is product only when X is the app (or a UI artifact).
+// Without this gate DIRECT[0] fires on any "with", including atlas objects.
+const DO_WITH = /\bwhat (can|could) (i|you|we|users?) (do|see|ask)\s+with\b/i;
 
 // Capability vocabulary is only about the product when it points at the
 // product: "what are the features of the Stability Scope" must stay an atlas
@@ -63,6 +69,9 @@ export const FEATURES_PROTOTYPES = [
 ];
 
 export function matchesFeaturesQuestion(question: string): boolean {
+  // Same objects CAPABILITY / HOW_TO already require: an app pointer, not a
+  // bare "with <atlas noun>". Checked first so DIRECT[0] cannot take the hole.
+  if (DO_WITH.test(question)) return APP_REF.test(question) || APP_ARTIFACT.test(question);
   if (DIRECT.some((re) => re.test(question))) return true;
   if (CAPABILITY.test(question) && APP_REF.test(question)) return true;
   return HOW_TO.test(question) && APP_ARTIFACT.test(question);
