@@ -289,7 +289,10 @@ export async function* runChat(opts: {
 
     // A tool round. Trust the accumulated `pending` map directly rather than
     // gating on finish_reason === "tool_calls": OpenRouter fans a tier out
-    // across several providers (model-router.ts — gemma, glm, haiku, gpt-5-mini),
+    // across several providers (model-router.ts — gemma, glm, haiku, gpt-5-mini
+    // as observed when this was diagnosed; the strong slot has since moved to
+    // openai/gpt-5.6-luna, not re-checked for this same quirk — the pending-map
+    // fallback below is deliberately provider-agnostic, so it doesn't need to be),
     // and not all of them report finish_reason:"tool_calls" for a round that
     // streamed tool_calls deltas — some report "stop". Gating on finish_reason
     // silently dropped those accumulated calls, and whatever (usually empty)

@@ -315,6 +315,27 @@ export const config = {
   // questions, where recall stops improving); raising it trades recovered
   // questions for fewer false fires.
   chatSkillSimilarityMargin: Number(process.env.CHAT_SKILL_SIMILARITY_MARGIN ?? -0.05),
+  // Same lane, second consumer: the concept-census router (concepts-prefetch.ts's
+  // routeCensuses, skills/similarity.ts's rankPrototypeSets) — a different margin
+  // because it's a different decision (1-of-10 routing, not one skill's fire/no-fire)
+  // against a different competing class (specific document lookup, not app-vs-atlas).
+  // Shares chatSkillSimilarity as its on/off kill switch; this is only the threshold.
+  //
+  // 0.4, NOT the ~0.175-0.225 the labeled 202-question corpus alone suggested
+  // (`pnpm eval:census`'s held-out numbers there: 96-100% routing accuracy at a
+  // 2.6-3.9% false-fire rate). The real-traffic check (same script, DATABASE_URL
+  // set) is what set the actual value: at 0.175 the lane fired on 12 of 67 distinct
+  // real messages (18%) — "trace the governance path for an amendment", "who are
+  // all the individuals in the atlas", "generate 10 did-you-know blurbs" — none of
+  // them census-shaped, a failure mode the synthetic negative pool (generated
+  // specific-document-lookup questions) never produced. 0.4 is the point where
+  // BOTH the synthetic false-fire rate and the real-traffic false-fire rate hit
+  // zero, at a cost of dropping labeled-corpus routing accuracy to 86% (43/50) —
+  // still far above regex's 30%. Lesson generalized: a synthetic adversarial pool
+  // proves the mechanism works, but only real traffic sets a threshold that's
+  // actually safe to ship; re-run `pnpm eval:census` with DATABASE_URL set before
+  // trusting a lower margin here.
+  chatCensusSimilarityMargin: Number(process.env.CHAT_CENSUS_SIMILARITY_MARGIN ?? 0.4),
   // Evidence digest budget for the final audit, newest-round-first.
   chatVerifierEvidenceMaxChars: Number(process.env.CHAT_VERIFIER_EVIDENCE_MAX_CHARS ?? 60_000),
   // Hard cap on the verifier call; timeout → null → "unverified" badge (chat
@@ -349,12 +370,26 @@ export const config = {
   // Fallbacks for the default chain (also inherited by unset tiers).
   chatModelFallbacks: (process.env.CHAT_MODEL_FALLBACKS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
   // Models PROMPTED for reference-style citations (system-prompt.ts). Every model
-  // still accepts both formats — this is prompt wording only. Defaults to the
-  // strong chain, since that is where the 2026-08-03 bakeoff measured the format
-  // working (93% adoption, block first, no defects) while the default tier
-  // adopted it in 29% of turns and never led with the block. Empty (no strong
-  // tier configured, no override) = inline everywhere, which is the safe form.
-  chatReferenceCitationModels: (process.env.CHAT_REFERENCE_CITATION_MODELS ?? process.env.CHAT_MODEL_STRONG ?? "")
+  // still accepts both formats — this is prompt wording only. Used to default to
+  // `chatModelStrong` outright, on the theory that the strong tier IS the measured
+  // model. That coupling broke on the 2026-08-19 swap of CHAT_MODEL_STRONG from
+  // openai/gpt-5-mini to openai/gpt-5.6-luna: the strong tier can now hold a model
+  // nobody has run through the reference-citation bakeoff, and silently inheriting
+  // the slot would ask it for a format at 0% observed adoption instead of the 93%
+  // gpt-5-mini earned (2026-08-03, docs/plans/reference-citations.md). So the
+  // default is now the literal measured list, independent of whatever sits in
+  // CHAT_MODEL_STRONG today — swapping the strong tier no longer silently swaps
+  // the citation-style prompt too. Empty/no-match = inline, the safe form every
+  // measured model follows. Re-run the bakeoff against a new strong-tier model and
+  // add it here explicitly once it earns the slot.
+  //
+  // Luna then earned it, same day: 14 queries head-to-head against gpt-5-mini
+  // under identical conditions (2026-08-19, docs/plans/reference-citations.md
+  // "Luna vs gpt-5-mini") — 100% adoption and 100% block-first vs gpt-5-mini's
+  // 86%/86%, with zero undefined labels, zero shipped brackets and zero
+  // ungrounded values. gpt-5-mini stays listed: it is no longer in any chain,
+  // but it is still measured-clean, and dropping it would lose that fact.
+  chatReferenceCitationModels: (process.env.CHAT_REFERENCE_CITATION_MODELS ?? "openai/gpt-5.6-luna,openai/gpt-5-mini")
     .split(",").map((s) => s.trim()).filter(Boolean),
 
   // Per-user rolling token window — the HARD rate-limit gate. Counts

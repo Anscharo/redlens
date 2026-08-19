@@ -50,6 +50,7 @@
     "eval:bakeoff": "bun scripts/eval/eval-bakeoff.ts",
     "eval:retrieval": "bun scripts/eval/eval-retrieval.ts",
     "eval:skills": "bun scripts/eval/eval-skills.ts",
+    "eval:census": "bun scripts/eval/eval-census.ts",
     "census:embed-units": "bun scripts/aux/embed-units-census.ts",
     "build:at": "node --env-file-if-exists=.env.local scripts/required/build-at.mjs",
     "build:ts": "tsc -b",

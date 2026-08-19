@@ -18,7 +18,7 @@ const ENV_KEYS = [
   "CHAT_VERIFY_CHECKS", "CHAT_PREFETCH", "CHAT_VERIFIER_EVIDENCE_MAX_CHARS", "CHAT_VERIFIER_TIMEOUT_MS",
   "CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS", "CHAT_ADVISOR_TRIGGER_UNSUPPORTED_CLAIMS",
   "CHAT_ADVISOR_TIMEOUT_MS", "CHAT_MODEL_FAST",
-  "CHAT_MODEL_STRONG", "CHAT_MODEL_FALLBACKS", "RATE_LIMIT_TOKENS_PER_WINDOW",
+  "CHAT_MODEL_STRONG", "CHAT_MODEL_FALLBACKS", "CHAT_REFERENCE_CITATION_MODELS", "RATE_LIMIT_TOKENS_PER_WINDOW",
   "RATE_LIMIT_WINDOW_MINUTES", "MCP_PATH", "MCP_MAX_RESULT_CHARS", "RAILWAY_GIT_COMMIT_SHA", "APP_COMMIT", "GIT_COMMIT",
   "SOURCE_COMMIT", "GITHUB_TOKEN", "PREVIEW_DAILY_QUOTA", "PREVIEW_TRUSTED_FORK_DAILY_QUOTA",
   "PREVIEW_FORK_DAILY_QUOTA", "PREVIEW_UNKNOWN_FORK_DAILY_QUOTA", "PREVIEW_MAX_CONCURRENT_BUILDS",
@@ -94,6 +94,7 @@ test("defaults when no env is set", async () => {
   expect(config.chatModelFast).toEqual([]);
   expect(config.chatModelStrong).toEqual([]);
   expect(config.chatModelFallbacks).toEqual([]);
+  expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini"]);
   expect(config.rateLimitTokensPerWindow).toBe(500000);
   expect(config.rateLimitWindowMinutes).toBe(120);
   expect(config.mcpPath).toBe("/mcp");
@@ -226,6 +227,9 @@ test("all env overrides take effect", async () => {
   expect(config.chatModelFast).toEqual(["fast-a", "fast-b"]);
   expect(config.chatModelStrong).toEqual(["strong-a"]);
   expect(config.chatModelFallbacks).toEqual(["fb-a", "fb-b"]);
+  // CHAT_REFERENCE_CITATION_MODELS was deliberately left out of this env batch —
+  // see the dedicated decoupling test below for why this must NOT be ["strong-a"].
+  expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini"]);
   expect(config.rateLimitTokensPerWindow).toBe(777);
   expect(config.rateLimitWindowMinutes).toBe(30);
   expect(config.mcpPath).toBe("/custom-mcp");
@@ -266,6 +270,24 @@ test("appCommit falls through APP_COMMIT, GIT_COMMIT, SOURCE_COMMIT in order", a
   process.env.APP_COMMIT = "only-app";
   process.env.GIT_COMMIT = "ignored";
   expect((await freshConfig()).appCommit).toBe("only-app");
+});
+
+test("chatReferenceCitationModels does NOT inherit CHAT_MODEL_STRONG", async () => {
+  // This is the property the 2026-08-19 gpt-5-mini -> gpt-5.6-luna swap depends
+  // on: swapping the strong tier must not silently ask an unmeasured model for
+  // reference-style citations. Guards against someone restoring the old
+  // `?? process.env.CHAT_MODEL_STRONG` fallback in config.ts.
+  clearAll();
+  process.env.CHAT_MODEL_STRONG = "some-new-unmeasured-model";
+  const config = await freshConfig();
+  expect(config.chatReferenceCitationModels).not.toContain("some-new-unmeasured-model");
+  expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini"]);
+
+  // An explicit override still works and still wins over CHAT_MODEL_STRONG.
+  clearAll();
+  process.env.CHAT_MODEL_STRONG = "some-new-unmeasured-model";
+  process.env.CHAT_REFERENCE_CITATION_MODELS = "some-new-unmeasured-model";
+  expect((await freshConfig()).chatReferenceCitationModels).toEqual(["some-new-unmeasured-model"]);
 });
 
 test("appUrl falls back to RAILWAY_PUBLIC_DOMAIN when APP_URL is unset", async () => {
