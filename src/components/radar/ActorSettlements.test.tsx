@@ -153,6 +153,18 @@ describe("ActorSettlements", () => {
     expect(screen.getByText("$402.00M")).toBeInTheDocument();
   });
 
+  it("links sankey flows and venue table rows on hover", async () => {
+    render(<ActorSettlements slug="spark" name="Spark" />);
+    await waitFor(() => expect(screen.getByRole("table")).toBeInTheDocument());
+    const row = screen.getByRole("cell", { name: /SparkLend USDS/ }).closest("tr")!;
+    fireEvent.mouseEnter(row);
+    expect(row).toHaveAttribute("data-highlight", "true");
+    expect(document.querySelector(".msc-venue-pnl")).toHaveAttribute("data-dimmed", "true");
+    expect(document.querySelector('.msc-sankey-link[data-highlight="true"]')).toBeInTheDocument();
+    fireEvent.mouseLeave(document.querySelector(".msc-venue-pnl")!);
+    expect(row).not.toHaveAttribute("data-highlight");
+  });
+
   it("resolves Spark's workbooks from the composite-party slug", async () => {
     window.history.pushState({}, "", "/radar/spark-party/settlements");
     render(<ActorSettlements slug="spark-party" name="Spark" />);

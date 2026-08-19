@@ -6,7 +6,7 @@ import {
   type SettlementReport,
 } from "../../lib/settlements";
 import { Tooltip } from "../Tooltip";
-import { SettlementSankey, SettlementVenueTable } from "./SettlementSankey";
+import { SettlementVenuePnl } from "./SettlementSankey";
 import { SettlementAum } from "./SettlementAum";
 
 export function ActorSettlementVenues({ report, name }: { report: SettlementReport; name: string }) {
@@ -54,12 +54,7 @@ export function ActorSettlementVenues({ report, name }: { report: SettlementRepo
           </Tooltip>
         </div>
       )}
-      {showPnl && (
-        <>
-          <SettlementSankey venues={report.venues} primeLabel={name} />
-          <SettlementVenueTable venues={report.venues} primeLabel={name} />
-        </>
-      )}
+      {showPnl && <SettlementVenuePnl venues={report.venues} primeLabel={name} />}
       {showAum && <SettlementAum venues={report.venues} />}
     </>
   );
