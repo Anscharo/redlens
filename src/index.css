@@ -1936,8 +1936,35 @@ button.atlas-node-expand-all:focus-visible {
 }
 .msc-sankey-link {
   opacity: 0.45;
+  cursor: pointer;
 }
-.msc-sankey-link:hover,
-.msc-sankey-link:focus-visible {
-  opacity: 0.9;
+.msc-sankey-link[data-highlight="true"] {
+  opacity: 0.92;
+}
+.msc-venue-pnl[data-dimmed="true"] .msc-sankey-link:not([data-highlight="true"]) {
+  opacity: 0.14;
+}
+.msc-sankey-node {
+  cursor: pointer;
+}
+.msc-venue-pnl[data-dimmed="true"] .msc-sankey-node:not([data-highlight="true"]) {
+  opacity: 0.35;
+}
+.msc-sankey-node[data-highlight="true"] .msc-sankey-node-label {
+  fill: var(--tan);
+}
+.msc-sankey-amount {
+  fill: var(--tan-3);
+}
+.msc-venue-row {
+  transition: background 0.1s, opacity 0.1s;
+}
+.msc-venue-pnl[data-dimmed="true"] .msc-venue-row:not([data-highlight="true"]) {
+  opacity: 0.38;
+}
+.msc-venue-row[data-highlight="true"] {
+  background: var(--row-hover);
+}
+.msc-venue-row[data-highlight="true"] td:first-child span:first-child {
+  color: var(--tan);
 }
