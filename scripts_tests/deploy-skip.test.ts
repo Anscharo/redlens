@@ -3,8 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   APP_READ_MARKDOWN,
+  isAppReadMarkdown,
   isDeployRelevant,
   isMarkdownPath,
+  normalizeRepoPath,
   prNumberFromRailwayEnv,
   railwayWebWatchPatterns,
   railwayWorkerWatchPatterns,
@@ -73,6 +75,16 @@ describe("shouldSkipDeploy", () => {
     expect(isMarkdownPath("foo.MD")).toBe(true);
     expect(isMarkdownPath("foo.mdx")).toBe(false);
     expect(isDeployRelevant("e2e/health.ts")).toBe(true);
+  });
+
+  it("normalizes slashes, ./ prefixes, and the app-read allowlist", () => {
+    expect(normalizeRepoPath(".\\docs\\crossview\\concepts.md")).toBe("docs/crossview/concepts.md");
+    expect(normalizeRepoPath("./patch-notes.md")).toBe("patch-notes.md");
+    expect(isAppReadMarkdown("./PRIVACY.md")).toBe(true);
+    expect(isAppReadMarkdown("docs\\crossview\\concepts.md")).toBe(true);
+    expect(isAppReadMarkdown("README.md")).toBe(false);
+    expect(isDeployRelevant("./patch-notes.md")).toBe(true);
+    expect(isDeployRelevant("docs\\plans\\x.md")).toBe(false);
   });
 });
 

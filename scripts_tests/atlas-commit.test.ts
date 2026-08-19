@@ -35,4 +35,8 @@ describe("gitHead", () => {
   it("returns null for a non-repo path", () => {
     expect(gitHead("/tmp")).toBeNull();
   });
+
+  it("stampAtlasCommit returns a usable sha when pick succeeds", () => {
+    expect(stampAtlasCommit("abc123")).toBe("abc123");
+  });
 });
