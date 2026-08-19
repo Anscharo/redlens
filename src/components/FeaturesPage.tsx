@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { HEADER_OFFSET } from "../lib/layout";
 import { Link } from "./Link";
-import { FEATURE_GROUPS } from "./featuresData";
+import { FEATURE_GROUPS } from "../lib/featuresData";
 
 export function FeaturesPage() {
   useDocumentTitle("Features: Sky Atlas by Redline");

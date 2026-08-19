@@ -5,7 +5,7 @@ import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { FeaturesPage } from "./FeaturesPage";
-import { FEATURE_GROUPS } from "./featuresData";
+import { FEATURE_GROUPS } from "../lib/featuresData";
 import { ROUTES, REPORT_TITLES } from "../lib/routes";
 
 afterEach(cleanup);

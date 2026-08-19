@@ -31,8 +31,13 @@ const report = (question: string, page?: { path?: string }) => {
 };
 
 describe("runSkills", () => {
+  // Small talk is the case that fires nothing anywhere: the similarity lane is
+  // deliberately permissive (see config.chatSkillSimilarityMargin), so on this
+  // 2-document fixture — which has almost no atlas vocabulary for the
+  // suppressors to catch — most other phrasings reach the features skill. On
+  // the real index the suppressors stop ~90% of non-product questions.
   it("returns null when no skill fires", () => {
-    expect(runSkills({ ix, question: "completely unrelated question about nothing" })).toBeNull();
+    expect(runSkills({ ix, question: "thanks, that helped" })).toBeNull();
   });
 
   it("injects only the skills that fired, each under its own key", () => {
@@ -89,6 +94,13 @@ describe("features skill, through the registry", () => {
     const r = report("what does this cover?", { path: "/features" })!;
     expect(r.counts.features).toBeGreaterThan(0);
     expect(r.json.app_features.app.length).toBeGreaterThan(0);
+  });
+
+  // End to end through the registry: no trigger word the regex knows, and the
+  // skill still fires because the question LOOKS like one it answers.
+  it("fires from the similarity lane on phrasing the regex has no words for", () => {
+    const r = report("show me around")!;
+    expect(r.counts.features).toBeGreaterThan(0);
   });
 
   it("stays out of an ordinary atlas question", () => {

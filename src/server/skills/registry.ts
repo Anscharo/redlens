@@ -16,6 +16,7 @@ import type OpenAI from "openai";
 import { definitionRows, matchQuestionEntities } from "../prefetch.ts";
 import { censusPrefetchRows, CENSUSES_NOTE } from "../concepts-prefetch.ts";
 import { featuresSkill } from "./features.ts";
+import { looksLikeSkillQuestion } from "./similarity.ts";
 import type { Skill, SkillContext } from "./types.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -77,7 +78,12 @@ export function runSkills(ctx: SkillContext): SkillInjection | null {
   const used: SkillInjection["used"] = [];
 
   for (const skill of SKILLS) {
-    const block = skill.run(ctx);
+    // A skill that declares prototypes also gets the similarity lane: does the
+    // turn LOOK like a question it answers, whatever words it used? Scored
+    // per skill, since each has its own prototypes; the shared atlas-question
+    // prototypes and the suppressors live in similarity.ts.
+    const semanticHit = skill.prototypes ? looksLikeSkillQuestion(ctx.ix, ctx.question, skill.prototypes) : false;
+    const block = skill.run({ ...ctx, semanticHit });
     if (!block || block.count === 0) continue;
     payload[block.key] = block.value;
     if (block.note) payload[`${block.key}_note`] = block.note;

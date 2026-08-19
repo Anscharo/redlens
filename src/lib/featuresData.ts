@@ -1,5 +1,7 @@
 // Feature catalog for the /features guide page. Data only — FeaturesPage.tsx
-// renders it. Keep each `how` entry a short, concrete usage step naming the
+// renders it. Lives in src/lib (not src/components) because the SERVER reads it
+// too: the chat's product-documentation skill imports it, and the runtime image
+// copies src/lib but not src/components. Keep each `how` entry a short, concrete usage step naming the
 // real control the user has to find.
 //
 // This is the single source of truth for "what can this app do", so it is
