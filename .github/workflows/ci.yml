@@ -78,6 +78,9 @@ jobs:
       - name: Type check
         run: pnpm build:ts
 
+      - name: Type check E2E
+        run: pnpm test:e2e:types
+
       - name: Lint
         run: pnpm lint
 
