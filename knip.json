@@ -17,6 +17,7 @@
     "scripts/htmlhist/render-decisions.mjs",
     "scripts/lib/address-chains.d.mts",
     "scripts/lib/atlas-source.d.mts",
+    "scripts/lib/atlas-sync-health.d.mts",
     "scripts/lib/build-steps.d.mts",
     "scripts/lib/chain-candidates.d.mts",
     "scripts/lib/chains.d.mts",

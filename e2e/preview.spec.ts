@@ -92,7 +92,7 @@ test("previews the pinned atlas PR canary and redlines exactly the docs it chang
     (r) => /\/api\/preview\/[0-9a-f]+\/diff\.json$/.test(r.url()) && r.status() === 200,
     { timeout: BUILD_TIMEOUT },
   );
-  await page.goto(`/preview/pull-${number}`);
+  await page.goto(`/preview/pull-${number}`, { waitUntil: "domcontentloaded" });
   const diff = (await (await diffResponse).json()) as {
     added?: string[];
     changed?: string[];
@@ -113,6 +113,6 @@ test("previews the pinned atlas PR canary and redlines exactly the docs it chang
   expect(missing, `PR #${number} at ${headSha}: these changed docs were missing from the preview diff`).toEqual([]);
 
   // And the render path actually marks one of them in the reader.
-  await page.goto(`/preview/pull-${number}/atlas?id=${expectedIds[0]}`);
+  await page.goto(`/preview/pull-${number}/atlas?id=${expectedIds[0]}`, { waitUntil: "domcontentloaded" });
   await expect(page.locator('[aria-label$="in this preview"]').first()).toBeVisible({ timeout: 60_000 });
 });

@@ -8,21 +8,21 @@ const READY = 45_000;
 
 test.describe("reader navigation", () => {
   test("selecting a node via URL marks it selected and shows it", async ({ page }) => {
-    await page.goto("/atlas");
+    await page.goto("/atlas", { waitUntil: "domcontentloaded" });
     const firstArticle = page.locator("article.atlas-node").first();
     await expect(firstArticle).toBeVisible({ timeout: READY });
 
     const id = await firstArticle.getAttribute("id");
     expect(id).toBeTruthy();
 
-    await page.goto(`/atlas?id=${id}`);
+    await page.goto(`/atlas?id=${id}`, { waitUntil: "domcontentloaded" });
     const selected = page.locator(`article[id="${id}"]`);
     await expect(selected).toHaveClass(/is-selected/, { timeout: READY });
     await expect(selected).toBeInViewport();
   });
 
   test("navigating to a doc nested several levels inside a collapsed branch auto-expands its whole ancestor chain and scrolls to it", async ({ page }) => {
-    await page.goto("/atlas");
+    await page.goto("/atlas", { waitUntil: "domcontentloaded" });
     await expect(page.locator("article.atlas-node").first()).toBeVisible({ timeout: READY });
 
     // First paint: every parent row starts collapsed, marked by an
@@ -70,7 +70,7 @@ test.describe("reader navigation", () => {
     // intermediate one and the original collapsed root) must be rendered —
     // a multi-hop ancestor raise — and the node itself selected and
     // scrolled into view.
-    await page.goto(`/atlas?id=${deepId}`);
+    await page.goto(`/atlas?id=${deepId}`, { waitUntil: "domcontentloaded" });
     const deep = page.locator(`article[id="${deepId}"]`);
     await expect(deep).toHaveClass(/is-selected/, { timeout: READY });
     await expect(deep).toBeInViewport();

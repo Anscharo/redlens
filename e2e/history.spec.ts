@@ -1,4 +1,5 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
+import { callTool } from "./mcp";
 
 // History-tab geometry against the real DOM. The timeline is built from
 // absolutely-positioned rail segments whose offsets are derived constants
@@ -7,22 +8,58 @@ import { test, expect } from "@playwright/test";
 // actually runs unbroken. Content assertions live in the vitest specs.
 const READY = 45_000;
 
+type RecentPayload = {
+  events: Array<{ doc_id: string }>;
+} & Record<string, unknown>;
+type HistoryPayload = {
+  events: Array<{ diff?: unknown }>;
+} & Record<string, unknown>;
+
+let historyDocId = "";
+let diffDocId = "";
+
+async function discoverCanaryDocs(request: APIRequestContext): Promise<void> {
+  const recent = await callTool<RecentPayload>(request, "atlas_recent_changes", {
+    since: "2023-01-01",
+    k: 100,
+  });
+  expect(
+    recent.events.length,
+    "history canary requires a populated atlas_history table; run the Atlas worker first",
+  ).toBeGreaterThan(0);
+
+  const ids = [...new Set(recent.events.map((event) => event.doc_id).filter(Boolean))];
+  historyDocId = ids[0] ?? "";
+  for (const id of ids.slice(0, 20)) {
+    const history = await callTool<HistoryPayload>(request, "atlas_history", { id, with_diff: true });
+    if (history.events.some((event) => event.diff)) {
+      diffDocId = id;
+      break;
+    }
+  }
+  expect(historyDocId, "history canary could not derive a document from recent changes").toBeTruthy();
+  expect(diffDocId, "history canary found no recent document with a stored line diff").toBeTruthy();
+}
+
+async function openHistory(page: Page, id: string) {
+  await page.goto(`/atlas?id=${id}`, { waitUntil: "domcontentloaded" });
+  const panel = page.getByTestId("history-panel");
+  await expect(panel.locator("[data-timeline-rail]").first()).toBeVisible({ timeout: READY });
+  return panel;
+}
+
 /** Measure every timeline row: its rail box, its node dot, and its first line. */
-async function rows(page: import("@playwright/test").Page) {
-  return page.evaluate(() => {
-    // Reader articles carry .atlas-node; history entries and the connective rows
-    // (disclaimers, toggle) are the other rails in the panel.
-    const rails = [...document.querySelectorAll("[aria-hidden='true']")].filter(
-      (el) => Math.round(el.getBoundingClientRect().width) === 18 && el.getBoundingClientRect().height > 4,
-    );
+async function rows(panel: Locator) {
+  return panel.evaluate((root) => {
+    const rails = [...root.querySelectorAll("[data-timeline-rail]")];
     return rails.map((rail) => {
       const r = rail.getBoundingClientRect();
-      const dotEl = rail.querySelector("span.rounded-full");
+      const dotEl = rail.querySelector("[data-timeline-dot]");
       const dot = dotEl?.getBoundingClientRect();
       const line1 = rail.nextElementSibling?.firstElementChild?.getBoundingClientRect();
-      const verticals = [...rail.querySelectorAll("span:not(.rounded-full)")]
-        .map((s) => s.getBoundingClientRect())
-        .filter((b) => b.width <= 2);
+      const verticals = [...rail.querySelectorAll("[data-timeline-segment='vertical']")].map((segment) =>
+        segment.getBoundingClientRect(),
+      );
       return {
         top: r.top,
         bottom: r.bottom,
@@ -36,17 +73,12 @@ async function rows(page: import("@playwright/test").Page) {
 }
 
 test.describe("history timeline", () => {
+  test.describe.configure({ mode: "serial" });
+  test.beforeAll(async ({ request }) => discoverCanaryDocs(request));
+
   test("every node dot is centered on its entry's date line", async ({ page }) => {
-    await page.goto("/atlas");
-    const first = page.locator("article.atlas-node").first();
-    await expect(first).toBeVisible({ timeout: READY });
-    const id = await first.getAttribute("id");
-
-    // History is the default right-panel tab, so selecting the node is enough.
-    await page.goto(`/atlas?id=${id}`);
-    await expect(page.locator("article:not(.atlas-node)").first()).toBeVisible({ timeout: READY });
-
-    const measured = await rows(page);
+    const panel = await openHistory(page, historyDocId);
+    const measured = await rows(panel);
     const dotted = measured.filter((r) => r.dotCenter !== null && r.lineCenter !== null);
     expect(dotted.length).toBeGreaterThan(0);
     for (const r of dotted) {
@@ -56,13 +88,7 @@ test.describe("history timeline", () => {
   });
 
   test("the rail runs unbroken from one row to the next", async ({ page }) => {
-    await page.goto("/atlas");
-    const first = page.locator("article.atlas-node").first();
-    await expect(first).toBeVisible({ timeout: READY });
-    const id = await first.getAttribute("id");
-
-    await page.goto(`/atlas?id=${id}`);
-    await expect(page.locator("article:not(.atlas-node)").first()).toBeVisible({ timeout: READY });
+    const panel = await openHistory(page, historyDocId);
 
     // Reveal the reconstructed block too — that's where the disclaimers and the
     // toggle interleave with entries, the case most likely to break the line.
@@ -72,7 +98,7 @@ test.describe("history timeline", () => {
       await expect(page.getByRole("button", { name: /Hide Reconstructed History/i })).toBeVisible();
     }
 
-    const measured = (await rows(page)).filter((r) => r.railTop !== null);
+    const measured = (await rows(panel)).filter((r) => r.railTop !== null);
     expect(measured.length).toBeGreaterThan(1);
     for (let i = 0; i < measured.length - 1; i++) {
       // The next row's line must start at (or above) where this one ended.
@@ -81,29 +107,15 @@ test.describe("history timeline", () => {
   });
 
   test("a diff's change markers sit in a gutter beside the line, never inside it", async ({ page }) => {
-    await page.goto("/atlas");
-    await expect(page.locator("article.atlas-node").first()).toBeVisible({ timeout: READY });
-
-    // Only edits carry a stored diff, so walk the first handful of docs until one
-    // has one rather than betting on whichever node happens to be first.
-    const ids = (await page.locator("article.atlas-node").evaluateAll((els) => els.map((e) => e.id))).slice(0, 10);
-    const box = page.locator("article:not(.atlas-node) .overflow-x-auto").first();
-    let found = false;
-    for (const id of ids) {
-      await page.goto(`/atlas?id=${id}`);
-      await expect(page.locator("article:not(.atlas-node)").first()).toBeVisible({ timeout: READY });
-      // Reconstructed entries are where most stored diffs live; reveal them too.
-      const toggle = page.getByRole("button", { name: /View Reconstructed History/i });
-      if (await toggle.count()) {
-        await toggle.first().click();
-        await expect(page.getByRole("button", { name: /Hide Reconstructed History/i })).toBeVisible();
-      }
-      if (await box.count()) {
-        found = true;
-        break;
-      }
+    const panel = await openHistory(page, diffDocId);
+    // Reconstructed entries are where most stored diffs live; reveal them too.
+    const toggle = page.getByRole("button", { name: /View Reconstructed History/i });
+    if (await toggle.count()) {
+      await toggle.first().click();
+      await expect(page.getByRole("button", { name: /Hide Reconstructed History/i })).toBeVisible();
     }
-    test.skip(!found, "none of the first docs' histories carry a line diff");
+    const box = panel.locator(".overflow-x-auto").first();
+    await expect(box).toBeVisible({ timeout: READY });
 
     const geom = await box.evaluate((el) => {
       const marker = el.querySelector("span.select-none");
