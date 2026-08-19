@@ -21,6 +21,7 @@
     "scripts/lib/build-steps.d.mts",
     "scripts/lib/chain-candidates.d.mts",
     "scripts/lib/chains.d.mts",
+    "scripts/lib/report-citations.d.mts",
     "scripts/lib/solana-accounts.d.mts",
     "scripts/lib/solana-pda.d.mts",
     "scripts/lib/graph-patterns.d.mts",

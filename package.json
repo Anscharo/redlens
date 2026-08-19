@@ -40,6 +40,7 @@
     "processes:bootstrap": "node scripts/aux/processes-bootstrap.mjs",
     "oea:assess": "bun scripts/assess/assess-oea.ts",
     "risk:assess": "bun scripts/assess/assess-risk.ts",
+    "cite:check": "node scripts/aux/report-cite-check.mjs",
     "eval:golden": "bun scripts/eval/eval-golden.ts",
     "eval:verifier": "bun scripts/eval/eval-verifier.ts",
     "eval:advisor": "bun scripts/eval/eval-advisor.ts",
