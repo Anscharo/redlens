@@ -1938,33 +1938,33 @@ button.atlas-node-expand-all:focus-visible {
   opacity: 0.45;
   cursor: pointer;
 }
-.msc-sankey-link[data-highlight="true"] {
-  opacity: 0.92;
-}
-.msc-venue-pnl[data-dimmed="true"] .msc-sankey-link:not([data-highlight="true"]) {
+.msc-venue-pnl[data-dimmed="true"] .msc-sankey-link,
+.msc-venue-pnl[data-dimmed="true"] .msc-sankey-venue {
   opacity: 0.14;
+}
+.msc-venue-pnl[data-dimmed="true"] .msc-sankey-link[data-lit="true"],
+.msc-venue-pnl[data-dimmed="true"] .msc-sankey-venue[data-lit="true"] {
+  opacity: 0.92;
 }
 .msc-sankey-node {
   cursor: pointer;
 }
-.msc-venue-pnl[data-dimmed="true"] .msc-sankey-node:not([data-highlight="true"]) {
-  opacity: 0.35;
-}
-.msc-sankey-node[data-highlight="true"] .msc-sankey-node-label {
+.msc-venue-pnl[data-dimmed="true"] .msc-sankey-venue[data-lit="true"] .msc-sankey-node-label {
   fill: var(--tan);
 }
 .msc-sankey-amount {
   fill: var(--tan-3);
 }
 .msc-venue-row {
-  transition: background 0.1s, opacity 0.1s;
+  cursor: pointer;
 }
-.msc-venue-pnl[data-dimmed="true"] .msc-venue-row:not([data-highlight="true"]) {
+.msc-venue-pnl[data-dimmed="true"] .msc-venue-row {
   opacity: 0.38;
 }
-.msc-venue-row[data-highlight="true"] {
+.msc-venue-pnl[data-dimmed="true"] .msc-venue-row[data-lit="true"] {
+  opacity: 1;
   background: var(--row-hover);
 }
-.msc-venue-row[data-highlight="true"] td:first-child span:first-child {
+.msc-venue-pnl[data-dimmed="true"] .msc-venue-row[data-lit="true"] td:first-child span:first-child {
   color: var(--tan);
 }
