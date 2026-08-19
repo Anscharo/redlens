@@ -19,6 +19,12 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.worker"
+# Worker image does not bundle markdown. Keep in sync with
+# scripts/lib/deploy-skip.mjs railwayWorkerWatchPatterns().
+watchPatterns = [
+  "**",
+  "!**/*.md",
+]
 
 [deploy]
 # Every 12 minutes. Lightweight check exits immediately if nothing changed.

@@ -272,6 +272,21 @@ describe("readArtifactsFromDisk", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("prefers docs.json's sha when graph.json is stamped unknown", () => {
+    const prevDir = config.publicDir;
+    const dir = mkdtempSync(join(tmpdir(), "idx-unknown-"));
+    const n = node({ id: "d1" });
+    writeDocsJson(dir, "real-sha", { d1: n });
+    writeFileSync(join(dir, "graph.json"), JSON.stringify({ meta: { atlasCommit: "unknown" }, entities: [], edges: [] }));
+    config.publicDir = dir;
+    try {
+      expect(readArtifactsFromDisk().meta.atlasCommit).toBe("real-sha");
+    } finally {
+      config.publicDir = prevDir;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("loadIndexes / setIndexes / getIndexes", () => {
