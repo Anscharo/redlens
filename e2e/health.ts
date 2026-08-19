@@ -39,7 +39,15 @@ export function readinessProblems(health: HealthSnapshot, expectedCommit?: strin
   if (health.schema && health.required_schema && health.schema < health.required_schema) {
     problems.push(`schema ${health.schema} is behind required ${health.required_schema}`);
   }
-  if (health.status !== "ok") problems.push(`freshness status is ${String(health.status)}`);
+  // "stale" is worker-heartbeat age (`synced_at` vs ATLAS_STALE_SECONDS), not a
+  // bad snapshot. /api/health stays 200 so a stale tick never restart-loops a
+  // live container; waiting cannot make an old heartbeat fresh. Accept it when
+  // the structural fields above already passed. Still wait/fail on syncing,
+  // stuck, schema_behind, degraded, or an unknown status.
+  const status = health.status ?? "";
+  if (status !== "ok" && status !== "stale") {
+    problems.push(`freshness status is ${String(health.status)}`);
+  }
   if (expectedCommit) {
     if (!health.app_commit) {
       problems.push(`application commit is missing; expected ${expectedCommit}`);

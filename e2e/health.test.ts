@@ -17,12 +17,24 @@ describe("readinessProblems", () => {
     expect(readinessProblems(READY, "abcdef1234567890")).toEqual([]);
   });
 
+  it("accepts a stale worker heartbeat when the snapshot is otherwise ready", () => {
+    expect(readinessProblems({ ...READY, status: "stale" }, "abcdef123456")).toEqual([]);
+  });
+
+  it("still waits on syncing, stuck, schema_behind, and degraded", () => {
+    for (const status of ["syncing", "stuck", "schema_behind", "degraded", undefined]) {
+      expect(readinessProblems({ ...READY, status }, "abcdef123456")).toEqual([
+        `freshness status is ${String(status)}`,
+      ]);
+    }
+  });
+
   it("reports provenance, freshness, schema, and data failures together", () => {
     expect(
       readinessProblems(
         {
           ...READY,
-          status: "stale",
+          status: "stuck",
           db_sha: "other-atlas-sha",
           schema: "020_old.sql",
           docs: 0,
@@ -34,7 +46,7 @@ describe("readinessProblems", () => {
       "live Atlas SHA atlas-sha does not match database SHA other-atlas-sha",
       "document index is empty (0)",
       "schema 020_old.sql is behind required 021_chain_state.sql",
-      "freshness status is stale",
+      "freshness status is stuck",
       "application commit wrong-commit does not match expected expected-commit",
     ]);
   });
@@ -61,6 +73,23 @@ describe("waitForDeployment", () => {
 
     expect(result).toEqual(READY);
     expect(calls).toBe(2);
+  });
+
+  it("treats a stale-but-converged snapshot as ready without waiting", async () => {
+    const stale = { ...READY, status: "stale", age_seconds: 2813 };
+    const fetchImpl = (async () => new Response(JSON.stringify(stale))) as typeof fetch;
+
+    await expect(
+      waitForDeployment({
+        baseUrl: "https://example.test/",
+        expectedCommit: "abcdef",
+        fetchImpl,
+        now: () => 0,
+        sleep: async () => {
+          throw new Error("should not poll after a stale-but-ready snapshot");
+        },
+      }),
+    ).resolves.toEqual(stale);
   });
 
   it("includes the last health body in timeout diagnostics", async () => {
