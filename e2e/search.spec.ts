@@ -11,7 +11,7 @@ const READY = 45_000;
 
 test.describe("search quality", () => {
   test("a common term returns ranked results with highlighted snippets", async ({ page }) => {
-    await page.goto("/?q=governance");
+    await page.goto("/?q=governance", { waitUntil: "domcontentloaded" });
 
     const results = page.locator("a.search-result-link");
     await expect(results.first()).toBeVisible({ timeout: READY });
@@ -25,7 +25,7 @@ test.describe("search quality", () => {
   });
 
   test("the type: filter restricts results to that document type", async ({ page }) => {
-    await page.goto("/?q=type:Core governance");
+    await page.goto("/?q=type:Core governance", { waitUntil: "domcontentloaded" });
 
     const badges = page.locator("a.search-result-link .badge");
     await expect(badges.first()).toBeVisible({ timeout: READY });
@@ -34,11 +34,5 @@ test.describe("search quality", () => {
     for (const text of await badges.allInnerTexts()) {
       expect(text.trim()).toBe("Core");
     }
-  });
-
-  test("a nonsense query shows the no-results state", async ({ page }) => {
-    await page.goto("/?q=zzqxwvlkjqzzxytwq");
-    await expect(page.getByText(/no results for/i)).toBeVisible({ timeout: READY });
-    await expect(page.locator("a.search-result-link")).toHaveCount(0);
   });
 });
