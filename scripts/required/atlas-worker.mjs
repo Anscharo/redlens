@@ -11,8 +11,11 @@
 //     ┌── sync-embeddings.ts   (atlas_doc_embeddings)
 //     └── build-history        (atlas_history — DB sink, reads its own cursor)
 //
-// Lightweight check: if upstream git SHA matches sync_state.atlas_sha AND no
-// stale 1:1 embeddings exist, skip fetch/build — but still run sync-embeddings.
+// Lightweight check: if upstream git SHA matches sync_state.atlas_sha, the
+// structural tables are coherent, AND no stale 1:1 embeddings exist, skip the
+// structural build — but still reconcile embeddings and history. A matching
+// pointer alone is insufficient: restores and failed service wiring have left
+// sync_state current while atlas_addresses was empty.
 // Grouping metadata (attribution_only / member_ids) can go stale on a policy
 // switch without a content_hash miss, and the coverage SELECT below cannot see
 // that. sync-embeddings is incremental: a no-op when hashes AND flags match.
@@ -38,6 +41,7 @@ import path from "node:path";
 import { SQL } from "bun";
 import { touchSyncHeartbeat } from "../lib/worker-heartbeat.mjs";
 import { stepsFor } from "../lib/build-steps.mjs";
+import { inspectStructuralSnapshot } from "../lib/atlas-sync-health.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SUBMODULE = path.join(ROOT, "vendor/next-gen-atlas");
@@ -62,6 +66,33 @@ function runAsync(cmd, args, opts = {}) {
     });
     child.on("error", reject);
   });
+}
+
+async function runPostSyncTail(full) {
+  const jobs = [
+    {
+      name: "embeddings",
+      promise: runAsync("bun", ["src/server/sync-embeddings.ts"]),
+    },
+    {
+      name: "history",
+      promise: runAsync("bun", ["scripts/required/build-history.mjs", ...(full ? ["--full"] : [])], {
+        env: {
+          ...process.env,
+          GH_TOKEN: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? "",
+        },
+      }),
+    },
+  ];
+  const results = await Promise.allSettled(jobs.map((job) => job.promise));
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    if (result.status === "rejected") {
+      // Best-effort: structural data is already committed. A later no-change
+      // worker tick retries both lanes, so a transient tail failure self-heals.
+      console.warn(`atlas-worker: ${jobs[i].name} reconcile error: ${result.reason?.message ?? result.reason}`);
+    }
+  }
 }
 
 async function getUpstreamSha() {
@@ -152,28 +183,33 @@ async function main() {
       )
     `.then((r) => r[0]?.n ?? 0).catch(() => 1), // default 1 → don't skip if query fails
   ]);
+  const structural = await inspectStructuralSnapshot(db, syncState);
 
   const alreadyCurrent = upstreamSha && upstreamSha === syncState;
   // In local --no-fetch mode don't gate on embeddings (dev usually has no API key;
   // embeddings are optional) — fast-exit purely on the sha match so repeated
-  // `pnpm dev` runs are instant once the DB is current.
+  // `pnpm dev` runs are instant once the DB is current and structurally sound.
   const noStaleEmbeds = NO_FETCH ? true : staleCount === 0;
+  const forceStructuralSync = Boolean(syncState && !structural.healthy);
 
-  if (!full && alreadyCurrent && noStaleEmbeds) {
+  if (!structural.healthy) {
+    console.warn(`atlas-worker: structural integrity failed — ${structural.reasons.join("; ")}`);
+  } else {
+    console.log(
+      `atlas-worker: structural integrity OK — ${structural.currentDocs} docs, ${structural.currentAddresses} addresses`,
+    );
+  }
+
+  if (!full && alreadyCurrent && noStaleEmbeds && structural.healthy) {
     console.log(`atlas-worker: already current at ${(syncState ?? "").slice(0, 12)} — skipping fetch/build`);
     await touchSyncHeartbeat(db);
     await db.close();
-    // Hash coverage can be complete while grouping metadata is stale
-    // (one_to_one → icd_params): folded members keep their 1:1 content_hash so
-    // the SELECT above doesn't see them. Reconcile here; sync-embeddings is a
-    // no-op when hashes AND attribution_only already match.
+    // Reconcile both independently incremental tails. Hash coverage can be
+    // complete while grouping metadata is stale, and a failed history branch
+    // must recover even when no later Atlas commit arrives.
     if (!NO_FETCH) {
-      try {
-        console.log("atlas-worker: reconciling embeddings (policy/grouping metadata)");
-        run("bun", ["src/server/sync-embeddings.ts"]);
-      } catch (e) {
-        console.warn(`atlas-worker: embeddings reconcile skipped — ${e.message}`);
-      }
+      console.log("atlas-worker: reconciling embeddings + history");
+      await runPostSyncTail(false);
     }
     process.exit(0);
   }
@@ -181,7 +217,9 @@ async function main() {
   if (!upstreamSha) {
     console.warn("atlas-worker: could not read upstream SHA — proceeding anyway");
   } else {
-    console.log(`atlas-worker: upstream=${upstreamSha.slice(0, 12)} db=${(syncState ?? "none").slice(0, 12)} staleEmbeds=${staleCount}`);
+    console.log(
+      `atlas-worker: upstream=${upstreamSha.slice(0, 12)} db=${(syncState ?? "none").slice(0, 12)} staleEmbeds=${staleCount}`,
+    );
   }
 
   await db.close();
@@ -206,32 +244,30 @@ async function main() {
   }
 
   // ── Structural sync → advances sync_state.atlas_sha ──────────────────────
-  console.log("atlas-worker: sync.ts…");
-  run("bun", ["src/server/sync.ts"]);
+  console.log(`atlas-worker: sync.ts${forceStructuralSync ? " --force (integrity repair)" : ""}…`);
+  run("bun", ["src/server/sync.ts", ...(forceStructuralSync ? ["--force"] : [])]);
+
+  // Refuse to report success after a structural repair/build that still left
+  // the pointer detached from its rows. This is deliberately before the
+  // best-effort tails: docs and addresses are the core served snapshot.
+  const verifyDb = new SQL(process.env.DATABASE_URL);
+  const verifiedState = await verifyDb`
+    SELECT atlas_sha FROM sync_state WHERE id = 1
+  `.then((r) => r[0]?.atlas_sha ?? null).catch(() => null);
+  const verified = await inspectStructuralSnapshot(verifyDb, verifiedState);
+  await verifyDb.close();
+  if (!verified.healthy) {
+    throw new Error(`post-sync structural integrity failed: ${verified.reasons.join("; ")}`);
+  }
+  console.log(
+    `atlas-worker: post-sync integrity OK — ${verified.currentDocs} docs, ${verified.currentAddresses} addresses`,
+  );
 
   // ── Parallel: embeddings + history ───────────────────────────────────────
   // build-history reads its own incremental cursor from atlas_history and
   // upserts straight into it (DB sink), so no cursor files to seed here.
   console.log("atlas-worker: parallel — sync-embeddings + build-history…");
-  const results = await Promise.allSettled([
-    // Branch 1: embeddings (skipped without API key — sync-embeddings guards internally)
-    runAsync("bun", ["src/server/sync-embeddings.ts"]),
-
-    // Branch 2: history (incremental git walk → Postgres)
-    runAsync("bun", ["scripts/required/build-history.mjs", ...(full ? ["--full"] : [])], {
-      env: {
-        ...process.env,
-        GH_TOKEN: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? "",
-      },
-    }),
-  ]);
-
-  for (const result of results) {
-    if (result.status === "rejected") {
-      // Best-effort: log but don't fail the worker run
-      console.warn(`atlas-worker: branch error: ${result.reason?.message ?? result.reason}`);
-    }
-  }
+  await runPostSyncTail(full);
 
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
   console.log(`atlas-worker: done in ${elapsed}s`);
