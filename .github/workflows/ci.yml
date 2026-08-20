@@ -61,7 +61,11 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: Pack installed workspace
-        run: tar -czf workspace-deps.tgz node_modules
+        # Both package trees. pnpm puts apps/web's links in a sibling
+        # apps/web/node_modules, so packing only the root one leaves the six jobs
+        # that restore this artifact unable to resolve anything apps/web depends
+        # on — which is how `tsc -b` first failed on the workspace split.
+        run: tar -czf workspace-deps.tgz node_modules apps/web/node_modules
 
       - name: Upload installed workspace
         uses: actions/upload-artifact@v4

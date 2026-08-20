@@ -19,6 +19,19 @@ COPY apps/web/package.json ./apps/web/
 # oven/bun ships no Node (see oven-sh/bun dockerhub/debian/Dockerfile), so
 # corepack — which comes with Node — is not available here. pnpm's standalone
 # build bundles its own Node, which is exactly what this image needs.
+#
+# .npmrc turns on engine-strict and package.json pins engines.node >= 22 — a
+# guard for local dev and CI, where a transitive dep needs it. pnpm's standalone
+# build bundles its own Node (v20.11.1 in 10.33.0), so engine-strict measures THAT
+# interpreter against a constraint meant for the dev toolchain and refuses. There
+# is no Node in this image at all; the runtime here is Bun.
+#
+# ENV rather than an .npmrc line for two reasons: `COPY . .` lands after the
+# install and would clobber an edited file, and pnpm enforces engines when it RUNS
+# a script too — which `build:vite` does, delegating through
+# `pnpm --filter @redlens/web`. A per-command flag covered only `pnpm install`.
+ENV npm_config_engine_strict=false
+
 ENV PNPM_HOME="/usr/local/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 # pnpm's standalone build, straight from the npm registry the install already
@@ -39,13 +52,7 @@ RUN set -eux; \
     chmod +x "$PNPM_HOME/pnpm"; \
     pnpm --version
 
-# --config.engine-strict=false: .npmrc turns on engine-strict, and package.json
-# pins engines.node >= 22 — a guard for local dev and CI, where a transitive dep
-# needs it. pnpm's standalone build bundles its own Node (v20.11.1 in 10.33.0),
-# so engine-strict would measure THAT interpreter against a constraint meant for
-# the dev toolchain and refuse to install. There is no Node in this image at all;
-# the runtime here is Bun.
-RUN pnpm install --frozen-lockfile --config.engine-strict=false
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 
@@ -113,6 +120,9 @@ WORKDIR /app
 # jsdom, knip, oxlint) that this image never runs. The pnpm binary is copied
 # rather than re-downloaded so this stage needs no curl and no network beyond
 # the registry.
+#
+# Same reason as the builder stage — ENV does not cross a FROM boundary.
+ENV npm_config_engine_strict=false
 ENV PNPM_HOME="/usr/local/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 COPY --from=builder /usr/local/pnpm       /usr/local/pnpm
@@ -126,7 +136,7 @@ COPY apps/web/package.json ./apps/web/
 #
 # Store removal is in the same layer so the space is actually reclaimed; the
 # store hardlinks into node_modules, so the installed tree survives it.
-RUN pnpm install --frozen-lockfile --prod --config.engine-strict=false --filter lens \
+RUN pnpm install --frozen-lockfile --prod --filter lens \
  && rm -rf "$(pnpm store path)"
 
 COPY --from=builder /app/dist             ./dist
