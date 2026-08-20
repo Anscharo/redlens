@@ -2739,9 +2739,9 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove Di
   {
     "content": "The deposit rate limits are:
 
-- Aggregate: \`maxAmount\`: 5,000,000 (normalized), \`slope\`: 0
-- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 0
-- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 0",
+- Aggregate: \`maxAmount\`: 5,000,000 (normalized), \`slope\`: 350,000 (normalized) per day
+- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 350,000 AUSD per day
+- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 350,000 USDC per day",
     "title": "Deposit Rate Limits",
   },
   {
@@ -11386,7 +11386,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 9,
   "annotates": 101,
   "can_modify_signers_of": 29,
-  "cites": 2114,
+  "cites": 2115,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
@@ -13884,9 +13884,9 @@ exports[`instances > allocation-system instances 1`] = `
       "CRR": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 100%.",
       "Deposit Rate Limits": "The deposit rate limits are:
 
-- Aggregate: \`maxAmount\`: 5,000,000 (normalized), \`slope\`: 0
-- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 0
-- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 0",
+- Aggregate: \`maxAmount\`: 5,000,000 (normalized), \`slope\`: 350,000 (normalized) per day
+- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 350,000 AUSD per day
+- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 350,000 USDC per day",
       "Deposit RateLimitID (AUSD)": "The deposit RateLimitID for AUSD is: \`0x89c0cb8c17898781d7c1776eafcf73fd0b570659ad5c3791ddcbefe66b001541\`.",
       "Deposit RateLimitID (USDC)": "The deposit RateLimitID for USDC is: \`0x71efb11b03476e40dcc1ade629d360114fcbf838d70a3211270f69414ba9a187\`.",
       "Maximum Exposure": "Total exposure through this Instance may not exceed 5,000,000 USDS.",
