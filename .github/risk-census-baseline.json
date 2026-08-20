@@ -67,6 +67,18 @@
       "title": "PAS"
     },
     {
+      "taskKey": "u:9593a6c6-521b-4680-8119-cb1f08b9a3e3",
+      "uuid": "9593a6c6-521b-4680-8119-cb1f08b9a3e3",
+      "docNo": "A.2.2.10.1.1.1.2.4.1",
+      "title": "Enabled Diamond PAUs"
+    },
+    {
+      "taskKey": "u:e9b6e62c-a902-431d-8691-abf052919813",
+      "uuid": "e9b6e62c-a902-431d-8691-abf052919813",
+      "docNo": "A.2.2.10.1.1.1.2.4.1.1",
+      "title": "Grove Diamond PAU"
+    },
+    {
       "taskKey": "u:8eea7011-c299-4861-bf2e-0adb78e3ef30",
       "uuid": "8eea7011-c299-4861-bf2e-0adb78e3ef30",
       "docNo": "A.2.2.10.1.1.1.2.5.2.1.1.1",
@@ -137,6 +149,12 @@
       "uuid": "9b0217c7-8617-42c3-9e2e-b0b377607f50",
       "docNo": "A.2.2.10.1.1.1.2.5.2.5.3.1",
       "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:a8075d68-a5ba-4b4d-bce5-0ad58130f9e5",
+      "uuid": "a8075d68-a5ba-4b4d-bce5-0ad58130f9e5",
+      "docNo": "A.2.8.2.2.2.4.5.2.3",
+      "title": "Grove Foundation Grant Authorization: August 2026"
     },
     {
       "taskKey": "u:bf561ea8-ab09-4ff5-a84d-2e92bcff997b",
