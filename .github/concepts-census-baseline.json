@@ -7024,13 +7024,18 @@
   },
   "transitionary-measures": {
     "counts": {
-      "total": 21
+      "total": 22
     },
     "members": [
       {
         "uuid": "4fce0fd5-cfba-48b6-9af5-bbb0b5e917a6",
         "doc_no": "A.1.14.4.7",
         "title": "Executor Agent Short-Term Transitionary Measures"
+      },
+      {
+        "uuid": "56c255d4-a827-43a5-8eec-44b9d629023c",
+        "doc_no": "A.2.2.6.2.2.2.8.1.5",
+        "title": "Agent Termination Short-Term Transitionary Measures"
       },
       {
         "uuid": "d33ac81e-bab1-4969-b46d-e605da2afae3",
@@ -14902,8 +14907,8 @@
   },
   "cross-scope-duplication": {
     "counts": {
-      "total": 156,
-      "groups": 64
+      "total": 158,
+      "groups": 65
     },
     "members": [
       {
@@ -15217,6 +15222,12 @@
         "doc_no": "A.2.11.1.1.2",
         "title": "Scope",
         "bucket": "scope"
+      },
+      {
+        "uuid": "25015208-5234-4818-8479-c46f927c272c",
+        "doc_no": "A.2.11.1.2.2",
+        "title": "Execution",
+        "bucket": "execution"
       },
       {
         "uuid": "228f9955-6bba-4252-a101-5529e7a300b9",
@@ -15619,6 +15630,12 @@
         "doc_no": "A.4.4.1.4",
         "title": "Short Term Transitionary Measures",
         "bucket": "short term transitionary measures"
+      },
+      {
+        "uuid": "60000393-7e7c-4aa4-928c-30a1a562fa77",
+        "doc_no": "A.4.6.2.1.3",
+        "title": "Execution",
+        "bucket": "execution"
       },
       {
         "uuid": "005b77d2-d3c8-4b6d-8722-b86a18aba2e6",
