@@ -13,7 +13,7 @@ import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
 import { routeTier, resolveTierModels, citationStyleFor } from "./model-router.ts";
 import { runVerifiedChat, sanitizeDone, type HarnessEvent, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
-import { runSkills, skillRound, summarizeSkills } from "../skills/registry.ts";
+import { runFacts, factRound, summarizeFacts } from "../facts/registry.ts";
 import { windowHistory } from "./chat-history.ts";
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
@@ -170,14 +170,14 @@ export async function handleChat(req: Request): Promise<Response> {
     ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 
-  // Skills (skills/registry.ts): deterministic, pure-code context blocks that
+  // Facts (facts/registry.ts): deterministic, pure-code knowledge blocks that
   // fire on the question — glossary definitions, entity rows, concept censuses,
   // app documentation. Seeded as a synthetic tool round after the user message
   // so a question they already answer needs ONE request instead of tool-round →
   // answer-round. Injects nothing on a miss; the harness treats what they do
   // inject as ordinary turn evidence.
-  const skills = config.chatPrefetch ? runSkills({ ix, question: body.message, page: body.pageContext }) : null;
-  if (skills) messages.push(...skillRound(body.message, skills));
+  const facts = config.chatPrefetch ? runFacts({ ix, question: body.message, page: body.pageContext }) : null;
+  if (facts) messages.push(...factRound(body.message, facts));
 
   const startedAt = Date.now();
   const encoder = new TextEncoder();
@@ -203,13 +203,13 @@ export async function handleChat(req: Request): Promise<Response> {
       // guessing from the absence of token events.
       send({ type: "meta", conversationId: convId, tier: route.tier, delivery: mode });
 
-      // Skills ran before the model did, and they shape the answer — so say so
+      // Facts ran before the model did, and they shape the answer — so say so
       // rather than letting injected context look like the model knowing
-      // things. Both surfaces the client already has: a trace row per skill,
+      // things. Both surfaces the client already has: a trace row per fact,
       // and a stage the ticker/checklist shows like any other step.
-      if (skills) {
-        send({ type: "skills", skills: skills.used, bytes: skills.content.length });
-        send({ type: "status", stage: "recalling", detail: summarizeSkills(skills) });
+      if (facts) {
+        send({ type: "facts", facts: facts.used, bytes: facts.content.length });
+        send({ type: "status", stage: "recalling", detail: summarizeFacts(facts) });
       }
 
       // Staged mode never streams the draft: token/clear are swallowed, and a

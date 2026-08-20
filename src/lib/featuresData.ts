@@ -1,6 +1,6 @@
 // Feature catalog for the /features guide page. Data only — FeaturesPage.tsx
 // renders it. Lives in src/lib (not src/components) because the SERVER reads it
-// too: the chat's product-documentation skill imports it, and the runtime image
+// too: the chat's product-documentation fact imports it, and the runtime image
 // copies src/lib but not src/components. Keep each `how` entry a short, concrete usage step naming the
 // real control the user has to find.
 //
@@ -10,7 +10,7 @@
 // Ship a user-visible feature, add it here in the same PR (see CLAUDE.md).
 //
 // It is no longer only the /features page: the chat's product-documentation
-// skill (src/server/skills/features.ts) injects this data verbatim when someone
+// fact (src/server/facts/features.ts) injects this data verbatim when someone
 // asks what the app can do, so anything stale here is stale in the chat's
 // answers too.
 //

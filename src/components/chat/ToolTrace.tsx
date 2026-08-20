@@ -12,14 +12,14 @@ function argSummary(args: Record<string, unknown>): string {
   return parts.join(" · ");
 }
 
-// A skill row has no call to show: it is context the server recalled before
+// A fact row has no call to show: it is knowledge the server recalled before
 // the model ran, so it reads as its summary ("2 glossary definitions") under a
 // marker that is not the tool arrow.
 function TraceRowView({ e }: { e: TraceRow }) {
-  if (e.kind === "skill") {
+  if (e.kind === "fact") {
     return (
-      <div className="rlc-trace-row" data-kind="skill">
-        <span className="rlc-trace-arrow-skill" aria-hidden="true">
+      <div className="rlc-trace-row" data-kind="fact">
+        <span className="rlc-trace-arrow-fact" aria-hidden="true">
           ✦
         </span>
         <span className="rlc-trace-name">{e.name}</span>
@@ -45,12 +45,12 @@ function TraceRowView({ e }: { e: TraceRow }) {
 const things = (n: number) => `${n} thing${n === 1 ? "" : "s"}`;
 
 // Recalled and looked-up are different claims, and a turn can be either or
-// both: skills alone (the app-documentation answer needs no tool call) would
+// both: facts alone (the app-documentation answer needs no tool call) would
 // otherwise read as "looked up 1 thing over the atlas", which is neither.
 function traceHeadline(trace: TraceRow[]): string {
-  const skills = trace.filter((t) => t.kind === "skill").length;
-  const tools = trace.length - skills;
-  return [skills > 0 && `recalled ${things(skills)}`, tools > 0 && `looked up ${things(tools)} over the atlas`]
+  const facts = trace.filter((t) => t.kind === "fact").length;
+  const tools = trace.length - facts;
+  return [facts > 0 && `recalled ${things(facts)}`, tools > 0 && `looked up ${things(tools)} over the atlas`]
     .filter(Boolean)
     .join(" · ");
 }

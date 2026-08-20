@@ -1,9 +1,9 @@
-// Skill-trigger bakeoff: should the app-documentation skill fire deterministically
+// Fact-trigger bakeoff: should the app-documentation fact fire deterministically
 // (regex signatures, today) or by embedding similarity (ternlight — on-device,
-// 384-dim, ~5ms/embed, no network)? Writes .cache/eval-skills.json.
+// 384-dim, ~5ms/embed, no network)? Writes .cache/eval-facts.json.
 //
-//   pnpm eval:skills            regex baseline only (no dependency needed)
-//   pnpm eval:skills --embed    adds the similarity arms (needs @ternlight/base)
+//   pnpm eval:facts            regex baseline only (no dependency needed)
+//   pnpm eval:facts --embed    adds the similarity arms (needs @ternlight/base)
 //
 // SHIPPED DESIGN: a false fire injects ~8KB of product documentation into an
 // atlas question; a miss only costs a less-specific answer. That asymmetry is
@@ -20,9 +20,9 @@
 // the extraction, so "similarity instead of matching" does not apply to them.
 import fs from "node:fs";
 import path from "node:path";
-import { matchesFeaturesQuestion, FEATURES_PROTOTYPES } from "../../src/server/skills/features.ts";
-import { ATLAS_PROTOTYPES, isSmallTalk, namesAtlasSubject } from "../../src/server/skills/similarity.ts";
-import { TRIGGER_CASES, atlasNegatives, type TriggerCase } from "./eval-skills-queries.ts";
+import { matchesFeaturesQuestion, FEATURES_PROTOTYPES } from "../../src/server/facts/features.ts";
+import { ATLAS_PROTOTYPES, isSmallTalk, namesAtlasSubject } from "../../src/server/facts/similarity.ts";
+import { TRIGGER_CASES, atlasNegatives, type TriggerCase } from "./eval-facts-queries.ts";
 import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { config } from "../../src/server/config.ts";
 
@@ -35,7 +35,7 @@ interface Scored extends TriggerCase {
 }
 
 // The suppressors and the small-talk list are imported from production
-// (skills/similarity.ts), not redefined here — an eval that scores a different
+// (facts/similarity.ts), not redefined here — an eval that scores a different
 // rule than the server runs measures nothing.
 
 // Recall is worth BETA times precision here: over-injecting wastes ~2k tokens
@@ -178,7 +178,7 @@ async function main() {
       // Headline the SHIPPED setting, not a freshly-fitted one — this is a
       // regression test of what the server actually runs, with the train-fitted
       // pick reported beside it as advice.
-      const thr = config.chatSkillSimilarityMargin;
+      const thr = config.chatFactSimilarityMargin;
       arms.push(bestPoint(trainArms).bestF1);
       arms.push(score((c) => fires(c, thr), test, `${name} (TEST)`, thr));
       arms.push(score((c) => fires(c, thr), cases, `${name} (all)`, thr));
@@ -223,7 +223,7 @@ async function main() {
     };
     const pos = FEATURES_PROTOTYPES.map(embed);
     const neg = ATLAS_PROTOTYPES.map(embed);
-    const thr = config.chatSkillSimilarityMargin;
+    const thr = config.chatFactSimilarityMargin;
     const scored = rows.map((r) => {
       const q = r.content.slice(0, 300);
       const v = embed(q);
@@ -268,7 +268,7 @@ async function main() {
   console.log(`\nregex misses (what similarity would have to recover): ${regexArm.misses.length}`);
   for (const m of regexArm.misses) console.log(`  · ${m}`);
 
-  const out = path.join(".cache", "eval-skills.json");
+  const out = path.join(".cache", "eval-facts.json");
   fs.mkdirSync(".cache", { recursive: true });
   fs.writeFileSync(out, JSON.stringify({ generatedAt: new Date().toISOString(), embedMsPerQuery: embedMs || null, arms, cases }, null, 2));
   console.log(`\nwrote ${out}`);

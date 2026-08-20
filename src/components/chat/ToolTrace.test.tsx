@@ -59,20 +59,20 @@ describe("ToolTrace", () => {
   });
 });
 
-describe("ToolTrace skill rows", () => {
+describe("ToolTrace fact rows", () => {
   // The app-documentation answer needs no tool call at all — the header must
   // not claim an atlas lookup that never happened.
-  it("says only what happened on a skills-only turn", () => {
+  it("says only what happened on a facts-only turn", () => {
     const trace: TraceRow[] = [
-      { name: "features", args: {}, ok: true, bytes: null, kind: "skill", summary: "the app's features guide" },
+      { name: "features", args: {}, ok: true, bytes: null, kind: "fact", summary: "the app's features guide" },
     ];
     render(<ToolTrace trace={trace} rounds={0} />);
     expect(screen.getByText("recalled 1 thing")).toBeInTheDocument();
   });
 
-  it("shows a fired skill by its summary, with no call arrow or byte size", () => {
+  it("shows a fired fact by its summary, with no call arrow or byte size", () => {
     const trace: TraceRow[] = [
-      { name: "glossary", args: {}, ok: true, bytes: null, kind: "skill", summary: "2 glossary definitions" },
+      { name: "glossary", args: {}, ok: true, bytes: null, kind: "fact", summary: "2 glossary definitions" },
       { name: "atlas_get", args: { id: "doc-1" }, ok: true, bytes: 500 },
     ];
     render(<ToolTrace trace={trace} rounds={1} />);

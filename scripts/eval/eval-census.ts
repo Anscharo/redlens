@@ -1,22 +1,22 @@
-// Census-routing bakeoff: should the concept-census skill (concepts-prefetch.ts)
+// Census-routing bakeoff: should the concept-census fact (concepts-prefetch.ts)
 // route a question to its up-to-3 slugs by regex signature (today) or by
-// embedding similarity (routeCensuses, skills/similarity.ts's
+// embedding similarity (routeCensuses, facts/similarity.ts's
 // rankPrototypeSets)? Writes .cache/eval-census.json.
 //
 //   pnpm eval:census
 //
-// Sibling script rather than a --census arm on eval-skills.ts: that file
-// scores a single skill's binary fire/miss; this is 1-of-10 ROUTING (which
+// Sibling script rather than a --census arm on eval-facts.ts: that file
+// scores a single fact's binary fire/miss; this is 1-of-10 ROUTING (which
 // slug, if any) with its own scorer (set-membership recall, not a boolean)
 // and its own corpus shape (every positive case carries an expected slug).
 // Folding the two loops into one file would blow past both files' ~150-line
 // convention for zero shared code beyond what's already factored into
-// similarity.ts and eval-skills-queries.ts.
+// similarity.ts and eval-facts-queries.ts.
 //
 // DECISION RULE: census payloads are tiny (373B for one census, 1657B for
-// three — measured, vs ~8KB for the features guide the skills bakeoff
+// three — measured, vs ~8KB for the features guide the facts bakeoff
 // protects). Over-firing here is 5-20x cheaper than there, so the
-// recall-favoring policy (CLAUDE.md's chat-skills section) applies even
+// recall-favoring policy (CLAUDE.md's chat-facts section) applies even
 // harder: adopt similarity if it recovers regex-missed routes at a
 // false-fire rate that stays low relative to that cheap payload — it does
 // not need to hit zero the way the features lane's decision rule demanded.
@@ -28,14 +28,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { matchConceptCensuses, routeCensuses, CENSUS_PROTOTYPES, CENSUS_NEGATIVE_PROTOTYPES } from "../../src/server/concepts-prefetch.ts";
-import { rankPrototypeSets, isSmallTalk } from "../../src/server/skills/similarity.ts";
+import { rankPrototypeSets, isSmallTalk } from "../../src/server/facts/similarity.ts";
 import { CENSUS_TRIGGER_CASES, censusNegatives, type CensusCase } from "./eval-census-queries.ts";
 import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { config } from "../../src/server/config.ts";
 import type { CensusSlug } from "../../src/lib/conceptsCensus.ts";
 
 const MAX_CENSUSES = 3;
-// Same recall-favoring weighting as eval-skills.ts, for the same reason: a
+// Same recall-favoring weighting as eval-facts.ts, for the same reason: a
 // miss loses an answer, a false fire wastes a few hundred bytes the model can
 // ignore. BETA is even more defensible here given the smaller payload.
 const BETA = 3;
@@ -106,7 +106,7 @@ async function main() {
   }));
 
   // Interleaved split within each label so both halves see the same mix of
-  // positive slugs and negative sources — see eval-skills.ts's identical note.
+  // positive slugs and negative sources — see eval-facts.ts's identical note.
   const half = (want: boolean, parity: number) => cases.filter((c) => (c.expectSlug !== null) === want).filter((_, i) => i % 2 === parity);
   const train = [...half(true, 0), ...half(false, 0)];
   const test = [...half(true, 1), ...half(false, 1)];
@@ -115,7 +115,7 @@ async function main() {
   const regexTest = score((c) => c.regexSlugs, test, "regex (test half)", null);
 
   // routeCensuses IS the production function; a hard-coded arithmetic
-  // reimplementation here would risk exactly the drift skills/similarity.ts
+  // reimplementation here would risk exactly the drift facts/similarity.ts
   // warns about ("an eval that scores a different rule measures nothing").
   const hybrid = (c: Scored, thr: number) => routeCensuses(c.q, thr);
 
@@ -155,7 +155,7 @@ async function main() {
   for (const m of shippedAll.misses) console.log(`  · ${m}`);
 
   // Real traffic, not my corpus — the only honest false-fire check on
-  // messages nobody wrote for this test (same rationale as eval-skills.ts's
+  // messages nobody wrote for this test (same rationale as eval-facts.ts's
   // identical block, which this mirrors).
   if (process.env.DATABASE_URL) {
     const { sql } = await import("../../src/server/db.ts");

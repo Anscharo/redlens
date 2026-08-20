@@ -201,37 +201,37 @@ describe("handleChat", () => {
       .map((l) => JSON.parse(l.slice("data: ".length)));
   }
 
-  // Skills inject context before the model runs (src/server/skills). The turn
-  // has to SAY so: a trace row per skill, and a stage the ticker shows.
-  describe("skills", () => {
-    it("announces the skills that fired, and the recall as a stage", async () => {
+  // Facts inject knowledge before the model runs (src/server/facts). The turn
+  // has to SAY so: a trace row per fact, and a stage the ticker shows.
+  describe("facts", () => {
+    it("announces the facts that fired, and the recall as a stage", async () => {
       installHappyHandlers();
       const prevImpl = g.__llmFetchCurrentImpl!;
       g.__llmFetchCurrentImpl = sseAnswer("You can read the atlas.");
       try {
         const res = await handleChat(await authedRequest({ message: "what can this app do?" }));
         const evs = await events(res);
-        const skills = evs.find((e) => e.type === "skills");
-        expect(skills.skills.map((s: { id: string }) => s.id)).toContain("features");
-        expect(skills.skills.find((s: { id: string }) => s.id === "features").summary).toBe("the app's features guide");
-        expect(skills.bytes).toBeGreaterThan(0);
+        const facts = evs.find((e) => e.type === "facts");
+        expect(facts.facts.map((s: { id: string }) => s.id)).toContain("features");
+        expect(facts.facts.find((s: { id: string }) => s.id === "features").summary).toBe("the app's features guide");
+        expect(facts.bytes).toBeGreaterThan(0);
         const recalled = evs.find((e) => e.type === "status" && e.stage === "recalling");
         expect(recalled.detail).toContain("Recalled");
         // Announced before any answer content, so the ticker leads with it.
-        expect(evs.indexOf(skills)).toBeLessThan(evs.findIndex((e) => e.type === "token" || e.type === "done"));
+        expect(evs.indexOf(facts)).toBeLessThan(evs.findIndex((e) => e.type === "token" || e.type === "done"));
       } finally {
         g.__llmFetchCurrentImpl = prevImpl;
       }
     });
 
-    it("stays silent when no skill fires", async () => {
+    it("stays silent when no fact fires", async () => {
       installHappyHandlers();
       const prevImpl = g.__llmFetchCurrentImpl!;
       g.__llmFetchCurrentImpl = sseAnswer("Hi.");
       try {
         const res = await handleChat(await authedRequest({ message: "hello" }));
         const evs = await events(res);
-        expect(evs.some((e) => e.type === "skills")).toBe(false);
+        expect(evs.some((e) => e.type === "facts")).toBe(false);
         expect(evs.some((e) => e.stage === "recalling")).toBe(false);
       } finally {
         g.__llmFetchCurrentImpl = prevImpl;

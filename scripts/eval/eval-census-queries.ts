@@ -2,15 +2,15 @@
 // question, which concept-census slug (src/lib/conceptsCensus.ts) — if any —
 // should the concepts-prefetch lane inject?
 //
-// Unlike eval-skills-queries.ts's fire/no-fire cases, positives here carry an
+// Unlike eval-facts-queries.ts's fire/no-fire cases, positives here carry an
 // EXPECTED SLUG: routing (1-of-10, take up to 3) is a different failure shape
-// than a single skill's binary trigger, and "the wrong census fired" is its
+// than a single fact's binary trigger, and "the wrong census fired" is its
 // own error distinct from "no census fired". Every positive question below is
 // a paraphrase — deliberately NOT the sentence used as a production prototype
 // (CENSUS_PROTOTYPES in eval-census.ts) — so the measurement tests
 // generalization, not string-recall.
 import type { CensusSlug } from "../../src/lib/conceptsCensus.ts";
-import { atlasNegatives } from "./eval-skills-queries.ts";
+import { atlasNegatives } from "./eval-facts-queries.ts";
 
 export interface CensusCase {
   q: string;
@@ -92,7 +92,7 @@ export const CENSUS_TRIGGER_CASES: CensusCase[] = [
 ];
 
 // Explicit hard negatives — small talk, and the exact regression cases pinned
-// in skills/registry.test.ts ("does not fire the census lane on ordinary
+// in facts/registry.test.ts ("does not fire the census lane on ordinary
 // doc-lookup phrasing"). "list of prime agents" is the sharpest adversarial
 // case for registry-liveness specifically: it wears the census's own title
 // prefix while being a plain roster lookup, not a liveness question.
@@ -111,7 +111,7 @@ const EXPLICIT_NEGATIVES: CensusCase[] = [
 // document lookup" questions (what is X / where is X defined / who is
 // responsible for X), generated from real titles/entities so the pool is
 // large and not tuned to whatever a hand-written set happens to avoid — same
-// generator eval-skills.ts uses for its hard negatives.
+// generator eval-facts.ts uses for its hard negatives.
 export function censusNegatives(subjects: string[]): CensusCase[] {
   return [
     ...EXPLICIT_NEGATIVES,

@@ -1,5 +1,5 @@
-// Labeled trigger set for the skills bakeoff (eval-skills.ts): does a question
-// call for the app-documentation skill (src/server/skills/features.ts)?
+// Labeled trigger set for the facts bakeoff (eval-facts.ts): does a question
+// call for the app-documentation fact (src/server/facts/features.ts)?
 //
 // The set is built around the failure that matters. A false fire injects ~8KB
 // of product documentation into an ATLAS question and steers the answer toward
@@ -10,7 +10,7 @@
 // agent do") or its exact nouns ("what reports must the facilitator file").
 export interface TriggerCase {
   q: string;
-  /** Ground truth: should the app-documentation skill fire? */
+  /** Ground truth: should the app-documentation fact fire? */
   fire: boolean;
   /** Why this case is in the set — printed next to any disagreement. */
   note?: string;

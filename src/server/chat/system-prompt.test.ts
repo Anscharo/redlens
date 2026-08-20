@@ -81,8 +81,8 @@ describe("buildSystemPrompt", () => {
 
   // The atlas is the documents; entities/relations/addresses/params/censuses
   // are OUR parse of them. Presenting one as the other is the failure this
-  // line exists to prevent — it is also what the features skill's vocabulary
-  // block reinforces when the question is about the app (skills/features.ts).
+  // line exists to prevent — it is also what the features fact's vocabulary
+  // block reinforces when the question is about the app (facts/features.ts).
   it("says the graph is our extraction, not atlas text", () => {
     const prompt = buildSystemPrompt(ix);
     expect(prompt).toContain("RedLens's own EXTRACTION from the atlas documents");

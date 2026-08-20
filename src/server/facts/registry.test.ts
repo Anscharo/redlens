@@ -1,9 +1,9 @@
-// skills/registry.ts: which skills fire for a turn, and the synthetic tool
+// facts/registry.ts: which facts fire for a turn, and the synthetic tool
 // round they are injected as. Pure in-memory indexes — no network, no DB.
 import { describe, it, expect } from "bun:test";
 import { buildIndexes, type AtlasNode, type Entity } from "../retrieval/indexes.ts";
 import type { Glossary, GlossaryEntry } from "../../lib/glossaryLookup.ts";
-import { runSkills, skillRound, SKILLS, SKILL_TOOL_NAME } from "./registry.ts";
+import { runFacts, factRound, FACTS, FACT_TOOL_NAME } from "./registry.ts";
 
 function doc(id: string, doc_no: string, title: string): AtlasNode {
   return { id, doc_no, title, type: "Core", depth: 1, parentId: null, content: `${title} body`, order: 0, addressRefs: [] };
@@ -26,31 +26,31 @@ const ix = buildIndexes(
 );
 
 const report = (question: string, page?: { path?: string }) => {
-  const out = runSkills({ ix, question, page });
+  const out = runFacts({ ix, question, page });
   return out ? { counts: out.counts, json: JSON.parse(out.content) } : null;
 };
 
-describe("runSkills", () => {
+describe("runFacts", () => {
   // Small talk is the case that fires nothing anywhere: the similarity lane is
-  // deliberately permissive (see config.chatSkillSimilarityMargin), so on this
+  // deliberately permissive (see config.chatFactSimilarityMargin), so on this
   // 2-document fixture — which has almost no atlas vocabulary for the
-  // suppressors to catch — most other phrasings reach the features skill. On
+  // suppressors to catch — most other phrasings reach the features fact. On
   // the real index the suppressors stop ~90% of non-product questions.
-  it("returns null when no skill fires", () => {
-    expect(runSkills({ ix, question: "thanks, that helped" })).toBeNull();
+  it("returns null when no fact fires", () => {
+    expect(runFacts({ ix, question: "thanks, that helped" })).toBeNull();
   });
 
-  it("injects only the skills that fired, each under its own key", () => {
+  it("injects only the facts that fired, each under its own key", () => {
     const r = report("what is universal alignment and who is keel?")!;
     expect(r.json.definitions[0].doc_id).toBe("d-ua");
     expect(r.json.entities.map((e: { slug: string }) => e.slug)).toEqual(["keel"]);
     expect(r.counts).toEqual({ glossary: 1, entities: 1 });
-    // Skills that did not fire leave no empty shell behind.
+    // Facts that did not fire leave no empty shell behind.
     expect(r.json.censuses).toBeUndefined();
     expect(r.json.app_features).toBeUndefined();
   });
 
-  it("carries a skill's handling note as <key>_note", () => {
+  it("carries a fact's handling note as <key>_note", () => {
     const r = report("how many registries are actually empty?")!;
     expect(r.counts.censuses).toBe(1);
     expect(r.json.censuses[0].slug).toBe("registry-liveness");
@@ -70,26 +70,26 @@ describe("runSkills", () => {
     }
   });
 
-  it("gives every registered skill a unique id and a description", () => {
-    expect(new Set(SKILLS.map((s) => s.id)).size).toBe(SKILLS.length);
-    for (const s of SKILLS) expect(s.what.length).toBeGreaterThan(20);
+  it("gives every registered fact a unique id and a description", () => {
+    expect(new Set(FACTS.map((s) => s.id)).size).toBe(FACTS.length);
+    for (const s of FACTS) expect(s.what.length).toBeGreaterThan(20);
   });
 });
 
-describe("skillRound", () => {
+describe("factRound", () => {
   it("emits a well-formed assistant tool_call + tool result pair", () => {
-    const injection = runSkills({ ix, question: "what is universal alignment?" })!;
-    const [assistant, tool] = skillRound("what is universal alignment?", injection);
+    const injection = runFacts({ ix, question: "what is universal alignment?" })!;
+    const [assistant, tool] = factRound("what is universal alignment?", injection);
     expect(assistant.role).toBe("assistant");
     const call = (assistant as { tool_calls: { id: string; function: { name: string } }[] }).tool_calls[0];
-    expect(call.function.name).toBe(SKILL_TOOL_NAME);
+    expect(call.function.name).toBe(FACT_TOOL_NAME);
     expect(tool.role).toBe("tool");
     expect((tool as { tool_call_id: string }).tool_call_id).toBe(call.id);
     expect((tool as { content: string }).content).toBe(injection.content);
   });
 });
 
-describe("features skill, through the registry", () => {
+describe("features fact, through the registry", () => {
   it("fires on a page-context trigger with no capability wording in the question", () => {
     const r = report("what does this cover?", { path: "/features" })!;
     expect(r.counts.features).toBeGreaterThan(0);
@@ -97,7 +97,7 @@ describe("features skill, through the registry", () => {
   });
 
   // End to end through the registry: no trigger word the regex knows, and the
-  // skill still fires because the question LOOKS like one it answers.
+  // fact still fires because the question LOOKS like one it answers.
   it("fires from the similarity lane on phrasing the regex has no words for", () => {
     const r = report("show me around")!;
     expect(r.counts.features).toBeGreaterThan(0);

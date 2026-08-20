@@ -8,8 +8,8 @@
 // nothing. Drill-down to members goes through atlas_describe
 // sections:["censuses:<slug>"] (tools-censuses.ts).
 //
-// TWO trigger lanes, same shape as skills/similarity.ts's story for the
-// features skill but a different competing class. Regex (SIGNATURES) is
+// TWO trigger lanes, same shape as facts/similarity.ts's story for the
+// features fact but a different competing class. Regex (SIGNATURES) is
 // high-precision but low-recall: measured 2026-08-19, 1 of 20 natural
 // paraphrases hit ("are there registries with nothing in them?" hits on
 // "registries"; "which lists in the atlas are still empty?" — same
@@ -27,13 +27,13 @@
 // running the similarity lane at all — but "cheap" set the bar for adopting
 // it, not the operating point, which real traffic decided.
 //
-// The competing class is NOT skills/similarity.ts's ATLAS_PROTOTYPES
+// The competing class is NOT facts/similarity.ts's ATLAS_PROTOTYPES
 // ("atlas question vs app question") — a census question already IS an
 // atlas question, so that suppressor would stand this lane down on sight.
 // The real competitor is "cross-cutting analysis vs specific document
 // lookup" ("which registries are empty" vs "what does the Keel Accord
 // say") — CENSUS_NEGATIVE_PROTOTYPES below.
-import { rankPrototypeSets, isSmallTalk } from "./skills/similarity.ts";
+import { rankPrototypeSets, isSmallTalk } from "./facts/similarity.ts";
 import { config } from "./config.ts";
 import type { Indexes } from "./retrieval/indexes.ts";
 import { conceptsCensusFor, censusSummary, type CensusSummaryRow } from "./chat/tools/tools-censuses.ts";
@@ -66,9 +66,9 @@ export function matchConceptCensuses(question: string): CensusSlug[] {
 }
 
 // Similarity-lane prototypes, one set per slug — the routing case
-// skills/types.ts's single `prototypes` array can't express (1-of-10, take
-// up to 3), hence skills/similarity.ts's rankPrototypeSets instead of
-// looksLikeSkillQuestion. Paraphrases of what each census actually answers,
+// facts/types.ts's single `prototypes` array can't express (1-of-10, take
+// up to 3), hence facts/similarity.ts's rankPrototypeSets instead of
+// looksLikeFactQuestion. Paraphrases of what each census actually answers,
 // deliberately NOT the sentences in the eval corpus (eval-census-queries.ts)
 // — the bakeoff measures generalization against these, not string-recall.
 export const CENSUS_PROTOTYPES: Record<CensusSlug, string[]> = {
@@ -145,7 +145,7 @@ export const CENSUS_PROTOTYPES: Record<CensusSlug, string[]> = {
 };
 
 // The competing class for THIS router: a specific document lookup, not a
-// cross-cutting finding. Deliberately NOT skills/similarity.ts's
+// cross-cutting finding. Deliberately NOT facts/similarity.ts's
 // ATLAS_PROTOTYPES — see the header comment for why that suppressor doesn't
 // apply here. Exported so eval-census.ts scores the exact set that ships.
 export const CENSUS_NEGATIVE_PROTOTYPES = [
@@ -166,16 +166,16 @@ export const CENSUS_NEGATIVE_PROTOTYPES = [
  * defaults to `config.chatCensusSimilarityMargin`), and `pnpm eval:census`
  * calls this exact function with an override to sweep thresholds — never a
  * parallel reimplementation of the arithmetic, which would let eval and
- * server silently diverge (see skills/similarity.ts's identical note on
- * looksLikeSkillQuestion).
+ * server silently diverge (see facts/similarity.ts's identical note on
+ * looksLikeFactQuestion).
  *
  * Small-talk gated, atlas-subject NOT gated (constraint: a census question
- * already names atlas vocabulary — see header). `config.chatSkillSimilarity`
+ * already names atlas vocabulary — see header). `config.chatFactSimilarity`
  * is the shared kill switch for every embedding lane (features' and this one).
  */
 export function routeCensuses(question: string, margin = config.chatCensusSimilarityMargin): CensusSlug[] {
   const regexSlugs = matchConceptCensuses(question);
-  if (!config.chatSkillSimilarity || isSmallTalk(question)) return regexSlugs;
+  if (!config.chatFactSimilarity || isSmallTalk(question)) return regexSlugs;
   const ranked = rankPrototypeSets(question, CENSUS_PROTOTYPES, CENSUS_NEGATIVE_PROTOTYPES);
   const simSlugs = ranked.filter((r) => r.margin >= margin).map((r) => r.slug as CensusSlug);
   return [...new Set([...regexSlugs, ...simSlugs])].slice(0, MAX_CENSUSES);

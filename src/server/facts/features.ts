@@ -1,10 +1,10 @@
-// The product-documentation skill: when the question is about what can be DONE
+// The product-documentation fact: when the question is about what can be DONE
 // here rather than what the atlas SAYS, inject the Features guide
 // (src/lib/featuresData.ts — the app's single source of truth for "what
 // can this app do", the same data /features renders) so the answer describes
 // the real app instead of the model's guess at one.
 //
-// Two distinctions this skill exists to enforce, both carried in NOTE and
+// Two distinctions this fact exists to enforce, both carried in NOTE and
 // VOCABULARY below and both easy to get wrong without them:
 //   1. THIS CHAT vs THE WEB APP — what the assistant can do in the panel is not
 //      what the person can do in the browser. Answering one for the other is
@@ -14,7 +14,7 @@
 //      entities, relations, addresses, params, censuses and every report built
 //      on them are RedLens's parse of those documents, not atlas text.
 import { FEATURE_GROUPS, type FeatureGroup } from "../../lib/featuresData.ts";
-import type { Skill, SkillBlock, SkillContext } from "./types.ts";
+import type { Fact, FactBlock, FactContext } from "./types.ts";
 
 // `how` steps are ~60% of the guide's bulk. Every area ships its name/what/note
 // (breadth — "what can I do here"); only the areas the question actually names
@@ -41,7 +41,7 @@ const DO_WITH = /\bwhat (can|could) (i|you|we|users?) (do|see|ask)\s+with\b/i;
 
 // Capability vocabulary is only about the product when it points at the
 // product: "what are the features of the Stability Scope" must stay an atlas
-// question, so a bare "features" never fires this skill.
+// question, so a bare "features" never fires this fact.
 const CAPABILITY = /\b(features?|capabilit(y|ies)|functionalit(y|ies)|capable of|what you can do)\b/i;
 const APP_REF = /\b(app|application|site|website|platform|tool|redlens?|redline|chat|assistant|you|your|here)\b/i;
 
@@ -52,7 +52,7 @@ const HOW_TO = /\b(how (do|can) i|where (do|can) i|where is|can i)\b/i;
 const APP_ARTIFACT =
   /\b(csv|exports?|downloads?|buttons?|pages?|tabs?|panels?|sidebars?|shortcuts?|keyboard|bookmarks?|urls?|links?|filters?|columns?|toggles?|dark mode|themes?|sign(ing)? in|accounts?|collections?|mcp|previews?|constellations?|radar|reports?)\b/i;
 
-// Example questions for the registry's similarity lane (skills/similarity.ts),
+// Example questions for the registry's similarity lane (facts/similarity.ts),
 // which catches the phrasings no regex anticipates — "show me around", "what
 // should i try first?". Kept here, next to the deterministic trigger, because
 // they describe the same intent; the bakeoff imports these rather than keeping
@@ -164,13 +164,13 @@ function shapeGroup(g: FeatureGroup, detailed: boolean) {
   };
 }
 
-export const featuresSkill: Skill = {
+export const featuresFact: Fact = {
   id: "features",
   what: "RedLens product documentation (the /features guide) for questions about what the app or this chat can do.",
   // Count is areas, which means nothing to a reader — name the thing instead.
   summarize: () => "the app's features guide",
   prototypes: FEATURES_PROTOTYPES,
-  run({ question, page, semanticHit }: SkillContext): SkillBlock | null {
+  run({ question, page, semanticHit }: FactContext): FactBlock | null {
     // Three ways in: the deterministic trigger, the registry's similarity lane
     // (phrasings the trigger never anticipated), and being ON the features
     // page — itself the question, for a follow-up like "what does this cover?"

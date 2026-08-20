@@ -11,10 +11,10 @@ export interface TraceRow {
   args: Record<string, unknown>;
   ok: boolean | null; // null until the matching tool_result arrives
   bytes: number | null;
-  // "skill" rows are context the server injected before the model ran (no call
+  // "fact" rows are knowledge the server injected before the model ran (no call
   // to pair with a result, so they arrive already resolved). `summary` is the
   // server's reader-facing phrase for what it contributed.
-  kind?: "tool" | "skill";
+  kind?: "tool" | "fact";
   summary?: string;
 }
 
@@ -254,19 +254,19 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           patchLast((m) => ({ ...m, exports: [...(m.exports ?? []), artifact] }));
           break;
         }
-        case "skills":
-          // Prepended, not appended: skills ran before the first tool call, so
+        case "facts":
+          // Prepended, not appended: facts ran before the first tool call, so
           // the trace reads in the order things actually happened.
           patchLast((m) => ({
             ...m,
             trace: [
-              ...ev.skills.map((sk) => ({
-                name: sk.id,
+              ...ev.facts.map((fa) => ({
+                name: fa.id,
                 args: {},
                 ok: true,
                 bytes: null,
-                kind: "skill" as const,
-                summary: sk.summary,
+                kind: "fact" as const,
+                summary: fa.summary,
               })),
               ...m.trace,
             ],
