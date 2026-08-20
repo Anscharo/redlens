@@ -1,6 +1,6 @@
 name: E2E
 
-# Two ways in:
+# Three ways in:
 #  1. deployment_status — Railway emits this when a per-PR environment finishes
 #     deploying. Keying off `state == success` removes the "tests started before
 #     the deploy was ready" race; we further scope to PR envs via `environment`
@@ -15,6 +15,14 @@ name: E2E
 #     directly rather than looking it up). Useful to smoke the workflow before
 #     it's on main (a deployment_status workflow only fires once its file is on
 #     the default branch) or to re-run E2E on demand.
+#  3. schedule — canary-only runs against the long-lived environments: prod
+#     once a day, development twice a day. Cron can't carry inputs, so the
+#     target is derived from which cron string fired (github.event.schedule) in
+#     "Resolve target URL" — keep the crons there and the map below in sync.
+#     Times are staggered (off :00, hours apart) so runs never overlap each
+#     other or GitHub's top-of-hour congestion. Scheduled runs skip the core
+#     project: core is the per-PR deploy gate; these exist to exercise the
+#     cron/external-state canaries against live data.
 #
 # Markdown-only PRs (skills, CLAUDE.md, plans — anything the app does not
 # `?raw`-import) should not reach here: railway.toml watchPatterns skip the
@@ -22,6 +30,10 @@ name: E2E
 # does not wait on a PR env that will never converge for a docs-only change.
 on:
   deployment_status:
+  schedule:
+    - cron: "23 5 * * *" # prod canary (05:23 UTC daily)
+    - cron: "23 11 * * *" # development canary #1 (11:23 UTC)
+    - cron: "23 23 * * *" # development canary #2 (23:23 UTC)
   workflow_dispatch:
     inputs:
       url:
@@ -50,7 +62,7 @@ permissions:
 # same PR environment. Only the newest build may test that environment's mutable
 # URL; otherwise an older SHA can pass against newer code.
 concurrency:
-  group: e2e-${{ github.event_name == 'deployment_status' && github.event.deployment_status.environment || github.event.inputs.url }}
+  group: e2e-${{ github.event_name == 'schedule' && format('cron-{0}', github.event.schedule) || github.event_name == 'deployment_status' && github.event.deployment_status.environment || github.event.inputs.url }}
   cancel-in-progress: true
 
 jobs:
@@ -63,6 +75,7 @@ jobs:
     # derive the app URL below.
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
       (github.event.deployment_status.state == 'success' &&
        contains(github.event.deployment_status.environment, 'pr-'))
     runs-on: ubuntu-latest
@@ -130,8 +143,21 @@ jobs:
         env:
           ENV_NAME: ${{ github.event.deployment_status.environment }}
           URL_INPUT: ${{ github.event.inputs.url }}
+          SCHEDULE: ${{ github.event.schedule }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            # Cron carries no inputs, so the fired cron string IS the target
+            # selector. Fail loudly on an unmapped cron: silently defaulting
+            # would let an edited schedule test the wrong environment.
+            case "$SCHEDULE" in
+              "23 5 * * *") URL="https://atlas.redline.support" ;;
+              "23 11 * * *"|"23 23 * * *") URL="https://redlens-development.up.railway.app" ;;
+              *)
+                echo "cron '${SCHEDULE}' has no target URL mapped in this step" >&2
+                exit 1
+                ;;
+            esac
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             # Manual runs pass the deployment URL directly — the env slug (e.g.
             # "pr-85d143-128") embeds a random per-environment component that
             # isn't derivable from a PR number, so there's nothing to look up.
@@ -175,7 +201,9 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run core E2E
-        if: ${{ github.event_name == 'workflow_dispatch' || steps.gate.outputs.skip != 'true' }}
+        # Not on schedule: core gates per-PR deploys; scheduled runs are the
+        # canary sweep only.
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'deployment_status' && steps.gate.outputs.skip != 'true') }}
         run: pnpm test:e2e
         env:
           BASE_URL: ${{ steps.target.outputs.url }}
@@ -183,8 +211,10 @@ jobs:
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/core
           PLAYWRIGHT_OUTPUT_DIR: test-results/core
 
-      - name: Run opt-in canaries
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_canaries }}
+      - name: Run canaries (scheduled or opt-in)
+        # Scheduled runs always canary; the preview canary inside skips itself
+        # unless the ATLAS_PREVIEW_CANARY_* pins are provided (dispatch only).
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_canaries) }}
         run: pnpm test:e2e:canary
         env:
           BASE_URL: ${{ steps.target.outputs.url }}
