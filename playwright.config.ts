@@ -19,7 +19,17 @@ export default defineConfig({
   // Readiness and MCP helpers absorb transport startup separately. One browser
   // retry keeps a trace without turning persistent faults into false greens.
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [["github"], ["list"], ["html", { open: "never" }]] : "list",
+  // The json report feeds e2e/check-canary-skips.mjs (scheduled-run skip
+  // streak guard); PLAYWRIGHT_JSON_OUTPUT_FILE keeps core/canary steps in the
+  // same job from overwriting each other's report.
+  reporter: process.env.CI
+    ? [
+        ["github"],
+        ["list"],
+        ["html", { open: "never" }],
+        ["json", { outputFile: process.env.PLAYWRIGHT_JSON_OUTPUT_FILE ?? "test-results/report.json" }],
+      ]
+    : "list",
   use: {
     baseURL,
     trace: "on-first-retry",
