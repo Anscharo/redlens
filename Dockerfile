@@ -26,7 +26,7 @@ COPY apps/web/package.json ./apps/web/
 #
 #   1. It fails .npmrc's engine-strict against engines.node >= 22, so both
 #      `pnpm install` and `pnpm run` refuse outright. (build:vite runs through
-#      `pnpm --filter @redlens/web`, so the run path matters, not just install.)
+#      `pnpm --filter sabr-web`, so the run path matters, not just install.)
 #   2. Worse, because it is SILENT: pnpm skips an optional dependency whose
 #      engines do not match, and @rolldown/binding-linux-x64-gnu — the native
 #      binding vite 8 needs — declares `^20.19.0 || >=22.12.0`. The install
@@ -136,7 +136,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 COPY --from=builder /usr/local/pnpm       /usr/local/pnpm
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/web/package.json ./apps/web/
-# --filter lens: install the ROOT package's dependencies only. A bare workspace
+# --filter sabr-root: install the ROOT package's dependencies only. A bare workspace
 # install would resolve apps/web too and drag react, vite, katex and the rest of
 # the browser bundle into an image that never renders anything. Every workspace
 # manifest still has to be present for pnpm to resolve the lockfile, hence the
@@ -144,7 +144,7 @@ COPY apps/web/package.json ./apps/web/
 #
 # Store removal is in the same layer so the space is actually reclaimed; the
 # store hardlinks into node_modules, so the installed tree survives it.
-RUN pnpm install --frozen-lockfile --prod --filter lens \
+RUN pnpm install --frozen-lockfile --prod --filter sabr-root \
  && rm -rf "$(pnpm store path)"
 
 COPY --from=builder /app/dist             ./dist

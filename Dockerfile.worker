@@ -34,7 +34,7 @@ WORKDIR /app
 # transitive graph and a broken upstream release could reach the cron service
 # while CI stayed green. --prod is safe because the worker's entire runtime
 # closure lives in `dependencies` — enforced by `pnpm check:boundaries`, which
-# treats each spawned build script as its own entry point. --filter lens keeps
+# treats each spawned build script as its own entry point. --filter sabr-root keeps
 # the apps/web browser bundle out of a service image entirely.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/web/package.json ./apps/web/
@@ -49,7 +49,7 @@ COPY apps/web/package.json ./apps/web/
 #
 #   1. It fails .npmrc's engine-strict against engines.node >= 22, so both
 #      `pnpm install` and `pnpm run` refuse outright. (build:vite runs through
-#      `pnpm --filter @redlens/web`, so the run path matters, not just install.)
+#      `pnpm --filter sabr-web`, so the run path matters, not just install.)
 #   2. Worse, because it is SILENT: pnpm skips an optional dependency whose
 #      engines do not match, and @rolldown/binding-linux-x64-gnu — the native
 #      binding vite 8 needs — declares `^20.19.0 || >=22.12.0`. The install
@@ -83,7 +83,7 @@ RUN set -eux; \
     chmod +x "$PNPM_HOME/pnpm"; \
     pnpm --version
 
-RUN pnpm install --frozen-lockfile --prod --filter lens \
+RUN pnpm install --frozen-lockfile --prod --filter sabr-root \
  && rm -rf "$(pnpm store path)"
 
 # Repo source (without node_modules/dist/.git/vendor via .dockerignore).
