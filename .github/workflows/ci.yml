@@ -94,7 +94,7 @@ jobs:
         run: pnpm check:patch-notes
 
       - name: Bundle
-        run: pnpm exec vite build
+        run: pnpm build:vite
 
   test-snap:
     name: "CI: Test snaps"

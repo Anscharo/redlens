@@ -1,0 +1,92 @@
+import { describe, it, expect } from "vitest";
+import { buildParticipantLinks, matchParticipants } from "./search";
+import type { GraphEntity, RelationEdge } from "@/types";
+
+function entity(id: string, et: string, name: string, extra: Partial<GraphEntity> = {}): GraphEntity {
+  return { id, et, name, slug: id, st: null, did: null, ...extra };
+}
+
+function edge(f: string, t: string): RelationEdge {
+  return { e: "comprises", f, t, ft: "entity", tt: "entity" } as RelationEdge;
+}
+
+describe("buildParticipantLinks", () => {
+  it("gives a radar entity type (agent/facilitator_org/govops_org) its own actor page", () => {
+    const links = buildParticipantLinks([entity("a1", "agent", "Skybase")], []);
+    expect(links.get("a1")).toBe("/radar/a1");
+  });
+
+  it("maps a composite_party to its comprising agent's radar page (pass 1)", () => {
+    const cp = entity("cp1", "composite_party", "Core Council");
+    const agent = entity("a1", "agent", "Skybase");
+    const links = buildParticipantLinks([cp, agent], [edge("cp1", "a1")]);
+    expect(links.get("cp1")).toBe("/radar/a1");
+  });
+
+  it("maps a foundation/dev-company under a composite_party to that agent's link too (pass 2)", () => {
+    const cp = entity("cp1", "composite_party", "Core Council");
+    const agent = entity("a1", "agent", "Skybase");
+    const foundation = entity("f1", "foundation", "Some Foundation");
+    const links = buildParticipantLinks(
+      [cp, agent, foundation],
+      [edge("cp1", "a1"), edge("cp1", "f1")],
+    );
+    expect(links.get("f1")).toBe("/radar/a1");
+  });
+
+  it("falls back to the defining atlas doc when nothing else resolves", () => {
+    const other = entity("o1", "ecosystem_actor", "Somebody", { did: "doc-uuid-1" });
+    const links = buildParticipantLinks([other], []);
+    expect(links.get("o1")).toBe("/atlas?id=doc-uuid-1");
+  });
+
+  it("omits an entity with no radar mapping and no defining doc", () => {
+    const other = entity("o1", "ecosystem_actor", "Somebody");
+    const links = buildParticipantLinks([other], []);
+    expect(links.has("o1")).toBe(false);
+  });
+
+  it("ignores non-comprises edges and edges whose endpoints aren't entity/entity", () => {
+    const cp = entity("cp1", "composite_party", "Core Council");
+    const agent = entity("a1", "agent", "Skybase");
+    const links = buildParticipantLinks(
+      [cp, agent],
+      [{ e: "other_role", f: "cp1", t: "a1", ft: "entity", tt: "entity" } as RelationEdge],
+    );
+    expect(links.has("cp1")).toBe(false);
+  });
+});
+
+describe("matchParticipants", () => {
+  const participants = [
+    entity("1", "agent", "Skybase"),
+    entity("2", "agent", "Sky Reserve"),
+    entity("3", "agent", "Spark"),
+  ];
+
+  it("returns [] for a blank query", () => {
+    expect(matchParticipants("   ", participants)).toEqual([]);
+  });
+
+  it("scores an exact (case-insensitive) match highest", () => {
+    const hits = matchParticipants("spark", participants);
+    expect(hits[0].participant.name).toBe("Spark");
+    expect(hits[0].score).toBe(3);
+  });
+
+  it("scores a prefix match above a substring match, sorted by score then shorter name first", () => {
+    const hits = matchParticipants("sky", participants);
+    expect(hits.map((h) => h.participant.name)).toEqual(["Skybase", "Sky Reserve"]);
+    expect(hits[0].score).toBe(2);
+  });
+
+  it("scores a substring (non-prefix) match lowest", () => {
+    const hits = matchParticipants("park", participants);
+    expect(hits).toHaveLength(1);
+    expect(hits[0].score).toBe(1);
+  });
+
+  it("excludes participants with no match at all", () => {
+    expect(matchParticipants("nonexistent", participants)).toEqual([]);
+  });
+});

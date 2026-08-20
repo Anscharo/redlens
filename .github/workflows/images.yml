@@ -62,7 +62,9 @@ jobs:
           set -eux
           docker run --rm redlens-web:ci sh -c 'test -d node_modules/viem'
           docker run --rm redlens-web:ci sh -c 'test -d node_modules/minisearch'
-          for pkg in vite vitest typescript tailwindcss knip oxlint jsdom @playwright/test; do
+          # react et al are apps/web dependencies now: --filter lens must keep the
+          # whole browser bundle out of a service image, not just the devDeps.
+          for pkg in vite vitest typescript tailwindcss knip oxlint jsdom @playwright/test react react-dom katex posthog-js wouter; do
             if docker run --rm redlens-web:ci sh -c "test -e node_modules/$pkg"; then
               echo "::error::$pkg is a devDependency but is present in the runtime image"
               exit 1

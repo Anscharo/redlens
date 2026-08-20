@@ -10,6 +10,7 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/web/package.json ./apps/web/
 
 # pnpm is the repo's only package manager — one lockfile, exercised by every CI
 # job. Bun stays the RUNTIME (start command, the bun-runner build steps, the
@@ -116,9 +117,16 @@ ENV PNPM_HOME="/usr/local/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 COPY --from=builder /usr/local/pnpm       /usr/local/pnpm
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/web/package.json ./apps/web/
+# --filter lens: install the ROOT package's dependencies only. A bare workspace
+# install would resolve apps/web too and drag react, vite, katex and the rest of
+# the browser bundle into an image that never renders anything. Every workspace
+# manifest still has to be present for pnpm to resolve the lockfile, hence the
+# apps/web/package.json copy above.
+#
 # Store removal is in the same layer so the space is actually reclaimed; the
 # store hardlinks into node_modules, so the installed tree survives it.
-RUN pnpm install --frozen-lockfile --prod --config.engine-strict=false \
+RUN pnpm install --frozen-lockfile --prod --config.engine-strict=false --filter lens \
  && rm -rf "$(pnpm store path)"
 
 COPY --from=builder /app/dist             ./dist

@@ -49,18 +49,24 @@ function parseJsonc(src: string): Record<string, unknown> {
 }
 
 describe("path aliases are declared once", () => {
-  for (const file of ["tsconfig.app.json", "tsconfig.test.json"]) {
+  // Every tsconfig that resolves `@/` — including the ones inside apps/web, whose
+  // targets have to point back up out of the package.
+  for (const file of [
+    "tsconfig.test.json",
+    "apps/web/tsconfig.app.json",
+    "apps/web/tsconfig.test.json",
+  ]) {
     it(`${file} paths match the declaration`, () => {
       const cfg = parseJsonc(read(file)) as { compilerOptions?: { paths?: unknown } };
-      expect(cfg.compilerOptions?.paths).toEqual(tsconfigPaths());
+      expect(cfg.compilerOptions?.paths).toEqual(tsconfigPaths(path.dirname(file)));
     });
   }
 
   // These two DO import the module, so there is no map to compare — the check is
   // that they still derive from it rather than having grown a hand-written copy.
-  for (const file of ["vite.config.ts", "vitest.config.ts"]) {
+  for (const file of ["apps/web/vite.config.ts", "vitest.config.ts"]) {
     it(`${file} derives its aliases from the declaration`, () => {
-      expect(read(file)).toContain('from "./scripts/lib/path-aliases.mjs"');
+      expect(read(file)).toContain('path-aliases.mjs');
     });
   }
 

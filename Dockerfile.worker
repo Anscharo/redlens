@@ -34,8 +34,10 @@ WORKDIR /app
 # transitive graph and a broken upstream release could reach the cron service
 # while CI stayed green. --prod is safe because the worker's entire runtime
 # closure lives in `dependencies` — enforced by `pnpm check:boundaries`, which
-# treats each spawned build script as its own entry point.
+# treats each spawned build script as its own entry point. --filter lens keeps
+# the apps/web browser bundle out of a service image entirely.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/web/package.json ./apps/web/
 
 # pnpm is the repo's only package manager. Bun stays the runtime — this image's
 # start command is still `bun scripts/required/atlas-worker.mjs`. oven/bun ships
@@ -66,7 +68,7 @@ RUN set -eux; \
 # so engine-strict would measure THAT interpreter against a constraint meant for
 # the dev toolchain and refuse to install. There is no Node in this image at all;
 # the runtime here is Bun.
-RUN pnpm install --frozen-lockfile --prod --config.engine-strict=false \
+RUN pnpm install --frozen-lockfile --prod --config.engine-strict=false --filter lens \
  && rm -rf "$(pnpm store path)"
 
 # Repo source (without node_modules/dist/.git/vendor via .dockerignore).

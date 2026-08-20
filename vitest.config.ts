@@ -3,13 +3,18 @@ import { defineConfig } from "vitest/config";
 import { ALIASES } from "./scripts/lib/path-aliases.mjs";
 
 export default defineConfig({
+  // One config covers both workspace packages. Coverage is gated as a single
+  // number (scripts/aux/coverage-areas.mjs, coverage-baseline.yml), and `@/`
+  // means the root src/ from either package, so a per-package config would add
+  // fragmentation without adding isolation.
+  //
   // vitest doesn't run vite-plugin-pwa, so `virtual:pwa-register/react` (imported
   // by src/hooks/useSWUpdate.ts) is otherwise unresolvable. Point it at a test
   // stub so the hook can load and be mocked. Real values come from the plugin at
   // build time; the stub only needs to satisfy the module graph.
   resolve: {
     alias: {
-      "virtual:pwa-register/react": fileURLToPath(new URL("./src/test/pwa-register-stub.ts", import.meta.url)),
+      "virtual:pwa-register/react": fileURLToPath(new URL("./apps/web/src/test/pwa-register-stub.ts", import.meta.url)),
       // Path aliases, from the single declaration in scripts/lib/path-aliases.mjs.
       ...Object.fromEntries(
         Object.entries(ALIASES).map(([prefix, target]) => [
@@ -35,11 +40,12 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov"],
       reportsDirectory: "coverage/vitest",
-      include: ["src/**/*.{ts,tsx}", "scripts/lib/**/*.mjs"],
+      include: ["src/**/*.{ts,tsx}", "apps/web/src/**/*.{ts,tsx}", "scripts/lib/**/*.mjs"],
       exclude: [
         "src/**/*.test.{ts,tsx}",
-        "src/test/**",
-        "src/vite-env.d.ts",
+        "apps/web/src/**/*.test.{ts,tsx}",
+        "apps/web/src/test/**",
+        "apps/web/src/vite-env.d.ts",
         "src/server/migrations/**",
         // Offline one-off eval tooling, not shippable code — explicitly out of
         // coverage even though the include patterns above don't reach it today.

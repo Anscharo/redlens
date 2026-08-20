@@ -33,6 +33,7 @@
     "scripts/required/check-govops-census.d.mts"
   ],
   "workspaces": {
-    ".": {}
+    ".": {},
+    "apps/web": {}
   }
 }

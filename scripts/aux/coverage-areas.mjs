@@ -206,6 +206,11 @@ export const libAreaIds = areas.filter((a) => a.id.startsWith("lib-") || a.id.st
 // ordered scan yields the correct bucket (e.g. backend-routes before backend-core,
 // react-reader-* before react-general before general-utils).
 export function areaFor(file) {
+  // The frontend moved to apps/web/ but the meters below are keyed on the paths
+  // as they read in the repo's own vocabulary ("src/components/radar"). Strip the
+  // package prefix here rather than teaching ~30 regexes about it — coverage is
+  // reported as one number across both packages either way.
+  file = file.replace(/^apps\/web\//, "");
   const area = areas.find((a) => a.match.some((re) => re.test(file)));
   return area?.id ?? "uncategorized";
 }

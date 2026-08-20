@@ -105,8 +105,4 @@ export interface LoadedData {
   complete: boolean;
 }
 
-export const ATLAS_GRID_STYLE: React.CSSProperties = { minHeight: 0, overflow: "hidden" };
-export const ATLAS_LEFT_PANE_STYLE: React.CSSProperties = {
-  borderRight: "1px solid var(--border)",
-};
 export const ATLAS_EMPTY_SET: Set<string> = new Set();

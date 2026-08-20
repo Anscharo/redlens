@@ -29,7 +29,9 @@ const usersFlag = users ? "1" : "0";
 
 const procs = [
   { name: "server", color: "\x1b[36m", cmd: "bun", args: ["src/server/index.ts"], env: { CHAT_ENABLED: chatFlag, USERS_ENABLED: usersFlag } }, // cyan
-  { name: "vite", color: "\x1b[35m", cmd: "vite", args: [], env: { VITE_CHAT_ENABLED: chatFlag, VITE_USERS_ENABLED: usersFlag } }, // magenta
+  // Vite lives in the apps/web workspace package now, so go through pnpm rather
+  // than the bin: the root node_modules has no vite to resolve.
+  { name: "vite", color: "\x1b[35m", cmd: "pnpm", args: ["--filter", "@redlens/web", "dev"], env: { VITE_CHAT_ENABLED: chatFlag, VITE_USERS_ENABLED: usersFlag } }, // magenta
 ];
 
 const reset = "\x1b[0m";

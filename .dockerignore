@@ -2,7 +2,7 @@
 # submodule + .git aren't used at build — Railway strips .git anyway), so exclude
 # both vendor/next-gen-atlas and .git.
 node_modules
-redlens-mcp/node_modules
+**/node_modules
 dist
 # .cache is scratch — EXCEPT the committed Etherscan ABI cache, which the atlas
 # worker's chain-state step reads at RUNTIME: fetch-chain-state.mjs builds its
