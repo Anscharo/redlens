@@ -47,3 +47,7 @@ The sum of `profit_to_grove` is a valid venue-level breakdown. The defect is pre
 - `docs/METHODOLOGY.md` §sky_savings_token still says `prime_revenue = 0`. The Case-1 L2 sUSDS venues (S37/S43/S47/S51) now book ordinary mark-to-market (S43 July actual 431,179.34).
 
 None of the above changes what is paid. All of it changes what a third party reconstructs from the published files — and there is currently no test asserting that workbook Summary blocks add up, so the pattern can recur without anyone noticing.
+
+## How these issues were found
+
+The Comparison-block mismatch first surfaced as a reconciliation failure while building an independent parser and charts over the published workbooks: the bold total would not tie to the `summary.md` headline beside it. Our first assumption was a bug on our side — and partly it was (we had been summing venue rows too); after fixing that, the residual mismatch traced to the workbook blocks themselves. The findings were then re-verified by multiple LLM models asked independently — including Claude Opus, Grok 4.6, and Claude Fable — with the final pass re-parsing all 36 workbooks cell-by-cell (openpyxl, no shared code with the earlier passes) and re-deriving every figure in this note from the published files and pipeline source at the pinned commits. Where the passes disagreed, the published files were the referee: only claims that reproduce to the cent from the workbooks and `summary.md` survived into this note. The text was edited for readability by Gemini.
