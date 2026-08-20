@@ -31,7 +31,9 @@ function walkSrc(dir: string, acc: string[] = []): string[] {
 function appReadMarkdownFromSrc(): string[] {
   const re = /from\s+["']([^"']+\.md)\?raw["']/g;
   const found = new Set<string>();
-  for (const file of walkSrc(path.join(ROOT, "src"))) {
+  // Both packages: the `?raw` markdown importers live in apps/web now, but root
+  // src/ is still scanned so a new one there cannot slip past the allowlist.
+  for (const file of [...walkSrc(path.join(ROOT, "src")), ...walkSrc(path.join(ROOT, "apps/web/src"))]) {
     const text = fs.readFileSync(file, "utf8");
     for (const m of text.matchAll(re)) {
       const abs = path.resolve(path.dirname(file), m[1]);

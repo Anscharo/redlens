@@ -9,6 +9,49 @@ permissions:
   pull-requests: write
 
 jobs:
+  # Which half of the workspace a PR touches. Used to skip the jobs that a
+  # frontend-only change provably cannot affect: the Postgres/MCP server suite
+  # and the graph snapshots both derive from src/server, scripts/ and the atlas,
+  # none of which apps/web can reach.
+  #
+  # Deliberately fails OPEN — anything other than a clean "only apps/web changed"
+  # answer runs the full set. A wrongly-skipped gate is worth far more than the
+  # couple of minutes it saves.
+  #
+  # Plain git rather than a paths-filter action: it is a three-line diff and this
+  # keeps the supply chain as-is.
+  #
+  # NOTE: if these job names are configured as REQUIRED status checks, a skipped
+  # job reports "skipped" and branch protection may hold the PR. Either mark them
+  # not-required or make them required-if-run before relying on this.
+  changes:
+    name: "CI: What changed"
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Classify the diff
+        id: filter
+        run: |
+          set -eu
+          emit() { echo "backend=$1" >> "$GITHUB_OUTPUT"; echo "backend=$1"; exit 0; }
+          [ "${{ github.event_name }}" = "pull_request" ] || emit true
+          base='${{ github.event.pull_request.base.sha }}'
+          git cat-file -e "$base^{commit}" 2>/dev/null || emit true
+          changed=$(git diff --name-only "$base"...HEAD)
+          [ -n "$changed" ] || emit true
+          echo "$changed" | sed 's/^/  /'
+          # Any path outside apps/web/ means the backend half is in play. So does
+          # apps/web's own manifest: both images copy it so the workspace install
+          # can resolve the lockfile, so it is not purely frontend.
+          echo "$changed" | grep -qvE '^apps/web/' && emit true
+          echo "$changed" | grep -qxF 'apps/web/package.json' && emit true
+          emit false
+
   checkout-install:
     name: "CI: Checkout + install"
     runs-on: ubuntu-latest
@@ -18,7 +61,11 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: Pack installed workspace
-        run: tar -czf workspace-deps.tgz node_modules
+        # Both package trees. pnpm puts apps/web's links in a sibling
+        # apps/web/node_modules, so packing only the root one leaves the six jobs
+        # that restore this artifact unable to resolve anything apps/web depends
+        # on — which is how `tsc -b` first failed on the workspace split.
+        run: tar -czf workspace-deps.tgz node_modules apps/web/node_modules
 
       - name: Upload installed workspace
         uses: actions/upload-artifact@v4
@@ -87,16 +134,21 @@ jobs:
       - name: Unused files/exports (knip)
         run: pnpm knip
 
+      - name: Service/frontend import boundary
+        run: pnpm check:boundaries
+
       - name: Check patch notes
         run: pnpm check:patch-notes
 
       - name: Bundle
-        run: pnpm exec vite build
+        run: pnpm build:vite
 
   test-snap:
     name: "CI: Test snaps"
     runs-on: ubuntu-latest
-    needs: lint-build
+    needs: [changes, lint-build]
+    # Graph snapshots come from relations.json, which apps/web cannot influence.
+    if: needs.changes.outputs.backend == 'true' 
     steps:
       - uses: actions/checkout@v5
         with:
@@ -313,7 +365,9 @@ jobs:
   server:
     name: "CI: Railway server (Postgres + MCP smoke)"
     runs-on: ubuntu-latest
-    needs: lint-build
+    needs: [changes, lint-build]
+    # src/server + scripts only; nothing under apps/web reaches them.
+    if: needs.changes.outputs.backend == 'true' 
     services:
       postgres:
         image: pgvector/pgvector:pg16

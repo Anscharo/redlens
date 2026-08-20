@@ -1,7 +1,11 @@
 import type { AtlasNode, AddressInfo } from "../types";
-import type { ChainValue } from "./chainstate";
-import type { AtlasBundle } from "./docs";
-import type { Glossary } from "./glossary";
+// Each of these names its DECLARING module rather than the browser loader that
+// re-exports it. Routing type-only imports through the loaders put docs.ts ->
+// atlasBase.ts -> analytics.ts -> posthog-js on the source graph of every script
+// that touches this hub.
+import type { ChainValue } from "./chainstateTypes";
+import type { AtlasBundle } from "./docsTypes";
+import type { Glossary } from "./glossaryLookup";
 import { realDepth, depthColor } from "./depth";
 
 // Re-exported from its own DOM-free module so server-side report derivation can
@@ -101,8 +105,4 @@ export interface LoadedData {
   complete: boolean;
 }
 
-export const ATLAS_GRID_STYLE: React.CSSProperties = { minHeight: 0, overflow: "hidden" };
-export const ATLAS_LEFT_PANE_STYLE: React.CSSProperties = {
-  borderRight: "1px solid var(--border)",
-};
 export const ATLAS_EMPTY_SET: Set<string> = new Set();

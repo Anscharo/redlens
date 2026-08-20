@@ -4,13 +4,49 @@
 FROM oven/bun:1.3 AS builder
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git ca-certificates \
+ && apt-get install -y --no-install-recommends git ca-certificates curl \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/web/package.json ./apps/web/
+
+# pnpm is the repo's only package manager — one lockfile, exercised by every CI
+# job. Bun stays the RUNTIME (start command, the bun-runner build steps, the
+# worker); it is just not the installer any more.
+#
+# oven/bun ships no Node (see oven-sh/bun dockerhub/debian/Dockerfile), so
+# corepack — which comes with Node — is not available here. pnpm's standalone
+# build bundles its own Node, which is exactly what this image needs.
+#
+# Tell pnpm which Node this project targets. There is no Node in this image at
+# all — the runtime is Bun — so pnpm falls back to the one bundled in its
+# standalone build, v20.11.1 in 10.33.0. That version breaks two things at once:
+#
+#   1. It fails .npmrc's engine-strict against engines.node >= 22, so both
+#      `pnpm install` and `pnpm run` refuse outright. (build:vite runs through
+#      `pnpm --filter sabr-web`, so the run path matters, not just install.)
+#   2. Worse, because it is SILENT: pnpm skips an optional dependency whose
+#      engines do not match, and @rolldown/binding-linux-x64-gnu — the native
+#      binding vite 8 needs — declares `^20.19.0 || >=22.12.0`. The install
+#      succeeded and `vite build` then died on "Cannot find native binding".
+#
+# Declaring the version fixes both, and unlike engine-strict=false it fixes the
+# second one at all: disabling the guard does not change optional-dep filtering.
+# 22.22.0 is the floor CLAUDE.md documents (a transitive dep requires it).
+#
+# ENV, not an .npmrc line: `COPY . .` lands after the install and would clobber
+# an edited file.
+ENV npm_config_node_version=22.22.0
+
+ENV PNPM_HOME="/usr/local/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+# pnpm itself. The bootstrap is shared with the other image — see the script.
+COPY scripts/docker/install-pnpm.sh ./scripts/docker/
+RUN sh scripts/docker/install-pnpm.sh
+
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 
@@ -75,7 +111,30 @@ FROM oven/bun:1.3
 
 WORKDIR /app
 
-COPY --from=builder /app/node_modules      ./node_modules
+# Production dependencies only, installed fresh — the builder's node_modules
+# carries the whole toolchain (vite, tailwind, typescript, vitest, playwright,
+# jsdom, knip, oxlint) that this image never runs. The pnpm binary is copied
+# rather than re-downloaded so this stage needs no curl and no network beyond
+# the registry.
+#
+# Same reason as the builder stage — ENV does not cross a FROM boundary.
+ENV npm_config_node_version=22.22.0
+ENV PNPM_HOME="/usr/local/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+COPY --from=builder /usr/local/pnpm       /usr/local/pnpm
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/web/package.json ./apps/web/
+# --filter sabr-root: install the ROOT package's dependencies only. A bare workspace
+# install would resolve apps/web too and drag react, vite, katex and the rest of
+# the browser bundle into an image that never renders anything. Every workspace
+# manifest still has to be present for pnpm to resolve the lockfile, hence the
+# apps/web/package.json copy above.
+#
+# Store removal is in the same layer so the space is actually reclaimed; the
+# store hardlinks into node_modules, so the installed tree survives it.
+RUN pnpm install --frozen-lockfile --prod --filter sabr-root \
+ && rm -rf "$(pnpm store path)"
+
 COPY --from=builder /app/dist             ./dist
 COPY --from=builder /app/src/server       ./src/server
 COPY --from=builder /app/src/lib          ./src/lib
@@ -86,7 +145,6 @@ COPY --from=builder /app/src/lib          ./src/lib
 COPY --from=builder /app/src/data          ./src/data
 COPY --from=builder /app/scripts/required ./scripts/required
 COPY --from=builder /app/scripts/lib      ./scripts/lib
-COPY --from=builder /app/package.json     ./
 
 # Vite copies public/ into dist/ at build time, so dist/ already has all
 # atlas artifacts. Symlink public/ → dist/ so the server's config.publicDir

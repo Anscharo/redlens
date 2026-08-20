@@ -124,8 +124,8 @@ vocabulary.
 
 Do **not** introduce `value`/`defaultValue`/`onValueChange` trios, and do **not** add
 `@radix-ui/react-use-controllable-state`; it is not a dependency, and any dependency change
-must update **both `pnpm-lock.yaml` and `bun.lock` in the same commit** or the Railway Docker
-build fails on `bun install --frozen-lockfile`.
+must ship the refreshed **`pnpm-lock.yaml` in the same commit** or `pnpm install
+--frozen-lockfile` fails CI and the Docker build.
 
 The one rule from the spec that still binds, because it is a real bug class:
 

@@ -1,8 +1,6 @@
 import type { AtlasNode } from "../types";
-import { fetchJson } from "./verify";
 import type { Rating, OeaAssessmentArtifact, OeaAssessmentEntry } from "./oeaAssessment";
 import { normalizeAssessedText, OEA_CATEGORY_LABELS, type OeaTask } from "./oeaTasks";
-import { handledStale, liveAtlasBase } from "./atlasBase";
 import { toCSV } from "./csv";
 import { atlasUrl } from "./routes";
 import { expandCopies } from "./dutyCollapse";
@@ -101,24 +99,6 @@ export function createOeaReport(
     rows,
     mechanisms,
   };
-}
-
-const cache = new Map<string, Promise<OeaReportArtifact>>();
-
-export function loadOeaReport(base: string = liveAtlasBase()): Promise<OeaReportArtifact> {
-  let cached = cache.get(base);
-  if (!cached) {
-    cached = fetchJson<OeaReportArtifact>(
-      `${base}oea-report.json`,
-      "oea-report.json",
-    ).catch((err) => {
-      cache.delete(base);
-      if (handledStale(err)) return new Promise<OeaReportArtifact>(() => {});
-      throw err;
-    });
-    cache.set(base, cached);
-  }
-  return cached;
 }
 
 // A collapsed task's `copies` re-expanded to one entry per doc, via the same
