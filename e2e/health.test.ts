@@ -53,6 +53,20 @@ describe("readinessProblems", () => {
 });
 
 describe("waitForDeployment", () => {
+  it("fails fast on a scheme-less base URL instead of retrying it", async () => {
+    await expect(
+      waitForDeployment({
+        baseUrl: "atlas.redline.support",
+        fetchImpl: (() => {
+          throw new Error("should not fetch an unparseable URL");
+        }) as typeof fetch,
+        sleep: async () => {
+          throw new Error("should not retry an unparseable URL");
+        },
+      }),
+    ).rejects.toThrow(/BASE_URL needs a scheme.*https:\/\/atlas\.redline\.support/);
+  });
+
   it("polls until the expected deployment is ready", async () => {
     let calls = 0;
     let clock = 0;

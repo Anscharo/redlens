@@ -1,11 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
+import { normalizeBaseUrl } from "./e2e/base-url";
 
 // L3 browser/API E2E. The target is a LIVE deploy (the Railway per-PR
 // environment), not a server we boot here — so there is intentionally no
 // `webServer` block. BASE_URL is injected by the e2e.yml workflow from the
 // Railway deployment environment. Locally, point it at any running instance:
 // `BASE_URL=http://localhost:3000 pnpm test:e2e`.
-const baseURL = process.env.BASE_URL;
+const baseURL = normalizeBaseUrl(process.env.BASE_URL);
 const chromium = { ...devices["Desktop Chrome"] };
 
 export default defineConfig({

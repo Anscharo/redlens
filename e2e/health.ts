@@ -67,6 +67,16 @@ export async function waitForDeployment({
   now = Date.now,
 }: WaitOptions): Promise<HealthSnapshot> {
   const target = `${baseUrl.replace(/\/$/, "")}/api/health`;
+  // A URL fetch() can't parse (e.g. a scheme-less BASE_URL) never becomes
+  // valid by retrying — fail immediately with the actionable message instead
+  // of burning the whole timeout on "request failed: Failed to parse URL".
+  try {
+    new URL(target);
+  } catch {
+    throw new Error(
+      `health URL ${JSON.stringify(target)} is not a valid URL — BASE_URL needs a scheme, e.g. https://${baseUrl}`,
+    );
+  }
   const started = now();
   let attempt = 0;
   let lastDetail = "no response";
