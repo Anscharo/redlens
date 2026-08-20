@@ -20,17 +20,25 @@ COPY apps/web/package.json ./apps/web/
 # corepack — which comes with Node — is not available here. pnpm's standalone
 # build bundles its own Node, which is exactly what this image needs.
 #
-# .npmrc turns on engine-strict and package.json pins engines.node >= 22 — a
-# guard for local dev and CI, where a transitive dep needs it. pnpm's standalone
-# build bundles its own Node (v20.11.1 in 10.33.0), so engine-strict measures THAT
-# interpreter against a constraint meant for the dev toolchain and refuses. There
-# is no Node in this image at all; the runtime here is Bun.
+# Tell pnpm which Node this project targets. There is no Node in this image at
+# all — the runtime is Bun — so pnpm falls back to the one bundled in its
+# standalone build, v20.11.1 in 10.33.0. That version breaks two things at once:
 #
-# ENV rather than an .npmrc line for two reasons: `COPY . .` lands after the
-# install and would clobber an edited file, and pnpm enforces engines when it RUNS
-# a script too — which `build:vite` does, delegating through
-# `pnpm --filter @redlens/web`. A per-command flag covered only `pnpm install`.
-ENV npm_config_engine_strict=false
+#   1. It fails .npmrc's engine-strict against engines.node >= 22, so both
+#      `pnpm install` and `pnpm run` refuse outright. (build:vite runs through
+#      `pnpm --filter @redlens/web`, so the run path matters, not just install.)
+#   2. Worse, because it is SILENT: pnpm skips an optional dependency whose
+#      engines do not match, and @rolldown/binding-linux-x64-gnu — the native
+#      binding vite 8 needs — declares `^20.19.0 || >=22.12.0`. The install
+#      succeeded and `vite build` then died on "Cannot find native binding".
+#
+# Declaring the version fixes both, and unlike engine-strict=false it fixes the
+# second one at all: disabling the guard does not change optional-dep filtering.
+# 22.22.0 is the floor CLAUDE.md documents (a transitive dep requires it).
+#
+# ENV, not an .npmrc line: `COPY . .` lands after the install and would clobber
+# an edited file.
+ENV npm_config_node_version=22.22.0
 
 ENV PNPM_HOME="/usr/local/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -122,7 +130,7 @@ WORKDIR /app
 # the registry.
 #
 # Same reason as the builder stage — ENV does not cross a FROM boundary.
-ENV npm_config_engine_strict=false
+ENV npm_config_node_version=22.22.0
 ENV PNPM_HOME="/usr/local/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 COPY --from=builder /usr/local/pnpm       /usr/local/pnpm

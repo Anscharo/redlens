@@ -44,17 +44,22 @@ describe("main.tsx bootstrap", () => {
   it("mounts the live app for a normal path and restores any OAuth return", async () => {
     setPath("/atlas?id=x");
     await import("./main.tsx");
-    // StrictMode + async root render — allow the commit to flush.
-    await new Promise((r) => setTimeout(r, 0));
-    expect(document.getElementById("root")!.textContent).toContain("live app");
+    // StrictMode + async root render — poll for the commit rather than assuming
+    // it lands inside one macrotask. The fixed `setTimeout(r, 0)` this replaces
+    // held locally and flaked on a loaded CI runner, where the render can slip
+    // past a single turn of the loop.
+    await vi.waitFor(() => {
+      expect(document.getElementById("root")!.textContent).toContain("live app");
+    });
     expect(restoreAuthReturn).toHaveBeenCalled();
   });
 
   it("mounts the preview index at /preview", async () => {
     setPath("/preview");
     await import("./main.tsx");
-    await new Promise((r) => setTimeout(r, 0));
-    expect(document.getElementById("root")!.textContent).toContain("preview home");
+    await vi.waitFor(() => {
+      expect(document.getElementById("root")!.textContent).toContain("preview home");
+    });
     // Live-only auth restore must not run on the preview surface.
     expect(restoreAuthReturn).not.toHaveBeenCalled();
   });
@@ -62,9 +67,9 @@ describe("main.tsx bootstrap", () => {
   it("mounts the preview gate for /preview/:id with the decoded id + router base", async () => {
     setPath("/preview/my-branch/atlas");
     await import("./main.tsx");
-    await new Promise((r) => setTimeout(r, 0));
-    const txt = document.getElementById("root")!.textContent!;
-    expect(txt).toContain("gate:my-branch:/preview/my-branch");
+    await vi.waitFor(() => {
+      expect(document.getElementById("root")!.textContent).toContain("gate:my-branch:/preview/my-branch");
+    });
     expect(restoreAuthReturn).not.toHaveBeenCalled();
   });
 });
