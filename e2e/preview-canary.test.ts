@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { changedDocIds, CONTENT_FILE_RE, rawUrl, splitByUuid } from "./preview-canary";
+import { changedDocIds, splitByUuid } from "./atlas-sections";
+import { CONTENT_FILE_RE, rawUrl } from "./preview-canary";
 
 const SCOPE = [
   "# A.1 - The Governance Scope [Scope]  <!-- UUID: 18ac7dd3-c646-4352-9b0d-d01a2932d7d1 -->",
@@ -10,20 +11,29 @@ const SCOPE = [
 ].join("\n");
 
 describe("splitByUuid", () => {
-  it("splits a consolidated file into heading-inclusive per-doc sections, lowercasing ids", () => {
+  it("splits a consolidated file into per-doc field sections, lowercasing ids", () => {
     const docs = splitByUuid(SCOPE);
     expect([...docs.keys()]).toEqual([
       "18ac7dd3-c646-4352-9b0d-d01a2932d7d1",
       "86a93dab-2f12-4c3f-9285-bcc4520c851b",
     ]);
-    expect(docs.get("18ac7dd3-c646-4352-9b0d-d01a2932d7d1")).toContain("# A.1 - The Governance Scope");
-    expect(docs.get("18ac7dd3-c646-4352-9b0d-d01a2932d7d1")).toContain("Preamble text.");
-    expect(docs.get("86a93dab-2f12-4c3f-9285-bcc4520c851b")).toContain("Article body line two.");
+    expect(docs.get("18ac7dd3-c646-4352-9b0d-d01a2932d7d1")).toEqual({
+      doc_no: "A.1",
+      title: "The Governance Scope",
+      body: "Preamble text.",
+    });
+    expect(docs.get("86a93dab-2f12-4c3f-9285-bcc4520c851b")?.body).toBe(
+      "Article body line one.\nArticle body line two.",
+    );
   });
 
   it("ignores prose before the first UUID heading and headings without a UUID marker", () => {
     const docs = splitByUuid("intro\n## Plain Heading\n" + SCOPE);
     expect(docs.size).toBe(2);
+    // The plain heading before the first UUID heading is not a section; a
+    // plain heading INSIDE a section stays part of that section's body.
+    const withInner = splitByUuid(SCOPE + "\n### Inner Plain Heading\nmore body");
+    expect(withInner.get("86a93dab-2f12-4c3f-9285-bcc4520c851b")?.body).toContain("Inner Plain Heading");
   });
 });
 
@@ -43,12 +53,25 @@ describe("changedDocIds", () => {
     expect(changedDocIds(base, new Map())).toEqual([]);
   });
 
-  it("flags a renumber-only edit because the heading line is part of the section", () => {
-    const head = splitByUuid(SCOPE.replace("## A.1.1 -", "## A.1.2 -"));
-    expect(changedDocIds(base, head)).toEqual(["86a93dab-2f12-4c3f-9285-bcc4520c851b"]);
+  it("flags renumber-only and retitle-only edits (preview diffs doc_no and title)", () => {
+    expect(changedDocIds(base, splitByUuid(SCOPE.replace("## A.1.1 -", "## A.1.2 -")))).toEqual([
+      "86a93dab-2f12-4c3f-9285-bcc4520c851b",
+    ]);
+    expect(
+      changedDocIds(base, splitByUuid(SCOPE.replace("Spirit of the Atlas", "Soul of the Atlas"))),
+    ).toEqual(["86a93dab-2f12-4c3f-9285-bcc4520c851b"]);
   });
 
-  it("does not flag a doc moved between files when the union text is identical", () => {
+  it("does NOT flag type-only or heading-whitespace edits — the preview's diff ignores them", () => {
+    // diffSnapshots compares body/title/doc_no only; [Type] and heading
+    // formatting are not hashed, so expecting these would be a false red.
+    expect(changedDocIds(base, splitByUuid(SCOPE.replace("[Article]", "[Core]")))).toEqual([]);
+    expect(
+      changedDocIds(base, splitByUuid(SCOPE.replace("Spirit of the Atlas [Article]", "Spirit of the Atlas  [Article]"))),
+    ).toEqual([]);
+  });
+
+  it("does not flag a doc moved between files when the union fields are identical", () => {
     // The union maps already merge every changed file per side, so a clean
     // move produces identical base and head entries.
     expect(changedDocIds(base, splitByUuid(SCOPE))).toEqual([]);

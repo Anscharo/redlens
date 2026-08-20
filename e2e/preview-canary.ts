@@ -3,24 +3,33 @@
 // The preview server diffs uuid-keyed doc snapshots of a PR's MERGE BASE vs its
 // head (src/server/preview/pr-diff.ts + snapshot.ts). To assert on its output
 // we derive the same expectation independently: fetch each changed content file
-// at both commits, split by the `<!-- UUID: -->` heading marker, and collect
-// the docs whose section text is new or different. This reads the CONSOLIDATED
-// layout (content/<name>.md, upstream #294 on) only — if upstream regroups
-// again, discovery stops matching and the scheduled skip-streak guard
-// (check-canary-skips.mjs) turns that silence into a red run.
+// at both commits, split into per-doc sections (e2e/atlas-sections.ts, which
+// owns the diffSnapshots-aligned comparison), and collect the changed uuids.
+// Fork-head PRs are eligible — the preview is built to serve them (resolve.ts:
+// "pull-N → PR against the canonical repo (head may be a fork)"), and most
+// content-editing atlas PRs come from contributor forks — so head-side files
+// are fetched from the PR's own head repo, base-side from canonical at the
+// merge base. This reads the CONSOLIDATED layout (content/<name>.md, upstream
+// #294 on) only — if upstream regroups again, discovery stops matching and the
+// scheduled skip-streak guard (check-canary-skips.mjs) turns that silence into
+// a red run.
+
+import { changedDocIds, splitByUuid, type DocSection } from "./atlas-sections.ts";
 
 export const CANONICAL = "sky-ecosystem/next-gen-atlas";
 const API = "https://api.github.com";
 // Composed files sit directly under content/. Renames are excluded: their base
 // side lives at previous_filename, which the raw-diff below doesn't chase.
 export const CONTENT_FILE_RE = /^content\/[^/]+\.md$/;
-const HEADING_UUID_RE = /^#{1,6} .*<!-- UUID: ([0-9a-fA-F-]{36}) -->\s*$/;
-// Composed scope files run to ~1MB; bound the raw downloads per candidate.
-const MAX_CONTENT_FILES = 5;
+// The consolidated layout is ~16 composed files, so no per-candidate cap is
+// needed; the files listing is paginated a few pages deep so a large PR can't
+// bury its content files past page one.
+const MAX_FILE_PAGES = 3;
 
 export interface CanaryTarget {
   number: number;
   headSha: string;
+  headRepo: string;
   expectedIds: string[];
 }
 
@@ -48,55 +57,36 @@ export function rawUrl(repo: string, sha: string, path: string): string {
   return `https://raw.githubusercontent.com/${repo}/${sha}/${encoded}`;
 }
 
-/** Split a composed content file into heading-inclusive per-doc sections.
- *  Including the heading line means a renumber-only edit still counts as a
- *  change — the preview reports those under `renumbered`, which the spec's
- *  marked-set union covers. */
-export function splitByUuid(text: string): Map<string, string> {
-  const sections = new Map<string, string>();
-  let current: string | null = null;
-  let buf: string[] = [];
-  for (const line of text.split("\n")) {
-    const m = line.match(HEADING_UUID_RE);
-    if (m) {
-      if (current) sections.set(current, buf.join("\n"));
-      current = m[1].toLowerCase();
-      buf = [line];
-    } else if (current) {
-      buf.push(line);
+async function contentFiles(fetchImpl: typeof fetch, prNumber: number): Promise<string[] | null> {
+  const names: string[] = [];
+  for (let page = 1; page <= MAX_FILE_PAGES; page++) {
+    const files = await ghJson<Array<{ filename: string; status: string }>>(
+      fetchImpl,
+      `/repos/${CANONICAL}/pulls/${prNumber}/files?per_page=100&page=${page}`,
+    );
+    if (!files) return null;
+    for (const f of files) {
+      if (CONTENT_FILE_RE.test(f.filename) && (f.status === "added" || f.status === "modified")) {
+        names.push(f.filename);
+      }
     }
+    if (files.length < 100) break;
   }
-  if (current) sections.set(current, buf.join("\n"));
-  return sections;
-}
-
-/** Docs present in head whose section is new or textually different. Diffed
- *  over the UNION of all changed files, so a doc moved between two files in
- *  the same PR (identical text, both files changed) is not a false change. */
-export function changedDocIds(base: Map<string, string>, head: Map<string, string>): string[] {
-  const ids: string[] = [];
-  for (const [id, text] of head) {
-    if (base.get(id) !== text) ids.push(id);
-  }
-  return ids;
+  return names;
 }
 
 /** Expected changed-doc ids for one PR head, or null when the PR yields none
- *  (no consolidated content files, unresolvable merge base, or no extractable
+ *  (no consolidated content files, unresolvable merge base, or no changed
  *  UUID sections — all reasons to try the next candidate). */
 async function expectedIdsFor(fetchImpl: typeof fetch, pr: PrPayload): Promise<string[] | null> {
   const headSha = pr.head?.sha;
-  if (!headSha) return null;
-  const files = await ghJson<Array<{ filename: string; status: string }>>(
-    fetchImpl,
-    `/repos/${CANONICAL}/pulls/${pr.number}/files?per_page=100`,
-  );
-  if (!files) return null;
-  const contentFiles = files
-    .filter((f) => CONTENT_FILE_RE.test(f.filename) && (f.status === "added" || f.status === "modified"))
-    .slice(0, MAX_CONTENT_FILES);
-  if (!contentFiles.length) return null;
+  const headRepo = pr.head?.repo?.full_name;
+  if (!headSha || !headRepo) return null;
+  const files = await contentFiles(fetchImpl, pr.number);
+  if (!files?.length) return null;
 
+  // Plain head SHA, exactly like the server's pr-diff.ts: fork PR head commits
+  // are reachable in the canonical repo's network, so no owner qualifier.
   const baseRef = pr.base?.ref ?? "main";
   const cmp = await ghJson<{ merge_base_commit?: { sha?: string } }>(
     fetchImpl,
@@ -105,21 +95,25 @@ async function expectedIdsFor(fetchImpl: typeof fetch, pr: PrPayload): Promise<s
   const mergeBase = cmp?.merge_base_commit?.sha;
   if (!mergeBase) return null;
 
-  const baseDocs = new Map<string, string>();
-  const headDocs = new Map<string, string>();
-  for (const f of contentFiles) {
-    for (const [sha, into] of [
-      [mergeBase, baseDocs],
-      [headSha, headDocs],
+  const baseDocs = new Map<string, DocSection>();
+  const headDocs = new Map<string, DocSection>();
+  for (const f of files) {
+    for (const [repo, sha, into] of [
+      [CANONICAL, mergeBase, baseDocs],
+      [headRepo, headSha, headDocs],
     ] as const) {
-      const res = await fetchImpl(rawUrl(CANONICAL, sha, f.filename));
+      const res = await fetchImpl(rawUrl(repo, sha, f));
       // 404 on the base side = file added by the PR; every side stays optional.
       if (!res.ok) continue;
-      for (const [id, text] of splitByUuid(await res.text())) into.set(id, text);
+      for (const [id, section] of splitByUuid(await res.text())) into.set(id, section);
     }
   }
   const ids = changedDocIds(baseDocs, headDocs);
   return ids.length ? ids : null;
+}
+
+function toTarget(pr: PrPayload, expectedIds: string[]): CanaryTarget {
+  return { number: pr.number, headSha: pr.head!.sha!, headRepo: pr.head!.repo!.full_name!, expectedIds };
 }
 
 /** Validate an operator-pinned PR (dispatch runs). Returns a target or a
@@ -135,17 +129,18 @@ export async function pinnedCanary(
   if (pr.head?.sha !== expectedSha) {
     return { reason: `atlas PR #${number} moved from ${expectedSha} to ${pr.head?.sha}` };
   }
-  if (pr.head?.repo?.full_name !== CANONICAL) {
-    return { reason: `atlas PR #${number} is from ${pr.head?.repo?.full_name ?? "an unknown fork"}` };
+  if (!pr.head?.repo?.full_name) {
+    return { reason: `atlas PR #${number} has no reachable head repository` };
   }
   const expectedIds = await expectedIdsFor(fetchImpl, pr);
   if (!expectedIds) return { reason: `atlas PR #${number} yields no changed content docs` };
-  return { number, headSha: expectedSha, expectedIds };
+  return toTarget(pr, expectedIds);
 }
 
-/** Scheduled runs: pick the newest open canonical-head PR that changes docs we
- *  can derive expectations for. Null target = nothing eligible right now —
- *  an honest skip the streak guard keeps from staying silent forever. */
+/** Scheduled runs: pick the newest open PR (canonical or fork head) that
+ *  changes docs we can derive expectations for. A reason instead of a target =
+ *  nothing eligible right now — an honest skip the streak guard keeps from
+ *  staying silent forever. */
 export async function discoverCanary(
   fetchImpl: typeof fetch,
 ): Promise<CanaryTarget | { reason: string }> {
@@ -155,9 +150,10 @@ export async function discoverCanary(
   );
   if (!prs) return { reason: "could not list open atlas PRs" };
   for (const pr of prs) {
-    if (pr.head?.repo?.full_name !== CANONICAL || !pr.head?.sha) continue;
+    // head.repo is null when the fork was deleted; such PRs can't be fetched.
+    if (!pr.head?.sha || !pr.head?.repo?.full_name) continue;
     const expectedIds = await expectedIdsFor(fetchImpl, pr);
-    if (expectedIds) return { number: pr.number, headSha: pr.head.sha, expectedIds };
+    if (expectedIds) return toTarget(pr, expectedIds);
   }
   return { reason: `no open ${CANONICAL} PR currently modifies consolidated content docs` };
 }

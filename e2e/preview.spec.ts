@@ -1,18 +1,40 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { currentHeadSha, discoverCanary, pinnedCanary, type CanaryTarget } from "./preview-canary";
 
 // Atlas-preview redline canary against a REAL upstream PR. Two ways to target:
 //   pinned    — ATLAS_PREVIEW_CANARY_PR + ATLAS_PREVIEW_CANARY_SHA (dispatch
 //               runs): exact, skips if the PR moved or closed.
 //   discovery — PREVIEW_CANARY_DISCOVER=1 (scheduled runs): picks the newest
-//               eligible open canonical PR at runtime, so cron needs no pins.
+//               eligible open PR (fork heads included) at runtime, so cron
+//               needs no pins.
 // Both skip cleanly when no target is runnable; scheduled skips are counted by
 // e2e/check-canary-skips.mjs so silence can't last forever. Candidate selection
 // and the expected-diff derivation live in e2e/preview-canary.ts.
 
 const BUILD_TIMEOUT = 150_000; // first preview build clones + builds the atlas
 
-test("previews an atlas PR canary and redlines exactly the docs it changed", async ({ page }) => {
+/** Non-trusted fork previews gate <App/> — and therefore the diff.json fetch —
+ *  behind a click-through interstitial (PreviewGate.tsx). Poll for its button
+ *  while the awaited response is pending and click through once. */
+async function awaitDismissingInterstitial<T>(page: Page, pending: Promise<T>): Promise<T> {
+  const ack = page.getByRole("button", { name: /view the fork/i });
+  let settled = false;
+  const tracked = pending.finally(() => {
+    settled = true;
+  });
+  void (async () => {
+    while (!settled) {
+      if (await ack.isVisible().catch(() => false)) {
+        await ack.click().catch(() => {});
+        return;
+      }
+      await page.waitForTimeout(1_000).catch(() => {});
+    }
+  })();
+  return tracked;
+}
+
+test("previews an atlas PR canary and redlines the docs it changed", async ({ page }) => {
   test.setTimeout(BUILD_TIMEOUT + 60_000);
 
   const pinnedPr = Number(process.env.ATLAS_PREVIEW_CANARY_PR ?? "");
@@ -26,8 +48,10 @@ test("previews an atlas PR canary and redlines exactly the docs it changed", asy
   const resolved =
     pinnedPr && pinnedSha ? await pinnedCanary(fetch, pinnedPr, pinnedSha) : await discoverCanary(fetch);
   test.skip(!("headSha" in resolved), (resolved as { reason?: string }).reason ?? "no runnable preview canary");
-  const { number, headSha, expectedIds } = resolved as CanaryTarget;
-  console.log(`preview canary: atlas PR #${number} at ${headSha} (${expectedIds.length} expected docs)`);
+  const { number, headSha, headRepo, expectedIds } = resolved as CanaryTarget;
+  console.log(
+    `preview canary: atlas PR #${number} at ${headSha} from ${headRepo} (${expectedIds.length} expected docs)`,
+  );
 
   // Capture the preview bundle's diff.json (fetched once the build is ready).
   const diffResponse = page.waitForResponse(
@@ -35,7 +59,7 @@ test("previews an atlas PR canary and redlines exactly the docs it changed", asy
     { timeout: BUILD_TIMEOUT },
   );
   await page.goto(`/preview/pull-${number}`, { waitUntil: "domcontentloaded" });
-  const diff = (await (await diffResponse).json()) as {
+  const diff = (await (await awaitDismissingInterstitial(page, diffResponse)).json()) as {
     added?: string[];
     changed?: string[];
     renumbered?: Record<string, unknown>;
@@ -52,11 +76,14 @@ test("previews an atlas PR canary and redlines exactly the docs it changed", asy
     ...Object.keys(diff.renumbered ?? {}),
   ]);
 
-  // Every doc the PR added/changed must appear in our computed diff.
+  // Every doc the PR added/changed must appear in our computed diff. (Subset
+  // check by design: the preview may legitimately mark more — e.g. renumber
+  // cascades — than the per-file expectation derives.)
   const missing = expectedIds.filter((id) => !marked.has(id));
   expect(missing, `PR #${number} at ${headSha}: these changed docs were missing from the preview diff`).toEqual([]);
 
-  // And the render path actually marks one of them in the reader.
+  // And the render path actually marks one of them in the reader. (The
+  // interstitial was acknowledged for this session above, so no second gate.)
   await page.goto(`/preview/pull-${number}/atlas?id=${expectedIds[0]}`, { waitUntil: "domcontentloaded" });
   await expect(page.locator('[aria-label$="in this preview"]').first()).toBeVisible({ timeout: 60_000 });
 });

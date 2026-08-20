@@ -33,7 +33,7 @@ function collectTests(suite, acc = []) {
   for (const spec of suite.specs ?? []) {
     for (const t of spec.tests ?? []) {
       acc.push({
-        file: suite.file ?? spec.file ?? "",
+        file: spec.file || suite.file || "",
         title: spec.title,
         // expectedStatus-aware rollup: "skipped" | "expected" | "unexpected" | "flaky"
         status: t.status,
