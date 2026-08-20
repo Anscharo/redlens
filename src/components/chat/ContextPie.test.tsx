@@ -16,7 +16,7 @@ describe("ContextPie", () => {
     expect(btn.querySelectorAll("circle")).toHaveLength(1);
   });
 
-  it("renders a filled arc with the accent color when known and below the hot threshold", () => {
+  it("renders a filled arc in the accent color by default", () => {
     render(<ContextPie pct={14} label="context window · 14% · 18.2k / 128k — limits" open={false} onToggle={vi.fn()} />);
     const btn = screen.getByRole("button", {
       name: "context window · 14% · 18.2k / 128k — limits",
@@ -26,11 +26,11 @@ describe("ContextPie", () => {
     expect(circles[1]).toHaveAttribute("stroke", "var(--accent)");
   });
 
-  it("turns the arc red-ish (error-text) at pct >= 90", () => {
-    render(<ContextPie pct={92} label="context window · 92% · 117.8k / 128k — limits" open={false} onToggle={vi.fn()} />);
-    const btn = screen.getByRole("button");
-    const circles = btn.querySelectorAll("circle");
-    expect(circles[1]).toHaveAttribute("stroke", "var(--error-text)");
+  // The arc color identifies WHICH limit is shown, so the caller owns it —
+  // there is no severity override at any pct, however full the arc gets.
+  it("strokes the arc in the caller's color, including when nearly full", () => {
+    render(<ContextPie pct={92} label="time limit · 92% — limits" color="var(--warn)" open={false} onToggle={vi.fn()} />);
+    expect(screen.getByRole("button").querySelectorAll("circle")[1]).toHaveAttribute("stroke", "var(--warn)");
   });
 
   it("does not draw a filled arc at pct 0 (avoids a stray strokeLinecap dot)", () => {
@@ -62,9 +62,17 @@ describe("ContextLine", () => {
     render(<ContextLine pct={14} />);
     const line = document.querySelector(".rlc-ctxline");
     expect(line).toHaveAttribute("aria-hidden", "true");
+    // The bar's only self-explanation — a native tooltip, like the pie's, on
+    // the track so a hover anywhere along the bar answers.
+    expect(line).toHaveAttribute("title", "Context window · 14% used · this chat");
     const fill = document.querySelector(".rlc-ctxline-fill") as HTMLElement;
     expect(fill.style.height).toBe("14%");
     expect(fill).toHaveAttribute("data-hot", "false");
+  });
+
+  it("rounds the pct in its tooltip", () => {
+    render(<ContextLine pct={14.6} />);
+    expect(document.querySelector(".rlc-ctxline")).toHaveAttribute("title", "Context window · 15% used · this chat");
   });
 
   it("marks data-hot at pct >= 90", () => {

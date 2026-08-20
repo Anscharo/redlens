@@ -24,18 +24,20 @@ describe("StageList", () => {
     render(
       <StageList
         entries={[
-          { stage: "querying", detail: null, at: 0 },
-          { stage: "reading", detail: null, at: 1 },
-          { stage: "comparing", detail: null, at: 2 },
-          { stage: "synthesizing", detail: null, at: 3 },
-          { stage: "checking", detail: null, at: 4 },
-          { stage: "advising", detail: null, at: 5 },
-          { stage: "revising", detail: null, at: 6 },
-          { stage: "finalizing", detail: null, at: 7 },
+          { stage: "recalling", detail: null, at: 0 },
+          { stage: "querying", detail: null, at: 1 },
+          { stage: "reading", detail: null, at: 2 },
+          { stage: "comparing", detail: null, at: 3 },
+          { stage: "synthesizing", detail: null, at: 4 },
+          { stage: "checking", detail: null, at: 5 },
+          { stage: "advising", detail: null, at: 6 },
+          { stage: "revising", detail: null, at: 7 },
+          { stage: "finalizing", detail: null, at: 8 },
         ]}
       />,
     );
     for (const label of [
+      "Recalling context",
       "Looking for evidence",
       "Reading documents",
       "Comparing results",

@@ -6,18 +6,21 @@ const CIRCUMFERENCE = 2 * Math.PI * R;
 interface ContextPieProps {
   pct: number | null; // 0–100; null = unknown (no limit fraction known yet)
   label: string; // full aria-label/title text, built by the caller
+  color?: string; // arc stroke — LimitsMeter passes the displayed limit's color
   open: boolean; // details popover toggled open
   onToggle: () => void;
 }
 
 // Cursor-style meter: a tiny clickable donut. Generalized from the original
 // context-only pie — LimitsMeter is its only consumer now, and fills it with
-// whichever of its three limits (context/time/commons) is closest to full.
-// pct null renders an empty track, still clickable — there's no known limit
-// yet, not nothing to show.
-export function ContextPie({ pct, label, open, onToggle }: ContextPieProps) {
+// whichever limit it is currently showing (context by default; see
+// pickDisplayed). The arc COLOR identifies that limit rather than encoding
+// severity, so the caller owns it: a hot/red override here would repaint every
+// limit the same shade in exactly the near-full states where knowing WHICH one
+// is filling matters most. pct null renders an empty track, still clickable —
+// there's no known limit yet, not nothing to show.
+export function ContextPie({ pct, label, color = "var(--accent)", open, onToggle }: ContextPieProps) {
   const known = pct !== null;
-  const hot = known && pct >= HOT_PCT;
   // Only draw the filled arc once there's a nonzero share — otherwise
   // strokeLinecap="round" paints a stray dot at pct 0.
   const filled = known && pct > 0;
@@ -32,7 +35,7 @@ export function ContextPie({ pct, label, open, onToggle }: ContextPieProps) {
             cy="7"
             r={R}
             fill="none"
-            stroke={hot ? "var(--error-text)" : "var(--accent)"}
+            stroke={color}
             strokeWidth="2"
             strokeLinecap="round"
             strokeDasharray={`${(pct / 100) * CIRCUMFERENCE} ${CIRCUMFERENCE}`}
@@ -46,12 +49,19 @@ export function ContextPie({ pct, label, open, onToggle }: ContextPieProps) {
 
 // Thin bottom-anchored fill along the left edge of the conversation area —
 // always the CONTEXT pct specifically, unlike the pie, which meters whichever
-// limit is currently binding. Hidden entirely (not an empty 0% sliver) when
+// limit is currently displayed. Hidden entirely (not an empty 0% sliver) when
 // unknown — there's nothing to show, as opposed to "context measured at 0".
+//
+// The title is the only thing that says what a bare 2px bar is metering; it
+// stays a native tooltip, matching the pie and the header buttons. It sits on
+// the TRACK so the whole length of the bar answers a hover — at 14% context,
+// putting it on the fill alone would leave most of the bar inert. Still
+// aria-hidden: this is a decorative twin of the pie, whose aria-label already
+// reads the same number out.
 export function ContextLine({ pct }: { pct: number | null }) {
   if (pct === null) return null;
   return (
-    <div className="rlc-ctxline" aria-hidden="true">
+    <div className="rlc-ctxline" aria-hidden="true" title={`Context window · ${Math.round(pct)}% used · this chat`}>
       <div className="rlc-ctxline-fill" data-hot={pct >= HOT_PCT} style={{ height: `${pct}%` }} />
     </div>
   );

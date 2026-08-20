@@ -13,7 +13,7 @@ import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
 import { routeTier, resolveTierModels, citationStyleFor } from "./model-router.ts";
 import { runVerifiedChat, sanitizeDone, type HarnessEvent, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
-import { buildPrefetch, prefetchRound } from "../prefetch.ts";
+import { runFacts, factRound, summarizeFacts } from "../facts/registry.ts";
 import { windowHistory } from "./chat-history.ts";
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
@@ -170,12 +170,14 @@ export async function handleChat(req: Request): Promise<Response> {
     ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 
-  // Deterministic pre-lookup (glossary + entity match, pure code, ~ms): seed a
-  // synthetic tool round after the user message so definition/entity questions
-  // can answer in ONE request instead of tool-round → answer-round. Injects
-  // nothing on a miss; the harness treats it as ordinary turn evidence.
-  const prefetch = config.chatPrefetch ? buildPrefetch(ix, body.message) : null;
-  if (prefetch) messages.push(...prefetchRound(body.message, prefetch));
+  // Facts (facts/registry.ts): deterministic, pure-code knowledge blocks that
+  // fire on the question — glossary definitions, entity rows, concept censuses,
+  // app documentation. Seeded as a synthetic tool round after the user message
+  // so a question they already answer needs ONE request instead of tool-round →
+  // answer-round. Injects nothing on a miss; the harness treats what they do
+  // inject as ordinary turn evidence.
+  const facts = config.chatPrefetch ? runFacts({ ix, question: body.message, page: body.pageContext }) : null;
+  if (facts) messages.push(...factRound(body.message, facts));
 
   const startedAt = Date.now();
   const encoder = new TextEncoder();
@@ -200,6 +202,15 @@ export async function handleChat(req: Request): Promise<Response> {
       // delivery rides on meta so the client knows staged is active without
       // guessing from the absence of token events.
       send({ type: "meta", conversationId: convId, tier: route.tier, delivery: mode });
+
+      // Facts ran before the model did, and they shape the answer — so say so
+      // rather than letting injected context look like the model knowing
+      // things. Both surfaces the client already has: a trace row per fact,
+      // and a stage the ticker/checklist shows like any other step.
+      if (facts) {
+        send({ type: "facts", facts: facts.used, bytes: facts.content.length });
+        send({ type: "status", stage: "recalling", detail: summarizeFacts(facts) });
+      }
 
       // Staged mode never streams the draft: token/clear are swallowed, and a
       // "synthesizing" status stands in for the first suppressed token of each

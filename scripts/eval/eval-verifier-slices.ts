@@ -33,7 +33,7 @@ const REPORT_PATH = path.join(ROOT, ".cache", "eval-slices.json");
 const argv = process.argv.slice(2);
 const flag = (n: string) => argv.flatMap((a, i) => (a === `--${n}` && argv[i + 1] ? [argv[i + 1]] : []));
 
-const MODELS = (flag("models")[0]?.split(",") ?? ["google/gemma-4-31b-it", "anthropic/claude-haiku-4.5", "openai/gpt-5-mini"]).map((m) => m.trim());
+const MODELS = (flag("models")[0]?.split(",") ?? ["google/gemma-4-31b-it", "anthropic/claude-haiku-4.5", "openai/gpt-5.6-luna"]).map((m) => m.trim());
 const LIMIT = Number(flag("limit")[0] ?? 10);
 const CONCURRENCY = Number(flag("concurrency")[0] ?? 4);
 

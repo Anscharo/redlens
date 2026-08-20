@@ -1,11 +1,18 @@
 // Feature catalog for the /features guide page. Data only — FeaturesPage.tsx
-// renders it. Keep each `how` entry a short, concrete usage step naming the
+// renders it. Lives in src/lib (not src/components) because the SERVER reads it
+// too: the chat's product-documentation fact imports it, and the runtime image
+// copies src/lib but not src/components. Keep each `how` entry a short, concrete usage step naming the
 // real control the user has to find.
 //
 // This is the single source of truth for "what can this app do", so it is
 // deliberately one file even though it runs past the ~150-line convention —
 // splitting the list would defeat the point of having one place to update.
 // Ship a user-visible feature, add it here in the same PR (see CLAUDE.md).
+//
+// It is no longer only the /features page: the chat's product-documentation
+// fact (src/server/facts/features.ts) injects this data verbatim when someone
+// asks what the app can do, so anything stale here is stale in the chat's
+// answers too.
 //
 // Accuracy rules, learned the hard way:
 //   - Never hardcode a count that the app derives elsewhere (reports, MCP
@@ -338,6 +345,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Ask the Atlas questions and get answers backed by inline sources and a verification badge.",
         how: [
           "Sign in, then open Chat and ask a question — it will know the document or report you're viewing.",
+          "Ask it what the app can do, or what it can do itself — it answers from this guide, and keeps the two apart.",
           "Check the answer's verification badge and click the inline sources to jump to the cited docs.",
           "Open the tool trace to see what it queried; the meter shows your usage / credits.",
           "Dock the panel to the side or let it float.",

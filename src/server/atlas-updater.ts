@@ -312,9 +312,18 @@ export async function runRefreshFromDb(log: (m: string) => void, spawn: SpawnFn 
     //    build-graph reads docs.json → graph.json, relations.json (and enriches
     //    addresses.atlas.json); build-glossary + the report views read
     //    docs.json/relations.json. No build-index: docs.json came from DB rows.
-    for (const step of stepsFor("updater")) {
-      const { code } = await spawn("bun", [step.script!]);
-      if (code !== 0) throw new Error(`${step.name} exited ${code}`);
+    //    Stamp ATLAS_COMMIT so build-graph does not git-rev-parse (the runtime
+    //    image has no atlas checkout) and rewrite graph.json as "unknown".
+    const prevCommit = process.env.ATLAS_COMMIT;
+    process.env.ATLAS_COMMIT = dbSha;
+    try {
+      for (const step of stepsFor("updater")) {
+        const { code } = await spawn("bun", [step.script!]);
+        if (code !== 0) throw new Error(`${step.name} exited ${code}`);
+      }
+    } finally {
+      if (prevCommit === undefined) delete process.env.ATLAS_COMMIT;
+      else process.env.ATLAS_COMMIT = prevCommit;
     }
 
     // 4. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk

@@ -193,15 +193,53 @@ describe("handleChat", () => {
     return (async () => sseChunksResponse(rounds[Math.min(i++, rounds.length - 1)])) as unknown as typeof fetch;
   }
 
-  describe("delivery mode", () => {
-    async function events(res: Response): Promise<any[]> {
-      const text = await res.text();
-      return text
-        .split("\n\n")
-        .filter((l) => l.startsWith("data: "))
-        .map((l) => JSON.parse(l.slice("data: ".length)));
-    }
+  async function events(res: Response): Promise<any[]> {
+    const text = await res.text();
+    return text
+      .split("\n\n")
+      .filter((l) => l.startsWith("data: "))
+      .map((l) => JSON.parse(l.slice("data: ".length)));
+  }
 
+  // Facts inject knowledge before the model runs (src/server/facts). The turn
+  // has to SAY so: a trace row per fact, and a stage the ticker shows.
+  describe("facts", () => {
+    it("announces the facts that fired, and the recall as a stage", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("You can read the atlas.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "what can this app do?" }));
+        const evs = await events(res);
+        const facts = evs.find((e) => e.type === "facts");
+        expect(facts.facts.map((s: { id: string }) => s.id)).toContain("features");
+        expect(facts.facts.find((s: { id: string }) => s.id === "features").summary).toBe("the app's features guide");
+        expect(facts.bytes).toBeGreaterThan(0);
+        const recalled = evs.find((e) => e.type === "status" && e.stage === "recalling");
+        expect(recalled.detail).toContain("Recalled");
+        // Announced before any answer content, so the ticker leads with it.
+        expect(evs.indexOf(facts)).toBeLessThan(evs.findIndex((e) => e.type === "token" || e.type === "done"));
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("stays silent when no fact fires", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hi.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "hello" }));
+        const evs = await events(res);
+        expect(evs.some((e) => e.type === "facts")).toBe(false);
+        expect(evs.some((e) => e.stage === "recalling")).toBe(false);
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+  });
+
+  describe("delivery mode", () => {
     it("meta carries the effective delivery mode, defaulting to streaming", async () => {
       installHappyHandlers();
       const prevImpl = g.__llmFetchCurrentImpl!;

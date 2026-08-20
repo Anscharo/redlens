@@ -24,6 +24,7 @@ export type Delivery = "streaming" | "staged";
 // Full stage vocabulary post staged-delivery: the original harness stages plus
 // comparing/synthesizing/finalizing, which only ever fire in staged mode.
 export type Stage =
+  | "recalling"
   | "querying"
   | "reading"
   | "checking"
@@ -44,6 +45,10 @@ export type ChatEvent =
   // button to re-download (see useChatStream `export` case).
   | { type: "export"; format: "markdown" | "csv"; filename: string; mime: string; content: string; bytes: number }
   | { type: "status"; stage: Stage; detail?: string }
+  // Deterministic knowledge the server injected before the model ran (glossary
+  // definitions, entity rows, censuses, app documentation — src/server/facts).
+  // One entry per fact that fired, already phrased for the reader.
+  | { type: "facts"; facts: { id: string; summary: string }[]; bytes?: number }
   | {
       type: "verify_result";
       overall: VerifyOverall;

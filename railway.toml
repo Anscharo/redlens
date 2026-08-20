@@ -3,6 +3,17 @@
 # updater needs at runtime — so we own the image explicitly. See ./Dockerfile.
 [build]
 builder = "DOCKERFILE"
+# Skip deploys that only touch markdown the app does not bundle (skills, CLAUDE.md,
+# plans). Re-include the `?raw` imports — keep in sync with scripts/lib/deploy-skip.mjs.
+watchPatterns = [
+  "**",
+  "!**/*.md",
+  "PRIVACY.md",
+  "docs/crossview/concepts-audit.md",
+  "docs/crossview/concepts.md",
+  "docs/risk-assessment-rubric.md",
+  "patch-notes.md",
+]
 
 [deploy]
 startCommand = "bun --silent run start"

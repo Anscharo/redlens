@@ -508,3 +508,45 @@ one that changes model behaviour, and it is a one-line revert if the eval regres
   repair), and produced the one undefined-label failure in the grid — while citing
   a third as often as the models that adopted the format. Either the prompt names
   the block placement far more forcefully, or default-tier routing is revisited.
+
+## Luna vs gpt-5-mini (2026-08-19)
+
+Run when `CHAT_MODEL_STRONG` moved to `openai/gpt-5.6-luna`. The strong-tier swap
+is what forced the question: `chatReferenceCitationModels` used to derive from
+`CHAT_MODEL_STRONG`, so an unmeasured model would have silently inherited the
+format. That derivation was cut first (config.ts), the default pinned to the
+measured list, and then this bakeoff decided whether Luna belonged on it.
+
+`pnpm eval:bakeoff --models openai/gpt-5.6-luna,openai/gpt-5-mini` with
+`CHAT_REFERENCE_CITATION_MODELS` set to both, so BOTH models were prompted for
+reference style under identical conditions. 14 queries, one run each, judge
+`openai/gpt-5.6-terra`, atlas `8cba8156`.
+
+| | refStyle | blockFirst | defs/run | valueCite% | undefLabels | unusedLabels | multiLabel | shippedBrackets | ungroundedValues |
+|---|---|---|---|---|---|---|---|---|---|
+| gpt-5.6-luna | **100%** | **100%** | 7.71 | 6% | 0 | 0.71 | 0 | 0 | **0** |
+| gpt-5-mini | 86% | 86% | 9.07 | 17% | 0 | 1.07 | 0 | 0 | 0.21 |
+
+| | meanScore | support | completeness | honesty | hardFab/run | citations/run | latency |
+|---|---|---|---|---|---|---|---|
+| gpt-5.6-luna | **0.812** | 0.86 | **0.81** | **0.84** | **0.14** | 7.8 | **35.8s** |
+| gpt-5-mini | 0.674 | 0.84 | 0.63 | 0.78 | 0.57 | 14.4 | 68.3s |
+
+**Luna took the slot.** It adopts the format on every turn and always leads with
+the block — the property the whole streaming design depends on — where the
+incumbent misses roughly one turn in seven. It also fabricates a quarter as often
+(0.14 vs 0.57 per run) and answers in half the time.
+
+Two things this run does NOT establish:
+
+- **valueCitePct fell, 17% → 6%.** Luna is markedly less willing to make a figure
+  its own link text ("[6.5%][spark-rate]"), which is the instruction that binds a
+  number to the document it came from and what `[E-const]` checks against. Format
+  compliance and value-citation discipline are separate behaviours, and Luna wins
+  one while losing the other. Not a blocker for the format decision; open for the
+  figures slice.
+- **Single run per cell**, against the 3 runs behind the 2026-08-03 numbers, so
+  per-query swings are not separable from variance. Luna lost badly on two
+  (`multisig-security` 0.22 vs 0.77, `organizations` 0.14 vs 0.31) and won nine.
+  Those are answer-quality outliers, not citation-format failures — worth a look
+  on their own terms.

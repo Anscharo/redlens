@@ -1,10 +1,10 @@
-// prefetch.ts: deterministic pre-lookup (glossary longest-phrase match +
-// entity containment) seeded as a synthetic tool round before the first LLM
-// request. Pure in-memory indexes — no network, no DB.
+// prefetch.ts: the glossary (longest-phrase match) and entity (containment)
+// lanes. How they are assembled and injected is facts/registry.test.ts.
+// Pure in-memory indexes — no network, no DB.
 import { describe, it, expect } from "bun:test";
 import { buildIndexes, type AtlasNode, type Entity } from "./retrieval/indexes.ts";
 import type { Glossary, GlossaryEntry } from "../lib/glossaryLookup.ts";
-import { buildPrefetch, matchGlossary, matchQuestionEntities, prefetchRound, PREFETCH_TOOL_NAME } from "./prefetch.ts";
+import { definitionRows, matchGlossary, matchQuestionEntities } from "./prefetch.ts";
 
 function doc(id: string, doc_no: string, title: string): AtlasNode {
   return { id, doc_no, title, type: "Core", depth: 1, parentId: null, content: `${title} body`, order: 0, addressRefs: [] };
@@ -155,61 +155,14 @@ describe("matchQuestionEntities", () => {
   });
 });
 
-describe("buildPrefetch", () => {
-  it("returns null when nothing matches", () => {
-    expect(buildPrefetch(ix, "completely unrelated question about nothing")).toBeNull();
+describe("definitionRows", () => {
+  it("builds rows with real doc UUIDs for citations", () => {
+    const rows = definitionRows(ix, "what is universal alignment?");
+    expect(rows[0].doc_id).toBe("d-ua");
+    expect(rows[0].definition).toBe("Universal alignment is the broad idea.");
   });
 
-  it("builds a JSON report with real doc UUIDs for citations", () => {
-    const p = buildPrefetch(ix, "what is universal alignment and who is keel?");
-    expect(p).not.toBeNull();
-    const report = JSON.parse(p!.content);
-    expect(report.definitions[0].doc_id).toBe("d-ua");
-    expect(report.definitions[0].definition).toBe("Universal alignment is the broad idea.");
-    expect(report.entities.map((e: { slug: string }) => e.slug)).toEqual(["keel"]);
-    expect(p!.definitions).toBe(1);
-    expect(p!.entities).toBe(1);
-  });
-});
-
-describe("prefetchRound", () => {
-  it("emits a well-formed assistant tool_call + tool result pair", () => {
-    const p = buildPrefetch(ix, "what is universal alignment?")!;
-    const [assistant, tool] = prefetchRound("what is universal alignment?", p);
-    expect(assistant.role).toBe("assistant");
-    const call = (assistant as { tool_calls: { id: string; function: { name: string } }[] }).tool_calls[0];
-    expect(call.function.name).toBe(PREFETCH_TOOL_NAME);
-    expect(tool.role).toBe("tool");
-    expect((tool as { tool_call_id: string }).tool_call_id).toBe(call.id);
-    expect((tool as { content: string }).content).toBe(p.content);
-  });
-});
-
-describe("census lane (concepts-prefetch)", () => {
-  it("injects a census summary for census-vocabulary questions", () => {
-    const p = buildPrefetch(ix, "how many registries are actually empty?");
-    expect(p).not.toBeNull();
-    const report = JSON.parse(p!.content);
-    expect(p!.censuses).toBe(1);
-    expect(report.censuses[0].slug).toBe("registry-liveness");
-    expect(report.censuses[0].counts).toBeDefined();
-    expect(report.censuses[0].members).toBeUndefined(); // counts only — drill-down is a tool call
-    expect(report.censuses[0].members_hint).toContain('censuses:registry-liveness');
-    expect(report.censuses_note).toContain("our census shows");
-  });
-
-  it("does not fire on ordinary doc-lookup phrasing", () => {
-    for (const q of ["list of prime agents", "what is universal alignment?", "who is keel?"]) {
-      const p = buildPrefetch(ix, q);
-      if (p) {
-        expect(p.censuses).toBe(0);
-        expect(JSON.parse(p.content).censuses).toBeUndefined();
-      }
-    }
-  });
-
-  it("caps a many-vocabulary question at three censuses", () => {
-    const p = buildPrefetch(ix, "do registries, document types, duplicated titles, formulas or prohibitions overlap?");
-    expect(p!.censuses).toBe(3);
+  it("is empty when the question names no term", () => {
+    expect(definitionRows(ix, "completely unrelated question about nothing")).toEqual([]);
   });
 });

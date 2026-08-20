@@ -224,4 +224,26 @@ describe("renderer agreement (extractSources tracks what AtlasMarkdown actually 
     expect(rendered).toEqual([]);
     expect(extractSources(content)).toEqual([]);
   });
+
+  // The other half of the same invariant, in the opposite direction: models
+  // wrap a citation whose link text looks like code (reward code, address) in
+  // backticks, which CommonMark parses as a code span, killing the link while
+  // extractSources still listed it as a source. unwrapCodeCitations repairs
+  // it at render time — see citations.ts.
+  it("a backticked citation still renders as an atlas link, with monospace link text", () => {
+    const content = "Reward code `[128](/atlas/57a0be8f-c0d8-4d0c-bb99-ca3e63da5058)` applies.";
+    const rendered = renderedAtlasUuids(content);
+    expect(rendered).toEqual(["57a0be8f-c0d8-4d0c-bb99-ca3e63da5058"]);
+    expect(extractSources(content)).toEqual([
+      { uuid: "57a0be8f-c0d8-4d0c-bb99-ca3e63da5058", title: "128" }, // title stays un-backticked
+    ]);
+    expect(screen.getByRole("link").querySelector("code")).toHaveTextContent("128");
+  });
+
+  it("a backticked citation inside a GFM table cell renders as an atlas link", () => {
+    const content =
+      "| Agent | Reward Code |\n| - | - |\n" +
+      "| Spark | `[128](/atlas/57a0be8f-c0d8-4d0c-bb99-ca3e63da5058)` |";
+    expect(renderedAtlasUuids(content)).toEqual(["57a0be8f-c0d8-4d0c-bb99-ca3e63da5058"]);
+  });
 });
