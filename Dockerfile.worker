@@ -28,8 +28,46 @@ RUN apt-get update \
 WORKDIR /app
 
 # Deps first — cached across source-only changes.
-COPY package.json ./
-RUN bun install
+#
+# --frozen-lockfile matters here: this stage used to copy package.json ALONE and
+# run a bare `bun install`, so every worker build re-resolved the whole
+# transitive graph and a broken upstream release could reach the cron service
+# while CI stayed green. --prod is safe because the worker's entire runtime
+# closure lives in `dependencies` — enforced by `pnpm check:boundaries`, which
+# treats each spawned build script as its own entry point.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+
+# pnpm is the repo's only package manager. Bun stays the runtime — this image's
+# start command is still `bun scripts/required/atlas-worker.mjs`. oven/bun ships
+# no Node, so corepack is unavailable; pnpm's standalone build bundles its own.
+ENV PNPM_HOME="/usr/local/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+# pnpm's standalone build, straight from the npm registry the install already
+# needs — no third-party installer host, and the version is READ FROM
+# package.json's packageManager field rather than repeated here, so the image
+# and the repo cannot drift apart.
+RUN set -eux; \
+    ver="$(sed -n 's/.*"packageManager": *"pnpm@\([^"]*\)".*/\1/p' package.json)"; \
+    test -n "$ver"; \
+    case "$(dpkg --print-architecture)" in \
+      amd64) pkg=linux-x64 ;; \
+      arm64) pkg=linux-arm64 ;; \
+      *) echo "unsupported architecture for the pnpm standalone build" >&2; exit 1 ;; \
+    esac; \
+    mkdir -p "$PNPM_HOME"; \
+    curl -fsSL "https://registry.npmjs.org/@pnpm/${pkg}/-/${pkg}-${ver}.tgz" \
+      | tar -xz -C "$PNPM_HOME" --strip-components=1 package/pnpm; \
+    chmod +x "$PNPM_HOME/pnpm"; \
+    pnpm --version
+
+# --config.engine-strict=false: .npmrc turns on engine-strict, and package.json
+# pins engines.node >= 22 — a guard for local dev and CI, where a transitive dep
+# needs it. pnpm's standalone build bundles its own Node (v20.11.1 in 10.33.0),
+# so engine-strict would measure THAT interpreter against a constraint meant for
+# the dev toolchain and refuse to install. There is no Node in this image at all;
+# the runtime here is Bun.
+RUN pnpm install --frozen-lockfile --prod --config.engine-strict=false \
+ && rm -rf "$(pnpm store path)"
 
 # Repo source (without node_modules/dist/.git/vendor via .dockerignore).
 COPY . .

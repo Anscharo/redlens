@@ -131,8 +131,8 @@ accessible name makes the review harder to act on.
 26. **Doc numbers used as identifiers.** `rg -n '"[A-Z]\.[0-9]' src/` — doc_nos are editorial and
     get renumbered; UUIDs are the stable identity. Existing ones are annotated
     `// fragile: doc_no prefix`.
-27. **Dependency added without both lockfiles** (`pnpm-lock.yaml` *and* `bun.lock`) — the Railway
-    Docker build fails on this even when pnpm-side CI is green.
+27. **Dependency added without the refreshed `pnpm-lock.yaml`** — `pnpm install
+    --frozen-lockfile` fails CI and both Docker builds.
 28. **User-visible change with no `patch-notes.md` bullet or `featuresData.ts` entry.**
 
 ## 3. Findings format

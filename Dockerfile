@@ -4,13 +4,47 @@
 FROM oven/bun:1.3 AS builder
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git ca-certificates \
+ && apt-get install -y --no-install-recommends git ca-certificates curl \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+
+# pnpm is the repo's only package manager — one lockfile, exercised by every CI
+# job. Bun stays the RUNTIME (start command, the bun-runner build steps, the
+# worker); it is just not the installer any more.
+#
+# oven/bun ships no Node (see oven-sh/bun dockerhub/debian/Dockerfile), so
+# corepack — which comes with Node — is not available here. pnpm's standalone
+# build bundles its own Node, which is exactly what this image needs.
+ENV PNPM_HOME="/usr/local/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+# pnpm's standalone build, straight from the npm registry the install already
+# needs — no third-party installer host, and the version is READ FROM
+# package.json's packageManager field rather than repeated here, so the image
+# and the repo cannot drift apart.
+RUN set -eux; \
+    ver="$(sed -n 's/.*"packageManager": *"pnpm@\([^"]*\)".*/\1/p' package.json)"; \
+    test -n "$ver"; \
+    case "$(dpkg --print-architecture)" in \
+      amd64) pkg=linux-x64 ;; \
+      arm64) pkg=linux-arm64 ;; \
+      *) echo "unsupported architecture for the pnpm standalone build" >&2; exit 1 ;; \
+    esac; \
+    mkdir -p "$PNPM_HOME"; \
+    curl -fsSL "https://registry.npmjs.org/@pnpm/${pkg}/-/${pkg}-${ver}.tgz" \
+      | tar -xz -C "$PNPM_HOME" --strip-components=1 package/pnpm; \
+    chmod +x "$PNPM_HOME/pnpm"; \
+    pnpm --version
+
+# --config.engine-strict=false: .npmrc turns on engine-strict, and package.json
+# pins engines.node >= 22 — a guard for local dev and CI, where a transitive dep
+# needs it. pnpm's standalone build bundles its own Node (v20.11.1 in 10.33.0),
+# so engine-strict would measure THAT interpreter against a constraint meant for
+# the dev toolchain and refuse to install. There is no Node in this image at all;
+# the runtime here is Bun.
+RUN pnpm install --frozen-lockfile --config.engine-strict=false
 
 COPY . .
 
@@ -73,7 +107,20 @@ FROM oven/bun:1.3
 
 WORKDIR /app
 
-COPY --from=builder /app/node_modules      ./node_modules
+# Production dependencies only, installed fresh — the builder's node_modules
+# carries the whole toolchain (vite, tailwind, typescript, vitest, playwright,
+# jsdom, knip, oxlint) that this image never runs. The pnpm binary is copied
+# rather than re-downloaded so this stage needs no curl and no network beyond
+# the registry.
+ENV PNPM_HOME="/usr/local/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+COPY --from=builder /usr/local/pnpm       /usr/local/pnpm
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+# Store removal is in the same layer so the space is actually reclaimed; the
+# store hardlinks into node_modules, so the installed tree survives it.
+RUN pnpm install --frozen-lockfile --prod --config.engine-strict=false \
+ && rm -rf "$(pnpm store path)"
+
 COPY --from=builder /app/dist             ./dist
 COPY --from=builder /app/src/server       ./src/server
 COPY --from=builder /app/src/lib          ./src/lib
@@ -84,7 +131,6 @@ COPY --from=builder /app/src/lib          ./src/lib
 COPY --from=builder /app/src/data          ./src/data
 COPY --from=builder /app/scripts/required ./scripts/required
 COPY --from=builder /app/scripts/lib      ./scripts/lib
-COPY --from=builder /app/package.json     ./
 
 # Vite copies public/ into dist/ at build time, so dist/ already has all
 # atlas artifacts. Symlink public/ → dist/ so the server's config.publicDir
