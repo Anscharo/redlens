@@ -66,6 +66,7 @@
     "lint": "oxlint .",
     "check:patch-notes": "node scripts/required/check-patch-notes.mjs",
     "check:atlas": "node scripts/required/check-atlas-parsed.mjs",
+    "check:boundaries": "node scripts/required/check-boundaries.mjs",
     "check:mocks": "node scripts/aux/audit-mock-modules.mjs",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "preview": "vite preview",
@@ -114,6 +115,7 @@
     "remark-math": "6.0.0",
     "satori": "0.28.2",
     "unist-util-visit": "5.1.0",
+    "viem": "2.48.2",
     "wcag-contrast": "3.0.0",
     "workbox-window": "7.4.1",
     "wouter": "3.9.0",
@@ -143,7 +145,6 @@
     "turndown": "7.2.4",
     "turndown-plugin-gfm": "1.0.2",
     "typescript": "7.0.2",
-    "viem": "2.48.2",
     "vite": "8.0.7",
     "vite-plugin-pwa": "1.3.0",
     "vitest": "4.1.5"

@@ -87,6 +87,9 @@ jobs:
       - name: Unused files/exports (knip)
         run: pnpm knip
 
+      - name: Service/frontend import boundary
+        run: pnpm check:boundaries
+
       - name: Check patch notes
         run: pnpm check:patch-notes
 

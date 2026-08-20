@@ -81,13 +81,9 @@ const ROW_UNASSESSED = makeRow({
 
 let mockRows: OeaRow[] = [ROW_STRONG, ROW_ASSIGNMENT, ROW_UNASSESSED];
 
-vi.mock("../../lib/oeaReport", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/oeaReport")>();
-  return {
-    ...actual,
-    loadOeaReport: () => Promise.resolve(makeReport(mockRows)),
-  };
-});
+vi.mock("../../lib/oeaReportLoad", () => ({
+  loadOeaReport: () => Promise.resolve(makeReport(mockRows)),
+}));
 
 const trackMock = vi.fn();
 vi.mock("../../lib/analytics", () => ({ track: (...args: unknown[]) => trackMock(...args) }));
