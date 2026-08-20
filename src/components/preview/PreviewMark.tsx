@@ -1,7 +1,7 @@
-import { usePreviewDiff } from "../../lib/previewDiff";
+import { usePreviewDiff } from "@/lib/previewDiff";
 import { Tooltip } from "../Tooltip";
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
+import { atlasHref } from "@/lib/routes";
 
 // Preview redline marker, placed between the doc number and the title so it's
 // unambiguous which doc it refers to:

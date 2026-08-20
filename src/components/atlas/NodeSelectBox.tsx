@@ -1,7 +1,7 @@
 import { memo } from "react";
-import { useSelection } from "../../lib/selection";
+import { useSelection } from "@/lib/selection";
 import { useAtlasActions } from "./AtlasActionsContext";
-import { HOVER_HINTS, plainHint } from "../../lib/hintText";
+import { HOVER_HINTS, plainHint } from "@/lib/hintText";
 
 // The per-row selection checkbox, split out of CollapsibleNode so that a
 // selection change re-renders only these trivial <input>s — not every full

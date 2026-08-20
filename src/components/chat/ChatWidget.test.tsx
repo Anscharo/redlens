@@ -24,10 +24,10 @@ vi.mock("./auth", () => ({ useAuth: () => ({ user: authUser, openAuth: vi.fn() }
 vi.mock("./useUsage", () => ({ useUsage: () => ({ usage: null, commons: null, contextWindow: null, refresh: vi.fn() }) }));
 
 const { getConversation } = vi.hoisted(() => ({ getConversation: vi.fn() }));
-vi.mock("../../lib/conversationsApi", () => ({ getConversation }));
+vi.mock("@/lib/conversationsApi", () => ({ getConversation }));
 
 const { track } = vi.hoisted(() => ({ track: vi.fn() }));
-vi.mock("../../lib/analytics", () => ({ track }));
+vi.mock("@/lib/analytics", () => ({ track }));
 
 // A purpose-built fake standing in for the real ChatPanel: it renders exactly
 // what these tests need to assert on (placement, session.title, session's
@@ -65,7 +65,7 @@ vi.mock("./ChatPanel", () => ({
 }));
 
 import { ChatWidget } from "./ChatWidget";
-import { ChatOpenProvider, useChatOpen } from "../../lib/chatOpen";
+import { ChatOpenProvider, useChatOpen } from "@/lib/chatOpen";
 
 function LocationProbe() {
   const [loc] = useLocation();

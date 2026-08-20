@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { PrimitiveDashboard } from "./PrimitiveDashboard";
-import type { AgentPrimitiveStat } from "../../lib/primitiveStats";
+import type { AgentPrimitiveStat } from "@/lib/primitiveStats";
 
 vi.mock("./AgentPanel", () => ({
   AgentPanel: ({ agent }: any) => <div data-testid="agent-panel">{agent.name}</div>,

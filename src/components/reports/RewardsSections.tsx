@@ -2,10 +2,10 @@
 // ecosystem reference cards and one section per Prime Agent. Split out of
 // RewardsReport.tsx so the page file is data + <ReportShell> only.
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
-import type { AddressInfo } from "../../types";
-import type { RewardsIndex, RewardsAgent } from "../../lib/rewardsIndex";
-import type { ReportQuery } from "../../lib/reportFilter";
+import { atlasHref } from "@/lib/routes";
+import type { AddressInfo } from "@/types";
+import type { RewardsIndex, RewardsAgent } from "@/lib/rewardsIndex";
+import type { ReportQuery } from "@/lib/reportFilter";
 import { AddressLink, EntityChip } from "./RewardsCells";
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
 

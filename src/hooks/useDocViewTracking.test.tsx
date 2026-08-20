@@ -3,20 +3,20 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, cleanup } from "@testing-library/react";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import type { AtlasNode } from "../types";
-import type { AtlasBundle } from "../lib/docs";
+import type { AtlasNode } from "@/types";
+import type { AtlasBundle } from "@/lib/docs";
 
 const track = vi.fn();
 const recordVisit = vi.fn();
 const buildDocViewProps = vi.fn();
 
-vi.mock("../lib/analytics", () => ({
+vi.mock("@/lib/analytics", () => ({
   track: (...a: unknown[]) => track(...a),
 }));
-vi.mock("../lib/visitHistory", () => ({
+vi.mock("@/lib/visitHistory", () => ({
   recordVisit: (...a: unknown[]) => recordVisit(...a),
 }));
-vi.mock("../lib/atlasAnalytics", () => ({
+vi.mock("@/lib/atlasAnalytics", () => ({
   buildDocViewProps: (...a: unknown[]) => buildDocViewProps(...a),
 }));
 

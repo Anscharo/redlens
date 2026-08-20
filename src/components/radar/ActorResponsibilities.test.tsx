@@ -4,7 +4,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { ActorResponsibilities } from "./ActorResponsibilities";
-import type { ActiveDataRow } from "../../lib/activeDataIndex";
+import type { ActiveDataRow } from "@/lib/activeDataIndex";
 
 afterEach(cleanup);
 

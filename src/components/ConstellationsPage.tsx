@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "wouter";
-import { loadAtlas } from "../lib/docs";
+import { loadAtlas } from "@/lib/docs";
 import { useLoaded } from "../hooks/useAtlasData";
 import { useConstellationsWorker } from "../hooks/useConstellationsWorker";
 import { useUrlState, urlBool, urlString, urlStringSet } from "../hooks/useUrlState";
@@ -10,12 +10,12 @@ import {
   ENTITY_TYPE_LABEL,
   ENTITY_TYPE_COLOR,
   CONNECTED_ENTITY_TYPES,
-} from "../lib/entityGraph";
+} from "@/lib/entityGraph";
 import { EntityFlow } from "./constellations/EntityFlow";
 import { Loading } from "./Loading";
 import { ErrorBoundary, PanelError } from "./ErrorBoundary";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-import type { GraphEntity } from "../types";
+import type { GraphEntity } from "@/types";
 
 const DEFAULT_HIDDEN_TYPES = new Set(["govops_org", "facilitator_org", "delegate_org"]);
 const hiddenTypesCodec = urlStringSet(DEFAULT_HIDDEN_TYPES);

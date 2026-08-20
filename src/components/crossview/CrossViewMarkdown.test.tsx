@@ -2,8 +2,8 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { AtlasNode } from "../../types";
-import type { AtlasBundle } from "../../lib/docsTypes";
+import type { AtlasNode } from "@/types";
+import type { AtlasBundle } from "@/lib/docsTypes";
 
 vi.mock("./ConceptCensus", () => ({
   ConceptCensus: ({ slug }: { slug: string }) => <div data-testid="census-slot">census:{slug}</div>,
@@ -13,10 +13,10 @@ vi.mock("./ConceptCensus", () => ({
 // mocked so the resolver-loading effect resolves synchronously-ish under
 // waitFor without a real Worker (jsdom has none).
 let loadAtlasImpl: (base: string) => Promise<AtlasBundle> = () => Promise.reject(new Error("not configured"));
-vi.mock("../../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlas: (base: string) => loadAtlasImpl(base),
 }));
-vi.mock("../../lib/dataSource", () => ({
+vi.mock("@/lib/dataSource", () => ({
   useDataSource: () => ({ base: "/api/test-base/", preview: null }),
 }));
 

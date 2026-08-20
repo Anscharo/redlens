@@ -1,4 +1,4 @@
-import type { RecentSuggestion } from "../lib/recentSearches";
+import type { RecentSuggestion } from "@/lib/recentSearches";
 
 // Floating dropdown of recent searches, anchored under the search input. Shown
 // while the input is focused (see SearchBar). Focus stays on the input (ARIA

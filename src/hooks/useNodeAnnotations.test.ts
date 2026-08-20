@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, cleanup } from "@testing-library/react";
-import type { AtlasNode, AddressInfo } from "../types";
-import type { Glossary } from "../lib/glossaryLookup";
-import type { LoadedData } from "../lib/atlasHelpers";
+import type { AtlasNode, AddressInfo } from "@/types";
+import type { Glossary } from "@/lib/glossaryLookup";
+import type { LoadedData } from "@/lib/atlasHelpers";
 
 const findCousinDocs = vi.fn();
-vi.mock("../lib/cousins", () => ({
+vi.mock("@/lib/cousins", () => ({
   findCousinDocs: (...a: unknown[]) => findCousinDocs(...a),
 }));
 

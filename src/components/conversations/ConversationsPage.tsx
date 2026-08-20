@@ -1,10 +1,10 @@
 import { useAuth } from "../chat/auth";
 import { SignInButtons } from "../chat/SignInButtons";
 import { useConversations } from "../../hooks/useConversations";
-import { useChatOpen } from "../../lib/chatOpen";
+import { useChatOpen } from "@/lib/chatOpen";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { track } from "../../lib/analytics";
-import type { ConversationSummary } from "../../lib/conversationsApi";
+import { track } from "@/lib/analytics";
+import type { ConversationSummary } from "@/lib/conversationsApi";
 import { ConversationCard } from "./ConversationCard";
 
 // /conversations — a signed-in user's chat history. Sign-in gated (this app

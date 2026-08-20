@@ -1,11 +1,11 @@
 import { useCallback, useMemo } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
-import { loadDocs } from "../../lib/docs";
-import { loadModCounts } from "../../lib/history";
-import { loadGraph } from "../../lib/graph";
-import { buildOwningAgentMap } from "../../lib/owningAgent";
-import { useDataSource } from "../../lib/dataSource";
-import { filterRows, type ReportMode } from "../../lib/reportFilter";
+import { loadDocs } from "@/lib/docs";
+import { loadModCounts } from "@/lib/history";
+import { loadGraph } from "@/lib/graph";
+import { buildOwningAgentMap } from "@/lib/owningAgent";
+import { useDataSource } from "@/lib/dataSource";
+import { filterRows, type ReportMode } from "@/lib/reportFilter";
 import {
   buildModFrequencyRows,
   groupModFrequencyRows,
@@ -13,9 +13,9 @@ import {
   summarizeModFrequencyMatches,
   GROUPINGS,
   type ModFrequencyGrouping,
-} from "../../lib/modFrequencyIndex";
-import { buildModCountHistogram, type ModCountBucket } from "../../lib/modFrequencyCharts";
-import type { ReportId } from "../../types";
+} from "@/lib/modFrequencyIndex";
+import { buildModCountHistogram, type ModCountBucket } from "@/lib/modFrequencyCharts";
+import type { ReportId } from "@/types";
 import { ModFrequencyControls, ModFrequencyTimelinePanel } from "./ModFrequencyControls";
 import { ModFrequencyList } from "./ModFrequencyList";
 import { ModFrequencySumBy } from "./ModFrequencySumBy";

@@ -5,8 +5,8 @@
 // query), so it stays correct even before the doc has rendered.
 import { useMemo } from "react";
 import conceptsRaw from "../../../docs/crossview/concepts.md?raw";
-import { extractHeadings } from "../../lib/crossviewHeadings";
-import { parseCrossViewIndex } from "../../lib/crossviewIndex";
+import { extractHeadings } from "@/lib/crossviewHeadings";
+import { parseCrossViewIndex } from "@/lib/crossviewIndex";
 import { TargetLinks } from "./CrossViewIndexTargets";
 
 const PANEL_TOP = 80; // matches CrossViewToc's TOC_TOP — same sticky offset math

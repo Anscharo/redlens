@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
-import type { AtlasNode } from "../../types";
+import type { AtlasNode } from "@/types";
 
 interface RadarContextValue {
   docs: Record<string, AtlasNode>;

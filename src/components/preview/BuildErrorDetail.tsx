@@ -3,7 +3,7 @@
 // an expected/found line pair with a CHARACTER-level diff, so near-invisible
 // defects (a trailing dot in a docNo) light up instead of hiding in plain text.
 
-import { charDiff } from "../../lib/diffCore";
+import { charDiff } from "@/lib/diffCore";
 
 type CharOp = ["=" | "-" | "+", string];
 

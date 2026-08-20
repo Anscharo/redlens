@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { initAnalytics, register, pageview, analyticsEnabled } from "../lib/analytics";
-import { productForPath } from "../lib/productArea";
-import { useDataSource } from "../lib/dataSource";
+import { initAnalytics, register, pageview, analyticsEnabled } from "@/lib/analytics";
+import { productForPath } from "@/lib/productArea";
+import { useDataSource } from "@/lib/dataSource";
 
 // Initialises analytics once and, on every route change, registers the `product`
 // super property then fires a manual SPA $pageview. Call once from App (which is

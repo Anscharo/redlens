@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { chicletColor } from "../lib/depth";
+import { chicletColor } from "@/lib/depth";
 
 interface Props {
   parts: string[];

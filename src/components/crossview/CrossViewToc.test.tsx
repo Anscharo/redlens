@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { CrossViewToc } from "./CrossViewToc";
-import { extractHeadings } from "../../lib/crossviewHeadings";
+import { extractHeadings } from "@/lib/crossviewHeadings";
 import conceptsRaw from "../../../docs/crossview/concepts.md?raw";
 
 describe("CrossViewToc", () => {

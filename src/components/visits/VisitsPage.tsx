@@ -1,17 +1,17 @@
 import { useMemo } from "react";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useLoaded } from "../../hooks/useAtlasData";
-import { loadAtlas } from "../../lib/docs";
-import { useDataSource } from "../../lib/dataSource";
-import { clearHistory, RETENTION_DAYS, useVisitLog } from "../../lib/visitHistory";
+import { loadAtlas } from "@/lib/docs";
+import { useDataSource } from "@/lib/dataSource";
+import { clearHistory, RETENTION_DAYS, useVisitLog } from "@/lib/visitHistory";
 import {
   buildHistoryView,
   RECENT_DOCS,
   RECENT_PAGES,
   TOP_DOCS,
   TOP_TREES,
-} from "../../lib/visitsIndex";
-import { track } from "../../lib/analytics";
+} from "@/lib/visitsIndex";
+import { track } from "@/lib/analytics";
 import { VisitCard } from "./VisitCard";
 import { DocRow } from "./VisitRow";
 import { TreeRows } from "./TreeRows";

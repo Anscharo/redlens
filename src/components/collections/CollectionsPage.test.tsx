@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { CollectionsPage } from "./CollectionsPage";
-import type { Collection } from "../../lib/collectionsApi";
+import type { Collection } from "@/lib/collectionsApi";
 
 const mocks = vi.hoisted(() => ({
   user: null as unknown,
@@ -33,7 +33,7 @@ vi.mock("../../hooks/useCollections", () => ({
     remove: mocks.remove,
   }),
 }));
-vi.mock("../../lib/selection", () => ({
+vi.mock("@/lib/selection", () => ({
   useSelection: () => ({
     replace: mocks.replace,
     setActiveCollectionId: mocks.setActiveCollectionId,
@@ -41,8 +41,8 @@ vi.mock("../../lib/selection", () => ({
   }),
 }));
 vi.mock("wouter", () => ({ useLocation: () => ["/collections", mocks.navigate] }));
-vi.mock("../../lib/docs", () => ({ loadDocs: mocks.loadDocs }));
-vi.mock("../../lib/analytics", () => ({ track: mocks.track }));
+vi.mock("@/lib/docs", () => ({ loadDocs: mocks.loadDocs }));
+vi.mock("@/lib/analytics", () => ({ track: mocks.track }));
 
 afterEach(() => {
   cleanup();

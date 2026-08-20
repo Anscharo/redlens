@@ -2,8 +2,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { renderHook, cleanup } from "@testing-library/react";
 import { useContextHints } from "./useContextHints";
-import { hintStore } from "../lib/hintStore";
-import { HOVER_HINTS, FOCUS_HINTS } from "../lib/hintText";
+import { hintStore } from "@/lib/hintStore";
+import { HOVER_HINTS, FOCUS_HINTS } from "@/lib/hintText";
 
 // jsdom has no PointerEvent, and pointerType is what the mouse-only guard reads.
 function pointerOver(target: Element, pointerType = "mouse") {

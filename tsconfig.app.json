@@ -8,6 +8,11 @@
     "skipLibCheck": true,
 
     /* Bundler mode */
+    /* Path aliases — declared once in scripts/lib/path-aliases.mjs and asserted
+       against it by scripts_tests/path-aliases.test.ts. `@/x` is root src/x;
+       it survives a file moving between packages, which plain relative
+       specifiers do not. */
+    "paths": { "@/*": ["./src/*"] },
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     /* src/data/chain-registry.json is the single source of truth for chain

@@ -2,11 +2,11 @@
 // its numbered step children, and the curation panel. Split out of
 // ProcessesReport.tsx to keep each file small.
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
+import { atlasHref } from "@/lib/routes";
 import { NodeContent } from "../NodeContent";
 import { ProcessCurationPanel } from "./ProcessCurationPanel";
-import type { LocalIgnore } from "../../lib/curationStore";
-import type { AtlasNode } from "../../types";
+import type { LocalIgnore } from "@/lib/curationStore";
+import type { AtlasNode } from "@/types";
 
 export function ProcessExpandedBody({
   node,

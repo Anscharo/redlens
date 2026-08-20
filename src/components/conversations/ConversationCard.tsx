@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { MAX_CONVERSATION_TITLE_LEN, type ConversationSummary } from "../../lib/conversationsApi";
-import { formatTokens } from "../../lib/formatTokens";
+import { MAX_CONVERSATION_TITLE_LEN, type ConversationSummary } from "@/lib/conversationsApi";
+import { formatTokens } from "@/lib/formatTokens";
 
 const UNTITLED = "Untitled chat";
 

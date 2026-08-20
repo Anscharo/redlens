@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { CategoryRows } from "./CategoryRows";
-import type { CategoryStat, PrimitiveStat } from "../../lib/primitiveStats";
+import type { CategoryStat, PrimitiveStat } from "@/lib/primitiveStats";
 
 afterEach(cleanup);
 

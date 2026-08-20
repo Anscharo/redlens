@@ -4,8 +4,8 @@ import { usePrefs, type ChatPrefs } from "./usePrefs";
 import { SignedOutMenu } from "./SignedOutMenu";
 import { MenuGlyph } from "./glyphs";
 import { MenuButton, MenuLink, MenuRule } from "./MenuRow";
-import { chatEnabled } from "../../lib/chatEnabled";
-import { ROUTES } from "../../lib/routes";
+import { chatEnabled } from "@/lib/chatEnabled";
+import { ROUTES } from "@/lib/routes";
 
 // NavBar profile control. Signed-out: a menu pill → dropdown with Sign in
 // (a sub-panel offering GitHub / Google, both routing through the shared

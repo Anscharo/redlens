@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { HEADER_OFFSET } from "../lib/layout";
+import { HEADER_OFFSET } from "@/lib/layout";
 import { useResizeDrag } from "../hooks/useResizeDrag";
 
 function useIsNarrow(maxWidth: number) {

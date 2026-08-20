@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import { type RowComponentProps } from "react-window";
-import { segmentDepths, chicletColor, nrSidebarChiclets } from "../../lib/depth";
-import type { AtlasNode } from "../../types";
-import { truncateTitle } from "../../lib/treeUtils";
+import { segmentDepths, chicletColor, nrSidebarChiclets } from "@/lib/depth";
+import type { AtlasNode } from "@/types";
+import { truncateTitle } from "@/lib/treeUtils";
 import { DocNoChiclets } from "../DocNoChiclets";
 import { PreviewMark } from "../preview/PreviewMark";
 import { PreviewRollupBadge } from "../preview/PreviewRollupBadge";
-import { usePreviewDim } from "../../lib/previewFilter";
+import { usePreviewDim } from "@/lib/previewFilter";
 
 export const ROW_HEIGHT = 29;
 const TOGGLE_WIDTH = 15;

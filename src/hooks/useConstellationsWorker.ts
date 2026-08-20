@@ -4,7 +4,7 @@ import {
   constellationQuery,
   constellationCluster,
   type ConstellationInit,
-} from "../lib/graph";
+} from "@/lib/graph";
 
 export function useConstellationsWorker(query: string, focusAgentId: string | null) {
   const [init, setInit] = useState<ConstellationInit | null>(null);

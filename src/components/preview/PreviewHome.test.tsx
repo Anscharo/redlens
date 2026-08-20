@@ -12,13 +12,13 @@ import "@testing-library/jest-dom/vitest";
 // which is compiled off in the vitest build (__USERS_ENABLED__ = false). Mock it
 // so we can drive both states: `h.usersOn` toggles it per test.
 const h = vi.hoisted(() => ({ usersOn: false }));
-vi.mock("../../lib/usersEnabled", () => ({ usersEnabled: () => h.usersOn }));
+vi.mock("@/lib/usersEnabled", () => ({ usersEnabled: () => h.usersOn }));
 // ProfileButton needs an AuthProvider (supplied by main.tsx in production, not in
 // this isolated render); stub it — these tests are about the private form, not it.
 vi.mock("../chat/ProfileButton", () => ({ ProfileButton: () => null }));
 // Capture analytics track() calls to assert the private form doesn't leak the repo id.
 const analytics = vi.hoisted(() => ({ track: vi.fn() }));
-vi.mock("../../lib/analytics", () => ({
+vi.mock("@/lib/analytics", () => ({
   initAnalytics: () => {},
   register: () => {},
   pageview: () => {},

@@ -6,7 +6,7 @@
 // the lines that do (ellipsized) or dropped.
 
 import { prepareWithSegments, layoutWithLines } from "@chenglou/pretext";
-import type { HiddenMatch } from "../../lib/reportFilter";
+import type { HiddenMatch } from "@/lib/reportFilter";
 
 // Must mirror .match-aside in index.css.
 export const ASIDE_FONT = '10px "Source Code Pro", "Courier New", monospace';

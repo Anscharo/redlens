@@ -15,7 +15,7 @@ const mockState: {
 
 const captureException = vi.fn();
 const track = vi.fn();
-vi.mock("../lib/analytics", () => ({
+vi.mock("@/lib/analytics", () => ({
   captureException: (...a: unknown[]) => captureException(...a),
   track: (...a: unknown[]) => track(...a),
 }));

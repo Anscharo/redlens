@@ -3,8 +3,8 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { AgentChips, DocCell } from "./OGReportParts";
-import { parseReportQuery } from "../../lib/reportFilter";
-import type { Chain } from "../../lib/reportChains";
+import { parseReportQuery } from "@/lib/reportFilter";
+import type { Chain } from "@/lib/reportChains";
 
 afterEach(cleanup);
 

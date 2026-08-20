@@ -7,7 +7,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { TargetLinks } from "./CrossViewIndexTargets";
-import type { CrossViewIndexTarget } from "../../lib/crossviewIndex";
+import type { CrossViewIndexTarget } from "@/lib/crossviewIndex";
 
 afterEach(cleanup);
 

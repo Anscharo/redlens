@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { getEdges, type EdgeResult } from "../lib/graph";
-import { useDataSource } from "../lib/dataSource";
-import { track } from "../lib/analytics";
+import { getEdges, type EdgeResult } from "@/lib/graph";
+import { useDataSource } from "@/lib/dataSource";
+import { track } from "@/lib/analytics";
 
 const EMPTY_EDGES: EdgeResult = { outbound: [], inbound: [] };
 

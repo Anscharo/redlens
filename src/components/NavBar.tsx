@@ -1,8 +1,8 @@
 import { Link } from "./Link";
-import { NAV_PAGE_ROUTES, type NavPage } from "../lib/routes";
+import { NAV_PAGE_ROUTES, type NavPage } from "@/lib/routes";
 import { ProfileButton } from "./chat/ProfileButton";
-import { useDataSource } from "../lib/dataSource";
-import { usersEnabled } from "../lib/usersEnabled";
+import { useDataSource } from "@/lib/dataSource";
+import { usersEnabled } from "@/lib/usersEnabled";
 import { FeedbackButton } from "./feedback/FeedbackButton";
 
 export interface NavBarProps {

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
-import { loadHistory, PRE_MD_PR, RECONSTRUCTED_ERAS, type HistoryEntry } from "../../lib/history";
-import { track } from "../../lib/analytics";
+import { loadHistory, PRE_MD_PR, RECONSTRUCTED_ERAS, type HistoryEntry } from "@/lib/history";
+import { track } from "@/lib/analytics";
 import { EntryRow } from "./EntryRow";
 import { HtmlEraDisclaimer, PreGitDisclaimer } from "./HistoryDisclaimers";
 import { SeamFooter } from "./SeamFooter";

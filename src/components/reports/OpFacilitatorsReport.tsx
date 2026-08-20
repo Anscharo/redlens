@@ -1,15 +1,15 @@
-import { toAnchorId } from "../../lib/anchorId";
-import { stripExecutorPrefix, type ActiveFilter, type Chain } from "../../lib/reportChains";
-import { FAC_EDGES } from "../../lib/roleEdges";
+import { toAnchorId } from "@/lib/anchorId";
+import { stripExecutorPrefix, type ActiveFilter, type Chain } from "@/lib/reportChains";
+import { FAC_EDGES } from "@/lib/roleEdges";
 import {
   CATEGORY_LABELS,
   type OFResponsibility,
   deriveFacilitatorResponsibilities,
   facilitatorRowsToCSV,
-} from "../../lib/facilitatorResponsibilities";
+} from "@/lib/facilitatorResponsibilities";
 import { OFCategoryTable, ofSearchFields } from "./OFCategoryTable";
 import { RoleResponsibilityReport, type RoleReportConfig } from "./RoleResponsibilityReport";
-import type { ReportMode } from "../../lib/reportFilter";
+import type { ReportMode } from "@/lib/reportFilter";
 
 // Header-box text filter over the fields declared in OFCategoryTable (which
 // also tracks their per-category visibility for the hidden-match aside).

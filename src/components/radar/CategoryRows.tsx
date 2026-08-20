@@ -1,8 +1,8 @@
 import { Link } from "../Link";
 import { Tooltip } from "../Tooltip";
-import type { CategoryStat, PrimitiveStat } from "../../lib/primitiveStats";
-import { toAnchorId } from "../../lib/anchorId";
-import { actorHref } from "../../lib/routes";
+import type { CategoryStat, PrimitiveStat } from "@/lib/primitiveStats";
+import { toAnchorId } from "@/lib/anchorId";
+import { actorHref } from "@/lib/routes";
 import {
   BORDER,
   CELL_PADDING,

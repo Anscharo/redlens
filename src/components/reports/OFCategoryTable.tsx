@@ -1,7 +1,7 @@
-import { ofSearchFields, type OFResponsibility } from "../../lib/facilitatorResponsibilities";
-import type { Chain } from "../../lib/reportChains";
+import { ofSearchFields, type OFResponsibility } from "@/lib/facilitatorResponsibilities";
+import type { Chain } from "@/lib/reportChains";
 import { RoleCategoryTable, type RoleCategoryTableConfig } from "./RoleCategoryTable";
-import { EMPTY_QUERY, type ReportQuery } from "../../lib/reportFilter";
+import { EMPTY_QUERY, type ReportQuery } from "@/lib/reportFilter";
 
 // ofSearchFields (the row search haystack) lives in the lib module so the
 // atlas_report_facilitator_responsibilities MCP tool filters rows with the

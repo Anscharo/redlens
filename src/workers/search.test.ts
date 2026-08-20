@@ -13,8 +13,8 @@ import { describe, it, expect, beforeAll } from "vitest";
 import MiniSearch from "minisearch";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { UUID_PREFIX_RE } from "../lib/patterns";
-import { matchUuidPrefix } from "../lib/uuidSearch";
+import { UUID_PREFIX_RE } from "@/lib/patterns";
+import { matchUuidPrefix } from "@/lib/uuidSearch";
 
 // KEEP IN SYNC WITH src/workers/search.worker.ts + scripts/required/build-index.mjs
 const MINISEARCH_OPTIONS: ConstructorParameters<typeof MiniSearch>[0] = {

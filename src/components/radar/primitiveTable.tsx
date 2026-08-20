@@ -1,4 +1,4 @@
-import type { PrimitiveStat } from "../../lib/primitiveStats";
+import type { PrimitiveStat } from "@/lib/primitiveStats";
 
 // Instances (A/S/C) and Invocations are atlas-distinct concepts (A.2.2.1.3 vs
 // A.2.2.1.4). Invocations sit in the leftmost column; the Active column carries

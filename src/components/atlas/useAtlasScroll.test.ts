@@ -6,10 +6,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useAtlasScroll } from "./useAtlasScroll";
-import { scrollIfOutOfView } from "../../lib/animatedScroll";
+import { scrollIfOutOfView } from "@/lib/animatedScroll";
 import { makeLoadedData } from "../../test/fixtures";
 
-vi.mock("../../lib/animatedScroll", () => ({ scrollIfOutOfView: vi.fn() }));
+vi.mock("@/lib/animatedScroll", () => ({ scrollIfOutOfView: vi.fn() }));
 
 const scrollMock = vi.mocked(scrollIfOutOfView);
 const data = makeLoadedData();

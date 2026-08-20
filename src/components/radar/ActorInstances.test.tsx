@@ -9,8 +9,8 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { ActorInstances } from "./ActorInstances";
-import type { RadarInstance, RadarPrimitive, InstanceParam } from "../../lib/actorIndex";
-import { EXPLORER } from "../../lib/explorer";
+import type { RadarInstance, RadarPrimitive, InstanceParam } from "@/lib/actorIndex";
+import { EXPLORER } from "@/lib/explorer";
 
 afterEach(cleanup);
 

@@ -9,7 +9,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { SidebarGroup } from "../../lib/actorIndex";
+import type { SidebarGroup } from "@/lib/actorIndex";
 
 // Drawer subscribes to a media query; jsdom has no matchMedia.
 window.matchMedia = window.matchMedia || (((q: string) => ({
@@ -38,12 +38,12 @@ function fulfilled<T>(value: T): Promise<T> {
 }
 const DOCS_P = fulfilled(DOCS);
 const GRAPH_P = fulfilled(GRAPH);
-vi.mock("../../lib/docs", () => ({ loadDocs: () => DOCS_P }));
-vi.mock("../../lib/graph", () => ({ loadGraph: () => GRAPH_P }));
+vi.mock("@/lib/docs", () => ({ loadDocs: () => DOCS_P }));
+vi.mock("@/lib/graph", () => ({ loadGraph: () => GRAPH_P }));
 
 // recordVisit hits IndexedDB (absent in jsdom) — neutralise it.
 const recordVisit = vi.fn((..._a: unknown[]) => Promise.resolve());
-vi.mock("../../lib/visitHistory", () => ({ recordVisit: (...a: unknown[]) => recordVisit(...a) }));
+vi.mock("@/lib/visitHistory", () => ({ recordVisit: (...a: unknown[]) => recordVisit(...a) }));
 
 // Index builders return controlled shapes so RadarPage's own logic is what we test.
 const SIDEBAR: SidebarGroup[] = [
@@ -59,14 +59,14 @@ const SIDEBAR: SidebarGroup[] = [
     actors: [{ id: "f1", slug: "sfl", name: "Sky Foundation", et: "facilitator_org", st: null, docId: null }],
   },
 ];
-vi.mock("../../lib/actorIndex", () => ({
+vi.mock("@/lib/actorIndex", () => ({
   buildSidebarActors: () => SIDEBAR,
   buildActorProfile: (slug: string) =>
     slug === "spark" ? { entity: { name: "Spark Radar Entity", slug: "spark" } } : null,
 }));
-vi.mock("../../lib/rewardsIndex", () => ({ buildRewardsIndex: () => ({ agents: [] }) }));
-vi.mock("../../lib/activeDataIndex", () => ({ buildActiveDataRows: () => [] }));
-vi.mock("../../lib/primitiveStats", () => ({ buildPrimitiveStats: () => [] }));
+vi.mock("@/lib/rewardsIndex", () => ({ buildRewardsIndex: () => ({ agents: [] }) }));
+vi.mock("@/lib/activeDataIndex", () => ({ buildActiveDataRows: () => [] }));
+vi.mock("@/lib/primitiveStats", () => ({ buildPrimitiveStats: () => [] }));
 
 // Leaf surfaces — render just enough to identify which one mounted and echo props.
 vi.mock("./ActorList", () => ({

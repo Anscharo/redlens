@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { cloneElement, type ReactElement } from "react";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { ModTimelineBucket } from "../../lib/modFrequencyCharts";
+import type { ModTimelineBucket } from "@/lib/modFrequencyCharts";
 
 // Tooltip only renders `content` on hover (timer-gated) — irrelevant to this
 // component's bar rendering. Stub it through, same pattern as

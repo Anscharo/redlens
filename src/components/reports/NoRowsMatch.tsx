@@ -1,6 +1,6 @@
 // Shared empty state for the report-scoped header search: shown when the
 // text filter (possibly combined with pill filters) leaves zero rows.
-import { displayQuery } from "../../lib/reportFilter";
+import { displayQuery } from "@/lib/reportFilter";
 
 export function NoRowsMatch({ query }: { query: string }) {
   const q = displayQuery(query);

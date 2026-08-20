@@ -11,8 +11,8 @@ import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 import { DiffView } from "./DiffView";
-import { refineProseDiff } from "../../lib/diffProse";
-import type { DiffLine } from "../../lib/history";
+import { refineProseDiff } from "@/lib/diffProse";
+import type { DiffLine } from "@/lib/history";
 
 afterEach(cleanup);
 

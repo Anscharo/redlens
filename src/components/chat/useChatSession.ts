@@ -3,7 +3,7 @@ import { useChatStream } from "./useChatStream";
 import { useUsage } from "./useUsage";
 import { useRateLimitLock } from "./useRateLimitLock";
 import { useAuth } from "./auth";
-import { getConversation } from "../../lib/conversationsApi";
+import { getConversation } from "@/lib/conversationsApi";
 import { toChatMsgs } from "./hydrate";
 
 // Composes the chat hooks that used to live inside ChatPanel — useChatStream +

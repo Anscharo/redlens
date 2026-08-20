@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useDataSource } from "../../lib/dataSource";
-import { usePreviewDiff, usePreviewPatch } from "../../lib/previewDiff";
+import { useDataSource } from "@/lib/dataSource";
+import { usePreviewDiff, usePreviewPatch } from "@/lib/previewDiff";
 import { NodeHistory } from "./NodeHistory";
 import { DiffView } from "./DiffView";
 import { CONTENT_INDENT, LINE1_H, TimelineRow } from "./Timeline";

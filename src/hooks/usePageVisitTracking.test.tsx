@@ -7,7 +7,7 @@ import { memoryLocation } from "wouter/memory-location";
 
 const recordVisit = vi.fn();
 const updateVisitParams = vi.fn();
-vi.mock("../lib/visitHistory", () => ({
+vi.mock("@/lib/visitHistory", () => ({
   recordVisit: (...a: unknown[]) => recordVisit(...a),
   updateVisitParams: (...a: unknown[]) => updateVisitParams(...a),
 }));

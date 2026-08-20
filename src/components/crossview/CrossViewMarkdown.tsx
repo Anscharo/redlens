@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { loadAtlas } from "../../lib/docs";
-import { useDataSource } from "../../lib/dataSource";
+import { loadAtlas } from "@/lib/docs";
+import { useDataSource } from "@/lib/dataSource";
 import { ConceptCensus } from "./ConceptCensus";
-import { rehypeEvidencePills } from "../../lib/rehypeEvidencePills";
-import { rehypeDocRefs } from "../../lib/rehypeDocRefs";
-import { rehypeHeadingIds } from "../../lib/rehypeHeadingIds";
-import { extractHeadings, partitionHeadings } from "../../lib/crossviewHeadings";
-import { parseCrossViewIndex } from "../../lib/crossviewIndex";
-import { buildDocRefResolver, type DocRefResolver } from "../../lib/docRefResolver";
+import { rehypeEvidencePills } from "@/lib/rehypeEvidencePills";
+import { rehypeDocRefs } from "@/lib/rehypeDocRefs";
+import { rehypeHeadingIds } from "@/lib/rehypeHeadingIds";
+import { extractHeadings, partitionHeadings } from "@/lib/crossviewHeadings";
+import { parseCrossViewIndex } from "@/lib/crossviewIndex";
+import { buildDocRefResolver, type DocRefResolver } from "@/lib/docRefResolver";
 import { buildComponents } from "./crossviewMarkdownComponents";
 import { CrossViewIndexList } from "./CrossViewIndexList";
 

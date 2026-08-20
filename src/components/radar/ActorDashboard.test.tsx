@@ -9,8 +9,8 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { ActorProfile } from "../../lib/actorIndex";
-import type { GraphEntity, AtlasNode } from "../../types";
+import type { ActorProfile } from "@/lib/actorIndex";
+import type { GraphEntity, AtlasNode } from "@/types";
 
 Element.prototype.scrollIntoView = vi.fn();
 

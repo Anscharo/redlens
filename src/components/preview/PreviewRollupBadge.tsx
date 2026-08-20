@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { chicletColor } from "../../lib/depth";
+import { chicletColor } from "@/lib/depth";
 
 const FADE_MS = 180;
 

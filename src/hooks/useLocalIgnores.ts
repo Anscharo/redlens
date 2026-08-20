@@ -4,7 +4,7 @@ import {
   saveLocalIgnores,
   STORAGE_KEY,
   type LocalIgnore,
-} from "../lib/curationStore";
+} from "@/lib/curationStore";
 
 export function useLocalIgnores() {
   const [marks, setMarks] = useState<LocalIgnore[]>(() => loadLocalIgnores());

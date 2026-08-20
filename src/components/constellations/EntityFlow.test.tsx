@@ -17,8 +17,8 @@ const mocks = vi.hoisted(() => ({
   track: vi.fn(),
 }));
 
-vi.mock("../../lib/graph", () => ({ getEdges: mocks.getEdges }));
-vi.mock("../../lib/analytics", () => ({ track: mocks.track }));
+vi.mock("@/lib/graph", () => ({ getEdges: mocks.getEdges }));
+vi.mock("@/lib/analytics", () => ({ track: mocks.track }));
 
 vi.mock("@xyflow/react", () => ({
   ReactFlow: ({
@@ -63,9 +63,9 @@ vi.mock("@xyflow/react", () => ({
 }));
 
 import { EntityFlow } from "./EntityFlow";
-import type { EntityNodeData, EntityEdgeData } from "../../lib/entityGraph";
-import type { GraphEntity, ResolvedEdge } from "../../types";
-import type { EdgeResult } from "../../lib/graph";
+import type { EntityNodeData, EntityEdgeData } from "@/lib/entityGraph";
+import type { GraphEntity, ResolvedEdge } from "@/types";
+import type { EdgeResult } from "@/lib/graph";
 
 afterEach(() => {
   cleanup();

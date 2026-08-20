@@ -8,7 +8,7 @@ import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 const track = vi.fn();
-vi.mock("../../lib/analytics", () => ({ track: (...args: unknown[]) => track(...args) }));
+vi.mock("@/lib/analytics", () => ({ track: (...args: unknown[]) => track(...args) }));
 
 const { ReportShell } = await import("./ReportShell");
 

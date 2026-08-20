@@ -8,7 +8,7 @@ import { render, screen, cleanup, fireEvent, act } from "@testing-library/react"
 import "@testing-library/jest-dom/vitest";
 import { createRef } from "react";
 import { SearchBar } from "./SearchBar";
-import type { SearchScope } from "../lib/routes";
+import type { SearchScope } from "@/lib/routes";
 
 vi.mock("./NavBar", () => ({ NavBar: () => <nav data-testid="navbar" /> }));
 vi.mock("./Tooltip", () => ({ Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</> }));

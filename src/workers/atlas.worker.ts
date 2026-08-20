@@ -1,5 +1,5 @@
-import type { AtlasNode } from "../types";
-import { fetchJson } from "../lib/verify";
+import type { AtlasNode } from "@/types";
+import { fetchJson } from "@/lib/verify";
 
 // loadAtlas(base) passes a preview's data-source base via the worker `name`
 // option (e.g. /api/preview/<sha>/); default is the live atlas under the sha-keyed

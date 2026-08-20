@@ -6,11 +6,11 @@ const loadAtlasShallow = vi.fn();
 const loadAtlas = vi.fn();
 const useDataSource = vi.fn();
 
-vi.mock("../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlasShallow: (base: string) => loadAtlasShallow(base),
   loadAtlas: (base: string) => loadAtlas(base),
 }));
-vi.mock("../lib/dataSource", () => ({
+vi.mock("@/lib/dataSource", () => ({
   useDataSource: () => useDataSource(),
 }));
 

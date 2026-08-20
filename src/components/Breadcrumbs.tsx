@@ -1,10 +1,10 @@
 import { memo, useState, useEffect, useRef, useMemo } from "react";
 import { AtlasLink } from "./AtlasLink";
-import { depthColor, realDepth } from "../lib/depth";
-import { atlasHref } from "../lib/routes";
-import { track } from "../lib/analytics";
-import type { AtlasNode } from "../types";
-import { fitBreadcrumbs } from "../lib/breadcrumbs";
+import { depthColor, realDepth } from "@/lib/depth";
+import { atlasHref } from "@/lib/routes";
+import { track } from "@/lib/analytics";
+import type { AtlasNode } from "@/types";
+import { fitBreadcrumbs } from "@/lib/breadcrumbs";
 
 const NAV_STYLE_BASE: React.CSSProperties = {
   color: "var(--tan-3)",

@@ -6,13 +6,13 @@ import type {
   SearchHit,
   WorkerInMessage,
   WorkerOutMessage,
-} from "../types";
-import { fetchText } from "../lib/verify";
-import { buildSnippet, highlightTerms, extractPhrases } from "../lib/searchHighlight";
-import { UUID_RE } from "../lib/patterns";
-import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
-import { MINISEARCH_OPTIONS } from "../lib/searchOptions";
-import { computeLabels } from "../lib/hitLabels";
+} from "@/types";
+import { fetchText } from "@/lib/verify";
+import { buildSnippet, highlightTerms, extractPhrases } from "@/lib/searchHighlight";
+import { UUID_RE } from "@/lib/patterns";
+import { isUuidPrefix, matchUuidPrefix } from "@/lib/uuidSearch";
+import { MINISEARCH_OPTIONS } from "@/lib/searchOptions";
+import { computeLabels } from "@/lib/hitLabels";
 
 declare const self: DedicatedWorkerGlobalScope;
 

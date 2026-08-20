@@ -7,7 +7,7 @@ import {
   prHref,
   severedRange,
   type HistoryEntry,
-} from "../../lib/history";
+} from "@/lib/history";
 import { DiffView } from "./DiffView";
 import { LINE1_H, TimelineRow } from "./Timeline";
 

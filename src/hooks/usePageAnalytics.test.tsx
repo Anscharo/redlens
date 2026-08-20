@@ -7,7 +7,7 @@ const register = vi.fn();
 const pageview = vi.fn();
 let analyticsEnabledMock = true;
 
-vi.mock("../lib/analytics", () => ({
+vi.mock("@/lib/analytics", () => ({
   initAnalytics: (...a: unknown[]) => initAnalytics(...a),
   register: (...a: unknown[]) => register(...a),
   pageview: (...a: unknown[]) => pageview(...a),
@@ -17,7 +17,7 @@ vi.mock("../lib/analytics", () => ({
 }));
 
 let previewMock: { preview: boolean } = { preview: false };
-vi.mock("../lib/dataSource", () => ({
+vi.mock("@/lib/dataSource", () => ({
   useDataSource: () => previewMock,
 }));
 

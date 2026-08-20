@@ -8,7 +8,7 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { useState } from "react";
 import { ErrorBoundary, InlineError, PanelError } from "./ErrorBoundary";
-import { pageReloader } from "../lib/staleChunk";
+import { pageReloader } from "@/lib/staleChunk";
 
 // React logs caught render errors; silence it so the suite output stays clean.
 beforeEach(() => {

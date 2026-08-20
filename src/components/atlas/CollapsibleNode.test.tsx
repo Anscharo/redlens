@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, cleanup, fireEvent, act } from "@testing-library/react";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { AtlasActionsContext } from "./AtlasActionsContext";
-import { CHEVRON_SETTLE_MS } from "../../lib/chevronSettle";
+import { CHEVRON_SETTLE_MS } from "@/lib/chevronSettle";
 import { makeNode, makeFlatEntry } from "../../test/fixtures";
 import type { RungDir, RungLevel } from "./subtreeState";
 

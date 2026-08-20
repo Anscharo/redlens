@@ -4,8 +4,8 @@ import { render, screen, cleanup, fireEvent, within } from "@testing-library/rea
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import type { ChunkNode } from "../../lib/crossview";
-import { atlasHref } from "../../lib/routes";
+import type { ChunkNode } from "@/lib/crossview";
+import { atlasHref } from "@/lib/routes";
 import { CrossViewTreemap } from "./CrossViewTreemap";
 
 function wrap() {

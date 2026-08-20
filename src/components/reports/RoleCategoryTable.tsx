@@ -6,12 +6,12 @@
 // switches its Prime source by category — see OFCategoryTable/OGCategoryTable
 // for the concrete configs). All of that variance is captured in
 // RoleCategoryTableConfig so this file stays role-agnostic.
-import type { Chain } from "../../lib/reportChains";
-import { stripExecutorPrefix } from "../../lib/reportChains";
+import type { Chain } from "@/lib/reportChains";
+import { stripExecutorPrefix } from "@/lib/reportChains";
 import { AgentChips, DocCell } from "./OGReportParts";
-import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "../../lib/reportFilter";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
-import type { MergedSource } from "../../lib/dutyCollapse";
+import type { MergedSource } from "@/lib/dutyCollapse";
 
 export interface RoleRow {
   uuid: string;

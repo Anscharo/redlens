@@ -1,4 +1,4 @@
-import { useHint } from "../lib/hintStore";
+import { useHint } from "@/lib/hintStore";
 
 // [Square brackets] in the copy mark a key you press (see hintText). Splitting
 // on a capturing group leaves the key names at every odd index.

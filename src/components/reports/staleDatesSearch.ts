@@ -1,5 +1,5 @@
-import type { DateClaim } from "../../lib/staleDates";
-import type { SearchField } from "../../lib/reportFilter";
+import type { DateClaim } from "@/lib/staleDates";
+import type { SearchField } from "@/lib/reportFilter";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { ROUTES } from "../lib/routes";
-import { track } from "../lib/analytics";
+import { ROUTES } from "@/lib/routes";
+import { track } from "@/lib/analytics";
 
 // Read a param from the live URL at click time so it rides along on every
 // atlas-internal navigation (split stays open, active tab stays active).

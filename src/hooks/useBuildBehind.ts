@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchHealthFresh, loadHealth } from "../lib/health";
-import { track } from "../lib/analytics";
+import { fetchHealthFresh, loadHealth } from "@/lib/health";
+import { track } from "@/lib/analytics";
 
 // A tab can sit backgrounded for days running a build that's since been
 // superseded on Railway — nothing tells that tab its JS is stale. The service

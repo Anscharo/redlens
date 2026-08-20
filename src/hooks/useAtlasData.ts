@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback, startTransition } from "react";
-import { loadAtlas, loadAtlasShallow } from "../lib/docs";
-import { loadAddresses } from "../lib/addresses";
-import { loadChainState } from "../lib/chainstate";
-import { loadGlossary } from "../lib/glossary";
-import { setAddressMap } from "../lib/addressMap";
-import { flattenTree } from "../lib/atlasHelpers";
-import { type LoadedData } from "../lib/atlasHelpers";
-import { useDataSource } from "../lib/dataSource";
+import { loadAtlas, loadAtlasShallow } from "@/lib/docs";
+import { loadAddresses } from "@/lib/addresses";
+import { loadChainState } from "@/lib/chainstate";
+import { loadGlossary } from "@/lib/glossary";
+import { setAddressMap } from "@/lib/addressMap";
+import { flattenTree } from "@/lib/atlasHelpers";
+import { type LoadedData } from "@/lib/atlasHelpers";
+import { useDataSource } from "@/lib/dataSource";
 
 /** Load any module-level cached promise (loadGraph, loadAtlas, loadDocs, etc.)
  *  and return the resolved value, or null while loading.

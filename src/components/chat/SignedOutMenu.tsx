@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SignInButtons } from "./SignInButtons";
 import { MenuButton, MenuLink, MenuRule } from "./MenuRow";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES } from "@/lib/routes";
 
 // The signed-out nav menu: two entries, "Sign in" (which opens the provider
 // choice as a sub-panel, mirroring the signed-in menu's Account panel) and

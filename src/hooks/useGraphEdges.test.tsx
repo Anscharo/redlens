@@ -6,15 +6,15 @@ const getEdges = vi.fn();
 const useDataSource = vi.fn();
 const trackFn = vi.fn();
 
-vi.mock("../lib/graph", () => ({
+vi.mock("@/lib/graph", () => ({
   getEdges: (id: string) => getEdges(id),
 }));
-vi.mock("../lib/dataSource", () => ({
+vi.mock("@/lib/dataSource", () => ({
   useDataSource: () => useDataSource(),
 }));
 // Mocked so a developer's VITE_POSTHOG_KEY (.env.local leaks into vitest) can't
 // make the hook fire a live capture from jsdom.
-vi.mock("../lib/analytics", () => ({
+vi.mock("@/lib/analytics", () => ({
   track: (event: string, props?: Record<string, unknown>) => trackFn(event, props),
 }));
 

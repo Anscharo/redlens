@@ -10,7 +10,7 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 } as unknown as typeof ResizeObserver;
 
-import type { RewardsIndex } from "../../lib/rewardsIndex";
+import type { RewardsIndex } from "@/lib/rewardsIndex";
 
 const fixture: RewardsIndex = {
   agents: [
@@ -80,11 +80,11 @@ const fixture: RewardsIndex = {
 
 let buildImpl = () => fixture;
 
-vi.mock("../../lib/docs", () => ({ loadDocs: () => Promise.resolve({}) }));
-vi.mock("../../lib/addresses", () => ({ loadAddresses: () => Promise.resolve({}) }));
-vi.mock("../../lib/graph", () => ({ loadGraph: () => Promise.resolve({}) }));
-vi.mock("../../lib/rewardsIndex", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/rewardsIndex")>();
+vi.mock("@/lib/docs", () => ({ loadDocs: () => Promise.resolve({}) }));
+vi.mock("@/lib/addresses", () => ({ loadAddresses: () => Promise.resolve({}) }));
+vi.mock("@/lib/graph", () => ({ loadGraph: () => Promise.resolve({}) }));
+vi.mock("@/lib/rewardsIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/rewardsIndex")>();
   return {
     ...actual,
     buildRewardsIndex: () => buildImpl(),
@@ -159,7 +159,7 @@ describe("RewardsReport", () => {
   // route, resetKey={location}) owns the error page for reports too.
   it("surfaces a load failure to the surrounding ErrorBoundary instead of a spinner", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const graphModule = await import("../../lib/graph");
+    const graphModule = await import("@/lib/graph");
     const spy = vi.spyOn(graphModule, "loadGraph").mockImplementationOnce(() =>
       Promise.reject(new Error("boom")),
     );

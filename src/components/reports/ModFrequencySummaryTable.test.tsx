@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { ModFrequencySummaryTable } from "./ModFrequencySummaryTable";
-import type { ModFrequencySummaryRow } from "../../lib/modFrequencyIndex";
+import type { ModFrequencySummaryRow } from "@/lib/modFrequencyIndex";
 
 afterEach(cleanup);
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { toChatMsgs } from "./hydrate";
-import type { StoredMessage } from "../../lib/conversationsApi";
+import type { StoredMessage } from "@/lib/conversationsApi";
 
 describe("toChatMsgs", () => {
   it("maps tool_calls into a full trace + sources", () => {

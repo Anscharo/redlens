@@ -1,10 +1,10 @@
-import type { Rating, PrecisionElement } from "../../lib/oeaAssessment";
-import { PRECISION_ELEMENTS } from "../../lib/oeaAssessment";
-import type { OeaMechanism, OeaRow } from "../../lib/oeaReport";
+import type { Rating, PrecisionElement } from "@/lib/oeaAssessment";
+import { PRECISION_ELEMENTS } from "@/lib/oeaAssessment";
+import type { OeaMechanism, OeaRow } from "@/lib/oeaReport";
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
+import { atlasHref } from "@/lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
-import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "../../lib/reportFilter";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 
 // The search haystack as labelled fields; the covered prime agents are

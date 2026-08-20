@@ -1,16 +1,16 @@
 import { useMemo } from "react";
 import { AtlasLink } from "../AtlasLink";
 import { prepareWithSegments, measureNaturalWidth } from "@chenglou/pretext";
-import type { RadarInstance, RadarPrimitive, InstanceParam } from "../../lib/actorIndex";
-import { toAnchorId } from "../../lib/anchorId";
-import { atlasHref } from "../../lib/routes";
-import { explorerUrl } from "../../lib/explorer";
+import type { RadarInstance, RadarPrimitive, InstanceParam } from "@/lib/actorIndex";
+import { toAnchorId } from "@/lib/anchorId";
+import { atlasHref } from "@/lib/routes";
+import { explorerUrl } from "@/lib/explorer";
 import { useAddressMap } from "../../hooks/useAddressMap";
-import type { AddressInfo } from "../../types";
-import { shortAddr } from "../../lib/format";
-import { HEADER_OFFSET } from "../../lib/layout";
+import type { AddressInfo } from "@/types";
+import { shortAddr } from "@/lib/format";
+import { HEADER_OFFSET } from "@/lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
-import { EVM_ADDRESS_EXACT_RE, SOL_ADDRESS_EXACT_RE } from "../../lib/patterns";
+import { EVM_ADDRESS_EXACT_RE, SOL_ADDRESS_EXACT_RE } from "@/lib/patterns";
 
 // Whole-string address shape tests — sourced from patterns.ts (the src-side
 // home for these forms) so this doesn't drift into its own copy.

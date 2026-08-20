@@ -1,5 +1,5 @@
 import { Link } from "../Link";
-import { timeAgo } from "../../lib/timeAgo";
+import { timeAgo } from "@/lib/timeAgo";
 
 // The shared row shape for every /history card: a name on the left, a leader
 // line, and a right-aligned view count — the radar tables' "label … number"

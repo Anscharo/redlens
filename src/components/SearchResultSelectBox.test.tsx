@@ -5,7 +5,7 @@ import { SearchResultSelectBox } from "./SearchResultSelectBox";
 
 // Mock the selection store to capture toggleDoc and drive the checked state.
 const mocks = vi.hoisted(() => ({ toggleDoc: vi.fn(), ids: new Set<string>() }));
-vi.mock("../lib/selection", () => ({
+vi.mock("@/lib/selection", () => ({
   useSelection: () => ({
     ids: mocks.ids,
     toggleDoc: mocks.toggleDoc,

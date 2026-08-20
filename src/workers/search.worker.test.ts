@@ -17,7 +17,7 @@ import {
   IDS,
   MCD_VAT_ADDR,
 } from "../test/workerFixtures";
-import type { SearchHit } from "../types";
+import type { SearchHit } from "@/types";
 
 let harness: WorkerHarness | null = null;
 

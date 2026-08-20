@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { hintStore } from "../lib/hintStore";
-import { FOCUS_HINTS, HOVER_HINTS } from "../lib/hintText";
+import { hintStore } from "@/lib/hintStore";
+import { FOCUS_HINTS, HOVER_HINTS } from "@/lib/hintText";
 
 /**
  * Follows one marked element at a time and keeps its hint published.

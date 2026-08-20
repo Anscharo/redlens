@@ -2,9 +2,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import { Link } from "./Link";
-import { ROUTES } from "../lib/routes";
+import { ROUTES } from "@/lib/routes";
 import notesRaw from "../../patch-notes.md?raw";
-import { parsePatchNotes, formatPatchDate, type PatchNoteGroup } from "../lib/patchNotes";
+import { parsePatchNotes, formatPatchDate, type PatchNoteGroup } from "@/lib/patchNotes";
 
 // Input is static (bundled via Vite ?raw), so parse once at module scope.
 const recentGroups = parsePatchNotes(notesRaw);

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "../Link";
-import { atlasHref } from "../../lib/routes";
-import type { TreeVisit } from "../../lib/visitTrees";
+import { atlasHref } from "@/lib/routes";
+import type { TreeVisit } from "@/lib/visitTrees";
 import { DocRow, LeaderRow } from "./VisitRow";
 
 // A doc-number tree — "A.3.1.X…", or five segments deep inside the Agent Scope.

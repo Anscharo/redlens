@@ -1,9 +1,9 @@
 // Row + bucket rendering for the Stale Dates report, split out of
 // StaleDatesReport.tsx so the page file stays data + <ReportShell>.
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
-import type { DateClaim } from "../../lib/staleDates";
-import { hiddenMatches, type ReportQuery } from "../../lib/reportFilter";
+import { atlasHref } from "@/lib/routes";
+import type { DateClaim } from "@/lib/staleDates";
+import { hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 import { staleSearchFields } from "./staleDatesSearch";
 

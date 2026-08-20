@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { ModFrequencySummaryRow } from "../../lib/modFrequencyIndex";
+import type { ModFrequencySummaryRow } from "@/lib/modFrequencyIndex";
 
 // Per-category rollup: how many docs in each section/type match the active
 // filter (matchLabel names it, e.g. "≤1 modification"), against that

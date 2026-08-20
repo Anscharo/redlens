@@ -3,15 +3,15 @@
 // this hook owns URL-synced filter state, chain resolution, and the filtered
 // row set; the component is JSX only.
 import { useMemo } from "react";
-import { loadGraph } from "../../lib/graph";
-import { loadAtlas } from "../../lib/docs";
+import { loadGraph } from "@/lib/graph";
+import { loadAtlas } from "@/lib/docs";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { urlTagged, useUrlState, type UrlCodec } from "../../hooks/useUrlState";
-import { toAnchorId } from "../../lib/anchorId";
-import { buildChains, rolePills, holderExecutorSlugs, filterEqual, type ActiveFilter, type EntityFilter, type Chain } from "../../lib/reportChains";
+import { toAnchorId } from "@/lib/anchorId";
+import { buildChains, rolePills, holderExecutorSlugs, filterEqual, type ActiveFilter, type EntityFilter, type Chain } from "@/lib/reportChains";
 import { categoryCodec } from "./CategoryPills";
 import { trackReportFilter, useReportQuery } from "./useReportQuery";
-import { filterRows, type ReportMode } from "../../lib/reportFilter";
+import { filterRows, type ReportMode } from "@/lib/reportFilter";
 import type { RoleRow } from "./RoleCategoryTable";
 import type { RoleReportConfig } from "./roleReportTypes";
 

@@ -1,5 +1,5 @@
-import { toAnchorId } from "../../lib/anchorId";
-import type { ActiveFilter, EntityFilter, Pill } from "../../lib/reportChains";
+import { toAnchorId } from "@/lib/anchorId";
+import type { ActiveFilter, EntityFilter, Pill } from "@/lib/reportChains";
 
 export function FilterPills({
   label,

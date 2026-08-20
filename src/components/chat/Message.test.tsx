@@ -5,8 +5,8 @@ import "@testing-library/jest-dom/vitest";
 import { Message } from "./Message";
 import type { ChatMsg } from "./useChatStream";
 
-vi.mock("../../lib/docs", () => ({ loadAtlas: () => Promise.resolve({ docs: {} }) }));
-vi.mock("../../lib/analytics", () => ({ track: vi.fn() }));
+vi.mock("@/lib/docs", () => ({ loadAtlas: () => Promise.resolve({ docs: {} }) }));
+vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
 
 afterEach(cleanup);
 

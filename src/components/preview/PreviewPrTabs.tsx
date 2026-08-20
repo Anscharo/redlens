@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { track } from "../../lib/analytics";
+import { track } from "@/lib/analytics";
 import type { Entry } from "./types";
 
 // The tabbed list under the /preview input box. "my recent prs" is the

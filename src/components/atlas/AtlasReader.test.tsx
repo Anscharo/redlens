@@ -13,8 +13,8 @@ import "@testing-library/jest-dom/vitest";
 import { AtlasReader, EXIT_MS } from "./AtlasReader";
 import { AtlasActionsContext, useAtlasActions } from "./AtlasActionsContext";
 import { makeNode, makeFlatEntry, makeAtlasBundle, makeLoadedData } from "../../test/fixtures";
-import { flattenTree } from "../../lib/atlasHelpers";
-import type { FlatEntry } from "../../lib/atlasHelpers";
+import { flattenTree } from "@/lib/atlasHelpers";
+import type { FlatEntry } from "@/lib/atlasHelpers";
 
 const usePreviewChangedSetMock = vi.fn<() => Set<string> | null>(() => null);
 const useSelectionSetMock = vi.fn<() => Set<string> | null>(() => null);
@@ -33,13 +33,13 @@ const useSelectionMock = vi.fn(() => ({
   setActiveCollectionName: vi.fn(),
 }));
 
-vi.mock("../../lib/previewFilter", () => ({
+vi.mock("@/lib/previewFilter", () => ({
   usePreviewChangedSet: () => usePreviewChangedSetMock(),
 }));
-vi.mock("../../lib/selectionFilter", () => ({
+vi.mock("@/lib/selectionFilter", () => ({
   useSelectionSet: () => useSelectionSetMock(),
 }));
-vi.mock("../../lib/selection", () => ({
+vi.mock("@/lib/selection", () => ({
   useSelection: () => useSelectionMock(),
 }));
 // Spied rather than stubbed away: which swings ARM the reveal animation is

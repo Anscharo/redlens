@@ -12,7 +12,7 @@ import { useRef } from "react";
 const saveScroll = vi.fn();
 const getSavedScroll = vi.fn();
 
-vi.mock("../lib/scrollMemory", () => ({
+vi.mock("@/lib/scrollMemory", () => ({
   saveScroll: (key: string, top: number) => saveScroll(key, top),
   getSavedScroll: (key: string) => getSavedScroll(key),
 }));

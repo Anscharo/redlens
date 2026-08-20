@@ -7,9 +7,9 @@
 import type { Components } from "react-markdown";
 import type { Element as HastElement } from "hast";
 import { Link } from "../Link";
-import { atlasHref } from "../../lib/routes";
-import { FULL_UUID_RE, type DocRefResolver } from "../../lib/docRefResolver";
-import { groupRefSlug } from "../../lib/crossviewIndex";
+import { atlasHref } from "@/lib/routes";
+import { FULL_UUID_RE, type DocRefResolver } from "@/lib/docRefResolver";
+import { groupRefSlug } from "@/lib/crossviewIndex";
 
 // A per-concept unit-opener paragraph starts with a bold "<Group> <N> ·
 // <Title>" run (e.g. "**Lifecycle 7 · Omni Documents**") — distinct from a

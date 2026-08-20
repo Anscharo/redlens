@@ -2,8 +2,8 @@
 // URL state (bookmarkable, back-button-safe) rather than a filter, so it
 // reports as `report_row_toggle` — never `report_filter`.
 import { urlString, useUrlState } from "../../hooks/useUrlState";
-import { track } from "../../lib/analytics";
-import type { ReportId } from "../../types";
+import { track } from "@/lib/analytics";
+import type { ReportId } from "@/types";
 
 const expandedCodec = urlString(null);
 

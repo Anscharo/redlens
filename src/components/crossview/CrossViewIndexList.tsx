@@ -4,7 +4,7 @@
 // entries the right-hand CrossViewTopicIndex.tsx panel renders — see
 // src/lib/crossviewIndex.ts for the shared parse + target-grouping logic, so
 // the two surfaces can never disagree on a target's slug.
-import type { CrossViewIndexEntry } from "../../lib/crossviewIndex";
+import type { CrossViewIndexEntry } from "@/lib/crossviewIndex";
 import { TargetLinks } from "./CrossViewIndexTargets";
 
 export function CrossViewIndexList({ entries }: { entries: CrossViewIndexEntry[] }) {

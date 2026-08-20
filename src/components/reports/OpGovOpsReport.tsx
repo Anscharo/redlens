@@ -1,15 +1,15 @@
-import { toAnchorId } from "../../lib/anchorId";
-import { stripExecutorPrefix, type ActiveFilter, type Chain } from "../../lib/reportChains";
-import { GOV_EDGES } from "../../lib/roleEdges";
+import { toAnchorId } from "@/lib/anchorId";
+import { stripExecutorPrefix, type ActiveFilter, type Chain } from "@/lib/reportChains";
+import { GOV_EDGES } from "@/lib/roleEdges";
 import {
   CATEGORY_LABELS,
   type OGResponsibility,
   deriveGovOpsResponsibilities,
   govopsRowsToCSV,
-} from "../../lib/govopsResponsibilities";
+} from "@/lib/govopsResponsibilities";
 import { OGCategoryTable, ogSearchFields } from "./OGCategoryTable";
 import { RoleResponsibilityReport, type RoleReportConfig } from "./RoleResponsibilityReport";
-import type { ReportMode } from "../../lib/reportFilter";
+import type { ReportMode } from "@/lib/reportFilter";
 
 // Header-box text filter over the fields declared in OGCategoryTable (which
 // also tracks their per-category visibility for the hidden-match aside).

@@ -2,17 +2,17 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "./Link";
 import { SearchResult } from "./SearchResult";
 import { SearchHints } from "./SearchHints";
-import type { SearchHit, GraphEntity } from "../types";
+import type { SearchHit, GraphEntity } from "@/types";
 import type { SearchState } from "../hooks/useSearch";
 import type { SearchMode } from "../hooks/useSearchInput";
 import { useUrlState, urlInt } from "../hooks/useUrlState";
 import { useScrollRestore } from "../hooks/useScrollRestore";
-import { loadGraph } from "../lib/graph";
+import { loadGraph } from "@/lib/graph";
 import { useSearchTracking } from "../hooks/useSearchTracking";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-import { track } from "../lib/analytics";
-import { matchParticipants, buildParticipantLinks } from "../lib/search";
-import { ENTITY_TYPE_LABEL, ENTITY_TYPE_COLOR, SUBTYPE_LABEL } from "../lib/entityGraph";
+import { track } from "@/lib/analytics";
+import { matchParticipants, buildParticipantLinks } from "@/lib/search";
+import { ENTITY_TYPE_LABEL, ENTITY_TYPE_COLOR, SUBTYPE_LABEL } from "@/lib/entityGraph";
 
 interface Props {
   state: SearchState;
@@ -77,7 +77,7 @@ export const SearchResults = memo(function SearchResults({
     [hits.length],
   );
 
-  const [graph, setGraph] = useState<{ participants: GraphEntity[]; edges: import("../types").RelationEdge[] } | null>(null);
+  const [graph, setGraph] = useState<{ participants: GraphEntity[]; edges: import("@/types").RelationEdge[] } | null>(null);
   useEffect(() => {
     let live = true;
     // Graph powers the entity-hit overlay only — an enrichment. Swallow failures

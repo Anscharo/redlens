@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { apiUrl, type AuthUser } from "./api";
-import { usersEnabled } from "../../lib/usersEnabled";
-import { authProviders } from "../../lib/authProviders";
-import { stashAuthReturn } from "../../lib/authReturn";
+import { usersEnabled } from "@/lib/usersEnabled";
+import { authProviders } from "@/lib/authProviders";
+import { stashAuthReturn } from "@/lib/authReturn";
 
 export type AuthProvider = "github" | "google";
 

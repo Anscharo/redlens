@@ -1,8 +1,8 @@
 // The "Sum By" tab of the Modification Frequency report: the per-section and
 // per-document-type share of documents matching the edit-count filter, each
 // downloadable on its own.
-import type { ModFrequencySummaryRow } from "../../lib/modFrequencyIndex";
-import { modFrequencySummaryToCSV } from "../../lib/modFrequencyIndex";
+import type { ModFrequencySummaryRow } from "@/lib/modFrequencyIndex";
+import { modFrequencySummaryToCSV } from "@/lib/modFrequencyIndex";
 import { ModFrequencySummaryTable } from "./ModFrequencySummaryTable";
 import { SingleDownloadButton } from "./SingleDownloadButton";
 

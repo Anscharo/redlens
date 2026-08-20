@@ -9,14 +9,14 @@ import type { ReactNode } from "react";
 import { useRef } from "react";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import type { SearchScope } from "../lib/routes";
+import type { SearchScope } from "@/lib/routes";
 
 const { search, track } = vi.hoisted(() => ({ search: vi.fn(), track: vi.fn() }));
 vi.mock("./useSearch", () => ({
   useSearch: () => ({ state: { status: "idle", query: "", hits: [] }, search, ready: true }),
 }));
-vi.mock("../lib/analytics", () => ({ track }));
-vi.mock("../lib/recentSearches", () => ({
+vi.mock("@/lib/analytics", () => ({ track }));
+vi.mock("@/lib/recentSearches", () => ({
   useRecentSearches: () => [],
   useRecordRecentSearch: () => {},
 }));

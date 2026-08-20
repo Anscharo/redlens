@@ -1,13 +1,13 @@
 import { useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { Modal } from "../Modal";
 import { Link } from "../Link";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES } from "@/lib/routes";
 import { ghostBtn, primaryBtn } from "../modalStyles";
 import { HoneypotField } from "./HoneypotField";
-import { useFeedbackContext } from "../../lib/feedbackContext";
-import { interactionTrail } from "../../lib/lastInteraction";
-import { submitFeedback, type FeedbackApiError } from "../../lib/feedbackApi";
-import { track } from "../../lib/analytics";
+import { useFeedbackContext } from "@/lib/feedbackContext";
+import { interactionTrail } from "@/lib/lastInteraction";
+import { submitFeedback, type FeedbackApiError } from "@/lib/feedbackApi";
+import { track } from "@/lib/analytics";
 
 const MAX_MESSAGE_LEN = 2000;
 const MIN_MESSAGE_LEN = 2;

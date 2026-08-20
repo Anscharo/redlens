@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { useRouter } from "wouter";
-import type { AtlasBundle } from "../lib/docs";
-import type { GraphData } from "../lib/graph";
-import { buildDocViewProps } from "../lib/atlasAnalytics";
-import { track } from "../lib/analytics";
-import { recordVisit } from "../lib/visitHistory";
-import { atlasHref } from "../lib/routes";
+import type { AtlasBundle } from "@/lib/docs";
+import type { GraphData } from "@/lib/graph";
+import { buildDocViewProps } from "@/lib/atlasAnalytics";
+import { track } from "@/lib/analytics";
+import { recordVisit } from "@/lib/visitHistory";
+import { atlasHref } from "@/lib/routes";
 
 // Fires one `doc_view` event per document view (on `id` change) once the bundle
 // has the node. Live and preview alike — preview events are tagged product:preview

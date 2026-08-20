@@ -1,8 +1,8 @@
 import { Link } from "./Link";
-import { reportHref, REPORT_TITLES } from "../lib/routes";
-import { track } from "../lib/analytics";
+import { reportHref, REPORT_TITLES } from "@/lib/routes";
+import { track } from "@/lib/analytics";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-import type { ReportId } from "../types";
+import type { ReportId } from "@/types";
 
 // Titles come from REPORT_TITLES (shared with visit-history capture); cards carry
 // only the id + description here.

@@ -1,9 +1,9 @@
 import { useEffect, useReducer, useState, type ReactElement } from "react";
 import { Tooltip } from "./Tooltip";
-import { getAddressMap } from "../lib/addressMap";
-import { loadBalancesCached, peekCachedBalances, type AddressBalances } from "../lib/balances";
-import { resolveAddressTooltip } from "../lib/addressTooltip";
-import { shortLink } from "../lib/format";
+import { getAddressMap } from "@/lib/addressMap";
+import { loadBalancesCached, peekCachedBalances, type AddressBalances } from "@/lib/balances";
+import { resolveAddressTooltip } from "@/lib/addressTooltip";
+import { shortLink } from "@/lib/format";
 
 // undefined until the shared fetch settles (loading); a failed fetch settles
 // to {} — same as "no balances known" — rather than leaving the tooltip

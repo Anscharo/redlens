@@ -3,11 +3,11 @@
 // individual tests only spell out the fields they actually exercise. Every
 // factory takes a partial override and deep-merges it over a sane default.
 
-import type { AtlasNode, AddressInfo, SearchHit, ResolvedEdge, GraphEntity } from "../types";
-import type { AtlasBundle } from "../lib/docs";
-import type { EdgeResult, GraphData } from "../lib/graph";
-import type { GlossaryEntry } from "../lib/glossary";
-import type { FlatEntry, LoadedData } from "../lib/atlasHelpers";
+import type { AtlasNode, AddressInfo, SearchHit, ResolvedEdge, GraphEntity } from "@/types";
+import type { AtlasBundle } from "@/lib/docs";
+import type { EdgeResult, GraphData } from "@/lib/graph";
+import type { GlossaryEntry } from "@/lib/glossary";
+import type { FlatEntry, LoadedData } from "@/lib/atlasHelpers";
 
 // Not reset between tests on purpose: generated UUIDs are only ever compared to
 // themselves (a node's own id), never to a hardcoded value, so monotonic is fine.

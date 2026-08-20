@@ -1,10 +1,10 @@
-import type { CrossViewData } from "../../lib/crossview";
-import { flattenChunkTree, crossviewChunksToCSV } from "../../lib/crossview";
+import type { CrossViewData } from "@/lib/crossview";
+import { flattenChunkTree, crossviewChunksToCSV } from "@/lib/crossview";
 import { CrossViewChunkTree } from "./CrossViewChunkTree";
 import { CrossViewTreemap } from "./CrossViewTreemap";
 import { DownloadCsvButton } from "../reports/DownloadCsvButton";
 import { Link } from "../Link";
-import { atlasHref } from "../../lib/routes";
+import { atlasHref } from "@/lib/routes";
 
 export function CrossViewShape({ data }: { data: CrossViewData }) {
   const chunkRowCount = flattenChunkTree(data.chunkTree, data.totals.docs).length;

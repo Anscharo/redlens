@@ -1,6 +1,6 @@
 import { useState, useEffect, useTransition } from "react";
-import { loadAtlas, loadAtlasShallow, type AtlasBundle } from "../lib/docs";
-import { useDataSource } from "../lib/dataSource";
+import { loadAtlas, loadAtlasShallow, type AtlasBundle } from "@/lib/docs";
+import { useDataSource } from "@/lib/dataSource";
 
 // Progressive: render the shallow tree (depth ≤ 5) the instant it lands, then
 // upgrade to the full bundle so deep nodes (depth > 5) become navigable. Both

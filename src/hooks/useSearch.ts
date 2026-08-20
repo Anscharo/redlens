@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { SearchHit, WorkerOutMessage } from "../types";
-import { loadAtlas } from "../lib/docs";
-import { loadAddresses } from "../lib/addresses";
-import { captureException } from "../lib/analytics";
-import { useDataSource } from "../lib/dataSource";
+import type { SearchHit, WorkerOutMessage } from "@/types";
+import { loadAtlas } from "@/lib/docs";
+import { loadAddresses } from "@/lib/addresses";
+import { captureException } from "@/lib/analytics";
+import { useDataSource } from "@/lib/dataSource";
 
 export type SearchState =
   | { status: "idle" }

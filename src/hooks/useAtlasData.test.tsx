@@ -18,12 +18,12 @@ const loaders = vi.hoisted(() => ({
   setAddressMap: vi.fn(),
   base: "",
 }));
-vi.mock("../lib/docs", () => ({ loadAtlas: loaders.loadAtlas, loadAtlasShallow: loaders.loadAtlasShallow }));
-vi.mock("../lib/addresses", () => ({ loadAddresses: loaders.loadAddresses }));
-vi.mock("../lib/chainstate", () => ({ loadChainState: loaders.loadChainState }));
-vi.mock("../lib/glossary", () => ({ loadGlossary: loaders.loadGlossary }));
-vi.mock("../lib/addressMap", () => ({ setAddressMap: loaders.setAddressMap }));
-vi.mock("../lib/dataSource", () => ({ useDataSource: () => ({ base: loaders.base }) }));
+vi.mock("@/lib/docs", () => ({ loadAtlas: loaders.loadAtlas, loadAtlasShallow: loaders.loadAtlasShallow }));
+vi.mock("@/lib/addresses", () => ({ loadAddresses: loaders.loadAddresses }));
+vi.mock("@/lib/chainstate", () => ({ loadChainState: loaders.loadChainState }));
+vi.mock("@/lib/glossary", () => ({ loadGlossary: loaders.loadGlossary }));
+vi.mock("@/lib/addressMap", () => ({ setAddressMap: loaders.setAddressMap }));
+vi.mock("@/lib/dataSource", () => ({ useDataSource: () => ({ base: loaders.base }) }));
 
 class Boundary extends React.Component<{ children: React.ReactNode }, { err: Error | null }> {
   state = { err: null as Error | null };

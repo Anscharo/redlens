@@ -2,7 +2,7 @@
 // caught error is a deploy-drift import failure (isStaleChunkError), they swap
 // the failure text for a refresh prompt — the fix is a reload, and the user
 // decides when (deliberately no auto-reload; see src/lib/staleChunk.ts).
-import { isStaleChunkError, pageReloader } from "../lib/staleChunk";
+import { isStaleChunkError, pageReloader } from "@/lib/staleChunk";
 
 const STALE_MESSAGE = "a new version of the app is available";
 

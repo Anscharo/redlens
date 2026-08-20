@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { loadAtlas } from "../../lib/docs";
-import { atlasHref } from "../../lib/routes";
-import { track } from "../../lib/analytics";
+import { loadAtlas } from "@/lib/docs";
+import { atlasHref } from "@/lib/routes";
+import { track } from "@/lib/analytics";
 import type { Source } from "./markdown";
 
 interface ResolvedDoc {

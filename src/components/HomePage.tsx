@@ -1,7 +1,7 @@
 import { GuideIcon } from "./GuideIcon";
 import { Link } from "./Link";
 import { PatchNotes } from "./PatchNotes";
-import { NAV_PAGE_ROUTES, ROUTES, type NavPage } from "../lib/routes";
+import { NAV_PAGE_ROUTES, ROUTES, type NavPage } from "@/lib/routes";
 
 const SKY_URL = "https://sky.money";
 const ATLAS_URL = "https://github.com/sky-ecosystem/next-gen-atlas";

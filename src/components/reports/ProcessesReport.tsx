@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useSearchParams } from "wouter";
-import { processRowsToCSV } from "../../lib/processesIndex";
+import { processRowsToCSV } from "@/lib/processesIndex";
 import { useHydrateAddressMap } from "../../hooks/useHydrateAddressMap";
-import { type ReportMode } from "../../lib/reportFilter";
-import type { ReportId } from "../../types";
+import { type ReportMode } from "@/lib/reportFilter";
+import type { ReportId } from "@/types";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { ProcessesFilters } from "./ProcessesFilters";
 import { ProcessesTable } from "./ProcessesTable";

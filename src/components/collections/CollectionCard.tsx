@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { type Collection, MAX_COLLECTION_NAME_LEN } from "../../lib/collectionsApi";
-import type { AtlasNode } from "../../types";
+import { type Collection, MAX_COLLECTION_NAME_LEN } from "@/lib/collectionsApi";
+import type { AtlasNode } from "@/types";
 
 const PREVIEW_COUNT = 10;
 

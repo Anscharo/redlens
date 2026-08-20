@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 import { AtlasLink } from "./AtlasLink";
-import { atlasHref } from "../lib/routes";
+import { atlasHref } from "@/lib/routes";
 
 afterEach(cleanup);
 

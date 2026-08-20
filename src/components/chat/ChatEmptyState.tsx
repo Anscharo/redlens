@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "../Link";
 import { SparkMark } from "./glyphs";
-import { track } from "../../lib/analytics";
-import { listConversations, type ConversationSummary } from "../../lib/conversationsApi";
-import { ROUTES } from "../../lib/routes";
+import { track } from "@/lib/analytics";
+import { listConversations, type ConversationSummary } from "@/lib/conversationsApi";
+import { ROUTES } from "@/lib/routes";
 import type { PageContextView } from "./pageContext";
 
 export const STARTERS = [

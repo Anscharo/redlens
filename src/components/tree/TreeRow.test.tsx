@@ -11,12 +11,12 @@ import "@testing-library/jest-dom/vitest";
 
 // truncateTitle measures text via @chenglou/pretext, which needs a real canvas
 // (unavailable in jsdom) — stub it so TreeRow can render without the width math.
-vi.mock("../../lib/treeUtils", () => ({
+vi.mock("@/lib/treeUtils", () => ({
   truncateTitle: (title: string) => title,
 }));
 
 import { TreeRow, type VisibleNode, type TreeRowData } from "./TreeRow";
-import type { AtlasNode } from "../../types";
+import type { AtlasNode } from "@/types";
 
 afterEach(cleanup);
 

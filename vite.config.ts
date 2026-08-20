@@ -4,7 +4,9 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { renderOgTags } from "./src/server/og.ts";
+import { ALIASES } from "./scripts/lib/path-aliases.mjs";
 
 const commitHash = (() => {
   try {
@@ -85,6 +87,15 @@ export default defineConfig(() => {
         ignored: ["**/vendor/next-gen-atlas/**", "**/.cache/**", "**/public/history/**", "**/public/history-decisions.json"],
       },
     },
+  // Path aliases, from the single declaration in scripts/lib/path-aliases.mjs.
+  resolve: {
+    alias: Object.fromEntries(
+      Object.entries(ALIASES).map(([prefix, target]) => [
+        prefix,
+        fileURLToPath(new URL(`./${target}`, import.meta.url)),
+      ]),
+    ),
+  },
   plugins: [
     {
       // Dev only: substitute window.__ATLAS_SHA__ in index.html from the local

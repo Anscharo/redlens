@@ -1,17 +1,17 @@
 import { memo, useMemo, useRef, useEffect } from "react";
-import { segmentDepths, nrChiclets } from "../../lib/depth";
-import { type FlatEntry } from "../../lib/atlasHelpers";
+import { segmentDepths, nrChiclets } from "@/lib/depth";
+import { type FlatEntry } from "@/lib/atlasHelpers";
 import { DocNoChiclets } from "../DocNoChiclets";
 import { NodeContent } from "../NodeContent";
 import { NodeMeta } from "./NodeMeta";
 import { useAtlasActions } from "./AtlasActionsContext";
-import { revealStore } from "../../lib/revealStore";
+import { revealStore } from "@/lib/revealStore";
 import { PreviewMark } from "../preview/PreviewMark";
-import { usePreviewDim } from "../../lib/previewFilter";
-import { useDataSource } from "../../lib/dataSource";
+import { usePreviewDim } from "@/lib/previewFilter";
+import { useDataSource } from "@/lib/dataSource";
 import { NodeSelectBox } from "./NodeSelectBox";
-import { track } from "../../lib/analytics";
-import { settleChevron } from "../../lib/chevronSettle";
+import { track } from "@/lib/analytics";
+import { settleChevron } from "@/lib/chevronSettle";
 import {
   nextRung,
   reverseRung,

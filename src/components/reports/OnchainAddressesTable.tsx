@@ -9,11 +9,11 @@
 // header inside it never sticks. Bounding the height and scrolling for real (an
 // actual internal scrollbar) gives position:sticky a genuine range to work within —
 // the standard "data grid" pattern for header + horizontal scroll together.
-import { shortAddr } from "../../lib/format";
-import { explorerUrl } from "../../lib/explorer";
-import { HEADER_OFFSET } from "../../lib/layout";
-import { addrSearchFields, type OnchainAddressRow } from "../../lib/onchainAddressesIndex";
-import { hiddenMatches, type ReportQuery } from "../../lib/reportFilter";
+import { shortAddr } from "@/lib/format";
+import { explorerUrl } from "@/lib/explorer";
+import { HEADER_OFFSET } from "@/lib/layout";
+import { addrSearchFields, type OnchainAddressRow } from "@/lib/onchainAddressesIndex";
+import { hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 import { TypePill, DocsCell, BalanceCells } from "./OnchainAddressCells";
 

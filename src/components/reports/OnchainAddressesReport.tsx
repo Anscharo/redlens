@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { loadDocs } from "../../lib/docs";
-import { loadAddresses } from "../../lib/addresses";
+import { loadDocs } from "@/lib/docs";
+import { loadAddresses } from "@/lib/addresses";
 import { urlString } from "../../hooks/useUrlState";
 import { useLoaded } from "../../hooks/useAtlasData";
 import {
@@ -9,9 +9,9 @@ import {
   onchainCsvRowCount,
   addrSearchFields,
   ADDRESS_TYPES,
-} from "../../lib/onchainAddressesIndex";
-import { filterRows, type ReportMode } from "../../lib/reportFilter";
-import type { ReportId } from "../../types";
+} from "@/lib/onchainAddressesIndex";
+import { filterRows, type ReportMode } from "@/lib/reportFilter";
+import type { ReportId } from "@/types";
 import { CategoryPills } from "./CategoryPills";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { ReportShell } from "./ReportShell";

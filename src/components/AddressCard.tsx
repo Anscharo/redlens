@@ -1,8 +1,8 @@
-import type { AddressInfo } from "../types";
-import type { ChainValue } from "../lib/chainstate";
-import { explorerUrl } from "../lib/explorer";
-import { shortAddr } from "../lib/format";
-import { track } from "../lib/analytics";
+import type { AddressInfo } from "@/types";
+import type { ChainValue } from "@/lib/chainstate";
+import { explorerUrl } from "@/lib/explorer";
+import { shortAddr } from "@/lib/format";
+import { track } from "@/lib/analytics";
 
 function formatValue(val: ChainValue): string {
   if (val === null) return "—";

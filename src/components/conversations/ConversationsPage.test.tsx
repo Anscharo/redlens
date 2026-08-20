@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { ConversationsPage } from "./ConversationsPage";
-import type { ConversationSummary } from "../../lib/conversationsApi";
+import type { ConversationSummary } from "@/lib/conversationsApi";
 
 const mocks = vi.hoisted(() => ({
   user: null as unknown,
@@ -30,10 +30,10 @@ vi.mock("../../hooks/useConversations", () => ({
     remove: mocks.remove,
   }),
 }));
-vi.mock("../../lib/chatOpen", () => ({
+vi.mock("@/lib/chatOpen", () => ({
   useChatOpen: () => ({ openChat: mocks.openChat, notifyDeleted: mocks.notifyDeleted }),
 }));
-vi.mock("../../lib/analytics", () => ({ track: mocks.track }));
+vi.mock("@/lib/analytics", () => ({ track: mocks.track }));
 
 afterEach(() => {
   cleanup();

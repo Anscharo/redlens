@@ -6,12 +6,12 @@
 // state + derived rows live in useRoleReportState; page chrome is ReportShell;
 // this file is render-only.
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
-import { expandedRowCount } from "../../lib/dutyCollapse";
+import { atlasHref } from "@/lib/routes";
+import { expandedRowCount } from "@/lib/dutyCollapse";
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills } from "./CategoryPills";
 import { DownloadCsvButton } from "./DownloadCsvButton";
-import type { ReportMode } from "../../lib/reportFilter";
+import type { ReportMode } from "@/lib/reportFilter";
 import { ReportShell } from "./ReportShell";
 import type { RoleRow } from "./RoleCategoryTable";
 import type { RoleReportConfig } from "./roleReportTypes";

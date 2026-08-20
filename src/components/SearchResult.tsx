@@ -1,10 +1,10 @@
 import { memo } from "react";
 import { AtlasLink } from "./AtlasLink";
 import { SearchResultSelectBox } from "./SearchResultSelectBox";
-import { realDepth, depthColor } from "../lib/depth";
-import { atlasHref } from "../lib/routes";
-import { shortAddr } from "../lib/format";
-import type { HitLabel, SearchHit } from "../types";
+import { realDepth, depthColor } from "@/lib/depth";
+import { atlasHref } from "@/lib/routes";
+import { shortAddr } from "@/lib/format";
+import type { HitLabel, SearchHit } from "@/types";
 
 interface Props {
   hit: SearchHit;

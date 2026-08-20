@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { Router } from "wouter";
 import App from "../../App";
 import { AuthProvider } from "../chat/auth";
-import { DataSourceContext } from "../../lib/dataSource";
-import { PreviewDiffProvider } from "../../lib/previewDiff";
-import { PreviewViewProvider } from "../../lib/previewView";
+import { DataSourceContext } from "@/lib/dataSource";
+import { PreviewDiffProvider } from "@/lib/previewDiff";
+import { PreviewViewProvider } from "@/lib/previewView";
 import { PreviewInterstitial } from "./PreviewInterstitial";
-import { recordLocalPreview, previewLabel } from "../../lib/previewLocal";
+import { recordLocalPreview, previewLabel } from "@/lib/previewLocal";
 import { BuildErrorDetail } from "./BuildErrorDetail";
-import { stashAuthReturn } from "../../lib/authReturn";
+import { stashAuthReturn } from "@/lib/authReturn";
 import { apiUrl } from "../chat/api";
 
 // Preview is NOT a separate view: the gate builds the bundle (SSE), then mounts

@@ -1,4 +1,4 @@
-import type { CrossViewSegment } from "../../lib/crossview";
+import type { CrossViewSegment } from "@/lib/crossview";
 import { Tooltip } from "../Tooltip";
 
 // Approximate rendered bar-track width; only used to decide which tail

@@ -8,10 +8,10 @@ import type { ChatMsg, SendResult } from "./useChatStream";
 import type { ChatSession } from "./useChatSession";
 import type { RateLimitState } from "./types";
 
-vi.mock("../../lib/docs", () => ({ loadAtlas: () => Promise.resolve({ docs: {} }) }));
+vi.mock("@/lib/docs", () => ({ loadAtlas: () => Promise.resolve({ docs: {} }) }));
 // ChatEmptyState's "Continue a previous chat" fetch — additive-only and not
 // this file's concern; keep it a resolved empty list so it never renders.
-vi.mock("../../lib/conversationsApi", () => ({ listConversations: vi.fn(async () => []) }));
+vi.mock("@/lib/conversationsApi", () => ({ listConversations: vi.fn(async () => []) }));
 
 const { track, refresh, send, stop, setRateLimit, newChat, openConversation, openAuth, setPref } = vi.hoisted(() => ({
   track: vi.fn(),
@@ -24,10 +24,10 @@ const { track, refresh, send, stop, setRateLimit, newChat, openConversation, ope
   openAuth: vi.fn(),
   setPref: vi.fn(),
 }));
-vi.mock("../../lib/analytics", () => ({ track }));
+vi.mock("@/lib/analytics", () => ({ track }));
 // SignInButtons (rendered in the signed-out composer) gates on authProviders();
 // under vitest the real one returns [] (usersEnabled() is false), so stub it.
-vi.mock("../../lib/authProviders", () => ({ authProviders: () => ["github", "google"] }));
+vi.mock("@/lib/authProviders", () => ({ authProviders: () => ["github", "google"] }));
 // SignInButtons also calls useAuth() itself (for openAuth) — ChatPanel no
 // longer calls it directly (that's session.authed/openAuth now), but this
 // sibling component still does.

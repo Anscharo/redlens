@@ -1,5 +1,5 @@
-import { downloadFile } from "../../lib/csvDownload";
-import { track } from "../../lib/analytics";
+import { downloadFile } from "@/lib/csvDownload";
+import { track } from "@/lib/analytics";
 import type { ExportArtifact } from "./useChatStream";
 
 // Export cluster: one download button per file the agent handed over this turn

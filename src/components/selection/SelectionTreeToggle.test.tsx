@@ -20,9 +20,9 @@ const mocks = vi.hoisted(() => ({
   usersEnabled: vi.fn(() => true),
 }));
 
-vi.mock("../../lib/dataSource", () => ({ useDataSource: () => ({ preview: mocks.preview }) }));
+vi.mock("@/lib/dataSource", () => ({ useDataSource: () => ({ preview: mocks.preview }) }));
 vi.mock("wouter", () => ({ useLocation: () => [mocks.location, mocks.navigate] }));
-vi.mock("../../lib/selection", () => ({
+vi.mock("@/lib/selection", () => ({
   useSelection: () => ({
     ids: mocks.ids,
     selectedOnly: mocks.selectedOnly,
@@ -34,9 +34,9 @@ vi.mock("../../lib/selection", () => ({
   }),
 }));
 vi.mock("../chat/auth", () => ({ useAuth: () => ({ user: mocks.user }) }));
-vi.mock("../../lib/authReturn", () => ({ takeResumeSave: mocks.takeResumeSave }));
-vi.mock("../../lib/analytics", () => ({ track: mocks.track }));
-vi.mock("../../lib/usersEnabled", () => ({ usersEnabled: mocks.usersEnabled }));
+vi.mock("@/lib/authReturn", () => ({ takeResumeSave: mocks.takeResumeSave }));
+vi.mock("@/lib/analytics", () => ({ track: mocks.track }));
+vi.mock("@/lib/usersEnabled", () => ({ usersEnabled: mocks.usersEnabled }));
 vi.mock("./SaveCollectionModal", () => ({
   SaveCollectionModal: ({ ids, onClose }: { ids: string[]; onClose: () => void }) => (
     <div data-testid="save-modal" data-ids={ids.join(",")}>

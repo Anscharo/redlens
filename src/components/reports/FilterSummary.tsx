@@ -3,7 +3,7 @@
 // when neither a text query nor a pill filter is active. Styled as a light
 // callout (.filter-summary in index.css) so the explanation of what's being
 // searched stands out against the dark page.
-import { displayQuery } from "../../lib/reportFilter";
+import { displayQuery } from "@/lib/reportFilter";
 
 export function FilterSummary({
   query,

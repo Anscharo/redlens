@@ -10,10 +10,10 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 
 // The hook eagerly preloads docs+addresses over the worker; stub both so no fetch
 // happens. Returning empty payloads is fine — the MockWorker ignores them.
-vi.mock("../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlas: vi.fn(() => Promise.resolve({ docs: {}, byParent: new Map(), docNoToId: new Map(), atlasCommit: null })),
 }));
-vi.mock("../lib/addresses", () => ({
+vi.mock("@/lib/addresses", () => ({
   loadAddresses: vi.fn(() => Promise.resolve({})),
 }));
 

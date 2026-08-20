@@ -4,7 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ConversationCard } from "./ConversationCard";
-import type { ConversationSummary } from "../../lib/conversationsApi";
+import type { ConversationSummary } from "@/lib/conversationsApi";
 
 afterEach(() => {
   cleanup();

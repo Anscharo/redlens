@@ -10,7 +10,7 @@ import "@testing-library/jest-dom/vitest";
 
 import { EntryRow } from "./EntryRow";
 import { LINE1_H } from "./Timeline";
-import type { HistoryEntry } from "../../lib/history";
+import type { HistoryEntry } from "@/lib/history";
 
 function entry(over: Partial<HistoryEntry> = {}): HistoryEntry {
   return { date: "2025-01-01", commitHash: "abc1234", changeType: "modified", ...over };

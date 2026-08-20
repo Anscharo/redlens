@@ -1,13 +1,13 @@
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
+import { atlasHref } from "@/lib/routes";
 import { Highlight } from "./Highlight";
-import { compactAmount } from "../../lib/tokens";
-import type { ReportQuery } from "../../lib/reportFilter";
+import { compactAmount } from "@/lib/tokens";
+import type { ReportQuery } from "@/lib/reportFilter";
 import {
   PRIMARY_BALANCE_SYMBOLS,
   type AddressType,
   type OnchainAddressRow,
-} from "../../lib/onchainAddressesIndex";
+} from "@/lib/onchainAddressesIndex";
 
 const TYPE_STYLE: Record<AddressType, string> = {
   EOA: "bg-[var(--hover)] text-tan-3",

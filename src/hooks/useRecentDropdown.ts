@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
-import { refreshRecent } from "../lib/recentSearches";
+import { refreshRecent } from "@/lib/recentSearches";
 
 // Open/close + keyboard state for the recent-searches dropdown. Implements the
 // ARIA combobox + listbox pattern: DOM focus stays on the input the whole time

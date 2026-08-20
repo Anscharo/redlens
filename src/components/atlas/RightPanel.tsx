@@ -1,16 +1,16 @@
 import { useCallback, useMemo } from "react";
-import type { AtlasNode, AddressInfo } from "../../types";
-import type { ChainValue } from "../../lib/chainstate";
-import type { EdgeResult } from "../../lib/graph";
-import type { CousinDoc } from "../../lib/cousins";
-import type { GlossaryEntry } from "../../lib/glossary";
+import type { AtlasNode, AddressInfo } from "@/types";
+import type { ChainValue } from "@/lib/chainstate";
+import type { EdgeResult } from "@/lib/graph";
+import type { CousinDoc } from "@/lib/cousins";
+import type { GlossaryEntry } from "@/lib/glossary";
 import { RelatedNode } from "../RelatedNode";
 import { AddressCard } from "../AddressCard";
 import { NodeHistory } from "../history/NodeHistory";
 import { PreviewHistory } from "../history/PreviewHistory";
 import { ErrorBoundary, InlineError } from "../ErrorBoundary";
-import { useDataSource } from "../../lib/dataSource";
-import { track } from "../../lib/analytics";
+import { useDataSource } from "@/lib/dataSource";
+import { track } from "@/lib/analytics";
 
 type RightTab = "annotations" | "glossary" | "history";
 

@@ -7,9 +7,9 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { PreviewTreeToggle } from "./PreviewTreeToggle";
-import { DataSourceContext, type DataSource } from "../../lib/dataSource";
-import { PreviewDiffProvider } from "../../lib/previewDiff";
-import { PreviewViewProvider } from "../../lib/previewView";
+import { DataSourceContext, type DataSource } from "@/lib/dataSource";
+import { PreviewDiffProvider } from "@/lib/previewDiff";
+import { PreviewViewProvider } from "@/lib/previewView";
 
 const LIVE_SOURCE: DataSource = { base: "/live/", preview: null };
 const PREVIEW_SOURCE: DataSource = { base: "/api/preview/abc/", preview: { id: "pr-88", sha: "abc" } };

@@ -5,14 +5,14 @@ import "@testing-library/jest-dom/vitest";
 
 const openAuth = vi.fn();
 vi.mock("./auth", () => ({ useAuth: () => ({ openAuth }) }));
-vi.mock("../../lib/analytics", () => ({ track: vi.fn() }));
+vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
 // SignInButtons now renders per the configured providers; under vitest the real
 // authProviders() returns [] (usersEnabled() is false via the build define), so
 // stub it to both providers to exercise the button rendering these tests assert.
-vi.mock("../../lib/authProviders", () => ({ authProviders: () => ["github", "google"] }));
+vi.mock("@/lib/authProviders", () => ({ authProviders: () => ["github", "google"] }));
 
 import { SignInButtons } from "./SignInButtons";
-import { track } from "../../lib/analytics";
+import { track } from "@/lib/analytics";
 
 afterEach(() => {
   cleanup();

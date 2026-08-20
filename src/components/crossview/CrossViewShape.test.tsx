@@ -4,14 +4,14 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import type { CrossViewData } from "../../lib/crossview";
-import { atlasHref } from "../../lib/routes";
+import type { CrossViewData } from "@/lib/crossview";
+import { atlasHref } from "@/lib/routes";
 
 const track = vi.fn();
-vi.mock("../../lib/analytics", () => ({ track: (...args: unknown[]) => track(...args) }));
+vi.mock("@/lib/analytics", () => ({ track: (...args: unknown[]) => track(...args) }));
 
 const downloadCSV = vi.fn();
-vi.mock("../../lib/csvDownload", () => ({ downloadCSV: (...args: unknown[]) => downloadCSV(...args) }));
+vi.mock("@/lib/csvDownload", () => ({ downloadCSV: (...args: unknown[]) => downloadCSV(...args) }));
 
 import { CrossViewShape } from "./CrossViewShape";
 

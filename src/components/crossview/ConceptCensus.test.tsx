@@ -2,13 +2,13 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { AtlasNode } from "../../types";
+import type { AtlasNode } from "@/types";
 
 const track = vi.fn();
-vi.mock("../../lib/analytics", () => ({ track: (...args: unknown[]) => track(...args) }));
+vi.mock("@/lib/analytics", () => ({ track: (...args: unknown[]) => track(...args) }));
 
 const downloadCSV = vi.fn();
-vi.mock("../../lib/csvDownload", () => ({ downloadCSV: (...args: unknown[]) => downloadCSV(...args) }));
+vi.mock("@/lib/csvDownload", () => ({ downloadCSV: (...args: unknown[]) => downloadCSV(...args) }));
 
 // loadAtlas is mocked per-base so the base-keyed cache in ConceptCensus.tsx
 // can be exercised directly: each distinct base string gets its own call
@@ -16,7 +16,7 @@ vi.mock("../../lib/csvDownload", () => ({ downloadCSV: (...args: unknown[]) => d
 const loadAtlasCalls = vi.fn();
 let loadAtlasImpl: (base: string) => Promise<{ docs: Record<string, AtlasNode> }> = () =>
   Promise.reject(new Error("not configured"));
-vi.mock("../../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlas: (base: string) => {
     loadAtlasCalls(base);
     return loadAtlasImpl(base);
@@ -24,7 +24,7 @@ vi.mock("../../lib/docs", () => ({
 }));
 
 const useDataSourceMock = vi.fn();
-vi.mock("../../lib/dataSource", () => ({
+vi.mock("@/lib/dataSource", () => ({
   useDataSource: (...args: unknown[]) => useDataSourceMock(...args),
 }));
 

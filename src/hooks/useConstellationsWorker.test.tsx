@@ -11,7 +11,7 @@ const { getConstellationInit, constellationQuery, constellationCluster } = vi.ho
   constellationQuery: vi.fn(() => new Promise(() => {})),
   constellationCluster: vi.fn(() => new Promise(() => {})),
 }));
-vi.mock("../lib/graph", () => ({
+vi.mock("@/lib/graph", () => ({
   getConstellationInit,
   constellationQuery,
   constellationCluster,

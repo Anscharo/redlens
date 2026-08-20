@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { render } from "@testing-library/react";
 import { Highlight, MatchAside } from "./Highlight";
-import { parseReportQuery, type HiddenMatch } from "../../lib/reportFilter";
+import { parseReportQuery, type HiddenMatch } from "@/lib/reportFilter";
 
 // MatchAside wires a ResizeObserver in a layout effect; jsdom lacks it. The
 // anchor (offsetParent) is null in jsdom so the observer is never constructed,

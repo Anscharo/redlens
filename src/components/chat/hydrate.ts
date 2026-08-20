@@ -1,5 +1,5 @@
 import type { ChatMsg, TraceRow } from "./useChatStream";
-import type { StoredMessage } from "../../lib/conversationsApi";
+import type { StoredMessage } from "@/lib/conversationsApi";
 
 // Pure mapping from persisted DB rows (GET /api/chat/conversations/:id) to
 // the in-memory ChatMsg shape useChatStream renders. Rehydration loses only

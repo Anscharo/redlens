@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { FooterHint } from "./FooterHint";
-import { hintStore } from "../lib/hintStore";
+import { hintStore } from "@/lib/hintStore";
 
 afterEach(() => {
   cleanup();

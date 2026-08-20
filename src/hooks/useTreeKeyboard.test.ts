@@ -4,7 +4,7 @@ import { renderHook, act, cleanup } from "@testing-library/react";
 import type { KeyboardEvent } from "react";
 import { useTreeKeyboard } from "./useTreeKeyboard";
 import type { VisibleNode } from "../components/tree/TreeRow";
-import type { AtlasNode } from "../types";
+import type { AtlasNode } from "@/types";
 
 afterEach(() => cleanup());
 

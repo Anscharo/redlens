@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { ProcessCurationPanel } from "./ProcessCurationPanel";
-import type { LocalIgnore } from "../../lib/curationStore";
+import type { LocalIgnore } from "@/lib/curationStore";
 
 afterEach(() => cleanup());
 

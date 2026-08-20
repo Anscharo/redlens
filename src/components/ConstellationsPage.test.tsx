@@ -8,9 +8,9 @@ import { render, screen, cleanup, fireEvent, waitFor, within } from "@testing-li
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import type { GraphEntity, RelationEdge } from "../types";
+import type { GraphEntity, RelationEdge } from "@/types";
 
-vi.mock("../lib/docs", () => ({ loadAtlas: vi.fn() }));
+vi.mock("@/lib/docs", () => ({ loadAtlas: vi.fn() }));
 vi.mock("../hooks/useConstellationsWorker", () => ({ useConstellationsWorker: vi.fn() }));
 vi.mock("./constellations/EntityFlow", () => ({
   EntityFlow: (props: {
@@ -24,7 +24,7 @@ vi.mock("./constellations/EntityFlow", () => ({
   ),
 }));
 
-import { loadAtlas } from "../lib/docs";
+import { loadAtlas } from "@/lib/docs";
 import { useConstellationsWorker } from "../hooks/useConstellationsWorker";
 import { ConstellationsPage } from "./ConstellationsPage";
 

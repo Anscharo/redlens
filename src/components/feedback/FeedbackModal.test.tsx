@@ -21,7 +21,7 @@ const context: PageContextView = {
 vi.mock("../chat/pageContext", () => ({ usePageContext: () => context }));
 
 import { FeedbackButton } from "./FeedbackButton";
-import { installInteractionCapture, resetInteractions } from "../../lib/lastInteraction";
+import { installInteractionCapture, resetInteractions } from "@/lib/lastInteraction";
 
 function mockFetch(response: Response) {
   const fn = vi.fn(() => Promise.resolve(response));

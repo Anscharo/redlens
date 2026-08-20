@@ -3,10 +3,10 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
-import type { AtlasNode } from "../../types";
-import type { ModCount, ModTimelinePeriodRow, ModTimelineCommitRow, TimelineGranularity } from "../../lib/history";
-import type { GraphData } from "../../lib/graphData";
-import { DataSourceContext, type DataSource } from "../../lib/dataSource";
+import type { AtlasNode } from "@/types";
+import type { ModCount, ModTimelinePeriodRow, ModTimelineCommitRow, TimelineGranularity } from "@/lib/history";
+import type { GraphData } from "@/lib/graphData";
+import { DataSourceContext, type DataSource } from "@/lib/dataSource";
 
 function node(id: string, doc_no: string, title: string, type = "Section"): AtlasNode {
   return { id, doc_no, title, type, depth: 1, parentId: null, content: "", order: 0, addressRefs: [] };
@@ -74,17 +74,17 @@ let timelineImpl = (
 let graphImpl = (): Promise<GraphData> => Promise.resolve(EMPTY_GRAPH);
 let capturedBase: string | null = null;
 
-vi.mock("../../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadDocs: (base?: string) => {
     capturedBase = base ?? null;
     return docsImpl();
   },
 }));
-vi.mock("../../lib/history", () => ({
+vi.mock("@/lib/history", () => ({
   loadModCounts: () => countsImpl(),
   loadModTimeline: (granularity?: TimelineGranularity) => timelineImpl(granularity),
 }));
-vi.mock("../../lib/graph", () => ({
+vi.mock("@/lib/graph", () => ({
   loadGraph: () => graphImpl(),
 }));
 

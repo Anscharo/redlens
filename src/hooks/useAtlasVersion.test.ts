@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, cleanup, act, waitFor } from "@testing-library/react";
 
 const loadHealth = vi.fn();
-vi.mock("../lib/health", () => ({
+vi.mock("@/lib/health", () => ({
   loadHealth: (...a: unknown[]) => loadHealth(...a),
 }));
 

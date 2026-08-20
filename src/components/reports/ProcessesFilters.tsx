@@ -1,7 +1,7 @@
 // Filter controls for the Processes report: the local-ignore curation bar and
 // the category / status / shape pill groups. Status and shape are enums whose
 // "all" value means "no filter", so it maps to a null active pill.
-import type { LocalIgnore } from "../../lib/curationStore";
+import type { LocalIgnore } from "@/lib/curationStore";
 import { CategoryPills } from "./CategoryPills";
 import { ProcessCurationBar } from "./ProcessCurationBar";
 

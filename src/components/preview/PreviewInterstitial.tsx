@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { initAnalytics, track } from "../../lib/analytics";
+import { initAnalytics, track } from "@/lib/analytics";
 
 // Low-trust click-through: shown on first visit per session for (a) fork
 // previews whose owner is NOT trusted-tier (whitelisted orgs / atlas-merged

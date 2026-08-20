@@ -3,9 +3,9 @@ import { describe, it, expect, afterEach, beforeAll } from "vitest";
 import { render, screen, cleanup, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { OGCategoryTable } from "./OGCategoryTable";
-import { parseReportQuery } from "../../lib/reportFilter";
-import type { OGResponsibility } from "../../lib/govopsResponsibilities";
-import type { Chain } from "../../lib/reportChains";
+import { parseReportQuery } from "@/lib/reportFilter";
+import type { OGResponsibility } from "@/lib/govopsResponsibilities";
+import type { Chain } from "@/lib/reportChains";
 
 beforeAll(() => {
   globalThis.ResizeObserver ??= class {

@@ -3,12 +3,12 @@
 // useRoleReportState for the role reports).
 import { useMemo } from "react";
 import { urlBool, urlString } from "../../hooks/useUrlState";
-import { loadAtlas } from "../../lib/docs";
-import { loadProcesses, buildProcessRows, indexByParentDocNo, type ProcessRow } from "../../lib/processesIndex";
+import { loadAtlas } from "@/lib/docs";
+import { loadProcesses, buildProcessRows, indexByParentDocNo, type ProcessRow } from "@/lib/processesIndex";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useLocalIgnores } from "../../hooks/useLocalIgnores";
-import { filterRows, type ReportMode, type SearchField } from "../../lib/reportFilter";
-import type { ReportId } from "../../types";
+import { filterRows, type ReportMode, type SearchField } from "@/lib/reportFilter";
+import type { ReportId } from "@/types";
 import { SHAPE_VALUES, STATUS_VALUES } from "./ProcessesFilters";
 import { useReportEnum, useReportFilter, useReportQuery, useReportSwitch } from "./useReportQuery";
 

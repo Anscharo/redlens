@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { atlasHref } from "../../lib/routes";
+import { atlasHref } from "@/lib/routes";
 import { DEFINITION_RE, normalizeLabel, parseDefinitions, unwrapCodeCitations } from "./citations";
 
 // Agent citations are markdown links of the form [Title](/atlas/<uuid>)

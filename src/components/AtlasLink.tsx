@@ -1,7 +1,7 @@
 import { forwardRef, type ComponentPropsWithoutRef } from "react";
 import { useSearchParams } from "wouter";
 import { Link } from "./Link";
-import { ROUTES } from "../lib/routes";
+import { ROUTES } from "@/lib/routes";
 
 // Like <Link>, but when the destination is /atlas, folds ?split= and ?subset=
 // from the current URL into the target so the comparison pane and the

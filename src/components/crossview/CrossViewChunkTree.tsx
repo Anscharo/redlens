@@ -1,8 +1,8 @@
 import { useState } from "react";
-import type { ChunkNode } from "../../lib/crossview";
+import type { ChunkNode } from "@/lib/crossview";
 import { Link } from "../Link";
 import { Tooltip } from "../Tooltip";
-import { atlasHref } from "../../lib/routes";
+import { atlasHref } from "@/lib/routes";
 import { SegmentedBar } from "./SegmentedBar";
 
 // Recursive chunk row: plain-text title toggles expansion; a link-out icon

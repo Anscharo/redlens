@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import type { DiffLine, WordSegment } from "../../lib/history";
-import { refineProseDiff } from "../../lib/diffProse";
-import { isStructuredLine } from "../../lib/diffSentences";
-import { fencedFlags } from "../../lib/diffFences";
+import type { DiffLine, WordSegment } from "@/lib/history";
+import { refineProseDiff } from "@/lib/diffProse";
+import { isStructuredLine } from "@/lib/diffSentences";
+import { fencedFlags } from "@/lib/diffFences";
 import { IntralineDiff } from "./IntralineDiff";
 
 const DIFF_LINE_BG: Record<string, string> = {

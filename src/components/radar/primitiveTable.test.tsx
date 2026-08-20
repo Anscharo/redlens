@@ -13,7 +13,7 @@ import {
   NameList,
   GroupedNameList,
 } from "./primitiveTable";
-import type { PrimitiveStat } from "../../lib/primitiveStats";
+import type { PrimitiveStat } from "@/lib/primitiveStats";
 
 afterEach(cleanup);
 

@@ -7,16 +7,16 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { AtlasNode } from "../../types";
-import type { CensusResult, CensusSlug } from "../../lib/conceptsCensus";
+import type { AtlasNode } from "@/types";
+import type { CensusResult, CensusSlug } from "@/lib/conceptsCensus";
 
 const computeConceptsCensus = vi.fn();
-vi.mock("../../lib/conceptsCensus", () => ({
+vi.mock("@/lib/conceptsCensus", () => ({
   computeConceptsCensus: (...args: unknown[]) => computeConceptsCensus(...args),
 }));
 
 const loadAtlasCalls = vi.fn();
-vi.mock("../../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlas: (base: string) => {
     loadAtlasCalls(base);
     return Promise.resolve({ docs: {} as Record<string, AtlasNode> });
@@ -24,11 +24,11 @@ vi.mock("../../lib/docs", () => ({
 }));
 
 const useDataSourceMock = vi.fn();
-vi.mock("../../lib/dataSource", () => ({
+vi.mock("@/lib/dataSource", () => ({
   useDataSource: (...args: unknown[]) => useDataSourceMock(...args),
 }));
-vi.mock("../../lib/analytics", () => ({ track: vi.fn() }));
-vi.mock("../../lib/csvDownload", () => ({ downloadCSV: vi.fn() }));
+vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
+vi.mock("@/lib/csvDownload", () => ({ downloadCSV: vi.fn() }));
 
 import { ConceptCensus } from "./ConceptCensus";
 

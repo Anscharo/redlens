@@ -12,9 +12,9 @@
 // references — routing every toggle through these hooks is what keeps the
 // split from reopening.
 import { useEffect, useMemo, useRef, useTransition } from "react";
-import { track } from "../../lib/analytics";
+import { track } from "@/lib/analytics";
 import { useUrlState, urlEnum, urlEnumList, type UrlCodec } from "../../hooks/useUrlState";
-import { parseReportQuery, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
+import { parseReportQuery, type ReportMode, type ReportQuery } from "@/lib/reportFilter";
 
 type Opts = { transition?: boolean };
 

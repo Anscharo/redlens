@@ -7,13 +7,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
-vi.mock("../../lib/history", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/history")>();
+vi.mock("@/lib/history", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/history")>();
   return { ...actual, loadHistory: vi.fn() };
 });
 
 import { NodeHistory } from "./NodeHistory";
-import { loadHistory, type HistoryEntry } from "../../lib/history";
+import { loadHistory, type HistoryEntry } from "@/lib/history";
 
 const mockLoad = vi.mocked(loadHistory);
 

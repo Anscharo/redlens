@@ -8,7 +8,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { installWorkerGlobal, stubFetch, type WorkerHarness } from "../test/workerGlobal";
 import { makeRelationsJson, G } from "../test/workerFixtures";
-import type { ResolvedEdge, GraphEntity, SerializedSubgraph } from "../types";
+import type { ResolvedEdge, GraphEntity, SerializedSubgraph } from "@/types";
 
 let harness: WorkerHarness | null = null;
 

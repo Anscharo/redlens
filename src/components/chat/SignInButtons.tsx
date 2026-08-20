@@ -1,7 +1,7 @@
 import { GitHubMark, GoogleMark } from "./glyphs";
 import { useAuth, type AuthProvider } from "./auth";
-import { authProviders } from "../../lib/authProviders";
-import { track } from "../../lib/analytics";
+import { authProviders } from "@/lib/authProviders";
+import { track } from "@/lib/analytics";
 
 // Shared GitHub/Google sign-in buttons. Two visual variants back the two call
 // sites that previously duplicated this markup: ProfileButton's signed-out

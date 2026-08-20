@@ -3,7 +3,7 @@ import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rubricRaw from "../../../docs/risk-assessment-rubric.md?raw";
 import { Link } from "../Link";
-import { ROUTES } from "../../lib/routes";
+import { ROUTES } from "@/lib/routes";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 // .atlas-md is tuned for atlas node bodies, which carry no headings — map the

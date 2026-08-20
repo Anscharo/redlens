@@ -3,7 +3,7 @@ import { ErrorBoundary, InlineError } from "./ErrorBoundary";
 
 const NodeContentInner = lazy(() => import("./NodeContentInner"));
 
-import type { ReportQuery } from "../lib/reportFilter";
+import type { ReportQuery } from "@/lib/reportFilter";
 
 interface Props {
   content: string;

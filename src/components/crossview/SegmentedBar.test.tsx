@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { cloneElement, type ReactElement } from "react";
 import { render, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { CrossViewSegment } from "../../lib/crossview";
+import type { CrossViewSegment } from "@/lib/crossview";
 
 // Tooltip only renders `content` on hover (timer-gated) — irrelevant to this
 // component's layout math. Stub it to stamp the content onto the child

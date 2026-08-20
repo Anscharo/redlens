@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { useSelection } from "../lib/selection";
+import { useSelection } from "@/lib/selection";
 
 // Selection checkbox for a search-result card. Mirrors the reader's
 // NodeSelectBox: it self-subscribes to the selection so a toggle re-renders only

@@ -8,10 +8,10 @@ import type {
   GraphWorkerInMessage,
   GraphWorkerOutMessage,
   SerializedSubgraph,
-} from "../types";
-import { fetchJson } from "../lib/verify";
-import { matchParticipants } from "../lib/search";
-import { FAC_EDGES, GOV_EDGES } from "../lib/roleEdges";
+} from "@/types";
+import { fetchJson } from "@/lib/verify";
+import { matchParticipants } from "@/lib/search";
+import { FAC_EDGES, GOV_EDGES } from "@/lib/roleEdges";
 
 declare const self: DedicatedWorkerGlobalScope;
 

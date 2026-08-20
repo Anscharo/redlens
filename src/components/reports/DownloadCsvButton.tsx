@@ -1,8 +1,8 @@
-import { track } from "../../lib/analytics";
-import { downloadCSV } from "../../lib/csvDownload";
-import { filteredExportName, hasActiveFilter, insertBeforeExt } from "../../lib/reportFilter";
-import { liveAtlasSha } from "../../lib/atlasBase";
-import { useDataSource } from "../../lib/dataSource";
+import { track } from "@/lib/analytics";
+import { downloadCSV } from "@/lib/csvDownload";
+import { filteredExportName, hasActiveFilter, insertBeforeExt } from "@/lib/reportFilter";
+import { liveAtlasSha } from "@/lib/atlasBase";
+import { useDataSource } from "@/lib/dataSource";
 
 type FilterVal = string | false | null | undefined;
 

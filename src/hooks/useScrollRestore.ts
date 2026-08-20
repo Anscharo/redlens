@@ -1,6 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { useLocation, useSearchParams } from "wouter";
-import { saveScroll, getSavedScroll } from "../lib/scrollMemory";
+import { saveScroll, getSavedScroll } from "@/lib/scrollMemory";
 
 // Restores `ref.scrollTop` for the current URL on mount (after `ready`), and
 // saves it on unmount or when the URL changes.

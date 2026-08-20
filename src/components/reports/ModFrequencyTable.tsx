@@ -1,10 +1,10 @@
 import { memo } from "react";
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
+import { atlasHref } from "@/lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
 import { Highlight } from "./Highlight";
-import type { ReportQuery } from "../../lib/reportFilter";
-import type { ModFrequencyGroup, ModFrequencyRow } from "../../lib/modFrequencyIndex";
+import type { ReportQuery } from "@/lib/reportFilter";
+import type { ModFrequencyGroup, ModFrequencyRow } from "@/lib/modFrequencyIndex";
 
 // One row, memoized so a paging/highlight change elsewhere in the table
 // doesn't re-render every already-visible row — only ones whose own props

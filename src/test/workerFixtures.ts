@@ -5,8 +5,8 @@
 // tests can assert exact hits without depending on the real multi-MB artifacts.
 
 import MiniSearch from "minisearch";
-import { MINISEARCH_OPTIONS } from "../lib/searchOptions";
-import type { AtlasNode, AddressInfo, GraphEntity, RelationEdge } from "../types";
+import { MINISEARCH_OPTIONS } from "@/lib/searchOptions";
+import type { AtlasNode, AddressInfo, GraphEntity, RelationEdge } from "@/types";
 
 // Full 36-char UUIDs with memorable 8-hex prefixes for the prefix fast-path.
 export const IDS = {

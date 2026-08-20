@@ -10,9 +10,9 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { AtlasNode } from "../../types";
-import type { ActorProfile, RadarInstance } from "../../lib/actorIndex";
-import type { HistoryEntry } from "../../lib/history";
+import type { AtlasNode } from "@/types";
+import type { ActorProfile, RadarInstance } from "@/lib/actorIndex";
+import type { HistoryEntry } from "@/lib/history";
 import { RadarProvider } from "./RadarContext";
 
 const configChild: AtlasNode = {
@@ -22,20 +22,20 @@ const configChild: AtlasNode = {
 
 const byParent = new Map<string | null, AtlasNode[]>([["inst-1", [configChild]]]);
 
-vi.mock("../../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlas: () => Promise.resolve({ byParent }),
 }));
 
-vi.mock("../../lib/analytics", () => ({ track: vi.fn() }));
+vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
 
 // Overridable per-test history payload; keep CHANGE_COLOR / isGitSha real.
 let historyByDoc = new Map<string, HistoryEntry[]>();
 let atlasRejects = false;
-vi.mock("../../lib/history", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/history")>();
+vi.mock("@/lib/history", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/history")>();
   return { ...actual, loadHistoryBatch: () => Promise.resolve(historyByDoc) };
 });
-vi.mock("../../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlas: () => (atlasRejects ? Promise.reject(new Error("boom")) : Promise.resolve({ byParent })),
 }));
 

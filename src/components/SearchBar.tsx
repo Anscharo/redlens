@@ -3,9 +3,9 @@ import { NavBar, type NavBarProps } from "./NavBar";
 import { Tooltip } from "./Tooltip";
 import { RecentSearches } from "./RecentSearches";
 import { useRecentDropdown } from "../hooks/useRecentDropdown";
-import { SCOPE_CONFIG, type ScopeConfig, type SearchScope } from "../lib/routes";
+import { SCOPE_CONFIG, type ScopeConfig, type SearchScope } from "@/lib/routes";
 import type { SearchMode } from "../hooks/useSearchInput";
-import type { RecentSuggestion } from "../lib/recentSearches";
+import type { RecentSuggestion } from "@/lib/recentSearches";
 import type { RefObject } from "react";
 
 const MODES: SearchMode[] = ["broad", "phrase", "strict"];

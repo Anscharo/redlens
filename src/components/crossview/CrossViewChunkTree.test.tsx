@@ -5,8 +5,8 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import type { ChunkNode } from "../../lib/crossview";
-import { atlasHref } from "../../lib/routes";
+import type { ChunkNode } from "@/lib/crossview";
+import { atlasHref } from "@/lib/routes";
 
 // Tooltip only renders its `content` on hover (timer-gated) — irrelevant to
 // what this component computes. Stub it to stamp the content onto the child

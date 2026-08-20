@@ -1,9 +1,9 @@
 // Table body for the Active Data Index — split out of ActiveDataReport.tsx so
 // the page file is data + filters + <ReportShell> only.
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
-import { adSearchFields, type ActiveDataRow } from "../../lib/activeDataIndex";
-import { hiddenMatches, type ReportQuery } from "../../lib/reportFilter";
+import { atlasHref } from "@/lib/routes";
+import { adSearchFields, type ActiveDataRow } from "@/lib/activeDataIndex";
+import { hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 import { EvidenceCell, LinkedName } from "./ActiveDataCells";
 

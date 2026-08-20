@@ -30,7 +30,7 @@ function makeNode(overrides: Partial<Record<string, unknown>> & { id: string; do
   };
 }
 
-vi.mock("../../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlas: () =>
     Promise.resolve({
       docs: {
@@ -50,8 +50,8 @@ vi.mock("../../lib/docs", () => ({
     }),
 }));
 
-vi.mock("../../lib/processesIndex", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/processesIndex")>();
+vi.mock("@/lib/processesIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/processesIndex")>();
   return {
     ...actual,
     loadProcesses: () =>

@@ -1,4 +1,4 @@
-import type { RewardsAgent } from "../../lib/rewardsIndex";
+import type { RewardsAgent } from "@/lib/rewardsIndex";
 import { PrimitiveTable } from "../reports/RewardsPrimitiveTable";
 
 interface Props {

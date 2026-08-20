@@ -4,14 +4,14 @@ import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import type { Glossary } from "../../lib/glossaryLookup";
+import type { Glossary } from "@/lib/glossaryLookup";
 
 // loadGlossary is mocked per-base so the base-keyed cache in src/lib/glossary.ts
 // can be exercised directly, mirroring ConceptCensus.test.tsx's approach for
 // its own base-keyed loadAtlas cache.
 const loadGlossaryCalls = vi.fn();
 let loadGlossaryImpl: (base?: string) => Promise<Glossary> = () => Promise.reject(new Error("not configured"));
-vi.mock("../../lib/glossary", () => ({
+vi.mock("@/lib/glossary", () => ({
   loadGlossary: (base?: string) => {
     loadGlossaryCalls(base);
     return loadGlossaryImpl(base);
@@ -19,7 +19,7 @@ vi.mock("../../lib/glossary", () => ({
 }));
 
 const useDataSourceMock = vi.fn();
-vi.mock("../../lib/dataSource", () => ({
+vi.mock("@/lib/dataSource", () => ({
   useDataSource: (...args: unknown[]) => useDataSourceMock(...args),
 }));
 

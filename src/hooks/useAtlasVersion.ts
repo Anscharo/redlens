@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loadHealth } from "../lib/health";
+import { loadHealth } from "@/lib/health";
 
 // Two-channel staleness detection:
 //

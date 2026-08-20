@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { Link } from "../Link";
 import { AtlasLink } from "../AtlasLink";
-import type { ActorProfile, ActorRelation, Recommendation } from "../../lib/actorIndex";
-import { ENTITY_TYPE_LABEL, ENTITY_TYPE_COLOR, edgeLabel } from "../../lib/entityGraph";
-import { atlasHref, actorHref } from "../../lib/routes";
+import type { ActorProfile, ActorRelation, Recommendation } from "@/lib/actorIndex";
+import { ENTITY_TYPE_LABEL, ENTITY_TYPE_COLOR, edgeLabel } from "@/lib/entityGraph";
+import { atlasHref, actorHref } from "@/lib/routes";
 import { ActorChain } from "./ActorChain";
 import { ActorContact } from "./ActorContact";
 import { ActorResponsibilities } from "./ActorResponsibilities";

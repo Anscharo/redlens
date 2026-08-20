@@ -5,7 +5,7 @@ import {
   listCollections,
   renameCollection,
   deleteCollection,
-} from "../lib/collectionsApi";
+} from "@/lib/collectionsApi";
 
 // Loads + mutates the signed-in user's collections. Mirrors the auth-probe
 // style (fetch on mount, tolerate failure, guard against post-unmount sets).

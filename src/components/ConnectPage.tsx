@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { ENDPOINT, CLIENTS, USAGE_EXAMPLES } from "./connectData";
-import { loadTools, type ToolInfo } from "../lib/tools";
+import { loadTools, type ToolInfo } from "@/lib/tools";
 
 function CodeBlock({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);

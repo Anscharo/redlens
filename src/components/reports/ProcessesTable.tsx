@@ -1,10 +1,10 @@
 // One category block of the Processes report: heading + the rows in that
 // category. The report renders one of these per category present.
-import type { AtlasNode } from "../../types";
-import type { ProcessRow as ProcessRowData } from "../../lib/processesIndex";
-import { getStepChildren } from "../../lib/processesIndex";
-import type { LocalIgnore } from "../../lib/curationStore";
-import type { ReportQuery } from "../../lib/reportFilter";
+import type { AtlasNode } from "@/types";
+import type { ProcessRow as ProcessRowData } from "@/lib/processesIndex";
+import { getStepChildren } from "@/lib/processesIndex";
+import type { LocalIgnore } from "@/lib/curationStore";
+import type { ReportQuery } from "@/lib/reportFilter";
 import { ProcessRow } from "./ProcessRow";
 
 const COLUMNS: [label: string, width: string][] = [

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { rowMatches, hiddenMatches, parseReportQuery } from "../../lib/reportFilter";
+import { rowMatches, hiddenMatches, parseReportQuery } from "@/lib/reportFilter";
 import { monthLabel, staleSearchFields } from "./staleDatesSearch";
-import type { DateClaim } from "../../lib/staleDates";
+import type { DateClaim } from "@/lib/staleDates";
 
 describe("monthLabel", () => {
   it("maps an ISO date to '<Month> <year>' by month POSITION", () => {

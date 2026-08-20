@@ -1,6 +1,6 @@
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
-import type { ActorContact } from "../../lib/actorIndex";
+import { atlasHref } from "@/lib/routes";
+import type { ActorContact } from "@/lib/actorIndex";
 
 const SCOPE_LABEL: Record<string, string> = {
   ecosystem: "Emergency · Ecosystem",

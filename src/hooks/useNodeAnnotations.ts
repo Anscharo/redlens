@@ -1,10 +1,10 @@
 import { useMemo } from "react";
-import { buildLookup, type GlossaryEntry } from "../lib/glossary";
-import { extractLinkedIds, type LoadedData } from "../lib/atlasHelpers";
-import { type AtlasNode, type AddressInfo } from "../types";
-import { type ChainValue } from "../lib/chainstate";
-import { findCousinDocs, type CousinDoc } from "../lib/cousins";
-import type { GraphData } from "../lib/graph";
+import { buildLookup, type GlossaryEntry } from "@/lib/glossary";
+import { extractLinkedIds, type LoadedData } from "@/lib/atlasHelpers";
+import { type AtlasNode, type AddressInfo } from "@/types";
+import { type ChainValue } from "@/lib/chainstate";
+import { findCousinDocs, type CousinDoc } from "@/lib/cousins";
+import type { GraphData } from "@/lib/graph";
 
 export function useNodeAnnotations(id: string, data: LoadedData | null, graph: GraphData | null) {
   const glossaryLookup = useMemo(

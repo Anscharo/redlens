@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   getSharedCollection: vi.fn(),
 }));
 
-vi.mock("../../lib/selection", () => ({
+vi.mock("@/lib/selection", () => ({
   useSelection: () => ({
     replace: mocks.replace,
     setActiveCollectionId: mocks.setActiveCollectionId,
@@ -26,8 +26,8 @@ vi.mock("wouter", () => ({
     <a href={to} {...rest}>{children}</a>
   ),
 }));
-vi.mock("../../lib/analytics", () => ({ track: mocks.track }));
-vi.mock("../../lib/collectionsApi", () => ({ getSharedCollection: mocks.getSharedCollection }));
+vi.mock("@/lib/analytics", () => ({ track: mocks.track }));
+vi.mock("@/lib/collectionsApi", () => ({ getSharedCollection: mocks.getSharedCollection }));
 
 import { SharedCollectionOpener } from "./SharedCollectionOpener";
 

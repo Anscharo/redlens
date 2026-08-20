@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { loadAtlas } from "../../lib/docs";
-import { computeConceptsCensus, type CensusResult, type CensusSlug } from "../../lib/conceptsCensus";
-import { track } from "../../lib/analytics";
-import { toCSV } from "../../lib/csv";
-import { downloadCSV } from "../../lib/csvDownload";
-import { useDataSource } from "../../lib/dataSource";
+import { loadAtlas } from "@/lib/docs";
+import { computeConceptsCensus, type CensusResult, type CensusSlug } from "@/lib/conceptsCensus";
+import { track } from "@/lib/analytics";
+import { toCSV } from "@/lib/csv";
+import { downloadCSV } from "@/lib/csvDownload";
+import { useDataSource } from "@/lib/dataSource";
 import { ConceptCensusMembers } from "./ConceptCensusMembers";
 
 // Interleaved into docs/crossview/concepts.md via a `:::census <slug>` marker

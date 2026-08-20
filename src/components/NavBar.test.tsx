@@ -5,7 +5,7 @@ import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { NavBar } from "./NavBar";
-import { DataSourceContext, DEFAULT_SOURCE, type DataSource } from "../lib/dataSource";
+import { DataSourceContext, DEFAULT_SOURCE, type DataSource } from "@/lib/dataSource";
 
 afterEach(() => {
   cleanup();

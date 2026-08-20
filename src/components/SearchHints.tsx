@@ -1,5 +1,5 @@
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-import { SLASH_COMMANDS } from "../lib/shortcuts";
+import { SLASH_COMMANDS } from "@/lib/shortcuts";
 
 const HINTS: { label: string; query: string; description: string }[] = [
   {

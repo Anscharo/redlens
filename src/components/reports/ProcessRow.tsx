@@ -1,12 +1,12 @@
 // One process row (collapsed summary + expanded body) for the Processes
 // report, with its two small status/steps cells.
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
-import { HEADER_OFFSET } from "../../lib/layout";
-import type { ProcessRow as ProcessRowData } from "../../lib/processesIndex";
-import type { LocalIgnore } from "../../lib/curationStore";
-import type { AtlasNode } from "../../types";
-import type { ReportQuery } from "../../lib/reportFilter";
+import { atlasHref } from "@/lib/routes";
+import { HEADER_OFFSET } from "@/lib/layout";
+import type { ProcessRow as ProcessRowData } from "@/lib/processesIndex";
+import type { LocalIgnore } from "@/lib/curationStore";
+import type { AtlasNode } from "@/types";
+import type { ReportQuery } from "@/lib/reportFilter";
 import { Highlight } from "./Highlight";
 import { ProcessExpandedBody } from "./ProcessExpandedBody";
 

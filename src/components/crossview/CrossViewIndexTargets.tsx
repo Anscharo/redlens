@@ -3,7 +3,7 @@
 // panel) so a topic's targets render identically (and link identically) in
 // either surface. See src/lib/crossviewIndex.ts for the parse + grouping logic
 // this renders.
-import { groupTargetsForDisplay, type CrossViewIndexTarget } from "../../lib/crossviewIndex";
+import { groupTargetsForDisplay, type CrossViewIndexTarget } from "@/lib/crossviewIndex";
 
 export function TargetLinks({ targets }: { targets: CrossViewIndexTarget[] }) {
   const grouped = groupTargetsForDisplay(targets);

@@ -4,13 +4,13 @@ import { renderHook, cleanup, act, waitFor } from "@testing-library/react";
 
 const loadHealth = vi.fn();
 const fetchHealthFresh = vi.fn();
-vi.mock("../lib/health", () => ({
+vi.mock("@/lib/health", () => ({
   loadHealth: (...a: unknown[]) => loadHealth(...a),
   fetchHealthFresh: (...a: unknown[]) => fetchHealthFresh(...a),
 }));
 
 const track = vi.fn();
-vi.mock("../lib/analytics", () => ({ track: (...a: unknown[]) => track(...a) }));
+vi.mock("@/lib/analytics", () => ({ track: (...a: unknown[]) => track(...a) }));
 
 function setVisible(state: "visible" | "hidden") {
   Object.defineProperty(document, "visibilityState", { configurable: true, value: state });

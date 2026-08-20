@@ -1,6 +1,6 @@
-import type { CensusMember } from "../../lib/conceptsCensus";
+import type { CensusMember } from "@/lib/conceptsCensus";
 import { Link } from "../Link";
-import { atlasHref } from "../../lib/routes";
+import { atlasHref } from "@/lib/routes";
 
 // The expandable member list under a ConceptCensus block — split out to keep
 // ConceptCensus.tsx under the ~150-line convention. Layout follows

@@ -4,16 +4,16 @@ import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import type { AnchorHTMLAttributes } from "react";
 import type { Element } from "hast";
-import { ethAddressesPlugin, rehypeEthAddresses } from "../lib/rehypeEthAddresses";
-import { remarkDeMathProse } from "../lib/mathGuard";
-import { UUID_RE } from "../lib/patterns";
-import { atlasHref } from "../lib/routes";
-import { resolveAtlasRef } from "../lib/docs";
-import { useDataSource } from "../lib/dataSource";
-import { track } from "../lib/analytics";
-import { rehypeHighlightMarks } from "../lib/rehypeHighlightMarks";
+import { ethAddressesPlugin, rehypeEthAddresses } from "@/lib/rehypeEthAddresses";
+import { remarkDeMathProse } from "@/lib/mathGuard";
+import { UUID_RE } from "@/lib/patterns";
+import { atlasHref } from "@/lib/routes";
+import { resolveAtlasRef } from "@/lib/docs";
+import { useDataSource } from "@/lib/dataSource";
+import { track } from "@/lib/analytics";
+import { rehypeHighlightMarks } from "@/lib/rehypeHighlightMarks";
 import { AddressTooltip } from "./AddressTooltip";
-import type { ReportQuery } from "../lib/reportFilter";
+import type { ReportQuery } from "@/lib/reportFilter";
 
 interface Props {
   content: string;

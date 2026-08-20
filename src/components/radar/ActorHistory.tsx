@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link } from "../Link";
 import { Tooltip } from "../Tooltip";
-import { ATLAS_REPO, CHANGE_COLOR, isGitSha, loadHistoryBatch, movePaths, prHref, severedRange, type HistoryEntry } from "../../lib/history";
-import type { ActorProfile } from "../../lib/actorIndex";
-import type { AtlasNode } from "../../types";
-import { ROUTES } from "../../lib/routes";
+import { ATLAS_REPO, CHANGE_COLOR, isGitSha, loadHistoryBatch, movePaths, prHref, severedRange, type HistoryEntry } from "@/lib/history";
+import type { ActorProfile } from "@/lib/actorIndex";
+import type { AtlasNode } from "@/types";
+import { ROUTES } from "@/lib/routes";
 import { useRadar } from "./RadarContext";
-import { loadAtlas } from "../../lib/docs";
-import { descendantIds } from "../../lib/instanceDescendants";
-import { shortenTitle } from "../../lib/shortenTitle";
-import { track } from "../../lib/analytics";
+import { loadAtlas } from "@/lib/docs";
+import { descendantIds } from "@/lib/instanceDescendants";
+import { shortenTitle } from "@/lib/shortenTitle";
+import { track } from "@/lib/analytics";
 import { ROW_COLORS, BORDER } from "./primitiveTable";
 
 type Category = "definition" | "instance" | "param" | "primitive" | "reward" | "config";

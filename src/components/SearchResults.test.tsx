@@ -10,8 +10,8 @@ const mocks = vi.hoisted(() => ({
   loadGraph: vi.fn(),
   track: vi.fn(),
 }));
-vi.mock("../lib/graph", () => ({ loadGraph: mocks.loadGraph }));
-vi.mock("../lib/analytics", () => ({ track: mocks.track, captureException: vi.fn() }));
+vi.mock("@/lib/graph", () => ({ loadGraph: mocks.loadGraph }));
+vi.mock("@/lib/analytics", () => ({ track: mocks.track, captureException: vi.fn() }));
 
 afterEach(() => {
   cleanup();

@@ -1,12 +1,12 @@
 import { Link } from "../Link";
 import { AtlasLink } from "../AtlasLink";
-import type { AddressInfo } from "../../types";
-import type { AgentPrimitive, RewardsAgent, RewardsInstance, RewardsInvocation } from "../../lib/rewardsIndex";
-import { atlasHref, actorHref } from "../../lib/routes";
+import type { AddressInfo } from "@/types";
+import type { AgentPrimitive, RewardsAgent, RewardsInstance, RewardsInvocation } from "@/lib/rewardsIndex";
+import { atlasHref, actorHref } from "@/lib/routes";
 import { AddressLink, StatusPill } from "./RewardsCells";
-import { EMPTY_QUERY, hiddenMatches, type ReportQuery } from "../../lib/reportFilter";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
-import { icdSearchFields } from "../../lib/rewardsSearch";
+import { icdSearchFields } from "@/lib/rewardsSearch";
 
 function InstanceRow({
   inst,

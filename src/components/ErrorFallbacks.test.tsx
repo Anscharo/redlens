@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { PanelError, InlineError } from "./ErrorFallbacks";
-import { pageReloader } from "../lib/staleChunk";
+import { pageReloader } from "@/lib/staleChunk";
 
 beforeEach(() => {
   vi.spyOn(pageReloader, "reload").mockImplementation(() => {});

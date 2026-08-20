@@ -13,13 +13,13 @@ const setPref = vi.fn((k: string, v: boolean) => {
   prefs = { ...prefs, [k]: v };
 });
 vi.mock("./usePrefs", () => ({ usePrefs: () => ({ prefs, setPref }) }));
-vi.mock("../../lib/analytics", () => ({ track: vi.fn() }));
+vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
 // The signed-out menu renders SignInButtons, which gates on authProviders();
 // under vitest the real one returns [] (usersEnabled() is false), so stub it.
-vi.mock("../../lib/authProviders", () => ({ authProviders: () => ["github", "google"] }));
+vi.mock("@/lib/authProviders", () => ({ authProviders: () => ["github", "google"] }));
 
 let chatEnabledOn = true;
-vi.mock("../../lib/chatEnabled", () => ({ chatEnabled: () => chatEnabledOn }));
+vi.mock("@/lib/chatEnabled", () => ({ chatEnabled: () => chatEnabledOn }));
 
 import { ProfileButton } from "./ProfileButton";
 

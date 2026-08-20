@@ -7,19 +7,19 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useSWUpdate } from "../hooks/useSWUpdate";
 import { useAtlasVersion } from "../hooks/useAtlasVersion";
 import { useBuildBehind } from "../hooks/useBuildBehind";
-import { loadAtlas } from "../lib/docs";
-import { loadChainState } from "../lib/chainstate";
-import { loadHealth } from "../lib/health";
-import { useDataSource } from "../lib/dataSource";
+import { loadAtlas } from "@/lib/docs";
+import { loadChainState } from "@/lib/chainstate";
+import { loadHealth } from "@/lib/health";
+import { useDataSource } from "@/lib/dataSource";
 
 vi.mock("../hooks/useOnlineStatus", () => ({ useOnlineStatus: vi.fn() }));
 vi.mock("../hooks/useSWUpdate", () => ({ useSWUpdate: vi.fn() }));
 vi.mock("../hooks/useAtlasVersion", () => ({ useAtlasVersion: vi.fn() }));
 vi.mock("../hooks/useBuildBehind", () => ({ useBuildBehind: vi.fn() }));
-vi.mock("../lib/docs", () => ({ loadAtlas: vi.fn() }));
-vi.mock("../lib/chainstate", () => ({ loadChainState: vi.fn() }));
-vi.mock("../lib/health", () => ({ loadHealth: vi.fn() }));
-vi.mock("../lib/dataSource", () => ({ useDataSource: vi.fn() }));
+vi.mock("@/lib/docs", () => ({ loadAtlas: vi.fn() }));
+vi.mock("@/lib/chainstate", () => ({ loadChainState: vi.fn() }));
+vi.mock("@/lib/health", () => ({ loadHealth: vi.fn() }));
+vi.mock("@/lib/dataSource", () => ({ useDataSource: vi.fn() }));
 
 const applyUpdate = vi.fn();
 const LIVE_SHA = "a".repeat(40);

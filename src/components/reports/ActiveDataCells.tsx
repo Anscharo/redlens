@@ -2,9 +2,9 @@
 // so both files stay small: evidence chains (the RP/Facilitator provenance
 // trail as doc_no breadcrumbs) and the shared entity-name cell.
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
-import type { ActiveDataRow, EvidenceStep } from "../../lib/activeDataIndex";
-import type { ReportQuery } from "../../lib/reportFilter";
+import { atlasHref } from "@/lib/routes";
+import type { ActiveDataRow, EvidenceStep } from "@/lib/activeDataIndex";
+import type { ReportQuery } from "@/lib/reportFilter";
 import { Highlight } from "./Highlight";
 
 function EvidenceChain({ title, steps }: { title: string; steps: EvidenceStep[] }) {

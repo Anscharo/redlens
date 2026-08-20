@@ -6,7 +6,7 @@ import {
   FREQUENCY_COMPARATORS,
   FREQUENCY_MIN,
   FREQUENCY_MAX,
-} from "../../lib/modFrequencyIndex";
+} from "@/lib/modFrequencyIndex";
 import { CategoryPills } from "./CategoryPills";
 import { ModFrequencyTabs, type ModFrequencyTab } from "./ModFrequencyTabs";
 import { ModFrequencyTimeline } from "./ModFrequencyTimeline";

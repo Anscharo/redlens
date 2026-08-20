@@ -1,4 +1,4 @@
-import type { WordSegment } from "../../lib/history";
+import type { WordSegment } from "@/lib/history";
 
 const WORD_ADDED_STYLE: React.CSSProperties = {
   background: "var(--diff-added-bg)",

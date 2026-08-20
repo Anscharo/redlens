@@ -1,9 +1,9 @@
 import { useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useSearch } from "./useSearch";
 import { useUrlState, urlString, urlEnum } from "./useUrlState";
-import { ROUTES, type SearchScope } from "../lib/routes";
-import { track } from "../lib/analytics";
-import { useRecentSearches, useRecordRecentSearch } from "../lib/recentSearches";
+import { ROUTES, type SearchScope } from "@/lib/routes";
+import { track } from "@/lib/analytics";
+import { useRecentSearches, useRecordRecentSearch } from "@/lib/recentSearches";
 
 const queryCodec = urlString(null);
 

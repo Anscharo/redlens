@@ -6,12 +6,12 @@ import {
   type TimelineGranularity,
   type ModTimelinePeriodRow,
   type ModTimelineCommitRow,
-} from "../../lib/history";
+} from "@/lib/history";
 import {
   buildModTimelineMonthBuckets,
   buildModTimelineWeekBuckets,
   buildModTimelineCommitBuckets,
-} from "../../lib/modFrequencyCharts";
+} from "@/lib/modFrequencyCharts";
 
 export const TIMELINE_GRANULARITIES: readonly TimelineGranularity[] = ["month", "week", "commit"];
 const granularityCodec = urlEnum<TimelineGranularity>("month", TIMELINE_GRANULARITIES);

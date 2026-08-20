@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { OeaRow, OeaReportArtifact } from "../../lib/oeaReport";
+import type { OeaRow, OeaReportArtifact } from "@/lib/oeaReport";
 
 Element.prototype.scrollIntoView = vi.fn();
 globalThis.ResizeObserver ??= class {
@@ -81,12 +81,12 @@ const ROW_UNASSESSED = makeRow({
 
 let mockRows: OeaRow[] = [ROW_STRONG, ROW_ASSIGNMENT, ROW_UNASSESSED];
 
-vi.mock("../../lib/oeaReportLoad", () => ({
+vi.mock("@/lib/oeaReportLoad", () => ({
   loadOeaReport: () => Promise.resolve(makeReport(mockRows)),
 }));
 
 const trackMock = vi.fn();
-vi.mock("../../lib/analytics", () => ({ track: (...args: unknown[]) => trackMock(...args) }));
+vi.mock("@/lib/analytics", () => ({ track: (...args: unknown[]) => trackMock(...args) }));
 
 import { OeaAssessmentReport } from "./OeaAssessmentReport";
 

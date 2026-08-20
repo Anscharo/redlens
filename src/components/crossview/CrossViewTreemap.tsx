@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import type { ChunkNode } from "../../lib/crossview";
-import { buildTreemap, type TreemapRect } from "../../lib/treemap";
+import type { ChunkNode } from "@/lib/crossview";
+import { buildTreemap, type TreemapRect } from "@/lib/treemap";
 import { Link } from "../Link";
-import { atlasHref } from "../../lib/routes";
+import { atlasHref } from "@/lib/routes";
 
 // Nested squarified treemap of the chunk tree: every rect's area is its doc
 // share; the largest chunk sits in its parent's top-left, recursively. Single

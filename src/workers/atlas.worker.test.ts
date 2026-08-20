@@ -9,7 +9,7 @@
 
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { installWorkerGlobal, stubFetch, type WorkerHarness } from "../test/workerGlobal";
-import type { AtlasNode } from "../types";
+import type { AtlasNode } from "@/types";
 
 let harness: WorkerHarness | null = null;
 

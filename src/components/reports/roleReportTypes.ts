@@ -1,12 +1,12 @@
 // Shared config contract for the role-responsibility reports (Operational
 // Facilitator, Operational GovOps). Split from RoleResponsibilityReport.tsx /
 // useRoleReportState.ts so both can import it without a circular dependency.
-import type { GraphData } from "../../lib/graph";
-import type { AtlasBundle } from "../../lib/docs";
-import type { ActiveFilter, Chain } from "../../lib/reportChains";
-import type { ReportQuery, SearchField } from "../../lib/reportFilter";
+import type { GraphData } from "@/lib/graph";
+import type { AtlasBundle } from "@/lib/docs";
+import type { ActiveFilter, Chain } from "@/lib/reportChains";
+import type { ReportQuery, SearchField } from "@/lib/reportFilter";
 import type { RoleRow } from "./RoleCategoryTable";
-import type { ReportId } from "../../types";
+import type { ReportId } from "@/types";
 
 export interface RoleReportConfig<R extends RoleRow> {
   reportId: ReportId; // analytics report id + CSV export slug

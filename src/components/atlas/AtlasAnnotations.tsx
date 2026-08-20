@@ -3,10 +3,10 @@ import { useResizeDrag } from "../../hooks/useResizeDrag";
 import { useGraphEdges } from "../../hooks/useGraphEdges";
 import { RightPanel } from "./RightPanel";
 import { ErrorBoundary, PanelError } from "../ErrorBoundary";
-import type { AtlasNode, AddressInfo } from "../../types";
-import type { ChainValue } from "../../lib/chainstate";
-import type { GlossaryEntry } from "../../lib/glossary";
-import type { CousinDoc } from "../../lib/cousins";
+import type { AtlasNode, AddressInfo } from "@/types";
+import type { ChainValue } from "@/lib/chainstate";
+import type { GlossaryEntry } from "@/lib/glossary";
+import type { CousinDoc } from "@/lib/cousins";
 
 const RIGHT_PANEL_KEY = "redline-sky-atlas:right-panel-width";
 const RIGHT_PANEL_MIN = 260;

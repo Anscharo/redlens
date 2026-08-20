@@ -11,7 +11,7 @@ import { render, screen, cleanup, fireEvent, waitFor, act } from "@testing-libra
 import "@testing-library/jest-dom/vitest";
 import { useRef } from "react";
 import { TreeSidebar } from "./TreeSidebar";
-import { revealStore } from "../../lib/revealStore";
+import { revealStore } from "@/lib/revealStore";
 import { makeNode, makeAtlasBundle } from "../../test/fixtures";
 
 const mocks = vi.hoisted(() => ({
@@ -34,19 +34,19 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../../hooks/useAtlasTree", () => ({ useAtlasTree: () => mocks.bundle }));
 vi.mock("../../hooks/usePulseDom", () => ({ usePulseDom: () => {} }));
 vi.mock("../../hooks/useRevealFlash", () => ({ useRevealFlash: () => new Set<string>() }));
-vi.mock("../../lib/previewFilter", () => ({
+vi.mock("@/lib/previewFilter", () => ({
   usePreviewChangedSet: () => mocks.changedSet,
   usePreviewDim: () => false,
 }));
-vi.mock("../../lib/previewDiff", () => ({ usePreviewDiff: () => mocks.diff }));
-vi.mock("../../lib/selectionFilter", () => ({ useSelectionSet: () => mocks.selectionSet }));
-vi.mock("../../lib/dataSource", () => ({ useDataSource: () => mocks.dataSource }));
-vi.mock("../../lib/analytics", () => ({ track: (...args: unknown[]) => mocks.track(...args) }));
+vi.mock("@/lib/previewDiff", () => ({ usePreviewDiff: () => mocks.diff }));
+vi.mock("@/lib/selectionFilter", () => ({ useSelectionSet: () => mocks.selectionSet }));
+vi.mock("@/lib/dataSource", () => ({ useDataSource: () => mocks.dataSource }));
+vi.mock("@/lib/analytics", () => ({ track: (...args: unknown[]) => mocks.track(...args) }));
 vi.mock("../preview/PreviewTreeToggle", () => ({ PreviewTreeToggle: () => null }));
 vi.mock("../selection/SelectionTreeToggle", () => ({ SelectionTreeToggle: () => null }));
 // truncateTitle measures via @chenglou/pretext, which needs a real canvas
 // (unavailable in jsdom) — stub it so rows render without the width math.
-vi.mock("../../lib/treeUtils", () => ({ truncateTitle: (title: string) => title }));
+vi.mock("@/lib/treeUtils", () => ({ truncateTitle: (title: string) => title }));
 
 vi.mock("react-window", () => ({
   useListRef: (init: unknown) => useRef(init),

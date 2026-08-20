@@ -5,7 +5,7 @@
 // with no separate DOM query needed.
 import { useMemo } from "react";
 import conceptsRaw from "../../../docs/crossview/concepts.md?raw";
-import { extractHeadings } from "../../lib/crossviewHeadings";
+import { extractHeadings } from "@/lib/crossviewHeadings";
 
 // Sticky within the page's own scroll (this route is windowScroll — see
 // App.tsx), just below the app's sticky search header (64px) plus a little

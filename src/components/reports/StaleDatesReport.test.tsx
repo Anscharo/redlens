@@ -10,7 +10,7 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 } as unknown as typeof ResizeObserver;
 
-import type { StaleDatesReport as StaleDatesReportData, DateClaim } from "../../lib/staleDates";
+import type { StaleDatesReport as StaleDatesReportData, DateClaim } from "@/lib/staleDates";
 
 function claim(over: Partial<DateClaim>): DateClaim {
   return {
@@ -50,9 +50,9 @@ const reportFixture: StaleDatesReportData = {
 
 let buildImpl = () => reportFixture;
 
-vi.mock("../../lib/docs", () => ({ loadDocs: () => Promise.resolve({}) }));
-vi.mock("../../lib/staleDates", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/staleDates")>();
+vi.mock("@/lib/docs", () => ({ loadDocs: () => Promise.resolve({}) }));
+vi.mock("@/lib/staleDates", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/staleDates")>();
   return {
     ...actual,
     buildStaleDatesReport: () => buildImpl(),
@@ -144,7 +144,7 @@ describe("StaleDatesReport", () => {
   // route, resetKey={location}) owns the error page for reports too.
   it("surfaces a load failure to the surrounding ErrorBoundary instead of a spinner", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const docsModule = await import("../../lib/docs");
+    const docsModule = await import("@/lib/docs");
     vi.spyOn(docsModule, "loadDocs").mockImplementationOnce(() => Promise.reject(new Error("boom")));
 
     render(

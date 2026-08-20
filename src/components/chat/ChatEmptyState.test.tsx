@@ -5,10 +5,10 @@ import "@testing-library/jest-dom/vitest";
 import type { PageContextView } from "./pageContext";
 
 const { track } = vi.hoisted(() => ({ track: vi.fn() }));
-vi.mock("../../lib/analytics", () => ({ track }));
+vi.mock("@/lib/analytics", () => ({ track }));
 
 const { listConversations } = vi.hoisted(() => ({ listConversations: vi.fn() }));
-vi.mock("../../lib/conversationsApi", () => ({ listConversations }));
+vi.mock("@/lib/conversationsApi", () => ({ listConversations }));
 
 import { ChatEmptyState } from "./ChatEmptyState";
 

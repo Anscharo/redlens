@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { atlasHref } from "../../lib/routes";
-import { useChatOpenOptional } from "../../lib/chatOpen";
+import { atlasHref } from "@/lib/routes";
+import { useChatOpenOptional } from "@/lib/chatOpen";
 import { ChatLauncher } from "./ChatLauncher";
 import { ChatPanel } from "./ChatPanel";
 import { useChatSession } from "./useChatSession";
 import { usePageContext } from "./pageContext";
-import { track } from "../../lib/analytics";
+import { track } from "@/lib/analytics";
 import { clearResume, readFreshResume, writeResume, type ResumeSnapshot } from "./resume";
 import type { Placement } from "./types";
 import "./chat.css";

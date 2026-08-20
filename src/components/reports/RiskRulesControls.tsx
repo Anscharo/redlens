@@ -1,8 +1,8 @@
 // Pill groups + summary strip for the Risk Rules Assessment report. Risk Type
 // is multi-select (a row can carry several domains); the rest are single-select.
-import { RISK_DOMAIN_LABELS, type RiskDomain } from "../../lib/riskRules";
-import type { Rating } from "../../lib/oeaAssessment";
-import { summarizeRisk, type RiskJoin, type RiskRowStatus } from "../../lib/riskAssessmentIndex";
+import { RISK_DOMAIN_LABELS, type RiskDomain } from "@/lib/riskRules";
+import type { Rating } from "@/lib/oeaAssessment";
+import { summarizeRisk, type RiskJoin, type RiskRowStatus } from "@/lib/riskAssessmentIndex";
 import { CategoryPills } from "./CategoryPills";
 
 export const DOMAINS = Object.keys(RISK_DOMAIN_LABELS) as RiskDomain[];

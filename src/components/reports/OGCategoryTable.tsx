@@ -1,7 +1,7 @@
-import { ogSearchFields, type OGResponsibility } from "../../lib/govopsResponsibilities";
-import type { Chain } from "../../lib/reportChains";
+import { ogSearchFields, type OGResponsibility } from "@/lib/govopsResponsibilities";
+import type { Chain } from "@/lib/reportChains";
 import { RoleCategoryTable, type RoleCategoryTableConfig } from "./RoleCategoryTable";
-import { EMPTY_QUERY, type ReportQuery } from "../../lib/reportFilter";
+import { EMPTY_QUERY, type ReportQuery } from "@/lib/reportFilter";
 
 // ogSearchFields (the row search haystack) lives in the lib module so the
 // atlas_report_govops_responsibilities MCP tool filters rows with the exact

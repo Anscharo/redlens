@@ -6,11 +6,11 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
-vi.mock("../../lib/previewDiff", () => ({ usePreviewDiff: vi.fn() }));
+vi.mock("@/lib/previewDiff", () => ({ usePreviewDiff: vi.fn() }));
 
 import { PreviewMark } from "./PreviewMark";
-import { usePreviewDiff } from "../../lib/previewDiff";
-import type { PreviewDiff } from "../../lib/previewDiff";
+import { usePreviewDiff } from "@/lib/previewDiff";
+import type { PreviewDiff } from "@/lib/previewDiff";
 
 const mockDiff = vi.mocked(usePreviewDiff);
 

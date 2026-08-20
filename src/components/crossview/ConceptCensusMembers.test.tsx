@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { ConceptCensusMembers } from "./ConceptCensusMembers";
-import type { CensusMember } from "../../lib/conceptsCensus";
+import type { CensusMember } from "@/lib/conceptsCensus";
 
 afterEach(cleanup);
 

@@ -1,4 +1,4 @@
-import type { AgentPrimitiveStat } from "../../lib/primitiveStats";
+import type { AgentPrimitiveStat } from "@/lib/primitiveStats";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import { AgentPanel } from "./AgentPanel";
 

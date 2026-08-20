@@ -2,9 +2,9 @@ import { memo, type ReactNode } from "react";
 import { AtlasLink } from "./AtlasLink";
 import { NodeContent } from "./NodeContent";
 import { RelatedSelectBox } from "./RelatedSelectBox";
-import { atlasHref } from "../lib/routes";
-import type { AtlasNode } from "../types";
-import { depthColor, realDepth } from "../lib/depth";
+import { atlasHref } from "@/lib/routes";
+import type { AtlasNode } from "@/types";
+import { depthColor, realDepth } from "@/lib/depth";
 
 export const RelatedNode = memo(function RelatedNode({
   node,

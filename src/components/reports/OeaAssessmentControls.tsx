@@ -1,7 +1,7 @@
 // Pill groups + the summary strip for the OEA Task Assessment report.
-import { OEA_CATEGORY_LABELS, type OeaCategory } from "../../lib/oeaTasks";
-import type { Rating } from "../../lib/oeaAssessment";
-import { summarize, type OeaRow, type OeaRowStatus } from "../../lib/oeaReport";
+import { OEA_CATEGORY_LABELS, type OeaCategory } from "@/lib/oeaTasks";
+import type { Rating } from "@/lib/oeaAssessment";
+import { summarize, type OeaRow, type OeaRowStatus } from "@/lib/oeaReport";
 import { CategoryPills } from "./CategoryPills";
 
 export const RATING_LABELS: Record<Rating, string> = { weak: "weak", mid: "mid", strong: "strong" };

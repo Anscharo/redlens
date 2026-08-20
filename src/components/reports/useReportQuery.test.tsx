@@ -11,7 +11,7 @@ import { memoryLocation } from "wouter/memory-location";
 import { urlString } from "../../hooks/useUrlState";
 
 const track = vi.fn();
-vi.mock("../../lib/analytics", () => ({ track: (...args: unknown[]) => track(...args) }));
+vi.mock("@/lib/analytics", () => ({ track: (...args: unknown[]) => track(...args) }));
 
 const { useReportFilter, useReportEnum, useReportSelect, useReportList, useReportSwitch, useReportQuery } =
   await import("./useReportQuery");

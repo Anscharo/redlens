@@ -3,8 +3,8 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { ModFrequencyTable } from "./ModFrequencyTable";
-import { EMPTY_QUERY, parseReportQuery } from "../../lib/reportFilter";
-import type { ModFrequencyGroup, ModFrequencyRow } from "../../lib/modFrequencyIndex";
+import { EMPTY_QUERY, parseReportQuery } from "@/lib/reportFilter";
+import type { ModFrequencyGroup, ModFrequencyRow } from "@/lib/modFrequencyIndex";
 
 afterEach(cleanup);
 

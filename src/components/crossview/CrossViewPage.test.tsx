@@ -4,7 +4,7 @@ import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import type { CrossViewData } from "../../lib/crossview";
+import type { CrossViewData } from "@/lib/crossview";
 
 // Track analytics + data loading are mocked; tab-content components are mocked
 // too so this file stays a unit test of CrossViewPage's own tab-switching / title
@@ -12,13 +12,13 @@ import type { CrossViewData } from "../../lib/crossview";
 // CrossViewConcepts/Audit, CrossViewToc, or CrossViewTopicIndex (each owns its own
 // tests, or is out of scope here).
 const trackMock = vi.fn();
-vi.mock("../../lib/analytics", () => ({
+vi.mock("@/lib/analytics", () => ({
   track: (...args: unknown[]) => trackMock(...args),
 }));
 
 const loadCrossViewCalls = vi.fn();
 let loadCrossViewImpl: (base?: string) => Promise<CrossViewData> = () => Promise.reject(new Error("not configured"));
-vi.mock("../../lib/crossview", () => ({
+vi.mock("@/lib/crossview", () => ({
   loadCrossView: (base?: string) => {
     loadCrossViewCalls(base);
     return loadCrossViewImpl(base);
@@ -26,7 +26,7 @@ vi.mock("../../lib/crossview", () => ({
 }));
 
 const useDataSourceMock = vi.fn();
-vi.mock("../../lib/dataSource", () => ({
+vi.mock("@/lib/dataSource", () => ({
   useDataSource: (...args: unknown[]) => useDataSourceMock(...args),
 }));
 

@@ -1,6 +1,6 @@
 import { Link } from "../Link";
-import { actorHref } from "../../lib/routes";
-import type { SidebarGroup } from "../../lib/actorIndex";
+import { actorHref } from "@/lib/routes";
+import type { SidebarGroup } from "@/lib/actorIndex";
 
 interface Props {
   groups: SidebarGroup[];

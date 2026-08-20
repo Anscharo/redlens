@@ -1,12 +1,12 @@
 import { Suspense, use, useEffect, useMemo, useState } from "react";
 import { useLocation, useRouter } from "wouter";
-import { loadDocs } from "../../lib/docs";
-import { loadGraph } from "../../lib/graph";
-import { useDataSource } from "../../lib/dataSource";
-import { buildRewardsIndex } from "../../lib/rewardsIndex";
-import { buildActiveDataRows } from "../../lib/activeDataIndex";
-import { buildSidebarActors, buildActorProfile } from "../../lib/actorIndex";
-import { buildPrimitiveStats } from "../../lib/primitiveStats";
+import { loadDocs } from "@/lib/docs";
+import { loadGraph } from "@/lib/graph";
+import { useDataSource } from "@/lib/dataSource";
+import { buildRewardsIndex } from "@/lib/rewardsIndex";
+import { buildActiveDataRows } from "@/lib/activeDataIndex";
+import { buildSidebarActors, buildActorProfile } from "@/lib/actorIndex";
+import { buildPrimitiveStats } from "@/lib/primitiveStats";
 import { ActorList } from "./ActorList";
 import { ActorDashboard } from "./ActorDashboard";
 import { PrimitiveDashboard } from "./PrimitiveDashboard";
@@ -14,8 +14,8 @@ import { Drawer, DrawerToggle } from "../Drawer";
 import { Loading } from "../Loading";
 import { RadarProvider } from "./RadarContext";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { recordVisit } from "../../lib/visitHistory";
-import { actorHref } from "../../lib/routes";
+import { recordVisit } from "@/lib/visitHistory";
+import { actorHref } from "@/lib/routes";
 
 interface Props {
   query: string;

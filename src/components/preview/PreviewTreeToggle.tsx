@@ -1,7 +1,7 @@
-import { useDataSource } from "../../lib/dataSource";
-import { usePreviewView } from "../../lib/previewView";
-import { usePreviewDiff } from "../../lib/previewDiff";
-import { track } from "../../lib/analytics";
+import { useDataSource } from "@/lib/dataSource";
+import { usePreviewView } from "@/lib/previewView";
+import { usePreviewDiff } from "@/lib/previewDiff";
+import { track } from "@/lib/analytics";
 import { TREE_TOGGLE_BAR_CLASS, TREE_TOGGLE_BAR_STYLE, togglePillStyle } from "../tree/togglePill";
 
 // Sits above the tree in preview mode: "All" ⇄ "Changed only". The toggle is

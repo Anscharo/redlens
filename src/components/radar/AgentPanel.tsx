@@ -1,7 +1,7 @@
 import { Link } from "../Link";
 import { Tooltip } from "../Tooltip";
-import type { AgentPrimitiveStat } from "../../lib/primitiveStats";
-import { actorHref } from "../../lib/routes";
+import type { AgentPrimitiveStat } from "@/lib/primitiveStats";
+import { actorHref } from "@/lib/routes";
 import { CategoryRows } from "./CategoryRows";
 import { HEADERS, thStyle } from "./primitiveTable";
 

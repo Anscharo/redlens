@@ -8,7 +8,7 @@
 // (a wide table with its own scroll container) pass it as `fullWidth`, which
 // renders outside the centered column.
 import type { ReactNode } from "react";
-import type { ReportId } from "../../types";
+import type { ReportId } from "@/types";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { FilterSummary } from "./FilterSummary";
 import { NoRowsMatch } from "./NoRowsMatch";

@@ -14,7 +14,7 @@ vi.mock("./useUsage", () => ({
 }));
 
 const { getConversation } = vi.hoisted(() => ({ getConversation: vi.fn() }));
-vi.mock("../../lib/conversationsApi", () => ({ getConversation }));
+vi.mock("@/lib/conversationsApi", () => ({ getConversation }));
 
 import { useChatSession } from "./useChatSession";
 

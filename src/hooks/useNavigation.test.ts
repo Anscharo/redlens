@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, cleanup } from "@testing-library/react";
 
 const track = vi.fn();
-vi.mock("../lib/analytics", () => ({
+vi.mock("@/lib/analytics", () => ({
   track: (...a: unknown[]) => track(...a),
 }));
 

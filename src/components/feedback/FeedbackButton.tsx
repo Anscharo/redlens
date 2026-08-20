@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { isTypingTarget } from "../../lib/shortcuts";
+import { isTypingTarget } from "@/lib/shortcuts";
 import { usePageContext } from "../chat/pageContext";
-import { track } from "../../lib/analytics";
+import { track } from "@/lib/analytics";
 import { FeedbackModal } from "./FeedbackModal";
 
 // Nav "?" button: opens the feedback modal. Also bound to a global "?"

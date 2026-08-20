@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { PreviewBanner } from "./PreviewBanner";
-import { DataSourceContext, type DataSource } from "../../lib/dataSource";
+import { DataSourceContext, type DataSource } from "@/lib/dataSource";
 
 function mockMeta(meta: Record<string, unknown> | null) {
   vi.spyOn(globalThis, "fetch").mockResolvedValue({

@@ -9,7 +9,7 @@ import { makeNode, makeFlatEntry } from "../../test/fixtures";
 // checkbox through AtlasActionsContext (the reader provides it), so it's injected
 // via the provider below, not the store.
 const mocks = vi.hoisted(() => ({ toggleDoc: vi.fn() }));
-vi.mock("../../lib/selection", () => ({
+vi.mock("@/lib/selection", () => ({
   useSelection: () => ({
     ids: new Set<string>(),
     toggleDoc: mocks.toggleDoc,

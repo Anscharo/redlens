@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
-vi.mock("../../lib/previewDiff", () => ({
+vi.mock("@/lib/previewDiff", () => ({
   usePreviewDiff: vi.fn(),
   usePreviewPatch: vi.fn(),
 }));
@@ -21,9 +21,9 @@ vi.mock("./DiffView", () => ({
 }));
 
 import { PreviewHistory } from "./PreviewHistory";
-import { usePreviewDiff, usePreviewPatch } from "../../lib/previewDiff";
-import type { PreviewDiff } from "../../lib/previewDiff";
-import type { DiffLine } from "../../lib/history";
+import { usePreviewDiff, usePreviewPatch } from "@/lib/previewDiff";
+import type { PreviewDiff } from "@/lib/previewDiff";
+import type { DiffLine } from "@/lib/history";
 
 const mockDiff = vi.mocked(usePreviewDiff);
 const mockPatch = vi.mocked(usePreviewPatch);

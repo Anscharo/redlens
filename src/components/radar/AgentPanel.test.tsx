@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { AgentPanel } from "./AgentPanel";
-import type { AgentPrimitiveStat, PrimitiveStat } from "../../lib/primitiveStats";
+import type { AgentPrimitiveStat, PrimitiveStat } from "@/lib/primitiveStats";
 
 afterEach(cleanup);
 

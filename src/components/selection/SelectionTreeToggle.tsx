@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useDataSource } from "../../lib/dataSource";
+import { useDataSource } from "@/lib/dataSource";
 import { useAuth } from "../chat/auth";
-import { takeResumeSave } from "../../lib/authReturn";
-import { useSelection } from "../../lib/selection";
-import { track } from "../../lib/analytics";
-import { ROUTES } from "../../lib/routes";
+import { takeResumeSave } from "@/lib/authReturn";
+import { useSelection } from "@/lib/selection";
+import { track } from "@/lib/analytics";
+import { ROUTES } from "@/lib/routes";
 import { TREE_TOGGLE_BAR_CLASS, TREE_TOGGLE_BAR_STYLE, togglePillStyle } from "../tree/togglePill";
-import { usersEnabled } from "../../lib/usersEnabled";
+import { usersEnabled } from "@/lib/usersEnabled";
 import { SaveCollectionModal } from "./SaveCollectionModal";
 
 // Bar above the tree (live reader). "All" plus, once docs are selected, a

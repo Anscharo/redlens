@@ -2,9 +2,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { AtlasNode } from "../../types";
-import type { VisitEvent } from "../../lib/visitHistory";
-import { atlasOf } from "../../lib/visitsIndex.fixture";
+import type { AtlasNode } from "@/types";
+import type { VisitEvent } from "@/lib/visitHistory";
+import { atlasOf } from "@/lib/visitsIndex.fixture";
 
 function node(id: string, doc_no: string, title: string): AtlasNode {
   return { id, doc_no, title, type: "Core", depth: 3, parentId: null, content: "", order: 0, addressRefs: [] };
@@ -19,14 +19,14 @@ const ATLAS = atlasOf({
 
 let log: { events: VisitEvent[]; loaded: boolean } = { events: [], loaded: true };
 const clearHistory = vi.fn(() => Promise.resolve());
-vi.mock("../../lib/visitHistory", async (orig) => ({
-  ...(await orig<typeof import("../../lib/visitHistory")>()),
+vi.mock("@/lib/visitHistory", async (orig) => ({
+  ...(await orig<typeof import("@/lib/visitHistory")>()),
   useVisitLog: () => log,
   clearHistory: () => clearHistory(),
 }));
-vi.mock("../../lib/docs", () => ({ loadAtlas: () => Promise.resolve(ATLAS) }));
-vi.mock("../../lib/dataSource", () => ({ useDataSource: () => ({ base: "/", preview: false }) }));
-vi.mock("../../lib/analytics", () => ({ track: vi.fn() }));
+vi.mock("@/lib/docs", () => ({ loadAtlas: () => Promise.resolve(ATLAS) }));
+vi.mock("@/lib/dataSource", () => ({ useDataSource: () => ({ base: "/", preview: false }) }));
+vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
 
 import { VisitsPage } from "./VisitsPage";
 

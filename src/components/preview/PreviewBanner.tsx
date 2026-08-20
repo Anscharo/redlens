@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useDataSource } from "../../lib/dataSource";
+import { useDataSource } from "@/lib/dataSource";
 
 // Rendered by the App shell when a preview data source is active. Reads the
 // bundle's meta.json for the PR/branch label + author + state + GitHub source.

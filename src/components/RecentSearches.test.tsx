@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { RecentSearches } from "./RecentSearches";
-import type { RecentSuggestion } from "../lib/recentSearches";
+import type { RecentSuggestion } from "@/lib/recentSearches";
 
 afterEach(cleanup);
 

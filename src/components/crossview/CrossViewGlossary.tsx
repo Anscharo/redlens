@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { loadGlossary, type GlossaryEntry } from "../../lib/glossary";
+import { loadGlossary, type GlossaryEntry } from "@/lib/glossary";
 import { Link } from "../Link";
-import { atlasHref } from "../../lib/routes";
-import { useDataSource } from "../../lib/dataSource";
-import { makeSlugger } from "../../lib/slug";
+import { atlasHref } from "@/lib/routes";
+import { useDataSource } from "@/lib/dataSource";
+import { makeSlugger } from "@/lib/slug";
 import { anchorFor } from "./crossviewMarkdownComponents";
 
 export function CrossViewGlossary() {

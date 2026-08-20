@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { ActorRewards } from "./ActorRewards";
-import type { RewardsAgent } from "../../lib/rewardsIndex";
+import type { RewardsAgent } from "@/lib/rewardsIndex";
 
 vi.mock("../reports/RewardsPrimitiveTable", () => ({
   PrimitiveTable: ({ prim }: any) => <div data-testid="prim-table">{prim?.primitiveTitle ?? "prim"}</div>,

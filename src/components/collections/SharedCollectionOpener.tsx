@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Link } from "../Link";
-import { useSelection } from "../../lib/selection";
-import { getSharedCollection } from "../../lib/collectionsApi";
-import { track } from "../../lib/analytics";
-import { ROUTES } from "../../lib/routes";
+import { useSelection } from "@/lib/selection";
+import { getSharedCollection } from "@/lib/collectionsApi";
+import { track } from "@/lib/analytics";
+import { ROUTES } from "@/lib/routes";
 
 // /c/:id — opens a SHARED collection (public read, works logged-out). Fetches the
 // collection by id, loads it into the working selection, and hands off to the

@@ -1,9 +1,9 @@
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
-import type { MergedSource } from "../../lib/dutyCollapse";
-import type { Chain } from "../../lib/reportChains";
+import { atlasHref } from "@/lib/routes";
+import type { MergedSource } from "@/lib/dutyCollapse";
+import type { Chain } from "@/lib/reportChains";
 import { Highlight } from "./Highlight";
-import { EMPTY_QUERY, type ReportQuery } from "../../lib/reportFilter";
+import { EMPTY_QUERY, type ReportQuery } from "@/lib/reportFilter";
 
 export function AgentChips({ agents, chains, rq = EMPTY_QUERY }: { agents: string[]; chains: Map<string, Chain>; rq?: ReportQuery }) {
   if (!agents.length) return null;

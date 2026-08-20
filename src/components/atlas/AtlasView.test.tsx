@@ -62,13 +62,13 @@ vi.mock("../../hooks/useDocViewTracking", () => ({
 vi.mock("../../hooks/useDocumentTitle", () => ({
   useDocumentTitle: (...args: unknown[]) => useDocumentTitleMock(...args),
 }));
-vi.mock("../../lib/graph", () => ({
+vi.mock("@/lib/graph", () => ({
   loadGraph: vi.fn(),
 }));
-vi.mock("../../lib/owningAgent", () => ({
+vi.mock("@/lib/owningAgent", () => ({
   buildOwningAgentMap: (...args: unknown[]) => buildOwningAgentMapMock(...args),
 }));
-vi.mock("../../lib/dataSource", () => ({
+vi.mock("@/lib/dataSource", () => ({
   useDataSource: (...args: unknown[]) => useDataSourceMock(...args),
 }));
 vi.mock("./AtlasReader", () => ({

@@ -22,7 +22,7 @@ vi.mock("../chat/SignInButtons", () => ({
     <button onClick={() => onBeforeSignIn?.()}>mock-sign-in</button>
   ),
 }));
-vi.mock("../../lib/selection", () => ({
+vi.mock("@/lib/selection", () => ({
   useSelection: () => ({
     activeCollectionId: mocks.activeCollectionId,
     activeCollectionName: mocks.activeCollectionName,
@@ -30,13 +30,13 @@ vi.mock("../../lib/selection", () => ({
     setActiveCollectionName: mocks.setActiveCollectionName,
   }),
 }));
-vi.mock("../../lib/collectionsApi", () => ({
+vi.mock("@/lib/collectionsApi", () => ({
   createCollection: mocks.createCollection,
   updateCollectionItems: mocks.updateCollectionItems,
   MAX_COLLECTION_NAME_LEN: 32,
 }));
-vi.mock("../../lib/authReturn", () => ({ stashResumeSave: mocks.stashResumeSave }));
-vi.mock("../../lib/analytics", () => ({ track: mocks.track }));
+vi.mock("@/lib/authReturn", () => ({ stashResumeSave: mocks.stashResumeSave }));
+vi.mock("@/lib/analytics", () => ({ track: mocks.track }));
 
 import { SaveCollectionModal } from "./SaveCollectionModal";
 

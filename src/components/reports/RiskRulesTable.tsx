@@ -1,13 +1,13 @@
-import type { AtlasNode } from "../../types";
-import type { Preciseness } from "../../lib/riskAssessment";
-import type { RiskRow } from "../../lib/riskAssessmentIndex";
-import { RISK_DOMAIN_LABELS, type RiskDomain } from "../../lib/riskRules";
+import type { AtlasNode } from "@/types";
+import type { Preciseness } from "@/lib/riskAssessment";
+import type { RiskRow } from "@/lib/riskAssessmentIndex";
+import { RISK_DOMAIN_LABELS, type RiskDomain } from "@/lib/riskRules";
 import { RatingPill } from "./OeaAssessmentTable";
 import { NodeContent } from "../NodeContent";
 import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
+import { atlasHref } from "@/lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
-import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "../../lib/reportFilter";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 
 // The search haystack as labelled fields; the rated paragraph (quote) and

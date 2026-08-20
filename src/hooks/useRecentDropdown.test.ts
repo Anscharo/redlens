@@ -4,7 +4,7 @@ import { renderHook, act, cleanup } from "@testing-library/react";
 import type { KeyboardEvent } from "react";
 
 const refreshRecent = vi.fn();
-vi.mock("../lib/recentSearches", () => ({
+vi.mock("@/lib/recentSearches", () => ({
   refreshRecent: () => refreshRecent(),
 }));
 

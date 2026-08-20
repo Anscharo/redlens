@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { loadAddresses } from "../lib/addresses";
-import { setAddressMap } from "../lib/addressMap";
-import type { AddressInfo } from "../types";
+import { loadAddresses } from "@/lib/addresses";
+import { setAddressMap } from "@/lib/addressMap";
+import type { AddressInfo } from "@/types";
 
 /** The merged address map as React state, plus the shared-singleton hydration
  *  that `useHydrateAddressMap` performs.

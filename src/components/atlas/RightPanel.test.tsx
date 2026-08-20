@@ -10,7 +10,7 @@ import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { RightPanel } from "./RightPanel";
 import { makeNode, makeEdgeResult, makeGlossaryEntry, makeAddressInfo, makeEdge } from "../../test/fixtures";
-import { DataSourceContext } from "../../lib/dataSource";
+import { DataSourceContext } from "@/lib/dataSource";
 
 vi.mock("../history/NodeHistory", () => ({
   NodeHistory: () => <div data-testid="node-history" />,

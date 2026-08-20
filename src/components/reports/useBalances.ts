@@ -4,8 +4,8 @@
 // missing server (dev without the API) just leaves balances empty — the report
 // still renders.
 import { useEffect, useState } from "react";
-import { loadBalances, requestBalancesRefresh, type BalancesResponse } from "../../lib/balances";
-import { track } from "../../lib/analytics";
+import { loadBalances, requestBalancesRefresh, type BalancesResponse } from "@/lib/balances";
+import { track } from "@/lib/analytics";
 
 export function useBalances(report: string) {
   const [bal, setBal] = useState<BalancesResponse | null>(null);

@@ -4,7 +4,7 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { RadarProvider, useRadar } from "./RadarContext";
-import type { AtlasNode } from "../../types";
+import type { AtlasNode } from "@/types";
 
 afterEach(cleanup);
 

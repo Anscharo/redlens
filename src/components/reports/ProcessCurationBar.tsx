@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { toDecisionsJson, type LocalIgnore } from "../../lib/curationStore";
-import { track } from "../../lib/analytics";
+import { toDecisionsJson, type LocalIgnore } from "@/lib/curationStore";
+import { track } from "@/lib/analytics";
 
 const BTN =
   "px-2 py-1 rounded bg-[var(--hover)] text-tan text-xs hover:bg-[color-mix(in_srgb,var(--accent)_25%,var(--hover))]";

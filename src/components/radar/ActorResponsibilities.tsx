@@ -1,7 +1,7 @@
 import { Link } from "../Link";
 import { AtlasLink } from "../AtlasLink";
-import type { ActiveDataRow } from "../../lib/activeDataIndex";
-import { ROUTES, atlasHref } from "../../lib/routes";
+import type { ActiveDataRow } from "@/lib/activeDataIndex";
+import { ROUTES, atlasHref } from "@/lib/routes";
 
 interface Props {
   rows: ActiveDataRow[];

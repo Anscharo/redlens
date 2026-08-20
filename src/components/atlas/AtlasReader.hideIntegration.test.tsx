@@ -16,8 +16,8 @@ import "@testing-library/jest-dom/vitest";
 import { AtlasReader } from "./AtlasReader";
 import { AtlasActionsContext } from "./AtlasActionsContext";
 import { makeNode, makeFlatEntry, makeAtlasBundle, makeLoadedData } from "../../test/fixtures";
-import { flattenTree } from "../../lib/atlasHelpers";
-import type { FlatEntry } from "../../lib/atlasHelpers";
+import { flattenTree } from "@/lib/atlasHelpers";
+import type { FlatEntry } from "@/lib/atlasHelpers";
 
 // The exit fade keeps collapsing rows mounted for EXIT_MS. These suites assert
 // collapse SEMANTICS (which rows end up hidden), not the transient, so report
@@ -35,12 +35,12 @@ beforeAll(() => {
   });
 });
 
-vi.mock("../../lib/previewFilter", () => ({
+vi.mock("@/lib/previewFilter", () => ({
   usePreviewChangedSet: () => null,
   usePreviewDim: () => false,
 }));
-vi.mock("../../lib/selectionFilter", () => ({ useSelectionSet: () => null }));
-vi.mock("../../lib/selection", () => ({
+vi.mock("@/lib/selectionFilter", () => ({ useSelectionSet: () => null }));
+vi.mock("@/lib/selection", () => ({
   useSelection: () => ({
     ids: new Set<string>(),
     toggleDoc: vi.fn(),

@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { OGResponsibility } from "../../lib/govopsResponsibilities";
+import type { OGResponsibility } from "@/lib/govopsResponsibilities";
 
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn();
@@ -106,7 +106,7 @@ const rows: OGResponsibility[] = [
 const INTRO_DOC_UUID = "1e73ee4b-823d-406a-af54-223b43bc8e42";
 const INTRO_DOC_NO = "A.9.9";
 
-vi.mock("../../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlas: () =>
     Promise.resolve({
       docs: {
@@ -127,9 +127,9 @@ vi.mock("../../lib/docs", () => ({
       atlasCommit: null,
     }),
 }));
-vi.mock("../../lib/graph", () => ({ loadGraph: () => Promise.resolve(graphFixture) }));
-vi.mock("../../lib/govopsResponsibilities", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/govopsResponsibilities")>();
+vi.mock("@/lib/graph", () => ({ loadGraph: () => Promise.resolve(graphFixture) }));
+vi.mock("@/lib/govopsResponsibilities", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/govopsResponsibilities")>();
   return {
     ...actual,
     deriveGovOpsResponsibilities: () => rows,

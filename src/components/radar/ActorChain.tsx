@@ -1,7 +1,7 @@
 import { Link } from "../Link";
-import { ENTITY_TYPE_COLOR } from "../../lib/entityGraph";
-import { actorHref } from "../../lib/routes";
-import type { ActorChain, ChainNode } from "../../lib/actorIndex";
+import { ENTITY_TYPE_COLOR } from "@/lib/entityGraph";
+import { actorHref } from "@/lib/routes";
+import type { ActorChain, ChainNode } from "@/lib/actorIndex";
 
 interface Props {
   chain: ActorChain;

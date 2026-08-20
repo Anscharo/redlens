@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { flexTokenSource, type HiddenMatch, type ReportQuery } from "../../lib/reportFilter";
+import { flexTokenSource, type HiddenMatch, type ReportQuery } from "@/lib/reportFilter";
 import { fitAsideMatches } from "./asideFit";
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

@@ -3,13 +3,13 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { renderHook, waitFor, cleanup } from "@testing-library/react";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import type { AtlasNode } from "../../types";
+import type { AtlasNode } from "@/types";
 
 const docs: Record<string, Pick<AtlasNode, "title" | "doc_no">> = {
   "11111111-1111-1111-1111-111111111111": { title: "Some Node", doc_no: "A.1.1" },
 };
 let atlasRejects = false;
-vi.mock("../../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlas: () => (atlasRejects ? Promise.reject(new Error("boom")) : Promise.resolve({ docs })),
 }));
 

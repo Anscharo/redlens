@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
-import { type LoadedData } from "../../lib/atlasHelpers";
-import { scrollRequestStore } from "../../lib/scrollRequestStore";
-import { scrollIfOutOfView } from "../../lib/animatedScroll";
+import { type LoadedData } from "@/lib/atlasHelpers";
+import { scrollRequestStore } from "@/lib/scrollRequestStore";
+import { scrollIfOutOfView } from "@/lib/animatedScroll";
 import type { Rung } from "./subtreeState";
 
 export function useAtlasScroll(

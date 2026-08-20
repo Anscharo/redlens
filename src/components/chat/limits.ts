@@ -1,7 +1,7 @@
 // The three limits a chat turn can hit (context window / rolling token window /
 // shared credit pool) and the rule for which one the composer's meter shows.
 // Pure — no React — so the selection rule is testable on its own.
-import { formatTokens, ratioPct } from "../../lib/formatTokens";
+import { formatTokens, ratioPct } from "@/lib/formatTokens";
 import type { UsageWindow, CommonsPool } from "./api";
 
 // Exported for RateLimitNote, which shows the same "resets in <X>" phrasing

@@ -3,8 +3,8 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { OeaTable, RatingPill } from "./OeaAssessmentTable";
-import { EMPTY_QUERY } from "../../lib/reportFilter";
-import type { OeaRow } from "../../lib/oeaReport";
+import { EMPTY_QUERY } from "@/lib/reportFilter";
+import type { OeaRow } from "@/lib/oeaReport";
 
 afterEach(cleanup);
 

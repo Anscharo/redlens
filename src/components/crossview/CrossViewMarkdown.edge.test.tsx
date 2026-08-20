@@ -6,17 +6,17 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { AtlasBundle } from "../../lib/docsTypes";
+import type { AtlasBundle } from "@/lib/docsTypes";
 
 vi.mock("./ConceptCensus", () => ({
   ConceptCensus: () => <div data-testid="census-slot" />,
 }));
 
 let loadAtlasImpl: (base: string) => Promise<AtlasBundle> = () => Promise.reject(new Error("not configured"));
-vi.mock("../../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlas: (base: string) => loadAtlasImpl(base),
 }));
-vi.mock("../../lib/dataSource", () => ({
+vi.mock("@/lib/dataSource", () => ({
   useDataSource: () => ({ base: "/api/test-base/", preview: null }),
 }));
 

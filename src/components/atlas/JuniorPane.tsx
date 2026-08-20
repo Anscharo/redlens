@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, type ReactElement } from "react";
-import { buildAncestors, type FlatEntry, type LoadedData } from "../../lib/atlasHelpers";
+import { buildAncestors, type FlatEntry, type LoadedData } from "@/lib/atlasHelpers";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { AtlasActionsContext } from "./AtlasActionsContext";
 import { useSplitHeight } from "./useSplitHeight";
-import { depthColor, realDepth } from "../../lib/depth";
+import { depthColor, realDepth } from "@/lib/depth";
 
 const ViewChildrenFill = ({ docNo, onExpand }: { docNo: string; onExpand: () => void }) => (
   <button

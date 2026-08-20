@@ -1,7 +1,7 @@
 import { useRouter } from "wouter";
 import { useCopyState } from "../../hooks/useCopyState";
-import { track } from "../../lib/analytics";
-import { type AtlasNode } from "../../types";
+import { track } from "@/lib/analytics";
+import { type AtlasNode } from "@/types";
 
 export function NodeMeta({ node }: { node: AtlasNode }) {
   const urlCopy = useCopyState();

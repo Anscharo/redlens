@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { FilterPills, PrimePills } from "./FilterPills";
-import type { Pill } from "../../lib/reportChains";
+import type { Pill } from "@/lib/reportChains";
 
 afterEach(cleanup);
 

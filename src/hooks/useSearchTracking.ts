@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef } from "react";
 import { useRouter } from "wouter";
 import type { SearchState } from "./useSearch";
 import type { SearchMode } from "./useSearchInput";
-import { track } from "../lib/analytics";
-import { recordVisit } from "../lib/visitHistory";
+import { track } from "@/lib/analytics";
+import { recordVisit } from "@/lib/visitHistory";
 
 // Fires a single `atlas_search` event once the user pauses typing for DEBOUNCE_MS
 // (so "governance" logs once, not g→go→gov→…), or immediately on unmount when they

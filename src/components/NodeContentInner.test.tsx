@@ -9,7 +9,7 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { act } from "react";
 import NodeContentInner from "./NodeContentInner";
-import { setAddressMap } from "../lib/addressMap";
+import { setAddressMap } from "@/lib/addressMap";
 import { makeAddressInfo } from "../test/fixtures";
 
 const EVM = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
@@ -18,7 +18,7 @@ const DOC_NO = "A.3.7.1.2.2";
 
 // resolveAtlasRef is fed by loaded atlas bundles at runtime; stub it so the
 // renderer sees UUID/doc_no -> internal-id only for nodes we "host".
-vi.mock("../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   resolveAtlasRef: (_base: string, fragment: string) =>
     fragment === UUID || fragment === DOC_NO ? UUID : undefined,
 }));
@@ -28,7 +28,7 @@ vi.mock("../lib/docs", () => ({
 // integration test below only has to assert the resolved name shows up. Fetch
 // is lazy (only on hover), so tests that never hover an address never call it.
 const loadBalancesCached = vi.fn();
-vi.mock("../lib/balances", async (importOriginal) => ({
+vi.mock("@/lib/balances", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   loadBalancesCached: () => loadBalancesCached(),
 }));

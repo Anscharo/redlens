@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { Link } from "../Link";
-import { ROUTES } from "../../lib/routes";
-import { track } from "../../lib/analytics";
-import { loadCrossView, type CrossViewData } from "../../lib/crossview";
-import { useDataSource } from "../../lib/dataSource";
+import { ROUTES } from "@/lib/routes";
+import { track } from "@/lib/analytics";
+import { loadCrossView, type CrossViewData } from "@/lib/crossview";
+import { useDataSource } from "@/lib/dataSource";
 import { CrossViewShape } from "./CrossViewShape";
 import { CrossViewGlossary } from "./CrossViewGlossary";
 import { CrossViewConcepts, CrossViewAudit } from "./CrossViewConcepts";

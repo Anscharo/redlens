@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ContextPie } from "./ContextPie";
-import { HOT_PCT } from "../../lib/formatTokens";
+import { HOT_PCT } from "@/lib/formatTokens";
 import { buildLimits, pickDisplayed, summaryLine, type Limit } from "./limits";
 import type { UsageWindow, CommonsPool } from "./api";
 

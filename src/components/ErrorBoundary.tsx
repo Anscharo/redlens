@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { captureException } from "../lib/analytics";
-import { isStaleChunkError } from "../lib/staleChunk";
+import { captureException } from "@/lib/analytics";
+import { isStaleChunkError } from "@/lib/staleChunk";
 
 // The stale-chunk-aware fallback components live in ErrorFallbacks.tsx;
 // re-exported here so call sites import boundary + fallbacks from one place.

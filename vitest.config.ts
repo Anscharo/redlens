@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+import { ALIASES } from "./scripts/lib/path-aliases.mjs";
 
 export default defineConfig({
   // vitest doesn't run vite-plugin-pwa, so `virtual:pwa-register/react` (imported
@@ -9,6 +10,13 @@ export default defineConfig({
   resolve: {
     alias: {
       "virtual:pwa-register/react": fileURLToPath(new URL("./src/test/pwa-register-stub.ts", import.meta.url)),
+      // Path aliases, from the single declaration in scripts/lib/path-aliases.mjs.
+      ...Object.fromEntries(
+        Object.entries(ALIASES).map(([prefix, target]) => [
+          prefix,
+          fileURLToPath(new URL(`./${target}`, import.meta.url)),
+        ]),
+      ),
     },
   },
   // Mirrors vite.config.ts's build-time constants (declared in src/vite-env.d.ts).

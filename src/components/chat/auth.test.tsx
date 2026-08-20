@@ -5,10 +5,10 @@ import "@testing-library/jest-dom/vitest";
 import { useState } from "react";
 
 let enabled = true;
-vi.mock("../../lib/usersEnabled", () => ({ usersEnabled: () => enabled }));
+vi.mock("@/lib/usersEnabled", () => ({ usersEnabled: () => enabled }));
 
 const { stashAuthReturn } = vi.hoisted(() => ({ stashAuthReturn: vi.fn() }));
-vi.mock("../../lib/authReturn", () => ({ stashAuthReturn }));
+vi.mock("@/lib/authReturn", () => ({ stashAuthReturn }));
 
 import { AuthProvider, useAuth } from "./auth";
 

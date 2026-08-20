@@ -4,10 +4,10 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 const track = vi.fn();
-vi.mock("../../lib/analytics", () => ({ track: (...args: unknown[]) => track(...args) }));
+vi.mock("@/lib/analytics", () => ({ track: (...args: unknown[]) => track(...args) }));
 
 const downloadCSV = vi.fn();
-vi.mock("../../lib/csvDownload", () => ({ downloadCSV: (...args: unknown[]) => downloadCSV(...args) }));
+vi.mock("@/lib/csvDownload", () => ({ downloadCSV: (...args: unknown[]) => downloadCSV(...args) }));
 
 import { DownloadCsvButton } from "./DownloadCsvButton";
 

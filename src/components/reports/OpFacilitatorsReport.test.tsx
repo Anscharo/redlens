@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { OFResponsibility } from "../../lib/facilitatorResponsibilities";
+import type { OFResponsibility } from "@/lib/facilitatorResponsibilities";
 
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn();
@@ -111,7 +111,7 @@ const rows: OFResponsibility[] = [
 const INTRO_DOC_UUID = "1ce24b08-84ff-4524-9710-49bba429c6ef";
 const INTRO_DOC_NO = "A.9.9";
 
-vi.mock("../../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlas: () =>
     Promise.resolve({
       docs: {
@@ -132,9 +132,9 @@ vi.mock("../../lib/docs", () => ({
       atlasCommit: null,
     }),
 }));
-vi.mock("../../lib/graph", () => ({ loadGraph: () => Promise.resolve(graphFixture) }));
-vi.mock("../../lib/facilitatorResponsibilities", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/facilitatorResponsibilities")>();
+vi.mock("@/lib/graph", () => ({ loadGraph: () => Promise.resolve(graphFixture) }));
+vi.mock("@/lib/facilitatorResponsibilities", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/facilitatorResponsibilities")>();
   return {
     ...actual,
     deriveFacilitatorResponsibilities: () => rows,

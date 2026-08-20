@@ -8,9 +8,9 @@ import {
   type ModFrequencyGroup,
   type ModFrequencyGrouping,
   type ModFrequencyRow,
-} from "../../lib/modFrequencyIndex";
-import type { ModCountBucket } from "../../lib/modFrequencyCharts";
-import type { ReportQuery } from "../../lib/reportFilter";
+} from "@/lib/modFrequencyIndex";
+import type { ModCountBucket } from "@/lib/modFrequencyCharts";
+import type { ReportQuery } from "@/lib/reportFilter";
 import { CategoryPills } from "./CategoryPills";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { FilterSummary } from "./FilterSummary";

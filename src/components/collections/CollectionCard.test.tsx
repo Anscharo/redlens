@@ -4,8 +4,8 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CollectionCard } from "./CollectionCard";
-import type { Collection } from "../../lib/collectionsApi";
-import type { AtlasNode } from "../../types";
+import type { Collection } from "@/lib/collectionsApi";
+import type { AtlasNode } from "@/types";
 
 afterEach(() => {
   cleanup();

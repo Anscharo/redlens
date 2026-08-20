@@ -1,9 +1,9 @@
 import { Link } from "../Link";
-import { actorHref } from "../../lib/routes";
-import { explorerUrl } from "../../lib/explorer";
-import { shortAddr } from "../../lib/format";
-import type { AddressInfo } from "../../types";
-import type { EntityRef } from "../../lib/rewardsIndex";
+import { actorHref } from "@/lib/routes";
+import { explorerUrl } from "@/lib/explorer";
+import { shortAddr } from "@/lib/format";
+import type { AddressInfo } from "@/types";
+import type { EntityRef } from "@/lib/rewardsIndex";
 
 export function EntityChip({ e }: { e: EntityRef }) {
   return (

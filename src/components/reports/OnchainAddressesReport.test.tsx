@@ -9,8 +9,8 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 } as unknown as typeof ResizeObserver;
 
-import type { AtlasNode, AddressInfo } from "../../types";
-import type { BalancesResponse } from "../../lib/balances";
+import type { AtlasNode, AddressInfo } from "@/types";
+import type { BalancesResponse } from "@/lib/balances";
 
 const node = (over: Partial<AtlasNode> & { id: string; doc_no: string }): AtlasNode => ({
   title: "T",
@@ -71,10 +71,10 @@ let balancesImpl: () => Promise<BalancesResponse> = () =>
   });
 let refreshImpl: () => Promise<BalancesResponse> = balancesImpl;
 
-vi.mock("../../lib/docs", () => ({ loadDocs: () => Promise.resolve(docs) }));
-vi.mock("../../lib/addresses", () => ({ loadAddresses: () => Promise.resolve(addrMap) }));
-vi.mock("../../lib/balances", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/balances")>();
+vi.mock("@/lib/docs", () => ({ loadDocs: () => Promise.resolve(docs) }));
+vi.mock("@/lib/addresses", () => ({ loadAddresses: () => Promise.resolve(addrMap) }));
+vi.mock("@/lib/balances", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/balances")>();
   return {
     ...actual,
     loadBalances: () => balancesImpl(),

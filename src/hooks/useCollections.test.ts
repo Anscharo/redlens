@@ -11,7 +11,7 @@ const listCollections = vi.fn();
 const renameCollection = vi.fn();
 const deleteCollection = vi.fn();
 
-vi.mock("../lib/collectionsApi", () => ({
+vi.mock("@/lib/collectionsApi", () => ({
   listCollections: (...a: unknown[]) => listCollections(...a),
   renameCollection: (...a: unknown[]) => renameCollection(...a),
   deleteCollection: (...a: unknown[]) => deleteCollection(...a),

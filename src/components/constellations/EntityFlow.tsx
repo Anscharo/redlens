@@ -19,13 +19,13 @@ import "@xyflow/react/dist/style.css";
 import { MultiDirectedGraph } from "graphology";
 import forceAtlas2 from "graphology-layout-forceatlas2";
 import noverlap from "graphology-layout-noverlap";
-import { parseMeta } from "../../lib/meta";
-import type { EntityNodeData, EntityEdgeData, EntityRelation } from "../../lib/entityGraph";
-import { edgeLabel, ENTITY_TYPE_LABEL, SUBTYPE_LABEL } from "../../lib/entityGraph";
-import { getEdges, type EdgeResult } from "../../lib/graph";
-import { atlasHref } from "../../lib/routes";
-import { track } from "../../lib/analytics";
-import type { GraphEntity } from "../../types";
+import { parseMeta } from "@/lib/meta";
+import type { EntityNodeData, EntityEdgeData, EntityRelation } from "@/lib/entityGraph";
+import { edgeLabel, ENTITY_TYPE_LABEL, SUBTYPE_LABEL } from "@/lib/entityGraph";
+import { getEdges, type EdgeResult } from "@/lib/graph";
+import { atlasHref } from "@/lib/routes";
+import { track } from "@/lib/analytics";
+import type { GraphEntity } from "@/types";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 

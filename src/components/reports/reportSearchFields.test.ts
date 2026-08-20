@@ -5,17 +5,17 @@
 // change that forgets the flag is caught. (It pins the field-map OUTPUT, not
 // the JSX render conditions themselves; keep them in sync by eye.)
 import { describe, it, expect } from "vitest";
-import type { SearchField } from "../../lib/reportFilter";
-import type { OFResponsibility } from "../../lib/facilitatorResponsibilities";
-import type { OGResponsibility } from "../../lib/govopsResponsibilities";
-import type { RiskRow } from "../../lib/riskAssessmentIndex";
-import type { OeaRow } from "../../lib/oeaReport";
+import type { SearchField } from "@/lib/reportFilter";
+import type { OFResponsibility } from "@/lib/facilitatorResponsibilities";
+import type { OGResponsibility } from "@/lib/govopsResponsibilities";
+import type { RiskRow } from "@/lib/riskAssessmentIndex";
+import type { OeaRow } from "@/lib/oeaReport";
 import { ofSearchFields } from "./OFCategoryTable";
 import { ogSearchFields } from "./OGCategoryTable";
 import { riskSearchFields } from "./RiskRulesTable";
 import { oeaSearchFields } from "./OeaAssessmentTable";
-import { icdSearchFields } from "../../lib/rewardsSearch";
-import type { RewardsAgent, RewardsInstance } from "../../lib/rewardsTypes";
+import { icdSearchFields } from "@/lib/rewardsSearch";
+import type { RewardsAgent, RewardsInstance } from "@/lib/rewardsTypes";
 
 // label → hidden?, for the fields that carry a value (empty fields are noise).
 const flags = (fields: SearchField[]) =>

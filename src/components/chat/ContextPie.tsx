@@ -1,4 +1,4 @@
-import { HOT_PCT } from "../../lib/formatTokens";
+import { HOT_PCT } from "@/lib/formatTokens";
 
 const R = 6; // SVG circle radius — a 14px box with a 2px stroke
 const CIRCUMFERENCE = 2 * Math.PI * R;

@@ -8,10 +8,10 @@ import type { SearchState } from "./useSearch";
 const track = vi.fn();
 const recordVisit = vi.fn();
 
-vi.mock("../lib/analytics", () => ({
+vi.mock("@/lib/analytics", () => ({
   track: (...a: unknown[]) => track(...a),
 }));
-vi.mock("../lib/visitHistory", () => ({
+vi.mock("@/lib/visitHistory", () => ({
   recordVisit: (...a: unknown[]) => recordVisit(...a),
 }));
 

@@ -1,6 +1,6 @@
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import notesRaw from "../../patch-notes.md?raw";
-import { parsePatchNotes } from "../lib/patchNotes";
+import { parsePatchNotes } from "@/lib/patchNotes";
 import { PatchNoteGroups } from "./PatchNotes";
 
 // The homepage shows only the 10 most recent bullets; this page is the full

@@ -5,10 +5,10 @@ import { renderHook, cleanup, waitFor } from "@testing-library/react";
 const loadAddresses = vi.fn();
 const setAddressMap = vi.fn();
 
-vi.mock("../lib/addresses", () => ({
+vi.mock("@/lib/addresses", () => ({
   loadAddresses: (...a: unknown[]) => loadAddresses(...a),
 }));
-vi.mock("../lib/addressMap", () => ({
+vi.mock("@/lib/addressMap", () => ({
   setAddressMap: (...a: unknown[]) => setAddressMap(...a),
 }));
 

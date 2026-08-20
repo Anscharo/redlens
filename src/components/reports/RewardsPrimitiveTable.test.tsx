@@ -4,8 +4,8 @@ import { render, screen, cleanup, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
-import { parseReportQuery } from "../../lib/reportFilter";
-import type { AgentPrimitive, RewardsAgent, RewardsInstance, RewardsInvocation } from "../../lib/rewardsIndex";
+import { parseReportQuery } from "@/lib/reportFilter";
+import type { AgentPrimitive, RewardsAgent, RewardsInstance, RewardsInvocation } from "@/lib/rewardsIndex";
 
 afterEach(() => {
   cleanup();

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { LocalIgnore } from "../../lib/curationStore";
+import type { LocalIgnore } from "@/lib/curationStore";
 
 const REASONS = [
   "schema template",

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { DocNoChiclets } from "../components/DocNoChiclets";
-import { chicletColor, segmentDepths } from "../lib/depth";
+import { chicletColor, segmentDepths } from "@/lib/depth";
 import { PALETTE_TOKENS } from "./palette-tokens";
 
 const TREE_SAMPLES = [

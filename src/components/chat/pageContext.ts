@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useSearchParams } from "wouter";
-import { ROUTES, REPORT_CHAT_TOOLS, REPORT_TITLES } from "../../lib/routes";
-import { loadAtlas } from "../../lib/docs";
+import { ROUTES, REPORT_CHAT_TOOLS, REPORT_TITLES } from "@/lib/routes";
+import { loadAtlas } from "@/lib/docs";
 
 // Mirrors the server's PageContext (src/server/chat/system-prompt.ts) plus the
 // UI-only fields the launcher/composer render (short, placeholder, chip, label).

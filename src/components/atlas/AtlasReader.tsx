@@ -14,10 +14,10 @@ import { useExpandingAttr } from "../../hooks/useExpandingAttr";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { JuniorPane } from "./JuniorPane";
 import { DEFAULT_RUNG, nextRung, reverseRung, flatRung, flatNextRung, flatReverseRung, type Rung } from "./subtreeState";
-import { revealStore } from "../../lib/revealStore";
-import { usePreviewChangedSet } from "../../lib/previewFilter";
-import { useSelectionSet } from "../../lib/selectionFilter";
-import { useSelection } from "../../lib/selection";
+import { revealStore } from "@/lib/revealStore";
+import { usePreviewChangedSet } from "@/lib/previewFilter";
+import { useSelectionSet } from "@/lib/selectionFilter";
+import { useSelection } from "@/lib/selection";
 import { ErrorBoundary, PanelError } from "../ErrorBoundary";
 import {
   ATLAS_EMPTY_SET,
@@ -25,7 +25,7 @@ import {
   collectSubtree,
   type FlatEntry,
   type LoadedData,
-} from "../../lib/atlasHelpers";
+} from "@/lib/atlasHelpers";
 
 // How long a collapsing row stays mounted and inert before it is removed from
 // the DOM for real. Must outlast the exit keyframes in index.css (190ms) plus

@@ -2,9 +2,9 @@ import { useCallback, useRef, useState } from "react";
 import { apiUrl, type ChatEvent, type Delivery, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
 import type { PageContext } from "./pageContext";
 import type { RateLimitState } from "./types";
-import { downloadFile } from "../../lib/csvDownload";
-import { absolutizeAtlasLinks } from "../../lib/routes";
-import { track } from "../../lib/analytics";
+import { downloadFile } from "@/lib/csvDownload";
+import { absolutizeAtlasLinks } from "@/lib/routes";
+import { track } from "@/lib/analytics";
 
 export interface TraceRow {
   name: string;

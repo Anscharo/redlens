@@ -10,7 +10,7 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 } as unknown as typeof ResizeObserver;
 
-import type { ActiveDataRow } from "../../lib/activeDataIndex";
+import type { ActiveDataRow } from "@/lib/activeDataIndex";
 
 const rows: ActiveDataRow[] = [
   {
@@ -58,16 +58,16 @@ const rows: ActiveDataRow[] = [
   },
 ];
 
-vi.mock("../../lib/docs", () => ({ loadDocs: () => Promise.resolve({}) }));
-vi.mock("../../lib/graph", () => ({ loadGraph: () => Promise.resolve({}) }));
-vi.mock("../../lib/history", () => ({
+vi.mock("@/lib/docs", () => ({ loadDocs: () => Promise.resolve({}) }));
+vi.mock("@/lib/graph", () => ({ loadGraph: () => Promise.resolve({}) }));
+vi.mock("@/lib/history", () => ({
   loadHistoryBatch: () =>
     Promise.resolve(
       new Map([["ad-1", [{ date: "2026-05-01", commitHash: "abc", changeType: "modified" }]]]),
     ),
 }));
-vi.mock("../../lib/activeDataIndex", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/activeDataIndex")>();
+vi.mock("@/lib/activeDataIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/activeDataIndex")>();
   return {
     ...actual,
     buildActiveDataRows: () => rows,

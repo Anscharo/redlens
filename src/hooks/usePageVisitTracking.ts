@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "wouter";
-import { recordVisit, updateVisitParams } from "../lib/visitHistory";
-import { PAGE_TITLES, REPORT_TITLES, ROUTES } from "../lib/routes";
+import { recordVisit, updateVisitParams } from "@/lib/visitHistory";
+import { PAGE_TITLES, REPORT_TITLES, ROUTES } from "@/lib/routes";
 
 const REPORT_PREFIX = `${ROUTES.REPORTS}/`;
 

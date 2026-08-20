@@ -22,6 +22,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stepsFor } from "../lib/build-steps.mjs";
+import { resolveAlias } from "../lib/path-aliases.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -127,8 +128,14 @@ function walk(file, chain) {
   const rel = path.relative(ROOT, file);
   for (const spec of importsOf(file)) {
     if (/^(node|bun|virtual):/.test(spec)) continue;
-    if (spec.startsWith(".")) {
-      const next = resolveRelative(spec, file);
+    // An aliased specifier is a repo path, not a package. Resolving it here is
+    // what stops `@/lib/analytics` in server code from reading as a bare
+    // package named "@" and silently passing the gate.
+    const aliased = resolveAlias(spec);
+    if (spec.startsWith(".") || aliased) {
+      const next = aliased
+        ? resolveRelative("./" + aliased, path.join(ROOT, "x"))
+        : resolveRelative(spec, file);
       if (next) walk(next, [...chain, rel]);
       continue;
     }

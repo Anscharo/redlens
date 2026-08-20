@@ -8,8 +8,8 @@ import {
   FREQUENCY_MAX,
   FREQUENCY_DEFAULT,
   type FrequencyComparator,
-} from "../../lib/modFrequencyIndex";
-import type { ReportId } from "../../types";
+} from "@/lib/modFrequencyIndex";
+import type { ReportId } from "@/types";
 
 const REPORT: ReportId = "mod-frequency";
 const comparatorCodec = urlEnum<FrequencyComparator>("lte", FREQUENCY_COMPARATORS);

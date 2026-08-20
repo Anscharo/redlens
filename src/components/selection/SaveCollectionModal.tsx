@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../chat/auth";
 import { SignInButtons } from "../chat/SignInButtons";
-import { useSelection } from "../../lib/selection";
-import { createCollection, updateCollectionItems, MAX_COLLECTION_NAME_LEN } from "../../lib/collectionsApi";
-import { MAX_COLLECTION_DOCS } from "../../lib/collectionsLimits";
-import { stashResumeSave } from "../../lib/authReturn";
-import { track } from "../../lib/analytics";
+import { useSelection } from "@/lib/selection";
+import { createCollection, updateCollectionItems, MAX_COLLECTION_NAME_LEN } from "@/lib/collectionsApi";
+import { MAX_COLLECTION_DOCS } from "@/lib/collectionsLimits";
+import { stashResumeSave } from "@/lib/authReturn";
+import { track } from "@/lib/analytics";
 import { Modal } from "../Modal";
 import { ghostBtn, primaryBtn } from "../modalStyles";
 

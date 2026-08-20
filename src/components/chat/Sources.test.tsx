@@ -2,21 +2,21 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { AtlasNode } from "../../types";
+import type { AtlasNode } from "@/types";
 
 const docs: Record<string, Pick<AtlasNode, "doc_no" | "title">> = {
   "11111111-1111-1111-1111-111111111111": { doc_no: "A.1.1", title: "Some Doc" },
 };
 
 let atlasRejects = false;
-vi.mock("../../lib/docs", () => ({
+vi.mock("@/lib/docs", () => ({
   loadAtlas: () =>
     atlasRejects ? Promise.reject(new Error("boom")) : Promise.resolve({ docs }),
 }));
-vi.mock("../../lib/analytics", () => ({ track: vi.fn() }));
+vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
 
 import { Sources } from "./Sources";
-import { track } from "../../lib/analytics";
+import { track } from "@/lib/analytics";
 
 afterEach(() => {
   cleanup();

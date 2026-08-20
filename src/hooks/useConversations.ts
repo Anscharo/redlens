@@ -5,7 +5,7 @@ import {
   listConversations,
   renameConversation,
   deleteConversation,
-} from "../lib/conversationsApi";
+} from "@/lib/conversationsApi";
 
 // Loads + mutates the signed-in user's conversation list. Mirrors
 // useCollections.ts: fetch-on-mount, tolerate failure, aliveRef guard against

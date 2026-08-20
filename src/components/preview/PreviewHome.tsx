@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { parsePreviewInput, localPreviews } from "../../lib/previewLocal";
-import { initAnalytics, register, track, pageview } from "../../lib/analytics";
+import { parsePreviewInput, localPreviews } from "@/lib/previewLocal";
+import { initAnalytics, register, track, pageview } from "@/lib/analytics";
 import { ProfileButton } from "../chat/ProfileButton";
-import { usersEnabled } from "../../lib/usersEnabled";
+import { usersEnabled } from "@/lib/usersEnabled";
 import { PreviewPrTabs } from "./PreviewPrTabs";
 import type { Entry } from "./types";
 

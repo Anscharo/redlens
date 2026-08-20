@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, cleanup, fireEvent } from "@testing-library/react";
 import { RelatedNode } from "./RelatedNode";
 import { makeNode } from "../test/fixtures";
-import type { AtlasNode } from "../types";
+import type { AtlasNode } from "@/types";
 
 // RelatedNode's checkbox now lives in a self-subscribing RelatedSelectBox that
 // reads the selection store directly (so a toggle re-renders only the checkbox,
@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   toggleDoc: vi.fn(),
   selectSubtree: vi.fn(),
 }));
-vi.mock("../lib/selection", () => ({
+vi.mock("@/lib/selection", () => ({
   useSelection: () => ({
     ids: mocks.ids,
     toggleDoc: mocks.toggleDoc,

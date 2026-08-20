@@ -10,13 +10,13 @@ import { useAtlasSelection } from "../../hooks/useAtlasSelection";
 import { useNodeAnnotations } from "../../hooks/useNodeAnnotations";
 import { useDocViewTracking } from "../../hooks/useDocViewTracking";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { loadGraph } from "../../lib/graph";
-import { buildOwningAgentMap } from "../../lib/owningAgent";
-import { useDataSource } from "../../lib/dataSource";
+import { loadGraph } from "@/lib/graph";
+import { buildOwningAgentMap } from "@/lib/owningAgent";
+import { useDataSource } from "@/lib/dataSource";
 import {
   buildAncestorsWithSelf,
   ATLAS_GRID_STYLE,
-} from "../../lib/atlasHelpers";
+} from "@/lib/atlasHelpers";
 
 export function AtlasView({
   id,

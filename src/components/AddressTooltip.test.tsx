@@ -3,14 +3,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { act } from "react";
-import { setAddressMap } from "../lib/addressMap";
+import { setAddressMap } from "@/lib/addressMap";
 import { makeAddressInfo } from "../test/fixtures";
 import { AddressTooltip } from "./AddressTooltip";
 
 const EVM = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 
 const loadBalancesCached = vi.fn();
-vi.mock("../lib/balances", async (importOriginal) => ({
+vi.mock("@/lib/balances", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   loadBalancesCached: () => loadBalancesCached(),
 }));

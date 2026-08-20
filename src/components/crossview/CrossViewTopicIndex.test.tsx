@@ -3,8 +3,8 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { CrossViewTopicIndex } from "./CrossViewTopicIndex";
-import { parseCrossViewIndex } from "../../lib/crossviewIndex";
-import { extractHeadings } from "../../lib/crossviewHeadings";
+import { parseCrossViewIndex } from "@/lib/crossviewIndex";
+import { extractHeadings } from "@/lib/crossviewHeadings";
 import conceptsRaw from "../../../docs/crossview/concepts.md?raw";
 
 afterEach(cleanup);

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
-import { captureException, track } from "../lib/analytics";
+import { captureException, track } from "@/lib/analytics";
 
 // Background update cadence. The visibility re-check shares the same clock via
 // `lastCheck`, so alt-tabbing can't turn every tab focus into a script fetch.

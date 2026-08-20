@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { useLocalIgnores } from "./useLocalIgnores";
-import { STORAGE_KEY } from "../lib/curationStore";
+import { STORAGE_KEY } from "@/lib/curationStore";
 
 afterEach(() => {
   cleanup();
