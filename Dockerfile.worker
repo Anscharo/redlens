@@ -47,13 +47,12 @@ COPY apps/web/package.json ./apps/web/
 # all — the runtime is Bun — so pnpm falls back to the one bundled in its
 # standalone build, v20.11.1 in 10.33.0. That version breaks two things at once:
 #
-#   1. It fails .npmrc's engine-strict against engines.node >= 22, so both
-#      `pnpm install` and `pnpm run` refuse outright. (build:vite runs through
-#      `pnpm --filter sabr-web`, so the run path matters, not just install.)
+#   1. It fails .npmrc's engine-strict against engines.node >= 22, so
+#      `pnpm install` refuses outright.
 #   2. Worse, because it is SILENT: pnpm skips an optional dependency whose
-#      engines do not match, and @rolldown/binding-linux-x64-gnu — the native
-#      binding vite 8 needs — declares `^20.19.0 || >=22.12.0`. The install
-#      succeeded and `vite build` then died on "Cannot find native binding".
+#      engines do not match. This image builds no bundle, so the binding that
+#      bit the web image is not at stake here — but the same filtering applies
+#      to anything the worker's own dependencies mark optional.
 #
 # Declaring the version fixes both, and unlike engine-strict=false it fixes the
 # second one at all: disabling the guard does not change optional-dep filtering.
@@ -65,23 +64,9 @@ ENV npm_config_node_version=22.22.0
 
 ENV PNPM_HOME="/usr/local/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-# pnpm's standalone build, straight from the npm registry the install already
-# needs — no third-party installer host, and the version is READ FROM
-# package.json's packageManager field rather than repeated here, so the image
-# and the repo cannot drift apart.
-RUN set -eux; \
-    ver="$(sed -n 's/.*"packageManager": *"pnpm@\([^"]*\)".*/\1/p' package.json)"; \
-    test -n "$ver"; \
-    case "$(dpkg --print-architecture)" in \
-      amd64) pkg=linux-x64 ;; \
-      arm64) pkg=linux-arm64 ;; \
-      *) echo "unsupported architecture for the pnpm standalone build" >&2; exit 1 ;; \
-    esac; \
-    mkdir -p "$PNPM_HOME"; \
-    curl -fsSL "https://registry.npmjs.org/@pnpm/${pkg}/-/${pkg}-${ver}.tgz" \
-      | tar -xz -C "$PNPM_HOME" --strip-components=1 package/pnpm; \
-    chmod +x "$PNPM_HOME/pnpm"; \
-    pnpm --version
+# pnpm itself. The bootstrap is shared with the other image — see the script.
+COPY scripts/docker/install-pnpm.sh ./scripts/docker/
+RUN sh scripts/docker/install-pnpm.sh
 
 RUN pnpm install --frozen-lockfile --prod --filter sabr-root \
  && rm -rf "$(pnpm store path)"

@@ -1,5 +1,12 @@
 # Builds both service images on PRs that touch what goes into them.
 #
+# The path list has to match what the images actually contain, not what looks
+# backend-shaped. src/lib and src/data are COPYed into the runtime image, and
+# apps/web is what the builder runs Vite over — and the image builds that Vite
+# step under pnpm's bundled Node while CI builds it under Node 24, which is
+# exactly where the rolldown native-binding failure came from. Omitting any of
+# them recreates the "CI green, deploy red" gap this workflow exists to close.
+#
 # Neither image was built by CI before: the web image was only ever exercised by
 # the Railway deploy, and the worker image not even by that (its cron service
 # builds on its own schedule). That is how Dockerfile.worker came to run a bare
@@ -18,6 +25,9 @@ on:
       - "pnpm-workspace.yaml"
       - ".npmrc"
       - "src/server/**"
+      - "src/lib/**"
+      - "src/data/**"
+      - "apps/web/**"
       - "scripts/lib/**"
       - "scripts/required/**"
       - ".github/workflows/images.yml"

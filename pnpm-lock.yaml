@@ -194,7 +194,7 @@ importers:
         specifier: 4.1.5
         version: 4.1.5(vitest@4.1.5)
       fake-indexeddb:
-        specifier: ^6.2.5
+        specifier: 6.2.5
         version: 6.2.5
       jsdom:
         specifier: 29.1.1

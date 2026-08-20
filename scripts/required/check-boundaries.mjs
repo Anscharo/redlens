@@ -1,14 +1,25 @@
 #!/usr/bin/env node
-// Boundary gate: no frontend-only package may reach the server or worker.
+// Boundary gate: everything the services reach at runtime must survive the image
+// install.
 //
-// Both service images (Dockerfile, Dockerfile.worker) install the FULL dependency
-// set today, so a browser package sitting on the server's import graph costs
-// nothing visible and stays invisible. It stops being invisible the moment either
-// image installs --prod or filters out the frontend workspace — then it is a
-// crash on the first request that touches the module.
+// Both images run `pnpm install --prod --filter sabr-root`, so exactly one set of
+// packages exists in them: the ROOT package's `dependencies`. Anything else a
+// service entry point reaches — an apps/web dependency, a root devDependency, an
+// undeclared import — is present in dev and in CI, where the full workspace is
+// installed, and absent in production. That gap is invisible until the image runs.
+//
+// The allowed set is therefore READ FROM package.json rather than listed here. An
+// earlier version of this file kept a hand-maintained FRONTEND_ONLY denylist,
+// which had already drifted: @chenglou/pretext is an apps/web dependency imported
+// by treeUtils/breadcrumbs/asideFit and was missing from it, so a service import
+// of those modules would have passed the gate and crashed the pruned image.
+//
+// Stating the rule positively also widens it for free: `viem` was a
+// devDependency imported by src/server/balances at runtime, and this form catches
+// that class too, not just browser packages.
 //
 // This walks the real static + literal-dynamic import closure from each runtime
-// entry point and fails if any specifier resolves to a package in FRONTEND_ONLY.
+// entry point and fails on any package outside that set.
 // It reports the import CHAIN, not just the offending package, because the fix is
 // always "cut one edge somewhere in that chain", and which edge is a judgement
 // call the message needs to make possible.
@@ -52,21 +63,25 @@ const ENTRIES = [
   ...new Set(SPAWNED_PROFILES.flatMap((p) => stepsFor(p).map((s) => s.script).filter(Boolean))),
 ];
 
-// Packages that belong to the browser bundle and must never be reachable from a
-// service entry point. In Phase 2 this list becomes apps/web/package.json's
-// dependencies — until then it is declared here.
-const FRONTEND_ONLY = [
-  "react", "react-dom", "react-markdown", "react-window",
-  "@xyflow/react", "@uiw/react-color",
-  "katex", "rehype-katex", "remark-gfm", "remark-math", "unist-util-visit",
-  "graphology-layout-forceatlas2", "graphology-layout-noverlap", "graphology-traversal",
-  "wouter", "posthog-js", "wcag-contrast", "workbox-window",
-  // build-time only, never a runtime import
-  "vite", "vitest", "tailwindcss", "@tailwindcss/vite", "vite-plugin-pwa",
-  "@vitejs/plugin-react", "@playwright/test", "jsdom", "fake-indexeddb",
-  "@testing-library/dom", "@testing-library/jest-dom",
-  "@testing-library/react", "@testing-library/user-event",
-];
+// The only packages an image contains: the root package's runtime dependencies.
+// Derived, so adding a dependency to apps/web or moving one between dep sections
+// updates the gate with no edit here.
+const ROOT_PKG = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
+const SHIPPED = new Set(Object.keys(ROOT_PKG.dependencies ?? {}));
+
+/** Where a package IS declared, so the failure message can name the fix. */
+const WEB_PKG = JSON.parse(fs.readFileSync(path.join(ROOT, "apps/web/package.json"), "utf8"));
+const WEB_DEPS = new Set([
+  ...Object.keys(WEB_PKG.dependencies ?? {}),
+  ...Object.keys(WEB_PKG.devDependencies ?? {}),
+]);
+const ROOT_DEV = new Set(Object.keys(ROOT_PKG.devDependencies ?? {}));
+
+function whereDeclared(name) {
+  if (WEB_DEPS.has(name)) return "an apps/web dependency — it is not installed in a service image";
+  if (ROOT_DEV.has(name)) return "a root devDependency — --prod strips it";
+  return "not declared in either package.json";
+}
 
 const EXTS = [".ts", ".tsx", ".mjs", ".js", ".mts", ".json"];
 
@@ -140,7 +155,11 @@ function walk(file, chain) {
       continue;
     }
     const name = pkgName(spec);
-    if (FRONTEND_ONLY.includes(name)) {
+    // `bun` is the runtime's own builtin (SQL, Bun.file, …), supplied by the
+    // binary rather than installed — the sibling of the `node:`/`bun:` prefixes
+    // skipped above, just without a prefix to skip on.
+    if (name === "bun") continue;
+    if (!SHIPPED.has(name)) {
       violations.push({ pkg: name, chain: [...chain, rel] });
     }
   }
@@ -156,7 +175,7 @@ for (const entry of ENTRIES) {
 }
 
 if (violations.length === 0) {
-  console.log(`check-boundaries: OK — ${visited.size} files reachable from ${ENTRIES.length} entry points, no frontend-only imports.`);
+  console.log(`check-boundaries: OK — ${visited.size} files reachable from ${ENTRIES.length} entry points; every package they import is a root dependency.`);
   process.exit(0);
 }
 
@@ -168,13 +187,14 @@ for (const v of violations) {
   if (!prev || v.chain.length < prev.length) byPkg.set(v.pkg, v.chain);
 }
 
-console.error(`check-boundaries: ${byPkg.size} frontend-only package(s) reachable from a service entry point.\n`);
+console.error(`check-boundaries: ${byPkg.size} package(s) reachable from a service entry point that the image will not contain.\n`);
 for (const [pkg, chain] of [...byPkg].sort()) {
-  console.error(`  ${pkg}`);
+  console.error(`  ${pkg} — ${whereDeclared(pkg)}`);
   console.error(`    ${chain.join("\n      -> ")}\n`);
 }
-console.error("Each of these ships in the browser bundle only. Reachable from a service");
-console.error("entry point means it must be installed in the web/worker image too, and");
-console.error("breaks that image the moment the install is pruned. Cut one edge in the");
-console.error("chain — usually by splitting a pure helper away from a browser-side one.");
+console.error("Both images install `--prod --filter sabr-root`, so only the root package's");
+console.error("`dependencies` exist in them. Each package above is reachable at runtime and");
+console.error("would be missing there. Either cut one edge in the chain — usually by");
+console.error("splitting a pure helper away from a browser-side one — or, if the service");
+console.error("genuinely needs it, promote it to a root dependency.");
 process.exit(1);

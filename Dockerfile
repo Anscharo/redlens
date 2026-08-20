@@ -42,23 +42,9 @@ ENV npm_config_node_version=22.22.0
 
 ENV PNPM_HOME="/usr/local/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-# pnpm's standalone build, straight from the npm registry the install already
-# needs — no third-party installer host, and the version is READ FROM
-# package.json's packageManager field rather than repeated here, so the image
-# and the repo cannot drift apart.
-RUN set -eux; \
-    ver="$(sed -n 's/.*"packageManager": *"pnpm@\([^"]*\)".*/\1/p' package.json)"; \
-    test -n "$ver"; \
-    case "$(dpkg --print-architecture)" in \
-      amd64) pkg=linux-x64 ;; \
-      arm64) pkg=linux-arm64 ;; \
-      *) echo "unsupported architecture for the pnpm standalone build" >&2; exit 1 ;; \
-    esac; \
-    mkdir -p "$PNPM_HOME"; \
-    curl -fsSL "https://registry.npmjs.org/@pnpm/${pkg}/-/${pkg}-${ver}.tgz" \
-      | tar -xz -C "$PNPM_HOME" --strip-components=1 package/pnpm; \
-    chmod +x "$PNPM_HOME/pnpm"; \
-    pnpm --version
+# pnpm itself. The bootstrap is shared with the other image — see the script.
+COPY scripts/docker/install-pnpm.sh ./scripts/docker/
+RUN sh scripts/docker/install-pnpm.sh
 
 RUN pnpm install --frozen-lockfile
 
