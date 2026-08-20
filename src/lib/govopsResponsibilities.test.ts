@@ -6,8 +6,8 @@
 
 import { describe, it, expect } from "vitest";
 import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
-import type { AtlasBundle } from "./docs";
-import type { GraphData } from "./graph";
+import type { AtlasBundle } from "./docsTypes";
+import type { GraphData } from "./graphData";
 import { deriveGovOpsResponsibilities, govopsRowsToCSV, type OGResponsibility } from "./govopsResponsibilities";
 
 const GOVOPS_DEF = "1e73ee4b-823d-406a-af54-223b43bc8e42"; // A.0.1.1.47

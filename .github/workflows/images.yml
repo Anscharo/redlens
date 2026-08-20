@@ -1,0 +1,131 @@
+# Builds both service images on PRs that touch what goes into them.
+#
+# The path list has to match what the images actually contain, not what looks
+# backend-shaped. src/lib and src/data are COPYed into the runtime image, and
+# apps/web is what the builder runs Vite over — and the image builds that Vite
+# step under pnpm's bundled Node while CI builds it under Node 24, which is
+# exactly where the rolldown native-binding failure came from. Omitting any of
+# them recreates the "CI green, deploy red" gap this workflow exists to close.
+#
+# Neither image was built by CI before: the web image was only ever exercised by
+# the Railway deploy, and the worker image not even by that (its cron service
+# builds on its own schedule). That is how Dockerfile.worker came to run a bare
+# `bun install` against no lockfile without anyone noticing. A broken image build
+# should fail a PR, not a deploy.
+name: Images
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - "Dockerfile.worker"
+      - ".dockerignore"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".npmrc"
+      - "src/server/**"
+      - "src/lib/**"
+      - "src/data/**"
+      - "apps/web/**"
+      - "scripts/lib/**"
+      - "scripts/required/**"
+      - ".github/workflows/images.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: "Images: web (build + boot)"
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: redlens
+          POSTGRES_PASSWORD: redlens
+          POSTGRES_DB: redlens
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U redlens -d redlens"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+
+      # No submodule checkout on purpose: the Dockerfile clones the atlas itself
+      # because Railway strips .git from the build context. Building without one
+      # keeps this job honest about what Railway actually feeds the build.
+      - name: Build web image
+        run: docker build -t redlens-web:ci .
+
+      # Directly asserts what the --prod runtime install changed. viem is the
+      # canary for "a runtime dependency survived the prune" (it was a
+      # devDependency until it was caught); vite is the canary for "the build
+      # toolchain is actually gone".
+      - name: Runtime image carries prod deps and none of the toolchain
+        run: |
+          set -eux
+          docker run --rm redlens-web:ci sh -c 'test -d node_modules/viem'
+          docker run --rm redlens-web:ci sh -c 'test -d node_modules/minisearch'
+          # react et al are apps/web dependencies now: --filter sabr-root must keep the
+          # whole browser bundle out of a service image, not just the devDeps.
+          for pkg in vite vitest typescript tailwindcss knip oxlint jsdom @playwright/test react react-dom katex posthog-js wouter; do
+            if docker run --rm redlens-web:ci sh -c "test -e node_modules/$pkg"; then
+              echo "::error::$pkg is a devDependency but is present in the runtime image"
+              exit 1
+            fi
+          done
+
+      - name: Boot the image and wait for /api/health
+        env:
+          DATABASE_URL: postgres://redlens:redlens@localhost:5432/redlens
+        run: |
+          set -eux
+          docker run -d --name redlens-web --network host \
+            -e DATABASE_URL="$DATABASE_URL" -e PORT=8080 redlens-web:ci
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/api/health >/tmp/health.json 2>/dev/null; then
+              cat /tmp/health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::/api/health never became ready"
+          docker logs redlens-web
+          exit 1
+
+      - name: Server logs
+        if: always()
+        run: docker logs redlens-web || true
+
+  worker:
+    name: "Images: atlas worker (build)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # The worker image clones the atlas with FULL history for the build-history
+      # git walk, so this build is the slow one. It is still worth doing per-PR:
+      # it is the only thing that checks the cron service can be built at all.
+      - name: Build worker image
+        run: docker build -f Dockerfile.worker -t redlens-worker:ci .
+
+      - name: Worker image carries its runtime deps
+        run: |
+          set -eux
+          # viem: fetch-chain-state.mjs. minisearch: build-index.mjs.
+          docker run --rm redlens-worker:ci sh -c 'test -d node_modules/viem'
+          docker run --rm redlens-worker:ci sh -c 'test -d node_modules/minisearch'
+          docker run --rm redlens-worker:ci sh -c 'test -d vendor/next-gen-atlas/content'
+
+      # The gate that keeps --prod safe: every package the worker reaches at
+      # runtime must be a real dependency. Running it inside the image means it
+      # checks the tree that actually shipped.
+      - name: Import boundary holds inside the image
+        # `bun`, not `node`: oven/bun ships no Node binary.
+        run: docker run --rm redlens-worker:ci sh -c 'bun scripts/required/check-boundaries.mjs'

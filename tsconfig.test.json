@@ -4,10 +4,17 @@
     "target": "es2023",
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "module": "esnext",
-    "types": ["node", "vitest/globals", "vite/client"],
+    // vite/client dropped with the frontend: vite is an apps/web devDependency
+    // now, and nothing under root src/ references import.meta.env.
+    "types": ["node", "vitest/globals"],
     "skipLibCheck": true,
     "jsx": "react-jsx",
 
+    /* Path aliases — declared once in scripts/lib/path-aliases.mjs and asserted
+       against it by scripts_tests/path-aliases.test.ts. `@/x` is root src/x;
+       it survives a file moving between packages, which plain relative
+       specifiers do not. */
+    "paths": { "@/*": ["./src/*"] },
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
@@ -19,6 +26,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/vite-env.d.ts", "scripts_tests"],
+  "include": ["src/**/*.test.ts", "src/**/*.test.tsx", "scripts_tests"],
   "exclude": ["src/server"]
 }

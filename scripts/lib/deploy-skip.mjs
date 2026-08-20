@@ -61,7 +61,15 @@ export function railwayWebWatchPatterns() {
   return ["**", "!**/*.md", ...APP_READ_MARKDOWN];
 }
 
-/** Worker image does not bundle any markdown. */
+/**
+ * Worker image bundles no markdown, and nothing under apps/web — it runs the
+ * atlas pipeline and syncs Postgres; there is no browser bundle in it. Its one
+ * stake in that package is the manifest, which the workspace install needs to
+ * resolve the lockfile, so that single file is re-included.
+ *
+ * A dependency change cannot sneak past this: it moves pnpm-lock.yaml too, and
+ * the lockfile is matched by `**`.
+ */
 export function railwayWorkerWatchPatterns() {
-  return ["**", "!**/*.md"];
+  return ["**", "!**/*.md", "!apps/web/**", "apps/web/package.json"];
 }

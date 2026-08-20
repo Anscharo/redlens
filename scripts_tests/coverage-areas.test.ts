@@ -28,19 +28,19 @@ function walk(rel: string, ext = "ts|tsx"): string[] {
     .filter((f) => !f.endsWith(".d.ts"));
 }
 
-// Context providers that live under src/lib but are React (createContext).
+// Context providers that live under lib but are React (createContext).
 const libContext = [
-  "src/lib/dataSource.tsx",
-  "src/lib/previewView.tsx",
-  "src/lib/previewDiff.tsx",
-  "src/lib/selection.tsx",
+  "apps/web/src/lib/dataSource.tsx",
+  "apps/web/src/lib/previewView.tsx",
+  "apps/web/src/lib/previewDiff.tsx",
+  "apps/web/src/lib/selection.tsx",
 ];
 
 const reactFiles = [
-  ...walk("src/components"),
-  ...walk("src/hooks"),
-  "src/App.tsx",
-  "src/main.tsx",
+  ...walk("apps/web/src/components"),
+  ...walk("apps/web/src/hooks"),
+  "apps/web/src/App.tsx",
+  "apps/web/src/main.tsx",
   ...libContext,
 ];
 
@@ -123,7 +123,9 @@ describe("coverage areas — backend partition", () => {
 // every file under scripts/lib/. The former single `general-utils` meter was
 // split into per-product meters; if this set ever leaks a file to uncategorized
 // (or a product meter goes empty), a product's lib coverage number silently lies.
-const libFiles = walk("src/lib").filter((f) => !libContext.includes(f));
+// lib now spans both packages: the shared modules stayed at root, the
+// frontend-only ones moved with the app. The meters partition both.
+const libFiles = [...walk("src/lib"), ...walk("apps/web/src/lib")].filter((f) => !libContext.includes(f));
 const scriptsLibFiles = walk("scripts/lib", "mjs");
 
 describe("coverage areas — lib partition", () => {

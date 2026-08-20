@@ -5,7 +5,7 @@
 // decides rule-vs-mention; this module decides candidate-vs-unrelated with
 // census-style exclusion buckets.
 
-import type { AtlasBundle } from "./docs";
+import type { AtlasBundle } from "./docsTypes";
 import type { AtlasNode } from "../types";
 import { normalizeAssessedText } from "./oeaTasks";
 import riskNonRuleDocs from "./data/risk-non-rule-docs.json";

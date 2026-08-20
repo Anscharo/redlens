@@ -6,8 +6,12 @@
 // role directly. Core-side rows, definitions, and Core-role assignments are
 // out of scope — they task a different entity or don't task at all.
 
-import type { AtlasBundle } from "./docs";
-import type { GraphData } from "./graph";
+// Imported from the modules that DECLARE these types, not from the browser
+// loaders that re-export them. docs.ts and graph.ts pull in atlasBase ->
+// analytics -> posthog-js; routing a type-only import through them put a
+// browser SDK on the source graph of every script that enumerates OEA tasks.
+import type { AtlasBundle } from "./docsTypes";
+import type { GraphData } from "./graphData";
 import { deriveGovOpsResponsibilities } from "./govopsResponsibilities";
 import { deriveFacilitatorResponsibilities } from "./facilitatorResponsibilities";
 import { stripMarkdownLinks } from "./atlasHelpers";

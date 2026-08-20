@@ -263,9 +263,9 @@ There is **no generic polymorphic `as` and no `asChild`/`Slot` in `src/` today**
 discriminated union, which is the preferred shape here. Prefer a closed union over an open
 `React.ElementType` generic unless you genuinely need arbitrary elements.
 
-`asChild` requires `@radix-ui/react-slot`, and **any dependency change must update both
-`pnpm-lock.yaml` and `bun.lock` in the same commit** — `bun install --frozen-lockfile` fails
-the Railway Docker build otherwise. Don't add it speculatively.
+`asChild` requires `@radix-ui/react-slot`, and **any dependency change must ship the
+refreshed `pnpm-lock.yaml` in the same commit** — `pnpm install --frozen-lockfile` fails CI
+and the Docker build otherwise. Don't add it speculatively.
 
 If you do support `asChild`: single element child only (no fragments, no multiple children),
 document it with the spec's exact JSDoc ("Change the default rendered element for the one
