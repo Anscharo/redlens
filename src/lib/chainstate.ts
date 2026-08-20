@@ -1,4 +1,5 @@
 import { fetchJson } from "./verify";
+import type { ChainValue } from "./chainstateTypes";
 
 interface ChainState {
   block: string;
@@ -7,10 +8,9 @@ interface ChainState {
   fetchedAt?: string | null;
 }
 
-// A single view function result — string for uint/address/bytes, bool,
-// array, object for tuples, or null when the call reverted.
-export type ChainScalar = string | boolean | null;
-export type ChainValue = ChainScalar | ChainValue[] | { [key: string]: ChainValue };
+// Declared in the DOM-free ./chainstateTypes so type-only consumers don't pull
+// this loader in; re-exported here so existing callers keep working.
+export type { ChainScalar, ChainValue } from "./chainstateTypes";
 
 let cached: Promise<ChainState> | null = null;
 

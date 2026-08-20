@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildDocViewProps } from "./atlasAnalytics";
-import type { AtlasBundle } from "./docs";
+import type { AtlasBundle } from "./docsTypes";
 import type { GraphData } from "./graph";
 import type { AtlasNode, GraphEntity } from "../types";
 

@@ -1,5 +1,5 @@
 import type { AtlasNode, GraphEntity } from "../types";
-import type { AtlasBundle } from "./docs";
+import type { AtlasBundle } from "./docsTypes";
 import type { GraphData } from "./graph";
 import { buildAncestorsWithSelf } from "./atlasHelpers";
 import { abbreviateAgentName } from "./owningAgent";

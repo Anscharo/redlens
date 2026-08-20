@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import type { AtlasNode } from "../types";
-import type { AtlasBundle } from "./docs";
+import type { AtlasBundle } from "./docsTypes";
 import { enumerateRiskCandidates, riskDocContentHash } from "./riskRules";
 
 // A.3.1 Core Stability Parameters — a real anchor uuid (the anchor table is

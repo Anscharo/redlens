@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
-import type { AtlasBundle } from "./docs";
+import type { AtlasBundle } from "./docsTypes";
 import type { GraphData } from "./graph";
 import { enumerateOeaTasks, taskKeyFor, normalizeAssessedText } from "./oeaTasks";
 
