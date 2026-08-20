@@ -318,12 +318,25 @@ function changedLines() {
     return new Map();
   }
   // Scoped to what the LCOV inputs can actually instrument (vitest's
-  // coverage.include is src/**/*.{ts,tsx} + scripts/lib/**/*.mjs; bun's
-  // coverage only sees modules src/server tests load). A changed file outside
-  // this scope — e.g. a scripts/required/*.mjs build script — would never
-  // appear in either LCOV, so the per-file loop below could never count its
-  // changed lines and the coverage gate would silently pass it as untested.
-  const diff = execFileSync("git", ["diff", "--unified=0", `${baseRef}...HEAD`, "--", "src", "scripts/lib"], { encoding: "utf8" });
+  // coverage.include is src/**/*.{ts,tsx} + apps/web/src/**/*.{ts,tsx} +
+  // scripts/lib/**/*.mjs; bun's coverage only sees modules src/server tests
+  // load). A changed file outside this scope — e.g. a scripts/required/*.mjs
+  // build script — would never appear in either LCOV, so the per-file loop
+  // below could never count its changed lines and the coverage gate would
+  // silently pass it as untested.
+  //
+  // apps/web is listed because the frontend lives there now. Without it this
+  // gate stops seeing every component and hook — it would keep passing while
+  // measuring nothing, which is worse than failing.
+  //
+  // maxBuffer is raised off the 1 MB default: a large refactor (the workspace
+  // split diffed ~1 MB here) overflows it, and execFileSync then throws rather
+  // than returning truncated output, taking the whole gate down with it.
+  const diff = execFileSync(
+    "git",
+    ["diff", "--unified=0", `${baseRef}...HEAD`, "--", "src", "apps/web/src", "scripts/lib"],
+    { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 },
+  );
   const result = new Map();
   let file = null;
   for (const line of diff.split(/\r?\n/)) {
