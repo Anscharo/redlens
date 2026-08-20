@@ -9,6 +9,7 @@ import {
   summaryThreeWay,
   activeDemandSeries,
   headlineFigures,
+  settlementsArtifactMissing,
 } from "../../lib/settlements";
 import type { HeadlineFigure } from "../../lib/settlements";
 import { SettlementBars } from "./SettlementBars";
@@ -37,6 +38,13 @@ export function ActorSettlements({ slug, name }: Props) {
   const demandSeries = useMemo(() => activeDemandSeries(reports), [reports]);
 
   if (!bundle) return null;
+  if (settlementsArtifactMissing(bundle)) {
+    return (
+      <p className="text-sm italic" style={{ color: "var(--tan-3)" }}>
+        Settlement figures could not be loaded.
+      </p>
+    );
+  }
   if (!report || !month) {
     return (
       <p className="text-sm italic" style={{ color: "var(--tan-3)" }}>

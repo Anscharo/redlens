@@ -53,6 +53,21 @@ export interface SettlementsBundle {
 
 export const EMPTY_SETTLEMENTS: SettlementsBundle = { source: {}, reports: [] };
 
+/**
+ * True when `settlements.json` failed to load (404, bake miss), not when a
+ * prime simply has no published workbooks. `loadSettlements` swallows the
+ * fetch error and returns `EMPTY_SETTLEMENTS`, which is truthy — callers
+ * must not treat that as "this slug has no MSC files."
+ */
+export function settlementsArtifactMissing(bundle: SettlementsBundle): boolean {
+  return (
+    bundle.reports.length === 0 &&
+    bundle.source.repo == null &&
+    bundle.source.fetched == null &&
+    bundle.source.dir == null
+  );
+}
+
 const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 let cached: Promise<SettlementsBundle> | null = null;
@@ -182,7 +197,7 @@ export function teaserFigure(report: SettlementReport): { amount: number; suffix
   return { amount: sky, suffix: "to Sky" };
 }
 
-/** Summary three-way: Sky take, supply-side kept (P2G), demand-side. */
+/** Summary three-way: Sky take, supply-side kept (`par − CoF`), demand-side. */
 export interface ThreeWayMonth {
   month: string;
   sky: number;
@@ -298,14 +313,19 @@ export interface HeadlineFigure {
  *
  * Cost of funds IS the money sent to Sky — settlement-cycle derives it as
  * `sky_revenue − sde_revenue`, so the two differ only by Sky Direct
- * Exposure (zero for Obex, <0.5% for Spark). Listing it as a peer of
- * "To Sky" invited readers to add the row and count Sky's take twice.
+ * Exposure (zero for Obex, <0.5% for Spark, material for Grove). Listing
+ * either as a peer of "To Sky" invited readers to add the row and count
+ * Sky's take twice. Both render as components so Grove's remainder is
+ * labeled rather than looking like a math error.
  */
 export function headlineFigures(report: SettlementReport): HeadlineFigure[] {
-  const { skyRevenue, cof } = report.headline;
+  const { skyRevenue, cof, sdeRevenue } = report.headline;
   const rows: HeadlineFigure[] = [{ label: "To Sky", value: skyRevenue }];
   if (Math.abs(cof) >= NEAR_ZERO) {
     rows.push({ label: "of which cost of funds", value: cof, component: true });
+  }
+  if (Math.abs(sdeRevenue) >= NEAR_ZERO) {
+    rows.push({ label: "of which Sky Direct Exposure", value: sdeRevenue, component: true });
   }
   rows.push(
     { label: "Supply kept", value: supplyKept(report) },

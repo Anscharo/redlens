@@ -26,6 +26,7 @@ import {
   hasVenueAum,
   collapseAum,
   EMPTY_SETTLEMENTS,
+  settlementsArtifactMissing,
   type SettlementHeadline,
   type SettlementReport,
   type SettlementsBundle,
@@ -187,6 +188,7 @@ describe("demand-side cycles", () => {
     expect(headlineFigures(report())).toEqual([
       { label: "To Sky", value: 60 },
       { label: "of which cost of funds", value: 40, component: true },
+      { label: "of which Sky Direct Exposure", value: 20, component: true },
       { label: "Supply kept", value: 60 },
       { label: "Demand-side", value: 0 },
     ]);
@@ -200,6 +202,13 @@ describe("demand-side cycles", () => {
       "To Sky",
       "Supply kept",
       "Demand-side",
+    ]);
+    const grove = report({
+      headline: { ...report().headline, skyRevenue: 100, cof: 40, sdeRevenue: 60 },
+    });
+    expect(headlineFigures(grove).filter((f) => f.component).map((f) => f.label)).toEqual([
+      "of which cost of funds",
+      "of which Sky Direct Exposure",
     ]);
   });
 
@@ -283,5 +292,18 @@ describe("loadSettlements", () => {
     fetchJson.mockResolvedValueOnce({ source: {}, reports: [report()] });
     await expect(loadSettlements()).resolves.toEqual({ source: {}, reports: [report()] });
     expect(fetchJson).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("settlementsArtifactMissing", () => {
+  it("is true for the swallowed-fetch sentinel, not for a loaded bundle with no matching prime", () => {
+    expect(settlementsArtifactMissing(EMPTY_SETTLEMENTS)).toBe(true);
+    expect(settlementsArtifactMissing({ source: {}, reports: [] })).toBe(true);
+    expect(
+      settlementsArtifactMissing({ source: { repo: "soterlabs/settlement-reports" }, reports: [] }),
+    ).toBe(false);
+    expect(
+      settlementsArtifactMissing({ source: { repo: "soterlabs/settlement-reports" }, reports: [report()] }),
+    ).toBe(false);
   });
 });

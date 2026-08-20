@@ -35,6 +35,9 @@ export function ActorSettlementTeaser({ slug }: Props) {
       <p className="mono text-lg" style={{ color: "var(--tan)" }}>
         {formatUsd(figure.amount)} {figure.suffix}
       </p>
+      <p className="text-[10px] mt-1" style={{ color: "var(--tan-3)" }}>
+        OEA calculation, not the on-chain GovOps spell
+      </p>
       <Link
         to={settlementsHref(slug)}
         className="msc-teaser-link mono text-[10px] text-accent hover:underline"

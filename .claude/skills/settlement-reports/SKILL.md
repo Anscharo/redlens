@@ -110,7 +110,9 @@ identical for Obex (SDE = 0), under 0.5% apart for Spark, materially different
 only for Grove (SDE $2.9M–$6.4M).
 
 Render it as a component of "To Sky" (`HeadlineFigure.component`), never as a
-peer row, or readers add the two and count Sky's take twice.
+peer row, or readers add the two and count Sky's take twice. Sky Direct
+Exposure is the other component (`cof + sde = skyRevenue`); show it the same
+way whenever it is non-zero so Grove's remainder is labeled.
 
 The three genuine flows, which foot to `$0.00` on all 36 workbooks:
 

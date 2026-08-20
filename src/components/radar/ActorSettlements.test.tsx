@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { SettlementsBundle } from "../../lib/settlements";
@@ -90,16 +90,24 @@ const FIXTURE: SettlementsBundle = {
   ],
 };
 
+const loadSettlements = vi.hoisted(() => vi.fn());
+
 vi.mock("../../lib/settlements", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/settlements")>();
-  return { ...actual, loadSettlements: () => Promise.resolve(FIXTURE) };
+  return { ...actual, loadSettlements: () => loadSettlements() };
 });
 
 import { ActorSettlements } from "./ActorSettlements";
+import { EMPTY_SETTLEMENTS } from "../../lib/settlements";
 
 afterEach(() => {
   cleanup();
   window.history.pushState({}, "", "/radar/spark");
+});
+
+beforeEach(() => {
+  loadSettlements.mockReset();
+  loadSettlements.mockResolvedValue(FIXTURE);
 });
 
 describe("ActorSettlements", () => {
@@ -115,7 +123,13 @@ describe("ActorSettlements", () => {
       "https://github.com/soterlabs/settlement-reports/tree/main/reports/spark/2026-07",
     );
     expect(screen.getByRole("group", { name: "Venue view" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "AUM" }));
+    const pnl = screen.getByRole("button", { name: "Profit & Loss" });
+    const aum = screen.getByRole("button", { name: "Assets Under Management" });
+    expect(pnl).toHaveAttribute("aria-pressed", "true");
+    expect(aum).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(aum);
+    expect(pnl).toHaveAttribute("aria-pressed", "false");
+    expect(aum).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Venue AUM (end of month)")).toBeInTheDocument();
     expect(screen.getByText("$753.00M")).toBeInTheDocument();
     expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
@@ -177,5 +191,12 @@ describe("ActorSettlements", () => {
     await screen.findByText("Supply kept");
     rerender(<ActorSettlements slug="spark-proxy" name="Spark Proxy" />);
     expect(screen.getByText(/No published Monthly Settlement Cycle workbooks for Spark Proxy/)).toBeInTheDocument();
+  });
+
+  it("does not claim a prime has no workbooks when the artifact failed to load", async () => {
+    loadSettlements.mockResolvedValue(EMPTY_SETTLEMENTS);
+    render(<ActorSettlements slug="spark" name="Spark" />);
+    expect(await screen.findByText("Settlement figures could not be loaded.")).toBeInTheDocument();
+    expect(screen.queryByText(/No published Monthly Settlement Cycle workbooks/)).not.toBeInTheDocument();
   });
 });

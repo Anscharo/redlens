@@ -61,6 +61,7 @@ describe("ActorSettlementTeaser", () => {
     expect(figure.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(figure.closest(".msc-teaser")).toBeTruthy();
     expect(screen.getByTestId("msc-teaser")).toBe(figure.closest(".msc-teaser"));
+    expect(screen.getByText("OEA calculation, not the on-chain GovOps spell")).toBeInTheDocument();
   });
 
   it("treats the composite-party slug as the prime", async () => {

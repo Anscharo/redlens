@@ -37,6 +37,8 @@ export function ActorSettlementVenues({ report, name }: { report: SettlementRepo
               type="button"
               className="scope-pill mono text-[10px] uppercase tracking-wider px-2 py-1"
               data-active={view === "pnl" ? "true" : undefined}
+              aria-pressed={view === "pnl"}
+              aria-label="Profit & Loss"
               onClick={() => setView("pnl")}
             >
               PnL
@@ -47,6 +49,8 @@ export function ActorSettlementVenues({ report, name }: { report: SettlementRepo
               type="button"
               className="scope-pill mono text-[10px] uppercase tracking-wider px-2 py-1"
               data-active={view === "aum" ? "true" : undefined}
+              aria-pressed={view === "aum"}
+              aria-label="Assets Under Management"
               onClick={() => setView("aum")}
             >
               AUM
