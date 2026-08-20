@@ -10,6 +10,7 @@ import {
   activeDemandSeries,
   headlineFigures,
 } from "../../lib/settlements";
+import type { HeadlineFigure } from "../../lib/settlements";
 import { SettlementBars } from "./SettlementBars";
 import { SettlementDemandBars } from "./SettlementDemandBars";
 import { ActorSettlementVenues } from "./ActorSettlementVenues";
@@ -64,7 +65,7 @@ export function ActorSettlements({ slug, name }: Props) {
       />
       <div className="flex flex-wrap gap-x-6 gap-y-1 mb-4 text-sm">
         {headlineFigures(report).map((f) => (
-          <Figure key={f.label} label={f.label} value={f.value} />
+          <Figure key={f.label} {...f} />
         ))}
       </div>
       {gap > 1 && (
@@ -84,15 +85,17 @@ export function ActorSettlements({ slug, name }: Props) {
   );
 }
 
-function Figure({ label, value }: { label: string; value: number }) {
+function Figure({ label, value, component }: HeadlineFigure) {
   return (
     <div>
       <div className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>
         {label}
       </div>
       <div
-        className="mono text-lg"
-        style={{ color: value < 0 ? "var(--accent)" : "var(--tan)" }}
+        className={component ? "mono text-sm" : "mono text-lg"}
+        style={{
+          color: component ? "var(--tan-3)" : value < 0 ? "var(--accent)" : "var(--tan)",
+        }}
       >
         {formatUsd(value)}
       </div>

@@ -91,23 +91,41 @@ function printStats(bundle) {
   }
   console.log("");
   console.log(
-    `reconciliation (|Σ P2S − skyRevenue| and |Σ P2G − Comparison total|; flag > ${usd(THRESHOLD)}):`,
+    `reconciliation (dCof is the load-bearing one; flag > ${usd(THRESHOLD)}):`,
   );
   let flags = 0;
   for (const r of reports) {
     const rec = reconcile(r);
-    const bad = rec.dSky > THRESHOLD || rec.dP2G > THRESHOLD;
+    const bad = rec.dSky > THRESHOLD || rec.dP2G > THRESHOLD || rec.dCof > THRESHOLD;
     if (bad) flags++;
     const mark = bad ? "  FLAG" : "";
     const gap =
       rec.dRevenue > THRESHOLD ? `  revenueGap=${usd(rec.dRevenue)}` : "";
     console.log(
       `  ${r.prime}/${r.month}  dSky=${usd(rec.dSky)}  dP2G=${usd(rec.dP2G)}` +
-        `  venues=${r.venues.length}${gap}${mark}`,
+        `  dCof=${usd(rec.dCof)}  venues=${r.venues.length}${gap}${mark}`,
     );
   }
   console.log(`flags: ${flags} / ${reports.length}`);
+  console.log("(dCof = |Σ CoF alloc − Σ Spread Reimb − headline CoF|; catches a renamed CoF label,");
+  console.log(" which parses as 0 and is otherwise indistinguishable from Keel/Skybase's real 0)");
   console.log("(revenueGap = |Σ venue.revenueToPrime − primeAgentRevenue|; Spark's is the non-venue PSM3 slice)");
+
+  const unfooted = reports
+    .map((r) => ({ r, rec: reconcile(r) }))
+    .filter(({ rec }) => rec.dComparisonFoot > THRESHOLD);
+  console.log("");
+  console.log(
+    `upstream Comparison blocks that do not foot: ${unfooted.length} / ${reports.length}`,
+  );
+  for (const { r, rec } of unfooted) {
+    console.log(
+      `  ${r.prime}/${r.month}  supplyKept(par−CoF)=${usd(rec.supplyKept)}` +
+        `  ΣP2G=${usd(rec.sumProfitToGrove)}  off by ${usd(rec.dComparisonFoot)}`,
+    );
+  }
+  console.log("(build_settlement_xlsx.py totals that block with Σ Profit to Grove rather than its");
+  console.log(" own addends. We report supplyKept = prime_agent_revenue − CoF, per load/summary.py.)");
 
   const sparkJul = reports.find((r) => r.prime === "spark" && r.month === "2026-07");
   if (sparkJul) {

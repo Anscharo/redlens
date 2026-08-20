@@ -25,6 +25,11 @@ function addSummary(
     gar?: number;
     cof?: number;
     sde?: number;
+    cofLabel?: string;
+    sdeLabel?: string;
+    omitSkyTotal?: boolean;
+    /** Override the Comparison total, as real workbooks do (Σ P2G ≠ par − CoF). */
+    comparisonTotal?: number;
   } = {},
 ) {
   const par = opts.par ?? 100;
@@ -48,14 +53,14 @@ function addSummary(
   ws.addRow(["", primeTotal]);
   ws.addRow([]);
   ws.addRow(["Sky side", "USD"]);
-  ws.addRow(["CoF on utilized (BR × Net_Subs)", cof]);
-  ws.addRow(["+ SDE revenue (Sky-Direct, full to Sky)", sde]);
-  ws.addRow(["", sky]);
+  ws.addRow([opts.cofLabel ?? "CoF on utilized (BR × Net_Subs)", cof]);
+  ws.addRow([opts.sdeLabel ?? "+ SDE revenue (Sky-Direct, full to Sky)", sde]);
+  if (!opts.omitSkyTotal) ws.addRow(["", sky]);
   ws.addRow([]);
   ws.addRow(['Comparison (Grove-style "Profit to Grove")', "USD"]);
   ws.addRow(["prime_agent_revenue", par]);
   ws.addRow(["− CoF (deducted per-venue in display)", -cof]);
-  ws.addRow(["", par - cof]);
+  ws.addRow(["", opts.comparisonTotal ?? par - cof]);
   ws.addRow([]);
   ws.addRow(["Period", "2026-07-01 → 2026-07-31 (31 days)"]);
   ws.addRow(["Generated", "2026-08-07T11:53:57Z"]);
@@ -259,5 +264,91 @@ describe("parseReportsDir", () => {
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe("parseSummary — fails loud on a renamed label", () => {
+  // cellNum returns 0 for a missing cell and 0 is a real value here (Keel
+  // and Skybase settle at CoF 0), so a silent 0 is indistinguishable from
+  // a genuine one. Upstream already spells CoF two ways — "CoF on
+  // utilized" in the xlsx, "prime cost of funds" in summary.md.
+  const renames = [
+    ["prime cost of funds", "the wording summary.md uses"],
+    ["CoF on utilised (BR × Net_Subs)", "one letter — British spelling"],
+    ["Cost of funds on utilized (BR × Net_Subs)", "CoF spelled out"],
+  ];
+
+  for (const [label, why] of renames) {
+    it(`throws when CoF is renamed to "${label}" (${why})`, async () => {
+      const buf = await workbookBuffer((wb) => {
+        addSummary(wb, { cofLabel: label });
+        wb.addWorksheet("Venues").addRows([HEADER, venueRow()]);
+      });
+      await expect(parseWorkbook(buf)).rejects.toThrow(/CoF on utilized/);
+    });
+  }
+
+  it("throws when the SDE row is renamed", async () => {
+    const buf = await workbookBuffer((wb) => {
+      addSummary(wb, { sdeLabel: "+ sky direct exposure" });
+      wb.addWorksheet("Venues").addRows([HEADER, venueRow()]);
+    });
+    await expect(parseWorkbook(buf)).rejects.toThrow(/SDE revenue/);
+  });
+
+  it("throws when a block total row is missing", async () => {
+    const buf = await workbookBuffer((wb) => {
+      addSummary(wb, { omitSkyTotal: true });
+      wb.addWorksheet("Venues").addRows([HEADER, venueRow()]);
+    });
+    await expect(parseWorkbook(buf)).rejects.toThrow(/block total/);
+  });
+
+  it("still accepts a genuine zero CoF (Keel / Skybase)", async () => {
+    const buf = await workbookBuffer((wb) => {
+      addSummary(wb, { par: 0, cof: 0, sde: 0, dr: 4_227 });
+      wb.addWorksheet("Venues").addRows([HEADER]);
+    });
+    const report = await parseWorkbook(buf);
+    expect(report.headline.cof).toBe(0);
+    expect(report.headline.distributionRewards).toBe(4_227);
+  });
+});
+
+describe("reconcile — CoF and the Comparison block", () => {
+  async function build(over: Record<string, unknown>, cof = 40) {
+    return workbookBuffer((wb) => {
+      addSummary(wb, { cof });
+      wb.addWorksheet("Venues").addRows([HEADER, venueRow(over)]);
+    });
+  }
+
+  it("dCof holds when Σ CoF alloc − Σ Spread Reimb equals headline CoF", async () => {
+    // grove_sheet.py allocates the GROSS CoF per venue and refunds the
+    // sUSDS spread inside Profit to Sky, so the identity nets the spread.
+    const report = await parseWorkbook(await build({ "CoF alloc": 45, "Spread Reimb": 5 }));
+    expect(reconcile(report).dCof).toBe(0);
+  });
+
+  it("dCof catches a CoF that no longer matches the venue table", async () => {
+    const report = await parseWorkbook(await build({ "CoF alloc": 45, "Spread Reimb": 0 }));
+    expect(reconcile(report).dCof).toBe(5);
+  });
+
+  it("reports supplyKept on the prime-level basis and measures the upstream non-foot", async () => {
+    // Real workbooks print prime_agent_revenue and −CoF as the Comparison
+    // block's addends but total it with Σ Profit to Grove, so the block
+    // does not foot. supplyKept follows load/summary.py (par − CoF)
+    // instead of trusting that total.
+    const buf = await workbookBuffer((wb) => {
+      addSummary(wb, { par: 100, cof: 40, comparisonTotal: 45 });
+      const ws = wb.addWorksheet("Venues");
+      ws.addRows([HEADER, venueRow({ "Profit to Grove": 45 })]);
+    });
+    const rec = reconcile(await parseWorkbook(buf));
+    expect(rec.supplyKept).toBe(60); // par − CoF, what summary.md publishes
+    expect(rec.sumProfitToGrove).toBe(45); // what the block totals to
+    expect(rec.dComparisonFoot).toBe(15); // the gap, surfaced not swallowed
+    expect(rec.dP2G).toBe(0); // and dP2G stays blind to it, by construction
   });
 });
