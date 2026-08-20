@@ -23,7 +23,7 @@ describe("routeCensuses — similarity lane", () => {
   it("never fires on a specific document lookup wearing census vocabulary", () => {
     // The sharpest adversarial case: literally starts with "List Of", the
     // registry-liveness census's own title prefix — the exact phrasing
-    // pinned as a regression case in skills/registry.test.ts.
+    // pinned as a regression case in facts/registry.test.ts.
     expect(routeCensuses("list of prime agents")).toEqual([]);
   });
 

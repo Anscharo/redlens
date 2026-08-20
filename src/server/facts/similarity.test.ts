@@ -1,13 +1,13 @@
-// skills/similarity.ts: the second trigger lane. These are the load-bearing
-// cases from the 241-question bakeoff (scripts/eval/eval-skills.ts) pinned as
+// facts/similarity.ts: the second trigger lane. These are the load-bearing
+// cases from the 241-question bakeoff (scripts/eval/eval-facts.ts) pinned as
 // tests — the ones that decide whether the lane is safe to have on.
 import { describe, it, expect } from "bun:test";
-import { looksLikeSkillQuestion, namesAtlasSubject, isSmallTalk } from "./similarity.ts";
+import { looksLikeFactQuestion, namesAtlasSubject, isSmallTalk } from "./similarity.ts";
 import { FEATURES_PROTOTYPES } from "./features.ts";
 import { loadIndexes } from "../retrieval/indexes.ts";
 
 const ix = loadIndexes();
-const fires = (q: string) => looksLikeSkillQuestion(ix, q, FEATURES_PROTOTYPES);
+const fires = (q: string) => looksLikeFactQuestion(ix, q, FEATURES_PROTOTYPES);
 
 describe("similarity lane", () => {
   it("catches product questions the regex trigger has no words for", () => {
@@ -39,6 +39,6 @@ describe("similarity lane", () => {
   });
 
   it("scores nothing without prototypes", () => {
-    expect(looksLikeSkillQuestion(ix, "show me around", [])).toBe(false);
+    expect(looksLikeFactQuestion(ix, "show me around", [])).toBe(false);
   });
 });

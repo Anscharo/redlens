@@ -4,8 +4,8 @@
 // High-precision lanes only — no speculative search — so a hit is always worth
 // the tokens and a miss injects nothing.
 //
-// Both are wrapped as skills and assembled into the injected tool round by
-// skills/registry.ts, which is where a new lane goes.
+// Both are wrapped as facts and assembled into the injected tool round by
+// facts/registry.ts, which is where a new lane goes.
 import type { Indexes, Entity } from "./retrieval/indexes.ts";
 import type { GlossaryEntry } from "../lib/glossaryLookup.ts";
 import { matchEntities, entityAliases } from "./retrieval/entity-resolve.ts";
@@ -165,7 +165,7 @@ export function matchQuestionEntities(ix: Indexes, question: string): EntityRow[
 }
 
 // Definition rows for every glossary term the question names, capped and
-// truncated. The glossary skill's payload (skills/registry.ts).
+// truncated. The glossary fact's payload (facts/registry.ts).
 export function definitionRows(ix: Indexes, question: string): DefinitionRow[] {
   const rows: DefinitionRow[] = [];
   for (const { entries } of matchGlossary(ix, question)) {

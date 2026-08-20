@@ -1,15 +1,15 @@
-// skills/features.ts: when the product-documentation skill fires, and what it
+// facts/features.ts: when the product-documentation fact fires, and what it
 // injects. Reads the real FEATURE_GROUPS — the same data /features renders —
 // so a drift in the guide shows up here.
 import { describe, it, expect } from "bun:test";
-import { featuresSkill, matchesFeaturesQuestion } from "./features.ts";
+import { featuresFact, matchesFeaturesQuestion } from "./features.ts";
 import { FEATURE_GROUPS } from "../../lib/featuresData.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 
-const ix = {} as Indexes; // this skill reads no atlas data
+const ix = {} as Indexes; // this fact reads no atlas data
 
 function block(question: string, page?: { path?: string }) {
-  const b = featuresSkill.run({ ix, question, page });
+  const b = featuresFact.run({ ix, question, page });
   return b ? (b.value as {
     vocabulary: Record<string, string>;
     chat: { what_i_am: string; i_can: string[]; i_cannot: string[] };
@@ -17,7 +17,7 @@ function block(question: string, page?: { path?: string }) {
   }) : null;
 }
 
-describe("features skill triggers", () => {
+describe("features fact triggers", () => {
   it("fires on the ways people actually ask", () => {
     for (const q of [
       "what can i do with redline sky atlas?",
@@ -69,12 +69,12 @@ describe("features skill triggers", () => {
   });
 
   it("also fires from the features page itself, for a question that names nothing", () => {
-    expect(featuresSkill.run({ ix, question: "what does this cover?" })).toBeNull();
-    expect(featuresSkill.run({ ix, question: "what does this cover?", page: { path: "/features" } })).not.toBeNull();
+    expect(featuresFact.run({ ix, question: "what does this cover?" })).toBeNull();
+    expect(featuresFact.run({ ix, question: "what does this cover?", page: { path: "/features" } })).not.toBeNull();
   });
 });
 
-describe("features skill payload", () => {
+describe("features fact payload", () => {
   it("separates what the chat can do from what the app can do", () => {
     const v = block("what can you do?")!;
     expect(v.chat.i_can.length).toBeGreaterThan(0);
@@ -110,7 +110,7 @@ describe("features skill payload", () => {
   });
 
   it("carries the note that keeps app docs out of atlas citations", () => {
-    const b = featuresSkill.run({ ix, question: "what can you do?" })!;
+    const b = featuresFact.run({ ix, question: "what can you do?" })!;
     expect(b.note).toContain("NOT atlas text");
     expect(b.note).toContain("citation definition block");
   });

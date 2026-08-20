@@ -1,5 +1,5 @@
 // prefetch.ts: the glossary (longest-phrase match) and entity (containment)
-// lanes. How they are assembled and injected is skills/registry.test.ts.
+// lanes. How they are assembled and injected is facts/registry.test.ts.
 // Pure in-memory indexes — no network, no DB.
 import { describe, it, expect } from "bun:test";
 import { buildIndexes, type AtlasNode, type Entity } from "./retrieval/indexes.ts";

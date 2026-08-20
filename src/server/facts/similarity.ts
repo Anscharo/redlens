@@ -1,5 +1,5 @@
 // The similarity lane: does this question LOOK like the kind of question a
-// skill answers, even when the skill's deterministic trigger misses it?
+// fact answers, even when the fact's deterministic trigger misses it?
 //
 // Runs on ternlight — a 384-dim ternary sentence embedder compiled to WASM,
 // bundled in the package (no network, no API key, ~2ms/embed), so it keeps the
@@ -7,7 +7,7 @@
 // leaves the process.
 //
 // It is a SECOND lane, never a replacement, and the bakeoff is why
-// (scripts/eval/eval-skills.ts, 241 labeled questions): the model scores the
+// (scripts/eval/eval-facts.ts, 241 labeled questions): the model scores the
 // SHAPE of a question, not its subject. "what are the features of External
 // Platforms?" reads as a product question to it, and "what can i do with
 // redline sky atlas?" — a real product question — scores NEGATIVE because the
@@ -18,8 +18,8 @@ import { config } from "../config.ts";
 import { matchGlossary, matchQuestionEntities } from "../prefetch.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 
-// The competing intent every skill is scored against: a question about the
-// atlas, not about the app. The margin (best skill prototype − best atlas
+// The competing intent every fact is scored against: a question about the
+// atlas, not about the app. The margin (best fact prototype − best atlas
 // prototype) is what separates "what can this app do" from "what can this
 // agent do" — the same sentence with a different subject, which no absolute
 // threshold can split (measured: absolute cosine tops out at F1 0.55).
@@ -65,7 +65,7 @@ export function isSmallTalk(question: string): boolean {
 // (missing file in the runtime image, an incompatible Bun build, no WASM
 // support) would take down the whole server — health, MCP, static, not just
 // chat — before it ever binds a port. Loading here instead means
-// CHAT_SKILL_SIMILARITY=0 never touches the WASM at all (every caller below
+// CHAT_FACT_SIMILARITY=0 never touches the WASM at all (every caller below
 // checks the flag first), and a genuine load failure degrades this one lane
 // to regex-only instead of crashing the process.
 type Ternlight = typeof import("@ternlight/base");
@@ -75,7 +75,7 @@ function loadTernlight(): Ternlight | null {
     try {
       ternlight = require("@ternlight/base") as Ternlight;
     } catch (err) {
-      console.error("[skills] @ternlight/base failed to load — similarity lane disabled, falling back to regex-only triggers:", err);
+      console.error("[facts] @ternlight/base failed to load — similarity lane disabled, falling back to regex-only triggers:", err);
       ternlight = null;
     }
   }
@@ -120,35 +120,35 @@ export function namesAtlasSubject(ix: Indexes, question: string): boolean {
 }
 
 /**
- * Should `prototypes`' skill fire on this question, on shape alone? Callers
- * still OR this with the skill's own deterministic trigger.
+ * Should `prototypes`' fact fire on this question, on shape alone? Callers
+ * still OR this with the fact's own deterministic trigger.
  *
  * The default margin is PERMISSIVE on purpose: injected context is read by a
  * large model that can ignore a block it doesn't need, so over-injecting costs
  * a couple of thousand discarded tokens while under-injecting can lose the
- * answer. Held out (scripts/eval/eval-skills.ts): 25/28 product questions vs
+ * answer. Held out (scripts/eval/eval-facts.ts): 25/28 product questions vs
  * the regex lane's 6/28, at 5 false fires in 92 non-product questions — about
  * 130 wasted tokens per atlas turn on average, against 2,000 on every turn if
  * the guide were simply always injected.
  */
-export function looksLikeSkillQuestion(ix: Indexes, question: string, prototypes: string[]): boolean {
-  if (!config.chatSkillSimilarity || prototypes.length === 0) return false;
+export function looksLikeFactQuestion(ix: Indexes, question: string, prototypes: string[]): boolean {
+  if (!config.chatFactSimilarity || prototypes.length === 0) return false;
   if (isSmallTalk(question) || namesAtlasSubject(ix, question)) return false;
   const tl = loadTernlight();
   if (!tl) return false;
   const v = tl.embed(question); // not cached — see protoVec
-  return bestSim(tl, v, prototypes) - bestSim(tl, v, ATLAS_PROTOTYPES) >= config.chatSkillSimilarityMargin;
+  return bestSim(tl, v, prototypes) - bestSim(tl, v, ATLAS_PROTOTYPES) >= config.chatFactSimilarityMargin;
 }
 
 /**
  * Rank several prototype SETS against one question — the routing case a
- * single skill's `prototypes` array can't express (skills/types.ts): "which
- * one of N buckets, if any" rather than "does this one skill fire". One embed
+ * single fact's `prototypes` array can't express (facts/types.ts): "which
+ * one of N buckets, if any" rather than "does this one fact fire". One embed
  * call, scored against every set and a single shared negative set, sorted by
  * margin descending so a caller can take the top few above its own threshold.
  *
  * Deliberately does NOT apply ATLAS_PROTOTYPES or isSmallTalk itself — unlike
- * the single-skill case, a router's competing class isn't always "atlas vs
+ * the single-fact case, a router's competing class isn't always "atlas vs
  * app" (the concept-census lane's competing class is "cross-cutting analysis
  * vs specific document lookup", a different negative set — see
  * concepts-prefetch.ts's CENSUS_NEGATIVE_PROTOTYPES). Callers own their own
