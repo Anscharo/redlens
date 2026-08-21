@@ -28,7 +28,20 @@ const STRONG_SIGNALS: [RegExp, string][] = [
   [/\b(interacts?|conflicts?|contradicts?|overlaps?|reconcile|relationship between)\b/i, "interaction"],
   [/\b(implications?|trade-?offs?|consequences)\b/i, "analysis"],
   [/\b(allowed to|permitted to|violat\w*|comply|compliance|eligib\w*|penalt\w*)\b/i, "governance-risk"],
-  [/\ball\b.{0,60}\b(that|which|who)\b/i, "enumeration"],
+  // Exhaustive-set questions. "all of the X" / "all the X" is the form the
+  // real corpus actually uses ("all of the roles and positions designated by
+  // the Atlas") — the relative-pronoun shape below never saw it. Requiring a
+  // determiner after "all" keeps the idioms out ("is that all?", "all good").
+  [/\ball (of |the |these |those )/i, "enumeration"],
+  // The original shape, for "all agents that hold a role". Window widened from
+  // 60 to 90: in "all of the token transfers documented in the Atlas and give
+  // me a ledger of who sent what" the pronoun sits 72 chars out and was missed.
+  [/\ball\b.{0,90}\b(that|which|who)\b/i, "enumeration"],
+  // Corpus-wide synthesis: produce a NEW artifact out of many documents rather
+  // than retrieve one. Measured 2026-08-21 (docs/chat-system.md §6.5) — every
+  // question the strong tier won was enumeration or generation, and the default
+  // model's failure mode there is completeness (0.70 vs 0.95), not fabrication.
+  [/\b(generate|compile|enumerate|inventory|timeline|trends?)\b/i, "synthesis"],
 ];
 
 export function routeTier(question: string, opts: { followUp?: boolean } = {}): Route {

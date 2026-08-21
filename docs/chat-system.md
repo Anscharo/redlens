@@ -128,7 +128,16 @@ under-injecting can lose the answer. `CHAT_PREFETCH=0` kills every fact at once.
 
 **Tier routing** (`model-router.ts`) classifies the message by regex signals into
 FAST/DEFAULT/STRONG model chains — free, no pre-flight LLM call; with no env
-config it's a no-op. The STRONG chain has a second job: it is also what the
+config it's a no-op. STRONG fires on comparison, rule interaction, implications,
+governance-risk wording, **enumeration** ("all of the X", or "all … that/which/who"
+within 90 chars), **synthesis** (generate / compile / enumerate / inventory /
+timeline / trends), ≥2 question marks, or >350 chars. The last two signal groups
+are sized to the 2026-08-21 bakeoff: every question the strong tier measurably
+won was a corpus-wide enumeration or generation (§6.5), and requiring a
+determiner after "all" is what keeps the idioms ("is that all?", "all good") on
+the cheap path. Over the 14 hard bakeoff queries this routes 11 strong and 0
+fast, covering all six of the measured wins; the three left on DEFAULT are the
+ones where the two models tied. The STRONG chain has a second job: it is also what the
 advisor's one recovery cycle replays on (§6.5), so a turn can reach the strong
 model by failing an audit as well as by matching a signal.
 
