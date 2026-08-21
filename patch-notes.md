@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-08-21
+- Chat verification results now show which value was wrong and link the Atlas document it came from
+- Chat answers that fail a verification check are now rewritten by a stronger model
+
 ## 2026-08-19
 - Fixed Atlas addresses and history sometimes being unavailable after an update
 

@@ -128,7 +128,9 @@ under-injecting can lose the answer. `CHAT_PREFETCH=0` kills every fact at once.
 
 **Tier routing** (`model-router.ts`) classifies the message by regex signals into
 FAST/DEFAULT/STRONG model chains — free, no pre-flight LLM call; with no env
-config it's a no-op.
+config it's a no-op. The STRONG chain has a second job: it is also what the
+advisor's one recovery cycle replays on (§6.5), so a turn can reach the strong
+model by failing an audit as well as by matching a signal.
 
 ## 4. The agentic loop (`chat-loop.ts`)
 
@@ -313,6 +315,20 @@ revision + re-verify cycle — no retry loops; the second verdict is final even 
 amber. The revision replays the whole transcript, which is why a single
 unsupported claim no longer triggers it. On failure or abort, the original answer
 stands.
+
+The revision replays on the **strong tier**, not the chain that just failed the
+audit (`recoveryStream` on `runVerifiedChat`, built in `chat.ts` because the
+orchestrator is deliberately tier-blind; unset = replay on the turn's own chain).
+The advisor decides *what* to do; the tier decides *who* does it. Measured
+2026-08-21 over the 14 hard bakeoff queries under one judge — `gpt-5.6-luna` vs
+`gemma-4-31b-it`: **6 wins / 0 losses / 6 ties**, mean 0.942 vs 0.781, and 1.6x
+faster (26.6s vs 43.4s). Every win is a corpus-wide enumeration or generation
+question, and the mechanism is completeness (0.95 vs 0.70) rather than
+fabrication — the default model under-answers rather than inventing. Escalation
+is upward-only and fires only on demonstrated failure, so a miss costs nothing
+and a fire costs tokens. Note the replayed transcript still carries the original
+citation-format instruction (§3) — every format is accepted downstream, so this
+is deliberate.
 
 ## 7. Guard rails (pure code, no model in the loop)
 

@@ -657,6 +657,57 @@ test("verifier fail → advisor rewrite → revision replaces answer → re-veri
     expect((advisorRow.verdict as { originalAnswer: string }).originalAnswer).toBe("Bad answer.");
   }));
 
+// The advisor decides WHAT to do about a failed turn; until recoveryStream it
+// could not change WHO does it, so the one recovery cycle replayed on the very
+// chain that had just failed the audit. `stream` here is deliberately short:
+// fakeStream clamps to its last round, so a revision that wrongly reused
+// opts.stream would replay "Bad answer." and fail this test.
+test("advisor recovery replays on recoveryStream (the strong chain), not the chain that failed", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([
+          [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+          [textChunk("Bad answer."), finishChunk("stop"), usageChunk(100, 10)],
+        ]),
+        recoveryStream: fakeStream([[textChunk("Fixed by the strong tier."), finishChunk("stop"), usageChunk(50, 5)]]),
+        jsonCall: fakeSlicedJson({
+          claims: [sliceFail(), slicePass()],
+          advisor: ['{"action":"rewrite","guidance":"remove claim x"}'],
+        }),
+      }),
+    );
+
+    const done = lastDone(events);
+    expect(done.content).toBe("Fixed by the strong tier.");
+    expect(done.checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify", "advisor_recovery", "verify_recheck"]);
+    // Still exactly one recovery cycle — escalating the model must not buy a
+    // second bite at the apple.
+    expect(events.filter((e) => e.type === "status" && e.stage === "revising")).toHaveLength(1);
+  }));
+
+// Backward compatibility: recoveryStream is optional, and an unset one must
+// leave the pre-existing single-chain behavior exactly as it was.
+test("recovery falls back to the turn's own chain when no recoveryStream is given", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([
+          [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+          [textChunk("Bad answer."), finishChunk("stop"), usageChunk(100, 10)],
+          [textChunk("Fixed on the same chain."), finishChunk("stop"), usageChunk(50, 5)],
+        ]),
+        jsonCall: fakeSlicedJson({
+          claims: [sliceFail(), slicePass()],
+          advisor: ['{"action":"rewrite","guidance":"remove claim x"}'],
+        }),
+      }),
+    );
+    expect(lastDone(events).content).toBe("Fixed on the same chain.");
+  }));
+
 test("advisor failure (garbage JSON) falls back to annotate — original answer stands", () =>
   withModels("strong/verifier", "chat/advisor", async () => {
     const events = await collect(

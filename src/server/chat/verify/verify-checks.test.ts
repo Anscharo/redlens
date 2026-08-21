@@ -20,7 +20,7 @@ import {
   findLowOverlapCitations,
   runDeterministicChecks,
 } from "./verify-checks.ts";
-import { findParamMismatches } from "./param-checks.ts";
+import { findParamMismatches, formatParamMismatch } from "./param-checks.ts";
 
 const ix = loadIndexes();
 const realUuid = ix.docMap.keys().next().value as string;
@@ -570,12 +570,34 @@ const sIx = buildIndexes(
 
 test("findParamMismatches: wrong value flagged via the doc-title fallback (name 'maxamount' never appears in prose)", () => {
   const out = findParamMismatches("Keel's USDS mint maximum is 50,000 USDS.", sIx);
-  expect(out).toEqual(["answer states 50,000 for maxamount (keel) but the atlas value is 10,000 USDS — T.1.1"]);
+  expect(out).toEqual([
+    { stated: "50,000", actual: "10,000 USDS", name: "maxamount", title: "USDS Mint Maximum", owner: "keel", uuid: "keel-param", doc_no: "T.1.1" },
+  ]);
+});
+
+// The advisor steer consumes the sentence, not the parts — pin its wording so
+// splitting the structured shape out of it can't silently reword the recovery
+// prompt (chat-orchestrator.ts's describeCheckFailures).
+test("formatParamMismatch: renders the advisor-facing sentence from the structured shape", () => {
+  const [m] = findParamMismatches("Keel's USDS mint maximum is 50,000 USDS.", sIx);
+  expect(formatParamMismatch(m)).toBe("answer states 50,000 for maxamount (keel) but the atlas value is 10,000 USDS — T.1.1");
+});
+
+test("findParamMismatches: carries the doc title and uuid so the badge can link the parameter's document", () => {
+  const [m] = findParamMismatches("Keel's USDS mint maximum is 50,000 USDS.", sIx);
+  // `name` is the terse kv key a reader would not recognise; `title` is what
+  // the UI shows instead. They must differ here or the fixture stops covering
+  // the case that motivated the split.
+  expect(m.name).toBe("maxamount");
+  expect(m.title).toBe("USDS Mint Maximum");
+  expect(m.uuid).toBe("keel-param");
 });
 
 test("findParamMismatches: wrong value flagged via the literal kv-key citation style too", () => {
   const out = findParamMismatches("Keel's `maxAmount` is 50,000 USDS.", sIx);
-  expect(out).toEqual(["answer states 50,000 for maxamount (keel) but the atlas value is 10,000 USDS — T.1.1"]);
+  expect(out).toEqual([
+    { stated: "50,000", actual: "10,000 USDS", name: "maxamount", title: "USDS Mint Maximum", owner: "keel", uuid: "keel-param", doc_no: "T.1.1" },
+  ]);
 });
 
 test("findParamMismatches: correct value → clean", () => {
@@ -597,7 +619,9 @@ test("findParamMismatches: %-unit gating — a stated non-% number near the name
 
 test("findParamMismatches: %-unit real mismatch is still caught", () => {
   const out = findParamMismatches("Spark's liquidation ratio is 200%.", sIx);
-  expect(out).toEqual(["answer states 200% for liquidation ratio (spark) but the atlas value is 145% — T.2.1"]);
+  expect(out).toEqual([
+    { stated: "200%", actual: "145%", name: "liquidation ratio", title: "Collateralization Requirement", owner: "spark", uuid: "spark-param", doc_no: "T.2.1" },
+  ]);
 });
 
 test("findParamMismatches: generic single-token name ('cut', <=4 chars) is skipped even via a matching title", () => {
@@ -623,7 +647,9 @@ test("findParamMismatches: name collision (same kv key across docs, same owner) 
 
 test("findParamMismatches: subset/superset name collision — the longer, more specific name wins", () => {
   const out = findParamMismatches("Keel's Debt Ceiling is 999 USDS.", sIx);
-  expect(out).toEqual(["answer states 999 for debt ceiling (keel) but the atlas value is 100 USDS — T.1.7"]);
+  expect(out).toEqual([
+    { stated: "999", actual: "100 USDS", name: "debt ceiling", title: expect.any(String), owner: "keel", uuid: expect.any(String), doc_no: "T.1.7" },
+  ]);
 });
 
 test("runDeterministicChecks: a param mismatch is a hard failure", () => {

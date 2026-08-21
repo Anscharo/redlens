@@ -16,7 +16,21 @@ export interface VerifyClaim {
   status: "supported" | "unsupported" | "contradicted";
 }
 
-// docs/plans/chat-staged-delivery.md. "streaming" (default) is today's
+// A wrong stated value for a known atlas parameter (server:
+// verify/param-checks.ts). Structured rather than a sentence so the badge can
+// link the parameter's document and show the reader-facing `title` instead of
+// the terse extracted kv key in `name`.
+export interface ParamMismatch {
+  stated: string; // the number as the answer wrote it
+  actual: string; // our extraction's value, unit-formatted
+  name: string; // extracted kv key — machine vocabulary, not for display
+  title: string; // containing doc's title — this is what to show
+  owner: string | null;
+  uuid: string;
+  doc_no: string;
+}
+
+// docs/chat-system.md §8. "streaming" (default) is today's
 // token-by-token render; "staged" suppresses token/clear and renders an honest
 // stage progression, revealing the verified answer once in `done`.
 export type Delivery = "streaming" | "staged";
@@ -60,6 +74,14 @@ export type ChatEvent =
       docNoMismatches: string[];
       ungroundedQuotes: string[];
       ungroundedAddresses: string[];
+      // Hard failures too — optional only so an older server that predates
+      // them still parses. Absent is treated as empty/false, never as "clean".
+      ungroundedCitationValues?: string[];
+      paramMismatches?: ParamMismatch[];
+      // The answer hit the output-token cap mid-generation. Not a citation
+      // problem, but it forces a `fail` server-side, so the badge has to be
+      // able to say so.
+      lengthCapped?: boolean;
     }
   | {
       type: "done";

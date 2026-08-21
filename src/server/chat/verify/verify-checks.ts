@@ -6,7 +6,7 @@
 // the citation pattern without dragging in Bun.
 import { UUID_RE, EVM_ADDRESS_SRC, SOL_ADDRESS_SRC, DOC_NO_CORE } from "../../../lib/patterns.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
-import { findParamMismatches } from "./param-checks.ts";
+import { findParamMismatches, type ParamMismatch } from "./param-checks.ts";
 
 // The system prompt's citation link format: [Title](/atlas/<uuid>). ONE source
 // of truth shared with scripts/aux/eval-golden-grade.ts so grader and runtime
@@ -530,7 +530,7 @@ export interface CheckReport {
   // Wrong stated value for a KNOWN atlas parameter (the derived param table,
   // param-checks.ts's findParamMismatches) — a HARD failure like the other
   // invented facts.
-  paramMismatches: string[];
+  paramMismatches: ParamMismatch[];
   // Soft wrong-doc assist: claim sentences whose vocabulary barely occurs in the
   // doc they cite. Informs the verifier prompt; never fails a turn.
   lowOverlapCitations: string[];

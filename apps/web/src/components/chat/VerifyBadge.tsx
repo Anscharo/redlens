@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { atlasHref } from "@/lib/routes";
+import { track } from "../../lib/analytics";
 import type { VerifyState } from "./useChatStream";
 
 // Verification chip for an assistant answer (chat reliability harness).
@@ -13,7 +15,7 @@ const LABEL: Record<string, string> = {
   revised: "revised after a verification check",
 };
 
-export function VerifyBadge({ verify }: { verify: VerifyState }) {
+export function VerifyBadge({ verify, onAtlas }: { verify: VerifyState; onAtlas: (uuid: string) => void }) {
   const [open, setOpen] = useState(false);
   if (verify.status === "unverified") return null;
 
@@ -24,7 +26,13 @@ export function VerifyBadge({ verify }: { verify: VerifyState }) {
     verify.invalidDocNos.length +
     verify.docNoMismatches.length +
     verify.ungroundedQuotes.length +
-    verify.ungroundedAddresses.length;
+    verify.ungroundedAddresses.length +
+    // All three are hard failures server-side, and each can be a turn's ONLY
+    // finding. Omitting them from the count let such a turn render a red chip
+    // that refused to expand and explain itself.
+    verify.ungroundedCitationValues.length +
+    verify.paramMismatches.length +
+    (verify.lengthCapped ? 1 : 0);
   const label =
     verify.status === "warn"
       ? `caution: ${issues} unsupported claim${issues === 1 ? "" : "s"}`
@@ -68,6 +76,41 @@ export function VerifyBadge({ verify }: { verify: VerifyState }) {
           {verify.ungroundedAddresses.map((a) => (
             <li key={a} data-status="contradicted">
               address not found in any retrieved source: <code>{a}</code>
+            </li>
+          ))}
+          {/* Already a full sentence server-side ("0.2% cited to A.1.1 (Title)
+              but absent from it") — don't prefix it with a label or it reads
+              twice. */}
+          {verify.ungroundedCitationValues.map((v) => (
+            <li key={v} data-status="contradicted">
+              {v}
+            </li>
+          ))}
+          {verify.lengthCapped && (
+            <li data-status="contradicted">the answer was cut off by the output length limit before it finished</li>
+          )}
+          {/* "our reading of the atlas" is deliberate: the parameter table is
+              RedLens's extraction, not atlas text, and a badge that says "the
+              atlas says X" would present our parse as the source itself. The
+              doc title is shown rather than the extracted kv key, which is
+              machine vocabulary ("maxamount") no reader would recognise. */}
+          {verify.paramMismatches.map((m) => (
+            <li key={`${m.uuid}:${m.stated}`} data-status="contradicted">
+              states <strong>{m.stated}</strong> for{" "}
+              <a
+                className="rlc-cite"
+                href={atlasHref(m.uuid)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  track("chat_citation_click", { product: "chat", node_id: m.uuid });
+                  onAtlas(m.uuid);
+                }}
+              >
+                {m.doc_no && <span className="rlc-cite-doc">{m.doc_no}</span>}
+                <span className="rlc-cite-title">{m.title}</span>
+              </a>
+              {m.owner ? ` (${m.owner})` : ""} — our reading of the atlas has{" "}
+              <strong>{m.actual}</strong>
             </li>
           ))}
           {flagged.map((c, i) => (

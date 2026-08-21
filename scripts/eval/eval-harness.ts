@@ -26,6 +26,7 @@ import { runVerifiedChat, type CheckRowMeta } from "../../src/server/chat/chat-o
 import { makeOpenrouterStream, openrouterJson } from "../../src/server/chat/llm.ts";
 import { runDeterministicChecks } from "../../src/server/chat/verify/verify-checks.ts";
 import { config } from "../../src/server/config.ts";
+import { resolveTierModels } from "../../src/server/chat/model-router.ts";
 import { BAKEOFF_QUERIES, type BakeoffQuery } from "./eval-bakeoff-queries.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -90,6 +91,12 @@ async function runOne(q: BakeoffQuery): Promise<Result> {
     let done: (Extract<Awaited<ReturnType<typeof gen.next>>["value"], { type: "done" }> & { checksMeta: CheckRowMeta[] }) | null = null;
     const gen = runVerifiedChat({
       ix, messages, stream: makeOpenrouterStream({}, [config.chatModel]), jsonCall: openrouterJson,
+      // Production escalates the one recovery cycle to the strong tier
+      // (chat.ts), so the eval must too — scoring a recovery path the server
+      // no longer runs would measure nothing. resolveTierModels("strong")
+      // inherits the default chain when CHAT_MODEL_STRONG is unset, which
+      // keeps this identical to the old single-chain behavior in that case.
+      recoveryStream: makeOpenrouterStream({}, resolveTierModels("strong")),
       question: q.query, signal: AbortSignal.timeout(300_000), maxIterations: config.chatMaxIterations,
     });
     for await (const ev of gen) {
