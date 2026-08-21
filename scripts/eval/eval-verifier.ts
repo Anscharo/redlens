@@ -1,4 +1,4 @@
-// Verifier eval — the harness's key instrument (chat-reliability-harness plan).
+// Verifier eval — the harness's key instrument (docs/plans/archive/chat-reliability-harness.md).
 // Grades the verification stack against saved passing runs and their mutations:
 //
 //   false-positive rate  — unmutated runs the verifier calls "fail"

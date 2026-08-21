@@ -3,7 +3,7 @@
 // handler (Task: /api/chat) wraps a real OpenRouter stream around it and handles
 // auth + persistence; this file owns only the tool-calling control flow.
 //
-// Constraints baked in (see chatbot-plan + advisor):
+// Constraints baked in (see docs/plans/archive/chatbot-plan.md + advisor):
 //   - hard maxIterations cap (the system-prompt budget is advisory)
 //   - final allowed iteration forces tool_choice:"none" → a text answer, never a
 //     dangling tool round
@@ -105,7 +105,7 @@ export function isErrorResult(content: string): boolean {
 const FINAL_TURN_INSTRUCTION =
   "This is your final turn — no more tools are available. Write the complete answer now, using only the evidence already gathered above. Cite sources as instructed. If the gathered evidence does not answer the question, say plainly that the atlas does not appear to cover it and summarize what you did find. Do NOT describe further searches or say you will look something up — just answer.";
 
-// Compose guard steer (one-shot, docs/plans/chat-staged-delivery.md prereq).
+// Compose guard steer (one-shot, docs/chat-system.md §4; staged-delivery prereq).
 // Even the forced-text final round can come back EMPTY — e.g. a model emitting
 // tool-call deltas despite tool_choice:"none" leaves content blank, and both
 // arms of the 2026-08-06 eval A/B shipped "" that way after burning every

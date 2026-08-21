@@ -190,11 +190,17 @@ Remaining items from the full-branch audit (the bug fixes landed in the same PR 
 - **Manual browser verification of the audit fixes** — not runnable in the headless audit environment: glossary tab recovers after a transient `glossary.json` failure; search shows an error state (not an eternal spinner) when `search-index.json` is missing; `/admin/palette` Copy Snippet includes saved overrides after a reload; JuniorPane breadcrumb middle-click opens the right URL.
 - **History metrics backfill** — run `pnpm build:history --full` once migration `006_history_metrics.sql` is applied so existing `atlas_history` rows gain `change_kind` / review counters (new rows get them automatically).
 
-### Chat reliability harness (docs/plans/chat-reliability-harness.md)
+### Chat reliability harness
+
+**How the chat system works today: [`docs/chat-system.md`](docs/chat-system.md)** — the canonical
+end-to-end technical doc (loop, tools, harness, guard rails, delivery modes, SSE contract, evals).
+Read it before changing anything under `src/server/chat/` or `apps/web/src/components/chat/`. The
+plans that produced the system are archived in `docs/plans/archive/` — intent only, not current
+behavior. Remaining work:
 
 - ~~Wire in verifier-slices~~ **Done 2026-08-06**: `verify/sliced-verifier.ts` runs the 4 slices concurrently as the only audit path (the `CHAT_VERIFIER_MODE` single/sliced switch was removed 2026-08-12 — nothing ever set it; `verifier.ts`'s `runVerifier` survives solely for `pnpm eval:verifier`; per-slice models via `CHAT_VERIFIER_SLICE_MODELS="claims=m1,…"`). Bakeoff (2026-08-06, `.cache/eval-slices.json`): **gemma-4 wins every slice** — the slicing itself fixed its single-prompt flake (parse 87–100% sliced vs ~50% single); gpt-5-mini regressed (58% parse, 67s p50), inkling-small unusable on evidence slices (spanKill 91 on figures). Keep `CHAT_VERIFIER_MODEL` as gemma, no slice overrides. `figures` is every model's weak slice (FPR 30–50%) — the deterministic parameter table (docs/research/synlang-wiki.md §3.1) is the planned fix, not a better model.
 - ~~Wave 2: parameter table / liveness / absence contract~~ **Done 2026-08-07** (STATUS notes in synlang-wiki.md §3.1/§3.2): `src/lib/paramIndex.ts` (1,019 rows) + `src/lib/liveness.ts` (1,224 tags) are derived in `buildIndexes()` — never stale vs served docs, no healer dependency; `atlas_params` tool + liveness tags/hint on tool-result rows; verifier side gains `findParamMismatches` (hard deterministic fail), the absence-claim contract (`verify/absence.ts` refuted/grounded/unverified — replaces the blanket absence exemption), `[E-const]` param evidence (verifier-only, never the answerer prompt), and `RoundTelemetry.semanticSkips`. Remaining wiki-plan parts (v2 card rerun, attach-on-hit, Phase 2, A.6 rollup) are DEFERRED pending further investigation — status ledger at the top of docs/research/constraints-wiki.md; do not build them without a new decision.
-- ~~Staged delivery~~ **Implemented 2026-08-07** (docs/plans/chat-staged-delivery.md has the live shape): `CHAT_DELIVERY_MODE`/body `delivery` switch on the SSE route (staged = suppress token/clear, synthetic `synthesizing`/`finalizing` stages, `comparing` from the orchestrator), client stage checklist + `useRevealOnDone` display-stream + "staged" pref toggle. **Default stays `streaming`** until the staged-vs-streaming A/B (PostHog `chat_delivery` property) measures — don't flip it without that.
+- ~~Staged delivery~~ **Implemented 2026-08-07** (docs/chat-system.md §8 has the live shape): `CHAT_DELIVERY_MODE`/body `delivery` switch on the SSE route (staged = suppress token/clear, synthetic `synthesizing`/`finalizing` stages, `comparing` from the orchestrator), client stage checklist + `useRevealOnDone` display-stream + "staged" pref toggle. **Default stays `streaming`** until the staged-vs-streaming A/B (PostHog `chat_delivery` property) measures — don't flip it without that.
 
 ### Other / background
 

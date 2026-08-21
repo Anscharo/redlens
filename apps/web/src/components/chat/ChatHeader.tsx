@@ -7,7 +7,7 @@ interface ChatHeaderProps {
   onClose: () => void;
   placement: Placement;
   onTogglePlacement: () => void;
-  // Staged-delivery preference (docs/plans/chat-staged-delivery.md): pressed =
+  // Staged-delivery preference (docs/chat-system.md §8): pressed =
   // the user opted into stage-checklist turns; unpressed = follow the server
   // default (currently streaming).
   staged: boolean;

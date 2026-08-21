@@ -223,7 +223,7 @@ export const config = {
   // isn't free: titling only re-fires at turns 4 and 10, so a conversation
   // that ends at turn 1-3 keeps its truncated slice(0,60) seed title forever.
   chatTitleTimeoutMs: Number(process.env.CHAT_TITLE_TIMEOUT_MS ?? 20_000),
-  // Chat delivery mode (docs/plans/chat-staged-delivery.md): "streaming" forwards
+  // Chat delivery mode (docs/chat-system.md §8): "streaming" forwards
   // answer tokens live as today (stream + post-hoc verify badge); "staged"
   // suppresses tokens behind honest progress stages and reveals the answer only
   // once, verified (possibly revised), in the terminal `done` event. Default
@@ -274,7 +274,7 @@ export const config = {
   // a single broad tool call from eating the live chat context.
   chatToolResultMaxChars: Number(process.env.CHAT_TOOL_RESULT_MAX_CHARS ?? 30_000),
 
-  // Chat reliability harness (docs/plans/chat-reliability-harness.md).
+  // Chat reliability harness (docs/chat-system.md §6).
   // Final claim-audit model — should be a stronger, DIFFERENT-family model than
   // chatModel (cross-family independence).
   // Empty = model verification off; deterministic checks still run.
