@@ -167,6 +167,7 @@ Every entity type below either has a defining Atlas doc number pattern, or is bo
 | `multisig`            | —                      | Multisig detected via the structural five-child convention (Pattern 17). Entity id = root doc UUID. Meta: `{address, chain, threshold, purpose_doc_no}`. Target of `signer_of` / `can_modify_signers_of`.                                        |
 | `ecosystem_actor`     | `bridge_validator`     | External validator org from a bridge roster sentence (Pattern 21). Source of `validator_of` edges; pinned into `relations.json`. Deduped by slug across bridges (LayerZero, Nethermind, Horizen, Deutsche Telekom, Canary, Luganodes, P2P).      |
 | `bridge`              | —                      | Cross-chain bridge component detected via the Validators + Quorum Requirement child pair (Pattern 21). Entity id = root doc UUID. Meta: `{component, network, quorum, quorum_doc_no}`. Target of `validator_of`.                                 |
+| `primitive`           | `<primitive-slug>`     | A primitive as scoped to one agent — the parent tier above `instance`. Entity id = the primitive doc UUID, `st` = the primitive slug, `meta` = `{agent_doc_id, primitive_category_doc_id, status}`. Added to this table 2026-08-21; it was emitted long before it was documented here. |
 | `instance`            | `<primitive-slug>`     | Primitive Instance Configuration Document under the **Active/Suspended/Completed Instances** tier. Operational deployment per atlas A.2.2.1.3. Entity id = ICD doc UUID. Emitted for every in-scope primitive (see Pattern 14 for the allowlist). `st` is the primitive slug (`distribution-reward`, `integration-boost`, `allocation-system`, etc.). Status (Active/Suspended/Completed) lives in `meta.status`. |
 | `invocation`          | `<primitive-slug>`     | ICD under the **In Progress Invocations** tier. The in-progress act of enabling a primitive per atlas A.2.2.1.4 — distinct from an Instance. Same param shape and same entity id derivation as `instance`; the only difference is lifecycle stage. `meta.status = "InProgress"`. |
 
@@ -463,7 +464,7 @@ These are the only hardcoded entities. Everything else is pattern-derived from a
 
 ### Pattern 14: Primitive Instance entities
 
-Every ICD under an allowlisted primitive becomes an `et="instance"` entity. Entity id == ICD doc UUID, `st` = primitive slug, `did` = ICD UUID, meta carries `{primitive_doc_no, agent_doc_no, status, params}`.
+Every ICD under an allowlisted primitive becomes an `et="instance"` entity. Entity id == ICD doc UUID, `st` = primitive slug, `did` = ICD UUID, meta carries `{agent_doc_id, primitive_category_doc_id, status, params}` (UUIDs, not doc numbers).
 
 **Scope allowlist** (`scripts/lib/graph-instances.mjs:8`). Add here when a new primitive should get instance entities:
 
@@ -950,7 +951,14 @@ can_modify_signers_of              entity  → entity   authorized modifier → 
 validator_of                       entity  → entity   bridge_validator → bridge; source [roster doc_no]
 ```
 
-**Prime omni-doc governance metadata (Pattern 22; graph.json-only, filtered from relations.json)**:
+**Role duties and process-step responsibilities** (`graph-entity-edges.mjs`):
+
+```
+duty_for                           entity  → doc      role-holder org → the doc stating the duty; meta {role_declared, match, quote}
+process_step_responsible_party_for entity  → doc      responsible party → numbered-step doc; meta {role_declared, resolution, automated}
+```
+
+**Prime omni-doc governance metadata (Pattern 22; present in BOTH graph.json and relations.json — these are not in `OMIT_EDGE_TYPES`, they feed Radar "Contact")**:
 
 ```
 governance_channel                 doc     → entity   Sky Forum / Discord omni doc → prime agent; meta {platform: forum|discord, category?, url?}
@@ -968,7 +976,18 @@ pending_transition                 doc     → entity   subject doc → future h
 ```
 funds_transfer                     entity  → entity   sender → recipient; meta {kind: grant|genesis|genesis_mint|authorization,
                                                        status, amounts, tx_hash?, period?, period_months?, begin_date?}
+funds_authorization                entity  → entity   Atlas authorizes a payment but records no completed transfer;
+                                                       meta {kind: grant_authorization, status, periodic, populated: false,
+                                                       silence_reason, expected_record_fields}
+funds_data_gap                     doc     → entity   Atlas describes a planned movement but defers recipient/amount/execution;
+                                                       meta {populated: false, silence_reason, expected_record_fields}
 ```
+
+The last two are **absence edges** — added to this reference 2026-08-21, though
+`graph-transfers.mjs` has emitted them for some time. They exist so "who was
+paid?" can be answered "the Atlas authorizes this but never records it" rather
+than returning nothing; `silence_reason` and `expected_record_fields` carry that
+answer.
 
 **Accord / definition**:
 
@@ -1004,14 +1023,26 @@ has_status                         doc     → doc      Primitive root → Globa
 implements                         doc     → doc      Agent primitive → global def in A.2.2 (via "See" cite)
 ```
 
-**Total: 39 edge types** — verify against the artifact with `new Set(graph.edges.map(e => e.edge_type)).size`.
+**Don't trust a count here — derive it.** A hardcoded total goes stale the
+moment a pattern lands, and this one did (it read 39 while the artifact carried
+43). Two different numbers are also being conflated, so say which you want:
+
+- **What the extractor can emit** — the vocabulary above, and only this file tracks it.
+- **What it emitted for the current atlas** — `new Set(graph.edges.map((e) => e.edge_type)).size`
+- **What reaches the browser** — `new Set(relations.edges.map((e) => e.e)).size`, after `OMIT_EDGE_TYPES` in `build-graph.mjs` removes six.
+
+The two disagree for a legitimate reason beyond `OMIT_EDGE_TYPES`: an edge type
+whose pattern matches nothing in the current atlas is absent from the artifact
+while remaining perfectly live in the code. `core_executor_agent_for` is exactly
+that today — emitted by `graph-entity-edges.mjs`, zero instances. So a type
+missing from `graph.json` is *not* evidence it was removed.
 
 ### Entity meta serialization
 
-Participants ship with an optional `m: string` field in `relations.json` carrying JSON-serialised meta (see `Participant` in `src/types.ts`). Previously meta was dropped at serialisation; the `m` field is now forwarded to browser consumers. Reader shape:
+Entities ship with an optional `m: string` field in `relations.json` carrying JSON-serialised meta (see `GraphEntity` in `src/types.ts` — the interface was called `Participant` when this section was written). Previously meta was dropped at serialisation; the `m` field is now forwarded to browser consumers. Reader shape:
 
 ```typescript
-interface Participant {
+interface GraphEntity {
   id: string;
   slug: string;
   name: string;
@@ -1026,8 +1057,12 @@ For `et="instance"`, the parsed meta is:
 
 ```typescript
 {
-  primitive_doc_no: string; // e.g. "A.6.1.1.1.2.5.1"
-  agent_doc_no: string; // e.g. "A.6.1.1.1"
+  // UUIDs, not doc numbers — verified against the artifact 2026-08-21. This
+  // section previously named these `primitive_doc_no` / `agent_doc_no` and
+  // showed doc-number examples, which is the identity mistake CLAUDE.md warns
+  // about: doc numbers are editorial labels that get renumbered.
+  agent_doc_id: string; // e.g. "dee2f5a4-279a-488c-9a9d-9583e3216fbf"
+  primitive_category_doc_id: string;
   status: "Active" | "Completed" | "Pending" | null;
   params: Record<string, [value: string, srcUuid: string, srcDocNo: string]>;
 }
