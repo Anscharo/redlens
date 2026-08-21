@@ -358,11 +358,21 @@ The advisor decides *what* to do; the tier decides *who* does it. Measured
 `gemma-4-31b-it`: **6 wins / 0 losses / 6 ties**, mean 0.942 vs 0.781, and 1.6x
 faster (26.6s vs 43.4s). Every win is a corpus-wide enumeration or generation
 question, and the mechanism is completeness (0.95 vs 0.70) rather than
-fabrication — the default model under-answers rather than inventing. Escalation
-is upward-only and fires only on demonstrated failure, so a miss costs nothing
-and a fire costs tokens. Note the replayed transcript still carries the original
-citation-format instruction (§3) — every format is accepted downstream, so this
-is deliberate.
+fabrication — the default model under-answers rather than inventing.
+
+That bakeoff measured **first-pass** open-ended generation, not recovery. It is
+only a partial justification for escalating recovery specifically: `troubled`
+(above) also fires on fabrication-class failures — ungrounded citations, param
+mismatches, contradicted claims — that the bakeoff never scored, and on that
+same run luna's hard-fabrication rate was *higher* than gemma's (0.07 vs 0).
+The mitigating difference is that revision is a narrower task than first-pass
+generation — the advisor's steer pins the model to evidence already gathered
+and names exactly which claims to fix — but that is a judgment call, not a
+measured one. Escalation is upward-only and fires only on demonstrated
+failure, so a miss costs nothing and a fire costs tokens; the re-verify pass
+after revision (below) still catches a bad recovery before it ships. Note the
+replayed transcript still carries the original citation-format instruction
+(§3) — every format is accepted downstream, so this is deliberate.
 
 ## 7. Guard rails (pure code, no model in the loop)
 

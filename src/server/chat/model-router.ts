@@ -22,8 +22,11 @@ const UUID_RE = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\
 const LOOKUP_RE = /^(what( i|')s |what is |define |show (me )?|find |where is |who is )/i;
 
 // Signals that the turn needs cross-document synthesis or careful policy
-// interpretation — route UP. Kept narrow: a false "strong" spends money on an
-// easy turn, while a missed one still has the verifier as a safety net.
+// interpretation — route UP. No longer kept narrow to avoid an easy turn's
+// cost: the 2026-08-21 bakeoff (docs/chat-system.md §6.5) found the strong
+// tier both more complete AND faster on corpus-wide questions, so a false
+// "strong" here is not a meaningful cost — a missed one still has the
+// verifier as a safety net.
 const STRONG_SIGNALS: [RegExp, string][] = [
   [/\b(compare|versus|vs|difference between|differ from)\b/i, "comparison"],
   [/\b(interacts?|conflicts?|contradicts?|overlaps?|reconcile|relationship between)\b/i, "interaction"],
@@ -32,7 +35,11 @@ const STRONG_SIGNALS: [RegExp, string][] = [
   // Exhaustive-set questions. "all of the X" / "all the X" is the form the
   // real corpus actually uses ("all of the roles and positions designated by
   // the Atlas") — the relative-pronoun shape below never saw it. Requiring a
-  // determiner after "all" keeps the idioms out ("is that all?", "all good").
+  // determiner after "all" keeps the short idioms out ("is that all?", "all
+  // good") but still fires on ordinary collocations that aren't enumeration
+  // ("that's all the information I need", "all the way through this
+  // process") — left alone under the same cost model as above: a false
+  // "strong" here is not a meaningful cost.
   [/\ball (of |the |these |those )/i, "enumeration"],
   // The original shape, for "all agents that hold a role". Window widened from
   // 60 to 90: in "all of the token transfers documented in the Atlas and give

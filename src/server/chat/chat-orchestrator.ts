@@ -328,12 +328,21 @@ export async function* runVerifiedChat(opts: {
   stream: ChatStream;
   // Optional chain for the ONE advisor recovery cycle. The turn's own chain
   // just failed an audit, so replaying the recovery on it asks the model that
-  // produced the flawed answer to fix it; the strong tier is measurably better
-  // at exactly the questions that get here (2026-08-21 bakeoff, gemma vs luna
-  // over the 14 hard queries: 6 wins / 0 losses / 6 ties, and 1.6x faster —
-  // gemma's failure mode is completeness 0.70 vs 0.95, i.e. under-answering
-  // enumeration questions). Unset = replay on the turn's own chain, the old
-  // behavior. Escalate-only-up: a miss costs nothing, a fire costs tokens.
+  // produced the flawed answer to fix it; escalating to the strong tier asks
+  // a different, presumably more capable model instead. That bet is only
+  // partly backed by measurement: the 2026-08-21 bakeoff (gemma vs luna, 14
+  // hard queries, 6 wins / 0 losses / 6 ties, 1.6x faster) measured FIRST-PASS
+  // open-ended generation, where gemma's failure mode is completeness (0.70
+  // vs 0.95) and luna's hard-fabrication rate is actually higher (0.07 vs 0).
+  // `troubled` below also fires on fabrication-class failures (ungrounded
+  // citations, param mismatches, contradicted claims), which that bakeoff
+  // did not evaluate for either model. The mitigating difference is that
+  // recovery is a narrower task than first-pass generation — the advisor's
+  // steer (`revisionSteer`) pins the model to the evidence already gathered
+  // and tells it exactly which claims to remove or correct — but that's a
+  // judgment call, not a measured one. Unset = replay on the turn's own
+  // chain, the old behavior. Escalate-only-up: a miss costs nothing, a fire
+  // costs tokens; re-verify after (below) still catches a bad revision.
   recoveryStream?: ChatStream;
   jsonCall?: JsonCall;
   question: string;
