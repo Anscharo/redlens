@@ -1,91 +1,57 @@
-import { test, expect, type APIRequestContext } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+import { currentHeadSha, discoverCanary, pinnedCanary, type CanaryTarget } from "./preview-canary";
 
-// Atlas-preview redline canary, validated against a pinned REAL PR. This is
-// intentionally opt-in: open atlas PRs move/close constantly, so normal PR-gate
-// e2e should not pick live external state at runtime. To run it, provide both:
-//   ATLAS_PREVIEW_CANARY_PR=<number>
-//   ATLAS_PREVIEW_CANARY_SHA=<current head sha>
-// The test skips cleanly if the canary moved, closed, or no longer edits docs.
+// Atlas-preview redline canary against a REAL upstream PR. Two ways to target:
+//   pinned    — ATLAS_PREVIEW_CANARY_PR + ATLAS_PREVIEW_CANARY_SHA (dispatch
+//               runs): exact, skips if the PR moved or closed.
+//   discovery — PREVIEW_CANARY_DISCOVER=1 (scheduled runs): picks the newest
+//               eligible open PR (fork heads included) at runtime, so cron
+//               needs no pins.
+// Both skip cleanly when no target is runnable; scheduled skips are counted by
+// e2e/check-canary-skips.mjs so silence can't last forever. Candidate selection
+// and the expected-diff derivation live in e2e/preview-canary.ts.
 
-const CANONICAL = "sky-ecosystem/next-gen-atlas";
-const GH = "https://api.github.com";
-// Decomposed docs carry their node id in YAML frontmatter (`id: <uuid>`).
-const UUID_RE = /^id:\s*["']?([0-9a-f-]{36})["']?\s*$/im;
-const DOC_RE = /(^|\/)content\/.*document\.md$/;
 const BUILD_TIMEOUT = 150_000; // first preview build clones + builds the atlas
 
-function ghHeaders(): Record<string, string> {
-  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
-  const h: Record<string, string> = { "X-GitHub-Api-Version": "2022-11-28" };
-  if (token) h.Authorization = `Bearer ${token}`;
-  return h;
-}
-
-interface Candidate {
-  number: number;
-  headSha: string;
-  docs: { id: string; status: "added" | "modified" }[];
-}
-
-async function loadPinnedDocPr(
-  request: APIRequestContext,
-  number: number,
-  expectedSha: string,
-): Promise<{ candidate: Candidate | null; reason?: string }> {
-  const prRes = await request.get(`${GH}/repos/${CANONICAL}/pulls/${number}`, { headers: ghHeaders() });
-  if (!prRes.ok()) return { candidate: null, reason: `could not load atlas PR #${number}` };
-
-  const pr = (await prRes.json()) as {
-    state: string;
-    head: { sha: string; repo: { full_name: string } | null };
-  };
-  if (pr.state !== "open") return { candidate: null, reason: `atlas PR #${number} is ${pr.state}` };
-  if (pr.head?.sha !== expectedSha) {
-    return { candidate: null, reason: `atlas PR #${number} moved from ${expectedSha} to ${pr.head?.sha}` };
-  }
-  const headRepo = pr.head?.repo?.full_name;
-  if (headRepo !== CANONICAL) {
-    return { candidate: null, reason: `atlas PR #${number} is from ${headRepo ?? "unknown fork"}` };
-  }
-
-  const filesRes = await request.get(`${GH}/repos/${CANONICAL}/pulls/${number}/files?per_page=100`, {
-    headers: ghHeaders(),
+/** Non-trusted fork previews gate <App/> — and therefore the diff.json fetch —
+ *  behind a click-through interstitial (PreviewGate.tsx). Poll for its button
+ *  while the awaited response is pending and click through once. */
+async function awaitDismissingInterstitial<T>(page: Page, pending: Promise<T>): Promise<T> {
+  const ack = page.getByRole("button", { name: /view the fork/i });
+  let settled = false;
+  const tracked = pending.finally(() => {
+    settled = true;
   });
-  if (!filesRes.ok()) return { candidate: null, reason: `could not load files for atlas PR #${number}` };
-  const files = (await filesRes.json()) as Array<{ filename: string; status: string }>;
-  const docFiles = files.filter((f) => DOC_RE.test(f.filename) && (f.status === "added" || f.status === "modified"));
-  if (!docFiles.length) return { candidate: null, reason: `atlas PR #${number} no longer modifies content docs` };
-
-  const docs: Candidate["docs"] = [];
-  for (const f of docFiles.slice(0, 10)) {
-    const raw = await request.get(`https://raw.githubusercontent.com/${headRepo}/${expectedSha}/${f.filename}`);
-    if (!raw.ok()) continue;
-    const m = (await raw.text()).match(UUID_RE);
-    if (m) docs.push({ id: m[1].toLowerCase(), status: f.status as "added" | "modified" });
-  }
-  if (!docs.length) return { candidate: null, reason: `atlas PR #${number} docs had no node ids` };
-
-  return { candidate: { number, headSha: expectedSha, docs } };
+  void (async () => {
+    while (!settled) {
+      if (await ack.isVisible().catch(() => false)) {
+        await ack.click().catch(() => {});
+        return;
+      }
+      await page.waitForTimeout(1_000).catch(() => {});
+    }
+  })();
+  return tracked;
 }
 
-async function currentHeadSha(request: APIRequestContext, number: number): Promise<string | null> {
-  const res = await request.get(`${GH}/repos/${CANONICAL}/pulls/${number}`, { headers: ghHeaders() });
-  if (!res.ok()) return null;
-  const pr = (await res.json()) as { head: { sha: string } };
-  return pr.head?.sha ?? null;
-}
-
-test("previews the pinned atlas PR canary and redlines exactly the docs it changed", async ({ page, request }) => {
+test("previews an atlas PR canary and redlines the docs it changed", async ({ page }) => {
   test.setTimeout(BUILD_TIMEOUT + 60_000);
 
-  const canaryPr = Number(process.env.ATLAS_PREVIEW_CANARY_PR ?? "");
-  const canarySha = process.env.ATLAS_PREVIEW_CANARY_SHA;
-  test.skip(!canaryPr || !canarySha, "set ATLAS_PREVIEW_CANARY_PR and ATLAS_PREVIEW_CANARY_SHA to run preview canary");
+  const pinnedPr = Number(process.env.ATLAS_PREVIEW_CANARY_PR ?? "");
+  const pinnedSha = process.env.ATLAS_PREVIEW_CANARY_SHA;
+  const discover = process.env.PREVIEW_CANARY_DISCOVER === "1";
+  test.skip(
+    !(pinnedPr && pinnedSha) && !discover,
+    "set ATLAS_PREVIEW_CANARY_PR + ATLAS_PREVIEW_CANARY_SHA, or PREVIEW_CANARY_DISCOVER=1, to run the preview canary",
+  );
 
-  const { candidate, reason } = await loadPinnedDocPr(request, canaryPr, canarySha!);
-  test.skip(!candidate, reason ?? "preview canary is not currently runnable");
-  const { number, headSha, docs } = candidate!;
-  const expectedIds = docs.map((d) => d.id);
+  const resolved =
+    pinnedPr && pinnedSha ? await pinnedCanary(fetch, pinnedPr, pinnedSha) : await discoverCanary(fetch);
+  test.skip(!("headSha" in resolved), (resolved as { reason?: string }).reason ?? "no runnable preview canary");
+  const { number, headSha, headRepo, expectedIds } = resolved as CanaryTarget;
+  console.log(
+    `preview canary: atlas PR #${number} at ${headSha} from ${headRepo} (${expectedIds.length} expected docs)`,
+  );
 
   // Capture the preview bundle's diff.json (fetched once the build is ready).
   const diffResponse = page.waitForResponse(
@@ -93,13 +59,15 @@ test("previews the pinned atlas PR canary and redlines exactly the docs it chang
     { timeout: BUILD_TIMEOUT },
   );
   await page.goto(`/preview/pull-${number}`, { waitUntil: "domcontentloaded" });
-  const diff = (await (await diffResponse).json()) as {
+  const diff = (await (await awaitDismissingInterstitial(page, diffResponse)).json()) as {
     added?: string[];
     changed?: string[];
     renumbered?: Record<string, unknown>;
   };
 
-  const headAfterBuild = await currentHeadSha(request, number);
+  // Discovery pins nothing upstream: if the PR gained commits while the
+  // preview built, the served diff is for a different head — skip, don't lie.
+  const headAfterBuild = await currentHeadSha(fetch, number);
   test.skip(headAfterBuild !== headSha, `atlas PR #${number} moved during preview build`);
 
   const marked = new Set<string>([
@@ -108,11 +76,14 @@ test("previews the pinned atlas PR canary and redlines exactly the docs it chang
     ...Object.keys(diff.renumbered ?? {}),
   ]);
 
-  // Every doc the PR added/modified must appear in our computed diff.
+  // Every doc the PR added/changed must appear in our computed diff. (Subset
+  // check by design: the preview may legitimately mark more — e.g. renumber
+  // cascades — than the per-file expectation derives.)
   const missing = expectedIds.filter((id) => !marked.has(id));
   expect(missing, `PR #${number} at ${headSha}: these changed docs were missing from the preview diff`).toEqual([]);
 
-  // And the render path actually marks one of them in the reader.
+  // And the render path actually marks one of them in the reader. (The
+  // interstitial was acknowledged for this session above, so no second gate.)
   await page.goto(`/preview/pull-${number}/atlas?id=${expectedIds[0]}`, { waitUntil: "domcontentloaded" });
   await expect(page.locator('[aria-label$="in this preview"]').first()).toBeVisible({ timeout: 60_000 });
 });
