@@ -71,6 +71,29 @@ describe("routeTier", () => {
     expect(routeTier("How does the Stability Scope handle collateral onboarding?").tier).toBe("default");
   });
 
+  // Second lane. The regexes are high-precision and low-recall — measured 0 of
+  // 28 natural paraphrases — so the embedding is what makes the STRONG tier
+  // reachable by questions phrased in words nobody anticipated. Its own reason
+  // string, so chat_route_reason meters the lane's fire rate in PostHog.
+  test("the similarity lane routes strong with its own reason", () => {
+    expect(routeTier("map out the entities the atlas recognizes")).toEqual({ tier: "strong", reason: "similarity" });
+    expect(routeTier("what roles has the atlas defined so far").reason).toBe("similarity");
+  });
+
+  // The lane sits ABOVE the fast check on purpose: whole-corpus questions are
+  // often short and lookup-shaped, so a lane placed below it would lose exactly
+  // the turns it exists to catch.
+  test("the similarity lane outranks the fast tier", () => {
+    const r = routeTier("show me the full set of entities the atlas recognizes");
+    expect(r.tier).not.toBe("fast");
+  });
+
+  // Deterministic signals still win, so telemetry keeps attributing a turn to
+  // the cheapest explanation that fired.
+  test("a regex signal keeps its own reason rather than the lane's", () => {
+    expect(routeTier("What are all of the roles and positions designated by the Atlas?").reason).toBe("enumeration");
+  });
+
   // Corpus-level regression. The router's job is to catch the questions the
   // strong tier measurably wins; the bakeoff set is the only place we know
   // which those are. A hard, whole-corpus question landing on `fast` is the

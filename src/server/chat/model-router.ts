@@ -6,6 +6,7 @@
 // no env configured routing is a no-op and CHAT_MODEL behaves as before.
 import { config } from "../config.ts";
 import type { CitationStyle } from "./system-prompt.ts";
+import { looksComplex } from "./complexity.ts";
 
 export type ModelTier = "fast" | "default" | "strong";
 
@@ -51,6 +52,16 @@ export function routeTier(question: string, opts: { followUp?: boolean } = {}): 
   }
   if ((q.match(/\?/g) ?? []).length >= 2) return { tier: "strong", reason: "multi-part" };
   if (q.length > 350) return { tier: "strong", reason: "long-form" };
+
+  // Second lane: an on-device embedding (~3ms, no network) catches whole-corpus
+  // enumeration and synthesis phrased in words the signals above don't watch
+  // for — the regexes caught 0 of 28 natural paraphrases (complexity.ts).
+  // Deliberately BEFORE the fast check: these questions are often short and
+  // lookup-shaped ("map out the entities the atlas recognizes"), so leaving it
+  // below would let `fast` claim the exact turns this lane exists to catch.
+  // Its own `reason` so PostHog's chat_route_reason meters the lane's fire rate
+  // with no new instrumentation. No-op when CHAT_FACT_SIMILARITY=0.
+  if (looksComplex(q)) return { tier: "strong", reason: "similarity" };
 
   // Fast only for clearly-scoped short lookups. A terse follow-up without a doc
   // reference stays default — its brevity leans on conversation context, not on

@@ -137,7 +137,32 @@ won was a corpus-wide enumeration or generation (§6.5), and requiring a
 determiner after "all" is what keeps the idioms ("is that all?", "all good") on
 the cheap path. Over the 14 hard bakeoff queries this routes 11 strong and 0
 fast, covering all six of the measured wins; the three left on DEFAULT are the
-ones where the two models tied. The STRONG chain has a second job: it is also what the
+ones where the two models tied.
+
+Those regexes are high-precision and low-recall, and the 11-of-14 is *in-sample*
+— the patterns were fitted to those questions. Against 28 natural paraphrases
+written to avoid every trigger ("map out the entities the atlas recognizes"),
+they score **0**. So a **second lane** (`chat/complexity.ts`'s `looksComplex`)
+scores the question against enumeration/synthesis prototypes with the same
+on-device embedding the facts and census lanes use (~3ms, no network), minus a
+"one named subject" negative set, and routes STRONG above the margin
+(`CHAT_COMPLEXITY_SIMILARITY_MARGIN`, default 0.25). It runs *after* the
+deterministic signals (so a regex keeps its own `reason`) but *before* the fast
+check, since whole-corpus questions are often short and lookup-shaped. It gets
+its own `reason` — `"similarity"` — so PostHog's `chat_route_reason` meters the
+lane's fire rate with no new instrumentation.
+
+Unlike every other consumer of the embedding, this lane does **not** suppress on
+`namesAtlasSubject`. That suppressor is what holds the features lane to 1 false
+fire in 184, but here it stands down on 18 of 28 genuine positives: whole-corpus
+questions are *made of* atlas vocabulary. Naming a subject tells you a question
+isn't about the app; it tells you nothing about whether it's complex. Measured
+(`pnpm eval:complexity`, 180 questions): the lane adds 13 true positives for 1
+false fire over regex alone. Zero false fires is unreachable here — "what are
+the features of <doc title>?" out-scores every true positive — which is why the
+margin is set on the marginal trade rather than a clean separation, and why the
+cost asymmetry is the justification: a false fire buys a better *and* faster
+model, so it costs tokens, never correctness. The STRONG chain has a second job: it is also what the
 advisor's one recovery cycle replays on (§6.5), so a turn can reach the strong
 model by failing an audit as well as by matching a signal.
 
@@ -552,6 +577,7 @@ All are `bun scripts/eval/*.ts`, run manually (none gate CI yet) and most need
 | `pnpm eval:retrieval` | Retrieval quality by slice (exact / disambiguation / prose control) — the instrument behind the kv-record grouping decision in §9. |
 | `pnpm eval:facts` | Facts-lane recall; source of the `-0.05` similarity margin knee. |
 | `pnpm eval:census` | Concept-census routing accuracy. |
+| `pnpm eval:complexity` | Tier-router similarity lane: recall vs false fires over 180 labeled questions. |
 | `pnpm eval:bakeoff`, `eval:wiki-ab` | Model bakeoffs and the constraints-wiki A/B. |
 
 Open instrument work: wiring `eval:golden` into CI/release gating still needs a
