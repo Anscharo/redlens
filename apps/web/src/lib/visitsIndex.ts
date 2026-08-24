@@ -64,6 +64,7 @@ const FILTER_LABELS: Record<string, string> = {
   n: "threshold",
   tgran: "timeline",
   hide: "hidden",
+  msc: "cycle",
 };
 
 // Params that say WHICH thing you were looking at, or what the chrome was

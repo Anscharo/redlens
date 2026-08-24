@@ -84,17 +84,20 @@ export function usePageContext(): PageContextView {
     };
   }
 
-  // Radar actor page (/radar/:slug)
+  // Radar actor page (/radar/:slug) and its settlements sub-page
   if (location.startsWith(ROUTES.RADAR + "/")) {
-    const slug = location.slice(ROUTES.RADAR.length + 1).split("/")[0];
-    const name = deslug(decodeURIComponent(slug));
+    const rest = location.slice(ROUTES.RADAR.length + 1);
+    const [rawSlug, sub] = rest.split("/");
+    const slug = decodeURIComponent(rawSlug ?? "");
+    const name = deslug(slug);
+    const settlements = sub === "settlements";
     return {
       path: location,
       actorSlug: slug,
-      short: `Ask about ${name}`,
-      placeholder: `Ask about ${name}…`,
-      label: name,
-      chip: `radar · ${name}`,
+      short: settlements ? `Ask about ${name}'s monthly settlement` : `Ask about ${name}`,
+      placeholder: settlements ? `Ask about ${name}'s monthly settlement…` : `Ask about ${name}…`,
+      label: settlements ? `${name} · Monthly settlement` : name,
+      chip: settlements ? "radar · settlement" : `radar · ${name}`,
     };
   }
 

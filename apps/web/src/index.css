@@ -1790,3 +1790,177 @@ button.atlas-node-expand-all:focus-visible {
   background: var(--surface);
   color: var(--tan-2);
 }
+
+/* ─── MSC settlement charts (radar actor page) ─── */
+.msc-teaser {
+  float: right;
+  width: 14.5rem;
+  margin: 0 0 1rem 1.25rem;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+}
+.msc-teaser-link {
+  display: inline-block;
+  margin-top: 6px;
+}
+@media (max-width: 639px) {
+  .msc-teaser {
+    float: none;
+    width: 100%;
+    margin: 0 0 1rem 0;
+  }
+}
+.msc-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--tan-3);
+}
+.msc-bar-cluster {
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  height: 88px;
+}
+.msc-bar-track,
+.msc-bar-stack {
+  position: relative;
+  height: 88px;
+  width: 22px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.msc-bar-cluster .msc-bar-track {
+  width: 10px;
+  height: 100%;
+}
+.msc-bar-stack {
+  display: flex;
+  flex-direction: column-reverse;
+}
+.msc-bar-col:hover {
+  color: var(--tan-2);
+}
+.msc-bar-col:hover .msc-bar-track,
+.msc-bar-col:hover .msc-bar-stack {
+  border-color: var(--gray);
+}
+.msc-bar-col[data-active="true"] {
+  color: var(--tan);
+}
+.msc-bar-col[data-active="true"] .msc-bar-track,
+.msc-bar-col[data-active="true"] .msc-bar-stack {
+  border-color: var(--tan-2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tan) 55%, transparent);
+}
+.msc-bar-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.msc-bar-zero {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--border);
+}
+.msc-bar-sky {
+  background: var(--depth-4);
+  width: 100%;
+}
+.msc-bar-loss {
+  background: var(--accent);
+  width: 100%;
+}
+.msc-bar-prime {
+  background: var(--entity-delegate-org);
+  width: 100%;
+}
+.msc-bar-demand,
+.msc-bar-rate {
+  background: var(--entity-facilitator-org);
+  width: 100%;
+}
+.msc-bar-dr {
+  background: var(--entity-govops-org);
+  width: 100%;
+}
+.msc-bar-gar {
+  background: var(--entity-foundation);
+  width: 100%;
+}
+.msc-bar-chronicle {
+  background: var(--entity-bridge);
+  width: 100%;
+}
+.msc-aum {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.msc-aum-row {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) 1fr 4.5rem;
+  gap: 10px;
+  align-items: center;
+}
+.msc-aum-track {
+  height: 8px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.msc-aum-fill {
+  display: block;
+  height: 100%;
+  background: var(--entity-development-company);
+}
+.msc-sankey {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.msc-sankey-link {
+  opacity: 0.45;
+  cursor: pointer;
+  transition: opacity 0.1s;
+}
+.msc-sankey-node {
+  cursor: pointer;
+}
+.msc-sankey-amount {
+  fill: var(--tan-3);
+}
+/* Per-venue figures ride on the flows and are revealed by the generated
+   per-id rules in SettlementSankey.tsx. Hidden rather than absent so hover
+   costs no layout work; not a hover target, so they never shadow the ribbon
+   they sit on. The halo is what keeps them readable over a bright ribbon. */
+.msc-sankey-amounts {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+.msc-sankey-amounts text {
+  fill: var(--tan);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.msc-venue-row {
+  cursor: pointer;
+}

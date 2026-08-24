@@ -17,6 +17,10 @@ describe("describeFilters", () => {
     expect(describeFilters("brandnew=1")).toEqual([["brandnew", "1"]]);
   });
 
+  it("renames the radar MSC month param", () => {
+    expect(describeFilters("msc=2026-07")).toEqual([["cycle", "2026-07"]]);
+  });
+
   it("hides params that select what you were looking at rather than filter it", () => {
     // Constellations puts the focused entity in ?id= — a raw UUID reads as a
     // nonsense chip, but it stays in the stored path so the link still restores it.
