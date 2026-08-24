@@ -15,7 +15,7 @@ const running = () => ({ status: "in_progress", conclusion: null });
 describe("classifyRuns", () => {
   it("waits when Railway has not deployed the commit yet", () => {
     expect(classifyRuns([]).verdict).toBe("wait");
-    expect(classifyRuns(undefined as never).verdict).toBe("wait");
+    expect(classifyRuns(undefined).verdict).toBe("wait");
   });
 
   it("passes on a successful run", () => {
