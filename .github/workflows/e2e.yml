@@ -33,6 +33,16 @@ name: E2E
 # `?raw`-import) should not reach here: railway.toml watchPatterns skip the
 # deploy. This job still no-ops if Railway emits a status anyway, so Playwright
 # does not wait on a PR env that will never converge for a docs-only change.
+#
+# This workflow is NOT the required status check, and its job is deliberately
+# named "E2E run" rather than `e2e` so it cannot collide with the one that is.
+# It cannot be required: on a markdown-only PR nothing deploys, so no
+# deployment_status fires, so nothing here reports — and an unreported required
+# check blocks the PR forever ("Expected — Waiting for status to be reported").
+# `.github/workflows/e2e-gate.yml` owns the required `e2e` check instead: it
+# runs on `pull_request`, always reports, and mirrors this workflow's verdict
+# when a deploy is expected. Renaming this job means renaming what that gate's
+# comments describe — not what it matches on, which is this WORKFLOW FILE.
 on:
   deployment_status:
   schedule:
@@ -72,6 +82,13 @@ concurrency:
 
 jobs:
   e2e:
+    # Distinct from the required check's name (`e2e`, owned by e2e-gate.yml) —
+    # Railway emits a deployment_status per service and per environment, so one
+    # commit gets several runs of this workflow and some conclude `skipped`.
+    # Branch protection resolves a required check by name, so letting those
+    # share a name with the gate would let a `skipped` sibling stand in for a
+    # verdict nobody reached.
+    name: E2E run
     # Manual dispatch always runs. For deployment_status, gate on a successful
     # PR-environment deploy. Railway's `environment` is like
     # "Redline Atlas / pr-85d143-128" (a random per-environment slug, then the PR
