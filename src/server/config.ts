@@ -589,6 +589,12 @@ export const config = {
   // parse.
   chainstateRefreshSeconds: Number(process.env.CHAINSTATE_REFRESH_SECONDS ?? 86_400),
 
+  // Forum cycle-thread crawl (forum.ts, atlas worker). Same shape as chain-state:
+  // the worker ticks every ~12 minutes but Discourse is fetched only when the
+  // stored cursor is older than this. Default hourly — MSC threads post at most
+  // a few times a month, so hourly is plenty and stays polite to the forum.
+  forumRefreshSeconds: Number(process.env.FORUM_REFRESH_SECONDS ?? 3_600),
+
   // Runtime freshness health thresholds (history/freshness.ts) — see that
   // file's header comment for the full status-derivation rationale; this is
   // just the env-parsed defaults.

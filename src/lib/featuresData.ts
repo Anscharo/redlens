@@ -179,6 +179,14 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         ],
         note: "Hidden when settlements.json has not been built (`pnpm settlements:parse`). Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
       },
+      {
+        name: "Monthly Settlement Cycle",
+        what: "A Radar cycle page that lists indexed Sky Forum settlement reports and links the Atlas definition plus the live forum tag.",
+        how: [
+          "Open Radar and pick Monthly Settlement Cycle from the Cycles group.",
+          "Use Atlas definition for the governing document, or Sky Forum tag / a thread title for the forum post.",
+        ],
+      },
     ],
   },
   {
