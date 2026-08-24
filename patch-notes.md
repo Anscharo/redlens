@@ -32,17 +32,16 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
-
 ## 2026-08-24
 - Added a Monthly Settlement Cycle page on Radar that lists the indexed Sky Forum settlement reports
-- Atlas AI CHAT now live. Ask it about Sky Atlas or this App, including oldest/all questions answered from a full class listing. Requires login. 
+- Added Monthly Settlement Cycle charts for Prime Agents, with last month's take in a card and a full cycle page of Sky / supply-kept / demand-side bars, demand-side mix, and venue AUM
+- Atlas AI CHAT now live. Ask it about Sky Atlas or this App. Requires login. [read more](https://github.com/Anscharo/redlens/blob/main/docs/chat-intro.md)
+
 
 ## 2026-08-19
+- Improved semantic search for mcp and agents
 - Fixed Atlas addresses and history sometimes being unavailable after an update
 
-## 2026-08-18
-- Chat and MCP search now collapse a parent document and its matching child into one result, and can name which child matched
-- Chat and MCP search now find short parameter documents, like an instance's network or token
 
 ## 2026-08-14
 - Added a History page showing the Atlas documents, document trees and report pages you have been reading, kept in your browser only

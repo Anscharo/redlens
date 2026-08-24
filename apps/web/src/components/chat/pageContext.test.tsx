@@ -80,6 +80,13 @@ describe("usePageContext", () => {
     expect(result.current.chip).toBe("radar · Prime Agent Foo");
   });
 
+  it("names the nested settlements page in chat context", () => {
+    const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/radar/spark/settlements") });
+    expect(result.current.actorSlug).toBe("spark");
+    expect(result.current.short).toBe("Ask about Spark's monthly settlement");
+    expect(result.current.chip).toBe("radar · settlement");
+  });
+
   it("derives report context with a backing tool and forwards the active filter", () => {
     const { result } = renderHook(() => usePageContext(), {
       wrapper: wrap("/reports/of-responsibilities?q=budget"),

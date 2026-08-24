@@ -96,6 +96,11 @@ vi.mock("./CycleDashboard", () => ({
     <div data-testid="cycle-dashboard">{cycle.title}</div>
   ),
 }));
+vi.mock("./ActorSettlementsPage", () => ({
+  ActorSettlementsPage: ({ profile }: { profile: { entity: { name: string } } }) => (
+    <div data-testid="settlements-page">{profile.entity.name} settlements</div>
+  ),
+}));
 
 import { RadarPage } from "./RadarPage";
 
@@ -140,7 +145,20 @@ describe("RadarPage actor page", () => {
     expect(screen.getByTestId("actor-list")).toHaveAttribute("data-selected", "spark");
     await waitFor(() => expect(recordVisit).toHaveBeenCalledTimes(1));
     expect(recordVisit).toHaveBeenCalledWith(
-      expect.objectContaining({ label: "Spark Radar Entity" }),
+      expect.objectContaining({ path: "/radar/spark", label: "Spark Radar Entity" }),
+    );
+  });
+
+  it("renders the settlements page and records a distinct visit", async () => {
+    render(<RadarPage query="" actorSlug="spark" page="settlements" />);
+    expect(await screen.findByTestId("settlements-page")).toHaveTextContent("Spark Radar Entity settlements");
+    expect(screen.queryByTestId("actor-dashboard")).not.toBeInTheDocument();
+    await waitFor(() => expect(recordVisit).toHaveBeenCalledTimes(1));
+    expect(recordVisit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "/radar/spark/settlements",
+        label: "Spark Radar Entity · Monthly settlement",
+      }),
     );
   });
 
