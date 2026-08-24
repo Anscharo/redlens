@@ -252,13 +252,41 @@ function splitAnswerSentences(text: string): string[] {
 // outcome-equivalent (a row is only ever flagged when some sentence satisfies
 // both conditions) and avoids maintaining two separate candidate-selection
 // code paths for one property.
-export function findParamMismatches(answer: string, ix: Indexes): string[] {
+// One detected mismatch, structured rather than pre-formatted. The advisor
+// steer wants a sentence (formatParamMismatch below), but the SSE badge wants
+// the parts: `title` + `uuid` let the client link the parameter's document
+// instead of printing a bare doc_no, and `name` — the terse extracted kv key
+// ("maxamount") — is machine vocabulary that should never reach a reader on
+// its own. Kept anyway because the advisor prompt names it, which is how the
+// model finds the value it got wrong.
+export interface ParamMismatch {
+  stated: string; // the number as the answer wrote it
+  actual: string; // our extraction's value, unit-formatted
+  name: string; // extracted kv key — advisor-facing
+  title: string; // containing doc's title — reader-facing
+  owner: string | null;
+  uuid: string;
+  doc_no: string;
+}
+
+// The advisor steer sentence. Wording is load-bearing for the recovery prompt —
+// it names the exact figure to correct — so it stays as it was when this was
+// the only representation.
+export function formatParamMismatch(m: ParamMismatch): string {
+  const owner = m.owner ? ` (${m.owner})` : "";
+  return `answer states ${m.stated} for ${m.name}${owner} but the atlas value is ${m.actual} — ${m.doc_no}`;
+}
+
+export function findParamMismatches(answer: string, ix: Indexes): ParamMismatch[] {
   // Strip link hrefs (uuid digits) and doc-no mentions before scanning for
   // numbers — same digit-noise reasoning as findUntracedNumbers above.
   // Backticks are NOT stripped: a model faithfully echoing the atlas's own
   // `` `maxAmount` `` kv-key syntax must stay visible to the name-token check.
   const prose = answer.replace(/\]\([^)]*\)/g, "]").replace(new RegExp(String.raw`\b${DOC_NO_CORE}\b`, "g"), "");
-  const out: string[] = [];
+  // Keyed by the formatted sentence so dedupe behaviour is exactly what it was
+  // when this returned strings — the same figure restated across sentences
+  // collapses to one entry.
+  const out = new Map<string, ParamMismatch>();
   for (const sentence of splitAnswerSentences(prose)) {
     const mentions = extractMentions(sentence);
     if (mentions.length === 0) continue; // no number stated — nothing to check
@@ -274,13 +302,24 @@ export function findParamMismatches(answer: string, ix: Indexes): string[] {
         continue; // non-% unit's text absent from the sentence — likely unrelated
       }
       for (const m of relevant.filter((m) => !(row.num !== null && m.num === row.num))) {
-        out.push(
-          `answer states ${m.raw} for ${row.name}${row.owner ? ` (${row.owner})` : ""} but the atlas value is ${formatParamValue(row)} — ${row.doc_no}`,
-        );
+        const mismatch: ParamMismatch = {
+          stated: m.raw,
+          actual: formatParamValue(row),
+          name: row.name,
+          // Falls back to the kv key only if the doc vanished from the index
+          // between the param build and this check — shouldn't happen (both
+          // derive from the same buildIndexes pass), but a missing title must
+          // not drop an otherwise-valid hard failure.
+          title: ix.docMap.get(row.uuid)?.title ?? row.name,
+          owner: row.owner,
+          uuid: row.uuid,
+          doc_no: row.doc_no,
+        };
+        out.set(formatParamMismatch(mismatch), mismatch);
       }
     }
   }
-  return [...new Set(out)];
+  return [...out.values()];
 }
 
 // `value` usually embeds its unit already ("10,000 USDS" with unit "USDS");

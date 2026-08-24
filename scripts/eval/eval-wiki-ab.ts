@@ -17,6 +17,7 @@ import { buildSystemPrompt } from "../../src/server/chat/system-prompt.ts";
 import { runVerifiedChat, type CheckRowMeta } from "../../src/server/chat/chat-orchestrator.ts";
 import { makeOpenrouterStream, openrouterJson } from "../../src/server/chat/llm.ts";
 import { runDeterministicChecks } from "../../src/server/chat/verify/verify-checks.ts";
+import { evidenceFromTranscript } from "../../src/server/chat/verify/verifier.ts";
 import { config } from "../../src/server/config.ts";
 import { BAKEOFF_QUERIES, type BakeoffQuery } from "./eval-bakeoff-queries.ts";
 
@@ -150,7 +151,10 @@ async function runOne(q: BakeoffQuery, arm: Arm): Promise<Result> {
 
     const t = done.transcript;
     const toolTexts = t.filter((m) => m.role === "tool" && typeof m.content === "string").map((m) => m.content as string);
-    const c = runDeterministicChecks(done.content, toolTexts, ix);
+    const c = runDeterministicChecks(done.content, toolTexts, ix, {
+      question: q.query,
+      evidence: evidenceFromTranscript(t),
+    });
     const meta = done.checksMeta ?? [];
     const advisorRow = meta.find((m) => m.kind === "advisor_recovery");
     const advVerdict = advisorRow?.verdict as { action?: string } | null | undefined;

@@ -7,18 +7,20 @@ interface ChatHeaderProps {
   onClose: () => void;
   placement: Placement;
   onTogglePlacement: () => void;
-  // Staged-delivery preference (docs/plans/chat-staged-delivery.md): pressed =
-  // the user opted into stage-checklist turns; unpressed = follow the server
-  // default (currently streaming).
-  staged: boolean;
-  onToggleStaged: () => void;
+  // Delivery-mode preference (docs/chat-system.md §8). `stages` is the
+  // user-facing name for staged delivery (checklist, then reveal once);
+  // unpressed / "streaming" follows the server default.
+  stages: boolean;
+  onToggleDelivery: () => void;
 }
+
+export const DELIVERY_MODE_HINT = "set deliver mode: stream or stages";
 
 // Panel chrome: brand mark + conversation title (falls back to "Atlas" for a
 // fresh thread) on the left, New chat / dock-toggle / close on the right.
 // Split out of ChatPanel.tsx once the title became dynamic and the panel
 // gained a New-chat action (chat-conversation-memory plan §7).
-export function ChatHeader({ title, onNewChat, onClose, placement, onTogglePlacement, staged, onToggleStaged }: ChatHeaderProps) {
+export function ChatHeader({ title, onNewChat, onClose, placement, onTogglePlacement, stages, onToggleDelivery }: ChatHeaderProps) {
   const anchored = placement === "anchored";
   return (
     <header className="rlc-header">
@@ -30,12 +32,12 @@ export function ChatHeader({ title, onNewChat, onClose, placement, onTogglePlace
       <div className="ml-auto flex items-center gap-1">
         <button
           className="rlc-staged-toggle"
-          aria-pressed={staged}
-          onClick={onToggleStaged}
-          title="Staged answers (show steps, reveal the final answer once)"
-          aria-label="Staged answers (show steps, reveal the final answer once)"
+          aria-pressed={stages}
+          onClick={onToggleDelivery}
+          title={DELIVERY_MODE_HINT}
+          aria-label={DELIVERY_MODE_HINT}
         >
-          staged
+          {stages ? "stages" : "streaming"}
         </button>
         <button className="rlc-iconbtn" onClick={onNewChat} title="New chat" aria-label="New chat">
           +

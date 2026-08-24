@@ -6,6 +6,8 @@
 // no env configured routing is a no-op and CHAT_MODEL behaves as before.
 import { config } from "../config.ts";
 import type { CitationStyle } from "./system-prompt.ts";
+import { looksComplex } from "./complexity.ts";
+import { EXTREMUM_Q_RE } from "./verify/completeness.ts";
 
 export type ModelTier = "fast" | "default" | "strong";
 
@@ -21,14 +23,36 @@ const UUID_RE = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\
 const LOOKUP_RE = /^(what( i|')s |what is |define |show (me )?|find |where is |who is )/i;
 
 // Signals that the turn needs cross-document synthesis or careful policy
-// interpretation — route UP. Kept narrow: a false "strong" spends money on an
-// easy turn, while a missed one still has the verifier as a safety net.
+// interpretation — route UP. No longer kept narrow to avoid an easy turn's
+// cost: the 2026-08-21 bakeoff (docs/chat-system.md §6.5) found the strong
+// tier both more complete AND faster on corpus-wide questions, so a false
+// "strong" here is not a meaningful cost — a missed one still has the
+// verifier as a safety net.
 const STRONG_SIGNALS: [RegExp, string][] = [
   [/\b(compare|versus|vs|difference between|differ from)\b/i, "comparison"],
   [/\b(interacts?|conflicts?|contradicts?|overlaps?|reconcile|relationship between)\b/i, "interaction"],
   [/\b(implications?|trade-?offs?|consequences)\b/i, "analysis"],
   [/\b(allowed to|permitted to|violat\w*|comply|compliance|eligib\w*|penalt\w*)\b/i, "governance-risk"],
-  [/\ball\b.{0,60}\b(that|which|who)\b/i, "enumeration"],
+  // Exhaustive-set questions. "all of the X" / "all the X" is the form the
+  // real corpus actually uses ("all of the roles and positions designated by
+  // the Atlas") — the relative-pronoun shape below never saw it. Requiring a
+  // determiner after "all" keeps the short idioms out ("is that all?", "all
+  // good") but still fires on ordinary collocations that aren't enumeration
+  // ("that's all the information I need", "all the way through this
+  // process") — left alone under the same cost model as above: a false
+  // "strong" here is not a meaningful cost.
+  [/\ball (of |the |these |those )/i, "enumeration"],
+  // The original shape, for "all agents that hold a role". Window widened from
+  // 60 to 90: in "all of the token transfers documented in the Atlas and give
+  // me a ledger of who sent what" the pronoun sits 72 chars out and was missed.
+  [/\ball\b.{0,90}\b(that|which|who)\b/i, "enumeration"],
+  // Corpus-wide synthesis: produce a NEW artifact out of many documents rather
+  // than retrieve one. Measured 2026-08-21 (docs/chat-system.md §6.5) — every
+  // question the strong tier won was enumeration or generation, and the default
+  // model's failure mode there is completeness (0.70 vs 0.95), not fabrication.
+  [/\b(generate|compile|enumerate|inventory|timeline|trends?)\b/i, "synthesis"],
+  // Superlative over a class: the extreme is often not in BM25 top-k.
+  [EXTREMUM_Q_RE, "extremum"],
 ];
 
 export function routeTier(question: string, opts: { followUp?: boolean } = {}): Route {
@@ -38,6 +62,16 @@ export function routeTier(question: string, opts: { followUp?: boolean } = {}): 
   }
   if ((q.match(/\?/g) ?? []).length >= 2) return { tier: "strong", reason: "multi-part" };
   if (q.length > 350) return { tier: "strong", reason: "long-form" };
+
+  // Second lane: an on-device embedding (~3ms, no network) catches whole-corpus
+  // enumeration and synthesis phrased in words the signals above don't watch
+  // for — the regexes caught 0 of 28 natural paraphrases (complexity.ts).
+  // Deliberately BEFORE the fast check: these questions are often short and
+  // lookup-shaped ("map out the entities the atlas recognizes"), so leaving it
+  // below would let `fast` claim the exact turns this lane exists to catch.
+  // Its own `reason` so PostHog's chat_route_reason meters the lane's fire rate
+  // with no new instrumentation. No-op when CHAT_FACT_SIMILARITY=0.
+  if (looksComplex(q)) return { tier: "strong", reason: "similarity" };
 
   // Fast only for clearly-scoped short lookups. A terse follow-up without a doc
   // reference stays default — its brevity leans on conversation context, not on
@@ -70,4 +104,11 @@ export function resolveTierModels(tier: ModelTier): string[] {
   if (tier === "fast" && config.chatModelFast.length) return config.chatModelFast;
   if (tier === "strong" && config.chatModelStrong.length) return config.chatModelStrong;
   return [config.chatModel, ...config.chatModelFallbacks];
+}
+
+/** Hard tool-round cap for this turn. Strong never sits below the default cap. */
+export function iterationsForTier(tier: ModelTier): number {
+  const base = Math.max(1, config.chatMaxIterations);
+  if (tier !== "strong") return base;
+  return Math.max(base, Math.max(1, config.chatMaxIterationsStrong));
 }

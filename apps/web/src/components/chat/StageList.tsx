@@ -1,6 +1,6 @@
 import type { StageLogEntry } from "./useChatStream";
 
-// docs/plans/chat-staged-delivery.md user-facing stage copy. Unknown stages
+// docs/chat-system.md §8 user-facing stage copy. Unknown stages
 // (forward-compat with a server that adds one before the client updates)
 // fall back to a capitalized raw label instead of disappearing.
 const STAGE_LABEL: Record<string, string> = {

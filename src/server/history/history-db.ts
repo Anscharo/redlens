@@ -8,8 +8,9 @@ import { join } from "node:path";
 import type { DiffLine } from "../../lib/history.ts";
 import { config } from "../config.ts";
 
-// chatbot-plan vocabulary: the frontend uses modified/moved; Postgres stores
-// content/structural. added/removed pass through unchanged.
+// chatbot-plan vocabulary (docs/plans/archive/chatbot-plan.md): the frontend
+// uses modified/moved; Postgres stores content/structural. added/removed pass
+// through unchanged.
 export const CHANGE_TYPE_MAP: Record<string, string> = { modified: "content", moved: "structural" };
 
 // A "modified" row is strict: change_kind = 'semantic', or — for rows with no

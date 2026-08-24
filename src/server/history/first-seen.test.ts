@@ -60,13 +60,13 @@ mock.module("../db.ts", () => ({ ...baseExports, sql: sqlDispatch }));
 
 const { firstSeenFor, atlasFirstSeen } = await import("./first-seen.ts");
 
-function doc(id: string, doc_no: string): AtlasNode {
-  return { id, doc_no, title: doc_no, type: "Core", depth: 1, parentId: null, content: "", order: 0, addressRefs: [] };
+function doc(id: string, doc_no: string, title = doc_no): AtlasNode {
+  return { id, doc_no, title, type: "Core", depth: 1, parentId: null, content: "", order: 0, addressRefs: [] };
 }
 function entity(id: string, slug: string, defining_doc_id: string | null): Entity {
   return { id, slug, name: slug, entity_type: "agent", subtype: null, defining_doc_id, is_active: 1, meta: null };
 }
-function addedRow(doc_id: string, overrides: Partial<{ committed_at: string | null; pr_number: number | null; era: string | null; commit_sha: string; commit_seq: number | null }> = {}) {
+function addedRow(doc_id: string, overrides: Partial<{ committed_at: string | null; pr_number: number | null; pr_title: string | null; era: string | null; commit_sha: string; commit_seq: number | null }> = {}) {
   return {
     doc_id,
     committed_at: "2025-01-15",
@@ -189,5 +189,82 @@ describe("first-seen", () => {
       first_seen_source: "severed",
       note: "recorded as 'added' but the exact date is unknown (severed era)",
     });
+  });
+
+  it("atlasFirstSeen XOR: ids and class together, or neither, is an error", async () => {
+    mockHistoryRows([]);
+    const ix = buildIndexes([doc("d1", "A.1", "Rate Limit")], [], [], {});
+    expect((await atlasFirstSeen(ix, { ids: ["d1"], title: "Rate Limit" }) as { error?: string }).error).toBeDefined();
+    expect((await atlasFirstSeen(ix, {}) as { error?: string }).error).toBeDefined();
+  });
+
+  it("atlasFirstSeen class mode reduces to oldest ties without a 50 cap on the class", async () => {
+    mockHistoryRows([
+      addedRow("old", { committed_at: "2025-11-07", pr_number: 10, pr_title: "Birth" }),
+      addedRow("new", { committed_at: "2026-07-10" }),
+      addedRow("tie", { committed_at: "2025-11-07", pr_number: 10, pr_title: "Birth" }),
+    ]);
+    const ix = buildIndexes(
+      [doc("old", "A.1", "Rate Limit"), doc("new", "A.2", "Rate Limit"), doc("tie", "A.3", "Rate Limit"), doc("other", "B.1", "Other")],
+      [],
+      [],
+      {},
+    );
+    const result = (await atlasFirstSeen(ix, { title: "Rate Limit" })) as {
+      class_total: number;
+      class_with_history: number;
+      event: string;
+      oldest: Array<{ uuid: string; date: string }>;
+      results?: unknown;
+    };
+    expect(result.results).toBeUndefined();
+    expect(result.event).toBe("added");
+    expect(result.class_total).toBe(3);
+    expect(result.class_with_history).toBe(3);
+    expect(result.oldest.map((o) => o.uuid).sort()).toEqual(["old", "tie"]);
+    expect(result.oldest.every((o) => o.date === "2025-11-07")).toBe(true);
+  });
+
+  it("atlasFirstSeen class mode event=modified queries content rows", async () => {
+    const seen: string[] = [];
+    sqlImpl = (...args: unknown[]) => {
+      seen.push(JSON.stringify(args));
+      return Promise.resolve([addedRow("old", { committed_at: "2026-04-09" })]);
+    };
+    const ix = buildIndexes([doc("old", "A.1", "Rate Limit")], [], [], {});
+    const result = (await atlasFirstSeen(ix, { title: "Rate Limit", event: "modified" })) as {
+      event: string;
+      oldest: Array<{ uuid: string; date: string }>;
+    };
+    expect(result.event).toBe("modified");
+    expect(result.oldest[0]).toMatchObject({ uuid: "old", date: "2026-04-09" });
+    expect(seen.some((s) => s.includes("content"))).toBe(true);
+  });
+});
+
+const INCIDENT_UUID = "8414b48b-932e-430e-a236-727807fd73ba";
+
+describe("first-seen class mode against a populated atlas_history", () => {
+  it("Rate Limit modified is older than 2026-07-10 and includes the incident UUID", async () => {
+    if (!process.env.DATABASE_URL) return;
+    sqlImpl = null;
+    let ix: ReturnType<typeof buildIndexes>;
+    try {
+      const { loadIndexes } = await import("../retrieval/indexes.ts");
+      ix = loadIndexes();
+    } catch {
+      return;
+    }
+    const result = (await atlasFirstSeen(ix, { title: "Rate Limit", event: "modified" })) as {
+      error?: string;
+      class_total?: number;
+      class_with_history?: number;
+      oldest?: Array<{ uuid: string; date: string }>;
+    };
+    if (result.error || !result.class_with_history) return;
+    expect(result.oldest?.length).toBeGreaterThan(0);
+    const min = result.oldest![0]!.date;
+    expect(min < "2026-07-10").toBe(true);
+    expect(result.oldest!.some((o) => o.uuid === INCIDENT_UUID)).toBe(true);
   });
 });

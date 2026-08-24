@@ -96,7 +96,7 @@ function AssistantTurn({
               <span className="rlc-twinkle">✦</span> {msg.statusLine}
             </div>
           )}
-          {msg.verify && <VerifyBadge verify={msg.verify} />}
+          {msg.verify && <VerifyBadge verify={msg.verify} onAtlas={onAtlas} />}
           {msg.exports?.length ? <ExportChips exports={msg.exports} /> : null}
           {!streaming && msg.done && <Sources sources={sources} onAtlas={onAtlas} />}
         </>

@@ -345,35 +345,51 @@ export function atlasEdges(
   };
 }
 
-// ── atlas_filter ───────────────────────────────────────────────────────────
-export function atlasFilter(
-  ix: Indexes,
-  opts: {
-    type?: string;
-    entity?: string;
-    ancestor_id?: string;
-    doc_no_pattern?: string;
-    depth_min?: number;
-    depth_max?: number;
-    limit: number;
-    include_content: boolean;
-  },
-): ToolResult {
-  const { type, entity, ancestor_id, doc_no_pattern, depth_min, depth_max, limit, include_content } = opts;
-  if (!type && !entity && !ancestor_id && !doc_no_pattern && depth_min == null && depth_max == null) {
-    return { error: "Provide at least one filter: type, entity, ancestor_id, doc_no_pattern, or depth_min/max" };
+// Structural class selector shared by atlas_filter (listing) and atlas_first_seen
+// (class-mode reduction). Title is exact and case-sensitive; title_prefix is
+// startsWith. Collects the full match set — callers page or reduce; they must
+// not `break` at limit, or `total` would lie.
+export type ClassFilter = {
+  type?: string;
+  entity?: string;
+  ancestor_id?: string;
+  doc_no_pattern?: string;
+  depth_min?: number;
+  depth_max?: number;
+  title?: string;
+  title_prefix?: string;
+};
+
+export function classFilterProvided(opts: ClassFilter): boolean {
+  return Boolean(
+    opts.type ||
+      opts.entity ||
+      opts.ancestor_id ||
+      opts.doc_no_pattern ||
+      opts.title ||
+      opts.title_prefix ||
+      opts.depth_min != null ||
+      opts.depth_max != null,
+  );
+}
+
+export function collectClassDocs(ix: Indexes, opts: ClassFilter): AtlasNode[] | { error: string } {
+  if (!classFilterProvided(opts)) {
+    return {
+      error:
+        "Provide at least one filter: title, title_prefix, type, entity, ancestor_id, doc_no_pattern, or depth_min/max",
+    };
   }
 
-  // Resolve subtree root.
   let rootId: string | null = null;
-  if (ancestor_id) {
-    const node = resolveNode(ix, ancestor_id);
-    if (!node) return { error: `ancestor_id '${ancestor_id}' not found` };
+  if (opts.ancestor_id) {
+    const node = resolveNode(ix, opts.ancestor_id);
+    if (!node) return { error: `ancestor_id '${opts.ancestor_id}' not found` };
     rootId = node.id;
   }
-  if (entity && !rootId) {
-    const ent = ix.entityBySlug.get(entity.toLowerCase());
-    if (!ent?.defining_doc_id) return { error: `Entity '${entity}' not found` };
+  if (opts.entity && !rootId) {
+    const ent = ix.entityBySlug.get(opts.entity.toLowerCase());
+    if (!ent?.defining_doc_id) return { error: `Entity '${opts.entity}' not found` };
     rootId = ent.defining_doc_id;
   }
 
@@ -381,26 +397,56 @@ export function atlasFilter(
     ? ([...descendantIds(ix, rootId)].map((id) => ix.docMap.get(id)).filter(Boolean) as AtlasNode[])
     : ix.docMap.values();
 
-  // SQL-style LIKE → JS regex (% → .*, _ → .)
-  const patternRe = doc_no_pattern
-    ? new RegExp("^" + doc_no_pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/%/g, ".*").replace(/_/g, ".") + "$")
+  const patternRe = opts.doc_no_pattern
+    ? new RegExp("^" + opts.doc_no_pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/%/g, ".*").replace(/_/g, ".") + "$")
     : null;
 
-  const results: Array<Record<string, unknown>> = [];
+  const matched: AtlasNode[] = [];
   for (const n of scope) {
-    if (type && n.type !== type) continue;
+    if (opts.type && n.type !== opts.type) continue;
+    if (opts.title && n.title !== opts.title) continue;
+    if (opts.title_prefix && !n.title.startsWith(opts.title_prefix)) continue;
     if (patternRe && !patternRe.test(n.doc_no)) continue;
-    if (depth_min != null && n.depth < depth_min) continue;
-    if (depth_max != null && n.depth > depth_max) continue;
+    if (opts.depth_min != null && n.depth < opts.depth_min) continue;
+    if (opts.depth_max != null && n.depth > opts.depth_max) continue;
+    matched.push(n);
+  }
+  matched.sort((a, b) => a.doc_no.localeCompare(b.doc_no));
+  return matched;
+}
+
+// ── atlas_filter ───────────────────────────────────────────────────────────
+export function atlasFilter(
+  ix: Indexes,
+  opts: ClassFilter & {
+    limit?: number;
+    offset?: number;
+    include_content?: boolean;
+  },
+): ToolResult {
+  const collected = collectClassDocs(ix, opts);
+  if (!Array.isArray(collected)) return collected;
+
+  const limit = opts.limit ?? 50;
+  const offset = opts.offset ?? 0;
+  const include_content = opts.include_content ?? false;
+  const total = collected.length;
+  const page = collected.slice(offset, offset + limit);
+  const results = page.map((n) => {
     const row: Record<string, unknown> = { ...docRow(n), ...livenessOf(ix, n.id) };
     row.parent_id = n.parentId;
     if (include_content) row.content = n.content;
-    results.push(row);
-    if (results.length >= limit) break;
-  }
-  results.sort((a, b) => String(a.doc_no).localeCompare(String(b.doc_no)));
+    return row;
+  });
   const { kept, truncated } = fitToBudget(results);
-  const envelope = { count: kept.length, ...(truncated ? { total: results.length, truncated: true, hint: TRUNCATION_HINT } : {}), results: kept };
+  const envelope = {
+    total,
+    count: kept.length,
+    offset,
+    has_more: offset + kept.length < total,
+    ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
+    results: kept,
+  };
   return withLivenessHint(envelope, kept);
 }
 

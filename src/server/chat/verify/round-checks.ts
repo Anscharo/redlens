@@ -1,5 +1,5 @@
 // Deterministic per-round retrieval telemetry for the chat reliability harness
-// (docs/plans/chat-reliability-harness.md). Pure code, zero model cost —
+// (docs/chat-system.md §6). Pure code, zero model cost —
 // accumulated across a turn via chat-loop's onRoundEnd, it feeds the advisor
 // escalation gate ("retrieval trouble") and the verifier prompt's telemetry
 // section. Model-based round digests are explicitly NOT v1.

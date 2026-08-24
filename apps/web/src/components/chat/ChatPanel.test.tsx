@@ -352,22 +352,24 @@ describe("ChatPanel header", () => {
   });
 });
 
-describe("ChatPanel staged-delivery toggle", () => {
-  it("is unpressed by default (delivery: null) and turns on staged on click", () => {
+describe("ChatPanel delivery-mode toggle", () => {
+  it("shows streaming by default (delivery: null) and turns on stages (staged) on click", () => {
     renderPanel();
-    const toggle = screen.getByLabelText("Staged answers (show steps, reveal the final answer once)");
+    const toggle = screen.getByLabelText("set deliver mode: stream or stages");
+    expect(toggle).toHaveTextContent("streaming");
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(toggle);
     expect(setPref).toHaveBeenCalledWith("delivery", "staged");
   });
 
-  it("shows pressed when the pref is already staged, and clicking clears it back to null", () => {
+  it("shows stages when the pref is staged, and clicking flips to streaming", () => {
     prefsState = { traces: false, reduceMotion: false, delivery: "staged" };
     renderPanel();
-    const toggle = screen.getByLabelText("Staged answers (show steps, reveal the final answer once)");
+    const toggle = screen.getByLabelText("set deliver mode: stream or stages");
+    expect(toggle).toHaveTextContent("stages");
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(toggle);
-    expect(setPref).toHaveBeenCalledWith("delivery", null);
+    expect(setPref).toHaveBeenCalledWith("delivery", "streaming");
   });
 
   it("threads the delivery pref into send() as the third argument", () => {

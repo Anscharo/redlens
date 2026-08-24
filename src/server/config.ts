@@ -223,7 +223,7 @@ export const config = {
   // isn't free: titling only re-fires at turns 4 and 10, so a conversation
   // that ends at turn 1-3 keeps its truncated slice(0,60) seed title forever.
   chatTitleTimeoutMs: Number(process.env.CHAT_TITLE_TIMEOUT_MS ?? 20_000),
-  // Chat delivery mode (docs/plans/chat-staged-delivery.md): "streaming" forwards
+  // Chat delivery mode (docs/chat-system.md §8): "streaming" forwards
   // answer tokens live as today (stream + post-hoc verify badge); "staged"
   // suppresses tokens behind honest progress stages and reveals the answer only
   // once, verified (possibly revised), in the terminal `done` event. Default
@@ -251,6 +251,11 @@ export const config = {
   // rollups: questions that used to need four narrow tool calls now need one, so
   // the extra rounds bought latency rather than evidence.
   chatMaxIterations: Number(process.env.CHAT_MAX_ITERATIONS ?? 4),
+  // Strong-tier cap. Corpus-wide / extremum turns (and advisor recovery's
+  // answerer, which already replays on STRONG) need listing + first_seen + a
+  // couple of lookups; 4 was the ranked-search budget. Never below the
+  // default cap — raising CHAT_MAX_ITERATIONS raises both.
+  chatMaxIterationsStrong: Number(process.env.CHAT_MAX_ITERATIONS_STRONG ?? 6),
   // Conversationalist sampling temperature. Pinned (provider defaults hover
   // around 0.7) — a grounded citation machine wants low variance, and pinning
   // keeps eval-harness A/B runs comparable. Judges stay at 0 in llm.ts.
@@ -274,7 +279,7 @@ export const config = {
   // a single broad tool call from eating the live chat context.
   chatToolResultMaxChars: Number(process.env.CHAT_TOOL_RESULT_MAX_CHARS ?? 30_000),
 
-  // Chat reliability harness (docs/plans/chat-reliability-harness.md).
+  // Chat reliability harness (docs/chat-system.md §6).
   // Final claim-audit model — should be a stronger, DIFFERENT-family model than
   // chatModel (cross-family independence).
   // Empty = model verification off; deterministic checks still run.
@@ -336,6 +341,38 @@ export const config = {
   // actually safe to ship; re-run `pnpm eval:census` with DATABASE_URL set before
   // trusting a lower margin here.
   chatCensusSimilarityMargin: Number(process.env.CHAT_CENSUS_SIMILARITY_MARGIN ?? 0.4),
+
+  // Same lane, THIRD consumer: the model-tier router's similarity arm
+  // (chat/complexity.ts's looksComplex). Fire/no-fire like the features lane,
+  // but a different competing class again — "whole-corpus enumeration or
+  // synthesis" vs "one named subject", not app-vs-atlas and not
+  // census-vs-lookup. Shares chatFactSimilarity as its kill switch.
+  //
+  // The regex lane it backs up caught 0 of 28 natural paraphrases (2026-08-21)
+  // — its bakeoff score is in-sample. Sweep on those 28 positives against 152
+  // negatives (144 generated from real atlas titles, 8 hard):
+  // (`pnpm eval:complexity`, hybrid regex ∪ similarity; regex alone scores
+  // 0/28 recall with 3 false fires, so every true positive below is the lane's):
+  //     0.10 → 19/28 recall,  9 false fires   <- best F3
+  //     0.20 → 14/28 recall,  5 false fires
+  //     0.25 → 13/28 recall,  4 false fires   <- shipped
+  //     0.40 →  7/28 recall,  4 false fires
+  // Shipped at 0.25 on the MARGINAL trade, not caution: it buys 13 positives
+  // for 1 false fire over regex, while dropping to the F3 optimum buys 6 more
+  // positives for 5 more false fires. F3 rewards the recall and misses that.
+  //
+  // Zero false fires is NOT reachable at usable recall — one negative ("what
+  // are the features of <doc title>?") out-scores every true positive, so the
+  // classes genuinely overlap. Weaker than the census lane (86% at zero), and
+  // shipped anyway because the cost asymmetry differs: a false fire here buys a
+  // model measured BETTER and FASTER (chat/complexity.ts), so it costs tokens,
+  // never correctness.
+  //
+  // NOT yet real-traffic checked — the arm that set chatCensusSimilarityMargin,
+  // where the labeled-corpus optimum mis-fired on ~1 in 5 real turns. Watch
+  // PostHog's chat_route_reason="similarity" share, and re-run
+  // `pnpm eval:complexity` with DATABASE_URL set before lowering this.
+  chatComplexitySimilarityMargin: Number(process.env.CHAT_COMPLEXITY_SIMILARITY_MARGIN ?? 0.25),
   // Evidence digest budget for the final audit, newest-round-first.
   chatVerifierEvidenceMaxChars: Number(process.env.CHAT_VERIFIER_EVIDENCE_MAX_CHARS ?? 60_000),
   // Hard cap on the verifier call; timeout → null → "unverified" badge (chat

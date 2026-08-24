@@ -270,18 +270,22 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   {
     name: "atlas_filter",
     whenToUse:
-      "You want documents by STRUCTURE — a type, an entity's subtree, a doc_no pattern, or a depth range — rather than by words.",
+      "You need a COMPLETE class listing — every doc with an exact title, a title prefix, a type, a doc_no pattern, an entity subtree, or a depth range. Ranked search is not a census.",
     annotations: readOnlyAtlasTool("Atlas Filter"),
-    description: "Filter Atlas documents by structural attributes. Compose any of: type, entity slug (restricts to entity's artifact subtree), ancestor_id (recursive descendants), doc_no_pattern (SQL LIKE, e.g. '%.0.4.%'), depth_min/max.",
+    description:
+      "Filter Atlas documents by structural attributes (not ranked search). Compose any of: title (exact, case-sensitive), title_prefix, type, entity slug (restricts to entity's artifact subtree), ancestor_id (recursive descendants), doc_no_pattern (SQL LIKE, e.g. '%.0.4.%'), depth_min/max. Collects every match, sorts by doc_no, then pages. Returns `{ total, count, offset, has_more, truncated?, results }`; `total` is the match count before paging.",
     shape: {
       type: z.string().optional().describe("Atlas doc type (e.g. 'Active Data', 'Core', 'Action Tenet')."),
       entity: z.string().optional().describe("Entity slug — restricts to the entity's defining_doc subtree."),
       ancestor_id: z.string().optional().describe("UUID or doc_no — restricts to recursive descendants."),
       doc_no_pattern: z.string().optional().describe("LIKE pattern over doc_no (use % wildcards)."),
+      title: z.string().optional().describe("Exact document title, case-sensitive (e.g. 'Rate Limit')."),
+      title_prefix: z.string().optional().describe("Title prefix (e.g. 'Rate Limit' also matches 'Rate Limits')."),
       depth_min: z.number().int().min(0).max(20).optional(),
       depth_max: z.number().int().min(0).max(20).optional(),
       limit: z.number().int().min(1).max(200).default(50),
-      include_content: z.boolean().default(true).describe("Include full content. Set false for lighter listing responses."),
+      offset: z.number().int().min(0).default(0),
+      include_content: z.boolean().default(false).describe("Include full content. Default false for slim listing rows."),
     },
     handler: (ix, a) => atlasFilter(ix, a as Parameters<typeof atlasFilter>[1]),
   },
@@ -425,22 +429,35 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   {
     name: "atlas_first_seen",
     whenToUse:
-      "'Since when' for a batch of entities/docs — ONLY when the atlas text gives no explicit date. Cite the source as history-derived, never as an atlas-stated date.",
+      "'Since when' / oldest first-seen for docs — ONLY when the atlas text gives no explicit date. For a named class (oldest Rate Limit), pass title/type/… — do NOT pass ids you got from search. Cite the source as history-derived, never as an atlas-stated date.",
     annotations: readOnlyAtlasTool("Atlas First Seen"),
     description:
-      "Since when has this existed? Bulk lookup of the earliest atlas_history 'added' date for a batch of entity " +
-      "slugs and/or doc UUIDs/doc_nos in one call. Every date is derived from atlas_history, never an explicit " +
-      "in-content date. `first_seen_source` names the underlying record: `pr:<number>` for a PR-linked commit, " +
-      "`mip` / `genesis-v2` / `html-era` / `severed` for a pre-git-history reconstruction, or `commit:<short sha>` " +
-      "for a plain git commit with no PR. An entity's first_seen is its defining doc's first_seen.",
+      "Since when has this existed? Two exclusive modes. (1) `ids`: bulk lookup of the earliest atlas_history " +
+      "'added' date for up to 50 entity slugs and/or doc UUIDs/doc_nos; returns `{ results }`. (2) Class filter " +
+      "(`title` / `title_prefix` / `type` / `doc_no_pattern` / `ancestor_id` / `entity`): resolves the whole class " +
+      "in process, then one SQL min over atlas_history — no 50 cap. Returns `{ class_total, class_with_history, event, oldest, undated }`. " +
+      "`event` is `added` (default, first-seen) or `modified` (earliest non-move content edit). Do not pass ids and a class filter together. " +
+      "Every date is derived from atlas_history. `first_seen_source` / `source` names the record: `pr:<number>`, " +
+      "`mip` / `genesis-v2` / `html-era` / `severed`, or `commit:<short sha>`.",
     shape: {
       ids: z
         .array(z.string())
         .min(1)
         .max(50)
-        .describe("Entity slugs and/or doc UUIDs/doc_nos to look up, up to 50 per call."),
+        .optional()
+        .describe("Entity slugs and/or doc UUIDs/doc_nos to look up, up to 50 per call. XOR with class filters."),
+      title: z.string().optional().describe("Exact document title, case-sensitive. Class mode."),
+      title_prefix: z.string().optional().describe("Title prefix. Class mode."),
+      type: z.string().optional().describe("Atlas doc type. Class mode."),
+      doc_no_pattern: z.string().optional().describe("LIKE pattern over doc_no. Class mode."),
+      ancestor_id: z.string().optional().describe("UUID or doc_no subtree. Class mode."),
+      entity: z.string().optional().describe("Entity slug subtree. Class mode."),
+      event: z
+        .enum(["added", "modified"])
+        .optional()
+        .describe("Class mode only. `added` (default) = earliest added row; `modified` = earliest content edit."),
     },
-    handler: (ix, a) => atlasFirstSeen(ix, a.ids as string[]),
+    handler: (ix, a) => atlasFirstSeen(ix, a as Parameters<typeof atlasFirstSeen>[1]),
   },
   {
     name: "atlas_query",

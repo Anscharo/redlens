@@ -4,8 +4,8 @@
  *
  * Pattern-driven extraction of the Atlas graph. Outputs live at repo root so
  * they're first-class artifacts for every consumer — the frontend loads
- * relations.json directly; the redlens-mcp Worker mirrors the graph into D1
- * via sync-d1.mjs.
+ * relations.json directly. (This previously named a `sync-d1.mjs` mirroring the
+ * graph into D1 for the redlens-mcp Worker; no such script exists in this repo.)
  * See .claude/skills/parse-atlas/SKILL.md for the full relationship reference.
  *
  * Usage (from repo root):
