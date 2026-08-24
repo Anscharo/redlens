@@ -49,7 +49,8 @@ bun scripts/aux/load/run.mjs chat-unauth  # concurrent 401s — auth gate cost
 bun scripts/aux/load/run.mjs oom-headroom # moderate SSE hold; records RSS; no force-kill
 ```
 
-k6 (same abort thresholds):
+k6 (same abort thresholds — health error rate / p95, plus `rss_over_abort` rate==0
+so the first `rss_mb ≥ RSS_ABORT_MB` sample stops the run):
 
 ```bash
 k6 run -e BASE=https://redlens-development.up.railway.app scripts/aux/load/sse-hold.js

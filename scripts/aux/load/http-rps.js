@@ -1,11 +1,14 @@
 // k6 — short-lived GET / (static SPA). Separate from SSE holds: this is RPS, not connection count.
 //
 //   k6 run -e BASE=https://redlens-development.up.railway.app scripts/aux/load/http-rps.js
+//
+// Abort: health error rate > 5%, health p95 > 2s, or rss_mb ≥ RSS_ABORT_MB (default 850).
 
 import http from "k6/http";
-import { check, sleep } from "k6";
+import { check } from "k6";
+import { BASE, healthAbortThresholds, healthCanary } from "./k6-health.js";
 
-const BASE = __ENV.BASE || "https://redlens-development.up.railway.app";
+export { healthCanary };
 
 export const options = {
   scenarios: {
@@ -35,17 +38,10 @@ export const options = {
     },
   },
   thresholds: {
-    "http_req_failed{canary:health}": [{ threshold: "rate<0.05", abortOnFail: true }],
-    "http_req_duration{canary:health}": [{ threshold: "p(95)<2000", abortOnFail: true }],
+    ...healthAbortThresholds,
     "http_req_duration{name:home}": ["p(95)<500"],
   },
 };
-
-export function healthCanary() {
-  const res = http.get(`${BASE}/api/health`, { tags: { canary: "health", name: "health" } });
-  check(res, { "health 200": (r) => r.status === 200 });
-  sleep(2);
-}
 
 export function hitHome() {
   const res = http.get(`${BASE}/`, { tags: { name: "home" } });

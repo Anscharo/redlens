@@ -8,7 +8,8 @@
 //   bun scripts/aux/load/run.mjs chat-unauth
 //   bun scripts/aux/load/run.mjs oom-headroom
 //
-// Env: BASE, HOLD_MS, RSS_ABORT_MB, HEALTH_P95_MS, CHAT_COOKIE, STEPS, RPS, OUT
+// Env: BASE, HOLD_MS, RSS_ABORT_MB, HEALTH_P95_MS, CHAT_COOKIE, CHAT_MESSAGE,
+//      CHAT_TIMEOUT_MS, STEPS, RATES, RPS_MS, N, SSE_N, OUT
 import { writeFileSync } from "node:fs";
 
 const BASE = (process.env.BASE || "https://redlens-development.up.railway.app").replace(/\/$/, "");
@@ -38,7 +39,8 @@ function abortFromHealth(samples) {
   const errRate = samples.length ? fails / samples.length : 0;
   const p95 = pct([...samples.map((s) => s.ms)].sort((a, b) => a - b), 95);
   const last = samples.at(-1);
-  const rss = last?.body?.rss_mb;
+  const rssValues = samples.map((s) => s.body?.rss_mb).filter((x) => typeof x === "number");
+  const rss = rssValues.length ? Math.max(...rssValues) : undefined;
   const reasons = [];
   if (errRate > 0.05) reasons.push(`health error rate ${(errRate * 100).toFixed(1)}% > 5%`);
   if (p95 != null && p95 > HEALTH_P95_MS) reasons.push(`health p95 ${p95.toFixed(0)}ms > ${HEALTH_P95_MS}ms`);

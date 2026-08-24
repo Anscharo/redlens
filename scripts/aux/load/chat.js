@@ -9,14 +9,19 @@
 //
 // Without a cookie the script still runs one unauthenticated probe (expect 401)
 // then exits 0 — it will not invent credentials.
+//
+// Abort: health error rate > 5%, health p95 > 2s, or rss_mb ≥ RSS_ABORT_MB (default 850).
 
 import http from "k6/http";
 import { check, sleep } from "k6";
+import { BASE, healthAbortThresholds, healthCanary } from "./k6-health.js";
 
-const BASE = __ENV.BASE || "https://redlens-development.up.railway.app";
+export { healthCanary };
+
 const COOKIE = __ENV.CHAT_COOKIE || "";
 const MODE = __ENV.MODE || "cheap";
 const cheap = MODE !== "realistic";
+const duration = __ENV.DURATION || "2m";
 
 const message = cheap
   ? "say hi in one short sentence"
@@ -51,17 +56,25 @@ export const options = cheap
           ],
         },
       },
-      thresholds: {
-        "http_req_failed{canary:health}": [{ threshold: "rate<0.05", abortOnFail: true }],
-        "http_req_duration{canary:health}": [{ threshold: "p(95)<2000", abortOnFail: true }],
-      },
+      thresholds: healthAbortThresholds,
     }
   : {
-      vus: Number(__ENV.VUS || 5),
-      duration: __ENV.DURATION || "2m",
-      thresholds: {
-        "http_req_failed{canary:health}": [{ threshold: "rate<0.05", abortOnFail: true }],
+      scenarios: {
+        canary: {
+          executor: "constant-vus",
+          exec: "healthCanary",
+          vus: 1,
+          duration,
+          tags: { canary: "health" },
+        },
+        chats: {
+          executor: "constant-vus",
+          exec: "postChat",
+          vus: Number(__ENV.VUS || 5),
+          duration,
+        },
       },
+      thresholds: healthAbortThresholds,
     };
 
 export function setup() {
@@ -73,12 +86,6 @@ export function setup() {
     return { skip: true, unauthStatus: res.status };
   }
   return { skip: false };
-}
-
-export function healthCanary() {
-  const res = http.get(`${BASE}/api/health`, { tags: { canary: "health", name: "health" } });
-  check(res, { "health 200": (r) => r.status === 200 });
-  sleep(2);
 }
 
 export function postChat(data) {
@@ -104,5 +111,3 @@ export function postChat(data) {
   }
   sleep(1);
 }
-
-export default postChat;
