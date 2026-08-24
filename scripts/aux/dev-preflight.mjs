@@ -1,8 +1,9 @@
 // Pre-flight for `pnpm dev`: make a from-scratch local checkout runnable with one
 // command. Ensures (in order) dependencies are installed (only when stale), the
 // Docker daemon is up, the Postgres container is up + healthy, the DB is synced
-// to the CHECKED-OUT atlas (via the atlas worker in --no-fetch mode), and the
-// reader's atlas artifacts exist — then dev.mjs spawns the server + Vite.
+// to the CHECKED-OUT atlas (via the atlas worker in --no-fetch mode), the
+// reader's atlas artifacts exist, and the settlement workbooks are current —
+// then dev.mjs spawns the server + Vite.
 //
 // Why run the worker? The in-process updater (src/server/atlas-updater.ts) treats
 // the DB's sync_state.atlas_sha as the source of truth and keeps the live indexes
@@ -20,6 +21,8 @@
 //                   server still migrates at boot.
 //   DEV_NO_BUILD=1  never build atlas artifacts, even if they're missing.
 //   DEV_NO_INSTALL=1 never run pnpm install, even if deps look stale.
+//   DEV_NO_SETTLEMENTS=1 never fetch the Soter settlement workbooks (offline dev
+//                   keeps whatever public/settlements.json is already there).
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -196,9 +199,35 @@ function ensureToolsCatalog() {
   }
 }
 
+// ── Soter Labs settlement workbooks (public/settlements.json) ───────────────
+// Radar's Monthly settlement section reads this file. It is gitignored and
+// deliberately OFF the `pnpm build` chain (that build is offline + deterministic
+// under REPRO=1, and this fetches github.com/soterlabs/settlement-reports), so
+// without this step a fresh checkout has no settlement data at all — and the
+// miss is silent: Vite's SPA fallback answers the missing path with 200 text/html,
+// loadSettlements() swallows the parse error, and every radar page just hides the
+// section. Prod gets the same file from the Dockerfile's post-build bake.
+//
+// Refreshed on every boot rather than gated on age: the whole fetch+parse of all
+// 36 workbooks is ~2s. Failure is never fatal — the script only writes on
+// success, so an offline boot keeps the file that is already on disk.
+function ensureSettlements() {
+  if (truthy(process.env.DEV_NO_BUILD) || truthy(process.env.DEV_NO_SETTLEMENTS)) return;
+  log("Refreshing Soter settlement workbooks (public/settlements.json)…");
+  // Via pnpm so the runner stays declared in package.json, like ensureArtifacts.
+  if (run("pnpm", ["settlements:parse", "--quiet"]).status !== 0) {
+    warn(
+      existsSync("public/settlements.json")
+        ? "settlements:parse failed — keeping the settlements.json already on disk."
+        : "settlements:parse failed — Radar's Monthly settlement section will be hidden.",
+    );
+  }
+}
+
 export async function preflight() {
   ensureDeps();
   ensureToolsCatalog();
+  ensureSettlements();
   if (truthy(process.env.DEV_NO_DB)) {
     warn("DEV_NO_DB=1 — skipping Postgres; history/chat/preview need a DB.");
     ensureArtifacts();
