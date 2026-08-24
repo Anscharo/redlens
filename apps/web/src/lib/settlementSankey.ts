@@ -16,6 +16,12 @@ export interface SankeyNode {
   width: number;
   height: number;
   kind: "venue" | "sky" | "prime";
+  /**
+   * Baseline for this node's label. Starts at the node's vertical centre and is
+   * pushed down only as far as it takes to clear the label above it — a stack
+   * of near-zero-height nodes would otherwise pile every label on one line.
+   */
+  labelY: number;
 }
 
 export interface SankeyLink {
@@ -34,10 +40,22 @@ export interface SankeyLayout {
 }
 
 const NODE_W = 12;
-const PAD = 8;
+// PAD is what keeps single-line venue labels off each other: consecutive label
+// centres are at least PAD apart however thin the nodes get.
+const PAD = 11;
 const MIN_PX = 1.5;
-const LABEL_GUTTER = 168;
-const INNER_H = 380;
+// Gutters are separate because the two sides carry different text: venue names
+// on the left, a name + a running total on the right.
+export const LEFT_GUTTER = 190;
+export const RIGHT_GUTTER = 160;
+// Flow band height. Deliberately short: the venue table below carries the exact
+// figures, so the chart's job is proportion at a glance — and the two have to be
+// readable on one screen. Label separation (not this) sets the floor on height.
+export const INNER_H = 150;
+export const WIDTH = 860;
+// Minimum label baseline separation: one line on the left, name + total on the right.
+const LABEL_LINE = 11;
+const SINK_LABEL_BLOCK = 26;
 
 export function collapseVenues(
   venues: readonly Pick<SettlementVenue, "id" | "label" | "synthetic" | "profitToSky" | "profitToGrove">[],
@@ -71,7 +89,7 @@ export function collapseVenues(
 export function layoutVenueSankey(
   venues: readonly SankeyVenue[],
   primeLabel = "Prime",
-  width = 720,
+  width = WIDTH,
 ): SankeyLayout {
   if (venues.length === 0) return { width, height: 0, nodes: [], links: [] };
 
@@ -90,15 +108,25 @@ export function layoutVenueSankey(
     { id: "prime", label: primeLabel, kind: "prime" as const, value: primeVal },
   ].filter((p) => p.value > 0);
   const rightHeights = rightParts.map((p) => hOf(p.value));
-  const colH = (hs: number[]) => hs.reduce((a, b) => a + b, 0) + PAD * Math.max(0, hs.length - 1);
-  const height = Math.max(colH(leftHeights), colH(rightHeights)) + 8;
-  const leftX = LABEL_GUTTER;
-  const rightX = width - LABEL_GUTTER - NODE_W;
+  const leftX = LEFT_GUTTER;
+  const rightX = width - RIGHT_GUTTER - NODE_W;
 
-  const nodes: SankeyNode[] = [
-    ...stack(venues.map((v, i) => ({ id: v.id, label: v.label, kind: "venue" as const, h: leftHeights[i]! })), leftX),
-    ...stack(rightParts.map((p, i) => ({ id: p.id, label: p.label, kind: p.kind, h: rightHeights[i]! })), rightX),
-  ];
+  const leftNodes = stack(
+    venues.map((v, i) => ({ id: v.id, label: v.label, kind: "venue" as const, h: leftHeights[i]! })),
+    leftX,
+    LABEL_LINE,
+  );
+  const rightNodes = stack(
+    rightParts.map((p, i) => ({ id: p.id, label: p.label, kind: p.kind, h: rightHeights[i]! })),
+    rightX,
+    SINK_LABEL_BLOCK,
+  );
+  const nodes: SankeyNode[] = [...leftNodes, ...rightNodes];
+
+  const colH = (hs: number[]) => hs.reduce((a, b) => a + b, 0) + PAD * Math.max(0, hs.length - 1);
+  // A pushed-down label can outrun its column, so the box has to cover both.
+  const lowestLabel = Math.max(...nodes.map((n) => n.labelY + SINK_LABEL_BLOCK / 2));
+  const height = Math.max(colH(leftHeights), colH(rightHeights), lowestLabel) + 8;
 
   const leftCursor = new Map(nodes.map((n) => [n.id, n.y]));
   const rightCursor = new Map(leftCursor);
@@ -125,10 +153,14 @@ export function layoutVenueSankey(
 function stack(
   items: { id: string; label: string; kind: SankeyNode["kind"]; h: number }[],
   x: number,
+  minLabelGap: number,
 ): SankeyNode[] {
   let y = 4;
+  let prevLabel = -Infinity;
   return items.map((it) => {
-    const n: SankeyNode = { id: it.id, label: it.label, x, y, width: NODE_W, height: it.h, kind: it.kind };
+    const labelY = Math.max(y + it.h / 2, prevLabel + minLabelGap);
+    prevLabel = labelY;
+    const n: SankeyNode = { id: it.id, label: it.label, x, y, width: NODE_W, height: it.h, kind: it.kind, labelY };
     y += it.h + PAD;
     return n;
   });

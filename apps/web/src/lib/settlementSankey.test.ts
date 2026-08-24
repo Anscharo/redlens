@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { collapseVenues, layoutVenueSankey, type SankeyVenue } from "./settlementSankey";
+import {
+  collapseVenues,
+  layoutVenueSankey,
+  INNER_H,
+  LEFT_GUTTER,
+  RIGHT_GUTTER,
+  WIDTH,
+  type SankeyVenue,
+} from "./settlementSankey";
 
 function v(over: Partial<SankeyVenue> & { id: string }): SankeyVenue {
   return {
@@ -73,8 +81,44 @@ describe("layoutVenueSankey", () => {
     // Thickness is encoded in the path's vertical span; the node height is
     // value * px, matching Σ |P2S| * px.
     expect(sky.height).toBeCloseTo(
-      toSky.reduce((n, l) => n + (l.value / 120) * 380, 0),
+      toSky.reduce((n, l) => n + (l.value / 120) * INNER_H, 0),
       5,
     );
+  });
+
+  it("keeps every venue label a readable distance apart, however thin the nodes", () => {
+    // 12 near-zero venues under one giant: every small node collapses to MIN_PX,
+    // so node centres alone would stack ~12 labels on top of each other.
+    const rows = [
+      v({ id: "big", profitToSky: 100_000 }),
+      ...Array.from({ length: 12 }, (_, i) => v({ id: `s${i}`, profitToSky: 1 })),
+    ];
+    const layout = layoutVenueSankey(rows, "Spark");
+    const venues = layout.nodes.filter((n) => n.kind === "venue");
+    for (let i = 1; i < venues.length; i++) {
+      expect(venues[i]!.labelY - venues[i - 1]!.labelY).toBeGreaterThanOrEqual(11);
+    }
+    // …and the box still covers the lowest label.
+    expect(layout.height).toBeGreaterThan(venues[venues.length - 1]!.labelY);
+  });
+
+  it("separates the two sink labels even when one sink is a sliver", () => {
+    const layout = layoutVenueSankey(
+      [v({ id: "a", profitToSky: 100_000, profitToGrove: 1 })],
+      "Spark",
+    );
+    const [sky, prime] = ["sky", "prime"].map((id) => layout.nodes.find((n) => n.id === id)!);
+    // The prime node is MIN_PX tall and sits ~PAD below Sky's bottom; its
+    // two-line label block would collide with Sky's without the push.
+    expect(prime.labelY - sky.labelY).toBeGreaterThanOrEqual(26);
+  });
+
+  it("leaves both label gutters clear of the flow band", () => {
+    const layout = layoutVenueSankey([v({ id: "a", profitToSky: 10, profitToGrove: 5 })], "Spark");
+    expect(layout.width).toBe(WIDTH);
+    const venue = layout.nodes.find((n) => n.kind === "venue")!;
+    const sink = layout.nodes.find((n) => n.kind === "sky")!;
+    expect(venue.x).toBe(LEFT_GUTTER);
+    expect(layout.width - (sink.x + sink.width)).toBe(RIGHT_GUTTER);
   });
 });

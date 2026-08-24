@@ -1937,6 +1937,7 @@ button.atlas-node-expand-all:focus-visible {
 .msc-sankey-link {
   opacity: 0.45;
   cursor: pointer;
+  transition: opacity 0.1s;
 }
 .msc-sankey-node {
   cursor: pointer;
@@ -1944,13 +1945,22 @@ button.atlas-node-expand-all:focus-visible {
 .msc-sankey-amount {
   fill: var(--tan-3);
 }
+/* Per-venue figures ride on the flows and are revealed by the generated
+   per-id rules in SettlementSankey.tsx. Hidden rather than absent so hover
+   costs no layout work; not a hover target, so they never shadow the ribbon
+   they sit on. The halo is what keeps them readable over a bright ribbon. */
+.msc-sankey-amounts {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+.msc-sankey-amounts text {
+  fill: var(--tan);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
 .msc-venue-row {
   cursor: pointer;
-}
-.msc-venue-pnl:has([data-venue]:hover) .msc-sankey-link,
-.msc-venue-pnl:has([data-venue]:hover) .msc-sankey-venue {
-  opacity: 0.14;
-}
-.msc-venue-pnl:has([data-venue]:hover) .msc-venue-row {
-  opacity: 0.38;
 }
