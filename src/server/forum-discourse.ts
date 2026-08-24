@@ -203,8 +203,3 @@ export async function fetchAllowlistedTopics(opts: {
   }
   return out;
 }
-
-/** Test helper: classify a tag-list row without a topic fetch. */
-export function classifyListedTopic(title: string, tags: unknown, fallback: ForumKind): ForumKind {
-  return classifyForumTopic(tags, title) ?? fallback;
-}
