@@ -34,9 +34,9 @@
 -->
 ## 2026-08-24
 - Added Monthly Settlement Cycle charts for Prime Agents, with last month's take in a card and a full cycle page of Sky / supply-kept / demand-side bars, demand-side mix, and venue AUM
+- Linked each Prime Agent monthly settlement month to its Sky Forum post
 - Atlas AI CHAT now live. Ask it about Sky Atlas or this App. Requires login. [read more](https://github.com/Anscharo/redlens/blob/main/docs/chat-intro.md)
 - Removed the Constellations relationship graph page
-
 
 ## 2026-08-19
 - Improved semantic search for mcp and agents

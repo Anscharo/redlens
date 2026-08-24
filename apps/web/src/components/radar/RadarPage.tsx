@@ -10,7 +10,9 @@ import { buildPrimitiveStats } from "../../lib/primitiveStats";
 import { ActorList } from "./ActorList";
 import { ActorDashboard } from "./ActorDashboard";
 import { ActorSettlementsPage } from "./ActorSettlementsPage";
+import { CycleDashboard } from "./CycleDashboard";
 import { PrimitiveDashboard } from "./PrimitiveDashboard";
+import { cycleBySlug, cycleSidebarGroup } from "../../lib/radarCycles";
 import { Drawer, DrawerToggle } from "../Drawer";
 import { Loading } from "../Loading";
 import { RadarProvider } from "./RadarContext";
@@ -35,7 +37,11 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
   const docs = use(loadDocs(base));
   const graph = use(loadGraph(base));
 
-  const sidebarGroups = useMemo(() => buildSidebarActors(graph, docs), [graph, docs]);
+  const sidebarGroups = useMemo(
+    () => [cycleSidebarGroup(), ...buildSidebarActors(graph, docs)],
+    [graph, docs],
+  );
+  const cycle = actorSlug ? cycleBySlug(actorSlug) : undefined;
   const filteredGroups = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sidebarGroups;
@@ -54,28 +60,34 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
   const allActiveDataRows = useMemo(() => buildActiveDataRows(docs, graph), [docs, graph]);
   const primitiveStats = useMemo(() => buildPrimitiveStats(graph, docs), [graph, docs]);
   const profile = useMemo(() => {
-    if (!actorSlug) return null;
+    if (!actorSlug || cycle) return null;
     return buildActorProfile(actorSlug, graph, docs, rewardsIndex, allActiveDataRows);
-  }, [actorSlug, graph, docs, rewardsIndex, allActiveDataRows]);
+  }, [actorSlug, cycle, graph, docs, rewardsIndex, allActiveDataRows]);
 
-  const title = !actorSlug
-    ? "Redline Radar for Sky Atlas"
-    : !profile
-      ? null
-      : page === "settlements"
-        ? `${profile.entity.name} monthly settlement · Radar: Sky Atlas by Redline`
-        : `${profile.entity.name} Radar: Sky Atlas by Redline`;
+  const title = cycle
+    ? `${cycle.title} Radar: Sky Atlas by Redline`
+    : !actorSlug
+      ? "Redline Radar for Sky Atlas"
+      : !profile
+        ? null
+        : page === "settlements"
+          ? `${profile.entity.name} monthly settlement · Radar: Sky Atlas by Redline`
+          : `${profile.entity.name} Radar: Sky Atlas by Redline`;
   useDocumentTitle(title);
 
-  // Append the actor (or settlements) page to the visit log once the profile loads.
+  // Append the actor / cycle / settlements page to the visit log once it resolves.
   useEffect(() => {
+    if (cycle) {
+      void recordVisit({ path: actorHref(cycle.slug), label: cycle.title, base: routerBase });
+      return;
+    }
     if (!actorSlug || !profile) return;
     const path = page === "settlements" ? settlementsHref(actorSlug) : actorHref(actorSlug);
     const label = page === "settlements"
       ? `${profile.entity.name} · Monthly settlement`
       : profile.entity.name;
     void recordVisit({ path, label, base: routerBase });
-  }, [actorSlug, profile, routerBase, page]);
+  }, [cycle, actorSlug, profile, routerBase, page]);
 
   return (
     <RadarProvider value={{ docs }}>
@@ -87,7 +99,9 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
       >
         <ActorList groups={filteredGroups} selectedSlug={actorSlug ?? null} />
       </Drawer>
-      {!actorSlug ? (
+      {cycle ? (
+        <CycleDashboard cycle={cycle} />
+      ) : !actorSlug ? (
         <PrimitiveDashboard agents={primitiveStats} />
       ) : !profile ? (
         <Loading>actor not found</Loading>
