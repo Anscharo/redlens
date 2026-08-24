@@ -18,6 +18,7 @@ import { windowHistory } from "./chat-history.ts";
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
 import { getWindowUsage } from "../rate-limit.ts";
+import { tryAcquireChatSlot, releaseChatSlot } from "./concurrency.ts";
 import { json } from "../http.ts";
 import { fetchCommons } from "./credits.ts";
 import { captureError, type ErrorContext } from "../posthog-node.ts";
@@ -92,6 +93,23 @@ export async function handleChat(req: Request): Promise<Response> {
   }
 
   const userId = session.user.id;
+
+  // Concurrency gate — checked first (in-memory, no DB/network round trip)
+  // so a user already at their cap fails fast instead of paying for the
+  // token-window query and the commons fetch below. Every acquire past this
+  // point MUST release exactly once — see the early-return branches and the
+  // stream's `finally` further down.
+  if (!tryAcquireChatSlot(userId, config.chatMaxConcurrentPerUser)) {
+    return json(
+      {
+        error: "too_many_concurrent",
+        message: `You already have ${config.chatMaxConcurrentPerUser} chat requests in progress — wait for one to finish before starting another.`,
+        limit: config.chatMaxConcurrentPerUser,
+      },
+      429,
+    );
+  }
+
   // Staged-delivery mode switch (docs/chat-system.md §8): resolved
   // once, up front, so it's available to both PostHog properties and the SSE
   // loop below without re-deriving it.
@@ -105,6 +123,7 @@ export async function handleChat(req: Request): Promise<Response> {
   // OpenRouter latency on top of the DB round trip.
   const [usage, commons] = await Promise.all([getWindowUsage(userId), fetchCommons()]);
   if (usage.exceeded) {
+    releaseChatSlot(userId);
     const retryAfter = Math.max(0, Math.ceil((Date.parse(usage.resetsAt) - Date.now()) / 1000));
     return new Response(
       JSON.stringify({
@@ -124,6 +143,7 @@ export async function handleChat(req: Request): Promise<Response> {
   // topped up. null = unknown (key unset or credits API hiccup) → fail OPEN, so
   // a metering blip never blocks chat; only a real remaining <= 0 pauses it.
   if (commons && commons.remaining <= 0) {
+    releaseChatSlot(userId);
     return json(
       {
         error: "commons_exhausted",
@@ -135,7 +155,10 @@ export async function handleChat(req: Request): Promise<Response> {
   }
 
   const convId = await resolveConversation(userId, body);
-  if (!convId) return json({ error: "conversation_not_found" }, 404);
+  if (!convId) {
+    releaseChatSlot(userId);
+    return json({ error: "conversation_not_found" }, 404);
+  }
 
   // Persist the user message before streaming, then load history (includes it).
   // The updated_at bump runs alongside the history SELECT — independent
@@ -287,6 +310,7 @@ export async function handleChat(req: Request): Promise<Response> {
           send({ type: "error", message: (err as Error).message });
         }
       } finally {
+        releaseChatSlot(userId);
         controller.close();
       }
     },

@@ -461,6 +461,26 @@ describe("useChatStream HTTP status handling", () => {
     expect(result.current.error).toBeNull();
   });
 
+  it("429 too_many_concurrent has no resetsAt and reports kind: 'concurrent'", async () => {
+    mockStatus(429, {
+      error: "too_many_concurrent",
+      message: "You already have 3 chat requests in progress — wait for one to finish before starting another.",
+    });
+    const { result } = renderHook(() => useChatStream());
+    let sendResult: Awaited<ReturnType<typeof result.current.send>> | undefined;
+    await act(async () => {
+      sendResult = await result.current.send("question");
+    });
+    expect(sendResult).toEqual({
+      rateLimited: {
+        message: "You already have 3 chat requests in progress — wait for one to finish before starting another.",
+        resetsAt: undefined,
+        kind: "concurrent",
+      },
+    });
+    expect(result.current.error).toBeNull();
+  });
+
   it("429 falls back to kind: 'token' from resetsAt presence when the error discriminator is missing", async () => {
     mockStatus(429, { message: "Usage limit reached, come back later", resetsAt: "2026-01-01T00:00:00Z" });
     const { result } = renderHook(() => useChatStream());

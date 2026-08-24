@@ -435,6 +435,14 @@ export const config = {
   rateLimitTokensPerWindow: Number(process.env.RATE_LIMIT_TOKENS_PER_WINDOW ?? 500000),
   rateLimitWindowMinutes: Number(process.env.RATE_LIMIT_WINDOW_MINUTES ?? 120),
 
+  // Per-user in-flight cap — a SECOND, independent gate (chat/concurrency.ts),
+  // checked before the token window above. The token budget only knows PAST
+  // usage (a turn's cost is unknown until it completes), so it can't stop one
+  // user from opening many simultaneous turns at once; this catches that
+  // burst/concurrency shape directly. In-memory, not DB-backed: correct only
+  // because this service is a replicas=1 singleton by design (CLAUDE.md).
+  chatMaxConcurrentPerUser: Number(process.env.CHAT_MAX_CONCURRENT_PER_USER ?? 3),
+
   // MCP transport mount path (streamable HTTP, no auth this phase).
   mcpPath: process.env.MCP_PATH ?? "/mcp",
   // Per-tool-response byte budget (chat/output-budget.ts fitToBudget). MCP

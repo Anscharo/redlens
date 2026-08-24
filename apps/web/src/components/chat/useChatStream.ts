@@ -374,11 +374,18 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             resetsAt?: string;
           };
           const message = body.message ?? "Usage limit reached.";
-          // chat.ts sends an explicit discriminator ("rate_limited" carries
-          // resetsAt; "commons_exhausted" never does) — fall back to the
-          // resetsAt-presence heuristic only if that field is ever missing.
-          const kind: "token" | "commons" =
-            body.error === "commons_exhausted" ? "commons" : body.resetsAt ? "token" : "commons";
+          // chat.ts sends an explicit discriminator for all three 429 causes
+          // ("rate_limited" carries resetsAt; "commons_exhausted" and
+          // "too_many_concurrent" never do) — fall back to the
+          // resetsAt-presence heuristic only if the discriminator is ever missing.
+          const kind: "token" | "commons" | "concurrent" =
+            body.error === "too_many_concurrent"
+              ? "concurrent"
+              : body.error === "commons_exhausted"
+                ? "commons"
+                : body.resetsAt
+                  ? "token"
+                  : "commons";
           // Deliberately not setError(message) here: `error` means "something
           // broke and we don't have a better explanation" (ChatPanel renders
           // it via ErrorNote). A 429 already has a full explanation — the
