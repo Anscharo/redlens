@@ -91,8 +91,8 @@ serve live (`/api/atlas/<sha>/`) and preview (`/api/preview/<sha>/`) with no for
 
 **6. Worker-owned state.** Search (`search.worker.ts`), the docs tree (`atlas.worker.ts`), and
 the relations graph (`graph.worker.ts`) own their own indexes; components talk to them through
-`useSearch`, `useAtlasData`, `useGraphEdges`, and `useConstellationsWorker` (a second consumer
-of `graph.worker.ts` — reuse the existing hooks rather than standing up a fourth worker).
+`useSearch`, `useAtlasData`, and `useGraphEdges` — reuse the existing hooks rather than standing
+up a new worker consumer.
 Load-bearing and easy to break:
 `new Worker(new URL("...", import.meta.url), { type: "module", name: base })` must stay
 **inline** or Vite won't compile the worker, and the data-source base travels in the worker

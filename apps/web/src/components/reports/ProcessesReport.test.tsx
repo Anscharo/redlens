@@ -2,8 +2,7 @@
 // Regression test for the row-expand filter wipe: `toggle()` used to rebuild
 // the URL from scratch (`?expanded=<uuid>`), dropping any active `status` /
 // `shape` / `category` / `ignored` filter params from useUrlState. Fixed by
-// folding the expand toggle into the existing URLSearchParams, mirroring
-// ConstellationsPage's selectEntity.
+// folding the expand toggle into the existing URLSearchParams.
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";

@@ -73,7 +73,7 @@ export const areas = [
     id: "react-general",
     label: "React · General",
     match: [
-      /^src\/components\//, // remaining components: preview, constellations, app shell
+      /^src\/components\//, // remaining components: preview, app shell
       /^src\/hooks\//, // all hooks (.ts + .tsx) — cross-cutting, not owned by one product
       /^src\/(App|main)\.tsx$/,
       /^src\/lib\/(dataSource|previewView|previewDiff|selection)\.tsx$/, // context providers

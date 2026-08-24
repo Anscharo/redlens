@@ -15,7 +15,7 @@ afterEach(() => cleanup());
 // is what exercises both branches of SwatchGrid's contrastBadge computation.
 const TOKENS: PaletteToken[] = [
   { name: "tan", label: "Tan", group: "text", alpha: false },
-  { name: "edge", label: "Edge", group: "graph", alpha: false },
+  { name: "edge", label: "Edge", group: "shadow", alpha: false },
 ];
 
 function values(name: string) {

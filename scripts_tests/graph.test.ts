@@ -823,8 +823,8 @@ describe("Pattern 22 — prime omni-doc governance metadata", () => {
 
   it("omni governance metadata reaches relations.json as doc → entity (for the Radar Contact section)", () => {
     // Kept in the browser payload so the actor page can render Contact, but
-    // doc → entity so it never enters the entity↔entity canvas (buildEntityEdges
-    // filters ft === "entity" && tt === "entity").
+    // doc → entity so it never enters entity↔entity edge consumers, which
+    // filter to ft === "entity" && tt === "entity".
     const rel = relations.edges.filter(
       (e) => e.e === "governance_channel" || e.e === "emergency_response",
     );

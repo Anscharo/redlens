@@ -265,20 +265,6 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     ],
   },
   {
-    key: "constellations",
-    title: "Constellations",
-    route: "/constellations",
-    blurb: "A visual graph of agents, facilitators, governance parties, and how they relate.",
-    features: [
-      {
-        name: "Exploring the graph",
-        what: "An interactive relationship map built from the Atlas graph.",
-        how: ["Go to /constellations directly and explore the network."],
-        note: "Direct-URL only — not linked from the navigation or the home page cards.",
-      },
-    ],
-  },
-  {
     key: "platform",
     title: "Across the app",
     blurb: "Behaviours and reference pages that support everything above.",

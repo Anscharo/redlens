@@ -23,7 +23,7 @@ afterEach(() => {
 describe("PalettePage — structure", () => {
   it("renders every semantic group heading plus the depth, contrast, and preview sections", () => {
     render(<PalettePage />);
-    for (const label of ["Surface", "Brand", "Text", "Row Overlays", "Shadows", "Graph Chrome", "Diff", "Entity Types"]) {
+    for (const label of ["Surface", "Brand", "Text", "Row Overlays", "Shadows", "Diff", "Entity Types"]) {
       expect(screen.getByRole("heading", { name: label })).toBeInTheDocument();
     }
     expect(screen.getByRole("heading", { name: GROUP_LABEL.depth })).toBeInTheDocument();

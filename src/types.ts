@@ -144,16 +144,12 @@ export type GraphWorkerInMessage =
   | { type: "edges"; id: string }
   | { type: "entity"; slug: string }
   | { type: "neighbors"; id: string; depth?: number }
-  | { type: "subgraph"; rootId: string; depth: number }
-  | { type: "constellation-query"; id: number; q: string }
-  | { type: "constellation-cluster"; agentId: string };
+  | { type: "subgraph"; rootId: string; depth: number };
 
 export type GraphWorkerOutMessage =
-  | { type: "ready"; entities: GraphEntity[]; entityEdges: RelationEdge[] }
+  | { type: "ready" }
   | { type: "edges"; id: string; inbound: ResolvedEdge[]; outbound: ResolvedEdge[] }
   | { type: "entity"; slug: string; entity: GraphEntity | null; edges: ResolvedEdge[] }
   | ({ type: "neighbors"; id: string } & SerializedSubgraph)
   | ({ type: "subgraph"; rootId: string } & SerializedSubgraph)
-  | { type: "constellation-query"; id: number; neighborIds: string[]; topId: string | null }
-  | { type: "constellation-cluster"; agentId: string; clusterIds: string[] }
   | { type: "error"; message: string };

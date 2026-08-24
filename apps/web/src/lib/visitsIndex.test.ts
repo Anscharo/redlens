@@ -22,7 +22,7 @@ describe("describeFilters", () => {
   });
 
   it("hides params that select what you were looking at rather than filter it", () => {
-    // Constellations puts the focused entity in ?id= — a raw UUID reads as a
+    // The atlas reader puts the focused doc in ?id= — a raw UUID reads as a
     // nonsense chip, but it stays in the stored path so the link still restores it.
     expect(describeFilters("id=4a08ca6c-e652-49e4-9b79-4831b20e600a&hide=multisig")).toEqual([
       ["hidden", "multisig"],
