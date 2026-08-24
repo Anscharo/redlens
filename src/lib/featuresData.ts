@@ -350,6 +350,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Ask it what the app can do, or what it can do itself — it answers from this guide, and keeps the two apart.",
           "Check the answer's verification badge and click the inline sources to jump to the cited docs.",
           "Open the tool trace to see what it queried; the meter shows your usage / credits.",
+          "Oldest / all / how many questions list the whole class, not just the first search hits.",
           "Dock the panel to the side or let it float.",
         ],
         note: "Will require signing in.",

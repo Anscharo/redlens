@@ -159,6 +159,11 @@ a. **Web service settings** (service → **Settings**):
    - **Replicas:** **1** *(the in-process updater is single-container by
      design — do not scale out).*
 
+   Capacity measurement (idle `/api/atlas-events` holds, homepage RPS, chat SSE,
+   and OOM/restart behaviour) lives in `scripts/aux/load/` — off the build
+   chain. `/api/health` exposes `rss_mb` and `sse_clients` as canaries; it
+   stays HTTP 200 even when RSS is high so a large process cannot restart-loop.
+
 b. **Generate the public URL.** Web service → **Settings → Networking →
    Generate Domain**. Note it — you'll need it for OAuth in step 7.
 

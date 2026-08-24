@@ -1,4 +1,4 @@
-// Chat reliability harness orchestrator (docs/plans/chat-reliability-harness.md).
+// Chat reliability harness orchestrator (docs/chat-system.md §6).
 // Wraps the pure runChat loop with: live status events, a streaming citation
 // gate (invalid links repaired before their tokens reach the client), pipelined
 // deterministic round checks, a post-answer verifier audit (stream + badge —
@@ -15,7 +15,8 @@ import type { Indexes } from "../retrieval/indexes.ts";
 import { config } from "../config.ts";
 import { createRoundChecker, type RoundTelemetry } from "./verify/round-checks.ts";
 import { runDeterministicChecks, type CheckReport } from "./verify/verify-checks.ts";
-import { findParamsMentioned } from "./verify/param-checks.ts";
+import { findParamsMentioned, formatParamMismatch, type ParamMismatch } from "./verify/param-checks.ts";
+import { COMPLETENESS_REQUERY_STEER, type CompletenessEvidence } from "./verify/completeness.ts";
 import { createLinkJudge, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
 import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation-normalize.ts";
 import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
@@ -62,7 +63,15 @@ export type HarnessEvent =
       docNoMismatches: string[];
       ungroundedQuotes: string[];
       ungroundedAddresses: string[];
-      paramMismatches: string[];
+      // These three are HARD failures too (verify-checks.ts's `failed`, plus
+      // repairedChecks' lengthCapped fold below), so they must reach the
+      // client: each can be the ONLY finding on a turn, and without it the
+      // badge shows an unexpandable red chip that says the answer failed and
+      // then cannot say why. Every input to `failed` belongs on this wire.
+      ungroundedCitationValues: string[];
+      paramMismatches: ParamMismatch[];
+      completenessFailures: string[];
+      lengthCapped: boolean;
     };
 
 export type HarnessDone = DoneEvent & { checksMeta: CheckRowMeta[] };
@@ -110,7 +119,10 @@ function verifyEvent(
     docNoMismatches: checks.docNoMismatches,
     ungroundedQuotes: checks.ungroundedQuotes,
     ungroundedAddresses: checks.ungroundedAddresses,
+    ungroundedCitationValues: checks.ungroundedCitationValues,
     paramMismatches: checks.paramMismatches,
+    completenessFailures: checks.completenessFailures,
+    lengthCapped: checks.lengthCapped,
   };
 }
 
@@ -190,8 +202,16 @@ function identifiersMeta(i: IdentifierRepair) {
 // mid-generation) is folded the same way: it's not a citation problem, but it
 // must equally force `failed` so the escalation gate below sees it and the
 // harness attempts a recovery.
-function repairedChecks(content: string, toolTexts: string[], ix: Indexes, repair: CitationRepair, lengthCapped: boolean, undefinedLabels: string[] = []): CheckReport {
-  const checks = runDeterministicChecks(content, toolTexts, ix);
+function repairedChecks(
+  content: string,
+  toolTexts: string[],
+  ix: Indexes,
+  repair: CitationRepair,
+  lengthCapped: boolean,
+  undefinedLabels: string[] = [],
+  completeness?: { question: string; evidence: CompletenessEvidence[] },
+): CheckReport {
+  const checks = runDeterministicChecks(content, toolTexts, ix, completeness);
   if (repair.stripped.length === 0 && undefinedLabels.length === 0 && !lengthCapped) return checks;
   return {
     ...checks,
@@ -256,7 +276,12 @@ function describeCheckFailures(checks: CheckReport): string[] {
     ...checks.ungroundedQuotes.map((q) => `quoted text not found in any retrieved source: "${q.slice(0, 80)}"`),
     ...checks.ungroundedAddresses.map((a) => `address ${a} appears in no tool result this turn — remove it or replace it with an address you actually retrieved`),
     ...checks.ungroundedCitationValues.map((v) => `${v} — cite the value to the document that actually contains it, or drop the figure`),
-    ...checks.paramMismatches.map((m) => `${m} — state the correct atlas value instead`),
+    ...checks.paramMismatches.map((m) => `${formatParamMismatch(m)} — state the correct atlas value instead`),
+    ...checks.completenessFailures.map((d) =>
+      d.includes("requery") || d.includes("class was not listed")
+        ? d
+        : `${d} — ${COMPLETENESS_REQUERY_STEER}`,
+    ),
     ...(checks.lengthCapped ? ["the previous answer was cut off by the output length limit before it finished — write a complete, more concise answer that fits"] : []),
   ];
 }
@@ -317,6 +342,24 @@ export async function* runVerifiedChat(opts: {
   ix: Indexes;
   messages: Msg[];
   stream: ChatStream;
+  // Optional chain for the ONE advisor recovery cycle. The turn's own chain
+  // just failed an audit, so replaying the recovery on it asks the model that
+  // produced the flawed answer to fix it; escalating to the strong tier asks
+  // a different, presumably more capable model instead. That bet is only
+  // partly backed by measurement: the 2026-08-21 bakeoff (gemma vs luna, 14
+  // hard queries, 6 wins / 0 losses / 6 ties, 1.6x faster) measured FIRST-PASS
+  // open-ended generation, where gemma's failure mode is completeness (0.70
+  // vs 0.95) and luna's hard-fabrication rate is actually higher (0.07 vs 0).
+  // `troubled` below also fires on fabrication-class failures (ungrounded
+  // citations, param mismatches, contradicted claims), which that bakeoff
+  // did not evaluate for either model. The mitigating difference is that
+  // recovery is a narrower task than first-pass generation — the advisor's
+  // steer (`revisionSteer`) pins the model to the evidence already gathered
+  // and tells it exactly which claims to remove or correct — but that's a
+  // judgment call, not a measured one. Unset = replay on the turn's own
+  // chain, the old behavior. Escalate-only-up: a miss costs nothing, a fire
+  // costs tokens; re-verify after (below) still catches a bad revision.
+  recoveryStream?: ChatStream;
   jsonCall?: JsonCall;
   question: string;
   signal?: AbortSignal;
@@ -500,7 +543,10 @@ export async function* runVerifiedChat(opts: {
     toolTexts = toolTextsOf(done.transcript);
     const { refs, repair, identifiers } = normalizeAndRepair(done.content, toolTexts, opts.ix);
     if (repair.content !== done.content) done = { ...done, content: repair.content };
-    checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped, refs.undefinedLabels);
+    checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped, refs.undefinedLabels, {
+      question: opts.question,
+      evidence,
+    });
     checksMeta.push({
       kind: "round_checks", model: null, action: null,
       verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, refs: refsMeta(refs), identifiers: identifiersMeta(identifiers), checks: { ...checks, citations: checks.citations.length } },
@@ -589,10 +635,16 @@ export async function* runVerifiedChat(opts: {
   const feedback = [verdict?.feedback ?? "", checkFailures.length ? `Deterministic failures: ${checkFailures.join("; ")}.` : ""]
     .filter(Boolean).join(" ");
   const { steer, maxIterations } = revisionSteer(adv.recovery, feedback);
+  // The transcript carries the ORIGINAL system prompt, whose citation-format
+  // instruction was fixed from the original chain's primary (citationStyleFor,
+  // model-router.ts). An escalated replay therefore asks the strong model for
+  // whatever format the default model was asked for. Deliberately left alone:
+  // every model accepts and every check parses both formats, and rewriting a
+  // system message mid-transcript is a bigger risk than a format mismatch.
   const revMessages: Msg[] = [...done.transcript, { role: "system", content: steer }];
   let revDone: DoneEvent | null = null;
   try {
-    for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: revMessages, stream: opts.stream, signal: opts.signal, maxIterations, onRoundEnd, obs: opts.obs }), makeGate)) {
+    for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: revMessages, stream: opts.recoveryStream ?? opts.stream, signal: opts.signal, maxIterations, onRoundEnd, obs: opts.obs }), makeGate)) {
       if (ev.type === "done") {
         revDone = ev;
         break;
@@ -627,7 +679,10 @@ export async function* runVerifiedChat(opts: {
     const revToolTexts = toolTextsOf(revDone.transcript);
     const { refs: revRefs, repair: revRepair } = normalizeAndRepair(revDone.content, revToolTexts, opts.ix);
     if (revRepair.content !== revDone.content) revDone = { ...revDone, content: revRepair.content };
-    revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair, revDone.lengthCapped, revRefs.undefinedLabels);
+    revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair, revDone.lengthCapped, revRefs.undefinedLabels, {
+      question: opts.question,
+      evidence: revEvidence,
+    });
   } catch (err) {
     captureError(err, opts.obs, { stage: "revision_citation_repair_or_checks" });
     yield finish(revDone);

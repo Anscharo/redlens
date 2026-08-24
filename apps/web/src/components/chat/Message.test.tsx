@@ -152,6 +152,10 @@ describe("Message", () => {
             docNoMismatches: [],
             ungroundedQuotes: [],
             ungroundedAddresses: [],
+            ungroundedCitationValues: [],
+            paramMismatches: [],
+            completenessFailures: [],
+            lengthCapped: false,
           },
         })}
         streaming={false}

@@ -52,6 +52,8 @@
     "eval:retrieval": "bun scripts/eval/eval-retrieval.ts",
     "eval:facts": "bun scripts/eval/eval-facts.ts",
     "eval:census": "bun scripts/eval/eval-census.ts",
+    "eval:complexity": "bun scripts/eval/eval-complexity.ts",
+    "eval:completeness": "bun scripts/eval/eval-completeness.ts",
     "census:embed-units": "bun scripts/aux/embed-units-census.ts",
     "build:at": "node --env-file-if-exists=.env.local scripts/required/build-at.mjs",
     "build:ts": "tsc -b",

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { apiUrl, type ChatEvent, type Delivery, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
+import { apiUrl, type ChatEvent, type Delivery, type ParamMismatch, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
 import type { PageContext } from "./pageContext";
 import type { RateLimitState } from "./types";
 import { downloadFile } from "../../lib/csvDownload";
@@ -28,6 +28,10 @@ export interface VerifyState {
   docNoMismatches: string[];
   ungroundedQuotes: string[];
   ungroundedAddresses: string[];
+  ungroundedCitationValues: string[];
+  paramMismatches: ParamMismatch[];
+  completenessFailures: string[];
+  lengthCapped: boolean;
 }
 
 // A downloadable file the agent produced this session via export_findings.
@@ -205,7 +209,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
               statusLine: ev.detail ?? `${ev.stage}…`,
               stageLog,
               ...(ev.stage === "checking" && !m.verify
-                ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [] } }
+                ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [], completenessFailures: [], lengthCapped: false } }
                 : {}),
             };
           });
@@ -221,6 +225,10 @@ export function useChatStream(handlers: StreamHandlers = {}) {
               docNoMismatches: ev.docNoMismatches,
               ungroundedQuotes: ev.ungroundedQuotes,
               ungroundedAddresses: ev.ungroundedAddresses,
+              ungroundedCitationValues: ev.ungroundedCitationValues ?? [],
+              paramMismatches: ev.paramMismatches ?? [],
+              completenessFailures: ev.completenessFailures ?? [],
+              lengthCapped: ev.lengthCapped ?? false,
             },
           }));
           break;

@@ -1,5 +1,5 @@
 // Railway Bun service entry. Serves:
-//   GET  /api/health         — liveness check (atlas_sha + index counts)
+//   GET  /api/health         — liveness check (atlas_sha + index counts + rss_mb)
 //   GET  /api/atlas-events  — SSE stream: atlas-update events from in-process updater
 //   GET  /api/history/:id   — node change log from Postgres
 //   POST /mcp               — MCP streamable HTTP transport (stateless, no auth)
@@ -29,7 +29,7 @@ import { handleBalances } from "./balances/balances.ts";
 import { handleChainState } from "./chain-state.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
 import { handleModTimeline } from "./history/mod-timeline.ts";
-import { registerSSEClient } from "./sse.ts";
+import { registerSSEClient, sseClientCount } from "./sse.ts";
 import { sql, waitForDb } from "./db.ts";
 import { runMigrations } from "./migrate.ts";
 import { handlePreview } from "./preview/handler.ts";
@@ -164,6 +164,10 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
         // This image's build commit, so the frontend can compare its own
         // build-time commit and detect a stale served bundle.
         app_commit: config.appCommit || null,
+        // Process RSS in MiB — load-test canary. NEVER fail health on this
+        // (a 503 here would restart-loop a live singleton that is merely large).
+        rss_mb: Math.round(process.memoryUsage().rss / (1024 * 1024)),
+        sse_clients: sseClientCount(),
       },
       { headers: CORS },
     );

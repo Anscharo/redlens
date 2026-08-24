@@ -1,6 +1,6 @@
 name: E2E
 
-# Two ways in:
+# Three ways in:
 #  1. deployment_status — Railway emits this when a per-PR environment finishes
 #     deploying. Keying off `state == success` removes the "tests started before
 #     the deploy was ready" race; we further scope to PR envs via `environment`
@@ -15,13 +15,40 @@ name: E2E
 #     directly rather than looking it up). Useful to smoke the workflow before
 #     it's on main (a deployment_status workflow only fires once its file is on
 #     the default branch) or to re-run E2E on demand.
+#  3. schedule — canary-only runs against the long-lived environments: prod
+#     once a day, development twice a day. Cron can't carry inputs, so the
+#     target is derived from which cron string fired (github.event.schedule) in
+#     "Resolve target URL" — keep the crons there and the map below in sync.
+#     Times are staggered (off :00, hours apart) so runs never overlap each
+#     other or GitHub's top-of-hour congestion. Scheduled runs skip the core
+#     project: core is the per-PR deploy gate; these exist to exercise the
+#     cron/external-state canaries against live data. The preview canary
+#     self-discovers a live atlas PR on scheduled runs (PREVIEW_CANARY_DISCOVER
+#     in e2e/preview-canary.ts) and skips honestly when none is eligible;
+#     e2e/check-canary-skips.mjs counts consecutive scheduled skips in a
+#     cache-persisted file and fails the run once the streak crosses its
+#     threshold, so "previews untested for days" is red, not silent.
 #
 # Markdown-only PRs (skills, CLAUDE.md, plans — anything the app does not
 # `?raw`-import) should not reach here: railway.toml watchPatterns skip the
 # deploy. This job still no-ops if Railway emits a status anyway, so Playwright
 # does not wait on a PR env that will never converge for a docs-only change.
+#
+# This workflow is NOT the required status check, and its job is deliberately
+# named "E2E run" rather than `e2e` so it cannot collide with the one that is.
+# It cannot be required: on a markdown-only PR nothing deploys, so no
+# deployment_status fires, so nothing here reports — and an unreported required
+# check blocks the PR forever ("Expected — Waiting for status to be reported").
+# `.github/workflows/e2e-gate.yml` owns the required `e2e` check instead: it
+# runs on `pull_request`, always reports, and mirrors this workflow's verdict
+# when a deploy is expected. Renaming this job means renaming what that gate's
+# comments describe — not what it matches on, which is this WORKFLOW FILE.
 on:
   deployment_status:
+  schedule:
+    - cron: "23 5 * * *" # prod canary (05:23 UTC daily)
+    - cron: "23 11 * * *" # development canary #1 (11:23 UTC)
+    - cron: "23 23 * * *" # development canary #2 (23:23 UTC)
   workflow_dispatch:
     inputs:
       url:
@@ -50,11 +77,18 @@ permissions:
 # same PR environment. Only the newest build may test that environment's mutable
 # URL; otherwise an older SHA can pass against newer code.
 concurrency:
-  group: e2e-${{ github.event_name == 'deployment_status' && github.event.deployment_status.environment || github.event.inputs.url }}
+  group: e2e-${{ github.event_name == 'schedule' && format('cron-{0}', github.event.schedule) || github.event_name == 'deployment_status' && github.event.deployment_status.environment || github.event.inputs.url }}
   cancel-in-progress: true
 
 jobs:
   e2e:
+    # Distinct from the required check's name (`e2e`, owned by e2e-gate.yml) —
+    # Railway emits a deployment_status per service and per environment, so one
+    # commit gets several runs of this workflow and some conclude `skipped`.
+    # Branch protection resolves a required check by name, so letting those
+    # share a name with the gate would let a `skipped` sibling stand in for a
+    # verdict nobody reached.
+    name: E2E run
     # Manual dispatch always runs. For deployment_status, gate on a successful
     # PR-environment deploy. Railway's `environment` is like
     # "Redline Atlas / pr-85d143-128" (a random per-environment slug, then the PR
@@ -63,6 +97,7 @@ jobs:
     # derive the app URL below.
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
       (github.event.deployment_status.state == 'success' &&
        contains(github.event.deployment_status.environment, 'pr-'))
     runs-on: ubuntu-latest
@@ -130,8 +165,21 @@ jobs:
         env:
           ENV_NAME: ${{ github.event.deployment_status.environment }}
           URL_INPUT: ${{ github.event.inputs.url }}
+          SCHEDULE: ${{ github.event.schedule }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            # Cron carries no inputs, so the fired cron string IS the target
+            # selector. Fail loudly on an unmapped cron: silently defaulting
+            # would let an edited schedule test the wrong environment.
+            case "$SCHEDULE" in
+              "23 5 * * *") URL="https://atlas.redline.support" ;;
+              "23 11 * * *"|"23 23 * * *") URL="https://redlens-development.up.railway.app" ;;
+              *)
+                echo "cron '${SCHEDULE}' has no target URL mapped in this step" >&2
+                exit 1
+                ;;
+            esac
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             # Manual runs pass the deployment URL directly — the env slug (e.g.
             # "pr-85d143-128") embeds a random per-environment component that
             # isn't derivable from a PR number, so there's nothing to look up.
@@ -175,26 +223,64 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Run core E2E
-        if: ${{ github.event_name == 'workflow_dispatch' || steps.gate.outputs.skip != 'true' }}
+        # Not on schedule: core gates per-PR deploys; scheduled runs are the
+        # canary sweep only.
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'deployment_status' && steps.gate.outputs.skip != 'true') }}
         run: pnpm test:e2e
         env:
           BASE_URL: ${{ steps.target.outputs.url }}
           EXPECTED_APP_COMMIT: ${{ github.event.deployment.sha }}
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/core
           PLAYWRIGHT_OUTPUT_DIR: test-results/core
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/core-report.json
 
-      - name: Run opt-in canaries
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_canaries }}
+      # The preview-canary skip streak survives between scheduled runs in a
+      # cache-persisted counter file. Cache keys are immutable, so each run
+      # saves under its own run_id and the next restores the newest via the
+      # prefix restore-key.
+      - name: Restore canary skip streak
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_canaries) }}
+        uses: actions/cache/restore@v4
+        with:
+          path: .canary-streak
+          key: preview-canary-streak-${{ github.run_id }}
+          restore-keys: |
+            preview-canary-streak-
+
+      - name: Run canaries (scheduled or opt-in)
+        # Scheduled runs self-discover a live atlas PR for the preview canary;
+        # dispatch runs use the ATLAS_PREVIEW_CANARY_* pins when provided and
+        # skip the preview canary otherwise.
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_canaries) }}
         run: pnpm test:e2e:canary
         env:
           BASE_URL: ${{ steps.target.outputs.url }}
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/canary
           PLAYWRIGHT_OUTPUT_DIR: test-results/canary
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/canary-report.json
           # Lets the preview canary query the GitHub API without hitting the
           # 60/hr unauthenticated limit.
           GITHUB_TOKEN: ${{ github.token }}
+          PREVIEW_CANARY_DISCOVER: ${{ github.event_name == 'schedule' && '1' || '' }}
           ATLAS_PREVIEW_CANARY_PR: ${{ github.event.inputs.atlas_preview_canary_pr }}
           ATLAS_PREVIEW_CANARY_SHA: ${{ github.event.inputs.atlas_preview_canary_sha }}
+
+      - name: Guard against silent preview-canary skips
+        # !cancelled(): the streak must update (and reset on a real canary
+        # failure — it RAN) even when the canary step itself went red.
+        if: ${{ !cancelled() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_canaries)) }}
+        run: node e2e/check-canary-skips.mjs
+        env:
+          REPORT_FILE: test-results/canary-report.json
+          STREAK_FILE: .canary-streak/streak
+          EVENT_NAME: ${{ github.event_name }}
+
+      - name: Save canary skip streak
+        if: ${{ !cancelled() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_canaries)) }}
+        uses: actions/cache/save@v4
+        with:
+          path: .canary-streak
+          key: preview-canary-streak-${{ github.run_id }}
 
       - name: Upload Playwright diagnostics
         if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || steps.gate.outputs.skip != 'true') }}

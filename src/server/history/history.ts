@@ -11,8 +11,9 @@ import { UUID_RE } from "../../lib/patterns.ts";
 // remain the contract: src/lib/history.ts's fetchCached treats 404 as a stable
 // "no data" (cached) and anything else as transient (evicted, retried).
 
-// Postgres stores "content" / "structural" (chatbot-plan vocabulary);
-// the frontend HistoryEntry uses "modified" / "moved".
+// Postgres stores "content" / "structural" (chatbot-plan vocabulary — see
+// docs/plans/archive/chatbot-plan.md); the frontend HistoryEntry uses
+// "modified" / "moved".
 const CHANGE_TYPE_REVERSE: Record<string, HistoryEntry["changeType"]> = {
   content: "modified",
   structural: "moved",

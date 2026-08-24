@@ -10,7 +10,7 @@ import { sql } from "../db.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { getSessionUser } from "../session.ts";
 import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
-import { routeTier, resolveTierModels, citationStyleFor } from "./model-router.ts";
+import { routeTier, resolveTierModels, citationStyleFor, iterationsForTier } from "./model-router.ts";
 import { runVerifiedChat, sanitizeDone, type HarnessEvent, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
 import { runFacts, factRound, summarizeFacts } from "../facts/registry.ts";
@@ -28,7 +28,7 @@ interface ChatBody {
   message: string;
   conversationId?: string;
   pageContext?: PageContext;
-  // Per-request override of config.chatDeliveryMode (docs/plans/chat-staged-delivery.md),
+  // Per-request override of config.chatDeliveryMode (docs/chat-system.md §8),
   // e.g. for eval-harness A/B runs. An unrecognized value falls back to the
   // configured default rather than erroring the request.
   delivery?: "streaming" | "staged";
@@ -92,7 +92,7 @@ export async function handleChat(req: Request): Promise<Response> {
   }
 
   const userId = session.user.id;
-  // Staged-delivery mode switch (docs/plans/chat-staged-delivery.md): resolved
+  // Staged-delivery mode switch (docs/chat-system.md §8): resolved
   // once, up front, so it's available to both PostHog properties and the SSE
   // loop below without re-deriving it.
   const mode = resolveDeliveryMode(body.delivery, config.chatDeliveryMode);
@@ -161,12 +161,13 @@ export async function handleChat(req: Request): Promise<Response> {
   const priorAssistants = history.filter((m) => m.role === "assistant").length;
   const route = routeTier(body.message, { followUp: priorAssistants > 0 });
   const models = resolveTierModels(route.tier);
+  const maxIterations = iterationsForTier(route.tier);
 
   // The DB keeps the full conversation; the model gets a windowed replay
   // (recent turns verbatim, older ones truncated, hard char budget) so long
   // conversations never grow the per-round context without bound.
   const messages: Msg[] = [
-    { role: "system", content: buildSystemPrompt(ix, body.pageContext, citationStyleFor(models[0])) },
+    { role: "system", content: buildSystemPrompt(ix, body.pageContext, citationStyleFor(models[0]), undefined, maxIterations) },
     ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 
@@ -192,7 +193,7 @@ export async function handleChat(req: Request): Promise<Response> {
   const obs = {
     distinctId: convId,
     traceId: crypto.randomUUID(),
-    // chat_delivery is the A/B measurement hinge (docs/plans/chat-staged-delivery.md).
+    // chat_delivery is the A/B measurement hinge (docs/chat-system.md §8).
     properties: { chat_tier: route.tier, chat_route_reason: route.reason, chat_delivery: mode },
   };
   const stream = new ReadableStream<Uint8Array>({
@@ -246,9 +247,14 @@ export async function handleChat(req: Request): Promise<Response> {
         // events, deterministic checks, verifier audit, advisor escalation —
         // model slots are env-gated, unset = pass-through). done carries the
         // internal transcript/checksMeta; sanitizeDone strips them off the wire.
+        // The advisor's one recovery cycle replays on the STRONG chain rather
+        // than the chain that just failed the audit (chat-orchestrator.ts).
+        // Built here because the orchestrator is deliberately tier-blind.
+        // When the turn already routed strong this resolves to the same chain.
         for await (const ev of runVerifiedChat({
           ix, messages, stream: chatStream, jsonCall: makeOpenrouterJson(obs),
-          question: body.message, signal: req.signal, obs,
+          recoveryStream: makeOpenrouterStream(obs, resolveTierModels("strong")),
+          question: body.message, signal: req.signal, obs, maxIterations,
         })) {
           if (ev.type === "done") {
             done = ev as HarnessDone;

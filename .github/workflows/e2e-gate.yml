@@ -1,0 +1,80 @@
+name: E2E gate
+
+# The required status check for E2E.
+#
+# `e2e.yml` cannot be the required check: it is driven by `deployment_status`,
+# and railway.toml's watchPatterns skip the deploy for PRs that only touch
+# markdown the app does not `?raw`-import. No deploy -> no event -> the workflow
+# never runs and never reports, and GitHub has no "required only if it ran"
+# setting: a required check that is never reported blocks the PR forever on
+# "Expected — Waiting for status to be reported".
+#
+# So this job carries the required name (`e2e`) instead, runs on `pull_request`
+# so it is ALWAYS reported, and answers the same question e2e.yml's inline gate
+# does — passing immediately on a markdown-only diff, and otherwise waiting for a
+# real e2e.yml run at this head SHA and mirroring its verdict. That is
+# "required to pass if not skipped", expressed where GitHub can see it.
+#
+# Keep the job name in sync with branch protection: the required check is this
+# job's name, and `e2e.yml`'s job is deliberately named something else ("E2E
+# run") so the two never collide on one SHA.
+on:
+  # ready_for_review is beyond the default (opened/synchronize/reopened): a PR
+  # leaving draft re-reports the check, which also makes draft->ready->draft the
+  # manual re-trigger for a PR that predates this workflow and so never got a run.
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  # Read the e2e.yml workflow runs for this commit.
+  actions: read
+
+concurrency:
+  group: e2e-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    # Generous: the wait covers a cold Railway Dockerfile build plus the suite.
+    # The script's own deadline (E2E_GATE_TIMEOUT_SECONDS) fires first and
+    # reports WHY it gave up; this is only the backstop.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The gate reads the PR's own diff, so it needs the base commit.
+          fetch-depth: 0
+
+      - name: Collect changed files
+        # Plain git rather than a paths-filter action, matching ci.yml's
+        # `changes` job — and failing OPEN the same way: an empty list makes
+        # shouldSkipDeploy() return false, so an undiffable PR waits for E2E
+        # rather than bypassing it.
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -eu
+          : > changed-files.txt
+          if git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            git diff --name-only "${BASE_SHA}...HEAD" > changed-files.txt
+          else
+            echo "base commit ${BASE_SHA} not fetched; failing open"
+          fi
+          wc -l < changed-files.txt
+
+      # install: "false" — the gate is one dependency-free Node script; it only
+      # needs the repo's pinned Node, not a workspace install.
+      - uses: ./.github/actions/setup
+        with:
+          install: "false"
+
+      - name: Wait for E2E
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          # `github.sha` on a pull_request event is the MERGE commit; Railway
+          # deploys — and therefore e2e.yml's runs — are keyed to the branch head.
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CHANGED_FILES_FILE: changed-files.txt
+        run: node scripts/aux/e2e-gate.mjs

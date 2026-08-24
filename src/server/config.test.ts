@@ -78,6 +78,7 @@ test("defaults when no env is set", async () => {
   expect(config.chatModel).toBe("google/gemma-4-31b-it");
   expect(config.chatDeliveryMode).toBe("streaming");
   expect(config.chatMaxIterations).toBe(4);
+  expect(config.chatMaxIterationsStrong).toBe(6);
   expect(config.chatTemperature).toBe(0.3);
   expect(config.chatMaxOutputTokens).toBe(16000);
   expect(config.chatCaptureContent).toBe(true);
@@ -145,6 +146,7 @@ test("all env overrides take effect", async () => {
     CHAT_MODEL: "custom-chat",
     CHAT_DELIVERY_MODE: "staged",
     CHAT_MAX_ITERATIONS: "9",
+    CHAT_MAX_ITERATIONS_STRONG: "11",
     CHAT_TEMPERATURE: "0.9",
     CHAT_MAX_OUTPUT_TOKENS: "999",
     CHAT_CAPTURE_CONTENT: "0",
@@ -211,6 +213,7 @@ test("all env overrides take effect", async () => {
   expect(config.chatModel).toBe("custom-chat");
   expect(config.chatDeliveryMode).toBe("staged");
   expect(config.chatMaxIterations).toBe(9);
+  expect(config.chatMaxIterationsStrong).toBe(11);
   expect(config.chatTemperature).toBe(0.9);
   expect(config.chatMaxOutputTokens).toBe(999);
   expect(config.chatCaptureContent).toBe(false);

@@ -255,6 +255,52 @@ test("atlas_filter tags result rows with liveness and adds the envelope hint onl
   expect(clean.liveness_hint).toBeUndefined();
 });
 
+test("atlas_filter lists by exact title, pages without lying about total, and sorts by doc_no", () => {
+  const ix = makeIx();
+  for (const n of ix.docMap.values()) {
+    if (n.id === "P1" || n.id === "P2" || n.id === "DX") (n as { title: string }).title = "Rate Limit";
+  }
+  const all = [...ix.docMap.values()].filter((d) => d.title === "Rate Limit");
+  const res = atlasFilter(ix, { title: "Rate Limit", limit: 2, offset: 0, include_content: false }) as {
+    total: number;
+    count: number;
+    offset: number;
+    has_more: boolean;
+    truncated?: boolean;
+    results: Array<{ id: string; doc_no: string; title: string; content?: string }>;
+  };
+  expect(res.total).toBe(all.length);
+  expect(res.total).toBe(3);
+  expect(res.count).toBe(2);
+  expect(res.has_more).toBe(true);
+  expect(res.truncated).toBeUndefined();
+  expect(res.results.every((r) => r.title === "Rate Limit")).toBe(true);
+  expect(res.results.every((r) => r.content === undefined)).toBe(true);
+  const nos = res.results.map((r) => r.doc_no);
+  expect(nos).toEqual([...nos].sort((a, b) => a.localeCompare(b)));
+
+  const page2 = atlasFilter(ix, { title: "Rate Limit", limit: 2, offset: 2, include_content: false }) as {
+    total: number;
+    count: number;
+    has_more: boolean;
+    results: Array<{ doc_no: string }>;
+  };
+  expect(page2.total).toBe(3);
+  expect(page2.count).toBe(1);
+  expect(page2.has_more).toBe(false);
+  expect(page2.results[0]!.doc_no.localeCompare(nos[nos.length - 1]!)).toBeGreaterThanOrEqual(0);
+
+  const prefix = atlasFilter(ix, { title_prefix: "Rate Limit", include_content: false }) as { total: number };
+  expect(prefix.total).toBe(3);
+  expect((atlasFilter(ix, { title: "rate limit" }) as { total: number }).total).toBe(0);
+});
+
+test("atlas_filter still requires at least one filter (title counts)", () => {
+  const ix = makeIx();
+  expect((atlasFilter(ix, { limit: 10 }) as { error?: string }).error).toBeDefined();
+  expect((atlasFilter(ix, { title: "Rate Limit" }) as { error?: string }).error).toBeUndefined();
+});
+
 test("atlas_entity tags `nodes` rows with liveness and adds the envelope hint", () => {
   const ix = makeIx();
   ix.liveness.set("P3", "placeholder");
@@ -377,6 +423,8 @@ test("buildSystemPrompt does not throw (entity_type_graph must be requested)", (
   const ix = makeIx();
   expect(() => buildSystemPrompt(ix)).not.toThrow();
   expect(buildSystemPrompt(ix)).toContain("Sky Atlas by Redline");
+  expect(buildSystemPrompt(ix)).toContain("complete class listing");
+  expect(buildSystemPrompt(ix)).not.toContain("answer immediately once you have the evidence");
 });
 
 // ── report-page tool steering ────────────────────────────────────────────────

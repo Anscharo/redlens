@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { OeaRow, OeaReportArtifact } from "@/lib/oeaReport";
 
@@ -103,9 +103,14 @@ describe("OeaAssessmentReport", () => {
   // the pre-load props.
   it("fires report_view once, with the loaded row count and rubric version", async () => {
     render(<OeaAssessmentReport query="" mode="broad" />);
-    await screen.findByText("Publish price feed");
-    const views = trackMock.mock.calls.filter(([e]) => e === "report_view");
-    expect(views).toEqual([
+    const views = () => trackMock.mock.calls.filter(([e]) => e === "report_view");
+    // Wait on the EVENT, not on a row appearing. useReportView fires from a
+    // useEffect, and passive effects flush asynchronously AFTER React commits
+    // the DOM — so findByText, which resolves off the mutation, can win that
+    // race and assert against zero calls. That is the flake this test had under
+    // parallel load; the product behaviour was never wrong.
+    await waitFor(() => expect(views()).toHaveLength(1));
+    expect(views()).toEqual([
       ["report_view", { report: "oea-assessment", row_count: 3, stale_count: 0, unassessed_count: 0, rubric_version: "rv1" }],
     ]);
   });

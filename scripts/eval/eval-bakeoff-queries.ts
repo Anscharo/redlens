@@ -89,6 +89,12 @@ export const BAKEOFF_QUERIES: BakeoffQuery[] = [
       "Quarterly breakdown grounded in history tool output: real quarters, real activity levels, themes tied to evidence. Invented quarters/themes with no tool backing is a hard fail.",
   },
   {
+    id: "oldest-rate-limit",
+    query: "What is the oldest rate limit id in the atlas.",
+    expect:
+      "Must list the Rate Limit class (atlas_filter by exact title, or atlas_first_seen with title — not search top-k). The oldest first-seen is UUID 8414b48b-932e-430e-a236-727807fd73ba (2025-11-07), older than 2026-07-10. Reporting only 2026-07-10 first-seens from search hits, even if hedged as 'among those queried', is a hard fail.",
+  },
+  {
     id: "did-you-know",
     query: "Generate 10 “Did you know” blurbs to educate people on key elements of the Atlas.",
     expect:

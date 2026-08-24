@@ -510,7 +510,7 @@
   8. **Static serving + base-path removal** — Bun serves `dist/` with SPA fallback to `index.html`; move to apex base (`/`). **Deep QA required — see "Base-path removal QA"; the `/redlens` → `/` switch is known to blank-page.**
   9. **Frontend widget** — floating panel, page context injection, conversation list
   10. **Custom domain + Cloudflare** — point CF DNS at Railway, configure cache rules (static = 30d, `/` + `/api/*` + SPA routes = bypass)
-  11. **Model benchmarking** — Qwen3 32B (default) vs Gemma 4 26B A4B (if tool use confirmed) on the 13 governance questions (`docs/benchmark-questions.md`)
+  11. **Model benchmarking** — Qwen3 32B (default) vs Gemma 4 26B A4B (if tool use confirmed) on the 13 governance questions (`docs/benchmark-questions.md` — deleted 2026-08-21, superseded by `scripts/eval/eval-golden-questions.ts`)
   12. **Decommission GH Pages** — once `sync:atlas` parity is verified and DNS is cut over. **Keep the CF Worker running** as the MCP endpoint (`ask-atlas` etc. depend on it) — it is *not* decommissioned in MVP. It retires only after the deferred Bun MCP surface lands and consumers repoint (do-if-easy, see Bun service "MCP surface" note).
 
   Steps 1–4 are the migration; 5–10 are the new app; 11–12 are validation + cleanup. MCP re-expose + CF Worker retirement are post-MVP.

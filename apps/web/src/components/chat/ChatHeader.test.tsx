@@ -14,8 +14,8 @@ function renderHeader(over: Partial<React.ComponentProps<typeof ChatHeader>> = {
     onClose,
     placement: "float" as const,
     onTogglePlacement,
-    staged: false,
-    onToggleStaged: vi.fn(),
+    stages: false,
+    onToggleDelivery: vi.fn(),
     ...over,
   };
   const utils = render(<ChatHeader {...props} />);
@@ -60,5 +60,23 @@ describe("ChatHeader", () => {
   it("shows a float-out control while anchored", () => {
     renderHeader({ placement: "anchored" });
     expect(screen.getByTitle("Pop out to a floating window")).toBeInTheDocument();
+  });
+
+  it("labels the delivery pill streaming when not in stages mode", () => {
+    renderHeader({ stages: false });
+    const toggle = screen.getByLabelText("set deliver mode: stream or stages");
+    expect(toggle).toHaveTextContent("streaming");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toHaveAttribute("title", "set deliver mode: stream or stages");
+  });
+
+  it("labels the delivery pill stages when pressed, and click flips", () => {
+    const onToggleDelivery = vi.fn();
+    renderHeader({ stages: true, onToggleDelivery });
+    const toggle = screen.getByLabelText("set deliver mode: stream or stages");
+    expect(toggle).toHaveTextContent("stages");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(toggle);
+    expect(onToggleDelivery).toHaveBeenCalled();
   });
 });
