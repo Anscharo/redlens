@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { broadcastAtlasUpdate, heartbeat, registerSSEClient } from "./sse.ts";
+import { broadcastAtlasUpdate, heartbeat, registerSSEClient, sseClientCount } from "./sse.ts";
 
 describe("SSE client registry", () => {
   it("broadcasts atlas-update events to registered clients", () => {
@@ -58,5 +58,18 @@ describe("SSE client registry", () => {
     } finally {
       unregisterHealthy();
     }
+  });
+});
+
+describe("sseClientCount", () => {
+  it("tracks live registrations", () => {
+    const before = sseClientCount();
+    const a = registerSSEClient(() => {}, () => {});
+    const b = registerSSEClient(() => {}, () => {});
+    expect(sseClientCount()).toBe(before + 2);
+    a();
+    expect(sseClientCount()).toBe(before + 1);
+    b();
+    expect(sseClientCount()).toBe(before);
   });
 });
