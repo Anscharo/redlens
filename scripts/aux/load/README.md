@@ -81,4 +81,82 @@ reach the cap, report headroom.
 
 ## Results (2026-08-24, development singleton)
 
-Filled in after the measurement run in this PR.
+Target: `https://redlens-development.up.railway.app`. One Bun replica. Health
+body at the time of the run did **not** yet include `rss_mb` / `sse_clients`
+(this PR). Railway memory slider was not readable from this agent (no Railway
+CLI); runbook documents **~1 GB**. `replicas` must stay **1**.
+
+Idle health: HTTP 200, ~150–200 ms, `docs: 11349`, `status: ok`.
+
+### Idle SSE holds (`GET /api/atlas-events`)
+
+From one client IP, Bun `fetch` (HTTP/2 multiplex possible):
+
+| Concurrent holds | Result | Health p95 |
+|---|---|---|
+| 50 | 50/50 ok + heartbeat | 114 ms |
+| 100 | 100/100 ok + heartbeat | 141 ms |
+| 250 | 250/250 ok + heartbeat | 105 ms |
+| 275 | 103/275 ok | **36 s** (abort) |
+| 300 | 0/300 ok | **36 s** (abort) |
+| 350 | 0/350 ok | **39 s** (abort) |
+
+**Last green: 250. First red: 275.** Stay under **~200** idle atlas-events
+tabs on this replica (margin under 250).
+
+After the 275+ ramps, new `GET /api/atlas-events` from the same client timed
+out with **0 bytes**, while `/api/health` and `GET /` stayed ~90–170 ms. Likely
+mix of Railway edge / per-IP long-lived stream limits and in-process SSE
+clients kept alive by the 30 s `:ping` heartbeat (aborted clients may not
+evict until `enqueue` throws). A **web-service restart** drains them. This is
+the first failure mode — **not** OOM.
+
+A 500-hold step without a fetch timeout hung the client ~16 min and drove
+health p95 to hundreds of seconds; the runner now uses `AbortSignal.timeout`.
+
+### Short-lived `GET /` (not connection count)
+
+| Target RPS | ok / fail | p95 |
+|---|---|---|
+| 10 | 150 / 0 | 100 ms |
+| 20 | 300 / 0 | 95 ms |
+| 50 | 745 / 0 | 95 ms |
+| 100 | 1482 / 0 | 95 ms |
+
+Homepage RPS is easy well past 100/s. Do not confuse this with idle tab
+capacity.
+
+### Chat
+
+No `CHAT_COOKIE` in this environment — authenticated streams were **not**
+saturated (would burn OpenRouter commons). Unauthenticated `POST /api/chat`:
+
+- 20 concurrent → all **401** `unauthenticated`, ~180 ms
+- 50 concurrent → all **401**, health still ~90 ms
+
+The auth gate is cheap. There is still **no** max-concurrent-chat semaphore;
+real limits are the per-user 500k tokens / 120 min window, `commons_exhausted`,
+OpenRouter, and process CPU/RAM of verifier slices. Re-run
+`bun scripts/aux/load/run.mjs chat` with several test cookies on a throwaway
+service to measure authenticated SSE.
+
+### OOM
+
+Not reached. The singleton kept serving health and static after SSE
+saturation, so **connection/edge limits hit first**. Force-kill skipped on
+shared development.
+
+When RSS does exceed the Railway slider: kernel kill → `/api/health` down →
+`ON_FAILURE` restart (max 3) → in-flight SSE/chat drop → boot baked `dist/`
+then hot-swap from Postgres. No in-app OOM page. After `rss_mb` is deployed,
+re-run `oom-headroom` and abort at 850 MiB.
+
+### Operating recommendation
+
+- Do **not** raise replicas.
+- Budget **≤ 200** idle browser tabs (atlas-events) per replica.
+- Homepage traffic is not the scarce resource.
+- Treat chat concurrency as an OpenRouter / token-ledger problem until a
+  cookie-backed run says otherwise.
+- Consider a server-side cap on `/api/atlas-events` registrations so a hung
+  client cannot pin heartbeat-kept streams past the measured 250.

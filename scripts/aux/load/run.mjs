@@ -48,21 +48,23 @@ function abortFromHealth(samples) {
 
 async function holdOneSse(ms, signal) {
   const t0 = performance.now();
-  const res = await fetch(`${BASE}/api/atlas-events`, {
-    signal,
-    headers: { accept: "text/event-stream" },
-  });
-  if (!res.ok || !res.body) {
-    return { ok: false, status: res.status, ms: performance.now() - t0, bytes: 0, pings: 0 };
-  }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-  let bytes = 0;
-  let pings = 0;
-  const deadline = Date.now() + ms;
+  // Cap the entire hold so a hung TCP/HTTP2 stream cannot stall the step forever.
+  const combined = AbortSignal.any([signal, AbortSignal.timeout(ms + 8_000)]);
   try {
-    while (Date.now() < deadline && !signal.aborted) {
+    const res = await fetch(`${BASE}/api/atlas-events`, {
+      signal: combined,
+      headers: { accept: "text/event-stream" },
+    });
+    if (!res.ok || !res.body) {
+      return { ok: false, status: res.status, ms: performance.now() - t0, bytes: 0, pings: 0 };
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    let bytes = 0;
+    let pings = 0;
+    const deadline = Date.now() + ms;
+    while (Date.now() < deadline && !combined.aborted) {
       const remaining = Math.max(1, deadline - Date.now());
       const chunk = await Promise.race([
         reader.read(),
@@ -81,7 +83,7 @@ async function holdOneSse(ms, signal) {
     await reader.cancel().catch(() => {});
     return { ok: true, status: res.status, ms: performance.now() - t0, bytes, pings };
   } catch (e) {
-    return { ok: false, status: 0, ms: performance.now() - t0, bytes, pings, error: String(e?.message || e) };
+    return { ok: false, status: 0, ms: performance.now() - t0, bytes: 0, pings: 0, error: String(e?.message || e) };
   }
 }
 
@@ -101,7 +103,9 @@ async function runSse() {
     }, 2000);
     const t0 = performance.now();
     const holds = await Promise.allSettled(
-      Array.from({ length: n }, () => holdOneSse(HOLD_MS, ac.signal)),
+      Array.from({ length: n }, (_, i) =>
+        new Promise((r) => setTimeout(r, Math.min(i * 2, 2_000))).then(() => holdOneSse(HOLD_MS, ac.signal)),
+      ),
     );
     clearInterval(healthTimer);
     ac.abort();
