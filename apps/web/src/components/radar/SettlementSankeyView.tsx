@@ -32,8 +32,18 @@ export function SettlementSankeyView({
   primeLabel: string;
 }) {
   const byId = useMemo(() => new Map(rows.map((v) => [v.id, v])), [rows]);
-  const skyTotal = useMemo(() => rows.reduce((n, v) => n + v.profitToSky, 0), [rows]);
-  const primeTotal = useMemo(() => rows.reduce((n, v) => n + v.profitToGrove, 0), [rows]);
+  // Gross per direction — each bar is labelled with its own, so a sink's two
+  // bars read as "this came in, this went back out" instead of one netted bar.
+  const gross = useMemo(() => {
+    const sum = (pick: (v: SankeyVenue) => number, sign: number) =>
+      rows.reduce((n, v) => n + Math.max(sign * pick(v), 0), 0);
+    return {
+      sky: sum((v) => v.profitToSky, 1),
+      "sky-out": sum((v) => v.profitToSky, -1),
+      prime: sum((v) => v.profitToGrove, 1),
+      "prime-out": sum((v) => v.profitToGrove, -1),
+    } as Record<string, number>;
+  }, [rows]);
 
   return (
     <svg
@@ -52,8 +62,19 @@ export function SettlementSankeyView({
           if (!v) return null;
           return <SankeyVenueNode key={n.id} n={n} v={v} primeLabel={primeLabel} />;
         }
-        const total = n.id === "sky" ? skyTotal : primeTotal;
-        return <SankeySinkNode key={n.id} n={n} total={total} />;
+        return (
+          <SankeySinkNode
+            key={n.id}
+            n={n}
+            gross={gross[n.id] ?? 0}
+            netted={n.flow === "in" && (gross[`${n.id}-out`] ?? 0) > 0}
+            net={
+              n.flow === "out"
+                ? (gross[n.id.replace(/-out$/, "")] ?? 0) - (gross[n.id] ?? 0)
+                : undefined
+            }
+          />
+        );
       })}
     </svg>
   );

@@ -175,6 +175,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "The Monthly settlement card in the top right shows the latest cycle; the `full cycle` link under the figure opens the charts.",
           "On the cycle page, click a month in the Summary bars. Primes with several venues have a PnL / AUM toggle.",
           "In the venue flow chart, hover a flow, a venue name, or its row in the table below — that venue lights up in both, and its figures appear on the flows.",
+          "A sink with loss-making venues gets two bars: what came in (`$X gross in`) and, in red just below it, what went back out (`−$Y out`), with the `net` the pair settles to underneath. A longer red bar than green means the month went backwards.",
         ],
         note: "Hidden when settlements.json has not been built (`pnpm settlements:parse`). Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
       },
