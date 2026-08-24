@@ -33,7 +33,7 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-08-21
+## 2026-08-24
 - Atlas AI CHAT now live. Ask it about Sky Atlas or this App. Requires login. 
 
 ## 2026-08-19
