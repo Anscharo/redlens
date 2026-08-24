@@ -167,6 +167,14 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "See primitives and which actors have activated them.",
         how: ["From Radar, open a primitive to view its dashboard and activation matrix."],
       },
+      {
+        name: "Monthly Settlement Cycle",
+        what: "A Radar cycle page that lists indexed Sky Forum settlement reports and links the Atlas definition plus the live forum tag.",
+        how: [
+          "Open Radar and pick Monthly Settlement Cycle from the Cycles group.",
+          "Use Atlas definition for the governing document, or Sky Forum tag / a thread title for the forum post.",
+        ],
+      },
     ],
   },
   {

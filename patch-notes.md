@@ -34,6 +34,7 @@
 -->
 
 ## 2026-08-24
+- Added a Monthly Settlement Cycle page on Radar that lists the indexed Sky Forum settlement reports
 - Atlas AI CHAT now live. Ask it about Sky Atlas or this App, including oldest/all questions answered from a full class listing. Requires login. 
 
 ## 2026-08-19
