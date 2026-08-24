@@ -173,7 +173,8 @@ model by failing an audit as well as by matching a signal.
 
 `runChat` is a pure async generator (the LLM is injected as `ChatStream`, so it
 unit-tests with no network/DB). Each iteration (max `CHAT_MAX_ITERATIONS`,
-default **4**) streams a completion and accumulates content, tool-call deltas,
+default **4**; strong-tier turns use `CHAT_MAX_ITERATIONS_STRONG`, default **6**,
+and never below the default cap) streams a completion and accumulates content, tool-call deltas,
 `finish_reason`, and usage (accumulated across rounds — load-bearing for rate
 limiting). If any tool-call deltas accumulated, it emits `clear`, executes all
 calls in parallel via `execToolDetailed`, appends results, and continues;

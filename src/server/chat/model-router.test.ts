@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { routeTier, resolveTierModels, citationStyleFor } from "./model-router.ts";
+import { routeTier, resolveTierModels, citationStyleFor, iterationsForTier } from "./model-router.ts";
 import { config } from "../config.ts";
 
 describe("routeTier", () => {
@@ -149,6 +149,23 @@ describe("citationStyleFor", () => {
       expect(citationStyleFor("m/strong")).toBe("inline");
     } finally {
       config.chatReferenceCitationModels = saved;
+    }
+  });
+});
+
+describe("iterationsForTier", () => {
+  test("fast and default keep the base cap; strong is 6 and never below the base", () => {
+    const saved = { chatMaxIterations: config.chatMaxIterations, chatMaxIterationsStrong: config.chatMaxIterationsStrong };
+    try {
+      config.chatMaxIterations = 4;
+      config.chatMaxIterationsStrong = 6;
+      expect(iterationsForTier("fast")).toBe(4);
+      expect(iterationsForTier("default")).toBe(4);
+      expect(iterationsForTier("strong")).toBe(6);
+      config.chatMaxIterations = 8;
+      expect(iterationsForTier("strong")).toBe(8);
+    } finally {
+      Object.assign(config, saved);
     }
   });
 });

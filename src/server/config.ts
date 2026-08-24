@@ -251,6 +251,11 @@ export const config = {
   // rollups: questions that used to need four narrow tool calls now need one, so
   // the extra rounds bought latency rather than evidence.
   chatMaxIterations: Number(process.env.CHAT_MAX_ITERATIONS ?? 4),
+  // Strong-tier cap. Corpus-wide / extremum turns (and advisor recovery's
+  // answerer, which already replays on STRONG) need listing + first_seen + a
+  // couple of lookups; 4 was the ranked-search budget. Never below the
+  // default cap — raising CHAT_MAX_ITERATIONS raises both.
+  chatMaxIterationsStrong: Number(process.env.CHAT_MAX_ITERATIONS_STRONG ?? 6),
   // Conversationalist sampling temperature. Pinned (provider defaults hover
   // around 0.7) — a grounded citation machine wants low variance, and pinning
   // keeps eval-harness A/B runs comparable. Judges stay at 0 in llm.ts.

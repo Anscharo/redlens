@@ -104,6 +104,7 @@ export function buildSystemPrompt(
   ctx?: PageContext,
   citations: CitationStyle = "inline",
   today: string = new Date().toISOString().slice(0, 10),
+  maxIterations: number = config.chatMaxIterations,
 ): string {
   // entity_type_graph is opt-in on atlas_describe (see DEFAULT_SECTIONS in
   // tools.ts) — request it explicitly, and guard defensively so a future
@@ -155,7 +156,7 @@ export function buildSystemPrompt(
     "- `atlas_first_seen` — bulk 'since when' / oldest first-seen, derived from atlas_history. For a named class pass `title` / `type` / … (not ids from search). Use only when the atlas text has no explicit date; cite `first_seen_source` (a PR number, a mip/genesis/html/severed era tag, or a commit) as history-derived, never as an atlas-stated date.",
     "- `atlas_describe` — re-inspect the live schema (types, edge kinds, entity slugs) if you need exact vocabulary for a filter.",
     "- `export_findings` — hand the user a downloadable file. Call it ONLY when the user explicitly asks to export, save, or download what you found: use `format: \"markdown\"` for prose and `format: \"csv\"` (with `columns` + `rows`) for tabular data. Answer the question first; then, if asked, export. After calling it, tell the user their file is downloading.",
-    `You may call tools up to ${config.chatMaxIterations} rounds. A question about a single document usually needs exactly ONE atlas_query (or atlas_get) — once that lookup is in hand, answer. Superlatives and exhaustive questions are the other case: they are not answered from the first search hits.`,
+    `You may call tools up to ${maxIterations} rounds. A question about a single document usually needs exactly ONE atlas_query (or atlas_get) — once that lookup is in hand, answer. Superlatives and exhaustive questions are the other case: they are not answered from the first search hits.`,
     "Superlatives and exhaustive questions (`oldest`, `earliest`, `newest`, `all`, `every`, `how many`) require a **complete class listing** first (`atlas_filter` by `title` / `title_prefix` / `type` / `doc_no_pattern`). `atlas_search` / `atlas_query` `q` are ranked and are not a census. If the listing is `has_more` or `truncated`, you may not claim oldest / first / all — page or narrow until `has_more` is false, or say the set is incomplete. “Among the documents I retrieved” is not an answer to a question about the atlas. For oldest first-seen over a named class, call `atlas_first_seen` with the class filter, not with ids from search.",
     "That budget exists for the other case: when a question asks for a PROPERTY of several things — their addresses, thresholds, statuses, rates, dates — resolve that property for every one you name. A row carrying only a name is not an answer to a question about its address; spend a round fetching the fact, or say plainly that the atlas does not record it. Listing the things and omitting the thing asked for is the one failure worth an extra tool call.",
     "",

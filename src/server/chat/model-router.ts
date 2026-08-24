@@ -105,3 +105,10 @@ export function resolveTierModels(tier: ModelTier): string[] {
   if (tier === "strong" && config.chatModelStrong.length) return config.chatModelStrong;
   return [config.chatModel, ...config.chatModelFallbacks];
 }
+
+/** Hard tool-round cap for this turn. Strong never sits below the default cap. */
+export function iterationsForTier(tier: ModelTier): number {
+  const base = Math.max(1, config.chatMaxIterations);
+  if (tier !== "strong") return base;
+  return Math.max(base, Math.max(1, config.chatMaxIterationsStrong));
+}

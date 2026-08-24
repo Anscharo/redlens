@@ -10,7 +10,7 @@ import { sql } from "../db.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { getSessionUser } from "../session.ts";
 import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
-import { routeTier, resolveTierModels, citationStyleFor } from "./model-router.ts";
+import { routeTier, resolveTierModels, citationStyleFor, iterationsForTier } from "./model-router.ts";
 import { runVerifiedChat, sanitizeDone, type HarnessEvent, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
 import { runFacts, factRound, summarizeFacts } from "../facts/registry.ts";
@@ -161,12 +161,13 @@ export async function handleChat(req: Request): Promise<Response> {
   const priorAssistants = history.filter((m) => m.role === "assistant").length;
   const route = routeTier(body.message, { followUp: priorAssistants > 0 });
   const models = resolveTierModels(route.tier);
+  const maxIterations = iterationsForTier(route.tier);
 
   // The DB keeps the full conversation; the model gets a windowed replay
   // (recent turns verbatim, older ones truncated, hard char budget) so long
   // conversations never grow the per-round context without bound.
   const messages: Msg[] = [
-    { role: "system", content: buildSystemPrompt(ix, body.pageContext, citationStyleFor(models[0])) },
+    { role: "system", content: buildSystemPrompt(ix, body.pageContext, citationStyleFor(models[0]), undefined, maxIterations) },
     ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 
@@ -253,7 +254,7 @@ export async function handleChat(req: Request): Promise<Response> {
         for await (const ev of runVerifiedChat({
           ix, messages, stream: chatStream, jsonCall: makeOpenrouterJson(obs),
           recoveryStream: makeOpenrouterStream(obs, resolveTierModels("strong")),
-          question: body.message, signal: req.signal, obs,
+          question: body.message, signal: req.signal, obs, maxIterations,
         })) {
           if (ev.type === "done") {
             done = ev as HarnessDone;

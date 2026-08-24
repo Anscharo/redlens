@@ -81,6 +81,11 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("## Current page");
   });
 
+  it("names the tool-round budget passed in, independent of the atlas load", () => {
+    expect(buildSystemPrompt(ix, undefined, "inline", undefined, 6)).toContain("You may call tools up to 6 rounds");
+    expect(buildSystemPrompt(ix)).toContain("You may call tools up to 4 rounds");
+  });
+
   // The atlas is the documents; entities/relations/addresses/params/censuses
   // are OUR parse of them. Presenting one as the other is the failure this
   // line exists to prevent — it is also what the features fact's vocabulary
