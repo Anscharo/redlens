@@ -32,8 +32,10 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
-## 2026-08-20
+## 2026-08-24
 - Added Monthly Settlement Cycle charts for Prime Agents, with last month's take in a card and a full cycle page of Sky / supply-kept / demand-side bars, demand-side mix, and venue AUM
+
+## 2026-08-20
 - Fixed Atlas addresses and history sometimes being unavailable after an update
 
 ## 2026-08-19
