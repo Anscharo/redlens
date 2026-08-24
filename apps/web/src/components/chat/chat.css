@@ -212,8 +212,9 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 }
 .rlc-iconbtn:hover { background: var(--hover); color: var(--tan); border-color: var(--border); }
 
-/* Delivery-mode toggle ("staged answers"), sits in the header row next to the
-   dock/close icon buttons. Plain attribute-selector state — no JS hover. */
+/* Delivery-mode toggle (label flips streaming ↔ stages), sits in the header
+   row next to the dock/close icon buttons. Plain attribute-selector state —
+   no JS hover; native title= carries the hint. */
 .rlc-staged-toggle {
   display: inline-flex;
   align-items: center;
