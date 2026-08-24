@@ -181,6 +181,19 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
   }
 
   if (pathname === "/api/atlas-events") {
+    // Hard ceiling on total open SSE connections (config.sseMaxClients) — see
+    // that config comment. Checked before construction: rejecting here means
+    // no ReadableStream, no registerSSEClient call, nothing added to the
+    // registry for a connection that was never accepted. useAtlasVersion.ts's
+    // EventSource treats a failed FIRST connection as "give up" (its onerror
+    // only closes when the connection never opened), so this doesn't trigger
+    // a reconnect storm against an already-saturated registry.
+    if (sseClientCount() >= config.sseMaxClients) {
+      return Response.json(
+        { error: "sse_capacity", message: "Too many live-update connections open right now." },
+        { status: 503, headers: { "Retry-After": "30", ...CORS } },
+      );
+    }
     let unregister: (() => void) | null = null;
     const stream = new ReadableStream({
       start(controller) {

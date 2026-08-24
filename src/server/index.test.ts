@@ -32,7 +32,7 @@ import zlib from "node:zlib";
 import type { Server } from "bun";
 import { config } from "./config.ts";
 import { buildIndexes, setIndexes, getIndexes, rebuildFromDisk } from "./retrieval/indexes.ts";
-import { broadcastAtlasUpdate } from "./sse.ts";
+import { broadcastAtlasUpdate, sseClientCount } from "./sse.ts";
 import { renderCard } from "./og-image.ts";
 
 // ---------------------------------------------------------------------------
@@ -364,6 +364,39 @@ describe("handleRequest — /api/atlas-events (SSE)", () => {
     const { value } = await reader.read();
     expect(new TextDecoder().decode(value)).toBe(`event: atlas-update\ndata: ${JSON.stringify({ atlas_sha: "deadbeef" })}\n\n`);
     await reader.cancel();
+  });
+
+  // Relative to sseClientCount() at test start (not an absolute number) —
+  // other tests in this file register/unregister their own SSE clients, so a
+  // hardcoded expected count would be order-dependent (same style as
+  // sse.test.ts's own `before`/`before + n` assertions).
+  it("503s with sse_capacity once the registry is already at config.sseMaxClients", async () => {
+    const origMax = config.sseMaxClients;
+    config.sseMaxClients = sseClientCount(); // cap == current count → no room left
+    try {
+      const req = new Request("http://localhost/api/atlas-events");
+      const res = await handleRequest(req, stubServer);
+      expect(res.status).toBe(503);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe("sse_capacity");
+      expect(res.headers.get("Retry-After")).toBe("30");
+    } finally {
+      config.sseMaxClients = origMax;
+    }
+  });
+
+  it("still accepts a connection with exactly one slot free", async () => {
+    const origMax = config.sseMaxClients;
+    config.sseMaxClients = sseClientCount() + 1;
+    try {
+      const req = new Request("http://localhost/api/atlas-events");
+      const res = await handleRequest(req, stubServer);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("text/event-stream");
+      await res.body!.cancel();
+    } finally {
+      config.sseMaxClients = origMax;
+    }
   });
 });
 
