@@ -123,14 +123,17 @@ export type FirstSeenIdsArgs = { ids: string[] };
 export type FirstSeenClassArgs = ClassFilter & { ids?: undefined; event?: HistoryEvent };
 export type FirstSeenArgs = FirstSeenIdsArgs | FirstSeenClassArgs | (ClassFilter & { ids?: string[]; event?: HistoryEvent });
 
-function classFieldsOf(opts: ClassFilter): ClassFilter {
+function classFieldsOf(opts: FirstSeenArgs): ClassFilter {
+  // Ids-mode objects have none of these keys; reading them as optional is
+  // how XOR detection shares one extractor without a type-narrowing fight.
+  const o = opts as ClassFilter;
   return {
-    title: opts.title,
-    title_prefix: opts.title_prefix,
-    type: opts.type,
-    doc_no_pattern: opts.doc_no_pattern,
-    ancestor_id: opts.ancestor_id,
-    entity: opts.entity,
+    title: o.title,
+    title_prefix: o.title_prefix,
+    type: o.type,
+    doc_no_pattern: o.doc_no_pattern,
+    ancestor_id: o.ancestor_id,
+    entity: o.entity,
   };
 }
 
@@ -252,6 +255,7 @@ export async function atlasFirstSeen(ix: Indexes, idsOrOpts: string[] | FirstSee
   const hasClass = classFilterProvided(classFieldsOf(idsOrOpts));
   if (hasIds && hasClass) return { error: XOR_ERROR };
   if (!hasIds && !hasClass) return { error: NEITHER_ERROR };
-  if (hasIds) return atlasFirstSeenIds(ix, ids!);
-  return atlasFirstSeenClass(ix, idsOrOpts);
+  if (hasIds) return atlasFirstSeenIds(ix, ids);
+  const event = "event" in idsOrOpts ? idsOrOpts.event : undefined;
+  return atlasFirstSeenClass(ix, { ...classFieldsOf(idsOrOpts), event });
 }

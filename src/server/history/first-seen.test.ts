@@ -66,7 +66,7 @@ function doc(id: string, doc_no: string, title = doc_no): AtlasNode {
 function entity(id: string, slug: string, defining_doc_id: string | null): Entity {
   return { id, slug, name: slug, entity_type: "agent", subtype: null, defining_doc_id, is_active: 1, meta: null };
 }
-function addedRow(doc_id: string, overrides: Partial<{ committed_at: string | null; pr_number: number | null; era: string | null; commit_sha: string; commit_seq: number | null }> = {}) {
+function addedRow(doc_id: string, overrides: Partial<{ committed_at: string | null; pr_number: number | null; pr_title: string | null; era: string | null; commit_sha: string; commit_seq: number | null }> = {}) {
   return {
     doc_id,
     committed_at: "2025-01-15",
