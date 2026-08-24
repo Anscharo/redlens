@@ -35,20 +35,12 @@ export const FORUM_CYCLES: readonly ForumCycle[] = [
   },
 ];
 
-export const FORUM_CYCLE_BY_SLUG: ReadonlyMap<string, ForumCycle> = new Map(
-  FORUM_CYCLES.map((c) => [c.slug, c]),
-);
-
 export const FORUM_CYCLE_BY_KIND: ReadonlyMap<ForumKind, ForumCycle> = new Map(
   FORUM_CYCLES.map((c) => [c.kind, c]),
 );
 
 export function isForumKind(value: string): value is ForumKind {
   return FORUM_CYCLE_BY_KIND.has(value as ForumKind);
-}
-
-export function cycleBySlug(slug: string): ForumCycle | undefined {
-  return FORUM_CYCLE_BY_SLUG.get(slug);
 }
 
 /** Pull Discourse tag slugs out of either `["msc"]` or `[{ slug: "msc" }]`. */
@@ -79,7 +71,6 @@ export function classifyForumTopic(tags: unknown, title: string): ForumKind | nu
 
 /** Embedding grain. Topic = title + OP; post = a substantial reply. Not sentences. */
 export const FORUM_EMBED_GRAINS = ["topic", "post"] as const;
-export type ForumEmbedGrain = (typeof FORUM_EMBED_GRAINS)[number];
 
 /** Replies shorter than this (stripped text) are not worth their own vector. */
 export const FORUM_POST_EMBED_MIN_CHARS = 200;

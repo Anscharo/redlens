@@ -1,10 +1,10 @@
 import { Link } from "../Link";
 import { actorHref } from "@/lib/routes";
-import { FORUM_CYCLE_BY_KIND } from "@/lib/forumKinds";
+import { FORUM_CYCLES } from "@/lib/forumKinds";
 import type { ActorProfile } from "../../lib/actorIndex";
 import { ActorSettlements } from "./ActorSettlements";
 
-const MSC_FORUM = FORUM_CYCLE_BY_KIND.get("msc");
+const FORUM_TAG_URL = FORUM_CYCLES[0].forumTagUrl;
 
 interface Props {
   profile: ActorProfile;
@@ -23,18 +23,16 @@ export function ActorSettlementsPage({ profile }: Props) {
         <h1 className="text-xl font-semibold mb-2" style={{ color: "var(--tan)" }}>
           Monthly settlement
         </h1>
-        {MSC_FORUM && (
-          <p className="text-sm mb-6" style={{ color: "var(--tan-3)" }}>
-            <a
-              href={MSC_FORUM.forumTagUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent hover:underline"
-            >
-              Sky Forum reports
-            </a>
-          </p>
-        )}
+        <p className="text-sm mb-6" style={{ color: "var(--tan-3)" }}>
+          <a
+            href={FORUM_TAG_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent hover:underline"
+          >
+            Sky Forum reports
+          </a>
+        </p>
         <ActorSettlements slug={entity.slug} name={entity.name} />
       </div>
     </div>

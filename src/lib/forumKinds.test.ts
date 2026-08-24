@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   FORUM_CYCLES,
+  FORUM_EMBED_GRAINS,
   FORUM_ORIGIN,
   classifyForumTopic,
   shouldEmbedPost,
@@ -69,6 +70,7 @@ describe("stripHtml", () => {
 
 describe("embedding grain", () => {
   it("embeds the topic as title + original-post body (caller strips HTML)", () => {
+    expect(FORUM_EMBED_GRAINS).toEqual(["topic", "post"]);
     expect(topicEmbedText("MSC #11", stripHtml("<p>Report body</p>"))).toBe("MSC #11\n\nReport body");
   });
 
