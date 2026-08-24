@@ -78,7 +78,8 @@ export type ChatEvent =
       // them still parses. Absent is treated as empty/false, never as "clean".
       ungroundedCitationValues?: string[];
       paramMismatches?: ParamMismatch[];
-      // The answer hit the output-token cap mid-generation. Not a citation
+      completenessFailures?: string[];
+  // The answer hit the output-token cap mid-generation. Not a citation
       // problem, but it forces a `fail` server-side, so the badge has to be
       // able to say so.
       lengthCapped?: boolean;

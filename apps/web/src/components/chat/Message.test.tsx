@@ -154,6 +154,7 @@ describe("Message", () => {
             ungroundedAddresses: [],
             ungroundedCitationValues: [],
             paramMismatches: [],
+            completenessFailures: [],
             lengthCapped: false,
           },
         })}

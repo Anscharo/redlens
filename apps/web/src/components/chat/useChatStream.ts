@@ -30,6 +30,7 @@ export interface VerifyState {
   ungroundedAddresses: string[];
   ungroundedCitationValues: string[];
   paramMismatches: ParamMismatch[];
+  completenessFailures: string[];
   lengthCapped: boolean;
 }
 
@@ -208,7 +209,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
               statusLine: ev.detail ?? `${ev.stage}…`,
               stageLog,
               ...(ev.stage === "checking" && !m.verify
-                ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [], lengthCapped: false } }
+                ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [], completenessFailures: [], lengthCapped: false } }
                 : {}),
             };
           });
@@ -226,6 +227,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
               ungroundedAddresses: ev.ungroundedAddresses,
               ungroundedCitationValues: ev.ungroundedCitationValues ?? [],
               paramMismatches: ev.paramMismatches ?? [],
+              completenessFailures: ev.completenessFailures ?? [],
               lengthCapped: ev.lengthCapped ?? false,
             },
           }));

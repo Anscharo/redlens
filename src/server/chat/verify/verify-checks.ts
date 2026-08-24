@@ -7,6 +7,7 @@
 import { UUID_RE, EVM_ADDRESS_SRC, SOL_ADDRESS_SRC, DOC_NO_CORE } from "../../../lib/patterns.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import { findParamMismatches, type ParamMismatch } from "./param-checks.ts";
+import { completenessFailuresOf, type CompletenessEvidence } from "./completeness.ts";
 
 // The system prompt's citation link format: [Title](/atlas/<uuid>). ONE source
 // of truth shared with scripts/aux/eval-golden-grade.ts so grader and runtime
@@ -531,6 +532,9 @@ export interface CheckReport {
   // param-checks.ts's findParamMismatches) — a HARD failure like the other
   // invented facts.
   paramMismatches: ParamMismatch[];
+  // Exhaustive/extremum questions answered from a ranked page (or hedged
+  // "among those queried") — hard fail; recovery must requery the class.
+  completenessFailures: string[];
   // Soft wrong-doc assist: claim sentences whose vocabulary barely occurs in the
   // doc they cite. Informs the verifier prompt; never fails a turn.
   lowOverlapCitations: string[];
@@ -545,7 +549,12 @@ export interface CheckReport {
   failed: boolean;
 }
 
-export function runDeterministicChecks(answer: string, evidenceTexts: string[], ix: Indexes): CheckReport {
+export function runDeterministicChecks(
+  answer: string,
+  evidenceTexts: string[],
+  ix: Indexes,
+  completeness?: { question: string; evidence: CompletenessEvidence[] },
+): CheckReport {
   const citations = extractCitations(answer);
   const invalidCitations = findInvalidCitationUuids(citations, ix);
   const invalidDocNos = findInvalidDocNos(answer, ix);
@@ -554,6 +563,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
   const ungroundedAddresses = findUngroundedAddresses(answer, evidenceTexts);
   const ungroundedCitationValues = findUngroundedCitationValues(answer, evidenceTexts, ix);
   const paramMismatches = findParamMismatches(answer, ix);
+  const completenessFailures = completenessFailuresOf(completeness?.question, answer, completeness?.evidence);
   return {
     citations,
     invalidCitations,
@@ -567,6 +577,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
     untracedNumbers: findUntracedNumbers(answer, evidenceTexts),
     lowOverlapCitations: findLowOverlapCitations(answer, ix),
     paramMismatches,
+    completenessFailures,
     lengthCapped: false,
     failed:
       invalidCitations.length > 0 ||
@@ -575,6 +586,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
       ungroundedQuotes.length > 0 ||
       ungroundedAddresses.length > 0 ||
       ungroundedCitationValues.length > 0 ||
-      paramMismatches.length > 0,
+      paramMismatches.length > 0 ||
+      completenessFailures.length > 0,
   };
 }

@@ -16,6 +16,7 @@ import { config } from "../config.ts";
 import { createRoundChecker, type RoundTelemetry } from "./verify/round-checks.ts";
 import { runDeterministicChecks, type CheckReport } from "./verify/verify-checks.ts";
 import { findParamsMentioned, formatParamMismatch, type ParamMismatch } from "./verify/param-checks.ts";
+import { COMPLETENESS_REQUERY_STEER, type CompletenessEvidence } from "./verify/completeness.ts";
 import { createLinkJudge, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
 import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation-normalize.ts";
 import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
@@ -69,6 +70,7 @@ export type HarnessEvent =
       // then cannot say why. Every input to `failed` belongs on this wire.
       ungroundedCitationValues: string[];
       paramMismatches: ParamMismatch[];
+      completenessFailures: string[];
       lengthCapped: boolean;
     };
 
@@ -119,6 +121,7 @@ function verifyEvent(
     ungroundedAddresses: checks.ungroundedAddresses,
     ungroundedCitationValues: checks.ungroundedCitationValues,
     paramMismatches: checks.paramMismatches,
+    completenessFailures: checks.completenessFailures,
     lengthCapped: checks.lengthCapped,
   };
 }
@@ -199,8 +202,16 @@ function identifiersMeta(i: IdentifierRepair) {
 // mid-generation) is folded the same way: it's not a citation problem, but it
 // must equally force `failed` so the escalation gate below sees it and the
 // harness attempts a recovery.
-function repairedChecks(content: string, toolTexts: string[], ix: Indexes, repair: CitationRepair, lengthCapped: boolean, undefinedLabels: string[] = []): CheckReport {
-  const checks = runDeterministicChecks(content, toolTexts, ix);
+function repairedChecks(
+  content: string,
+  toolTexts: string[],
+  ix: Indexes,
+  repair: CitationRepair,
+  lengthCapped: boolean,
+  undefinedLabels: string[] = [],
+  completeness?: { question: string; evidence: CompletenessEvidence[] },
+): CheckReport {
+  const checks = runDeterministicChecks(content, toolTexts, ix, completeness);
   if (repair.stripped.length === 0 && undefinedLabels.length === 0 && !lengthCapped) return checks;
   return {
     ...checks,
@@ -266,6 +277,11 @@ function describeCheckFailures(checks: CheckReport): string[] {
     ...checks.ungroundedAddresses.map((a) => `address ${a} appears in no tool result this turn — remove it or replace it with an address you actually retrieved`),
     ...checks.ungroundedCitationValues.map((v) => `${v} — cite the value to the document that actually contains it, or drop the figure`),
     ...checks.paramMismatches.map((m) => `${formatParamMismatch(m)} — state the correct atlas value instead`),
+    ...checks.completenessFailures.map((d) =>
+      d.includes("requery") || d.includes("class was not listed")
+        ? d
+        : `${d} — ${COMPLETENESS_REQUERY_STEER}`,
+    ),
     ...(checks.lengthCapped ? ["the previous answer was cut off by the output length limit before it finished — write a complete, more concise answer that fits"] : []),
   ];
 }
@@ -527,7 +543,10 @@ export async function* runVerifiedChat(opts: {
     toolTexts = toolTextsOf(done.transcript);
     const { refs, repair, identifiers } = normalizeAndRepair(done.content, toolTexts, opts.ix);
     if (repair.content !== done.content) done = { ...done, content: repair.content };
-    checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped, refs.undefinedLabels);
+    checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped, refs.undefinedLabels, {
+      question: opts.question,
+      evidence,
+    });
     checksMeta.push({
       kind: "round_checks", model: null, action: null,
       verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, refs: refsMeta(refs), identifiers: identifiersMeta(identifiers), checks: { ...checks, citations: checks.citations.length } },
@@ -660,7 +679,10 @@ export async function* runVerifiedChat(opts: {
     const revToolTexts = toolTextsOf(revDone.transcript);
     const { refs: revRefs, repair: revRepair } = normalizeAndRepair(revDone.content, revToolTexts, opts.ix);
     if (revRepair.content !== revDone.content) revDone = { ...revDone, content: revRepair.content };
-    revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair, revDone.lengthCapped, revRefs.undefinedLabels);
+    revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair, revDone.lengthCapped, revRefs.undefinedLabels, {
+      question: opts.question,
+      evidence: revEvidence,
+    });
   } catch (err) {
     captureError(err, opts.obs, { stage: "revision_citation_repair_or_checks" });
     yield finish(revDone);

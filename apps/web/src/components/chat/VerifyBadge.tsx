@@ -32,6 +32,7 @@ export function VerifyBadge({ verify, onAtlas }: { verify: VerifyState; onAtlas:
     // that refused to expand and explain itself.
     verify.ungroundedCitationValues.length +
     verify.paramMismatches.length +
+    verify.completenessFailures.length +
     (verify.lengthCapped ? 1 : 0);
   const label =
     verify.status === "warn"
@@ -111,6 +112,11 @@ export function VerifyBadge({ verify, onAtlas }: { verify: VerifyState; onAtlas:
               </a>
               {m.owner ? ` (${m.owner})` : ""} — our reading of the atlas has{" "}
               <strong>{m.actual}</strong>
+            </li>
+          ))}
+          {verify.completenessFailures.map((d) => (
+            <li key={d} data-status="contradicted">
+              {d}
             </li>
           ))}
           {flagged.map((c, i) => (

@@ -16,6 +16,7 @@ const base: Omit<VerifyState, "status"> = {
   ungroundedAddresses: [],
   ungroundedCitationValues: [],
   paramMismatches: [],
+  completenessFailures: [],
   lengthCapped: false,
 };
 
@@ -140,6 +141,23 @@ describe("VerifyBadge", () => {
     expect(btn).not.toBeDisabled();
     fireEvent.click(btn);
     expect(screen.getByRole("listitem")).toHaveTextContent("cut off by the output length limit");
+  });
+
+  it("expands and explains a completeness failure that is the only finding", () => {
+    render(
+      <VerifyBadge
+        verify={{
+          ...base,
+          status: "fail",
+          completenessFailures: ["the class was not listed to completion; call atlas_filter before answering."],
+        }}
+        onAtlas={noop}
+      />,
+    );
+    const btn = screen.getByRole("button");
+    expect(btn).not.toBeDisabled();
+    fireEvent.click(btn);
+    expect(screen.getByRole("listitem")).toHaveTextContent("class was not listed to completion");
   });
 
   it("invokes onAtlas instead of navigating when a param mismatch link is clicked", () => {
