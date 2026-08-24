@@ -75,6 +75,8 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("## Entity traversal (live graph)");
     expect(prompt).toContain("## Tools");
     expect(prompt).toContain("atlas_query");
+    expect(prompt).toContain("complete class listing");
+    expect(prompt).not.toContain("answer immediately once you have the evidence");
     expect(prompt).toContain("## Citations & rendering");
     expect(prompt).not.toContain("## Current page");
   });

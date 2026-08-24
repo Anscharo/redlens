@@ -7,6 +7,7 @@
 import { config } from "../config.ts";
 import type { CitationStyle } from "./system-prompt.ts";
 import { looksComplex } from "./complexity.ts";
+import { EXTREMUM_Q_RE } from "./verify/completeness.ts";
 
 export type ModelTier = "fast" | "default" | "strong";
 
@@ -50,6 +51,8 @@ const STRONG_SIGNALS: [RegExp, string][] = [
   // question the strong tier won was enumeration or generation, and the default
   // model's failure mode there is completeness (0.70 vs 0.95), not fabrication.
   [/\b(generate|compile|enumerate|inventory|timeline|trends?)\b/i, "synthesis"],
+  // Superlative over a class: the extreme is often not in BM25 top-k.
+  [EXTREMUM_Q_RE, "extremum"],
 ];
 
 export function routeTier(question: string, opts: { followUp?: boolean } = {}): Route {

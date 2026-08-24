@@ -67,6 +67,12 @@ describe("routeTier", () => {
     expect(routeTier("What trends do you notice over the history of the Atlas?").reason).toBe("synthesis");
   });
 
+  test("extremum questions route strong", () => {
+    expect(routeTier("What is the oldest rate limit id in the atlas.").reason).toBe("extremum");
+    expect(routeTier("Which Rate Limit was first-seen?").reason).toBe("extremum");
+    expect(routeTier("What is the newest Action Tenet?").reason).toBe("extremum");
+  });
+
   test("ordinary mid-size questions stay default", () => {
     expect(routeTier("How does the Stability Scope handle collateral onboarding?").tier).toBe("default");
   });
