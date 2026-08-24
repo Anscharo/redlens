@@ -576,7 +576,7 @@ Regex: `/^\s*[-*]\s+\`([^\`\n]+)\`\s*:\s*(.+?)\s*$/gm`. Single-bullet leaves sti
 
 ### Pattern 15: `invoked_by` — instance → agent affiliation
 
-Every in-scope Instance entity emits an entity→entity `invoked_by` edge to its Prime Agent. Purpose: the `/constellations` graph clusters Instances under their owning agent instead of leaving them as 170+ floating nodes.
+Every in-scope Instance entity emits an entity→entity `invoked_by` edge to its Prime Agent. Purpose: MCP/chat entity-address walks and Radar's relations clusters Instances under their owning agent instead of leaving them as 170+ floating nodes.
 
 - `invoked_by`: `entity(instance) → entity(agent/prime)`, source: `[ICD doc_no]`, meta mirrors the `instance_of` status payload
 - Resolver: match the ICD doc_no against `/^(A\.6\.1\.1\.\d+)/` to locate the prime agent doc, then its entity via `entityByDocId`
@@ -863,7 +863,7 @@ The extractor is not a neutral reading of the atlas — it makes judgment calls 
 
 **Atlas phrasing:** every Primitive can be invoked, and every invocation produces an ICD (A.2.2.1.3). A uniform reading would emit an `et="instance"` entity for every ICD the atlas contains.
 
-**Choice:** all 13 primitives currently in `INSTANCE_SCOPED_PRIMITIVES` get instance entities — including `Agent Creation`, `Prime Transformation`, and `Ecosystem Upkeep Fee`. The allowlist still exists to keep the door closed on any future primitives that don't warrant entity-level representation; add a new entry only when you want its instances to appear in constellations/radar.
+**Choice:** all 13 primitives currently in `INSTANCE_SCOPED_PRIMITIVES` get instance entities — including `Agent Creation`, `Prime Transformation`, and `Ecosystem Upkeep Fee`. The allowlist still exists to keep the door closed on any future primitives that don't warrant entity-level representation; add a new entry only when you want its instances to appear in Radar/MCP relations.
 
 ### 10. Instance params are `[value, srcUuid, srcDocNo]` tuples with per-key formatters
 
