@@ -21,6 +21,10 @@ export function heartbeat(): void {
 }
 setInterval(heartbeat, HEARTBEAT_MS).unref?.();
 
+export function sseClientCount(): number {
+  return clients.size;
+}
+
 export function registerSSEClient(
   enqueue: (chunk: string) => void,
   close: () => void,

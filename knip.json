@@ -12,6 +12,7 @@
     "scripts/aux/measure-embed.ts",
     "scripts/aux/leaf-attribution-experiment.ts",
     "scripts/aux/atlas-history/**",
+    "scripts/aux/load/**",
     "scripts/htmlhist/check-cross-agent.mjs",
     "scripts/htmlhist/export-decisions-judge.mjs",
     "scripts/htmlhist/render-decisions.mjs",

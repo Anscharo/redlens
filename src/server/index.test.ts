@@ -311,6 +311,10 @@ describe("handleRequest — /api/health", () => {
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.atlas_sha).toBe(ATLAS_SHA);
     expect(body.docs).toBe(1);
+    expect(typeof body.rss_mb).toBe("number");
+    expect(body.rss_mb).toBeGreaterThanOrEqual(0);
+    expect(typeof body.sse_clients).toBe("number");
+    expect(body.sse_clients).toBeGreaterThanOrEqual(0);
     // No Postgres in this test environment (confirmed the same way db.test.ts
     // does — nothing listens on the configured port) — the sync_state read
     // fails fast and evaluateFreshness catches it for real; not mocked.
