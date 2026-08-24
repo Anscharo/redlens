@@ -13,7 +13,7 @@
 > [`atlas-report-remaining-kinds.md`](./plans/atlas-report-remaining-kinds.md);
 > [`docs/plans/chat-class-completeness.md`](./plans/chat-class-completeness.md)
 > (search is ranked — superlatives and exhaustive questions need a class listing
-> / history extremum, not top-k);
+> and class-mode `atlas_first_seen`, not top-k);
 > [`reference-citations.md`](./plans/reference-citations.md).
 
 An agentic, tool-calling RAG assistant over the Sky Atlas. The model never

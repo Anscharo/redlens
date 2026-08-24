@@ -43,9 +43,10 @@ Two tool gaps made the incident inevitable even with a better prompt:
    depth. Rate Limit leaves are titled `"Rate Limit"` (singular). They are not
    a document type. The title-templates census tracks `"Rate Limits"` (plural)
    only. `type: "Core"` is thousands of rows, not this class.
-2. **No history extremum over a class.** `atlas_history` is one doc.
-   `atlas_first_seen` is ≤50 ids you already have. `atlas_recent_changes` is
-   newest-first, last 30 days by default — the opposite question.
+2. **`atlas_first_seen` only works once you already have ids.** It is a batch
+   lookup (≤50 slugs/UUIDs) of the earliest `added` row. The incident never
+   had the class in hand — it passed search hits in. `atlas_history` is one
+   doc. `atlas_recent_changes` is newest-first, last 30 days by default.
 
 The prompt currently says most questions need one `atlas_query` and to answer
 once evidence exists. That is correct for lookup. It is the wrong pressure for
@@ -117,58 +118,66 @@ not apply to those shapes. Routing (`model-router.ts`): add
 Do **not** treat routing as the fix — luna will still search-and-stop without
 the listing tool.
 
-## Phase 2 — extremum over a class (the “oldest” primitive)
+## Phase 2 — class mode on `atlas_first_seen` (no new tool)
 
-A new history tool, not a 50-id loop of `atlas_first_seen`.
+Do **not** add `atlas_history_extremum`. The model already knows
+`atlas_first_seen` for “when / oldest / since when.” A second history tool
+with a new name is a tool-choice miss waiting to happen: the incident path
+would keep calling `atlas_first_seen` on ten search ids. Widen the tool that
+question already wants.
 
-**Name:** `atlas_history_extremum` (own tool, DB-backed, same reason
-`atlas_first_seen` is not folded into the sync graph tools).
+`atlas_first_seen` today (`src/server/history/first-seen.ts`): `ids` (1–50) →
+one row per requested id → earliest `change_type = 'added'`. Keep that mode
+byte-identical. Add a **second exclusive mode**.
 
-**Class selector** — same fields as the listing path: `title`, `title_prefix`,
-`type`, `doc_no_pattern`, `ancestor_id`, `entity`. Resolve the class in
-process from `Indexes` (UUIDs), then one SQL over `atlas_history`.
+**XOR.** Either `ids` (batch, cap 50, current shape) **or** a class selector
+(`title`, `title_prefix`, `type`, `doc_no_pattern`, `ancestor_id`, `entity` —
+same fields as Phase 1). Both, or neither, is an error. Class mode resolves
+UUIDs in process from `Indexes`, then one SQL over `atlas_history`. No 50 cap
+on the class: the reduction is the point.
 
-**Event selector:**
+**Still a first-seen: `min` only, default `added`.** Do not add `max` /
+“newest” here — that is last-seen and would make the tool name a lie. Newest
+stays a later change, or a listing + sort, not this tool.
 
-- `added` — earliest/latest `added` row (today’s `atlas_first_seen` meaning).
-- `modified` — earliest/latest `change_type = 'content'` (user-facing
-  “non-move edit”; store vocab `content`, expose `modified` like the other
-  history tools).
-- `any_non_move` — `added` ∪ `content`, excluding `structural`.
+**`event` (optional, default `added`):**
 
-**Extreme:** `min` | `max` on `committed_at` (null dates sort last for `min`,
-never win; surface them in `undated` so a severed-era doc cannot silently
-disappear).
+- `added` — today’s query (earliest `added` row, including seam / undated
+  notes). This is “oldest rate limit id” as first-seen.
+- `modified` — earliest `change_type = 'content'` (user-facing “non-move
+  edit”). This is the incident follow-up. Store vocab stays `content`; expose
+  `modified` like the other history tools. First *edit* is still a first-seen.
 
-**Return:**
+Do not add `any_non_move` or `max` in this pass.
+
+**Class-mode return** is a reduction, not 400 per-id rows (that re-blows the
+byte budget and looks like a page):
 
 ```
 {
-  class_total: number,          // docs in the class
+  class_total: number,
   class_with_history: number,
-  event: "modified",
-  extreme: "min",
-  ties: [{ uuid, doc_no, title, date, source, change_type, pr_number, pr_title }],
-  undated: [{ uuid, doc_no, note }],   // optional
+  event: "added" | "modified",
+  oldest: [{ uuid, doc_no, title, date, source, pr_number, pr_title }],
+  undated: [{ uuid, doc_no, note }],
 }
 ```
 
-Ties (same date) all return — the incident’s three 2026-07-10 IDs were a real
-tie *inside a subset*; the tool must show ties inside the **class**. Cap `ties`
-only with an explicit `truncated` on that array, never by dropping extras.
+`oldest` is every tie at the minimum date. Cap that array only with
+`truncated` on `oldest`, never by dropping extras silently. Ids-mode `results`
+is unchanged.
 
-`whenToUse`: questions that ask for the oldest / newest / first / last document
-in a named class. Cite dates as history-derived, never as atlas-stated
-(`atlas_first_seen` already has this rule).
+`whenToUse` grows by one sentence: for a named class (“oldest Rate Limit”),
+pass `title` / `type` / … — do **not** pass ids you got from search. Cite as
+history-derived, same as today.
 
-Fixture: the incident UUID must beat any `"Rate Limit"` leaf whose first
-`content` event is 2026-07-10, for `title: "Rate Limit"`, `event: "modified"`,
-`extreme: "min"`. Skip the assertion when `atlas_history` is empty (unit tests
-without Postgres); the DB-backed suite (`tools-history-db.test.ts`) owns it.
+Fixture (DB suite): `title: "Rate Limit", event: "modified"` must return a
+date older than 2026-07-10 and include `8414b48b-…` (or skip when history is
+empty). Ids-mode tests must stay green with no shape change.
 
 Phase 2 does **not** replace Phase 1. Listing is still required for “all” /
-“how many.” Extremum is the reduction so “oldest” does not need N history
-calls inside a 4-round budget.
+“how many.” Class-mode first_seen is the reduction so “oldest” does not need
+N history calls inside a 4-round budget.
 
 ## Phase 3 — completeness contract (make the harness notice)
 
@@ -187,9 +196,10 @@ I found” **still counts** — that hedge is the incident’s verifier-escape.
 
 **Grounded** only if this turn’s tool evidence includes either:
 
-- an `atlas_history_extremum` result whose `class_total` is cited or implied, or
-- an `atlas_filter` (or equivalent listing) with `has_more !== true` and
-  `truncated !== true` for the same class.
+- an `atlas_first_seen` **class-mode** result (title/type/…, not `ids`) whose
+  `class_total` is present, or
+- an `atlas_filter` listing with `has_more !== true` and `truncated !== true`
+  for the same class.
 
 **Refuted** if an extremum/listing in evidence disagrees with the claimed
 winner or count (the listing/extremum is the table; treat like param
@@ -199,8 +209,8 @@ mismatches).
 unverified is softer; here the question *required* a census). That fail must
 steer the advisor to **`requery`**, not `rewrite`. Extend `describeCheckFailures`
 with one sentence the recovery prompt already understands: *the class was not
-listed to completion; call `atlas_filter` / `atlas_history_extremum` before
-answering.*
+listed to completion; call `atlas_filter` or `atlas_first_seen` with a title/type
+filter (not search ids) before answering.*
 
 Do not ask the claim-table verifier to notice missing documents. It only sees
 retrieved evidence; an incomplete retrieve looks well-cited. This contract is
@@ -211,8 +221,10 @@ Tests (mutation-check like the rest of this PR):
 - Incident-shaped answer + only `atlas_search` evidence → fail, requery.
 - Same answer + untruncated `atlas_filter` title listing whose `total` matches
   the named set → pass (listing questions).
-- Extremum answer + `atlas_history_extremum` ties that include the claimed
-  UUID → pass.
+- Extremum answer + class-mode `atlas_first_seen` whose `oldest` includes the
+  claimed UUID → pass.
+- Extremum answer + ids-mode `atlas_first_seen` on a search-sized batch → fail
+  (that is the incident).
 - “Among those queried” hedge + search evidence → still fail.
 
 ## Phase 4 — eval so it cannot regress to search-and-stop
@@ -228,8 +240,9 @@ Score **tool choice**, not just the prose:
 
 - Fail if the first membership/extremum call is `atlas_search` / `atlas_query`
   with only `q`.
-- Pass if `atlas_filter` (title) or `atlas_history_extremum` ran before the
-  answer, and a listing used for “all” was not `has_more`.
+- Pass if `atlas_filter` (title) or class-mode `atlas_first_seen` ran before
+  the answer, and a listing used for “all” was not `has_more`.
+- Fail if `atlas_first_seen` ran only with `ids` taken from a prior search.
 
 Run against the default and strong chains when a key is present; the tool-choice
 arm can run on traces without a judge. Add the incident query to
@@ -250,7 +263,7 @@ arm can run on traces without a judge. Add the incident query to
 
 1. Phase 1 (listing + envelope + prompt). Without it, Phase 3 has no “complete
    listing” to require.
-2. Phase 2 (extremum). Makes “oldest” fit the 4-round budget.
+2. Phase 2 (class-mode `atlas_first_seen`). Makes “oldest” fit the 4-round budget.
 3. Phase 3 (harness). Makes search-and-stop a red chip and a requery, not a
    green subset.
 4. Phase 4 (eval). Locks the incident in CI-adjacent measurement.
@@ -268,8 +281,9 @@ four rounds of search.
   reintroduces ranking.
 - **Class larger than the byte budget.** Slim rows (`include_content: false`)
   should fit hundreds of titles. If `total` still cannot be returned in one
-  page, `has_more` plus Phase 2’s in-SQL reduction is the path — never a
+  page, `has_more` plus Phase 2’s class-mode reduction is the path — never a
   silent clip.
-- **`atlas_first_seen` vs the new tool.** Keep `atlas_first_seen` for “these
-  12 ids, when were they added.” Do not overload it with filters; the
-  modified/non-move axis does not belong there.
+- **Newest / last-seen.** Out of `atlas_first_seen` on purpose (`min` of
+  `added`/`modified` only). If that shape shows up in traces, add a sibling
+  `atlas_last_seen` or an `extreme` flag then — do not cram `max` into
+  first-seen.
