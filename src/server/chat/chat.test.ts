@@ -72,6 +72,7 @@ const { config } = await import("../config.ts");
 const { signSession, SESSION_COOKIE } = await import("../session.ts");
 const { loadIndexes, setIndexes } = await import("../retrieval/indexes.ts");
 const { tryAcquireChatSlot, releaseChatSlot, inFlightChatCount } = await import("./concurrency.ts");
+const { __resetCommonsCache } = await import("./credits.ts");
 
 test("a normal-sized message is not rejected", () => {
   expect(messageExceedsLimit("What does the atlas say about facilitators?")).toBe(false);
@@ -537,6 +538,59 @@ describe("handleChat", () => {
       });
       const res = await handleChat(await requestAs(userId, { message: "hi" }));
       expect(res.status).toBe(429);
+      expect(inFlightChatCount(userId)).toBe(0);
+    });
+
+    it("a request rejected by the commons gate still releases its slot", async () => {
+      const userId = "concurrency-commons-exhausted-user";
+      __resetCommonsCache(); // module-level cache/inflight is process-global across test files
+      const prevKey = config.openrouterManagementKey;
+      config.openrouterManagementKey = "test-management-key";
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = (async (input: RequestInfo | URL) =>
+        String(input).includes("/credits")
+          ? new Response(JSON.stringify({ data: { total_credits: 10, total_usage: 10 } }), { status: 200 })
+          : prevImpl(input)) as unknown as typeof fetch;
+      sqlHandlers.push((text) => {
+        if (text.includes("FROM usage_events")) return [{ tokens: 0 }];
+        return undefined;
+      });
+      try {
+        const res = await handleChat(await requestAs(userId, { message: "hi" }));
+        expect(res.status).toBe(429);
+        expect(((await res.json()) as any).error).toBe("commons_exhausted");
+        expect(inFlightChatCount(userId)).toBe(0);
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+        config.openrouterManagementKey = prevKey;
+      }
+    });
+
+    it("a request 404ing on conversation_not_found still releases its slot", async () => {
+      const userId = "concurrency-conv-not-found-user";
+      sqlHandlers.push((text) => {
+        if (text.includes("FROM usage_events")) return [{ tokens: 0 }];
+        if (text.includes("conversations WHERE id")) return []; // not found / not owned
+        return undefined;
+      });
+      const res = await handleChat(await requestAs(userId, { message: "hi", conversationId: "someone-elses-convo" }));
+      expect(res.status).toBe(404);
+      expect(inFlightChatCount(userId)).toBe(0);
+    });
+
+    // The bug this guards against: only the two 429 branches and the stream's
+    // own `finally` used to release the slot. Anything else that threw between
+    // acquire and the stream's construction (a DB blip in getWindowUsage,
+    // resolveConversation, the messages INSERT/history SELECT/UPDATE) leaked
+    // the slot silently — the caller would sit on too_many_concurrent forever.
+    // The outer try/finally (streamOwnsSlot) now covers every one of those.
+    it("releases its slot even when a DB call after acquire throws, instead of leaking it", async () => {
+      const userId = "concurrency-db-throw-user";
+      sqlHandlers.push((text) => {
+        if (text.includes("FROM usage_events")) throw new Error("db unavailable");
+        return undefined;
+      });
+      await expect(handleChat(await requestAs(userId, { message: "hi" }))).rejects.toThrow("db unavailable");
       expect(inFlightChatCount(userId)).toBe(0);
     });
   });

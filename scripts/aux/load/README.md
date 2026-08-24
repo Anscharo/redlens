@@ -4,8 +4,10 @@ Off the `pnpm build` chain. Measures **three different limits** of the Railway
 web singleton (`replicas: 1` — do not scale out). Target defaults to
 `https://redlens-development.up.railway.app`.
 
-There is no coded max-concurrent-chat gate. Chat is request-scoped SSE
-(`POST /api/chat`); idle tabs hold `GET /api/atlas-events` instead.
+Chat is request-scoped SSE (`POST /api/chat`); idle tabs hold
+`GET /api/atlas-events` instead. `POST /api/chat` enforces a max-concurrent
+gate per user (`chat/concurrency.ts`, `CHAT_MAX_CONCURRENT_PER_USER`, default
+3) ahead of the token-window/commons checks — see `docs/chat-system.md`.
 
 ## Abort criteria (all experiments)
 
@@ -144,11 +146,12 @@ saturated (would burn OpenRouter commons). Unauthenticated `POST /api/chat`:
 - 20 concurrent → all **401** `unauthenticated`, ~180 ms
 - 50 concurrent → all **401**, health still ~90 ms
 
-The auth gate is cheap. There is still **no** max-concurrent-chat semaphore;
-real limits are the per-user 500k tokens / 120 min window, `commons_exhausted`,
+The auth gate is cheap. This run predates the per-user max-concurrent gate
+(`chat/concurrency.ts`, default 3) added since — real limits below that cap
+are the per-user 500k tokens / 120 min window, `commons_exhausted`,
 OpenRouter, and process CPU/RAM of verifier slices. Re-run
 `bun scripts/aux/load/run.mjs chat` with several test cookies on a throwaway
-service to measure authenticated SSE.
+service to measure authenticated SSE against the new gate.
 
 ### OOM
 
