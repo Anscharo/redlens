@@ -217,9 +217,11 @@ async function runOne(model: string, q: BakeoffQuery): Promise<RunResult> {
     // reference-style answer contains no `[text](/atlas/<uuid>)` for any checker
     // to see, so grading the raw string would score it as entirely uncited.
     const { refs, repair } = normalizeAndRepair(done.content, toolTexts, ix);
-    const rawChecks = runDeterministicChecks(refs.content, toolTexts, ix); // before repair
-    const shipped = runDeterministicChecks(repair.content, toolTexts, ix); // what ships
-    const evidence = evidenceFromTranscript(done.transcript).map((e) => `${e.label} ${e.tool}(${e.args}) →\n${e.content}`).join("\n\n");
+    const turnEvidence = evidenceFromTranscript(done.transcript);
+    const completeness = { question: q.query, evidence: turnEvidence };
+    const rawChecks = runDeterministicChecks(refs.content, toolTexts, ix, completeness); // before repair
+    const shipped = runDeterministicChecks(repair.content, toolTexts, ix, completeness); // what ships
+    const evidence = turnEvidence.map((e) => `${e.label} ${e.tool}(${e.args}) →\n${e.content}`).join("\n\n");
     const judge = NO_JUDGE ? null : await judgeAnswer(q, evidence, repair.content);
 
     const fabrications = {

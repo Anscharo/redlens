@@ -235,8 +235,11 @@ event reaches a client (test-asserted).
 2. **Deterministic checks** — `expandReferenceLinks` normalizes reference-style
    citations into the canonical inline shape, `repairCitations` fixes or strips
    Atlas links, `repairIdentifierLeaks` promotes or deletes leaked slugs, then
-   `runDeterministicChecks` validates UUIDs, doc_nos, quotes, addresses, and
-   **parameter values** against the live indexes.
+   `runDeterministicChecks` validates UUIDs, doc_nos, quotes, addresses,
+   **parameter values**, and **class completeness** (superlative / exhaustive
+   questions must have listed the class via `atlas_filter` or class-mode
+   `atlas_first_seen`; hedging “among those queried” still fails) against the
+   live indexes.
 3. **Sliced model verifier** (if `CHAT_VERIFIER_MODEL` set) — see below.
 4. **Advisor escalation** (if `CHAT_ADVISOR_MODEL` set) — see below.
 
@@ -300,6 +303,26 @@ The originating call's raw `args` are load-bearing here: an empty search envelop
 (`{"count":0,"results":[]}`) carries no words of its own, so the query is the only
 record of *what* was searched for — the only way to tell "nothing found for X"
 from "nothing found for something else entirely."
+
+### 6.25 Class completeness (`verify/completeness.ts`)
+
+A superlative or exhaustive question (`oldest` / `all` / `how many`) answered
+from ranked search is the 2026-08-24 incident: the extreme is often *not* in
+BM25 top-k, and hedging “among those queried” left the claim-table verifier
+nothing to contradict. `auditCompleteness` is a three-outcome contract on
+**which tools ran**, not on quoting:
+
+- **GROUNDED** — this turn includes class-mode `atlas_first_seen` (`class_total`)
+  or an `atlas_filter` listing with `has_more` and `truncated` both false.
+- **REFUTED** — that listing/extremum disagrees with a claimed count or winner.
+- **UNVERIFIED** — otherwise, including ids-mode `atlas_first_seen` on a search
+  batch. Hard-fails the turn (unlike absence’s unverified warn) and
+  `describeCheckFailures` steers the advisor to **requery** the class, not
+  rewrite from the page already gathered.
+
+`atlas_filter` now matches exact `title` / `title_prefix`, collects the whole
+class, sorts by `doc_no`, then pages `{ total, count, offset, has_more }`.
+`atlas_first_seen` keeps ids-mode `{ results }` and adds XOR class mode.
 
 ### 6.3 Parameter mismatch — a hard deterministic fail (`verify/param-checks.ts`)
 

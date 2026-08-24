@@ -58,7 +58,10 @@ const ix = loadIndexes();
 const telemetry: RoundTelemetry = { rounds: 1, toolCalls: 1, emptyResults: 0, errorResults: 0, repeatedQueries: 0, notes: [] };
 
 async function grade(model: string | null, run: SavedRun, answer: string): Promise<VerifyOverall> {
-  const checks = runDeterministicChecks(answer, run.evidence.map((e) => e.content), ix);
+  const checks = runDeterministicChecks(answer, run.evidence.map((e) => e.content), ix, {
+    question: run.question,
+    evidence: run.evidence,
+  });
   if (!model) return checks.failed ? "fail" : "unverified";
   const v = await runVerifier({ call: openrouterJson, model, question: run.question, answer, evidence: run.evidence, checks, telemetry });
   return computeOverall(checks, v.verdict);

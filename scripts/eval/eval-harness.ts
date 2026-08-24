@@ -25,6 +25,8 @@ import { buildSystemPrompt } from "../../src/server/chat/system-prompt.ts";
 import { runVerifiedChat, type CheckRowMeta } from "../../src/server/chat/chat-orchestrator.ts";
 import { makeOpenrouterStream, openrouterJson } from "../../src/server/chat/llm.ts";
 import { runDeterministicChecks } from "../../src/server/chat/verify/verify-checks.ts";
+import { evidenceFromTranscript } from "../../src/server/chat/verify/verifier.ts";
+import type { CompletenessEvidence } from "../../src/server/chat/verify/completeness.ts";
 import { config } from "../../src/server/config.ts";
 import { resolveTierModels } from "../../src/server/chat/model-router.ts";
 import { BAKEOFF_QUERIES, type BakeoffQuery } from "./eval-bakeoff-queries.ts";
@@ -71,9 +73,9 @@ const toolTextsOf = (t: Msg[]) => t.filter((m) => m.role === "tool" && typeof m.
 // before the advisor row is written), so this is apples-to-apples. Caveat: on
 // `requery` revisions the original is scored against evidence retrieved later,
 // which flatters the original — a conservative bias for measuring lift.
-function fabsOf(answer: string, toolTexts: string[]): number {
-  const c = runDeterministicChecks(answer, toolTexts, ix);
-  return c.invalidCitations.length + c.invalidDocNos.length + c.docNoMismatches.length + c.ungroundedQuotes.length;
+function fabsOf(answer: string, toolTexts: string[], question: string, evidence: CompletenessEvidence[]): number {
+  const c = runDeterministicChecks(answer, toolTexts, ix, { question, evidence });
+  return c.invalidCitations.length + c.invalidDocNos.length + c.docNoMismatches.length + c.ungroundedQuotes.length + c.completenessFailures.length;
 }
 
 async function runOne(q: BakeoffQuery): Promise<Result> {
@@ -125,8 +127,8 @@ async function runOne(q: BakeoffQuery): Promise<Result> {
       emptyRevision: Boolean(advVerdict?.action) && !revised,
       overallBefore: verifyRow?.overall ?? null,
       overallAfter: recheckRow?.overall ?? null,
-      fabsBefore: originalAnswer ? fabsOf(originalAnswer, toolTexts) : fabsOf(done.content, toolTexts),
-      fabsAfter: fabsOf(done.content, toolTexts),
+      fabsBefore: originalAnswer ? fabsOf(originalAnswer, toolTexts, q.query, evidenceFromTranscript(done.transcript)) : fabsOf(done.content, toolTexts, q.query, evidenceFromTranscript(done.transcript)),
+      fabsAfter: fabsOf(done.content, toolTexts, q.query, evidenceFromTranscript(done.transcript)),
       originalAnswer,
       finalAnswer: done.content,
       latencyMs: Date.now() - started,

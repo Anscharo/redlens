@@ -1,8 +1,8 @@
 # Chat class completeness — answers that are not in top-k
 
-Status: PLANNED (not started). Incident 2026-08-24. Canonical live chat
-behavior remains [`docs/chat-system.md`](../chat-system.md); this file is
-prescriptive for work that is not in the code yet.
+Status: SHIPPED 2026-08-24 (PR #314). Incident 2026-08-24. Canonical live chat
+behavior is [`docs/chat-system.md`](../chat-system.md) §6.25; this file keeps
+the incident write-up and locked decisions.
 
 ## Incident
 
