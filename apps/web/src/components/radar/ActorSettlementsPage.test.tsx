@@ -37,6 +37,10 @@ describe("ActorSettlementsPage", () => {
     render(<ActorSettlementsPage profile={profile()} />);
     expect(screen.getByRole("heading", { level: 1, name: "Monthly settlement" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "radar · Spark" })).toHaveAttribute("href", "/radar/spark");
+    expect(screen.getByRole("link", { name: "Sky Forum reports" })).toHaveAttribute(
+      "href",
+      "https://forum.skyeco.com/tag/monthly-settlement-cycle/1493",
+    );
     expect(screen.getByTestId("settlements-body")).toBeInTheDocument();
   });
 });

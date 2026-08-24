@@ -3,8 +3,7 @@
 // change posts). Adding a series is a new entry here plus a Discourse tag
 // (or title pattern) the worker already knows how to fetch.
 //
-// `kind` is the DB/API value (msc, aec, spell). `slug` is the Radar URL
-// segment under /radar/<slug>.
+// `kind` is the DB/API value (msc, aec, spell). `slug` names the series.
 
 export const FORUM_ORIGIN = "https://forum.skyeco.com";
 

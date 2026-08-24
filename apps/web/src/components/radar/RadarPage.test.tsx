@@ -96,11 +96,6 @@ vi.mock("./ActorSettlementsPage", () => ({
     <div data-testid="settlements-page">{profile.entity.name} settlements</div>
   ),
 }));
-vi.mock("./CycleDashboard", () => ({
-  CycleDashboard: ({ cycle }: { cycle: { slug: string; title: string } }) => (
-    <div data-testid="cycle-dashboard">{cycle.title}</div>
-  ),
-}));
 
 import { RadarPage } from "./RadarPage";
 
@@ -167,18 +162,5 @@ describe("RadarPage actor page", () => {
     expect(await screen.findByText("actor not found")).toBeInTheDocument();
     expect(screen.queryByTestId("actor-dashboard")).not.toBeInTheDocument();
     expect(recordVisit).not.toHaveBeenCalled();
-  });
-});
-
-describe("RadarPage cycle page", () => {
-  it("renders CycleDashboard for the monthly settlement slug and records the visit", async () => {
-    render(<RadarPage query="" actorSlug="monthly-settlement-cycle" />);
-    expect(await screen.findByTestId("cycle-dashboard")).toHaveTextContent("Monthly Settlement Cycle");
-    expect(screen.queryByTestId("actor-dashboard")).not.toBeInTheDocument();
-    expect(screen.queryByText("actor not found")).not.toBeInTheDocument();
-    await waitFor(() => expect(recordVisit).toHaveBeenCalledTimes(1));
-    expect(recordVisit).toHaveBeenCalledWith(
-      expect.objectContaining({ label: "Monthly Settlement Cycle" }),
-    );
   });
 });
