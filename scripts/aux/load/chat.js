@@ -2,10 +2,10 @@
 //
 // Cheap stream (default):
 //   k6 run -e BASE=https://redlens-development.up.railway.app \
-//          -e CHAT_COOKIE='rl_session=...' scripts/aux/load/chat.js
+//          -e CHAT_COOKIE='sky_session=...' scripts/aux/load/chat.js
 //
 // Realistic turn (few VUs):
-//   k6 run -e MODE=realistic -e CHAT_COOKIE='...' scripts/aux/load/chat.js
+//   k6 run -e MODE=realistic -e CHAT_COOKIE='sky_session=...' scripts/aux/load/chat.js
 //
 // Without a cookie the script still runs one unauthenticated probe (expect 401)
 // then exits 0 — it will not invent credentials.

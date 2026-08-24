@@ -23,11 +23,12 @@ Do **not** OOM the shared development service. Use a throwaway clone (same 1 GB 
 - **k6** (optional): `https://grafana.com/docs/k6/latest/set-up/install-k6/`
 - **Bun** (this repo's runner — no extra install)
 
-Chat streams need a session cookie. Sign in on the site, copy `rl_session` from
-devtools, then:
+Chat streams need a session cookie. Sign in on the site, copy `sky_session` from
+devtools (Application → Cookies; it is HttpOnly so you need the Storage panel,
+not `document.cookie`), then:
 
 ```bash
-export CHAT_COOKIE='rl_session=...'
+export CHAT_COOKIE='sky_session=...'
 ```
 
 Several test users, or a raised `RATE_LIMIT_TOKENS_PER_WINDOW` on a throwaway
@@ -53,7 +54,7 @@ k6 (same abort thresholds):
 ```bash
 k6 run -e BASE=https://redlens-development.up.railway.app scripts/aux/load/sse-hold.js
 k6 run -e BASE=https://redlens-development.up.railway.app scripts/aux/load/http-rps.js
-k6 run -e BASE=... -e CHAT_COOKIE='rl_session=...' scripts/aux/load/chat.js
+k6 run -e BASE=... -e CHAT_COOKIE='sky_session=...' scripts/aux/load/chat.js
 k6 run -e MODE=realistic -e VUS=5 -e CHAT_COOKIE='...' scripts/aux/load/chat.js
 ```
 
@@ -113,6 +114,14 @@ the first failure mode — **not** OOM.
 
 A 500-hold step without a fetch timeout hung the client ~16 min and drove
 health p95 to hundreds of seconds; the runner now uses `AbortSignal.timeout`.
+
+Same-day reconfirm (still one client IP; app_commit had moved to `005cda1c`):
+a cold-ish **50** then **80** hold both succeeded (health p95 ~100–140 ms).
+Jumping to 150, or any follow-up 90/100/50 from the same IP, failed 100%
+while health stayed ~140 ms. The edge appears to **pin this IP’s long-lived
+streams** after a successful burst; a web-service restart is required before
+the next SSE ladder. Do not treat 80 as a new replica-wide ceiling — 250
+was measured on a colder start.
 
 ### Short-lived `GET /` (not connection count)
 
