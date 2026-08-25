@@ -53,10 +53,19 @@
 [data-scheme="light"] .rlc-signin,
 [data-scheme="light"] .rlc-avatar,
 [data-scheme="light"] .rlc-menu {
-  --surface: #eef0f2; /* raised — cards, inputs, bubbles, chips */
-  --bg: #e0e3e7;      /* recessed: kbd, chip bg, switch off, scrollbar gutter */
-  --hover: #dadde1;   /* hover fills — darkens here, not lightens; see above */
-  --border: #c9cdd2;  /* neutral gray hairline */
+  /* Violet-tinted, NOT neutral gray. A flat gray panel on a light page reads
+     as disabled rather than as a surface — the same fill a browser gives a
+     greyed-out control — so the recess carries real colour instead. --bg is
+     Sky's #E0D7FF exactly; the other steps are that hue at other lightnesses,
+     which keeps the whole panel one family rather than gray-plus-an-accent. */
+  --surface: #f5f3fd; /* raised — cards, bubbles, chips */
+  --bg: #e0d7ff;      /* recessed: kbd, chip bg, switch off, scrollbar gutter */
+  --hover: #ebe5fd;   /* hover fills */
+  --border: #cabff2;  /* hairline */
+  /* Re-bound chat-locally: --gray backs the composer placeholder, and BOTH
+     light themes' greys (#6f6459, #6b6b6b) fall under 4.5:1 on the #E0D7FF
+     recess. This one is violet-tinted to match and clears 5.5:1 there. */
+  --gray: #575162;
 }
 /* The scrollbar-thumb ring at .rlc-thread::-webkit-scrollbar-thumb (below)
    borrows var(--bg) as a gutter trick assuming the surrounding area matches
@@ -74,7 +83,21 @@
    verified like the tokens above: tan 13.83:1, tan-2 10.07:1, tan-3 5.07:1,
    accent 5.27:1. */
 [data-scheme="light"] .rlc-panel {
-  background: #e6e9ec;
+  background: #edeafa;
+}
+/* The CHROME (panel edge, header, composer) keeps the lavender tint above; the
+   reading surface does not. .rlc-thread is transparent by default, so it was
+   showing the panel's tint behind every answer — too much colour to read long
+   responses against. It gets its own near-white with only a hint of lilac, so
+   the tinted chrome frames a calm body rather than washing over it. */
+[data-scheme="light"] .rlc-thread {
+  background: #fbfaff;
+}
+/* The thumb's 2px ring is a gutter trick that assumes the track matches --bg.
+   On the near-white thread that would draw a lavender outline down the edge,
+   so it borrows the thread's own colour instead. */
+[data-scheme="light"] .rlc-thread::-webkit-scrollbar-thumb {
+  border-color: #fbfaff;
 }
 
 /* The float panel's inset top sheen is a dark-elevation idiom — a light
@@ -111,6 +134,12 @@
    (4.54:1, same composited tone on both bands). */
 [data-scheme="light"] .rlc-header {
   background: rgba(0, 0, 0, 0.05);
+}
+/* The textbox is the only thing in the panel you can type into, so it gets
+   pure white: the brightest surface available, which reads as "active input"
+   against the tinted panel the way a gray-on-gray field never did. */
+[data-scheme="light"] .rlc-inputwrap {
+  background: #ffffff;
 }
 [data-scheme="light"] .rlc-composer {
   background: rgba(0, 0, 0, 0.05);
