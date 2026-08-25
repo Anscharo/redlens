@@ -38,9 +38,3 @@ export async function loadSettlementsFromDisk(force = false): Promise<Settlement
     return cached;
   }
 }
-
-/** Test-only. */
-export function resetSettlementsDiskCache(): void {
-  cached = null;
-  cachedPath = null;
-}
