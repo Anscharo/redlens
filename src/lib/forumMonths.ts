@@ -50,6 +50,7 @@ export interface ForumMonthTopic {
   title: string;
   url: string;
   postedAt?: string;
+  period?: string[];
 }
 
 /** Thread URL for a settlement month. Prefers a single-month "Summary" title. */
@@ -58,7 +59,10 @@ export function forumTopicUrlForMonth(
   month: string,
 ): string | undefined {
   const hits = topics
-    .map((t) => ({ t, months: monthsFromMscTitle(t.title) }))
+    .map((t) => ({
+      t,
+      months: t.period && t.period.length > 0 ? t.period : monthsFromMscTitle(t.title),
+    }))
     .filter((x) => x.months.includes(month));
   if (hits.length === 0) return undefined;
   hits.sort((a, b) => {
