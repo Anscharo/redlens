@@ -34,7 +34,7 @@ it("renders the tool list fetched from tools.json, including newly-added tools",
   const toolsList = await screen.findByRole("heading", { name: "Tools" }).then((h) => h.nextElementSibling as HTMLElement);
   await waitFor(() => expect(within(toolsList).getByText("atlas_first_seen")).toBeInTheDocument());
   expect(within(toolsList).getByText("atlas_search")).toBeInTheDocument();
-  expect(screen.getByText(/should return the 2 atlas tools/)).toBeInTheDocument();
+  expect(screen.getByText(/should return the 2 tools/)).toBeInTheDocument();
 });
 
 it("shows a fallback message if tools.json fails to load", async () => {

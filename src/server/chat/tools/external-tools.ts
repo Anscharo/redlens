@@ -30,10 +30,6 @@ export interface ExternalTool {
   handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
 }
 
-export function externalToolDescription(t: ExternalTool): string {
-  return t.whenToUse ? `${t.description}\n\nWhen to use: ${t.whenToUse}` : t.description;
-}
-
 const VIEW_SHAPE = {
   view: z
     .enum(MSC_VIEWS)
