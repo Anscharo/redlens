@@ -17,6 +17,8 @@ const base: Omit<VerifyState, "status"> = {
   ungroundedCitationValues: [],
   paramMismatches: [],
   completenessFailures: [],
+  missingExternalDisclaimer: false,
+  mscCitedAsAtlas: [],
   lengthCapped: false,
 };
 
@@ -158,6 +160,14 @@ describe("VerifyBadge", () => {
     expect(btn).not.toBeDisabled();
     fireEvent.click(btn);
     expect(screen.getByRole("listitem")).toHaveTextContent("class was not listed to completion");
+  });
+
+  it("expands when the only finding is a missing MSC disclaimer", () => {
+    render(<VerifyBadge verify={{ ...base, status: "fail", missingExternalDisclaimer: true }} onAtlas={noop} />);
+    const btn = screen.getByRole("button");
+    expect(btn).not.toBeDisabled();
+    fireEvent.click(btn);
+    expect(screen.getByRole("listitem")).toHaveTextContent("not from the Atlas");
   });
 
   it("invokes onAtlas instead of navigating when a param mismatch link is clicked", () => {

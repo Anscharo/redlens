@@ -318,7 +318,27 @@ test("a pending slot with no id/name is not executed and the round falls through
   expect(done.type === "done" && done.toolCalls).toHaveLength(0);
 });
 
-test("export_findings: yields an export event and feeds the model only a small ack", async () => {
+test("ask_external_msc: tool result is a brief, not forum HTML, and never hits ATLAS_TOOLS", async () => {
+  const rounds = [
+    [toolChunk("ask_external_msc", JSON.stringify({ view: "month", prime: "spark" })), finishChunk("tool_calls")],
+    [textChunk("done"), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 2 }));
+  const result = events.find((e) => e.type === "tool_result");
+  expect(result && result.type === "tool_result").toBe(true);
+  const done = events.at(-1)!;
+  if (done.type === "done") {
+    const toolMsg = done.transcript.find((m) => m.role === "tool");
+    expect(typeof toolMsg?.content).toBe("string");
+    const body = toolMsg!.content as string;
+    expect(body).not.toContain("op_html");
+    const parsed = JSON.parse(body) as Record<string, unknown>;
+    expect(parsed.not_atlas === true || parsed.error).toBeTruthy();
+    if (parsed.not_atlas) expect(parsed.source_class).toBe("external");
+  }
+});
+
+test("export_findings: intercepts the tool, emits an export event, and never puts the file body in the model's context", async () => {
   // Verification-safe data: no doc-no/citation/address-like strings to ground.
   const csvArgs = JSON.stringify({ format: "csv", filename: "duties", columns: ["Item", "Note"], rows: [["Alpha", "hello world"]] });
   const rounds = [

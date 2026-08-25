@@ -8,6 +8,7 @@ import { UUID_RE, EVM_ADDRESS_SRC, SOL_ADDRESS_SRC, DOC_NO_CORE } from "../../..
 import type { Indexes } from "../../retrieval/indexes.ts";
 import { findParamMismatches, type ParamMismatch } from "./param-checks.ts";
 import { completenessFailuresOf, type CompletenessEvidence } from "./completeness.ts";
+import { answerHasMscDisclaimer } from "../../external/envelope.ts";
 
 // The system prompt's citation link format: [Title](/atlas/<uuid>). ONE source
 // of truth shared with scripts/aux/eval-golden-grade.ts so grader and runtime
@@ -535,6 +536,11 @@ export interface CheckReport {
   // Exhaustive/extremum questions answered from a ranked page (or hedged
   // "among those queried") — hard fail; recovery must requery the class.
   completenessFailures: string[];
+  // External MSC brief was in this turn but the answer omitted the required
+  // non-Atlas attribution. HARD failure.
+  missingExternalDisclaimer: boolean;
+  // Settlement $ amounts cited as /atlas/<uuid>. HARD failure.
+  mscCitedAsAtlas: string[];
   // Soft wrong-doc assist: claim sentences whose vocabulary barely occurs in the
   // doc they cite. Informs the verifier prompt; never fails a turn.
   lowOverlapCitations: string[];
@@ -549,21 +555,36 @@ export interface CheckReport {
   failed: boolean;
 }
 
+export function findMscCitedAsAtlas(answer: string): string[] {
+  const out: string[] = [];
+  for (const c of extractCitations(answer)) {
+    if (/\$[\d,]|\d[\d,.]+\s*(USD|USDS)?$/i.test(c.title.trim())) {
+      out.push(`${c.title} cited as /atlas/${c.uuid}`);
+    }
+  }
+  return out;
+}
+
 export function runDeterministicChecks(
   answer: string,
   evidenceTexts: string[],
   ix: Indexes,
   completeness?: { question: string; evidence: CompletenessEvidence[] },
+  split?: { atlasTexts?: string[]; externalTexts?: string[] },
 ): CheckReport {
+  const atlasTexts = split?.atlasTexts ?? evidenceTexts;
+  const externalTexts = split?.externalTexts ?? [];
   const citations = extractCitations(answer);
   const invalidCitations = findInvalidCitationUuids(citations, ix);
   const invalidDocNos = findInvalidDocNos(answer, ix);
   const docNoMismatches = findDocNoMismatches(citations, ix);
-  const ungroundedQuotes = findUngroundedQuotes(answer, evidenceTexts, ix);
+  const ungroundedQuotes = findUngroundedQuotes(answer, atlasTexts, ix);
   const ungroundedAddresses = findUngroundedAddresses(answer, evidenceTexts);
-  const ungroundedCitationValues = findUngroundedCitationValues(answer, evidenceTexts, ix);
+  const ungroundedCitationValues = findUngroundedCitationValues(answer, atlasTexts, ix);
   const paramMismatches = findParamMismatches(answer, ix);
   const completenessFailures = completenessFailuresOf(completeness?.question, answer, completeness?.evidence);
+  const missingExternalDisclaimer = externalTexts.length > 0 && !answerHasMscDisclaimer(answer);
+  const mscCitedAsAtlas = externalTexts.length > 0 ? findMscCitedAsAtlas(answer) : [];
   return {
     citations,
     invalidCitations,
@@ -578,6 +599,8 @@ export function runDeterministicChecks(
     lowOverlapCitations: findLowOverlapCitations(answer, ix),
     paramMismatches,
     completenessFailures,
+    missingExternalDisclaimer,
+    mscCitedAsAtlas,
     lengthCapped: false,
     failed:
       invalidCitations.length > 0 ||
@@ -587,6 +610,8 @@ export function runDeterministicChecks(
       ungroundedAddresses.length > 0 ||
       ungroundedCitationValues.length > 0 ||
       paramMismatches.length > 0 ||
-      completenessFailures.length > 0,
+      completenessFailures.length > 0 ||
+      missingExternalDisclaimer ||
+      mscCitedAsAtlas.length > 0,
   };
 }

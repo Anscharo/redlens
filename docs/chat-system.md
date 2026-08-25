@@ -208,9 +208,12 @@ calls now need one, so the extra rounds bought latency rather than evidence.
 
 ## 5. Tools & retrieval (`chat/tools/tool-registry.ts`, `retrieval/search.ts`)
 
-A single tool registry (`ATLAS_TOOLS`) is shared by chat (`tools/llm-tools.ts`,
-which converts each zod shape to JSON Schema) and the MCP server (`mcp.ts`), so
-an external MCP client gets the exact same read-only tools:
+Atlas tools live in `ATLAS_TOOLS` (`tools/tool-registry.ts`) and are shared by
+chat (`tools/llm-tools.ts`, which converts each zod shape to JSON Schema) and
+the MCP server (`mcp.ts`). A second registry, `EXTERNAL_TOOLS`, is registered
+on MCP only (`external_msc`); chat instead exposes `ask_external_msc` and
+intercepts it to run an isolated sub-agent. The two families must never be
+mixed as evidence:
 
 | Group | Tools |
 |---|---|
@@ -221,6 +224,7 @@ an external MCP client gets the exact same read-only tools:
 | History | `atlas_history`, `atlas_history_stats`, `atlas_recent_changes`, `atlas_changed_between`, `atlas_first_seen`, `atlas_pr` |
 | Curated reports | `atlas_report_multisigs`, `atlas_report_primitive_matrix`, `atlas_report_rewards`, `atlas_report_active_data`, `atlas_report_facilitator_responsibilities`, `atlas_report_govops_responsibilities` |
 | Output | `export_findings` (chat-only; emits the `export` SSE event) |
+| External (not Atlas) | `external_msc` (MCP) and `ask_external_msc` (chat-only sub-agent). Curated Monthly Settlement Cycle views from Soter Labs workbooks + Sky Forum permalinks. Tool results carry `source_class: "external"`; the verifier ignores them for Atlas quote-grounding and requires the non-Atlas disclaimer. |
 
 Search is **hybrid RAG**: a lexical leg (in-memory MiniSearch / BM25, boosting
 title, doc_no, and type) and a semantic leg (query embedded, then pgvector

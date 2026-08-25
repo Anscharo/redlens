@@ -79,6 +79,8 @@ export type ChatEvent =
       ungroundedCitationValues?: string[];
       paramMismatches?: ParamMismatch[];
       completenessFailures?: string[];
+      missingExternalDisclaimer?: boolean;
+      mscCitedAsAtlas?: string[];
   // The answer hit the output-token cap mid-generation. Not a citation
       // problem, but it forces a `fail` server-side, so the badge has to be
       // able to say so.

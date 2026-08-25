@@ -102,7 +102,7 @@ export function ConnectPage() {
         </h2>
         <p className="text-xs mb-2" style={{ color: "var(--tan-3)" }}>
           A raw <span className="mono">tools/list</span> call should return{" "}
-          {tools ? `the ${tools.length} atlas tools` : "the atlas tools"}:
+          {tools ? `the ${tools.length} tools` : "the tools"}:
         </p>
         <CodeBlock
           code={`curl -s ${ENDPOINT} \\
