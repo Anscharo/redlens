@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: dark;
+
   /* ─── Surface tier ─── */
   --bg: #160e0d; /* charcoal with a reddish undertone */
   --bg-alt: color-mix(in srgb, var(--bg) 94%, black); /* --bg darkened 6% */
@@ -23,7 +25,7 @@
   --tan: #f3e7ce; /* primary text — lightened */
   --tan-2: #e4d1b9; /* secondary */
   --tan-3: #b8a48e; /* bumped from #a38f79 — passes 4.5:1 on --bg and --surface */
-  --magenta: #c61f7c; /* status pills (e.g. update available) — high-contrast on --tan */
+  --magenta: #b81a72; /* status pills (e.g. update available) — 5.0:1 on --tan (was #c61f7c, 4.4:1) */
   --lilac: #bfa8ec; /* soft violet — preview "renumbered" note; distinct from --accent links */
   --terminal-green: #399930;
   --lily-green: #ecffea;
@@ -47,7 +49,7 @@
 
   /* ─── Graph chrome (constellations / ReactFlow) ─── */
   --edge: #5a3a32;
-  --edge-label-fg: #8a6a60;
+  --edge-label-fg: #9a756b; /* 4.8:1 on --bg-deep (was #8a6a60, 4.1:1) */
   --graph-dots: #2a1a16;
 
   /* ─── Diff view ─── */
@@ -96,10 +98,318 @@
   --depth-17: #a878e8; /* purple */
 }
 
-/* Light theme — fill in when the toggle is wired up.
-   Each token above can be overridden here; missing ones fall through to dark. */
+/* ─── Light themes ────────────────────────────────────────────────────────
+   Each palette is a FULL override of every colour token above — see the
+   completeness test in admin/theme-contrast.test.ts, which fails if a token is
+   added to :root without a value in every theme block, so a half-finished
+   palette can never silently inherit dark values. Themes are declared to the
+   app in lib/theme.ts; adding one is documented on the THEMES registry there.
+
+   Direction-bearing tokens (row overlays, --row-bar-tint, --change-flash-color,
+   shadows) are NOT just re-hexed: on dark they tint rows with translucent
+   WHITE, so light flips them to black at lower alpha (black over light reads
+   heavier than white over dark at the same alpha). */
+
+/* "Light" (id: light) — warm paper + red brand. Sky's near-white restraint and neutral
+   ramp, warmed toward the dark theme's red undertone; red stays the accent. */
 [data-theme="light"] {
-  /* TODO: light theme overrides */
+  color-scheme: light;
+
+  /* ─── Surface tier ─── */
+  /* Near-white, with just enough warmth to read as paper rather than as a
+     screen. The steps stay ~3-4% apart in luminance so raised/recessed remain
+     legible without the tint doing the work. */
+  --bg: #faf9f8; /* warm paper — the charcoal-with-red-undertone, inverted */
+  --bg-alt: #f5f3f2; /* explicit, not a color-mix: the dark value darkens toward black */
+  --bg-deep: #f2efee; /* recessed — tree sidebar + reader scroll */
+  --surface: #ffffff; /* raised — cards, panels */
+  --hover: #efebe9;
+  --border: #e4dedb;
+  --border-muted: #e2e2e2; /* neutral gray, brightness-matched to --border */
+
+  /* ─── Brand ─── */
+  --red: #a63228; /* unchanged — already 6.8:1 on white */
+  --red-dim: #f2d7d2; /* flipped: a light tint, since it backs `mark` + active scope pills */
+  --accent: #a8382c; /* darkened from #c67267, which is only 3.5:1 on white */
+  --preview-add: #2f7d3a;
+  --error-text: #b3261e;
+  --warn: #7d6000; /* darkened with the surfaces: 5.2:1 even on --bg-deep */
+
+  /* ─── Text ─── */
+  --gray: #6f6459;
+  --tan: #241b19; /* primary text — the role token, now dark */
+  --tan-2: #3d332e;
+  --tan-3: #6b5f56;
+  --magenta: #e87fbe; /* stays an INVERTED pill: light glyph on the --tan fill */
+  --lilac: #6a3fb0;
+  --terminal-green: #2f7a2c;
+  --lily-green: #16301a;
+
+  /* ─── Row state overlays (translucent BLACK — flipped from white) ─── */
+  --row-hover: rgba(0, 0, 0, 0.06);
+  --row-selected: rgba(0, 0, 0, 0.05);
+  --row-focused: rgba(0, 0, 0, 0.035);
+  --atlas-row-selected: #f2efee;
+  --row-pulse-flash: rgba(0, 0, 0, 0.16);
+  --row-bar-tint: black; /* the mix target for the selected red bar */
+  --change-flash-color: rgba(0, 0, 0, 0.08);
+
+  --node-hover: #ffffff;
+
+  /* ─── Shadows — far softer; 0.3/0.5 black is crushing on a light surface ─── */
+  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow-strong: rgba(0, 0, 0, 0.18);
+
+  /* ─── Graph chrome ─── */
+  --edge: #c0aaa4;
+  --edge-label-fg: #7a6258;
+  --graph-dots: #e6dcd8;
+
+  /* ─── Diff view ─── */
+  --diff-removed-bg: #fbe3e3;
+  --diff-removed-fg: #5a1414;
+  --diff-added-bg: #dcf5e4;
+  --diff-added-fg: #12401f;
+
+  /* ─── Entity-type categorical palette ─── */
+  /* Same hues as dark, darkened until each clears 4.5:1 on --bg-deep (the
+     darkest light surface = worst case for dark-on-light text). */
+  --entity-agent: #b73c2c;
+  --entity-facilitator-org: #9f5308;
+  --entity-govops-org: #356e7b;
+  --entity-delegate-org: #4f703c;
+  --entity-development-company: #4165ad;
+  --entity-foundation: #854fa9;
+  --entity-composite-party: #7d641f;
+  --entity-governance-body: #546e42;
+  --entity-operational-party: #9b523a;
+  --entity-ecosystem-actor: #825d5d;
+  --entity-instance: #55697f;
+  --entity-multisig: #7f621e;
+  --entity-bridge: #3a705e;
+  --entity-fallback: #676767;
+
+  /* ─── Depth palette ─── */
+  /* Same 6-colour jewel cycle. Deliberately SATURATED, not merely darkened:
+     the first pass just dropped each dark hue's lightness until it cleared AA,
+     which reads washed on paper — blue and magenta worst, because desaturating
+     toward mid-grey costs them the most chroma. These push chroma back up and
+     take the extra contrast that comes with it (4.8-6.3:1 on --bg-deep, the
+     darkest light surface; all still clear AA on --bg and --surface too). */
+  --depth-1: #c02010; /* red */
+  --depth-2: #a34b00; /* orange — a true orange; the earlier #8a5a00 read olive */
+  --depth-3: #00752c; /* green */
+  --depth-4: #1f4fd0; /* blue */
+  --depth-5: #6a1fd0; /* purple */
+  --depth-6: #c2007a; /* magenta */
+  --depth-7: #c02010;
+  --depth-8: #a34b00;
+  --depth-9: #00752c;
+  --depth-10: #1f4fd0;
+  --depth-11: #6a1fd0;
+  --depth-12: #c2007a;
+  --depth-13: #c02010;
+  --depth-14: #a34b00;
+  --depth-15: #00752c;
+  --depth-16: #1f4fd0;
+  --depth-17: #6a1fd0;
+}
+
+/* "Light · Sky" (id: light-sky) — built ONLY from the official Sky Eco brand
+   palette: the violet ramp (#581BE0 #4331E9 #8C68FF #B891FE #E0D7FF), the
+   warm pair (#FFEBAE yellow, #FBE3D6 peach), and the neutrals (#050505,
+   #F2F2F2, White). Deliberately shares NOTHING with the app's own red/tan
+   identity — that is what "light" is for; this one is Sky's.
+
+   Two consequences worth knowing before editing:
+   • STATUS colours are the one deliberate exception to "brand only". Sky's
+     palette has no green and no red, but added/removed and error/success are
+     a convention users arrive with, not a brand choice — rendering a diff in
+     violet and peach reads as decorative, not as "this line went away". So
+     --diff-*, --error-text, --preview-add and --terminal-green use ordinary
+     green/red. Everything structural — surfaces, links, focus, depth, entity
+     colours — stays Sky's.
+   • It is purple-dominant, so the 6-step depth cycle and the 14 entity
+     colours cannot be 14 distinct hues. They are spread across the three
+     available hue families by lightness and chroma instead, and every one
+     still clears 4.5:1 on --bg-deep. */
+[data-theme="light-sky"] {
+  color-scheme: light;
+
+  /* ─── Surface tier ─── Sky's neutrals verbatim; --bg is a step between
+     their White and their #F2F2F2 so raised/recessed stay legible. */
+  --bg: #fafafa;
+  --bg-alt: #f5f5f5;
+  --bg-deep: #f2f2f2; /* Sky #F2F2F2 — recessed */
+  --surface: #ffffff; /* Sky White — raised */
+  --hover: #ececec;
+  --border: #e0d7ff; /* Sky's lightest lavender — the same outline their own White swatch carries */
+  --border-muted: #e4e4e4;
+
+  /* ─── Brand ─── the violet ramp ─── */
+  --red: #4331e9; /* the "decorative accent" slot — Sky indigo, not a red */
+  --red-dim: #e0d7ff; /* backs `mark` + active scope pills; --tan on it is 14.9:1 */
+  --accent: #581be0; /* links + focus — Sky deep violet, 7.9:1 on white */
+  --preview-add: #047857; /* green — see the status-colour note above */
+  --error-text: #b91c1c; /* red — likewise */
+  --warn: #7a5c00; /* their yellow #FFEBAE's hue, darkened */
+
+  /* ─── Text ─── */
+  --gray: #6b6b6b;
+  --tan: #050505; /* Sky black */
+  --tan-2: #3a3a3a;
+  --tan-3: #5e5e5e;
+  --magenta: #b891fe; /* stays an INVERTED pill: Sky light purple on the --tan fill */
+  --lilac: #6d40cc; /* Sky #8C68FF darkened — the source value is 3.4:1, too light for text */
+  --terminal-green: #047857;
+  --lily-green: #14532d;
+
+  /* ─── Row state overlays (translucent BLACK — flipped from white) ─── */
+  --row-hover: rgba(0, 0, 0, 0.06);
+  --row-selected: rgba(0, 0, 0, 0.05);
+  --row-focused: rgba(0, 0, 0, 0.035);
+  --atlas-row-selected: #f2f2f2;
+  --row-pulse-flash: rgba(0, 0, 0, 0.16);
+  --row-bar-tint: black;
+  --change-flash-color: rgba(0, 0, 0, 0.08);
+
+  --node-hover: #ffffff;
+
+  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow-strong: rgba(0, 0, 0, 0.18);
+
+  /* ─── Graph chrome ─── */
+  --edge: #c9bdf5;
+  --edge-label-fg: #5e5e5e;
+  --graph-dots: #e6e0fa;
+
+  /* ─── Diff view ─── red/green, deliberately NOT the brand palette ─── */
+  --diff-removed-bg: #fee2e2;
+  --diff-removed-fg: #7f1d1d;
+  --diff-added-bg: #dcfce7;
+  --diff-added-fg: #14532d;
+
+  /* ─── Entity-type categorical palette ─── unordered, so these are spread
+     across the wheel rather than sequenced. Hue assignments mirror the dark
+     theme's, so an entity type keeps its colour family when you switch. */
+  --entity-agent: #c2261a;
+  --entity-facilitator-org: #a05500;
+  --entity-govops-org: #0e7490;
+  --entity-delegate-org: #0f7233;
+  --entity-development-company: #1d4ed8;
+  --entity-foundation: #581be0; /* Sky violet */
+  --entity-composite-party: #8a6508;
+  --entity-governance-body: #47740e;
+  --entity-operational-party: #9a4a2a;
+  --entity-ecosystem-actor: #9f1239;
+  --entity-instance: #334155;
+  --entity-multisig: #9a5b0a;
+  --entity-bridge: #047857;
+  --entity-fallback: #666666;
+
+  /* ─── Depth palette ─── a SEVEN-stop cycle (not six), running Sky's
+     brand violet first and then descending the wheel:
+       violet → blue → cyan-blue → green → gold → red → red-pink → repeat.
+
+     Intensity is maximised, not merely adequate: each stop is the most
+     chromatic colour of its hue that still clears 4.5:1 on --bg-deep, found by
+     searching OKLCH lightness × chroma rather than by eye. Sky's #581BE0 opens
+     the cycle exactly; the rest are chosen for hue and pushed to the gamut edge
+     (blue, red and red-pink reach C 0.22-0.23, near the violet's 0.257 —
+     cyan/green/gold cap near 0.11 because sRGB holds far less chroma there at a
+     readable lightness).
+
+     Stop 2 is a true blue (260°), NOT Sky's indigo #4331E9. The indigo is only
+     9° from the violet, so running the two together read as one smudged step
+     rather than a progression. The indigo is not lost — it carries the
+     decorative --red slot in this theme, which is where a brand colour with no
+     ordering duty belongs.
+
+     Seventeen slots over a seven-cycle: 1-7, 8-14, then 15-17 restart it. */
+  --depth-1: #581be0; /* violet — Sky #581BE0, exact */
+  --depth-2: #0064ee; /* blue */
+  --depth-3: #03769d; /* dark cyan-blue */
+  --depth-4: #037e3f; /* deep green */
+  --depth-5: #876801; /* gold */
+  --depth-6: #dd0204; /* red */
+  --depth-7: #d2007d; /* deep red-pink */
+  --depth-8: #581be0;
+  --depth-9: #0064ee;
+  --depth-10: #03769d;
+  --depth-11: #037e3f;
+  --depth-12: #876801;
+  --depth-13: #dd0204;
+  --depth-14: #d2007d;
+  --depth-15: #581be0;
+  --depth-16: #0064ee;
+  --depth-17: #03769d;
+}
+
+/* ─── Light-scheme structural overrides ───────────────────────────────────
+   Rules whose MEANING flips with the background, so re-hexing a token isn't
+   enough. Kept together (rather than beside each base rule) because these are
+   exactly the non-obvious flips — a reader should be able to see the whole set
+   at once.
+
+   Keyed on [data-scheme="light"], NOT on any one palette: `data-scheme` is the
+   light-vs-dark axis and `data-theme` is which palette (see lib/theme.ts, which
+   sets both). A new light palette therefore inherits every rule below for free
+   — it only has to supply its own token block above. */
+
+/* Font smoothing: `antialiased` is a light-text-on-dark tuning (see the comment
+   on the base rule). Dark text on light renders too thin with it. */
+[data-scheme="light"],
+[data-scheme="light"] body,
+[data-scheme="light"] #root {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+/* Breadcrumb hover chip: the base rule lightens the depth colour toward literal
+   `white` for a bright chip and darkens the text toward --bg. Light depth
+   colours are already dark, so the chip becomes the colour itself with page-
+   coloured text — same inverted-chip effect, right way round (5.3:1+). */
+[data-scheme="light"] .breadcrumb-link:hover,
+[data-scheme="light"] .breadcrumb-link:focus-visible {
+  background-color: var(--crumb-color);
+  color: var(--bg);
+}
+
+/* Reader row hover: the base rule mixes --bg-deep toward --surface, i.e. lifts
+   the row lighter. On light, --surface is the lightest token, so that lift
+   would wash the row out — darken instead. */
+[data-scheme="light"] .atlas-node:not(.is-selected):hover,
+[data-scheme="light"] .atlas-node:not(.is-selected):focus-visible {
+  background-color: color-mix(in srgb, var(--bg-deep) 95%, black);
+}
+
+/* The filter-summary callout is deliberately INVERTED (--tan fill, --bg text).
+   That inversion survives the theme flip for free — --tan is dark on light — but
+   its emphasis colour does not: --red on the now-dark fill is 2.5:1. */
+[data-scheme="light"] .filter-summary-em {
+  color: #f2a49c; /* 8.5:1 on the --tan fill */
+}
+
+/* Pill outlines are drawn with TEXT tokens (--tan-2 / --tan-3 / --tan), i.e.
+   "the brightest thing on the page". On light those are the DARKEST thing, so
+   the hairline becomes a heavy black outline. Use the border token instead. */
+[data-scheme="light"] .atlas-type-pill {
+  border-color: var(--border);
+}
+[data-scheme="light"] .atlas-node.is-selected .atlas-type-pill {
+  border-color: var(--tan-3);
+}
+[data-scheme="light"] .atlas-agent-pill {
+  border-color: var(--border);
+}
+
+/* Dim-down opacities were tuned for a light glyph fading into a dark page. A
+   dark glyph fading into a light page at the same alpha reads weaker. */
+[data-scheme="light"] .scope-node.is-muted {
+  opacity: 0.62;
+}
+[data-scheme="light"] button.atlas-node-expand-all {
+  opacity: 0.7;
 }
 
 html,

@@ -280,6 +280,16 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         ],
       },
       {
+        name: "Colour schemes",
+        what: "The whole app can run in the original dark scheme or either of two light ones.",
+        how: [
+          "Open the menu button in the top-right corner and pick a theme: Dark, Light, or Light · Sky.",
+          'Once signed in, the same picker lives in the profile menu under "Account".',
+          "Every page follows the choice — the reader, Radar, reports, and the Atlas agent.",
+        ],
+        note: "No sign-in needed — the choice is kept in this browser only, so another browser or device starts from the dark scheme.",
+      },
+      {
         name: "Your viewing history",
         what: "A record of what you have been reading — recent and most-viewed documents, the areas of the Atlas you spend time in, and the report pages you came back to.",
         how: [

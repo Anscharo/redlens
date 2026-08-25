@@ -35,8 +35,25 @@ metadata:
   body" is stale — Inter is current.* Changing fonts means editing both the
   `index.html` link and the `font-family` stacks in `index.css` (body,
   `.tree-row`, `.atlas-chiclets` repeat the stack inline).
-- **Light theme**: `[data-theme="light"]` stub exists in `index.css`, empty —
-  tokens fall through to dark.
+- **Themes — two axes on `<html>`, both set by `apps/web/src/lib/theme.ts`**:
+  `data-theme` = WHICH palette (`dark` | `light` | `light-sky` | …),
+  `data-scheme` = light-vs-dark. Dark is the default and lives on bare `:root`;
+  every other theme is a **full** token override in a `[data-theme="<id>"]`
+  block. Rules whose meaning merely flips with the background live in one
+  `[data-scheme="light"]` section ("Light-scheme structural overrides") — row
+  overlays go translucent-white → black at lower alpha, `--row-bar-tint`,
+  font-smoothing (`antialiased` is a light-on-dark tuning), pill outlines that
+  were drawn with *text* tokens, and the whole of `chat.css`'s light block. A
+  new light palette inherits all of those for free.
+  **Adding a theme** = a token block in `index.css` + an entry in the `THEMES`
+  registry in `lib/theme.ts` + the `html[data-theme="<id>"]{--bg:…}` rule in
+  `index.html`'s anti-flash `<style>`; the registry's doc comment spells this
+  out and `theme-html-sync.test.ts` fails if the last two drift.
+  **Adding a colour token means adding it to EVERY theme block** —
+  `admin/theme-contrast.test.ts` parses `index.css` and fails on a missing
+  token or an `AUDIT_PAIRS` pair below AA (3:1 for the focus ring). The picker
+  is `components/chat/ThemePicker.tsx`, in both the signed-in and signed-out
+  nav menus.
 - **Palette overrides at runtime**: an inline script in `index.html` reads
   `localStorage["redlens:palette-overrides"]` and sets CSS vars before first
   paint. That's what the admin palette "apply" button writes. Permanent changes

@@ -5,15 +5,18 @@ import type { Delivery } from "./api";
 // components (the NavBar dropdown and the chat panel) via a custom event +
 // the cross-tab `storage` event. Only reduce-motion has a switch in the UI
 // (the Account panel); `traces` is read by ChatPanel but currently has no
-// writer, so it sits at its default. color-scheme / collapse-tree are a
-// follow-up (FE plan step 9).
+// writer, so it sits at its default. color-scheme now lives in its own store,
+// `lib/theme.ts` — deliberately NOT a ChatPrefs field: this file discards its
+// whole record on a SCHEMA_VERSION mismatch (see below), and folding theme in
+// would mean a future chat-pref bump silently resets everyone's theme back to
+// dark. collapse-tree remains a follow-up (FE plan step 9).
 //
-// ChatPrefs stays boolean-only: ProfileButton.tsx's Account-panel PrefSwitch
-// is generic over `keyof ChatPrefs` and renders `prefs[prefKey]` straight
-// into `aria-checked`, which only accepts boolean. delivery is a real
-// preference (persisted the same way, same record) but not a toggle, so it's
-// added on the wider ChatSettings instead — usePrefs() returns ChatSettings
-// (a ChatPrefs), so existing ChatPrefs-typed consumers are unaffected.
+// ChatPrefs stays boolean-only: every ChatPrefs field ends up rendered by
+// PrefSwitch.tsx's generic on/onChange switch, whose `aria-checked` only
+// accepts boolean. delivery is a real preference (persisted the same way,
+// same record) but not a toggle, so it's added on the wider ChatSettings
+// instead — usePrefs() returns ChatSettings (a ChatPrefs), so existing
+// ChatPrefs-typed consumers are unaffected.
 export interface ChatPrefs {
   traces: boolean; // show tool-call traces
   reduceMotion: boolean; // disable panel/turn/ember/caret animation

@@ -64,7 +64,7 @@ export function SelectionTreeToggle() {
         <>
           <button
             className="px-2 py-0.5 rounded flex items-center gap-1 min-w-0"
-            style={togglePillStyle(selectedOnly, "#fff")}
+            style={togglePillStyle(selectedOnly, "var(--tan)")}
             title={activeCollectionName ?? undefined}
             onClick={() => {
               track("selection_view_toggle", { view: "selected_only", count });

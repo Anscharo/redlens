@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-08-25
+- Added light themes — pick a colour scheme from the menu in the top-right corner
+
 ## 2026-08-24
 - Atlas AI CHAT now live. Ask it about Sky Atlas or this App, including oldest/all questions answered from a full class listing. Requires login. 
 

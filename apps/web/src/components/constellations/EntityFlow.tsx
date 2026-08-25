@@ -25,6 +25,7 @@ import { edgeLabel, ENTITY_TYPE_LABEL, SUBTYPE_LABEL } from "../../lib/entityGra
 import { getEdges, type EdgeResult } from "../../lib/graph";
 import { atlasHref } from "@/lib/routes";
 import { track } from "../../lib/analytics";
+import { useTheme } from "../../lib/theme";
 import type { GraphEntity } from "@/types";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
@@ -320,10 +321,14 @@ function EntityFlowInner({
     [onSelect],
   );
 
+  // ReactFlow's colorMode only knows light/dark, so it takes the SCHEME, not
+  // the palette id — "light-sky" is not a value it understands.
+  const { scheme } = useTheme();
+
   return (
     <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
       onNodeClick={handleNodeClick} nodeTypes={nodeTypes} fitView minZoom={0.2} maxZoom={2}
-      nodesConnectable={false} colorMode="dark" proOptions={{ hideAttribution: true }}
+      nodesConnectable={false} colorMode={scheme} proOptions={{ hideAttribution: true }}
     >
       <Background variant={BackgroundVariant.Dots} gap={32} size={1} color="var(--graph-dots)" />
       <Controls showInteractive={false} />

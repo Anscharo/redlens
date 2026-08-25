@@ -22,6 +22,114 @@
   --border: #30333a;  /* neutral gray hairline */
 }
 
+/* ── Chat-local palette, light theme ───────────────────────────────────────
+   The re-bind above is hard hexes, not var()s pointing at index.css — so it
+   stays dark under [data-scheme="light"] while the inherited --tan* text
+   flips to dark, which is worse than doing nothing (dark text on a dark
+   panel). Same intent as the block above, carried into light: a calm
+   neutral gray, kept apart from the app's own light theme (--bg: #f6f3f1
+   warm paper, --surface: #ffffff) rather than just re-hexed to it. Raised
+   stays lighter than recessed in both themes — that's a physical metaphor,
+   not a light/dark one — so --surface is lighter than --bg here exactly as
+   it's darker than --bg above.
+
+   Every inherited --tan / --tan-2 / --tan-3 / --accent clears 4.5:1 on BOTH
+   (measured with the wcag-contrast algorithm behind admin/contrast.ts's
+   contrastRatio()):
+     --surface #eef0f2: tan 14.75:1, tan-2 10.74:1, tan-3 5.41:1, accent 5.63:1
+     --bg      #e0e3e7: tan 13.09:1, tan-2  9.53:1, tan-3 4.80:1, accent 4.99:1
+   --hover follows the app's OWN light theme's convention instead of
+   continuing the dark ramp: dark theme's hover fill lightens (bg < surface <
+   hover < border, each step brighter — see index.css's dark --hover), but
+   index.css's light theme darkens on hover instead (its --hover sits below
+   both --bg and --surface). #dadde1 mirrors that and still clears 4.5:1 for
+   every text token composited on it (tan-3 4.54:1, accent 4.72:1) — needed
+   because .rlc-cite-doc renders tan-3 straight onto a hovered --hover fill,
+   not just tan on it. --border isn't load-bearing for text (checked: it's
+   only ever a border-color or the scrollbar-thumb ring below), so it isn't
+   held to the same bar. */
+[data-scheme="light"] .rlc-launcher,
+[data-scheme="light"] .rlc-panel,
+[data-scheme="light"] .rlc-signin,
+[data-scheme="light"] .rlc-avatar,
+[data-scheme="light"] .rlc-menu {
+  --surface: #eef0f2; /* raised — cards, inputs, bubbles, chips */
+  --bg: #e0e3e7;      /* recessed: kbd, chip bg, switch off, scrollbar gutter */
+  --hover: #dadde1;   /* hover fills — darkens here, not lightens; see above */
+  --border: #c9cdd2;  /* neutral gray hairline */
+}
+/* The scrollbar-thumb ring at .rlc-thread::-webkit-scrollbar-thumb (below)
+   borrows var(--bg) as a gutter trick assuming the surrounding area matches
+   --bg — it actually sits on .rlc-panel's own literal background (next
+   rule), one shade off --bg in both themes. That's already true above
+   (panel #1a1c20 vs --bg #141519, a ~6/255-per-channel gap) and stays true
+   at the same magnitude below (panel #e6e9ec vs --bg #e0e3e7, also ~6/255),
+   so the trick blends the same way in both — no separate override needed. */
+
+/* .rlc-panel's own background is a literal, not var(--surface) — a third,
+   dimmer tier so bubbles/inputs floating on it still read as raised, same
+   as the dark hex being darker than dark --surface (26,28,32 vs 33,35,41).
+   #e6e9ec sits between --bg and --surface the same way. Chat text renders
+   straight onto it — the thread has no background of its own — so it's
+   verified like the tokens above: tan 13.83:1, tan-2 10.07:1, tan-3 5.07:1,
+   accent 5.27:1. */
+[data-scheme="light"] .rlc-panel {
+  background: #e6e9ec;
+}
+
+/* The float panel's inset top sheen is a dark-elevation idiom — a light
+   line where light "catches" the top edge of a dark card. A light panel has
+   no dark edge for light to catch, so the sheen reads as a stray line, not
+   a highlight; the panel's own 1px border already draws that edge, so the
+   sheen is dropped rather than re-tuned. Both raw-black shadow layers here
+   (and at every other box-shadow below) are cut to roughly a third of their
+   dark-theme alpha — 0.7/0.3 crushes flat on a light surface the way it
+   doesn't on a near-black one. */
+[data-scheme="light"] .rlc-panel[data-place="float"] {
+  box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+[data-scheme="light"] .rlc-panel[data-place="anchored"] {
+  box-shadow: -14px 0 34px -16px rgba(0, 0, 0, 0.2);
+}
+[data-scheme="light"] .rlc-launcher {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.13);
+}
+[data-scheme="light"] .rlc-limits-popover {
+  box-shadow: 0 10px 26px -8px rgba(0, 0, 0, 0.2);
+}
+[data-scheme="light"] .rlc-menu {
+  box-shadow: 0 14px 36px -10px rgba(0, 0, 0, 0.23);
+}
+
+/* Header/composer bands are a darkening WASH over the panel bg, not a
+   shadow — the same "recessed chrome" relationship --bg has to --surface,
+   done as a fill because their background is a hardcoded rgba wash, not a
+   token, so the four-selector re-bind above has nothing to reach. 0.18
+   black crushes a light panel far harder than it dims a near-black one, so
+   the alpha drops to roughly a twelfth: still enough that the band reads a
+   shade back from the thread, and tan-3 text inside it still clears 4.5:1
+   (4.54:1, same composited tone on both bands). */
+[data-scheme="light"] .rlc-header {
+  background: rgba(0, 0, 0, 0.05);
+}
+[data-scheme="light"] .rlc-composer {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Dim-down opacities below were tuned for a light glyph fading into a dark
+   panel; a dark glyph fading into a light panel at the same alpha reads
+   weaker, not equivalently faded, so each is nudged up — only where the
+   dimmed element still carries text or a glyph someone has to read. */
+[data-scheme="light"] .rlc-stage[data-state="done"] {
+  opacity: 0.75;
+}
+[data-scheme="light"] .rlc-send:disabled {
+  opacity: 0.58;
+}
+[data-scheme="light"] .rlc-starters-locked {
+  opacity: 0.68;
+}
+
 /* ── Launcher (collapsed pill) ─────────────────────────────────────────── */
 .rlc-launcher {
   position: fixed;
