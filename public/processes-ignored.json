@@ -80,6 +80,10 @@
     "reason": "other (cross-reference stub: 'process is the same as' the already-defined Redeem From ERC-4626 Vault doc; no independent content)"
   },
   {
+    "uuid": "56c255d4-a827-43a5-8eec-44b9d629023c",
+    "reason": "other (single Governance-Poll-approval requirement; is itself child .5 — Short-Term Transitionary Measures — of the already-curated Agent Termination Process at A.2.2.6.2.2.2.8.1, not a standalone process)"
+  },
+  {
     "uuid": "593de1c8-261c-4828-8fa7-c933d393770b",
     "reason": "other (describes when Module Onboarding Checklists get created; not itself a sequential process)"
   },
@@ -126,6 +130,10 @@
   {
     "uuid": "7ff23236-91c4-4c5c-b462-d4427b03bfd4",
     "reason": "category container"
+  },
+  {
+    "uuid": "813a123a-d6e1-4ef2-bc55-716b50732721",
+    "reason": "requirement spec (single Sky-Forum authorization rule for invoking the SubProxyMethods contract at A.4.6.2.1; sibling of Purpose/Function Calls/Execution template fields describing one method, not a step sequence)"
   },
   {
     "uuid": "847092ba-eb97-47ee-a121-6c8e505bc480",
