@@ -5,10 +5,12 @@
 // whether `fetchTopics` was CALLED, not about a predicate's return value.
 //
 // DB MOCKING — gate/storage functions take their `sql` tag as a parameter
-// (same seam as chain-state.ts), so these tests pass a fake directly. Only
-// handleForumTopics() reaches for the shared `sql`, which is why that one
-// gets the module mock.
-import { describe, it, expect, beforeEach, mock } from "bun:test";
+// (same seam as chain-state.ts), so those tests pass a fake directly. Only
+// handleForumTopics() reaches for the shared `sql`. bun's mock.module lasts
+// for the rest of the process and mock.restore() does not undo it, so the
+// registration below snapshots the real client and only swaps in fakeSql
+// while this file's tests run (see freshness.test.ts / zz-db-integration.test.ts).
+import { describe, it, expect, beforeEach, afterEach, afterAll, mock } from "bun:test";
 import { toUuidArrayLiteral, fromUuidArray } from "./pg-array.ts";
 import type { DiscourseTopic } from "./forum-discourse.ts";
 
@@ -36,14 +38,33 @@ const fakeSql = async (strings: TemplateStringsArray, ...values: unknown[]): Pro
   return [];
 };
 
-mock.module("./db.ts", () => ({
-  sql: fakeSql,
-  dbTarget: () => "mock-db",
-  waitForDb: () => Promise.resolve(),
-  toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
-  toUuidArrayLiteral,
-  fromUuidArray,
-}));
+const baseNs = await import("./db.ts");
+const baseExports: Record<string, unknown> = { ...baseNs };
+const baseSql = baseNs.sql as unknown as Record<PropertyKey, unknown> | undefined;
+
+type SqlImpl = (...args: unknown[]) => unknown;
+let sqlImpl: SqlImpl | null = null;
+
+function sqlCall(...args: unknown[]): unknown {
+  if (sqlImpl) return sqlImpl(...args);
+  if (typeof baseSql !== "function") {
+    throw new Error("db.ts `sql` is not callable — an earlier test file replaced it with a non-callable stub");
+  }
+  return (baseSql as SqlImpl)(...args);
+}
+
+const FN_OWN = new Set<PropertyKey>(["length", "name", "prototype", "constructor", "call", "apply", "bind"]);
+const sqlDispatch = new Proxy(sqlCall, {
+  get(target, prop, receiver) {
+    if (baseSql && !FN_OWN.has(prop)) {
+      const v = baseSql[prop];
+      if (v !== undefined) return typeof v === "function" ? (v as SqlImpl).bind(baseSql) : v;
+    }
+    return Reflect.get(target, prop, receiver);
+  },
+});
+
+mock.module("./db.ts", () => ({ ...baseExports, sql: sqlDispatch, toUuidArrayLiteral, fromUuidArray }));
 
 const { readForumTopics, upsertForumTopic, maybeSyncForum, handleForumTopics } = await import("./forum.ts");
 
@@ -79,6 +100,15 @@ beforeEach(() => {
   syncRow = null;
   topicRows = [];
   readThrows = null;
+  sqlImpl = fakeSql as SqlImpl;
+});
+
+afterEach(() => {
+  sqlImpl = null;
+});
+
+afterAll(() => {
+  sqlImpl = null;
 });
 
 describe("maybeSyncForum (cadence guard)", () => {
