@@ -93,6 +93,7 @@ test("evidenceFromTranscript marks ask_external_msc as external", () => {
   expect(all[0]!.sourceClass).toBe("external");
 });
 
+test("runVerifier degrades to a null verdict on transport failure", async () => {
   const boom: JsonCall = async () => {
     throw new Error("provider 500");
   };
