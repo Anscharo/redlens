@@ -415,6 +415,50 @@ test("export_findings: a clean markdown file (no citations/quotes/addresses) pas
   }
 });
 
+// A file outlives the conversation, so the export gate applies the same
+// non-Atlas attribution rule the harness applies to the answer. The provenance
+// split is read off the transcript, so a prior pass's MSC round still counts —
+// which is what this replays.
+const MSC_TRANSCRIPT: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+  userMsg,
+  {
+    role: "assistant",
+    content: null,
+    tool_calls: [{ id: "msc_1", type: "function", function: { name: "ask_external_msc", arguments: "{}" } }],
+  },
+  {
+    role: "tool",
+    tool_call_id: "msc_1",
+    content: JSON.stringify({ source_class: "external", not_atlas: true, three_way: { to_sky: 5000000 } }),
+  },
+];
+const mscExportArgs = (markdown: string) => JSON.stringify({ format: "markdown", filename: "msc", markdown });
+
+test("export_findings: a file built on settlement figures is withheld until it carries the non-Atlas disclaimer", async () => {
+  const rounds = [
+    [toolChunk("export_findings", mscExportArgs("To Sky was 5,000,000 USDS in that cycle.")), finishChunk("tool_calls")],
+    [textChunk("Let me relabel that."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: MSC_TRANSCRIPT, stream: fakeStream(rounds, []), maxIterations: 2 }));
+
+  expect(events.some((e) => e.type === "export")).toBe(false);
+  const done = events.at(-1)!;
+  if (done.type === "done") {
+    const ack = done.transcript.filter((m) => m.role === "tool").at(-1);
+    expect(String(ack?.content)).toContain("non-Atlas attribution");
+  }
+});
+
+test("export_findings: the same file WITH the disclaimer is delivered", async () => {
+  const md = "These figures are not from the Sky Atlas — Soter Labs workbooks.\n\nTo Sky was 5,000,000 USDS in that cycle.";
+  const rounds = [
+    [toolChunk("export_findings", mscExportArgs(md)), finishChunk("tool_calls")],
+    [textChunk("Downloading."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: MSC_TRANSCRIPT, stream: fakeStream(rounds, []), maxIterations: 2 }));
+  expect(events.some((e) => e.type === "export")).toBe(true);
+});
+
 test("export_findings: invalid args become an {error} tool result, no export event", async () => {
   // format:csv with no columns → buildExportArtifact throws → model gets {error}.
   const rounds = [

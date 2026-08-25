@@ -539,7 +539,8 @@ export interface CheckReport {
   // External MSC brief was in this turn but the answer omitted the required
   // non-Atlas attribution. HARD failure.
   missingExternalDisclaimer: boolean;
-  // Settlement $ amounts cited as /atlas/<uuid>. HARD failure.
+  // Settlement figures from the external MSC brief cited as /atlas/<uuid> —
+  // the figure is absent from the doc it cites. HARD failure.
   mscCitedAsAtlas: string[];
   // Soft wrong-doc assist: claim sentences whose vocabulary barely occurs in the
   // doc they cite. Informs the verifier prompt; never fails a turn.
@@ -555,14 +556,32 @@ export interface CheckReport {
   failed: boolean;
 }
 
-export function findMscCitedAsAtlas(answer: string): string[] {
+// Settlement-cycle figures attributed to the atlas. Scoped PER VALUE, not by
+// citation shape: `[10,000,000 USDS](/atlas/<uuid>)` is exactly how
+// system-prompt.ts tells the model to cite a genuine atlas debt ceiling or
+// threshold, so a numeric-looking citation is only wrong when the figure is
+// absent from the doc it cites AND present in this turn's external MSC brief.
+// Shape alone would hard-fail correct atlas citations on any turn that mixes a
+// settlement question with a process question — and the revision steer would
+// then push the model to "fix" a citation that was right.
+// Complements findUngroundedCitationValues, which runs over ATLAS evidence only
+// and so skips these values as "in no evidence at all → computed/soft".
+export function findMscCitedAsAtlas(answer: string, externalTexts: string[], ix: Indexes): string[] {
+  const cites = extractCitations(answer);
+  if (cites.length === 0 || externalTexts.length === 0) return [];
+  const external = mkHay(externalTexts.join("\n"));
   const out: string[] = [];
-  for (const c of extractCitations(answer)) {
-    if (/\$[\d,]|\d[\d,.]+\s*(USD|USDS)?$/i.test(c.title.trim())) {
-      out.push(`${c.title} cited as /atlas/${c.uuid}`);
+  for (const c of cites) {
+    const doc = ix.docMap.get(c.uuid);
+    if (!doc) continue; // an unknown uuid is already a hard failure
+    const docHay = mkHay(`${doc.title}\n${doc.content}`);
+    for (const v of citationValues(c.title)) {
+      if (valueInHay(v, docHay)) continue; // grounded in the cited doc — a real atlas figure
+      if (!valueInHay(v, external)) continue; // not a settlement figure either — other checks own it
+      out.push(`${v.literal} cited as /atlas/${c.uuid} (${doc.doc_no}) but comes from the external settlement brief`);
     }
   }
-  return out;
+  return [...new Set(out)];
 }
 
 export function runDeterministicChecks(
@@ -584,7 +603,7 @@ export function runDeterministicChecks(
   const paramMismatches = findParamMismatches(answer, ix);
   const completenessFailures = completenessFailuresOf(completeness?.question, answer, completeness?.evidence);
   const missingExternalDisclaimer = externalTexts.length > 0 && !answerHasMscDisclaimer(answer);
-  const mscCitedAsAtlas = externalTexts.length > 0 ? findMscCitedAsAtlas(answer) : [];
+  const mscCitedAsAtlas = findMscCitedAsAtlas(answer, externalTexts, ix);
   return {
     citations,
     invalidCitations,

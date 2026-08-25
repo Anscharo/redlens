@@ -22,7 +22,13 @@ import {
 } from "../../reports/index.ts";
 import { atlasFirstSeen } from "../../history/first-seen.ts";
 
-export interface AtlasTool {
+// The two fields toolDescription() assembles — shared with ExternalTool.
+export interface DescribedTool {
+  description: string;
+  whenToUse?: string;
+}
+
+export interface AtlasTool extends DescribedTool {
   name: string;
   // What the tool does + its return shape — must stand alone: the /connect
   // page (a human-facing docs page, tools.json) reads this field bare, with no
@@ -45,7 +51,10 @@ export interface AtlasTool {
 // page's tools.json deliberately does NOT call this — it reads `t.description`
 // bare, since `whenToUse`'s imperative agent-steering phrasing isn't meant for
 // human documentation.
-export function toolDescription(t: AtlasTool): string {
+// Structurally typed (not `AtlasTool`) so the external, deliberately-separate
+// tool set — EXTERNAL_TOOLS, which must never join ATLAS_TOOLS — gets the same
+// description assembly instead of a second copy of this one line.
+export function toolDescription(t: DescribedTool): string {
   return t.whenToUse ? `${t.description}\n\nWhen to use: ${t.whenToUse}` : t.description;
 }
 

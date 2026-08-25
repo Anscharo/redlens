@@ -62,3 +62,56 @@ test("an address that IS present in the evidence is grounded and passes", () => 
   const r = checkExportArtifact(art({ format: "markdown", content: `Contract ${ADDR}.` }), [`some tool result mentioning ${ADDR}`], ix);
   expect(r.ok).toBe(true);
 });
+
+// ── External (Monthly Settlement Cycle) evidence ──────────────────────────────
+// A file outlives the conversation, so an export built on the MSC brief faces
+// the same non-Atlas attribution rules the harness applies to the chat answer.
+const MSC_BRIEF = JSON.stringify({
+  source_class: "external",
+  not_atlas: true,
+  required_disclaimer: "These figures are not from the Sky Atlas. They come from Soter Labs workbooks.",
+  three_way: { to_sky: 5000000 },
+});
+const DISCLAIMER = "These figures are not from the Sky Atlas — Soter Labs Monthly Settlement Cycle workbooks.";
+
+test("markdown: exporting settlement figures without the non-Atlas disclaimer is withheld", () => {
+  const r = checkExportArtifact(
+    art({ format: "markdown", content: "Spark sent 5,000,000 USDS to Sky." }),
+    { atlasTexts: [], externalTexts: [MSC_BRIEF] },
+    ix,
+  );
+  expect(r.ok).toBe(false);
+  if (!r.ok) expect(r.problems.join(" ")).toContain("non-Atlas attribution");
+});
+
+test("csv: the disclaimer requirement applies to CSV exports too, and a source cell satisfies it", () => {
+  const bare = checkExportArtifact(
+    art({ format: "csv", content: '"To Sky"\r\n"5,000,000"' }),
+    { atlasTexts: [], externalTexts: [MSC_BRIEF] },
+    ix,
+  );
+  expect(bare.ok).toBe(false);
+
+  const sourced = checkExportArtifact(
+    art({ format: "csv", content: `"To Sky","Source"\r\n"5,000,000","${DISCLAIMER}"` }),
+    { atlasTexts: [], externalTexts: [MSC_BRIEF] },
+    ix,
+  );
+  expect(sourced.ok).toBe(true);
+});
+
+test("markdown: a settlement dollar cited as /atlas/<uuid> is withheld", () => {
+  const uuid = ix.docMap.keys().next().value as string;
+  const r = checkExportArtifact(
+    art({ format: "markdown", content: `${DISCLAIMER}\n\nSpark sent [5,000,000 USDS](/atlas/${uuid}) to Sky.` }),
+    { atlasTexts: [], externalTexts: [MSC_BRIEF] },
+    ix,
+  );
+  expect(r.ok).toBe(false);
+  if (!r.ok) expect(r.problems.join(" ")).toContain("must not be cited as /atlas/<uuid>");
+});
+
+test("a flat evidence list still means 'all atlas' — no disclaimer demanded", () => {
+  const r = checkExportArtifact(art({ format: "markdown", content: "Spark sent 5,000,000 USDS to Sky." }), [MSC_BRIEF], ix);
+  expect(r.ok).toBe(true);
+});
