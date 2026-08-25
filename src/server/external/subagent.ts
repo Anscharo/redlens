@@ -36,7 +36,7 @@ export interface MscBrief {
 }
 
 function asBrief(raw: unknown, fallback: Record<string, unknown>): MscBrief {
-  const fb = fallback as MscBrief;
+  const fb = fallback as unknown as MscBrief;
   if (!raw || typeof raw !== "object") return { ...fb, subagent: "failed" };
   const o = raw as Record<string, unknown>;
   const figuresIn = Array.isArray(o.figures) ? o.figures : fb.figures;
@@ -67,7 +67,7 @@ export async function runMscSubagent(opts: {
   jsonCall?: JsonCall;
   signal?: AbortSignal;
 }): Promise<MscBrief> {
-  const fallback = briefFromView(opts.view) as MscBrief;
+  const fallback = briefFromView(opts.view) as unknown as MscBrief;
   const model = config.chatExternalSubagentModel || (opts.jsonCall ? "msc-subagent" : "");
   if (!opts.jsonCall || !model) return { ...fallback, subagent: "skipped" };
   try {
@@ -96,7 +96,7 @@ export async function runMscSubagent(opts: {
       opts.signal,
     );
     const parsed = JSON.parse(res.text) as unknown;
-    return asBrief(parsed, fallback);
+    return asBrief(parsed, fallback as unknown as Record<string, unknown>);
   } catch {
     return { ...fallback, subagent: "failed" };
   }

@@ -106,10 +106,11 @@ export async function runAskExternalMsc(
       ...rec,
     };
   }
-  return runMscSubagent({
+  const brief = await runMscSubagent({
     question: typeof args.question === "string" && args.question.trim() ? String(args.question) : question,
     view: rec,
     jsonCall,
     signal,
   });
+  return { ...brief };
 }

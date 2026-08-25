@@ -150,13 +150,6 @@ function monthBody(report: SettlementReport, forum: ForumHit | null) {
   };
 }
 
-function metricValue(report: SettlementReport, metric: MscMetric): number {
-  if (metric === "to_sky") return report.headline.skyRevenue;
-  if (metric === "supply_kept") return supplyKept(report);
-  if (metric === "demand_side") return demandSideRevenue(report.headline);
-  return report.headline.cof;
-}
-
 export function buildMscView(
   bundle: SettlementsBundle,
   topics: readonly ForumMonthTopic[],
