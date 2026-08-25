@@ -4,6 +4,7 @@ export interface ForumTopic {
   title: string;
   url: string;
   postedAt: string;
+  period: string[];
 }
 
 export function loadForumTopics(): Promise<ForumTopic[]> {

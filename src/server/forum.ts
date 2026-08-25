@@ -10,6 +10,7 @@ import { sql } from "./db.ts";
 import { json } from "./http.ts";
 import { config } from "./config.ts";
 import { isForumKind, type ForumKind } from "../lib/forumKinds.ts";
+import { monthsFromMscTitle } from "../lib/forumMonths.ts";
 import {
   fetchAllowlistedTopics,
   type DiscourseFetch,
@@ -30,6 +31,7 @@ export interface ForumTopicRow {
   lastPostedAt: string | null;
   tags: string[];
   postsCount: number;
+  period: string[];
 }
 
 export interface ForumTopicsPayload {
@@ -67,6 +69,7 @@ interface TopicDbRow {
   last_posted_at?: string | Date | null;
   tags?: unknown;
   posts_count?: number;
+  period?: unknown;
 }
 
 function toTopicRow(r: TopicDbRow): ForumTopicRow {
@@ -81,18 +84,19 @@ function toTopicRow(r: TopicDbRow): ForumTopicRow {
     lastPostedAt: toIso(r.last_posted_at ?? null),
     tags: asTags(r.tags),
     postsCount: r.posts_count ?? 0,
+    period: asTags(r.period),
   };
 }
 
 export async function readForumTopics(db: SqlTag = sql, kind?: ForumKind): Promise<ForumTopicRow[]> {
   const rows = kind
     ? ((await db`
-        SELECT topic_id, kind, title, slug, url, poster, posted_at, last_posted_at, tags, posts_count
+        SELECT topic_id, kind, title, slug, url, poster, posted_at, last_posted_at, tags, posts_count, period
         FROM forum_topics WHERE kind = ${kind}
         ORDER BY posted_at DESC
       `) as TopicDbRow[])
     : ((await db`
-        SELECT topic_id, kind, title, slug, url, poster, posted_at, last_posted_at, tags, posts_count
+        SELECT topic_id, kind, title, slug, url, poster, posted_at, last_posted_at, tags, posts_count, period
         FROM forum_topics
         ORDER BY posted_at DESC
       `) as TopicDbRow[]);
@@ -107,13 +111,14 @@ export async function readForumFetchedAt(db: SqlTag = sql): Promise<string | nul
 }
 
 export async function upsertForumTopic(db: SqlTag, topic: DiscourseTopic, now: Date): Promise<void> {
+  const period = monthsFromMscTitle(topic.title);
   await db`
     INSERT INTO forum_topics (
-      topic_id, kind, title, slug, url, poster, posted_at, last_posted_at, tags, posts_count, op_html, synced_at
+      topic_id, kind, title, slug, url, poster, posted_at, last_posted_at, tags, posts_count, period, op_html, synced_at
     ) VALUES (
       ${topic.topicId}, ${topic.kind}, ${topic.title}, ${topic.slug}, ${topic.url},
       ${topic.poster}, ${topic.postedAt}, ${topic.lastPostedAt}, ${topic.tags}::jsonb,
-      ${topic.postsCount}, ${topic.opHtml}, ${now}
+      ${topic.postsCount}, ${period}::jsonb, ${topic.opHtml}, ${now}
     )
     ON CONFLICT (topic_id) DO UPDATE SET
       kind = excluded.kind,
@@ -125,6 +130,7 @@ export async function upsertForumTopic(db: SqlTag, topic: DiscourseTopic, now: D
       last_posted_at = excluded.last_posted_at,
       tags = excluded.tags,
       posts_count = excluded.posts_count,
+      period = excluded.period,
       op_html = excluded.op_html,
       synced_at = excluded.synced_at
   `;
