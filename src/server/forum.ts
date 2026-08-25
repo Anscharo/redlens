@@ -5,6 +5,9 @@
 // The atlas worker is the only writer (maybeSyncForum). Indexing never runs
 // on the web request thread. Cadence is time-gated like chain-state — the
 // worker tick is ~12 minutes; Discourse must not be hit every tick.
+//
+// Do not fill forum_embeddings: MSC / weekly-edit bodies are templates
+// (FORUM_EMBED_ENABLED in forumKinds.ts). Period lives on forum_topics.period.
 
 import { sql } from "./db.ts";
 import { json } from "./http.ts";
