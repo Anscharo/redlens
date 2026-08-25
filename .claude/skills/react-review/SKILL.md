@@ -81,6 +81,25 @@ accessible name makes the review harder to act on.
 8. **State bugs**: a prop copied into `useState`; a `useSyncExternalStore` snapshot returning
    a fresh object; an effect that writes state derivable during render; missing cleanup.
 
+**Theme safety (blocking).** RedLens ships three colour schemes, so any diff
+that introduces a colour is a theme change whether or not it was meant as one.
+
+- Grep the diff for `#hex`, `rgb(`/`rgba(`, `bg-white` / `text-black` /
+  `bg-gray-500`-style Tailwind defaults, `bg-[#…]` arbitrary values, and
+  `color-mix()` mixing toward literal `white` or `black`. Every one of these is
+  a finding: a literal cannot follow the theme, and the contrast test cannot
+  see it because it only parses `index.css`. The fix is a `var(--token)`.
+- A colour that *brightens* is direction-bearing. Mixing toward `white` lifts on
+  dark and washes out on light; mix toward a token that flips role instead
+  (`--tan` is cream on dark, near-black on light).
+- A new token in `:root` must have a value in EVERY `[data-theme]` block, and a
+  new FOREGROUND token needs an `AUDIT_PAIRS` entry — against `bg`, `surface`
+  AND `bg-deep`, since dark's worst-case surface is the lightest and light's is
+  the darkest.
+- Run `pnpm exec vitest run apps/web/src/admin/` — it covers all of the above
+  mechanically. Reviewing a colour by eye in one theme proves nothing about the
+  other two.
+
 ### B. API and composition
 
 9. **One component rendering several structural elements** with `title`/`footer`/`icon`-style

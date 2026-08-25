@@ -77,6 +77,44 @@ Contrast annotations in the comments are load-bearing: `--gray`, `--tan-3`,
 `--surface`. Any new foreground color must pass AA too — verify on
 `/admin/palette` (ContrastAudit section) or with the `wcag-contrast` package.
 
+## Before you finish any visual change: check every theme
+
+There are three colour schemes. A change reviewed in one has been reviewed in
+one third of the app.
+
+```bash
+pnpm exec vitest run apps/web/src/admin/     # the whole theme gate, ~1s
+```
+
+Four things it holds, and the failure each one prevents:
+
+| Test | Prevents |
+|---|---|
+| every audited token is a literal hex per theme | a `var()`/`color-mix()` silently returning a null ratio instead of failing |
+| all `AUDIT_PAIRS` × every theme meet AA (3:1 for the focus ring) | shipping a palette nobody can read |
+| every `:root` colour token exists in every theme | a new token silently inheriting the dark value forever |
+| every `THEMES` registry id has a CSS block, and vice versa | a theme appearing in the picker that falls through to dark under a light-sounding name |
+| no component hardcodes a colour | a literal that looks right in one theme and vanishes in another — the contrast test cannot see these, it only parses `index.css` |
+
+**Adding a colour is therefore three steps, not one:** add the token to
+`:root`, give it a value in EVERY `[data-theme]` block, and — if it is a
+foreground — add an `AUDIT_PAIRS` entry in `admin/contrast.ts` against `bg`,
+`surface` and `bg-deep`. Dark's worst-case surface is its LIGHTEST (`--surface`)
+and light's is its DARKEST (`--bg-deep`); neither theme's worst case is covered
+by the other's pairs.
+
+**Never hand-pick a colour to clear AA.** Search for it — hold hue fixed and
+sweep lightness/chroma in OKLCH until the ratio clears, which finds the most
+saturated value that still passes rather than the first dull one that does.
+OKLCH, not HSL: equal OKLab lightness means equal *perceived* lightness across
+hues, so a set built that way actually looks like one family. HSL does not —
+an HSL yellow at `L=50%` is far brighter than an HSL violet at `L=50%`.
+
+**Screenshots do not substitute for the gate**, and the gate does not substitute
+for screenshots. The gate catches unreadable; only looking catches ugly. Do
+both, and shoot every theme (see the recipe below — seed
+`localStorage["redline-sky-atlas:theme"]` before load so the pre-paint path runs).
+
 ## The /admin/palette page
 
 `/admin/palette` (source: `src/admin/`). Click a swatch → color picker →
