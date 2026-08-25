@@ -25,7 +25,10 @@ beforeAll(() => {
   MAIN_STORE.root = tmpRoot;
   const dir = bundleDir(MAIN_STORE, TEST_SHA);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "docs.json"), JSON.stringify({ hello: "atlas" }));
+  fs.writeFileSync(path.join(dir, "docs-shallow.json"), JSON.stringify({ hello: "atlas" }));
+  // Written but NOT allowlisted for main — the case below pins that a file
+  // sitting in the bundle dir is still refused when the store won't serve it.
+  fs.writeFileSync(path.join(dir, "docs.json"), JSON.stringify({ hello: "unreachable" }));
 });
 
 afterAll(() => {
@@ -46,13 +49,13 @@ test("404 when the path doesn't have exactly sha/name segments", async () => {
 });
 
 test("404 when the sha segment isn't 40 hex chars", async () => {
-  const res = await handleAtlasStatic(req("/api/atlas/not-a-sha/docs.json"), "/api/atlas/not-a-sha/docs.json");
+  const res = await handleAtlasStatic(req("/api/atlas/not-a-sha/docs-shallow.json"), "/api/atlas/not-a-sha/docs-shallow.json");
   expect(res.status).toBe(404);
 });
 
 test("accepts an uppercase sha (case-insensitive) and lowercases it for lookup", async () => {
   const upper = TEST_SHA.toUpperCase();
-  const res = await handleAtlasStatic(req(`/api/atlas/${upper}/docs.json`), `/api/atlas/${upper}/docs.json`);
+  const res = await handleAtlasStatic(req(`/api/atlas/${upper}/docs-shallow.json`), `/api/atlas/${upper}/docs-shallow.json`);
   expect(res.status).toBe(200);
 });
 
@@ -64,15 +67,23 @@ test("404 when the artifact name isn't allowlisted", async () => {
 
 test("404 when the sha bundle dir/artifact doesn't exist", async () => {
   const missingSha = "a".repeat(40);
-  const p = `/api/atlas/${missingSha}/docs.json`;
+  const p = `/api/atlas/${missingSha}/docs-shallow.json`;
   const res = await handleAtlasStatic(req(p), p);
   expect(res.status).toBe(404);
 });
 
 test("200 with the immutable cache-control header when the artifact exists", async () => {
-  const p = `/api/atlas/${TEST_SHA}/docs.json`;
+  const p = `/api/atlas/${TEST_SHA}/docs-shallow.json`;
   const res = await handleAtlasStatic(req(p), p);
   expect(res.status).toBe(200);
   expect(res.headers.get("cache-control")).toBe("public, max-age=31536000, immutable");
   expect(await res.json()).toEqual({ hello: "atlas" });
+});
+
+test("404 for docs.json even when the file is in the bundle dir — main doesn't serve it", async () => {
+  // The browser fetches the docs-shallow/docs-deep split; main stopped bundling
+  // docs.json, and the allowlist must refuse it regardless of what is on disk.
+  const p = `/api/atlas/${TEST_SHA}/docs.json`;
+  expect(fs.existsSync(path.join(bundleDir(MAIN_STORE, TEST_SHA), "docs.json"))).toBe(true);
+  expect((await handleAtlasStatic(req(p), p)).status).toBe(404);
 });

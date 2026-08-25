@@ -34,6 +34,9 @@ function freshStore(overrides: Partial<BundleStore> = {}): BundleStore {
     artifactSubdir: "",
     keep: 2,
     allowlist: new Set(["docs.json", "relations.json"]),
+    // Default to the in-place/marker mode so the generic cases below keep
+    // exercising it; MAIN's atomic (readyCore: null) mode has its own tests.
+    readyCore: "docs.json",
     requireMeta: false,
     ...overrides,
   };
@@ -54,9 +57,19 @@ afterAll(() => {
 test("MAIN_STORE and PREVIEW_STORE are configured as documented", () => {
   expect(MAIN_STORE.artifactSubdir).toBe("");
   expect(MAIN_STORE.requireMeta).toBe(false);
-  expect(MAIN_STORE.allowlist.has("docs.json")).toBe(true);
+  // MAIN is published atomically, so it needs no core marker — and docs.json,
+  // which used to BE that marker, is no longer bundled: nothing serves or reads
+  // main's per-sha copy. The browser gets the depth split instead.
+  expect(MAIN_STORE.readyCore).toBeNull();
+  expect(MAIN_STORE.allowlist.has("docs.json")).toBe(false);
+  expect(MAIN_STORE.allowlist.has("docs-shallow.json")).toBe(true);
+  expect(MAIN_STORE.allowlist.has("docs-deep.json")).toBe(true);
   expect(PREVIEW_STORE.artifactSubdir).toBe("out");
   expect(PREVIEW_STORE.requireMeta).toBe(true);
+  // Preview fills its dir in place, so it still needs a real marker, and its
+  // differ reads <sha>/out/docs.json.
+  expect(PREVIEW_STORE.readyCore).toBe("docs.json");
+  expect(PREVIEW_STORE.allowlist.has("docs.json")).toBe(true);
   expect(PREVIEW_STORE.allowlist.has("meta.json")).toBe(true);
   expect(typeof PREVIEW_DIR).toBe("string");
 });
@@ -224,4 +237,108 @@ test("serveBundleArtifact prefers the precompressed .gz when the client accepts 
   expect(res).not.toBeNull();
   expect(res!.headers.get("content-encoding")).toBe("gzip");
   expect(res!.headers.get("vary")).toBe("Accept-Encoding");
+});
+
+test("bundleReady with readyCore: null treats the dir's existence as the proof", () => {
+  const store = freshStore({ readyCore: null });
+  expect(bundleReady(store, "atomic1")).toBe(false);
+  // No docs.json anywhere — an atomically published dir is complete by
+  // construction, so no single artifact has to stand in for the set.
+  fs.mkdirSync(path.join(ROOT, "atomic1"), { recursive: true });
+  expect(bundleReady(store, "atomic1")).toBe(true);
+});
+
+test("publishBundle is atomic: <sha> never exists until every artifact is written", async () => {
+  const srcDir = path.join(ROOT, "src-atomic");
+  fs.mkdirSync(srcDir, { recursive: true });
+  fs.writeFileSync(path.join(srcDir, "docs.json"), "{}");
+  fs.writeFileSync(path.join(srcDir, "relations.json"), "{}");
+
+  const store = freshStore({ readyCore: null });
+  const finalDir = path.join(ROOT, "shaAtomic");
+  const realWrite = fs.writeFileSync;
+  const seen: boolean[] = [];
+  // Probe from inside the artifact loop rather than off a timer: this runs
+  // synchronously on every write, so the observation can't be scheduled away
+  // on a fast machine. The final dir must stay invisible until the rename.
+  (fs as { writeFileSync: typeof fs.writeFileSync }).writeFileSync = ((...args: Parameters<typeof fs.writeFileSync>) => {
+    seen.push(fs.existsSync(finalDir));
+    return realWrite(...args);
+  }) as typeof fs.writeFileSync;
+  try {
+    await publishBundle(store, "shaAtomic", srcDir);
+  } finally {
+    (fs as { writeFileSync: typeof fs.writeFileSync }).writeFileSync = realWrite;
+  }
+
+  expect(seen.length).toBe(4); // 2 artifacts × (.json + .gz)
+  expect(seen.some(Boolean)).toBe(false); // never observed mid-publish
+  for (const n of ["docs.json", "docs.json.gz", "relations.json", "relations.json.gz"]) {
+    expect(fs.existsSync(path.join(ROOT, "shaAtomic", n))).toBe(true);
+  }
+  expect(fs.existsSync(path.join(ROOT, ".tmp-shaAtomic"))).toBe(false); // stage renamed away
+});
+
+test("publishBundle leaves an already-published sha alone but still touches + prunes", async () => {
+  const srcDir = path.join(ROOT, "src-idem");
+  fs.mkdirSync(srcDir, { recursive: true });
+  fs.writeFileSync(path.join(srcDir, "docs.json"), JSON.stringify({ v: 2 }));
+
+  const store = freshStore({ readyCore: null, keep: 0 });
+  // A bundle's bytes are fixed by its sha, so an existing dir is authoritative:
+  // republishing must not rewrite it (that is what makes the retry path cheap).
+  fs.mkdirSync(path.join(ROOT, "shaIdem"), { recursive: true });
+  fs.writeFileSync(path.join(ROOT, "shaIdem", "docs.json"), JSON.stringify({ v: 1 }));
+  fs.mkdirSync(path.join(ROOT, "other-sha"), { recursive: true });
+
+  await publishBundle(store, "shaIdem", srcDir);
+
+  expect(JSON.parse(fs.readFileSync(path.join(ROOT, "shaIdem", "docs.json"), "utf8"))).toEqual({ v: 1 });
+  expect(fs.existsSync(path.join(ROOT, "shaIdem", "docs.json.gz"))).toBe(false); // not rewritten
+  expect(fs.existsSync(path.join(ROOT, "other-sha"))).toBe(false); // pruning still ran
+});
+
+test("publishBundle removes its staging dir when a write fails, so a retry can't publish a partial bundle", async () => {
+  const srcDir = path.join(ROOT, "src-fail");
+  fs.mkdirSync(srcDir, { recursive: true });
+  fs.writeFileSync(path.join(srcDir, "docs.json"), "{}");
+  fs.writeFileSync(path.join(srcDir, "relations.json"), "{}");
+
+  const store = freshStore({ readyCore: null });
+  const realWrite = fs.writeFileSync;
+  let writes = 0;
+  // Fail partway through the artifact loop, after at least one file landed.
+  (fs as { writeFileSync: typeof fs.writeFileSync }).writeFileSync = ((...args: Parameters<typeof fs.writeFileSync>) => {
+    if (++writes === 3) throw new Error("disk full");
+    return realWrite(...args);
+  }) as typeof fs.writeFileSync;
+  try {
+    await expect(publishBundle(store, "shaFail", srcDir)).rejects.toThrow("disk full");
+  } finally {
+    (fs as { writeFileSync: typeof fs.writeFileSync }).writeFileSync = realWrite;
+  }
+
+  expect(fs.existsSync(path.join(ROOT, "shaFail"))).toBe(false);
+  expect(fs.existsSync(path.join(ROOT, ".tmp-shaFail"))).toBe(false);
+});
+
+test("evictLru sweeps a leftover staging dir instead of counting it as a ready bundle", () => {
+  const store = freshStore({ readyCore: null, keep: 5 });
+  fs.mkdirSync(path.join(ROOT, ".tmp-crashed"), { recursive: true });
+  fs.mkdirSync(path.join(ROOT, "real-sha"), { recursive: true });
+
+  const evicted = evictLru(store);
+  expect(evicted).toEqual([".tmp-crashed"]);
+  expect(fs.existsSync(path.join(ROOT, ".tmp-crashed"))).toBe(false);
+  expect(fs.existsSync(path.join(ROOT, "real-sha"))).toBe(true); // under keep, retained
+});
+
+test("publishBundle refuses to publish an empty bundle rather than making an unservable sha ready", async () => {
+  const srcDir = path.join(ROOT, "src-empty");
+  fs.mkdirSync(srcDir, { recursive: true }); // no artifacts at all
+  const store = freshStore({ readyCore: null });
+
+  await expect(publishBundle(store, "shaEmpty", srcDir)).rejects.toThrow(/no artifacts/);
+  expect(fs.existsSync(path.join(ROOT, "shaEmpty"))).toBe(false);
+  expect(fs.existsSync(path.join(ROOT, ".tmp-shaEmpty"))).toBe(false);
 });

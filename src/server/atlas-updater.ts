@@ -352,8 +352,8 @@ export async function runRefreshFromDb(log: (m: string) => void, spawn: SpawnFn 
     }
 
     // Regenerate stale .gz siblings: the Dockerfile pre-gzips several flat
-    // artifacts at image build time (docs.json, search-index.json,
-    // relations.json, glossary.json, oea-report.json), but this refresh only
+    // artifacts at image build time (scripts/lib/build-steps.mjs
+    // GZIP_ARTIFACTS), but this refresh only
     // rewrites the flat .json — the request handler prefers `<file>.gz` for
     // every gzip-accepting client (see index.ts's static handler), so an
     // un-regenerated .gz would serve image-build-time data forever. Only

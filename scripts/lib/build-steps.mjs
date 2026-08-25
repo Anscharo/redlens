@@ -117,7 +117,10 @@ export const PROFILES = {
  * derives its set from what's on disk instead — deliberately, so it
  * self-maintains.
  */
-export const GZIP_ARTIFACTS = ["docs.json", "search-index.json", "relations.json", "glossary.json", "oea-report.json"];
+// docs.json is absent on purpose: no request reaches it. The browser fetches the
+// docs-shallow/docs-deep split (docs/plans/docs-split.md), so pre-compressing the
+// 6 MB combined file only cost image-build time and ~1.4 MB of layer.
+export const GZIP_ARTIFACTS = ["search-index.json", "relations.json", "glossary.json", "oea-report.json"];
 
 const BY_ID = new Map(STEPS.map((s) => [s.id, s]));
 

@@ -28,9 +28,22 @@ export interface BundleStore {
   keep: number;
   /** Artifact names the store will resolve/serve. */
   allowlist: Set<string>;
+  /**
+   * Artifact whose presence proves the bundle is complete, for stores whose
+   * dir is filled IN PLACE (previews spawn the build straight into <sha>/out).
+   * `null` for a store published atomically by publishBundle below: the dir is
+   * renamed into place only after every artifact is written, so its existence
+   * is the proof and no single file has to stand in for the whole set.
+   */
+  readyCore: string | null;
   /** Readiness also requires <sha>/meta.json (preview bundles). */
   requireMeta: boolean;
 }
+
+// Staging-dir prefix for publishBundle's atomic rename. Leading dot + a prefix
+// no sha can have (shas are hex), so evictLru can recognise a leftover stage
+// from a crashed publish and never mistake one for a bundle.
+const STAGING_PREFIX = ".tmp-";
 
 // NOT routed through config.ts: preview/handler.test.ts sets
 // process.env.PREVIEW_DIR at its OWN top level (before config.ts, which is
@@ -44,12 +57,18 @@ export const PREVIEW_DIR = process.env.PREVIEW_DIR ?? "/tmp/previews";
 // it stays outside this store and preview reuses main's: addresses.json is flat
 // under BASE_URL, and the contract-state snapshot is served from /api/chain-state
 // (a Postgres row, not a file — migration 020).
-// docs.json stays bundled as the bundleReady core + diff source; the browser
-// fetches docs-shallow.json (depth ≤ 5, first paint) + docs-deep.json (depth > 5,
-// background) instead — see docs/plans/docs-split.md. Report views that join
-// against the atlas graph stay sha-keyed here too.
+// docs.json is deliberately NOT bundled here. The browser fetches
+// docs-shallow.json (depth ≤ 5, first paint) + docs-deep.json (depth > 5,
+// background) instead — see docs/plans/docs-split.md — nothing reads main's
+// per-sha copy off disk, and the server's own indexes read the flat
+// public/docs.json. It used to be carried solely as the bundleReady core, which
+// cost a 6 MB write plus a gzip -9 over 6 MB on every publish for a file no
+// request could reach, and (being FIRST in this set) marked the bundle ready
+// after 1 of 8 files. The atomic publish below removes the need for a core
+// marker entirely. PREVIEW still bundles it — the preview differ reads
+// <sha>/out/docs.json (preview/build.ts snapshotFromDocsJson).
+// Report views that join against the atlas graph stay sha-keyed here too.
 const MAIN_ALLOWLIST = new Set([
-  "docs.json",
   "docs-shallow.json",
   "docs-deep.json",
   "search-index.json",
@@ -79,6 +98,8 @@ export const MAIN_STORE: BundleStore = {
   artifactSubdir: "",
   keep: config.atlasBundleKeep,
   allowlist: MAIN_ALLOWLIST,
+  // Published atomically (stage → rename), so the dir's existence is readiness.
+  readyCore: null,
   requireMeta: false,
 };
 
@@ -87,6 +108,10 @@ export const PREVIEW_STORE: BundleStore = {
   artifactSubdir: "out",
   keep: config.previewCacheKeep,
   allowlist: PREVIEW_ALLOWLIST,
+  // Filled in place by the preview build (not publishBundle), so completeness
+  // needs a real marker: docs.json is the build's core output and writeMeta()
+  // lands meta.json last (preview/build.ts).
+  readyCore: "docs.json",
   requireMeta: true,
 };
 
@@ -94,8 +119,13 @@ export function bundleDir(store: BundleStore, sha: string): string {
   return path.join(store.root, sha);
 }
 
+/** Where artifacts live inside a given bundle dir ("" → the dir itself). */
+function artifactDirIn(store: BundleStore, dir: string): string {
+  return store.artifactSubdir ? path.join(dir, store.artifactSubdir) : dir;
+}
+
 function artifactDir(store: BundleStore, sha: string): string {
-  return store.artifactSubdir ? path.join(store.root, sha, store.artifactSubdir) : path.join(store.root, sha);
+  return artifactDirIn(store, bundleDir(store, sha));
 }
 
 /** Resolve an allowlisted artifact's absolute path, or null if not allowed. */
@@ -106,10 +136,16 @@ export function artifactPath(store: BundleStore, sha: string, name: string): str
   return path.join(artifactDir(store, sha), name);
 }
 
-/** A bundle is ready when its core artifact (+ meta, for preview) exists. */
+/** A bundle is ready when it is complete on disk — see BundleStore.readyCore
+ *  for why that is a named artifact for some stores and the dir itself for
+ *  others (+ meta.json, for preview). */
 export function bundleReady(store: BundleStore, sha: string): boolean {
-  const core = artifactPath(store, sha, "docs.json");
-  if (!core || !fs.existsSync(core)) return false;
+  if (store.readyCore) {
+    const core = artifactPath(store, sha, store.readyCore);
+    if (!core || !fs.existsSync(core)) return false;
+  } else if (!fs.existsSync(bundleDir(store, sha))) {
+    return false;
+  }
   if (store.requireMeta && !fs.existsSync(path.join(store.root, sha, "meta.json"))) return false;
   return true;
 }
@@ -147,6 +183,13 @@ export function evictLru(store: BundleStore, skip?: Set<string>): string[] {
         if (skip?.has(name)) return null;
         const st = fs.statSync(path.join(store.root, name));
         if (!st.isDirectory()) return null;
+        // A leftover staging dir means a publish died mid-write — always
+        // garbage, so report it unready and let the sweep below delete it.
+        // Checked explicitly because a readyCore-less store would otherwise
+        // see the dir exists and call it ready. publishBundle renames its
+        // stage away BEFORE calling evictLru, and it is the only writer of
+        // these (never concurrent with itself), so this cannot race a live one.
+        if (name.startsWith(STAGING_PREFIX)) return { sha: name, mtime: st.mtimeMs, ready: false };
         return { sha: name, mtime: st.mtimeMs, ready: bundleReady(store, name) };
       } catch {
         return null;
@@ -168,22 +211,59 @@ export function evictLru(store: BundleStore, skip?: Set<string>): string[] {
 }
 
 /**
- * Copy freshly-built FLAT artifacts from `srcDir` into <root>/<sha>/, generating
- * a fresh .gz beside each, then prune (keeping `sha` itself). Idempotent. Used by
- * the build-time publish (build-bundle.ts) and the runtime updater after it has
- * regenerated all flat artifacts in public/ (search-index.json included).
+ * Publish freshly-built FLAT artifacts from `srcDir` as the immutable bundle
+ * <root>/<sha>/, generating a fresh .gz beside each, then prune (keeping `sha`
+ * itself). Used by the build-time publish (build-bundle.ts) and the runtime
+ * updater after it has regenerated all flat artifacts in public/
+ * (search-index.json included).
+ *
+ * ATOMIC: artifacts are written into a staging dir that is renamed into place
+ * in a single step, so <root>/<sha> is never observable half-written. This is
+ * load-bearing, not tidiness: the serve path (serveBundleArtifact) checks
+ * individual files and never consults bundleReady, and the updater swaps its
+ * in-memory indexes — and therefore the sha it injects as window.__ATLAS_SHA__
+ * — BEFORE calling this. A page load in between would otherwise request an
+ * artifact that was about to exist, get a 404, and be force-reloaded as if the
+ * sha had been pruned (apps/web/src/lib/atlasBase.ts).
+ *
+ * IDEMPOTENT: a bundle's bytes are fixed by its sha, so an already-published
+ * sha is left alone — its LRU clock is refreshed and pruning still runs —
+ * rather than rewritten byte-for-byte.
  */
 export async function publishBundle(store: BundleStore, sha: string, srcDir: string): Promise<void> {
-  const dir = artifactDir(store, sha);
-  fs.mkdirSync(dir, { recursive: true });
-  for (const name of store.allowlist) {
-    // Skip preview-only/computed artifacts; publishBundle only mirrors built flat files.
-    if (name === "meta.json" || name === "diff.json" || name === "patches.json") continue;
-    const src = path.join(srcDir, name);
-    if (!fs.existsSync(src)) continue;
-    const buf = fs.readFileSync(src);
-    fs.writeFileSync(path.join(dir, name), buf);
-    fs.writeFileSync(path.join(dir, name + ".gz"), await gzipAsync(buf, { level: 9 }));
+  if (!fs.existsSync(bundleDir(store, sha))) {
+    const staging = path.join(store.root, STAGING_PREFIX + sha);
+    // Clear any stage left by an earlier crashed attempt before reusing the path.
+    fs.rmSync(staging, { recursive: true, force: true });
+    const dir = artifactDirIn(store, staging);
+    fs.mkdirSync(dir, { recursive: true });
+    try {
+      let copied = 0;
+      for (const name of store.allowlist) {
+        // Skip preview-only/computed artifacts; publishBundle only mirrors built flat files.
+        if (name === "meta.json" || name === "diff.json" || name === "patches.json") continue;
+        const src = path.join(srcDir, name);
+        if (!fs.existsSync(src)) continue;
+        const buf = fs.readFileSync(src);
+        fs.writeFileSync(path.join(dir, name), buf);
+        fs.writeFileSync(path.join(dir, name + ".gz"), await gzipAsync(buf, { level: 9 }));
+        copied++;
+      }
+      // Refuse to publish an empty bundle. Before the atomic rename below, a
+      // srcDir with no artifacts produced a dir that bundleReady rejected (no
+      // core file) and evictLru then swept; now that the dir IS the readiness
+      // proof, nothing downstream would catch it and every request for this sha
+      // would 404 forever. Throwing parks the sha in the updater's
+      // pendingPublishSha for a retry instead of silently serving nothing.
+      if (copied === 0) throw new Error(`publishBundle: no artifacts found in ${srcDir}`);
+      fs.renameSync(staging, bundleDir(store, sha));
+    } catch (e) {
+      // Never leave a partial stage behind: the updater's pendingPublishSha
+      // retry re-enters here, and a half-filled stage must not be renamed into
+      // place as though it were complete.
+      fs.rmSync(staging, { recursive: true, force: true });
+      throw e;
+    }
   }
   touch(store, sha);
   evictLru(store, new Set([sha]));

@@ -757,8 +757,11 @@ describe("runRefreshFromDb", () => {
       { id: "d1", doc_no: "A.1", title: "Doc 1", type: "Core", depth: 1, parentId: null, content: "hello", order: 0, contentHash: "h1", addressRefs: [] },
     ];
     const distDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-gzdist-"));
-    // A pre-existing (stale, image-build-time) .gz for docs.json — must be
-    // regenerated from the FRESH mirrored bytes, not left alone.
+    // A pre-existing stale .gz sibling — must be regenerated from the FRESH
+    // mirrored bytes, not left alone. docs.json is the convenient carrier here
+    // because runRefreshFromDb writes it; the image itself no longer pre-gzips
+    // it (scripts/lib/build-steps.mjs GZIP_ARTIFACTS), and the refresh loop
+    // deliberately keys on what is on disk rather than on that list.
     fs.writeFileSync(path.join(distDir, "docs.json.gz"), zlib.gzipSync(Buffer.from("stale-image-build-bytes")));
     // No .gz sibling for glossary.json (never gzipped by the Dockerfile in
     // this fixture) — must NOT be created.
