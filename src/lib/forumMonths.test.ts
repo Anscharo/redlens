@@ -26,6 +26,24 @@ describe("monthsFromMscTitle", () => {
     ]);
   });
 
+  it("carries a wrapped range back into the previous year", () => {
+    expect(monthsFromMscTitle("Settlement Reconciliation (November-February 2026)")).toEqual([
+      "2025-11", "2025-12", "2026-01", "2026-02",
+    ]);
+  });
+
+  it("expands a range whose months each name their own year", () => {
+    expect(monthsFromMscTitle("Settlement Reconciliation (November 2025 – February 2026)")).toEqual([
+      "2025-11", "2025-12", "2026-01", "2026-02",
+    ]);
+  });
+
+  it("ignores a range that would span more than one year boundary", () => {
+    expect(monthsFromMscTitle("Retrospective (January 2024 - June 2026)")).toEqual([
+      "2024-01", "2026-06",
+    ]);
+  });
+
   it("returns nothing when the title names no month", () => {
     expect(monthsFromMscTitle("Technical scope of the Monthly Settlement Cycle")).toEqual([]);
   });
