@@ -69,7 +69,15 @@ export function classifyForumTopic(tags: unknown, title: string): ForumKind | nu
   return null;
 }
 
-/** Embedding grain. Topic = title + OP; post = a substantial reply. Not sentences. */
+// Vectors: do not generate them for MSC summaries or weekly atlas-edit
+// wrappers (decided 2026-08-25). Those posts share a template — month, USDS
+// amounts, and edit bullets are structured — so cosine search would cluster
+// every cycle together. Chat/MCP should use period + title (+ settlements.json
+// / the atlas) instead. forum_embeddings.embedding stays NULL.
+// Revisit only for the rare non-templated threads (reconciliations,
+// technical-scope, out-of-schedule diffs). If that allowlist ships: topic =
+// title + OP; post = a reply ≥ 200 stripped chars; never sentences.
+export const FORUM_EMBED_ENABLED = false;
 export const FORUM_EMBED_GRAINS = ["topic", "post"] as const;
 
 /** Replies shorter than this (stripped text) are not worth their own vector. */

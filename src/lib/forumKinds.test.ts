@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   FORUM_CYCLES,
+  FORUM_EMBED_ENABLED,
   FORUM_EMBED_GRAINS,
   FORUM_ORIGIN,
   classifyForumTopic,
@@ -69,8 +70,12 @@ describe("stripHtml", () => {
 });
 
 describe("embedding grain", () => {
-  it("embeds the topic as title + original-post body (caller strips HTML)", () => {
+  it("does not spend vectors on templated MSC / weekly-edit posts", () => {
+    expect(FORUM_EMBED_ENABLED).toBe(false);
     expect(FORUM_EMBED_GRAINS).toEqual(["topic", "post"]);
+  });
+
+  it("embeds the topic as title + original-post body (caller strips HTML)", () => {
     expect(topicEmbedText("MSC #11", stripHtml("<p>Report body</p>"))).toBe("MSC #11\n\nReport body");
   });
 
