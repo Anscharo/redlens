@@ -120,4 +120,11 @@ describe("allowlist stays honest", () => {
       expect(yml, `e2e.yml is missing allowlist entry ${file}`).toContain(file);
     }
   });
+
+  it("e2e.yml keys job concurrency by environment AND deployment sha", () => {
+    const yml = fs.readFileSync(path.join(ROOT, ".github/workflows/e2e.yml"), "utf8");
+    expect(yml).toContain("github.event.deployment.sha");
+    expect(yml).toMatch(/concurrency:\n\s+group: e2e-/);
+    expect(yml).not.toMatch(/^concurrency:/m);
+  });
 });

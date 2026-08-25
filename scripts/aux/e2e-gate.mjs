@@ -40,9 +40,12 @@ export const FAILED_CONCLUSIONS = Object.freeze(["failure", "timed_out", "startu
 
 /**
  * Neither a pass nor a fail:
- *   skipped   — job-level `if:` said this deployment_status is not a PR env.
- *   cancelled — a newer deploy of the same commit superseded this run
- *               (e2e.yml's concurrency group is cancel-in-progress).
+ *   skipped   — job-level `if:` said this deployment_status is not a PR env
+ *               (in_progress / production / non-pr).
+ *   cancelled — another run of the *same* environment+sha took the job-level
+ *               concurrency lock (two services finishing one build). A delayed
+ *               success for a *different* SHA must not land here — e2e.yml keys
+ *               that group on `deployment.sha` so it cannot cancel HEAD.
  * Both are "keep waiting for a run that actually tests the app".
  */
 export const INCONCLUSIVE_CONCLUSIONS = Object.freeze(["skipped", "cancelled", "neutral", "stale"]);

@@ -32,8 +32,10 @@ describe("classifyRuns", () => {
 
   // Railway emits a deployment_status per service and per environment, so one
   // commit gets several runs. `skipped` is the job-level `if:` rejecting a
-  // non-PR environment; `cancelled` is a newer deploy superseding an older run.
-  // Neither tested the app, so neither may settle the verdict.
+  // non-success / non-PR event; `cancelled` is same-sha concurrency. Neither
+  // tested the app, so neither may settle the verdict. A delayed success for
+  // an older SHA of the same PR env is a different workflow run (different
+  // head_sha) — this classifier never sees it.
   it("keeps waiting through skipped and cancelled siblings", () => {
     expect(classifyRuns([done("skipped")]).verdict).toBe("wait");
     expect(classifyRuns([done("cancelled")]).verdict).toBe("wait");
