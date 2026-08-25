@@ -32,4 +32,17 @@ describe("RateLimitNote", () => {
     fireEvent.click(screen.getByText("Check now"));
     expect(onRecheck).toHaveBeenCalledTimes(1);
   });
+
+  it("shows a wait-and-retry story for the concurrent gate, with no recheck button or pool copy", () => {
+    render(
+      <RateLimitNote
+        rateLimit={{ message: "You already have 3 chat requests in progress.", kind: "concurrent" }}
+        onRecheck={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("You already have 3 chat requests in progress.")).toBeInTheDocument();
+    expect(screen.getByText(/Wait for your other in-progress request/)).toBeInTheDocument();
+    expect(screen.queryByText("Check now")).toBeNull();
+    expect(screen.queryByText(/topped up/)).toBeNull();
+  });
 });

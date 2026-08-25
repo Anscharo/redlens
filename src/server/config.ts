@@ -435,6 +435,28 @@ export const config = {
   rateLimitTokensPerWindow: Number(process.env.RATE_LIMIT_TOKENS_PER_WINDOW ?? 500000),
   rateLimitWindowMinutes: Number(process.env.RATE_LIMIT_WINDOW_MINUTES ?? 120),
 
+  // Per-user in-flight cap — a SECOND, independent gate (chat/concurrency.ts),
+  // checked before the token window above. The token budget only knows PAST
+  // usage (a turn's cost is unknown until it completes), so it can't stop one
+  // user from opening many simultaneous turns at once; this catches that
+  // burst/concurrency shape directly. In-memory, not DB-backed: correct only
+  // because this service is a replicas=1 singleton by design (CLAUDE.md).
+  chatMaxConcurrentPerUser: Number(process.env.CHAT_MAX_CONCURRENT_PER_USER ?? 3),
+
+  // Hard ceiling on total open /api/atlas-events SSE connections (sse.ts's
+  // client registry), across ALL visitors — every open browser tab holds one
+  // of these for the life of the tab, unbounded by anything else, on the same
+  // replicas=1 singleton chat and search run on. Past the ceiling, new
+  // connections get a 503 (index.ts) instead of being accepted — a visitor
+  // just misses live atlas-update pushes (the /api/health-based mount check
+  // still catches staleness on next load; see useAtlasVersion.ts) rather than
+  // the process growing without bound under a traffic spike. No real
+  // capacity measurement backs this default yet (scripts/aux/load/'s sse
+  // step couldn't get a clean read past ~10 connections in a proxied sandbox
+  // — see docs/DEPLOYMENT.md's capacity-measurement note) — tune via env once
+  // a real number exists.
+  sseMaxClients: Number(process.env.SSE_MAX_CLIENTS ?? 500),
+
   // MCP transport mount path (streamable HTTP, no auth this phase).
   mcpPath: process.env.MCP_PATH ?? "/mcp",
   // Per-tool-response byte budget (chat/output-budget.ts fitToBudget). MCP
