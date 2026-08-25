@@ -100,6 +100,25 @@ export async function getArtifacts(
 }
 
 /**
+ * Whether a sha has any artifacts published. One indexed lookup, not a blob
+ * fetch — the atlas worker calls this on its fast path to answer "is the store
+ * already populated for the sha sync_state points at?".
+ *
+ * That question exists because sync_state advancing and the artifacts being
+ * published are separate events: a deploy that first ships publishing finds
+ * sync_state already current, so without this probe the worker would skip the
+ * build (and therefore the publish) until upstream next moved — which can be
+ * days. Same failure shape the worker's structural-integrity check already
+ * guards: a matching pointer alone does not mean the rows are there.
+ */
+export async function hasArtifacts(atlasSha: string, db: SqlTag = defaultSql): Promise<boolean> {
+  const rows = (await db`
+    SELECT 1 FROM atlas_artifacts WHERE atlas_sha = ${atlasSha} LIMIT 1
+  `) as unknown[];
+  return rows.length > 0;
+}
+
+/**
  * Published shas, newest first. `limit` is capped rather than optional-unbounded
  * because retention keeps a handful of shas — a caller wanting "all of them"
  * wants a number it chose, not an unbounded scan of a table nobody pruned.

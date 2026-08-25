@@ -1,7 +1,7 @@
 # Atlas artifact store — the worker publishes, every web instance reads
 
-> **Status: PLAN.** Phase 0 (atomic publish) is implemented on
-> `claude/atomic-bundle-publish`; phases 1–5 are unbuilt.
+> **Status: IN PROGRESS.** Phases 0–3 are implemented on
+> `claude/atomic-bundle-publish`; phases 4–5 are unbuilt.
 >
 > Supersedes the never-written `atlas-runtime-freshness-buckets.md` that
 > [atlas-runtime-freshness-inprocess.md](atlas-runtime-freshness-inprocess.md)
@@ -62,6 +62,38 @@ bigger OOM win than adding a second instance — and needs no second instance.
 
 **3. Multi-instance becomes *possible*.** Not done here. See "What this does not
 fix".
+
+## Store choice: Postgres, not Railway Buckets (decided 2026-08-25)
+
+Railway ships first-party [Storage Buckets](https://docs.railway.com/storage-buckets)
+— private, S3-compatible, $0.015/GB-month with free requests and free bucket
+egress — and Bun has a built-in `S3Client`, so this would need no npm
+dependency. It was considered and rejected **for this workload**, on two
+grounds that have nothing to do with cost (15 MB is $0.0002/month, and Railway
+Volumes are disqualified outright since a volume attaches to a single service):
+
+1. **Postgres gives a transaction; S3 does not.** A sha's artifact set lands
+   atomically, so a reader can never see half of one. The S3 equivalent is a
+   manifest-written-last convention — the same weaker pattern phase 0 just
+   *removed* from the disk store.
+2. **One consistency domain.** `sync_state.atlas_sha` is the drift signal the
+   whole updater keys on. Keeping the artifacts in the same database makes "this
+   sha is live" and "its artifacts exist" checkable against each other (see
+   publish-artifacts.ts, which refuses to publish under a sha the pointer does
+   not name). Splitting them introduces a second system that can disagree with
+   the pointer — which is the exact failure this plan exists to fix.
+
+Secondary: buckets would put a network dependency in `pnpm dev`'s deliberately
+offline-capable preflight (no local emulator without adding MinIO to
+docker-compose), and add four credentials × two services × each environment,
+where `DATABASE_URL` is already wired on both.
+
+**This is reversible and deliberately cheap to reverse.** `atlas-artifacts.ts`
+is the only module that touches the table, behind a small API, and
+`hydrateBundleFromStore` takes its fetcher injected and never imports the store.
+Swapping the backing store is one module rewrite against an unchanged interface.
+**Revisit when** retention grows past ~20 shas, preview bundles move to shared
+storage, or DB backup/restore time starts to matter.
 
 ## Measured artifact sizes
 
@@ -174,11 +206,36 @@ instance can take a burst of requests for one sha and must not start N downloads
 
 **This phase alone fixes payoff 1 and is shippable on its own, at `replicas=1`.**
 
-### Phase 3 — the worker publishes
+### Phase 3 — the worker publishes *(done)*
 
-Add `glossary` to `PROFILES.worker` in `scripts/lib/build-steps.mjs`, then a
-publish step in `scripts/required/atlas-worker.mjs` after `sync.ts`: gzip each
-published artifact from the build output, `putArtifacts`, `pruneArtifacts`.
+`glossary` is back in `PROFILES.worker` (it was opted out because sync.ts does
+not read glossary.json; the worker now publishes it for the browser).
+`scripts/required/publish-artifacts.ts` (`pnpm publish:artifacts`, sibling of
+build-bundle.ts) gzips each name in `PUBLISHED_ARTIFACTS` from the build output,
+`putArtifacts`, then `pruneArtifacts(config.atlasArtifactKeep)` — default 5, one
+more than `atlasBundleKeep` so an instance pinned to a slightly older sha can
+still re-hydrate it.
+
+`PUBLISHED_ARTIFACTS` is **derived** from `MAIN_ALLOWLIST` plus `graph.json`, and
+a test asserts every published name is produced by a step the worker profile
+actually runs — so adding an artifact fails until someone declares its producer.
+
+Two things the plan did not anticipate:
+
+- **The worker's fast path skips the build**, so on the deploy that first ships
+  publishing, `sync_state` is already current and nothing would ever be
+  published until upstream next moved. `hasArtifacts(sha)` (a bounded existence
+  probe, not a blob fetch) is now part of the early-exit gate — the same shape
+  as the existing structural-integrity guard, and for the same reason: a
+  matching pointer alone does not mean the rows are there.
+- **`publish-artifacts.ts` refuses to publish** under a sha that is not what
+  `sync_state` points at, or when any expected artifact is missing from the
+  build output. Both would otherwise surface only as a 404 in a browser.
+
+The worker calls it **best-effort** (warn, don't fail the run): the structural
+sync has already committed and web instances still build their own artifacts.
+**Phase 4 must change that** — once the web stops building, a publish failure is
+load-bearing and should fail the run.
 
 ### Phase 4 — the web stops building
 

@@ -15,7 +15,7 @@ import { describe, it, expect, beforeEach, afterAll } from "bun:test";
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { putArtifacts, getArtifacts, listArtifactShas, pruneArtifacts } from "./atlas-artifacts.ts";
+import { putArtifacts, getArtifacts, hasArtifacts, listArtifactShas, pruneArtifacts } from "./atlas-artifacts.ts";
 
 interface Recorded { text: string; values: unknown[]; tx: boolean }
 let queries: Recorded[] = [];
@@ -195,4 +195,24 @@ afterAll(async () => {
   if (!LIVE) return;
   const { sql } = await import("./db.ts");
   await sql`DELETE FROM atlas_artifacts WHERE atlas_sha = ${liveSha}`;
+});
+
+describe("hasArtifacts", () => {
+  it("is a bounded existence probe, not a blob fetch — the worker calls it every cron tick", () => {
+    // If this ever selected the blobs, the worker's fast path would pull ~3 MB
+    // out of Postgres every 12 minutes just to answer a yes/no question.
+    rows = [{ "?column?": 1 }];
+    return hasArtifacts("abc", fakeSql).then((present) => {
+      expect(present).toBe(true);
+      expect(queries).toHaveLength(1);
+      expect(queries[0].text).toContain("LIMIT 1");
+      expect(queries[0].text).not.toContain("gz");
+      expect(queries[0].values).toEqual(["abc"]);
+    });
+  });
+
+  it("is false for a sha that was never published", async () => {
+    rows = [];
+    expect(await hasArtifacts("never-published", fakeSql)).toBe(false);
+  });
 });

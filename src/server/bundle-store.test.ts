@@ -25,7 +25,10 @@ import {
   MAIN_STORE,
   PREVIEW_STORE,
   PREVIEW_DIR,
+  PUBLISHED_ARTIFACTS,
 } from "./bundle-store.ts";
+// The worker profile is the publisher; this file asserts the two agree.
+import { stepsFor } from "../../scripts/lib/build-steps.mjs";
 
 // mkdtemp, not a fixed path: two concurrent runs of this file on the same host
 // would otherwise share one ROOT, and beforeEach's recursive rm would delete the
@@ -561,4 +564,38 @@ test("publishBundle's prune also honours the pin", async () => {
   await publishBundle(store, "new-sha", srcDir);
   expect(fs.existsSync(path.join(ROOT, "live-sha"))).toBe(true); // pinned
   expect(fs.existsSync(path.join(ROOT, "other-sha"))).toBe(false); // evicted
+});
+
+test("PUBLISHED_ARTIFACTS is the served set plus graph.json, and never docs.json", () => {
+  // Derived, not hand-kept: a name added to MAIN_ALLOWLIST is published without
+  // anyone remembering to. graph.json is the one addition — never served, but
+  // the indexes need it and rebuilding it is the expensive step phase 4 moves
+  // off the web instance.
+  for (const name of MAIN_STORE.allowlist) expect(PUBLISHED_ARTIFACTS).toContain(name);
+  expect(PUBLISHED_ARTIFACTS).toContain("graph.json");
+  expect(PUBLISHED_ARTIFACTS).not.toContain("docs.json");
+  expect(new Set(PUBLISHED_ARTIFACTS).size).toBe(PUBLISHED_ARTIFACTS.length);
+});
+
+test("every published artifact is produced by a step the atlas worker actually runs", () => {
+  // The worker is the sole publisher, so a published name it does not build is
+  // a file web instances would ask for and never get — and it would only
+  // surface as a 404 in a browser. Declaring the producer here means adding an
+  // artifact fails this test until someone says which step makes it.
+  const PRODUCER: Record<string, string> = {
+    "docs-shallow.json": "index",
+    "docs-deep.json": "index",
+    "search-index.json": "index",
+    "addresses.atlas.json": "index",
+    "relations.json": "graph",
+    "graph.json": "graph",
+    "glossary.json": "glossary",
+    "oea-report.json": "oea-report",
+  };
+  const workerSteps = new Set(stepsFor("worker").map((s: { id: string }) => s.id));
+  for (const name of PUBLISHED_ARTIFACTS) {
+    const producer = PRODUCER[name];
+    expect(producer, `${name} is published but no producing step is declared`).toBeDefined();
+    expect(workerSteps, `${name} is published but the worker profile never runs "${producer}"`).toContain(producer);
+  }
 });

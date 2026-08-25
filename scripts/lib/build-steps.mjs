@@ -93,11 +93,14 @@ export const PROFILES = {
   // synced sha.
   devWorkerTail: ["glossary", "oea-report"],
 
-  // scripts/required/atlas-worker.mjs — Railway cron. Opt-out: `glossary` (the
-  // worker's product is Postgres rows, and sync.ts does not read glossary.json;
-  // the web service builds it from DB rows via the `updater` profile).
+  // scripts/required/atlas-worker.mjs — Railway cron. `glossary` used to be
+  // opted out here (the worker's product was Postgres rows, and sync.ts does not
+  // read glossary.json) — it is back because the worker now also PUBLISHES the
+  // artifact set every web instance reads (publish-artifacts.ts), and
+  // glossary.json is part of what the browser fetches. No opt-outs left: this
+  // profile must produce every name in PUBLISHED_ARTIFACTS.
   // build-history + sync-embeddings run as a parallel tail, not as steps here.
-  worker: ["index", "graph", "oea-report"],
+  worker: ["index", "glossary", "graph", "oea-report"],
 
   // src/server/atlas-updater.ts refreshFromDb(). Starts at `graph`: docs.json
   // is written straight from atlas_doc_meta rows, so there is no build-index.

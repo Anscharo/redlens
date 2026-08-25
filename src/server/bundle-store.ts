@@ -119,6 +119,22 @@ export const PREVIEW_STORE: BundleStore = {
   requireMeta: true,
 };
 
+/**
+ * What the worker publishes to the shared artifact store for each atlas sha
+ * (docs/plans/atlas-artifact-store.md phase 3) — DERIVED from MAIN_ALLOWLIST so
+ * a name added to the served set can never be forgotten here.
+ *
+ * Plus graph.json, which MAIN deliberately does not serve: the browser never
+ * fetches it, but readArtifactsFromDisk needs it to build the in-memory indexes
+ * and rebuilding it (build-graph) is the expensive step phase 4 moves off the
+ * web instance. Consumers take what they need — hydrateBundleFromStore filters
+ * to the servable set, phase 4's refresh writes all of it to publicDir.
+ *
+ * docs.json is absent on purpose: nothing serves it and nothing reads main's
+ * per-sha copy, and the web rebuilds the flat one from atlas_doc_meta anyway.
+ */
+export const PUBLISHED_ARTIFACTS: readonly string[] = [...MAIN_ALLOWLIST, "graph.json"];
+
 export function bundleDir(store: BundleStore, sha: string): string {
   return path.join(store.root, sha);
 }

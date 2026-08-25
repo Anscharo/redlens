@@ -185,6 +185,31 @@ async function main() {
   ]);
   const structural = await inspectStructuralSnapshot(db, syncState);
 
+  // Is the SHARED artifact store already populated for the sha we point at?
+  // sync_state advancing and the artifacts being published are separate events,
+  // so a pointer match alone does not mean web instances can fetch anything —
+  // the same reason the structural check above exists. Without this, the deploy
+  // that first ships publishing would find sync_state current, skip the build,
+  // and therefore never publish until upstream next moved (possibly days).
+  // A query error (most likely migration 025 not applied yet — the web service
+  // migrates at boot, this worker does not) is treated as "populated": forcing
+  // a rebuild could not fix a missing table, and a rebuild loop every 12 minutes
+  // would be worse than waiting for the web to migrate.
+  let artifactsPublished = true;
+  if (syncState) {
+    try {
+      const { hasArtifacts } = await import("../../src/server/atlas-artifacts.ts");
+      artifactsPublished = await hasArtifacts(syncState, db);
+    } catch (e) {
+      console.warn(`atlas-worker: artifact-store probe skipped — ${e.message}`);
+    }
+  }
+  if (!artifactsPublished) {
+    console.warn(
+      `atlas-worker: artifact store has nothing for ${(syncState ?? "").slice(0, 12)} — building to publish it`,
+    );
+  }
+
   const alreadyCurrent = upstreamSha && upstreamSha === syncState;
   // In local --no-fetch mode don't gate on embeddings (dev usually has no API key;
   // embeddings are optional) — fast-exit purely on the sha match so repeated
@@ -200,7 +225,7 @@ async function main() {
     );
   }
 
-  if (!full && alreadyCurrent && noStaleEmbeds && structural.healthy) {
+  if (!full && alreadyCurrent && noStaleEmbeds && structural.healthy && artifactsPublished) {
     console.log(`atlas-worker: already current at ${(syncState ?? "").slice(0, 12)} — skipping fetch/build`);
     await touchSyncHeartbeat(db);
     await db.close();
@@ -262,6 +287,20 @@ async function main() {
   console.log(
     `atlas-worker: post-sync integrity OK — ${verified.currentDocs} docs, ${verified.currentAddresses} addresses`,
   );
+
+  // ── Publish the artifact set every web instance reads ────────────────────
+  // After the integrity gate (so we never publish artifacts for a sha whose rows
+  // did not land) and before the best-effort tails. Best-effort ITSELF for now:
+  // the structural sync has already committed, web instances still build their
+  // own artifacts, and a failure here must not fail-mark an otherwise good run.
+  // REVISIT IN PHASE 4: once the web stops building, this becomes load-bearing
+  // and a failure should fail the run rather than warn.
+  try {
+    console.log("atlas-worker: publish-artifacts…");
+    run("bun", ["scripts/required/publish-artifacts.ts"]);
+  } catch (e) {
+    console.warn(`atlas-worker: publish-artifacts failed — ${e.message} (web instances keep building their own)`);
+  }
 
   // ── Parallel: embeddings + history ───────────────────────────────────────
   // build-history reads its own incremental cursor from atlas_history and
