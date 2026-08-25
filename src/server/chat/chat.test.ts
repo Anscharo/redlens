@@ -547,10 +547,14 @@ describe("handleChat", () => {
       const prevKey = config.openrouterManagementKey;
       config.openrouterManagementKey = "test-management-key";
       const prevImpl = g.__llmFetchCurrentImpl!;
-      g.__llmFetchCurrentImpl = (async (input: RequestInfo | URL) =>
-        String(input).includes("/credits")
+      // Parameters<typeof fetch>, not a named `RequestInfo | URL` annotation —
+      // this file's server tsconfig project (unlike the root one `tsc --noEmit
+      // -p .` checks) has no DOM lib, so `RequestInfo` isn't a resolvable name
+      // there even though it's structurally how `fetch` is already typed.
+      g.__llmFetchCurrentImpl = ((...args: Parameters<typeof fetch>) =>
+        String(args[0]).includes("/credits")
           ? new Response(JSON.stringify({ data: { total_credits: 10, total_usage: 10 } }), { status: 200 })
-          : prevImpl(input)) as unknown as typeof fetch;
+          : prevImpl(...args)) as unknown as typeof fetch;
       sqlHandlers.push((text) => {
         if (text.includes("FROM usage_events")) return [{ tokens: 0 }];
         return undefined;
