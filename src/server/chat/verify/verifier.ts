@@ -76,11 +76,14 @@ export function computeOverall(checks: CheckReport | null, verdict: Verdict | nu
   return "pass";
 }
 
+import { isExternalMscTool } from "../../external/envelope.ts";
+
 export interface EvidenceEntry {
   label: string; // [E1], [E2], …
   tool: string;
   args: string;
   content: string;
+  sourceClass?: "atlas" | "external";
 }
 
 // Pull the turn's tool calls + results out of the loop transcript, labeled
@@ -97,7 +100,13 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
     }
     if (m.role === "tool" && typeof m.content === "string") {
       const call = callById.get(m.tool_call_id) ?? { tool: "unknown", args: "{}" };
-      entries.push({ label: `[E${entries.length + 1}]`, tool: call.tool, args: call.args, content: m.content });
+      entries.push({
+        label: `[E${entries.length + 1}]`,
+        tool: call.tool,
+        args: call.args,
+        content: m.content,
+        sourceClass: isExternalMscTool(call.tool) ? "external" : "atlas",
+      });
     }
   }
   // Budget newest-first: walk from the end, keep entries while they fit; an

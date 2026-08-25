@@ -9,7 +9,7 @@ import type { RoundTelemetry } from "./round-checks.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
-const cleanChecks: CheckReport = { citations: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], bareAtlasLinks: [], uncitedParagraphs: 0, ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], untracedNumbers: [], lowOverlapCitations: [], paramMismatches: [], completenessFailures: [], lengthCapped: false, failed: false };
+const cleanChecks: CheckReport = { citations: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], bareAtlasLinks: [], uncitedParagraphs: 0, ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], untracedNumbers: [], lowOverlapCitations: [], paramMismatches: [], completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false, failed: false };
 const failedChecks: CheckReport = { ...cleanChecks, invalidCitations: ["00000000-dead-beef-0000-000000000000"], failed: true };
 const telemetry: RoundTelemetry = { rounds: 1, toolCalls: 1, emptyResults: 0, errorResults: 0, repeatedQueries: 0, notes: [] };
 
@@ -75,6 +75,8 @@ test("evidenceFromTranscript labels tool results in order and budgets newest-fir
   expect(all.map((e) => e.label)).toEqual(["[E1]", "[E2]"]);
   expect(all[0].tool).toBe("atlas_search");
   expect(all[1].tool).toBe("atlas_get");
+  expect(all[0].sourceClass).toBe("atlas");
+  expect(all[1].sourceClass).toBe("atlas");
   // Tight budget keeps the NEWEST entry (truncating it if needed), drops older.
   const tight = evidenceFromTranscript(transcript, 50);
   expect(tight).toHaveLength(1);
@@ -82,7 +84,15 @@ test("evidenceFromTranscript labels tool results in order and budgets newest-fir
   expect(tight[0].content.length).toBeLessThanOrEqual(50 + "…[truncated]".length);
 });
 
-test("runVerifier degrades to a null verdict on transport failure", async () => {
+test("evidenceFromTranscript marks ask_external_msc as external", () => {
+  const transcript: Msg[] = [
+    { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "ask_external_msc", arguments: '{"view":"month"}' } }] },
+    { role: "tool", tool_call_id: "c1", content: '{"not_atlas":true}' },
+  ];
+  const all = evidenceFromTranscript(transcript, 1000);
+  expect(all[0]!.sourceClass).toBe("external");
+});
+
   const boom: JsonCall = async () => {
     throw new Error("provider 500");
   };

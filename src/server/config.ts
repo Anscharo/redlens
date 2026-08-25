@@ -379,6 +379,10 @@ export const config = {
   // never blocks on the audit — the answer already streamed). The verifier is a
   // stronger, slower model than the advisor, so its deadline is more generous.
   chatVerifierTimeoutMs: Number(process.env.CHAT_VERIFIER_TIMEOUT_MS ?? 20_000),
+  // Isolated MSC sub-agent (chat-only). Empty model = skip LLM, return the
+  // deterministic brief. Defaults to the verifier model when set.
+  chatExternalSubagentModel: process.env.CHAT_EXTERNAL_SUBAGENT_MODEL ?? process.env.CHAT_VERIFIER_MODEL ?? "",
+  chatExternalSubagentTimeoutMs: Number(process.env.CHAT_EXTERNAL_SUBAGENT_TIMEOUT_MS ?? 15_000),
   // Per-slice deadline for the sliced path. Slices run CONCURRENTLY (the turn
   // pays ~one slice latency, post-stream), so this can sit well above the
   // single-prompt cap: the 2026-08-06 bakeoff measured gemma claims-slice p50

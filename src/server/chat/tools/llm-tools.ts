@@ -7,6 +7,11 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import type OpenAI from "openai";
 import { ATLAS_TOOLS, TOOLS_BY_NAME, toolDescription } from "./tool-registry.ts";
 import { EXPORT_TOOL_NAME, EXPORT_TOOL_SHAPE, EXPORT_TOOL_DESCRIPTION } from "./export-tool.ts";
+import {
+  ASK_EXTERNAL_MSC,
+  ASK_EXTERNAL_MSC_DESCRIPTION,
+  ASK_EXTERNAL_MSC_SHAPE,
+} from "./external-tools.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import { config } from "../../config.ts";
 import { captureError, type ErrorContext } from "../../posthog-node.ts";
@@ -29,11 +34,20 @@ export const CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = ATLAS_TO
   },
 }));
 
-// Chat-ONLY export tool. Deliberately appended here, not sourced from
-// ATLAS_TOOLS, so it never reaches the MCP server (which has no browser to
-// download to). The loop (chat-loop.ts) intercepts calls to it by name and
-// yields an `export` SSE event rather than routing through execToolDetailed —
-// so it needs no registry handler.
+// Chat-ONLY tools. Deliberately appended here, not sourced from ATLAS_TOOLS,
+// so they never reach MCP as these names. The loop intercepts both by name
+// and does not route them through execToolDetailed.
+// - ask_external_msc: isolated sub-agent over a curated MSC view
+// - export_findings: yields an `export` SSE event (no browser on MCP)
+CHAT_TOOLS.push({
+  type: "function",
+  function: {
+    name: ASK_EXTERNAL_MSC,
+    description: ASK_EXTERNAL_MSC_DESCRIPTION,
+    parameters: toJsonSchema(ASK_EXTERNAL_MSC_SHAPE),
+  },
+});
+
 CHAT_TOOLS.push({
   type: "function",
   function: {

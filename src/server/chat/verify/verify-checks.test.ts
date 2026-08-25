@@ -652,6 +652,47 @@ test("findParamMismatches: subset/superset name collision — the longer, more s
   ]);
 });
 
+test("runDeterministicChecks: missing MSC disclaimer is a hard failure when external evidence is present", () => {
+  const external = [JSON.stringify({ required_disclaimer: "These figures are not from the Sky Atlas. Soter Labs workbooks.", three_way: { to_sky: 5 } })];
+  const miss = runDeterministicChecks("Spark sent $5 to Sky.", ["atlas doc"], ix, undefined, {
+    atlasTexts: ["atlas doc"],
+    externalTexts: external,
+  });
+  expect(miss.missingExternalDisclaimer).toBe(true);
+  expect(miss.failed).toBe(true);
+
+  const ok = runDeterministicChecks(
+    "These figures are not from the Atlas. They come from Soter Labs workbooks. Spark sent $5 to Sky.",
+    ["atlas doc", ...external],
+    ix,
+    undefined,
+    { atlasTexts: ["atlas doc"], externalTexts: external },
+  );
+  expect(ok.missingExternalDisclaimer).toBe(false);
+});
+
+test("runDeterministicChecks: MSC dollars cited as /atlas/uuid fail; atlas quotes cannot be grounded by forum text", () => {
+  const external = ['{"forum":{"title":"secret phrase xyzzy"},"three_way":{"to_sky":5000000}}'];
+  const cited = runDeterministicChecks(
+    `These figures are not from the Atlas. They come from Soter Labs. Spark sent [$5,000,000](/atlas/${realUuid}) to Sky.`,
+    external,
+    ix,
+    undefined,
+    { atlasTexts: [], externalTexts: external },
+  );
+  expect(cited.mscCitedAsAtlas.length).toBeGreaterThan(0);
+  expect(cited.failed).toBe(true);
+
+  const quoted = runDeterministicChecks(
+    `These figures are not from the Atlas. They come from Soter Labs workbooks.\n> secret phrase xyzzy appears only on the forum post`,
+    ["unrelated atlas"],
+    ix,
+    undefined,
+    { atlasTexts: ["unrelated atlas"], externalTexts: external },
+  );
+  expect(quoted.ungroundedQuotes.length).toBeGreaterThan(0);
+});
+
 test("runDeterministicChecks: a param mismatch is a hard failure", () => {
   const clean = runDeterministicChecks("Keel's USDS mint maximum is 10,000 USDS.", [], sIx);
   expect(clean.failed).toBe(false);

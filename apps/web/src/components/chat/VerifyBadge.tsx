@@ -33,6 +33,8 @@ export function VerifyBadge({ verify, onAtlas }: { verify: VerifyState; onAtlas:
     verify.ungroundedCitationValues.length +
     verify.paramMismatches.length +
     verify.completenessFailures.length +
+    (verify.missingExternalDisclaimer ? 1 : 0) +
+    verify.mscCitedAsAtlas.length +
     (verify.lengthCapped ? 1 : 0);
   const label =
     verify.status === "warn"
@@ -117,6 +119,16 @@ export function VerifyBadge({ verify, onAtlas }: { verify: VerifyState; onAtlas:
           {verify.completenessFailures.map((d) => (
             <li key={d} data-status="contradicted">
               {d}
+            </li>
+          ))}
+          {verify.missingExternalDisclaimer && (
+            <li data-status="contradicted">
+              settlement figures were used without saying they are not from the Atlas
+            </li>
+          )}
+          {verify.mscCitedAsAtlas.map((m) => (
+            <li key={m} data-status="contradicted">
+              {m}
             </li>
           ))}
           {flagged.map((c, i) => (

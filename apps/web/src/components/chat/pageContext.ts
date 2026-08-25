@@ -11,6 +11,7 @@ export interface PageContext {
   nodeTitle?: string;
   nodeDocNo?: string;
   actorSlug?: string;
+  mscMonth?: string;
   reportName?: string;
   reportTool?: string; // atlas_report_* tool backing this report page, if any
   reportFilter?: string; // the report page's active text filter (search box), if any
@@ -91,9 +92,11 @@ export function usePageContext(): PageContextView {
     const slug = decodeURIComponent(rawSlug ?? "");
     const name = deslug(slug);
     const settlements = sub === "settlements";
+    const mscMonth = settlements ? searchParams.get("msc")?.trim() || undefined : undefined;
     return {
       path: location,
       actorSlug: slug,
+      mscMonth,
       short: settlements ? `Ask about ${name}'s monthly settlement` : `Ask about ${name}`,
       placeholder: settlements ? `Ask about ${name}'s monthly settlement…` : `Ask about ${name}…`,
       label: settlements ? `${name} · Monthly settlement` : name,

@@ -32,6 +32,9 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
+## 2026-08-25
+- Chat and MCP can answer Monthly Settlement Cycle questions from Soter Labs workbooks and Sky Forum posts, and they say those figures are not from the Atlas
+
 ## 2026-08-24
 - Linked each Prime Agent monthly settlement month to its Sky Forum post
 - Added Monthly Settlement Cycle charts for Prime Agents, with last month's take in a card and a full cycle page of Sky / supply-kept / demand-side bars, demand-side mix, and venue AUM
