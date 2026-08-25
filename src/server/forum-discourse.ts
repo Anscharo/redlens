@@ -34,21 +34,54 @@ export interface DiscourseFetch {
 
 const UA = "redline-atlas-forum-sync";
 
+/** Retry backoff: 500ms, then 1s. Injectable so tests never actually wait. */
+const RETRY_BASE_MS = 500;
+
+const defaultSleep = (ms: number): Promise<unknown> => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Retry only what a second request could plausibly fix: 429 (we crawled too
+ * fast) and 5xx (Discourse hiccup). Every other 4xx — a deleted, moved or
+ * staff-only topic — is permanent, so retrying spends two more requests to
+ * arrive at the same error.
+ */
+function retryableStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+export interface GetJsonOpts {
+  tries?: number;
+  sleep?: (ms: number) => Promise<unknown>;
+}
+
 export async function getJson(
   url: string,
   fetchImpl: DiscourseFetch,
-  tries = 3,
+  opts: GetJsonOpts = {},
 ): Promise<unknown> {
+  const tries = opts.tries ?? 3;
+  const sleep = opts.sleep ?? defaultSleep;
   let last: Error | null = null;
-  for (let i = 0; i < tries; i++) {
+  for (let attempt = 0; attempt < tries; attempt++) {
+    if (attempt > 0) await sleep(RETRY_BASE_MS * 2 ** (attempt - 1));
+    let res: Response;
     try {
-      const res = await fetchImpl(url, { headers: { accept: "application/json", "user-agent": UA } });
-      if (res.ok) return await res.json();
-      if (res.status === 429 && i < tries - 1) continue;
-      throw new Error(`GET ${url} → ${res.status}`);
+      res = await fetchImpl(url, { headers: { accept: "application/json", "user-agent": UA } });
     } catch (e) {
+      // Network-level failure (DNS, reset, timeout) — always worth retrying.
       last = e as Error;
-      if (i === tries - 1) throw last;
+      continue;
+    }
+    if (!res.ok) {
+      const err = new Error(`GET ${url} → ${res.status}`);
+      if (!retryableStatus(res.status)) throw err;
+      last = err;
+      continue;
+    }
+    try {
+      return await res.json();
+    } catch (e) {
+      last = new Error(`GET ${url} → bad JSON: ${(e as Error).message}`);
     }
   }
   throw last ?? new Error(`GET ${url} failed`);
@@ -92,16 +125,17 @@ export function topicJsonUrl(origin: string, id: number): string {
 
 export async function listTaggedTopics(
   tag: string,
-  opts: { origin?: string; fetch?: DiscourseFetch } = {},
+  opts: { origin?: string; fetch?: DiscourseFetch; sleep?: (ms: number) => Promise<unknown> } = {},
 ): Promise<{ topics: TagListTopic[]; users: TagListUser[] }> {
   const origin = opts.origin ?? FORUM_ORIGIN;
   const fetchImpl = opts.fetch ?? fetch;
+  const sleep = opts.sleep ?? defaultSleep;
   const out: TagListTopic[] = [];
   const users: TagListUser[] = [];
   const seen = new Set<number>();
   const seenUser = new Set<number>();
   for (let page = 0; page < 50; page++) {
-    const body = (await getJson(tagListUrl(origin, tag, page), fetchImpl)) as {
+    const body = (await getJson(tagListUrl(origin, tag, page), fetchImpl, { sleep })) as {
       users?: TagListUser[];
       topic_list?: { topics?: TagListTopic[]; more_topics_url?: string | null };
     };
@@ -132,7 +166,7 @@ interface TopicJsonPost {
 
 export function parseTopicJson(
   raw: unknown,
-  fallback: { kind: ForumKind; listPoster: string },
+  fallback: { kind: ForumKind; listPoster: string; origin?: string },
 ): DiscourseTopic | null {
   if (!raw || typeof raw !== "object") return null;
   const t = raw as {
@@ -162,7 +196,7 @@ export function parseTopicJson(
     kind,
     title: t.title,
     slug: t.slug,
-    url: topicUrl(FORUM_ORIGIN, t.slug, t.id),
+    url: topicUrl(fallback.origin ?? FORUM_ORIGIN, t.slug, t.id),
     poster: t.details?.created_by?.username ?? op?.poster ?? fallback.listPoster,
     postedAt: t.created_at ?? op?.postedAt ?? new Date(0).toISOString(),
     lastPostedAt: t.last_posted_at ?? null,
@@ -180,24 +214,40 @@ export async function fetchAllowlistedTopics(opts: {
 } = {}): Promise<DiscourseTopic[]> {
   const origin = opts.origin ?? FORUM_ORIGIN;
   const fetchImpl = opts.fetch ?? fetch;
-  const sleep = opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+  const sleep = opts.sleep ?? defaultSleep;
   const out: DiscourseTopic[] = [];
   const seen = new Set<number>();
 
+  // Nothing here may abort the crawl. `maybeSyncForum` only starts writing
+  // once this resolves and never advances its cursor on a throw, so one
+  // permanently dead thread (deleted, moved, staff-only) would discard every
+  // sibling fetched in the same pass and wedge indexing on every worker tick.
+  // Skip the casualty, keep the rest, let the next crawl retry it.
   for (const cycle of FORUM_CYCLES) {
-    const listed = await listTaggedTopics(cycle.forumTag, { origin, fetch: fetchImpl });
+    let listed: { topics: TagListTopic[]; users: TagListUser[] };
+    try {
+      listed = await listTaggedTopics(cycle.forumTag, { origin, fetch: fetchImpl, sleep });
+    } catch (e) {
+      console.warn(`forum: tag ${cycle.forumTag} unavailable — ${(e as Error).message}`);
+      continue;
+    }
     for (const row of listed.topics) {
       if (seen.has(row.id)) continue;
       seen.add(row.id);
-      const raw = await getJson(topicJsonUrl(origin, row.id), fetchImpl);
-      const parsed = parseTopicJson(raw, {
-        kind: cycle.kind,
-        listPoster: posterFromList(row, listed.users),
-      });
-      if (parsed && parsed.poster === "unknown") {
-        parsed.poster = posterFromList(row, listed.users);
+      try {
+        const raw = await getJson(topicJsonUrl(origin, row.id), fetchImpl, { sleep });
+        const parsed = parseTopicJson(raw, {
+          kind: cycle.kind,
+          listPoster: posterFromList(row, listed.users),
+          origin,
+        });
+        if (parsed && parsed.poster === "unknown") {
+          parsed.poster = posterFromList(row, listed.users);
+        }
+        if (parsed) out.push(parsed);
+      } catch (e) {
+        console.warn(`forum: skipping topic ${row.id} — ${(e as Error).message}`);
       }
-      if (parsed) out.push(parsed);
       await sleep(150);
     }
   }

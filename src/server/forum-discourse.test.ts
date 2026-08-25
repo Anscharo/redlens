@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { fetchAllowlistedTopics, parseTopicJson } from "./forum-discourse";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fetchAllowlistedTopics, getJson, parseTopicJson } from "./forum-discourse";
 import { FORUM_ORIGIN } from "../lib/forumKinds";
 
 const USER = { id: 1, username: "SoterLabs" };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function tagPage(topics: unknown[], more = false) {
   return {
@@ -137,5 +141,106 @@ describe("fetchAllowlistedTopics", () => {
     const topics = await fetchAllowlistedTopics({ fetch: fetchImpl, sleep: async () => {} });
     expect(topics).toHaveLength(31);
     expect(seen.some((u) => u.includes("page=1"))).toBe(true);
+  });
+
+  it("skips a permanently unfetchable thread instead of aborting the crawl", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchImpl = async (url: string) => {
+      if (url.includes("/tag/monthly-settlement-cycle.json")) {
+        return new Response(
+          JSON.stringify(
+            tagPage([
+              { id: 1, slug: "gone", title: "MSC #1", posters: [{ user_id: 1, description: "Original Poster" }] },
+              { id: 2, slug: "live", title: "MSC #2", posters: [{ user_id: 1, description: "Original Poster" }] },
+            ]),
+          ),
+          { status: 200 },
+        );
+      }
+      if (url.includes("/t/1.json")) return new Response("nope", { status: 404 });
+      return new Response(JSON.stringify(topicJson(2, "MSC #2: June 2026")), { status: 200 });
+    };
+
+    const topics = await fetchAllowlistedTopics({ fetch: fetchImpl, sleep: async () => {} });
+    expect(topics.map((t) => t.topicId)).toEqual([2]);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it("keeps going when a whole tag listing fails", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchImpl = async () => new Response("boom", { status: 500 });
+    await expect(
+      fetchAllowlistedTopics({ fetch: fetchImpl, sleep: async () => {} }),
+    ).resolves.toEqual([]);
+  });
+
+  it("stores the fetched origin, not the module default", async () => {
+    const origin = "https://staging.example";
+    const fetchImpl = async (url: string) => {
+      expect(url.startsWith(origin)).toBe(true);
+      if (url.includes("/tag/monthly-settlement-cycle.json")) {
+        return new Response(
+          JSON.stringify(
+            tagPage([
+              { id: 7, slug: "s", title: "MSC #7", posters: [{ user_id: 1, description: "Original Poster" }] },
+            ]),
+          ),
+          { status: 200 },
+        );
+      }
+      return new Response(JSON.stringify(topicJson(7, "MSC #7: June 2026")), { status: 200 });
+    };
+
+    const topics = await fetchAllowlistedTopics({ origin, fetch: fetchImpl, sleep: async () => {} });
+    expect(topics[0].url).toBe(`${origin}/t/topic-7/7`);
+  });
+});
+
+describe("getJson", () => {
+  it("does not retry a permanent 404", async () => {
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls++;
+      return new Response("gone", { status: 404 });
+    };
+    await expect(getJson("/x", fetchImpl, { sleep: async () => {} })).rejects.toThrow("404");
+    expect(calls).toBe(1);
+  });
+
+  it("retries a 429 and a 5xx, backing off between attempts", async () => {
+    const waits: number[] = [];
+    const statuses = [429, 503, 200];
+    let calls = 0;
+    const fetchImpl = async () =>
+      new Response(JSON.stringify({ ok: true }), { status: statuses[calls++]! });
+
+    const body = await getJson("/x", fetchImpl, {
+      sleep: async (ms: number) => {
+        waits.push(ms);
+      },
+    });
+    expect(body).toEqual({ ok: true });
+    expect(calls).toBe(3);
+    expect(waits).toEqual([500, 1000]);
+  });
+
+  it("retries an unparseable body and reports the last error", async () => {
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls++;
+      return new Response("<html>maintenance</html>", { status: 200 });
+    };
+    await expect(getJson("/x", fetchImpl, { sleep: async () => {} })).rejects.toThrow("bad JSON");
+    expect(calls).toBe(3);
+  });
+
+  it("retries a network failure and gives up with the last error", async () => {
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls++;
+      throw new Error("ECONNRESET");
+    };
+    await expect(getJson("/x", fetchImpl, { sleep: async () => {} })).rejects.toThrow("ECONNRESET");
+    expect(calls).toBe(3);
   });
 });

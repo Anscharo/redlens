@@ -13,19 +13,48 @@ function ym(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-function addRange(out: Set<string>, from: number, to: number, year: number): void {
-  if (from <= to) {
-    for (let m = from; m <= to; m++) out.add(ym(year, m));
-    return;
+/** Every month from (fromYear, from) through (toYear, to), inclusive. */
+function addSpan(
+  out: Set<string>,
+  from: number,
+  fromYear: number,
+  to: number,
+  toYear: number,
+): void {
+  if (toYear < fromYear || (toYear === fromYear && to < from)) return;
+  // A settlement thread never covers years; a title parsed into one is a
+  // misread, and filling it would bury the real months in noise.
+  if (toYear - fromYear > 1) return;
+  let year = fromYear;
+  for (let m = from; year < toYear || (year === toYear && m <= to); m++) {
+    if (m > 12) {
+      m = 1;
+      year++;
+    }
+    out.add(ym(year, m));
   }
-  for (let m = from; m <= 12; m++) out.add(ym(year, m));
-  for (let m = 1; m <= to; m++) out.add(ym(year, m));
+}
+
+function addRange(out: Set<string>, from: number, to: number, year: number): void {
+  // The title carries a single year and it belongs to the month it follows,
+  // so a range that wraps ("November - February 2026") starts a year earlier.
+  if (from <= to) addSpan(out, from, year, to, year);
+  else addSpan(out, from, year - 1, to, year);
 }
 
 /** YYYY-MM values named in an MSC thread title. Empty when none parse. */
 export function monthsFromMscTitle(title: string): string[] {
   const t = title.toLowerCase().replace(/[\u2013\u2014]/g, "-");
   const found = new Set<string>();
+
+  // Both months carry their own year — the unambiguous cross-year form.
+  const spanned = new RegExp(
+    `\\b(${MONTH})\\s+(\\d{4})\\s*-\\s*(${MONTH})\\s+(\\d{4})\\b`,
+    "g",
+  );
+  for (const m of t.matchAll(spanned)) {
+    addSpan(found, MONTH_INDEX[m[1]!]!, Number(m[2]), MONTH_INDEX[m[3]!]!, Number(m[4]));
+  }
 
   const range = new RegExp(`\\b(${MONTH})\\s*-\\s*(${MONTH})\\s+(\\d{4})\\b`, "g");
   for (const m of t.matchAll(range)) {
