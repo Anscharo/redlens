@@ -33,7 +33,7 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 ## 2026-08-24
-- Linked Sky Forum monthly settlement reports from each Prime Agent's monthly settlement page
+- Linked each Prime Agent monthly settlement month to its Sky Forum post
 - Added Monthly Settlement Cycle charts for Prime Agents, with last month's take in a card and a full cycle page of Sky / supply-kept / demand-side bars, demand-side mix, and venue AUM
 - Atlas AI CHAT now live. Ask it about Sky Atlas or this App. Requires login. [read more](https://github.com/Anscharo/redlens/blob/main/docs/chat-intro.md)
 
