@@ -10,24 +10,12 @@ import type {
   SerializedSubgraph,
 } from "@/types";
 import { fetchJson } from "@/lib/verify";
-import { matchParticipants } from "../lib/search";
-import { FAC_EDGES, GOV_EDGES } from "@/lib/roleEdges";
 
 declare const self: DedicatedWorkerGlobalScope;
 
 let graph: MultiDirectedGraph | null = null;
 const entityBySlug = new Map<string, GraphEntity>();
 const entityById = new Map<string, GraphEntity>();
-const agentClusters = new Map<string, Set<string>>();
-
-// One extra hop from an executor: its facilitator/govops plus role-holders and
-// ERG members (chain fac/gov sets + the two role-membership edges).
-const EXECUTOR_ROLE_EDGES = new Set([
-  ...FAC_EDGES,
-  ...GOV_EDGES,
-  "holds_role_for",
-  "erg_member_for",
-]);
 
 async function init() {
   // Live atlas base threaded via the worker `name` (sha-keyed /api/atlas/<sha>/);
@@ -52,27 +40,7 @@ async function init() {
     graph.addDirectedEdge(edge.f, edge.t, { type: edge.e, s: edge.s ?? null, m: edge.m ?? null });
   }
 
-  // Pre-compute agent clusters for instant focus-filter responses.
-  for (const [id, ent] of entityById) {
-    if (ent.et !== "agent" || ent.st !== "prime") continue;
-    const cluster = new Set<string>([id]);
-    for (const nb of graph.neighbors(id)) {
-      if (graph.getNodeAttribute(nb, "_nt") === "entity") cluster.add(nb);
-    }
-    for (const member of [...cluster]) {
-      const e = entityById.get(member);
-      if (!e || e.et !== "agent" || e.st === "prime") continue;
-      graph.forEachEdge(member, (_key, attrs, source, target) => {
-        if (!EXECUTOR_ROLE_EDGES.has(attrs.type as string)) return;
-        const other = source === member ? target : source;
-        if (graph!.getNodeAttribute(other, "_nt") === "entity") cluster.add(other);
-      });
-    }
-    agentClusters.set(id, cluster);
-  }
-
-  const entityEdges = data.edges.filter((e) => e.ft === "entity" && e.tt === "entity");
-  post({ type: "ready", entities: data.entities, entityEdges });
+  post({ type: "ready" });
 }
 
 function post(msg: GraphWorkerOutMessage) {
@@ -127,7 +95,7 @@ function buildSubgraph(rootId: string, depth: number): SerializedSubgraph {
 self.addEventListener("message", (e: MessageEvent<GraphWorkerInMessage>) => {
   const msg = e.data;
   try {
-    if (msg.type === "ping") { post({ type: "ready", entities: [], entityEdges: [] }); return; }
+    if (msg.type === "ping") { post({ type: "ready" }); return; }
 
     if (msg.type === "edges") {
       const { outbound, inbound } = edgesFor(msg.id);
@@ -158,30 +126,11 @@ self.addEventListener("message", (e: MessageEvent<GraphWorkerInMessage>) => {
       post({ type: "subgraph", rootId: msg.rootId, ...sub });
       return;
     }
-
-    if (msg.type === "constellation-query") {
-      if (!graph) { post({ type: "constellation-query", id: msg.id, neighborIds: [], topId: null }); return; }
-      const q = msg.q.trim().toLowerCase();
-      if (!q) { post({ type: "constellation-query", id: msg.id, neighborIds: [], topId: null }); return; }
-      const matches = matchParticipants(q, [...entityById.values()]);
-      const topId = matches[0]?.participant.id ?? null;
-      const neighborIds = matches.map((m) => m.participant.id);
-      post({ type: "constellation-query", id: msg.id, neighborIds, topId });
-      return;
-    }
-
-    if (msg.type === "constellation-cluster") {
-      const cluster = agentClusters.get(msg.agentId);
-      post({ type: "constellation-cluster", agentId: msg.agentId, clusterIds: cluster ? [...cluster] : [] });
-      return;
-    }
   } catch (err) {
     if (msg.type === "edges") post({ type: "edges", id: msg.id, outbound: [], inbound: [] });
     if (msg.type === "entity") post({ type: "entity", slug: msg.slug, entity: null, edges: [] });
     if (msg.type === "neighbors") post({ type: "neighbors", id: msg.id, nodes: [], edges: [] });
     if (msg.type === "subgraph") post({ type: "subgraph", rootId: msg.rootId, nodes: [], edges: [] });
-    if (msg.type === "constellation-query") post({ type: "constellation-query", id: msg.id, neighborIds: [], topId: null });
-    if (msg.type === "constellation-cluster") post({ type: "constellation-cluster", agentId: msg.agentId, clusterIds: [] });
     console.error("[graph worker]", err);
   }
 });

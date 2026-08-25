@@ -27,7 +27,7 @@ export const SWATCH_WORST_BG: Record<string, string> = {
   "entity-composite-party": "surface", "entity-governance-body": "surface",
   "entity-operational-party": "surface", "entity-ecosystem-actor": "surface",
   "entity-instance": "surface", "entity-multisig": "surface", "entity-fallback": "surface",
-  "diff-removed-fg": "diff-removed-bg", "edge-label-fg": "bg-deep",
+  "diff-removed-fg": "diff-removed-bg",
   ...Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`depth-${i + 1}`, "surface"])),
 };
 

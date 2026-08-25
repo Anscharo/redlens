@@ -2,7 +2,7 @@ import { startTransition, forwardRef, type ComponentPropsWithoutRef } from "reac
 import { Link as WouterLink, useLocation } from "wouter";
 
 // Wraps wouter's <Link> so client-side navigation runs inside startTransition.
-// Without this, clicking a Link to a lazy-loaded route (Constellations, Radar,
+// Without this, clicking a Link to a lazy-loaded route (Radar,
 // /reports/*) renders the Suspense fallback synchronously and looks like a
 // full page reload. Modifier-key clicks (cmd/ctrl/shift) fall through to the
 // browser as usual — wouter's own onClick handles that branch before us.

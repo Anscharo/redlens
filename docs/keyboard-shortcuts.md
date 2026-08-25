@@ -177,7 +177,6 @@ Undocumented-but-real affordances that aren't discoverable from a static screens
 | Drag the sidebar's right edge | Resize the tree sidebar (`Drawer.tsx:110`). |
 | Drag the annotations pane's edge | Resize the reader's annotation column (`AtlasAnnotations.tsx:69`). |
 | Drag the comparison pane's top edge | Resize the split view vertically (`useSplitHeight.ts`). Persisted per browser. Opening a doc with no children shrinks the pane to fit it, which is a display cap only — your dragged height comes back on the next doc that has children. |
-| Scroll to zoom, drag to pan | Constellations graph. These are ReactFlow's defaults — none of its key bindings (`zoomActivationKeyCode`, `multiSelectionKeyCode`, …) are configured in this repo, so upstream defaults apply. |
 | Click any row in the Risk Rules table | Toggles the assessment reasoning. The chevron button is the equivalent keyboard/AT path; inner links stop propagation so they navigate instead. |
 
 ---

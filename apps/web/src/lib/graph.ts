@@ -7,12 +7,12 @@ import type {
 import { fetchJson } from "@/lib/verify";
 import { captureException } from "./analytics";
 import { liveAtlasBase, handledStale, handledStaleMessage } from "./atlasBase";
-import type { GraphData, ConstellationInit } from "@/lib/graphData";
+import type { GraphData } from "@/lib/graphData";
 
-// GraphData / ConstellationInit moved to the DOM-free ./graphData so server-side
-// report builders can import them without this worker/analytics layer. Re-exported
-// here so existing `import type { GraphData } from "./graph"` callers keep working.
-export type { GraphData, ConstellationInit } from "@/lib/graphData";
+// GraphData moved to the DOM-free ./graphData so server-side report builders
+// can import it without this worker/analytics layer. Re-exported here so
+// existing `import type { GraphData } from "./graph"` callers keep working.
+export type { GraphData } from "@/lib/graphData";
 
 // Module-level cache for the raw graph data (used by reports/radar).
 // Cache the raw graph data per data-source base (used by reports/radar). A
@@ -62,14 +62,8 @@ let ready = false;
 // instead of hanging forever — see failWorker.
 const readyCallbacks: Array<{ resolve: () => void; reject: (e: Error) => void }> = [];
 
-// Constellation init — resolved once from the worker's ready payload.
-let constellationInit: ConstellationInit | null = null;
-const constellationInitWaiters: Array<{ resolve: (d: ConstellationInit) => void; reject: (e: Error) => void }> = [];
-
-// Pending callbacks keyed by request id / agent id.
+// Pending callbacks keyed by request id.
 const edgePending = new Map<string, (r: EdgeResult) => void>();
-const queryPending = new Map<number, (r: { neighborIds: string[]; topId: string | null }) => void>();
-const clusterPending = new Map<string, (ids: string[]) => void>();
 
 // If the worker dies mid-request the response never arrives, leaking the pending
 // callback and hanging the awaiting promise forever. Register every request with
@@ -128,9 +122,6 @@ function getWorker(): Worker {
     }
 
     if (msg.type === "ready") {
-      constellationInit = { entities: msg.entities, entityEdges: msg.entityEdges };
-      for (const cb of constellationInitWaiters) cb.resolve(constellationInit);
-      constellationInitWaiters.length = 0;
       ready = true;
       for (const cb of readyCallbacks) cb.resolve();
       readyCallbacks.length = 0;
@@ -140,18 +131,6 @@ function getWorker(): Worker {
     if (msg.type === "edges") {
       const cb = edgePending.get(msg.id);
       if (cb) { edgePending.delete(msg.id); cb({ outbound: msg.outbound, inbound: msg.inbound }); }
-      return;
-    }
-
-    if (msg.type === "constellation-query") {
-      const cb = queryPending.get(msg.id);
-      if (cb) { queryPending.delete(msg.id); cb({ neighborIds: msg.neighborIds, topId: msg.topId }); }
-      return;
-    }
-
-    if (msg.type === "constellation-cluster") {
-      const cb = clusterPending.get(msg.agentId);
-      if (cb) { clusterPending.delete(msg.agentId); cb(msg.clusterIds); }
       return;
     }
   });
@@ -185,16 +164,13 @@ function getWorker(): Worker {
 
 // Settle every waiter with the error and drop the worker so the next consumer
 // call respawns a fresh one. Without this, a worker init failure leaves
-// whenReady()/getConstellationInit() promises pending forever with no retry.
+// whenReady() promises pending forever with no retry.
 function failWorker(err: Error): void {
   for (const cb of readyCallbacks) cb.reject(err);
   readyCallbacks.length = 0;
-  for (const cb of constellationInitWaiters) cb.reject(err);
-  constellationInitWaiters.length = 0;
   worker?.terminate();
   worker = null;
   ready = false;
-  constellationInit = null;
 }
 
 function whenReady(): Promise<void> {
@@ -206,38 +182,11 @@ function whenReady(): Promise<void> {
 // Public API
 // ---------------------------------------------------------------------------
 
-export function getConstellationInit(): Promise<ConstellationInit> {
-  getWorker();
-  if (constellationInit) return Promise.resolve(constellationInit);
-  return new Promise((resolve, reject) => constellationInitWaiters.push({ resolve, reject }));
-}
-
 export async function getEdges(id: string): Promise<EdgeResult> {
   const w = getWorker();
   await whenReady();
   return new Promise((resolve, reject) => {
     registerPending(edgePending, id, resolve, reject, "edges");
     w.postMessage({ type: "edges", id });
-  });
-}
-
-export async function constellationQuery(
-  id: number,
-  q: string,
-): Promise<{ neighborIds: string[]; topId: string | null }> {
-  const w = getWorker();
-  await whenReady();
-  return new Promise((resolve, reject) => {
-    registerPending(queryPending, id, resolve, reject, "constellation-query");
-    w.postMessage({ type: "constellation-query", id, q });
-  });
-}
-
-export async function constellationCluster(agentId: string): Promise<string[]> {
-  const w = getWorker();
-  await whenReady();
-  return new Promise((resolve, reject) => {
-    registerPending(clusterPending, agentId, resolve, reject, "constellation-cluster");
-    w.postMessage({ type: "constellation-cluster", agentId });
   });
 }

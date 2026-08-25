@@ -20,7 +20,6 @@ const STAGES: Stage[] = [
     description:
       "Applies documented, pattern-based extractors to Atlas text. It identifies entities, roles, instances, document relationships, and address annotations; these are our interpretations, not extra claims from the Atlas.",
     powers: [
-      "Constellations graph",
       "Cross-document reports",
       "Graph-aware search and chat tools",
     ],

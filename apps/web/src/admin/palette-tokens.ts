@@ -4,7 +4,6 @@ export type PaletteGroup =
   | "text"
   | "row"
   | "shadow"
-  | "graph"
   | "diff"
   | "entity"
   | "depth";
@@ -22,7 +21,6 @@ export const GROUP_ORDER: readonly PaletteGroup[] = [
   "text",
   "row",
   "shadow",
-  "graph",
   "diff",
   "entity",
   "depth",
@@ -34,7 +32,6 @@ export const GROUP_LABEL: Record<PaletteGroup, string> = {
   text: "Text",
   row: "Row Overlays",
   shadow: "Shadows",
-  graph: "Graph Chrome",
   diff: "Diff",
   entity: "Entity Types",
   depth: "Depth Rainbow",
@@ -76,11 +73,6 @@ export const PALETTE_TOKENS: readonly PaletteToken[] = [
   // ─── Shadows (alpha) ───
   { name: "shadow", label: "Shadow", group: "shadow", alpha: true },
   { name: "shadow-strong", label: "Shadow Strong", group: "shadow", alpha: true },
-
-  // ─── Graph chrome ───
-  { name: "edge", label: "Edge", group: "graph", alpha: false },
-  { name: "edge-label-fg", label: "Edge Label", group: "graph", alpha: false },
-  { name: "graph-dots", label: "Graph Dots", group: "graph", alpha: false },
 
   // ─── Diff ───
   { name: "diff-removed-bg", label: "Diff Removed BG", group: "diff", alpha: false },

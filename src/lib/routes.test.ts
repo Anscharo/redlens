@@ -54,7 +54,6 @@ describe("CrossView route registration", () => {
 describe("activeNavPageFor", () => {
   it("prefix-matches each nav section, including sub-routes", () => {
     expect(activeNavPageFor(ROUTES.ATLAS)).toBe("atlas");
-    expect(activeNavPageFor(ROUTES.CONSTELLATIONS)).toBe("constellations");
     expect(activeNavPageFor(ROUTES.RADAR_ACTOR.replace(":slug", "keel"))).toBe("radar");
     expect(activeNavPageFor(ROUTES.RADAR_ACTOR_SETTLEMENTS.replace(":slug", "keel"))).toBe("radar");
     expect(activeNavPageFor(ROUTES.REPORTS_ONCHAIN_ADDRESSES)).toBe("reports");

@@ -45,11 +45,6 @@
   --shadow: rgba(0, 0, 0, 0.3);
   --shadow-strong: rgba(0, 0, 0, 0.5);
 
-  /* ─── Graph chrome (constellations / ReactFlow) ─── */
-  --edge: #5a3a32;
-  --edge-label-fg: #8a6a60;
-  --graph-dots: #2a1a16;
-
   /* ─── Diff view ─── */
   --diff-removed-bg: #4a1010;
   --diff-removed-fg: #e8d5d5;

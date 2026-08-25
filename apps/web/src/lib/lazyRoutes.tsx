@@ -23,7 +23,6 @@ function lazyImport<M extends Record<string, ComponentType<any>>, K extends keyo
   return lazy(() => lazyRetry(factory).then((m) => ({ default: m[key] })));
 }
 
-export const ConstellationsPage = lazyImport(() => import("../components/ConstellationsPage"), "ConstellationsPage");
 export const OpFacilitatorsReport = lazyImport(() => import("../components/reports/OpFacilitatorsReport"), "OFReport");
 export const OpGovOpsReport = lazyImport(() => import("../components/reports/OpGovOpsReport"), "OGReport");
 export const ActiveDataReport = lazyImport(() => import("../components/reports/ActiveDataReport"), "ActiveDataReport");
@@ -93,7 +92,6 @@ export const SIMPLE_ROUTES: SimpleRoute[] = [
     Component: ProcessesReport,
     props: (c) => ({ onNavigate: c.navigateToNode, query: c.query, mode: c.mode }),
   },
-  { path: ROUTES.CONSTELLATIONS, Component: ConstellationsPage, props: (c) => ({ query: c.query }) },
   { path: ROUTES.RADAR, Component: RadarPage, props: (c) => ({ query: c.query }) },
   { path: ROUTES.PROVENANCE, Component: ProvenancePage },
   { path: ROUTES.PRIVACY, Component: PrivacyPage },

@@ -105,7 +105,7 @@ describe("features fact payload", () => {
   });
 
   it("caps how-step detail at three areas for a question that names many", () => {
-    const v = block("what can i do — search, reports, radar, preview, mcp, constellations?")!;
+    const v = block("what can i do — search, reports, radar, preview, mcp, collections?")!;
     expect(v.app.filter((a) => a.features.some((f) => f.how))).toHaveLength(3);
   });
 

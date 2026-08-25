@@ -2,8 +2,8 @@
 //
 // Drives the real graph worker through its message protocol with a small
 // hand-built relations.json: init/ready, edge resolution (with entity label
-// enrichment), entity-by-slug, BFS neighbors/subgraph, the constellation
-// query + agent-cluster responses, the pre-init null guards, and init failure.
+// enrichment), entity-by-slug, BFS neighbors/subgraph, the pre-init null
+// guards, and init failure.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { installWorkerGlobal, stubFetch, type WorkerHarness } from "../test/workerGlobal";
@@ -46,12 +46,9 @@ async function ask(h: WorkerHarness, msg: Record<string, unknown>, matchType: st
 // ---------------------------------------------------------------------------
 
 describe("init lifecycle", () => {
-  it("posts ready with entities and only entity↔entity edges", async () => {
+  it("posts ready once init completes", async () => {
     const h = await initGraphWorker();
-    const ready = h.ofType("ready")[0];
-    expect((ready.entities as GraphEntity[]).length).toBe(7);
-    // Of the 7 fixture edges, 5 are entity→entity; the entity→doc and doc→address are excluded.
-    expect((ready.entityEdges as unknown[]).length).toBe(5);
+    expect(h.ofType("ready").length).toBe(1);
   });
 
   it("threads a preview base through self.name", async () => {
@@ -70,11 +67,10 @@ describe("init lifecycle", () => {
     expect(String(err.message)).toContain("relations.json");
   });
 
-  it("ping is answered with an (empty) ready", async () => {
+  it("ping is answered with a ready", async () => {
     const h = await initGraphWorker();
     const before = h.ofType("ready").length;
-    const pong = await ask(h, { type: "ping" }, "ready");
-    expect(pong.entities).toEqual([]);
+    await ask(h, { type: "ping" }, "ready");
     expect(h.ofType("ready").length).toBe(before + 1);
   });
 });
@@ -190,43 +186,6 @@ describe("neighbors / subgraph", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Constellation
-// ---------------------------------------------------------------------------
-
-describe("constellation", () => {
-  it("query returns ranked matches with the best as topId", async () => {
-    const h = await initGraphWorker();
-    const res = await ask(h, { type: "constellation-query", id: 1, q: "sky" }, "constellation-query");
-    // 'Skybase' (len 7) ranks above 'Sky Foundation' (len 14) at equal prefix score.
-    expect(res.topId).toBe(G.primeAgent);
-    expect((res.neighborIds as string[])).toContain(G.composite);
-  });
-
-  it("empty query returns no matches", async () => {
-    const h = await initGraphWorker();
-    const res = await ask(h, { type: "constellation-query", id: 2, q: "   " }, "constellation-query");
-    expect(res.neighborIds).toEqual([]);
-    expect(res.topId).toBeNull();
-  });
-
-  it("cluster for a prime agent pulls in role-linked executors, facilitators and govops", async () => {
-    const h = await initGraphWorker();
-    const res = await ask(h, { type: "constellation-cluster", agentId: G.primeAgent }, "constellation-cluster");
-    const ids = res.clusterIds as string[];
-    expect(ids).toContain(G.primeAgent);
-    expect(ids).toContain(G.execAgent);
-    expect(ids).toContain(G.facilitator); // reached via operational_facilitator_for role edge
-    expect(ids).toContain(G.govops);
-  });
-
-  it("cluster for a non-prime / unknown agent id is empty", async () => {
-    const h = await initGraphWorker();
-    const res = await ask(h, { type: "constellation-cluster", agentId: G.execAgent }, "constellation-cluster");
-    expect(res.clusterIds).toEqual([]);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Pre-init null guards — messages that arrive before relations.json resolves
 // ---------------------------------------------------------------------------
 
@@ -244,46 +203,5 @@ describe("pre-init guards", () => {
     const res = h.ofType("neighbors")[0];
     expect(res.nodes).toEqual([]);
     expect(res.edges).toEqual([]);
-  });
-
-  it("constellation-query before the graph loads returns empty", async () => {
-    const h = installWorkerGlobal();
-    harness = h;
-    stubFetch({}, { pending: ["relations.json"] });
-    vi.resetModules();
-    await import("./graph.worker.ts");
-    h.dispatch({ type: "constellation-query", id: 5, q: "sky" });
-    const res = h.ofType("constellation-query")[0];
-    expect(res.neighborIds).toEqual([]);
-    expect(res.topId).toBeNull();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Defensive catch — a handler throwing must not crash the worker
-// ---------------------------------------------------------------------------
-
-describe("handler error fallback", () => {
-  it("a throwing query is caught and answered with an empty fallback", async () => {
-    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const h = installWorkerGlobal();
-    harness = h;
-    // An entity with a null name makes matchParticipants (e.name.toLowerCase()) throw.
-    const relations = JSON.stringify({
-      entities: [{ id: "bad", slug: "bad", name: null, et: "agent", st: "prime", did: null }],
-      edges: [],
-    });
-    stubFetch({ "relations.json": relations });
-    vi.resetModules();
-    await import("./graph.worker.ts");
-    await h.waitFor((m) => m.type === "ready");
-
-    h.dispatch({ type: "constellation-query", id: 7, q: "anything" });
-    // The handler is synchronous, so the catch block's fallback is already posted.
-    const cq = h.ofType("constellation-query").at(-1)!;
-    expect(cq.neighborIds).toEqual([]);
-    expect(cq.topId).toBeNull();
-    expect(errSpy).toHaveBeenCalled();
-    errSpy.mockRestore();
   });
 });

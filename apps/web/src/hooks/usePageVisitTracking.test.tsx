@@ -79,17 +79,11 @@ describe("usePageVisitTracking", () => {
     vi.useRealTimers();
   });
 
-  it("records the radar and constellations pages too", async () => {
+  it("records the radar page too", async () => {
     const { usePageVisitTracking } = await import("./usePageVisitTracking");
     renderHook(() => usePageVisitTracking("/radar"), { wrapper: wrapperFor("/radar?exec=phoenix") });
     expect(recordVisit).toHaveBeenLastCalledWith(
       expect.objectContaining({ path: "/radar", label: "Radar", params: "exec=phoenix" }),
-    );
-    cleanup();
-    recordVisit.mockClear();
-    renderHook(() => usePageVisitTracking("/constellations"), { wrapper: wrapperFor("/constellations") });
-    expect(recordVisit).toHaveBeenLastCalledWith(
-      expect.objectContaining({ path: "/constellations", label: "Constellations" }),
     );
   });
 
