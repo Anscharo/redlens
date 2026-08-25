@@ -160,6 +160,9 @@ describe("upsertForumTopic", () => {
     await upsertForumTopic(fakeSql, TOPIC, new Date(NOW));
     expect(queries.filter((q) => q.text.includes("INSERT INTO forum_topics"))).toHaveLength(1);
     expect(queries.filter((q) => q.text.includes("INSERT INTO forum_posts"))).toHaveLength(1);
+    const insert = queries.find((q) => q.text.includes("INSERT INTO forum_topics"))!;
+    expect(insert.text).toContain("period");
+    expect(insert.values).toContainEqual(["2026-05"]);
   });
 });
 
@@ -177,11 +180,14 @@ describe("readForumTopics", () => {
         last_posted_at: hoursAgo(0.5),
         tags: ["monthly-settlement-cycle"],
         posts_count: 2,
+        period: ["2026-05"],
       },
     ];
     const rows = await readForumTopics(fakeSql, "msc");
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ topicId: 28151, kind: "msc", poster: "SoterLabs", postsCount: 2 });
+    expect(rows[0]).toMatchObject({
+      topicId: 28151, kind: "msc", poster: "SoterLabs", postsCount: 2, period: ["2026-05"],
+    });
     expect(queries.some((q) => q.text.includes("kind = ?"))).toBe(true);
   });
 });

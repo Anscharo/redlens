@@ -47,6 +47,15 @@ describe("forumTopicUrlForMonth", () => {
     expect(forumTopicUrlForMonth(topics, "2026-01")).toBe("/jan-sum");
   });
 
+  it("uses a stored period column when present", () => {
+    expect(
+      forumTopicUrlForMonth(
+        [{ title: "unrelated", url: "/stored", period: ["2026-07"] }],
+        "2026-07",
+      ),
+    ).toBe("/stored");
+  });
+
   it("returns nothing when no title names that month", () => {
     expect(forumTopicUrlForMonth(topics, "2026-07")).toBeUndefined();
   });
