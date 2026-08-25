@@ -14,12 +14,13 @@ import { execToolDetailed } from "./tools/llm-tools.ts";
 import { CHAT_TOOLS } from "./tools/llm-tools.ts";
 import { safeParseArgs } from "./tools/llm-tools.ts";
 import { EXPORT_TOOL_NAME, buildExportArtifact, redactExportArgs } from "./tools/export-tool.ts";
-import { checkExportArtifact } from "./tools/export-verify.ts";
+import { checkExportArtifact, type ExportEvidence } from "./tools/export-verify.ts";
 import { config } from "../config.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
 import type { JsonCall } from "./llm.ts";
 import { ASK_EXTERNAL_MSC, runAskExternalMsc } from "./tools/external-tools.ts";
+import { isExternalMscTool } from "../external/envelope.ts";
 import { isRepetitionLoop } from "./repetition-guard.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -129,6 +130,31 @@ const REPETITION_STEER =
 // Like FINAL_TURN_INSTRUCTION it rides only the request, never lands in msgs.
 const EARLY_ANSWER_NUDGE =
   "Check the tool results above before searching again: if they already contain what the question needs, write the final answer now instead of calling more tools. Simple questions about a single document rarely need more than one or two lookups. Only continue if a specific fact you need is still missing — and never re-run a near-identical query.";
+
+// Evidence for the export gate, split by provenance so a file built on the MSC
+// brief faces the same non-Atlas attribution rules the harness applies to the
+// chat answer (a file outlives the conversation — CLAUDE.md's citation dictate
+// is strictest about it). Which tool_call_ids belong to the external tool is
+// read back off the transcript rather than tracked in this loop's own state, so
+// a revision pass — which replays the first pass's transcript through a fresh
+// runChat — classifies those earlier rounds identically.
+export function exportEvidence(msgs: Msg[]): ExportEvidence {
+  const externalIds = new Set<string>();
+  for (const m of msgs) {
+    if (m.role !== "assistant" || !Array.isArray(m.tool_calls)) continue;
+    for (const tc of m.tool_calls) {
+      if (tc.type === "function" && isExternalMscTool(tc.function.name)) externalIds.add(tc.id);
+    }
+  }
+  const atlasTexts: string[] = [];
+  const externalTexts: string[] = [];
+  for (const m of msgs) {
+    if (typeof m.content !== "string") continue;
+    if (m.role === "tool") (externalIds.has(m.tool_call_id) ? externalTexts : atlasTexts).push(m.content);
+    else if (m.role === "assistant") atlasTexts.push(m.content);
+  }
+  return { atlasTexts, externalTexts };
+}
 
 export async function* runChat(opts: {
   ix: Indexes;
@@ -381,10 +407,7 @@ export async function* runChat(opts: {
             // (tool results + prior answers) BEFORE it downloads — the harness
             // only audits the chat answer, so an unchecked file could carry a
             // fabricated citation/quote/address. Withhold + tell the model to fix.
-            const evidenceTexts = msgs
-              .filter((m) => (m.role === "tool" || m.role === "assistant") && typeof m.content === "string")
-              .map((m) => m.content as string);
-            const check = checkExportArtifact(art, evidenceTexts, opts.ix);
+            const check = checkExportArtifact(art, exportEvidence(msgs), opts.ix);
             if (check.ok) {
               const bytes = check.content.length;
               yield { type: "export", format: art.format, filename: art.filename, mime: art.mime, content: check.content, bytes };

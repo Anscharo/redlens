@@ -5,7 +5,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { instrument } from "@posthog/mcp";
 import { getIndexes } from "./retrieval/indexes.ts";
 import type { ToolResult } from "./chat/tools/tools.ts";
-import { ATLAS_TOOLS } from "./chat/tools/tool-registry.ts";
+import { ATLAS_TOOLS, toolDescription } from "./chat/tools/tool-registry.ts";
 import { EXTERNAL_TOOLS } from "./chat/tools/external-tools.ts";
 import { captureServerEvent } from "./posthog-capture.ts";
 import { getPosthog } from "./posthog-node.ts";
@@ -82,7 +82,7 @@ export function createMcpServer(reqCtx?: McpRequestContext): McpServer {
     registerTool(
       t.name,
       {
-        description: t.whenToUse ? `${t.description}\n\nWhen to use: ${t.whenToUse}` : t.description,
+        description: toolDescription(t),
         inputSchema: t.shape,
         annotations: t.annotations,
       },

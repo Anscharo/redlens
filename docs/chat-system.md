@@ -255,7 +255,16 @@ event reaches a client (test-asserted).
    **parameter values**, and **class completeness** (superlative / exhaustive
    questions must have listed the class via `atlas_filter` or class-mode
    `atlas_first_seen`; hedging “among those queried” still fails) against the
-   live indexes.
+   live indexes. Evidence is split by provenance first: quote- and value-grounding
+   read **atlas** tool results only, so a forum sentence can never ground an
+   “the atlas says” quote. When the turn used `ask_external_msc`, two extra hard
+   checks apply — the answer must repeat the non-Atlas disclaimer, and a figure
+   that is absent from the doc it cites but present in the MSC brief is a
+   misattribution. That second check is scoped per value, not by citation shape:
+   `[10,000,000 USDS](/atlas/…)` is how the system prompt asks for a genuine
+   atlas figure, so a numeric citation grounded in its own doc always passes.
+   `tools/export-verify.ts` runs the same split and the same two checks over
+   **exported files**, which outlive the conversation.
 3. **Sliced model verifier** (if `CHAT_VERIFIER_MODEL` set) — see below.
 4. **Advisor escalation** (if `CHAT_ADVISOR_MODEL` set) — see below.
 

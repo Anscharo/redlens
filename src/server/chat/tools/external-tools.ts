@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import type { ToolResult } from "./tools.ts";
+import type { DescribedTool } from "./tool-registry.ts";
 import { readForumTopics } from "../../forum.ts";
 import { loadSettlementsFromDisk } from "../../settlements.ts";
 import { ASK_EXTERNAL_MSC, EXTERNAL_MSC, MSC_REQUIRED_DISCLAIMER } from "../../external/envelope.ts";
@@ -21,10 +22,11 @@ const READ_ONLY: ToolAnnotations = {
   openWorldHint: false,
 };
 
-export interface ExternalTool {
+// Same shape as AtlasTool, but a SEPARATE type and a separate array on purpose:
+// nothing here may ever be reachable as an atlas_* tool. Sharing DescribedTool
+// only shares how the two agent consumers assemble a description.
+export interface ExternalTool extends DescribedTool {
   name: string;
-  description: string;
-  whenToUse?: string;
   shape: z.ZodRawShape;
   annotations?: ToolAnnotations;
   handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;

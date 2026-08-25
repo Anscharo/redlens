@@ -11,6 +11,7 @@ import type { CheckReport } from "./verify-checks.ts";
 import type { RoundTelemetry } from "./round-checks.ts";
 import { config } from "../../config.ts";
 import { captureError, captureEvent, type ErrorContext } from "../../posthog-node.ts";
+import { isExternalMscTool } from "../../external/envelope.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -75,8 +76,6 @@ export function computeOverall(checks: CheckReport | null, verdict: Verdict | nu
   if (verdict.claims.length === 0) return "unverified";
   return "pass";
 }
-
-import { isExternalMscTool } from "../../external/envelope.ts";
 
 export interface EvidenceEntry {
   label: string; // [E1], [E2], …

@@ -19,9 +19,14 @@ export function settlementsJsonPath(): string | null {
   return candidatePaths().find((p) => existsSync(p)) ?? null;
 }
 
-export async function loadSettlementsFromDisk(force = false): Promise<SettlementsBundle> {
+// Load-once per resolved path. settlements.json is baked at image build and
+// refreshed by dev-preflight before the server boots, so it never changes under
+// a running process — no SHA/drift invalidation to do. A miss (no file yet)
+// caches EMPTY against a null path, so the next call re-resolves and picks the
+// file up if it appears.
+export async function loadSettlementsFromDisk(): Promise<SettlementsBundle> {
   const path = settlementsJsonPath();
-  if (!force && cached && cachedPath === path) return cached;
+  if (cached && cachedPath === path) return cached;
   if (!path) {
     cached = EMPTY_SETTLEMENTS;
     cachedPath = null;
