@@ -12,6 +12,8 @@ import {
   settlementsArtifactMissing,
 } from "../../lib/settlements";
 import type { HeadlineFigure } from "../../lib/settlements";
+import { loadForumTopics } from "../../lib/forumTopics";
+import { forumTopicUrlForMonth } from "@/lib/forumMonths";
 import { SettlementBars } from "./SettlementBars";
 import { SettlementDemandBars } from "./SettlementDemandBars";
 import { ActorSettlementVenues } from "./ActorSettlementVenues";
@@ -26,6 +28,7 @@ interface Props {
 
 export function ActorSettlements({ slug, name }: Props) {
   const bundle = useLoaded(loadSettlements, { soft: true });
+  const topics = useLoaded(loadForumTopics, { soft: true });
   const reports = useMemo(
     () => (bundle ? reportsForPrime(bundle, slug) : []),
     [bundle, slug],
@@ -55,6 +58,7 @@ export function ActorSettlements({ slug, name }: Props) {
 
   const gap = revenueGap(report);
   const workbook = `${SOURCE}/tree/main/reports/${report.prime}/${month}`;
+  const forumUrl = forumTopicUrlForMonth(topics ?? [], month);
   const selectMonth = (m: string) => setMsc(m === latest ? null : m);
 
   return (
@@ -65,6 +69,14 @@ export function ActorSettlements({ slug, name }: Props) {
         <a href={workbook} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
           {month} source
         </a>
+        {forumUrl && (
+          <>
+            {" · "}
+            <a href={forumUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+              Sky Forum
+            </a>
+          </>
+        )}
       </p>
       <SettlementBars
         months={reports.map(summaryThreeWay)}
