@@ -11,13 +11,17 @@
 // publishBundle copies freshly-built FLAT artifacts into a per-SHA dir and
 // (re)generates their .gz siblings from the fresh bytes — fixing the latent bug
 // where the runtime updater overwrote flat *.json but left stale *.gz behind.
+// hydrateBundleFromStore fills the same dir from the shared artifact store when
+// a request arrives for a sha this container never built (docs/plans/atlas-artifact-store.md);
+// both go through stageIntoBundle, so both land atomically.
 import fs from "node:fs";
 import path from "node:path";
-import { gzip } from "node:zlib";
+import { gzip, gunzip } from "node:zlib";
 import { promisify } from "node:util";
 import { config } from "./config.ts";
 
 const gzipAsync = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
 
 export interface BundleStore {
   /** Directory holding the per-sha bundle dirs. */
@@ -165,10 +169,42 @@ export function remove(store: BundleStore, sha: string): void {
   fs.rmSync(bundleDir(store, sha), { recursive: true, force: true });
 }
 
+// The live atlas sha, protected from eviction unconditionally. Null (nothing
+// pinned) is the default, so an unpinned store evicts exactly as it always did.
+//
+// This exists because evictLru is least-recently-WRITTEN, not least-recently-
+// used: nothing stamps a bundle's mtime on serve, so the live sha's clock is
+// frozen at its publish time while every hydrate stamps now(). With
+// ATLAS_BUNDLE_KEEP defaulting to 4 and /api/atlas/<sha>/* served as immutable
+// AND indexable, a crawler walking old indexed sha URLs would hydrate four cold
+// bundles and evict the live one — self-healing (the next request re-hydrates
+// it) but a ~3 MB store read plus a latency spike on a real user's request, in
+// a loop. Pinning fixes that without touch-on-serve, which would cost a syscall
+// per request and still lose a live-but-momentarily-idle sha right after a swap.
+let pinnedSha: string | null = null;
+
+/**
+ * Pin the sha eviction must never remove — the live atlas bundle. `null`
+ * unpins. Set on swap and at boot by the caller that knows what "live" means
+ * (atlas-updater.ts / index.ts); this module never decides it for itself.
+ */
+export function pinBundleSha(sha: string | null): void {
+  pinnedSha = sha ? sha.toLowerCase() : null;
+}
+
+/** The currently pinned sha, or null. */
+export function pinnedBundleSha(): string | null {
+  return pinnedSha;
+}
+
 /**
  * Evict all but the `keep` most-recently-accessed ready bundles; also sweep
  * unfinished/interrupted dirs regardless of recency. `skip` (in-flight builds +
- * the current live sha) is never touched. Returns evicted shas.
+ * the sha being published/hydrated) and the pinned live sha are never touched.
+ * Returns evicted shas.
+ *
+ * The pin is honoured HERE rather than by every caller passing it in `skip`,
+ * so a future caller cannot forget it.
  */
 export function evictLru(store: BundleStore, skip?: Set<string>): string[] {
   let entries: string[];
@@ -180,7 +216,9 @@ export function evictLru(store: BundleStore, skip?: Set<string>): string[] {
   const dirs = entries
     .map((name) => {
       try {
-        if (skip?.has(name)) return null;
+        // Excluded from consideration entirely (like `skip`): neither swept
+        // as unready nor counted against `keep`.
+        if (skip?.has(name) || name.toLowerCase() === pinnedSha) return null;
         const st = fs.statSync(path.join(store.root, name));
         if (!st.isDirectory()) return null;
         // A leftover staging dir means a publish died mid-write — always
@@ -210,6 +248,53 @@ export function evictLru(store: BundleStore, skip?: Set<string>): string[] {
   return evicted;
 }
 
+// Preview-only / handler-computed artifacts: they are allowlisted for serving
+// but are never materialised by publishBundle or hydrateBundleFromStore (they
+// are written by the preview build itself, and meta.json does not even live in
+// the artifact subdir).
+const NOT_MATERIALISED = new Set(["meta.json", "diff.json", "patches.json"]);
+
+/** Names a bundle writer may materialise into <sha>'s artifact dir. */
+function materialisable(store: BundleStore, name: string): boolean {
+  return store.allowlist.has(name) && !NOT_MATERIALISED.has(name);
+}
+
+/**
+ * Materialise <root>/<sha> atomically. `writeInto` fills a fresh staging
+ * artifact dir and returns how many artifacts it wrote; only then is the stage
+ * renamed into place, in a single step, so <root>/<sha> is never observable
+ * half-written. Shared by publishBundle and hydrateBundleFromStore — both must
+ * be equally atomic, so neither owns its own copy of this dance.
+ *
+ * Returns the count `writeInto` reported. A count of 0 renames nothing and
+ * leaves no stage: with the dir itself as the readiness proof (readyCore null),
+ * an empty bundle would be a sha that 404s forever with nothing downstream to
+ * catch it. Callers decide what "nothing was written" means for them.
+ *
+ * On any throw the stage is removed, so a retry can never rename a half-filled
+ * dir into place as though it were complete.
+ */
+async function stageIntoBundle(
+  store: BundleStore,
+  sha: string,
+  writeInto: (dir: string) => Promise<number>,
+): Promise<number> {
+  const staging = path.join(store.root, STAGING_PREFIX + sha);
+  // Clear any stage left by an earlier crashed attempt before reusing the path.
+  fs.rmSync(staging, { recursive: true, force: true });
+  const dir = artifactDirIn(store, staging);
+  fs.mkdirSync(dir, { recursive: true });
+  try {
+    const written = await writeInto(dir);
+    if (written > 0) fs.renameSync(staging, bundleDir(store, sha));
+    else fs.rmSync(staging, { recursive: true, force: true });
+    return written;
+  } catch (e) {
+    fs.rmSync(staging, { recursive: true, force: true });
+    throw e;
+  }
+}
+
 /**
  * Publish freshly-built FLAT artifacts from `srcDir` as the immutable bundle
  * <root>/<sha>/, generating a fresh .gz beside each, then prune (keeping `sha`
@@ -232,41 +317,100 @@ export function evictLru(store: BundleStore, skip?: Set<string>): string[] {
  */
 export async function publishBundle(store: BundleStore, sha: string, srcDir: string): Promise<void> {
   if (!fs.existsSync(bundleDir(store, sha))) {
-    const staging = path.join(store.root, STAGING_PREFIX + sha);
-    // Clear any stage left by an earlier crashed attempt before reusing the path.
-    fs.rmSync(staging, { recursive: true, force: true });
-    const dir = artifactDirIn(store, staging);
-    fs.mkdirSync(dir, { recursive: true });
-    try {
-      let copied = 0;
+    const copied = await stageIntoBundle(store, sha, async (dir) => {
+      let n = 0;
       for (const name of store.allowlist) {
         // Skip preview-only/computed artifacts; publishBundle only mirrors built flat files.
-        if (name === "meta.json" || name === "diff.json" || name === "patches.json") continue;
+        if (!materialisable(store, name)) continue;
         const src = path.join(srcDir, name);
         if (!fs.existsSync(src)) continue;
         const buf = fs.readFileSync(src);
         fs.writeFileSync(path.join(dir, name), buf);
         fs.writeFileSync(path.join(dir, name + ".gz"), await gzipAsync(buf, { level: 9 }));
-        copied++;
+        n++;
       }
-      // Refuse to publish an empty bundle. Before the atomic rename below, a
-      // srcDir with no artifacts produced a dir that bundleReady rejected (no
-      // core file) and evictLru then swept; now that the dir IS the readiness
-      // proof, nothing downstream would catch it and every request for this sha
-      // would 404 forever. Throwing parks the sha in the updater's
-      // pendingPublishSha for a retry instead of silently serving nothing.
-      if (copied === 0) throw new Error(`publishBundle: no artifacts found in ${srcDir}`);
-      fs.renameSync(staging, bundleDir(store, sha));
-    } catch (e) {
-      // Never leave a partial stage behind: the updater's pendingPublishSha
-      // retry re-enters here, and a half-filled stage must not be renamed into
-      // place as though it were complete.
-      fs.rmSync(staging, { recursive: true, force: true });
-      throw e;
-    }
+      return n;
+    });
+    // Refuse to publish an empty bundle. Before the atomic rename, a srcDir with
+    // no artifacts produced a dir that bundleReady rejected (no core file) and
+    // evictLru then swept; now that the dir IS the readiness proof, nothing
+    // downstream would catch it and every request for this sha would 404
+    // forever. stageIntoBundle already declined to rename anything into place;
+    // throwing parks the sha in the updater's pendingPublishSha for a retry
+    // instead of silently reporting success.
+    if (copied === 0) throw new Error(`publishBundle: no artifacts found in ${srcDir}`);
   }
   touch(store, sha);
   evictLru(store, new Set([sha]));
+}
+
+/**
+ * Fetch one sha's published artifacts as gzipped blobs, or [] when that sha was
+ * never published (or has been pruned). Injected rather than imported so the
+ * hydrate path is testable without a database — see docs/plans/atlas-artifact-store.md.
+ */
+export type ArtifactFetch = (sha: string) => Promise<Array<{ name: string; gz: Buffer }>>;
+
+// De-dupes concurrent hydrates of the same bundle: a cold instance can take a
+// burst of requests for one sha (every artifact of one page load, plus every
+// other viewer) and must download the set ONCE, not once per request. Keyed by
+// root+sha so two stores can't collide. Same shape as credits.ts's `inflight`,
+// per key like preview/build.ts's Map.
+const hydrating = new Map<string, Promise<boolean>>();
+
+/**
+ * Materialise <root>/<sha> from the shared artifact store on a local miss:
+ * download the sha's blobs, write each one as BOTH the flat .json (gunzipped)
+ * and its .gz sibling — serveBundleArtifact prefers the .gz for gzip-accepting
+ * clients, so a flat-only hydrate would silently drop compression — then touch
+ * + prune exactly like a publish.
+ *
+ * Resolves false when nothing was written: a genuinely pruned/unknown sha (the
+ * caller 404s, as it did before this path existed). Failures — a store read
+ * that throws, corrupt blobs, a full disk — also resolve false rather than
+ * reject: this runs under a static-artifact GET whose honest answer on "I
+ * cannot produce these bytes" is 404, and a DB blip must not become a 500.
+ * They are warned about, so they stay visible in the logs.
+ *
+ * Uses publishBundle's staging + rename, so a hydrate is exactly as atomic: no
+ * request can ever see a half-downloaded bundle dir.
+ */
+export function hydrateBundleFromStore(store: BundleStore, sha: string, fetch: ArtifactFetch): Promise<boolean> {
+  // Already materialised locally (published by this instance, or hydrated by an
+  // earlier request) — never re-download, and never try to rename a stage over
+  // a dir that already exists.
+  if (fs.existsSync(bundleDir(store, sha))) return Promise.resolve(bundleReady(store, sha));
+  const key = `${store.root}\0${sha}`;
+  const existing = hydrating.get(key);
+  if (existing) return existing;
+  const p = runHydrate(store, sha, fetch).finally(() => hydrating.delete(key));
+  hydrating.set(key, p);
+  return p;
+}
+
+async function runHydrate(store: BundleStore, sha: string, fetch: ArtifactFetch): Promise<boolean> {
+  try {
+    // Honour the allowlist: never write a file this store would refuse to serve
+    // (an unservable file in the bundle is dead weight at best, and for a store
+    // whose dir existence IS its readiness proof, a bundle of nothing else is a
+    // permanently-404ing sha).
+    const items = (await fetch(sha)).filter((a) => materialisable(store, a.name));
+    if (items.length === 0) return false;
+    const written = await stageIntoBundle(store, sha, async (dir) => {
+      for (const { name, gz } of items) {
+        fs.writeFileSync(path.join(dir, name), await gunzipAsync(gz));
+        fs.writeFileSync(path.join(dir, name + ".gz"), gz);
+      }
+      return items.length;
+    });
+    if (written === 0) return false;
+  } catch (e) {
+    console.warn(`[bundle-store] hydrate ${sha.slice(0, 8)} failed: ${(e as Error).message}`);
+    return false;
+  }
+  touch(store, sha);
+  evictLru(store, new Set([sha]));
+  return true;
 }
 
 /**

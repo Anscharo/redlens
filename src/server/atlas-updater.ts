@@ -20,7 +20,7 @@ import { sql } from "./db.ts";
 import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson, writeDocsSplit } from "./retrieval/indexes.ts";
 import { refreshInPlaceFromDisk, writeSearchIndex } from "./atlas-refresh.ts";
 import { broadcastAtlasUpdate } from "./sse.ts";
-import { MAIN_STORE, publishBundle } from "./bundle-store.ts";
+import { MAIN_STORE, publishBundle, pinBundleSha } from "./bundle-store.ts";
 import { stepsFor } from "../../scripts/lib/build-steps.mjs";
 import type { AtlasNode, DocMetaRow } from "./retrieval/indexes.ts";
 
@@ -553,6 +553,16 @@ export async function runTick(deps: TickDeps, state: UpdaterState): Promise<void
 // runTick keeps the pure orchestration free of disk/log side-effect detail).
 // Extracted from startUpdater so the wiring itself is unit-testable without
 // starting the self-scheduling timer loop.
+// The live sha moved: re-pin it so eviction can never remove the bundle we are
+// now serving (bundle-store.ts's pinnedSha). Returns its argument so the two
+// swap paths below stay one-liners — a swap that forgot to re-pin would leave
+// the PREVIOUS sha protected and the current one evictable, which is the exact
+// failure the pin exists to prevent.
+function pinLive(sha: string | null): string | null {
+  pinBundleSha(sha);
+  return sha;
+}
+
 export function makeTickDeps(log: (m: string) => void, intervalMs: number): TickDeps {
   return {
     getUpstream: getDbAtlasSha,
@@ -561,12 +571,12 @@ export function makeTickDeps(log: (m: string) => void, intervalMs: number): Tick
     applyInPlace: () => {
       const d = refreshInPlaceFromDisk(getIndexes());
       log(`in-place: +${d.added.length} ~${d.changed.length} -${d.removed.length} docs`);
-      return getIndexes().meta.atlasCommit ?? null;
+      return pinLive(getIndexes().meta.atlasCommit ?? null);
     },
     fullRebuild: () => {
       const ix = rebuildFromDisk();
       writeSearchIndex(ix);
-      return ix.meta.atlasCommit ?? null;
+      return pinLive(ix.meta.atlasCommit ?? null);
     },
     publish: (sha) => publishBundle(MAIN_STORE, sha, config.publicDir),
     broadcast: (sha) => broadcastAtlasUpdate(sha),

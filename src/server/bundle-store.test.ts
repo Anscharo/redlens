@@ -3,16 +3,20 @@
 // MAIN_STORE/PREVIEW_STORE (those are tied to real config paths) — keeps this
 // file's fixtures independent of the real public/atlas tree and of every other
 // test file.
-import { test, expect, beforeEach, afterAll } from "bun:test";
+import { test, expect, beforeEach, afterEach, afterAll } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { gzipSync, gunzipSync } from "node:zlib";
 import {
   artifactPath,
   bundleDir,
   bundleReady,
   contentTypeFor,
   evictLru,
+  hydrateBundleFromStore,
+  pinBundleSha,
+  pinnedBundleSha,
   publishBundle,
   remove,
   serveBundleArtifact,
@@ -341,4 +345,220 @@ test("publishBundle refuses to publish an empty bundle rather than making an uns
   await expect(publishBundle(store, "shaEmpty", srcDir)).rejects.toThrow(/no artifacts/);
   expect(fs.existsSync(path.join(ROOT, "shaEmpty"))).toBe(false);
   expect(fs.existsSync(path.join(ROOT, ".tmp-shaEmpty"))).toBe(false);
+});
+
+// ---------------------------------------------------------------------------
+// hydrateBundleFromStore — the serve-path fallback (docs/plans/atlas-artifact-store.md
+// phase 2). Exercised against a FAKE fetcher: the real one reads Postgres, and
+// none of this logic depends on where the blobs came from.
+// ---------------------------------------------------------------------------
+
+function blob(name: string, value: unknown): { name: string; gz: Buffer } {
+  return { name, gz: gzipSync(Buffer.from(JSON.stringify(value))) };
+}
+
+/** A fetcher over a fixed blob set that counts how many times it was called. */
+function fakeFetch(items: Array<{ name: string; gz: Buffer }>, delayMs = 0) {
+  const f = async (_sha: string) => {
+    f.calls++;
+    if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
+    return items;
+  };
+  f.calls = 0;
+  return f;
+}
+
+test("hydrateBundleFromStore writes the flat .json AND its .gz sibling for every allowlisted blob", async () => {
+  const store = freshStore({ readyCore: null, keep: 5 });
+  const fetch = fakeFetch([
+    blob("docs.json", { hello: "hydrated" }),
+    blob("relations.json", []),
+    // Not allowlisted by this store: hydrating it would write a file the store
+    // would refuse to serve.
+    blob("secrets.json", { nope: true }),
+  ]);
+
+  expect(await hydrateBundleFromStore(store, "shaHyd", fetch)).toBe(true);
+  expect(fetch.calls).toBe(1);
+
+  const dir = path.join(ROOT, "shaHyd");
+  expect(JSON.parse(fs.readFileSync(path.join(dir, "docs.json"), "utf8"))).toEqual({ hello: "hydrated" });
+  // The .gz must survive the round-trip: serveBundleArtifact prefers it, so a
+  // flat-only hydrate would silently drop compression for every client.
+  expect(gunzipSync(fs.readFileSync(path.join(dir, "docs.json.gz"))).toString()).toBe(
+    JSON.stringify({ hello: "hydrated" }),
+  );
+  expect(fs.existsSync(path.join(dir, "relations.json.gz"))).toBe(true);
+  expect(fs.existsSync(path.join(dir, "secrets.json"))).toBe(false);
+  expect(bundleReady(store, "shaHyd")).toBe(true);
+});
+
+test("hydrateBundleFromStore serves gzip afterwards (the .gz is preferred, and is real gzip)", async () => {
+  const store = freshStore({ readyCore: null, keep: 5 });
+  await hydrateBundleFromStore(store, "shaGz", fakeFetch([blob("docs.json", { a: 1 })]));
+
+  const req = new Request("http://x/", { headers: { "accept-encoding": "gzip" } });
+  const res = await serveBundleArtifact(store, "shaGz", "docs.json", req);
+  expect(res!.headers.get("content-encoding")).toBe("gzip");
+  expect(gunzipSync(Buffer.from(await res!.arrayBuffer())).toString()).toBe(JSON.stringify({ a: 1 }));
+});
+
+test("hydrateBundleFromStore returns false for a sha the store has nothing for, leaving no dir or stage", async () => {
+  const store = freshStore({ readyCore: null, keep: 5 });
+  const fetch = fakeFetch([]);
+  expect(await hydrateBundleFromStore(store, "shaPruned", fetch)).toBe(false);
+  expect(fetch.calls).toBe(1);
+  expect(fs.existsSync(path.join(ROOT, "shaPruned"))).toBe(false);
+  expect(fs.existsSync(path.join(ROOT, ".tmp-shaPruned"))).toBe(false);
+});
+
+test("hydrateBundleFromStore short-circuits on a bundle already on disk — no second fetch", async () => {
+  const store = freshStore({ readyCore: null, keep: 5 });
+  const fetch = fakeFetch([blob("docs.json", { v: 1 })]);
+  expect(await hydrateBundleFromStore(store, "shaTwice", fetch)).toBe(true);
+  expect(await hydrateBundleFromStore(store, "shaTwice", fetch)).toBe(true);
+  expect(fetch.calls).toBe(1); // second request hit local disk
+});
+
+test("concurrent hydrates of one sha download exactly once", async () => {
+  const store = freshStore({ readyCore: null, keep: 5 });
+  const fetch = fakeFetch([blob("docs.json", { v: 1 })], 10);
+  // A cold instance takes the whole burst of one page load at once.
+  const results = await Promise.all([1, 2, 3, 4, 5].map(() => hydrateBundleFromStore(store, "shaBurst", fetch)));
+  expect(results).toEqual([true, true, true, true, true]);
+  expect(fetch.calls).toBe(1);
+});
+
+test("hydrateBundleFromStore is atomic: <sha> never exists until every blob is written", async () => {
+  const store = freshStore({ readyCore: null, keep: 5 });
+  const finalDir = path.join(ROOT, "shaHydAtomic");
+  const realWrite = fs.writeFileSync;
+  const seen: boolean[] = [];
+  (fs as { writeFileSync: typeof fs.writeFileSync }).writeFileSync = ((...args: Parameters<typeof fs.writeFileSync>) => {
+    seen.push(fs.existsSync(finalDir));
+    return realWrite(...args);
+  }) as typeof fs.writeFileSync;
+  try {
+    await hydrateBundleFromStore(store, "shaHydAtomic", fakeFetch([blob("docs.json", {}), blob("relations.json", [])]));
+  } finally {
+    (fs as { writeFileSync: typeof fs.writeFileSync }).writeFileSync = realWrite;
+  }
+
+  expect(seen.length).toBe(4); // 2 artifacts × (.json + .gz)
+  expect(seen.some(Boolean)).toBe(false); // never observed mid-hydrate
+  expect(fs.existsSync(path.join(ROOT, ".tmp-shaHydAtomic"))).toBe(false);
+  expect(fs.existsSync(path.join(finalDir, "relations.json.gz"))).toBe(true);
+});
+
+test("hydrateBundleFromStore resolves false (never rejects) when the fetcher throws, and leaves no stage", async () => {
+  const store = freshStore({ readyCore: null, keep: 5 });
+  const boom = async () => {
+    throw new Error("db down");
+  };
+  expect(await hydrateBundleFromStore(store, "shaBoom", boom)).toBe(false);
+  expect(fs.existsSync(path.join(ROOT, "shaBoom"))).toBe(false);
+  expect(fs.existsSync(path.join(ROOT, ".tmp-shaBoom"))).toBe(false);
+  // …and a later attempt is free to retry: the failure isn't cached.
+  const fetch = fakeFetch([blob("docs.json", { v: 1 })]);
+  expect(await hydrateBundleFromStore(store, "shaBoom", fetch)).toBe(true);
+});
+
+test("hydrateBundleFromStore resolves false on a corrupt blob rather than publishing garbage", async () => {
+  const store = freshStore({ readyCore: null, keep: 5 });
+  const bad = async () => [{ name: "docs.json", gz: Buffer.from("not gzip at all") }];
+  expect(await hydrateBundleFromStore(store, "shaBad", bad)).toBe(false);
+  expect(fs.existsSync(path.join(ROOT, "shaBad"))).toBe(false);
+  expect(fs.existsSync(path.join(ROOT, ".tmp-shaBad"))).toBe(false);
+});
+
+test("hydrateBundleFromStore prunes like a publish, keeping the sha it just hydrated", async () => {
+  const store = freshStore({ readyCore: null, keep: 0 });
+  fs.mkdirSync(path.join(ROOT, "old-sha"), { recursive: true });
+
+  expect(await hydrateBundleFromStore(store, "shaFresh", fakeFetch([blob("docs.json", {})]))).toBe(true);
+  expect(fs.existsSync(path.join(ROOT, "shaFresh", "docs.json"))).toBe(true); // kept (skip set)
+  expect(fs.existsSync(path.join(ROOT, "old-sha"))).toBe(false); // evicted
+});
+
+// ---------------------------------------------------------------------------
+// Pinned live sha. evictLru is least-recently-WRITTEN (nothing stamps mtime on
+// serve), so once hydration can be triggered by a plain GET, requests for old
+// indexed sha URLs would push the live bundle out of the keep window. The pin
+// is module-level state, so every test here restores it.
+// ---------------------------------------------------------------------------
+
+afterEach(() => pinBundleSha(null));
+
+test("pinBundleSha round-trips and lowercases; null unpins", () => {
+  expect(pinnedBundleSha()).toBeNull();
+  pinBundleSha("ABCDEF");
+  expect(pinnedBundleSha()).toBe("abcdef");
+  pinBundleSha(null);
+  expect(pinnedBundleSha()).toBeNull();
+});
+
+test("evictLru never removes the pinned sha, even as the oldest bundle beyond keep", () => {
+  const store = freshStore({ readyCore: null, keep: 1 });
+  for (const sha of ["live", "cold-a", "cold-b"]) fs.mkdirSync(path.join(ROOT, sha), { recursive: true });
+  // Make the pinned bundle the LEAST recently written — exactly the live sha's
+  // situation after a few hydrates stamp now() on cold bundles. cold-a/cold-b
+  // get distinct mtimes too: created in the same millisecond, their relative
+  // order would otherwise be arbitrary.
+  for (const [sha, agoMs] of [["live", 60_000], ["cold-a", 30_000]] as const) {
+    const t = new Date(Date.now() - agoMs);
+    fs.utimesSync(path.join(ROOT, sha), t, t);
+  }
+
+  pinBundleSha("live");
+  const evicted = evictLru(store).sort();
+  expect(evicted).toEqual(["cold-a"]); // cold-b is the one kept by keep:1
+  expect(fs.existsSync(path.join(ROOT, "live"))).toBe(true);
+});
+
+test("evictLru with nothing pinned behaves exactly as before", () => {
+  const store = freshStore({ readyCore: null, keep: 1 });
+  for (const sha of ["live", "cold-a"]) fs.mkdirSync(path.join(ROOT, sha), { recursive: true });
+  const past = new Date(Date.now() - 60_000);
+  fs.utimesSync(path.join(ROOT, "live"), past, past);
+
+  expect(pinnedBundleSha()).toBeNull();
+  expect(evictLru(store)).toEqual(["live"]); // oldest, unprotected
+});
+
+test("a burst of cold-sha hydrates cannot evict the pinned live bundle", async () => {
+  // The crawler case: /api/atlas/<sha>/* is immutable AND indexable, so old sha
+  // URLs are walkable, and each miss hydrates + stamps a fresh mtime.
+  const store = freshStore({ readyCore: null, keep: 1 });
+  fs.mkdirSync(path.join(ROOT, "live-sha"), { recursive: true });
+  fs.writeFileSync(path.join(ROOT, "live-sha", "docs.json"), JSON.stringify({ live: true }));
+  pinBundleSha("live-sha");
+
+  for (const cold of ["cold-1", "cold-2", "cold-3", "cold-4"]) {
+    expect(await hydrateBundleFromStore(store, cold, fakeFetch([blob("docs.json", { cold })]))).toBe(true);
+  }
+
+  expect(JSON.parse(fs.readFileSync(path.join(ROOT, "live-sha", "docs.json"), "utf8"))).toEqual({ live: true });
+  // The cold bundles still churn against each other under keep:1 — the pin
+  // protects the live sha, it does not widen the retention window. Asserted by
+  // count, not by name: hydrates land inside the same millisecond, so which of
+  // two equally-aged cold bundles loses the tie is arbitrary. cold-4 is exact,
+  // though — a hydrate always skips the sha it just wrote.
+  const cold = fs.readdirSync(ROOT).filter((d) => d.startsWith("cold-"));
+  expect(cold).toContain("cold-4");
+  expect(cold.length).toBeLessThanOrEqual(2); // keep:1 + the just-hydrated sha
+});
+
+test("publishBundle's prune also honours the pin", async () => {
+  const srcDir = path.join(ROOT, "src-pin");
+  fs.mkdirSync(srcDir, { recursive: true });
+  fs.writeFileSync(path.join(srcDir, "docs.json"), "{}");
+
+  const store = freshStore({ readyCore: null, keep: 0 });
+  fs.mkdirSync(path.join(ROOT, "live-sha"), { recursive: true });
+  fs.mkdirSync(path.join(ROOT, "other-sha"), { recursive: true });
+  pinBundleSha("live-sha");
+
+  await publishBundle(store, "new-sha", srcDir);
+  expect(fs.existsSync(path.join(ROOT, "live-sha"))).toBe(true); // pinned
+  expect(fs.existsSync(path.join(ROOT, "other-sha"))).toBe(false); // evicted
 });

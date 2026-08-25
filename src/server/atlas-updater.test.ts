@@ -23,6 +23,7 @@ import type { TickDeps, UpdaterState, SpawnFn } from "./atlas-updater.ts";
 import { getIndexes, buildIndexes, setIndexes, rebuildFromDisk } from "./retrieval/indexes.ts";
 import { buildAddrRows } from "./retrieval/doc-rows.ts";
 import { config } from "./config.ts";
+import { pinnedBundleSha, pinBundleSha } from "./bundle-store.ts";
 
 interface FakeDb {
   syncStateAtlasSha: string | null; // null = "no row yet" (fresh/empty DB)
@@ -915,6 +916,7 @@ describe("makeTickDeps — applyInPlace / fullRebuild (real disk I/O)", () => {
   });
   afterAll(() => {
     rebuildFromDisk();
+    pinBundleSha(null); // module-level state — don't leak into sibling test files
   });
 
   function writeArtifacts(sha: string, nodes: Record<string, unknown>) {
@@ -938,6 +940,9 @@ describe("makeTickDeps — applyInPlace / fullRebuild (real disk I/O)", () => {
     expect(getIndexes()).toBe(base); // patched IN PLACE — same object reference, not swapped
     expect(getIndexes().docMap.has("b")).toBe(true);
     expect(logs.some((l) => l.includes("in-place: +1 ~0 -0 docs"))).toBe(true);
+    // The swap must re-pin, or eviction would keep protecting the PREVIOUS sha
+    // while a burst of hydrates pushed the now-live bundle out (bundle-store.ts).
+    expect(pinnedBundleSha()).toBe("new-sha");
   });
 
   it("fullRebuild reads fresh artifacts, SWAPS the live index set (unlike applyInPlace), and re-emits search-index.json to disk", () => {
