@@ -73,13 +73,6 @@ permissions:
   contents: read
   pull-requests: read
 
-# Railway can emit multiple successful deployment events for services in the
-# same PR environment. Only the newest build may test that environment's mutable
-# URL; otherwise an older SHA can pass against newer code.
-concurrency:
-  group: e2e-${{ github.event_name == 'schedule' && format('cron-{0}', github.event.schedule) || github.event_name == 'deployment_status' && github.event.deployment_status.environment || github.event.inputs.url }}
-  cancel-in-progress: true
-
 jobs:
   e2e:
     # Distinct from the required check's name (`e2e`, owned by e2e-gate.yml) —
@@ -91,15 +84,29 @@ jobs:
     name: E2E run
     # Manual dispatch always runs. For deployment_status, gate on a successful
     # PR-environment deploy. Railway's `environment` is like
-    # "Redline Atlas / pr-85d143-128" (a random per-environment slug, then the PR
-    # number), while `environment_url` is the Railway *console* link, not the
-    # app — so we gate on `environment` containing 'pr-' (prod envs don't) and
-    # derive the app URL below.
+    # "Redline Atlas / redlens-pr-323" (service-name-pr-N; older envs used
+    # "pr-<random>-<N>"), while `environment_url` is the Railway *console* link,
+    # not the app — so we gate on `environment` containing 'pr-' (prod envs
+    # don't) and derive the app URL below.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
       (github.event.deployment_status.state == 'success' &&
        contains(github.event.deployment_status.environment, 'pr-'))
+    # Workflow-level concurrency keyed only on the Railway environment cancelled
+    # HEAD's suite whenever a *later* success event arrived for an *earlier*
+    # commit of the same PR env (GitHub cancels the in-progress run, not the
+    # older SHA). `in_progress` statuses also start a workflow run, so they
+    # participated in that group even though the job then skipped.
+    #
+    # Job-level + environment+sha: skipped non-success events never take the
+    # lock, and a delayed success for commit A cannot cancel commit B. Same
+    # SHA still cancel-in-progress (two services finishing the same build).
+    # Stale SHAs are skipped in the first step; EXPECTED_APP_COMMIT is the
+    # backstop if the mutable URL has already moved on.
+    concurrency:
+      group: e2e-${{ github.event_name == 'schedule' && format('cron-{0}', github.event.schedule) || github.event_name == 'deployment_status' && format('{0}-{1}', github.event.deployment_status.environment, github.event.deployment.sha) || github.event.inputs.url }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       # Inline (not a repo script) so a skills-only PR that doesn't contain
@@ -107,12 +114,13 @@ jobs:
       # in that module: patch-notes.md, PRIVACY.md,
       # docs/risk-assessment-rubric.md, docs/crossview/concepts.md,
       # docs/crossview/concepts-audit.md.
-      - name: Skip markdown-only PRs
+      - name: Decide whether to run E2E
         id: gate
         if: github.event_name == 'deployment_status'
         env:
           GH_TOKEN: ${{ github.token }}
           ENV_NAME: ${{ github.event.deployment_status.environment }}
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
         run: |
           set -euo pipefail
           SLUG="$(printf '%s' "$ENV_NAME" | awk -F'/' '{print $NF}' | xargs)"
@@ -148,16 +156,32 @@ jobs:
                 echo "PR #${PR} has deploy-relevant files; running E2E"
               fi
             fi
+            # A delayed `success` for an earlier commit of the same PR env must
+            # not run Playwright: the URL is mutable and already serves HEAD
+            # (EXPECTED_APP_COMMIT then fails after a 2-minute health wait).
+            if [ "$skip" != true ] && [ -n "${DEPLOY_SHA}" ]; then
+              HEAD_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}" --jq .head.sha 2>/dev/null || true)"
+              if [ -n "$HEAD_SHA" ] && [ "$DEPLOY_SHA" != "$HEAD_SHA" ]; then
+                skip=true
+                reason="PR #${PR} head is ${HEAD_SHA}; this deploy ${DEPLOY_SHA} is superseded; skipping E2E"
+                echo "$reason"
+              fi
+            fi
           fi
           echo "skip=${skip}" >> "$GITHUB_OUTPUT"
           echo "reason=${reason}" >> "$GITHUB_OUTPUT"
 
-      - name: Markdown-only — skipping E2E
+      - name: Skipping E2E
         if: ${{ steps.gate.outputs.skip == 'true' }}
         run: echo "${{ steps.gate.outputs.reason }}"
 
       - uses: actions/checkout@v5
         if: ${{ github.event_name == 'workflow_dispatch' || steps.gate.outputs.skip != 'true' }}
+        with:
+          # deployment_status is not a branch/tag event; pin the deployed SHA
+          # so the suite matches the image under test (schedule/dispatch have
+          # no deployment and fall through to github.sha).
+          ref: ${{ github.event.deployment.sha || github.sha }}
 
       - name: Resolve target URL
         id: target

@@ -46,8 +46,8 @@ export function shouldSkipDeploy(files) {
 
 /**
  * Railway `environment` values look like:
- *   "Redline Atlas / pr-85d143-128"     (random slug + PR number)
- *   "Redline Atlas / redlens-pr-292"    (service-name-pr-N)
+ *   "Redline Atlas / redlens-pr-292"    (service-name-pr-N — current)
+ *   "Redline Atlas / pr-85d143-128"     (random slug + PR number — older)
  *   "redlens-pr-292"
  */
 export function prNumberFromRailwayEnv(envName) {
