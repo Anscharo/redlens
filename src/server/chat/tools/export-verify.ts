@@ -51,7 +51,9 @@ function problemsFrom(
     );
   }
   for (const m of checks.mscCitedAsAtlas) {
-    out.push(`${m} — settlement figures must not be cited as /atlas/<uuid>; link the workbook or Sky Forum URL instead`);
+    // findMscCitedAsAtlas already names the value, the doc it was pinned to and
+    // where it really came from — this adds only the remedy, not a restatement.
+    out.push(`${m} — link the workbook or the Sky Forum permalink instead`);
   }
   if (includeQuotes) {
     for (const q of checks.ungroundedQuotes) out.push(`quoted text not found in any retrieved source: "${q.slice(0, 80)}"`);
