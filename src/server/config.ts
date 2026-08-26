@@ -570,7 +570,7 @@ export const config = {
   // 4 (not 2) widens that buffer, shrinking the window where a page pinned to
   // a recent sha 404s after pruning and has to force-reload.
   atlasBundleKeep: Number(process.env.ATLAS_BUNDLE_KEEP ?? 4),
-  // Shas retained in the SHARED artifact store (Postgres, migration 025).
+  // Shas retained in the SHARED artifact store (Postgres, migration 027).
   // Deliberately one more than atlasBundleKeep: an instance still pinned to a
   // slightly older sha must be able to re-hydrate it after a local eviction,
   // and the store is the only place left to get it from. ~3 MB gz per sha.

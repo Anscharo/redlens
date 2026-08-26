@@ -1,5 +1,5 @@
 // Publish the freshly-built atlas artifacts to the SHARED store (Postgres,
-// migration 025) so every web instance can read them back instead of rebuilding
+// migration 027) so every web instance can read them back instead of rebuilding
 // them for itself. Plan: docs/plans/atlas-artifact-store.md (phase 3).
 //
 // Sibling of build-bundle.ts, which publishes the same files to this container's

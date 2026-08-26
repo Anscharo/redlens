@@ -1,4 +1,4 @@
-// atlas-artifacts.ts — the atlas_artifacts store (migration 025).
+// atlas-artifacts.ts — the atlas_artifacts store (migration 027).
 //
 // DB MOCKING: every function here takes its `sql` tag as a parameter (same seam
 // as chain-state.ts / preview/pr-state.ts), so these tests pass a fake directly
@@ -172,7 +172,7 @@ describe("live BYTEA round-trip (requires DATABASE_URL)", () => {
   it.skipIf(!LIVE)("publishes and reads back byte-identical blobs, twice", async () => {
     const db = new SQL(process.env.DATABASE_URL!);
     liveSql = db;
-    await db.unsafe(readFileSync(join(import.meta.dir, "migrations/025_atlas_artifacts.sql"), "utf8")).simple();
+    await db.unsafe(readFileSync(join(import.meta.dir, "migrations/027_atlas_artifacts.sql"), "utf8")).simple();
 
     // Every byte value, plus a size past a single TCP segment — the two things
     // a mangled encoding (escaping, truncation, utf8 round-tripping) trips on.

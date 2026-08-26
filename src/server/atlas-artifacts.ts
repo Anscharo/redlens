@@ -1,4 +1,4 @@
-// The atlas artifact store (migration 025) — the ONLY module that talks to
+// The atlas artifact store (migration 027) — the ONLY module that talks to
 // atlas_artifacts. The worker publishes one gzipped blob per built file per
 // atlas sha; every web instance reads them back instead of rebuilding.
 // Plan: docs/plans/atlas-artifact-store.md.

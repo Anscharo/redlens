@@ -213,7 +213,7 @@ async function main() {
   // the same reason the structural check above exists. Without this, the deploy
   // that first ships publishing would find sync_state current, skip the build,
   // and therefore never publish until upstream next moved (possibly days).
-  // A query error (most likely migration 025 not applied yet — the web service
+  // A query error (most likely migration 027 not applied yet — the web service
   // migrates at boot, this worker does not) is treated as "populated": forcing
   // a rebuild could not fix a missing table, and a rebuild loop every 12 minutes
   // would be worse than waiting for the web to migrate.

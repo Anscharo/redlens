@@ -132,7 +132,8 @@ else writes into it.
 
 ### Phase 1 — the artifact table
 
-Migration `025_atlas_artifacts.sql` (024 is the current head):
+Migration `027_atlas_artifacts.sql` (026 is the current head on main — 025/026
+landed as forum tables while this PR was open as 025):
 
 ```sql
 CREATE TABLE IF NOT EXISTS atlas_artifacts (
