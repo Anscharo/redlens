@@ -415,17 +415,36 @@ function verifyArtifact(a: { name: string; sha256?: string; rawBytes?: number },
  * Used by the updater's refresh-from-store path: `public/` is what
  * `readArtifactsFromDisk` reads, and the per-sha bundle (with `.gz`) is
  * published separately by `publishBundle` once every name is on disk.
+ *
+ * ATOMIC vs destDir (not vs a per-sha bundle): `stageIntoBundle` cannot be
+ * reused here because `public/` is a mixed live directory and cannot be
+ * renamed as a unit. Writes go into a sibling `.tmp-*` dir; destDir is
+ * updated only after every blob gunzips and verifies, via per-file rename.
+ * A throw mid-loop therefore leaves destDir on the previous sha. The
+ * updater catches that and does not swap indexes (`runRefreshFromStore`).
  */
 export async function writeStoredArtifacts(
   destDir: string,
   items: Array<{ name: string; gz: Buffer; sha256?: string; rawBytes?: number }>,
 ): Promise<void> {
-  fs.mkdirSync(destDir, { recursive: true });
-  for (const a of items) {
-    const raw = await gunzipAsync(a.gz);
-    verifyArtifact(a, raw);
-    fs.writeFileSync(path.join(destDir, a.name), raw);
+  const staging = path.join(path.dirname(destDir), STAGING_PREFIX + path.basename(destDir));
+  fs.rmSync(staging, { recursive: true, force: true });
+  fs.mkdirSync(staging, { recursive: true });
+  try {
+    for (const a of items) {
+      const raw = await gunzipAsync(a.gz);
+      verifyArtifact(a, raw);
+      fs.writeFileSync(path.join(staging, a.name), raw);
+    }
+    fs.mkdirSync(destDir, { recursive: true });
+    for (const a of items) {
+      fs.renameSync(path.join(staging, a.name), path.join(destDir, a.name));
+    }
+  } catch (e) {
+    fs.rmSync(staging, { recursive: true, force: true });
+    throw e;
   }
+  fs.rmSync(staging, { recursive: true, force: true });
 }
 
 // De-dupes concurrent hydrates of the same bundle: a cold instance can take a
