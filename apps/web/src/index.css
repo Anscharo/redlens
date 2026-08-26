@@ -252,14 +252,19 @@
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
    greys, off-white. Named for the monochrome world; the brief was high
    contrast and high readability, so it is not a desaturation of the charcoal
-   palette but its own ramp. Every audited pair clears AA, and the structural
-   ones clear it widely (text 5.8-12.8:1, --accent 16.3:1) — but the five
-   hue-bearing status tokens (--error-text, --warn, --preview-add,
-   --terminal-green, --lilac) sit at 4.60-4.64:1 by construction: they were
-   lifted to the first lightness that cleared 4.5 at their fixed chroma, so
-   raising the margin means spending either chroma or their identity as a
-   quiet cast. Treat those five as on the line, and re-measure if you move
-   --surface.
+   palette but its own ramp, and the name is load-bearing. Measured across the
+   44 audited pairs: giedi has NO pair under 5:1, where the dark and light
+   palettes each have six, and it carries the highest median of the three
+   (9.2:1 against 6.2 and 6.4) and the highest floor. Body prose clears the
+   dark theme in every position it is measured — 15.6 / 14.4 / 16.5 on --bg,
+   --surface and --bg-deep. It did NOT before the surface tier was dropped and
+   the text ramp lifted, and that is the pair the theme's name is really
+   claiming, so if you raise these surfaces again, re-check it first.
+
+   The five hue-bearing status tokens (--error-text, --warn, --preview-add,
+   --terminal-green, --lilac) are the exception at 4.8-5.6:1: each is lifted to
+   the first lightness that clears AA at its fixed chroma, so widening that
+   margin means spending either chroma or their identity as a quiet cast.
 
    Three things carry meaning here that hue carried in the other themes:
    • BRIGHTNESS IS DEPTH. --depth-1…17 is one continuous ramp — light
@@ -318,22 +323,22 @@
      lifting off it, and that only reads if nothing else is already at the
      floor. In the colour themes the equivalent surfaces can sit lower,
      because there the selected doc is lifted, not sunk. */
-  --bg: #171717;
-  --bg-alt: #121212; /* explicit, not a color-mix: one step below --bg */
-  --bg-deep: #101010; /* recessed — tree sidebar + reader scroll */
-  --surface: #202020; /* raised — cards, panels; the LIGHTEST audited surface, so every foreground below is measured against it */
-  --hover: #2a2a2a;
-  --border: #3e3e3e;
-  --border-muted: #343434;
+  --bg: #141414;
+  --bg-alt: #0f0f0f; /* explicit, not a color-mix: one step below --bg */
+  --bg-deep: #0d0d0d; /* recessed — tree sidebar + reader scroll */
+  --surface: #1c1c1c; /* raised — cards, panels; the LIGHTEST audited surface, so every foreground below is measured against it */
+  --hover: #262626;
+  --border: #3a3a3a;
+  --border-muted: #303030;
 
   /* ─── Brand ─── shape, not colour: see the header note ─── */
-  --red: #cfcfcf; /* decorative — selected bar, pill bars, fills; 10.5:1 on --surface */
+  --red: #cfcfcf; /* decorative — selected bar, pill bars, fills; 10.9:1 on --surface */
   --red-dim: #1f5781; /* the search-term highlight (`mark`) + active scope pill
      fill. A DARK electric blue rather than the mid grey it started as: a grey
      highlight on a grey page announces nothing, and this is the one token
      whose entire job is "look here". Same hue 245 as the depth ramp, dropped
      to L 0.44 at C 0.090 — alert-tier chroma, which is the tier a highlight
-     belongs to. --tan on it is 6.0:1, and it reads 2.1:1 against --surface
+     belongs to. --tan on it is 6.5:1, and it reads 2.1:1 against --surface
      (the grey managed 1.8:1). */
   --accent: #ffffff; /* links + focus — the brightest value in the theme */
   --preview-add: #719170; /* status green — see the exception note above */
@@ -341,11 +346,11 @@
   --warn: #b5844c; /* an orange; hue 68, moved off the olive-gold the other themes use at 90 */
 
   /* ─── Text ─── */
-  --gray: #9a9a9a;
-  --tan: #e4e4e4; /* primary text — off-white, 14.1:1 on --bg */
-  --tan-2: #c4c4c4;
-  --tan-3: #a8a8a8;
-  --magenta: #2f5777; /* an INVERTED pill: sits ON the near-white --tan fill, so it goes dark. Deep steel blue at 6.0:1 (was a plum at 4.65, the thinnest margin in the theme) — and blue is the right convention for its one job, the "update available" status in Footer.tsx */
+  --gray: #a2a2a2;
+  --tan: #ececec; /* primary text — off-white, 15.6:1 on --bg */
+  --tan-2: #d7d7d7;
+  --tan-3: #b2b2b2;
+  --magenta: #2f5777; /* an INVERTED pill: sits ON the near-white --tan fill, so it goes dark. Deep steel blue at 6.5:1 (was a plum at 4.65, the thinnest margin in the theme) — and blue is the right convention for its one job, the "update available" status in Footer.tsx */
   --lilac: #78b0df; /* the preview "renumbered" note. Brighter and bluer than --gray on purpose: as a muted violet it sat dE 0.080 from muted text and read as a styling accident rather than a notice. Now 0.103 from --gray, and 0.126 from the depth ramp it shares a hue with. */
   --terminal-green: #72906e;
   --lily-green: #e9f9e7;
@@ -370,7 +375,7 @@
      doc is a black block with a pure-white title: right for the title, too
      much for the chrome around it, so pills, the doc number and body links
      inside the selection take this instead. Desaturated gold (OKLCH L 0.78 /
-     C 0.055 / H 80), 10.4:1 on the black fill and 8.1:1 on --surface, which
+     C 0.055 / H 80), 10.4:1 on the black fill and 8.5:1 on --surface, which
      is what the type pill is actually painted on. Used only by the
      [data-theme="giedi"] rules below the theme blocks. */
   --selected-hint: #cab490;
@@ -390,16 +395,16 @@
      reads as noise: the ramp is doing two jobs at once, and the one it is good
      at is the doc number, where the chiclets sit adjacent and the gradient is
      legible AS a gradient. Titles get a single high-contrast blue-grey
-     instead — 16.0:1 on the reader bg, tied to the theme's hue without
+     instead — 17.5:1 on the reader bg, tied to the theme's hue without
      competing with the chiclets (dE 0.082 from --depth-1).
 
      Sits in a deliberate three-step ladder, each gap over the JND: body prose
-     --tan (#e4e4e4) < title (#e5ecf3) < selected title (#fafafa).
+     --tan (#ececec) < title (#edf4fb) < selected title (#fafafa).
 
      Defined ONLY in this block. Every consumer reads it as
      `var(--node-title, <the depth colour>)`, so dark and light fall through to
      their existing behaviour and need no rules of their own. */
-  --node-title: #e5ecf3;
+  --node-title: #edf4fb;
 
   /* ─── Shadows ─── deliberately the SAME as the charcoal theme's, not
      stronger. The instinct is to lean on shadow because a flat neutral palette
@@ -413,13 +418,13 @@
   --shadow-strong: rgba(0, 0, 0, 0.5);
 
   /* ─── Graph chrome ─── */
-  --edge: #494949;
-  --edge-label-fg: #8a8a8a; /* 5.5:1 on --bg-deep */
-  --graph-dots: #2a2a2a;
+  --edge: #454545;
+  --edge-label-fg: #8a8a8a; /* 5.6:1 on --bg-deep */
+  --graph-dots: #262626;
   /* CrossView treemap ramp source — the theme's blue, and DARK, because giedi
      inverts the problem: its label (--tan-2) is light, so the ramp has to stay
      dark as it deepens. Using --red here (a near-white) ran the ramp the wrong
-     way entirely and put the deepest rect at 1.61:1. Now 5.7:1. */
+     way entirely and put the deepest rect at 1.61:1. Now 7.0:1. */
   --chunk-fill: #1f5781;
 
   /* ─── Diff view ─── the loudest of the status exceptions, and the one worth
@@ -458,7 +463,7 @@
   /* ─── Depth palette ─── HUE IS DEPTH, and lightness is deliberately NOT.
      Every other theme (and every earlier version of this one) ramps brightness
      with nesting. This one holds lightness essentially FLAT at OKLCH L 0.80 —
-     every stop lands 8.6-8.8:1 on --surface — and walks the hue instead: a
+     every stop lands 9.1-9.2:1 on --surface — and walks the hue instead: a
      warm grey at the top, through very nearly neutral in the middle, to a
      muted blue grey at the trough, then symmetrically back. Depth reads as
      temperature, not as brightness.
@@ -573,8 +578,8 @@
    the emphasised terms disappeared outright).
    Both problems are the inversion, so giedi opts out of it instead of patching
    colours inside it: an ordinary raised surface, with the emphasis in the
-   theme's own warm gold. --tan on --surface is 12.8:1 and --selected-hint on
-   it is 8.1:1, and the accent left-bar from the base rule still marks it. */
+   theme's own warm gold. --tan on --surface is 14.4:1 and --selected-hint on
+   it is 8.5:1, and the accent left-bar from the base rule still marks it. */
 [data-theme="giedi"] .filter-summary {
   background: var(--surface);
   color: var(--tan);
@@ -589,7 +594,7 @@
    hover fill. 55%, not solid, and that number is load-bearing: .q-mark sets
    `color: inherit`, so the fill has to stay readable under --tan-3 report
    text as well as --tan. Solid puts --tan-3 at 3.2:1; at 55% it composites to
-   4.7-5.0:1 over both surfaces a report row can sit on. */
+   5.4-5.7:1 over both surfaces a report row can sit on. */
 [data-theme="giedi"] .q-mark {
   background: color-mix(in srgb, var(--red-dim) 55%, transparent);
 }

@@ -656,3 +656,47 @@ describe("no two entity colours collapse into each other", () => {
     ).toBeGreaterThanOrEqual(MIN);
   });
 });
+
+// ─── Test I ─────────────────────────────────────────────────────────────
+// giedi is ADVERTISED as high contrast — "greyscale · high contrast" in the
+// THEMES registry, and again in the Features guide and the patch notes. That
+// is a measurable claim, and for a while it was not a true one: the theme won
+// on chrome (chiclets, links, focus ring) while its BODY PROSE was the
+// lowest-contrast of the three themes, which is the opposite of what a reader
+// would infer from the label.
+//
+// Nothing else here would catch that. Every AUDIT_PAIRS entry asks only for
+// AA, which giedi cleared comfortably the whole time it was losing to dark on
+// the pairs that matter most. So this measures the claim directly, against the
+// original palette as the benchmark rather than against a fixed number: the
+// point is not "some ratio" but "you are not giving up readable prose to get
+// the greyscale".
+describe('giedi earns the "high contrast" it advertises', () => {
+  const PROSE = ["tan", "tan-2"] as const;
+  const SURFACES = ["bg", "surface", "bg-deep"] as const;
+
+  it.each(PROSE.flatMap((fg) => SURFACES.map((bg) => ({ fg, bg }))))(
+    "--$fg on --$bg is at least as readable as the dark theme's",
+    ({ fg, bg }) => {
+      const giedi = contrastRatio(THEMES.giedi[fg], THEMES.giedi[bg]) as number;
+      const dark = contrastRatio(THEMES.root[fg], THEMES.root[bg]) as number;
+      expect(
+        giedi,
+        `giedi --${fg} on --${bg} is ${giedi.toFixed(2)}:1 against the dark theme's ${dark.toFixed(2)}:1. giedi is advertised as the high-contrast palette (see the hint on its THEMES entry in lib/theme.ts); it cannot be the one where prose is hardest to read. Darken the surface tier or lift the text ramp — and if you deliberately want to drop this claim, change the copy in lib/theme.ts, featuresData.ts and patch-notes.md in the same commit.`,
+      ).toBeGreaterThanOrEqual(dark - 0.05);
+    },
+  );
+
+  it("leaves no audited pair under 5:1", () => {
+    // The claim's other half, and the one giedi has always been good at: a
+    // high floor. Deliberately stricter than the 4.5 AA bar every theme meets.
+    for (const pair of AUDIT_PAIRS) {
+      const r = contrastRatio(THEMES.giedi[pair.fg], THEMES.giedi[pair.bg]);
+      if (r === null) continue;
+      expect(
+        r,
+        `giedi "${pair.label}" is ${r.toFixed(2)}:1. It clears AA, but giedi's claim is a high FLOOR — it is the only theme with nothing under 5:1, and that is worth keeping.`,
+      ).toBeGreaterThanOrEqual(5);
+    }
+  });
+});
