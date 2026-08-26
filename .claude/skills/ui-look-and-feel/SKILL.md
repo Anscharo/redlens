@@ -36,7 +36,7 @@ metadata:
   `index.html` link and the `font-family` stacks in `index.css` (body,
   `.tree-row`, `.atlas-chiclets` repeat the stack inline).
 - **Themes — two axes on `<html>`, both set by `apps/web/src/lib/theme.ts`**:
-  `data-theme` = WHICH palette (`dark` | `light` | `light-sky` | …),
+  `data-theme` = WHICH palette (`dark` | `giedi` | `light` | …),
   `data-scheme` = light-vs-dark. Dark is the default and lives on bare `:root`;
   every other theme is a **full** token override in a `[data-theme="<id>"]`
   block. Rules whose meaning merely flips with the background live in one
@@ -45,6 +45,12 @@ metadata:
   font-smoothing (`antialiased` is a light-on-dark tuning), pill outlines that
   were drawn with *text* tokens, and the whole of `chat.css`'s light block. A
   new light palette inherits all of those for free.
+  A theme may also define tokens that exist in NO other block (`giedi` has
+  `--selected-hint`, `--selected-title`, `--node-title`). Consumers read those
+  as `var(--token, <the normal value>)`, so every other palette falls through
+  untouched — that is the opt-out slot for a palette whose ramp is too loud for
+  some job. The completeness test only walks `:root`, so it won't see them;
+  assert them in the giedi-specific describes in `theme-contrast.test.ts`.
   **Adding a theme** = a token block in `index.css` + an entry in the `THEMES`
   registry in `lib/theme.ts` + the `html[data-theme="<id>"]{--bg:…}` rule in
   `index.html`'s anti-flash `<style>`; the registry's doc comment spells this
@@ -63,13 +69,15 @@ metadata:
 
 | Group | Tokens | Notes |
 |---|---|---|
-| Surface | `--bg --bg-alt --bg-deep --surface --hover --border` | charcoal w/ red undertone; `--bg-deep` = tree sidebar |
+| Surface | `--bg --bg-alt --bg-deep --surface --hover --border --border-muted` | charcoal w/ red undertone; `--bg-deep` = tree sidebar |
 | Brand | `--red --red-dim --accent --error-text` | `--red` is decorative only; `--accent` is the interactive color; `--error-text` is the 4.5:1-safe red |
 | Text | `--gray --tan --tan-2 --tan-3 --magenta --terminal-green --lily-green` | `--tan` primary, `-2` secondary, `-3` muted |
-| Row overlays | `--row-hover --row-selected --row-focused --atlas-row-selected --row-pulse-flash --row-bar-tint` | translucent whites mixed with per-row `--row-color` via `color-mix()` |
-| Entity palette | `--entity-*` (12) | categorical colors keyed by entity type |
+| Row overlays | `--row-hover --row-selected --row-focused --row-pulse-flash --row-bar-tint` | translucent whites mixed with per-row `--row-color` via `color-mix()` |
+| Selected doc | `--atlas-row-selected` | the reader's selected-node fill. Per-palette DIRECTION: the colour themes lift it off `--bg-deep`, `giedi` sinks it to black |
+| CrossView | `--chunk-fill` | treemap ramp source, mixed into `--surface` under a `--tan-2` label — pick it against that label, never `--red` |
+| Entity palette | `--entity-*` (14) | categorical colors keyed by entity type |
 | Depth palette | `--depth-1 … --depth-17` | 6-color jewel cycle (red orange green blue purple magenta) ×2.8 — used by tree chiclets/rows |
-| Layout | `--max-prose-width: 68ch` | atlas prose measure |
+| Layout | `--max-prose-width: 90ch` | atlas prose measure |
 
 Contrast annotations in the comments are load-bearing: `--gray`, `--tan-3`,
 `--error-text` were specifically tuned to pass WCAG AA (4.5:1) on `--bg` and

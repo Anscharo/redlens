@@ -9,9 +9,19 @@ import { useCallback, useSyncExternalStore } from "react";
 // pre-paint inline script in index.html before React (or any JSON schema)
 // exists, which is why it's stored as a plain string, not JSON.
 //
-// No system-preference (`prefers-color-scheme`) fallback: defaulting to it
-// would flip the app for every light-OS visitor on ship day. Absent or
-// unrecognised storage ⇒ DEFAULT_THEME.
+// With NO stored choice, the OS decides: `prefers-color-scheme: light` gets
+// SYSTEM_LIGHT_THEME, anything else (including a browser that cannot answer)
+// gets DEFAULT_THEME. This reverses the original call — the launch-day worry
+// was that following the OS would flip the app under every light-mode visitor
+// at once, which was a shipping concern, not a lasting one; matching the
+// device is what a visitor expects.
+//
+// An explicit pick still WINS and is permanent: setTheme writes to storage,
+// and anything in storage outranks the OS. Only the untouched state follows
+// the system, and it keeps following it — see the media-query listener in
+// subscribe() — so a visitor who never opens the picker tracks their OS as it
+// changes through the day rather than being pinned by whichever mode they
+// happened to first arrive in.
 
 /** Every selectable theme, declared once.
  *
@@ -59,6 +69,9 @@ export type ThemeId = (typeof THEMES)[number]["id"];
 export type Scheme = (typeof THEMES)[number]["scheme"];
 
 export const DEFAULT_THEME: ThemeId = "dark";
+/** Which palette an untouched visitor on a light-mode device gets. */
+export const SYSTEM_LIGHT_THEME: ThemeId = "light";
+const LIGHT_QUERY = "(prefers-color-scheme: light)";
 export const THEME_KEY = "redline-sky-atlas:theme";
 const EVENT = "redline-sky-atlas:theme-change";
 
@@ -72,13 +85,37 @@ export function schemeOf(theme: ThemeId): Scheme {
   return BY_ID.get(theme)?.scheme ?? "dark";
 }
 
-function read(): ThemeId {
+/** The OS preference, or DEFAULT_THEME where it can't be read. Guarded because
+ *  matchMedia is missing in some embedded webviews and in jsdom by default —
+ *  and an unsupported query answers `matches: false`, i.e. dark, which is the
+ *  right way to fail here anyway. */
+function systemTheme(): ThemeId {
   try {
-    const raw = localStorage.getItem(THEME_KEY);
-    return isThemeId(raw) ? raw : DEFAULT_THEME;
+    return window.matchMedia?.(LIGHT_QUERY).matches ? SYSTEM_LIGHT_THEME : DEFAULT_THEME;
   } catch {
     return DEFAULT_THEME;
   }
+}
+
+/** True when the visitor has never picked a theme, so the OS is in charge. */
+function isUnset(): boolean {
+  try {
+    return !isThemeId(localStorage.getItem(THEME_KEY));
+  } catch {
+    // Storage blocked (private mode): nothing can have been stored, so the OS
+    // is in charge for this session too.
+    return true;
+  }
+}
+
+function read(): ThemeId {
+  try {
+    const raw = localStorage.getItem(THEME_KEY);
+    if (isThemeId(raw)) return raw;
+  } catch {
+    // fall through to the OS
+  }
+  return systemTheme();
 }
 
 // Cache the value so getSnapshot returns a stable reference (avoids the
@@ -111,9 +148,23 @@ function subscribe(cb: () => void): () => void {
     snapshot = read();
     cb();
   };
+  // OS-level flip. Only acted on while the visitor has made no choice of their
+  // own — re-checked at fire time rather than captured once, because a pick
+  // can happen between subscribing and the OS changing, and a stored pick must
+  // never be overridden by the device.
+  const media = typeof window.matchMedia === "function" ? window.matchMedia(LIGHT_QUERY) : null;
+  const onSystem = () => {
+    if (!isUnset()) return;
+    snapshot = systemTheme();
+    applyTheme(snapshot);
+    cb();
+  };
+  media?.addEventListener?.("change", onSystem);
+
   window.addEventListener(EVENT, onLocal);
   window.addEventListener("storage", onStorage);
   return () => {
+    media?.removeEventListener?.("change", onSystem);
     window.removeEventListener(EVENT, onLocal);
     window.removeEventListener("storage", onStorage);
   };

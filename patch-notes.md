@@ -34,7 +34,7 @@
 -->
 
 ## 2026-08-25
-- Added new colour schemes — a light theme and a high-contrast greyscale one; pick either from the menu in the top-right corner
+- Added new colour schemes — a light theme and a high-contrast greyscale one; the app now follows your device's light/dark setting until you pick one from the menu in the top-right corner
 
 ## 2026-08-24
 - Added Monthly Settlement Cycle charts for Prime Agents, with last month's take in a card and a full cycle page of Sky / supply-kept / demand-side bars, demand-side mix, and venue AUM

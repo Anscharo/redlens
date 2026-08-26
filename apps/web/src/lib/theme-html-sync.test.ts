@@ -14,7 +14,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { THEMES, DEFAULT_THEME } from "./theme";
+import { THEMES, DEFAULT_THEME, SYSTEM_LIGHT_THEME } from "./theme";
 
 // Paths are joined from this file's own directory rather than written as
 // `new URL("./index.html", import.meta.url)`: Vite statically rewrites that
@@ -143,5 +143,35 @@ describe("index.html theme sync", () => {
       metaColor,
       `default theme ("${defaultId}") bg disagrees: src/lib/theme.ts has "${def!.bg}", index.html's static <meta name="theme-color"> has "${metaColor}" — make them match.`,
     ).toBe(def!.bg);
+  });
+});
+
+// The pre-paint script decides the OS fallback on its own — it cannot import
+// theme.ts — so it names the two theme ids as string literals. Nothing else
+// ties those literals to the registry, and getting them wrong is invisible:
+// the page would simply open in the other palette for every visitor who has
+// never touched the picker, which is exactly the population this feature is
+// for. Same hand-maintained-twin arrangement as the THEMES block above.
+describe("the pre-paint script's OS fallback agrees with theme.ts", () => {
+  const fallback = indexHtml.match(
+    /matchMedia\("\(prefers-color-scheme: light\)"\)\.matches\s*\?\s*"([\w-]+)"\s*:\s*"([\w-]+)"/,
+  );
+
+  it("has a prefers-color-scheme branch at all", () => {
+    expect(
+      fallback,
+      "index.html's pre-paint script no longer falls back to (prefers-color-scheme: light). Without it a light-mode visitor gets a dark flash on every cold load, because src/lib/theme.ts cannot run before paint.",
+    ).not.toBeNull();
+  });
+
+  it("names SYSTEM_LIGHT_THEME on light and DEFAULT_THEME otherwise", () => {
+    expect(
+      fallback![1],
+      `index.html falls back to "${fallback![1]}" on a light-mode device, but src/lib/theme.ts exports SYSTEM_LIGHT_THEME = "${SYSTEM_LIGHT_THEME}" — make them match.`,
+    ).toBe(SYSTEM_LIGHT_THEME);
+    expect(
+      fallback![2],
+      `index.html falls back to "${fallback![2]}" otherwise, but src/lib/theme.ts exports DEFAULT_THEME = "${DEFAULT_THEME}" — make them match.`,
+    ).toBe(DEFAULT_THEME);
   });
 });

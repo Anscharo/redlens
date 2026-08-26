@@ -285,7 +285,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           'Once signed in, the same picker lives in the profile menu under "Account".',
           "Every page follows the choice — the reader, Radar, reports, and the Atlas agent.",
         ],
-        note: "No sign-in needed — the choice is kept in this browser only, so another browser or device starts from the dark scheme.",
+        note: "No sign-in needed. Until you pick one, the app follows your device's light/dark setting and keeps following it; once you choose, that choice sticks. It is kept in this browser only, so another browser or device starts from your device setting again.",
       },
       {
         name: "Your viewing history",

@@ -13,6 +13,33 @@ async function freshModule(): Promise<typeof ThemeModule> {
   return import("./theme");
 }
 
+// jsdom ships no matchMedia, so the OS-preference path is invisible without a
+// stub — every test below would silently exercise the `undefined` branch and
+// pass for the wrong reason. Install BEFORE freshModule(): theme.ts reads the
+// preference at module-import time to seed its snapshot.
+function stubSystem(prefersLight: boolean): { flip: (toLight: boolean) => void } {
+  const listeners = new Set<(e: MediaQueryListEvent) => void>();
+  let matches = prefersLight;
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      media: query,
+      get matches() {
+        return query.includes("light") ? matches : !matches;
+      },
+      addEventListener: (_: string, fn: (e: MediaQueryListEvent) => void) => listeners.add(fn),
+      removeEventListener: (_: string, fn: (e: MediaQueryListEvent) => void) => listeners.delete(fn),
+    }),
+  });
+  return {
+    flip: (toLight: boolean) => {
+      matches = toLight;
+      for (const fn of listeners) fn({ matches: toLight } as MediaQueryListEvent);
+    },
+  };
+}
+
 function themeColor(): string | null {
   return document.querySelector('meta[name="theme-color"]')?.getAttribute("content") ?? null;
 }
@@ -26,6 +53,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  delete (window as { matchMedia?: unknown }).matchMedia;
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
   document.documentElement.removeAttribute("data-scheme");
@@ -156,5 +184,71 @@ describe("applyTheme", () => {
     const { applyTheme } = await freshModule();
     document.head.innerHTML = "";
     expect(() => applyTheme("light")).not.toThrow();
+  });
+});
+
+// An untouched visitor follows their device; a visitor who has chosen never
+// does. That split is the whole contract, and every case below is one side of
+// it — including the two that regressed a real product decision when this was
+// added (an explicit pick must survive an OS flip, in both directions).
+describe("system colour-scheme preference", () => {
+  it("uses SYSTEM_LIGHT_THEME on a light-mode device with no stored choice", async () => {
+    stubSystem(true);
+    const { useTheme, SYSTEM_LIGHT_THEME } = await freshModule();
+    const { result } = renderHook(() => useTheme());
+    expect(result.current.theme).toBe(SYSTEM_LIGHT_THEME);
+    expect(result.current.scheme).toBe("light");
+  });
+
+  it("uses DEFAULT_THEME on a dark-mode device with no stored choice", async () => {
+    stubSystem(false);
+    const { useTheme, DEFAULT_THEME } = await freshModule();
+    const { result } = renderHook(() => useTheme());
+    expect(result.current.theme).toBe(DEFAULT_THEME);
+  });
+
+  // The precedence rule. A stored pick is a deliberate act and outranks the
+  // device — otherwise choosing "Dark" on a light-mode laptop would not stick.
+  it("lets a stored choice outrank the device", async () => {
+    stubSystem(true);
+    localStorage.setItem(KEY, "giedi");
+    const { useTheme } = await freshModule();
+    const { result } = renderHook(() => useTheme());
+    expect(result.current.theme).toBe("giedi");
+  });
+
+  // Unrecognised storage is not a choice — a stale id from an older build
+  // should land on the device preference, not on the hardcoded default.
+  it("falls through to the device for an unrecognised stored value", async () => {
+    stubSystem(true);
+    localStorage.setItem(KEY, "solarized-neon");
+    const { useTheme, SYSTEM_LIGHT_THEME } = await freshModule();
+    const { result } = renderHook(() => useTheme());
+    expect(result.current.theme).toBe(SYSTEM_LIGHT_THEME);
+  });
+
+  it("tracks the device flipping to light while no choice is stored", async () => {
+    const sys = stubSystem(false);
+    const { useTheme, DEFAULT_THEME, SYSTEM_LIGHT_THEME } = await freshModule();
+    const { result } = renderHook(() => useTheme());
+    expect(result.current.theme).toBe(DEFAULT_THEME);
+
+    act(() => sys.flip(true));
+
+    expect(result.current.theme).toBe(SYSTEM_LIGHT_THEME);
+    // The DOM has to move with it, or the store and the page disagree.
+    expect(document.documentElement.getAttribute("data-scheme")).toBe("light");
+  });
+
+  it("ignores the device flipping once a choice has been stored", async () => {
+    const sys = stubSystem(false);
+    const { useTheme } = await freshModule();
+    const { result } = renderHook(() => useTheme());
+    act(() => result.current.setTheme("giedi"));
+
+    act(() => sys.flip(true));
+
+    expect(result.current.theme).toBe("giedi");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("giedi");
   });
 });
