@@ -148,9 +148,13 @@ const NON_TEXT_PAIR_LABELS = new Set<string>([
 // The ONE accepted exception, named rather than hidden in a lowered threshold.
 //
 // --red is documented in index.css as decorative-only: it paints the selected
-// left bar, pill bars and histogram fills, never text (red TEXT goes through
+// left bar, pill bars and histogram fills. Red TEXT is meant to go through
 // --error-text, which is 4.5:1+ on every surface by construction — that is the
-// whole reason the alias exists, and `.text-red` resolves to it).
+// whole reason the alias exists, and `.text-red` resolves to it. ONE rule
+// breaks that: `.filter-summary-em` paints text with --red on the inverted
+// --tan fill, which is why both non-default themes have to override it
+// (2.77:1 in light, 1.23:1 in giedi). It is not covered by the pair below,
+// which measures --red against --surface.
 //
 // Measured on the dark palette it is 2.61:1 on --surface, 2.82:1 on --bg and
 // 2.93:1 on --bg-deep, so it clears neither 4.5:1 nor the 3:1 non-text bar.
@@ -283,5 +287,372 @@ describe("every theme the app offers has a token block in index.css", () => {
         `index.css defines a [data-theme="${name}"] block, but no THEMES entry in lib/theme.ts selects it — it is dead CSS that the picker can never reach. Add a registry entry or delete the block.`,
       ).toContain(name);
     }
+  });
+});
+
+// Perceptual distance in OKLab, where Euclidean distance is roughly uniform.
+// ~0.020 is one JND: below it, two colours are not reliably tellable apart.
+// Used by the depth-ramp and entity-palette gates below, both of which ask
+// "do these look the same?" — a question no contrast ratio can answer.
+const JND = 0.02;
+function oklab(hex: string): [number, number, number] {
+  const [r, g, b] = [1, 3, 5]
+    .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s2 = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s2,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s2,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s2,
+  ];
+}
+function perceptualDistance(a: string, b: string): number {
+  const [x, y, z] = oklab(a);
+  const [p, q, r] = oklab(b);
+  return Math.hypot(x - p, y - q, z - r);
+}
+
+// ─── Test E ─────────────────────────────────────────────────────────────
+// The depth ramp's SHAPE, which contrast alone can't see. Every stop already
+// has to clear AA (Test B covers depth-1…6); this checks the property those
+// ratios say nothing about — how the ramp moves from one stop to the next.
+//
+// It exists because the seam is invisible to a per-token check and easy to
+// reintroduce. The colour themes run a 6- or 7-stop hue cycle that restarts at
+// the top, which is fine when hue carries the identity. giedi has no hue, so a
+// restart is a hard bright jump in the middle of a descending tree; it was
+// caught by eye once and is asserted here so it can't come back silently.
+describe("giedi's depth ramp is one continuous curve, not a cycle", () => {
+  const lum = (hex: string): number => {
+    const ch = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const [r, g, b] = ch.map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const stops = Array.from({ length: 17 }, (_, i) => THEMES.giedi[`depth-${i + 1}`]);
+
+  it("has no seam — every step is small and no stop repeats a distant one", () => {
+    // Measured, not guessed: one rung of the triangle is 0.026 OKLCH L, which
+    // is at most 0.062 of RELATIVE luminance (the two are not proportional —
+    // the same rung is a bigger luminance step at the light end). A cycle
+    // restart crosses the whole range at once: 0.376. The bound sits between
+    // them with room for the ramp to be retuned without tripping it.
+    for (let i = 1; i < stops.length; i++) {
+      const step = Math.abs(lum(stops[i]) - lum(stops[i - 1]));
+      expect(
+        step,
+        `--depth-${i + 1} (${stops[i]}) jumps ${step.toFixed(3)} in relative luminance from --depth-${i} (${stops[i - 1]}). giedi's ramp is meant to be continuous: light to dark and symmetrically back, with no restart. See the depth-palette note in the giedi block.`,
+      ).toBeLessThan(0.12);
+    }
+  });
+
+  // This gate has been RELAXED once, deliberately, and the reason matters.
+  //
+  // It first held ADJACENT stops above the JND, written after a human reported
+  // that the tree "looks like one solid colour". But adjacent-pair separation
+  // was never quite the invariant that bug was about: the ramp had collapsed
+  // END TO END, not just locally. The current ramp is intentionally subtle
+  // step to step (adjacent stops measure 0.012, under the JND) and legible
+  // over distance instead — so holding the adjacent figure would forbid a
+  // design choice rather than catch a defect.
+  //
+  // What is asserted instead is what the ramp actually promises: two levels
+  // apart are tellable apart, and the ends are unmistakably different. Those
+  // two together still fail a ramp that has gone flat, which is the failure
+  // this exists to catch.
+  it("stays legible over distance, even where adjacent steps are subtle", () => {
+    for (let i = 2; i < 9; i++) {
+      const d = perceptualDistance(stops[i], stops[i - 2]);
+      expect(
+        d,
+        `--depth-${i + 1} (${stops[i]}) and --depth-${i - 1} (${stops[i - 2]}) are ${d.toFixed(4)} apart in OKLab, under the ~${JND} JND. Adjacent stops on this ramp are allowed to be subtle, but two apart must read — below that the tree collapses into one colour. See the depth-palette note in the giedi block.`,
+      ).toBeGreaterThanOrEqual(JND);
+    }
+    const ends = perceptualDistance(stops[0], stops[8]);
+    expect(
+      ends,
+      `--depth-1 (${stops[0]}) and --depth-9 (${stops[8]}) are only ${ends.toFixed(3)} apart — the ramp has no travel left in it, so nesting conveys nothing.`,
+    ).toBeGreaterThanOrEqual(0.06);
+  });
+
+  // The old test here asserted the OPPOSITE — that every stop held one hue,
+  // because lightness was the depth signal and a drifting hue would have
+  // competed with it. The ramp has since been inverted: hue is the signal now
+  // and lightness is held flat, so hue constancy would be a bug. What replaces
+  // it are the invariants that version actually depends on.
+  it("holds lightness flat, so depth costs no contrast", () => {
+    const ratios = stops.map((hex) => contrastRatio(hex, THEMES.giedi.surface) as number);
+    const spread = Math.max(...ratios) - Math.min(...ratios);
+    expect(
+      Math.min(...ratios),
+      `the dimmest depth stop is ${Math.min(...ratios).toFixed(2)}:1 on --surface. Depth is carried by hue here precisely so that deep rows are not dimmer than shallow ones.`,
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      spread,
+      `depth contrast ranges over ${spread.toFixed(2)} on --surface — this ramp is meant to hold lightness FLAT and vary hue. If you are reintroducing a brightness ramp, rewrite the depth-palette note in the giedi block first.`,
+    ).toBeLessThan(2);
+  });
+
+  it("stays muted, and travels warm to cool", () => {
+    const chroma = (hex: string) => {
+      const [, a, b] = oklab(hex);
+      return Math.hypot(a, b);
+    };
+    // The ends carry the colour; the middle is meant to be nearly neutral.
+    expect(
+      Math.max(...stops.map(chroma)),
+      "a depth stop exceeds the muted ceiling — the ramp's endpoints are meant to read as tinted greys, not as colours.",
+    ).toBeLessThan(0.07);
+    expect(
+      chroma(stops[4]),
+      `--depth-5 (${stops[4]}) should sit near the neutral axis: the ramp interpolates through it, which is what keeps mid-depths subtle.`,
+    ).toBeLessThan(0.015);
+    // b (the blue-yellow axis) must fall monotonically from warm to cool.
+    const warmth = stops.slice(0, 9).map((hex) => oklab(hex)[2]);
+    for (let i = 1; i < warmth.length; i++)
+      expect(
+        warmth[i],
+        `--depth-${i + 1} is not cooler than --depth-${i} — the ramp must run yellowish to blue in one direction, with no reversal before the trough.`,
+      ).toBeLessThan(warmth[i - 1]);
+    expect(warmth[0], "--depth-1 should be on the warm side of neutral").toBeGreaterThan(0);
+    expect(warmth[8], "--depth-9 should be on the cool side of neutral").toBeLessThan(0);
+  });
+
+  it("starts off-white, leaving the selected-doc title somewhere brighter to go", () => {
+    // .atlas-node.is-selected .atlas-node-title resolves to --selected-title
+    // under [data-theme="giedi"] (index.css). An unselected top-level title
+    // takes --depth-1; if the two converged, selecting a doc would change
+    // nothing visible. Measured against the title token rather than --accent
+    // on purpose: the title is deliberately NOT pure white (halation), so
+    // --accent is not the ceiling this has to stay under.
+    expect(
+      lum(stops[0]),
+      `--depth-1 is ${stops[0]}, at or above --selected-title (${THEMES.giedi["selected-title"]}) — a selected top-level title would be indistinguishable from an unselected one.`,
+    ).toBeLessThan(lum(THEMES.giedi["selected-title"]) - 0.05);
+  });
+});
+
+// ─── Test F ─────────────────────────────────────────────────────────────
+// Diff blocks have to be visible AS BLOCKS. AUDIT_PAIRS checks each diff
+// foreground against its own fill, which says only that the text is readable
+// once you have found it — nothing there notices a --diff-added-bg that has
+// faded into the --surface the diff box is painted with (DiffView.tsx's
+// DIFF_BOX_BG), or an added and a removed block that have converged on each
+// other. Both regressions have reached a human by eye already.
+//
+// Deliberately NOT a WCAG ratio: WCAG is luminance-only, and the light theme's
+// blocks separate almost entirely by HUE (#fee2e2 against #ffffff is 1.09:1
+// and perfectly legible). Plain Euclidean distance in sRGB is crude — it is
+// not perceptually uniform — but it counts hue and lightness both, which is
+// what this tripwire needs. The bound is set well under every shipping theme's
+// real margin (measured: 41-69 against surface, 43-86 between the pair), so it
+// fires on a block that has genuinely collapsed, not on a retune.
+describe("diff blocks are visibly distinct in every theme", () => {
+  const rgb = (hex: string): number[] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const dist = (a: string, b: string): number =>
+    Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i]));
+  const MIN = 25;
+
+  it.each(THEME_NAMES.flatMap((theme) => [
+    { theme, label: "added block vs the diff box", a: "diff-added-bg", b: "surface" },
+    { theme, label: "removed block vs the diff box", a: "diff-removed-bg", b: "surface" },
+    { theme, label: "added block vs removed block", a: "diff-added-bg", b: "diff-removed-bg" },
+  ]))('[data-theme="$theme"] $label', ({ theme, label, a, b }) => {
+    const d = dist(THEMES[theme][a], THEMES[theme][b]);
+    expect(
+      d,
+      `[data-theme="${theme}"] ${label}: --${a} (${THEMES[theme][a]}) and --${b} (${THEMES[theme][b]}) are ${d.toFixed(0)} apart in sRGB, under ${MIN}. The block will not read as a block — give it more lightness separation, more hue, or both.`,
+    ).toBeGreaterThan(MIN);
+  });
+});
+
+// ─── Test G ─────────────────────────────────────────────────────────────
+// giedi's two off-registry colours. Both sit outside everything above:
+// --selected-hint is declared only in the giedi block (so Test C, which walks
+// :root, never sees it) and .filter-summary-em's value is a literal in a rule
+// (so no token test can reach it at all). They are the two easiest values in
+// the file to break silently, which is exactly why they are asserted here.
+describe("giedi's off-registry colours stay readable", () => {
+
+  // The selected doc is a black block, but its type pill is painted on
+  // --surface — so the hint has to clear both, not just the darker one.
+  it("--selected-title stays the brightest text on the selected doc, without going pure white", () => {
+    const title = THEMES.giedi["selected-title"];
+    expect(contrastRatio(title, THEMES.giedi["atlas-row-selected"]) as number).toBeGreaterThanOrEqual(4.5);
+    // Brighter than body text, but short of --accent: pure white on the black
+    // fill is 21:1, which is halation territory rather than extra legibility.
+    expect(
+      contrastRatio(title, THEMES.giedi["atlas-row-selected"]) as number,
+      `--selected-title (${title}) is not brighter than --tan (${THEMES.giedi.tan}) on the selected doc's fill`,
+    ).toBeGreaterThan(contrastRatio(THEMES.giedi.tan, THEMES.giedi["atlas-row-selected"]) as number);
+    expect(
+      title.toLowerCase(),
+      "--selected-title is pure white — see the halation note on the token",
+    ).not.toBe("#ffffff");
+  });
+
+  // giedi replaces depth-coloured titles with one flat colour, which only
+  // works if it lands cleanly between body prose and a selected title — too
+  // close to --tan and titles stop reading as titles, too close to
+  // --selected-title and selecting one stops reading as selection. Three
+  // tokens, two gaps, both of which have to clear the JND; nothing else in
+  // this file checks a token against another FOREGROUND.
+  it("--node-title sits between body prose and a selected title", () => {
+    const { tan, "node-title": title, "selected-title": selected } = THEMES.giedi;
+    expect(
+      perceptualDistance(title, tan),
+      `--node-title (${title}) is within a JND of --tan (${tan}) — doc titles would be indistinguishable from body prose.`,
+    ).toBeGreaterThanOrEqual(JND);
+    expect(
+      perceptualDistance(title, selected),
+      `--node-title (${title}) is within a JND of --selected-title (${selected}) — selecting a doc would not visibly change its title.`,
+    ).toBeGreaterThanOrEqual(JND);
+    // And it has to out-read prose on the surface titles actually sit on.
+    expect(contrastRatio(title, THEMES.giedi["bg-deep"]) as number).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([
+    { on: "atlas-row-selected", why: "the selected doc's fill" },
+    { on: "surface", why: "the type pill's own fill" },
+  ])("--selected-hint is readable on --$on ($why)", ({ on }) => {
+    const ratio = contrastRatio(THEMES.giedi["selected-hint"], THEMES.giedi[on]);
+    expect(ratio, `--selected-hint (${THEMES.giedi["selected-hint"]}) is missing or not a plain hex`).not.toBeNull();
+    expect(ratio as number).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // .q-mark is the only highlight in the theme that does NOT set its own text
+  // colour (`color: inherit`), so it has to stay readable under the DIMMEST
+  // text a report row can carry, not just under --tan. It is also a
+  // color-mix() against transparent, which no token test can see — the value
+  // that actually reaches the screen only exists once it composites over the
+  // row beneath it, so the composite is what gets asserted.
+  it.each(["bg", "surface"])("the report-search highlight stays readable over --%s", (under) => {
+    // Parsed from the rule, NOT hardcoded: a constant here would keep passing
+    // if someone made .q-mark solid, which is exactly the change that breaks it.
+    const rule = CSS.match(/\[data-theme="giedi"\]\s+\.q-mark\s*\{([^}]*)\}/);
+    expect(rule, 'no `[data-theme="giedi"] .q-mark` rule found in index.css').not.toBeNull();
+    const pct = rule![1].match(/var\(--red-dim\)\s+(\d+(?:\.\d+)?)%/);
+    expect(
+      pct,
+      `[data-theme="giedi"] .q-mark must blend --red-dim with a percentage — a SOLID fill puts --tan-3 at 3.2:1, and .q-mark inherits its text colour. Found: ${rule![1].trim()}`,
+    ).not.toBeNull();
+    const ALPHA = Number(pct![1]) / 100;
+    const mix = (fg: string, bg: string): string => {
+      const ch = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+      return (
+        "#" +
+        [0, 1, 2]
+          .map((i) => Math.round(ch(fg, i) * ALPHA + ch(bg, i) * (1 - ALPHA)).toString(16).padStart(2, "0"))
+          .join("")
+      );
+    };
+    const fill = mix(THEMES.giedi["red-dim"], THEMES.giedi[under]);
+    expect(
+      contrastRatio(THEMES.giedi["tan-3"], fill) as number,
+      `--tan-3 (${THEMES.giedi["tan-3"]}) on the .q-mark fill composited over --${under} (${fill}) is below AA. .q-mark inherits its text colour, so a solid --red-dim fill is NOT safe here — that measures 3.2:1.`,
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // .filter-summary is INVERTED by default (a --tan fill, --bg text), which is
+  // why it needs its own assertion: its emphasis is measured against a TEXT
+  // token, not a background, and nothing in AUDIT_PAIRS is shaped like that.
+  // giedi opts out of the inversion (a near-white slab on a near-black page is
+  // glaring, and the inherited --red emphasis measured 1.23:1 on it), so here
+  // the pair is the emphasis against --surface. Both halves are asserted, so
+  // re-inverting the callout without re-checking the emphasis fails.
+  it("[data-theme=giedi] .filter-summary is legible, emphasis included", () => {
+    const rule = CSS.match(/\[data-theme="giedi"\]\s+\.filter-summary\s*\{([^}]*)\}/);
+    expect(rule, 'no `[data-theme="giedi"] .filter-summary` rule found in index.css').not.toBeNull();
+    const fill = rule![1].match(/background:\s*var\(--([\w-]+)\)/);
+    expect(
+      fill,
+      `giedi's .filter-summary must set its background from a token; found: ${rule![1].trim()}`,
+    ).not.toBeNull();
+    const bg = THEMES.giedi[fill![1]];
+
+    for (const fg of ["tan", "selected-hint"]) {
+      const r = contrastRatio(THEMES.giedi[fg], bg);
+      expect(
+        r as number,
+        `--${fg} (${THEMES.giedi[fg]}) on the giedi .filter-summary fill --${fill![1]} (${bg}) is below AA. This callout is the one place a TEXT token can end up as a background, which is how the inherited --red emphasis reached 1.23:1.`,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  // The CrossView treemap ramps --chunk-fill into --surface at up to 70% and
+  // paints a --tan-2 label on the result. Nothing else in this file can see
+  // that: both operands pass every contrast pair on their own, and the value
+  // that actually reaches the screen only exists after the mix. The ramp's
+  // DIRECTION also differs per theme — dark/giedi deepen away from a light
+  // label, light lightens away from a dark one — so this is asserted for every
+  // theme rather than for giedi alone. Historic failures: light 2.91:1,
+  // giedi 1.61:1, both from aiming the ramp at --red.
+  it.each(THEME_NAMES)('[data-theme="%s"] treemap labels survive the deepest rect', (theme) => {
+    const DEEPEST = 0.7; // must match FILL_BY_DEPTH's fallback in CrossViewTreemap.tsx
+    const ch = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+    const fill =
+      "#" +
+      [0, 1, 2]
+        .map((i) =>
+          Math.round(ch(THEMES[theme]["chunk-fill"], i) * DEEPEST + ch(THEMES[theme].surface, i) * (1 - DEEPEST))
+            .toString(16)
+            .padStart(2, "0"),
+        )
+        .join("");
+    expect(
+      contrastRatio(THEMES[theme]["tan-2"], fill) as number,
+      `[data-theme="${theme}"] the deepest treemap rect is ${fill} (--chunk-fill ${THEMES[theme]["chunk-fill"]} at ${DEEPEST * 100}% over --surface ${THEMES[theme].surface}), and its --tan-2 label (${THEMES[theme]["tan-2"]}) is below AA on it. --chunk-fill has to be chosen against the LABEL, not against the brand.`,
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+});
+
+// ─── Test H ─────────────────────────────────────────────────────────────
+// The entity palette is 14 UNORDERED categories, so unlike the depth ramp it
+// has no fallback signal: if two of them converge there is no "deeper means
+// dimmer" to read instead, just two swatches that look the same. Contrast
+// can't see this at all — every one of them can clear 4.5:1 on --surface and
+// still be mutually indistinguishable, which is precisely what giedi's first
+// entity palette did (14 hues at C 0.026, closest pair 0.024, under a JND).
+//
+// Measured in OKLab, where Euclidean distance is roughly perceptual — the one
+// place in this file worth the conversion, because "these two look the same"
+// is the actual question and channel spread cannot answer it.
+describe("no two entity colours collapse into each other", () => {
+  // ~0.02 is roughly one JND. 0.030 is the bar: comfortably above "might be
+  // the same swatch", comfortably below what any deliberate palette produces.
+  const MIN = 0.03;
+
+  // Recorded, not waived — same arrangement as ACCEPTED_DECORATIVE_FAILURES.
+  // The light theme's warm pair sits under the bar and predates giedi; it is
+  // asserted at its measured value so it can't quietly get worse, and so the
+  // day someone fixes it this flips red and the entry comes out.
+  const RECORDED_COLLAPSES = new Map<string, number>([
+    ["light", 0.017], // --entity-facilitator-org vs --entity-multisig
+  ]);
+
+  it.each(THEME_NAMES)('[data-theme="%s"] keeps every pair apart', (theme) => {
+    const names = Object.keys(THEMES[theme]).filter((t) => t.startsWith("entity-"));
+    let worst = { d: Infinity, a: "", b: "" };
+    for (let i = 0; i < names.length; i++)
+      for (let j = i + 1; j < names.length; j++) {
+        const d = perceptualDistance(THEMES[theme][names[i]], THEMES[theme][names[j]]);
+        if (d < worst.d) worst = { d, a: names[i], b: names[j] };
+      }
+    const recorded = RECORDED_COLLAPSES.get(theme);
+    const detail = `closest pair is --${worst.a} (${THEMES[theme][worst.a]}) / --${worst.b} (${THEMES[theme][worst.b]}) at ${worst.d.toFixed(3)}`;
+    if (recorded !== undefined) {
+      expect(
+        worst.d,
+        `[data-theme="${theme}"] has a RECORDED collapse at ~${recorded}, but ${detail}. If it improved past ${MIN}, delete its RECORDED_COLLAPSES entry; if it got worse, that is a regression.`,
+      ).toBeGreaterThanOrEqual(recorded - 0.002);
+      expect(worst.d).toBeLessThan(MIN);
+      return;
+    }
+    expect(
+      worst.d,
+      `[data-theme="${theme}"] ${detail} — under ${MIN}, about one JND, so the two types are not tellable apart. Contrast tests cannot catch this; both can be perfectly readable and still identical.`,
+    ).toBeGreaterThanOrEqual(MIN);
   });
 });

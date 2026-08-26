@@ -51,18 +51,18 @@ describe("useTheme", () => {
     },
   );
 
-  it("setTheme('light-sky') sets data-theme AND data-scheme, persists the plain string, and updates theme-color", async () => {
+  it("setTheme('light') sets data-theme AND data-scheme, persists the plain string, and updates theme-color", async () => {
     const { useTheme, THEMES } = await freshModule();
-    const lightSky = THEMES.find((t) => t.id === "light-sky")!;
+    const light = THEMES.find((t) => t.id === "light")!;
     const { result } = renderHook(() => useTheme());
-    act(() => result.current.setTheme("light-sky"));
+    act(() => result.current.setTheme("light"));
 
-    expect(result.current.theme).toBe("light-sky");
+    expect(result.current.theme).toBe("light");
     expect(result.current.scheme).toBe("light");
-    expect(document.documentElement.getAttribute("data-theme")).toBe("light-sky");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
     expect(document.documentElement.getAttribute("data-scheme")).toBe("light");
-    expect(localStorage.getItem(KEY)).toBe("light-sky");
-    expect(themeColor()).toBe(lightSky.bg);
+    expect(localStorage.getItem(KEY)).toBe("light");
+    expect(themeColor()).toBe(light.bg);
   });
 
   it("setTheme('dark') sets data-scheme to dark", async () => {
@@ -81,11 +81,11 @@ describe("useTheme", () => {
     expect(result.current.theme).toBe(DEFAULT_THEME);
 
     act(() => {
-      localStorage.setItem(KEY, "light-sky");
+      localStorage.setItem(KEY, "light");
       window.dispatchEvent(new Event("storage"));
     });
 
-    expect(result.current.theme).toBe("light-sky");
+    expect(result.current.theme).toBe("light");
   });
 
   it("does not crash when localStorage throws, and does not clobber the in-memory snapshot", async () => {

@@ -322,7 +322,7 @@ function EntityFlowInner({
   );
 
   // ReactFlow's colorMode only knows light/dark, so it takes the SCHEME, not
-  // the palette id — "light-sky" is not a value it understands.
+  // the palette id — "giedi" is not a value it understands.
   const { scheme } = useTheme();
 
   return (

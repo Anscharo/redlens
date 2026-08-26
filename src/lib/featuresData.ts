@@ -281,9 +281,9 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "Colour schemes",
-        what: "The whole app can run in the original dark scheme or either of two light ones.",
+        what: "The whole app can run in the original charcoal dark scheme, a high-contrast greyscale one, or a light one.",
         how: [
-          "Open the menu button in the top-right corner and pick a theme: Dark, Light, or Light · Sky.",
+          "Open the menu button in the top-right corner and pick a theme: Dark, Giedi, or Light.",
           'Once signed in, the same picker lives in the profile menu under "Account".',
           "Every page follows the choice — the reader, Radar, reports, and the Atlas agent.",
         ],

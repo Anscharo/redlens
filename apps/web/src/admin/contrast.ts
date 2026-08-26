@@ -47,6 +47,7 @@ export const AUDIT_PAIRS: readonly AuditPair[] = [
   { fg: "tan-3",         bg: "surface",          label: "tertiary text / surface" },
   { fg: "gray",          bg: "surface",          label: "muted text / surface" },
   { fg: "tan",           bg: "bg-deep",          label: "primary text / bg-deep" },
+  { fg: "tan",           bg: "atlas-row-selected", label: "primary text / selected doc" },
   { fg: "accent",        bg: "bg",               label: "accent links / bg" },
   { fg: "accent",        bg: "surface",          label: "accent links / surface" },
   { fg: "error-text",    bg: "bg",               label: "error-text / bg" },
