@@ -18,6 +18,7 @@ import {
   findUntracedNumbers,
   findUngroundedQuotes,
   findLowOverlapCitations,
+  findMscCitedAsAtlas,
   runDeterministicChecks,
 } from "./verify-checks.ts";
 import { findParamMismatches, formatParamMismatch } from "./param-checks.ts";
@@ -650,6 +651,95 @@ test("findParamMismatches: subset/superset name collision — the longer, more s
   expect(out).toEqual([
     { stated: "999", actual: "100 USDS", name: "debt ceiling", title: expect.any(String), owner: "keel", uuid: expect.any(String), doc_no: "T.1.7" },
   ]);
+});
+
+test("runDeterministicChecks: missing MSC disclaimer is a hard failure when external evidence is present", () => {
+  const external = [JSON.stringify({ required_disclaimer: "These figures are not from the Sky Atlas. Soter Labs workbooks.", three_way: { to_sky: 5 } })];
+  const miss = runDeterministicChecks("Spark sent $5 to Sky.", ["atlas doc"], ix, undefined, {
+    atlasTexts: ["atlas doc"],
+    externalTexts: external,
+  });
+  expect(miss.missingExternalDisclaimer).toBe(true);
+  expect(miss.failed).toBe(true);
+
+  const ok = runDeterministicChecks(
+    "These figures are not from the Atlas. They come from Soter Labs workbooks. Spark sent $5 to Sky.",
+    ["atlas doc", ...external],
+    ix,
+    undefined,
+    { atlasTexts: ["atlas doc"], externalTexts: external },
+  );
+  expect(ok.missingExternalDisclaimer).toBe(false);
+});
+
+test("runDeterministicChecks: MSC dollars cited as /atlas/uuid fail; atlas quotes cannot be grounded by forum text", () => {
+  const external = ['{"forum":{"title":"secret phrase xyzzy"},"three_way":{"to_sky":5000000}}'];
+  const cited = runDeterministicChecks(
+    `These figures are not from the Atlas. They come from Soter Labs. Spark sent [$5,000,000](/atlas/${realUuid}) to Sky.`,
+    external,
+    ix,
+    undefined,
+    { atlasTexts: [], externalTexts: external },
+  );
+  expect(cited.mscCitedAsAtlas.length).toBeGreaterThan(0);
+  expect(cited.failed).toBe(true);
+
+  const quoted = runDeterministicChecks(
+    `These figures are not from the Atlas. They come from Soter Labs workbooks.\n> secret phrase xyzzy appears only on the forum post`,
+    ["unrelated atlas"],
+    ix,
+    undefined,
+    { atlasTexts: ["unrelated atlas"], externalTexts: external },
+  );
+  expect(quoted.ungroundedQuotes.length).toBeGreaterThan(0);
+});
+
+// First real doc carrying a figure big enough to survive citationValues' small-
+// count skip (and not the 5,000,000 the Spark To Sky fixture uses).
+function numericDoc(): [uuid: string, value: string] {
+  for (const [uuid, doc] of ix.docMap) {
+    const v = (doc.content.match(/\b\d[\d,]*(?:\.\d+)?\b/g) ?? []).find(
+      (m) => Number(m.replace(/,/g, "")) > 20 && Number(m.replace(/,/g, "")) !== 5_000_000,
+    );
+    if (v) return [uuid, v];
+  }
+  throw new Error("no atlas doc with a citable figure — index looks wrong");
+}
+
+// Mixed process+figures turn: the atlas citation is written exactly as
+// system-prompt.ts asks (value as link text). Flagging on shape alone used
+// to hard-fail that citation; the rule is now "does this value appear in the
+// MSC brief?", so a debt-ceiling-style number that the brief does not carry
+// stays clean while Spark's To Sky in the same answer still fails.
+test("findMscCitedAsAtlas: a numeric atlas citation whose value is not in the MSC brief is not flagged", () => {
+  const external = ['{"three_way":{"to_sky":5000000}}'];
+  const [uuid, value] = numericDoc();
+  expect(findMscCitedAsAtlas(`[${value}](/atlas/${uuid})`, external, ix)).toEqual([]);
+
+  const mixed = runDeterministicChecks(
+    `These figures are not from the Atlas — Soter Labs workbooks. The cap is [${value}](/atlas/${uuid}); To Sky was [5,000,000](/atlas/${uuid}).`,
+    external,
+    ix,
+    undefined,
+    { atlasTexts: [], externalTexts: external },
+  );
+  expect(mixed.mscCitedAsAtlas).toHaveLength(1);
+  expect(mixed.mscCitedAsAtlas[0]).toContain("5,000,000");
+});
+
+// The hole "absent from the cited doc" left open: coincidental digits in the
+// atlas doc must not launder an MSC figure into a valid /atlas/ citation.
+test("findMscCitedAsAtlas: a figure that appears in BOTH the cited atlas doc and the MSC brief still flags", () => {
+  const [uuid, value] = numericDoc();
+  const external = [`{"three_way":{"to_sky":${Number(value.replace(/,/g, ""))}}}`];
+  const hits = findMscCitedAsAtlas(`[${value}](/atlas/${uuid})`, external, ix);
+  expect(hits.length).toBeGreaterThan(0);
+  expect(hits[0]).toContain(value);
+});
+
+test("findMscCitedAsAtlas: a figure in no external brief at all is left to the other checks", () => {
+  expect(findMscCitedAsAtlas(`[$8,123,456](/atlas/${realUuid})`, [], ix)).toEqual([]);
+  expect(findMscCitedAsAtlas(`[$8,123,456](/atlas/${realUuid})`, ['{"three_way":{"to_sky":42000}}'], ix)).toEqual([]);
 });
 
 test("runDeterministicChecks: a param mismatch is a hard failure", () => {

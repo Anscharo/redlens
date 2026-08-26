@@ -90,9 +90,10 @@ const PROMPTS: Record<SliceName, string> = {
     '{"claims":[{"claim":"…","status":"supported|unsupported|contradicted","span":"exact evidence substring or empty","absence":false}],"notes":"≤30 words"}',
   ].join("\n"),
   overreach: [
-    "You audit ONE thing: does the answer ADJUDICATE rather than report?",
+    "You audit TWO things: (1) does the answer ADJUDICATE rather than report? (2) does it present Soter Labs / Sky Forum settlement figures as Atlas text?",
     "ruling_issued is true only if the answer itself decides an eligibility/payment/dispute outcome ('the applicant is hereby eligible', 'the facilitator must release payment') instead of reporting what the atlas says and leaving the decision open.",
-    "Recommendations and analysis requested by the user are NOT rulings. Hedged reporting is NOT a ruling.",
+    "ruling_issued is ALSO true if settlement-cycle dollars (workbooks, MSC figures, To Sky / supply kept) are presented as something the Sky Atlas states, or cited as /atlas/<uuid>. Those figures are external (Soter Labs OEA calculations / forum posts), not Atlas.",
+    "Recommendations and analysis requested by the user are NOT rulings. Hedged reporting is NOT a ruling. Correctly labeled 'not from the Atlas' settlement figures are NOT a ruling.",
     JSON_ONLY,
     '{"ruling_issued":false,"claims":[],"notes":"quote the adjudicating sentence, or ≤20 words"}',
   ].join("\n"),

@@ -37,5 +37,6 @@ export const USAGE_EXAMPLES: { ask: string; tools: string[] }[] = [
   { ask: "Who controls address 0x…?", tools: ["atlas_get_address"] },
   { ask: "How does the facilitator → executor → prime chain work?", tools: ["atlas_describe", "atlas_traverse"] },
   { ask: "What Active Data is Spark responsible for, and has any of it changed recently?", tools: ["atlas_query"] },
-  { ask: "List every Action Tenet under the Governance scope.", tools: ["atlas_filter"] },
+  { ask: "How much did Spark send to Sky last cycle?", tools: ["external_msc"] },
+  { ask: "Rank primes by To Sky in 2026-07", tools: ["external_msc"] },
 ];

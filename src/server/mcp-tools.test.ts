@@ -10,6 +10,7 @@
 import { test, expect } from "bun:test";
 import { z } from "zod";
 import { ATLAS_TOOLS, TOOLS_BY_NAME } from "./chat/tools/tool-registry.ts";
+import { EXTERNAL_TOOLS } from "./chat/tools/external-tools.ts";
 import { buildIndexes, type AtlasNode, type Edge, type Entity } from "./retrieval/indexes.ts";
 
 // ── Fixture ──────────────────────────────────────────────────────────────
@@ -71,6 +72,16 @@ function makeAtlas() {
 const call = (name: string, args: Record<string, unknown>) => TOOLS_BY_NAME.get(name)!.handler(makeAtlas(), args);
 
 // ── Registry integrity (all 25 tools) ───────────────────────────────────────
+test("external_msc is MCP-only, description leads with Rule 1, and is not in ATLAS_TOOLS", () => {
+  expect(EXTERNAL_TOOLS.length).toBeGreaterThan(0);
+  for (const t of EXTERNAL_TOOLS) {
+    expect(t.name).not.toMatch(/^atlas_/);
+    expect(t.description.startsWith("NOT Atlas")).toBe(true);
+    expect(TOOLS_BY_NAME.has(t.name)).toBe(false);
+  }
+  expect(EXTERNAL_TOOLS.some((t) => t.name === "external_msc")).toBe(true);
+});
+
 test("tool registry is well-formed: 25 unique tools, valid shapes + handlers", () => {
   expect(ATLAS_TOOLS.length).toBe(25);
   const names = ATLAS_TOOLS.map((t) => t.name);

@@ -3,15 +3,19 @@ import { expect, test } from "bun:test";
 import { applyChatToolBudget, CHAT_TOOLS } from "./llm-tools.ts";
 import { TOOLS_BY_NAME } from "./tool-registry.ts";
 import { EXPORT_TOOL_NAME } from "./export-tool.ts";
+import { ASK_EXTERNAL_MSC } from "./external-tools.ts";
+
+test("ask_external_msc is chat-only; external_msc is MCP-only", () => {
+  expect(CHAT_TOOLS.some((t) => t.type === "function" && t.function.name === ASK_EXTERNAL_MSC)).toBe(true);
+  expect(TOOLS_BY_NAME.has(ASK_EXTERNAL_MSC)).toBe(false);
+  expect(CHAT_TOOLS.some((t) => t.type === "function" && t.function.name === "external_msc")).toBe(false);
+});
 
 test("export_findings is a chat-only tool: in CHAT_TOOLS but NOT the shared MCP registry", () => {
-  // Present on the chat transport… (ChatCompletionTool is a union; narrow to the
-  // function variant, which is what the whole chat surface uses)
   expect(CHAT_TOOLS.some((t) => t.type === "function" && t.function.name === EXPORT_TOOL_NAME)).toBe(true);
-  // …and absent from ATLAS_TOOLS (TOOLS_BY_NAME), which the MCP server consumes,
-  // so it can never surface as an MCP tool (there's no browser to download to).
   expect(TOOLS_BY_NAME.has(EXPORT_TOOL_NAME)).toBe(false);
 });
+
 
 test("applyChatToolBudget leaves small payloads unchanged", () => {
   const raw = JSON.stringify({ ok: true, results: ["small"] });

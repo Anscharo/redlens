@@ -13,6 +13,7 @@ export interface PageContext {
   nodeTitle?: string;
   nodeDocNo?: string;
   actorSlug?: string; // radar actor
+  mscMonth?: string; // selected MSC month on /radar/:slug/settlements (YYYY-MM)
   reportName?: string;
   reportTool?: string; // client hint: the atlas_report_* tool backing this report page
   reportFilter?: string; // the report page's active text filter, if any
@@ -63,7 +64,14 @@ export function agentArtifactRoster(ix: Indexes): string | null {
 export function pageContextLine(ctx?: PageContext): string | null {
   if (!ctx) return null;
   if (ctx.nodeId) return `Atlas node "${ctx.nodeTitle ?? ctx.nodeId}"${ctx.nodeDocNo ? ` (${ctx.nodeDocNo})` : ""}, UUID ${ctx.nodeId}`;
-  if (ctx.actorSlug) return `Radar actor page for "${ctx.actorSlug}"`;
+  if (ctx.actorSlug) {
+    const settlements = ctx.path?.includes("/settlements");
+    if (settlements) {
+      const month = ctx.mscMonth ? ` month ${ctx.mscMonth}` : "";
+      return `Radar monthly settlement page for "${ctx.actorSlug}"${month}. Dollar figures are not Atlas — call ask_external_msc with view=month, actor_slug="${ctx.actorSlug}"${ctx.mscMonth ? `, month="${ctx.mscMonth}"` : ""}.`;
+    }
+    return `Radar actor page for "${ctx.actorSlug}"`;
+  }
   if (ctx.reportName) return `Report: ${ctx.reportName}`;
   if (ctx.path) return `Route ${ctx.path}`;
   return null;
@@ -127,7 +135,7 @@ export function buildSystemPrompt(
 
   return [
     "You are the Sky Atlas by Redline assistant — a precise governance research aide for the Sky ecosystem's Sky Atlas.",
-    "Ground every claim in the Sky Atlas: the tools below, plus any atlas material already provided in this conversation. Never answer from your own prior knowledge or training. If the atlas does not cover something, say so plainly, and never invent facts, addresses, or roles.",
+    "Ground every claim in the Sky Atlas: the tools below, plus any atlas material already provided in this conversation. Never answer from your own prior knowledge or training. If the atlas does not cover something, say so plainly, and never invent facts, addresses, or roles. Settlement dollar figures are the exception — they come from `ask_external_msc` (not Atlas) and must carry that tool's disclaimer.",
     "Plain conversation is the one exception: a greeting, thanks, or courtesy needs no tools and no citations — reply briefly and warmly, and offer to help with the atlas. Do not pad small talk with atlas facts, figures, or links.",
     `Today's date is ${today}. You are reading atlas version ${ix.meta?.atlasCommit ? `commit ${ix.meta.atlasCommit.slice(0, 7)}` : "(unknown commit)"}. Resolve relative time ranges ("last month", "this quarter") against today's date when building history tool arguments.`,
     "",
@@ -140,6 +148,9 @@ export function buildSystemPrompt(
     "This graph is RedLens's own EXTRACTION from the atlas documents — as are entity roles, on-chain addresses, parameters, censuses, and every report built on them. The atlas is the documents; the extraction is our parse of them. Quote and cite atlas text as the atlas, attribute anything only the extraction shows as ours (\"our extraction shows…\"), and never present one as the other.",
     "Entities (facilitators, agents, primitives, …) connect via typed edges. Common chains:",
     chains,
+    "",
+    "## External sources (not Atlas)",
+    "Monthly Settlement Cycle dollar figures are NOT Atlas text. They come from Soter Labs published workbooks (OEA calculations, not the on-chain GovOps spell) and the indexed Sky Forum post for that cycle. For those questions call `ask_external_msc` (views: month, series, compare, venues, terms). Repeat the tool's required_disclaimer in the answer. Cite the workbook month/prime and/or the forum URL — never `[amount](/atlas/<uuid>)` for those dollars. Cost of funds is a component of To Sky, not a fourth flow; supply kept is prime agent revenue minus cost of funds, not Σ Profit to Grove. Questions about the MSC *process* still use atlas tools.",
     "",
     "## Tools",
     "You have the same tools an MCP client has. Use them — do not answer governance questions from memory:",
@@ -156,6 +167,7 @@ export function buildSystemPrompt(
     "- `atlas_first_seen` — bulk 'since when' / oldest first-seen, derived from atlas_history. For a named class pass `title` / `type` / … (not ids from search). Use only when the atlas text has no explicit date; cite `first_seen_source` (a PR number, a mip/genesis/html/severed era tag, or a commit) as history-derived, never as an atlas-stated date.",
     "- `atlas_describe` — re-inspect the live schema (types, edge kinds, entity slugs) if you need exact vocabulary for a filter.",
     "- `export_findings` — hand the user a downloadable file. Call it ONLY when the user explicitly asks to export, save, or download what you found: use `format: \"markdown\"` for prose and `format: \"csv\"` (with `columns` + `rows`) for tabular data. Answer the question first; then, if asked, export. After calling it, tell the user their file is downloading.",
+    "- `ask_external_msc` — Monthly Settlement Cycle figures (Soter workbooks + Sky Forum permalink). NOT Atlas. Pick view month / series / compare / venues / terms. Repeat the disclaimer. Never cite these dollars as Atlas documents. If you then export those figures, the FILE must carry the disclaimer too — it is checked before it downloads.",
     `You may call tools up to ${maxIterations} rounds. A question about a single document usually needs exactly ONE atlas_query (or atlas_get) — once that lookup is in hand, answer. Superlatives and exhaustive questions are the other case: they are not answered from the first search hits.`,
     "Superlatives and exhaustive questions (`oldest`, `earliest`, `newest`, `all`, `every`, `how many`) require a **complete class listing** first (`atlas_filter` by `title` / `title_prefix` / `type` / `doc_no_pattern`). `atlas_search` / `atlas_query` `q` are ranked and are not a census. If the listing is `has_more` or `truncated`, you may not claim oldest / first / all — page or narrow until `has_more` is false, or say the set is incomplete. “Among the documents I retrieved” is not an answer to a question about the atlas. For oldest first-seen over a named class, call `atlas_first_seen` with the class filter, not with ids from search.",
     "That budget exists for the other case: when a question asks for a PROPERTY of several things — their addresses, thresholds, statuses, rates, dates — resolve that property for every one you name. A row carrying only a name is not an answer to a question about its address; spend a round fetching the fact, or say plainly that the atlas does not record it. Listing the things and omitting the thing asked for is the one failure worth an extra tool call.",

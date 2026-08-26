@@ -31,6 +31,8 @@ export interface VerifyState {
   ungroundedCitationValues: string[];
   paramMismatches: ParamMismatch[];
   completenessFailures: string[];
+  missingExternalDisclaimer: boolean;
+  mscCitedAsAtlas: string[];
   lengthCapped: boolean;
 }
 
@@ -209,7 +211,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
               statusLine: ev.detail ?? `${ev.stage}…`,
               stageLog,
               ...(ev.stage === "checking" && !m.verify
-                ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [], completenessFailures: [], lengthCapped: false } }
+                ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [], completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false } }
                 : {}),
             };
           });
@@ -228,6 +230,8 @@ export function useChatStream(handlers: StreamHandlers = {}) {
               ungroundedCitationValues: ev.ungroundedCitationValues ?? [],
               paramMismatches: ev.paramMismatches ?? [],
               completenessFailures: ev.completenessFailures ?? [],
+              missingExternalDisclaimer: ev.missingExternalDisclaimer ?? false,
+              mscCitedAsAtlas: ev.mscCitedAsAtlas ?? [],
               lengthCapped: ev.lengthCapped ?? false,
             },
           }));

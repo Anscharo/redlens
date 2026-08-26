@@ -8,6 +8,7 @@ import { UUID_RE, EVM_ADDRESS_SRC, SOL_ADDRESS_SRC, DOC_NO_CORE } from "../../..
 import type { Indexes } from "../../retrieval/indexes.ts";
 import { findParamMismatches, type ParamMismatch } from "./param-checks.ts";
 import { completenessFailuresOf, type CompletenessEvidence } from "./completeness.ts";
+import { answerHasMscDisclaimer } from "../../external/envelope.ts";
 
 // The system prompt's citation link format: [Title](/atlas/<uuid>). ONE source
 // of truth shared with scripts/aux/eval-golden-grade.ts so grader and runtime
@@ -535,6 +536,13 @@ export interface CheckReport {
   // Exhaustive/extremum questions answered from a ranked page (or hedged
   // "among those queried") — hard fail; recovery must requery the class.
   completenessFailures: string[];
+  // External MSC brief was in this turn but the answer omitted the required
+  // non-Atlas attribution. HARD failure.
+  missingExternalDisclaimer: boolean;
+  // Settlement figures from the external MSC brief cited as /atlas/<uuid>.
+  // HARD failure even when the same digits also occur in the cited atlas doc
+  // (that coincidence is how MSC dollars used to slip through).
+  mscCitedAsAtlas: string[];
   // Soft wrong-doc assist: claim sentences whose vocabulary barely occurs in the
   // doc they cite. Informs the verifier prompt; never fails a turn.
   lowOverlapCitations: string[];
@@ -549,21 +557,56 @@ export interface CheckReport {
   failed: boolean;
 }
 
+// Settlement-cycle figures attributed to the atlas. Scoped PER VALUE against
+// the MSC brief, not by citation shape and not by "does the cited atlas doc
+// also mention these digits":
+//   - `[10,000,000 USDS](/atlas/<uuid>)` is how system-prompt.ts tells the
+//     model to cite a genuine atlas debt ceiling. That citation stays clean
+//     on a mixed process+figures turn as long as 10,000,000 is not in the
+//     MSC brief.
+//   - Spark's To Sky cited as `/atlas/…` fails because 5,000,000 IS in the
+//     brief — even if the cited atlas doc happens to contain the same digits
+//     (findUngroundedCitationValues would skip that collision as "grounded").
+// Shape-only matching (any `$n` / `n USDS` link text once MSC ran) was the
+// previous false-positive: it hard-failed correct atlas citations and the
+// revision steer then told the model to re-cite a real atlas fact as a
+// workbook URL.
+export function findMscCitedAsAtlas(answer: string, externalTexts: string[], ix: Indexes): string[] {
+  const cites = extractCitations(answer);
+  if (cites.length === 0 || externalTexts.length === 0) return [];
+  const external = mkHay(externalTexts.join("\n"));
+  const out: string[] = [];
+  for (const c of cites) {
+    const doc = ix.docMap.get(c.uuid);
+    if (!doc) continue; // an unknown uuid is already a hard failure
+    for (const v of citationValues(c.title)) {
+      if (!valueInHay(v, external)) continue; // not a settlement figure — other checks own it
+      out.push(`${v.literal} cited as /atlas/${c.uuid} (${doc.doc_no}) but comes from the external settlement brief`);
+    }
+  }
+  return [...new Set(out)];
+}
+
 export function runDeterministicChecks(
   answer: string,
   evidenceTexts: string[],
   ix: Indexes,
   completeness?: { question: string; evidence: CompletenessEvidence[] },
+  split?: { atlasTexts?: string[]; externalTexts?: string[] },
 ): CheckReport {
+  const atlasTexts = split?.atlasTexts ?? evidenceTexts;
+  const externalTexts = split?.externalTexts ?? [];
   const citations = extractCitations(answer);
   const invalidCitations = findInvalidCitationUuids(citations, ix);
   const invalidDocNos = findInvalidDocNos(answer, ix);
   const docNoMismatches = findDocNoMismatches(citations, ix);
-  const ungroundedQuotes = findUngroundedQuotes(answer, evidenceTexts, ix);
+  const ungroundedQuotes = findUngroundedQuotes(answer, atlasTexts, ix);
   const ungroundedAddresses = findUngroundedAddresses(answer, evidenceTexts);
-  const ungroundedCitationValues = findUngroundedCitationValues(answer, evidenceTexts, ix);
+  const ungroundedCitationValues = findUngroundedCitationValues(answer, atlasTexts, ix);
   const paramMismatches = findParamMismatches(answer, ix);
   const completenessFailures = completenessFailuresOf(completeness?.question, answer, completeness?.evidence);
+  const missingExternalDisclaimer = externalTexts.length > 0 && !answerHasMscDisclaimer(answer);
+  const mscCitedAsAtlas = findMscCitedAsAtlas(answer, externalTexts, ix);
   return {
     citations,
     invalidCitations,
@@ -578,6 +621,8 @@ export function runDeterministicChecks(
     lowOverlapCitations: findLowOverlapCitations(answer, ix),
     paramMismatches,
     completenessFailures,
+    missingExternalDisclaimer,
+    mscCitedAsAtlas,
     lengthCapped: false,
     failed:
       invalidCitations.length > 0 ||
@@ -587,6 +632,8 @@ export function runDeterministicChecks(
       ungroundedAddresses.length > 0 ||
       ungroundedCitationValues.length > 0 ||
       paramMismatches.length > 0 ||
-      completenessFailures.length > 0,
+      completenessFailures.length > 0 ||
+      missingExternalDisclaimer ||
+      mscCitedAsAtlas.length > 0,
   };
 }
