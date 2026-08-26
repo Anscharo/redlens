@@ -108,7 +108,14 @@ test("markdown: a settlement dollar cited as /atlas/<uuid> is withheld", () => {
     ix,
   );
   expect(r.ok).toBe(false);
-  if (!r.ok) expect(r.problems.join(" ")).toContain("must not be cited as /atlas/<uuid>");
+  // The steer has to carry BOTH halves: which figure was misattributed and
+  // where it really came from (from findMscCitedAsAtlas), then the remedy.
+  if (!r.ok) {
+    const problems = r.problems.join(" ");
+    expect(problems).toContain("5,000,000");
+    expect(problems).toContain("external settlement brief");
+    expect(problems).toContain("Sky Forum permalink");
+  }
 });
 
 test("a flat evidence list still means 'all atlas' — no disclaimer demanded", () => {
