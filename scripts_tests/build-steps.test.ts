@@ -125,7 +125,7 @@ describe("build-steps: non-JS consumers match their profile", () => {
     expect(PROFILES.docker).toContain("index");
     for (const f of GZIP_ARTIFACTS) {
       const id = f.replace(/\.json$/, "");
-      if (id === "docs" || id === "search-index" || id === "relations") continue; // index / graph
+      if (id === "search-index" || id === "relations") continue; // index / graph
       expect(PROFILES.docker, `${f} is gzipped but ${id} never runs in the image`).toContain(id);
     }
   });

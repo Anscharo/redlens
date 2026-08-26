@@ -23,6 +23,7 @@ import type { TickDeps, UpdaterState, SpawnFn } from "./atlas-updater.ts";
 import { getIndexes, buildIndexes, setIndexes, rebuildFromDisk } from "./retrieval/indexes.ts";
 import { buildAddrRows } from "./retrieval/doc-rows.ts";
 import { config } from "./config.ts";
+import { pinnedBundleSha, pinBundleSha } from "./bundle-store.ts";
 
 interface FakeDb {
   syncStateAtlasSha: string | null; // null = "no row yet" (fresh/empty DB)
@@ -757,8 +758,11 @@ describe("runRefreshFromDb", () => {
       { id: "d1", doc_no: "A.1", title: "Doc 1", type: "Core", depth: 1, parentId: null, content: "hello", order: 0, contentHash: "h1", addressRefs: [] },
     ];
     const distDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-gzdist-"));
-    // A pre-existing (stale, image-build-time) .gz for docs.json — must be
-    // regenerated from the FRESH mirrored bytes, not left alone.
+    // A pre-existing stale .gz sibling — must be regenerated from the FRESH
+    // mirrored bytes, not left alone. docs.json is the convenient carrier here
+    // because runRefreshFromDb writes it; the image itself no longer pre-gzips
+    // it (scripts/lib/build-steps.mjs GZIP_ARTIFACTS), and the refresh loop
+    // deliberately keys on what is on disk rather than on that list.
     fs.writeFileSync(path.join(distDir, "docs.json.gz"), zlib.gzipSync(Buffer.from("stale-image-build-bytes")));
     // No .gz sibling for glossary.json (never gzipped by the Dockerfile in
     // this fixture) — must NOT be created.
@@ -912,6 +916,7 @@ describe("makeTickDeps — applyInPlace / fullRebuild (real disk I/O)", () => {
   });
   afterAll(() => {
     rebuildFromDisk();
+    pinBundleSha(null); // module-level state — don't leak into sibling test files
   });
 
   function writeArtifacts(sha: string, nodes: Record<string, unknown>) {
@@ -935,6 +940,9 @@ describe("makeTickDeps — applyInPlace / fullRebuild (real disk I/O)", () => {
     expect(getIndexes()).toBe(base); // patched IN PLACE — same object reference, not swapped
     expect(getIndexes().docMap.has("b")).toBe(true);
     expect(logs.some((l) => l.includes("in-place: +1 ~0 -0 docs"))).toBe(true);
+    // The swap must re-pin, or eviction would keep protecting the PREVIOUS sha
+    // while a burst of hydrates pushed the now-live bundle out (bundle-store.ts).
+    expect(pinnedBundleSha()).toBe("new-sha");
   });
 
   it("fullRebuild reads fresh artifacts, SWAPS the live index set (unlike applyInPlace), and re-emits search-index.json to disk", () => {

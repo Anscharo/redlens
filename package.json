@@ -27,6 +27,7 @@
     "atlas:worker": "bun scripts/required/atlas-worker.mjs",
     "build:manifest": "node scripts/required/build-manifest.mjs",
     "build:bundle": "bun scripts/required/build-bundle.ts",
+    "publish:artifacts": "bun scripts/required/publish-artifacts.ts",
     "build:tools": "bun scripts/required/build-tools.ts",
     "census:check": "node scripts/required/check-atlas-census.mjs",
     "census:govops": "node scripts/required/check-govops-census.mjs",

@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { config } from "./config.ts";
 import { boot, seedDbIfEmpty, buildRoutes, type BootDeps, type SeedOutcome } from "./index.ts";
+import { pinnedBundleSha, pinBundleSha } from "./bundle-store.ts";
 
 // A dep set that touches nothing real: no socket, no Postgres, no subprocess.
 // Every call is recorded so ordering and "was it started at all" are checkable.
@@ -20,7 +21,7 @@ function fakeDeps(over: Partial<BootDeps> = {}): { deps: BootDeps; calls: string
   const deps: BootDeps = {
     loadIndexes: () => {
       calls.push("loadIndexes");
-      return { docMap: new Map([["a", {}]]), entities: [], edges: [] };
+      return { docMap: new Map([["a", {}]]), entities: [], edges: [], meta: { atlasCommit: "f".repeat(40) } };
     },
     serve: () => {
       calls.push("serve");
@@ -146,6 +147,17 @@ describe("boot", () => {
     await boot(deps);
     expect(typeof seen?.fetch).toBe("function");
     expect(Object.keys(seen?.routes ?? {})).toContain("/api/history/:id");
+  });
+  it("pins the loaded atlas sha so a hydrate burst can't evict the bundle it is serving", async () => {
+    // Without this, the live bundle's only protection is its mtime, and eviction
+    // is least-recently-WRITTEN: hydrating ATLAS_BUNDLE_KEEP cold shas (reachable
+    // from plain GETs on the immutable, indexable /api/atlas/<sha>/ URLs) pushes
+    // out the sha we are currently serving. See bundle-store.ts's pinnedSha.
+    pinBundleSha(null);
+    const { deps } = fakeDeps();
+    await boot(deps);
+    expect(pinnedBundleSha()).toBe("f".repeat(40));
+    pinBundleSha(null); // module-level state — don't leak into sibling test files
   });
 });
 
@@ -297,3 +309,4 @@ describe("buildRoutes gating", () => {
     expect(typeof r["/api/balances"].POST).toBe("function");
   });
 });
+

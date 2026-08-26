@@ -88,16 +88,14 @@ export const PROFILES = {
   // their own preflight steps with their own skip conditions.
   devArtifacts: ["index", "graph", "glossary", "oea-report"],
 
-  // scripts/aux/dev-preflight.mjs, after a successful atlas-worker run: the
-  // worker builds index+graph but not these two, so refresh them for the
-  // synced sha.
-  devWorkerTail: ["glossary", "oea-report"],
-
-  // scripts/required/atlas-worker.mjs — Railway cron. Opt-out: `glossary` (the
-  // worker's product is Postgres rows, and sync.ts does not read glossary.json;
-  // the web service builds it from DB rows via the `updater` profile).
+  // scripts/required/atlas-worker.mjs — Railway cron. `glossary` used to be
+  // opted out here (the worker's product was Postgres rows, and sync.ts does not
+  // read glossary.json) — it is back because the worker now also PUBLISHES the
+  // artifact set every web instance reads (publish-artifacts.ts), and
+  // glossary.json is part of what the browser fetches. No opt-outs left: this
+  // profile must produce every name in PUBLISHED_ARTIFACTS.
   // build-history + sync-embeddings run as a parallel tail, not as steps here.
-  worker: ["index", "graph", "oea-report"],
+  worker: ["index", "glossary", "graph", "oea-report"],
 
   // src/server/atlas-updater.ts refreshFromDb(). Starts at `graph`: docs.json
   // is written straight from atlas_doc_meta rows, so there is no build-index.
@@ -117,7 +115,10 @@ export const PROFILES = {
  * derives its set from what's on disk instead — deliberately, so it
  * self-maintains.
  */
-export const GZIP_ARTIFACTS = ["docs.json", "search-index.json", "relations.json", "glossary.json", "oea-report.json"];
+// docs.json is absent on purpose: no request reaches it. The browser fetches the
+// docs-shallow/docs-deep split (docs/plans/docs-split.md), so pre-compressing the
+// 6 MB combined file only cost image-build time and ~1.4 MB of layer.
+export const GZIP_ARTIFACTS = ["search-index.json", "relations.json", "glossary.json", "oea-report.json"];
 
 const BY_ID = new Map(STEPS.map((s) => [s.id, s]));
 

@@ -32,9 +32,8 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
-
-
 ## 2026-08-25
+- Fixed a page reload that could interrupt reading just after an atlas update
 - Chat and MCP can answer Monthly Settlement Cycle questions from Soter Labs workbooks and Sky Forum posts, and they say those figures are not from the Atlas
 - Added new colour schemes — a light theme and a high-contrast greyscale one; the app now follows your device's light/dark setting until you pick one from the menu in the top-right corner
 
