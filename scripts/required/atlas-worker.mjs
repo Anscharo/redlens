@@ -2,8 +2,9 @@
 // Atlas worker — cron entry point for the Railway atlas worker service.
 // Detects new atlas commits (vs. what's already in Postgres sync_state),
 // runs a full build, then syncs all Postgres tables. The web service's
-// in-process updater polls sync_state.atlas_sha and rebuilds its in-memory
-// indexes from the updated DB rows — no git access needed on the web service.
+// in-process updater polls sync_state.atlas_sha and hydrates its in-memory
+// indexes from atlas_artifacts (plus docs.json rebuilt from atlas_doc_meta)
+// — no git access needed on the web service.
 //
 // On change, embeddings and history run in parallel after the structural sync:
 //
@@ -312,17 +313,11 @@ async function main() {
 
   // ── Publish the artifact set every web instance reads ────────────────────
   // After the integrity gate (so we never publish artifacts for a sha whose rows
-  // did not land) and before the best-effort tails. Best-effort ITSELF for now:
-  // the structural sync has already committed, web instances still build their
-  // own artifacts, and a failure here must not fail-mark an otherwise good run.
-  // REVISIT IN PHASE 4: once the web stops building, this becomes load-bearing
-  // and a failure should fail the run rather than warn.
-  try {
-    console.log("atlas-worker: publish-artifacts…");
-    run("bun", ["scripts/required/publish-artifacts.ts"]);
-  } catch (e) {
-    console.warn(`atlas-worker: publish-artifacts failed — ${e.message} (web instances keep building their own)`);
-  }
+  // did not land) and before the best-effort tails. Load-bearing as of phase 4:
+  // web instances no longer build their own artifacts, so a publish failure
+  // must fail the run. `run()` already throws on a non-zero exit.
+  console.log("atlas-worker: publish-artifacts…");
+  run("bun", ["scripts/required/publish-artifacts.ts"]);
 
   // ── Parallel: embeddings + history ───────────────────────────────────────
   // build-history reads its own incremental cursor from atlas_history and

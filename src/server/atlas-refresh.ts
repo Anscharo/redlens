@@ -129,13 +129,12 @@ function rebuildDerivedMaps(ix: Indexes): void {
   ix.childrenIndex = childrenIndex;
 }
 
-// ── In-place update (the subprocess-shrink path) ────────────────────────────
-// The subprocess regenerates docs.json/graph.json/manifest but NOT
-// search-index.json (BUILD_SKIP_SEARCH_INDEX=1), so the server owns the index:
-// it patches its live MiniSearch and re-serializes it to disk. SYNCHRONOUS =
-// atomic on the event loop (see header). The graph is rebuilt wholesale from the
-// fresh graph.json (relation extraction already ran in the subprocess; in-memory
-// graphology construction is cheap) and reassigned in place.
+// ── In-place update (the store-hydrate path) ────────────────────────────────
+// The worker publishes search-index.json with the rest of the artifact set.
+// The updater writes that file to public/ and publishes the per-sha bundle
+// BEFORE swapping indexes, so this path no longer owns the on-disk index.
+// It still patches the live MiniSearch incrementally (cheap for a small delta);
+// the full-rebuild fallback uses MiniSearch.loadJSON on the worker's bytes.
 
 // Pure mutation: patch the live indexes for the new artifact arrays; returns the
 // doc delta. No disk I/O (testable). The new graph is built into locals BEFORE
@@ -160,15 +159,13 @@ export function applyInPlaceUpdate(
   return delta;
 }
 
-// Serialize the live MiniSearch index to public/ + (best-effort) dist/. Shared
-// by the happy path (refreshInPlaceFromDisk, right after patching) and the
-// updater's full-rebuild fallback (atlas-updater.ts): rebuildFromDisk() only
-// reconstructs MiniSearch in memory from docs.json, it never touches
-// search-index.json on disk, and runRefreshFromDb() deletes the stale copy
-// up front (dropStaleSearchIndex) — so without an explicit re-emit here, a
-// fallback build converges live to the new sha while serving no search index
-// at all (publishBundle then skips the missing allowlisted artifact and the
-// browser search worker 404s).
+// Serialize the live MiniSearch index to public/ + (best-effort) dist/. Kept
+// for tests and any caller that still needs to emit a patched index; the
+// updater no longer calls this. The worker publishes search-index.json, the
+// refresh path writes that file to public/, and publishBundle copies it into
+// the per-sha bundle BEFORE the in-memory swap (phase 5). Overwriting it here
+// would replace the worker's bytes with a locally re-serialized copy after
+// the bundle was already published.
 export function writeSearchIndex(ix: Indexes, publicDir = config.publicDir, distDir = config.distDir): void {
   const idxJson = JSON.stringify(ix.mini.toJSON());
   writeFileSync(join(publicDir, "search-index.json"), idxJson);
@@ -179,12 +176,11 @@ export function writeSearchIndex(ix: Indexes, publicDir = config.publicDir, dist
   }
 }
 
-// Disk orchestration: read the freshly-built artifacts, apply in place, then
-// re-serialize the patched index to public/ + dist/ for the browser (the
-// subprocess skipped building it).
+// Disk orchestration: read the freshly-written artifacts and apply in place.
+// Does NOT re-serialize MiniSearch — the worker's search-index.json is already
+// on disk and is what publishBundle (called first) and rebuildFromDisk (the
+// fallback, via MiniSearch.loadJSON) consume.
 export function refreshInPlaceFromDisk(ix: Indexes): DocDelta {
   const { docs, entities, edges, meta } = readArtifactsFromDisk();
-  const delta = applyInPlaceUpdate(ix, docs, entities, edges, meta);
-  writeSearchIndex(ix);
-  return delta;
+  return applyInPlaceUpdate(ix, docs, entities, edges, meta);
 }

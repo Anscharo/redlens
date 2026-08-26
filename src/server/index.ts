@@ -513,7 +513,7 @@ export type SeedOutcome = "seeded" | "already-seeded" | "undetermined";
 // is the sole authoritative writer and may have advanced the atlas past this
 // image's snapshot — re-syncing on every boot would roll the DB (and every
 // reader, via the in-process updater) back to this image's older atlas. The
-// updater keeps in-memory indexes fresh from the DB regardless, so the web
+// updater keeps in-memory indexes fresh from the artifact store regardless, so the web
 // service never needs to write after the initial seed.
 export async function seedDbIfEmpty(deps: BootDeps): Promise<SeedOutcome> {
   try {

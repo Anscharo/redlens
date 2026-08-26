@@ -78,9 +78,9 @@ describe("build-steps: declaration integrity", () => {
   });
 
   it("profiles run by script path only contain script-backed steps", () => {
-    // atlas-updater.ts / atlas-worker.mjs / refresh-atlas-build.mjs pass
+    // atlas-worker.mjs / refresh-atlas-build.mjs / preview/build.ts pass
     // step.script straight to a subprocess, so a null there would be a crash.
-    for (const name of ["refresh", "worker", "updater", "preview"]) {
+    for (const name of ["refresh", "worker", "preview"]) {
       for (const step of stepsFor(name)) {
         expect(step.script, `profile "${name}" step "${step.id}" has no script path`).not.toBeNull();
       }
@@ -170,5 +170,18 @@ describe("settlements bake: the one prod producer of settlements.json", () => {
   it("`pnpm build` does NOT run it — that chain stays offline + reproducible", () => {
     expect(pkg.scripts.build).not.toContain("settlements");
     expect(STEPS.map((s) => s.pnpmScript)).not.toContain("settlements:parse");
+  });
+});
+
+describe("atlas artifact store: worker publish is load-bearing (phase 4)", () => {
+  it("there is no updater build profile — the web hydrates from atlas_artifacts", () => {
+    expect(PROFILES).not.toHaveProperty("updater");
+  });
+
+  it("atlas-worker fails the run when publish-artifacts fails", () => {
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    expect(worker).toContain('run("bun", ["scripts/required/publish-artifacts.ts"])');
+    expect(worker).not.toContain("web instances keep building their own");
+    expect(worker).not.toMatch(/publish-artifacts failed[\s\S]*console\.warn/);
   });
 });

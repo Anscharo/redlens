@@ -166,6 +166,7 @@ describe("assembleFreshness", () => {
       pendingPublishSha: null,
       pendingPublishSinceMs: null,
       lastTickMs: T,
+      storeHydratedSha: null,
       ...overrides,
     };
   }

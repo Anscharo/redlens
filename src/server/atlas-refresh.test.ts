@@ -265,11 +265,10 @@ describe("writeSearchIndex", () => {
 
 // The disk-orchestration wrapper used by the in-process updater's happy path
 // (atlas-updater.ts's applyInPlace). Unlike applyInPlaceUpdate above (pure, in
-// memory) this actually reads config.publicDir off disk and re-serializes
-// search-index.json — the two things every layer above it (runRefreshFromDb's
-// dropStaleSearchIndex, the fallback rebuild) assumes happened.
+// memory) this actually reads config.publicDir off disk. The worker's
+// search-index.json is left as written — phase 5 stopped re-serializing it.
 describe("refreshInPlaceFromDisk", () => {
-  it("reads fresh artifacts off config.publicDir, patches the GIVEN indexes in place, and re-emits search-index.json", () => {
+  it("reads fresh artifacts off config.publicDir, patches the GIVEN indexes in place, and leaves search-index.json untouched", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-refresh-inplace-"));
     const prevPublicDir = config.publicDir;
     const prevDistDir = config.distDir;
@@ -284,6 +283,7 @@ describe("refreshInPlaceFromDisk", () => {
         }),
       );
       fs.writeFileSync(path.join(dir, "graph.json"), JSON.stringify({ meta: { atlasCommit: "disk-sha" }, entities: [], edges: [] }));
+      fs.writeFileSync(path.join(dir, "search-index.json"), "{\"from\":\"worker\"}");
 
       // "b" only exists on the PRE-refresh in-memory ix, not in the fresh disk
       // artifacts — it must come out as removed, same as applyInPlaceUpdate's
@@ -295,8 +295,7 @@ describe("refreshInPlaceFromDisk", () => {
       expect(ix.meta.atlasCommit).toBe("disk-sha"); // patched IN PLACE, not swapped
       expect(ix.docMap.has("b")).toBe(false);
 
-      const written = fs.readFileSync(path.join(dir, "search-index.json"), "utf8");
-      expect(JSON.parse(written)).toEqual(ix.mini.toJSON()); // re-serialized from the PATCHED mini, not stale
+      expect(fs.readFileSync(path.join(dir, "search-index.json"), "utf8")).toBe("{\"from\":\"worker\"}");
     } finally {
       config.publicDir = prevPublicDir;
       config.distDir = prevDistDir;

@@ -9,6 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import zlib from "node:zlib";
 import { gzipSync, gunzipSync } from "node:zlib";
+import { createHash } from "node:crypto";
 import {
   artifactPath,
   bundleDir,
@@ -27,6 +28,7 @@ import {
   PREVIEW_STORE,
   PREVIEW_DIR,
   PUBLISHED_ARTIFACTS,
+  writeStoredArtifacts,
 } from "./bundle-store.ts";
 // The worker profile is the publisher; this file asserts the two agree.
 import { stepsFor } from "../../scripts/lib/build-steps.mjs";
@@ -371,6 +373,20 @@ function fakeFetch(items: Array<{ name: string; gz: Buffer }>, delayMs = 0) {
   f.calls = 0;
   return f;
 }
+
+test("writeStoredArtifacts gunzips verified blobs into a flat dir and refuses a sha256 mismatch", async () => {
+  const dir = path.join(ROOT, "stored-flat");
+  const raw = Buffer.from(JSON.stringify({ ok: 1 }));
+  const gz = gzipSync(raw);
+  const sha256 = createHash("sha256").update(raw).digest("hex");
+  await writeStoredArtifacts(dir, [{ name: "graph.json", gz, rawBytes: raw.byteLength, sha256 }]);
+  expect(JSON.parse(fs.readFileSync(path.join(dir, "graph.json"), "utf8"))).toEqual({ ok: 1 });
+  expect(fs.existsSync(path.join(dir, "graph.json.gz"))).toBe(false);
+
+  await expect(
+    writeStoredArtifacts(dir, [{ name: "graph.json", gz, sha256: "deadbeef" }]),
+  ).rejects.toThrow(/sha256 mismatch/);
+});
 
 test("hydrateBundleFromStore writes the flat .json AND its .gz sibling for every allowlisted blob", async () => {
   const store = freshStore({ readyCore: null, keep: 5 });

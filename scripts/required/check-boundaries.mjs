@@ -41,17 +41,18 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 //
 // The two long-lived processes are only half of it: both services also SPAWN
 // build scripts as sibling `bun` subprocesses at repo root (atlas-worker.mjs
-// runs stepsFor("worker"), atlas-updater.ts runs stepsFor("updater"),
-// preview/build.ts runs stepsFor("preview"), and the worker shells out to
-// sync.ts / sync-embeddings.ts / build-history.mjs). A subprocess needs its
-// imports installed in the image exactly as much as an imported module does, so
-// each spawned script is its own entry point here.
+// runs stepsFor("worker"), preview/build.ts runs stepsFor("preview"), and the
+// worker shells out to sync.ts / sync-embeddings.ts / build-history.mjs /
+// publish-artifacts.ts). A subprocess needs its imports installed in the image
+// exactly as much as an imported module does, so each spawned script is its
+// own entry point here. The web updater no longer spawns a build profile —
+// it hydrates from atlas_artifacts (phase 4).
 //
 // The step lists come from build-steps.mjs rather than a copy: that file exists
 // precisely so this set is declared once. Only RUNTIME profiles are used —
 // "docker" and "full" include ts/vite/bundle/tools, which run at image-build
 // time and are supposed to see the frontend.
-const SPAWNED_PROFILES = ["worker", "updater", "preview"];
+const SPAWNED_PROFILES = ["worker", "preview"];
 
 const ENTRIES = [
   "src/server/index.ts",
@@ -60,6 +61,7 @@ const ENTRIES = [
   "src/server/sync.ts",
   "src/server/sync-embeddings.ts",
   "scripts/required/build-history.mjs",
+  "scripts/required/publish-artifacts.ts",
   ...new Set(SPAWNED_PROFILES.flatMap((p) => stepsFor(p).map((s) => s.script).filter(Boolean))),
 ];
 
