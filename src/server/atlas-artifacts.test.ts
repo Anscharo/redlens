@@ -12,6 +12,7 @@
 // with DATABASE_URL set, the bytea encoding is driver-verified only (see the
 // migration's BYTEA note).
 import { describe, it, expect, beforeEach, afterAll } from "bun:test";
+import { SQL } from "bun";
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -157,14 +158,21 @@ describe("pruneArtifacts", () => {
 // above structurally cannot. Deliberately does NOT exercise pruneArtifacts:
 // prune operates on the whole table, so running it here would delete real
 // published shas if DATABASE_URL points at a shared database.
+//
+// Own connection, not `import("./db.ts")`: bun test runs files concurrently,
+// and collections.test.ts / atlas-updater.test.ts mock.module("./db.ts")
+// process-wide. Hitting their fake is what failed Railway's Postgres smoke
+// (`unmocked query` / `unmocked unsafe` with this migration's SQL as the
+// message). `new SQL(DATABASE_URL)` never goes through that export.
 const LIVE = Boolean(process.env.DATABASE_URL);
 const liveSha = `test-${randomUUID()}`;
+let liveSql: SQL | null = null;
 
 describe("live BYTEA round-trip (requires DATABASE_URL)", () => {
   it.skipIf(!LIVE)("publishes and reads back byte-identical blobs, twice", async () => {
-    const { sql } = await import("./db.ts");
-    const db = sql as unknown as Parameters<typeof putArtifacts>[2];
-    await sql.unsafe(readFileSync(join(import.meta.dir, "migrations/025_atlas_artifacts.sql"), "utf8")).simple();
+    const db = new SQL(process.env.DATABASE_URL!);
+    liveSql = db;
+    await db.unsafe(readFileSync(join(import.meta.dir, "migrations/025_atlas_artifacts.sql"), "utf8")).simple();
 
     // Every byte value, plus a size past a single TCP segment — the two things
     // a mangled encoding (escaping, truncation, utf8 round-tripping) trips on.
@@ -175,10 +183,10 @@ describe("live BYTEA round-trip (requires DATABASE_URL)", () => {
       { name: "big.json", gz: big, rawBytes: big.length * 3, sha256: createHash("sha256").update(big).digest("hex") },
     ];
 
-    await putArtifacts(liveSha, items, db);
-    await putArtifacts(liveSha, items, db); // idempotent — must not throw or duplicate
+    await putArtifacts(liveSha, items, db as unknown as Parameters<typeof putArtifacts>[2]);
+    await putArtifacts(liveSha, items, db as unknown as Parameters<typeof putArtifacts>[2]); // idempotent — must not throw or duplicate
 
-    const out = await getArtifacts(liveSha, sql);
+    const out = await getArtifacts(liveSha, db);
     expect(out.map((a) => a.name)).toEqual(["big.json", "small.json"]);
     for (const want of items) {
       const got = out.find((a) => a.name === want.name)!;
@@ -187,14 +195,18 @@ describe("live BYTEA round-trip (requires DATABASE_URL)", () => {
       expect(got.rawBytes).toBe(want.rawBytes);
       expect(got.sha256).toBe(want.sha256);
     }
-    expect(await listArtifactShas(50, sql)).toContain(liveSha);
+    expect(await listArtifactShas(50, db)).toContain(liveSha);
   });
 });
 
 afterAll(async () => {
-  if (!LIVE) return;
-  const { sql } = await import("./db.ts");
-  await sql`DELETE FROM atlas_artifacts WHERE atlas_sha = ${liveSha}`;
+  if (!liveSql) return;
+  try {
+    await liveSql`DELETE FROM atlas_artifacts WHERE atlas_sha = ${liveSha}`;
+  } finally {
+    await liveSql.end();
+    liveSql = null;
+  }
 });
 
 describe("hasArtifacts", () => {

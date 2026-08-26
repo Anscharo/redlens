@@ -48,6 +48,16 @@ export interface BundleStore {
 // no sha can have (shas are hex), so evictLru can recognise a leftover stage
 // from a crashed publish and never mistake one for a bundle.
 const STAGING_PREFIX = ".tmp-";
+// In-flight staging dirs (`${root}\0${STAGING_PREFIX+sha}`). evictLru must not
+// sweep these: hydrate of sha A finishing used to delete sha B's still-writing
+// stage (and a hydrate could delete a concurrent publish's), because leftover
+// `.tmp-*` dirs are otherwise treated as crash garbage. stageIntoBundle is the
+// only writer of these names — publish AND hydrate both go through it — so the
+// set lives here, not in each caller.
+const liveStages = new Set<string>();
+function stageKey(root: string, stagingName: string): string {
+  return `${root}\0${stagingName}`;
+}
 
 // NOT routed through config.ts: preview/handler.test.ts sets
 // process.env.PREVIEW_DIR at its OWN top level (before config.ts, which is
@@ -237,13 +247,17 @@ export function evictLru(store: BundleStore, skip?: Set<string>): string[] {
         if (skip?.has(name) || name.toLowerCase() === pinnedSha) return null;
         const st = fs.statSync(path.join(store.root, name));
         if (!st.isDirectory()) return null;
-        // A leftover staging dir means a publish died mid-write — always
-        // garbage, so report it unready and let the sweep below delete it.
-        // Checked explicitly because a readyCore-less store would otherwise
-        // see the dir exists and call it ready. publishBundle renames its
-        // stage away BEFORE calling evictLru, and it is the only writer of
-        // these (never concurrent with itself), so this cannot race a live one.
-        if (name.startsWith(STAGING_PREFIX)) return { sha: name, mtime: st.mtimeMs, ready: false };
+        // A leftover staging dir means a publish/hydrate died mid-write —
+        // always garbage, so report it unready and let the sweep below delete
+        // it. Checked explicitly because a readyCore-less store would otherwise
+        // see the dir exists and call it ready. Skip dirs still being written:
+        // hydrate of one sha finishing must not delete another's stage, and
+        // neither may delete a concurrent publish's. The writer registers in
+        // liveStages (stageIntoBundle) so a future caller cannot forget this.
+        if (name.startsWith(STAGING_PREFIX)) {
+          if (liveStages.has(stageKey(store.root, name))) return null;
+          return { sha: name, mtime: st.mtimeMs, ready: false };
+        }
         return { sha: name, mtime: st.mtimeMs, ready: bundleReady(store, name) };
       } catch {
         return null;
@@ -295,19 +309,25 @@ async function stageIntoBundle(
   sha: string,
   writeInto: (dir: string) => Promise<number>,
 ): Promise<number> {
-  const staging = path.join(store.root, STAGING_PREFIX + sha);
-  // Clear any stage left by an earlier crashed attempt before reusing the path.
-  fs.rmSync(staging, { recursive: true, force: true });
-  const dir = artifactDirIn(store, staging);
-  fs.mkdirSync(dir, { recursive: true });
+  const stagingName = STAGING_PREFIX + sha;
+  const staging = path.join(store.root, stagingName);
+  liveStages.add(stageKey(store.root, stagingName));
   try {
-    const written = await writeInto(dir);
-    if (written > 0) fs.renameSync(staging, bundleDir(store, sha));
-    else fs.rmSync(staging, { recursive: true, force: true });
-    return written;
-  } catch (e) {
+    // Clear any stage left by an earlier crashed attempt before reusing the path.
     fs.rmSync(staging, { recursive: true, force: true });
-    throw e;
+    const dir = artifactDirIn(store, staging);
+    fs.mkdirSync(dir, { recursive: true });
+    try {
+      const written = await writeInto(dir);
+      if (written > 0) fs.renameSync(staging, bundleDir(store, sha));
+      else fs.rmSync(staging, { recursive: true, force: true });
+      return written;
+    } catch (e) {
+      fs.rmSync(staging, { recursive: true, force: true });
+      throw e;
+    }
+  } finally {
+    liveStages.delete(stageKey(store.root, stagingName));
   }
 }
 

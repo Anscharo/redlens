@@ -432,6 +432,24 @@ test("concurrent hydrates of one sha download exactly once", async () => {
   expect(fetch.calls).toBe(1);
 });
 
+test("concurrent hydrates of different shas do not sweep each other's staging dirs", async () => {
+  // The crawler case is many COLD shas at once, not five requests for one.
+  // Each hydrate's evictLru used to treat every `.tmp-*` dir as crash garbage
+  // and delete in-flight siblings — the first to finish aborted the rest
+  // (caught, returned false), so a burst of old indexed URLs 404'd.
+  const store = freshStore({ readyCore: null, keep: 5 });
+  const fetches = ["shaA", "shaB", "shaC"].map((sha) => ({
+    sha,
+    fetch: fakeFetch([blob("docs.json", { sha })], 20),
+  }));
+  const results = await Promise.all(fetches.map(({ sha, fetch }) => hydrateBundleFromStore(store, sha, fetch)));
+  expect(results).toEqual([true, true, true]);
+  for (const { sha } of fetches) {
+    expect(JSON.parse(fs.readFileSync(path.join(ROOT, sha, "docs.json"), "utf8"))).toEqual({ sha });
+    expect(fs.existsSync(path.join(ROOT, `.tmp-${sha}`))).toBe(false);
+  }
+});
+
 test("hydrateBundleFromStore is atomic: <sha> never exists until every blob is written", async () => {
   const store = freshStore({ readyCore: null, keep: 5 });
   const finalDir = path.join(ROOT, "shaHydAtomic");
