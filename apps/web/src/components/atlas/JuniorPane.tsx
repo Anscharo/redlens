@@ -210,7 +210,12 @@ export function JuniorPane({
           {node && (
             <span>
               {ancestors.length > 0 && <span> / </span>}
-              <span style={{ color: `color-mix(in srgb,${depthColor(realDepth(node.doc_no))} 75%, white)` }}>{node.title}</span>
+              {/* Brighten-toward-white is a dark-theme idiom; mixing toward --tan
+                  instead brightens on dark and darkens on light (--tan flips
+                  role between the two themes), keeping contrast either way.
+                  --node-title overrides the whole mix for a theme that opts out
+                  of depth-coloured titles (giedi) — see the token in index.css. */}
+              <span style={{ color: `var(--node-title, color-mix(in srgb,${depthColor(realDepth(node.doc_no))} 75%, var(--tan)))` }}>{node.title}</span>
             </span>
           )}
         </span>

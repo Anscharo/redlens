@@ -79,10 +79,14 @@ export function PreviewRollupBadge({
         marginLeft: leaving ? -2 : 0, // cancel the row's 2px flex gap as it closes
         borderWidth: leaving ? 0 : 1,
         borderStyle: "solid",
-        borderColor: `color-mix(in srgb, ${chicletColor(depth)} 75%, white)`,
+        // Inverted chiclet, deliberately: --tan/--bg is a self-inverting pair —
+        // --tan is the brightest thing on dark and the darkest on light, --bg
+        // its inverse — so this reproduces "pale fill, dark text" in dark mode
+        // and flips correctly to "dark fill, pale text" in light mode.
+        borderColor: `color-mix(in srgb, ${chicletColor(depth)} 75%, var(--tan))`,
         borderRadius: 6,
-        backgroundColor: "white",
-        color: "#160e0d",
+        backgroundColor: "var(--tan)",
+        color: "var(--bg)",
         fontWeight: 600,
         flexShrink: 0,
         lineHeight: 1,
