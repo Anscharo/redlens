@@ -3,30 +3,21 @@
 
 Zero third-party dependencies. Requires Python 3.8+.
 
-A document is a markdown heading matching the Atlas title-line syntax, plus
-the body until the next such heading. A *tree* is the named document and every
-descendant whose document number is that number plus a dotted suffix.
+Reads one Atlas markdown file (default: grove.md in this folder). A document
+is a heading that matches the Atlas title-line syntax, plus the body until
+the next such heading. A tree is that document and every descendant whose
+document number is that number plus a dotted suffix.
 
-Two trees are treated as duplicates when, after ignoring the two things that
-MUST differ for distinct Atlas documents (document number and UUID), every
+Two trees are duplicates when, after ignoring document number and UUID, every
 corresponding node has the same title, type, and body.
 
-Usage (from a RedLens checkout):
-
-    python3 scripts/aux/compare-atlas-trees.py
-
-Usage (portable — copy this file anywhere):
-
-    python3 compare-atlas-trees.py \\
-        --content /path/to/next-gen-atlas/content \\
-        A.6.1.1.2.2.6.1.3.1.6.1 \\
-        A.6.1.1.2.2.6.1.3.1.6.2
-
     python3 compare-atlas-trees.py --self-test
-    python3 compare-atlas-trees.py --out report.md
+    python3 compare-atlas-trees.py
+    python3 compare-atlas-trees.py grove.md
+    python3 compare-atlas-trees.py grove.md --out report.md
 
 Exit codes:
-    0  trees are duplicates under the rules above
+    0  trees are duplicates
     1  trees differ
     2  usage / parse / missing-tree error
 """
@@ -37,19 +28,18 @@ import argparse
 import hashlib
 import os
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Optional
 
 HEADING_RE = re.compile(
     r"^(#{1,6}) ([\w.-]+) - (.+?) \[([^\]]+)\]\s+<!-- UUID: ([0-9a-f-]{36}) -->\s*$"
 )
-LINK_RE = re.compile(
-    r"\[([^\]]+)\]\(([0-9a-f-]{36})\)"
-)
+LINK_RE = re.compile(r"\[([^\]]+)\]\(([0-9a-f-]{36})\)")
 
+DEFAULT_GROVE = "grove.md"
 DEFAULT_A = "A.6.1.1.2.2.6.1.3.1.6.1"
 DEFAULT_B = "A.6.1.1.2.2.6.1.3.1.6.2"
 
@@ -62,7 +52,7 @@ class Node:
     uuid: str
     body: str
     file: str
-    line: int  # 1-based
+    line: int
 
     def relative_key(self, root: str) -> str:
         if self.doc_no == root:
@@ -81,36 +71,24 @@ def in_tree(doc_no: str, root: str) -> bool:
     return doc_no == root or doc_no.startswith(root + ".")
 
 
-def discover_content_dir(explicit: Optional[str], script_path: Path) -> Path:
+def find_grove(explicit: str | None, script_dir: Path) -> Path:
     if explicit:
-        p = Path(explicit).expanduser().resolve()
-        if not p.is_dir():
-            sys.exit(f"error: --content is not a directory: {p}")
-        return p
-    cwd = Path.cwd()
-    candidates = [
-        cwd / "content",
-        cwd / "vendor" / "next-gen-atlas" / "content",
-        script_path.parent.parent.parent / "vendor" / "next-gen-atlas" / "content",
-    ]
-    for c in candidates:
-        if c.is_dir():
-            return c.resolve()
+        p = Path(explicit).expanduser()
+        if not p.is_file():
+            sys.exit(f"error: not a file: {p}")
+        return p.resolve()
+    for p in (Path.cwd() / DEFAULT_GROVE, script_dir / DEFAULT_GROVE):
+        if p.is_file():
+            return p.resolve()
     sys.exit(
-        "error: could not find atlas content/. Pass --content /path/to/content"
+        f"error: {DEFAULT_GROVE} not found. Put the Atlas Grove file here as "
+        f"{DEFAULT_GROVE}, or pass its path."
     )
 
 
-def iter_md_files(content_dir: Path) -> Iterable[Path]:
-    for path in sorted(content_dir.rglob("*.md")):
-        if path.is_file():
-            yield path
-
-
-def parse_file(path: Path, content_dir: Path) -> list[Node]:
-    text = path.read_text(encoding="utf-8")
-    lines = text.splitlines()
-    rel = str(path.relative_to(content_dir))
+def parse_file(path: Path) -> list[Node]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    name = path.name
     starts: list[tuple[int, re.Match[str]]] = []
     for i, line in enumerate(lines):
         m = HEADING_RE.match(line)
@@ -120,40 +98,20 @@ def parse_file(path: Path, content_dir: Path) -> list[Node]:
     for idx, (start, m) in enumerate(starts):
         end = starts[idx + 1][0] if idx + 1 < len(starts) else len(lines)
         body_lines = lines[start + 1 : end]
-        # Drop a trailing blank line that is only the separator before the next heading.
         while body_lines and body_lines[-1] == "":
             body_lines.pop()
-        # Drop a leading blank line after the heading (Atlas style is heading, blank, body).
         if body_lines and body_lines[0] == "":
             body_lines = body_lines[1:]
-        body = "\n".join(body_lines)
         nodes.append(
             Node(
                 doc_no=m.group(2),
                 title=m.group(3),
                 type=m.group(4),
                 uuid=m.group(5),
-                body=body,
-                file=rel,
+                body="\n".join(body_lines),
+                file=name,
                 line=start + 1,
             )
-        )
-    return nodes
-
-
-def load_all_nodes(content_dir: Path) -> list[Node]:
-    nodes: list[Node] = []
-    for path in iter_md_files(content_dir):
-        nodes.extend(parse_file(path, content_dir))
-    seen: dict[str, Node] = {}
-    dup_ids = []
-    for n in nodes:
-        if n.uuid in seen:
-            dup_ids.append(n.uuid)
-        seen[n.uuid] = n
-    if dup_ids:
-        sys.stderr.write(
-            f"warning: duplicate UUIDs in source (parser still continues): {dup_ids[:5]}\n"
         )
     return nodes
 
@@ -165,12 +123,10 @@ def tree_of(nodes: list[Node], root: str) -> list[Node]:
 
 
 def _doc_no_mentioned(body: str, doc_no: str) -> bool:
-    """True when body names this document number, not a longer child number."""
     return re.search(r"(?<![\w])" + re.escape(doc_no) + r"(?![\w.-])", body) is not None
 
 
 def inbound_refs(nodes: list[Node], tree: list[Node]) -> list[tuple[str, str, str]]:
-    """References from documents *outside* the tree to a UUID or doc_no inside it."""
     tree_uuids = {n.uuid for n in tree}
     tree_nos = {n.doc_no for n in tree}
     tree_ids = {n.uuid for n in tree}
@@ -190,21 +146,19 @@ def inbound_refs(nodes: list[Node], tree: list[Node]) -> list[tuple[str, str, st
             if any(h[0] == n.doc_no and doc_no in h[2] for h in hits):
                 continue
             hits.append((n.doc_no, n.title, f"mentions {doc_no}"))
-    seen = set()
+    seen: set[tuple[str, str, str]] = set()
     out = []
     for h in hits:
-        if h in seen:
-            continue
-        seen.add(h)
-        out.append(h)
+        if h not in seen:
+            seen.add(h)
+            out.append(h)
     return out
 
 
 def compare(a_root: str, a_tree: list[Node], b_root: str, b_tree: list[Node]) -> dict:
     a_map = {n.relative_key(a_root): n for n in a_tree}
     b_map = {n.relative_key(b_root): n for n in b_tree}
-    keys_a = set(a_map)
-    keys_b = set(b_map)
+    keys_a, keys_b = set(a_map), set(b_map)
     only_a = sorted(keys_a - keys_b)
     only_b = sorted(keys_b - keys_a)
     shared = sorted(keys_a & keys_b, key=lambda k: k.split(".") if k else [""])
@@ -220,30 +174,22 @@ def compare(a_root: str, a_tree: list[Node], b_root: str, b_tree: list[Node]) ->
             diffs.append("type")
         if left.body != right.body:
             diffs.append("body")
-        rel = key if key else "(root)"
         row = {
-            "relative": rel,
+            "relative": key if key else "(root)",
             "a_doc_no": left.doc_no,
             "b_doc_no": right.doc_no,
             "title": left.title,
             "type": left.type,
             "a_uuid": left.uuid,
             "b_uuid": right.uuid,
-            "a_line": left.line,
-            "b_line": right.line,
-            "a_file": left.file,
-            "b_file": right.file,
-            "fingerprint": left.fingerprint(),
-            "b_fingerprint": right.fingerprint(),
             "diffs": diffs,
         }
         pairs.append(row)
         if diffs:
             mismatches.append(row)
 
-    identical = not only_a and not only_b and not mismatches and len(a_tree) > 0
     return {
-        "identical": identical,
+        "identical": not only_a and not only_b and not mismatches and len(a_tree) > 0,
         "pairs": pairs,
         "only_a": only_a,
         "only_b": only_b,
@@ -254,44 +200,45 @@ def compare(a_root: str, a_tree: list[Node], b_root: str, b_tree: list[Node]) ->
 
 
 def tree_fingerprint(tree: list[Node], root: str) -> str:
-    parts = []
-    for n in tree:
-        rel = n.relative_key(root)
-        parts.append(f"{rel}\t{n.title}\t{n.type}\t{n.body}")
+    parts = [f"{n.relative_key(root)}\t{n.title}\t{n.type}\t{n.body}" for n in tree]
     return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
+
+
+def atlas_revision(grove: Path) -> str:
+    d = grove.parent
+    for _ in range(8):
+        if (d / ".git").exists():
+            try:
+                return subprocess.check_output(
+                    ["git", "-C", str(d), "rev-parse", "HEAD"],
+                    text=True,
+                    stderr=subprocess.DEVNULL,
+                ).strip()
+            except Exception:
+                return "unknown"
+        if d.parent == d:
+            break
+        d = d.parent
+    return "unknown"
 
 
 def md_cell(s: str) -> str:
     return s.replace("|", "\\|")
 
 
-def atlas_revision(content_dir: Path) -> str:
-    import subprocess
-
-    repo = content_dir.parent
-    try:
-        return subprocess.check_output(
-            ["git", "-C", str(repo), "rev-parse", "HEAD"],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        ).strip()
-    except Exception:
-        return "unknown"
-
-
 def render_report(
     *,
+    grove_name: str,
+    atlas_sha: str,
     a_root: str,
     b_root: str,
     a_tree: list[Node],
     b_tree: list[Node],
     result: dict,
-    content_dir: Path,
     inbound_a: list,
     inbound_b: list,
 ) -> str:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    atlas_sha = atlas_revision(content_dir)
     sha_a = tree_fingerprint(a_tree, a_root)
     sha_b = tree_fingerprint(b_tree, b_root)
     verdict = (
@@ -300,13 +247,13 @@ def render_report(
         else "NO — the two trees are not duplicates"
     )
     lines = [
-        f"# Atlas duplicate-tree evidence",
+        "# Atlas duplicate-tree evidence",
         "",
         f"Generated: {now}",
-        f"Content directory: `{content_dir}`",
+        f"Atlas file: `{grove_name}`",
         f"Atlas git commit: `{atlas_sha}`",
         "",
-        f"## Verdict",
+        "## Verdict",
         "",
         f"**{verdict}**",
         "",
@@ -362,47 +309,30 @@ def render_report(
     if result["only_a"] or result["only_b"]:
         lines += ["", "## Shape differences"]
         if result["only_a"]:
-            lines.append("")
-            lines.append("Present only under A (relative keys):")
-            for k in result["only_a"]:
-                lines.append(f"- `{k or '(root)'}`")
+            lines += ["", "Present only under A (relative keys):"]
+            lines += [f"- `{k or '(root)'}`" for k in result["only_a"]]
         if result["only_b"]:
-            lines.append("")
-            lines.append("Present only under B (relative keys):")
-            for k in result["only_b"]:
-                lines.append(f"- `{k or '(root)'}`")
+            lines += ["", "Present only under B (relative keys):"]
+            lines += [f"- `{k or '(root)'}`" for k in result["only_b"]]
     if result["mismatches"]:
         lines += ["", "## Text differences"]
         for row in result["mismatches"]:
-            lines.append("")
-            lines.append(f"### `{row['a_doc_no']}` vs `{row['b_doc_no']}`")
-            lines.append("")
+            key = "" if row["relative"] == "(root)" else row["relative"]
+            left, right = result["a_map"][key], result["b_map"][key]
+            lines += ["", f"### `{row['a_doc_no']}` vs `{row['b_doc_no']}`", ""]
             lines.append("Differ in: " + ", ".join(row["diffs"]))
-            left = result["a_map"]["" if row["relative"] == "(root)" else row["relative"]]
-            right = result["b_map"]["" if row["relative"] == "(root)" else row["relative"]]
             if "title" in row["diffs"]:
                 lines.append(f"- A title: {left.title}")
                 lines.append(f"- B title: {right.title}")
             if "body" in row["diffs"]:
-                lines.append("")
-                lines.append("A body:")
-                lines.append("")
-                lines.append("```")
-                lines.append(left.body)
-                lines.append("```")
-                lines.append("")
-                lines.append("B body:")
-                lines.append("")
-                lines.append("```")
-                lines.append(right.body)
-                lines.append("```")
+                lines += ["", "A body:", "", "```", left.body, "```", "", "B body:", "", "```", right.body, "```"]
 
     lines += [
         "",
-        "## Source locations",
+        "## Source locations in grove.md",
         "",
-        f"Tree A root: `{a_tree[0].file}:{a_tree[0].line}` (`{a_tree[0].uuid}`)" if a_tree else "Tree A: not found",
-        f"Tree B root: `{b_tree[0].file}:{b_tree[0].line}` (`{b_tree[0].uuid}`)" if b_tree else "Tree B: not found",
+        f"Tree A root: `{grove_name}:{a_tree[0].line}` (`{a_tree[0].uuid}`)" if a_tree else "Tree A: not found",
+        f"Tree B root: `{grove_name}:{b_tree[0].line}` (`{b_tree[0].uuid}`)" if b_tree else "Tree B: not found",
         "",
         "## Inbound references (documents outside each tree that point at it)",
         "",
@@ -428,16 +358,11 @@ def render_report(
         "",
         "## How to reproduce",
         "",
-        "Python 3.8+, no packages to install. From a checkout of this repo:",
+        "Python 3.8+, no packages. Put the Atlas Grove file in this folder as `grove.md`:",
         "",
         "```bash",
-        f"python3 scripts/aux/compare-atlas-trees.py {a_root} {b_root}",
-        "```",
-        "",
-        "Or point the same script at any Atlas `content/` directory:",
-        "",
-        "```bash",
-        f"python3 compare-atlas-trees.py --content path/to/content {a_root} {b_root}",
+        "python3 compare-atlas-trees.py --self-test",
+        f"python3 compare-atlas-trees.py grove.md {a_root} {b_root}",
         "```",
         "",
         "The script exits `0` only when the trees are duplicates under the rules above.",
@@ -487,15 +412,12 @@ def self_test() -> int:
     import tempfile
 
     with tempfile.TemporaryDirectory() as td:
-        content = Path(td)
-        (content / "t.md").write_text(SELF_TEST_MD, encoding="utf-8")
-        nodes = load_all_nodes(content)
-        a = tree_of(nodes, "A.1")
-        b = tree_of(nodes, "A.2")
+        grove = Path(td) / "grove.md"
+        grove.write_text(SELF_TEST_MD, encoding="utf-8")
+        nodes = parse_file(grove)
+        a, b = tree_of(nodes, "A.1"), tree_of(nodes, "A.2")
         result = compare("A.1", a, "A.2", b)
-        assert result["identical"], result
-        assert len(result["pairs"]) == 2
-        # Negative: mutate B body
+        assert result["identical"] and len(result["pairs"]) == 2
         b[1].body = "different"
         result2 = compare("A.1", a, "A.2", b)
         assert not result2["identical"]
@@ -506,47 +428,51 @@ def self_test() -> int:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
-        description="Confirm two Atlas document trees are duplicates (ignoring doc_no and UUID)."
+        description="Confirm two Atlas document trees in grove.md are duplicates."
     )
-    parser.add_argument("doc_a", nargs="?", default=DEFAULT_A, help=f"root document number A (default {DEFAULT_A})")
-    parser.add_argument("doc_b", nargs="?", default=DEFAULT_B, help=f"root document number B (default {DEFAULT_B})")
-    parser.add_argument("--content", help="Atlas content/ directory")
-    parser.add_argument("--out", help="write markdown report to this path (also printed)")
-    parser.add_argument("--quiet", action="store_true", help="print only the verdict line")
-    parser.add_argument("--self-test", action="store_true", help="run built-in fixture test and exit")
+    parser.add_argument(
+        "grove",
+        nargs="?",
+        default=None,
+        help=f"Atlas Grove markdown file (default: {DEFAULT_GROVE} in this folder)",
+    )
+    parser.add_argument("doc_a", nargs="?", default=DEFAULT_A)
+    parser.add_argument("doc_b", nargs="?", default=DEFAULT_B)
+    parser.add_argument("--out", help="write markdown report to this path")
+    parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args(argv)
 
     if args.self_test:
         return self_test()
 
-    script_path = Path(__file__).resolve()
-    content_dir = discover_content_dir(args.content, script_path)
-    nodes = load_all_nodes(content_dir)
+    script_dir = Path(__file__).resolve().parent
+    grove = find_grove(args.grove, script_dir)
+    nodes = parse_file(grove)
     if not nodes:
-        sys.stderr.write(f"error: no Atlas headings found under {content_dir}\n")
+        sys.stderr.write(f"error: no Atlas headings found in {grove.name}\n")
         return 2
 
     a_tree = tree_of(nodes, args.doc_a)
     b_tree = tree_of(nodes, args.doc_b)
     if not a_tree:
-        sys.stderr.write(f"error: document {args.doc_a} not found\n")
+        sys.stderr.write(f"error: document {args.doc_a} not found in {grove.name}\n")
         return 2
     if not b_tree:
-        sys.stderr.write(f"error: document {args.doc_b} not found\n")
+        sys.stderr.write(f"error: document {args.doc_b} not found in {grove.name}\n")
         return 2
 
     result = compare(args.doc_a, a_tree, args.doc_b, b_tree)
-    inbound_a = inbound_refs(nodes, a_tree)
-    inbound_b = inbound_refs(nodes, b_tree)
     report = render_report(
+        grove_name=grove.name if grove.name == DEFAULT_GROVE else DEFAULT_GROVE,
+        atlas_sha=atlas_revision(grove),
         a_root=args.doc_a,
         b_root=args.doc_b,
         a_tree=a_tree,
         b_tree=b_tree,
         result=result,
-        content_dir=content_dir,
-        inbound_a=inbound_a,
-        inbound_b=inbound_b,
+        inbound_a=inbound_refs(nodes, a_tree),
+        inbound_b=inbound_refs(nodes, b_tree),
     )
 
     if args.quiet:
