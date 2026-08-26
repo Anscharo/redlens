@@ -1,0 +1,55 @@
+;; definitions.test.synlang — self-contained checks of the rule shapes the encoding relies on.
+;; Each test seeds its own isolated Space (synlang test), so these prove the mechanisms;
+;; smoke.py proves the same things against the real generated data.
+
+;; An alias resolves to exactly one term symbol.
+(test alias-resolves
+  (setup
+    (term alignment-conserver "Alignment Conserver")
+    (alias alignment-conserver "AC")
+    (term aligned-delegate "Aligned Delegate")
+    (alias aligned-delegate "AD"))
+  (assert-eq
+    (query (alias $t "AC"))
+    (alias alignment-conserver "AC")))
+
+;; The class-hierarchy protocol derives a grandparent class no fact states.
+(test closure-derives-grandparent-class
+  (setup
+    (declare-class agent)
+    (declare-class executor-agent)
+    (declare-class operational-executor-agent)
+    (subclass-of executor-agent agent)
+    (subclass-of operational-executor-agent executor-agent))
+  (assert-non-empty
+    (query (subclass-of operational-executor-agent agent))))
+
+;; instance-of chases the subclass closure.
+(test instance-inherits-ancestor-class
+  (setup
+    (declare-class alignment-conserver)
+    (declare-class facilitator)
+    (subclass-of facilitator alignment-conserver)
+    (instance-of some-facilitator facilitator))
+  (assert-non-empty
+    (query (instance-of some-facilitator alignment-conserver))))
+
+;; Closed world: an undefined term is an empty result, never False.
+(test undefined-term-is-empty
+  (setup
+    (term universal-alignment "Universal Alignment"))
+  (assert-empty
+    (query (term $t "Risk Capital"))))
+
+;; The tabled closure over mentions reaches two hops.
+(test tabled-reach-is-transitive
+  (setup
+    (tabled reaches-term)
+    (= (reaches-term $a $b) (mentions $a $b))
+    (= (reaches-term $a $b) (and (mentions $a $c) (reaches-term $c $b)))
+    (mentions slippery-slope-misalignment misalignment)
+    (mentions misalignment universal-alignment))
+  (assert-eq
+    (query (reaches-term slippery-slope-misalignment $x))
+    (reaches-term slippery-slope-misalignment misalignment)
+    (reaches-term slippery-slope-misalignment universal-alignment)))
