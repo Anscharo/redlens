@@ -695,8 +695,7 @@ test("runDeterministicChecks: MSC dollars cited as /atlas/uuid fail; atlas quote
 });
 
 // First real doc carrying a figure big enough to survive citationValues' small-
-// count skip (and not the settlement figure the external brief carries), so the
-// "grounded in its own doc" arm asserts on real atlas content.
+// count skip (and not the 5,000,000 the Spark To Sky fixture uses).
 function numericDoc(): [uuid: string, value: string] {
   for (const [uuid, doc] of ix.docMap) {
     const v = (doc.content.match(/\b\d[\d,]*(?:\.\d+)?\b/g) ?? []).find(
@@ -707,15 +706,16 @@ function numericDoc(): [uuid: string, value: string] {
   throw new Error("no atlas doc with a citable figure — index looks wrong");
 }
 
-// The regression the shape-only version of this check caused: a turn that mixes
-// an MSC figures question with a process question cites BOTH, and the atlas
-// citation is written exactly as system-prompt.ts asks — value as link text.
-test("findMscCitedAsAtlas: a numeric atlas citation grounded in its own doc is not flagged", () => {
+// Mixed process+figures turn: the atlas citation is written exactly as
+// system-prompt.ts asks (value as link text). Flagging on shape alone used
+// to hard-fail that citation; the rule is now "does this value appear in the
+// MSC brief?", so a debt-ceiling-style number that the brief does not carry
+// stays clean while Spark's To Sky in the same answer still fails.
+test("findMscCitedAsAtlas: a numeric atlas citation whose value is not in the MSC brief is not flagged", () => {
   const external = ['{"three_way":{"to_sky":5000000}}'];
   const [uuid, value] = numericDoc();
   expect(findMscCitedAsAtlas(`[${value}](/atlas/${uuid})`, external, ix)).toEqual([]);
 
-  // …while the settlement figure in the same answer still fails.
   const mixed = runDeterministicChecks(
     `These figures are not from the Atlas — Soter Labs workbooks. The cap is [${value}](/atlas/${uuid}); To Sky was [5,000,000](/atlas/${uuid}).`,
     external,
@@ -725,6 +725,16 @@ test("findMscCitedAsAtlas: a numeric atlas citation grounded in its own doc is n
   );
   expect(mixed.mscCitedAsAtlas).toHaveLength(1);
   expect(mixed.mscCitedAsAtlas[0]).toContain("5,000,000");
+});
+
+// The hole "absent from the cited doc" left open: coincidental digits in the
+// atlas doc must not launder an MSC figure into a valid /atlas/ citation.
+test("findMscCitedAsAtlas: a figure that appears in BOTH the cited atlas doc and the MSC brief still flags", () => {
+  const [uuid, value] = numericDoc();
+  const external = [`{"three_way":{"to_sky":${Number(value.replace(/,/g, ""))}}}`];
+  const hits = findMscCitedAsAtlas(`[${value}](/atlas/${uuid})`, external, ix);
+  expect(hits.length).toBeGreaterThan(0);
+  expect(hits[0]).toContain(value);
 });
 
 test("findMscCitedAsAtlas: a figure in no external brief at all is left to the other checks", () => {

@@ -459,6 +459,23 @@ test("export_findings: the same file WITH the disclaimer is delivered", async ()
   expect(events.some((e) => e.type === "export")).toBe(true);
 });
 
+test("export_findings: a settlement figure cited as /atlas/<uuid> is withheld even with the disclaimer", async () => {
+  const uuid = ix.docMap.keys().next().value as string;
+  const md = `These figures are not from the Sky Atlas — Soter Labs workbooks.\n\nTo Sky was [5,000,000](/atlas/${uuid}).`;
+  const rounds = [
+    [toolChunk("export_findings", mscExportArgs(md)), finishChunk("tool_calls")],
+    [textChunk("Let me relabel that."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: MSC_TRANSCRIPT, stream: fakeStream(rounds, []), maxIterations: 2 }));
+  expect(events.some((e) => e.type === "export")).toBe(false);
+  const done = events.at(-1)!;
+  if (done.type === "done") {
+    const ack = done.transcript.filter((m) => m.role === "tool").at(-1);
+    expect(String(ack?.content)).toContain("5,000,000");
+    expect(String(ack?.content)).toContain("Sky Forum permalink");
+  }
+});
+
 test("export_findings: invalid args become an {error} tool result, no export event", async () => {
   // format:csv with no columns → buildExportArtifact throws → model gets {error}.
   const rounds = [

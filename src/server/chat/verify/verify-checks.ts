@@ -539,8 +539,9 @@ export interface CheckReport {
   // External MSC brief was in this turn but the answer omitted the required
   // non-Atlas attribution. HARD failure.
   missingExternalDisclaimer: boolean;
-  // Settlement figures from the external MSC brief cited as /atlas/<uuid> —
-  // the figure is absent from the doc it cites. HARD failure.
+  // Settlement figures from the external MSC brief cited as /atlas/<uuid>.
+  // HARD failure even when the same digits also occur in the cited atlas doc
+  // (that coincidence is how MSC dollars used to slip through).
   mscCitedAsAtlas: string[];
   // Soft wrong-doc assist: claim sentences whose vocabulary barely occurs in the
   // doc they cite. Informs the verifier prompt; never fails a turn.
@@ -556,16 +557,20 @@ export interface CheckReport {
   failed: boolean;
 }
 
-// Settlement-cycle figures attributed to the atlas. Scoped PER VALUE, not by
-// citation shape: `[10,000,000 USDS](/atlas/<uuid>)` is exactly how
-// system-prompt.ts tells the model to cite a genuine atlas debt ceiling or
-// threshold, so a numeric-looking citation is only wrong when the figure is
-// absent from the doc it cites AND present in this turn's external MSC brief.
-// Shape alone would hard-fail correct atlas citations on any turn that mixes a
-// settlement question with a process question — and the revision steer would
-// then push the model to "fix" a citation that was right.
-// Complements findUngroundedCitationValues, which runs over ATLAS evidence only
-// and so skips these values as "in no evidence at all → computed/soft".
+// Settlement-cycle figures attributed to the atlas. Scoped PER VALUE against
+// the MSC brief, not by citation shape and not by "does the cited atlas doc
+// also mention these digits":
+//   - `[10,000,000 USDS](/atlas/<uuid>)` is how system-prompt.ts tells the
+//     model to cite a genuine atlas debt ceiling. That citation stays clean
+//     on a mixed process+figures turn as long as 10,000,000 is not in the
+//     MSC brief.
+//   - Spark's To Sky cited as `/atlas/…` fails because 5,000,000 IS in the
+//     brief — even if the cited atlas doc happens to contain the same digits
+//     (findUngroundedCitationValues would skip that collision as "grounded").
+// Shape-only matching (any `$n` / `n USDS` link text once MSC ran) was the
+// previous false-positive: it hard-failed correct atlas citations and the
+// revision steer then told the model to re-cite a real atlas fact as a
+// workbook URL.
 export function findMscCitedAsAtlas(answer: string, externalTexts: string[], ix: Indexes): string[] {
   const cites = extractCitations(answer);
   if (cites.length === 0 || externalTexts.length === 0) return [];
@@ -574,10 +579,8 @@ export function findMscCitedAsAtlas(answer: string, externalTexts: string[], ix:
   for (const c of cites) {
     const doc = ix.docMap.get(c.uuid);
     if (!doc) continue; // an unknown uuid is already a hard failure
-    const docHay = mkHay(`${doc.title}\n${doc.content}`);
     for (const v of citationValues(c.title)) {
-      if (valueInHay(v, docHay)) continue; // grounded in the cited doc — a real atlas figure
-      if (!valueInHay(v, external)) continue; // not a settlement figure either — other checks own it
+      if (!valueInHay(v, external)) continue; // not a settlement figure — other checks own it
       out.push(`${v.literal} cited as /atlas/${c.uuid} (${doc.doc_no}) but comes from the external settlement brief`);
     }
   }

@@ -118,6 +118,34 @@ test("markdown: a settlement dollar cited as /atlas/<uuid> is withheld", () => {
   }
 });
 
+test("markdown: coincidental digits in the cited atlas doc do not launder an MSC figure", () => {
+  // Pick a real atlas figure, put the same digits in the MSC brief, cite it as
+  // /atlas/<that doc>. findUngroundedCitationValues would skip this; the MSC
+  // check must not.
+  let uuid = "";
+  let value = "";
+  for (const [id, doc] of ix.docMap) {
+    const v = (doc.content.match(/\b\d[\d,]*(?:\.\d+)?\b/g) ?? []).find((m) => Number(m.replace(/,/g, "")) > 20);
+    if (v) {
+      uuid = id;
+      value = v;
+      break;
+    }
+  }
+  expect(uuid).toBeTruthy();
+  const brief = JSON.stringify({
+    source_class: "external",
+    three_way: { to_sky: Number(value.replace(/,/g, "")) },
+  });
+  const r = checkExportArtifact(
+    art({ format: "markdown", content: `${DISCLAIMER}\n\n[${value}](/atlas/${uuid})` }),
+    { atlasTexts: [], externalTexts: [brief] },
+    ix,
+  );
+  expect(r.ok).toBe(false);
+  if (!r.ok) expect(r.problems.join(" ")).toContain(value);
+});
+
 test("a flat evidence list still means 'all atlas' — no disclaimer demanded", () => {
   const r = checkExportArtifact(art({ format: "markdown", content: "Spark sent 5,000,000 USDS to Sky." }), [MSC_BRIEF], ix);
   expect(r.ok).toBe(true);
