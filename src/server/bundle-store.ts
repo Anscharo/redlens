@@ -17,6 +17,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { gzip, gunzip } from "node:zlib";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { config } from "./config.ts";
 
@@ -385,7 +386,30 @@ export async function publishBundle(store: BundleStore, sha: string, srcDir: str
  * never published (or has been pruned). Injected rather than imported so the
  * hydrate path is testable without a database — see docs/plans/atlas-artifact-store.md.
  */
-export type ArtifactFetch = (sha: string) => Promise<Array<{ name: string; gz: Buffer }>>;
+export type ArtifactFetch = (
+  sha: string,
+  names?: readonly string[],
+) => Promise<Array<{ name: string; gz: Buffer; sha256?: string; rawBytes?: number }>>;
+
+/**
+ * Refuse a blob whose bytes are not what the publisher recorded. Gzip's own CRC
+ * only proves the container survived; it says nothing about a row that was
+ * written from the wrong source or truncated before compression. Without this a
+ * corrupt-but-gunzippable artifact would be cached as a COMPLETE bundle, and
+ * the existsSync short-circuit at the top of hydrateBundleFromStore would then
+ * serve it forever without ever re-fetching. Throwing unwinds the stage.
+ *
+ * Both fields are optional on the fetch contract, so an injected fetcher that
+ * cannot supply them still works — it just gets no verification.
+ */
+function verifyArtifact(a: { name: string; sha256?: string; rawBytes?: number }, raw: Buffer): void {
+  if (a.rawBytes !== undefined && raw.byteLength !== a.rawBytes) {
+    throw new Error(`${a.name}: ${raw.byteLength} bytes, expected ${a.rawBytes}`);
+  }
+  if (a.sha256 && createHash("sha256").update(raw).digest("hex") !== a.sha256) {
+    throw new Error(`${a.name}: sha256 mismatch`);
+  }
+}
 
 // De-dupes concurrent hydrates of the same bundle: a cold instance can take a
 // burst of requests for one sha (every artifact of one page load, plus every
@@ -430,12 +454,20 @@ async function runHydrate(store: BundleStore, sha: string, fetch: ArtifactFetch)
     // (an unservable file in the bundle is dead weight at best, and for a store
     // whose dir existence IS its readiness proof, a bundle of nothing else is a
     // permanently-404ing sha).
-    const items = (await fetch(sha)).filter((a) => materialisable(store, a.name));
+    // Ask for only what this store can serve. The shared store holds the union
+    // of every consumer's needs (graph.json included, for phase 4's refresh),
+    // and downloading a ~0.64 MB blob per cold miss just to drop it here is
+    // waste that scales with the number of cold instances. The post-filter
+    // stays: an injected fetcher is free to ignore `names`.
+    const wanted = [...store.allowlist].filter((n) => materialisable(store, n));
+    const items = (await fetch(sha, wanted)).filter((a) => materialisable(store, a.name));
     if (items.length === 0) return false;
     const written = await stageIntoBundle(store, sha, async (dir) => {
-      for (const { name, gz } of items) {
-        fs.writeFileSync(path.join(dir, name), await gunzipAsync(gz));
-        fs.writeFileSync(path.join(dir, name + ".gz"), gz);
+      for (const a of items) {
+        const raw = await gunzipAsync(a.gz);
+        verifyArtifact(a, raw);
+        fs.writeFileSync(path.join(dir, a.name), raw);
+        fs.writeFileSync(path.join(dir, a.name + ".gz"), a.gz);
       }
       return items.length;
     });

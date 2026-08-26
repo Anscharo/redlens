@@ -88,11 +88,6 @@ export const PROFILES = {
   // their own preflight steps with their own skip conditions.
   devArtifacts: ["index", "graph", "glossary", "oea-report"],
 
-  // scripts/aux/dev-preflight.mjs, after a successful atlas-worker run: the
-  // worker builds index+graph but not these two, so refresh them for the
-  // synced sha.
-  devWorkerTail: ["glossary", "oea-report"],
-
   // scripts/required/atlas-worker.mjs — Railway cron. `glossary` used to be
   // opted out here (the worker's product was Postgres rows, and sync.ts does not
   // read glossary.json) — it is back because the worker now also PUBLISHES the

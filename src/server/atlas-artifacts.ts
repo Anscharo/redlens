@@ -81,14 +81,29 @@ export async function putArtifacts(
 /** Every artifact for a sha, or [] when the sha was never published. */
 export async function getArtifacts(
   atlasSha: string,
+  names?: readonly string[],
   db: SqlTag = defaultSql,
 ): Promise<StoredArtifact[]> {
-  const rows = (await db`
+  // Filter in SQL, not after the fetch. The store holds the union of what any
+  // consumer needs, and they need different subsets: the serve path wants only
+  // servable artifacts, while phase 4's refresh wants graph.json too. Pulling
+  // graph.json (~0.64 MB gz) on every cold serve miss and dropping it is the
+  // kind of waste that only shows up once many instances are cold at once.
+  // `names` empty/undefined means "everything for this sha".
+  const wanted = names && names.length ? names : null;
+  const rows = (await (wanted
+    ? db`
+    SELECT name, gz, raw_bytes, sha256
+      FROM atlas_artifacts
+     WHERE atlas_sha = ${atlasSha} AND name = ANY(${wanted as string[]})
+     ORDER BY name
+  `
+    : db`
     SELECT name, gz, raw_bytes, sha256
       FROM atlas_artifacts
      WHERE atlas_sha = ${atlasSha}
      ORDER BY name
-  `) as Row[];
+  `)) as Row[];
   return rows.map((r) => ({
     name: r.name,
     gz: toBuffer(r.gz, r.name),

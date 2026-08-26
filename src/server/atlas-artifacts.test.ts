@@ -94,7 +94,7 @@ describe("getArtifacts", () => {
   it("maps rows to StoredArtifact and keeps the bytes intact", async () => {
     const gz = Buffer.from([0x1f, 0x8b, 0x00, 0xff, 0x41]);
     rows = [{ name: "glossary.json", gz, raw_bytes: 4096, sha256: "deadbeef" }];
-    const out = await getArtifacts("abc123", fakeSql);
+    const out = await getArtifacts("abc123", undefined, fakeSql);
     expect(out).toHaveLength(1);
     expect(out[0]!.name).toBe("glossary.json");
     expect(out[0]!.gz.equals(gz)).toBe(true);
@@ -105,7 +105,7 @@ describe("getArtifacts", () => {
 
   it("accepts a bare Uint8Array from the driver, and a widened numeric raw_bytes", async () => {
     rows = [{ name: "a.json", gz: new Uint8Array([1, 2, 3]), raw_bytes: "4096", sha256: "x" }];
-    const out = await getArtifacts("abc123", fakeSql);
+    const out = await getArtifacts("abc123", undefined, fakeSql);
     expect(Buffer.isBuffer(out[0]!.gz)).toBe(true);
     expect([...out[0]!.gz]).toEqual([1, 2, 3]);
     expect(out[0]!.rawBytes).toBe(4096);
@@ -113,12 +113,12 @@ describe("getArtifacts", () => {
 
   it("throws on a non-bytes gz instead of handing back a blob that only fails at gunzip", async () => {
     rows = [{ name: "a.json", gz: "\\x010203", raw_bytes: 3, sha256: "x" }];
-    await expect(getArtifacts("abc123", fakeSql)).rejects.toThrow(/not bytes/);
+    await expect(getArtifacts("abc123", undefined, fakeSql)).rejects.toThrow(/not bytes/);
   });
 
   it("returns [] for a sha that was never published", async () => {
     rows = [];
-    expect(await getArtifacts("never-published", fakeSql)).toEqual([]);
+    expect(await getArtifacts("never-published", undefined, fakeSql)).toEqual([]);
   });
 });
 
@@ -186,7 +186,7 @@ describe("live BYTEA round-trip (requires DATABASE_URL)", () => {
     await putArtifacts(liveSha, items, db as unknown as Parameters<typeof putArtifacts>[2]);
     await putArtifacts(liveSha, items, db as unknown as Parameters<typeof putArtifacts>[2]); // idempotent — must not throw or duplicate
 
-    const out = await getArtifacts(liveSha, db);
+    const out = await getArtifacts(liveSha, undefined, db);
     expect(out.map((a) => a.name)).toEqual(["big.json", "small.json"]);
     for (const want of items) {
       const got = out.find((a) => a.name === want.name)!;

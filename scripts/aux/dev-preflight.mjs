@@ -140,9 +140,10 @@ function runWorker() {
     warn("Atlas worker didn't finish cleanly — reader still works off disk artifacts; DB may be stale. See output above.");
     return false;
   }
-  // The worker builds index+graph but not glossary or derived report views;
-  // refresh them for the synced sha (the `devWorkerTail` profile).
-  for (const step of stepsFor("devWorkerTail")) run("pnpm", [step.pnpmScript]);
+  // No post-worker refresh: the `worker` profile builds every artifact the
+  // reader needs, including glossary + the derived report views. A worker that
+  // fast-exited without building leaves whatever is already on disk, and
+  // ensureArtifacts() below repairs a missing one — that is its whole job.
   return true;
 }
 
@@ -151,10 +152,21 @@ function runWorker() {
 function ensureArtifacts() {
   if (truthy(process.env.DEV_NO_BUILD)) return;
   if (existsSync("public/docs.json")) {
-    if (!existsSync("public/oea-report.json") && existsSync("public/relations.json")) {
-      const oea = stepById("oea-report").pnpmScript;
-      log("OEA report artifact missing — building it from existing docs + graph…");
-      if (run("pnpm", [oea]).status !== 0) fail(`\`pnpm ${oea}\` failed — see output above.`);
+    // docs.json is there, so the reader boots — but a derived artifact can still
+    // be missing (a worker that fast-exited before this repo built it, or an
+    // interrupted build). Each is rebuildable from docs + graph alone.
+    // needsGraph is each step's real input, not a blanket guard: build-glossary
+    // reads docs.json alone, build-oea-report also joins the extracted graph.
+    for (const { id, needsGraph } of [
+      { id: "glossary", needsGraph: false },
+      { id: "oea-report", needsGraph: true },
+    ]) {
+      const out = `public/${id}.json`; // both steps emit <id>.json
+      if (existsSync(out)) continue;
+      if (needsGraph && !existsSync("public/relations.json")) continue;
+      const script = stepById(id).pnpmScript;
+      log(`${out} missing — building it from existing docs + graph…`);
+      if (run("pnpm", [script]).status !== 0) fail(`\`pnpm ${script}\` failed — see output above.`);
     }
     return;
   }

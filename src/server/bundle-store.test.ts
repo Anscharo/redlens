@@ -7,6 +7,7 @@ import { test, expect, beforeEach, afterEach, afterAll } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import zlib from "node:zlib";
 import { gzipSync, gunzipSync } from "node:zlib";
 import {
   artifactPath,
@@ -616,4 +617,40 @@ test("every published artifact is produced by a step the atlas worker actually r
     expect(producer, `${name} is published but no producing step is declared`).toBeDefined();
     expect(workerSteps, `${name} is published but the worker profile never runs "${producer}"`).toContain(producer);
   }
+});
+
+test("hydrate asks the store only for artifacts this store can serve", async () => {
+  // The shared store holds graph.json for phase 4's refresh; the serve path
+  // would only drop it. Asking for it anyway is a per-cold-miss download of
+  // ~0.64 MB gz that nothing reads.
+  const store = freshStore({ readyCore: null, allowlist: new Set(["docs.json", "relations.json"]) });
+  let askedFor: readonly string[] | undefined;
+  const fetch = async (_sha: string, names?: readonly string[]) => {
+    askedFor = names;
+    return [{ name: "docs.json", gz: zlib.gzipSync(Buffer.from("{}")) }];
+  };
+  expect(await hydrateBundleFromStore(store, "shaNames", fetch)).toBe(true);
+  expect([...(askedFor ?? [])].sort()).toEqual(["docs.json", "relations.json"]);
+});
+
+test("hydrate refuses a blob whose bytes don't match the recorded digest", async () => {
+  // Gzip's CRC proves the container survived, not that it holds the right
+  // bytes. A corrupt artifact cached as a complete bundle would then be served
+  // forever, since the existsSync short-circuit never re-fetches.
+  const store = freshStore({ readyCore: null });
+  const raw = Buffer.from('{"real":true}');
+  const fetch = async () => [
+    { name: "docs.json", gz: zlib.gzipSync(raw), sha256: "0".repeat(64), rawBytes: raw.byteLength },
+  ];
+  expect(await hydrateBundleFromStore(store, "shaDigest", fetch)).toBe(false);
+  expect(fs.existsSync(path.join(ROOT, "shaDigest"))).toBe(false);
+  expect(fs.existsSync(path.join(ROOT, ".tmp-shaDigest"))).toBe(false);
+});
+
+test("hydrate refuses a blob whose length doesn't match the recorded rawBytes", async () => {
+  const store = freshStore({ readyCore: null });
+  const raw = Buffer.from('{"real":true}');
+  const fetch = async () => [{ name: "docs.json", gz: zlib.gzipSync(raw), rawBytes: raw.byteLength + 1 }];
+  expect(await hydrateBundleFromStore(store, "shaLen", fetch)).toBe(false);
+  expect(fs.existsSync(path.join(ROOT, "shaLen"))).toBe(false);
 });

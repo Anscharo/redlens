@@ -205,6 +205,25 @@ must gunzip to write the flat `.json` **and** keep the `.gz` sibling (the serve
 path prefers it), and must de-dupe concurrent hydrates of the same sha — a cold
 instance can take a burst of requests for one sha and must not start N downloads.
 
+Three things review added to that contract:
+
+- **`evictLru` must skip in-flight stages.** Sweeping every `.tmp-*` as crash
+  garbage was safe while `publishBundle` was the only writer (never concurrent
+  with itself). Hydration breaks that: a burst of *different* cold shas — the
+  crawler case the pin exists for — had each finishing hydrate deleting the
+  others' still-writing stages. `stageIntoBundle` registers live stages;
+  eviction skips them.
+- **Hydrate verifies `sha256`/`rawBytes` before writing.** Gzip's CRC proves the
+  container survived, not that it holds the right bytes, and a corrupt artifact
+  cached as a complete bundle would be served forever — the `existsSync`
+  short-circuit never re-fetches. Both fields are optional on `ArtifactFetch`,
+  so a fetcher that cannot supply them still works, unverified.
+- **Hydrate asks for only the names it can serve.** The store holds the union of
+  every consumer's needs; pulling `graph.json` (~0.64 MB gz) per cold miss just
+  to drop it is waste that scales with the number of cold instances. The filter
+  is applied in SQL (`getArtifacts(sha, names)`), with the post-filter kept
+  because an injected fetcher may ignore `names`.
+
 **This phase alone fixes payoff 1 and is shippable on its own, at `replicas=1`.**
 
 ### Phase 3 — the worker publishes *(done)*
