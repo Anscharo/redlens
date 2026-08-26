@@ -44,14 +44,14 @@ function problemsFrom(
   // Same non-Atlas attribution the harness demands of the chat answer. CLAUDE.md's
   // citation dictate is strongest about files, and the file is the artifact that
   // outlives the conversation — so an export built on settlement figures must
-  // carry the disclaimer and must not pin those dollars on an atlas doc.
+  // carry the disclaimer and must not pin those figures on an atlas doc.
   if (checks.missingExternalDisclaimer) {
     out.push(
       "settlement figures were exported without the required non-Atlas attribution — include the disclaimer (Soter Labs Monthly Settlement Cycle workbooks / Sky Forum, not the Sky Atlas) in the file itself",
     );
   }
   for (const m of checks.mscCitedAsAtlas) {
-    out.push(`${m} — settlement dollars must not be cited as /atlas/<uuid>; link the workbook or Sky Forum URL instead`);
+    out.push(`${m} — settlement figures must not be cited as /atlas/<uuid>; link the workbook or Sky Forum URL instead`);
   }
   if (includeQuotes) {
     for (const q of checks.ungroundedQuotes) out.push(`quoted text not found in any retrieved source: "${q.slice(0, 80)}"`);

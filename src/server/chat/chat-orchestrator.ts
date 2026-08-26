@@ -301,7 +301,7 @@ function describeCheckFailures(checks: CheckReport): string[] {
     ...(checks.missingExternalDisclaimer
       ? ["settlement figures were used but the answer did not say they are not from the Atlas — repeat the required disclaimer (Soter Labs workbooks / Sky Forum, not Atlas)"]
       : []),
-    ...checks.mscCitedAsAtlas.map((m) => `${m} — settlement dollars must not be cited as /atlas/<uuid>; link the workbook or Sky Forum URL`),
+    ...checks.mscCitedAsAtlas.map((m) => `${m} — settlement figures must not be cited as /atlas/<uuid>; link the workbook or Sky Forum URL`),
     ...(checks.lengthCapped ? ["the previous answer was cut off by the output length limit before it finished — write a complete, more concise answer that fits"] : []),
   ];
 }
