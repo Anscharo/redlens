@@ -6,8 +6,12 @@ import { atlasHref } from "@/lib/routes";
 
 // Nested squarified treemap of the chunk tree: every rect's area is its doc
 // share; the largest chunk sits in its parent's top-left, recursively. Single
-// sequential hue (--red) deepening with nesting depth — identity comes from
-// geometry + labels, not a categorical palette. 2px surface gaps separate
+// sequential hue (--chunk-fill) deepening with nesting depth — identity comes
+// from geometry + labels, not a categorical palette. NOT --red: the ramp is
+// mixed into --surface and then has a --tan-2 label painted on it, so its
+// source has to be chosen against that LABEL. --red is the brand's decorative
+// slot and carries no such guarantee — in giedi it is a near-white, which ran
+// the ramp backwards and left the deepest labels at 1.6:1. 2px surface gaps separate
 // sibling fills; hover outlines the deepest rect under the pointer and fills
 // the info panel on the right.
 const FILL_BY_DEPTH = [0.22, 0.34, 0.48, 0.62];
@@ -49,7 +53,7 @@ function Rect({
         top: `${((r.y - parent.y) / parent.h) * 100}%`,
         width: `${(r.w / parent.w) * 100}%`,
         height: `${(r.h / parent.h) * 100}%`,
-        background: `color-mix(in srgb, var(--red) ${Math.round((FILL_BY_DEPTH[r.depth] ?? 0.7) * 100)}%, var(--surface))`,
+        background: `color-mix(in srgb, var(--chunk-fill) ${Math.round((FILL_BY_DEPTH[r.depth] ?? 0.7) * 100)}%, var(--surface))`,
         border: isHovered ? "2px solid var(--accent)" : "1px solid var(--bg)",
         borderRadius: 3,
       }}

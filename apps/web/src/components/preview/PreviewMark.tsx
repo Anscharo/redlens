@@ -72,7 +72,7 @@ export function PreviewMark({ nodeId, className }: { nodeId: string; className?:
       className={className}
       title={added ? "New in this preview" : "Changed in this preview"}
       aria-label={added ? "new in this preview" : "changed in this preview"}
-      style={{ color: "#fff", fontWeight: 700, flexShrink: 0 }}
+      style={{ color: "var(--tan)", fontWeight: 700, flexShrink: 0 }}
     >
       {added ? "+" : "Δ"}
     </span>

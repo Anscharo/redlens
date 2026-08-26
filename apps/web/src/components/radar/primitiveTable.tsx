@@ -11,10 +11,18 @@ export const HEADERS = [
   { key: "Com", full: "Completed",  label: "Completed Instances", group: "instance" as const, isGroupStart: false },
 ];
 
-export const BORDER = "1px solid #4e3a35";
-export const GROUP_BORDER = "2px solid #6b4a40";
+export const BORDER = "1px solid var(--border)";
+// A visibly stronger divider than BORDER, for group boundaries — --tan-3 is
+// the same "stronger hairline" token index.css uses for the selected type
+// pill's border, and it reads as heavier than --border in both themes.
+export const GROUP_BORDER = "2px solid var(--tan-3)";
 export const CELL_PADDING = "0.175rem";
-export const ROW_COLORS = ["#030201", "#20110d"] as const;
+// Zebra striping, one step darker / one step lighter than the enclosing card
+// (which sits on --bg-deep, see AgentPanel/ActorInstances). No token sits
+// darker than --bg-deep, so the darker row is a color-mix toward black (the
+// same "darken toward black" idiom --bg-alt uses); the lighter row reuses the
+// existing --surface token directly.
+export const ROW_COLORS = ["color-mix(in srgb, var(--bg-deep) 90%, black)", "var(--surface)"] as const;
 
 export function shortenCategoryTitle(title: string): string {
   return title.replace(/\s*Primitives\s*/i, "").trim();

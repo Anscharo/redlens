@@ -66,15 +66,21 @@ describe("PreviewTreeToggle", () => {
 
     fireEvent.click(changedBtn);
 
+    // Assert the active-pill MARKERS (filled background + bold), not a literal
+    // colour: the active colour is a theme token now, so a hardcoded rgb here
+    // would pin the pill to one theme's palette — which is exactly the bug the
+    // light theme had to fix in the component.
     await waitFor(() => {
-      expect(changedBtn.getAttribute("style")).toContain("rgb(255, 255, 255)");
+      expect(changedBtn.getAttribute("style")).toContain("font-weight: 600");
     });
-    expect(allBtn.getAttribute("style")).not.toContain("rgb(255, 255, 255)");
+    expect(changedBtn.getAttribute("style")).toContain("var(--hover)");
+    expect(allBtn.getAttribute("style")).not.toContain("font-weight: 600");
 
     // Clicking All switches back.
     fireEvent.click(allBtn);
     await waitFor(() => {
-      expect(changedBtn.getAttribute("style")).not.toContain("rgb(255, 255, 255)");
+      expect(changedBtn.getAttribute("style")).not.toContain("font-weight: 600");
     });
+    expect(allBtn.getAttribute("style")).toContain("font-weight: 600");
   });
 });

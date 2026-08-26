@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: dark;
+
   /* ─── Surface tier ─── */
   --bg: #160e0d; /* charcoal with a reddish undertone */
   --bg-alt: color-mix(in srgb, var(--bg) 94%, black); /* --bg darkened 6% */
@@ -23,7 +25,7 @@
   --tan: #f3e7ce; /* primary text — lightened */
   --tan-2: #e4d1b9; /* secondary */
   --tan-3: #b8a48e; /* bumped from #a38f79 — passes 4.5:1 on --bg and --surface */
-  --magenta: #c61f7c; /* status pills (e.g. update available) — high-contrast on --tan */
+  --magenta: #b81a72; /* status pills (e.g. update available) — 5.0:1 on --tan (was #c61f7c, 4.4:1) */
   --lilac: #bfa8ec; /* soft violet — preview "renumbered" note; distinct from --accent links */
   --terminal-green: #399930;
   --lily-green: #ecffea;
@@ -32,7 +34,7 @@
   --row-hover: rgba(255, 255, 255, 0.1);
   --row-selected: rgba(255, 255, 255, 0.08);
   --row-focused: rgba(255, 255, 255, 0.06);
-  --atlas-row-selected: #1f1f1f;
+  --atlas-row-selected: #160e0d; /* selected reader doc — lifts off --bg-deep */
   --row-pulse-flash: rgba(255, 255, 255, 0.28);
   --row-bar-tint: white; /* mix target for the selected red-bar tint; overridden in light theme */
   --row-pulse-ms: 700ms;
@@ -44,6 +46,9 @@
   /* ─── Shadows ─── */
   --shadow: rgba(0, 0, 0, 0.3);
   --shadow-strong: rgba(0, 0, 0, 0.5);
+
+  /* ─── CrossView treemap ─── */
+  --chunk-fill: #a63228; /* ramp source — see the note in the light block */
 
   /* ─── Diff view ─── */
   --diff-removed-bg: #4a1010;
@@ -91,10 +96,565 @@
   --depth-17: #a878e8; /* purple */
 }
 
-/* Light theme — fill in when the toggle is wired up.
-   Each token above can be overridden here; missing ones fall through to dark. */
+/* ─── Alternate themes ────────────────────────────────────────────────────
+   Each palette is a FULL override of every colour token above — see the
+   completeness test in admin/theme-contrast.test.ts, which fails if a token is
+   added to :root without a value in every theme block, so a half-finished
+   palette can never silently inherit dark values. Themes are declared to the
+   app in lib/theme.ts; adding one is documented on the THEMES registry there.
+
+   Direction-bearing tokens (row overlays, --row-bar-tint, --change-flash-color,
+   shadows) are NOT just re-hexed: on dark they tint rows with translucent
+   WHITE, so light flips them to black at lower alpha (black over light reads
+   heavier than white over dark at the same alpha). */
+
+/* "Light" (id: light) — the app's one light palette, built ONLY from the
+   official Sky Eco brand palette: the violet ramp (#581BE0 #4331E9 #8C68FF
+   #B891FE #E0D7FF), the warm pair (#FFEBAE yellow, #FBE3D6 peach), and the
+   neutrals (#050505, #F2F2F2, White). Deliberately shares NOTHING with the
+   dark theme's red/tan identity: light mode is Sky's, not a bleached charcoal.
+
+   Two consequences worth knowing before editing:
+   • STATUS colours are the one deliberate exception to "brand only". Sky's
+     palette has no green and no red, but added/removed and error/success are
+     a convention users arrive with, not a brand choice — rendering a diff in
+     violet and peach reads as decorative, not as "this line went away". So
+     --diff-*, --error-text, --preview-add and --terminal-green use ordinary
+     green/red. Everything structural — surfaces, links, focus, depth, entity
+     colours — stays Sky's.
+   • It is purple-dominant, so the 6-step depth cycle and the 14 entity
+     colours cannot be 14 distinct hues. They are spread across the three
+     available hue families by lightness and chroma instead, and every one
+     still clears 4.5:1 on --bg-deep. */
 [data-theme="light"] {
-  /* TODO: light theme overrides */
+  color-scheme: light;
+
+  /* ─── Surface tier ─── Sky's neutrals verbatim; --bg is a step between
+     their White and their #F2F2F2 so raised/recessed stay legible. */
+  --bg: #fafafa;
+  --bg-alt: #f5f5f5;
+  --bg-deep: #f2f2f2; /* Sky #F2F2F2 — recessed */
+  --surface: #ffffff; /* Sky White — raised */
+  --hover: #ececec;
+  --border: #e0d7ff; /* Sky's lightest lavender — the same outline their own White swatch carries */
+  --border-muted: #e4e4e4;
+
+  /* ─── Brand ─── the violet ramp ─── */
+  --red: #4331e9; /* the "decorative accent" slot — Sky indigo, not a red */
+  --red-dim: #e0d7ff; /* backs `mark` + active scope pills; --tan on it is 14.9:1 */
+  --accent: #581be0; /* links + focus — Sky deep violet, 7.9:1 on white */
+  --preview-add: #047857; /* green — see the status-colour note above */
+  --error-text: #b91c1c; /* red — likewise */
+  --warn: #7a5c00; /* their yellow #FFEBAE's hue, darkened */
+
+  /* ─── Text ─── */
+  --gray: #6b6b6b;
+  --tan: #050505; /* Sky black */
+  --tan-2: #3a3a3a;
+  --tan-3: #5e5e5e;
+  --magenta: #b891fe; /* stays an INVERTED pill: Sky light purple on the --tan fill */
+  --lilac: #6d40cc; /* Sky #8C68FF darkened — the source value is 3.4:1, too light for text */
+  --terminal-green: #047857;
+  --lily-green: #14532d;
+
+  /* ─── Row state overlays (translucent BLACK — flipped from white) ─── */
+  --row-hover: rgba(0, 0, 0, 0.06);
+  --row-selected: rgba(0, 0, 0, 0.05);
+  --row-focused: rgba(0, 0, 0, 0.035);
+  --atlas-row-selected: #fafafa; /* selected reader doc — lifts off --bg-deep */
+  --row-pulse-flash: rgba(0, 0, 0, 0.16);
+  --row-bar-tint: black;
+  --change-flash-color: rgba(0, 0, 0, 0.08);
+
+  --node-hover: #ffffff;
+
+  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow-strong: rgba(0, 0, 0, 0.18);
+
+  /* ─── CrossView treemap ─── */
+  /* Ramp source. NOT --red, which is what this used to be:
+     CrossViewTreemap mixes it into --surface at up to 70% and paints a --tan-2
+     label on the result, so the token has to be positioned relative to that
+     LABEL, not to the brand. Light's --red (Sky indigo #4331e9) put the
+     deepest rect at 2.91:1 — a real AA failure this token exists to fix.
+     Lighter and softer, so the ramp stays above the dark label: 5.3:1 at the
+     deepest rect. */
+  --chunk-fill: #8b85de;
+
+  /* ─── Diff view ─── red/green, deliberately NOT the brand palette ─── */
+  --diff-removed-bg: #fee2e2;
+  --diff-removed-fg: #7f1d1d;
+  --diff-added-bg: #dcfce7;
+  --diff-added-fg: #14532d;
+
+  /* ─── Entity-type categorical palette ─── unordered, so these are spread
+     across the wheel rather than sequenced. Hue assignments mirror the dark
+     theme's, so an entity type keeps its colour family when you switch. */
+  --entity-agent: #c2261a;
+  --entity-facilitator-org: #a05500;
+  --entity-govops-org: #0e7490;
+  --entity-delegate-org: #0f7233;
+  --entity-development-company: #1d4ed8;
+  --entity-foundation: #581be0; /* Sky violet */
+  --entity-composite-party: #8a6508;
+  --entity-governance-body: #47740e;
+  --entity-operational-party: #9a4a2a;
+  --entity-ecosystem-actor: #9f1239;
+  --entity-instance: #334155;
+  --entity-multisig: #9a5b0a;
+  --entity-bridge: #047857;
+  --entity-fallback: #666666;
+
+  /* ─── Depth palette ─── a SEVEN-stop cycle (not six), running Sky's
+     brand violet first and then descending the wheel:
+       violet → blue → cyan-blue → green → gold → red → red-pink → repeat.
+
+     Intensity is maximised, not merely adequate: each stop is the most
+     chromatic colour of its hue that still clears 4.5:1 on --bg-deep, found by
+     searching OKLCH lightness × chroma rather than by eye. Sky's #581BE0 opens
+     the cycle exactly; the rest are chosen for hue and pushed to the gamut edge
+     (blue, red and red-pink reach C 0.22-0.23, near the violet's 0.257 —
+     cyan/green/gold cap near 0.11 because sRGB holds far less chroma there at a
+     readable lightness).
+
+     Stop 2 is a true blue (260°), NOT Sky's indigo #4331E9. The indigo is only
+     9° from the violet, so running the two together read as one smudged step
+     rather than a progression. The indigo is not lost — it carries the
+     decorative --red slot in this theme, which is where a brand colour with no
+     ordering duty belongs.
+
+     Seventeen slots over a seven-cycle: 1-7, 8-14, then 15-17 restart it. */
+  --depth-1: #581be0; /* violet — Sky #581BE0, exact */
+  --depth-2: #0064ee; /* blue */
+  --depth-3: #03769d; /* dark cyan-blue */
+  --depth-4: #037e3f; /* deep green */
+  --depth-5: #876801; /* gold */
+  --depth-6: #dd0204; /* red */
+  --depth-7: #d2007d; /* deep red-pink */
+  --depth-8: #581be0;
+  --depth-9: #0064ee;
+  --depth-10: #03769d;
+  --depth-11: #037e3f;
+  --depth-12: #876801;
+  --depth-13: #dd0204;
+  --depth-14: #d2007d;
+  --depth-15: #581be0;
+  --depth-16: #0064ee;
+  --depth-17: #03769d;
+}
+
+/* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
+   greys, off-white. Named for the monochrome world; the brief was high
+   contrast and high readability, so it is not a desaturation of the charcoal
+   palette but its own ramp, and the name is load-bearing. Measured across the
+   44 audited pairs: giedi has NO pair under 5:1, where the dark and light
+   palettes each have six, and it carries the highest median of the three
+   (9.2:1 against 6.2 and 6.4) and the highest floor. Body prose clears the
+   dark theme in every position it is measured — 15.6 / 14.4 / 16.5 on --bg,
+   --surface and --bg-deep. It did NOT before the surface tier was dropped and
+   the text ramp lifted, and that is the pair the theme's name is really
+   claiming, so if you raise these surfaces again, re-check it first.
+
+   The five hue-bearing status tokens (--error-text, --warn, --preview-add,
+   --terminal-green, --lilac) are the exception at 4.8-5.6:1: each is lifted to
+   the first lightness that clears AA at its fixed chroma, so widening that
+   margin means spending either chroma or their identity as a quiet cast.
+
+   Three things carry meaning here that hue carried in the other themes:
+   • BRIGHTNESS IS DEPTH. --depth-1…17 is one continuous ramp — light
+     to dark and symmetrically back — instead of the jewel-tone cycle: a nested
+     doc reads dimmer than its parent, which is what the colour cycle was
+     standing in for anyway. It is the one theme whose depth palette does NOT
+     repeat; see the note on the tokens themselves for why.
+   • --accent is pure white, brighter than --tan body text, because a link
+     cannot announce itself with hue here. Prose links keep their underline.
+   • --red (decorative: the selected left bar, active pill bars, histogram
+     fills) becomes a near-white — shape, not colour — and unlike the dark
+     palette's brand red it clears AA on --surface, so giedi needs no
+     ACCEPTED_DECORATIVE_FAILURES entry. --red-dim goes the other way: it is
+     the search-term highlight, the one token that exists to be FOUND, so it
+     takes the theme's blue at alert-tier chroma instead of a grey.
+
+   The three deliberate exceptions to "no hue", in descending order of how
+   much of it they get — nothing here is allowed above C 0.06:
+   • STATUS colours — --diff-*, --error-text, --preview-add, --terminal-green,
+     --warn, --magenta, --lilac. A diff whose additions and removals are the
+     same grey is broken, not minimal; red/green is a convention users arrive
+     with. Chroma is rationed by how much work the hue actually does, so this
+     is three tiers rather than one: the quiet three (--preview-add,
+     --terminal-green, --lilac) sit at OKLCH C 0.06 and read as grey with a
+     cast; the two ALERT colours get 0.095-0.115, because "this is an error"
+     and "this is a warning" have to survive a glance and have to be told apart
+     from each other; --diff-* gets 0.085 for the same reason at block scale.
+     --error-text is held at hue 27 and --warn at 68 — a red and an orange,
+     deliberately not the olive-gold hue 90 the other themes use for --warn,
+     which at this chroma was indistinguishable from --error-text.
+   • ENTITY colours — 14 unordered categories cannot be 14 distinguishable
+     greys: the band that clears 4.5:1 on --surface is only OKLCH L 0.61→1.0,
+     and 14 stops in it land 0.024 apart, barely a JND. The first attempt did
+     exactly that (dark's 14 hues at C 0.026) and the closest pair was
+     indistinguishable. This one uses the theme's own two hues as a BIPOLAR
+     AXIS instead: warm gold (hue 80) and electric blue (245), each family
+     spread over the FULL lightness band. Six or seven stops in a band, not
+     fourteen, so within a family neighbours are 0.05 apart, and across
+     families they differ by the whole warm-cool distance. Closest pair is now
+     0.047 — double giedi's first attempt and above the dark theme's own 0.033.
+     Which family a type lands in follows its hue in the dark theme, so a type
+     keeps its temperature when you switch. --entity-fallback stays a true
+     neutral: "no type" should look like neither.
+   • The DEPTH ramp's electric-blue cast, at C 0.016-0.040 — the only one that is
+     purely atmospheric. It distinguishes nothing (lightness does that); it is
+     what stops the tree reading as dead newsprint grey, and because the ramp
+     paints every title and chiclet it is what the theme looks like. Rationed
+     ABOVE the entity palette for exactly that reason. See the token note. */
+[data-theme="giedi"] {
+  color-scheme: dark;
+
+  /* ─── Surface tier ─── neutral, evenly apart in perceived lightness so
+     raised/recessed stay legible without any tint doing the work. The whole
+     tier deliberately starts ABOVE black: #000 is reserved for the selected
+     reader doc (--atlas-row-selected), which sinks below the page rather than
+     lifting off it, and that only reads if nothing else is already at the
+     floor. In the colour themes the equivalent surfaces can sit lower,
+     because there the selected doc is lifted, not sunk. */
+  --bg: #141414;
+  --bg-alt: #0f0f0f; /* explicit, not a color-mix: one step below --bg */
+  --bg-deep: #0d0d0d; /* recessed — tree sidebar + reader scroll */
+  --surface: #1c1c1c; /* raised — cards, panels; the LIGHTEST audited surface, so every foreground below is measured against it */
+  --hover: #262626;
+  --border: #3a3a3a;
+  --border-muted: #303030;
+
+  /* ─── Brand ─── shape, not colour: see the header note ─── */
+  --red: #cfcfcf; /* decorative — selected bar, pill bars, fills; 10.9:1 on --surface */
+  --red-dim: #1f5781; /* the search-term highlight (`mark`) + active scope pill
+     fill. A DARK electric blue rather than the mid grey it started as: a grey
+     highlight on a grey page announces nothing, and this is the one token
+     whose entire job is "look here". Same hue 245 as the depth ramp, dropped
+     to L 0.44 at C 0.090 — alert-tier chroma, which is the tier a highlight
+     belongs to. --tan on it is 6.5:1, and it reads 2.1:1 against --surface
+     (the grey managed 1.8:1). */
+  --accent: #ffffff; /* links + focus — the brightest value in the theme */
+  --preview-add: #719170; /* status green — see the exception note above */
+  --error-text: #ce746a; /* a red, not a rose — see the alert-colour note in the header */
+  --warn: #b5844c; /* an orange; hue 68, moved off the olive-gold the other themes use at 90 */
+
+  /* ─── Text ─── */
+  --gray: #a2a2a2;
+  --tan: #ececec; /* primary text — off-white, 15.6:1 on --bg */
+  --tan-2: #d7d7d7;
+  --tan-3: #b2b2b2;
+  --magenta: #2f5777; /* an INVERTED pill: sits ON the near-white --tan fill, so it goes dark. Deep steel blue at 6.5:1 (was a plum at 4.65, the thinnest margin in the theme) — and blue is the right convention for its one job, the "update available" status in Footer.tsx */
+  --lilac: #78b0df; /* the preview "renumbered" note. Brighter and bluer than --gray on purpose: as a muted violet it sat dE 0.080 from muted text and read as a styling accident rather than a notice. Now 0.103 from --gray, and 0.126 from the depth ramp it shares a hue with. */
+  --terminal-green: #72906e;
+  --lily-green: #e9f9e7;
+
+  /* ─── Row state overlays ─── translucent WHITE (a dark scheme), a step
+     stronger than the charcoal theme's: with no hue in the palette, the
+     overlay is the only thing marking a row. ─── */
+  --row-hover: rgba(255, 255, 255, 0.12);
+  --row-selected: rgba(255, 255, 255, 0.1);
+  --row-focused: rgba(255, 255, 255, 0.07);
+  --atlas-row-selected: #000000; /* the selected reader doc — see the surface-tier
+     note: it SINKS to the floor instead of lifting, which is the only direction
+     that separates without hue, and is why nothing else in the tier is black */
+  --row-pulse-flash: rgba(255, 255, 255, 0.3);
+  --row-bar-tint: white;
+  --change-flash-color: rgba(255, 255, 255, 0.14);
+
+  --node-hover: #000000;
+
+  /* The one DECORATIVE hue in the theme, and giedi-only — every other cast
+     here is semantic (status) or a distinguisher (entity, depth). A selected
+     doc is a black block with a pure-white title: right for the title, too
+     much for the chrome around it, so pills, the doc number and body links
+     inside the selection take this instead. Desaturated gold (OKLCH L 0.78 /
+     C 0.055 / H 80), 10.4:1 on the black fill and 8.5:1 on --surface, which
+     is what the type pill is actually painted on. Used only by the
+     [data-theme="giedi"] rules below the theme blocks. */
+  --selected-hint: #cab490;
+
+  /* The selected doc's title. NOT --accent (#ffffff): pure white on the black
+     fill is 21:1, past the point where more contrast helps and into halation —
+     the glow that makes white text on black bloom and smear at small sizes.
+     #fafafa reads as white and measures 20.1:1, still the brightest text in
+     the theme by a clear margin over --tan (#e4e4e4) and over --depth-1, which
+     is what an unselected top-level title uses. */
+  --selected-title: #fafafa;
+
+  /* Doc TITLES, all one colour — the depth spectrum stops at the doc number.
+     Every other theme tints a title by its nesting depth, which works while
+     the ramp is a muted hue cycle. giedi's ramp is a saturated electric blue
+     riding the gamut ceiling, and a page of titles in seventeen shades of it
+     reads as noise: the ramp is doing two jobs at once, and the one it is good
+     at is the doc number, where the chiclets sit adjacent and the gradient is
+     legible AS a gradient. Titles get a single high-contrast blue-grey
+     instead — 17.5:1 on the reader bg, tied to the theme's hue without
+     competing with the chiclets (dE 0.082 from --depth-1).
+
+     Sits in a deliberate three-step ladder, each gap over the JND: body prose
+     --tan (#ececec) < title (#edf4fb) < selected title (#fafafa).
+
+     Defined ONLY in this block. Every consumer reads it as
+     `var(--node-title, <the depth colour>)`, so dark and light fall through to
+     their existing behaviour and need no rules of their own. */
+  --node-title: #edf4fb;
+
+  /* ─── Shadows ─── deliberately the SAME as the charcoal theme's, not
+     stronger. The instinct is to lean on shadow because a flat neutral palette
+     has no warmth to separate stacked surfaces — but --shadow-strong's main
+     consumer is the modal SCRIM (Modal.tsx, ColorPickerModal.tsx), not an
+     elevation shadow, so raising it just dims the page behind every dialog and
+     puts giedi out of step with Drawer's own hardcoded black/40 scrim.
+     Elevation here is carried by the surface tier, which is the dark-mode
+     convention anyway: higher means lighter, not shadowed. */
+  --shadow: rgba(0, 0, 0, 0.3);
+  --shadow-strong: rgba(0, 0, 0, 0.5);
+
+  /* ─── CrossView treemap ─── */
+  /* Ramp source — the theme's blue, and DARK, because giedi
+     inverts the problem: its label (--tan-2) is light, so the ramp has to stay
+     dark as it deepens. Using --red here (a near-white) ran the ramp the wrong
+     way entirely and put the deepest rect at 1.61:1. Now 7.0:1. */
+  --chunk-fill: #1f5781;
+
+  /* ─── Diff view ─── the loudest of the status exceptions, and the one worth
+     spending hue on: a history diff is unreadable if you have to work out
+     which block is which. These carry roughly DOUBLE the chroma of the other
+     status colours (OKLCH C 0.085 vs 0.06) — desaturated red and green rather
+     than grey with a cast — and sit 0.12 in OKLCH lightness above --surface,
+     which is what the diff box is painted with, so each block separates by
+     brightness as well as by hue. The foregrounds are pale tints of the same
+     hues at ~8:1 on their own fill; the red one rails the sRGB red channel at
+     that lightness, which is why its chroma lands at 0.049, not 0.055. ─── */
+  --diff-removed-bg: #642a27;
+  --diff-removed-fg: #ffd4d1;
+  --diff-added-bg: #144a25;
+  --diff-added-fg: #c6ebce;
+
+  /* ─── Entity-type categorical palette ─── dark's hues at C 0.026, lightness
+     re-spread evenly over the AA-clearing band; see the header note. Ordered
+     here as in :root, but the LIGHTNESS order is dark's own — an entity type
+     keeps its rank when you switch themes. ─── */
+  --entity-agent: #a18e6e;
+  --entity-facilitator-org: #d8c4a3;
+  --entity-govops-org: #deefff;
+  --entity-delegate-org: #a4c2dc;
+  --entity-development-company: #c2e1fd;
+  --entity-foundation: #b3d1ec;
+  --entity-composite-party: #ebd7b5;
+  --entity-governance-body: #86a3bd;
+  --entity-operational-party: #b3a07f;
+  --entity-ecosystem-actor: #c6b291;
+  --entity-instance: #7794ae;
+  --entity-multisig: #ffeac8;
+  --entity-bridge: #95b2cd;
+  --entity-fallback: #bebebe; /* a true neutral — "no type" should look like none */
+
+  /* ─── Depth palette ─── HUE IS DEPTH, and lightness is deliberately NOT.
+     Every other theme (and every earlier version of this one) ramps brightness
+     with nesting. This one holds lightness essentially FLAT at OKLCH L 0.80 —
+     every stop lands 9.1-9.2:1 on --surface — and walks the hue instead: a
+     warm grey at the top, through very nearly neutral in the middle, to a
+     muted blue grey at the trough, then symmetrically back. Depth reads as
+     temperature, not as brightness.
+
+     Flat lightness is the point, not a side effect. A brightness ramp makes
+     deep documents dimmer than shallow ones, which is a legibility tax on
+     exactly the rows that are already hardest to place; here the seventeenth
+     level is as readable as the first.
+
+     Interpolated LINEARLY IN OKLAB a/b between the two endpoint hues (80 and
+     245), not around the hue wheel — the wheel route between them runs through
+     green, which belongs to neither end. The straight path passes near the
+     neutral axis instead, so mid-depths are barely tinted at all (C 0.005 at
+     depth-5 against 0.043 and 0.055 at the ends). That is what keeps the ramp
+     subtle: only the extremes carry any visible colour, and even they read as
+     tinted greys rather than as a yellow and a blue.
+
+     The warm end is deliberately CLIPPED. Interpolating symmetrically put a
+     genuinely gold stop at depth-1 (C 0.095), which read as a colour rather
+     than as a temperature; the ramp is built over ten stops and the first is
+     dropped, so it opens one step in. The two ends are therefore NOT mirror
+     images — the warm side is the quieter one by design.
+
+     ADJACENT stops here measure dE 0.012, deliberately UNDER the ~0.020
+     just-noticeable difference: one level to the next is meant to be felt
+     rather than read. Depth is legible over distance instead — stops two
+     apart measure 0.024, and the ends 0.097. The gate in
+     theme-contrast.test.ts enforces the two-step figure, not the adjacent one,
+     which is the honest statement of what this ramp promises.
+
+     Seventeen slots, one continuous there-and-back curve, no repeating cycle —
+     a cycle's restart is a visible seam when the steps are this fine. */
+  --depth-1: #ccbc9f;  /* warm end — a warm grey, top level */
+  --depth-2: #c7bda8;
+  --depth-3: #c2beb0;
+  --depth-4: #bcbfb8;
+  --depth-5: #b7c0c0;
+  --depth-6: #b2c0c8;
+  --depth-7: #acc1d0;
+  --depth-8: #a7c2d8;
+  --depth-9: #a1c2df;  /* cool end — a blue grey, deepest nesting */
+  --depth-10: #a7c2d8;
+  --depth-11: #acc1d0;
+  --depth-12: #b2c0c8;
+  --depth-13: #b7c0c0;
+  --depth-14: #bcbfb8;
+  --depth-15: #c2beb0;
+  --depth-16: #c7bda8;
+  --depth-17: #ccbc9f;  /* back to the top of the curve */
+}
+
+/* ─── Giedi structural override ──────────────────────────────────────────
+   The one rule the token block cannot express. .atlas-node.is-selected's
+   title mixes 45% of the row's depth colour into --tan, so the selected doc
+   keeps its depth HUE while gaining contrast. Greyscale has no hue to
+   preserve, so that mix only pulls the title back DOWN the same ramp it is
+   trying to stand out from — here the selected doc takes the theme's brightest
+   value outright, and every depth-1 title sits below it by construction. */
+[data-theme="giedi"] .atlas-node.is-selected .atlas-node-title {
+  color: var(--selected-title);
+}
+
+/* ...and the rest of the selection takes a warm cast instead of the same white.
+   See --selected-hint in the giedi block for why this is the theme's one
+   decorative hue. The title is deliberately NOT included: it stays pure white,
+   so the hierarchy inside the block is unchanged and the hint reads as chrome. */
+[data-theme="giedi"] .atlas-node.is-selected .atlas-type-pill,
+[data-theme="giedi"] .atlas-node.is-selected .atlas-agent-pill {
+  color: var(--selected-hint);
+  border-color: var(--selected-hint);
+}
+
+/* The doc number can't be recoloured through --c: DocNoChiclets sets it inline
+   (`--c: var(--depth-N)`), and an inline custom property beats any stylesheet
+   rule for that element. So this overrides the RENDERED colour instead, mixing
+   the depth grey 70/30 toward the hint — warm enough to read as part of the
+   selection, weak enough that the depth ramp still runs through the number.
+   Both exclusions are load-bearing: a spacer's underline is transparent on
+   purpose, and a gradient chiclet paints its glyph via background-clip:text
+   and needs `color: transparent` to stay that way. */
+[data-theme="giedi"]
+  .atlas-node.is-selected
+  .atlas-chiclet:not(.atlas-chiclet-spacer):not(.atlas-chiclet-grad) {
+  color: color-mix(in oklab, var(--c, var(--gray)) 70%, var(--selected-hint));
+  border-bottom-color: color-mix(in oklab, var(--c, var(--gray)) 70%, var(--selected-hint));
+}
+
+[data-theme="giedi"] .atlas-node.is-selected .atlas-md a {
+  color: color-mix(in oklab, var(--accent) 60%, var(--selected-hint));
+}
+
+/* AUDIT FIX. --accent is the interactive colour, but in giedi it is #ffffff
+   against #e4e4e4 body text — a ~8% brightness step and no hue at all, where
+   every other theme has a whole hue to spend. Prose links are fine (they keep
+   their underline); these two are not, because colour is their ONLY signal.
+   Weight is the substitute, since it survives with no hue and no underline.
+   Unlayered on purpose: .text-accent lives in @layer utilities, and layered
+   rules lose to unlayered ones regardless of specificity. */
+[data-theme="giedi"] .text-accent,
+[data-theme="giedi"] .atlas-copy-btn[data-copied="true"],
+[data-theme="giedi"] .match-aside-label,
+[data-theme="giedi"] .load-more-btn,
+[data-theme="giedi"] .badge-accent {
+  font-weight: 600;
+}
+
+/* .filter-summary is INVERTED by default — a --tan fill with --bg text — which
+   works in the colour themes because their --tan is a warm cream, a soft slab.
+   giedi's --tan is #e4e4e4, so the same rule paints a near-white rectangle on
+   a near-black page: glaring rather than emphatic, and it dragged its emphasis
+   colour down with it (--red is a near-white here too, 1.23:1 on that fill —
+   the emphasised terms disappeared outright).
+   Both problems are the inversion, so giedi opts out of it instead of patching
+   colours inside it: an ordinary raised surface, with the emphasis in the
+   theme's own warm gold. --tan on --surface is 14.4:1 and --selected-hint on
+   it is 8.5:1, and the accent left-bar from the base rule still marks it. */
+[data-theme="giedi"] .filter-summary {
+  background: var(--surface);
+  color: var(--tan);
+}
+[data-theme="giedi"] .filter-summary-em {
+  color: var(--selected-hint);
+}
+
+/* The report-search highlight, brought onto --red-dim so both search
+   highlights in the app are the same colour. The base rule tints with
+   --accent, which in giedi is white — a grey wash indistinguishable from a
+   hover fill. 55%, not solid, and that number is load-bearing: .q-mark sets
+   `color: inherit`, so the fill has to stay readable under --tan-3 report
+   text as well as --tan. Solid puts --tan-3 at 3.2:1; at 55% it composites to
+   5.4-5.7:1 over both surfaces a report row can sit on. */
+[data-theme="giedi"] .q-mark {
+  background: color-mix(in srgb, var(--red-dim) 55%, transparent);
+}
+
+/* ─── Light-scheme structural overrides ───────────────────────────────────
+   Rules whose MEANING flips with the background, so re-hexing a token isn't
+   enough. Kept together (rather than beside each base rule) because these are
+   exactly the non-obvious flips — a reader should be able to see the whole set
+   at once.
+
+   Keyed on [data-scheme="light"], NOT on any one palette: `data-scheme` is the
+   light-vs-dark axis and `data-theme` is which palette (see lib/theme.ts, which
+   sets both). A new light palette therefore inherits every rule below for free
+   — it only has to supply its own token block above. */
+
+/* Font smoothing: `antialiased` is a light-text-on-dark tuning (see the comment
+   on the base rule). Dark text on light renders too thin with it. */
+[data-scheme="light"],
+[data-scheme="light"] body,
+[data-scheme="light"] #root {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+/* Breadcrumb hover chip: the base rule lightens the depth colour toward literal
+   `white` for a bright chip and darkens the text toward --bg. Light depth
+   colours are already dark, so the chip becomes the colour itself with page-
+   coloured text — same inverted-chip effect, right way round (5.3:1+). */
+[data-scheme="light"] .breadcrumb-link:hover,
+[data-scheme="light"] .breadcrumb-link:focus-visible {
+  background-color: var(--crumb-color);
+  color: var(--bg);
+}
+
+/* Reader row hover: the base rule mixes --bg-deep toward --surface, i.e. lifts
+   the row lighter. On light, --surface is the lightest token, so that lift
+   would wash the row out — darken instead. */
+[data-scheme="light"] .atlas-node:not(.is-selected):hover,
+[data-scheme="light"] .atlas-node:not(.is-selected):focus-visible {
+  background-color: color-mix(in srgb, var(--bg-deep) 95%, black);
+}
+
+/* The filter-summary callout is deliberately INVERTED (--tan fill, --bg text).
+   That inversion survives the theme flip for free — --tan is dark on light — but
+   its emphasis colour does not: --red on the now-dark fill is 2.5:1. */
+[data-scheme="light"] .filter-summary-em {
+  color: #f2a49c; /* 8.5:1 on the --tan fill */
+}
+
+/* Pill outlines are drawn with TEXT tokens (--tan-2 / --tan-3 / --tan), i.e.
+   "the brightest thing on the page". On light those are the DARKEST thing, so
+   the hairline becomes a heavy black outline. Use the border token instead. */
+[data-scheme="light"] .atlas-type-pill {
+  border-color: var(--border);
+}
+[data-scheme="light"] .atlas-node.is-selected .atlas-type-pill {
+  border-color: var(--tan-3);
+}
+[data-scheme="light"] .atlas-agent-pill {
+  border-color: var(--border);
+}
+
+/* Dim-down opacities were tuned for a light glyph fading into a dark page. A
+   dark glyph fading into a light page at the same alpha reads weaker. */
+[data-scheme="light"] .scope-node.is-muted {
+  opacity: 0.62;
+}
+[data-scheme="light"] button.atlas-node-expand-all {
+  opacity: 0.7;
 }
 
 html,
@@ -602,16 +1162,22 @@ mark {
 }
 
 .atlas-node.is-selected {
-  /* Subtle muted-red tint (the former center bg) against the deep reader — reads
-     as a soft block, not the old gray fill. Red left bar kept for the anchor. */
-  background-color: var(--bg);
+  /* --atlas-row-selected, not --bg: whether the selected doc reads as RAISED
+     off the deep reader bg or SUNK into it is a per-palette call, not a
+     structural one. The colour themes lift it (a muted tint of --bg against
+     the deeper reader, soft block rather than the old gray fill); giedi sinks
+     it to black, which is the only direction that separates in greyscale —
+     lifting there would just be another grey. Red left bar anchors it either
+     way. Must stay OPAQUE in every theme: the sticky rule below relies on this
+     fill to occlude rows scrolling underneath. */
+  background-color: var(--atlas-row-selected);
   box-shadow: inset 3px 0 0 color-mix(in srgb, var(--row-color) 80%, var(--row-bar-tint));
   /* Pin the selected node to the top of the reader as its descendants scroll
      under it. AtlasReader wraps the selected node + its cradle descendants in a
      .selection-group, which is this sticky element's containing block — so it
      stays stuck at top:0 while any of the selection is on screen, then releases
      and scrolls off once the group's bottom (the cradle foot) clears the top,
-     instead of staying pinned down the rest of the list. The solid --bg fill
+     instead of staying pinned down the rest of the list. The solid fill
      occludes rows passing beneath; z-index lifts it above them (the split-pane
      button sits higher at z-10, so it stays clickable). */
   position: sticky;
@@ -886,9 +1452,12 @@ button.atlas-node-expand-all:focus-visible {
   margin: 2px;
   padding-left: 3px;
   padding-right: 2px;
-  /* titles take their depth color (like the sidebar); the selected one is a
-     brighter, higher-contrast shade of the same hue */
-  color: var(--row-color, var(--tan-2));
+  /* Titles take their depth colour (like the sidebar), and the selected one is
+     a brighter, higher-contrast shade of the same hue. --node-title is the
+     opt-out: a theme whose depth ramp is too saturated to spend on a page of
+     titles defines it and every title site falls in line at once. Only giedi
+     does; the fallback chain is what the other themes get. */
+  color: var(--node-title, var(--row-color, var(--tan-2)));
 }
 .atlas-node.is-selected .atlas-node-title {
   color: color-mix(in srgb, var(--row-color, var(--tan)) 45%, var(--tan));

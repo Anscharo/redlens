@@ -74,7 +74,7 @@ function ParamLine({ p, colWidth, instanceHint, addrMap }: { p: InstanceParam; c
       <span className="mono text-[10px] shrink-0" style={{ color: "var(--tan-3)" }}>
         {p.key}
       </span>
-      <span className="flex-1 min-w-0" style={{ borderBottom: "1px dotted rgba(184,164,142,0.25)", margin: "0 4px 3px" }} />
+      <span className="flex-1 min-w-0" style={{ borderBottom: "1px dotted color-mix(in srgb, var(--tan-3) 25%, transparent)", margin: "0 4px 3px" }} />
       <span
         className="mono text-[10px] shrink-0 text-right leading-relaxed"
         style={{ maxWidth: `calc(100% - ${colWidth}px)`, wordBreak: "break-word", color: "var(--tan-2)" }}
@@ -99,7 +99,7 @@ function InstanceCard({ inst }: { inst: RadarInstance }) {
   }, [inst.signalParams]);
 
   return (
-    <div className="rounded p-3 break-inside-avoid" style={{ background: "#0f0a08", border: "1px solid var(--border)", maxWidth: "600px" }}>
+    <div className="rounded p-3 break-inside-avoid" style={{ background: "var(--bg-deep)", border: "1px solid var(--border)", maxWidth: "600px" }}>
       <div className="flex items-center gap-2 flex-wrap mb-2">
         {inst.docId ? (
           <AtlasLink to={atlasHref(inst.docId)} className="text-sm hover:underline" style={{ color: "var(--tan)" }}>

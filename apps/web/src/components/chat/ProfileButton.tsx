@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "./auth";
-import { usePrefs, type ChatPrefs } from "./usePrefs";
+import { usePrefs } from "./usePrefs";
 import { SignedOutMenu } from "./SignedOutMenu";
 import { MenuGlyph } from "./glyphs";
 import { MenuButton, MenuLink, MenuRule } from "./MenuRow";
+import { PrefSwitch } from "./PrefSwitch";
+import { ThemePicker } from "./ThemePicker";
 import { chatEnabled } from "../../lib/chatEnabled";
 import { ROUTES } from "@/lib/routes";
 
 // NavBar profile control. Signed-out: a menu pill → dropdown with Sign in
 // (a sub-panel offering GitHub / Google, both routing through the shared
 // openAuth) and History — see SignedOutMenu. Signed-in: avatar → dropdown with
-// name, an Account sub-panel (a reduce-motion switch persisted to localStorage,
-// plus Delete account), History, Collections, and Sign out.
+// name, an Account sub-panel (reduce-motion switch + the theme picker, both
+// persisted to localStorage, plus Delete account), History, Collections, and
+// Sign out.
 // Per the FE handoff we omit the GitHub @handle (not returned by /api/auth/me).
 export function ProfileButton() {
   const { user, signOut, deleteAccount } = useAuth();
@@ -107,7 +110,12 @@ export function ProfileButton() {
                 <span>← account</span>
               </button>
               <MenuRule />
-              <PrefSwitch label="Reduce motion" prefKey="reduceMotion" prefs={prefs} setPref={setPref} />
+              <PrefSwitch
+                label="Reduce motion"
+                on={prefs.reduceMotion}
+                onChange={() => setPref("reduceMotion", !prefs.reduceMotion)}
+              />
+              <ThemePicker />
               <div className="px-3 pt-2 pb-[11px]">
                 <div className="mono text-[9.5px] text-gray leading-normal">
                   surfaced from local storage · syncs per-browser
@@ -132,27 +140,5 @@ export function ProfileButton() {
         </div>
       )}
     </div>
-  );
-}
-
-function PrefSwitch({
-  label,
-  prefKey,
-  prefs,
-  setPref,
-}: {
-  label: string;
-  prefKey: keyof ChatPrefs;
-  prefs: ChatPrefs;
-  setPref: <K extends keyof ChatPrefs>(k: K, v: ChatPrefs[K]) => void;
-}) {
-  const on = prefs[prefKey];
-  return (
-    <button className="rlc-menu-item" onClick={() => setPref(prefKey, !on)} role="switch" aria-checked={on}>
-      <span className="text-[12.5px]">{label}</span>
-      <span className="rlc-switch" data-on={on}>
-        <span className="rlc-switch-knob" />
-      </span>
-    </button>
   );
 }

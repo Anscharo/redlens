@@ -226,7 +226,7 @@ export function TreeRow({
           On the title alone, not the whole row: shift-click works anywhere on
           the row, but a marker there fired while crossing the chiclets and the
           chevron too, so the hint was up almost constantly. */}
-      <span data-mod-hint="split" style={{ ...TITLE_BASE, color: titleColor }}>
+      <span data-mod-hint="split" style={{ ...TITLE_BASE, color: `var(--node-title, ${titleColor})` }}>
         {displayTitle}
       </span>
     </div>
