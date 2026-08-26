@@ -46,7 +46,7 @@ describe("ProvenancePage", () => {
         /Applies documented, pattern-based extractors to Atlas text/,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Constellations graph/)).toBeInTheDocument();
+    expect(screen.getByText(/Cross-document reports/)).toBeInTheDocument();
   });
 
   it("explains both reconstructed history eras", () => {

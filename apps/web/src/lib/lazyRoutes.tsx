@@ -23,7 +23,6 @@ function lazyImport<M extends Record<string, ComponentType<any>>, K extends keyo
   return lazy(() => lazyRetry(factory).then((m) => ({ default: m[key] })));
 }
 
-export const ConstellationsPage = lazyImport(() => import("../components/ConstellationsPage"), "ConstellationsPage");
 export const OpFacilitatorsReport = lazyImport(() => import("../components/reports/OpFacilitatorsReport"), "OFReport");
 export const OpGovOpsReport = lazyImport(() => import("../components/reports/OpGovOpsReport"), "OGReport");
 export const ActiveDataReport = lazyImport(() => import("../components/reports/ActiveDataReport"), "ActiveDataReport");
@@ -68,9 +67,10 @@ export interface SimpleRoute {
 // Report/page routes that are just <Suspense><Component .../></Suspense> with
 // no route params and no custom children — rendered by App.tsx's Switch with
 // one .map() instead of repeating that wrapper by hand. Routes needing
-// :param-derived props (RADAR_ACTOR, SHARED_COLLECTION), a custom child
-// (SEARCH_HINTS), a redirect, the __CHAT_ENABLED__-guarded CONVERSATIONS
-// route, or the admin catch-all stay explicit in App.tsx.
+// :param-derived props (RADAR_ACTOR, RADAR_ACTOR_SETTLEMENTS,
+// SHARED_COLLECTION), a custom child (SEARCH_HINTS), a redirect, the
+// __CHAT_ENABLED__-guarded CONVERSATIONS route, or the admin catch-all stay
+// explicit in App.tsx.
 export const SIMPLE_ROUTES: SimpleRoute[] = [
   { path: ROUTES.REPORTS, Component: ReportsIndex, props: (c) => ({ query: c.query }) },
   { path: ROUTES.REPORTS_OF_RESPONSIBILITIES, Component: OpFacilitatorsReport, props: (c) => ({ query: c.query, mode: c.mode }) },
@@ -92,7 +92,6 @@ export const SIMPLE_ROUTES: SimpleRoute[] = [
     Component: ProcessesReport,
     props: (c) => ({ onNavigate: c.navigateToNode, query: c.query, mode: c.mode }),
   },
-  { path: ROUTES.CONSTELLATIONS, Component: ConstellationsPage, props: (c) => ({ query: c.query }) },
   { path: ROUTES.RADAR, Component: RadarPage, props: (c) => ({ query: c.query }) },
   { path: ROUTES.PROVENANCE, Component: ProvenancePage },
   { path: ROUTES.PRIVACY, Component: PrivacyPage },

@@ -18,6 +18,7 @@ import { windowHistory } from "./chat-history.ts";
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
 import { getWindowUsage } from "../rate-limit.ts";
+import { tryAcquireChatSlot, releaseChatSlot } from "./concurrency.ts";
 import { json } from "../http.ts";
 import { fetchCommons } from "./credits.ts";
 import { captureError, type ErrorContext } from "../posthog-node.ts";
@@ -92,213 +93,249 @@ export async function handleChat(req: Request): Promise<Response> {
   }
 
   const userId = session.user.id;
-  // Staged-delivery mode switch (docs/chat-system.md §8): resolved
-  // once, up front, so it's available to both PostHog properties and the SSE
-  // loop below without re-deriving it.
-  const mode = resolveDeliveryMode(body.delivery, config.chatDeliveryMode);
 
-  // Hard rate-limit gate on the user's token window — check BEFORE creating a
-  // conversation or spending any LLM tokens. The 429 tells the user exactly how
-  // many tokens they've used and when the window resets (+ Retry-After header).
-  // Fetched alongside the commons pool below (independent calls — same pairing
-  // as handleUsage in rate-limit.ts) so a cold commons cache doesn't stack its
-  // OpenRouter latency on top of the DB round trip.
-  const [usage, commons] = await Promise.all([getWindowUsage(userId), fetchCommons()]);
-  if (usage.exceeded) {
-    const retryAfter = Math.max(0, Math.ceil((Date.parse(usage.resetsAt) - Date.now()) / 1000));
-    return new Response(
-      JSON.stringify({
-        error: "rate_limited",
-        message: `Usage limit reached — ${usage.tokens.toLocaleString()} of ${usage.limit.toLocaleString()} tokens used this window. Resets at ${usage.resetsAt}.`,
-        tokensUsed: usage.tokens,
-        limit: usage.limit,
-        resetsAt: usage.resetsAt,
-        window: usage,
-      }),
-      { status: 429, headers: { "content-type": "application/json", "retry-after": String(retryAfter) } },
-    );
-  }
-
-  // Shared "commons" gate: the account-wide OpenRouter credit balance is one
-  // pool for ALL users. When it's dry, chat is paused for everyone until it's
-  // topped up. null = unknown (key unset or credits API hiccup) → fail OPEN, so
-  // a metering blip never blocks chat; only a real remaining <= 0 pauses it.
-  if (commons && commons.remaining <= 0) {
+  // Concurrency gate — checked first (in-memory, no DB/network round trip)
+  // so a user already at their cap fails fast instead of paying for the
+  // token-window query and the commons fetch below.
+  if (!tryAcquireChatSlot(userId, config.chatMaxConcurrentPerUser)) {
     return json(
       {
-        error: "commons_exhausted",
-        message: "The shared usage pool is out of credits. Chat is paused for everyone until it's topped up.",
-        global: commons,
+        error: "too_many_concurrent",
+        message: `You already have ${config.chatMaxConcurrentPerUser} chat requests in progress — wait for one to finish before starting another.`,
+        limit: config.chatMaxConcurrentPerUser,
       },
       429,
     );
   }
 
-  const convId = await resolveConversation(userId, body);
-  if (!convId) return json({ error: "conversation_not_found" }, 404);
+  // Every acquire above MUST release exactly once. Past this point the ONLY
+  // release paths are: this outer `finally` (covers every early return AND
+  // any throw below — a DB blip in getWindowUsage/resolveConversation/the
+  // INSERT/SELECT/UPDATE would otherwise leak the slot silently) and the
+  // stream's own `finally` further down, once ownership has been handed off
+  // to it (`streamOwnsSlot`). Individual branches below must NOT call
+  // releaseChatSlot themselves — that would double-release once this wrapper
+  // also fires.
+  let streamOwnsSlot = false;
+  try {
+    // Staged-delivery mode switch (docs/chat-system.md §8): resolved
+    // once, up front, so it's available to both PostHog properties and the SSE
+    // loop below without re-deriving it.
+    const mode = resolveDeliveryMode(body.delivery, config.chatDeliveryMode);
 
-  // Persist the user message before streaming, then load history (includes it).
-  // The updated_at bump runs alongside the history SELECT — independent
-  // writes, no added latency — so a conversation whose stream later aborts or
-  // 429s still sorts by its real last-activity time. Today only
-  // persistAssistant bumps updated_at, so an aborted-turn conversation sorts
-  // stale until (if ever) it gets a reply. With rename (conversations.ts)
-  // deliberately NOT touching updated_at, the invariant `updated_at ≡ last
-  // message time` holds exactly, served by the existing conversations_user index.
-  await sql`INSERT INTO messages (conversation_id, role, content) VALUES (${convId}, 'user', ${body.message})`;
-  const [history] = (await Promise.all([
-    sql`SELECT role, content FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
-    sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId}`,
-  ])) as [{ role: string; content: string }[], unknown];
+    // Hard rate-limit gate on the user's token window — check BEFORE creating a
+    // conversation or spending any LLM tokens. The 429 tells the user exactly how
+    // many tokens they've used and when the window resets (+ Retry-After header).
+    // Fetched alongside the commons pool below (independent calls — same pairing
+    // as handleUsage in rate-limit.ts) so a cold commons cache doesn't stack its
+    // OpenRouter latency on top of the DB round trip.
+    const [usage, commons] = await Promise.all([getWindowUsage(userId), fetchCommons()]);
+    if (usage.exceeded) {
+      const retryAfter = Math.max(0, Math.ceil((Date.parse(usage.resetsAt) - Date.now()) / 1000));
+      return new Response(
+        JSON.stringify({
+          error: "rate_limited",
+          message: `Usage limit reached — ${usage.tokens.toLocaleString()} of ${usage.limit.toLocaleString()} tokens used this window. Resets at ${usage.resetsAt}.`,
+          tokensUsed: usage.tokens,
+          limit: usage.limit,
+          resetsAt: usage.resetsAt,
+          window: usage,
+        }),
+        { status: 429, headers: { "content-type": "application/json", "retry-after": String(retryAfter) } },
+      );
+    }
 
-  const ix = getIndexes();
+    // Shared "commons" gate: the account-wide OpenRouter credit balance is one
+    // pool for ALL users. When it's dry, chat is paused for everyone until it's
+    // topped up. null = unknown (key unset or credits API hiccup) → fail OPEN, so
+    // a metering blip never blocks chat; only a real remaining <= 0 pauses it.
+    if (commons && commons.remaining <= 0) {
+      return json(
+        {
+          error: "commons_exhausted",
+          message: "The shared usage pool is out of credits. Chat is paused for everyone until it's topped up.",
+          global: commons,
+        },
+        429,
+      );
+    }
 
-  // Per-turn tier routing (rules-based, free): pick the model chain before any
-  // LLM work. Follow-up turns (an assistant reply already in history) never
-  // route fast on brevity alone — see model-router.ts. This runs BEFORE the
-  // system prompt is built because the citation format the prompt asks for
-  // depends on which model will read it.
-  const priorAssistants = history.filter((m) => m.role === "assistant").length;
-  const route = routeTier(body.message, { followUp: priorAssistants > 0 });
-  const models = resolveTierModels(route.tier);
-  const maxIterations = iterationsForTier(route.tier);
+    const convId = await resolveConversation(userId, body);
+    if (!convId) {
+      return json({ error: "conversation_not_found" }, 404);
+    }
 
-  // The DB keeps the full conversation; the model gets a windowed replay
-  // (recent turns verbatim, older ones truncated, hard char budget) so long
-  // conversations never grow the per-round context without bound.
-  const messages: Msg[] = [
-    { role: "system", content: buildSystemPrompt(ix, body.pageContext, citationStyleFor(models[0]), undefined, maxIterations) },
-    ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-  ];
+    // Persist the user message before streaming, then load history (includes it).
+    // The updated_at bump runs alongside the history SELECT — independent
+    // writes, no added latency — so a conversation whose stream later aborts or
+    // 429s still sorts by its real last-activity time. Today only
+    // persistAssistant bumps updated_at, so an aborted-turn conversation sorts
+    // stale until (if ever) it gets a reply. With rename (conversations.ts)
+    // deliberately NOT touching updated_at, the invariant `updated_at ≡ last
+    // message time` holds exactly, served by the existing conversations_user index.
+    await sql`INSERT INTO messages (conversation_id, role, content) VALUES (${convId}, 'user', ${body.message})`;
+    const [history] = (await Promise.all([
+      sql`SELECT role, content FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
+      sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId}`,
+    ])) as [{ role: string; content: string }[], unknown];
 
-  // Facts (facts/registry.ts): deterministic, pure-code knowledge blocks that
-  // fire on the question — glossary definitions, entity rows, concept censuses,
-  // app documentation. Seeded as a synthetic tool round after the user message
-  // so a question they already answer needs ONE request instead of tool-round →
-  // answer-round. Injects nothing on a miss; the harness treats what they do
-  // inject as ordinary turn evidence.
-  const facts = config.chatPrefetch ? runFacts({ ix, question: body.message, page: body.pageContext }) : null;
-  if (facts) messages.push(...factRound(body.message, facts));
+    const ix = getIndexes();
 
-  const startedAt = Date.now();
-  const encoder = new TextEncoder();
-  // PostHog AI observability: one trace per turn (fresh id, conversation id as
-  // a filterable property). distinctId is the CONVERSATION, not the signed-in
-  // user — semi-anonymous analytics: turns of one conversation stay grouped
-  // together in PostHog, but no user identity is sent (userId stays DB-only,
-  // via conversations.user_id, never leaves the server). The SAME obs feeds the
-  // answer stream, the harness jsonCall (verifier/advisor), and error capture,
-  // so every generation AND every error of the turn lands in one trace. No-op
-  // when POSTHOG_KEY is unset (both factories fall back to the plain client).
-  const obs = {
-    distinctId: convId,
-    traceId: crypto.randomUUID(),
-    // chat_delivery is the A/B measurement hinge (docs/chat-system.md §8).
-    properties: { chat_tier: route.tier, chat_route_reason: route.reason, chat_delivery: mode },
-  };
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const send = (e: { type: string } & Record<string, unknown>) =>
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
-      // delivery rides on meta so the client knows staged is active without
-      // guessing from the absence of token events.
-      send({ type: "meta", conversationId: convId, tier: route.tier, delivery: mode });
+    // Per-turn tier routing (rules-based, free): pick the model chain before any
+    // LLM work. Follow-up turns (an assistant reply already in history) never
+    // route fast on brevity alone — see model-router.ts. This runs BEFORE the
+    // system prompt is built because the citation format the prompt asks for
+    // depends on which model will read it.
+    const priorAssistants = history.filter((m) => m.role === "assistant").length;
+    const route = routeTier(body.message, { followUp: priorAssistants > 0 });
+    const models = resolveTierModels(route.tier);
+    const maxIterations = iterationsForTier(route.tier);
 
-      // Facts ran before the model did, and they shape the answer — so say so
-      // rather than letting injected context look like the model knowing
-      // things. Both surfaces the client already has: a trace row per fact,
-      // and a stage the ticker/checklist shows like any other step.
-      if (facts) {
-        send({ type: "facts", facts: facts.used, bytes: facts.content.length });
-        send({ type: "status", stage: "recalling", detail: summarizeFacts(facts) });
-      }
+    // The DB keeps the full conversation; the model gets a windowed replay
+    // (recent turns verbatim, older ones truncated, hard char budget) so long
+    // conversations never grow the per-round context without bound.
+    const messages: Msg[] = [
+      { role: "system", content: buildSystemPrompt(ix, body.pageContext, citationStyleFor(models[0]), undefined, maxIterations) },
+      ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    ];
 
-      // Staged mode never streams the draft: token/clear are swallowed, and a
-      // "synthesizing" status stands in for the first suppressed token of each
-      // generation burst (a burst = the run of tokens since the last tool_call,
-      // or since the stream started). Streaming mode forwards everything
-      // untouched — byte-for-byte today's behavior, zero regression risk.
-      let burstAnnounced = false;
-      const forward = (ev: HarnessEvent) => {
-        if (mode !== "staged") {
-          send(ev);
-          return;
-        }
-        if (ev.type === "tool_call") {
-          burstAnnounced = false; // next generation round re-announces
-          send(ev);
-          return;
-        }
-        if (ev.type === "token") {
-          if (!burstAnnounced) {
-            burstAnnounced = true;
-            send({ type: "status", stage: "synthesizing", detail: "Synthesizing an answer from the evidence…" });
+    // Facts (facts/registry.ts): deterministic, pure-code knowledge blocks that
+    // fire on the question — glossary definitions, entity rows, concept censuses,
+    // app documentation. Seeded as a synthetic tool round after the user message
+    // so a question they already answer needs ONE request instead of tool-round →
+    // answer-round. Injects nothing on a miss; the harness treats what they do
+    // inject as ordinary turn evidence.
+    const facts = config.chatPrefetch ? runFacts({ ix, question: body.message, page: body.pageContext }) : null;
+    if (facts) messages.push(...factRound(body.message, facts));
+
+    const startedAt = Date.now();
+    const encoder = new TextEncoder();
+    // PostHog AI observability: one trace per turn (fresh id, conversation id as
+    // a filterable property). distinctId is the CONVERSATION, not the signed-in
+    // user — semi-anonymous analytics: turns of one conversation stay grouped
+    // together in PostHog, but no user identity is sent (userId stays DB-only,
+    // via conversations.user_id, never leaves the server). The SAME obs feeds the
+    // answer stream, the harness jsonCall (verifier/advisor), and error capture,
+    // so every generation AND every error of the turn lands in one trace. No-op
+    // when POSTHOG_KEY is unset (both factories fall back to the plain client).
+    const obs = {
+      distinctId: convId,
+      traceId: crypto.randomUUID(),
+      // chat_delivery is the A/B measurement hinge (docs/chat-system.md §8).
+      properties: { chat_tier: route.tier, chat_route_reason: route.reason, chat_delivery: mode },
+    };
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const send = (e: { type: string } & Record<string, unknown>) =>
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
+        // Slot ownership has now passed to this stream — everything below,
+        // including the first send() calls, runs inside the try so a throw
+        // from ANY of it (including a client already gone, enqueue throwing)
+        // still hits the finally and releases the slot.
+        try {
+          // delivery rides on meta so the client knows staged is active without
+          // guessing from the absence of token events.
+          send({ type: "meta", conversationId: convId, tier: route.tier, delivery: mode });
+
+          // Facts ran before the model did, and they shape the answer — so say so
+          // rather than letting injected context look like the model knowing
+          // things. Both surfaces the client already has: a trace row per fact,
+          // and a stage the ticker/checklist shows like any other step.
+          if (facts) {
+            send({ type: "facts", facts: facts.used, bytes: facts.content.length });
+            send({ type: "status", stage: "recalling", detail: summarizeFacts(facts) });
           }
-          return; // suppressed — the client never sees the draft
-        }
-        if (ev.type === "clear") return; // nothing streamed, nothing to clear
-        send(ev);
-      };
 
-      try {
-        let done: HarnessDone | null = null;
-        const chatStream = makeOpenrouterStream(obs, models);
-        // runVerifiedChat = runChat wrapped in the reliability harness (status
-        // events, deterministic checks, verifier audit, advisor escalation —
-        // model slots are env-gated, unset = pass-through). done carries the
-        // internal transcript/checksMeta; sanitizeDone strips them off the wire.
-        // The advisor's one recovery cycle replays on the STRONG chain rather
-        // than the chain that just failed the audit (chat-orchestrator.ts).
-        // Built here because the orchestrator is deliberately tier-blind.
-        // When the turn already routed strong this resolves to the same chain.
-        for await (const ev of runVerifiedChat({
-          ix, messages, stream: chatStream, jsonCall: makeOpenrouterJson(obs),
-          recoveryStream: makeOpenrouterStream(obs, resolveTierModels("strong")),
-          question: body.message, signal: req.signal, obs, maxIterations,
-        })) {
-          if (ev.type === "done") {
-            done = ev as HarnessDone;
-            if (mode === "staged") send({ type: "status", stage: "finalizing", detail: "Preparing the final report…" });
-            send(sanitizeDone(done));
-          } else {
-            forward(ev);
-          }
-        }
-        // Don't persist an empty assistant row for an aborted turn.
-        if (done && !req.signal.aborted) {
-          await persistAssistant(userId, convId, done, Date.now() - startedAt, obs);
-          // Cheap LLM titling on turns 1/4/10 only (≤3 calls per conversation
-          // total; see title.ts). Unawaited + .catch()'d so it can never
-          // surface as an unhandled rejection or delay the stream's own
-          // teardown — the answer has already been sent to the client.
-          // Deliberately NOT passed req.signal: the SSE response (and thus
-          // the signal) is already closing/closed here, so forwarding it
-          // would make titling a silent no-op on every turn (see title.ts).
-          const TITLE_AT_TURNS = new Set([1, 4, 10]);
-          if (TITLE_AT_TURNS.has(priorAssistants + 1)) {
-            void titleConversation(convId, buildTitleTranscript(history, done.content), obs).catch((err) =>
-              captureError(err, obs, { stage: "title" }),
-            );
-          }
-        }
-      } catch (err) {
-        if (!req.signal.aborted) {
-          captureError(err, obs, { stage: "stream_handler" });
-          send({ type: "error", message: (err as Error).message });
-        }
-      } finally {
-        controller.close();
-      }
-    },
-  });
+          // Staged mode never streams the draft: token/clear are swallowed, and a
+          // "synthesizing" status stands in for the first suppressed token of each
+          // generation burst (a burst = the run of tokens since the last tool_call,
+          // or since the stream started). Streaming mode forwards everything
+          // untouched — byte-for-byte today's behavior, zero regression risk.
+          let burstAnnounced = false;
+          const forward = (ev: HarnessEvent) => {
+            if (mode !== "staged") {
+              send(ev);
+              return;
+            }
+            if (ev.type === "tool_call") {
+              burstAnnounced = false; // next generation round re-announces
+              send(ev);
+              return;
+            }
+            if (ev.type === "token") {
+              if (!burstAnnounced) {
+                burstAnnounced = true;
+                send({ type: "status", stage: "synthesizing", detail: "Synthesizing an answer from the evidence…" });
+              }
+              return; // suppressed — the client never sees the draft
+            }
+            if (ev.type === "clear") return; // nothing streamed, nothing to clear
+            send(ev);
+          };
 
-  const headers = new Headers({
-    "content-type": "text/event-stream",
-    "cache-control": "no-cache, no-transform",
-    connection: "keep-alive",
-  });
-  if (session.refresh) headers.append("set-cookie", session.refresh);
-  return new Response(stream, { headers });
+          let done: HarnessDone | null = null;
+          const chatStream = makeOpenrouterStream(obs, models);
+          // runVerifiedChat = runChat wrapped in the reliability harness (status
+          // events, deterministic checks, verifier audit, advisor escalation —
+          // model slots are env-gated, unset = pass-through). done carries the
+          // internal transcript/checksMeta; sanitizeDone strips them off the wire.
+          // The advisor's one recovery cycle replays on the STRONG chain rather
+          // than the chain that just failed the audit (chat-orchestrator.ts).
+          // Built here because the orchestrator is deliberately tier-blind.
+          // When the turn already routed strong this resolves to the same chain.
+          for await (const ev of runVerifiedChat({
+            ix, messages, stream: chatStream, jsonCall: makeOpenrouterJson(obs),
+            recoveryStream: makeOpenrouterStream(obs, resolveTierModels("strong")),
+            question: body.message, signal: req.signal, obs, maxIterations,
+          })) {
+            if (ev.type === "done") {
+              done = ev as HarnessDone;
+              if (mode === "staged") send({ type: "status", stage: "finalizing", detail: "Preparing the final report…" });
+              send(sanitizeDone(done));
+            } else {
+              forward(ev);
+            }
+          }
+          // Don't persist an empty assistant row for an aborted turn.
+          if (done && !req.signal.aborted) {
+            await persistAssistant(userId, convId, done, Date.now() - startedAt, obs);
+            // Cheap LLM titling on turns 1/4/10 only (≤3 calls per conversation
+            // total; see title.ts). Unawaited + .catch()'d so it can never
+            // surface as an unhandled rejection or delay the stream's own
+            // teardown — the answer has already been sent to the client.
+            // Deliberately NOT passed req.signal: the SSE response (and thus
+            // the signal) is already closing/closed here, so forwarding it
+            // would make titling a silent no-op on every turn (see title.ts).
+            const TITLE_AT_TURNS = new Set([1, 4, 10]);
+            if (TITLE_AT_TURNS.has(priorAssistants + 1)) {
+              void titleConversation(convId, buildTitleTranscript(history, done.content), obs).catch((err) =>
+                captureError(err, obs, { stage: "title" }),
+              );
+            }
+          }
+        } catch (err) {
+          if (!req.signal.aborted) {
+            captureError(err, obs, { stage: "stream_handler" });
+            send({ type: "error", message: (err as Error).message });
+          }
+        } finally {
+          releaseChatSlot(userId);
+          controller.close();
+        }
+      },
+    });
+
+    const headers = new Headers({
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+    });
+    if (session.refresh) headers.append("set-cookie", session.refresh);
+    streamOwnsSlot = true;
+    return new Response(stream, { headers });
+  } finally {
+    if (!streamOwnsSlot) releaseChatSlot(userId);
+  }
 }
 
 // Exported for direct unit testing (chat.test.ts) — constructing a full

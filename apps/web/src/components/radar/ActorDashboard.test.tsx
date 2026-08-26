@@ -3,8 +3,8 @@
 // (type-label branch, defining-doc + composite links), the composite-party
 // block, the conditional sections (responsibilities / primitives / relations /
 // notable / rewards), and RelationRow/RecRow. Leaf children (chain, contact,
-// responsibilities, instances, rewards, history) are covered by their own tests
-// and stubbed here so we isolate ActorDashboard's branching.
+// responsibilities, instances, rewards, history, settlements) are covered by
+// their own tests and stubbed here so we isolate ActorDashboard's branching.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
@@ -20,6 +20,7 @@ vi.mock("./ActorResponsibilities", () => ({ ActorResponsibilities: () => <div da
 vi.mock("./ActorInstances", () => ({ ActorInstances: () => <div data-testid="instances" /> }));
 vi.mock("./ActorRewards", () => ({ ActorRewards: () => <div data-testid="rewards" /> }));
 vi.mock("./ActorHistory", () => ({ ActorHistory: () => <div data-testid="history" /> }));
+vi.mock("./ActorSettlementTeaser", () => ({ ActorSettlementTeaser: () => <div data-testid="settlements" /> }));
 
 import { ActorDashboard } from "./ActorDashboard";
 
@@ -53,6 +54,14 @@ describe("ActorDashboard header", () => {
     render(<ActorDashboard profile={profile()} />);
     expect(screen.getByRole("heading", { name: "Spark" })).toBeInTheDocument();
     expect(screen.getByText("Prime Agent")).toBeInTheDocument();
+    expect(screen.getByTestId("settlements")).toBeInTheDocument();
+  });
+
+  it("places the MSC teaser before the name so it floats to the top-right", () => {
+    render(<ActorDashboard profile={profile()} />);
+    const teaser = screen.getByTestId("settlements");
+    const name = screen.getByRole("heading", { name: "Spark" });
+    expect(teaser.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("shows 'Executor Agent' for a non-prime agent", () => {

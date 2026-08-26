@@ -86,7 +86,7 @@ export default function App() {
 
   // Analytics: init + per-route $pageview tagged with the product super property.
   usePageAnalytics(location);
-  // Browser-local visit log: record report / radar / constellations page views
+  // Browser-local visit log: record report / radar page views
   // with their filter state (docs, actors and searches are captured at their own
   // sites, where the human label is available). Surfaced on /history.
   usePageVisitTracking(location);
@@ -247,6 +247,13 @@ export default function App() {
                 </Suspense>
               </Route>
             ))}
+            <Route path={ROUTES.RADAR_ACTOR_SETTLEMENTS}>
+              {(params: { slug: string }) => (
+                <Suspense fallback={<Loading />}>
+                  <RadarPage actorSlug={params.slug} query={query} page="settlements" />
+                </Suspense>
+              )}
+            </Route>
             <Route path={ROUTES.RADAR_ACTOR}>
               {(params: { slug: string }) => (
                 <Suspense fallback={<Loading />}>

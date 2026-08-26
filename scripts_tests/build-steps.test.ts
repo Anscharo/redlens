@@ -130,3 +130,45 @@ describe("build-steps: non-JS consumers match their profile", () => {
     }
   });
 });
+
+// settlements.json is NOT an atlas build step — it fetches
+// github.com/soterlabs/settlement-reports, so it can't live in a chain that must
+// be offline and byte-reproducible at a fixed atlas sha (REPRO=1). It is baked
+// into the image by its own Dockerfile line instead, and refreshed locally by
+// dev-preflight. Neither site can import build-steps.mjs, so assert both here:
+// if the bake silently disappears, Radar's Monthly settlement section goes blank
+// in prod with no error anywhere (the artifact 404 is swallowed by design).
+describe("settlements bake: the one prod producer of settlements.json", () => {
+  const bake = /parse-settlements\.mjs/.exec(dockerfile);
+  // The invocation is wrapped over two lines (args, then the `|| echo WARN`
+  // fallback), so assert against a window rather than a single line.
+  const invocation = bake ? dockerfile.slice(bake.index, bake.index + 200) : "";
+
+  it("the Dockerfile bakes dist/settlements.json", () => {
+    expect(bake, "Dockerfile no longer runs scripts/aux/parse-settlements.mjs").not.toBeNull();
+    expect(invocation).toContain("--out dist/settlements.json");
+  });
+
+  it("bakes AFTER build:vite, which wipes dist/", () => {
+    const vite = dockerfile.indexOf("bun run build:vite");
+    expect(vite).toBeGreaterThan(-1);
+    expect(bake!.index).toBeGreaterThan(vite);
+  });
+
+  it("a settlement-reports outage warns instead of failing the image", () => {
+    // `… || echo WARN`: upstream being down must not break a deploy of the app.
+    expect(invocation).toMatch(/\|\|\s*echo/);
+  });
+
+  it("dev-preflight refreshes it on every boot", () => {
+    // The local half of the same guarantee: without this a fresh checkout has
+    // no settlements.json and Radar hides the section with no error anywhere.
+    const preflight = fs.readFileSync(path.join(ROOT, "scripts/aux/dev-preflight.mjs"), "utf8");
+    expect(preflight).toContain("settlements:parse");
+  });
+
+  it("`pnpm build` does NOT run it — that chain stays offline + reproducible", () => {
+    expect(pkg.scripts.build).not.toContain("settlements");
+    expect(STEPS.map((s) => s.pnpmScript)).not.toContain("settlements:parse");
+  });
+});

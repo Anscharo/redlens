@@ -86,6 +86,7 @@ describe("isUnknownRoute", () => {
   it("is true only for an unresolved radar actor slug", () => {
     expect(isUnknownRoute("/radar/redline", actor)).toBe(true); // no such actor
     expect(isUnknownRoute("/radar/spark", actor)).toBe(false); // resolves
+    expect(isUnknownRoute("/radar/spark/settlements", actor)).toBe(false); // nested actor page
     expect(isUnknownRoute("/radar", actor)).toBe(false); // index, not an actor route
     expect(isUnknownRoute("/atlas", actor)).toBe(false); // unrelated route
     expect(isUnknownRoute("/preview/184/radar/redline", actor)).toBe(true); // unwrapped
@@ -137,6 +138,9 @@ describe("renderOgTags", () => {
     expect(actor).toContain("<title>Spark Protocol · Radar · Sky Atlas</title>");
     expect(actor).toContain('property="og:type" content="profile"');
     expect(actor).toContain("api/og.png?kind=radar-actor&amp;name=Spark%20Protocol");
+
+    const settlements = tags("/radar/spark-protocol/settlements", "", () => undefined, (s) => (s === "spark-protocol" ? "Spark Protocol" : undefined));
+    expect(settlements).toContain("<title>Spark Protocol · Radar · Sky Atlas</title>");
 
     // Unresolved slug → NOT an actor card; falls through to the site default.
     const fallback = tags("/radar/redline");

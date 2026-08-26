@@ -175,8 +175,8 @@ src/components/atlas/RightPanel.tsx:88 — [a11y] Icon-only close button has no 
 
 Reporting these as new problems makes reviews noisy and trains people to ignore them:
 
-- **The 31 existing files over 150 lines** (`AtlasReader.tsx` 696, `TreeSidebar.tsx` 513,
-  `CollapsibleNode.tsx` 465, `ActorHistory.tsx` 437, `EntityFlow.tsx` 334, …). `CLAUDE.md`
+- **The existing files over 150 lines** (`AtlasReader.tsx` 696, `TreeSidebar.tsx` 513,
+  `CollapsibleNode.tsx` 465, `ActorHistory.tsx` 437, …). `CLAUDE.md`
   records these as known debt to be split *when touched*. Flag it only if the diff makes such a
   file meaningfully longer.
 - **Absence of `cn` / `tailwind-merge` / CVA** — deliberately not used here.

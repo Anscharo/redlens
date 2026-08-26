@@ -71,6 +71,8 @@ const { messageExceedsLimit, MAX_MESSAGE_BYTES, handleChat, persistAssistant } =
 const { config } = await import("../config.ts");
 const { signSession, SESSION_COOKIE } = await import("../session.ts");
 const { loadIndexes, setIndexes } = await import("../retrieval/indexes.ts");
+const { tryAcquireChatSlot, releaseChatSlot, inFlightChatCount } = await import("./concurrency.ts");
+const { __resetCommonsCache } = await import("./credits.ts");
 
 test("a normal-sized message is not rejected", () => {
   expect(messageExceedsLimit("What does the atlas say about facilitators?")).toBe(false);
@@ -482,6 +484,119 @@ describe("handleChat", () => {
     const res = await handleChat(await authedRequest({ message: "hi", conversationId: "someone-elses-convo" }));
     expect(res.status).toBe(404);
     expect(((await res.json()) as any).error).toBe("conversation_not_found");
+  });
+
+  // Second, independent gate ahead of the token window (chat/concurrency.ts):
+  // caps simultaneous in-flight turns per user regardless of their token
+  // budget, since a turn's cost is unknown until it finishes. Each test uses
+  // its own signed-in user id so it can't interact with the shared in-memory
+  // counter other describe blocks' requests touch.
+  describe("concurrency gate", () => {
+    async function requestAs(userId: string, body: unknown): Promise<Request> {
+      const cookie = await signSession({ id: userId, provider: "github" });
+      return new Request("http://x/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: `${SESSION_COOKIE}=${cookie}` },
+        body: JSON.stringify(body),
+      });
+    }
+
+    it("429s with too_many_concurrent before touching the DB, once the caller is at the cap", async () => {
+      const userId = "concurrency-cap-user";
+      for (let i = 0; i < config.chatMaxConcurrentPerUser; i++) tryAcquireChatSlot(userId, config.chatMaxConcurrentPerUser);
+      try {
+        const res = await handleChat(await requestAs(userId, { message: "hi" }));
+        expect(res.status).toBe(429);
+        const j = (await res.json()) as any;
+        expect(j.error).toBe("too_many_concurrent");
+        expect(j.limit).toBe(config.chatMaxConcurrentPerUser);
+        expect(queryLog).toHaveLength(0); // rejected before the token-window query or any write
+      } finally {
+        for (let i = 0; i < config.chatMaxConcurrentPerUser; i++) releaseChatSlot(userId);
+      }
+    });
+
+    it("a completed turn releases its slot (finally-block wiring, not just the early 429 branches)", async () => {
+      const userId = "concurrency-release-user";
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hi there.");
+      try {
+        const res = await handleChat(await requestAs(userId, { message: "hi" }));
+        await events(res); // drains the stream to completion, running the `finally`
+        expect(inFlightChatCount(userId)).toBe(0);
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("a request rejected by the token-window gate still releases its slot", async () => {
+      const userId = "concurrency-rate-limited-user";
+      sqlHandlers.push((text) => {
+        if (text.includes("FROM usage_events")) return [{ tokens: config.rateLimitTokensPerWindow }];
+        return undefined;
+      });
+      const res = await handleChat(await requestAs(userId, { message: "hi" }));
+      expect(res.status).toBe(429);
+      expect(inFlightChatCount(userId)).toBe(0);
+    });
+
+    it("a request rejected by the commons gate still releases its slot", async () => {
+      const userId = "concurrency-commons-exhausted-user";
+      __resetCommonsCache(); // module-level cache/inflight is process-global across test files
+      const prevKey = config.openrouterManagementKey;
+      config.openrouterManagementKey = "test-management-key";
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      // Parameters<typeof fetch>, not a named `RequestInfo | URL` annotation —
+      // this file's server tsconfig project (unlike the root one `tsc --noEmit
+      // -p .` checks) has no DOM lib, so `RequestInfo` isn't a resolvable name
+      // there even though it's structurally how `fetch` is already typed.
+      g.__llmFetchCurrentImpl = ((...args: Parameters<typeof fetch>) =>
+        String(args[0]).includes("/credits")
+          ? new Response(JSON.stringify({ data: { total_credits: 10, total_usage: 10 } }), { status: 200 })
+          : prevImpl(...args)) as unknown as typeof fetch;
+      sqlHandlers.push((text) => {
+        if (text.includes("FROM usage_events")) return [{ tokens: 0 }];
+        return undefined;
+      });
+      try {
+        const res = await handleChat(await requestAs(userId, { message: "hi" }));
+        expect(res.status).toBe(429);
+        expect(((await res.json()) as any).error).toBe("commons_exhausted");
+        expect(inFlightChatCount(userId)).toBe(0);
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+        config.openrouterManagementKey = prevKey;
+      }
+    });
+
+    it("a request 404ing on conversation_not_found still releases its slot", async () => {
+      const userId = "concurrency-conv-not-found-user";
+      sqlHandlers.push((text) => {
+        if (text.includes("FROM usage_events")) return [{ tokens: 0 }];
+        if (text.includes("conversations WHERE id")) return []; // not found / not owned
+        return undefined;
+      });
+      const res = await handleChat(await requestAs(userId, { message: "hi", conversationId: "someone-elses-convo" }));
+      expect(res.status).toBe(404);
+      expect(inFlightChatCount(userId)).toBe(0);
+    });
+
+    // The bug this guards against: only the two 429 branches and the stream's
+    // own `finally` used to release the slot. Anything else that threw between
+    // acquire and the stream's construction (a DB blip in getWindowUsage,
+    // resolveConversation, the messages INSERT/history SELECT/UPDATE) leaked
+    // the slot silently — the caller would sit on too_many_concurrent forever.
+    // The outer try/finally (streamOwnsSlot) now covers every one of those.
+    it("releases its slot even when a DB call after acquire throws, instead of leaking it", async () => {
+      const userId = "concurrency-db-throw-user";
+      sqlHandlers.push((text) => {
+        if (text.includes("FROM usage_events")) throw new Error("db unavailable");
+        return undefined;
+      });
+      await expect(handleChat(await requestAs(userId, { message: "hi" }))).rejects.toThrow("db unavailable");
+      expect(inFlightChatCount(userId)).toBe(0);
+    });
   });
 
   it("streams a plain-text answer end to end and persists the assistant message", async () => {

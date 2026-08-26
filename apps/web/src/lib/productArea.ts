@@ -17,7 +17,7 @@ export type Product =
 
 export function productForPath(path: string): Product {
   if (path.startsWith("/atlas")) return "reader";
-  if (path.startsWith("/radar") || path.startsWith("/constellations")) return "radar";
+  if (path.startsWith("/radar")) return "radar";
   if (path.startsWith("/reports")) return "reports";
   if (path.startsWith("/preview")) return "preview";
   if (path === "/" || path.startsWith("/search-hints")) return "search";

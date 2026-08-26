@@ -3,7 +3,7 @@ export const ROUTES = {
   ATLAS: "/atlas",
   RADAR: "/radar",
   RADAR_ACTOR: "/radar/:slug",
-  CONSTELLATIONS: "/constellations",
+  RADAR_ACTOR_SETTLEMENTS: "/radar/:slug/settlements",
   SEARCH_HINTS: "/search-hints",
   PROVENANCE: "/provenance",
   PRIVACY: "/privacy",
@@ -32,11 +32,10 @@ export const ROUTES = {
   REPORTS_MOD_FREQUENCY: "/reports/mod-frequency",
 } as const;
 
-export type NavPage = "atlas" | "constellations" | "radar" | "reports";
+export type NavPage = "atlas" | "radar" | "reports";
 
 export const NAV_PAGE_ROUTES: Record<NavPage, string> = {
   atlas: ROUTES.ATLAS,
-  constellations: ROUTES.CONSTELLATIONS,
   radar: ROUTES.RADAR,
   reports: ROUTES.REPORTS,
 };
@@ -45,7 +44,6 @@ export const NAV_PAGE_ROUTES: Record<NavPage, string> = {
 // active nav item and picking the search scope. Prefix-matched since e.g.
 // every /reports/* sub-route counts as "reports".
 export function activeNavPageFor(location: string): NavPage | null {
-  if (location.startsWith(ROUTES.CONSTELLATIONS)) return "constellations";
   if (location.startsWith(ROUTES.REPORTS)) return "reports";
   if (location.startsWith(ROUTES.RADAR)) return "radar";
   if (location.startsWith(ROUTES.ATLAS)) return "atlas";
@@ -66,7 +64,7 @@ export function usesWindowScroll(location: string): boolean {
   );
 }
 
-export type SearchScope = "atlas" | "constellations" | "radar" | "reports";
+export type SearchScope = "atlas" | "radar" | "reports";
 
 export interface ScopeConfig {
   label: string;
@@ -74,10 +72,9 @@ export interface ScopeConfig {
 }
 
 export const SCOPE_CONFIG: Record<SearchScope, ScopeConfig> = {
-  atlas:          { label: "atlas",         placeholder: "Search the Atlas or type /h for query help" },
-  constellations: { label: "constellation", placeholder: "Filter by name — e.g. Spark, Aave, Bonapublica" },
-  radar:          { label: "radar",         placeholder: "Filter actors — name, role" },
-  reports:        { label: "reports",       placeholder: "Filter reports" },
+  atlas:   { label: "atlas",   placeholder: "Search the Atlas or type /h for query help" },
+  radar:   { label: "radar",   placeholder: "Filter actors — name, role" },
+  reports: { label: "reports", placeholder: "Filter reports" },
 };
 
 // Per-report search-pill config: on a report page the pill shows a short
@@ -116,7 +113,6 @@ export const REPORT_CHAT_TOOLS: Partial<Record<string, string>> = {
 // its title is the actor's name, which only the page itself knows.
 export const PAGE_TITLES: Record<string, string> = {
   [ROUTES.RADAR]: "Radar",
-  [ROUTES.CONSTELLATIONS]: "Constellations",
 };
 
 // Canonical report id → display title. Single source of truth shared by the
@@ -170,4 +166,5 @@ export const absolutizeAtlasLinks = (markdown: string): string =>
   markdown.replace(/\]\(\/atlas\/([^)\s]+)\)/g, (_m, id: string) => `](${atlasUrl(id)})`);
 export const actorHref = (slug: string, fragment?: string) =>
   `${ROUTES.RADAR}/${slug}${fragment ? `#${fragment}` : ""}`;
+export const settlementsHref = (slug: string) => `${ROUTES.RADAR}/${slug}/settlements`;
 export const reportHref = (id: string) => `${ROUTES.REPORTS}/${id}`;

@@ -12,8 +12,3 @@ export interface GraphData {
   primitives: GraphEntity[];
   edges: RelationEdge[];
 }
-
-export interface ConstellationInit {
-  entities: GraphEntity[];
-  entityEdges: RelationEdge[];
-}

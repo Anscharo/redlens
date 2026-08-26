@@ -67,7 +67,6 @@ metadata:
 | Brand | `--red --red-dim --accent --error-text` | `--red` is decorative only; `--accent` is the interactive color; `--error-text` is the 4.5:1-safe red |
 | Text | `--gray --tan --tan-2 --tan-3 --magenta --terminal-green --lily-green` | `--tan` primary, `-2` secondary, `-3` muted |
 | Row overlays | `--row-hover --row-selected --row-focused --atlas-row-selected --row-pulse-flash --row-bar-tint` | translucent whites mixed with per-row `--row-color` via `color-mix()` |
-| Graph chrome | `--edge --edge-label-fg --graph-dots` | constellations / ReactFlow |
 | Entity palette | `--entity-*` (12) | categorical colors keyed by entity type |
 | Depth palette | `--depth-1 … --depth-17` | 6-color jewel cycle (red orange green blue purple magenta) ×2.8 — used by tree chiclets/rows |
 | Layout | `--max-prose-width: 68ch` | atlas prose measure |
@@ -143,8 +142,8 @@ token in index.css should also be registered there** so it's editable/audited.
 
 `App.tsx` routes: `/` home (search + feature cards) · `/atlas?id=<uuid>` reader
 (tree Drawer + virtualized node list + RightPanel tabs) · `/radar[/:slug]`
-actor dashboards · `/reports/*` four reports · `/constellations` ReactFlow
-graph · `/hints`, `/provenance`, `/admin/*`. Reports + radar use window scroll;
+actor dashboards · `/reports/*` four reports · `/hints`, `/provenance`,
+`/admin/*`. Reports + radar use window scroll;
 everything else is fixed-shell/inner-scroll (`windowScroll` flag in App.tsx).
 Header = `SearchBar.tsx`, status footer = `Footer.tsx`.
 

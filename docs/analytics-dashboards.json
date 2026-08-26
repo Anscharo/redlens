@@ -75,7 +75,6 @@
     "preview_submit": { "props": { "input": "string", "parsed_id": "string|null", "parsed": "bool" } },
     "preview_view_toggle": { "props": { "view": "all | changed_only", "changed_count": "number" } },
     "search_mode_change": { "props": { "mode": "broad | phrase | strict" } },
-    "constellation_select": { "props": { "entity_id": "uuid (graph entity)" } },
     "report_export": { "props": { "report": "active-data | processes", "format": "csv | json", "method": "download | copy (json only)" } },
     "chat_starter_click": { "props": { "product": "chat", "starter": "number (starter index 0-2)" } },
     "chat_signin_click": { "props": { "product": "chat", "provider": "github | google" } },
@@ -201,8 +200,7 @@
       "tiles": [
         { "name": "Radar pageviews", "type": "trends", "viz": "line", "series": [{ "event": "$pageview", "math": "total" }], "filters": [{ "property": "product", "operator": "exact", "value": "radar", "type": "event" }] },
         { "name": "History opens by agent", "type": "trends", "viz": "bar", "series": [{ "event": "radar_history_toggle", "math": "total" }], "filters": [{ "property": "open", "operator": "exact", "value": true, "type": "event" }], "breakdown": { "property": "agent_slug", "type": "event" } },
-        { "name": "Most-explored history commits", "type": "sql", "viz": "table", "query": "SELECT properties.agent_slug AS agent, properties.pr AS pr, properties.commit AS commit, count() AS opens FROM events WHERE event='radar_history_toggle' AND properties.environment='prod' AND properties.open = true GROUP BY agent, pr, commit ORDER BY opens DESC LIMIT 50" },
-        { "name": "Constellations engagement (removal candidate)", "type": "trends", "viz": "line", "question": "Does anyone actually use the constellations graph (single node-select probe)? Feeds the keep/remove decision.", "series": [{ "event": "constellation_select", "math": "total", "label": "selects" }, { "event": "constellation_select", "math": "unique_session", "label": "sessions" }] }
+        { "name": "Most-explored history commits", "type": "sql", "viz": "table", "query": "SELECT properties.agent_slug AS agent, properties.pr AS pr, properties.commit AS commit, count() AS opens FROM events WHERE event='radar_history_toggle' AND properties.environment='prod' AND properties.open = true GROUP BY agent, pr, commit ORDER BY opens DESC LIMIT 50" }
       ]
     },
     {

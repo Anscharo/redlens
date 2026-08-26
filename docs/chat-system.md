@@ -62,31 +62,42 @@ were missing until 2026-08-21; when adding a fourth, wire it through to
 
 1. **Auth** — `getSessionUser` (JWT cookie session); 401 if none.
 2. **Validation** — reject empty and oversized messages (`MAX_MESSAGE_BYTES`).
-3. **Rate-limit + commons gate** (parallel) — per-user rolling token window
+3. **Concurrency gate** — per-user max simultaneous in-flight turns
+   (`chat/concurrency.ts`, in-memory `Map<userId, count>` — correct only
+   because this service is a `replicas=1` singleton; `CHAT_MAX_CONCURRENT_PER_USER`,
+   default 3; 429 `too_many_concurrent` past the cap). Checked first — no
+   DB/network round trip — so an over-cap caller fails fast instead of paying
+   for the token-window query below. A slot acquired here is released exactly
+   once, on every path: each 429/404 branch below, an outer `finally` covering
+   any throw between acquire and the SSE stream's construction (a DB blip in
+   the token-window query, conversation resolution, or the message
+   insert/history reload would otherwise leak it silently), and the stream's
+   own `finally` once it owns the slot.
+4. **Rate-limit + commons gate** (parallel) — per-user rolling token window
    (`RATE_LIMIT_TOKENS_PER_WINDOW`, default 500,000 tokens /
    `RATE_LIMIT_WINDOW_MINUTES`, default 120; 429 with `Retry-After` if
    exceeded) and the account-wide OpenRouter credit pool (`fetchCommons` in
    `credits.ts`). The commons gate **fails open**: `null` (key unset or credits
    API hiccup) never blocks chat; only a real `remaining <= 0` pauses chat for
    everyone (429 `commons_exhausted`).
-4. **Resolve delivery mode** — `resolveDeliveryMode(body.delivery, config.chatDeliveryMode)`, resolved
+5. **Resolve delivery mode** — `resolveDeliveryMode(body.delivery, config.chatDeliveryMode)`, resolved
    once up front so both the PostHog properties and the SSE loop use one value (§8).
-5. **Resolve conversation** — verify ownership of an existing `conversationId`
+6. **Resolve conversation** — verify ownership of an existing `conversationId`
    or `INSERT` a new `conversations` row; 404 `conversation_not_found` if the
    id isn't the caller's.
-6. **Persist the user message** before streaming, then reload full history.
-7. **Build the model input** — system prompt, windowed history, facts prefetch.
-8. **Model tier routing** — `routeTier` + `resolveTierModels`.
-9. **SSE stream** — emit `meta`, then run the harness, forwarding each event as
-   `data: {json}\n\n`.
-10. **Persist the assistant message** *after* the stream completes — never
+7. **Persist the user message** before streaming, then reload full history.
+8. **Build the model input** — system prompt, windowed history, facts prefetch.
+9. **Model tier routing** — `routeTier` + `resolveTierModels`.
+10. **SSE stream** — emit `meta`, then run the harness, forwarding each event as
+    `data: {json}\n\n`.
+11. **Persist the assistant message** *after* the stream completes — never
     partial; skipped on abort. Harness rows go to `message_checks`.
-11. **Post-response work** — conversation titling (`title.ts`) fires
+12. **Post-response work** — conversation titling (`title.ts`) fires
     fire-and-forget after the SSE response closes, so its budget
     (`CHAT_TITLE_TIMEOUT_MS`, default 20s) costs the user no latency. It
     re-fires at turns 4 and 10; a conversation ending at turns 1–3 keeps its
     truncated `slice(0, 60)` seed title.
-12. **Observability** — a per-turn PostHog trace keyed by conversation id
+13. **Observability** — a per-turn PostHog trace keyed by conversation id
     (semi-anonymous), not by user. `CHAT_CAPTURE_CONTENT` (on by default)
     controls whether raw prompt/response text rides the `$ai_generation` event
     or only token counts/latency/cost.

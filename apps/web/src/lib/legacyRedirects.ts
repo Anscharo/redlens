@@ -3,11 +3,14 @@ import { ROUTES } from "@/lib/routes";
 // Exact legacy URLs that redirect straight to their replacement, no param
 // interpolation needed. /reports/crossview/contents survives the removed
 // Contents tab (superseded by Shape's "Doc mass by scope"); /library and
-// /reports/library survive the Library → CrossView rename.
+// /reports/library survive the Library → CrossView rename; /constellations
+// survives the removed Constellations page (Radar is the remaining entity
+// relationship surface).
 export const LEGACY_REDIRECTS: [from: string, to: string][] = [
   ["/reports/crossview/contents", ROUTES.REPORTS_CROSSVIEW],
   ["/library", ROUTES.REPORTS_CROSSVIEW],
   ["/reports/library", ROUTES.REPORTS_CROSSVIEW],
+  ["/constellations", ROUTES.RADAR],
 ];
 
 // Legacy URLs whose trailing :tab* segment is preserved onto the replacement

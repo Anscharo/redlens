@@ -56,10 +56,10 @@ afterEach(() => {
 });
 
 describe("graph worker init failure recovery", () => {
-  it("rejects getConstellationInit waiters on an init error and respawns on the next call", async () => {
+  it("rejects getEdges (awaiting whenReady) on an init error and respawns on the next call", async () => {
     const g = await import("./graph");
 
-    const p = g.getConstellationInit();
+    const p = g.getEdges("node-1");
     const w0 = MockWorker.instances[0];
     expect(w0).toBeDefined();
     w0.emit("message", { data: { type: "error", message: "relations.json 500" } });
@@ -68,11 +68,13 @@ describe("graph worker init failure recovery", () => {
     expect(w0.terminated).toBe(true);
 
     // Next call respawns a fresh worker (index 1), and a ready message resolves it.
-    const p2 = g.getConstellationInit();
+    const p2 = g.getEdges("node-2");
     expect(MockWorker.instances.length).toBe(2);
     const w1 = MockWorker.instances[1];
-    w1.emit("message", { data: { type: "ready", entities: [], entityEdges: [] } });
-    await expect(p2).resolves.toEqual({ entities: [], entityEdges: [] });
+    w1.emit("message", { data: { type: "ready" } });
+    await Promise.resolve(); // let the internal `await whenReady()` settle before postMessage
+    w1.emit("message", { data: { type: "edges", id: "node-2", outbound: [], inbound: [] } });
+    await expect(p2).resolves.toEqual({ outbound: [], inbound: [] });
   });
 
   it("rejects getEdges (awaiting whenReady) on an init error instead of hanging", async () => {
@@ -87,7 +89,7 @@ describe("graph worker init failure recovery", () => {
   it("uses the stable worker-script error message when the event has detail", async () => {
     const g = await import("./graph");
 
-    const p = g.getConstellationInit();
+    const p = g.getEdges("node-1");
     MockWorker.instances[0].emit("error", { message: "Failed to load worker script" });
 
     await expect(p).rejects.toThrow(/^graph worker script failed to load$/);
@@ -182,11 +184,13 @@ describe("loadGraph", () => {
   });
 });
 
-describe("edges / constellationQuery / constellationCluster (success paths)", () => {
+describe("edges (success paths)", () => {
   async function readyGraph() {
     const g = await import("./graph");
-    const p = g.getConstellationInit();
-    MockWorker.instances[0].emit("message", { data: { type: "ready", entities: [], entityEdges: [] } });
+    const p = g.getEdges("warmup");
+    MockWorker.instances[0].emit("message", { data: { type: "ready" } });
+    await Promise.resolve(); // let the internal `await whenReady()` settle before postMessage
+    MockWorker.instances[0].emit("message", { data: { type: "edges", id: "warmup", outbound: [], inbound: [] } });
     await p;
     return { g, w: MockWorker.instances[0] };
   }
@@ -195,27 +199,9 @@ describe("edges / constellationQuery / constellationCluster (success paths)", ()
     const { g, w } = await readyGraph();
     const p = g.getEdges("node-1");
     await Promise.resolve(); // let the internal `await whenReady()` settle before postMessage
-    expect(w.posted).toEqual([{ type: "edges", id: "node-1" }]);
+    expect(w.posted).toEqual([{ type: "edges", id: "warmup" }, { type: "edges", id: "node-1" }]);
     w.emit("message", { data: { type: "edges", id: "node-1", outbound: [{ e: "x" }], inbound: [] } });
     await expect(p).resolves.toEqual({ outbound: [{ e: "x" }], inbound: [] });
-  });
-
-  it("constellationQuery posts a query and resolves with neighborIds/topId", async () => {
-    const { g, w } = await readyGraph();
-    const p = g.constellationQuery(7, "spark");
-    await Promise.resolve();
-    expect(w.posted).toEqual([{ type: "constellation-query", id: 7, q: "spark" }]);
-    w.emit("message", { data: { type: "constellation-query", id: 7, neighborIds: ["a", "b"], topId: "a" } });
-    await expect(p).resolves.toEqual({ neighborIds: ["a", "b"], topId: "a" });
-  });
-
-  it("constellationCluster posts an agent id and resolves with clusterIds", async () => {
-    const { g, w } = await readyGraph();
-    const p = g.constellationCluster("agent-1");
-    await Promise.resolve();
-    expect(w.posted).toEqual([{ type: "constellation-cluster", agentId: "agent-1" }]);
-    w.emit("message", { data: { type: "constellation-cluster", agentId: "agent-1", clusterIds: ["x", "y"] } });
-    await expect(p).resolves.toEqual(["x", "y"]);
   });
 
   it("ignores a message for an id with no pending callback (already resolved/timed out)", async () => {
@@ -226,10 +212,7 @@ describe("edges / constellationQuery / constellationCluster (success paths)", ()
 
   it("rejects a pending request that times out with no response", async () => {
     vi.useFakeTimers();
-    const g = await import("./graph");
-    const p = g.getConstellationInit();
-    MockWorker.instances[0].emit("message", { data: { type: "ready", entities: [], entityEdges: [] } });
-    await p;
+    const { g } = await readyGraph();
 
     const edgesPromise = g.getEdges("slow-node");
     const assertion = expect(edgesPromise).rejects.toThrow(/timed out/);

@@ -27,7 +27,7 @@ export const SWATCH_WORST_BG: Record<string, string> = {
   "entity-composite-party": "surface", "entity-governance-body": "surface",
   "entity-operational-party": "surface", "entity-ecosystem-actor": "surface",
   "entity-instance": "surface", "entity-multisig": "surface", "entity-fallback": "surface",
-  "diff-removed-fg": "diff-removed-bg", "edge-label-fg": "bg-deep",
+  "diff-removed-fg": "diff-removed-bg",
   ...Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`depth-${i + 1}`, "surface"])),
 };
 
@@ -81,7 +81,6 @@ export const AUDIT_PAIRS: readonly AuditPair[] = [
   { fg: "preview-add",   bg: "bg",               label: "preview-add (redline new/changed) / bg" },
   { fg: "lily-green",    bg: "bg",               label: "lily-green / bg" },
   { fg: "diff-added-fg", bg: "diff-added-bg",    label: "diff added text" },
-  { fg: "edge-label-fg", bg: "bg-deep",          label: "edge label / bg-deep" },
 
   // depth-1…6 is the full jewel-tone cycle (depth-7+ repeats it) — check
   // both worst-case surfaces per the split above.

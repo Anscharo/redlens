@@ -68,6 +68,54 @@ describe("useRateLimitLock — token-window gate", () => {
   });
 });
 
+describe("useRateLimitLock — concurrent gate", () => {
+  it("stays locked before the short timeout elapses", () => {
+    vi.useFakeTimers();
+    const { result } = setup(null, vi.fn());
+    act(() => {
+      result.current[1]({ message: "Too many requests in progress.", kind: "concurrent" });
+    });
+    act(() => {
+      vi.advanceTimersByTime(4_999);
+    });
+    expect(result.current[0]).not.toBeNull();
+  });
+
+  it("auto-clears after the short optimistic timeout — no external signal to wait on", () => {
+    vi.useFakeTimers();
+    const { result } = setup(null, vi.fn());
+    act(() => {
+      result.current[1]({ message: "Too many requests in progress.", kind: "concurrent" });
+    });
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+    expect(result.current[0]).toBeNull();
+  });
+
+  it("does not poll refresh() for a concurrent-gate lock", () => {
+    vi.useFakeTimers();
+    const refresh = vi.fn();
+    const { result } = setup(null, refresh);
+    act(() => {
+      result.current[1]({ message: "Too many requests in progress.", kind: "concurrent" });
+    });
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("a commons prop update does not clear a concurrent-gate lock", () => {
+    const { result, rerender } = setup(null, vi.fn());
+    act(() => {
+      result.current[1]({ message: "Too many requests in progress.", kind: "concurrent" });
+    });
+    rerender({ c: { used: 0, total: 10, remaining: 10 } });
+    expect(result.current[0]).not.toBeNull();
+  });
+});
+
 describe("useRateLimitLock — commons gate", () => {
   it("does not auto-clear on the passage of time alone before the bounded fallback", () => {
     vi.useFakeTimers();

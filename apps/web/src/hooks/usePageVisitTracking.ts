@@ -22,7 +22,7 @@ function visitTitleFor(location: string): string | null {
   return REPORT_TITLES[location.slice(REPORT_PREFIX.length)] ?? null;
 }
 
-// Appends report / radar / constellations page views to the browser-local visit
+// Appends report / radar page views to the browser-local visit
 // log on navigation, along with whatever filters are set (the querystring —
 // these routes sync their filter state to the URL, and /me/history shows what
 // was set). The `report_view` analytics event is fired by ReportShell (once per

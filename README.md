@@ -41,10 +41,6 @@ Address cards show the resolved label, aliases, explorer link, role tags, proxy 
 
 `/radar` — actor profiles for Prime Agents, Facilitators, and other named Sky participants. Shows responsibilities, instances, rewards, and linked atlas sections.
 
-### Constellations
-
-`/constellations` — a visual graph of agents, governance parties, facilitators, and the typed relationships between them, drawn from the build-time graph extraction.
-
 ### Reports
 
 `/reports` — cross-cutting views that join across the graph: rewards by primitive, active data by scope, and org facilitator breakdowns.
