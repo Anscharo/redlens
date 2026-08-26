@@ -1,30 +1,35 @@
-# Duplicate Grove ICD trees
+# Duplicate Instance Configuration Documents — Grove Curve RLUSD/USDC
 
-Zip this folder and send it. Everything needed to read the finding and re-run the check is here.
+Two Grove documents in the Atlas are copies of each other, including every child document under them.
 
-## Files
+| | Document A | Document B |
+|---|------------|------------|
+| Number | `A.6.1.1.2.2.6.1.3.1.6.1` | `A.6.1.1.2.2.6.1.3.1.6.2` |
+| Title | Ethereum Mainnet - Curve RLUSD/USDC Pool Instance Configuration Document | same |
+| UUID | `67b85f8a-3857-461d-a214-d3bf990f9111` | `f6501dc9-f8e9-4130-9390-a1d9f142fcc7` |
+| Size | 22 documents (the root plus 21 children) | 22 documents, same shape |
 
-| File | What it is |
-|------|------------|
-| `README.md` | This note |
-| `report.md` | The finding |
-| `compare-atlas-trees.py` | Verifier (Python 3.8+, no packages) |
+They sit next to each other in `content/A.6.1.1.2 - Grove.md` (around lines 6316 and 6413).
 
-## Re-run
+The titles, types, bodies, and child structure match exactly. Only the document numbers and UUIDs differ — as they must, because every Atlas document is required to have its own number and UUID.
 
-Run the script from the **next-gen-atlas** repo root. It reads:
+The live Instance points at document A (`A.6.1.1.2.2.6.1.1.2.1.6.1` links to it). Document B is not linked from anywhere else in Grove.
 
-`./content/A.6.1.1.2 - Grove.md`
+The pairing table, hashes, inbound links, and full text of each document are in `report.md`.
+
+## How to verify
+
+This folder includes a small Python script with no extra packages (Python 3.8+). Run it from the root of the next-gen-atlas repository so it can read Grove:
 
 ```bash
-cd next-gen-atlas
 python3 compare-atlas-trees.py --self-test
 python3 compare-atlas-trees.py
 ```
 
-Exit `0` means the two trees are still duplicates.
+It compares the two trees in `./content/A.6.1.1.2 - Grove.md`. Exit code `0` means they still match under the rules above. `--self-test` checks the script against a built-in fixture first.
 
-Default trees:
+## Files in this folder
 
-- `A.6.1.1.2.2.6.1.3.1.6.1`
-- `A.6.1.1.2.2.6.1.3.1.6.2`
+- `README.md` — this summary
+- `report.md` — full evidence
+- `compare-atlas-trees.py` — the check
