@@ -318,7 +318,27 @@ test("a pending slot with no id/name is not executed and the round falls through
   expect(done.type === "done" && done.toolCalls).toHaveLength(0);
 });
 
-test("export_findings: yields an export event and feeds the model only a small ack", async () => {
+test("ask_external_msc: tool result is a brief, not forum HTML, and never hits ATLAS_TOOLS", async () => {
+  const rounds = [
+    [toolChunk("ask_external_msc", JSON.stringify({ view: "month", prime: "spark" })), finishChunk("tool_calls")],
+    [textChunk("done"), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 2 }));
+  const result = events.find((e) => e.type === "tool_result");
+  expect(result && result.type === "tool_result").toBe(true);
+  const done = events.at(-1)!;
+  if (done.type === "done") {
+    const toolMsg = done.transcript.find((m) => m.role === "tool");
+    expect(typeof toolMsg?.content).toBe("string");
+    const body = toolMsg!.content as string;
+    expect(body).not.toContain("op_html");
+    const parsed = JSON.parse(body) as Record<string, unknown>;
+    expect(parsed.not_atlas === true || parsed.error).toBeTruthy();
+    if (parsed.not_atlas) expect(parsed.source_class).toBe("external");
+  }
+});
+
+test("export_findings: intercepts the tool, emits an export event, and never puts the file body in the model's context", async () => {
   // Verification-safe data: no doc-no/citation/address-like strings to ground.
   const csvArgs = JSON.stringify({ format: "csv", filename: "duties", columns: ["Item", "Note"], rows: [["Alpha", "hello world"]] });
   const rounds = [
@@ -392,6 +412,67 @@ test("export_findings: a clean markdown file (no citations/quotes/addresses) pas
   if (exp && exp.type === "export") {
     expect(exp.filename).toBe("Summary.md");
     expect(exp.content).toContain("# Summary");
+  }
+});
+
+// A file outlives the conversation, so the export gate applies the same
+// non-Atlas attribution rule the harness applies to the answer. The provenance
+// split is read off the transcript, so a prior pass's MSC round still counts —
+// which is what this replays.
+const MSC_TRANSCRIPT: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+  userMsg,
+  {
+    role: "assistant",
+    content: null,
+    tool_calls: [{ id: "msc_1", type: "function", function: { name: "ask_external_msc", arguments: "{}" } }],
+  },
+  {
+    role: "tool",
+    tool_call_id: "msc_1",
+    content: JSON.stringify({ source_class: "external", not_atlas: true, three_way: { to_sky: 5000000 } }),
+  },
+];
+const mscExportArgs = (markdown: string) => JSON.stringify({ format: "markdown", filename: "msc", markdown });
+
+test("export_findings: a file built on settlement figures is withheld until it carries the non-Atlas disclaimer", async () => {
+  const rounds = [
+    [toolChunk("export_findings", mscExportArgs("To Sky was 5,000,000 USDS in that cycle.")), finishChunk("tool_calls")],
+    [textChunk("Let me relabel that."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: MSC_TRANSCRIPT, stream: fakeStream(rounds, []), maxIterations: 2 }));
+
+  expect(events.some((e) => e.type === "export")).toBe(false);
+  const done = events.at(-1)!;
+  if (done.type === "done") {
+    const ack = done.transcript.filter((m) => m.role === "tool").at(-1);
+    expect(String(ack?.content)).toContain("non-Atlas attribution");
+  }
+});
+
+test("export_findings: the same file WITH the disclaimer is delivered", async () => {
+  const md = "These figures are not from the Sky Atlas — Soter Labs workbooks.\n\nTo Sky was 5,000,000 USDS in that cycle.";
+  const rounds = [
+    [toolChunk("export_findings", mscExportArgs(md)), finishChunk("tool_calls")],
+    [textChunk("Downloading."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: MSC_TRANSCRIPT, stream: fakeStream(rounds, []), maxIterations: 2 }));
+  expect(events.some((e) => e.type === "export")).toBe(true);
+});
+
+test("export_findings: a settlement figure cited as /atlas/<uuid> is withheld even with the disclaimer", async () => {
+  const uuid = ix.docMap.keys().next().value as string;
+  const md = `These figures are not from the Sky Atlas — Soter Labs workbooks.\n\nTo Sky was [5,000,000](/atlas/${uuid}).`;
+  const rounds = [
+    [toolChunk("export_findings", mscExportArgs(md)), finishChunk("tool_calls")],
+    [textChunk("Let me relabel that."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: MSC_TRANSCRIPT, stream: fakeStream(rounds, []), maxIterations: 2 }));
+  expect(events.some((e) => e.type === "export")).toBe(false);
+  const done = events.at(-1)!;
+  if (done.type === "done") {
+    const ack = done.transcript.filter((m) => m.role === "tool").at(-1);
+    expect(String(ack?.content)).toContain("5,000,000");
+    expect(String(ack?.content)).toContain("Sky Forum permalink");
   }
 });
 

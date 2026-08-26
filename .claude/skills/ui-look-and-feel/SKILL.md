@@ -35,8 +35,31 @@ metadata:
   body" is stale — Inter is current.* Changing fonts means editing both the
   `index.html` link and the `font-family` stacks in `index.css` (body,
   `.tree-row`, `.atlas-chiclets` repeat the stack inline).
-- **Light theme**: `[data-theme="light"]` stub exists in `index.css`, empty —
-  tokens fall through to dark.
+- **Themes — two axes on `<html>`, both set by `apps/web/src/lib/theme.ts`**:
+  `data-theme` = WHICH palette (`dark` | `giedi` | `light` | …),
+  `data-scheme` = light-vs-dark. Dark is the default and lives on bare `:root`;
+  every other theme is a **full** token override in a `[data-theme="<id>"]`
+  block. Rules whose meaning merely flips with the background live in one
+  `[data-scheme="light"]` section ("Light-scheme structural overrides") — row
+  overlays go translucent-white → black at lower alpha, `--row-bar-tint`,
+  font-smoothing (`antialiased` is a light-on-dark tuning), pill outlines that
+  were drawn with *text* tokens, and the whole of `chat.css`'s light block. A
+  new light palette inherits all of those for free.
+  A theme may also define tokens that exist in NO other block (`giedi` has
+  `--selected-hint`, `--selected-title`, `--node-title`). Consumers read those
+  as `var(--token, <the normal value>)`, so every other palette falls through
+  untouched — that is the opt-out slot for a palette whose ramp is too loud for
+  some job. The completeness test only walks `:root`, so it won't see them;
+  assert them in the giedi-specific describes in `theme-contrast.test.ts`.
+  **Adding a theme** = a token block in `index.css` + an entry in the `THEMES`
+  registry in `lib/theme.ts` + the `html[data-theme="<id>"]{--bg:…}` rule in
+  `index.html`'s anti-flash `<style>`; the registry's doc comment spells this
+  out and `theme-html-sync.test.ts` fails if the last two drift.
+  **Adding a colour token means adding it to EVERY theme block** —
+  `admin/theme-contrast.test.ts` parses `index.css` and fails on a missing
+  token or an `AUDIT_PAIRS` pair below AA (3:1 for the focus ring). The picker
+  is `components/chat/ThemePicker.tsx`, in both the signed-in and signed-out
+  nav menus.
 - **Palette overrides at runtime**: an inline script in `index.html` reads
   `localStorage["redlens:palette-overrides"]` and sets CSS vars before first
   paint. That's what the admin palette "apply" button writes. Permanent changes
@@ -46,18 +69,58 @@ metadata:
 
 | Group | Tokens | Notes |
 |---|---|---|
-| Surface | `--bg --bg-alt --bg-deep --surface --hover --border` | charcoal w/ red undertone; `--bg-deep` = tree sidebar |
+| Surface | `--bg --bg-alt --bg-deep --surface --hover --border --border-muted` | charcoal w/ red undertone; `--bg-deep` = tree sidebar |
 | Brand | `--red --red-dim --accent --error-text` | `--red` is decorative only; `--accent` is the interactive color; `--error-text` is the 4.5:1-safe red |
 | Text | `--gray --tan --tan-2 --tan-3 --magenta --terminal-green --lily-green` | `--tan` primary, `-2` secondary, `-3` muted |
-| Row overlays | `--row-hover --row-selected --row-focused --atlas-row-selected --row-pulse-flash --row-bar-tint` | translucent whites mixed with per-row `--row-color` via `color-mix()` |
-| Entity palette | `--entity-*` (12) | categorical colors keyed by entity type |
+| Row overlays | `--row-hover --row-selected --row-focused --row-pulse-flash --row-bar-tint` | translucent whites mixed with per-row `--row-color` via `color-mix()` |
+| Selected doc | `--atlas-row-selected` | the reader's selected-node fill. Per-palette DIRECTION: the colour themes lift it off `--bg-deep`, `giedi` sinks it to black |
+| CrossView | `--chunk-fill` | treemap ramp source, mixed into `--surface` under a `--tan-2` label — pick it against that label, never `--red` |
+| Entity palette | `--entity-*` (14) | categorical colors keyed by entity type |
 | Depth palette | `--depth-1 … --depth-17` | 6-color jewel cycle (red orange green blue purple magenta) ×2.8 — used by tree chiclets/rows |
-| Layout | `--max-prose-width: 68ch` | atlas prose measure |
+| Layout | `--max-prose-width: 90ch` | atlas prose measure |
 
 Contrast annotations in the comments are load-bearing: `--gray`, `--tan-3`,
 `--error-text` were specifically tuned to pass WCAG AA (4.5:1) on `--bg` and
 `--surface`. Any new foreground color must pass AA too — verify on
 `/admin/palette` (ContrastAudit section) or with the `wcag-contrast` package.
+
+## Before you finish any visual change: check every theme
+
+There are three colour schemes. A change reviewed in one has been reviewed in
+one third of the app.
+
+```bash
+pnpm exec vitest run apps/web/src/admin/     # the whole theme gate, ~1s
+```
+
+Four things it holds, and the failure each one prevents:
+
+| Test | Prevents |
+|---|---|
+| every audited token is a literal hex per theme | a `var()`/`color-mix()` silently returning a null ratio instead of failing |
+| all `AUDIT_PAIRS` × every theme meet AA (3:1 for the focus ring) | shipping a palette nobody can read |
+| every `:root` colour token exists in every theme | a new token silently inheriting the dark value forever |
+| every `THEMES` registry id has a CSS block, and vice versa | a theme appearing in the picker that falls through to dark under a light-sounding name |
+| no component hardcodes a colour | a literal that looks right in one theme and vanishes in another — the contrast test cannot see these, it only parses `index.css` |
+
+**Adding a colour is therefore three steps, not one:** add the token to
+`:root`, give it a value in EVERY `[data-theme]` block, and — if it is a
+foreground — add an `AUDIT_PAIRS` entry in `admin/contrast.ts` against `bg`,
+`surface` and `bg-deep`. Dark's worst-case surface is its LIGHTEST (`--surface`)
+and light's is its DARKEST (`--bg-deep`); neither theme's worst case is covered
+by the other's pairs.
+
+**Never hand-pick a colour to clear AA.** Search for it — hold hue fixed and
+sweep lightness/chroma in OKLCH until the ratio clears, which finds the most
+saturated value that still passes rather than the first dull one that does.
+OKLCH, not HSL: equal OKLab lightness means equal *perceived* lightness across
+hues, so a set built that way actually looks like one family. HSL does not —
+an HSL yellow at `L=50%` is far brighter than an HSL violet at `L=50%`.
+
+**Screenshots do not substitute for the gate**, and the gate does not substitute
+for screenshots. The gate catches unreadable; only looking catches ugly. Do
+both, and shoot every theme (see the recipe below — seed
+`localStorage["redline-sky-atlas:theme"]` before load so the pre-paint path runs).
 
 ## The /admin/palette page
 

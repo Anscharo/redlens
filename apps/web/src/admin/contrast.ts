@@ -47,6 +47,7 @@ export const AUDIT_PAIRS: readonly AuditPair[] = [
   { fg: "tan-3",         bg: "surface",          label: "tertiary text / surface" },
   { fg: "gray",          bg: "surface",          label: "muted text / surface" },
   { fg: "tan",           bg: "bg-deep",          label: "primary text / bg-deep" },
+  { fg: "tan",           bg: "atlas-row-selected", label: "primary text / selected doc" },
   { fg: "accent",        bg: "bg",               label: "accent links / bg" },
   { fg: "accent",        bg: "surface",          label: "accent links / surface" },
   { fg: "error-text",    bg: "bg",               label: "error-text / bg" },
@@ -61,4 +62,41 @@ export const AUDIT_PAIRS: readonly AuditPair[] = [
   { fg: "depth-3",       bg: "surface",          label: "depth-3 chiclet / surface" },
   { fg: "depth-4",       bg: "surface",          label: "depth-4 chiclet / surface" },
   { fg: "depth-5",       bg: "surface",          label: "depth-5 chiclet / surface" },
+
+  // ─── Light-theme audit additions ─────────────────────────────────────
+  // The pairs above were written dark-only, against dark's worst-case
+  // backgrounds. In dark, --surface is LIGHTER than --bg (so it's the worst
+  // case for light text); in light, --bg-deep is the DARKEST surface (so
+  // it's the worst case for dark text) — neither theme's worst case is
+  // covered by the other's pairs, so every text token below is checked
+  // against bg, surface, AND bg-deep instead of just one.
+  { fg: "tan-2",         bg: "bg-deep",          label: "secondary text / bg-deep" },
+  { fg: "tan-3",         bg: "bg-deep",          label: "tertiary text / bg-deep" },
+  { fg: "gray",          bg: "bg-deep",          label: "muted text / bg-deep" },
+  { fg: "accent",        bg: "bg-deep",          label: "accent links / bg-deep" },
+
+  { fg: "warn",          bg: "bg",               label: "warn text / bg" },
+  { fg: "warn",          bg: "surface",          label: "warn text / surface" },
+  { fg: "lilac",         bg: "bg",               label: "lilac (preview renumbered note) / bg" },
+  { fg: "preview-add",   bg: "bg",               label: "preview-add (redline new/changed) / bg" },
+  { fg: "lily-green",    bg: "bg",               label: "lily-green / bg" },
+  { fg: "diff-added-fg", bg: "diff-added-bg",    label: "diff added text" },
+
+  // depth-1…6 is the full jewel-tone cycle (depth-7+ repeats it) — check
+  // both worst-case surfaces per the split above.
+  { fg: "depth-6",       bg: "surface",          label: "depth-6 chiclet / surface" },
+  { fg: "depth-1",       bg: "bg-deep",          label: "depth-1 chiclet / bg-deep" },
+  { fg: "depth-2",       bg: "bg-deep",          label: "depth-2 chiclet / bg-deep" },
+  { fg: "depth-3",       bg: "bg-deep",          label: "depth-3 chiclet / bg-deep" },
+  { fg: "depth-4",       bg: "bg-deep",          label: "depth-4 chiclet / bg-deep" },
+  { fg: "depth-5",       bg: "bg-deep",          label: "depth-5 chiclet / bg-deep" },
+  { fg: "depth-6",       bg: "bg-deep",          label: "depth-6 chiclet / bg-deep" },
+
+  // Focus ring is a UI-component boundary, not text — WCAG 1.4.11 non-text
+  // contrast (3:1), not 1.4.3 normal text (4.5:1). Same --accent/--bg(/--surface)
+  // token pair as the link entries above, but a distinct label so
+  // theme-contrast.test.ts can hold it to the lower threshold without
+  // touching the text-level entries. See `:focus-visible` in index.css.
+  { fg: "accent",        bg: "bg",               label: "focus ring / bg" },
+  { fg: "accent",        bg: "surface",          label: "focus ring / surface" },
 ];

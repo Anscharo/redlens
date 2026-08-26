@@ -91,11 +91,15 @@ const FIXTURE: SettlementsBundle = {
 };
 
 const loadSettlements = vi.hoisted(() => vi.fn());
+const loadForumTopics = vi.hoisted(() => vi.fn());
 
 vi.mock("../../lib/settlements", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/settlements")>();
   return { ...actual, loadSettlements: () => loadSettlements() };
 });
+vi.mock("../../lib/forumTopics", () => ({
+  loadForumTopics: () => loadForumTopics(),
+}));
 
 import { ActorSettlements } from "./ActorSettlements";
 import { EMPTY_SETTLEMENTS } from "../../lib/settlements";
@@ -108,6 +112,8 @@ afterEach(() => {
 beforeEach(() => {
   loadSettlements.mockReset();
   loadSettlements.mockResolvedValue(FIXTURE);
+  loadForumTopics.mockReset();
+  loadForumTopics.mockResolvedValue([]);
 });
 
 describe("ActorSettlements", () => {
@@ -198,5 +204,22 @@ describe("ActorSettlements", () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     expect(await screen.findByText("Settlement figures could not be loaded.")).toBeInTheDocument();
     expect(screen.queryByText(/No published Monthly Settlement Cycle workbooks/)).not.toBeInTheDocument();
+  });
+
+  it("links Sky Forum to the thread whose title names the selected month", async () => {
+    loadForumTopics.mockResolvedValue([
+      { title: "MSC #10 - Settlement Summary (June 2026)", url: "https://forum.skyeco.com/t/june/10", postedAt: "2026-06-20" },
+      { title: "MSC #11 - Settlement Summary (July 2026)", url: "https://forum.skyeco.com/t/july/11", postedAt: "2026-07-20" },
+    ]);
+    render(<ActorSettlements slug="spark" name="Spark" />);
+    await waitFor(() => expect(screen.getByRole("link", { name: "Sky Forum" })).toHaveAttribute(
+      "href",
+      "https://forum.skyeco.com/t/july/11",
+    ));
+    fireEvent.click(screen.getByRole("button", { name: /Jun 2026: \$10 to Sky/ }));
+    expect(screen.getByRole("link", { name: "Sky Forum" })).toHaveAttribute(
+      "href",
+      "https://forum.skyeco.com/t/june/10",
+    );
   });
 });

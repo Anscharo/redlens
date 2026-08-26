@@ -379,6 +379,10 @@ export const config = {
   // never blocks on the audit — the answer already streamed). The verifier is a
   // stronger, slower model than the advisor, so its deadline is more generous.
   chatVerifierTimeoutMs: Number(process.env.CHAT_VERIFIER_TIMEOUT_MS ?? 20_000),
+  // Isolated MSC sub-agent (chat-only). Empty model = skip LLM, return the
+  // deterministic brief. Defaults to the verifier model when set.
+  chatExternalSubagentModel: process.env.CHAT_EXTERNAL_SUBAGENT_MODEL ?? process.env.CHAT_VERIFIER_MODEL ?? "",
+  chatExternalSubagentTimeoutMs: Number(process.env.CHAT_EXTERNAL_SUBAGENT_TIMEOUT_MS ?? 15_000),
   // Per-slice deadline for the sliced path. Slices run CONCURRENTLY (the turn
   // pays ~one slice latency, post-stream), so this can sit well above the
   // single-prompt cap: the 2026-08-06 bakeoff measured gemma claims-slice p50
@@ -593,6 +597,12 @@ export const config = {
   // scripts/required/atlas-worker.mjs reads it from here, not from its own env
   // parse.
   chainstateRefreshSeconds: Number(process.env.CHAINSTATE_REFRESH_SECONDS ?? 86_400),
+
+  // Forum cycle-thread crawl (forum.ts, atlas worker). Same shape as chain-state:
+  // the worker ticks every ~12 minutes but Discourse is fetched only when the
+  // stored cursor is older than this. Default hourly — MSC threads post at most
+  // a few times a month, so hourly is plenty and stays polite to the forum.
+  forumRefreshSeconds: Number(process.env.FORUM_REFRESH_SECONDS ?? 3_600),
 
   // Runtime freshness health thresholds (history/freshness.ts) — see that
   // file's header comment for the full status-derivation rationale; this is

@@ -29,6 +29,7 @@ import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history/history.ts";
 import { handleBalances } from "./balances/balances.ts";
 import { handleChainState } from "./chain-state.ts";
+import { handleForumTopics } from "./forum.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
 import { handleModTimeline } from "./history/mod-timeline.ts";
 import { registerSSEClient, sseClientCount } from "./sse.ts";
@@ -445,6 +446,10 @@ export function buildRoutes() {
     // on-chain values to everyone, signed in or not. The atlas worker writes
     // the row; this only reads it.
     "/api/chain-state": () => handleChainState(),
+
+    // Patterned Sky Forum cycle threads (MSC reports today). Ungated read of
+    // rows the atlas worker crawls; empty until the first successful sync.
+    "/api/forum-topics": (req: Request) => handleForumTopics(req),
 
     // Auth + collections need only a logged-in session (usersEnabled); chat +
     // usage additionally need chatEnabled (itself AND-gated by usersEnabled).

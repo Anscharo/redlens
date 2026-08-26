@@ -173,11 +173,13 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           "Open a Prime Agent on Radar (Spark, Grove, Obex, …).",
           "The Monthly settlement card in the top right shows the latest cycle; the `full cycle` link under the figure opens the charts.",
+          "On that page, Sky Forum opens the forum post for the month selected in the charts.",
+          "Ask Chat or an MCP client about a month's To Sky / supply kept / demand-side — it will say those figures are not from the Atlas.",
           "On the cycle page, click a month in the Summary bars. Primes with several venues have a PnL / AUM toggle.",
           "In the venue flow chart, hover a flow, a venue name, or its row in the table below — that venue lights up in both, and its figures appear on the flows.",
           "A sink with loss-making venues gets two bars: what came in (`$X gross in`) and, in red just below it, what went back out (`−$Y out`), with the `net` the pair settles to underneath. A longer red bar than green means the month went backwards.",
         ],
-        note: "Hidden when settlements.json has not been built (`pnpm settlements:parse`). Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
+        note: "Hidden when settlements.json has not been built (`pnpm settlements:parse`). Figures are Soter Labs OEA calculations, not the on-chain GovOps spell. Chat and MCP can answer the same views — they always say the numbers are not from the Atlas.",
       },
     ],
   },
@@ -259,6 +261,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Open the Connect page and pick your client.",
           "Copy the setup snippet and paste it into your client's MCP configuration.",
           "Ask your assistant to search, traverse, look up an address, or pull a report — it cites the Atlas directly.",
+          "Monthly settlement dollar questions use `external_msc` (Soter Labs workbooks / Sky Forum) — that tool is labeled not-Atlas.",
           "The Connect page lists the live tool set, so it always matches what the server is actually serving.",
         ],
       },
@@ -276,6 +279,16 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Hover a control that responds to a modifier — the hint appears in the bottom-left corner.",
           "Focus the tree or the search box and the hint switches to the keys that work there.",
         ],
+      },
+      {
+        name: "Colour schemes",
+        what: "The whole app can run in the original charcoal dark scheme, a high-contrast greyscale one, or a light one.",
+        how: [
+          "Open the menu button in the top-right corner and pick a theme: Dark, Giedi, or Light.",
+          'Once signed in, the same picker lives in the profile menu under "Account".',
+          "Every page follows the choice — the reader, Radar, reports, and the Atlas agent.",
+        ],
+        note: "No sign-in needed. Until you pick one, the app follows your device's light/dark setting and keeps following it; once you choose, that choice sticks. It is kept in this browser only, so another browser or device starts from your device setting again.",
       },
       {
         name: "Your viewing history",
@@ -334,6 +347,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           "Sign in, then open Chat and ask a question — it will know the document or report you're viewing.",
           "Ask it what the app can do, or what it can do itself — it answers from this guide, and keeps the two apart.",
+          "Ask about a Prime Agent's monthly settlement dollars — Chat uses an isolated helper on Soter Labs workbooks / Sky Forum and says those figures are not from the Atlas.",
           "Check the answer's verification badge and click the inline sources to jump to the cited docs.",
           "Open the tool trace to see what it queried; the meter shows your usage / credits.",
           "Oldest / all / how many questions list the whole class, not just the first search hits.",

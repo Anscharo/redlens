@@ -71,6 +71,8 @@ export type HarnessEvent =
       ungroundedCitationValues: string[];
       paramMismatches: ParamMismatch[];
       completenessFailures: string[];
+      missingExternalDisclaimer: boolean;
+      mscCitedAsAtlas: string[];
       lengthCapped: boolean;
     };
 
@@ -84,6 +86,9 @@ export function sanitizeDone(done: DoneEvent & { checksMeta?: CheckRowMeta[] }):
 
 // Human-readable status detail off the tool args — zero model cost.
 function describeCall(name: string, args: Record<string, unknown>): string {
+  if (name === "ask_external_msc" || name === "external_msc") {
+    return "Consulting settlement sources (not Atlas)…";
+  }
   const q = [args.search, args.q, args.query, args.term].find((v) => typeof v === "string" && v.length > 0);
   if (typeof q === "string") return `Searching the atlas for “${q.slice(0, 80)}”…`;
   if (name === "atlas_get") return "Reading documents…";
@@ -122,6 +127,8 @@ function verifyEvent(
     ungroundedCitationValues: checks.ungroundedCitationValues,
     paramMismatches: checks.paramMismatches,
     completenessFailures: checks.completenessFailures,
+    missingExternalDisclaimer: checks.missingExternalDisclaimer,
+    mscCitedAsAtlas: checks.mscCitedAsAtlas,
     lengthCapped: checks.lengthCapped,
   };
 }
@@ -210,8 +217,9 @@ function repairedChecks(
   lengthCapped: boolean,
   undefinedLabels: string[] = [],
   completeness?: { question: string; evidence: CompletenessEvidence[] },
+  split?: { atlasTexts?: string[]; externalTexts?: string[] },
 ): CheckReport {
-  const checks = runDeterministicChecks(content, toolTexts, ix, completeness);
+  const checks = runDeterministicChecks(content, toolTexts, ix, completeness, split);
   if (repair.stripped.length === 0 && undefinedLabels.length === 0 && !lengthCapped) return checks;
   return {
     ...checks,
@@ -223,6 +231,14 @@ function repairedChecks(
 
 const toolTextsOf = (transcript: Msg[]): string[] =>
   transcript.filter((m) => m.role === "tool" && typeof m.content === "string").map((m) => m.content as string);
+
+function splitFromTranscript(transcript: Msg[]): { atlasTexts: string[]; externalTexts: string[] } {
+  const entries = evidenceFromTranscript(transcript, 500_000);
+  return {
+    atlasTexts: entries.filter((e) => e.sourceClass !== "external").map((e) => e.content),
+    externalTexts: entries.filter((e) => e.sourceClass === "external").map((e) => e.content),
+  };
+}
 
 // The live schema the system prompt hands the model (doc counts, type + edge
 // vocabularies) is legitimate knowledge it never retrieves via tools — without
@@ -282,6 +298,10 @@ function describeCheckFailures(checks: CheckReport): string[] {
         ? d
         : `${d} — ${COMPLETENESS_REQUERY_STEER}`,
     ),
+    ...(checks.missingExternalDisclaimer
+      ? ["settlement figures were used but the answer did not say they are not from the Atlas — repeat the required disclaimer (Soter Labs workbooks / Sky Forum, not Atlas)"]
+      : []),
+    ...checks.mscCitedAsAtlas.map((m) => `${m} — link the workbook or the Sky Forum permalink instead`),
     ...(checks.lengthCapped ? ["the previous answer was cut off by the output length limit before it finished — write a complete, more concise answer that fits"] : []),
   ];
 }
@@ -430,7 +450,7 @@ export async function* runVerifiedChat(opts: {
 
   // ── Conversationalist pass (answer streams at full speed) ────────────────
   let done: DoneEvent | null = null;
-  for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd, obs: opts.obs }), makeGate)) {
+  for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd, obs: opts.obs, jsonCall: opts.jsonCall, userQuestion: opts.question }), makeGate)) {
     if (ev.type === "done") {
       done = ev;
       break; // held back — the harness emits its own terminal done
@@ -546,7 +566,7 @@ export async function* runVerifiedChat(opts: {
     checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped, refs.undefinedLabels, {
       question: opts.question,
       evidence,
-    });
+    }, splitFromTranscript(done.transcript));
     checksMeta.push({
       kind: "round_checks", model: null, action: null,
       verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, refs: refsMeta(refs), identifiers: identifiersMeta(identifiers), checks: { ...checks, citations: checks.citations.length } },
@@ -644,7 +664,7 @@ export async function* runVerifiedChat(opts: {
   const revMessages: Msg[] = [...done.transcript, { role: "system", content: steer }];
   let revDone: DoneEvent | null = null;
   try {
-    for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: revMessages, stream: opts.recoveryStream ?? opts.stream, signal: opts.signal, maxIterations, onRoundEnd, obs: opts.obs }), makeGate)) {
+    for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: revMessages, stream: opts.recoveryStream ?? opts.stream, signal: opts.signal, maxIterations, onRoundEnd, obs: opts.obs, jsonCall: opts.jsonCall, userQuestion: opts.question }), makeGate)) {
       if (ev.type === "done") {
         revDone = ev;
         break;
@@ -682,7 +702,7 @@ export async function* runVerifiedChat(opts: {
     revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair, revDone.lengthCapped, revRefs.undefinedLabels, {
       question: opts.question,
       evidence: revEvidence,
-    });
+    }, splitFromTranscript(revDone.transcript));
   } catch (err) {
     captureError(err, opts.obs, { stage: "revision_citation_repair_or_checks" });
     yield finish(revDone);

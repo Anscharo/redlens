@@ -23,6 +23,9 @@ describe("pageContextLine", () => {
 
   it("falls back through actorSlug, reportName, path in priority order", () => {
     expect(pageContextLine({ actorSlug: "op-facilitator" })).toBe('Radar actor page for "op-facilitator"');
+    expect(
+      pageContextLine({ actorSlug: "spark", path: "/radar/spark/settlements", mscMonth: "2026-07" }),
+    ).toContain("ask_external_msc");
     expect(pageContextLine({ reportName: "Stale Dates" })).toBe("Report: Stale Dates");
     expect(pageContextLine({ path: "/atlas" })).toBe("Route /atlas");
   });
@@ -94,6 +97,17 @@ describe("buildSystemPrompt", () => {
     const prompt = buildSystemPrompt(ix);
     expect(prompt).toContain("RedLens's own EXTRACTION from the atlas documents");
     expect(prompt).toContain("our extraction shows");
+  });
+
+  it("has a third bucket for external MSC figures", () => {
+    const prompt = buildSystemPrompt(ix);
+    const ext = prompt.indexOf("## External sources (not Atlas)");
+    const tools = prompt.indexOf("## Tools");
+    const entity = prompt.indexOf("## Entity traversal");
+    expect(ext).toBeGreaterThan(entity);
+    expect(tools).toBeGreaterThan(ext);
+    expect(prompt).toContain("ask_external_msc");
+    expect(prompt).toContain("never `[amount](/atlas/<uuid>)`");
   });
 
   // Which format the prompt ASKS for is per-model (docs/plans/reference-citations.md):

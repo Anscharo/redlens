@@ -163,6 +163,28 @@ async function main() {
     }
   }
 
+  // ── Forum cycle threads (time-gated) ──────────────────────────────────────
+  // Also before the atlas early-exit: forum posts land independently of atlas
+  // commits. The worker ticks every ~12 minutes; Discourse is fetched only
+  // when forum_sync_state.fetched_at is older than FORUM_REFRESH_SECONDS
+  // (config.ts, default hourly). Best-effort: a forum 5xx never fails the sync.
+  // NEVER run this on the web service — indexing stays on the worker.
+  if (NO_FETCH) {
+    console.log("atlas-worker: forum sync skipped (--no-fetch)");
+  } else {
+    try {
+      const { maybeSyncForum } = await import("../../src/server/forum.ts");
+      const res = await maybeSyncForum(db);
+      console.log(
+        res.synced
+          ? `atlas-worker: forum synced (was ${res.reason}) — ${res.upserted} topic(s)`
+          : `atlas-worker: forum ${res.reason}${res.ageSeconds != null ? ` (${res.ageSeconds}s old)` : ""} — no Discourse fetch`,
+      );
+    } catch (e) {
+      console.warn(`atlas-worker: forum step skipped — ${e.message}`);
+    }
+  }
+
   // ── Lightweight check ─────────────────────────────────────────────────────
   console.log("atlas-worker: checking upstream atlas SHA…");
   const [upstreamSha, syncState, staleCount] = await Promise.all([

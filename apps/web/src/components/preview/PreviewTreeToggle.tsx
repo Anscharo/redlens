@@ -27,7 +27,7 @@ export function PreviewTreeToggle() {
       </button>
       <button
         className="px-2 py-0.5 rounded"
-        style={togglePillStyle(onlyChanged, "#fff")}
+        style={togglePillStyle(onlyChanged, "var(--tan)")}
         onClick={() => {
           track("preview_view_toggle", { view: "changed_only", changed_count: count });
           setOnlyChanged(true);

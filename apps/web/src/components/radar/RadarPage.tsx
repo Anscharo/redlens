@@ -67,7 +67,7 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
         : `${profile.entity.name} Radar: Sky Atlas by Redline`;
   useDocumentTitle(title);
 
-  // Append the actor (or settlements) page to the visit log once the profile loads.
+  // Append the actor / settlements page to the visit log once it resolves.
   useEffect(() => {
     if (!actorSlug || !profile) return;
     const path = page === "settlements" ? settlementsHref(actorSlug) : actorHref(actorSlug);

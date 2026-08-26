@@ -27,7 +27,7 @@ export function AgentPanel({ agent }: { agent: AgentPrimitiveStat }) {
     </div>
   );
   return (
-    <article className="rounded py-4 break-inside-avoid" style={{ border: "1px solid var(--border)", background: "#0f0a08" }}>
+    <article className="rounded py-4 break-inside-avoid" style={{ border: "1px solid var(--border)", background: "var(--bg-deep)" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
         <colgroup>
           <col style={{ width: "auto" }} />

@@ -14,10 +14,13 @@ import { execToolDetailed } from "./tools/llm-tools.ts";
 import { CHAT_TOOLS } from "./tools/llm-tools.ts";
 import { safeParseArgs } from "./tools/llm-tools.ts";
 import { EXPORT_TOOL_NAME, buildExportArtifact, redactExportArgs } from "./tools/export-tool.ts";
-import { checkExportArtifact } from "./tools/export-verify.ts";
+import { checkExportArtifact, type ExportEvidence } from "./tools/export-verify.ts";
 import { config } from "../config.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
+import type { JsonCall } from "./llm.ts";
+import { ASK_EXTERNAL_MSC, runAskExternalMsc } from "./tools/external-tools.ts";
+import { isExternalMscTool } from "../external/envelope.ts";
 import { isRepetitionLoop } from "./repetition-guard.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -128,6 +131,31 @@ const REPETITION_STEER =
 const EARLY_ANSWER_NUDGE =
   "Check the tool results above before searching again: if they already contain what the question needs, write the final answer now instead of calling more tools. Simple questions about a single document rarely need more than one or two lookups. Only continue if a specific fact you need is still missing — and never re-run a near-identical query.";
 
+// Evidence for the export gate, split by provenance so a file built on the MSC
+// brief faces the same non-Atlas attribution rules the harness applies to the
+// chat answer (a file outlives the conversation — CLAUDE.md's citation dictate
+// is strictest about it). Which tool_call_ids belong to the external tool is
+// read back off the transcript rather than tracked in this loop's own state, so
+// a revision pass — which replays the first pass's transcript through a fresh
+// runChat — classifies those earlier rounds identically.
+export function exportEvidence(msgs: Msg[]): ExportEvidence {
+  const externalIds = new Set<string>();
+  for (const m of msgs) {
+    if (m.role !== "assistant" || !Array.isArray(m.tool_calls)) continue;
+    for (const tc of m.tool_calls) {
+      if (tc.type === "function" && isExternalMscTool(tc.function.name)) externalIds.add(tc.id);
+    }
+  }
+  const atlasTexts: string[] = [];
+  const externalTexts: string[] = [];
+  for (const m of msgs) {
+    if (typeof m.content !== "string") continue;
+    if (m.role === "tool") (externalIds.has(m.tool_call_id) ? externalTexts : atlasTexts).push(m.content);
+    else if (m.role === "assistant") atlasTexts.push(m.content);
+  }
+  return { atlasTexts, externalTexts };
+}
+
 export async function* runChat(opts: {
   ix: Indexes;
   messages: Msg[];
@@ -136,6 +164,8 @@ export async function* runChat(opts: {
   maxIterations?: number;
   onRoundEnd?: (info: RoundInfo) => void;
   obs?: ErrorContext;
+  jsonCall?: JsonCall;
+  userQuestion?: string;
 }): AsyncGenerator<ChatEvent> {
   const msgs: Msg[] = [...opts.messages];
   const max = Math.max(1, opts.maxIterations ?? config.chatMaxIterations);
@@ -340,13 +370,9 @@ export async function* runChat(opts: {
       });
       const parsedCalls = calls.map((c) => ({ id: c.id, name: c.name, raw: c.args, args: safeParseArgs(c.args) }));
       for (const c of parsedCalls) yield { type: "tool_call", name: c.name, args: c.args };
-      // Execute the round's calls in parallel (pure latency win); results are
-      // then emitted + pushed in call order for deterministic transcripts. The
-      // export tool is chat-only and has no registry handler — it's built inline
-      // in the result loop below (it must yield an `export` event, which a
-      // Promise.all callback can't do), so it's skipped here.
+      const skipExec = (name: string) => name === EXPORT_TOOL_NAME || name === ASK_EXTERNAL_MSC;
       const results = await Promise.all(
-        parsedCalls.map((c) => (c.name === EXPORT_TOOL_NAME ? Promise.resolve(null) : execToolDetailed(opts.ix, c.name, c.raw, opts.obs))),
+        parsedCalls.map((c) => (skipExec(c.name) ? Promise.resolve(null) : execToolDetailed(opts.ix, c.name, c.raw, opts.obs))),
       );
       const roundResults: RoundInfo["results"] = [];
       for (let i = 0; i < parsedCalls.length; i++) {
@@ -354,6 +380,25 @@ export async function* runChat(opts: {
 
         // ── export_findings: build the artifact, hand the file to the client,
         // feed the model only a small ack (never the file body). ──────────────
+        if (c.name === ASK_EXTERNAL_MSC) {
+          const lastUser = [...msgs].reverse().find((m) => m.role === "user" && typeof m.content === "string");
+          const userQ = opts.userQuestion ?? (typeof lastUser?.content === "string" ? lastUser.content : "");
+          let payload: Record<string, unknown>;
+          try {
+            payload = await runAskExternalMsc(c.args, userQ, opts.jsonCall, opts.signal);
+          } catch (e) {
+            captureError(e, opts.obs, { tool: ASK_EXTERNAL_MSC });
+            payload = { error: (e as Error).message };
+          }
+          const toolContent = JSON.stringify(payload);
+          const ok = !isErrorResult(toolContent);
+          toolCalls.push({ name: c.name, args: c.args, ok, bytes: toolContent.length });
+          yield { type: "tool_result", name: c.name, ok, bytes: toolContent.length };
+          msgs.push({ role: "tool", tool_call_id: c.id, content: toolContent });
+          roundResults.push({ name: c.name, ok, content: toolContent, truncated: false });
+          continue;
+        }
+
         if (c.name === EXPORT_TOOL_NAME) {
           let ack: Record<string, unknown>;
           try {
@@ -362,10 +407,7 @@ export async function* runChat(opts: {
             // (tool results + prior answers) BEFORE it downloads — the harness
             // only audits the chat answer, so an unchecked file could carry a
             // fabricated citation/quote/address. Withhold + tell the model to fix.
-            const evidenceTexts = msgs
-              .filter((m) => (m.role === "tool" || m.role === "assistant") && typeof m.content === "string")
-              .map((m) => m.content as string);
-            const check = checkExportArtifact(art, evidenceTexts, opts.ix);
+            const check = checkExportArtifact(art, exportEvidence(msgs), opts.ix);
             if (check.ok) {
               const bytes = check.content.length;
               yield { type: "export", format: art.format, filename: art.filename, mime: art.mime, content: check.content, bytes };
