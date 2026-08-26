@@ -41,8 +41,8 @@ export function answerHasMscDisclaimer(answer: string): boolean {
   return t.includes("soter") || t.includes("workbook") || t.includes("forum") || t.includes("oea");
 }
 
-export const ASK_EXTERNAL_MSC = "ask_external_msc";
-export const EXTERNAL_MSC = "external_msc";
+export const ASK_EXTERNAL_MSC = "ask_external_msc"; // chat-only
+export const EXTERNAL_MSC = "external_msc"; // MCP-only
 
 export function isExternalMscTool(name: string): boolean {
   return name === ASK_EXTERNAL_MSC || name === EXTERNAL_MSC;
