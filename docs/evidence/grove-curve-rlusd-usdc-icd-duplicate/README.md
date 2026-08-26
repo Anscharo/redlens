@@ -1,6 +1,6 @@
 # Duplicate Grove ICD trees
 
-Zip this folder and send it. Everything needed to read the finding and re-run the check is here, except the Atlas file.
+Zip this folder and send it. Everything needed to read the finding and re-run the check is here.
 
 ## Files
 
@@ -12,9 +12,12 @@ Zip this folder and send it. Everything needed to read the finding and re-run th
 
 ## Re-run
 
-Save the Atlas Grove document as `grove.md` in this folder.
+Run the script from the **next-gen-atlas** repo root. It reads:
+
+`./content/A.6.1.1.2 - Grove.md`
 
 ```bash
+cd next-gen-atlas
 python3 compare-atlas-trees.py --self-test
 python3 compare-atlas-trees.py
 ```

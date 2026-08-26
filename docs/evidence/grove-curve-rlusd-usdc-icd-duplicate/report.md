@@ -1,7 +1,7 @@
 # Atlas duplicate-tree evidence
 
-Generated: 2026-08-26 10:51 UTC
-Atlas file: `grove.md`
+Generated: 2026-08-26 10:59 UTC
+Atlas file: `./content/A.6.1.1.2 - Grove.md`
 Atlas git commit: `9ba9246a30ceb1fcb69f5c3bee8d54a76fc87d74`
 
 ## Verdict
@@ -64,10 +64,10 @@ trees is byte-identical.
 | 21 | `2.5` | `A.6.1.1.2.2.6.1.3.1.6.1.2.5` | `A.6.1.1.2.2.6.1.3.1.6.2.2.5` | Off-chain Operational Parameters | Core | yes | `8dbe4e53-e70b-4b52-b607-558e9b023b56` | `fb386f16-e7f8-4cba-b10f-346c0e19b8f1` |
 | 22 | `3` | `A.6.1.1.2.2.6.1.3.1.6.1.3` | `A.6.1.1.2.2.6.1.3.1.6.2.3` | Instance-specific Operational Processes | Core | yes | `7a0d7698-5f64-47f8-b81e-c2e71e6e15dc` | `502790de-8ab5-4359-86e0-d40b8ceda9ff` |
 
-## Source locations in grove.md
+## Source locations in `./content/A.6.1.1.2 - Grove.md`
 
-Tree A root: `grove.md:6316` (`67b85f8a-3857-461d-a214-d3bf990f9111`)
-Tree B root: `grove.md:6413` (`f6501dc9-f8e9-4130-9390-a1d9f142fcc7`)
+Tree A root: `./content/A.6.1.1.2 - Grove.md:6316` (`67b85f8a-3857-461d-a214-d3bf990f9111`)
+Tree B root: `./content/A.6.1.1.2 - Grove.md:6413` (`f6501dc9-f8e9-4130-9390-a1d9f142fcc7`)
 
 ## Inbound references (documents outside each tree that point at it)
 
@@ -84,12 +84,14 @@ _None._
 
 ## How to reproduce
 
-Python 3.8+, no packages. Put the Atlas Grove file in this folder as `grove.md`:
+Python 3.8+, no packages. Run from the next-gen-atlas repo root:
 
 ```bash
 python3 compare-atlas-trees.py --self-test
-python3 compare-atlas-trees.py grove.md A.6.1.1.2.2.6.1.3.1.6.1 A.6.1.1.2.2.6.1.3.1.6.2
+python3 compare-atlas-trees.py
 ```
+
+Default file: `./content/A.6.1.1.2 - Grove.md`. Default trees: `A.6.1.1.2.2.6.1.3.1.6.1` and `A.6.1.1.2.2.6.1.3.1.6.2`.
 
 The script exits `0` only when the trees are duplicates under the rules above.
 

@@ -3,18 +3,18 @@
 
 Zero third-party dependencies. Requires Python 3.8+.
 
-Reads one Atlas markdown file (default: grove.md in this folder). A document
-is a heading that matches the Atlas title-line syntax, plus the body until
-the next such heading. A tree is that document and every descendant whose
-document number is that number plus a dotted suffix.
+Run this script from the root of a next-gen-atlas checkout. It reads one Atlas
+markdown file (default: ./content/A.6.1.1.2 - Grove.md). A document is a heading
+that matches the Atlas title-line syntax, plus the body until the next such
+heading. A tree is that document and every descendant whose document number is
+that number plus a dotted suffix.
 
 Two trees are duplicates when, after ignoring document number and UUID, every
 corresponding node has the same title, type, and body.
 
     python3 compare-atlas-trees.py --self-test
     python3 compare-atlas-trees.py
-    python3 compare-atlas-trees.py grove.md
-    python3 compare-atlas-trees.py grove.md --out report.md
+    python3 compare-atlas-trees.py --out report.md
 
 Exit codes:
     0  trees are duplicates
@@ -39,7 +39,7 @@ HEADING_RE = re.compile(
 )
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([0-9a-f-]{36})\)")
 
-DEFAULT_GROVE = "grove.md"
+DEFAULT_GROVE = "./content/A.6.1.1.2 - Grove.md"
 DEFAULT_A = "A.6.1.1.2.2.6.1.3.1.6.1"
 DEFAULT_B = "A.6.1.1.2.2.6.1.3.1.6.2"
 
@@ -71,19 +71,14 @@ def in_tree(doc_no: str, root: str) -> bool:
     return doc_no == root or doc_no.startswith(root + ".")
 
 
-def find_grove(explicit: str | None, script_dir: Path) -> Path:
-    if explicit:
-        p = Path(explicit).expanduser()
-        if not p.is_file():
-            sys.exit(f"error: not a file: {p}")
-        return p.resolve()
-    for p in (Path.cwd() / DEFAULT_GROVE, script_dir / DEFAULT_GROVE):
-        if p.is_file():
-            return p.resolve()
-    sys.exit(
-        f"error: {DEFAULT_GROVE} not found. Put the Atlas Grove file here as "
-        f"{DEFAULT_GROVE}, or pass its path."
-    )
+def find_grove(explicit: str | None) -> Path:
+    p = Path(explicit).expanduser() if explicit else Path(DEFAULT_GROVE)
+    if not p.is_file():
+        sys.exit(
+            f"error: {p} not found. Run this script from the next-gen-atlas "
+            f"repo root (default path is {DEFAULT_GROVE}), or pass the Grove file."
+        )
+    return p.resolve()
 
 
 def parse_file(path: Path) -> list[Node]:
@@ -329,7 +324,7 @@ def render_report(
 
     lines += [
         "",
-        "## Source locations in grove.md",
+        f"## Source locations in `{grove_name}`",
         "",
         f"Tree A root: `{grove_name}:{a_tree[0].line}` (`{a_tree[0].uuid}`)" if a_tree else "Tree A: not found",
         f"Tree B root: `{grove_name}:{b_tree[0].line}` (`{b_tree[0].uuid}`)" if b_tree else "Tree B: not found",
@@ -358,12 +353,14 @@ def render_report(
         "",
         "## How to reproduce",
         "",
-        "Python 3.8+, no packages. Put the Atlas Grove file in this folder as `grove.md`:",
+        "Python 3.8+, no packages. Run from the next-gen-atlas repo root:",
         "",
         "```bash",
         "python3 compare-atlas-trees.py --self-test",
-        f"python3 compare-atlas-trees.py grove.md {a_root} {b_root}",
+        "python3 compare-atlas-trees.py",
         "```",
+        "",
+        f"Default file: `{DEFAULT_GROVE}`. Default trees: `{a_root}` and `{b_root}`.",
         "",
         "The script exits `0` only when the trees are duplicates under the rules above.",
         "",
@@ -428,13 +425,16 @@ def self_test() -> int:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
-        description="Confirm two Atlas document trees in grove.md are duplicates."
+        description=(
+            "Confirm two Atlas document trees are duplicates. "
+            "Run from the next-gen-atlas repo root."
+        )
     )
     parser.add_argument(
         "grove",
         nargs="?",
         default=None,
-        help=f"Atlas Grove markdown file (default: {DEFAULT_GROVE} in this folder)",
+        help=f"Atlas Grove markdown file (default: {DEFAULT_GROVE})",
     )
     parser.add_argument("doc_a", nargs="?", default=DEFAULT_A)
     parser.add_argument("doc_b", nargs="?", default=DEFAULT_B)
@@ -446,8 +446,7 @@ def main(argv: list[str]) -> int:
     if args.self_test:
         return self_test()
 
-    script_dir = Path(__file__).resolve().parent
-    grove = find_grove(args.grove, script_dir)
+    grove = find_grove(args.grove)
     nodes = parse_file(grove)
     if not nodes:
         sys.stderr.write(f"error: no Atlas headings found in {grove.name}\n")
@@ -464,7 +463,7 @@ def main(argv: list[str]) -> int:
 
     result = compare(args.doc_a, a_tree, args.doc_b, b_tree)
     report = render_report(
-        grove_name=grove.name if grove.name == DEFAULT_GROVE else DEFAULT_GROVE,
+        grove_name=DEFAULT_GROVE if args.grove is None else str(Path(args.grove)),
         atlas_sha=atlas_revision(grove),
         a_root=args.doc_a,
         b_root=args.doc_b,
