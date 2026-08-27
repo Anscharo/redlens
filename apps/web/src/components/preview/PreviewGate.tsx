@@ -42,6 +42,7 @@ const ERROR_TEXT: Record<string, string> = {
   // harmless entry here keeps the generic fallback sane if that ever changes.
   "auth-required": "Sign in with GitHub to view this private preview.",
   forbidden: "You don't have access to this repository.",
+  // Public name in the UI; internal short name is SAbR.
   "app-not-installed": "The Sky Atlas by Redline GitHub App isn't installed on this repository.",
 };
 
