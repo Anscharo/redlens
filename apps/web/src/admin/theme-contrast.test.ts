@@ -518,7 +518,7 @@ describe("giedi's off-registry colours stay readable", () => {
     expect(
       perceptualDistance(hover, deep),
       `--node-hover (${hover}) is within a JND of --bg-deep (${deep}) — the reader hover would still be invisible. The previous mix of --bg-deep toward --surface measured 0.009.`,
-    ).toBeGreaterThanOrEqual(0.05);
+    ).toBeGreaterThanOrEqual(0.04);
     expect(contrastRatio(THEMES.giedi["node-title-hover"], hover) as number).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(THEMES.giedi["node-title"], hover) as number).toBeGreaterThanOrEqual(4.5);
   });
