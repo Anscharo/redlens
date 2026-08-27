@@ -362,7 +362,14 @@
   --row-bar-tint: white;
   --change-flash-color: rgba(255, 255, 255, 0.14);
 
-  --node-hover: #000000;
+  /* Reader-row hover fill. The colour themes mix --bg-deep toward --surface,
+     which on this palette is a 0.009 OKLab step — under a JND, so the row
+     does not read as hovered. This is a lifted slate (OKLCH L 0.28 / C 0.03
+     / H 245), the theme's electric blue at surface-tier lightness: less dark
+     than --bg-deep, and the hue is what makes it a hover rather than just a
+     slightly different grey. Used by the [data-theme="giedi"] .atlas-node
+     hover rule below the theme blocks. */
+  --node-hover: #1c2b37;
 
   /* The one DECORATIVE hue in the theme, and giedi-only — every other cast
      here is semantic (status) or a distinguisher (entity, depth). A selected
@@ -370,8 +377,9 @@
      much for the chrome around it, so pills, the doc number and body links
      inside the selection take this instead. Desaturated gold (OKLCH L 0.78 /
      C 0.055 / H 80), 10.4:1 on the black fill and 8.5:1 on --surface, which
-     is what the type pill is actually painted on. Used only by the
-     [data-theme="giedi"] rules below the theme blocks. */
+     is what the type pill is actually painted on. Also the Connect page's
+     tool-name colour (`.mcp-tool-name`), via `var(--selected-hint, --accent)`
+     so other palettes keep their interactive accent. */
   --selected-hint: #cab490;
 
   /* The selected doc's title. NOT --accent (#ffffff): pure white on the black
@@ -399,6 +407,12 @@
      `var(--node-title, <the depth colour>)`, so dark and light fall through to
      their existing behaviour and need no rules of their own. */
   --node-title: #edf4fb;
+
+  /* Hovered reader title — the same gold family as --selected-hint, held at
+     title lightness (OKLCH L 0.93 / C 0.03 / H 80) so it tints rather than
+     dropping to the hint's mid gold. Giedi-only; the hover rule below reads
+     it directly. */
+  --node-title-hover: #f3e6d2;
 
   /* ─── Shadows ─── deliberately the SAME as the charcoal theme's, not
      stronger. The instinct is to lean on shadow because a flat neutral palette
@@ -588,6 +602,25 @@
    5.4-5.7:1 over both surfaces a report row can sit on. */
 [data-theme="giedi"] .q-mark {
   background: color-mix(in srgb, var(--red-dim) 55%, transparent);
+}
+
+/* Reader row hover: the base rule's --bg-deep/--surface mix is below a JND
+   here (see --node-hover). Recolour the fill AND the title so hover has both
+   a lifted blue slab and a gold title, against the resting cool --node-title. */
+[data-theme="giedi"] .atlas-node:not(.is-selected):hover,
+[data-theme="giedi"] .atlas-node:not(.is-selected):focus-visible {
+  background-color: var(--node-hover);
+}
+[data-theme="giedi"] .atlas-node:not(.is-selected):hover .atlas-node-title,
+[data-theme="giedi"] .atlas-node:not(.is-selected):focus-visible .atlas-node-title {
+  color: var(--node-title-hover);
+}
+
+/* MCP tool names on /connect. --accent is white in this theme, so the names
+   would be indistinguishable from surrounding text; they take the decorative
+   gold instead. Other palettes fall through to --accent. */
+.mcp-tool-name {
+  color: var(--selected-hint, var(--accent));
 }
 
 /* ─── Light-scheme structural overrides ───────────────────────────────────

@@ -88,7 +88,7 @@ export function ConnectPage() {
               <span style={{ color: "var(--tan)" }}>“{e.ask}”</span>{" "}
               <span className="text-tan-3">
                 <span className="enlargen">→</span> {e.tools.map((t) => (
-                  <span key={t} className="mono" style={{ color: "var(--accent)" }}>
+                  <span key={t} className="mono mcp-tool-name">
                     {t}{" "}
                   </span>
                 ))}
@@ -127,7 +127,7 @@ export function ConnectPage() {
           )}
           {tools?.map((t) => (
             <li key={t.name} className="text-xs" style={{ color: "var(--tan-2)" }}>
-              <span className="mono" style={{ color: "var(--accent)" }}>
+              <span className="mono mcp-tool-name">
                 {t.name}
               </span>{" "}
               — {t.desc}

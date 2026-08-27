@@ -35,6 +35,7 @@ it("renders the tool list fetched from tools.json, including newly-added tools",
   await waitFor(() => expect(within(toolsList).getByText("atlas_first_seen")).toBeInTheDocument());
   expect(within(toolsList).getByText("atlas_search")).toBeInTheDocument();
   expect(screen.getByText(/should return the 2 tools/)).toBeInTheDocument();
+  expect(within(toolsList).getByText("atlas_search")).toHaveClass("mcp-tool-name");
 });
 
 it("shows a fallback message if tools.json fails to load", async () => {

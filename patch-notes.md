@@ -32,6 +32,9 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
+## 2026-08-27
+- Tinted Giedi Connect tool names gold and made reader document hover easier to see
+
 ## 2026-08-25
 - Fixed a page reload that could interrupt reading just after an atlas update
 - Chat and MCP can answer Monthly Settlement Cycle questions from Soter Labs workbooks and Sky Forum posts, and they say those figures are not from the Atlas
