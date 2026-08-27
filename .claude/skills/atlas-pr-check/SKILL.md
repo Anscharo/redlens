@@ -1,7 +1,7 @@
 ---
 name: atlas-pr-check
 description: >
-  Runbook for reviewing a next-gen-atlas PR against RedLens. Triggered by phrases
+  Runbook for reviewing a next-gen-atlas PR against SAbR. Triggered by phrases
   like "let's review PR ##", "how would PR ## affect the atlas", "check atlas PR",
   "does PR ## break anything", "what does atlas PR ## change". Covers invoking
   pnpm check:pr, reading .cache/pr-check/ reports, classifying build/test failures
@@ -80,7 +80,7 @@ A report titled **"Atlas PR check — BASELINE FAILED"** means the build failed 
 the PR's **merge base**, before the PR's changes were even applied. This is
 pre-existing breakage in the atlas snapshot the PR is based on (common for stale
 PRs branched from an old main — e.g. a duplicate UUID later fixed upstream).
-It is not the PR's fault and not fixable in RedLens; the PR needs an upstream
+It is not the PR's fault and not fixable in SAbR; the PR needs an upstream
 rebase before it can be checked.
 
 Otherwise the "Failed phase" in the report is `build:at <sha>` or `pnpm test`.

@@ -1,6 +1,6 @@
 # PM Priorities
 
-A product-led priority list for RedLens' Sky Atlas — ordered by user value and strategic
+A product-led priority list for SAbR — ordered by user value and strategic
 leverage, not by infra-first reflex. Grounded in the current state of the codebase as of
 2026-06-17.
 

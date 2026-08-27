@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-20
 **Question:** the three audits of `soterlabs/settlement-cycle` (the skill's Known-upstream-defects section from the 2026-08 parse audit; the footing note `2026-08-19-soter-xlsx-footing.md` on PR #301; the "Settlement-cycle financial audit (3rd)" comment on PR #301) each report display defects. Do they agree, are they accurate, and is anything fabricated — safe to escalate upstream?
-**Method:** independent re-derivation from primary sources only. All 36 published prime workbooks at [`settlement-reports@98e63d3`](https://github.com/soterlabs/settlement-reports) parsed with raw openpyxl (not RedLens's parser, not the audits' scripts); every `summary.md` parsed by regex; pipeline code read at [`settlement-cycle@10cdfe0`](https://github.com/soterlabs/settlement-cycle/commit/10cdfe05a2875cb8f294e30b91ebeffa81de0025). The settlement-reports skill was deliberately **not** trusted as ground truth — it is itself audit output.
+**Method:** independent re-derivation from primary sources only. All 36 published prime workbooks at [`settlement-reports@98e63d3`](https://github.com/soterlabs/settlement-reports) parsed with raw openpyxl (not SAbR's parser, not the audits' scripts); every `summary.md` parsed by regex; pipeline code read at [`settlement-cycle@10cdfe0`](https://github.com/soterlabs/settlement-cycle/commit/10cdfe05a2875cb8f294e30b91ebeffa81de0025). The settlement-reports skill was deliberately **not** trusted as ground truth — it is itself audit output.
 
 ---
 

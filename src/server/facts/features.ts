@@ -12,7 +12,7 @@
 //      it themselves, or vice versa).
 //   2. THE ATLAS vs OUR EXTRACTION — the atlas is the source documents;
 //      entities, relations, addresses, params, censuses and every report built
-//      on them are RedLens's parse of those documents, not atlas text.
+//      on them are SAbR's parse of those documents, not atlas text.
 import { FEATURE_GROUPS, type FeatureGroup } from "../../lib/featuresData.ts";
 import type { Fact, FactBlock, FactContext } from "./types.ts";
 
@@ -28,10 +28,10 @@ const MAX_DETAIL_GROUPS = 3;
 // lookahead still let "what can I do with the Stability Scope" through.
 const DIRECT: RegExp[] = [
   /\bwhat (can|could) (i|you|we|users?) (do|see|ask)\b(?!\s+(to|about|if|when|before|after|for)\b)/i,
-  /\bwhat (can|does) (this app|the app|this site|this tool|redlens?|redline(?: sky)? atlas|you) (do|offer|support|provide)\b/i,
+  /\bwhat (can|does) (this app|the app|this site|this tool|redlens?|sabr|redline(?: sky)? atlas|you) (do|offer|support|provide)\b/i,
   /\bwhat (features?|capabilit(y|ies)|functionalit(y|ies)) (exist|are there|are available|do you have|does it have)\b/i,
-  /\bwhat (is|are) (redlens?|redline(?: sky)? atlas|this app|this site|this tool)\b/i,
-  /\bhow do i (use|get started with|navigate) (this|the app|redlens?)\b/i,
+  /\bwhat (is|are) (redlens?|sabr|redline(?: sky)? atlas|this app|this site|this tool)\b/i,
+  /\bhow do i (use|get started with|navigate) (this|the app|redlens?|sabr)\b/i,
   /\bwhat else can (you|i)\b/i,
 ];
 
@@ -43,7 +43,7 @@ const DO_WITH = /\bwhat (can|could) (i|you|we|users?) (do|see|ask)\s+with\b/i;
 // product: "what are the features of the Stability Scope" must stay an atlas
 // question, so a bare "features" never fires this fact.
 const CAPABILITY = /\b(features?|capabilit(y|ies)|functionalit(y|ies)|capable of|what you can do)\b/i;
-const APP_REF = /\b(app|application|site|website|platform|tool|redlens?|redline|chat|assistant|you|your|here)\b/i;
+const APP_REF = /\b(app|application|site|website|platform|tool|redlens?|sabr|redline|chat|assistant|you|your|here)\b/i;
 
 // "How do I …" is the other half of a capability question, and the half the
 // `how` steps exist for. It needs an object that only exists in the UI —
@@ -105,10 +105,10 @@ function detailGroups(question: string): Set<string> {
 const UPCOMING_KEY = "upcoming";
 
 const NOTE =
-  "RedLens product documentation — how this app works — injected because the question asks what can be done here. " +
+  "SAbR (Sky Atlas by Redline) product documentation — how this app works — injected because the question asks what can be done here. " +
   "It is NOT atlas text: never cite an atlas document for it, and never say the Atlas states it. " +
   "Keep the two halves apart and name which one you are answering about: `chat` is what YOU, in this panel, can do; " +
-  "`app` is what the person does themselves in the RedLens web app, by going somewhere and clicking. When both apply, say both. " +
+  "`app` is what the person does themselves in the Sky Atlas by Redline web app, by going somewhere and clicking. When both apply, say both. " +
   "Link an app area as an ordinary markdown link to its `where` route (e.g. [Reports](/reports)) — those are app pages, not " +
   "documents, so they never belong in a citation definition block. " +
   "`available: false` marks an area that is not switched on yet: describe it as planned, never as something to use today. " +
@@ -119,7 +119,7 @@ const VOCABULARY = {
   the_atlas:
     "The Sky Atlas itself — the governance documents this app reads. Authoritative: quotes and citations come from here and nowhere else.",
   our_extraction:
-    "Everything RedLens derives from those documents: the entity/relation graph, roles, on-chain addresses, parameters, censuses, " +
+    "Everything SAbR derives from those documents: the entity/relation graph, roles, on-chain addresses, parameters, censuses, " +
     "and every report and view built on them. It is our parse of the atlas text, not atlas text — attribute it as ours " +
     "(\"our extraction shows…\", \"our graph links…\") and never present a derived label, count, or relation as something the Atlas states.",
 };
@@ -130,7 +130,7 @@ const VOCABULARY = {
 // user would use. Add a chat capability, add a line here.
 const CHAT = {
   what_i_am:
-    "The assistant in the RedLens chat panel. I read the Sky Atlas and RedLens's extracted graph through tools and answer with citations. " +
+    "The assistant in the Sky Atlas by Redline chat panel. I read the Sky Atlas and SAbR's extracted graph through tools and answer with citations. " +
     "I am part of the app, but I am not the app.",
   i_can: [
     "Search and read atlas documents, quote them, and link the exact document.",
@@ -142,7 +142,7 @@ const CHAT = {
   ],
   i_cannot: [
     "Change anything — not the Atlas, not the app, not your collections, not on-chain state.",
-    "Read the web, or any source outside the Atlas and RedLens's own data.",
+    "Read the web, or any source outside the Atlas and SAbR's own data.",
     "See your screen or click for you: everything under `app` is something you do in the browser.",
     "Rule on governance — I report what the Atlas says; facilitators and governance decide.",
   ],
@@ -165,7 +165,7 @@ function shapeGroup(g: FeatureGroup, detailed: boolean) {
 
 export const featuresFact: Fact = {
   id: "features",
-  what: "RedLens product documentation (the /features guide) for questions about what the app or this chat can do.",
+  what: "SAbR product documentation (the /features guide) for questions about what the app or this chat can do.",
   // Count is areas, which means nothing to a reader — name the thing instead.
   summarize: () => "the app's features guide",
   prototypes: FEATURES_PROTOTYPES,

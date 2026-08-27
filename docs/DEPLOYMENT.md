@@ -1,6 +1,6 @@
-# RedLens Deployment Runbook
+# SAbR Deployment Runbook
 
-Stand up the full RedLens app (reader SPA + MCP endpoint + chat/OAuth + live
+Stand up the full SAbR app (reader SPA + MCP endpoint + chat/OAuth + live
 atlas updates). Follow the steps in order.
 
 Deployment has **three parts**: **Railway** hosts the app as two services — a

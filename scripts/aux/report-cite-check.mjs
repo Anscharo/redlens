@@ -1,6 +1,6 @@
 // Citation gate CLI — check that an Atlas-derived report cites every normative
 // claim in context. Use on any report draft written to a file before it is
-// published anywhere (file, remote, or the RedLens site).
+// published anywhere (file, remote, or the SAbR site).
 //
 //   node scripts/aux/report-cite-check.mjs <report.md> [<more.md> ...]
 //   cat report.md | node scripts/aux/report-cite-check.mjs   # stdin

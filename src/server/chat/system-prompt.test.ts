@@ -95,7 +95,7 @@ describe("buildSystemPrompt", () => {
   // block reinforces when the question is about the app (facts/features.ts).
   it("says the graph is our extraction, not atlas text", () => {
     const prompt = buildSystemPrompt(ix);
-    expect(prompt).toContain("RedLens's own EXTRACTION from the atlas documents");
+    expect(prompt).toContain("SAbR's own EXTRACTION from the atlas documents");
     expect(prompt).toContain("our extraction shows");
   });
 

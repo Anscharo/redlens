@@ -1,7 +1,7 @@
 ---
 name: react-components
 description: >
-  How to create, update, refactor, or split a React component in RedLens,
+  How to create, update, refactor, or split a React component in SAbR,
   following the components.build specification (composition, types,
   accessibility, data attributes). Use when adding a component under
   src/components/**, extracting or splitting a component that has grown too
@@ -24,12 +24,12 @@ metadata:
 
 # Building React Components
 
-RedLens follows [components.build](https://www.components.build) — the open specification
+SAbR follows [components.build](https://www.components.build) — the open specification
 for modern UI components co-authored by Hayden Bleasel and shadcn. This skill is that spec
-reduced to the parts that bind here, plus the RedLens house rules that extend it.
+reduced to the parts that bind here, plus the SAbR house rules that extend it.
 
 **Deliberately out of scope:** the spec's class-merging chapters (`cn`, `tailwind-merge`,
-`clsx`, CVA) and its distribution chapters (npm, registry, marketplaces). RedLens is an
+`clsx`, CVA) and its distribution chapters (npm, registry, marketplaces). SAbR is an
 application, not a published component library, and does not use a class-merge helper.
 For visual/token work use the **`ui-look-and-feel`** skill instead.
 
@@ -55,7 +55,7 @@ The spec's decision flow (`definitions`), in the order to ask:
 3. Concrete product use case, opinionated composition → **block** (e.g. a whole report body)
 4. Non-visual logic for ergonomics → **utility** → it belongs in `src/lib/` or `src/hooks/`, not `src/components/`
 
-That last one is the most commonly missed. RedLens states it as a hard rule
+That last one is the most commonly missed. SAbR states it as a hard rule
 (`CLAUDE.md`): **data logic lives in pure `src/lib/*` modules, not in components, so it is
 testable without React.** The reference pairs are
 `src/lib/activeDataIndex.ts` ↔ `src/components/reports/ActiveDataReport.tsx`,
@@ -94,7 +94,7 @@ owns `useDocumentTitle` and the `report_view` event *so a new report cannot forg
 That centralisation is the point, and 13 pages depend on it. **Don't refactor it, and don't
 cite it as precedent** — it is the shape this section is steering new components away from.
 
-This is also how you satisfy the RedLens size rules — **max ~150 lines per file, max 3
+This is also how you satisfy the SAbR size rules — **max ~150 lines per file, max 3
 components per file** (and only if 2 of them are under 8 lines). 31 files currently exceed
 150 lines; those are known debt, to be split when you touch them, not in a big-bang refactor.
 
@@ -126,7 +126,7 @@ components; leave existing ones alone.
   it — `title` on a `div` is the classic trap. Use `heading` instead.
 - **JSDoc every custom prop.** It is the component's only API documentation here.
 
-RedLens specifics: **named exports only** (the only two `export default` in
+SAbR specifics: **named exports only** (the only two `export default` in
 `src/` are `App.tsx` and `NodeContentInner.tsx`, and lazy routes bridge named→default via
 `lazyImport` in `src/lib/lazyRoutes.tsx`). **No `React.FC`** — zero usages, plain function
 declarations only. `verbatimModuleSyntax` is on, so type-only imports must be `import type`.
@@ -179,13 +179,13 @@ own the markup entirely.
 
 ## 4. Accessible by default
 
-Accessibility is a baseline feature, not a follow-up ticket. RedLens is already strong here —
+Accessibility is a baseline feature, not a follow-up ticket. SAbR is already strong here —
 the tree is overwhelmingly real `<button>`s, with a single `<div onClick>` in production code
 (a modal backdrop). Keep it that way.
 
 - **Start from the semantic element.** `<button>` for actions, `<a href>` for navigation,
   `h1`–`h6` for headings, `<article>`/`<section>`/`<header>` for regions, `<ul>/<li>` for lists.
-  Reach for `role=` only when no native element fits (RedLens does this for `tab`/`tablist`,
+  Reach for `role=` only when no native element fits (SAbR does this for `tab`/`tablist`,
   `tree`/`treeitem`, `listbox`/`option`, `dialog`, `alert`, `combobox`, `switch`, `menu`).
 - **The four ARIA rules**: don't use ARIA if semantic HTML will do; don't change native
   semantics unnecessarily; every interactive element must be keyboard accessible; never hide
@@ -206,7 +206,7 @@ the tree is overwhelmingly real `<button>`s, with a single `<div onClick>` in pr
   `aria-live="assertive"` for errors) and `aria-busy` while loading — `StatusPill.tsx` does this.
 - **Labels, not placeholders.** A placeholder disappears when typing.
 - **Use the native `disabled` attribute.** The spec suggests preferring `aria-disabled` +
-  an explanation; RedLens has deliberately kept native `disabled` (18 uses, no `aria-disabled`).
+  an explanation; SAbR has deliberately kept native `disabled` (18 uses, no `aria-disabled`).
   Follow the house rule. If a disabled control genuinely needs to explain itself, add the
   explanation as adjacent text rather than switching the mechanism.
 - Touch targets: 44×44px minimum **for new interactive controls**. Not retrofitted — this is
@@ -236,11 +236,11 @@ Instead put the state on the element and let CSS select it:
   (`StageList.tsx`) — consistent naming is the point, so converge going forward.
   **Do not rename existing ones**; their selectors are wired into `index.css` and `chat.css`.
 - **Props** remain the right home for variants, sizes, behaviour, and event handlers.
-- **`data-slot` is not used in RedLens** and should not be introduced. The spec uses it as a
+- **`data-slot` is not used in SAbR** and should not be introduced. The spec uses it as a
   stable hook for cross-component CSS targeting; this codebase targets with semantic classes
   instead. Zero occurrences — keep it that way.
 
-This matches how RedLens already works: `FilterPills.tsx` toggles `data-active` and lets
+This matches how SAbR already works: `FilterPills.tsx` toggles `data-active` and lets
 `.scope-pill` in `src/index.css` do the rest. Per `CLAUDE.md`: *don't add hover/click logic in
 JS when CSS will do it.*
 

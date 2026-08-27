@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "title": "RedLens Sky Atlas — PostHog dashboard spec",
+  "title": "SAbR — PostHog dashboard spec",
   "generatedFor": "PostHog dashboard agent",
   "global": {
     "region": "us",

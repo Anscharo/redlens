@@ -1,7 +1,7 @@
 ---
 name: react-state
 description: >
-  How to decide where React state lives in RedLens and how to expose it —
+  How to decide where React state lives in SAbR and how to expose it —
   local vs URL vs context vs external store vs worker/loader data. Use when
   adding state to a component, lifting or colocating state, choosing between
   useState and useUrlState, adding a context provider, wiring
@@ -21,9 +21,9 @@ metadata:
 
 # Managing Component State
 
-This skill is about choosing the **narrowest place** state can live in RedLens, and making
+This skill is about choosing the **narrowest place** state can live in SAbR, and making
 that state visible to CSS and to tests. Where [components.build](https://www.components.build)
-and RedLens practice disagree — notably on controlled/uncontrolled dual mode (§2) — the house
+and SAbR practice disagree — notably on controlled/uncontrolled dual mode (§2) — the house
 pattern wins and the divergence is called out explicitly.
 
 Pairs with the **`react-components`** skill (composition, props, accessibility, data attributes).
@@ -35,7 +35,7 @@ re-renders, test setup, and a way to get out of sync.
 
 **0. Don't store it.** If a value can be computed from props or existing state, compute it.
 Derived state duplicated into `useState` + `useEffect` is the most common bug in this
-codebase's shape of code. RedLens uses exactly one `useReducer`, and only as a force-render
+codebase's shape of code. SAbR uses exactly one `useReducer`, and only as a force-render
 bump (`src/components/AddressTooltip.tsx`) — that is the intended rarity.
 
 **1. Local `useState`.** Default for anything one subtree owns: hover, open/closed, draft input.
@@ -101,7 +101,7 @@ Load-bearing and easy to break:
 ## 2. Components are controlled; the page owns the state
 
 The spec recommends every input-like component support **both** controlled and uncontrolled
-use, merged with Radix's `useControllableState`. **RedLens deliberately does not do this** —
+use, merged with Radix's `useControllableState`. **SAbR deliberately does not do this** —
 and new components should follow the house pattern, not the spec here.
 
 The house pattern is **fully controlled, with domain-named callbacks**. State lives in the

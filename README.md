@@ -1,4 +1,4 @@
-# RedLens — Sky Atlas
+# SAbR — Sky Atlas by Redline
 
 A search-first reader for the [Sky Atlas](https://github.com/sky-ecosystem/next-gen-atlas), the canonical document describing the Sky ecosystem's structure, governance, and operations.
 
@@ -99,7 +99,7 @@ The on-chain contract-state snapshot is **not** a build stage: it lives in Postg
 
 ### Build at any historical atlas commit
 
-The atlas is a moving target. To audit RedLens against a specific atlas revision:
+The atlas is a moving target. To audit SAbR against a specific atlas revision:
 
 ```bash
 pnpm build:at <atlas-commit-sha>   # e.g. ede66d5f2cf3…
@@ -117,7 +117,7 @@ This is not part of `pnpm build` — it's slow and requires GitHub API access fo
 
 ## Deployment
 
-RedLens deploys two ways:
+SAbR deploys two ways:
 
 - **GitHub Pages — static reader.** `main` auto-deploys via `.github/workflows/deploy.yml` on every push to `main`, daily on a schedule, and on manual trigger. It serves the SPA reader only — no chat, no live atlas updates — and requires the repository secret `ETHERSCAN_API_KEY` when rebuilding address metadata.
 - **Railway — full app.** A single web service plus a managed Postgres. The web service serves the reader SPA, the MCP endpoint, `api/health`, and the chat/OAuth endpoints, and runs an in-process self-updater that keeps the atlas text fresh between deploys (polls upstream, hot-swaps in memory, no restart). It builds from a `Dockerfile` — the Dockerfile clones the atlas itself, because Railway strips `.git` and doesn't recurse submodules. Step-by-step runbook: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
@@ -158,7 +158,7 @@ Setup instructions for common clients live on the in-app **`/connect`** page. Th
 
 > API note: `atlas_query` is lean by default (`enrich=false` → title/doc_no/snippet/sources); pass `enrich=true` for full document content + ancestor ids, or fetch specific docs with `atlas_get`.
 
-> The earlier Cloudflare Worker (`redlens-mcp/`, `https://redlens-mcp.anscharo.workers.dev/mcp`) predates the Railway move and is no longer the connection RedLens uses.
+> The earlier Cloudflare Worker (`redlens-mcp/`, `https://redlens-mcp.anscharo.workers.dev/mcp`) predates the Railway move and is no longer the connection SAbR uses.
 
 ### Auxiliary scripts
 

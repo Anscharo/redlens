@@ -41,19 +41,19 @@ more, you've selected too much.
 
 ## 2. Registering the App (step by step)
 
-Create it under the account that will run RedLens (a personal account is fine,
+Create it under the account that will run SAbR (a personal account is fine,
 or the org that owns the deployment). GitHub → **Settings → Developer settings →
 GitHub Apps → New GitHub App**.
 
-1. **GitHub App name** — anything recognizable, e.g. `RedLens Private Previews`.
+1. **GitHub App name** — anything recognizable, e.g. `SAbR Private Previews`.
    (The name becomes the public install URL slug — see §4.)
-2. **Homepage URL** — your RedLens URL (e.g. `https://<your-app>.up.railway.app`).
+2. **Homepage URL** — your SAbR URL (e.g. `https://<your-app>.up.railway.app`).
 3. **Identifying and authorizing users** — leave **"Request user authorization
    (OAuth) during installation" UNCHECKED.** Viewers authenticate with the
    existing OAuth login app; this App never authorizes a user. Leave **Callback
    URL** blank.
 4. **Post installation → Setup URL** — optional. You may set it to
-   `https://<your-app>/preview` so an owner lands back on RedLens after
+   `https://<your-app>/preview` so an owner lands back on SAbR after
    installing; not required.
 5. **Webhook** — **uncheck "Active".** The server polls on demand; there is no
    webhook handler. Leave Webhook URL and secret blank.
@@ -81,7 +81,7 @@ Then, on the App's page:
 
 ---
 
-## 3. Configure RedLens (env vars)
+## 3. Configure SAbR (env vars)
 
 Set these on the server (Railway → the web service → Variables, or your local
 `.env`). Also documented in `docs/railway-env-vars.md`.
@@ -134,7 +134,7 @@ any login:
    (Granting all repos also works but is broader than needed.)
 3. Install.
 
-RedLens surfaces this: if someone opens a private preview for a repo the App
+SAbR surfaces this: if someone opens a private preview for a repo the App
 isn't on yet, the UI shows an **"install the app"** screen. Viewers never do this
 — only the repo owner, once per repo.
 
@@ -148,7 +148,7 @@ private repo, the server calls
 token and grants the preview **only** when GitHub returns a real permission
 (`read`/`write`/`admin`) **and** the response's numeric user id matches the
 account they're signed in as. A `404` ("not a collaborator"), `permission:
-"none"`, or any error **denies**. So access to the RedLens preview always tracks
+"none"`, or any error **denies**. So access to the SAbR preview always tracks
 GitHub's own answer to "can this account read this repo?".
 
 ---

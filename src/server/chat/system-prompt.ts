@@ -145,7 +145,7 @@ export function buildSystemPrompt(
     agentArtifactRoster(ix) ?? "",
     "",
     "## Entity traversal (live graph)",
-    "This graph is RedLens's own EXTRACTION from the atlas documents — as are entity roles, on-chain addresses, parameters, censuses, and every report built on them. The atlas is the documents; the extraction is our parse of them. Quote and cite atlas text as the atlas, attribute anything only the extraction shows as ours (\"our extraction shows…\"), and never present one as the other.",
+    "This graph is SAbR's own EXTRACTION from the atlas documents — as are entity roles, on-chain addresses, parameters, censuses, and every report built on them. The atlas is the documents; the extraction is our parse of them. Quote and cite atlas text as the atlas, attribute anything only the extraction shows as ours (\"our extraction shows…\"), and never present one as the other.",
     "Entities (facilitators, agents, primitives, …) connect via typed edges. Common chains:",
     chains,
     "",

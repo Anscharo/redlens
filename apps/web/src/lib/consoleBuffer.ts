@@ -1,4 +1,4 @@
-// Console capture for the RedLens feedback tool: a fixed-memory ring buffer
+// Console capture for the SAbR feedback tool: a fixed-memory ring buffer
 // over recent console activity, so a bug report can attach "what the console
 // said". Nothing but strings are ever stored — see consoleFormat.ts for why
 // retaining the original values would leak.
