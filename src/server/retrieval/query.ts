@@ -200,17 +200,60 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   const anc = a.ancestor_id
     ? (() => { const node = resolveNode(ix, a.ancestor_id!); return node ? descendantIds(ix, node.id) : null; })()
     : null;
-  const constrain = (ids: string[]) => intersect(ids, hist, anc, stat);
+  // Track what the filters removed. A zero-result answer is otherwise
+  // indistinguishable from "the atlas has nothing on this" — the model reads
+  // `count: 0` and honestly reports the atlas is silent, when in fact its own
+  // filter arguments emptied the set. Observed in production: a chat turn sent
+  // recent_commits=1 + change_type=content on a plain "what is the Atlas"
+  // search, got count:0 twice, and answered that the evidence did not support
+  // an overview — the unfiltered query returns the canonical "The Atlas" doc
+  // as its top hit.
+  let candidatesBeforeFilters = 0;
+  let droppedByFilters = 0;
+  const constrain = (ids: string[]) => {
+    const out = intersect(ids, hist, anc, stat);
+    candidatesBeforeFilters += ids.length;
+    droppedByFilters += ids.length - out.length;
+    return out;
+  };
+  // Named so the diagnostic can tell the caller WHICH argument to drop.
+  const activeFilters = [
+    a.recent_commits ? `recent_commits=${a.recent_commits}` : "",
+    a.change_type ? `change_type=${a.change_type}` : "",
+    a.since ? `since=${a.since}` : "",
+    a.until ? `until=${a.until}` : "",
+    a.status ? `status=${a.status}` : "",
+    a.ancestor_id ? `ancestor_id=${a.ancestor_id}` : "",
+  ].filter(Boolean);
   const enrich = (nodes: AtlasNode[]) => nodes.map((n) => enrichNode(ix, n, a.enrich, !!a.include_params));
   // Cap any content-bearing result array to the output budget so a single call
   // can't overflow the caller's context; `truncated` tells them to page/narrow.
   const withBudget = (rows: unknown[], rest: Record<string, unknown>): ToolResult => {
     const { kept, truncated } = fitToBudget(rows);
     const ancestors = collectAncestors(ix, kept);
+    // Zero results WITH filters active is a recoverable state, not an answer.
+    // Say so, name the arguments to drop, and report how many candidates they
+    // removed — the same "hand back what you need to retry" shape the rest of
+    // the toolset uses. Silence here costs a whole turn: the model cites what
+    // it knows anyway, citation repair strips the un-retrieved uuid, and the
+    // deterministic checks hard-fail an answer that was actually correct.
+    const emptyByFilters = kept.length === 0 && activeFilters.length > 0;
     const envelope = {
       ...rest,
       count: kept.length,
       ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
+      ...(emptyByFilters
+        ? {
+            filters_applied: activeFilters,
+            ...(droppedByFilters > 0 ? { candidates_removed_by_filters: droppedByFilters } : {}),
+            hint:
+              `0 results, but ${activeFilters.join(", ")} ${activeFilters.length === 1 ? "was" : "were"} applied` +
+              (droppedByFilters > 0
+                ? ` and removed ${droppedByFilters} of ${candidatesBeforeFilters} candidate document(s).`
+                : ".") +
+              " This does NOT mean the atlas is silent on the topic — retry without these arguments unless the question is specifically about recency, status or a scope. Only omit optional filters you were not asked for.",
+          }
+        : {}),
       ...(ancestors ? { ancestors } : {}),
       results: kept,
     };

@@ -1,7 +1,7 @@
 // Span-validation is the whole point of the sliced design: it is the code
 // backstop that stops a model asserting support into existence.
 import { test, expect } from "bun:test";
-import { validateSpans, parseSlice, buildSlicePrompt, SLICE_NEEDS_EVIDENCE, spanOverlap, type SliceClaim } from "./verifier-slices.ts";
+import { validateSpans, parseSlice, parseJsonish, closeTruncatedJson, repairStatus, buildSlicePrompt, SLICE_NEEDS_EVIDENCE, spanOverlap, type SliceClaim } from "./verifier-slices.ts";
 
 const EVIDENCE = [
   '{"content":"The documents herein contain all data and specifications for Spark\'s Instances of the Pioneer Chain Primitive."}',
@@ -95,4 +95,92 @@ test("overreach carries no evidence — it judges stance, not facts", () => {
 test("the figures worklist rides in the prompt", () => {
   const msgs = buildSlicePrompt("figures", { question: "q", answer: "a", evidence: [], worklist: ["250000", "0.5"] });
   expect(JSON.stringify(msgs)).toContain("250000");
+});
+
+// (1)+(2) Reference evidence — injected context, not retrieved atlas text.
+// Summarising it is its intended use, so the verbatim-substring bar would make
+// a faithful restatement `unsupported` by construction.
+const refEv = (sourceClass: "atlas" | "reference") => [
+  { label: "[E1]", tool: "atlas_prefetch", args: "{}", content: "The app has reports and a radar view.", sourceClass },
+];
+
+test("marks reference entries so the judge can tell them from retrieved atlas text", () => {
+  const [, user] = buildSlicePrompt("claims", { question: "q", answer: "a", evidence: refEv("reference") });
+  expect(String(user.content)).toContain("[E1] [REFERENCE]");
+});
+
+test("does not mark ordinary atlas retrievals as reference", () => {
+  const [, user] = buildSlicePrompt("claims", { question: "q", answer: "a", evidence: refEv("atlas") });
+  expect(String(user.content)).not.toContain("[REFERENCE]");
+});
+
+test("tells the judge a faithful summary of reference evidence is supported", () => {
+  const [system] = buildSlicePrompt("claims", { question: "q", answer: "a", evidence: refEv("reference") });
+  expect(String(system.content)).toContain("EXCEPTION — reference evidence");
+  expect(String(system.content)).toMatch(/DESCRIPTIVE claim that faithfully restates/);
+});
+
+// The exemption must not become a hole: anything checkable still needs a span.
+test("keeps figures, quotes, addresses, doc numbers and citations on exact spans", () => {
+  const [system] = buildSlicePrompt("claims", { question: "q", answer: "a", evidence: refEv("reference") });
+  expect(String(system.content)).toMatch(
+    /figures, dates, amounts, on-chain addresses, document numbers, quoted atlas text and citations still require an EXACT verbatim span/,
+  );
+});
+
+// ── Messy-JSON repair + status repair-or-drop ──────────────────────────────
+// A status we could not READ must never become a claim we JUDGED unsupported:
+// unsupported claims drive the warn verdict and feed the advisor-escalation
+// threshold, so a parse defect would manufacture evidence against the answer.
+
+test("an unreadable status drops the claim instead of assuming unsupported", () => {
+  const r = parseSlice(JSON.stringify({ claims: [{ claim: "X is true", span: "X" }] }));
+  expect(r?.claims).toEqual([]);
+});
+
+test("a status differing only by case or whitespace is normalised, not dropped", () => {
+  const r = parseSlice(JSON.stringify({ claims: [{ claim: "X", status: "  Supported ", span: "X" }] }));
+  expect(r?.claims.map((c) => c.status)).toEqual(["supported"]);
+});
+
+test("a genuine unsupported verdict is untouched", () => {
+  const r = parseSlice(JSON.stringify({ claims: [{ claim: "X", status: "unsupported", span: "" }] }));
+  expect(r?.claims.map((c) => c.status)).toEqual(["unsupported"]);
+});
+
+// The exact production corruption: over-escaped quotes made one claim swallow
+// the next one's fields, so the outer object lost its status and the old
+// default recorded a SUPPORTED claim as unsupported.
+test("recovers a status that leaked into the claim text, and cleans the text", () => {
+  const leaked = { claims: [{ claim: 'Immutable Documents are part of the Atlas","status":"supported","span":"It consists of…","absence":false},{' }] };
+  const r = parseSlice(JSON.stringify(leaked));
+  expect(r?.claims.map((c) => c.status)).toEqual(["supported"]);
+  expect(r?.claims[0].claim).toBe("Immutable Documents are part of the Atlas");
+});
+
+test("repairStatus returns null only when nothing can be read", () => {
+  expect(repairStatus({ status: "contradicted" })).toBe("contradicted");
+  expect(repairStatus({ status: "nonsense", claim: "no hints here" })).toBeNull();
+});
+
+// Output caps cut JSON mid-structure routinely. The claims already emitted are
+// good — discarding the whole slice over the tail loses real judgements.
+test("salvages complete claims from a generation truncated mid-object", () => {
+  const truncated = '{"claims":[{"claim":"A is true","status":"supported","span":"A"},{"claim":"B is tr';
+  const r = parseSlice(truncated);
+  expect(r?.claims.map((c) => c.claim)).toEqual(["A is true"]);
+});
+
+test("closeTruncatedJson ignores braces inside quoted strings", () => {
+  expect(closeTruncatedJson('{"a":"a { brace"')).toBe('{"a":"a { brace"}');
+  expect(closeTruncatedJson('{"a":"unterminated')).toBe('{"a":"unterminated"}');
+});
+
+test("parseJsonish tolerates trailing commas and prose after the JSON", () => {
+  expect(parseJsonish('{"claims":[],}')).toEqual({ claims: [] });
+  expect(parseJsonish('```json\n{"ok":true}\n```\nHope this helps!')).toEqual({ ok: true });
+});
+
+test("parseJsonish still returns null when there is no object at all", () => {
+  expect(parseJsonish("I could not complete this audit.")).toBeNull();
 });

@@ -19,6 +19,8 @@ const ix = loadIndexes();
 
 const textChunk = (text: string): Chunk =>
   ({ id: "gen-abc", choices: [{ index: 0, delta: { content: text }, finish_reason: null }] }) as unknown as Chunk;
+const reasoningChunk = (text: string): Chunk =>
+  ({ id: "gen-abc", choices: [{ index: 0, delta: { reasoning: text }, finish_reason: null }] }) as unknown as Chunk;
 const toolChunk = (name: string, args: string): Chunk =>
   ({
     id: "gen-abc",
@@ -646,6 +648,11 @@ test("verifier fail → advisor rewrite → revision replaces answer → re-veri
     expect(second.type === "verify_result" && second.overall).toBe("pass");
     expect(second.type === "verify_result" && second.action).toBe("revised");
 
+    // The successful-revision clear is tagged "revision" — never a wipe; the
+    // client keeps the flagged answer struck-through above the replacement.
+    const clear = events.find((e) => e.type === "clear");
+    expect(clear).toMatchObject({ type: "clear", reason: "revision" });
+
     const done = lastDone(events);
     expect(done.content).toBe("Fixed answer.");
     expect(done.usage).toEqual({ input: 150, output: 15 }); // both passes summed
@@ -655,6 +662,30 @@ test("verifier fail → advisor rewrite → revision replaces answer → re-veri
     // The recovery row preserves the original answer for the audit trail.
     const advisorRow = done.checksMeta.find((c) => c.kind === "advisor_recovery")!;
     expect((advisorRow.verdict as { originalAnswer: string }).originalAnswer).toBe("Bad answer.");
+  }));
+
+test("reasoning deltas pass through runVerifiedChat unmodified, in both the main pass and a revision replay", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    const rounds = [
+      [reasoningChunk("thinking about the bad answer"), textChunk("Bad answer."), finishChunk("stop"), usageChunk(100, 10)],
+      [reasoningChunk("thinking about the fix"), textChunk("Fixed answer."), finishChunk("stop"), usageChunk(50, 5)],
+    ];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream(rounds),
+        jsonCall: fakeSlicedJson({
+          claims: [sliceFail(), slicePass()],
+          advisor: ['{"action":"rewrite","guidance":"remove claim x"}'],
+        }),
+      }),
+    );
+    const reasoningTexts = events.filter((e) => e.type === "reasoning").map((e) => (e as { text: string }).text);
+    expect(reasoningTexts).toEqual(["thinking about the bad answer", "thinking about the fix"]);
+    const done = lastDone(events);
+    expect(done.content).toBe("Fixed answer.");
+    // Reasoning never leaks into the answer text.
+    expect(done.content).not.toContain("thinking");
   }));
 
 // The advisor decides WHAT to do about a failed turn; until recoveryStream it
@@ -723,6 +754,93 @@ test("advisor failure (garbage JSON) falls back to annotate — original answer 
     expect(done.content).toBe("Bad answer.");
     const advisorRow = done.checksMeta.find((c) => c.kind === "advisor_recovery")!;
     expect(advisorRow.action).toBe("annotate");
+  }));
+
+// A stream that replays `rounds` for its first N calls, then THROWS on every
+// call after — simulating the revision pass failing outright (context
+// overflow, provider error) after the advisor already committed to a rewrite.
+function fakeStreamThenThrow(rounds: Chunk[][], throwFromCall: number): ChatStream {
+  let i = 0;
+  return () => {
+    const idx = i++;
+    if (idx >= throwFromCall) {
+      return (async function* (): AsyncIterable<Chunk> {
+        throw new Error("revision provider error");
+      })();
+    }
+    return emit(rounds[Math.min(idx, rounds.length - 1)] ?? []);
+  };
+}
+
+test("abandoned revision (loop throws): clear reason:\"restore\" then done carries the ORIGINAL answer", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    // Call 0: tool round. Call 1: the flawed first-pass answer. Call 2 (the
+    // revision replay) throws — chat-orchestrator.ts's revision try/catch
+    // degrades this to revDone:null rather than losing the original answer.
+    const rounds = [
+      [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+      [textChunk("Bad answer."), finishChunk("stop"), usageChunk(100, 10)],
+    ];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStreamThenThrow(rounds, 2),
+        jsonCall: fakeSlicedJson({
+          claims: [sliceFail(), slicePass()],
+          advisor: ['{"action":"rewrite","guidance":"remove claim x"}'],
+        }),
+      }),
+    );
+
+    // No revision tokens ever streamed (the throw happens before the first
+    // chunk) — exactly two clears: the optimistic "revision" clear before the
+    // attempt, then "restore" once it's known to have failed.
+    const clears = events.filter((e) => e.type === "clear");
+    expect(clears.map((c) => c.type === "clear" && c.reason)).toEqual(["revision", "restore"]);
+    expect(kinds(events)).toEqual([
+      "status:querying", "tool_call", "tool_result", "token",
+      "status:comparing", "status:checking", "verify_result",
+      "status:advising", "status:revising", "clear", "clear", "done",
+    ]);
+
+    const done = lastDone(events);
+    // The ORIGINAL answer stands — never lost to a failed recovery attempt.
+    expect(done.content).toBe("Bad answer.");
+    expect(done.usage).toEqual({ input: 100, output: 10 }); // no revision usage added
+    // Only one verify_result was ever emitted (the failing first pass) —
+    // there is no re-verify of an answer that was never produced.
+    expect(events.filter((e) => e.type === "verify_result")).toHaveLength(1);
+    expect(done.checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify", "advisor_recovery"]);
+  }));
+
+test("abandoned revision (empty answer): clear reason:\"restore\" then done carries the ORIGINAL answer", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    // The revision's forced-text round AND its own internal compose-guard
+    // retry both come back empty — chat-loop.ts ships "" rather than looping
+    // forever, so revDone.content is "" (not null): the OTHER way to reach
+    // the abandoned-revision branch, distinct from the throwing-stream test.
+    const rounds = [
+      [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+      [textChunk("Bad answer."), finishChunk("stop"), usageChunk(100, 10)],
+      [finishChunk("stop")], // revision's forced-text round: empty
+      [finishChunk("stop")], // revision's internal compose-guard attempt: also empty
+    ];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream(rounds),
+        jsonCall: fakeSlicedJson({
+          claims: [sliceFail(), slicePass()],
+          advisor: ['{"action":"rewrite","guidance":"remove claim x"}'],
+        }),
+      }),
+    );
+
+    const clears = events.filter((e) => e.type === "clear");
+    expect(clears.map((c) => c.type === "clear" && c.reason)).toEqual(["revision", "restore"]);
+    const done = lastDone(events);
+    expect(done.content).toBe("Bad answer.");
+    expect(done.checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify", "advisor_recovery"]);
   }));
 
 test("a lone unsupported claim warns without buying a full transcript replay", () =>
@@ -813,4 +931,89 @@ test("verifier pass suppresses escalation even when the loop was exhausted", () 
     );
     expect(jsonCalls.map((c) => c.model)).toEqual(sliceRound("strong/verifier"));
     expect(events.some((e) => e.type === "status" && e.stage === "advising")).toBe(false);
+  }));
+
+// (3) A turn whose only real evidence is the injected prefetch round must not
+// be REWRITTEN over unsupported claims. Prefetch is reference material the
+// answer is meant to restate in its own words, so a paraphrase reads as
+// ungrounded to a span-matching judge — and the advisor then replaces correct
+// content with a hedge, which is strictly worse for the reader.
+const prefetchRound = [
+  { role: "assistant", content: null, tool_calls: [{ id: "call_prefetch", type: "function", function: { name: "atlas_prefetch", arguments: "{}" } }] },
+  { role: "tool", tool_call_id: "call_prefetch", content: "PREFETCH: the app has reports, a radar view, and an atlas reader. ".repeat(8) },
+] as never[];
+
+test("a prefetch-only turn is annotated, never rewritten, when claims come back unsupported", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    const jsonCalls: { model: string }[] = [];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg, ...prefetchRound], question: "what can this app do", maxIterations: 3,
+        stream: fakeStream([[textChunk("The app has reports and a radar view."), finishChunk("stop"), usageChunk(100, 10)]]),
+        jsonCall: fakeSlicedJson({ claims: [sliceWarn(5)], advisor: ['{"action":"rewrite","guidance":"drop it"}'] }, jsonCalls),
+      }),
+    );
+    // 5 unsupported ≥ the trigger threshold, so this WOULD have escalated.
+    const verify = events.find((e) => e.type === "verify_result")!;
+    expect(verify.type === "verify_result" && verify.overall).toBe("warn");
+    expect(verify.type === "verify_result" && verify.action).toBe("annotate");
+    // No rewrite: no advisor call, no clear, no second answer.
+    expect(kinds(events)).not.toContain("clear");
+    expect(jsonCalls.map((c) => c.model)).not.toContain("chat/advisor");
+    const done = lastDone(events);
+    expect(done.checksMeta.map((c) => c.kind)).not.toContain("advisor_recovery");
+    expect(done.content).toBe("The app has reports and a radar view.");
+  }));
+
+// The empty-search envelope grew a `filters_applied` hint that is hundreds of
+// bytes of diagnostic prose with still zero documents. Byte length used to
+// treat that as "the turn retrieved something", so a prefetch-only product
+// answer got rewritten. `count: 0` / empty `results` is the real signal.
+const emptySearchHint =
+  '{"mode":"search","count":0,"filters_applied":["recent_commits=1","change_type=content"],' +
+  '"hint":"0 results, but recent_commits=1, change_type=content were applied and removed 12 of 12 candidate document(s). ' +
+  "This does NOT mean the atlas is silent on the topic — retry without these arguments unless the question is specifically about recency, status or a scope. " +
+  'Only omit optional filters you were not asked for.","results":[]}';
+const prefetchThenEmptySearch = [
+  ...prefetchRound,
+  { role: "assistant", content: null, tool_calls: [{ id: "call_q", type: "function", function: { name: "atlas_query", arguments: '{"q":"what can this app do"}' } }] },
+  { role: "tool", tool_call_id: "call_q", content: emptySearchHint },
+] as never[];
+
+test("a prefetch turn with an empty filtered search is still annotated, never rewritten", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    expect(emptySearchHint.length).toBeGreaterThan(200);
+    const jsonCalls: { model: string }[] = [];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg, ...prefetchThenEmptySearch], question: "what can this app do", maxIterations: 3,
+        stream: fakeStream([[textChunk("The app has reports and a radar view."), finishChunk("stop"), usageChunk(100, 10)]]),
+        jsonCall: fakeSlicedJson({ claims: [sliceWarn(5)], advisor: ['{"action":"rewrite","guidance":"drop it"}'] }, jsonCalls),
+      }),
+    );
+    const verify = events.find((e) => e.type === "verify_result")!;
+    expect(verify.type === "verify_result" && verify.overall).toBe("warn");
+    expect(verify.type === "verify_result" && verify.action).toBe("annotate");
+    expect(kinds(events)).not.toContain("clear");
+    expect(jsonCalls.map((c) => c.model)).not.toContain("chat/advisor");
+    expect(lastDone(events).content).toBe("The app has reports and a radar view.");
+  }));
+
+// The suppression is narrow: a DETERMINISTIC failure is wrong wherever the
+// content came from, so it must still escalate on a prefetch-only turn.
+test("a prefetch-only turn still escalates on a deterministic failure", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    const jsonCalls: { model: string }[] = [];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg, ...prefetchRound], question: "what can this app do", maxIterations: 3,
+        stream: fakeStream([
+          [textChunk("See [Doc](/atlas/00000000-0000-4000-8000-000000000000)."), finishChunk("stop"), usageChunk(100, 10)],
+          [textChunk("Fixed answer."), finishChunk("stop"), usageChunk(50, 5)],
+        ]),
+        jsonCall: fakeSlicedJson({ claims: [slicePass()], advisor: ['{"action":"rewrite","guidance":"drop the bad link"}'] }, jsonCalls),
+      }),
+    );
+    expect(jsonCalls.map((c) => c.model)).toContain("chat/advisor");
+    expect(lastDone(events).checksMeta.map((c) => c.kind)).toContain("advisor_recovery");
   }));

@@ -38,7 +38,9 @@ POSTs `{ message, conversationId, pageContext }` to `/api/chat`, then reads the
 response as a raw stream (not `EventSource`, since it's a POST), buffering on
 `\n\n` and parsing `data:` SSE frames into typed `ChatEvent`s. A `dispatch()`
 reducer mutates the last assistant message per event: `token` appends text,
-`clear` wipes leaked pre-tool tokens, `tool_call`/`tool_result` build a trace,
+`reasoning` accumulates the model's thinking trace onto its own field, `clear`
+usually preserves the live buffer as a superseded draft rather than deleting it
+(see §11's `clear.reason` table), `tool_call`/`tool_result` build a trace,
 `facts` records injected knowledge, `status` drives a ticker or stage
 checklist, `verify_result` drives a pass/warn/fail badge, `export` auto-downloads
 a generated file, and `done` sets the authoritative final answer.
@@ -51,7 +53,9 @@ badge can't name renders a red chip that says the answer failed and then can't
 say why. Three (`paramMismatches`, `ungroundedCitationValues`, `lengthCapped`)
 were missing until 2026-08-21; when adding a fourth, wire it through to
 `VerifyBadge`'s `issues` count in the same change. Supporting surfaces:
-`VerifyBadge` (harness verdict), `StageList` (staged delivery), `ToolTrace`,
+`VerifyBadge` (harness verdict), `ReasoningBlock` (the model's thinking trace,
+open by default and height-capped), `SupersededAnswer` (a revised-away draft,
+kept struck-through rather than deleted), `StageList` (staged delivery), `ToolTrace`,
 `Sources`, `LimitsMeter` + `ContextPie` (usage and context size),
 `RateLimitNote`, `ProfileButton` / `SignInButtons` (auth), `usePrefs`
 (delivery + placement preferences), `resume.ts` (conversation resume).
@@ -74,9 +78,18 @@ were missing until 2026-08-21; when adding a fourth, wire it through to
    insert/history reload would otherwise leak it silently), and the stream's
    own `finally` once it owns the slot.
 4. **Rate-limit + commons gate** (parallel) — per-user rolling token window
-   (`RATE_LIMIT_TOKENS_PER_WINDOW`, default 500,000 tokens /
+   (`RATE_LIMIT_TOKENS_PER_WINDOW`, default 750,000 tokens /
    `RATE_LIMIT_WINDOW_MINUTES`, default 120; 429 with `Retry-After` if
-   exceeded) and the account-wide OpenRouter credit pool (`fetchCommons` in
+   exceeded). Named GitHub logins get a higher ceiling:
+   `RATE_LIMIT_BOOST_LOGINS` (comma-separated, case-insensitive) →
+   `RATE_LIMIT_TOKENS_PER_WINDOW_BOOSTED` (default 3,000,000), an explicit
+   token value rather than a multiplier so an on-call reader can tell someone's
+   limit straight off the env. The login is read from `users.github_login`
+   (scoped `provider = 'github'`, never from the JWT — a 7-day cookie would go
+   stale, and auth.ts re-upserts the login each OAuth precisely because logins
+   drift), concurrently with the usage SUM, and skipped entirely when the
+   allowlist is empty. A failed lookup degrades to the base limit, never to
+   boosted and the account-wide OpenRouter credit pool (`fetchCommons` in
    `credits.ts`). The commons gate **fails open**: `null` (key unset or credits
    API hiccup) never blocks chat; only a real `remaining <= 0` pauses chat for
    everyone (429 `commons_exhausted`).
@@ -117,6 +130,17 @@ the literal list of models measured clean for the format (`openai/gpt-5.6-luna`,
 format an unmeasured model gets asked for. The pipeline accepts both from every
 model regardless; see `docs/plans/reference-citations.md`. History is windowed
 to a hard char budget (`chat-history.ts`).
+
+The prompt also carries a **"Drafting messages to a third party"** section:
+composing a message, email, or forum reply about the atlas for someone else is
+an expected request, and the draft carries the same citations a direct answer
+would. It exists mostly to head off two format traps that would otherwise fail
+the machine checks — a draft wrapped in a `>` blockquote is read as verbatim
+atlas text and checked against the sources (so it fails as a fabricated quote),
+and a draft in a code fence renders its citations as literal markup. Plain
+prose under a heading is the shape asked for, with `export_findings`
+(`format: "markdown"`, which absolutizes `/atlas/<uuid>` links) offered as the
+way to get the draft out of the app.
 
 **Facts prefetch (`src/server/facts/`).** A deterministic pre-lookup runs before
 the model's first request and injects whatever fires as **one synthetic tool
@@ -224,7 +248,7 @@ mixed as evidence:
 | History | `atlas_history`, `atlas_history_stats`, `atlas_recent_changes`, `atlas_changed_between`, `atlas_first_seen`, `atlas_pr` |
 | Curated reports | `atlas_report_multisigs`, `atlas_report_primitive_matrix`, `atlas_report_rewards`, `atlas_report_active_data`, `atlas_report_facilitator_responsibilities`, `atlas_report_govops_responsibilities` |
 | Output | `export_findings` (chat-only; emits the `export` SSE event) |
-| External (not Atlas) | `external_msc` (MCP) and `ask_external_msc` (chat-only sub-agent). Curated Monthly Settlement Cycle views from Soter Labs workbooks + Sky Forum permalinks. Tool results carry `source_class: "external"`; the verifier ignores them for Atlas quote-grounding and requires the non-Atlas disclaimer. |
+| External (not Atlas) | `external_msc` (MCP) and `ask_external_msc` (chat-only sub-agent). Curated Monthly Settlement Cycle views from Soter Labs workbooks + Sky Forum permalinks. Views: `month`/`series`/`venues` are per-prime and **require** `prime` (their errors return `available_primes` so a wrong guess self-corrects rather than reading as "no data"); `compare` ranks primes for one month; `aggregate` is the cross-prime, multi-month roll-up (ecosystem + per-prime totals, top venues across every prime); `terms` needs nothing. `aggregate` computes supply-side revenue as `prime_agent_revenue − cof` per prime — never `Σ` per-venue `Profit to Grove`, which drops non-venue revenue and spread reimbursement (a $7.29M gap, all Spark) — nests `cof`/`sde` under `to_sky` rather than beside it, treats `value_eom` as a stock (latest, not summed), and returns a `foot_delta` that re-checks the three-way identity. See `.claude/skills/settlement-reports/SKILL.md`. Tool results carry `source_class: "external"`; the verifier ignores them for Atlas quote-grounding and requires the non-Atlas disclaimer. |
 
 Search is **hybrid RAG**: a lexical leg (in-memory MiniSearch / BM25, boosting
 title, doc_no, and type) and a semantic leg (query embedded, then pgvector
@@ -448,8 +472,18 @@ than throwing, since it doubles as the fallback for an invalid per-request
 override.
 
 **`streaming` (default)** — answer tokens forward live; the verify badge
-resolves a few seconds after the last token. A revision visibly replaces the
-flagged answer via `clear`.
+resolves a few seconds after the last token. The answer renders *italic* while
+provisional (not yet `done`, or `done` but still auditing) and flips upright
+once a verdict lands — or at `done` when the verifier is off entirely, so an
+answer can never be stranded italic. Nothing the reader has seen is
+deleted, except a repetition-loop draft: a `clear` moves the live buffer to
+`superseded`, where it stays
+visible above the replacement with an inline note saying why it stopped being
+the answer (beta feedback: "text shown to user to never be deleted just
+restyled … sometimes they actually want it"). Kept drafts are
+markdown-rendered with live citations, not raw source — handing back
+`[Title](/atlas/<uuid>)` for text the reader saw rendered is the same loss in a
+different form.
 
 **`staged`** — the SSE route suppresses `token`/`clear` entirely and renders an
 honest stage progression instead, revealing the verified (possibly revised)
@@ -555,7 +589,7 @@ cookie.
 | `GET /api/auth/me` | `200 → { id, name, avatarUrl, provider, email }` if signed in; `401` if not. Called on boot; drives all auth-gated UI. |
 | `GET /api/auth/github` | Sign-in entry point; redirects to GitHub (sets a short-lived CSRF state cookie). |
 | `POST /api/auth/signout` | Clears the session cookie. `200 → { ok: true }`. |
-| `GET /api/usage` | `{ window: { tokens, limit, exceeded, resetsAt, windowMinutes }, global?: CommonsPool }`. Fetch on widget open and after each `done`. `global` is omitted when the commons feature is off or the credits API is unreachable. |
+| `GET /api/usage` | `{ window: { tokens, limit, exceeded, resetsAt, windowMinutes, boosted }, global?: CommonsPool }`. Fetch on widget open and after each `done`. `global` is omitted when the commons feature is off or the credits API is unreachable. |
 | `POST /api/chat` | SSE (below). |
 
 **Request body:** `{ message, conversationId?, delivery?, pageContext? }`, where
@@ -567,7 +601,8 @@ cookie.
 ```ts
 { type: "meta",        conversationId, delivery? }
 { type: "token",       text }                       // suppressed in staged mode
-{ type: "clear" }                                   // suppressed in staged mode
+{ type: "reasoning",   text }                       // forwarded in BOTH modes
+{ type: "clear",       reason? }                    // suppressed in staged mode
 { type: "tool_call",   name, args }
 { type: "tool_result", name, ok, bytes, truncated?, originalBytes? }
 { type: "facts",       facts: { id, summary }[], bytes? }
@@ -582,6 +617,114 @@ cookie.
                        generationId, toolCalls, contextTokens? }
 { type: "error",       message }
 ```
+
+`reasoning` is a model's "thinking" trace, accumulated client-side onto its
+own field and never into `content` — it is scratch work, not answer prose, so
+it is never markdown-rendered as the answer, citation-extracted, or verified.
+It is emitted only when a provider actually sends one (`delta.reasoning`,
+`delta.reasoning_content`, or a `reasoning_details` array — normalized by
+`reasoningDelta` in `chat-loop.ts`). Forwarding is unconditional and there is
+**no request-side knob** — we never send OpenRouter's `reasoning` param. We
+don't need one: the strong tier's `openai/gpt-5.6-luna` already reasons
+unprompted on 94 of 96 generations (30d production PostHog, 2026-08-24), so
+traces render on strong-tier turns today. And asking for it lost its bakeoff
+(`.cache/eval-bakeoff.2026-08-24-reasoning.json`): forcing reasoning on the
+default tier (`gemma-4-31b-it`, which reasons on 8 of 257 generations
+unprompted) bought +0.007 trimmed score for 2.3x latency, lower completeness,
+and the run's first hard fabrications, while forcing `high` on the strong tier
+scored *worse* (0.812) than its own adaptive default (0.908). Reasoning tokens
+also come out of `max_tokens` — at a tight cap a model returns
+`finish_reason:"length"` with an empty answer. A single global knob could only
+be set to a value the measurement rejects for at least one tier, so a revisit
+has to be per-tier. Unlike `token`, `reasoning` is forwarded in **staged** mode
+too — the client renders it above the answer in every render branch, including
+the staged checklist.
+
+**A `clear` does not delete text the reader has seen — with one exception.** It
+moves the live buffer into `ChatMsg.superseded` (a list of `{ text, reason }`,
+arrival order) and the replacement renders BELOW it. This was scoped to
+revisions first and that was wrong: `tool_round` fires *only when content is
+non-empty*, so it was deleting visible prose mid-answer, which is exactly the
+jarring disappearance the beta feedback named.
+
+| reason | producer | rendering |
+|---|---|---|
+| `tool_round` | a round produced text *and* tool calls — the model set the text aside and kept searching | leaked tool-call markup is folded into `reasoning` (thinking); remaining prose is kept, dimmed italic, **not** struck — unverified, not judged wrong. The caption that explains the draft sits in a bordered translucent box, not italic. |
+| `revision` | the advisor is replacing an answer the reader has read | kept, struck |
+| `degenerate` | the draft fell into a repetition loop | **deleted** — the one clear that still wipes |
+| `restore` | a `revision` was abandoned; `done` re-sends the ORIGINAL | drops the kept `revision` entry only, so the identical text isn't shown twice |
+
+`degenerate` is the deliberate exception: what the reader saw is machine noise
+("the the the the…"), not a draft anyone could want back, so keeping it would
+be the jarring thing. It wipes only the live buffer — drafts kept earlier in
+the same turn survive it.
+
+`restore` removes the last `revision` entry specifically, not the last entry: a
+revision that ran its own tool round pushed a `tool_round` draft on top of it,
+and that text was seen too, so it stays. A whitespace-only buffer is also
+dropped — there is nothing to read. Absent `reason` is treated as `tool_round`
+(preserve), so an older server can only ever keep too much, never delete.
+`superseded` is live-session-only, like `exports` — a reloaded conversation
+shows only the final answer.
+
+**Slice JSON is repaired, and an unreadable verdict is dropped rather than
+counted.** `parseJsonish` tries the text as written, then with trailing commas
+removed, then structurally closed (`closeTruncatedJson` shuts an unterminated
+string and every open array/object, tracking escapes so a brace inside a quoted
+span is not mistaken for structure) — output caps cut JSON mid-array routinely,
+and the claims already emitted are real judgements worth keeping. Per claim,
+`status` must be one of the three valid values; otherwise `repairStatus`
+normalises case/whitespace, recovers a status that leaked into the claim text
+(over-escaped quotes make one claim swallow the next one's fields — seen in
+production, where it recorded a `supported` claim as unsupported), and failing
+both, the claim is DROPPED. It must never default to `unsupported`: unsupported
+claims drive the warn verdict and feed the advisor-escalation threshold, so a
+parse defect would manufacture evidence against the answer. A whole-slice parse
+failure already contributed nothing (`parsed: false`); this extends the same
+fail-toward-silence rule to the individual row.
+
+**Quoted spans that are not quotations.** `findUngroundedQuotes` is a hard
+failure — an inline quotation the sources do not contain is misattribution. But
+`extractQuotedSpans` reads *any* quoted span as a claimed verbatim atlas quote,
+and two shapes are not: a quoted QUESTION (the assistant inviting the reader to
+ask something) and a list item whose entire content is one quoted string (an
+example or suggestion). Both are now excluded. This was a live hard failure: an
+orientation answer closed with "You can ask things like:" and six example
+questions, each was read as an ungrounded atlas quote, the turn hard-failed, and
+the advisor replaced a correct answer with a hedge. The exclusion costs no
+detection — 0 of 11,340 served documents contain a quoted question of the
+qualifying length — and a real quotation in prose, a quoted bullet carrying
+attribution, and a `>` blockquote are all still captured.
+
+**Prefetch facts as evidence.** The facts round (`facts/registry.ts`, tool name
+`atlas_prefetch`) rides the transcript as an ordinary tool result, so the
+verifier consumes it — but three things had to change before that worked in
+practice, all of them observed wiping correct answers in production:
+
+- It is **exempt from evidence eviction**. Budgeting is newest-first and the
+  prefetch round is always the OLDEST tool entry, so on the tool-heavy turns
+  where the budget binds it was dropped first — the verifier then judged an
+  answer against evidence missing the material it was built from. Reserved
+  before eviction; labels are renumbered so `[E1], [E2], …` stay contiguous.
+  The budget itself is now 120,000 chars (`CHAT_VERIFIER_EVIDENCE_MAX_CHARS`).
+- It carries its own `sourceClass: "reference"` and renders as `[REFERENCE]` in
+  slice prompts. It is NOT retrieved atlas text — it is RedLens-injected context
+  (product guide, glossary rows, entity rows, censuses). It stays grouped with
+  atlas rather than external for quote-grounding, because glossary definitions
+  genuinely are atlas text.
+- The verbatim-span rule is **relaxed for `[REFERENCE]` entries, descriptive
+  prose only**. Summarising injected documentation is its intended use, so an
+  exact-substring bar made a faithful restatement `unsupported` by construction.
+  Figures, dates, amounts, addresses, doc numbers, quoted atlas text and
+  citations still require an exact span whatever the source.
+
+**Prefetch-only turns are never rewritten.** When a turn's only substantive
+evidence is the prefetch round, a claim-driven escalation is suppressed
+(`prefetchOnly && !checks.failed` in the escalation gate): the advisor would
+replace correct content with a hedge, which is worse for the reader. A
+deterministic failure still escalates exactly as before — those are wrong
+wherever the content came from — and the badge still shows the verdict either
+way; only the rewrite is withheld.
 
 `paramMismatches` is structured rather than a sentence
 (`{ stated, actual, name, title, owner, uuid, doc_no }`) so the badge can link
@@ -598,8 +741,13 @@ staged-only `synthesizing` and `finalizing`.
 
 **Ordering guarantees.** `meta` is always first and `done` always terminal.
 `verify_result` lands between the last `token` and `done`. A revision emits
-`verify_result(fail)` → `status:advising` → `status:revising` → `clear` →
-tokens → a second `verify_result` → `done`. Verification stages (`comparing`,
+`verify_result(fail)` → `status:advising` → `status:revising` →
+`clear(revision)` → tokens → a second `verify_result` → `done`. An **abandoned**
+revision (the replay threw, aborted, or produced nothing) emits
+`clear(restore)` → `done` carrying the ORIGINAL answer instead. More than one
+`clear` can arrive in a row: a revision that itself degenerates yields
+`clear(revision)` → `clear(degenerate)` … → `clear(restore)`, each wiping only
+the in-progress replacement while the kept draft survives until `restore`. Verification stages (`comparing`,
 `checking`) are emitted **only when the turn has a basis to name** — retrievals
 this turn, or earlier turns of the conversation — so no detail ever reads
 "against 0 sources"; zero cited claims degrades the subject to "the answer".

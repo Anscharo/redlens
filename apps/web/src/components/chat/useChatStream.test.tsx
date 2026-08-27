@@ -209,6 +209,234 @@ describe("useChatStream event dispatch", () => {
     expect(result.current.messages.at(-1)?.content).toBe("real answer");
   });
 
+  it("clear reason 'tool_round' keeps the preamble the reader saw instead of deleting it", async () => {
+    mockChat([
+      { type: "token", text: "partial leaked text" },
+      { type: "clear", reason: "tool_round" },
+      { type: "tool_call", name: "atlas_get", args: { id: "x" } },
+      { type: "tool_result", name: "atlas_get", ok: true, bytes: 5 },
+      { type: "token", text: "real answer" },
+      { type: "done", content: "real answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.content).toBe("real answer");
+    // The reader watched "partial leaked text" arrive; a tool call must not
+    // make it vanish from under them.
+    expect(msg.superseded).toEqual([{ text: "partial leaked text", reason: "tool_round" }]);
+    expect(msg.reasoning).toBeUndefined();
+  });
+
+  it("folds leaked tool-call markup into thinking and keeps the preamble as a draft", async () => {
+    mockChat([
+      { type: "reasoning", text: "checking the scope" },
+      { type: "token", text: "Let me look that up.\n<tool_call>\n{\"name\":\"atlas_query\",\"arguments\":{}}\n</tool_call>" },
+      { type: "clear", reason: "tool_round" },
+      { type: "token", text: "real answer" },
+      { type: "done", content: "real answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.superseded).toEqual([{ text: "Let me look that up.", reason: "tool_round" }]);
+    expect(msg.reasoning).toContain("checking the scope");
+    expect(msg.reasoning).toContain("<tool_call>");
+    expect(msg.reasoning).toContain("atlas_query");
+  });
+
+  it("a tool-round buffer that is only leaked markup becomes thinking, with no draft", async () => {
+    mockChat([
+      { type: "token", text: "ool_call>" },
+      { type: "clear", reason: "tool_round" },
+      { type: "token", text: "real answer" },
+      { type: "done", content: "real answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.superseded ?? []).toEqual([]);
+    expect(msg.reasoning).toBe("ool_call>");
+  });
+
+  it("a revision keeps the whole buffer, including text that looks like a tool call", async () => {
+    mockChat([
+      { type: "token", text: "see <tool_call> in this wrong draft" },
+      { type: "clear", reason: "revision" },
+      { type: "token", text: "the corrected answer" },
+      { type: "done", content: "the corrected answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.superseded).toEqual([{ text: "see <tool_call> in this wrong draft", reason: "revision" }]);
+    expect(msg.reasoning).toBeUndefined();
+  });
+
+  it("clear reason 'revision' moves the streamed draft into superseded and clears content", async () => {
+    mockChat([
+      { type: "token", text: "a wrong draft" },
+      { type: "clear", reason: "revision" },
+      { type: "token", text: "the corrected answer" },
+      { type: "done", content: "the corrected answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.superseded).toEqual([{ text: "a wrong draft", reason: "revision" }]);
+    expect(msg.content).toBe("the corrected answer");
+  });
+
+  it("a second revision keeps both drafts, in arrival order", async () => {
+    mockChat([
+      { type: "token", text: "first draft" },
+      { type: "clear", reason: "revision" },
+      { type: "token", text: "second draft" },
+      { type: "clear", reason: "revision" },
+      { type: "token", text: "final answer" },
+      { type: "done", content: "final answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.superseded).toEqual([
+      { text: "first draft", reason: "revision" },
+      { text: "second draft", reason: "revision" },
+    ]);
+    expect(msg.content).toBe("final answer");
+  });
+
+  it("a clear with nothing streamed yet keeps no draft — there is nothing to read", async () => {
+    mockChat([
+      { type: "clear", reason: "revision" },
+      { type: "token", text: "the answer" },
+      { type: "done", content: "the answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.superseded).toBeUndefined();
+    expect(msg.content).toBe("the answer");
+  });
+
+  it("clear reason 'restore' drops the struck draft so the original (resent in done) doesn't also show struck", async () => {
+    mockChat([
+      { type: "token", text: "a revision draft that itself failed" },
+      { type: "clear", reason: "revision" },
+      { type: "clear", reason: "restore" },
+      { type: "done", content: "the original answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.superseded).toEqual([]);
+    expect(msg.content).toBe("the original answer");
+  });
+
+  // A revision can run its own tool round before failing. `restore` must drop
+  // the ORIGINAL it kept (which `done` re-sends verbatim) and leave the
+  // revision's own preamble alone — that text was seen too.
+  it("clear reason 'restore' drops only the kept original, not a later tool_round draft", async () => {
+    mockChat([
+      { type: "token", text: "the original answer" },
+      { type: "clear", reason: "revision" },
+      { type: "token", text: "let me re-check that" },
+      { type: "clear", reason: "tool_round" },
+      { type: "clear", reason: "restore" },
+      { type: "done", content: "the original answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.superseded).toEqual([{ text: "let me re-check that", reason: "tool_round" }]);
+    expect(msg.content).toBe("the original answer");
+  });
+
+  // The one exception to "never delete what the reader saw": a repetition
+  // loop is machine noise, not a draft anyone could want back.
+  it("a degenerate draft IS deleted — the one clear that still wipes", async () => {
+    mockChat([
+      { type: "token", text: "the the the the" },
+      { type: "clear", reason: "degenerate" },
+      { type: "token", text: "a clean answer" },
+      { type: "done", content: "a clean answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.superseded ?? []).toEqual([]);
+    expect(msg.content).toBe("a clean answer");
+  });
+
+  // A degenerate wipe must not take an EARLIER kept draft with it.
+  it("a degenerate clear leaves previously kept drafts alone", async () => {
+    mockChat([
+      { type: "token", text: "let me look that up" },
+      { type: "clear", reason: "tool_round" },
+      { type: "token", text: "the the the the" },
+      { type: "clear", reason: "degenerate" },
+      { type: "token", text: "a clean answer" },
+      { type: "done", content: "a clean answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.messages.at(-1)?.superseded).toEqual([
+      { text: "let me look that up", reason: "tool_round" },
+    ]);
+  });
+
+  it("a clear with no reason (older server) still keeps what the reader saw", async () => {
+    mockChat([
+      { type: "token", text: "seen text" },
+      { type: "clear" },
+      { type: "token", text: "the answer" },
+      { type: "done", content: "the answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.messages.at(-1)?.superseded).toEqual([{ text: "seen text", reason: "tool_round" }]);
+  });
+
+  it("accumulates reasoning deltas onto their own field, never leaking into content", async () => {
+    mockChat([
+      { type: "reasoning", text: "Let me check " },
+      { type: "reasoning", text: "the atlas first." },
+      { type: "token", text: "Here is the answer." },
+      { type: "done", content: "Here is the answer.", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.reasoning).toBe("Let me check the atlas first.");
+    expect(msg.content).toBe("Here is the answer.");
+  });
+
   it("applies an 'error' SSE event: sets error state, finalizes, and marks the message failed", async () => {
     mockChat([{ type: "error", message: "the model errored" }]);
     const { result } = renderHook(() => useChatStream());

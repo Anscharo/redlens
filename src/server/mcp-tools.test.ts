@@ -80,6 +80,7 @@ test("external_msc is MCP-only, description leads with Rule 1, and is not in ATL
     expect(TOOLS_BY_NAME.has(t.name)).toBe(false);
   }
   expect(EXTERNAL_TOOLS.some((t) => t.name === "external_msc")).toBe(true);
+  expect(EXTERNAL_TOOLS.find((t) => t.name === "external_msc")!.description).toMatch(/\baggregate\b/);
 });
 
 test("tool registry is well-formed: 25 unique tools, valid shapes + handlers", () => {
