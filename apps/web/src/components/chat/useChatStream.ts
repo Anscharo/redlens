@@ -57,6 +57,18 @@ export interface StageLogEntry {
   at: number;
 }
 
+// One draft the turn showed the reader and then replaced. `reason` mirrors the
+// server's `clear.reason` (chat-loop.ts): `tool_round` = text the model set
+// aside to go on searching (it may have been written from atlas data already
+// retrieved, or before any — the clear fires on any round that produced both
+// text and tool calls), `revision` = a complete answer the verifier rejected.
+// There is deliberately no `degenerate` member — that clear is the one that
+// genuinely deletes (see the dispatch).
+export interface SupersededDraft {
+  text: string;
+  reason: "tool_round" | "revision";
+}
+
 export interface ChatMsg {
   role: "user" | "assistant";
   content: string;
@@ -72,6 +84,19 @@ export interface ChatMsg {
   // from a genuinely empty response.
   failed?: boolean;
   exports?: ExportArtifact[]; // files handed to the user this session (live only)
+  // Accumulated model "thinking" text from `reasoning` deltas. Rendered above
+  // the answer (ReasoningBlock), separately from `content` so it never gets
+  // treated as answer prose (markdown, citations, verification). Live-session
+  // only — not persisted (hydrate.ts never sets it), same as `exports`.
+  reasoning?: string;
+  // Every draft this turn streamed to the reader and then moved on from, in
+  // arrival order. NOTHING the reader has seen is ever deleted (beta feedback:
+  // "text shown to user to never be deleted just restyled … i just saw text
+  // disappear from under my eyes") — a `clear` moves the live buffer here and
+  // the replacement renders BELOW it, rather than the text vanishing. Carries
+  // its `reason` so the UI can say WHY each block stopped being the answer.
+  // Live-session only — not persisted, same as `exports`.
+  superseded?: SupersededDraft[];
   // Staged-mode progress checklist (populated in both modes; only rendered in
   // staged). Optional because hydrated/persisted messages (hydrate.ts) predate
   // it and never need it — send() seeds [] on live turns; readers `?? []`.
@@ -193,6 +218,12 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           // Answer is streaming — the status ticker yields to the live text.
           patchLast((m) => ({ ...m, content: m.content + ev.text, statusLine: null }));
           break;
+        case "reasoning":
+          // Accumulates like `token`, but onto its own field — it must never
+          // join `content`, which is answer prose run through markdown,
+          // citation extraction, and the verifier.
+          patchLast((m) => ({ ...m, reasoning: (m.reasoning ?? "") + ev.text }));
+          break;
         case "status":
           patchLast((m) => {
             // Coalesce consecutive same-stage events into one row (querying
@@ -237,9 +268,33 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           }));
           break;
         case "clear":
-          // The round just streamed turned out to be a tool round — discard
-          // any leaked answer fragments. done.content is authoritative.
-          patchLast((m) => ({ ...m, content: "" }));
+          patchLast((m) => {
+            const kept = m.superseded ?? [];
+            if (ev.reason === "restore") {
+              // The advisor's revision was abandoned and `done` is about to
+              // re-send the ORIGINAL answer verbatim. Drop the copy we kept
+              // for it — otherwise the identical text renders twice, once
+              // struck and once live. Removes the last `revision` entry
+              // specifically, NOT the last entry: a revision that ran its own
+              // tool round pushed a `tool_round` draft on top of it, and that
+              // text was seen too, so it stays.
+              const i = kept.map((d) => d.reason).lastIndexOf("revision");
+              return { ...m, content: "", superseded: i < 0 ? kept : [...kept.slice(0, i), ...kept.slice(i + 1)] };
+            }
+            // `degenerate` is the ONE clear that really does delete. The
+            // draft fell into a repetition loop, so what the reader saw is
+            // machine noise ("the the the the…"), not a draft anyone could
+            // want back — keeping it would be the jarring thing.
+            if (ev.reason === "degenerate") return { ...m, content: "" };
+            // Every other clear — `revision`, `tool_round`, or an absent
+            // reason from an older server — keeps what streamed. The reader
+            // watched this text arrive; it gets restyled and pushed above the
+            // replacement, never deleted. Whitespace-only buffers are the
+            // other thing dropped: there is nothing to read.
+            if (!m.content.trim()) return { ...m, content: "" };
+            const reason = ev.reason === "revision" ? "revision" : "tool_round";
+            return { ...m, content: "", superseded: [...kept, { text: m.content, reason }] };
+          });
           break;
         case "export": {
           // Auto-download the file the moment it arrives (CSV keeps the Excel

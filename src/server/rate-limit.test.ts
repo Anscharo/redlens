@@ -11,10 +11,20 @@ import { mock } from "bun:test";
 
 type Row = Record<string, unknown>;
 let queryLog: { text: string; values: unknown[] }[] = [];
-let nextRows: Row[] = [];
+let nextRows: Row[] = []; // usage_events SUM result
+let nextLoginRows: Row[] = []; // users github_login lookup result (boost tier only)
+let nextLoginError: Error | null = null; // simulates the users query rejecting
 
+// getWindowUsage now issues up to two queries concurrently (Promise.all), so
+// the mock must route each by shape rather than always answering the same
+// queue — the usage_events SUM and the users.github_login lookup have
+// distinguishable text.
 function sqlMockFn(strings: TemplateStringsArray, ...values: unknown[]): Promise<Row[]> {
-  queryLog.push({ text: strings.join("¶"), values });
+  const text = strings.join("¶");
+  queryLog.push({ text, values });
+  if (text.includes("FROM users")) {
+    return nextLoginError ? Promise.reject(nextLoginError) : Promise.resolve(nextLoginRows);
+  }
   return Promise.resolve(nextRows);
 }
 
@@ -30,7 +40,7 @@ mock.module("./db.ts", () => ({
   fromUuidArray,
 }));
 
-const { bucketBounds, getWindowUsage, handleUsage } = await import("./rate-limit.ts");
+const { bucketBounds, getWindowUsage, handleUsage, limitForLogin } = await import("./rate-limit.ts");
 const { config } = await import("./config.ts");
 const { signSession, SESSION_COOKIE } = await import("./session.ts");
 
@@ -75,6 +85,8 @@ describe("getWindowUsage", () => {
   afterEach(() => {
     queryLog = [];
     nextRows = [];
+    nextLoginRows = [];
+    nextLoginError = null;
   });
 
   it("reads usage_events, not messages/message_checks", async () => {
@@ -106,6 +118,148 @@ describe("getWindowUsage", () => {
     const usage = await getWindowUsage("user-1");
     expect(usage.tokens).toBe(0);
     expect(usage.exceeded).toBe(false);
+  });
+});
+
+// Pure decision function — no DB, no config mutation beyond what each test
+// itself sets and restores.
+describe("limitForLogin", () => {
+  const origBase = config.rateLimitTokensPerWindow;
+  const origBoosted = config.rateLimitTokensPerWindowBoosted;
+  const origLogins = config.rateLimitBoostLogins;
+  afterEach(() => {
+    config.rateLimitTokensPerWindow = origBase;
+    config.rateLimitTokensPerWindowBoosted = origBoosted;
+    config.rateLimitBoostLogins = origLogins;
+  });
+
+  it("returns the base limit when the allowlist is empty (default)", () => {
+    config.rateLimitBoostLogins = [];
+    expect(limitForLogin("anyone")).toBe(config.rateLimitTokensPerWindow);
+  });
+
+  it("returns the base limit for a null login (unresolved/no session)", () => {
+    config.rateLimitBoostLogins = ["allowed-user"];
+    expect(limitForLogin(null)).toBe(config.rateLimitTokensPerWindow);
+  });
+
+  it("returns the boosted limit when the login is on the allowlist", () => {
+    config.rateLimitTokensPerWindow = 50;
+    config.rateLimitTokensPerWindowBoosted = 500;
+    config.rateLimitBoostLogins = ["allowed-user"];
+    expect(limitForLogin("allowed-user")).toBe(500);
+  });
+
+  it("matches case-insensitively (and trims)", () => {
+    config.rateLimitTokensPerWindow = 50;
+    config.rateLimitTokensPerWindowBoosted = 500;
+    config.rateLimitBoostLogins = ["allowed-user"]; // config.ts lowercases the list itself
+    expect(limitForLogin("Allowed-User")).toBe(500);
+    expect(limitForLogin(" ALLOWED-USER ")).toBe(500);
+  });
+
+  it("returns the base limit for a login not on the allowlist", () => {
+    config.rateLimitTokensPerWindow = 50;
+    config.rateLimitTokensPerWindowBoosted = 500;
+    config.rateLimitBoostLogins = ["allowed-user"];
+    expect(limitForLogin("someone-else")).toBe(50);
+  });
+
+  // A typo'd/misconfigured RATE_LIMIT_TOKENS_PER_WINDOW_BOOSTED must never
+  // quietly shrink an allowlisted user's budget below everyone else's.
+  it("falls back to base when the boosted value is misconfigured below base", () => {
+    config.rateLimitTokensPerWindow = 500;
+    config.rateLimitTokensPerWindowBoosted = 100; // below base — a typo
+    config.rateLimitBoostLogins = ["allowed-user"];
+    expect(limitForLogin("allowed-user")).toBe(500);
+  });
+
+  it("falls back to base when the boosted value is not a finite number", () => {
+    config.rateLimitTokensPerWindow = 500;
+    config.rateLimitTokensPerWindowBoosted = NaN; // e.g. an unparseable env value
+    config.rateLimitBoostLogins = ["allowed-user"];
+    expect(limitForLogin("allowed-user")).toBe(500);
+  });
+});
+
+// getWindowUsage's DB-backed resolution of the boost tier. The users lookup
+// only ever runs when the allowlist is non-empty (see the short-circuit
+// assertion in the "getWindowUsage" describe above — with the default empty
+// allowlist, only one query fires).
+describe("getWindowUsage boost tier", () => {
+  const origBase = config.rateLimitTokensPerWindow;
+  const origBoosted = config.rateLimitTokensPerWindowBoosted;
+  const origLogins = config.rateLimitBoostLogins;
+  beforeAll(() => {
+    config.rateLimitTokensPerWindow = 50;
+    config.rateLimitTokensPerWindowBoosted = 100;
+    config.rateLimitBoostLogins = ["allowed-user"];
+  });
+  afterAll(() => {
+    config.rateLimitTokensPerWindow = origBase;
+    config.rateLimitTokensPerWindowBoosted = origBoosted;
+    config.rateLimitBoostLogins = origLogins;
+  });
+  afterEach(() => {
+    queryLog = [];
+    nextRows = [];
+    nextLoginRows = [];
+    nextLoginError = null;
+  });
+
+  it("the login lookup is scoped to provider = 'github'", async () => {
+    nextRows = [{ tokens: 0 }];
+    nextLoginRows = [{ github_login: "allowed-user" }];
+    await getWindowUsage("user-1");
+    const loginQuery = queryLog.find((q) => q.text.includes("FROM users"));
+    expect(loginQuery?.text).toContain("provider = 'github'");
+  });
+
+  it("boosts an allowlisted user and flips `exceeded` against the boosted number", async () => {
+    nextRows = [{ tokens: 80 }]; // over the base (50), under the boosted (100)
+    nextLoginRows = [{ github_login: "allowed-user" }];
+    const usage = await getWindowUsage("user-1");
+    expect(usage.limit).toBe(100);
+    expect(usage.boosted).toBe(true);
+    expect(usage.exceeded).toBe(false); // would be true at the base limit
+  });
+
+  it("matches an allowlisted login case-insensitively", async () => {
+    nextRows = [{ tokens: 0 }];
+    nextLoginRows = [{ github_login: "Allowed-User" }]; // DB value not normalized
+    const usage = await getWindowUsage("user-1");
+    expect(usage.limit).toBe(100);
+    expect(usage.boosted).toBe(true);
+  });
+
+  it("does not boost a login not on the allowlist", async () => {
+    nextRows = [{ tokens: 0 }];
+    nextLoginRows = [{ github_login: "someone-else" }];
+    const usage = await getWindowUsage("user-1");
+    expect(usage.limit).toBe(50);
+    expect(usage.boosted).toBe(false);
+  });
+
+  // The provider filter lives in the SQL WHERE clause (asserted above); this
+  // covers the case a non-github row can never reach — an empty lookup result
+  // (e.g. a Google account, filtered out server-side) degrades to base.
+  it("degrades to base on an empty login lookup (non-github or no row)", async () => {
+    nextRows = [{ tokens: 0 }];
+    nextLoginRows = []; // no matching provider='github' row
+    const usage = await getWindowUsage("user-1");
+    expect(usage.limit).toBe(50);
+    expect(usage.boosted).toBe(false);
+  });
+
+  // A rejected users query must degrade to base, not fail the whole gate —
+  // once the allowlist is non-empty this query runs for EVERY caller, so a
+  // broken `users` query must not turn into a 500 on the entire chat surface.
+  it("degrades to base (does not throw) when the login lookup itself rejects", async () => {
+    nextRows = [{ tokens: 0 }];
+    nextLoginError = new Error("connection reset");
+    const usage = await getWindowUsage("user-1");
+    expect(usage.limit).toBe(50);
+    expect(usage.boosted).toBe(false);
   });
 });
 

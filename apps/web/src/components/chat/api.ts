@@ -51,7 +51,25 @@ export type Stage =
 export type ChatEvent =
   | { type: "meta"; conversationId: string; delivery?: Delivery }
   | { type: "token"; text: string }
-  | { type: "clear" }
+  // Incremental reasoning/"thinking" delta — interleaved with the rest of
+  // the stream in BOTH streaming and staged delivery. Never part of the
+  // answer: useChatStream accumulates it onto ChatMsg.reasoning, never
+  // `content`.
+  | { type: "reasoning"; text: string }
+  | {
+      type: "clear";
+      // Why the round's leaked answer fragments are being discarded.
+      // "tool_round"/"degenerate", and an ABSENT reason (an older server that
+      // predates this field), all mean "wipe it, nothing worth keeping" —
+      // today's behaviour. "revision" means the draft that already streamed
+      // failed its verification check and is about to be replaced: the
+      // client preserves it (struck through, never deleted) instead of
+      // wiping it. "restore" means a revision attempt itself failed and the
+      // ORIGINAL answer is about to be re-sent in `done` — the struck draft
+      // is dropped so the reader doesn't see the same text twice, once
+      // struck and once live.
+      reason?: "tool_round" | "degenerate" | "revision" | "restore";
+    }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; ok: boolean; bytes: number; truncated?: boolean; originalBytes?: number }
   // A downloadable file the agent produced via the export_findings tool.
@@ -121,6 +139,10 @@ export interface UsageWindow {
   resetsAt: string; // ISO timestamp
   exceeded: boolean;
   windowMinutes: number;
+  // True when `limit` is the boosted tier rather than the base one — a GitHub
+  // login on RATE_LIMIT_BOOST_LOGINS (server: rate-limit.ts). Optional so an
+  // older server that predates the tier still parses; absent means base.
+  boosted?: boolean;
 }
 
 // The shared "commons" dollar pool — one account-wide balance shown to every

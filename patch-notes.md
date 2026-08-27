@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-08-27
+- Improved Chat: it can now draft messages explaining what the Atlas says, answer settlement questions across all Prime Agents, keeps answers it has already shown you, and has a higher usage limit
+
 ## 2026-08-25
 - Chat and MCP can answer Monthly Settlement Cycle questions from Soter Labs workbooks and Sky Forum posts, and they say those figures are not from the Atlas
 - Added new colour schemes — a light theme and a high-contrast greyscale one; the app now follows your device's light/dark setting until you pick one from the menu in the top-right corner

@@ -347,3 +347,162 @@ describe("Message staged-mode reveal", () => {
     expect(document.querySelector(".rlc-caret")).toBeNull();
   });
 });
+
+describe("Message provisional answer rendering", () => {
+  const verify = {
+    claims: [],
+    invalidCitations: [],
+    invalidDocNos: [],
+    docNoMismatches: [],
+    ungroundedQuotes: [],
+    ungroundedAddresses: [],
+    ungroundedCitationValues: [],
+    paramMismatches: [],
+    completenessFailures: [],
+    missingExternalDisclaimer: false,
+    mscCitedAsAtlas: [],
+    lengthCapped: false,
+  };
+
+  it("marks the answer provisional while still streaming (not done)", () => {
+    render(
+      <Message msg={baseMsg({ content: "partial answer", done: false })} streaming showTrace={false} onAtlas={vi.fn()} />,
+    );
+    expect(document.querySelector(".rlc-answer")?.getAttribute("data-state")).toBe("provisional");
+  });
+
+  it("stays provisional while verify.status is 'checking', even once tokens have stopped", () => {
+    render(
+      <Message
+        msg={baseMsg({ content: "an answer awaiting audit", done: false, verify: { status: "checking", ...verify } })}
+        streaming
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(document.querySelector(".rlc-answer")?.getAttribute("data-state")).toBe("provisional");
+  });
+
+  it("flips to final at done with a resolved verdict", () => {
+    render(
+      <Message
+        msg={baseMsg({ content: "a checked answer", done: true, verify: { status: "pass", ...verify } })}
+        streaming={false}
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(document.querySelector(".rlc-answer")?.getAttribute("data-state")).toBe("final");
+  });
+
+  it("flips to final at done even with no verifier at all (verify never set)", () => {
+    render(
+      <Message msg={baseMsg({ content: "an unverified-mode answer", done: true })} streaming={false} showTrace={false} onAtlas={vi.fn()} />,
+    );
+    expect(document.querySelector(".rlc-answer")?.getAttribute("data-state")).toBe("final");
+  });
+});
+
+describe("Message reasoning block", () => {
+  it("renders in staged mode alongside the stage checklist — not swallowed by it", () => {
+    render(
+      <Message
+        msg={baseMsg({
+          delivery: "staged",
+          content: "",
+          reasoning: "Thinking about the right documents to check.",
+          stageLog: [{ stage: "querying", detail: "Searching…", at: 0 }],
+        })}
+        streaming
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Looking for evidence")).toBeInTheDocument();
+    expect(screen.getByText("Thinking about the right documents to check.")).toBeInTheDocument();
+  });
+
+  it("renders alongside the streaming-mode placeholder too, so it isn't a staged-only branch", () => {
+    render(
+      <Message msg={baseMsg({ content: "", reasoning: "Considering the question." })} streaming showTrace={false} onAtlas={vi.fn()} />,
+    );
+    expect(screen.getByText("searching the stars…")).toBeInTheDocument();
+    expect(screen.getByText("Considering the question.")).toBeInTheDocument();
+  });
+
+  it("renders alongside a finished answer too", () => {
+    render(
+      <Message
+        msg={baseMsg({ content: "the final answer", done: true, reasoning: "Reasoned through the docs." })}
+        streaming={false}
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Reasoned through the docs.")).toBeInTheDocument();
+    expect(screen.getByText("the final answer")).toBeInTheDocument();
+  });
+});
+
+describe("Message superseded answer", () => {
+  it("renders a struck-through prior draft above the live answer, with an inline note", () => {
+    render(
+      <Message
+        msg={baseMsg({
+          content: "the corrected answer",
+          done: true,
+          superseded: [{ text: "the wrong earlier draft", reason: "revision" }],
+        })}
+        streaming={false}
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/A verification check found problems with this draft/)).toBeInTheDocument();
+    const del = document.querySelector("del.rlc-superseded-text");
+    expect(del).toBeInTheDocument();
+    expect(del).toHaveTextContent("the wrong earlier draft");
+    expect(screen.getByText("the corrected answer")).toBeInTheDocument();
+  });
+
+  // The reason this exists at all: text the reader watched arrive must still
+  // be on screen after the model moves on from it, whatever caused the move.
+  it("keeps a tool_round preamble on screen above the answer", () => {
+    render(
+      <Message
+        msg={baseMsg({
+          content: "the answer",
+          done: true,
+          superseded: [{ text: "let me look that up", reason: "tool_round" }],
+        })}
+        streaming={false}
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/set this aside to keep searching/)).toBeInTheDocument();
+    expect(document.querySelector('[data-reason="tool_round"]')).toHaveTextContent("let me look that up");
+    expect(screen.getByText("the answer")).toBeInTheDocument();
+  });
+
+  it("renders every kept draft, in arrival order, above the live answer", () => {
+    render(
+      <Message
+        msg={baseMsg({
+          content: "final",
+          done: true,
+          superseded: [
+            { text: "preamble", reason: "tool_round" },
+            { text: "rejected draft", reason: "revision" },
+          ],
+        })}
+        streaming={false}
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    const kept = [...document.querySelectorAll("del.rlc-superseded-text")].map((n) => n.textContent);
+    expect(kept).toEqual(["preamble", "rejected draft"]);
+    expect(screen.getByText("final")).toBeInTheDocument();
+  });
+});

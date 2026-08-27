@@ -289,3 +289,36 @@ describe("atlasQuery — liveness tagging (docs/research/synlang-wiki.md §3.2)"
     expect(res.liveness_hint).toBeUndefined();
   });
 });
+
+// Regression: a chat turn sent recent_commits=1 + change_type=content on a
+// plain "what is the Atlas" search, got count:0 twice, and concluded the atlas
+// had no overview material — while the unfiltered query returns the canonical
+// "The Atlas" document as its top hit. A zero-result answer must never be
+// mistakable for "the atlas is silent".
+describe("zero results with filters applied", () => {
+  it("names the filters and says the atlas is not necessarily silent", async () => {
+    // Driven through `status` rather than recent_commits/change_type: those go
+    // via historySet, which touches the DB, and this file deliberately stays on
+    // DB-free paths (see the header). The diagnostic is filter-agnostic — same
+    // activeFilters/emptyByFilters branch either way.
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, {
+      q: "spark",
+      status: "Suspended",
+      k: 10,
+      enrich: false,
+    })) as Record<string, unknown>;
+    expect(out.count).toBe(0);
+    expect(out.filters_applied).toEqual(["status=Suspended"]);
+    expect(String(out.hint)).toContain("does NOT mean the atlas is silent");
+    expect(String(out.hint)).toContain("retry without these arguments");
+  });
+
+  it("stays silent when a query legitimately finds nothing with no filters", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { q: "zzzznotarealterm", k: 10, enrich: false })) as Record<string, unknown>;
+    expect(out.count).toBe(0);
+    expect(out).not.toHaveProperty("filters_applied");
+    expect(out).not.toHaveProperty("hint");
+  });
+});

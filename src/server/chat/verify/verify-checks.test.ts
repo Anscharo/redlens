@@ -751,3 +751,41 @@ test("runDeterministicChecks: a param mismatch is a hard failure", () => {
   expect(wrong.failed).toBe(true);
   expect(wrong.paramMismatches).toHaveLength(1);
 });
+
+// Regression: an orientation answer ended with "You can ask things like:" and
+// six example questions in quotes. Each was read as a verbatim atlas quotation,
+// none existed in any document, and the turn HARD-FAILED — the advisor then
+// replaced a correct answer with a hedge. Measured against the served atlas,
+// 0 of 11,340 documents contain a quoted question of this length.
+test("suggested questions are not treated as atlas quotations", () => {
+  const answer = [
+    "You can ask things like:",
+    "",
+    '- "What is Spark responsible for?"',
+    '- "Which rules govern an integrator reward?"',
+    '- "Who maintains this Active Data?"',
+  ].join("\n");
+  expect(extractQuotedSpans(answer)).toEqual([]);
+});
+
+test("a list item that is entirely one quoted string is an example, not a quotation", () => {
+  const answer = '- "Show me the process for onboarding a new Prime Agent."';
+  expect(extractQuotedSpans(answer)).toEqual([]);
+});
+
+// The exemptions must stay narrow — a real inline quotation still has to be
+// grounded, or misattribution stops being detectable.
+test("still captures a real inline quotation in prose", () => {
+  const answer = 'The document states "the Facilitator must approve each disbursement before it is executed" in that section.';
+  expect(extractQuotedSpans(answer).length).toBe(1);
+});
+
+test("still captures a quoted passage in a bullet that also carries attribution", () => {
+  const answer = '- "the Facilitator must approve each disbursement before execution" — A.2.4.1';
+  expect(extractQuotedSpans(answer).length).toBe(1);
+});
+
+test("still captures a blockquote of atlas text", () => {
+  const answer = "> the Facilitator must approve each disbursement before it is executed";
+  expect(extractQuotedSpans(answer).length).toBe(1);
+});

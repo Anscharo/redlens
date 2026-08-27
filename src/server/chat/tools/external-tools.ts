@@ -36,8 +36,15 @@ const VIEW_SHAPE = {
   view: z
     .enum(MSC_VIEWS)
     .optional()
-    .describe("month (default), series, compare, venues, or terms."),
-  prime: z.string().optional().describe("Prime folder slug, e.g. spark. Or pass actor_slug from Radar."),
+    .describe(
+      "month (default), series, compare, venues, aggregate, or terms. month/series/venues are PER-PRIME and require `prime`; compare, aggregate and terms do not. Use `aggregate` for anything spanning primes or months.",
+    ),
+  prime: z
+    .string()
+    .optional()
+    .describe(
+      "Prime folder slug — REQUIRED for view=month, series and venues. One of: grove, keel, obex, osero, skybase, spark. Or pass actor_slug from Radar. If the question names no prime, either ask which, or call once per prime and combine. An error response lists the valid values in available_primes.",
+    ),
   actor_slug: z.string().optional().describe("Radar actor slug (spark, spark-party)."),
   month: z.string().optional().describe("YYYY-MM, or 'latest'."),
   metric: z.enum(MSC_METRICS).optional().describe("Rank key for view=compare."),
@@ -81,7 +88,9 @@ export const EXTERNAL_TOOLS: ExternalTool[] = [
 export const ASK_EXTERNAL_MSC_DESCRIPTION =
   "NOT Atlas. Delegate a Monthly Settlement Cycle question to an isolated helper that reads Soter Labs workbooks (OEA calculations, not the GovOps spell) and the indexed Sky Forum permalink. " +
   "You receive a short brief with a required disclaimer — repeat that disclaimer in the answer. Cite the workbook month/prime and/or the forum URL; never cite these dollars as /atlas/<uuid>. " +
-  "Views: month (default), series, compare, venues, terms. Process questions ('what is the Monthly Settlement Cycle?') still use atlas tools.";
+  "Views: month (default), series, compare, venues, aggregate, terms. month/series/venues are per-prime and NEED a `prime` (grove, keel, obex, osero, skybase, spark); compare, aggregate and terms need none. " +
+  "`aggregate` is the CROSS-PRIME, multi-month roll-up: ecosystem totals, per-prime totals, and top venues ranked across every prime (pass `from`/`to` for a month range, else the latest month). Use it for 'top venues', 'biggest earners', 'total revenue', 'across all primes', or any span of months — never stitch that together from repeated per-prime calls, and never report that settlement data is unavailable because no prime was named. " +
+  "Process questions ('what is the Monthly Settlement Cycle?') still use atlas tools.";
 
 export const ASK_EXTERNAL_MSC_SHAPE: z.ZodRawShape = {
   ...VIEW_SHAPE,

@@ -374,7 +374,7 @@ export const config = {
   // `pnpm eval:complexity` with DATABASE_URL set before lowering this.
   chatComplexitySimilarityMargin: Number(process.env.CHAT_COMPLEXITY_SIMILARITY_MARGIN ?? 0.25),
   // Evidence digest budget for the final audit, newest-round-first.
-  chatVerifierEvidenceMaxChars: Number(process.env.CHAT_VERIFIER_EVIDENCE_MAX_CHARS ?? 60_000),
+  chatVerifierEvidenceMaxChars: Number(process.env.CHAT_VERIFIER_EVIDENCE_MAX_CHARS ?? 120_000),
   // Hard cap on the verifier call; timeout → null → "unverified" badge (chat
   // never blocks on the audit — the answer already streamed). The verifier is a
   // stronger, slower model than the advisor, so its deadline is more generous.
@@ -436,8 +436,30 @@ export const config = {
   // Per-user rolling token window — the HARD rate-limit gate. Counts
   // input+output tokens over the trailing `rateLimitWindowMinutes`; once the sum
   // reaches the limit, /api/chat returns 429 until enough usage ages out.
-  rateLimitTokensPerWindow: Number(process.env.RATE_LIMIT_TOKENS_PER_WINDOW ?? 500000),
+  rateLimitTokensPerWindow: Number(process.env.RATE_LIMIT_TOKENS_PER_WINDOW ?? 750_000),
   rateLimitWindowMinutes: Number(process.env.RATE_LIMIT_WINDOW_MINUTES ?? 120),
+  // Raised 500k → 750k after beta feedback: testers were hitting the window
+  // mid-session on ordinary research. The per-user window is a FAIRNESS gate
+  // (no one visitor monopolises a shared singleton), not the cost backstop —
+  // that is the account-wide commons pool (chat/credits.ts), which hard-gates
+  // everyone when the real dollars run out. So the window can be generous
+  // without changing what the account can spend.
+  //
+  // Boosted tier: GitHub logins listed in RATE_LIMIT_BOOST_LOGINS get
+  // `rateLimitTokensPerWindowBoosted` instead. An explicit token value, NOT a
+  // multiplier — during an incident "what is this person's limit" should be
+  // readable straight off the env, not computed. Empty list = nobody boosted;
+  // the feature costs one indexed users lookup per gate check.
+  //
+  // GitHub logins are case-insensitive, so both the env list and the value read
+  // back from `users.github_login` are lowercased before comparison. Only the
+  // github provider can match: a Google account whose name happens to equal a
+  // GitHub login must never inherit that login's budget.
+  rateLimitTokensPerWindowBoosted: Number(process.env.RATE_LIMIT_TOKENS_PER_WINDOW_BOOSTED ?? 3_000_000),
+  rateLimitBoostLogins: (process.env.RATE_LIMIT_BOOST_LOGINS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
 
   // Per-user in-flight cap — a SECOND, independent gate (chat/concurrency.ts),
   // checked before the token window above. The token budget only knows PAST
