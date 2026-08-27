@@ -19,7 +19,8 @@ const ENV_KEYS = [
   "CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS", "CHAT_ADVISOR_TRIGGER_UNSUPPORTED_CLAIMS",
   "CHAT_ADVISOR_TIMEOUT_MS", "CHAT_MODEL_FAST",
   "CHAT_MODEL_STRONG", "CHAT_MODEL_FALLBACKS", "CHAT_REFERENCE_CITATION_MODELS", "RATE_LIMIT_TOKENS_PER_WINDOW",
-  "RATE_LIMIT_WINDOW_MINUTES", "MCP_PATH", "MCP_MAX_RESULT_CHARS", "RAILWAY_GIT_COMMIT_SHA", "APP_COMMIT", "GIT_COMMIT",
+  "RATE_LIMIT_WINDOW_MINUTES", "RATE_LIMIT_TOKENS_PER_WINDOW_BOOSTED", "RATE_LIMIT_BOOST_LOGINS",
+  "MCP_PATH", "MCP_MAX_RESULT_CHARS", "RAILWAY_GIT_COMMIT_SHA", "APP_COMMIT", "GIT_COMMIT",
   "SOURCE_COMMIT", "GITHUB_TOKEN", "PREVIEW_DAILY_QUOTA", "PREVIEW_TRUSTED_FORK_DAILY_QUOTA",
   "PREVIEW_FORK_DAILY_QUOTA", "PREVIEW_UNKNOWN_FORK_DAILY_QUOTA", "PREVIEW_MAX_CONCURRENT_BUILDS",
   "PREVIEW_BUILD_TIMEOUT_MS", "PREVIEW_SWEEP_INTERVAL_MS", "PREVIEW_SWEEP_GRACE_MS", "PREVIEW_CACHE_KEEP",
@@ -87,7 +88,7 @@ test("defaults when no env is set", async () => {
   expect(config.chatAdvisorModel).toBe("");
   expect(config.chatVerifyChecks).toBe(true);
   expect(config.chatPrefetch).toBe(true);
-  expect(config.chatVerifierEvidenceMaxChars).toBe(60_000);
+  expect(config.chatVerifierEvidenceMaxChars).toBe(120_000);
   expect(config.chatVerifierTimeoutMs).toBe(20_000);
   expect(config.chatAdvisorTriggerEmptyResults).toBe(2);
   expect(config.chatAdvisorTriggerUnsupportedClaims).toBe(3);
@@ -96,8 +97,10 @@ test("defaults when no env is set", async () => {
   expect(config.chatModelStrong).toEqual([]);
   expect(config.chatModelFallbacks).toEqual([]);
   expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini"]);
-  expect(config.rateLimitTokensPerWindow).toBe(500000);
+  expect(config.rateLimitTokensPerWindow).toBe(750_000);
   expect(config.rateLimitWindowMinutes).toBe(120);
+  expect(config.rateLimitTokensPerWindowBoosted).toBe(3_000_000);
+  expect(config.rateLimitBoostLogins).toEqual([]);
   expect(config.mcpPath).toBe("/mcp");
   expect(config.mcpMaxResultChars).toBe(200_000);
   expect(config.appCommit).toBe("");
@@ -165,6 +168,8 @@ test("all env overrides take effect", async () => {
     CHAT_MODEL_FALLBACKS: "fb-a,fb-b",
     RATE_LIMIT_TOKENS_PER_WINDOW: "777",
     RATE_LIMIT_WINDOW_MINUTES: "30",
+    RATE_LIMIT_TOKENS_PER_WINDOW_BOOSTED: "9999",
+    RATE_LIMIT_BOOST_LOGINS: "Some-User, OTHER-user",
     MCP_PATH: "/custom-mcp",
     MCP_MAX_RESULT_CHARS: "50000",
     RAILWAY_GIT_COMMIT_SHA: "sha-1",
@@ -235,6 +240,10 @@ test("all env overrides take effect", async () => {
   expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini"]);
   expect(config.rateLimitTokensPerWindow).toBe(777);
   expect(config.rateLimitWindowMinutes).toBe(30);
+  expect(config.rateLimitTokensPerWindowBoosted).toBe(9999);
+  // Trimmed AND lowercased, matching how a resolved users.github_login is
+  // compared in rate-limit.ts's limitForLogin.
+  expect(config.rateLimitBoostLogins).toEqual(["some-user", "other-user"]);
   expect(config.mcpPath).toBe("/custom-mcp");
   expect(config.mcpMaxResultChars).toBe(50000);
   expect(config.appCommit).toBe("sha-1"); // RAILWAY_GIT_COMMIT_SHA wins over the other 3

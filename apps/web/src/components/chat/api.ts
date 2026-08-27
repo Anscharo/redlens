@@ -51,7 +51,25 @@ export type Stage =
 export type ChatEvent =
   | { type: "meta"; conversationId: string; delivery?: Delivery }
   | { type: "token"; text: string }
-  | { type: "clear" }
+  // Incremental reasoning/"thinking" delta — interleaved with the rest of
+  // the stream in BOTH streaming and staged delivery. Never part of the
+  // answer: useChatStream accumulates it onto ChatMsg.reasoning, never
+  // `content`.
+  | { type: "reasoning"; text: string }
+  | {
+      type: "clear";
+      // Why the live buffer is being replaced. Optional for back-compat.
+      //   - tool_round / absent reason — the round produced text AND tool
+      //     calls. The client keeps remaining prose as an unverified draft
+      //     (not struck) and folds leaked tool-call markup into thinking.
+      //   - degenerate — a repetition loop; the client still wipes.
+      //   - revision — the streamed draft failed verification and is about
+      //     to be replaced; the client keeps it struck through.
+      //   - restore — a revision attempt failed and the ORIGINAL answer is
+      //     about to be re-sent in `done`; the struck draft is dropped so
+      //     the reader doesn't see the same text twice.
+      reason?: "tool_round" | "degenerate" | "revision" | "restore";
+    }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; ok: boolean; bytes: number; truncated?: boolean; originalBytes?: number }
   // A downloadable file the agent produced via the export_findings tool.
@@ -121,6 +139,10 @@ export interface UsageWindow {
   resetsAt: string; // ISO timestamp
   exceeded: boolean;
   windowMinutes: number;
+  // True when `limit` is the boosted tier rather than the base one — a GitHub
+  // login on RATE_LIMIT_BOOST_LOGINS (server: rate-limit.ts). Optional so an
+  // older server that predates the tier still parses; absent means base.
+  boosted?: boolean;
 }
 
 // The shared "commons" dollar pool — one account-wide balance shown to every

@@ -65,7 +65,9 @@ export function ActorSettlements({ slug, name }: Props) {
     <>
       <p className="text-xs mb-4" style={{ color: "var(--tan-3)" }}>
         From Soter Labs' published Monthly Settlement Cycle workbooks — OEA
-        calculations, not the on-chain GovOps spell.{" "}
+        calculations, not the on-chain GovOps spell and not Sky Atlas figures.
+        “To Sky” is what this Prime owed Sky, not the Protocol’s Net Revenue,
+        which the Atlas defines as income minus expenses (A.2.3.1.2.1.1).{" "}
         <a href={workbook} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
           {month} source
         </a>

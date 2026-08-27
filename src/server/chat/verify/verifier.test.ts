@@ -136,3 +136,26 @@ test("priorTurnsEvidence folds earlier assistant answers into one entry, newest-
     { role: "user", content: "q" },
   ])).toBeNull();
 });
+
+// The prefetch round is seeded before the model runs, so it is always the
+// OLDEST tool entry — exactly what newest-first budgeting drops first. Losing
+// it makes the verifier judge an answer against evidence missing the material
+// the answer was built from, which reads as "not supported by the provided
+// evidence" and gets correct content rewritten away by the advisor.
+test("prefetch evidence survives budget pressure that evicts newer tool results", () => {
+  const transcript = [
+    { role: "assistant", content: null, tool_calls: [{ id: "call_prefetch", type: "function", function: { name: "atlas_prefetch", arguments: "{}" } }] },
+    { role: "tool", tool_call_id: "call_prefetch", content: "PREFETCH-FACT-CONTENT" },
+    { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "atlas_query", arguments: "{}" } }] },
+    { role: "tool", tool_call_id: "c1", content: "x".repeat(5000) },
+    { role: "assistant", content: null, tool_calls: [{ id: "c2", type: "function", function: { name: "atlas_query", arguments: "{}" } }] },
+    { role: "tool", tool_call_id: "c2", content: "y".repeat(5000) },
+  ] as never;
+
+  const kept = evidenceFromTranscript(transcript, 200);
+  const prefetch = kept.find((e) => e.tool === "atlas_prefetch");
+  expect(prefetch).toBeDefined();
+  expect(prefetch?.content).toBe("PREFETCH-FACT-CONTENT");
+  // Labels stay contiguous after the reserve/evict partition.
+  expect(kept.map((e) => e.label)).toEqual(kept.map((_, i) => `[E${i + 1}]`));
+});

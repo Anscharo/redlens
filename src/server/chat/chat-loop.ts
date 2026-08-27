@@ -44,11 +44,30 @@ export interface ToolCallRecord {
 
 export type ChatEvent =
   | { type: "token"; text: string }
-  // Discard any answer tokens streamed in the round just ended — it turned out
-  // to be a tool round, and some models leak <tool_call> sentinel fragments as
-  // content before the structured call. The client resets its live answer
-  // buffer on `clear`; done.content is the authoritative final answer.
-  | { type: "clear" }
+  // Incremental reasoning/"thinking" trace from a model that emits one.
+  // NEVER accumulated into `content` and never part of done.content — it is
+  // the model's scratch work, shown to the reader as it arrives, not answer text.
+  | { type: "reasoning"; text: string }
+  // End the live answer buffer for the round just ended. Some models leak
+  // <tool_call> sentinel fragments as content before the structured call.
+  // The client moves the live buffer on `clear`; done.content is the
+  // authoritative final answer.
+  //
+  // `reason` tells the client what to do with text the reader already saw.
+  // Optional for back-compat: an older client without this field wipes on
+  // every clear.
+  //   - tool_round — the round produced text AND tool calls. The client
+  //     folds leaked tool-call markup into thinking and keeps remaining
+  //     prose as an unverified draft (dimmed, not struck). Not a wipe.
+  //   - degenerate — the draft degenerated into a repetition loop and was
+  //     abandoned. The one reason that still wipes.
+  //   - revision — the advisor is replacing a COMPLETE answer the reader has
+  //     already read. The client keeps that text, struck through, above the
+  //     replacement. Never a wipe.
+  //   - restore — a `revision` was started but abandoned, and the original
+  //     answer is about to be re-sent in `done`. The client drops its kept
+  //     copy so the answer is not shown twice.
+  | { type: "clear"; reason?: "tool_round" | "degenerate" | "revision" | "restore" }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; ok: boolean; bytes: number; truncated?: boolean; originalBytes?: number }
   // A downloadable artifact the model asked to hand the user (export_findings).
@@ -98,6 +117,30 @@ interface PendingCall {
 // errorResults telemetry can never disagree about what counts as an error.
 export function isErrorResult(content: string): boolean {
   return content.startsWith('{"error"');
+}
+
+// OpenRouter normalises a provider's "thinking" trace onto `delta.reasoning`
+// (a string), but some providers send `delta.reasoning_content` instead, and
+// some send a `reasoning_details` array of parts. The OpenAI SDK's
+// ChatCompletionChunk/delta type declares none of these — this is the one
+// place that casts through the unknown shapes, so both chunk-consuming loops
+// below read reasoning identically and can never drift.
+export function reasoningDelta(delta: unknown): string {
+  if (!delta || typeof delta !== "object") return "";
+  const d = delta as { reasoning?: unknown; reasoning_content?: unknown; reasoning_details?: unknown };
+  if (typeof d.reasoning === "string") return d.reasoning;
+  if (typeof d.reasoning_content === "string") return d.reasoning_content;
+  if (Array.isArray(d.reasoning_details)) {
+    let out = "";
+    for (const part of d.reasoning_details) {
+      if (!part || typeof part !== "object") continue;
+      const p = part as { text?: unknown; summary?: unknown };
+      if (typeof p.text === "string") out += p.text;
+      else if (typeof p.summary === "string") out += p.summary;
+    }
+    return out;
+  }
+  return "";
 }
 
 // Injected only on the final iteration, where tool_choice flips to "none" and the
@@ -198,6 +241,8 @@ export async function* runChat(opts: {
       if (opts.signal?.aborted) break;
       if (typeof chunk.id === "string" && chunk.id.startsWith("gen-")) generationId = chunk.id;
       const choice = chunk.choices?.[0];
+      const reasoning = reasoningDelta(choice?.delta);
+      if (reasoning) yield { type: "reasoning", text: reasoning };
       if (choice?.delta?.content) {
         content += choice.delta.content;
         if (isRepetitionLoop(content)) {
@@ -256,6 +301,8 @@ export async function* runChat(opts: {
       if (typeof chunk.id === "string" && chunk.id.startsWith("gen-")) generationId = chunk.id;
 
       const choice = chunk.choices?.[0];
+      const reasoning = reasoningDelta(choice?.delta);
+      if (reasoning) yield { type: "reasoning", text: reasoning };
       if (choice?.delta?.content) {
         content += choice.delta.content;
         if (isRepetitionLoop(content)) {
@@ -294,13 +341,13 @@ export async function* runChat(opts: {
     // than looping retries (same one-shot policy as the compose guard).
     if (degenerated) {
       captureEvent("chat_loop_repetition", opts.obs, { iter, chars: content.length });
-      yield { type: "clear" };
+      yield { type: "clear", reason: "degenerate" };
       const rewritten = yield* forcedTextAttempt(REPETITION_STEER);
       let finalContent = rewritten.content;
       let capped = rewritten.lengthCapped;
       if (rewritten.degenerated || isRepetitionLoop(finalContent)) {
         captureEvent("chat_loop_repetition_retry_failed", opts.obs, { chars: finalContent.length });
-        yield { type: "clear" };
+        yield { type: "clear", reason: "degenerate" };
         finalContent = "";
         capped = false;
       }
@@ -355,7 +402,7 @@ export async function* runChat(opts: {
     // calls were trusted over finish_reason.
     if (calls.length > 0 && !last && finishReason !== "length") {
       // This round's streamed content was pre-tool noise — tell the client to drop it.
-      if (content) yield { type: "clear" };
+      if (content) yield { type: "clear", reason: "tool_round" };
       msgs.push({
         role: "assistant",
         content: content || null,
@@ -469,7 +516,7 @@ export async function* runChat(opts: {
       const composed = yield* forcedTextAttempt(COMPOSE_STEER);
       if (composed.degenerated || isRepetitionLoop(composed.content)) {
         captureEvent("chat_loop_repetition", opts.obs, { iter, chars: composed.content.length, stage: "compose" });
-        yield { type: "clear" };
+        yield { type: "clear", reason: "degenerate" };
         finalContent = "";
         capped = false;
       } else {

@@ -453,6 +453,99 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-export-icon { color: var(--accent); font-size: 13px; line-height: 1; }
 .rlc-export-name { font: 400 12.5px/1 "Source Code Pro", monospace; color: var(--tan-2); }
 
+/* ── Reasoning ("thinking") trace ────────────────────────────────────────
+   Rendered above the answer in BOTH streaming and staged delivery — see
+   Message.tsx, which hoists <ReasoningBlock> above the per-mode content
+   branches so no branch (especially the staged checklist) can swallow it.
+   Same collapsible shape as .rlc-trace below, but OPEN by default: the beta
+   feedback asked for these to show immediately, not tucked behind a click.
+   The scroll cap on the body is what keeps a long trace from dominating the
+   message once it's open, instead of relying on the collapse alone. */
+.rlc-reasoning { margin-bottom: 10px; }
+.rlc-reasoning-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--tan-3);
+  font: 400 11px/1 "Source Code Pro", monospace;
+  letter-spacing: 0.05em;
+  text-transform: lowercase;
+  transition: color 100ms;
+}
+.rlc-reasoning-head:hover { color: var(--tan-2); }
+.rlc-reasoning-caret { display: inline-block; color: var(--accent); transition: transform 150ms; }
+.rlc-reasoning-caret[data-open="false"] { transform: rotate(-90deg); }
+/* Italic + dimmer than normal body copy (--tan-2), per the beta feedback —
+   --tan-3 is the same muted token .rlc-trace-arg/.rlc-agent-label use. */
+.rlc-reasoning-body {
+  margin-top: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+  font: 400 14px/1.55 var(--serif, "Lora", serif);
+  font-style: italic;
+  color: var(--tan-3);
+  white-space: pre-wrap;
+}
+
+/* ── Provisional (unverified) answer ─────────────────────────────────────
+   Message.tsx sets data-state from `!done || verify?.status === "checking"`.
+   .rlc-md sets its own font-style via the `font` shorthand (defaulting it to
+   normal), so this has to out-specificity that rule rather than rely on
+   inheriting italic from an ancestor. */
+.rlc-answer[data-state="provisional"] .rlc-md { font-style: italic; }
+
+/* ── Superseded prior draft ──────────────────────────────────────────────
+   A revision / tool_round moves the already-streamed draft here instead of
+   deleting it (beta feedback: "never ever remove text that user has seen").
+   Rendered above the live answer. <del> is only for `revision` (judged
+   wrong); `tool_round` is a plain wrapper. This just makes the block read. */
+.rlc-superseded-list { display: block; }
+.rlc-superseded { margin-bottom: 10px; }
+/* Chrome that *describes* the draft, not the draft itself. Thinking and
+   prechecked answers both stay italic; this note is a boxed caption so the
+   three don't share one visual language. Mix toward --surface (flips with
+   scheme), never literal white/black. */
+.rlc-superseded-note {
+  margin: 0 0 8px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  font: 400 12.5px/1.4 "Source Code Pro", monospace;
+  font-style: normal;
+  color: var(--tan-3);
+}
+.rlc-superseded-text { display: block; }
+/* The draft is rendered markdown, not plain text (SupersededAnswer.tsx), so
+   the strike and the dimming have to reach INSIDE .rlc-md rather than sit on
+   the <del> alone. `text-decoration` propagates to in-flow descendants, but
+   .rlc-md a sets its own `text-decoration: underline`, which replaces the
+   inherited strike on every citation — so links restate both. Colour is
+   re-bound to the muted tier throughout: a retracted draft must not read as
+   more prominent than the live answer sitting below it. */
+.rlc-superseded-text .rlc-md { color: var(--tan-3); text-decoration: line-through; }
+/* A `tool_round` draft was superseded, not WRONG — the model set it aside and
+   went on searching. Dim it like the others, but don't strike it:
+   a strike asserts the text was incorrect, which for this reason it never
+   was. Strike stays for `revision`, the one kept reason that does mean wrong.
+   (A repetition-loop draft is never kept at all — see useChatStream.) */
+.rlc-superseded[data-reason="tool_round"] .rlc-superseded-text .rlc-md,
+.rlc-superseded[data-reason="tool_round"] .rlc-superseded-text .rlc-md a {
+  text-decoration: none;
+  font-style: italic;
+}
+.rlc-superseded-text .rlc-md strong { color: var(--tan-3); }
+.rlc-superseded-text .rlc-md a {
+  color: var(--tan-3);
+  text-decoration: line-through underline;
+  text-decoration-color: color-mix(in srgb, var(--tan-3) 45%, transparent);
+}
+.rlc-superseded-text .rlc-md a:hover { color: var(--tan-2); text-decoration-color: var(--tan-3); }
+
 /* ── Verification badge (reliability harness) ──────────────────────────── */
 .rlc-verify { margin-top: 8px; }
 .rlc-statusline { margin-top: 6px; }

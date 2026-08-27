@@ -174,6 +174,20 @@ export function makeOpenrouterStream(obs: ChatObservability = {}, models: string
         max_tokens: config.chatMaxOutputTokens,
         stream: true,
         stream_options: { include_usage: true },
+        // Deliberately NO `reasoning` param. Forwarding a reasoning delta to
+        // the client is unconditional (chat-loop.ts's reasoningDelta), and the
+        // strong tier's model already reasons unprompted on ~98% of
+        // generations, so thinking traces render without asking for them.
+        // REQUESTING reasoning was measured (2026-08-24 bakeoff,
+        // .cache/eval-bakeoff.2026-08-24-reasoning.json) and lost: forcing it
+        // on the default tier bought +0.007 trimmed score for 2.3x latency,
+        // lower completeness, and the run's first hard fabrications, while
+        // forcing `high` on the strong tier scored WORSE than its own adaptive
+        // default. Reasoning tokens also come out of `max_tokens` — at a tight
+        // cap a model returns finish_reason:"length" with an empty answer. A
+        // single global knob could only be set to a value that measurement
+        // rejects for at least one tier, so there isn't one; if this is ever
+        // revisited it has to be per-tier.
         ...posthogParams(obs, "atlas-chat"),
       } as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
       { signal },

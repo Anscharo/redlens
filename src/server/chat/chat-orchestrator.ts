@@ -209,6 +209,29 @@ function identifiersMeta(i: IdentifierRepair) {
 // mid-generation) is folded the same way: it's not a citation problem, but it
 // must equally force `failed` so the escalation gate below sees it and the
 // harness attempts a recovery.
+// A tool result under this many characters carries no documents — an empty
+// envelope like {"mode":"search","count":0,"results":[]} is ~40 bytes. Used as
+// a fallback when the payload is not JSON. Length alone is not enough: a
+// `count: 0` envelope with a `filters_applied` hint is hundreds of bytes of
+// diagnostic text and still retrieved nothing.
+const EMPTY_RESULT_CHARS = 200;
+
+/** Atlas/external tool payload that actually retrieved something to cite. */
+function isSubstantiveEvidence(e: { sourceClass?: string; content: string }): boolean {
+  if (e.sourceClass === "reference") return false;
+  const trimmed = e.content.trim();
+  try {
+    const parsed = JSON.parse(trimmed) as { count?: unknown; results?: unknown };
+    if (parsed && typeof parsed === "object") {
+      if (parsed.count === 0) return false;
+      if (Array.isArray(parsed.results) && parsed.results.length === 0) return false;
+    }
+  } catch {
+    // Prose / non-JSON tool text: fall through to the byte floor.
+  }
+  return trimmed.length > EMPTY_RESULT_CHARS;
+}
+
 function repairedChecks(
   content: string,
   toolTexts: string[],
@@ -617,7 +640,23 @@ export async function* runVerifiedChat(opts: {
     overall === "fail" ||
     (overall === "warn" && unsupportedClaims >= config.chatAdvisorTriggerUnsupportedClaims) ||
     (overall !== "pass" && (exhausted || retrievalTrouble(telemetry)));
-  const escalate = Boolean(advisorModel) && troubled && !opts.signal?.aborted;
+  // A turn whose only real evidence is the injected prefetch round must not be
+  // REWRITTEN over unsupported claims. Facts are reference material the answer
+  // is meant to restate in its own words, so a paraphrase reads as ungrounded
+  // to a span-matching judge; the advisor then replaces correct content with a
+  // hedge ("I cannot substantiate that from the retrieved material"), which is
+  // strictly worse for the reader. Observed twice in production on product /
+  // orientation questions where the atlas search came back empty.
+  //
+  // Narrow on purpose: this suppresses only the CLAIM-driven rewrite. A
+  // deterministic failure (invalid citation, ungrounded quote or figure, param
+  // mismatch — checks.failed, and therefore overall === "fail") still escalates
+  // exactly as before, because those are wrong regardless of where the content
+  // came from. The badge still shows the verdict; only the rewrite is withheld.
+  const substantiveEvidence = evidence.filter(isSubstantiveEvidence).length;
+  const prefetchOnly = substantiveEvidence === 0 && evidence.some((e) => e.sourceClass === "reference");
+  const escalate =
+    Boolean(advisorModel) && troubled && !opts.signal?.aborted && !(prefetchOnly && !checks.failed);
 
   // Deterministic-only turns stay quiet unless something actually failed —
   // a permanent "unverified" chip on every clean answer is noise, not signal.
@@ -651,7 +690,11 @@ export async function* runVerifiedChat(opts: {
   }
 
   yield { type: "status", stage: "revising", detail: "Revising with corrections…" };
-  yield { type: "clear" };
+  // The client keeps the flagged answer, struck through, above whatever the
+  // revision produces — this is NOT a wipe (contrast the tool_round/degenerate
+  // clears in chat-loop.ts). See the `restore` counterpart below for the
+  // abandoned-revision case.
+  yield { type: "clear", reason: "revision" };
   const feedback = [verdict?.feedback ?? "", checkFailures.length ? `Deterministic failures: ${checkFailures.join("; ")}.` : ""]
     .filter(Boolean).join(" ");
   const { steer, maxIterations } = revisionSteer(adv.recovery, feedback);
@@ -682,9 +725,15 @@ export async function* runVerifiedChat(opts: {
     revDone = null;
   }
 
-  // Failed/aborted revision → the original answer stands (done.content is
-  // authoritative client-side, so the cleared buffer recovers on done).
+  // Failed/aborted revision → the original answer stands. The `revision`
+  // clear above told the client to keep the flagged answer struck-through
+  // and start rendering a fresh live buffer for the replacement — but that
+  // replacement never arrived, and done.content below is about to re-send
+  // the ORIGINAL answer. Without this signal the client would render the
+  // kept struck-through copy AND the same text again as the "new" answer.
+  // `restore` tells it to drop the kept copy so `done` is the only copy left.
   if (!revDone || !revDone.content.trim()) {
+    yield { type: "clear", reason: "restore" };
     yield finish(done);
     return;
   }

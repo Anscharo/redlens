@@ -99,6 +99,30 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("our extraction shows");
   });
 
+  // Beta testers ask the chat to compose messages/emails/forum replies about
+  // the atlas for a third party — the section must make that a first-class
+  // capability, keep it cited, and steer around the two machine-check traps
+  // (blockquote = fabricated-quote check, code fence/backticks = dead link).
+  it("has a drafting section, placed between Reporting-vs-ruling and Citations, that covers third-party messages", () => {
+    const prompt = buildSystemPrompt(ix);
+    const ruling = prompt.indexOf("## Reporting vs. ruling");
+    const drafting = prompt.indexOf("## Drafting messages to a third party");
+    const citations = prompt.indexOf("## Citations & rendering");
+    expect(ruling).toBeGreaterThan(-1);
+    expect(drafting).toBeGreaterThan(ruling);
+    expect(citations).toBeGreaterThan(drafting);
+
+    expect(prompt).toContain("write the draft itself");
+    // The two format traps: blockquote-as-fabricated-quote, code fence/backticks-as-dead-link.
+    expect(prompt).toContain("never wrap the draft in a blockquote");
+    expect(prompt).toContain("Never wrap it in a code fence or backticks either");
+    // Getting the draft out of the app.
+    expect(prompt).toContain("export_findings");
+    expect(prompt).toContain('rewrites those links to absolute URLs');
+    // Reporting-vs-ruling applied to correspondence.
+    expect(prompt).toContain("it does not adjudicate on the user's behalf");
+  });
+
   it("has a third bucket for external MSC figures", () => {
     const prompt = buildSystemPrompt(ix);
     const ext = prompt.indexOf("## External sources (not Atlas)");
@@ -193,5 +217,41 @@ describe("buildSystemPrompt", () => {
     const match = prompt.match(/pass `filter: "([^"]*)"`/);
     expect(match).not.toBeNull();
     expect((match?.[1] ?? "").length).toBeLessThanOrEqual(100 + " (adjusted to their question)".length);
+  });
+});
+
+describe("MSC disambiguation", () => {
+  // Regression: "what are the top venues for revenue as identified in msc"
+  // was answered from atlas docs ("the atlas does not identify specific top
+  // venues") when ask_external_msc has a `venues` view that ranks exactly
+  // that. The prompt's old split was "dollar figures vs process", and a
+  // superlative with no currency sign in it fell on the wrong side.
+  const prompt = () => buildSystemPrompt(ix, undefined, "inline", "2026-08-26");
+
+  it("says MSC names both an atlas process and the published results", () => {
+    const p = prompt();
+    expect(p).toMatch(/names TWO different things/);
+    expect(p).toMatch(/PROCESS/);
+    expect(p).toMatch(/PUBLISHED RESULTS/);
+  });
+
+  it("maps the venues view to the phrasings that should reach it", () => {
+    const p = prompt();
+    expect(p).toMatch(/`venues` for which venues/);
+    expect(p).toMatch(/top venues/);
+  });
+
+  it("routes superlatives over MSC subject matter to the external tool", () => {
+    expect(prompt()).toMatch(/Superlatives — top, biggest, largest[^"]*never \(1\)/);
+  });
+
+  it("lists aggregate with the other MSC views on the tools line", () => {
+    expect(prompt()).toMatch(/Pick view month \/ series \/ compare \/ venues \/ aggregate \/ terms/);
+  });
+
+  it("forbids an unchecked absence claim about MSC data", () => {
+    const p = prompt();
+    expect(p).toMatch(/CALL THE TOOL before concluding/);
+    expect(p).toMatch(/never state that MSC figures, rankings or venues are unavailable/);
   });
 });

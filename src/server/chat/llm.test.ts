@@ -275,4 +275,24 @@ describe("makeOpenrouterStream", () => {
     });
     expect(received).toHaveLength(1);
   });
+
+  // No `reasoning` request param by design — see llm.ts. The strong tier
+  // reasons unprompted, and the 2026-08-24 bakeoff rejected forcing it on
+  // either tier, so a body that asks for reasoning would be a regression.
+  it("never asks OpenRouter for reasoning — forwarding is unconditional, requesting is not", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    const fakeFetch = (async (_url: string, init?: RequestInit) => {
+      capturedBody = JSON.parse(String(init?.body));
+      return sseResponse([{ id: "gen-r1", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] }]);
+    }) as unknown as typeof fetch;
+
+    const stream = makeOpenrouterStream();
+    await withFetch(fakeFetch, async () => {
+      for await (const _c of stream({ messages: [], tools: [], toolChoice: "auto" })) {
+        // drain
+      }
+    });
+    const body = capturedBody as unknown as Record<string, unknown>;
+    expect("reasoning" in body).toBe(false);
+  });
 });
