@@ -468,11 +468,12 @@ describe("diff blocks are visibly distinct in every theme", () => {
 });
 
 // ─── Test G ─────────────────────────────────────────────────────────────
-// giedi's two off-registry colours. Both sit outside everything above:
-// --selected-hint is declared only in the giedi block (so Test C, which walks
-// :root, never sees it) and .filter-summary-em's value is a literal in a rule
-// (so no token test can reach it at all). They are the two easiest values in
-// the file to break silently, which is exactly why they are asserted here.
+// giedi's off-registry colours. They sit outside everything above:
+// --selected-hint / --selected-title / --node-title / --node-title-hover are
+// declared only in the giedi block (so Test C, which walks :root, never sees
+// them) and .filter-summary-em's value is a literal in a rule (so no token
+// test can reach it at all). They are the easiest values in the file to
+// break silently, which is exactly why they are asserted here.
 describe("giedi's off-registry colours stay readable", () => {
 
   // The selected doc is a black block, but its type pill is painted on

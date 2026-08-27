@@ -365,10 +365,9 @@
   /* Reader-row hover fill. The colour themes mix --bg-deep toward --surface,
      which on this palette is a 0.009 OKLab step — under a JND, so the row
      does not read as hovered. This is a lifted slate (OKLCH L 0.192 / C 0.03
-     / H 245) — 20% darker (in OKLCH L) than the previous L 0.24 stop, still
-     the theme's electric blue: less dark than --bg-deep, and the hue is what
-     makes it a hover rather than just a slightly different grey. Used by the
-     [data-theme="giedi"] .atlas-node hover rule below the theme blocks. */
+     / H 245), the theme's electric blue: still lighter than --bg-deep, and
+     the hue is what makes it a hover rather than just a slightly different
+     grey. Used by the [data-theme="giedi"] .atlas-node hover rule below. */
   --node-hover: #081621;
 
   /* The one DECORATIVE hue in the theme, and giedi-only — every other cast
@@ -378,7 +377,7 @@
      inside the selection take this instead. Desaturated gold (OKLCH L 0.78 /
      C 0.055 / H 80), 10.4:1 on the black fill and 8.5:1 on --surface, which
      is what the type pill is actually painted on. Also the Connect page's
-     tool-name colour (`.mcp-tool-name`), via `var(--selected-hint, --accent)`
+     tool-name colour (`.mcp-tool-name`), via `var(--selected-hint, var(--accent))`
      so other palettes keep their interactive accent. */
   --selected-hint: #cab490;
 
@@ -616,9 +615,10 @@
   color: var(--node-title-hover);
 }
 
-/* MCP tool names on /connect. --accent is white in this theme, so the names
-   would be indistinguishable from surrounding text; they take the decorative
-   gold instead. Other palettes fall through to --accent. */
+/* MCP tool names on /connect. Giedi's --accent is white, so the names would
+   be indistinguishable from surrounding text; they take --selected-hint (the
+   decorative gold). Other palettes have no --selected-hint and fall through
+   to --accent. */
 .mcp-tool-name {
   color: var(--selected-hint, var(--accent));
 }
