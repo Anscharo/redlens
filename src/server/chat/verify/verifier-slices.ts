@@ -63,6 +63,17 @@ const SPAN_RULE = [
   "Text that is merely ADJACENT or topically similar is not support. Scaffolding/boilerplate ('the documents herein contain all data for X's instances of Y') does NOT establish that X has a Y — it only describes a container.",
   "If no exact span establishes the claim, mark it `unsupported` and set span to \"\". If the evidence states the opposite, mark it `contradicted`.",
   "EXCEPTION — absence claims: if the claim is that the atlas does NOT contain/specify something, no span can exist. Mark it `supported` with span \"\" and set \"absence\":true, when the evidence is consistent with the gap (searches returned nothing relevant). Admitting a gap is correct behaviour, not a failure.",
+  // Reference evidence is RedLens-injected context — the product guide, glossary
+  // rows, entity rows, concept censuses — not a retrieval of atlas document
+  // text. Summarising it IS its intended use, so the verbatim-substring bar
+  // makes a faithful restatement `unsupported` by construction: measured in
+  // production, an answer built from the product guide had its exploration
+  // methods and example questions flagged as "not supported by the provided
+  // evidence" and the advisor rewrote correct information away. The exemption
+  // is deliberately narrow — descriptive prose only. Every figure, quote,
+  // address, doc number and citation still needs an exact span whatever its
+  // source, so nothing checkable becomes uncheckable.
+  "EXCEPTION — reference evidence: entries marked [REFERENCE] are context RedLens injected for this turn (product documentation, glossary rows, entity rows, censuses), not retrieved atlas text. A DESCRIPTIVE claim that faithfully restates or summarises a [REFERENCE] entry is `supported` — put the closest supporting substring in `span` and do not require it to be exact. This exemption covers prose only: figures, dates, amounts, on-chain addresses, document numbers, quoted atlas text and citations still require an EXACT verbatim span from the evidence, whatever its source. A claim that goes BEYOND what the reference entry says is still `unsupported`.",
 ].join(" ");
 
 const PROMPTS: Record<SliceName, string> = {
@@ -111,7 +122,9 @@ export function buildSlicePrompt(slice: SliceName, params: { question: string; a
     parts.push(
       `## Evidence retrieved this turn\n${
         params.evidence.length
-          ? params.evidence.map((e) => `${e.label} ${e.tool}(${e.args}) →\n${e.content}`).join("\n\n")
+          ? params.evidence
+              .map((e) => `${e.label}${e.sourceClass === "reference" ? " [REFERENCE]" : ""} ${e.tool}(${e.args}) →\n${e.content}`)
+              .join("\n\n")
           : "(no tools were called — nothing is supported)"
       }`,
     );
@@ -125,24 +138,102 @@ export function buildSlicePrompt(slice: SliceName, params: { question: string; a
   ];
 }
 
-export function parseSlice(text: string): { claims: SliceClaim[]; rulingIssued: boolean; notes: string } | null {
+const SLICE_STATUSES = new Set<SliceClaim["status"]>(["supported", "unsupported", "contradicted"]);
+// The model's own JSON leaking into a claim string — over-escaped quotes make
+// one claim swallow the next one's fields. The real status rides along inside
+// the text, so it can be recovered rather than guessed.
+const LEAKED_STATUS = /"status"\s*:\s*"(supported|unsupported|contradicted)"/;
+
+// Close whatever a truncated generation left open: an unterminated string,
+// then every unclosed array/object, innermost first. Output caps cut JSON
+// mid-structure routinely, and the claims already emitted are perfectly good
+// — discarding the whole slice over the tail loses real judgements. Strings
+// are tracked properly (escapes included) so a brace inside a quoted span is
+// never mistaken for structure.
+export function closeTruncatedJson(src: string): string {
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+  for (const ch of src) {
+    if (escaped) { escaped = false; continue; }
+    if (inString) {
+      if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{" || ch === "[") stack.push(ch);
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+  let out = src;
+  if (inString) out += '"';
+  out = out.replace(/,\s*$/, ""); // dangling comma before the synthetic closers
+  for (let i = stack.length - 1; i >= 0; i--) out += stack[i] === "{" ? "}" : "]";
+  return out;
+}
+
+// Parse LLM JSON that is nearly right. Ordered cheapest-first: as written, then
+// trailing commas removed, then structurally closed. Returns null only when
+// nothing survives — matching citation-repair.ts's "repair, don't reject".
+export function parseJsonish(text: string): Record<string, unknown> | null {
   const stripped = text.replace(/```(?:json)?/g, "").trim();
   const s = stripped.indexOf("{");
+  if (s === -1) return null;
   const e = stripped.lastIndexOf("}");
-  if (s === -1 || e <= s) return null;
-  try {
-    const j = JSON.parse(stripped.slice(s, e + 1)) as Record<string, unknown>;
-    const raw = Array.isArray(j.claims) ? j.claims : [];
-    const claims: SliceClaim[] = raw.flatMap((c) => {
-      const o = c as Record<string, unknown>;
-      if (typeof o?.claim !== "string") return [];
-      const status = o.status === "contradicted" ? "contradicted" : o.status === "supported" ? "supported" : "unsupported";
-      return [{ claim: o.claim, status, span: typeof o.span === "string" ? o.span : "", absence: o.absence === true }];
-    });
-    return { claims, rulingIssued: j.ruling_issued === true, notes: typeof j.notes === "string" ? j.notes : "" };
-  } catch {
-    return null;
+  const candidates = [
+    e > s ? stripped.slice(s, e + 1) : "",
+    e > s ? stripped.slice(s, e + 1).replace(/,(\s*[}\]])/g, "$1") : "",
+    closeTruncatedJson(stripped.slice(s)),
+    closeTruncatedJson(stripped.slice(s)).replace(/,(\s*[}\]])/g, "$1"),
+  ];
+  for (const c of candidates) {
+    if (!c) continue;
+    try {
+      const j = JSON.parse(c) as unknown;
+      if (j && typeof j === "object" && !Array.isArray(j)) return j as Record<string, unknown>;
+    } catch {
+      // try the next repair
+    }
   }
+  return null;
+}
+
+// A status we could not read is a claim we did not JUDGE — it must not become a
+// claim we judged UNSUPPORTED. Unsupported claims drive the warn verdict and
+// feed the advisor-escalation threshold, so defaulting a parse defect to
+// "unsupported" manufactures evidence against the answer. Fail toward silence:
+// normalise what we can, recover a leaked status, otherwise drop the row.
+export function repairStatus(o: Record<string, unknown>): SliceClaim["status"] | null {
+  const raw = typeof o.status === "string" ? o.status.trim().toLowerCase() : "";
+  if (SLICE_STATUSES.has(raw as SliceClaim["status"])) return raw as SliceClaim["status"];
+  const leaked = typeof o.claim === "string" ? LEAKED_STATUS.exec(o.claim) : null;
+  if (leaked) return leaked[1] as SliceClaim["status"];
+  return null;
+}
+
+// When a leak was recovered the claim text still carries the raw JSON tail —
+// cut it at the leak so the badge shows a sentence, not machine noise.
+const cleanClaimText = (t: string) => t.split(/"?\s*,\s*"status"\s*:/)[0].replace(/["\\]+$/, "").trim();
+
+export function parseSlice(text: string): { claims: SliceClaim[]; rulingIssued: boolean; notes: string } | null {
+  const j = parseJsonish(text);
+  if (!j) return null;
+  const raw = Array.isArray(j.claims) ? j.claims : [];
+  const claims: SliceClaim[] = raw.flatMap((c) => {
+    const o = c as Record<string, unknown>;
+    if (typeof o?.claim !== "string") return [];
+    const status = SLICE_STATUSES.has(o.status as SliceClaim["status"])
+      ? (o.status as SliceClaim["status"])
+      : repairStatus(o);
+    if (!status) return []; // unreadable judgement — drop, never assume guilt
+    return [{
+      claim: cleanClaimText(o.claim),
+      status,
+      span: typeof o.span === "string" ? o.span : "",
+      absence: o.absence === true,
+    }];
+  });
+  return { claims, rulingIssued: j.ruling_issued === true, notes: typeof j.notes === "string" ? j.notes : "" };
 }
 
 // Best token-overlap between the span and ANY window of the evidence.

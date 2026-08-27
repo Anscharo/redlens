@@ -4,7 +4,7 @@
 import { test, expect } from "bun:test";
 import type OpenAI from "openai";
 import { loadIndexes } from "../retrieval/indexes.ts";
-import { runChat, type ChatStream, type ChatEvent } from "./chat-loop.ts";
+import { runChat, reasoningDelta, type ChatStream, type ChatEvent } from "./chat-loop.ts";
 import { config } from "../config.ts";
 
 type Chunk = OpenAI.Chat.Completions.ChatCompletionChunk;
@@ -12,6 +12,8 @@ const ix = loadIndexes();
 
 const textChunk = (text: string, id = "gen-abc"): Chunk =>
   ({ id, choices: [{ index: 0, delta: { content: text }, finish_reason: null }] }) as unknown as Chunk;
+const reasoningChunk = (delta: Record<string, unknown>, id = "gen-abc"): Chunk =>
+  ({ id, choices: [{ index: 0, delta, finish_reason: null }] }) as unknown as Chunk;
 const toolChunk = (name: string, args: string): Chunk =>
   ({
     id: "gen-abc",
@@ -49,6 +51,40 @@ async function collect(gen: AsyncGenerator<ChatEvent>): Promise<ChatEvent[]> {
 
 const userMsg: OpenAI.Chat.Completions.ChatCompletionMessageParam = { role: "user", content: "hi" };
 
+test("reasoningDelta: reads OpenRouter's normalised `reasoning` string", () => {
+  expect(reasoningDelta({ reasoning: "thinking about it" })).toBe("thinking about it");
+});
+
+test("reasoningDelta: reads a provider's `reasoning_content` string", () => {
+  expect(reasoningDelta({ reasoning_content: "step one" })).toBe("step one");
+});
+
+test("reasoningDelta: concatenates `.text`/`.summary` members of a `reasoning_details` array", () => {
+  expect(
+    reasoningDelta({
+      reasoning_details: [{ text: "first " }, { summary: "second" }, { neither: "ignored" }],
+    }),
+  ).toBe("first second");
+});
+
+test("reasoningDelta: prefers `reasoning` over `reasoning_content`/`reasoning_details` when more than one is present", () => {
+  expect(
+    reasoningDelta({ reasoning: "primary", reasoning_content: "secondary", reasoning_details: [{ text: "tertiary" }] }),
+  ).toBe("primary");
+});
+
+test("reasoningDelta: returns '' for junk input", () => {
+  expect(reasoningDelta(undefined)).toBe("");
+  expect(reasoningDelta(null)).toBe("");
+  expect(reasoningDelta("a string, not an object")).toBe("");
+  expect(reasoningDelta(42)).toBe("");
+  expect(reasoningDelta({})).toBe("");
+  expect(reasoningDelta({ content: "not reasoning" })).toBe("");
+  expect(reasoningDelta({ reasoning: 123 })).toBe(""); // wrong type, not coerced
+  expect(reasoningDelta({ reasoning_details: "not an array" })).toBe("");
+  expect(reasoningDelta({ reasoning_details: [null, 5, "str", { other: 1 }] })).toBe("");
+});
+
 test("plain answer: streams tokens, no tools, terminal done carries usage + gen id", async () => {
   const rounds = [[textChunk("Hello "), textChunk("world"), finishChunk("stop"), usageChunk(120, 8)]];
   const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []) }));
@@ -63,6 +99,54 @@ test("plain answer: streams tokens, no tools, terminal done carries usage + gen 
     expect(done.generationId).toBe("gen-abc");
     expect(done.toolCalls).toHaveLength(0);
   }
+});
+
+test("reasoning deltas stream as their own event, never appended to content, absent from done.content and the transcript", async () => {
+  const rounds = [
+    [
+      reasoningChunk({ reasoning: "Let me think… " }),
+      reasoningChunk({ reasoning: "ok, I've got it." }),
+      textChunk("The answer is 42."),
+      finishChunk("stop"),
+    ],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []) }));
+
+  const reasoningEvents = events.filter((e) => e.type === "reasoning");
+  expect(reasoningEvents.map((e) => (e as { text: string }).text)).toEqual(["Let me think… ", "ok, I've got it."]);
+  // Tokens are unaffected — reasoning never leaks into the answer stream.
+  expect(events.filter((e) => e.type === "token").map((e) => (e as { text: string }).text)).toEqual(["The answer is 42."]);
+
+  const done = events.at(-1)!;
+  expect(done.type === "done" && done.content).toBe("The answer is 42.");
+  if (done.type === "done") {
+    expect(done.content).not.toContain("think");
+    expect(done.transcript.some((m) => typeof m.content === "string" && m.content.includes("think"))).toBe(false);
+  }
+});
+
+test("reasoning deltas also stream from the forced-text/compose attempt, not just the main round", async () => {
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    // Forced final round, no tools: reasoning arrives alongside the answer.
+    [reasoningChunk({ reasoning_content: "final reasoning" }), textChunk("Done."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 2 }));
+  expect(events.some((e) => e.type === "reasoning" && e.text === "final reasoning")).toBe(true);
+  const done = events.at(-1)!;
+  expect(done.type === "done" && done.content).toBe("Done.");
+});
+
+test("a reasoning-only chunk does not feed the repetition guard", async () => {
+  // A repeated phrase inside a reasoning delta must never trip isRepetitionLoop
+  // (which only ever sees `content`) — this loops the same phrase enough times
+  // to trip the guard if it were mistakenly fed reasoning text.
+  const loopyReasoning = "the same as ".repeat(20);
+  const rounds = [[reasoningChunk({ reasoning: loopyReasoning }), textChunk("A clean, short answer."), finishChunk("stop")]];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []) }));
+  expect(events.some((e) => e.type === "clear")).toBe(false);
+  const done = events.at(-1)!;
+  expect(done.type === "done" && done.content).toBe("A clean, short answer.");
 });
 
 test("contextTokens is the LAST round's prompt_tokens, not the cumulative usage.input", async () => {
@@ -104,6 +188,8 @@ test("tool round: leaked pre-tool content triggers clear, then executes + answer
   const callIdx = events.findIndex((e) => e.type === "tool_call");
   expect(clearIdx).toBeGreaterThanOrEqual(0);
   expect(clearIdx).toBeLessThan(callIdx);
+  // Pre-tool noise is wiped and tagged "tool_round" — never "degenerate".
+  expect(events[clearIdx]).toMatchObject({ type: "clear", reason: "tool_round" });
 
   const call = events[callIdx];
   const result = events.find((e) => e.type === "tool_result");
@@ -551,6 +637,23 @@ test("compose guard: a second empty response ships as-is — exactly one extra a
   expect(done.type === "done" && done.content).toBe("");
 });
 
+test("compose guard: a composed answer that degenerates into repetition is cleared with reason:\"degenerate\"", async () => {
+  const captured: Captured[] = [];
+  const loop = "same as the ".repeat(14);
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    [finishChunk("stop")], // forced-text round: empty → triggers the compose guard
+    [textChunk(loop), finishChunk("stop")], // the compose attempt itself loops
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 2 }));
+
+  expect(captured).toHaveLength(3);
+  const clear = events.find((e) => e.type === "clear");
+  expect(clear).toMatchObject({ type: "clear", reason: "degenerate" });
+  const done = events.at(-1)!;
+  expect(done.type === "done" && done.content).toBe("");
+});
+
 test("repetition handbrake: clears a character loop and rewrites once", async () => {
   const captured: Captured[] = [];
   const loop = "a".repeat(120);
@@ -573,6 +676,7 @@ test("repetition handbrake: clears a character loop and rewrites once", async ()
   const tokenIdx = events.findIndex((e) => e.type === "token");
   expect(clearIdx).toBeGreaterThanOrEqual(0);
   expect(tokenIdx).toBeGreaterThan(clearIdx);
+  expect(events[clearIdx]).toMatchObject({ type: "clear", reason: "degenerate" });
 
   const done = events.at(-1)!;
   expect(done.type === "done" && done.content).toBe("Clean answer about the atlas.");
@@ -589,7 +693,8 @@ test("repetition handbrake: phrase loop ('the same as') clears and rewrites", as
   const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured) }));
 
   expect(captured).toHaveLength(2);
-  expect(events.some((e) => e.type === "clear")).toBe(true);
+  const clear = events.find((e) => e.type === "clear");
+  expect(clear).toMatchObject({ type: "clear", reason: "degenerate" });
   expect(events.at(-1)).toMatchObject({ type: "done", content: "Rewritten." });
 });
 
@@ -603,6 +708,8 @@ test("repetition handbrake: a second degeneration ships empty — no retry loop"
   const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured) }));
 
   expect(captured).toHaveLength(2); // exactly one rewrite
-  expect(events.filter((e) => e.type === "clear").length).toBe(2);
+  const clears = events.filter((e) => e.type === "clear");
+  expect(clears.length).toBe(2);
+  expect(clears.every((c) => c.type === "clear" && c.reason === "degenerate")).toBe(true);
   expect(events.at(-1)).toMatchObject({ type: "done", content: "" });
 });

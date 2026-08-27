@@ -12,6 +12,7 @@ import type { RoundTelemetry } from "./round-checks.ts";
 import { config } from "../../config.ts";
 import { captureError, captureEvent, type ErrorContext } from "../../posthog-node.ts";
 import { isExternalMscTool } from "../../external/envelope.ts";
+import { FACT_TOOL_NAME } from "../../facts/registry.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -82,7 +83,14 @@ export interface EvidenceEntry {
   tool: string;
   args: string;
   content: string;
-  sourceClass?: "atlas" | "external";
+  // "reference" = RedLens-injected context (facts/registry.ts): glossary rows,
+  // entity rows, concept censuses, the product guide. It is NOT a retrieval of
+  // atlas document text, so the judge must not hold it to atlas-quotation
+  // rules — but it IS legitimate grounding, which is the whole point of
+  // injecting it. Deliberately still grouped with atlas (not external) for
+  // quote-grounding in splitFromTranscript: glossary definitions genuinely are
+  // atlas text, and moving them out would start failing quotes that are real.
+  sourceClass?: "atlas" | "external" | "reference";
 }
 
 // Pull the turn's tool calls + results out of the loop transcript, labeled
@@ -104,22 +112,41 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
         tool: call.tool,
         args: call.args,
         content: m.content,
-        sourceClass: isExternalMscTool(call.tool) ? "external" : "atlas",
+        sourceClass: isExternalMscTool(call.tool) ? "external" : call.tool === FACT_TOOL_NAME ? "reference" : "atlas",
       });
     }
   }
   // Budget newest-first: walk from the end, keep entries while they fit; an
   // oversized entry is truncated rather than dropped so its identity survives.
+  //
+  // The prefetch round is EXEMPT from eviction. It is always the oldest tool
+  // entry (facts are seeded before the model runs), so newest-first budgeting
+  // drops it first — precisely the material the answer was built from, on the
+  // tool-heavy turns where the budget actually binds. The verifier then judges
+  // an answer against evidence missing its source and reports the content as
+  // unsupported, and the advisor rewrites away correct information. Facts are
+  // small and deterministic; reserving them costs little and removes a whole
+  // class of false "not supported by the provided evidence".
+  const isPrefetch = (e: EvidenceEntry) => e.tool === FACT_TOOL_NAME;
   let remaining = maxChars;
+  const reserved: EvidenceEntry[] = [];
+  for (const e of entries) {
+    if (!isPrefetch(e)) continue;
+    const content = e.content.length > remaining ? `${e.content.slice(0, remaining)}…[truncated]` : e.content;
+    remaining -= content.length;
+    reserved.push({ ...e, content });
+  }
   const kept: EvidenceEntry[] = [];
   for (let i = entries.length - 1; i >= 0; i--) {
     if (remaining <= 0) break;
     const e = entries[i];
+    if (isPrefetch(e)) continue; // already reserved above
     const content = e.content.length > remaining ? `${e.content.slice(0, remaining)}…[truncated]` : e.content;
     remaining -= content.length;
     kept.unshift({ ...e, content });
   }
-  return kept;
+  // Re-label so [E1], [E2], … stay contiguous after the partition.
+  return [...reserved, ...kept].map((e, i) => ({ ...e, label: `[E${i + 1}]` }));
 }
 
 // Assistant answers from EARLIER turns of the conversation, folded into one

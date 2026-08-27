@@ -216,6 +216,23 @@ export function extractQuotedSpans(answer: string): string[] {
         q.text.length <= MAX_DENIED_TERM &&
         (DENIAL_BEFORE.test(line.slice(0, q.start)) || DENIAL_AFTER.test(line.slice(q.end + 1)));
       if (denied) continue;
+      // A quoted QUESTION is something the assistant is inviting the reader to
+      // ask, never a passage copied out of a rule document. Measured against
+      // the served atlas: 0 of 11,340 documents contain a quoted question of
+      // this length, so excluding them removes no real detection. This was a
+      // live hard-failure: an orientation answer ended with "You can ask things
+      // like:" and six example questions, each was read as a verbatim atlas
+      // quotation, none were in any document, and the turn hard-failed and had
+      // a correct answer rewritten away.
+      if (/\?["”']*\s*$/.test(q.text.trim())) continue;
+      // A list item whose ENTIRE content is one quoted string is an example or
+      // a suggestion, not an inline quotation. Real verbatim atlas text is a
+      // `>` blockquote (the system prompt reserves them for exactly that) or
+      // sits inside prose with an attribution — either way the line carries
+      // more than the quote itself.
+      const beforeQuote = line.slice(0, q.start);
+      const afterQuote = line.slice(q.end + 1);
+      if (/^\s*[-*+]\s*$/.test(beforeQuote) && /^[.?!,;:]*\s*$/.test(afterQuote)) continue;
       spans.push(q.text);
     }
   }

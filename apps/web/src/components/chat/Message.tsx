@@ -1,8 +1,10 @@
 import { SparkMark } from "./glyphs";
 import { AtlasMarkdown, balanceFences, extractSources } from "./markdown";
+import { ReasoningBlock } from "./ReasoningBlock";
 import { Sources } from "./Sources";
 import { ExportChips } from "./ExportChips";
 import { StageList } from "./StageList";
+import { SupersededAnswer } from "./SupersededAnswer";
 import { ToolTrace } from "./ToolTrace";
 import { useRevealOnDone } from "./useRevealOnDone";
 import { VerifyBadge } from "./VerifyBadge";
@@ -34,6 +36,10 @@ function AssistantTurn({
   const stageLog = msg.stageLog ?? [];
   const { display, revealing } = useRevealOnDone(msg.content, msg.done);
   const sources = msg.done ? extractSources(msg.content) : [];
+  // Italic while unchecked: not yet `done`, or checked but still auditing.
+  // Flips to normal at `done` whether or not a verdict ever landed (verifier
+  // off entirely never sets `verify` at all) — see Message.test.tsx for both.
+  const provisional = !msg.done || msg.verify?.status === "checking";
 
   // Staged mode never streams tokens, so content stays empty until `done` —
   // once the checklist's own !done guard flips (done arrives), it stops being
@@ -67,6 +73,12 @@ function AssistantTurn({
         <span className="rlc-agent-label">atlas agent</span>
       </div>
       {showTrace && <ToolTrace trace={msg.trace} rounds={msg.rounds} />}
+      {/* Hoisted above the per-mode branches below (not inside any one of
+          them) so a reasoning trace or a struck prior draft shows no matter
+          which branch is currently active — including the staged checklist,
+          which would otherwise swallow both by replacing this whole area. */}
+      {msg.reasoning && <ReasoningBlock text={msg.reasoning} />}
+      {msg.superseded?.length ? <SupersededAnswer drafts={msg.superseded} onAtlas={onAtlas} /> : null}
       {showChecklist ? (
         <StageList entries={stageLog} />
       ) : streaming && empty ? (
@@ -89,7 +101,13 @@ function AssistantTurn({
         <p className="rlc-stopped">Stopped before an answer was ready.</p>
       ) : (
         <>
-          <AtlasMarkdown content={shownContent} onAtlas={onAtlas} />
+          {/* data-state carries whether this answer has cleared verification
+              yet — chat.css italicizes it while "provisional". Message-level
+              only: verification is per-answer, and claim→text alignment is
+              too fuzzy to mark up per-span. */}
+          <div className="rlc-answer" data-state={provisional ? "provisional" : "final"}>
+            <AtlasMarkdown content={shownContent} onAtlas={onAtlas} />
+          </div>
           {(streaming || revealing) && <span className="rlc-caret" />}
           {streaming && msg.statusLine && (
             <div className="rlc-thinking rlc-statusline">
