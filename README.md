@@ -117,10 +117,9 @@ This is not part of `pnpm build` — it's slow and requires GitHub API access fo
 
 ## Deployment
 
-SAbR deploys two ways:
+The live app is **Railway**: a web service plus an atlas worker cron, with managed Postgres. The web service serves the reader SPA, the MCP endpoint, `api/health`, and the chat/OAuth endpoints, and hot-swaps in-memory indexes when the worker advances `sync_state.atlas_sha` (no restart). It builds from a `Dockerfile` — the Dockerfile clones the atlas itself, because Railway strips `.git` and doesn't recurse submodules. Step-by-step runbook: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-- **GitHub Pages — static reader.** `main` auto-deploys via `.github/workflows/deploy.yml` on every push to `main`, daily on a schedule, and on manual trigger. It serves the SPA reader only — no chat, no live atlas updates — and requires the repository secret `ETHERSCAN_API_KEY` when rebuilding address metadata.
-- **Railway — full app.** A single web service plus a managed Postgres. The web service serves the reader SPA, the MCP endpoint, `api/health`, and the chat/OAuth endpoints, and runs an in-process self-updater that keeps the atlas text fresh between deploys (polls upstream, hot-swaps in memory, no restart). It builds from a `Dockerfile` — the Dockerfile clones the atlas itself, because Railway strips `.git` and doesn't recurse submodules. Step-by-step runbook: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+**GitHub Pages** is only a redirect stub (`gh-pages-redirect/`, published by `.github/workflows/deploy.yml` when that folder or the workflow changes). Old `anscharo.github.io/redlens/*` links forward to `https://atlas.redline.support/`. It is not a second copy of the app.
 
 ## Keeping the atlas up to date
 

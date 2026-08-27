@@ -8,8 +8,8 @@ web service and an atlas worker cron — and **GitHub** runs the hourly
 atlas-update workflow that keeps the repo's submodule pointer current. All
 three are required for a fully live deployment.
 
-For what this service *is* and how it differs from the GitHub Pages static
-reader, see the [Deployment section of the README](../README.md#deployment).
+For the live Railway layout, see the [Deployment section of the README](../README.md#deployment).
+GitHub Pages is only a redirect stub for old `/redlens` links, not a second app.
 
 ---
 
