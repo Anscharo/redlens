@@ -5,7 +5,7 @@
 The Atlas is consumed today in two bad modes: as a monolith document (scroll and pray), or as
 a collection of atoms whose relationships must be "discovered" by digging or by asking people
 with tenure. Neither supports scholarship. We want a third mode: a curated, generated,
-navigable **crossview** — an educational/wiki/analysis layer inside RedLens that lets someone:
+navigable **crossview** — an educational/wiki/analysis layer inside SAbR that lets someone:
 
 1. See the **shape** of the whole (what chunks exist, how they group, how big each is).
 2. **Digest one chunk closely** as a coherent whole (its rules, members, entities, processes)

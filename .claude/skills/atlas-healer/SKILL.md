@@ -2,7 +2,7 @@
 name: atlas-healer
 description: >
   Weekly runbook for detecting and repairing atlas drift that threatens
-  RedLens parsers and assumptions. Triggered by the atlas-healer.yml weekly
+  SAbR parsers and assumptions. Triggered by the atlas-healer.yml weekly
   workflow (an issue labeled "atlas-health" mentioning @claude), or by
   phrases like "run the healer", "atlas health check", "weekly atlas sweep",
   "did the atlas break anything this week". Covers gathering drift signals,

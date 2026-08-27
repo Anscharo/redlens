@@ -7,7 +7,7 @@ Reviewing next-gen-atlas PRs is painful. GitHub's diff is a poor interface for m
 affordances — search, linked docs, radar, glossary.
 
 **Preview** lets anyone paste the URL of an atlas PR, a fork PR, or any branch forked off
-`sky-ecosystem/next-gen-atlas`, and get a full RedLens reader for *that* version of the
+`sky-ecosystem/next-gen-atlas`, and get a full SAbR reader for *that* version of the
 atlas, with new/changed docs visually flagged. No diff view — the atlas itself, redlined.
 
 Key constraint: **no redeploy.** Pasting a preview URL must work against the running web

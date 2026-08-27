@@ -20,7 +20,7 @@ description: >
 
 # Monthly Settlement Cycle reports
 
-Soter Labs publishes a monthly settlement workbook per Prime Agent. RedLens
+Soter Labs publishes a monthly settlement workbook per Prime Agent. SAbR
 parses them into `public/settlements.json` and charts them on
 `/radar/:slug/settlements`. These are **OEA calculations, not the on-chain
 GovOps spell** — say so wherever figures are surfaced.
@@ -166,7 +166,7 @@ Both in `scripts/build_settlement_xlsx.py`, both from using `_block`
    against a printed total of `sky_gross`; the real relation is `sky_gross −
    reduction = cof`. The block is present on 22 of 36 and fails to foot on
    15 (Spark, Grove, Osero). It foots only for Obex (reduction = 0). Keel
-   and Skybase omit the block (`sky_gross = 0`). Display-only; RedLens does
+   and Skybase omit the block (`sky_gross = 0`). Display-only; SAbR does
    not read it. The Sky Revenue sheet dumps the same three numbers as `↳`
    rows without a false total — the children still do not add to the parent.
    Independent verification: `docs/reviews/2026-08-19-soter-xlsx-footing.md`.

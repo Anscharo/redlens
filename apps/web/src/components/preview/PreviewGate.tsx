@@ -42,7 +42,8 @@ const ERROR_TEXT: Record<string, string> = {
   // harmless entry here keeps the generic fallback sane if that ever changes.
   "auth-required": "Sign in with GitHub to view this private preview.",
   forbidden: "You don't have access to this repository.",
-  "app-not-installed": "The RedLens app isn't installed on this repository.",
+  // Public name in the UI; internal short name is SAbR.
+  "app-not-installed": "The Sky Atlas by Redline GitHub App isn't installed on this repository.",
 };
 
 export function usePreviewBuild(id: string) {
@@ -116,7 +117,7 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
       const installUrl = message && /^https?:\/\//.test(message) ? message : null;
       return (
         <Centered>
-          <p className="text-red">The RedLens app isn't installed on this repository yet.</p>
+          <p className="text-red">The Sky Atlas by Redline GitHub App isn't installed on this repository yet.</p>
           {installUrl ? (
             <>
               <p className="text-sm" style={{ color: "var(--tan-3)" }}>
@@ -130,7 +131,7 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
                 className="px-4 py-2 rounded mono text-sm"
                 style={{ background: "var(--hover)", border: "1px solid var(--accent)", color: "var(--tan)" }}
               >
-                Install the RedLens app ↗
+                Install the Sky Atlas by Redline GitHub App ↗
               </a>
               <button
                 type="button"

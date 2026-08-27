@@ -2,7 +2,7 @@
 //
 // Core dictate (CLAUDE.md): any concrete normative claim about what "must" /
 // "has to" / "needs to" / "should" happen — in a report written to a file,
-// remote storage (Notion), or the RedLens site — must carry an Atlas reference
+// remote storage (Notion), or the SAbR site — must carry an Atlas reference
 // IN CONTEXT: inline on the same line, or in a footnote the claim references
 // directly. A trailing "references" section that the claim does not point at
 // does NOT satisfy the rule (it is not "referenced by the claim directly").

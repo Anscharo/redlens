@@ -2,7 +2,7 @@
 name: address-extraction
 description: >
   Knowledge base for on-chain address detection, chain attribution, and
-  address classification in RedLens. Use when modifying address-chains.mjs,
+  address classification in SAbR. Use when modifying address-chains.mjs,
   address-annotate.mjs, NodeContent.tsx / NodeContentInner.tsx, or any code
   that reads from addresses.atlas.json / addresses.json. Covers the EVM/Solana
   regex patterns, the load-bearing hex-boundary lookarounds, the three-pass

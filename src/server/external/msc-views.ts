@@ -201,7 +201,7 @@ export function buildMscView(
 
   if (view === "terms") {
     return wrap(
-      [{ kind: "soter_pipeline", note: "RedLens reading of soterlabs/settlement-cycle — not Atlas documents." }],
+      [{ kind: "soter_pipeline", note: "SAbR reading of soterlabs/settlement-cycle — not Atlas documents." }],
       { view: "terms", terms: TERMS },
     );
   }

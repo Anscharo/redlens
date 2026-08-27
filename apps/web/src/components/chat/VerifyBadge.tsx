@@ -93,7 +93,7 @@ export function VerifyBadge({ verify, onAtlas }: { verify: VerifyState; onAtlas:
             <li data-status="contradicted">the answer was cut off by the output length limit before it finished</li>
           )}
           {/* "our reading of the atlas" is deliberate: the parameter table is
-              RedLens's extraction, not atlas text, and a badge that says "the
+              SAbR's extraction, not atlas text, and a badge that says "the
               atlas says X" would present our parse as the source itself. The
               doc title is shown rather than the extracted kv key, which is
               machine vocabulary ("maxamount") no reader would recognise. */}

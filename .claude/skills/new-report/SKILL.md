@@ -2,7 +2,7 @@
 name: new-report
 description: >
   Checklist and conventions for building a new report under /reports/* in
-  RedLens. Use whenever adding, creating, or scaffolding a report — a new page
+  SAbR. Use whenever adding, creating, or scaffolding a report — a new page
   in src/components/reports/, a new ReportId, a new /reports/<slug> route, or a
   data module in src/lib/*Index.ts. Follow this every time a new report is
   created so all reports stay consistent: CSV export, URL-synced filtering,

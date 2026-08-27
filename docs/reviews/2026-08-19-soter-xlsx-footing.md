@@ -28,7 +28,7 @@ If this is filed upstream, frame it as an **xlsx Summary presentation bug** (`_b
 Not taken on trust from the draft:
 
 1. Read `scripts/build_settlement_xlsx.py` and `src/settle/load/summary.py` / `grove_sheet.py` at `10cdfe0`.
-2. Parsed all 36 prime `*_settlement_*.xlsx` files with openpyxl (not RedLens’s parser).
+2. Parsed all 36 prime `*_settlement_*.xlsx` files with openpyxl (not SAbR's parser).
 3. Compared every Comparison addend total to that month’s `summary.md` **supply-side revenue**.
 4. Confirmed the mint/send path (`src/settle/compute/sky_total_accrual.py`) uses `par − (sky − sde)`, i.e. the same `par − CoF`, never `Σ Profit to Grove`.
 

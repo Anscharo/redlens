@@ -73,7 +73,7 @@ Each is a self-contained "who may do what, and what disqualifies them" package:
 | Agent / Ecosystem Actor Incubation | `bb0c23c6-5123-4c35-ac84-fcb018a72cda`, `b09e86b1-0e95-4111-b141-7a980eeaef08` | A.2.5, A.2.6 |
 | Ecosystem Accords (+ dispute resolution + active accord registry) | `104c3543-ce94-4a2f-9968-57f1ee858085` | A.2.8 |
 
-(RedLens already curates a process inventory in `public/processes.json` — cross-reference it
+(SAbR already curates a process inventory in `public/processes.json` — cross-reference it
 when refining this category.)
 
 ### 2.4 The primitive spec crossview (class definitions) — A.2.2
@@ -176,7 +176,7 @@ These are doc-*type* systems orthogonal to the tree — each instance attaches t
 
 ### 2.10 The entity layer (chunks that aren't documents at all)
 
-494 entities extracted by RedLens sit *across* the tree: 11 agents, 9 foundations, 31
+494 entities extracted by SAbR sit *across* the tree: 11 agents, 9 foundations, 31
 multisigs (with a signer/can-modify-signers network: 61 `signer_of`, 29
 `can_modify_signers_of` edges), 13 delegate orgs, ~60 ecosystem actors (individuals,
 integration partners, bridge validators), 10 composite parties, 6 bridges, facilitator/govops
@@ -194,7 +194,7 @@ is: prime agent → operational executor → facilitator/govops orgs (browse via
    live state. Active Data is the formal "mutable state" mechanism inside the rule scopes.
 4. **Depth ≥ 6 flattening**: heading depth caps at 6 while semantic depth keeps going —
    inside artifacts, `parent_id` degrades (many nodes parent to the depth-5 "Sky Primitives"
-   node). Doc_no is the real nesting signal there; RedLens graph edges compensate.
+   node). Doc_no is the real nesting signal there; SAbR graph edges compensate.
 
 ## 4. Open questions / next explorations
 
@@ -202,13 +202,13 @@ is: prime agent → operational executor → facilitator/govops orgs (browse via
       how does it mirror scope obligations? (`scripts/lib/graph-omni.mjs` already parses them
       — compare its model to the raw docs.)
 - [ ] Map the **Active Data inventory** (76 docs) to chunks: which chunk does each state
-      variable belong to, and who controls it? (RedLens `/reports` Active Data Index is the
+      variable belong to, and who controls it? (SAbR `/reports` Active Data Index is the
       starting point.)
 - [ ] Chunk the **instance population per prime**: table of prime × primitive → instance
       count/status, to show each agent's real operational footprint.
 - [ ] Reconcile this map with the curated **process inventory** (`public/processes.json`) —
       processes are chunks that cross scope boundaries.
-- [ ] Decide whether "chunk" should become a first-class RedLens concept (e.g. a
+- [ ] Decide whether "chunk" should become a first-class SAbR concept (e.g. a
       `chunks.json` build artifact + UI grouping) once the taxonomy stabilizes.
 - [ ] The **multisig/signer network** as a chunk family: 31 multisigs, ownership/modify
       rights, and how they anchor to artifacts.

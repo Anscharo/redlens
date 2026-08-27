@@ -1,7 +1,7 @@
 ---
 name: ui-look-and-feel
 description: >
-  Runbook + knowledge base for visual/styling work on RedLens. Use when the
+  Runbook + knowledge base for visual/styling work on SAbR. Use when the
   user wants UI tweaks, look-and-feel changes, color/theme/palette edits,
   font or typography changes, spacing/layout polish, or asks to "look at the
   app" / screenshot it. Covers the design-token system in src/index.css, the

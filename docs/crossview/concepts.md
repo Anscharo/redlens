@@ -685,7 +685,7 @@ All three are EXPIRY-implying — prime staleness-signal candidates.
 
 - **Detection signature** — "Contract Addresses" (×125), "Token Address" (×106), "Underlying Asset Address" (×101), "Address" (×26); `has_address` edges (261 in relations, 278 in DB); addresses.atlas.json annotation layer.
 
-- **Relationships** — bridges to the entity layer (F) and RedLens address artifacts.
+- **Relationships** — bridges to the entity layer (F) and SAbR address artifacts.
 
 **Quantities 5 · RRC Framework coverage**
 
@@ -847,7 +847,7 @@ contract maturity trust.
 
 - **Detection signature** — `duty_for` edges (build-graph §2s-ter) — 854 in the graph, and they DO ship in `relations.json` (an earlier version of this entry claimed otherwise — corrected), plus process_step_responsible_party_for (32), responsible_party_for (63/64).
 
-- **Relationships** — RedLens reports (Op Facilitator / GovOps Responsibilities, OEA Assessment) are validated curations of this concept.
+- **Relationships** — SAbR reports (Op Facilitator / GovOps Responsibilities, OEA Assessment) are validated curations of this concept.
 
 **Duties 2 · Active Data stewardship**
 

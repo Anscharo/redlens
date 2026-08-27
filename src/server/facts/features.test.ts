@@ -25,6 +25,7 @@ describe("features fact triggers", () => {
       "tell me about the features of the app",
       "what can you do?",
       "what is redlens?",
+      "what is sabr?",
       "how do i get started with the app?",
       "what are you capable of?",
       // The how-to half — what the `how` steps are for.

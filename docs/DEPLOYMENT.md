@@ -1,6 +1,6 @@
-# RedLens Deployment Runbook
+# SAbR Deployment Runbook
 
-Stand up the full RedLens app (reader SPA + MCP endpoint + chat/OAuth + live
+Stand up the full SAbR app (reader SPA + MCP endpoint + chat/OAuth + live
 atlas updates). Follow the steps in order.
 
 Deployment has **three parts**: **Railway** hosts the app as two services — a
@@ -8,8 +8,8 @@ web service and an atlas worker cron — and **GitHub** runs the hourly
 atlas-update workflow that keeps the repo's submodule pointer current. All
 three are required for a fully live deployment.
 
-For what this service *is* and how it differs from the GitHub Pages static
-reader, see the [Deployment section of the README](../README.md#deployment).
+For the live Railway layout, see the [Deployment section of the README](../README.md#deployment).
+GitHub Pages is only a redirect stub for old `/redlens` links, not a second app.
 
 ---
 

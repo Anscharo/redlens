@@ -1,7 +1,7 @@
 # Graph Extraction
 
 The Atlas states relationships in prose. It does not ship a relational index.
-RedLens builds one: a typed, directed graph over documents, extracted actors,
+SAbR builds one: a typed, directed graph over documents, extracted actors,
 and on-chain addresses, so a question like "which multisigs does this org sign
 for?" is a traversal rather than a full-text read.
 
@@ -12,7 +12,7 @@ When this doc disagrees with the code or the built artifacts, those win.
 ## Whose graph this is
 
 > The Atlas is the source documents. **Entities, relations, roles, addresses,
-> params, and every report built on them are RedLens's extraction — not Atlas
+> params, and every report built on them are SAbR's extraction — not Atlas
 > text.**
 
 An edge is our reading of a sentence. An entity is our decision that a named

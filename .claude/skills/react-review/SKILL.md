@@ -1,7 +1,7 @@
 ---
 name: react-review
 description: >
-  Review checklist for RedLens React front-end code against the
+  Review checklist for SAbR React front-end code against the
   components.build principles — component API and composition, accessibility,
   state placement, and data attributes. Use when asked to review a component,
   a frontend PR or diff, audit src/components/**, check whether code follows
@@ -21,7 +21,7 @@ metadata:
   version: "1.0"
 ---
 
-# Reviewing a RedLens Front End
+# Reviewing a SAbR Front End
 
 Reviews check code against the [components.build](https://www.components.build) principles as
 adopted in the **`react-components`** and **`react-state`** skills (this repo ships no generic
@@ -29,7 +29,7 @@ code-review skill of its own; Claude Code's built-in one is separate). Read thos
 skill is the *auditing* procedure, not a restatement of the rules.
 
 **Out of scope:** class-merging/styling helpers (`cn`, `tailwind-merge`, CVA) and package
-distribution — RedLens uses neither. Visual/token review belongs to **`ui-look-and-feel`**;
+distribution — SAbR uses neither. Visual/token review belongs to **`ui-look-and-feel`**;
 report-surface completeness belongs to **`new-report`**.
 
 **Review the diff, not the repository.** Most of this codebase predates these rules and does
@@ -81,7 +81,7 @@ accessible name makes the review harder to act on.
 8. **State bugs**: a prop copied into `useState`; a `useSyncExternalStore` snapshot returning
    a fresh object; an effect that writes state derivable during render; missing cleanup.
 
-**Theme safety (blocking).** RedLens ships three colour schemes, so any diff
+**Theme safety (blocking).** SAbR ships three colour schemes, so any diff
 that introduces a colour is a theme change whether or not it was meant as one.
 
 - Grep the diff for `#hex`, `rgb(`/`rgba(`, `bg-white` / `text-black` /
