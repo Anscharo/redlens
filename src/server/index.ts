@@ -14,6 +14,8 @@ import { renderOgTags, defaultOgTags, isUnknownRoute } from "./og.ts";
 import { resolveOrigin } from "./reqOrigin.ts";
 import { getOgImage, getCardImage, cardFromQuery } from "./og-image.ts";
 import { handleAtlasStatic } from "./atlas-static.ts";
+import { getArtifacts } from "./atlas-artifacts.ts";
+import { pinBundleSha } from "./bundle-store.ts";
 import { contentTypeFor } from "./bundle-store.ts";
 import { createMcpServer } from "./mcp.ts";
 import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
@@ -247,7 +249,11 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
   if (pathname.startsWith("/api/preview/")) return handlePreview(req, server, pathname);
 
   // Immutable per-SHA live atlas artifacts (bundle-store.ts).
-  if (pathname.startsWith("/api/atlas/")) return handleAtlasStatic(req, pathname);
+  // getArtifacts is the shared-store half of the miss path: a sha this container
+  // never built (cold instance, or the window between the updater swapping its
+  // in-memory sha and publishing that sha's bundle) is hydrated onto local disk
+  // and served, instead of 404ing into a forced client reload.
+  if (pathname.startsWith("/api/atlas/")) return handleAtlasStatic(req, pathname, getArtifacts);
 
   // Generated Open Graph card images (doc card vs. route card).
   if (pathname === "/api/og.png") return handleOgCard(new URL(req.url));
@@ -468,7 +474,7 @@ export function buildRoutes() {
 // a subprocess — the same BuildDeps/SyncDeps pattern used by preview/build.ts
 // and sync.ts. Real defaults below; only tests ever pass anything else.
 export interface BootDeps {
-  loadIndexes: () => { docMap: Map<string, unknown>; entities: unknown[]; edges: unknown[] };
+  loadIndexes: () => { docMap: Map<string, unknown>; entities: unknown[]; edges: unknown[]; meta: Record<string, string | null> };
   serve: (opts: { port: number; idleTimeout: number; routes: ReturnType<typeof buildRoutes>; fetch: typeof handleRequest }) => { port: number | string };
   onSignal: (sig: NodeJS.Signals, handler: () => void) => void;
   waitForDb: () => Promise<void>;
@@ -556,6 +562,10 @@ export async function seedDbIfEmpty(deps: BootDeps): Promise<SeedOutcome> {
 export async function boot(deps: BootDeps = realBootDeps): Promise<void> {
   const t0 = performance.now();
   const ix = deps.loadIndexes();
+  // Protect the bundle we are about to serve from LRU eviction: with hydration
+  // live, a burst of requests for old (immutable, indexable) sha URLs can
+  // otherwise push the current one out. See bundle-store.ts's pinnedSha.
+  pinBundleSha(ix.meta.atlasCommit ?? null);
   console.log(
     `indexes: ${ix.docMap.size} docs, ${ix.entities.length} entities, ${ix.edges.length} edges ` +
       `(${Math.round(performance.now() - t0)}ms)`,

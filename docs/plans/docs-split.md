@@ -33,7 +33,11 @@ atlas tree can render before the full payload arrives.
 >   right after rebuilding `docs.json` from the DB, so the per-sha bundle's split
 >   files never go stale relative to `docs.json`.
 > - Added to MAIN + PREVIEW bundle allowlists and the manifest; `docs.json` stays
->   bundled as the bundleReady core + preview diff source (browser fetches the split).
+>   the preview diff source (browser fetches the split). *Superseded 2026-08-25:*
+>   main's per-sha bundle no longer carries `docs.json` at all — it was there only
+>   as the `bundleReady` core, and `publishBundle` now publishes atomically
+>   (stage → rename), so completeness needs no stand-in file. Preview still
+>   bundles it for the differ.
 >
 > **History of the split axis** (kept for context — earlier sections below describe
 > the first design):
