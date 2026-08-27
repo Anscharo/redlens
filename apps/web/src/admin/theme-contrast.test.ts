@@ -468,11 +468,12 @@ describe("diff blocks are visibly distinct in every theme", () => {
 });
 
 // ─── Test G ─────────────────────────────────────────────────────────────
-// giedi's two off-registry colours. Both sit outside everything above:
-// --selected-hint is declared only in the giedi block (so Test C, which walks
-// :root, never sees it) and .filter-summary-em's value is a literal in a rule
-// (so no token test can reach it at all). They are the two easiest values in
-// the file to break silently, which is exactly why they are asserted here.
+// giedi's off-registry colours. They sit outside everything above:
+// --selected-hint / --selected-title / --node-title / --node-title-hover are
+// declared only in the giedi block (so Test C, which walks :root, never sees
+// them) and .filter-summary-em's value is a literal in a rule (so no token
+// test can reach it at all). They are the easiest values in the file to
+// break silently, which is exactly why they are asserted here.
 describe("giedi's off-registry colours stay readable", () => {
 
   // The selected doc is a black block, but its type pill is painted on
@@ -512,9 +513,35 @@ describe("giedi's off-registry colours stay readable", () => {
     expect(contrastRatio(title, THEMES.giedi["bg-deep"]) as number).toBeGreaterThanOrEqual(4.5);
   });
 
+  it("--node-hover is a noticeable lift off the reader, not another grey", () => {
+    const hover = THEMES.giedi["node-hover"];
+    const deep = THEMES.giedi["bg-deep"];
+    expect(
+      perceptualDistance(hover, deep),
+      `--node-hover (${hover}) is within a JND of --bg-deep (${deep}) — the reader hover would still be invisible. The previous mix of --bg-deep toward --surface measured 0.009.`,
+    ).toBeGreaterThanOrEqual(0.04);
+    expect(contrastRatio(THEMES.giedi["node-title-hover"], hover) as number).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(THEMES.giedi["node-title"], hover) as number).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("--node-title-hover is a gold tint of the resting title, not a new colour", () => {
+    const rest = THEMES.giedi["node-title"];
+    const hover = THEMES.giedi["node-title-hover"];
+    const hint = THEMES.giedi["selected-hint"];
+    expect(
+      perceptualDistance(hover, rest),
+      `--node-title-hover (${hover}) is within a JND of --node-title (${rest}) — hovering a reader row would not recolour the title.`,
+    ).toBeGreaterThanOrEqual(JND);
+    expect(
+      perceptualDistance(hover, hint),
+      `--node-title-hover (${hover}) is closer to --selected-hint (${hint}) than the resting title is — it should stay in the gold family.`,
+    ).toBeLessThan(perceptualDistance(rest, hint));
+  });
+
   it.each([
     { on: "atlas-row-selected", why: "the selected doc's fill" },
     { on: "surface", why: "the type pill's own fill" },
+    { on: "bg", why: "the Connect page, where tool names use the hint" },
   ])("--selected-hint is readable on --$on ($why)", ({ on }) => {
     const ratio = contrastRatio(THEMES.giedi["selected-hint"], THEMES.giedi[on]);
     expect(ratio, `--selected-hint (${THEMES.giedi["selected-hint"]}) is missing or not a plain hex`).not.toBeNull();
