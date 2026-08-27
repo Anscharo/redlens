@@ -498,11 +498,12 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
    inheriting italic from an ancestor. */
 .rlc-answer[data-state="provisional"] .rlc-md { font-style: italic; }
 
-/* ── Superseded (struck-through) prior draft ─────────────────────────────
-   A revision moves the already-streamed draft here instead of deleting it
-   (beta feedback: "never ever remove text that user has seen"). Rendered
-   above the live answer; <del> in SupersededAnswer.tsx carries the
-   strikethrough semantically, this just makes sure it reads as a block. */
+/* ── Superseded prior draft ──────────────────────────────────────────────
+   A revision / tool_round moves the already-streamed draft here instead of
+   deleting it (beta feedback: "never ever remove text that user has seen").
+   Rendered above the live answer. <del> is only for `revision` (judged
+   wrong); `tool_round` is a plain wrapper. This just makes the block read. */
+.rlc-superseded-list { display: block; }
 .rlc-superseded { margin-bottom: 10px; }
 /* Chrome that *describes* the draft, not the draft itself. Thinking and
    prechecked answers both stay italic; this note is a boxed caption so the

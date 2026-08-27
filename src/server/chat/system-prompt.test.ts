@@ -245,6 +245,10 @@ describe("MSC disambiguation", () => {
     expect(prompt()).toMatch(/Superlatives — top, biggest, largest[^"]*never \(1\)/);
   });
 
+  it("lists aggregate with the other MSC views on the tools line", () => {
+    expect(prompt()).toMatch(/Pick view month \/ series \/ compare \/ venues \/ aggregate \/ terms/);
+  });
+
   it("forbids an unchecked absence claim about MSC data", () => {
     const p = prompt();
     expect(p).toMatch(/CALL THE TOOL before concluding/);

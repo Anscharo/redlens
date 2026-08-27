@@ -58,16 +58,16 @@ export type ChatEvent =
   | { type: "reasoning"; text: string }
   | {
       type: "clear";
-      // Why the round's leaked answer fragments are being discarded.
-      // "tool_round"/"degenerate", and an ABSENT reason (an older server that
-      // predates this field), all mean "wipe it, nothing worth keeping" —
-      // today's behaviour. "revision" means the draft that already streamed
-      // failed its verification check and is about to be replaced: the
-      // client preserves it (struck through, never deleted) instead of
-      // wiping it. "restore" means a revision attempt itself failed and the
-      // ORIGINAL answer is about to be re-sent in `done` — the struck draft
-      // is dropped so the reader doesn't see the same text twice, once
-      // struck and once live.
+      // Why the live buffer is being replaced. Optional for back-compat.
+      //   - tool_round / absent reason — the round produced text AND tool
+      //     calls. The client keeps remaining prose as an unverified draft
+      //     (not struck) and folds leaked tool-call markup into thinking.
+      //   - degenerate — a repetition loop; the client still wipes.
+      //   - revision — the streamed draft failed verification and is about
+      //     to be replaced; the client keeps it struck through.
+      //   - restore — a revision attempt failed and the ORIGINAL answer is
+      //     about to be re-sent in `done`; the struck draft is dropped so
+      //     the reader doesn't see the same text twice.
       reason?: "tool_round" | "degenerate" | "revision" | "restore";
     }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }

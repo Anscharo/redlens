@@ -965,6 +965,40 @@ test("a prefetch-only turn is annotated, never rewritten, when claims come back 
     expect(done.content).toBe("The app has reports and a radar view.");
   }));
 
+// The empty-search envelope grew a `filters_applied` hint that is hundreds of
+// bytes of diagnostic prose with still zero documents. Byte length used to
+// treat that as "the turn retrieved something", so a prefetch-only product
+// answer got rewritten. `count: 0` / empty `results` is the real signal.
+const emptySearchHint =
+  '{"mode":"search","count":0,"filters_applied":["recent_commits=1","change_type=content"],' +
+  '"hint":"0 results, but recent_commits=1, change_type=content were applied and removed 12 of 12 candidate document(s). ' +
+  "This does NOT mean the atlas is silent on the topic — retry without these arguments unless the question is specifically about recency, status or a scope. " +
+  'Only omit optional filters you were not asked for.","results":[]}';
+const prefetchThenEmptySearch = [
+  ...prefetchRound,
+  { role: "assistant", content: null, tool_calls: [{ id: "call_q", type: "function", function: { name: "atlas_query", arguments: '{"q":"what can this app do"}' } }] },
+  { role: "tool", tool_call_id: "call_q", content: emptySearchHint },
+] as never[];
+
+test("a prefetch turn with an empty filtered search is still annotated, never rewritten", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    expect(emptySearchHint.length).toBeGreaterThan(200);
+    const jsonCalls: { model: string }[] = [];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg, ...prefetchThenEmptySearch], question: "what can this app do", maxIterations: 3,
+        stream: fakeStream([[textChunk("The app has reports and a radar view."), finishChunk("stop"), usageChunk(100, 10)]]),
+        jsonCall: fakeSlicedJson({ claims: [sliceWarn(5)], advisor: ['{"action":"rewrite","guidance":"drop it"}'] }, jsonCalls),
+      }),
+    );
+    const verify = events.find((e) => e.type === "verify_result")!;
+    expect(verify.type === "verify_result" && verify.overall).toBe("warn");
+    expect(verify.type === "verify_result" && verify.action).toBe("annotate");
+    expect(kinds(events)).not.toContain("clear");
+    expect(jsonCalls.map((c) => c.model)).not.toContain("chat/advisor");
+    expect(lastDone(events).content).toBe("The app has reports and a radar view.");
+  }));
+
 // The suppression is narrow: a DETERMINISTIC failure is wrong wherever the
 // content came from, so it must still escalate on a prefetch-only turn.
 test("a prefetch-only turn still escalates on a deterministic failure", () =>

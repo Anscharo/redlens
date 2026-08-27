@@ -210,10 +210,27 @@ function identifiersMeta(i: IdentifierRepair) {
 // must equally force `failed` so the escalation gate below sees it and the
 // harness attempts a recovery.
 // A tool result under this many characters carries no documents — an empty
-// envelope like {"mode":"search","count":0,"results":[]} is ~40 bytes. Used to
-// tell "the turn retrieved nothing" apart from "the turn retrieved something",
-// which a raw entry count cannot do.
+// envelope like {"mode":"search","count":0,"results":[]} is ~40 bytes. Used as
+// a fallback when the payload is not JSON. Length alone is not enough: a
+// `count: 0` envelope with a `filters_applied` hint is hundreds of bytes of
+// diagnostic text and still retrieved nothing.
 const EMPTY_RESULT_CHARS = 200;
+
+/** Atlas/external tool payload that actually retrieved something to cite. */
+function isSubstantiveEvidence(e: { sourceClass?: string; content: string }): boolean {
+  if (e.sourceClass === "reference") return false;
+  const trimmed = e.content.trim();
+  try {
+    const parsed = JSON.parse(trimmed) as { count?: unknown; results?: unknown };
+    if (parsed && typeof parsed === "object") {
+      if (parsed.count === 0) return false;
+      if (Array.isArray(parsed.results) && parsed.results.length === 0) return false;
+    }
+  } catch {
+    // Prose / non-JSON tool text: fall through to the byte floor.
+  }
+  return trimmed.length > EMPTY_RESULT_CHARS;
+}
 
 function repairedChecks(
   content: string,
@@ -636,9 +653,7 @@ export async function* runVerifiedChat(opts: {
   // mismatch — checks.failed, and therefore overall === "fail") still escalates
   // exactly as before, because those are wrong regardless of where the content
   // came from. The badge still shows the verdict; only the rewrite is withheld.
-  const substantiveEvidence = evidence.filter(
-    (e) => e.sourceClass !== "reference" && e.content.trim().length > EMPTY_RESULT_CHARS,
-  ).length;
+  const substantiveEvidence = evidence.filter(isSubstantiveEvidence).length;
   const prefetchOnly = substantiveEvidence === 0 && evidence.some((e) => e.sourceClass === "reference");
   const escalate =
     Boolean(advisorModel) && troubled && !opts.signal?.aborted && !(prefetchOnly && !checks.failed);

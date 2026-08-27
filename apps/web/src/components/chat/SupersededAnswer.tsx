@@ -32,7 +32,9 @@ const NOTE: Record<SupersededDraft["reason"], string> = {
 // Strikethrough is reserved for a draft that was WRONG — rejected by the
 // verifier. That is the "cross it out" case. A `tool_round` draft was never
 // judged wrong, only unverified, so it is dimmed rather than struck; striking
-// it would assert an error that never happened.
+// it would assert an error that never happened. Markup follows that: <del>
+// only on `revision`. `tool_round` is a plain wrapper (the outer block is
+// already role="note").
 //
 // Its note deliberately does NOT say when the text was written or what it was
 // written from. The clear fires whenever a round produced text AND tool calls,
@@ -42,16 +44,18 @@ const NOTE: Record<SupersededDraft["reason"], string> = {
 // true in the first case. What holds in every case: the model set it aside to
 // keep searching, and cleared text never reaches the verifier — only
 // done.content is audited.
-//
-// Each draft is marked up as <del> (transparent content model, so block
-// content inside it is valid) rather than only visually styled, so a screen
-// reader announces it as retracted rather than as the current reply.
-// role="note" + aria-label is what makes the wrapper reachable — aria-label
-// alone on a bare <div> is dropped from the accessibility tree.
-export function SupersededAnswer({ drafts, onAtlas, ...props }: SupersededAnswerProps) {
+function DraftBody({ draft, onAtlas }: { draft: SupersededDraft; onAtlas: (uuid: string) => void }) {
+  const body = <AtlasMarkdown content={balanceFences(draft.text)} onAtlas={onAtlas} />;
+  if (draft.reason === "revision") {
+    return <del className="rlc-superseded-text">{body}</del>;
+  }
+  return <div className="rlc-superseded-text">{body}</div>;
+}
+
+export function SupersededAnswer({ drafts, onAtlas, className, ...props }: SupersededAnswerProps) {
   if (!drafts.length) return null;
   return (
-    <>
+    <div className={["rlc-superseded-list", className].filter(Boolean).join(" ")} {...props}>
       {drafts.map((draft, i) => (
         <div
           key={i}
@@ -59,14 +63,11 @@ export function SupersededAnswer({ drafts, onAtlas, ...props }: SupersededAnswer
           data-reason={draft.reason}
           role="note"
           aria-label="An earlier draft, replaced later in this answer"
-          {...props}
         >
           <p className="rlc-superseded-note">{NOTE[draft.reason]}</p>
-          <del className="rlc-superseded-text">
-            <AtlasMarkdown content={balanceFences(draft.text)} onAtlas={onAtlas} />
-          </del>
+          <DraftBody draft={draft} onAtlas={onAtlas} />
         </div>
       ))}
-    </>
+    </div>
   );
 }

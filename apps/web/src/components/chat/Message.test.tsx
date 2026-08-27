@@ -501,7 +501,7 @@ describe("Message superseded answer", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const kept = [...document.querySelectorAll("del.rlc-superseded-text")].map((n) => n.textContent);
+    const kept = [...document.querySelectorAll(".rlc-superseded-text")].map((n) => n.textContent);
     expect(kept).toEqual(["preamble", "rejected draft"]);
     expect(screen.getByText("final")).toBeInTheDocument();
   });

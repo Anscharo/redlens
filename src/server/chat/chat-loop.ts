@@ -48,19 +48,19 @@ export type ChatEvent =
   // NEVER accumulated into `content` and never part of done.content — it is
   // the model's scratch work, shown to the reader as it arrives, not answer text.
   | { type: "reasoning"; text: string }
-  // Discard any answer tokens streamed in the round just ended — it turned out
-  // to be a tool round, and some models leak <tool_call> sentinel fragments as
-  // content before the structured call. The client resets its live answer
-  // buffer on `clear`; done.content is the authoritative final answer.
+  // End the live answer buffer for the round just ended. Some models leak
+  // <tool_call> sentinel fragments as content before the structured call.
+  // The client moves the live buffer on `clear`; done.content is the
+  // authoritative final answer.
   //
-  // `reason` discriminates who wiped the buffer and what the client should do
-  // about text the reader has already seen. Optional for back-compat: an
-  // older client without this field wipes unconditionally on every clear,
-  // which is exactly today's behaviour for every one of these reasons.
-  //   - tool_round — the round turned out to be a tool round; what streamed
-  //     was pre-tool noise, not an answer. Wipe.
+  // `reason` tells the client what to do with text the reader already saw.
+  // Optional for back-compat: an older client without this field wipes on
+  // every clear.
+  //   - tool_round — the round produced text AND tool calls. The client
+  //     folds leaked tool-call markup into thinking and keeps remaining
+  //     prose as an unverified draft (dimmed, not struck). Not a wipe.
   //   - degenerate — the draft degenerated into a repetition loop and was
-  //     abandoned. Wipe.
+  //     abandoned. The one reason that still wipes.
   //   - revision — the advisor is replacing a COMPLETE answer the reader has
   //     already read. The client keeps that text, struck through, above the
   //     replacement. Never a wipe.

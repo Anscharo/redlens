@@ -79,7 +79,7 @@ export const EXTERNAL_TOOLS: ExternalTool[] = [
       "The question is about published Monthly Settlement Cycle dollar figures, venue books, or the Sky Forum summary URL for a cycle — not Atlas process text.",
     annotations: { ...READ_ONLY, title: "External MSC (not Atlas)" },
     description:
-      "NOT Atlas. Returns a curated Monthly Settlement Cycle view from Soter Labs workbooks (OEA calculations, not the on-chain GovOps spell) plus the indexed Sky Forum permalink when known. Views: month (default), series, compare (rank primes), venues (opt-in), terms. Never present these figures as Atlas text. Do not add cost of funds to To Sky; supply kept is prime agent revenue minus cost of funds, not Σ Profit to Grove.",
+      "NOT Atlas. Returns a curated Monthly Settlement Cycle view from Soter Labs workbooks (OEA calculations, not the on-chain GovOps spell) plus the indexed Sky Forum permalink when known. Views: month (default), series, compare (rank primes), venues (opt-in), aggregate (cross-prime roll-up), terms. Never present these figures as Atlas text. Do not add cost of funds to To Sky; supply kept is prime agent revenue minus cost of funds, not Σ Profit to Grove.",
     shape: VIEW_SHAPE,
     handler: (_ix, a) => runExternalMscView(a),
   },

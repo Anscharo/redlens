@@ -17,7 +17,7 @@ describe("SupersededAnswer", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("marks a kept draft up as <del>, with an inline plain-language note", () => {
+  it("marks a rejected revision as <del>, with an inline plain-language note", () => {
     const { container } = render(
       <SupersededAnswer drafts={[draft("an earlier, incorrect answer")]} onAtlas={noop} />,
     );
@@ -26,6 +26,30 @@ describe("SupersededAnswer", () => {
     expect(caption).toHaveClass("rlc-superseded-note");
     const del = container.querySelector("del.rlc-superseded-text");
     expect(del).toHaveTextContent("an earlier, incorrect answer");
+  });
+
+  // A tool_round draft was never judged wrong — <del> would announce
+  // retraction that did not happen. Dimmed italic via CSS; markup is a note.
+  it("does not strike a tool_round draft", () => {
+    const { container } = render(
+      <SupersededAnswer drafts={[draft("let me look that up", "tool_round")]} onAtlas={noop} />,
+    );
+    expect(container.querySelector("del")).toBeNull();
+    const body = container.querySelector('[data-reason="tool_round"] .rlc-superseded-text');
+    expect(body?.tagName).toBe("DIV");
+    expect(body).toHaveTextContent("let me look that up");
+  });
+
+  it("is one root so caller props are not copied onto every draft", () => {
+    const { container } = render(
+      <SupersededAnswer
+        drafts={[draft("preamble", "tool_round"), draft("bad", "revision")]}
+        onAtlas={noop}
+        data-testid="kept"
+      />,
+    );
+    expect(container.querySelectorAll('[data-testid="kept"]')).toHaveLength(1);
+    expect(container.firstElementChild).toHaveClass("rlc-superseded-list");
   });
 
   it("labels the block for assistive tech", () => {
@@ -48,7 +72,7 @@ describe("SupersededAnswer", () => {
     const { container } = render(
       <SupersededAnswer drafts={[draft("first"), draft("second")]} onAtlas={noop} />,
     );
-    const texts = [...container.querySelectorAll("del.rlc-superseded-text")].map((n) => n.textContent);
+    const texts = [...container.querySelectorAll(".rlc-superseded-text")].map((n) => n.textContent);
     expect(texts).toEqual(["first", "second"]);
   });
 
