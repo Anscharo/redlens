@@ -364,12 +364,12 @@
 
   /* Reader-row hover fill. The colour themes mix --bg-deep toward --surface,
      which on this palette is a 0.009 OKLab step — under a JND, so the row
-     does not read as hovered. This is a lifted slate (OKLCH L 0.28 / C 0.03
+     does not read as hovered. This is a lifted slate (OKLCH L 0.24 / C 0.03
      / H 245), the theme's electric blue at surface-tier lightness: less dark
      than --bg-deep, and the hue is what makes it a hover rather than just a
      slightly different grey. Used by the [data-theme="giedi"] .atlas-node
      hover rule below the theme blocks. */
-  --node-hover: #1c2b37;
+  --node-hover: #13212d;
 
   /* The one DECORATIVE hue in the theme, and giedi-only — every other cast
      here is semantic (status) or a distinguisher (entity, depth). A selected
