@@ -115,15 +115,15 @@ describe("PreviewGate access-failure screens (private previews)", () => {
       code: "app-not-installed",
       message: "https://github.com/apps/redlens/installations/new",
     });
-    expect(screen.getByText(/SAbR GitHub App isn't installed/)).toBeTruthy();
-    const link = screen.getByRole("link", { name: "Install the SAbR GitHub App ↗" });
+    expect(screen.getByText(/Sky Atlas by Redline GitHub App isn't installed/)).toBeTruthy();
+    const link = screen.getByRole("link", { name: "Install the Sky Atlas by Redline GitHub App ↗" });
     expect(link.getAttribute("href")).toBe("https://github.com/apps/redlens/installations/new");
   });
 
   it("shows app-not-installed copy with no install link when there's no message", () => {
     render(<PreviewGate id="pr-88" routerBase="/preview/pr-88" />);
     emit({ phase: "failed", code: "app-not-installed" });
-    expect(screen.getByText(/SAbR GitHub App isn't installed/)).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Install the SAbR GitHub App ↗" })).toBeNull();
+    expect(screen.getByText(/Sky Atlas by Redline GitHub App isn't installed/)).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Install the Sky Atlas by Redline GitHub App ↗" })).toBeNull();
   });
 });

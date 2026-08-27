@@ -216,7 +216,7 @@ function eventsResponse(req: Request, rawId: string, ip: string): Response {
 }
 
 // An app-not-installed failure carries the App's install URL so the client can
-// offer a one-click "Install the SAbR GitHub App" action instead of dead-end copy;
+// offer a one-click "Install the Sky Atlas by Redline GitHub App" action instead of dead-end copy;
 // every other failure code has no attached message.
 async function failInstallMessage(code: string): Promise<string | undefined> {
   return code === "app-not-installed" ? ((await appInstallUrl().catch(() => null)) ?? undefined) : undefined;

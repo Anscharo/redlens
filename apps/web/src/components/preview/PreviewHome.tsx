@@ -164,7 +164,7 @@ export function PreviewHome() {
             Preview a private repo
           </h2>
           <p className="mono text-xs mb-3" style={{ color: "var(--tan-3)" }}>
-            You'll need GitHub access to the repo, and the SAbR GitHub App installed on it.
+            You'll need GitHub access to the repo, and the Sky Atlas by Redline GitHub App installed on it.
           </p>
           <form
             className="flex gap-2"
