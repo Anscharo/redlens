@@ -504,9 +504,18 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
    above the live answer; <del> in SupersededAnswer.tsx carries the
    strikethrough semantically, this just makes sure it reads as a block. */
 .rlc-superseded { margin-bottom: 10px; }
+/* Chrome that *describes* the draft, not the draft itself. Thinking and
+   prechecked answers both stay italic; this note is a boxed caption so the
+   three don't share one visual language. Mix toward --surface (flips with
+   scheme), never literal white/black. */
 .rlc-superseded-note {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
   font: 400 12.5px/1.4 "Source Code Pro", monospace;
+  font-style: normal;
   color: var(--tan-3);
 }
 .rlc-superseded-text { display: block; }

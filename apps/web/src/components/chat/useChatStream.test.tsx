@@ -227,6 +227,58 @@ describe("useChatStream event dispatch", () => {
     // The reader watched "partial leaked text" arrive; a tool call must not
     // make it vanish from under them.
     expect(msg.superseded).toEqual([{ text: "partial leaked text", reason: "tool_round" }]);
+    expect(msg.reasoning).toBeUndefined();
+  });
+
+  it("folds leaked tool-call markup into thinking and keeps the preamble as a draft", async () => {
+    mockChat([
+      { type: "reasoning", text: "checking the scope" },
+      { type: "token", text: "Let me look that up.\n<tool_call>\n{\"name\":\"atlas_query\",\"arguments\":{}}\n</tool_call>" },
+      { type: "clear", reason: "tool_round" },
+      { type: "token", text: "real answer" },
+      { type: "done", content: "real answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.superseded).toEqual([{ text: "Let me look that up.", reason: "tool_round" }]);
+    expect(msg.reasoning).toContain("checking the scope");
+    expect(msg.reasoning).toContain("<tool_call>");
+    expect(msg.reasoning).toContain("atlas_query");
+  });
+
+  it("a tool-round buffer that is only leaked markup becomes thinking, with no draft", async () => {
+    mockChat([
+      { type: "token", text: "ool_call>" },
+      { type: "clear", reason: "tool_round" },
+      { type: "token", text: "real answer" },
+      { type: "done", content: "real answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.superseded ?? []).toEqual([]);
+    expect(msg.reasoning).toBe("ool_call>");
+  });
+
+  it("a revision keeps the whole buffer, including text that looks like a tool call", async () => {
+    mockChat([
+      { type: "token", text: "see <tool_call> in this wrong draft" },
+      { type: "clear", reason: "revision" },
+      { type: "token", text: "the corrected answer" },
+      { type: "done", content: "the corrected answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.superseded).toEqual([{ text: "see <tool_call> in this wrong draft", reason: "revision" }]);
+    expect(msg.reasoning).toBeUndefined();
   });
 
   it("clear reason 'revision' moves the streamed draft into superseded and clears content", async () => {

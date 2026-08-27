@@ -5,6 +5,7 @@ import type { RateLimitState } from "./types";
 import { downloadFile } from "../../lib/csvDownload";
 import { absolutizeAtlasLinks } from "@/lib/routes";
 import { track } from "../../lib/analytics";
+import { appendReasoning, splitToolRoundText } from "./splitToolRound";
 
 export interface TraceRow {
   name: string;
@@ -58,10 +59,12 @@ export interface StageLogEntry {
 }
 
 // One draft the turn showed the reader and then replaced. `reason` mirrors the
-// server's `clear.reason` (chat-loop.ts): `tool_round` = text the model set
+// server's `clear.reason` (chat-loop.ts): `tool_round` = prose the model set
 // aside to go on searching (it may have been written from atlas data already
 // retrieved, or before any — the clear fires on any round that produced both
-// text and tool calls), `revision` = a complete answer the verifier rejected.
+// text and tool calls). Leaked tool-call markup in that same buffer is stripped
+// out and appended to `reasoning` instead — it is thinking, not a draft.
+// `revision` = a complete answer the verifier rejected (kept whole).
 // There is deliberately no `degenerate` member — that clear is the one that
 // genuinely deletes (see the dispatch).
 export interface SupersededDraft {
@@ -292,8 +295,19 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             // replacement, never deleted. Whitespace-only buffers are the
             // other thing dropped: there is nothing to read.
             if (!m.content.trim()) return { ...m, content: "" };
-            const reason = ev.reason === "revision" ? "revision" : "tool_round";
-            return { ...m, content: "", superseded: [...kept, { text: m.content, reason }] };
+            if (ev.reason === "revision") {
+              return { ...m, content: "", superseded: [...kept, { text: m.content, reason: "revision" }] };
+            }
+            // A tool round (or an older server with no reason) often mixes a
+            // real preamble with leaked tool-call markup. Markup is thinking,
+            // not a draft; the rest stays a prechecked answer.
+            const { thinking, draft } = splitToolRoundText(m.content);
+            return {
+              ...m,
+              content: "",
+              reasoning: appendReasoning(m.reasoning, thinking),
+              superseded: draft ? [...kept, { text: draft, reason: "tool_round" }] : kept,
+            };
           });
           break;
         case "export": {

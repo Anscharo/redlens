@@ -649,7 +649,7 @@ jarring disappearance the beta feedback named.
 
 | reason | producer | rendering |
 |---|---|---|
-| `tool_round` | a round produced text *and* tool calls — the model set the text aside and kept searching | kept, dimmed italic, **not** struck — unverified, not judged wrong |
+| `tool_round` | a round produced text *and* tool calls — the model set the text aside and kept searching | leaked tool-call markup is folded into `reasoning` (thinking); remaining prose is kept, dimmed italic, **not** struck — unverified, not judged wrong. The caption that explains the draft sits in a bordered translucent box, not italic. |
 | `revision` | the advisor is replacing an answer the reader has read | kept, struck |
 | `degenerate` | the draft fell into a repetition loop | **deleted** — the one clear that still wipes |
 | `restore` | a `revision` was abandoned; `done` re-sends the ORIGINAL | drops the kept `revision` entry only, so the identical text isn't shown twice |

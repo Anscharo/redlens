@@ -21,7 +21,9 @@ describe("SupersededAnswer", () => {
     const { container } = render(
       <SupersededAnswer drafts={[draft("an earlier, incorrect answer")]} onAtlas={noop} />,
     );
-    expect(screen.getByText(/A verification check found problems with this draft/)).toBeInTheDocument();
+    const caption = screen.getByText(/A verification check found problems with this draft/);
+    expect(caption).toBeInTheDocument();
+    expect(caption).toHaveClass("rlc-superseded-note");
     const del = container.querySelector("del.rlc-superseded-text");
     expect(del).toHaveTextContent("an earlier, incorrect answer");
   });
