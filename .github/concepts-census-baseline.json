@@ -1,8 +1,8 @@
 {
   "registry-liveness": {
     "counts": {
-      "total": 48,
-      "live": 18,
+      "total": 49,
+      "live": 19,
       "empty": 30
     },
     "members": [
@@ -70,6 +70,12 @@
         "uuid": "86fce840-f7f3-4617-bb58-d04db8731c9d",
         "doc_no": "A.2.2.10.1.1.1.1.3.0.6.1",
         "title": "List Of Previous Sky Direct Exposures",
+        "bucket": "live"
+      },
+      {
+        "uuid": "5e7f23f6-4ff0-4a81-81f0-0b102b33dfbf",
+        "doc_no": "A.2.2.10.1.1.1.6.2.1.3.1",
+        "title": "List Of Approved Deviations",
         "bucket": "live"
       },
       {
@@ -7054,7 +7060,7 @@
       },
       {
         "uuid": "6a9b3956-c4f0-4f59-bc7d-2028a642fc19",
-        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.5.1",
+        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.4.1",
         "title": "Short Term Transitionary Measures"
       },
       {
@@ -7963,13 +7969,13 @@
   },
   "title-templates": {
     "counts": {
-      "total": 1071,
+      "total": 1076,
       "Primitive Hub Document": 136,
       "Global Activation Status": 140,
       "Hub Data Repository": 136,
       "Single Instance Configuration Document": 48,
-      "Parameters": 217,
-      "Rate Limits": 137,
+      "Parameters": 220,
+      "Rate Limits": 139,
       "Initial Planning": 83,
       "Operational GovOps Review": 83,
       "Artifact Edit Proposal": 83,
@@ -7999,6 +8005,12 @@
         "doc_no": "A.2.2.10.1.1.1.2.1.2",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "422e200e-2a94-4bde-b718-328ff82d3bb8",
+        "doc_no": "A.2.2.10.1.1.1.2.4.1",
+        "title": "Parameters",
+        "bucket": "Parameters"
       },
       {
         "uuid": "5a9cf81d-19dd-4f75-9ddc-be35c6b5cfb5",
@@ -8609,6 +8621,30 @@
       {
         "uuid": "3ef61462-8f74-4b84-ac42-8b847714b9e8",
         "doc_no": "A.6.1.1.1.2.6.1.3.1.1.6.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "2934278d-ed27-41db-bb08-8ca136dbade5",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.1.7.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "62030b20-0176-4be0-aa88-6c093de7e08d",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.1.7.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "eb2ccf34-0ddc-4635-ac34-60e20e4e4895",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.1.8.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "ad1c04b9-730a-4fff-8fb2-3e87d910a767",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.1.8.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -14797,13 +14833,13 @@
       },
       {
         "uuid": "535cd1c9-1d4d-42e3-bb44-6c128690dd2d",
-        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.6",
+        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.5",
         "title": "Artifact Edit Restrictions",
         "bucket": "edit-restriction"
       },
       {
         "uuid": "cc60f445-1ed9-479e-9b44-00de9884a7b5",
-        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.6.1",
+        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.5.1",
         "title": "Time-Limited Root Edit Restrictions On Removal Of Nested Contributors",
         "bucket": "edit-restriction"
       },
@@ -14907,7 +14943,7 @@
   },
   "cross-scope-duplication": {
     "counts": {
-      "total": 158,
+      "total": 159,
       "groups": 65
     },
     "members": [
@@ -14985,25 +15021,25 @@
       },
       {
         "uuid": "b7820ec3-dbe5-43bc-99b9-c7168c53c8fe",
-        "doc_no": "A.1.10.3.2.14",
+        "doc_no": "A.1.10.3.2.15",
         "title": "Ethereum SkyLink Freezer Multisig",
         "bucket": "ethereum skylink freezer multisig"
       },
       {
         "uuid": "82aaec1b-acac-4ed4-8e03-2d8f29ba5ccb",
-        "doc_no": "A.1.10.3.2.15",
+        "doc_no": "A.1.10.3.2.16",
         "title": "Solana SkyLink Freezer Multisig",
         "bucket": "solana skylink freezer multisig"
       },
       {
         "uuid": "57f524b8-292c-496b-a879-2102ce4a81e5",
-        "doc_no": "A.1.10.3.2.16",
+        "doc_no": "A.1.10.3.2.17",
         "title": "Avalanche SkyLink Freezer Multisig",
         "bucket": "avalanche skylink freezer multisig"
       },
       {
         "uuid": "93089354-d2eb-4930-a1c7-0ca2f7b60e67",
-        "doc_no": "A.1.10.3.2.17",
+        "doc_no": "A.1.10.3.2.18",
         "title": "Plasma SkyLink Freezer Multisig",
         "bucket": "plasma skylink freezer multisig"
       },
@@ -15030,12 +15066,6 @@
         "doc_no": "A.2.1.1.4",
         "title": "Resources",
         "bucket": "resources"
-      },
-      {
-        "uuid": "181954b6-d22c-4605-bffa-b5d964fbb10d",
-        "doc_no": "A.2.2.9.2.2.1.3.1",
-        "title": "Cadence",
-        "bucket": "cadence"
       },
       {
         "uuid": "4f77eb6c-4b2f-4fa0-a7c0-d58e9b76ce8e",
@@ -15066,6 +15096,18 @@
         "doc_no": "A.2.2.10.1.1.1.2.3.2.20",
         "title": "Uniswap v3 Facet",
         "bucket": "uniswap v3 facet"
+      },
+      {
+        "uuid": "7a98000b-c069-42f3-b1a4-8a3e7323a960",
+        "doc_no": "A.2.2.10.1.1.1.2.4.4.1",
+        "title": "Operator Execution",
+        "bucket": "operator execution"
+      },
+      {
+        "uuid": "e1a96b57-9c5e-469f-b7ac-5dac028eb726",
+        "doc_no": "A.2.2.10.1.1.1.2.4.4.2",
+        "title": "Public Communication",
+        "bucket": "public communication"
       },
       {
         "uuid": "5e941add-bf8d-4623-95a1-69795e7f7034",
@@ -15392,6 +15434,12 @@
         "bucket": "operator multisig modification"
       },
       {
+        "uuid": "af8ff5da-704a-4404-a882-8ba52c98e205",
+        "doc_no": "A.3.5.2.4.6.4",
+        "title": "Public Communication",
+        "bucket": "public communication"
+      },
+      {
         "uuid": "1896350c-5f87-4be5-b32f-f1114dc2c271",
         "doc_no": "A.3.7.1.3.1.1",
         "title": "Min Definition",
@@ -15480,6 +15528,12 @@
         "doc_no": "A.3.7.1.3.6.2",
         "title": "Operator Execution",
         "bucket": "operator execution"
+      },
+      {
+        "uuid": "30a9cafe-92cc-4c9b-af94-c341915a1dfc",
+        "doc_no": "A.3.7.1.3.6.3",
+        "title": "Public Communication",
+        "bucket": "public communication"
       },
       {
         "uuid": "a9965d58-8cda-49fc-8a7f-f8cc2e0d6b98",
@@ -15663,7 +15717,7 @@
       },
       {
         "uuid": "6a9b3956-c4f0-4f59-bc7d-2028a642fc19",
-        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.5.1",
+        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.4.1",
         "title": "Short Term Transitionary Measures",
         "bucket": "short term transitionary measures"
       },
@@ -15696,18 +15750,6 @@
         "doc_no": "A.6.1.1.1.2.6.1.2.2.1.3.5",
         "title": "Set Trigger For RateLimit Increase",
         "bucket": "set trigger for ratelimit increase"
-      },
-      {
-        "uuid": "ea7b0884-c4f8-4272-af38-cdda387bb65f",
-        "doc_no": "A.6.1.1.1.3.1.4.7.1",
-        "title": "Cadence",
-        "bucket": "cadence"
-      },
-      {
-        "uuid": "c7e40d3d-5485-426c-944a-16291fb36674",
-        "doc_no": "A.6.1.1.1.3.1.4.8.1.3",
-        "title": "Term",
-        "bucket": "term"
       },
       {
         "uuid": "9995ba51-1de7-4b32-8b76-a71462dc4c5b",

@@ -13,6 +13,54 @@
       "title": "Debt Ceiling Breaker Exception"
     },
     {
+      "taskKey": "u:5247c795-7f9d-4d3f-a040-6bc9b070e2d4",
+      "uuid": "5247c795-7f9d-4d3f-a040-6bc9b070e2d4",
+      "docNo": "A.1.10.3.2.8",
+      "title": "Smart Burn Engine Breaker Exception"
+    },
+    {
+      "taskKey": "u:704fbaff-fa10-4c63-af5b-3ee5fd1ea6a8",
+      "uuid": "704fbaff-fa10-4c63-af5b-3ee5fd1ea6a8",
+      "docNo": "A.1.10.3.2.9",
+      "title": "PSM Breaker Exception"
+    },
+    {
+      "taskKey": "u:5533c091-e638-4c3d-92e8-43e3e7026078",
+      "uuid": "5533c091-e638-4c3d-92e8-43e3e7026078",
+      "docNo": "A.1.10.3.2.10",
+      "title": "Bounded External Access Modules"
+    },
+    {
+      "taskKey": "u:ae05e069-0626-45f5-82d2-dbf39a5b2598",
+      "uuid": "ae05e069-0626-45f5-82d2-dbf39a5b2598",
+      "docNo": "A.1.10.3.2.10.5",
+      "title": "Configurator Bounded External Access Module Exception"
+    },
+    {
+      "taskKey": "u:fbb0677a-3218-4649-9116-9f3c18e3ef90",
+      "uuid": "fbb0677a-3218-4649-9116-9f3c18e3ef90",
+      "docNo": "A.1.10.3.2.10.6",
+      "title": "Core Council Multisig Exception"
+    },
+    {
+      "taskKey": "u:1fd7d164-e9f3-4d6c-ab5e-0122bb415f8d",
+      "uuid": "1fd7d164-e9f3-4d6c-ab5e-0122bb415f8d",
+      "docNo": "A.1.10.3.2.11",
+      "title": "Stability Parameter Bounded External Access Module Breaker Exception"
+    },
+    {
+      "taskKey": "u:b9f3824c-31a5-472c-8a53-8166f3eeb7ee",
+      "uuid": "b9f3824c-31a5-472c-8a53-8166f3eeb7ee",
+      "docNo": "A.1.10.3.2.12",
+      "title": "stUSDS Bounded External Access Module Breaker Exception"
+    },
+    {
+      "taskKey": "u:2171fb2b-de83-44f2-92bf-26b59a1e8c71",
+      "uuid": "2171fb2b-de83-44f2-92bf-26b59a1e8c71",
+      "docNo": "A.1.10.3.2.13",
+      "title": "PASMom Exception"
+    },
+    {
       "taskKey": "u:d5cfb5ed-20a9-42a0-9838-ef21e1115648",
       "uuid": "d5cfb5ed-20a9-42a0-9838-ef21e1115648",
       "docNo": "A.2.2.10.1.1.1.2",
@@ -23,6 +71,12 @@
       "uuid": "a1b58d9d-7529-463e-af49-cbe9d07b7435",
       "docNo": "A.2.2.10.1.1.1.2.1.7",
       "title": "Maximum Exposure Tolerance"
+    },
+    {
+      "taskKey": "u:b76195f2-7494-43a4-919e-fa823303ad06",
+      "uuid": "b76195f2-7494-43a4-919e-fa823303ad06",
+      "docNo": "A.2.2.10.1.1.1.2.2.1",
+      "title": "Default Admin Role"
     },
     {
       "taskKey": "u:e7a97395-ddd5-4ae8-874f-1bb3f247446a",
@@ -58,7 +112,19 @@
       "taskKey": "u:2e36bb4f-91db-4dca-bdb1-e4aa385b1129",
       "uuid": "2e36bb4f-91db-4dca-bdb1-e4aa385b1129",
       "docNo": "A.2.2.10.1.1.1.2.3.7",
-      "title": "Beam State"
+      "title": "BeamState"
+    },
+    {
+      "taskKey": "u:f6791cf7-f3aa-49da-9691-73e480bf3328",
+      "uuid": "f6791cf7-f3aa-49da-9691-73e480bf3328",
+      "docNo": "A.2.2.10.1.1.1.2.3.8",
+      "title": "Timelock"
+    },
+    {
+      "taskKey": "u:781172a1-e2b2-4c7b-852a-3f8e89fec8ca",
+      "uuid": "781172a1-e2b2-4c7b-852a-3f8e89fec8ca",
+      "docNo": "A.2.2.10.1.1.1.2.3.9",
+      "title": "PASMom"
     },
     {
       "taskKey": "u:989171ed-5424-42ee-83f4-199e1149699c",
@@ -67,16 +133,292 @@
       "title": "PAS"
     },
     {
+      "taskKey": "u:dc0e3a84-b542-4985-a41b-7ae2a3921cf3",
+      "uuid": "dc0e3a84-b542-4985-a41b-7ae2a3921cf3",
+      "docNo": "A.2.2.10.1.1.1.2.4.1.1.1",
+      "title": "Hop Definition"
+    },
+    {
+      "taskKey": "u:f86fe54a-9770-41ad-8ad2-7c58090224ce",
+      "uuid": "f86fe54a-9770-41ad-8ad2-7c58090224ce",
+      "docNo": "A.2.2.10.1.1.1.2.4.1.1.2",
+      "title": "Hop Default Value"
+    },
+    {
+      "taskKey": "u:942d6607-b92c-4779-8012-ea3b259ebf2b",
+      "uuid": "942d6607-b92c-4779-8012-ea3b259ebf2b",
+      "docNo": "A.2.2.10.1.1.1.2.4.1.2.1",
+      "title": "Max Change Definition"
+    },
+    {
+      "taskKey": "u:0414677e-d79e-4d84-b0aa-209f0fa3ffe3",
+      "uuid": "0414677e-d79e-4d84-b0aa-209f0fa3ffe3",
+      "docNo": "A.2.2.10.1.1.1.2.4.1.2.2",
+      "title": "Max Change Default Value"
+    },
+    {
+      "taskKey": "u:92a74fe1-3115-4cd7-bbf8-4e16fb4b0aa8",
+      "uuid": "92a74fe1-3115-4cd7-bbf8-4e16fb4b0aa8",
+      "docNo": "A.2.2.10.1.1.1.2.4.1.3",
+      "title": "Locked Unlimited Rate Limit Definition"
+    },
+    {
       "taskKey": "u:9593a6c6-521b-4680-8119-cb1f08b9a3e3",
       "uuid": "9593a6c6-521b-4680-8119-cb1f08b9a3e3",
-      "docNo": "A.2.2.10.1.1.1.2.4.1",
+      "docNo": "A.2.2.10.1.1.1.2.4.2",
       "title": "Enabled Diamond PAUs"
     },
     {
       "taskKey": "u:e9b6e62c-a902-431d-8691-abf052919813",
       "uuid": "e9b6e62c-a902-431d-8691-abf052919813",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.1",
+      "docNo": "A.2.2.10.1.1.1.2.4.2.1",
       "title": "Grove Diamond PAU"
+    },
+    {
+      "taskKey": "u:2091d01d-461a-4a02-9e82-986cc51960d4",
+      "uuid": "2091d01d-461a-4a02-9e82-986cc51960d4",
+      "docNo": "A.2.2.10.1.1.1.2.4.3",
+      "title": "BeamState"
+    },
+    {
+      "taskKey": "u:666cf6b3-6d7a-40f7-99fb-b6e2e4375754",
+      "uuid": "666cf6b3-6d7a-40f7-99fb-b6e2e4375754",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.1",
+      "title": "Core Council Multisig"
+    },
+    {
+      "taskKey": "u:41157518-ec2f-4c4f-a112-5a1f07fc71dc",
+      "uuid": "41157518-ec2f-4c4f-a112-5a1f07fc71dc",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.1.1",
+      "title": "Core Council Multisig Address"
+    },
+    {
+      "taskKey": "u:70ce8011-7126-440d-b90d-010a3d97b43f",
+      "uuid": "70ce8011-7126-440d-b90d-010a3d97b43f",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.1.2",
+      "title": "Core Council Multisig Required Number Of Signers"
+    },
+    {
+      "taskKey": "u:366436ae-0bab-4fce-a144-64660ac47366",
+      "uuid": "366436ae-0bab-4fce-a144-64660ac47366",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.1.3",
+      "title": "Core Council Multisig Signers"
+    },
+    {
+      "taskKey": "u:c53506aa-7919-41b4-847b-28a015145f66",
+      "uuid": "c53506aa-7919-41b4-847b-28a015145f66",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.1.4",
+      "title": "Core Council Multisig Usage Standards"
+    },
+    {
+      "taskKey": "u:61f08711-db44-4c9f-98ad-f330e729398f",
+      "uuid": "61f08711-db44-4c9f-98ad-f330e729398f",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.1.5",
+      "title": "Core Council Multisig Modification"
+    },
+    {
+      "taskKey": "u:a824d088-be58-4163-b382-54a95a728103",
+      "uuid": "a824d088-be58-4163-b382-54a95a728103",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.2",
+      "title": "Timelock"
+    },
+    {
+      "taskKey": "u:4a388764-7469-4efb-84f0-6b91278428fb",
+      "uuid": "4a388764-7469-4efb-84f0-6b91278428fb",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3",
+      "title": "Delayed Function Calls"
+    },
+    {
+      "taskKey": "u:8ead8771-c769-48d0-af2a-802099c61d42",
+      "uuid": "8ead8771-c769-48d0-af2a-802099c61d42",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.1",
+      "title": "Set Hop Function Call"
+    },
+    {
+      "taskKey": "u:da93e0a7-5fa1-4d93-af72-24557fbd9f24",
+      "uuid": "da93e0a7-5fa1-4d93-af72-24557fbd9f24",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.2",
+      "title": "Set Max Change Function Call"
+    },
+    {
+      "taskKey": "u:87da775d-430e-4db9-b58e-bbcf323e375a",
+      "uuid": "87da775d-430e-4db9-b58e-bbcf323e375a",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.3",
+      "title": "Add Rate Limits Function Call"
+    },
+    {
+      "taskKey": "u:2ef770b2-3636-4545-9aad-0f7cf94c0619",
+      "uuid": "2ef770b2-3636-4545-9aad-0f7cf94c0619",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.4",
+      "title": "Add Controller Function Call"
+    },
+    {
+      "taskKey": "u:bbdf1e6a-821b-43ec-aabf-e43a3bd6e113",
+      "uuid": "bbdf1e6a-821b-43ec-aabf-e43a3bd6e113",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.5",
+      "title": "Add Init Rate Limits Function Call"
+    },
+    {
+      "taskKey": "u:010a904e-e0e0-4c1d-8460-b8e3118b680f",
+      "uuid": "010a904e-e0e0-4c1d-8460-b8e3118b680f",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.6",
+      "title": "Add Init Controller Actions Function Call"
+    },
+    {
+      "taskKey": "u:33d6773e-d3d8-4141-943b-bfac186574b1",
+      "uuid": "33d6773e-d3d8-4141-943b-bfac186574b1",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.7",
+      "title": "Add cBEAM Function Call"
+    },
+    {
+      "taskKey": "u:032164e4-cf66-4e79-bb8c-18f095a1cdef",
+      "uuid": "032164e4-cf66-4e79-bb8c-18f095a1cdef",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.3.8",
+      "title": "Start Function Call"
+    },
+    {
+      "taskKey": "u:2c82cfd0-7a9a-464f-844d-ebc43b31c2a6",
+      "uuid": "2c82cfd0-7a9a-464f-844d-ebc43b31c2a6",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4",
+      "title": "Immediate Function Calls"
+    },
+    {
+      "taskKey": "u:b6693635-4fc9-4a91-9c39-1cc075da506c",
+      "uuid": "b6693635-4fc9-4a91-9c39-1cc075da506c",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.1",
+      "title": "Del Rate Limits Function Call"
+    },
+    {
+      "taskKey": "u:61b01ab8-6c82-4ce6-91fd-cc5ffb7e1530",
+      "uuid": "61b01ab8-6c82-4ce6-91fd-cc5ffb7e1530",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.2",
+      "title": "Del Controller Function Call"
+    },
+    {
+      "taskKey": "u:623fe784-cca1-423d-b207-1990e903126d",
+      "uuid": "623fe784-cca1-423d-b207-1990e903126d",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.3",
+      "title": "Del Init Rate Limits Function Call"
+    },
+    {
+      "taskKey": "u:88c0c2dd-f974-4690-8477-06e22d6dcd08",
+      "uuid": "88c0c2dd-f974-4690-8477-06e22d6dcd08",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.4",
+      "title": "Del Init Controller Actions Function Call"
+    },
+    {
+      "taskKey": "u:03280c06-8cab-47e0-acb7-9c7a30a5bf6a",
+      "uuid": "03280c06-8cab-47e0-acb7-9c7a30a5bf6a",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.5",
+      "title": "Del cBEAM Function Call"
+    },
+    {
+      "taskKey": "u:b18f6ed9-06c6-41a6-a54e-3e0e7f3c38bf",
+      "uuid": "b18f6ed9-06c6-41a6-a54e-3e0e7f3c38bf",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.6",
+      "title": "Set cBEAM For Rate Limits Function Call"
+    },
+    {
+      "taskKey": "u:9d6d19de-6a1c-410e-984a-3a7cbaf1e71d",
+      "uuid": "9d6d19de-6a1c-410e-984a-3a7cbaf1e71d",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.7",
+      "title": "Unset cBEAM For Rate Limits Function Call"
+    },
+    {
+      "taskKey": "u:c645c0d3-0282-4e93-a2ae-c99db3bcd421",
+      "uuid": "c645c0d3-0282-4e93-a2ae-c99db3bcd421",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.8",
+      "title": "Set cBEAM For Controller Function Call"
+    },
+    {
+      "taskKey": "u:0b853079-1362-45d8-99a4-a31bb584ef6c",
+      "uuid": "0b853079-1362-45d8-99a4-a31bb584ef6c",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.9",
+      "title": "Unset cBEAM For Controller Function Call"
+    },
+    {
+      "taskKey": "u:52895c20-8322-4cbf-800f-8ea107f00f85",
+      "uuid": "52895c20-8322-4cbf-800f-8ea107f00f85",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.4.10",
+      "title": "Stop Function Call"
+    },
+    {
+      "taskKey": "u:e049feea-5af3-4a8d-8766-36e348fd5d7b",
+      "uuid": "e049feea-5af3-4a8d-8766-36e348fd5d7b",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.5",
+      "title": "Restart After Halt"
+    },
+    {
+      "taskKey": "u:88e11076-5fe1-42a5-b2ba-bdb1bc929ec8",
+      "uuid": "88e11076-5fe1-42a5-b2ba-bdb1bc929ec8",
+      "docNo": "A.2.2.10.1.1.1.2.4.3.6",
+      "title": "PASMom"
+    },
+    {
+      "taskKey": "u:45840a10-6c7c-453a-8218-4ab4d705012d",
+      "uuid": "45840a10-6c7c-453a-8218-4ab4d705012d",
+      "docNo": "A.2.2.10.1.1.1.2.4.4",
+      "title": "Configurator"
+    },
+    {
+      "taskKey": "u:7a98000b-c069-42f3-b1a4-8a3e7323a960",
+      "uuid": "7a98000b-c069-42f3-b1a4-8a3e7323a960",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.1",
+      "title": "Operator Execution"
+    },
+    {
+      "taskKey": "u:e1a96b57-9c5e-469f-b7ac-5dac028eb726",
+      "uuid": "e1a96b57-9c5e-469f-b7ac-5dac028eb726",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.2",
+      "title": "Public Communication"
+    },
+    {
+      "taskKey": "u:c9019bfd-424e-4284-b349-c8e5d9ed5c2d",
+      "uuid": "c9019bfd-424e-4284-b349-c8e5d9ed5c2d",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3",
+      "title": "Registered Operators"
+    },
+    {
+      "taskKey": "u:da8d9885-3b28-478c-bbaa-ec88bdde91a9",
+      "uuid": "da8d9885-3b28-478c-bbaa-ec88bdde91a9",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3.1",
+      "title": "Operator For The Grove Diamond PAU"
+    },
+    {
+      "taskKey": "u:5a5e59fd-693f-4511-b4b8-e2619ae60f89",
+      "uuid": "5a5e59fd-693f-4511-b4b8-e2619ae60f89",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3.1.1",
+      "title": "Grove Operator Multisig Address"
+    },
+    {
+      "taskKey": "u:dbbfa844-428c-4815-a657-6735c2361ebe",
+      "uuid": "dbbfa844-428c-4815-a657-6735c2361ebe",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3.1.2",
+      "title": "Grove Operator Multisig Required Number Of Signers"
+    },
+    {
+      "taskKey": "u:776677da-0601-4b25-97f0-619cb8978415",
+      "uuid": "776677da-0601-4b25-97f0-619cb8978415",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3.1.3",
+      "title": "Grove Operator Multisig Signers"
+    },
+    {
+      "taskKey": "u:6618063e-89c7-4ff0-806a-d46b32029dc6",
+      "uuid": "6618063e-89c7-4ff0-806a-d46b32029dc6",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3.1.4",
+      "title": "Grove Operator Multisig Usage Standards"
+    },
+    {
+      "taskKey": "u:e3f61226-0c1a-4d83-9007-9ac2d21ed3da",
+      "uuid": "e3f61226-0c1a-4d83-9007-9ac2d21ed3da",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3.1.5",
+      "title": "Grove Operator Multisig Modification"
+    },
+    {
+      "taskKey": "u:d5240aa5-72c1-4f92-b22c-7a80a35d733c",
+      "uuid": "d5240aa5-72c1-4f92-b22c-7a80a35d733c",
+      "docNo": "A.2.2.10.1.1.1.2.4.5",
+      "title": "Transitional Measures"
     },
     {
       "taskKey": "u:8eea7011-c299-4861-bf2e-0adb78e3ef30",
@@ -151,6 +493,72 @@
       "title": "Allocator Role"
     },
     {
+      "taskKey": "u:f671061e-11a0-4d3b-bb6e-9f4ee9a012a9",
+      "uuid": "f671061e-11a0-4d3b-bb6e-9f4ee9a012a9",
+      "docNo": "A.2.2.10.1.1.1.2.5.3.2",
+      "title": "Set RateLimit"
+    },
+    {
+      "taskKey": "u:a85b7e8b-c4e9-44de-b717-efa4c8268d3b",
+      "uuid": "a85b7e8b-c4e9-44de-b717-efa4c8268d3b",
+      "docNo": "A.2.2.10.1.1.1.2.5.3.3",
+      "title": "Set Unlimited RateLimit"
+    },
+    {
+      "taskKey": "u:f14bd41f-87a4-4cf9-aa04-189db73e0f08",
+      "uuid": "f14bd41f-87a4-4cf9-aa04-189db73e0f08",
+      "docNo": "A.2.2.10.1.1.1.6.1.1",
+      "title": "Pull Request Approval Requirements"
+    },
+    {
+      "taskKey": "u:a313bdfd-bb2e-4e0d-a040-4a816b50b74c",
+      "uuid": "a313bdfd-bb2e-4e0d-a040-4a816b50b74c",
+      "docNo": "A.2.2.10.1.1.1.6.2.1",
+      "title": "Liquidity Layer Freezer Multisig"
+    },
+    {
+      "taskKey": "u:040b5603-9c1c-4730-9e65-8be855db5f55",
+      "uuid": "040b5603-9c1c-4730-9e65-8be855db5f55",
+      "docNo": "A.2.2.10.1.1.1.6.2.1.1",
+      "title": "Required Number Of Signers"
+    },
+    {
+      "taskKey": "u:4723757a-405c-4eca-9044-f8a1ed5f4120",
+      "uuid": "4723757a-405c-4eca-9044-f8a1ed5f4120",
+      "docNo": "A.2.2.10.1.1.1.6.2.1.2",
+      "title": "Required Signers"
+    },
+    {
+      "taskKey": "u:3b9336c2-53c8-4967-ab45-a2f8c5a36556",
+      "uuid": "3b9336c2-53c8-4967-ab45-a2f8c5a36556",
+      "docNo": "A.2.2.10.1.1.1.6.2.1.3",
+      "title": "Default Configuration Deviations"
+    },
+    {
+      "taskKey": "u:5e7f23f6-4ff0-4a81-81f0-0b102b33dfbf",
+      "uuid": "5e7f23f6-4ff0-4a81-81f0-0b102b33dfbf",
+      "docNo": "A.2.2.10.1.1.1.6.2.1.3.1",
+      "title": "List Of Approved Deviations"
+    },
+    {
+      "taskKey": "u:c304cb9f-ab10-4d5b-8f94-588170b36a9e",
+      "uuid": "c304cb9f-ab10-4d5b-8f94-588170b36a9e",
+      "docNo": "A.2.2.10.1.1.1.6.2.1.3.1.0.6.1",
+      "title": "Approved Deviations"
+    },
+    {
+      "taskKey": "u:c09435ff-d876-442a-899c-ad494175500b",
+      "uuid": "c09435ff-d876-442a-899c-ad494175500b",
+      "docNo": "A.2.3.1.2.1",
+      "title": "Step 0: Net Revenue"
+    },
+    {
+      "taskKey": "u:7f43aea7-9b81-48ef-b3ce-fdfae7e8a551",
+      "uuid": "7f43aea7-9b81-48ef-b3ce-fdfae7e8a551",
+      "docNo": "A.2.4.1.1",
+      "title": "Operational Processes"
+    },
+    {
       "taskKey": "u:a8075d68-a5ba-4b4d-bce5-0ad58130f9e5",
       "uuid": "a8075d68-a5ba-4b4d-bce5-0ad58130f9e5",
       "docNo": "A.2.8.2.2.2.4.5.2.3",
@@ -209,6 +617,30 @@
       "uuid": "ae2b5d27-b666-4796-8791-b59d151daf41",
       "docNo": "A.3.7.1.3.5.2",
       "title": "Operator Update Process"
+    },
+    {
+      "taskKey": "t:compromised key response|risk",
+      "uuid": "05dbbbcc-7702-4d17-a222-9c93356be7cd",
+      "docNo": "A.6.1.1.1.3.1.3.7.2",
+      "title": "Compromised Key Response"
+    },
+    {
+      "taskKey": "u:119a4bbf-9a37-4a2c-bac9-11e969244bfe",
+      "uuid": "119a4bbf-9a37-4a2c-bac9-11e969244bfe",
+      "docNo": "A.6.1.1.1.3.2.1.1.2.1.19",
+      "title": "USDG Risk Parameters"
+    },
+    {
+      "taskKey": "u:8002fcc5-0e0d-4b4c-9b62-41b20503f448",
+      "uuid": "8002fcc5-0e0d-4b4c-9b62-41b20503f448",
+      "docNo": "A.6.1.1.1.3.2.1.1.2.1.20",
+      "title": "RLUSD Risk Parameters"
+    },
+    {
+      "taskKey": "u:0e572cad-bdf2-437f-b272-0cd634424b19",
+      "uuid": "0e572cad-bdf2-437f-b272-0cd634424b19",
+      "docNo": "A.6.1.1.1.3.9.6.2",
+      "title": "Cancellation Reasons"
     },
     {
       "taskKey": "u:6823cc5a-6667-4754-a030-9ac7126b006e",
