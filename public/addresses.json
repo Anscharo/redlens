@@ -749,6 +749,118 @@
       "ethereum"
     ]
   },
+  "0xb7e61df6cab0a51e9a5dab1a7dd3f942dde5b929": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "Configurator",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x1a1879e66547f90bff87d45a5b0335950e019e02": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "BeamState",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0xb50a06af02dde44db6ea7ee729403848c2b35293": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "Timelock",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0xd44b8d01d5207aa792c666d0a712a1a161cd6171": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "PASMom",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x148ef923d764cbdc1597ccadbbbc66499c1a1432": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x91dc2f6dbb8adf76d373a54d408edd7d736046c4": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431": {
+    "chain": "base",
+    "chains": [
+      "base",
+      "xlayer",
+      "ethereum"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x29fcb43b46531bca003ddc8fcb67ffe91900c762",
+    "codeByChain": {
+      "ethereum": true,
+      "base": true
+    },
+    "presentOnChains": [
+      "base",
+      "ethereum"
+    ]
+  },
   "0x210cfcf53d1f9648c1c4dcaee677f0cb06914364": {
     "chain": "ethereum",
     "chains": [
@@ -1852,21 +1964,6 @@
       "ethereum"
     ]
   },
-  "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431": {
-    "chain": "ethereum",
-    "chains": [
-      "xlayer",
-      "ethereum"
-    ],
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
   "0x83a914c361bb729eb6bebc8c7ba993667a0e6df8": {
     "chain": "xlayer",
     "chains": [
@@ -2111,6 +2208,60 @@
     "etherscanName": "WETH9",
     "isContract": true,
     "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x6f335538257ef440f3c51e925a5c820f722a1f9f": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false
+    }
+  },
+  "0xe343167631d89b6ffc58b88d6b7fb0228795491d": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "ERC1967Proxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0xfacd5ff359adf87822374275699dd518aaf9a65f",
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x59275fb72c8004f44ba44432e25082932fd677f1": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false
+    }
+  },
+  "0x8292bb45bf1ee4d140127049757c2e0ff06317ed": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "StablecoinProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x9747a0d261c2d56eb93f542068e5d1e23170fa9e",
     "codeByChain": {
       "ethereum": true
     },
@@ -2426,22 +2577,6 @@
       "ethereum"
     ]
   },
-  "0x8292bb45bf1ee4d140127049757c2e0ff06317ed": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "StablecoinProxy",
-    "isContract": true,
-    "isProxy": true,
-    "implementation": "0x9747a0d261c2d56eb93f542068e5d1e23170fa9e",
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
   "0x73e65dbd630f90604062f6e02fab9138e713edd9": {
     "chain": "ethereum",
     "chains": [
@@ -2672,22 +2807,6 @@
     "codeByChain": {
       "ethereum": false
     }
-  },
-  "0xe343167631d89b6ffc58b88d6b7fb0228795491d": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "ERC1967Proxy",
-    "isContract": true,
-    "isProxy": true,
-    "implementation": "0xfacd5ff359adf87822374275699dd518aaf9a65f",
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
   },
   "0x035b322d0e79de7c8733cdda5a7ef8b51a6cfcfa": {
     "chain": "ethereum",
@@ -3628,16 +3747,16 @@
     "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
     "codeByChain": {
       "ethereum": true,
-      "plasma": true,
       "base": true,
+      "plasma": true,
       "avalanche": true,
       "robinhood": true,
       "plume": true
     },
     "presentOnChains": [
       "ethereum",
-      "plasma",
       "base",
+      "plasma",
       "avalanche",
       "robinhood",
       "plume"
@@ -3671,16 +3790,16 @@
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
-      "plasma": true,
       "base": true,
+      "plasma": true,
       "avalanche": true,
       "robinhood": true,
       "plume": true
     },
     "presentOnChains": [
       "avalanche",
-      "plasma",
       "base",
+      "plasma",
       "robinhood",
       "plume"
     ]
