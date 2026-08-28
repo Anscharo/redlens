@@ -159,6 +159,14 @@ function matchers(role) {
         `\\bsubject\\s+to\\s+(?:the\\s+)?approval\\s+of\\s+(?:the\\s+)?(?:(?:${role.qualifier})\\s+)?${role.subject}\\b${guard}`,
         "i",
       ),
+      // "require approval from the Protocol Security Workstream Lead and Core
+      // GovOps" (A.2.2.10.1.1.1.6.2.1.3) — the "from"-anchored sibling of the
+      // "subject to approval of" phrase above; the optional "X and" bridge
+      // lets the role sit past another named approver in the same clause.
+      new RegExp(
+        `\\brequires?\\s+approval\\s+from\\s+(?:[^.\\n]*?\\band\\s+)?(?:the\\s+)?(?:(?:${role.qualifier})\\s+)?${role.subject}\\b${guard}`,
+        "i",
+      ),
       // "under the supervision of Core GovOps" (A.4.4.1.3.8.4.2)
       new RegExp(
         `\\bunder\\s+(?:the\\s+)?supervision\\s+of\\s+(?:the\\s+)?(?:(?:${role.qualifier})\\s+)?${role.subject}\\b${guard}`,
