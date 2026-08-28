@@ -4,7 +4,8 @@
  * The atlas documents every multisig as a parent doc with a regular set of
  * child Cores (titles matched by suffix — prefixes vary per multisig):
  *   …Address                       "The address of the X on {Chain} is `0x…`."
- *   …(Required )Number Of Signers  "The X (currently )has a M/N signing requirement."
+ *   …(Required )Number Of Signers  "The X (currently )has a (default )M/N signing requirement." OR
+ *                                  "The X's required number of signers is M (M) out of N (N)."
  *   …(Current )Signers             three prose/bullet shapes, see parseSignerGroups
  *   …Usage Standards               purpose prose
  *   …(Signer )Modification(s)      who may change the signers + invariants
@@ -36,7 +37,13 @@ import {
 import { normalizeChainLabel } from "./chains.mjs";
 import { normalizeAddress } from "./address-chains.mjs";
 
-const THRESHOLD_RE = /The (.+?) (?:currently )?has a (\d+)\/(\d+) signing requirement/;
+const THRESHOLD_RE = /The (.+?) (?:currently )?has a (?:default )?(\d+)\/(\d+) signing requirement/;
+// "The Core Council Multisig's required number of signers is five (5) out of six (6)."
+// A second phrasing seen in the atlas alongside THRESHOLD_RE (A.2.2.10.1.1.1.2.4.3.1.2,
+// A.2.2.10.1.1.1.2.4.4.3.1.2) — same M/N fact, different sentence shape. Same capture
+// group positions (name, numerator, denominator) so downstream code doesn't branch.
+const THRESHOLD_ALT_RE =
+  /The (.+?)'s required number of signers is \S+ \((\d+)\) out of \S+ \((\d+)\)/;
 const ADDRESS_RE = /`([A-Za-z0-9]{32,64})`/;
 const ADDRESS_CHAIN_RE = /\baddress of .+? on (?:the )?([A-Z][\w ]*?) is/;
 // "three (3) addresses controlled by Operational GovOps Soter Labs"
@@ -138,7 +145,9 @@ export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges)
 
         // Display name = subject of the threshold sentence (uniform across
         // variants); fall back to the root title.
-        const thresholdMatch = (slot.threshold.content ?? "").match(THRESHOLD_RE);
+        const thresholdMatch =
+          (slot.threshold.content ?? "").match(THRESHOLD_RE) ??
+          (slot.threshold.content ?? "").match(THRESHOLD_ALT_RE);
         if (!thresholdMatch) warn(`threshold did not parse: ${slot.threshold.doc_no}`);
         const name = thresholdMatch?.[1]?.trim() ?? root.title;
         const threshold = thresholdMatch ? `${thresholdMatch[2]}/${thresholdMatch[3]}` : null;
