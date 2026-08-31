@@ -2733,7 +2733,7 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove Di
     "title": "Swap RateLimitID (USDC)",
   },
   {
-    "content": "The current \`maxAmount\` and \`slope\` for this Instance's deposit, withdrawal, and swap operations are defined in the subdocuments herein.",
+    "content": "The current \`maxAmount\` and \`slope\` for this Instance's deposit, withdrawal, and swap operations are defined in the subdocuments herein. These values are set via a cBEAM, as specified in [A.6.1.1.2.2.6.1.2.1.1.3.3 - Diamond PAU Rate Limits](c5d3d2f9-cd88-4b00-a6df-da369c27674f).",
     "title": "Rate Limits",
   },
   {
@@ -3817,11 +3817,19 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenize
     "title": "Basin Contract Address",
   },
   {
-    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Atlas.",
+    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow are defined in the subdocuments herein.",
     "title": "Rate Limit IDs",
   },
   {
-    "content": "The inflow and outflow rate limit configuration for this conduit is specified in the subdocuments herein.",
+    "content": "The inflow RateLimitID is: \`0x1a86f9199a894b97364bd328ccf0a718073f81ec34f7febd5303937f8cacd73c\`.",
+    "title": "Inflow RateLimitID",
+  },
+  {
+    "content": "The outflow RateLimitID is: \`0xac6b1419c7365d44c458289fbd4b91c1913427601113863b9293594a6885baff\`.",
+    "title": "Outflow RateLimitID",
+  },
+  {
+    "content": "The inflow and outflow rate limit configuration for this conduit is specified in the subdocuments herein. These values are set via a cBEAM, as specified in [A.6.1.1.2.2.6.1.2.1.1.3.3 - Diamond PAU Rate Limits](c5d3d2f9-cd88-4b00-a6df-da369c27674f).",
     "title": "Rate Limits",
   },
   {
@@ -3954,11 +3962,19 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenize
     "title": "Basin Contract Address",
   },
   {
-    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Atlas.",
+    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow are defined in the subdocuments herein.",
     "title": "Rate Limit IDs",
   },
   {
-    "content": "The inflow and outflow rate limit configuration for this conduit is specified in the subdocuments herein.",
+    "content": "The inflow RateLimitID is: \`0x44ad4f925dffddd260f6ba5813208bf35b11b254e79611cbc8443c1504f68e68\`.",
+    "title": "Inflow RateLimitID",
+  },
+  {
+    "content": "The outflow RateLimitID is: \`0x0d8db6f922b464d5eb8ac718bef62b82b05d9bd0ea5dafd09ccd0461d4d98e12\`.",
+    "title": "Outflow RateLimitID",
+  },
+  {
+    "content": "The inflow and outflow rate limit configuration for this conduit is specified in the subdocuments herein. These values are set via a cBEAM, as specified in [A.6.1.1.2.2.6.1.2.1.1.3.3 - Diamond PAU Rate Limits](c5d3d2f9-cd88-4b00-a6df-da369c27674f).",
     "title": "Rate Limits",
   },
   {
@@ -11560,7 +11576,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 9,
   "annotates": 101,
   "can_modify_signers_of": 32,
-  "cites": 2189,
+  "cites": 2194,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
@@ -14355,12 +14371,13 @@ exports[`instances > allocation-system instances 1`] = `
       "Basin Contract Address": "0xCBa428fB052B365557DAf52b744DFfF20d5FbEdD",
       "Inflow Rate Limits / maxAmount": "5,000,000 USDS",
       "Inflow Rate Limits / slope": "5,000,000 USDS per day",
+      "Inflow RateLimitID": "0x1a86f9199a894b97364bd328ccf0a718073f81ec34f7febd5303937f8cacd73c",
       "Maximum Allocation": "The maximum allocation for this Instance is 2,500,000 USDS.",
       "Network": "Ethereum Mainnet",
       "Outflow Rate Limits / maxAmount": "Unlimited",
+      "Outflow RateLimitID": "0xac6b1419c7365d44c458289fbd4b91c1913427601113863b9293594a6885baff",
       "Owner Timelock Contract Address": "0xdB8C7c814E9780659B23478EF4Bda9032CC9Ff34",
       "Pocket Contract Address": "0x39548FeF138370Db06e172eF0739894b2a613DF9",
-      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Atlas.",
       "Rate Limits": "The Rate Limits for this Interim Deployment are defined in [A.6.1.1.2.2.6.1.3.1.14.2.2.4 - Rate Limits](8e7f9afb-d4c6-49ac-a956-1a65817d709f).",
       "Securitize Redemption Wallet Address": "0x8780Dd016171B91E4Df47075dA0a947959C34200",
       "Target Protocol": "Securitize",
@@ -14381,13 +14398,14 @@ exports[`instances > allocation-system instances 1`] = `
       "Centrifuge ERC-7540 Vault Address": "0xFE6920eB6C421f1179cA8c8d4170530CDBdfd77A",
       "Inflow Rate Limits / maxAmount": "5,000,000 USDS",
       "Inflow Rate Limits / slope": "5,000,000 USDS per day",
+      "Inflow RateLimitID": "0x44ad4f925dffddd260f6ba5813208bf35b11b254e79611cbc8443c1504f68e68",
       "JTRSY Rate Provider Address": "0x29209ceCFeFa6f675E6f1f829320D67cE2b025E5",
       "Maximum Exposure": "Total exposure through this Instance may not exceed 12,500,000 USDS.",
       "Network": "Ethereum Mainnet",
       "Outflow Rate Limits / maxAmount": "Unlimited",
+      "Outflow RateLimitID": "0x0d8db6f922b464d5eb8ac718bef62b82b05d9bd0ea5dafd09ccd0461d4d98e12",
       "Owner Timelock Contract Address": "0xA52dC9876aB4A9DB6dAfbb83410554086054d140",
       "Pocket Contract Address": "0x2Cd296095788A2741e72056D66B3Ae1fAeE23ea2",
-      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Atlas.",
       "Rate Limits": "The Rate Limits for this Instance are defined in [A.6.1.1.2.2.6.1.3.1.14.1.2.4 - Rate Limits](abc0b1fc-4922-40f1-8ea9-60fba89f0e5f).",
       "Target Protocol": "Centrifuge",
       "Token": "JTRSY",
