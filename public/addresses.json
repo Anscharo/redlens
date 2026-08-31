@@ -754,6 +754,7 @@
     "chains": [
       "ethereum"
     ],
+    "chainlogId": "PAS_CONFIGURATOR",
     "etherscanName": "Configurator",
     "isContract": true,
     "isProxy": false,
@@ -769,6 +770,7 @@
     "chains": [
       "ethereum"
     ],
+    "chainlogId": "PAS_STATE",
     "etherscanName": "BeamState",
     "isContract": true,
     "isProxy": false,
@@ -784,6 +786,7 @@
     "chains": [
       "ethereum"
     ],
+    "chainlogId": "PAS_TIMELOCK",
     "etherscanName": "Timelock",
     "isContract": true,
     "isProxy": false,
@@ -799,6 +802,7 @@
     "chains": [
       "ethereum"
     ],
+    "chainlogId": "PAS_MOM",
     "etherscanName": "PASMom",
     "isContract": true,
     "isProxy": false,
@@ -2220,11 +2224,14 @@
     "chains": [
       "ethereum"
     ],
-    "isContract": false,
+    "isContract": true,
     "isProxy": false,
     "codeByChain": {
-      "ethereum": false
-    }
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
   },
   "0xe343167631d89b6ffc58b88d6b7fb0228795491d": {
     "chain": "ethereum",
@@ -2247,11 +2254,14 @@
     "chains": [
       "ethereum"
     ],
-    "isContract": false,
+    "isContract": true,
     "isProxy": false,
     "codeByChain": {
-      "ethereum": false
-    }
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
   },
   "0x8292bb45bf1ee4d140127049757c2e0ff06317ed": {
     "chain": "ethereum",
