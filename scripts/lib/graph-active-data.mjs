@@ -50,21 +50,22 @@ const BREACH_REGISTRY_UUID = "1ddd9cf6-3f93-4a33-8c1d-80405eec1ffb"; // A.1.6.6.
 // entity_types fit a designated-exposure row; modeling one (and parsing the
 // attribution prose) is a deliberate deferral, not a mechanical regex
 // extension — see parse-atlas SKILL.md Pattern 16 addendum.
+// Approved Deviations (triaged 2026-08-28, issue #339, atlas 1704409) — a
+// registry of exceptions to the default multisig signer/threshold config
+// (Pattern 17), keyed by Liquidity Layer name + multisig address, not by a
+// named actor. Its one row today ("Spark Liquidity Layer" /
+// `0x90D8c80C028B4C09C0d8dcAab9bbB057F0513431` / "Two (2) of four (4) signing
+// requirement, with signers controlled by Phoenix Labs and VoteWizard") reads
+// as free-text prose in the third column, not a structured field — same
+// deferral shape as the Sky Direct Exposures tables above, not a Pattern 16
+// fit. A future extractor would need to resolve the Multisig Address column
+// against the Pattern 17 multisig entity (by address) and treat the
+// Approved Deviation cell as an alternate-config annotation on it.
 const KNOWN_UNEXTRACTED_TABLES = new Set([
   "93f5b36b-06a7-4282-9fd7-14e0cbafd08e", // A.1.10.2.5.1.3.2.0.6.1
   "5f368e33-7a82-4244-a9ba-f285193ec043", // A.2.2.10.1.1.1.1.2.0.6.1 List Of Current Sky Direct Exposures
   "86fce840-f7f3-4617-bb58-d04db8731c9d", // A.2.2.10.1.1.1.1.3.0.6.1 List Of Previous Sky Direct Exposures
-  // A.2.2.10.1.1.1.6.2.1.3.1.0.6.1 Approved Deviations (triaged 2026-09-01,
-  // issues #342/#344/#346, atlas 1704409): rows record a per-Liquidity-Layer
-  // override of the default Freezer Multisig threshold/signers, described in
-  // free text ("Two (2) of four (4) signing requirement, with signers
-  // controlled by Phoenix Labs and VoteWizard"). No existing entity/edge
-  // models "this multisig's threshold deviates from the default" — modeling
-  // it needs a new edge type linking the deviation to the specific Liquidity
-  // Layer's Freezer Multisig entity, plus parsing that description prose. A
-  // deliberate deferral, not a mechanical regex extension — same reasoning
-  // as the Sky Direct Exposures tables above.
-  "c304cb9f-ab10-4d5b-8f94-588170b36a9e",
+  "c304cb9f-ab10-4d5b-8f94-588170b36a9e", // A.2.2.10.1.1.1.6.2.1.3.1.0.6.1 Approved Deviations
 ]);
 
 // Runs after Phase 2.5 (ICD-param has_address edges) so `edges` already
