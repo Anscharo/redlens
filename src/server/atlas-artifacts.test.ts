@@ -132,7 +132,10 @@ describe("getArtifacts", () => {
     await getArtifacts("abc123", ["a.json", "b.json"], fakeSql);
     expect(queries[0]!.text).toContain("jsonb_array_elements_text");
     expect(queries[0]!.text).toContain("::jsonb");
+    // Raw array, not JSON.stringify'd — a string here is the double-encode that
+    // the live test below rejected against Postgres 16.
     expect(queries[0]!.values[1]).toEqual(["a.json", "b.json"]);
+    expect(typeof queries[0]!.values[1]).not.toBe("string");
   });
 });
 
@@ -217,6 +220,7 @@ describe("live BYTEA round-trip (requires DATABASE_URL)", () => {
     // (`malformed array literal`, 2026-09-01) with every mocked test green.
     const filtered = await getArtifacts(liveSha, ["small.json", "absent.json"], db);
     expect(filtered.map((a) => a.name)).toEqual(["small.json"]);
+    expect(filtered[0]!.gz.equals(items[0]!.gz)).toBe(true);
   });
 });
 
