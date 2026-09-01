@@ -36,12 +36,20 @@ import {
 import { normalizeChainLabel } from "./chains.mjs";
 import { normalizeAddress } from "./address-chains.mjs";
 
-const THRESHOLD_RE = /The (.+?) (?:currently )?has a (\d+)\/(\d+) signing requirement/;
+const THRESHOLD_RE = /The (.+?) (?:currently )?has a (?:default )?(\d+)\/(\d+) signing requirement/;
+// "The X's required number of signers is five (5) out of six (6)."
+const THRESHOLD_ALT_RE = /The (.+?)'s required number of signers is [\w-]+ \((\d+)\) out of [\w-]+ \((\d+)\)/;
 const ADDRESS_RE = /`([A-Za-z0-9]{32,64})`/;
 const ADDRESS_CHAIN_RE = /\baddress of .+? on (?:the )?([A-Z][\w ]*?) is/;
 // "three (3) addresses controlled by Operational GovOps Soter Labs"
 const SIGNER_GROUP_RE =
   /\((\d+)\)\s*address(?:es)?(?:\s+(?:are|is))?\s+controlled by\s+(.+?)(?=\s*[,;.]|\s+and\s+[a-z]+\s*\(\d+\)|$)/gi;
+// "four (4) controlled by the Operational Executor Agent" — role composition
+// without an "address(es)" word. Excludes "at least N (n) controlled by …"
+// sub-clauses, which describe a constraint within a larger group rather than
+// an additional signer group (would otherwise double-count the total).
+const SIGNER_GROUP_CONTROLLED_RE =
+  /(?<!least\s+\w+\s)\((\d+)\)\s*controlled by\s+(.+?)(?=\s*[,;.]|\s+and\s+[a-z]+\s*\(\d+\)|$)/gi;
 // "- Soter Labs: 2 signers"
 const SIGNER_BULLET_COUNT_RE = bulletField(String.raw`([^:\n]+?)`, String.raw`(\d+)\s*signers?`, "gim");
 // plain bullet roster ("- VoteWizard") — only read when the prose announces it
@@ -64,6 +72,10 @@ function childSuffix(title) {
 export function parseSignerGroups(content) {
   const groups = [];
   for (const m of content.matchAll(SIGNER_GROUP_RE)) {
+    groups.push({ name: m[2].trim(), count: Number(m[1]) });
+  }
+  if (groups.length) return groups;
+  for (const m of content.matchAll(SIGNER_GROUP_CONTROLLED_RE)) {
     groups.push({ name: m[2].trim(), count: Number(m[1]) });
   }
   if (groups.length) return groups;
@@ -138,7 +150,8 @@ export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges)
 
         // Display name = subject of the threshold sentence (uniform across
         // variants); fall back to the root title.
-        const thresholdMatch = (slot.threshold.content ?? "").match(THRESHOLD_RE);
+        const thresholdMatch =
+          (slot.threshold.content ?? "").match(THRESHOLD_RE) ?? (slot.threshold.content ?? "").match(THRESHOLD_ALT_RE);
         if (!thresholdMatch) warn(`threshold did not parse: ${slot.threshold.doc_no}`);
         const name = thresholdMatch?.[1]?.trim() ?? root.title;
         const threshold = thresholdMatch ? `${thresholdMatch[2]}/${thresholdMatch[3]}` : null;

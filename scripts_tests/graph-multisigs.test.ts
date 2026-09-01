@@ -75,6 +75,18 @@ describe("parseSignerGroups", () => {
   it("does not read a plain bullet roster without the intro sentence", () => {
     expect(parseSignerGroups("- VoteWizard\n- LDR")).toEqual([]);
   });
+
+  it("parses the '(N) controlled by X' shape without an 'address(es)' word, excluding nested 'at least' sub-clauses", () => {
+    const groups = parseSignerGroups(
+      "The default signer composition is five (5) signers: four (4) controlled by the Operational Executor Agent, " +
+        "including at least one (1) controlled by Operational GovOps and at least one (1) controlled by the Operational Facilitator, " +
+        "and one (1) controlled by the Prime Agent.",
+    );
+    expect(groups).toEqual([
+      { name: "the Operational Executor Agent", count: 4 },
+      { name: "the Prime Agent", count: 1 },
+    ]);
+  });
 });
 
 function fiveChildDocs(rootDocNo: string, subject: string, opts: Partial<Record<string, string>> = {}) {
@@ -168,6 +180,51 @@ describe("extractMultisigs — happy path", () => {
     expect(stats.created).toBeGreaterThanOrEqual(1);
     expect(stats.warnings).toBe(0);
     expect(warns).toEqual([]);
+  });
+});
+
+describe("extractMultisigs — threshold prose variants", () => {
+  it("parses 'has a default N/M signing requirement'", () => {
+    const rootDocNo = "A.3.7.1.3.11";
+    const subject = "Default Threshold Multisig";
+    const root = mkDoc("root8", rootDocNo, subject);
+    const kids = fiveChildDocs(rootDocNo, subject, {
+      threshold: `The ${subject} has a default 2/5 signing requirement.`,
+      signers: "The signers are one (1) addresses controlled by Core GovOps.",
+    });
+    const allDocs = [root, kids.threshold, kids.signers, kids.address, kids.usage, kids.modification];
+    const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
+    const docById = new Map(allDocs.map((d) => [d.id, d]));
+    const entityMap = new Map<string, any>();
+    const edges: any[] = [];
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges).run(makeAddEntity(entityMap));
+
+    const ent = [...entityMap.values()].find((e) => e.entity_type === "multisig");
+    expect(JSON.parse(ent.meta).threshold).toBe("2/5");
+  });
+
+  it("parses \"X's required number of signers is (word) out of (word)\"", () => {
+    const rootDocNo = "A.3.7.1.3.12";
+    const subject = "Worded Threshold Multisig";
+    const root = mkDoc("root9", rootDocNo, subject);
+    const kids = fiveChildDocs(rootDocNo, subject, {
+      threshold: `The ${subject}'s required number of signers is five (5) out of six (6).`,
+      signers: "The signers are one (1) addresses controlled by Core GovOps.",
+    });
+    const allDocs = [root, kids.threshold, kids.signers, kids.address, kids.usage, kids.modification];
+    const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
+    const docById = new Map(allDocs.map((d) => [d.id, d]));
+    const entityMap = new Map<string, any>();
+    const edges: any[] = [];
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges).run(makeAddEntity(entityMap));
+
+    const ent = [...entityMap.values()].find((e) => e.entity_type === "multisig");
+    expect(ent.name).toBe(subject);
+    expect(JSON.parse(ent.meta).threshold).toBe("5/6");
   });
 });
 

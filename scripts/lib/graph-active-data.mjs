@@ -54,6 +54,17 @@ const KNOWN_UNEXTRACTED_TABLES = new Set([
   "93f5b36b-06a7-4282-9fd7-14e0cbafd08e", // A.1.10.2.5.1.3.2.0.6.1
   "5f368e33-7a82-4244-a9ba-f285193ec043", // A.2.2.10.1.1.1.1.2.0.6.1 List Of Current Sky Direct Exposures
   "86fce840-f7f3-4617-bb58-d04db8731c9d", // A.2.2.10.1.1.1.1.3.0.6.1 List Of Previous Sky Direct Exposures
+  // A.2.2.10.1.1.1.6.2.1.3.1.0.6.1 Approved Deviations (triaged 2026-09-01,
+  // issues #342/#344/#346, atlas 1704409): rows record a per-Liquidity-Layer
+  // override of the default Freezer Multisig threshold/signers, described in
+  // free text ("Two (2) of four (4) signing requirement, with signers
+  // controlled by Phoenix Labs and VoteWizard"). No existing entity/edge
+  // models "this multisig's threshold deviates from the default" — modeling
+  // it needs a new edge type linking the deviation to the specific Liquidity
+  // Layer's Freezer Multisig entity, plus parsing that description prose. A
+  // deliberate deferral, not a mechanical regex extension — same reasoning
+  // as the Sky Direct Exposures tables above.
+  "c304cb9f-ab10-4d5b-8f94-588170b36a9e",
 ]);
 
 // Runs after Phase 2.5 (ICD-param has_address edges) so `edges` already
