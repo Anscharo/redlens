@@ -59,7 +59,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "In the reader, the » button on a document opens and closes everything beneath it — alt-click reverses the direction it would go next.",
           "Each document carries a type pill plus buttons to copy its link or its doc number.",
           "The owning Prime or Executor Agent shows as a pill in the left gutter of the document.",
-          "An Element Annotation shows an \"Annotates\" line under its doc number — click it to jump to the document it annotates, which the Atlas orders well below it.",
+          "An Element Annotation shows an \"Annotates\" line under its doc number — click it to jump to the document it annotates; the Atlas orders the annotation well below that document.",
         ],
       },
       {

@@ -87,9 +87,10 @@ describe("useNodeAnnotations", () => {
     });
   });
 
-  // byParent is keyed by DOC NUMBER in the atlas worker (`<target>.0.3.N` →
-  // `<target>`), so the target's annotations are already its children there —
-  // including the ones the parser's depth-6 cap reparented elsewhere.
+  // byParent is keyed by parent UUID. The atlas worker resolves `.0.3.N` via
+  // doc_no onto the target's id (`<target>.0.3.N` → target uuid), so the
+  // target's annotations are already its children there — including the ones
+  // the parser's depth-6 cap reparented elsewhere. A lookup by doc_no would miss.
   it("collects the target's Annotation children, in doc_no order", async () => {
     const ann2 = node({ id: "ann-2", doc_no: "A.3.0.3.2", type: "Annotation", title: "Second" });
     const ann1 = node({ id: "ann-1", doc_no: "A.3.0.3.1", type: "Annotation", title: "First" });
