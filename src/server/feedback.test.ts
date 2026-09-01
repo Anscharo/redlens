@@ -482,16 +482,20 @@ describe("posthog survey mirror", () => {
     await flush();
   }
 
+  // Every successful submit also emits the unconditional `feedback_received`
+  // receipt, so these assertions select the mirror by event name rather than
+  // by position — the two are independent and must not be coupled.
+  const surveys = () => captured.filter((c) => c.event === "survey sent");
+
   it("keys the response by question id when one is configured", async () => {
     config.feedbackSurveyId = "survey-uuid";
     config.feedbackSurveyQuestion = QUESTION;
 
     await submit("a report that should reach posthog");
 
-    expect(captured).toHaveLength(1);
-    expect(captured[0].event).toBe("survey sent");
-    expect(captured[0].props.$survey_id).toBe("survey-uuid");
-    expect(captured[0].props[`$survey_response_${QUESTION}`]).toBe("a report that should reach posthog");
+    expect(surveys()).toHaveLength(1);
+    expect(surveys()[0].props.$survey_id).toBe("survey-uuid");
+    expect(surveys()[0].props[`$survey_response_${QUESTION}`]).toBe("a report that should reach posthog");
   });
 
   // Regression: the key used to be interpolated unconditionally, so an empty
@@ -505,12 +509,12 @@ describe("posthog survey mirror", () => {
 
     await submit("no question id configured");
 
-    expect(captured).toHaveLength(1);
-    const keys = Object.keys(captured[0].props);
+    expect(surveys()).toHaveLength(1);
+    const keys = Object.keys(surveys()[0].props);
     expect(keys).not.toContain("$survey_response_");
     expect(keys.some((k) => k.startsWith("$survey_response_"))).toBe(false);
     // Falls back to the legacy un-suffixed property, valid for one question.
-    expect(captured[0].props.$survey_response).toBe("no question id configured");
+    expect(surveys()[0].props.$survey_response).toBe("no question id configured");
   });
 
   it("skips the mirror entirely when no survey is configured, but still writes the row", async () => {
@@ -519,7 +523,7 @@ describe("posthog survey mirror", () => {
 
     await submit("survey off — postgres is still the record");
 
-    expect(captured).toHaveLength(0);
+    expect(surveys()).toHaveLength(0);
     expect(rows).toHaveLength(1);
     expect(rows[0].message).toBe("survey off — postgres is still the record");
   });
@@ -532,6 +536,77 @@ describe("posthog survey mirror", () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0].ph_sent).toBe(true);
+  });
+});
+
+// The `feedback_received` receipt is what the PostHog "new feedback" alert
+// watches, so its fidelity IS the feature: it must fire on every real row and
+// on nothing else. The client's own `feedback_submitted` cannot do this job —
+// it fires on the silent-200 paths below and is lost to ad blockers.
+describe("posthog receipt (feedback_received)", () => {
+  const receipts = () => captured.filter((c) => c.event === "feedback_received");
+
+  async function post(obj: Record<string, unknown>) {
+    return handleFeedback(req("/api/feedback", { method: "POST", body: body(obj) }));
+  }
+
+  it("fires on a real insert even with no survey configured", async () => {
+    config.feedbackSurveyId = "";
+
+    const res = await post({ message: "something is broken", elapsedMs: 9000, url: "http://x/atlas" });
+
+    expect(res.status).toBe(201);
+    expect(rows).toHaveLength(1);
+    expect(receipts()).toHaveLength(1);
+    expect(receipts()[0].props.chars).toBe("something is broken".length);
+    expect(receipts()[0].props.url).toBe("http://x/atlas");
+    expect(receipts()[0].props.signed_in).toBe(false);
+  });
+
+  // Postgres is the record; the alert only needs to know a row arrived. Sending
+  // the text would put a bug reporter's words in a second system for nothing.
+  it("carries no message text", async () => {
+    await post({ message: "a very distinctive complaint", elapsedMs: 9000 });
+
+    const serialized = JSON.stringify(receipts()[0].props);
+    expect(serialized).not.toContain("a very distinctive complaint");
+  });
+
+  // Each of these 200s WITHOUT inserting. A receipt here would page us for
+  // feedback that does not exist — precisely the client event's failure mode.
+  it("stays silent on a honeypot submission", async () => {
+    const res = await post({ message: "spam", website: "http://spam.example", elapsedMs: 9000 });
+
+    expect(res.status).toBe(200);
+    expect(rows).toHaveLength(0);
+    expect(receipts()).toHaveLength(0);
+  });
+
+  it("stays silent on a submission under the timing floor", async () => {
+    const res = await post({ message: "too fast to be human", elapsedMs: 200 });
+
+    expect(res.status).toBe(200);
+    expect(rows).toHaveLength(0);
+    expect(receipts()).toHaveLength(0);
+  });
+
+  // Dedupe is keyed on the submitter cookie, so both posts must carry the same
+  // one — a fresh request mints a new key and would legitimately insert twice.
+  it("stays silent on a deduped resubmission, having fired once for the original", async () => {
+    const dbl = () =>
+      handleFeedback(
+        req("/api/feedback", {
+          method: "POST",
+          body: body({ message: "double-clicked", elapsedMs: 9000 }),
+          fbCookie: "same-submitter",
+        }),
+      );
+
+    expect((await dbl()).status).toBe(201);
+    expect((await dbl()).status).toBe(200);
+
+    expect(rows).toHaveLength(1);
+    expect(receipts()).toHaveLength(1);
   });
 });
 

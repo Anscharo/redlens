@@ -114,6 +114,24 @@ export async function handleFeedback(req: Request): Promise<Response> {
     `) as { id: string }[];
     const id = rows[0].id;
 
+    // Unconditional server-side receipt — the event the "new feedback" PostHog
+    // alert watches. Deliberately NOT the client's own `feedback_submitted`
+    // (FeedbackModal.tsx), which fires on the silent-200 paths too (honeypot /
+    // too-fast / duplicate) and is lost to ad blockers, so it can neither
+    // confirm nor count real rows. Distinct event name on purpose: reusing the
+    // client's would double-count every real submission and leave the alert
+    // and the open→submit funnel disagreeing. Unlike forwardToPosthog below
+    // this needs no config — a feedback tool nobody watches is the failure
+    // mode it exists to prevent. Carries no message text: Postgres is the
+    // record, and the alert only needs to know something arrived.
+    captureServerEvent("feedback_received", str(body.sessionId) ?? submitterKey, {
+      chars: message.length,
+      url: str(body.url),
+      node_id: str(body.nodeId),
+      signed_in: Boolean(userId),
+      app_commit: config.appCommit || null,
+    });
+
     forwardToPosthog(id, message, body, submitterKey);
     return json({ ok: true, id }, 201, cookies);
   } catch (e) {
