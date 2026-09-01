@@ -713,3 +713,92 @@ test("repetition handbrake: a second degeneration ships empty — no retry loop"
   expect(clears.every((c) => c.type === "clear" && c.reason === "degenerate")).toBe(true);
   expect(events.at(-1)).toMatchObject({ type: "done", content: "" });
 });
+
+// ── Promised-tool guard (chat/announcement.ts) ──────────────────────────────
+// The 2026-08-20 failure: the round writes "one moment while I search" and
+// emits no tool_call, so the loop's "text + no tool calls = final answer"
+// contract shipped the promise as the answer. The turn had no citation, figure
+// or quote in it, so every downstream gate was silent too — the verifier saw
+// no claims and degraded to `unverified`, hiding the badge.
+const ANNOUNCEMENT = "Sure! Let me look that up for you. One moment while I search the atlas.";
+
+test("promised-tool guard: an announcement with no tool call buys one more round WITH tools", async () => {
+  const captured: Captured[] = [];
+  const rounds = [
+    [textChunk(ANNOUNCEMENT), finishChunk("stop"), usageChunk(50, 20)],
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    [textChunk("The atlas defines it as a key."), finishChunk("stop"), usageChunk(90, 30)],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 4 }));
+
+  // The replay keeps tools available — the whole point; a forced-text retry
+  // could never make the call the round skipped.
+  expect(captured[1].toolChoice).toBe("auto");
+  const steer = captured[1].messages?.at(-1);
+  expect(steer?.role).toBe("system");
+  expect(String(steer?.content)).toContain("announced a lookup");
+  // The abandoned announcement is NOT replayed to the model: it never landed on
+  // msgs, so the retry cannot mistake its own promise for a kept one.
+  expect(captured[1].messages?.some((m) => String(m.content ?? "").includes("One moment"))).toBe(false);
+  // The client is told to set the streamed promise aside, same reason it
+  // already understands for pre-tool prose.
+  expect(events.some((e) => e.type === "clear" && e.reason === "tool_round")).toBe(true);
+
+  const done = events.at(-1)!;
+  expect(done.type === "done" && done.content).toBe("The atlas defines it as a key.");
+  expect(done.type === "done" && done.toolCalls.length).toBe(1);
+});
+
+test("promised-tool guard: fires at most once — a second announcement ships as-is", async () => {
+  const captured: Captured[] = [];
+  const rounds = [
+    [textChunk(ANNOUNCEMENT), finishChunk("stop")],
+    [textChunk("Hold on, let me check the atlas."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 4 }));
+  expect(captured).toHaveLength(2); // one retry, then it stands
+  expect(events.at(-1)!.type === "done" && (events.at(-1) as { content: string }).content).toBe("Hold on, let me check the atlas.");
+});
+
+test("promised-tool guard: an answer that made tool calls is never retried, however it is phrased", async () => {
+  const captured: Captured[] = [];
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    // Announcement-shaped, but the turn HAS evidence — this is prose about a
+    // search already performed, not a promise. Zero tool calls is the trigger.
+    [textChunk(ANNOUNCEMENT), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 4 }));
+  expect(captured).toHaveLength(2);
+  expect(events.at(-1)!.type === "done" && (events.at(-1) as { content: string }).content).toBe(ANNOUNCEMENT);
+});
+
+test("promised-tool guard: a real answer is never retried, and the final round is exempt", async () => {
+  const answer = "A Rate Limit ID uniquely identifies a rate limit.";
+  const plain: Captured[] = [];
+  const plainEvents = await collect(
+    runChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(answer), finishChunk("stop")]], plain), maxIterations: 4 }),
+  );
+  expect(plain).toHaveLength(1);
+  expect(plainEvents.at(-1)!.type === "done" && (plainEvents.at(-1) as { content: string }).content).toBe(answer);
+
+  // maxIterations 1 ⇒ the only round IS `last` (toolChoice "none"), so there is
+  // no round left to retry into and the guard must stand down.
+  const lastOnly: Captured[] = [];
+  await collect(runChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(ANNOUNCEMENT), finishChunk("stop")]], lastOnly), maxIterations: 1 }));
+  expect(lastOnly).toHaveLength(1);
+});
+
+test("promised-tool guard: an empty retry still falls through to the compose guard", async () => {
+  const captured: Captured[] = [];
+  const rounds = [
+    [textChunk(ANNOUNCEMENT), finishChunk("stop")],
+    [finishChunk("stop")], // the retry produces nothing at all
+    [textChunk("Composed after all."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 4 }));
+  // Bounded cascade: one announcement retry + one compose attempt, never more.
+  expect(captured).toHaveLength(3);
+  expect(captured[2].toolChoice).toBe("none");
+  expect(events.at(-1)!.type === "done" && (events.at(-1) as { content: string }).content).toBe("Composed after all.");
+});

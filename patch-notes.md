@@ -34,6 +34,7 @@
 -->
 ## 2026-09-01
 - Stopped Chat revising away correct answers about the app's own features
+- Fixed Chat replying that it would look something up and then stopping without doing it
 
 ## 2026-08-27
 - Tinted Giedi Connect tool names gold and made reader document hover easier to see

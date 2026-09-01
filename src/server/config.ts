@@ -373,6 +373,37 @@ export const config = {
   // PostHog's chat_route_reason="similarity" share, and re-run
   // `pnpm eval:complexity` with DATABASE_URL set before lowering this.
   chatComplexitySimilarityMargin: Number(process.env.CHAT_COMPLEXITY_SIMILARITY_MARGIN ?? 0.25),
+
+  // FOURTH consumer of the same on-device embedding (chat/announcement.ts), and
+  // the first to score an ANSWER rather than a question: did the round announce
+  // a lookup ("One moment while I search the atlas") instead of making one? The
+  // deterministic envelope does the heavy lifting — anything checkable in the
+  // text (a link, a figure, a doc number) means it IS an answer and the lane is
+  // never consulted — so this margin only ever separates announcements from the
+  // narrow class of answers that carry nothing checkable at all: greetings,
+  // clarifying questions, scope refusals, gap admissions, link-free product
+  // prose. Fitted by `pnpm eval:announce`.
+  //
+  // The cost asymmetry favours firing, though less lopsidedly than the
+  // complexity lane: a false fire spends ONE extra generation and the model
+  // usually returns the same answer, while a miss ships a promise as the answer
+  // and the user has to re-prompt to get anything at all. Retries are capped at
+  // one per turn, so the worst case is bounded.
+  // Measured (`pnpm eval:announce`, 135 cases — 28 announcements, 107 answers
+  // including 80 generated from real atlas subjects): regex alone 57% recall at
+  // zero false fires; the hybrid reaches **75% at zero false fires**, and the
+  // zero-false-fire plateau runs 0.200-0.325, so 0.25 sits inside it rather than
+  // on a cliff. Dropping to the F2 optimum (0.150) buys 2 more announcements for
+  // 1 false fire — a courtesy ("You're welcome — glad that helped"). Below 0.125
+  // the false fires become product answers ("Searching the atlas is done from the
+  // search bar"), which is exactly the class this lane must never touch, so the
+  // zero-false-fire operating point is the right one here even though the two
+  // sibling lanes ship permissive margins. Real traffic agrees, and mostly
+  // without the embedding: of 18 tool-free assistant answers, 17 never get past
+  // the deterministic envelope and the 1 that does does not fire — but that is a
+  // DEV database, so re-run with a production DATABASE_URL before trusting a
+  // lower margin.
+  chatAnnouncementSimilarityMargin: Number(process.env.CHAT_ANNOUNCEMENT_SIMILARITY_MARGIN ?? 0.25),
   // Evidence digest budget for the final audit, newest-round-first.
   chatVerifierEvidenceMaxChars: Number(process.env.CHAT_VERIFIER_EVIDENCE_MAX_CHARS ?? 120_000),
   // Hard cap on the verifier call; timeout → null → "unverified" badge (chat
