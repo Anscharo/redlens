@@ -398,9 +398,20 @@ export const CollapsibleNode = memo(function CollapsibleNode({
                 supporting `0` directory after every real sibling (compose.py's
                 sort key), so A.2.8's annotations sit 253 rows below it. The
                 row's own click handlers bail on `closest("a")`, so following it
-                doesn't also select or toggle the row. */}
+                doesn't also select or toggle the row. Primary click goes
+                through context navigate() (keeps ?view= / optimistic
+                selection); AtlasLink's href is for middle-click / copy —
+                AtlasLink only folds split/subset, not the active tab. */}
             {annotatesId ? (
-              <AtlasLink to={atlasHref(annotatesId)} className="atlas-annotates">
+              <AtlasLink
+                to={atlasHref(annotatesId)}
+                className="atlas-annotates"
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.button !== 0) return;
+                  e.preventDefault();
+                  navigate(annotatesId);
+                }}
+              >
                 Annotates {annotates}
               </AtlasLink>
             ) : (

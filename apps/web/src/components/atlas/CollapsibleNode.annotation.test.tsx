@@ -4,8 +4,8 @@
 // columns further in, so they read as children of that doc's children. Three
 // corrections, all asserted here: the "Annotates <target>" label, the smaller
 // trailing chiclets, and the dropped chevron column.
-import { describe, it, expect, afterEach } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { describe, it, expect, afterEach, vi } from "vitest";
+import { render, cleanup, fireEvent } from "@testing-library/react";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { AtlasActionsContext } from "./AtlasActionsContext";
 import { makeNode, makeFlatEntry } from "../../test/fixtures";
@@ -15,13 +15,19 @@ afterEach(cleanup);
 
 function setup(
   over: Partial<AtlasNode>,
-  props: { isExpanded?: boolean; agentName?: string; docNoToId?: Map<string, string> } = {},
+  props: {
+    isExpanded?: boolean;
+    agentName?: string;
+    docNoToId?: Map<string, string>;
+    navigate?: (id: string) => void;
+  } = {},
 ) {
   const node = makeNode({ id: "uuid-ann", ...over });
+  const navigate = props.navigate ?? (() => {});
   return render(
     <AtlasActionsContext.Provider
       value={{
-        navigate: () => {},
+        navigate,
         toggle: () => {},
         splitNavigate: () => {},
         docNoToId: props.docNoToId,
@@ -84,6 +90,32 @@ describe("CollapsibleNode annotation rows", () => {
     expect(link).not.toBeNull();
     expect(link.getAttribute("href")).toBe("/atlas?id=uuid-target");
     expect(link.textContent).toBe("Annotates A.2.8");
+  });
+
+  // AtlasLink's href only folds split/subset — primary click must go through
+  // context navigate() so ?view= and optimistic selection survive the jump.
+  it("primary-clicks through context navigate, not the href alone", () => {
+    const navigate = vi.fn();
+    const { container } = setup(ANNOTATION, {
+      docNoToId: new Map([["A.2.8", "uuid-target"]]),
+      navigate,
+    });
+    fireEvent.click(container.querySelector("a.atlas-annotates")!);
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledWith("uuid-target");
+  });
+
+  it("leaves modifier-clicks on the href so middle-click / cmd-click still work", () => {
+    const navigate = vi.fn();
+    const { container } = setup(ANNOTATION, {
+      docNoToId: new Map([["A.2.8", "uuid-target"]]),
+      navigate,
+    });
+    const link = container.querySelector("a.atlas-annotates")!;
+    fireEvent.click(link, { metaKey: true });
+    fireEvent.click(link, { ctrlKey: true });
+    fireEvent.click(link, { shiftKey: true });
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   // An un-merged deep tier (or a provider without the map) must not produce a
