@@ -11,16 +11,12 @@
 // module-scope mock.module("./db.ts", …) providing every named export the real
 // module has (checked by `pnpm check:mocks`).
 //
-// FILESYSTEM SAFETY — main() only READS docs.json off config.publicDir (all
-// writes go through the mocked `sql`). config.publicDir is set/restored
-// directly in beforeEach/afterEach, not through a helper that could revert it
-// before an awaited internal read runs — see the bug fixed in
-// atlas-updater.test.ts's withPublicDir for why that matters.
+// NO FILESYSTEM — main() reads docs from atlas_doc_meta (via the mocked `sql`),
+// not from public/docs.json; the file dependency crashed every worker fast-exit
+// run with ENOENT (2026-09-01) because fresh worker containers never build disk
+// artifacts. The fixture seeds fakeDb.docs instead of a tempdir docs.json.
 import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import { toUuidArrayLiteral, fromUuidArray } from "./pg-array.ts";
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
 import type { AtlasNode } from "./retrieval/indexes.ts";
 import { buildEmbedText, contentHash } from "./retrieval/embed-text.ts";
 import { buildUnits, foldedIds } from "./retrieval/embed-units.ts";
@@ -33,10 +29,12 @@ interface FakeDb {
     attribution_only?: boolean;
     member_ids?: unknown;
   }[]; // existing atlas_doc_embeddings rows
+  atlasSha: string | null; // sync_state.atlas_sha; null = row absent
+  docs: AtlasNode[]; // atlas_doc_meta rows (already node-shaped — see sqlTag)
 }
-let fakeDb: FakeDb = { colType: "vector(1024)", have: [] };
+let fakeDb: FakeDb = { colType: "vector(1024)", have: [], atlasSha: null, docs: [] };
 function resetFakeDb(): void {
-  fakeDb = { colType: "vector(1024)", have: [] };
+  fakeDb = { colType: "vector(1024)", have: [], atlasSha: null, docs: [] };
 }
 
 interface UnsafeCall {
@@ -51,9 +49,11 @@ interface UnsafeCall {
 }
 let unsafeCalls: UnsafeCall[] = [];
 let ended = false;
+let begins = 0;
 function resetRecording(): void {
   unsafeCalls = [];
   ended = false;
+  begins = 0;
 }
 
 async function unsafeMock(query: string, params?: unknown[]): Promise<unknown> {
@@ -82,11 +82,25 @@ async function sqlTag(strings: TemplateStringsArray, ..._values: unknown[]): Pro
   if (text.includes("FROM atlas_doc_embeddings") && text.includes("content_hash")) {
     return fakeDb.have;
   }
+  if (text.includes("FROM sync_state")) {
+    return fakeDb.atlasSha === null ? [] : [{ atlas_sha: fakeDb.atlasSha }];
+  }
+  if (text.includes("FROM atlas_doc_meta")) {
+    // The real SELECT aliases columns back to the node field names (parentId,
+    // order, contentHash, addressRefs), so node-shaped fixtures round-trip
+    // through docRowToNode unchanged.
+    return fakeDb.docs;
+  }
   throw new Error(`sync-embeddings.test.ts: unmocked sql template query: ${text}`);
 }
 
 const sqlMock = Object.assign(sqlTag, {
   unsafe: unsafeMock,
+  // Same tagged-template shape as `sql` itself — matches atlas-updater.test.ts.
+  begin: async <T>(fn: (tx: typeof sqlTag) => Promise<T>): Promise<T> => {
+    begins++;
+    return fn(sqlTag);
+  },
   end: async (): Promise<void> => {
     ended = true;
   },
@@ -221,8 +235,6 @@ describe("withRetry", () => {
 });
 
 describe("main()", () => {
-  let dir: string;
-  let prevPublicDir: string;
   let prevPolicy: string;
   const noopMigrations = async () => [];
   const failEmbed = async (): Promise<number[][]> => {
@@ -233,24 +245,20 @@ describe("main()", () => {
   beforeEach(() => {
     resetFakeDb();
     resetRecording();
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), "sync-embeddings-main-"));
-    prevPublicDir = config.publicDir;
     prevPolicy = config.embedGroupPolicy;
-    config.publicDir = dir;
   });
   afterEach(() => {
-    // MUST restore — config.publicDir is a shared singleton read by every
-    // other test file in this `bun test` process (loadIndexes() et al.), and
-    // this dir is about to be rm -rf'd. See sync.test.ts's afterEach for the
-    // full story of the bug this guards against (it corrupted unrelated
-    // chat/verify suites under the full pnpm test:server run).
-    config.publicDir = prevPublicDir;
+    // config.embedGroupPolicy is a shared singleton — restore it for the other
+    // suites in this `bun test` process.
     config.embedGroupPolicy = prevPolicy;
-    fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  // Seeds the DB-backed doc source (sync_state.atlas_sha + atlas_doc_meta).
+  // Named for what the worker build used to do — write docs.json — but main()
+  // now reads the DB, so this seeds fakeDb instead.
   function writeDocs(atlasCommit: string, nodes: Record<string, AtlasNode>) {
-    fs.writeFileSync(path.join(dir, "docs.json"), JSON.stringify({ atlasCommit, nodes }));
+    fakeDb.atlasSha = atlasCommit;
+    fakeDb.docs = Object.values(nodes);
   }
 
   it("treats reordered member_ids as unchanged — member_ids is a set, not a sequence", async () => {
@@ -378,10 +386,51 @@ describe("main()", () => {
 
   it("proceeds normally when the column dimension matches EMBED_DIM", async () => {
     fakeDb.colType = "vector(1024)";
-    writeDocs("sha1", {}); // no docs at all → 0 stale, short-circuits cleanly
+    writeDocs("sha1", {}); // no docs at all → clean empty-meta skip
     await expect(
       main({ runMigrations: noopMigrations, embedBatch: failEmbed, batch: 50, sleep: instantSleep }),
     ).resolves.toBeUndefined();
+  });
+
+  it("skips cleanly (warn, no embeds, pool closed) when atlas_doc_meta is empty — an unsynced DB is not 'nothing stale'", async () => {
+    // The pre-DB version crashed here instead: it read public/docs.json, which
+    // a fresh worker container doesn't have on the fast-exit path, so every
+    // fast-exit cron run exited 1 with ENOENT and the reconcile only ever ran
+    // after full builds.
+    const { warns, restore } = captureLog();
+    try {
+      await expect(
+        main({ runMigrations: noopMigrations, embedBatch: failEmbed, batch: 50, sleep: instantSleep }),
+      ).resolves.toBeUndefined();
+    } finally {
+      restore();
+    }
+    expect(warns.some((w) => w.includes("atlas_doc_meta is empty"))).toBe(true);
+    expect(unsafeCalls.some((c) => c.kind === "embed-upsert")).toBe(false);
+    expect(ended).toBe(true);
+    expect(begins).toBe(1);
+  });
+
+  it("stamps each upserted row with sync_state.atlas_sha ('unknown' when the row is absent)", async () => {
+    writeDocs("db-sha-42", { a: doc("a", "A.1", "alpha") });
+    await main({
+      runMigrations: noopMigrations,
+      embedBatch: async (texts) => texts.map(() => [1]),
+      batch: 50,
+      sleep: instantSleep,
+    });
+    expect(unsafeCalls.find((c) => c.kind === "embed-upsert")!.params).toContain("db-sha-42");
+
+    resetRecording();
+    fakeDb.atlasSha = null; // sync_state row absent
+    fakeDb.have = [];
+    await main({
+      runMigrations: noopMigrations,
+      embedBatch: async (texts) => texts.map(() => [1]),
+      batch: 50,
+      sleep: instantSleep,
+    });
+    expect(unsafeCalls.find((c) => c.kind === "embed-upsert")!.params).toContain("unknown");
   });
 
   it("skips the dimension check (does not throw) when pg_attribute has no row yet — table not migrated is not the same bug as a dimension mismatch", async () => {

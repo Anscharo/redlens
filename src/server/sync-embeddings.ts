@@ -6,14 +6,12 @@
 // clean sync is a no-op.
 //
 //   bun src/server/sync-embeddings.ts   # embed all new/changed docs
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { sql, toVectorLiteral, toUuidArrayLiteral } from "./db.ts";
 import { fromUuidArray } from "./pg-array.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
 import { embedBatch, EMBED_DIM } from "./retrieval/embed.ts";
-import type { AtlasNode } from "./retrieval/indexes.ts";
+import { docRowToNode, loadDocMetaSnapshot } from "./retrieval/indexes.ts";
 import { buildUnits, foldedIds, GROUP_POLICIES, type EmbedUnit, type GroupPolicy } from "./retrieval/embed-units.ts";
 import { buildEmbedText, contentHash } from "./retrieval/embed-text.ts";
 
@@ -122,6 +120,14 @@ const realEmbedDeps: EmbedDeps = {
 };
 
 export async function main(deps: EmbedDeps = realEmbedDeps) {
+  try {
+    await runEmbedReconcile(deps);
+  } finally {
+    await sql.end();
+  }
+}
+
+async function runEmbedReconcile(deps: EmbedDeps): Promise<void> {
   await deps.runMigrations();
 
   // Guard: the EMBED_DIM code constant must match the column's fixed dimension
@@ -139,9 +145,22 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
     );
   }
 
-  const docsFile = JSON.parse(readFileSync(join(config.publicDir, "docs.json"), "utf8")) as { atlasCommit?: string; nodes: Record<string, AtlasNode> };
-  const atlasSha: string = docsFile.atlasCommit ?? "unknown";
-  const docs = Object.values(docsFile.nodes);
+  // Docs come from atlas_doc_meta, NOT public/docs.json: the worker's fast-exit
+  // path runs this reconcile in a fresh container where no build produced disk
+  // artifacts, so the file read crashed every fast-exit cron run with ENOENT
+  // (2026-09-01) and the reconcile only ever ran after full builds. Same
+  // transactional snapshot (and row shape) as the web updater's refresh-from-store,
+  // so a concurrent worker commit cannot pair a new sha with the previous docs,
+  // and a dropped column cannot drift between the two readers.
+  const { atlasSha: sha, rows: docRows } = await loadDocMetaSnapshot(sql);
+  const atlasSha: string = sha ?? "unknown";
+  const docs = docRows.map(docRowToNode);
+  // An unsynced DB is a precondition failure, not "nothing stale": embedding
+  // zero docs would report a clean no-op while search stays vectorless.
+  if (docs.length === 0) {
+    console.warn("sync:embeddings — atlas_doc_meta is empty (structural sync has not run); skipping");
+    return;
+  }
 
   const have = new Map<string, HaveRow>(
     (
@@ -216,7 +235,6 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
     `sync:embeddings — ${docs.length} docs, ${units.length} units (${policy}), ${total} stale/new to embed, ${toMeta.length} grouping metadata`,
   );
   if (total === 0 && toMeta.length === 0) {
-    await sql.end();
     return;
   }
 
@@ -284,7 +302,6 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
   console.log(
     `sync:embeddings — done (${done} vectors${skipped ? `, ${skipped} skipped (retry next run)` : ""}${metaNote}, atlas ${atlasSha.slice(0, 12)})`,
   );
-  await sql.end();
 }
 
 // Only run when launched directly (`bun src/server/sync-embeddings.ts`) — every

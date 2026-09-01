@@ -57,6 +57,30 @@ export function docRowToNode(r: DocMetaRow): AtlasNode {
   };
 }
 
+// The one DB read of DocMetaRow. Both the web updater's refresh-from-store and
+// the worker's embeddings reconcile must use this — a copy-pasted SELECT that
+// drops a column would rebuild docs.json (or embeddings) missing that field,
+// which is the failure class DocMetaRow exists to prevent. Sha + rows come
+// from one transaction so a concurrent worker commit cannot pair a new
+// sync_state pointer with the previous atlas_doc_meta snapshot.
+type SqlTag = (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
+interface SqlWithTx {
+  begin<T>(fn: (tx: SqlTag) => Promise<T>): Promise<T>;
+}
+
+export async function loadDocMetaSnapshot(db: SqlWithTx): Promise<{ atlasSha: string | null; rows: DocMetaRow[] }> {
+  return db.begin(async (tx) => {
+    const st = (await tx`SELECT atlas_sha FROM sync_state WHERE id = 1`) as { atlas_sha?: string }[];
+    const rows = (await tx`
+      SELECT id, doc_no, title, type, depth,
+             parent_id AS "parentId", content, ord AS "order",
+             node_content_hash AS "contentHash", address_refs AS "addressRefs"
+      FROM atlas_doc_meta ORDER BY ord
+    `) as unknown as DocMetaRow[];
+    return { atlasSha: st[0]?.atlas_sha ?? null, rows };
+  });
+}
+
 // The docs.json envelope contract ({ atlasCommit, nodes }) read by
 // readArtifactsFromDisk and the server. One writer, so the shape can't drift.
 // docs.json keeps full nodes (content + contentHash) — it's the server/internal
