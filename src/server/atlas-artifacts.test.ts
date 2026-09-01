@@ -120,6 +120,20 @@ describe("getArtifacts", () => {
     rows = [];
     expect(await getArtifacts("never-published", undefined, fakeSql)).toEqual([]);
   });
+
+  it("binds a names filter as a jsonb literal, never a bare JS array", async () => {
+    // A bare `ANY(${array})` reaches Postgres as the comma-joined element text
+    // without braces → `malformed array literal`, which broke every production
+    // refresh-from-store tick on 2026-09-01. The raw array must go through a
+    // `::jsonb` cast (Bun JSON-encodes it) and be unwrapped server-side —
+    // pre-stringifying instead double-encodes into a jsonb string scalar,
+    // which the live test below rejects.
+    rows = [];
+    await getArtifacts("abc123", ["a.json", "b.json"], fakeSql);
+    expect(queries[0]!.text).toContain("jsonb_array_elements_text");
+    expect(queries[0]!.text).toContain("::jsonb");
+    expect(queries[0]!.values[1]).toEqual(["a.json", "b.json"]);
+  });
 });
 
 describe("listArtifactShas", () => {
@@ -196,6 +210,13 @@ describe("live BYTEA round-trip (requires DATABASE_URL)", () => {
       expect(got.sha256).toBe(want.sha256);
     }
     expect(await listArtifactShas(50, db)).toContain(liveSha);
+
+    // The names-filtered branch — the one the updater's refresh-from-store
+    // actually calls — MUST hit a real server here: the fake-sql tests cannot
+    // see an encoding Postgres rejects, and this exact call shipped broken
+    // (`malformed array literal`, 2026-09-01) with every mocked test green.
+    const filtered = await getArtifacts(liveSha, ["small.json", "absent.json"], db);
+    expect(filtered.map((a) => a.name)).toEqual(["small.json"]);
   });
 });
 
