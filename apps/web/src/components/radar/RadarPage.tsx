@@ -11,6 +11,7 @@ import { ActorList } from "./ActorList";
 import { ActorDashboard } from "./ActorDashboard";
 import { ActorSettlementsPage } from "./ActorSettlementsPage";
 import { PrimitiveDashboard } from "./PrimitiveDashboard";
+import { MscOverview } from "./MscOverview";
 import { Drawer, DrawerToggle } from "../Drawer";
 import { Loading } from "../Loading";
 import { RadarProvider } from "./RadarContext";
@@ -53,6 +54,12 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
   const rewardsIndex = useMemo(() => buildRewardsIndex(docs, graph), [docs, graph]);
   const allActiveDataRows = useMemo(() => buildActiveDataRows(docs, graph), [docs, graph]);
   const primitiveStats = useMemo(() => buildPrimitiveStats(graph, docs), [graph, docs]);
+  // Roster for the MSC overview's prime→actor mapping — derived, never a
+  // hardcoded prime list.
+  const overviewActors = useMemo(
+    () => sidebarGroups.flatMap((g) => g.actors.map((a) => ({ slug: a.slug, name: a.name }))),
+    [sidebarGroups],
+  );
   const profile = useMemo(() => {
     if (!actorSlug) return null;
     return buildActorProfile(actorSlug, graph, docs, rewardsIndex, allActiveDataRows);
@@ -88,7 +95,10 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
         <ActorList groups={filteredGroups} selectedSlug={actorSlug ?? null} />
       </Drawer>
       {!actorSlug ? (
-        <PrimitiveDashboard agents={primitiveStats} />
+        <div className="flex-1 min-w-0">
+          <MscOverview actors={overviewActors} />
+          <PrimitiveDashboard agents={primitiveStats} />
+        </div>
       ) : !profile ? (
         <Loading>actor not found</Loading>
       ) : page === "settlements" ? (

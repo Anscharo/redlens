@@ -11,12 +11,12 @@ import {
   headlineFigures,
   settlementsArtifactMissing,
 } from "../../lib/settlements";
-import type { HeadlineFigure } from "../../lib/settlements";
 import { loadForumTopics } from "../../lib/forumTopics";
 import { forumTopicUrlForMonth } from "@/lib/forumMonths";
 import { SettlementBars } from "./SettlementBars";
 import { SettlementDemandBars } from "./SettlementDemandBars";
 import { ActorSettlementVenues } from "./ActorSettlementVenues";
+import { SettlementFigure } from "./SettlementFigures";
 
 const mscCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
@@ -87,7 +87,7 @@ export function ActorSettlements({ slug, name }: Props) {
       />
       <div className="flex flex-wrap gap-x-6 gap-y-1 mb-4 text-sm">
         {headlineFigures(report).map((f) => (
-          <Figure key={f.label} {...f} />
+          <SettlementFigure key={f.label} {...f} />
         ))}
       </div>
       {gap > 1 && (
@@ -104,23 +104,5 @@ export function ActorSettlements({ slug, name }: Props) {
       />
       <ActorSettlementVenues report={report} name={name} />
     </>
-  );
-}
-
-function Figure({ label, value, component }: HeadlineFigure) {
-  return (
-    <div>
-      <div className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>
-        {label}
-      </div>
-      <div
-        className={component ? "mono text-sm" : "mono text-lg"}
-        style={{
-          color: component ? "var(--tan-3)" : value < 0 ? "var(--accent)" : "var(--tan)",
-        }}
-      >
-        {formatUsd(value)}
-      </div>
-    </div>
   );
 }

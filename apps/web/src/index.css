@@ -2561,3 +2561,69 @@ button.atlas-node-expand-all:focus-visible {
 .msc-venue-row {
   cursor: pointer;
 }
+/* ─── MSC ecosystem ring (radar index overview) ─── */
+.msc-ring {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  margin: 0 auto;
+  overflow: visible;
+}
+.msc-ring-sky-disc {
+  fill: var(--bg-deep);
+  stroke: var(--depth-4);
+}
+.msc-ring-center {
+  fill: var(--tan);
+}
+.msc-ring-band {
+  fill: var(--border);
+}
+.msc-ring-sky {
+  fill: var(--depth-4);
+}
+.msc-ring-kept {
+  fill: var(--entity-delegate-org);
+}
+.msc-ring-demand {
+  fill: var(--entity-facilitator-org);
+}
+.msc-ring-loss {
+  fill: var(--accent);
+}
+.msc-ring-prime path {
+  opacity: 0.55;
+  transition: opacity 0.1s;
+  cursor: pointer;
+}
+.msc-ring-prime:hover path,
+a:focus-visible > .msc-ring-prime path {
+  opacity: 1;
+}
+.msc-ring-label {
+  fill: var(--tan-2);
+}
+.msc-ring-prime:hover .msc-ring-label {
+  fill: var(--tan);
+}
+/* Per-prime figures ride on the flows; halo rules copied from
+   .msc-sankey-amounts — same readable-over-ribbon trick. The whole prime is
+   one hover target, so plain descendant hover works (no generated per-id
+   rules needed). */
+.msc-ring-amounts {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+.msc-ring-prime:hover .msc-ring-amounts,
+a:focus-visible > .msc-ring-prime .msc-ring-amounts {
+  opacity: 1;
+}
+.msc-ring-amounts text {
+  fill: var(--tan);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}

@@ -168,6 +168,17 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: ["From Radar, open a primitive to view its dashboard and activation matrix."],
       },
       {
+        name: "MSC ecosystem overview",
+        what: "The Radar front page opens with a cross-prime Monthly Settlement Cycle ring — Sky in the middle, each Prime's month as a wedge with its To-Sky flow docking inward and supply-kept / demand-side stubs pointing outward.",
+        how: [
+          "Open Radar; the ring shows the latest settled month across all Primes.",
+          "Click a month in the Ecosystem by month bars to switch the ring and the figures under it.",
+          "Hover a Prime's wedge for its figures, including the cost-of-funds / Sky Direct Exposure split and the demand-side mix.",
+          "Click a wedge to open that Prime's settlement page for the month you had selected.",
+        ],
+        note: "Wedge sizes are square-root scaled so small Primes stay visible — compare exact figures, not areas. Hidden when settlements.json has not been built. Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
+      },
+      {
         name: "Monthly settlement charts",
         what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows last month's take; a full cycle page charts Sky's share, supply kept, and demand-side, plus the demand-side mix and venue AUM.",
         how: [

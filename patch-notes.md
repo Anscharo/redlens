@@ -32,6 +32,9 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
+## 2026-09-01
+- Added a Monthly Settlement Cycle overview to the Radar front page — a circular flow chart of every Prime's month with Sky in the middle, with month selection and click-through to each Prime's settlement page
+
 ## 2026-08-27
 - Tinted Giedi Connect tool names gold and made reader document hover easier to see
 - Improved Chat: it can now draft messages explaining what the Atlas says, answer settlement questions across all Prime Agents, keeps answers it has already shown you, and has a higher usage limit
