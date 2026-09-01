@@ -2,7 +2,7 @@
 //
 // DB MOCKING — this file did not previously touch ./db.ts at all (every
 // existing test below drives runTick/makeTickDeps through fakes). The new
-// getDbAtlasSha/runRefreshFromDb/real-tick tests need `sql` to behave like a
+// getDbAtlasSha/runRefreshFromStore/real-tick tests need `sql` to behave like a
 // real (but empty-by-default) Postgres instead of whatever an unrelated
 // earlier test file's connection state happens to be. Mirrors migrate.test.ts
 // / collections.test.ts's convention: ONE module-scope mock.module("./db.ts",
@@ -10,20 +10,20 @@
 // `pnpm check:mocks` — see scripts/aux/audit-mock-modules.mjs), with a
 // swappable `fakeDb` fixture reset per-describe-block rather than per-file, so
 // existing describes that never reference it are unaffected.
-import { describe, it, expect, test, afterAll, afterEach, beforeEach, mock } from "bun:test";
+import { describe, it, expect, afterAll, afterEach, beforeEach, mock } from "bun:test";
 import { toUuidArrayLiteral, fromUuidArray } from "./pg-array.ts";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as zlib from "node:zlib";
+import { gzipSync } from "node:zlib";
+import { createHash } from "node:crypto";
 // Type-only: erased at compile time, so it is unaffected by (and does not
 // participate in) the mock.module("./db.ts", …) registration below — only the
 // VALUE bindings need the dynamic `await import` a few lines down.
-import type { TickDeps, UpdaterState, SpawnFn } from "./atlas-updater.ts";
+import type { TickDeps, UpdaterState, ArtifactLoader } from "./atlas-updater.ts";
 import { getIndexes, buildIndexes, setIndexes, rebuildFromDisk } from "./retrieval/indexes.ts";
-import { buildAddrRows } from "./retrieval/doc-rows.ts";
 import { config } from "./config.ts";
-import { pinnedBundleSha, pinBundleSha } from "./bundle-store.ts";
+import { pinnedBundleSha, pinBundleSha, PUBLISHED_ARTIFACTS } from "./bundle-store.ts";
 
 interface FakeDb {
   syncStateAtlasSha: string | null; // null = "no row yet" (fresh/empty DB)
@@ -46,7 +46,7 @@ function resetFakeDb(): void {
 }
 
 // One handler serves both the top-level `sql\`…\`` calls (getDbAtlasSha,
-// startBootEmbeddings) and the `tx\`…\`` calls inside sql.begin (runRefreshFromDb)
+// startBootEmbeddings) and the `tx\`…\`` calls inside sql.begin (runRefreshFromStore)
 // — a real Bun transaction handle has the same tagged-template call shape as
 // `sql` itself, so reusing this same function as `tx` is faithful, not a shortcut.
 async function fakeQuery(strings: TemplateStringsArray, ..._values: unknown[]): Promise<unknown> {
@@ -89,18 +89,15 @@ const {
   nextDivergedSince,
   publishOutcome,
   shouldRetryPublish,
-  dropStaleSearchIndex,
   runTick,
   makeTickDeps,
   isUpdaterEnabled,
   startUpdater,
-  groupAddrRowsToAtlas,
   spawnCollect,
   getDbAtlasSha,
-  runRefreshFromDb,
+  runRefreshFromStore,
   startBootEmbeddings,
   getUpdaterState,
-  sameRealDir,
 } = await import("./atlas-updater.ts");
 
 const A = "a".repeat(40);
@@ -115,6 +112,18 @@ describe("decide", () => {
 
   it("idles when fresh (upstream === live)", () => {
     expect(decide({ upstream: A, live: A, building: false, now: T, nextAttemptAt: 0 })).toBe("idle");
+  });
+
+  it("builds when live===upstream but this process has not hydrated from the store", () => {
+    expect(decide({
+      upstream: A, live: A, building: false, now: T, nextAttemptAt: 0, storeHydratedSha: null,
+    })).toBe("build");
+  });
+
+  it("idles once the matching sha has been hydrated from the store", () => {
+    expect(decide({
+      upstream: A, live: A, building: false, now: T, nextAttemptAt: 0, storeHydratedSha: A,
+    })).toBe("idle");
   });
 
   it("idles while a build is already in flight", () => {
@@ -155,6 +164,26 @@ describe("nextDivergedSince", () => {
 
   it("stays clear when converged and upstream momentarily unreadable", () => {
     expect(nextDivergedSince(null, null, A, T)).toBe(null);
+  });
+
+  // The deploy-order case: live===upstream (image-baked atlas) but the store
+  // has never served this process — the clock must run so /api/freshness can
+  // escalate syncing → stuck instead of reporting ok/syncing forever.
+  it("starts the clock when live===upstream but the store is not hydrated", () => {
+    expect(nextDivergedSince(null, A, A, T, null)).toBe(T);
+  });
+
+  it("keeps the original start while hydration keeps failing", () => {
+    expect(nextDivergedSince(T, A, A, T + 9999, null)).toBe(T);
+  });
+
+  it("clears only when converged AND hydrated for the upstream sha", () => {
+    expect(nextDivergedSince(T, A, A, T + 100, A)).toBe(null);
+    expect(nextDivergedSince(T, A, A, T + 100, B)).toBe(T); // stale hydrate ≠ converged
+  });
+
+  it("omitted storeHydratedSha preserves the pre-phase-4 contract (treated as hydrated)", () => {
+    expect(nextDivergedSince(T, A, A, T + 100)).toBe(null);
   });
 });
 
@@ -208,7 +237,7 @@ describe("spawnCollect", () => {
     expect(stdout).toBe("");
   });
 
-  it("surfaces a non-zero exit code (this is how runRefreshFromDb detects a failed build-graph/-glossary/-oea-report step)", async () => {
+  it("surfaces a non-zero exit code (this is how startBootEmbeddings detects a failed sync-embeddings spawn)", async () => {
     const { code } = await spawnCollect("bun", ["-e", "process.exit(7)"], false);
     expect(code).toBe(7);
   });
@@ -250,62 +279,6 @@ describe("getDbAtlasSha", () => {
   });
 });
 
-describe("dropStaleSearchIndex", () => {
-  it("deletes an existing search-index.json and returns true", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-test-"));
-    const p = path.join(dir, "search-index.json");
-    fs.writeFileSync(p, "{}");
-
-    expect(dropStaleSearchIndex(dir)).toBe(true);
-    expect(fs.existsSync(p)).toBe(false);
-  });
-
-  it("returns false when the file is absent", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-test-"));
-
-    expect(dropStaleSearchIndex(dir)).toBe(false);
-  });
-
-  it("leaves other public/ files untouched", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-test-"));
-    fs.writeFileSync(path.join(dir, "search-index.json"), "{}");
-    fs.writeFileSync(path.join(dir, "docs.json"), "{}");
-
-    dropStaleSearchIndex(dir);
-
-    expect(fs.existsSync(path.join(dir, "docs.json"))).toBe(true);
-  });
-});
-
-describe("sameRealDir", () => {
-  it("is true through a symlink — the prod public→dist shape (Dockerfile: ln -s /app/dist /app/public)", () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-symdir-"));
-    const dist = path.join(root, "dist");
-    const pub = path.join(root, "public");
-    fs.mkdirSync(dist);
-    fs.symlinkSync(dist, pub);
-    expect(sameRealDir(pub, dist)).toBe(true);
-    expect(sameRealDir(dist, pub)).toBe(true);
-  });
-
-  it("is true for the literal same path", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-samedir-"));
-    expect(sameRealDir(dir, dir)).toBe(true);
-  });
-
-  it("is false for two distinct real directories", () => {
-    const a = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-dirA-"));
-    const b = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-dirB-"));
-    expect(sameRealDir(a, b)).toBe(false);
-  });
-
-  it("is false (never throws) when one side doesn't exist yet — a dev checkout with no dist/ build", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-onemiss-"));
-    expect(sameRealDir(dir, path.join(dir, "does-not-exist"))).toBe(false);
-    expect(sameRealDir(path.join(dir, "does-not-exist"), dir)).toBe(false);
-  });
-});
-
 describe("runTick", () => {
   function freshState(overrides: Partial<UpdaterState> = {}): UpdaterState {
     return {
@@ -319,6 +292,7 @@ describe("runTick", () => {
       pendingPublishSha: null,
       pendingPublishSinceMs: null,
       lastTickMs: null,
+      storeHydratedSha: null,
       ...overrides,
     };
   }
@@ -334,21 +308,25 @@ describe("runTick", () => {
   }
 
   function fakeDeps(calls: string[], opts: FakeOpts): TickDeps {
+    let live = opts.live;
     return {
       getUpstream: async () => opts.upstream,
-      getLiveSha: () => opts.live,
-      refreshFromDb: async () => {
+      getLiveSha: () => live,
+      refreshFromStore: async () => {
         calls.push("refresh");
         return opts.refreshResult ?? null;
       },
       applyInPlace: () => {
         calls.push("applyInPlace");
-        if (opts.applyInPlaceImpl) return opts.applyInPlaceImpl();
-        return opts.refreshResult ?? null; // default: converges to the built sha
+        const sha = opts.applyInPlaceImpl ? opts.applyInPlaceImpl() : (opts.refreshResult ?? null);
+        if (sha) live = sha;
+        return sha;
       },
       fullRebuild: () => {
         calls.push("fullRebuild");
-        return opts.fullRebuildResult ?? opts.refreshResult ?? null;
+        const sha = opts.fullRebuildResult ?? opts.refreshResult ?? null;
+        if (sha) live = sha;
+        return sha;
       },
       publish: async (sha: string) => {
         calls.push("publish");
@@ -363,8 +341,8 @@ describe("runTick", () => {
     };
   }
 
-  it("no drift → no refresh called", async () => {
-    const state = freshState();
+  it("no drift (already hydrated) → no refresh called", async () => {
+    const state = freshState({ storeHydratedSha: A });
     const calls: string[] = [];
     const deps = fakeDeps(calls, { upstream: A, live: A });
 
@@ -372,6 +350,34 @@ describe("runTick", () => {
 
     expect(calls).not.toContain("refresh");
     expect(state.building).toBe(false);
+  });
+
+  it("live===upstream but never hydrated from the store → refresh", async () => {
+    const state = freshState(); // storeHydratedSha null
+    const calls: string[] = [];
+    const deps = fakeDeps(calls, { upstream: A, live: A, refreshResult: A });
+
+    await runTick(deps, state);
+
+    expect(calls).toContain("refresh");
+    expect(state.storeHydratedSha).toBe(A);
+  });
+
+  it("live===upstream, store empty, refresh refuses → the diverged clock starts (feeds the freshness stuck alarm)", async () => {
+    const state = freshState(); // storeHydratedSha null
+    const calls: string[] = [];
+    const deps = fakeDeps(calls, { upstream: A, live: A, refreshResult: null });
+
+    await runTick(deps, state);
+
+    expect(state.divergedSinceMs).toBe(T);
+    expect(state.consecutiveFailures).toBe(1);
+
+    // Still failing 10 minutes later — the clock keeps its ORIGINAL start.
+    const deps2 = fakeDeps([], { upstream: A, live: A, now: T + 600_000, refreshResult: null });
+    state.nextAttemptAt = 0; // bypass backoff for the test
+    await runTick(deps2, state);
+    expect(state.divergedSinceMs).toBe(T);
   });
 
   it("refresh fails → consecutiveFailures/nextAttemptAt/lastError set", async () => {
@@ -386,10 +392,10 @@ describe("runTick", () => {
     expect(state.consecutiveFailures).toBe(1);
     expect(state.failingTarget).toBe(B);
     expect(state.nextAttemptAt).toBeGreaterThan(T);
-    expect(state.lastError).toBe("refresh-from-db refused/failed");
+    expect(state.lastError).toBe("refresh-from-store refused/failed");
   });
 
-  it("full success → success state reset + publish then broadcast, in that order", async () => {
+  it("full success → publish BEFORE applyInPlace, then broadcast", async () => {
     const state = freshState();
     const calls: string[] = [];
     const deps = fakeDeps(calls, { upstream: B, live: A, refreshResult: B });
@@ -403,13 +409,11 @@ describe("runTick", () => {
     expect(state.divergedSinceMs).toBeNull();
     expect(state.pendingPublishSha).toBeNull();
     expect(state.pendingPublishSinceMs).toBeNull();
-    const publishIdx = calls.indexOf("publish");
-    const broadcastIdx = calls.indexOf("broadcast");
-    expect(publishIdx).toBeGreaterThanOrEqual(0);
-    expect(broadcastIdx).toBeGreaterThan(publishIdx);
+    expect(state.storeHydratedSha).toBe(B);
+    expect(calls).toEqual(["refresh", "publish", "applyInPlace", "broadcast"]);
   });
 
-  it("publish throws → pendingPublishSha+SinceMs parked, NO broadcast", async () => {
+  it("publish throws → pendingPublishSha parked, NO swap, NO broadcast", async () => {
     const state = freshState();
     const calls: string[] = [];
     const deps = fakeDeps(calls, {
@@ -427,29 +431,40 @@ describe("runTick", () => {
     expect(state.pendingPublishSha).toBe(B);
     expect(state.pendingPublishSinceMs).toBe(T);
     expect(calls).not.toContain("broadcast");
-    // convergence itself still succeeded — only publish failed
-    expect(state.consecutiveFailures).toBe(0);
+    expect(calls).not.toContain("applyInPlace");
+    expect(state.consecutiveFailures).toBe(1);
+    expect(state.lastError).toBe("publish-bundle failed");
   });
 
-  it("next tick retry succeeds → broadcast + both pending fields cleared", async () => {
-    const state = freshState({ pendingPublishSha: B, pendingPublishSinceMs: T });
+  it("next tick retry succeeds → swap then broadcast + both pending fields cleared", async () => {
+    const state = freshState({ pendingPublishSha: B, pendingPublishSinceMs: T, nextAttemptAt: T + 999_000 });
     const calls: string[] = [];
-    // Already converged (live === upstream); the top-of-tick retry is the
-    // only thing that should fire.
-    const deps = fakeDeps(calls, { upstream: B, live: B, now: T + 60_000 });
+    // Files are on disk from the failed-publish tick; live indexes still on A.
+    // nextAttemptAt parks decide() so this tick is retry-only.
+    const deps = fakeDeps(calls, {
+      upstream: B,
+      live: A,
+      now: T + 60_000,
+      applyInPlaceImpl: () => B,
+    });
 
     await runTick(deps, state);
 
-    expect(calls).toContain("broadcast");
+    expect(calls).toEqual(["publish", "applyInPlace", "broadcast"]);
     expect(state.pendingPublishSha).toBeNull();
     expect(state.pendingPublishSinceMs).toBeNull();
+    expect(state.storeHydratedSha).toBe(B);
   });
 
   it("top-of-tick retry fails → original park time preserved, no broadcast, error logged", async () => {
-    const state = freshState({ pendingPublishSha: A, pendingPublishSinceMs: 1000 });
+    const state = freshState({
+      pendingPublishSha: A,
+      pendingPublishSinceMs: 1000,
+      nextAttemptAt: 9999,
+      storeHydratedSha: A,
+    });
     const calls: string[] = [];
     const logs: string[] = [];
-    // Already converged (live === upstream); only the top-of-tick retry fires.
     const deps: TickDeps = {
       ...fakeDeps(calls, {
         upstream: A,
@@ -465,13 +480,12 @@ describe("runTick", () => {
     await runTick(deps, state);
 
     expect(state.pendingPublishSha).toBe(A);
-    // The ??= must not overwrite the original park time with the retry's "now".
     expect(state.pendingPublishSinceMs).toBe(1000);
     expect(calls).not.toContain("broadcast");
     expect(logs.some((l) => l.includes("publish-bundle retry error"))).toBe(true);
   });
 
-  it("applyInPlace throws → fullRebuild called and still converges", async () => {
+  it("applyInPlace throws → fullRebuild called and still converges (after publish)", async () => {
     const state = freshState();
     const calls: string[] = [];
     const deps = fakeDeps(calls, {
@@ -486,12 +500,13 @@ describe("runTick", () => {
 
     await runTick(deps, state);
 
+    expect(calls.indexOf("publish")).toBeLessThan(calls.indexOf("fullRebuild"));
     expect(calls).toContain("fullRebuild");
     expect(state.lastError).toBeNull();
     expect(state.lastSuccessMs).toBe(T);
   });
 
-  it("built sha ≠ live sha → non-convergence backoff + failingTarget", async () => {
+  it("built sha ≠ live sha → non-convergence backoff; publish already ran", async () => {
     const state = freshState();
     const calls: string[] = [];
     const deps = fakeDeps(calls, {
@@ -507,7 +522,8 @@ describe("runTick", () => {
     expect(state.consecutiveFailures).toBe(1);
     expect(state.nextAttemptAt).toBeGreaterThan(T);
     expect(state.lastError).toBe("did not converge after rebuild");
-    expect(calls).not.toContain("publish");
+    expect(calls).toContain("publish");
+    expect(calls).not.toContain("broadcast");
   });
 
   it("does NOT catch a thrown deps.getUpstream — propagates to the caller", async () => {
@@ -533,9 +549,9 @@ describe("runTick", () => {
 });
 
 describe("makeTickDeps", () => {
-  // deps.refreshFromDb() below goes through the REAL runRefreshFromDb (default
-  // spawn), which reads fakeDb — reset explicitly rather than relying on
-  // whatever an earlier describe block's last test happened to leave behind.
+  // deps.refreshFromStore() below goes through the REAL runRefreshFromStore
+  // (default loader hits fakeDb via getArtifacts — which this file does not
+  // mock, so we only assert the no-sha refuse path).
   beforeEach(() => resetFakeDb());
 
   it("wires safe members to real behavior", async () => {
@@ -549,16 +565,8 @@ describe("makeTickDeps", () => {
     deps.log("x");
     expect(logged).toContain("x");
 
-    // sse.ts broadcastAtlasUpdate iterates an empty client map — safe no-op.
     expect(() => deps.broadcast("abc")).not.toThrow();
 
-    // getIndexes() throws "indexes not loaded" when loadIndexes()/setIndexes()
-    // has never run in this process (see indexes.ts) — real documented
-    // behavior, not a test-only stub. Sibling suites (mcp.test.ts et al.) can
-    // leave module-level indexes state loaded depending on bun's test file
-    // scheduling order, so branch on the actual current state rather than
-    // assuming "never loaded" — either branch asserts real delegation to
-    // getIndexes(), never a fake return value.
     let loaded = true;
     try {
       getIndexes();
@@ -569,26 +577,29 @@ describe("makeTickDeps", () => {
       expect(() => deps.getLiveSha()).toThrow("indexes not loaded");
       expect(() => deps.applyInPlace()).toThrow("indexes not loaded");
     } else {
-      // applyInPlace performs real disk I/O (refreshInPlaceFromDisk reads
-      // artifacts from disk and rewrites search-index.json) — do not invoke
-      // it here. getLiveSha is read-only, so assert it genuinely delegates
-      // to the live getIndexes() snapshot's atlasCommit.
       expect(deps.getLiveSha()).toBe(getIndexes().meta.atlasCommit ?? null);
     }
 
-    // runRefreshFromDb refuses (never throws) when sync_state has no row yet
-    // — the default fakeDb after resetFakeDb().
-    const result = await deps.refreshFromDb();
+    // runRefreshFromStore refuses (never throws) when sync_state has no row yet.
+    const result = await deps.refreshFromStore();
     expect(result).toBeNull();
   });
 });
 
-// runRefreshFromDb's own branches, with an injected fake spawn so none of
-// these ever shell out to a real build-graph.mjs/build-glossary.mjs/
-// build-oea-report.ts — those write into the REAL public/ (they don't know
-// about config.publicDir overrides; they're a separate `bun` process reading
-// its own fresh config.ts), which would corrupt the checked-out repo state.
-describe("runRefreshFromDb", () => {
+function gzipJson(value: unknown): { gz: Buffer; rawBytes: number; sha256: string } {
+  const raw = Buffer.from(JSON.stringify(value));
+  return {
+    gz: gzipSync(raw),
+    rawBytes: raw.byteLength,
+    sha256: createHash("sha256").update(raw).digest("hex"),
+  };
+}
+
+function completeSet(): Array<{ name: string; gz: Buffer; rawBytes: number; sha256: string }> {
+  return PUBLISHED_ARTIFACTS.map((name) => ({ name, ...gzipJson({ name }) }));
+}
+
+describe("runRefreshFromStore", () => {
   let dir: string;
 
   beforeEach(() => {
@@ -599,11 +610,6 @@ describe("runRefreshFromDb", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  // MUST await fn() inside the try: runRefreshFromDb is async, so a bare
-  // `return fn()` would return the pending promise while control leaves the
-  // try immediately — running `finally` (and reverting config.publicDir)
-  // BEFORE the awaited body's internal writes ever happen, silently pointing
-  // every write at the real config.publicDir instead of this test's temp dir.
   async function withPublicDir<T>(fn: () => Promise<T>): Promise<T> {
     const prev = config.publicDir;
     config.publicDir = dir;
@@ -614,218 +620,88 @@ describe("runRefreshFromDb", () => {
     }
   }
 
-  function noopSpawn(): SpawnFn {
-    return async () => ({ code: 0, stdout: "" });
-  }
-
-  it("refuses when sync_state has no atlas_sha (fresh/empty DB) — never spawns a build", async () => {
-    const calls: string[] = [];
-    const fakeSpawn: SpawnFn = async (cmd, args) => {
-      calls.push(`${cmd} ${args.join(" ")}`);
-      return { code: 0, stdout: "" };
+  it("refuses when sync_state has no atlas_sha — never fetches artifacts", async () => {
+    let loads = 0;
+    const load: ArtifactLoader = async () => {
+      loads++;
+      return [];
     };
     const logs: string[] = [];
-    const result = await withPublicDir(() => runRefreshFromDb((m) => logs.push(m), fakeSpawn));
+    const result = await withPublicDir(() => runRefreshFromStore((m) => logs.push(m), load));
 
     expect(result).toBeNull();
-    expect(calls).toEqual([]);
+    expect(loads).toBe(0);
     expect(logs.some((l) => l.includes("refuse: sync_state has no atlas_sha"))).toBe(true);
   });
 
-  it("happy path: rebuilds docs.json/addresses.atlas.json from the DB snapshot, runs the 3 build subprocesses IN ORDER, mirrors public/*.json to dist/ (skipping search-index.json), drops the stale public search index, and returns the built sha", async () => {
+  it("refuses when the store has nothing for the sha (deploy-order gate)", async () => {
+    fakeDb.syncStateAtlasSha = A;
+    const logs: string[] = [];
+    const result = await withPublicDir(() =>
+      runRefreshFromStore((m) => logs.push(m), async () => []),
+    );
+    expect(result).toBeNull();
+    expect(logs.some((l) => l.includes("artifact store has nothing"))).toBe(true);
+    expect(fs.existsSync(path.join(dir, "graph.json"))).toBe(false);
+  });
+
+  it("refuses when the published set is missing a name", async () => {
+    fakeDb.syncStateAtlasSha = A;
+    const logs: string[] = [];
+    const partial = completeSet().filter((a) => a.name !== "graph.json");
+    const result = await withPublicDir(() =>
+      runRefreshFromStore((m) => logs.push(m), async () => partial),
+    );
+    expect(result).toBeNull();
+    expect(logs.some((l) => l.includes("missing graph.json"))).toBe(true);
+  });
+
+  it("writes every published artifact plus docs.json from the DB snapshot, and returns the sha", async () => {
     fakeDb.syncStateAtlasSha = A;
     fakeDb.docMeta = [
       { id: "d1", doc_no: "A.1", title: "Doc 1", type: "Core", depth: 1, parentId: null, content: "hello", order: 0, contentHash: "h1", addressRefs: [] },
     ];
-    fakeDb.addresses = [
-      { address: "0xaaa", chain: "ethereum", entity_label: "Freezer", roles: ["multisig"], aliases: null, expected_tokens: null },
-    ];
-    const calls: string[] = [];
-    const fakeSpawn: SpawnFn = async (_cmd, args) => {
-      calls.push(args[0]);
-      return { code: 0, stdout: "" };
-    };
-    const distDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-dist-"));
-    // Pre-seed files exactly like a previous build cycle would have left them:
-    // a stale search-index.json (must be dropped, both copies) and some other
-    // artifact (must be mirrored).
-    fs.writeFileSync(path.join(dir, "search-index.json"), "{}");
-    fs.writeFileSync(path.join(distDir, "search-index.json"), "{}");
-    fs.writeFileSync(path.join(dir, "old-artifact.json"), "{}");
-    const prevDist = config.distDir;
-    config.distDir = distDir;
-    try {
-      const logs: string[] = [];
-      const result = await withPublicDir(() => runRefreshFromDb((m) => logs.push(m), fakeSpawn));
-
-      expect(result).toBe(A);
-      expect(calls).toEqual([
-        "scripts/required/build-graph.mjs",
-        "scripts/required/build-glossary.mjs",
-        "scripts/required/build-oea-report.ts",
-      ]);
-
-      const docsOut = JSON.parse(fs.readFileSync(path.join(dir, "docs.json"), "utf8"));
-      expect(docsOut.atlasCommit).toBe(A);
-      expect(docsOut.nodes.d1.title).toBe("Doc 1");
-
-      const addrOut = JSON.parse(fs.readFileSync(path.join(dir, "addresses.atlas.json"), "utf8"));
-      expect(addrOut.addresses["0xaaa"].chain).toBe("ethereum");
-      expect(addrOut.addresses["0xaaa"].entityLabel).toBe("Freezer");
-
-      expect(fs.existsSync(path.join(distDir, "docs.json"))).toBe(true);
-      expect(fs.existsSync(path.join(distDir, "old-artifact.json"))).toBe(true);
-      expect(fs.existsSync(path.join(distDir, "search-index.json"))).toBe(false); // never mirrored, and the stale copy is unlinked
-      expect(fs.existsSync(path.join(dir, "search-index.json"))).toBe(false); // dropStaleSearchIndex
-    } finally {
-      config.distDir = prevDist;
-      fs.rmSync(distDir, { recursive: true, force: true });
-    }
-  });
-
-  it("does not throw when dist/ does not exist — the mirror step is skipped, but the rest of the refresh still succeeds", async () => {
-    fakeDb.syncStateAtlasSha = A;
-    const prevDist = config.distDir;
-    config.distDir = path.join(dir, "no-such-dist-dir");
-    try {
-      const result = await withPublicDir(() => runRefreshFromDb(() => {}, noopSpawn()));
-      expect(result).toBe(A);
-    } finally {
-      config.distDir = prevDist;
-    }
-  });
-
-  it("a failed build-graph aborts BEFORE glossary/oea-report and surfaces the exit code", async () => {
-    fakeDb.syncStateAtlasSha = A;
-    const calls: string[] = [];
-    const fakeSpawn: SpawnFn = async (_cmd, args) => {
-      calls.push(args[0]);
-      return { code: args[0]?.includes("build-graph") ? 3 : 0, stdout: "" };
+    let requested: readonly string[] | undefined;
+    const load: ArtifactLoader = async (_sha, names) => {
+      requested = names;
+      return completeSet();
     };
     const logs: string[] = [];
-    const result = await withPublicDir(() => runRefreshFromDb((m) => logs.push(m), fakeSpawn));
+    const result = await withPublicDir(() => runRefreshFromStore((m) => logs.push(m), load));
 
-    expect(result).toBeNull();
-    expect(calls).toEqual(["scripts/required/build-graph.mjs"]); // never reached glossary/oea
-    expect(logs.some((l) => l.includes("refresh-from-db error: build-graph exited 3"))).toBe(true);
-  });
-
-  it("stamps ATLAS_COMMIT=db sha for build subprocesses and restores it afterwards", async () => {
-    fakeDb.syncStateAtlasSha = A;
-    const prev = process.env.ATLAS_COMMIT;
-    let seen: string | undefined;
-    const fakeSpawn: SpawnFn = async () => {
-      seen = process.env.ATLAS_COMMIT;
-      return { code: 0, stdout: "" };
-    };
-    try {
-      await withPublicDir(() => runRefreshFromDb(() => {}, fakeSpawn));
-      expect(seen).toBe(A);
-    } finally {
-      if (prev === undefined) delete process.env.ATLAS_COMMIT;
-      else process.env.ATLAS_COMMIT = prev;
+    expect(result).toBe(A);
+    expect(requested).toEqual(PUBLISHED_ARTIFACTS);
+    for (const name of PUBLISHED_ARTIFACTS) {
+      expect(fs.existsSync(path.join(dir, name))).toBe(true);
     }
-    expect(process.env.ATLAS_COMMIT).toBe(prev);
+    const docsOut = JSON.parse(fs.readFileSync(path.join(dir, "docs.json"), "utf8"));
+    expect(docsOut.atlasCommit).toBe(A);
+    expect(docsOut.nodes.d1.title).toBe("Doc 1");
+    expect(logs.some((l) => l.includes("refresh-from-store:"))).toBe(true);
   });
 
-  it("a failed build-oea-report (the LAST of the three gates) still aborts and returns null", async () => {
-    fakeDb.syncStateAtlasSha = A;
-    const calls: string[] = [];
-    const fakeSpawn: SpawnFn = async (_cmd, args) => {
-      calls.push(args[0]);
-      return { code: args[0]?.includes("build-oea-report") ? 1 : 0, stdout: "" };
-    };
-    const logs: string[] = [];
-    const result = await withPublicDir(() => runRefreshFromDb((m) => logs.push(m), fakeSpawn));
-
-    expect(result).toBeNull();
-    expect(calls.length).toBe(3); // all three ran; only the last one failed
-    expect(logs.some((l) => l.includes("build-oea-report exited 1"))).toBe(true);
-  });
-
-  it("a thrown error mid-snapshot (DB blip inside the transaction) is caught and returns null, never escaping to the tick loop", async () => {
+  it("a thrown error mid-snapshot (DB blip) is caught and returns null", async () => {
     fakeDb.syncStateThrows = true;
     const logs: string[] = [];
-    const result = await withPublicDir(() => runRefreshFromDb((m) => logs.push(m), noopSpawn()));
-
+    const result = await withPublicDir(() =>
+      runRefreshFromStore((m) => logs.push(m), async () => completeSet()),
+    );
     expect(result).toBeNull();
-    expect(logs.some((l) => l.includes("refresh-from-db error: connection refused"))).toBe(true);
+    expect(logs.some((l) => l.includes("refresh-from-store error: connection refused"))).toBe(true);
   });
 
-  it("regenerates a stale .gz sibling with fresh bytes after mirroring, leaves an artifact with no .gz sibling alone, and unlinks search-index.json.gz (its fresh flat file doesn't exist yet)", async () => {
+  it("a corrupt blob (sha256 mismatch) is caught and returns null, leaving no partial trust", async () => {
     fakeDb.syncStateAtlasSha = A;
-    fakeDb.docMeta = [
-      { id: "d1", doc_no: "A.1", title: "Doc 1", type: "Core", depth: 1, parentId: null, content: "hello", order: 0, contentHash: "h1", addressRefs: [] },
-    ];
-    const distDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-gzdist-"));
-    // A pre-existing stale .gz sibling — must be regenerated from the FRESH
-    // mirrored bytes, not left alone. docs.json is the convenient carrier here
-    // because runRefreshFromDb writes it; the image itself no longer pre-gzips
-    // it (scripts/lib/build-steps.mjs GZIP_ARTIFACTS), and the refresh loop
-    // deliberately keys on what is on disk rather than on that list.
-    fs.writeFileSync(path.join(distDir, "docs.json.gz"), zlib.gzipSync(Buffer.from("stale-image-build-bytes")));
-    // No .gz sibling for glossary.json (never gzipped by the Dockerfile in
-    // this fixture) — must NOT be created.
-    fs.writeFileSync(path.join(distDir, "glossary.json"), "{}");
-    // A stale search-index.json.gz — must be unlinked, not regenerated,
-    // since the fresh flat search-index.json doesn't exist at this point in
-    // the sequence (refreshInPlaceFromDisk writes it after this call returns).
-    fs.writeFileSync(path.join(distDir, "search-index.json.gz"), zlib.gzipSync(Buffer.from("stale-search-index")));
-    const prevDist = config.distDir;
-    config.distDir = distDir;
-    try {
-      const logs: string[] = [];
-      const result = await withPublicDir(() => runRefreshFromDb((m) => logs.push(m), noopSpawn()));
-      expect(result).toBe(A);
-
-      const freshDocsJson = fs.readFileSync(path.join(distDir, "docs.json"));
-      const regeneratedGz = zlib.gunzipSync(fs.readFileSync(path.join(distDir, "docs.json.gz")));
-      expect(regeneratedGz.equals(freshDocsJson)).toBe(true);
-
-      expect(fs.existsSync(path.join(distDir, "glossary.json.gz"))).toBe(false); // never created
-
-      expect(fs.existsSync(path.join(distDir, "search-index.json.gz"))).toBe(false); // unlinked, not regenerated
-
-      expect(logs.some((l) => l.includes("regenerated 1 stale .gz sibling"))).toBe(true);
-    } finally {
-      config.distDir = prevDist;
-      fs.rmSync(distDir, { recursive: true, force: true });
-    }
-  });
-
-  it("public/ and dist/ resolving to the same directory (Docker's symlink) skips the mirror copy and regenerates .gz in place instead", async () => {
-    fakeDb.syncStateAtlasSha = A;
-    // Rebind `dir` (the shared publicDir fixture) itself as the "dist" too —
-    // via a symlink, the way the built image does it — rather than the same
-    // literal path twice, so this exercises the realpathSync comparison, not
-    // a string shortcut.
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-samedir-fixture-"));
-    const realPublic = path.join(root, "public");
-    fs.mkdirSync(realPublic);
-    const symlinkedDist = path.join(root, "dist-symlink");
-    fs.symlinkSync(realPublic, symlinkedDist);
-    // Pre-seed a stale .gz sibling directly in the real (only) directory.
-    fs.writeFileSync(path.join(realPublic, "docs.json.gz"), zlib.gzipSync(Buffer.from("stale")));
-    const prevPublic = config.publicDir;
-    const prevDist = config.distDir;
-    config.publicDir = realPublic;
-    config.distDir = symlinkedDist;
-    try {
-      const logs: string[] = [];
-      const result = await runRefreshFromDb((m) => logs.push(m), noopSpawn());
-      expect(result).toBe(A);
-      expect(logs.some((l) => l.includes("mirror skipped (dist/ is public/, same directory)"))).toBe(true);
-
-      const freshDocsJson = fs.readFileSync(path.join(realPublic, "docs.json"));
-      const regeneratedGz = zlib.gunzipSync(fs.readFileSync(path.join(realPublic, "docs.json.gz")));
-      expect(regeneratedGz.equals(freshDocsJson)).toBe(true);
-    } finally {
-      config.publicDir = prevPublic;
-      config.distDir = prevDist;
-      fs.rmSync(root, { recursive: true, force: true });
-    }
+    const logs: string[] = [];
+    const bad = completeSet().map((a) => (a.name === "graph.json" ? { ...a, sha256: "deadbeef" } : a));
+    const result = await withPublicDir(() =>
+      runRefreshFromStore((m) => logs.push(m), async () => bad),
+    );
+    expect(result).toBeNull();
+    expect(logs.some((l) => l.includes("sha256 mismatch"))).toBe(true);
   });
 });
+
 
 describe("startBootEmbeddings", () => {
   const origKey = config.openrouterApiKey;
@@ -945,7 +821,7 @@ describe("makeTickDeps — applyInPlace / fullRebuild (real disk I/O)", () => {
     expect(pinnedBundleSha()).toBe("new-sha");
   });
 
-  it("fullRebuild reads fresh artifacts, SWAPS the live index set (unlike applyInPlace), and re-emits search-index.json to disk", () => {
+  it("fullRebuild reads fresh artifacts, SWAPS the live index set (unlike applyInPlace), and does not emit search-index.json", () => {
     setIndexes(buildIndexes([node("sentinel", "S", 0, "old")], [], [], { atlasCommit: "old-sha" }));
     const before = getIndexes();
     writeArtifacts("rebuilt-sha", { a: node("a", "A", 0, "alpha") });
@@ -957,7 +833,8 @@ describe("makeTickDeps — applyInPlace / fullRebuild (real disk I/O)", () => {
     expect(getIndexes()).not.toBe(before); // full rebuild swaps the reference
     expect(getIndexes().docMap.has("a")).toBe(true);
     expect(getIndexes().docMap.has("sentinel")).toBe(false);
-    expect(fs.existsSync(path.join(dir, "search-index.json"))).toBe(true);
+    // Phase 5: we load the worker's file when present; we never write one.
+    expect(fs.existsSync(path.join(dir, "search-index.json"))).toBe(false);
   });
 });
 
@@ -1007,7 +884,7 @@ describe("isUpdaterEnabled + startUpdater (module state)", () => {
 // (the try/catch/finally around runTick, and schedule()'s re-arm in `finally`)
 // has never actually executed anywhere in this file. Here we let one real
 // tick land, against the DB mock reset to "no atlas_sha row yet" so decide()
-// idles — runRefreshFromDb/spawn are never reached, keeping this hermetic.
+// idles — runRefreshFromStore is never reached, keeping this hermetic.
 describe("startUpdater — a real scheduled tick", () => {
   beforeEach(() => resetFakeDb());
 
@@ -1035,43 +912,3 @@ describe("startUpdater — a real scheduled tick", () => {
   });
 });
 
-// ── groupAddrRowsToAtlas ─────────────────────────────────────────────────────
-// The DB→artifact direction of the address round trip. buildAddrRows (its
-// inverse, in retrieval/doc-rows.ts) is imported here so the pair is asserted
-// against each other rather than each against its own fixture.
-const EVM_UPPER = "0xABCDEF0000000000000000000000000000000001";
-const SHA40 = "a".repeat(40);
-
-test("groupAddrRowsToAtlas folds a multi-chain address's rows back into one entry", () => {
-  const rows = [
-    { address: "0xaaa", chain: "ethereum", entity_label: "Freezer Multisig", roles: ["multisig"], aliases: null, expected_tokens: null },
-    { address: "0xaaa", chain: "base", entity_label: "Freezer Multisig", roles: ["multisig"], aliases: null, expected_tokens: null },
-    { address: "0xbbb", chain: "solana", entity_label: null, roles: null, aliases: null, expected_tokens: ["USDS"] },
-  ];
-  const out = groupAddrRowsToAtlas(rows);
-  expect(Object.keys(out).sort()).toEqual(["0xaaa", "0xbbb"]);
-  // First row's chain is the primary; every row's chain lands in `chains`.
-  expect(out["0xaaa"].chain).toBe("ethereum");
-  expect(out["0xaaa"].chains).toEqual(["ethereum", "base"]);
-  expect(out["0xaaa"].roles).toEqual(["multisig"]);
-  expect(out["0xbbb"].chains).toEqual(["solana"]);
-  expect(out["0xbbb"].roles).toEqual([]); // null → []
-  expect(out["0xbbb"].expectedTokens).toEqual(["USDS"]);
-});
-
-test("groupAddrRowsToAtlas round-trips buildAddrRows without collapsing chains", () => {
-  // The updater rebuild must not undo what build-index detected.
-  const atlas = { [EVM_UPPER]: { chain: "base", chains: ["base", "ethereum"], entityLabel: "Thing" } };
-  const rows = buildAddrRows(atlas, {}, {}, SHA40);
-  const back = groupAddrRowsToAtlas(
-    rows.map((r) => ({
-      address: r.address,
-      chain: r.chain,
-      entity_label: r.label,
-      roles: r.roles,
-      aliases: r.aliases,
-      expected_tokens: r.expected_tokens,
-    })),
-  );
-  expect(back[EVM_UPPER.toLowerCase()].chains.sort()).toEqual(["base", "ethereum"]);
-});

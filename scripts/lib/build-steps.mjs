@@ -3,9 +3,9 @@
 // This chain used to be enumerated by hand in eight places with nothing
 // asserting they agreed: package.json's `build`, the Dockerfile builder stage,
 // build-at.mjs, refresh-atlas-build.mjs, dev-preflight.mjs, atlas-worker.mjs,
-// src/server/atlas-updater.ts and src/server/preview/build.ts. The JS sites now
-// iterate a PROFILE from this file; the two non-JS sites (package.json, the
-// Dockerfile) are asserted against it by scripts_tests/build-steps.test.ts.
+// src/server/preview/build.ts. The JS sites now iterate a PROFILE from this
+// file; the two non-JS sites (package.json, the Dockerfile) are asserted
+// against it by scripts_tests/build-steps.test.ts.
 //
 // The divergences between consumers are DELIBERATE, not drift — each profile
 // below states its opt-outs and why. The point of this file is to make an
@@ -97,10 +97,6 @@ export const PROFILES = {
   // build-history + sync-embeddings run as a parallel tail, not as steps here.
   worker: ["index", "glossary", "graph", "oea-report"],
 
-  // src/server/atlas-updater.ts refreshFromDb(). Starts at `graph`: docs.json
-  // is written straight from atlas_doc_meta rows, so there is no build-index.
-  updater: ["graph", "glossary", "oea-report"],
-
   // src/server/preview/build.ts — DOCUMENTATION ONLY, not mechanically wired
   // (that file is out of scope for this package). It runs index, then graph and
   // glossary CONCURRENTLY, each with its own env (ATLAS_SRC_DIR / ATLAS_OUT_DIR
@@ -111,9 +107,9 @@ export const PROFILES = {
 /**
  * Flat artifacts the Dockerfile pre-gzips at image build time (the request
  * handler prefers `<file>.gz` for gzip-accepting clients). Hand-maintained
- * there; asserted against this list by test. Note the updater's .gz refresh
- * derives its set from what's on disk instead — deliberately, so it
- * self-maintains.
+ * there; asserted against this list by test. Runtime serving of atlas-versioned
+ * artifacts prefers the per-sha bundle's `.gz` sibling (hydrate/publish), not
+ * these image-baked copies.
  */
 // docs.json is absent on purpose: no request reaches it. The browser fetches the
 // docs-shallow/docs-deep split (docs/plans/docs-split.md), so pre-compressing the

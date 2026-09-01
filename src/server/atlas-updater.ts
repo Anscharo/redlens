@@ -1,27 +1,24 @@
-// In-process atlas freshness updater — DB-driven (Part E).
-// Polls sync_state.atlas_sha from Postgres every ~30s; on drift, reads
-// atlas_doc_meta content from the DB (in ONE transactional snapshot, so the sha
-// label always matches the rows) to rebuild public/docs.json and
-// public/addresses.atlas.json, then runs build-graph + build-glossary
-// subprocesses (which read docs.json), mirrors to dist/, and patches the
-// live in-memory indexes via refreshInPlaceFromDisk. No git, no Postgres writes
-// — all Postgres writes belong to the worker.
+// In-process atlas freshness updater — store-driven (artifact-store phase 4).
+// Polls sync_state.atlas_sha from Postgres every ~30s; on drift (or first boot
+// before this process has hydrated from the store), reads the published
+// artifact set out of atlas_artifacts, writes it to public/, reconstructs
+// docs.json from atlas_doc_meta (the one artifact the worker does not publish),
+// publishes the per-sha bundle, THEN swaps in-memory indexes and broadcasts.
+// No git, no build subprocesses, no Postgres writes — all writes belong to
+// the worker.
 //
-// Failure handling: a build that fails or doesn't converge is retried with
+// Failure handling: a hydrate that fails or doesn't converge is retried with
 // exponential backoff (never permanently skipped — that risked days of silent
 // staleness on the few-times-a-week cadence), and escalates to ERROR logs +
 // the freshness "stuck" status after ESCALATE_AFTER consecutive failures.
 import { spawn } from "node:child_process";
-import { writeFileSync, readFileSync, existsSync, readdirSync, copyFileSync, unlinkSync, realpathSync } from "node:fs";
-import { join } from "node:path";
-import { gzipSync } from "node:zlib";
 import { config } from "./config.ts";
 import { sql } from "./db.ts";
-import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson, writeDocsSplit } from "./retrieval/indexes.ts";
-import { refreshInPlaceFromDisk, writeSearchIndex } from "./atlas-refresh.ts";
+import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson } from "./retrieval/indexes.ts";
+import { refreshInPlaceFromDisk } from "./atlas-refresh.ts";
 import { broadcastAtlasUpdate } from "./sse.ts";
-import { MAIN_STORE, publishBundle, pinBundleSha } from "./bundle-store.ts";
-import { stepsFor } from "../../scripts/lib/build-steps.mjs";
+import { MAIN_STORE, PUBLISHED_ARTIFACTS, publishBundle, pinBundleSha, writeStoredArtifacts } from "./bundle-store.ts";
+import { getArtifacts } from "./atlas-artifacts.ts";
 import type { AtlasNode, DocMetaRow } from "./retrieval/indexes.ts";
 
 export type Decision = "idle" | "build";
@@ -43,21 +40,29 @@ export function shouldRetryPublish(s: { building: boolean; pendingPublishSha: st
   return !s.building && s.pendingPublishSha !== null;
 }
 
-// Pure trigger decision (unit-tested). Builds when there is drift and we are
-// not already building and the backoff window has elapsed. `now`/`nextAttemptAt`
-// (ms epoch) gate retries: a failed/non-converged build sets nextAttemptAt into
-// the future, so we re-poll cheaply but don't re-build until it passes.
+// Pure trigger decision (unit-tested). Builds when there is drift, OR when
+// this process has not yet hydrated the live sha from the shared store (the
+// deploy-order safety net: live===db on an image-baked atlas would otherwise
+// idle forever if the worker has not published). `now`/`nextAttemptAt` (ms
+// epoch) gate retries: a failed/non-converged hydrate sets nextAttemptAt into
+// the future, so we re-poll cheaply but don't re-fetch until it passes.
+// `storeHydratedSha` omitted (tests of the pure fn) means "already hydrated"
+// so sha-match still idles; the live loop always passes the field.
 export function decide(s: {
   upstream: string | null;
   live: string | null;
   building: boolean;
   now: number;
   nextAttemptAt: number;
+  storeHydratedSha?: string | null;
 }): Decision {
   if (s.building) return "idle";
   if (!s.upstream) return "idle";
-  if (s.upstream === s.live) return "idle";
   if (s.now < s.nextAttemptAt) return "idle";
+  if (s.upstream === s.live) {
+    const needsStore = s.storeHydratedSha !== undefined && s.storeHydratedSha !== s.upstream;
+    if (!needsStore) return "idle";
+  }
   return "build";
 }
 
@@ -73,16 +78,26 @@ export function backoffMs(failures: number, base: number): number {
 
 // Pure: next value of the divergence clock (unit-tested). Set on first
 // divergence from a KNOWN upstream; cleared ONLY on real convergence
-// (live === upstream); a null/unknown upstream preserves the prior value so a
-// transient DB read failure can't keep restarting the stuck timer.
+// (live === upstream AND the store has been hydrated for that sha); a
+// null/unknown upstream preserves the prior value so a transient DB read
+// failure can't keep restarting the stuck timer.
+//
+// `storeHydratedSha` mirrors decide()'s deploy-order safety net: live===db on
+// an image-baked atlas with an empty artifact store is NOT converged — the
+// process is retrying hydration every tick — so the clock must run, or
+// /api/freshness would report "syncing" forever instead of escalating to
+// "stuck" past the threshold. Omitted (older callers/tests) means "already
+// hydrated", same as decide().
 export function nextDivergedSince(
   prev: number | null,
   upstream: string | null,
   live: string | null,
   now: number,
+  storeHydratedSha?: string | null,
 ): number | null {
   if (!upstream) return prev;
-  if (live === upstream) return null;
+  const needsStore = storeHydratedSha !== undefined && storeHydratedSha !== upstream;
+  if (live === upstream && !needsStore) return null;
   return prev ?? now;
 }
 
@@ -105,10 +120,10 @@ export interface UpdaterState {
   // build is backing off on (so a fresh upstream resets the backoff).
   nextAttemptAt: number;
   failingTarget: string | null;
-  // Set when a converged build's publishBundle() call failed — the SHA that
-  // still needs to be published. Retried at the top of every subsequent tick
-  // until it succeeds, since decide() will never re-trigger a build for a sha
-  // that's already live (live === db after convergence).
+  // Set when a hydrate's publishBundle() call failed — the SHA that still
+  // needs to be published (and then swapped). Retried at the top of every
+  // subsequent tick. Phase 5 publishes BEFORE the in-memory swap, so a parked
+  // sha has files on disk but live indexes still on the previous sha.
   pendingPublishSha: string | null;
   // ms epoch when a publishBundle() call first failed and parked a sha in
   // pendingPublishSha; null while nothing is pending. Deliberately keeps the
@@ -121,6 +136,11 @@ export interface UpdaterState {
   // ms epoch at the top of the most recent tick's try block — a liveness
   // signal for freshness.ts independent of whether that tick found drift.
   lastTickMs: number | null;
+  // Sha this process last successfully loaded from atlas_artifacts. Null at
+  // boot, so decide() hydrates even when live already equals db (image-baked
+  // atlas). Without this, deploying web before the worker's first publish
+  // idles forever and /api/freshness looks healthy on stale files.
+  storeHydratedSha: string | null;
 }
 const updaterState: UpdaterState = {
   building: false,
@@ -133,6 +153,7 @@ const updaterState: UpdaterState = {
   pendingPublishSha: null,
   pendingPublishSinceMs: null,
   lastTickMs: null,
+  storeHydratedSha: null,
 };
 export function getUpdaterState(): Readonly<UpdaterState> {
   return updaterState;
@@ -147,7 +168,7 @@ export function isUpdaterEnabled(): boolean {
 
 // Exported so a test can drive it directly with a trivial/fast command (e.g.
 // `bun -e`) instead of only ever reaching it indirectly through a real
-// build-graph/sync-embeddings subprocess spawn.
+// sync-embeddings subprocess spawn.
 export function spawnCollect(
   cmd: string,
   args: string[],
@@ -167,14 +188,9 @@ export function spawnCollect(
   });
 }
 
-// The narrow slice of spawnCollect that runRefreshFromDb/startBootEmbeddings
-// need (always capture=false — both just check the exit code). Injectable so
-// tests can exercise the surrounding control flow (which subprocess ran, in
-// what order, what a failure does) without actually shelling out to
-// build-graph.mjs/sync-embeddings.ts — those write real files under the
-// REAL public/ (this fn doesn't know about a test's config.publicDir override,
-// since it's a separate `bun` process) and, for sync-embeddings.ts, dial a
-// real DB/OpenRouter. Real callers keep using the default (unchanged behavior).
+// The narrow slice of spawnCollect that startBootEmbeddings needs (always
+// capture=false — just checks the exit code). Injectable so tests can
+// exercise the surrounding control flow without dialing a real DB/OpenRouter.
 export type SpawnFn = (cmd: string, args: string[]) => Promise<{ code: number; stdout: string }>;
 const realSpawn: SpawnFn = (cmd, args) => spawnCollect(cmd, args, false);
 
@@ -189,88 +205,28 @@ export async function getDbAtlasSha(): Promise<string | null> {
   }
 }
 
-// public/search-index.json is stale-by-construction after a DB refresh (it
-// still reflects the PREVIOUS atlas sha): the happy path (refreshInPlaceFromDisk)
-// rewrites it next, but if that throws, the rebuildFromDisk() fallback loads
-// it verbatim (buildIndexes prefers a serialized index with no sha check) and
-// would silently converge on the new sha while serving the old search index.
-// Deleting it here forces the fallback to build MiniSearch from docs instead
-// — slower, but never stale. Returns whether a file was actually deleted.
-export function dropStaleSearchIndex(publicDir: string): boolean {
-  const p = join(publicDir, "search-index.json");
-  if (!existsSync(p)) return false;
-  unlinkSync(p);
-  return true;
-}
+/** Injected so runRefreshFromStore is testable without a database. */
+export type ArtifactLoader = (
+  sha: string,
+  names?: readonly string[],
+) => Promise<Array<{ name: string; gz: Buffer; sha256?: string; rawBytes?: number }>>;
 
-// True when `a` and `b` resolve to the same real directory — the Docker image
-// symlinks /app/public → /app/dist (see Dockerfile), so a naive public/*.json
-// → dist/*.json mirror would copy a file onto itself. A path that doesn't
-// exist yet (e.g. a dev checkout with no dist/ build) can't be compared and
-// is treated as "not the same", same as any other realpathSync failure.
-export function sameRealDir(a: string, b: string): boolean {
+const defaultLoad: ArtifactLoader = (sha, names) => getArtifacts(sha, names);
+
+// Pull the published artifact set for the live sha into public/, then rebuild
+// docs.json from the same transactional snapshot of atlas_doc_meta. Returns
+// the sha actually loaded, or null on refusal/failure. No build subprocesses:
+// graph/glossary/oea/search-index come from the worker via atlas_artifacts.
+export async function runRefreshFromStore(
+  log: (m: string) => void,
+  load: ArtifactLoader = defaultLoad,
+): Promise<string | null> {
   try {
-    return realpathSync(a) === realpathSync(b);
-  } catch {
-    return false;
-  }
-}
-
-export interface AddrReadRow {
-  address: string;
-  chain: string;
-  entity_label: string | null;
-  roles: string[] | null;
-  aliases: string[] | null;
-  expected_tokens: string[] | null;
-}
-
-/**
- * Inverse of buildAddrRows: fold atlas_addresses rows back into the artifact's
- * one-entry-per-address shape for the updater's DB→addresses.atlas.json
- * rebuild.
- *
- * A multi-chain address arrives as several rows, so `chains` is rebuilt from
- * the row set — dropping it here would silently re-collapse what build-index
- * detected, on the first in-process refresh after a sync.
- */
-export function groupAddrRowsToAtlas(
-  rows: AddrReadRow[],
-): Record<string, { chain: string; chains: string[] } & Record<string, unknown>> {
-  const out: Record<string, { chain: string; chains: string[] } & Record<string, unknown>> = {};
-  for (const r of rows) {
-    const existing = out[r.address];
-    if (existing) {
-      if (!existing.chains.includes(r.chain)) existing.chains.push(r.chain);
-      continue;
-    }
-    out[r.address] = {
-      chain: r.chain,
-      chains: [r.chain],
-      entityLabel: r.entity_label,
-      roles: r.roles ?? [],
-      aliases: r.aliases ?? [],
-      expectedTokens: r.expected_tokens ?? [],
-    };
-  }
-  return out;
-}
-
-// Rebuild public/docs.json + public/addresses.atlas.json from Postgres, then
-// run build-graph and build-glossary subprocesses (they read docs.json), then
-// mirror all public/*.json → dist/. Returns the atlas sha actually built (read
-// inside the snapshot) on success, or null on failure/refusal. Exported (with
-// an injectable spawn, default real) so the refuse/happy-path/subprocess-
-// failure branches are all testable without shelling out for real — see
-// SpawnFn's header comment.
-export async function runRefreshFromDb(log: (m: string) => void, spawn: SpawnFn = realSpawn): Promise<string | null> {
-  try {
-    // ── ⑥ single consistent snapshot: read the sha AND the rows in ONE
-    //    transaction, so the sha we stamp into docs.json always matches the
-    //    content we read (the worker can't commit a newer sha mid-read). ──
+    // Single consistent snapshot: the sha we fetch artifacts for is the sha
+    // we stamp onto docs.json. The worker cannot commit a newer pointer
+    // mid-read; artifacts for this sha stay in the store (retention > 1).
     let dbSha: string | null = null;
     let docRows: DocMetaRow[] = [];
-    let addrRows: AddrReadRow[] = [];
     await sql.begin(async (tx) => {
       const st = await tx`SELECT atlas_sha FROM sync_state WHERE id = 1`;
       dbSha = (st[0] as { atlas_sha?: string } | undefined)?.atlas_sha ?? null;
@@ -280,113 +236,33 @@ export async function runRefreshFromDb(log: (m: string) => void, spawn: SpawnFn 
                node_content_hash AS "contentHash", address_refs AS "addressRefs"
         FROM atlas_doc_meta ORDER BY ord
       `) as unknown as DocMetaRow[];
-      addrRows = (await tx`
-        SELECT address, chain, label AS entity_label, roles, aliases, expected_tokens
-        FROM atlas_addresses
-      `) as unknown as AddrReadRow[];
     });
     if (!dbSha) {
       log("refuse: sync_state has no atlas_sha");
       return null;
     }
-    // No doc-count floor gate: the worker writes docs + sync_state in ONE
-    // transaction and we read them back in ONE snapshot, so a present sha always
-    // implies a complete doc set. A doc-count delta carries no torn-read signal
-    // here — gating on it would only wrongly refuse legitimate large atlas
-    // deletions (and pin the reader to a stale version forever).
 
-    // 1. atlas_doc_meta → public/docs.json (stamped with the in-snapshot sha)
+    const items = await load(dbSha, PUBLISHED_ARTIFACTS);
+    if (items.length === 0) {
+      log(`refuse: artifact store has nothing for ${short(dbSha)} — waiting for worker publish`);
+      return null;
+    }
+    const got = new Set(items.map((a) => a.name));
+    const missing = PUBLISHED_ARTIFACTS.filter((n) => !got.has(n));
+    if (missing.length) {
+      log(`refuse: artifact store missing ${missing.join(", ")} for ${short(dbSha)}`);
+      return null;
+    }
+
+    await writeStoredArtifacts(config.publicDir, items);
+
     const docMap: Record<string, AtlasNode> = {};
     for (const r of docRows) docMap[r.id] = docRowToNode(r);
     writeDocsJson(config.publicDir, dbSha, docMap);
-    // Keep the browser-facing split in lockstep with docs.json so the per-sha
-    // bundle never serves a stale tree/content for the new sha.
-    writeDocsSplit(config.publicDir, dbSha, docMap);
-    log(`refresh-from-db: ${docRows.length} docs → public/docs.json (+meta/content split)`);
-
-    // 2. atlas_addresses → public/addresses.atlas.json (seed for build-graph)
-    const addrAtlas = groupAddrRowsToAtlas(addrRows);
-    writeFileSync(join(config.publicDir, "addresses.atlas.json"), JSON.stringify({ atlasCommit: dbSha, addresses: addrAtlas }));
-
-    // 3. Build subprocesses — the `updater` profile of scripts/lib/build-steps.mjs.
-    //    build-graph reads docs.json → graph.json, relations.json (and enriches
-    //    addresses.atlas.json); build-glossary + the report views read
-    //    docs.json/relations.json. No build-index: docs.json came from DB rows.
-    //    Stamp ATLAS_COMMIT so build-graph does not git-rev-parse (the runtime
-    //    image has no atlas checkout) and rewrite graph.json as "unknown".
-    const prevCommit = process.env.ATLAS_COMMIT;
-    process.env.ATLAS_COMMIT = dbSha;
-    try {
-      for (const step of stepsFor("updater")) {
-        const { code } = await spawn("bun", [step.script!]);
-        if (code !== 0) throw new Error(`${step.name} exited ${code}`);
-      }
-    } finally {
-      if (prevCommit === undefined) delete process.env.ATLAS_COMMIT;
-      else process.env.ATLAS_COMMIT = prevCommit;
-    }
-
-    // 4. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk
-    //    writes it). /app/public is a SYMLINK to /app/dist in the built image
-    //    (see Dockerfile), so a naive copy would target its own source — skip the
-    //    copy entirely in that case and treat public/ itself as the served dir
-    //    for the .gz refresh below (an in-place refresh, not a mirror).
-    const distDir = config.distDir;
-    const distIsPublicDir = sameRealDir(config.publicDir, distDir);
-    let servedDir: string | null = null;
-    if (distIsPublicDir) {
-      servedDir = config.publicDir;
-      log("refresh-from-db: mirror skipped (dist/ is public/, same directory)");
-    } else if (existsSync(distDir)) {
-      let n = 0;
-      for (const f of readdirSync(config.publicDir)) {
-        if (f.endsWith(".json") && f !== "search-index.json") {
-          copyFileSync(join(config.publicDir, f), join(distDir, f));
-          n++;
-        }
-      }
-      const si = join(distDir, "search-index.json");
-      if (existsSync(si)) unlinkSync(si);
-      log(`refresh-from-db: mirrored ${n} json → dist/`);
-      servedDir = distDir;
-    }
-
-    // Regenerate stale .gz siblings: the Dockerfile pre-gzips several flat
-    // artifacts at image build time (scripts/lib/build-steps.mjs
-    // GZIP_ARTIFACTS), but this refresh only
-    // rewrites the flat .json — the request handler prefers `<file>.gz` for
-    // every gzip-accepting client (see index.ts's static handler), so an
-    // un-regenerated .gz would serve image-build-time data forever. Only
-    // refresh a .gz that already exists — never create a new one; and derive
-    // the set from what's actually on disk rather than hardcoding the
-    // Dockerfile's list, so this self-maintains if that list changes.
-    // search-index.json is the one exception: its fresh flat file doesn't
-    // exist yet at this point (dropped by dropStaleSearchIndex below, then
-    // rewritten AFTER this function returns by refreshInPlaceFromDisk), so
-    // there is nothing correct to gzip here — unlink its stale .gz instead so
-    // gzip clients fall through to the identity branch (which now also
-    // carries Vary: Accept-Encoding) until the next successful mirror.
-    if (servedDir) {
-      const siGz = join(servedDir, "search-index.json.gz");
-      if (existsSync(siGz)) unlinkSync(siGz);
-      let regenerated = 0;
-      for (const f of readdirSync(servedDir)) {
-        if (!f.endsWith(".json") || f === "search-index.json") continue;
-        const gz = join(servedDir, `${f}.gz`);
-        if (!existsSync(gz)) continue;
-        writeFileSync(gz, gzipSync(readFileSync(join(servedDir, f)), { level: 9 }));
-        regenerated++;
-      }
-      if (regenerated) log(`refresh-from-db: regenerated ${regenerated} stale .gz sibling(s)`);
-    }
-
-    // Unconditional (not gated on distDir existing) since it's a public/
-    // artifact, not a dist/ mirror.
-    dropStaleSearchIndex(config.publicDir);
-
+    log(`refresh-from-store: ${items.length} artifacts + ${docRows.length} docs → public/`);
     return dbSha;
   } catch (e) {
-    log(`refresh-from-db error: ${(e as Error).message}`);
+    log(`refresh-from-store error: ${(e as Error).message}`);
     return null;
   }
 }
@@ -394,9 +270,9 @@ export async function runRefreshFromDb(log: (m: string) => void, spawn: SpawnFn 
 // Seed embeddings only on first boot (table empty). After that, the atlas
 // worker cron keeps them current. Detached + best-effort so a slow OpenRouter
 // never blocks the health check. Skipped without an API key. `spawn` injectable
-// (default real) for the same reason as runRefreshFromDb — the real path
-// launches a genuine `bun src/server/sync-embeddings.ts` that dials a real
-// DB/OpenRouter, which a test must never trigger.
+// (default real) for the same reason — the real path launches a genuine
+// `bun src/server/sync-embeddings.ts` that dials a real DB/OpenRouter, which
+// a test must never trigger.
 export function startBootEmbeddings(spawn: SpawnFn = realSpawn): void {
   if (!config.openrouterApiKey) {
     console.log("boot-embeddings: skipped (OPENROUTER_API_KEY not set)");
@@ -425,19 +301,75 @@ export function startBootEmbeddings(spawn: SpawnFn = realSpawn): void {
 export interface TickDeps {
   getUpstream(): Promise<string | null>;
   getLiveSha(): string | null;
-  refreshFromDb(): Promise<string | null>;
-  // Patches the live indexes in place from the freshly-built disk artifacts.
+  refreshFromStore(): Promise<string | null>;
+  // Patches the live indexes in place from the freshly-written disk artifacts.
   // Throws on failure; returns the live atlasCommit sha after a successful patch.
   applyInPlace(): string | null;
-  // Full rebuild-from-disk fallback, including re-emitting search-index.json
-  // (rebuildFromDisk() only builds MiniSearch in memory — see writeSearchIndex's
-  // header comment). Returns the live atlasCommit sha after the rebuild.
+  // Full rebuild-from-disk fallback (MiniSearch.loadJSON of the worker's
+  // search-index.json). Returns the live atlasCommit sha after the rebuild.
   fullRebuild(): string | null;
   publish(sha: string): Promise<void>;
   broadcast(sha: string): void;
   log(m: string): void;
   now(): number;
   intervalMs: number;
+}
+
+function markConverged(state: UpdaterState, deps: TickDeps, sha: string): void {
+  state.consecutiveFailures = 0;
+  state.failingTarget = null;
+  state.nextAttemptAt = 0;
+  state.lastError = null;
+  state.lastSuccessMs = deps.now();
+  state.divergedSinceMs = null;
+  state.storeHydratedSha = sha;
+  deps.log(`updated → live now ${short(sha)}`);
+}
+
+function markFailed(state: UpdaterState, deps: TickDeps, upstream: string | null, lastError: string): void {
+  state.failingTarget = upstream;
+  state.consecutiveFailures++;
+  const wait = backoffMs(state.consecutiveFailures, deps.intervalMs);
+  state.nextAttemptAt = deps.now() + wait;
+  state.lastError = lastError;
+  const level = state.consecutiveFailures >= ESCALATE_AFTER ? "ERROR" : "warn";
+  deps.log(`${level}: hydrate for ${short(upstream)} failed (attempt ${state.consecutiveFailures}); retry in ${Math.round(wait / 1000)}s`);
+}
+
+async function tryPublish(deps: TickDeps, sha: string, kind: "first" | "retry"): Promise<boolean> {
+  try {
+    await deps.publish(sha);
+    if (kind === "retry") deps.log(`publish-bundle retry succeeded for ${short(sha)}`);
+    return true;
+  } catch (e) {
+    const label = kind === "retry" ? "publish-bundle retry error" : "publish-bundle error";
+    deps.log(`${label}: ${(e as Error).message}`);
+    return false;
+  }
+}
+
+function swapLive(deps: TickDeps, sha: string): boolean {
+  let newSha: string | null = null;
+  try {
+    newSha = deps.applyInPlace();
+  } catch (e) {
+    deps.log(`in-place failed (${(e as Error).message}) — full rebuild fallback`);
+    newSha = deps.fullRebuild();
+  }
+  const converged = newSha === sha;
+  if (!converged) deps.log(`WARNING built ${short(sha)} but live is ${short(newSha)}`);
+  return converged;
+}
+
+function parkPublish(state: UpdaterState, deps: TickDeps, sha: string): void {
+  const outcome = publishOutcome(sha, false);
+  state.pendingPublishSha = outcome.pendingPublishSha;
+  state.pendingPublishSinceMs ??= deps.now();
+}
+
+function clearPublish(state: UpdaterState): void {
+  state.pendingPublishSha = null;
+  state.pendingPublishSinceMs = null;
 }
 
 // The full tick body, extracted from startUpdater's closure so it can run
@@ -448,33 +380,29 @@ export interface TickDeps {
 export async function runTick(deps: TickDeps, state: UpdaterState): Promise<void> {
   state.lastTickMs = deps.now();
 
-  // Retry a previously-failed publishBundle before anything else. This is
-  // the only path that can clear pendingPublishSha once live === db has
-  // converged — decide() will never re-trigger a build in that state, so
-  // without this retry a failed publish would never get another attempt
-  // until the NEXT atlas commit (see the pendingPublishSha field comment).
+  // Retry a previously-failed publishBundle before anything else. Phase 5
+  // publishes BEFORE the in-memory swap, so a successful retry still has to
+  // swap + broadcast — indexes are still on the previous sha.
   if (shouldRetryPublish(state)) {
     const sha = state.pendingPublishSha as string;
-    let ok = true;
-    try {
-      await deps.publish(sha);
-      deps.log(`publish-bundle retry succeeded for ${short(sha)}`);
-    } catch (e) {
-      ok = false;
-      deps.log(`publish-bundle retry error: ${(e as Error).message}`);
+    const ok = await tryPublish(deps, sha, "retry");
+    if (ok && swapLive(deps, sha)) {
+      clearPublish(state);
+      markConverged(state, deps, sha);
+      deps.broadcast(sha);
+    } else if (ok) {
+      parkPublish(state, deps, sha);
+      markFailed(state, deps, sha, "did not converge after rebuild");
+    } else {
+      parkPublish(state, deps, sha);
     }
-    const outcome = publishOutcome(sha, ok);
-    state.pendingPublishSha = outcome.pendingPublishSha;
-    if (ok) state.pendingPublishSinceMs = null;
-    else state.pendingPublishSinceMs ??= deps.now();
-    if (outcome.broadcast) deps.broadcast(sha);
   }
 
   const upstream = await deps.getUpstream();
   const live = deps.getLiveSha();
 
   // Divergence clock (drives the stuck alarm) — see nextDivergedSince.
-  state.divergedSinceMs = nextDivergedSince(state.divergedSinceMs, upstream, live, deps.now());
+  state.divergedSinceMs = nextDivergedSince(state.divergedSinceMs, upstream, live, deps.now(), state.storeHydratedSha);
 
   // A fresh upstream target resets backoff — it deserves an immediate try.
   if (upstream && upstream !== state.failingTarget) {
@@ -483,62 +411,32 @@ export async function runTick(deps: TickDeps, state: UpdaterState): Promise<void
     state.nextAttemptAt = 0;
   }
 
-  if (decide({ upstream, live, building: state.building, now: deps.now(), nextAttemptAt: state.nextAttemptAt }) === "build") {
+  if (decide({
+    upstream,
+    live,
+    building: state.building,
+    now: deps.now(),
+    nextAttemptAt: state.nextAttemptAt,
+    storeHydratedSha: state.storeHydratedSha,
+  }) === "build") {
     state.building = true;
-    deps.log(`drift: db ${short(upstream)} ≠ live ${short(live)} — rebuilding from DB`);
+    deps.log(`drift: db ${short(upstream)} ≠ live ${short(live)} — loading from artifact store`);
 
-    const builtSha = await deps.refreshFromDb();
-    let converged = false;
-    let newSha: string | null = null;
-    if (builtSha) {
-      try {
-        newSha = deps.applyInPlace();
-      } catch (e) {
-        deps.log(`in-place failed (${(e as Error).message}) — full rebuild fallback`);
-        newSha = deps.fullRebuild();
-      }
-      converged = newSha === builtSha;
-      if (!converged) deps.log(`WARNING built ${short(builtSha)} but live is ${short(newSha)}`);
-    }
-
-    if (converged) {
-      state.consecutiveFailures = 0;
-      state.failingTarget = null;
-      state.nextAttemptAt = 0;
-      state.lastError = null;
-      state.lastSuccessMs = deps.now();
-      state.divergedSinceMs = null;
-      deps.log(`updated → live now ${short(builtSha)}`);
-      if (builtSha) {
-        // Publish the immutable per-SHA bundle (fresh .gz from current
-        // public/*.json — including the search-index.json just rewritten by
-        // refreshInPlaceFromDisk) BEFORE telling clients to fetch it. On
-        // failure, do NOT broadcast (clients would 404 on the new sha and
-        // reload-loop — see atlasBase.ts reloadOnce) — instead park it in
-        // pendingPublishSha for the top-of-tick retry above. This new
-        // convergence supersedes whatever sha was previously pending.
-        let ok = true;
-        try {
-          await deps.publish(builtSha);
-        } catch (e) {
-          ok = false;
-          deps.log(`publish-bundle error: ${(e as Error).message}`);
-        }
-        const outcome = publishOutcome(builtSha, ok);
-        state.pendingPublishSha = outcome.pendingPublishSha;
-        if (ok) state.pendingPublishSinceMs = null;
-        else state.pendingPublishSinceMs ??= deps.now();
-        if (outcome.broadcast) deps.broadcast(builtSha);
-      }
+    const builtSha = await deps.refreshFromStore();
+    if (!builtSha) {
+      markFailed(state, deps, upstream, "refresh-from-store refused/failed");
     } else {
-      // ① + ⑤ bounded retry with backoff + escalation — never a permanent skip.
-      state.failingTarget = upstream;
-      state.consecutiveFailures++;
-      const wait = backoffMs(state.consecutiveFailures, deps.intervalMs);
-      state.nextAttemptAt = deps.now() + wait;
-      state.lastError = builtSha ? "did not converge after rebuild" : "refresh-from-db refused/failed";
-      const level = state.consecutiveFailures >= ESCALATE_AFTER ? "ERROR" : "warn";
-      deps.log(`${level}: build for ${short(upstream)} failed (attempt ${state.consecutiveFailures}); retry in ${Math.round(wait / 1000)}s`);
+      const published = await tryPublish(deps, builtSha, "first");
+      if (!published) {
+        parkPublish(state, deps, builtSha);
+        markFailed(state, deps, upstream, "publish-bundle failed");
+      } else if (swapLive(deps, builtSha)) {
+        clearPublish(state);
+        markConverged(state, deps, builtSha);
+        deps.broadcast(builtSha);
+      } else {
+        markFailed(state, deps, upstream, "did not converge after rebuild");
+      }
     }
     state.building = false;
   }
@@ -548,11 +446,6 @@ export async function runTick(deps: TickDeps, state: UpdaterState): Promise<void
 // this server (it IS the single-replica freshness mechanism); ATLAS_UPDATE_ENABLED=0
 // is a kill switch to disable it out-of-band (no redeploy) if it ever misbehaves.
 // Uses a self-scheduling timer (not setInterval) so ticks never overlap.
-// Wire the real implementations. applyInPlace's delta log line and
-// fullRebuild's writeSearchIndex call live in these closures (moving out of
-// runTick keeps the pure orchestration free of disk/log side-effect detail).
-// Extracted from startUpdater so the wiring itself is unit-testable without
-// starting the self-scheduling timer loop.
 // The live sha moved: re-pin it so eviction can never remove the bundle we are
 // now serving (bundle-store.ts's pinnedSha). Returns its argument so the two
 // swap paths below stay one-liners — a swap that forgot to re-pin would leave
@@ -567,7 +460,7 @@ export function makeTickDeps(log: (m: string) => void, intervalMs: number): Tick
   return {
     getUpstream: getDbAtlasSha,
     getLiveSha: () => getIndexes().meta.atlasCommit ?? null,
-    refreshFromDb: () => runRefreshFromDb(log),
+    refreshFromStore: () => runRefreshFromStore(log),
     applyInPlace: () => {
       const d = refreshInPlaceFromDisk(getIndexes());
       log(`in-place: +${d.added.length} ~${d.changed.length} -${d.removed.length} docs`);
@@ -575,7 +468,6 @@ export function makeTickDeps(log: (m: string) => void, intervalMs: number): Tick
     },
     fullRebuild: () => {
       const ix = rebuildFromDisk();
-      writeSearchIndex(ix);
       return pinLive(ix.meta.atlasCommit ?? null);
     },
     publish: (sha) => publishBundle(MAIN_STORE, sha, config.publicDir),
@@ -607,7 +499,7 @@ export function startUpdater(): { stop: () => void } {
   const intervalMs = Number(process.env.ATLAS_UPDATE_INTERVAL_MS ?? 30_000);
   const log = (m: string) => console.log(`atlas-updater: ${m}`);
 
-  log(`enabled, interval ${Math.round(intervalMs / 1000)}s (DB-driven)`);
+  log(`enabled, interval ${Math.round(intervalMs / 1000)}s (store-driven)`);
 
   const deps: TickDeps = makeTickDeps(log, intervalMs);
 

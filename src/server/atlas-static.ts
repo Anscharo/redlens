@@ -9,9 +9,10 @@
 //
 // A local miss is not automatically a 404 any more: the bundle may exist in the
 // shared artifact store even though this container has never built or
-// downloaded it (a cold instance, or the window between the updater swapping
-// its in-memory sha and publishing that sha's bundle — docs/plans/atlas-artifact-store.md
-// payoff 1). Missing artifacts are hydrated onto local disk, then served.
+// downloaded it (a cold instance). Missing artifacts are hydrated onto local
+// disk, then served. After phase 5 the updater publishes the per-sha bundle
+// BEFORE swapping `window.__ATLAS_SHA__`, so this path is the cold-instance
+// fallback rather than the swap-window fix.
 import { MAIN_STORE, artifactPath, hydrateBundleFromStore, serveBundleArtifact, type ArtifactFetch } from "./bundle-store.ts";
 
 const SHA_RE = /^[0-9a-f]{40}$/i;

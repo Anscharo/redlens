@@ -1,7 +1,17 @@
 # Atlas artifact store — the worker publishes, every web instance reads
 
-> **Status: IN PROGRESS.** Phases 0–3 are implemented on
-> `claude/atomic-bundle-publish`; phases 4–5 are unbuilt.
+> **Status: PHASES 0–5 IMPLEMENTED.** Phases 0–3 shipped in PR #328
+> (`92e71573`). Phases 4–5 (web hydrates from the store; search-index coupling
+> reversed so publish precedes the in-memory swap) follow in this change.
+>
+> **Deploy ordering is load-bearing, not merge-ordering.** Do not deploy a web
+> instance that refreshes from the store until the worker has completed ≥1
+> successful `publish-artifacts: published N artifacts for <sha>` for the live
+> sha. Shipping web first means `getArtifacts` returns `[]`, boot hydration
+> never converges, and `/api/freshness` reports stuck while the process keeps
+> serving the image-baked atlas. The updater's `storeHydratedSha` gate is the
+> in-process safety net for that mistake; it does not replace waiting on the
+> worker.
 >
 > Supersedes the never-written `atlas-runtime-freshness-buckets.md` that
 > [atlas-runtime-freshness-inprocess.md](atlas-runtime-freshness-inprocess.md)
@@ -116,7 +126,7 @@ At 5 retained shas that is ~15 MB of gzipped blobs in Postgres. Trivial.
 
 `docs.json` is excluded because nothing fetches it (the browser gets the depth
 split) and nothing reads main's per-sha copy off disk — the server's own indexes
-read the flat `public/docs.json`, which `runRefreshFromDb` already reconstructs
+read the flat `public/docs.json`, which `runRefreshFromStore` reconstructs
 from `atlas_doc_meta ORDER BY ord` with `node_content_hash` intact.
 
 ## Phases
@@ -252,40 +262,56 @@ Two things the plan did not anticipate:
   `sync_state` points at, or when any expected artifact is missing from the
   build output. Both would otherwise surface only as a 404 in a browser.
 
-The worker calls it **best-effort** (warn, don't fail the run): the structural
-sync has already committed and web instances still build their own artifacts.
-**Phase 4 must change that** — once the web stops building, a publish failure is
-load-bearing and should fail the run.
+The worker's publish **fails the run** (phase 4): web instances no longer build
+their own artifacts, so a missing publish is load-bearing.
 
-### Phase 4 — the web stops building
+### Phase 4 — the web stops building *(done)*
 
-`runRefreshFromDb` → `runRefreshFromStore`: `getArtifacts(dbSha)` → write to
-`publicDir` → load indexes → broadcast. Deletes the `atlas_doc_meta` /
-`atlas_addresses` read, the docs.json + split writes, three `spawn` calls,
-`dropStaleSearchIndex`, the `public/ → dist/` mirror, the `.gz` refresh loop,
-`sameRealDir`, and `groupAddrRowsToAtlas` — most of `atlas-updater.ts`'s 641
-lines. The drift poller, the backoff/escalation state machine, and the SSE
+`runRefreshFromDb` → `runRefreshFromStore`: `getArtifacts(dbSha, PUBLISHED_ARTIFACTS)`
+→ `writeStoredArtifacts(publicDir)` → reconstruct `docs.json` from `atlas_doc_meta`
+in the same snapshot. Deletes the `atlas_addresses` read, the split writes, three
+`spawn` calls, `dropStaleSearchIndex`, the `public/ → dist/` mirror, the `.gz`
+refresh loop, `sameRealDir`, `groupAddrRowsToAtlas`, and the `updater` build-steps
+profile. The drift poller, the backoff/escalation state machine, and the SSE
 broadcast all stay: the updater shrinks, it does not disappear.
 
 `docs.json` is the one artifact the web still writes itself, from
-`atlas_doc_meta` — unchanged code, still needed by `readArtifactsFromDisk`.
+`atlas_doc_meta` — still needed by `readArtifactsFromDisk`.
 
-### Phase 5 — the search-index coupling, and the ordering
+`decide()` hydrates even when `live === db` until `storeHydratedSha` matches,
+so a web deploy that races the first worker publish reports freshness stuck
+instead of silently serving the image-baked atlas as healthy. The alarm side is
+wired in `freshness.ts`: `needsStoreHydrate` (updater enabled + store not yet
+read for the db sha) shares the sha-divergence syncing→stuck ladder, and
+`nextDivergedSince` runs the stuck clock for that condition too.
 
-`refreshInPlaceFromDisk` calls `writeSearchIndex` because the updater's build
-sets `BUILD_SKIP_SEARCH_INDEX=1`: the server deliberately owns the index and
-patches its live MiniSearch incrementally. **That is why publish must follow the
-swap**, and therefore why the phase-2 fallback is the only way to close the 404
-without touching this.
+### Phase 5 — the search-index coupling, and the ordering *(done)*
 
-Once the worker ships `search-index.json`, the web can load it verbatim —
-`readArtifactsFromDisk` already prefers a serialized index. Then publish can
-precede the swap and the window closes at the source.
+The worker ships `search-index.json`. `refreshInPlaceFromDisk` no longer calls
+`writeSearchIndex`; `rebuildFromDisk` loads the worker bytes via
+`MiniSearch.loadJSON`. **Publish precedes the in-memory swap**, so
+`window.__ATLAS_SHA__` cannot name a sha whose bundle is not on disk yet.
+Hydrate-on-miss remains for cold instances.
 
-**Measure before committing:** `MiniSearch.loadJSON` over 3.5 MB on every atlas
-update, versus patching only the changed docs. The incremental patch exists
-because someone decided it was worth it; this phase reverses that judgement and
-needs a number, not an assumption.
+The happy path still incrementally patches the live MiniSearch (same object
+reference, cheap for a small delta). The coupling that forced publish-after-swap
+was the *re-serialize after patch*, not the patch itself.
+
+**Measured 2026-08-26** (synthetic MiniSearch sized to 3.53 MB
+`JSON.stringify(toJSON())`, 20,737 docs, Bun on the agent host, 7 runs,
+median):
+
+| Path | Median |
+|---|---:|
+| `MiniSearch.loadJSON` (3.53 MB) | 148 ms |
+| Incremental `replace` of 200 docs | 30 ms |
+| `addAll` from scratch (same N) | 2467 ms |
+
+`loadJSON` is cheap enough to be the fallback (`rebuildFromDisk` already used
+it) and ~16× faster than rebuilding MiniSearch from docs. The incremental
+patch remains the happy path because it is still ~5× faster for a small delta
+*and* keeps the same object reference. The coupling that forced
+publish-after-swap was re-serializing after the patch, not the patch itself.
 
 ## What this does NOT fix
 
@@ -312,4 +338,4 @@ servable by every instance, so it is a staleness difference, not a 404.
   request hits local disk, unknown sha returns false, concurrent requests for
   one sha download once.
 - Phase 4: `bun test src/server`, and a real drift cycle in `pnpm dev`.
-- Phase 5: a timing number for `loadJSON` vs incremental patch, recorded here.
+- Phase 5: `loadJSON` vs incremental patch timing recorded in the phase-5 section.

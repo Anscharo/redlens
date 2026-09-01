@@ -69,9 +69,9 @@ export function writeDocsJson(dir: string, atlasCommit: string, nodes: Record<st
 // into docs-shallow.json (depth ≤ 5, the initial visible tree + content) and
 // docs-deep.json (depth > 5, the gated bulk loaded after first paint). Each file
 // holds self-contained full nodes (no positional stitching). `contentHash` stays
-// server-only. MUST stay byte-shape-compatible with build-index.mjs — the runtime
-// updater calls this after rebuilding docs.json from the DB so the per-sha bundle's
-// split files are never stale relative to docs.json.
+// server-only. MUST stay byte-shape-compatible with build-index.mjs. Preview
+// still calls this; the live updater does not — docs-shallow/docs-deep come
+// from the published store.
 const SHALLOW_MAX_DEPTH = 5; // KEEP IN SYNC with build-index.mjs
 export function writeDocsSplit(dir: string, atlasCommit: string, nodes: Record<string, AtlasNode>): void {
   const shallow: AtlasNode[] = [];
@@ -165,7 +165,7 @@ export function readArtifactsFromDisk(): Artifacts {
     graphJson = readJson("graph.json");
   } catch {
     // Artifacts not yet built — cold start before the worker has populated Postgres.
-    // The in-process updater will detect drift and rebuild from DB within 30s.
+    // The in-process updater will detect drift and hydrate from the artifact store within 30s.
     return EMPTY_ARTIFACTS;
   }
 

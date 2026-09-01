@@ -64,6 +64,15 @@ export interface FreshnessInput {
   // False when the updater is disabled or its tick loop has gone silent past
   // UPDATER_DEAD_SECONDS. Omitted/true = old behavior (assume alive).
   updaterAlive?: boolean;
+  // True while this process has not yet loaded the db sha from the shared
+  // artifact store (UpdaterState.storeHydratedSha !== dbSha with the updater
+  // enabled). The deploy-order alarm: web deployed before the worker's first
+  // publish sits at live===db serving the image bake while every hydrate
+  // attempt refuses on an empty store — without this input that state derives
+  // "ok" forever. Treated exactly like sha divergence: "syncing" while young,
+  // "stuck" once divergedAgeSeconds (whose clock nextDivergedSince also runs
+  // for this condition) passes the stuck threshold or the updater is dead.
+  needsStoreHydrate?: boolean;
 }
 
 export interface FreshnessSnapshot extends FreshnessInput {
@@ -76,6 +85,10 @@ export interface FreshnessSnapshot extends FreshnessInput {
   updaterEnabled: boolean;
   lastTickAgeSeconds: number | null;
   pendingPublishSha: string | null;
+  // Sha last hydrated from the artifact store (null = never this boot). The
+  // derived needsStoreHydrate input above is what feeds status; this raw value
+  // is surfaced so an operator can see WHICH sha the store last served.
+  storeHydratedSha: string | null;
 }
 
 // Pure ms-epoch-to-age-seconds conversion (unit-tested), shared by
@@ -110,7 +123,10 @@ export function deriveFreshnessStatus(i: FreshnessInput): FreshnessStatus {
   // migration deployed worker-first) is tolerated.
   if (i.schemaVersion !== null && required !== "" && i.schemaVersion < required) return "schema_behind";
   if (i.ageSeconds !== null && i.ageSeconds > stale) return "stale";
-  if (i.liveSha !== i.dbSha) {
+  // An un-hydrated store is the same fault shape as sha divergence: the
+  // updater is live===db but still retrying, and only a successful hydrate
+  // clears it — so it shares the syncing→stuck escalation below.
+  if (i.liveSha !== i.dbSha || i.needsStoreHydrate === true) {
     // A dead/disabled updater can never converge or advance divergedAgeSeconds
     // past stuck on its own — report it as stuck immediately rather than
     // "syncing" forever.
@@ -145,6 +161,12 @@ export function assembleFreshness(a: {
   // null lastTick = the process just booted and hasn't ticked yet — give it
   // grace rather than immediately reporting a dead updater.
   const updaterAlive = a.updaterEnabled && (lastTickAgeSeconds === null || lastTickAgeSeconds <= UPDATER_DEAD_SECONDS);
+  // Only with the updater enabled: the ATLAS_UPDATE_ENABLED=0 kill switch
+  // deliberately opts out of in-process hydration, and alarming on it would
+  // page every deployment that pulled the switch. A null dbSha never demands
+  // hydration (there is nothing to hydrate to; unreachable DB is "degraded"
+  // upstream of this anyway).
+  const needsStoreHydrate = a.updaterEnabled && a.dbSha !== null && a.upd.storeHydratedSha !== a.dbSha;
 
   const input: FreshnessInput = {
     liveSha: a.liveSha,
@@ -155,6 +177,7 @@ export function assembleFreshness(a: {
     dbReachable: a.dbReachable,
     pendingPublishAgeSeconds,
     updaterAlive,
+    needsStoreHydrate,
   };
   return {
     ...input,
@@ -166,6 +189,7 @@ export function assembleFreshness(a: {
     updaterEnabled: a.updaterEnabled,
     lastTickAgeSeconds,
     pendingPublishSha: a.upd.pendingPublishSha,
+    storeHydratedSha: a.upd.storeHydratedSha,
   };
 }
 

@@ -342,11 +342,10 @@ async function stageIntoBundle(
  * ATOMIC: artifacts are written into a staging dir that is renamed into place
  * in a single step, so <root>/<sha> is never observable half-written. This is
  * load-bearing, not tidiness: the serve path (serveBundleArtifact) checks
- * individual files and never consults bundleReady, and the updater swaps its
- * in-memory indexes — and therefore the sha it injects as window.__ATLAS_SHA__
- * — BEFORE calling this. A page load in between would otherwise request an
- * artifact that was about to exist, get a 404, and be force-reloaded as if the
- * sha had been pruned (apps/web/src/lib/atlasBase.ts).
+ * individual files and never consults bundleReady. After phase 5 the updater
+ * calls this BEFORE swapping in-memory indexes (so `window.__ATLAS_SHA__`
+ * cannot name a sha whose bundle is not on disk yet). Hydrate-on-miss still
+ * covers a cold instance and any remaining race.
  *
  * IDEMPOTENT: a bundle's bytes are fixed by its sha, so an already-published
  * sha is left alone — its LRU clock is refreshed and pruning still runs —
@@ -409,6 +408,43 @@ function verifyArtifact(a: { name: string; sha256?: string; rawBytes?: number },
   if (a.sha256 && createHash("sha256").update(raw).digest("hex") !== a.sha256) {
     throw new Error(`${a.name}: sha256 mismatch`);
   }
+}
+
+/**
+ * Gunzip + verify a store payload into a flat directory (no `.gz` siblings).
+ * Used by the updater's refresh-from-store path: `public/` is what
+ * `readArtifactsFromDisk` reads, and the per-sha bundle (with `.gz`) is
+ * published separately by `publishBundle` once every name is on disk.
+ *
+ * ATOMIC vs destDir (not vs a per-sha bundle): `stageIntoBundle` cannot be
+ * reused here because `public/` is a mixed live directory and cannot be
+ * renamed as a unit. Writes go into a sibling `.tmp-*` dir; destDir is
+ * updated only after every blob gunzips and verifies, via per-file rename.
+ * A throw mid-loop therefore leaves destDir on the previous sha. The
+ * updater catches that and does not swap indexes (`runRefreshFromStore`).
+ */
+export async function writeStoredArtifacts(
+  destDir: string,
+  items: Array<{ name: string; gz: Buffer; sha256?: string; rawBytes?: number }>,
+): Promise<void> {
+  const staging = path.join(path.dirname(destDir), STAGING_PREFIX + path.basename(destDir));
+  fs.rmSync(staging, { recursive: true, force: true });
+  fs.mkdirSync(staging, { recursive: true });
+  try {
+    for (const a of items) {
+      const raw = await gunzipAsync(a.gz);
+      verifyArtifact(a, raw);
+      fs.writeFileSync(path.join(staging, a.name), raw);
+    }
+    fs.mkdirSync(destDir, { recursive: true });
+    for (const a of items) {
+      fs.renameSync(path.join(staging, a.name), path.join(destDir, a.name));
+    }
+  } catch (e) {
+    fs.rmSync(staging, { recursive: true, force: true });
+    throw e;
+  }
+  fs.rmSync(staging, { recursive: true, force: true });
 }
 
 // De-dupes concurrent hydrates of the same bundle: a cold instance can take a

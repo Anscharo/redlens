@@ -150,6 +150,25 @@ describe("deriveFreshnessStatus", () => {
   it("pendingPublishAgeSeconds within the stuck window stays ok", () => {
     expect(deriveFreshnessStatus({ ...base, pendingPublishAgeSeconds: 10 })).toBe("ok");
   });
+
+  // The deploy-order alarm: live===db (image-baked atlas) but the artifact
+  // store has never been read — same escalation ladder as sha divergence.
+  it("needsStoreHydrate with live===db → syncing while young", () => {
+    expect(deriveFreshnessStatus({ ...base, needsStoreHydrate: true, divergedAgeSeconds: 30 })).toBe("syncing");
+  });
+
+  it("needsStoreHydrate past the stuck threshold → stuck", () => {
+    expect(deriveFreshnessStatus({ ...base, needsStoreHydrate: true, divergedAgeSeconds: 30 * 60 + 1 })).toBe("stuck");
+  });
+
+  it("needsStoreHydrate with a dead updater → stuck immediately", () => {
+    expect(deriveFreshnessStatus({ ...base, needsStoreHydrate: true, divergedAgeSeconds: 1, updaterAlive: false })).toBe("stuck");
+  });
+
+  it("needsStoreHydrate false/omitted keeps the converged ok", () => {
+    expect(deriveFreshnessStatus({ ...base, needsStoreHydrate: false })).toBe("ok");
+    expect(deriveFreshnessStatus(base)).toBe("ok");
+  });
 });
 
 describe("assembleFreshness", () => {
@@ -166,6 +185,7 @@ describe("assembleFreshness", () => {
       pendingPublishSha: null,
       pendingPublishSinceMs: null,
       lastTickMs: T,
+      storeHydratedSha: null,
       ...overrides,
     };
   }
@@ -180,20 +200,71 @@ describe("assembleFreshness", () => {
     now: T,
   };
 
-  it("ok case: converged, live updater, nothing pending", () => {
-    const snap = assembleFreshness({ ...okInputs, upd: updState() });
+  it("ok case: converged, store hydrated, live updater, nothing pending", () => {
+    const snap = assembleFreshness({ ...okInputs, upd: updState({ storeHydratedSha: "abc" }) });
     expect(snap.status).toBe("ok");
     expect(snap.updaterAlive).toBe(true);
     expect(snap.pendingPublishAgeSeconds).toBeNull();
+    expect(snap.needsStoreHydrate).toBe(false);
+    expect(snap.storeHydratedSha).toBe("abc");
   });
 
   it("pending-publish-past-stuck case → stuck", () => {
     const snap = assembleFreshness({
       ...okInputs,
-      upd: updState({ pendingPublishSinceMs: T - (31 * 60 * 1000) }),
+      upd: updState({ storeHydratedSha: "abc", pendingPublishSinceMs: T - (31 * 60 * 1000) }),
     });
     expect(snap.status).toBe("stuck");
     expect(snap.pendingPublishAgeSeconds).toBeGreaterThan(30 * 60);
+  });
+
+  // Deploy-order alarm: web shipped before the worker's first publish sits at
+  // live===db with an empty store — never "ok".
+  it("live===db but store never hydrated → syncing while the diverged clock is young", () => {
+    const snap = assembleFreshness({
+      ...okInputs,
+      upd: updState({ storeHydratedSha: null, divergedSinceMs: T - 1000 }),
+    });
+    expect(snap.needsStoreHydrate).toBe(true);
+    expect(snap.status).toBe("syncing");
+  });
+
+  it("live===db, store never hydrated, past stuck threshold → stuck", () => {
+    const snap = assembleFreshness({
+      ...okInputs,
+      upd: updState({ storeHydratedSha: null, divergedSinceMs: T - (31 * 60 * 1000) }),
+    });
+    expect(snap.needsStoreHydrate).toBe(true);
+    expect(snap.status).toBe("stuck");
+  });
+
+  it("store hydrated at an OLDER sha than db → needsStoreHydrate (same alarm)", () => {
+    const snap = assembleFreshness({
+      ...okInputs,
+      upd: updState({ storeHydratedSha: "prev", divergedSinceMs: T - (31 * 60 * 1000) }),
+    });
+    expect(snap.needsStoreHydrate).toBe(true);
+    expect(snap.status).toBe("stuck");
+  });
+
+  it("kill switch (updater disabled) opts out of the store-hydrate alarm", () => {
+    const snap = assembleFreshness({
+      ...okInputs,
+      updaterEnabled: false,
+      upd: updState({ storeHydratedSha: null }),
+    });
+    expect(snap.needsStoreHydrate).toBe(false);
+    expect(snap.status).toBe("ok");
+  });
+
+  it("null dbSha (never synced) never demands hydration", () => {
+    const snap = assembleFreshness({
+      ...okInputs,
+      liveSha: null,
+      dbSha: null,
+      upd: updState({ storeHydratedSha: null }),
+    });
+    expect(snap.needsStoreHydrate).toBe(false);
   });
 
   it("disabled updater with drift → stuck", () => {

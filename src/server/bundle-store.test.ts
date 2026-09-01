@@ -9,6 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import zlib from "node:zlib";
 import { gzipSync, gunzipSync } from "node:zlib";
+import { createHash } from "node:crypto";
 import {
   artifactPath,
   bundleDir,
@@ -27,6 +28,7 @@ import {
   PREVIEW_STORE,
   PREVIEW_DIR,
   PUBLISHED_ARTIFACTS,
+  writeStoredArtifacts,
 } from "./bundle-store.ts";
 // The worker profile is the publisher; this file asserts the two agree.
 import { stepsFor } from "../../scripts/lib/build-steps.mjs";
@@ -371,6 +373,41 @@ function fakeFetch(items: Array<{ name: string; gz: Buffer }>, delayMs = 0) {
   f.calls = 0;
   return f;
 }
+
+test("writeStoredArtifacts gunzips verified blobs into a flat dir and refuses a sha256 mismatch", async () => {
+  const dir = path.join(ROOT, "stored-flat");
+  const raw = Buffer.from(JSON.stringify({ ok: 1 }));
+  const gz = gzipSync(raw);
+  const sha256 = createHash("sha256").update(raw).digest("hex");
+  await writeStoredArtifacts(dir, [{ name: "graph.json", gz, rawBytes: raw.byteLength, sha256 }]);
+  expect(JSON.parse(fs.readFileSync(path.join(dir, "graph.json"), "utf8"))).toEqual({ ok: 1 });
+  expect(fs.existsSync(path.join(dir, "graph.json.gz"))).toBe(false);
+
+  await expect(
+    writeStoredArtifacts(dir, [{ name: "graph.json", gz, sha256: "deadbeef" }]),
+  ).rejects.toThrow(/sha256 mismatch/);
+});
+
+test("writeStoredArtifacts leaves destDir on the previous sha if a later blob fails verify", async () => {
+  // public/ is a mixed live dir, so this cannot rename the dest as a unit
+  // (stageIntoBundle). Staging first still means a throw before commit must
+  // not leave a mix of new-sha and old-sha files.
+  const dir = path.join(ROOT, "stored-atomic");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "a.json"), JSON.stringify({ old: "a" }));
+  fs.writeFileSync(path.join(dir, "b.json"), JSON.stringify({ old: "b" }));
+  const rawA = Buffer.from(JSON.stringify({ new: "a" }));
+  const rawB = Buffer.from(JSON.stringify({ new: "b" }));
+  await expect(
+    writeStoredArtifacts(dir, [
+      { name: "a.json", gz: gzipSync(rawA), sha256: createHash("sha256").update(rawA).digest("hex") },
+      { name: "b.json", gz: gzipSync(rawB), sha256: "deadbeef" },
+    ]),
+  ).rejects.toThrow(/sha256 mismatch/);
+  expect(JSON.parse(fs.readFileSync(path.join(dir, "a.json"), "utf8"))).toEqual({ old: "a" });
+  expect(JSON.parse(fs.readFileSync(path.join(dir, "b.json"), "utf8"))).toEqual({ old: "b" });
+  expect(fs.existsSync(path.join(ROOT, ".tmp-stored-atomic"))).toBe(false);
+});
 
 test("hydrateBundleFromStore writes the flat .json AND its .gz sibling for every allowlisted blob", async () => {
   const store = freshStore({ readyCore: null, keep: 5 });
