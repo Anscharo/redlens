@@ -11,6 +11,12 @@ interface AtlasActions {
   /** Select a node + all its descendants at once (shift-click on the row's
    *  selection checkbox). Only the main reader provides it. */
   selectSubtree?: (id: string) => void;
+  /** doc_no → uuid, for the one place a row knows a doc by NUMBER rather than
+   *  id: an annotation's "Annotates A.2.8" label, which links to its target.
+   *  The map identity only changes when the atlas bundle does — the same moment
+   *  every row's `entry` changes — so putting it here costs no extra renders.
+   *  Optional: without it the label degrades to plain text. */
+  docNoToId?: Map<string, string>;
 }
 
 export const AtlasActionsContext = createContext<AtlasActions | null>(null);

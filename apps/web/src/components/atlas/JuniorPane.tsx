@@ -107,8 +107,13 @@ export function JuniorPane({
   const { paneRef, scrollerRef, contentRef, height, startResize } = useSplitHeight();
 
   const ctxValue = useMemo(
-    () => ({ navigate: onShiftNavigate, toggle: handleToggle, splitNavigate: onShiftNavigate }),
-    [onShiftNavigate, handleToggle],
+    () => ({
+      navigate: onShiftNavigate,
+      toggle: handleToggle,
+      splitNavigate: onShiftNavigate,
+      docNoToId: data.atlas.docNoToId,
+    }),
+    [onShiftNavigate, handleToggle, data.atlas.docNoToId],
   );
 
   const items = useMemo(() => {

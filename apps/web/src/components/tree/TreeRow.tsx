@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { type RowComponentProps } from "react-window";
 import { segmentDepths, chicletColor, nrSidebarChiclets } from "@/lib/depth";
+import { annotationTarget, ANNOTATION_TAIL_SEGMENTS } from "@/lib/annotation";
 import type { AtlasNode } from "@/types";
 import { truncateTitle } from "../../lib/treeUtils";
 import { DocNoChiclets } from "../DocNoChiclets";
@@ -95,6 +96,11 @@ export function TreeRow({
   const docNo = node?.doc_no ?? "";
   const treeDepth = item?.treeDepth ?? 0;
   const parentDocNo = item?.parentDocNo;
+  // Annotations (`<target>.0.3.N`) never have children, and their three trailing
+  // segments are bookkeeping, not nesting — so the row gives back the reserved
+  // chevron column and renders those segments a step smaller, pulling the title
+  // back toward the doc they annotate. See src/lib/annotation.ts.
+  const isAnnotation = !!node && !!annotationTarget(node);
   const dim = usePreviewDim(node?.id ?? "");
 
   const docNoSegments = useMemo(() => {
@@ -117,6 +123,7 @@ export function TreeRow({
     const parts = docNo.split(".");
     const depths = segmentDepths(docNo);
     // chiclet width = ~7 px/char + ~6 px (padding+border) per segment, no dots
+    // (the minor segments below shrink their TEXT only, so this stays exact)
     const width = parts.reduce((sum, seg) => sum + Math.max(13, seg.length * 7 + 6), 0);
     return { parts, depths, slots: undefined, gradients: undefined, width } as Seg;
   }, [docNo, treeDepth, parentDocNo]);
@@ -125,8 +132,14 @@ export function TreeRow({
   // so claw back its width from the title budget when it's showing.
   const rollupEntry = isPreview && node ? rollup.get(node.id) : undefined;
   const showRollup = !!node && !expandedIds.has(node.id) && (rollupEntry?.count ?? 0) > 0;
+  // An annotation row renders no toggle column (see below), so those 15px go to
+  // the title instead — claim them only when the toggle is really there, or the
+  // title truncates 15px early. Keyed off hasChildren rather than isAnnotation
+  // alone so an annotation that ever did gain children keeps its budget honest.
+  const reserveToggle = (item?.hasChildren ?? false) || !isAnnotation;
   const availableWidth =
-    sidebarWidth - SCROLLBAR_W - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5 -
+    sidebarWidth - SCROLLBAR_W - 5 - docNoSegments.width - PAD_X - 6 - 5 -
+    (reserveToggle ? TOGGLE_WIDTH : 0) -
     (showRollup ? rollupBadgeWidth(rollupEntry?.count ?? 0) : 0);
 
   const displayTitle = useMemo(
@@ -181,6 +194,7 @@ export function TreeRow({
         depths={docNoSegments.depths}
         slots={docNoSegments.slots}
         gradients={docNoSegments.gradients}
+        minorFrom={isAnnotation ? docNoSegments.parts.length - ANNOTATION_TAIL_SEGMENTS : undefined}
       />
       {hasChildren ? (
         // No Tooltip: it advertised the tree's arrow-key navigation from the
@@ -198,7 +212,7 @@ export function TreeRow({
         >
           {isExpanded ? "\u25BE" : "\u25B8"}
         </button>
-      ) : (
+      ) : isAnnotation ? null : (
         <span
           className="tree-toggle tree-toggle-empty"
           style={{ ...TOGGLE_BASE, color: "transparent" }}

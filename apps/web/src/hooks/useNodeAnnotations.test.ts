@@ -37,7 +37,7 @@ const UUID_A = "11111111-1111-1111-1111-111111111111";
 const UUID_B = "22222222-2222-2222-2222-222222222222";
 const UUID_C = "33333333-3333-3333-3333-333333333333";
 
-function makeData(overrides?: Partial<LoadedData>): LoadedData {
+function makeData(overrides?: Partial<LoadedData>, byParent = new Map()): LoadedData {
   const target = node({
     id: UUID_A,
     doc_no: "A.3",
@@ -62,6 +62,7 @@ function makeData(overrides?: Partial<LoadedData>): LoadedData {
     atlas: {
       docs: { [UUID_A]: target, [UUID_B]: docB, [UUID_C]: docC },
       docNoToId: new Map(),
+      byParent,
     } as unknown as LoadedData["atlas"],
     flatNodes: [],
     addresses: { "0xabc": { chain: "mainnet", label: "Foo" } as AddressInfo },
@@ -82,7 +83,29 @@ describe("useNodeAnnotations", () => {
       chainValues: {},
       glossaryTerms: [],
       cousinDocs: [],
+      annotationDocs: [],
     });
+  });
+
+  // byParent is keyed by DOC NUMBER in the atlas worker (`<target>.0.3.N` →
+  // `<target>`), so the target's annotations are already its children there —
+  // including the ones the parser's depth-6 cap reparented elsewhere.
+  it("collects the target's Annotation children, in doc_no order", async () => {
+    const ann2 = node({ id: "ann-2", doc_no: "A.3.0.3.2", type: "Annotation", title: "Second" });
+    const ann1 = node({ id: "ann-1", doc_no: "A.3.0.3.1", type: "Annotation", title: "First" });
+    const core = node({ id: "core-1", doc_no: "A.3.1", title: "A real child" });
+    const data = makeData(undefined, new Map([[UUID_A, [ann2, core, ann1]]]));
+    const { useNodeAnnotations } = await import("./useNodeAnnotations");
+    const { result } = renderHook(() => useNodeAnnotations(UUID_A, data, null));
+    expect(result.current.annotationDocs.map((n) => n.doc_no)).toEqual(["A.3.0.3.1", "A.3.0.3.2"]);
+  });
+
+  it("leaves annotationDocs empty for a doc with no annotations", async () => {
+    const core = node({ id: "core-1", doc_no: "A.3.1" });
+    const data = makeData(undefined, new Map([[UUID_A, [core]]]));
+    const { useNodeAnnotations } = await import("./useNodeAnnotations");
+    const { result } = renderHook(() => useNodeAnnotations(UUID_A, data, null));
+    expect(result.current.annotationDocs).toEqual([]);
   });
 
   it("returns the empty shape when id is empty", async () => {
