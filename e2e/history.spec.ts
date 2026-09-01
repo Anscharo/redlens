@@ -29,15 +29,20 @@ async function discoverCanaryDocs(request: APIRequestContext): Promise<void> {
   ).toBeGreaterThan(0);
 
   const ids = [...new Set(recent.events.map((event) => event.doc_id).filter(Boolean))];
-  historyDocId = ids[0] ?? "";
-  for (const id of ids.slice(0, 20)) {
+  for (const id of ids.slice(0, 40)) {
+    if (historyDocId && diffDocId) break;
     const history = await callTool<HistoryPayload>(request, "atlas_history", { id, with_diff: true });
-    if (history.events.some((event) => event.diff)) {
-      diffDocId = id;
-      break;
-    }
+    // The rail-continuity test measures the joint between consecutive rows, so
+    // its document needs at least two timeline entries — the most recently
+    // changed doc is often one the latest atlas bump just created, with
+    // exactly one event and therefore exactly one rail segment.
+    if (!historyDocId && history.events.length >= 2) historyDocId = id;
+    if (!diffDocId && history.events.some((event) => event.diff)) diffDocId = id;
   }
-  expect(historyDocId, "history canary could not derive a document from recent changes").toBeTruthy();
+  expect(
+    historyDocId,
+    "history canary found no recent document with at least two history events",
+  ).toBeTruthy();
   expect(diffDocId, "history canary found no recent document with a stored line diff").toBeTruthy();
 }
 

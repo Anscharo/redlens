@@ -45,6 +45,10 @@ export default defineConfig({
       name: "canary",
       testMatch: /(?:history|preview)\.spec\.ts/,
       use: chromium,
+      // The history specs wait up to READY (45s) for the live deploy to serve
+      // the timeline; the default 30s test timeout truncated that wait and
+      // surfaced as flake. Keep the test budget above the longest single wait.
+      timeout: 60_000,
     },
   ],
 });
