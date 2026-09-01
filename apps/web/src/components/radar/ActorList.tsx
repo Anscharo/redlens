@@ -1,5 +1,5 @@
 import { Link } from "../Link";
-import { actorHref } from "@/lib/routes";
+import { ROUTES, actorHref } from "@/lib/routes";
 import type { SidebarGroup } from "../../lib/actorIndex";
 
 interface Props {
@@ -19,6 +19,16 @@ export function ActorList({ groups, selectedSlug }: Props) {
       className="h-full overflow-y-auto py-4 border-r border-[var(--border)]"
       style={{ minWidth: 200, maxWidth: 220 }}
     >
+      <div className="mb-4">
+        <Link
+          to={ROUTES.RADAR}
+          data-active={selectedSlug === null ? "true" : undefined}
+          className="actor-list-item w-full text-left px-3 py-1.5 text-sm flex items-center gap-2"
+          style={{ color: "var(--tan-2)" }}
+        >
+          <span className="flex-1 truncate">Overview</span>
+        </Link>
+      </div>
       {groups.map((g) => (
         <div key={g.label} className="mb-4">
           <div
