@@ -152,7 +152,8 @@
 [data-scheme="light"] .rlc-stage[data-state="done"] {
   opacity: 0.75;
 }
-[data-scheme="light"] .rlc-send:disabled {
+[data-scheme="light"] .rlc-send:disabled,
+[data-scheme="light"] .rlc-staged-toggle:disabled {
   opacity: 0.58;
 }
 [data-scheme="light"] .rlc-starters-locked {
@@ -366,8 +367,9 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   cursor: pointer;
   transition: background 100ms, border-color 100ms, color 100ms;
 }
-.rlc-staged-toggle:hover { border-color: var(--accent); color: var(--tan); }
+.rlc-staged-toggle:hover:not(:disabled) { border-color: var(--accent); color: var(--tan); }
 .rlc-staged-toggle[aria-pressed="true"] { background: var(--red-dim); border-color: var(--red); color: var(--tan); }
+.rlc-staged-toggle:disabled { opacity: 0.4; cursor: default; }
 
 /* ── Scroll region ─────────────────────────────────────────────────────── */
 /* Non-scrolling box exactly spanning the conversation area — the context
