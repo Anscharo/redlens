@@ -11,8 +11,12 @@
 // atlas_doc_embeddings.member_ids.
 //
 // Safe unquoted for UUIDs specifically: they can't contain a comma, brace or quote,
-// and the `::uuid[]` cast validates every element. For text[] use a jsonb round-trip
-// (`${JSON.stringify(xs)}::jsonb`) instead — arbitrary strings need real quoting.
+// and the `::uuid[]` cast validates every element. For a list of arbitrary strings
+// pass the RAW JS array with a `::jsonb` cast and unwrap with
+// jsonb_array_elements_text (see atlas-artifacts.ts getArtifacts). Do NOT
+// JSON.stringify first — Bun JSON-encodes from the cast, and pre-stringifying
+// double-encodes into a jsonb string scalar (chat.ts jsonb note; live-tested
+// 2026-09-01).
 export function toUuidArrayLiteral(ids: readonly string[]): string {
   return `{${ids.join(",")}}`;
 }

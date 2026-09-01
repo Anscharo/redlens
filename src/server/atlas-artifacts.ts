@@ -90,12 +90,22 @@ export async function getArtifacts(
   // graph.json (~0.64 MB gz) on every cold serve miss and dropping it is the
   // kind of waste that only shows up once many instances are cold at once.
   // `names` empty/undefined means "everything for this sha".
-  const wanted = names && names.length ? names : null;
+  //
+  // The filter goes through a jsonb round-trip, NOT a bare `ANY(${array})`:
+  // Bun.sql encodes a JS array as the comma-joined element text without the
+  // enclosing braces, which Postgres rejects with `malformed array literal` —
+  // that exact error broke every refresh-from-store tick in production
+  // (2026-09-01) because the mocked-sql tests never ran this binding against a
+  // real server. The RAW array is passed (not JSON.stringify'd): Bun infers
+  // jsonb from the `::jsonb` cast and JSON-encodes it itself; pre-stringifying
+  // double-encodes into a jsonb string scalar (see the chat.ts jsonb note).
+  const wanted = names && names.length ? [...names] : null;
   const rows = (await (wanted
     ? db`
     SELECT name, gz, raw_bytes, sha256
       FROM atlas_artifacts
-     WHERE atlas_sha = ${atlasSha} AND name = ANY(${wanted as string[]})
+     WHERE atlas_sha = ${atlasSha}
+       AND name IN (SELECT jsonb_array_elements_text(${wanted}::jsonb))
      ORDER BY name
   `
     : db`

@@ -3,8 +3,9 @@
 // Covers buildIndexes (both with and without a prebuilt search-index.json),
 // readArtifactsFromDisk against the real on-disk artifacts (already built —
 // CLAUDE.md: never rebuild them here), the module-level state getters/setters
-// (loadIndexes/setIndexes/getIndexes), docRowToNode, writeDocsJson/writeDocsSplit,
-// and the small graph-traversal helpers (resolveNode/ancestorChain/descendantIds).
+// (loadIndexes/setIndexes/getIndexes), docRowToNode, loadDocMetaSnapshot,
+// writeDocsJson/writeDocsSplit, and the small graph-traversal helpers
+// (resolveNode/ancestorChain/descendantIds).
 import { describe, it, expect, beforeEach, afterAll } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -19,6 +20,7 @@ import {
   getIndexes,
   rebuildFromDisk,
   docRowToNode,
+  loadDocMetaSnapshot,
   writeDocsJson,
   writeDocsSplit,
   resolveNode,
@@ -194,6 +196,65 @@ describe("docRowToNode", () => {
     expect(n.parentId).toBe("p");
     expect(n.contentHash).toBe("hash1");
     expect(n.addressRefs).toEqual(["0xabc"]);
+  });
+});
+
+describe("loadDocMetaSnapshot", () => {
+  it("reads sha + rows inside ONE transaction, never as two independent queries", async () => {
+    // The failure this guards: a concurrent worker commit pairing a new
+    // sync_state pointer with the previous atlas_doc_meta snapshot — same
+    // reason runRefreshFromStore wraps the two reads together.
+    let begins = 0;
+    const tx = async (strings: TemplateStringsArray, ..._values: unknown[]): Promise<unknown> => {
+      const text = strings.join("?");
+      if (text.includes("FROM sync_state")) return [{ atlas_sha: "abc123def" }];
+      if (text.includes("FROM atlas_doc_meta")) {
+        expect(text).toContain('parent_id AS "parentId"');
+        expect(text).toContain('ord AS "order"');
+        expect(text).toContain('node_content_hash AS "contentHash"');
+        expect(text).toContain('address_refs AS "addressRefs"');
+        return [
+          {
+            id: "x",
+            doc_no: "A.1",
+            title: "T",
+            type: "Core",
+            depth: 1,
+            parentId: null,
+            content: "body",
+            order: 0,
+            contentHash: "h",
+            addressRefs: [],
+          },
+        ];
+      }
+      throw new Error(`unmocked: ${text}`);
+    };
+    const db = {
+      begin: async <T>(fn: (t: typeof tx) => Promise<T>): Promise<T> => {
+        begins++;
+        return fn(tx);
+      },
+    };
+    const out = await loadDocMetaSnapshot(db);
+    expect(begins).toBe(1);
+    expect(out.atlasSha).toBe("abc123def");
+    expect(out.rows).toHaveLength(1);
+    expect(out.rows[0]!.id).toBe("x");
+  });
+
+  it("returns atlasSha null when sync_state has no row (docs still load)", async () => {
+    const tx = async (strings: TemplateStringsArray): Promise<unknown> => {
+      const text = strings.join("?");
+      if (text.includes("FROM sync_state")) return [];
+      if (text.includes("FROM atlas_doc_meta")) return [];
+      throw new Error(`unmocked: ${text}`);
+    };
+    const out = await loadDocMetaSnapshot({
+      begin: async <T>(fn: (t: typeof tx) => Promise<T>): Promise<T> => fn(tx),
+    });
+    expect(out.atlasSha).toBeNull();
+    expect(out.rows).toEqual([]);
   });
 });
 

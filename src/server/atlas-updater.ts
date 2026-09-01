@@ -14,12 +14,11 @@
 import { spawn } from "node:child_process";
 import { config } from "./config.ts";
 import { sql } from "./db.ts";
-import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson } from "./retrieval/indexes.ts";
+import { getIndexes, rebuildFromDisk, docRowToNode, loadDocMetaSnapshot, writeDocsJson, type AtlasNode } from "./retrieval/indexes.ts";
 import { refreshInPlaceFromDisk } from "./atlas-refresh.ts";
 import { broadcastAtlasUpdate } from "./sse.ts";
 import { MAIN_STORE, PUBLISHED_ARTIFACTS, publishBundle, pinBundleSha, writeStoredArtifacts } from "./bundle-store.ts";
 import { getArtifacts } from "./atlas-artifacts.ts";
-import type { AtlasNode, DocMetaRow } from "./retrieval/indexes.ts";
 
 export type Decision = "idle" | "build";
 
@@ -225,18 +224,7 @@ export async function runRefreshFromStore(
     // Single consistent snapshot: the sha we fetch artifacts for is the sha
     // we stamp onto docs.json. The worker cannot commit a newer pointer
     // mid-read; artifacts for this sha stay in the store (retention > 1).
-    let dbSha: string | null = null;
-    let docRows: DocMetaRow[] = [];
-    await sql.begin(async (tx) => {
-      const st = await tx`SELECT atlas_sha FROM sync_state WHERE id = 1`;
-      dbSha = (st[0] as { atlas_sha?: string } | undefined)?.atlas_sha ?? null;
-      docRows = (await tx`
-        SELECT id, doc_no, title, type, depth,
-               parent_id AS "parentId", content, ord AS "order",
-               node_content_hash AS "contentHash", address_refs AS "addressRefs"
-        FROM atlas_doc_meta ORDER BY ord
-      `) as unknown as DocMetaRow[];
-    });
+    const { atlasSha: dbSha, rows: docRows } = await loadDocMetaSnapshot(sql);
     if (!dbSha) {
       log("refuse: sync_state has no atlas_sha");
       return null;
