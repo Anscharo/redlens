@@ -49,9 +49,11 @@ interface UnsafeCall {
 }
 let unsafeCalls: UnsafeCall[] = [];
 let ended = false;
+let begins = 0;
 function resetRecording(): void {
   unsafeCalls = [];
   ended = false;
+  begins = 0;
 }
 
 async function unsafeMock(query: string, params?: unknown[]): Promise<unknown> {
@@ -94,6 +96,11 @@ async function sqlTag(strings: TemplateStringsArray, ..._values: unknown[]): Pro
 
 const sqlMock = Object.assign(sqlTag, {
   unsafe: unsafeMock,
+  // Same tagged-template shape as `sql` itself — matches atlas-updater.test.ts.
+  begin: async <T>(fn: (tx: typeof sqlTag) => Promise<T>): Promise<T> => {
+    begins++;
+    return fn(sqlTag);
+  },
   end: async (): Promise<void> => {
     ended = true;
   },
@@ -401,6 +408,7 @@ describe("main()", () => {
     expect(warns.some((w) => w.includes("atlas_doc_meta is empty"))).toBe(true);
     expect(unsafeCalls.some((c) => c.kind === "embed-upsert")).toBe(false);
     expect(ended).toBe(true);
+    expect(begins).toBe(1);
   });
 
   it("stamps each upserted row with sync_state.atlas_sha ('unknown' when the row is absent)", async () => {

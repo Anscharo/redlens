@@ -11,7 +11,7 @@ import { fromUuidArray } from "./pg-array.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
 import { embedBatch, EMBED_DIM } from "./retrieval/embed.ts";
-import { docRowToNode, type DocMetaRow } from "./retrieval/indexes.ts";
+import { docRowToNode, loadDocMetaSnapshot } from "./retrieval/indexes.ts";
 import { buildUnits, foldedIds, GROUP_POLICIES, type EmbedUnit, type GroupPolicy } from "./retrieval/embed-units.ts";
 import { buildEmbedText, contentHash } from "./retrieval/embed-text.ts";
 
@@ -120,6 +120,14 @@ const realEmbedDeps: EmbedDeps = {
 };
 
 export async function main(deps: EmbedDeps = realEmbedDeps) {
+  try {
+    await runEmbedReconcile(deps);
+  } finally {
+    await sql.end();
+  }
+}
+
+async function runEmbedReconcile(deps: EmbedDeps): Promise<void> {
   await deps.runMigrations();
 
   // Guard: the EMBED_DIM code constant must match the column's fixed dimension
@@ -140,23 +148,17 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
   // Docs come from atlas_doc_meta, NOT public/docs.json: the worker's fast-exit
   // path runs this reconcile in a fresh container where no build produced disk
   // artifacts, so the file read crashed every fast-exit cron run with ENOENT
-  // (2026-09-01) and the reconcile only ever ran after full builds. The DB is
-  // the snapshot sync.ts just verified anyway — same read (and row shape) the
-  // web updater's refresh-from-store uses, so the two can't drift.
-  const [state] = (await sql`SELECT atlas_sha FROM sync_state WHERE id = 1`) as { atlas_sha?: string }[];
-  const atlasSha: string = state?.atlas_sha ?? "unknown";
-  const docRows = (await sql`
-    SELECT id, doc_no, title, type, depth,
-           parent_id AS "parentId", content, ord AS "order",
-           node_content_hash AS "contentHash", address_refs AS "addressRefs"
-    FROM atlas_doc_meta ORDER BY ord
-  `) as unknown as DocMetaRow[];
+  // (2026-09-01) and the reconcile only ever ran after full builds. Same
+  // transactional snapshot (and row shape) as the web updater's refresh-from-store,
+  // so a concurrent worker commit cannot pair a new sha with the previous docs,
+  // and a dropped column cannot drift between the two readers.
+  const { atlasSha: sha, rows: docRows } = await loadDocMetaSnapshot(sql);
+  const atlasSha: string = sha ?? "unknown";
   const docs = docRows.map(docRowToNode);
   // An unsynced DB is a precondition failure, not "nothing stale": embedding
   // zero docs would report a clean no-op while search stays vectorless.
   if (docs.length === 0) {
     console.warn("sync:embeddings — atlas_doc_meta is empty (structural sync has not run); skipping");
-    await sql.end();
     return;
   }
 
@@ -233,7 +235,6 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
     `sync:embeddings — ${docs.length} docs, ${units.length} units (${policy}), ${total} stale/new to embed, ${toMeta.length} grouping metadata`,
   );
   if (total === 0 && toMeta.length === 0) {
-    await sql.end();
     return;
   }
 
@@ -301,7 +302,6 @@ export async function main(deps: EmbedDeps = realEmbedDeps) {
   console.log(
     `sync:embeddings — done (${done} vectors${skipped ? `, ${skipped} skipped (retry next run)` : ""}${metaNote}, atlas ${atlasSha.slice(0, 12)})`,
   );
-  await sql.end();
 }
 
 // Only run when launched directly (`bun src/server/sync-embeddings.ts`) — every
