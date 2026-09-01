@@ -539,6 +539,12 @@
   color: var(--selected-hint);
   border-color: var(--selected-hint);
 }
+/* The annotation's "Annotates A.2.8" label is chrome next to the doc number, so
+   it takes the same warm cast — its own rule only because it has no border to
+   recolour alongside the two pills above. */
+[data-theme="giedi"] .atlas-node.is-selected .atlas-annotates {
+  color: var(--selected-hint);
+}
 
 /* The doc number can't be recoloured through --c: DocNoChiclets sets it inline
    (`--c: var(--depth-N)`), and an inline custom property beats any stylesheet
@@ -873,6 +879,12 @@ mark {
 }
 .tree-row .atlas-chiclet-span {
   width: calc(var(--slots, 1) * 12px);
+}
+/* Annotation tail (`.0.3.N`) — a step down from the 10px above. Text only: the
+   12px column width is what the title-truncation math in TreeRow multiplies by,
+   so shrinking the box would silently over-budget every annotation title. */
+.tree-row .atlas-chiclet-minor {
+  font-size: 9px;
 }
 
 /* Breadcrumb */
@@ -1641,6 +1653,45 @@ button.atlas-node-expand-all:focus-visible {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+/* ─── Annotations (`<target>.0.3.N`) ───
+   Indentation in both the tree and the reader is a product of doc-number
+   length, so an annotation lands three columns past the doc it annotates and
+   reads as a child of that doc's children. It isn't one — it hangs directly
+   off the target. Two of the three corrections are here (the third, dropping
+   the reserved chevron column, is a render decision in the components): the
+   trailing three segments are bookkeeping rather than nesting, so they step
+   down one size, and the label below names the target outright. */
+.atlas-chiclet-minor {
+  font-size: 10px; /* .atlas-chiclets is 11px */
+}
+/* Stacks the label under the doc number without disturbing the row's own
+   `items-center` layout — the title still centres against the pair. */
+.atlas-docno-col {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+.atlas-annotates {
+  font-family: "Source Code Pro", "Courier New", monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  margin-top: 1px;
+  color: var(--tan-3);
+  white-space: nowrap;
+  user-select: none;
+  /* An <a> when the target resolves, a <span> when it doesn't — the two must
+     look identical at rest, so the underline is a hover/focus affordance only. */
+  text-decoration: none;
+}
+a.atlas-annotates:hover,
+a.atlas-annotates:focus-visible {
+  color: var(--tan);
+  text-decoration: underline;
 }
 
 .atlas-node-body {

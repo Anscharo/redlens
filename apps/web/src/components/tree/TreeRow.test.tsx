@@ -180,3 +180,50 @@ describe("TreeRow chevron placement", () => {
     expect(screen.getByRole("button").textContent).toBe("▾");
   });
 });
+
+// Annotations are numbered `<target>.0.3.N`, and sidebar indentation is a
+// product of doc-number length — so they render three columns past the doc they
+// annotate, looking like children of that doc's children. The row pulls them
+// back by dropping the reserved chevron column (an annotation never has
+// children) and stepping the three bookkeeping segments down a size.
+describe("TreeRow annotation rows", () => {
+  const annotation = () =>
+    node({ id: "ann", doc_no: "A.2.8.0.3.2", type: "Annotation", title: "Ecosystem - Element Annotation" });
+
+  it("renders no reserved chevron column", () => {
+    const visibleNodes: VisibleNode[] = [{ node: annotation(), hasChildren: false, treeDepth: 3 }];
+    const { container } = render(
+      <TreeRow index={0} style={{}} ariaAttributes={aria} {...baseData(visibleNodes)} />,
+    );
+    expect(container.querySelector(".tree-toggle")).toBeNull();
+  });
+
+  it("still reserves the chevron column for an ordinary childless row", () => {
+    const visibleNodes: VisibleNode[] = [{ node: node(), hasChildren: false, treeDepth: 3 }];
+    const { container } = render(
+      <TreeRow index={0} style={{}} ariaAttributes={aria} {...baseData(visibleNodes)} />,
+    );
+    expect(container.querySelector(".tree-toggle-empty")).not.toBeNull();
+  });
+
+  it("marks exactly the three annotation segments minor, leaving the target's untouched", () => {
+    const visibleNodes: VisibleNode[] = [{ node: annotation(), hasChildren: false, treeDepth: 3 }];
+    const { container } = render(
+      <TreeRow index={0} style={{}} ariaAttributes={aria} {...baseData(visibleNodes)} />,
+    );
+    const chiclets = [...container.querySelectorAll(".atlas-chiclet")];
+    expect(chiclets.map((c) => c.textContent)).toEqual(["A", "2", "8", "0", "3", "2"]);
+    expect(chiclets.filter((c) => c.classList.contains("atlas-chiclet-minor")).map((c) => c.textContent))
+      .toEqual(["0", "3", "2"]);
+  });
+
+  it("leaves a non-annotation doc_no fully full-size", () => {
+    const visibleNodes: VisibleNode[] = [
+      { node: node({ doc_no: "A.1.5.3.0.4.1", type: "Action Tenet" }), hasChildren: false, treeDepth: 4 },
+    ];
+    const { container } = render(
+      <TreeRow index={0} style={{}} ariaAttributes={aria} {...baseData(visibleNodes)} />,
+    );
+    expect(container.querySelectorAll(".atlas-chiclet-minor")).toHaveLength(0);
+  });
+});
