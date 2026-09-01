@@ -717,6 +717,16 @@ practice, all of them observed wiping correct answers in production:
   exact-substring bar made a faithful restatement `unsupported` by construction.
   Figures, dates, amounts, addresses, doc numbers, quoted atlas text and
   citations still require an exact span whatever the source.
+- That relaxation is enforced **in `validateSpans`, not only in the prompt**.
+  It was stated to the judge and then undone by the code backstop, which knew
+  nothing about source class: measured against the real features guide, a
+  faithful paraphrase of a `[REFERENCE]` entry scores **0.56** (bar 0.8) and a
+  route span (`/radar`) is under the 8-char floor and scores 0. So a
+  reference-class match uses `REFERENCE_SPAN_THRESHOLD` (0.5) and
+  `REFERENCE_MIN_SPAN` (4), and only for descriptive prose — `hasCheckableToken`
+  puts any claim carrying a figure, uuid or address back on the strict bar, and
+  the `figures` slice never relaxes. Claims that pass this way are marked
+  `reference` on the verdict (`referenceGrounded` on the slice claim).
 
 **Prefetch-only turns are never rewritten.** When a turn's only substantive
 evidence is the prefetch round, a claim-driven escalation is suppressed
@@ -725,6 +735,20 @@ replace correct content with a hedge, which is worse for the reader. A
 deterministic failure still escalates exactly as before — those are wrong
 wherever the content came from — and the badge still shows the verdict either
 way; only the rewrite is withheld.
+
+**…and reference-grounded claims never reach the trigger.** The guard above is
+turn-level, so a single orientation search returning anything re-armed the
+rewrite for an answer built entirely from injected documentation.
+`claimsDrivingEscalation` therefore skips claims marked `reference` before
+comparing against `chatAdvisorTriggerUnsupportedClaims` — the per-claim form of
+the same rule. A claim is marked whenever its span actually pointed at a
+`[REFERENCE]` entry (best overlap ≥ 0.25 — an invented span scores near zero
+against everything and would otherwise drift onto the largest haystack, which
+is usually the guide), **independently of which bar it was held to**: a demoted
+product figure is still wrong and still shown on the badge, it just cannot buy
+a whole-turn rewrite. Live failure: a bare "help me", three product claims
+demoted by the span bar (exactly the threshold), and the advisor deleted the
+answer's Reader and Reports sections as "unsupported".
 
 `paramMismatches` is structured rather than a sentence
 (`{ stated, actual, name, title, owner, uuid, doc_no }`) so the badge can link
