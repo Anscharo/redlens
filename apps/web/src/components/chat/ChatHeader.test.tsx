@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
-import { ChatHeader } from "./ChatHeader";
+import { ChatHeader, DELIVERY_LOCKED_HINT, DELIVERY_MODE_HINT } from "./ChatHeader";
 
 function renderHeader(over: Partial<React.ComponentProps<typeof ChatHeader>> = {}) {
   const onNewChat = vi.fn();
@@ -16,6 +17,7 @@ function renderHeader(over: Partial<React.ComponentProps<typeof ChatHeader>> = {
     onTogglePlacement,
     stages: false,
     onToggleDelivery: vi.fn(),
+    streaming: false,
     ...over,
   };
   const utils = render(<ChatHeader {...props} />);
@@ -64,19 +66,30 @@ describe("ChatHeader", () => {
 
   it("labels the delivery pill streaming when not in stages mode", () => {
     renderHeader({ stages: false });
-    const toggle = screen.getByLabelText("set deliver mode: stream or stages");
+    const toggle = screen.getByLabelText(DELIVERY_MODE_HINT);
     expect(toggle).toHaveTextContent("streaming");
     expect(toggle).toHaveAttribute("aria-pressed", "false");
-    expect(toggle).toHaveAttribute("title", "set deliver mode: stream or stages");
+    expect(toggle).toHaveAttribute("title", DELIVERY_MODE_HINT);
+    expect(toggle).toBeEnabled();
   });
 
   it("labels the delivery pill stages when pressed, and click flips", () => {
     const onToggleDelivery = vi.fn();
     renderHeader({ stages: true, onToggleDelivery });
-    const toggle = screen.getByLabelText("set deliver mode: stream or stages");
+    const toggle = screen.getByLabelText(DELIVERY_MODE_HINT);
     expect(toggle).toHaveTextContent("stages");
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(toggle);
     expect(onToggleDelivery).toHaveBeenCalled();
+  });
+
+  it("disables the delivery pill while streaming and ignores clicks", async () => {
+    const onToggleDelivery = vi.fn();
+    renderHeader({ streaming: true, onToggleDelivery });
+    const toggle = screen.getByLabelText(DELIVERY_LOCKED_HINT);
+    expect(toggle).toBeDisabled();
+    expect(toggle).toHaveAttribute("title", DELIVERY_LOCKED_HINT);
+    await userEvent.click(toggle);
+    expect(onToggleDelivery).not.toHaveBeenCalled();
   });
 });

@@ -92,6 +92,7 @@ export function ChatPanel({
         onTogglePlacement={onTogglePlacement}
         stages={prefs.delivery === "staged"}
         onToggleDelivery={() => setPref("delivery", prefs.delivery === "staged" ? "streaming" : "staged")}
+        streaming={streaming}
       />
 
       {/* The wrap (not the scrollable thread itself) hosts the context line:
