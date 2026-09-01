@@ -6,6 +6,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { buildIndexes, type AtlasNode, type Edge, type Indexes } from "./retrieval/indexes.ts";
 import { diffDocs, patchDocs, isEmptyDelta, applyInPlaceUpdate, writeSearchIndex, refreshInPlaceFromDisk } from "./atlas-refresh.ts";
+import type { Glossary } from "../lib/glossaryLookup.ts";
 import { contentHash as embedContentHash } from "./retrieval/embed-text.ts";
 import { atlasQuery } from "./retrieval/query.ts";
 import { config } from "./config.ts";
@@ -234,6 +235,49 @@ describe("applyInPlaceUpdate", () => {
     // meta advanced (the convergence signal)
     expect(ix.meta.atlasCommit).toBe("new");
   });
+
+  it("rebuilds the doc-derived maps (params, liveness) from the NEW docs — the chat's param table must never serve the previous sha's rows", () => {
+    const ix = buildIndexes(
+      [doc("a", { content: "- Liquidation Ratio: 145%" })],
+      [],
+      [],
+      { atlasCommit: "old" },
+    );
+    expect(ix.params.byName.get("liquidation ratio")?.[0]?.value).toBe("145%");
+
+    applyInPlaceUpdate(
+      ix,
+      [doc("a", { content: "- Liquidation Ratio: 150%" })],
+      [],
+      [],
+      { atlasCommit: "new" },
+    );
+
+    const rows = ix.params.byName.get("liquidation ratio");
+    expect(rows?.length).toBe(1);
+    expect(rows?.[0]?.value).toBe("150%");
+  });
+
+  it("glossaryTerms: provided → lookup rebuilt; null → emptied; omitted → previous map kept", () => {
+    const gloss = (term: string): Glossary => ({
+      [term]: [{ term, content: "def", nodeId: "a", docNo: "a", sourceDocNo: "a", sourceContext: null }],
+    });
+    const ix = buildIndexes([doc("a")], [], [], { atlasCommit: "old" }, null, gloss("Old Term"));
+    expect(ix.glossary.has("old term")).toBe(true);
+
+    // Omitted (pure callers without the artifact): untouched.
+    applyInPlaceUpdate(ix, [doc("a")], [], [], { atlasCommit: "n1" });
+    expect(ix.glossary.has("old term")).toBe(true);
+
+    // Provided: rebuilt from the fresh artifact.
+    applyInPlaceUpdate(ix, [doc("a")], [], [], { atlasCommit: "n2" }, gloss("New Term"));
+    expect(ix.glossary.has("new term")).toBe(true);
+    expect(ix.glossary.has("old term")).toBe(false);
+
+    // Explicit null (artifact missing on disk): empty lookup, same as buildIndexes.
+    applyInPlaceUpdate(ix, [doc("a")], [], [], { atlasCommit: "n3" }, null);
+    expect(ix.glossary.size).toBe(0);
+  });
 });
 
 describe("writeSearchIndex", () => {
@@ -284,6 +328,10 @@ describe("refreshInPlaceFromDisk", () => {
       );
       fs.writeFileSync(path.join(dir, "graph.json"), JSON.stringify({ meta: { atlasCommit: "disk-sha" }, entities: [], edges: [] }));
       fs.writeFileSync(path.join(dir, "search-index.json"), "{\"from\":\"worker\"}");
+      fs.writeFileSync(
+        path.join(dir, "glossary.json"),
+        JSON.stringify({ terms: { "Disk Term": [{ term: "Disk Term", content: "def", nodeId: "a", docNo: "A", sourceDocNo: "A", sourceContext: null }] } }),
+      );
 
       // "b" only exists on the PRE-refresh in-memory ix, not in the fresh disk
       // artifacts — it must come out as removed, same as applyInPlaceUpdate's
@@ -294,6 +342,8 @@ describe("refreshInPlaceFromDisk", () => {
       expect(delta.removed).toEqual(["b"]);
       expect(ix.meta.atlasCommit).toBe("disk-sha"); // patched IN PLACE, not swapped
       expect(ix.docMap.has("b")).toBe(false);
+      // The glossary lookup follows the freshly-written glossary.json too.
+      expect(ix.glossary.has("disk term")).toBe(true);
 
       expect(fs.readFileSync(path.join(dir, "search-index.json"), "utf8")).toBe("{\"from\":\"worker\"}");
     } finally {

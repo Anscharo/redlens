@@ -78,16 +78,26 @@ export function backoffMs(failures: number, base: number): number {
 
 // Pure: next value of the divergence clock (unit-tested). Set on first
 // divergence from a KNOWN upstream; cleared ONLY on real convergence
-// (live === upstream); a null/unknown upstream preserves the prior value so a
-// transient DB read failure can't keep restarting the stuck timer.
+// (live === upstream AND the store has been hydrated for that sha); a
+// null/unknown upstream preserves the prior value so a transient DB read
+// failure can't keep restarting the stuck timer.
+//
+// `storeHydratedSha` mirrors decide()'s deploy-order safety net: live===db on
+// an image-baked atlas with an empty artifact store is NOT converged — the
+// process is retrying hydration every tick — so the clock must run, or
+// /api/freshness would report "syncing" forever instead of escalating to
+// "stuck" past the threshold. Omitted (older callers/tests) means "already
+// hydrated", same as decide().
 export function nextDivergedSince(
   prev: number | null,
   upstream: string | null,
   live: string | null,
   now: number,
+  storeHydratedSha?: string | null,
 ): number | null {
   if (!upstream) return prev;
-  if (live === upstream) return null;
+  const needsStore = storeHydratedSha !== undefined && storeHydratedSha !== upstream;
+  if (live === upstream && !needsStore) return null;
   return prev ?? now;
 }
 
@@ -392,7 +402,7 @@ export async function runTick(deps: TickDeps, state: UpdaterState): Promise<void
   const live = deps.getLiveSha();
 
   // Divergence clock (drives the stuck alarm) — see nextDivergedSince.
-  state.divergedSinceMs = nextDivergedSince(state.divergedSinceMs, upstream, live, deps.now());
+  state.divergedSinceMs = nextDivergedSince(state.divergedSinceMs, upstream, live, deps.now(), state.storeHydratedSha);
 
   // A fresh upstream target resets backoff — it deserves an immediate try.
   if (upstream && upstream !== state.failingTarget) {

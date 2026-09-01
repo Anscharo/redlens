@@ -165,6 +165,26 @@ describe("nextDivergedSince", () => {
   it("stays clear when converged and upstream momentarily unreadable", () => {
     expect(nextDivergedSince(null, null, A, T)).toBe(null);
   });
+
+  // The deploy-order case: live===upstream (image-baked atlas) but the store
+  // has never served this process — the clock must run so /api/freshness can
+  // escalate syncing → stuck instead of reporting ok/syncing forever.
+  it("starts the clock when live===upstream but the store is not hydrated", () => {
+    expect(nextDivergedSince(null, A, A, T, null)).toBe(T);
+  });
+
+  it("keeps the original start while hydration keeps failing", () => {
+    expect(nextDivergedSince(T, A, A, T + 9999, null)).toBe(T);
+  });
+
+  it("clears only when converged AND hydrated for the upstream sha", () => {
+    expect(nextDivergedSince(T, A, A, T + 100, A)).toBe(null);
+    expect(nextDivergedSince(T, A, A, T + 100, B)).toBe(T); // stale hydrate ≠ converged
+  });
+
+  it("omitted storeHydratedSha preserves the pre-phase-4 contract (treated as hydrated)", () => {
+    expect(nextDivergedSince(T, A, A, T + 100)).toBe(null);
+  });
 });
 
 describe("backoffMs", () => {
@@ -341,6 +361,23 @@ describe("runTick", () => {
 
     expect(calls).toContain("refresh");
     expect(state.storeHydratedSha).toBe(A);
+  });
+
+  it("live===upstream, store empty, refresh refuses → the diverged clock starts (feeds the freshness stuck alarm)", async () => {
+    const state = freshState(); // storeHydratedSha null
+    const calls: string[] = [];
+    const deps = fakeDeps(calls, { upstream: A, live: A, refreshResult: null });
+
+    await runTick(deps, state);
+
+    expect(state.divergedSinceMs).toBe(T);
+    expect(state.consecutiveFailures).toBe(1);
+
+    // Still failing 10 minutes later — the clock keeps its ORIGINAL start.
+    const deps2 = fakeDeps([], { upstream: A, live: A, now: T + 600_000, refreshResult: null });
+    state.nextAttemptAt = 0; // bypass backoff for the test
+    await runTick(deps2, state);
+    expect(state.divergedSinceMs).toBe(T);
   });
 
   it("refresh fails → consecutiveFailures/nextAttemptAt/lastError set", async () => {

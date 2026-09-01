@@ -1,17 +1,15 @@
 // Incremental in-memory index updates for the in-process self-updater
 // (docs/plans/atlas-runtime-freshness-inprocess.md).
 //
-// STATUS — these are the *optimization* half, deliberately NOT yet wired into a
-// live update path. The shipping path is full rebuild + `setIndexes` (see
-// indexes.ts `rebuildFromDisk`): correct, with a clean snapshot model. `patchDocs`
-// only mutates the doc/MiniSearch side; it is the doc-half of the eventual single
-// in-place updater whose other half is in-place graphology reconcile (addNode/
-// dropNode/addEdge/dropEdge). You cannot cheaply prove a doc delta is edge-free
-// without running relation extraction on the changed docs — which *is* the graph
-// reconcile work — so do NOT branch "doc-only → patch, else → rebuild": that
-// collapses to "always rebuild". Wire `patchDocs` only once graph reconcile exists,
-// and never mix mechanisms in one update (patch mutates the live object; setIndexes
-// swaps a new one — patch-then-swap would drop the in-place edits).
+// STATUS — this IS the live happy path: atlas-updater.ts's applyInPlace calls
+// `refreshInPlaceFromDisk` on every store hydrate, with full rebuild +
+// `setIndexes` (indexes.ts `rebuildFromDisk`) as the fallback when the in-place
+// patch throws. `patchDocs` mutates the doc/MiniSearch side per-doc; the graph
+// side is NOT reconciled edge-by-edge — `applyInPlaceUpdate` rebuilds graphology
+// wholesale from the worker's fresh graph.json (relation extraction already
+// happened in the worker; the in-memory construction is cheap). Never mix
+// mechanisms in one update (patch mutates the live object; setIndexes swaps a
+// new one — patch-then-swap would drop the in-place edits).
 //
 // ATOMICITY — `patchDocs` is SYNCHRONOUS on purpose: the single-threaded event
 // loop cannot interleave a request handler mid-call, so no query observes a
@@ -23,6 +21,9 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { config } from "./config.ts";
 import { buildGraph, readArtifactsFromDisk } from "./retrieval/indexes.ts";
+import { buildLookup, type Glossary } from "../lib/glossaryLookup.ts";
+import { buildParamIndex } from "../lib/paramIndex.ts";
+import { buildLivenessMap } from "../lib/liveness.ts";
 import type { AtlasNode, Edge, Entity, Indexes } from "./retrieval/indexes.ts";
 
 export interface DocDelta {
@@ -137,17 +138,33 @@ function rebuildDerivedMaps(ix: Indexes): void {
 // the full-rebuild fallback uses MiniSearch.loadJSON on the worker's bytes.
 
 // Pure mutation: patch the live indexes for the new artifact arrays; returns the
-// doc delta. No disk I/O (testable). The new graph is built into locals BEFORE
-// any mutation, so a malformed graph.json throws here and leaves `ix` untouched.
+// doc delta. No disk I/O (testable). The new graph — and every doc-derived map
+// (params, liveness) — is built into locals BEFORE any mutation, so a malformed
+// artifact throws here and leaves `ix` untouched.
+//
+// `glossaryTerms` is tri-state on purpose: an object rebuilds the lookup, null
+// means "artifact explicitly absent" → empty lookup (same as buildIndexes'
+// `?? {}`), and *omitted* (undefined) keeps the existing map for pure callers
+// that only carry doc/graph arrays.
 export function applyInPlaceUpdate(
   ix: Indexes,
   newDocs: AtlasNode[],
   entities: Entity[],
   edges: Edge[],
   meta: Record<string, string | null>,
+  glossaryTerms?: Glossary | null,
 ): DocDelta {
   const delta = diffDocs(ix.docMap, newDocs);
   const { graph, entityBySlug, entityById } = buildGraph(newDocs, entities, edges);
+  // params/liveness are pure derivations of the doc set (see indexes.ts
+  // buildIndexes) — recompute them from the NEW docs, not the not-yet-patched
+  // ix.docMap, or the chat's parameter table / liveness tags (and the
+  // verifier's hard findParamMismatches check) would serve the previous sha's
+  // rows against the new content.
+  const newDocMap = new Map(newDocs.map((d) => [d.id, d]));
+  const params = buildParamIndex(newDocMap);
+  const liveness = buildLivenessMap(newDocMap);
+  const glossary = glossaryTerms === undefined ? ix.glossary : new Map(Object.entries(buildLookup(glossaryTerms ?? {})));
   // Commit — synchronous, no awaits, no expected throws past here:
   patchDocs(ix, delta);
   ix.graph = graph;
@@ -155,6 +172,9 @@ export function applyInPlaceUpdate(
   ix.edges = edges;
   ix.entityBySlug = entityBySlug;
   ix.entityById = entityById;
+  ix.params = params;
+  ix.liveness = liveness;
+  ix.glossary = glossary;
   ix.meta = meta; // advances atlasCommit — the convergence signal
   return delta;
 }
@@ -181,6 +201,6 @@ export function writeSearchIndex(ix: Indexes, publicDir = config.publicDir, dist
 // on disk and is what publishBundle (called first) and rebuildFromDisk (the
 // fallback, via MiniSearch.loadJSON) consume.
 export function refreshInPlaceFromDisk(ix: Indexes): DocDelta {
-  const { docs, entities, edges, meta } = readArtifactsFromDisk();
-  return applyInPlaceUpdate(ix, docs, entities, edges, meta);
+  const { docs, entities, edges, meta, glossaryTerms } = readArtifactsFromDisk();
+  return applyInPlaceUpdate(ix, docs, entities, edges, meta, glossaryTerms);
 }

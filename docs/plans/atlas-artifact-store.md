@@ -280,7 +280,10 @@ broadcast all stay: the updater shrinks, it does not disappear.
 
 `decide()` hydrates even when `live === db` until `storeHydratedSha` matches,
 so a web deploy that races the first worker publish reports freshness stuck
-instead of silently serving the image-baked atlas as healthy.
+instead of silently serving the image-baked atlas as healthy. The alarm side is
+wired in `freshness.ts`: `needsStoreHydrate` (updater enabled + store not yet
+read for the db sha) shares the sha-divergence syncing→stuck ladder, and
+`nextDivergedSince` runs the stuck clock for that condition too.
 
 ### Phase 5 — the search-index coupling, and the ordering *(done)*
 
