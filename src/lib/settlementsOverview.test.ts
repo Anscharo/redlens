@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { supplyKept, type SettlementReport, type SettlementsBundle } from "./settlements";
 import {
   actorForPrimeKey,
+  primeStackMonths,
   ecosystemHeadlineFigures,
   ecosystemMonths,
   ecosystemThreeWay,
@@ -140,6 +141,41 @@ describe("ecosystemMonths / ecosystemHeadlineFigures", () => {
 
     const noSde = ecosystemHeadlineFigures(ecosystemThreeWay({ source: {}, reports: [osero] }, "2026-07"));
     expect(noSde.some((r) => r.label === "of which Sky Direct Exposure")).toBe(false);
+  });
+});
+
+describe("primeStackMonths", () => {
+  it("stacks kept + demand per prime, disjoint from the sky line", () => {
+    const { months: rows } = primeStackMonths(bundle);
+    expect(rows.map((r) => r.month)).toEqual(["2026-06", "2026-07"]);
+    const jul = rows[1];
+    const eco = ecosystemThreeWay(bundle, "2026-07");
+    // Stack total = kept + demand from the same aggregation basis…
+    expect(jul.parts.reduce((n, p) => n + p.value, 0)).toBeCloseTo(eco.kept + eco.demand, 6);
+    // …and the line is the disjoint To-Sky total, not part of the stack.
+    expect(jul.sky).toBeCloseTo(eco.sky, 6);
+    // Never the gross-par basis (that would put CoF in both stack and line).
+    const spark7 = jul.parts.find((p) => p.prime === "spark")!;
+    expect(spark7.value).not.toBe(spark.headline.primeAgentRevenue);
+    expect(spark7.value).toBe(supplyKept(spark) + 100_000);
+  });
+
+  it("uses a stable magnitude-descending prime order and skips unpublished months", () => {
+    const { primes, months: rows } = primeStackMonths(bundle);
+    expect(primes).toEqual(["spark", "keel", "osero"]);
+    expect(rows[1].parts.map((p) => p.prime)).toEqual(["spark", "keel", "osero"]);
+    // June: only spark published (and keel/osero contribute nothing).
+    expect(rows[0].parts.map((p) => p.prime)).toEqual(["spark"]);
+  });
+
+  it("preserves a negative prime-month value signed", () => {
+    const negBundle: SettlementsBundle = {
+      source: {},
+      reports: [report({ prime: "osero", headline: { primeAgentRevenue: 0, skyRevenue: 500, cof: 500, sdeRevenue: 0, agentRate: 40, distributionRewards: 0 } })],
+    };
+    const [row] = primeStackMonths(negBundle).months;
+    expect(row.parts[0].value).toBe(-460);
+    expect(row.sky).toBe(500);
   });
 });
 

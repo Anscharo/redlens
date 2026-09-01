@@ -58,7 +58,7 @@ export function ActorSettlementVenues({ report, name }: { report: SettlementRepo
           </Tooltip>
         </div>
       )}
-      {showPnl && <SettlementVenuePnl venues={report.venues} primeLabel={name} />}
+      {showPnl && <SettlementVenuePnl venues={report.venues} primeLabel={name} month={report.month} />}
       {showAum && <SettlementAum venues={report.venues} />}
     </>
   );

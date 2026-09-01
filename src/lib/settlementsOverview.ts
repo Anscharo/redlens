@@ -141,6 +141,53 @@ export function ecosystemHeadlineFigures(eco: EcosystemThreeWay): HeadlineFigure
   return rows;
 }
 
+export interface PrimeStackMonth {
+  month: string;
+  /** Σ skyRevenue for the month — the overlaid line, disjoint from the stack. */
+  sky: number;
+  /** Per-prime supply kept + demand-side, in the stable stacking order. */
+  parts: Array<{ prime: string; value: number }>;
+}
+
+/**
+ * Monthly stack for the overview timeseries: each prime's layer is
+ * `supplyKept + demandSideRevenue` — the prime-side value that did NOT go to
+ * Sky — so the stack and the `sky` line never share a dollar
+ * (par + demand = kept + demand + cof, and sky = cof + sde). Never Σ venue
+ * profitToGrove, and never gross primeAgentRevenue (that would put CoF in
+ * both the stack and the line).
+ *
+ * Prime order is by total |value| across all months, descending — computed
+ * once so layers, colors, and legend stay stable as months are added; it is
+ * returned as `primes` so the chart keys its colors off the same roster.
+ * Ragged primes simply contribute no part in months they didn't publish.
+ * Negative values are preserved signed (stacked below the zero line).
+ */
+export function primeStackMonths(bundle: SettlementsBundle): {
+  primes: string[];
+  months: PrimeStackMonth[];
+} {
+  const byPrime = new Map<string, number>();
+  const valueOf = new Map<string, number>();
+  for (const r of bundle.reports) {
+    const v = supplyKept(r) + demandSideRevenue(r.headline);
+    valueOf.set(`${r.prime}::${r.month}`, v);
+    byPrime.set(r.prime, (byPrime.get(r.prime) ?? 0) + Math.abs(v));
+  }
+  const order = [...byPrime.entries()].sort((a, b) => b[1] - a[1]).map(([p]) => p);
+  const months = settlementMonths(bundle).map((month) => {
+    const reports = bundle.reports.filter((r) => r.month === month);
+    const sky = reports.reduce((n, r) => n + r.headline.skyRevenue, 0);
+    const present = new Set(reports.map((r) => r.prime));
+    const parts = order
+      .filter((p) => present.has(p))
+      .map((prime) => ({ prime, value: valueOf.get(`${prime}::${month}`)! }))
+      .filter((p) => Math.abs(p.value) >= SETTLEMENT_NEAR_ZERO);
+    return { month, sky, parts };
+  });
+  return { primes: order, months };
+}
+
 export interface OverviewActor {
   slug: string;
   name: string;

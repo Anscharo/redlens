@@ -1,6 +1,7 @@
 import { formatUsd } from "../../lib/settlements";
 import type { SankeyNode, SankeyVenue } from "../../lib/settlementSankey";
 import { Tooltip } from "../Tooltip";
+import { SvgRouteLink } from "./SvgRouteLink";
 
 const LABEL_MAX = 30;
 
@@ -81,37 +82,51 @@ export function SankeySinkNode({
   gross,
   netted,
   net,
+  skyTo,
 }: {
   n: SankeyNode;
   gross: number;
   netted: boolean;
   net?: number;
+  /** When set on the Sky in-bar, its label links to the /radar MSC overview. */
+  skyTo?: string;
 }) {
   const out = n.flow === "out";
   const fill = out
     ? "var(--accent)"
     : n.kind === "sky"
-      ? "var(--depth-4)"
-      : "var(--entity-delegate-org)";
+      ? "var(--msc-sky)"
+      : "var(--msc-kept)";
   const figure = out
     ? `−${formatUsd(gross, true)} out`
     : `${formatUsd(gross, true)}${netted ? " gross" : ""} in`;
+  const label = !out && (
+    <text
+      x={n.x + n.width + 6}
+      y={n.labelY - 5}
+      textAnchor="start"
+      dominantBaseline="middle"
+      className="mono msc-sankey-node-label"
+      fill="currentColor"
+      fontSize={10}
+    >
+      {n.label}
+    </text>
+  );
 
   return (
     <g className="msc-sankey-node msc-sankey-sink">
       <rect x={n.x} y={n.y} width={n.width} height={n.height} fill={fill} />
-      {!out && (
-        <text
-          x={n.x + n.width + 6}
-          y={n.labelY - 5}
-          textAnchor="start"
-          dominantBaseline="middle"
-          className="mono msc-sankey-node-label"
-          fill="currentColor"
-          fontSize={10}
+      {label && skyTo && n.kind === "sky" ? (
+        <SvgRouteLink
+          to={skyTo}
+          className="msc-sankey-sink-link"
+          label="Open this month in the ecosystem Monthly Settlement Cycle overview"
         >
-          {n.label}
-        </text>
+          {label}
+        </SvgRouteLink>
+      ) : (
+        label
       )}
       <text
         x={n.x + n.width + 6}

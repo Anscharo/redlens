@@ -77,13 +77,13 @@ describe("MscOverview", () => {
     expect(track).toHaveBeenCalledTimes(1);
   });
 
-  it("selects a month from the bars and syncs ?msc (latest month clears it)", async () => {
+  it("selects a month from the timeseries and syncs ?msc (latest month clears it)", async () => {
     render(<MscOverview actors={ACTORS} />);
-    await waitFor(() => screen.getByText("Ecosystem by month"));
-    fireEvent.click(screen.getByRole("button", { name: /Jun 2026: \$10 to Sky/ }));
+    await waitFor(() => screen.getByText("Prime-side earnings by month"));
+    fireEvent.click(screen.getByRole("button", { name: /Jun 2026: .*\$10 to Sky/ }));
     expect(window.location.search).toBe("?msc=2026-06");
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jun 2026")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Jul 2026: \$100 to Sky/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Jul 2026: .*to Sky/ }));
     expect(window.location.search).toBe("");
   });
 

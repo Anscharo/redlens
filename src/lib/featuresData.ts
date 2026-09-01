@@ -169,11 +169,11 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "MSC ecosystem overview",
-        what: "The Radar front page opens with a cross-prime Monthly Settlement Cycle ring — Sky in the middle, each Prime's month as a wedge with its To-Sky flow docking inward and supply-kept / demand-side stubs pointing outward.",
+        what: "The Radar front page opens with a cross-prime Monthly Settlement Cycle view: a ring — Sky in the middle, each Prime's month as a wedge with its To-Sky flow docking inward and supply-kept / demand-side stubs pointing outward — next to a stacked timeline of what each Prime kept, with Sky's monthly take overlaid as a line.",
         how: [
-          "Open Radar; the ring shows the latest settled month across all Primes.",
-          "Click a month in the Ecosystem by month bars to switch the ring and the figures under it.",
-          "Hover a Prime's wedge for its figures, including the cost-of-funds / Sky Direct Exposure split and the demand-side mix.",
+          "Open Radar; the ring shows the latest settled month across all Primes, with the color key and reading guide under it.",
+          "Click a month column in the Prime-side earnings chart to switch the ring and the figures under it.",
+          "Hover a Prime's wedge for its figures, including the cost-of-funds / Sky Direct Exposure split and the demand-side mix; hover a timeline segment for that Prime's month.",
           "Click a wedge to open that Prime's settlement page for the month you had selected.",
         ],
         note: "Wedge sizes are square-root scaled so small Primes stay visible — compare exact figures, not areas. Hidden when settlements.json has not been built. Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
@@ -188,6 +188,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Ask Chat or an MCP client about a month's To Sky / supply kept / demand-side — it will say those figures are not from the Atlas.",
           "On the cycle page, click a month in the Summary bars. Primes with several venues have a PnL / AUM toggle.",
           "In the venue flow chart, hover a flow, a venue name, or its row in the table below — that venue lights up in both, and its figures appear on the flows.",
+          "Click the Sky label beside the venue flow chart to open that month in the ecosystem overview on the Radar front page.",
           "A sink with loss-making venues gets two bars: what came in (`$X gross in`) and, in red just below it, what went back out (`−$Y out`), with the `net` the pair settles to underneath. A longer red bar than green means the month went backwards.",
         ],
         note: "Hidden when settlements.json has not been built (`pnpm settlements:parse`). Figures are Soter Labs OEA calculations, not the on-chain GovOps spell. Chat and MCP can answer the same views — they always say the numbers are not from the Atlas.",

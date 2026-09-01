@@ -4,11 +4,12 @@ import {
   type SankeyVenue,
   type SankeyLayout,
 } from "../../lib/settlementSankey";
+import { ROUTES } from "@/lib/routes";
 import { SankeySinkNode, SankeyVenueNode } from "./SettlementSankeyNodes";
 
 function linkFill(l: SankeyLink): string {
   if (l.signed < 0) return "var(--accent)";
-  return l.to === "sky" ? "var(--depth-4)" : "var(--entity-delegate-org)";
+  return l.to === "sky" ? "var(--msc-sky)" : "var(--msc-kept)";
 }
 
 function SankeyLinkPath({ l }: { l: SankeyLink }) {
@@ -26,10 +27,12 @@ export function SettlementSankeyView({
   rows,
   layout,
   primeLabel,
+  month,
 }: {
   rows: SankeyVenue[];
   layout: SankeyLayout;
   primeLabel: string;
+  month?: string;
 }) {
   const byId = useMemo(() => new Map(rows.map((v) => [v.id, v])), [rows]);
   // Gross per direction — each bar is labelled with its own, so a sink's two
@@ -66,6 +69,7 @@ export function SettlementSankeyView({
           <SankeySinkNode
             key={n.id}
             n={n}
+            skyTo={month && n.id === "sky" ? `${ROUTES.RADAR}?msc=${month}` : undefined}
             gross={gross[n.id] ?? 0}
             netted={n.flow === "in" && (gross[`${n.id}-out`] ?? 0) > 0}
             net={

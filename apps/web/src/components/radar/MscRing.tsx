@@ -1,5 +1,3 @@
-import { startTransition } from "react";
-import { useLocation, useRouter } from "wouter";
 import {
   DEMAND_SERIES,
   SETTLEMENT_NEAR_ZERO,
@@ -8,6 +6,7 @@ import {
 } from "../../lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 import type { RingLayout, RingPrime } from "../../lib/mscOverviewLayout";
+import { SvgRouteLink } from "./SvgRouteLink";
 
 export interface MscRingPrime {
   flow: PrimeFlowTotals;
@@ -30,7 +29,7 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
   return (
     <svg
       className="msc-ring"
-      viewBox={`0 0 ${layout.size} ${layout.size}`}
+      viewBox={`0 0 ${layout.width} ${layout.height}`}
       role="img"
       aria-label={`Monthly Settlement Cycle flows for ${formatMonth(month)}`}
     >
@@ -41,6 +40,9 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
       <text x={layout.cx} y={layout.cy + 14} textAnchor="middle" fontSize={12} className="msc-ring-center mono">
         {centerFigure}
       </text>
+      {layout.dividers.map((d, i) => (
+        <line key={i} x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} className="msc-ring-divider" aria-hidden="true" />
+      ))}
       {primes.map((p) => (
         <RingPrimeGroup key={p.flow.prime} {...p} month={month} />
       ))}
@@ -49,8 +51,6 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
 }
 
 function RingPrimeGroup({ flow, ring, label, to, month }: MscRingPrime & { month: string }) {
-  const { base } = useRouter();
-  const [, navigate] = useLocation();
   const group = (
     <g className="msc-ring-prime" data-prime={flow.prime}>
       <title>{breakdown(flow)}</title>
@@ -62,12 +62,13 @@ function RingPrimeGroup({ flow, ring, label, to, month }: MscRingPrime & { month
           className={f.signed < 0 ? "msc-ring-loss" : `msc-ring-${f.kind}`}
         />
       ))}
+      {ring.leaderPath && <path d={ring.leaderPath} className="msc-ring-leader" aria-hidden="true" />}
       <text
         x={ring.labelX}
-        y={ring.labelY}
+        y={ring.labelY + 4}
         textAnchor={ring.labelAnchor}
-        fontSize={12}
-        className="msc-ring-label"
+        fontSize={ring.labelMode === "band" ? 11 : 12}
+        className={ring.labelMode === "band" ? "msc-ring-label msc-ring-label-band" : "msc-ring-label"}
       >
         {label}
       </text>
@@ -81,25 +82,13 @@ function RingPrimeGroup({ flow, ring, label, to, month }: MscRingPrime & { month
     </g>
   );
   if (!to) return group;
-  // The app's <Link> renders an HTML anchor — invalid inside <svg> — so this
-  // SVG <a> replicates its behavior: modifier/non-left clicks fall through to
-  // the browser (the href is base-prefixed so open-in-new-tab works in
-  // preview deployments), plain clicks navigate inside startTransition so the
-  // lazy route doesn't flash a Suspense fallback. `navigate` prefixes the
-  // base itself, so it gets the unprefixed path.
-  const onClick = (e: React.MouseEvent) => {
-    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.button !== 0) return;
-    e.preventDefault();
-    startTransition(() => navigate(to));
-  };
   return (
-    <a
-      href={`${base}${to}`}
-      onClick={onClick}
-      aria-label={`${label}, ${formatMonth(month)}: ${formatUsd(flow.sky, true)} to Sky, ${formatUsd(flow.kept, true)} supply kept, ${formatUsd(flow.demand, true)} demand-side. Open settlement page.`}
+    <SvgRouteLink
+      to={to}
+      label={`${label}, ${formatMonth(month)}: ${formatUsd(flow.sky, true)} to Sky, ${formatUsd(flow.kept, true)} supply kept, ${formatUsd(flow.demand, true)} demand-side. Open settlement page.`}
     >
       {group}
-    </a>
+    </SvgRouteLink>
   );
 }
 

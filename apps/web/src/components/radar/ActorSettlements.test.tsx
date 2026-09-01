@@ -121,6 +121,10 @@ describe("ActorSettlements", () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => expect(screen.getByText("Supply kept")).toBeInTheDocument());
     expect(screen.getByLabelText(/Venue flows to Sky and Spark/)).toBeInTheDocument();
+    // The Sky sink label links back to the ecosystem overview for this month.
+    expect(
+      screen.getByRole("link", { name: /ecosystem Monthly Settlement Cycle overview/ }),
+    ).toHaveAttribute("href", "/radar?msc=2026-07");
     expect(screen.getAllByText("SparkLend USDS").length).toBeGreaterThan(0);
     expect(screen.getByText("synthetic")).toBeInTheDocument();
     expect(screen.getByText(/Headline prime-agent revenue is \$100 above/)).toBeInTheDocument();

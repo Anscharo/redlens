@@ -94,6 +94,15 @@
   --depth-15: #55a653; /* green */
   --depth-16: #6e8ee8; /* blue */
   --depth-17: #a878e8; /* purple */
+
+  /* MSC settlement series — to Sky / supply kept / demand-side. Dedicated
+     tokens because the borrowed tokens (--depth-4 / --entity-delegate-org)
+     collapsed to near-identical greens in the light theme. Each theme's trio
+     is validated for adjacent-pair CVD separation and 3:1 surface contrast
+     (dataviz validator, 2026-09-01). Loss stays --accent. */
+  --msc-sky: #6e8ee8; /* blue */
+  --msc-kept: #55a653; /* green */
+  --msc-demand: #de78c2; /* magenta — amber failed protan vs the green */
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
@@ -241,6 +250,11 @@
   --depth-15: #581be0;
   --depth-16: #0064ee;
   --depth-17: #03769d;
+
+  /* MSC settlement series — see the :root block note. */
+  --msc-sky: #2f5fd0; /* blue */
+  --msc-kept: #0f7233; /* green */
+  --msc-demand: #a21caf; /* magenta-purple */
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
@@ -517,6 +531,12 @@
   --depth-15: #c2beb0;
   --depth-16: #c7bda8;
   --depth-17: #ccbc9f;  /* back to the top of the curve */
+
+  /* MSC settlement series — hue is gone in this theme, so the trio is three
+     well-separated lightness steps (ΔE ≥ 18 adjacent, ≥ 3:1 on --bg). */
+  --msc-sky: #d4d6d1;
+  --msc-kept: #8f948c;
+  --msc-demand: #666a60;
 }
 
 /* ─── Giedi structural override ──────────────────────────────────────────
@@ -2472,7 +2492,7 @@ button.atlas-node-expand-all:focus-visible {
   background: var(--border);
 }
 .msc-bar-sky {
-  background: var(--depth-4);
+  background: var(--msc-sky);
   width: 100%;
 }
 .msc-bar-loss {
@@ -2480,10 +2500,13 @@ button.atlas-node-expand-all:focus-visible {
   width: 100%;
 }
 .msc-bar-prime {
-  background: var(--entity-delegate-org);
+  background: var(--msc-kept);
   width: 100%;
 }
-.msc-bar-demand,
+.msc-bar-demand {
+  background: var(--msc-demand);
+  width: 100%;
+}
 .msc-bar-rate {
   background: var(--entity-facilitator-org);
   width: 100%;
@@ -2561,18 +2584,59 @@ button.atlas-node-expand-all:focus-visible {
 .msc-venue-row {
   cursor: pointer;
 }
+/* The Sky sink label doubles as a link to the /radar MSC overview. */
+.msc-sankey-sink-link {
+  cursor: pointer;
+}
+.msc-sankey-sink-link:hover text,
+.msc-sankey-sink-link:focus-visible text {
+  fill: var(--accent);
+  text-decoration: underline;
+}
+/* ─── MSC ecosystem timeseries (radar index overview) ─── */
+/* Transparent track: the y-scale is shared with the To-Sky line, so the
+   stack rarely fills the column — a filled track read as a tall dark bar.
+   The zero baseline is drawn by the overlay svg instead. */
+.msc-ts-track {
+  position: relative;
+  display: block;
+  width: 26px;
+  height: 380px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.msc-ts-seg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* 1px separation line between stacked segments (dataviz spacer rule). */
+  box-shadow: inset 0 1px 0 var(--bg-deep);
+}
+.msc-ts-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.msc-bar-col:hover .msc-ts-track {
+  border-color: var(--border);
+}
+.msc-bar-col[data-active="true"] .msc-ts-track {
+  border-color: var(--tan-2);
+}
 /* ─── MSC ecosystem ring (radar index overview) ─── */
 .msc-ring {
   display: block;
   width: 100%;
-  max-width: 560px;
+  max-width: min(640px, 100%);
   height: auto;
   margin: 0 auto;
   overflow: visible;
 }
 .msc-ring-sky-disc {
   fill: var(--bg-deep);
-  stroke: var(--depth-4);
+  stroke: var(--msc-sky);
 }
 .msc-ring-center {
   fill: var(--tan);
@@ -2581,13 +2645,13 @@ button.atlas-node-expand-all:focus-visible {
   fill: var(--border);
 }
 .msc-ring-sky {
-  fill: var(--depth-4);
+  fill: var(--msc-sky);
 }
 .msc-ring-kept {
-  fill: var(--entity-delegate-org);
+  fill: var(--msc-kept);
 }
 .msc-ring-demand {
-  fill: var(--entity-facilitator-org);
+  fill: var(--msc-demand);
 }
 .msc-ring-loss {
   fill: var(--accent);
@@ -2601,8 +2665,28 @@ button.atlas-node-expand-all:focus-visible {
 a:focus-visible > .msc-ring-prime path {
   opacity: 1;
 }
+.msc-ring-divider {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.msc-ring-leader {
+  fill: none;
+  stroke: var(--border-muted);
+  stroke-width: 1;
+}
+.msc-ring-prime:hover .msc-ring-leader {
+  stroke: var(--gray);
+}
 .msc-ring-label {
   fill: var(--tan-2);
+}
+/* Names sitting inside the band segment need to read over its fill. */
+.msc-ring-label-band {
+  fill: var(--tan);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 2px;
+  stroke-linejoin: round;
 }
 .msc-ring-prime:hover .msc-ring-label {
   fill: var(--tan);

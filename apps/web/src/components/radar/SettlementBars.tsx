@@ -10,18 +10,16 @@ export function SettlementBars({
   months,
   selected,
   onSelect,
-  title = "Summary",
 }: {
   months: ThreeWayMonth[];
   selected: string;
   onSelect: (month: string) => void;
-  title?: string;
 }) {
   const { peakPos, peakNeg } = threeWayPeaks(months);
   return (
     <div className="mb-4">
       <p className="mono text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--tan-3)" }}>
-        {title}
+        Summary
       </p>
       <div className="flex items-end gap-3 mb-2" role="group" aria-label="Settlement months">
         {months.map((m) => (
