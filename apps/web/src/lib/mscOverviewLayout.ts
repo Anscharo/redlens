@@ -53,9 +53,12 @@ const MIN_FLOW_ANGLE = 0.035;
 
 export interface RingFlow {
   kind: "sky" | "kept" | "demand";
-  /** Magnitude; the sign lives in `signed` (negative → loss styling). */
+  /** Magnitude; the sign lives in `signed` (negative → striped fill). */
   value: number;
   signed: number;
+  /** Negative kept/demand flows reverse direction: drawn INTO the prime's
+   *  band (outer edge to inner edge) instead of the outward stub. */
+  inward: boolean;
   path: string;
   a0: number;
   a1: number;
@@ -195,15 +198,21 @@ export function layoutMscRing(
       fa = s1 + FLOW_GAP;
       const signed = r.p[kind];
       const isSky = kind === "sky";
+      // A negative kept/demand flow keeps its category color but reverses
+      // direction: instead of pointing outward it is drawn into the band,
+      // from its outer edge to its inner edge (the view adds stripes).
+      const inward = signed < 0 && !isSky;
       // To-Sky ribbon reuses the flow's angular interval at both R_IN and
       // R_SKY — sqrt-proportional widths at both ends, zero crossings. Stubs
       // are plain annular sectors outward from the band.
       const path = isSky
         ? sector(R_IN, R_SKY, s0, s1)
-        : sector(R_OUT + STUB_LEN, R_OUT, s0, s1);
-      const amountR = isSky ? (R_IN + R_SKY) / 2 : R_OUT + STUB_LEN / 2;
+        : inward
+          ? sector(R_OUT, R_IN, s0, s1)
+          : sector(R_OUT + STUB_LEN, R_OUT, s0, s1);
+      const amountR = isSky ? (R_IN + R_SKY) / 2 : inward ? R_BAND : R_OUT + STUB_LEN / 2;
       const [amountX, amountY] = pt(amountR, (s0 + s1) / 2);
-      flows.push({ kind, value: Math.abs(signed), signed, path, a0: s0, a1: s1, amountX, amountY });
+      flows.push({ kind, value: Math.abs(signed), signed, inward, path, a0: s0, a1: s1, amountX, amountY });
     });
 
     // The name goes INSIDE the band when its estimated width fits the band

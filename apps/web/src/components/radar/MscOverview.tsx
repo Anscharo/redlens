@@ -123,6 +123,7 @@ function RingKey() {
         <span>{swatch("--msc-sky")} to Sky — flows inward to the Sky disc</span>
         <span>{swatch("--msc-kept")} supply kept — points outward</span>
         <span>{swatch("--msc-demand")} demand-side — points outward</span>
+        <span>striped, drawn into the band = negative</span>
       </p>
       <p className="text-center mt-1">
         Each ring segment is one Prime for the selected month — click it to open that

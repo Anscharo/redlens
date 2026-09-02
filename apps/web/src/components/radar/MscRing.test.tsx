@@ -82,12 +82,15 @@ describe("MscRing", () => {
     expect(title).toContain("distribution rewards $100k");
   });
 
-  it("styles a negative flow with the loss class", () => {
+  it("fills a negative flow with its category's stripe pattern, not a loss color", () => {
     const { layout, primes } = ringPrimes([flow({ prime: "osero", sky: 497, kept: -107, demand: 12_000 })], "2026-07");
     const { container } = render(
       <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$497" />,
     );
-    expect(container.querySelector(".msc-ring-loss")).toBeInTheDocument();
+    expect(container.querySelector('path[fill="url(#msc-ring-neg-kept)"]')).toBeInTheDocument();
+    expect(container.querySelector("defs pattern#msc-ring-neg-kept")).toBeInTheDocument();
+    // The solid kept class is reserved for positive flows.
     expect(container.querySelector(".msc-ring-kept")).not.toBeInTheDocument();
+    expect(container.querySelector(".msc-ring-loss")).not.toBeInTheDocument();
   });
 });

@@ -129,16 +129,24 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
       aria-label={`${formatMonth(m.month)}: ${formatUsd(total, true)} prime-side earnings across ${m.parts.length} primes, ${formatUsd(m.sky, true)} to Sky`}
     >
       <span className="msc-ts-track" aria-hidden="true">
-        {segs.map((s) =>
-          s.h >= 0.5 ? (
+        {segs.map((s) => {
+          if (s.h < 0.5) return null;
+          const fill = colorOf(s.prime);
+          // A negative month keeps the prime's own color (color = identity)
+          // and is marked by diagonal stripes, stacked below the zero line.
+          const background =
+            s.value < 0
+              ? `repeating-linear-gradient(45deg, ${fill} 0, ${fill} 4px, transparent 4px, transparent 8px)`
+              : fill;
+          return (
             <span
               key={s.prime}
               className="msc-ts-seg"
               title={`${primeLabel(s.prime)}: ${formatUsd(s.value, true)}`}
-              style={{ top: s.top, height: s.h, background: s.value < 0 ? "var(--accent)" : colorOf(s.prime) }}
+              style={{ top: s.top, height: s.h, background }}
             />
-          ) : null,
-        )}
+          );
+        })}
       </span>
       <span className="mono text-[10px]">{formatMonth(m.month)}</span>
     </button>

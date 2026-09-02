@@ -2653,9 +2653,6 @@ button.atlas-node-expand-all:focus-visible {
 .msc-ring-demand {
   fill: var(--msc-demand);
 }
-.msc-ring-loss {
-  fill: var(--accent);
-}
 .msc-ring-prime path {
   opacity: 0.55;
   transition: opacity 0.1s;

@@ -61,11 +61,18 @@ describe("layoutMscRing", () => {
     expect(layout.primes[0].flows.map((f) => f.kind)).toEqual(["demand"]);
   });
 
-  it("keeps the sign on negative flows for loss styling", () => {
+  it("reverses a negative kept/demand flow into the band, keeping its sign", () => {
     const layout = layoutMscRing([flow({ prime: "osero", sky: 497, kept: -107, demand: 12_000 })]);
-    const kept = layout.primes[0].flows.find((f) => f.kind === "kept")!;
+    const [p] = layout.primes;
+    const kept = p.flows.find((f) => f.kind === "kept")!;
     expect(kept.signed).toBe(-107);
     expect(kept.value).toBe(107);
+    expect(kept.inward).toBe(true);
+    expect(kept.path).toMatch(/^M/);
+    expect(kept.path).not.toMatch(/NaN/);
+    // Positive flows still point their usual way.
+    expect(p.flows.find((f) => f.kind === "sky")!.inward).toBe(false);
+    expect(p.flows.find((f) => f.kind === "demand")!.inward).toBe(false);
   });
 
   it("orders flows kept, sky, demand with gaps, and emits valid paths", () => {

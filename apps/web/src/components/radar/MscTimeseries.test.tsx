@@ -53,7 +53,10 @@ describe("MscTimeseries", () => {
       expect((el as HTMLElement).style.background).toContain("--depth-1");
     }
     const osero = document.querySelector('[title="Osero: −$50k"]') as HTMLElement;
-    expect(osero.style.background).toContain("--accent");
+    // Negative months keep the prime's own color, marked by stripes.
+    expect(osero.style.background).toContain("repeating-linear-gradient");
+    expect(osero.style.background).toContain("--depth-5");
+    expect(osero.style.background).not.toContain("--accent");
   });
 
   it("draws the To-Sky line and dots in the sky series color", () => {

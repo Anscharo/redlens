@@ -33,6 +33,23 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
       role="img"
       aria-label={`Monthly Settlement Cycle flows for ${formatMonth(month)}`}
     >
+      {/* Diagonal stripes in each series' own color: a negative flow keeps
+          its category color (colors mean category on this chart) and is
+          marked by stripes + reversed direction instead of a "loss" hue. */}
+      <defs>
+        {(["sky", "kept", "demand"] as const).map((k) => (
+          <pattern
+            key={k}
+            id={`msc-ring-neg-${k}`}
+            patternUnits="userSpaceOnUse"
+            width={6}
+            height={6}
+            patternTransform="rotate(45)"
+          >
+            <rect width={3.5} height={6} style={{ fill: `var(--msc-${k})` }} />
+          </pattern>
+        ))}
+      </defs>
       <circle cx={layout.cx} cy={layout.cy} r={layout.skyR} className="msc-ring-sky-disc" />
       <text x={layout.cx} y={layout.cy - 4} textAnchor="middle" fontSize={15} className="msc-ring-center">
         Sky
@@ -59,7 +76,8 @@ function RingPrimeGroup({ flow, ring, label, to, month }: MscRingPrime & { month
         <path
           key={f.kind}
           d={f.path}
-          className={f.signed < 0 ? "msc-ring-loss" : `msc-ring-${f.kind}`}
+          className={f.signed < 0 ? undefined : `msc-ring-${f.kind}`}
+          fill={f.signed < 0 ? `url(#msc-ring-neg-${f.kind})` : undefined}
         />
       ))}
       {ring.leaderPath && <path d={ring.leaderPath} className="msc-ring-leader" aria-hidden="true" />}
