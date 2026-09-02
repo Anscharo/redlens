@@ -62,6 +62,15 @@ export const ANNOUNCE_CASES: AnnounceCase[] = [
   { text: "Yes, that is correct — the rule applies to every instance of the primitive, not just the first.", fire: false, note: "plain answer" },
   { text: "No, the atlas treats those as separate scopes with separate governance.", fire: false, note: "plain answer" },
   { text: "In short: the Prime Agent proposes, and the Alignment Conserver can object before it takes effect.", fire: false, note: "plain answer" },
+  // Regex-hole sentences from the 2026-09-02 review: ordinary answers that the
+  // pre-tightening ANNOUNCEMENT_RE fired on (bare `a second`/`a minute` in the
+  // wait idiom, bare `see` after "let me", bare `looking`). Pinned so a future
+  // regex loosening cannot report zero false fires by never seeing them.
+  { text: "A second signer must approve before the transaction can proceed.", fire: false, note: "regex hole (wait idiom)" },
+  { text: "This is a second copy of the same document.", fire: false, note: "regex hole (wait idiom)" },
+  { text: "A minute of the meeting is reserved for objections.", fire: false, note: "regex hole (wait idiom)" },
+  { text: "Let me see. The Facilitator reviews each submission before it proceeds.", fire: false, note: "regex hole (bare see)" },
+  { text: "I am looking at two possible readings of that rule.", fire: false, note: "regex hole (bare looking)" },
 
   // ── Negatives: product answers from the injected features guide ──────────
   { text: "You can search the atlas, browse entities by role, and export any report as a file.", fire: false, note: "features answer" },

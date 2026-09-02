@@ -38,11 +38,21 @@ import { config } from "../config.ts";
 // First-person promises to go and retrieve. Anchored on the SUBJECT ("let me",
 // "I'll", "I'm going to") on purpose: an unanchored /searching the atlas/ also
 // matches a perfectly good how-to answer ("Searching the atlas is done from the
-// search bar"), which is the exact class this must never touch.
+// search bar"), which is the exact class this must never touch. Three idioms
+// are further anchored on the RETRIEVAL half, because the population this gate
+// sees is marker-free answers and the bare forms are ordinary prose (caught in
+// the 2026-09-02 review; all five sentences are pinned as eval negatives):
+//   - `see` needs a complement ("let me see WHAT the atlas…") — "Let me see.
+//     The Facilitator reviews…" is an answer lead-in, not a promise;
+//   - `looking` needs up/through/for/into — "I am looking AT two readings" is
+//     the answer itself;
+//   - the wait idiom lost bare `a` — "A second signer must approve" and "A
+//     minute of the meeting" are subjects, not waits. `one`/`just a`/`give me
+//     a` keep "One moment." and "Give me a second" matching.
 export const ANNOUNCEMENT_RE: RegExp[] = [
-  /\b(?:let me|i'?ll|i will|i'?m going to|i am going to|i'?m about to|allow me to)\s+(?:just\s+|quickly\s+|first\s+|now\s+)?(?:go\s+(?:and\s+)?)?(?:look|search|check|find|pull|fetch|retrieve|dig|consult|review|query|scan|see)\b/i,
-  /\b(?:i'?m|i am)\s+(?:now\s+)?(?:searching|looking|checking|retrieving|fetching|querying|pulling)\b/i,
-  /\b(?:one|a|just a|give me a)\s+(?:moment|second|sec|minute)\b/i,
+  /\b(?:let me|i'?ll|i will|i'?m going to|i am going to|i'?m about to|allow me to)\s+(?:just\s+|quickly\s+|first\s+|now\s+)?(?:go\s+(?:and\s+)?)?(?:look|search|check|find|pull|fetch|retrieve|dig|consult|review|query|scan|see\s+(?:what|which|where|whether)\b)\b/i,
+  /\b(?:i'?m|i am)\s+(?:now\s+)?(?:searching|checking|retrieving|fetching|querying|pulling|looking\s+(?:up|through|for|into)\b)\b/i,
+  /\b(?:one|just a|give me a)\s+(?:moment|second|sec|minute)\b/i,
   /\b(?:hold on|hang on|bear with me|stand by)\b/i,
   /\bwhile i\s+(?:search|look|check|retrieve|find|pull|query)\b/i,
 ];
@@ -171,7 +181,12 @@ export function announcementMargin(text: string): number {
 export function couldAnnounce(content: string): boolean {
   const text = content.trim();
   if (!text) return false; // the compose guard's case
-  if (!isUncheckableAnswer(text)) return false; // a link, figure or doc number ⇒ an answer
+  // A link, figure or doc number ⇒ an answer. This also imports smalltalk.ts's
+  // SMALLTALK_MAX_CHARS (600) cap: anything longer is treated as an answer and
+  // never retried, even a rambling announcement. Accepted as a conservative
+  // bias — every observed announcement is short, and the cost of being wrong
+  // here is one un-retried promise, not a clobbered answer.
+  if (!isUncheckableAnswer(text)) return false;
   // A turn that ends by asking the user something is waiting on them, and
   // waiting is a correct way to end a turn — retrying would talk over them.
   // This also closes the one edge the regex idioms leave open: "Hold on — did

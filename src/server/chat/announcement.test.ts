@@ -95,6 +95,27 @@ test("a clarification wearing an announcement idiom is left alone", () => {
   expect(announcesUnmadeToolCall("One moment: before I look, should I include the history as well?")).toBe(false);
 });
 
+test("ordinary answers wearing half an idiom do not fire (2026-09-02 review holes)", () => {
+  // Each of these matched the pre-tightening ANNOUNCEMENT_RE: bare `a` in the
+  // wait idiom ("a second signer", "a minute of the meeting"), bare `see` after
+  // "let me", bare `looking`. They are marker-free follow-ups — exactly the
+  // population this gate sees — so they are pinned here AND as eval negatives.
+  for (const a of [
+    "A second signer must approve before the transaction can proceed.",
+    "This is a second copy of the same document.",
+    "A minute of the meeting is reserved for objections.",
+    "Let me see. The Facilitator reviews each submission before it proceeds.",
+    "I am looking at two possible readings of that rule.",
+  ]) {
+    expect(ANNOUNCEMENT_RE.some((re) => re.test(a))).toBe(false); // regex lane specifically
+    expect(announcesUnmadeToolCall(a)).toBe(false); // and the whole gate
+  }
+  // The anchored forms the tightening must NOT lose:
+  expect(announcesUnmadeToolCall("Give me a second to find the right document.")).toBe(true);
+  expect(announcesUnmadeToolCall("Absolutely. Let me see what the atlas says about this before I answer.")).toBe(true);
+  expect(announcesUnmadeToolCall("I'm looking up the defining document for that parameter.")).toBe(true);
+});
+
 test("an unanchored search verb in a how-to answer does not fire", () => {
   // Why ANNOUNCEMENT_RE is first-person anchored: this sentence is about the
   // app's search, not a promise to go and use it.
