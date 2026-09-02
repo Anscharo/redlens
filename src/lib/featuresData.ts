@@ -59,13 +59,14 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "In the reader, the » button on a document opens and closes everything beneath it — alt-click reverses the direction it would go next.",
           "Each document carries a type pill plus buttons to copy its link or its doc number.",
           "The owning Prime or Executor Agent shows as a pill in the left gutter of the document.",
+          "An Element Annotation shows an \"Annotates\" line under its doc number — click it to jump to the document it annotates; the Atlas orders the annotation well below that document.",
         ],
       },
       {
         name: "The right-hand panel",
         what: "Three tabs of context for whichever document is selected: annotations, glossary, and history.",
         how: [
-          "Annotations — linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one.",
+          "Annotations — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one.",
           "Glossary — the defined terms this document uses, with their Atlas definitions.",
           "History — this document's change timeline (the tab you land on by default).",
         ],

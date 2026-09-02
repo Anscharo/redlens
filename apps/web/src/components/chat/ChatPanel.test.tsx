@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import type { PageContextView } from "./pageContext";
 import type { ChatMsg, SendResult } from "./useChatStream";
@@ -358,6 +359,7 @@ describe("ChatPanel delivery-mode toggle", () => {
     const toggle = screen.getByLabelText("set deliver mode: stream or stages");
     expect(toggle).toHaveTextContent("streaming");
     expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(toggle).toBeEnabled();
     fireEvent.click(toggle);
     expect(setPref).toHaveBeenCalledWith("delivery", "staged");
   });
@@ -370,6 +372,19 @@ describe("ChatPanel delivery-mode toggle", () => {
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(toggle);
     expect(setPref).toHaveBeenCalledWith("delivery", "streaming");
+  });
+
+  it("disables the delivery toggle while a reply (including any revision) is still streaming", async () => {
+    renderPanel({
+      session: {
+        streaming: true,
+        messages: [{ role: "assistant", content: "partial", trace: [], rounds: 0, sources: [], done: false }],
+      },
+    });
+    const toggle = screen.getByLabelText("can't change delivery mode while a reply is in progress");
+    expect(toggle).toBeDisabled();
+    await userEvent.click(toggle);
+    expect(setPref).not.toHaveBeenCalled();
   });
 
   it("threads the delivery pref into send() as the third argument", () => {

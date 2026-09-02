@@ -32,9 +32,10 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
-## 2026-09-01
-- Stopped Chat revising away correct answers about the app's own features
-- Fixed Chat replying that it would look something up and then stopping without doing it
+
+## 2026-09-02
+- Fixed Chat mistakenly revising correct answers and forgetting to look up info
+- Annotation documents now link to the document they annotate, sit closer to it in the tree and reader instead of looking nested a few levels too deep, and are listed in an "annotated by" section of that document's annotations panel
 
 ## 2026-08-27
 - Tinted Giedi Connect tool names gold and made reader document hover easier to see

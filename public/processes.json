@@ -599,12 +599,6 @@
     "stepCount": 2
   },
   {
-    "uuid": "dc208bb2-ffb4-4a2a-b561-d563bc52eb14",
-    "category": "Personnel & Delegation",
-    "shape": "child",
-    "status": "active"
-  },
-  {
     "uuid": "c2eda7f5-882c-49cb-802b-91845a0c7889",
     "category": "Personnel & Delegation",
     "shape": "inline",
@@ -859,18 +853,6 @@
   },
   {
     "uuid": "e6807f67-0d3c-4b6a-a3df-6da987147b72",
-    "category": "Settlement & Financial",
-    "shape": "child",
-    "status": "active"
-  },
-  {
-    "uuid": "c586a7cc-a4d0-4c9b-9578-cbfe1f99a20e",
-    "category": "Settlement & Financial",
-    "shape": "child",
-    "status": "active"
-  },
-  {
-    "uuid": "ac9d89b5-7a07-4b95-8597-6644bc4029ab",
     "category": "Settlement & Financial",
     "shape": "child",
     "status": "active"
