@@ -71,6 +71,11 @@ export const ANNOUNCE_CASES: AnnounceCase[] = [
   { text: "A minute of the meeting is reserved for objections.", fire: false, note: "regex hole (wait idiom)" },
   { text: "Let me see. The Facilitator reviews each submission before it proceeds.", fire: false, note: "regex hole (bare see)" },
   { text: "I am looking at two possible readings of that rule.", fire: false, note: "regex hole (bare looking)" },
+  // Second round (same review, follow-up pass): interjections leading an
+  // answer, not a wait — the idiom now requires standing alone or a
+  // first-person retrieval in the same sentence.
+  { text: "Hold on, this doesn't add up — the two documents give different thresholds.", fire: false, note: "regex hole (interjection)" },
+  { text: "Bear with me — the distinction between those two roles is subtle.", fire: false, note: "regex hole (interjection)" },
 
   // ── Negatives: product answers from the injected features guide ──────────
   { text: "You can search the atlas, browse entities by role, and export any report as a file.", fire: false, note: "features answer" },

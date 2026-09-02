@@ -48,12 +48,19 @@ import { config } from "../config.ts";
 //     the answer itself;
 //   - the wait idiom lost bare `a` — "A second signer must approve" and "A
 //     minute of the meeting" are subjects, not waits. `one`/`just a`/`give me
-//     a` keep "One moment." and "Give me a second" matching.
+//     a` keep "One moment." and "Give me a second" matching;
+//   - the interjections (`hold on`, `bear with me`, …) fire only when the
+//     whole text IS the wait ("Hold on.", "Hang on a sec!") or a first-person
+//     retrieval follows in the same sentence ("Hold on, I need to consult…")
+//     — "Hold on, this doesn't add up" is an answer's interjection, not a
+//     wait (2026-09-02 follow-up review). A mid-text "Good question. Hold
+//     on." is a deliberate miss: erring toward not retrying an answer.
 export const ANNOUNCEMENT_RE: RegExp[] = [
   /\b(?:let me|i'?ll|i will|i'?m going to|i am going to|i'?m about to|allow me to)\s+(?:just\s+|quickly\s+|first\s+|now\s+)?(?:go\s+(?:and\s+)?)?(?:look|search|check|find|pull|fetch|retrieve|dig|consult|review|query|scan|see\s+(?:what|which|where|whether)\b)\b/i,
   /\b(?:i'?m|i am)\s+(?:now\s+)?(?:searching|checking|retrieving|fetching|querying|pulling|looking\s+(?:up|through|for|into)\b)\b/i,
   /\b(?:one|just a|give me a)\s+(?:moment|second|sec|minute)\b/i,
-  /\b(?:hold on|hang on|bear with me|stand by)\b/i,
+  /^(?:hold on|hang on|bear with me|stand by)\b(?:\s+(?:a\s+)?(?:moment|second|sec|minute|there|please))?[\s,!.…]*$/i,
+  /\b(?:hold on|hang on|bear with me|stand by)\b[^.!?\n]*\bi\s+(?:need to\s+|must\s+|have to\s+|will\s+|just\s+)?(?:go\s+(?:and\s+)?)?(?:search|look|check|find|pull|fetch|retrieve|dig|consult|review|query|scan)\b/i,
   /\bwhile i\s+(?:search|look|check|retrieve|find|pull|query)\b/i,
 ];
 

@@ -116,6 +116,23 @@ test("ordinary answers wearing half an idiom do not fire (2026-09-02 review hole
   expect(announcesUnmadeToolCall("I'm looking up the defining document for that parameter.")).toBe(true);
 });
 
+test("interjections leading an answer are not waits (follow-up review)", () => {
+  // /hold on/ used to fire anywhere the words appeared. Now the idiom needs to
+  // BE the whole text or be followed by a first-person retrieval in the same
+  // sentence — an interjection opening an actual answer is left alone.
+  for (const a of [
+    "Hold on, this doesn't add up — the two documents give different thresholds.",
+    "Bear with me — the distinction between those two roles is subtle.",
+  ]) {
+    expect(ANNOUNCEMENT_RE.some((re) => re.test(a))).toBe(false);
+    expect(announcesUnmadeToolCall(a)).toBe(false);
+  }
+  // The genuine waits the anchoring must keep:
+  expect(announcesUnmadeToolCall("Hold on.")).toBe(true);
+  expect(announcesUnmadeToolCall("Hang on a sec!")).toBe(true);
+  expect(announcesUnmadeToolCall("Hold on, I need to consult the governance records first.")).toBe(true);
+});
+
 test("an unanchored search verb in a how-to answer does not fire", () => {
   // Why ANNOUNCEMENT_RE is first-person anchored: this sentence is about the
   // app's search, not a promise to go and use it.

@@ -389,23 +389,23 @@ export const config = {
   // usually returns the same answer, while a miss ships a promise as the answer
   // and the user has to re-prompt to get anything at all. Retries are capped at
   // one per turn, so the worst case is bounded.
-  // Measured (`pnpm eval:announce`, 142 cases — 28 announcements, 114 answers
-  // including 80 generated from real atlas subjects and 5 pinned regex-hole
+  // Measured (`pnpm eval:announce`, 144 cases — 28 announcements, 116 answers
+  // including 80 generated from real atlas subjects and 7 pinned regex-hole
   // sentences from the 2026-09-02 review): regex alone 57% recall at zero false
   // fires; the hybrid reaches **75% at zero false fires**, and the
-  // zero-false-fire plateau runs 0.200-0.325, so 0.25 sits inside it rather than
-  // on a cliff. Dropping to the F2 optimum (0.150) buys 2 more announcements for
+  // zero-false-fire plateau runs 0.225-0.325 (an interjection-led answer sits
+  // just under its floor), so 0.25 sits inside it, with less headroom below
+  // than above. Dropping to the F2 optimum (0.150) buys 2 more announcements for
   // 3 false fires — a courtesy ("You're welcome — glad that helped", 0.189) and
   // an idiom-shaped answer ("This is a second copy of the same document", 0.180)
   // among them. Below 0.125 the false fires become product answers ("Searching
   // the atlas is done from the search bar"), the exact class this lane must
   // never touch, so the zero-false-fire operating point is the right one here
   // even though the two sibling lanes ship permissive margins. Real traffic
-  // agrees, and mostly
-  // without the embedding: of 18 tool-free assistant answers, 17 never get past
-  // the deterministic envelope and the 1 that does does not fire — but that is a
-  // DEV database, so re-run with a production DATABASE_URL before trusting a
-  // lower margin.
+  // agrees, and mostly without the embedding: of 18 tool-free assistant
+  // answers, 17 never get past the deterministic envelope and the 1 that does
+  // does not fire — but that is a DEV database, so re-run with a production
+  // DATABASE_URL before trusting a lower margin.
   chatAnnouncementSimilarityMargin: Number(process.env.CHAT_ANNOUNCEMENT_SIMILARITY_MARGIN ?? 0.25),
   // Evidence digest budget for the final audit, newest-round-first.
   chatVerifierEvidenceMaxChars: Number(process.env.CHAT_VERIFIER_EVIDENCE_MAX_CHARS ?? 120_000),
