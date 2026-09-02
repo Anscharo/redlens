@@ -59,11 +59,23 @@ describe("MscTimeseries", () => {
     expect(osero.style.background).not.toContain("--accent");
   });
 
-  it("draws the To-Sky line and dots in the sky series color", () => {
+  it("draws the To-Sky line with hoverable points carrying their figure", () => {
     renderChart();
     const line = document.querySelector(".msc-ts-line polyline")!;
     expect(line.getAttribute("stroke")).toBe("var(--msc-sky)");
-    expect(document.querySelectorAll(".msc-ts-line circle")).toHaveLength(2);
+    const dots = document.querySelectorAll(".msc-ts-dot");
+    expect(dots).toHaveLength(2);
+    // Each point: an oversized hit circle, the visible dot, and its amount.
+    expect(dots[0].querySelectorAll("circle")).toHaveLength(2);
+    expect(dots[0].textContent).toBe("$1.00M");
+    expect(dots[1].textContent).toBe("$2.00M");
+  });
+
+  it("labels the y axis with round tick values and gridlines", () => {
+    renderChart();
+    const labels = [...document.querySelectorAll(".msc-ts-axis")].map((t) => t.textContent);
+    expect(labels).toEqual(["$0", "$1.00M", "$2.00M"]);
+    expect(document.querySelectorAll(".msc-ts-gridline")).toHaveLength(3);
   });
 
   it("shows a legend entry per prime plus the line", () => {

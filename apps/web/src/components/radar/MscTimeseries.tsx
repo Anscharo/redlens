@@ -6,10 +6,12 @@ import type { PrimeStackMonth } from "@/lib/settlementsOverview";
 // both the stack and the line. The month columns double as the overview's
 // month selector (same msc-bar-col contract as SettlementBars).
 //
-// Fixed pixel geometry: the line overlay and the flex columns must agree on
-// x positions, so columns are a fixed COL_W wide with a GAP_PX gap.
+// Fixed pixel geometry: the axis/grid/line overlays and the flex columns
+// must agree on x positions, so columns are a fixed COL_W wide with a
+// GAP_PX gap after an AXIS_W label gutter.
 const COL_W = 48;
 const GAP_PX = 12;
+const AXIS_W = 46;
 // Matches the ring's typical rendered height so the two charts read as one row.
 const TRACK_H = 380;
 
@@ -22,6 +24,18 @@ const TRACK_H = 380;
 const PRIME_FILLS = ["--depth-1", "--depth-3", "--depth-5", "--depth-6", "--depth-2"] as const;
 export const primeFill = (i: number): string =>
   `var(${i < PRIME_FILLS.length ? PRIME_FILLS[i] : "--gray"})`;
+
+/** Round tick step: posPeak/3 snapped up to 1/2/5 × 10^n, ticks both ways. */
+function ticksFor(posPeak: number, negPeak: number): number[] {
+  const raw = posPeak / 3;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const norm = raw / mag;
+  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
+  const out: number[] = [];
+  for (let t = 0; t <= posPeak; t += step) out.push(t);
+  for (let t = -step; t >= -negPeak; t -= step) out.push(t);
+  return out;
+}
 
 interface Props {
   primes: string[];
@@ -40,8 +54,10 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
   const span = posPeak + negPeak;
   const zeroY = TRACK_H * (posPeak / span); // y of the zero line from the top
   const px = (v: number) => (v / span) * TRACK_H;
+  const y = (v: number) => zeroY - px(v);
   const colorOf = (prime: string) => primeFill(primes.indexOf(prime));
-  const width = months.length * COL_W + (months.length - 1) * GAP_PX;
+  const width = AXIS_W + months.length * COL_W + (months.length - 1) * GAP_PX;
+  const centerX = (i: number) => AXIS_W + i * (COL_W + GAP_PX) + COL_W / 2;
 
   return (
     <div className="mb-4 min-w-0 max-w-full">
@@ -49,36 +65,39 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
         Prime-side earnings by month
       </p>
       <div className="relative inline-block" style={{ maxWidth: "100%", overflowX: "auto" }}>
-        <div className="flex items-start" style={{ gap: GAP_PX }} role="group" aria-label="Settlement months">
+        <svg className="msc-ts-grid" width={width} height={TRACK_H} aria-hidden="true">
+          {ticksFor(posPeak, negPeak).map((t) => (
+            <g key={t}>
+              <line x1={AXIS_W} x2={width} y1={y(t)} y2={y(t)} className="msc-ts-gridline" />
+              <text x={AXIS_W - 6} y={y(t) + 3} textAnchor="end" fontSize={9} className="mono msc-ts-axis">
+                {formatUsd(t, true)}
+              </text>
+            </g>
+          ))}
+          <line x1={AXIS_W} x2={width} y1={zeroY} y2={zeroY} stroke="var(--border)" strokeWidth={1} />
+        </svg>
+        <div className="flex items-start relative" style={{ gap: GAP_PX, marginLeft: AXIS_W }}>
           {months.map((m) => (
             <MonthColumn key={m.month} m={m} zeroY={zeroY} px={px} colorOf={colorOf}
               primeLabel={primeLabel} selected={selected} onSelect={onSelect} />
           ))}
         </div>
-        <svg
-          className="msc-ts-line"
-          width={width}
-          height={TRACK_H}
-          viewBox={`0 0 ${width} ${TRACK_H}`}
-          aria-hidden="true"
-        >
-          <line x1={0} y1={zeroY} x2={width} y2={zeroY} stroke="var(--border)" strokeWidth={1} />
+        <svg className="msc-ts-line" width={width} height={TRACK_H} aria-hidden="true">
           <polyline
-            points={months.map((m, i) => `${i * (COL_W + GAP_PX) + COL_W / 2},${zeroY - px(m.sky)}`).join(" ")}
+            points={months.map((m, i) => `${centerX(i)},${y(m.sky)}`).join(" ")}
             fill="none"
             stroke="var(--msc-sky)"
             strokeWidth={2}
           />
           {months.map((m, i) => (
-            <circle
-              key={m.month}
-              cx={i * (COL_W + GAP_PX) + COL_W / 2}
-              cy={zeroY - px(m.sky)}
-              r={3.5}
-              fill="var(--msc-sky)"
-              stroke="var(--bg)"
-              strokeWidth={2}
-            />
+            <g key={m.month} className="msc-ts-dot">
+              {/* Oversized invisible hit target so hovering near the line point works. */}
+              <circle cx={centerX(i)} cy={y(m.sky)} r={13} fill="transparent" />
+              <circle cx={centerX(i)} cy={y(m.sky)} r={3.5} fill="var(--msc-sky)" stroke="var(--bg)" strokeWidth={2} />
+              <text x={centerX(i)} y={y(m.sky) - 9} textAnchor="middle" fontSize={10} className="mono">
+                {formatUsd(m.sky, true)}
+              </text>
+            </g>
           ))}
         </svg>
       </div>

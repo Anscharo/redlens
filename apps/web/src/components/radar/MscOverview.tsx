@@ -118,7 +118,7 @@ function RingKey() {
     <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: `var(${token})` }} />
   );
   return (
-    <div className="mono text-[10px] mt-1" style={{ color: "var(--tan-3)" }}>
+    <div className="mono text-[10px] mt-5" style={{ color: "var(--tan-3)" }}>
       <p className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
         <span>{swatch("--msc-sky")} to Sky — flows inward to the Sky disc</span>
         <span>{swatch("--msc-kept")} supply kept — points outward</span>

@@ -2613,11 +2613,42 @@ button.atlas-node-expand-all:focus-visible {
   /* 1px separation line between stacked segments (dataviz spacer rule). */
   box-shadow: inset 0 1px 0 var(--bg-deep);
 }
+.msc-ts-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.msc-ts-gridline {
+  stroke: var(--border-muted);
+  stroke-width: 1;
+}
+.msc-ts-axis {
+  fill: var(--tan-3);
+}
 .msc-ts-line {
   position: absolute;
   top: 0;
   left: 0;
   pointer-events: none;
+}
+/* Line points accept hover (the svg itself stays click-transparent so the
+   month buttons underneath keep working) and reveal their figure with the
+   same halo treatment as the ring's hover amounts. */
+.msc-ts-dot {
+  pointer-events: auto;
+}
+.msc-ts-dot text {
+  opacity: 0;
+  transition: opacity 0.1s;
+  fill: var(--tan);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.msc-ts-dot:hover text {
+  opacity: 1;
 }
 .msc-bar-col:hover .msc-ts-track {
   border-color: var(--border);

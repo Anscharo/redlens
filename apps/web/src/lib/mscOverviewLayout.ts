@@ -14,9 +14,12 @@ import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
 // The viewBox is wider than tall so the side label columns fit inside it —
 // text that overflowed the box would collide with the timeseries sitting to
-// the ring's left in the overview row.
+// the ring's left in the overview row. Its height hugs the drawn content
+// (max radius R_OUT + STUB_LEN = 250 plus a few px of label overshoot) so
+// the key rendered under the svg sits right below the chart's visual
+// bottom instead of below empty viewBox padding.
 export const WIDTH = 840;
-export const HEIGHT = 640;
+export const HEIGHT = 520;
 const CX = WIDTH / 2;
 const CY = HEIGHT / 2;
 /** Central Sky disc; To-Sky ribbons dock on its perimeter. */
