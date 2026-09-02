@@ -113,6 +113,8 @@ describe("RadarPage index (no actorSlug)", () => {
   it("renders the PrimitiveDashboard and the full sidebar", async () => {
     render(<RadarPage query="" />);
     expect(await screen.findByTestId("primitive-dashboard")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Sky Ecosystem Radar Overview" })).toBeInTheDocument();
+    expect(document.title).toBe("Sky Ecosystem Radar Overview · Sky Atlas by Redline");
     // MSC overview sits above the primitive stats and gets the full roster.
     const overview = screen.getByTestId("msc-overview");
     expect(overview).toHaveAttribute("data-actors", "spark,grove,sfl");

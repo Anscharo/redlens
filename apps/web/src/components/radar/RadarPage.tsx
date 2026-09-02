@@ -66,7 +66,7 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
   }, [actorSlug, graph, docs, rewardsIndex, allActiveDataRows]);
 
   const title = !actorSlug
-    ? "Redline Radar for Sky Atlas"
+    ? "Sky Ecosystem Radar Overview · Sky Atlas by Redline"
     : !profile
       ? null
       : page === "settlements"
@@ -96,6 +96,9 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
       </Drawer>
       {!actorSlug ? (
         <div className="flex-1 min-w-0">
+          <h1 className="text-2xl px-6 pt-6" style={{ color: "var(--tan)" }}>
+            Sky Ecosystem Radar Overview
+          </h1>
           <MscOverview actors={overviewActors} />
           <PrimitiveDashboard agents={primitiveStats} />
         </div>

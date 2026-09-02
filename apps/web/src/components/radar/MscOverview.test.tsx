@@ -65,6 +65,11 @@ describe("MscOverview", () => {
     await waitFor(() => expect(screen.getByText("Monthly Settlement Cycle")).toBeInTheDocument());
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
     expect(screen.getByText(/not the Protocol's Net Revenue/)).toBeInTheDocument();
+    expect(screen.getByText(/indicates loss \/ negative flow/)).toBeInTheDocument();
+    // Cross-chart hover styles: one :has() rule per prime in the stack.
+    const style = document.querySelector("style")!.textContent!;
+    expect(style).toContain('.msc-ts-seg[data-prime="spark"]:hover');
+    expect(style).toContain('.msc-ring-prime[data-prime="spark"]');
     expect(screen.getByText("To Sky")).toBeInTheDocument();
     expect(screen.getByText("of which cost of funds")).toBeInTheDocument();
     expect(screen.getByText("of which Sky Direct Exposure")).toBeInTheDocument();

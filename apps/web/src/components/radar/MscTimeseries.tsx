@@ -161,6 +161,7 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
             <span
               key={s.prime}
               className="msc-ts-seg"
+              data-prime={s.prime}
               title={`${primeLabel(s.prime)}: ${formatUsd(s.value, true)}`}
               style={{ top: s.top, height: s.h, background }}
             />

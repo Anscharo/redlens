@@ -2596,15 +2596,18 @@ button.atlas-node-expand-all:focus-visible {
 /* ─── MSC ecosystem timeseries (radar index overview) ─── */
 /* Transparent track: the y-scale is shared with the To-Sky line, so the
    stack rarely fills the column — a filled track read as a tall dark bar.
-   The zero baseline is drawn by the overlay svg instead. */
+   The zero baseline is drawn by the overlay svg instead. Selection/hover is
+   opacity, not an outline: unselected months are dimmed, the selected and
+   hovered ones render at full strength. */
 .msc-ts-track {
   position: relative;
   display: block;
   width: 26px;
   height: 380px;
-  border: 1px solid transparent;
   border-radius: 2px;
   overflow: hidden;
+  opacity: 0.45;
+  transition: opacity 0.1s;
 }
 .msc-ts-seg {
   position: absolute;
@@ -2650,11 +2653,9 @@ button.atlas-node-expand-all:focus-visible {
 .msc-ts-dot:hover text {
   opacity: 1;
 }
-.msc-bar-col:hover .msc-ts-track {
-  border-color: var(--border);
-}
+.msc-bar-col:hover .msc-ts-track,
 .msc-bar-col[data-active="true"] .msc-ts-track {
-  border-color: var(--tan-2);
+  opacity: 1;
 }
 /* ─── MSC ecosystem ring (radar index overview) ─── */
 .msc-ring {

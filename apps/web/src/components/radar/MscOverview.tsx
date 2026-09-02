@@ -72,7 +72,7 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
   if (!bundle || settlementsArtifactMissing(bundle) || !month || !eco) return null;
 
   return (
-    <section className="px-6 pt-6">
+    <section className="px-6 pt-4">
       <h2 className="text-xl mb-3" style={{ color: "var(--tan)" }}>
         Monthly Settlement Cycle
       </h2>
@@ -86,7 +86,8 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
           Source workbooks
         </a>
       </p>
-      <div className="flex flex-wrap items-start gap-x-10 gap-y-4 min-w-0">
+      <PrimeHoverStyles primes={stack.primes} />
+      <div className="msc-overview-row flex flex-wrap items-start gap-x-10 gap-y-4 min-w-0">
         <MscTimeseries
           primes={stack.primes}
           months={stack.months}
@@ -113,17 +114,36 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
   );
 }
 
+/* Hovering a prime's segment in the timeseries lights that prime up on the
+   ring. Static CSS can't express "same data-prime as the hovered segment",
+   so one :has() rule per prime is generated — the same trick as the venue
+   sankey's VenueHoverStyles. */
+function PrimeHoverStyles({ primes }: { primes: string[] }) {
+  const css = primes
+    .map((p) => {
+      const sel = `.msc-overview-row:has(.msc-ts-seg[data-prime="${p}"]:hover) .msc-ring-prime[data-prime="${p}"]`;
+      return `${sel} path { opacity: 1; }\n${sel} .msc-ring-amounts { opacity: 1; }\n${sel} .msc-ring-label { fill: var(--tan); }`;
+    })
+    .join("\n");
+  return <style>{css}</style>;
+}
+
 function RingKey() {
-  const swatch = (token: string) => (
-    <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: `var(${token})` }} />
+  const swatch = (background: string) => (
+    <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background }} />
   );
   return (
     <div className="mono text-[10px] mt-5" style={{ color: "var(--tan-3)" }}>
       <p className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
-        <span>{swatch("--msc-sky")} to Sky — flows inward to the Sky disc</span>
-        <span>{swatch("--msc-kept")} supply kept — points outward</span>
-        <span>{swatch("--msc-demand")} demand-side — points outward</span>
-        <span>striped, drawn into the band = negative</span>
+        <span>{swatch("var(--msc-sky)")} to Sky</span>
+        <span>{swatch("var(--msc-kept)")} supply kept</span>
+        <span>{swatch("var(--msc-demand)")} demand-side</span>
+        <span>
+          {swatch(
+            "repeating-linear-gradient(45deg, var(--tan-2) 0, var(--tan-2) 2px, transparent 2px, transparent 4px)",
+          )}
+          indicates loss / negative flow
+        </span>
       </p>
       <p className="text-center mt-1">
         Each ring segment is one Prime for the selected month — click it to open that
