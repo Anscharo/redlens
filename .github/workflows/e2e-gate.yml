@@ -29,6 +29,9 @@ permissions:
   contents: read
   # Read the e2e.yml workflow runs for this commit.
   actions: read
+  # Read whether this PR is still open — a merged/closed PR ends the wait
+  # instead of polling for a deploy that will never come (see e2e-gate.mjs).
+  pull-requests: read
 
 concurrency:
   group: e2e-gate-${{ github.event.pull_request.number }}
@@ -77,4 +80,8 @@ jobs:
           # deploys — and therefore e2e.yml's runs — are keyed to the branch head.
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           CHANGED_FILES_FILE: changed-files.txt
+          # Lets the gate stop as soon as the PR is merged or closed. The atlas
+          # bump bot auto-merges within ~1s of this job starting, and the rebase
+          # rewrites the SHA, so without this the poll always runs to timeout.
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: node scripts/aux/e2e-gate.mjs

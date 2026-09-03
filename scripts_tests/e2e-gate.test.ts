@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { classifyRuns, readChangedFiles } from "../scripts/aux/e2e-gate.mjs";
+import { classifyRuns, prSettledReason, readChangedFiles } from "../scripts/aux/e2e-gate.mjs";
 
 const done = (conclusion: string, html_url = "https://example.test/run") => ({
   status: "completed",
@@ -62,5 +62,30 @@ describe("readChangedFiles", () => {
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "e2e-gate-")), "changed.txt");
     fs.writeFileSync(file, "CLAUDE.md\n\n  docs/plans/x.md  \n");
     expect(readChangedFiles(file)).toEqual(["CLAUDE.md", "docs/plans/x.md"]);
+  });
+});
+
+describe("prSettledReason", () => {
+  // The atlas bump bot's PRs merge 0-2s after the gate job starts, and the
+  // rebase rewrites the SHA — so the deploy this gate polls for never happens.
+  // Four ~40-minute red gates between 2026-08-28 and 09-02 were exactly this.
+  it("stops the wait once the pull request is merged", () => {
+    expect(prSettledReason({ state: "closed", merged: true })).toMatch(/merged/);
+  });
+
+  it("stops the wait on a PR closed without merging", () => {
+    expect(prSettledReason({ state: "closed", merged: false })).toMatch(/closed without merging/);
+  });
+
+  it("keeps waiting while the pull request is open", () => {
+    expect(prSettledReason({ state: "open", merged: false })).toBeNull();
+  });
+
+  // Fail open: an unreadable PR must leave the gate exactly as it was, never
+  // turn an API blip into a free pass on an open PR.
+  it("keeps waiting when the PR state is unknown", () => {
+    for (const pr of [null, undefined, {}, "closed", 7]) {
+      expect(prSettledReason(pr as never)).toBeNull();
+    }
   });
 });

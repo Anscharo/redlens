@@ -26,5 +26,17 @@ export const INCONCLUSIVE_CONCLUSIONS: readonly string[];
  */
 export function classifyRuns(runs: E2eWorkflowRun[] | null | undefined): E2eVerdict;
 
+/** The subset of a GitHub pull request this gate reads. */
+export interface E2ePullRequest {
+  state?: string | null;
+  merged?: boolean | null;
+}
+
+/**
+ * Why a still-waiting gate should stop: the PR is merged or closed, so there is
+ * nothing left to gate. null = keep waiting (open PR, no PR number, failed read).
+ */
+export function prSettledReason(pr: E2ePullRequest | null | undefined): string | null;
+
 /** Repo-relative paths from the file the workflow wrote, or [] if unreadable. */
 export function readChangedFiles(file: string): string[];

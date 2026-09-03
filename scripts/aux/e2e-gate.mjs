@@ -90,6 +90,32 @@ export function classifyRuns(runs) {
   return { verdict: "wait", reason: "waiting for Railway to deploy this commit" };
 }
 
+/**
+ * Why a still-waiting gate should stop: the pull request is no longer open, so
+ * there is nothing left to gate. GitHub has already accepted (or discarded) the
+ * commit, and a required check that goes red afterwards reports on a decision
+ * that was made without it.
+ *
+ * This is the COMMON case, not an edge one, because of the atlas bump bot:
+ * atlas-update.yml opens its PR with `gh pr merge --auto --rebase`, and across
+ * the four bumps measured (2026-08-28 → 09-02) the merge landed 0-2 seconds
+ * after this job started. The rebase also rewrites the commit, so the head SHA
+ * this job polls for belongs to a branch that no longer exists — Railway never
+ * builds a PR environment for it, no deployment_status ever fires, and the poll
+ * runs the full timeout to a red that means nothing. Four of the eight distinct
+ * E2E gate failures in that window were exactly this, at ~40 wasted minutes each.
+ *
+ * Returns null for "keep waiting": an open PR, no PR number (workflow_dispatch),
+ * or a read that failed — the same fail-open posture the rest of the gate takes.
+ */
+export function prSettledReason(pr) {
+  if (!pr || typeof pr !== "object") return null;
+  if (pr.state !== "closed") return null;
+  return pr.merged
+    ? "the pull request was merged; nothing left to gate"
+    : "the pull request was closed without merging; nothing left to gate";
+}
+
 /** Repo-relative paths from the file the workflow wrote, or [] if unreadable. */
 export function readChangedFiles(file) {
   try {
@@ -117,6 +143,29 @@ async function fetchRuns({ apiBase, repo, workflow, sha, token }) {
   if (!res.ok) throw new Error(`GitHub API ${res.status} ${res.statusText} for ${url}`);
   const body = await res.json();
   return Array.isArray(body.workflow_runs) ? body.workflow_runs : [];
+}
+
+/**
+ * Current state of the PR, or null when it cannot be determined. A failed read
+ * is deliberately indistinguishable from "still open": the PR check is an early
+ * exit from the wait, never a reason to change the verdict, so an API blip must
+ * leave the gate exactly as it was.
+ */
+async function fetchPullRequest({ apiBase, repo, prNumber, token }) {
+  if (!prNumber) return null;
+  try {
+    const headers = {
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "redlens-e2e-gate",
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${apiBase}/repos/${repo}/pulls/${prNumber}`, { headers });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 function summarize(lines) {
@@ -165,6 +214,7 @@ if (isMain) {
     const n = Number(raw);
     return Number.isFinite(n) && n > 0 ? n : fallback;
   };
+  const prNumber = process.env.PR_NUMBER || "";
   const pollSeconds = num(process.env.E2E_GATE_POLL_SECONDS, 30);
   const timeoutSeconds = num(process.env.E2E_GATE_TIMEOUT_SECONDS, 2400);
   const deadline = Date.now() + timeoutSeconds * 1000;
@@ -180,6 +230,13 @@ if (isMain) {
       result = { verdict: "wait", reason: `GitHub API read failed: ${err.message}` };
     }
     if (result.verdict !== "wait") break;
+    // Stop before burning the timeout on a PR that has already been merged or
+    // closed out from under us (see prSettledReason).
+    const settled = prSettledReason(await fetchPullRequest({ apiBase, repo, prNumber, token }));
+    if (settled) {
+      result = { verdict: "pass", reason: settled };
+      break;
+    }
     if (result.reason !== last) {
       console.log(`waiting: ${result.reason}`);
       last = result.reason;
