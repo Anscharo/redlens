@@ -249,6 +249,30 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     ],
   },
   {
+    key: "chat",
+    title: "Chat",
+    blurb:
+      "Ask the Atlas questions from any page and get answers backed by inline sources and a verification badge.",
+    features: [
+      {
+        name: "Asking the Atlas",
+        what: "A page-aware agent that reads the Sky Atlas and cites the documents it used.",
+        how: [
+          "Click the Atlas agent launcher in the bottom-right (it shows ⌘K), or press ⌘K / Ctrl-K — it already knows the document or report you're viewing.",
+          "Ask it what the app can do, or what it can do itself — it answers from this guide, and keeps the two apart.",
+          "Ask about a Prime Agent's monthly settlement dollars — Chat uses an isolated helper on Soter Labs workbooks / Sky Forum and says those figures are not from the Atlas.",
+          "Ask across every Prime at once — top venues by revenue, ecosystem totals, or a range of months — not just one Prime at a time.",
+          "Ask it to draft a message to someone else explaining what the Atlas says; the draft carries links to the source documents, and you can export it to send.",
+          "Check the answer's verification badge and click the inline sources to jump to the cited docs — an answer still being checked shows in italics.",
+          "The usage meter under the composer shows your usage / credits; click the pie to see every limit.",
+          "Dock the panel to the side with the dock icon in the header, or pop it out to a floating window.",
+          'Past chats live under "Conversations" in the profile menu, and as "continue a previous chat" in an empty panel.',
+        ],
+        note: "Asking a question requires signing in — use the sign-in control at the right of the top bar, or the Sign in buttons in the panel.",
+      },
+    ],
+  },
+  {
     key: "mcp",
     title: "Connect (MCP)",
     route: "/connect",
@@ -333,29 +357,6 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Search help (/search-hints) — the full query syntax.",
           "Privacy (/privacy).",
         ],
-      },
-    ],
-  },
-  {
-    key: "upcoming",
-    title: "Upcoming",
-    blurb: "Planned features — not yet switched on. Details may change before release.",
-    features: [
-      {
-        name: "Chat",
-        what: "Ask the Atlas questions and get answers backed by inline sources and a verification badge.",
-        how: [
-          "Sign in, then open Chat and ask a question — it will know the document or report you're viewing.",
-          "Ask it what the app can do, or what it can do itself — it answers from this guide, and keeps the two apart.",
-          "Ask about a Prime Agent's monthly settlement dollars — Chat uses an isolated helper on Soter Labs workbooks / Sky Forum and says those figures are not from the Atlas.",
-          "Ask across every Prime at once — top venues by revenue, ecosystem totals, or a range of months — not just one Prime at a time.",
-          "Ask it to draft a message to someone else explaining what the Atlas says; the draft carries links to the source documents, and you can export it to send.",
-          "Check the answer's verification badge and click the inline sources to jump to the cited docs — an answer still being checked shows in italics.",
-          "Open the tool trace to see what it queried; the meter shows your usage / credits.",
-          "Oldest / all / how many questions list the whole class, not just the first search hits.",
-          "Dock the panel to the side or let it float.",
-        ],
-        note: "Will require signing in.",
       },
     ],
   },

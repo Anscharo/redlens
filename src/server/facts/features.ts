@@ -50,7 +50,7 @@ const APP_REF = /\b(app|application|site|website|platform|tool|redlens?|sabr|red
 // "how do i find the stability rate" is an atlas question with the same shape.
 const HOW_TO = /\b(how (do|can) i|where (do|can) i|where is|can i)\b/i;
 const APP_ARTIFACT =
-  /\b(csv|exports?|downloads?|buttons?|pages?|tabs?|panels?|sidebars?|shortcuts?|keyboard|bookmarks?|urls?|links?|filters?|columns?|toggles?|dark mode|themes?|sign(ing)? in|accounts?|collections?|mcp|previews?|radar|reports?)\b/i;
+  /\b(csv|exports?|downloads?|buttons?|pages?|tabs?|panels?|sidebars?|shortcuts?|keyboard|bookmarks?|urls?|links?|filters?|columns?|toggles?|dark mode|themes?|sign(ing)? in|accounts?|collections?|mcp|previews?|radar|reports?|chat|conversations?)\b/i;
 
 // Example questions for the registry's similarity lane (facts/similarity.ts),
 // which catches the phrasings no regex anticipates — "show me around", "what
@@ -88,6 +88,7 @@ const GROUP_SIGNATURES: [string, RegExp][] = [
   ["reports", /\breports?\b|\bcsv\b|\bexports?\b|\btables?\b/i],
   ["crossview", /\bcross[- ]?view\b|\bconcepts?\b|\bglossar(y|ies)\b|\baudit\b/i],
   ["preview", /\bpreview\b|\bpull requests?\b|\bPR\b|\bbranch(es)?\b|\bforks?\b/i],
+  ["chat", /\bchat\b|\batlas agent\b|\bconversations?\b/i],
   ["mcp", /\bmcp\b|\bconnect\b|\bclaude\b|\bcursor\b|\bapi\b/i],
   ["platform", /\bsign(ing)? in\b|\baccounts?\b|\bcollections?\b|\bkeyboard\b|\bshortcuts?\b|\bthemes?\b/i],
 ];
@@ -112,7 +113,6 @@ const NOTE =
   "Link an app area as an ordinary markdown link to its `where` route (e.g. [Reports](/reports)) — those are app pages, not " +
   "documents, so they never belong in a citation definition block. " +
   "`available: false` marks an area that is not switched on yet: describe it as planned, never as something to use today. " +
-  "One exception to that: the catalog may still list this chat as upcoming, but you are plainly running — describe yourself from `chat`. " +
   "Use `vocabulary` whenever you say where an answer came from.";
 
 const VOCABULARY = {
