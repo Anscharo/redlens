@@ -169,14 +169,14 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "MSC ecosystem overview",
-        what: "The Radar front page opens with a cross-prime Monthly Settlement Cycle view: an orbital chart — Sky as the central circle with each Prime as a circle around it, sized by the funds flowing through it, To-Sky ribbons running to the center and supply-kept / demand-side ribbons pointing outward — next to a stacked timeline of what each Prime kept, with Sky's monthly take overlaid as a line.",
+        what: "The Radar front page opens with a cross-prime Monthly Settlement Cycle view: an orbital chart — Sky as the central circle, split into one wedge per Prime that paid into it, with each Prime orbiting as a circle of its own revenue (a pie of supply kept and demand-side) and a ribbon running from it to its wedge — next to a stacked timeline of what each Prime kept, with Sky's monthly take overlaid as a line.",
         how: [
           "Open Radar; the orbital chart shows the latest settled month across all Primes, with the color key and reading guide under it.",
           "Click a month column in the Prime-side earnings chart to switch the orbital chart and the figures under it.",
-          "Hover a Prime's circle for its figures, including the cost-of-funds / Sky Direct Exposure split and the demand-side mix; hover a timeline segment for that Prime's month.",
+          "Hover any slice, ribbon or Sky wedge for a labelled figure; hover a timeline segment to light that Prime up on the orbital chart.",
           "Click a Prime's circle to open its settlement page for the month you had selected.",
         ],
-        note: "Wedge sizes are square-root scaled so small Primes stay visible — compare exact figures, not areas. Hidden when settlements.json has not been built. Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
+        note: "Circle area is proportional to the money it stands for, on one scale — a Prime's circle is its own revenue, Sky's is every To-Sky flow combined — but the smallest circles are floored to stay visible, so compare exact figures rather than areas. To Sky is a pass-through (cost of funds + Sky Direct Exposure), not the Prime's revenue, so it is never a slice of a Prime's pie. Hidden when settlements.json has not been built. Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
       },
       {
         name: "Monthly settlement charts",

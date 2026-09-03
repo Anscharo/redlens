@@ -2706,6 +2706,24 @@ button.atlas-node-expand-all:focus-visible {
   stroke: var(--msc-sky);
   stroke-width: 2;
 }
+/* Sky's circle is subdivided into one wedge per contributing Prime, in that
+   Prime's identity color — the flows into Sky, shown adding up to it. */
+.msc-ring-sky-wedge {
+  fill-opacity: 0.5;
+  stroke: var(--bg);
+  stroke-width: 1;
+  transition: fill-opacity 0.1s;
+  cursor: pointer;
+}
+.msc-ring-mark:hover .msc-ring-sky-wedge {
+  fill-opacity: 1;
+}
+/* Label well punched out of the wedges so "Sky" + the total stay readable. */
+.msc-ring-sky-plate {
+  fill: var(--bg);
+  stroke: var(--border-muted);
+  stroke-width: 1;
+}
 .msc-ring-center {
   fill: var(--tan);
 }
@@ -2728,8 +2746,9 @@ button.atlas-node-expand-all:focus-visible {
 .msc-ring-slice {
   fill-opacity: 0.45;
 }
-/* Hovering a key row lights up everything it describes, on both the circles
-   (slices) and the ribbons. */
+/* Hovering a key row lights up everything it describes, on the circles
+   (slices), the ribbons, and Sky's own wedges. */
+.msc-ring-card:has(.msc-key-item[data-key="sky"]:hover) .msc-ring-sky-wedge,
 .msc-ring-card:has(.msc-key-item[data-key="sky"]:hover) .msc-ring-prime .msc-ring-sky,
 .msc-ring-card:has(.msc-key-item[data-key="kept"]:hover) .msc-ring-prime .msc-ring-kept,
 .msc-ring-card:has(.msc-key-item[data-key="demand"]:hover) .msc-ring-prime .msc-ring-demand,
@@ -2777,25 +2796,33 @@ a:focus-visible > .msc-ring-prime :is(path, circle) {
 .msc-ring-prime:hover .msc-ring-label {
   fill: var(--tan);
 }
-/* Each slice/ribbon carries its own pill, shown only while THAT mark is
-   hovered — showing every pill on prime hover made it unclear which pill
-   named which shape. Keyboard focus (no per-mark hover target) still
-   reveals all of them as a fallback. */
-.msc-ring-amounts {
-  opacity: 0;
+/* Pills live in a top layer (.msc-ring-pills, rendered last) so they paint
+   over every circle and label instead of being covered by whichever prime
+   drew after them. Which pill shows is wired by the generated `:has()`
+   rules in PillHoverStyles — one per mark, matched by data-mark. */
+.msc-ring-pills {
   pointer-events: none;
+}
+.msc-ring-pill {
+  opacity: 0;
   transition: opacity 0.1s;
 }
-.msc-ring-mark:hover .msc-ring-amounts,
-a:focus-visible > .msc-ring-prime .msc-ring-amounts {
-  opacity: 1;
-}
-.msc-ring-amounts rect {
+.msc-ring-pill rect {
   fill: var(--bg);
   stroke: var(--border);
 }
-.msc-ring-amounts text {
+.msc-ring-pill text {
   fill: var(--tan);
+}
+/* Leader from the mark out to its pill, so a pill sitting clear of the shape
+   still says which shape it belongs to. */
+.msc-ring-pill-leader {
+  fill: none;
+  stroke: var(--gray);
+  stroke-width: 1;
+}
+.msc-ring-pill-anchor {
+  fill: var(--gray);
 }
 /* A negative kept/demand can't be a pie wedge, so it's called out beside the
    circle instead — always on, not hover-gated, since it's the one case

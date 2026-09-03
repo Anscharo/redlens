@@ -95,6 +95,29 @@ describe("MscRing", () => {
     expect(container.querySelector(".msc-ring-sky")).not.toBeInTheDocument();
   });
 
+  it("paints every pill in a top layer, after the last prime — SVG has no z-index", () => {
+    const { layout, primes } = ringPrimes([flow(), flow({ prime: "grove", sky: 9_000_000 })], "2026-07");
+    const { container } = render(
+      <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$19.00M" />,
+    );
+    const kids = [...container.querySelector("svg.msc-ring")!.children];
+    // Last child = painted last = on top of every prime, wedge and label.
+    expect(kids[kids.length - 1]).toHaveClass("msc-ring-pills");
+    expect(kids.some((el) => el.querySelector(".msc-ring-prime"))).toBe(true);
+    // Pills are paired to their marks by id, since they no longer nest inside them.
+    expect(container.querySelector('.msc-ring-mark[data-mark="spark::kept"]')).toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-pill[data-mark="spark::kept"]')).toBeInTheDocument();
+  });
+
+  it("gives Sky one wedge per contributing prime, in that prime's own color", () => {
+    const { layout, primes } = ringPrimes([flow(), flow({ prime: "grove", sky: 9_000_000 })], "2026-07");
+    const { container } = render(
+      <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$19.00M" />,
+    );
+    expect(container.querySelectorAll(".msc-ring-sky-wedge")).toHaveLength(2);
+    expect(container.querySelector('.msc-ring-sky-wedge[data-prime="spark"]')).toBeInTheDocument();
+  });
+
   it("reports a negative kept/demand as a loss note instead of a pie wedge", () => {
     const { layout, primes } = ringPrimes([flow({ prime: "osero", sky: 497, kept: -107, demand: 12_000 })], "2026-07");
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$497" />);

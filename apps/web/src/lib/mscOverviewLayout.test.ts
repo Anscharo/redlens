@@ -23,16 +23,59 @@ describe("layoutMscRing (orbital)", () => {
     expect(layoutMscRing([flow({ sky: 0, kept: 0, demand: 0 })]).primes).toEqual([]);
   });
 
-  it("sizes circles so area ∝ √(total funds through the prime)", () => {
+  it("sizes a prime's circle by area ∝ its own revenue, not the To-Sky pass-through", () => {
     const layout = layoutMscRing([
-      flow(), // total 13.5M
-      flow({ prime: "obex", sky: 100_000, kept: 30_000, demand: 5_000 }), // total 135k
+      flow(), // revenue 3.5M (kept 2M + demand 1.5M), sky 10M
+      flow({ prime: "obex", sky: 100_000, kept: 800_000, demand: 75_000 }), // revenue 875k
     ]);
     const [spark, obex] = layout.primes;
-    // r ∝ total^(1/4)  ⇒  area ∝ total^(1/2). 100× total ⇒ ~3.16× radius.
-    expect(spark.r / obex.r).toBeCloseTo(Math.sqrt(Math.sqrt(100)), 1);
-    // Sky is sized on the same scale from Σ|sky|.
-    expect(layout.skyR).toBeGreaterThan(spark.r * 0.8);
+    // Area ∝ value ⇒ 4× the revenue is exactly 2× the radius.
+    expect(spark.r / obex.r).toBeCloseTo(2, 1);
+  });
+
+  it("makes Sky bigger than the primes feeding it — its circle is their To-Sky flows combined", () => {
+    // The real July 2026 shape: $15.5M reaches Sky, the biggest prime earns
+    // $3.9M of its own. Sky has to read as the larger circle.
+    const layout = layoutMscRing([
+      flow({ prime: "grove", sky: 8_003_550, kept: 1_563_759, demand: 114_024 }),
+      flow({ prime: "spark", sky: 5_750_694, kept: 2_846_722, demand: 1_074_583 }),
+      flow({ prime: "obex", sky: 1_761_245, kept: 764_735, demand: 71_997 }),
+      flow({ prime: "skybase", sky: 0, kept: 0, demand: 238_107 }),
+      flow({ prime: "osero", sky: 497, kept: -107, demand: 12_149 }),
+    ]);
+    const biggest = Math.max(...layout.primes.map((p) => p.r));
+    expect(layout.skyR / biggest).toBeGreaterThan(1.5);
+  });
+
+  it("subdivides the Sky circle into one wedge per contributing prime, together making the whole circle", () => {
+    const layout = layoutMscRing([
+      flow({ prime: "grove", sky: 8_000_000, kept: 1_500_000, demand: 100_000 }),
+      flow({ prime: "spark", sky: 6_000_000, kept: 2_800_000, demand: 1_000_000 }),
+      flow({ prime: "keel", sky: 0, kept: 0, demand: 280_000 }), // pays Sky nothing
+    ]);
+    expect(layout.skyWedges.map((w) => w.prime)).toEqual(["grove", "spark"]);
+    // Grove sends ~57% of the To-Sky total, so it holds ~57% of the circle.
+    const [grove, spark] = layout.skyWedges;
+    expect(grove.value / (grove.value + spark.value)).toBeCloseTo(8 / 14, 2);
+    // The biggest contributor's wedge is centered on its own prime's angle,
+    // so its ribbon runs straight in.
+    const groveRing = layout.primes.find((p) => p.prime === "grove")!;
+    expect(Math.abs(grove.mid - groveRing.angle)).toBeLessThan(1e-6);
+  });
+
+  it("parks each hover pill off the mark it names, with the leader still on the mark", () => {
+    const layout = layoutMscRing([flow(), flow({ prime: "grove", sky: 9_000_000 })]);
+    for (const p of layout.primes) {
+      for (const s of p.slices) {
+        // Leader anchor inside the circle, pill outside it — so the pill can
+        // never cover its own slice or the prime's name.
+        expect(Math.hypot(s.amountX - p.cx, s.amountY - p.cy)).toBeLessThanOrEqual(p.r);
+        expect(Math.hypot(s.pillX - p.cx, s.pillY - p.cy)).toBeGreaterThan(p.r);
+      }
+      for (const f of p.flows) {
+        expect(Math.hypot(f.pillX - f.amountX, f.pillY - f.amountY)).toBeGreaterThan(20);
+      }
+    }
   });
 
   it("floors tiny circles so a $497 prime stays visible", () => {

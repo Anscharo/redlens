@@ -130,8 +130,16 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
 function PrimeHoverStyles({ primes }: { primes: string[] }) {
   const css = primes
     .map((p) => {
-      const sel = `.msc-overview-row:has(.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="${p}"]:hover) .msc-ring-prime[data-prime="${p}"]`;
-      return `${sel} :is(path, circle) { opacity: 1; }\n${sel} .msc-ring-amounts { opacity: 1; }\n${sel} .msc-ring-label { fill: var(--tan); }`;
+      const row = `.msc-overview-row:has(.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="${p}"]:hover)`;
+      const sel = `${row} .msc-ring-prime[data-prime="${p}"]`;
+      // The prime's own wedge inside Sky lights with it — it sits outside
+      // the prime's group, so it needs its own rule. Pills stay hidden here:
+      // this highlight names a prime, not one figure.
+      return [
+        `${sel} :is(path, circle) { opacity: 1; }`,
+        `${sel} .msc-ring-label { fill: var(--tan); }`,
+        `${row} .msc-ring-sky-wedge[data-prime="${p}"] { fill-opacity: 1; }`,
+      ].join("\n");
     })
     .join("\n");
   return <style>{css}</style>;
@@ -156,8 +164,11 @@ function RingKey() {
       </p>
       <p className="text-center mt-1">
         Each circle is one Prime for the selected month — click it to open that
-        Prime's settlement page. Circle area is proportional to the square root of
-        the total funds flowing through it.
+        Prime's settlement page. Circle area is proportional to the money it
+        stands for, on one scale: a Prime's circle is its own revenue (supply
+        kept + demand-side), and the Sky circle is every To-Sky flow combined,
+        split into one wedge per Prime. The smallest circles are floored to stay
+        visible.
       </p>
     </div>
   );
