@@ -31,11 +31,14 @@ const R_IN = 184;
 const ARC_T = 38;
 const R_OUT = R_IN + ARC_T;
 const R_BAND = R_IN + ARC_T / 2;
-/** ~px per character of an 11px band label, for the fits-inside test. */
-const BAND_CHAR_PX = 6.6;
+/** ~px per character of a 14px band label, for the fits-inside test. */
+const BAND_CHAR_PX = 8.4;
 const BAND_LABEL_PAD = 12;
 /** Fixed radial stub length — see the angle-only-encoding note above. */
 const STUB_LEN = 28;
+/** Gap between the band (now prime-colored) and its flows, so a flow whose
+ *  series color matches a prime's identity color never merges with the band. */
+const BAND_GAP = 3;
 /** Leader line: starts just past the stubs, runs radially to the elbow,
  *  then bends to the label column. */
 const R_LEADER_START = R_OUT + STUB_LEN + 3;
@@ -209,10 +212,10 @@ export function layoutMscRing(
       // R_SKY — sqrt-proportional widths at both ends, zero crossings. Stubs
       // are plain annular sectors outward from the band.
       const path = isSky
-        ? sector(R_IN, R_SKY, s0, s1)
+        ? sector(R_IN - BAND_GAP, R_SKY, s0, s1)
         : inward
           ? sector(R_OUT, R_IN, s0, s1)
-          : sector(R_OUT + STUB_LEN, R_OUT, s0, s1);
+          : sector(R_OUT + BAND_GAP + STUB_LEN, R_OUT + BAND_GAP, s0, s1);
       const amountR = isSky ? (R_IN + R_SKY) / 2 : inward ? R_BAND : R_OUT + STUB_LEN / 2;
       const [amountX, amountY] = pt(amountR, (s0 + s1) / 2);
       flows.push({ kind, value: Math.abs(signed), signed, inward, path, a0: s0, a1: s1, amountX, amountY });

@@ -73,8 +73,8 @@ describe("MscOverview", () => {
     expect(screen.getByText("To Sky")).toBeInTheDocument();
     expect(screen.getByText("of which cost of funds")).toBeInTheDocument();
     expect(screen.getByText("of which Sky Direct Exposure")).toBeInTheDocument();
-    expect(screen.getByText("Supply kept")).toBeInTheDocument();
-    expect(screen.getByText("Demand-side")).toBeInTheDocument();
+    expect(screen.getByText("Supply kept by Primes")).toBeInTheDocument();
+    expect(screen.getByText("Demand-side by Primes")).toBeInTheDocument();
     // eco sky = 100; eco kept = (200-60) + 0 = 140; demand = 50 + 32004.
     // "$140" also rides the ring's hover amounts, so match all.
     expect(screen.getAllByText("$140").length).toBeGreaterThan(0);

@@ -20,7 +20,7 @@ import { layoutMscRing } from "../../lib/mscOverviewLayout";
 import { track } from "../../lib/analytics";
 import { SettlementFigure } from "./SettlementFigures";
 import { MscRing, type MscRingPrime } from "./MscRing";
-import { MscTimeseries } from "./MscTimeseries";
+import { MscTimeseries, primeFill } from "./MscTimeseries";
 
 const mscCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
@@ -54,9 +54,11 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
         const to = actor
           ? settlementsHref(actor.slug) + (month !== flow.latestMonth ? `?msc=${month}` : "")
           : null;
-        return { flow, ring, label: labelOf(flow.prime), to };
+        // Same identity color as the prime's timeseries layers (stack order).
+        const bandColor = primeFill(stack.primes.indexOf(flow.prime));
+        return { flow, ring, label: labelOf(flow.prime), bandColor, to };
       }),
-    [layout, flows, actors, month, labelOf],
+    [layout, flows, actors, month, labelOf, stack.primes],
   );
   const eco = useMemo(
     () => (bundle && month ? ecosystemThreeWay(bundle, month) : null),
@@ -136,8 +138,8 @@ function RingKey() {
     <div className="mono text-[10px] mt-5" style={{ color: "var(--tan-3)" }}>
       <p className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
         <span>{swatch("var(--msc-sky)")} to Sky</span>
-        <span>{swatch("var(--msc-kept)")} supply kept</span>
-        <span>{swatch("var(--msc-demand)")} demand-side</span>
+        <span>{swatch("var(--msc-kept)")} supply kept by Primes</span>
+        <span>{swatch("var(--msc-demand)")} demand-side by Primes</span>
         <span>
           {swatch(
             "repeating-linear-gradient(45deg, var(--tan-2) 0, var(--tan-2) 2px, transparent 2px, transparent 4px)",

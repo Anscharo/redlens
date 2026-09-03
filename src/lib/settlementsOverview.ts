@@ -135,8 +135,8 @@ export function ecosystemHeadlineFigures(eco: EcosystemThreeWay): HeadlineFigure
     rows.push({ label: "of which Sky Direct Exposure", value: eco.sde, component: true });
   }
   rows.push(
-    { label: "Supply kept", value: eco.kept },
-    { label: "Demand-side", value: eco.demand },
+    { label: "Supply kept by Primes", value: eco.kept },
+    { label: "Demand-side by Primes", value: eco.demand },
   );
   return rows;
 }

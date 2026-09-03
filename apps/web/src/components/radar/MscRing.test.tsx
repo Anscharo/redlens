@@ -28,6 +28,7 @@ function ringPrimes(flows: PrimeFlowTotals[], month: string): { layout: ReturnTy
       flow: f,
       ring,
       label: f.prime === "spark" ? "Spark" : f.prime,
+      bandColor: "var(--depth-1)",
       to: linked
         ? `/radar/${f.prime}-party/settlements${month !== f.latestMonth ? `?msc=${month}` : ""}`
         : null,

@@ -12,6 +12,8 @@ export interface MscRingPrime {
   flow: PrimeFlowTotals;
   ring: RingPrime;
   label: string;
+  /** The prime's identity color — same fill as its timeseries layers. */
+  bandColor: string;
   /** Router-relative settlements path; null when no radar actor matches the
    *  workbook prime (published before the atlas has the actor) — unlinked. */
   to: string | null;
@@ -51,10 +53,10 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
         ))}
       </defs>
       <circle cx={layout.cx} cy={layout.cy} r={layout.skyR} className="msc-ring-sky-disc" />
-      <text x={layout.cx} y={layout.cy - 4} textAnchor="middle" fontSize={15} className="msc-ring-center">
+      <text x={layout.cx} y={layout.cy - 6} textAnchor="middle" fontSize={20} className="msc-ring-center">
         Sky
       </text>
-      <text x={layout.cx} y={layout.cy + 14} textAnchor="middle" fontSize={12} className="msc-ring-center mono">
+      <text x={layout.cx} y={layout.cy + 18} textAnchor="middle" fontSize={17} className="msc-ring-center mono">
         {centerFigure}
       </text>
       {layout.dividers.map((d, i) => (
@@ -67,11 +69,11 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
   );
 }
 
-function RingPrimeGroup({ flow, ring, label, to, month }: MscRingPrime & { month: string }) {
+function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrime & { month: string }) {
   const group = (
     <g className="msc-ring-prime" data-prime={flow.prime}>
       <title>{breakdown(flow)}</title>
-      <path d={ring.arcPath} className="msc-ring-band" />
+      <path d={ring.arcPath} className="msc-ring-band" style={{ fill: bandColor }} />
       {ring.flows.map((f) => (
         <path
           key={f.kind}
@@ -85,14 +87,14 @@ function RingPrimeGroup({ flow, ring, label, to, month }: MscRingPrime & { month
         x={ring.labelX}
         y={ring.labelY + 4}
         textAnchor={ring.labelAnchor}
-        fontSize={ring.labelMode === "band" ? 11 : 12}
+        fontSize={ring.labelMode === "band" ? 14 : 13}
         className={ring.labelMode === "band" ? "msc-ring-label msc-ring-label-band" : "msc-ring-label"}
       >
         {label}
       </text>
       <g className="msc-ring-amounts" aria-hidden="true">
         {ring.flows.map((f) => (
-          <text key={f.kind} x={f.amountX} y={f.amountY} textAnchor="middle" fontSize={10}>
+          <text key={f.kind} x={f.amountX} y={f.amountY} textAnchor="middle" fontSize={16} className="mono">
             {formatUsd(f.signed, true)}
           </text>
         ))}

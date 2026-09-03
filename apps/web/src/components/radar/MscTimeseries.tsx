@@ -101,7 +101,7 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
           ))}
         </svg>
       </div>
-      <p className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mt-2" style={{ color: "var(--tan-3)" }}>
+      <p className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mt-2" style={{ color: "var(--tan-3)", maxWidth: width }}>
         {primes.map((p, i) => (
           <span key={p}>
             <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: primeFill(i) }} />
@@ -112,6 +112,11 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
           <span className="inline-block w-3 h-[2px] mr-1 align-middle" style={{ background: "var(--msc-sky)" }} />
           to Sky (line)
         </span>
+      </p>
+      <p className="mono text-[10px] mt-1" style={{ color: "var(--tan-3)", maxWidth: width }}>
+        Each layer is that Prime's supply kept + demand-side; the line is the ecosystem
+        To-Sky total, separate money from the stack. The ring splits the selected
+        month's bar back into those flows per Prime.
       </p>
     </div>
   );

@@ -136,8 +136,8 @@ describe("ecosystemMonths / ecosystemHeadlineFigures", () => {
     expect(rows[0]).toEqual({ label: "To Sky", value: expect.any(Number) });
     expect(rows.find((r) => r.label === "of which cost of funds")?.component).toBe(true);
     expect(rows.find((r) => r.label === "of which Sky Direct Exposure")?.component).toBe(true);
-    expect(rows.map((r) => r.label)).toContain("Supply kept");
-    expect(rows.map((r) => r.label)).toContain("Demand-side");
+    expect(rows.map((r) => r.label)).toContain("Supply kept by Primes");
+    expect(rows.map((r) => r.label)).toContain("Demand-side by Primes");
 
     const noSde = ecosystemHeadlineFigures(ecosystemThreeWay({ source: {}, reports: [osero] }, "2026-07"));
     expect(noSde.some((r) => r.label === "of which Sky Direct Exposure")).toBe(false);
