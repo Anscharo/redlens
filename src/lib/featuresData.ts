@@ -169,12 +169,12 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "MSC ecosystem overview",
-        what: "The Radar front page opens with a cross-prime Monthly Settlement Cycle view: a ring — Sky in the middle, each Prime's month as a wedge with its To-Sky flow docking inward and supply-kept / demand-side stubs pointing outward — next to a stacked timeline of what each Prime kept, with Sky's monthly take overlaid as a line.",
+        what: "The Radar front page opens with a cross-prime Monthly Settlement Cycle view: an orbital chart — Sky as the central circle with each Prime as a circle around it, sized by the funds flowing through it, To-Sky ribbons running to the center and supply-kept / demand-side ribbons pointing outward — next to a stacked timeline of what each Prime kept, with Sky's monthly take overlaid as a line.",
         how: [
-          "Open Radar; the ring shows the latest settled month across all Primes, with the color key and reading guide under it.",
-          "Click a month column in the Prime-side earnings chart to switch the ring and the figures under it.",
-          "Hover a Prime's wedge for its figures, including the cost-of-funds / Sky Direct Exposure split and the demand-side mix; hover a timeline segment for that Prime's month.",
-          "Click a wedge to open that Prime's settlement page for the month you had selected.",
+          "Open Radar; the orbital chart shows the latest settled month across all Primes, with the color key and reading guide under it.",
+          "Click a month column in the Prime-side earnings chart to switch the orbital chart and the figures under it.",
+          "Hover a Prime's circle for its figures, including the cost-of-funds / Sky Direct Exposure split and the demand-side mix; hover a timeline segment for that Prime's month.",
+          "Click a Prime's circle to open its settlement page for the month you had selected.",
         ],
         note: "Wedge sizes are square-root scaled so small Primes stay visible — compare exact figures, not areas. Hidden when settlements.json has not been built. Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
       },

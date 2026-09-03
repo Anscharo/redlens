@@ -2701,9 +2701,10 @@ button.atlas-node-expand-all:focus-visible {
   overflow: visible;
 }
 .msc-ring-sky-disc {
-  /* --bg, not --bg-deep: the ring sits on a --bg-deep card now. */
+  /* --bg, not --bg-deep: the chart sits on a --bg-deep card now. */
   fill: var(--bg);
   stroke: var(--msc-sky);
+  stroke-width: 2;
 }
 .msc-ring-center {
   fill: var(--tan);
@@ -2723,18 +2724,14 @@ button.atlas-node-expand-all:focus-visible {
 .msc-ring-demand {
   fill: var(--msc-demand);
 }
-.msc-ring-prime path {
+.msc-ring-prime :is(path, circle) {
   opacity: 0.55;
   transition: opacity 0.1s;
   cursor: pointer;
 }
-.msc-ring-prime:hover path,
-a:focus-visible > .msc-ring-prime path {
+.msc-ring-prime:hover :is(path, circle),
+a:focus-visible > .msc-ring-prime :is(path, circle) {
   opacity: 1;
-}
-.msc-ring-divider {
-  stroke: var(--border);
-  stroke-width: 1;
 }
 .msc-ring-leader {
   fill: none;

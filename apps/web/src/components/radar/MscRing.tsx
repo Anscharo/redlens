@@ -59,9 +59,6 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
       <text x={layout.cx} y={layout.cy + 18} textAnchor="middle" fontSize={17} className="msc-ring-center mono">
         {centerFigure}
       </text>
-      {layout.dividers.map((d, i) => (
-        <line key={i} x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} className="msc-ring-divider" aria-hidden="true" />
-      ))}
       {primes.map((p) => (
         <RingPrimeGroup key={p.flow.prime} {...p} month={month} />
       ))}
@@ -73,9 +70,9 @@ function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrim
   const group = (
     <g className="msc-ring-prime" data-prime={flow.prime}>
       <title>{breakdown(flow)}</title>
-      {/* Outlined, not solid: a filled band read like a flow. The faint tint
-          keeps the whole band area hoverable/clickable. */}
-      <path d={ring.arcPath} className="msc-ring-band" style={{ stroke: bandColor, fill: bandColor }} />
+      {/* Outlined, not solid: a filled circle would read like a flow. The
+          faint tint keeps the whole circle hoverable/clickable. */}
+      <circle cx={ring.cx} cy={ring.cy} r={ring.r} className="msc-ring-band" style={{ stroke: bandColor, fill: bandColor }} />
       {ring.flows.map((f) => (
         <path
           key={f.kind}
@@ -89,8 +86,8 @@ function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrim
         x={ring.labelX}
         y={ring.labelY + 4}
         textAnchor={ring.labelAnchor}
-        fontSize={ring.labelMode === "band" ? 14 : 13}
-        className={ring.labelMode === "band" ? "msc-ring-label msc-ring-label-band" : "msc-ring-label"}
+        fontSize={ring.labelMode === "circle" ? 14 : 13}
+        className={ring.labelMode === "circle" ? "msc-ring-label msc-ring-label-band" : "msc-ring-label"}
       >
         {label}
       </text>

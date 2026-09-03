@@ -1,61 +1,38 @@
-// Circular-sankey geometry for the /radar MSC overview: Sky as a central
-// disc, primes as arc wedges orbiting it, To-Sky ribbons docking inward and
-// supply-kept / demand-side stubs pointing outward, with callout labels off
-// to the sides connected by leader lines. Pure math, no DOM — the view just
-// maps over prebuilt SVG path strings (settlementSankey.ts precedent).
+// Orbital-chart geometry for the /radar MSC overview: Sky as a central
+// circle and each prime as an outlined circle orbiting it, sized by the
+// total funds flowing through it. Flows are ribbons — To-Sky ribbons run
+// from a prime's circle to the Sky circle; supply-kept and demand-side are
+// short ribbons pointing outward from the prime. Pure math, no DOM — the
+// view just maps over prebuilt SVG path strings (settlementSankey.ts
+// precedent).
 //
-// Wedge ANGLE is the only magnitude encoding, on a sqrt scale: the data
-// spans ~5 orders of magnitude in one month (Spark $58M to Sky vs Osero
-// $497), so linear angles would leave every prime but two invisible, and a
-// variable stub length would double-encode the same number.
+// Scales, chosen for the ~5-orders-of-magnitude spread in one month
+// (Spark $58M vs Osero $497):
+// - Circle RADIUS ∝ total^(1/4), so circle AREA ∝ √total — this is the
+//   "area is proportional to the square root of total value" note the key
+//   shows; it compresses magnitudes twice as hard as a linear-area circle.
+// - Ribbon WIDTH ∝ √|value|, floored so hairline flows stay visible.
 
 import { SETTLEMENT_NEAR_ZERO } from "@/lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
-// The viewBox is wider than tall so the side label columns fit inside it —
-// text that overflowed the box would collide with the timeseries sitting to
-// the ring's left in the overview row. Its height hugs the drawn content
-// (max radius R_OUT + STUB_LEN = 250 plus a few px of label overshoot) so
-// the key rendered under the svg sits right below the chart's visual
-// bottom instead of below empty viewBox padding.
 export const WIDTH = 840;
-export const HEIGHT = 520;
 const CX = WIDTH / 2;
-const CY = HEIGHT / 2;
-/** Central Sky disc; To-Sky ribbons dock on its perimeter. */
-export const R_SKY = 70;
-/** Prime band annulus [R_IN, R_OUT]; ribbons leave R_IN inward, stubs R_OUT
- *  outward. The band is deliberately thick enough for a prime NAME to sit
- *  inside it (space taken from the To-Sky ribbon run, R_SKY..R_IN). */
-const R_IN = 184;
-const ARC_T = 38;
-const R_OUT = R_IN + ARC_T;
-const R_BAND = R_IN + ARC_T / 2;
-/** ~px per character of a 14px band label, for the fits-inside test. */
-const BAND_CHAR_PX = 8.4;
-const BAND_LABEL_PAD = 12;
-/** Fixed radial stub length — see the angle-only-encoding note above. */
-const STUB_LEN = 28;
-/** Gap between the band (now prime-colored) and its flows, so a flow whose
- *  series color matches a prime's identity color never merges with the band. */
-const BAND_GAP = 3;
-/** Leader line: starts just past the stubs, runs radially to the elbow,
- *  then bends to the label column. */
-const R_LEADER_START = R_OUT + STUB_LEN + 3;
-const R_ELBOW = R_OUT + STUB_LEN + 16;
-/** Fixed label columns left/right of the ring, so callouts align. */
-const LABEL_COL_X = R_OUT + STUB_LEN + 34;
-/** Minimum vertical separation between labels on one side. */
+/** Orbit radius for prime circle centers. */
+const ORBIT = 212;
+/** Radius scale: r = R_K · total^(1/4), floored. */
+const R_K = 1.15;
+const R_MIN = 13;
+/** Ribbon width: w = 3 + W_SPAN·√v/√vMax, so the largest flow is ~26px. */
+const W_SPAN = 23;
+const W_MIN = 3;
+/** Outward kept/demand ribbon length; angular offset off the outward radial. */
+const STUB_LEN = 34;
+const STUB_SPREAD = 0.55;
+/** Callout label columns and collision spacing (small circles only). */
 const LABEL_GAP_PX = 15;
-/** Angular gap between primes — wide enough to read as a divider. */
-const GAP = 0.16;
-/** Small gap between a prime's own flow slices, so kept|sky|demand read as
- *  distinct bars while the band arc above still groups them as one prime. */
-const FLOW_GAP = 0.012;
-/** Floors keeping the smallest prime/flow visible and hoverable. The prime
- *  floor must fit three flow floors plus two FLOW_GAPs (3·0.035 + 2·0.012). */
-const MIN_PRIME_ANGLE = 0.14;
-const MIN_FLOW_ANGLE = 0.035;
+/** ~px per character of a 14px label, for the fits-inside-circle test. */
+const CHAR_PX = 8.4;
 
 export interface RingFlow {
   kind: "sky" | "kept" | "demand";
@@ -63,12 +40,10 @@ export interface RingFlow {
   value: number;
   signed: number;
   /** Negative kept/demand flows reverse direction: drawn INTO the prime's
-   *  band (outer edge to inner edge) instead of the outward stub. */
+   *  circle instead of pointing outward. */
   inward: boolean;
   path: string;
-  a0: number;
-  a1: number;
-  /** Anchor for the hover amount text (flow midpoint). */
+  /** Anchor for the hover amount pill (ribbon midpoint). */
   amountX: number;
   amountY: number;
 }
@@ -76,17 +51,17 @@ export interface RingFlow {
 export interface RingPrime {
   /** Workbook prime key ("spark"). */
   prime: string;
-  a0: number;
-  a1: number;
-  mid: number;
-  /** The prime's band segment on the outer ring. */
-  arcPath: string;
+  /** Circle center + radius (area ∝ √ of total funds through the prime). */
+  cx: number;
+  cy: number;
+  r: number;
+  /** Angle of the circle center around Sky (radians). */
+  angle: number;
   /** Near-zero flows already dropped (a demand-only prime has no sky ribbon). */
   flows: RingFlow[];
-  /** "band" = the name fits inside the prime's band segment; "callout" = it
-   *  sits in a side column, connected by `leaderPath`. */
-  labelMode: "band" | "callout";
-  /** Callout leader from the wedge to the label; empty in band mode. */
+  /** "circle" = the name fits inside the prime's circle; "callout" = it sits
+   *  in a side column, connected by `leaderPath`. */
+  labelMode: "circle" | "callout";
   leaderPath: string;
   labelX: number;
   labelY: number;
@@ -98,60 +73,21 @@ export interface RingLayout {
   height: number;
   cx: number;
   cy: number;
+  /** Sky circle radius (same area scale as the primes). */
   skyR: number;
   primes: RingPrime[];
-  /** Radial hairlines in the inter-prime gaps (divider ticks). */
-  dividers: Array<{ x1: number; y1: number; x2: number; y2: number }>;
 }
 
-const pt = (r: number, a: number): [number, number] => [CX + r * Math.cos(a), CY + r * Math.sin(a)];
+const radiusOf = (total: number) => Math.max(R_MIN, R_K * Math.abs(total) ** 0.25);
 
-/** Annular sector from rOuter down to rInner over [a0, a1]. With GAP > 0 no
- *  wedge ever reaches π, so the large-arc flag is always 0. */
-function sector(rOuter: number, rInner: number, a0: number, a1: number): string {
-  const [x0, y0] = pt(rOuter, a0);
-  const [x1, y1] = pt(rOuter, a1);
-  const [x2, y2] = pt(rInner, a1);
-  const [x3, y3] = pt(rInner, a0);
-  return (
-    `M${x0},${y0} A${rOuter},${rOuter} 0 0 1 ${x1},${y1} ` +
-    `L${x2},${y2} A${rInner},${rInner} 0 0 0 ${x3},${y3} Z`
-  );
-}
-
-/**
- * Split `total` proportionally to `weights`, clamping every positive-weight
- * share up to `min` and renormalizing the rest; zero weights get zero.
- * Converges in ≤ n passes. If the floors alone exceed the budget (cannot
- * happen at today's prime counts: 8·(0.14+0.16) < 2π) everything degrades
- * to an equal split rather than overflowing the circle.
- */
-function allocate(weights: readonly number[], total: number, min: number): number[] {
-  const active = weights.map((w) => w > 0);
-  const n = active.filter(Boolean).length;
-  if (n === 0) return weights.map(() => 0);
-  if (n * min >= total) return weights.map((w) => (w > 0 ? total / n : 0));
-  const out = weights.map(() => 0);
-  const floored = weights.map(() => false);
-  for (let pass = 0; pass < weights.length; pass++) {
-    const budget = total - min * floored.filter(Boolean).length;
-    const freeSum = weights.reduce((t, w, i) => (active[i] && !floored[i] ? t + w : t), 0);
-    let clampedMore = false;
-    for (let i = 0; i < weights.length; i++) {
-      if (!active[i]) continue;
-      if (floored[i]) {
-        out[i] = min;
-        continue;
-      }
-      out[i] = (weights[i] / freeSum) * budget;
-      if (out[i] < min) {
-        floored[i] = true;
-        clampedMore = true;
-      }
-    }
-    if (!clampedMore) break;
-  }
-  return out;
+/** Straight ribbon of width w between two points (a quad, ends ⟂ to the axis). */
+function ribbon(x0: number, y0: number, x1: number, y1: number, w: number): string {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const len = Math.hypot(dx, dy) || 1;
+  const px = (-dy / len) * (w / 2);
+  const py = (dx / len) * (w / 2);
+  return `M${x0 + px},${y0 + py} L${x1 + px},${y1 + py} L${x1 - px},${y1 - py} L${x0 - px},${y0 - py} Z`;
 }
 
 const FLOW_KINDS = ["kept", "sky", "demand"] as const;
@@ -160,91 +96,91 @@ export function layoutMscRing(
   primes: readonly PrimeFlowTotals[],
   labelOf: (prime: string) => string = (p) => p,
 ): RingLayout {
-  const empty: RingLayout = { width: WIDTH, height: HEIGHT, cx: CX, cy: CY, skyR: R_SKY, primes: [], dividers: [] };
-  // sqrt weights; near-zero flows carry no angle (and later no path).
-  const weightsOf = (p: PrimeFlowTotals) =>
-    FLOW_KINDS.map((k) => {
-      const v = p[k];
-      return Math.abs(v) < SETTLEMENT_NEAR_ZERO ? 0 : Math.sqrt(Math.abs(v));
-    });
   const rows = primes
-    .map((p) => ({ p, flowW: weightsOf(p) }))
-    .filter((r) => r.flowW.some((w) => w > 0));
+    .map((p) => {
+      const flows = FLOW_KINDS.map((k) => ({ kind: k, signed: p[k], value: Math.abs(p[k]) })).filter(
+        (f) => f.value >= SETTLEMENT_NEAR_ZERO,
+      );
+      return { p, flows, total: flows.reduce((n, f) => n + f.value, 0) };
+    })
+    .filter((r) => r.flows.length > 0);
 
-  if (rows.length === 0) return empty;
+  const skyTotal = rows.reduce((n, r) => n + Math.abs(r.p.sky), 0);
+  const skyR = radiusOf(skyTotal);
+  const maxR = Math.max(R_MIN, ...rows.map((r) => radiusOf(r.total)));
+  // The tallest thing hanging off a circle is its outward ribbon + label room.
+  const extent = ORBIT + maxR + STUB_LEN + 34;
+  const height = 2 * extent;
+  const cy = extent;
 
-  const budget = 2 * Math.PI - rows.length * GAP;
-  const primeAngles = allocate(
-    rows.map((r) => r.flowW.reduce((t, w) => t + w, 0)),
-    budget,
-    MIN_PRIME_ANGLE,
-  );
+  if (rows.length === 0) return { width: WIDTH, height: 520, cx: CX, cy: 260, skyR, primes: [] };
 
-  // Start at 12 o'clock, clockwise (screen coords: y down, angle increasing).
+  const vMax = Math.max(1, ...rows.flatMap((r) => r.flows.map((f) => f.value)));
+  const widthOf = (v: number) => Math.max(W_MIN, W_SPAN * Math.sqrt(v) / Math.sqrt(vMax) + 3);
+
+  // Angular placement: each circle needs an arc footprint for its radius;
+  // the leftover becomes even gaps. Deterministic, starts at 12 o'clock.
+  const footprints = rows.map((r) => 2 * Math.asin(Math.min(0.95, (radiusOf(r.total) + 10) / ORBIT)));
+  const leftover = Math.max(0, 2 * Math.PI - footprints.reduce((a, b) => a + b, 0));
+  const gap = leftover / rows.length;
   let a = -Math.PI / 2;
-  const out: RingPrime[] = rows.map((r, i) => {
-    const a0 = a;
-    const a1 = a0 + primeAngles[i];
-    a = a1 + GAP;
-    const mid = (a0 + a1) / 2;
 
-    // Fixed flow order [kept, sky, demand]: sky sits in the middle of the
-    // wedge so its ribbon points cleanly at the disc. FLOW_GAP separates the
-    // slices so they read as distinct bars within the prime's band.
-    const activeFlows = r.flowW.filter((w) => w > 0).length;
-    const flowBudget = a1 - a0 - Math.max(0, activeFlows - 1) * FLOW_GAP;
-    const flowAngles = allocate(r.flowW, flowBudget, MIN_FLOW_ANGLE);
-    let fa = a0;
-    const flows: RingFlow[] = [];
-    FLOW_KINDS.forEach((kind, j) => {
-      const theta = flowAngles[j];
-      if (theta <= 0) return;
-      const s0 = fa;
-      const s1 = fa + theta;
-      fa = s1 + FLOW_GAP;
-      const signed = r.p[kind];
-      const isSky = kind === "sky";
-      // A negative kept/demand flow keeps its category color but reverses
-      // direction: instead of pointing outward it is drawn into the band,
-      // from its outer edge to its inner edge (the view adds stripes).
-      const inward = signed < 0 && !isSky;
-      // To-Sky ribbon reuses the flow's angular interval at both R_IN and
-      // R_SKY — sqrt-proportional widths at both ends, zero crossings. Stubs
-      // are plain annular sectors outward from the band.
-      const path = isSky
-        ? sector(R_IN - BAND_GAP, R_SKY, s0, s1)
-        : inward
-          ? sector(R_OUT, R_IN, s0, s1)
-          : sector(R_OUT + BAND_GAP + STUB_LEN, R_OUT + BAND_GAP, s0, s1);
-      const amountR = isSky ? (R_IN + R_SKY) / 2 : inward ? R_BAND : R_OUT + STUB_LEN / 2;
-      const [amountX, amountY] = pt(amountR, (s0 + s1) / 2);
-      flows.push({ kind, value: Math.abs(signed), signed, inward, path, a0: s0, a1: s1, amountX, amountY });
+  const out: RingPrime[] = rows.map((r, i) => {
+    const angle = a + footprints[i] / 2;
+    a += footprints[i] + gap;
+    const rad = radiusOf(r.total);
+    const cxP = CX + ORBIT * Math.cos(angle);
+    const cyP = cy + ORBIT * Math.sin(angle);
+    // Unit vectors: `out` points away from Sky, `inw` toward it.
+    const ox = Math.cos(angle);
+    const oy = Math.sin(angle);
+
+    const flows: RingFlow[] = r.flows.map((f) => {
+      const w = widthOf(f.value);
+      if (f.kind === "sky") {
+        // Ribbon between the two circle edges, along the center line.
+        const x0 = cxP - ox * rad;
+        const y0 = cyP - oy * rad;
+        const x1 = CX + ox * skyR;
+        const y1 = cy + oy * skyR;
+        return { kind: f.kind, value: f.value, signed: f.signed, inward: false,
+          path: ribbon(x0, y0, x1, y1, w), amountX: (x0 + x1) / 2, amountY: (y0 + y1) / 2 };
+      }
+      // Kept/demand leave the circle outward, spread to either side of the
+      // radial; a negative flow reverses INTO the circle (striped by the view).
+      const dirA = angle + (f.kind === "kept" ? -STUB_SPREAD : STUB_SPREAD);
+      const dx = Math.cos(dirA);
+      const dy = Math.sin(dirA);
+      const inward = f.signed < 0;
+      const ex = cxP + dx * rad;
+      const ey = cyP + dy * rad;
+      const len = inward ? Math.min(STUB_LEN, 2 * rad - 4) : STUB_LEN;
+      const tx = ex + (inward ? -dx : dx) * len;
+      const ty = ey + (inward ? -dy : dy) * len;
+      return { kind: f.kind, value: f.value, signed: f.signed, inward,
+        path: ribbon(ex, ey, tx, ty, w), amountX: (ex + tx) / 2, amountY: (ey + ty) / 2 };
     });
 
-    // The name goes INSIDE the band when its estimated width fits the band
-    // arc at this wedge's angle; otherwise it becomes a side callout.
-    const fitsInBand =
-      labelOf(r.p.prime).length * BAND_CHAR_PX + BAND_LABEL_PAD <= (a1 - a0) * R_BAND;
-    const side: "start" | "end" = Math.cos(mid) >= 0 ? "start" : "end";
-    const [bandX, bandY] = pt(R_BAND, mid);
+    const fitsInCircle = labelOf(r.p.prime).length * CHAR_PX + 8 <= 2 * rad;
+    const side: "start" | "end" = Math.cos(angle) >= 0 ? "start" : "end";
+    const colX = side === "start" ? CX + ORBIT + maxR + STUB_LEN + 20 : CX - ORBIT - maxR - STUB_LEN - 20;
     return {
       prime: r.p.prime,
-      a0,
-      a1,
-      mid,
-      arcPath: sector(R_OUT, R_IN, a0, a1),
+      cx: cxP,
+      cy: cyP,
+      r: rad,
+      angle,
       flows,
-      labelMode: fitsInBand ? ("band" as const) : ("callout" as const),
+      labelMode: fitsInCircle ? ("circle" as const) : ("callout" as const),
       leaderPath: "", // callouts: filled after the collision pass below
-      labelX: fitsInBand ? bandX : side === "start" ? CX + LABEL_COL_X : CX - LABEL_COL_X,
-      labelY: fitsInBand ? bandY : pt(R_ELBOW, mid)[1],
-      labelAnchor: fitsInBand ? ("middle" as const) : side,
+      labelX: fitsInCircle ? cxP : colX,
+      labelY: fitsInCircle ? cyP : cyP,
+      labelAnchor: fitsInCircle ? ("middle" as const) : side,
     };
   });
 
-  // Callout collision pass, per side: sort by y, push labels down to a
-  // minimum separation (same idea as settlementSankey's labelY push), then
-  // draw each leader to wherever its label ended up.
+  // Callout collision pass, per side; then draw each leader from the circle's
+  // outer edge to wherever its label ended up.
   for (const anchor of ["start", "end"] as const) {
     const sideLabels = out
       .filter((p) => p.labelMode === "callout" && p.labelAnchor === anchor)
@@ -257,21 +193,11 @@ export function layoutMscRing(
   }
   for (const p of out) {
     if (p.labelMode !== "callout") continue;
-    const [ax, ay] = pt(R_LEADER_START, p.mid);
-    const [bx, by] = pt(R_ELBOW, p.mid);
-    const cxEnd = p.labelAnchor === "start" ? p.labelX - 6 : p.labelX + 6;
-    p.leaderPath = `M${ax},${ay} L${bx},${by} L${cxEnd},${p.labelY}`;
+    const ax = p.cx + Math.cos(p.angle) * (p.r + 2);
+    const ay = p.cy + Math.sin(p.angle) * (p.r + 2);
+    const endX = p.labelAnchor === "start" ? p.labelX - 6 : p.labelX + 6;
+    p.leaderPath = `M${ax},${ay} L${endX},${p.labelY}`;
   }
 
-  // Divider ticks: one radial hairline in the middle of each inter-prime gap
-  // (including the wrap-around gap back to the first prime).
-  const dividers = out.map((p, i) => {
-    const next = out[(i + 1) % out.length];
-    const gapMid = i === out.length - 1 ? p.a1 + GAP / 2 : (p.a1 + next.a0) / 2;
-    const [x1, y1] = pt(R_SKY + 12, gapMid);
-    const [x2, y2] = pt(R_OUT + STUB_LEN, gapMid);
-    return { x1, y1, x2, y2 };
-  });
-
-  return { width: WIDTH, height: HEIGHT, cx: CX, cy: CY, skyR: R_SKY, primes: out, dividers };
+  return { width: WIDTH, height, cx: CX, cy, skyR, primes: out };
 }

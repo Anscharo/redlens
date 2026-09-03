@@ -127,7 +127,7 @@ function PrimeHoverStyles({ primes }: { primes: string[] }) {
   const css = primes
     .map((p) => {
       const sel = `.msc-overview-row:has(.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="${p}"]:hover) .msc-ring-prime[data-prime="${p}"]`;
-      return `${sel} path { opacity: 1; }\n${sel} .msc-ring-amounts { opacity: 1; }\n${sel} .msc-ring-label { fill: var(--tan); }`;
+      return `${sel} :is(path, circle) { opacity: 1; }\n${sel} .msc-ring-amounts { opacity: 1; }\n${sel} .msc-ring-label { fill: var(--tan); }`;
     })
     .join("\n");
   return <style>{css}</style>;
@@ -151,8 +151,9 @@ function RingKey() {
         </span>
       </p>
       <p className="text-center mt-1">
-        Each ring segment is one Prime for the selected month — click it to open that
-        Prime's settlement page.
+        Each circle is one Prime for the selected month — click it to open that
+        Prime's settlement page. Circle area is proportional to the square root of
+        the total funds flowing through it.
       </p>
     </div>
   );
