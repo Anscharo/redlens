@@ -7,9 +7,9 @@ import { THEMES, THEME_KEY, DEFAULT_THEME } from "../../lib/theme";
 
 // The picker is a roving-tabindex radiogroup, and its keyboard half is the part
 // nothing else exercises: ThemeButton renders it, but does not drive arrow keys.
-// neither drives arrow keys. Without these, ThemePicker's handleKeyDown is dead
-// weight in coverage terms and — more to the point — a broken arrow key would
-// only ever be found by someone navigating the menu without a mouse.
+// Without these, ThemePicker's handleKeyDown is dead weight in coverage terms
+// and — more to the point — a broken arrow key would only ever be found by
+// someone navigating the menu without a mouse.
 
 function rows(): HTMLElement[] {
   return screen.getAllByRole("radio");
