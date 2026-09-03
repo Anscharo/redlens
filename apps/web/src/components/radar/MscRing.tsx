@@ -73,6 +73,15 @@ function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrim
       {/* Outlined, not solid: a filled circle would read like a flow. The
           faint tint keeps the whole circle hoverable/clickable. */}
       <circle cx={ring.cx} cy={ring.cy} r={ring.r} className="msc-ring-band" style={{ stroke: bandColor, fill: bandColor }} />
+      {/* Pie slices: the circle's own To Sky (CoF + SDE) / kept / demand mix. */}
+      {ring.slices.map((s) => (
+        <path
+          key={s.kind}
+          d={s.path}
+          className={`msc-ring-slice${s.signed < 0 ? "" : ` msc-ring-${s.kind}`}`}
+          fill={s.signed < 0 ? `url(#msc-ring-neg-${s.kind})` : undefined}
+        />
+      ))}
       {ring.flows.map((f) => (
         <path
           key={f.kind}

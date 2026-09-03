@@ -18,8 +18,12 @@ import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
 export const WIDTH = 840;
 const CX = WIDTH / 2;
-/** Orbit radius for prime circle centers. */
-const ORBIT = 212;
+/** Edge gap between the Sky circle and a prime circle — alternating near
+ *  and far so circles pack at varied orbital distances. */
+const NEAR_GAP = 46;
+const FAR_GAP = 104;
+/** Minimum clearance between two prime circles. */
+const CLEARANCE = 10;
 /** Radius scale: r = R_K · total^(1/4), floored. */
 const R_K = 1.15;
 const R_MIN = 13;
@@ -48,6 +52,12 @@ export interface RingFlow {
   amountY: number;
 }
 
+export interface RingSlice {
+  kind: "sky" | "kept" | "demand";
+  signed: number;
+  path: string;
+}
+
 export interface RingPrime {
   /** Workbook prime key ("spark"). */
   prime: string;
@@ -57,6 +67,9 @@ export interface RingPrime {
   r: number;
   /** Angle of the circle center around Sky (radians). */
   angle: number;
+  /** Pie slices of the circle: To Sky (CoF + SDE) / supply kept /
+   *  demand-side shares of the total, the To-Sky slice facing Sky. */
+  slices: RingSlice[];
   /** Near-zero flows already dropped (a demand-only prime has no sky ribbon). */
   flows: RingFlow[];
   /** "circle" = the name fits inside the prime's circle; "callout" = it sits
@@ -78,7 +91,31 @@ export interface RingLayout {
   primes: RingPrime[];
 }
 
-const radiusOf = (total: number) => Math.max(R_MIN, R_K * Math.abs(total) ** 0.25);
+/** Radii are capped so the FIXED viewBox always fits — a bigger month must
+ *  not resize the chart and make the page below it jump. */
+const R_MAX = 70;
+const SKY_R_MAX = 84;
+export const HEIGHT = 2 * (SKY_R_MAX + FAR_GAP + 2 * R_MAX + 34) + 2 * STUB_LEN;
+
+const radiusOf = (total: number) =>
+  Math.min(R_MAX, Math.max(R_MIN, R_K * Math.abs(total) ** 0.25));
+
+/** Pie slice of a circle from angle a0 to a1 (full circle when it is the
+ *  only slice). */
+function slicePath(cx: number, cy: number, r: number, a0: number, a1: number): string {
+  if (a1 - a0 >= 2 * Math.PI - 1e-6) {
+    return (
+      `M${cx + r},${cy} A${r},${r} 0 1 1 ${cx - r},${cy} ` +
+      `A${r},${r} 0 1 1 ${cx + r},${cy} Z`
+    );
+  }
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  const x0 = cx + r * Math.cos(a0);
+  const y0 = cy + r * Math.sin(a0);
+  const x1 = cx + r * Math.cos(a1);
+  const y1 = cy + r * Math.sin(a1);
+  return `M${cx},${cy} L${x0},${y0} A${r},${r} 0 ${large} 1 ${x1},${y1} Z`;
+}
 
 /** Straight ribbon of width w between two points (a quad, ends ⟂ to the axis). */
 function ribbon(x0: number, y0: number, x1: number, y1: number, w: number): string {
@@ -106,31 +143,40 @@ export function layoutMscRing(
     .filter((r) => r.flows.length > 0);
 
   const skyTotal = rows.reduce((n, r) => n + Math.abs(r.p.sky), 0);
-  const skyR = radiusOf(skyTotal);
+  const skyR = Math.min(SKY_R_MAX, radiusOf(skyTotal));
   const maxR = Math.max(R_MIN, ...rows.map((r) => radiusOf(r.total)));
-  // The tallest thing hanging off a circle is its outward ribbon + label room.
-  const extent = ORBIT + maxR + STUB_LEN + 34;
-  const height = 2 * extent;
-  const cy = extent;
+  // FIXED frame: the viewBox never changes with the month, so switching
+  // months can't reflow the page below the chart.
+  const height = HEIGHT;
+  const cy = HEIGHT / 2;
 
-  if (rows.length === 0) return { width: WIDTH, height: 520, cx: CX, cy: 260, skyR, primes: [] };
+  if (rows.length === 0) return { width: WIDTH, height, cx: CX, cy, skyR, primes: [] };
 
   const vMax = Math.max(1, ...rows.flatMap((r) => r.flows.map((f) => f.value)));
   const widthOf = (v: number) => Math.max(W_MIN, W_SPAN * Math.sqrt(v) / Math.sqrt(vMax) + 3);
 
-  // Angular placement: each circle needs an arc footprint for its radius;
-  // the leftover becomes even gaps. Deterministic, starts at 12 o'clock.
-  const footprints = rows.map((r) => 2 * Math.asin(Math.min(0.95, (radiusOf(r.total) + 10) / ORBIT)));
-  const leftover = Math.max(0, 2 * Math.PI - footprints.reduce((a, b) => a + b, 0));
-  const gap = leftover / rows.length;
-  let a = -Math.PI / 2;
+  // Placement: even angular spacing from 12 o'clock, but VARIED orbital
+  // distances — alternating a near and a far edge-gap off the Sky circle —
+  // so the circles pack rather than sit on one ring. A safety pass pushes a
+  // circle outward if it still overlaps a neighbour.
+  const dists = rows.map((r, i) => skyR + (i % 2 === 0 ? NEAR_GAP : FAR_GAP) + radiusOf(r.total));
+  const angles = rows.map((_, i) => -Math.PI / 2 + (i * 2 * Math.PI) / rows.length);
+  for (let pass = 0; pass < 4; pass++) {
+    for (let i = 0; i < rows.length; i++) {
+      for (let j = 0; j < i; j++) {
+        const [xi, yi] = [dists[i] * Math.cos(angles[i]), dists[i] * Math.sin(angles[i])];
+        const [xj, yj] = [dists[j] * Math.cos(angles[j]), dists[j] * Math.sin(angles[j])];
+        const need = radiusOf(rows[i].total) + radiusOf(rows[j].total) + CLEARANCE;
+        if (Math.hypot(xi - xj, yi - yj) < need) dists[i] += need - Math.hypot(xi - xj, yi - yj);
+      }
+    }
+  }
 
   const out: RingPrime[] = rows.map((r, i) => {
-    const angle = a + footprints[i] / 2;
-    a += footprints[i] + gap;
+    const angle = angles[i];
     const rad = radiusOf(r.total);
-    const cxP = CX + ORBIT * Math.cos(angle);
-    const cyP = cy + ORBIT * Math.sin(angle);
+    const cxP = CX + dists[i] * Math.cos(angle);
+    const cyP = cy + dists[i] * Math.sin(angle);
     // Unit vectors: `out` points away from Sky, `inw` toward it.
     const ox = Math.cos(angle);
     const oy = Math.sin(angle);
@@ -161,21 +207,46 @@ export function layoutMscRing(
         path: ribbon(ex, ey, tx, ty, w), amountX: (ex + tx) / 2, amountY: (ey + ty) / 2 };
     });
 
+    // Pie slices: shares of the circle's total, the To-Sky slice rotated to
+    // face the Sky circle. Absolute values size the slices; a negative slice
+    // is striped by the view.
+    const toSkyDir = Math.atan2(cy - cyP, CX - cxP);
+    const sliceOrder = r.flows;
+    let sa = toSkyDir - ((Math.abs(r.p.sky) / r.total) * 2 * Math.PI) / 2;
+    // Start half a To-Sky slice before the Sky direction only when there IS
+    // a sky flow; otherwise just start at the Sky direction.
+    if (Math.abs(r.p.sky) < SETTLEMENT_NEAR_ZERO) sa = toSkyDir;
+    const slices: RingSlice[] = [];
+    for (const kind of ["sky", "kept", "demand"] as const) {
+      const f = sliceOrder.find((x) => x.kind === kind);
+      if (!f) continue;
+      const theta = (f.value / r.total) * 2 * Math.PI;
+      slices.push({ kind, signed: f.signed, path: slicePath(cxP, cyP, rad, sa, sa + theta) });
+      sa += theta;
+    }
+
     const fitsInCircle = labelOf(r.p.prime).length * CHAR_PX + 8 <= 2 * rad;
-    const side: "start" | "end" = Math.cos(angle) >= 0 ? "start" : "end";
-    const colX = side === "start" ? CX + ORBIT + maxR + STUB_LEN + 20 : CX - ORBIT - maxR - STUB_LEN - 20;
+    // Callouts go to the side the circle actually sits on, so leaders never
+    // cross the chart; a circle near the vertical center line gets its label
+    // directly above/below itself instead of a long leader to either column.
+    const nearCenterX = Math.abs(cxP - CX) < 70;
+    const side: "start" | "end" = cxP >= CX ? "start" : "end";
+    const colEdge = Math.max(...dists) + maxR + STUB_LEN + 20;
+    const colX = side === "start" ? CX + colEdge : CX - colEdge;
+    const stackedY = cyP >= cy ? cyP + rad + STUB_LEN + 14 : cyP - rad - STUB_LEN - 10;
     return {
       prime: r.p.prime,
       cx: cxP,
       cy: cyP,
       r: rad,
       angle,
+      slices,
       flows,
       labelMode: fitsInCircle ? ("circle" as const) : ("callout" as const),
       leaderPath: "", // callouts: filled after the collision pass below
-      labelX: fitsInCircle ? cxP : colX,
-      labelY: fitsInCircle ? cyP : cyP,
-      labelAnchor: fitsInCircle ? ("middle" as const) : side,
+      labelX: fitsInCircle || nearCenterX ? cxP : colX,
+      labelY: fitsInCircle ? cyP : nearCenterX ? stackedY : cyP,
+      labelAnchor: fitsInCircle || nearCenterX ? ("middle" as const) : side,
     };
   });
 
@@ -193,6 +264,12 @@ export function layoutMscRing(
   }
   for (const p of out) {
     if (p.labelMode !== "callout") continue;
+    if (p.labelAnchor === "middle") {
+      // Stacked above/below its circle: a short vertical leader.
+      const below = p.labelY > p.cy;
+      p.leaderPath = `M${p.cx},${p.cy + (below ? p.r + 2 : -p.r - 2)} L${p.cx},${p.labelY + (below ? -10 : 6)}`;
+      continue;
+    }
     const ax = p.cx + Math.cos(p.angle) * (p.r + 2);
     const ay = p.cy + Math.sin(p.angle) * (p.r + 2);
     const endX = p.labelAnchor === "start" ? p.labelX - 6 : p.labelX + 6;

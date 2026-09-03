@@ -91,14 +91,17 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
           {months.map((m, i) => {
             const label = formatUsd(m.sky, true);
             const w = label.length * 6.2 + 12;
+            // A pill above a near-peak point would clip at the chart's top
+            // edge — flip it below the dot instead.
+            const below = y(m.sky) < 32;
             return (
               <g key={m.month} className="msc-ts-dot" data-selected={m.month === selected ? "true" : undefined}>
                 {/* Oversized invisible hit target so hovering near the line point works. */}
                 <circle cx={centerX(i)} cy={y(m.sky)} r={13} fill="transparent" />
                 <circle cx={centerX(i)} cy={y(m.sky)} r={3.5} fill="var(--msc-sky)" stroke="var(--bg-deep)" strokeWidth={2} />
                 <g className="msc-ts-dot-label">
-                  <rect x={centerX(i) - w / 2} y={y(m.sky) - 25} width={w} height={17} rx={8.5} />
-                  <text x={centerX(i)} y={y(m.sky) - 13} textAnchor="middle" fontSize={10} className="mono">
+                  <rect x={centerX(i) - w / 2} y={y(m.sky) + (below ? 8 : -25)} width={w} height={17} rx={8.5} />
+                  <text x={centerX(i)} y={y(m.sky) + (below ? 20 : -13)} textAnchor="middle" fontSize={10} className="mono">
                     {label}
                   </text>
                 </g>

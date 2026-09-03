@@ -3,6 +3,7 @@ import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import {
   loadSettlements,
+  formatMonth,
   formatUsd,
   settlementsArtifactMissing,
 } from "../../lib/settlements";
@@ -99,7 +100,10 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
             onSelect={(m) => setMsc(m === latest ? null : m)}
           />
         </div>
-        <div className="msc-card rounded p-4 flex-1 min-w-0" style={{ flexBasis: 340, maxWidth: "100%" }}>
+        <div className="msc-card msc-ring-card rounded p-4 flex-1 min-w-0" style={{ flexBasis: 340, maxWidth: "100%" }}>
+          <p className="text-center text-2xl mb-1" style={{ color: "var(--tan)" }}>
+            Sky Ecosystem — {formatMonth(month)}
+          </p>
           <MscRing
             layout={layout}
             primes={ringPrimes}
@@ -140,10 +144,10 @@ function RingKey() {
   return (
     <div className="mono text-[10px] mt-5" style={{ color: "var(--tan-3)" }}>
       <p className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
-        <span>{swatch("var(--msc-sky)")} to Sky</span>
-        <span>{swatch("var(--msc-kept)")} supply kept by Primes</span>
-        <span>{swatch("var(--msc-demand)")} demand-side to Primes</span>
-        <span>
+        <span className="msc-key-item" data-key="sky">{swatch("var(--msc-sky)")} to Sky</span>
+        <span className="msc-key-item" data-key="kept">{swatch("var(--msc-kept)")} supply kept by Primes</span>
+        <span className="msc-key-item" data-key="demand">{swatch("var(--msc-demand)")} demand-side to Primes</span>
+        <span className="msc-key-item" data-key="neg">
           {swatch(
             "repeating-linear-gradient(45deg, var(--tan-2) 0, var(--tan-2) 2px, transparent 2px, transparent 4px)",
           )}

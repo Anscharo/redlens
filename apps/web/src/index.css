@@ -2710,10 +2710,26 @@ button.atlas-node-expand-all:focus-visible {
   fill: var(--tan);
 }
 .msc-ring-band {
-  /* Color comes inline per prime; the band is an outline with a faint tint
+  /* Color comes inline per prime; the circle is an outline with a faint tint
      so it never reads as a flow. */
   fill-opacity: 0.1;
   stroke-width: 2;
+}
+/* Pie slices inside a prime's circle — muted versions of the series colors
+   so the full-strength ribbons stay the dominant flow marks. */
+.msc-ring-slice {
+  fill-opacity: 0.45;
+  stroke: var(--bg-deep);
+  stroke-width: 1;
+}
+/* Hovering a key row lights up everything it describes, on both the circles
+   (slices) and the ribbons. */
+.msc-ring-card:has(.msc-key-item[data-key="sky"]:hover) .msc-ring-prime .msc-ring-sky,
+.msc-ring-card:has(.msc-key-item[data-key="kept"]:hover) .msc-ring-prime .msc-ring-kept,
+.msc-ring-card:has(.msc-key-item[data-key="demand"]:hover) .msc-ring-prime .msc-ring-demand,
+.msc-ring-card:has(.msc-key-item[data-key="neg"]:hover) .msc-ring-prime [fill*="msc-ring-neg"] {
+  opacity: 1;
+  fill-opacity: 1;
 }
 .msc-ring-sky {
   fill: var(--msc-sky);
