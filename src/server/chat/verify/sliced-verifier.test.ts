@@ -58,6 +58,28 @@ test("mergeSlices: backbone missing but severity survives (contradiction kept)",
   expect(v?.claims.map((c) => c.status)).toEqual(["contradicted"]);
 });
 
+// The wire between the two halves of the reference fix: verifier-slices.ts
+// marks a claim `referenceGrounded` when it was judged against injected
+// documentation, and the Verdict has to carry that through — the escalation
+// gate (chat-orchestrator.ts's claimsDrivingEscalation) reads it there.
+test("mergeSlices: referenceGrounded rides through as `reference` on the verdict claim", () => {
+  const v = mergeSlices(
+    [
+      sr({
+        slice: "claims",
+        claims: [
+          { claim: "Radar is at /radar", status: "unsupported", span: "/radar", spanValid: false, spanScore: 0, referenceGrounded: true },
+          { claim: "Keel mints USDS", status: "unsupported", span: "", spanValid: true },
+        ],
+      }),
+    ],
+    ix,
+    [],
+  );
+  expect(v?.claims.map((c) => c.reference)).toEqual([true, false]);
+  expect(v?.claims[0].note).toContain("reference");
+});
+
 test("mergeSlices: overreach ruling survives a missing backbone", () => {
   const v = mergeSlices([sr({ slice: "claims", parsed: false }), sr({ slice: "overreach", rulingIssued: true })], ix, []);
   expect(v?.ruling_issued).toBe(true);
