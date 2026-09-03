@@ -90,6 +90,32 @@ export function classifyRuns(runs) {
   return { verdict: "wait", reason: "waiting for Railway to deploy this commit" };
 }
 
+/**
+ * Why a still-waiting gate should stop: the pull request is no longer open, so
+ * there is nothing left to gate. GitHub has already accepted (or discarded) the
+ * commit, and a required check that goes red afterwards reports on a decision
+ * that was made without it.
+ *
+ * This is the COMMON case, not an edge one, because of the atlas bump bot:
+ * atlas-update.yml opens its PR with `gh pr merge --auto --rebase`, and across
+ * the four bumps measured (2026-08-28 → 09-02) the merge landed 0-2 seconds
+ * after this job started. The rebase also rewrites the commit, so the head SHA
+ * this job polls for belongs to a branch that no longer exists — Railway never
+ * builds a PR environment for it, no deployment_status ever fires, and the poll
+ * runs the full timeout to a red that means nothing. Four of the eight distinct
+ * E2E gate failures in that window were exactly this, at ~40 wasted minutes each.
+ *
+ * Returns null for "keep waiting": an open PR, no PR number (workflow_dispatch),
+ * or a read that failed — the same fail-open posture the rest of the gate takes.
+ */
+export function prSettledReason(pr) {
+  if (!pr || typeof pr !== "object") return null;
+  if (pr.state !== "closed") return null;
+  return pr.merged
+    ? "the pull request was merged; nothing left to gate"
+    : "the pull request was closed without merging; nothing left to gate";
+}
+
 /** Repo-relative paths from the file the workflow wrote, or [] if unreadable. */
 export function readChangedFiles(file) {
   try {
@@ -105,18 +131,83 @@ export function readChangedFiles(file) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function fetchRuns({ apiBase, repo, workflow, sha, token }) {
-  const url = `${apiBase}/repos/${repo}/actions/workflows/${workflow}/runs?head_sha=${sha}&per_page=100`;
-  const headers = {
+/**
+ * Poll GitHub until E2E settles, the PR is no longer open, or the deadline.
+ * Extracted so tests can drive the loop with a stub clock and stub API — the
+ * CLI body below is just the env/fetch wiring around this.
+ *
+ * Order is load-bearing: a settled classifyRuns (pass or fail) wins over the
+ * PR check. A merged PR must not paper over a red E2E run; the PR short-circuit
+ * only fires while we are still waiting.
+ */
+export async function waitForE2eVerdict({
+  fetchRuns,
+  fetchPullRequest,
+  pollSeconds,
+  timeoutSeconds,
+  now = Date.now,
+  sleep: sleepFn = sleep,
+  log = (msg) => console.log(msg),
+}) {
+  const deadline = now() + timeoutSeconds * 1000;
+  let last = "";
+  let result = { verdict: "wait", reason: "no poll completed" };
+  while (now() < deadline) {
+    try {
+      result = classifyRuns(await fetchRuns());
+    } catch (err) {
+      // A flaky API read must not decide the gate — keep polling until the
+      // deadline, which is the same outcome as "no run yet".
+      result = { verdict: "wait", reason: `GitHub API read failed: ${err.message}` };
+    }
+    if (result.verdict !== "wait") break;
+    const settled = prSettledReason(await fetchPullRequest());
+    if (settled) {
+      result = { verdict: "pass", reason: settled };
+      break;
+    }
+    if (result.reason !== last) {
+      log(`waiting: ${result.reason}`);
+      last = result.reason;
+    }
+    await sleepFn(pollSeconds * 1000);
+  }
+  return result;
+}
+
+/** One place to shape an API request, so auth can never be half-applied. */
+function githubHeaders(token) {
+  return {
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
     "User-Agent": "redlens-e2e-gate",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(url, { headers });
+}
+
+async function fetchRuns({ apiBase, repo, workflow, sha, token }) {
+  const url = `${apiBase}/repos/${repo}/actions/workflows/${workflow}/runs?head_sha=${sha}&per_page=100`;
+  const res = await fetch(url, { headers: githubHeaders(token) });
   if (!res.ok) throw new Error(`GitHub API ${res.status} ${res.statusText} for ${url}`);
   const body = await res.json();
   return Array.isArray(body.workflow_runs) ? body.workflow_runs : [];
+}
+
+/**
+ * Current state of the PR, or null when it cannot be determined. A failed read
+ * is deliberately indistinguishable from "still open": the PR check is an early
+ * exit from the wait, never a reason to change the verdict, so an API blip must
+ * leave the gate exactly as it was.
+ */
+async function fetchPullRequest({ apiBase, repo, prNumber, token }) {
+  if (!prNumber) return null;
+  try {
+    const res = await fetch(`${apiBase}/repos/${repo}/pulls/${prNumber}`, { headers: githubHeaders(token) });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 function summarize(lines) {
@@ -165,27 +256,16 @@ if (isMain) {
     const n = Number(raw);
     return Number.isFinite(n) && n > 0 ? n : fallback;
   };
+  const prNumber = process.env.PR_NUMBER || "";
   const pollSeconds = num(process.env.E2E_GATE_POLL_SECONDS, 30);
   const timeoutSeconds = num(process.env.E2E_GATE_TIMEOUT_SECONDS, 2400);
-  const deadline = Date.now() + timeoutSeconds * 1000;
 
-  let last = "";
-  let result = { verdict: "wait", reason: "no poll completed" };
-  while (Date.now() < deadline) {
-    try {
-      result = classifyRuns(await fetchRuns({ apiBase, repo, workflow, sha, token }));
-    } catch (err) {
-      // A flaky API read must not decide the gate — log once and keep polling
-      // until the deadline, which is the same outcome as "no run yet".
-      result = { verdict: "wait", reason: `GitHub API read failed: ${err.message}` };
-    }
-    if (result.verdict !== "wait") break;
-    if (result.reason !== last) {
-      console.log(`waiting: ${result.reason}`);
-      last = result.reason;
-    }
-    await sleep(pollSeconds * 1000);
-  }
+  const result = await waitForE2eVerdict({
+    fetchRuns: () => fetchRuns({ apiBase, repo, workflow, sha, token }),
+    fetchPullRequest: () => fetchPullRequest({ apiBase, repo, prNumber, token }),
+    pollSeconds,
+    timeoutSeconds,
+  });
 
   if (result.verdict === "pass") {
     console.log(result.reason);
