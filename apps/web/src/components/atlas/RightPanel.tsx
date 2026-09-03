@@ -181,9 +181,12 @@ export function RightPanel({
 
       <div className="overflow-y-auto flex-1" ref={scrollRef}>
         <div className="px-4 py-5">
-          {hasAnnotations && (
-            <section className="rl-section" ref={(el) => { sectionRefs.current.notes = el; }}>
-              <SectionDivider label="notes" active={tab === "notes"} />
+          <section className="rl-section" ref={(el) => { sectionRefs.current.notes = el; }}>
+            <SectionDivider label="notes" active={tab === "notes"} />
+            {!hasAnnotations ? (
+              <p className="text-xs mono text-tan-3">No notes for this section.</p>
+            ) : (
+              <>
               {/* Element Annotations — this document's OWN Annotation-type children
                   (`<doc_no>.0.3.N`), the hardest to reach in the reader, so they lead. */}
               {annotationDocs.length > 0 ? (
@@ -291,8 +294,9 @@ export function RightPanel({
                   ))}
                 </div>
               )}
-            </section>
-          )}
+              </>
+            )}
+          </section>
 
           <section className="rl-section" ref={(el) => { sectionRefs.current.history = el; }} data-testid="history-panel">
             <SectionDivider label="history" active={tab === "history"} />
@@ -308,7 +312,7 @@ export function RightPanel({
             ) : (
               <div className="space-y-4">
                 {glossaryTerms.map((entries) => (
-                  <div key={entries[0].nodeId} className="border-b border-border pb-4">
+                  <div key={entries[0].nodeId}>
                     <button
                       onClick={() => annNav("glossary", entries[0].nodeId)}
                       className="text-xs font-semibold mono mb-1 text-accent hover:underline cursor-pointer text-left"
