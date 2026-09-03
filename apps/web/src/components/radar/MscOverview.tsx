@@ -89,6 +89,11 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
           Source workbooks
         </a>
       </p>
+      <div className="flex flex-wrap gap-x-6 gap-y-1 mb-4 text-sm">
+        {ecosystemHeadlineFigures(eco).map((f) => (
+          <SettlementFigure key={f.label} {...f} />
+        ))}
+      </div>
       <PrimeHoverStyles primes={stack.primes} />
       <div className="msc-overview-row flex flex-wrap items-start gap-x-6 gap-y-4 min-w-0">
         <div className="msc-card rounded p-4 min-w-0 max-w-full">
@@ -112,11 +117,6 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
           />
           <RingKey />
         </div>
-      </div>
-      <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm">
-        {ecosystemHeadlineFigures(eco).map((f) => (
-          <SettlementFigure key={f.label} {...f} />
-        ))}
       </div>
     </section>
   );
