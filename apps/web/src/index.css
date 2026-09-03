@@ -2706,10 +2706,10 @@ button.atlas-node-expand-all:focus-visible {
   stroke: var(--msc-sky);
   stroke-width: 2;
 }
-/* Sky's circle is subdivided into one wedge per contributing Prime, in that
+/* Sky's donut is subdivided into one wedge per contributing Prime, in that
    Prime's identity color — the flows into Sky, shown adding up to it. */
 .msc-ring-sky-wedge {
-  fill-opacity: 0.5;
+  fill-opacity: 0.55;
   stroke: var(--bg);
   stroke-width: 1;
   transition: fill-opacity 0.1s;
@@ -2718,36 +2718,16 @@ button.atlas-node-expand-all:focus-visible {
 .msc-ring-mark:hover .msc-ring-sky-wedge {
   fill-opacity: 1;
 }
-/* Label well punched out of the wedges so "Sky" + the total stay readable. */
-.msc-ring-sky-plate {
-  fill: var(--bg);
-  stroke: var(--border-muted);
-  stroke-width: 1;
-}
 .msc-ring-center {
   fill: var(--tan);
 }
-.msc-ring-band {
-  /* Color comes inline per prime; the circle is an outline with a faint tint
-     so it never reads as a flow. */
-  fill-opacity: 0.1;
-  stroke-width: 3;
+/* Each Prime's bar has its own zero line, in the Prime's identity color. */
+.msc-ring-zero {
+  stroke-width: 2;
+  stroke-linecap: round;
 }
-/* The identity outline is fully solid by default (the group-level 0.55 dim
-   below is for flows/slices only), so each prime's color reads as a
-   continuous ring without hovering. */
-.msc-ring-prime .msc-ring-band {
-  opacity: 1;
-}
-/* Pie slices inside a prime's circle — muted versions of the series colors
-   so the full-strength ribbons stay the dominant flow marks. No stroke: a
-   slice's own outer arc sits right on top of the band's outline, and
-   stroking it read as a second, thinner ring next to the identity ring. */
-.msc-ring-slice {
-  fill-opacity: 0.45;
-}
-/* Hovering a key row lights up everything it describes, on the circles
-   (slices), the ribbons, and Sky's own wedges. */
+/* Hovering a key row lights up everything it describes: bar segments, the
+   arrows, and Sky's own wedges. */
 .msc-ring-card:has(.msc-key-item[data-key="sky"]:hover) .msc-ring-sky-wedge,
 .msc-ring-card:has(.msc-key-item[data-key="sky"]:hover) .msc-ring-prime .msc-ring-sky,
 .msc-ring-card:has(.msc-key-item[data-key="kept"]:hover) .msc-ring-prime .msc-ring-kept,
@@ -2765,39 +2745,32 @@ button.atlas-node-expand-all:focus-visible {
 .msc-ring-demand {
   fill: var(--msc-demand);
 }
-.msc-ring-prime :is(path, circle) {
-  opacity: 0.55;
+.msc-ring-prime :is(path, rect, line) {
+  opacity: 0.7;
   transition: opacity 0.1s;
   cursor: pointer;
 }
-.msc-ring-prime:hover :is(path, circle),
-a:focus-visible > .msc-ring-prime :is(path, circle) {
+.msc-ring-prime:hover :is(path, rect, line),
+a:focus-visible > .msc-ring-prime :is(path, rect, line) {
   opacity: 1;
 }
-.msc-ring-leader {
-  fill: none;
-  stroke: var(--border-muted);
+/* The always-on share badge sitting on the arrow ("71%"). */
+.msc-ring-share rect {
+  fill: var(--bg);
+  stroke: var(--msc-sky);
   stroke-width: 1;
 }
-.msc-ring-prime:hover .msc-ring-leader {
-  stroke: var(--gray);
+.msc-ring-share text {
+  fill: var(--tan);
 }
 .msc-ring-label {
   fill: var(--tan-2);
-}
-/* Names sitting inside the band segment need to read over its fill. */
-.msc-ring-label-band {
-  fill: var(--tan);
-  paint-order: stroke;
-  stroke: var(--bg-deep);
-  stroke-width: 2px;
-  stroke-linejoin: round;
 }
 .msc-ring-prime:hover .msc-ring-label {
   fill: var(--tan);
 }
 /* Pills live in a top layer (.msc-ring-pills, rendered last) so they paint
-   over every circle and label instead of being covered by whichever prime
+   over every bar and label instead of being covered by whichever prime
    drew after them. Which pill shows is wired by the generated `:has()`
    rules in PillHoverStyles — one per mark, matched by data-mark. */
 .msc-ring-pills {
@@ -2823,10 +2796,4 @@ a:focus-visible > .msc-ring-prime :is(path, circle) {
 }
 .msc-ring-pill-anchor {
   fill: var(--gray);
-}
-/* A negative kept/demand can't be a pie wedge, so it's called out beside the
-   circle instead — always on, not hover-gated, since it's the one case
-   where the pie alone would misrepresent the prime's revenue. */
-.msc-ring-loss-label {
-  fill: var(--tan-3);
 }

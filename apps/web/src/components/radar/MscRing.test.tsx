@@ -71,20 +71,22 @@ describe("MscRing", () => {
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     expect(
       screen.getByRole("link", {
-        name: "Spark, Jul 2026: $10.00M to Sky, $2.00M supply kept, $1.50M demand-side. Open settlement page.",
+        name: "Spark, Jul 2026: $10.00M to Sky (74% of what it produced), $2.00M supply kept, $1.50M demand-side. Open settlement page.",
       }),
     ).toBeInTheDocument();
   });
 
-  it("names what each hover pill is, not just its number — the ribbon is the only mark for To Sky (it's a pass-through, not revenue)", () => {
+  it("names what each hover pill is, not just its number — the arrow is the only mark for To Sky (it's a pass-through, not revenue)", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
-    expect(screen.getByText("$10.00M to Sky")).toBeInTheDocument();
+    // 10M ÷ (10M + 2M + 1.5M) = 74%
+    expect(screen.getByText("$10.00M to Sky — 74% of what Spark produced")).toBeInTheDocument();
+    expect(screen.getByText("74%")).toBeInTheDocument();
     expect(screen.getByText("$2.00M supply kept")).toBeInTheDocument();
     expect(screen.getByText("$1.50M demand-side to Spark")).toBeInTheDocument();
   });
 
-  it("fills a negative ribbon flow with its category's stripe pattern, not a loss color", () => {
+  it("fills a negative To-Sky arrow with its category's stripe pattern, not a loss color", () => {
     const { layout, primes } = ringPrimes([flow({ prime: "osero", sky: -497, kept: 107, demand: 12_000 })], "2026-07");
     const { container } = render(
       <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="-$497" />,
@@ -118,11 +120,20 @@ describe("MscRing", () => {
     expect(container.querySelector('.msc-ring-sky-wedge[data-prime="spark"]')).toBeInTheDocument();
   });
 
-  it("reports a negative kept/demand as a loss note instead of a pie wedge", () => {
+  it("hangs a negative kept below the zero line as a striped segment", () => {
     const { layout, primes } = ringPrimes([flow({ prime: "osero", sky: 497, kept: -107, demand: 12_000 })], "2026-07");
-    render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$497" />);
+    const { container } = render(
+      <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$497" />,
+    );
     expect(screen.getByText("−$107 supply kept")).toBeInTheDocument();
-    // A negative kept never gets a pie wedge — only demand does here.
-    expect(screen.queryByText("$107 supply kept")).not.toBeInTheDocument();
+    const seg = container.querySelector('.msc-ring-mark[data-mark="osero::kept"] rect')!;
+    expect(seg).toHaveAttribute("fill", "url(#msc-ring-neg-kept)");
+    expect(Number(seg.getAttribute("y"))).toBeCloseTo(layout.primes[0].zeroY, 6);
+  });
+
+  it("puts the share in the link's accessible name", () => {
+    const { layout, primes } = ringPrimes([flow()], "2026-07");
+    render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
+    expect(screen.getByRole("link", { name: /74% of what it produced/ })).toBeInTheDocument();
   });
 });

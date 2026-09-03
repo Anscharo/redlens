@@ -6,11 +6,19 @@ import type { RingPrime } from "../../lib/mscOverviewLayout";
  *  generated `:has()` rules in MscRing. */
 export const markId = (prime: string, kind: string): string => `${prime}::${kind}`;
 
+/** "71%" — whole percent; a share over 100% is real (a Prime that owed Sky
+ *  more than it made that month) and is shown as such. */
+export const formatShare = (share: number): string => `${Math.round(share * 100)}%`;
+
 /** Pill text names what it is, not just the number — a bare "$2.6M" says
  *  nothing about which flow it belongs to. */
-export function pillText(kind: string, signed: number, primeLabel: string): string {
+export function pillText(kind: string, signed: number, primeLabel: string, share?: number | null): string {
   const amount = formatUsd(signed, true);
-  if (kind === "sky") return `${amount} to Sky`;
+  if (kind === "sky") {
+    return share != null
+      ? `${amount} to Sky — ${formatShare(share)} of what ${primeLabel} produced`
+      : `${amount} to Sky`;
+  }
   if (kind === "share") return `${amount} to Sky from ${primeLabel}`;
   if (kind === "kept") return `${amount} supply kept`;
   return `${amount} demand-side to ${primeLabel}`;
@@ -50,8 +58,8 @@ interface OverlayProps {
   wedges: { prime: string; label: string; value: number; x: number; y: number; toX: number; toY: number }[];
 }
 
-/** Every pill on the chart, rendered LAST so it paints over every circle,
- *  ribbon and label — a pill nested in its own prime's group was painted
+/** Every pill on the chart, rendered LAST so it paints over every bar,
+ *  arrow and label — a pill nested in its own prime's group was painted
  *  over by whichever prime came after it. */
 export function PillOverlay({ rings, wedges }: OverlayProps) {
   return (
@@ -69,7 +77,7 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
       ))}
       {rings.map(({ ring, label }) => (
         <g key={ring.prime}>
-          {ring.slices.map((s) => (
+          {ring.segments.map((s) => (
             <AmountPill
               key={s.kind}
               mark={markId(ring.prime, s.kind)}
@@ -80,17 +88,16 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
               toY={s.amountY}
             />
           ))}
-          {ring.flows.map((f) => (
+          {ring.arrow && (
             <AmountPill
-              key={f.kind}
-              mark={markId(ring.prime, f.kind)}
-              text={pillText(f.kind, f.signed, label)}
-              x={f.pillX}
-              y={f.pillY}
-              toX={f.amountX}
-              toY={f.amountY}
+              mark={markId(ring.prime, ring.arrow.kind)}
+              text={pillText(ring.arrow.kind, ring.arrow.signed, label, ring.arrow.share)}
+              x={ring.arrow.pillX}
+              y={ring.arrow.pillY}
+              toX={ring.arrow.amountX}
+              toY={ring.arrow.amountY}
             />
-          ))}
+          )}
         </g>
       ))}
     </g>

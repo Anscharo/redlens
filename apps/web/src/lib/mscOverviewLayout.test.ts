@@ -17,177 +17,145 @@ function flow(over: Partial<PrimeFlowTotals> = {}): PrimeFlowTotals {
   };
 }
 
-describe("layoutMscRing (orbital)", () => {
+const JULY = [
+  flow({ prime: "grove", sky: 8_003_550, kept: 1_563_759, demand: 114_024 }),
+  flow({ prime: "spark", sky: 5_750_694, kept: 2_846_722, demand: 1_074_583 }),
+  flow({ prime: "obex", sky: 1_761_245, kept: 764_735, demand: 71_997 }),
+  flow({ prime: "skybase", sky: 0, kept: 0, demand: 238_107 }),
+  flow({ prime: "osero", sky: 497, kept: -107, demand: 12_149 }),
+];
+
+describe("layoutMscRing (orbital bars)", () => {
   it("returns an empty layout for no primes or all-zero flows", () => {
     expect(layoutMscRing([]).primes).toEqual([]);
     expect(layoutMscRing([flow({ sky: 0, kept: 0, demand: 0 })]).primes).toEqual([]);
   });
 
-  it("sizes a prime's circle by area ∝ its own revenue, not the To-Sky pass-through", () => {
+  it("stacks gains above the zero line and losses below it, on one linear scale", () => {
     const layout = layoutMscRing([
-      flow(), // revenue 3.5M (kept 2M + demand 1.5M), sky 10M
-      flow({ prime: "obex", sky: 100_000, kept: 800_000, demand: 75_000 }), // revenue 875k
+      flow(), // kept 2M + demand 1.5M
+      flow({ prime: "grove", sky: 6_000_000, kept: -1_000_000, demand: 500_000 }),
     ]);
-    const [spark, obex] = layout.primes;
-    // Area ∝ value ⇒ 4× the revenue is exactly 2× the radius.
-    expect(spark.r / obex.r).toBeCloseTo(2, 1);
+    const spark = layout.primes.find((p) => p.prime === "spark")!;
+    const grove = layout.primes.find((p) => p.prime === "grove")!;
+    const sKept = spark.segments.find((s) => s.kind === "kept")!;
+    const sDemand = spark.segments.find((s) => s.kind === "demand")!;
+    const gKept = grove.segments.find((s) => s.kind === "kept")!;
+    const gDemand = grove.segments.find((s) => s.kind === "demand")!;
+    // Gains end at the zero line and grow upward.
+    expect(sKept.y + sKept.h).toBeCloseTo(spark.zeroY, 6);
+    expect(sDemand.y + sDemand.h).toBeCloseTo(sKept.y, 6);
+    // A loss starts at the zero line and hangs below it.
+    expect(gKept.y).toBeCloseTo(grove.zeroY, 6);
+    expect(gDemand.y + gDemand.h).toBeCloseTo(grove.zeroY, 6);
+    // Linear: 2M kept is exactly 4× the 500k demand, on every bar.
+    expect(sKept.h / gDemand.h).toBeCloseTo(4, 6);
+    expect(gKept.h / gDemand.h).toBeCloseTo(2, 6);
   });
 
-  it("makes Sky bigger than the primes feeding it — its circle is their To-Sky flows combined", () => {
-    // The real July 2026 shape: $15.5M reaches Sky, the biggest prime earns
-    // $3.9M of its own. Sky has to read as the larger circle.
-    const layout = layoutMscRing([
-      flow({ prime: "grove", sky: 8_003_550, kept: 1_563_759, demand: 114_024 }),
-      flow({ prime: "spark", sky: 5_750_694, kept: 2_846_722, demand: 1_074_583 }),
-      flow({ prime: "obex", sky: 1_761_245, kept: 764_735, demand: 71_997 }),
-      flow({ prime: "skybase", sky: 0, kept: 0, demand: 238_107 }),
-      flow({ prime: "osero", sky: 497, kept: -107, demand: 12_149 }),
-    ]);
-    const biggest = Math.max(...layout.primes.map((p) => p.r));
-    expect(layout.skyR / biggest).toBeGreaterThan(1.5);
+  it("badges each arrow with the share of what the prime produced that went to Sky", () => {
+    const layout = layoutMscRing(JULY);
+    const grove = layout.primes.find((p) => p.prime === "grove")!;
+    // 8.00M ÷ (8.00M + 1.56M + 0.11M)
+    expect(grove.arrow!.share).toBeCloseTo(8_003_550 / (8_003_550 + 1_563_759 + 114_024), 6);
+    // A prime that pays Sky nothing has no arrow and no wedge.
+    const skybase = layout.primes.find((p) => p.prime === "skybase")!;
+    expect(skybase.arrow).toBeNull();
+    expect(layout.skyWedges.map((w) => w.prime)).not.toContain("skybase");
   });
 
-  it("subdivides the Sky circle into one wedge per contributing prime, together making the whole circle", () => {
+  it("reports a share over 100% when a prime owed Sky more than it made (Grove, Mar 2026)", () => {
+    const layout = layoutMscRing([flow({ prime: "grove", sky: 6_370_000, kept: -2_070_000, demand: 198_000 })]);
+    expect(layout.primes[0].arrow!.share).toBeGreaterThan(1);
+  });
+
+  it("subdivides the Sky donut into one wedge per contributing prime, together making the whole ring", () => {
     const layout = layoutMscRing([
       flow({ prime: "grove", sky: 8_000_000, kept: 1_500_000, demand: 100_000 }),
       flow({ prime: "spark", sky: 6_000_000, kept: 2_800_000, demand: 1_000_000 }),
       flow({ prime: "keel", sky: 0, kept: 0, demand: 280_000 }), // pays Sky nothing
     ]);
     expect(layout.skyWedges.map((w) => w.prime)).toEqual(["grove", "spark"]);
-    // Grove sends ~57% of the To-Sky total, so it holds ~57% of the circle.
     const [grove, spark] = layout.skyWedges;
     expect(grove.value / (grove.value + spark.value)).toBeCloseTo(8 / 14, 2);
     // The biggest contributor's wedge is centered on its own prime's angle,
-    // so its ribbon runs straight in.
+    // so its arrow runs straight in.
     const groveRing = layout.primes.find((p) => p.prime === "grove")!;
     expect(Math.abs(grove.mid - groveRing.angle)).toBeLessThan(1e-6);
+    expect(layout.skyInnerR).toBeLessThan(layout.skyR);
   });
 
   it("parks each hover pill off the mark it names, with the leader still on the mark", () => {
-    const layout = layoutMscRing([flow(), flow({ prime: "grove", sky: 9_000_000 })]);
+    const layout = layoutMscRing(JULY);
     for (const p of layout.primes) {
-      for (const s of p.slices) {
-        // Leader anchor inside the circle, pill outside it — so the pill can
-        // never cover its own slice or the prime's name.
-        expect(Math.hypot(s.amountX - p.cx, s.amountY - p.cy)).toBeLessThanOrEqual(p.r);
-        expect(Math.hypot(s.pillX - p.cx, s.pillY - p.cy)).toBeGreaterThan(p.r);
+      for (const s of p.segments) {
+        // Leader anchor inside the segment, pill beside the bar.
+        expect(s.amountX).toBeCloseTo(p.cx, 6);
+        expect(s.amountY).toBeGreaterThanOrEqual(s.y);
+        expect(s.amountY).toBeLessThanOrEqual(s.y + s.h);
+        expect(Math.abs(s.pillX - p.cx)).toBeGreaterThan(p.barW);
       }
-      for (const f of p.flows) {
-        expect(Math.hypot(f.pillX - f.amountX, f.pillY - f.amountY)).toBeGreaterThan(20);
+      if (p.arrow) {
+        expect(Math.hypot(p.arrow.pillX - p.arrow.amountX, p.arrow.pillY - p.arrow.amountY)).toBeGreaterThan(20);
       }
     }
   });
 
-  it("floors tiny circles so a $497 prime stays visible", () => {
-    const layout = layoutMscRing([
-      flow({ sky: 58_000_000 }),
-      flow({ prime: "osero", sky: 497, kept: -107, demand: 300 }),
-    ]);
-    const osero = layout.primes.find((p) => p.prime === "osero")!;
-    expect(osero.r).toBeGreaterThanOrEqual(13);
+  it("keeps a $6k segment beside a $2.8M one drawable", () => {
+    const layout = layoutMscRing([flow({ prime: "grove", sky: 6_000_000, kept: 2_880_000, demand: 6_000 })]);
+    const demand = layout.primes[0].segments.find((s) => s.kind === "demand")!;
+    expect(demand.h).toBeGreaterThanOrEqual(2);
   });
 
-  it("places circles on the orbit without overlap and inside the viewBox", () => {
-    const layout = layoutMscRing([
-      flow(),
-      flow({ prime: "grove", sky: 9_000_000 }),
-      flow({ prime: "obex", sky: 2_000_000, kept: 400_000, demand: 70_000 }),
-      flow({ prime: "keel", sky: 0, kept: 0, demand: 280_000 }),
-    ]);
-    for (let i = 0; i < layout.primes.length; i++) {
-      const a = layout.primes[i];
-      expect(a.cx - a.r).toBeGreaterThan(0);
-      expect(a.cx + a.r).toBeLessThan(WIDTH);
-      expect(a.cy - a.r).toBeGreaterThan(0);
-      expect(a.cy + a.r).toBeLessThan(layout.height);
-      for (let j = i + 1; j < layout.primes.length; j++) {
-        const b = layout.primes[j];
-        const d = Math.hypot(a.cx - b.cx, a.cy - b.cy);
-        expect(d).toBeGreaterThanOrEqual(a.r + b.r - 1e-6);
+  it("keeps every bar, label and arrow inside the fixed frame, with no two bars overlapping", () => {
+    for (const month of [JULY, [flow(), flow({ prime: "grove", sky: 9_000_000, kept: -2_000_000 })]]) {
+      const layout = layoutMscRing(month);
+      for (let i = 0; i < layout.primes.length; i++) {
+        const a = layout.primes[i];
+        const top = Math.min(...a.segments.map((s) => s.y), a.zeroY);
+        expect(top).toBeGreaterThan(0);
+        expect(a.labelY + 6).toBeLessThan(layout.height);
+        expect(a.cx - a.barW / 2).toBeGreaterThan(0);
+        expect(a.cx + a.barW / 2).toBeLessThan(WIDTH);
+        for (let j = i + 1; j < layout.primes.length; j++) {
+          const b = layout.primes[j];
+          const apart =
+            Math.abs(a.cx - b.cx) > a.barW + 40 ||
+            a.labelY + 6 < Math.min(...b.segments.map((s) => s.y), b.zeroY) ||
+            b.labelY + 6 < Math.min(...a.segments.map((s) => s.y), a.zeroY);
+          expect(apart).toBe(true);
+        }
+        // The bar body clears the donut.
+        const dSky = Math.hypot(a.cx - layout.cx, a.zeroY - layout.cy);
+        expect(dSky).toBeGreaterThan(layout.skyR + a.barW);
       }
-      // No circle overlaps the Sky circle.
-      const dSky = Math.hypot(a.cx - layout.cx, a.cy - layout.cy);
-      expect(dSky).toBeGreaterThanOrEqual(a.r + layout.skyR);
     }
   });
 
-  it("keeps only the To-Sky ribbon; kept/demand live in the pie slices (To Sky is a pass-through, not revenue, so it never gets a wedge)", () => {
+  it("keeps To Sky out of the bar: it is a pass-through, not revenue", () => {
     const layout = layoutMscRing([flow()]);
-    expect(layout.primes[0].flows.map((f) => f.kind)).toEqual(["sky"]);
-    expect(layout.primes[0].slices.map((s) => s.kind)).toEqual(["kept", "demand"]);
+    expect(layout.primes[0].segments.map((s) => s.kind)).toEqual(["kept", "demand"]);
+    expect(layout.primes[0].arrow!.kind).toBe("sky");
   });
 
-  it("keeps a demand-only prime as a circle with no ribbon (Keel/Skybase)", () => {
+  it("keeps a demand-only prime as a bar with no arrow (Keel/Skybase)", () => {
     const layout = layoutMscRing([flow({ prime: "keel", sky: 0, kept: 0, demand: 280_000 })]);
     expect(layout.primes).toHaveLength(1);
-    expect(layout.primes[0].flows).toEqual([]);
-    expect(layout.primes[0].slices.map((s) => s.kind)).toEqual(["demand"]);
+    expect(layout.primes[0].arrow).toBeNull();
+    expect(layout.primes[0].segments.map((s) => s.kind)).toEqual(["demand"]);
   });
 
-  it("moves a negative kept/demand out of the pie into a loss note, not a wedge", () => {
-    const layout = layoutMscRing([flow({ prime: "osero", sky: 497, kept: -107, demand: 12_000 })]);
-    const p = layout.primes[0];
-    // Only the positive demand share gets a wedge — kept is excluded.
-    expect(p.slices.map((s) => s.kind)).toEqual(["demand"]);
-    expect(p.slices[0].signed).toBe(12_000);
-    expect(p.lossNotes).toEqual([{ kind: "kept", signed: -107 }]);
-  });
-
-  it("anchors a slice's hover amount inside its own circle", () => {
-    const layout = layoutMscRing([flow()]);
-    const kept = layout.primes[0].slices.find((s) => s.kind === "kept")!;
-    const p = layout.primes[0];
-    expect(Math.hypot(kept.amountX - p.cx, kept.amountY - p.cy)).toBeLessThanOrEqual(p.r);
-  });
-
-  it("emits valid ribbon paths and finite label/amount anchors", () => {
-    const layout = layoutMscRing([flow()]);
-    const [p] = layout.primes;
-    for (const f of p.flows) {
-      expect(f.path).not.toMatch(/NaN/);
-      expect(f.path).toMatch(/^M/);
-      expect(Number.isFinite(f.amountX)).toBe(true);
-      expect(Number.isFinite(f.amountY)).toBe(true);
-    }
-    expect(Number.isFinite(p.labelX)).toBe(true);
-    expect(Number.isFinite(p.labelY)).toBe(true);
-  });
-
-  it("puts a fitting name inside the circle and long/tiny ones in side callouts", () => {
-    const layout = layoutMscRing(
-      [flow(), flow({ prime: "osero", sky: 497, kept: -107, demand: 12_000 })],
-      (p) => (p === "spark" ? "Spark" : "Osero With A Very Long Display Name"),
-    );
-    const spark = layout.primes.find((p) => p.prime === "spark")!;
-    expect(spark.labelMode).toBe("circle");
-    expect(spark.labelAnchor).toBe("middle");
-    expect(spark.leaderPath).toBe("");
-    const osero = layout.primes.find((p) => p.prime === "osero")!;
-    expect(osero.labelMode).toBe("callout");
-    expect(osero.leaderPath).toMatch(/^M/);
-    expect(osero.leaderPath).not.toMatch(/NaN/);
-  });
-
-  it("keeps same-side callout labels separated", () => {
-    const longName = (p: string) => `${p} settlement prime display name`;
-    const layout = layoutMscRing(
-      [
-        flow(),
-        flow({ prime: "grove", sky: 9_000_000 }),
-        flow({ prime: "obex", sky: 8_000_000 }),
-        flow({ prime: "keel", sky: 0, kept: 0, demand: 280_000 }),
-        flow({ prime: "osero", sky: 497, kept: -107, demand: 12_000 }),
-      ],
-      longName,
-    );
-    const callouts = layout.primes.filter((p) => p.labelMode === "callout");
-    expect(callouts.length).toBe(layout.primes.length); // long names never fit a circle
-    for (const anchor of ["start", "end"] as const) {
-      const ys = callouts
-        .filter((p) => p.labelAnchor === anchor)
-        .map((p) => p.labelY)
-        .sort((a, b) => a - b);
-      for (let i = 1; i < ys.length; i++) expect(ys[i] - ys[i - 1]).toBeGreaterThanOrEqual(15 - 1e-9);
+  it("emits valid paths and finite anchors", () => {
+    const layout = layoutMscRing(JULY);
+    for (const w of layout.skyWedges) expect(w.path).toMatch(/^M[^N]*$/);
+    for (const p of layout.primes) {
+      if (p.arrow) {
+        expect(p.arrow.path).not.toMatch(/NaN/);
+        expect(p.arrow.path).toMatch(/^M/);
+        expect(Number.isFinite(p.arrow.labelX)).toBe(true);
+      }
+      expect(Number.isFinite(p.labelX)).toBe(true);
+      expect(Number.isFinite(p.labelY)).toBe(true);
     }
   });
 

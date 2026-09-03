@@ -46,7 +46,7 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
     () => (bundle && month ? primeFlowsForMonth(bundle, month) : []),
     [bundle, month],
   );
-  const layout = useMemo(() => layoutMscRing(flows, labelOf), [flows, labelOf]);
+  const layout = useMemo(() => layoutMscRing(flows), [flows]);
   const ringPrimes = useMemo<MscRingPrime[]>(
     () =>
       layout.primes.map((ring) => {
@@ -136,7 +136,7 @@ function PrimeHoverStyles({ primes }: { primes: string[] }) {
       // the prime's group, so it needs its own rule. Pills stay hidden here:
       // this highlight names a prime, not one figure.
       return [
-        `${sel} :is(path, circle) { opacity: 1; }`,
+        `${sel} :is(path, rect, line) { opacity: 1; }`,
         `${sel} .msc-ring-label { fill: var(--tan); }`,
         `${row} .msc-ring-sky-wedge[data-prime="${p}"] { fill-opacity: 1; }`,
       ].join("\n");
@@ -163,12 +163,12 @@ function RingKey() {
         </span>
       </p>
       <p className="text-center mt-1">
-        Each circle is one Prime for the selected month — click it to open that
-        Prime's settlement page. Circle area is proportional to the money it
-        stands for, on one scale: a Prime's circle is its own revenue (supply
-        kept + demand-side), and the Sky circle is every To-Sky flow combined,
-        split into one wedge per Prime. The smallest circles are floored to stay
-        visible.
+        One bar per Prime for the selected month — click it to open that
+        Prime's settlement page. The bar is what the Prime kept: supply kept +
+        demand-side stacked above its zero line, losses striped below it, all
+        bars on one scale. Sky is the To-Sky total, split into one wedge per
+        Prime. The arrow's badge is the share of everything that Prime
+        produced (To Sky + kept + demand-side) that went to Sky.
       </p>
     </div>
   );

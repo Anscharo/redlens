@@ -1,106 +1,104 @@
 // Orbital-chart geometry for the /radar MSC overview: Sky as a central
-// circle subdivided into one wedge per Prime, and each Prime as an outlined
-// circle orbiting it. Pure math, no DOM — the view just maps over prebuilt
-// SVG path strings (settlementSankey.ts precedent).
+// DONUT, subdivided into one wedge per Prime by its share of the To-Sky
+// total, and each Prime as a floating VERTICAL STACKED BAR orbiting it, with
+// a zero line through it so losses hang below. An arrow from each bar into
+// its own wedge carries the one ratio in this data that means something:
+// the share of what the Prime produced that month that went to Sky.
+// Pure math, no DOM — the view just maps over prebuilt SVG path strings
+// (settlementSankey.ts precedent).
 //
-// ONE area scale for every circle here: circle AREA is proportional to the
-// dollars it stands for (r = k·√v, a single k per month pinned so Sky lands
-// on SKY_R). That makes the relationship the chart is really about exact and
-// visible — the Sky circle IS the sum of the To-Sky flows feeding it, and
-// its wedges show whose money that is.
-//
-// (This replaced an r ∝ total^(1/4) "area ∝ √value" scale. That compressed
-// so hard that Sky's $15.5M looked no bigger than the $9.7M Primes feeding
-// it — and it sized a Prime by its total INCLUDING the To-Sky pass-through,
-// which is not the Prime's money at all.)
-//
-// Two deliberately different quantities:
-// - A PRIME's circle is its own REVENUE (supply kept + demand-side), which
-//   is exactly what its pie divides.
-// - SKY's circle is the sum of the To-Sky flows (cost of funds + SDE), which
-//   is money passing THROUGH the Primes, not earned by them.
-// Ribbon WIDTH is linear in value (widest = W_MAX), floored so a hairline
-// flow stays visible; the proportions live in the Sky wedges, so the ribbon
-// only has to say "this Prime feeds that wedge".
+// Three quantities, three encodings:
+// - BAR segments: the Prime's own money — supply kept + demand-side —
+//   stacked up from zero (gains) or down from it (losses), on ONE linear
+//   px-per-dollar scale shared by every bar in the month.
+// - The DONUT: the To-Sky total (cost of funds + SDE), which is money
+//   passing THROUGH the Primes, not earned by them; its wedges are the
+//   Primes' shares of it, so Sky is visibly the sum of its inflows.
+// - The ARROW: width linear in the To-Sky amount, label = To-Sky ÷ (To-Sky
+//   + kept + demand). A Prime that pays Sky nothing (Keel, Skybase) has no
+//   arrow and no wedge.
 
 import { SETTLEMENT_NEAR_ZERO } from "@/lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
 export const WIDTH = 840;
 const CX = WIDTH / 2;
-/** Edge gap between the Sky circle and a prime circle — alternating near
- *  and far so circles pack at varied orbital distances. */
-const NEAR_GAP = 46;
-const FAR_GAP = 104;
-/** Minimum clearance between two prime circles. */
-const CLEARANCE = 10;
-/** Sky renders at this radius; the month's whole area scale derives from it. */
+/** Orbit ellipse the bars' zero points sit on (wider than tall, like the
+ *  frame). */
+const ORBIT_RX = 300;
+const ORBIT_RY = 165;
+/** Sky donut radii. */
 const SKY_R = 92;
-/** Floor/cap on a prime circle. The cap only exists so the FIXED viewBox
- *  always fits; on real months the Sky total dwarfs any one prime's revenue
- *  and it never binds. */
-const R_MIN = 13;
-const R_MAX = 60;
-/** Sky's center plate — the label well punched out of the wedges. */
-const SKY_LABEL_R = 46;
-/** Ribbon width: linear in value, largest flow at W_MAX. */
-const W_MAX = 34;
-const W_MIN = 3;
+const SKY_INNER_R = 58;
+/** Bar width, and the px the tallest bar side (gains or losses) reaches. */
+const BAR_W = 28;
+const BAR_MAX = 100;
+/** Thinnest drawable segment, so a $6k part beside a $2.8M one still exists
+ *  as a hover target. */
+const SEG_MIN_H = 2;
+/** Zero-line overhang past the bar on each side. */
+const ZERO_TICK = 8;
+/** Arrow shaft width: linear in the To-Sky amount, biggest at W_MAX. */
+const W_MAX = 16;
+const W_MIN = 2;
+const HEAD_LEN = 12;
+const HEAD_FLARE = 5;
 /** Smallest Sky wedge, so a hairline contribution ($497 of $15.5M) still
- *  shows and its prime still gets a distinguishable dock point. */
+ *  shows and its arrow still has a distinguishable dock point. */
 const MIN_WEDGE = 0.05;
-/** Leader length from a mark to its hover pill. */
+/** Leader length from an arrow to its hover pill. */
 const PILL_OFFSET = 30;
-/** Callout label columns and collision spacing (small circles only). */
-const LABEL_GAP_PX = 15;
-/** Leader length for a stacked/side callout label. */
-const CALLOUT_LEN = 34;
-/** ~px per character of a 14px label, for the fits-inside-circle test. */
-const CHAR_PX = 8.4;
+/** A segment pill sits this far to the side of its bar's center line. */
+const PILL_DX = 90;
+/** Name label gap under the bar's lowest extent. */
+const LABEL_GAP = 17;
 
-export interface RingFlow {
+/** FIXED frame: the viewBox never changes with the month, so switching
+ *  months can't reflow the page below the chart. */
+export const HEIGHT = 2 * (ORBIT_RY + BAR_MAX + 44);
+
+export interface RingSegment {
+  kind: "kept" | "demand";
+  /** Signed value; negative segments hang below the zero line (striped). */
+  signed: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Where the pill's leader touches the segment (its center). */
+  amountX: number;
+  amountY: number;
+  /** Where the hover pill sits — beside the bar, never over it. */
+  pillX: number;
+  pillY: number;
+}
+
+export interface RingArrow {
   kind: "sky";
   /** Magnitude; the sign lives in `signed` (negative → striped fill). */
   value: number;
   signed: number;
+  /** To-Sky ÷ (To-Sky + kept + demand) — what fraction of the Prime's month
+   *  went to Sky. Null when the denominator isn't positive. */
+  share: number | null;
   path: string;
-  /** Where the pill's leader touches the mark (ribbon midpoint). */
+  /** Always-visible share badge, on the arrow's midpoint. */
+  labelX: number;
+  labelY: number;
+  /** Where the pill's leader touches the arrow (nearer the Sky end, so the
+   *  leader never crosses the badge). */
   amountX: number;
   amountY: number;
-  /** Where the hover pill sits — off the mark, so it never covers the shape
-   *  it names or the prime's own label. */
   pillX: number;
   pillY: number;
 }
 
-export interface RingSlice {
-  /** Pie slices are revenue only — "sky" never appears here (see RingPrime). */
-  kind: "kept" | "demand";
-  signed: number;
-  path: string;
-  /** Where the pill's leader touches the mark (slice centroid). */
-  amountX: number;
-  amountY: number;
-  /** Where the hover pill sits — outside the circle. */
-  pillX: number;
-  pillY: number;
-}
-
-/** A negative kept/demand flow: reported beside the circle instead of as a
- *  pie wedge — a pie's angles have to sum to a real positive whole, so a
- *  loss can't be drawn as one. */
-export interface RingLossNote {
-  kind: "kept" | "demand";
-  /** Always negative. */
-  signed: number;
-}
-
-/** One prime's share of the Sky circle. The wedges together ARE the Sky
- *  circle, which is the point: every dollar in it arrived from a prime. */
+/** One prime's share of the Sky donut. The wedges together ARE the donut,
+ *  which is the point: every dollar in it arrived from a prime. */
 export interface RingSkyWedge {
   prime: string;
   path: string;
-  /** Mid-angle of the wedge — where that prime's ribbon docks. */
+  /** Mid-angle of the wedge — where that prime's arrow docks. */
   mid: number;
   value: number;
 }
@@ -108,27 +106,22 @@ export interface RingSkyWedge {
 export interface RingPrime {
   /** Workbook prime key ("spark"). */
   prime: string;
-  /** Circle center + radius (area ∝ the prime's own revenue). */
-  cx: number;
-  cy: number;
-  r: number;
-  /** Angle of the circle center around Sky (radians). */
+  /** Parametric angle around Sky (radians, 12 o'clock = −π/2). */
   angle: number;
-  /** Pie slices of the circle: shares of the prime's own POSITIVE revenue
-   *  (supply kept / demand-side only — To Sky is a pass-through, not
-   *  revenue, and never gets a wedge). */
-  slices: RingSlice[];
-  /** The To-Sky ribbon, or empty for a prime that pays Sky nothing. */
-  flows: RingFlow[];
-  /** Negative kept/demand flows, excluded from the pie above. */
-  lossNotes: RingLossNote[];
-  /** "circle" = the name fits inside the prime's circle; "callout" = it sits
-   *  in a side column, connected by `leaderPath`. */
-  labelMode: "circle" | "callout";
-  leaderPath: string;
+  /** Bar center line and zero line. */
+  cx: number;
+  zeroY: number;
+  barW: number;
+  /** Zero line extent (overhangs the bar). */
+  zeroX0: number;
+  zeroX1: number;
+  /** Stacked segments: gains above the zero line, losses below. */
+  segments: RingSegment[];
+  /** The To-Sky arrow, or null for a prime that pays Sky nothing. */
+  arrow: RingArrow | null;
+  /** Name label under the bar. */
   labelX: number;
   labelY: number;
-  labelAnchor: "start" | "end" | "middle";
 }
 
 export interface RingLayout {
@@ -136,127 +129,97 @@ export interface RingLayout {
   height: number;
   cx: number;
   cy: number;
-  /** Sky circle radius (area ∝ the To-Sky total, same scale as the primes). */
   skyR: number;
-  /** Radius of Sky's center label plate. */
-  skyLabelR: number;
-  /** Per-prime shares of the Sky circle, in orbital order. */
+  skyInnerR: number;
+  /** Per-prime shares of the Sky donut, in orbital order. */
   skyWedges: RingSkyWedge[];
   primes: RingPrime[];
 }
 
-/** FIXED frame: the viewBox never changes with the month, so switching
- *  months can't reflow the page below the chart. */
-export const HEIGHT = 2 * (SKY_R + FAR_GAP + R_MAX + 52);
-
-/** Pie slice of a circle from angle a0 to a1 (full circle when it is the
- *  only slice). */
-function slicePath(cx: number, cy: number, r: number, a0: number, a1: number): string {
+/** Annular sector from a0 to a1 (the whole ring when it is the only wedge;
+ *  render with fill-rule evenodd). */
+function annulusPath(cx: number, cy: number, rOut: number, rIn: number, a0: number, a1: number): string {
   if (a1 - a0 >= 2 * Math.PI - 1e-6) {
-    return (
-      `M${cx + r},${cy} A${r},${r} 0 1 1 ${cx - r},${cy} ` +
-      `A${r},${r} 0 1 1 ${cx + r},${cy} Z`
-    );
+    const ring = (r: number) =>
+      `M${cx + r},${cy} A${r},${r} 0 1 1 ${cx - r},${cy} A${r},${r} 0 1 1 ${cx + r},${cy} Z`;
+    return `${ring(rOut)} ${ring(rIn)}`;
   }
   const large = a1 - a0 > Math.PI ? 1 : 0;
-  const x0 = cx + r * Math.cos(a0);
-  const y0 = cy + r * Math.sin(a0);
-  const x1 = cx + r * Math.cos(a1);
-  const y1 = cy + r * Math.sin(a1);
-  return `M${cx},${cy} L${x0},${y0} A${r},${r} 0 ${large} 1 ${x1},${y1} Z`;
+  const pt = (r: number, a: number) => `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
+  return (
+    `M${pt(rOut, a0)} A${rOut},${rOut} 0 ${large} 1 ${pt(rOut, a1)} ` +
+    `L${pt(rIn, a1)} A${rIn},${rIn} 0 ${large} 0 ${pt(rIn, a0)} Z`
+  );
 }
 
-/** Straight ribbon of width w between two points (a quad, ends ⟂ to the axis). */
-function ribbon(x0: number, y0: number, x1: number, y1: number, w: number): string {
+/** Filled arrow of shaft width w from (x0,y0) to a tip at (x1,y1). */
+function arrowPath(x0: number, y0: number, x1: number, y1: number, w: number): string {
   const dx = x1 - x0;
   const dy = y1 - y0;
   const len = Math.hypot(dx, dy) || 1;
-  const px = (-dy / len) * (w / 2);
-  const py = (dx / len) * (w / 2);
-  return `M${x0 + px},${y0 + py} L${x1 + px},${y1 + py} L${x1 - px},${y1 - py} L${x0 - px},${y0 - py} Z`;
+  const ux = dx / len;
+  const uy = dy / len;
+  const nx = -uy;
+  const ny = ux;
+  const hl = Math.min(HEAD_LEN, len / 2);
+  const bx = x1 - ux * hl;
+  const by = y1 - uy * hl;
+  const s = w / 2;
+  const f = s + HEAD_FLARE;
+  return (
+    `M${x0 + nx * s},${y0 + ny * s} L${bx + nx * s},${by + ny * s} L${bx + nx * f},${by + ny * f} ` +
+    `L${x1},${y1} L${bx - nx * f},${by - ny * f} L${bx - nx * s},${by - ny * s} L${x0 - nx * s},${y0 - ny * s} Z`
+  );
 }
 
-/** Push a pill PILL_OFFSET away from its mark, along `dir` (falling back to
- *  `alt` when the mark's own direction is degenerate, e.g. a full circle). */
-function pillAt(ax: number, ay: number, dx: number, dy: number, altX: number, altY: number) {
-  let len = Math.hypot(dx, dy);
-  let ux = dx;
-  let uy = dy;
-  if (len < 1e-6) {
-    ux = altX;
-    uy = altY;
-    len = Math.hypot(ux, uy) || 1;
-  }
-  return { pillX: ax + (ux / len) * PILL_OFFSET, pillY: ay + (uy / len) * PILL_OFFSET };
-}
+const REVENUE_KINDS = ["kept", "demand"] as const;
 
-const FLOW_KINDS = ["kept", "sky", "demand"] as const;
-
-export function layoutMscRing(
-  primes: readonly PrimeFlowTotals[],
-  labelOf: (prime: string) => string = (p) => p,
-): RingLayout {
+export function layoutMscRing(primes: readonly PrimeFlowTotals[]): RingLayout {
+  const cy = HEIGHT / 2;
   const rows = primes
     .map((p) => {
-      const flows = FLOW_KINDS.map((k) => ({ kind: k, signed: p[k], value: Math.abs(p[k]) })).filter(
-        (f) => f.value >= SETTLEMENT_NEAR_ZERO,
+      const parts = REVENUE_KINDS.map((kind) => ({ kind, signed: p[kind] })).filter(
+        (f) => Math.abs(f.signed) >= SETTLEMENT_NEAR_ZERO,
       );
-      // The prime's own money — what its pie divides and its circle sizes.
-      const revenue = flows
-        .filter((f) => f.kind !== "sky" && f.signed > 0)
-        .reduce((n, f) => n + f.signed, 0);
-      return { p, flows, revenue };
+      const sky = Math.abs(p.sky) >= SETTLEMENT_NEAR_ZERO ? p.sky : 0;
+      const gains = parts.filter((f) => f.signed > 0).reduce((n, f) => n + f.signed, 0);
+      const losses = parts.filter((f) => f.signed < 0).reduce((n, f) => n - f.signed, 0);
+      return { p, parts, sky, gains, losses };
     })
-    .filter((r) => r.flows.length > 0);
+    .filter((r) => r.parts.length > 0 || r.sky !== 0);
 
-  const skyTotal = rows.reduce((n, r) => n + Math.abs(r.p.sky), 0);
-  // One area-per-dollar scale for the whole chart, pinned to Sky. (If a month
-  // ever had no To-Sky flow at all, fall back to the largest prime so the
-  // chart still fills its frame.)
-  const ref =
-    skyTotal >= SETTLEMENT_NEAR_ZERO ? skyTotal : Math.max(1, ...rows.map((r) => r.revenue));
-  const k = SKY_R / Math.sqrt(ref);
-  const radiusOf = (v: number) => Math.min(R_MAX, Math.max(R_MIN, k * Math.sqrt(Math.max(0, v))));
-  const skyR = Math.min(SKY_R, Math.max(R_MIN, k * Math.sqrt(skyTotal)));
-  const cy = HEIGHT / 2;
-  const height = HEIGHT;
+  const empty: RingLayout = {
+    width: WIDTH,
+    height: HEIGHT,
+    cx: CX,
+    cy,
+    skyR: SKY_R,
+    skyInnerR: SKY_INNER_R,
+    skyWedges: [],
+    primes: [],
+  };
+  if (rows.length === 0) return empty;
 
-  if (rows.length === 0) {
-    return { width: WIDTH, height, cx: CX, cy, skyR, skyLabelR: SKY_LABEL_R, skyWedges: [], primes: [] };
-  }
-
-  const maxSky = Math.max(1, ...rows.map((r) => Math.abs(r.p.sky)));
+  // One linear px-per-dollar scale for every bar in the month, pinned so
+  // the tallest side (gains or losses) of the tallest bar is BAR_MAX.
+  const maxExtent = Math.max(1, ...rows.map((r) => Math.max(r.gains, r.losses)));
+  const px = (v: number) => (v / maxExtent) * BAR_MAX;
+  const skyTotal = rows.reduce((n, r) => n + Math.abs(r.sky), 0);
+  const maxSky = Math.max(1, ...rows.map((r) => Math.abs(r.sky)));
   const widthOf = (v: number) => Math.max(W_MIN, (W_MAX * v) / maxSky);
 
-  // Placement: even angular spacing from 12 o'clock, but VARIED orbital
-  // distances — alternating a near and a far edge-gap off the Sky circle —
-  // so the circles pack rather than sit on one ring. A safety pass pushes a
-  // circle outward if it still overlaps a neighbour.
-  const radii = rows.map((row) => radiusOf(row.revenue));
-  const dists = rows.map((_, i) => skyR + (i % 2 === 0 ? NEAR_GAP : FAR_GAP) + radii[i]);
+  // Even angular spacing from 12 o'clock, zero points on the orbit ellipse.
   const angles = rows.map((_, i) => -Math.PI / 2 + (i * 2 * Math.PI) / rows.length);
-  for (let pass = 0; pass < 4; pass++) {
-    for (let i = 0; i < rows.length; i++) {
-      for (let j = 0; j < i; j++) {
-        const [xi, yi] = [dists[i] * Math.cos(angles[i]), dists[i] * Math.sin(angles[i])];
-        const [xj, yj] = [dists[j] * Math.cos(angles[j]), dists[j] * Math.sin(angles[j])];
-        const need = radii[i] + radii[j] + CLEARANCE;
-        if (Math.hypot(xi - xj, yi - yj) < need) dists[i] += need - Math.hypot(xi - xj, yi - yj);
-      }
-    }
-  }
-  const maxR = Math.max(R_MIN, ...radii);
+  const barX = angles.map((t) => CX + ORBIT_RX * Math.cos(t));
+  const zeroY = angles.map((t) => cy + ORBIT_RY * Math.sin(t));
 
   // Sky's wedges: each contributing prime's share of the To-Sky total, laid
-  // out in orbital order so ribbons stay roughly radial, and anchored on the
-  // BIGGEST contributor (rows are magnitude-desc) so its ribbon runs straight
-  // in. Together the wedges are the whole circle — that is the claim the
-  // chart makes: Sky is exactly the sum of what the Primes sent it.
-  const contributors = rows
-    .map((r, i) => ({ r, i }))
-    .filter((x) => Math.abs(x.r.p.sky) >= SETTLEMENT_NEAR_ZERO);
+  // out in orbital order so arrows stay roughly radial, and anchored on the
+  // BIGGEST contributor (rows are magnitude-desc) so its arrow runs straight
+  // in. Together the wedges are the whole donut.
+  const contributors = rows.map((r, i) => ({ r, i })).filter((x) => x.r.sky !== 0);
   const floorShare = MIN_WEDGE / (2 * Math.PI);
-  const shares = contributors.map((x) => Math.max(Math.abs(x.r.p.sky) / skyTotal, floorShare));
+  const shares = contributors.map((x) => Math.max(Math.abs(x.r.sky) / (skyTotal || 1), floorShare));
   const shareSum = shares.reduce((n, s) => n + s, 0) || 1;
   const spans = shares.map((s) => (s / shareSum) * 2 * Math.PI);
   let wa = contributors.length > 0 ? angles[contributors[0].i] - spans[0] / 2 : -Math.PI / 2;
@@ -266,133 +229,108 @@ export function layoutMscRing(
     wa = a1;
     return {
       prime: x.r.p.prime,
-      path: slicePath(CX, cy, skyR, a0, a1),
+      path: annulusPath(CX, cy, SKY_R, SKY_INNER_R, a0, a1),
       mid: (a0 + a1) / 2,
-      value: Math.abs(x.r.p.sky),
+      value: Math.abs(x.r.sky),
     };
   });
   const dockOf = new Map(skyWedges.map((w) => [w.prime, w.mid]));
 
   const out: RingPrime[] = rows.map((r, i) => {
-    const angle = angles[i];
-    const rad = radii[i];
-    const cxP = CX + dists[i] * Math.cos(angle);
-    const cyP = cy + dists[i] * Math.sin(angle);
-    // Unit vector pointing away from Sky, for label/pill fallbacks.
-    const ox = Math.cos(angle);
-    const oy = Math.sin(angle);
+    const bx = barX[i];
+    const zy = zeroY[i];
+    // Pills go to the side of the bar that faces away from Sky.
+    const side = bx < CX - 1 ? -1 : 1;
 
-    // The To-Sky ribbon runs from the prime's circle edge to the middle of
-    // that prime's own wedge on the Sky circle.
-    const skyFlow = r.flows.find((f) => f.kind === "sky");
-    const dock = dockOf.get(r.p.prime);
-    const flows: RingFlow[] = [];
-    if (skyFlow && dock != null) {
-      const x1 = CX + skyR * Math.cos(dock);
-      const y1 = cy + skyR * Math.sin(dock);
-      const dx = x1 - cxP;
-      const dy = y1 - cyP;
-      const len = Math.hypot(dx, dy) || 1;
-      const x0 = cxP + (dx / len) * rad;
-      const y0 = cyP + (dy / len) * rad;
-      const amountX = (x0 + x1) / 2;
-      const amountY = (y0 + y1) / 2;
-      flows.push({
-        kind: "sky",
-        value: skyFlow.value,
-        signed: skyFlow.signed,
-        path: ribbon(x0, y0, x1, y1, widthOf(skyFlow.value)),
+    // Gains stack upward from the zero line, losses downward, each in the
+    // fixed kept-then-demand order so colors read the same on every bar.
+    const segments: RingSegment[] = [];
+    let up = 0;
+    let down = 0;
+    for (const f of r.parts) {
+      const h = Math.max(SEG_MIN_H, px(Math.abs(f.signed)));
+      let y: number;
+      if (f.signed > 0) {
+        y = zy - up - h;
+        up += h;
+      } else {
+        y = zy + down;
+        down += h;
+      }
+      const amountX = bx;
+      const amountY = y + h / 2;
+      segments.push({
+        kind: f.kind,
+        signed: f.signed,
+        x: bx - BAR_W / 2,
+        y,
+        w: BAR_W,
+        h,
         amountX,
         amountY,
-        // Off to the side of the ribbon (perpendicular), never on top of it.
-        ...pillAt(amountX, amountY, -dy / len, dx / len, ox, oy),
+        pillX: bx + side * PILL_DX,
+        pillY: amountY,
       });
     }
+    const top = zy - up;
+    const bottom = zy + down;
 
-    // Pie slices: the prime's own REVENUE only — supply kept + demand-side.
-    // To-Sky is a pass-through, never the prime's revenue, so it never gets a
-    // wedge here. A negative kept/demand can't be a wedge either (pie angles
-    // have to sum to a real positive whole); it becomes a loss note.
-    const revenueFlows = r.flows.filter((f) => f.kind !== "sky" && f.signed > 0);
-    const lossNotes: RingLossNote[] = r.flows
-      .filter((f) => f.kind !== "sky" && f.signed < 0)
-      .map((f) => ({ kind: f.kind as "kept" | "demand", signed: f.signed }));
-    const slices: RingSlice[] = [];
-    let sa = -Math.PI / 2;
-    if (r.revenue >= SETTLEMENT_NEAR_ZERO) {
-      for (const kind of ["kept", "demand"] as const) {
-        const f = revenueFlows.find((x) => x.kind === kind);
-        if (!f) continue;
-        const theta = (f.signed / r.revenue) * 2 * Math.PI;
-        const mid = sa + theta / 2;
-        const amountR = theta >= 2 * Math.PI - 1e-6 ? 0 : rad * 0.62;
-        const amountX = cxP + amountR * Math.cos(mid);
-        const amountY = cyP + amountR * Math.sin(mid);
-        slices.push({
-          kind,
-          signed: f.signed,
-          path: slicePath(cxP, cyP, rad, sa, sa + theta),
-          amountX,
-          amountY,
-          // Straight out from the prime's center, so the pill clears the
-          // circle (and the name inside it) whatever the slice's size.
-          ...pillAt(amountX, amountY, amountX - cxP, amountY - cyP, ox, oy),
-        });
-        sa += theta;
-      }
+    // The arrow leaves the bar's body (from its center, exiting the bar's
+    // bounding box toward Sky) and ends on the donut's outer edge, at the
+    // middle of this prime's own wedge.
+    let arrow: RingArrow | null = null;
+    const dock = dockOf.get(r.p.prime);
+    if (r.sky !== 0 && dock != null) {
+      const x1 = CX + SKY_R * Math.cos(dock);
+      const y1 = cy + SKY_R * Math.sin(dock);
+      const mx = bx;
+      const my = (top + bottom) / 2;
+      const dx = x1 - mx;
+      const dy = y1 - my;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len;
+      const uy = dy / len;
+      const halfW = BAR_W / 2 + 3;
+      const halfH = (bottom - top) / 2 + 3;
+      const exit = Math.min(
+        Math.abs(ux) > 1e-6 ? halfW / Math.abs(ux) : Infinity,
+        Math.abs(uy) > 1e-6 ? halfH / Math.abs(uy) : Infinity,
+      );
+      const x0 = mx + ux * exit;
+      const y0 = my + uy * exit;
+      const produced = r.sky + r.gains - r.losses;
+      const amountX = x0 + (x1 - x0) * 0.72;
+      const amountY = y0 + (y1 - y0) * 0.72;
+      arrow = {
+        kind: "sky",
+        value: Math.abs(r.sky),
+        signed: r.sky,
+        share: produced >= SETTLEMENT_NEAR_ZERO ? r.sky / produced : null,
+        path: arrowPath(x0, y0, x1, y1, widthOf(Math.abs(r.sky))),
+        labelX: (x0 + x1) / 2,
+        labelY: (y0 + y1) / 2,
+        amountX,
+        amountY,
+        // Off to the side of the arrow (perpendicular), never on top of it.
+        pillX: amountX - uy * PILL_OFFSET,
+        pillY: amountY + ux * PILL_OFFSET,
+      };
     }
 
-    const fitsInCircle = labelOf(r.p.prime).length * CHAR_PX + 8 <= 2 * rad;
-    // Callouts go to the side the circle actually sits on, so leaders never
-    // cross the chart; a circle near the vertical center line gets its label
-    // directly above/below itself instead of a long leader to either column.
-    const nearCenterX = Math.abs(cxP - CX) < 70;
-    const side: "start" | "end" = cxP >= CX ? "start" : "end";
-    const colEdge = Math.max(...dists) + maxR + CALLOUT_LEN + 20;
-    const colX = side === "start" ? CX + colEdge : CX - colEdge;
-    const stackedY = cyP >= cy ? cyP + rad + CALLOUT_LEN + 14 : cyP - rad - CALLOUT_LEN - 10;
     return {
       prime: r.p.prime,
-      cx: cxP,
-      cy: cyP,
-      r: rad,
-      angle,
-      slices,
-      flows,
-      lossNotes,
-      labelMode: fitsInCircle ? ("circle" as const) : ("callout" as const),
-      leaderPath: "", // callouts: filled after the collision pass below
-      labelX: fitsInCircle || nearCenterX ? cxP : colX,
-      labelY: fitsInCircle ? cyP : nearCenterX ? stackedY : cyP,
-      labelAnchor: fitsInCircle || nearCenterX ? ("middle" as const) : side,
+      angle: angles[i],
+      cx: bx,
+      zeroY: zy,
+      barW: BAR_W,
+      zeroX0: bx - BAR_W / 2 - ZERO_TICK,
+      zeroX1: bx + BAR_W / 2 + ZERO_TICK,
+      segments,
+      arrow,
+      labelX: bx,
+      labelY: bottom + LABEL_GAP,
     };
   });
 
-  // Callout collision pass, per side; then draw each leader from the circle's
-  // outer edge to wherever its label ended up.
-  for (const anchor of ["start", "end"] as const) {
-    const sideLabels = out
-      .filter((p) => p.labelMode === "callout" && p.labelAnchor === anchor)
-      .sort((x, y) => x.labelY - y.labelY);
-    let prevY = -Infinity;
-    for (const p of sideLabels) {
-      p.labelY = Math.max(p.labelY, prevY + LABEL_GAP_PX);
-      prevY = p.labelY;
-    }
-  }
-  for (const p of out) {
-    if (p.labelMode !== "callout") continue;
-    if (p.labelAnchor === "middle") {
-      // Stacked above/below its circle: a short vertical leader.
-      const below = p.labelY > p.cy;
-      p.leaderPath = `M${p.cx},${p.cy + (below ? p.r + 2 : -p.r - 2)} L${p.cx},${p.labelY + (below ? -10 : 6)}`;
-      continue;
-    }
-    const ax = p.cx + Math.cos(p.angle) * (p.r + 2);
-    const ay = p.cy + Math.sin(p.angle) * (p.r + 2);
-    const endX = p.labelAnchor === "start" ? p.labelX - 6 : p.labelX + 6;
-    p.leaderPath = `M${ax},${ay} L${endX},${p.labelY}`;
-  }
-
-  return { width: WIDTH, height, cx: CX, cy, skyR, skyLabelR: SKY_LABEL_R, skyWedges, primes: out };
+  return { ...empty, skyWedges, primes: out };
 }

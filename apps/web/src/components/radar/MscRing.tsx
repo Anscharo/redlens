@@ -9,24 +9,25 @@ interface Props {
   layout: RingLayout;
   primes: MscRingPrime[];
   month: string;
-  /** Compact ecosystem To-Sky figure shown inside the disc. */
+  /** Compact ecosystem To-Sky figure shown inside the donut. */
   centerFigure: string;
 }
 
-/** How far outside the Sky circle a wedge's pill sits. */
+/** How far outside the donut a wedge's pill sits. */
 const WEDGE_PILL_GAP = 34;
 
 export function MscRing({ layout, primes, month, centerFigure }: Props) {
   const colorOf = (prime: string) => primes.find((p) => p.flow.prime === prime)?.bandColor;
   const labelOf = (prime: string) => primes.find((p) => p.flow.prime === prime)?.label ?? prime;
-  // Wedge pills ride just outside the Sky circle on the wedge's own radial,
-  // where its ribbon docks.
+  // Wedge pills ride just outside the donut on the wedge's own radial, where
+  // its arrow docks.
+  const midR = (layout.skyR + layout.skyInnerR) / 2;
   const wedgePills = layout.skyWedges.map((w) => ({
     prime: w.prime,
     label: labelOf(w.prime),
     value: w.value,
-    toX: layout.cx + layout.skyR * 0.7 * Math.cos(w.mid),
-    toY: layout.cy + layout.skyR * 0.7 * Math.sin(w.mid),
+    toX: layout.cx + midR * Math.cos(w.mid),
+    toY: layout.cy + midR * Math.sin(w.mid),
     x: layout.cx + (layout.skyR + WEDGE_PILL_GAP) * Math.cos(w.mid),
     y: layout.cy + (layout.skyR + WEDGE_PILL_GAP) * Math.sin(w.mid),
   }));
@@ -57,21 +58,21 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
             </pattern>
           ))}
         </defs>
-        {/* The Sky circle IS the sum of the To-Sky flows, subdivided into one
-            wedge per Prime in that Prime's own color — so "these flows add up
-            to that ball" is visible rather than asserted. */}
+        {/* The Sky donut IS the sum of the To-Sky flows, one wedge per Prime
+            in that Prime's own color — so "these flows add up to Sky" is
+            visible rather than asserted. */}
         <circle cx={layout.cx} cy={layout.cy} r={layout.skyR} className="msc-ring-sky-disc" />
         {layout.skyWedges.map((w) => (
           <g key={w.prime} className="msc-ring-mark" data-mark={markId(w.prime, "share")}>
             <path
               d={w.path}
+              fillRule="evenodd"
               className="msc-ring-sky-wedge"
               data-prime={w.prime}
               style={{ fill: colorOf(w.prime) }}
             />
           </g>
         ))}
-        <circle cx={layout.cx} cy={layout.cy} r={layout.skyLabelR} className="msc-ring-sky-plate" />
         <text x={layout.cx} y={layout.cy - 6} textAnchor="middle" fontSize={20} className="msc-ring-center">
           Sky
         </text>
@@ -95,11 +96,8 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
 function PillHoverStyles({ primes }: { primes: MscRingPrime[] }) {
   const css = primes
     .flatMap((p) => {
-      const kinds = [
-        ...p.ring.slices.map((s) => s.kind as string),
-        ...p.ring.flows.map((f) => f.kind as string),
-        "share",
-      ];
+      const kinds = [...p.ring.segments.map((s) => s.kind as string), "share"];
+      if (p.ring.arrow) kinds.push(p.ring.arrow.kind);
       const rules = kinds.map((k) => {
         const id = markId(p.flow.prime, k);
         return `.msc-ring:has(.msc-ring-mark[data-mark="${id}"]:hover) .msc-ring-pill[data-mark="${id}"] { opacity: 1; }`;
