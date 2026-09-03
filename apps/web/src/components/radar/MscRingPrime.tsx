@@ -15,14 +15,23 @@ export interface MscRingPrime {
   to: string | null;
 }
 
-/** One prime: a floating stacked bar (gains up from the zero line, losses
- *  down from it, striped), its To-Sky arrow with the share badge, and its
- *  name beneath. */
+/** One prime: a circular plate holding a floating stacked bar (gains up
+ *  from the zero line, losses down from it, striped) with its name to the
+ *  left of the zero line, and its To-Sky arrow with the share badge. */
 export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrime & { month: string }) {
   const arrow = ring.arrow;
   const share = arrow?.share != null ? formatShare(arrow.share) : null;
   const group = (
     <g className="msc-ring-prime" data-prime={flow.prime}>
+      {/* Plate: one circle enclosing the bar and its name, tinted in the
+          prime's identity color — the click/hover target for the prime. */}
+      <circle
+        cx={ring.plateX}
+        cy={ring.plateY}
+        r={ring.plateR}
+        className="msc-ring-plate"
+        style={{ fill: bandColor, stroke: bandColor }}
+      />
       {arrow && (
         <g className="msc-ring-mark" data-mark={markId(flow.prime, arrow.kind)}>
           <path
@@ -55,19 +64,19 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
       ))}
       {arrow && share && (
         <g className="msc-ring-share" aria-hidden="true">
-          <rect x={arrow.labelX - 20} y={arrow.labelY - 9} width={40} height={18} rx={9} />
+          <rect x={arrow.labelX - 62} y={arrow.labelY - 9} width={124} height={18} rx={9} />
           <text x={arrow.labelX} y={arrow.labelY + 4} textAnchor="middle" fontSize={11} className="mono">
-            {share}
+            {share} of production*
           </text>
         </g>
       )}
-      <text x={ring.labelX} y={ring.labelY + 4} textAnchor="middle" fontSize={13} className="msc-ring-label">
+      <text x={ring.labelX} y={ring.labelY + 4} textAnchor="end" fontSize={13} className="msc-ring-label">
         {label}
       </text>
     </g>
   );
   if (!to) return group;
-  const shareText = share ? ` (${share} of what it produced)` : "";
+  const shareText = share ? ` (${share} of its production)` : "";
   return (
     <SvgRouteLink
       to={to}

@@ -2721,6 +2721,18 @@ button.atlas-node-expand-all:focus-visible {
 .msc-ring-center {
   fill: var(--tan);
 }
+/* Each Prime's plate: bar + name on one circle, tinted in the Prime's
+   identity color (fill/stroke come inline). */
+.msc-ring-plate {
+  fill-opacity: 0.1;
+  stroke-width: 1.5;
+  stroke-opacity: 0.6;
+}
+.msc-ring-prime:hover .msc-ring-plate,
+a:focus-visible > .msc-ring-prime .msc-ring-plate {
+  fill-opacity: 0.18;
+  stroke-opacity: 1;
+}
 /* Each Prime's bar has its own zero line, in the Prime's identity color. */
 .msc-ring-zero {
   stroke-width: 2;
@@ -2745,13 +2757,13 @@ button.atlas-node-expand-all:focus-visible {
 .msc-ring-demand {
   fill: var(--msc-demand);
 }
-.msc-ring-prime :is(path, rect, line) {
-  opacity: 0.7;
+.msc-ring-prime :is(path, rect, line, circle) {
+  opacity: 0.75;
   transition: opacity 0.1s;
   cursor: pointer;
 }
-.msc-ring-prime:hover :is(path, rect, line),
-a:focus-visible > .msc-ring-prime :is(path, rect, line) {
+.msc-ring-prime:hover :is(path, rect, line, circle),
+a:focus-visible > .msc-ring-prime :is(path, rect, line, circle) {
   opacity: 1;
 }
 /* The always-on share badge sitting on the arrow ("71%"). */

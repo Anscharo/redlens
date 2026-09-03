@@ -25,13 +25,30 @@ const JULY = [
   flow({ prime: "osero", sky: 497, kept: -107, demand: 12_149 }),
 ];
 
+// Spark's tallest bar: a 100px gain side AND a loss side on the top plate.
+const JANUARY = [
+  flow({ prime: "spark", sky: 7_840_000, kept: -339_000, demand: 1_250_000 }),
+  flow({ prime: "grove", sky: 6_270_000, kept: -48_000, demand: 6_000 }),
+  flow({ prime: "obex", sky: 2_110_000, kept: 439_000, demand: 74_000 }),
+  flow({ prime: "keel", sky: 0, kept: 0, demand: 29_000 }),
+  flow({ prime: "skybase", sky: 0, kept: 0, demand: 314_000 }),
+];
+
+const APRIL = [
+  flow({ prime: "grove", sky: 9_340_000, kept: 3_590_000, demand: 187_000 }),
+  flow({ prime: "spark", sky: 9_300_000, kept: 1_270_000, demand: 1_620_000 }),
+  flow({ prime: "obex", sky: 1_970_000, kept: 262_000, demand: 68_000 }),
+  flow({ prime: "keel", sky: 0, kept: 0, demand: 55_000 }),
+  flow({ prime: "skybase", sky: 0, kept: 0, demand: 368_000 }),
+];
+
 describe("layoutMscRing (orbital bars)", () => {
   it("returns an empty layout for no primes or all-zero flows", () => {
     expect(layoutMscRing([]).primes).toEqual([]);
     expect(layoutMscRing([flow({ sky: 0, kept: 0, demand: 0 })]).primes).toEqual([]);
   });
 
-  it("stacks gains above the zero line and losses below it, on one linear scale", () => {
+  it("stacks gains above the zero line and losses below it, on one square-root scale", () => {
     const layout = layoutMscRing([
       flow(), // kept 2M + demand 1.5M
       flow({ prime: "grove", sky: 6_000_000, kept: -1_000_000, demand: 500_000 }),
@@ -48,9 +65,10 @@ describe("layoutMscRing (orbital bars)", () => {
     // A loss starts at the zero line and hangs below it.
     expect(gKept.y).toBeCloseTo(grove.zeroY, 6);
     expect(gDemand.y + gDemand.h).toBeCloseTo(grove.zeroY, 6);
-    // Linear: 2M kept is exactly 4× the 500k demand, on every bar.
-    expect(sKept.h / gDemand.h).toBeCloseTo(4, 6);
-    expect(gKept.h / gDemand.h).toBeCloseTo(2, 6);
+    // Sqrt between bars: Grove's 500k gain side is √(0.5/3.5) of Spark's 3.5M.
+    expect(gDemand.h / (sKept.h + sDemand.h)).toBeCloseTo(Math.sqrt(0.5 / 3.5), 3);
+    // Linear within a bar: 2M kept is 4/3 of 1.5M demand.
+    expect(sKept.h / sDemand.h).toBeCloseTo(4 / 3, 6);
   });
 
   it("badges each arrow with the share of what the prime produced that went to Sky", () => {
@@ -78,10 +96,11 @@ describe("layoutMscRing (orbital bars)", () => {
     expect(layout.skyWedges.map((w) => w.prime)).toEqual(["grove", "spark"]);
     const [grove, spark] = layout.skyWedges;
     expect(grove.value / (grove.value + spark.value)).toBeCloseTo(8 / 14, 2);
-    // The biggest contributor's wedge is centered on its own prime's angle,
-    // so its arrow runs straight in.
+    // Each contributor sits at its own wedge's angle (unless pushed to
+    // clear a neighbour), so its arrow runs straight in.
     const groveRing = layout.primes.find((p) => p.prime === "grove")!;
-    expect(Math.abs(grove.mid - groveRing.angle)).toBeLessThan(1e-6);
+    expect(Math.abs(Math.cos(grove.mid) - Math.cos(groveRing.angle))).toBeLessThan(0.3);
+    expect(Math.abs(Math.sin(grove.mid) - Math.sin(groveRing.angle))).toBeLessThan(0.3);
     expect(layout.skyInnerR).toBeLessThan(layout.skyR);
   });
 
@@ -89,11 +108,11 @@ describe("layoutMscRing (orbital bars)", () => {
     const layout = layoutMscRing(JULY);
     for (const p of layout.primes) {
       for (const s of p.segments) {
-        // Leader anchor inside the segment, pill beside the bar.
+        // Leader anchor inside the segment, pill outside the plate.
         expect(s.amountX).toBeCloseTo(p.cx, 6);
         expect(s.amountY).toBeGreaterThanOrEqual(s.y);
         expect(s.amountY).toBeLessThanOrEqual(s.y + s.h);
-        expect(Math.abs(s.pillX - p.cx)).toBeGreaterThan(p.barW);
+        expect(Math.abs(s.pillX - p.plateX)).toBeGreaterThan(p.plateR);
       }
       if (p.arrow) {
         expect(Math.hypot(p.arrow.pillX - p.arrow.amountX, p.arrow.pillY - p.arrow.amountY)).toBeGreaterThan(20);
@@ -101,33 +120,65 @@ describe("layoutMscRing (orbital bars)", () => {
     }
   });
 
-  it("keeps a $6k segment beside a $2.8M one drawable", () => {
-    const layout = layoutMscRing([flow({ prime: "grove", sky: 6_000_000, kept: 2_880_000, demand: 6_000 })]);
-    const demand = layout.primes[0].segments.find((s) => s.kind === "demand")!;
-    expect(demand.h).toBeGreaterThanOrEqual(2);
+  it("keeps a $6k segment beside a $2.8M one drawable, and a $55k prime visible beside a $3.8M one", () => {
+    const layout = layoutMscRing([
+      flow({ prime: "grove", sky: 6_000_000, kept: 3_590_000, demand: 187_000 }),
+      flow({ prime: "keel", sky: 0, kept: 0, demand: 55_000 }),
+    ]);
+    const grove = layout.primes.find((p) => p.prime === "grove")!;
+    const keel = layout.primes.find((p) => p.prime === "keel")!;
+    expect(grove.segments.find((s) => s.kind === "demand")!.h).toBeGreaterThanOrEqual(2);
+    // Linear would give Keel 1.5px; sqrt gives it ~12.
+    expect(keel.segments[0].h).toBeGreaterThan(10);
   });
 
-  it("keeps every bar, label and arrow inside the fixed frame, with no two bars overlapping", () => {
-    for (const month of [JULY, [flow(), flow({ prime: "grove", sky: 9_000_000, kept: -2_000_000 })]]) {
+  it("puts every prime at its own wedge, so no arrow crosses the donut and no badge sits on it", () => {
+    for (const month of [JULY, APRIL]) {
+      const layout = layoutMscRing(month);
+      for (const p of layout.primes) {
+        if (!p.arrow) continue;
+        // Badge clear of the donut.
+        expect(Math.hypot(p.arrow.labelX - layout.cx, p.arrow.labelY - layout.cy)).toBeGreaterThan(layout.skyR + 8);
+        // The arrow's start is outside the donut and its straight line only
+        // meets the donut at the tip (no chord through the interior).
+        const wedge = layout.skyWedges.find((w) => w.prime === p.prime)!;
+        const dockAngle = wedge.mid;
+        const toward = Math.atan2(p.plateY - layout.cy, p.plateX - layout.cx);
+        const diff = Math.abs(((toward - dockAngle + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+        expect(diff).toBeLessThan(Math.PI / 2);
+      }
+    }
+  });
+
+  it("names each prime to the left of its zero line", () => {
+    const layout = layoutMscRing(JULY, (p) => p.toUpperCase());
+    for (const p of layout.primes) {
+      expect(p.labelX).toBeLessThan(p.zeroX0);
+      expect(p.labelY).toBeCloseTo(p.zeroY, 6);
+      // …and the plate encloses both the bar and the label.
+      const labelLeft = p.labelX - p.prime.length * 7.2;
+      expect(Math.hypot(labelLeft - p.plateX, p.zeroY - p.plateY)).toBeLessThanOrEqual(p.plateR);
+      for (const s of p.segments) {
+        expect(Math.hypot(s.x + s.w - p.plateX, s.y - p.plateY)).toBeLessThanOrEqual(p.plateR);
+        expect(Math.hypot(s.x + s.w - p.plateX, s.y + s.h - p.plateY)).toBeLessThanOrEqual(p.plateR);
+      }
+    }
+  });
+
+  it("keeps every plate inside the fixed frame, clear of the donut and of each other", () => {
+    for (const month of [JULY, APRIL, JANUARY, [flow(), flow({ prime: "grove", sky: 9_000_000, kept: -2_000_000 })]]) {
       const layout = layoutMscRing(month);
       for (let i = 0; i < layout.primes.length; i++) {
         const a = layout.primes[i];
-        const top = Math.min(...a.segments.map((s) => s.y), a.zeroY);
-        expect(top).toBeGreaterThan(0);
-        expect(a.labelY + 6).toBeLessThan(layout.height);
-        expect(a.cx - a.barW / 2).toBeGreaterThan(0);
-        expect(a.cx + a.barW / 2).toBeLessThan(WIDTH);
+        expect(a.plateX - a.plateR).toBeGreaterThan(0);
+        expect(a.plateX + a.plateR).toBeLessThan(WIDTH);
+        expect(a.plateY - a.plateR).toBeGreaterThan(0);
+        expect(a.plateY + a.plateR).toBeLessThan(layout.height);
+        expect(Math.hypot(a.plateX - layout.cx, a.plateY - layout.cy)).toBeGreaterThan(layout.skyR + a.plateR);
         for (let j = i + 1; j < layout.primes.length; j++) {
           const b = layout.primes[j];
-          const apart =
-            Math.abs(a.cx - b.cx) > a.barW + 40 ||
-            a.labelY + 6 < Math.min(...b.segments.map((s) => s.y), b.zeroY) ||
-            b.labelY + 6 < Math.min(...a.segments.map((s) => s.y), a.zeroY);
-          expect(apart).toBe(true);
+          expect(Math.hypot(a.plateX - b.plateX, a.plateY - b.plateY)).toBeGreaterThanOrEqual(a.plateR + b.plateR - 1e-6);
         }
-        // The bar body clears the donut.
-        const dSky = Math.hypot(a.cx - layout.cx, a.zeroY - layout.cy);
-        expect(dSky).toBeGreaterThan(layout.skyR + a.barW);
       }
     }
   });

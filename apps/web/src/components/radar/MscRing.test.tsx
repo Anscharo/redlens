@@ -71,7 +71,7 @@ describe("MscRing", () => {
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     expect(
       screen.getByRole("link", {
-        name: "Spark, Jul 2026: $10.00M to Sky (74% of what it produced), $2.00M supply kept, $1.50M demand-side. Open settlement page.",
+        name: "Spark, Jul 2026: $10.00M to Sky (74% of its production), $2.00M supply kept, $1.50M demand-side. Open settlement page.",
       }),
     ).toBeInTheDocument();
   });
@@ -80,8 +80,8 @@ describe("MscRing", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     // 10M ÷ (10M + 2M + 1.5M) = 74%
-    expect(screen.getByText("$10.00M to Sky — 74% of what Spark produced")).toBeInTheDocument();
-    expect(screen.getByText("74%")).toBeInTheDocument();
+    expect(screen.getByText("$10.00M to Sky — 74% of Spark's production")).toBeInTheDocument();
+    expect(screen.getByText("74% of production*")).toBeInTheDocument();
     expect(screen.getByText("$2.00M supply kept")).toBeInTheDocument();
     expect(screen.getByText("$1.50M demand-side to Spark")).toBeInTheDocument();
   });
@@ -134,6 +134,6 @@ describe("MscRing", () => {
   it("puts the share in the link's accessible name", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
-    expect(screen.getByRole("link", { name: /74% of what it produced/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /74% of its production/ })).toBeInTheDocument();
   });
 });
