@@ -165,10 +165,12 @@ function RingKey() {
       <p className="text-center mt-1">
         Circle size is the Prime's gross revenue*; the bar inside is what it
         kept, on one square-root scale; the donut is the To-Sky total by
-        Prime. *Gross revenue = prime agent revenue + demand-side + Sky
-        Direct Exposure, before cost of funds (equally: To Sky + supply kept
-        + demand-side). Hover for figures; click a Prime to open its
-        settlement page.
+        Prime. Hover for figures; click a Prime to open its settlement page.
+      </p>
+      <p className="text-center mt-1 italic">
+        *Gross revenue = prime agent revenue + demand-side + Sky Direct
+        Exposure, before cost of funds (equally: To Sky + supply kept +
+        demand-side).
       </p>
     </div>
   );
