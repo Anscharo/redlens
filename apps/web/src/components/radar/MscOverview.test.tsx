@@ -68,7 +68,7 @@ describe("MscOverview", () => {
     expect(screen.getByText(/indicates loss \/ negative flow/)).toBeInTheDocument();
     // Cross-chart hover styles: one :has() rule per prime in the stack.
     const style = document.querySelector("style")!.textContent!;
-    expect(style).toContain('.msc-ts-seg[data-prime="spark"]:hover');
+    expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="spark"]:hover');
     expect(style).toContain('.msc-ring-prime[data-prime="spark"]');
     expect(screen.getByText("To Sky")).toBeInTheDocument();
     expect(screen.getByText("of which cost of funds")).toBeInTheDocument();

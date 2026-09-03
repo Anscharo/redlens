@@ -2681,6 +2681,12 @@ button.atlas-node-expand-all:focus-visible {
 .msc-ts-dot:hover .msc-ts-dot-label {
   opacity: 1;
 }
+/* Hovering the selected month's To-Sky line point lights every To-Sky
+   ribbon on the ring — they are the same flow (the ribbons sum to the
+   line's value for that month). */
+.msc-overview-row:has(.msc-ts-dot[data-selected="true"]:hover) .msc-ring-prime path.msc-ring-sky {
+  opacity: 1;
+}
 .msc-bar-col:hover .msc-ts-track,
 .msc-bar-col[data-active="true"] .msc-ts-track {
   opacity: 1;
@@ -2703,7 +2709,10 @@ button.atlas-node-expand-all:focus-visible {
   fill: var(--tan);
 }
 .msc-ring-band {
-  fill: var(--border);
+  /* Color comes inline per prime; the band is an outline with a faint tint
+     so it never reads as a flow. */
+  fill-opacity: 0.1;
+  stroke-width: 2;
 }
 .msc-ring-sky {
   fill: var(--msc-sky);

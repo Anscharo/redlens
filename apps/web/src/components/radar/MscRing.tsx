@@ -73,7 +73,9 @@ function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrim
   const group = (
     <g className="msc-ring-prime" data-prime={flow.prime}>
       <title>{breakdown(flow)}</title>
-      <path d={ring.arcPath} className="msc-ring-band" style={{ fill: bandColor }} />
+      {/* Outlined, not solid: a filled band read like a flow. The faint tint
+          keeps the whole band area hoverable/clickable. */}
+      <path d={ring.arcPath} className="msc-ring-band" style={{ stroke: bandColor, fill: bandColor }} />
       {ring.flows.map((f) => (
         <path
           key={f.kind}

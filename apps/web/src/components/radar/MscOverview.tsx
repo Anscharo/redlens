@@ -118,14 +118,15 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
   );
 }
 
-/* Hovering a prime's segment in the timeseries lights that prime up on the
-   ring. Static CSS can't express "same data-prime as the hovered segment",
-   so one :has() rule per prime is generated — the same trick as the venue
-   sankey's VenueHoverStyles. */
+/* Hovering a prime's segment in the SELECTED month lights that prime up on
+   the ring (other months' segments describe different numbers than the ring
+   shows, so they don't). Static CSS can't express "same data-prime as the
+   hovered segment", so one :has() rule per prime is generated — the same
+   trick as the venue sankey's VenueHoverStyles. */
 function PrimeHoverStyles({ primes }: { primes: string[] }) {
   const css = primes
     .map((p) => {
-      const sel = `.msc-overview-row:has(.msc-ts-seg[data-prime="${p}"]:hover) .msc-ring-prime[data-prime="${p}"]`;
+      const sel = `.msc-overview-row:has(.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="${p}"]:hover) .msc-ring-prime[data-prime="${p}"]`;
       return `${sel} path { opacity: 1; }\n${sel} .msc-ring-amounts { opacity: 1; }\n${sel} .msc-ring-label { fill: var(--tan); }`;
     })
     .join("\n");

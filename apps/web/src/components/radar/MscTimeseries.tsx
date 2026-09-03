@@ -92,7 +92,7 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
             const label = formatUsd(m.sky, true);
             const w = label.length * 6.2 + 12;
             return (
-              <g key={m.month} className="msc-ts-dot">
+              <g key={m.month} className="msc-ts-dot" data-selected={m.month === selected ? "true" : undefined}>
                 {/* Oversized invisible hit target so hovering near the line point works. */}
                 <circle cx={centerX(i)} cy={y(m.sky)} r={13} fill="transparent" />
                 <circle cx={centerX(i)} cy={y(m.sky)} r={3.5} fill="var(--msc-sky)" stroke="var(--bg-deep)" strokeWidth={2} />
