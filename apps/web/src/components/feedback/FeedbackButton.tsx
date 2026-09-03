@@ -13,8 +13,8 @@ import { FeedbackModal } from "./FeedbackModal";
 // (src/lib/lastInteraction.ts), so the click that opens the modal is never
 // recorded as "what the user was doing beforehand".
 //
-// button { font: inherit } isn't in index.css's global reset, so
-// `font-[inherit]` here keeps the glyph matching the sibling nav links.
+// Shares `.rlc-signin` with ThemeButton and the signed-out menu pill so the
+// three icon controls are one filled chip: same surface, padding, and size.
 export function FeedbackButton() {
   const [open, setOpen] = useState(false);
   const { path } = usePageContext();
@@ -43,7 +43,7 @@ export function FeedbackButton() {
           track("feedback_open", { path });
           setOpen(true);
         }}
-        className="nav-link shrink-0 px-3 py-1.5 rounded text-sm font-[inherit]"
+        className="rlc-signin"
         data-feedback-ui
         aria-label="Send feedback"
         title="Send feedback (?)"

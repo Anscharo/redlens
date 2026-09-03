@@ -1,3 +1,5 @@
+import type { ThemeId } from "../../lib/theme";
+
 // Inline SVG/text glyphs for the chat widget. House rule: no icon library.
 
 export function SparkMark({ size = 14 }: { size?: number }) {
@@ -70,6 +72,46 @@ export function SendIcon({ size = 15 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+// Nav colour-scheme trigger. Switches on theme id (not scheme): dark and
+// giedi are both scheme "dark", so a sun/moon pair couldn't tell them apart.
+export function ThemeGlyph({ theme, size = 15 }: { theme: ThemeId; size?: number }) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    "aria-hidden": true as const,
+  };
+  if (theme === "light") {
+    return (
+      <svg {...common} data-glyph="sun" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2.5v2.2M12 19.3v2.2M4.93 4.93l1.56 1.56M17.51 17.51l1.56 1.56M2.5 12h2.2M19.3 12h2.2M4.93 19.07l1.56-1.56M17.51 6.49l1.56-1.56" />
+      </svg>
+    );
+  }
+  if (theme === "giedi") {
+    // Outlined disc, 10-to-5 terminator (same 45° as Dark's crescent). The
+    // inner arc is flatter than the rim so the sliver between them is wide
+    // enough to fill at 15px — a tighter pair of strokes ate the fill.
+    return (
+      <svg {...common} data-glyph="eclipse" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+        <path
+          fill="currentColor"
+          stroke="none"
+          d="M5.072 8 A8 8 0 0 0 16 18.928 A22 22 0 0 1 5.072 8Z"
+        />
+        <circle cx="12" cy="12" r="8" />
+        <path d="M5.072 8 A22 22 0 0 0 16 18.928" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...common} data-glyph="moon" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 14.5A7.5 7.5 0 1 1 9.5 4 6 6 0 0 0 20 14.5z" />
     </svg>
   );
 }

@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-09-03
+- Moved colour-scheme picking to a sun, moon, or eclipse button in the top bar, next to feedback and the account menu
+
 ## 2026-09-02
 - Fixed Chat mistakenly revising correct answers and forgetting to look up info
 - Annotation documents now link to the document they annotate, sit closer to it in the tree and reader instead of looking nested a few levels too deep, and are listed in an "annotated by" section of that document's annotations panel

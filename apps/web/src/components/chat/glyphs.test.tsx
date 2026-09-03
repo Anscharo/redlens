@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { SparkMark, PinIcon, GitHubMark, GoogleMark, DockRightIcon, FloatIcon, SendIcon } from "./glyphs";
+import { SparkMark, PinIcon, GitHubMark, GoogleMark, DockRightIcon, FloatIcon, SendIcon, ThemeGlyph } from "./glyphs";
 
 afterEach(cleanup);
 
@@ -38,5 +38,16 @@ describe("chat glyphs", () => {
   it("defaults each svg glyph's size when omitted", () => {
     const { container } = render(<SendIcon />);
     expect(container.querySelector("svg")).toHaveAttribute("width", "15");
+  });
+
+  it("renders ThemeGlyph as an svg with the given size and a glyph mark per theme", () => {
+    const { container, rerender } = render(<ThemeGlyph theme="dark" size={22} />);
+    const svg = () => container.querySelector("svg");
+    expect(svg()).toHaveAttribute("width", "22");
+    expect(svg()).toHaveAttribute("data-glyph", "moon");
+    rerender(<ThemeGlyph theme="light" size={22} />);
+    expect(svg()).toHaveAttribute("data-glyph", "sun");
+    rerender(<ThemeGlyph theme="giedi" size={22} />);
+    expect(svg()).toHaveAttribute("data-glyph", "eclipse");
   });
 });
