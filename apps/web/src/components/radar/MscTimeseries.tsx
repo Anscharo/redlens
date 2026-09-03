@@ -88,16 +88,23 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
             stroke="var(--msc-sky)"
             strokeWidth={2}
           />
-          {months.map((m, i) => (
-            <g key={m.month} className="msc-ts-dot">
-              {/* Oversized invisible hit target so hovering near the line point works. */}
-              <circle cx={centerX(i)} cy={y(m.sky)} r={13} fill="transparent" />
-              <circle cx={centerX(i)} cy={y(m.sky)} r={3.5} fill="var(--msc-sky)" stroke="var(--bg-deep)" strokeWidth={2} />
-              <text x={centerX(i)} y={y(m.sky) - 9} textAnchor="middle" fontSize={10} className="mono">
-                {formatUsd(m.sky, true)}
-              </text>
-            </g>
-          ))}
+          {months.map((m, i) => {
+            const label = formatUsd(m.sky, true);
+            const w = label.length * 6.2 + 12;
+            return (
+              <g key={m.month} className="msc-ts-dot">
+                {/* Oversized invisible hit target so hovering near the line point works. */}
+                <circle cx={centerX(i)} cy={y(m.sky)} r={13} fill="transparent" />
+                <circle cx={centerX(i)} cy={y(m.sky)} r={3.5} fill="var(--msc-sky)" stroke="var(--bg-deep)" strokeWidth={2} />
+                <g className="msc-ts-dot-label">
+                  <rect x={centerX(i) - w / 2} y={y(m.sky) - 25} width={w} height={17} rx={8.5} />
+                  <text x={centerX(i)} y={y(m.sky) - 13} textAnchor="middle" fontSize={10} className="mono">
+                    {label}
+                  </text>
+                </g>
+              </g>
+            );
+          })}
         </svg>
       </div>
       <p className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mt-2" style={{ color: "var(--tan-3)", maxWidth: width }}>

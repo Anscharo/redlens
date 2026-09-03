@@ -2662,21 +2662,23 @@ button.atlas-node-expand-all:focus-visible {
   pointer-events: none;
 }
 /* Line points accept hover (the svg itself stays click-transparent so the
-   month buttons underneath keep working) and reveal their figure with the
-   same halo treatment as the ring's hover amounts. */
+   month buttons underneath keep working) and reveal their figure as a pill —
+   same treatment as the ring's hover amounts. */
 .msc-ts-dot {
   pointer-events: auto;
 }
-.msc-ts-dot text {
+.msc-ts-dot-label {
   opacity: 0;
   transition: opacity 0.1s;
-  fill: var(--tan);
-  paint-order: stroke;
-  stroke: var(--bg-deep);
-  stroke-width: 3px;
-  stroke-linejoin: round;
 }
-.msc-ts-dot:hover text {
+.msc-ts-dot-label rect {
+  fill: var(--bg);
+  stroke: var(--border);
+}
+.msc-ts-dot-label text {
+  fill: var(--tan);
+}
+.msc-ts-dot:hover .msc-ts-dot-label {
   opacity: 1;
 }
 .msc-bar-col:hover .msc-ts-track,
@@ -2760,10 +2762,10 @@ a:focus-visible > .msc-ring-prime path {
 a:focus-visible > .msc-ring-prime .msc-ring-amounts {
   opacity: 1;
 }
+.msc-ring-amounts rect {
+  fill: var(--bg);
+  stroke: var(--border);
+}
 .msc-ring-amounts text {
   fill: var(--tan);
-  paint-order: stroke;
-  stroke: var(--bg-deep);
-  stroke-width: 3px;
-  stroke-linejoin: round;
 }

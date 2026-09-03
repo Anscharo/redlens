@@ -141,7 +141,7 @@ function RingKey() {
       <p className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
         <span>{swatch("var(--msc-sky)")} to Sky</span>
         <span>{swatch("var(--msc-kept)")} supply kept by Primes</span>
-        <span>{swatch("var(--msc-demand)")} demand-side by Primes</span>
+        <span>{swatch("var(--msc-demand)")} demand-side to Primes</span>
         <span>
           {swatch(
             "repeating-linear-gradient(45deg, var(--tan-2) 0, var(--tan-2) 2px, transparent 2px, transparent 4px)",

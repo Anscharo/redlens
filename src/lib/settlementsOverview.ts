@@ -136,7 +136,10 @@ export function ecosystemHeadlineFigures(eco: EcosystemThreeWay): HeadlineFigure
   }
   rows.push(
     { label: "Supply kept by Primes", value: eco.kept },
-    { label: "Demand-side by Primes", value: eco.demand },
+    // "to Primes": the demand parts (agent rate, DR, GAR, chronicle) are
+    // prime-side addends in the workbook Summary — revenue flowing TO the
+    // Prime from demand-side activity, not payouts by it.
+    { label: "Demand-side to Primes", value: eco.demand },
   );
   return rows;
 }

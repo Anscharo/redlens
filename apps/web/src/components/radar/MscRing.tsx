@@ -93,11 +93,19 @@ function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrim
         {label}
       </text>
       <g className="msc-ring-amounts" aria-hidden="true">
-        {ring.flows.map((f) => (
-          <text key={f.kind} x={f.amountX} y={f.amountY} textAnchor="middle" fontSize={16} className="mono">
-            {formatUsd(f.signed, true)}
-          </text>
-        ))}
+        {ring.flows.map((f) => {
+          const label = formatUsd(f.signed, true);
+          // Pill background sized from the mono text (~9.6px/char at 16px).
+          const w = label.length * 9.6 + 16;
+          return (
+            <g key={f.kind}>
+              <rect x={f.amountX - w / 2} y={f.amountY - 15} width={w} height={24} rx={12} />
+              <text x={f.amountX} y={f.amountY + 3} textAnchor="middle" fontSize={16} className="mono">
+                {label}
+              </text>
+            </g>
+          );
+        })}
       </g>
     </g>
   );
