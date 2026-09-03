@@ -68,10 +68,10 @@ describe("layoutMscRing (orbital)", () => {
     }
   });
 
-  it("keeps only the To-Sky ribbon; kept/demand live in the pie slices", () => {
+  it("keeps only the To-Sky ribbon; kept/demand live in the pie slices (To Sky is a pass-through, not revenue, so it never gets a wedge)", () => {
     const layout = layoutMscRing([flow()]);
     expect(layout.primes[0].flows.map((f) => f.kind)).toEqual(["sky"]);
-    expect(layout.primes[0].slices.map((s) => s.kind)).toEqual(["sky", "kept", "demand"]);
+    expect(layout.primes[0].slices.map((s) => s.kind)).toEqual(["kept", "demand"]);
   });
 
   it("keeps a demand-only prime as a circle with no ribbon (Keel/Skybase)", () => {
@@ -81,10 +81,18 @@ describe("layoutMscRing (orbital)", () => {
     expect(layout.primes[0].slices.map((s) => s.kind)).toEqual(["demand"]);
   });
 
-  it("preserves the sign on a negative slice and anchors its amount inside", () => {
+  it("moves a negative kept/demand out of the pie into a loss note, not a wedge", () => {
     const layout = layoutMscRing([flow({ prime: "osero", sky: 497, kept: -107, demand: 12_000 })]);
+    const p = layout.primes[0];
+    // Only the positive demand share gets a wedge — kept is excluded.
+    expect(p.slices.map((s) => s.kind)).toEqual(["demand"]);
+    expect(p.slices[0].signed).toBe(12_000);
+    expect(p.lossNotes).toEqual([{ kind: "kept", signed: -107 }]);
+  });
+
+  it("anchors a slice's hover amount inside its own circle", () => {
+    const layout = layoutMscRing([flow()]);
     const kept = layout.primes[0].slices.find((s) => s.kind === "kept")!;
-    expect(kept.signed).toBe(-107);
     const p = layout.primes[0];
     expect(Math.hypot(kept.amountX - p.cx, kept.amountY - p.cy)).toBeLessThanOrEqual(p.r);
   });

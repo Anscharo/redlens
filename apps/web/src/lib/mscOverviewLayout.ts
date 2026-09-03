@@ -52,12 +52,22 @@ export interface RingFlow {
 }
 
 export interface RingSlice {
-  kind: "sky" | "kept" | "demand";
+  /** Pie slices are revenue only — "sky" never appears here (see RingPrime). */
+  kind: "kept" | "demand";
   signed: number;
   path: string;
   /** Anchor for the hover amount pill (slice centroid). */
   amountX: number;
   amountY: number;
+}
+
+/** A negative kept/demand flow: reported beside the circle instead of as a
+ *  pie wedge — a pie's angles have to sum to a real positive whole, so a
+ *  loss can't be drawn as one. */
+export interface RingLossNote {
+  kind: "kept" | "demand";
+  /** Always negative. */
+  signed: number;
 }
 
 export interface RingPrime {
@@ -69,11 +79,14 @@ export interface RingPrime {
   r: number;
   /** Angle of the circle center around Sky (radians). */
   angle: number;
-  /** Pie slices of the circle: To Sky (CoF + SDE) / supply kept /
-   *  demand-side shares of the total, the To-Sky slice facing Sky. */
+  /** Pie slices of the circle: shares of the prime's own POSITIVE revenue
+   *  (supply kept / demand-side only — To Sky is a pass-through, not
+   *  revenue, and never gets a wedge). */
   slices: RingSlice[];
   /** Near-zero flows already dropped (a demand-only prime has no sky ribbon). */
   flows: RingFlow[];
+  /** Negative kept/demand flows, excluded from the pie above. */
+  lossNotes: RingLossNote[];
   /** "circle" = the name fits inside the prime's circle; "callout" = it sits
    *  in a side column, connected by `leaderPath`. */
   labelMode: "circle" | "callout";
@@ -201,31 +214,35 @@ export function layoutMscRing(
           path: ribbon(x0, y0, x1, y1, w), amountX: (x0 + x1) / 2, amountY: (y0 + y1) / 2 };
       });
 
-    // Pie slices: shares of the circle's total, the To-Sky slice rotated to
-    // face the Sky circle. Absolute values size the slices; a negative slice
-    // is striped by the view. Each slice carries a hover-amount anchor at
-    // its centroid (kept/demand figures live here now that stubs are gone).
-    const toSkyDir = Math.atan2(cy - cyP, CX - cxP);
-    const sliceOrder = r.flows;
-    let sa = toSkyDir - ((Math.abs(r.p.sky) / r.total) * 2 * Math.PI) / 2;
-    // Start half a To-Sky slice before the Sky direction only when there IS
-    // a sky flow; otherwise just start at the Sky direction.
-    if (Math.abs(r.p.sky) < SETTLEMENT_NEAR_ZERO) sa = toSkyDir;
+    // Pie slices: the prime's own REVENUE only — supply kept + demand-side.
+    // To-Sky is a pass-through (cost of funds collected from borrowers, plus
+    // Sky's own SDE cut), never the prime's revenue, so it never gets a
+    // wedge — the ribbon is its only mark. A negative kept/demand can't be a
+    // wedge either (pie angles have to sum to a real positive whole); it's
+    // reported as a loss note beside the circle instead.
+    const revenueFlows = r.flows.filter((f) => f.kind !== "sky" && f.signed > 0);
+    const positiveRevenue = revenueFlows.reduce((n, f) => n + f.signed, 0);
+    const lossNotes: RingLossNote[] = r.flows
+      .filter((f) => f.kind !== "sky" && f.signed < 0)
+      .map((f) => ({ kind: f.kind as "kept" | "demand", signed: f.signed }));
     const slices: RingSlice[] = [];
-    for (const kind of ["sky", "kept", "demand"] as const) {
-      const f = sliceOrder.find((x) => x.kind === kind);
-      if (!f) continue;
-      const theta = (f.value / r.total) * 2 * Math.PI;
-      const mid = sa + theta / 2;
-      const amountR = theta >= 2 * Math.PI - 1e-6 ? 0 : rad * 0.62;
-      slices.push({
-        kind,
-        signed: f.signed,
-        path: slicePath(cxP, cyP, rad, sa, sa + theta),
-        amountX: cxP + amountR * Math.cos(mid),
-        amountY: cyP + amountR * Math.sin(mid),
-      });
-      sa += theta;
+    let sa = -Math.PI / 2;
+    if (positiveRevenue >= SETTLEMENT_NEAR_ZERO) {
+      for (const kind of ["kept", "demand"] as const) {
+        const f = revenueFlows.find((x) => x.kind === kind);
+        if (!f) continue;
+        const theta = (f.signed / positiveRevenue) * 2 * Math.PI;
+        const mid = sa + theta / 2;
+        const amountR = theta >= 2 * Math.PI - 1e-6 ? 0 : rad * 0.62;
+        slices.push({
+          kind,
+          signed: f.signed,
+          path: slicePath(cxP, cyP, rad, sa, sa + theta),
+          amountX: cxP + amountR * Math.cos(mid),
+          amountY: cyP + amountR * Math.sin(mid),
+        });
+        sa += theta;
+      }
     }
 
     const fitsInCircle = labelOf(r.p.prime).length * CHAR_PX + 8 <= 2 * rad;
@@ -245,6 +262,7 @@ export function layoutMscRing(
       angle,
       slices,
       flows,
+      lossNotes,
       labelMode: fitsInCircle ? ("circle" as const) : ("callout" as const),
       leaderPath: "", // callouts: filled after the collision pass below
       labelX: fitsInCircle || nearCenterX ? cxP : colX,

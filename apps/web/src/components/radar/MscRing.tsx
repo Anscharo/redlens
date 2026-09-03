@@ -1,6 +1,6 @@
 import { formatMonth, formatUsd } from "../../lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
-import type { RingLayout, RingPrime } from "../../lib/mscOverviewLayout";
+import type { RingLayout, RingLossNote, RingPrime } from "../../lib/mscOverviewLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
 
 export interface MscRingPrime {
@@ -87,20 +87,48 @@ function AmountPill({ x, y, text }: { x: number; y: number; text: string }) {
   );
 }
 
+/** A negative kept/demand can't be a pie wedge, so it's called out here
+ *  instead — always visible (not hover-gated), with the same striped swatch
+ *  the key uses for "negative flow". */
+function LossNotes({ ring }: { ring: RingPrime }) {
+  if (ring.lossNotes.length === 0) return null;
+  return (
+    <g className="msc-ring-loss-notes">
+      {ring.lossNotes.map((n: RingLossNote, i: number) => {
+        const y = ring.cy + ring.r + 16 + i * 14;
+        const text = `${formatUsd(n.signed, true)} ${n.kind === "kept" ? "supply kept" : "demand-side"}`;
+        return (
+          <g key={n.kind}>
+            <rect
+              x={ring.cx - 4}
+              y={y - 8}
+              width={8}
+              height={8}
+              fill={`url(#msc-ring-neg-${n.kind})`}
+              className="msc-ring-loss-swatch"
+            />
+            <text x={ring.cx + 8} y={y} textAnchor="start" fontSize={10} className="msc-ring-loss-label mono">
+              {text}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrime & { month: string }) {
   const group = (
     <g className="msc-ring-prime" data-prime={flow.prime}>
       {/* Outlined, not solid: a filled circle would read like a flow. The
           faint tint keeps the whole circle hoverable/clickable. */}
       <circle cx={ring.cx} cy={ring.cy} r={ring.r} className="msc-ring-band" style={{ stroke: bandColor, fill: bandColor }} />
-      {/* Pie slices: the circle's own To Sky (CoF + SDE) / kept / demand mix. */}
+      {/* Pie slices: the circle's own POSITIVE revenue mix (supply kept /
+          demand-side). To Sky is a pass-through, not revenue — it never
+          gets a wedge, only the ribbon below. */}
       {ring.slices.map((s) => (
         <g key={s.kind} className="msc-ring-mark">
-          <path
-            d={s.path}
-            className={`msc-ring-slice${s.signed < 0 ? "" : ` msc-ring-${s.kind}`}`}
-            fill={s.signed < 0 ? `url(#msc-ring-neg-${s.kind})` : undefined}
-          />
+          <path d={s.path} className={`msc-ring-slice msc-ring-${s.kind}`} />
           <AmountPill x={s.amountX} y={s.amountY} text={pillText(s.kind, s.signed, label)} />
         </g>
       ))}
@@ -124,6 +152,7 @@ function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrim
       >
         {label}
       </text>
+      <LossNotes ring={ring} />
     </g>
   );
   if (!to) return group;

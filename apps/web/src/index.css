@@ -2797,3 +2797,9 @@ a:focus-visible > .msc-ring-prime .msc-ring-amounts {
 .msc-ring-amounts text {
   fill: var(--tan);
 }
+/* A negative kept/demand can't be a pie wedge, so it's called out beside the
+   circle instead — always on, not hover-gated, since it's the one case
+   where the pie alone would misrepresent the prime's revenue. */
+.msc-ring-loss-label {
+  fill: var(--tan-3);
+}

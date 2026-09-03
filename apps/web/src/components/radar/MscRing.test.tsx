@@ -76,25 +76,30 @@ describe("MscRing", () => {
     ).toBeInTheDocument();
   });
 
-  it("names what each hover pill is, not just its number — the slice and its ribbon share the To-Sky figure", () => {
+  it("names what each hover pill is, not just its number — the ribbon is the only mark for To Sky (it's a pass-through, not revenue)", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
-    // The To-Sky slice and the To-Sky ribbon each carry their own pill for
-    // the same underlying number — both say so explicitly.
-    expect(screen.getAllByText("$10.00M to Sky")).toHaveLength(2);
+    expect(screen.getByText("$10.00M to Sky")).toBeInTheDocument();
     expect(screen.getByText("$2.00M supply kept")).toBeInTheDocument();
     expect(screen.getByText("$1.50M demand-side to Spark")).toBeInTheDocument();
   });
 
-  it("fills a negative flow with its category's stripe pattern, not a loss color", () => {
-    const { layout, primes } = ringPrimes([flow({ prime: "osero", sky: 497, kept: -107, demand: 12_000 })], "2026-07");
+  it("fills a negative ribbon flow with its category's stripe pattern, not a loss color", () => {
+    const { layout, primes } = ringPrimes([flow({ prime: "osero", sky: -497, kept: 107, demand: 12_000 })], "2026-07");
     const { container } = render(
-      <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$497" />,
+      <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="-$497" />,
     );
-    expect(container.querySelector('path[fill="url(#msc-ring-neg-kept)"]')).toBeInTheDocument();
-    expect(container.querySelector("defs pattern#msc-ring-neg-kept")).toBeInTheDocument();
-    // The solid kept class is reserved for positive flows.
-    expect(container.querySelector(".msc-ring-kept")).not.toBeInTheDocument();
-    expect(container.querySelector(".msc-ring-loss")).not.toBeInTheDocument();
+    expect(container.querySelector('path[fill="url(#msc-ring-neg-sky)"]')).toBeInTheDocument();
+    expect(container.querySelector("defs pattern#msc-ring-neg-sky")).toBeInTheDocument();
+    // The solid sky class is reserved for positive flows.
+    expect(container.querySelector(".msc-ring-sky")).not.toBeInTheDocument();
+  });
+
+  it("reports a negative kept/demand as a loss note instead of a pie wedge", () => {
+    const { layout, primes } = ringPrimes([flow({ prime: "osero", sky: 497, kept: -107, demand: 12_000 })], "2026-07");
+    render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$497" />);
+    expect(screen.getByText("−$107 supply kept")).toBeInTheDocument();
+    // A negative kept never gets a pie wedge — only demand does here.
+    expect(screen.queryByText("$107 supply kept")).not.toBeInTheDocument();
   });
 });
