@@ -3,7 +3,7 @@
 // total, and each Prime as a floating VERTICAL STACKED BAR (with a zero line
 // through it so losses hang below) on its own circular plate orbiting Sky.
 // An arrow from each plate into its own wedge carries the one ratio in this
-// data that means something: the share of the Prime's production that
+// data that means something: the share of the Prime's gross revenue that
 // month that went to Sky. Pure math, no DOM — the view just maps over
 // prebuilt SVG path strings (settlementSankey.ts precedent).
 //
@@ -16,10 +16,12 @@
 // - The DONUT: the To-Sky total (cost of funds + SDE), which is money
 //   passing THROUGH the Primes, not earned by them; its wedges are the
 //   Primes' shares of it, so Sky is visibly the sum of its inflows.
-// - The PLATE: area ∝ the Prime's PRODUCTION (To-Sky + kept + demand) on
-//   a shared scale, floored to whatever its bar and name need.
+// - The PLATE: area ∝ the Prime's GROSS REVENUE (To-Sky + kept + demand,
+//   i.e. everything its book generated before cost of funds — the
+//   workbook's prime_agent_total_revenue plus Sky Direct Exposure) on a
+//   shared scale, floored to whatever its bar and name need.
 // - The ARROW: width linear in the To-Sky amount; its hover carries the
-//   share, To-Sky ÷ production. A Prime that pays Sky nothing (Keel,
+//   share, To-Sky ÷ gross revenue. A Prime that pays Sky nothing (Keel,
 //   Skybase) has no arrow and no wedge.
 //
 // Placement: each contributing Prime sits at ITS OWN WEDGE's mid-angle, so
@@ -50,7 +52,7 @@ const ZERO_TICK = 8;
 /** Plate padding around the bar + label box, and the smallest plate. */
 const PLATE_PAD = 10;
 const PLATE_MIN_R = 34;
-/** The month's biggest production renders at this plate radius; a plate
+/** The month's biggest gross revenue renders at this plate radius; a plate
  *  is never smaller than what its bar and name need, so tiny producers
  *  are floored by their contents. */
 const PLATE_MAX_R = 100;
@@ -101,7 +103,7 @@ export interface RingArrow {
   /** Magnitude; the sign lives in `signed` (negative → striped fill). */
   value: number;
   signed: number;
-  /** To-Sky ÷ production (To-Sky + kept + demand). Null when the
+  /** To-Sky ÷ gross revenue (To-Sky + kept + demand). Null when the
    *  denominator isn't positive. */
   share: number | null;
   path: string;
@@ -141,17 +143,18 @@ export interface RingPrime {
   /** Name label, to the left of the zero line (anchor "end"). */
   labelX: number;
   labelY: number;
-  /** Circular plate enclosing the bar and its label; area ∝ production. */
+  /** Circular plate enclosing the bar and its label; area ∝ gross revenue. */
   plateX: number;
   plateY: number;
   plateR: number;
-  /** To-Sky + kept + demand (signed) — what the plate's size stands for. */
-  production: number;
-  /** Where the production pill sits (above the plate) and its anchor. */
-  productionPillX: number;
-  productionPillY: number;
-  productionAnchorX: number;
-  productionAnchorY: number;
+  /** Gross revenue: To-Sky + kept + demand (signed) — what the plate's
+   *  size stands for. */
+  gross: number;
+  /** Where the gross-revenue pill sits (above the plate) and its anchor. */
+  grossPillX: number;
+  grossPillY: number;
+  grossAnchorX: number;
+  grossAnchorY: number;
 }
 
 export interface RingLayout {
@@ -227,7 +230,7 @@ export function layoutMscRing(
       const sky = Math.abs(p.sky) >= SETTLEMENT_NEAR_ZERO ? p.sky : 0;
       const gains = parts.filter((f) => f.signed > 0).reduce((n, f) => n + f.signed, 0);
       const losses = parts.filter((f) => f.signed < 0).reduce((n, f) => n - f.signed, 0);
-      return { p, parts, sky, gains, losses, production: sky + gains - losses };
+      return { p, parts, sky, gains, losses, gross: sky + gains - losses };
     })
     .filter((r) => r.parts.length > 0 || r.sky !== 0);
 
@@ -252,10 +255,10 @@ export function layoutMscRing(
   const maxSky = Math.max(1, ...rows.map((r) => Math.abs(r.sky)));
   const widthOf = (v: number) => Math.max(W_MIN, (W_MAX * v) / maxSky);
 
-  // Plate area ∝ production, pinned so the month's biggest producer is
+  // Plate area ∝ gross revenue, pinned so the month's biggest earner is
   // PLATE_MAX_R; the content floor below keeps small ones legible.
-  const maxProduction = Math.max(1, ...rows.map((r) => r.production));
-  const plateFor = (production: number) => PLATE_MAX_R * Math.sqrt(Math.max(0, production) / maxProduction);
+  const maxGross = Math.max(1, ...rows.map((r) => r.gross));
+  const plateFor = (gross: number) => PLATE_MAX_R * Math.sqrt(Math.max(0, gross) / maxGross);
 
   // Angle-independent geometry first: each bar's extent above/below its zero
   // line, its label width, and the plate that has to enclose both.
@@ -272,7 +275,7 @@ export function layoutMscRing(
     const plateDx = (left + right) / 2;
     const plateDy = (top + bottom) / 2;
     const contentR = Math.hypot((right - left) / 2, (bottom - top) / 2) + PLATE_PAD;
-    const plateR = Math.max(PLATE_MIN_R, contentR, plateFor(r.production));
+    const plateR = Math.max(PLATE_MIN_R, contentR, plateFor(r.gross));
     return { up, down, plateDx, plateDy, plateR };
   });
 
@@ -436,7 +439,7 @@ export function layoutMscRing(
         kind: "sky",
         value: Math.abs(r.sky),
         signed: r.sky,
-        share: r.production >= SETTLEMENT_NEAR_ZERO ? r.sky / r.production : null,
+        share: r.gross >= SETTLEMENT_NEAR_ZERO ? r.sky / r.gross : null,
         path: arrowPath(x0, y0, x1, y1, widthOf(Math.abs(r.sky))),
         amountX,
         amountY,
@@ -461,13 +464,13 @@ export function layoutMscRing(
       plateX,
       plateY,
       plateR: s.plateR,
-      production: r.production,
-      productionPillX: plateX,
+      gross: r.gross,
+      grossPillX: plateX,
       // Above the plate, unless that would leave the frame (the 12 o'clock
       // plate), then below it — the donut gap has room for a pill.
-      productionPillY: plateY - s.plateR - 18 >= 12 ? plateY - s.plateR - 18 : plateY + s.plateR + 18,
-      productionAnchorX: plateX,
-      productionAnchorY: plateY - s.plateR - 18 >= 12 ? plateY - s.plateR + 1 : plateY + s.plateR - 1,
+      grossPillY: plateY - s.plateR - 18 >= 12 ? plateY - s.plateR - 18 : plateY + s.plateR + 18,
+      grossAnchorX: plateX,
+      grossAnchorY: plateY - s.plateR - 18 >= 12 ? plateY - s.plateR + 1 : plateY + s.plateR - 1,
     };
   });
 

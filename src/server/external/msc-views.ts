@@ -72,6 +72,11 @@ const TERMS = [
       "Agent rate plus distribution rewards, Chronicle points, and accessibility rewards (GAR) when present. Keel and Skybase settle as demand-side-only cycles. NOT Atlas vocabulary, and note the direction flips by party: Distribution Rewards are an EXPENSE of the Sky Protocol in the Atlas (A.2.3.1.2.1.3.3) and revenue to the Prime here.",
   },
   {
+    term: "Gross revenue",
+    meaning:
+      "SAbR's name, on the Radar overview chart, for everything a Prime's book generated in the month before cost of funds: prime agent revenue + demand-side + Sky Direct Exposure — equally To Sky + supply kept + demand-side, since the three-way foots. It is the workbook's prime_agent_total_revenue plus SDE; the workbooks themselves name no such total. NOT Atlas vocabulary, and NOT the Atlas's Net Revenue (next entry).",
+  },
+  {
     term: "Net Revenue",
     meaning:
       "An Atlas term these workbooks do NOT compute. The Atlas defines Net Revenue as Income minus Expenses (A.2.3.1.2.1.1), recognised on a cash basis by when USDS/DAI enter or leave the Sky Surplus Buffer (A.2.3.1.2.1), then allocated through the waterfall in A.2.3.1.2. To Sky is part of one Income component (Stability Fees From Base Rate, A.2.3.1.2.1.2.1) before any Expenses — Sky Savings Rate paid to sUSDS holders (A.2.3.1.2.1.3.1) and the reward expenses are not deducted anywhere in these figures. Never present To Sky, or a sum of it, as Sky's net revenue.",

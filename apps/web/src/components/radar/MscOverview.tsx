@@ -163,10 +163,12 @@ function RingKey() {
         <span className="msc-key-item" data-key="demand">{swatch("var(--msc-demand)")} demand-side to Primes</span>
       </p>
       <p className="text-center mt-1">
-        Circle size is the Prime's production*; the bar inside is what it
+        Circle size is the Prime's gross revenue*; the bar inside is what it
         kept, on one square-root scale; the donut is the To-Sky total by
-        Prime. *Production = To Sky + supply kept + demand-side. Hover for
-        figures; click a Prime to open its settlement page.
+        Prime. *Gross revenue = prime agent revenue + demand-side + Sky
+        Direct Exposure, before cost of funds (equally: To Sky + supply kept
+        + demand-side). Hover for figures; click a Prime to open its
+        settlement page.
       </p>
     </div>
   );

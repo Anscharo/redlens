@@ -15,7 +15,7 @@ export interface MscRingPrime {
   to: string | null;
 }
 
-/** One prime: a circular plate (area ∝ production) holding a floating
+/** One prime: a circular plate (area ∝ gross revenue) holding a floating
  *  stacked bar (gains up from the zero line, losses down from it, striped)
  *  with its name to the left of the zero line, and its To-Sky arrow. */
 export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrime & { month: string }) {
@@ -24,8 +24,8 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
   const group = (
     <g className="msc-ring-prime" data-prime={flow.prime}>
       {/* Plate: one circle enclosing the bar and its name, tinted in the
-          prime's identity color; its AREA is the prime's production. */}
-      <g className="msc-ring-mark" data-mark={markId(flow.prime, "production")}>
+          prime's identity color; its AREA is the prime's gross revenue. */}
+      <g className="msc-ring-mark" data-mark={markId(flow.prime, "gross")}>
         <circle
           cx={ring.plateX}
           cy={ring.plateY}
@@ -70,7 +70,7 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
     </g>
   );
   if (!to) return group;
-  const shareText = share ? ` (${share} of its production)` : "";
+  const shareText = share ? ` (${share} of its gross revenue)` : "";
   return (
     <SvgRouteLink
       to={to}

@@ -71,7 +71,7 @@ describe("layoutMscRing (orbital bars)", () => {
     expect(sKept.h / sDemand.h).toBeCloseTo(4 / 3, 6);
   });
 
-  it("badges each arrow with the share of what the prime produced that went to Sky", () => {
+  it("gives each arrow the share of the prime's gross revenue that went to Sky", () => {
     const layout = layoutMscRing(JULY);
     const grove = layout.primes.find((p) => p.prime === "grove")!;
     // 8.00M ÷ (8.00M + 1.56M + 0.11M)
@@ -147,22 +147,22 @@ describe("layoutMscRing (orbital bars)", () => {
     }
   });
 
-  it("sizes each plate by production (area proportional to To Sky + kept + demand), floored by its contents", () => {
+  it("sizes each plate by gross revenue (area proportional to To Sky + kept + demand), floored by its contents", () => {
     const layout = layoutMscRing(APRIL);
     const grove = layout.primes.find((p) => p.prime === "grove")!; // 13.1M
     const spark = layout.primes.find((p) => p.prime === "spark")!; // 12.19M
     const keel = layout.primes.find((p) => p.prime === "keel")!; // 55k, content floor
-    expect(grove.production).toBeCloseTo(9_340_000 + 3_590_000 + 187_000, 0);
+    expect(grove.gross).toBeCloseTo(9_340_000 + 3_590_000 + 187_000, 0);
     expect(grove.plateR).toBe(100);
     expect(spark.plateR / grove.plateR).toBeCloseTo(Math.sqrt(12_190_000 / 13_117_000), 2);
     expect(keel.plateR).toBeGreaterThanOrEqual(34);
     expect(keel.plateR).toBeLessThan(spark.plateR);
-    // Production pill outside the plate (above, or below for the 12 o'clock
+    // Gross-revenue pill outside the plate (above, or below for the 12 o'clock
     // plate whose top touches the frame), anchored on its rim.
     for (const p of [grove, spark, keel]) {
-      expect(Math.abs(p.productionPillY - p.plateY)).toBeGreaterThan(p.plateR);
-      expect(p.productionPillY).toBeGreaterThan(11);
-      expect(Math.hypot(p.productionAnchorX - p.plateX, p.productionAnchorY - p.plateY)).toBeLessThanOrEqual(p.plateR);
+      expect(Math.abs(p.grossPillY - p.plateY)).toBeGreaterThan(p.plateR);
+      expect(p.grossPillY).toBeGreaterThan(11);
+      expect(Math.hypot(p.grossAnchorX - p.plateX, p.grossAnchorY - p.plateY)).toBeLessThanOrEqual(p.plateR);
     }
   });
 

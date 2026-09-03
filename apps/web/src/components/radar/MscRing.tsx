@@ -96,7 +96,7 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
 function PillHoverStyles({ primes }: { primes: MscRingPrime[] }) {
   const css = primes
     .flatMap((p) => {
-      const kinds = [...p.ring.segments.map((s) => s.kind as string), "share", "production"];
+      const kinds = [...p.ring.segments.map((s) => s.kind as string), "share", "gross"];
       if (p.ring.arrow) kinds.push(p.ring.arrow.kind);
       const rules = kinds.map((k) => {
         const id = markId(p.flow.prime, k);

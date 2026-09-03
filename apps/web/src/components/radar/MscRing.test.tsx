@@ -71,7 +71,7 @@ describe("MscRing", () => {
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     expect(
       screen.getByRole("link", {
-        name: "Spark, Jul 2026: $10.00M to Sky (74% of its production), $2.00M supply kept, $1.50M demand-side. Open settlement page.",
+        name: "Spark, Jul 2026: $10.00M to Sky (74% of its gross revenue), $2.00M supply kept, $1.50M demand-side. Open settlement page.",
       }),
     ).toBeInTheDocument();
   });
@@ -80,8 +80,8 @@ describe("MscRing", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     // 10M ÷ (10M + 2M + 1.5M) = 74%
-    expect(screen.getByText("$10.00M to Sky — 74% of Spark's production")).toBeInTheDocument();
-    expect(screen.getByText("$13.50M production* by Spark")).toBeInTheDocument();
+    expect(screen.getByText("$10.00M to Sky — 74% of Spark's gross revenue*")).toBeInTheDocument();
+    expect(screen.getByText("$13.50M gross revenue* of Spark")).toBeInTheDocument();
     expect(screen.getByText("$2.00M supply kept by Spark")).toBeInTheDocument();
     expect(screen.getByText("$1.50M demand-side to Spark")).toBeInTheDocument();
   });
@@ -109,7 +109,7 @@ describe("MscRing", () => {
     // Pills are paired to their marks by id, since they no longer nest inside them.
     expect(container.querySelector('.msc-ring-mark[data-mark="spark::kept"]')).toBeInTheDocument();
     expect(container.querySelector('.msc-ring-pill[data-mark="spark::kept"]')).toBeInTheDocument();
-    expect(container.querySelector('.msc-ring-mark[data-mark="spark::production"] circle.msc-ring-plate')).toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-mark[data-mark="spark::gross"] circle.msc-ring-plate')).toBeInTheDocument();
   });
 
   it("gives Sky one wedge per contributing prime, in that prime's own color", () => {
@@ -141,6 +141,6 @@ describe("MscRing", () => {
   it("puts the share in the link's accessible name", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
-    expect(screen.getByRole("link", { name: /74% of its production/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /74% of its gross revenue/ })).toBeInTheDocument();
   });
 });

@@ -20,11 +20,11 @@ export function pillText(kind: string, signed: number, primeLabel: string, share
   const amount = formatUsd(signed, true);
   if (kind === "sky") {
     return share != null
-      ? `${amount} to Sky — ${formatShare(share)} of ${primeLabel}'s production`
+      ? `${amount} to Sky — ${formatShare(share)} of ${primeLabel}'s gross revenue*`
       : `${amount} to Sky`;
   }
   if (kind === "share") return `${amount} to Sky from ${primeLabel}`;
-  if (kind === "production") return `${amount} production* by ${primeLabel}`;
+  if (kind === "gross") return `${amount} gross revenue* of ${primeLabel}`;
   if (kind === "kept") {
     return signed < 0 ? `${amount} supply loss to ${primeLabel}` : `${amount} supply kept by ${primeLabel}`;
   }
@@ -85,12 +85,12 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
       {rings.map(({ ring, label }) => (
         <g key={ring.prime}>
           <AmountPill
-            mark={markId(ring.prime, "production")}
-            text={pillText("production", ring.production, label)}
-            x={ring.productionPillX}
-            y={ring.productionPillY}
-            toX={ring.productionAnchorX}
-            toY={ring.productionAnchorY}
+            mark={markId(ring.prime, "gross")}
+            text={pillText("gross", ring.gross, label)}
+            x={ring.grossPillX}
+            y={ring.grossPillY}
+            toX={ring.grossAnchorX}
+            toY={ring.grossAnchorY}
           />
           {ring.segments.map((s) => (
             <AmountPill
