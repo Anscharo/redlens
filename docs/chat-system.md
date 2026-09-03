@@ -717,6 +717,46 @@ practice, all of them observed wiping correct answers in production:
   exact-substring bar made a faithful restatement `unsupported` by construction.
   Figures, dates, amounts, addresses, doc numbers, quoted atlas text and
   citations still require an exact span whatever the source.
+- That relaxation is enforced **in `validateSpans`, not only in the prompt**.
+  It was stated to the judge and then undone by the code backstop, which knew
+  nothing about source class: measured against the real features guide, a
+  faithful paraphrase of a `[REFERENCE]` entry scores **0.56** (bar 0.8) and a
+  route span (`/radar`) is under the 8-char floor and scores 0. So a
+  reference-class match uses `REFERENCE_SPAN_THRESHOLD` (0.5) and
+  `REFERENCE_MIN_SPAN` (4), and only for descriptive prose — `hasCheckableToken`
+  puts any claim carrying a figure, uuid or address back on the strict bar, and
+  the `figures` slice never relaxes. Claims that pass this way are marked
+  `reference` on the verdict (`referenceGrounded` on the slice claim).
+
+**Promised-tool guard (2026-09-01).** The loop's exit contract is "text + no
+usable tool calls = the final answer", and it had one-shot guards for empty
+content (`COMPOSE_STEER`) and repetition (`REPETITION_STEER`) but none for
+content that *announced* a lookup it never made. Observed live 2026-08-20: a
+round wrote "One moment while I search the atlas." with `finish_reason: stop`
+and no tool_call deltas, and that shipped as the answer — badge-less, because a
+turn with no citation, figure or quote gives the deterministic checks nothing to
+fail and the verifier no claims, so `computeOverall` degrades to `unverified`.
+In staged delivery the reader waits the whole turn and is then shown a promise.
+(Not the malformed-delta path the loop also documents: `chat_loop_malformed_tool_call`
+has never fired.)
+
+`chat-loop.ts` now buys ONE more round **with tools still available**, steered
+by `PROMISED_TOOL_STEER`, when a round produced text, the turn has made zero
+tool calls, a round remains, and `announcesUnmadeToolCall` (chat/announcement.ts)
+fires. The announcement never lands on `msgs`, so the replay sees the
+conversation as the failed round saw it; the client gets `clear(reason:
+"tool_round")`, the same superseded-draft treatment as ordinary pre-tool prose.
+One shot per turn — a second announcement ships as-is, and an empty retry falls
+through to the compose guard, so the cascade is bounded at two extra
+generations. The gate is regex + on-device similarity behind a deterministic
+envelope, and the envelope is the part that protects legitimately tool-free
+answers: `isUncheckableAnswer` means anything carrying a link, figure or doc
+number is an answer and never reaches the embedding, which covers every
+prefetch-built product answer (the features fact requires app areas to be
+linked). Measured (`pnpm eval:announce`): regex 57% recall, hybrid 75%, both at
+zero false fires over 109 answers — and on real traffic 17 of 18 tool-free
+assistant answers never get past the envelope at all. See CLAUDE.md's "fourth consumer" note for
+why this lane scores per sentence and does not use `isSmallTalk`.
 
 **Prefetch-only turns are never rewritten.** When a turn's only substantive
 evidence is the prefetch round, a claim-driven escalation is suppressed
@@ -725,6 +765,20 @@ replace correct content with a hedge, which is worse for the reader. A
 deterministic failure still escalates exactly as before — those are wrong
 wherever the content came from — and the badge still shows the verdict either
 way; only the rewrite is withheld.
+
+**…and reference-grounded claims never reach the trigger.** The guard above is
+turn-level, so a single orientation search returning anything re-armed the
+rewrite for an answer built entirely from injected documentation.
+`claimsDrivingEscalation` therefore skips claims marked `reference` before
+comparing against `chatAdvisorTriggerUnsupportedClaims` — the per-claim form of
+the same rule. A claim is marked whenever its span actually pointed at a
+`[REFERENCE]` entry (best overlap ≥ 0.25 — an invented span scores near zero
+against everything and would otherwise drift onto the largest haystack, which
+is usually the guide), **independently of which bar it was held to**: a demoted
+product figure is still wrong and still shown on the badge, it just cannot buy
+a whole-turn rewrite. Live failure: a bare "help me", three product claims
+demoted by the span bar (exactly the threshold), and the advisor deleted the
+answer's Reader and Reports sections as "unsupported".
 
 `paramMismatches` is structured rather than a sentence
 (`{ stated, actual, name, title, owner, uuid, doc_no }`) so the badge can link
@@ -742,7 +796,7 @@ staged-only `synthesizing` and `finalizing`.
 **Ordering guarantees.** `meta` is always first and `done` always terminal.
 `verify_result` lands between the last `token` and `done`. A revision emits
 `verify_result(fail)` → `status:advising` → `status:revising` →
-`clear(revision)` → tokens → a second `verify_result` → `done`. An **abandoned**
+`clear(revision)` → tokens → a second `verify_result` → `done`. A promised-tool retry emits `clear(reason: "tool_round")` before its replacement round, which is indistinguishable on the wire from any other pre-tool clear. An **abandoned**
 revision (the replay threw, aborted, or produced nothing) emits
 `clear(restore)` → `done` carrying the ORIGINAL answer instead. More than one
 `clear` can arrive in a row: a revision that itself degenerates yields

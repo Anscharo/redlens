@@ -22,6 +22,14 @@ const ClaimSchema = z.object({
   evidence: z.array(z.string()).default([]),
   cited_uuid: z.string().nullish(),
   note: z.string().nullish(),
+  // Set by the sliced verifier (verifier-slices.ts's validateSpans): this
+  // claim's closest evidence was a [REFERENCE] entry — injected product
+  // documentation / glossary / entity rows, not retrieved atlas text. The
+  // escalation gate reads it so that summarising injected context cannot buy
+  // a rewrite. No slice prompt mentions the field, and the sliced path builds
+  // the flag in code rather than reading it off the model, so nothing a judge
+  // emits can set it; only the eval-only `parseVerdict` path would keep one.
+  reference: z.boolean().optional(),
 });
 
 const VerdictSchema = z.object({

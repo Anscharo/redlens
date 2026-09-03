@@ -41,6 +41,12 @@ export interface SliceClaim {
   absence?: boolean;
   spanValid?: boolean; // set by validateSpans; false ⇒ status forced to unsupported
   spanScore?: number; // best token-overlap achieved against the evidence
+  // The claim's span actually pointed at a [REFERENCE] entry — it was judged
+  // against context RedLens injected, not against retrieved atlas text.
+  // Carried through to the Verdict so the escalation gate can keep injected
+  // documentation from buying a rewrite. Independent of whether the RELAXED
+  // bar applied (that also needs descriptive prose outside `figures`).
+  referenceGrounded?: boolean;
 }
 
 export interface SliceResult {
@@ -291,13 +297,84 @@ export function spanOverlap(span: string, hay: string): number {
 
 export const SPAN_MATCH_THRESHOLD = 0.8;
 
+// ── The [REFERENCE] half of the bar ───────────────────────────────────────
+// The slice prompt tells the judge that a DESCRIPTIVE claim faithfully
+// restating a [REFERENCE] entry is supported and its span "need not be exact"
+// — and then this backstop, which knew nothing about source class, demoted it
+// anyway. Measured against the real product guide: a faithful paraphrase of
+// "Point Claude Code, Claude Desktop, Cursor/Windsurf, ... at the Atlas"
+// scores 0.56, and the span for a route (`/radar`) is shorter than the 8-char
+// floor and scores 0. Three such demotions is exactly the advisor-escalation
+// threshold, so an orientation answer built from injected documentation was
+// rewritten — correct sections deleted — over claims that were all true.
+// The prompt's exemption is now enforced in code as well as stated.
+//
+// Kept narrow, exactly as the prompt words it: the relaxation applies to
+// prose only. A claim carrying anything CHECKABLE — a figure, date, amount,
+// uuid, doc number or on-chain address — stays on the strict bar whatever its
+// source, and the `figures` slice never relaxes at all.
+export const REFERENCE_SPAN_THRESHOLD = 0.5;
+// A route or control name ("/radar", "Radar") is a legitimate short span when
+// the evidence is injected documentation; below this nothing is evidence.
+export const REFERENCE_MIN_SPAN = 4;
+const ATLAS_MIN_SPAN = 8;
+// A span has to have actually pointed AT the reference entry to be attributed
+// to it. Without a floor, an invented span (the pioneers case) scores near
+// zero against everything and the arbitrary winner of that near-zero max is
+// biased toward the reference entry — it is usually the largest haystack (the
+// features guide is ~8.6KB), so it has the most windows to luck into, and
+// glossary/entity facts put reference evidence on ordinary atlas turns too.
+// That would let three fabrications duck the escalation counter. Real
+// paraphrases sit at 0.4-1.0; fabrications land at 0-0.2.
+const REFERENCE_ATTRIBUTION_FLOOR = 0.25;
+
+const CHECKABLE_IN_CLAIM: RegExp[] = [
+  /\d/, // any figure, date, amount, count — numbers are the verifier's business
+  /[0-9a-f]{8}-[0-9a-f]{4}/i, // uuid
+  /0x[0-9a-fA-F]{4,}/, // evm address-ish
+];
+
+export const hasCheckableToken = (claim: string): boolean => CHECKABLE_IN_CLAIM.some((re) => re.test(claim));
+
+export interface SpanEvidence {
+  content: string;
+  sourceClass?: string;
+}
+
+// Bare strings are treated as retrieved atlas text — the strict path — so
+// every existing caller and test keeps its original semantics.
+const toHaystack = (e: string | SpanEvidence) =>
+  typeof e === "string"
+    ? { text: normalizeForMatch(e), reference: false }
+    : { text: normalizeForMatch(e.content), reference: e.sourceClass === "reference" };
+
+// Best match across the evidence, remembering WHICH class won it: exact
+// containment first (so an exact quote is never out-scored by a fuzzy hit in
+// the other class), then the sliding-window overlap.
+function bestMatch(span: string, hays: { text: string; reference: boolean }[]): { best: number; reference: boolean } {
+  const exact = hays.find((h) => h.text.includes(span));
+  if (exact) return { best: 1, reference: exact.reference };
+  let best = 0;
+  let reference = false;
+  for (const h of hays) {
+    const s = spanOverlap(span, h.text);
+    if (s > best) { best = s; reference = h.reference; }
+  }
+  return { best, reference };
+}
+
 // THE BACKSTOP. A `supported` verdict is only honoured when its span really
 // points at evidence — fuzzily, so imperfect copying doesn't kill valid
 // support, but locally, so a span assembled from scattered topical words
 // cannot buy support. The model still may not assert support into existence;
 // it just no longer has to be a photocopier.
-export function validateSpans(claims: SliceClaim[], evidenceTexts: string[], threshold = SPAN_MATCH_THRESHOLD): SliceClaim[] {
-  const haystacks = evidenceTexts.map(normalizeForMatch);
+export function validateSpans(
+  claims: SliceClaim[],
+  evidence: (string | SpanEvidence)[],
+  opts: { threshold?: number; slice?: SliceName } = {},
+): SliceClaim[] {
+  const hays = evidence.map(toHaystack);
+  const threshold = opts.threshold ?? SPAN_MATCH_THRESHOLD;
   return claims.map((c) => {
     if (c.status !== "supported") return { ...c, spanValid: true };
     // Absence is established by evidence NOT containing something — there is
@@ -307,15 +384,24 @@ export function validateSpans(claims: SliceClaim[], evidenceTexts: string[], thr
     // Derivation spans (arithmetic shown by the `figures` slice) are not
     // quotations — they carry an operator and are judged on their own terms.
     const isDerivation = /[+\-×*/=]/.test(c.span ?? "") && /\d/.test(c.span ?? "");
-    if (span.length < 8) return { ...c, status: "unsupported", spanValid: false, spanScore: 0 };
-    if (isDerivation) return { ...c, spanValid: true };
-    let best = 0;
-    for (const h of haystacks) {
-      if (h.includes(span)) { best = 1; break; } // exact — fast path
-      best = Math.max(best, spanOverlap(span, h));
+    if (span.length < REFERENCE_MIN_SPAN) return { ...c, status: "unsupported", spanValid: false, spanScore: 0 };
+    const { best, reference } = bestMatch(span, hays);
+    // Two separate consequences, deliberately not the same condition:
+    //   `reference` — this claim was judged against injected documentation at
+    //     all. Carried out as `referenceGrounded` so the escalation gate can
+    //     keep it from buying a rewrite, whichever bar it was held to.
+    //   `relaxed`   — …AND it is descriptive prose, so the lower bar applies.
+    //     Anything checkable, and the whole `figures` slice, stays strict.
+    const relaxed = reference && opts.slice !== "figures" && !hasCheckableToken(c.claim);
+    const grounded = reference && best >= REFERENCE_ATTRIBUTION_FLOOR;
+    if (span.length < (relaxed ? REFERENCE_MIN_SPAN : ATLAS_MIN_SPAN)) {
+      return { ...c, status: "unsupported", spanValid: false, spanScore: best, referenceGrounded: grounded };
     }
-    const ok = best >= threshold;
-    return ok ? { ...c, spanValid: true, spanScore: best } : { ...c, status: "unsupported", spanValid: false, spanScore: best };
+    if (isDerivation) return { ...c, spanValid: true };
+    const ok = best >= (relaxed ? REFERENCE_SPAN_THRESHOLD : threshold);
+    return ok
+      ? { ...c, spanValid: true, spanScore: best, referenceGrounded: grounded }
+      : { ...c, status: "unsupported", spanValid: false, spanScore: best, referenceGrounded: grounded };
   });
 }
 
@@ -344,7 +430,7 @@ export async function runSlice(params: {
     const parsed = parseSlice(res.text);
     if (!parsed) return { ...base, latencyMs: res.latencyMs, usage: res.usage };
     const claims = SLICE_NEEDS_EVIDENCE[params.slice]
-      ? validateSpans(parsed.claims, params.evidence.map((e) => e.content))
+      ? validateSpans(parsed.claims, params.evidence, { slice: params.slice })
       : parsed.claims;
     return { ...base, claims, rulingIssued: parsed.rulingIssued, notes: parsed.notes, parsed: true, latencyMs: res.latencyMs, usage: res.usage };
   } catch {

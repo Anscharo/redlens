@@ -51,7 +51,8 @@ export function AtlasView({
   // useGraphEdges hides the graph-relations section.
   const { preview } = useDataSource();
   const { selectedId, handleNavigate } = useAtlasSelection(id, onNavigate);
-  const { linkedNodes, targetAddresses, chainValues, glossaryTerms, cousinDocs } = useNodeAnnotations(id, data, preview ? null : graph);
+  const { linkedNodes, targetAddresses, chainValues, glossaryTerms, cousinDocs, annotationDocs } =
+    useNodeAnnotations(id, data, preview ? null : graph);
 
   // Atlas-aware analytics: one doc_view per node (live + preview alike).
   useDocViewTracking(data?.atlas ?? null, id, graph);
@@ -116,10 +117,16 @@ export function AtlasView({
   }
 
   const addressCount = Object.keys(targetAddresses).length;
-  const annotationCount = linkedNodes.length + cousinDocs.length + addressCount;
+  const annotationCount =
+    annotationDocs.length + linkedNodes.length + cousinDocs.length + addressCount;
 
   return (
-    <AtlasActionsContext.Provider value={{ navigate: handleNavigate, toggle: () => {}, splitNavigate: onSplitChange }}>
+    <AtlasActionsContext.Provider value={{
+        navigate: handleNavigate,
+        toggle: () => {},
+        splitNavigate: onSplitChange,
+        docNoToId: data.atlas.docNoToId,
+      }}>
       <div className="flex-1 flex flex-col" style={{ minHeight: 0 }}>
         <div className="flex items-center" style={{ borderBottom: "1px solid var(--border)" }}>
           <DrawerToggle label="Atlas" onClick={onOpenTree} breakpoint={1050} />
@@ -152,6 +159,7 @@ export function AtlasView({
           {id && (
             <AtlasAnnotations
               id={id}
+              annotationDocs={annotationDocs}
               linkedNodes={linkedNodes}
               cousinDocs={cousinDocs}
               targetAddresses={targetAddresses}

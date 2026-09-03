@@ -1,7 +1,7 @@
 // Span-validation is the whole point of the sliced design: it is the code
 // backstop that stops a model asserting support into existence.
 import { test, expect } from "bun:test";
-import { validateSpans, parseSlice, parseJsonish, closeTruncatedJson, repairStatus, buildSlicePrompt, SLICE_NEEDS_EVIDENCE, spanOverlap, type SliceClaim } from "./verifier-slices.ts";
+import { validateSpans, parseSlice, parseJsonish, closeTruncatedJson, repairStatus, buildSlicePrompt, SLICE_NEEDS_EVIDENCE, spanOverlap, hasCheckableToken, SPAN_MATCH_THRESHOLD, REFERENCE_SPAN_THRESHOLD, type SliceClaim } from "./verifier-slices.ts";
 
 const EVIDENCE = [
   '{"content":"The documents herein contain all data and specifications for Spark\'s Instances of the Pioneer Chain Primitive."}',
@@ -126,6 +126,101 @@ test("keeps figures, quotes, addresses, doc numbers and citations on exact spans
   expect(String(system.content)).toMatch(
     /figures, dates, amounts, on-chain addresses, document numbers, quoted atlas text and citations still require an EXACT verbatim span/,
   );
+});
+
+// ── (3) …and the CODE half of the same exemption ──────────────────────────
+// The prompt said "need not be exact"; validateSpans then applied the atlas
+// bar anyway and demoted it. These are the three real production claims that
+// exposed it, scored against the shape of the actual injected features guide.
+const GUIDE = [
+  {
+    content: JSON.stringify({
+      app: [
+        { area: "Radar", where: "/radar", about: "Dashboards for Agents, Facilitators and Alignment Conservers." },
+        {
+          area: "Connect (MCP)",
+          where: "/connect",
+          features: [{ name: "MCP server", what: "Point Claude Code, Claude Desktop, Cursor/Windsurf, or any MCP client at the Atlas." }],
+        },
+      ],
+    }),
+    sourceClass: "reference",
+  },
+];
+
+test("a route span shorter than the atlas floor is support when the evidence is injected documentation", () => {
+  const out = validateSpans([claim({ claim: "The Radar feature is located at /radar.", span: "/radar" })], GUIDE, { slice: "claims" });
+  expect(out[0].status).toBe("supported");
+  expect(out[0].referenceGrounded).toBe(true);
+});
+
+test("a faithful paraphrase of reference prose is support — it scores 0.56, well under the atlas bar", () => {
+  const span = "Connect an AI assistant such as Claude Code, Claude Desktop, Cursor, or Windsurf to the Atlas";
+  const out = validateSpans([claim({ claim: "Connect (MCP) connects an AI assistant to the Atlas", span })], GUIDE, { slice: "claims" });
+  expect(out[0].status).toBe("supported");
+  expect(out[0].spanScore).toBeLessThan(SPAN_MATCH_THRESHOLD);
+  expect(out[0].spanScore).toBeGreaterThanOrEqual(REFERENCE_SPAN_THRESHOLD);
+});
+
+test("the relaxation never reaches retrieved atlas text — the pioneers span still dies", () => {
+  const out = validateSpans(
+    [claim({ claim: "Spark is a Pioneer", span: "Spark has an active Pioneer Chain instance" })],
+    [...EVIDENCE, ...GUIDE],
+    { slice: "claims" },
+  );
+  expect(out[0].status).toBe("unsupported");
+});
+
+test("reference evidence buys nothing for a claim that is checkable, nor for the figures slice", () => {
+  // A claim carrying a figure stays on the strict bar whatever its source —
+  // same 0.56 span that passes as prose one test above.
+  const withFigure = validateSpans(
+    [claim({
+      claim: "Connect (MCP) supports 4 AI assistants",
+      span: "Connect an AI assistant such as Claude Code, Claude Desktop, Cursor, or Windsurf to the Atlas",
+    })],
+    GUIDE,
+    { slice: "claims" },
+  );
+  expect(withFigure[0].status).toBe("unsupported");
+  // …but it is still MARKED reference-grounded: held to the strict bar, yet
+  // never allowed to buy a rewrite (chat-orchestrator's claimsDrivingEscalation).
+  expect(withFigure[0].referenceGrounded).toBe(true);
+  // …and the figures slice never relaxes, even for prose.
+  const inFigures = validateSpans(
+    [claim({ claim: "Radar lives at the radar route", span: "/radar" })],
+    GUIDE,
+    { slice: "figures" },
+  );
+  expect(inFigures[0].status).toBe("unsupported");
+});
+
+// The relaxation must not become a place for fabrications to hide. An invented
+// span scores near zero against everything, and the arbitrary winner of that
+// near-zero max leans toward the reference entry (usually the biggest
+// haystack) — so attribution needs a floor, or three fabrications would duck
+// the escalation counter on any turn where a glossary/entity fact fired.
+test("a fabricated span is never attributed to the reference entry", () => {
+  const out = validateSpans(
+    [claim({ claim: "Spark is a Pioneer", span: "Spark has an active Pioneer Chain instance" })],
+    [...EVIDENCE, ...GUIDE],
+    { slice: "claims" },
+  );
+  expect(out[0].status).toBe("unsupported");
+  expect(out[0].referenceGrounded).toBeFalsy();
+});
+
+test("hasCheckableToken keeps prose relaxable and anything countable strict", () => {
+  expect(hasCheckableToken("Visit Radar to browse Agents")).toBe(false);
+  expect(hasCheckableToken("there are 3 reports")).toBe(true);
+  expect(hasCheckableToken("see 0xAbCd1234 on Ethereum")).toBe(true);
+  expect(hasCheckableToken("doc 6f1e2a3b-44c5-0000-0000-000000000000")).toBe(true);
+});
+
+test("below the reference floor nothing is evidence, whatever the source", () => {
+  for (const span of ["", "  ", "yes"]) {
+    expect(validateSpans([claim({ span })], GUIDE, { slice: "claims" })[0].status).toBe("unsupported");
+  }
 });
 
 // ── Messy-JSON repair + status repair-or-drop ──────────────────────────────

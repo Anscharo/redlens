@@ -32,8 +32,16 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
-## 2026-09-01
+
+## 2026-09-04
 - Added a Monthly Settlement Cycle overview to the Radar front page — a circular flow chart of every Prime's month with Sky in the middle, a stacked prime-earnings timeline with Sky's take as a line, and click-through to each Prime's settlement page
+
+## 2026-09-03
+- Moved colour-scheme picking to a sun, moon, or eclipse button in the top bar, next to feedback and the account menu
+
+## 2026-09-02
+- Fixed Chat mistakenly revising correct answers and forgetting to look up info
+- Annotation documents now link to the document they annotate, sit closer to it in the tree and reader instead of looking nested a few levels too deep, and are listed in an "annotated by" section of that document's annotations panel
 
 ## 2026-08-27
 - Tinted Giedi Connect tool names gold and made reader document hover easier to see

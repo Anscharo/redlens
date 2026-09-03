@@ -1,8 +1,11 @@
 import { memo, useMemo, useRef, useEffect } from "react";
 import { segmentDepths, nrChiclets } from "@/lib/depth";
+import { annotationTarget, ANNOTATION_TAIL_SEGMENTS } from "@/lib/annotation";
 import { type FlatEntry } from "@/lib/atlasHelpers";
 import { DocNoChiclets } from "../DocNoChiclets";
 import { NodeContent } from "../NodeContent";
+import { AtlasLink } from "../AtlasLink";
+import { atlasHref } from "@/lib/routes";
 import { NodeMeta } from "./NodeMeta";
 import { useAtlasActions } from "./AtlasActionsContext";
 import { revealStore } from "../../lib/revealStore";
@@ -48,7 +51,10 @@ function currentAngleDeg(el: HTMLElement, fallback: number): number {
 const TITLE_TEXT_OFFSET = 47;
 const CHICLET_W = 15;
 // gap-2 (8) + the toggle chevron (14): the agent pill may extend past the doc
-// numbers to also cover the chevron column, giving a slightly wider cap.
+// numbers to also cover the chevron column, giving a slightly wider cap. It is
+// also exactly what an annotation row reclaims by not rendering the chevron
+// column at all (see `annotates` below), so both the title's left edge and the
+// expanded body's gutter move in by this much.
 const CHEVRON_W = 22;
 
 const TITLE_CLASS = "text-lg font-bold";
@@ -100,7 +106,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
    *  NodeSelectBox for the checkbox itself. */
   inSelectedOnly?: boolean;
 }) {
-  const { navigate, toggle, splitNavigate, pendulum } = useAtlasActions();
+  const { navigate, toggle, splitNavigate, pendulum, docNoToId } = useAtlasActions();
   const isPreview = !!useDataSource().preview;
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
@@ -119,11 +125,26 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       docNoDepths: segmentDepths(node.doc_no),
     };
   }, [node.doc_no, depth]);
+  // Annotations hang directly off the doc they annotate, but their `.0.3.N`
+  // numbering indents them three columns past it — so they read as children of
+  // that doc's children. Three treatments pull them back: this label, the
+  // smaller trailing chiclets, and the dropped chevron column below.
+  const annotates = annotationTarget(node);
+  // The target is known by NUMBER; the route takes an id. Unresolvable (a
+  // provider without the map, or a target still in the un-merged deep tier)
+  // degrades to plain text rather than a dead link.
+  const annotatesId = annotates ? docNoToId?.get(annotates) : undefined;
   const mouseDownRef = useRef<{ x: number; y: number } | null>(null);
   // Selected node always full-strength; otherwise dim untouched docs in preview.
   const dim = usePreviewDim(node.id) && !isSelected;
 
   const showExpandAll = hasChildren && !!pendulum;
+  // No annotation in the atlas has children, so its chevron column is pure
+  // reserved whitespace between the doc number and the title — the one place
+  // the indent can be given back for free. `showExpandAll` still wins, so an
+  // annotation that ever did gain children keeps the column it actually renders.
+  const reserveChevron = showExpandAll || !annotates;
+  const titleTextOffset = TITLE_TEXT_OFFSET - (reserveChevron ? 0 : CHEVRON_W);
   // In a flat filtered view (selected-only/changed-only) rung 0 is invisible
   // — the row never disappears for it (see AtlasReader's filterSet branch) —
   // so the ordinary 3-position swing would let the chevron rest at (and lean
@@ -363,7 +384,43 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       <NodeSelectBox nodeId={node.id} title={node.title} />
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
-        <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
+        {annotates ? (
+          <span className="atlas-docno-col">
+            <DocNoChiclets
+              parts={docNoParts}
+              depths={docNoDepths}
+              minorFrom={docNoParts.length - ANNOTATION_TAIL_SEGMENTS}
+            />
+            {/* Fits inside the chiclet column for every annotation in the atlas
+                (widest is 27 chars against a 165px column), so it names the
+                target without pushing the title back out. A link because the
+                target can be a long way up the reader — the atlas orders the
+                supporting `0` directory after every real sibling (compose.py's
+                sort key), so A.2.8's annotations sit 253 rows below it. The
+                row's own click handlers bail on `closest("a")`, so following it
+                doesn't also select or toggle the row. Primary click goes
+                through context navigate() (keeps ?view= / optimistic
+                selection); AtlasLink's href is for middle-click / copy —
+                AtlasLink only folds split/subset, not the active tab. */}
+            {annotatesId ? (
+              <AtlasLink
+                to={atlasHref(annotatesId)}
+                className="atlas-annotates"
+                onClick={(e) => {
+                  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.button !== 0) return;
+                  e.preventDefault();
+                  navigate(annotatesId);
+                }}
+              >
+                Annotates {annotates}
+              </AtlasLink>
+            ) : (
+              <span className="atlas-annotates">Annotates {annotates}</span>
+            )}
+          </span>
+        ) : (
+          <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
+        )}
         {showExpandAll ? (
           <button
             ref={expandAllRef}
@@ -384,11 +441,11 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           >
             »
           </button>
-        ) : (
+        ) : reserveChevron ? (
           <span className="atlas-node-toggle" style={{ visibility: "hidden" }} aria-hidden="true">
             {"»"}
           </span>
-        )}
+        ) : null}
         {isPreview && <PreviewMark nodeId={node.id} className="text-lg" />}
         {/* Shift-click works anywhere on the row, but marking the whole row put
             the hint up while crossing the chiclets, the pendulum chevron and
@@ -445,10 +502,13 @@ export const CollapsibleNode = memo(function CollapsibleNode({
               no pill. */}
           <div
             className="shrink-0 pl-3"
-            style={{ width: TITLE_TEXT_OFFSET + CHICLET_W * docNoParts.length, marginTop: 4.5 }}
+            style={{ width: titleTextOffset + CHICLET_W * docNoParts.length, marginTop: 4.5 }}
           >
             {agentName && (
-              <span className="atlas-agent-pill" style={{ maxWidth: CHICLET_W * docNoParts.length + CHEVRON_W }}>
+              <span
+                className="atlas-agent-pill"
+                style={{ maxWidth: CHICLET_W * docNoParts.length + (reserveChevron ? CHEVRON_W : 0) }}
+              >
                 {agentName}
               </span>
             )}

@@ -114,4 +114,16 @@ describe("featuresData", () => {
     expect(text).not.toContain("OEA Assessment;");
     expect(Object.values(REPORT_TITLES)).toContain("OEA Task Assessment");
   });
+
+  it("lists Chat as a current capability, not a planned one", () => {
+    expect(FEATURE_GROUPS.some((g) => g.key === "upcoming")).toBe(false);
+    const chat = FEATURE_GROUPS.find((g) => g.key === "chat");
+    expect(chat, "chat group").toBeTruthy();
+    const prose = [
+      chat!.title,
+      chat!.blurb,
+      ...chat!.features.flatMap((f) => [f.name, f.what, ...f.how, f.note ?? ""]),
+    ].join("\n");
+    expect(prose).not.toMatch(/upcoming|not yet|will require|planned features/i);
+  });
 });

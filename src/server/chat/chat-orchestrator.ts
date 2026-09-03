@@ -216,6 +216,20 @@ function identifiersMeta(i: IdentifierRepair) {
 // diagnostic text and still retrieved nothing.
 const EMPTY_RESULT_CHARS = 200;
 
+// Unsupported claims that may buy the costliest recovery there is. Reference-
+// grounded ones are excluded: they are descriptive prose restating context
+// RedLens injected for this turn (the product guide, glossary rows, entity
+// rows, censuses), where summarising IS the intended use — so `unsupported`
+// there says the paraphrase drifted from the wording, not that the answer is
+// ungrounded. Letting them through is what rewrote a correct orientation
+// answer: three demoted product claims ("Radar is at /radar") hit the trigger
+// exactly and the advisor deleted whole correct sections. This is the
+// per-claim form of the `prefetchOnly` suppression below, which only fires
+// when the turn has NO other evidence — one orientation search that returned
+// anything used to re-arm the rewrite.
+export const claimsDrivingEscalation = (verdict: Verdict | null): number =>
+  (verdict?.claims ?? []).filter((c) => c.status === "unsupported" && !c.reference).length;
+
 /** Atlas/external tool payload that actually retrieved something to cite. */
 function isSubstantiveEvidence(e: { sourceClass?: string; content: string }): boolean {
   if (e.sourceClass === "reference") return false;
@@ -635,7 +649,7 @@ export async function* runVerifiedChat(opts: {
   // mildest signal buying the costliest response. `warn` now escalates on its
   // own only once enough claims are unsupported that the answer is substantially
   // ungrounded rather than imprecise in one spot.
-  const unsupportedClaims = (verdict?.claims ?? []).filter((c) => c.status === "unsupported").length;
+  const unsupportedClaims = claimsDrivingEscalation(verdict);
   const troubled =
     overall === "fail" ||
     (overall === "warn" && unsupportedClaims >= config.chatAdvisorTriggerUnsupportedClaims) ||

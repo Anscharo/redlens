@@ -48,11 +48,16 @@ describe("NavBar", () => {
     expect(screen.queryByRole("link", { name: "Reports" })).toBeNull();
   });
 
-  it("renders the feedback button as the first child of the link row, with an accessible name", () => {
+  it("places feedback then colour scheme after the page links, not in front of them", () => {
     render(<NavBar activePage="atlas" />, { wrapper: wrap() });
     const row = screen.getByRole("link", { name: "Reader" }).parentElement!;
-    expect(row.firstElementChild).toHaveAccessibleName("Send feedback");
-    expect(row.firstElementChild?.tagName).toBe("BUTTON");
+    const kids = Array.from(row.children);
+    expect(kids[0]).toHaveTextContent("Reader");
+    expect(kids[1]).toHaveTextContent("Radar");
+    expect(kids[2]).toHaveTextContent("Reports");
+    expect(kids[3]).toHaveAccessibleName("Send feedback");
+    expect(screen.getByRole("button", { name: "Send feedback" })).toBe(kids[3]);
+    expect(screen.getByRole("button", { name: "Colour scheme" })).toBe(kids[4].querySelector("button"));
   });
 
   it("still renders the feedback button in preview mode (unlike Reports)", () => {
@@ -60,5 +65,13 @@ describe("NavBar", () => {
       wrapper: wrap({ base: "/api/preview/abc/", preview: { id: "abc", sha: "deadbeef" } }),
     });
     expect(screen.getByRole("button", { name: "Send feedback" })).toBeInTheDocument();
+  });
+
+  it("still renders the colour-scheme button in preview mode", () => {
+    render(<NavBar activePage="atlas" />, {
+      wrapper: wrap({ base: "/api/preview/abc/", preview: { id: "abc", sha: "deadbeef" } }),
+    });
+    expect(screen.getByRole("button", { name: "Colour scheme" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Reports" })).toBeNull();
   });
 });
