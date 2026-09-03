@@ -45,7 +45,7 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
             its category color (colors mean category on this chart) and is
             marked by stripes instead of a "loss" hue. */}
         <defs>
-          {(["sky", "kept", "demand"] as const).map((k) => (
+          {(["cof", "sde", "kept", "demand"] as const).map((k) => (
             <pattern
               key={k}
               id={`msc-ring-neg-${k}`}
@@ -54,7 +54,7 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
               height={6}
               patternTransform="rotate(45)"
             >
-              <rect width={3.5} height={6} style={{ fill: `var(--msc-${k})` }} />
+              <rect width={3.5} height={6} style={{ fill: `var(--msc-${k === "cof" ? "sky" : k})` }} />
             </pattern>
           ))}
         </defs>
@@ -97,7 +97,7 @@ function PillHoverStyles({ primes }: { primes: MscRingPrime[] }) {
   const css = primes
     .flatMap((p) => {
       const kinds = [...p.ring.segments.map((s) => s.kind as string), "share", "gross"];
-      if (p.ring.arrow) kinds.push(p.ring.arrow.kind);
+      for (const b of p.ring.arrow?.bands ?? []) kinds.push(b.kind);
       const rules = kinds.map((k) => {
         const id = markId(p.flow.prime, k);
         return `.msc-ring:has(.msc-ring-mark[data-mark="${id}"]:hover) .msc-ring-pill[data-mark="${id}"] { opacity: 1; }`;

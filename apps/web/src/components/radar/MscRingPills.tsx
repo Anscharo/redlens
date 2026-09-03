@@ -14,6 +14,8 @@ export const markId = (prime: string, kind: string): string => `${prime}::${kind
  *  more than it made that month) and is shown as such. */
 export const formatShare = (share: number): string => `${Math.round(share * 100)}%`;
 
+const COMPONENT: Record<string, string> = { cof: "cost of funds", sde: "Sky Direct Exposure" };
+
 /** Pill text names what it is, not just the number — a bare "$2.6M" says
  *  nothing about which flow it belongs to. */
 export function pillText(kind: string, signed: number, primeLabel: string, share?: number | null): string {
@@ -23,6 +25,7 @@ export function pillText(kind: string, signed: number, primeLabel: string, share
       ? `${amount} to Sky — ${formatShare(share)} of ${primeLabel}'s gross revenue*`
       : `${amount} to Sky`;
   }
+  if (kind in COMPONENT) return `${amount} ${COMPONENT[kind]} to Sky`;
   if (kind === "share") return `${amount} to Sky from ${primeLabel}`;
   if (kind === "gross") return `${amount} gross revenue* of ${primeLabel}`;
   if (kind === "kept") {
@@ -34,6 +37,8 @@ export function pillText(kind: string, signed: number, primeLabel: string, share
 interface PillProps {
   mark: string;
   text: string;
+  /** Optional second line (the arrow total + share under a band's own figure). */
+  detail?: string;
   /** Where the pill sits. */
   x: number;
   y: number;
@@ -44,17 +49,22 @@ interface PillProps {
 
 /** One hover pill: a leader from the mark it names out to the pill itself,
  *  which sits clear of the shape so it never covers it or the prime's name. */
-export function AmountPill({ mark, text, x, y, toX, toY }: PillProps) {
-  const w = textWidth(text, PILL_FONT, 7.3) + 20;
-  const h = 22;
+export function AmountPill({ mark, text, detail, x, y, toX, toY }: PillProps) {
+  const w = Math.max(textWidth(text, PILL_FONT, 7.3), detail ? textWidth(detail, PILL_FONT, 7.3) : 0) + 20;
+  const h = detail ? 38 : 22;
   return (
     <g className="msc-ring-pill" data-mark={mark} aria-hidden="true">
       <path d={`M${toX},${toY} L${x},${y}`} className="msc-ring-pill-leader" />
       <circle cx={toX} cy={toY} r={2.5} className="msc-ring-pill-anchor" />
-      <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={h / 2} />
-      <text x={x} y={y + 4} textAnchor="middle" fontSize={12} className="mono">
+      <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={11} />
+      <text x={x} y={detail ? y - 4 : y + 4} textAnchor="middle" fontSize={12} className="mono">
         {text}
       </text>
+      {detail && (
+        <text x={x} y={y + 12} textAnchor="middle" fontSize={12} className="mono msc-ring-pill-detail">
+          {detail}
+        </text>
+      )}
     </g>
   );
 }
@@ -103,16 +113,18 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
               toY={s.amountY}
             />
           ))}
-          {ring.arrow && (
+          {ring.arrow?.bands.map((b) => (
             <AmountPill
-              mark={markId(ring.prime, ring.arrow.kind)}
-              text={pillText(ring.arrow.kind, ring.arrow.signed, label, ring.arrow.share)}
-              x={ring.arrow.pillX}
-              y={ring.arrow.pillY}
-              toX={ring.arrow.amountX}
-              toY={ring.arrow.amountY}
+              key={b.kind}
+              mark={markId(ring.prime, b.kind)}
+              text={pillText(b.kind, b.signed, label)}
+              detail={pillText("sky", ring.arrow!.signed, label, ring.arrow!.share)}
+              x={b.pillX}
+              y={b.pillY}
+              toX={b.amountX}
+              toY={b.amountY}
             />
-          )}
+          ))}
         </g>
       ))}
     </g>

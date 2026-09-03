@@ -20,9 +20,12 @@
 //   i.e. everything its book generated before cost of funds — the
 //   workbook's prime_agent_total_revenue plus Sky Direct Exposure) on a
 //   shared scale, floored to whatever its bar and name need.
-// - The ARROW: width linear in the To-Sky amount; its hover carries the
-//   share, To-Sky ÷ gross revenue. A Prime that pays Sky nothing (Keel,
-//   Skybase) has no arrow and no wedge.
+// - The ARROW: width linear in the To-Sky amount, split lengthwise into
+//   its two components — cost of funds (interest the Prime owes Sky) and
+//   Sky Direct Exposure (Sky's own income passing through the Prime's
+//   venues) — each band's width its share of the total. Hovers carry the
+//   component, the total and the share, To-Sky ÷ gross revenue. A Prime
+//   that pays Sky nothing (Keel, Skybase) has no arrow and no wedge.
 //
 // Placement: each contributing Prime sits at ITS OWN WEDGE's mid-angle, so
 // its arrow runs straight in and never crosses the donut; non-contributors
@@ -100,20 +103,34 @@ export interface RingSegment {
   pillY: number;
 }
 
+/** One lengthwise band of the To-Sky arrow: cost of funds or Sky Direct
+ *  Exposure, its width the component's share of the arrow. */
+export interface RingArrowBand {
+  kind: "cof" | "sde";
+  /** Magnitude; the sign lives in `signed` (negative → striped fill). */
+  value: number;
+  signed: number;
+  path: string;
+  /** Where the pill's leader touches the band (its midpoint). */
+  amountX: number;
+  amountY: number;
+  /** Pill on this band's own side of the arrow. */
+  pillX: number;
+  pillY: number;
+}
+
 export interface RingArrow {
   kind: "sky";
-  /** Magnitude; the sign lives in `signed` (negative → striped fill). */
+  /** Magnitude of the whole arrow (cof + sde); sign in `signed`. */
   value: number;
   signed: number;
   /** To-Sky ÷ gross revenue (To-Sky + kept + demand). Null when the
    *  denominator isn't positive. */
   share: number | null;
+  /** The whole arrow's outline (both bands together). */
   path: string;
-  /** Where the pill's leader touches the arrow (its midpoint). */
-  amountX: number;
-  amountY: number;
-  pillX: number;
-  pillY: number;
+  /** Its components, in draw order; a single band when one is ~0. */
+  bands: RingArrowBand[];
 }
 
 /** One prime's share of the Sky donut. The wedges together ARE the donut,
@@ -187,8 +204,12 @@ function annulusPath(cx: number, cy: number, rOut: number, rIn: number, a0: numb
   );
 }
 
-/** Filled arrow of shaft width w from (x0,y0) to a tip at (x1,y1). */
-function arrowPath(x0: number, y0: number, x1: number, y1: number, w: number): string {
+/** A lengthwise band of a filled arrow of shaft width w from (x0,y0) to a
+ *  tip at (x1,y1): the strip between perpendicular offsets o0 and o1
+ *  (−w/2 … w/2). The head is split by straight lines from its flared
+ *  corners to the tip, so bands share the tip and tile the whole arrow.
+ *  (−w/2, w/2) is the entire arrow. */
+function arrowBand(x0: number, y0: number, x1: number, y1: number, w: number, o0: number, o1: number): string {
   const dx = x1 - x0;
   const dy = y1 - y0;
   const len = Math.hypot(dx, dy) || 1;
@@ -199,11 +220,11 @@ function arrowPath(x0: number, y0: number, x1: number, y1: number, w: number): s
   const hl = Math.min(HEAD_LEN, len / 2);
   const bx = x1 - ux * hl;
   const by = y1 - uy * hl;
-  const s = w / 2;
-  const f = s + HEAD_FLARE;
+  const s = w / 2 || 1;
+  const k = (s + HEAD_FLARE) / s; // flare factor at the head's base
   return (
-    `M${x0 + nx * s},${y0 + ny * s} L${bx + nx * s},${by + ny * s} L${bx + nx * f},${by + ny * f} ` +
-    `L${x1},${y1} L${bx - nx * f},${by - ny * f} L${bx - nx * s},${by - ny * s} L${x0 - nx * s},${y0 - ny * s} Z`
+    `M${x0 + nx * o0},${y0 + ny * o0} L${bx + nx * o0},${by + ny * o0} L${bx + nx * o0 * k},${by + ny * o0 * k} ` +
+    `L${x1},${y1} L${bx + nx * o1 * k},${by + ny * o1 * k} L${bx + nx * o1},${by + ny * o1} L${x0 + nx * o1},${y0 + ny * o1} Z`
   );
 }
 
@@ -439,19 +460,46 @@ export function layoutMscRing(
       const uy = dy / len;
       const x0 = plateX + ux * (s.plateR + 2);
       const y0 = plateY + uy * (s.plateR + 2);
-      const amountX = (x0 + x1) / 2;
-      const amountY = (y0 + y1) / 2;
+      const w = widthOf(Math.abs(r.sky));
+      // Bands tile the arrow lengthwise: cost of funds on one side, Sky
+      // Direct Exposure on the other, widths by share of |cof| + |sde|.
+      const parts = (
+        [
+          { kind: "cof" as const, signed: r.p.cof },
+          { kind: "sde" as const, signed: r.p.sde },
+        ] as const
+      ).filter((b) => Math.abs(b.signed) >= SETTLEMENT_NEAR_ZERO);
+      const partTotal = parts.reduce((n, b) => n + Math.abs(b.signed), 0) || 1;
+      let o = -w / 2;
+      const bands: RingArrowBand[] = parts.map((b, i) => {
+        const bw = (Math.abs(b.signed) / partTotal) * w;
+        const o0 = o;
+        const o1 = i === parts.length - 1 ? w / 2 : o + bw;
+        o = o1;
+        const mid = (o0 + o1) / 2;
+        const amountX = (x0 + x1) / 2 - uy * mid;
+        const amountY = (y0 + y1) / 2 + ux * mid;
+        // Each band's pill goes off ITS side of the arrow (the first band
+        // is the "negative offset" side), so the two never share a spot.
+        const side = i === 0 ? -1 : 1;
+        return {
+          kind: b.kind,
+          value: Math.abs(b.signed),
+          signed: b.signed,
+          path: arrowBand(x0, y0, x1, y1, w, o0, o1),
+          amountX,
+          amountY,
+          pillX: amountX - uy * side * PILL_OFFSET,
+          pillY: amountY + ux * side * PILL_OFFSET,
+        };
+      });
       arrow = {
         kind: "sky",
         value: Math.abs(r.sky),
         signed: r.sky,
         share: r.gross >= SETTLEMENT_NEAR_ZERO ? r.sky / r.gross : null,
-        path: arrowPath(x0, y0, x1, y1, widthOf(Math.abs(r.sky))),
-        amountX,
-        amountY,
-        // Off to the side of the arrow (perpendicular), never on top of it.
-        pillX: amountX - uy * PILL_OFFSET,
-        pillY: amountY + ux * PILL_OFFSET,
+        path: arrowBand(x0, y0, x1, y1, w, -w / 2, w / 2),
+        bands,
       };
     }
 

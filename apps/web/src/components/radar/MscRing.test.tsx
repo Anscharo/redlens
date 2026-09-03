@@ -71,7 +71,7 @@ describe("MscRing", () => {
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     expect(
       screen.getByRole("link", {
-        name: "Spark, Jul 2026: $10.00M to Sky (74% of its gross revenue), $2.00M supply kept, $1.50M demand-side. Open settlement page.",
+        name: "Spark, Jul 2026: $10.00M to Sky (74% of its gross revenue) — $9.90M cost of funds, $100k Sky Direct Exposure; $2.00M supply kept, $1.50M demand-side. Open settlement page.",
       }),
     ).toBeInTheDocument();
   });
@@ -80,21 +80,35 @@ describe("MscRing", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     // 10M ÷ (10M + 2M + 1.5M) = 74%
-    expect(screen.getByText("$10.00M to Sky — 74% of Spark's gross revenue*")).toBeInTheDocument();
+    // The arrow is two bands; each band's pill names its component and
+    // carries the total + share as a second line.
+    expect(screen.getByText("$9.90M cost of funds to Sky")).toBeInTheDocument();
+    expect(screen.getByText("$100k Sky Direct Exposure to Sky")).toBeInTheDocument();
+    expect(screen.getAllByText("$10.00M to Sky — 74% of Spark's gross revenue*")).toHaveLength(2);
     expect(screen.getByText("$13.50M gross revenue* of Spark")).toBeInTheDocument();
     expect(screen.getByText("$2.00M supply kept by Spark")).toBeInTheDocument();
     expect(screen.getByText("$1.50M demand-side to Spark")).toBeInTheDocument();
   });
 
-  it("fills a negative To-Sky arrow with its category's stripe pattern, not a loss color", () => {
-    const { layout, primes } = ringPrimes([flow({ prime: "osero", sky: -497, kept: 107, demand: 12_000 })], "2026-07");
+  it("fills a negative To-Sky band with its component's stripe pattern, not a loss color", () => {
+    const { layout, primes } = ringPrimes(
+      [flow({ prime: "osero", sky: -497, cof: -497, sde: 0, kept: 107, demand: 12_000 })],
+      "2026-07",
+    );
     const { container } = render(
       <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="-$497" />,
     );
-    expect(container.querySelector('path[fill="url(#msc-ring-neg-sky)"]')).toBeInTheDocument();
-    expect(container.querySelector("defs pattern#msc-ring-neg-sky")).toBeInTheDocument();
-    // The solid sky class is reserved for positive flows.
-    expect(container.querySelector(".msc-ring-sky")).not.toBeInTheDocument();
+    expect(container.querySelector('path[fill="url(#msc-ring-neg-cof)"]')).toBeInTheDocument();
+    expect(container.querySelector("defs pattern#msc-ring-neg-cof")).toBeInTheDocument();
+    // The solid class is reserved for positive flows.
+    expect(container.querySelector(".msc-ring-cof")).not.toBeInTheDocument();
+  });
+
+  it("colors the two arrow bands by component: cost of funds blue, Sky Direct Exposure cyan", () => {
+    const { layout, primes } = ringPrimes([flow()], "2026-07");
+    const { container } = render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
+    expect(container.querySelector('.msc-ring-mark[data-mark="spark::cof"] path.msc-ring-cof')).toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-mark[data-mark="spark::sde"] path.msc-ring-sde')).toBeInTheDocument();
   });
 
   it("paints every pill in a top layer, after the last prime — SVG has no z-index", () => {

@@ -100,7 +100,8 @@
      collapsed to near-identical greens in the light theme. Each theme's trio
      is validated for adjacent-pair CVD separation and 3:1 surface contrast
      (dataviz validator, 2026-09-01). Loss stays --accent. */
-  --msc-sky: #6e8ee8; /* blue */
+  --msc-sky: #6e8ee8; /* blue — cost of funds (bleu) */
+  --msc-sde: #4fc4d9; /* cyan — Sky Direct Exposure (azzurro), the other To-Sky band */
   --msc-kept: #55a653; /* green */
   --msc-demand: #de78c2; /* magenta — amber failed protan vs the green */
   /* MSC prime identity colors (timeseries layers + ring bands). Deliberately
@@ -262,6 +263,7 @@
 
   /* MSC settlement series — see the :root block note. */
   --msc-sky: #2f5fd0; /* blue */
+  --msc-sde: #0e7c9a; /* cyan */
   --msc-kept: #0f7233; /* green */
   --msc-demand: #a21caf; /* magenta-purple */
   --msc-prime-1: #c25e00; /* orange */
@@ -549,6 +551,7 @@
   /* MSC settlement series — hue is gone in this theme, so the trio is three
      well-separated lightness steps (ΔE ≥ 18 adjacent, ≥ 3:1 on --bg). */
   --msc-sky: #d4d6d1;
+  --msc-sde: #b2b6b0;
   --msc-kept: #8f948c;
   --msc-demand: #666a60;
   /* Greyscale prime identities: alternating lightness steps so adjacent
@@ -2684,7 +2687,7 @@ button.atlas-node-expand-all:focus-visible {
 /* Hovering the selected month's To-Sky line point lights every To-Sky
    ribbon on the ring — they are the same flow (the ribbons sum to the
    line's value for that month). */
-.msc-overview-row:has(.msc-ts-dot[data-selected="true"]:hover) .msc-ring-prime path.msc-ring-sky {
+.msc-overview-row:has(.msc-ts-dot[data-selected="true"]:hover) .msc-ring-prime :is(.msc-ring-cof, .msc-ring-sde) {
   opacity: 1;
 }
 .msc-bar-col:hover .msc-ts-track,
@@ -2739,17 +2742,22 @@ a:focus-visible > .msc-ring-prime .msc-ring-plate {
   stroke-linecap: round;
 }
 /* Hovering a key row lights up everything it describes: bar segments, the
-   arrows, and Sky's own wedges. */
-.msc-ring-card:has(.msc-key-item[data-key="sky"]:hover) .msc-ring-sky-wedge,
-.msc-ring-card:has(.msc-key-item[data-key="sky"]:hover) .msc-ring-prime .msc-ring-sky,
+   arrow bands, and Sky's own wedges. */
+.msc-ring-card:has(.msc-key-item[data-key="sky"]:hover) .msc-ring-prime .msc-ring-cof,
+.msc-ring-card:has(.msc-key-item[data-key="sde"]:hover) .msc-ring-prime .msc-ring-sde,
 .msc-ring-card:has(.msc-key-item[data-key="kept"]:hover) .msc-ring-prime .msc-ring-kept,
 .msc-ring-card:has(.msc-key-item[data-key="demand"]:hover) .msc-ring-prime .msc-ring-demand,
 .msc-ring-card:has(.msc-key-item[data-key="neg"]:hover) .msc-ring-prime [fill*="msc-ring-neg"] {
   opacity: 1;
   fill-opacity: 1;
 }
-.msc-ring-sky {
+/* The To-Sky arrow's two bands: cost of funds in Sky's blue, Sky Direct
+   Exposure in cyan. */
+.msc-ring-cof {
   fill: var(--msc-sky);
+}
+.msc-ring-sde {
+  fill: var(--msc-sde);
 }
 .msc-ring-kept {
   fill: var(--msc-kept);
@@ -2789,6 +2797,9 @@ a:focus-visible > .msc-ring-prime :is(path, rect, line, circle) {
 }
 .msc-ring-pill text {
   fill: var(--tan);
+}
+.msc-ring-pill .msc-ring-pill-detail {
+  fill: var(--tan-3);
 }
 /* Leader from the mark out to its pill, so a pill sitting clear of the shape
    still says which shape it belongs to. */

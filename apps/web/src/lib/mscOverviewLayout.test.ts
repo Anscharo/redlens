@@ -114,8 +114,8 @@ describe("layoutMscRing (orbital bars)", () => {
         expect(s.amountY).toBeLessThanOrEqual(s.y + s.h);
         expect(Math.abs(s.pillX - p.plateX)).toBeGreaterThan(p.plateR);
       }
-      if (p.arrow) {
-        expect(Math.hypot(p.arrow.pillX - p.arrow.amountX, p.arrow.pillY - p.arrow.amountY)).toBeGreaterThan(20);
+      for (const b of p.arrow?.bands ?? []) {
+        expect(Math.hypot(b.pillX - b.amountX, b.pillY - b.amountY)).toBeGreaterThan(20);
       }
     }
   });
@@ -141,8 +141,10 @@ describe("layoutMscRing (orbital bars)", () => {
         const toward = Math.atan2(p.plateY - layout.cy, p.plateX - layout.cx);
         const diff = Math.abs(((toward - wedge.mid + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
         expect(diff).toBeLessThan(Math.PI / 2);
-        // The arrow's hover anchor sits outside the donut.
-        expect(Math.hypot(p.arrow.amountX - layout.cx, p.arrow.amountY - layout.cy)).toBeGreaterThan(layout.skyR);
+        // Every band's hover anchor sits outside the donut.
+        for (const b of p.arrow.bands) {
+          expect(Math.hypot(b.amountX - layout.cx, b.amountY - layout.cy)).toBeGreaterThan(layout.skyR);
+        }
       }
     }
   });
@@ -216,6 +218,28 @@ describe("layoutMscRing (orbital bars)", () => {
     expect(layout.primes[0].arrow!.kind).toBe("sky");
   });
 
+  it("splits the arrow lengthwise into cost of funds and Sky Direct Exposure, widths by share", () => {
+    // Grove, Apr 2026: cof 2.95M, sde 6.40M.
+    const layout = layoutMscRing([flow({ prime: "grove", sky: 9_340_000, cof: 2_950_000, sde: 6_400_000 })]);
+    const arrow = layout.primes[0].arrow!;
+    expect(arrow.bands.map((b) => b.kind)).toEqual(["cof", "sde"]);
+    const [cof, sde] = arrow.bands;
+    expect(cof.value).toBe(2_950_000);
+    expect(sde.value).toBe(6_400_000);
+    // Both bands tile the whole arrow: their pills sit on opposite sides.
+    const d = Math.hypot(cof.pillX - sde.pillX, cof.pillY - sde.pillY);
+    expect(d).toBeGreaterThan(40);
+    for (const b of arrow.bands) {
+      expect(b.path).toMatch(/^M/);
+      expect(b.path).not.toMatch(/NaN/);
+    }
+  });
+
+  it("draws a single band when a component is ~0 (Obex has no Sky Direct Exposure)", () => {
+    const layout = layoutMscRing([flow({ prime: "obex", sky: 1_970_000, cof: 1_970_000, sde: 0 })]);
+    expect(layout.primes[0].arrow!.bands.map((b) => b.kind)).toEqual(["cof"]);
+  });
+
   it("keeps a demand-only prime as a bar with no arrow (Keel/Skybase)", () => {
     const layout = layoutMscRing([flow({ prime: "keel", sky: 0, kept: 0, demand: 280_000 })]);
     expect(layout.primes).toHaveLength(1);
@@ -230,7 +254,7 @@ describe("layoutMscRing (orbital bars)", () => {
       if (p.arrow) {
         expect(p.arrow.path).not.toMatch(/NaN/);
         expect(p.arrow.path).toMatch(/^M/);
-        expect(Number.isFinite(p.arrow.amountX)).toBe(true);
+        expect(p.arrow.bands.length).toBeGreaterThan(0);
       }
       expect(Number.isFinite(p.labelX)).toBe(true);
       expect(Number.isFinite(p.labelY)).toBe(true);

@@ -34,15 +34,17 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
           style={{ fill: bandColor, stroke: bandColor }}
         />
       </g>
-      {arrow && (
-        <g className="msc-ring-mark" data-mark={markId(flow.prime, arrow.kind)}>
+      {/* The To-Sky arrow, one band per component: cost of funds (blue) and
+          Sky Direct Exposure (cyan), each its own hover mark. */}
+      {arrow?.bands.map((b) => (
+        <g key={b.kind} className="msc-ring-mark" data-mark={markId(flow.prime, b.kind)}>
           <path
-            d={arrow.path}
-            className={arrow.signed < 0 ? "msc-ring-arrow" : "msc-ring-arrow msc-ring-sky"}
-            fill={arrow.signed < 0 ? `url(#msc-ring-neg-${arrow.kind})` : undefined}
+            d={b.path}
+            className={b.signed < 0 ? "msc-ring-arrow" : `msc-ring-arrow msc-ring-${b.kind}`}
+            fill={b.signed < 0 ? `url(#msc-ring-neg-${b.kind})` : undefined}
           />
         </g>
-      )}
+      ))}
       {/* Zero line in the prime's identity color — the bar's own axis. */}
       <line
         x1={ring.zeroX0}
@@ -74,7 +76,7 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
   return (
     <SvgRouteLink
       to={to}
-      label={`${label}, ${formatMonth(month)}: ${formatUsd(flow.sky, true)} to Sky${shareText}, ${formatUsd(flow.kept, true)} supply kept, ${formatUsd(flow.demand, true)} demand-side. Open settlement page.`}
+      label={`${label}, ${formatMonth(month)}: ${formatUsd(flow.sky, true)} to Sky${shareText} — ${formatUsd(flow.cof, true)} cost of funds, ${formatUsd(flow.sde, true)} Sky Direct Exposure; ${formatUsd(flow.kept, true)} supply kept, ${formatUsd(flow.demand, true)} demand-side. Open settlement page.`}
     >
       {group}
     </SvgRouteLink>
