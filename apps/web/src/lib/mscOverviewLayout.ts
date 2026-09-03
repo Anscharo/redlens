@@ -27,11 +27,12 @@
 //   pays Sky nothing (Keel, Skybase) has no arrow and no wedge.
 //
 // Placement: Primes go clockwise from 12 o'clock in the order given (the
-// caller passes PRIME_ORDER). Each contributing Prime sits at ITS OWN
-// WEDGE's mid-angle — wedges are laid out in that same order — so its arrow
-// runs straight in and never crosses the donut; a non-contributor sits
-// between its neighbours in the order; then a relaxation pass pushes
-// neighbours apart just far enough that their plates don't touch.
+// caller passes PRIME_ORDER), EVENLY spaced around Sky; a relaxation pass
+// then pushes neighbours apart only where their plates would still touch.
+// Wedges are laid out in that same order, so a Prime's own wedge is always
+// on its side of the donut, and its arrow docks at the nearest point of
+// that wedge — straight in when the wedge is under it, a slight lean when
+// the wedge is wider or narrower than the Prime's even slot.
 
 import { SETTLEMENT_NEAR_ZERO } from "@/lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
@@ -62,7 +63,7 @@ const PLATE_MIN_R = 40;
  *  radius. The data scale is deliberately LARGE against the fixed-size
  *  chrome (bars, names, pills), so the content floors below bind only on
  *  the tiniest Primes. */
-const R_MAX = 200;
+const R_MAX = 160;
 /** Minimum clearance between two plates (including an outside name). */
 const CLEARANCE = 22;
 /** Minimum gap between a plate and the donut — room for the arrow. */
@@ -82,6 +83,9 @@ const HEAD_FLARE = 7;
 const MIN_WEDGE = 0.05;
 /** Keep a dock point this far (radians) inside its wedge's edges. */
 const DOCK_INSET = 0.04;
+/** How far (radians) a Prime may sit from its own wedge before its slot is
+ *  pulled toward it — beyond this the arrow would cross the donut. */
+const MAX_LEAN = Math.PI / 3;
 /** Leader length from an arrow to its hover pill. */
 const PILL_OFFSET = 40;
 /** A segment pill sits this far to the side of its bar's center line. */
@@ -119,6 +123,8 @@ export interface RingArrow {
   /** To-Sky ÷ gross revenue (To-Sky + kept + demand). Null when the
    *  denominator isn't positive. */
   share: number | null;
+  /** Angle (radians) where the tip meets the donut — inside its own wedge. */
+  dock: number;
   path: string;
   /** Where the pill's leader touches the arrow (its midpoint). */
   amountX: number;
@@ -132,7 +138,9 @@ export interface RingArrow {
 export interface RingSkyWedge {
   prime: string;
   path: string;
-  /** Mid-angle of the wedge. */
+  /** Angular extent (radians) and its middle. */
+  a0: number;
+  a1: number;
   mid: number;
   value: number;
 }
@@ -325,44 +333,28 @@ export function layoutMscRing(
     return {
       prime: x.r.p.prime,
       path: annulusPath(CX, cy, skyR, skyInnerR, a0, a1),
+      a0,
+      a1,
       mid: (a0 + a1) / 2,
       value: Math.abs(x.r.sky),
     };
   });
 
-  // Target angles, keeping the rows' order clockwise: a contributor sits at
-  // its own wedge's middle; a run of non-contributors between two
-  // contributors is spread evenly across the clockwise arc between them.
-  // With no contributors at all, even spacing from 12 o'clock.
-  const angles: number[] = new Array(rows.length).fill(NaN);
-  for (const w of skyWedges) angles[rows.findIndex((r) => r.p.prime === w.prime)] = w.mid;
-  if (contributors.length === 0) {
-    rows.forEach((_, i) => (angles[i] = -Math.PI / 2 + (i * TWO_PI) / rows.length));
-  } else {
-    const n = rows.length;
-    for (let i = 0; i < n; i++) {
-      if (!Number.isNaN(angles[i])) continue;
-      // Nearest contributor before (cyclic) and after in row order.
-      let before = i;
-      let steps = 0;
-      do {
-        before = (before - 1 + n) % n;
-        steps++;
-      } while (Number.isNaN(angles[before]));
-      let after = i;
-      let span = 0;
-      do {
-        after = (after + 1) % n;
-        span++;
-      } while (Number.isNaN(angles[after]));
-      const a0 = angles[before];
-      let a1 = angles[after];
-      if (contributors.length === 1) a1 = a0 + TWO_PI;
-      else if (a1 <= a0) a1 += TWO_PI;
-      angles[i] = a0 + ((a1 - a0) * steps) / (steps + span);
-    }
+  // Target angles: even slots clockwise from 12 o'clock, in row order. A
+  // contributor whose slot is more than MAX_LEAN from its own wedge is
+  // pulled to MAX_LEAN of the wedge's nearest edge, so its arrow can still
+  // reach the wedge without cutting across the donut. The relaxation below
+  // then moves Primes off their slots only where plates collide.
+  const angles: number[] = rows.map((_, i) => norm(-Math.PI / 2 + (i * TWO_PI) / rows.length));
+  for (const [i, r] of rows.entries()) {
+    const range = wedgeRange.get(r.p.prime);
+    if (!range) continue;
+    const [a0, a1] = range;
+    const mid = (a0 + a1) / 2;
+    const half = (a1 - a0) / 2;
+    const off = angDiff(mid, angles[i]);
+    if (Math.abs(off) > half + MAX_LEAN) angles[i] = norm(mid + Math.sign(off) * (half + MAX_LEAN));
   }
-  for (let i = 0; i < rows.length; i++) angles[i] = norm(angles[i]);
 
   // Where prime i's zero point and plate land at orbit angle t. The plate
   // is offset from the zero point (gains pull it up, a long name pulls it
@@ -481,6 +473,7 @@ export function layoutMscRing(
         cof: r.p.cof,
         sde: r.p.sde,
         share: r.gross >= SETTLEMENT_NEAR_ZERO ? r.sky / r.gross : null,
+        dock,
         path: arrowPath(x0, y0, x1, y1, widthOf(Math.abs(r.sky))),
         amountX,
         amountY,

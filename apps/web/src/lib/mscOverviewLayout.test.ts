@@ -96,11 +96,10 @@ describe("layoutMscRing (orbital bars)", () => {
     expect(layout.skyWedges.map((w) => w.prime)).toEqual(["grove", "spark"]);
     const [grove, spark] = layout.skyWedges;
     expect(grove.value / (grove.value + spark.value)).toBeCloseTo(8 / 14, 2);
-    // Each contributor sits at its own wedge's angle (unless pushed to
-    // clear a neighbour), so its arrow runs straight in.
+    // Each contributor's arrow docks inside its own wedge.
     const groveRing = layout.primes.find((p) => p.prime === "grove")!;
-    expect(Math.abs(Math.cos(grove.mid) - Math.cos(groveRing.angle))).toBeLessThan(0.3);
-    expect(Math.abs(Math.sin(grove.mid) - Math.sin(groveRing.angle))).toBeLessThan(0.3);
+    expect(groveRing.arrow!.dock).toBeGreaterThanOrEqual(grove.a0);
+    expect(groveRing.arrow!.dock).toBeLessThanOrEqual(grove.a1);
     expect(layout.skyInnerR).toBeLessThan(layout.skyR);
   });
 
@@ -132,14 +131,16 @@ describe("layoutMscRing (orbital bars)", () => {
     expect(keel.segments[0].h).toBeGreaterThan(10);
   });
 
-  it("puts every prime at its own wedge, so no arrow has to cross the donut", () => {
+  it("docks every arrow at the nearest point of its own wedge, so none has to cross the donut", () => {
     for (const month of [JULY, APRIL]) {
       const layout = layoutMscRing(month);
       for (const p of layout.primes) {
         if (!p.arrow) continue;
         const wedge = layout.skyWedges.find((w) => w.prime === p.prime)!;
+        expect(p.arrow.dock).toBeGreaterThanOrEqual(wedge.a0);
+        expect(p.arrow.dock).toBeLessThanOrEqual(wedge.a1);
         const toward = Math.atan2(p.plateY - layout.cy, p.plateX - layout.cx);
-        const diff = Math.abs(((toward - wedge.mid + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+        const diff = Math.abs(((toward - p.arrow.dock + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
         expect(diff).toBeLessThan(Math.PI / 2);
         // The arrow's hover anchor sits outside the donut.
         expect(Math.hypot(p.arrow.amountX - layout.cx, p.arrow.amountY - layout.cy)).toBeGreaterThan(layout.skyR);
@@ -155,7 +156,7 @@ describe("layoutMscRing (orbital bars)", () => {
     expect(grove.gross).toBeCloseTo(9_340_000 + 3_590_000 + 187_000, 0);
     // The To-Sky total (20.61M) is the month's biggest amount, so it takes
     // the max radius and every plate is scaled against it.
-    expect(layout.skyR).toBe(200);
+    expect(layout.skyR).toBe(160);
     expect(grove.plateR / layout.skyR).toBeCloseTo(Math.sqrt(13_117_000 / 20_610_000), 2);
     expect(spark.plateR / layout.skyR).toBeCloseTo(Math.sqrt(12_190_000 / 20_610_000), 2);
     expect(layout.skyInnerR).toBeLessThan(layout.skyR);
@@ -177,8 +178,8 @@ describe("layoutMscRing (orbital bars)", () => {
 
   it("lets a Prime outrank the donut when it earns more than Sky takes", () => {
     const layout = layoutMscRing([flow({ sky: 1_000_000, kept: 8_000_000, demand: 1_000_000 })]);
-    expect(layout.primes[0].plateR).toBe(200);
-    expect(layout.skyR).toBeLessThan(200);
+    expect(layout.primes[0].plateR).toBe(160);
+    expect(layout.skyR).toBeLessThan(160);
     expect(layout.skyR).toBeGreaterThanOrEqual(80);
   });
 
@@ -241,7 +242,7 @@ describe("layoutMscRing (orbital bars)", () => {
     expect(arrow.sde).toBe(6_400_000);
   });
 
-  it("keeps the primes in the order given, clockwise from 12 o'clock, non-contributors between their neighbours", () => {
+  it("keeps the primes in the order given, evenly spaced clockwise from 12 o'clock", () => {
     // PRIME_ORDER as the caller passes it (Atlas doc order): spark, grove,
     // keel, skybase, obex, osero.
     const layout = layoutMscRing([
@@ -257,8 +258,10 @@ describe("layoutMscRing (orbital bars)", () => {
     // Clockwise (increasing angle from 12 o'clock) follows that order.
     const turns = layout.primes.map((p) => ((p.angle + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI));
     for (let i = 1; i < turns.length; i++) expect(turns[i]).toBeGreaterThan(turns[i - 1]);
-    // Spark, first, is at the top.
+    // Spark, first, is at the top; slots are even (60° apart for six)
+    // unless a collision pushed one.
     expect(turns[0]).toBeLessThan(0.05);
+    for (let i = 1; i < turns.length; i++) expect(turns[i] - turns[i - 1]).toBeGreaterThan(Math.PI / 6);
   });
 
   it("keeps a demand-only prime as a bar with no arrow (Keel/Skybase)", () => {
