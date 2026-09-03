@@ -42,10 +42,28 @@ export function readinessProblems(health: HealthSnapshot, expectedCommit?: strin
   // "stale" is worker-heartbeat age (`synced_at` vs ATLAS_STALE_SECONDS), not a
   // bad snapshot. /api/health stays 200 so a stale tick never restart-loops a
   // live container; waiting cannot make an old heartbeat fresh. Accept it when
-  // the structural fields above already passed. Still wait/fail on syncing,
-  // stuck, schema_behind, degraded, or an unknown status.
+  // the structural fields above already passed.
+  //
+  // "syncing" with the two shas AGREEING is the same shape of non-problem. With
+  // liveSha === dbSha the only remaining path to that status is
+  // needsStoreHydrate (freshness.ts): this container has not yet pulled the
+  // published bundle out of atlas_artifacts. That is true of EVERY cold boot —
+  // storeHydratedSha starts null and is set only by the updater's first
+  // successful hydrate, whose first tick is scheduled a whole interval (30s)
+  // after boot and then backs off 30s → 60s → 120s → … per refusal, so a
+  // container that loses the race with the worker's publish is parked well past
+  // this gate's 120s budget. Nothing the suite exercises is affected: the shas
+  // match, the index is fully loaded, and /api/atlas/:sha/:name hydrates its
+  // bundle from the store on demand (atlas-static.ts). Waiting here only waits
+  // on the updater's own bookkeeping, and the timeout is a false red.
+  //
+  // "syncing" with the shas DIVERGED is a genuine wait — the app is serving an
+  // older atlas than the database — and stays blocking; the sha comparison
+  // above reports that case in its own right. Still wait/fail on stuck,
+  // schema_behind, degraded, or an unknown status.
   const status = health.status ?? "";
-  if (status !== "ok" && status !== "stale") {
+  const shasAgree = Boolean(health.atlas_sha && health.db_sha && health.atlas_sha === health.db_sha);
+  if (status !== "ok" && status !== "stale" && !(status === "syncing" && shasAgree)) {
     problems.push(`freshness status is ${String(health.status)}`);
   }
   if (expectedCommit) {

@@ -21,8 +21,24 @@ describe("readinessProblems", () => {
     expect(readinessProblems({ ...READY, status: "stale" }, "abcdef123456")).toEqual([]);
   });
 
-  it("still waits on syncing, stuck, schema_behind, and degraded", () => {
-    for (const status of ["syncing", "stuck", "schema_behind", "degraded", undefined]) {
+  // The cold-boot case that used to time out this gate for two minutes and
+  // report a false red: converged shas, full index, right commit — only the
+  // updater's first store hydrate outstanding. See readinessProblems' comment.
+  it("accepts a cold-boot store hydrate: syncing with the shas converged", () => {
+    expect(readinessProblems({ ...READY, status: "syncing" }, "abcdef123456")).toEqual([]);
+  });
+
+  it("still waits on syncing when the shas have actually diverged", () => {
+    expect(
+      readinessProblems({ ...READY, status: "syncing", db_sha: "newer-atlas-sha" }, "abcdef123456"),
+    ).toEqual([
+      "live Atlas SHA atlas-sha does not match database SHA newer-atlas-sha",
+      "freshness status is syncing",
+    ]);
+  });
+
+  it("still waits on stuck, schema_behind, degraded, and an unknown status", () => {
+    for (const status of ["stuck", "schema_behind", "degraded", undefined]) {
       expect(readinessProblems({ ...READY, status }, "abcdef123456")).toEqual([
         `freshness status is ${String(status)}`,
       ]);
@@ -72,7 +88,7 @@ describe("waitForDeployment", () => {
     let clock = 0;
     const fetchImpl = (async () => {
       calls++;
-      return new Response(JSON.stringify(calls === 1 ? { ...READY, status: "syncing" } : READY));
+      return new Response(JSON.stringify(calls === 1 ? { ...READY, status: "stuck" } : READY));
     }) as typeof fetch;
 
     const result = await waitForDeployment({
