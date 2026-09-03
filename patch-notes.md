@@ -34,7 +34,7 @@
 -->
 ## 2026-09-02
 - On-chain addresses now appear as a pill across documents, reports, and dashboards, showing the balance they hold in green with a hover for the name and full token holdings
-- A document's Annotations tab now lists every address it mentions, including ones named only by their chainlog key, each with its owner, roles, and balances
+- A document's Notes panel now lists every address it mentions, including ones named only by their chainlog key, each with its owner, roles, and balances
 
 ## 2026-08-27
 - Tinted Giedi Connect tool names gold and made reader document hover easier to see

@@ -37,8 +37,8 @@ export function AtlasAnnotations({
   byNameOnly?: Set<string>;
   glossaryTerms: GlossaryEntry[][];
   annotationCount: number;
-  tab: "annotations" | "glossary" | "history";
-  onTabChange: (v: "annotations" | "glossary" | "history") => void;
+  tab: "notes" | "glossary" | "history";
+  onTabChange: (v: "notes" | "glossary" | "history") => void;
   onNavigate: (id: string) => void;
   onNavigateByDocNo: (docNo: string) => void;
   selectable?: boolean;

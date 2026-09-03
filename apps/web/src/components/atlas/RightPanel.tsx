@@ -13,11 +13,22 @@ import { useDataSource } from "../../lib/dataSource";
 import { glide } from "../../lib/animatedScroll";
 import { track } from "../../lib/analytics";
 
-type RightTab = "annotations" | "glossary" | "history";
+type RightTab = "notes" | "glossary" | "history";
 
 const HIDE = new Set(["parent_of", "mentions", "proxies_to", "cites"]);
 
 const SECTION_HEAD = "text-sm mono text-tan-2 font-semibold tracking-wide";
+
+// A section's title bar: a pill-styled label anchored by a rule across the rest
+// of the width, marking the start of a panel section (notes / history / glossary).
+// The active section's bar stays highlighted so the selection is always clear.
+function SectionDivider({ label, active }: { label: string; active: boolean }) {
+  return (
+    <div className={`rl-section-divider${active ? " rl-section-divider--active" : ""}`}>
+      <span className="rl-section-label">{label}</span>
+    </div>
+  );
+}
 
 export function RightPanel({
   id,
@@ -110,13 +121,12 @@ export function RightPanel({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Record<RightTab, HTMLElement | null>>({
-    annotations: null,
+    notes: null,
     history: null,
     glossary: null,
   });
-  // Align the selected section to the top of the scroll area. Instant on the
-  // first render — a deep-linked ?view= shouldn't animate on load — then a glide
-  // on later pill clicks and doc changes.
+  // Bring a section to the top of the scroll area. The active section's divider
+  // stays highlighted (see SectionDivider), so no transient flash is needed.
   const scrollToSection = useCallback((view: RightTab, animate: boolean) => {
     const container = scrollRef.current;
     const section = sectionRefs.current[view];
@@ -126,26 +136,40 @@ export function RightPanel({
     if (animate) glide(container, target);
     else container.scrollTop = target;
   }, []);
+  // Reposition when the selected section changes: glide on a pill or ?view=
+  // change, a silent instant reposition on doc navigation, nothing extra on load.
   const mounted = useRef(false);
+  const prevTab = useRef(tab);
   useEffect(() => {
-    scrollToSection(tab, mounted.current);
+    const tabChanged = prevTab.current !== tab;
+    scrollToSection(tab, tabChanged && mounted.current);
+    prevTab.current = tab;
     mounted.current = true;
   }, [tab, id, scrollToSection]);
+  // Clicking a pill always brings its section to the top — even the already-active
+  // one, which wouldn't change `tab` and so wouldn't trigger the effect above.
+  const selectSection = useCallback(
+    (view: RightTab) => {
+      if (tab === view) scrollToSection(view, true);
+      onTabChange(view);
+    },
+    [tab, onTabChange, scrollToSection],
+  );
 
   return (
     <>
       <div
-        className="flex gap-1 border-b shrink-0"
-        style={{ borderColor: "var(--border)", padding: "8px 16px 0" }}
+        className="flex gap-2 border-b shrink-0"
+        style={{ borderColor: "var(--border)", padding: "10px 16px" }}
         role="tablist"
       >
-        <button role="tab" aria-selected={tab === "annotations"} onClick={() => onTabChange("annotations")} className="right-tab">
-          annotations{annotationCount > 0 && <span style={{ marginLeft: 4 }}>· {annotationCount}</span>}
+        <button role="tab" aria-selected={tab === "notes"} onClick={() => selectSection("notes")} className="right-pill">
+          notes{annotationCount > 0 && <span style={{ marginLeft: 4 }}>· {annotationCount}</span>}
         </button>
-        <button role="tab" aria-selected={tab === "history"} onClick={() => onTabChange("history")} className="right-tab">
+        <button role="tab" aria-selected={tab === "history"} onClick={() => selectSection("history")} className="right-pill">
           history
         </button>
-        <button role="tab" aria-selected={tab === "glossary"} onClick={() => onTabChange("glossary")} className="right-tab">
+        <button role="tab" aria-selected={tab === "glossary"} onClick={() => selectSection("glossary")} className="right-pill">
           glossary{glossaryTerms.length > 0 && <span style={{ marginLeft: 4 }}>· {glossaryTerms.length}</span>}
         </button>
       </div>
@@ -153,7 +177,8 @@ export function RightPanel({
       <div className="overflow-y-auto flex-1" ref={scrollRef}>
         <div className="px-4 py-5">
           {hasAnnotations && (
-            <section ref={(el) => { sectionRefs.current.annotations = el; }}>
+            <section className="rl-section" ref={(el) => { sectionRefs.current.notes = el; }}>
+              <SectionDivider label="notes" active={tab === "notes"} />
               {linkedNodes.length > 0 ? (
                 <section>
                   <p className={`${SECTION_HEAD} mb-4`}>linked documents · {linkedNodes.length}</p>
@@ -251,19 +276,15 @@ export function RightPanel({
             </section>
           )}
 
-          <section
-            ref={(el) => { sectionRefs.current.history = el; }}
-            className={hasAnnotations ? "mt-8 pt-5 border-t border-border" : ""}
-            data-testid="history-panel"
-          >
-            <p className={`${SECTION_HEAD} mb-3`}>history</p>
+          <section className="rl-section" ref={(el) => { sectionRefs.current.history = el; }} data-testid="history-panel">
+            <SectionDivider label="history" active={tab === "history"} />
             <ErrorBoundary resetKey={id} fallback={(error) => <InlineError error={error} />}>
               {preview ? <PreviewHistory nodeId={id} /> : <NodeHistory nodeId={id} />}
             </ErrorBoundary>
           </section>
 
-          <section ref={(el) => { sectionRefs.current.glossary = el; }} className="mt-8 pt-5 border-t border-border">
-            <p className={`${SECTION_HEAD} mb-3`}>glossary</p>
+          <section className="rl-section" ref={(el) => { sectionRefs.current.glossary = el; }}>
+            <SectionDivider label="glossary" active={tab === "glossary"} />
             {glossaryTerms.length === 0 ? (
               <p className="text-xs mono text-tan-3">No glossary terms in this section.</p>
             ) : (

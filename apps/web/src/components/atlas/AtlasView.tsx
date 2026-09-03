@@ -34,8 +34,8 @@ export function AtlasView({
 }: {
   id: string;
   onNavigate: (id: string) => void;
-  view: "annotations" | "glossary" | "history";
-  onViewChange: (v: "annotations" | "glossary" | "history") => void;
+  view: "notes" | "glossary" | "history";
+  onViewChange: (v: "notes" | "glossary" | "history") => void;
   splitId: string | null;
   onSplitChange: (id: string | null) => void;
   onOpenTree?: () => void;

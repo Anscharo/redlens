@@ -125,7 +125,7 @@ function baseProps(overrides: Partial<Parameters<typeof AtlasView>[0]> = {}) {
   return {
     id: "node-1",
     onNavigate: vi.fn(),
-    view: "annotations" as const,
+    view: "notes" as const,
     onViewChange: vi.fn(),
     splitId: null,
     onSplitChange: vi.fn(),

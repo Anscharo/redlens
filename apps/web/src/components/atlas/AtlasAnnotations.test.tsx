@@ -19,7 +19,7 @@ import { AtlasAnnotations } from "./AtlasAnnotations";
 const RIGHT_PANEL_KEY = "redline-sky-atlas:right-panel-width";
 const RIGHT_PANEL_DEFAULT = 520;
 
-type Tab = "annotations" | "glossary" | "history";
+type Tab = "notes" | "glossary" | "history";
 
 function setup(over: Partial<Parameters<typeof AtlasAnnotations>[0]> = {}) {
   const props = {
@@ -30,7 +30,7 @@ function setup(over: Partial<Parameters<typeof AtlasAnnotations>[0]> = {}) {
     chainValues: {},
     glossaryTerms: [],
     annotationCount: 0,
-    tab: "annotations" as Tab,
+    tab: "notes" as Tab,
     onTabChange: vi.fn(),
     onNavigate: vi.fn(),
     onNavigateByDocNo: vi.fn(),
@@ -72,6 +72,6 @@ describe("AtlasAnnotations width persistence", () => {
 
   it("mounts the RightPanel tablist inside the wrapper", () => {
     setup();
-    expect(screen.getByRole("tab", { name: /annotations/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /notes/ })).toBeInTheDocument();
   });
 });

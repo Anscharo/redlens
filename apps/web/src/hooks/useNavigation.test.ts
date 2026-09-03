@@ -41,12 +41,12 @@ describe("useNavigation", () => {
     expect(params.get("subset")).toBe("foo");
   });
 
-  it("handleViewChange tracks atlas_view_tab and omits view param for the default 'annotations' tab", async () => {
+  it("handleViewChange tracks atlas_view_tab and omits view param for the default 'notes' tab", async () => {
     const { useNavigation } = await import("./useNavigation");
     const navigate = vi.fn();
     const { result } = renderHook(() => useNavigation({ navigate, nodeId: "node-1" }));
-    result.current.handleViewChange("annotations");
-    expect(track).toHaveBeenCalledWith("atlas_view_tab", { node_id: "node-1", view: "annotations" });
+    result.current.handleViewChange("notes");
+    expect(track).toHaveBeenCalledWith("atlas_view_tab", { node_id: "node-1", view: "notes" });
     const url = navigate.mock.calls[0][0] as string;
     const params = new URLSearchParams(url.split("?")[1]);
     expect(params.get("id")).toBe("node-1");

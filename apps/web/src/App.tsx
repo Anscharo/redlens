@@ -69,7 +69,7 @@ export default function App() {
       ? ("history" as const)
       : searchParams.get("view") === "glossary"
         ? ("glossary" as const)
-        : ("annotations" as const);
+        : ("notes" as const);
   const activeNavPage = activeNavPageFor(location);
 
   const scope: SearchScope = activeNavPage ?? "atlas";

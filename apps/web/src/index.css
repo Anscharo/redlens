@@ -2320,6 +2320,67 @@ button.atlas-node-expand-all:focus-visible {
   border-color: var(--border);
 }
 
+/* ─── Reader right-panel section pills (RightPanel.tsx) ─── */
+.right-pill {
+  font: 400 11px/1 "Source Code Pro", "Courier New", monospace;
+  color: var(--tan-3);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 11px;
+  cursor: pointer;
+  text-transform: lowercase;
+  transition: color 100ms, background 100ms, border-color 100ms;
+}
+.right-pill:hover {
+  color: var(--tan);
+  border-color: var(--tan-3);
+}
+.right-pill[aria-selected="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* ─── Section title/divider bar: a pill-styled label anchored by a rule that
+   runs across the rest of the width, marking the start of a panel section. ─── */
+.rl-section-divider {
+  display: flex;
+  align-items: center;
+  margin: 26px 0 16px;
+}
+.rl-section:first-child .rl-section-divider {
+  margin-top: 4px;
+}
+.rl-section-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  margin-left: 10px;
+  background: var(--border);
+}
+.rl-section-label {
+  font: 400 11px/1 "Source Code Pro", "Courier New", monospace;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  color: var(--tan-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 11px;
+}
+
+/* The selected section's divider stays highlighted — its label pill and the rule
+   pick up the accent — so it's always clear which section the pills point at. */
+.rl-section-divider--active .rl-section-label {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.rl-section-divider--active::after {
+  background: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
 /* KaTeX dark mode */
 .katex {
   color: var(--tan);

@@ -48,7 +48,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     title: "Reader",
     route: "/atlas",
     blurb:
-      "Read the Atlas with a navigable tree, side-by-side annotations, per-document history, and a comparison pane.",
+      "Read the Atlas with a navigable tree, side-by-side notes, per-document history, and a comparison pane.",
     features: [
       {
         name: "Reading & the tree sidebar",
@@ -63,11 +63,11 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "The right-hand panel",
-        what: "Three tabs of context for whichever document is selected: annotations, glossary, and history.",
+        what: "Context for whichever document is selected — notes, history, and glossary in one scrolling panel, with pills at the top to jump between them.",
         how: [
-          "Annotations — linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one (the tab you land on by default).",
-          "Glossary — the defined terms this document uses, with their Atlas definitions.",
+          "Notes — linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one (where you land by default).",
           "History — this document's change timeline.",
+          "Glossary — the defined terms this document uses, with their Atlas definitions.",
         ],
       },
       {

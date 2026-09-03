@@ -21,7 +21,7 @@ vi.mock("../history/PreviewHistory", () => ({
 
 afterEach(cleanup);
 
-type Tab = "annotations" | "glossary" | "history";
+type Tab = "notes" | "glossary" | "history";
 
 function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
   const onTabChange = vi.fn();
@@ -38,7 +38,7 @@ function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
     glossaryTerms: [],
     onNavigate,
     onNavigateByDocNo,
-    tab: "annotations" as Tab,
+    tab: "notes" as Tab,
     onTabChange,
     ...overrides,
   };
@@ -50,11 +50,11 @@ describe("RightPanel tablist", () => {
   it("marks the active tab via aria-selected", () => {
     setup({ tab: "glossary" });
     expect(screen.getByRole("tab", { name: /glossary/ })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: /annotations/ })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: /notes/ })).toHaveAttribute("aria-selected", "false");
   });
 
   it("calls onTabChange with the clicked tab", () => {
-    const { onTabChange } = setup({ tab: "annotations" });
+    const { onTabChange } = setup({ tab: "notes" });
     fireEvent.click(screen.getByRole("tab", { name: /glossary/ }));
     expect(onTabChange).toHaveBeenCalledWith("glossary");
     fireEvent.click(screen.getByRole("tab", { name: /history/ }));
@@ -80,9 +80,9 @@ describe("RightPanel tablist", () => {
 });
 
 describe("RightPanel tab content", () => {
-  it("renders addresses on the annotations tab", () => {
+  it("renders addresses on the notes tab", () => {
     setup({
-      tab: "annotations",
+      tab: "notes",
       targetAddresses: { "0xabc": makeAddressInfo({ label: "MCD_VAT" }) },
     });
     expect(screen.getByText(/addresses · 1/)).toBeInTheDocument();
@@ -191,7 +191,7 @@ describe("RightPanel graph relations", () => {
   it("renders cited-by entries and navigates on click", async () => {
     const user = userEvent.setup();
     const { onNavigate } = setup({
-      tab: "annotations",
+      tab: "notes",
       graphEdges: makeEdgeResult({
         inbound: [makeEdge({ e: "cites", f: "citer-1", s: ["A.9.9"] })],
       }),
@@ -203,7 +203,7 @@ describe("RightPanel graph relations", () => {
 
   it("falls back to a truncated id when a cited-by edge has no source doc_no", async () => {
     setup({
-      tab: "annotations",
+      tab: "notes",
       graphEdges: makeEdgeResult({
         inbound: [makeEdge({ e: "cites", f: "12345678-abcd-ef00-1234-56789abcdef0", s: undefined })],
       }),
@@ -215,7 +215,7 @@ describe("RightPanel graph relations", () => {
     const user = userEvent.setup();
     const { onNavigate, onNavigateByDocNo } = setup({
       id: "self-id",
-      tab: "annotations",
+      tab: "notes",
       graphEdges: makeEdgeResult({
         outbound: [
           makeEdge({
@@ -238,7 +238,7 @@ describe("RightPanel graph relations", () => {
 
   it("renders inbound entity relations as non-navigable labels with the inbound arrow", () => {
     setup({
-      tab: "annotations",
+      tab: "notes",
       graphEdges: makeEdgeResult({
         inbound: [
           makeEdge({
@@ -260,7 +260,7 @@ describe("RightPanel graph relations", () => {
   it("hides relations pointing back at the current node (self-nav) from the rendered rows", () => {
     setup({
       id: "node-1",
-      tab: "annotations",
+      tab: "notes",
       graphEdges: makeEdgeResult({
         outbound: [makeEdge({ e: "depends_on", f: "node-1", t: "node-1", tt: "doc" })],
       }),
@@ -272,7 +272,7 @@ describe("RightPanel graph relations", () => {
 
   it("filters out HIDE-listed edge kinds from the relations section", () => {
     setup({
-      tab: "annotations",
+      tab: "notes",
       graphEdges: makeEdgeResult({
         outbound: [makeEdge({ e: "parent_of", f: "node-1", t: "child-1", tt: "doc" })],
       }),
