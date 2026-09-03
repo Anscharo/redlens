@@ -131,15 +131,19 @@ export function readChangedFiles(file) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function fetchRuns({ apiBase, repo, workflow, sha, token }) {
-  const url = `${apiBase}/repos/${repo}/actions/workflows/${workflow}/runs?head_sha=${sha}&per_page=100`;
-  const headers = {
+/** One place to shape an API request, so auth can never be half-applied. */
+function githubHeaders(token) {
+  return {
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
     "User-Agent": "redlens-e2e-gate",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(url, { headers });
+}
+
+async function fetchRuns({ apiBase, repo, workflow, sha, token }) {
+  const url = `${apiBase}/repos/${repo}/actions/workflows/${workflow}/runs?head_sha=${sha}&per_page=100`;
+  const res = await fetch(url, { headers: githubHeaders(token) });
   if (!res.ok) throw new Error(`GitHub API ${res.status} ${res.statusText} for ${url}`);
   const body = await res.json();
   return Array.isArray(body.workflow_runs) ? body.workflow_runs : [];
@@ -154,13 +158,7 @@ async function fetchRuns({ apiBase, repo, workflow, sha, token }) {
 async function fetchPullRequest({ apiBase, repo, prNumber, token }) {
   if (!prNumber) return null;
   try {
-    const headers = {
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "redlens-e2e-gate",
-    };
-    if (token) headers.Authorization = `Bearer ${token}`;
-    const res = await fetch(`${apiBase}/repos/${repo}/pulls/${prNumber}`, { headers });
+    const res = await fetch(`${apiBase}/repos/${repo}/pulls/${prNumber}`, { headers: githubHeaders(token) });
     if (!res.ok) return null;
     return await res.json();
   } catch {
