@@ -106,7 +106,7 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
           />
         </div>
         <div className="msc-card msc-ring-card rounded p-4 flex-1 min-w-0" style={{ flexBasis: 340, maxWidth: "100%" }}>
-          <p className="text-center text-2xl mb-1" style={{ color: "var(--tan)" }}>
+          <p className="text-sm mb-2" style={{ color: "var(--tan)" }}>
             Sky Ecosystem — {formatMonth(month)}
           </p>
           <MscRing

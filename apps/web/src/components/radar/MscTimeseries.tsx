@@ -51,8 +51,13 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
   );
   const negPeak = Math.max(0, ...months.map((m) => -m.parts.reduce((n, p) => n + Math.min(0, p.value), 0)));
   const span = posPeak + negPeak;
-  const zeroY = TRACK_H * (posPeak / span); // y of the zero line from the top
-  const px = (v: number) => (v / span) * TRACK_H;
+  // Inset the scale from the track's top/bottom edges — otherwise a peak
+  // value lands the line/dot exactly on y=0 (or TRACK_H), clipping its
+  // stroke and hit circle at the render boundary.
+  const PAD_Y = 8;
+  const usableH = TRACK_H - PAD_Y * 2;
+  const zeroY = PAD_Y + usableH * (posPeak / span); // y of the zero line from the top
+  const px = (v: number) => (v / span) * usableH;
   const y = (v: number) => zeroY - px(v);
   const colorOf = (prime: string) => primeFill(primes.indexOf(prime));
   const width = AXIS_W + months.length * COL_W + (months.length - 1) * GAP_PX;
@@ -60,7 +65,7 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
 
   return (
     <div className="mb-4 min-w-0 max-w-full">
-      <p className="mono text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--tan-3)" }}>
+      <p className="text-sm mb-2" style={{ color: "var(--tan)" }}>
         Prime-side earnings by month
       </p>
       <div className="relative inline-block" style={{ maxWidth: "100%", overflowX: "auto" }}>

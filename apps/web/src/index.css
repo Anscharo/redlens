@@ -2715,11 +2715,11 @@ button.atlas-node-expand-all:focus-visible {
   fill-opacity: 0.1;
   stroke-width: 3;
 }
-/* The identity outline stays near full strength by default (the group-level
-   0.55 dim below is for flows/slices), so each prime's color is visible
-   without hovering. */
+/* The identity outline is fully solid by default (the group-level 0.55 dim
+   below is for flows/slices only), so each prime's color reads as a
+   continuous ring without hovering. */
 .msc-ring-prime .msc-ring-band {
-  opacity: 0.95;
+  opacity: 1;
 }
 /* Pie slices inside a prime's circle — muted versions of the series colors
    so the full-strength ribbons stay the dominant flow marks. */

@@ -60,13 +60,47 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
         {centerFigure}
       </text>
       {primes.map((p) => (
-        <RingPrimeGroup key={p.flow.prime} {...p} month={month} />
+        <RingPrimeGroup key={p.flow.prime} {...p} month={month} chartHeight={layout.height} />
       ))}
     </svg>
   );
 }
 
-function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrime & { month: string }) {
+/** Amount-pill text names what it is, not just the number — a bare "$2.6M"
+ *  is meaningless once several pills are visible over one prime. */
+function pillText(kind: "sky" | "kept" | "demand", signed: number, primeLabel: string): string {
+  const amount = formatUsd(signed, true);
+  if (kind === "sky") return `${amount} to Sky`;
+  if (kind === "kept") return `${amount} supply kept`;
+  return `${amount} demand-side to ${primeLabel}`;
+}
+
+function RingPrimeGroup({
+  flow,
+  ring,
+  label,
+  bandColor,
+  to,
+  month,
+  chartHeight,
+}: MscRingPrime & { month: string; chartHeight: number }) {
+  // One prime's pills are stacked in a single vertical column instead of
+  // floating at each flow/slice's own centroid — independently-placed pills
+  // sat on top of each other and hid what they were pointing at.
+  const amounts = [
+    ...ring.flows.map((f) => ({ key: `flow-${f.kind}`, signed: f.signed, text: pillText(f.kind, f.signed, label) })),
+    ...ring.slices
+      .filter((s) => s.kind !== "sky")
+      .map((s) => ({ key: `slice-${s.kind}`, signed: s.signed, text: pillText(s.kind, s.signed, label) })),
+  ];
+  const PILL_H = 22;
+  const PILL_GAP = 4;
+  const stackH = amounts.length * PILL_H + Math.max(0, amounts.length - 1) * PILL_GAP;
+  const spaceBelow = chartHeight - (ring.cy + ring.r);
+  const spaceAbove = ring.cy - ring.r;
+  const below = spaceBelow >= stackH + 16 || spaceAbove < stackH + 16;
+  const startY = below ? ring.cy + ring.r + 14 : ring.cy - ring.r - 14 - stackH;
+
   const group = (
     <g className="msc-ring-prime" data-prime={flow.prime}>
       <title>{breakdown(flow)}</title>
@@ -101,22 +135,15 @@ function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrim
         {label}
       </text>
       <g className="msc-ring-amounts" aria-hidden="true">
-        {/* Ribbon amounts (To Sky) plus slice amounts (kept/demand — their
-            stubs are gone, so their figures anchor on the pie slices). */}
-        {[
-          ...ring.flows.map((f) => ({ key: `flow-${f.kind}`, signed: f.signed, x: f.amountX, y: f.amountY })),
-          ...ring.slices
-            .filter((s) => s.kind !== "sky")
-            .map((s) => ({ key: `slice-${s.kind}`, signed: s.signed, x: s.amountX, y: s.amountY })),
-        ].map((a) => {
-          const label = formatUsd(a.signed, true);
-          // Pill background sized from the mono text (~9.6px/char at 16px).
-          const w = label.length * 9.6 + 16;
+        {amounts.map((a, i) => {
+          const y = startY + i * (PILL_H + PILL_GAP);
+          // Pill background sized from the mono text (~6.4px/char at 12px).
+          const w = a.text.length * 6.4 + 16;
           return (
             <g key={a.key}>
-              <rect x={a.x - w / 2} y={a.y - 15} width={w} height={24} rx={12} />
-              <text x={a.x} y={a.y + 3} textAnchor="middle" fontSize={16} className="mono">
-                {label}
+              <rect x={ring.cx - w / 2} y={y} width={w} height={PILL_H} rx={PILL_H / 2} />
+              <text x={ring.cx} y={y + PILL_H / 2 + 4} textAnchor="middle" fontSize={12} className="mono">
+                {a.text}
               </text>
             </g>
           );

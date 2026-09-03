@@ -97,7 +97,10 @@ export interface RingLayout {
  *  not resize the chart and make the page below it jump. */
 const R_MAX = 70;
 const SKY_R_MAX = 84;
-export const HEIGHT = 2 * (SKY_R_MAX + FAR_GAP + 2 * R_MAX + 34) + 2 * STUB_LEN;
+// Farthest a circle can sit from center: Sky's radius + the far edge-gap +
+// its own radius, plus a modest cushion for the overlap-push pass (kept/
+// demand no longer draw outward stubs, so STUB_LEN doesn't belong here).
+export const HEIGHT = 2 * (SKY_R_MAX + FAR_GAP + R_MAX + 40);
 
 const radiusOf = (total: number) =>
   Math.min(R_MAX, Math.max(R_MIN, R_K * Math.abs(total) ** 0.25));
