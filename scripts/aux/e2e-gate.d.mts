@@ -38,5 +38,20 @@ export interface E2ePullRequest {
  */
 export function prSettledReason(pr: E2ePullRequest | null | undefined): string | null;
 
+/**
+ * Poll until E2E settles, the PR is no longer open, or the deadline. A settled
+ * classifyRuns verdict (pass or fail) wins over the PR check — a merged PR must
+ * not paper over a red E2E run.
+ */
+export function waitForE2eVerdict(opts: {
+  fetchRuns: () => Promise<E2eWorkflowRun[] | null | undefined>;
+  fetchPullRequest: () => Promise<E2ePullRequest | null | undefined>;
+  pollSeconds: number;
+  timeoutSeconds: number;
+  now?: () => number;
+  sleep?: (ms: number) => Promise<unknown>;
+  log?: (message: string) => void;
+}): Promise<E2eVerdict>;
+
 /** Repo-relative paths from the file the workflow wrote, or [] if unreadable. */
 export function readChangedFiles(file: string): string[];

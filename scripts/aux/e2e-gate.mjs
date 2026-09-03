@@ -131,6 +131,50 @@ export function readChangedFiles(file) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Poll GitHub until E2E settles, the PR is no longer open, or the deadline.
+ * Extracted so tests can drive the loop with a stub clock and stub API — the
+ * CLI body below is just the env/fetch wiring around this.
+ *
+ * Order is load-bearing: a settled classifyRuns (pass or fail) wins over the
+ * PR check. A merged PR must not paper over a red E2E run; the PR short-circuit
+ * only fires while we are still waiting.
+ */
+export async function waitForE2eVerdict({
+  fetchRuns,
+  fetchPullRequest,
+  pollSeconds,
+  timeoutSeconds,
+  now = Date.now,
+  sleep: sleepFn = sleep,
+  log = (msg) => console.log(msg),
+}) {
+  const deadline = now() + timeoutSeconds * 1000;
+  let last = "";
+  let result = { verdict: "wait", reason: "no poll completed" };
+  while (now() < deadline) {
+    try {
+      result = classifyRuns(await fetchRuns());
+    } catch (err) {
+      // A flaky API read must not decide the gate — keep polling until the
+      // deadline, which is the same outcome as "no run yet".
+      result = { verdict: "wait", reason: `GitHub API read failed: ${err.message}` };
+    }
+    if (result.verdict !== "wait") break;
+    const settled = prSettledReason(await fetchPullRequest());
+    if (settled) {
+      result = { verdict: "pass", reason: settled };
+      break;
+    }
+    if (result.reason !== last) {
+      log(`waiting: ${result.reason}`);
+      last = result.reason;
+    }
+    await sleepFn(pollSeconds * 1000);
+  }
+  return result;
+}
+
 /** One place to shape an API request, so auth can never be half-applied. */
 function githubHeaders(token) {
   return {
@@ -215,32 +259,13 @@ if (isMain) {
   const prNumber = process.env.PR_NUMBER || "";
   const pollSeconds = num(process.env.E2E_GATE_POLL_SECONDS, 30);
   const timeoutSeconds = num(process.env.E2E_GATE_TIMEOUT_SECONDS, 2400);
-  const deadline = Date.now() + timeoutSeconds * 1000;
 
-  let last = "";
-  let result = { verdict: "wait", reason: "no poll completed" };
-  while (Date.now() < deadline) {
-    try {
-      result = classifyRuns(await fetchRuns({ apiBase, repo, workflow, sha, token }));
-    } catch (err) {
-      // A flaky API read must not decide the gate — log once and keep polling
-      // until the deadline, which is the same outcome as "no run yet".
-      result = { verdict: "wait", reason: `GitHub API read failed: ${err.message}` };
-    }
-    if (result.verdict !== "wait") break;
-    // Stop before burning the timeout on a PR that has already been merged or
-    // closed out from under us (see prSettledReason).
-    const settled = prSettledReason(await fetchPullRequest({ apiBase, repo, prNumber, token }));
-    if (settled) {
-      result = { verdict: "pass", reason: settled };
-      break;
-    }
-    if (result.reason !== last) {
-      console.log(`waiting: ${result.reason}`);
-      last = result.reason;
-    }
-    await sleep(pollSeconds * 1000);
-  }
+  const result = await waitForE2eVerdict({
+    fetchRuns: () => fetchRuns({ apiBase, repo, workflow, sha, token }),
+    fetchPullRequest: () => fetchPullRequest({ apiBase, repo, prNumber, token }),
+    pollSeconds,
+    timeoutSeconds,
+  });
 
   if (result.verdict === "pass") {
     console.log(result.reason);
