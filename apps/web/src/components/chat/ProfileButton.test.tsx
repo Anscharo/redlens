@@ -45,6 +45,7 @@ describe("ProfileButton signed out", () => {
     expect(screen.getByRole("menu")).toBeInTheDocument();
     expect(screen.getByText("Sign in")).toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "Theme" })).toBeNull();
     // Providers live one level down, so the menu itself stays two entries.
     expect(screen.queryByText("Continue with GitHub")).toBeNull();
   });
@@ -151,6 +152,7 @@ describe("ProfileButton signed in", () => {
     fireEvent.click(screen.getByText("Account"));
     expect(screen.getByText("← account")).toBeInTheDocument();
     expect(screen.getByText("Reduce motion")).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "Theme" })).toBeNull();
     fireEvent.click(screen.getByText("← account"));
     expect(screen.queryByText("Reduce motion")).toBeNull();
     expect(screen.queryByText("Delete account")).toBeNull();

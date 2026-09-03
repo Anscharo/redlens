@@ -6,7 +6,7 @@ import { ThemePicker } from "./ThemePicker";
 import { THEMES, THEME_KEY, DEFAULT_THEME } from "../../lib/theme";
 
 // The picker is a roving-tabindex radiogroup, and its keyboard half is the part
-// nothing else exercises: ProfileButton and SignedOutMenu both render it, but
+// nothing else exercises: ThemeButton renders it, but does not drive arrow keys.
 // neither drives arrow keys. Without these, ThemePicker's handleKeyDown is dead
 // weight in coverage terms and — more to the point — a broken arrow key would
 // only ever be found by someone navigating the menu without a mouse.
@@ -27,11 +27,20 @@ afterEach(() => {
 });
 
 describe("ThemePicker", () => {
-  it("renders one radio per registered theme, inside a labelled radiogroup", () => {
+  it("keeps a checkmark on the selected row and a glyph on the others", () => {
     render(<ThemePicker />);
-    expect(screen.getByRole("radiogroup", { name: "Theme" })).toBeTruthy();
-    expect(rows()).toHaveLength(THEMES.length);
-    for (const t of THEMES) expect(screen.getByText(t.label)).toBeTruthy();
+    for (const t of THEMES) {
+      const row = screen.getByText(t.label).closest("button")!;
+      const mark = row.querySelector(".rlc-theme-mark");
+      expect(mark).toBeTruthy();
+      if (t.id === DEFAULT_THEME) {
+        expect(mark!.textContent).toBe("✓");
+        expect(mark!.querySelector("[data-glyph]")).toBeNull();
+      } else {
+        expect(mark!.textContent).toBe("");
+        expect(mark!.querySelector("[data-glyph]")).toBeTruthy();
+      }
+    }
   });
 
   // Roving tabindex: exactly one row is tabbable, and it is the selected one —
