@@ -20,9 +20,21 @@ import {
 
 /** The one display order for Primes everywhere the overview shows them —
  *  ring position, timeseries layers, legend, identity colors — so a Prime
- *  keeps its place and color from month to month. Unknown workbook keys
+ *  keeps its place and color from month to month. It is the Atlas's own
+ *  order: the Prime Agent Core docs under A.6.1.1, by doc number (Spark
+ *  A.6.1.1.1 … Launch Agent 7 A.6.1.1.8 at the time of writing; doc_nos are
+ *  editorial and NOT looked up here — the workbook keys are). Unknown keys
  *  follow, alphabetically. */
-export const PRIME_ORDER = ["spark", "grove", "obex", "skybase", "keel", "osero"] as const;
+export const PRIME_ORDER = [
+  "spark", // A.6.1.1.1
+  "grove", // A.6.1.1.2
+  "keel", // A.6.1.1.3
+  "skybase", // A.6.1.1.4
+  "obex", // A.6.1.1.5
+  "pattern", // A.6.1.1.6
+  "osero", // A.6.1.1.7
+  "launch-agent-7", // A.6.1.1.8
+] as const;
 
 export function primeOrderIndex(prime: string): number {
   const i = (PRIME_ORDER as readonly string[]).indexOf(prime.toLowerCase());

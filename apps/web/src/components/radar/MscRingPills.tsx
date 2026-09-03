@@ -2,8 +2,10 @@ import { formatUsd } from "../../lib/settlements";
 import type { RingPrime } from "../../lib/mscOverviewLayout";
 import { textWidth } from "../../lib/textWidth";
 
-/** Must match `.msc-ring-pill text` (12px .mono). */
-const PILL_FONT = "12px 'Source Code Pro', 'Courier New', monospace";
+/** Must match the pill's <text> (16px .mono). */
+const PILL_FONT = "16px 'Source Code Pro', 'Courier New', monospace";
+const PILL_FONT_PX = 16;
+const PILL_CHAR_FALLBACK = 9.7;
 
 /** Marks and their pills live in different SVG layers (pills paint last, over
  *  everything), so they're paired by id rather than by nesting — see the
@@ -46,25 +48,25 @@ interface PillProps {
 
 /** One hover pill: a leader from the mark it names out to the pill itself,
  *  which sits clear of the shape so it never covers it or the prime's name. */
-const LINE_H = 16;
+const LINE_H = 21;
 
 export function AmountPill({ mark, text, detail = [], x, y, toX, toY }: PillProps) {
   const lines = [...detail, text];
-  const w = Math.max(...lines.map((l) => textWidth(l, PILL_FONT, 7.3))) + 20;
-  const h = 22 + (lines.length - 1) * LINE_H;
+  const w = Math.max(...lines.map((l) => textWidth(l, PILL_FONT, PILL_CHAR_FALLBACK))) + 26;
+  const h = 30 + (lines.length - 1) * LINE_H;
   const top = y - h / 2;
   return (
     <g className="msc-ring-pill" data-mark={mark} aria-hidden="true">
       <path d={`M${toX},${toY} L${x},${y}`} className="msc-ring-pill-leader" />
-      <circle cx={toX} cy={toY} r={2.5} className="msc-ring-pill-anchor" />
-      <rect x={x - w / 2} y={top} width={w} height={h} rx={11} />
+      <circle cx={toX} cy={toY} r={3} className="msc-ring-pill-anchor" />
+      <rect x={x - w / 2} y={top} width={w} height={h} rx={15} />
       {lines.map((l, i) => (
         <text
           key={i}
           x={x}
-          y={top + 15 + i * LINE_H}
+          y={top + 20 + i * LINE_H}
           textAnchor="middle"
-          fontSize={12}
+          fontSize={PILL_FONT_PX}
           className={i < detail.length ? "mono msc-ring-pill-detail" : "mono"}
         >
           {l}

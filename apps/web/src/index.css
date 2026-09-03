@@ -2695,7 +2695,7 @@ button.atlas-node-expand-all:focus-visible {
 .msc-ring {
   display: block;
   width: 100%;
-  max-width: min(640px, 100%);
+  max-width: min(960px, 100%);
   height: auto;
   margin: 0 auto;
   overflow: visible;

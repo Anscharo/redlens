@@ -155,12 +155,17 @@ describe("layoutMscRing (orbital bars)", () => {
     expect(grove.gross).toBeCloseTo(9_340_000 + 3_590_000 + 187_000, 0);
     // The To-Sky total (20.61M) is the month's biggest amount, so it takes
     // the max radius and every plate is scaled against it.
-    expect(layout.skyR).toBe(100);
+    expect(layout.skyR).toBe(200);
     expect(grove.plateR / layout.skyR).toBeCloseTo(Math.sqrt(13_117_000 / 20_610_000), 2);
     expect(spark.plateR / layout.skyR).toBeCloseTo(Math.sqrt(12_190_000 / 20_610_000), 2);
     expect(layout.skyInnerR).toBeLessThan(layout.skyR);
-    expect(keel.plateR).toBeGreaterThanOrEqual(34);
+    expect(keel.plateR).toBeGreaterThanOrEqual(40);
     expect(keel.plateR).toBeLessThan(spark.plateR);
+    // Keel is too small to hold its name: the name sits outside, and the
+    // plate is floored only by its bar, not the word.
+    expect(keel.labelMode).toBe("outside");
+    expect(keel.plateR).toBeLessThan(60);
+    expect(grove.labelMode).toBe("inside");
     // Gross-revenue pill outside the plate (above, or below for the 12 o'clock
     // plate whose top touches the frame), anchored on its rim.
     for (const p of [grove, spark, keel]) {
@@ -172,24 +177,36 @@ describe("layoutMscRing (orbital bars)", () => {
 
   it("lets a Prime outrank the donut when it earns more than Sky takes", () => {
     const layout = layoutMscRing([flow({ sky: 1_000_000, kept: 8_000_000, demand: 1_000_000 })]);
-    expect(layout.primes[0].plateR).toBe(100);
-    expect(layout.skyR).toBeLessThan(100);
-    expect(layout.skyR).toBeGreaterThanOrEqual(60);
+    expect(layout.primes[0].plateR).toBe(200);
+    expect(layout.skyR).toBeLessThan(200);
+    expect(layout.skyR).toBeGreaterThanOrEqual(80);
   });
 
-  it("names each prime to the left of its zero line", () => {
+  it("names a prime to the left of its zero line when it fits, else centered outside its plate", () => {
     const layout = layoutMscRing(JULY, (p) => p.toUpperCase());
     for (const p of layout.primes) {
-      expect(p.labelX).toBeLessThan(p.zeroX0);
-      expect(p.labelY).toBeCloseTo(p.zeroY, 6);
-      // …and the plate encloses both the bar and the label.
-      const labelLeft = p.labelX - p.prime.length * 7.2;
-      expect(Math.hypot(labelLeft - p.plateX, p.zeroY - p.plateY)).toBeLessThanOrEqual(p.plateR);
+      if (p.labelMode === "inside") {
+        expect(p.labelAnchor).toBe("end");
+        expect(p.labelX).toBeLessThan(p.zeroX0);
+        expect(p.labelY).toBeCloseTo(p.zeroY, 6);
+        // …and the plate encloses both the bar and the label.
+        const labelLeft = p.labelX - p.prime.length * 9.5;
+        expect(Math.hypot(labelLeft - p.plateX, p.zeroY - p.plateY)).toBeLessThanOrEqual(p.plateR);
+      } else {
+        expect(p.labelAnchor).toBe("middle");
+        expect(p.labelX).toBeCloseTo(p.plateX, 6);
+        expect(Math.abs(p.labelY - p.plateY)).toBeGreaterThan(p.plateR);
+        // The gross pill never lands on the outside name.
+        expect(Math.sign(p.grossPillY - p.plateY)).not.toBe(Math.sign(p.labelY - p.plateY));
+      }
       for (const s of p.segments) {
         expect(Math.hypot(s.x + s.w - p.plateX, s.y - p.plateY)).toBeLessThanOrEqual(p.plateR);
         expect(Math.hypot(s.x + s.w - p.plateX, s.y + s.h - p.plateY)).toBeLessThanOrEqual(p.plateR);
       }
     }
+    // The smallest (osero, keel) are the outside ones; the big ones inside.
+    expect(layout.primes.find((p) => p.prime === "osero")!.labelMode).toBe("outside");
+    expect(layout.primes.find((p) => p.prime === "spark")!.labelMode).toBe("inside");
   });
 
   it("keeps every plate inside the fixed frame, clear of the donut and of each other", () => {
@@ -225,16 +242,17 @@ describe("layoutMscRing (orbital bars)", () => {
   });
 
   it("keeps the primes in the order given, clockwise from 12 o'clock, non-contributors between their neighbours", () => {
-    // PRIME_ORDER as the caller passes it: spark, grove, obex, skybase, keel, osero.
+    // PRIME_ORDER as the caller passes it (Atlas doc order): spark, grove,
+    // keel, skybase, obex, osero.
     const layout = layoutMscRing([
       flow({ prime: "spark", sky: 5_750_694, kept: 2_846_722, demand: 1_074_583 }),
       flow({ prime: "grove", sky: 8_003_550, kept: 1_563_759, demand: 114_024 }),
-      flow({ prime: "obex", sky: 1_761_245, kept: 764_735, demand: 71_997 }),
-      flow({ prime: "skybase", sky: 0, kept: 0, demand: 238_107 }),
       flow({ prime: "keel", sky: 0, kept: 0, demand: 36_000 }),
+      flow({ prime: "skybase", sky: 0, kept: 0, demand: 238_107 }),
+      flow({ prime: "obex", sky: 1_761_245, kept: 764_735, demand: 71_997 }),
       flow({ prime: "osero", sky: 497, kept: -107, demand: 12_149 }),
     ]);
-    expect(layout.primes.map((p) => p.prime)).toEqual(["spark", "grove", "obex", "skybase", "keel", "osero"]);
+    expect(layout.primes.map((p) => p.prime)).toEqual(["spark", "grove", "keel", "skybase", "obex", "osero"]);
     expect(layout.skyWedges.map((w) => w.prime)).toEqual(["spark", "grove", "obex", "osero"]);
     // Clockwise (increasing angle from 12 o'clock) follows that order.
     const turns = layout.primes.map((p) => ((p.angle + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI));

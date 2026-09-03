@@ -36,57 +36,61 @@
 import { SETTLEMENT_NEAR_ZERO } from "@/lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
-export const WIDTH = 840;
+export const WIDTH = 1300;
 const CX = WIDTH / 2;
-/** Orbit ellipse the bars' zero points sit on (wider than tall, like the
- *  frame). */
-const ORBIT_RX = 320;
-const ORBIT_RY = 200;
+/** Orbit ellipse the bars' zero points sit on — a lower bound; a plate
+ *  that would lean into the donut is pushed further out. */
+const ORBIT_RX = 500;
+const ORBIT_RY = 330;
 /** Sky donut: on the SAME area scale as the plates (see R_MAX), with a
  *  floor so the label always fits; the hole is a fixed fraction of it. */
-const SKY_MIN_R = 60;
+const SKY_MIN_R = 80;
 const SKY_HOLE = 0.62;
 /** Bar width, and the px the tallest bar side (gains or losses) reaches. */
-const BAR_W = 26;
-const BAR_MAX = 100;
+const BAR_W = 36;
+const BAR_MAX = 140;
 /** Thinnest drawable segment, so a $6k part beside a $2.8M one still exists
  *  as a hover target. */
-const SEG_MIN_H = 2;
+const SEG_MIN_H = 3;
 /** Zero-line overhang past the bar on each side. */
-const ZERO_TICK = 8;
-/** Plate padding around the bar + label box, and the smallest plate. */
-const PLATE_PAD = 10;
-const PLATE_MIN_R = 34;
+const ZERO_TICK = 10;
+/** Plate padding around the bar (+ label) box, and the smallest plate. */
+const PLATE_PAD = 12;
+const PLATE_MIN_R = 40;
 /** ONE area scale for the donut and every plate: the month's biggest
  *  amount (the To-Sky total, or a Prime's gross revenue) renders at this
- *  radius. A plate is never smaller than what its bar and name need, so
- *  tiny producers are floored by their contents. */
-const R_MAX = 100;
-/** Minimum clearance between two plates. */
-const CLEARANCE = 16;
+ *  radius. The data scale is deliberately LARGE against the fixed-size
+ *  chrome (bars, names, pills), so the content floors below bind only on
+ *  the tiniest Primes. */
+const R_MAX = 200;
+/** Minimum clearance between two plates (including an outside name). */
+const CLEARANCE = 22;
 /** Minimum gap between a plate and the donut — room for the arrow. */
-const DONUT_GAP = 64;
-/** ~px per character of the 13px name label. */
-const CHAR_PX = 7.2;
-const LABEL_GAP = 6;
+const DONUT_GAP = 84;
+/** ~px per character of the 17px name label. */
+const CHAR_PX = 9.5;
+const LABEL_GAP = 8;
+/** Vertical room reserved for a name drawn outside its plate. */
+const LABEL_OUT = 24;
 /** Arrow shaft width: linear in the To-Sky amount, biggest at W_MAX. */
-const W_MAX = 16;
-const W_MIN = 2;
-const HEAD_LEN = 12;
-const HEAD_FLARE = 5;
+const W_MAX = 22;
+const W_MIN = 3;
+const HEAD_LEN = 16;
+const HEAD_FLARE = 7;
 /** Smallest Sky wedge, so a hairline contribution ($497 of $15.5M) still
  *  shows and its arrow still has a distinguishable dock point. */
 const MIN_WEDGE = 0.05;
 /** Keep a dock point this far (radians) inside its wedge's edges. */
 const DOCK_INSET = 0.04;
 /** Leader length from an arrow to its hover pill. */
-const PILL_OFFSET = 30;
+const PILL_OFFSET = 40;
 /** A segment pill sits this far to the side of its bar's center line. */
-const PILL_DX = 96;
+const PILL_DX = 130;
 
 /** FIXED frame: the viewBox never changes with the month, so switching
- *  months can't reflow the page below the chart. */
-export const HEIGHT = 2 * (R_MAX + DONUT_GAP + 2 * R_MAX + 12);
+ *  months can't reflow the page below the chart. Budget: the donut, the
+ *  gap, and a plate up to 0.85·R_MAX with its name outside, top and bottom. */
+export const HEIGHT = 2 * (R_MAX + DONUT_GAP + 1.7 * R_MAX + LABEL_OUT + 24);
 
 export interface RingSegment {
   kind: "kept" | "demand";
@@ -149,7 +153,11 @@ export interface RingPrime {
   segments: RingSegment[];
   /** The To-Sky arrow, or null for a prime that pays Sky nothing. */
   arrow: RingArrow | null;
-  /** Name label, to the left of the zero line (anchor "end"). */
+  /** Name label: "inside" sits to the left of the zero line (anchor
+   *  "end"); "outside" is centered above/below the plate (anchor "middle")
+   *  — for a Prime too small to hold its own name. */
+  labelMode: "inside" | "outside";
+  labelAnchor: "end" | "middle";
   labelX: number;
   labelY: number;
   /** Circular plate enclosing the bar and its label; area ∝ gross revenue. */
@@ -274,22 +282,30 @@ export function layoutMscRing(
   const skyInnerR = skyR * SKY_HOLE;
 
   // Angle-independent geometry first: each bar's extent above/below its zero
-  // line, its label width, and the plate that has to enclose both.
+  // line, its label width, and the plate. The name goes INSIDE (left of the
+  // zero line) when the data-sized plate can hold bar + name; otherwise the
+  // plate holds just the bar and the name sits outside it, so the tiniest
+  // Primes stay data-sized instead of being inflated to fit a word.
   const shape = rows.map((r) => {
     const up = r.gains > 0 ? sideH(r.gains) : 0;
     const down = r.losses > 0 ? sideH(r.losses) : 0;
     const labelW = labelOf(r.p.prime).length * CHAR_PX;
-    // Box: label | gap | zero-line overhang | bar | overhang, by the bar's
-    // vertical extent (at least the zero line's own little cross).
-    const left = -(BAR_W / 2 + ZERO_TICK + LABEL_GAP + labelW);
     const right = BAR_W / 2 + ZERO_TICK;
     const top = -Math.max(up, 8);
     const bottom = Math.max(down, 8);
-    const plateDx = (left + right) / 2;
+    const halfH = (bottom - top) / 2;
+    // Box with the name: label | gap | zero-line overhang | bar | overhang.
+    const leftIn = -(right + LABEL_GAP + labelW);
+    const withLabelR = Math.hypot((right - leftIn) / 2, halfH) + PLATE_PAD;
+    const bareR = Math.hypot(right, halfH) + PLATE_PAD;
+    const dataR = radiusFor(r.gross);
+    const outside = dataR < withLabelR;
+    const plateR = Math.max(PLATE_MIN_R, outside ? bareR : withLabelR, dataR);
+    const plateDx = outside ? 0 : (leftIn + right) / 2;
     const plateDy = (top + bottom) / 2;
-    const contentR = Math.hypot((right - left) / 2, (bottom - top) / 2) + PLATE_PAD;
-    const plateR = Math.max(PLATE_MIN_R, contentR, radiusFor(r.gross));
-    return { up, down, plateDx, plateDy, plateR };
+    // Footprint used for spacing: the plate plus an outside name's room.
+    const spaceR = plateR + (outside ? LABEL_OUT : 0);
+    return { up, down, plateDx, plateDy, plateR, spaceR, outside };
   });
 
   // Sky's wedges in row order (the caller's PRIME_ORDER), rotated so the
@@ -358,7 +374,7 @@ export function layoutMscRing(
     let plateX = bx + shape[i].plateDx;
     let plateY = zy + shape[i].plateDy;
     const d = Math.hypot(plateX - CX, plateY - cy) || 1;
-    const need = skyR + shape[i].plateR + DONUT_GAP;
+    const need = skyR + shape[i].spaceR + DONUT_GAP;
     if (d < need) {
       const ux = (plateX - CX) / d;
       const uy = (plateY - cy) / d;
@@ -387,7 +403,7 @@ export function layoutMscRing(
       const [xi, yi] = plateAt(i, angles[i]);
       const [xj, yj] = plateAt(j, angles[j]);
       const d = Math.hypot(xi - xj, yi - yj);
-      const need = shape[i].plateR + shape[j].plateR + CLEARANCE;
+      const need = shape[i].spaceR + shape[j].spaceR + CLEARANCE;
       if (d >= need) continue;
       // Local px-per-radian along the orbit at each end.
       const speed = (t: number) => Math.hypot(ORBIT_RX * Math.sin(t), ORBIT_RY * Math.cos(t));
@@ -474,6 +490,8 @@ export function layoutMscRing(
       };
     }
 
+    const labelAbove = plateY <= cy;
+    const pillAbove = plateY - s.plateR - 34 >= 0 && !(s.outside && labelAbove);
     return {
       prime: r.p.prime,
       angle: t,
@@ -484,18 +502,23 @@ export function layoutMscRing(
       zeroX1: bx + BAR_W / 2 + ZERO_TICK,
       segments,
       arrow,
-      labelX: bx - BAR_W / 2 - ZERO_TICK - LABEL_GAP,
-      labelY: zy,
+      labelMode: s.outside ? ("outside" as const) : ("inside" as const),
+      labelAnchor: s.outside ? ("middle" as const) : ("end" as const),
+      labelX: s.outside ? plateX : bx - BAR_W / 2 - ZERO_TICK - LABEL_GAP,
+      // An outside name goes on the side AWAY from Sky (above for the upper
+      // half, below for the lower), so it never sits in the arrow's way.
+      labelY: s.outside ? (labelAbove ? plateY - s.plateR - 12 : plateY + s.plateR + 18) : zy,
       plateX,
       plateY,
       plateR: s.plateR,
       gross: r.gross,
       grossPillX: plateX,
       // Above the plate, unless that would leave the frame (the 12 o'clock
-      // plate), then below it — the donut gap has room for a pill.
-      grossPillY: plateY - s.plateR - 18 >= 12 ? plateY - s.plateR - 18 : plateY + s.plateR + 18,
+      // plate) or collide with an outside name — then below it; the donut
+      // gap has room for a pill.
+      grossPillY: pillAbove ? plateY - s.plateR - 22 : plateY + s.plateR + 22,
       grossAnchorX: plateX,
-      grossAnchorY: plateY - s.plateR - 18 >= 12 ? plateY - s.plateR + 1 : plateY + s.plateR - 1,
+      grossAnchorY: pillAbove ? plateY - s.plateR + 1 : plateY + s.plateR - 1,
     };
   });
 

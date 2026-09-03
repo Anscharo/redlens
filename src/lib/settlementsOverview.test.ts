@@ -73,7 +73,7 @@ describe("settlementMonths", () => {
 });
 
 describe("primeFlowsForMonth", () => {
-  it("filters by month, keeps PRIME_ORDER, keeps per-prime latestMonth", () => {
+  it("filters by month, keeps PRIME_ORDER (Atlas doc order), keeps per-prime latestMonth", () => {
     const flows = primeFlowsForMonth(bundle, "2026-07");
     expect(flows.map((f) => f.prime)).toEqual(["spark", "keel", "osero"]);
     expect(flows.every((f) => f.latestMonth === "2026-07")).toBe(true);

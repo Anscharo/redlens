@@ -64,7 +64,13 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
           />
         </g>
       ))}
-      <text x={ring.labelX} y={ring.labelY + 4} textAnchor="end" fontSize={13} className="msc-ring-label">
+      <text
+        x={ring.labelX}
+        y={ring.labelY + (ring.labelMode === "inside" ? 6 : 0)}
+        textAnchor={ring.labelAnchor}
+        fontSize={17}
+        className="msc-ring-label"
+      >
         {label}
       </text>
     </g>

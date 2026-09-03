@@ -14,7 +14,7 @@ interface Props {
 }
 
 /** How far outside the donut a wedge's pill sits. */
-const WEDGE_PILL_GAP = 34;
+const WEDGE_PILL_GAP = 44;
 
 export function MscRing({ layout, primes, month, centerFigure }: Props) {
   const colorOf = (prime: string) => primes.find((p) => p.flow.prime === prime)?.bandColor;
@@ -50,11 +50,11 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
               key={k}
               id={`msc-ring-neg-${k}`}
               patternUnits="userSpaceOnUse"
-              width={6}
-              height={6}
+              width={8}
+              height={8}
               patternTransform="rotate(45)"
             >
-              <rect width={3.5} height={6} style={{ fill: `var(--msc-${k})` }} />
+              <rect width={4.5} height={8} style={{ fill: `var(--msc-${k})` }} />
             </pattern>
           ))}
         </defs>
@@ -73,10 +73,10 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
             />
           </g>
         ))}
-        <text x={layout.cx} y={layout.cy - 6} textAnchor="middle" fontSize={20} className="msc-ring-center">
+        <text x={layout.cx} y={layout.cy - 8} textAnchor="middle" fontSize={28} className="msc-ring-center">
           To Sky
         </text>
-        <text x={layout.cx} y={layout.cy + 18} textAnchor="middle" fontSize={17} className="msc-ring-center mono">
+        <text x={layout.cx} y={layout.cy + 26} textAnchor="middle" fontSize={24} className="msc-ring-center mono">
           {centerFigure}
         </text>
         {primes.map((p) => (
