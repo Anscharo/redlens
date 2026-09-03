@@ -38,9 +38,10 @@ const CX = WIDTH / 2;
  *  frame). */
 const ORBIT_RX = 320;
 const ORBIT_RY = 200;
-/** Sky donut radii. */
-const SKY_R = 92;
-const SKY_INNER_R = 58;
+/** Sky donut: on the SAME area scale as the plates (see R_MAX), with a
+ *  floor so the label always fits; the hole is a fixed fraction of it. */
+const SKY_MIN_R = 60;
+const SKY_HOLE = 0.62;
 /** Bar width, and the px the tallest bar side (gains or losses) reaches. */
 const BAR_W = 26;
 const BAR_MAX = 100;
@@ -52,10 +53,11 @@ const ZERO_TICK = 8;
 /** Plate padding around the bar + label box, and the smallest plate. */
 const PLATE_PAD = 10;
 const PLATE_MIN_R = 34;
-/** The month's biggest gross revenue renders at this plate radius; a plate
- *  is never smaller than what its bar and name need, so tiny producers
- *  are floored by their contents. */
-const PLATE_MAX_R = 100;
+/** ONE area scale for the donut and every plate: the month's biggest
+ *  amount (the To-Sky total, or a Prime's gross revenue) renders at this
+ *  radius. A plate is never smaller than what its bar and name need, so
+ *  tiny producers are floored by their contents. */
+const R_MAX = 100;
 /** Minimum clearance between two plates. */
 const CLEARANCE = 16;
 /** Minimum gap between a plate and the donut — room for the arrow. */
@@ -80,7 +82,7 @@ const PILL_DX = 96;
 
 /** FIXED frame: the viewBox never changes with the month, so switching
  *  months can't reflow the page below the chart. */
-export const HEIGHT = 2 * (SKY_R + DONUT_GAP + 2 * PLATE_MAX_R + 12);
+export const HEIGHT = 2 * (R_MAX + DONUT_GAP + 2 * R_MAX + 12);
 
 export interface RingSegment {
   kind: "kept" | "demand";
@@ -239,8 +241,8 @@ export function layoutMscRing(
     height: HEIGHT,
     cx: CX,
     cy,
-    skyR: SKY_R,
-    skyInnerR: SKY_INNER_R,
+    skyR: SKY_MIN_R,
+    skyInnerR: SKY_MIN_R * SKY_HOLE,
     skyWedges: [],
     primes: [],
   };
@@ -251,14 +253,18 @@ export function layoutMscRing(
   // proportionally (linear within the bar).
   const maxExtent = Math.max(1, ...rows.map((r) => Math.max(r.gains, r.losses)));
   const sideH = (v: number) => BAR_MAX * Math.sqrt(v / maxExtent);
-  const skyTotal = rows.reduce((n, r) => n + Math.abs(r.sky), 0);
   const maxSky = Math.max(1, ...rows.map((r) => Math.abs(r.sky)));
   const widthOf = (v: number) => Math.max(W_MIN, (W_MAX * v) / maxSky);
 
-  // Plate area ∝ gross revenue, pinned so the month's biggest earner is
-  // PLATE_MAX_R; the content floor below keeps small ones legible.
-  const maxGross = Math.max(1, ...rows.map((r) => r.gross));
-  const plateFor = (gross: number) => PLATE_MAX_R * Math.sqrt(Math.max(0, gross) / maxGross);
+  // Area ∝ dollars on one scale shared by the donut and the plates, pinned
+  // so the month's biggest amount is R_MAX — so a $16M To-Sky donut reads
+  // bigger than an $11M Prime, and vice versa. Content floors keep the
+  // small ones legible.
+  const skyTotal = rows.reduce((n, r) => n + Math.abs(r.sky), 0);
+  const ref = Math.max(1, skyTotal, ...rows.map((r) => r.gross));
+  const radiusFor = (v: number) => R_MAX * Math.sqrt(Math.max(0, v) / ref);
+  const skyR = Math.max(SKY_MIN_R, radiusFor(skyTotal));
+  const skyInnerR = skyR * SKY_HOLE;
 
   // Angle-independent geometry first: each bar's extent above/below its zero
   // line, its label width, and the plate that has to enclose both.
@@ -275,7 +281,7 @@ export function layoutMscRing(
     const plateDx = (left + right) / 2;
     const plateDy = (top + bottom) / 2;
     const contentR = Math.hypot((right - left) / 2, (bottom - top) / 2) + PLATE_PAD;
-    const plateR = Math.max(PLATE_MIN_R, contentR, plateFor(r.gross));
+    const plateR = Math.max(PLATE_MIN_R, contentR, radiusFor(r.gross));
     return { up, down, plateDx, plateDy, plateR };
   });
 
@@ -295,7 +301,7 @@ export function layoutMscRing(
     wedgeRange.set(x.r.p.prime, [a0, a1]);
     return {
       prime: x.r.p.prime,
-      path: annulusPath(CX, cy, SKY_R, SKY_INNER_R, a0, a1),
+      path: annulusPath(CX, cy, skyR, skyInnerR, a0, a1),
       mid: (a0 + a1) / 2,
       value: Math.abs(x.r.sky),
     };
@@ -335,7 +341,7 @@ export function layoutMscRing(
     let plateX = bx + shape[i].plateDx;
     let plateY = zy + shape[i].plateDy;
     const d = Math.hypot(plateX - CX, plateY - cy) || 1;
-    const need = SKY_R + shape[i].plateR + DONUT_GAP;
+    const need = skyR + shape[i].plateR + DONUT_GAP;
     if (d < need) {
       const ux = (plateX - CX) / d;
       const uy = (plateY - cy) / d;
@@ -424,8 +430,8 @@ export function layoutMscRing(
       const mid = (a0 + a1) / 2;
       const half = Math.max(0, (a1 - a0) / 2 - DOCK_INSET);
       const dock = mid + Math.max(-half, Math.min(half, angDiff(mid, toward)));
-      const x1 = CX + SKY_R * Math.cos(dock);
-      const y1 = cy + SKY_R * Math.sin(dock);
+      const x1 = CX + skyR * Math.cos(dock);
+      const y1 = cy + skyR * Math.sin(dock);
       const dx = x1 - plateX;
       const dy = y1 - plateY;
       const len = Math.hypot(dx, dy) || 1;
@@ -474,5 +480,5 @@ export function layoutMscRing(
     };
   });
 
-  return { ...empty, skyWedges, primes: out };
+  return { ...empty, skyR, skyInnerR, skyWedges, primes: out };
 }

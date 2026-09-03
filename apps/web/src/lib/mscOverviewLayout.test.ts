@@ -147,14 +147,18 @@ describe("layoutMscRing (orbital bars)", () => {
     }
   });
 
-  it("sizes each plate by gross revenue (area proportional to To Sky + kept + demand), floored by its contents", () => {
+  it("puts the donut and the plates on one area scale: $20.6M To Sky outranks a $13.1M Prime", () => {
     const layout = layoutMscRing(APRIL);
-    const grove = layout.primes.find((p) => p.prime === "grove")!; // 13.1M
-    const spark = layout.primes.find((p) => p.prime === "spark")!; // 12.19M
+    const grove = layout.primes.find((p) => p.prime === "grove")!; // gross 13.1M
+    const spark = layout.primes.find((p) => p.prime === "spark")!; // gross 12.19M
     const keel = layout.primes.find((p) => p.prime === "keel")!; // 55k, content floor
     expect(grove.gross).toBeCloseTo(9_340_000 + 3_590_000 + 187_000, 0);
-    expect(grove.plateR).toBe(100);
-    expect(spark.plateR / grove.plateR).toBeCloseTo(Math.sqrt(12_190_000 / 13_117_000), 2);
+    // The To-Sky total (20.61M) is the month's biggest amount, so it takes
+    // the max radius and every plate is scaled against it.
+    expect(layout.skyR).toBe(100);
+    expect(grove.plateR / layout.skyR).toBeCloseTo(Math.sqrt(13_117_000 / 20_610_000), 2);
+    expect(spark.plateR / layout.skyR).toBeCloseTo(Math.sqrt(12_190_000 / 20_610_000), 2);
+    expect(layout.skyInnerR).toBeLessThan(layout.skyR);
     expect(keel.plateR).toBeGreaterThanOrEqual(34);
     expect(keel.plateR).toBeLessThan(spark.plateR);
     // Gross-revenue pill outside the plate (above, or below for the 12 o'clock
@@ -164,6 +168,13 @@ describe("layoutMscRing (orbital bars)", () => {
       expect(p.grossPillY).toBeGreaterThan(11);
       expect(Math.hypot(p.grossAnchorX - p.plateX, p.grossAnchorY - p.plateY)).toBeLessThanOrEqual(p.plateR);
     }
+  });
+
+  it("lets a Prime outrank the donut when it earns more than Sky takes", () => {
+    const layout = layoutMscRing([flow({ sky: 1_000_000, kept: 8_000_000, demand: 1_000_000 })]);
+    expect(layout.primes[0].plateR).toBe(100);
+    expect(layout.skyR).toBeLessThan(100);
+    expect(layout.skyR).toBeGreaterThanOrEqual(60);
   });
 
   it("names each prime to the left of its zero line", () => {
