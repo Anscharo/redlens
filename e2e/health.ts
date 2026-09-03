@@ -72,7 +72,8 @@ export function readinessProblems(health: HealthSnapshot, expectedCommit?: strin
   // regression.
   //
   // Verified equivalent to the previous ok/stale/syncing allowlist across all
-  // 256 states deriveFreshnessStatus can reach; see the status-rule test below.
+  // 256 states deriveFreshnessStatus can reach — see the status-rule test in
+  // src/server/history/readiness-status-rule.test.ts.
   if ((health.status ?? "") === "stuck") {
     problems.push(`freshness status is ${String(health.status)}`);
   }

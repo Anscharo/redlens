@@ -62,6 +62,17 @@ describe("readinessProblems", () => {
     ).toEqual(["schema 020_old.sql is behind required 021_chain_state.sql"]);
   });
 
+  // Blocklist, not allowlist: a status the server has not started emitting
+  // (absent, empty, or newly added) is not itself a reason to wait. Structural
+  // checks still have to pass, and every spec still has to pass after this gate.
+  it("does not block on an absent, empty, or unknown freshness status", () => {
+    const { status: _ignored, ...noStatus } = READY;
+    expect(readinessProblems({ ...READY, status: undefined }, "abcdef123456")).toEqual([]);
+    expect(readinessProblems(noStatus, "abcdef123456")).toEqual([]);
+    expect(readinessProblems({ ...READY, status: "" }, "abcdef123456")).toEqual([]);
+    expect(readinessProblems({ ...READY, status: "warming" }, "abcdef123456")).toEqual([]);
+  });
+
   it("reports provenance, freshness, schema, and data failures together", () => {
     expect(
       readinessProblems(
