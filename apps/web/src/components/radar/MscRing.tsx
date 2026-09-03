@@ -101,14 +101,21 @@ function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrim
         {label}
       </text>
       <g className="msc-ring-amounts" aria-hidden="true">
-        {ring.flows.map((f) => {
-          const label = formatUsd(f.signed, true);
+        {/* Ribbon amounts (To Sky) plus slice amounts (kept/demand — their
+            stubs are gone, so their figures anchor on the pie slices). */}
+        {[
+          ...ring.flows.map((f) => ({ key: `flow-${f.kind}`, signed: f.signed, x: f.amountX, y: f.amountY })),
+          ...ring.slices
+            .filter((s) => s.kind !== "sky")
+            .map((s) => ({ key: `slice-${s.kind}`, signed: s.signed, x: s.amountX, y: s.amountY })),
+        ].map((a) => {
+          const label = formatUsd(a.signed, true);
           // Pill background sized from the mono text (~9.6px/char at 16px).
           const w = label.length * 9.6 + 16;
           return (
-            <g key={f.kind}>
-              <rect x={f.amountX - w / 2} y={f.amountY - 15} width={w} height={24} rx={12} />
-              <text x={f.amountX} y={f.amountY + 3} textAnchor="middle" fontSize={16} className="mono">
+            <g key={a.key}>
+              <rect x={a.x - w / 2} y={a.y - 15} width={w} height={24} rx={12} />
+              <text x={a.x} y={a.y + 3} textAnchor="middle" fontSize={16} className="mono">
                 {label}
               </text>
             </g>

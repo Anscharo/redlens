@@ -68,20 +68,25 @@ describe("layoutMscRing (orbital)", () => {
     }
   });
 
-  it("drops near-zero flows but keeps the prime (demand-only Keel/Skybase)", () => {
-    const layout = layoutMscRing([flow({ prime: "keel", sky: 0, kept: 0, demand: 280_000 })]);
-    expect(layout.primes).toHaveLength(1);
-    expect(layout.primes[0].flows.map((f) => f.kind)).toEqual(["demand"]);
+  it("keeps only the To-Sky ribbon; kept/demand live in the pie slices", () => {
+    const layout = layoutMscRing([flow()]);
+    expect(layout.primes[0].flows.map((f) => f.kind)).toEqual(["sky"]);
+    expect(layout.primes[0].slices.map((s) => s.kind)).toEqual(["sky", "kept", "demand"]);
   });
 
-  it("marks negative kept/demand flows inward with the sign preserved", () => {
+  it("keeps a demand-only prime as a circle with no ribbon (Keel/Skybase)", () => {
+    const layout = layoutMscRing([flow({ prime: "keel", sky: 0, kept: 0, demand: 280_000 })]);
+    expect(layout.primes).toHaveLength(1);
+    expect(layout.primes[0].flows).toEqual([]);
+    expect(layout.primes[0].slices.map((s) => s.kind)).toEqual(["demand"]);
+  });
+
+  it("preserves the sign on a negative slice and anchors its amount inside", () => {
     const layout = layoutMscRing([flow({ prime: "osero", sky: 497, kept: -107, demand: 12_000 })]);
-    const kept = layout.primes[0].flows.find((f) => f.kind === "kept")!;
+    const kept = layout.primes[0].slices.find((s) => s.kind === "kept")!;
     expect(kept.signed).toBe(-107);
-    expect(kept.value).toBe(107);
-    expect(kept.inward).toBe(true);
-    const demand = layout.primes[0].flows.find((f) => f.kind === "demand")!;
-    expect(demand.inward).toBe(false);
+    const p = layout.primes[0];
+    expect(Math.hypot(kept.amountX - p.cx, kept.amountY - p.cy)).toBeLessThanOrEqual(p.r);
   });
 
   it("emits valid ribbon paths and finite label/amount anchors", () => {

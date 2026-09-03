@@ -32,7 +32,6 @@ const W_SPAN = 23;
 const W_MIN = 3;
 /** Outward kept/demand ribbon length; angular offset off the outward radial. */
 const STUB_LEN = 34;
-const STUB_SPREAD = 0.55;
 /** Callout label columns and collision spacing (small circles only). */
 const LABEL_GAP_PX = 15;
 /** ~px per character of a 14px label, for the fits-inside-circle test. */
@@ -56,6 +55,9 @@ export interface RingSlice {
   kind: "sky" | "kept" | "demand";
   signed: number;
   path: string;
+  /** Anchor for the hover amount pill (slice centroid). */
+  amountX: number;
+  amountY: number;
 }
 
 export interface RingPrime {
@@ -181,35 +183,25 @@ export function layoutMscRing(
     const ox = Math.cos(angle);
     const oy = Math.sin(angle);
 
-    const flows: RingFlow[] = r.flows.map((f) => {
-      const w = widthOf(f.value);
-      if (f.kind === "sky") {
-        // Ribbon between the two circle edges, along the center line.
+    // Only the To-Sky flow keeps a ribbon (prime circle edge → Sky circle
+    // edge); supply-kept and demand-side are represented by the pie slices,
+    // so their old outward stubs are gone.
+    const flows: RingFlow[] = r.flows
+      .filter((f) => f.kind === "sky")
+      .map((f) => {
+        const w = widthOf(f.value);
         const x0 = cxP - ox * rad;
         const y0 = cyP - oy * rad;
         const x1 = CX + ox * skyR;
         const y1 = cy + oy * skyR;
         return { kind: f.kind, value: f.value, signed: f.signed, inward: false,
           path: ribbon(x0, y0, x1, y1, w), amountX: (x0 + x1) / 2, amountY: (y0 + y1) / 2 };
-      }
-      // Kept/demand leave the circle outward, spread to either side of the
-      // radial; a negative flow reverses INTO the circle (striped by the view).
-      const dirA = angle + (f.kind === "kept" ? -STUB_SPREAD : STUB_SPREAD);
-      const dx = Math.cos(dirA);
-      const dy = Math.sin(dirA);
-      const inward = f.signed < 0;
-      const ex = cxP + dx * rad;
-      const ey = cyP + dy * rad;
-      const len = inward ? Math.min(STUB_LEN, 2 * rad - 4) : STUB_LEN;
-      const tx = ex + (inward ? -dx : dx) * len;
-      const ty = ey + (inward ? -dy : dy) * len;
-      return { kind: f.kind, value: f.value, signed: f.signed, inward,
-        path: ribbon(ex, ey, tx, ty, w), amountX: (ex + tx) / 2, amountY: (ey + ty) / 2 };
-    });
+      });
 
     // Pie slices: shares of the circle's total, the To-Sky slice rotated to
     // face the Sky circle. Absolute values size the slices; a negative slice
-    // is striped by the view.
+    // is striped by the view. Each slice carries a hover-amount anchor at
+    // its centroid (kept/demand figures live here now that stubs are gone).
     const toSkyDir = Math.atan2(cy - cyP, CX - cxP);
     const sliceOrder = r.flows;
     let sa = toSkyDir - ((Math.abs(r.p.sky) / r.total) * 2 * Math.PI) / 2;
@@ -221,7 +213,15 @@ export function layoutMscRing(
       const f = sliceOrder.find((x) => x.kind === kind);
       if (!f) continue;
       const theta = (f.value / r.total) * 2 * Math.PI;
-      slices.push({ kind, signed: f.signed, path: slicePath(cxP, cyP, rad, sa, sa + theta) });
+      const mid = sa + theta / 2;
+      const amountR = theta >= 2 * Math.PI - 1e-6 ? 0 : rad * 0.62;
+      slices.push({
+        kind,
+        signed: f.signed,
+        path: slicePath(cxP, cyP, rad, sa, sa + theta),
+        amountX: cxP + amountR * Math.cos(mid),
+        amountY: cyP + amountR * Math.sin(mid),
+      });
       sa += theta;
     }
 
