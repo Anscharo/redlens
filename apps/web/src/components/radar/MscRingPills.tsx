@@ -1,5 +1,9 @@
 import { formatUsd } from "../../lib/settlements";
 import type { RingPrime } from "../../lib/mscOverviewLayout";
+import { textWidth } from "../../lib/textWidth";
+
+/** Must match `.msc-ring-pill text` (12px .mono). */
+const PILL_FONT = "12px 'Source Code Pro', 'Courier New', monospace";
 
 /** Marks and their pills live in different SVG layers (pills paint last, over
  *  everything), so they're paired by id rather than by nesting — see the
@@ -20,7 +24,10 @@ export function pillText(kind: string, signed: number, primeLabel: string, share
       : `${amount} to Sky`;
   }
   if (kind === "share") return `${amount} to Sky from ${primeLabel}`;
-  if (kind === "kept") return `${amount} supply kept`;
+  if (kind === "production") return `${amount} production* by ${primeLabel}`;
+  if (kind === "kept") {
+    return signed < 0 ? `${amount} supply loss to ${primeLabel}` : `${amount} supply kept by ${primeLabel}`;
+  }
   return `${amount} demand-side to ${primeLabel}`;
 }
 
@@ -38,7 +45,7 @@ interface PillProps {
 /** One hover pill: a leader from the mark it names out to the pill itself,
  *  which sits clear of the shape so it never covers it or the prime's name. */
 export function AmountPill({ mark, text, x, y, toX, toY }: PillProps) {
-  const w = text.length * 6.4 + 16;
+  const w = textWidth(text, PILL_FONT, 7.3) + 20;
   const h = 22;
   return (
     <g className="msc-ring-pill" data-mark={mark} aria-hidden="true">
@@ -77,6 +84,14 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
       ))}
       {rings.map(({ ring, label }) => (
         <g key={ring.prime}>
+          <AmountPill
+            mark={markId(ring.prime, "production")}
+            text={pillText("production", ring.production, label)}
+            x={ring.productionPillX}
+            y={ring.productionPillY}
+            toX={ring.productionAnchorX}
+            toY={ring.productionAnchorY}
+          />
           {ring.segments.map((s) => (
             <AmountPill
               key={s.kind}

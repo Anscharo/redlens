@@ -74,7 +74,7 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
           </g>
         ))}
         <text x={layout.cx} y={layout.cy - 6} textAnchor="middle" fontSize={20} className="msc-ring-center">
-          Sky
+          To Sky
         </text>
         <text x={layout.cx} y={layout.cy + 18} textAnchor="middle" fontSize={17} className="msc-ring-center mono">
           {centerFigure}
@@ -96,7 +96,7 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
 function PillHoverStyles({ primes }: { primes: MscRingPrime[] }) {
   const css = primes
     .flatMap((p) => {
-      const kinds = [...p.ring.segments.map((s) => s.kind as string), "share"];
+      const kinds = [...p.ring.segments.map((s) => s.kind as string), "share", "production"];
       if (p.ring.arrow) kinds.push(p.ring.arrow.kind);
       const rules = kinds.map((k) => {
         const id = markId(p.flow.prime, k);

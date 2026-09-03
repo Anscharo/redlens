@@ -132,21 +132,37 @@ describe("layoutMscRing (orbital bars)", () => {
     expect(keel.segments[0].h).toBeGreaterThan(10);
   });
 
-  it("puts every prime at its own wedge, so no arrow crosses the donut and no badge sits on it", () => {
+  it("puts every prime at its own wedge, so no arrow has to cross the donut", () => {
     for (const month of [JULY, APRIL]) {
       const layout = layoutMscRing(month);
       for (const p of layout.primes) {
         if (!p.arrow) continue;
-        // Badge clear of the donut.
-        expect(Math.hypot(p.arrow.labelX - layout.cx, p.arrow.labelY - layout.cy)).toBeGreaterThan(layout.skyR + 8);
-        // The arrow's start is outside the donut and its straight line only
-        // meets the donut at the tip (no chord through the interior).
         const wedge = layout.skyWedges.find((w) => w.prime === p.prime)!;
-        const dockAngle = wedge.mid;
         const toward = Math.atan2(p.plateY - layout.cy, p.plateX - layout.cx);
-        const diff = Math.abs(((toward - dockAngle + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+        const diff = Math.abs(((toward - wedge.mid + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
         expect(diff).toBeLessThan(Math.PI / 2);
+        // The arrow's hover anchor sits outside the donut.
+        expect(Math.hypot(p.arrow.amountX - layout.cx, p.arrow.amountY - layout.cy)).toBeGreaterThan(layout.skyR);
       }
+    }
+  });
+
+  it("sizes each plate by production (area proportional to To Sky + kept + demand), floored by its contents", () => {
+    const layout = layoutMscRing(APRIL);
+    const grove = layout.primes.find((p) => p.prime === "grove")!; // 13.1M
+    const spark = layout.primes.find((p) => p.prime === "spark")!; // 12.19M
+    const keel = layout.primes.find((p) => p.prime === "keel")!; // 55k, content floor
+    expect(grove.production).toBeCloseTo(9_340_000 + 3_590_000 + 187_000, 0);
+    expect(grove.plateR).toBe(100);
+    expect(spark.plateR / grove.plateR).toBeCloseTo(Math.sqrt(12_190_000 / 13_117_000), 2);
+    expect(keel.plateR).toBeGreaterThanOrEqual(34);
+    expect(keel.plateR).toBeLessThan(spark.plateR);
+    // Production pill outside the plate (above, or below for the 12 o'clock
+    // plate whose top touches the frame), anchored on its rim.
+    for (const p of [grove, spark, keel]) {
+      expect(Math.abs(p.productionPillY - p.plateY)).toBeGreaterThan(p.plateR);
+      expect(p.productionPillY).toBeGreaterThan(11);
+      expect(Math.hypot(p.productionAnchorX - p.plateX, p.productionAnchorY - p.plateY)).toBeLessThanOrEqual(p.plateR);
     }
   });
 
@@ -203,7 +219,7 @@ describe("layoutMscRing (orbital bars)", () => {
       if (p.arrow) {
         expect(p.arrow.path).not.toMatch(/NaN/);
         expect(p.arrow.path).toMatch(/^M/);
-        expect(Number.isFinite(p.arrow.labelX)).toBe(true);
+        expect(Number.isFinite(p.arrow.amountX)).toBe(true);
       }
       expect(Number.isFinite(p.labelX)).toBe(true);
       expect(Number.isFinite(p.labelY)).toBe(true);

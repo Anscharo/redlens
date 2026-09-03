@@ -81,8 +81,8 @@ describe("MscRing", () => {
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     // 10M ÷ (10M + 2M + 1.5M) = 74%
     expect(screen.getByText("$10.00M to Sky — 74% of Spark's production")).toBeInTheDocument();
-    expect(screen.getByText("74% of production*")).toBeInTheDocument();
-    expect(screen.getByText("$2.00M supply kept")).toBeInTheDocument();
+    expect(screen.getByText("$13.50M production* by Spark")).toBeInTheDocument();
+    expect(screen.getByText("$2.00M supply kept by Spark")).toBeInTheDocument();
     expect(screen.getByText("$1.50M demand-side to Spark")).toBeInTheDocument();
   });
 
@@ -109,6 +109,7 @@ describe("MscRing", () => {
     // Pills are paired to their marks by id, since they no longer nest inside them.
     expect(container.querySelector('.msc-ring-mark[data-mark="spark::kept"]')).toBeInTheDocument();
     expect(container.querySelector('.msc-ring-pill[data-mark="spark::kept"]')).toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-mark[data-mark="spark::production"] circle.msc-ring-plate')).toBeInTheDocument();
   });
 
   it("gives Sky one wedge per contributing prime, in that prime's own color", () => {
@@ -125,10 +126,16 @@ describe("MscRing", () => {
     const { container } = render(
       <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$497" />,
     );
-    expect(screen.getByText("−$107 supply kept")).toBeInTheDocument();
+    expect(screen.getByText("−$107 supply loss to osero")).toBeInTheDocument();
     const seg = container.querySelector('.msc-ring-mark[data-mark="osero::kept"] rect')!;
     expect(seg).toHaveAttribute("fill", "url(#msc-ring-neg-kept)");
     expect(Number(seg.getAttribute("y"))).toBeCloseTo(layout.primes[0].zeroY, 6);
+  });
+
+  it("labels the donut 'To Sky', never 'Sky' alone", () => {
+    const { layout, primes } = ringPrimes([flow()], "2026-07");
+    render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
+    expect(screen.getByText("To Sky")).toBeInTheDocument();
   });
 
   it("puts the share in the link's accessible name", () => {

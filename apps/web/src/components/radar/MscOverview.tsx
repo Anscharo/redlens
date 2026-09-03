@@ -154,18 +154,19 @@ function RingKey() {
       <p className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
         <span className="msc-key-item" data-key="sky">{swatch("var(--msc-sky)")} to Sky</span>
         <span className="msc-key-item" data-key="kept">{swatch("var(--msc-kept)")} supply kept by Primes</span>
-        <span className="msc-key-item" data-key="demand">{swatch("var(--msc-demand)")} demand-side to Primes</span>
         <span className="msc-key-item" data-key="neg">
           {swatch(
-            "repeating-linear-gradient(45deg, var(--tan-2) 0, var(--tan-2) 2px, transparent 2px, transparent 4px)",
+            "repeating-linear-gradient(45deg, var(--msc-kept) 0, var(--msc-kept) 2px, transparent 2px, transparent 4px)",
           )}
-          indicates loss / negative flow
+          supply loss to Primes
         </span>
+        <span className="msc-key-item" data-key="demand">{swatch("var(--msc-demand)")} demand-side to Primes</span>
       </p>
       <p className="text-center mt-1">
-        Bars are what each Prime kept, on one square-root scale; the donut is
-        the To-Sky total by Prime. *Production = To Sky + supply kept +
-        demand-side. Click a Prime to open its settlement page.
+        Circle size is the Prime's production*; the bar inside is what it
+        kept, on one square-root scale; the donut is the To-Sky total by
+        Prime. *Production = To Sky + supply kept + demand-side. Hover for
+        figures; click a Prime to open its settlement page.
       </p>
     </div>
   );

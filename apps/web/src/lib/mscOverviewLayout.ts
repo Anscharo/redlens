@@ -16,15 +16,16 @@
 // - The DONUT: the To-Sky total (cost of funds + SDE), which is money
 //   passing THROUGH the Primes, not earned by them; its wedges are the
 //   Primes' shares of it, so Sky is visibly the sum of its inflows.
-// - The ARROW: width linear in the To-Sky amount, badge = To-Sky ÷
-//   production, production = To-Sky + kept + demand. A Prime that pays Sky
-//   nothing (Keel, Skybase) has no arrow and no wedge.
+// - The PLATE: area ∝ the Prime's PRODUCTION (To-Sky + kept + demand) on
+//   a shared scale, floored to whatever its bar and name need.
+// - The ARROW: width linear in the To-Sky amount; its hover carries the
+//   share, To-Sky ÷ production. A Prime that pays Sky nothing (Keel,
+//   Skybase) has no arrow and no wedge.
 //
 // Placement: each contributing Prime sits at ITS OWN WEDGE's mid-angle, so
 // its arrow runs straight in and never crosses the donut; non-contributors
 // fill the biggest gaps; then a relaxation pass pushes neighbours apart
-// just far enough that their plates don't touch. Badges are always placed
-// on the part of the arrow outside the donut.
+// just far enough that their plates don't touch.
 
 import { SETTLEMENT_NEAR_ZERO } from "@/lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
@@ -33,8 +34,8 @@ export const WIDTH = 840;
 const CX = WIDTH / 2;
 /** Orbit ellipse the bars' zero points sit on (wider than tall, like the
  *  frame). */
-const ORBIT_RX = 310;
-const ORBIT_RY = 180;
+const ORBIT_RX = 320;
+const ORBIT_RY = 200;
 /** Sky donut radii. */
 const SKY_R = 92;
 const SKY_INNER_R = 58;
@@ -49,11 +50,14 @@ const ZERO_TICK = 8;
 /** Plate padding around the bar + label box, and the smallest plate. */
 const PLATE_PAD = 10;
 const PLATE_MIN_R = 34;
+/** The month's biggest production renders at this plate radius; a plate
+ *  is never smaller than what its bar and name need, so tiny producers
+ *  are floored by their contents. */
+const PLATE_MAX_R = 100;
 /** Minimum clearance between two plates. */
-const CLEARANCE = 10;
-/** Minimum gap between a plate and the donut — room for an arrow with a
- *  badge on it. */
-const DONUT_GAP = 48;
+const CLEARANCE = 16;
+/** Minimum gap between a plate and the donut — room for the arrow. */
+const DONUT_GAP = 64;
 /** ~px per character of the 13px name label. */
 const CHAR_PX = 7.2;
 const LABEL_GAP = 6;
@@ -67,8 +71,6 @@ const HEAD_FLARE = 5;
 const MIN_WEDGE = 0.05;
 /** Keep a dock point this far (radians) inside its wedge's edges. */
 const DOCK_INSET = 0.04;
-/** The badge never comes closer to the donut's edge than this. */
-const BADGE_GAP = 14;
 /** Leader length from an arrow to its hover pill. */
 const PILL_OFFSET = 30;
 /** A segment pill sits this far to the side of its bar's center line. */
@@ -76,7 +78,7 @@ const PILL_DX = 96;
 
 /** FIXED frame: the viewBox never changes with the month, so switching
  *  months can't reflow the page below the chart. */
-export const HEIGHT = 2 * (ORBIT_RY + BAR_MAX + 70);
+export const HEIGHT = 2 * (SKY_R + DONUT_GAP + 2 * PLATE_MAX_R + 12);
 
 export interface RingSegment {
   kind: "kept" | "demand";
@@ -103,11 +105,7 @@ export interface RingArrow {
    *  denominator isn't positive. */
   share: number | null;
   path: string;
-  /** Always-visible share badge, on the arrow, outside the donut. */
-  labelX: number;
-  labelY: number;
-  /** Where the pill's leader touches the arrow (nearer the Sky end, so the
-   *  leader never crosses the badge). */
+  /** Where the pill's leader touches the arrow (its midpoint). */
   amountX: number;
   amountY: number;
   pillX: number;
@@ -143,10 +141,17 @@ export interface RingPrime {
   /** Name label, to the left of the zero line (anchor "end"). */
   labelX: number;
   labelY: number;
-  /** Circular plate enclosing the bar and its label. */
+  /** Circular plate enclosing the bar and its label; area ∝ production. */
   plateX: number;
   plateY: number;
   plateR: number;
+  /** To-Sky + kept + demand (signed) — what the plate's size stands for. */
+  production: number;
+  /** Where the production pill sits (above the plate) and its anchor. */
+  productionPillX: number;
+  productionPillY: number;
+  productionAnchorX: number;
+  productionAnchorY: number;
 }
 
 export interface RingLayout {
@@ -222,7 +227,7 @@ export function layoutMscRing(
       const sky = Math.abs(p.sky) >= SETTLEMENT_NEAR_ZERO ? p.sky : 0;
       const gains = parts.filter((f) => f.signed > 0).reduce((n, f) => n + f.signed, 0);
       const losses = parts.filter((f) => f.signed < 0).reduce((n, f) => n - f.signed, 0);
-      return { p, parts, sky, gains, losses };
+      return { p, parts, sky, gains, losses, production: sky + gains - losses };
     })
     .filter((r) => r.parts.length > 0 || r.sky !== 0);
 
@@ -247,6 +252,11 @@ export function layoutMscRing(
   const maxSky = Math.max(1, ...rows.map((r) => Math.abs(r.sky)));
   const widthOf = (v: number) => Math.max(W_MIN, (W_MAX * v) / maxSky);
 
+  // Plate area ∝ production, pinned so the month's biggest producer is
+  // PLATE_MAX_R; the content floor below keeps small ones legible.
+  const maxProduction = Math.max(1, ...rows.map((r) => r.production));
+  const plateFor = (production: number) => PLATE_MAX_R * Math.sqrt(Math.max(0, production) / maxProduction);
+
   // Angle-independent geometry first: each bar's extent above/below its zero
   // line, its label width, and the plate that has to enclose both.
   const shape = rows.map((r) => {
@@ -261,7 +271,8 @@ export function layoutMscRing(
     const bottom = Math.max(down, 8);
     const plateDx = (left + right) / 2;
     const plateDy = (top + bottom) / 2;
-    const plateR = Math.max(PLATE_MIN_R, Math.hypot((right - left) / 2, (bottom - top) / 2) + PLATE_PAD);
+    const contentR = Math.hypot((right - left) / 2, (bottom - top) / 2) + PLATE_PAD;
+    const plateR = Math.max(PLATE_MIN_R, contentR, plateFor(r.production));
     return { up, down, plateDx, plateDy, plateR };
   });
 
@@ -419,36 +430,14 @@ export function layoutMscRing(
       const uy = dy / len;
       const x0 = plateX + ux * (s.plateR + 2);
       const y0 = plateY + uy * (s.plateR + 2);
-      // Badge: centered on the part of the arrow that lies outside the
-      // donut (+ gap) — solve |P(f) − Sky| = SKY_R + BADGE_GAP along the
-      // arrow for the entry fraction, then halve it.
-      const outside = SKY_R + BADGE_GAP;
-      const fx = x0 - CX;
-      const fy = y0 - cy;
-      const ex = x1 - x0;
-      const ey = y1 - y0;
-      const qa = ex * ex + ey * ey;
-      const qb = 2 * (fx * ex + fy * ey);
-      const qc = fx * fx + fy * fy - outside * outside;
-      const disc = qb * qb - 4 * qa * qc;
-      let enter = 1;
-      if (qa > 0 && disc >= 0) {
-        const f1 = (-qb - Math.sqrt(disc)) / (2 * qa);
-        if (f1 > 0 && f1 < 1) enter = f1;
-      }
-      const labelX = x0 + ex * (enter / 2);
-      const labelY = y0 + ey * (enter / 2);
-      const amountX = x0 + ex * Math.min(0.85, enter * 0.8);
-      const amountY = y0 + ey * Math.min(0.85, enter * 0.8);
-      const produced = r.sky + r.gains - r.losses;
+      const amountX = (x0 + x1) / 2;
+      const amountY = (y0 + y1) / 2;
       arrow = {
         kind: "sky",
         value: Math.abs(r.sky),
         signed: r.sky,
-        share: produced >= SETTLEMENT_NEAR_ZERO ? r.sky / produced : null,
+        share: r.production >= SETTLEMENT_NEAR_ZERO ? r.sky / r.production : null,
         path: arrowPath(x0, y0, x1, y1, widthOf(Math.abs(r.sky))),
-        labelX,
-        labelY,
         amountX,
         amountY,
         // Off to the side of the arrow (perpendicular), never on top of it.
@@ -472,6 +461,13 @@ export function layoutMscRing(
       plateX,
       plateY,
       plateR: s.plateR,
+      production: r.production,
+      productionPillX: plateX,
+      // Above the plate, unless that would leave the frame (the 12 o'clock
+      // plate), then below it — the donut gap has room for a pill.
+      productionPillY: plateY - s.plateR - 18 >= 12 ? plateY - s.plateR - 18 : plateY + s.plateR + 18,
+      productionAnchorX: plateX,
+      productionAnchorY: plateY - s.plateR - 18 >= 12 ? plateY - s.plateR + 1 : plateY + s.plateR - 1,
     };
   });
 

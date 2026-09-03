@@ -169,14 +169,14 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "MSC ecosystem overview",
-        what: "The Radar front page opens with a cross-prime Monthly Settlement Cycle view: an orbital chart — Sky as a central donut, split into one wedge per Prime that paid into it, with each Prime orbiting on its own circular plate as a floating stacked bar of what it kept (supply kept and demand-side above its zero line, losses striped below) and an arrow running from it to its wedge, badged with the share of that Prime's production (To Sky + supply kept + demand-side) that went to Sky — next to a stacked timeline of what each Prime kept, with Sky's monthly take overlaid as a line.",
+        what: "The Radar front page opens with a cross-prime Monthly Settlement Cycle view: an orbital chart — Sky as a central donut, split into one wedge per Prime that paid into it, with each Prime orbiting as a circle sized by its production (To Sky + supply kept + demand-side) holding a floating stacked bar of what it kept (supply kept and demand-side above its zero line, a supply loss striped below) and an arrow running from it to its wedge — next to a stacked timeline of what each Prime kept, with Sky's monthly take overlaid as a line.",
         how: [
           "Open Radar; the orbital chart shows the latest settled month across all Primes, with the color key and reading guide under it.",
           "Click a month column in the Prime-side earnings chart to switch the orbital chart and the figures under it.",
-          "Hover any bar segment, arrow or Sky wedge for a labelled figure; hover a timeline segment to light that Prime up on the orbital chart.",
+          "Hover a Prime's circle for its production, a bar segment or Sky wedge for its figure, or an arrow for the To-Sky amount and the share of that Prime's production it is; hover a timeline segment to light that Prime up on the orbital chart.",
           "Click a Prime's plate to open its settlement page for the month you had selected.",
         ],
-        note: "Bar heights share one square-root scale so the smallest Primes stay visible, and a Prime with a negative supply kept shows it hanging below its zero line rather than disappearing. To Sky is a pass-through (cost of funds + Sky Direct Exposure), not the Prime's revenue, so it is never part of a Prime's bar — it lives in the arrow, the badge on it, and Sky's donut. A badge over 100% is real: that Prime owed Sky more than it made that month. Hidden when settlements.json has not been built. Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
+        note: "Bar heights share one square-root scale so the smallest Primes stay visible, and a Prime with a negative supply kept shows it hanging below its zero line rather than disappearing. To Sky is a pass-through (cost of funds + Sky Direct Exposure), not the Prime's revenue, so it is never part of a Prime's bar — it lives in the arrow and Sky's donut. A share over 100% on an arrow is real: that Prime owed Sky more than it made that month. Hidden when settlements.json has not been built. Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
       },
       {
         name: "Monthly settlement charts",

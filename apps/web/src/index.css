@@ -2766,15 +2766,6 @@ a:focus-visible > .msc-ring-prime .msc-ring-plate {
 a:focus-visible > .msc-ring-prime :is(path, rect, line, circle) {
   opacity: 1;
 }
-/* The always-on share badge sitting on the arrow ("71%"). */
-.msc-ring-share rect {
-  fill: var(--bg);
-  stroke: var(--msc-sky);
-  stroke-width: 1;
-}
-.msc-ring-share text {
-  fill: var(--tan);
-}
 .msc-ring-label {
   fill: var(--tan-2);
 }
