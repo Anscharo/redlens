@@ -2722,11 +2722,11 @@ button.atlas-node-expand-all:focus-visible {
   opacity: 1;
 }
 /* Pie slices inside a prime's circle — muted versions of the series colors
-   so the full-strength ribbons stay the dominant flow marks. */
+   so the full-strength ribbons stay the dominant flow marks. No stroke: a
+   slice's own outer arc sits right on top of the band's outline, and
+   stroking it read as a second, thinner ring next to the identity ring. */
 .msc-ring-slice {
   fill-opacity: 0.45;
-  stroke: var(--bg-deep);
-  stroke-width: 1;
 }
 /* Hovering a key row lights up everything it describes, on both the circles
    (slices) and the ribbons. */
