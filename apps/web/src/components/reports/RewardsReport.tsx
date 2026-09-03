@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { loadDocs } from "../../lib/docs";
 import { loadAddresses } from "../../lib/addresses";
+import { setAddressMap } from "../../lib/addressMap";
 import { loadGraph } from "../../lib/graph";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { buildRewardsIndex, rewardsIndexToCSV, type RewardsAgent } from "@/lib/rewardsIndex";
@@ -39,6 +40,13 @@ export function RewardsReport({ query, mode }: { query: string; mode: ReportMode
   const addresses = useLoaded(loadAddresses);
   const idx = useMemo(() => (docs && graph ? buildRewardsIndex(docs, graph) : null), [docs, graph]);
   const addrMap = addresses ?? {};
+
+  // Hydrate the shared singleton the inline <Address> tooltips read for
+  // name/explorer resolution (this report loads the map directly, not via
+  // useAddressMap which is what normally sets the singleton).
+  useEffect(() => {
+    if (addresses) setAddressMap(addresses);
+  }, [addresses]);
 
   // Text filter: keep agents with at least one matching ICD, with their DR/IB
   // buckets narrowed to the matching rows. Empty-query passthrough keeps the

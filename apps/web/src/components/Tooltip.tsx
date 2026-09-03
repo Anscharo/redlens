@@ -34,7 +34,7 @@ interface Placement {
 
 const INITIAL: Placement = { left: 0, top: 0, maxHeight: 0, placed: false };
 
-export function Tooltip({ content, delay = 800, children }: TooltipProps) {
+export function Tooltip({ content, delay = 200, children }: TooltipProps) {
   const triggerRef = useRef<HTMLElement | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
   const showTimer = useRef<number | null>(null);

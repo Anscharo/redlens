@@ -4,7 +4,7 @@
 import type { AddressInfo } from "@/types";
 import type { BalanceMap, AddressBalances } from "@/lib/balances";
 import { compactAmount } from "@/lib/tokens";
-import { shortAddr } from "./format";
+import { resolveAddressName } from "./addressName";
 import { PRIMARY_BALANCE_SYMBOLS } from "./onchainAddressesIndex";
 
 export interface HeldBalance {
@@ -60,6 +60,63 @@ function sortHeld(items: RawHeld[]): RawHeld[] {
 // report shows: chainlogId or the verified on-chain name only, never the
 // heuristic entityLabel (a best-effort proper-noun extraction from
 // surrounding prose — too often a stray phrase, not a real name).
+// Symbols we can treat as ~$1 to show a real dollar figure. Everything else has
+// no price feed in this app, so it can only be shown as a token amount.
+const STABLES = new Set(["USDS", "SUSDS", "USDC", "USDT", "DAI", "USDP", "PYUSD", "RLUSD"]);
+
+function compactUsd(n: number): string {
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
+  if (abs >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
+  return `$${Math.round(n)}`;
+}
+
+/**
+ * A single compact "headline" balance for an address, for the inline pill:
+ * the summed stablecoin value as `$3.2K` when it's ≥ $1 (a true dollar figure),
+ * otherwise the largest-priority non-stable holding as `35.4M SKY`. Null when the
+ * address holds nothing worth showing. Full detail still lives in the tooltip;
+ * this is only the teaser. No price feed exists, so non-stables can't be valued
+ * in USD — that's why they show the token amount, not a dollar figure.
+ */
+export function addressHeadlineBalance(
+  address: string,
+  addrMap: Record<string, AddressInfo>,
+  balancesByAddress: Record<string, AddressBalances>,
+): string | null {
+  const key = address.toLowerCase();
+  const info = addrMap[address] ?? addrMap[key];
+  const chains = info?.chains ?? (info?.chain ? [info.chain] : []);
+  if (chains.length === 0) return null;
+  let usd = 0;
+  const others: RawHeld[] = [];
+  for (const chain of chains) {
+    const bal = balancesByAddress[`${key}|${chain}`];
+    if (!bal) continue;
+    for (const [symbol, b] of Object.entries(bal.balances)) {
+      let v: bigint;
+      try {
+        v = BigInt(b.raw);
+      } catch {
+        continue;
+      }
+      if (v <= 0n) continue;
+      if (STABLES.has(symbol.toUpperCase())) usd += Number(v) / 10 ** b.decimals;
+      else others.push({ symbol, raw: b.raw, decimals: b.decimals });
+    }
+  }
+  if (usd >= 1) return compactUsd(usd);
+  if (others.length === 0) return null;
+  const top = sortHeld(others)[0];
+  // Floor dust at "<0.01": a pill is a teaser, so sub-cent amounts all read the
+  // same rather than exposing "<0.0001"-style precision. Exact holdings still
+  // live in the hover tooltip.
+  const n = Number(top.raw) / 10 ** top.decimals;
+  const amount = n <= 0.01 ? "<0.01" : compactAmount(top.raw, top.decimals);
+  return `${amount} ${top.symbol}`;
+}
+
 export function resolveAddressTooltip(
   address: string,
   addrMap: Record<string, AddressInfo>,
@@ -72,7 +129,7 @@ export function resolveAddressTooltip(
   // Solana, where lowercasing first risked resolving a different real pubkey.
   const key = address.toLowerCase();
   const info = addrMap[address] ?? addrMap[key];
-  const name = info?.chainlogId ?? info?.etherscanName ?? shortAddr(address);
+  const name = resolveAddressName(address, info);
   if (!info) return { name, held: [] };
 
   // chains always contains at least info.chain — see AddressInfo's own comment.

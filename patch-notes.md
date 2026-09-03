@@ -32,6 +32,10 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
+## 2026-09-02
+- On-chain addresses now appear as a pill across documents, reports, and dashboards, showing the balance they hold in green with a hover for the name and full token holdings
+- A document's Annotations tab now lists every address it mentions, including ones named only by their chainlog key, each with its owner, roles, and balances
+
 ## 2026-08-27
 - Tinted Giedi Connect tool names gold and made reader document hover easier to see
 - Improved Chat: it can now draft messages explaining what the Atlas says, answer settlement questions across all Prime Agents, keeps answers it has already shown you, and has a higher usage limit

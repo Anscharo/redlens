@@ -27,16 +27,42 @@ describe("AddressCard", () => {
     expect(link).toBeInTheDocument();
   });
 
-  it("omits the label paragraph when label is null", () => {
-    const info = makeAddressInfo({ label: null });
+  it("omits the name paragraph when there is no chainlog / on-chain name", () => {
+    const info = makeAddressInfo({ chainlogId: undefined, etherscanName: undefined });
     const { container } = render(<AddressCard address={ADDR} info={info} />);
     expect(container.querySelector(".text-tan.font-semibold")).toBeNull();
   });
 
-  it("renders the label when present", () => {
-    const info = makeAddressInfo({ label: "PauseProxy" });
+  it("renders the resolved name (chainlog id / verified on-chain name) when present", () => {
+    const info = makeAddressInfo({ etherscanName: "PauseProxy" });
     render(<AddressCard address={ADDR} info={info} />);
     expect(screen.getByText("PauseProxy")).toBeInTheDocument();
+  });
+
+  it("shows a clean entityLabel as the owner, and never as the bold name", () => {
+    const info = makeAddressInfo({ entityLabel: "Bonapublica" });
+    const { container } = render(<AddressCard address={ADDR} info={info} />);
+    expect(screen.getByText("Bonapublica")).toBeInTheDocument();
+    // owner is secondary (text-tan-2), not the bold name row
+    expect(container.querySelector(".text-tan.font-semibold")).toBeNull();
+  });
+
+  it("suppresses a scraped-fragment entityLabel entirely", () => {
+    const info = makeAddressInfo({ entityLabel: "ALM Proxy's entire native ETH balance into WETH. It" });
+    render(<AddressCard address={ADDR} info={info} />);
+    expect(screen.queryByText(/into WETH/)).toBeNull();
+  });
+
+  it("flags an address referenced only by its chainlog name", () => {
+    const info = makeAddressInfo({ chainlogId: "MCD_PAUSE_PROXY" });
+    render(<AddressCard address={ADDR} info={info} byName />);
+    expect(screen.getByText(/referenced by chainlog name · MCD_PAUSE_PROXY/)).toBeInTheDocument();
+  });
+
+  it("omits the chainlog-name flag for a directly-referenced address", () => {
+    const info = makeAddressInfo({ chainlogId: "MCD_PAUSE_PROXY" });
+    render(<AddressCard address={ADDR} info={info} />);
+    expect(screen.queryByText(/referenced by chainlog name/)).toBeNull();
   });
 
   it("renders aliases joined with a middle dot", () => {

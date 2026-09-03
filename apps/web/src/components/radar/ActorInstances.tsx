@@ -4,10 +4,9 @@ import { prepareWithSegments, measureNaturalWidth } from "@chenglou/pretext";
 import type { RadarInstance, RadarPrimitive, InstanceParam } from "../../lib/actorIndex";
 import { toAnchorId } from "../../lib/anchorId";
 import { atlasHref } from "@/lib/routes";
-import { explorerUrl } from "@/lib/explorer";
+import { Address } from "../Address";
 import { useAddressMap } from "../../hooks/useAddressMap";
 import type { AddressInfo } from "@/types";
-import { shortAddr } from "../../lib/format";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
 import { EVM_ADDRESS_EXACT_RE, SOL_ADDRESS_EXACT_RE } from "@/lib/patterns";
@@ -34,13 +33,12 @@ function renderValue(
   addrMap?: Record<string, AddressInfo>,
 ): React.ReactNode {
   if (EVM_RE.test(value) || SOL_RE.test(value)) {
-    const short = shortAddr(value);
     // addrMap is the build pipeline's resolved chain and outranks every hint —
     // an instance's *name* is not evidence of where it is deployed. The "Grove
     // Arbitrum Governance Relay Receiver" lives on Robinhood Chain, and naming
     // it after the governance it relays sent its address to arbiscan for as
     // long as the name was the only thing consulted.
-    return <a href={explorerUrl(value, { chain: chainHint, addrMap })} target="_blank" rel="noopener" title={value} className="text-accent hover:underline">{short}</a>;
+    return <Address address={value} chain={chainHint} addrMap={addrMap} />;
   }
   if (RATE_LIMIT_HASH_RE.test(value.trim())) {
     const v = value.trim();

@@ -51,7 +51,7 @@ export function AtlasView({
   // useGraphEdges hides the graph-relations section.
   const { preview } = useDataSource();
   const { selectedId, handleNavigate } = useAtlasSelection(id, onNavigate);
-  const { linkedNodes, targetAddresses, chainValues, glossaryTerms, cousinDocs } = useNodeAnnotations(id, data, preview ? null : graph);
+  const { linkedNodes, targetAddresses, chainValues, glossaryTerms, cousinDocs, byNameOnly } = useNodeAnnotations(id, data, preview ? null : graph);
 
   // Atlas-aware analytics: one doc_view per node (live + preview alike).
   useDocViewTracking(data?.atlas ?? null, id, graph);
@@ -156,6 +156,7 @@ export function AtlasView({
               cousinDocs={cousinDocs}
               targetAddresses={targetAddresses}
               chainValues={chainValues}
+              byNameOnly={byNameOnly}
               glossaryTerms={glossaryTerms}
               annotationCount={annotationCount}
               tab={view}

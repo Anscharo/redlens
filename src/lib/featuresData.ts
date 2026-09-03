@@ -65,9 +65,9 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "The right-hand panel",
         what: "Three tabs of context for whichever document is selected: annotations, glossary, and history.",
         how: [
-          "Annotations — linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one.",
+          "Annotations — linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one (the tab you land on by default).",
           "Glossary — the defined terms this document uses, with their Atlas definitions.",
-          "History — this document's change timeline (the tab you land on by default).",
+          "History — this document's change timeline.",
         ],
       },
       {
@@ -102,10 +102,10 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "On-chain addresses in context",
-        what: "Every address the Atlas mentions is resolved, labelled, and linked to the right explorer for its chain.",
+        what: "Every address the Atlas mentions is resolved, labelled, and linked to the right explorer for its chain — the same way everywhere it appears.",
         how: [
-          "Hover an address in the text to see its name and any token balances it holds.",
-          "Addresses in the annotations panel show as cards with their metadata and a chain-correct explorer link.",
+          "Hover any address — in a document, a report, or a dashboard — to see its name and the token balances it holds.",
+          "Open a document's Annotations tab: each address it mentions, whether by hex or by its chainlog name, shows as a card with its name, owner, roles, balances, and a chain-correct explorer link.",
         ],
       },
       {

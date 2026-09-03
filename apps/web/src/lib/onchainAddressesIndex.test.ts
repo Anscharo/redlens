@@ -7,6 +7,7 @@ import {
   docsSummary,
   addrSearchFields,
   isContractKey,
+  chainlogNamedAddresses,
   balanceExact,
   otherBalances,
   ADDRESS_TYPES,
@@ -384,5 +385,32 @@ describe("helpers", () => {
       "Program",
       "Program Account",
     ]);
+  });
+});
+
+describe("chainlogNamedAddresses", () => {
+  const info = (over: Partial<AddressInfo>): AddressInfo => ({
+    chain: "ethereum", chains: ["ethereum"], explorerUrl: "", label: null,
+    isContract: true, isProxy: false, roles: [], aliases: [], expectedTokens: [], ...over,
+  });
+  const VAT = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const addrMap: Record<string, AddressInfo> = {
+    [VAT]: info({ chainlogId: "MCD_VAT" }),
+    "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": info({ chainlogId: "USDS" }), // bare token, not a contract key
+    "0xcccccccccccccccccccccccccccccccccccccccc": info({}), // no chainlogId
+  };
+
+  it("matches SCREAMING_SNAKE chainlog keys as whole words", () => {
+    expect(chainlogNamedAddresses("Debt is tracked in the MCD_VAT accounting engine.", addrMap)).toEqual([VAT]);
+  });
+
+  it("ignores bare token symbols and un-keyed addresses", () => {
+    expect(chainlogNamedAddresses("USDS is the stablecoin.", addrMap)).toEqual([]);
+    expect(chainlogNamedAddresses("nothing to see here", addrMap)).toEqual([]);
+  });
+
+  it("does not match a key embedded in a longer underscore key", () => {
+    // underscores are word chars, so \bMCD_VAT\b never fires inside MCD_VAT_END
+    expect(chainlogNamedAddresses("the MCD_VAT_END slot", addrMap)).toEqual([]);
   });
 });

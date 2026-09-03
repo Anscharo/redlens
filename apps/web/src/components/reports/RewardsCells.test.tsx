@@ -43,12 +43,12 @@ describe("AddressLink", () => {
     expect(link).toHaveAttribute("target", "_blank");
   });
 
-  it("prefixes the label from the address map when known (case-insensitive key)", () => {
+  it("prefixes the resolved name from the address map when known (case-insensitive key)", () => {
     const addrMap: Record<string, AddressInfo> = {
-      [addr.toLowerCase()]: { chain: "ethereum", label: "Sky Base Multisig" } as AddressInfo,
+      [addr.toLowerCase()]: { chain: "ethereum", chainlogId: "MCD_MULTISIG" } as AddressInfo,
     };
     render(<AddressLink addr={addr} addrMap={addrMap} />);
-    expect(screen.getByRole("link")).toHaveTextContent("Sky Base Multisig · 0x1234…5678");
+    expect(screen.getByRole("link")).toHaveTextContent("MCD_MULTISIG · 0x1234…5678");
   });
 
   it("resolves the explorer URL from the chain hint", () => {

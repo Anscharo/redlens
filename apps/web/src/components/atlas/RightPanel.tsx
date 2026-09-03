@@ -24,6 +24,7 @@ export function RightPanel({
   cousinDocs,
   targetAddresses,
   chainValues,
+  byNameOnly,
   annotationCount,
   graphEdges,
   glossaryTerms,
@@ -39,6 +40,8 @@ export function RightPanel({
   cousinDocs: CousinDoc[];
   targetAddresses: Record<string, AddressInfo>;
   chainValues: Record<string, Record<string, ChainValue>>;
+  /** Addresses this section named only by chainlog key, not a 0x literal. */
+  byNameOnly?: Set<string>;
   annotationCount: number;
   graphEdges: EdgeResult;
   glossaryTerms: GlossaryEntry[][];
@@ -249,6 +252,7 @@ export function RightPanel({
                       address={address}
                       info={info}
                       chainValues={chainValues[address]}
+                      byName={byNameOnly?.has(address)}
                     />
                   </ErrorBoundary>
                 ))}
