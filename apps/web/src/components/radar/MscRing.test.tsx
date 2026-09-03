@@ -66,21 +66,24 @@ describe("MscRing", () => {
     expect(container.querySelector('[data-prime="obex"]')).toBeInTheDocument();
   });
 
-  it("puts the three figures in the aria-label and the sub-categories in the tooltip", () => {
+  it("puts the three figures in the aria-label", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
-    const { container } = render(
-      <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />,
-    );
+    render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     expect(
       screen.getByRole("link", {
         name: "Spark, Jul 2026: $10.00M to Sky, $2.00M supply kept, $1.50M demand-side. Open settlement page.",
       }),
     ).toBeInTheDocument();
-    const title = container.querySelector("title")!.textContent!;
-    expect(title).toContain("of which cost of funds $9.90M");
-    expect(title).toContain("Sky Direct Exposure $100k");
-    expect(title).toContain("agent rate $1.40M");
-    expect(title).toContain("distribution rewards $100k");
+  });
+
+  it("names what each hover pill is, not just its number — the slice and its ribbon share the To-Sky figure", () => {
+    const { layout, primes } = ringPrimes([flow()], "2026-07");
+    render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
+    // The To-Sky slice and the To-Sky ribbon each carry their own pill for
+    // the same underlying number — both say so explicitly.
+    expect(screen.getAllByText("$10.00M to Sky")).toHaveLength(2);
+    expect(screen.getByText("$2.00M supply kept")).toBeInTheDocument();
+    expect(screen.getByText("$1.50M demand-side to Spark")).toBeInTheDocument();
   });
 
   it("fills a negative flow with its category's stripe pattern, not a loss color", () => {

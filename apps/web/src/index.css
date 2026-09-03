@@ -2777,16 +2777,16 @@ a:focus-visible > .msc-ring-prime :is(path, circle) {
 .msc-ring-prime:hover .msc-ring-label {
   fill: var(--tan);
 }
-/* Per-prime figures ride on the flows; halo rules copied from
-   .msc-sankey-amounts — same readable-over-ribbon trick. The whole prime is
-   one hover target, so plain descendant hover works (no generated per-id
-   rules needed). */
+/* Each slice/ribbon carries its own pill, shown only while THAT mark is
+   hovered — showing every pill on prime hover made it unclear which pill
+   named which shape. Keyboard focus (no per-mark hover target) still
+   reveals all of them as a fallback. */
 .msc-ring-amounts {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.1s;
 }
-.msc-ring-prime:hover .msc-ring-amounts,
+.msc-ring-mark:hover .msc-ring-amounts,
 a:focus-visible > .msc-ring-prime .msc-ring-amounts {
   opacity: 1;
 }

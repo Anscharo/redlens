@@ -1,9 +1,4 @@
-import {
-  DEMAND_SERIES,
-  SETTLEMENT_NEAR_ZERO,
-  formatMonth,
-  formatUsd,
-} from "../../lib/settlements";
+import { formatMonth, formatUsd } from "../../lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 import type { RingLayout, RingPrime } from "../../lib/mscOverviewLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
@@ -60,14 +55,14 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
         {centerFigure}
       </text>
       {primes.map((p) => (
-        <RingPrimeGroup key={p.flow.prime} {...p} month={month} chartHeight={layout.height} />
+        <RingPrimeGroup key={p.flow.prime} {...p} month={month} />
       ))}
     </svg>
   );
 }
 
 /** Amount-pill text names what it is, not just the number — a bare "$2.6M"
- *  is meaningless once several pills are visible over one prime. */
+ *  is meaningless without saying which flow it's naming. */
 function pillText(kind: "sky" | "kept" | "demand", signed: number, primeLabel: string): string {
   const amount = formatUsd(signed, true);
   if (kind === "sky") return `${amount} to Sky`;
@@ -75,54 +70,49 @@ function pillText(kind: "sky" | "kept" | "demand", signed: number, primeLabel: s
   return `${amount} demand-side to ${primeLabel}`;
 }
 
-function RingPrimeGroup({
-  flow,
-  ring,
-  label,
-  bandColor,
-  to,
-  month,
-  chartHeight,
-}: MscRingPrime & { month: string; chartHeight: number }) {
-  // One prime's pills are stacked in a single vertical column instead of
-  // floating at each flow/slice's own centroid — independently-placed pills
-  // sat on top of each other and hid what they were pointing at.
-  const amounts = [
-    ...ring.flows.map((f) => ({ key: `flow-${f.kind}`, signed: f.signed, text: pillText(f.kind, f.signed, label) })),
-    ...ring.slices
-      .filter((s) => s.kind !== "sky")
-      .map((s) => ({ key: `slice-${s.kind}`, signed: s.signed, text: pillText(s.kind, s.signed, label) })),
-  ];
-  const PILL_H = 22;
-  const PILL_GAP = 4;
-  const stackH = amounts.length * PILL_H + Math.max(0, amounts.length - 1) * PILL_GAP;
-  const spaceBelow = chartHeight - (ring.cy + ring.r);
-  const spaceAbove = ring.cy - ring.r;
-  const below = spaceBelow >= stackH + 16 || spaceAbove < stackH + 16;
-  const startY = below ? ring.cy + ring.r + 14 : ring.cy - ring.r - 14 - stackH;
+/** One shape's hover-amount pill, anchored at that shape's own centroid.
+ *  Scoped to `.msc-ring-mark` (its wrapping `<g>`) so only the shape actually
+ *  under the pointer reveals its pill — showing every pill on prime hover
+ *  buried them on top of each other. */
+function AmountPill({ x, y, text }: { x: number; y: number; text: string }) {
+  const w = text.length * 6.4 + 16;
+  const h = 22;
+  return (
+    <g className="msc-ring-amounts" aria-hidden="true">
+      <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={h / 2} />
+      <text x={x} y={y + 4} textAnchor="middle" fontSize={12} className="mono">
+        {text}
+      </text>
+    </g>
+  );
+}
 
+function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrime & { month: string }) {
   const group = (
     <g className="msc-ring-prime" data-prime={flow.prime}>
-      <title>{breakdown(flow)}</title>
       {/* Outlined, not solid: a filled circle would read like a flow. The
           faint tint keeps the whole circle hoverable/clickable. */}
       <circle cx={ring.cx} cy={ring.cy} r={ring.r} className="msc-ring-band" style={{ stroke: bandColor, fill: bandColor }} />
       {/* Pie slices: the circle's own To Sky (CoF + SDE) / kept / demand mix. */}
       {ring.slices.map((s) => (
-        <path
-          key={s.kind}
-          d={s.path}
-          className={`msc-ring-slice${s.signed < 0 ? "" : ` msc-ring-${s.kind}`}`}
-          fill={s.signed < 0 ? `url(#msc-ring-neg-${s.kind})` : undefined}
-        />
+        <g key={s.kind} className="msc-ring-mark">
+          <path
+            d={s.path}
+            className={`msc-ring-slice${s.signed < 0 ? "" : ` msc-ring-${s.kind}`}`}
+            fill={s.signed < 0 ? `url(#msc-ring-neg-${s.kind})` : undefined}
+          />
+          <AmountPill x={s.amountX} y={s.amountY} text={pillText(s.kind, s.signed, label)} />
+        </g>
       ))}
       {ring.flows.map((f) => (
-        <path
-          key={f.kind}
-          d={f.path}
-          className={f.signed < 0 ? undefined : `msc-ring-${f.kind}`}
-          fill={f.signed < 0 ? `url(#msc-ring-neg-${f.kind})` : undefined}
-        />
+        <g key={f.kind} className="msc-ring-mark">
+          <path
+            d={f.path}
+            className={f.signed < 0 ? undefined : `msc-ring-${f.kind}`}
+            fill={f.signed < 0 ? `url(#msc-ring-neg-${f.kind})` : undefined}
+          />
+          <AmountPill x={f.amountX} y={f.amountY} text={pillText(f.kind, f.signed, label)} />
+        </g>
       ))}
       {ring.leaderPath && <path d={ring.leaderPath} className="msc-ring-leader" aria-hidden="true" />}
       <text
@@ -134,21 +124,6 @@ function RingPrimeGroup({
       >
         {label}
       </text>
-      <g className="msc-ring-amounts" aria-hidden="true">
-        {amounts.map((a, i) => {
-          const y = startY + i * (PILL_H + PILL_GAP);
-          // Pill background sized from the mono text (~6.4px/char at 12px).
-          const w = a.text.length * 6.4 + 16;
-          return (
-            <g key={a.key}>
-              <rect x={ring.cx - w / 2} y={y} width={w} height={PILL_H} rx={PILL_H / 2} />
-              <text x={ring.cx} y={y + PILL_H / 2 + 4} textAnchor="middle" fontSize={12} className="mono">
-                {a.text}
-              </text>
-            </g>
-          );
-        })}
-      </g>
     </g>
   );
   if (!to) return group;
@@ -160,21 +135,4 @@ function RingPrimeGroup({
       {group}
     </SvgRouteLink>
   );
-}
-
-/** Full hover breakdown, sub-categories included (they never get their own
- *  ribbons): CoF/SDE as components of To Sky, the demand parts under
- *  demand-side. Near-zero parts omitted. */
-function breakdown(f: PrimeFlowTotals): string {
-  const skyParts: string[] = [];
-  if (Math.abs(f.cof) >= SETTLEMENT_NEAR_ZERO) skyParts.push(`cost of funds ${formatUsd(f.cof, true)}`);
-  if (Math.abs(f.sde) >= SETTLEMENT_NEAR_ZERO) skyParts.push(`Sky Direct Exposure ${formatUsd(f.sde, true)}`);
-  const demandParts = DEMAND_SERIES.filter((s) => f.demandParts[s.key] != null).map(
-    (s) => `${s.label.toLowerCase()} ${formatUsd(f.demandParts[s.key]!, true)}`,
-  );
-  return [
-    `To Sky ${formatUsd(f.sky, true)}${skyParts.length ? ` (of which ${skyParts.join(", ")})` : ""}`,
-    `Supply kept ${formatUsd(f.kept, true)}`,
-    `Demand-side ${formatUsd(f.demand, true)}${demandParts.length ? ` (${demandParts.join(", ")})` : ""}`,
-  ].join(" · ");
 }
