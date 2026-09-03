@@ -107,7 +107,7 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
         </div>
         <div className="msc-card msc-ring-card rounded p-4 flex-1 min-w-0" style={{ flexBasis: 340, maxWidth: "100%" }}>
           <p className="text-sm mb-2" style={{ color: "var(--tan)" }}>
-            Sky Ecosystem — {formatMonth(month)}
+            Sky System Settlements — {formatMonth(month)}
           </p>
           <MscRing
             layout={layout}
@@ -152,8 +152,7 @@ function RingKey() {
   return (
     <div className="mono text-[10px] mt-5" style={{ color: "var(--tan-3)" }}>
       <p className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
-        <span className="msc-key-item" data-key="sky">{swatch("var(--msc-sky)")} cost of funds to Sky</span>
-        <span className="msc-key-item" data-key="sde">{swatch("var(--msc-sde)")} Sky Direct Exposure to Sky</span>
+        <span className="msc-key-item" data-key="sky">{swatch("var(--msc-sky)")} to Sky</span>
         <span className="msc-key-item" data-key="kept">{swatch("var(--msc-kept)")} supply kept by Primes</span>
         <span className="msc-key-item" data-key="neg">
           {swatch(

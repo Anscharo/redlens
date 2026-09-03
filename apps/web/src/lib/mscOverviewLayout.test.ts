@@ -114,8 +114,8 @@ describe("layoutMscRing (orbital bars)", () => {
         expect(s.amountY).toBeLessThanOrEqual(s.y + s.h);
         expect(Math.abs(s.pillX - p.plateX)).toBeGreaterThan(p.plateR);
       }
-      for (const b of p.arrow?.bands ?? []) {
-        expect(Math.hypot(b.pillX - b.amountX, b.pillY - b.amountY)).toBeGreaterThan(20);
+      if (p.arrow) {
+        expect(Math.hypot(p.arrow.pillX - p.arrow.amountX, p.arrow.pillY - p.arrow.amountY)).toBeGreaterThan(20);
       }
     }
   });
@@ -141,10 +141,8 @@ describe("layoutMscRing (orbital bars)", () => {
         const toward = Math.atan2(p.plateY - layout.cy, p.plateX - layout.cx);
         const diff = Math.abs(((toward - wedge.mid + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
         expect(diff).toBeLessThan(Math.PI / 2);
-        // Every band's hover anchor sits outside the donut.
-        for (const b of p.arrow.bands) {
-          expect(Math.hypot(b.amountX - layout.cx, b.amountY - layout.cy)).toBeGreaterThan(layout.skyR);
-        }
+        // The arrow's hover anchor sits outside the donut.
+        expect(Math.hypot(p.arrow.amountX - layout.cx, p.arrow.amountY - layout.cy)).toBeGreaterThan(layout.skyR);
       }
     }
   });
@@ -218,26 +216,31 @@ describe("layoutMscRing (orbital bars)", () => {
     expect(layout.primes[0].arrow!.kind).toBe("sky");
   });
 
-  it("splits the arrow lengthwise into cost of funds and Sky Direct Exposure, widths by share", () => {
+  it("carries both To-Sky components on the arrow for its hover", () => {
     // Grove, Apr 2026: cof 2.95M, sde 6.40M.
     const layout = layoutMscRing([flow({ prime: "grove", sky: 9_340_000, cof: 2_950_000, sde: 6_400_000 })]);
     const arrow = layout.primes[0].arrow!;
-    expect(arrow.bands.map((b) => b.kind)).toEqual(["cof", "sde"]);
-    const [cof, sde] = arrow.bands;
-    expect(cof.value).toBe(2_950_000);
-    expect(sde.value).toBe(6_400_000);
-    // Both bands tile the whole arrow: their pills sit on opposite sides.
-    const d = Math.hypot(cof.pillX - sde.pillX, cof.pillY - sde.pillY);
-    expect(d).toBeGreaterThan(40);
-    for (const b of arrow.bands) {
-      expect(b.path).toMatch(/^M/);
-      expect(b.path).not.toMatch(/NaN/);
-    }
+    expect(arrow.cof).toBe(2_950_000);
+    expect(arrow.sde).toBe(6_400_000);
   });
 
-  it("draws a single band when a component is ~0 (Obex has no Sky Direct Exposure)", () => {
-    const layout = layoutMscRing([flow({ prime: "obex", sky: 1_970_000, cof: 1_970_000, sde: 0 })]);
-    expect(layout.primes[0].arrow!.bands.map((b) => b.kind)).toEqual(["cof"]);
+  it("keeps the primes in the order given, clockwise from 12 o'clock, non-contributors between their neighbours", () => {
+    // PRIME_ORDER as the caller passes it: spark, grove, obex, skybase, keel, osero.
+    const layout = layoutMscRing([
+      flow({ prime: "spark", sky: 5_750_694, kept: 2_846_722, demand: 1_074_583 }),
+      flow({ prime: "grove", sky: 8_003_550, kept: 1_563_759, demand: 114_024 }),
+      flow({ prime: "obex", sky: 1_761_245, kept: 764_735, demand: 71_997 }),
+      flow({ prime: "skybase", sky: 0, kept: 0, demand: 238_107 }),
+      flow({ prime: "keel", sky: 0, kept: 0, demand: 36_000 }),
+      flow({ prime: "osero", sky: 497, kept: -107, demand: 12_149 }),
+    ]);
+    expect(layout.primes.map((p) => p.prime)).toEqual(["spark", "grove", "obex", "skybase", "keel", "osero"]);
+    expect(layout.skyWedges.map((w) => w.prime)).toEqual(["spark", "grove", "obex", "osero"]);
+    // Clockwise (increasing angle from 12 o'clock) follows that order.
+    const turns = layout.primes.map((p) => ((p.angle + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI));
+    for (let i = 1; i < turns.length; i++) expect(turns[i]).toBeGreaterThan(turns[i - 1]);
+    // Spark, first, is at the top.
+    expect(turns[0]).toBeLessThan(0.05);
   });
 
   it("keeps a demand-only prime as a bar with no arrow (Keel/Skybase)", () => {
@@ -254,7 +257,7 @@ describe("layoutMscRing (orbital bars)", () => {
       if (p.arrow) {
         expect(p.arrow.path).not.toMatch(/NaN/);
         expect(p.arrow.path).toMatch(/^M/);
-        expect(p.arrow.bands.length).toBeGreaterThan(0);
+        expect(Number.isFinite(p.arrow.amountX)).toBe(true);
       }
       expect(Number.isFinite(p.labelX)).toBe(true);
       expect(Number.isFinite(p.labelY)).toBe(true);

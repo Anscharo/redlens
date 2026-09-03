@@ -73,7 +73,7 @@ describe("settlementMonths", () => {
 });
 
 describe("primeFlowsForMonth", () => {
-  it("filters by month, sorts by magnitude desc, keeps per-prime latestMonth", () => {
+  it("filters by month, keeps PRIME_ORDER, keeps per-prime latestMonth", () => {
     const flows = primeFlowsForMonth(bundle, "2026-07");
     expect(flows.map((f) => f.prime)).toEqual(["spark", "keel", "osero"]);
     expect(flows.every((f) => f.latestMonth === "2026-07")).toBe(true);
@@ -160,7 +160,7 @@ describe("primeStackMonths", () => {
     expect(spark7.value).toBe(supplyKept(spark) + 100_000);
   });
 
-  it("uses a stable magnitude-descending prime order and skips unpublished months", () => {
+  it("uses PRIME_ORDER as the stable prime order and skips unpublished months", () => {
     const { primes, months: rows } = primeStackMonths(bundle);
     expect(primes).toEqual(["spark", "keel", "osero"]);
     expect(rows[1].parts.map((p) => p.prime)).toEqual(["spark", "keel", "osero"]);

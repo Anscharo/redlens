@@ -20,17 +20,18 @@
 //   i.e. everything its book generated before cost of funds — the
 //   workbook's prime_agent_total_revenue plus Sky Direct Exposure) on a
 //   shared scale, floored to whatever its bar and name need.
-// - The ARROW: width linear in the To-Sky amount, split lengthwise into
-//   its two components — cost of funds (interest the Prime owes Sky) and
-//   Sky Direct Exposure (Sky's own income passing through the Prime's
-//   venues) — each band's width its share of the total. Hovers carry the
-//   component, the total and the share, To-Sky ÷ gross revenue. A Prime
-//   that pays Sky nothing (Keel, Skybase) has no arrow and no wedge.
+// - The ARROW: width linear in the To-Sky amount; its hover lists the two
+//   components — cost of funds (interest the Prime owes Sky) and Sky
+//   Direct Exposure (Sky's own income passing through the Prime's venues)
+//   — then the total and the share, To-Sky ÷ gross revenue. A Prime that
+//   pays Sky nothing (Keel, Skybase) has no arrow and no wedge.
 //
-// Placement: each contributing Prime sits at ITS OWN WEDGE's mid-angle, so
-// its arrow runs straight in and never crosses the donut; non-contributors
-// fill the biggest gaps; then a relaxation pass pushes neighbours apart
-// just far enough that their plates don't touch.
+// Placement: Primes go clockwise from 12 o'clock in the order given (the
+// caller passes PRIME_ORDER). Each contributing Prime sits at ITS OWN
+// WEDGE's mid-angle — wedges are laid out in that same order — so its arrow
+// runs straight in and never crosses the donut; a non-contributor sits
+// between its neighbours in the order; then a relaxation pass pushes
+// neighbours apart just far enough that their plates don't touch.
 
 import { SETTLEMENT_NEAR_ZERO } from "@/lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
@@ -103,34 +104,23 @@ export interface RingSegment {
   pillY: number;
 }
 
-/** One lengthwise band of the To-Sky arrow: cost of funds or Sky Direct
- *  Exposure, its width the component's share of the arrow. */
-export interface RingArrowBand {
-  kind: "cof" | "sde";
-  /** Magnitude; the sign lives in `signed` (negative → striped fill). */
-  value: number;
-  signed: number;
-  path: string;
-  /** Where the pill's leader touches the band (its midpoint). */
-  amountX: number;
-  amountY: number;
-  /** Pill on this band's own side of the arrow. */
-  pillX: number;
-  pillY: number;
-}
-
 export interface RingArrow {
   kind: "sky";
   /** Magnitude of the whole arrow (cof + sde); sign in `signed`. */
   value: number;
   signed: number;
+  /** Its two components (signed). */
+  cof: number;
+  sde: number;
   /** To-Sky ÷ gross revenue (To-Sky + kept + demand). Null when the
    *  denominator isn't positive. */
   share: number | null;
-  /** The whole arrow's outline (both bands together). */
   path: string;
-  /** Its components, in draw order; a single band when one is ~0. */
-  bands: RingArrowBand[];
+  /** Where the pill's leader touches the arrow (its midpoint). */
+  amountX: number;
+  amountY: number;
+  pillX: number;
+  pillY: number;
 }
 
 /** One prime's share of the Sky donut. The wedges together ARE the donut,
@@ -204,12 +194,8 @@ function annulusPath(cx: number, cy: number, rOut: number, rIn: number, a0: numb
   );
 }
 
-/** A lengthwise band of a filled arrow of shaft width w from (x0,y0) to a
- *  tip at (x1,y1): the strip between perpendicular offsets o0 and o1
- *  (−w/2 … w/2). The head is split by straight lines from its flared
- *  corners to the tip, so bands share the tip and tile the whole arrow.
- *  (−w/2, w/2) is the entire arrow. */
-function arrowBand(x0: number, y0: number, x1: number, y1: number, w: number, o0: number, o1: number): string {
+/** Filled arrow of shaft width w from (x0,y0) to a tip at (x1,y1). */
+function arrowPath(x0: number, y0: number, x1: number, y1: number, w: number): string {
   const dx = x1 - x0;
   const dy = y1 - y0;
   const len = Math.hypot(dx, dy) || 1;
@@ -220,11 +206,11 @@ function arrowBand(x0: number, y0: number, x1: number, y1: number, w: number, o0
   const hl = Math.min(HEAD_LEN, len / 2);
   const bx = x1 - ux * hl;
   const by = y1 - uy * hl;
-  const s = w / 2 || 1;
-  const k = (s + HEAD_FLARE) / s; // flare factor at the head's base
+  const s = w / 2;
+  const f = s + HEAD_FLARE;
   return (
-    `M${x0 + nx * o0},${y0 + ny * o0} L${bx + nx * o0},${by + ny * o0} L${bx + nx * o0 * k},${by + ny * o0 * k} ` +
-    `L${x1},${y1} L${bx + nx * o1 * k},${by + ny * o1 * k} L${bx + nx * o1},${by + ny * o1} L${x0 + nx * o1},${y0 + ny * o1} Z`
+    `M${x0 + nx * s},${y0 + ny * s} L${bx + nx * s},${by + ny * s} L${bx + nx * f},${by + ny * f} ` +
+    `L${x1},${y1} L${bx - nx * f},${by - ny * f} L${bx - nx * s},${by - ny * s} L${x0 - nx * s},${y0 - ny * s} Z`
   );
 }
 
@@ -306,8 +292,8 @@ export function layoutMscRing(
     return { up, down, plateDx, plateDy, plateR };
   });
 
-  // Sky's wedges in row order (magnitude-desc), rotated so the biggest
-  // contributor's wedge is centered at 12 o'clock.
+  // Sky's wedges in row order (the caller's PRIME_ORDER), rotated so the
+  // first contributor's wedge is centered at 12 o'clock.
   const contributors = rows.map((r, i) => ({ r, i })).filter((x) => x.r.sky !== 0);
   const floorShare = MIN_WEDGE / TWO_PI;
   const shares = contributors.map((x) => Math.max(Math.abs(x.r.sky) / (skyTotal || 1), floorShare));
@@ -328,29 +314,39 @@ export function layoutMscRing(
     };
   });
 
-  // Target angles: a contributor sits at its own wedge's middle; the rest
-  // take the middle of the widest remaining gap, one after another.
+  // Target angles, keeping the rows' order clockwise: a contributor sits at
+  // its own wedge's middle; a run of non-contributors between two
+  // contributors is spread evenly across the clockwise arc between them.
+  // With no contributors at all, even spacing from 12 o'clock.
   const angles: number[] = new Array(rows.length).fill(NaN);
-  for (const w of skyWedges) angles[rows.findIndex((r) => r.p.prime === w.prime)] = norm(w.mid);
-  for (let i = 0; i < rows.length; i++) {
-    if (!Number.isNaN(angles[i])) continue;
-    const placed = angles.filter((a) => !Number.isNaN(a)).sort((a, b) => a - b);
-    if (placed.length === 0) {
-      angles[i] = norm(-Math.PI / 2);
-      continue;
+  for (const w of skyWedges) angles[rows.findIndex((r) => r.p.prime === w.prime)] = w.mid;
+  if (contributors.length === 0) {
+    rows.forEach((_, i) => (angles[i] = -Math.PI / 2 + (i * TWO_PI) / rows.length));
+  } else {
+    const n = rows.length;
+    for (let i = 0; i < n; i++) {
+      if (!Number.isNaN(angles[i])) continue;
+      // Nearest contributor before (cyclic) and after in row order.
+      let before = i;
+      let steps = 0;
+      do {
+        before = (before - 1 + n) % n;
+        steps++;
+      } while (Number.isNaN(angles[before]));
+      let after = i;
+      let span = 0;
+      do {
+        after = (after + 1) % n;
+        span++;
+      } while (Number.isNaN(angles[after]));
+      const a0 = angles[before];
+      let a1 = angles[after];
+      if (contributors.length === 1) a1 = a0 + TWO_PI;
+      else if (a1 <= a0) a1 += TWO_PI;
+      angles[i] = a0 + ((a1 - a0) * steps) / (steps + span);
     }
-    let best = 0;
-    let bestGap = -1;
-    for (let k = 0; k < placed.length; k++) {
-      const a = placed[k];
-      const b = k + 1 < placed.length ? placed[k + 1] : placed[0] + TWO_PI;
-      if (b - a > bestGap) {
-        bestGap = b - a;
-        best = (a + b) / 2;
-      }
-    }
-    angles[i] = norm(best);
   }
+  for (let i = 0; i < rows.length; i++) angles[i] = norm(angles[i]);
 
   // Where prime i's zero point and plate land at orbit angle t. The plate
   // is offset from the zero point (gains pull it up, a long name pulls it
@@ -460,46 +456,21 @@ export function layoutMscRing(
       const uy = dy / len;
       const x0 = plateX + ux * (s.plateR + 2);
       const y0 = plateY + uy * (s.plateR + 2);
-      const w = widthOf(Math.abs(r.sky));
-      // Bands tile the arrow lengthwise: cost of funds on one side, Sky
-      // Direct Exposure on the other, widths by share of |cof| + |sde|.
-      const parts = (
-        [
-          { kind: "cof" as const, signed: r.p.cof },
-          { kind: "sde" as const, signed: r.p.sde },
-        ] as const
-      ).filter((b) => Math.abs(b.signed) >= SETTLEMENT_NEAR_ZERO);
-      const partTotal = parts.reduce((n, b) => n + Math.abs(b.signed), 0) || 1;
-      let o = -w / 2;
-      const bands: RingArrowBand[] = parts.map((b, i) => {
-        const bw = (Math.abs(b.signed) / partTotal) * w;
-        const o0 = o;
-        const o1 = i === parts.length - 1 ? w / 2 : o + bw;
-        o = o1;
-        const mid = (o0 + o1) / 2;
-        const amountX = (x0 + x1) / 2 - uy * mid;
-        const amountY = (y0 + y1) / 2 + ux * mid;
-        // Each band's pill goes off ITS side of the arrow (the first band
-        // is the "negative offset" side), so the two never share a spot.
-        const side = i === 0 ? -1 : 1;
-        return {
-          kind: b.kind,
-          value: Math.abs(b.signed),
-          signed: b.signed,
-          path: arrowBand(x0, y0, x1, y1, w, o0, o1),
-          amountX,
-          amountY,
-          pillX: amountX - uy * side * PILL_OFFSET,
-          pillY: amountY + ux * side * PILL_OFFSET,
-        };
-      });
+      const amountX = (x0 + x1) / 2;
+      const amountY = (y0 + y1) / 2;
       arrow = {
         kind: "sky",
         value: Math.abs(r.sky),
         signed: r.sky,
+        cof: r.p.cof,
+        sde: r.p.sde,
         share: r.gross >= SETTLEMENT_NEAR_ZERO ? r.sky / r.gross : null,
-        path: arrowBand(x0, y0, x1, y1, w, -w / 2, w / 2),
-        bands,
+        path: arrowPath(x0, y0, x1, y1, widthOf(Math.abs(r.sky))),
+        amountX,
+        amountY,
+        // Off to the side of the arrow (perpendicular), never on top of it.
+        pillX: amountX - uy * PILL_OFFSET,
+        pillY: amountY + ux * PILL_OFFSET,
       };
     }
 

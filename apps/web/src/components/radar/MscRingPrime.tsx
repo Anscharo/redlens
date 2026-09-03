@@ -34,17 +34,15 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
           style={{ fill: bandColor, stroke: bandColor }}
         />
       </g>
-      {/* The To-Sky arrow, one band per component: cost of funds (blue) and
-          Sky Direct Exposure (cyan), each its own hover mark. */}
-      {arrow?.bands.map((b) => (
-        <g key={b.kind} className="msc-ring-mark" data-mark={markId(flow.prime, b.kind)}>
+      {arrow && (
+        <g className="msc-ring-mark" data-mark={markId(flow.prime, arrow.kind)}>
           <path
-            d={b.path}
-            className={b.signed < 0 ? "msc-ring-arrow" : `msc-ring-arrow msc-ring-${b.kind}`}
-            fill={b.signed < 0 ? `url(#msc-ring-neg-${b.kind})` : undefined}
+            d={arrow.path}
+            className={arrow.signed < 0 ? "msc-ring-arrow" : "msc-ring-arrow msc-ring-sky"}
+            fill={arrow.signed < 0 ? `url(#msc-ring-neg-${arrow.kind})` : undefined}
           />
         </g>
-      ))}
+      )}
       {/* Zero line in the prime's identity color — the bar's own axis. */}
       <line
         x1={ring.zeroX0}

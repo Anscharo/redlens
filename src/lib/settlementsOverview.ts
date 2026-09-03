@@ -18,6 +18,21 @@ import {
   type ThreeWayMonth,
 } from "./settlements";
 
+/** The one display order for Primes everywhere the overview shows them —
+ *  ring position, timeseries layers, legend, identity colors — so a Prime
+ *  keeps its place and color from month to month. Unknown workbook keys
+ *  follow, alphabetically. */
+export const PRIME_ORDER = ["spark", "grove", "obex", "skybase", "keel", "osero"] as const;
+
+export function primeOrderIndex(prime: string): number {
+  const i = (PRIME_ORDER as readonly string[]).indexOf(prime.toLowerCase());
+  return i === -1 ? PRIME_ORDER.length : i;
+}
+
+export function comparePrimes(a: string, b: string): number {
+  return primeOrderIndex(a) - primeOrderIndex(b) || a.localeCompare(b);
+}
+
 /** Sorted unique months across all primes (the matrix is ragged — a month
  *  can exist for one prime only, e.g. osero's single 2026-07). */
 export function settlementMonths(bundle: SettlementsBundle): string[] {
@@ -50,8 +65,8 @@ export interface PrimeFlowTotals {
   latestMonth: string;
 }
 
-/** All primes that published a workbook for `month`, sorted by magnitude
- *  descending (|sky|+|kept|+|demand|) so the ring's wedge order is stable. */
+/** All primes that published a workbook for `month`, in PRIME_ORDER — the
+ *  ring lays them out in this order. */
 export function primeFlowsForMonth(bundle: SettlementsBundle, month: string): PrimeFlowTotals[] {
   const latestByPrime = new Map<string, string>();
   for (const r of bundle.reports) {
@@ -78,11 +93,7 @@ export function primeFlowsForMonth(bundle: SettlementsBundle, month: string): Pr
         latestMonth: latestByPrime.get(r.prime)!,
       };
     })
-    .sort(
-      (a, b) =>
-        Math.abs(b.sky) + Math.abs(b.kept) + Math.abs(b.demand) -
-        (Math.abs(a.sky) + Math.abs(a.kept) + Math.abs(a.demand)),
-    );
+    .sort((a, b) => comparePrimes(a.prime, b.prime));
 }
 
 export interface EcosystemThreeWay {
@@ -160,9 +171,8 @@ export interface PrimeStackMonth {
  * profitToGrove, and never gross primeAgentRevenue (that would put CoF in
  * both the stack and the line).
  *
- * Prime order is by total |value| across all months, descending — computed
- * once so layers, colors, and legend stay stable as months are added; it is
- * returned as `primes` so the chart keys its colors off the same roster.
+ * Prime order is PRIME_ORDER (the overview's one display order), returned
+ * as `primes` so the chart keys its colors off the same roster.
  * Ragged primes simply contribute no part in months they didn't publish.
  * Negative values are preserved signed (stacked below the zero line).
  */
@@ -170,14 +180,11 @@ export function primeStackMonths(bundle: SettlementsBundle): {
   primes: string[];
   months: PrimeStackMonth[];
 } {
-  const byPrime = new Map<string, number>();
   const valueOf = new Map<string, number>();
   for (const r of bundle.reports) {
-    const v = supplyKept(r) + demandSideRevenue(r.headline);
-    valueOf.set(`${r.prime}::${r.month}`, v);
-    byPrime.set(r.prime, (byPrime.get(r.prime) ?? 0) + Math.abs(v));
+    valueOf.set(`${r.prime}::${r.month}`, supplyKept(r) + demandSideRevenue(r.headline));
   }
-  const order = [...byPrime.entries()].sort((a, b) => b[1] - a[1]).map(([p]) => p);
+  const order = [...new Set(bundle.reports.map((r) => r.prime))].sort(comparePrimes);
   const months = settlementMonths(bundle).map((month) => {
     const reports = bundle.reports.filter((r) => r.month === month);
     const sky = reports.reduce((n, r) => n + r.headline.skyRevenue, 0);
