@@ -32,6 +32,7 @@ function SectionDivider({ label, active }: { label: string; active: boolean }) {
 
 export function RightPanel({
   id,
+  annotationDocs,
   linkedNodes,
   cousinDocs,
   targetAddresses,
@@ -48,6 +49,8 @@ export function RightPanel({
   byParent,
 }: {
   id: string;
+  /** Element Annotations attached to this doc (`<this doc_no>.0.3.N`). */
+  annotationDocs: AtlasNode[];
   linkedNodes: AtlasNode[];
   cousinDocs: CousinDoc[];
   targetAddresses: Record<string, AddressInfo>;
@@ -81,6 +84,7 @@ export function RightPanel({
   );
   const navLinked = useCallback((nid: string) => annNav("linked_doc", nid), [annNav]);
   const navCousin = useCallback((nid: string) => annNav("cousin_doc", nid), [annNav]);
+  const navAnnotation = useCallback((nid: string) => annNav("annotation_doc", nid), [annNav]);
   const annNavDoc = useCallback(
     (kind: string, docNo: string) => {
       track("reader_annotation_nav", { kind, doc_no: docNo });
@@ -113,6 +117,7 @@ export function RightPanel({
   // An empty annotations block collapses so the first thing on screen is whatever
   // section actually has content (history when a doc has no annotations).
   const hasAnnotations =
+    annotationDocs.length > 0 ||
     linkedNodes.length > 0 ||
     cousinDocs.length > 0 ||
     citedBy.length > 0 ||
@@ -179,6 +184,19 @@ export function RightPanel({
           {hasAnnotations && (
             <section className="rl-section" ref={(el) => { sectionRefs.current.notes = el; }}>
               <SectionDivider label="notes" active={tab === "notes"} />
+              {/* Element Annotations — this document's OWN Annotation-type children
+                  (`<doc_no>.0.3.N`), the hardest to reach in the reader, so they lead. */}
+              {annotationDocs.length > 0 ? (
+                <section className="mb-8 pb-5 border-b border-border">
+                  <p className={`${SECTION_HEAD} mb-2`}>annotated by · {annotationDocs.length}</p>
+                  <p className="text-xs leading-relaxed mb-4 text-tan-3">Element Annotations attached to this document.</p>
+                  <div className="flex flex-col gap-[10px]">
+                    {annotationDocs.map((node) => (
+                      <RelatedNode key={node.id} node={node} onNavigate={navAnnotation} selectable={selectable} byParent={byParent} />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
               {linkedNodes.length > 0 ? (
                 <section>
                   <p className={`${SECTION_HEAD} mb-4`}>linked documents · {linkedNodes.length}</p>

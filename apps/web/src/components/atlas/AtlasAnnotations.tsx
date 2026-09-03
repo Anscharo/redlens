@@ -15,6 +15,7 @@ const RIGHT_PANEL_DEFAULT = 520;
 
 export function AtlasAnnotations({
   id,
+  annotationDocs,
   linkedNodes,
   cousinDocs,
   targetAddresses,
@@ -30,6 +31,7 @@ export function AtlasAnnotations({
   byParent,
 }: {
   id: string;
+  annotationDocs: AtlasNode[];
   linkedNodes: AtlasNode[];
   cousinDocs: CousinDoc[];
   targetAddresses: Record<string, AddressInfo>;
@@ -83,6 +85,7 @@ export function AtlasAnnotations({
       <ErrorBoundary resetKey={id} fallback={(error, reset) => <PanelError error={error} reset={reset} />}>
         <RightPanel
           id={id}
+          annotationDocs={annotationDocs}
           linkedNodes={linkedNodes}
           cousinDocs={cousinDocs}
           targetAddresses={targetAddresses}

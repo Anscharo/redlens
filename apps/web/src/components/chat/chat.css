@@ -898,6 +898,22 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   transition: background 100ms, color 100ms;
 }
 .rlc-menu-item:hover { background: var(--hover); color: var(--tan); }
+/* Theme picker: unselected rows keep the checkmark slot empty until hover,
+   then reveal that theme's glyph. The selected row's ✓ is always shown. */
+.rlc-theme-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  color: var(--accent);
+}
+.rlc-menu-item:not([data-state="checked"]) .rlc-theme-mark {
+  opacity: 0;
+}
+.rlc-menu-item:hover:not([data-state="checked"]) .rlc-theme-mark {
+  opacity: 1;
+}
 /* Sign-in options ("Continue with X") explicitly use the app's usual sans-serif —
    they read as an app-level auth prompt, not chat chrome. */
 .rlc-menu-item.rlc-signin-menu { font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
@@ -924,7 +940,9 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   flex-shrink: 0;
   transition: background 100ms, color 100ms, border-color 100ms;
 }
-.rlc-signin:hover { background: var(--hover); color: var(--tan); border-color: var(--accent); }
+.rlc-signin:hover,
+.rlc-signin[data-state="open"],
+.rlc-signin[aria-expanded="true"] { background: var(--hover); color: var(--tan); border-color: var(--accent); }
 
 /* ── Reduce motion (pref + OS) ─────────────────────────────────────────── */
 .rlc-nomotion .rlc-panel,

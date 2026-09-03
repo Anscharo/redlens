@@ -7,7 +7,8 @@ import { loadIndexes } from "../retrieval/indexes.ts";
 import { config } from "../config.ts";
 import type { ChatStream } from "./chat-loop.ts";
 import type { JsonCall } from "./llm.ts";
-import { runVerifiedChat, sanitizeDone, type HarnessEvent, type HarnessDone } from "./chat-orchestrator.ts";
+import { runVerifiedChat, sanitizeDone, claimsDrivingEscalation, type HarnessEvent, type HarnessDone } from "./chat-orchestrator.ts";
+import type { Verdict } from "./verify/verifier.ts";
 import { SLICES } from "./verify/sliced-verifier.ts";
 import type { SliceName } from "./verify/verifier-slices.ts";
 import { atlasDescribe } from "./tools/tools.ts";
@@ -963,6 +964,68 @@ test("a prefetch-only turn is annotated, never rewritten, when claims come back 
     const done = lastDone(events);
     expect(done.checksMeta.map((c) => c.kind)).not.toContain("advisor_recovery");
     expect(done.content).toBe("The app has reports and a radar view.");
+  }));
+
+// (4) The per-claim half of the same rule. The turn-level guard above needs
+// the prefetch round to be the turn's ONLY substantive evidence, so a single
+// orientation search that returned anything re-armed the rewrite for an answer
+// built entirely from injected documentation — which is how a bare "help me"
+// lost its Reader and Reports sections to the advisor.
+test("claimsDrivingEscalation ignores reference-grounded claims", () => {
+  const c = (over: Partial<Verdict["claims"][number]>) => ({ claim: "c", status: "unsupported" as const, evidence: [], cited_uuid: null, ...over });
+  expect(claimsDrivingEscalation({ claims: [c({}), c({}), c({})], invented_facts: [], ruling_issued: false, confidence: null, feedback: "" })).toBe(3);
+  const mixed = { claims: [c({ reference: true }), c({ reference: true }), c({})], invented_facts: [], ruling_issued: false, confidence: null, feedback: "" };
+  expect(claimsDrivingEscalation(mixed)).toBe(1);
+  expect(claimsDrivingEscalation(null)).toBe(0);
+});
+
+// A mixed turn end-to-end: the prefetch round PLUS a real atlas retrieval, so
+// `prefetchOnly` is false and only the per-claim rule can hold the rewrite.
+// The spans below are drawn from the prefetch text and diluted until they miss
+// even the relaxed reference bar — the worst case for a product claim — so the
+// merged verdict is 3 unsupported, all reference-grounded.
+const driftedProductSpan = (extra: string) =>
+  `radar view atlas reader reports ${extra} collections previews shortcuts themes bookmarks exports filters`;
+const sliceDriftedProduct = () =>
+  JSON.stringify({
+    claims: ["a", "b", "c"].map((k) => ({ claim: `product claim ${k}`, status: "supported", span: driftedProductSpan(k) })),
+    ruling_issued: false,
+    notes: "",
+  });
+
+test("reference-grounded claims never reach the advisor, even when the turn also searched the atlas", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    const jsonCalls: { model: string }[] = [];
+    const events = await collect(
+      runVerifiedChat({
+        ix,
+        messages: [userMsg, ...prefetchRound],
+        question: "help me",
+        maxIterations: 3,
+        stream: fakeStream([
+          [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+          [textChunk("The app has reports and a radar view."), finishChunk("stop"), usageChunk(100, 10)],
+        ]),
+        jsonCall: fakeSlicedJson({ claims: [sliceDriftedProduct()], advisor: ['{"action":"rewrite","guidance":"drop it"}'] }, jsonCalls),
+      }),
+    );
+    const verify = events.find((e) => e.type === "verify_result")!;
+    // The claims WERE demoted — the badge still says so…
+    expect(verify.type === "verify_result" && verify.overall).toBe("warn");
+    expect(verify.type === "verify_result" && verify.claims?.every((c) => c.status === "unsupported")).toBe(true);
+    // …because their spans missed even the relaxed bar against injected docs.
+    // The wire event carries only {claim,status}, so read the full verdict off
+    // checksMeta — this guards the test against passing for the wrong reason
+    // (a demotion that was never marked reference would still be counted).
+    const audited = lastDone(events).checksMeta.find((c) => c.kind === "verify")?.verdict as Verdict;
+    expect(audited.claims.every((c) => c.reference === true)).toBe(true);
+    // …and there are enough of them to have escalated on the old count.
+    expect(verify.type === "verify_result" && verify.claims?.length).toBeGreaterThanOrEqual(config.chatAdvisorTriggerUnsupportedClaims);
+    // …but no rewrite: the answer the user already read is the answer they keep.
+    expect(verify.type === "verify_result" && verify.action).toBe("annotate");
+    expect(kinds(events)).not.toContain("clear");
+    expect(jsonCalls.map((c) => c.model)).not.toContain("chat/advisor");
+    expect(lastDone(events).content).toBe("The app has reports and a radar view.");
   }));
 
 // The empty-search envelope grew a `filters_applied` hint that is hundreds of

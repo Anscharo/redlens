@@ -21,6 +21,7 @@ export function useNodeAnnotations(id: string, data: LoadedData | null, graph: G
       glossaryTerms: [] as GlossaryEntry[][],
       cousinDocs: [] as CousinDoc[],
       byNameOnly: new Set<string>(),
+      annotationDocs: [] as AtlasNode[],
     };
     if (!data || !id) return empty;
     const { docs } = data.atlas;
@@ -31,6 +32,17 @@ export function useNodeAnnotations(id: string, data: LoadedData | null, graph: G
       .filter((n): n is AtlasNode => !!n)
       .sort((a, b) => a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true }));
     const cousinDocs = graph ? findCousinDocs(id, data.atlas, graph) : [];
+    // Element Annotations attached to this doc. Read off byParent, which the
+    // atlas worker keys by parent UUID after resolving `.0.3.N` via doc_no
+    // (`<target>.0.3.N` → target's id) — so byParent.get(id) is right even for
+    // the annotations the parser's depth-6 heading cap reparents onto a
+    // shallower ancestor. Looking up the target's doc_no would miss them.
+    // They are hard to find in the reader — the atlas emits the supporting `0`
+    // directory after every real sibling — which is why they get a panel
+    // section of their own.
+    const annotationDocs = (data.atlas.byParent.get(id) ?? [])
+      .filter((n) => n.type === "Annotation")
+      .sort((a, b) => a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true }));
     const targetAddresses: Record<string, AddressInfo> = {};
     const cv: Record<string, Record<string, ChainValue>> = {};
     // Addresses named only by their CHAIN_LOG key (MCD_VAT), not a 0x literal, so
@@ -60,6 +72,6 @@ export function useNodeAnnotations(id: string, data: LoadedData | null, graph: G
       }
     }
     glossaryTerms.sort((a, b) => a[0].term.localeCompare(b[0].term));
-    return { linkedNodes, targetAddresses, chainValues: cv, glossaryTerms, cousinDocs, byNameOnly };
+    return { linkedNodes, targetAddresses, chainValues: cv, glossaryTerms, cousinDocs, byNameOnly, annotationDocs };
   }, [data, id, glossaryLookup, graph]);
 }

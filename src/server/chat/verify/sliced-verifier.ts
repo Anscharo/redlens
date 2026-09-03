@@ -74,7 +74,14 @@ export function mergeSlices(results: SliceResult[], ix: Indexes, evidence: Absen
           status: audited.status,
           evidence: c.span ? [c.span.slice(0, 160)] : [],
           cited_uuid: null,
-          note: [r.slice, c.absence ? "absence" : null, c.spanValid === false ? `span-invalid(${(c.spanScore ?? 0).toFixed(2)})` : null, audited.note]
+          reference: c.referenceGrounded === true,
+          note: [
+            r.slice,
+            c.absence ? "absence" : null,
+            c.referenceGrounded ? "reference" : null,
+            c.spanValid === false ? `span-invalid(${(c.spanScore ?? 0).toFixed(2)})` : null,
+            audited.note,
+          ]
             .filter(Boolean)
             .join(" · "),
         };

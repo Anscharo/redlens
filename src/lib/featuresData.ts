@@ -59,13 +59,14 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "In the reader, the » button on a document opens and closes everything beneath it — alt-click reverses the direction it would go next.",
           "Each document carries a type pill plus buttons to copy its link or its doc number.",
           "The owning Prime or Executor Agent shows as a pill in the left gutter of the document.",
+          "An Element Annotation shows an \"Annotates\" line under its doc number — click it to jump to the document it annotates; the Atlas orders the annotation well below that document.",
         ],
       },
       {
         name: "The right-hand panel",
         what: "Context for whichever document is selected — notes, history, and glossary in one scrolling panel, with pills at the top to jump between them.",
         how: [
-          "Notes — linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one (where you land by default).",
+          "Notes — the Element Annotations attached to this document, linked documents, equivalent documents under the other Prime Agents, mentioned addresses, and which documents cite this one (where you land by default).",
           "History — this document's change timeline.",
           "Glossary — the defined terms this document uses, with their Atlas definitions.",
         ],
@@ -105,7 +106,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Every address the Atlas mentions is resolved, labelled, and linked to the right explorer for its chain — the same way everywhere it appears.",
         how: [
           "Hover any address — in a document, a report, or a dashboard — to see its name and the token balances it holds.",
-          "Open a document's Annotations tab: each address it mentions, whether by hex or by its chainlog name, shows as a card with its name, owner, roles, balances, and a chain-correct explorer link.",
+          "Open a document's Notes panel: each address it mentions, whether by hex or by its chainlog name, shows as a card with its name, owner, roles, balances, and a chain-correct explorer link.",
         ],
       },
       {
@@ -248,6 +249,30 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     ],
   },
   {
+    key: "chat",
+    title: "Chat",
+    blurb:
+      "Ask the Atlas questions from any page and get answers backed by inline sources and a verification badge.",
+    features: [
+      {
+        name: "Asking the Atlas",
+        what: "A page-aware agent that reads the Sky Atlas and cites the documents it used.",
+        how: [
+          "Click the Atlas agent launcher in the bottom-right (it shows ⌘K), or press ⌘K / Ctrl-K — it already knows the document or report you're viewing.",
+          "Ask it what the app can do, or what it can do itself — it answers from this guide, and keeps the two apart.",
+          "Ask about a Prime Agent's monthly settlement dollars — Chat uses an isolated helper on Soter Labs workbooks / Sky Forum and says those figures are not from the Atlas.",
+          "Ask across every Prime at once — top venues by revenue, ecosystem totals, or a range of months — not just one Prime at a time.",
+          "Ask it to draft a message to someone else explaining what the Atlas says; the draft carries links to the source documents, and you can export it to send.",
+          "Check the answer's verification badge and click the inline sources to jump to the cited docs — an answer still being checked shows in italics.",
+          "The usage meter under the composer shows your usage / credits; click the pie to see every limit.",
+          "Dock the panel to the side with the dock icon in the header, or pop it out to a floating window.",
+          'Past chats live under "Conversations" in the profile menu, and as "continue a previous chat" in an empty panel.',
+        ],
+        note: "Asking a question requires signing in — use the sign-in control at the right of the top bar, or the Sign in buttons in the panel.",
+      },
+    ],
+  },
+  {
     key: "mcp",
     title: "Connect (MCP)",
     route: "/connect",
@@ -284,8 +309,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Colour schemes",
         what: "The whole app can run in the original charcoal dark scheme, a high-contrast greyscale one, or a light one.",
         how: [
-          "Open the menu button in the top-right corner and pick a theme: Dark, Giedi, or Light.",
-          'Once signed in, the same picker lives in the profile menu under "Account".',
+          "Click the sun, moon, or eclipse button in the top-right corner — it shows which scheme is on — and pick Dark, Giedi, or Light.",
           "Every page follows the choice — the reader, Radar, reports, and the Atlas agent.",
         ],
         note: "No sign-in needed. Until you pick one, the app follows your device's light/dark setting and keeps following it; once you choose, that choice sticks. It is kept in this browser only, so another browser or device starts from your device setting again.",
@@ -333,29 +357,6 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Search help (/search-hints) — the full query syntax.",
           "Privacy (/privacy).",
         ],
-      },
-    ],
-  },
-  {
-    key: "upcoming",
-    title: "Upcoming",
-    blurb: "Planned features — not yet switched on. Details may change before release.",
-    features: [
-      {
-        name: "Chat",
-        what: "Ask the Atlas questions and get answers backed by inline sources and a verification badge.",
-        how: [
-          "Sign in, then open Chat and ask a question — it will know the document or report you're viewing.",
-          "Ask it what the app can do, or what it can do itself — it answers from this guide, and keeps the two apart.",
-          "Ask about a Prime Agent's monthly settlement dollars — Chat uses an isolated helper on Soter Labs workbooks / Sky Forum and says those figures are not from the Atlas.",
-          "Ask across every Prime at once — top venues by revenue, ecosystem totals, or a range of months — not just one Prime at a time.",
-          "Ask it to draft a message to someone else explaining what the Atlas says; the draft carries links to the source documents, and you can export it to send.",
-          "Check the answer's verification badge and click the inline sources to jump to the cited docs — an answer still being checked shows in italics.",
-          "Open the tool trace to see what it queried; the meter shows your usage / credits.",
-          "Oldest / all / how many questions list the whole class, not just the first search hits.",
-          "Dock the panel to the side or let it float.",
-        ],
-        note: "Will require signing in.",
       },
     ],
   },

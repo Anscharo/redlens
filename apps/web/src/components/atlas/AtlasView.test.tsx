@@ -94,6 +94,7 @@ const EMPTY_ANNOTATIONS = {
   chainValues: {},
   glossaryTerms: [],
   cousinDocs: [],
+  annotationDocs: [],
 };
 
 function setupMocks({
@@ -224,7 +225,7 @@ describe("AtlasView normal render", () => {
     expect(screen.getByTestId("atlas-annotations")).toBeInTheDocument();
   });
 
-  it("computes annotationCount from linkedNodes + cousinDocs + addresses", () => {
+  it("computes annotationCount from annotationDocs + linkedNodes + cousinDocs + addresses", () => {
     const node = makeNode({ id: "node-1", doc_no: "A.1" });
     const atlas = makeAtlasBundle([node]);
     const data = makeLoadedData({ atlas, complete: true });
@@ -236,11 +237,12 @@ describe("AtlasView normal render", () => {
         chainValues: {},
         glossaryTerms: [],
         cousinDocs: [{ node: makeNode(), agent: "Grove" } as never],
+        annotationDocs: [makeNode()] as never[],
       },
     });
     render(<AtlasView {...baseProps()} />);
-    // 2 linked + 1 cousin + 1 address = 4
-    expect(screen.getByTestId("atlas-annotations")).toHaveAttribute("data-count", "4");
+    // 1 annotation + 2 linked + 1 cousin + 1 address = 5
+    expect(screen.getByTestId("atlas-annotations")).toHaveAttribute("data-count", "5");
   });
 
   it("does not render breadcrumbs or annotations when id is empty", () => {

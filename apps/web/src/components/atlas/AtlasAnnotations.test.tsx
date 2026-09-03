@@ -24,6 +24,7 @@ type Tab = "notes" | "glossary" | "history";
 function setup(over: Partial<Parameters<typeof AtlasAnnotations>[0]> = {}) {
   const props = {
     id: "node-1",
+    annotationDocs: [],
     linkedNodes: [],
     cousinDocs: [],
     targetAddresses: {},

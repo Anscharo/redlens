@@ -29,6 +29,7 @@ function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
   const onNavigateByDocNo = vi.fn();
   const props = {
     id: "node-1",
+    annotationDocs: [],
     linkedNodes: [],
     cousinDocs: [],
     targetAddresses: {},
@@ -64,6 +65,28 @@ describe("RightPanel tablist", () => {
   it("shows the annotation count badge when there are linked docs", () => {
     setup({ linkedNodes: [makeNode(), makeNode()], annotationCount: 2 });
     expect(screen.getByText(/linked documents · 2/)).toBeInTheDocument();
+  });
+
+  // The annotations tab is named for the panel, not for these — but a doc's own
+  // Element Annotations belong in it, and they are the hardest section to reach
+  // in the reader (the atlas emits the supporting `0` directory after every real
+  // sibling), so they lead the tab.
+  it("lists the doc's Element Annotations under an 'annotated by' heading", () => {
+    setup({
+      annotationDocs: [
+        makeNode({ id: "a1", doc_no: "A.2.8.0.3.1", type: "Annotation", title: "Business Activities" }),
+        makeNode({ id: "a2", doc_no: "A.2.8.0.3.2", type: "Annotation", title: "Ecosystem" }),
+      ],
+      annotationCount: 2,
+    });
+    expect(screen.getByText(/annotated by · 2/)).toBeInTheDocument();
+    expect(screen.getByText("Business Activities")).toBeInTheDocument();
+    expect(screen.getByText("Ecosystem")).toBeInTheDocument();
+  });
+
+  it("omits the annotated-by section entirely when the doc has no annotations", () => {
+    setup({ linkedNodes: [makeNode()], annotationCount: 1 });
+    expect(screen.queryByText(/annotated by/)).not.toBeInTheDocument();
   });
 
   it("labels equivalent cousin documents by agent", () => {
@@ -109,6 +132,7 @@ describe("RightPanel tab content", () => {
       <DataSourceContext.Provider value={{ base: "/api/preview/abc/", preview: { id: "abc", sha: "abc123" } }}>
         <RightPanel
           id="node-1"
+          annotationDocs={[]}
           linkedNodes={[]}
           cousinDocs={[]}
           targetAddresses={{}}

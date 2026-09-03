@@ -565,6 +565,12 @@
       "title": "Grove Foundation Grant Authorization: August 2026"
     },
     {
+      "taskKey": "u:a176f67f-009f-44a0-a19b-169c2eb376a4",
+      "uuid": "a176f67f-009f-44a0-a19b-169c2eb376a4",
+      "docNo": "A.2.9.1.1.2.1",
+      "title": "Lawyer Registry Covered Areas"
+    },
+    {
       "taskKey": "u:bf561ea8-ab09-4ff5-a84d-2e92bcff997b",
       "uuid": "bf561ea8-ab09-4ff5-a84d-2e92bcff997b",
       "docNo": "A.3.3.2.7.1.1.3",
@@ -619,6 +625,12 @@
       "title": "Operator Update Process"
     },
     {
+      "taskKey": "u:3c72575c-ce4e-4379-ba45-080f335851a1",
+      "uuid": "3c72575c-ce4e-4379-ba45-080f335851a1",
+      "docNo": "A.6.1.1.1.2.6.1.4.3.4.2.3",
+      "title": "Instance-specific Operational Processes"
+    },
+    {
       "taskKey": "t:compromised key response|risk",
       "uuid": "05dbbbcc-7702-4d17-a222-9c93356be7cd",
       "docNo": "A.6.1.1.1.3.1.3.7.2",
@@ -641,6 +653,18 @@
       "uuid": "0e572cad-bdf2-437f-b272-0cd634424b19",
       "docNo": "A.6.1.1.1.3.9.6.2",
       "title": "Cancellation Reasons"
+    },
+    {
+      "taskKey": "u:7e53acf8-10e7-4250-a05c-bab8354aa738",
+      "uuid": "7e53acf8-10e7-4250-a05c-bab8354aa738",
+      "docNo": "A.6.1.1.2.2.6.1.2.1.1.3.3.3",
+      "title": "USDS For USDC Swap Maximum"
+    },
+    {
+      "taskKey": "u:6ca30d6e-df7f-47f9-93c3-b20bae6762a3",
+      "uuid": "6ca30d6e-df7f-47f9-93c3-b20bae6762a3",
+      "docNo": "A.6.1.1.2.2.6.1.2.1.1.3.3.4",
+      "title": "USDC For USDS Swap Maximum"
     },
     {
       "taskKey": "u:6823cc5a-6667-4754-a030-9ac7126b006e",
