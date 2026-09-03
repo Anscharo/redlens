@@ -120,6 +120,11 @@ export const PALETTE_TOKENS: readonly PaletteToken[] = [
   { name: "msc-sky", label: "MSC to Sky", group: "msc", alpha: false },
   { name: "msc-kept", label: "MSC supply kept", group: "msc", alpha: false },
   { name: "msc-demand", label: "MSC demand-side", group: "msc", alpha: false },
+  { name: "msc-prime-1", label: "MSC prime 1", group: "msc", alpha: false },
+  { name: "msc-prime-2", label: "MSC prime 2", group: "msc", alpha: false },
+  { name: "msc-prime-3", label: "MSC prime 3", group: "msc", alpha: false },
+  { name: "msc-prime-4", label: "MSC prime 4", group: "msc", alpha: false },
+  { name: "msc-prime-5", label: "MSC prime 5", group: "msc", alpha: false },
 ] as const;
 
 export const TOKEN_BY_NAME: ReadonlyMap<string, PaletteToken> = new Map(

@@ -103,6 +103,15 @@
   --msc-sky: #6e8ee8; /* blue */
   --msc-kept: #55a653; /* green */
   --msc-demand: #de78c2; /* magenta — amber failed protan vs the green */
+  /* MSC prime identity colors (timeseries layers + ring bands). Deliberately
+     NO red, green, or blue hues in any theme: blue is reserved for Sky,
+     green/red for profit/loss semantics. Adjacent-pair CVD + contrast
+     validated (dataviz validator, 2026-09-03). */
+  --msc-prime-1: #d98e2b; /* orange */
+  --msc-prime-2: #a878e8; /* purple */
+  --msc-prime-3: #c9a227; /* gold */
+  --msc-prime-4: #e06ca8; /* pink */
+  --msc-prime-5: #9c7a5b; /* brown */
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
@@ -255,6 +264,11 @@
   --msc-sky: #2f5fd0; /* blue */
   --msc-kept: #0f7233; /* green */
   --msc-demand: #a21caf; /* magenta-purple */
+  --msc-prime-1: #c25e00; /* orange */
+  --msc-prime-2: #6d28d9; /* purple */
+  --msc-prime-3: #8a6d00; /* gold */
+  --msc-prime-4: #d1338f; /* pink */
+  --msc-prime-5: #8b5e3c; /* brown */
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
@@ -537,6 +551,13 @@
   --msc-sky: #d4d6d1;
   --msc-kept: #8f948c;
   --msc-demand: #666a60;
+  /* Greyscale prime identities: alternating lightness steps so adjacent
+     stack layers stay separable without hue. */
+  --msc-prime-1: #cbc9c4;
+  --msc-prime-2: #918f8a;
+  --msc-prime-3: #b5ab97;
+  --msc-prime-4: #6f6d68;
+  --msc-prime-5: #a39c8d;
 }
 
 /* ─── Giedi structural override ──────────────────────────────────────────
@@ -2594,6 +2615,11 @@ button.atlas-node-expand-all:focus-visible {
   text-decoration: underline;
 }
 /* ─── MSC ecosystem timeseries (radar index overview) ─── */
+/* Chart card — same look as the primitive-stats AgentPanel cards. */
+.msc-card {
+  border: 1px solid var(--border);
+  background: var(--bg-deep);
+}
 /* Transparent track: the y-scale is shared with the To-Sky line, so the
    stack rarely fills the column — a filled track read as a tall dark bar.
    The zero baseline is drawn by the overlay svg instead. Selection/hover is
@@ -2646,7 +2672,7 @@ button.atlas-node-expand-all:focus-visible {
   transition: opacity 0.1s;
   fill: var(--tan);
   paint-order: stroke;
-  stroke: var(--bg);
+  stroke: var(--bg-deep);
   stroke-width: 3px;
   stroke-linejoin: round;
 }
@@ -2667,7 +2693,8 @@ button.atlas-node-expand-all:focus-visible {
   overflow: visible;
 }
 .msc-ring-sky-disc {
-  fill: var(--bg-deep);
+  /* --bg, not --bg-deep: the ring sits on a --bg-deep card now. */
+  fill: var(--bg);
   stroke: var(--msc-sky);
 }
 .msc-ring-center {
@@ -2713,7 +2740,7 @@ a:focus-visible > .msc-ring-prime path {
 .msc-ring-label-band {
   fill: var(--tan);
   paint-order: stroke;
-  stroke: var(--bg);
+  stroke: var(--bg-deep);
   stroke-width: 2px;
   stroke-linejoin: round;
 }
@@ -2736,7 +2763,7 @@ a:focus-visible > .msc-ring-prime .msc-ring-amounts {
 .msc-ring-amounts text {
   fill: var(--tan);
   paint-order: stroke;
-  stroke: var(--bg);
+  stroke: var(--bg-deep);
   stroke-width: 3px;
   stroke-linejoin: round;
 }

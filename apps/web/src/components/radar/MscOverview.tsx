@@ -89,15 +89,17 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
         </a>
       </p>
       <PrimeHoverStyles primes={stack.primes} />
-      <div className="msc-overview-row flex flex-wrap items-start gap-x-10 gap-y-4 min-w-0">
-        <MscTimeseries
-          primes={stack.primes}
-          months={stack.months}
-          primeLabel={labelOf}
-          selected={month}
-          onSelect={(m) => setMsc(m === latest ? null : m)}
-        />
-        <div className="flex-1 min-w-0" style={{ flexBasis: 340, maxWidth: "100%" }}>
+      <div className="msc-overview-row flex flex-wrap items-start gap-x-6 gap-y-4 min-w-0">
+        <div className="msc-card rounded p-4 min-w-0 max-w-full">
+          <MscTimeseries
+            primes={stack.primes}
+            months={stack.months}
+            primeLabel={labelOf}
+            selected={month}
+            onSelect={(m) => setMsc(m === latest ? null : m)}
+          />
+        </div>
+        <div className="msc-card rounded p-4 flex-1 min-w-0" style={{ flexBasis: 340, maxWidth: "100%" }}>
           <MscRing
             layout={layout}
             primes={ringPrimes}

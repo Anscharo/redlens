@@ -50,12 +50,12 @@ describe("MscTimeseries", () => {
     const spark = document.querySelectorAll('[title="Spark: $500k"], [title="Spark: $400k"]');
     expect(spark).toHaveLength(2);
     for (const el of spark) {
-      expect((el as HTMLElement).style.background).toContain("--depth-1");
+      expect((el as HTMLElement).style.background).toContain("--msc-prime-1");
     }
     const osero = document.querySelector('[title="Osero: −$50k"]') as HTMLElement;
     // Negative months keep the prime's own color, marked by stripes.
     expect(osero.style.background).toContain("repeating-linear-gradient");
-    expect(osero.style.background).toContain("--depth-5");
+    expect(osero.style.background).toContain("--msc-prime-3");
     expect(osero.style.background).not.toContain("--accent");
   });
 
@@ -87,8 +87,8 @@ describe("MscTimeseries", () => {
   });
 
   it("assigns fixed fills and folds overflow primes to gray", () => {
-    expect(primeFill(0)).toBe("var(--depth-1)");
-    expect(primeFill(4)).toBe("var(--depth-2)");
+    expect(primeFill(0)).toBe("var(--msc-prime-1)");
+    expect(primeFill(4)).toBe("var(--msc-prime-5)");
     expect(primeFill(5)).toBe("var(--gray)");
   });
 });

@@ -17,11 +17,10 @@ const TRACK_H = 380;
 
 // Per-prime categorical fills, assigned by the stable roster order from
 // primeStackMonths (fixed order, never re-cycled when a month lacks a prime).
-// --depth-4 is skipped entirely (it is the dark theme's --msc-sky, and the
-// To-Sky line must never share a color with a stack layer) and --depth-2 is
-// pushed last (the light theme's is a blue near --msc-sky, so it goes to the
-// smallest prime). Primes past the list fold to the muted gray.
-const PRIME_FILLS = ["--depth-1", "--depth-3", "--depth-5", "--depth-6", "--depth-2"] as const;
+// Dedicated tokens rather than the depth palette: prime identity colors must
+// avoid red, green, and blue hues in EVERY theme — blue is reserved for Sky,
+// green/red for profit/loss semantics. Primes past the list fold to gray.
+const PRIME_FILLS = ["--msc-prime-1", "--msc-prime-2", "--msc-prime-3", "--msc-prime-4", "--msc-prime-5"] as const;
 export const primeFill = (i: number): string =>
   `var(${i < PRIME_FILLS.length ? PRIME_FILLS[i] : "--gray"})`;
 
@@ -93,7 +92,7 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
             <g key={m.month} className="msc-ts-dot">
               {/* Oversized invisible hit target so hovering near the line point works. */}
               <circle cx={centerX(i)} cy={y(m.sky)} r={13} fill="transparent" />
-              <circle cx={centerX(i)} cy={y(m.sky)} r={3.5} fill="var(--msc-sky)" stroke="var(--bg)" strokeWidth={2} />
+              <circle cx={centerX(i)} cy={y(m.sky)} r={3.5} fill="var(--msc-sky)" stroke="var(--bg-deep)" strokeWidth={2} />
               <text x={centerX(i)} y={y(m.sky) - 9} textAnchor="middle" fontSize={10} className="mono">
                 {formatUsd(m.sky, true)}
               </text>
