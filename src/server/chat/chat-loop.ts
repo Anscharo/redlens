@@ -16,6 +16,7 @@ import { safeParseArgs } from "./tools/llm-tools.ts";
 import { EXPORT_TOOL_NAME, buildExportArtifact, redactExportArgs } from "./tools/export-tool.ts";
 import { checkExportArtifact, type ExportEvidence } from "./tools/export-verify.ts";
 import { config } from "../config.ts";
+import { announcesUnmadeToolCall } from "./announcement.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
 import type { JsonCall } from "./llm.ts";
@@ -166,6 +167,15 @@ const COMPOSE_STEER =
 const REPETITION_STEER =
   "Your previous draft collapsed into repetitive nonsense (the same phrase or character looping). Discard it entirely. Write the complete answer once, cleanly, with no repeated filler. If the evidence does not answer the question, say so briefly — do not pad.";
 
+// One-shot steer for the promised-tool guard (chat/announcement.ts). The round
+// wrote "let me look that up" and emitted no tool_call, so the loop was about
+// to ship the promise as the answer. The announcement itself is never pushed
+// onto msgs — the plain-answer path doesn't push, and this guard `continue`s
+// before it — so the replay sees the conversation exactly as the failed round
+// saw it and cannot mistake its own promise for a kept one.
+const PROMISED_TOOL_STEER =
+  "Your previous attempt announced a lookup ('let me check', 'one moment') but called no tool, so nothing was retrieved and the user received only that promise. Do not narrate what you are about to do. Call the tool you need NOW, in this turn, and then answer from its results. If the question genuinely needs no lookup, answer it directly and completely instead — but never reply with an intention to search.";
+
 // Injected transiently on every mid-loop turn after the first tool round. The
 // chat model tends to over-search — simple single-document questions were
 // burning 4–6 rounds before answering. This nudges "answer as soon as the
@@ -213,6 +223,9 @@ export async function* runChat(opts: {
   const msgs: Msg[] = [...opts.messages];
   const max = Math.max(1, opts.maxIterations ?? config.chatMaxIterations);
   const toolCalls: ToolCallRecord[] = [];
+  // Promised-tool guard: one retry per turn, and the steer it hands the replay.
+  let promisedToolRetried = false;
+  let pendingSteer: string | null = null;
   let usageIn = 0;
   let usageOut = 0;
   let contextTokens: number | null = null;
@@ -273,7 +286,12 @@ export async function* runChat(opts: {
     // Transient per-turn steering, never pushed onto msgs (not persisted, not
     // resent): the final forced-text turn gets the answer-now instruction; any
     // mid-loop turn after the first tool round gets the early-answer nudge.
-    const steer = last ? FINAL_TURN_INSTRUCTION : iter > 0 ? EARLY_ANSWER_NUDGE : null;
+    // pendingSteer (the promised-tool retry) outranks the positional steers: the
+    // replay is iter > 0, and EARLY_ANSWER_NUDGE tells the model to answer
+    // instead of calling more tools — the exact opposite of what this retry is
+    // for. Consumed once, so the round after the replay steers normally again.
+    const steer = pendingSteer ?? (last ? FINAL_TURN_INSTRUCTION : iter > 0 ? EARLY_ANSWER_NUDGE : null);
+    pendingSteer = null;
     const turnMsgs: Msg[] = steer ? [...msgs, { role: "system", content: steer }] : msgs;
 
     // Per-round controller so a mid-stream repetition trip can abort the
@@ -502,6 +520,42 @@ export async function* runChat(opts: {
         // Observer errors must never break the loop, but are still worth knowing about.
         captureError(err, opts.obs, { stage: "on_round_end_observer" });
       }
+      continue;
+    }
+
+    // Promised-tool guard (chat/announcement.ts): the round wrote an
+    // announcement — "one moment while I search the atlas" — and called no
+    // tool, so accepting it as the final answer ships a promise. Buy one more
+    // round WITH tools instead. Deliberately narrow: only when the whole turn
+    // has retrieved nothing (a turn that already searched has evidence, so its
+    // prose is an answer), only when a round remains, and only once — a second
+    // announcement ships as-is, the same one-shot policy the compose and
+    // repetition guards use. Anything checkable in the text short-circuits
+    // announcesUnmadeToolCall before the embedding, which is what keeps
+    // features/glossary answers — legitimately tool-free — out of scope.
+    if (
+      !promisedToolRetried &&
+      !last &&
+      toolCalls.length === 0 &&
+      !opts.signal?.aborted &&
+      // A cut-off generation is a hard failure the orchestrator already reports
+      // (lengthCapped); its truncated tail is not an announcement, and retrying
+      // would swallow the signal.
+      finishReason !== "length" &&
+      announcesUnmadeToolCall(content)
+    ) {
+      promisedToolRetried = true;
+      captureEvent("chat_loop_promised_tool", opts.obs, { iter, chars: content.length });
+      // At iter === max - 2 the replay lands on `last`, where toolChoice is
+      // "none" and the steer's "call the tool NOW" is unreachable. Not a bug and
+      // not reachable at the default budget: the steer's second clause ("answer
+      // it directly and completely instead") is what the model follows there,
+      // and FINAL_TURN_INSTRUCTION already forbids describing further searches.
+      // Same reason the client already understands: prose the model set aside
+      // to go on searching. In staged mode nothing streamed, so this is a no-op
+      // for the reader and the turn just spends one more round.
+      yield { type: "clear", reason: "tool_round" };
+      pendingSteer = PROMISED_TOOL_STEER;
       continue;
     }
 

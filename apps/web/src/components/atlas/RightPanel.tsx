@@ -20,6 +20,7 @@ const SECTION_HEAD = "text-sm mono text-tan-2 font-semibold tracking-wide";
 
 export function RightPanel({
   id,
+  annotationDocs,
   linkedNodes,
   cousinDocs,
   targetAddresses,
@@ -35,6 +36,8 @@ export function RightPanel({
   byParent,
 }: {
   id: string;
+  /** Element Annotations attached to this doc (`<this doc_no>.0.3.N`). */
+  annotationDocs: AtlasNode[];
   linkedNodes: AtlasNode[];
   cousinDocs: CousinDoc[];
   targetAddresses: Record<string, AddressInfo>;
@@ -63,6 +66,7 @@ export function RightPanel({
     [onNavigate],
   );
   const navLinked = useCallback((nid: string) => annNav("linked_doc", nid), [annNav]);
+  const navAnnotation = useCallback((nid: string) => annNav("annotation_doc", nid), [annNav]);
   const navCousin = useCallback((nid: string) => annNav("cousin_doc", nid), [annNav]);
   const annNavDoc = useCallback(
     (kind: string, docNo: string) => {
@@ -127,6 +131,33 @@ export function RightPanel({
       <div className="overflow-y-auto flex-1">
         {tab === "annotations" ? (
           <div className="px-4 py-5"> 
+            {/* First in the tab: unlike every other section here these are this
+                document's OWN children. They are also the hardest to reach in
+                the reader — the atlas emits the supporting `0` directory after
+                every real sibling, so an article's annotations can sit hundreds
+                of rows below it. */}
+            {annotationDocs.length > 0 ? (
+              <section className="mb-8 pb-5 border-b border-border">
+                <p className={`${SECTION_HEAD} mb-2`}>
+                  annotated by · {annotationDocs.length}
+                </p>
+                <p className="text-xs leading-relaxed mb-4 text-tan-3">
+                  Element Annotations attached to this document.
+                </p>
+                <div className="flex flex-col gap-[10px]">
+                  {annotationDocs.map((node) => (
+                    <RelatedNode
+                      key={node.id}
+                      node={node}
+                      onNavigate={navAnnotation}
+                      selectable={selectable}
+                      byParent={byParent}
+                    />
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
             {linkedNodes.length > 0 ? (
               <section>
                 <p className={`${SECTION_HEAD} mb-4`}>

@@ -1,8 +1,8 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 // The color-scheme store, persisted per-browser in localStorage and synced
-// across components (ProfileButton's Account panel, SignedOutMenu) via a
-// custom event + the cross-tab `storage` event. Deliberately its OWN store,
+// across components (ThemeButton in the nav) via a custom event + the
+// cross-tab `storage` event. Deliberately its OWN store,
 // not a field on usePrefs' ChatSettings: usePrefs discards its whole record on
 // a SCHEMA_VERSION mismatch (see usePrefs.ts), so a future chat-pref bump would
 // silently reset everyone's theme. Theme also has to be readable by the

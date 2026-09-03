@@ -32,6 +32,7 @@ describe("features fact triggers", () => {
       "how do i export a csv from reports?",
       "can i download the multisig table?",
       "where is the keyboard shortcut list?",
+      "how do i open chat?",
     ]) {
       expect(matchesFeaturesQuestion(q)).toBe(true);
     }
@@ -90,12 +91,10 @@ describe("features fact payload", () => {
     expect(v.vocabulary.our_extraction).toContain("not atlas text");
   });
 
-  it("marks the not-yet-shipped areas unavailable", () => {
+  it("lists Chat as a live app area, with nothing marked unavailable", () => {
     const v = block("what can this app do?")!;
-    const upcoming = FEATURE_GROUPS.findIndex((g) => g.key === "upcoming");
-    expect(upcoming).toBeGreaterThanOrEqual(0); // guide still has the group this keys on
-    expect(v.app[upcoming].available).toBe(false);
-    expect(v.app.filter((a) => a.available === false)).toHaveLength(1);
+    expect(v.app.some((a) => a.area === "Chat")).toBe(true);
+    expect(v.app.filter((a) => a.available === false)).toHaveLength(0);
   });
 
   it("ships breadth for every area, and step-by-step how only for the areas asked about", () => {
@@ -114,5 +113,12 @@ describe("features fact payload", () => {
     const b = featuresFact.run({ ix, question: "what can you do?" })!;
     expect(b.note).toContain("NOT atlas text");
     expect(b.note).toContain("citation definition block");
+    expect(b.note).not.toContain("upcoming");
+  });
+
+  it("ships how-steps for Chat when the question names it", () => {
+    const v = block("how do i open chat?")!;
+    const chat = v.app.find((a) => a.area === "Chat")!;
+    expect(chat.features[0].how!.length).toBeGreaterThan(0);
   });
 });

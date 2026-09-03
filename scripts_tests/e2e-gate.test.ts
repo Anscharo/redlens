@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { classifyRuns, readChangedFiles } from "../scripts/aux/e2e-gate.mjs";
+import { classifyRuns, prSettledReason, readChangedFiles, waitForE2eVerdict } from "../scripts/aux/e2e-gate.mjs";
 
 const done = (conclusion: string, html_url = "https://example.test/run") => ({
   status: "completed",
@@ -62,5 +62,108 @@ describe("readChangedFiles", () => {
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "e2e-gate-")), "changed.txt");
     fs.writeFileSync(file, "CLAUDE.md\n\n  docs/plans/x.md  \n");
     expect(readChangedFiles(file)).toEqual(["CLAUDE.md", "docs/plans/x.md"]);
+  });
+});
+
+describe("prSettledReason", () => {
+  // The atlas bump bot's PRs merge 0-2s after the gate job starts, and the
+  // rebase rewrites the SHA — so the deploy this gate polls for never happens.
+  // Four ~40-minute red gates between 2026-08-28 and 09-02 were exactly this.
+  it("stops the wait once the pull request is merged", () => {
+    expect(prSettledReason({ state: "closed", merged: true })).toMatch(/merged/);
+  });
+
+  it("stops the wait on a PR closed without merging", () => {
+    expect(prSettledReason({ state: "closed", merged: false })).toMatch(/closed without merging/);
+  });
+
+  it("keeps waiting while the pull request is open", () => {
+    expect(prSettledReason({ state: "open", merged: false })).toBeNull();
+  });
+
+  // Fail open: an unreadable PR must leave the gate exactly as it was, never
+  // turn an API blip into a free pass on an open PR.
+  it("keeps waiting when the PR state is unknown", () => {
+    for (const pr of [null, undefined, {}, "closed", 7]) {
+      expect(prSettledReason(pr as never)).toBeNull();
+    }
+  });
+});
+
+describe("waitForE2eVerdict", () => {
+  const noSleep = async () => {
+    throw new Error("should not poll after a settled verdict");
+  };
+
+  it("passes as soon as the pull request is merged, without waiting for a deploy", async () => {
+    const result = await waitForE2eVerdict({
+      fetchRuns: async () => [],
+      fetchPullRequest: async () => ({ state: "closed", merged: true }),
+      pollSeconds: 30,
+      timeoutSeconds: 2400,
+      now: () => 0,
+      sleep: noSleep,
+      log: () => {},
+    });
+    expect(result.verdict).toBe("pass");
+    expect(result.reason).toMatch(/merged/);
+  });
+
+  it("keeps waiting on an open PR with no deploy, then returns wait at the deadline", async () => {
+    let clock = 0;
+    let polls = 0;
+    const result = await waitForE2eVerdict({
+      fetchRuns: async () => {
+        polls++;
+        return [];
+      },
+      fetchPullRequest: async () => ({ state: "open", merged: false }),
+      pollSeconds: 1,
+      timeoutSeconds: 2,
+      now: () => clock,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+      log: () => {},
+    });
+    expect(result.verdict).toBe("wait");
+    expect(result.reason).toMatch(/waiting for Railway/);
+    expect(polls).toBeGreaterThanOrEqual(1);
+  });
+
+  // classifyRuns is checked first: a red E2E run is the verdict, even if the
+  // PR has also been merged. Reordering those would paper over a real failure.
+  it("does not let a merged PR paper over a failed E2E run", async () => {
+    const result = await waitForE2eVerdict({
+      fetchRuns: async () => [done("failure")],
+      fetchPullRequest: async () => {
+        throw new Error("PR must not be read after classifyRuns has settled");
+      },
+      pollSeconds: 30,
+      timeoutSeconds: 2400,
+      now: () => 0,
+      sleep: noSleep,
+      log: () => {},
+    });
+    expect(result.verdict).toBe("fail");
+    expect(result.reason).toMatch(/failure/);
+  });
+
+  // Fail open: an unreadable PR (no number, or a blip) is indistinguishable
+  // from "still open" — never a free pass.
+  it("keeps waiting when the PR cannot be read", async () => {
+    let clock = 0;
+    const result = await waitForE2eVerdict({
+      fetchRuns: async () => [],
+      fetchPullRequest: async () => null,
+      pollSeconds: 1,
+      timeoutSeconds: 1,
+      now: () => clock,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+      log: () => {},
+    });
+    expect(result.verdict).toBe("wait");
   });
 });

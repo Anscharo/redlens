@@ -647,8 +647,9 @@ export const AtlasReader = memo(function AtlasReader({
       splitNavigate,
       pendulum: handlePendulum,
       selectSubtree: handleSelectSubtree,
+      docNoToId: data.atlas.docNoToId,
     }),
-    [navigate, handleToggle, splitNavigate, handlePendulum, handleSelectSubtree],
+    [navigate, handleToggle, splitNavigate, handlePendulum, handleSelectSubtree, data.atlas.docNoToId],
   );
 
   return (

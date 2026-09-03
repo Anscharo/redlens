@@ -21,12 +21,56 @@ describe("readinessProblems", () => {
     expect(readinessProblems({ ...READY, status: "stale" }, "abcdef123456")).toEqual([]);
   });
 
-  it("still waits on syncing, stuck, schema_behind, and degraded", () => {
-    for (const status of ["syncing", "stuck", "schema_behind", "degraded", undefined]) {
-      expect(readinessProblems({ ...READY, status }, "abcdef123456")).toEqual([
-        `freshness status is ${String(status)}`,
-      ]);
-    }
+  // The cold-boot case that used to time out this gate for two minutes and
+  // report a false red: converged shas, full index, right commit — only the
+  // updater's first store hydrate outstanding. See readinessProblems' comment.
+  it("accepts a cold-boot store hydrate: syncing with the shas converged", () => {
+    expect(readinessProblems({ ...READY, status: "syncing" }, "abcdef123456")).toEqual([]);
+  });
+
+  // Diverged shas still block — but through the sha comparison, which names
+  // both shas, rather than through a "freshness status is syncing" line that
+  // repeats the same fact less usefully.
+  it("still waits on syncing when the shas have actually diverged", () => {
+    expect(
+      readinessProblems({ ...READY, status: "syncing", db_sha: "newer-atlas-sha" }, "abcdef123456"),
+    ).toEqual(["live Atlas SHA atlas-sha does not match database SHA newer-atlas-sha"]);
+  });
+
+  // "stuck" is the only status carrying information no structural check has:
+  // an un-hydratable artifact store or a publish that never landed. It is what
+  // caught the getArtifacts `malformed array literal` fault in #350.
+  it("still waits on stuck — the one status no structural check can see", () => {
+    expect(readinessProblems({ ...READY, status: "stuck" }, "abcdef123456")).toEqual([
+      "freshness status is stuck",
+    ]);
+  });
+
+  // degraded and schema_behind are asserted through the bodies that actually
+  // produce them, not by pasting the status onto an otherwise-healthy snapshot:
+  // freshness.ts cannot emit "degraded" with db_reachable true, so a test that
+  // did that would be pinning behaviour on an impossible deployment.
+  it("blocks a degraded deployment via the reachability check", () => {
+    expect(readinessProblems({ ...READY, status: "degraded", db_reachable: false }, "abcdef123456")).toEqual([
+      "Postgres is not reachable",
+    ]);
+  });
+
+  it("blocks a schema-behind deployment via the schema check", () => {
+    expect(
+      readinessProblems({ ...READY, status: "schema_behind", schema: "020_old.sql" }, "abcdef123456"),
+    ).toEqual(["schema 020_old.sql is behind required 021_chain_state.sql"]);
+  });
+
+  // Blocklist, not allowlist: a status the server has not started emitting
+  // (absent, empty, or newly added) is not itself a reason to wait. Structural
+  // checks still have to pass, and every spec still has to pass after this gate.
+  it("does not block on an absent, empty, or unknown freshness status", () => {
+    const { status: _ignored, ...noStatus } = READY;
+    expect(readinessProblems({ ...READY, status: undefined }, "abcdef123456")).toEqual([]);
+    expect(readinessProblems(noStatus, "abcdef123456")).toEqual([]);
+    expect(readinessProblems({ ...READY, status: "" }, "abcdef123456")).toEqual([]);
+    expect(readinessProblems({ ...READY, status: "warming" }, "abcdef123456")).toEqual([]);
   });
 
   it("reports provenance, freshness, schema, and data failures together", () => {
@@ -72,7 +116,7 @@ describe("waitForDeployment", () => {
     let clock = 0;
     const fetchImpl = (async () => {
       calls++;
-      return new Response(JSON.stringify(calls === 1 ? { ...READY, status: "syncing" } : READY));
+      return new Response(JSON.stringify(calls === 1 ? { ...READY, status: "stuck" } : READY));
     }) as typeof fetch;
 
     const result = await waitForDeployment({

@@ -39,13 +39,42 @@ export function readinessProblems(health: HealthSnapshot, expectedCommit?: strin
   if (health.schema && health.required_schema && health.schema < health.required_schema) {
     problems.push(`schema ${health.schema} is behind required ${health.required_schema}`);
   }
-  // "stale" is worker-heartbeat age (`synced_at` vs ATLAS_STALE_SECONDS), not a
-  // bad snapshot. /api/health stays 200 so a stale tick never restart-loops a
-  // live container; waiting cannot make an old heartbeat fresh. Accept it when
-  // the structural fields above already passed. Still wait/fail on syncing,
-  // stuck, schema_behind, degraded, or an unknown status.
-  const status = health.status ?? "";
-  if (status !== "ok" && status !== "stale") {
+  // Of the six statuses freshness.ts can derive, only ONE tells this gate
+  // anything the structural checks above have not already established:
+  //
+  //   degraded / schema_behind  db_reachable and schema already reported it,
+  //                             with a message that names the actual fault.
+  //   syncing (shas diverged)   the sha comparison already reported it.
+  //   syncing (shas agree)      needsStoreHydrate — this container has not yet
+  //                             pulled the published bundle out of
+  //                             atlas_artifacts. True of EVERY cold boot: the
+  //                             updater's first tick is a whole interval (30s)
+  //                             after boot and backs off per refusal, so a
+  //                             container that loses the race with the worker's
+  //                             publish is parked past this gate's 120s budget.
+  //                             Nothing the suite exercises depends on it —
+  //                             /api/atlas/:sha/:name hydrates on demand.
+  //   stale                     worker-heartbeat age, not a bad snapshot;
+  //                             waiting cannot make an old heartbeat fresh.
+  //   stuck                     the updater has failed to converge — an
+  //                             un-hydratable store or a publish that never
+  //                             landed. Invisible to every check above, and the
+  //                             signal that caught the getArtifacts/jsonb fault
+  //                             in #350. This is the one worth waiting on.
+  //
+  // So: block on stuck, accept the rest. Deliberately a blocklist, not an
+  // allowlist of good statuses. An allowlist fails CLOSED on any status it did
+  // not anticipate, which is exactly how a healthy deployment started reporting
+  // a two-minute red the day needsStoreHydrate landed (5 of 8 E2E gate failures
+  // between 2026-08-28 and 09-02). And the downside is bounded: this gate only
+  // decides whether to START the suite — every spec still has to pass — so a
+  // status this rule waves through costs a worse error message, never a missed
+  // regression.
+  //
+  // Verified equivalent to the previous ok/stale/syncing allowlist across all
+  // 256 states deriveFreshnessStatus can reach — see the status-rule test in
+  // src/server/history/readiness-status-rule.test.ts.
+  if ((health.status ?? "") === "stuck") {
     problems.push(`freshness status is ${String(health.status)}`);
   }
   if (expectedCommit) {
