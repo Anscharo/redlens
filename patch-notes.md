@@ -38,6 +38,9 @@
 - Broad search now also matches the singular or plural of a word, with exact wording ranked first
 
 
+## 2026-09-04
+- Added a Monthly Settlement Cycle overview to the Radar front page — a circular flow chart of every Prime's month with Sky in the middle, a stacked prime-earnings timeline with Sky's take as a line, and click-through to each Prime's settlement page
+
 ## 2026-09-03
 - Moved colour-scheme picking to a sun, moon, or eclipse button in the top bar, next to feedback and the account menu
 

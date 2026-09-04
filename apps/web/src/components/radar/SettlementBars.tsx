@@ -67,9 +67,11 @@ function ThreeWayTrack({
   return (
     <span className="msc-bar-track">
       {peakNeg > 0 && <span className="msc-bar-zero" style={{ bottom: `${zero}%` }} />}
+      {/* A negative month keeps its series color and is striped (CSS). */}
       {fill && (
         <span
-          className={`msc-bar-fill ${value < 0 ? "msc-bar-loss" : barClass}`}
+          className={`msc-bar-fill ${barClass}`}
+          data-negative={value < 0 ? "true" : undefined}
           style={fill}
         />
       )}

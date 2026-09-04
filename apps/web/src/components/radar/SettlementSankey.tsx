@@ -34,9 +34,15 @@ function VenueHoverStyles({ ids }: { ids: string[] }) {
 export function SettlementVenuePnl({
   venues,
   primeLabel,
+  month,
+  primeColor = "var(--msc-kept)",
 }: {
   venues: SankeyVenue[];
   primeLabel: string;
+  /** When set, the Sky sink label links to the /radar MSC overview for this month. */
+  month?: string;
+  /** The Prime's identity color — its bar on the chart. */
+  primeColor?: string;
 }) {
   const rows = useMemo(() => collapseVenues(venues), [venues]);
   const layout = useMemo(() => layoutVenueSankey(rows, primeLabel), [rows, primeLabel]);
@@ -47,7 +53,7 @@ export function SettlementVenuePnl({
   return (
     <div className="msc-venue-pnl">
       <VenueHoverStyles ids={venueIds} />
-      <SettlementSankeyView rows={rows} layout={layout} primeLabel={primeLabel} />
+      <SettlementSankeyView rows={rows} layout={layout} primeLabel={primeLabel} month={month} primeColor={primeColor} />
       <SettlementVenueTable rows={rows} primeLabel={primeLabel} />
     </div>
   );

@@ -29,6 +29,8 @@ export const SWATCH_WORST_BG: Record<string, string> = {
   "entity-instance": "surface", "entity-multisig": "surface", "entity-fallback": "surface",
   "diff-removed-fg": "diff-removed-bg",
   ...Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`depth-${i + 1}`, "surface"])),
+  ...Object.fromEntries(["sky", "sky-2", "sky-3", "sky-4", "sde", "kept", "demand", "dr", "gar", "cp"].map((k) => [`msc-${k}`, "bg-deep"])),
+  ...Object.fromEntries(["sky", "sde", "kept", "demand", "dr", "gar", "cp"].map((k) => [`msc-${k}-ink`, `msc-${k}`])),
 };
 
 export interface AuditPair {
@@ -99,4 +101,24 @@ export const AUDIT_PAIRS: readonly AuditPair[] = [
   // touching the text-level entries. See `:focus-visible` in index.css.
   { fg: "accent",        bg: "bg",               label: "focus ring / bg" },
   { fg: "accent",        bg: "surface",          label: "focus ring / surface" },
+
+  // ─── MSC settlement charts ─────────────────────────────────────────
+  // Figures printed ON a slice or wedge of the orbital chart are set in the
+  // fill's paired ink token (index.css `--msc-<series>-ink`); every fill
+  // that carries text is audited against its ink at normal-text 4.5:1. The
+  // three family colors are also graphics on the chart card (bars, ribbons,
+  // the To-Sky line), so they hold the 3:1 non-text bar against --bg-deep.
+  { fg: "msc-sky-ink",    bg: "msc-sky",    label: "MSC figure on CoF slice / Sky pie" },
+  { fg: "msc-sky-ink",    bg: "msc-sky-2",  label: "MSC figure on Sky wedge shade 2" },
+  { fg: "msc-sky-ink",    bg: "msc-sky-3",  label: "MSC figure on Sky wedge shade 3" },
+  { fg: "msc-sky-ink",    bg: "msc-sky-4",  label: "MSC figure on Sky wedge shade 4" },
+  { fg: "msc-sde-ink",    bg: "msc-sde",    label: "MSC figure on SDE slice" },
+  { fg: "msc-kept-ink",   bg: "msc-kept",   label: "MSC figure on supply-kept slice" },
+  { fg: "msc-demand-ink", bg: "msc-demand", label: "MSC figure on agent-rate slice" },
+  { fg: "msc-dr-ink",     bg: "msc-dr",     label: "MSC figure on distribution-rewards slice" },
+  { fg: "msc-gar-ink",    bg: "msc-gar",    label: "MSC figure on accessibility-rewards slice" },
+  { fg: "msc-cp-ink",     bg: "msc-cp",     label: "MSC figure on chronicle-points slice" },
+  { fg: "msc-sky",        bg: "bg-deep",    label: "MSC To-Sky series / chart card" },
+  { fg: "msc-kept",       bg: "bg-deep",    label: "MSC supply-kept series / chart card" },
+  { fg: "msc-demand",     bg: "bg-deep",    label: "MSC demand-side series / chart card" },
 ];

@@ -86,6 +86,11 @@ vi.mock("./ActorList", () => ({
 vi.mock("./PrimitiveDashboard", () => ({
   PrimitiveDashboard: () => <div data-testid="primitive-dashboard">primitive dashboard</div>,
 }));
+vi.mock("./MscOverview", () => ({
+  MscOverview: ({ actors }: { actors: { slug: string }[] }) => (
+    <div data-testid="msc-overview" data-actors={actors.map((a) => a.slug).join(",")} />
+  ),
+}));
 vi.mock("./ActorDashboard", () => ({
   ActorDashboard: ({ profile }: { profile: { entity: { name: string } } }) => (
     <div data-testid="actor-dashboard">{profile.entity.name}</div>
@@ -108,6 +113,15 @@ describe("RadarPage index (no actorSlug)", () => {
   it("renders the PrimitiveDashboard and the full sidebar", async () => {
     render(<RadarPage query="" />);
     expect(await screen.findByTestId("primitive-dashboard")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Sky Ecosystem Radar Overview" })).toBeInTheDocument();
+    expect(document.title).toBe("Sky Ecosystem Radar Overview · Sky Atlas by Redline");
+    // MSC overview sits above the primitive stats and gets the full roster.
+    const overview = screen.getByTestId("msc-overview");
+    expect(overview).toHaveAttribute("data-actors", "spark,grove,sfl");
+    expect(
+      overview.compareDocumentPosition(screen.getByTestId("primitive-dashboard")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByText("Spark")).toBeInTheDocument();
     expect(screen.getByText("Grove")).toBeInTheDocument();
     expect(screen.getByText("Sky Foundation")).toBeInTheDocument();
@@ -137,6 +151,7 @@ describe("RadarPage actor page", () => {
   it("renders ActorDashboard and records the visit when a profile resolves", async () => {
     render(<RadarPage query="" actorSlug="spark" />);
     expect(await screen.findByTestId("actor-dashboard")).toHaveTextContent("Spark Radar Entity");
+    expect(screen.queryByTestId("msc-overview")).not.toBeInTheDocument();
     expect(screen.getByTestId("actor-list")).toHaveAttribute("data-selected", "spark");
     await waitFor(() => expect(recordVisit).toHaveBeenCalledTimes(1));
     expect(recordVisit).toHaveBeenCalledWith(

@@ -94,6 +94,46 @@
   --depth-15: #55a653; /* green */
   --depth-16: #6e8ee8; /* blue */
   --depth-17: #a878e8; /* purple */
+
+  /* MSC settlement series — the orbital chart's slice fills, the settlement
+     bars, the Sankey ribbons and the timeseries. One token per line item,
+     each paired with the INK that reads on it (the page's or the text's,
+     whichever passes 4.5:1). The pairs are audited by AUDIT_PAIRS in
+     admin/contrast.ts, so a fill can't move without its ink being
+     re-measured. Sub-steps (SDE under CoF; DR/GAR/CP under agent rate) are
+     the family color mixed paler: paler = the smaller line item, in every
+     theme. Sky's wedge shades instead step toward the TEXT ink, so one ink
+     reads across the whole Sky pie (the "To Sky" total spans its wedges).
+     A loss is never a color of its own: it's stripes in the series' color.
+     Trio validated for adjacent-pair CVD separation (dataviz validator,
+     2026-09-01): amber failed protan vs the green, hence magenta. */
+  --msc-sky: #6e8ee8; /* CoF, the Sky pie, the To-Sky line */
+  --msc-sky-ink: #160e0d;
+  --msc-sky-2: #96a9e0; /* Sky wedge shades: 2nd, 3rd, 4th+ biggest contributor */
+  --msc-sky-3: #b3bcda;
+  --msc-sky-4: #c8cbd6;
+  --msc-sde: #afc1f2; /* Sky Direct Exposure */
+  --msc-sde-ink: #160e0d;
+  --msc-kept: #5db35b; /* supply kept */
+  --msc-kept-ink: #160e0d;
+  --msc-demand: #e07cc4; /* agent rate — the demand-side family color */
+  --msc-demand-ink: #160e0d;
+  --msc-dr: #e9a3d6; /* distribution rewards */
+  --msc-dr-ink: #160e0d;
+  --msc-gar: #f0c0e3; /* accessibility rewards */
+  --msc-gar-ink: #160e0d;
+  --msc-cp: #f6d8ed; /* chronicle points */
+  --msc-cp-ink: #160e0d;
+  /* MSC prime identity colors (timeseries layers, pie rims and slice
+     outlines, the Prime's own bar on its settlement page). Deliberately NO
+     blue, green, magenta/pink, or red in any theme — those are the flow
+     colors — and purple rather than orange, never both. One purple plus
+     warm neutrals, each a distinct lightness. */
+  --msc-prime-1: #a67ff0; /* purple */
+  --msc-prime-2: #d9b544; /* gold */
+  --msc-prime-3: #c8b48e; /* sand */
+  --msc-prime-4: #9c7a5b; /* brown */
+  --msc-prime-5: #8f8b96; /* warm gray */
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
@@ -241,6 +281,32 @@
   --depth-15: #581be0;
   --depth-16: #0064ee;
   --depth-17: #03769d;
+
+  /* MSC settlement series — see the :root block note. The family colors
+     are deep here, so their ink is the page; the paler sub-steps take the
+     text ink. Sky's wedge shades step toward black (the text ink). */
+  --msc-sky: #2f5fd0; /* blue */
+  --msc-sky-ink: #fafafa;
+  --msc-sky-2: #25499d;
+  --msc-sky-3: #1c3775;
+  --msc-sky-4: #162956;
+  --msc-sde: #93ace7;
+  --msc-sde-ink: #050505;
+  --msc-kept: #0f7233; /* green */
+  --msc-kept-ink: #fafafa;
+  --msc-demand: #a21caf; /* magenta-purple */
+  --msc-demand-ink: #fafafa;
+  --msc-dr: #c065c9;
+  --msc-dr-ink: #050505;
+  --msc-gar: #d497da;
+  --msc-gar-ink: #050505;
+  --msc-cp: #e3bbe7;
+  --msc-cp-ink: #050505;
+  --msc-prime-1: #6d28d9; /* purple */
+  --msc-prime-2: #9a7a00; /* gold */
+  --msc-prime-3: #8a7a4e; /* sand */
+  --msc-prime-4: #7a4f2e; /* brown */
+  --msc-prime-5: #6b6875; /* warm gray */
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
@@ -517,6 +583,39 @@
   --depth-15: #c2beb0;
   --depth-16: #c7bda8;
   --depth-17: #ccbc9f;  /* back to the top of the curve */
+
+  /* MSC settlement series. The one hue this theme owns is its electric
+     blue (hue 245 — see --red-dim), and it goes to the money that is the
+     point of the chart: everything To Sky (the line, the Sky pie, CoF and
+     SDE). Supply kept and the demand-side family are lightness steps of
+     grey, every one above this theme's 5:1 floor on the chart card and all
+     with the page as ink: the demand-side family steps up from mid-grey,
+     supply kept is the lightest so it never meets them. */
+  --msc-sky: #5ea4f2;
+  --msc-sky-ink: #141414;
+  --msc-sky-2: #89baf0;
+  --msc-sky-3: #a8c9ef;
+  --msc-sky-4: #bfd5ee;
+  --msc-sde: #afd2f9;
+  --msc-sde-ink: #141414;
+  --msc-kept: #e2e2e2;
+  --msc-kept-ink: #141414;
+  --msc-demand: #868686;
+  --msc-demand-ink: #141414;
+  --msc-dr: #9c9c9c;
+  --msc-dr-ink: #141414;
+  --msc-gar: #b2b2b2;
+  --msc-gar-ink: #141414;
+  --msc-cp: #c8c8c8;
+  --msc-cp-ink: #141414;
+  /* Prime identities: cool greys — the same hue 245 as the theme's blue,
+     at low chroma (a slate, not a gold), alternating lightness so adjacent
+     stack layers stay separable without a hue of their own. */
+  --msc-prime-1: #c9d3df;
+  --msc-prime-2: #6f8299;
+  --msc-prime-3: #a2b1c4;
+  --msc-prime-4: #56677a;
+  --msc-prime-5: #889aaf;
 }
 
 /* ─── Giedi structural override ──────────────────────────────────────────
@@ -2634,34 +2733,48 @@ a.atlas-annotates:focus-visible {
   height: 1px;
   background: var(--border);
 }
+/* Each series carries its color in --msc-bar-color, so a NEGATIVE month
+   keeps it (color = series, everywhere in the MSC charts) and is marked by
+   stripes — the same mark as the overview timeseries, the ring's loss hole
+   and the Sankey's out-flows — instead of a loss hue. The demand-side
+   series share the ring's slice tokens, so the two pages agree. */
 .msc-bar-sky {
-  background: var(--depth-4);
-  width: 100%;
-}
-.msc-bar-loss {
-  background: var(--accent);
-  width: 100%;
+  --msc-bar-color: var(--msc-sky);
 }
 .msc-bar-prime {
-  background: var(--entity-delegate-org);
-  width: 100%;
+  --msc-bar-color: var(--msc-kept);
 }
 .msc-bar-demand,
 .msc-bar-rate {
-  background: var(--entity-facilitator-org);
-  width: 100%;
+  --msc-bar-color: var(--msc-demand);
 }
 .msc-bar-dr {
-  background: var(--entity-govops-org);
-  width: 100%;
+  --msc-bar-color: var(--msc-dr);
 }
 .msc-bar-gar {
-  background: var(--entity-foundation);
-  width: 100%;
+  --msc-bar-color: var(--msc-gar);
 }
 .msc-bar-chronicle {
-  background: var(--entity-bridge);
+  --msc-bar-color: var(--msc-cp);
+}
+.msc-bar-sky,
+.msc-bar-prime,
+.msc-bar-demand,
+.msc-bar-rate,
+.msc-bar-dr,
+.msc-bar-gar,
+.msc-bar-chronicle {
+  background: var(--msc-bar-color);
   width: 100%;
+}
+.msc-bar-fill[data-negative="true"] {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--msc-bar-color) 0,
+    var(--msc-bar-color) 4px,
+    transparent 4px,
+    transparent 8px
+  );
 }
 .msc-aum {
   list-style: none;
@@ -2723,4 +2836,335 @@ a.atlas-annotates:focus-visible {
 }
 .msc-venue-row {
   cursor: pointer;
+}
+/* The Sky sink label doubles as a link to the /radar MSC overview. */
+.msc-sankey-sink-link {
+  cursor: pointer;
+}
+.msc-sankey-sink-link:hover text,
+.msc-sankey-sink-link:focus-visible text {
+  fill: var(--accent);
+  text-decoration: underline;
+}
+/* ─── MSC ecosystem timeseries (radar index overview) ─── */
+/* Chart card — same look as the primitive-stats AgentPanel cards. */
+.msc-card {
+  border: 1px solid var(--border);
+  background: var(--bg-deep);
+}
+.msc-headline-divider {
+  align-self: stretch;
+  width: 1px;
+  background: var(--border);
+}
+/* The Prime's identity color on its own settlement page — the same color
+   as its ring rim and timeseries layer on the overview (inline). */
+.msc-identity-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+/* Transparent track: the y-scale is shared with the To-Sky line, so the
+   stack rarely fills the column — a filled track read as a tall dark bar.
+   The zero baseline is drawn by the overlay svg instead. Selection/hover is
+   opacity, not an outline: unselected months are dimmed, the selected and
+   hovered ones render at full strength. */
+/* Two tracks per month column — kept (left) and To Sky (right). */
+.msc-ts-tracks {
+  display: flex;
+  gap: 2px;
+}
+.msc-ts-track {
+  position: relative;
+  display: block;
+  width: 13px;
+  height: 380px;
+  border-radius: 2px;
+  overflow: hidden;
+  opacity: 0.45;
+  transition: opacity 0.1s;
+}
+/* The To-Sky stack is translucent Sky blue outlined in each prime's own
+   color (the outline comes inline, per segment), so the two stacks never
+   read as the same money. */
+.msc-ts-track-sky .msc-ts-seg {
+  background: color-mix(in srgb, var(--msc-sky) 30%, transparent);
+}
+.msc-ts-seg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* 1px separation line between stacked segments (dataviz spacer rule). */
+  box-shadow: inset 0 1px 0 var(--bg-deep);
+}
+.msc-ts-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.msc-ts-gridline {
+  stroke: var(--border-muted);
+  stroke-width: 1;
+}
+.msc-ts-axis {
+  fill: var(--tan-3);
+}
+.msc-ts-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+/* Line points accept hover (the svg itself stays click-transparent so the
+   month buttons underneath keep working) and reveal their figure as a pill —
+   same treatment as the ring's hover amounts. */
+.msc-ts-dot {
+  pointer-events: auto;
+}
+.msc-ts-dot-label {
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.msc-ts-dot-label rect {
+  fill: var(--bg);
+  stroke: var(--border);
+}
+.msc-ts-dot-label text {
+  fill: var(--tan);
+}
+.msc-ts-dot:hover .msc-ts-dot-label {
+  opacity: 1;
+}
+/* Hovering the selected month's To-Sky line point lights every To-Sky
+   ribbon on the ring — they are the same flow (the ribbons sum to the
+   line's value for that month). */
+.msc-overview-row:has(.msc-ts-dot[data-selected="true"]:hover) .msc-ring-prime :is(.msc-ring-sky, .msc-ring-cof, .msc-ring-sde) {
+  opacity: 1;
+  stroke: var(--tan);
+  stroke-width: 2;
+}
+.msc-bar-col:hover .msc-ts-track,
+.msc-bar-col[data-active="true"] .msc-ts-track {
+  opacity: 1;
+}
+/* ─── MSC ecosystem ring (radar index overview) ─── */
+.msc-ring {
+  display: block;
+  /* Fills the card's height (the timeseries card beside it sets the row's
+     height) and never exceeds 950px wide; the cropped viewBox scales to
+     fit both, so the two charts always share a height. */
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  max-width: min(950px, 100%);
+  margin: 0 auto;
+  overflow: visible;
+}
+/* The Sky pie: a disc in Sky's blue, with one wedge per contributing Prime
+   painted over it in shades of that blue (the fill comes inline, by size
+   rank) — the flows into Sky, shown adding up to it. */
+.msc-ring-sky-disc {
+  fill: var(--msc-sky);
+  stroke: var(--msc-sky);
+  stroke-width: 2;
+}
+.msc-ring-sky-wedge {
+  stroke: var(--bg-deep);
+  stroke-width: 1;
+  transition:
+    stroke 0.1s,
+    stroke-width 0.1s;
+  cursor: pointer;
+}
+/* Highlight = an outline in the text ink. Fills stay at full strength in
+   every state, so the audited fill/ink pairs are what's actually shown. */
+.msc-ring-mark:hover .msc-ring-sky-wedge {
+  stroke: var(--tan);
+  stroke-width: 2;
+}
+/* Text ON a fill uses that fill's own ink token (the pair every theme
+   declares and admin/contrast.ts audits) — never a halo. */
+.msc-ring-center,
+.msc-ring-figure {
+  pointer-events: none;
+}
+.msc-ring-center,
+.msc-ring-figure[data-kind="sky"],
+.msc-ring-figure[data-kind="cof"] {
+  fill: var(--msc-sky-ink);
+}
+.msc-ring-figure[data-kind="sde"] {
+  fill: var(--msc-sde-ink);
+}
+.msc-ring-figure[data-kind="kept"] {
+  fill: var(--msc-kept-ink);
+}
+.msc-ring-figure[data-kind="agentRate"] {
+  fill: var(--msc-demand-ink);
+}
+.msc-ring-figure[data-kind="distributionRewards"] {
+  fill: var(--msc-dr-ink);
+}
+.msc-ring-figure[data-kind="gar"] {
+  fill: var(--msc-gar-ink);
+}
+.msc-ring-figure[data-kind="chroniclePoints"] {
+  fill: var(--msc-cp-ink);
+}
+.msc-ring-sublabel {
+  fill: var(--tan-3);
+}
+/* Each Prime is a pie of its line items inside a thin identity rim; the
+   slice outlines are the same identity color (both strokes come inline).
+   Slice fills are the series tokens — the To-Sky pair in Sky's blues,
+   supply kept in green, the demand-side series in magenta steps — the same
+   ones the key, the timeseries and the Prime's own page use. */
+.msc-ring-rim {
+  fill: none;
+  stroke-width: 2;
+  stroke-opacity: 0.7;
+  transition:
+    stroke-width 0.1s,
+    stroke-opacity 0.1s;
+}
+.msc-ring-slice {
+  stroke-width: 1.25;
+}
+.msc-ring-cof {
+  fill: var(--msc-sky);
+}
+.msc-ring-sde {
+  fill: var(--msc-sde);
+}
+.msc-ring-kept {
+  fill: var(--msc-kept);
+}
+.msc-ring-agentRate {
+  fill: var(--msc-demand);
+}
+.msc-ring-distributionRewards {
+  fill: var(--msc-dr);
+}
+.msc-ring-gar {
+  fill: var(--msc-gar);
+}
+.msc-ring-chroniclePoints {
+  fill: var(--msc-cp);
+}
+/* The loss hole: striped in the kept color over the card, same mark as the
+   key's "supply loss". */
+.msc-ring-hole {
+  stroke: var(--bg-deep);
+  stroke-width: 1;
+}
+/* Geometry transitions so the month-to-month autoplay glides. */
+.msc-ring-rim,
+.msc-ring-hole,
+.msc-ring-label {
+  transition:
+    cx 0.6s ease-in-out,
+    cy 0.6s ease-in-out,
+    r 0.6s ease-in-out,
+    x 0.6s ease-in-out,
+    y 0.6s ease-in-out,
+    opacity 0.1s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .msc-ring-rim,
+  .msc-ring-hole,
+  .msc-ring-label {
+    transition: opacity 0.1s;
+  }
+}
+.msc-ts-play {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--tan-2);
+  cursor: pointer;
+  padding: 1px 8px;
+}
+.msc-ts-play:hover,
+.msc-ts-play[aria-pressed="true"] {
+  color: var(--tan);
+  border-color: var(--border-muted);
+}
+/* Hovering a key row lights up every slice it describes, on every pie
+   (and the arrows for the To-Sky rows). */
+.msc-ring-card:has(.msc-key-item[data-key="cof"]:hover) .msc-ring-prime :is(.msc-ring-cof, .msc-ring-arrow),
+.msc-ring-card:has(.msc-key-item[data-key="sde"]:hover) .msc-ring-prime :is(.msc-ring-sde, .msc-ring-arrow),
+.msc-ring-card:has(.msc-key-item[data-key="kept"]:hover) .msc-ring-prime .msc-ring-kept,
+.msc-ring-card:has(.msc-key-item[data-key="agentRate"]:hover) .msc-ring-prime .msc-ring-agentRate,
+.msc-ring-card:has(.msc-key-item[data-key="distributionRewards"]:hover) .msc-ring-prime .msc-ring-distributionRewards,
+.msc-ring-card:has(.msc-key-item[data-key="gar"]:hover) .msc-ring-prime .msc-ring-gar,
+.msc-ring-card:has(.msc-key-item[data-key="chroniclePoints"]:hover) .msc-ring-prime .msc-ring-chroniclePoints,
+.msc-ring-card:has(.msc-key-item[data-key="neg"]:hover) .msc-ring-prime .msc-ring-hole {
+  opacity: 1;
+  stroke: var(--tan);
+  stroke-width: 2;
+}
+.msc-ring-sky {
+  fill: var(--msc-sky);
+}
+.msc-ring-prime :is(path, circle) {
+  transition:
+    opacity 0.1s,
+    stroke 0.1s,
+    stroke-width 0.1s;
+  cursor: pointer;
+}
+/* Arrows and holes rest at 75% until their Prime is hovered; the slices
+   never dim (their fill/ink pairs are audited at full strength), so a
+   hovered Prime is marked by its rim thickening instead. */
+.msc-ring-arrow,
+.msc-ring-hole {
+  opacity: 0.75;
+}
+.msc-ring-prime:hover :is(.msc-ring-arrow, .msc-ring-hole),
+a:focus-visible > .msc-ring-prime :is(.msc-ring-arrow, .msc-ring-hole) {
+  opacity: 1;
+}
+.msc-ring-prime:hover .msc-ring-rim,
+a:focus-visible > .msc-ring-prime .msc-ring-rim {
+  stroke-width: 4;
+  stroke-opacity: 1;
+}
+.msc-ring-label {
+  fill: var(--tan-2);
+}
+.msc-ring-prime:hover .msc-ring-label {
+  fill: var(--tan);
+}
+/* Pills live in a top layer (.msc-ring-pills, rendered last) so they paint
+   over every bar and label instead of being covered by whichever prime
+   drew after them. Which pill shows is wired by the generated `:has()`
+   rules in PillHoverStyles — one per mark, matched by data-mark. */
+.msc-ring-pills {
+  pointer-events: none;
+}
+.msc-ring-pill {
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.msc-ring-pill rect {
+  fill: var(--bg);
+  stroke: var(--border);
+}
+.msc-ring-pill text {
+  fill: var(--tan);
+}
+.msc-ring-pill .msc-ring-pill-detail {
+  fill: var(--tan-3);
+}
+/* Leader from the mark out to its pill, so a pill sitting clear of the shape
+   still says which shape it belongs to. */
+.msc-ring-pill-leader {
+  fill: none;
+  stroke: var(--gray);
+  stroke-width: 1;
+}
+.msc-ring-pill-anchor {
+  fill: var(--gray);
 }

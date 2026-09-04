@@ -4,11 +4,16 @@ import {
   type SankeyVenue,
   type SankeyLayout,
 } from "../../lib/settlementSankey";
+import { ROUTES } from "@/lib/routes";
 import { SankeySinkNode, SankeyVenueNode } from "./SettlementSankeyNodes";
 
+/** Ribbons are the series color of what they carry — To Sky blue, supply
+ *  kept green — and a NEGATIVE one (money going back out to a losing venue)
+ *  keeps that color and is striped, the same mark as everywhere else in
+ *  the MSC charts, rather than turning a loss hue. */
 function linkFill(l: SankeyLink): string {
-  if (l.signed < 0) return "var(--accent)";
-  return l.to === "sky" ? "var(--depth-4)" : "var(--entity-delegate-org)";
+  const series = l.to === "sky" ? "sky" : "kept";
+  return l.signed < 0 ? `url(#msc-sankey-neg-${series})` : `var(--msc-${series})`;
 }
 
 function SankeyLinkPath({ l }: { l: SankeyLink }) {
@@ -26,10 +31,16 @@ export function SettlementSankeyView({
   rows,
   layout,
   primeLabel,
+  month,
+  primeColor,
 }: {
   rows: SankeyVenue[];
   layout: SankeyLayout;
   primeLabel: string;
+  month?: string;
+  /** The Prime's identity color: its sink bar (the ribbons into it stay
+   *  supply-kept green — that is what they are). */
+  primeColor: string;
 }) {
   const byId = useMemo(() => new Map(rows.map((v) => [v.id, v])), [rows]);
   // Gross per direction — each bar is labelled with its own, so a sink's two
@@ -53,6 +64,21 @@ export function SettlementSankeyView({
       aria-label={`Venue flows to Sky and ${primeLabel}`}
       style={{ color: "var(--tan-2)" }}
     >
+      {/* Diagonal stripes per series, for the negative ribbons and the
+          sinks' out-bars. */}
+      <defs>
+        {(
+          [
+            ["sky", "var(--msc-sky)"],
+            ["kept", "var(--msc-kept)"],
+            ["prime", primeColor],
+          ] as const
+        ).map(([k, color]) => (
+          <pattern key={k} id={`msc-sankey-neg-${k}`} patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
+            <rect width={3} height={6} style={{ fill: color }} />
+          </pattern>
+        ))}
+      </defs>
       {layout.links.map((l) => (
         <SankeyLinkPath key={`${l.from}-${l.to}`} l={l} />
       ))}
@@ -62,10 +88,19 @@ export function SettlementSankeyView({
           if (!v) return null;
           return <SankeyVenueNode key={n.id} n={n} v={v} primeLabel={primeLabel} />;
         }
+        const series = n.kind === "sky" ? "sky" : "prime";
         return (
           <SankeySinkNode
             key={n.id}
             n={n}
+            fill={
+              n.flow === "out"
+                ? `url(#msc-sankey-neg-${series})`
+                : series === "sky"
+                  ? "var(--msc-sky)"
+                  : primeColor
+            }
+            skyTo={month && n.id === "sky" ? `${ROUTES.RADAR}?msc=${month}` : undefined}
             gross={gross[n.id] ?? 0}
             netted={n.flow === "in" && (gross[`${n.id}-out`] ?? 0) > 0}
             net={

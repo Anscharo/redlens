@@ -9,7 +9,16 @@ import { Tooltip } from "../Tooltip";
 import { SettlementVenuePnl } from "./SettlementSankey";
 import { SettlementAum } from "./SettlementAum";
 
-export function ActorSettlementVenues({ report, name }: { report: SettlementReport; name: string }) {
+export function ActorSettlementVenues({
+  report,
+  name,
+  primeColor,
+}: {
+  report: SettlementReport;
+  name: string;
+  /** The Prime's identity color (its bar on the Sankey). */
+  primeColor: string;
+}) {
   const multi = hasMultiVenuePnl(report);
   const aum = hasVenueAum(report);
   const [view, setView] = useState<"pnl" | "aum">("pnl");
@@ -58,7 +67,9 @@ export function ActorSettlementVenues({ report, name }: { report: SettlementRepo
           </Tooltip>
         </div>
       )}
-      {showPnl && <SettlementVenuePnl venues={report.venues} primeLabel={name} />}
+      {showPnl && (
+        <SettlementVenuePnl venues={report.venues} primeLabel={name} month={report.month} primeColor={primeColor} />
+      )}
       {showAum && <SettlementAum venues={report.venues} />}
     </>
   );

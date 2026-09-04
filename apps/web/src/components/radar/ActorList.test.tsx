@@ -23,6 +23,29 @@ describe("ActorList", () => {
     expect(screen.getByText("Agent One")).toBeInTheDocument();
   });
 
+  it("links Overview to /radar above the groups, active only on the index", () => {
+    const groups: SidebarGroup[] = [
+      {
+        label: "Prime Agents",
+        actors: [
+          { id: "a1", slug: "agent-one", name: "Agent One", et: "agent", st: null, docId: null },
+        ],
+      },
+    ];
+    render(<ActorList groups={groups} selectedSlug={null} />);
+    const overview = screen.getByRole("link", { name: "Overview" });
+    expect(overview).toHaveAttribute("href", "/radar");
+    expect(overview).toHaveAttribute("data-active", "true");
+    // Above the first group label in document order.
+    expect(
+      overview.compareDocumentPosition(screen.getByText("Prime Agents")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    cleanup();
+    render(<ActorList groups={groups} selectedSlug="agent-one" />);
+    expect(screen.getByRole("link", { name: "Overview" })).not.toHaveAttribute("data-active");
+  });
+
   it("marks the selected actor's link with data-active=true", () => {
     const groups: SidebarGroup[] = [
       {
