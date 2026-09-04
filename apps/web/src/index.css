@@ -103,15 +103,15 @@
   --msc-sky: #6e8ee8; /* blue */
   --msc-kept: #55a653; /* green */
   --msc-demand: #de78c2; /* magenta — amber failed protan vs the green */
-  /* MSC prime identity colors (timeseries layers + ring bands). Deliberately
-     NO red, green, or blue hues in any theme: blue is reserved for Sky,
-     green/red for profit/loss semantics. Adjacent-pair CVD + contrast
-     validated (dataviz validator, 2026-09-03). */
-  --msc-prime-1: #d98e2b; /* orange */
-  --msc-prime-2: #a878e8; /* purple */
-  --msc-prime-3: #c9a227; /* gold */
-  --msc-prime-4: #e06ca8; /* pink */
-  --msc-prime-5: #9c7a5b; /* brown */
+  /* MSC prime identity colors (timeseries layers + pie rims). Deliberately
+     NO blue, green, magenta/pink, or red in any theme — those are the flow
+     colors (Sky, kept, demand-side, loss) — and purple rather than orange,
+     never both. One purple plus warm neutrals, each a distinct lightness. */
+  --msc-prime-1: #a67ff0; /* purple */
+  --msc-prime-2: #d9b544; /* gold */
+  --msc-prime-3: #c8b48e; /* sand */
+  --msc-prime-4: #9c7a5b; /* brown */
+  --msc-prime-5: #8f8b96; /* warm gray */
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
@@ -264,11 +264,11 @@
   --msc-sky: #2f5fd0; /* blue */
   --msc-kept: #0f7233; /* green */
   --msc-demand: #a21caf; /* magenta-purple */
-  --msc-prime-1: #c25e00; /* orange */
-  --msc-prime-2: #6d28d9; /* purple */
-  --msc-prime-3: #8a6d00; /* gold */
-  --msc-prime-4: #d1338f; /* pink */
-  --msc-prime-5: #8b5e3c; /* brown */
+  --msc-prime-1: #6d28d9; /* purple */
+  --msc-prime-2: #9a7a00; /* gold */
+  --msc-prime-3: #8a7a4e; /* sand */
+  --msc-prime-4: #7a4f2e; /* brown */
+  --msc-prime-5: #6b6875; /* warm gray */
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
@@ -2786,9 +2786,24 @@ a.atlas-annotates:focus-visible {
   fill-opacity: 1;
 }
 .msc-ring-center {
-  /* On the blue hole: the page background is the contrasting ink in every
-     theme (dark bg on the light blues, light bg on the deep blue). */
-  fill: var(--bg);
+  /* Over the wedges: page ink with a card-colored halo. */
+  fill: var(--tan);
+  paint-order: stroke;
+  stroke: var(--bg-deep);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+/* Permanent figures inside slices/wedges and under names: small, haloed. */
+.msc-ring-figure {
+  fill: var(--tan);
+  paint-order: stroke;
+  stroke: var(--bg-deep);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.msc-ring-sublabel {
+  fill: var(--tan-3);
 }
 /* Each Prime is a pie of its line items inside a thin identity rim (the
    rim's stroke comes inline). Slice colors: the To-Sky pair in Sky's blues,

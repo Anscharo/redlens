@@ -95,7 +95,8 @@ describe("layoutMscRing (orbital pies)", () => {
     expect(layout.skyR).toBe(160);
     expect(grove.r / layout.skyR).toBeCloseTo(Math.sqrt(13_127_000 / 20_610_000), 2);
     expect(spark.r / layout.skyR).toBeCloseTo(Math.sqrt(12_218_000 / 20_610_000), 2);
-    expect(layout.skyInnerR).toBeLessThan(layout.skyR);
+    // Sky is a full pie: on this chart a hole means a loss.
+    expect(layout.skyInnerR).toBe(0);
     expect(keel.r).toBeGreaterThanOrEqual(22);
     expect(keel.r).toBeLessThan(spark.r);
   });
@@ -143,8 +144,10 @@ describe("layoutMscRing (orbital pies)", () => {
       for (const p of layout.primes) {
         if (!p.arrow) continue;
         const wedge = layout.skyWedges.find((w) => w.prime === p.prime)!;
-        expect(p.arrow.dock).toBeGreaterThanOrEqual(wedge.a0);
-        expect(p.arrow.dock).toBeLessThanOrEqual(wedge.a1);
+        // …and never within 15% of the wedge's span of either edge.
+        const inset = 0.15 * (wedge.a1 - wedge.a0);
+        expect(p.arrow.dock).toBeGreaterThanOrEqual(wedge.a0 + inset - 1e-9);
+        expect(p.arrow.dock).toBeLessThanOrEqual(wedge.a1 - inset + 1e-9);
         const toward = Math.atan2(p.cy - layout.cy, p.cx - layout.cx);
         const diff = Math.abs(((toward - p.arrow.dock + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
         expect(diff).toBeLessThan(Math.PI / 2);
@@ -153,14 +156,28 @@ describe("layoutMscRing (orbital pies)", () => {
     }
   });
 
-  it("keeps the primes in the order given, evenly spaced clockwise from 12 o'clock", () => {
+  it("keeps the primes in the order given clockwise from 12 o'clock, big pies far apart and small ones close", () => {
     const layout = layoutMscRing(JULY);
     expect(layout.primes.map((p) => p.prime)).toEqual(["spark", "grove", "keel", "skybase", "obex", "osero"]);
     expect(layout.skyWedges.map((w) => w.prime)).toEqual(["spark", "grove", "obex", "osero"]);
     const turns = layout.primes.map((p) => ((p.angle + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI));
     for (let i = 1; i < turns.length; i++) expect(turns[i]).toBeGreaterThan(turns[i - 1]);
     expect(turns[0]).toBeLessThan(0.05);
-    for (let i = 1; i < turns.length; i++) expect(turns[i] - turns[i - 1]).toBeGreaterThan(Math.PI / 6);
+    // Spark→Grove (two big pies) get more of the circle than Keel→Skybase (two tiny ones).
+    expect(turns[1] - turns[0]).toBeGreaterThan(2 * (turns[3] - turns[2]));
+  });
+
+  it("gives a slice or wedge a permanent figure only when it has room, and every pie its gross under the name", () => {
+    const layout = layoutMscRing(APRIL);
+    const grove = layout.primes.find((p) => p.prime === "grove")!;
+    const keel = layout.primes.find((p) => p.prime === "keel")!;
+    // Grove's big SDE slice carries a figure; its $17k Chronicle sliver doesn't.
+    expect(grove.slices.find((s) => s.kind === "sde")!.figureX).not.toBeNull();
+    expect(grove.slices.find((s) => s.kind === "chroniclePoints")!.figureX).toBeNull();
+    // A 22px pie is too small for any in-slice figure.
+    expect(keel.slices.every((s) => s.figureX === null)).toBe(true);
+    // Sky's three real wedges carry figures.
+    expect(layout.skyWedges.filter((w) => w.figureX != null).map((w) => w.prime)).toEqual(["spark", "grove", "obex"]);
   });
 
   it("parks each hover pill off the mark it names, with the leader still on the mark", () => {

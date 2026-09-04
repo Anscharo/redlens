@@ -1,4 +1,4 @@
-import { formatMonth } from "../../lib/settlements";
+import { formatMonth, formatUsd } from "../../lib/settlements";
 import type { RingLayout } from "../../lib/mscOverviewLayout";
 import { markId, PillOverlay } from "./MscRingPills";
 import { RingPrimeGroup, type MscRingPrime } from "./MscRingPrime";
@@ -58,9 +58,9 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
             </pattern>
           ))}
         </defs>
-        {/* The Sky donut IS the sum of the To-Sky flows, one wedge per Prime
-            in that Prime's own color — so "these flows add up to Sky" is
-            visible rather than asserted. */}
+        {/* The Sky pie IS the sum of the To-Sky flows, one wedge per Prime in
+            that Prime's own color — so "these flows add up to Sky" is visible
+            rather than asserted. */}
         <circle cx={layout.cx} cy={layout.cy} r={layout.skyR} className="msc-ring-sky-disc" />
         {layout.skyWedges.map((w) => (
           <g key={w.prime} className="msc-ring-mark" data-mark={markId(w.prime, "share")}>
@@ -73,6 +73,13 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
             />
           </g>
         ))}
+        {layout.skyWedges.map((w) =>
+          w.figureX != null && w.figureY != null ? (
+            <text key={w.prime} x={w.figureX} y={w.figureY + 5} textAnchor="middle" fontSize={14} className="msc-ring-figure mono">
+              {formatUsd(w.value, true)}
+            </text>
+          ) : null,
+        )}
         <text x={layout.cx} y={layout.cy - 8} textAnchor="middle" fontSize={28} className="msc-ring-center">
           To Sky
         </text>

@@ -204,7 +204,7 @@ function RingKey() {
         ))}
       </p>
       <p className="text-center mt-1">
-        Each Prime is a pie of its gross revenue* line items; the donut is
+        Each Prime is a pie of its gross revenue* line items; Sky is a pie of
         the To-Sky total by Prime — all on one area scale. A loss is a hole in
         the middle of its pie (the ring's area is gross revenue). The To-Sky
         slices face Sky and feed the arrow. Hover for figures; click a Prime

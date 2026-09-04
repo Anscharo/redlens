@@ -144,7 +144,7 @@ describe("MscRing", () => {
     expect(container.querySelector('.msc-ring-mark[data-mark="osero::kept"]')).not.toBeInTheDocument();
   });
 
-  it("labels the donut 'To Sky', never 'Sky' alone", () => {
+  it("labels the Sky pie 'To Sky', never 'Sky' alone", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     expect(screen.getByText("To Sky")).toBeInTheDocument();

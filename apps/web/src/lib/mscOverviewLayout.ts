@@ -1,7 +1,8 @@
 // Orbital-chart geometry for the /radar MSC overview: Sky as a central
-// DONUT, subdivided into one wedge per Prime by its share of the To-Sky
+// PIE, subdivided into one wedge per Prime by its share of the To-Sky
 // total, and each Prime as a PIE of its gross-revenue line items orbiting
-// it, with an arrow from the pie's To-Sky slices into its own wedge.
+// it, with an arrow from the pie's To-Sky slices into its own wedge. (Sky
+// is a full pie, not a donut: on this chart a hole means a loss.)
 // Pure math, no DOM — the view just maps over prebuilt SVG path strings
 // (settlementSankey.ts precedent).
 //
@@ -21,11 +22,13 @@
 // Sky and the arrow leaves from them.
 //
 // Placement: Primes go clockwise from 12 o'clock in the order given (the
-// caller passes PRIME_ORDER), EVENLY spaced around Sky; a relaxation pass
-// then pushes neighbours apart only where their pies would still touch.
-// Wedges are laid out in that same order, so a Prime's own wedge is always
-// on its side of the donut, and its arrow docks at the nearest point of
-// that wedge.
+// caller passes PRIME_ORDER), each given an angular slot proportional to
+// its footprint — big pies get room, small ones sit close to their
+// neighbours; a relaxation pass then pushes neighbours apart only where
+// pies would still touch. Wedges are laid out in that same order, so a
+// Prime's own wedge is always on its side of Sky, and its arrow docks at
+// the nearest point of that wedge, never closer than DOCK_INSET of the
+// wedge's span to either edge.
 
 import { DEMAND_SERIES, SETTLEMENT_NEAR_ZERO, type DemandKey } from "@/lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
@@ -36,10 +39,9 @@ const CX = WIDTH / 2;
  *  would lean into the donut is pushed further out. */
 const ORBIT_RX = 500;
 const ORBIT_RY = 330;
-/** Sky donut: on the SAME area scale as the pies (see R_MAX), with a
- *  floor so the label always fits; the hole is a fixed fraction of it. */
+/** Sky pie: on the SAME area scale as the pies (see R_MAX), with a floor
+ *  so the label always fits. No hole — a hole means a loss here. */
 const SKY_MIN_R = 80;
-const SKY_HOLE = 0.62;
 /** ONE area scale for the donut and every pie: the month's biggest
  *  amount renders at this radius. */
 const R_MAX = 160;
@@ -63,8 +65,12 @@ const HEAD_FLARE = 7;
 /** Smallest Sky wedge, so a hairline contribution ($497 of $15.5M) still
  *  shows and its arrow still has a distinguishable dock point. */
 const MIN_WEDGE = 0.05;
-/** Keep a dock point this far (radians) inside its wedge's edges. */
-const DOCK_INSET = 0.04;
+/** Keep a dock point this fraction of its wedge's span inside either edge. */
+const DOCK_INSET = 0.15;
+/** Permanent figure labels: a slice/wedge shows its amount when the arc at
+ *  its label radius is at least this long (px), a pie its gross under the
+ *  name always. */
+const FIGURE_MIN_ARC = 58;
 /** How far (radians) a Prime may sit from its own wedge before its slot is
  *  pulled toward it — beyond this the arrow would cross the donut. */
 const MAX_LEAN = Math.PI / 3;
@@ -95,6 +101,9 @@ export interface RingSlice {
   /** Where the hover pill sits — outside the pie on the slice's radial. */
   pillX: number;
   pillY: number;
+  /** Permanent figure inside the slice, when it has room. */
+  figureX: number | null;
+  figureY: number | null;
 }
 
 /** The loss hole: every negative line item, summed. */
@@ -139,6 +148,9 @@ export interface RingSkyWedge {
   a1: number;
   mid: number;
   value: number;
+  /** Permanent figure inside the wedge, when it has room. */
+  figureX: number | null;
+  figureY: number | null;
 }
 
 export interface RingPrime {
@@ -261,7 +273,7 @@ export function layoutMscRing(
     cx: CX,
     cy,
     skyR: SKY_MIN_R,
-    skyInnerR: SKY_MIN_R * SKY_HOLE,
+    skyInnerR: 0,
     skyWedges: [],
     primes: [],
   };
@@ -277,7 +289,7 @@ export function layoutMscRing(
   const ref = Math.max(1, skyTotal, ...rows.map((r) => r.positives));
   const radiusFor = (v: number) => R_MAX * Math.sqrt(Math.max(0, v) / ref);
   const skyR = Math.max(SKY_MIN_R, radiusFor(skyTotal));
-  const skyInnerR = skyR * SKY_HOLE;
+  const skyInnerR = 0;
 
   const shape = rows.map((r) => {
     const r0 = Math.max(PIE_MIN_R, radiusFor(r.positives));
@@ -299,22 +311,37 @@ export function layoutMscRing(
     const a1 = wa + spans[j];
     wa = a1;
     wedgeRange.set(x.r.p.prime, [a0, a1]);
+    const mid = (a0 + a1) / 2;
+    // Figures sit at 0.72·R, clear of the center label's plate.
+    const fr = skyR * 0.72;
+    const room = (a1 - a0) * fr >= FIGURE_MIN_ARC && skyR >= 100;
     return {
       prime: x.r.p.prime,
       path: annulusPath(CX, cy, skyR, skyInnerR, a0, a1),
       a0,
       a1,
-      mid: (a0 + a1) / 2,
+      mid,
       value: Math.abs(x.r.sky),
+      figureX: room ? CX + fr * Math.cos(mid) : null,
+      figureY: room ? cy + fr * Math.sin(mid) : null,
     };
   });
 
-  // Target angles: even slots clockwise from 12 o'clock, in row order. A
+  // Target angles: slots clockwise from 12 o'clock in row order, each
+  // proportional to the pie's footprint, with the first pie centered at the
+  // top — so two big pies sit far apart and small ones tuck in close. A
   // contributor whose slot is more than MAX_LEAN from its own wedge is
   // pulled to MAX_LEAN of the wedge's nearest edge, so its arrow can still
-  // reach the wedge without cutting across the donut. The relaxation below
-  // then moves Primes off their slots only where pies collide.
-  const angles: number[] = rows.map((_, i) => norm(-Math.PI / 2 + (i * TWO_PI) / rows.length));
+  // reach the wedge without cutting across Sky. The relaxation below then
+  // moves Primes off their slots only where pies collide.
+  const weights = shape.map((s) => s.spaceR + CLEARANCE / 2);
+  const totalW = weights.reduce((n, w) => n + w, 0) || 1;
+  const angles: number[] = [];
+  let cum = 0;
+  for (const w of weights) {
+    angles.push(norm(-Math.PI / 2 + ((cum + w / 2 - weights[0] / 2) / totalW) * TWO_PI));
+    cum += w;
+  }
   for (const [i, r] of rows.entries()) {
     const range = wedgeRange.get(r.p.prime);
     if (!range) continue;
@@ -386,6 +413,9 @@ export function layoutMscRing(
       const midR = (s.r + s.holeR) / 2;
       const amountX = px + midR * Math.cos(mid);
       const amountY = py + midR * Math.sin(mid);
+      // A permanent figure when the slice's arc at mid-radius has room for
+      // a short "$2.9M" and the ring is thick enough to hold a line of text.
+      const room = span * midR >= FIGURE_MIN_ARC && s.r - s.holeR >= 34;
       return {
         kind: it.kind,
         signed: it.signed,
@@ -396,6 +426,8 @@ export function layoutMscRing(
         amountY,
         pillX: px + (s.r + PILL_OFFSET) * Math.cos(mid),
         pillY: py + (s.r + PILL_OFFSET) * Math.sin(mid),
+        figureX: room ? amountX : null,
+        figureY: room ? amountY : null,
       };
     });
 
@@ -418,7 +450,7 @@ export function layoutMscRing(
     if (r.sky !== 0 && range) {
       const [a0, a1] = range;
       const mid = (a0 + a1) / 2;
-      const half = Math.max(0, (a1 - a0) / 2 - DOCK_INSET);
+      const half = Math.max(0, ((a1 - a0) / 2) * (1 - 2 * DOCK_INSET));
       const dock = mid + Math.max(-half, Math.min(half, angDiff(mid, toward)));
       const x1 = CX + skyR * Math.cos(dock);
       const y1 = cy + skyR * Math.sin(dock);
@@ -464,10 +496,11 @@ export function layoutMscRing(
       gross: r.gross,
       labelX: px,
       labelY,
+      // Clear of the gross sub-label that sits beyond the name.
       grossPillX: px,
-      grossPillY: above ? labelY - 26 : labelY + 22,
+      grossPillY: above ? labelY - 46 : labelY + 42,
       grossAnchorX: px,
-      grossAnchorY: above ? labelY - 12 : labelY + 4,
+      grossAnchorY: above ? labelY - 30 : labelY + 20,
     };
   });
 

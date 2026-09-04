@@ -38,6 +38,13 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
           <path d={s.path} fillRule="evenodd" className={`msc-ring-slice msc-ring-${s.kind}`} />
         </g>
       ))}
+      {ring.slices.map((s) =>
+        s.figureX != null && s.figureY != null ? (
+          <text key={`${s.kind}-fig`} x={s.figureX} y={s.figureY + 4} textAnchor="middle" fontSize={12} className="msc-ring-figure mono">
+            {formatUsd(s.signed, true)}
+          </text>
+        ) : null,
+      )}
       {/* The loss hole: striped in the kept color, the same mark the key
           uses for "supply loss". Its AREA is the loss. */}
       {ring.hole && (
@@ -48,6 +55,16 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
       <g className="msc-ring-mark" data-mark={markId(flow.prime, "gross")}>
         <text x={ring.labelX} y={ring.labelY} textAnchor="middle" fontSize={17} className="msc-ring-label">
           {label}
+        </text>
+        {/* Gross revenue under the name — the pie's area, in words. */}
+        <text
+          x={ring.labelX}
+          y={ring.labelY + (ring.labelY < ring.cy ? -18 : 16)}
+          textAnchor="middle"
+          fontSize={12}
+          className="msc-ring-sublabel mono"
+        >
+          {formatUsd(ring.gross, true)}
         </text>
       </g>
     </g>
