@@ -6,6 +6,8 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type FocusEvent,
+  type MouseEvent,
   type ReactElement,
   type ReactNode,
   type Ref,
@@ -34,7 +36,7 @@ interface Placement {
 
 const INITIAL: Placement = { left: 0, top: 0, maxHeight: 0, placed: false };
 
-export function Tooltip({ content, delay = 800, children }: TooltipProps) {
+export function Tooltip({ content, delay = 200, children }: TooltipProps) {
   const triggerRef = useRef<HTMLElement | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
   const showTimer = useRef<number | null>(null);
@@ -148,16 +150,30 @@ export function Tooltip({ content, delay = 800, children }: TooltipProps) {
     return children;
   }
 
-  const setRef: Ref<HTMLElement> = (n) => {
-    triggerRef.current = n;
+  const prev = (children as ReactElement<Record<string, unknown>>).props as {
+    onMouseEnter?: (e: MouseEvent<HTMLElement>) => void;
+    onMouseLeave?: (e: MouseEvent<HTMLElement>) => void;
+    onFocus?: (e: FocusEvent<HTMLElement>) => void;
+    onBlur?: (e: FocusEvent<HTMLElement>) => void;
+    ref?: Ref<HTMLElement>;
   };
 
+  const setRef: Ref<HTMLElement> = (n) => {
+    triggerRef.current = n;
+    const r = prev.ref;
+    if (typeof r === "function") r(n);
+    else if (r) r.current = n;
+  };
+
+  // Compose with the child's own handlers — cloneElement would otherwise
+  // overwrite onMouseEnter/onFocus/onBlur that Address (and any
+  // ComponentProps<"a"> caller) is entitled to pass through.
   const child = cloneElement(children as ReactElement<Record<string, unknown>>, {
     ref: setRef,
-    onMouseEnter: show,
-    onMouseLeave: scheduleHide,
-    onFocus: show,
-    onBlur: hideNow,
+    onMouseEnter: (e: MouseEvent<HTMLElement>) => { prev.onMouseEnter?.(e); show(); },
+    onMouseLeave: (e: MouseEvent<HTMLElement>) => { prev.onMouseLeave?.(e); scheduleHide(); },
+    onFocus: (e: FocusEvent<HTMLElement>) => { prev.onFocus?.(e); show(); },
+    onBlur: (e: FocusEvent<HTMLElement>) => { prev.onBlur?.(e); hideNow(); },
   });
 
   return (

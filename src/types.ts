@@ -34,9 +34,12 @@ export interface AddressInfo {
   // lookup for why this needs to be a list, not just the primary `chain`.
   chains: string[];
   explorerUrl: string;
-  // label is resolved at load time: chainlogId ?? entityLabel ?? etherscanName
+  // The authoritative name, resolved at load time: chainlogId ?? etherscanName.
+  // NEVER entityLabel (heuristic prose — surfaces as owner via resolveOwner).
+  // Prefer resolveAddressName()/resolveOwner() (src/lib/addressName) over reading
+  // this directly, so the shortAddr fallback and owner split stay consistent.
   label: string | null;
-  entityLabel?: string; // atlas-derived label (from graph annotation passes)
+  entityLabel?: string; // atlas-derived heuristic label (owner context, quality-filtered on display)
   chainlogId?: string; // mainnet only
   etherscanName?: string; // verified contract name
   isContract: boolean; // holds executable code (eth_getCode / Solana executable)

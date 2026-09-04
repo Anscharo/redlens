@@ -65,7 +65,7 @@ export function SankeyVenueNode({
   );
 
   if (!truncated) return node;
-  return <Tooltip content={n.label} delay={400}>{node}</Tooltip>;
+  return <Tooltip content={n.label}>{node}</Tooltip>;
 }
 
 /**

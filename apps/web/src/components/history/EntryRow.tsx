@@ -10,6 +10,20 @@ import {
 } from "@/lib/history";
 import { DiffView } from "./DiffView";
 import { LINE1_H, TimelineRow } from "./Timeline";
+import { Tooltip } from "../Tooltip";
+import { HtmlEraDisclaimer, PreGitDisclaimer } from "./HistoryDisclaimers";
+
+// Small info affordance next to a reconstructed entry's date — hovering/focusing
+// it reveals the provenance tooltip (see HistoryDisclaimers).
+function InfoIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true" style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
+      <circle cx="12" cy="8" r="1.4" fill="currentColor" />
+      <path d="M12 11.5v5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 const CHANGE_LABEL: Record<string, string> = {
   added: "added",
@@ -66,6 +80,22 @@ export function EntryRow({ entry, labelOverride, isFirst }: Props) {
           ) : range ? (
             <span style={{ color: "var(--tan-3)" }}>{range}</span>
           ) : null}
+
+          {/* Reconstructed / pre-git entries flag their provenance with an info
+              icon by the date; its tooltip carries the disclaimer + learn-more link. */}
+          {entry.era && RECONSTRUCTED_ERAS.has(entry.era) && (
+            <Tooltip content={entry.era === "html" ? <HtmlEraDisclaimer /> : <PreGitDisclaimer />}>
+              <span
+                tabIndex={0}
+                role="note"
+                aria-label={entry.era === "html" ? "This history is reconstructed" : "This history comes from pre-git sources"}
+                className="shrink-0 inline-flex items-center cursor-help"
+                style={{ color: "var(--tan-3)" }}
+              >
+                <InfoIcon />
+              </span>
+            </Tooltip>
+          )}
 
           {hasPr ? (
             <a

@@ -12,6 +12,8 @@ const TimelineBar = memo(function TimelineBar({ bucket, max }: { bucket: ModTime
   const heightPct = max > 0 ? (bucket.count / max) * 100 : 0;
   return (
     <Tooltip
+      // Instant, not the 200ms app default: values should appear as the pointer
+      // sweeps across bars, without a pause on each one.
       delay={0}
       content={`${bucket.label}: ${bucket.count.toLocaleString()} semantic edit${bucket.count === 1 ? "" : "s"}`}
     >

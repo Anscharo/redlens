@@ -41,27 +41,27 @@ describe("useNavigation", () => {
     expect(params.get("subset")).toBe("foo");
   });
 
-  it("handleViewChange tracks atlas_view_tab and omits view param for the default 'history' tab", async () => {
+  it("handleViewChange tracks atlas_view_tab and omits view param for the default notes panel", async () => {
     const { useNavigation } = await import("./useNavigation");
     const navigate = vi.fn();
     const { result } = renderHook(() => useNavigation({ navigate, nodeId: "node-1" }));
-    result.current.handleViewChange("history");
-    expect(track).toHaveBeenCalledWith("atlas_view_tab", { node_id: "node-1", view: "history" });
+    result.current.handleViewChange("notes");
+    expect(track).toHaveBeenCalledWith("atlas_view_tab", { node_id: "node-1", view: "notes" });
     const url = navigate.mock.calls[0][0] as string;
     const params = new URLSearchParams(url.split("?")[1]);
     expect(params.get("id")).toBe("node-1");
     expect(params.has("view")).toBe(false);
   });
 
-  it("handleViewChange sets the view param for a non-default tab and carries split/subset", async () => {
+  it("handleViewChange sets the view param for a non-default panel and carries split/subset", async () => {
     window.history.pushState({}, "", "/atlas?split=2&subset=bar");
     const { useNavigation } = await import("./useNavigation");
     const navigate = vi.fn();
     const { result } = renderHook(() => useNavigation({ navigate, nodeId: null }));
-    result.current.handleViewChange("annotations");
+    result.current.handleViewChange("history");
     const url = navigate.mock.calls[0][0] as string;
     const params = new URLSearchParams(url.split("?")[1]);
-    expect(params.get("view")).toBe("annotations");
+    expect(params.get("view")).toBe("history");
     expect(params.has("id")).toBe(false);
     expect(params.get("split")).toBe("2");
     expect(params.get("subset")).toBe("bar");

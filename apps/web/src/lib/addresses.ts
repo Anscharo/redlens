@@ -48,8 +48,12 @@ export function loadAddresses(base: string = liveAtlasBase()): Promise<Record<st
       const out: Record<string, AddressInfo> = {};
       for (const [addr, a] of Object.entries(atlas)) {
         const o: OnChainAddr = onChain[addr] ?? { isContract: false, isProxy: false };
-        const label = o.chainlogId ?? a.entityLabel ?? o.etherscanName ?? null;
-        const aliasCandidates = [o.chainlogId, a.entityLabel, o.etherscanName].filter(
+        // The NAME is an authoritative identifier only — chainlog id, else the
+        // verified on-chain name. entityLabel is heuristic prose and is NEVER a
+        // name (it surfaces as the separate "owner", quality-filtered, via
+        // resolveOwner). See src/lib/addressName.ts.
+        const label = o.chainlogId ?? o.etherscanName ?? null;
+        const aliasCandidates = [o.chainlogId, o.etherscanName].filter(
           (l): l is string => !!l && l !== label,
         );
         // roles/aliases/expectedTokens are absent when addresses.atlas.json has
