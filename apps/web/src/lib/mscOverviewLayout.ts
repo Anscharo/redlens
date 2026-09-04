@@ -40,14 +40,18 @@ export const WIDTH = 1300;
 const CX = WIDTH / 2;
 /** Orbit circle the pie centers start on — a lower bound; a pie that would
  *  lean into Sky is pushed further out. Round, so no direction is favoured. */
-const ORBIT_RX = 380;
-const ORBIT_RY = 380;
+const ORBIT_RX = 520;
+const ORBIT_RY = 250;
+/** Where the first Prime sits: 9 o'clock. The card is wide, so the big
+ *  Primes (first in PRIME_ORDER) take the sides and the small ones the
+ *  top/bottom, which keeps the cropped box wide and the drawing large. */
+const START_ANGLE = Math.PI;
 /** Sky pie: on the SAME area scale as the pies (see R_MAX), with a floor
  *  so the label always fits. No hole — a hole means a loss here. */
 const SKY_MIN_R = 80;
 /** ONE area scale for the donut and every pie: the month's biggest
  *  amount renders at this radius. */
-const R_MAX = 160;
+const R_MAX = 140;
 /** Smallest pie, so a $13k Prime is still a visible, hoverable disc. */
 const PIE_MIN_R = 22;
 /** A loss hole is never smaller than this (a hairline hole reads as a
@@ -57,13 +61,13 @@ const HOLE_RIM = 6;
 /** Minimum clearance between two pies (including their names). */
 const CLEARANCE = 22;
 /** Minimum gap between a pie and the donut — room for the arrow. */
-const DONUT_GAP = 84;
+const DONUT_GAP = 70;
 /** Room reserved outside a pie for its name and gross figure (two lines). */
-const LABEL_OUT = 40;
+const LABEL_OUT = 50;
 /** Padding around the cropped viewBox. */
 const CROP_PAD = 24;
 /** Half-width allowance for a name under a pie, for the crop. */
-const NAME_HALF_W = 60;
+const NAME_HALF_W = 80;
 /** Arrow shaft width: linear in the To-Sky amount, biggest at W_MAX. */
 const W_MAX = 22;
 const W_MIN = 3;
@@ -77,7 +81,9 @@ const DOCK_INSET = 0.15;
 /** Permanent figure labels: a slice/wedge shows its amount when the arc at
  *  its label radius is at least this long (px), a pie its gross under the
  *  name always. */
-const FIGURE_MIN_ARC = 58;
+const FIGURE_MIN_ARC = 96;
+/** Sky wedges carry name + amount on two lines, so need a little more. */
+const WEDGE_MIN_ARC = 80;
 /** How far (radians) a Prime may sit from its own wedge before its slot is
  *  pulled toward it — beyond this the arrow would cross the donut. */
 const MAX_LEAN = Math.PI / 3;
@@ -316,7 +322,7 @@ export function layoutMscRing(
   const shares = contributors.map((x) => Math.max(Math.abs(x.r.sky) / (skyTotal || 1), floorShare));
   const shareSum = shares.reduce((n, s) => n + s, 0) || 1;
   const spans = shares.map((s) => (s / shareSum) * TWO_PI);
-  let wa = -Math.PI / 2 - (spans[0] ?? 0) / 2;
+  let wa = START_ANGLE - (spans[0] ?? 0) / 2;
   const wedgeRange = new Map<string, [number, number]>();
   const skyWedges: RingSkyWedge[] = contributors.map((x, j) => {
     const a0 = wa;
@@ -326,7 +332,7 @@ export function layoutMscRing(
     const mid = (a0 + a1) / 2;
     // Figures sit at 0.72·R, clear of the center label's plate.
     const fr = skyR * 0.72;
-    const room = (a1 - a0) * fr >= FIGURE_MIN_ARC && skyR >= 100;
+    const room = (a1 - a0) * fr >= WEDGE_MIN_ARC && skyR >= 100;
     return {
       prime: x.r.p.prime,
       path: annulusPath(CX, cy, skyR, skyInnerR, a0, a1),
@@ -339,20 +345,30 @@ export function layoutMscRing(
     };
   });
 
-  // Target angles: slots clockwise from 12 o'clock in row order, each
-  // proportional to the pie's footprint, with the first pie centered at the
-  // top — so two big pies sit far apart and small ones tuck in close. A
+  // Target angles. The card is wide, so the first two Primes in the order
+  // (Spark and Grove, the big ones) anchor 9 and 3 o'clock, and the rest
+  // run clockwise across the bottom arc between them, each with a slot
+  // proportional to its footprint — the order Spark → Grove → Keel →
+  // Skybase → Obex → Osero is still clockwise, it just starts on the left
+  // and skips the top, where Sky's own height already sets the frame. A
   // contributor whose slot is more than MAX_LEAN from its own wedge is
   // pulled to MAX_LEAN of the wedge's nearest edge, so its arrow can still
   // reach the wedge without cutting across Sky. The relaxation below then
   // moves Primes off their slots only where pies collide.
-  const weights = shape.map((s) => s.spaceR + CLEARANCE / 2);
-  const totalW = weights.reduce((n, w) => n + w, 0) || 1;
-  const angles: number[] = [];
-  let cum = 0;
-  for (const w of weights) {
-    angles.push(norm(-Math.PI / 2 + ((cum + w / 2 - weights[0] / 2) / totalW) * TWO_PI));
-    cum += w;
+  const angles: number[] = rows.map(() => 0);
+  if (rows.length >= 1) angles[0] = norm(START_ANGLE);
+  if (rows.length >= 2) angles[1] = norm(START_ANGLE + Math.PI);
+  if (rows.length >= 3) {
+    const rest = rows.map((_, i) => i).slice(2);
+    const weights = rest.map((i) => shape[i].spaceR + CLEARANCE / 2);
+    // Edge margins so the first/last of the rest clear Grove/Spark.
+    const edge = (shape[1].spaceR + shape[0].spaceR) / 2 + CLEARANCE;
+    const totalW = weights.reduce((n, w) => n + w, 0) + edge;
+    let cum = edge / 2;
+    rest.forEach((i, k) => {
+      angles[i] = norm(START_ANGLE + Math.PI + ((cum + weights[k] / 2) / totalW) * Math.PI);
+      cum += weights[k];
+    });
   }
   for (const [i, r] of rows.entries()) {
     const range = wedgeRange.get(r.p.prime);
@@ -497,7 +513,7 @@ export function layoutMscRing(
     // UNDER the name (labelY + 16, drawn by the view), so the two read the
     // same way everywhere; the gross pill goes beyond both.
     const above = py <= cy;
-    const labelY = above ? py - s.r - 30 : py + s.r + 18;
+    const labelY = above ? py - s.r - 38 : py + s.r + 26;
     return {
       prime: r.p.prime,
       angle: t,
@@ -532,8 +548,8 @@ function fitViewBox(primes: RingPrime[], skyR: number, cy: number) {
     x0 = Math.min(x0, p.cx - p.r, p.labelX - NAME_HALF_W);
     x1 = Math.max(x1, p.cx + p.r, p.labelX + NAME_HALF_W);
     // The name's line box is ~18px tall, the figure sits 16px under it.
-    y0 = Math.min(y0, p.cy - p.r, p.labelY - 14);
-    y1 = Math.max(y1, p.cy + p.r, p.labelY + 22);
+    y0 = Math.min(y0, p.cy - p.r, p.labelY - 20);
+    y1 = Math.max(y1, p.cy + p.r, p.labelY + 26);
   }
   return {
     x: x0 - CROP_PAD,

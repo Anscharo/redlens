@@ -21,6 +21,7 @@ import { layoutMscRing } from "../../lib/mscOverviewLayout";
 import { track } from "../../lib/analytics";
 import { MscHeadline } from "./MscHeadline";
 import { MscRing, type MscRingPrime } from "./MscRing";
+import { SLICE_CODE } from "./MscRingPills";
 import { MscTimeseries, primeFill } from "./MscTimeseries";
 
 const mscCodec = urlString(null);
@@ -191,9 +192,9 @@ function RingKey() {
   return (
     <div className="mono text-[10px] mt-5" style={{ color: "var(--tan-3)" }}>
       <p className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
-        <span className="msc-key-item" data-key="cof">{swatch("var(--msc-sky)")} cost of funds → Sky</span>
-        <span className="msc-key-item" data-key="sde">{swatch(SDE_SWATCH)} Sky Direct Exposure → Sky</span>
-        <span className="msc-key-item" data-key="kept">{swatch("var(--msc-kept)")} supply kept</span>
+        <span className="msc-key-item" data-key="cof">{swatch("var(--msc-sky)")} CoF · cost of funds → Sky</span>
+        <span className="msc-key-item" data-key="sde">{swatch(SDE_SWATCH)} SDE · Sky Direct Exposure → Sky</span>
+        <span className="msc-key-item" data-key="kept">{swatch("var(--msc-kept)")} kept · supply kept</span>
         <span className="msc-key-item" data-key="neg">
           {swatch(
             "repeating-linear-gradient(45deg, var(--msc-kept) 0, var(--msc-kept) 2px, transparent 2px, transparent 4px)",
@@ -202,7 +203,7 @@ function RingKey() {
         </span>
         {DEMAND_SERIES.map((s) => (
           <span key={s.key} className="msc-key-item" data-key={s.key}>
-            {swatch(demandSwatch(s.key))} {s.label.toLowerCase()} (demand-side)
+            {swatch(demandSwatch(s.key))} {SLICE_CODE[s.key]} · {s.label.toLowerCase()} (demand-side)
           </span>
         ))}
       </p>

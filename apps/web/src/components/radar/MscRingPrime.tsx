@@ -2,7 +2,7 @@ import { formatMonth, formatUsd } from "../../lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 import type { RingPrime } from "../../lib/mscOverviewLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
-import { markId, formatShare } from "./MscRingPills";
+import { markId, formatShare, SLICE_CODE } from "./MscRingPills";
 
 export interface MscRingPrime {
   flow: PrimeFlowTotals;
@@ -40,8 +40,8 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
       ))}
       {ring.slices.map((s) =>
         s.figureX != null && s.figureY != null ? (
-          <text key={`${s.kind}-fig`} x={s.figureX} y={s.figureY + 4} textAnchor="middle" fontSize={12} className="msc-ring-figure mono">
-            {formatUsd(s.signed, true)}
+          <text key={`${s.kind}-fig`} x={s.figureX} y={s.figureY + 5} textAnchor="middle" fontSize={15} className="msc-ring-figure mono">
+            {SLICE_CODE[s.kind]} {formatUsd(s.signed, true)}
           </text>
         ) : null,
       )}
@@ -53,15 +53,15 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
         </g>
       )}
       <g className="msc-ring-mark" data-mark={markId(flow.prime, "gross")}>
-        <text x={ring.labelX} y={ring.labelY} textAnchor="middle" fontSize={17} className="msc-ring-label">
+        <text x={ring.labelX} y={ring.labelY} textAnchor="middle" fontSize={24} className="msc-ring-label">
           {label}
         </text>
         {/* Gross revenue on the line under the name — the pie's area, in words. */}
         <text
           x={ring.labelX}
-          y={ring.labelY + 16}
+          y={ring.labelY + 20}
           textAnchor="middle"
-          fontSize={12}
+          fontSize={16}
           className="msc-ring-sublabel mono"
         >
           {formatUsd(ring.gross, true)}

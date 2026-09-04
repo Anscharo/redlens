@@ -85,20 +85,20 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
         ))}
         {layout.skyWedges.map((w) =>
           w.figureX != null && w.figureY != null ? (
-            <text key={w.prime} x={w.figureX} y={w.figureY} textAnchor="middle" fontSize={13} className="msc-ring-figure">
-              <tspan x={w.figureX} dy={-3}>
+            <text key={w.prime} x={w.figureX} y={w.figureY} textAnchor="middle" fontSize={15} className="msc-ring-figure">
+              <tspan x={w.figureX} dy={-4}>
                 {labelOf(w.prime)}
               </tspan>
-              <tspan x={w.figureX} dy={15} className="mono">
+              <tspan x={w.figureX} dy={18} className="mono">
                 {formatUsd(w.value, true)}
               </tspan>
             </text>
           ) : null,
         )}
-        <text x={layout.cx} y={layout.cy - 8} textAnchor="middle" fontSize={28} className="msc-ring-center">
+        <text x={layout.cx} y={layout.cy - 8} textAnchor="middle" fontSize={30} className="msc-ring-center">
           To Sky
         </text>
-        <text x={layout.cx} y={layout.cy + 26} textAnchor="middle" fontSize={24} className="msc-ring-center mono">
+        <text x={layout.cx} y={layout.cy + 26} textAnchor="middle" fontSize={26} className="msc-ring-center mono">
           {centerFigure}
         </text>
         {primes.map((p) => (

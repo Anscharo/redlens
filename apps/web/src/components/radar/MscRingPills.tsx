@@ -16,6 +16,18 @@ export const markId = (prime: string, kind: string): string => `${prime}::${kind
  *  more than it made that month) and is shown as such. */
 export const formatShare = (share: number): string => `${Math.round(share * 100)}%`;
 
+/** Short codes for the pie's line items — what the in-slice figures and
+ *  the key use ("CoF $7.86M"). */
+export const SLICE_CODE: Record<string, string> = {
+  cof: "CoF",
+  sde: "SDE",
+  kept: "kept",
+  agentRate: "AR",
+  distributionRewards: "DR",
+  gar: "GAR",
+  chroniclePoints: "CP",
+};
+
 /** Human names for the pie's line items (the workbook Summary's rows). */
 export const SLICE_LABEL: Record<string, string> = {
   cof: "cost of funds → Sky",

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { layoutMscRing, WIDTH } from "./mscOverviewLayout";
+import { layoutMscRing } from "./mscOverviewLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
 function flow(over: Partial<PrimeFlowTotals> = {}): PrimeFlowTotals {
@@ -92,7 +92,7 @@ describe("layoutMscRing (orbital pies)", () => {
     const grove = layout.primes.find((p) => p.prime === "grove")!; // positives 13.1M
     const spark = layout.primes.find((p) => p.prime === "spark")!; // 12.19M
     const keel = layout.primes.find((p) => p.prime === "keel")!; // 55k → floor
-    expect(layout.skyR).toBe(160);
+    expect(layout.skyR).toBe(140);
     expect(grove.r / layout.skyR).toBeCloseTo(Math.sqrt(13_127_000 / 20_610_000), 2);
     expect(spark.r / layout.skyR).toBeCloseTo(Math.sqrt(12_218_000 / 20_610_000), 2);
     // Sky is a full pie: on this chart a hole means a loss.
@@ -103,8 +103,8 @@ describe("layoutMscRing (orbital pies)", () => {
 
   it("lets a Prime outrank the donut when it earns more than Sky takes", () => {
     const layout = layoutMscRing([flow({ sky: 1_000_000, cof: 1_000_000, sde: 0, kept: 8_000_000, demand: 1_000_000, demandParts: { agentRate: 1_000_000 } })]);
-    expect(layout.primes[0].r).toBe(160);
-    expect(layout.skyR).toBeLessThan(160);
+    expect(layout.primes[0].r).toBe(140);
+    expect(layout.skyR).toBeLessThan(140);
     expect(layout.skyR).toBeGreaterThanOrEqual(80);
   });
 
@@ -156,15 +156,23 @@ describe("layoutMscRing (orbital pies)", () => {
     }
   });
 
-  it("keeps the primes in the order given clockwise from 12 o'clock, big pies far apart and small ones close", () => {
+  it("anchors the first two primes left and right and runs the rest clockwise along the bottom, in order", () => {
     const layout = layoutMscRing(JULY);
     expect(layout.primes.map((p) => p.prime)).toEqual(["spark", "grove", "keel", "skybase", "obex", "osero"]);
     expect(layout.skyWedges.map((w) => w.prime)).toEqual(["spark", "grove", "obex", "osero"]);
-    const turns = layout.primes.map((p) => ((p.angle + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI));
+    const [spark, grove] = layout.primes;
+    // Spark at 9 o'clock, Grove at 3 o'clock (the card is wide).
+    expect(spark.cx).toBeLessThan(layout.cx - 300);
+    expect(grove.cx).toBeGreaterThan(layout.cx + 300);
+    expect(Math.abs(spark.cy - layout.cy)).toBeLessThan(40);
+    // Clockwise from Spark the order holds: measure turns from Spark's angle.
+    const turn = (a: number) => (((a - spark.angle) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const turns = layout.primes.map((p) => turn(p.angle));
     for (let i = 1; i < turns.length; i++) expect(turns[i]).toBeGreaterThan(turns[i - 1]);
-    expect(turns[0]).toBeLessThan(0.05);
-    // Spark→Grove (two big pies) get more of the circle than Keel→Skybase (two tiny ones).
-    expect(turns[1] - turns[0]).toBeGreaterThan(2 * (turns[3] - turns[2]));
+    // The rest sit in the lower half.
+    for (const p of layout.primes.slice(2)) expect(p.cy).toBeGreaterThan(layout.cy);
+    // The box is wide, like the card.
+    expect(layout.width / layout.height).toBeGreaterThan(1.8);
   });
 
   it("gives a slice or wedge a permanent figure only when it has room, and every pie its gross under the name", () => {
@@ -176,8 +184,8 @@ describe("layoutMscRing (orbital pies)", () => {
     expect(grove.slices.find((s) => s.kind === "chroniclePoints")!.figureX).toBeNull();
     // A 22px pie is too small for any in-slice figure.
     expect(keel.slices.every((s) => s.figureX === null)).toBe(true);
-    // Sky's three real wedges carry figures.
-    expect(layout.skyWedges.filter((w) => w.figureX != null).map((w) => w.prime)).toEqual(["spark", "grove", "obex"]);
+    // Sky's two big wedges carry name + amount; Obex's 10% wedge is too narrow for two lines.
+    expect(layout.skyWedges.filter((w) => w.figureX != null).map((w) => w.prime)).toEqual(["spark", "grove"]);
   });
 
   it("parks each hover pill off the mark it names, with the leader still on the mark", () => {
@@ -205,9 +213,10 @@ describe("layoutMscRing (orbital pies)", () => {
   it("crops the viewBox to the month's content, keeps every pie inside it, clear of Sky and of each other", () => {
     for (const month of [JULY, APRIL, [MARCH_GROVE, flow()]]) {
       const layout = layoutMscRing(month);
-      // Cropped: the box hugs the content instead of the working canvas.
-      expect(layout.width).toBeLessThan(WIDTH);
-      expect(layout.x).toBeGreaterThan(0);
+      // Cropped: the box hugs the content (the wide orbit may run past the
+      // working canvas horizontally, which is fine — it's just a viewBox).
+      expect(layout.height).toBeLessThan(700);
+      expect(layout.width).toBeGreaterThan(layout.height * 1.8);
       for (let i = 0; i < layout.primes.length; i++) {
         const a = layout.primes[i];
         expect(a.cx - a.r).toBeGreaterThan(layout.x);
