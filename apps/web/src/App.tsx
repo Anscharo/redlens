@@ -63,7 +63,7 @@ export default function App() {
   useContextHints();
 
   const nodeId = location === ROUTES.ATLAS ? searchParams.get("id") : null;
-  // Annotations is the default tab, so an absent (or unrecognized) ?view= lands there.
+  // Notes is the default panel, so an absent (or unrecognized) ?view= lands there.
   const atlasView =
     searchParams.get("view") === "history"
       ? ("history" as const)

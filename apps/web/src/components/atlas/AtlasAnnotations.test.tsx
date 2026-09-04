@@ -71,8 +71,9 @@ describe("AtlasAnnotations width persistence", () => {
     expect(panel).toHaveStyle({ width: `${RIGHT_PANEL_DEFAULT}px` });
   });
 
-  it("mounts the RightPanel tablist inside the wrapper", () => {
+  it("mounts the RightPanel jump pills inside the wrapper", () => {
     setup();
-    expect(screen.getByRole("tab", { name: /notes/ })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Panel sections" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /notes/ })).toBeInTheDocument();
   });
 });

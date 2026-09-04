@@ -41,7 +41,7 @@ describe("useNavigation", () => {
     expect(params.get("subset")).toBe("foo");
   });
 
-  it("handleViewChange tracks atlas_view_tab and omits view param for the default 'notes' tab", async () => {
+  it("handleViewChange tracks atlas_view_tab and omits view param for the default notes panel", async () => {
     const { useNavigation } = await import("./useNavigation");
     const navigate = vi.fn();
     const { result } = renderHook(() => useNavigation({ navigate, nodeId: "node-1" }));
@@ -53,7 +53,7 @@ describe("useNavigation", () => {
     expect(params.has("view")).toBe(false);
   });
 
-  it("handleViewChange sets the view param for a non-default tab and carries split/subset", async () => {
+  it("handleViewChange sets the view param for a non-default panel and carries split/subset", async () => {
     window.history.pushState({}, "", "/atlas?split=2&subset=bar");
     const { useNavigation } = await import("./useNavigation");
     const navigate = vi.fn();

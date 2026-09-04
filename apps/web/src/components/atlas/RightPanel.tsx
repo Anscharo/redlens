@@ -163,21 +163,39 @@ export function RightPanel({
 
   return (
     <>
-      <div
+      <nav
         className="flex gap-2 border-b shrink-0"
         style={{ borderColor: "var(--border)", padding: "10px 16px" }}
-        role="tablist"
+        aria-label="Panel sections"
       >
-        <button role="tab" aria-selected={tab === "notes"} onClick={() => selectSection("notes")} className="right-pill">
+        <button
+          type="button"
+          aria-current={tab === "notes" ? "true" : undefined}
+          data-state={tab === "notes" ? "active" : "inactive"}
+          onClick={() => selectSection("notes")}
+          className="right-pill"
+        >
           notes{annotationCount > 0 && <span style={{ marginLeft: 4 }}>· {annotationCount}</span>}
         </button>
-        <button role="tab" aria-selected={tab === "history"} onClick={() => selectSection("history")} className="right-pill">
+        <button
+          type="button"
+          aria-current={tab === "history" ? "true" : undefined}
+          data-state={tab === "history" ? "active" : "inactive"}
+          onClick={() => selectSection("history")}
+          className="right-pill"
+        >
           history
         </button>
-        <button role="tab" aria-selected={tab === "glossary"} onClick={() => selectSection("glossary")} className="right-pill">
+        <button
+          type="button"
+          aria-current={tab === "glossary" ? "true" : undefined}
+          data-state={tab === "glossary" ? "active" : "inactive"}
+          onClick={() => selectSection("glossary")}
+          className="right-pill"
+        >
           glossary{glossaryTerms.length > 0 && <span style={{ marginLeft: 4 }}>· {glossaryTerms.length}</span>}
         </button>
-      </div>
+      </nav>
 
       <div className="overflow-y-auto flex-1" ref={scrollRef}>
         <div className="px-4 py-5">

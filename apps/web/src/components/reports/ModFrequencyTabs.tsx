@@ -9,9 +9,8 @@ const TAB_DISPLAY: Record<ModFrequencyTab, string> = {
   list: "list",
 };
 
-// Same role="tablist"/role="tab" pattern and .right-tab styling as the reader's
-// RightPanel tabs (src/components/atlas/RightPanel.tsx) — the app's one other
-// tab bar — so a tab strip reads the same everywhere.
+// Exclusive tabs (timeline / sum-by / list). The reader's right panel is a
+// jump-pill strip, not a tablist — don't copy its markup here.
 export const ModFrequencyTabs = memo(function ModFrequencyTabs({
   active,
   onChange,
