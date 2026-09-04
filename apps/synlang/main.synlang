@@ -1,0 +1,43 @@
+;; main.synlang — the questions this encoding can answer.
+;; Run:   apps/synlang/.venv/bin/synlang run apps/synlang
+;; Every !(...) below is a query against the Space built from atlas/*.synlang.
+;; (synlang check validates files in isolation, so these query heads report V007 here;
+;; they resolve at run time once every source is loaded — see README.)
+
+;; 1. Enumerate every defined term (the type declaration is itself a queryable fact)
+!(: $t Term)
+
+;; 2. Look a term up by its display name
+!(term $t "Universal Alignment")
+
+;; 3. Resolve an alias
+!(alias $t "AC")
+
+;; 4. Either form, through the lookup rule
+!(lookup "Scope Artifact" $t)
+
+;; 5. Provenance: which atlas document defines Slippery Slope Misalignment?
+!(defined-at slippery-slope-misalignment $uuid)
+
+;; 6. Which definitions mention Universal Alignment?
+!(mentions $t universal-alignment)
+
+;; 7. Transitive: everything Slippery Slope Misalignment depends on, directly or indirectly
+!(reaches-term slippery-slope-misalignment $x)
+
+;; 8. Derived, never stated: is an Operational Executor Agent an Agent?
+!(subclass-of operational-executor-agent agent)
+
+;; 9. Derived, two hops: is an Operational Executor Facilitator an Alignment Conserver?
+!(subclass-of operational-executor-facilitator alignment-conserver)
+
+;; 10. The six Scopes
+!(instance-of $s scope)
+
+;; 11. Structured facts
+!(core-council-target-seats $n)
+!(multisig sky-frontier-foundation $addr)
+!(min-count operational-executor-agent $role $n)
+
+;; 12. Closed world: a term A.0.1.1 does not define comes back empty, not false
+!(term $t "Risk Capital")

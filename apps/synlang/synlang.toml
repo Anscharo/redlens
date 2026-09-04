@@ -1,0 +1,20 @@
+schema = 1
+
+[project]
+name = "atlas-synlang"
+version = "0.1.0"
+description = "Sky Atlas A.0.1.1 Definitions encoded as a SYNLANG Space: generated term facts, curated taxonomy, derived queries."
+
+[synlang]
+sources = [
+  "atlas/definitions.synlang",
+  "atlas/definitions-curated.synlang",
+  "atlas/rules.synlang",
+  "main.synlang",
+]
+entrypoint = "main.synlang"
+
+[tests]
+sources = ["tests/definitions.test.synlang"]
+default_seed = 0
+default_time = 0.0
