@@ -13,6 +13,9 @@ describe("SearchHints (cheat sheet table)", () => {
     expect(
       screen.getByText("Default mode — partial words match automatically, case-insensitive"),
     ).toBeTruthy();
+    expect(
+      screen.getByText("Double quotes — literal substring match, case-insensitive"),
+    ).toBeTruthy();
     expect(screen.getByText("subsidy")).toBeTruthy();
     expect(screen.getByText("singular/plural")).toBeTruthy();
     expect(screen.getByText("MCD_VAT")).toBeTruthy();

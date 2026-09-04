@@ -50,7 +50,7 @@ export interface MergedHit {
   via?: Via;
 }
 
-// Match the frontend lexical search (src/workers/search.worker.ts): prefix on,
+// Match the frontend lexical search (apps/web/src/workers/search.worker.ts): prefix on,
 // fuzzy OFF by default (it dilutes exact term/ID/address lookups — the strength
 // of lexical mode), same boosts and OR combine.
 export function runLexical(ix: Indexes, query: string, type: string | undefined, k: number): Hit[] {

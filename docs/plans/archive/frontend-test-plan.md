@@ -1,5 +1,11 @@
 # Frontend Test Plan
 
+> **Archived 2026-09-03.** The three layers shipped: L2 component tests cover
+> search, reader, sidebar, and preview; L3 Playwright runs in
+> `.github/workflows/e2e.yml` against Railway PR envs (`e2e/search.spec.ts` and
+> siblings). Read this for the layer split and the `deployment_status` wiring.
+> Status tables and file inventories below are frozen as of the plan.
+
 Bring tests to the four frontend feature areas: **sidebar**, **reader**, **search**, and **atlas-preview** (the `/preview` redline-of-upcoming-atlas feature). Three layers, split by what each layer can actually exercise.
 
 ## TL;DR

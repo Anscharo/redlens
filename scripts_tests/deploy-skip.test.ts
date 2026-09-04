@@ -53,7 +53,7 @@ function tomlWatchPatterns(file: string): string[] {
 describe("shouldSkipDeploy", () => {
   it("skips skills, CLAUDE.md, and plan docs", () => {
     expect(shouldSkipDeploy([".claude/skills/react-components/SKILL.md", "CLAUDE.md"])).toBe(true);
-    expect(shouldSkipDeploy(["docs/plans/frontend-test-plan.md"])).toBe(true);
+    expect(shouldSkipDeploy(["docs/plans/archive/frontend-test-plan.md"])).toBe(true);
     expect(shouldSkipDeploy(["README.md"])).toBe(true);
   });
 

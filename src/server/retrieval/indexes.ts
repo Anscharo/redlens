@@ -1,6 +1,6 @@
 // In-memory atlas indexes, loaded once from build artifacts at boot.
 //   - docMap / byDocNo / childrenIndex  ← public/docs.json
-//   - MiniSearch (lexical)              ← public/docs.json
+//   - MiniSearch (lexical)              ← public/search-index.json (loadJSON; addAll from docs as fallback)
 //   - graphology MultiDirectedGraph     ← public/graph.json (full backend graph)
 //   - raw entity/edge arrays + adjacency maps for aggregate queries
 // Doc content lives here (not in Postgres); semantic search returns ids that

@@ -16,13 +16,12 @@ An alternative to [sky-atlas.io](https://sky-atlas.io) with a focus on surfacing
 
 ### Search
 
-- **Full-content search** — every node of the Atlas is indexed (MiniSearch, Web Worker), so queries hit the entire ~50k-line corpus instantly
-- **Chainlog ID search** — type `MCD_VAT`, `USDS`, `REWARDS_LSSKY_SKY`, etc. to find all nodes that reference that contract
-- **Address prefix search** — type `0x` or any address prefix to find nodes containing matching addresses
-- **Phrase search** — wrap terms in quotes for exact substring matching: `"surplus buffer"`
-- **Field filters** — `title:quorum`, `type:Annotation`, `type:Core`
+- **Full-content search** — every Atlas node is indexed (MiniSearch, Web Worker). Broad queries prefix-match each word, case-insensitively
+- **Phrase / strict** — `"surplus buffer"` is a literal substring (case-insensitive); `'delegatedSigners'` is the same, case-sensitive
+- **Jump-to** — a doc number (`A.1.2`), UUID (full or 8+ hex prefix), or Sky chainlog id (`MCD_VAT`) goes straight to that document
+- **Addresses** — an `0x` prefix finds nodes whose content contains a matching address
+- **Field filters** — `title:quorum`, `type:Annotation`, `in:A.1.2`; `-term` excludes
 - **Fuzzy match** — `misaligment~1` tolerates typos
-- **Wildcards** — `govern*` matches any suffix
 
 ### Atlas reader
 
