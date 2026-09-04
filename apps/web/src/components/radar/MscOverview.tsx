@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import {
@@ -24,6 +24,8 @@ import { MscTimeseries, primeFill } from "./MscTimeseries";
 
 const mscCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
+/** Autoplay dwell per month. */
+const PLAY_MS = 2000;
 
 export function MscOverview({ actors }: { actors: OverviewActor[] }) {
   const bundle = useLoaded(loadSettlements, { soft: true });
@@ -31,6 +33,20 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
   const latest = months[months.length - 1] ?? null;
   const [msc, setMsc] = useUrlState("msc", mscCodec);
   const month = months.includes(msc ?? "") ? msc! : latest;
+  // Autoplay: step through the months, PLAY_MS each, looping. On by default
+  // unless the page was opened on a specific month (?msc) or the visitor
+  // prefers reduced motion; any click on a month column stops it.
+  const [playing, setPlaying] = useState(
+    () => msc == null && !(typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches),
+  );
+  useEffect(() => {
+    if (!playing || months.length < 2 || !month) return;
+    const id = setInterval(() => {
+      const next = months[(months.indexOf(month) + 1) % months.length];
+      setMsc(next === latest ? null : next);
+    }, PLAY_MS);
+    return () => clearInterval(id);
+  }, [playing, months, month, latest, setMsc]);
 
   const labelOf = useMemo(
     () => (prime: string) =>
@@ -97,7 +113,12 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
             months={stack.months}
             primeLabel={labelOf}
             selected={month}
-            onSelect={(m) => setMsc(m === latest ? null : m)}
+            onSelect={(m) => {
+              setPlaying(false);
+              setMsc(m === latest ? null : m);
+            }}
+            playing={playing}
+            onTogglePlay={() => setPlaying((p) => !p)}
           />
         </div>
         <div className="msc-card msc-ring-card rounded p-4 flex-1 min-w-0" style={{ flexBasis: 340, maxWidth: "100%" }}>

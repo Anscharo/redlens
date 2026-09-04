@@ -2689,19 +2689,18 @@ a.atlas-annotates:focus-visible {
 .msc-ts-track {
   position: relative;
   display: block;
-  width: 22px;
+  width: 13px;
   height: 380px;
   border-radius: 2px;
   overflow: hidden;
   opacity: 0.45;
   transition: opacity 0.1s;
 }
-/* The To-Sky stack keeps each prime's identity color but wears Sky's blue
-   on its edge, so the two stacks never read as the same money. */
+/* The To-Sky stack is translucent Sky blue outlined in each prime's own
+   color (the outline comes inline, per segment), so the two stacks never
+   read as the same money. */
 .msc-ts-track-sky .msc-ts-seg {
-  box-shadow:
-    inset 0 1px 0 var(--bg-deep),
-    inset 2px 0 0 var(--msc-sky);
+  background: color-mix(in srgb, var(--msc-sky) 30%, transparent);
 }
 .msc-ts-seg {
   position: absolute;
@@ -2792,11 +2791,51 @@ a.atlas-annotates:focus-visible {
   fill: var(--bg);
 }
 /* Each Prime's plate: bar + name on one circle, tinted in the Prime's
-   identity color (fill/stroke come inline). */
+   identity color (fill/stroke come inline). Geometry transitions so the
+   month-to-month autoplay glides instead of snapping. */
 .msc-ring-plate {
   fill-opacity: 0.1;
   stroke-width: 1.5;
   stroke-opacity: 0.6;
+}
+.msc-ring-plate,
+.msc-ring-seg,
+.msc-ring-zero,
+.msc-ring-label {
+  transition:
+    cx 0.6s ease-in-out,
+    cy 0.6s ease-in-out,
+    r 0.6s ease-in-out,
+    x 0.6s ease-in-out,
+    y 0.6s ease-in-out,
+    x1 0.6s ease-in-out,
+    x2 0.6s ease-in-out,
+    y1 0.6s ease-in-out,
+    y2 0.6s ease-in-out,
+    width 0.6s ease-in-out,
+    height 0.6s ease-in-out,
+    opacity 0.1s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .msc-ring-plate,
+  .msc-ring-seg,
+  .msc-ring-zero,
+  .msc-ring-label {
+    transition: opacity 0.1s;
+  }
+}
+.msc-ts-play {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--tan-2);
+  cursor: pointer;
+  padding: 1px 8px;
+}
+.msc-ts-play:hover,
+.msc-ts-play[aria-pressed="true"] {
+  color: var(--tan);
+  border-color: var(--border-muted);
 }
 .msc-ring-prime:hover .msc-ring-plate,
 a:focus-visible > .msc-ring-prime .msc-ring-plate {

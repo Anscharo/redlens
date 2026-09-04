@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { SettlementReport, SettlementsBundle } from "../../lib/settlements";
 
@@ -87,9 +87,35 @@ describe("MscOverview", () => {
     expect(track).toHaveBeenCalledTimes(1);
   });
 
+  it("autoplays through the months two seconds apart until a month is clicked", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<MscOverview actors={ACTORS} />);
+      await waitFor(() => screen.getByText("Prime-side earnings and To Sky by month"));
+      expect(screen.getByRole("button", { name: "Pause the month autoplay" })).toBeInTheDocument();
+      expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      // Two months in the fixture: Jul → Jun.
+      expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jun 2026")).toBeInTheDocument();
+      // A click stops it.
+      fireEvent.click(screen.getByRole("button", { name: /Jul 2026: .*to Sky/ }));
+      expect(screen.getByRole("button", { name: /Play through the months/ })).toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4000);
+      });
+      expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("selects a month from the timeseries and syncs ?msc (latest month clears it)", async () => {
     render(<MscOverview actors={ACTORS} />);
     await waitFor(() => screen.getByText("Prime-side earnings and To Sky by month"));
+    // Stop the autoplay first so the clicks below are the only changes.
+    fireEvent.click(screen.getByRole("button", { name: "Pause the month autoplay" }));
     fireEvent.click(screen.getByRole("button", { name: /Jun 2026: .*\$10 to Sky/ }));
     expect(window.location.search).toBe("?msc=2026-06");
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jun 2026")).toBeInTheDocument();

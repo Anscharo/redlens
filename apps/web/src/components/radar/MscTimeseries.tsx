@@ -44,9 +44,12 @@ interface Props {
   primeLabel: (prime: string) => string;
   selected: string;
   onSelect: (month: string) => void;
+  /** Autoplay through the months (the overview advances `selected`). */
+  playing: boolean;
+  onTogglePlay: () => void;
 }
 
-export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }: Props) {
+export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, playing, onTogglePlay }: Props) {
   const posPeak = Math.max(
     1,
     ...months.map((m) => Math.max(m.sky, m.parts.reduce((n, p) => n + Math.max(0, p.value), 0))),
@@ -67,8 +70,17 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
 
   return (
     <div className="mb-4 min-w-0 max-w-full">
-      <p className="text-sm mb-2" style={{ color: "var(--tan)" }}>
-        Prime-side earnings and To Sky by month
+      <p className="text-sm mb-2 flex items-center gap-3" style={{ color: "var(--tan)" }}>
+        <span>Prime-side earnings and To Sky by month</span>
+        <button
+          type="button"
+          className="msc-ts-play mono text-[10px]"
+          onClick={onTogglePlay}
+          aria-pressed={playing}
+          aria-label={playing ? "Pause the month autoplay" : "Play through the months, two seconds each"}
+        >
+          {playing ? "❚❚ pause" : "▶ play"}
+        </button>
       </p>
       <div className="relative inline-block" style={{ maxWidth: "100%", overflowX: "auto" }}>
         <svg className="msc-ts-grid" width={width} height={TRACK_H} aria-hidden="true">
@@ -131,8 +143,8 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
       </p>
       <p className="mono text-[10px] mt-1" style={{ color: "var(--tan-3)", maxWidth: width }}>
         Left stack: what each Prime kept (supply kept + demand-side). Right
-        stack: what each Prime sent to Sky, in the same colors with a blue
-        edge — it adds up to the line. Hover a layer to light the same money
+        stack: what each Prime sent to Sky — blue, outlined in the Prime's
+        color — it adds up to the line. Hover a layer to light the same money
         on the orbital chart.
       </p>
     </div>
@@ -166,12 +178,20 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
   const seg = (s: { prime: string; value: number; top: number; h: number }, flow: "kept" | "sky") => {
     if (s.h < 0.5) return null;
     const fill = colorOf(s.prime);
-    // A negative month keeps the prime's own color (color = identity)
-    // and is marked by diagonal stripes, stacked below the zero line.
-    const background =
-      s.value < 0
-        ? `repeating-linear-gradient(45deg, ${fill} 0, ${fill} 4px, transparent 4px, transparent 8px)`
-        : fill;
+    // A negative month keeps the series' color (color = identity) and is
+    // marked by diagonal stripes, stacked below the zero line.
+    const stripes = (c: string) => `repeating-linear-gradient(45deg, ${c} 0, ${c} 4px, transparent 4px, transparent 8px)`;
+    // Kept: solid prime color. To Sky: translucent Sky blue (from CSS)
+    // outlined in the prime's color, so the two stacks never read alike.
+    const style =
+      flow === "kept"
+        ? { top: s.top, height: s.h, background: s.value < 0 ? stripes(fill) : fill }
+        : {
+            top: s.top,
+            height: s.h,
+            boxShadow: `inset 0 0 0 2px ${fill}`,
+            ...(s.value < 0 ? { background: stripes("var(--msc-sky)") } : {}),
+          };
     return (
       <span
         key={s.prime}
@@ -179,7 +199,7 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
         data-prime={s.prime}
         data-flow={flow}
         title={`${primeLabel(s.prime)}: ${formatUsd(s.value, true)}${flow === "sky" ? " to Sky" : ""}`}
-        style={{ top: s.top, height: s.h, background }}
+        style={style}
       />
     );
   };

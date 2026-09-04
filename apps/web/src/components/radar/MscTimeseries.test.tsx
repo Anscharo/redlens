@@ -31,9 +31,17 @@ const label = (p: string) => p.charAt(0).toUpperCase() + p.slice(1);
 
 afterEach(cleanup);
 
-function renderChart(onSelect = vi.fn()) {
+function renderChart(onSelect = vi.fn(), onTogglePlay = vi.fn(), playing = false) {
   render(
-    <MscTimeseries primes={PRIMES} months={MONTHS} primeLabel={label} selected="2026-07" onSelect={onSelect} />,
+    <MscTimeseries
+      primes={PRIMES}
+      months={MONTHS}
+      primeLabel={label}
+      selected="2026-07"
+      onSelect={onSelect}
+      playing={playing}
+      onTogglePlay={onTogglePlay}
+    />,
   );
   return onSelect;
 }
@@ -54,15 +62,27 @@ describe("MscTimeseries", () => {
     renderChart();
     const sky = document.querySelectorAll('.msc-ts-track-sky .msc-ts-seg[data-flow="sky"]');
     expect(sky).toHaveLength(3);
-    const jul = [...sky].filter((el) => el.closest('[aria-pressed="true"]')) as HTMLElement[];
+    const jul = [...sky].filter((el) => el.closest('button[aria-pressed="true"]')) as HTMLElement[];
     expect(jul.map((el) => el.getAttribute("title"))).toEqual(["Spark: $1.50M to Sky", "Osero: $500k to Sky"]);
+    // Blue comes from CSS; the prime's color is the 2px outline.
+    expect(jul[0].style.boxShadow).toContain("--msc-prime-1");
+    expect(jul[0].style.background).toBe("");
     // Stack top (min top) meets the line's y for that month: heights sum to
     // the To-Sky total on the shared scale.
     const heights = jul.map((el) => parseFloat(el.style.height));
-    const keptJul = [...document.querySelectorAll('[aria-pressed="true"] .msc-ts-seg[data-flow="kept"]')] as HTMLElement[];
+    const keptJul = [...document.querySelectorAll('button[aria-pressed="true"] .msc-ts-seg[data-flow="kept"]')] as HTMLElement[];
     const keptPos = keptJul.filter((el) => !el.style.background.includes("gradient")).map((el) => parseFloat(el.style.height));
     // 2.0M of sky vs 0.78M of positive kept on one scale.
     expect(heights.reduce((a, b) => a + b, 0) / keptPos.reduce((a, b) => a + b, 0)).toBeCloseTo(2_000_000 / 780_000, 1);
+  });
+
+  it("offers a play/pause control for the month autoplay", () => {
+    const onToggle = vi.fn();
+    renderChart(vi.fn(), onToggle, true);
+    const btn = screen.getByRole("button", { name: "Pause the month autoplay" });
+    expect(btn).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(btn);
+    expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
   it("stacks per-prime segments with stable colors and titles, negatives as loss", () => {
