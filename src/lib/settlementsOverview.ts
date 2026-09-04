@@ -167,6 +167,13 @@ export function ecosystemHeadlineFigures(eco: EcosystemThreeWay): HeadlineFigure
   return rows;
 }
 
+/** Every prime with a published workbook, in PRIME_ORDER — the roster the
+ *  overview keys its identity colors off (index → --msc-prime-N), and the
+ *  one a Prime's own settlement page must index into to get the SAME color. */
+export function primeRoster(bundle: SettlementsBundle): string[] {
+  return [...new Set(bundle.reports.map((r) => r.prime))].sort(comparePrimes);
+}
+
 export interface PrimeStackMonth {
   month: string;
   /** Σ skyRevenue for the month — the overlaid line, disjoint from the stack. */
@@ -201,7 +208,7 @@ export function primeStackMonths(bundle: SettlementsBundle): {
     valueOf.set(`${r.prime}::${r.month}`, supplyKept(r) + demandSideRevenue(r.headline));
     skyOf.set(`${r.prime}::${r.month}`, r.headline.skyRevenue);
   }
-  const order = [...new Set(bundle.reports.map((r) => r.prime))].sort(comparePrimes);
+  const order = primeRoster(bundle);
   const months = settlementMonths(bundle).map((month) => {
     const reports = bundle.reports.filter((r) => r.month === month);
     const sky = reports.reduce((n, r) => n + r.headline.skyRevenue, 0);

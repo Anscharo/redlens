@@ -21,7 +21,7 @@ import { layoutMscRing } from "../../lib/mscOverviewLayout";
 import { track } from "../../lib/analytics";
 import { MscHeadline } from "./MscHeadline";
 import { MscRing, type MscRingPrime } from "./MscRing";
-import { SLICE_CODE } from "./MscRingPills";
+import { SLICE_CODE, SLICE_TOKEN } from "./MscRingPills";
 import { MscTimeseries, primeFill } from "./MscTimeseries";
 
 const mscCodec = urlString(null);
@@ -162,14 +162,17 @@ function PrimeHoverStyles({ primes }: { primes: string[] }) {
       const layer = (flow: string) =>
         `.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="${p}"][data-flow="${flow}"]`;
       const keptKinds = ["kept", ...DEMAND_SERIES.map((s) => s.key)];
+      // Lit marks get an outline in the text ink (fills never change, so
+      // the audited fill/ink pairs hold in every state).
+      const lit = "{ opacity: 1; stroke: var(--tan); stroke-width: 2; }";
       return [
         // Timeseries → ring. A kept layer = supply kept + demand-side slices
         // (+ the loss hole); a To-Sky layer = the two To-Sky slices, the
         // arrow and the wedge.
-        `${seg("kept")} ${prime} :is(${keptKinds.map((k) => `.msc-ring-${k}`).join(", ")}, .msc-ring-hole) { opacity: 1; }`,
+        `${seg("kept")} ${prime} :is(${keptKinds.map((k) => `.msc-ring-${k}`).join(", ")}, .msc-ring-hole) ${lit}`,
         `${seg("kept")} ${prime} .msc-ring-label { fill: var(--tan); }`,
-        `${seg("sky")} ${prime} :is(.msc-ring-cof, .msc-ring-sde, .msc-ring-arrow) { opacity: 1; }`,
-        `${seg("sky")} .msc-ring-sky-wedge[data-prime="${p}"] { fill-opacity: 1; }`,
+        `${seg("sky")} ${prime} :is(.msc-ring-cof, .msc-ring-sde, .msc-ring-arrow) ${lit}`,
+        `${seg("sky")} .msc-ring-sky-wedge[data-prime="${p}"] ${lit}`,
         // Ring → timeseries.
         `${mark([...keptKinds, "loss", "gross"])} ${layer("kept")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
         `${mark(["cof", "sde", "sky", "share"])} ${layer("sky")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
@@ -179,12 +182,6 @@ function PrimeHoverStyles({ primes }: { primes: string[] }) {
   return <style>{css}</style>;
 }
 
-/** Mirrors the .msc-ring-sde / .msc-ring-<demand key> fills in index.css. */
-const SDE_SWATCH = "color-mix(in srgb, var(--msc-sky) 55%, var(--bg))";
-const DEMAND_MIX: Record<string, number> = { agentRate: 100, distributionRewards: 75, gar: 55, chroniclePoints: 40 };
-const demandSwatch = (key: string) =>
-  DEMAND_MIX[key] === 100 ? "var(--msc-demand)" : `color-mix(in srgb, var(--msc-demand) ${DEMAND_MIX[key] ?? 50}%, var(--bg))`;
-
 function RingKey() {
   const swatch = (background: string) => (
     <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background }} />
@@ -192,9 +189,9 @@ function RingKey() {
   return (
     <div className="mono text-[10px] mt-5" style={{ color: "var(--tan-3)" }}>
       <p className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
-        <span className="msc-key-item" data-key="cof">{swatch("var(--msc-sky)")} CoF · cost of funds → Sky</span>
-        <span className="msc-key-item" data-key="sde">{swatch(SDE_SWATCH)} SDE · Sky Direct Exposure → Sky</span>
-        <span className="msc-key-item" data-key="kept">{swatch("var(--msc-kept)")} kept · supply kept</span>
+        <span className="msc-key-item" data-key="cof">{swatch(`var(${SLICE_TOKEN.cof})`)} CoF · cost of funds → Sky</span>
+        <span className="msc-key-item" data-key="sde">{swatch(`var(${SLICE_TOKEN.sde})`)} SDE · Sky Direct Exposure → Sky</span>
+        <span className="msc-key-item" data-key="kept">{swatch(`var(${SLICE_TOKEN.kept})`)} kept · supply kept</span>
         <span className="msc-key-item" data-key="neg">
           {swatch(
             "repeating-linear-gradient(45deg, var(--msc-kept) 0, var(--msc-kept) 2px, transparent 2px, transparent 4px)",
@@ -203,7 +200,7 @@ function RingKey() {
         </span>
         {DEMAND_SERIES.map((s) => (
           <span key={s.key} className="msc-key-item" data-key={s.key}>
-            {swatch(demandSwatch(s.key))} {SLICE_CODE[s.key]} · {s.label.toLowerCase()} (demand-side)
+            {swatch(`var(${SLICE_TOKEN[s.key]})`)} {SLICE_CODE[s.key]} · {s.label.toLowerCase()} (demand-side)
           </span>
         ))}
       </p>

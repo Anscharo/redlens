@@ -31,16 +31,19 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
           />
         </g>
       )}
-      {/* Identity ring in the prime's color, just outside the slices. */}
+      {/* Identity ring in the prime's color, just outside the slices; the
+          slice outlines are the same color, so the pie is unmistakably this
+          Prime's whatever its slices are. */}
       <circle cx={ring.cx} cy={ring.cy} r={ring.r + 2} className="msc-ring-rim" style={{ stroke: bandColor }} />
       {ring.slices.map((s) => (
         <g key={s.kind} className="msc-ring-mark" data-mark={markId(flow.prime, s.kind)}>
-          <path d={s.path} fillRule="evenodd" className={`msc-ring-slice msc-ring-${s.kind}`} />
+          <path d={s.path} fillRule="evenodd" className={`msc-ring-slice msc-ring-${s.kind}`} style={{ stroke: bandColor }} />
         </g>
       ))}
+      {/* In-slice figures, in the slice's own ink (data-kind → token). */}
       {ring.slices.map((s) =>
         s.figureX != null && s.figureY != null ? (
-          <text key={`${s.kind}-fig`} x={s.figureX} y={s.figureY + 5} textAnchor="middle" fontSize={15} className="msc-ring-figure mono">
+          <text key={`${s.kind}-fig`} x={s.figureX} y={s.figureY + 5} textAnchor="middle" fontSize={15} className="msc-ring-figure mono" data-kind={s.kind}>
             {SLICE_CODE[s.kind]} {formatUsd(s.signed, true)}
           </text>
         ) : null,

@@ -143,6 +143,12 @@ describe("every AUDIT_PAIRS token resolves to a literal hex color in every theme
 const NON_TEXT_PAIR_LABELS = new Set<string>([
   "focus ring / bg", // :focus-visible { outline: 2px solid var(--accent) } — a ring, not text
   "focus ring / surface",
+  // The MSC family colors as bars, ribbons and the To-Sky line on the chart
+  // card — graphics, not text. Their TEXT use (a figure on a slice) is a
+  // separate 4.5:1 pair against the series' ink token.
+  "MSC To-Sky series / chart card",
+  "MSC supply-kept series / chart card",
+  "MSC demand-side series / chart card",
 ]);
 
 // The ONE accepted exception, named rather than hidden in a lowered threshold.

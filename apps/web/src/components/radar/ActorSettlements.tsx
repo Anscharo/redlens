@@ -8,15 +8,18 @@ import {
   revenueGap,
   summaryThreeWay,
   activeDemandSeries,
-  headlineFigures,
+  demandSideRevenue,
+  supplyKept,
   settlementsArtifactMissing,
 } from "../../lib/settlements";
 import { loadForumTopics } from "../../lib/forumTopics";
 import { forumTopicUrlForMonth } from "@/lib/forumMonths";
+import { primeRoster } from "@/lib/settlementsOverview";
 import { SettlementBars } from "./SettlementBars";
 import { SettlementDemandBars } from "./SettlementDemandBars";
 import { ActorSettlementVenues } from "./ActorSettlementVenues";
-import { SettlementFigure } from "./SettlementFigures";
+import { MscHeadline } from "./MscHeadline";
+import { primeFill } from "./MscTimeseries";
 
 const mscCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
@@ -57,6 +60,9 @@ export function ActorSettlements({ slug, name }: Props) {
   }
 
   const gap = revenueGap(report);
+  // The Prime's identity color: the same roster index the overview uses for
+  // its ring rim and timeseries layer, so the two pages agree on who is who.
+  const color = primeFill(primeRoster(bundle).indexOf(report.prime));
   const workbook = `${SOURCE}/tree/main/reports/${report.prime}/${month}`;
   const forumUrl = forumTopicUrlForMonth(topics ?? [], month);
   const selectMonth = (m: string) => setMsc(m === latest ? null : m);
@@ -85,11 +91,17 @@ export function ActorSettlements({ slug, name }: Props) {
         selected={month}
         onSelect={selectMonth}
       />
-      <div className="flex flex-wrap gap-x-6 gap-y-1 mb-4 text-sm">
-        {headlineFigures(report).map((f) => (
-          <SettlementFigure key={f.label} {...f} />
-        ))}
-      </div>
+      <MscHeadline
+        eco={{
+          sky: report.headline.skyRevenue,
+          cof: report.headline.cof,
+          sde: report.headline.sdeRevenue,
+          kept: supplyKept(report),
+          demand: demandSideRevenue(report.headline),
+        }}
+        labels={{ kept: "Supply kept", demand: "Demand-side" }}
+        identity={{ label: name, color }}
+      />
       {gap > 1 && (
         <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
           Headline prime-agent revenue is {formatUsd(gap)} above the venue rows
@@ -102,7 +114,7 @@ export function ActorSettlements({ slug, name }: Props) {
         selected={month}
         onSelect={selectMonth}
       />
-      <ActorSettlementVenues report={report} name={name} />
+      <ActorSettlementVenues report={report} name={name} primeColor={color} />
     </>
   );
 }

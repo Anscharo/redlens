@@ -28,6 +28,19 @@ export const SLICE_CODE: Record<string, string> = {
   chroniclePoints: "CP",
 };
 
+/** The series token each line item is drawn in — the ring's slice fills
+ *  (index.css `.msc-ring-<kind>`), the key's swatches and the Prime page's
+ *  demand-side bars all read the same one. */
+export const SLICE_TOKEN: Record<string, string> = {
+  cof: "--msc-sky",
+  sde: "--msc-sde",
+  kept: "--msc-kept",
+  agentRate: "--msc-demand",
+  distributionRewards: "--msc-dr",
+  gar: "--msc-gar",
+  chroniclePoints: "--msc-cp",
+};
+
 /** Human names for the pie's line items (the workbook Summary's rows). */
 export const SLICE_LABEL: Record<string, string> = {
   cof: "cost of funds → Sky",

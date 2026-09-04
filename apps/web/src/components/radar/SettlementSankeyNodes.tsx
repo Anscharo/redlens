@@ -83,6 +83,7 @@ export function SankeySinkNode({
   netted,
   net,
   skyTo,
+  fill,
 }: {
   n: SankeyNode;
   gross: number;
@@ -90,13 +91,11 @@ export function SankeySinkNode({
   net?: number;
   /** When set on the Sky in-bar, its label links to the /radar MSC overview. */
   skyTo?: string;
+  /** The bar's paint: Sky's blue or the Prime's identity color for an
+   *  in-bar; the striped pattern of the same color for an out-bar. */
+  fill: string;
 }) {
   const out = n.flow === "out";
-  const fill = out
-    ? "var(--accent)"
-    : n.kind === "sky"
-      ? "var(--msc-sky)"
-      : "var(--msc-kept)";
   const figure = out
     ? `−${formatUsd(gross, true)} out`
     : `${formatUsd(gross, true)}${netted ? " gross" : ""} in`;

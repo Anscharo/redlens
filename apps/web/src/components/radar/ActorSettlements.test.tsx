@@ -145,6 +145,22 @@ describe("ActorSettlements", () => {
     expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
   });
 
+  it("shows the To Sky equation card with the prime's identity color, and paints its Sankey bar in it", async () => {
+    const { container } = render(<ActorSettlements slug="spark" name="Spark" />);
+    await waitFor(() => screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure"));
+    expect(screen.getByText("cost of funds")).toBeInTheDocument();
+    expect(screen.getByText("Sky Direct Exposure")).toBeInTheDocument();
+    // Prime-side labels drop the ecosystem card's "by Primes" qualifier.
+    expect(screen.getByText("Supply kept")).toBeInTheDocument();
+    expect(screen.queryByText("Supply kept by Primes")).not.toBeInTheDocument();
+    // The identity swatch and the Prime's Sankey bar are the same color —
+    // the roster index the overview uses (spark is first in PRIME_ORDER).
+    const swatch = container.querySelector(".msc-identity-swatch") as HTMLElement;
+    expect(swatch.style.background).toBe("var(--msc-prime-1)");
+    const primeBar = container.querySelector(".msc-sankey-sink rect[fill='var(--msc-prime-1)']");
+    expect(primeBar).toBeInTheDocument();
+  });
+
   it("switches month from the bar control", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => screen.getByText("Supply kept"));

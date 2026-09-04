@@ -155,4 +155,19 @@ describe("MscRing", () => {
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     expect(screen.getByRole("link", { name: /74% of its gross revenue/ })).toBeInTheDocument();
   });
+
+  it("outlines every slice in the prime's identity color and tags each figure with its slice kind", () => {
+    const { layout, primes } = ringPrimes([flow()], "2026-07");
+    const { container } = render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
+    const slices = container.querySelectorAll(".msc-ring-slice");
+    expect(slices.length).toBeGreaterThan(0);
+    for (const s of slices) expect((s as SVGElement).style.stroke).toBe("var(--depth-1)");
+    // Every in-slice figure names its kind so CSS can pick the fill's ink.
+    const figures = container.querySelectorAll(".msc-ring-figure");
+    expect(figures.length).toBeGreaterThan(0);
+    for (const f of figures) expect(f.getAttribute("data-kind")).toBeTruthy();
+    // Sky's wedges: the biggest contributor in Sky's blue, the rest in the shade tokens.
+    const wedge = container.querySelector(".msc-ring-sky-wedge") as SVGElement;
+    expect(wedge.style.fill).toBe("var(--msc-sky)");
+  });
 });

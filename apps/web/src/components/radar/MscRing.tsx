@@ -18,15 +18,17 @@ const WEDGE_PILL_GAP = 44;
 
 export function MscRing({ layout, primes, month, centerFigure }: Props) {
   const labelOf = (prime: string) => primes.find((p) => p.flow.prime === prime)?.label ?? prime;
-  // Sky's wedges are shades of Sky's own blue, darkest for the BIGGEST
-  // contributor and lighter down the ranking, so the pie reads as one pool
-  // of money and the shading carries size.
+  // Sky's wedges are shades of Sky's own blue — the BIGGEST contributor in
+  // the blue itself, then the --msc-sky-2/3/4 shades down the ranking — so
+  // the pie reads as one pool of money and the shading carries size. The
+  // shades are theme tokens audited against --msc-sky-ink, which is what
+  // the figures on them (and the "To Sky" total across them) are set in.
   const rank = new Map(
     [...layout.skyWedges].sort((a, b) => b.value - a.value).map((w, i) => [w.prime, i] as const),
   );
   const shade = (prime: string) => {
-    const pct = Math.max(30, 100 - (rank.get(prime) ?? 0) * 18);
-    return pct === 100 ? "var(--msc-sky)" : `color-mix(in srgb, var(--msc-sky) ${pct}%, var(--bg))`;
+    const r = rank.get(prime) ?? 0;
+    return r === 0 ? "var(--msc-sky)" : `var(--msc-sky-${Math.min(r + 1, 4)})`;
   };
   // Wedge pills ride just outside the donut on the wedge's own radial, where
   // its arrow docks.
@@ -68,9 +70,8 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
             </pattern>
           ))}
         </defs>
-        {/* The Sky pie IS the sum of the To-Sky flows, one wedge per Prime in
-            that Prime's own color — so "these flows add up to Sky" is visible
-            rather than asserted. */}
+        {/* The Sky pie IS the sum of the To-Sky flows, one wedge per Prime —
+            so "these flows add up to Sky" is visible rather than asserted. */}
         <circle cx={layout.cx} cy={layout.cy} r={layout.skyR} className="msc-ring-sky-disc" />
         {layout.skyWedges.map((w) => (
           <g key={w.prime} className="msc-ring-mark" data-mark={markId(w.prime, "share")}>
@@ -85,7 +86,7 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
         ))}
         {layout.skyWedges.map((w) =>
           w.figureX != null && w.figureY != null ? (
-            <text key={w.prime} x={w.figureX} y={w.figureY} textAnchor="middle" fontSize={15} className="msc-ring-figure">
+            <text key={w.prime} x={w.figureX} y={w.figureY} textAnchor="middle" fontSize={15} className="msc-ring-figure" data-kind="sky">
               <tspan x={w.figureX} dy={-4}>
                 {labelOf(w.prime)}
               </tspan>
