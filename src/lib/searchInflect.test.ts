@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
+import pluralize from "pluralize";
 import {
   counterpartTerm,
   expandQueryTokens,
   normalizeToken,
   partitionByOriginalTerms,
+  resolvePluralize,
 } from "./searchInflect";
 
 describe("counterpartTerm", () => {
@@ -55,6 +57,26 @@ describe("counterpartTerm", () => {
     expect(counterpartTerm("a1")).toBeNull();
     expect(counterpartTerm("A.1.2")).toBeNull();
     expect(counterpartTerm("a491d7d0")).toBeNull();
+  });
+
+  it("strips leading/trailing punctuation before inflecting", () => {
+    expect(counterpartTerm("subsidy,")).toBe("subsidies");
+    expect(counterpartTerm("Subsidy.")).toBe("subsidies");
+    expect(counterpartTerm("(entities)")).toBe("entity");
+    expect(counterpartTerm("USDS,")).toBeNull();
+  });
+});
+
+describe("resolvePluralize", () => {
+  it("accepts the Node CJS function export and Vite's UMD `{ pluralize }` shape", () => {
+    expect(resolvePluralize(pluralize).plural("subsidy")).toBe("subsidies");
+    expect(resolvePluralize({ pluralize }).singular("subsidies")).toBe("subsidy");
+    expect(resolvePluralize({ default: { pluralize } }).plural("entity")).toBe("entities");
+  });
+
+  it("throws on an empty CJS exports object (the Vite UMD miss)", () => {
+    expect(() => resolvePluralize({})).toThrow(/unexpected module shape/);
+    expect(() => resolvePluralize({ default: {} })).toThrow(/unexpected module shape/);
   });
 });
 
