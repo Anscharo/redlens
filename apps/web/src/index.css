@@ -2671,20 +2671,37 @@ a.atlas-annotates:focus-visible {
   border: 1px solid var(--border);
   background: var(--bg-deep);
 }
+.msc-headline-divider {
+  align-self: stretch;
+  width: 1px;
+  background: var(--border);
+}
 /* Transparent track: the y-scale is shared with the To-Sky line, so the
    stack rarely fills the column — a filled track read as a tall dark bar.
    The zero baseline is drawn by the overlay svg instead. Selection/hover is
    opacity, not an outline: unselected months are dimmed, the selected and
    hovered ones render at full strength. */
+/* Two tracks per month column — kept (left) and To Sky (right). */
+.msc-ts-tracks {
+  display: flex;
+  gap: 2px;
+}
 .msc-ts-track {
   position: relative;
   display: block;
-  width: 26px;
+  width: 22px;
   height: 380px;
   border-radius: 2px;
   overflow: hidden;
   opacity: 0.45;
   transition: opacity 0.1s;
+}
+/* The To-Sky stack keeps each prime's identity color but wears Sky's blue
+   on its edge, so the two stacks never read as the same money. */
+.msc-ts-track-sky .msc-ts-seg {
+  box-shadow:
+    inset 0 1px 0 var(--bg-deep),
+    inset 2px 0 0 var(--msc-sky);
 }
 .msc-ts-seg {
   position: absolute;
@@ -2751,9 +2768,9 @@ a.atlas-annotates:focus-visible {
   margin: 0 auto;
   overflow: visible;
 }
+/* The donut's hole is Sky's own blue; the wedges paint over the rest. */
 .msc-ring-sky-disc {
-  /* --bg, not --bg-deep: the chart sits on a --bg-deep card now. */
-  fill: var(--bg);
+  fill: var(--msc-sky);
   stroke: var(--msc-sky);
   stroke-width: 2;
 }
@@ -2770,7 +2787,9 @@ a.atlas-annotates:focus-visible {
   fill-opacity: 1;
 }
 .msc-ring-center {
-  fill: var(--tan);
+  /* On the blue hole: the page background is the contrasting ink in every
+     theme (dark bg on the light blues, light bg on the deep blue). */
+  fill: var(--bg);
 }
 /* Each Prime's plate: bar + name on one circle, tinted in the Prime's
    identity color (fill/stroke come inline). */

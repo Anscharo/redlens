@@ -10,6 +10,7 @@ const MONTHS: PrimeStackMonth[] = [
     month: "2026-06",
     sky: 1_000_000,
     parts: [{ prime: "spark", value: 400_000 }],
+    skyParts: [{ prime: "spark", value: 1_000_000 }],
   },
   {
     month: "2026-07",
@@ -18,6 +19,10 @@ const MONTHS: PrimeStackMonth[] = [
       { prime: "spark", value: 500_000 },
       { prime: "keel", value: 280_000 },
       { prime: "osero", value: -50_000 },
+    ],
+    skyParts: [
+      { prime: "spark", value: 1_500_000 },
+      { prime: "osero", value: 500_000 },
     ],
   },
 ];
@@ -43,6 +48,21 @@ describe("MscTimeseries", () => {
     const jun = screen.getByRole("button", { name: /Jun 2026: \$400k prime-side/ });
     fireEvent.click(jun);
     expect(onSelect).toHaveBeenCalledWith("2026-06");
+  });
+
+  it("stacks To Sky per prime in a second track that sums to the line", () => {
+    renderChart();
+    const sky = document.querySelectorAll('.msc-ts-track-sky .msc-ts-seg[data-flow="sky"]');
+    expect(sky).toHaveLength(3);
+    const jul = [...sky].filter((el) => el.closest('[aria-pressed="true"]')) as HTMLElement[];
+    expect(jul.map((el) => el.getAttribute("title"))).toEqual(["Spark: $1.50M to Sky", "Osero: $500k to Sky"]);
+    // Stack top (min top) meets the line's y for that month: heights sum to
+    // the To-Sky total on the shared scale.
+    const heights = jul.map((el) => parseFloat(el.style.height));
+    const keptJul = [...document.querySelectorAll('[aria-pressed="true"] .msc-ts-seg[data-flow="kept"]')] as HTMLElement[];
+    const keptPos = keptJul.filter((el) => !el.style.background.includes("gradient")).map((el) => parseFloat(el.style.height));
+    // 2.0M of sky vs 0.78M of positive kept on one scale.
+    expect(heights.reduce((a, b) => a + b, 0) / keptPos.reduce((a, b) => a + b, 0)).toBeCloseTo(2_000_000 / 780_000, 1);
   });
 
   it("stacks per-prime segments with stable colors and titles, negatives as loss", () => {

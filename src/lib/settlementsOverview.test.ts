@@ -158,6 +158,9 @@ describe("primeStackMonths", () => {
     const spark7 = jul.parts.find((p) => p.prime === "spark")!;
     expect(spark7.value).not.toBe(spark.headline.primeAgentRevenue);
     expect(spark7.value).toBe(supplyKept(spark) + 100_000);
+    // The second stack is To Sky per prime, and sums to the line exactly.
+    expect(jul.skyParts.reduce((n, p) => n + p.value, 0)).toBeCloseTo(jul.sky, 6);
+    expect(jul.skyParts.every((p) => Math.abs(p.value) >= 1)).toBe(true);
   });
 
   it("uses PRIME_ORDER as the stable prime order and skips unpublished months", () => {

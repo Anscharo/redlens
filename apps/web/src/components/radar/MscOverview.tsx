@@ -9,7 +9,6 @@ import {
 } from "../../lib/settlements";
 import {
   actorForPrimeKey,
-  ecosystemHeadlineFigures,
   ecosystemThreeWay,
   primeFlowsForMonth,
   primeStackMonths,
@@ -19,7 +18,7 @@ import {
 import { settlementsHref } from "@/lib/routes";
 import { layoutMscRing } from "../../lib/mscOverviewLayout";
 import { track } from "../../lib/analytics";
-import { SettlementFigure } from "./SettlementFigures";
+import { MscHeadline } from "./MscHeadline";
 import { MscRing, type MscRingPrime } from "./MscRing";
 import { MscTimeseries, primeFill } from "./MscTimeseries";
 
@@ -89,11 +88,7 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
           Source workbooks
         </a>
       </p>
-      <div className="flex flex-wrap gap-x-6 gap-y-1 mb-4 text-sm">
-        {ecosystemHeadlineFigures(eco).map((f) => (
-          <SettlementFigure key={f.label} {...f} />
-        ))}
-      </div>
+      <MscHeadline eco={eco} />
       <PrimeHoverStyles primes={stack.primes} />
       <div className="msc-overview-row flex flex-wrap items-start gap-x-6 gap-y-4 min-w-0">
         <div className="msc-card rounded p-4 min-w-0 max-w-full">
@@ -122,23 +117,33 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
   );
 }
 
-/* Hovering a prime's segment in the SELECTED month lights that prime up on
-   the ring (other months' segments describe different numbers than the ring
-   shows, so they don't). Static CSS can't express "same data-prime as the
-   hovered segment", so one :has() rule per prime is generated — the same
-   trick as the venue sankey's VenueHoverStyles. */
+/* Cross-chart hover, per FLOW not per prime: a timeseries layer in the
+   SELECTED month lights the same money on the ring (a kept layer → that
+   prime's bar and plate; a To-Sky layer → its arrow and Sky wedge), and the
+   ring's marks light the matching layer back. Other months' layers describe
+   different numbers than the ring shows, so they don't. Static CSS can't
+   express "same data-prime as the hovered element", so the rules are
+   generated per prime — the same trick as the venue sankey's
+   VenueHoverStyles. */
 function PrimeHoverStyles({ primes }: { primes: string[] }) {
   const css = primes
     .map((p) => {
-      const row = `.msc-overview-row:has(.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="${p}"]:hover)`;
-      const sel = `${row} .msc-ring-prime[data-prime="${p}"]`;
-      // The prime's own wedge inside Sky lights with it — it sits outside
-      // the prime's group, so it needs its own rule. Pills stay hidden here:
-      // this highlight names a prime, not one figure.
+      const seg = (flow: string) =>
+        `.msc-overview-row:has(.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="${p}"][data-flow="${flow}"]:hover)`;
+      const prime = `.msc-ring-prime[data-prime="${p}"]`;
+      const mark = (kinds: string[]) =>
+        `.msc-overview-row:has(${kinds.map((k) => `.msc-ring-mark[data-mark="${p}::${k}"]:hover`).join(", ")})`;
+      const layer = (flow: string) =>
+        `.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="${p}"][data-flow="${flow}"]`;
       return [
-        `${sel} :is(path, rect, line, circle) { opacity: 1; }`,
-        `${sel} .msc-ring-label { fill: var(--tan); }`,
-        `${row} .msc-ring-sky-wedge[data-prime="${p}"] { fill-opacity: 1; }`,
+        // Timeseries → ring.
+        `${seg("kept")} ${prime} :is(.msc-ring-seg, .msc-ring-zero, .msc-ring-plate) { opacity: 1; }`,
+        `${seg("kept")} ${prime} .msc-ring-label { fill: var(--tan); }`,
+        `${seg("sky")} ${prime} .msc-ring-arrow { opacity: 1; }`,
+        `${seg("sky")} .msc-ring-sky-wedge[data-prime="${p}"] { fill-opacity: 1; }`,
+        // Ring → timeseries.
+        `${mark(["kept", "demand", "gross"])} ${layer("kept")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
+        `${mark(["sky", "share"])} ${layer("sky")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
       ].join("\n");
     })
     .join("\n");

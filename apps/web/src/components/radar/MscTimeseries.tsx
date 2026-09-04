@@ -1,10 +1,12 @@
 import { formatMonth, formatUsd } from "../../lib/settlements";
 import type { PrimeStackMonth } from "@/lib/settlementsOverview";
 
-// Stacked prime-side earnings (supply kept + demand-side per prime) by month,
-// with the disjoint To-Sky total overlaid as a line — no dollar appears in
-// both the stack and the line. The month columns double as the overview's
-// month selector (same msc-bar-col contract as SettlementBars).
+// Two stacks per month, side by side: the LEFT is prime-side earnings
+// (supply kept + demand-side per prime), the RIGHT is To Sky per prime —
+// the same per-prime split of the To-Sky total the overlaid line traces,
+// so the right stack's top always meets the line. No dollar appears in
+// both stacks. The month columns double as the overview's month selector
+// (same msc-bar-col contract as SettlementBars).
 //
 // Fixed pixel geometry: the axis/grid/line overlays and the flex columns
 // must agree on x positions, so columns are a fixed COL_W wide with a
@@ -66,7 +68,7 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
   return (
     <div className="mb-4 min-w-0 max-w-full">
       <p className="text-sm mb-2" style={{ color: "var(--tan)" }}>
-        Prime-side earnings by month
+        Prime-side earnings and To Sky by month
       </p>
       <div className="relative inline-block" style={{ maxWidth: "100%", overflowX: "auto" }}>
         <svg className="msc-ts-grid" width={width} height={TRACK_H} aria-hidden="true">
@@ -128,9 +130,10 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
         </span>
       </p>
       <p className="mono text-[10px] mt-1" style={{ color: "var(--tan-3)", maxWidth: width }}>
-        Each layer is that Prime's supply kept + demand-side; the line is the ecosystem
-        To-Sky total, separate money from the stack. The ring splits the selected
-        month's bar back into those flows per Prime.
+        Left stack: what each Prime kept (supply kept + demand-side). Right
+        stack: what each Prime sent to Sky, in the same colors with a blue
+        edge — it adds up to the line. Hover a layer to light the same money
+        on the orbital chart.
       </p>
     </div>
   );
@@ -147,15 +150,39 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
 }) {
   const total = m.parts.reduce((n, p) => n + p.value, 0);
   // Positive parts stack upward from the zero line, negatives downward.
-  let up = 0;
-  let down = 0;
-  const segs = m.parts.map((p) => {
-    const h = px(Math.abs(p.value));
-    const top = p.value >= 0 ? zeroY - up - h : zeroY + down;
-    if (p.value >= 0) up += h;
-    else down += h;
-    return { ...p, top, h };
-  });
+  const stack = (parts: PrimeStackMonth["parts"]) => {
+    let up = 0;
+    let down = 0;
+    return parts.map((p) => {
+      const h = px(Math.abs(p.value));
+      const top = p.value >= 0 ? zeroY - up - h : zeroY + down;
+      if (p.value >= 0) up += h;
+      else down += h;
+      return { ...p, top, h };
+    });
+  };
+  const segs = stack(m.parts);
+  const skySegs = stack(m.skyParts);
+  const seg = (s: { prime: string; value: number; top: number; h: number }, flow: "kept" | "sky") => {
+    if (s.h < 0.5) return null;
+    const fill = colorOf(s.prime);
+    // A negative month keeps the prime's own color (color = identity)
+    // and is marked by diagonal stripes, stacked below the zero line.
+    const background =
+      s.value < 0
+        ? `repeating-linear-gradient(45deg, ${fill} 0, ${fill} 4px, transparent 4px, transparent 8px)`
+        : fill;
+    return (
+      <span
+        key={s.prime}
+        className="msc-ts-seg"
+        data-prime={s.prime}
+        data-flow={flow}
+        title={`${primeLabel(s.prime)}: ${formatUsd(s.value, true)}${flow === "sky" ? " to Sky" : ""}`}
+        style={{ top: s.top, height: s.h, background }}
+      />
+    );
+  };
   return (
     <button
       type="button"
@@ -166,26 +193,13 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
       aria-pressed={m.month === selected}
       aria-label={`${formatMonth(m.month)}: ${formatUsd(total, true)} prime-side earnings across ${m.parts.length} primes, ${formatUsd(m.sky, true)} to Sky`}
     >
-      <span className="msc-ts-track" aria-hidden="true">
-        {segs.map((s) => {
-          if (s.h < 0.5) return null;
-          const fill = colorOf(s.prime);
-          // A negative month keeps the prime's own color (color = identity)
-          // and is marked by diagonal stripes, stacked below the zero line.
-          const background =
-            s.value < 0
-              ? `repeating-linear-gradient(45deg, ${fill} 0, ${fill} 4px, transparent 4px, transparent 8px)`
-              : fill;
-          return (
-            <span
-              key={s.prime}
-              className="msc-ts-seg"
-              data-prime={s.prime}
-              title={`${primeLabel(s.prime)}: ${formatUsd(s.value, true)}`}
-              style={{ top: s.top, height: s.h, background }}
-            />
-          );
-        })}
+      <span className="msc-ts-tracks" aria-hidden="true">
+        <span className="msc-ts-track" data-flow="kept">
+          {segs.map((s) => seg(s, "kept"))}
+        </span>
+        <span className="msc-ts-track msc-ts-track-sky" data-flow="sky">
+          {skySegs.map((s) => seg(s, "sky"))}
+        </span>
       </span>
       <span className="mono text-[10px]">{formatMonth(m.month)}</span>
     </button>

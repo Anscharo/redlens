@@ -68,11 +68,16 @@ describe("MscOverview", () => {
     expect(screen.getByText(/supply loss to Primes/)).toBeInTheDocument();
     // Cross-chart hover styles: one :has() rule per prime in the stack.
     const style = document.querySelector("style")!.textContent!;
-    expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="spark"]:hover');
+    expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="spark"][data-flow="kept"]:hover');
+    expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="spark"][data-flow="sky"]:hover');
     expect(style).toContain('.msc-ring-prime[data-prime="spark"]');
-    expect(screen.getAllByText("To Sky").length).toBeGreaterThanOrEqual(1); // headline row + donut center
-    expect(screen.getByText("of which cost of funds")).toBeInTheDocument();
-    expect(screen.getByText("of which Sky Direct Exposure")).toBeInTheDocument();
+    // …and back: the ring's marks light the matching layer.
+    expect(style).toContain('.msc-ring-mark[data-mark="spark::sky"]:hover');
+    expect(screen.getAllByText("To Sky").length).toBeGreaterThanOrEqual(1); // headline card + donut center
+    // Headline card reads as the equation it is.
+    expect(screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure")).toBeInTheDocument();
+    expect(screen.getByText("cost of funds")).toBeInTheDocument();
+    expect(screen.getByText("Sky Direct Exposure")).toBeInTheDocument();
     expect(screen.getByText("Supply kept by Primes")).toBeInTheDocument();
     expect(screen.getByText("Demand-side to Primes")).toBeInTheDocument();
     // eco sky = 100; eco kept = (200-60) + 0 = 140; demand = 50 + 32004.
@@ -84,7 +89,7 @@ describe("MscOverview", () => {
 
   it("selects a month from the timeseries and syncs ?msc (latest month clears it)", async () => {
     render(<MscOverview actors={ACTORS} />);
-    await waitFor(() => screen.getByText("Prime-side earnings by month"));
+    await waitFor(() => screen.getByText("Prime-side earnings and To Sky by month"));
     fireEvent.click(screen.getByRole("button", { name: /Jun 2026: .*\$10 to Sky/ }));
     expect(window.location.search).toBe("?msc=2026-06");
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jun 2026")).toBeInTheDocument();

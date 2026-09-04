@@ -173,6 +173,9 @@ export interface PrimeStackMonth {
   sky: number;
   /** Per-prime supply kept + demand-side, in the stable stacking order. */
   parts: Array<{ prime: string; value: number }>;
+  /** Per-prime To-Sky (skyRevenue), same order — the second stack, which
+   *  sums to `sky` exactly. */
+  skyParts: Array<{ prime: string; value: number }>;
 }
 
 /**
@@ -193,8 +196,10 @@ export function primeStackMonths(bundle: SettlementsBundle): {
   months: PrimeStackMonth[];
 } {
   const valueOf = new Map<string, number>();
+  const skyOf = new Map<string, number>();
   for (const r of bundle.reports) {
     valueOf.set(`${r.prime}::${r.month}`, supplyKept(r) + demandSideRevenue(r.headline));
+    skyOf.set(`${r.prime}::${r.month}`, r.headline.skyRevenue);
   }
   const order = [...new Set(bundle.reports.map((r) => r.prime))].sort(comparePrimes);
   const months = settlementMonths(bundle).map((month) => {
@@ -205,7 +210,11 @@ export function primeStackMonths(bundle: SettlementsBundle): {
       .filter((p) => present.has(p))
       .map((prime) => ({ prime, value: valueOf.get(`${prime}::${month}`)! }))
       .filter((p) => Math.abs(p.value) >= SETTLEMENT_NEAR_ZERO);
-    return { month, sky, parts };
+    const skyParts = order
+      .filter((p) => present.has(p))
+      .map((prime) => ({ prime, value: skyOf.get(`${prime}::${month}`)! }))
+      .filter((p) => Math.abs(p.value) >= SETTLEMENT_NEAR_ZERO);
+    return { month, sky, parts, skyParts };
   });
   return { primes: order, months };
 }
