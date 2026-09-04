@@ -83,8 +83,33 @@ describe("useNodeAnnotations", () => {
       chainValues: {},
       glossaryTerms: [],
       cousinDocs: [],
+      byNameOnly: new Set(),
       annotationDocs: [],
     });
+  });
+
+  it("includes an address a section names only by its chainlog key", async () => {
+    const target = node({
+      id: UUID_A,
+      doc_no: "A.3",
+      content: "authority is delegated to MCD_PAUSE_PROXY at all times",
+      addressRefs: [],
+    });
+    const data = makeData({
+      atlas: { docs: { [UUID_A]: target }, docNoToId: new Map(), byParent: new Map() } as never,
+      addresses: {
+        "0xpause": {
+          chain: "ethereum", chains: ["ethereum"], chainlogId: "MCD_PAUSE_PROXY",
+          explorerUrl: "", label: "MCD_PAUSE_PROXY", isContract: true, isProxy: false,
+          roles: [], aliases: [], expectedTokens: [],
+        } as AddressInfo,
+      },
+      chainState: { values: {} } as never,
+    });
+    const { useNodeAnnotations } = await import("./useNodeAnnotations");
+    const { result } = renderHook(() => useNodeAnnotations(UUID_A, data, null));
+    expect(Object.keys(result.current.targetAddresses)).toContain("0xpause");
+    expect(result.current.byNameOnly.has("0xpause")).toBe(true);
   });
 
   // byParent is keyed by parent UUID. The atlas worker resolves `.0.3.N` via

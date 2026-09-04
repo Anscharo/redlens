@@ -32,13 +32,19 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
+## 2026-09-04
+- On-chain addresses now appear as a pill across documents, reports, and dashboards, showing the balance they hold in green with a hover for the name and full token holdings
+- A document's Notes panel now lists every address it mentions, including ones named only by their chainlog key, each with its owner, roles, and balances
+
+## 2026-09-04
+- Broad search now also matches the singular or plural of a word, with exact wording ranked first
 
 ## 2026-09-03
 - Moved colour-scheme picking to a sun, moon, or eclipse button in the top bar, next to feedback and the account menu
 
 ## 2026-09-02
 - Fixed Chat mistakenly revising correct answers and forgetting to look up info
-- Annotation documents now link to the document they annotate, sit closer to it in the tree and reader instead of looking nested a few levels too deep, and are listed in an "annotated by" section of that document's annotations panel
+- Annotation documents now link to the document they annotate, sit closer to it in the tree and reader instead of looking nested a few levels too deep, and are listed in an "annotated by" section of that document's notes panel
 
 ## 2026-08-27
 - Tinted Giedi Connect tool names gold and made reader document hover easier to see

@@ -52,7 +52,7 @@ export function PreviewMark({ nodeId, className }: { nodeId: string; className?:
     ) : null;
 
     return (
-      <Tooltip content={content} delay={300}>
+      <Tooltip content={content}>
         <span
           className={className}
           aria-label="identity reassigned in this preview"

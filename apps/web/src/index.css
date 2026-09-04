@@ -2065,6 +2065,57 @@ a.atlas-annotates:focus-visible {
   text-underline-offset: 3px;
 }
 
+/* ─── On-chain address pill (src/components/Address.tsx) ─── */
+.rl-addr {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  border-radius: 4px;
+  padding: 0 0.35em;
+  background: var(--hover);
+  color: var(--accent);
+  text-decoration: none;
+  vertical-align: baseline;
+}
+.rl-addr-text {
+  min-width: 0;
+  word-break: break-all;
+}
+/* Text-only pill (atlas body prose): render inline so it selects and copies
+   exactly like normal text — inline-flex breaks selection and grabs extras.
+   box-decoration-break keeps the rounded background intact across line wraps. */
+.rl-addr-plain {
+  display: inline;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.rl-addr:hover .rl-addr-text {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.rl-addr-bal {
+  font-size: 0.85em;
+  flex: none;
+}
+.rl-addr-hint {
+  color: var(--tan-3);
+  opacity: 0.5;
+  flex: none;
+}
+.rl-addr:hover .rl-addr-hint {
+  opacity: 0.9;
+}
+/* Inline in atlas prose, `.atlas-md a` would force an always-on underline
+   across the whole pill (address + balance + icon). Scope it back to a
+   hover-underline on just the address text, like the pill everywhere else. */
+.atlas-md a.rl-addr {
+  text-decoration: none;
+}
+.atlas-md a.rl-addr:hover .rl-addr-text {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* ─── Chain value key column ─── */
 .chain-key {
   color: var(--tan-3);
@@ -2318,6 +2369,67 @@ a.atlas-annotates:focus-visible {
   color: var(--tan);
   background: var(--surface);
   border-color: var(--border);
+}
+
+/* ─── Reader right-panel section pills (RightPanel.tsx) ─── */
+.right-pill {
+  font: 400 11px/1 "Source Code Pro", "Courier New", monospace;
+  color: var(--tan-3);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 11px;
+  cursor: pointer;
+  text-transform: lowercase;
+  transition: color 100ms, background 100ms, border-color 100ms;
+}
+.right-pill:hover {
+  color: var(--tan);
+  border-color: var(--tan-3);
+}
+.right-pill[data-state="active"] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* ─── Section title/divider bar: a pill-styled label anchored by a rule that
+   runs across the rest of the width, marking the start of a panel section. ─── */
+.rl-section-divider {
+  display: flex;
+  align-items: center;
+  margin: 26px 0 16px;
+}
+.rl-section:first-child .rl-section-divider {
+  margin-top: 4px;
+}
+.rl-section-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  margin-left: 10px;
+  background: var(--border);
+}
+.rl-section-label {
+  font: 400 11px/1 "Source Code Pro", "Courier New", monospace;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+  color: var(--tan-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 11px;
+}
+
+/* The selected section's divider stays highlighted — its label pill and the rule
+   pick up the accent — so it's always clear which section the pills point at. */
+.rl-section-divider--active .rl-section-label {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.rl-section-divider--active::after {
+  background: color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 
 /* KaTeX dark mode */

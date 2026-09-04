@@ -439,3 +439,59 @@ describe("result shape", () => {
     expect(hits[0].titleHtml).not.toMatch(/&(?!amp;)/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Singular/plural expansion (query-time, exact-first)
+// ---------------------------------------------------------------------------
+
+describe("inflection", () => {
+  it("subsidy also returns a subsidies-only doc, ranked after exact-term hits", async () => {
+    const s = await initSearchWorker();
+    const hits = await s.query("subsidy");
+    const ids = hits.map((h) => h.id);
+    expect(ids).toContain(IDS.subsidyExact);
+    expect(ids).toContain(IDS.subsidiesOnly);
+    expect(ids.indexOf(IDS.subsidyExact)).toBeLessThan(ids.indexOf(IDS.subsidiesOnly));
+  });
+
+  it("agents also returns an agent-only doc, ranked after agents-term hits", async () => {
+    const s = await initSearchWorker();
+    const hits = await s.query("agents");
+    const ids = hits.map((h) => h.id);
+    expect(ids).toContain(IDS.agentRoot); // "agents scope"
+    expect(ids).toContain(IDS.agentOnly);
+    expect(ids.indexOf(IDS.agentRoot)).toBeLessThan(ids.indexOf(IDS.agentOnly));
+  });
+
+  it("quoted phrase subsidy does not expand to subsidies", async () => {
+    const s = await initSearchWorker();
+    const hits = await s.query('"subsidy"');
+    const ids = hits.map((h) => h.id);
+    expect(ids).toContain(IDS.subsidyExact);
+    expect(ids).not.toContain(IDS.subsidiesOnly);
+  });
+
+  it("strict 'subsidy' does not expand to subsidies", async () => {
+    const s = await initSearchWorker();
+    const hits = await s.query("'subsidy'");
+    const ids = hits.map((h) => h.id);
+    expect(ids).toContain(IDS.subsidyExact);
+    expect(ids).not.toContain(IDS.subsidiesOnly);
+  });
+
+  it("title:subsidy also matches a title that uses subsidies", async () => {
+    const s = await initSearchWorker();
+    const hits = await s.query("title:subsidy");
+    const ids = hits.map((h) => h.id);
+    expect(ids).toContain(IDS.subsidyExact);
+    expect(ids).toContain(IDS.subsidiesOnly);
+  });
+
+  it("highlights the counterpart form in a subsidies-only snippet", async () => {
+    const s = await initSearchWorker();
+    const hits = await s.query("subsidy");
+    const only = hits.find((h) => h.id === IDS.subsidiesOnly);
+    expect(only?.snippet).toContain("<mark>");
+    expect(only?.snippet.toLowerCase()).toMatch(/subsid/);
+  });
+});

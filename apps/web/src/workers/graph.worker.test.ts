@@ -186,6 +186,87 @@ describe("neighbors / subgraph", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Entity search overlay (request-id + inflection)
+// ---------------------------------------------------------------------------
+
+describe("search-entities", () => {
+  it("echoes the request id and returns a radar href for an agent name match", async () => {
+    const h = await initGraphWorker();
+    const res = await ask(h, { type: "search-entities", id: 7, q: "skybase" }, "search-entities");
+    expect(res.id).toBe(7);
+    const hits = res.hits as { participant: GraphEntity; score: number; href: string }[];
+    expect(hits.map((h) => h.participant.id)).toContain(G.primeAgent);
+    expect(hits.find((h) => h.participant.id === G.primeAgent)?.href).toBe("/radar/skybase");
+  });
+
+  it("matches a plural name from a singular query (inflection)", async () => {
+    const h = installWorkerGlobal();
+    harness = h;
+    const entities = [
+      ...JSON.parse(makeRelationsJson()).entities,
+      {
+        id: "11111111-0000-4000-8000-0000000000s1",
+        slug: "stability-subsidies",
+        name: "Stability Subsidies",
+        et: "agent",
+        st: "prime",
+        did: "11111111-0000-4000-8000-0000000000s1",
+      },
+    ];
+    stubFetch({
+      "relations.json": JSON.stringify({ entities, edges: JSON.parse(makeRelationsJson()).edges }),
+    });
+    vi.resetModules();
+    await import("./graph.worker.ts");
+    await h.waitFor((m) => m.type === "ready");
+    const res = await ask(h, { type: "search-entities", id: 1, q: "subsidy" }, "search-entities");
+    const hits = res.hits as { participant: GraphEntity; href: string }[];
+    expect(hits.some((h) => h.participant.name === "Stability Subsidies")).toBe(true);
+    expect(hits.find((h) => h.participant.name === "Stability Subsidies")?.href).toBe(
+      "/radar/stability-subsidies",
+    );
+  });
+
+  it("does not return instance or primitive entities", async () => {
+    const h = await initGraphWorker();
+    const res = await ask(h, { type: "search-entities", id: 1, q: "reward" }, "search-entities");
+    const hits = res.hits as { participant: GraphEntity }[];
+    expect(hits.map((h) => h.participant.et)).not.toContain("instance");
+    expect(hits.map((h) => h.participant.et)).not.toContain("primitive");
+  });
+
+  it("caps the overlay at ENTITY_SEARCH_CAP", async () => {
+    const { ENTITY_SEARCH_CAP } = await import("../lib/search");
+    const h = installWorkerGlobal();
+    harness = h;
+    const entities = Array.from({ length: ENTITY_SEARCH_CAP + 3 }, (_, i) => ({
+      id: `aaaaaaaa-0000-4000-8000-${String(i).padStart(12, "0")}`,
+      slug: `match-${i}`,
+      name: `Match ${i}`,
+      et: "agent",
+      st: null,
+      did: `aaaaaaaa-0000-4000-8000-${String(i).padStart(12, "0")}`,
+    }));
+    stubFetch({ "relations.json": JSON.stringify({ entities, edges: [] }) });
+    vi.resetModules();
+    await import("./graph.worker.ts");
+    await h.waitFor((m) => m.type === "ready");
+    const res = await ask(h, { type: "search-entities", id: 1, q: "match" }, "search-entities");
+    expect((res.hits as unknown[]).length).toBe(ENTITY_SEARCH_CAP);
+  });
+
+  it("a later request id does not clobber an earlier in-flight reply on the wire — both echo their id", async () => {
+    const h = await initGraphWorker();
+    h.dispatch({ type: "search-entities", id: 1, q: "skybase" });
+    h.dispatch({ type: "search-entities", id: 2, q: "ozone" });
+    const first = await h.waitFor((m) => m.type === "search-entities" && m.id === 1);
+    const second = await h.waitFor((m) => m.type === "search-entities" && m.id === 2);
+    expect((first.hits as { participant: GraphEntity }[])[0]?.participant.slug).toBe("skybase");
+    expect((second.hits as { participant: GraphEntity }[])[0]?.participant.slug).toBe("ozone");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Pre-init null guards — messages that arrive before relations.json resolves
 // ---------------------------------------------------------------------------
 

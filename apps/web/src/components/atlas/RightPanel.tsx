@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { AtlasNode, AddressInfo } from "@/types";
 import type { ChainValue } from "../../lib/chainstate";
 import type { EdgeResult } from "../../lib/graph";
@@ -10,13 +10,25 @@ import { NodeHistory } from "../history/NodeHistory";
 import { PreviewHistory } from "../history/PreviewHistory";
 import { ErrorBoundary, InlineError } from "../ErrorBoundary";
 import { useDataSource } from "../../lib/dataSource";
+import { glide } from "../../lib/animatedScroll";
 import { track } from "../../lib/analytics";
 
-type RightTab = "annotations" | "glossary" | "history";
+type RightTab = "notes" | "glossary" | "history";
 
 const HIDE = new Set(["parent_of", "mentions", "proxies_to", "cites"]);
 
 const SECTION_HEAD = "text-sm mono text-tan-2 font-semibold tracking-wide";
+
+// A section's title bar: a pill-styled label anchored by a rule across the rest
+// of the width, marking the start of a panel section (notes / history / glossary).
+// The active section's bar stays highlighted so the selection is always clear.
+function SectionDivider({ label, active }: { label: string; active: boolean }) {
+  return (
+    <div className={`rl-section-divider${active ? " rl-section-divider--active" : ""}`}>
+      <span className="rl-section-label">{label}</span>
+    </div>
+  );
+}
 
 export function RightPanel({
   id,
@@ -25,6 +37,7 @@ export function RightPanel({
   cousinDocs,
   targetAddresses,
   chainValues,
+  byNameOnly,
   annotationCount,
   graphEdges,
   glossaryTerms,
@@ -42,11 +55,15 @@ export function RightPanel({
   cousinDocs: CousinDoc[];
   targetAddresses: Record<string, AddressInfo>;
   chainValues: Record<string, Record<string, ChainValue>>;
+  /** Addresses this section named only by chainlog key, not a 0x literal. */
+  byNameOnly?: Set<string>;
   annotationCount: number;
   graphEdges: EdgeResult;
   glossaryTerms: GlossaryEntry[][];
   onNavigate: (id: string) => void;
   onNavigateByDocNo: (docNo: string) => void;
+  /** The section the pill bar highlights and the scroll area jumps to. Driven by
+   *  the URL's ?view= exactly as the old tabs were. */
   tab: RightTab;
   onTabChange: (t: RightTab) => void;
   /** Show self-subscribing selection checkboxes on related cards. The checkbox
@@ -66,8 +83,8 @@ export function RightPanel({
     [onNavigate],
   );
   const navLinked = useCallback((nid: string) => annNav("linked_doc", nid), [annNav]);
-  const navAnnotation = useCallback((nid: string) => annNav("annotation_doc", nid), [annNav]);
   const navCousin = useCallback((nid: string) => annNav("cousin_doc", nid), [annNav]);
+  const navAnnotation = useCallback((nid: string) => annNav("annotation_doc", nid), [annNav]);
   const annNavDoc = useCallback(
     (kind: string, docNo: string) => {
       track("reader_annotation_nav", { kind, doc_no: docNo });
@@ -77,7 +94,7 @@ export function RightPanel({
   );
 
   // Tag each relation with its direction once (instead of an O(n²) includes
-  // scan in render) and memoize so a tab switch doesn't refilter the edges.
+  // scan in render) and memoize so a re-render doesn't refilter the edges.
   const { citedBy, graphRels } = useMemo(() => {
     const out = graphEdges.outbound
       .filter((e) => !HIDE.has(e.e))
@@ -94,207 +111,226 @@ export function RightPanel({
     const did = isOut ? e.to_did : e.from_did;
     return did === id || (isOut ? e.t : e.f) === id;
   };
+  const shownRels = graphRels.filter(({ edge, isOut }) => !isSelfNav(edge, isOut));
+
+  // All three sections now live in one scroll area; the pill bar jumps to them.
+  // An empty annotations block collapses so the first thing on screen is whatever
+  // section actually has content (history when a doc has no annotations).
+  const hasAnnotations =
+    annotationDocs.length > 0 ||
+    linkedNodes.length > 0 ||
+    cousinDocs.length > 0 ||
+    citedBy.length > 0 ||
+    graphRels.length > 0 || // the relations header counts raw edges, even if every row self-nav-filters out
+    Object.keys(targetAddresses).length > 0;
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<Record<RightTab, HTMLElement | null>>({
+    notes: null,
+    history: null,
+    glossary: null,
+  });
+  // Bring a section to the top of the scroll area. The active section's divider
+  // stays highlighted (see SectionDivider), so no transient flash is needed.
+  const scrollToSection = useCallback((view: RightTab, animate: boolean) => {
+    const container = scrollRef.current;
+    const section = sectionRefs.current[view];
+    if (!container || !section) return;
+    const delta = section.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    const target = Math.max(0, container.scrollTop + delta);
+    if (animate) glide(container, target);
+    else container.scrollTop = target;
+  }, []);
+  // Reposition when the selected section changes: glide on a pill or ?view=
+  // change, a silent instant reposition on doc navigation, nothing extra on load.
+  const mounted = useRef(false);
+  const prevTab = useRef(tab);
+  useEffect(() => {
+    const tabChanged = prevTab.current !== tab;
+    scrollToSection(tab, tabChanged && mounted.current);
+    prevTab.current = tab;
+    mounted.current = true;
+  }, [tab, id, scrollToSection]);
+  // Clicking a pill always brings its section to the top — even the already-active
+  // one, which wouldn't change `tab` and so wouldn't trigger the effect above.
+  const selectSection = useCallback(
+    (view: RightTab) => {
+      if (tab === view) scrollToSection(view, true);
+      onTabChange(view);
+    },
+    [tab, onTabChange, scrollToSection],
+  );
 
   return (
     <>
-      <div
-        className="flex gap-1 border-b shrink-0"
-        style={{ borderColor: "var(--border)", padding: "8px 16px 0" }}
-        role="tablist"
+      <nav
+        className="flex gap-2 border-b shrink-0"
+        style={{ borderColor: "var(--border)", padding: "10px 16px" }}
+        aria-label="Panel sections"
       >
         <button
-          role="tab"
-          aria-selected={tab === "annotations"}
-          onClick={() => onTabChange("annotations")}
-          className="right-tab"
+          type="button"
+          aria-current={tab === "notes" ? "true" : undefined}
+          data-state={tab === "notes" ? "active" : "inactive"}
+          onClick={() => selectSection("notes")}
+          className="right-pill"
         >
-          annotations{annotationCount > 0 && <span style={{ marginLeft: 4 }}>· {annotationCount}</span>}
+          notes{annotationCount > 0 && <span style={{ marginLeft: 4 }}>· {annotationCount}</span>}
         </button>
         <button
-          role="tab"
-          aria-selected={tab === "glossary"}
-          onClick={() => onTabChange("glossary")}
-          className="right-tab"
-        >
-          glossary{glossaryTerms.length > 0 && <span style={{ marginLeft: 4 }}>· {glossaryTerms.length}</span>}
-        </button>
-        <button
-          role="tab"
-          aria-selected={tab === "history"}
-          onClick={() => onTabChange("history")}
-          className="right-tab"
+          type="button"
+          aria-current={tab === "history" ? "true" : undefined}
+          data-state={tab === "history" ? "active" : "inactive"}
+          onClick={() => selectSection("history")}
+          className="right-pill"
         >
           history
         </button>
-      </div>
+        <button
+          type="button"
+          aria-current={tab === "glossary" ? "true" : undefined}
+          data-state={tab === "glossary" ? "active" : "inactive"}
+          onClick={() => selectSection("glossary")}
+          className="right-pill"
+        >
+          glossary{glossaryTerms.length > 0 && <span style={{ marginLeft: 4 }}>· {glossaryTerms.length}</span>}
+        </button>
+      </nav>
 
-      <div className="overflow-y-auto flex-1">
-        {tab === "annotations" ? (
-          <div className="px-4 py-5"> 
-            {/* First in the tab: unlike every other section here these are this
-                document's OWN children. They are also the hardest to reach in
-                the reader — the atlas emits the supporting `0` directory after
-                every real sibling, so an article's annotations can sit hundreds
-                of rows below it. */}
-            {annotationDocs.length > 0 ? (
-              <section className="mb-8 pb-5 border-b border-border">
-                <p className={`${SECTION_HEAD} mb-2`}>
-                  annotated by · {annotationDocs.length}
-                </p>
-                <p className="text-xs leading-relaxed mb-4 text-tan-3">
-                  Element Annotations attached to this document.
-                </p>
-                <div className="flex flex-col gap-[10px]">
-                  {annotationDocs.map((node) => (
-                    <RelatedNode
-                      key={node.id}
-                      node={node}
-                      onNavigate={navAnnotation}
-                      selectable={selectable}
-                      byParent={byParent}
-                    />
+      <div className="overflow-y-auto flex-1" ref={scrollRef}>
+        <div className="px-4 py-5">
+          <section className="rl-section" ref={(el) => { sectionRefs.current.notes = el; }}>
+            <SectionDivider label="notes" active={tab === "notes"} />
+            {!hasAnnotations ? (
+              <p className="text-xs mono text-tan-3">No notes for this section.</p>
+            ) : (
+              <>
+              {/* Element Annotations — this document's OWN Annotation-type children
+                  (`<doc_no>.0.3.N`), the hardest to reach in the reader, so they lead. */}
+              {annotationDocs.length > 0 ? (
+                <section className="mb-8 pb-5 border-b border-border">
+                  <p className={`${SECTION_HEAD} mb-2`}>annotated by · {annotationDocs.length}</p>
+                  <p className="text-xs leading-relaxed mb-4 text-tan-3">Element Annotations attached to this document.</p>
+                  <div className="flex flex-col gap-[10px]">
+                    {annotationDocs.map((node) => (
+                      <RelatedNode key={node.id} node={node} onNavigate={navAnnotation} selectable={selectable} byParent={byParent} />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+              {linkedNodes.length > 0 ? (
+                <section>
+                  <p className={`${SECTION_HEAD} mb-4`}>linked documents · {linkedNodes.length}</p>
+                  {linkedNodes.map((node) => (
+                    <RelatedNode key={node.id} node={node} onNavigate={navLinked} selectable={selectable} byParent={byParent} />
                   ))}
+                </section>
+              ) : null}
+
+              {cousinDocs.length > 0 ? (
+                <section className="mt-8 pt-5 border-t border-border">
+                  <p className={`${SECTION_HEAD} mb-2`}>cousin documents · {cousinDocs.length}</p>
+                  <p className="text-xs leading-relaxed mb-4 text-tan-3">Equivalent documents under the other Prime Agents.</p>
+                  <div className="flex flex-col gap-[10px]">
+                    {cousinDocs.map(({ node, agent }) => (
+                      <RelatedNode key={node.id} node={node} eyebrow={<span className="atlas-agent-pill">{agent}</span>} onNavigate={navCousin} selectable={selectable} byParent={byParent} />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {citedBy.length > 0 && (
+                <div className="mt-8">
+                  <p className={`${SECTION_HEAD} mb-3`}>cited by · {citedBy.length}</p>
+                  <div className="space-y-1">
+                    {citedBy.map((e, i) => (
+                      <button
+                        key={i}
+                        className="w-full text-left px-2 py-1.5 rounded text-xs mono hover:bg-hover transition-colors text-accent hover:underline"
+                        onClick={() => annNav("cited_by", e.f)}
+                      >
+                        {e.s?.[0] ?? e.f.slice(0, 8)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </section>
-            ) : null}
+              )}
 
-            {linkedNodes.length > 0 ? (
-              <section>
-                <p className={`${SECTION_HEAD} mb-4`}>
-                  linked documents · {linkedNodes.length}
-                </p>
-                {linkedNodes.map((node) => (
-                  <RelatedNode
-                    key={node.id}
-                    node={node}
-                    onNavigate={navLinked}
-                    selectable={selectable}
-                    byParent={byParent}
-                  />
-                ))}
-              </section>
-            ) : null}
-
-            {cousinDocs.length > 0 ? (
-              <section className="mt-8 pt-5 border-t border-border">
-                <p className={`${SECTION_HEAD} mb-2`}>
-                  cousin documents · {cousinDocs.length}
-                </p>
-                <p className="text-xs leading-relaxed mb-4 text-tan-3">
-                  Equivalent documents under the other Prime Agents.
-                </p>
-                <div className="flex flex-col gap-[10px]">
-                  {cousinDocs.map(({ node, agent }) => (
-                    <RelatedNode
-                      key={node.id}
-                      node={node}
-                      eyebrow={<span className="atlas-agent-pill">{agent}</span>}
-                      onNavigate={navCousin}
-                      selectable={selectable}
-                      byParent={byParent}
-                    />
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {citedBy.length > 0 && (
-              <div className="mt-8">
-                <p className={`${SECTION_HEAD} mb-3`}>cited by · {citedBy.length}</p>
-                <div className="space-y-1">
-                  {citedBy.map((e, i) => (
-                    <button
-                      key={i}
-                      className="w-full text-left px-2 py-1.5 rounded text-xs mono hover:bg-hover transition-colors text-tan-2"
-                      onClick={() => annNav("cited_by", e.f)}
-                    >
-                      {e.s?.[0] ?? e.f.slice(0, 8)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {graphRels.length > 0 && (
-              <div className="mt-8">
-                <p className={`${SECTION_HEAD} mb-3`}>relations · {graphRels.length}</p>
-                <div className="space-y-2">
-                  {graphRels.filter(({ edge, isOut }) => !isSelfNav(edge, isOut)).map(({ edge: e, isOut }, i) => {
-                    const otherId = (isOut ? e.t : e.f) ?? "";
-                    const otherType = isOut ? e.tt : e.ft;
-                    const otherLabel = isOut
-                      ? (e.to_label ?? otherId.slice(0, 8))
-                      : (e.from_label ?? otherId.slice(0, 8));
-                    const otherNavId = otherType === "doc"
-                      ? otherId
-                      : (isOut ? e.to_did : e.from_did) ?? null;
-                    return (
-                      <div key={i} className="text-xs pb-2 border-b border-border">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="mono px-1.5 py-0.5 rounded text-[10px] bg-surface text-accent">
-                            {e.e}
-                          </span>
-                          {!isOut && <span className="text-[10px] mono text-gray">←</span>}
-                          {otherNavId ? (
-                            <button
-                              className="mono hover:underline text-left text-tan-2"
-                              onClick={() => annNav("relation", otherNavId)}
-                            >
-                              {otherLabel}
-                            </button>
-                          ) : (
-                            <span className="font-medium text-tan">{otherLabel}</span>
+              {graphRels.length > 0 && (
+                <div className="mt-8">
+                  <p className={`${SECTION_HEAD} mb-3`}>relations · {graphRels.length}</p>
+                  <div className="space-y-2">
+                    {shownRels.map(({ edge: e, isOut }, i) => {
+                      const otherId = (isOut ? e.t : e.f) ?? "";
+                      const otherType = isOut ? e.tt : e.ft;
+                      const otherLabel = isOut
+                        ? (e.to_label ?? otherId.slice(0, 8))
+                        : (e.from_label ?? otherId.slice(0, 8));
+                      const otherNavId = otherType === "doc"
+                        ? otherId
+                        : (isOut ? e.to_did : e.from_did) ?? null;
+                      return (
+                        <div key={i} className="text-xs pb-2 border-b border-border">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="mono px-1.5 py-0.5 rounded text-[10px] bg-surface text-accent">{e.e}</span>
+                            {!isOut && <span className="text-[10px] mono text-gray">←</span>}
+                            {otherNavId ? (
+                              <button className="mono hover:underline text-left text-tan-2" onClick={() => annNav("relation", otherNavId)}>
+                                {otherLabel}
+                              </button>
+                            ) : (
+                              <span className="font-medium text-tan">{otherLabel}</span>
+                            )}
+                          </div>
+                          {e.s && e.s.length > 0 && (
+                            <p className="mono text-[10px] text-tan-3">
+                              defined in:{" "}
+                              {e.s.map((docNo, j) => (
+                                <span key={docNo}>
+                                  {j > 0 && ", "}
+                                  <button onClick={() => annNavDoc("relation_source", docNo)} className="hover:underline text-accent">
+                                    {docNo}
+                                  </button>
+                                </span>
+                              ))}
+                            </p>
                           )}
                         </div>
-                        {e.s && e.s.length > 0 && (
-                          <p className="mono text-[10px] text-tan-3">
-                            defined in:{" "}
-                            {e.s.map((docNo, j) => (
-                              <span key={docNo}>
-                                {j > 0 && ", "}
-                                <button
-                                  onClick={() => annNavDoc("relation_source", docNo)}
-                                  className="hover:underline text-accent"
-                                >
-                                  {docNo}
-                                </button>
-                              </span>
-                            ))}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {Object.keys(targetAddresses).length > 0 && (
-              <div className="mt-8">
-                <p className={`${SECTION_HEAD} mb-4`}>
-                  addresses · {Object.keys(targetAddresses).length}
-                </p>
-                {Object.entries(targetAddresses).map(([address, info]) => (
-                  <ErrorBoundary key={address} fallback={(error) => <InlineError error={error} />}>
-                    <AddressCard
-                      address={address}
-                      info={info}
-                      chainValues={chainValues[address]}
-                    />
-                  </ErrorBoundary>
-                ))}
-              </div>
+              {Object.keys(targetAddresses).length > 0 && (
+                <div className="mt-8">
+                  <p className={`${SECTION_HEAD} mb-4`}>addresses · {Object.keys(targetAddresses).length}</p>
+                  {Object.entries(targetAddresses).map(([address, info]) => (
+                    <ErrorBoundary key={address} fallback={(error) => <InlineError error={error} />}>
+                      <AddressCard address={address} info={info} chainValues={chainValues[address]} byName={byNameOnly?.has(address)} />
+                    </ErrorBoundary>
+                  ))}
+                </div>
+              )}
+              </>
             )}
+          </section>
 
-          </div>
-        ) : tab === "glossary" ? (
-          <div className="px-4 py-5">
+          <section className="rl-section" ref={(el) => { sectionRefs.current.history = el; }} data-testid="history-panel">
+            <SectionDivider label="history" active={tab === "history"} />
+            <ErrorBoundary resetKey={id} fallback={(error) => <InlineError error={error} />}>
+              {preview ? <PreviewHistory nodeId={id} /> : <NodeHistory nodeId={id} />}
+            </ErrorBoundary>
+          </section>
+
+          <section className="rl-section" ref={(el) => { sectionRefs.current.glossary = el; }}>
+            <SectionDivider label="glossary" active={tab === "glossary"} />
             {glossaryTerms.length === 0 ? (
               <p className="text-xs mono text-tan-3">No glossary terms in this section.</p>
             ) : (
               <div className="space-y-4">
                 {glossaryTerms.map((entries) => (
-                  <div key={entries[0].nodeId} className="border-b border-border pb-4">
+                  <div key={entries[0].nodeId}>
                     <button
                       onClick={() => annNav("glossary", entries[0].nodeId)}
                       className="text-xs font-semibold mono mb-1 text-accent hover:underline cursor-pointer text-left"
@@ -318,14 +354,8 @@ export function RightPanel({
                 ))}
               </div>
             )}
-          </div>
-        ) : (
-          <div className="px-4 py-5" data-testid="history-panel">
-            <ErrorBoundary resetKey={id} fallback={(error) => <InlineError error={error} />}>
-              {preview ? <PreviewHistory nodeId={id} /> : <NodeHistory nodeId={id} />}
-            </ErrorBoundary>
-          </div>
-        )}
+          </section>
+        </div>
       </div>
     </>
   );

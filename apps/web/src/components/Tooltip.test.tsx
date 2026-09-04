@@ -136,6 +136,38 @@ describe("Tooltip", () => {
     expect(screen.getByText("trigger")).toBeInTheDocument();
   });
 
+  it("composes the child's own mouse and focus handlers instead of overwriting them", () => {
+    const onMouseEnter = vi.fn();
+    const onMouseLeave = vi.fn();
+    const onFocus = vi.fn();
+    const onBlur = vi.fn();
+    render(
+      <Tooltip content="text" delay={50}>
+        <button
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+          onFocus={onFocus}
+          onBlur={onBlur}
+        >
+          trigger
+        </button>
+      </Tooltip>,
+    );
+    const trigger = screen.getByText("trigger");
+    fireEvent.mouseEnter(trigger);
+    expect(onMouseEnter).toHaveBeenCalledTimes(1);
+    act(() => { vi.advanceTimersByTime(50); });
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+    fireEvent.mouseLeave(trigger);
+    expect(onMouseLeave).toHaveBeenCalledTimes(1);
+
+    fireEvent.focus(trigger);
+    expect(onFocus).toHaveBeenCalledTimes(1);
+    fireEvent.blur(trigger);
+    expect(onBlur).toHaveBeenCalledTimes(1);
+  });
+
   it("cleans up pending timers and the active-tooltip slot on unmount", () => {
     const { unmount } = render(
       <Tooltip content="text" delay={100}>

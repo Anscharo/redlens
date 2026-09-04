@@ -1,36 +1,9 @@
-import { useEffect, useReducer, useState, type ReactElement } from "react";
+import { useEffect, useReducer, type ReactElement } from "react";
 import { Tooltip } from "./Tooltip";
 import { getAddressMap } from "../lib/addressMap";
-import { loadBalancesCached, peekCachedBalances, type AddressBalances } from "@/lib/balances";
+import { useSharedBalances } from "../lib/sharedBalances";
 import { resolveAddressTooltip } from "../lib/addressTooltip";
 import { shortLink } from "../lib/format";
-
-// undefined until the shared fetch settles (loading); a failed fetch settles
-// to {} — same as "no balances known" — rather than leaving the tooltip
-// spinning forever, since nothing downstream distinguishes the two.
-type AddressBalanceMap = Record<string, AddressBalances>;
-
-// Tooltip mounts/unmounts this component fresh on every hover. Fetching is
-// deliberately lazy — the first hover of any address on the page triggers the
-// one shared /api/balances request (loadBalancesCached), so a session where
-// nothing is ever hovered costs nothing; that first hover shows a brief
-// loading spinner. Seeding from the already-resolved cache
-// (peekCachedBalances) means every hover *after* that first one paints with
-// balances already in place instead of spinning again.
-function useBalances(): AddressBalanceMap | undefined {
-  const [addresses, setAddresses] = useState<AddressBalanceMap | undefined>(
-    () => peekCachedBalances()?.addresses,
-  );
-  useEffect(() => {
-    if (addresses) return;
-    let live = true;
-    loadBalancesCached()
-      .then((res) => { if (live) setAddresses(res.addresses); })
-      .catch(() => { if (live) setAddresses({}); });
-    return () => { live = false; };
-  }, [addresses]);
-  return addresses;
-}
 
 function Spinner() {
   return (
@@ -51,8 +24,8 @@ function AddressTooltipContent({
   href?: string;
   onSettled: () => void;
 }) {
-  const addresses = useBalances();
-  const loading = addresses === undefined;
+  const { addresses, ready } = useSharedBalances(true);
+  const loading = !ready;
   // Tooltip only re-measures/repositions when its `content` prop's element
   // *reference* changes (see Tooltip.tsx's placement effect), and that
   // reference is created once by AddressTooltip below — so on its own, this
@@ -64,7 +37,7 @@ function AddressTooltipContent({
   useEffect(() => {
     if (!loading) onSettled();
   }, [loading, onSettled]);
-  const { name, held } = resolveAddressTooltip(address, getAddressMap(), addresses ?? {});
+  const { name, held } = resolveAddressTooltip(address, getAddressMap(), addresses);
   return (
     <div className="min-w-[8rem] max-w-[16rem]">
       <div className="font-medium text-tan truncate">{name}</div>

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// RightPanel is a controlled three-tab panel (annotations / glossary / history).
-// We assert the tablist wiring (aria-selected + onTabChange) and that each tab
-// renders its own content. The history children fetch from the server, so they're
+// RightPanel is one scrolling column (notes / history / glossary) with jump
+// pills. We assert the pill wiring (aria-current + onTabChange) and that each
+// section renders. The history children fetch from the server, so they're
 // stubbed — the live-vs-preview history split is an L3 concern.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
@@ -18,10 +18,15 @@ vi.mock("../history/NodeHistory", () => ({
 vi.mock("../history/PreviewHistory", () => ({
   PreviewHistory: () => <div data-testid="preview-history" />,
 }));
+vi.mock("@/lib/balances", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  loadBalancesCached: () => new Promise(() => {}),
+  peekCachedBalances: () => null,
+}));
 
 afterEach(cleanup);
 
-type Tab = "annotations" | "glossary" | "history";
+type Tab = "notes" | "glossary" | "history";
 
 function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
   const onTabChange = vi.fn();
@@ -39,7 +44,7 @@ function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
     glossaryTerms: [],
     onNavigate,
     onNavigateByDocNo,
-    tab: "annotations" as Tab,
+    tab: "notes" as Tab,
     onTabChange,
     ...overrides,
   };
@@ -47,18 +52,22 @@ function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
   return { onTabChange, onNavigate, onNavigateByDocNo };
 }
 
-describe("RightPanel tablist", () => {
-  it("marks the active tab via aria-selected", () => {
+describe("RightPanel section pills", () => {
+  it("marks the active section via aria-current, without tab roles", () => {
     setup({ tab: "glossary" });
-    expect(screen.getByRole("tab", { name: /glossary/ })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: /annotations/ })).toHaveAttribute("aria-selected", "false");
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.getByRole("navigation", { name: "Panel sections" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /glossary/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: /notes/ })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("button", { name: /glossary/ })).toHaveAttribute("data-state", "active");
+    expect(screen.getByRole("button", { name: /notes/ })).toHaveAttribute("data-state", "inactive");
   });
 
-  it("calls onTabChange with the clicked tab", () => {
-    const { onTabChange } = setup({ tab: "annotations" });
-    fireEvent.click(screen.getByRole("tab", { name: /glossary/ }));
+  it("calls onTabChange with the clicked section", () => {
+    const { onTabChange } = setup({ tab: "notes" });
+    fireEvent.click(screen.getByRole("button", { name: /glossary/ }));
     expect(onTabChange).toHaveBeenCalledWith("glossary");
-    fireEvent.click(screen.getByRole("tab", { name: /history/ }));
+    fireEvent.click(screen.getByRole("button", { name: /history/ }));
     expect(onTabChange).toHaveBeenCalledWith("history");
   });
 
@@ -67,10 +76,9 @@ describe("RightPanel tablist", () => {
     expect(screen.getByText(/linked documents · 2/)).toBeInTheDocument();
   });
 
-  // The annotations tab is named for the panel, not for these — but a doc's own
-  // Element Annotations belong in it, and they are the hardest section to reach
-  // in the reader (the atlas emits the supporting `0` directory after every real
-  // sibling), so they lead the tab.
+  // Element Annotations belong in the notes panel — they are the hardest
+  // section to reach in the reader (the atlas emits the supporting `0`
+  // directory after every real sibling), so they lead it.
   it("lists the doc's Element Annotations under an 'annotated by' heading", () => {
     setup({
       annotationDocs: [
@@ -103,9 +111,9 @@ describe("RightPanel tablist", () => {
 });
 
 describe("RightPanel tab content", () => {
-  it("renders addresses on the annotations tab", () => {
+  it("renders addresses on the notes tab", () => {
     setup({
-      tab: "annotations",
+      tab: "notes",
       targetAddresses: { "0xabc": makeAddressInfo({ label: "MCD_VAT" }) },
     });
     expect(screen.getByText(/addresses · 1/)).toBeInTheDocument();
@@ -215,7 +223,7 @@ describe("RightPanel graph relations", () => {
   it("renders cited-by entries and navigates on click", async () => {
     const user = userEvent.setup();
     const { onNavigate } = setup({
-      tab: "annotations",
+      tab: "notes",
       graphEdges: makeEdgeResult({
         inbound: [makeEdge({ e: "cites", f: "citer-1", s: ["A.9.9"] })],
       }),
@@ -227,7 +235,7 @@ describe("RightPanel graph relations", () => {
 
   it("falls back to a truncated id when a cited-by edge has no source doc_no", async () => {
     setup({
-      tab: "annotations",
+      tab: "notes",
       graphEdges: makeEdgeResult({
         inbound: [makeEdge({ e: "cites", f: "12345678-abcd-ef00-1234-56789abcdef0", s: undefined })],
       }),
@@ -239,7 +247,7 @@ describe("RightPanel graph relations", () => {
     const user = userEvent.setup();
     const { onNavigate, onNavigateByDocNo } = setup({
       id: "self-id",
-      tab: "annotations",
+      tab: "notes",
       graphEdges: makeEdgeResult({
         outbound: [
           makeEdge({
@@ -262,7 +270,7 @@ describe("RightPanel graph relations", () => {
 
   it("renders inbound entity relations as non-navigable labels with the inbound arrow", () => {
     setup({
-      tab: "annotations",
+      tab: "notes",
       graphEdges: makeEdgeResult({
         inbound: [
           makeEdge({
@@ -284,7 +292,7 @@ describe("RightPanel graph relations", () => {
   it("hides relations pointing back at the current node (self-nav) from the rendered rows", () => {
     setup({
       id: "node-1",
-      tab: "annotations",
+      tab: "notes",
       graphEdges: makeEdgeResult({
         outbound: [makeEdge({ e: "depends_on", f: "node-1", t: "node-1", tt: "doc" })],
       }),
@@ -296,7 +304,7 @@ describe("RightPanel graph relations", () => {
 
   it("filters out HIDE-listed edge kinds from the relations section", () => {
     setup({
-      tab: "annotations",
+      tab: "notes",
       graphEdges: makeEdgeResult({
         outbound: [makeEdge({ e: "parent_of", f: "node-1", t: "child-1", tt: "doc" })],
       }),

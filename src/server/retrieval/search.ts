@@ -7,6 +7,7 @@ import { embedQuery } from "./embed.ts";
 import { config } from "../config.ts";
 import { compactProse } from "../../lib/shortenTitle.ts";
 import { rewriteSemanticHit, type Via, type LeafSemanticScore } from "./embed-units.ts";
+import { expandQueryTokens, partitionByOriginalTerms } from "../../lib/searchInflect.ts";
 export type { Via };
 
 const RRF_K = 60;
@@ -53,12 +54,18 @@ export interface MergedHit {
 // fuzzy OFF by default (it dilutes exact term/ID/address lookups — the strength
 // of lexical mode), same boosts and OR combine.
 export function runLexical(ix: Indexes, query: string, type: string | undefined, k: number): Hit[] {
-  let results = ix.mini.search(query, {
+  const tokens = query.trim().split(/\s+/).filter(Boolean);
+  const expansion = expandQueryTokens(tokens);
+  const q = expansion.extra.length > 0 ? `${query} ${expansion.extra.join(" ")}` : query;
+  let results = ix.mini.search(q, {
     boost: { title: 10, doc_no: 5, type: 2 },
     prefix: true,
     fuzzy: false,
     combineWith: "OR",
   });
+  if (expansion.extra.length > 0) {
+    results = partitionByOriginalTerms(results, new Set(expansion.originals));
+  }
   // Type is a POST-filter against docMap, not a MiniSearch `filter`: the index
   // stores no per-result fields (kept out to shrink the artifact), so results
   // carry no `type`. Resolve it by id — same approach as the frontend worker.

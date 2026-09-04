@@ -4,7 +4,7 @@
 // mocked (its real impl fetches + caches per id); EntryRow renders for real.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 vi.mock("@/lib/history", async (importOriginal) => {
@@ -135,25 +135,19 @@ describe("NodeHistory states", () => {
     expect(screen.queryByText(/could not be traced/i)).not.toBeInTheDocument();
   });
 
-  it("hides HTML-era entries by default behind a toggle, and reveals them on click", async () => {
+  it("always shows HTML-era entries, flagging their reconstructed provenance with an info affordance", async () => {
     mockLoad.mockResolvedValue([
       entry({ date: "2025-11-21", pr: 117, prTitle: "Migrate To Markdown File", summary: "migration" }),
       entry({ date: "2025-09-01", commitHash: "html0001", era: "html", summary: "an html-era change" }),
     ]);
     render(<NodeHistory nodeId="n7" />);
 
-    await screen.findByText("migration");
-    expect(screen.queryByText("an html-era change")).not.toBeInTheDocument();
-    expect(screen.queryByText(/This history is reconstructed/i)).not.toBeInTheDocument();
-    // the legacy "no per-doc identities" footer is also suppressed — this doc DOES have
-    // reconstructed entries, they're just toggled off, so the footer would be misleading
-    expect(screen.queryByText(/79 prior commits exist/)).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "View Reconstructed History" }));
-
+    // No toggle: the reconstructed entry is visible from the start.
     expect(await screen.findByText("an html-era change")).toBeInTheDocument();
-    expect(screen.getByText(/This history is reconstructed/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Learn how →" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Reconstructed History/ })).not.toBeInTheDocument();
+    // Its provenance rides an info affordance next to the date (the disclaimer text
+    // itself lives in the hover tooltip, so it is not inline in the DOM).
+    expect(screen.getByRole("note", { name: "This history is reconstructed" })).toBeInTheDocument();
   });
 
   it("badges only the AI/human HTML-era entries, never deterministic or markdown ones", async () => {
@@ -163,7 +157,6 @@ describe("NodeHistory states", () => {
       entry({ date: "2025-09-01", commitHash: "h3", era: "html", summary: "deterministic (no method)" }),
     ]);
     render(<NodeHistory nodeId="n8" />);
-    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
 
     await screen.findByText("ai-resolved");
     expect(screen.getByText("AI")).toBeInTheDocument();
@@ -172,7 +165,7 @@ describe("NodeHistory states", () => {
     expect(screen.getAllByText(/^(AI|human)$/)).toHaveLength(2);
   });
 
-  it("hides mip/genesis/severed entries behind the same toggle as html era, with their own disclaimer", async () => {
+  it("always shows mip/genesis/severed entries, flagging their pre-git provenance with an info affordance", async () => {
     mockLoad.mockResolvedValue([
       entry({ date: "2025-01-01", commitHash: "abcdef1", commitSeq: 500, summary: "modern edit" }),
       entry({
@@ -185,14 +178,12 @@ describe("NodeHistory states", () => {
       }),
     ]);
     render(<NodeHistory nodeId="n9" />);
-    await screen.findByText("modern edit");
-    expect(screen.queryByText("Proposed in MIP104 §14.3")).not.toBeInTheDocument();
-    expect(screen.queryByText("Present at Atlas v2 genesis")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "View Reconstructed History" }));
+    // No toggle: the pre-git entries are visible from the start.
     expect(await screen.findByText("Proposed in MIP104 §14.3")).toBeInTheDocument();
     expect(screen.getByText("Present at Atlas v2 genesis")).toBeInTheDocument();
-    expect(screen.getByText(/This history comes from pre-git sources/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Reconstructed History/ })).not.toBeInTheDocument();
+    // Each pre-git entry carries a "pre-git sources" info affordance by its date.
+    expect(screen.getAllByRole("note", { name: "This history comes from pre-git sources" }).length).toBe(2);
   });
 
   it("orders by commitSeq, not date, when a severed-era birth carries no date at all", async () => {
@@ -201,7 +192,6 @@ describe("NodeHistory states", () => {
       entry({ date: "", commitHash: "severed:window", era: "severed", commitSeq: -10000, summary: "severed birth" }),
     ]);
     render(<NodeHistory nodeId="n10" />);
-    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
     const severed = await screen.findByText("severed birth");
     const genesis = screen.getByText("genesis fact");
     // severed (commitSeq -10000, chronologically LATER) must render before genesis
@@ -219,7 +209,6 @@ describe("NodeHistory states", () => {
       }),
     ]);
     render(<NodeHistory nodeId="n11" />);
-    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
     await screen.findByText("Proposed in MIP104 §14.3");
     const link = screen.getByRole("link", { name: "source →" });
     expect(link).toHaveAttribute("href", "https://github.com/sky-ecosystem/mips/blob/main/MIP104/MIP104.md#1413");
@@ -234,7 +223,6 @@ describe("NodeHistory states", () => {
       }),
     ]);
     render(<NodeHistory nodeId="n12" />);
-    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
     await screen.findByText("Present at Atlas v2 genesis");
     expect(screen.getByText("committed")).toBeInTheDocument();
   });
@@ -247,24 +235,8 @@ describe("NodeHistory states", () => {
       }),
     ]);
     render(<NodeHistory nodeId="n13" />);
-    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
     await screen.findByText("Present at Atlas v2 genesis");
     expect(screen.queryByText("added")).not.toBeInTheDocument();
-  });
-
-  it("places the toggle right below the migration entry, not at the top", async () => {
-    mockLoad.mockResolvedValue([
-      entry({ date: "2026-01-01", commitHash: "newer12", commitSeq: 200, summary: "a modern edit" }),
-      entry({ date: "2025-11-21", commitHash: "22cc27b", commitSeq: 82, pr: 117, prTitle: "Migrate To Markdown File" }),
-      entry({ date: "2025-09-01", commitHash: "html0001", era: "html", commitSeq: 5, summary: "an html-era change" }),
-    ]);
-    render(<NodeHistory nodeId="n14" />);
-    const modern = await screen.findByText("a modern edit");
-    const migration = screen.getByText("Migrate To Markdown File");
-    const toggle = screen.getByRole("button", { name: "View Reconstructed History" });
-    // DOM order: modern edit, then the migration row, then the toggle.
-    expect(modern.compareDocumentPosition(migration) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(migration.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("ignores a stale response from a superseded nodeId (fast A→B navigation)", async () => {
@@ -284,31 +256,19 @@ describe("NodeHistory states", () => {
     expect(screen.queryByText("A's history")).not.toBeInTheDocument();
   });
 
-  it("keeps the toggle below the entries even with no migration entry (byte-identical across #117)", async () => {
-    mockLoad.mockResolvedValue([
-      entry({ date: "2026-01-01", commitHash: "newer12", commitSeq: 200, summary: "a modern edit" }),
-      entry({ date: "2025-09-01", commitHash: "html0001", era: "html", commitSeq: 5, summary: "an html-era change" }),
-    ]);
-    render(<NodeHistory nodeId="n15" />);
-    const modern = await screen.findByText("a modern edit");
-    const toggle = screen.getByRole("button", { name: "View Reconstructed History" });
-    // Toggle sits below the (only) native entry, right where the hidden block would appear.
-    expect(modern.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it("when shown, the toggle sits below the native entries and just above the reconstructed block", async () => {
+  it("keeps the full history in newest-first order with reconstructed entries inline", async () => {
     mockLoad.mockResolvedValue([
       entry({ date: "2026-01-01", commitHash: "newer12", commitSeq: 200, summary: "a modern edit" }),
       entry({ date: "2025-11-21", commitHash: "22cc27b", commitSeq: 82, pr: 117, prTitle: "Migrate To Markdown File" }),
       entry({ date: "2025-09-01", commitHash: "html0001", era: "html", commitSeq: 5, summary: "an html-era change" }),
     ]);
     render(<NodeHistory nodeId="n16" />);
-    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
-    const migration = screen.getByText("Migrate To Markdown File"); // last native entry
-    const toggle = screen.getByRole("button", { name: "Hide Reconstructed History" });
-    const html = screen.getByText("an html-era change"); // first reconstructed entry
-    // native … migration, then the toggle, then the reconstructed block below it.
-    expect(migration.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(toggle.compareDocumentPosition(html) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const modern = await screen.findByText("a modern edit");
+    const migration = screen.getByText("Migrate To Markdown File");
+    const html = screen.getByText("an html-era change");
+    // No toggle: everything is shown, newest-first — modern, migration, then the reconstructed entry.
+    expect(screen.queryByRole("button", { name: /Reconstructed History/ })).not.toBeInTheDocument();
+    expect(modern.compareDocumentPosition(migration) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(migration.compareDocumentPosition(html) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
