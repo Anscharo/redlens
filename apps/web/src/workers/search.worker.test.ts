@@ -1,4 +1,4 @@
-// Worker-side tests for src/workers/search.worker.ts.
+// Worker-side tests for apps/web/src/workers/search.worker.ts.
 //
 // These drive the genuine worker code through its message protocol (the same
 // protocol useSearch/App speak on the main thread): install a fake worker global,

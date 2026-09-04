@@ -14,17 +14,8 @@ import MiniSearch from "minisearch";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { UUID_PREFIX_RE } from "@/lib/patterns";
+import { MINISEARCH_OPTIONS } from "@/lib/searchOptions";
 import { matchUuidPrefix } from "../lib/uuidSearch";
-
-// KEEP IN SYNC WITH src/workers/search.worker.ts + scripts/required/build-index.mjs
-const MINISEARCH_OPTIONS: ConstructorParameters<typeof MiniSearch>[0] = {
-  fields: ["title", "doc_no", "type", "content"],
-  idField: "id",
-  processTerm: (term) => {
-    const lower = term.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, "").toLowerCase();
-    return lower.length >= 2 ? lower : null;
-  },
-};
 
 const SEARCH_OPTS = {
   prefix: true,

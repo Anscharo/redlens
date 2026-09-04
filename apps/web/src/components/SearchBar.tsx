@@ -14,8 +14,8 @@ const MAX_SUGGESTIONS = 6;
 
 const MODE_CONFIG: Record<SearchMode, { symbol: string; title: string }> = {
   broad:  { symbol: "a*",  title: "Broad — prefix match on each word, case-insensitive" },
-  phrase: { symbol: '"a"', title: "Phrase — exact phrase match, case-insensitive" },
-  strict: { symbol: "Aa",  title: "Strict — exact phrase match, case-sensitive" },
+  phrase: { symbol: '"a"', title: "Phrase — literal substring, case-insensitive" },
+  strict: { symbol: "Aa",  title: "Strict — literal substring, case-sensitive" },
 };
 
 const MIXED_TOOLTIP = "Advanced mode enabled due to mixed use of quoted and unquoted terms";

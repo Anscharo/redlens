@@ -128,7 +128,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Query language",
         what: "Broad, phrase, strict, and fuzzy search with field filters and exclusions.",
         how: [
-          'Type terms for a broad search (partial words match); wrap in double quotes for a "phrase"; single quotes for a case-sensitive match.',
+          'Type terms for a broad search (partial words match). Wrap a phrase in double quotes for a literal substring (case-insensitive), or single quotes for case-sensitive.',
           "Add ~N to a term to allow N character edits — misaligment~1.",
           "Filter with title:, type:, and in:<doc number>; drop a term with a leading -.",
           "Type / for slash commands, or /h for the full query-syntax reference.",
@@ -138,7 +138,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Jump-to",
         what: "Go straight to a document or entity by identifier.",
         how: [
-          "Enter a doc number, a 0x address, a Sky chainlog id, or a UUID (full, or an 8+ character prefix) to jump directly.",
+          "Enter a doc number, a Sky chainlog id, or a UUID (full, or an 8+ character prefix) to jump directly. An address prefix (0x…) finds every node that cites a matching address.",
           "Recent searches are remembered; results are labelled with the scope, agent, or ICD each hit lives under.",
         ],
       },
