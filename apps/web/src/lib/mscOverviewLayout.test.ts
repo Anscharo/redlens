@@ -194,21 +194,28 @@ describe("layoutMscRing (orbital pies)", () => {
       if (p.arrow) {
         expect(Math.hypot(p.arrow.pillX - p.arrow.amountX, p.arrow.pillY - p.arrow.amountY)).toBeGreaterThan(20);
       }
-      // Name outside the pie, gross pill on the far side of the name.
+      // Name outside the pie; the figure line (labelY + 16) also clears it;
+      // the gross pill sits beyond both, on the far side from the pie.
       expect(Math.abs(p.labelY - p.cy)).toBeGreaterThan(p.r);
+      if (p.labelY < p.cy) expect(p.labelY + 16 + 6).toBeLessThan(p.cy - p.r);
       expect(Math.sign(p.grossPillY - p.labelY)).toBe(Math.sign(p.labelY - p.cy));
     }
   });
 
-  it("keeps every pie inside the fixed frame, clear of the donut and of each other", () => {
+  it("crops the viewBox to the month's content, keeps every pie inside it, clear of Sky and of each other", () => {
     for (const month of [JULY, APRIL, [MARCH_GROVE, flow()]]) {
       const layout = layoutMscRing(month);
+      // Cropped: the box hugs the content instead of the working canvas.
+      expect(layout.width).toBeLessThan(WIDTH);
+      expect(layout.x).toBeGreaterThan(0);
       for (let i = 0; i < layout.primes.length; i++) {
         const a = layout.primes[i];
-        expect(a.cx - a.r).toBeGreaterThan(0);
-        expect(a.cx + a.r).toBeLessThan(WIDTH);
-        expect(a.cy - a.r - 24).toBeGreaterThan(0);
-        expect(a.cy + a.r + 24).toBeLessThan(layout.height);
+        expect(a.cx - a.r).toBeGreaterThan(layout.x);
+        expect(a.cx + a.r).toBeLessThan(layout.x + layout.width);
+        expect(a.cy - a.r).toBeGreaterThan(layout.y);
+        expect(a.cy + a.r).toBeLessThan(layout.y + layout.height);
+        expect(a.labelY - 14).toBeGreaterThan(layout.y);
+        expect(a.labelY + 22).toBeLessThan(layout.y + layout.height);
         expect(Math.hypot(a.cx - layout.cx, a.cy - layout.cy)).toBeGreaterThan(layout.skyR + a.r);
         for (let j = i + 1; j < layout.primes.length; j++) {
           const b = layout.primes[j];

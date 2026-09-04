@@ -2761,13 +2761,13 @@ a.atlas-annotates:focus-visible {
 /* ─── MSC ecosystem ring (radar index overview) ─── */
 .msc-ring {
   display: block;
+  /* Fills the card's height (the timeseries card beside it sets the row's
+     height) and never exceeds 950px wide; the cropped viewBox scales to
+     fit both, so the two charts always share a height. */
+  flex: 1 1 0;
+  min-height: 0;
   width: 100%;
-  /* Never wider than 950px, never taller than the viewport (minus the
-     card's title and key), so top and bottom are always on screen; the
-     viewBox scales to fit both. */
   max-width: min(950px, 100%);
-  height: auto;
-  max-height: calc(100vh - 9rem);
   margin: 0 auto;
   overflow: visible;
 }

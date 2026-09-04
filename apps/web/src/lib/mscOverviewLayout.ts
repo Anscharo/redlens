@@ -33,12 +33,15 @@
 import { DEMAND_SERIES, SETTLEMENT_NEAR_ZERO, type DemandKey } from "@/lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
+/** Working canvas the layout is computed on. The viewBox the chart ships
+ *  is then CROPPED to what got drawn (see `fitViewBox`), so the frame is
+ *  never taller than its content and the card's height sets the scale. */
 export const WIDTH = 1300;
 const CX = WIDTH / 2;
-/** Orbit ellipse the pie centers start on — a lower bound; a pie that
- *  would lean into the donut is pushed further out. */
-const ORBIT_RX = 500;
-const ORBIT_RY = 330;
+/** Orbit circle the pie centers start on — a lower bound; a pie that would
+ *  lean into Sky is pushed further out. Round, so no direction is favoured. */
+const ORBIT_RX = 380;
+const ORBIT_RY = 380;
 /** Sky pie: on the SAME area scale as the pies (see R_MAX), with a floor
  *  so the label always fits. No hole — a hole means a loss here. */
 const SKY_MIN_R = 80;
@@ -55,8 +58,12 @@ const HOLE_RIM = 6;
 const CLEARANCE = 22;
 /** Minimum gap between a pie and the donut — room for the arrow. */
 const DONUT_GAP = 84;
-/** Vertical room reserved for a name drawn outside its pie. */
-const LABEL_OUT = 24;
+/** Room reserved outside a pie for its name and gross figure (two lines). */
+const LABEL_OUT = 40;
+/** Padding around the cropped viewBox. */
+const CROP_PAD = 24;
+/** Half-width allowance for a name under a pie, for the crop. */
+const NAME_HALF_W = 60;
 /** Arrow shaft width: linear in the To-Sky amount, biggest at W_MAX. */
 const W_MAX = 22;
 const W_MIN = 3;
@@ -77,9 +84,7 @@ const MAX_LEAN = Math.PI / 3;
 /** Leader length from a mark to its hover pill. */
 const PILL_OFFSET = 40;
 
-/** FIXED frame: the viewBox never changes with the month, so switching
- *  months can't reflow the page below the chart. Budget: the donut, the
- *  gap, and a full-size pie with its name outside, top and bottom. */
+/** Working canvas height (see WIDTH). */
 export const HEIGHT = 2 * (R_MAX + DONUT_GAP + 2 * R_MAX + 2 * LABEL_OUT + 8);
 
 /** Slice kinds, in the pie's clockwise order: the To-Sky pair first (they
@@ -181,6 +186,11 @@ export interface RingPrime {
 }
 
 export interface RingLayout {
+  /** The viewBox: cropped to the month's content, plus padding. The
+   *  rendered size comes from CSS (the card), so a changing box rescales
+   *  the drawing rather than reflowing the page. */
+  x: number;
+  y: number;
   width: number;
   height: number;
   cx: number;
@@ -268,6 +278,8 @@ export function layoutMscRing(
     .filter((r) => r.items.length > 0 || r.sky !== 0);
 
   const empty: RingLayout = {
+    x: 0,
+    y: 0,
     width: WIDTH,
     height: HEIGHT,
     cx: CX,
@@ -481,9 +493,11 @@ export function layoutMscRing(
     }
 
     // Name outside the pie on the side away from Sky (above for the upper
-    // half, below for the lower); the gross pill goes on the other side.
+    // half, below for the lower), with the gross figure always on the line
+    // UNDER the name (labelY + 16, drawn by the view), so the two read the
+    // same way everywhere; the gross pill goes beyond both.
     const above = py <= cy;
-    const labelY = above ? py - s.r - 12 : py + s.r + 18;
+    const labelY = above ? py - s.r - 30 : py + s.r + 18;
     return {
       prime: r.p.prime,
       angle: t,
@@ -496,13 +510,35 @@ export function layoutMscRing(
       gross: r.gross,
       labelX: px,
       labelY,
-      // Clear of the gross sub-label that sits beyond the name.
+      // Clear of the name + figure pair.
       grossPillX: px,
-      grossPillY: above ? labelY - 46 : labelY + 42,
+      grossPillY: above ? labelY - 28 : labelY + 44,
       grossAnchorX: px,
-      grossAnchorY: above ? labelY - 30 : labelY + 20,
+      grossAnchorY: above ? labelY - 12 : labelY + 22,
     };
   });
 
-  return { ...empty, skyR, skyInnerR, skyWedges, primes: out };
+  return { ...empty, ...fitViewBox(out, skyR, cy), skyR, skyInnerR, skyWedges, primes: out };
+}
+
+/** The bounding box of everything drawn — Sky, every pie, its name and
+ *  figure line — plus padding. */
+function fitViewBox(primes: RingPrime[], skyR: number, cy: number) {
+  let x0 = CX - skyR;
+  let x1 = CX + skyR;
+  let y0 = cy - skyR;
+  let y1 = cy + skyR;
+  for (const p of primes) {
+    x0 = Math.min(x0, p.cx - p.r, p.labelX - NAME_HALF_W);
+    x1 = Math.max(x1, p.cx + p.r, p.labelX + NAME_HALF_W);
+    // The name's line box is ~18px tall, the figure sits 16px under it.
+    y0 = Math.min(y0, p.cy - p.r, p.labelY - 14);
+    y1 = Math.max(y1, p.cy + p.r, p.labelY + 22);
+  }
+  return {
+    x: x0 - CROP_PAD,
+    y: y0 - CROP_PAD,
+    width: x1 - x0 + 2 * CROP_PAD,
+    height: y1 - y0 + 2 * CROP_PAD,
+  };
 }

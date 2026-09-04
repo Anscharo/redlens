@@ -56,10 +56,10 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
         <text x={ring.labelX} y={ring.labelY} textAnchor="middle" fontSize={17} className="msc-ring-label">
           {label}
         </text>
-        {/* Gross revenue under the name — the pie's area, in words. */}
+        {/* Gross revenue on the line under the name — the pie's area, in words. */}
         <text
           x={ring.labelX}
-          y={ring.labelY + (ring.labelY < ring.cy ? -18 : 16)}
+          y={ring.labelY + 16}
           textAnchor="middle"
           fontSize={12}
           className="msc-ring-sublabel mono"

@@ -107,7 +107,10 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
       </p>
       <MscHeadline eco={eco} />
       <PrimeHoverStyles primes={stack.primes} />
-      <div className="msc-overview-row flex flex-wrap items-start gap-x-6 gap-y-4 min-w-0">
+      {/* The timeseries card sets the row's height; the ring card stretches
+          to match and its chart fills whatever is left under the title and
+          above the key. */}
+      <div className="msc-overview-row flex flex-wrap items-stretch gap-x-6 gap-y-4 min-w-0">
         <div className="msc-card rounded p-4 min-w-0 max-w-full">
           <MscTimeseries
             primes={stack.primes}
@@ -122,7 +125,7 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
             onTogglePlay={() => setPlaying((p) => !p)}
           />
         </div>
-        <div className="msc-card msc-ring-card rounded p-4 flex-1 min-w-0" style={{ flexBasis: 340, maxWidth: "100%" }}>
+        <div className="msc-card msc-ring-card rounded p-4 flex-1 min-w-0 flex flex-col" style={{ flexBasis: 340, maxWidth: "100%" }}>
           <p className="text-sm mb-2" style={{ color: "var(--tan)" }}>
             Sky System Settlements — {formatMonth(month)}
           </p>
