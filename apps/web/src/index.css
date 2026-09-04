@@ -2762,8 +2762,12 @@ a.atlas-annotates:focus-visible {
 .msc-ring {
   display: block;
   width: 100%;
-  max-width: min(960px, 100%);
+  /* Never wider than 950px, never taller than the viewport (minus the
+     card's title and key), so top and bottom are always on screen; the
+     viewBox scales to fit both. */
+  max-width: min(950px, 100%);
   height: auto;
+  max-height: calc(100vh - 9rem);
   margin: 0 auto;
   overflow: visible;
 }
@@ -2776,8 +2780,8 @@ a.atlas-annotates:focus-visible {
 /* Sky's donut is subdivided into one wedge per contributing Prime, in that
    Prime's identity color — the flows into Sky, shown adding up to it. */
 .msc-ring-sky-wedge {
-  fill-opacity: 0.55;
-  stroke: var(--bg);
+  fill-opacity: 0.85;
+  stroke: var(--bg-deep);
   stroke-width: 1;
   transition: fill-opacity 0.1s;
   cursor: pointer;
@@ -2785,21 +2789,12 @@ a.atlas-annotates:focus-visible {
 .msc-ring-mark:hover .msc-ring-sky-wedge {
   fill-opacity: 1;
 }
-.msc-ring-center {
-  /* Over the wedges: page ink with a card-colored halo. */
-  fill: var(--tan);
-  paint-order: stroke;
-  stroke: var(--bg-deep);
-  stroke-width: 4px;
-  stroke-linejoin: round;
-}
-/* Permanent figures inside slices/wedges and under names: small, haloed. */
+/* Text that sits ON a colored slice or wedge uses the page background as
+   its ink: dark on the mid-tone fills of the dark theme, light on the deep
+   fills of the light theme — no halos. */
+.msc-ring-center,
 .msc-ring-figure {
-  fill: var(--tan);
-  paint-order: stroke;
-  stroke: var(--bg-deep);
-  stroke-width: 3px;
-  stroke-linejoin: round;
+  fill: var(--bg);
   pointer-events: none;
 }
 .msc-ring-sublabel {

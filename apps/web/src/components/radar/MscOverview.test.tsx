@@ -87,7 +87,7 @@ describe("MscOverview", () => {
     expect(track).toHaveBeenCalledTimes(1);
   });
 
-  it("autoplays through the months two seconds apart until a month is clicked", async () => {
+  it("autoplays through the months one second apart until a month is clicked", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       render(<MscOverview actors={ACTORS} />);
@@ -95,7 +95,7 @@ describe("MscOverview", () => {
       expect(screen.getByRole("button", { name: "Pause the month autoplay" })).toBeInTheDocument();
       expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(2000);
+        await vi.advanceTimersByTimeAsync(1000);
       });
       // Two months in the fixture: Jul → Jun.
       expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jun 2026")).toBeInTheDocument();

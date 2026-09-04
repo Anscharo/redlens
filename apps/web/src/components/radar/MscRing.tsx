@@ -17,8 +17,14 @@ interface Props {
 const WEDGE_PILL_GAP = 44;
 
 export function MscRing({ layout, primes, month, centerFigure }: Props) {
-  const colorOf = (prime: string) => primes.find((p) => p.flow.prime === prime)?.bandColor;
   const labelOf = (prime: string) => primes.find((p) => p.flow.prime === prime)?.label ?? prime;
+  // Sky's wedges are shades of Sky's own blue, darkest first (wedge order
+  // is PRIME_ORDER, biggest contributors first), so the pie reads as ONE
+  // thing — money at Sky — rather than a second set of prime colors.
+  const shade = (i: number) => {
+    const pct = Math.max(30, 100 - i * 18);
+    return pct === 100 ? "var(--msc-sky)" : `color-mix(in srgb, var(--msc-sky) ${pct}%, var(--bg))`;
+  };
   // Wedge pills ride just outside the donut on the wedge's own radial, where
   // its arrow docks.
   const midR = (layout.skyR + layout.skyInnerR) / 2;
@@ -62,21 +68,26 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
             that Prime's own color — so "these flows add up to Sky" is visible
             rather than asserted. */}
         <circle cx={layout.cx} cy={layout.cy} r={layout.skyR} className="msc-ring-sky-disc" />
-        {layout.skyWedges.map((w) => (
+        {layout.skyWedges.map((w, i) => (
           <g key={w.prime} className="msc-ring-mark" data-mark={markId(w.prime, "share")}>
             <path
               d={w.path}
               fillRule="evenodd"
               className="msc-ring-sky-wedge"
               data-prime={w.prime}
-              style={{ fill: colorOf(w.prime) }}
+              style={{ fill: shade(i) }}
             />
           </g>
         ))}
         {layout.skyWedges.map((w) =>
           w.figureX != null && w.figureY != null ? (
-            <text key={w.prime} x={w.figureX} y={w.figureY + 5} textAnchor="middle" fontSize={14} className="msc-ring-figure mono">
-              {formatUsd(w.value, true)}
+            <text key={w.prime} x={w.figureX} y={w.figureY} textAnchor="middle" fontSize={13} className="msc-ring-figure">
+              <tspan x={w.figureX} dy={-3}>
+                {labelOf(w.prime)}
+              </tspan>
+              <tspan x={w.figureX} dy={15} className="mono">
+                {formatUsd(w.value, true)}
+              </tspan>
             </text>
           ) : null,
         )}

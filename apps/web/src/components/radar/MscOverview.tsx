@@ -26,7 +26,7 @@ import { MscTimeseries, primeFill } from "./MscTimeseries";
 const mscCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
 /** Autoplay dwell per month. */
-const PLAY_MS = 2000;
+const PLAY_MS = 1000;
 
 export function MscOverview({ actors }: { actors: OverviewActor[] }) {
   const bundle = useLoaded(loadSettlements, { soft: true });

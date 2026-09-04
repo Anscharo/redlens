@@ -77,7 +77,7 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
           className="msc-ts-play mono text-[10px]"
           onClick={onTogglePlay}
           aria-pressed={playing}
-          aria-label={playing ? "Pause the month autoplay" : "Play through the months, two seconds each"}
+          aria-label={playing ? "Pause the month autoplay" : "Play through the months, one second each"}
         >
           {playing ? "❚❚ pause" : "▶ play"}
         </button>
