@@ -11,9 +11,11 @@
 // themselves and restore the PINNED empty state (not ambient) in afterEach,
 // so the pin holds for every case that follows them.
 import { test, expect, describe, it, beforeAll, afterAll, afterEach } from "bun:test";
-import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
+import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
 import { config } from "../config.ts";
 import type { AtlasNode, Indexes } from "./indexes.ts";
+import { MINISEARCH_OPTIONS } from "../../lib/searchOptions.ts";
+import MiniSearch from "minisearch";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -241,5 +243,52 @@ describe("the semantic ANN query and the index that serves it", () => {
     expect(query).toMatch(predicate);
     expect(migration).toMatch(predicate);
     expect(migration).toContain("USING hnsw (embedding vector_cosine_ops)");
+  });
+});
+
+describe("runLexical inflection", () => {
+  function lexicalIx(docs: Array<{ id: string; title: string; content: string; type?: string }>): Indexes {
+    const mini = new MiniSearch(MINISEARCH_OPTIONS);
+    const docMap = new Map<string, AtlasNode>();
+    for (const d of docs) {
+      const node: AtlasNode = {
+        id: d.id,
+        doc_no: d.id,
+        title: d.title,
+        type: d.type ?? "Core",
+        depth: 1,
+        parentId: null,
+        content: d.content,
+        order: 0,
+        addressRefs: [],
+      };
+      docMap.set(d.id, node);
+      mini.add({ id: d.id, title: d.title, doc_no: d.id, type: node.type, content: d.content });
+    }
+    return { mini, docMap } as unknown as Indexes;
+  }
+
+  it("ranks a subsidy-term doc above a subsidies-only doc, and includes both", () => {
+    const ix = lexicalIx([
+      { id: "b", title: "Other", content: "these subsidies apply" },
+      { id: "a", title: "Rate", content: "this subsidy is paid" },
+    ]);
+    const hits = runLexical(ix, "subsidy", undefined, 10);
+    expect(hits.map((h) => h.id)).toEqual(["a", "b"]);
+    expect(hits[0].rank).toBe(0);
+    expect(hits[1].rank).toBe(1);
+  });
+
+  it("drops inflection-only hits when k is filled by original-term matches", () => {
+    const ix = lexicalIx([
+      { id: "a", title: "Rate", content: "this subsidy is paid" },
+      { id: "b", title: "Other", content: "these subsidies apply" },
+    ]);
+    expect(runLexical(ix, "subsidy", undefined, 1).map((h) => h.id)).toEqual(["a"]);
+  });
+
+  it("does not expand USDS", () => {
+    const ix = lexicalIx([{ id: "a", title: "Token", content: "USDS savings" }]);
+    expect(runLexical(ix, "USDS", undefined, 10).map((h) => h.id)).toEqual(["a"]);
   });
 });

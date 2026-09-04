@@ -129,6 +129,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Broad, phrase, strict, and fuzzy search with field filters and exclusions.",
         how: [
           'Type terms for a broad search (partial words match); wrap in double quotes for a "phrase"; single quotes for a case-sensitive match.',
+          "Broad search also matches the singular or plural of each word; documents that use your exact word rank first.",
           "Add ~N to a term to allow N character edits — misaligment~1.",
           "Filter with title:, type:, and in:<doc number>; drop a term with a leading -.",
           "Type / for slash commands, or /h for the full query-syntax reference.",

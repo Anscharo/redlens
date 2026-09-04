@@ -5,7 +5,7 @@
  * Coverage:
  *  - Every documented search hint in SearchHints.tsx
  *  - Prefix search correctness (partial words, no stemmer)
- *  - Plural/singular distinction (stemmer removal)
+ *  - Index still stores surface forms (plural/singular are not stemmed)
  *  - Backtick-wrapped inline-code terms
  *  - Field restriction (title:, type:) with and without space after colon
  */
@@ -385,7 +385,9 @@ describe("regression: prefix search — partial words find expected results", ()
   });
 });
 
-describe("regression: no stemmer — plurals stay distinct from singulars", () => {
+describe("regression: no stemmer in the index — MiniSearch stores surface forms", () => {
+  // Inflection is query-time in the worker / runLexical, not processTerm.
+  // These assert the serialized index itself still distinguishes the forms.
   it("'agents' only returns docs containing 'agents'", () => {
     const results = ms.search("agents", SEARCH_OPTS);
     expect(results.length).toBeGreaterThan(0);

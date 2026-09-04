@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildParticipantLinks, matchParticipants } from "./search";
+import { buildParticipantLinks, matchParticipants, toEntitySearchHits, ENTITY_SEARCH_CAP } from "./search";
 import type { GraphEntity, RelationEdge } from "@/types";
 
 function entity(id: string, et: string, name: string, extra: Partial<GraphEntity> = {}): GraphEntity {
@@ -88,5 +88,46 @@ describe("matchParticipants", () => {
 
   it("excludes participants with no match at all", () => {
     expect(matchParticipants("nonexistent", participants)).toEqual([]);
+  });
+
+  it("matches a plural name token from a singular query at substring score", () => {
+    const named = [entity("s1", "agent", "Stability Subsidies")];
+    const hits = matchParticipants("subsidy", named);
+    expect(hits).toHaveLength(1);
+    expect(hits[0].participant.name).toBe("Stability Subsidies");
+    expect(hits[0].score).toBe(1);
+  });
+
+  it("keeps an exact name match above an inflection-only match", () => {
+    const named = [
+      entity("s1", "agent", "Stability Subsidies"),
+      entity("s2", "agent", "Subsidy"),
+    ];
+    const hits = matchParticipants("subsidy", named);
+    expect(hits.map((h) => h.participant.name)).toEqual(["Subsidy", "Stability Subsidies"]);
+    expect(hits[0].score).toBe(3);
+    expect(hits[1].score).toBe(1);
+  });
+});
+
+describe("toEntitySearchHits", () => {
+  it("drops unlinkable rows, keeps score order, and caps", () => {
+    const linked = entity("a1", "agent", "Alpha");
+    const unlinked = entity("x1", "ecosystem_actor", "No Link");
+    const extra = Array.from({ length: ENTITY_SEARCH_CAP }, (_, i) =>
+      entity(`e${i}`, "agent", `Extra ${i}`),
+    );
+    const matches = [linked, unlinked, ...extra].map((p, i) => ({
+      participant: p,
+      score: 10 - i,
+    }));
+    const links = new Map<string, string>([
+      [linked.id, "/radar/a1"],
+      ...extra.map((e) => [e.id, `/radar/${e.slug}`] as const),
+    ]);
+    const hits = toEntitySearchHits(matches, links);
+    expect(hits).toHaveLength(ENTITY_SEARCH_CAP);
+    expect(hits.map((h) => h.participant.id)).not.toContain("x1");
+    expect(hits[0]).toEqual({ participant: linked, score: 10, href: "/radar/a1" });
   });
 });

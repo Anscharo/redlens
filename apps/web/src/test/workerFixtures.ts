@@ -23,6 +23,9 @@ export const IDS = {
   // Two docs sharing an 8-hex prefix so a UUID-prefix query returns >1 and sorts.
   prefixA: "abcabc12-9999-4999-8999-000000000009",
   prefixB: "abcabc12-9999-4999-8999-00000000000a",
+  subsidyExact: "11111111-aaaa-4aaa-8aaa-000000000011",
+  subsidiesOnly: "22222222-bbbb-4bbb-8bbb-000000000022",
+  agentOnly: "33333333-cccc-4ccc-8ccc-000000000033",
 } as const;
 
 const ADDR = "0x35d1b3f3d7966a1dfe207aa4514c12a259a0492b"; // MCD_VAT-ish
@@ -140,6 +143,39 @@ export function makeDocsRecord(): Record<string, AtlasNode> {
       parentId: null,
       content: "First prefix-sharing document.",
       order: 9,
+      addressRefs: [],
+    },
+    {
+      id: IDS.subsidyExact,
+      doc_no: "A.5.1",
+      title: "Exact Subsidy",
+      type: "Core",
+      depth: 3,
+      parentId: null,
+      content: "This subsidy is paid monthly.",
+      order: 10,
+      addressRefs: [],
+    },
+    {
+      id: IDS.subsidiesOnly,
+      doc_no: "A.5.2",
+      title: "Only Subsidies",
+      type: "Core",
+      depth: 3,
+      parentId: null,
+      content: "These subsidies apply to the partner.",
+      order: 11,
+      addressRefs: [],
+    },
+    {
+      id: IDS.agentOnly,
+      doc_no: "A.5.3",
+      title: "Lone Agent",
+      type: "Core",
+      depth: 3,
+      parentId: null,
+      content: "The agent acts alone here.",
+      order: 12,
       addressRefs: [],
     },
   ];
