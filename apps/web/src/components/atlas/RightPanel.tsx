@@ -124,6 +124,12 @@ export function RightPanel({
     graphRels.length > 0 || // the relations header counts raw edges, even if every row self-nav-filters out
     Object.keys(targetAddresses).length > 0;
 
+  // The pill count must match everything the notes section shows. annotationCount
+  // (from AtlasView) covers annotation docs + linked docs + cousins + addresses,
+  // but not cited-by or relations — those come from the graph edges, which only
+  // exist down here, so add them so the badge can't disagree with the content.
+  const noteCount = annotationCount + citedBy.length + graphRels.length;
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Record<RightTab, HTMLElement | null>>({
     notes: null,
@@ -175,7 +181,7 @@ export function RightPanel({
           onClick={() => selectSection("notes")}
           className="right-pill"
         >
-          notes{annotationCount > 0 && <span style={{ marginLeft: 4 }}>· {annotationCount}</span>}
+          notes{noteCount > 0 && <span style={{ marginLeft: 4 }}>· {noteCount}</span>}
         </button>
         <button
           type="button"

@@ -8,8 +8,8 @@ import { CONTENT_INDENT, TimelineRow } from "./Timeline";
 // with no per-doc identities. Two cases:
 //  · reconstructed — the pre-#117 per-doc history is now threaded into atlas_history
 //    (era="html", plus era="mip"/"genesis"/"severed" further back — docs/plans/
-//    pre-git-history.md); hidden by default behind the "View Reconstructed History"
-//    toggle, with a disclaimer shown before each reconstructed block.
+//    pre-git-history.md); shown inline like every other entry, each flagging its
+//    provenance with an info-icon tooltip by its date (EntryRow).
 //  · not reconstructed — no pre-#117 entries were threaded to this doc. SeamFooter says
 //    which of the two that is: a reviewed "created at the migration" verdict, or (the
 //    common case) that the doc's earlier history could not be traced at all.
