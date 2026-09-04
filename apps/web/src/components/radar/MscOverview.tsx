@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import {
+  DEMAND_SERIES,
   loadSettlements,
   formatMonth,
   formatUsd,
@@ -156,20 +157,29 @@ function PrimeHoverStyles({ primes }: { primes: string[] }) {
         `.msc-overview-row:has(${kinds.map((k) => `.msc-ring-mark[data-mark="${p}::${k}"]:hover`).join(", ")})`;
       const layer = (flow: string) =>
         `.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="${p}"][data-flow="${flow}"]`;
+      const keptKinds = ["kept", ...DEMAND_SERIES.map((s) => s.key)];
       return [
-        // Timeseries → ring.
-        `${seg("kept")} ${prime} :is(.msc-ring-seg, .msc-ring-zero, .msc-ring-plate) { opacity: 1; }`,
+        // Timeseries → ring. A kept layer = supply kept + demand-side slices
+        // (+ the loss hole); a To-Sky layer = the two To-Sky slices, the
+        // arrow and the wedge.
+        `${seg("kept")} ${prime} :is(${keptKinds.map((k) => `.msc-ring-${k}`).join(", ")}, .msc-ring-hole) { opacity: 1; }`,
         `${seg("kept")} ${prime} .msc-ring-label { fill: var(--tan); }`,
-        `${seg("sky")} ${prime} .msc-ring-arrow { opacity: 1; }`,
+        `${seg("sky")} ${prime} :is(.msc-ring-cof, .msc-ring-sde, .msc-ring-arrow) { opacity: 1; }`,
         `${seg("sky")} .msc-ring-sky-wedge[data-prime="${p}"] { fill-opacity: 1; }`,
         // Ring → timeseries.
-        `${mark(["kept", "demand", "gross"])} ${layer("kept")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
-        `${mark(["sky", "share"])} ${layer("sky")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
+        `${mark([...keptKinds, "loss", "gross"])} ${layer("kept")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
+        `${mark(["cof", "sde", "sky", "share"])} ${layer("sky")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
       ].join("\n");
     })
     .join("\n");
   return <style>{css}</style>;
 }
+
+/** Mirrors the .msc-ring-sde / .msc-ring-<demand key> fills in index.css. */
+const SDE_SWATCH = "color-mix(in srgb, var(--msc-sky) 55%, var(--bg))";
+const DEMAND_MIX: Record<string, number> = { agentRate: 100, distributionRewards: 75, gar: 55, chroniclePoints: 40 };
+const demandSwatch = (key: string) =>
+  DEMAND_MIX[key] === 100 ? "var(--msc-demand)" : `color-mix(in srgb, var(--msc-demand) ${DEMAND_MIX[key] ?? 50}%, var(--bg))`;
 
 function RingKey() {
   const swatch = (background: string) => (
@@ -178,20 +188,27 @@ function RingKey() {
   return (
     <div className="mono text-[10px] mt-5" style={{ color: "var(--tan-3)" }}>
       <p className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
-        <span className="msc-key-item" data-key="sky">{swatch("var(--msc-sky)")} to Sky</span>
-        <span className="msc-key-item" data-key="kept">{swatch("var(--msc-kept)")} supply kept by Primes</span>
+        <span className="msc-key-item" data-key="cof">{swatch("var(--msc-sky)")} cost of funds → Sky</span>
+        <span className="msc-key-item" data-key="sde">{swatch(SDE_SWATCH)} Sky Direct Exposure → Sky</span>
+        <span className="msc-key-item" data-key="kept">{swatch("var(--msc-kept)")} supply kept</span>
         <span className="msc-key-item" data-key="neg">
           {swatch(
             "repeating-linear-gradient(45deg, var(--msc-kept) 0, var(--msc-kept) 2px, transparent 2px, transparent 4px)",
           )}
-          supply loss to Primes
+          supply loss (the hole)
         </span>
-        <span className="msc-key-item" data-key="demand">{swatch("var(--msc-demand)")} demand-side to Primes</span>
+        {DEMAND_SERIES.map((s) => (
+          <span key={s.key} className="msc-key-item" data-key={s.key}>
+            {swatch(demandSwatch(s.key))} {s.label.toLowerCase()} (demand-side)
+          </span>
+        ))}
       </p>
       <p className="text-center mt-1">
-        Circle size is the Prime's gross revenue*; the bar inside is what it
-        kept, on one square-root scale; the donut is the To-Sky total by
-        Prime. Hover for figures; click a Prime to open its settlement page.
+        Each Prime is a pie of its gross revenue* line items; the donut is
+        the To-Sky total by Prime — all on one area scale. A loss is a hole in
+        the middle of its pie (the ring's area is gross revenue). The To-Sky
+        slices face Sky and feed the arrow. Hover for figures; click a Prime
+        to open its settlement page.
       </p>
       <p className="text-center mt-1 italic">
         *Gross revenue = prime agent revenue + demand-side + Sky Direct

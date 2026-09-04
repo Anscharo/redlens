@@ -85,8 +85,12 @@ describe("MscRing", () => {
     expect(screen.getByText("$100k Sky Direct Exposure")).toBeInTheDocument();
     expect(screen.getByText("$10.00M to Sky — 74% of Spark's gross revenue*")).toBeInTheDocument();
     expect(screen.getByText("$13.50M gross revenue* of Spark")).toBeInTheDocument();
-    expect(screen.getByText("$2.00M supply kept by Spark")).toBeInTheDocument();
-    expect(screen.getByText("$1.50M demand-side to Spark")).toBeInTheDocument();
+    // One pill per slice, named by the workbook's line item.
+    expect(screen.getByText("$9.90M cost of funds → Sky")).toBeInTheDocument();
+    expect(screen.getByText("$100k Sky Direct Exposure → Sky")).toBeInTheDocument();
+    expect(screen.getByText("$2.00M supply kept")).toBeInTheDocument();
+    expect(screen.getByText("$1.40M agent rate (demand-side)")).toBeInTheDocument();
+    expect(screen.getByText("$100k distribution rewards (demand-side)")).toBeInTheDocument();
   });
 
   it("fills a negative To-Sky arrow with its category's stripe pattern, not a loss color", () => {
@@ -110,9 +114,10 @@ describe("MscRing", () => {
     expect(kids[kids.length - 1]).toHaveClass("msc-ring-pills");
     expect(kids.some((el) => el.querySelector(".msc-ring-prime"))).toBe(true);
     // Pills are paired to their marks by id, since they no longer nest inside them.
-    expect(container.querySelector('.msc-ring-mark[data-mark="spark::kept"]')).toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-mark[data-mark="spark::kept"] path.msc-ring-kept')).toBeInTheDocument();
     expect(container.querySelector('.msc-ring-pill[data-mark="spark::kept"]')).toBeInTheDocument();
-    expect(container.querySelector('.msc-ring-mark[data-mark="spark::gross"] circle.msc-ring-plate')).toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-mark[data-mark="spark::agentRate"] path.msc-ring-agentRate')).toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-mark[data-mark="spark::gross"] text.msc-ring-label')).toBeInTheDocument();
   });
 
   it("gives Sky one wedge per contributing prime, in that prime's own color", () => {
@@ -124,15 +129,19 @@ describe("MscRing", () => {
     expect(container.querySelector('.msc-ring-sky-wedge[data-prime="spark"]')).toBeInTheDocument();
   });
 
-  it("hangs a negative kept below the zero line as a striped segment", () => {
-    const { layout, primes } = ringPrimes([flow({ prime: "osero", sky: 497, kept: -107, demand: 12_000 })], "2026-07");
+  it("draws a supply loss as a striped hole in the pie's middle", () => {
+    const { layout, primes } = ringPrimes(
+      [flow({ prime: "osero", sky: 497, cof: 497, sde: 0, kept: -107, demand: 12_000, demandParts: { agentRate: 12_000 } })],
+      "2026-07",
+    );
     const { container } = render(
       <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$497" />,
     );
-    expect(screen.getByText("−$107 supply loss to osero")).toBeInTheDocument();
-    const seg = container.querySelector('.msc-ring-mark[data-mark="osero::kept"] rect')!;
-    expect(seg).toHaveAttribute("fill", "url(#msc-ring-neg-kept)");
-    expect(Number(seg.getAttribute("y"))).toBeCloseTo(layout.primes[0].zeroY, 6);
+    expect(screen.getByText("−$107 supply loss — the hole")).toBeInTheDocument();
+    const hole = container.querySelector('.msc-ring-mark[data-mark="osero::loss"] circle.msc-ring-hole')!;
+    expect(hole).toHaveAttribute("fill", "url(#msc-ring-neg-kept)");
+    // No kept slice: the loss lives in the hole.
+    expect(container.querySelector('.msc-ring-mark[data-mark="osero::kept"]')).not.toBeInTheDocument();
   });
 
   it("labels the donut 'To Sky', never 'Sky' alone", () => {

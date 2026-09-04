@@ -1,4 +1,4 @@
-import { formatUsd } from "../../lib/settlements";
+import { DEMAND_SERIES, formatUsd } from "../../lib/settlements";
 import type { RingPrime } from "../../lib/mscOverviewLayout";
 import { textWidth } from "../../lib/textWidth";
 
@@ -16,6 +16,14 @@ export const markId = (prime: string, kind: string): string => `${prime}::${kind
  *  more than it made that month) and is shown as such. */
 export const formatShare = (share: number): string => `${Math.round(share * 100)}%`;
 
+/** Human names for the pie's line items (the workbook Summary's rows). */
+export const SLICE_LABEL: Record<string, string> = {
+  cof: "cost of funds → Sky",
+  sde: "Sky Direct Exposure → Sky",
+  kept: "supply kept",
+  ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, `${s.label.toLowerCase()} (demand-side)`])),
+};
+
 /** Pill text names what it is, not just the number — a bare "$2.6M" says
  *  nothing about which flow it belongs to. */
 export function pillText(kind: string, signed: number, primeLabel: string, share?: number | null): string {
@@ -27,10 +35,9 @@ export function pillText(kind: string, signed: number, primeLabel: string, share
   }
   if (kind === "share") return `${amount} to Sky from ${primeLabel}`;
   if (kind === "gross") return `${amount} gross revenue* of ${primeLabel}`;
-  if (kind === "kept") {
-    return signed < 0 ? `${amount} supply loss to ${primeLabel}` : `${amount} supply kept by ${primeLabel}`;
-  }
-  return `${amount} demand-side to ${primeLabel}`;
+  if (kind === "loss") return `${amount} supply loss — the hole`;
+  if (kind in SLICE_LABEL) return `${amount} ${SLICE_LABEL[kind]}`;
+  return `${amount} ${kind}`;
 }
 
 interface PillProps {
@@ -109,7 +116,7 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
             toX={ring.grossAnchorX}
             toY={ring.grossAnchorY}
           />
-          {ring.segments.map((s) => (
+          {ring.slices.map((s) => (
             <AmountPill
               key={s.kind}
               mark={markId(ring.prime, s.kind)}
@@ -120,6 +127,16 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
               toY={s.amountY}
             />
           ))}
+          {ring.hole && (
+            <AmountPill
+              mark={markId(ring.prime, "loss")}
+              text={pillText("loss", ring.hole.signed, label)}
+              x={ring.hole.pillX}
+              y={ring.hole.pillY}
+              toX={ring.cx}
+              toY={ring.cy}
+            />
+          )}
           {ring.arrow && (
             <AmountPill
               mark={markId(ring.prime, ring.arrow.kind)}

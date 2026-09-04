@@ -2751,7 +2751,7 @@ a.atlas-annotates:focus-visible {
 /* Hovering the selected month's To-Sky line point lights every To-Sky
    ribbon on the ring — they are the same flow (the ribbons sum to the
    line's value for that month). */
-.msc-overview-row:has(.msc-ts-dot[data-selected="true"]:hover) .msc-ring-prime path.msc-ring-sky {
+.msc-overview-row:has(.msc-ts-dot[data-selected="true"]:hover) .msc-ring-prime :is(.msc-ring-sky, .msc-ring-cof, .msc-ring-sde) {
   opacity: 1;
 }
 .msc-bar-col:hover .msc-ts-track,
@@ -2790,17 +2790,49 @@ a.atlas-annotates:focus-visible {
      theme (dark bg on the light blues, light bg on the deep blue). */
   fill: var(--bg);
 }
-/* Each Prime's plate: bar + name on one circle, tinted in the Prime's
-   identity color (fill/stroke come inline). Geometry transitions so the
-   month-to-month autoplay glides instead of snapping. */
-.msc-ring-plate {
-  fill-opacity: 0.1;
-  stroke-width: 1.5;
-  stroke-opacity: 0.6;
+/* Each Prime is a pie of its line items inside a thin identity rim (the
+   rim's stroke comes inline). Slice colors: the To-Sky pair in Sky's blues,
+   supply kept in green, the demand-side series in magenta steps — the
+   families the key and the timeseries use. */
+.msc-ring-rim {
+  fill: none;
+  stroke-width: 2;
+  stroke-opacity: 0.7;
 }
-.msc-ring-plate,
-.msc-ring-seg,
-.msc-ring-zero,
+.msc-ring-slice {
+  stroke: var(--bg-deep);
+  stroke-width: 1;
+}
+.msc-ring-cof {
+  fill: var(--msc-sky);
+}
+.msc-ring-sde {
+  fill: color-mix(in srgb, var(--msc-sky) 55%, var(--bg));
+}
+.msc-ring-kept {
+  fill: var(--msc-kept);
+}
+.msc-ring-agentRate {
+  fill: var(--msc-demand);
+}
+.msc-ring-distributionRewards {
+  fill: color-mix(in srgb, var(--msc-demand) 75%, var(--bg));
+}
+.msc-ring-gar {
+  fill: color-mix(in srgb, var(--msc-demand) 55%, var(--bg));
+}
+.msc-ring-chroniclePoints {
+  fill: color-mix(in srgb, var(--msc-demand) 40%, var(--bg));
+}
+/* The loss hole: striped in the kept color over the card, same mark as the
+   key's "supply loss". */
+.msc-ring-hole {
+  stroke: var(--bg-deep);
+  stroke-width: 1;
+}
+/* Geometry transitions so the month-to-month autoplay glides. */
+.msc-ring-rim,
+.msc-ring-hole,
 .msc-ring-label {
   transition:
     cx 0.6s ease-in-out,
@@ -2808,18 +2840,11 @@ a.atlas-annotates:focus-visible {
     r 0.6s ease-in-out,
     x 0.6s ease-in-out,
     y 0.6s ease-in-out,
-    x1 0.6s ease-in-out,
-    x2 0.6s ease-in-out,
-    y1 0.6s ease-in-out,
-    y2 0.6s ease-in-out,
-    width 0.6s ease-in-out,
-    height 0.6s ease-in-out,
     opacity 0.1s;
 }
 @media (prefers-reduced-motion: reduce) {
-  .msc-ring-plate,
-  .msc-ring-seg,
-  .msc-ring-zero,
+  .msc-ring-rim,
+  .msc-ring-hole,
   .msc-ring-label {
     transition: opacity 0.1s;
   }
@@ -2837,42 +2862,29 @@ a.atlas-annotates:focus-visible {
   color: var(--tan);
   border-color: var(--border-muted);
 }
-.msc-ring-prime:hover .msc-ring-plate,
-a:focus-visible > .msc-ring-prime .msc-ring-plate {
-  fill-opacity: 0.18;
-  stroke-opacity: 1;
-}
-/* Each Prime's bar has its own zero line, in the Prime's identity color. */
-.msc-ring-zero {
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-/* Hovering a key row lights up everything it describes: bar segments, the
-   arrows, and Sky's own wedges. */
-.msc-ring-card:has(.msc-key-item[data-key="sky"]:hover) .msc-ring-sky-wedge,
-.msc-ring-card:has(.msc-key-item[data-key="sky"]:hover) .msc-ring-prime .msc-ring-sky,
+/* Hovering a key row lights up every slice it describes, on every pie
+   (and the arrows for the To-Sky rows). */
+.msc-ring-card:has(.msc-key-item[data-key="cof"]:hover) .msc-ring-prime :is(.msc-ring-cof, .msc-ring-arrow),
+.msc-ring-card:has(.msc-key-item[data-key="sde"]:hover) .msc-ring-prime :is(.msc-ring-sde, .msc-ring-arrow),
 .msc-ring-card:has(.msc-key-item[data-key="kept"]:hover) .msc-ring-prime .msc-ring-kept,
-.msc-ring-card:has(.msc-key-item[data-key="demand"]:hover) .msc-ring-prime .msc-ring-demand,
-.msc-ring-card:has(.msc-key-item[data-key="neg"]:hover) .msc-ring-prime [fill*="msc-ring-neg"] {
+.msc-ring-card:has(.msc-key-item[data-key="agentRate"]:hover) .msc-ring-prime .msc-ring-agentRate,
+.msc-ring-card:has(.msc-key-item[data-key="distributionRewards"]:hover) .msc-ring-prime .msc-ring-distributionRewards,
+.msc-ring-card:has(.msc-key-item[data-key="gar"]:hover) .msc-ring-prime .msc-ring-gar,
+.msc-ring-card:has(.msc-key-item[data-key="chroniclePoints"]:hover) .msc-ring-prime .msc-ring-chroniclePoints,
+.msc-ring-card:has(.msc-key-item[data-key="neg"]:hover) .msc-ring-prime .msc-ring-hole {
   opacity: 1;
   fill-opacity: 1;
 }
 .msc-ring-sky {
   fill: var(--msc-sky);
 }
-.msc-ring-kept {
-  fill: var(--msc-kept);
-}
-.msc-ring-demand {
-  fill: var(--msc-demand);
-}
-.msc-ring-prime :is(path, rect, line, circle) {
+.msc-ring-prime :is(path, circle) {
   opacity: 0.75;
   transition: opacity 0.1s;
   cursor: pointer;
 }
-.msc-ring-prime:hover :is(path, rect, line, circle),
-a:focus-visible > .msc-ring-prime :is(path, rect, line, circle) {
+.msc-ring-prime:hover :is(path, circle),
+a:focus-visible > .msc-ring-prime :is(path, circle) {
   opacity: 1;
 }
 .msc-ring-label {

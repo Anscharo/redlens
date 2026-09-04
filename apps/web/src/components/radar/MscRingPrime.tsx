@@ -15,25 +15,13 @@ export interface MscRingPrime {
   to: string | null;
 }
 
-/** One prime: a circular plate (area ∝ gross revenue) holding a floating
- *  stacked bar (gains up from the zero line, losses down from it, striped)
- *  with its name to the left of the zero line, and its To-Sky arrow. */
+/** One prime: a pie of its gross-revenue line items (a loss as a hole in
+ *  the middle), its name outside, and its To-Sky arrow. */
 export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrime & { month: string }) {
   const arrow = ring.arrow;
   const share = arrow?.share != null ? formatShare(arrow.share) : null;
   const group = (
     <g className="msc-ring-prime" data-prime={flow.prime}>
-      {/* Plate: one circle enclosing the bar and its name, tinted in the
-          prime's identity color; its AREA is the prime's gross revenue. */}
-      <g className="msc-ring-mark" data-mark={markId(flow.prime, "gross")}>
-        <circle
-          cx={ring.plateX}
-          cy={ring.plateY}
-          r={ring.plateR}
-          className="msc-ring-plate"
-          style={{ fill: bandColor, stroke: bandColor }}
-        />
-      </g>
       {arrow && (
         <g className="msc-ring-mark" data-mark={markId(flow.prime, arrow.kind)}>
           <path
@@ -43,36 +31,25 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
           />
         </g>
       )}
-      {/* Zero line in the prime's identity color — the bar's own axis. */}
-      <line
-        x1={ring.zeroX0}
-        x2={ring.zeroX1}
-        y1={ring.zeroY}
-        y2={ring.zeroY}
-        className="msc-ring-zero"
-        style={{ stroke: bandColor }}
-      />
-      {ring.segments.map((s) => (
+      {/* Identity ring in the prime's color, just outside the slices. */}
+      <circle cx={ring.cx} cy={ring.cy} r={ring.r + 2} className="msc-ring-rim" style={{ stroke: bandColor }} />
+      {ring.slices.map((s) => (
         <g key={s.kind} className="msc-ring-mark" data-mark={markId(flow.prime, s.kind)}>
-          <rect
-            x={s.x}
-            y={s.y}
-            width={s.w}
-            height={s.h}
-            className={s.signed < 0 ? "msc-ring-seg" : `msc-ring-seg msc-ring-${s.kind}`}
-            fill={s.signed < 0 ? `url(#msc-ring-neg-${s.kind})` : undefined}
-          />
+          <path d={s.path} fillRule="evenodd" className={`msc-ring-slice msc-ring-${s.kind}`} />
         </g>
       ))}
-      <text
-        x={ring.labelX}
-        y={ring.labelY + (ring.labelMode === "inside" ? 6 : 0)}
-        textAnchor={ring.labelAnchor}
-        fontSize={17}
-        className="msc-ring-label"
-      >
-        {label}
-      </text>
+      {/* The loss hole: striped in the kept color, the same mark the key
+          uses for "supply loss". Its AREA is the loss. */}
+      {ring.hole && (
+        <g className="msc-ring-mark" data-mark={markId(flow.prime, "loss")}>
+          <circle cx={ring.cx} cy={ring.cy} r={ring.hole.r} className="msc-ring-hole" fill="url(#msc-ring-neg-kept)" />
+        </g>
+      )}
+      <g className="msc-ring-mark" data-mark={markId(flow.prime, "gross")}>
+        <text x={ring.labelX} y={ring.labelY} textAnchor="middle" fontSize={17} className="msc-ring-label">
+          {label}
+        </text>
+      </g>
     </g>
   );
   if (!to) return group;
