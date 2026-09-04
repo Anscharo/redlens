@@ -76,6 +76,19 @@ describe("RightPanel section pills", () => {
     expect(screen.getByText(/linked documents · 2/)).toBeInTheDocument();
   });
 
+  it("counts cited-by and relations in the notes pill, not just the AtlasView count", () => {
+    // annotationCount (from AtlasView) omits cited-by/relations; the pill must add them.
+    setup({
+      annotationCount: 0,
+      graphEdges: makeEdgeResult({
+        inbound: [makeEdge({ e: "cites", f: "citing-1", ft: "doc" })],
+        outbound: [makeEdge({ e: "depends_on", f: "node-1", t: "other", tt: "doc" })],
+      }),
+    });
+    // 1 cited-by + 1 relation → the notes pill badge reads "· 2"
+    expect(screen.getByRole("button", { name: /notes.*2/ })).toBeInTheDocument();
+  });
+
   // Element Annotations belong in the notes panel — they are the hardest
   // section to reach in the reader (the atlas emits the supporting `0`
   // directory after every real sibling), so they lead it.
