@@ -5,13 +5,13 @@ import type { AddressBalances, BalancesResponse } from "@/lib/balances";
 import { resetSharedBalances, useSharedBalances } from "./sharedBalances";
 
 const { loadBalancesCached, peekCachedBalances } = vi.hoisted(() => ({
-  loadBalancesCached: vi.fn(),
-  peekCachedBalances: vi.fn(() => null),
+  loadBalancesCached: vi.fn<() => Promise<BalancesResponse> | undefined>(),
+  peekCachedBalances: vi.fn<() => BalancesResponse | null>(() => null),
 }));
 
 vi.mock("@/lib/balances", () => ({
-  loadBalancesCached: (...args: unknown[]) => loadBalancesCached(...args),
-  peekCachedBalances: (...args: unknown[]) => peekCachedBalances(...args),
+  loadBalancesCached: () => loadBalancesCached(),
+  peekCachedBalances: () => peekCachedBalances(),
 }));
 
 const ADDR = "0xabc";
