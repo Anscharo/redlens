@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-09-04
+- Broad search now also matches the singular or plural of a word, with exact wording ranked first
+
 ## 2026-09-03
 - Moved colour-scheme picking to a sun, moon, or eclipse button in the top bar, next to feedback and the account menu
 

@@ -89,4 +89,23 @@ describe("matchParticipants", () => {
   it("excludes participants with no match at all", () => {
     expect(matchParticipants("nonexistent", participants)).toEqual([]);
   });
+
+  it("matches a plural name token from a singular query at substring score", () => {
+    const named = [entity("s1", "agent", "Stability Subsidies")];
+    const hits = matchParticipants("subsidy", named);
+    expect(hits).toHaveLength(1);
+    expect(hits[0].participant.name).toBe("Stability Subsidies");
+    expect(hits[0].score).toBe(1);
+  });
+
+  it("keeps an exact name match above an inflection-only match", () => {
+    const named = [
+      entity("s1", "agent", "Stability Subsidies"),
+      entity("s2", "agent", "Subsidy"),
+    ];
+    const hits = matchParticipants("subsidy", named);
+    expect(hits.map((h) => h.participant.name)).toEqual(["Subsidy", "Stability Subsidies"]);
+    expect(hits[0].score).toBe(3);
+    expect(hits[1].score).toBe(1);
+  });
 });

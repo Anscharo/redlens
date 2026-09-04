@@ -8,6 +8,11 @@ const HINTS: { label: string; query: string; description: string }[] = [
     description: "Default mode — partial words match automatically, case-insensitive",
   },
   {
+    label: "singular/plural",
+    query: "subsidy",
+    description: "Broad mode also matches the other number (subsidies); exact wording ranks first",
+  },
+  {
     label: "phrase",
     query: '"properly implemented"',
     description: "Double quotes — whole-word phrase match, case-insensitive",

@@ -1,8 +1,8 @@
-# Frontend search: singular ↔ plural without stemming
+# Frontend + server search: singular ↔ plural without stemming
 
-Status: **proposed**. Frontend reader search only (`search.worker.ts` MiniSearch
-path + the relations.json entity overlay). Not chat lexical search, not MCP,
-not in-report row filters.
+Status: **shipped**. Query-time inflection in the reader worker and server
+`runLexical`, ranked so original-term hits sit above inflection-only hits.
+The MiniSearch index still stores surface forms (`processTerm` is unchanged).
 
 Origin: users searching a singular like `subsidy` miss docs that only say
 `subsidies` (and the reverse). We previously shipped a Porter stemmer and
@@ -22,11 +22,16 @@ number:
 | `agent` | agency, agents, … | Agent |
 | `misalignme` | **nothing** (prefix search broke) | misalignment |
 
-`apps/web/src/workers/search.test.ts` still encodes this:
+`apps/web/src/workers/search.test.ts` still encodes the index-level
+constraint (MiniSearch stores surface forms, no stemmer):
 
 - `"misalignme → misalignment docs (10-char prefix, was broken with stemmer)"`
-- `"regression: no stemmer — plurals stay distinct from singulars"` (`agents`
-  must not return docs that only contain `agent`)
+- `"regression: no stemmer in the index — MiniSearch stores surface forms"`
+  (`agents` against the raw index still only returns docs containing `agents`)
+
+Query-time expansion in the worker / `runLexical` *does* return `agent`-only
+docs for an `agents` query; those hits sit in the inflection-only bucket
+below every original-term hit.
 
 A stemmer operates on a *stem*. `subsidy` and `subsidies` share `subsidi`, but
 so do `subsidize` / `subsidizing` / `subsidization`. That is the broadening we
@@ -34,9 +39,11 @@ already rejected. Inflection (singular ↔ plural of the *same lemma*) is a
 narrower transform and is what this plan does.
 
 Do **not** change `processTerm`, `MINISEARCH_OPTIONS`, or rebuild
-`search-index.json` for this. `MiniSearch.loadJSON` requires options identical
-to the index producer; touching `processTerm` would also change the Bun
-server's lexical search, which is out of scope.
+`search-index.json` for this. Returning both surface forms from `processTerm`
+would write them into the same posting list and make exact vs inflected
+indistinguishable. `MiniSearch.loadJSON` also requires options identical to
+the index producer. Inflection is a query helper both the reader and
+`runLexical` share; the index stays a bag of surface forms.
 
 ## What already works (and must keep working)
 
@@ -47,9 +54,9 @@ Broad mode searches with `prefix: true`. On the token:
 - `child` already matches `children`
 - `sky` already matches `skies` (accidental prefix; leave it)
 
-So regular `+s` / `+es` singular→plural is **already handled**. The stemmer
-regression for `agents` ↛ `agent` is the reverse direction of a prefix-covered
-pair, and we keep that behaviour (see rule below).
+So regular `+s` / `+es` singular→plural is **already handled** by prefix
+search. The reverse (`agents` → `agent`) is the hole prefix cannot see; the
+helper adds that counterpart and ranks those hits after original-term matches.
 
 Partial-word prefixes must keep working: `govern`, `alignme`, `misalignme`,
 `delegat`. Inflecting those into junk (`subsid` → `subsids`) is how a naive
@@ -79,12 +86,12 @@ surface forms. Prefix search, fuzzy `~N`, tickers-as-phrases, and
 `loadJSON` parity are untouched.
 
 ```
-expandTerm("subsidy")  → ["subsidy", "subsidies"]
-expandTerm("subsidies") → ["subsidies", "subsidy"]
-expandTerm("agent")    → ["agent"]          // prefix already covers agents
-expandTerm("agents")   → ["agents"]         // keep the stemmer regression
-expandTerm("subsid")   → ["subsid"]         // incomplete word, do not inflect
-expandTerm("USDS")     → ["USDS"]           // ticker / all-caps
+expandTerm("subsidy")  → extra "subsidies"
+expandTerm("subsidies") → extra "subsidy"
+expandTerm("agent")    → no extra           // prefix already covers agents
+expandTerm("agents")   → extra "agent"      // prefix cannot see the shorter form
+expandTerm("subsid")   → no extra           // incomplete word, do not inflect
+expandTerm("USDS")     → no extra           // ticker / all-caps
 ```
 
 MiniSearch is already `combineWith: "OR"`, so injecting the counterpart as an
@@ -102,10 +109,11 @@ A shared helper, e.g. `src/lib/searchInflect.ts` (pure, no DOM, worker-safe):
 3. Keep a candidate only when **all** of:
    - it differs from the original (case-insensitive)
    - round-trip holds: `singular(plural(w)) === singular(w)`
-   - **neither form is a prefix of the other** — this is the anti-stemmer
-     gate. If prefix search already connects the pair, we do not OR-expand.
-     That preserves `agents`-only and avoids doubling hits MiniSearch would
-     have returned anyway.
+   - the counterpart is **not a prefix-extension of the original**
+     (`other.startsWith(lower)`). Adding `agents` to an `agent` query would
+     double-count docs MiniSearch already returns via `prefix: true`. The
+     shorter form (`agents` → `agent`) is still added, because prefix cannot
+     see it.
 4. Phrase (`"…"`) and strict (`'…'`) modes do not expand. Quoted phrases stay
    literal substring matches. Field-scoped terms (`title:subsidy`) *do*
    expand inside that field — same helper, applied to the scoped token.
@@ -132,10 +140,9 @@ Not `natural`, `compromise`, or MiniSearch's own Porter stemmer — those are
 stemmers/lemmatizers and re-open the broadening bug. Not `inflected` (Rails
 port): larger, and we only need noun number.
 
-Add it to the **root** `package.json` (shared with the web app via the
-workspace) *or* `apps/web` if we keep the helper frontend-only. Prefer
-`src/lib/searchInflect.ts` imported by the worker so a later chat reuse does
-not fork the rules — but the **call sites** for this work are frontend-only.
+Added to the root `package.json` and `apps/web` (the worker bundle). The
+helper is `src/lib/searchInflect.ts`, imported by the reader worker, server
+`runLexical`, and `matchParticipants`.
 
 `@types/pluralize` if the package's own types are missing.
 
@@ -148,16 +155,22 @@ prefix-gate would already skip some of them: `sky`, `usds`, `susds`, `dai`,
 ### 1. MiniSearch — `apps/web/src/workers/search.worker.ts`
 
 After the existing query parse (phrases stripped, `in:`/`type:`/`title:`
-extracted, exclusions pulled, tickers promoted to phrases), map each remaining
-free word through `expandTerm` and search the unique set.
+extracted, exclusions pulled, tickers promoted to phrases), expand remaining
+free words and search original + extra terms in one OR query. Partition so
+hits that matched an original term sit above inflection-only hits.
 
 Highlight lists (`titleHighlightTerms` / `contentHighlightTerms`) get the
 same expansion so the snippet marks the form that actually appeared.
 
-No change to `docFilter`, phrase post-filter, or the UUID / doc_no / chainlog
-fast-paths.
+Phrase / strict skip expansion (literal substring contract). Field-scoped
+`title:` / `content:` / `doc_no:` terms expand inside that field.
 
-### 2. Entity overlay — `matchParticipants` (`apps/web/src/lib/search.ts`)
+### 2. Server lexical — `src/server/retrieval/search.ts` `runLexical`
+
+Same expand + partition, then `slice(0, k)`. Used by chat `atlas_search` and
+`atlas_query`. Semantic / RRF unchanged; lexical rank still feeds RRF.
+
+### 3. Entity overlay — `matchParticipants` (`apps/web/src/lib/search.ts`)
 
 Today this is exact / prefix / substring on the **whole** `entity.name`
 against the raw query, run on the main thread over `loadGraph()`'s
@@ -196,13 +209,10 @@ worker does not).
 
 ## Out of scope
 
-- Chat / MCP `atlas_search` (different ranking, already has glossary
-  naive-`s` in `prefetch.ts`)
-- In-report search (`staleDatesSearch`, `rewardsSearch`, …)
-- Changing MiniSearch `processTerm` or the committed-artifact contract
-- Re-enabling Porter / any stemmer, including "stem only at query time"
-- Indexing both surface forms (would force an index rebuild *and* change
-  server `loadJSON` options)
+- Stemming / lemmatizing, including "stem only at query time"
+- Indexing both forms in `processTerm` / rebuilding `search-index.json`
+- In-report row filters (`staleDatesSearch`, `rewardsSearch`, …)
+- Graph-worker `search-entities` message (follow-up below)
 
 ## Tests
 
@@ -214,17 +224,17 @@ Unit, no atlas build:
 - `matchParticipants` — `subsidy` hits a participant named `Stability
   Subsidies`; `spark` is unchanged.
 
-Against `public/search-index.json` (`search.test.ts`):
+Against `public/search-index.json` (`search.test.ts`): the index-level
+stemmer regressions stay (`misalignme` still hits; raw MiniSearch `agents`
+still only returns docs containing `agents`).
 
-- `subsidy` returns at least one doc whose text contains `subsidies` and not
-  `subsidy` (the motivating miss).
-- Keep the stemmer regressions: `misalignme` still hits; `agents` still does
-  not return `agent`-only docs.
-- Phrase `"subsidy"` does not expand.
+Worker / `runLexical` fixture tests (tiny in-memory MiniSearch, no live atlas
+prose):
 
-If a fixture doc is easier than depending on live atlas prose for the
-motivating case, add a worker-level unit test with a tiny in-memory
-MiniSearch rather than coupling to `docs.json`.
+- `subsidy` lists a subsidies-only doc, after any subsidy-term docs.
+- `agents` may include `agent`-only hits, ranked below `agents` hits.
+- Phrase `"subsidy"` / strict `'subsidy'` do not expand.
+- `runLexical` slices `k` after the partition, so a full A bucket omits B.
 
 ## User-visible copy
 
