@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import type { AddressInfo } from "@/types";
 import type { ChainValue } from "../lib/chainstate";
 import { EVM_ADDRESS_EXACT_RE } from "@/lib/patterns";
@@ -6,7 +5,7 @@ import { shortAddr } from "../lib/format";
 import { Address } from "./Address";
 import { resolveAddressName, resolveOwner, hasResolvedName } from "../lib/addressName";
 import { resolveAddressTooltip } from "../lib/addressTooltip";
-import { loadBalancesCached, peekCachedBalances, type AddressBalances } from "@/lib/balances";
+import { useSharedBalances } from "../lib/sharedBalances";
 
 function formatValue(val: ChainValue): string {
   if (val === null) return "—";
@@ -25,26 +24,6 @@ function isSkippable(key: string, val: ChainValue): boolean {
   return false;
 }
 
-// The annotations panel is already open (not a hover), so it's fair to warm the
-// shared balances cache on mount. Seeds synchronously from the cache when the
-// tooltip (or another card) already fetched this session; a failed fetch settles
-// to {} — the same shape as "no balances known". Mirrors AddressTooltip's hook;
-// the two consolidate onto one shared hook in the address-component step.
-function useBalances(): Record<string, AddressBalances> {
-  const [addresses, setAddresses] = useState<Record<string, AddressBalances>>(
-    () => peekCachedBalances()?.addresses ?? {},
-  );
-  useEffect(() => {
-    if (peekCachedBalances()) return;
-    let live = true;
-    loadBalancesCached()
-      .then((res) => { if (live) setAddresses(res.addresses); })
-      .catch(() => { if (live) setAddresses({}); });
-    return () => { live = false; };
-  }, []);
-  return addresses;
-}
-
 export function AddressCard({
   address,
   info,
@@ -57,10 +36,10 @@ export function AddressCard({
   /** This section named the address only by its chainlog key, not a 0x literal. */
   byName?: boolean;
 }) {
-  const balances = useBalances();
+  const { addresses } = useSharedBalances(true);
   const name = resolveAddressName(address, info);
   const owner = resolveOwner(info);
-  const { held } = resolveAddressTooltip(address, { [address]: info }, balances);
+  const { held } = resolveAddressTooltip(address, { [address]: info }, addresses);
   const visibleChainValues = chainValues
     ? Object.entries(chainValues).filter(([k, v]) => !isSkippable(k, v))
     : [];

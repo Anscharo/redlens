@@ -1,11 +1,26 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Address } from "./Address";
+import { resetSharedBalances } from "../lib/sharedBalances";
 
 const ADDR = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 
+const loadBalancesCached = vi.fn();
+vi.mock("@/lib/balances", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  loadBalancesCached: () => loadBalancesCached(),
+  peekCachedBalances: () => null,
+}));
+
+beforeEach(() => {
+  // Leave the fetch pending so teaser mounts don't settle a store update
+  // (and trip act(...) warnings) in tests that only care about the pill.
+  loadBalancesCached.mockReset();
+  loadBalancesCached.mockReturnValue(new Promise(() => {}));
+  resetSharedBalances();
+});
 afterEach(cleanup);
 
 describe("Address", () => {
@@ -70,5 +85,22 @@ describe("Address", () => {
     expect(link.querySelector(".rl-addr-bal")).toBeNull();
     expect(link.querySelector(".rl-addr-hint")).toBeNull();
     expect(link.textContent).toBe(ADDR); // nothing extra to copy
+  });
+
+  it("does not fetch balances for a noBalance pill (prose)", () => {
+    render(<Address address={ADDR} full noBalance noHint />);
+    expect(loadBalancesCached).not.toHaveBeenCalled();
+  });
+
+  it("fetches balances on mount for a teaser pill", () => {
+    render(<Address address={ADDR} />);
+    expect(loadBalancesCached).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards onMouseEnter through the tooltip wrapper instead of dropping it", () => {
+    const onMouseEnter = vi.fn();
+    render(<Address address={ADDR} onMouseEnter={onMouseEnter} />);
+    fireEvent.mouseEnter(screen.getByRole("link"));
+    expect(onMouseEnter).toHaveBeenCalledTimes(1);
   });
 });

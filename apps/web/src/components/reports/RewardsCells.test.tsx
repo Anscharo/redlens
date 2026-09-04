@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { EntityChip, StatusPill, AddressLink } from "./RewardsCells";
 import type { AddressInfo } from "@/types";
+
+vi.mock("@/lib/balances", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  loadBalancesCached: () => new Promise(() => {}),
+  peekCachedBalances: () => null,
+}));
 
 afterEach(cleanup);
 

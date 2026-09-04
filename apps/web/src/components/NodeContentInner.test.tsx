@@ -10,6 +10,7 @@ import "@testing-library/jest-dom/vitest";
 import { act } from "react";
 import NodeContentInner from "./NodeContentInner";
 import { setAddressMap } from "../lib/addressMap";
+import { resetSharedBalances } from "../lib/sharedBalances";
 import { makeAddressInfo } from "../test/fixtures";
 
 const EVM = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
@@ -25,15 +26,19 @@ vi.mock("../lib/docs", () => ({
 
 // AddressTooltip's balances fetch is exercised in its own unit test
 // (AddressTooltip.test.tsx); here it's stubbed so the hover-tooltip
-// integration test below only has to assert the resolved name shows up. Fetch
-// is lazy (only on hover), so tests that never hover an address never call it.
+// integration test below only has to assert the resolved name shows up.
+// Prose pills pass noBalance, so they do not fetch on mount — only hover does.
 const loadBalancesCached = vi.fn();
 vi.mock("@/lib/balances", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   loadBalancesCached: () => loadBalancesCached(),
+  peekCachedBalances: () => null,
 }));
 
-beforeEach(() => setAddressMap({}));
+beforeEach(() => {
+  setAddressMap({});
+  resetSharedBalances();
+});
 afterEach(cleanup);
 
 describe("EVM address rendering", () => {

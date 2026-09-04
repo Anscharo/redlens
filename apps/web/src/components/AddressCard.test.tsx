@@ -1,12 +1,22 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { AddressCard } from "./AddressCard";
 import { makeAddressInfo } from "../test/fixtures";
+import { resetSharedBalances } from "../lib/sharedBalances";
+
+vi.mock("@/lib/balances", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  loadBalancesCached: () => new Promise(() => {}),
+  peekCachedBalances: () => null,
+}));
 
 const ADDR = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 
+beforeEach(() => {
+  resetSharedBalances();
+});
 afterEach(cleanup);
 
 describe("AddressCard", () => {

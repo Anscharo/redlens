@@ -1,10 +1,10 @@
-import { useSyncExternalStore, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { type ComponentPropsWithoutRef, type ReactNode } from "react";
 import type { AddressInfo } from "@/types";
 import { explorerUrl } from "@/lib/explorer";
 import { shortAddr } from "../lib/format";
 import { getAddressMap } from "../lib/addressMap";
 import { addressHeadlineBalance } from "../lib/addressTooltip";
-import { subscribeBalances, balancesSnapshot } from "../lib/sharedBalances";
+import { useSharedBalances } from "../lib/sharedBalances";
 import { AddressTooltip } from "./AddressTooltip";
 import { track } from "../lib/analytics";
 
@@ -39,10 +39,6 @@ function HoverHint() {
   );
 }
 
-function useSharedBalances() {
-  return useSyncExternalStore(subscribeBalances, balancesSnapshot, balancesSnapshot);
-}
-
 /**
  * The one way to render an on-chain address: a pill with a chain-correct explorer
  * link, an inline green balance teaser, and balance-on-hover. Every address
@@ -64,9 +60,9 @@ export function Address({
   ...props
 }: AddressProps) {
   const map = addrMap ?? getAddressMap();
-  const balances = useSharedBalances();
+  const { addresses } = useSharedBalances(!noBalance);
   const href = explorerUrl(address, { chain, addrMap: map });
-  const balance = noBalance ? null : addressHeadlineBalance(address, map, balances);
+  const balance = noBalance ? null : addressHeadlineBalance(address, map, addresses);
   const showHint = !noTooltip && !noHint;
   // With no balance and no hint, the pill holds only the address text. Render it
   // as `display: inline` (rl-addr-plain) so it selects and copies exactly like
