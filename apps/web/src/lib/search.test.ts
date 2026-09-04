@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildParticipantLinks, matchParticipants } from "./search";
+import { buildParticipantLinks, matchParticipants, toEntitySearchHits, ENTITY_SEARCH_CAP } from "./search";
 import type { GraphEntity, RelationEdge } from "@/types";
 
 function entity(id: string, et: string, name: string, extra: Partial<GraphEntity> = {}): GraphEntity {
@@ -107,5 +107,27 @@ describe("matchParticipants", () => {
     expect(hits.map((h) => h.participant.name)).toEqual(["Subsidy", "Stability Subsidies"]);
     expect(hits[0].score).toBe(3);
     expect(hits[1].score).toBe(1);
+  });
+});
+
+describe("toEntitySearchHits", () => {
+  it("drops unlinkable rows, keeps score order, and caps", () => {
+    const linked = entity("a1", "agent", "Alpha");
+    const unlinked = entity("x1", "ecosystem_actor", "No Link");
+    const extra = Array.from({ length: ENTITY_SEARCH_CAP }, (_, i) =>
+      entity(`e${i}`, "agent", `Extra ${i}`),
+    );
+    const matches = [linked, unlinked, ...extra].map((p, i) => ({
+      participant: p,
+      score: 10 - i,
+    }));
+    const links = new Map<string, string>([
+      [linked.id, "/radar/a1"],
+      ...extra.map((e) => [e.id, `/radar/${e.slug}`] as const),
+    ]);
+    const hits = toEntitySearchHits(matches, links);
+    expect(hits).toHaveLength(ENTITY_SEARCH_CAP);
+    expect(hits.map((h) => h.participant.id)).not.toContain("x1");
+    expect(hits[0]).toEqual({ participant: linked, score: 10, href: "/radar/a1" });
   });
 });

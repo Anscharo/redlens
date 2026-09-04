@@ -1,8 +1,9 @@
 # Frontend + server search: singular ↔ plural without stemming
 
-Status: **shipped**. Query-time inflection in the reader worker and server
-`runLexical`, ranked so original-term hits sit above inflection-only hits.
-The MiniSearch index still stores surface forms (`processTerm` is unchanged).
+Status: **shipped**. Query-time inflection in the reader worker, server
+`runLexical`, and the graph-worker entity overlay, ranked so original-term
+hits sit above inflection-only hits. The MiniSearch index still stores
+surface forms (`processTerm` is unchanged).
 
 Origin: users searching a singular like `subsidy` miss docs that only say
 `subsidies` (and the reverse). We previously shipped a Porter stemmer and
@@ -172,47 +173,44 @@ Same expand + partition, then `slice(0, k)`. Used by chat `atlas_search` and
 
 ### 3. Entity overlay — `matchParticipants` (`apps/web/src/lib/search.ts`)
 
-Today this is exact / prefix / substring on the **whole** `entity.name`
-against the raw query, run on the main thread over `loadGraph()`'s
-`participants` (itself a filter of `relations.json`). Same hole: `subsidy`
-does not substring-match `Stability Subsidies`.
-
-Apply the same helper **per query token** against **per name token** (plus
-keep the existing whole-string exact/prefix/substring scores). A hit if every
-query token matches some name token via `===`, `startsWith`, `includes`, or
-an inflection counterpart.
+Exact / prefix / substring on the **whole** `entity.name`, plus the same
+helper **per query token** against **per name token**. A hit if every query
+token matches some name token via `===`, `startsWith`, `includes`, or an
+inflection counterpart. `subsidy` therefore hits `Stability Subsidies`.
 
 Scoring stays 3 / 2 / 1 for exact / prefix / substring of the original query
 string; an inflection-only hit scores as substring (1) so a real prefix still
-wins.
+wins. The graph worker calls this matcher; SearchResults only renders the
+returned hits.
 
-This is the relations.json half of the request. It does not require moving
-the work into the graph worker, but that move is a good follow-up (below).
+This is the relations.json half of the request. Filtering and inflection now
+run in the graph worker (`search-entities`); `matchParticipants` stays the
+shared matcher so the worker and unit tests cannot drift.
 
-## Follow-up (separate PR): entity search in the graph worker
+## Entity search in the graph worker
 
-`SearchResults` currently `loadGraph()`s the full relations payload on the
-main thread *only* to run `matchParticipants` + `buildParticipantLinks`. The
-graph worker already fetched `relations.json` and holds `entityById`.
+`SearchResults` no longer `loadGraph()`s the full relations payload on the
+main thread. The graph worker already fetched `relations.json` and holds the
+entity roster.
 
 A `search-entities` message (`{ type, id, q }` → `{ hits: { participant,
-score, href }[] }`) would:
+score, href }[] }`):
 
-- drop the duplicate main-thread parse for the search page
-- keep inflection next to the entity roster
-- reuse `buildParticipantLinks` as a pure function imported by the worker
+- drops the duplicate main-thread parse for the search page
+- keeps inflection next to the entity roster
+- reuses `buildParticipantLinks` as a pure function imported by the worker
+- correlates in-flight queries with a monotonic request id (same pattern as
+  the search worker), so a stale `sub` reply cannot overwrite `subsidy`
 
-Do **not** block inflection on this. The overlay is ~a few thousand names;
-the correctness bug is the matcher, not the thread. Worker-move needs its
-own request-id plumbing (the search worker already has this; the graph
-worker does not).
+The overlay is capped at `ENTITY_SEARCH_CAP` (6) in the worker. Instance /
+invocation / primitive entities are excluded, matching `loadGraph`'s
+participant partition. Failures stay silent — doc hits still render.
 
 ## Out of scope
 
 - Stemming / lemmatizing, including "stem only at query time"
 - Indexing both forms in `processTerm` / rebuilding `search-index.json`
 - In-report row filters (`staleDatesSearch`, `rewardsSearch`, …)
-- Graph-worker `search-entities` message (follow-up below)
 
 ## Tests
 
@@ -251,4 +249,4 @@ say this is **broad** mode.
    MiniSearch integration tests.
 3. Wire the same helper into `matchParticipants`.
 4. Features guide + SearchHints + patch notes.
-5. (Later) `search-entities` on the graph worker.
+5. Graph-worker `search-entities` (request id + same matcher).

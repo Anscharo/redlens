@@ -8,14 +8,19 @@ import type {
   GraphWorkerInMessage,
   GraphWorkerOutMessage,
   SerializedSubgraph,
+  EntitySearchHit,
 } from "@/types";
 import { fetchJson } from "@/lib/verify";
+import { matchParticipants, buildParticipantLinks, toEntitySearchHits } from "../lib/search";
 
 declare const self: DedicatedWorkerGlobalScope;
 
 let graph: MultiDirectedGraph | null = null;
 const entityBySlug = new Map<string, GraphEntity>();
 const entityById = new Map<string, GraphEntity>();
+// Search overlay roster — same partition loadGraph uses (drop instance/invocation/primitive).
+let participants: GraphEntity[] = [];
+let participantLinks = new Map<string, string>();
 
 async function init() {
   // Live atlas base threaded via the worker `name` (sha-keyed /api/atlas/<sha>/);
@@ -33,6 +38,11 @@ async function init() {
     entityById.set(entity.id, entity);
     graph.addNode(entity.id, { ...entity, _nt: "entity" });
   }
+
+  participants = data.entities.filter(
+    (e) => e.et !== "instance" && e.et !== "invocation" && e.et !== "primitive",
+  );
+  participantLinks = buildParticipantLinks(participants, data.edges);
 
   for (const edge of data.edges) {
     if (!graph.hasNode(edge.f)) graph.addNode(edge.f, { _nt: edge.ft });
@@ -92,6 +102,10 @@ function buildSubgraph(rootId: string, depth: number): SerializedSubgraph {
   return { nodes, edges };
 }
 
+function searchEntities(q: string): EntitySearchHit[] {
+  return toEntitySearchHits(matchParticipants(q, participants), participantLinks);
+}
+
 self.addEventListener("message", (e: MessageEvent<GraphWorkerInMessage>) => {
   const msg = e.data;
   try {
@@ -126,11 +140,17 @@ self.addEventListener("message", (e: MessageEvent<GraphWorkerInMessage>) => {
       post({ type: "subgraph", rootId: msg.rootId, ...sub });
       return;
     }
+
+    if (msg.type === "search-entities") {
+      post({ type: "search-entities", id: msg.id, hits: searchEntities(msg.q) });
+      return;
+    }
   } catch (err) {
     if (msg.type === "edges") post({ type: "edges", id: msg.id, outbound: [], inbound: [] });
     if (msg.type === "entity") post({ type: "entity", slug: msg.slug, entity: null, edges: [] });
     if (msg.type === "neighbors") post({ type: "neighbors", id: msg.id, nodes: [], edges: [] });
     if (msg.type === "subgraph") post({ type: "subgraph", rootId: msg.rootId, nodes: [], edges: [] });
+    if (msg.type === "search-entities") post({ type: "search-entities", id: msg.id, hits: [] });
     console.error("[graph worker]", err);
   }
 });
