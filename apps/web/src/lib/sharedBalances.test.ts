@@ -4,8 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AddressBalances, BalancesResponse } from "@/lib/balances";
 import { resetSharedBalances, useSharedBalances } from "./sharedBalances";
 
-const loadBalancesCached = vi.fn();
-const peekCachedBalances = vi.fn();
+const { loadBalancesCached, peekCachedBalances } = vi.hoisted(() => ({
+  loadBalancesCached: vi.fn(),
+  peekCachedBalances: vi.fn(() => null),
+}));
 
 vi.mock("@/lib/balances", () => ({
   loadBalancesCached: (...args: unknown[]) => loadBalancesCached(...args),
