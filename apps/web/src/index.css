@@ -205,23 +205,20 @@
   --entity-bridge: #047857;
   --entity-fallback: #666666;
 
-  /* ─── Depth palette ─── a FIVE-stop cycle running the cool half of Sky's
-     wheel, gold-capped:
-       violet → blue → cyan-blue → green → gold → repeat.
+  /* ─── Depth palette ─── a SIX-stop cool cycle, teal-capped:
+       violet → blue → cyan-blue → green → teal → slate-teal → repeat.
 
-     The warm end of the old seven-stop cycle (red #dd0204, red-pink #d2007d)
-     is deliberately dropped: on these light surfaces those two read as
-     alarm/error rather than as ordinary nesting depth, so the cycle loops back
-     to violet after gold instead of descending into them. Deep documents
-     therefore repeat the cool ramp rather than reaching a hue the eye files as
-     a warning.
+     The warm end of the original seven-stop cycle (gold #876801, red #dd0204,
+     red-pink #d2007d) is deliberately gone: on these light surfaces those hues
+     read as alarm/error rather than as ordinary nesting depth. Instead of
+     snapping straight back to violet after green (a hard jump the eye catches),
+     the descent continues into two deeper teals before the loop, so consecutive
+     depths step gently and the whole ramp stays in one cool family.
 
-     Intensity is maximised, not merely adequate: each stop is the most
-     chromatic colour of its hue that still clears 4.5:1 on --bg-deep, found by
-     searching OKLCH lightness × chroma rather than by eye. Sky's #581BE0 opens
-     the cycle exactly; the rest are chosen for hue and pushed to the gamut edge
-     (blue reaches C 0.22, near the violet's 0.257 — cyan/green/gold cap near
-     0.11 because sRGB holds far less chroma there at a readable lightness).
+     Every stop clears 4.5:1 on both --surface (white) and --bg-deep; the two
+     teals sit a touch deeper than the blue/cyan/green trio (≈6.0 and 7.3:1 on
+     white vs their ≈5.1) so deeper nesting also reads as a deeper colour.
+     Sky's #581BE0 opens the cycle exactly.
 
      Stop 2 is a true blue (260°), NOT Sky's indigo #4331E9. The indigo is only
      9° from the violet, so running the two together read as one smudged step
@@ -229,24 +226,24 @@
      decorative --red slot in this theme, which is where a brand colour with no
      ordering duty belongs.
 
-     Seventeen slots over a five-cycle: 1-5, 6-10, 11-15, then 16-17 restart it. */
+     Seventeen slots over a six-cycle: 1-6, 7-12, then 13-17 restart it. */
   --depth-1: #581be0; /* violet — Sky #581BE0, exact */
   --depth-2: #0064ee; /* blue */
   --depth-3: #03769d; /* dark cyan-blue */
   --depth-4: #037e3f; /* deep green */
-  --depth-5: #876801; /* gold */
-  --depth-6: #581be0; /* violet — cycle repeats here (was red) */
-  --depth-7: #0064ee; /* blue */
-  --depth-8: #03769d; /* dark cyan-blue */
-  --depth-9: #037e3f; /* deep green */
-  --depth-10: #876801; /* gold */
-  --depth-11: #581be0; /* violet */
-  --depth-12: #0064ee; /* blue */
-  --depth-13: #03769d; /* dark cyan-blue */
-  --depth-14: #037e3f; /* deep green */
-  --depth-15: #876801; /* gold */
-  --depth-16: #581be0; /* violet */
-  --depth-17: #0064ee; /* blue */
+  --depth-5: #0a7060; /* teal */
+  --depth-6: #155e70; /* slate-teal — cycle repeats after here */
+  --depth-7: #581be0; /* violet */
+  --depth-8: #0064ee; /* blue */
+  --depth-9: #03769d; /* dark cyan-blue */
+  --depth-10: #037e3f; /* deep green */
+  --depth-11: #0a7060; /* teal */
+  --depth-12: #155e70; /* slate-teal */
+  --depth-13: #581be0; /* violet */
+  --depth-14: #0064ee; /* blue */
+  --depth-15: #03769d; /* dark cyan-blue */
+  --depth-16: #037e3f; /* deep green */
+  --depth-17: #0a7060; /* teal */
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
