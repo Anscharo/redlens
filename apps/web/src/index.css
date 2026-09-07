@@ -74,33 +74,34 @@
 
   --max-prose-width: 90ch;
 
-  /* ─── Depth palette ─── a SIX-stop cool cycle, teal-capped:
-       violet → blue → cyan-blue → green → teal → slate-teal → repeat.
+  /* ─── Depth palette ─── a FIVE-stop cool cycle, blue-led, teal-capped:
+       blue → cyan-blue → green → teal → slate-teal → repeat.
      The same restrained cool progression the light theme uses, brightened for
      the dark surfaces (the light theme's hexes are tuned dark for a white bg
      and would vanish here) — so a document keeps its colour family when you
      switch themes, the way the entity palette already does. Replaces the older
      six-hue rainbow (red/orange/green/blue/purple/magenta), whose warm half
-     read as alarm rather than as ordinary nesting depth.
-     All six pass WCAG AA (4.5:1+) on --bg, --bg-deep, and --surface — verify
+     read as alarm rather than as ordinary nesting depth; violet was dropped
+     too so the root reads as blue, not purple.
+     All five pass WCAG AA (4.5:1+) on --bg, --bg-deep, and --surface — verify
      with wcag-contrast before changing. */
-  --depth-1: #9d84f2;  /* violet */
-  --depth-2: #6f9bf2;  /* blue */
-  --depth-3: #56aecb;  /* cyan-blue */
-  --depth-4: #4fb072;  /* green */
-  --depth-5: #40b9a0;  /* teal */
-  --depth-6: #5ea9c0;  /* slate-teal — cycle repeats after here */
-  --depth-7: #9d84f2;  /* violet */
-  --depth-8: #6f9bf2;  /* blue */
-  --depth-9: #56aecb;  /* cyan-blue */
-  --depth-10: #4fb072; /* green */
-  --depth-11: #40b9a0; /* teal */
-  --depth-12: #5ea9c0; /* slate-teal */
-  --depth-13: #9d84f2; /* violet */
-  --depth-14: #6f9bf2; /* blue */
-  --depth-15: #56aecb; /* cyan-blue */
-  --depth-16: #4fb072; /* green */
-  --depth-17: #40b9a0; /* teal */
+  --depth-1: #6f9bf2;  /* blue */
+  --depth-2: #56aecb;  /* cyan-blue */
+  --depth-3: #4fb072;  /* green */
+  --depth-4: #40b9a0;  /* teal */
+  --depth-5: #5ea9c0;  /* slate-teal — cycle repeats after here */
+  --depth-6: #6f9bf2;  /* blue */
+  --depth-7: #56aecb;  /* cyan-blue */
+  --depth-8: #4fb072;  /* green */
+  --depth-9: #40b9a0;  /* teal */
+  --depth-10: #5ea9c0; /* slate-teal */
+  --depth-11: #6f9bf2; /* blue */
+  --depth-12: #56aecb; /* cyan-blue */
+  --depth-13: #4fb072; /* green */
+  --depth-14: #40b9a0; /* teal */
+  --depth-15: #5ea9c0; /* slate-teal */
+  --depth-16: #6f9bf2; /* blue */
+  --depth-17: #56aecb; /* cyan-blue */
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
@@ -212,45 +213,43 @@
   --entity-bridge: #047857;
   --entity-fallback: #666666;
 
-  /* ─── Depth palette ─── a SIX-stop cool cycle, teal-capped:
-       violet → blue → cyan-blue → green → teal → slate-teal → repeat.
+  /* ─── Depth palette ─── a FIVE-stop cool cycle, blue-led, teal-capped:
+       blue → cyan-blue → green → teal → slate-teal → repeat.
 
      The warm end of the original seven-stop cycle (gold #876801, red #dd0204,
      red-pink #d2007d) is deliberately gone: on these light surfaces those hues
-     read as alarm/error rather than as ordinary nesting depth. Instead of
-     snapping straight back to violet after green (a hard jump the eye catches),
-     the descent continues into two deeper teals before the loop, so consecutive
-     depths step gently and the whole ramp stays in one cool family.
+     read as alarm/error rather than as ordinary nesting depth. Violet was
+     dropped too so the root reads as blue, not purple; the descent then runs
+     through two deeper teals before looping, so consecutive depths step gently
+     and the whole ramp stays in one cool family.
 
      Every stop clears 4.5:1 on both --surface (white) and --bg-deep; the two
      teals sit a touch deeper than the blue/cyan/green trio (≈6.0 and 7.3:1 on
      white vs their ≈5.1) so deeper nesting also reads as a deeper colour.
-     Sky's #581BE0 opens the cycle exactly.
 
-     Stop 2 is a true blue (260°), NOT Sky's indigo #4331E9. The indigo is only
-     9° from the violet, so running the two together read as one smudged step
-     rather than a progression. The indigo is not lost — it carries the
-     decorative --red slot in this theme, which is where a brand colour with no
-     ordering duty belongs.
+     Stop 1 is a true blue (260°), NOT Sky's indigo #4331E9. The indigo is only
+     9° from violet, so the two read as one smudged step rather than a distinct
+     colour. The indigo is not lost — it carries the decorative --red slot in
+     this theme, which is where a brand colour with no ordering duty belongs.
 
-     Seventeen slots over a six-cycle: 1-6, 7-12, then 13-17 restart it. */
-  --depth-1: #581be0; /* violet — Sky #581BE0, exact */
-  --depth-2: #0064ee; /* blue */
-  --depth-3: #03769d; /* dark cyan-blue */
-  --depth-4: #037e3f; /* deep green */
-  --depth-5: #0a7060; /* teal */
-  --depth-6: #155e70; /* slate-teal — cycle repeats after here */
-  --depth-7: #581be0; /* violet */
-  --depth-8: #0064ee; /* blue */
-  --depth-9: #03769d; /* dark cyan-blue */
-  --depth-10: #037e3f; /* deep green */
-  --depth-11: #0a7060; /* teal */
-  --depth-12: #155e70; /* slate-teal */
-  --depth-13: #581be0; /* violet */
-  --depth-14: #0064ee; /* blue */
-  --depth-15: #03769d; /* dark cyan-blue */
-  --depth-16: #037e3f; /* deep green */
-  --depth-17: #0a7060; /* teal */
+     Seventeen slots over a five-cycle: 1-5, 6-10, 11-15, then 16-17 restart it. */
+  --depth-1: #0064ee; /* blue */
+  --depth-2: #03769d; /* dark cyan-blue */
+  --depth-3: #037e3f; /* deep green */
+  --depth-4: #0a7060; /* teal */
+  --depth-5: #155e70; /* slate-teal — cycle repeats after here */
+  --depth-6: #0064ee; /* blue */
+  --depth-7: #03769d; /* dark cyan-blue */
+  --depth-8: #037e3f; /* deep green */
+  --depth-9: #0a7060; /* teal */
+  --depth-10: #155e70; /* slate-teal */
+  --depth-11: #0064ee; /* blue */
+  --depth-12: #03769d; /* dark cyan-blue */
+  --depth-13: #037e3f; /* deep green */
+  --depth-14: #0a7060; /* teal */
+  --depth-15: #155e70; /* slate-teal */
+  --depth-16: #0064ee; /* blue */
+  --depth-17: #03769d; /* dark cyan-blue */
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
