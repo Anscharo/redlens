@@ -74,34 +74,34 @@
 
   --max-prose-width: 90ch;
 
-  /* ─── Depth palette ─── a FIVE-stop cool cycle, blue-led, teal-capped:
-       blue → cyan-blue → green → teal → slate-teal → repeat.
-     The same restrained cool progression the light theme uses, brightened for
-     the dark surfaces (the light theme's hexes are tuned dark for a white bg
-     and would vanish here) — so a document keeps its colour family when you
+  /* ─── Depth palette ─── a FIVE-stop WARM cycle, red-led:
+       red → coral → orange → amber → tan → repeat.
+     Charcoal keeps a warm ramp to match its own reddish identity (the bg's red
+     undertone, --red burn, tan text), while the light theme runs the mirror
+     cool ramp (blue → … → slate-teal). A document changes hue family when you
      switch themes, the way the entity palette already does. Replaces the older
-     six-hue rainbow (red/orange/green/blue/purple/magenta), whose warm half
-     read as alarm rather than as ordinary nesting depth; violet was dropped
-     too so the root reads as blue, not purple.
+     six-hue rainbow (red/orange/green/blue/purple/magenta), whose cool/pink
+     half fought the warm surfaces. Stops lighten monotonically, so deeper
+     nesting reads as a warmer, lighter colour.
      All five pass WCAG AA (4.5:1+) on --bg, --bg-deep, and --surface — verify
      with wcag-contrast before changing. */
-  --depth-1: #6f9bf2;  /* blue */
-  --depth-2: #56aecb;  /* cyan-blue */
-  --depth-3: #4fb072;  /* green */
-  --depth-4: #40b9a0;  /* teal */
-  --depth-5: #5ea9c0;  /* slate-teal — cycle repeats after here */
-  --depth-6: #6f9bf2;  /* blue */
-  --depth-7: #56aecb;  /* cyan-blue */
-  --depth-8: #4fb072;  /* green */
-  --depth-9: #40b9a0;  /* teal */
-  --depth-10: #5ea9c0; /* slate-teal */
-  --depth-11: #6f9bf2; /* blue */
-  --depth-12: #56aecb; /* cyan-blue */
-  --depth-13: #4fb072; /* green */
-  --depth-14: #40b9a0; /* teal */
-  --depth-15: #5ea9c0; /* slate-teal */
-  --depth-16: #6f9bf2; /* blue */
-  --depth-17: #56aecb; /* cyan-blue */
+  --depth-1: #e25549;  /* red */
+  --depth-2: #e5794f;  /* coral */
+  --depth-3: #dd922f;  /* orange */
+  --depth-4: #cea63a;  /* amber */
+  --depth-5: #cbb782;  /* tan — cycle repeats after here */
+  --depth-6: #e25549;  /* red */
+  --depth-7: #e5794f;  /* coral */
+  --depth-8: #dd922f;  /* orange */
+  --depth-9: #cea63a;  /* amber */
+  --depth-10: #cbb782; /* tan */
+  --depth-11: #e25549; /* red */
+  --depth-12: #e5794f; /* coral */
+  --depth-13: #dd922f; /* orange */
+  --depth-14: #cea63a; /* amber */
+  --depth-15: #cbb782; /* tan */
+  --depth-16: #e25549; /* red */
+  --depth-17: #e5794f; /* coral */
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
