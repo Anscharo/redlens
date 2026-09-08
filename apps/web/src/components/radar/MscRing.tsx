@@ -46,13 +46,15 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
   return (
     <>
       <PillHoverStyles primes={primes} />
-      <svg
-        className="msc-ring"
-        viewBox={`${layout.x} ${layout.y} ${layout.width} ${layout.height}`}
-        preserveAspectRatio="xMidYMid meet"
-        role="img"
+      <figure
+        className="msc-ring-frame"
         aria-label={`Monthly Settlement Cycle flows for ${formatMonth(month)}`}
       >
+        <svg
+          className="msc-ring"
+          viewBox={`${layout.x} ${layout.y} ${layout.width} ${layout.height}`}
+          preserveAspectRatio="xMidYMid meet"
+        >
         {/* Diagonal stripes in each series' own color: a negative flow keeps
             its category color (colors mean category on this chart) and is
             marked by stripes instead of a "loss" hue. */}
@@ -108,7 +110,8 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
           <RingPrimeGroup key={p.flow.prime} {...p} month={month} />
         ))}
         <PillOverlay rings={primes.map((p) => ({ ring: p.ring, label: p.label }))} wedges={wedgePills} />
-      </svg>
+        </svg>
+      </figure>
     </>
   );
 }

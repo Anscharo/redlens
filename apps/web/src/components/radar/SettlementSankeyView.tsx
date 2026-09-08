@@ -57,13 +57,15 @@ export function SettlementSankeyView({
   }, [rows]);
 
   return (
-    <svg
-      className="msc-sankey"
-      viewBox={`0 0 ${layout.width} ${layout.height}`}
-      role="img"
+    <figure
+      className="msc-sankey-frame"
       aria-label={`Venue flows to Sky and ${primeLabel}`}
-      style={{ color: "var(--tan-2)" }}
     >
+      <svg
+        className="msc-sankey"
+        viewBox={`0 0 ${layout.width} ${layout.height}`}
+        style={{ color: "var(--tan-2)" }}
+      >
       {/* Diagonal stripes per series, for the negative ribbons and the
           sinks' out-bars. */}
       <defs>
@@ -111,6 +113,7 @@ export function SettlementSankeyView({
           />
         );
       })}
-    </svg>
+      </svg>
+    </figure>
   );
 }

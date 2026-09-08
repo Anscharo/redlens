@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { collapseVenues, layoutVenueSankey, type SankeyVenue } from "../../lib/settlementSankey";
 import { SettlementSankeyView } from "./SettlementSankeyView";
@@ -36,5 +36,26 @@ describe("SettlementSankeyView", () => {
     expect(container.querySelector('.msc-sankey-sink rect[fill="var(--msc-sky)"]')).toBeInTheDocument();
     expect(container.querySelector('.msc-sankey-sink rect[fill="var(--msc-prime-1)"]')).toBeInTheDocument();
     expect(container.querySelector('.msc-sankey-sink rect[fill="url(#msc-sankey-neg-prime)"]')).toBeInTheDocument();
+  });
+
+  it("names the chart on a figure so the Sky link stays in the accessibility tree", () => {
+    const rows = collapseVenues([
+      v({ id: "win", profitToSky: 100, profitToGrove: 40 }),
+    ]);
+    const layout = layoutVenueSankey(rows, "Spark");
+    const { container } = render(
+      <SettlementSankeyView
+        rows={rows}
+        layout={layout}
+        primeLabel="Spark"
+        month="2026-07"
+        primeColor="var(--msc-prime-1)"
+      />,
+    );
+    expect(container.querySelector("svg.msc-sankey")).not.toHaveAttribute("role");
+    expect(screen.getByLabelText("Venue flows to Sky and Spark").tagName).toBe("FIGURE");
+    expect(
+      screen.getByRole("link", { name: /ecosystem Monthly Settlement Cycle overview/ }),
+    ).toHaveAttribute("href", "/radar?msc=2026-07");
   });
 });

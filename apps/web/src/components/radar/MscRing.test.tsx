@@ -40,6 +40,16 @@ function ringPrimes(flows: PrimeFlowTotals[], month: string): { layout: ReturnTy
 afterEach(cleanup);
 
 describe("MscRing", () => {
+  it("names the chart on a figure so prime links stay in the accessibility tree", () => {
+    const { layout, primes } = ringPrimes([flow()], "2026-07");
+    const { container } = render(
+      <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />,
+    );
+    expect(container.querySelector("svg.msc-ring")).not.toHaveAttribute("role");
+    expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026").tagName).toBe("FIGURE");
+    expect(screen.getByRole("link", { name: /Spark, Jul 2026/ })).toBeInTheDocument();
+  });
+
   it("links a prime without ?msc when the selected month is its latest", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
