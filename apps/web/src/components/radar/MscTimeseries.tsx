@@ -143,7 +143,7 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
         <span>
           <span
             className="inline-block w-2 h-2 mr-1 align-middle"
-            style={{ background: "var(--tan)", boxShadow: "inset 0 0 0 1px var(--msc-sky)" }}
+            style={{ boxShadow: "inset 0 0 0 1px var(--msc-sky)" }}
           />
           to Sky, per Prime (box)
         </span>
@@ -182,18 +182,20 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
     // A negative month keeps the series' color (color = identity) and is
     // marked by diagonal stripes, stacked below the zero line.
     const stripes = (c: string) => `repeating-linear-gradient(45deg, ${c} 0, ${c} 4px, transparent 4px, transparent 8px)`;
-    // Kept: solid prime color. To Sky: a hollow box — ink-colored interior,
-    // outlined in the prime's color, an ink gap, then Sky's line blue on the
-    // outside (inset rings, outermost listed first) — so the two stacks
-    // never read alike and the box ties to the line it adds up to.
+    // Kept: solid prime color. To Sky: a transparent box — Sky's line blue
+    // on the outside (inset ring), a transparent gap, then the prime's color
+    // (an inset outline) — so the two stacks never read alike and the box
+    // ties to the line it adds up to.
     const style =
       flow === "kept"
         ? { top: s.top, height: s.h, background: s.value < 0 ? stripes(fill) : fill }
         : {
             top: s.top,
             height: s.h,
-            background: s.value < 0 ? stripes("var(--msc-sky)") : "var(--tan)",
-            boxShadow: `inset 0 0 0 2px var(--msc-sky), inset 0 0 0 3px var(--tan), inset 0 0 0 5px ${fill}`,
+            background: s.value < 0 ? stripes("var(--msc-sky)") : "transparent",
+            boxShadow: "inset 0 0 0 2px var(--msc-sky)",
+            outline: `2px solid ${fill}`,
+            outlineOffset: -5,
           };
     return (
       <span

@@ -171,7 +171,8 @@ function PrimeHoverStyles({ primes }: { primes: string[] }) {
         `${seg("sky")} .msc-ring-sky-wedge[data-prime="${p}"] ${lit}`,
         // Ring → timeseries.
         `${mark([...keptKinds, "loss", "gross"])} ${layer("kept")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
-        `${mark(["cof", "sde", "sky", "share"])} ${layer("sky")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
+        // The To-Sky box already wears an outline, so it lights by filling.
+        `${mark(["cof", "sde", "sky", "share"])} ${layer("sky")} { background: color-mix(in srgb, var(--msc-sky) 40%, transparent); }`,
       ].join("\n");
     })
     .join("\n");

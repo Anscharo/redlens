@@ -64,10 +64,10 @@ describe("MscTimeseries", () => {
     expect(sky).toHaveLength(3);
     const jul = [...sky].filter((el) => el.closest('button[aria-pressed="true"]')) as HTMLElement[];
     expect(jul.map((el) => el.getAttribute("title"))).toEqual(["Spark: $1.50M to Sky", "Osero: $500k to Sky"]);
-    // A hollow box: ink interior, the prime's color and Sky's blue as rings.
-    expect(jul[0].style.boxShadow).toContain("--msc-prime-1");
+    // A transparent box: Sky's blue ring outside, the prime's color inside.
     expect(jul[0].style.boxShadow).toContain("--msc-sky");
-    expect(jul[0].style.background).toBe("var(--tan)");
+    expect(jul[0].style.outline).toContain("--msc-prime-1");
+    expect(jul[0].style.background).toBe("transparent");
     // Stack top (min top) meets the line's y for that month: heights sum to
     // the To-Sky total on the shared scale.
     const heights = jul.map((el) => parseFloat(el.style.height));
