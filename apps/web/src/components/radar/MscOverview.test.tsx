@@ -63,6 +63,9 @@ describe("MscOverview", () => {
   it("renders the ring, disclaimer, and ecosystem headline row for the latest month", async () => {
     render(<MscOverview actors={ACTORS} />);
     await waitFor(() => expect(screen.getByText("Monthly Settlement Cycle")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(track).toHaveBeenCalledWith("msc_overview_view", { month: "2026-07", primes: 2 }),
+    );
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
     expect(screen.getByText(/not the Protocol's Net Revenue/)).toBeInTheDocument();
     expect(screen.getByText(/supply loss \(the hole\)/)).toBeInTheDocument();
@@ -83,7 +86,6 @@ describe("MscOverview", () => {
     // eco sky = 100; eco kept = (200-60) + 0 = 140; demand = 50 + 32004.
     // "$140" also rides the ring's hover amounts, so match all.
     expect(screen.getAllByText("$140").length).toBeGreaterThan(0);
-    expect(track).toHaveBeenCalledWith("msc_overview_view", { month: "2026-07", primes: 2 });
     expect(track).toHaveBeenCalledTimes(1);
   });
 

@@ -13,9 +13,7 @@ import {
   settlementPrimeKeys,
   supplyKept,
   type DemandKey,
-  type HeadlineFigure,
   type SettlementsBundle,
-  type ThreeWayMonth,
 } from "./settlements";
 
 /** The one display order for Primes everywhere the overview shows them —
@@ -49,11 +47,6 @@ export function comparePrimes(a: string, b: string): number {
  *  can exist for one prime only, e.g. osero's single 2026-07). */
 export function settlementMonths(bundle: SettlementsBundle): string[] {
   return [...new Set(bundle.reports.map((r) => r.month))].sort();
-}
-
-export function latestSettlementMonth(bundle: SettlementsBundle): string | null {
-  const months = settlementMonths(bundle);
-  return months[months.length - 1] ?? null;
 }
 
 /** One prime's flow totals for one month, plus what the ring's hover text
@@ -135,36 +128,6 @@ export function ecosystemThreeWay(bundle: SettlementsBundle, month: string): Eco
   }
   const footDelta = eco.sky + eco.kept + eco.demand - (par + eco.demand + eco.sde);
   return { ...eco, footDelta };
-}
-
-/** Ecosystem three-way per month — feeds SettlementBars as the overview's
- *  month selector. */
-export function ecosystemMonths(bundle: SettlementsBundle): ThreeWayMonth[] {
-  return settlementMonths(bundle).map((month) => {
-    const { sky, kept, demand } = ecosystemThreeWay(bundle, month);
-    return { month, sky, kept, demand };
-  });
-}
-
-/** Same shape and reasoning as headlineFigures(): cost of funds and Sky
- *  Direct Exposure render as components of "To Sky", never peers — a peer
- *  row invites adding them and counting Sky's take twice. */
-export function ecosystemHeadlineFigures(eco: EcosystemThreeWay): HeadlineFigure[] {
-  const rows: HeadlineFigure[] = [{ label: "To Sky", value: eco.sky }];
-  if (Math.abs(eco.cof) >= SETTLEMENT_NEAR_ZERO) {
-    rows.push({ label: "of which cost of funds", value: eco.cof, component: true });
-  }
-  if (Math.abs(eco.sde) >= SETTLEMENT_NEAR_ZERO) {
-    rows.push({ label: "of which Sky Direct Exposure", value: eco.sde, component: true });
-  }
-  rows.push(
-    { label: "Supply kept by Primes", value: eco.kept },
-    // "to Primes": the demand parts (agent rate, DR, GAR, chronicle) are
-    // prime-side addends in the workbook Summary — revenue flowing TO the
-    // Prime from demand-side activity, not payouts by it.
-    { label: "Demand-side to Primes", value: eco.demand },
-  );
-  return rows;
 }
 
 /** Every prime with a published workbook, in PRIME_ORDER — the roster the

@@ -82,10 +82,12 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
   );
 
   const viewed = useRef(false);
-  if (!viewed.current && month && flows.length > 0) {
+  const ready = Boolean(bundle && !settlementsArtifactMissing(bundle) && month && eco && flows.length > 0);
+  useEffect(() => {
+    if (!ready || viewed.current) return;
     viewed.current = true;
-    track("msc_overview_view", { month, primes: flows.length });
-  }
+    track("msc_overview_view", { month: month!, primes: flows.length });
+  }, [ready, month, flows.length]);
 
   if (!bundle || settlementsArtifactMissing(bundle) || !month || !eco) return null;
 

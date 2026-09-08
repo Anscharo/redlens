@@ -3,10 +3,7 @@ import { supplyKept, type SettlementReport, type SettlementsBundle } from "./set
 import {
   actorForPrimeKey,
   primeStackMonths,
-  ecosystemHeadlineFigures,
-  ecosystemMonths,
   ecosystemThreeWay,
-  latestSettlementMonth,
   primeFlowsForMonth,
   settlementMonths,
 } from "./settlementsOverview";
@@ -67,8 +64,7 @@ const bundle: SettlementsBundle = {
 describe("settlementMonths", () => {
   it("returns sorted unique months across the ragged matrix", () => {
     expect(settlementMonths(bundle)).toEqual(["2026-06", "2026-07"]);
-    expect(latestSettlementMonth(bundle)).toBe("2026-07");
-    expect(latestSettlementMonth({ source: {}, reports: [] })).toBeNull();
+    expect(settlementMonths({ source: {}, reports: [] })).toEqual([]);
   });
 });
 
@@ -121,26 +117,6 @@ describe("ecosystemThreeWay", () => {
       reports: [report({ headline: { skyRevenue: 999_999 } })],
     };
     expect(Math.abs(ecosystemThreeWay(bad, "2026-07").footDelta)).toBeGreaterThan(1);
-  });
-});
-
-describe("ecosystemMonths / ecosystemHeadlineFigures", () => {
-  it("emits one three-way per month", () => {
-    const months = ecosystemMonths(bundle);
-    expect(months.map((m) => m.month)).toEqual(["2026-06", "2026-07"]);
-    expect(months[1].sky).toBeCloseTo(620_497, 6);
-  });
-
-  it("renders CoF and SDE as components, omitting near-zero ones", () => {
-    const rows = ecosystemHeadlineFigures(ecosystemThreeWay(bundle, "2026-07"));
-    expect(rows[0]).toEqual({ label: "To Sky", value: expect.any(Number) });
-    expect(rows.find((r) => r.label === "of which cost of funds")?.component).toBe(true);
-    expect(rows.find((r) => r.label === "of which Sky Direct Exposure")?.component).toBe(true);
-    expect(rows.map((r) => r.label)).toContain("Supply kept by Primes");
-    expect(rows.map((r) => r.label)).toContain("Demand-side to Primes");
-
-    const noSde = ecosystemHeadlineFigures(ecosystemThreeWay({ source: {}, reports: [osero] }, "2026-07"));
-    expect(noSde.some((r) => r.label === "of which Sky Direct Exposure")).toBe(false);
   });
 });
 
