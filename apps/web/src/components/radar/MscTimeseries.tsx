@@ -184,7 +184,8 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect, al
   // negative segment — and only for a bar that has anything in it.
   const labelTop = (list: typeof segs) =>
     list.some((s) => s.h >= 0.5) ? Math.max(zeroY, ...list.map((s) => s.top + s.h)) + 3 : null;
-  const keptLabelTop = labelTop(segs);
+  // A loss month wears stripes, not a "kept" label.
+  const keptLabelTop = segs.some((s) => s.value < 0) ? null : labelTop(segs);
   const skyLabelTop = labelTop(skySegs);
   // Pill text names the number, like the ring's pills: never a bare figure.
   const pillText = (s: { prime: string; value: number }, flow: "kept" | "sky") => {

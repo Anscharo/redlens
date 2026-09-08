@@ -102,6 +102,10 @@ describe("MscTimeseries", () => {
     }
     const osero = document.querySelector('.msc-ts-seg[data-prime="osero"][data-flow="kept"]') as HTMLElement;
     expect(osero.querySelector(".msc-ts-pill")?.textContent).toBe("Osero −$50k supply loss");
+    // A loss month gets no "kept" micro label; its "Sky" label stays.
+    const lossCol = osero.closest(".msc-bar-col") as HTMLElement;
+    const labels = [...lossCol.querySelectorAll(".msc-ts-microlabel")].map((el) => el.textContent);
+    expect(labels).not.toContain("kept");
     // Negative months keep the prime's own color, marked by stripes.
     expect(osero.style.background).toContain("repeating-linear-gradient");
     expect(osero.style.background).toContain("--msc-prime-3");
