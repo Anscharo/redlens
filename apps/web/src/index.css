@@ -608,14 +608,15 @@
   --msc-gar-ink: #141414;
   --msc-cp: #c8c8c8;
   --msc-cp-ink: #141414;
-  /* Prime identities: cool greys — the same hue 245 as the theme's blue,
-     at low chroma (a slate, not a gold), alternating lightness so adjacent
-     stack layers stay separable without a hue of their own. */
-  --msc-prime-1: #c9d3df;
-  --msc-prime-2: #6f8299;
-  --msc-prime-3: #a2b1c4;
-  --msc-prime-4: #56677a;
-  --msc-prime-5: #889aaf;
+  /* Prime identities: the theme's OTHER hue — the warm gold (hue 80) of
+     --selected-hint — as a lightness ramp, alternating light/dark so adjacent
+     stack layers stay separable. Gold vs blue is giedi's bipolar axis: what
+     a Prime kept is gold, what went to Sky is blue, nothing else has a hue. */
+  --msc-prime-1: #d9c9a8;
+  --msc-prime-2: #8f7a52;
+  --msc-prime-3: #cab490;
+  --msc-prime-4: #756240;
+  --msc-prime-5: #b19b70;
 }
 
 /* ─── Giedi structural override ──────────────────────────────────────────
