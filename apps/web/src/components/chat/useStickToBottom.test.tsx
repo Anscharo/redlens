@@ -90,9 +90,12 @@ describe("useStickToBottom", () => {
   it("follows new content while the reader is at the bottom", () => {
     render(<Harness />);
     const el = screen.getByTestId("thread");
-    el.scrollTop = 0; // as if content grew underneath
+    // Content growth leaves scrollTop at the last bottom (600); the follow
+    // write is what moves it to the new one. Zeroing it would look like a
+    // scrollbar-drag to the follow effect's geometry check.
+    expect(el.scrollTop).toBe(600);
     act(() => void fireEvent.click(screen.getByText("add turn")));
-    expect(el.scrollTop).toBe(700); // the grown content's new bottom
+    expect(el.scrollTop).toBe(700);
     expect(screen.getByTestId("pending")).toHaveTextContent("false");
   });
 
@@ -133,7 +136,6 @@ describe("useStickToBottom", () => {
     expect(screen.getByTestId("pending")).toHaveTextContent("true");
     act(() => void fireEvent.scroll(el, { target: { scrollTop: 700 } }));
     expect(screen.getByTestId("pending")).toHaveTextContent("false");
-    el.scrollTop = 0;
     act(() => void fireEvent.click(screen.getByText("add turn")));
     expect(el.scrollTop).toBe(800);
   });
