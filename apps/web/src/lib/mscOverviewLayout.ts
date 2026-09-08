@@ -30,8 +30,9 @@
 // the nearest point of that wedge, never closer than DOCK_INSET of the
 // wedge's span to either edge.
 
-import { DEMAND_SERIES, SETTLEMENT_NEAR_ZERO, type DemandKey } from "@/lib/settlements";
+import { DEMAND_SERIES, SETTLEMENT_NEAR_ZERO, formatUsd, type DemandKey } from "@/lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
+import { textWidth } from "./textWidth";
 
 /** Working canvas the layout is computed on. The viewBox the chart ships
  *  is then CROPPED to what got drawn (see `fitViewBox`), so the frame is
@@ -78,12 +79,31 @@ const HEAD_FLARE = 7;
 const MIN_WEDGE = 0.05;
 /** Keep a dock point this fraction of its wedge's span inside either edge. */
 const DOCK_INSET = 0.15;
-/** Permanent figure labels: a slice/wedge shows its amount when the arc at
- *  its label radius is at least this long (px), a pie its gross under the
- *  name always. */
-const FIGURE_MIN_ARC = 96;
-/** Sky wedges carry name + amount on two lines, so need a little more. */
-const WEDGE_MIN_ARC = 80;
+/** Permanent figure labels: a slice or wedge shows its figure only when the
+ *  measured text box fits INSIDE it — inside the pie's edge, clear of the
+ *  hole, within the slice's angles — at one of a few radii along its
+ *  mid-angle (see fitInSector). A pie's gross goes under the name always. */
+const FIGURE_FONT = "15px 'Source Code Pro', 'Courier New', monospace";
+const FIGURE_CHAR_PX = 9.1;
+const NAME_FONT = "15px 'Inter', system-ui, sans-serif";
+const NAME_CHAR_PX = 8.2;
+/** Line box of one 15px line, and the two-line wedge label. */
+const FIGURE_H = 16;
+const WEDGE_LABEL_H = 34;
+/** Breathing room between a figure's box and any edge. */
+const FIGURE_PAD = 5;
+
+/** Short codes for the pie's line items — what the in-slice figures and
+ *  the key use ("CoF $7.86M"). Lives here because the layout measures them. */
+export const SLICE_CODE: Record<string, string> = {
+  cof: "CoF",
+  sde: "SDE",
+  kept: "kept",
+  agentRate: "AR",
+  distributionRewards: "DR",
+  gar: "GAR",
+  chroniclePoints: "CP",
+};
 /** How far (radians) a Prime may sit from its own wedge before its slot is
  *  pulled toward it — beyond this the arrow would cross the donut. */
 const MAX_LEAN = Math.PI / 3;
@@ -247,6 +267,53 @@ function arrowPath(x0: number, y0: number, x1: number, y1: number, w: number): s
 }
 
 const TWO_PI = 2 * Math.PI;
+
+/** Center for a w×h text box inside the sector a0..a1 of the ring
+ *  rIn..rOut around (cx, cy), tried at a few radii along the mid-angle from
+ *  the ring's middle inward. Every corner must be inside the outer edge and
+ *  within the sector's angles, and the box's nearest point must clear the
+ *  hole. Null when no radius works: the figure then lives in the hover pill
+ *  rather than running off the pie. */
+function fitInSector(
+  cx: number,
+  cy: number,
+  rOut: number,
+  rIn: number,
+  a0: number,
+  a1: number,
+  w: number,
+  h: number,
+): { x: number; y: number } | null {
+  const mid = (a0 + a1) / 2;
+  const span = a1 - a0;
+  const hw = w / 2 + FIGURE_PAD;
+  const hh = h / 2 + FIGURE_PAD;
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const radii = [(rOut + rIn) / 2, rOut * 0.62, rOut * 0.5, rOut * 0.4, rOut * 0.3];
+  for (const fr of radii) {
+    const x = cx + fr * Math.cos(mid);
+    const y = cy + fr * Math.sin(mid);
+    const corners = [
+      [x - hw, y - hh],
+      [x + hw, y - hh],
+      [x - hw, y + hh],
+      [x + hw, y + hh],
+    ];
+    if (corners.some(([px, py]) => Math.hypot(px - cx, py - cy) > rOut)) continue;
+    if (rIn > 0) {
+      const nx = clamp(cx, x - hw, x + hw);
+      const ny = clamp(cy, y - hh, y + hh);
+      if (Math.hypot(nx - cx, ny - cy) < rIn + FIGURE_PAD) continue;
+    }
+    if (
+      span < TWO_PI - 1e-6 &&
+      corners.some(([px, py]) => Math.abs(angDiff(Math.atan2(py - cy, px - cx), mid)) > span / 2)
+    )
+      continue;
+    return { x, y };
+  }
+  return null;
+}
 const norm = (a: number) => ((a % TWO_PI) + TWO_PI) % TWO_PI;
 /** Signed shortest angular distance from a to b. */
 const angDiff = (a: number, b: number) => norm(b - a + Math.PI) - Math.PI;
@@ -269,7 +336,7 @@ function lineItems(p: PrimeFlowTotals): Array<{ kind: SliceKind; signed: number 
 
 export function layoutMscRing(
   primes: readonly PrimeFlowTotals[],
-  _labelOf: (prime: string) => string = (p) => p,
+  labelOf: (prime: string) => string = (p) => p,
 ): RingLayout {
   const cy = HEIGHT / 2;
   const rows = primes
@@ -329,18 +396,22 @@ export function layoutMscRing(
     wa = a1;
     wedgeRange.set(x.r.p.prime, [a0, a1]);
     const mid = (a0 + a1) / 2;
-    // Figures sit at 0.72·R, clear of the center label's plate.
-    const fr = skyR * 0.72;
-    const room = (a1 - a0) * fr >= WEDGE_MIN_ARC && skyR >= 100;
+    // Name over amount, two lines — placed only where the measured box fits.
+    const value = Math.abs(x.r.sky);
+    const w = Math.max(
+      textWidth(labelOf(x.r.p.prime), NAME_FONT, NAME_CHAR_PX),
+      textWidth(formatUsd(value, true), FIGURE_FONT, FIGURE_CHAR_PX),
+    );
+    const fit = fitInSector(CX, cy, skyR, skyInnerR, a0, a1, w, WEDGE_LABEL_H);
     return {
       prime: x.r.p.prime,
       path: annulusPath(CX, cy, skyR, skyInnerR, a0, a1),
       a0,
       a1,
       mid,
-      value: Math.abs(x.r.sky),
-      figureX: room ? CX + fr * Math.cos(mid) : null,
-      figureY: room ? cy + fr * Math.sin(mid) : null,
+      value,
+      figureX: fit?.x ?? null,
+      figureY: fit?.y ?? null,
     };
   });
 
@@ -440,9 +511,10 @@ export function layoutMscRing(
       const midR = (s.r + s.holeR) / 2;
       const amountX = px + midR * Math.cos(mid);
       const amountY = py + midR * Math.sin(mid);
-      // A permanent figure when the slice's arc at mid-radius has room for
-      // a short "$2.9M" and the ring is thick enough to hold a line of text.
-      const room = span * midR >= FIGURE_MIN_ARC && s.r - s.holeR >= 34;
+      // A permanent "CoF $7.86M" only where its measured box fits inside
+      // the slice; otherwise the hover pill carries it.
+      const text = `${SLICE_CODE[it.kind]} ${formatUsd(it.signed, true)}`;
+      const fit = fitInSector(px, py, s.r, s.holeR, a0, a1, textWidth(text, FIGURE_FONT, FIGURE_CHAR_PX), FIGURE_H);
       return {
         kind: it.kind,
         signed: it.signed,
@@ -453,8 +525,8 @@ export function layoutMscRing(
         amountY,
         pillX: px + (s.r + PILL_OFFSET) * Math.cos(mid),
         pillY: py + (s.r + PILL_OFFSET) * Math.sin(mid),
-        figureX: room ? amountX : null,
-        figureY: room ? amountY : null,
+        figureX: fit?.x ?? null,
+        figureY: fit?.y ?? null,
       };
     });
 

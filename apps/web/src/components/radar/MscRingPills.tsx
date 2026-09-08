@@ -16,17 +16,7 @@ export const markId = (prime: string, kind: string): string => `${prime}::${kind
  *  more than it made that month) and is shown as such. */
 export const formatShare = (share: number): string => `${Math.round(share * 100)}%`;
 
-/** Short codes for the pie's line items — what the in-slice figures and
- *  the key use ("CoF $7.86M"). */
-export const SLICE_CODE: Record<string, string> = {
-  cof: "CoF",
-  sde: "SDE",
-  kept: "kept",
-  agentRate: "AR",
-  distributionRewards: "DR",
-  gar: "GAR",
-  chroniclePoints: "CP",
-};
+export { SLICE_CODE } from "../../lib/mscOverviewLayout";
 
 /** The series token each line item is drawn in — the ring's slice fills
  *  (index.css `.msc-ring-<kind>`), the key's swatches and the Prime page's
