@@ -17,6 +17,8 @@ const HistogramBar = memo(function HistogramBar({
   const heightPct = max > 0 ? (bucket.docs / max) * 100 : 0;
   return (
     <Tooltip
+      // Instant, not the 200ms app default: values should appear as the pointer
+      // sweeps across bars, without a pause on each one.
       delay={0}
       content={`${bucket.docs.toLocaleString()} doc${bucket.docs === 1 ? "" : "s"} with ${bucket.label} edit${bucket.label === "1" ? "" : "s"}`}
     >

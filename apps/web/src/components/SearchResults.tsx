@@ -1,17 +1,16 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef } from "react";
 import { Link } from "./Link";
 import { SearchResult } from "./SearchResult";
 import { SearchHints } from "./SearchHints";
-import type { SearchHit, GraphEntity } from "@/types";
+import type { SearchHit } from "@/types";
 import type { SearchState } from "../hooks/useSearch";
 import type { SearchMode } from "../hooks/useSearchInput";
 import { useUrlState, urlInt } from "../hooks/useUrlState";
 import { useScrollRestore } from "../hooks/useScrollRestore";
-import { loadGraph } from "../lib/graph";
 import { useSearchTracking } from "../hooks/useSearchTracking";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { useEntitySearch } from "../hooks/useEntitySearch";
 import { track } from "../lib/analytics";
-import { matchParticipants, buildParticipantLinks } from "../lib/search";
 import { ENTITY_TYPE_LABEL, ENTITY_TYPE_COLOR, SUBTYPE_LABEL } from "../lib/entityGraph";
 
 interface Props {
@@ -22,7 +21,6 @@ interface Props {
   onBroadSearch: (query: string) => void;
 }
 const PAGE_SIZE = 500;
-const ENTITY_CAP = 6;
 const empty: SearchHit[] = [];
 const visibleCodec = urlInt(PAGE_SIZE);
 
@@ -77,28 +75,7 @@ export const SearchResults = memo(function SearchResults({
     [hits.length],
   );
 
-  const [graph, setGraph] = useState<{ participants: GraphEntity[]; edges: import("@/types").RelationEdge[] } | null>(null);
-  useEffect(() => {
-    let live = true;
-    // Graph powers the entity-hit overlay only — an enrichment. Swallow failures
-    // (no unhandled rejection) and leave `graph` null; search results still render.
-    loadGraph()
-      .then((g) => { if (live) setGraph({ participants: g.participants, edges: g.edges }); })
-      .catch(() => {});
-    return () => { live = false; };
-  }, []);
-
-  const participantLinks = useMemo(
-    () => (graph ? buildParticipantLinks(graph.participants, graph.edges) : new Map<string, string>()),
-    [graph],
-  );
-
-  const entityHits = useMemo(() => {
-    if (!graph || !query.trim() || query.startsWith("/")) return [];
-    return matchParticipants(query, graph.participants)
-      .filter(({ participant }) => participantLinks.has(participant.id))
-      .slice(0, ENTITY_CAP);
-  }, [graph, participantLinks, query]);
+  const entityHits = useEntitySearch(query);
 
   const noResults = state.status === "done" && hits.length === 0;
   // Query is non-broad when mode pill is phrase/strict, or user typed explicit quotes
@@ -132,10 +109,10 @@ export const SearchResults = memo(function SearchResults({
               Agents · Alignment Conservers · Governance Operators {entityHits.length}
             </div>
             <ul>
-              {entityHits.map(({ participant }, i) => (
+              {entityHits.map(({ participant, href }, i) => (
                 <li key={participant.id}>
                   <Link
-                    to={participantLinks.get(participant.id)!}
+                    to={href}
                     className="search-result-link px-4 py-3 flex items-center gap-3"
                     onClick={() =>
                       track("search_result_click", {

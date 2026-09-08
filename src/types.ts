@@ -34,9 +34,12 @@ export interface AddressInfo {
   // lookup for why this needs to be a list, not just the primary `chain`.
   chains: string[];
   explorerUrl: string;
-  // label is resolved at load time: chainlogId ?? entityLabel ?? etherscanName
+  // The authoritative name, resolved at load time: chainlogId ?? etherscanName.
+  // NEVER entityLabel (heuristic prose — surfaces as owner via resolveOwner).
+  // Prefer resolveAddressName()/resolveOwner() (src/lib/addressName) over reading
+  // this directly, so the shortAddr fallback and owner split stay consistent.
   label: string | null;
-  entityLabel?: string; // atlas-derived label (from graph annotation passes)
+  entityLabel?: string; // atlas-derived heuristic label (owner context, quality-filtered on display)
   chainlogId?: string; // mainnet only
   etherscanName?: string; // verified contract name
   isContract: boolean; // holds executable code (eth_getCode / Solana executable)
@@ -138,13 +141,21 @@ export interface SerializedSubgraph {
   edges: Array<{ key: string; src: string; tgt: string; attrs: Record<string, unknown> }>;
 }
 
+// Search-page entity overlay hit (graph worker `search-entities`).
+export interface EntitySearchHit {
+  participant: GraphEntity;
+  score: number; // 3 exact, 2 prefix, 1 substring / inflection
+  href: string;
+}
+
 // Worker message types — graph
 export type GraphWorkerInMessage =
   | { type: "ping" }
   | { type: "edges"; id: string }
   | { type: "entity"; slug: string }
   | { type: "neighbors"; id: string; depth?: number }
-  | { type: "subgraph"; rootId: string; depth: number };
+  | { type: "subgraph"; rootId: string; depth: number }
+  | { type: "search-entities"; id: number; q: string };
 
 export type GraphWorkerOutMessage =
   | { type: "ready" }
@@ -152,4 +163,5 @@ export type GraphWorkerOutMessage =
   | { type: "entity"; slug: string; entity: GraphEntity | null; edges: ResolvedEdge[] }
   | ({ type: "neighbors"; id: string } & SerializedSubgraph)
   | ({ type: "subgraph"; rootId: string } & SerializedSubgraph)
+  | { type: "search-entities"; id: number; hits: EntitySearchHit[] }
   | { type: "error"; message: string };

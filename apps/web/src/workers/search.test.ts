@@ -5,7 +5,7 @@
  * Coverage:
  *  - Every documented search hint in SearchHints.tsx
  *  - Prefix search correctness (partial words, no stemmer)
- *  - Plural/singular distinction (stemmer removal)
+ *  - Index still stores surface forms (plural/singular are not stemmed)
  *  - Backtick-wrapped inline-code terms
  *  - Field restriction (title:, type:) with and without space after colon
  */
@@ -14,17 +14,8 @@ import MiniSearch from "minisearch";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { UUID_PREFIX_RE } from "@/lib/patterns";
+import { MINISEARCH_OPTIONS } from "@/lib/searchOptions";
 import { matchUuidPrefix } from "../lib/uuidSearch";
-
-// KEEP IN SYNC WITH src/workers/search.worker.ts + scripts/required/build-index.mjs
-const MINISEARCH_OPTIONS: ConstructorParameters<typeof MiniSearch>[0] = {
-  fields: ["title", "doc_no", "type", "content"],
-  idField: "id",
-  processTerm: (term) => {
-    const lower = term.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, "").toLowerCase();
-    return lower.length >= 2 ? lower : null;
-  },
-};
 
 const SEARCH_OPTS = {
   prefix: true,
@@ -385,7 +376,9 @@ describe("regression: prefix search — partial words find expected results", ()
   });
 });
 
-describe("regression: no stemmer — plurals stay distinct from singulars", () => {
+describe("regression: no stemmer in the index — MiniSearch stores surface forms", () => {
+  // Inflection is query-time in the worker / runLexical, not processTerm.
+  // These assert the serialized index itself still distinguishes the forms.
   it("'agents' only returns docs containing 'agents'", () => {
     const results = ms.search("agents", SEARCH_OPTS);
     expect(results.length).toBeGreaterThan(0);

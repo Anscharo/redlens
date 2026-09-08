@@ -31,9 +31,9 @@ export function SegmentedBar({ value, max, segments }: { value: number; max: num
           <div className="h-full w-full" style={{ background: "var(--red)" }} />
         ) : (
           segs.map((s, i) => (
-            // delay={0}: segments are the whole point of this chart — the
-            // name should appear the instant the pointer lands, unlike the
-            // app-default 800ms used elsewhere.
+            // delay={0}: segments are the whole point of this chart — the name
+            // should appear the instant the pointer lands, not after the 200ms
+            // app default used elsewhere.
             <Tooltip key={s.id} delay={0} content={`${s.doc_no ? `${s.doc_no} ` : ""}${s.title} — ${s.docs.toLocaleString()} docs`}>
               <div
                 className="h-full"

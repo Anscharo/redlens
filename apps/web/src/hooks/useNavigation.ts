@@ -34,12 +34,12 @@ export function useNavigation({
   );
 
   const handleViewChange = useCallback(
-    (v: "annotations" | "glossary" | "history") => {
+    (v: "notes" | "glossary" | "history") => {
       track("atlas_view_tab", { node_id: nodeId, view: v });
       const params = new URLSearchParams();
       if (nodeId) params.set("id", nodeId);
-      // History is the default tab, so it rides the URL with no ?view= param.
-      if (v !== "history") params.set("view", v);
+      // Notes is the default panel, so it rides the URL with no ?view= param.
+      if (v !== "notes") params.set("view", v);
       const split = currentParam("split");
       if (split) params.set("split", split);
       const subset = currentParam("subset");

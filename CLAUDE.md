@@ -122,13 +122,15 @@ Two distinctions the chat must never blur, and where each is enforced: **this ch
 
 ### Frontend
 
-`App.tsx` is the shell (routing, URL sync, layout). The main atlas view is `src/components/atlas/AtlasView.tsx`.
+`App.tsx` is the shell (routing, URL sync, layout). The main atlas view is `apps/web/src/components/atlas/AtlasView.tsx`.
 
-Three workers: `search.worker.ts` (MiniSearch), `atlas.worker.ts` (tree view), `graph.worker.ts` (graphology `MultiDirectedGraph` over `relations.json`). The atlas view is `src/components/atlas/`, the entity view `src/components/radar/` (`/radar`, `/radar/:slug`), reports `src/components/reports/`.
+Three workers, all under `apps/web/src/workers/`: `search.worker.ts` (MiniSearch), `atlas.worker.ts` (tree view), `graph.worker.ts` (graphology `MultiDirectedGraph` over `relations.json`). The atlas view is `apps/web/src/components/atlas/`, the entity view `apps/web/src/components/radar/` (`/radar`, `/radar/:slug`), reports `apps/web/src/components/reports/`.
 
 Non-obvious behaviours:
 
-- **Search phrase post-filter** — `"quoted"` phrases are stripped before the MiniSearch query, then every hit is re-checked for literal substring containment.
+- **Search phrase post-filter** — `"quoted"` / `'strict'` phrases are stripped before the MiniSearch query, then every hit is re-checked for literal substring containment (no word-boundary anchors). The `/search-hints` cheat sheet and the mode-pill tooltips must stay on that contract — not "whole-word".
+- **Search boot** — `useSearch` spawns the worker with `name: base` (Vite requires the `new Worker(new URL(...))` to stay inline). The worker fetches `{base}search-index.json`; the main thread forwards already-loaded docs + addresses via `{type:"preload"}` so it does not re-download them. `"ready"` unblocks queries; a typed query during load is queued.
+- **Search query** — `SearchBar` is URL-controlled (`?q=`). `useSearchInput` applies mode wrapping, then `useSearch` posts `{type:"query", id}` (stale ids dropped). Results render on `/` only (`SearchResults`); other routes idle the worker. Report pages reuse the bar to filter their own rows, not MiniSearch. Chat/MCP retrieval is a separate server-side hybrid (see `docs/chat-system.md`).
 - **Depth ≥ 6 nodes are hidden** behind a "view all descendants" button until expanded (`CollapsibleNode.tsx`) — a consequence of the depth cap above.
 - **Glossary lookup flattens parenthetical aliases** — `"Accessibility Scope (ACC)"` yields keys for both `"accessibility scope"` and `"acc"`.
 - **Report data logic lives in pure `src/lib/*` modules, not in the components**, so it's testable without React. Keep it that way when adding one.

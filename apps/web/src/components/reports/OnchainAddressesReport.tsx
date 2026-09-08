@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { loadDocs } from "../../lib/docs";
 import { loadAddresses } from "../../lib/addresses";
+import { setAddressMap } from "../../lib/addressMap";
 import { urlString } from "../../hooks/useUrlState";
 import { useLoaded } from "../../hooks/useAtlasData";
 import {
@@ -30,6 +31,13 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
   const docs = useLoaded(loadDocs);
   const addrMap = useLoaded(loadAddresses);
   const { bal, refreshing, error: balError, canRefresh, refresh } = useBalances(REPORT);
+
+  // Hydrate the shared singleton that the inline <Address> tooltips read for
+  // name/explorer resolution (this report loads the map itself rather than
+  // through useAddressMap, which is what normally sets the singleton).
+  useEffect(() => {
+    if (addrMap) setAddressMap(addrMap);
+  }, [addrMap]);
 
   const rows = useMemo(
     () => (docs && addrMap ? buildOnchainAddressRows(docs, addrMap, bal?.addresses ?? {}) : []),

@@ -6,14 +6,11 @@
 export const PRE_MD_HTML_URL =
   "https://github.com/sky-ecosystem/next-gen-atlas/blob/7b43d159e098b30e67c4be6a7594a237a340fa58/Sky%20Atlas/Sky%20Atlas.html";
 
-// Names the methods used to trace each document's lineage across the 79 pre-#117
-// HTML commits (era="html").
+// Tooltip content for a reconstructed (era="html") entry's info icon — the
+// lineage across the 79 pre-#117 HTML commits was reconstructed, not native.
 export function HtmlEraDisclaimer() {
   return (
-    <aside
-      className="mono text-[11px] px-2 py-2.5 leading-snug my-1"
-      style={{ color: "var(--tan-3)", border: "2px solid var(--border)" }}
-    >
+    <span className="mono text-[11px] leading-snug">
       This history is reconstructed.{" "}
       <a
         href="/provenance#reconstructed-history"
@@ -22,7 +19,7 @@ export function HtmlEraDisclaimer() {
       >
         Learn how <span className="enlargen">→</span>
       </a>
-    </aside>
+    </span>
   );
 }
 
@@ -32,10 +29,7 @@ export function HtmlEraDisclaimer() {
 // snapshot, or an undated interval somewhere in the git-less window between them.
 export function PreGitDisclaimer() {
   return (
-    <aside
-      className="mono text-[11px] px-2 py-2.5 leading-snug mt-3 mb-1"
-      style={{ color: "var(--tan-3)", border: "2px solid var(--border)" }}
-    >
+    <span className="mono text-[11px] leading-snug">
       This history comes from pre-git sources.{" "}
       <a
         href="/provenance#pre-git-history"
@@ -44,6 +38,6 @@ export function PreGitDisclaimer() {
       >
         Learn more <span className="enlargen">→</span>
       </a>
-    </aside>
+    </span>
   );
 }

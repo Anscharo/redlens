@@ -12,7 +12,7 @@ import { resolveAtlasRef } from "../lib/docs";
 import { useDataSource } from "../lib/dataSource";
 import { track } from "../lib/analytics";
 import { rehypeHighlightMarks } from "../lib/rehypeHighlightMarks";
-import { AddressTooltip } from "./AddressTooltip";
+import { Address } from "./Address";
 import type { ReportQuery } from "@/lib/reportFilter";
 
 interface Props {
@@ -76,22 +76,26 @@ function MarkdownLink({
       </a>
     );
   }
-  const link = (
+  // rehypeEthAddresses tags on-chain address links with data-address — the
+  // signal MarkdownLink uses to render them as the shared <Address> pill (with
+  // name/balance hover, an inline balance teaser, and the hover icon). Tx-hash
+  // and other external links carry no such property and stay plain anchors.
+  const addrProp = node?.properties?.["data-address"];
+  const address = typeof addrProp === "string" ? addrProp : null;
+  if (address) {
+    // In prose: the full address, a subtle pill, but no inline balance or hover
+    // icon — so it reads and copies like normal text. (Hover still shows the
+    // name/balances tooltip.)
+    return (
+      <Address address={address} full noBalance noHint>
+        {children}
+      </Address>
+    );
+  }
+  return (
     <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
       {children}
     </a>
-  );
-  // rehypeEthAddresses tags on-chain address links with data-address — the
-  // signal MarkdownLink uses to attach the name/balances hover tooltip
-  // (tx-hash and other external links carry no such property).
-  const addrProp = node?.properties?.["data-address"];
-  const address = typeof addrProp === "string" ? addrProp : null;
-  return address ? (
-    <AddressTooltip address={address} href={href}>
-      {link}
-    </AddressTooltip>
-  ) : (
-    link
   );
 }
 

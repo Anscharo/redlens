@@ -6,6 +6,7 @@ import { act } from "react";
 import { setAddressMap } from "../lib/addressMap";
 import { makeAddressInfo } from "../test/fixtures";
 import { AddressTooltip } from "./AddressTooltip";
+import { resetSharedBalances } from "../lib/sharedBalances";
 
 const EVM = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 
@@ -13,11 +14,13 @@ const loadBalancesCached = vi.fn();
 vi.mock("@/lib/balances", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   loadBalancesCached: () => loadBalancesCached(),
+  peekCachedBalances: () => null,
 }));
 
 beforeEach(() => {
   vi.useFakeTimers();
   loadBalancesCached.mockReset();
+  resetSharedBalances();
 });
 afterEach(() => {
   cleanup();

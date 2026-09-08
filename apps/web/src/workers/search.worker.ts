@@ -12,6 +12,7 @@ import { buildSnippet, highlightTerms, extractPhrases } from "@/lib/searchHighli
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
 import { MINISEARCH_OPTIONS } from "@/lib/searchOptions";
+import { counterpartTerm, expandQueryTokens, partitionByOriginalTerms } from "@/lib/searchInflect";
 import { computeLabels } from "../lib/hitLabels";
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -247,11 +248,17 @@ function search(q: string): SearchHit[] {
   // \b never holds between two non-word characters. See searchHighlight.ts for
   // the (boundary-aware, for readable highlighting) highlight-side counterpart.
   const lowerPhrases = phrases.map((p) => p.toLowerCase());
-  // field:term regexes — case-insensitive; doc_no uses simple includes
+  // field:term regexes — case-insensitive; doc_no uses simple includes.
+  // Broad `title:subsidy` also accepts the singular/plural counterpart.
   const fieldTermRes = new Map<string, RegExp[]>(
     [...fieldScopedTerms.entries()].map(([f, terms]) => [
       f,
-      terms.map((t) => new RegExp("\\b" + t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i")),
+      terms.map((t) => {
+        const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const other = counterpartTerm(t);
+        const body = other ? `(?:${esc(t)}|${esc(other)})` : esc(t);
+        return new RegExp("\\b" + body + "\\b", "i");
+      }),
     ]),
   );
 
@@ -300,13 +307,18 @@ function search(q: string): SearchHit[] {
       .filter((id) => filter({ id }))
       .map((id) => ({ id, score: 1, terms: [], queryTerms: [], match: {} }));
   } else {
-    results = idx.search(finalQuery, {
+    const expansion = expandQueryTokens(finalQuery.split(/\s+/).filter(Boolean));
+    const searchQuery = expansion.extra.length > 0 ? `${finalQuery} ${expansion.extra.join(" ")}` : finalQuery;
+    results = idx.search(searchQuery, {
       prefix: true,
       fuzzy: fuzzyLevel || false,
       boost: { title: 10, doc_no: 5, type: 2 },
       combineWith: "OR",
       ...(docFilter ? { filter: docFilter } : {}),
     }) as MiniResult[];
+    if (expansion.extra.length > 0) {
+      results = partitionByOriginalTerms(results, new Set(expansion.originals));
+    }
   }
 
   // Use original query words for highlighting (not stems)
@@ -328,8 +340,19 @@ function search(q: string): SearchHit[] {
     ...(fieldScopedTerms.get("content") ?? []),
   ].map((w) => w.toLowerCase()));
   const freeWords = queryWords.filter((w) => !strictFieldTerms.has(w.toLowerCase()));
-  const titleHighlightTerms = [...(fieldScopedTerms.get("title") ?? []), ...freeWords];
-  const contentHighlightTerms = [...(fieldScopedTerms.get("content") ?? []), ...freeWords];
+  const fieldTitle = fieldScopedTerms.get("title") ?? [];
+  const fieldContent = fieldScopedTerms.get("content") ?? [];
+  const inflectedFree = expandQueryTokens(freeWords).extra;
+  const inflectedTitle = fieldTitle.flatMap((t) => {
+    const other = counterpartTerm(t);
+    return other ? [other] : [];
+  });
+  const inflectedContent = fieldContent.flatMap((t) => {
+    const other = counterpartTerm(t);
+    return other ? [other] : [];
+  });
+  const titleHighlightTerms = [...fieldTitle, ...inflectedTitle, ...freeWords, ...inflectedFree];
+  const contentHighlightTerms = [...fieldContent, ...inflectedContent, ...freeWords, ...inflectedFree];
 
   const hits = results
     .map((r): SearchHit | null => {

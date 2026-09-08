@@ -58,14 +58,17 @@ describe("loadAddresses chain resolution", () => {
     expect(out[ADDR].chain).toBe("base");
   });
 
-  it("resolves label precedence chainlogId > entityLabel > etherscanName and files the rest as aliases", async () => {
+  it("resolves the name as chainlogId > etherscanName (never entityLabel) and files non-winners as aliases", async () => {
     serve(
       { [ADDR]: { chain: "ethereum", roles: ["multisig"], aliases: ["Old Name"], expectedTokens: ["USDS"], entityLabel: "Atlas Label" } },
       { [ADDR]: { chain: "ethereum", chainlogId: "MCD_PAUSE_PROXY", etherscanName: "SafeProxy", isContract: true, isProxy: true, implementation: "0ximpl" } },
     );
     const out = await loadAddresses("/b4/");
     expect(out[ADDR].label).toBe("MCD_PAUSE_PROXY");
-    expect(out[ADDR].aliases).toEqual(["Atlas Label", "Old Name", "SafeProxy"]);
+    // entityLabel is heuristic prose — never a name, and no longer folded into
+    // aliases; it is preserved on its own field to surface as the owner.
+    expect(out[ADDR].aliases).toEqual(["Old Name", "SafeProxy"]);
+    expect(out[ADDR].entityLabel).toBe("Atlas Label");
     expect(out[ADDR].roles).toEqual(["multisig"]);
     expect(out[ADDR].implementation).toBe("0ximpl");
   });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AddressBalances } from "@/lib/balances";
-import { resolveAddressTooltip } from "./addressTooltip";
+import { resolveAddressTooltip, addressHeadlineBalance } from "./addressTooltip";
 import { makeAddressInfo } from "../test/fixtures";
 
 const EVM = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
@@ -97,5 +97,49 @@ describe("resolveAddressTooltip", () => {
     const balancesByAddress = { [`${EVM}|ethereum`]: bal({ ETH: { raw: "1000000000000000000", decimals: 18 } }) };
     const result = resolveAddressTooltip(EVM, addrMap, balancesByAddress);
     expect(result.held).toEqual([{ symbol: "ETH", amount: "1.00" }]);
+  });
+});
+
+describe("addressHeadlineBalance", () => {
+  const map = { [EVM]: makeAddressInfo({ chains: ["ethereum"] }) };
+
+  it("sums stablecoins into a compact dollar figure", () => {
+    const b = { [`${EVM}|ethereum`]: bal({ USDS: { raw: "3200000000000000000000", decimals: 18 } }) };
+    expect(addressHeadlineBalance(EVM, map, b)).toBe("$3.2K");
+  });
+
+  it("shows the top non-stable holding as a token amount when there is no stable value", () => {
+    const b = { [`${EVM}|ethereum`]: bal({ SKY: { raw: "35440000000000000000000000", decimals: 18 } }) };
+    expect(addressHeadlineBalance(EVM, map, b)).toBe("35.44M SKY");
+  });
+
+  it("prefers a real stable dollar value over a token amount", () => {
+    const b = {
+      [`${EVM}|ethereum`]: bal({
+        USDS: { raw: "5000000000000000000000", decimals: 18 }, // $5k
+        SKY: { raw: "1000000000000000000", decimals: 18 }, // 1 SKY
+      }),
+    };
+    expect(addressHeadlineBalance(EVM, map, b)).toBe("$5.0K");
+  });
+
+  it("ignores sub-dollar stable dust and falls back to the token holding", () => {
+    const b = {
+      [`${EVM}|ethereum`]: bal({
+        USDS: { raw: "780000000000000000", decimals: 18 }, // $0.78 — dust
+        SKY: { raw: "35440000000000000000000000", decimals: 18 },
+      }),
+    };
+    expect(addressHeadlineBalance(EVM, map, b)).toBe("35.44M SKY");
+  });
+
+  it("floors dust token balances at <0.01", () => {
+    const b = { [`${EVM}|ethereum`]: bal({ ETH: { raw: "5000000000000000", decimals: 18 } }) }; // 0.005 ETH
+    expect(addressHeadlineBalance(EVM, map, b)).toBe("<0.01 ETH");
+  });
+
+  it("returns null when nothing is held", () => {
+    expect(addressHeadlineBalance(EVM, map, {})).toBe(null);
+    expect(addressHeadlineBalance(EVM, map, { [`${EVM}|ethereum`]: bal({ ETH: { raw: "0", decimals: 18 } }) })).toBe(null);
   });
 });

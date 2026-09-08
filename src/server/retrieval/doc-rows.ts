@@ -13,6 +13,7 @@
 // from build-index's extraction — the reason RightPanel address cards vanished
 // after the first hot refresh.
 import { normalizeAddress } from "../../../scripts/lib/address-chains.mjs";
+import { isCleanLabel } from "../../lib/addressName.ts";
 import { contentHash as embedContentHash } from "./embed-text.ts";
 import type { AtlasNode } from "./indexes.ts";
 
@@ -135,7 +136,10 @@ export function buildAddrRows(
   for (const [addr, a] of Object.entries(addrAtlas)) {
     const norm = normalizeAddress(addr);
     const oc = addrOnChain[addr] ?? addrOnChain[norm] ?? {};
-    const label = oc.chainlogId ?? a.entityLabel ?? oc.etherscanName ?? null;
+    // Authoritative name first (chainlog id, then verified on-chain name); fall
+    // back to entityLabel only when it passes the fragment filter, so chat never
+    // gets a scraped sentence fragment as an address's name. See addressName.ts.
+    const label = oc.chainlogId ?? oc.etherscanName ?? (isCleanLabel(a.entityLabel) ? a.entityLabel : null);
     const cs = chainStateByAddr[norm];
     // One row per chain the atlas places this address on — the composite PK
     // (address, chain) exists for exactly this, and writing only the primary

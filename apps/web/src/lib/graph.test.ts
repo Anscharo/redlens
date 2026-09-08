@@ -220,3 +220,56 @@ describe("edges (success paths)", () => {
     await assertion;
   });
 });
+
+describe("searchEntities", () => {
+  async function readyGraph() {
+    const g = await import("./graph");
+    const p = g.getEdges("warmup");
+    MockWorker.instances[0].emit("message", { data: { type: "ready" } });
+    await Promise.resolve();
+    MockWorker.instances[0].emit("message", { data: { type: "edges", id: "warmup", outbound: [], inbound: [] } });
+    await p;
+    return { g, w: MockWorker.instances[0] };
+  }
+
+  it("posts a search-entities request with a monotonic id and resolves the matching reply", async () => {
+    const { g, w } = await readyGraph();
+    const p = g.searchEntities("subsidy");
+    await Promise.resolve();
+    const posted = w.posted.find((m) => (m as { type: string }).type === "search-entities") as {
+      type: string;
+      id: number;
+      q: string;
+    };
+    expect(posted).toEqual({ type: "search-entities", id: 1, q: "subsidy" });
+    const hits = [{ participant: { id: "e1", name: "Stability Subsidies" }, score: 1, href: "/radar/x" }];
+    w.emit("message", { data: { type: "search-entities", id: 1, hits } });
+    await expect(p).resolves.toEqual(hits);
+  });
+
+  it("ignores a search-entities reply for an id with no pending callback", async () => {
+    const { w } = await readyGraph();
+    expect(() =>
+      w.emit("message", { data: { type: "search-entities", id: 99, hits: [] } }),
+    ).not.toThrow();
+  });
+
+  it("two in-flight searches resolve independently by request id (stale-safe)", async () => {
+    const { g, w } = await readyGraph();
+    const p1 = g.searchEntities("skybase");
+    const p2 = g.searchEntities("ozone");
+    await Promise.resolve();
+    const reqs = w.posted.filter((m) => (m as { type: string }).type === "search-entities") as Array<{
+      id: number;
+      q: string;
+    }>;
+    expect(reqs.map((r) => r.q)).toEqual(["skybase", "ozone"]);
+    const sky = [{ participant: { slug: "skybase" }, score: 3, href: "/radar/skybase" }];
+    const ozone = [{ participant: { slug: "ozone" }, score: 3, href: "/radar/ozone" }];
+    // Reply to the later request first.
+    w.emit("message", { data: { type: "search-entities", id: reqs[1].id, hits: ozone } });
+    w.emit("message", { data: { type: "search-entities", id: reqs[0].id, hits: sky } });
+    await expect(p2).resolves.toEqual(ozone);
+    await expect(p1).resolves.toEqual(sky);
+  });
+});

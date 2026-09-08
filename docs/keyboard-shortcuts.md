@@ -133,7 +133,7 @@ stays in the input the whole time and a highlight moves through the list.
 |---|---|
 | **↓** / **↑** | Move the highlight. Up past the top returns focus to the input. |
 | **Tab** | With nothing highlighted, steps into the dropdown and highlights the first suggestion. |
-| **Enter** | Run the highlighted suggestion — or, with nothing highlighted, submit what you typed. |
+| **Enter** | Run the highlighted suggestion — or, with nothing highlighted, jump focus to the first result. |
 | **Esc** | Close the dropdown. |
 | **Backspace** / **Delete** on an already-empty field | Re-summon the dropdown after you've dismissed it. |
 
@@ -141,14 +141,17 @@ Hovering a suggestion writes the same highlight the keyboard uses, so the two
 can never both be lit — whichever moved last wins.
 
 **Query syntax** (not a shortcut, but easy to miss): wrapping a phrase in
-`"double quotes"` requires a literal substring match, not just the words.
+`"double quotes"` or `'single quotes'` requires a literal substring match, not
+just the words. Single quotes are case-sensitive. The `/search-hints` cheat
+sheet lists the rest (`in:`, `type:`, `~N`, exclusions).
 
 ---
 
 ## Chat
 
 ⚠️ Gated behind the `__CHAT_ENABLED__` build flag and hidden in preview mode
-(`App.tsx:467`) — these only exist in builds where chat is turned on.
+(`App.tsx`, `__CHAT_ENABLED__ && chatEnabled() && !preview`) — these only exist
+in builds where chat is turned on.
 
 | Key | Effect |
 |---|---|

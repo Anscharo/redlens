@@ -20,6 +20,7 @@ export function AtlasAnnotations({
   cousinDocs,
   targetAddresses,
   chainValues,
+  byNameOnly,
   glossaryTerms,
   annotationCount,
   tab,
@@ -35,10 +36,11 @@ export function AtlasAnnotations({
   cousinDocs: CousinDoc[];
   targetAddresses: Record<string, AddressInfo>;
   chainValues: Record<string, Record<string, ChainValue>>;
+  byNameOnly?: Set<string>;
   glossaryTerms: GlossaryEntry[][];
   annotationCount: number;
-  tab: "annotations" | "glossary" | "history";
-  onTabChange: (v: "annotations" | "glossary" | "history") => void;
+  tab: "notes" | "glossary" | "history";
+  onTabChange: (v: "notes" | "glossary" | "history") => void;
   onNavigate: (id: string) => void;
   onNavigateByDocNo: (docNo: string) => void;
   selectable?: boolean;
@@ -88,6 +90,7 @@ export function AtlasAnnotations({
           cousinDocs={cousinDocs}
           targetAddresses={targetAddresses}
           chainValues={chainValues}
+          byNameOnly={byNameOnly}
           annotationCount={annotationCount}
           graphEdges={graphEdges}
           glossaryTerms={glossaryTerms}

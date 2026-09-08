@@ -8,14 +8,19 @@ const HINTS: { label: string; query: string; description: string }[] = [
     description: "Default mode — partial words match automatically, case-insensitive",
   },
   {
+    label: "singular/plural",
+    query: "subsidy",
+    description: "Broad mode also matches the other number (subsidies); exact wording ranks first",
+  },
+  {
     label: "phrase",
     query: '"properly implemented"',
-    description: "Double quotes — whole-word phrase match, case-insensitive",
+    description: "Double quotes — literal substring match, case-insensitive",
   },
   {
     label: "strict",
     query: "'delegatedSigners'",
-    description: "Single quotes — whole-word phrase match, case-sensitive",
+    description: "Single quotes — literal substring match, case-sensitive",
   },
   { label: "fuzzy", query: "misaligment~1", description: "~N allows N character edits" },
   { label: "0x address", query: "0xbe8e3e", description: "All nodes containing matched Ethereum address" },

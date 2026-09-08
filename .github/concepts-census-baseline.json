@@ -7969,13 +7969,13 @@
   },
   "title-templates": {
     "counts": {
-      "total": 1076,
+      "total": 1078,
       "Primitive Hub Document": 136,
       "Global Activation Status": 140,
       "Hub Data Repository": 136,
       "Single Instance Configuration Document": 48,
-      "Parameters": 220,
-      "Rate Limits": 139,
+      "Parameters": 221,
+      "Rate Limits": 140,
       "Initial Planning": 83,
       "Operational GovOps Review": 83,
       "Artifact Edit Proposal": 83,
@@ -8697,446 +8697,266 @@
         "bucket": "Rate Limits"
       },
       {
-        "uuid": "bbfe8d2f-b82a-471e-a9d5-78892abc3465",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.2.5.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "c8b82f71-acd7-4ccc-8067-ceab3bb46f53",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.2.5.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "305d6ee1-997d-47bd-94ed-4c28fc8a6e1c",
+        "uuid": "1c806523-7ef2-4f4c-8b6e-c609478d9112",
         "doc_no": "A.6.1.1.1.2.6.1.3.1.3.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "d3641a4d-6104-4dc9-90ff-d4c7d1766917",
+        "uuid": "426f42fa-c85c-48de-8859-205d2fa98c3e",
         "doc_no": "A.6.1.1.1.2.6.1.3.1.3.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
-        "uuid": "46c4446e-ce4f-4ab8-85fd-c1868636ff2b",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.3.2.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "dfab21ad-13a4-48dd-8398-0c3d7dbc8996",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.3.2.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "5218de11-dc55-4933-aea7-46916969a60d",
+        "uuid": "57e0e7b0-dd77-4634-810c-53d4e371a3dc",
         "doc_no": "A.6.1.1.1.2.6.1.3.1.4.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "54992e68-12d5-4036-9a7c-36403a2e17f8",
+        "uuid": "7de1e41d-c8b5-4ec6-931b-ae3ee2f3f4a3",
         "doc_no": "A.6.1.1.1.2.6.1.3.1.4.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
-        "uuid": "47518c8c-fe69-45cc-b268-858c39c4462a",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.4.2.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "3370ffb9-c14a-46ee-9b08-b54ce3296ae8",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.4.2.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "1c806523-7ef2-4f4c-8b6e-c609478d9112",
+        "uuid": "925286bb-f987-4d35-8c74-23279a2c018f",
         "doc_no": "A.6.1.1.1.2.6.1.3.1.5.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "426f42fa-c85c-48de-8859-205d2fa98c3e",
+        "uuid": "d24c412e-6ba8-4b1b-a3c6-ccb48b268e2f",
         "doc_no": "A.6.1.1.1.2.6.1.3.1.5.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
-        "uuid": "a5f05d4d-431b-45cc-a474-6070dc65ca83",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.1.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "69e164bc-ef0c-4d74-a17d-e56bf498b7e0",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.1.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "b26af91d-675e-4b3f-8f70-e8db5b93c5c0",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.1.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "408f0d03-44cb-4e6f-b330-5782be816567",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.1.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "e011af54-a277-4ecd-bd73-680ae96a7a51",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.2.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "f2389063-4d57-4f28-844c-d63c991c5568",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.2.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "2d44ce84-fb22-4435-93f2-ea5a62ccc130",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.3.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "18e7ddf1-71e2-40fd-b74d-8ad6312b9a38",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.3.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "fdb613e0-4d7f-46a7-95c3-b84ea9dafa6a",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.4.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "82a8a51a-1650-438b-bdf4-3dc1b41132f3",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.4.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "a1dc6fa3-bec8-41ca-bb5a-e60275c03dcf",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.5.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "dac0cadf-a966-40d3-b739-09a0baceea30",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.5.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "57e0e7b0-dd77-4634-810c-53d4e371a3dc",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.6.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "7de1e41d-c8b5-4ec6-931b-ae3ee2f3f4a3",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.6.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "b0ae7680-7179-4fd6-93f0-56c03d6f91eb",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.1.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "9a6b7691-5bdf-497d-a8d3-0421624c23c1",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.1.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "f1b8abcc-2254-4826-9a82-f03f78d4f846",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.2.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "aa89df3f-655e-4e91-952b-41db6b7e5671",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.2.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "925286bb-f987-4d35-8c74-23279a2c018f",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.3.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "d24c412e-6ba8-4b1b-a3c6-ccb48b268e2f",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.3.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
         "uuid": "0d0b492a-ad25-43a0-8a45-3ac1021cd491",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.4.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.5.2.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "46f33c44-c9b3-4241-a5ad-84f4f7765280",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.4.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.5.2.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "e55eba15-5b8d-4a2d-bf5a-704dfceb6457",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.1.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "318fa90a-2fd9-42cc-af6a-086063caebc6",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.1.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "e4e8eee4-c449-4adc-aae7-d7fa31f311e0",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.1.4.2.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.1.4.2.2",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "14fe988d-d2a9-4c95-b0d3-63fe58ab40d5",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.2.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.2.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "d6d28ef9-cafd-434c-a106-8dfae2ff8908",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.2.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.2.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "9ea0e72b-2fc7-4291-b589-3414cdb7baac",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.2.4.2.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.2.4.2.2",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "f3eae5f3-db85-4f92-9fca-46c13af64d99",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.3.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.3.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "ab480592-3e9b-4bdb-9e8d-80e4370a964e",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.3.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.3.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "3802d641-27cf-4ec1-bba4-6a09a84071af",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.3.4.2.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.3.4.2.2",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "93f2f53e-1907-4828-b1a6-dbd0838e17ff",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.4.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.4.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "8d9562b5-4277-4c63-96a2-923a36afb192",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.4.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.4.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "8a75c7ba-4d34-4e0e-8f6e-25e765fcbe36",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.4.4.2.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.6.4.4.2.2",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "e1921ad5-ff6f-4ffe-9e69-1d1796567296",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.10.1.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "fde9903c-91a1-40f8-bc4a-a6511bb346aa",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.10.1.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "4139b0ae-87f7-4b3f-aa48-78ee8efc1047",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.1.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "689f87d9-e66b-4eab-b984-9ad21ed4bb59",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.1.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "d46584b0-4ec1-4450-b915-79969d7c3c74",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.2.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.2.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "91ad3746-e58c-43b3-a53d-0430b5e20a4c",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.2.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.2.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "07d562e8-9e1a-41d8-9229-02b4e5a448e1",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.3.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.3.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "415920c5-b4d8-476f-b550-62ebfd4d821c",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.3.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.3.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "92466f64-08ea-44bf-b319-6f43e8bd7021",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.4.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.4.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "448c87f5-4bc3-41c5-995d-353717d0fbd3",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.4.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.4.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "99c9d288-1fd2-4608-b38e-085d40c12ce1",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.12.1.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "bd104480-24d4-4fb1-a8f0-13e5c04a2c18",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.12.1.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "e156bb45-006d-4341-b9a0-d8dd39be06fd",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.12.2.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.2.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "ad179de7-3167-476d-ae82-36fb715ec68f",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.12.2.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.2.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "d60d90db-4847-4c3a-b0c1-337cb0364350",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.12.3.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.3.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "0d22ec04-8742-49d5-a285-3668ce6d4947",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.12.3.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.3.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "bc5c8128-8fbf-428c-a90a-34afb7cf2107",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.12.4.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.4.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "ffbfbbf7-8de6-47b8-aa8d-052e8273f33e",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.12.4.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "78067cd5-bd11-47eb-bdf7-947038912cfa",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.13.1.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "132f9c53-0f2d-4e0a-9adb-649eadf9d95f",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.13.1.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "7b07774c-4cda-4866-bc4e-7e469a685f5e",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.13.2.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "b494026e-d3bc-4122-bac3-98ea1d7436b0",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.13.2.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.9.4.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "70521c48-b900-4f25-bf9a-dc3a7804bafe",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.13.3.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.10.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "88ae938c-2370-4a27-b6de-609fc3dd6808",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.13.3.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.10.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "331a1641-9427-4cb8-b19b-8ca24d60aa7e",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.14.1.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "c8cd2bb5-cd8c-43f3-af6f-e1458e12164b",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.14.1.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
         "uuid": "b6d7baee-c09a-47f1-aa73-a384b16caf6c",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.14.2.2",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.2.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "0db8118c-50a2-442c-86ea-083b85df9688",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.14.2.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.2.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -9317,6 +9137,186 @@
       {
         "uuid": "7eaf8614-3343-4a6b-a637-8a92a7115bbb",
         "doc_no": "A.6.1.1.1.2.6.1.4.3.1.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "b0ae7680-7179-4fd6-93f0-56c03d6f91eb",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.1.2.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "9a6b7691-5bdf-497d-a8d3-0421624c23c1",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.1.2.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "f1b8abcc-2254-4826-9a82-f03f78d4f846",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.1.3.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "aa89df3f-655e-4e91-952b-41db6b7e5671",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.1.3.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "bbfe8d2f-b82a-471e-a9d5-78892abc3465",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.2.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "c8b82f71-acd7-4ccc-8067-ceab3bb46f53",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.2.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "305d6ee1-997d-47bd-94ed-4c28fc8a6e1c",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.3.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "d3641a4d-6104-4dc9-90ff-d4c7d1766917",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.3.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "46c4446e-ce4f-4ab8-85fd-c1868636ff2b",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.3.2.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "dfab21ad-13a4-48dd-8398-0c3d7dbc8996",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.3.2.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "5218de11-dc55-4933-aea7-46916969a60d",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.4.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "54992e68-12d5-4036-9a7c-36403a2e17f8",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.4.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "47518c8c-fe69-45cc-b268-858c39c4462a",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.4.2.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "3370ffb9-c14a-46ee-9b08-b54ce3296ae8",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.4.2.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "a5f05d4d-431b-45cc-a474-6070dc65ca83",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.5.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "69e164bc-ef0c-4d74-a17d-e56bf498b7e0",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.5.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "b26af91d-675e-4b3f-8f70-e8db5b93c5c0",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.6.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "408f0d03-44cb-4e6f-b330-5782be816567",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.6.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "e011af54-a277-4ecd-bd73-680ae96a7a51",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.6.2.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "f2389063-4d57-4f28-844c-d63c991c5568",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.6.2.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "2d44ce84-fb22-4435-93f2-ea5a62ccc130",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.6.3.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "18e7ddf1-71e2-40fd-b74d-8ad6312b9a38",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.6.3.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "fdb613e0-4d7f-46a7-95c3-b84ea9dafa6a",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.6.4.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "82a8a51a-1650-438b-bdf4-3dc1b41132f3",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.6.4.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "a1dc6fa3-bec8-41ca-bb5a-e60275c03dcf",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.6.5.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "dac0cadf-a966-40d3-b739-09a0baceea30",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.6.5.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "78067cd5-bd11-47eb-bdf7-947038912cfa",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.7.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "132f9c53-0f2d-4e0a-9adb-649eadf9d95f",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.7.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "7b07774c-4cda-4866-bc4e-7e469a685f5e",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.7.2.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "b494026e-d3bc-4122-bac3-98ea1d7436b0",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.7.2.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -10223,6 +10223,18 @@
       {
         "uuid": "93fbe9e3-88b0-4160-b4cb-52b5333a0926",
         "doc_no": "A.6.1.1.2.2.6.1.3.1.7.7.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "293cd41c-79b0-4608-835c-be22d2ee01ee",
+        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.8.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "53101acf-dfcc-4a36-b3d7-5ae93c8c154a",
+        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.8.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },

@@ -16,6 +16,7 @@ import { atlasUrl } from "@/lib/routes";
 import type { SearchField } from "@/lib/reportFilter";
 import type { AddressBalances, BalanceMap } from "@/lib/balances";
 import { formatUnits } from "@/lib/tokens";
+import { resolveOwner } from "./addressName";
 
 // Dedicated balance columns in the report + CSV; every other fetched token
 // folds into "Other Token Balances".
@@ -255,6 +256,35 @@ function buildNameToDocs(
   return map;
 }
 
+// The addresses one doc references by CHAIN_LOG name (MCD_VAT) rather than by
+// literal 0x address — the same contract-key rule the report uses to attribute a
+// doc to an address (isContractKey + whole-word match). Returns the map keys
+// (lowercased EVM) of the matched addresses. Lets the annotations panel show a
+// card for a section that names a contract only by its chainlog key, so "every
+// section with an address gets an entry" holds by the report's own definition.
+export function chainlogNamedAddresses(
+  content: string,
+  addrMap: Record<string, AddressInfo>,
+): string[] {
+  if (!content) return [];
+  const keyToAddr = new Map<string, string>();
+  for (const [addr, info] of Object.entries(addrMap)) {
+    if (info.chainlogId && isContractKey(info.chainlogId)) keyToAddr.set(info.chainlogId, addr);
+  }
+  if (keyToAddr.size === 0) return [];
+  const re = new RegExp(
+    `\\b(${[...keyToAddr.keys()].map((n) => n.replace(RE_ESCAPE, "\\$&")).join("|")})\\b`,
+    "g",
+  );
+  const found = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content))) {
+    const addr = keyToAddr.get(m[1]);
+    if (addr) found.add(addr);
+  }
+  return [...found];
+}
+
 // Merge the address-referenced docs and the chainlog-name-referenced docs for a
 // single address into one `via`-tagged, doc_no-sorted list.
 function mergeDocRefs(addrDocs: DocMeta[], nameDocs: DocMeta[]): AddressDocRef[] {
@@ -312,7 +342,7 @@ export function buildOnchainAddressRows(
       chain: info.chain,
       type: classifyAddress(info, primaryBal?.hasCode),
       chainlogId: info.chainlogId ?? null,
-      owner: info.entityLabel ?? null,
+      owner: resolveOwner(info),
       etherscanName: info.etherscanName ?? null,
       registryName: info.chainlogId ?? info.etherscanName ?? null,
       registrySource: info.chainlogId ? "chainlog" : info.etherscanName ? "onchain" : null,

@@ -2739,9 +2739,9 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove Di
   {
     "content": "The deposit rate limits are:
 
-- Aggregate: \`maxAmount\`: 5,000,000 (normalized), \`slope\`: 350,000 (normalized) per day
-- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 350,000 AUSD per day
-- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 350,000 USDC per day",
+- Aggregate: \`maxAmount\`: 5,000,000 (normalized), \`slope\`: 5,000,000 (normalized) per day
+- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 5,000,000 AUSD per day
+- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 5,000,000 USDC per day",
     "title": "Deposit Rate Limits",
   },
   {
@@ -2755,8 +2755,8 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove Di
   {
     "content": "The swap rate limits are:
 
-- AUSD: \`maxAmount\`: 1,000,000 AUSD, \`slope\`: 5,000,000 AUSD per day
-- USDC: \`maxAmount\`: 1,000,000 USDC, \`slope\`: 5,000,000 USDC per day
+- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 5,000,000 AUSD per day
+- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 5,000,000 USDC per day
 - \`maxSlippage\`: 0.1%",
     "title": "Swap Rate Limits",
   },
@@ -3058,6 +3058,98 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove x 
   {
     "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer processes.",
     "title": "Instance-specific Operational Processes",
+  },
+]
+`;
+
+exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove x Steakhouse USDG Morpho Vault V2 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation Coverage",
+  },
+  {
+    "content": "The documents herein define the parameters of the Grove x Steakhouse USDG Morpho Vault V2 Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers.",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Grove x Steakhouse USDG Morpho Vault V2",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDG",
+    "title": "Asset Supplied By Grove Liquidity Layer",
+  },
+  {
+    "content": "grove-steakUSDG",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xbeef05061FE51eA482BD1b68041353490b3a5934\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0xe343167631d89B6Ffc58B88d6b7fB0228795491D\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow are defined in the subdocuments herein.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The inflow RateLimitID is: \`0x96c916a067daaa7b0861108a6239e40f33bb9fe1be08e2813fb9fc2344e19ef7\`",
+    "title": "Inflow RateLimitID",
+  },
+  {
+    "content": "The outflow RateLimitID is: \`0x0fceada3d6963c0045d4b0394172af9c863234669e35625191cb3372558bf596\`",
+    "title": "Outflow RateLimitID",
+  },
+  {
+    "content": "The current \`maxAmount\` and \`slope\` for this conduit's inflow and outflow are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The deposit rate limits are:
+
+- \`maxAmount\`: 50,000,000 USDG
+- \`slope\`: 50,000,000 USDG per day",
+    "title": "Deposit Rate Limits",
+  },
+  {
+    "content": "The withdrawal rate limits are:
+
+- \`maxAmount\`: Unlimited",
+    "title": "Withdrawal Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+  {
+    "content": "The documents herein contain operational parameters or configuration details unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer parameters.",
+    "title": "Instance-specific Operational Parameters",
+  },
+  {
+    "content": "Controllers now have protections that require a \`maxExchangeRate\` to be set for deposits. The following ensures 1 share can represent at most 2 USDG.
+
+- \`setMaxExchangeRate(GROVE_X_STEAKHOUSE_USDG_V2_MORPHO_VAULT, 1e18, 2e6)\`",
+    "title": "Max Exchange Rate",
   },
 ]
 `;
@@ -3980,8 +4072,8 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenize
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 5,000,000 USDS
-- \`slope\`: 5,000,000 USDS per day",
+- \`maxAmount\`: 15,000,000 USDS
+- \`slope\`: 15,000,000 USDS per day",
     "title": "Inflow Rate Limits",
   },
   {
@@ -5947,7 +6039,7 @@ exports[`allocation-system sub-doc content > Spark > Arbitrum - Fluid sUSDS ERC4
     "title": "Off-chain Operational Parameters",
   },
   {
-    "content": "The Instance follows the general ERC4626 procedures see [A.6.1.1.1.2.6.1.2.2.1.2.1.2.2 - ERC-4626 Functions](e386a0df-9e0b-4ffd-9879-49131f795b0b) and for emergency procedures see [A.6.1.1.1.2.6.1.2.2.3.4.1 - ERC-4626 Withdrawal Action](f92ddc3f-672a-4f52-931f-5263a9f709b9). For detailed example of the Spark Liquidity Layer interaction logic for depositing to, withdrawing from, and redeeming from this ERC4626 vault instance see [A.6.1.1.1.2.6.1.3.1.5.1.3.1 - Deposit ERC-4626 Tokens](e2ad525b-3f3f-4402-9e4d-3ae125b35b76) and [A.6.1.1.1.2.6.1.3.1.5.1.3.2 - Withdraw ERC-4626 Tokens](caa295f4-92f4-4ca9-9083-2a1b94c70d5f).",
+    "content": "The Instance follows the general ERC4626 procedures see [A.6.1.1.1.2.6.1.2.2.1.2.1.2.2 - ERC-4626 Functions](e386a0df-9e0b-4ffd-9879-49131f795b0b) and for emergency procedures see [A.6.1.1.1.2.6.1.2.2.3.4.1 - ERC-4626 Withdrawal Action](f92ddc3f-672a-4f52-931f-5263a9f709b9). For detailed example of the Spark Liquidity Layer interaction logic for depositing to, withdrawing from, and redeeming from this ERC4626 vault instance see [A.6.1.1.1.2.6.1.3.1.3.1.3.1 - Deposit ERC-4626 Tokens](e2ad525b-3f3f-4402-9e4d-3ae125b35b76) and [A.6.1.1.1.2.6.1.3.1.3.1.3.2 - Withdraw ERC-4626 Tokens](caa295f4-92f4-4ca9-9083-2a1b94c70d5f).",
     "title": "Instance-specific Operational Processes",
   },
 ]
@@ -6412,7 +6504,7 @@ exports[`allocation-system sub-doc content > Spark > Base - Morpho Blue USDC ERC
     "title": "Off-chain Operational Parameters",
   },
   {
-    "content": "The Instance follows the general ERC4626 procedures see [A.6.1.1.1.2.6.1.2.2.1.2.1.2.2 - ERC-4626 Functions](e386a0df-9e0b-4ffd-9879-49131f795b0b) and for emergency procedures see [A.6.1.1.1.2.6.1.2.2.3.4.1 - ERC-4626 Withdrawal Action](f92ddc3f-672a-4f52-931f-5263a9f709b9). For detailed example of the Spark Liquidity Layer interaction logic for depositing to, withdrawing from, and redeeming from this ERC4626 vault instance see [A.6.1.1.1.2.6.1.3.1.5.1.3.1 - Deposit ERC-4626 Tokens](e2ad525b-3f3f-4402-9e4d-3ae125b35b76) and [A.6.1.1.1.2.6.1.3.1.5.1.3.2 - Withdraw ERC-4626 Tokens](caa295f4-92f4-4ca9-9083-2a1b94c70d5f).",
+    "content": "The Instance follows the general ERC4626 procedures see [A.6.1.1.1.2.6.1.2.2.1.2.1.2.2 - ERC-4626 Functions](e386a0df-9e0b-4ffd-9879-49131f795b0b) and for emergency procedures see [A.6.1.1.1.2.6.1.2.2.3.4.1 - ERC-4626 Withdrawal Action](f92ddc3f-672a-4f52-931f-5263a9f709b9). For detailed example of the Spark Liquidity Layer interaction logic for depositing to, withdrawing from, and redeeming from this ERC4626 vault instance see [A.6.1.1.1.2.6.1.3.1.3.1.3.1 - Deposit ERC-4626 Tokens](e2ad525b-3f3f-4402-9e4d-3ae125b35b76) and [A.6.1.1.1.2.6.1.3.1.3.1.3.2 - Withdraw ERC-4626 Tokens](caa295f4-92f4-4ca9-9083-2a1b94c70d5f).",
     "title": "Instance-specific Operational Processes",
   },
   {
@@ -6521,7 +6613,7 @@ exports[`allocation-system sub-doc content > Spark > Base Mainnet - Fluid sUSDS 
     "title": "Off-chain Operational Parameters",
   },
   {
-    "content": "The Instance follows the general ERC4626 procedures see [A.6.1.1.1.2.6.1.2.2.1.2.1.2.2 - ERC-4626 Functions](e386a0df-9e0b-4ffd-9879-49131f795b0b) and for emergency procedures see [A.6.1.1.1.2.6.1.2.2.3.4.1 - ERC-4626 Withdrawal Action](f92ddc3f-672a-4f52-931f-5263a9f709b9). For detailed example of the Spark Liquidity Layer interaction logic for depositing to, withdrawing from, and redeeming from this ERC4626 vault instance see [A.6.1.1.1.2.6.1.3.1.5.1.3.1 - Deposit ERC-4626 Tokens](e2ad525b-3f3f-4402-9e4d-3ae125b35b76) and [A.6.1.1.1.2.6.1.3.1.5.1.3.2 - Withdraw ERC-4626 Tokens](caa295f4-92f4-4ca9-9083-2a1b94c70d5f).",
+    "content": "The Instance follows the general ERC4626 procedures see [A.6.1.1.1.2.6.1.2.2.1.2.1.2.2 - ERC-4626 Functions](e386a0df-9e0b-4ffd-9879-49131f795b0b) and for emergency procedures see [A.6.1.1.1.2.6.1.2.2.3.4.1 - ERC-4626 Withdrawal Action](f92ddc3f-672a-4f52-931f-5263a9f709b9). For detailed example of the Spark Liquidity Layer interaction logic for depositing to, withdrawing from, and redeeming from this ERC4626 vault instance see [A.6.1.1.1.2.6.1.3.1.3.1.3.1 - Deposit ERC-4626 Tokens](e2ad525b-3f3f-4402-9e4d-3ae125b35b76) and [A.6.1.1.1.2.6.1.3.1.3.1.3.2 - Withdraw ERC-4626 Tokens](caa295f4-92f4-4ca9-9083-2a1b94c70d5f).",
     "title": "Instance-specific Operational Processes",
   },
 ]
@@ -7054,15 +7146,15 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Aave USD
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 250,000,000 USDe
-- \`slope\`: 100,000,000 USDe per day",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Inflow Rate Limits",
   },
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: Unlimited
-- \`slope\`: Unlimited",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Outflow Rate Limits",
   },
   {
@@ -7127,8 +7219,8 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Anchorag
     "title": "Rate Limits",
   },
   {
-    "content": "- \`maxAmount\`: 50,000,000 USAT
-- \`slope\`: 250,000,000 USAT per day",
+    "content": "- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "transferAsset Rate Limits",
   },
   {
@@ -7259,8 +7351,8 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Anchorag
     "title": "Rate Limits",
   },
   {
-    "content": "- \`maxAmount\`: 50,000,000 USDT
-- \`slope\`: 250,000,000 USDT per day",
+    "content": "- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "transferAsset Rate Limits",
   },
   {
@@ -7585,8 +7677,8 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Curve US
   {
     "content": "The swap rate limits are:
 
-- \`maxAmount\`: 5,000,000
-- \`slope\`: 20,000,000 per day
+- \`maxAmount\`: 0
+- \`slope\`: 0
 - Max slippage: 0.05%",
     "title": "Swap Rate Limits",
   },
@@ -7662,8 +7754,8 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Curve py
   {
     "content": "The swap rate limits are:
 
-- \`maxAmount\`: 5,000,000
-- \`slope\`: 100,000,000 per day
+- \`maxAmount\`: 0
+- \`slope\`: 0
 - Max slippage: 0.1%",
     "title": "Swap Rate Limits",
   },
@@ -7727,22 +7819,22 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Curve py
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 5,000,000
-- \`slope\`: 50,000,000 per day",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Inflow Rate Limits",
   },
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: 5,000,000
-- \`slope\`: 100,000,000 per day",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Outflow Rate Limits",
   },
   {
     "content": "The swap rate limits are:
 
-- \`maxAmount\`: 5,000,000
-- \`slope\`: 50,000,000 per day
+- \`maxAmount\`: 0
+- \`slope\`: 0
 - Max slippage: 0.2%",
     "title": "Swap Rate Limits",
   },
@@ -7905,24 +7997,24 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Curve sU
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 5,000,000
-- \`slope\`: 20,000,000 per day
+- \`maxAmount\`: 0
+- \`slope\`: 0
 - Max slippage: 0.15%",
     "title": "Inflow Rate Limits",
   },
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: 5,000,000
-- \`slope\`: 20,000,000 per day
+- \`maxAmount\`: 0
+- \`slope\`: 0
 - Max slippage: 0.15%",
     "title": "Outflow Rate Limits",
   },
   {
     "content": "The swap rate limits are:
 
-- \`maxAmount\`: 10,000,000
-- \`slope\`: 200,000,000 per day
+- \`maxAmount\`: 0
+- \`slope\`: 0
 - Max slippage: 0.25%",
     "title": "Swap Rate Limits",
   },
@@ -8012,8 +8104,8 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Curve we
   {
     "content": "The swap rate limits are:
 
-- \`maxAmount\`: 1,000
-- \`slope\`: 50,000 per day
+- \`maxAmount\`: 0
+- \`slope\`: 0
 - \`Max slippage\`: 0.25%",
     "title": "Swap Rate Limits",
   },
@@ -8085,15 +8177,15 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Ethena U
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 250,000,000 USDC
-- \`slope\`: 100,000,000 USDC per day",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Inflow Rate Limits",
   },
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: 500,000,000 USDe
-- \`slope\`: 200,000,000 USDe per day",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Outflow Rate Limits",
   },
   {
@@ -8305,8 +8397,8 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Ethena s
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: unlimited
-- \`slope\`: unlimited",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Outflow Rate Limits",
   },
   {
@@ -8314,7 +8406,7 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Ethena s
     "title": "Off-chain Operational Parameters",
   },
   {
-    "content": "For operational processes defining the operations performed to manage the Ethena Instance, including rate limiting, role-based access control, and minting of USDe functionality see [A.6.1.1.1.2.6.1.3.1.4.1.3 - Instance-specific Operational Processes](6a009815-fba1-452c-af33-7ac5454211f1). For detailed logic specific for this instance see [A.6.1.1.1.2.6.1.3.1.4.2.3.1 - Initiate A sUSDe Cooldown Period](cf235e02-23fb-48e6-b39e-b4fd09dc7911), [A.6.1.1.1.2.6.1.3.1.4.2.3.2 - Cool Down sUSDe Shares](24171b90-4967-4c15-ac77-789d42b0fc80), [A.6.1.1.1.2.6.1.3.1.4.2.3.3 - Unstake sUSDe And Return It To ALM Proxy](57337963-ea1f-4d12-bea4-127896d35855) and [A.6.1.1.1.2.6.1.3.1.4.2.3.4 - Emergency Procedure To Withdraw Ethena Balances](037dc4f2-0b55-42a9-851c-8769b60b7122).",
+    "content": "For operational processes defining the operations performed to manage the Ethena Instance, including rate limiting, role-based access control, and minting of USDe functionality see [A.6.1.1.1.2.6.1.4.3.4.1.3 - Instance-specific Operational Processes](6a009815-fba1-452c-af33-7ac5454211f1). For detailed logic specific for this instance see [A.6.1.1.1.2.6.1.4.3.4.2.3.1 - Initiate A sUSDe Cooldown Period](cf235e02-23fb-48e6-b39e-b4fd09dc7911), [A.6.1.1.1.2.6.1.4.3.4.2.3.2 - Cool Down sUSDe Shares](24171b90-4967-4c15-ac77-789d42b0fc80), [A.6.1.1.1.2.6.1.4.3.4.2.3.3 - Unstake sUSDe And Return It To ALM Proxy](57337963-ea1f-4d12-bea4-127896d35855) and [A.6.1.1.1.2.6.1.4.3.4.2.3.4 - Emergency Procedure To Withdraw Ethena Balances](037dc4f2-0b55-42a9-851c-8769b60b7122).",
     "title": "Instance-specific Operational Processes",
   },
   {
@@ -8432,7 +8524,7 @@ function unstakeSUSDe()
 \`\`\`
 mainnetController.cooldownSharesSUSDe(susde.balanceOf(address(proxy))
 \`\`\`
-For more detailed instructions on the code to execute this, see [A.6.1.1.1.2.6.1.3.1.4.2.3.2 - Cool Down sUSDe Shares](24171b90-4967-4c15-ac77-789d42b0fc80).",
+For more detailed instructions on the code to execute this, see [A.6.1.1.1.2.6.1.4.3.4.2.3.2 - Cool Down sUSDe Shares](24171b90-4967-4c15-ac77-789d42b0fc80).",
     "title": "sUSDe Cooldown Action",
   },
   {
@@ -8441,7 +8533,7 @@ For more detailed instructions on the code to execute this, see [A.6.1.1.1.2.6.1
 \`\`\`
 mainnetController.unstakeSUSDe()
 \`\`\`
-For more detailed instructions on the code to execute this, see [A.6.1.1.1.2.6.1.3.1.4.2.3.3 - Unstake sUSDe And Return It To ALM Proxy](57337963-ea1f-4d12-bea4-127896d35855).",
+For more detailed instructions on the code to execute this, see [A.6.1.1.1.2.6.1.4.3.4.2.3.3 - Unstake sUSDe And Return It To ALM Proxy](57337963-ea1f-4d12-bea4-127896d35855).",
     "title": "sUSDe Unstake Action",
   },
 ]
@@ -8516,7 +8608,7 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Fluid sU
     "title": "Off-chain Operational Parameters",
   },
   {
-    "content": "The Instance follows the general ERC4626 procedures see [A.6.1.1.1.2.6.1.2.2.1.2.1.2.2 - ERC-4626 Functions](e386a0df-9e0b-4ffd-9879-49131f795b0b) and for emergency procedures see [A.6.1.1.1.2.6.1.2.2.3.4.1 - ERC-4626 Withdrawal Action](f92ddc3f-672a-4f52-931f-5263a9f709b9). For detailed example of the Spark Liquidity Layer interaction logic for depositing to, withdrawing from, and redeeming from this ERC4626 vault instance see [A.6.1.1.1.2.6.1.3.1.5.1.3.1 - Deposit ERC-4626 Tokens](e2ad525b-3f3f-4402-9e4d-3ae125b35b76) and [A.6.1.1.1.2.6.1.3.1.5.1.3.2 - Withdraw ERC-4626 Tokens](caa295f4-92f4-4ca9-9083-2a1b94c70d5f).",
+    "content": "The Instance follows the general ERC4626 procedures see [A.6.1.1.1.2.6.1.2.2.1.2.1.2.2 - ERC-4626 Functions](e386a0df-9e0b-4ffd-9879-49131f795b0b) and for emergency procedures see [A.6.1.1.1.2.6.1.2.2.3.4.1 - ERC-4626 Withdrawal Action](f92ddc3f-672a-4f52-931f-5263a9f709b9). For detailed example of the Spark Liquidity Layer interaction logic for depositing to, withdrawing from, and redeeming from this ERC4626 vault instance see [A.6.1.1.1.2.6.1.3.1.3.1.3.1 - Deposit ERC-4626 Tokens](e2ad525b-3f3f-4402-9e4d-3ae125b35b76) and [A.6.1.1.1.2.6.1.3.1.3.1.3.2 - Withdraw ERC-4626 Tokens](caa295f4-92f4-4ca9-9083-2a1b94c70d5f).",
     "title": "Instance-specific Operational Processes",
   },
   {
@@ -8766,15 +8858,15 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Maple US
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 100,000,000 USDC
-- \`slope\`: 20,000,000 USDC per day",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Inflow Rate Limits",
   },
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: Unlimited
-- \`slope\`: This parameter will be specified in a future iteration of the Spark Artifact.",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Outflow Rate Limits",
   },
   {
@@ -8847,15 +8939,15 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Maple US
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 50,000,000 USDT
-- \`slope\`: 100,000,000 USDT per day",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Inflow Rate Limits",
   },
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: Unlimited
-- \`slope\`: Unlimited",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Outflow Rate Limits",
   },
   {
@@ -8871,8 +8963,8 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Maple US
     "title": "Instance-specific Operational Parameters",
   },
   {
-    "content": "- \`maxAmount\`: Unlimited
-- \`slope\`: 500,000,000 USDT per day",
+    "content": "- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Request Redemption Parameters",
   },
 ]
@@ -8931,15 +9023,15 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Morpho D
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 200,000,000 DAI
-- \`slope\`: 100,000,000 DAI per day",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Inflow Rate Limits",
   },
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: This parameter will be specified in a future iteration of the Spark Artifact.
-- \`slope\`: This parameter will be specified in a future iteration of the Spark Artifact.",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Outflow Rate Limits",
   },
   {
@@ -9109,15 +9201,15 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Morpho U
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 200,000,000 USDS
-- \`slope\`: 100,000,000 USDS per day",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Inflow Rate Limits",
   },
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: This parameter will be specified in a future iteration of the Spark Artifact.
-- \`slope\`: This parameter will be specified in a future iteration of the Spark Artifact.",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Outflow Rate Limits",
   },
   {
@@ -10658,15 +10750,15 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Supersta
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: This parameter will be specified in a future iteration of the Spark Artifact.
-- \`slope\`: This parameter will be specified in a future iteration of the Spark Artifact.",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Inflow Rate Limits",
   },
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: Unlimited
-- \`slope\`: This parameter will be specified in a future iteration of the Spark Artifact.",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Outflow Rate Limits",
   },
   {
@@ -11576,27 +11668,27 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 9,
   "annotates": 101,
   "can_modify_signers_of": 32,
-  "cites": 2194,
+  "cites": 2195,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 415,
+  "defines_entity": 416,
   "duty_for": 862,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 9,
   "governance_channel": 10,
-  "has_address": 287,
+  "has_address": 289,
   "has_status": 136,
   "holds_role_for": 5,
   "implements": 188,
-  "instance_of": 204,
+  "instance_of": 205,
   "integration_partner_of": 10,
   "invocation_of": 5,
-  "invoked_by": 209,
+  "invoked_by": 210,
   "listed_in": 49,
-  "located_at": 202,
-  "mentions": 687,
+  "located_at": 203,
+  "mentions": 689,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -12588,11 +12680,11 @@ exports[`instances > allocation-system instances 1`] = `
     "name": "Ethereum Mainnet - Aave USDe",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDe",
-      "Inflow Rate Limits / maxAmount": "250,000,000 USDe",
-      "Inflow Rate Limits / slope": "100,000,000 USDe per day",
+      "Inflow Rate Limits / maxAmount": "0",
+      "Inflow Rate Limits / slope": "0",
       "Network": "Ethereum Mainnet",
-      "Outflow Rate Limits / maxAmount": "Unlimited",
-      "Outflow Rate Limits / slope": "Unlimited",
+      "Outflow Rate Limits / maxAmount": "0",
+      "Outflow Rate Limits / slope": "0",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
       "Target Protocol": "Aave Core",
       "Token": "aEthUSDe",
@@ -12600,7 +12692,7 @@ exports[`instances > allocation-system instances 1`] = `
       "Underlying Asset Address": "0x4c9EDD5852cd905f086C759E8383e09bff1E68B3",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-aave-usde",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
@@ -12613,11 +12705,11 @@ exports[`instances > allocation-system instances 1`] = `
       "Target Protocol": "Anchorage",
       "Token": "USAT",
       "Token Address": "0x07041776f5007aca2a54844f50503a18a72a8b68",
-      "transferAsset Rate Limits / maxAmount": "50,000,000 USAT",
-      "transferAsset Rate Limits / slope": "250,000,000 USAT per day",
+      "transferAsset Rate Limits / maxAmount": "0",
+      "transferAsset Rate Limits / slope": "0",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-anchorage-usat",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
@@ -12647,11 +12739,11 @@ exports[`instances > allocation-system instances 1`] = `
       "Target Protocol": "Anchorage",
       "Token": "USDT",
       "Token Address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-      "transferAsset Rate Limits / maxAmount": "50,000,000 USDT",
-      "transferAsset Rate Limits / slope": "250,000,000 USDT per day",
+      "transferAsset Rate Limits / maxAmount": "0",
+      "transferAsset Rate Limits / slope": "0",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-anchorage-usdt",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
@@ -12721,34 +12813,34 @@ exports[`instances > allocation-system instances 1`] = `
       "Network": "Ethereum Mainnet",
       "Outflow Rate Limits / maxAmount": "0",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
-      "Swap Rate Limits / maxAmount": "5,000,000",
-      "Swap Rate Limits / slope": "100,000,000 per day",
+      "Swap Rate Limits / maxAmount": "0",
+      "Swap Rate Limits / slope": "0",
       "Target Protocol": "Curve",
       "Token": "PYUSDUSDC",
       "Token Address": "0x383E6b4437b59fff47B619CBA855CA29342A8559",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-curve-pyusd-usdc-pool",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
     "name": "Ethereum Mainnet - Curve pyUSD/USDS Pool",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDS and PYUSD",
-      "Inflow Rate Limits / maxAmount": "5,000,000",
-      "Inflow Rate Limits / slope": "50,000,000 per day",
+      "Inflow Rate Limits / maxAmount": "0",
+      "Inflow Rate Limits / slope": "0",
       "Network": "Ethereum Mainnet",
-      "Outflow Rate Limits / maxAmount": "5,000,000",
-      "Outflow Rate Limits / slope": "100,000,000 per day",
+      "Outflow Rate Limits / maxAmount": "0",
+      "Outflow Rate Limits / slope": "0",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
-      "Swap Rate Limits / maxAmount": "5,000,000",
-      "Swap Rate Limits / slope": "50,000,000 per day",
+      "Swap Rate Limits / maxAmount": "0",
+      "Swap Rate Limits / slope": "0",
       "Target Protocol": "Curve",
       "Token": "PYUSDUSDS",
       "Token Address": "0xA632D59b9B804a956BfaA9b48Af3A1b74808FC1f",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-curve-pyusd-usds-pool",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
@@ -12784,21 +12876,21 @@ exports[`instances > allocation-system instances 1`] = `
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDT",
       "Contract Addresses / Underlying Asset Address": "0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD",
-      "Inflow Rate Limits / maxAmount": "5,000,000",
-      "Inflow Rate Limits / slope": "20,000,000 per day",
+      "Inflow Rate Limits / maxAmount": "0",
+      "Inflow Rate Limits / slope": "0",
       "Network": "Ethereum Mainnet",
-      "Outflow Rate Limits / maxAmount": "5,000,000",
-      "Outflow Rate Limits / slope": "20,000,000 per day",
+      "Outflow Rate Limits / maxAmount": "0",
+      "Outflow Rate Limits / slope": "0",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
-      "Swap Rate Limits / maxAmount": "10,000,000",
-      "Swap Rate Limits / slope": "200,000,000 per day",
+      "Swap Rate Limits / maxAmount": "0",
+      "Swap Rate Limits / slope": "0",
       "Target Protocol": "Curve",
       "Token": "sUSDSUSDT",
       "Token Address": "0x00836Fe54625BE242BcFA286207795405ca4fD10",
       "Underlying Asset Address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-curve-susds-usdt-pool",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
@@ -12812,15 +12904,15 @@ exports[`instances > allocation-system instances 1`] = `
       "Outflow Rate Limits / maxAmount": "N/A - swap only",
       "Outflow Rate Limits / slope": "N/A - swap only",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
-      "Swap Rate Limits / maxAmount": "5,000,000",
-      "Swap Rate Limits / slope": "20,000,000 per day",
+      "Swap Rate Limits / maxAmount": "0",
+      "Swap Rate Limits / slope": "0",
       "Target Protocol": "Curve",
       "Token": "crv2pool",
       "Token Address": "0x4f493B7dE8aAC7d55F71853688b1F7C8F0243C85",
       "Underlying Asset Address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-curve-usdc-usdt-pool",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
@@ -12840,15 +12932,15 @@ exports[`instances > allocation-system instances 1`] = `
       "Pool Address": "0xDB74dfDD3BB46bE8Ce6C33dC9D82777BCFc3dEd5",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
       "Swap Rate Limits / Max slippage": "0.25%",
-      "Swap Rate Limits / maxAmount": "1,000",
-      "Swap Rate Limits / slope": "50,000 per day",
+      "Swap Rate Limits / maxAmount": "0",
+      "Swap Rate Limits / slope": "0",
       "Target Protocol": "Curve",
       "Token": "crv2pool",
       "Token Address": "0xDB74dfDD3BB46bE8Ce6C33dC9D82777BCFc3dEd5",
       "Underlying Asset Address": "0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-curve-weeth-weth-ng-for-swaps",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
@@ -12859,8 +12951,8 @@ exports[`instances > allocation-system instances 1`] = `
       "Inflow Rate Limits / maxAmount": "250,000,000 USDe",
       "Inflow Rate Limits / slope": "100,000,000 USDe per day",
       "Network": "Ethereum Mainnet",
-      "Outflow Rate Limits / maxAmount": "unlimited",
-      "Outflow Rate Limits / slope": "unlimited",
+      "Outflow Rate Limits / maxAmount": "0",
+      "Outflow Rate Limits / slope": "0",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
       "Target Protocol": "Ethena Protocol",
       "Token": "sUSDe",
@@ -12868,7 +12960,7 @@ exports[`instances > allocation-system instances 1`] = `
       "Underlying Asset Address": "0x4c9EDD5852cd905f086C759E8383e09bff1E68B3",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-ethena-susde",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
@@ -12876,11 +12968,11 @@ exports[`instances > allocation-system instances 1`] = `
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDC",
       "EthenaMinter": "0xe3490297a08d6fC8Da46Edb7B6142E4F461b62D3",
-      "Inflow Rate Limits / maxAmount": "250,000,000 USDC",
-      "Inflow Rate Limits / slope": "100,000,000 USDC per day",
+      "Inflow Rate Limits / maxAmount": "0",
+      "Inflow Rate Limits / slope": "0",
       "Network": "Ethereum Mainnet",
-      "Outflow Rate Limits / maxAmount": "500,000,000 USDe",
-      "Outflow Rate Limits / slope": "200,000,000 USDe per day",
+      "Outflow Rate Limits / maxAmount": "0",
+      "Outflow Rate Limits / slope": "0",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
       "Target Protocol": "Ethena Protocol",
       "Token": "USDe",
@@ -12888,7 +12980,7 @@ exports[`instances > allocation-system instances 1`] = `
       "Underlying Asset Address": "This parameter will be specified in a future iteration of the Spark Artifact.",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-ethena-usde",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
@@ -12914,11 +13006,11 @@ exports[`instances > allocation-system instances 1`] = `
     "name": "Ethereum Mainnet - Maple USDC",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDC",
-      "Inflow Rate Limits / maxAmount": "100,000,000 USDC",
-      "Inflow Rate Limits / slope": "20,000,000 USDC per day",
+      "Inflow Rate Limits / maxAmount": "0",
+      "Inflow Rate Limits / slope": "0",
       "Network": "Ethereum Mainnet",
-      "Outflow Rate Limits / maxAmount": "Unlimited",
-      "Outflow Rate Limits / slope": "This parameter will be specified in a future iteration of the Spark Artifact.",
+      "Outflow Rate Limits / maxAmount": "0",
+      "Outflow Rate Limits / slope": "0",
       "Pool": "0x80ac24aA929eaF5013f6436cdA2a7ba190f5Cc0b",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
       "Target Protocol": "Maple",
@@ -12927,18 +13019,18 @@ exports[`instances > allocation-system instances 1`] = `
       "Underlying Asset Address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-maple-usdc",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
     "name": "Ethereum Mainnet - Maple USDT",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDT",
-      "Inflow Rate Limits / maxAmount": "50,000,000 USDT",
-      "Inflow Rate Limits / slope": "100,000,000 USDT per day",
+      "Inflow Rate Limits / maxAmount": "0",
+      "Inflow Rate Limits / slope": "0",
       "Network": "Ethereum Mainnet",
-      "Outflow Rate Limits / maxAmount": "Unlimited",
-      "Outflow Rate Limits / slope": "Unlimited",
+      "Outflow Rate Limits / maxAmount": "0",
+      "Outflow Rate Limits / slope": "0",
       "Pool": "0x356B8d89c1e1239Cbbb9dE4815c39A1474d5BA7D",
       "Rate Limit IDs / deposit": "\`0x207bb548ee62bbfd7b6906087f0de38e6c19d5be908e83166c0f089ccc2d97eb\`",
       "Rate Limit IDs / redeem": "\`0x0562da8d8466582e6dc86134ab2ec5656cb4e3d5b57650f6bb1a0f3683bea329\`",
@@ -12949,18 +13041,18 @@ exports[`instances > allocation-system instances 1`] = `
       "Underlying Asset Address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-maple-usdt",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
     "name": "Ethereum Mainnet - Morpho Dai",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "Dai",
-      "Inflow Rate Limits / maxAmount": "200,000,000 DAI",
-      "Inflow Rate Limits / slope": "100,000,000 DAI per day",
+      "Inflow Rate Limits / maxAmount": "0",
+      "Inflow Rate Limits / slope": "0",
       "Network": "Ethereum Mainnet",
-      "Outflow Rate Limits / maxAmount": "This parameter will be specified in a future iteration of the Spark Artifact.",
-      "Outflow Rate Limits / slope": "This parameter will be specified in a future iteration of the Spark Artifact.",
+      "Outflow Rate Limits / maxAmount": "0",
+      "Outflow Rate Limits / slope": "0",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
       "Target Protocol": "Morpho",
       "Token": "spDAI",
@@ -12968,7 +13060,7 @@ exports[`instances > allocation-system instances 1`] = `
       "Underlying Asset Address": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-morpho-dai",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
@@ -12996,11 +13088,11 @@ exports[`instances > allocation-system instances 1`] = `
     "params": {
       "Allocator Role Address": "0x9Ad87668d49ab69EEa0AF091de970EF52b0D5178",
       "Asset Supplied By Spark Liquidity Layer": "USDS",
-      "Inflow Rate Limits / maxAmount": "200,000,000 USDS",
-      "Inflow Rate Limits / slope": "100,000,000 USDS per day",
+      "Inflow Rate Limits / maxAmount": "0",
+      "Inflow Rate Limits / slope": "0",
       "Network": "Ethereum Mainnet",
-      "Outflow Rate Limits / maxAmount": "This parameter will be specified in a future iteration of the Spark Artifact.",
-      "Outflow Rate Limits / slope": "This parameter will be specified in a future iteration of the Spark Artifact.",
+      "Outflow Rate Limits / maxAmount": "0",
+      "Outflow Rate Limits / slope": "0",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
       "Target Protocol": "Morpho",
       "Token": "sparkUSDS",
@@ -13008,7 +13100,7 @@ exports[`instances > allocation-system instances 1`] = `
       "Underlying Asset Address": "0xdC035D45d973E3EC169d2276DDab16f1e407384F",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-morpho-usds",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
@@ -13308,11 +13400,11 @@ exports[`instances > allocation-system instances 1`] = `
     "name": "Ethereum Mainnet - Superstate USTB",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDC",
-      "Inflow Rate Limits / maxAmount": "This parameter will be specified in a future iteration of the Spark Artifact.",
-      "Inflow Rate Limits / slope": "This parameter will be specified in a future iteration of the Spark Artifact.",
+      "Inflow Rate Limits / maxAmount": "0",
+      "Inflow Rate Limits / slope": "0",
       "Network": "Ethereum Mainnet",
-      "Outflow Rate Limits / maxAmount": "Unlimited",
-      "Outflow Rate Limits / slope": "This parameter will be specified in a future iteration of the Spark Artifact.",
+      "Outflow Rate Limits / maxAmount": "0",
+      "Outflow Rate Limits / slope": "0",
       "Rate Limit IDs / USTB_DEPOSIT": "\`0x43415eB6ff9DB7E26A15b704e7A3eDCe97d31C4e\`",
       "Rate Limit IDs / USTB_REDEEM": "\`0x43415eB6ff9DB7E26A15b704e7A3eDCe97d31C4e\`",
       "Target Protocol": "Superstate",
@@ -13321,7 +13413,7 @@ exports[`instances > allocation-system instances 1`] = `
       "Underlying Asset Address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-superstate-ustb",
-    "status": "Active",
+    "status": "Completed",
   },
   {
     "agent": "A.6.1.1.1",
@@ -14116,9 +14208,9 @@ exports[`instances > allocation-system instances 1`] = `
       "CRR": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 25%.",
       "Deposit Rate Limits": "The deposit rate limits are:
 
-- Aggregate: \`maxAmount\`: 5,000,000 (normalized), \`slope\`: 350,000 (normalized) per day
-- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 350,000 AUSD per day
-- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 350,000 USDC per day",
+- Aggregate: \`maxAmount\`: 5,000,000 (normalized), \`slope\`: 5,000,000 (normalized) per day
+- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 5,000,000 AUSD per day
+- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 5,000,000 USDC per day",
       "Deposit RateLimitID (AUSD)": "The deposit RateLimitID for AUSD is: \`0x89c0cb8c17898781d7c1776eafcf73fd0b570659ad5c3791ddcbefe66b001541\`.",
       "Deposit RateLimitID (USDC)": "The deposit RateLimitID for USDC is: \`0x71efb11b03476e40dcc1ade629d360114fcbf838d70a3211270f69414ba9a187\`.",
       "Maximum Exposure": "Total exposure through this Instance may not exceed 10,000,000 USDS.",
@@ -14200,6 +14292,25 @@ exports[`instances > allocation-system instances 1`] = `
       "Withdrawal Rate Limits / maxAmount": "Unlimited",
     },
     "slug": "grove-allocation-system-ethereum-mainnet-grove-x-steakhouse-usdc-morpho-vault-v2",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.2",
+    "name": "Ethereum Mainnet - Grove x Steakhouse USDG Morpho Vault V2",
+    "params": {
+      "Asset Supplied By Grove Liquidity Layer": "USDG",
+      "Deposit Rate Limits / maxAmount": "50,000,000 USDG",
+      "Deposit Rate Limits / slope": "50,000,000 USDG per day",
+      "Inflow RateLimitID": "0x96c916a067daaa7b0861108a6239e40f33bb9fe1be08e2813fb9fc2344e19ef7",
+      "Network": "Ethereum Mainnet",
+      "Outflow RateLimitID": "0x0fceada3d6963c0045d4b0394172af9c863234669e35625191cb3372558bf596",
+      "Target Protocol": "Grove x Steakhouse USDG Morpho Vault V2",
+      "Token": "grove-steakUSDG",
+      "Token Address": "0xbeef05061FE51eA482BD1b68041353490b3a5934",
+      "Underlying Asset Address": "0xe343167631d89B6Ffc58B88d6b7fB0228795491D",
+      "Withdrawal Rate Limits / maxAmount": "Unlimited",
+    },
+    "slug": "grove-allocation-system-ethereum-mainnet-grove-x-steakhouse-usdg-morpho-vault-v2",
     "status": "Active",
   },
   {
@@ -14396,8 +14507,8 @@ exports[`instances > allocation-system instances 1`] = `
       "Basin Contract Address": "0xf08943f817e1F902dEbC884c7B19Ea5764594Ac9",
       "CRR": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 10%.",
       "Centrifuge ERC-7540 Vault Address": "0xFE6920eB6C421f1179cA8c8d4170530CDBdfd77A",
-      "Inflow Rate Limits / maxAmount": "5,000,000 USDS",
-      "Inflow Rate Limits / slope": "5,000,000 USDS per day",
+      "Inflow Rate Limits / maxAmount": "15,000,000 USDS",
+      "Inflow Rate Limits / slope": "15,000,000 USDS per day",
       "Inflow RateLimitID": "0x44ad4f925dffddd260f6ba5813208bf35b11b254e79611cbc8443c1504f68e68",
       "JTRSY Rate Provider Address": "0x29209ceCFeFa6f675E6f1f829320D67cE2b025E5",
       "Maximum Exposure": "Total exposure through this Instance may not exceed 12,500,000 USDS.",
@@ -15046,7 +15157,7 @@ exports[`instances > instance counts by type 1`] = `
 {
   "agent-creation": 8,
   "agent-token": 8,
-  "allocation-system": 122,
+  "allocation-system": 123,
   "core-governance-reward": 1,
   "distribution-reward": 13,
   "ecosystem-upkeep-fee": 8,

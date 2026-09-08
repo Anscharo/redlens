@@ -52,6 +52,9 @@ vi.mock("./lib/addresses", () => ({ loadAddresses: () => Promise.resolve({}) }))
 vi.mock("@/lib/balances", () => ({
   loadBalances: () => Promise.resolve({ lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} }),
   requestBalancesRefresh: () => Promise.resolve({ lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} }),
+  // The shared <Address> pill reads these through sharedBalances.ts.
+  peekCachedBalances: () => undefined,
+  loadBalancesCached: () => Promise.resolve({ lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} }),
 }));
 vi.mock("@/lib/history", () => ({
   loadModCounts: () => Promise.resolve([]),

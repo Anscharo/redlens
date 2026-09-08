@@ -45,9 +45,8 @@ function ChunkRow({ node, max, atlasTotal, depth, rootDocNo }: { node: ChunkNode
               ▸
             </span>
             {/* Titles can truncate at deep indents — the tooltip always
-                carries the full doc_no + title (delay=300: label hover, not
-                the instant chart-segment case). */}
-            <Tooltip delay={300} content={`${node.doc_no ? `${node.doc_no} ` : ""}${node.title} — ${node.docs.toLocaleString()} docs`}>
+                carries the full doc_no + title. */}
+            <Tooltip content={`${node.doc_no ? `${node.doc_no} ` : ""}${node.title} — ${node.docs.toLocaleString()} docs`}>
               <span className={`${depth === 0 ? "text-sm" : "text-xs"} truncate`}>
                 {node.doc_no && (depth > 0 || rootDocNo) ? `${node.doc_no} ` : ""}
                 {node.title}

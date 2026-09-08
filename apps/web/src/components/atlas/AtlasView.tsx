@@ -34,8 +34,8 @@ export function AtlasView({
 }: {
   id: string;
   onNavigate: (id: string) => void;
-  view: "annotations" | "glossary" | "history";
-  onViewChange: (v: "annotations" | "glossary" | "history") => void;
+  view: "notes" | "glossary" | "history";
+  onViewChange: (v: "notes" | "glossary" | "history") => void;
   splitId: string | null;
   onSplitChange: (id: string | null) => void;
   onOpenTree?: () => void;
@@ -51,7 +51,7 @@ export function AtlasView({
   // useGraphEdges hides the graph-relations section.
   const { preview } = useDataSource();
   const { selectedId, handleNavigate } = useAtlasSelection(id, onNavigate);
-  const { linkedNodes, targetAddresses, chainValues, glossaryTerms, cousinDocs, annotationDocs } =
+  const { linkedNodes, targetAddresses, chainValues, glossaryTerms, cousinDocs, byNameOnly, annotationDocs } =
     useNodeAnnotations(id, data, preview ? null : graph);
 
   // Atlas-aware analytics: one doc_view per node (live + preview alike).
@@ -164,6 +164,7 @@ export function AtlasView({
               cousinDocs={cousinDocs}
               targetAddresses={targetAddresses}
               chainValues={chainValues}
+              byNameOnly={byNameOnly}
               glossaryTerms={glossaryTerms}
               annotationCount={annotationCount}
               tab={view}

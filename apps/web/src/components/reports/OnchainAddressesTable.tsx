@@ -10,7 +10,7 @@
 // actual internal scrollbar) gives position:sticky a genuine range to work within —
 // the standard "data grid" pattern for header + horizontal scroll together.
 import { shortAddr } from "../../lib/format";
-import { explorerUrl } from "@/lib/explorer";
+import { Address } from "../Address";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { addrSearchFields, type OnchainAddressRow } from "../../lib/onchainAddressesIndex";
 import { hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
@@ -41,9 +41,9 @@ function Row({ r, rq }: { r: OnchainAddressRow; rq: ReportQuery }) {
       </td>
       <td className="py-2 px-3 relative">
         <MatchAside matches={hiddenMatches(addrSearchFields(r), rq)} rq={rq} />
-        <a href={r.explorerUrl} target="_blank" rel="noopener" className="mono text-xs text-accent hover:underline" title={r.address}>
-          <Highlight text={shortAddr(r.address, 10, 8)} rq={rq} />
-        </a>
+        <Address address={r.address} chain={r.chain} className="text-xs" noBalance>
+          <Highlight text={shortAddr(r.address, 6, 4)} rq={rq} />
+        </Address>
       </td>
       <td className="py-2 px-3 max-w-[8rem]">
         {r.registryName ? (
@@ -73,15 +73,15 @@ function Row({ r, rq }: { r: OnchainAddressRow; rq: ReportQuery }) {
       </td>
       <td className="py-2 px-3">
         {r.implementation ? (
-          <a
-            href={explorerUrl(r.implementation, { chain: r.chain })}
-            target="_blank"
-            rel="noopener"
-            className="mono text-[11px] text-accent hover:underline"
+          <Address
+            address={r.implementation}
+            chain={r.chain}
+            className="text-[11px]"
             title={`implementation: ${r.implementation}`}
+            noBalance
           >
             <Highlight text={shortAddr(r.implementation, 6, 4)} rq={rq} />
-          </a>
+          </Address>
         ) : (
           <span className="mono text-[10px] text-tan-3">—</span>
         )}

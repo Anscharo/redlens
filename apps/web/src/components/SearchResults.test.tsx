@@ -4,24 +4,24 @@ import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/re
 import "@testing-library/jest-dom/vitest";
 import { SearchResults } from "./SearchResults";
 import type { SearchState } from "../hooks/useSearch";
-import { makeSearchHit, makeGraphData, makeGraphEntity } from "../test/fixtures";
+import { makeSearchHit, makeGraphEntity } from "../test/fixtures";
 
 const mocks = vi.hoisted(() => ({
-  loadGraph: vi.fn(),
+  searchEntities: vi.fn(),
   track: vi.fn(),
 }));
-vi.mock("../lib/graph", () => ({ loadGraph: mocks.loadGraph }));
+vi.mock("../lib/graph", () => ({ searchEntities: mocks.searchEntities }));
 vi.mock("../lib/analytics", () => ({ track: mocks.track, captureException: vi.fn() }));
 
 afterEach(() => {
   cleanup();
   mocks.track.mockClear();
+  mocks.searchEntities.mockClear();
   window.history.pushState({}, "", "/");
 });
 
 beforeEach(() => {
-  // Default: no participants, so entity-hit branches don't fire unless a test opts in.
-  mocks.loadGraph.mockResolvedValue(makeGraphData());
+  mocks.searchEntities.mockResolvedValue([]);
 });
 
 function setup(
@@ -157,12 +157,19 @@ describe("SearchResults pagination", () => {
 });
 
 describe("SearchResults entity hits", () => {
-  it("renders matching entities from the graph, capped, with a link to their profile", async () => {
-    const participants = [
-      makeGraphEntity({ id: "e-1", slug: "keel", name: "Keel", et: "agent", st: "prime" }),
-      makeGraphEntity({ id: "e-2", slug: "keel-ops", name: "Keel Ops", et: "agent", st: null }),
-    ];
-    mocks.loadGraph.mockResolvedValue(makeGraphData({ participants }));
+  it("renders matching entities from the graph worker, with a link to their profile", async () => {
+    mocks.searchEntities.mockResolvedValue([
+      {
+        participant: makeGraphEntity({ id: "e-1", slug: "keel", name: "Keel", et: "agent", st: "prime" }),
+        score: 3,
+        href: "/radar/keel",
+      },
+      {
+        participant: makeGraphEntity({ id: "e-2", slug: "keel-ops", name: "Keel Ops", et: "agent", st: null }),
+        score: 2,
+        href: "/radar/keel-ops",
+      },
+    ]);
     setup(
       { status: "done", hits: [], durationMs: 1, query: "keel" },
       { query: "keel" },
@@ -172,13 +179,12 @@ describe("SearchResults entity hits", () => {
     expect(screen.getByText(/Agents · Alignment Conservers · Governance Operators 2/)).toBeTruthy();
     const link = screen.getByText("Keel").closest("a")!;
     expect(link).toHaveAttribute("href", "/radar/keel");
+    expect(mocks.searchEntities).toHaveBeenCalledWith("keel");
   });
 
-  it("does not show entity hits for an empty or slash-prefixed query", async () => {
-    const participants = [makeGraphEntity({ id: "e-1", slug: "keel", name: "Keel", et: "agent" })];
-    mocks.loadGraph.mockResolvedValue(makeGraphData({ participants }));
+  it("does not query the graph worker for an empty or slash-prefixed query", () => {
     setup({ status: "idle" }, { query: "/reports" });
-    await waitFor(() => expect(mocks.loadGraph).toHaveBeenCalled());
+    expect(mocks.searchEntities).not.toHaveBeenCalled();
     expect(screen.queryByText("Keel")).toBeNull();
   });
 });

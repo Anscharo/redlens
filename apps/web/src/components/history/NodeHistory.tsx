@@ -1,8 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { loadHistory, PRE_MD_PR, RECONSTRUCTED_ERAS, type HistoryEntry } from "@/lib/history";
-import { track } from "../../lib/analytics";
 import { EntryRow } from "./EntryRow";
-import { HtmlEraDisclaimer, PreGitDisclaimer } from "./HistoryDisclaimers";
 import { SeamFooter } from "./SeamFooter";
 import { CONTENT_INDENT, TimelineRow } from "./Timeline";
 
@@ -10,8 +8,8 @@ import { CONTENT_INDENT, TimelineRow } from "./Timeline";
 // with no per-doc identities. Two cases:
 //  · reconstructed — the pre-#117 per-doc history is now threaded into atlas_history
 //    (era="html", plus era="mip"/"genesis"/"severed" further back — docs/plans/
-//    pre-git-history.md); hidden by default behind the "View Reconstructed History"
-//    toggle, with a disclaimer shown before each reconstructed block.
+//    pre-git-history.md); shown inline like every other entry, each flagging its
+//    provenance with an info-icon tooltip by its date (EntryRow).
 //  · not reconstructed — no pre-#117 entries were threaded to this doc. SeamFooter says
 //    which of the two that is: a reviewed "created at the migration" verdict, or (the
 //    common case) that the doc's earlier history could not be traced at all.
@@ -37,13 +35,11 @@ export function NodeHistory({
 }) {
   const [entries, setEntries] = useState<HistoryEntry[] | null>(undefined as unknown as null);
   const [loading, setLoading] = useState(true);
-  const [showReconstructed, setShowReconstructed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setEntries(null);
-    setShowReconstructed(false);
     loadHistory(nodeId).then((data) => {
       if (cancelled) return;
       setEntries(data);
@@ -85,39 +81,10 @@ export function NodeHistory({
   );
   const hasReconstructed = sorted.some((e) => e.era && RECONSTRUCTED_ERAS.has(e.era));
   const hasPreGit = sorted.some((e) => e.era && PRE_GIT_ERAS.has(e.era));
-  // Reconstructed entries (every era in RECONSTRUCTED_ERAS) are hidden until the toggle
-  // is on. When shown, each block's disclaimer appears once, right before its first entry.
-  const visible = showReconstructed ? sorted : sorted.filter((e) => !e.era || !RECONSTRUCTED_ERAS.has(e.era));
-  const firstHtmlEra = visible.findIndex((e) => e.era === "html");
-  const firstPreGit = visible.findIndex((e) => e.era && PRE_GIT_ERAS.has(e.era));
-  const toggleButton = hasReconstructed && (
-    <button
-      type="button"
-      aria-pressed={showReconstructed}
-      onClick={() => {
-        track("reader_history_reconstructed_toggle", { node_id: nodeId, action: showReconstructed ? "hide" : "show" });
-        setShowReconstructed((v) => !v);
-      }}
-      className="mono text-[11px] uppercase tracking-wide px-2 py-1 my-2 rounded"
-      style={{
-        color: showReconstructed ? "var(--bg)" : "var(--accent)",
-        background: showReconstructed ? "var(--accent)" : "transparent",
-        border: "1px solid var(--accent)",
-      }}
-    >
-      {showReconstructed ? "Hide Reconstructed History" : "View Reconstructed History"}
-    </button>
-  );
-
-  // The reconstructed-history toggle sits at the native↔reconstructed boundary —
-  // just above the block it shows/hides. When those entries are visible it renders
-  // right before the first one; when hidden (none are in `visible`) it renders at
-  // the very bottom, directly below the last native entry, where the block appears.
-  // Disclaimers/footer/toggle sit *inside* the timeline (indented into the entry
-  // column, rail running past them) so the line never breaks; only the topmost block
-  // of the list trims the rail above it (and not when the rail runs in from above).
-  const firstReconstructedIdx = visible.findIndex((e) => e.era && RECONSTRUCTED_ERAS.has(e.era));
-  const topIsBlock = firstReconstructedIdx === 0;
+  // Always show the full history — reconstructed and pre-git entries included.
+  // Each such entry flags its own provenance with an info-icon tooltip (EntryRow),
+  // so there is no longer a toggle or interleaved disclaimer blocks.
+  const visible = sorted;
   const trimTop = !railAbove;
 
   return (
@@ -125,19 +92,12 @@ export function NodeHistory({
       {visible.map((entry, i) => {
         const isRootSnapshot =
           hasPreGit && entry.era === "html" && entry.changeType === "added" && entry.commitHash.startsWith(ROOT_SHA);
-        const disclaimer =
-          i === firstHtmlEra ? <HtmlEraDisclaimer /> : i === firstPreGit ? <PreGitDisclaimer /> : null;
-        const toggleHere = i === firstReconstructedIdx && !!toggleButton;
         return (
           <Fragment key={i}>
-            {toggleHere && <TimelineRow hideTop={trimTop && i === 0}>{toggleButton}</TimelineRow>}
-            {disclaimer && (
-              <TimelineRow hideTop={trimTop && i === 0 && !toggleHere}>{disclaimer}</TimelineRow>
-            )}
             <EntryRow
               entry={entry}
               labelOverride={isRootSnapshot ? "committed" : undefined}
-              isFirst={trimTop && i === 0 && !topIsBlock}
+              isFirst={trimTop && i === 0}
             />
             {!hasReconstructed && entry.pr === PRE_MD_PR && (
               <TimelineRow>
@@ -147,9 +107,6 @@ export function NodeHistory({
           </Fragment>
         );
       })}
-      {/* No reconstructed entries visible (toggle off) → the button sits at the
-          bottom, right where the hidden block would appear. */}
-      {firstReconstructedIdx === -1 && toggleButton && <TimelineRow>{toggleButton}</TimelineRow>}
     </div>
   );
 }

@@ -52,10 +52,11 @@ export function loadBalances(): Promise<BalancesResponse> {
 
 // Session-cached GET, shared by every address hover tooltip so hovering many
 // addresses on a page fetches /api/balances once instead of once per hover.
-// Lazy on purpose: the first fetch only starts on the first hover of any
-// address tooltip, not on page load — a startup fetch nobody may need is not
-// worth it, so the very first hover in a session can show the name only for
-// a moment before its balances arrive.
+// Callers that actually display a balance (teasers, cards, an open tooltip)
+// go through useSharedBalances(true), which starts this fetch on mount. Prose
+// pills pass noBalance and stay hover-gated: the tooltip is the first eager
+// mount, so the very first hover in a session can show the name only for a
+// moment before its balances arrive.
 let cachedBalances: Promise<BalancesResponse> | null = null;
 // Synchronous mirror of the cache's resolved value, so a component that
 // mounts/unmounts per interaction (the address tooltip, opened fresh on every

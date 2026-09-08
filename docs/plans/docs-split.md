@@ -22,10 +22,10 @@ atlas tree can render before the full payload arrives.
 >     stays server-only.
 > - **First paint 337 KB → 164 KB** vs the previous meta/data split, and visible
 >   nodes arrive content-complete (no separate content wait).
-> - **Single worker, two promises (unchanged contract).** `lib/docs.ts`
->   `loadAtlasTree(base)` resolves on the worker's `tree` message (shallow → reader
->   first paint); `loadAtlas(base)` resolves on `ready` (deep merged in). The worker
->   builds the `Record<id, node>` the app expects from each set.
+> - **Single worker, two promises (unchanged contract).** `apps/web/src/lib/docs.ts`
+>   `loadAtlasShallow(base)` resolves on the worker's `shallow` message (depth ≤ 5 →
+>   first paint); `loadAtlas(base)` resolves on `ready` (deep merged in). `useAtlasTree`
+>   consumes both. The worker builds the `Record<id, node>` the app expects from each set.
 > - **Deep-link guard.** A depth-6 node isn't in the shallow set, so `LoadedData`
 >   carries `complete` (false until deep merges). `AtlasView` shows `Loading` (not
 >   "Node not found") for an unresolved id until `complete`.
