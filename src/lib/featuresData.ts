@@ -265,6 +265,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Ask across every Prime at once — top venues by revenue, ecosystem totals, or a range of months — not just one Prime at a time.",
           "Ask it to draft a message to someone else explaining what the Atlas says; the draft carries links to the source documents, and you can export it to send.",
           "Check the answer's verification badge and click the inline sources to jump to the cited docs — an answer still being checked shows in italics.",
+          'Scroll up while a reply is arriving and the thread holds still — the "New messages below" button jumps you to the newest text.',
           "The usage meter under the composer shows your usage / credits; click the pie to see every limit.",
           "Dock the panel to the side with the dock icon in the header, or pop it out to a floating window.",
           'Past chats live under "Conversations" in the profile menu, and as "continue a previous chat" in an empty panel.',

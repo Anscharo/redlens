@@ -396,3 +396,81 @@ describe("ChatPanel delivery-mode toggle", () => {
     expect(send).toHaveBeenCalledWith("my question", expect.any(Object), "staged");
   });
 });
+
+// The thread only detaches when it actually overflows, and jsdom has no
+// layout (scrollHeight/clientHeight are 0, which reads as "at the bottom" —
+// which is why every other test in this file keeps auto-following). These
+// stub the geometry so the detached branch is reachable at all.
+function sizeThread(container: HTMLElement, { view = 400, content = 1000 } = {}) {
+  const thread = container.querySelector(".rlc-thread") as HTMLElement;
+  let height = content;
+  Object.defineProperty(thread, "clientHeight", { value: view, configurable: true });
+  // A getter over a mutable height: the pill only fires when the thread
+  // actually got taller, so a test that appends a turn has to grow it.
+  Object.defineProperty(thread, "scrollHeight", { get: () => height, configurable: true });
+  thread.scrollTop = height - view;
+  return { thread, grow: (by = 100) => (height += by) };
+}
+
+const assistant = (content: string): ChatMsg => ({
+  role: "assistant",
+  content,
+  trace: [],
+  rounds: 1,
+  sources: [],
+  done: true,
+});
+
+describe("ChatPanel scroll follow", () => {
+  function renderThread(messages: ChatMsg[]) {
+    const props = {
+      session: makeSession({ messages }),
+      onClose: vi.fn(),
+      context: baseContext,
+      onAtlas: vi.fn(),
+      placement: "float" as const,
+      onTogglePlacement: vi.fn(),
+    };
+    const utils = render(<ChatPanel {...props} />);
+    const { thread, grow } = sizeThread(utils.container as HTMLElement);
+    const rerenderWith = (msgs: ChatMsg[]) => {
+      grow();
+      utils.rerender(<ChatPanel {...props} session={makeSession({ messages: msgs })} />);
+    };
+    return { ...utils, thread, rerenderWith };
+  }
+
+  it("keeps the thread exactly where the reader left it and offers the jump pill", () => {
+    const { thread, rerenderWith } = renderThread([assistant("first")]);
+    fireEvent.scroll(thread, { target: { scrollTop: 300 } });
+    rerenderWith([assistant("first"), assistant("second")]);
+    expect(thread.scrollTop).toBe(300);
+    expect(screen.getByRole("button", { name: /new messages below/i })).toBeInTheDocument();
+  });
+
+  it("hides the pill once the reader takes the jump", async () => {
+    const { thread, rerenderWith } = renderThread([assistant("first")]);
+    fireEvent.scroll(thread, { target: { scrollTop: 300 } });
+    rerenderWith([assistant("first"), assistant("second")]);
+    await userEvent.click(screen.getByRole("button", { name: /new messages below/i }));
+    expect(screen.queryByRole("button", { name: /new messages below/i })).not.toBeInTheDocument();
+  });
+
+  it("shows no pill while the reader is still at the bottom", () => {
+    const { rerenderWith } = renderThread([assistant("first")]);
+    rerenderWith([assistant("first"), assistant("second")]);
+    expect(screen.queryByRole("button", { name: /below/i })).not.toBeInTheDocument();
+  });
+
+  it("re-follows when the reader sends, even from further up the thread", () => {
+    const { thread, rerenderWith } = renderThread([assistant("first")]);
+    fireEvent.scroll(thread, { target: { scrollTop: 300 } });
+    rerenderWith([assistant("first"), assistant("second")]);
+    expect(screen.getByRole("button", { name: /new messages below/i })).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("Ask about the Sky Atlas…"), { target: { value: "next" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    rerenderWith([assistant("first"), assistant("second"), assistant("third")]);
+    expect(thread.scrollTop).toBe(800); // two turns taller than at mount
+    expect(screen.queryByRole("button", { name: /below/i })).not.toBeInTheDocument();
+  });
+});

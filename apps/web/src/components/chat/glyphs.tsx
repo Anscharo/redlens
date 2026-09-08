@@ -115,3 +115,12 @@ export function ThemeGlyph({ theme, size = 15 }: { theme: ThemeId; size?: number
     </svg>
   );
 }
+
+// Points at the newest turn, below the fold — used by the jump-to-bottom pill.
+export function ArrowDownIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 5v14M6 13l6 6 6-6" />
+    </svg>
+  );
+}
