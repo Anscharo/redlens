@@ -654,6 +654,20 @@ export const config = {
   // parse.
   chainstateRefreshSeconds: Number(process.env.CHAINSTATE_REFRESH_SECONDS ?? 86_400),
 
+  // Rolling address-balance refresh (balances/refresh.ts, atlas worker). The
+  // worker ticks every ~12 minutes but a lookup happens at most once an hour
+  // (REFRESH_INTERVAL_MS), and fetches at most this many of the oldest
+  // addresses whose balances_checked_at is older than balancesRefreshSeconds —
+  // all on a single chain, so a lookup is one multicall against one endpoint.
+  // POST /api/balances is separate: it refreshes every row older than an hour,
+  // skipping the worker's last-hour writes. 86400 = daily; 24 hourly batches of
+  // 50 cover ~1,200 addresses a day against a table of a few hundred, and 50
+  // addresses stay inside one multicall (fetch-balances batches at 800 calls).
+  // THE authoritative defaults: atlas-worker.mjs reads them from here, not from
+  // its own env parse.
+  balancesRefreshSeconds: Number(process.env.BALANCES_REFRESH_SECONDS ?? 86_400),
+  balancesRefreshBatch: Number(process.env.BALANCES_REFRESH_BATCH ?? 50),
+
   // Forum cycle-thread crawl (forum.ts, atlas worker). Same shape as chain-state:
   // the worker ticks every ~12 minutes but Discourse is fetched only when the
   // stored cursor is older than this. Default hourly — MSC threads post at most

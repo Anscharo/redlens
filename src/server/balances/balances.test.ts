@@ -42,14 +42,26 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
   const text = strings.join("?").replace(/\s+/g, " ").trim();
   if (dbShouldThrow) throw new Error("simulated db failure");
 
-  if (text.includes("SELECT MAX(balances_checked_at) AS max FROM atlas_addresses")) {
-    const checked = rows.map((r) => r.balances_checked_at).filter((v): v is string => v != null);
-    const max = checked.length ? checked.sort().at(-1)! : null;
-    return Promise.resolve([{ max }]);
+  if (text.includes("MIN(balances_checked_at)")) {
+    // SQL aggregates skip NULLs, and the gate depends on that: a never-fetched
+    // row must not read as "the oldest reading is null ⇒ refresh always".
+    const checked = rows
+      .map((r) => r.balances_checked_at)
+      .filter((v): v is string => v != null)
+      .sort();
+    return Promise.resolve([{ min: checked[0] ?? null, max: checked.at(-1) ?? null }]);
   }
   if (text.includes("SELECT address, chain, expected_tokens, is_contract FROM atlas_addresses")) {
+    // POST only loads rows due for a refresh (NULL or older than the cutoff).
+    const cutoff = text.includes("balances_checked_at") ? values[0] : null;
+    const cutoffMs = cutoff == null
+      ? null
+      : cutoff instanceof Date ? cutoff.getTime() : Date.parse(String(cutoff));
+    const due = cutoffMs == null || Number.isNaN(cutoffMs)
+      ? rows
+      : rows.filter((r) => r.balances_checked_at == null || Date.parse(r.balances_checked_at) < cutoffMs);
     return Promise.resolve(
-      rows.map((r) => ({ address: r.address, chain: r.chain, expected_tokens: r.expected_tokens, is_contract: r.is_contract })),
+      due.map((r) => ({ address: r.address, chain: r.chain, expected_tokens: r.expected_tokens, is_contract: r.is_contract })),
     );
   }
   if (text.includes("SELECT address, chain, balances, balances_checked_at, has_code")) {
@@ -134,7 +146,7 @@ describe("handleBalances GET", () => {
     rows = [{ address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: false, balances: null, balances_checked_at: null, has_code: null }];
     const res = await handleBalances(req("GET"));
     const body = (await res.json()) as BalancesResponse;
-    expect(body).toEqual({ lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} });
+    expect(body).toEqual({ lastCheckedAt: null, oldestCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} });
   });
 
   it("keys cached rows by address|chain and passes through hasCode", async () => {
@@ -158,6 +170,33 @@ describe("handleBalances GET", () => {
       balances: { ETH: { raw: "1", decimals: 18 } },
     });
     expect(body.lastCheckedAt).toBe("2026-08-05T09:00:00.000Z");
+  });
+
+  it("sets nextRefreshAt from the stalest row so a recent worker batch does not start the hourly cooldown", async () => {
+    rows = [
+      {
+        address: "0xaaa",
+        chain: "ethereum",
+        expected_tokens: [],
+        is_contract: false,
+        balances: { ETH: { raw: "1", decimals: 18 } },
+        balances_checked_at: "2026-08-05T11:00:00.000Z",
+        has_code: null,
+      },
+      {
+        address: "0xbbb",
+        chain: "ethereum",
+        expected_tokens: [],
+        is_contract: false,
+        balances: { ETH: { raw: "2", decimals: 18 } },
+        balances_checked_at: "2026-08-05T09:00:00.000Z",
+        has_code: null,
+      },
+    ];
+    const res = await handleBalances(req("GET"));
+    const body = (await res.json()) as BalancesResponse;
+    expect(body.lastCheckedAt).toBe("2026-08-05T11:00:00.000Z"); // MAX — last activity
+    expect(body.nextRefreshAt).toBe("2026-08-05T10:00:00.000Z"); // MIN + 1h
   });
 
   it("self-heals a row whose balances were double-JSON-encoded (the pre-fix bug)", async () => {
@@ -188,7 +227,7 @@ describe("handleBalances GET", () => {
 });
 
 describe("handleBalances POST", () => {
-  it("skips the refresh and returns the cache unchanged inside the hourly cooldown", async () => {
+  it("skips the refresh when every row was checked inside the hour", async () => {
     const recent = new Date(Date.now() - 60_000).toISOString(); // 1 minute ago
     rows = [{ address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: false, balances: { ETH: { raw: "1", decimals: 18 } }, balances_checked_at: recent, has_code: null }];
     let called = false;
@@ -198,6 +237,32 @@ describe("handleBalances POST", () => {
     const body = (await res.json()) as BalancesResponse;
     expect(called).toBe(false);
     expect(body.refreshed).toBe(false);
+  });
+
+  it("does not re-fetch a recent worker batch — only rows older than an hour", async () => {
+    // The worker updates MAX every tick. POST used to sweep the whole table
+    // whenever MIN was stale, so a click during a rolling cycle re-RPCd the
+    // addresses written minutes ago. Now only the due row is loaded.
+    const recent = new Date(Date.now() - 60_000).toISOString();
+    const stale = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    rows = [
+      { address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: false, balances: { ETH: { raw: "1", decimals: 18 } }, balances_checked_at: recent, has_code: null },
+      { address: "0xbbb", chain: "ethereum", expected_tokens: [], is_contract: false, balances: { ETH: { raw: "1", decimals: 18 } }, balances_checked_at: stale, has_code: null },
+    ];
+    const fetched = new Set<string>();
+    multicallImpl = async (contracts) => {
+      for (const c of contracts) {
+        if (c.functionName === "getEthBalance") fetched.add(String(c.args[0]).toLowerCase());
+      }
+      return contracts.map(() => ({ status: "success", result: 1n }));
+    };
+
+    const res = await handleBalances(req("POST"));
+    const body = (await res.json()) as BalancesResponse;
+    expect(fetched).toEqual(new Set(["0xbbb"]));
+    expect(body.refreshed).toBe(true);
+    expect(rows[0].balances_checked_at).toBe(recent); // worker row untouched
+    expect(rows[1].balances_checked_at).not.toBe(stale);
   });
 
   it("fetches and writes fresh balances outside the cooldown, COALESCE-ing has_code", async () => {
@@ -234,16 +299,32 @@ describe("handleBalances POST", () => {
     getCodeImpl = async () => "0x";
   });
 
-  it("leaves the cache unchanged and refreshed:false when the sweep learns nothing at all", async () => {
+  it("stamps a verified contract whose multicall failed so it rotates out of the due set", async () => {
     // Already known to be a contract, so planCodeChecks skips it — with the
-    // multicall failing too, there is genuinely nothing to write.
+    // multicall failing too, there is no new balance or hasCode. The empty
+    // row still has to be written (COALESCE keeps the stored balances) or
+    // POST would select it again on the next click and the worker would
+    // stall the rotation on it.
     rows = [{ address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: true, balances: { ETH: { raw: "1", decimals: 18 } }, balances_checked_at: null, has_code: null }];
     multicallImpl = async (contracts) => contracts.map(() => ({ status: "failure" }));
 
     const res = await handleBalances(req("POST"));
     const body = (await res.json()) as BalancesResponse;
-    expect(body.refreshed).toBe(false);
-    expect(rows[0].balances_checked_at).toBeNull();
+    expect(body.refreshed).toBe(true);
+    expect(rows[0].balances).toEqual({ ETH: { raw: "1", decimals: 18 } }); // NOT overwritten with {}
+    expect(rows[0].balances_checked_at).not.toBeNull();
+  });
+
+  it("a second POST inside the hour does not re-fetch rows the first POST just stamped", async () => {
+    rows = [{ address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: false, balances: null, balances_checked_at: null, has_code: null }];
+    let calls = 0;
+    multicallImpl = async (contracts) => { calls++; return contracts.map(() => ({ status: "success", result: 1n })); };
+
+    expect(((await (await handleBalances(req("POST"))).json()) as BalancesResponse).refreshed).toBe(true);
+    expect(calls).toBe(1);
+    const second = (await (await handleBalances(req("POST"))).json()) as BalancesResponse;
+    expect(second.refreshed).toBe(false);
+    expect(calls).toBe(1);
   });
 
   it("a chain-level multicall failure is caught internally and doesn't fail the refresh", async () => {

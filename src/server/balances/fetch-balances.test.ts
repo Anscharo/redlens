@@ -92,9 +92,20 @@ test("assembleCodeResults: empty/absent code is false, real bytecode is true", (
 // fetchBalances' per-chain grouping/filtering is pure — these inputs are all
 // filtered out before the (live-RPC, separately-verified) per-chain sweep, so
 // they exercise the real export without a network call.
-test("fetchBalances: an unsupported chain (no NATIVE_TOKEN) never reaches the network", async () => {
+test("fetchBalances: a chain with no registry entry is reported checked-and-empty, without a network call", async () => {
+  // Not [] — the rolling refresh picks the oldest unchecked rows every cycle,
+  // so an address it can never read has to come back as "checked, nothing to
+  // report" or it is re-selected forever and starves every other address.
+  // The empty map is COALESCEd on write, so no stored balance is lost.
+  const out = await fetchBalances([{ address: "0xAAa0000000000000000000000000000000000001", chain: "notachain", expectedTokens: [] }]);
+  expect(out).toEqual([
+    { address: "0xaaa0000000000000000000000000000000000001", chain: "notachain", balances: {} },
+  ]);
+});
+
+test("fetchBalances: an address that isn't a decodable Solana pubkey is checked-and-empty too", async () => {
   const out = await fetchBalances([{ address: "abc", chain: "solana", expectedTokens: [] }]);
-  expect(out).toEqual([]);
+  expect(out).toEqual([{ address: "abc", chain: "solana", balances: {} }]);
 });
 
 test("fetchBalances: the optional chains allowlist drops non-matching inputs", async () => {
@@ -113,13 +124,14 @@ test("assembleChainResults: keeps an address that has only an eth_getCode answer
   // The regression this guards: an unverified contract holding no tokens is
   // exactly the address whose hasCode matters most, and iterating the balance
   // map alone dropped it every sweep.
-  const out = assembleChainResults("ethereum", new Map(), new Map([["0xaaa", true]]));
+  const out = assembleChainResults("ethereum", ["0xaaa"], new Map(), new Map([["0xaaa", true]]));
   expect(out).toEqual([{ address: "0xaaa", chain: "ethereum", balances: {}, hasCode: true }]);
 });
 
 test("assembleChainResults: merges balances and code answers for the same address", () => {
   const out = assembleChainResults(
     "base",
+    ["0xaaa"],
     new Map([["0xaaa", { ETH: { raw: "1", decimals: 18 } }]]),
     new Map([["0xaaa", false]]),
   );
@@ -133,13 +145,19 @@ test("assembleChainResults: omits hasCode entirely when the address wasn't code-
   // COALESCE on the property being absent.
   const out = assembleChainResults(
     "ethereum",
+    ["0xaaa"],
     new Map([["0xaaa", { ETH: { raw: "1", decimals: 18 } }]]),
     new Map(),
   );
   expect(out[0]).not.toHaveProperty("hasCode");
 });
 
-test("assembleChainResults: drops an address with neither a balance nor a code answer", () => {
-  const out = assembleChainResults("ethereum", new Map([["0xaaa", {}]]), new Map());
-  expect(out).toEqual([]);
+test("assembleChainResults: emits a checked-and-empty row for every requested address", () => {
+  // Progress invariant: a verified contract whose every multicall entry failed
+  // still has to come back as CHECKED, or the worker re-selects it forever.
+  const out = assembleChainResults("ethereum", ["0xAAA", "0xbbb", "0xAAA"], new Map(), new Map());
+  expect(out).toEqual([
+    { address: "0xaaa", chain: "ethereum", balances: {} },
+    { address: "0xbbb", chain: "ethereum", balances: {} },
+  ]);
 });

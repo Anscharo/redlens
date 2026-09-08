@@ -17,7 +17,7 @@ vi.mock("@/lib/balances", () => ({
 const ADDR = "0xabc";
 
 function response(addresses: Record<string, AddressBalances> = {}): BalancesResponse {
-  return { lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses };
+  return { lastCheckedAt: null, oldestCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses };
 }
 
 function eth(raw: string): AddressBalances {

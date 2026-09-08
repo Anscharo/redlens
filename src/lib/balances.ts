@@ -22,12 +22,22 @@ export interface AddressBalances {
 }
 
 export interface BalancesResponse {
-  // MAX(balances_checked_at) across the table — the last global refresh.
+  // MAX(balances_checked_at) across the table — the most recent per-row fetch
+  // (a worker batch or a POST of due rows). Not "every address is this fresh".
   lastCheckedAt: string | null;
-  // When a refresh is next allowed (lastCheckedAt + interval), or null if never fetched.
+  // MIN(balances_checked_at) — the OLDEST reading, i.e. the age every address
+  // is at least as fresh as. This is what the report shows: with the worker
+  // rolling through addresses, MAX is always minutes old while a given row can
+  // be a day old, so MAX would overstate freshness.
+  oldestCheckedAt: string | null;
+  // When a POST refresh is next allowed: MIN(balances_checked_at) +
+  // interval, i.e. when any fetched row is older than an hour. POST then
+  // selects exactly those due rows (plus never-fetched NULLs) — it does
+  // not re-fetch the worker's last hour. Deliberately NOT MAX: the worker's
+  // rolling batch moves MAX every cycle and would disable the button for good.
   nextRefreshAt: string | null;
   // Whether the request that produced this response actually fetched fresh data
-  // (POST only; false when the hourly gate short-circuited or on GET).
+  // (POST only; false when nothing was due or on GET).
   refreshed: boolean;
   // "address(lowercase)|chain" → its balances (see atlas_addresses' PRIMARY KEY
   // (address, chain) — the same address can be cached per-chain). Absent
@@ -83,12 +93,14 @@ export function peekCachedBalances(): BalancesResponse | null {
   return resolvedBalances;
 }
 
-// POST triggers a server-side refresh, gated to once per hour globally. Returns
-// the same shape; `refreshed` says whether new data was actually fetched. Also
-// updates the loadBalancesCached()/peekCachedBalances() cache, so the next
-// time any address tooltip opens (AddressTooltipContent re-seeds from the
-// peek on every mount) it shows the fresh data instead of the pre-refresh
-// snapshot for the rest of the session.
+// POST refreshes every address whose reading is older than an hour (or never
+// fetched), skipping rows the worker wrote inside that window so a click
+// during a rolling cycle does not re-RPC them. Returns the same shape;
+// `refreshed` says whether new data was actually fetched. Also updates the
+// loadBalancesCached()/peekCachedBalances() cache, so the next time any
+// address tooltip opens (AddressTooltipContent re-seeds from the peek on every
+// mount) it shows the fresh data instead of the pre-refresh snapshot for the
+// rest of the session.
 export async function requestBalancesRefresh(): Promise<BalancesResponse> {
   const res = await fetch("/api/balances", { method: "POST" });
   if (!res.ok) throw new Error(`balances refresh: ${res.status}`);

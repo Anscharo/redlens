@@ -1,13 +1,17 @@
 // /api/balances — on-chain token balances for the addresses report.
 //   GET  → cached balances (whatever's in atlas_addresses.balances).
-//   POST → refresh: fetch every address's balances via multicall and store them,
-//          gated to once per hour globally (MAX(balances_checked_at)); a no-op
-//          POST inside the window just returns the cache with refreshed:false.
-// Balances are written only here — never by sync (see migration 015).
+//   POST → refresh every row whose balances_checked_at is NULL or older than
+//          an hour. Rows the worker wrote in the last hour are skipped, so a
+//          click during a rolling cycle does not re-RPC the same addresses.
+//          A POST that finds nothing due returns the cache with refreshed:false.
+//          The atlas worker writes the same columns on a rolling 24h batch
+//          (balances/refresh.ts), under its own once-an-hour MAX ceiling.
+// Balances are written here and by the worker — never by sync (see migration 015).
 import { sql } from "../db.ts";
 import { json } from "../http.ts";
-import { REFRESH_INTERVAL_MS, refreshAllowed, type BalancesResponse, type BalanceMap } from "../../lib/balances.ts";
+import { REFRESH_INTERVAL_MS, type BalancesResponse, type BalanceMap } from "../../lib/balances.ts";
 import { fetchBalances, type AddressInput } from "./fetch-balances.ts";
+import { loadBalanceStats, persistBalanceResults } from "./refresh.ts";
 
 interface CachedRow {
   address: string;
@@ -53,11 +57,8 @@ async function readCache(refreshed: boolean): Promise<BalancesResponse> {
     WHERE balances IS NOT NULL
   `;
   const addresses: BalancesResponse["addresses"] = {};
-  let lastMs: number | null = null;
   for (const r of rows) {
     const checkedAt = toIso(r.balances_checked_at);
-    const ms = toMs(checkedAt);
-    if (ms != null && (lastMs == null || ms > lastMs)) lastMs = ms;
     // Keyed by address|chain, matching atlas_addresses' PRIMARY KEY (address, chain) —
     // the same address can be cached with different balances on different chains.
     addresses[`${r.address.toLowerCase()}|${r.chain}`] = {
@@ -67,9 +68,17 @@ async function readCache(refreshed: boolean): Promise<BalancesResponse> {
       hasCode: r.has_code,
     };
   }
-  const lastCheckedAt = lastMs != null ? new Date(lastMs).toISOString() : null;
-  const nextRefreshAt = lastMs != null ? new Date(lastMs + REFRESH_INTERVAL_MS).toISOString() : null;
-  return { lastCheckedAt, nextRefreshAt, refreshed, addresses };
+  const stats = await loadBalanceStats(sql);
+  const lastCheckedAt = toIso(stats.maxCheckedAt);
+  const oldestCheckedAt = toIso(stats.minCheckedAt);
+  // Button enables when any fetched row is older than the interval — MIN+1h,
+  // not MAX. The worker moves MAX every cycle; POST itself only selects rows
+  // past that age, so the button and the sweep agree on "what's due". SQL MIN
+  // skips NULLs: a never-fetched row is still selected by POST (IS NULL), and
+  // the worker picks those up first, so they don't need to hold the button open.
+  const minMs = toMs(oldestCheckedAt);
+  const nextRefreshAt = minMs != null ? new Date(minMs + REFRESH_INTERVAL_MS).toISOString() : null;
+  return { lastCheckedAt, oldestCheckedAt, nextRefreshAt, refreshed, addresses };
 }
 
 // In-process dedupe: a second POST while a refresh is running awaits the same
@@ -77,19 +86,20 @@ async function readCache(refreshed: boolean): Promise<BalancesResponse> {
 let inFlight: Promise<BalancesResponse> | null = null;
 
 async function doRefresh(): Promise<BalancesResponse> {
-  // Gate: skip if a global refresh happened within the interval.
-  const [{ max }] = await sql<{ max: string | Date | null }[]>`
-    SELECT MAX(balances_checked_at) AS max FROM atlas_addresses
-  `;
-  const lastMs = toMs(toIso(max));
-  if (!refreshAllowed(lastMs, Date.now())) return readCache(false);
-
-  // Load every address to price. expected_tokens is jsonb (parsed to an array).
+  // Only rows actually due: never-fetched, or last stamped more than an hour
+  // ago. The worker's last hour of writes is skipped, so a public POST during
+  // a rolling cycle cannot re-RPC those addresses — and a chain that failed
+  // this sweep stays due, so the next click retries only that residue, not
+  // the chains that already answered.
+  const cutoff = new Date(Date.now() - REFRESH_INTERVAL_MS);
   const rows = await sql<
     { address: string; chain: string; expected_tokens: string[] | null; is_contract: boolean | null }[]
   >`
     SELECT address, chain, expected_tokens, is_contract FROM atlas_addresses
+    WHERE balances_checked_at IS NULL OR balances_checked_at < ${cutoff}
   `;
+  if (rows.length === 0) return readCache(false);
+
   const inputs: AddressInput[] = rows.map((r) => ({
     address: r.address,
     chain: r.chain,
@@ -99,25 +109,8 @@ async function doRefresh(): Promise<BalancesResponse> {
 
   const results = await fetchBalances(inputs);
   if (results.length > 0) {
-    const now = new Date().toISOString();
-    await sql.begin(async (tx) => {
-      for (const r of results) {
-        // Both columns COALESCE onto the existing value when this sweep had
-        // nothing to say. has_code: undefined → the address wasn't checked, so
-        // a verified contract's flag isn't cleared. balances: an empty map is
-        // indistinguishable from a multicall whose calls all failed (viem
-        // reports failures by omission), so it must not overwrite a good
-        // reading — rows now reach here on a hasCode result alone.
-        const balances = Object.keys(r.balances).length > 0 ? r.balances : null;
-        await tx`
-          UPDATE atlas_addresses
-          SET balances = COALESCE(${balances}::jsonb, balances), balances_checked_at = ${now},
-              has_code = COALESCE(${r.hasCode ?? null}, has_code)
-          WHERE address = ${r.address} AND chain = ${r.chain}
-        `;
-      }
-    });
-    console.log(`balances: refreshed ${results.length} addresses`);
+    await persistBalanceResults(sql, results);
+    console.log(`balances: refreshed ${results.length}/${rows.length} due addresses`);
   } else {
     console.warn("balances: refresh produced no results (RPC unreachable?) — cache unchanged");
   }
