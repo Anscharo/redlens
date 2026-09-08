@@ -127,13 +127,33 @@ function isPubkey(address: string): boolean {
  *
  * Returns [] rather than throwing on RPC failure, matching the EVM path: a
  * balances sweep is best-effort and must not lose the chains that did answer.
+ *
+ * WHEN THE RPC ANSWERED, every requested Solana address gets a row — including
+ * ones holding nothing, ones whose account doesn't exist on chain, and ones
+ * that aren't decodable pubkeys at all. Those rows carry an empty balance map,
+ * which persistBalanceResults COALESCEs onto the stored value, so the only
+ * thing they change is balances_checked_at. That is the rolling refresh's
+ * progress invariant (refresh.ts): an address that can never produce a balance
+ * must still rotate out of the "oldest unchecked" queue, or it is picked again
+ * every cycle and no other address is ever refreshed. Empty result set ⇒ the
+ * RPC failed, which is the one case the caller must not treat as fresh.
  */
 export async function fetchSolanaBalances(
   inputs: AddressInput[],
   { fetchAccounts = fetchSolanaAccounts, log = console.warn } = {},
 ): Promise<BalanceResult[]> {
-  const addresses = inputs.filter((i) => i.chain === "solana").map((i) => i.address).filter(isPubkey);
-  if (addresses.length === 0) return [];
+  const requested = inputs.filter((i) => i.chain === "solana").map((i) => i.address);
+  if (requested.length === 0) return [];
+  const row = (address: string, balances: BalanceMap = {}): BalanceResult => ({
+    address,
+    chain: "solana",
+    balances,
+  });
+
+  // Undecodable addresses need no RPC to resolve: nothing can ever be read for
+  // them, so they are checked-and-empty by definition.
+  const addresses = requested.filter(isPubkey);
+  if (addresses.length === 0) return requested.map((a) => row(a));
 
   const slice = { dataSlice: { offset: 0, length: TOKEN_ACCOUNT_SLICE } };
   const derived = planTokenAccounts(addresses);
@@ -147,5 +167,9 @@ export async function fetchSolanaBalances(
   const { accounts: derivedAccounts } = derivedRes;
 
   const balances = assembleSolanaBalances(own, derived, derivedAccounts);
-  return [...balances].map(([address, map]) => ({ address, chain: "solana", balances: map }));
+  // A partial failure can't tell "holds nothing" from "wasn't read", so only
+  // the addresses that actually produced a balance are reported; the rest stay
+  // unchecked and come round again next cycle.
+  if (failed) return [...balances].map(([address, map]) => row(address, map));
+  return requested.map((a) => row(a, balances.get(a) ?? {}));
 }

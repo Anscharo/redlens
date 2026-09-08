@@ -36,6 +36,12 @@
 //                         to the public CHAIN_RPC.ethereum endpoint)
 //   CHAINSTATE_REFRESH_SECONDS — how old the stored snapshot may get before the
 //                         chain-state step refetches it (default 86400 = daily)
+//   BALANCES_REFRESH_SECONDS — how old an address's balances_checked_at may get
+//                         before the rolling balances step refetches it
+//                         (default 86400 = daily). A lookup itself happens at
+//                         most hourly, whatever this is set to.
+//   BALANCES_REFRESH_BATCH — addresses fetched per lookup, one chain at a time
+//                         (default 50)
 import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -161,6 +167,34 @@ async function main() {
       );
     } catch (e) {
       console.warn(`atlas-worker: chain-state step skipped — ${e.message}`);
+    }
+  }
+
+  // ── Address balances (rolling batch) ──────────────────────────────────────
+  // Also before the atlas early-exit: balances go stale independently of atlas
+  // commits. Two gates (balances/refresh.ts): this step looks anything up at
+  // most once an hour — off the most recent reading from any source, so a
+  // manual /api/balances refresh stands it down too — and a lookup takes
+  // at most BALANCES_REFRESH_BATCH of the oldest addresses past
+  // BALANCES_REFRESH_SECONDS (config.ts, default daily) on a SINGLE chain. So
+  // an RPC sees one multicall an hour, never a full-table stampede, and the
+  // timestamps stagger themselves. Best-effort: a rate-limited RPC never fails
+  // the sync.
+  if (NO_FETCH) {
+    console.log("atlas-worker: balances skipped (--no-fetch) — POST /api/balances to populate them locally");
+  } else {
+    try {
+      const { maybeRefreshBalances } = await import("../../src/server/balances/refresh.ts");
+      const res = await maybeRefreshBalances(db);
+      const LOG = {
+        stale: () => `atlas-worker: balances refreshed ${res.fetched}/${res.selected} on ${res.chain}`,
+        empty: () => `atlas-worker: balances ${res.selected} selected on ${res.chain} but RPC returned nothing — skipped write`,
+        cooldown: () => "atlas-worker: balances looked up within the hour — no RPC this cycle",
+        fresh: () => "atlas-worker: balances fresh — no stale addresses this cycle",
+      };
+      console.log(LOG[res.reason]());
+    } catch (e) {
+      console.warn(`atlas-worker: balances step skipped — ${e.message}`);
     }
   }
 

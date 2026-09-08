@@ -1,13 +1,17 @@
 // /api/balances — on-chain token balances for the addresses report.
 //   GET  → cached balances (whatever's in atlas_addresses.balances).
-//   POST → refresh: fetch every address's balances via multicall and store them,
-//          gated to once per hour globally (MAX(balances_checked_at)); a no-op
-//          POST inside the window just returns the cache with refreshed:false.
-// Balances are written only here — never by sync (see migration 015).
+//   POST → on-demand full refresh, gated to once per hour by MIN(balances_checked_at)
+//          (every fetched row is at least that fresh). A no-op POST inside the
+//          window returns the cache with refreshed:false. The atlas worker also
+//          writes these columns on a rolling 24h batch (balances/refresh.ts),
+//          under the same once-an-hour ceiling — gating on MAX would disable
+//          this button the moment the cron ticked.
+// Balances are written here and by the worker — never by sync (see migration 015).
 import { sql } from "../db.ts";
 import { json } from "../http.ts";
 import { REFRESH_INTERVAL_MS, refreshAllowed, type BalancesResponse, type BalanceMap } from "../../lib/balances.ts";
 import { fetchBalances, type AddressInput } from "./fetch-balances.ts";
+import { loadBalanceStats, persistBalanceResults } from "./refresh.ts";
 
 interface CachedRow {
   address: string;
@@ -53,11 +57,8 @@ async function readCache(refreshed: boolean): Promise<BalancesResponse> {
     WHERE balances IS NOT NULL
   `;
   const addresses: BalancesResponse["addresses"] = {};
-  let lastMs: number | null = null;
   for (const r of rows) {
     const checkedAt = toIso(r.balances_checked_at);
-    const ms = toMs(checkedAt);
-    if (ms != null && (lastMs == null || ms > lastMs)) lastMs = ms;
     // Keyed by address|chain, matching atlas_addresses' PRIMARY KEY (address, chain) —
     // the same address can be cached with different balances on different chains.
     addresses[`${r.address.toLowerCase()}|${r.chain}`] = {
@@ -67,9 +68,17 @@ async function readCache(refreshed: boolean): Promise<BalancesResponse> {
       hasCode: r.has_code,
     };
   }
-  const lastCheckedAt = lastMs != null ? new Date(lastMs).toISOString() : null;
-  const nextRefreshAt = lastMs != null ? new Date(lastMs + REFRESH_INTERVAL_MS).toISOString() : null;
-  return { lastCheckedAt, nextRefreshAt, refreshed, addresses };
+  const stats = await loadBalanceStats(sql);
+  const lastCheckedAt = toIso(stats.maxCheckedAt);
+  const oldestCheckedAt = toIso(stats.minCheckedAt);
+  // Button cooldown follows MIN (the stalest fetched row), not MAX: the worker
+  // moves MAX every cycle, so a MAX gate would disable the button for good.
+  // Never-fetched rows are NOT treated as "MIN = now-forever" — SQL MIN skips
+  // NULLs, so an address the fetchers can't read (or one just added by sync)
+  // can't hold the hourly gate open for every caller.
+  const minMs = toMs(oldestCheckedAt);
+  const nextRefreshAt = minMs != null ? new Date(minMs + REFRESH_INTERVAL_MS).toISOString() : null;
+  return { lastCheckedAt, oldestCheckedAt, nextRefreshAt, refreshed, addresses };
 }
 
 // In-process dedupe: a second POST while a refresh is running awaits the same
@@ -77,12 +86,14 @@ async function readCache(refreshed: boolean): Promise<BalancesResponse> {
 let inFlight: Promise<BalancesResponse> | null = null;
 
 async function doRefresh(): Promise<BalancesResponse> {
-  // Gate: skip if a global refresh happened within the interval.
-  const [{ max }] = await sql<{ max: string | Date | null }[]>`
-    SELECT MAX(balances_checked_at) AS max FROM atlas_addresses
-  `;
-  const lastMs = toMs(toIso(max));
-  if (!refreshAllowed(lastMs, Date.now())) return readCache(false);
+  // Gate: skip if EVERY fetched row is younger than the interval — one full
+  // sweep per hour, the same ceiling the worker's rolling batch obeys. MIN
+  // ignores NULLs on purpose: a fresh table (all NULL) is allowed through, but
+  // a single never-fetched row among fetched ones must NOT re-open the gate on
+  // every request — this endpoint is public and ungated (index.ts), so that
+  // would make a full-table multicall sweep available on demand.
+  const stats = await loadBalanceStats(sql);
+  if (!refreshAllowed(toMs(toIso(stats.minCheckedAt)), Date.now())) return readCache(false);
 
   // Load every address to price. expected_tokens is jsonb (parsed to an array).
   const rows = await sql<
@@ -99,24 +110,7 @@ async function doRefresh(): Promise<BalancesResponse> {
 
   const results = await fetchBalances(inputs);
   if (results.length > 0) {
-    const now = new Date().toISOString();
-    await sql.begin(async (tx) => {
-      for (const r of results) {
-        // Both columns COALESCE onto the existing value when this sweep had
-        // nothing to say. has_code: undefined → the address wasn't checked, so
-        // a verified contract's flag isn't cleared. balances: an empty map is
-        // indistinguishable from a multicall whose calls all failed (viem
-        // reports failures by omission), so it must not overwrite a good
-        // reading — rows now reach here on a hasCode result alone.
-        const balances = Object.keys(r.balances).length > 0 ? r.balances : null;
-        await tx`
-          UPDATE atlas_addresses
-          SET balances = COALESCE(${balances}::jsonb, balances), balances_checked_at = ${now},
-              has_code = COALESCE(${r.hasCode ?? null}, has_code)
-          WHERE address = ${r.address} AND chain = ${r.chain}
-        `;
-      }
-    });
+    await persistBalanceResults(sql, results);
     console.log(`balances: refreshed ${results.length} addresses`);
   } else {
     console.warn("balances: refresh produced no results (RPC unreachable?) — cache unchanged");

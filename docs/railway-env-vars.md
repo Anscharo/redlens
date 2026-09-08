@@ -81,6 +81,10 @@ curl -s "https://us.i.posthog.com/api/surveys/?token=<phc_project_key>" \
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | Yes |
 | `OPENROUTER_API_KEY` | same key as web service | For embeddings |
 | `GITHUB_TOKEN` | a PAT with `repo:read` scope | For PR history data |
+| `CHAINSTATE_REFRESH_SECONDS` | `86400` (default daily) | Optional — contract-state snapshot cadence |
+| `BALANCES_REFRESH_SECONDS` | `86400` (default daily) | Optional — per-address balance staleness |
+| `BALANCES_REFRESH_BATCH` | `50` (default) | Optional — addresses fetched per lookup (at most hourly) |
+| `ETH_RPC_URL` | a mainnet RPC URL | Optional — overrides the public ethereum endpoint |
 
 ---
 

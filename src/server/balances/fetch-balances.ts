@@ -212,21 +212,34 @@ export function assembleChainResults(
 
 // Fetch balances for many addresses across chains (one multicall per chain).
 // `chains` optionally restricts which chains to fetch. Returns one result per
-// (address, chain) that produced at least one balance OR an eth_getCode answer.
+// (address, chain) that produced at least one balance OR an eth_getCode answer,
+// plus a checked-and-empty row for every address on a chain this module has no
+// way to read (see `unsupported` below).
 export async function fetchBalances(
   inputs: AddressInput[],
   chains?: string[],
 ): Promise<BalanceResult[]> {
   const byChain = new Map<string, AddressInput[]>();
+  // Addresses whose chain has no registry entry to fetch against. Reporting
+  // them as checked-and-empty (rather than dropping them) is what stops the
+  // worker's rolling refresh from re-selecting the same unreadable rows every
+  // cycle and starving every other address — see refresh.ts's progress
+  // invariant. Nothing is overwritten: persistBalanceResults COALESCEs an
+  // empty map onto the stored value.
+  const unsupported: BalanceResult[] = [];
   for (const inp of inputs) {
     if (chains && !chains.includes(inp.chain)) continue;
-    if (!NATIVE_TOKEN[inp.chain] || !rpcFor(inp.chain)) continue; // non-EVM/unsupported
+    if (inp.chain === "solana") continue; // its own path below
+    if (!NATIVE_TOKEN[inp.chain] || !rpcFor(inp.chain)) {
+      unsupported.push({ address: inp.address.toLowerCase(), chain: inp.chain, balances: {} });
+      continue;
+    }
     const list = byChain.get(inp.chain) ?? [];
     list.push(inp);
     byChain.set(inp.chain, list);
   }
 
-  const out: BalanceResult[] = [];
+  const out: BalanceResult[] = [...unsupported];
 
   // Solana takes its own path: no multicall, and its token accounts are derived
   // rather than looked up (see solana-balances.ts).

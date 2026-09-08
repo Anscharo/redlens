@@ -1,8 +1,10 @@
-// On-demand on-chain balances for the addresses report. Balances are dynamic
-// (server /api/balances), not a build artifact: the cache loads on mount and
-// the Refresh button re-fetches, rate-limited server-side to once an hour. A
-// missing server (dev without the API) just leaves balances empty — the report
-// still renders.
+// On-chain balances for the addresses report. Balances are dynamic (server
+// /api/balances), not a build artifact: the atlas worker refreshes a rolling
+// batch of stale rows (each address about daily), and the Refresh button
+// re-fetches the whole table, and each is server-side capped at one lookup an
+// hour. The button's cooldown reads the OLDEST row, not the newest, so the
+// worker's batches can never disable it. A missing server (dev without the API)
+// just leaves balances empty — the report still renders.
 import { useEffect, useState } from "react";
 import { loadBalances, requestBalancesRefresh, type BalancesResponse } from "@/lib/balances";
 import { track } from "../../lib/analytics";

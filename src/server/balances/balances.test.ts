@@ -42,10 +42,14 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
   const text = strings.join("?").replace(/\s+/g, " ").trim();
   if (dbShouldThrow) throw new Error("simulated db failure");
 
-  if (text.includes("SELECT MAX(balances_checked_at) AS max FROM atlas_addresses")) {
-    const checked = rows.map((r) => r.balances_checked_at).filter((v): v is string => v != null);
-    const max = checked.length ? checked.sort().at(-1)! : null;
-    return Promise.resolve([{ max }]);
+  if (text.includes("MIN(balances_checked_at)")) {
+    // SQL aggregates skip NULLs, and the gate depends on that: a never-fetched
+    // row must not read as "the oldest reading is null ⇒ refresh always".
+    const checked = rows
+      .map((r) => r.balances_checked_at)
+      .filter((v): v is string => v != null)
+      .sort();
+    return Promise.resolve([{ min: checked[0] ?? null, max: checked.at(-1) ?? null }]);
   }
   if (text.includes("SELECT address, chain, expected_tokens, is_contract FROM atlas_addresses")) {
     return Promise.resolve(
@@ -134,7 +138,7 @@ describe("handleBalances GET", () => {
     rows = [{ address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: false, balances: null, balances_checked_at: null, has_code: null }];
     const res = await handleBalances(req("GET"));
     const body = (await res.json()) as BalancesResponse;
-    expect(body).toEqual({ lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} });
+    expect(body).toEqual({ lastCheckedAt: null, oldestCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} });
   });
 
   it("keys cached rows by address|chain and passes through hasCode", async () => {
@@ -158,6 +162,33 @@ describe("handleBalances GET", () => {
       balances: { ETH: { raw: "1", decimals: 18 } },
     });
     expect(body.lastCheckedAt).toBe("2026-08-05T09:00:00.000Z");
+  });
+
+  it("sets nextRefreshAt from the stalest row so a recent worker batch does not start the hourly cooldown", async () => {
+    rows = [
+      {
+        address: "0xaaa",
+        chain: "ethereum",
+        expected_tokens: [],
+        is_contract: false,
+        balances: { ETH: { raw: "1", decimals: 18 } },
+        balances_checked_at: "2026-08-05T11:00:00.000Z",
+        has_code: null,
+      },
+      {
+        address: "0xbbb",
+        chain: "ethereum",
+        expected_tokens: [],
+        is_contract: false,
+        balances: { ETH: { raw: "2", decimals: 18 } },
+        balances_checked_at: "2026-08-05T09:00:00.000Z",
+        has_code: null,
+      },
+    ];
+    const res = await handleBalances(req("GET"));
+    const body = (await res.json()) as BalancesResponse;
+    expect(body.lastCheckedAt).toBe("2026-08-05T11:00:00.000Z"); // MAX — last activity
+    expect(body.nextRefreshAt).toBe("2026-08-05T10:00:00.000Z"); // MIN + 1h
   });
 
   it("self-heals a row whose balances were double-JSON-encoded (the pre-fix bug)", async () => {
@@ -198,6 +229,27 @@ describe("handleBalances POST", () => {
     const body = (await res.json()) as BalancesResponse;
     expect(called).toBe(false);
     expect(body.refreshed).toBe(false);
+  });
+
+  it("does not treat a recent worker batch (MAX) as a full-refresh cooldown while older rows remain", async () => {
+    // The worker updates MAX every tick; gating on MAX would disable the button
+    // forever. MIN of a 2h-old row is outside the hourly window, so POST runs.
+    const recent = new Date(Date.now() - 60_000).toISOString();
+    const stale = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    rows = [
+      { address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: false, balances: { ETH: { raw: "1", decimals: 18 } }, balances_checked_at: recent, has_code: null },
+      { address: "0xbbb", chain: "ethereum", expected_tokens: [], is_contract: false, balances: { ETH: { raw: "1", decimals: 18 } }, balances_checked_at: stale, has_code: null },
+    ];
+    let called = false;
+    multicallImpl = async (contracts) => {
+      called = true;
+      return contracts.map(() => ({ status: "success", result: 1n }));
+    };
+
+    const res = await handleBalances(req("POST"));
+    const body = (await res.json()) as BalancesResponse;
+    expect(called).toBe(true);
+    expect(body.refreshed).toBe(true);
   });
 
   it("fetches and writes fresh balances outside the cooldown, COALESCE-ing has_code", async () => {

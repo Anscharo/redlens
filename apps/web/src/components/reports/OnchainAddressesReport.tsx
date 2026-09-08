@@ -106,11 +106,14 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
           >
             {refreshing ? "Refreshing balances…" : "Refresh balances"}
           </button>
+          {/* The OLDEST reading, not the newest: the worker refreshes a batch
+              at a time, so the newest is always minutes old while a given
+              address can be a day behind. This says what's true of every row. */}
           <span className="mono text-[10px] text-tan-3">
             {balError
               ? "balances unavailable"
-              : bal?.lastCheckedAt
-                ? `balances updated ${new Date(bal.lastCheckedAt).toLocaleString()}`
+              : bal?.oldestCheckedAt
+                ? `balances updated since ${new Date(bal.oldestCheckedAt).toLocaleString()}`
                 : "balances not yet fetched"}
           </span>
         </>
