@@ -977,6 +977,7 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 /* ── Reduce motion (pref + OS) ─────────────────────────────────────────── */
 .rlc-nomotion .rlc-panel,
 .rlc-nomotion .rlc-turn,
+.rlc-nomotion .rlc-jump,
 .rlc-nomotion .rlc-menu,
 .rlc-nomotion .rlc-limits-popover,
 .rlc-nomotion .rlc-ember,
@@ -986,6 +987,6 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-nomotion .rlc-caret { animation: none !important; }
 .rlc-nomotion .rlc-caret { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
-  .rlc-panel, .rlc-turn, .rlc-menu, .rlc-limits-popover, .rlc-ember, .rlc-twinkle, .rlc-caret, .rlc-verify-dot, .rlc-stage-marker { animation: none !important; }
+  .rlc-panel, .rlc-turn, .rlc-jump, .rlc-menu, .rlc-limits-popover, .rlc-ember, .rlc-twinkle, .rlc-caret, .rlc-verify-dot, .rlc-stage-marker { animation: none !important; }
   .rlc-caret { opacity: 1; }
 }
