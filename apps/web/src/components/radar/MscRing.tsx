@@ -9,7 +9,7 @@ interface Props {
   layout: RingLayout;
   primes: MscRingPrime[];
   month: string;
-  /** Compact ecosystem To-Sky figure shown inside the donut. */
+  /** Compact ecosystem To-Sky figure, shown above the Sky pie. */
   centerFigure: string;
 }
 
@@ -96,10 +96,12 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
             </text>
           ) : null,
         )}
-        <text x={layout.cx} y={layout.cy - 8} textAnchor="middle" fontSize={30} className="msc-ring-center">
+        {/* Sky's name and total above its pie — the same name-then-figure
+            treatment, sizes and inks as a Prime's. */}
+        <text x={layout.cx} y={layout.cy - layout.skyR - 38} textAnchor="middle" fontSize={24} className="msc-ring-label">
           To Sky
         </text>
-        <text x={layout.cx} y={layout.cy + 26} textAnchor="middle" fontSize={26} className="msc-ring-center mono">
+        <text x={layout.cx} y={layout.cy - layout.skyR - 18} textAnchor="middle" fontSize={16} className="msc-ring-sublabel mono">
           {centerFigure}
         </text>
         {primes.map((p) => (

@@ -3030,11 +3030,9 @@ a.atlas-annotates:focus-visible {
 }
 /* Text ON a fill uses that fill's own ink token (the pair every theme
    declares and admin/contrast.ts audits) — never a halo. */
-.msc-ring-center,
 .msc-ring-figure {
   pointer-events: none;
 }
-.msc-ring-center,
 .msc-ring-figure[data-kind="sky"],
 .msc-ring-figure[data-kind="cof"] {
   fill: var(--msc-sky-ink);

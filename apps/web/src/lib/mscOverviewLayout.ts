@@ -541,7 +541,8 @@ export function layoutMscRing(
 function fitViewBox(primes: RingPrime[], skyR: number, cy: number) {
   let x0 = CX - skyR;
   let x1 = CX + skyR;
-  let y0 = cy - skyR;
+  // Sky's name and figure sit above its pie, like a Prime's (see MscRing).
+  let y0 = cy - skyR - 38 - 24;
   let y1 = cy + skyR;
   for (const p of primes) {
     x0 = Math.min(x0, p.cx - p.r, p.labelX - NAME_HALF_W);
