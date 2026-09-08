@@ -63,7 +63,10 @@ describe("MscTimeseries", () => {
     const sky = document.querySelectorAll('.msc-ts-track-sky .msc-ts-seg[data-flow="sky"]');
     expect(sky).toHaveLength(3);
     const jul = [...sky].filter((el) => el.closest('button[aria-pressed="true"]')) as HTMLElement[];
-    expect(jul.map((el) => el.getAttribute("title"))).toEqual(["Spark: $1.50M to Sky", "Osero: $500k to Sky"]);
+    expect(jul.map((el) => el.querySelector(".msc-ts-pill")?.textContent)).toEqual([
+      "Spark $1.50M to Sky",
+      "Osero $500k to Sky",
+    ]);
     // A transparent box: Sky's blue ring outside, the prime's color inside.
     expect(jul[0].style.boxShadow).toContain("--msc-sky");
     expect(jul[0].style.outline).toContain("--msc-prime-1");
@@ -86,14 +89,19 @@ describe("MscTimeseries", () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it("stacks per-prime segments with stable colors and titles, negatives as loss", () => {
+  it("stacks per-prime segments with stable colors and named hover pills, negatives as loss", () => {
     renderChart();
-    const spark = document.querySelectorAll('[title="Spark: $500k"], [title="Spark: $400k"]');
+    const spark = document.querySelectorAll('.msc-ts-seg[data-prime="spark"][data-flow="kept"]');
     expect(spark).toHaveLength(2);
+    expect([...spark].map((el) => el.querySelector(".msc-ts-pill")?.textContent).sort()).toEqual([
+      "Spark $400k kept (supply kept + demand-side)",
+      "Spark $500k kept (supply kept + demand-side)",
+    ]);
     for (const el of spark) {
       expect((el as HTMLElement).style.background).toContain("--msc-prime-1");
     }
-    const osero = document.querySelector('[title="Osero: −$50k"]') as HTMLElement;
+    const osero = document.querySelector('.msc-ts-seg[data-prime="osero"][data-flow="kept"]') as HTMLElement;
+    expect(osero.querySelector(".msc-ts-pill")?.textContent).toBe("Osero −$50k supply loss");
     // Negative months keep the prime's own color, marked by stripes.
     expect(osero.style.background).toContain("repeating-linear-gradient");
     expect(osero.style.background).toContain("--msc-prime-3");

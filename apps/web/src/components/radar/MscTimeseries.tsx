@@ -95,9 +95,10 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
           <line x1={AXIS_W} x2={width} y1={zeroY} y2={zeroY} stroke="var(--border)" strokeWidth={1} />
         </svg>
         <div className="flex items-start relative" style={{ gap: GAP_PX, marginLeft: AXIS_W }}>
-          {months.map((m) => (
+          {months.map((m, i) => (
             <MonthColumn key={m.month} m={m} zeroY={zeroY} px={px} colorOf={colorOf}
-              primeLabel={primeLabel} selected={selected} onSelect={onSelect} />
+              primeLabel={primeLabel} selected={selected} onSelect={onSelect}
+              align={i === 0 ? "start" : i === months.length - 1 ? "end" : "center"} />
           ))}
         </div>
         <svg className="msc-ts-line" width={width} height={TRACK_H} aria-hidden="true">
@@ -152,7 +153,7 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
   );
 }
 
-function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: {
+function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect, align }: {
   m: PrimeStackMonth;
   zeroY: number;
   px: (v: number) => number;
@@ -160,6 +161,9 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
   primeLabel: (prime: string) => string;
   selected: string;
   onSelect: (month: string) => void;
+  /** Where a segment's hover pill hangs: edge columns keep theirs inside
+   *  the chart instead of overflowing it. */
+  align: "start" | "center" | "end";
 }) {
   const total = m.parts.reduce((n, p) => n + p.value, 0);
   // Positive parts stack upward from the zero line, negatives downward.
@@ -176,6 +180,20 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
   };
   const segs = stack(m.parts);
   const skySegs = stack(m.skyParts);
+  // The micro label sits just under the zero line — or under the lowest
+  // negative segment — and only for a bar that has anything in it.
+  const labelTop = (list: typeof segs) =>
+    list.some((s) => s.h >= 0.5) ? Math.max(zeroY, ...list.map((s) => s.top + s.h)) + 3 : null;
+  const keptLabelTop = labelTop(segs);
+  const skyLabelTop = labelTop(skySegs);
+  // Pill text names the number, like the ring's pills: never a bare figure.
+  const pillText = (s: { prime: string; value: number }, flow: "kept" | "sky") => {
+    const amount = formatUsd(s.value, true);
+    if (flow === "sky") return `${primeLabel(s.prime)} ${amount} to Sky`;
+    return s.value < 0
+      ? `${primeLabel(s.prime)} ${amount} supply loss`
+      : `${primeLabel(s.prime)} ${amount} kept (supply kept + demand-side)`;
+  };
   const seg = (s: { prime: string; value: number; top: number; h: number }, flow: "kept" | "sky") => {
     if (s.h < 0.5) return null;
     const fill = colorOf(s.prime);
@@ -198,14 +216,11 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
             outlineOffset: -5,
           };
     return (
-      <span
-        key={s.prime}
-        className="msc-ts-seg"
-        data-prime={s.prime}
-        data-flow={flow}
-        title={`${primeLabel(s.prime)}: ${formatUsd(s.value, true)}${flow === "sky" ? " to Sky" : ""}`}
-        style={style}
-      />
+      <span key={s.prime} className="msc-ts-seg" data-prime={s.prime} data-flow={flow} style={style}>
+        <span className="msc-ts-pill mono" data-align={align}>
+          {pillText(s, flow)}
+        </span>
+      </span>
     );
   };
   return (
@@ -225,11 +240,17 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
         <span className="msc-ts-track msc-ts-track-sky" data-flow="sky">
           {skySegs.map((s) => seg(s, "sky"))}
         </span>
-      </span>
-      {/* One micro label per bar. */}
-      <span className="msc-ts-microlabels mono" aria-hidden="true">
-        <span>kept</span>
-        <span>Sky</span>
+        {/* One micro label per bar, under its zero line. */}
+        {keptLabelTop != null && (
+          <span className="msc-ts-microlabel mono" style={{ top: keptLabelTop, left: 0 }}>
+            kept
+          </span>
+        )}
+        {skyLabelTop != null && (
+          <span className="msc-ts-microlabel mono" style={{ top: skyLabelTop, right: 0 }}>
+            Sky
+          </span>
+        )}
       </span>
       <span className="mono text-[10px]">{formatMonth(m.month)}</span>
     </button>

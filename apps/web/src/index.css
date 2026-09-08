@@ -2872,6 +2872,7 @@ a.atlas-annotates:focus-visible {
    hovered ones render at full strength. */
 /* Two tracks per month column — kept (left) and To Sky (right). */
 .msc-ts-tracks {
+  position: relative;
   display: flex;
   gap: 2px;
 }
@@ -2881,23 +2882,51 @@ a.atlas-annotates:focus-visible {
   width: 18px;
   height: 380px;
   border-radius: 2px;
-  overflow: hidden;
   opacity: 0.45;
   transition: opacity 0.1s;
 }
 /* The To-Sky stack is hollow boxes (fills and rings come inline, per
    segment), so the two stacks never read as the same money. */
-/* One micro label under each of a column's two bars. */
-.msc-ts-microlabels {
-  display: flex;
-  gap: 2px;
+/* A bar's micro label, placed inline just under its zero line. */
+.msc-ts-microlabel {
+  position: absolute;
+  width: 18px;
+  text-align: center;
   font-size: 7px;
   line-height: 1;
   color: var(--tan-3);
 }
-.msc-ts-microlabels > span {
-  width: 18px;
-  text-align: center;
+/* A segment's hover pill — the ring's pills, in HTML: names the number,
+   hangs above the segment, revealed by CSS on hover. */
+.msc-ts-pill {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 4px;
+  padding: 2px 7px;
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--tan);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity 0.1s;
+}
+.msc-ts-pill[data-align="center"] {
+  left: 50%;
+  transform: translateX(-50%);
+}
+.msc-ts-pill[data-align="start"] {
+  left: 0;
+}
+.msc-ts-pill[data-align="end"] {
+  right: 0;
+}
+.msc-ts-seg:hover .msc-ts-pill {
+  opacity: 1;
 }
 .msc-ts-seg {
   position: absolute;
