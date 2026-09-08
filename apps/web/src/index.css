@@ -105,35 +105,41 @@
      theme. Sky's wedge shades instead step toward the TEXT ink, so one ink
      reads across the whole Sky pie (the "To Sky" total spans its wedges).
      A loss is never a color of its own: it's stripes in the series' color.
-     Trio validated for adjacent-pair CVD separation (dataviz validator,
-     2026-09-01): amber failed protan vs the green, hence magenta. */
-  --msc-sky: #6e8ee8; /* CoF, the Sky pie, the To-Sky line */
+     Every value is built in OKLCH (scratch: one lightness/chroma band per
+     theme — dark fills L 0.66 at C ~0.11, light fills L 0.50 at C ~0.12,
+     sub-steps +0.08 L per step, chroma easing off) so nothing is a
+     saturated block and nothing is chalk; the trio and the Prime set pass
+     the dataviz validator's CVD and normal-vision floors (2026-09-08).
+     Amber failed protan vs the green, hence magenta. */
+  --msc-sky: #6f92d3; /* CoF, the Sky pie, the To-Sky line */
   --msc-sky-ink: #160e0d;
-  --msc-sky-2: #96a9e0; /* Sky wedge shades: 2nd, 3rd, 4th+ biggest contributor */
-  --msc-sky-3: #b3bcda;
-  --msc-sky-4: #c8cbd6;
-  --msc-sde: #afc1f2; /* Sky Direct Exposure */
+  --msc-sky-2: #8cabe4; /* Sky wedge shades: 2nd, 3rd, 4th+ biggest contributor */
+  --msc-sky-3: #a8c2ef;
+  --msc-sky-4: #c3d5f6;
+  --msc-sde: #a0bbeb; /* Sky Direct Exposure */
   --msc-sde-ink: #160e0d;
-  --msc-kept: #5db35b; /* supply kept */
+  --msc-kept: #63a46d; /* supply kept */
   --msc-kept-ink: #160e0d;
-  --msc-demand: #e07cc4; /* agent rate — the demand-side family color */
+  --msc-demand: #c175a8; /* agent rate — the demand-side family color */
   --msc-demand-ink: #160e0d;
-  --msc-dr: #e9a3d6; /* distribution rewards */
+  --msc-dr: #d692bf; /* distribution rewards */
   --msc-dr-ink: #160e0d;
-  --msc-gar: #f0c0e3; /* accessibility rewards */
+  --msc-gar: #e8b0d5; /* accessibility rewards */
   --msc-gar-ink: #160e0d;
-  --msc-cp: #f6d8ed; /* chronicle points */
+  --msc-cp: #f6d2e9; /* chronicle points */
   --msc-cp-ink: #160e0d;
-  /* MSC prime identity colors (timeseries layers, pie rims and slice
-     outlines, the Prime's own bar on its settlement page). Deliberately NO
-     blue, green, magenta/pink, or red in any theme — those are the flow
-     colors — and purple rather than orange, never both. One purple plus
-     warm neutrals, each a distinct lightness. */
-  --msc-prime-1: #a67ff0; /* purple */
-  --msc-prime-2: #d9b544; /* gold */
-  --msc-prime-3: #c8b48e; /* sand */
-  --msc-prime-4: #9c7a5b; /* brown */
-  --msc-prime-5: #8f8b96; /* warm gray */
+  /* MSC prime identity colors (timeseries layers, pie rims, the Prime's
+     own bar on its settlement page). Deliberately NO blue, green,
+     magenta/pink, or red in any theme — those are the flow colors — and
+     purple rather than orange, never both. Only two hues are left that
+     carry identity at chart chroma, so the five are two violets and two
+     golds at different lightness plus one neutral, ordered so neighbours
+     in the stack always differ by hue or by a big lightness step. */
+  --msc-prime-1: #b699eb; /* purple */
+  --msc-prime-2: #deb95c; /* gold */
+  --msc-prime-3: #7d5fad; /* sand */
+  --msc-prime-4: #a2822a; /* brown */
+  --msc-prime-5: #c1b5ab; /* warm gray */
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
@@ -285,28 +291,28 @@
   /* MSC settlement series — see the :root block note. The family colors
      are deep here, so their ink is the page; the paler sub-steps take the
      text ink. Sky's wedge shades step toward black (the text ink). */
-  --msc-sky: #2f5fd0; /* blue */
+  --msc-sky: #3a60aa; /* blue */
   --msc-sky-ink: #fafafa;
-  --msc-sky-2: #25499d;
-  --msc-sky-3: #1c3775;
-  --msc-sky-4: #162956;
-  --msc-sde: #93ace7;
+  --msc-sky-2: #2e5091;
+  --msc-sky-3: #234077;
+  --msc-sky-4: #1a315e;
+  --msc-sde: #8eabe1;
   --msc-sde-ink: #050505;
-  --msc-kept: #0f7233; /* green */
+  --msc-kept: #2f743d; /* green */
   --msc-kept-ink: #fafafa;
-  --msc-demand: #a21caf; /* magenta-purple */
+  --msc-demand: #92417a; /* magenta-purple */
   --msc-demand-ink: #fafafa;
-  --msc-dr: #c065c9;
+  --msc-dr: #c27fac;
   --msc-dr-ink: #050505;
-  --msc-gar: #d497da;
+  --msc-gar: #d9a5c7;
   --msc-gar-ink: #050505;
-  --msc-cp: #e3bbe7;
+  --msc-cp: #ebcee0;
   --msc-cp-ink: #050505;
-  --msc-prime-1: #6d28d9; /* purple */
-  --msc-prime-2: #9a7a00; /* gold */
-  --msc-prime-3: #8a7a4e; /* sand */
-  --msc-prime-4: #7a4f2e; /* brown */
-  --msc-prime-5: #6b6875; /* warm gray */
+  --msc-prime-1: #714ca6; /* purple */
+  --msc-prime-2: #a78000; /* gold */
+  --msc-prime-3: #472c6d; /* sand */
+  --msc-prime-4: #694e00; /* brown */
+  --msc-prime-5: #8a7e75; /* warm gray */
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
@@ -591,32 +597,32 @@
      grey, every one above this theme's 5:1 floor on the chart card and all
      with the page as ink: the demand-side family steps up from mid-grey,
      supply kept is the lightest so it never meets them. */
-  --msc-sky: #5ea4f2;
+  --msc-sky: #4fa6e9;
   --msc-sky-ink: #141414;
-  --msc-sky-2: #89baf0;
-  --msc-sky-3: #a8c9ef;
-  --msc-sky-4: #bfd5ee;
-  --msc-sde: #afd2f9;
+  --msc-sky-2: #7cbbf0;
+  --msc-sky-3: #a2d0f9;
+  --msc-sky-4: #c3e2fe;
+  --msc-sde: #9bcaf2;
   --msc-sde-ink: #141414;
-  --msc-kept: #e2e2e2;
+  --msc-kept: #e5ddd0;
   --msc-kept-ink: #141414;
   --msc-demand: #868686;
   --msc-demand-ink: #141414;
-  --msc-dr: #9c9c9c;
+  --msc-dr: #a1a1a1;
   --msc-dr-ink: #141414;
-  --msc-gar: #b2b2b2;
+  --msc-gar: #bebebe;
   --msc-gar-ink: #141414;
-  --msc-cp: #c8c8c8;
+  --msc-cp: #dbdbdb;
   --msc-cp-ink: #141414;
   /* Prime identities: the theme's OTHER hue — the warm gold (hue 80) of
      --selected-hint — as a lightness ramp, alternating light/dark so adjacent
      stack layers stay separable. Gold vs blue is giedi's bipolar axis: what
      a Prime kept is gold, what went to Sky is blue, nothing else has a hue. */
-  --msc-prime-1: #d9c9a8;
-  --msc-prime-2: #8f7a52;
-  --msc-prime-3: #cab490;
-  --msc-prime-4: #756240;
-  --msc-prime-5: #b19b70;
+  --msc-prime-1: #dcc8a6;
+  --msc-prime-2: #8d7751;
+  --msc-prime-3: #c5ad86;
+  --msc-prime-4: #726042;
+  --msc-prime-5: #a9926b;
 }
 
 /* ─── Giedi structural override ──────────────────────────────────────────
@@ -3010,7 +3016,7 @@ a.atlas-annotates:focus-visible {
 }
 .msc-ring-sky-wedge {
   stroke: var(--bg-deep);
-  stroke-width: 1;
+  stroke-width: 1.5;
   transition:
     stroke 0.1s,
     stroke-width 0.1s;
@@ -3054,21 +3060,24 @@ a.atlas-annotates:focus-visible {
 .msc-ring-sublabel {
   fill: var(--tan-3);
 }
-/* Each Prime is a pie of its line items inside a thin identity rim; the
-   slice outlines are the same identity color (both strokes come inline).
-   Slice fills are the series tokens — the To-Sky pair in Sky's blues,
-   supply kept in green, the demand-side series in magenta steps — the same
-   ones the key, the timeseries and the Prime's own page use. */
+/* Each Prime is a pie of its line items inside an identity rim (the one
+   stroke in the Prime's color; it comes inline). Slices are separated by
+   a hairline GAP in the card color, never a border — a border around every
+   fill is what made the pies read as a colouring book. Slice fills are the
+   series tokens — the To-Sky pair in Sky's blues, supply kept in green,
+   the demand-side series in magenta steps — the same ones the key, the
+   timeseries and the Prime's own page use. */
 .msc-ring-rim {
   fill: none;
-  stroke-width: 4;
-  stroke-opacity: 0.85;
+  stroke-width: 3;
+  stroke-opacity: 0.9;
   transition:
     stroke-width 0.1s,
     stroke-opacity 0.1s;
 }
 .msc-ring-slice {
-  stroke-width: 2;
+  stroke: var(--bg-deep);
+  stroke-width: 1.5;
 }
 .msc-ring-cof {
   fill: var(--msc-sky);
@@ -3166,7 +3175,7 @@ a:focus-visible > .msc-ring-prime :is(.msc-ring-arrow, .msc-ring-hole) {
 }
 .msc-ring-prime:hover .msc-ring-rim,
 a:focus-visible > .msc-ring-prime .msc-ring-rim {
-  stroke-width: 6;
+  stroke-width: 4.5;
   stroke-opacity: 1;
 }
 .msc-ring-label {

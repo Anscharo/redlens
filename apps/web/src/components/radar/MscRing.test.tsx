@@ -156,12 +156,15 @@ describe("MscRing", () => {
     expect(screen.getByRole("link", { name: /74% of its gross revenue/ })).toBeInTheDocument();
   });
 
-  it("outlines every slice in the prime's identity color and tags each figure with its slice kind", () => {
+  it("draws the prime's identity as its rim only and tags each figure with its slice kind", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
     const { container } = render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
+    const rim = container.querySelector(".msc-ring-rim") as SVGElement;
+    expect(rim.style.stroke).toBe("var(--depth-1)");
     const slices = container.querySelectorAll(".msc-ring-slice");
     expect(slices.length).toBeGreaterThan(0);
-    for (const s of slices) expect((s as SVGElement).style.stroke).toBe("var(--depth-1)");
+    // Slices carry no inline stroke: the gap between them is CSS, in the card color.
+    for (const s of slices) expect((s as SVGElement).style.stroke).toBe("");
     // Every in-slice figure names its kind so CSS can pick the fill's ink.
     const figures = container.querySelectorAll(".msc-ring-figure");
     expect(figures.length).toBeGreaterThan(0);
