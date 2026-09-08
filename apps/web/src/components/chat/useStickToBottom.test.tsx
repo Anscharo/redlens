@@ -249,4 +249,16 @@ describe("useStickToBottom detach intent", () => {
     act(() => void fireEvent.click(screen.getByText("add turn")));
     expect(screen.getByTestId("pending")).toHaveTextContent("false");
   });
+
+  // Scrollbar-thumb drag and keyboard PageUp/ArrowUp write scrollTop before
+  // the `scroll` event. No wheel/touch, position still reads "at bottom"
+  // from stuckRef — the follow effect's geometry check is what detaches.
+  it("detaches when scrollTop moved without a wheel or touch event", () => {
+    render(<Harness />);
+    const el = screen.getByTestId("thread");
+    el.scrollTop = 480;
+    act(() => void fireEvent.click(screen.getByText("add turn")));
+    expect(el.scrollTop).toBe(480);
+    expect(screen.getByTestId("pending")).toHaveTextContent("true");
+  });
 });

@@ -111,6 +111,9 @@ export function useStickToBottom({
   // the switched-to conversation opens at its newest turn.
   useLayoutEffect(() => {
     stuckRef.current = true;
+    // No committed bottom for the new thread — the follow effect must not
+    // treat the previous conversation's height as "the reader scrolled away".
+    lastHeightRef.current = 0;
     setPending(false);
   }, [resetKey]);
 
@@ -119,6 +122,20 @@ export function useStickToBottom({
   // old position and then a jump.
   useLayoutEffect(() => {
     const el = ref.current;
+    // Scrollbar-thumb drag and keyboard PageUp/ArrowUp update scrollTop
+    // *before* the `scroll` event. A token in that gap still sees stuckRef
+    // as true — the same race the wheel/touch listeners close for those
+    // inputs. Content growth leaves scrollTop unchanged, so a stuck thread
+    // still follows. lastHeightRef === 0 means no committed bottom yet
+    // (mount, conversation switch, or stick()) — don't second-guess.
+    if (
+      stuckRef.current &&
+      el &&
+      lastHeightRef.current > 0 &&
+      el.scrollTop < lastHeightRef.current - el.clientHeight - BOTTOM_SLACK_PX
+    ) {
+      stuckRef.current = false;
+    }
     if (stuckRef.current) toBottom(false);
     else if (el && el.scrollHeight > lastHeightRef.current) setPending(true);
     if (el) lastHeightRef.current = el.scrollHeight;
@@ -128,6 +145,7 @@ export function useStickToBottom({
    *  is about to arrive at the bottom (sending a message). */
   const stick = useCallback(() => {
     stuckRef.current = true;
+    lastHeightRef.current = 0;
     setPending(false);
   }, []);
 
