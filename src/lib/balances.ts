@@ -23,21 +23,21 @@ export interface AddressBalances {
 
 export interface BalancesResponse {
   // MAX(balances_checked_at) across the table — the most recent per-row fetch
-  // (a worker batch or a full POST). Not "every address is this fresh".
+  // (a worker batch or a POST of due rows). Not "every address is this fresh".
   lastCheckedAt: string | null;
   // MIN(balances_checked_at) — the OLDEST reading, i.e. the age every address
   // is at least as fresh as. This is what the report shows: with the worker
   // rolling through addresses, MAX is always minutes old while a given row can
   // be a day old, so MAX would overstate freshness.
   oldestCheckedAt: string | null;
-  // When a full POST refresh is next allowed: MIN(balances_checked_at) +
-  // interval. Rows that have never been fetched are ignored (MIN skips NULLs)
-  // so one unfetched address can't hold the hourly gate open forever — the
-  // worker picks those up on its own cycle. Deliberately NOT MAX: the worker's
+  // When a POST refresh is next allowed: MIN(balances_checked_at) +
+  // interval, i.e. when any fetched row is older than an hour. POST then
+  // selects exactly those due rows (plus never-fetched NULLs) — it does
+  // not re-fetch the worker's last hour. Deliberately NOT MAX: the worker's
   // rolling batch moves MAX every cycle and would disable the button for good.
   nextRefreshAt: string | null;
   // Whether the request that produced this response actually fetched fresh data
-  // (POST only; false when the hourly gate short-circuited or on GET).
+  // (POST only; false when nothing was due or on GET).
   refreshed: boolean;
   // "address(lowercase)|chain" → its balances (see atlas_addresses' PRIMARY KEY
   // (address, chain) — the same address can be cached per-chain). Absent
@@ -93,11 +93,9 @@ export function peekCachedBalances(): BalancesResponse | null {
   return resolvedBalances;
 }
 
-// POST triggers a server-side full refresh, gated to once per hour by the
-// stalest row (MIN(balances_checked_at)) so the worker's rolling batch — which
-// keeps MAX fresh — cannot disable the button. One hour is the whole feature's
-// rule: no on-chain lookup, from either path, more often than that. Returns the
-// same shape;
+// POST refreshes every address whose reading is older than an hour (or never
+// fetched), skipping rows the worker wrote inside that window so a click
+// during a rolling cycle does not re-RPC them. Returns the same shape;
 // `refreshed` says whether new data was actually fetched. Also updates the
 // loadBalancesCached()/peekCachedBalances() cache, so the next time any
 // address tooltip opens (AddressTooltipContent re-seeds from the peek on every

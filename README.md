@@ -94,7 +94,7 @@ pnpm preview # serve the production build locally
 
 Each stage can also be run individually.
 
-The on-chain contract-state snapshot is **not** a build stage: it lives in Postgres, fetched on a time gate by the Railway atlas worker (`CHAINSTATE_REFRESH_SECONDS`, default daily) and served from `/api/chain-state`. `pnpm snap:chainstate` is the manual escape hatch — one RPC sweep, straight into the same table (needs `DATABASE_URL`). Address token balances (`/api/balances`) refresh on the same worker as a rolling per-address batch (`BALANCES_REFRESH_SECONDS`, default daily) so RPCs are not hit all at once: at most one lookup an hour, of at most 50 addresses, all on one chain. `POST /api/balances` remains the on-demand full refresh, under that same hourly ceiling.
+The on-chain contract-state snapshot is **not** a build stage: it lives in Postgres, fetched on a time gate by the Railway atlas worker (`CHAINSTATE_REFRESH_SECONDS`, default daily) and served from `/api/chain-state`. `pnpm snap:chainstate` is the manual escape hatch — one RPC sweep, straight into the same table (needs `DATABASE_URL`). Address token balances (`/api/balances`) refresh on the same worker as a rolling per-address batch (`BALANCES_REFRESH_SECONDS`, default daily) so RPCs are not hit all at once: at most one lookup an hour, of at most 50 addresses, all on one chain. `POST /api/balances` refreshes every address whose reading is older than an hour, skipping rows the worker just wrote.
 
 ### Build at any historical atlas commit
 

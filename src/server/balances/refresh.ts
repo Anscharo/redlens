@@ -9,11 +9,14 @@
 //      MAX(balances_checked_at) — the most recent reading from any source, so
 //      a manual /api/balances sweep also stands the worker down for an hour.
 //      The worker ticks every ~12 minutes; only every fifth or so does work.
-//      Note the gate is one-directional: the POST button gates on MIN (the
-//      OLDEST row) instead, because the worker deliberately refreshes the
-//      oldest rows and a MAX gate there would blank the button for most of the
-//      day. Each path is capped at one lookup an hour; a human clicking Refresh
-//      in the same hour the worker ran is the one way to get two.
+//      Note the gate is one-directional: POST does not gate on MAX. It
+//      selects every row older than an hour (REFRESH_INTERVAL_MS) and
+//      refreshes those — so a click during a rolling cycle skips the
+//      addresses the worker just wrote, instead of blanking the button
+//      (a MAX gate) or re-RPCing them (a full-table sweep). Each worker
+//      lookup is capped at one an hour; POST's cap is "only what's due".
+//      A human clicking Refresh in the same hour the worker ran is the
+//      one way to get two lookups, and the second only covers the residue.
 //   2. Which addresses are due? Those past BALANCES_REFRESH_SECONDS, oldest
 //      first, capped at BALANCES_REFRESH_BATCH — and all on ONE chain, so a
 //      cycle is a single multicall against a single endpoint.

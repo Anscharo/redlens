@@ -21,15 +21,18 @@ let staleRows: {
   expected_tokens: string[] | null;
   is_contract: boolean | null;
 }[] = [];
-// MAX(balances_checked_at) — the hourly ceiling both this gate and the POST
-// button read. null = nothing was ever fetched, so a lookup is allowed.
-let lastCheckedAt: string | null = null;
+// MAX(balances_checked_at) — the hourly ceiling THIS gate reads. POST no
+// longer shares it: it selects rows older than an hour rather than
+// short-circuiting on an aggregate. null = nothing was ever fetched, so a
+// lookup is allowed.
+let minCheckedAt: string | null = null;
+let maxCheckedAt: string | null = null;
 
 const fakeSql = async (strings: TemplateStringsArray, ...values: unknown[]): Promise<unknown> => {
   const text = strings.join("?");
   queries.push({ text, values });
   if (text.includes("MIN(balances_checked_at)")) {
-    return [{ min: lastCheckedAt, max: lastCheckedAt }];
+    return [{ min: minCheckedAt, max: maxCheckedAt }];
   }
   if (text.includes("ORDER BY balances_checked_at ASC NULLS FIRST")) {
     return staleRows;
@@ -50,7 +53,8 @@ const result = (address = ETH, chain = "ethereum"): BalanceResult => ({
 beforeEach(() => {
   queries = [];
   staleRows = [];
-  lastCheckedAt = null;
+  minCheckedAt = null;
+  maxCheckedAt = null;
 });
 
 describe("maybeRefreshBalances (rolling batch)", () => {
@@ -126,10 +130,10 @@ describe("maybeRefreshBalances (rolling batch)", () => {
 
   it("does NOT look anything up within an hour of the last reading, however stale rows are", async () => {
     // The ceiling is on lookups, not on staleness: a day-old row still waits
-    // for the hour to pass. MAX is written by the POST button too, so pressing
-    // it also buys the worker an hour off.
+    // for the hour to pass. MAX is also written by POST, so a manual refresh
+    // stands the worker down for an hour.
     staleRows = [{ address: ETH, chain: "ethereum", expected_tokens: [], is_contract: false }];
-    lastCheckedAt = new Date(NOW - 10 * 60_000).toISOString();
+    maxCheckedAt = new Date(NOW - 10 * 60_000).toISOString();
     let fetches = 0;
     const res = await maybeRefreshBalances(fakeSql, {
       fetch: async () => {
@@ -144,9 +148,26 @@ describe("maybeRefreshBalances (rolling batch)", () => {
     expect(queries.every((q) => !q.text.includes("LIMIT"))).toBe(true);
   });
 
+  it("cools down off MAX even when MIN is a day old", async () => {
+    // A MIN gate would fetch every 12-minute tick once the worker is rolling.
+    staleRows = [{ address: ETH, chain: "ethereum", expected_tokens: [], is_contract: false }];
+    minCheckedAt = new Date(NOW - 25 * 3_600_000).toISOString();
+    maxCheckedAt = new Date(NOW - 10 * 60_000).toISOString();
+    let fetches = 0;
+    const res = await maybeRefreshBalances(fakeSql, {
+      fetch: async () => {
+        fetches++;
+        return [];
+      },
+      now: () => NOW,
+    });
+    expect(fetches).toBe(0);
+    expect(res.reason).toBe("cooldown");
+  });
+
   it("looks up again once the hour has passed", async () => {
     staleRows = [{ address: ETH, chain: "ethereum", expected_tokens: [], is_contract: false }];
-    lastCheckedAt = new Date(NOW - 61 * 60_000).toISOString();
+    maxCheckedAt = new Date(NOW - 61 * 60_000).toISOString();
     const res = await maybeRefreshBalances(fakeSql, {
       fetch: async (inputs) => inputs.map((i) => result(i.address, i.chain)),
       now: () => NOW,

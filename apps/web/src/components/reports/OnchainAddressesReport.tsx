@@ -98,7 +98,7 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
             className="mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
             title={
               canRefresh
-                ? "Fetch current on-chain balances (max once per hour)"
+                ? "Fetch balances last checked more than an hour ago"
                 : bal?.nextRefreshAt
                   ? `Next refresh available ${new Date(bal.nextRefreshAt).toLocaleString()}`
                   : undefined

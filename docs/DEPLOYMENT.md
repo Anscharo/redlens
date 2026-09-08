@@ -498,11 +498,11 @@ straight into the Postgres `chain_state` table on its own time gate
   an hour it fetches up to `BALANCES_REFRESH_BATCH` (default 50) of the oldest
   addresses whose `balances_checked_at` is past `BALANCES_REFRESH_SECONDS`
   (default daily), all on a single chain — one multicall against one endpoint.
-  `POST /api/balances` (the on-demand full refresh behind the report's Refresh
-  button) is capped at one sweep an hour of its own. The two caps are
-  one-directional: a manual refresh stands the worker down for an hour, but a
-  worker batch never disables the button — it gates on the OLDEST row, and the
-  worker refreshes exactly the oldest rows. Served from `GET /api/balances`. Local `--no-fetch` skips both on-chain steps
+  `POST /api/balances` (the report's Refresh button) refreshes every address
+  whose `balances_checked_at` is NULL or older than an hour, skipping rows the
+  worker wrote inside that window so a click during a rolling cycle does not
+  re-RPC them. A successful POST still stands the worker down for an hour
+  (worker gates on MAX). Served from `GET /api/balances`. Local `--no-fetch` skips both on-chain steps
   — use the report's Refresh balances button to populate them.
 
 ## Troubleshooting
