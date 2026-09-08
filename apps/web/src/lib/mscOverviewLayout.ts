@@ -95,7 +95,6 @@ export const HEIGHT = 2 * (R_MAX + DONUT_GAP + 2 * R_MAX + 2 * LABEL_OUT + 8);
 
 /** Slice kinds, in the pie's clockwise order: the To-Sky pair first (they
  *  face Sky), then supply kept, then the demand-side series. */
-const SLICE_KINDS = ["cof", "sde", "kept", ...DEMAND_SERIES.map((s) => s.key)] as const;
 export type SliceKind = "cof" | "sde" | "kept" | DemandKey;
 
 export interface RingSlice {
