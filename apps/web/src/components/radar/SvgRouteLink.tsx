@@ -1,4 +1,4 @@
-import { startTransition, type ReactNode } from "react";
+import { startTransition, type ComponentPropsWithoutRef, type MouseEvent } from "react";
 import { useLocation, useRouter } from "wouter";
 
 /**
@@ -9,26 +9,31 @@ import { useLocation, useRouter } from "wouter";
  * startTransition so the lazy route doesn't flash a Suspense fallback.
  * `navigate` prefixes the router base itself, so it gets the unprefixed path.
  */
+export type SvgRouteLinkProps = Omit<ComponentPropsWithoutRef<"a">, "href"> & {
+  /** Router-relative path. The href is base-prefixed so open-in-new-tab works in preview. */
+  to: string;
+  /** Accessible name. SVG `<a>` wrapping shapes has no text fallback. */
+  label?: string;
+};
+
 export function SvgRouteLink({
   to,
   label,
-  className,
+  onClick: userOnClick,
   children,
-}: {
-  to: string;
-  label?: string;
-  className?: string;
-  children: ReactNode;
-}) {
+  ...rest
+}: SvgRouteLinkProps) {
   const { base } = useRouter();
   const [, navigate] = useLocation();
-  const onClick = (e: React.MouseEvent) => {
+  const onClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    userOnClick?.(e);
+    if (e.defaultPrevented) return;
     if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
     startTransition(() => navigate(to));
   };
   return (
-    <a href={`${base}${to}`} onClick={onClick} aria-label={label} className={className}>
+    <a href={`${base}${to}`} aria-label={label} {...rest} onClick={onClick}>
       {children}
     </a>
   );
