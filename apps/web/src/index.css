@@ -1244,10 +1244,29 @@ mark {
    fix for "header-only sticky" (that needs the body pulled out of the sticky
    box entirely, a DOM restructure — see docs/qa/2026-08-02-deep-qa-report.md
    R2) — this is the safe, CSS-only mitigation for the part that made
-   descendants totally unreachable. */
-.atlas-node.is-selected .atlas-node-body {
+   descendants totally unreachable.
+   Only for docs WITH children ([data-has-children], set by CollapsibleNode):
+   a childless doc's .selection-group is the doc itself, so the sticky pin
+   never engages and there is nothing for the cap to protect — it only handed
+   the reader a nested scroller (wheel moves the box, not the page) and made
+   the body snap between capped and full height on every selection change.
+   On a laptop (60vh ≈ 380px) that was most of the reader. */
+.atlas-node.is-selected[data-has-children] .atlas-node-body {
   max-height: 60vh;
   overflow-y: auto;
+}
+
+/* The wrapper is ONE persistent DOM node that React moves from the old
+   selection to the new one on every navigation. Chromium's scroll anchoring
+   picked it as the anchor and "kept it in place" by shifting scrollTop by the
+   whole distance between the two docs — so the newly selected doc teleported
+   to exactly where the old doc's header had been, and only then did the glide
+   correct (or not, when that spot already passed needsScroll). Excluding just
+   the wrapper leaves anchoring on for ordinary rows, which is the behaviour
+   we want: a row that grows above the viewport still holds the page still.
+   Never put this on .atlas-scroll itself. */
+.selection-group {
+  overflow-anchor: none;
 }
 
 /* Cradle: rail down the left of the selected node's descendants, in the

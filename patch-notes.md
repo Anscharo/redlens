@@ -34,6 +34,8 @@
 -->
 ## 2026-09-08
 - Chat now stays where you scrolled while a reply arrives, with a "New messages below" button to jump to the newest text
+- Documents without subsections now show their whole text in the reader instead of a scrolling box
+- Clicking between documents no longer jumps the reader to a different spot before scrolling to the new one
 
 ## 2026-09-04
 - On-chain addresses now appear as a pill across documents, reports, and dashboards, showing the balance they hold in green with a hover for the name and full token holdings

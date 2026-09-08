@@ -305,6 +305,10 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         cradle ? ` in-cradle${cradle === "foot" ? " cradle-foot" : ""}` : ""
       }`}
       data-has-hidden={gatedCount > 0 ? "true" : undefined}
+      // The selected-body height clamp (index.css, "R2") keys on this: the
+      // sticky pin it protects can only engage when the row has descendants
+      // to pin over, so a childless doc gets its full body, no inner scroller.
+      data-has-children={hasChildren ? "true" : undefined}
       // Footer hint (useContextHints): the row is tabIndex={0}, so Enter/Space
       // act on it once focused — but on WHAT depends on the row's state (see the
       // keydown handler below), so the marker has to say which. The shift-click
