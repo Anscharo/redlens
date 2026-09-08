@@ -35,12 +35,10 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
   const latest = months[months.length - 1] ?? null;
   const [msc, setMsc] = useUrlState("msc", mscCodec);
   const month = months.includes(msc ?? "") ? msc! : latest;
-  // Autoplay: step through the months, PLAY_MS each, looping. On by default
-  // unless the page was opened on a specific month (?msc) or the visitor
-  // prefers reduced motion; any click on a month column stops it.
-  const [playing, setPlaying] = useState(
-    () => msc == null && !(typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches),
-  );
+  // Playback steps through the months, PLAY_MS each, looping. Opt-in: the
+  // page opens paused on the latest month (or ?msc); any click on a month
+  // column pauses it again.
+  const [playing, setPlaying] = useState(false);
   useEffect(() => {
     if (!playing || months.length < 2 || !month) return;
     const id = setInterval(() => {
@@ -97,11 +95,9 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
         Monthly Settlement Cycle
       </h2>
       <p className="text-xs mb-4 max-w-3xl" style={{ color: "var(--tan-3)" }}>
-        From Soter Labs' published Monthly Settlement Cycle workbooks — OEA
-        calculations, not the on-chain GovOps spell and not Sky Atlas figures.
-        “To Sky” totals are what the Primes owed Sky, not the Protocol's Net
-        Revenue, which the Atlas defines as income minus expenses
-        (A.2.3.1.2.1.1).{" "}
+        Soter Labs' Monthly Settlement Cycle workbooks (OEA calculations, not
+        Atlas figures). “To Sky” is what Primes owed Sky, not the Protocol's Net
+        Revenue (A.2.3.1.2.1.1).{" "}
         <a href={SOURCE} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
           Source workbooks
         </a>
@@ -205,16 +201,10 @@ function RingKey() {
         ))}
       </p>
       <p className="text-center mt-1">
-        Each Prime is a pie of its gross revenue* line items; Sky is a pie of
-        the To-Sky total by Prime — all on one area scale. A loss is a hole in
-        the middle of its pie (the ring's area is gross revenue). The To-Sky
-        slices face Sky and feed the arrow. Hover for figures; click a Prime
-        to open its settlement page.
+        Pie area = gross revenue*. Hover for figures; click a Prime for its page.
       </p>
       <p className="text-center mt-1 italic">
-        *Gross revenue = prime agent revenue + demand-side + Sky Direct
-        Exposure, before cost of funds (equally: To Sky + supply kept +
-        demand-side).
+        *Gross revenue = To Sky + supply kept + demand-side.
       </p>
     </div>
   );

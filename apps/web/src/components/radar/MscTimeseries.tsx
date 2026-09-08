@@ -140,12 +140,13 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
           <span className="inline-block w-3 h-[2px] mr-1 align-middle" style={{ background: "var(--msc-sky)" }} />
           to Sky (line)
         </span>
-      </p>
-      <p className="mono text-[10px] mt-1" style={{ color: "var(--tan-3)", maxWidth: width }}>
-        Left stack: what each Prime kept (supply kept + demand-side). Right
-        stack: what each Prime sent to Sky — blue, outlined in the Prime's
-        color — it adds up to the line. Hover a layer to light the same money
-        on the orbital chart.
+        <span>
+          <span
+            className="inline-block w-2 h-2 mr-1 align-middle"
+            style={{ background: "var(--tan)", boxShadow: "inset 0 0 0 1px var(--msc-sky)" }}
+          />
+          to Sky, per Prime (box)
+        </span>
       </p>
     </div>
   );
@@ -181,16 +182,18 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
     // A negative month keeps the series' color (color = identity) and is
     // marked by diagonal stripes, stacked below the zero line.
     const stripes = (c: string) => `repeating-linear-gradient(45deg, ${c} 0, ${c} 4px, transparent 4px, transparent 8px)`;
-    // Kept: solid prime color. To Sky: translucent Sky blue (from CSS)
-    // outlined in the prime's color, so the two stacks never read alike.
+    // Kept: solid prime color. To Sky: a hollow box — ink-colored interior,
+    // outlined in the prime's color, an ink gap, then Sky's line blue on the
+    // outside (inset rings, outermost listed first) — so the two stacks
+    // never read alike and the box ties to the line it adds up to.
     const style =
       flow === "kept"
         ? { top: s.top, height: s.h, background: s.value < 0 ? stripes(fill) : fill }
         : {
             top: s.top,
             height: s.h,
-            boxShadow: `inset 0 0 0 2px ${fill}`,
-            ...(s.value < 0 ? { background: stripes("var(--msc-sky)") } : {}),
+            background: s.value < 0 ? stripes("var(--msc-sky)") : "var(--tan)",
+            boxShadow: `inset 0 0 0 2px var(--msc-sky), inset 0 0 0 3px var(--tan), inset 0 0 0 5px ${fill}`,
           };
     return (
       <span
@@ -220,6 +223,11 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect }: 
         <span className="msc-ts-track msc-ts-track-sky" data-flow="sky">
           {skySegs.map((s) => seg(s, "sky"))}
         </span>
+      </span>
+      {/* One micro label per bar. */}
+      <span className="msc-ts-microlabels mono" aria-hidden="true">
+        <span>kept</span>
+        <span>Sky</span>
       </span>
       <span className="mono text-[10px]">{formatMonth(m.month)}</span>
     </button>

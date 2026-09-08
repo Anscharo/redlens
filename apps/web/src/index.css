@@ -2878,18 +2878,26 @@ a.atlas-annotates:focus-visible {
 .msc-ts-track {
   position: relative;
   display: block;
-  width: 13px;
+  width: 18px;
   height: 380px;
   border-radius: 2px;
   overflow: hidden;
   opacity: 0.45;
   transition: opacity 0.1s;
 }
-/* The To-Sky stack is translucent Sky blue outlined in each prime's own
-   color (the outline comes inline, per segment), so the two stacks never
-   read as the same money. */
-.msc-ts-track-sky .msc-ts-seg {
-  background: color-mix(in srgb, var(--msc-sky) 30%, transparent);
+/* The To-Sky stack is hollow boxes (fills and rings come inline, per
+   segment), so the two stacks never read as the same money. */
+/* One micro label under each of a column's two bars. */
+.msc-ts-microlabels {
+  display: flex;
+  gap: 2px;
+  font-size: 7px;
+  line-height: 1;
+  color: var(--tan-3);
+}
+.msc-ts-microlabels > span {
+  width: 18px;
+  text-align: center;
 }
 .msc-ts-seg {
   position: absolute;
@@ -3023,14 +3031,14 @@ a.atlas-annotates:focus-visible {
    ones the key, the timeseries and the Prime's own page use. */
 .msc-ring-rim {
   fill: none;
-  stroke-width: 2;
-  stroke-opacity: 0.7;
+  stroke-width: 4;
+  stroke-opacity: 0.85;
   transition:
     stroke-width 0.1s,
     stroke-opacity 0.1s;
 }
 .msc-ring-slice {
-  stroke-width: 1.25;
+  stroke-width: 2;
 }
 .msc-ring-cof {
   fill: var(--msc-sky);
@@ -3128,7 +3136,7 @@ a:focus-visible > .msc-ring-prime :is(.msc-ring-arrow, .msc-ring-hole) {
 }
 .msc-ring-prime:hover .msc-ring-rim,
 a:focus-visible > .msc-ring-prime .msc-ring-rim {
-  stroke-width: 4;
+  stroke-width: 6;
   stroke-opacity: 1;
 }
 .msc-ring-label {

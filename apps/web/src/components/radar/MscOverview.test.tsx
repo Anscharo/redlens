@@ -87,13 +87,19 @@ describe("MscOverview", () => {
     expect(track).toHaveBeenCalledTimes(1);
   });
 
-  it("autoplays through the months one second apart until a month is clicked", async () => {
+  it("opens paused on the latest month; play steps through the months until a month is clicked", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       render(<MscOverview actors={ACTORS} />);
       await waitFor(() => screen.getByText("Prime-side earnings and To Sky by month"));
-      expect(screen.getByRole("button", { name: "Pause the month autoplay" })).toBeInTheDocument();
       expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2500);
+      });
+      // Still July: nothing plays on its own.
+      expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /Play through the months/ }));
+      expect(screen.getByRole("button", { name: "Pause the month autoplay" })).toBeInTheDocument();
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1000);
       });
@@ -114,8 +120,6 @@ describe("MscOverview", () => {
   it("selects a month from the timeseries and syncs ?msc (latest month clears it)", async () => {
     render(<MscOverview actors={ACTORS} />);
     await waitFor(() => screen.getByText("Prime-side earnings and To Sky by month"));
-    // Stop the autoplay first so the clicks below are the only changes.
-    fireEvent.click(screen.getByRole("button", { name: "Pause the month autoplay" }));
     fireEvent.click(screen.getByRole("button", { name: /Jun 2026: .*\$10 to Sky/ }));
     expect(window.location.search).toBe("?msc=2026-06");
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jun 2026")).toBeInTheDocument();
