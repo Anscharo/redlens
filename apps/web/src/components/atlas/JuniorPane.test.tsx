@@ -132,6 +132,22 @@ describe("JuniorPane selection-group wrapper (R2)", () => {
     expect(child?.getAttribute("data-has-children")).toBeNull();
   });
 
+  it("marks every slice row whose next neighbour is deeper", () => {
+    const split = makeNode({ id: "split", doc_no: "A.1", title: "Split Title", depth: 1, parentId: null });
+    const child = makeNode({ id: "child", doc_no: "A.1.1", title: "Child Title", depth: 2, parentId: "split" });
+    const grand = makeNode({ id: "grand", doc_no: "A.1.1.1", title: "Grand Title", depth: 3, parentId: "child" });
+    const loaded = makeLoadedData({
+      atlas: makeAtlasBundle([split, child, grand]),
+      flatNodes: [split, child, grand].map((node) => makeFlatEntry({ node, depth: node.depth })),
+    });
+    const { container } = render(
+      <JuniorPane splitId="split" data={loaded} onShiftNavigate={vi.fn()} onClose={() => {}} />,
+    );
+    expect(container.querySelector("#junior-split")?.getAttribute("data-has-children")).toBe("true");
+    expect(container.querySelector("#junior-child")?.getAttribute("data-has-children")).toBe("true");
+    expect(container.querySelector("#junior-grand")?.getAttribute("data-has-children")).toBeNull();
+  });
+
   it("does not mark a childless split root — nothing for the clamp to protect", () => {
     const leaf = makeNode({ id: "leaf", doc_no: "A.9", title: "Leaf Title", depth: 1, parentId: null });
     const loaded = makeLoadedData({
