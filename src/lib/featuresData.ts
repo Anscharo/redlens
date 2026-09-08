@@ -106,7 +106,6 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Every address the Atlas mentions is resolved, labelled, and linked to the right explorer for its chain — the same way everywhere it appears.",
         how: [
           "Hover any address — in a document, a report, or a dashboard — to see its name and the token balances it holds.",
-          "Balances update on their own about once a day. On the On-Chain Addresses report, the Refresh balances button can force a full update (at most once an hour).",
           "Open a document's Notes panel: each address it mentions, whether by hex or by its chainlog name, shows as a card with its name, owner, roles, balances, and a chain-correct explorer link.",
         ],
       },
