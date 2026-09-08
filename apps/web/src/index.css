@@ -1245,7 +1245,8 @@ mark {
    box entirely, a DOM restructure — see docs/qa/2026-08-02-deep-qa-report.md
    R2) — this is the safe, CSS-only mitigation for the part that made
    descendants totally unreachable.
-   Only for docs WITH children ([data-has-children], set by CollapsibleNode):
+   Only for docs WITH children ([data-has-children], set by CollapsibleNode
+   from the hasChildren prop — AtlasReader and JuniorPane both pass it):
    a childless doc's .selection-group is the doc itself, so the sticky pin
    never engages and there is nothing for the cap to protect — it only handed
    the reader a nested scroller (wheel moves the box, not the page) and made
