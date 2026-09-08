@@ -32,7 +32,11 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
+## 2026-09-08
+- Chat now stays where you scrolled while a reply arrives, with a "New messages below" button to jump to the newest text
+
 ## 2026-09-04
+- Address token balances now update automatically once a day
 - On-chain addresses now appear as a pill across documents, reports, and dashboards, showing the balance they hold in green with a hover for the name and full token holdings
 - A document's Notes panel now lists every address it mentions, including ones named only by their chainlog key, each with its owner, roles, and balances
 - Broad search now also matches the singular or plural of a word, with exact wording ranked first

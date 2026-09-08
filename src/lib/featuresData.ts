@@ -106,6 +106,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Every address the Atlas mentions is resolved, labelled, and linked to the right explorer for its chain — the same way everywhere it appears.",
         how: [
           "Hover any address — in a document, a report, or a dashboard — to see its name and the token balances it holds.",
+          "Balances update on their own about once a day. On the On-Chain Addresses report, the Refresh balances button can force a full update (at most once an hour).",
           "Open a document's Notes panel: each address it mentions, whether by hex or by its chainlog name, shows as a card with its name, owner, roles, balances, and a chain-correct explorer link.",
         ],
       },
@@ -265,6 +266,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Ask across every Prime at once — top venues by revenue, ecosystem totals, or a range of months — not just one Prime at a time.",
           "Ask it to draft a message to someone else explaining what the Atlas says; the draft carries links to the source documents, and you can export it to send.",
           "Check the answer's verification badge and click the inline sources to jump to the cited docs — an answer still being checked shows in italics.",
+          'Scroll up while a reply is arriving and the thread holds still — the "New messages below" button jumps you to the newest text.',
           "The usage meter under the composer shows your usage / credits; click the pie to see every limit.",
           "Dock the panel to the side with the dock icon in the header, or pop it out to a floating window.",
           'Past chats live under "Conversations" in the profile menu, and as "continue a previous chat" in an empty panel.',
