@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { reducedMotion } from "./motion";
 
 // Total glide time is capped regardless of answer length (brief: "at most
 // ~1.5-2s"); chunk size is derived from steps so longer text reveals in
@@ -6,11 +7,6 @@ import { useEffect, useRef, useState } from "react";
 const TICK_MS = 40;
 const MAX_MS = 1800;
 const MIN_MS = 260;
-
-function reducedMotion(): boolean {
-  if (typeof document !== "undefined" && document.body.classList.contains("rlc-nomotion")) return true;
-  return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-}
 
 // Types out `content` once `done` flips true, but ONLY when content was empty
 // right before that transition — a staged-mode reveal. A streaming-mode

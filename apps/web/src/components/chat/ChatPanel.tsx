@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { SparkMark } from "./glyphs";
 import { Message } from "./Message";
 import { Composer } from "./Composer";
@@ -9,7 +9,9 @@ import { ContextLine } from "./ContextPie";
 import { ErrorNote } from "./ErrorNote";
 import { LimitsMeter } from "./LimitsMeter";
 import { RateLimitNote } from "./RateLimitNote";
+import { NewMessagesPill } from "./NewMessagesPill";
 import { usePrefs } from "./usePrefs";
+import { useStickToBottom } from "./useStickToBottom";
 import { track } from "../../lib/analytics";
 import { ratioPct } from "../../lib/formatTokens";
 import type { PageContextView } from "./pageContext";
@@ -38,7 +40,6 @@ export function ChatPanel({
   const { authed, messages, streaming } = session;
   const { prefs, setPref } = usePrefs();
   const [draft, setDraft] = useState("");
-  const threadRef = useRef<HTMLDivElement>(null);
   const ctxPct = ratioPct(session.contextTokens, session.contextWindow);
 
   // Draft persistence: restore on mount, mirror to localStorage.
@@ -49,10 +50,16 @@ export function ChatPanel({
     localStorage.setItem(DRAFT_KEY, draft);
   }, [draft]);
 
-  // Stick to the bottom as turns/tokens arrive.
-  useEffect(() => {
-    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "instant" });
-  }, [messages]);
+  // Follow the newest turn — but only while the reader is still at the bottom.
+  // Once they scroll away the thread holds absolutely still and the pill below
+  // reports the new text instead. `resetKey` re-follows on a wholesale content
+  // swap (conversation switch, new chat, a deleted current chat) — which
+  // ChatWidget can trigger from outside this panel.
+  const { threadRef, pending, stick, jumpToBottom } = useStickToBottom({
+    follow: messages,
+    streaming,
+    resetKey: `${session.conversationId}|${session.loadingHistory}`,
+  });
 
   const doSend = async (text: string) => {
     const trimmed = text.trim();
@@ -61,6 +68,9 @@ export function ChatPanel({
     track("chat_message_sent", { product: "chat", node_id: context.nodeId, path: context.path });
     setDraft("");
     localStorage.removeItem(DRAFT_KEY);
+    // The reader asked for this turn, so follow it down even if they had
+    // scrolled up — their own send is the one movement they expect.
+    stick();
     const { rateLimited: rl } = await session.send(
       trimmed,
       {
@@ -140,6 +150,7 @@ export function ChatPanel({
             ))
           )}
         </div>
+        {pending && <NewMessagesPill onClick={jumpToBottom} streaming={streaming} />}
       </div>
 
       {!authed ? (
