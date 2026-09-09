@@ -4,9 +4,9 @@ import type { RingPrime } from "../../lib/mscOverviewLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
 import { markId, formatShare, SLICE_CODE } from "./MscRingPills";
 
-export interface MscRingPrime {
+/** One Prime on the overview, as both charts see it. */
+export interface OverviewPrime {
   flow: PrimeFlowTotals;
-  ring: RingPrime;
   label: string;
   /** The prime's identity color — same fill as its timeseries layers. */
   bandColor: string;
@@ -15,11 +15,20 @@ export interface MscRingPrime {
   to: string | null;
 }
 
+export interface MscRingPrime extends OverviewPrime {
+  ring: RingPrime;
+}
+
+/** The link's accessible name — every figure, since the shapes have none. */
+export function primeLinkLabel(flow: PrimeFlowTotals, label: string, month: string, share: number | null): string {
+  const shareText = share != null ? ` (${formatShare(share)} of its gross revenue)` : "";
+  return `${label}, ${formatMonth(month)}: ${formatUsd(flow.sky, true)} to Sky${shareText} — ${formatUsd(flow.cof, true)} cost of funds, ${formatUsd(flow.sde, true)} Sky Direct Exposure; ${formatUsd(flow.kept, true)} supply-side kept, ${formatUsd(flow.demand, true)} demand-side. Open settlement page.`;
+}
+
 /** One prime: a pie of its gross-revenue line items (a loss as a hole in
  *  the middle), its name outside, and its To-Sky arrow. */
 export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrime & { month: string }) {
   const arrow = ring.arrow;
-  const share = arrow?.share != null ? formatShare(arrow.share) : null;
   const group = (
     <g className="msc-ring-prime" data-prime={flow.prime}>
       {arrow && (
@@ -79,12 +88,8 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
     </g>
   );
   if (!to) return group;
-  const shareText = share ? ` (${share} of its gross revenue)` : "";
   return (
-    <SvgRouteLink
-      to={to}
-      label={`${label}, ${formatMonth(month)}: ${formatUsd(flow.sky, true)} to Sky${shareText} — ${formatUsd(flow.cof, true)} cost of funds, ${formatUsd(flow.sde, true)} Sky Direct Exposure; ${formatUsd(flow.kept, true)} supply-side kept, ${formatUsd(flow.demand, true)} demand-side. Open settlement page.`}
-    >
+    <SvgRouteLink to={to} label={primeLinkLabel(flow, label, month, arrow?.share ?? null)}>
       {group}
     </SvgRouteLink>
   );

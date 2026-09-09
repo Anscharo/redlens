@@ -18,14 +18,20 @@ import {
 } from "@/lib/settlementsOverview";
 import { settlementsHref } from "@/lib/routes";
 import { layoutMscRing } from "../../lib/mscOverviewLayout";
+import { layoutMscFlow } from "../../lib/mscFlowLayout";
 import { track } from "../../lib/analytics";
 import { MscHeadline } from "./MscHeadline";
 import { MscRing, type MscRingPrime } from "./MscRing";
+import { MscFlow } from "./MscFlow";
+import type { OverviewPrime } from "./MscRingPrime";
 import { DIM } from "./MscRingHoverStyles";
 import { RingKey } from "./MscRingKey";
+import { MscChartStyle, type ChartStyle } from "./MscChartStyle";
 import { MscTimeseries, primeFill } from "./MscTimeseries";
 
 const mscCodec = urlString(null);
+/** Chart style: the orbital pies (default, no param) or the three-stage flow. */
+const viewCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
 /** Autoplay dwell per month. */
 const PLAY_MS = 1000;
@@ -62,20 +68,26 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
     () => (bundle && month ? primeFlowsForMonth(bundle, month) : []),
     [bundle, month],
   );
-  const layout = useMemo(() => layoutMscRing(flows, labelOf), [flows, labelOf]);
-  const ringPrimes = useMemo<MscRingPrime[]>(
+  const [viewParam, setViewParam] = useUrlState("view", viewCodec);
+  const view: ChartStyle = viewParam === "flow" ? "flow" : "orbit";
+  // What both charts know about a Prime: its label, link and identity
+  // color (the same as its timeseries layers, by stack order).
+  const overviewPrimes = useMemo<OverviewPrime[]>(
     () =>
-      layout.primes.map((ring) => {
-        const flow = flows.find((f) => f.prime === ring.prime)!;
+      flows.map((flow) => {
         const actor = actorForPrimeKey(flow.prime, actors);
         const to = actor
           ? settlementsHref(actor.slug) + (month !== flow.latestMonth ? `?msc=${month}` : "")
           : null;
-        // Same identity color as the prime's timeseries layers (stack order).
-        const bandColor = primeFill(stack.primes.indexOf(flow.prime));
-        return { flow, ring, label: labelOf(flow.prime), bandColor, to };
+        return { flow, label: labelOf(flow.prime), bandColor: primeFill(stack.primes.indexOf(flow.prime)), to };
       }),
-    [layout, flows, actors, month, labelOf, stack.primes],
+    [flows, actors, month, labelOf, stack.primes],
+  );
+  const layout = useMemo(() => layoutMscRing(flows, labelOf), [flows, labelOf]);
+  const flowLayout = useMemo(() => (view === "flow" ? layoutMscFlow(flows) : null), [view, flows]);
+  const ringPrimes = useMemo<MscRingPrime[]>(
+    () => layout.primes.map((ring) => ({ ...overviewPrimes.find((p) => p.flow.prime === ring.prime)!, ring })),
+    [layout, overviewPrimes],
   );
   const eco = useMemo(
     () => (bundle && month ? ecosystemThreeWay(bundle, month) : null),
@@ -126,16 +138,22 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
           />
         </div>
         <div className="msc-card msc-ring-card rounded p-4 flex-1 min-w-0 flex flex-col" style={{ flexBasis: 340, maxWidth: "100%" }}>
-          <p className="text-sm mb-2" style={{ color: "var(--tan)" }}>
-            Sky System Settlements — {formatMonth(month)}
+          <p className="text-sm mb-2 flex flex-wrap items-center gap-3" style={{ color: "var(--tan)" }}>
+            <span>Sky System Settlements — {formatMonth(month)}</span>
+            <MscChartStyle
+              value={view}
+              onChange={(v) => {
+                setViewParam(v === "orbit" ? null : v);
+                track("msc_overview_style", { view: v });
+              }}
+            />
           </p>
-          <MscRing
-            layout={layout}
-            primes={ringPrimes}
-            month={month}
-            centerFigure={formatUsd(eco.sky, true)}
-          />
-          <RingKey />
+          {flowLayout ? (
+            <MscFlow layout={flowLayout} primes={overviewPrimes} month={month} centerFigure={formatUsd(eco.sky, true)} />
+          ) : (
+            <MscRing layout={layout} primes={ringPrimes} month={month} centerFigure={formatUsd(eco.sky, true)} />
+          )}
+          <RingKey view={view} />
         </div>
       </div>
     </section>

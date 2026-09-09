@@ -3006,7 +3006,14 @@ a.atlas-annotates:focus-visible {
 .msc-bar-col[data-active="true"] .msc-ts-track {
   opacity: 1;
 }
-/* ─── MSC ecosystem ring (radar index overview) ─── */
+/* ─── MSC ecosystem ring (radar index overview) ───
+   .msc-ring-* is the MARK VOCABULARY both overview charts speak — the
+   orbital pies (MscRing) and the three-stage flow (MscFlow, svg.msc-flow):
+   .msc-ring-prime[data-prime] groups one Prime, .msc-ring-mark[data-mark]
+   is one hoverable figure, .msc-ring-<kind> is a line item's fill,
+   .msc-ring-arrow the To-Sky money, .msc-ring-hole the loss, and
+   .msc-ring-sky-wedge[data-prime] one Prime's share of Sky. The key's
+   hover, the cross-chart hover and the pills are written against it once. */
 .msc-ring-frame {
   /* Fills the card's height (the timeseries card beside it sets the row's
      height) and never exceeds 950px wide; the cropped viewBox scales to
@@ -3147,6 +3154,55 @@ a.atlas-annotates:focus-visible {
   .msc-ring-label {
     transition: opacity 0.1s;
   }
+}
+/* The flow chart's own marks. Ribbons have no gap stroke (they never
+   touch), the Prime's bar wears its identity color and takes the outline a
+   hovered pie's rim does, and labels that ribbons pass under get a halo in
+   the card color. */
+.msc-flow .msc-ring-slice,
+.msc-flow .msc-ring-hole {
+  stroke: none;
+}
+/* The To-Sky ribbons carry figures, so they paint at full strength: their
+   ink was audited against the fill at 100%, and the orbit's 75% arrow rest
+   would put that text under the 4.5:1 bar. */
+.msc-flow .msc-ring-arrow {
+  opacity: 1;
+}
+/* The source bars join the key's hover: they fade with everything else and
+   the hovered row's bar comes back lit. */
+.msc-ring-card:has(.msc-key-item:hover) .msc-flow-source rect {
+  opacity: 0.22;
+}
+.msc-ring-card:has(.msc-key-item[data-key="cof"]:hover) .msc-flow-source[data-kind="cof"] rect,
+.msc-ring-card:has(.msc-key-item[data-key="sde"]:hover) .msc-flow-source[data-kind="sde"] rect,
+.msc-ring-card:has(.msc-key-item[data-key="kept"]:hover) .msc-flow-source[data-kind="kept"] rect,
+.msc-ring-card:has(.msc-key-item[data-key="agentRate"]:hover) .msc-flow-source[data-kind="agentRate"] rect,
+.msc-ring-card:has(.msc-key-item[data-key="distributionRewards"]:hover) .msc-flow-source[data-kind="distributionRewards"] rect,
+.msc-ring-card:has(.msc-key-item[data-key="gar"]:hover) .msc-flow-source[data-kind="gar"] rect,
+.msc-ring-card:has(.msc-key-item[data-key="chroniclePoints"]:hover) .msc-flow-source[data-kind="chroniclePoints"] rect {
+  opacity: 1;
+  stroke: var(--tan);
+  stroke-width: 2.5;
+}
+.msc-flow-agent {
+  transition: stroke-width 0.1s;
+}
+.msc-ring-prime:hover .msc-flow-agent,
+a:focus-visible > .msc-ring-prime .msc-flow-agent {
+  stroke: var(--tan);
+  stroke-width: 2.5;
+}
+.msc-flow-halo {
+  paint-order: stroke;
+  stroke: var(--bg-deep);
+  stroke-width: 8px;
+  stroke-linejoin: round;
+}
+/* The flow canvas is ~2:1, the card's own shape, so it may take the card's
+   whole width — the orbit's 950px cap is for a squarer drawing. */
+.msc-flow-frame {
+  max-width: 100%;
 }
 .msc-ts-play {
   background: transparent;

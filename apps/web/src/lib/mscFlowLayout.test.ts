@@ -1,0 +1,124 @@
+import { describe, it, expect } from "vitest";
+import { layoutMscFlow, NODE_W, WIDTH } from "./mscFlowLayout";
+import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
+
+const flow = (over: Partial<PrimeFlowTotals> = {}): PrimeFlowTotals => ({
+  prime: "spark",
+  month: "2026-07",
+  sky: 10_000_000,
+  kept: 2_000_000,
+  demand: 1_500_000,
+  cof: 9_900_000,
+  sde: 100_000,
+  demandParts: { agentRate: 1_400_000, distributionRewards: 100_000 },
+  latestMonth: "2026-07",
+  ...over,
+});
+
+const sum = (xs: { value: number }[]) => xs.reduce((n, x) => n + x.value, 0);
+
+describe("layoutMscFlow", () => {
+  it("is empty for no primes", () => {
+    const l = layoutMscFlow([]);
+    expect(l.agents).toEqual([]);
+    expect(l.sources).toEqual([]);
+    expect(l.sky.segments).toEqual([]);
+  });
+
+  it("feeds each Prime from one source bar per line item, in the pie's order, and sends cost of funds + SDE on to Sky", () => {
+    const l = layoutMscFlow([flow(), flow({ prime: "grove", sky: 5_000_000, cof: 2_000_000, sde: 3_000_000, kept: 1_000_000, demand: 0, demandParts: {} })]);
+    expect(l.sources.map((s) => s.kind)).toEqual(["cof", "sde", "kept", "agentRate", "distributionRewards"]);
+    // Every source bar is the sum of what it feeds.
+    for (const s of l.sources) {
+      const fed = l.agents.flatMap((a) => a.inbound).filter((x) => x.kind === s.kind);
+      expect(s.value).toBeCloseTo(sum(fed));
+    }
+    const spark = l.agents[0];
+    expect(spark.inbound.map((x) => x.kind)).toEqual(["cof", "sde", "kept", "agentRate", "distributionRewards"]);
+    expect(spark.outbound.map((x) => [x.kind, x.value])).toEqual([["cof", 9_900_000], ["sde", 100_000]]);
+    expect(spark.loss).toBeNull();
+    // What stayed leaves the bar's right edge as stubs, under the To-Sky
+    // ribbons, so both sides of the bar account for the same height.
+    expect(spark.retained.map((s) => [s.kind, s.value])).toEqual([["kept", 2_000_000], ["agentRate", 1_400_000], ["distributionRewards", 100_000]]);
+    const lastStub = spark.retained[spark.retained.length - 1];
+    expect(lastStub.x).toBe(spark.x + NODE_W);
+    expect(lastStub.y + lastStub.h).toBeCloseTo(spark.y + spark.h, 5);
+    expect(spark.gross).toBe(13_500_000);
+    expect(spark.share).toBeCloseTo(10 / 13.5);
+    // Sky is one bar, Prime-major, cost of funds before SDE, summing to the To-Sky total.
+    expect(l.sky.total).toBe(15_000_000);
+    expect(l.sky.segments.map((s) => `${s.prime}:${s.kind}`)).toEqual(["spark:cof", "spark:sde", "grove:cof", "grove:sde"]);
+    expect(l.sky.shares.map((s) => [s.prime, s.value])).toEqual([["spark", 10_000_000], ["grove", 5_000_000]]);
+    // Segments tile the Sky bar top to bottom.
+    const last = l.sky.segments[l.sky.segments.length - 1];
+    expect(last.y + last.h).toBeCloseTo(l.sky.y + l.sky.h);
+    // Columns sit where the view expects them.
+    expect(l.sources[0].x).toBeLessThan(spark.x);
+    expect(spark.x + NODE_W).toBeLessThan(l.sky.x);
+    expect(l.sky.x + NODE_W).toBeLessThan(WIDTH);
+    expect(l.height).toBeGreaterThan(l.agents[1].y + l.agents[1].h);
+  });
+
+  it("draws a supply-side loss as a gap: the cost-of-funds source feeds only what the book earned, and the bar is taller than its inflows", () => {
+    // Grove, Mar 2026: cof 3.12M, SDE 3.25M, kept −2.07M, demand 0.2M.
+    const l = layoutMscFlow([
+      flow({ prime: "grove", sky: 6_373_855, cof: 3_122_471, sde: 3_251_384, kept: -2_066_170, demand: 198_006, demandParts: { agentRate: 6_287, distributionRewards: 191_719 } }),
+    ]);
+    const g = l.agents[0];
+    expect(g.loss?.value).toBeCloseTo(2_066_170);
+    // Nothing kept, and the cost-of-funds ribbon in is cof − loss.
+    expect(g.inbound.find((x) => x.kind === "kept")).toBeUndefined();
+    expect(g.inbound.find((x) => x.kind === "cof")?.value).toBeCloseTo(3_122_471 - 2_066_170);
+    // …while the full cost of funds still leaves for Sky.
+    expect(g.outbound.find((x) => x.kind === "cof")?.value).toBe(3_122_471);
+    // More leaves than arrives: the loss stub fills the difference on the in side.
+    const inH = g.inbound.reduce((n, x) => n + (x.path ? 1 : 0), 0);
+    expect(inH).toBe(4);
+    expect(g.loss!.y + g.loss!.h).toBeCloseTo(g.y + g.h, 0);
+    expect(g.loss!.x + g.loss!.w).toBe(g.x);
+    expect(g.gross).toBeCloseTo(3_122_471 + 3_251_384 - 2_066_170 + 198_006);
+    // The source column says what was actually earned toward cost of funds.
+    expect(l.sources.find((s) => s.kind === "cof")?.value).toBeCloseTo(3_122_471 - 2_066_170);
+  });
+
+  it("gives a demand-only Prime no To-Sky ribbon and no Sky share", () => {
+    const l = layoutMscFlow([flow({ prime: "keel", sky: 0, cof: 0, sde: 0, kept: 0, demand: 36_231, demandParts: { agentRate: 32_004, distributionRewards: 4_227 } })]);
+    const k = l.agents[0];
+    expect(k.outbound).toEqual([]);
+    expect(k.inbound.map((x) => x.kind)).toEqual(["agentRate", "distributionRewards"]);
+    expect(l.sky.shares).toEqual([]);
+    expect(l.sky.h).toBe(0);
+  });
+
+  it("folds a negative SDE into the loss rather than drawing it as money to Sky", () => {
+    // Spark, Jul 2026: sde −5,205.
+    const l = layoutMscFlow([flow({ sky: 5_794_400, cof: 5_799_604, sde: -5_205, kept: 2_838_238, demand: 1_074_766, demandParts: { agentRate: 131_356, distributionRewards: 943_410 } })]);
+    const s = l.agents[0];
+    expect(s.outbound.map((x) => x.kind)).toEqual(["cof"]);
+    expect(s.loss?.value).toBe(5_205);
+    expect(l.sources.map((x) => x.kind)).not.toContain("sde");
+  });
+
+  it("puts a permanent figure only on a ribbon thick enough to hold it", () => {
+    const l = layoutMscFlow([flow()]);
+    const s = l.agents[0];
+    const cof = s.inbound.find((x) => x.kind === "cof")!;
+    const dr = s.inbound.find((x) => x.kind === "distributionRewards")!;
+    expect(cof.figureX).not.toBeNull();
+    expect(dr.figureX).toBeNull();
+    // A figure lies on its ribbon, between the columns; the pill sits above the midpoint.
+    expect(cof.figureX!).toBeGreaterThan(l.sources[0].x + NODE_W);
+    expect(cof.figureX!).toBeLessThan(s.x);
+    expect(cof.pillY).toBeLessThan(cof.midY);
+  });
+
+  it("centers the source and Sky columns on the Prime column", () => {
+    const l = layoutMscFlow([flow(), flow({ prime: "grove" }), flow({ prime: "obex" })]);
+    const agentsBottom = l.agents[2].y + l.agents[2].h;
+    const agentsMid = (l.agents[0].y + agentsBottom) / 2;
+    expect(l.sky.y + l.sky.h / 2).toBeCloseTo(agentsMid, 0);
+    const srcTop = l.sources[0].y;
+    const srcBottom = l.sources[l.sources.length - 1].y + l.sources[l.sources.length - 1].h;
+    expect((srcTop + srcBottom) / 2).toBeCloseTo(agentsMid, 0);
+  });
+});

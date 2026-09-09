@@ -37,7 +37,8 @@ function KeyGroup({ title, children }: { title: string; children: React.ReactNod
  *  the code is not the label again ("CoF · cost of funds", never
  *  "kept · supply-side kept"); the supply-side rows name the flow the way
  *  the demand-side heading does. */
-export function RingKey() {
+export function RingKey({ view = "orbit" }: { view?: "orbit" | "flow" }) {
+  const orbit = view === "orbit";
   return (
     <div className="mono text-[10px] mt-5" style={{ color: "var(--tan-3)" }}>
       <div className="msc-key">
@@ -47,7 +48,7 @@ export function RingKey() {
         </KeyGroup>
         <KeyGroup title="Supply-side">
           <KeyItem id="kept" label="supply-side kept" />
-          <KeyItem id="neg" code="striped" label="supply-side loss (the hole)" striped />
+          <KeyItem id="neg" code="striped" label={orbit ? "supply-side loss (the hole)" : "supply-side loss (the gap)"} striped />
         </KeyGroup>
         <KeyGroup title="Demand-side">
           {DEMAND_SERIES.map((s) => (
@@ -56,7 +57,12 @@ export function RingKey() {
         </KeyGroup>
       </div>
       <div className="msc-key-note text-center">
-        <p>Pie area = gross revenue*. Hover for figures; click a Prime for its page.</p>
+        <p>
+          {orbit
+            ? "Pie area = gross revenue*. "
+            : "A Prime's bar = gross revenue* (+ the loss gap); ribbons are the money in and out. "}
+          Hover for figures; click a Prime for its page.
+        </p>
         <p className="mt-1 italic">*Gross revenue = To Sky + supply-side kept + demand-side.</p>
       </div>
     </div>

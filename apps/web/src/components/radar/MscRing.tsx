@@ -44,9 +44,16 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
     y: layout.cy + (layout.skyR + WEDGE_PILL_GAP) * Math.sin(w.mid),
   }));
 
+  const marks = primes.map((p) => {
+    const kinds = [...p.ring.slices.map((s) => s.kind as string), "share", "gross"];
+    if (p.ring.hole) kinds.push("loss");
+    if (p.ring.arrow) kinds.push(p.ring.arrow.kind);
+    return { prime: p.flow.prime, kinds };
+  });
+
   return (
     <>
-      <RingHoverStyles primes={primes} />
+      <RingHoverStyles marks={marks} />
       <figure
         className="msc-ring-frame"
         aria-label={`Monthly Settlement Cycle flows for ${formatMonth(month)}`}

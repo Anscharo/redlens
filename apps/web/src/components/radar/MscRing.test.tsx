@@ -147,7 +147,7 @@ describe("MscRing", () => {
     const { container } = render(
       <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$497" />,
     );
-    expect(screen.getByText("−$107 supply-side loss — the hole")).toBeInTheDocument();
+    expect(screen.getByText("−$107 supply-side loss")).toBeInTheDocument();
     const hole = container.querySelector('.msc-ring-mark[data-mark="osero::loss"] circle.msc-ring-hole')!;
     expect(hole).toHaveAttribute("fill", "url(#msc-ring-neg-kept)");
     // No kept slice: the loss lives in the hole.

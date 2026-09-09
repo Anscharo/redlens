@@ -1,5 +1,12 @@
 import { markId } from "./MscRingPills";
-import type { MscRingPrime } from "./MscRingPrime";
+
+/** The marks one prime draws — every kind that has a pill. Both overview
+ *  charts (orbit and flow) speak the same mark vocabulary, so each just
+ *  lists what it drew. */
+export interface PrimeMarks {
+  prime: string;
+  kinds: string[];
+}
 
 /** How far the rest of the chart fades when one thing is in focus. Low
  *  enough that the lit marks are unmistakable, high enough that the faded
@@ -18,13 +25,9 @@ export const DIM = 0.22;
    `:has()` rule per mark pairs them back up by id. Keyboard focus reveals
    that prime's pills (prefix match) since there is no per-mark focus
    target. */
-export function RingHoverStyles({ primes }: { primes: MscRingPrime[] }) {
-  const css = primes
-    .flatMap((p) => {
-      const id = p.flow.prime;
-      const kinds = [...p.ring.slices.map((s) => s.kind as string), "share", "gross"];
-      if (p.ring.hole) kinds.push("loss");
-      if (p.ring.arrow) kinds.push(p.ring.arrow.kind);
+export function RingHoverStyles({ marks }: { marks: PrimeMarks[] }) {
+  const css = marks
+    .flatMap(({ prime: id, kinds }) => {
       const rules = kinds.map((k) => {
         const mark = markId(id, k);
         return `.msc-ring:has(.msc-ring-mark[data-mark="${mark}"]:hover) .msc-ring-pill[data-mark="${mark}"] { opacity: 1; }`;

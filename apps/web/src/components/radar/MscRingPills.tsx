@@ -50,7 +50,7 @@ export function pillText(kind: string, signed: number, primeLabel: string, share
   }
   if (kind === "share") return `${amount} to Sky from ${primeLabel}`;
   if (kind === "gross") return `${amount} gross revenue* of ${primeLabel}`;
-  if (kind === "loss") return `${amount} supply-side loss — the hole`;
+  if (kind === "loss") return `${amount} supply-side loss`;
   if (kind in SLICE_LABEL) return `${amount} ${SLICE_LABEL[kind]}`;
   return `${amount} ${kind}`;
 }
@@ -66,29 +66,35 @@ interface PillProps {
   /** Where its leader touches the mark it names. */
   toX: number;
   toY: number;
+  /** Size multiplier: the flow chart's canvas is wider than the orbit's
+   *  and renders about half the size, so it draws its pills at 2. */
+  scale?: number;
 }
 
 /** One hover pill: a leader from the mark it names out to the pill itself,
  *  which sits clear of the shape so it never covers it or the prime's name. */
 const LINE_H = 21;
 
-export function AmountPill({ mark, text, detail = [], x, y, toX, toY }: PillProps) {
+export function AmountPill({ mark, text, detail = [], x, y, toX, toY, scale = 1 }: PillProps) {
   const lines = [...detail, text];
-  const w = Math.max(...lines.map((l) => textWidth(l, PILL_FONT, PILL_CHAR_FALLBACK))) + 26;
-  const h = 30 + (lines.length - 1) * LINE_H;
+  const font = scale === 1 ? PILL_FONT : PILL_FONT.replace(/^\d+px/, `${PILL_FONT_PX * scale}px`);
+  const w = Math.max(...lines.map((l) => textWidth(l, font, PILL_CHAR_FALLBACK * scale))) + 26 * scale;
+  const h = (30 + (lines.length - 1) * LINE_H) * scale;
   const top = y - h / 2;
   return (
     <g className="msc-ring-pill" data-mark={mark} aria-hidden="true">
-      <path d={`M${toX},${toY} L${x},${y}`} className="msc-ring-pill-leader" />
-      <circle cx={toX} cy={toY} r={3} className="msc-ring-pill-anchor" />
-      <rect x={x - w / 2} y={top} width={w} height={h} rx={15} />
+      {/* Stroke widths inline: the CSS rules set them, and a presentation
+          attribute would lose to those. */}
+      <path d={`M${toX},${toY} L${x},${y}`} className="msc-ring-pill-leader" style={{ strokeWidth: scale }} />
+      <circle cx={toX} cy={toY} r={3 * scale} className="msc-ring-pill-anchor" />
+      <rect x={x - w / 2} y={top} width={w} height={h} rx={15 * scale} style={{ strokeWidth: scale }} />
       {lines.map((l, i) => (
         <text
           key={i}
           x={x}
-          y={top + 20 + i * LINE_H}
+          y={top + (20 + i * LINE_H) * scale}
           textAnchor="middle"
-          fontSize={PILL_FONT_PX}
+          fontSize={PILL_FONT_PX * scale}
           className={i < detail.length ? "mono msc-ring-pill-detail" : "mono"}
         >
           {l}

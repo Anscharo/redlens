@@ -135,6 +135,31 @@ describe("MscOverview", () => {
     }
   });
 
+  it("switches between the orbital pies and the flow chart, synced to ?view", async () => {
+    const { container } = render(<MscOverview actors={ACTORS} />);
+    await waitFor(() => screen.getByText("Monthly Settlement Cycle"));
+    const group = screen.getByRole("group", { name: "Chart style" });
+    const orbit = screen.getByRole("button", { name: "orbit" });
+    const flowBtn = screen.getByRole("button", { name: "flow" });
+    expect(group).toContainElement(orbit);
+    expect(orbit).toHaveAttribute("aria-pressed", "true");
+    expect(container.querySelector("svg.msc-flow")).not.toBeInTheDocument();
+    expect(screen.getByText(/supply-side loss \(the hole\)/)).toBeInTheDocument();
+    fireEvent.click(flowBtn);
+    expect(window.location.search).toBe("?view=flow");
+    expect(flowBtn).toHaveAttribute("aria-pressed", "true");
+    expect(container.querySelector("svg.msc-flow")).toBeInTheDocument();
+    expect(container.querySelector(".msc-ring-sky-disc")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
+    // The key's loss row and reading guide describe the chart on screen.
+    expect(screen.getByText(/supply-side loss \(the gap\)/)).toBeInTheDocument();
+    expect(document.querySelector(".msc-key-note")).toHaveTextContent("A Prime's bar = gross revenue*");
+    expect(track).toHaveBeenCalledWith("msc_overview_style", { view: "flow" });
+    fireEvent.click(orbit);
+    expect(window.location.search).toBe("");
+    expect(container.querySelector("svg.msc-flow")).not.toBeInTheDocument();
+  });
+
   it("selects a month from the timeseries and syncs ?msc (latest month clears it)", async () => {
     render(<MscOverview actors={ACTORS} />);
     await waitFor(() => screen.getByText("Prime-side earnings and To Sky by month"));
