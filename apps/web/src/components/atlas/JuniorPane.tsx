@@ -133,6 +133,10 @@ export function JuniorPane({
         idPrefix="junior"
         isSelected={entry.node.id === splitId}
         isExpanded={autoExpanded.has(entry.node.id) !== userToggles.has(entry.node.id)}
+        // Drives only the selected-body cap (data-has-children): the split
+        // root is capped exactly when it has descendants in the pane for its
+        // sticky pin to occlude. No pendulum here, so no chevron appears.
+        hasChildren={entry.node.id === splitId && slice.length > 1}
       />
     ));
     if (rows.length) {
@@ -228,7 +232,7 @@ export function JuniorPane({
           ✕
         </button>
       </div>
-      <div ref={scrollerRef} className="overflow-y-auto flex-1">
+      <div ref={scrollerRef} className="junior-scroll overflow-y-auto flex-1">
         <div ref={contentRef} className="mx-auto px-3 py-2">
           <AtlasActionsContext.Provider value={ctxValue}>{items}</AtlasActionsContext.Provider>
         </div>

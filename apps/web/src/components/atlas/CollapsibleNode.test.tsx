@@ -125,6 +125,11 @@ describe("CollapsibleNode depth-6 affordance", () => {
 });
 
 describe("CollapsibleNode pendulum toggle", () => {
+  it("marks the row data-has-children only when it has children (the selected-body clamp keys on it)", () => {
+    expect(setup({ hasChildren: false, isSelected: true, isExpanded: true }).container.querySelector("[data-has-children]")).toBeNull();
+    expect(setup({ hasChildren: true, isSelected: true, isExpanded: true }).container.querySelector('[data-has-children="true"]')).not.toBeNull();
+  });
+
   it("hides the pendulum button when the node has no children", () => {
     const { container } = setup({ hasChildren: false, withExpandAll: true });
     expect(container.querySelector(".atlas-node-expand-all")).toBeNull();

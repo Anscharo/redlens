@@ -1095,6 +1095,19 @@ mark {
 .atlas-scroll {
   background-color: var(--bg-deep);
 }
+/* Both reader scrollers are size containers so the selected-body cap (below,
+   "R2") can be a fraction of the SCROLLER's height (cqh) instead of the
+   window's (vh): the split pane is a fraction of the window tall, so a
+   window-relative cap was taller than the whole pane. Size containment is
+   safe here — each scroller takes its height from the flex column, never
+   from its content, and nothing inside them is position: fixed (tooltips
+   portal to body). Layout containment makes each scroller a stacking
+   context; everything z-indexed in the reader lives inside it, so relative
+   order is unchanged. */
+.atlas-scroll,
+.junior-scroll {
+  container-type: size;
+}
 .atlas-node {
   /* content-visibility: auto + contain-intrinsic-size caches off-screen sizes;
      the cached size can go stale as nodes expand/collapse during navigation,
@@ -1240,14 +1253,37 @@ mark {
    as before) while giving the rare long body its own internal scroll, so the
    article's total height stays bounded and the sticky box can still release
    its descendants at a reachable scroll position. Ordinary bodies (well under
-   60vh) never hit this cap, so nothing changes for the common case. Not a full
+   the cap) never hit it, so nothing changes for the common case. Not a full
    fix for "header-only sticky" (that needs the body pulled out of the sticky
    box entirely, a DOM restructure — see docs/qa/2026-08-02-deep-qa-report.md
    R2) — this is the safe, CSS-only mitigation for the part that made
-   descendants totally unreachable. */
-.atlas-node.is-selected .atlas-node-body {
-  max-height: 60vh;
+   descendants totally unreachable.
+   Only for docs WITH children ([data-has-children], set by CollapsibleNode
+   from the hasChildren prop — AtlasReader and JuniorPane both pass it):
+   a childless doc's .selection-group is the doc itself, so the sticky pin
+   never engages and there is nothing for the cap to protect — it only handed
+   the reader a nested scroller (wheel moves the box, not the page) and made
+   the body snap between capped and full height on every selection change.
+   The cap is 80% of the scroller it lives in (see container-type above), so
+   a fifth of the reader — or of the split pane — always stays free for the
+   descendants the pin exists to keep reachable. */
+.atlas-node.is-selected[data-has-children] .atlas-node-body {
+  max-height: 65vh; /* browsers without container query units */
+  max-height: 80cqh;
   overflow-y: auto;
+}
+
+/* The wrapper is ONE persistent DOM node that React moves from the old
+   selection to the new one on every navigation. Chromium's scroll anchoring
+   picked it as the anchor and "kept it in place" by shifting scrollTop by the
+   whole distance between the two docs — so the newly selected doc teleported
+   to exactly where the old doc's header had been, and only then did the glide
+   correct (or not, when that spot already passed needsScroll). Excluding just
+   the wrapper leaves anchoring on for ordinary rows, which is the behaviour
+   we want: a row that grows above the viewport still holds the page still.
+   Never put this on .atlas-scroll itself. */
+.selection-group {
+  overflow-anchor: none;
 }
 
 /* Cradle: rail down the left of the selected node's descendants, in the
