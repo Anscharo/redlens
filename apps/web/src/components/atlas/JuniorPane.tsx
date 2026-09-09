@@ -126,19 +126,17 @@ export function JuniorPane({
     // node's own slice, not the whole pane. Without it, the pane has no
     // bounding wrapper at all and a long-bodied root can occlude every
     // descendant at any scroll position (R2).
-    const rows: ReactElement[] = slice.map((entry, i) => (
+    const rows: ReactElement[] = slice.map((entry) => (
       <CollapsibleNode
         key={entry.node.id}
         entry={entry}
         idPrefix="junior"
         isSelected={entry.node.id === splitId}
         isExpanded={autoExpanded.has(entry.node.id) !== userToggles.has(entry.node.id)}
-        // The selected-body clamp (index.css R2) keys on data-has-children.
-        // AtlasReader already passed this; without it the split pane silently
-        // drops the clamp and a long-bodied root occludes its descendants.
-        // Next-row-is-deeper is the visible-descendant test: slice is DFS,
-        // so a child, if present, sits immediately after its parent.
-        hasChildren={i + 1 < slice.length && slice[i + 1].depth > entry.depth}
+        // Drives only the selected-body cap (data-has-children): the split
+        // root is capped exactly when it has descendants in the pane for its
+        // sticky pin to occlude. No pendulum here, so no chevron appears.
+        hasChildren={entry.node.id === splitId && slice.length > 1}
       />
     ));
     if (rows.length) {
