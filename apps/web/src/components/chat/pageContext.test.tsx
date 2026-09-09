@@ -13,7 +13,8 @@ vi.mock("../../lib/docs", () => ({
   loadAtlas: () => (atlasRejects ? Promise.reject(new Error("boom")) : Promise.resolve({ docs })),
 }));
 
-import { reportTitleForPath, usePageContext } from "./pageContext";
+import { ROUTES } from "@/lib/routes";
+import { reportTitleForPath, toPageContext, usePageContext, type PageContextView } from "./pageContext";
 
 afterEach(() => {
   cleanup();
@@ -24,6 +25,24 @@ function wrap(path: string) {
   const { hook } = memoryLocation({ path, record: true });
   return ({ children }: { children: React.ReactNode }) => <Router hook={hook}>{children}</Router>;
 }
+
+describe("toPageContext", () => {
+  it("strips UI-only fields and keeps every PageContext field, including mscMonth", () => {
+    const view: PageContextView = {
+      short: "Ask Atlas",
+      placeholder: "Ask about the Sky Atlas…",
+      chip: "radar · settlement",
+      path: "/radar/spark/settlements",
+      actorSlug: "spark",
+      mscMonth: "2026-08",
+    };
+    expect(toPageContext(view)).toEqual({
+      path: "/radar/spark/settlements",
+      actorSlug: "spark",
+      mscMonth: "2026-08",
+    });
+  });
+});
 
 describe("reportTitleForPath", () => {
   it("resolves titled report slugs and CrossView sub-pages; skips index and unknown paths", () => {
@@ -85,6 +104,15 @@ describe("usePageContext", () => {
     expect(result.current.actorSlug).toBe("spark");
     expect(result.current.short).toBe("Ask Atlas");
     expect(result.current.chip).toBe("radar · settlement");
+    expect(result.current.mscMonth).toBeUndefined();
+  });
+
+  it("forwards the selected MSC month from ?msc= on the settlements page", () => {
+    const { result } = renderHook(() => usePageContext(), {
+      wrapper: wrap("/radar/spark/settlements?msc=2026-07"),
+    });
+    expect(result.current.actorSlug).toBe("spark");
+    expect(result.current.mscMonth).toBe("2026-07");
   });
 
   it("derives report context with a backing tool and forwards the active filter", () => {
@@ -107,10 +135,19 @@ describe("usePageContext", () => {
     expect(result.current.chip).toBe("Modification Frequency");
   });
 
-  it("recognizes Stale Dates as a tool-backed report", () => {
-    const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/reports/stale-dates") });
-    expect(result.current.reportName).toBe("Stale Dates");
-    expect(result.current.reportTool).toBe("atlas_report_stale_dates");
+  it("wires each newly added report page to its atlas_report_* tool", () => {
+    const cases = [
+      [ROUTES.REPORTS_STALE_DATES, "Stale Dates", "atlas_report_stale_dates"],
+      [ROUTES.REPORTS_PROCESSES, "Atlas Processes", "atlas_report_processes"],
+      [ROUTES.REPORTS_OEA_ASSESSMENT, "OEA Task Assessment", "atlas_report_oea_assessment"],
+      [ROUTES.REPORTS_RISK_RULES, "Risk Rules Assessment", "atlas_report_risk_rules"],
+      [ROUTES.REPORTS_ONCHAIN_ADDRESSES, "On-Chain Addresses", "atlas_report_addresses"],
+    ] as const;
+    for (const [path, name, tool] of cases) {
+      const { result } = renderHook(() => usePageContext(), { wrapper: wrap(path) });
+      expect(result.current.reportName, path).toBe(name);
+      expect(result.current.reportTool, path).toBe(tool);
+    }
   });
 
   it("names CrossView sub-pages after the parent report title", () => {

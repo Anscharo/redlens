@@ -156,6 +156,8 @@ describe("coverage areas — lib partition", () => {
     expect(areaFor("src/lib/crossviewShape.ts")).toBe("lib-crossview");
     expect(areaFor("src/lib/diffCore.ts")).toBe("lib-diff-preview");
     expect(areaFor("src/lib/addresses.ts")).toBe("lib-address-chain");
+    expect(areaFor("src/lib/addressMerge.ts")).toBe("lib-address-chain");
+    expect(areaFor("src/lib/staleDatesSearch.ts")).toBe("lib-reports-activity");
     expect(areaFor("src/lib/search.ts")).toBe("lib-search");
     expect(areaFor("src/lib/docs.ts")).toBe("lib-atlas-core");
     expect(areaFor("src/lib/glossary.ts")).toBe("lib-atlas-core");
