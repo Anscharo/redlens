@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTreemap, squarify } from "./treemap";
+import { buildTreemap, flattenTreemap, squarify } from "./treemap";
 import type { ChunkNode } from "./crossview";
 
 describe("squarify", () => {
@@ -50,5 +50,157 @@ describe("buildTreemap", () => {
   it("respects maxDepth", () => {
     const rects = buildTreemap(tree, { minArea: 0, maxDepth: 1, pad: 0, padTop: 0 });
     expect(rects[0].children).toHaveLength(0);
+  });
+
+  it("always keeps top-level groups; nested nodes need ≥ minShare of atlasTotal", () => {
+    const mixed: ChunkNode[] = [
+      {
+        title: "Big",
+        docs: 90,
+        children: [
+          { title: "Big.major", docs: 80 },
+          { title: "Exactly 2%", docs: 2 }, // 2% of Atlas — keep
+          { title: "Tiny nested", docs: 1 }, // 1% of Atlas — drop
+        ],
+      },
+      { title: "Medium", docs: 8 },
+      { title: "Tiny root", docs: 2 }, // 2% of Atlas but top-level — keep
+    ];
+    const rects = buildTreemap(mixed, {
+      minArea: 0,
+      maxDepth: 3,
+      pad: 0,
+      padTop: 0,
+      minShare: 0.02,
+      atlasTotal: 100,
+    });
+    expect(rects.map((r) => r.node.title)).toEqual(["Big", "Medium", "Tiny root"]);
+    expect(rects[0].children.map((c) => c.node.title)).toEqual(["Big.major", "Exactly 2%"]);
+  });
+
+  it("keeps a nested node at minShare of the Atlas, not of its parent", () => {
+    const mixed: ChunkNode[] = [
+      {
+        title: "Mid",
+        docs: 40,
+        children: [
+          { title: "Mid.major", docs: 37 },
+          { title: "Small of parent", docs: 3 }, // 3% of Atlas (keep), 7.5% of parent
+        ],
+      },
+      {
+        title: "Other",
+        docs: 40,
+        children: [
+          { title: "Other.major", docs: 39 },
+          { title: "Tiny of parent", docs: 1 }, // 1% of Atlas (drop) even though 2.5% of parent
+        ],
+      },
+      { title: "Tiny root", docs: 20 },
+    ];
+    const rects = buildTreemap(mixed, {
+      minArea: 0,
+      maxDepth: 3,
+      pad: 0,
+      padTop: 0,
+      minShare: 0.02,
+      atlasTotal: 100,
+    });
+    expect(rects.map((r) => r.node.title)).toEqual(["Mid", "Other", "Tiny root"]);
+    expect(rects[0].children.map((c) => c.node.title)).toEqual(["Mid.major", "Small of parent"]);
+    expect(rects[1].children.map((c) => c.node.title)).toEqual(["Other.major"]);
+  });
+
+  it("recurses past depth 4 for nested nodes that still hold ≥ minShare of the Atlas", () => {
+    // Mirrors Agent artifacts → List of Prime → Spark → Sky Primitives → Supply Side → Allocation → Active.
+    const deep: ChunkNode[] = [
+      {
+        title: "Agent artifacts",
+        docs: 70,
+        children: [
+          {
+            title: "List of Prime Agent Artifacts",
+            docs: 70,
+            children: [
+              {
+                title: "Spark",
+                docs: 21,
+                children: [
+                  {
+                    title: "Sky Primitives",
+                    docs: 18,
+                    children: [
+                      {
+                        title: "Supply Side",
+                        docs: 15,
+                        children: [
+                          {
+                            title: "Allocation",
+                            docs: 14,
+                            children: [
+                              { title: "Active Instances", docs: 8 },
+                              { title: "Tiny leaf", docs: 1 },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      { title: "Accessibility", docs: 1 },
+    ];
+    const rects = buildTreemap(deep, {
+      minArea: 0,
+      maxDepth: 8,
+      pad: 0,
+      padTop: 0,
+      minShare: 0.02,
+      atlasTotal: 100,
+    });
+    expect(rects.map((r) => r.node.title)).toEqual(["Agent artifacts", "Accessibility"]);
+    const titlesAt = (rs: ReturnType<typeof buildTreemap>, depth: number): string[] => {
+      const out: string[] = [];
+      const walk = (nodes: typeof rs, d: number) => {
+        for (const n of nodes) {
+          if (d === depth) out.push(n.node.title);
+          walk(n.children, d + 1);
+        }
+      };
+      walk(rs, 0);
+      return out;
+    };
+    expect(titlesAt(rects, 3)).toEqual(["Sky Primitives"]);
+    expect(titlesAt(rects, 4)).toEqual(["Supply Side"]);
+    expect(titlesAt(rects, 6)).toEqual(["Active Instances"]);
+  });
+});
+
+describe("flattenTreemap", () => {
+  it("walks parent-first so siblings can paint in depth order", () => {
+    const rects = buildTreemap(
+      [
+        {
+          title: "Big",
+          docs: 75,
+          children: [
+            { title: "Big.major", docs: 60 },
+            { title: "Big.minor", docs: 14 },
+          ],
+        },
+        { title: "Small", docs: 25 },
+      ],
+      { minArea: 0, maxDepth: 3, pad: 0, padTop: 0 },
+    );
+    expect(flattenTreemap(rects).map((r) => r.node.title)).toEqual([
+      "Big",
+      "Big.major",
+      "Big.minor",
+      "Small",
+    ]);
   });
 });

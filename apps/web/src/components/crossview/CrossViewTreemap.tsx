@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ChunkNode } from "../../lib/crossview";
-import { buildTreemap, type TreemapRect } from "../../lib/treemap";
+import { buildTreemap, flattenTreemap, type TreemapRect } from "../../lib/treemap";
 import { Link } from "../Link";
 import { atlasHref } from "@/lib/routes";
 
@@ -11,65 +11,65 @@ import { atlasHref } from "@/lib/routes";
 // mixed into --surface and then has a --tan-2 label painted on it, so its
 // source has to be chosen against that LABEL. --red is the brand's decorative
 // slot and carries no such guarantee — in giedi it is a near-white, which ran
-// the ramp backwards and left the deepest labels at 1.6:1. 2px surface gaps separate
-// sibling fills; hover outlines the deepest rect under the pointer and fills
-// the info panel on the right.
+// the ramp backwards and left the deepest labels at 1.6:1. 2px surface gaps
+// separate sibling fills; a click outlines the deepest rect and fills the
+// info panel. Click (not hover) so the panel stays put long enough to use
+// the reader link — hovering the map to reveal it, then leaving to click
+// it, used to clear the selection first. Rects are sibling <button>s (coords
+// are already root-space) so nested <button>s stay illegal, keyboard and
+// screen readers still reach every chunk, and z-index=depth lets the
+// deepest square claim the click.
 const FILL_BY_DEPTH = [0.22, 0.34, 0.48, 0.62];
-
-interface UnitBox {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+/** Square cap. Details sit to the right from 650px of available width; stacked below. */
+const MAP_MAX_PX = 610;
+/** Nested chunks below this share of the Atlas are omitted. Top-level always stays. */
+const MIN_SHARE = 0.02;
+/** Six levels: depth 0 (top-level groups) through depth 5. */
+const MAX_DEPTH = 6;
 
 function Rect({
   r,
-  parent,
-  hovered,
-  onHover,
+  selected,
+  onSelect,
 }: {
   r: TreemapRect;
-  /** The parent's box in ROOT unit space — rects stay root-space throughout;
-      only the CSS placement converts to the parent's local percentage frame. */
-  parent: UnitBox;
-  hovered: TreemapRect | null;
-  onHover: (r: TreemapRect | null) => void;
+  selected: TreemapRect | null;
+  onSelect: (r: TreemapRect) => void;
 }) {
-  const isHovered = hovered === r;
+  const isSelected = selected === r;
   const showLabel = r.w > 9 && r.h > 4.5;
+  const name =
+    r.path.length > 0 ? `${r.path.map((p) => p.title).join(" › ")} › ${r.node.title}` : r.node.title;
   return (
-    <div
-      // mouseover (not mouseenter): it bubbles, so the DEEPEST rect under the
-      // pointer claims the hover and stopPropagation shields its ancestors —
-      // and moving from a child back onto the parent re-fires on the parent.
-      onMouseOver={(e) => {
-        e.stopPropagation();
-        onHover(r);
-      }}
-      className="absolute overflow-hidden"
+    <button
+      type="button"
+      aria-pressed={isSelected}
+      aria-label={name}
+      data-state={isSelected ? "active" : "inactive"}
+      className="absolute overflow-hidden p-0 text-left focus-visible:outline-offset-[-2px]"
       style={{
-        left: `${((r.x - parent.x) / parent.w) * 100}%`,
-        top: `${((r.y - parent.y) / parent.h) * 100}%`,
-        width: `${(r.w / parent.w) * 100}%`,
-        height: `${(r.h / parent.h) * 100}%`,
+        left: `${r.x}%`,
+        top: `${r.y}%`,
+        width: `${r.w}%`,
+        height: `${r.h}%`,
+        zIndex: r.depth,
         background: `color-mix(in srgb, var(--chunk-fill) ${Math.round((FILL_BY_DEPTH[r.depth] ?? 0.7) * 100)}%, var(--surface))`,
-        border: isHovered ? "2px solid var(--accent)" : "1px solid var(--bg)",
+        border: isSelected ? "2px solid var(--accent)" : "1px solid var(--bg)",
         borderRadius: 3,
+        cursor: "pointer",
       }}
+      onClick={() => onSelect(r)}
     >
       {showLabel && (
         <span
-          className="mono absolute top-0.5 left-1 right-1 truncate pointer-events-none"
-          style={{ fontSize: 10, color: "var(--tan-2)" }}
+          aria-hidden="true"
+          className="mono absolute top-1.5 left-1.5 right-1.5 line-clamp-2 pointer-events-none"
+          style={{ fontSize: r.depth === 0 ? 12 : 10, lineHeight: 1.2, color: "var(--tan-2)" }}
         >
           {r.node.title}
         </span>
       )}
-      {r.children.map((c) => (
-        <Rect key={c.node.id ?? c.node.title} r={c} parent={r} hovered={hovered} onHover={onHover} />
-      ))}
-    </div>
+    </button>
   );
 }
 
@@ -77,7 +77,7 @@ function InfoPanel({ rect, atlasTotal }: { rect: TreemapRect | null; atlasTotal:
   if (!rect) {
     return (
       <p className="text-xs" style={{ color: "var(--tan-3)" }}>
-        Hover a square for details. Area is proportional to doc count; each chunk&apos;s largest
+        Click a square for details. Area is proportional to doc count; each chunk&apos;s largest
         sub-chunk sits in its top-left corner.
       </p>
     );
@@ -92,7 +92,7 @@ function InfoPanel({ rect, atlasTotal }: { rect: TreemapRect | null; atlasTotal:
         {n.title}
       </p>
       <p className="mono text-xs mt-2" style={{ color: "var(--tan-2)" }}>
-        {n.docs.toLocaleString()} docs · {pct}% of the Atlas
+        {n.docs.toLocaleString()} docs · {pct}% of the Atlas · level {rect.depth + 1}
         {n.children?.length ? ` · ${n.children.length} sub-chunks` : ""}
       </p>
       {n.id && (
@@ -105,33 +105,43 @@ function InfoPanel({ rect, atlasTotal }: { rect: TreemapRect | null; atlasTotal:
 }
 
 export function CrossViewTreemap({ tree, atlasTotal }: { tree: ChunkNode[]; atlasTotal: number }) {
-  const [hovered, setHovered] = useState<TreemapRect | null>(null);
+  const [selected, setSelected] = useState<TreemapRect | null>(null);
   const rects = useMemo(
-    () => buildTreemap(tree, { minArea: 14, maxDepth: 4, pad: 0.5, padTop: 2.6 }),
-    [tree],
+    () =>
+      flattenTreemap(
+        buildTreemap(tree, {
+          minArea: 14,
+          maxDepth: MAX_DEPTH,
+          pad: 0.6,
+          padTop: 5,
+          minShare: MIN_SHARE,
+          atlasTotal,
+        }),
+      ),
+    [tree, atlasTotal],
   );
   return (
-    <div className="flex gap-4 items-start flex-wrap">
-      <div
-        className="relative aspect-square w-full"
-        style={{ maxWidth: 480, background: "var(--surface)", borderRadius: 4 }}
-        onMouseLeave={() => setHovered(null)}
-        role="img"
-        aria-label="Treemap of Atlas chunks sized by document count"
-      >
-        {rects.map((r) => (
-          <Rect
-            key={r.node.id ?? r.node.title}
-            r={r}
-            parent={{ x: 0, y: 0, w: 100, h: 100 }}
-            hovered={hovered}
-            onHover={setHovered}
-          />
-        ))}
+    <div className="@container">
+      <div className="flex flex-col gap-4 @min-[650px]:flex-row @min-[650px]:items-start">
+        <div
+          className="relative aspect-square w-full shrink-0"
+          style={{ maxWidth: MAP_MAX_PX, background: "var(--surface)", borderRadius: 4 }}
+          role="group"
+          aria-label="Treemap of Atlas chunks sized by document count"
+        >
+          {rects.map((r) => (
+            <Rect
+              key={r.node.id ?? `${r.path.map((p) => p.title).join("/")}/${r.node.title}`}
+              r={r}
+              selected={selected}
+              onSelect={(next) => setSelected((cur) => (cur === next ? null : next))}
+            />
+          ))}
+        </div>
+        <aside className="min-h-[5.5rem] min-w-0 flex-1 sticky top-16 pt-1" aria-live="polite">
+          <InfoPanel rect={selected} atlasTotal={atlasTotal} />
+        </aside>
       </div>
-      <aside className="flex-1 min-w-[12rem] sticky top-16 pt-1">
-        <InfoPanel rect={hovered} atlasTotal={atlasTotal} />
-      </aside>
     </div>
   );
 }

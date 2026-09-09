@@ -33,6 +33,7 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 ## 2026-09-09
+- Enlarged the CrossView chunk map to show more details
 - Chat and MCP now serve the Stale Dates, Atlas Processes, OEA Task Assessment, Risk Rules Assessment, and On-Chain Addresses reports directly instead of just pointing at the page
 
 ## 2026-09-08

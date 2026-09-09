@@ -67,18 +67,21 @@ export function CrossViewPage({ tab }: { tab: CrossViewTab }) {
         </nav>
       </div>
       {/* Concepts gets its own (wider, lg+ only) row so a left TOC column fits
-          beside the max-w-3xl article measure; every other tab keeps the
-          plain centered 3xl column above unchanged. Below lg (TOC hidden),
-          this collapses back to the identical max-w-3xl mx-auto layout. At
-          xl+ a third column (CrossViewTopicIndex, the right-hand "Topics"
-          panel) joins in — both side columns hide themselves below their
-          own breakpoint via their own classes, so this row just widens the
-          cap to fit all three at xl. */}
+          beside the max-w-3xl article measure. Shape widens to 4xl so the 610px
+          chunk map can sit beside its details panel (side-by-side from 650px of
+          available width; stacked below that). Glossary/audit keep the plain
+          centered 3xl column. Below lg (TOC hidden), concepts collapses back to
+          the identical max-w-3xl mx-auto layout. At xl+ a third column
+          (CrossViewTopicIndex, the right-hand "Topics" panel) joins in — both
+          side columns hide themselves below their own breakpoint via their own
+          classes, so this row just widens the cap to fit all three at xl. */}
       <div
         className={
           tab === "concepts"
             ? "max-w-3xl lg:max-w-[62rem] xl:max-w-[80rem] mx-auto lg:flex lg:gap-8 lg:items-start"
-            : "max-w-3xl mx-auto"
+            : tab === "shape"
+              ? "max-w-4xl mx-auto"
+              : "max-w-3xl mx-auto"
         }
       >
         {tab === "concepts" && <CrossViewToc />}
