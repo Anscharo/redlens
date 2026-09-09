@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
@@ -30,8 +31,8 @@ const TREE: ChunkNode[] = [
   { title: "Root Tiny", docs: 2 }, // 2% of Atlas, but top-level — keep
 ];
 
-function rectFor(title: string): HTMLElement {
-  return screen.getByText(title).closest("div") as HTMLElement;
+function rectFor(name: string | RegExp): HTMLElement {
+  return screen.getByRole("button", { name });
 }
 
 describe("CrossViewTreemap", () => {
@@ -108,20 +109,27 @@ describe("CrossViewTreemap", () => {
 
   it("caps the map at 580px", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
-    expect(screen.getByRole("img", { name: /Treemap of Atlas chunks/ })).toHaveStyle({ maxWidth: "580px" });
+    expect(screen.getByRole("group", { name: /Treemap of Atlas chunks/ })).toHaveStyle({ maxWidth: "580px" });
   });
 
   it("sits the details beside the map from 650px of available width, stacked below that", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
-    const map = screen.getByRole("img", { name: /Treemap of Atlas chunks/ });
+    const map = screen.getByRole("group", { name: /Treemap of Atlas chunks/ });
     const row = map.parentElement as HTMLElement;
     expect(row.className).toMatch(/@min-\[650px\]:flex-row/);
     expect(row).toContainElement(screen.getByRole("complementary"));
   });
 
+  it("exposes each chunk as a button, not a nested control inside role=img", () => {
+    render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(rectFor("Root A")).toHaveAttribute("aria-pressed", "false");
+    expect(rectFor("Root A › Child A1")).toBeEnabled();
+  });
+
   it("fills the info panel with breadcrumb, title, doc count, and reader link on click of a leaf with an id", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
-    fireEvent.click(rectFor("Child A1"));
+    fireEvent.click(rectFor("Root A › Child A1"));
 
     const panel = within(screen.getByRole("complementary"));
     expect(panel.getByText("Root A")).toBeInTheDocument(); // breadcrumb = ancestors only, excluding self
@@ -132,10 +140,21 @@ describe("CrossViewTreemap", () => {
     expect(link).toHaveAttribute("href", atlasHref("child-a1"));
   });
 
+  it("selects a chunk from the keyboard and leaves the reader link reachable", async () => {
+    const user = userEvent.setup();
+    render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
+    const child = rectFor("Root A › Child A1");
+    child.focus();
+    await user.keyboard("{Enter}");
+    expect(child).toHaveAttribute("aria-pressed", "true");
+    const panel = within(screen.getByRole("complementary"));
+    expect(panel.getByRole("link", { name: /open in reader/ })).toHaveAttribute("href", atlasHref("child-a1"));
+  });
+
   it("keeps the selected details (and reader link) after the pointer leaves the map", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
-    fireEvent.click(rectFor("Child A1"));
-    const outer = screen.getByRole("img", { name: /Treemap of Atlas chunks/ });
+    fireEvent.click(rectFor("Root A › Child A1"));
+    const outer = screen.getByRole("group", { name: /Treemap of Atlas chunks/ });
     fireEvent.mouseLeave(outer);
     const panel = within(screen.getByRole("complementary"));
     expect(panel.getByRole("link", { name: /open in reader/ })).toHaveAttribute("href", atlasHref("child-a1"));
@@ -146,10 +165,12 @@ describe("CrossViewTreemap", () => {
     const rootA = rectFor("Root A");
     fireEvent.click(rootA);
     expect(rootA).toHaveAttribute("data-state", "active");
+    expect(rootA).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByText(/Click a square for details/)).not.toBeInTheDocument();
 
     fireEvent.click(rootA);
     expect(rootA).toHaveAttribute("data-state", "inactive");
+    expect(rootA).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByText(/Click a square for details/)).toBeInTheDocument();
   });
 

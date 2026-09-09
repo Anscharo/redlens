@@ -83,13 +83,6 @@ export interface TreemapOptions {
    * still belongs on the map. Denominator is atlasTotal, never the parent.
    */
   minShare?: number;
-  /**
-   * Stricter atlas-total floor used from deepShareFromDepth onward (the 7th
-   * nesting: Agent artifacts → … → Allocation → Active Instances).
-   */
-  deepMinShare?: number;
-  /** 0-indexed depth at which deepMinShare replaces minShare. */
-  deepShareFromDepth?: number;
   /** Denominator for minShare — the Atlas total, not the sibling sum. */
   atlasTotal?: number;
 }
@@ -100,12 +93,7 @@ function keepNode(n: ChunkNode, opts: TreemapOptions, depth: number): boolean {
   if (depth === 0) return true;
   const total = opts.atlasTotal ?? 0;
   if (total <= 0) return false;
-  const from = opts.deepShareFromDepth;
-  const floor =
-    from != null && depth >= from && opts.deepMinShare != null && opts.deepMinShare > 0
-      ? opts.deepMinShare
-      : opts.minShare;
-  return n.docs / total >= floor;
+  return n.docs / total >= opts.minShare;
 }
 
 export function buildTreemap(roots: ChunkNode[], opts: TreemapOptions): TreemapRect[] {
@@ -139,4 +127,17 @@ export function buildTreemap(roots: ChunkNode[], opts: TreemapOptions): TreemapR
     });
   };
   return layout(roots, { x: 0, y: 0, w: 100, h: 100 }, 0, []);
+}
+
+/** Parent-first walk. Coordinates are already root-space, so the UI can paint these as siblings. */
+export function flattenTreemap(rects: TreemapRect[]): TreemapRect[] {
+  const out: TreemapRect[] = [];
+  const walk = (nodes: TreemapRect[]) => {
+    for (const n of nodes) {
+      out.push(n);
+      walk(n.children);
+    }
+  };
+  walk(rects);
+  return out;
 }

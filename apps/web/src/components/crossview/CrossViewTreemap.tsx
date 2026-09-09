@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ChunkNode } from "../../lib/crossview";
-import { buildTreemap, type TreemapRect } from "../../lib/treemap";
+import { buildTreemap, flattenTreemap, type TreemapRect } from "../../lib/treemap";
 import { Link } from "../Link";
 import { atlasHref } from "@/lib/routes";
 
@@ -15,9 +15,10 @@ import { atlasHref } from "@/lib/routes";
 // separate sibling fills; a click outlines the deepest rect and fills the
 // info panel. Click (not hover) so the panel stays put long enough to use
 // the reader link — hovering the map to reveal it, then leaving to click
-// it, used to clear the selection first. Nested <button>s are illegal, so
-// rects keep the existing nested-div event model (stopPropagation so the
-// deepest rect claims the click).
+// it, used to clear the selection first. Rects are sibling <button>s (coords
+// are already root-space) so nested <button>s stay illegal, keyboard and
+// screen readers still reach every chunk, and z-index=depth lets the
+// deepest square claim the click.
 const FILL_BY_DEPTH = [0.22, 0.34, 0.48, 0.62];
 /** Square cap. Details sit to the right from 650px of available width; stacked below. */
 const MAP_MAX_PX = 580;
@@ -26,59 +27,49 @@ const MIN_SHARE = 0.02;
 /** Six levels: depth 0 (top-level groups) through depth 5. */
 const MAX_DEPTH = 6;
 
-interface UnitBox {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 function Rect({
   r,
-  parent,
   selected,
   onSelect,
 }: {
   r: TreemapRect;
-  /** The parent's box in ROOT unit space — rects stay root-space throughout;
-      only the CSS placement converts to the parent's local percentage frame. */
-  parent: UnitBox;
   selected: TreemapRect | null;
   onSelect: (r: TreemapRect) => void;
 }) {
   const isSelected = selected === r;
   const showLabel = r.w > 9 && r.h > 4.5;
+  const name =
+    r.path.length > 0 ? `${r.path.map((p) => p.title).join(" › ")} › ${r.node.title}` : r.node.title;
   return (
-    <div
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect(r);
-      }}
+    <button
+      type="button"
+      aria-pressed={isSelected}
+      aria-label={name}
       data-state={isSelected ? "active" : "inactive"}
-      className="absolute overflow-hidden"
+      className="absolute overflow-hidden p-0 text-left focus-visible:outline-offset-[-2px]"
       style={{
-        left: `${((r.x - parent.x) / parent.w) * 100}%`,
-        top: `${((r.y - parent.y) / parent.h) * 100}%`,
-        width: `${(r.w / parent.w) * 100}%`,
-        height: `${(r.h / parent.h) * 100}%`,
+        left: `${r.x}%`,
+        top: `${r.y}%`,
+        width: `${r.w}%`,
+        height: `${r.h}%`,
+        zIndex: r.depth,
         background: `color-mix(in srgb, var(--chunk-fill) ${Math.round((FILL_BY_DEPTH[r.depth] ?? 0.7) * 100)}%, var(--surface))`,
         border: isSelected ? "2px solid var(--accent)" : "1px solid var(--bg)",
         borderRadius: 3,
         cursor: "pointer",
       }}
+      onClick={() => onSelect(r)}
     >
       {showLabel && (
         <span
+          aria-hidden="true"
           className="mono absolute top-1.5 left-1.5 right-1.5 line-clamp-2 pointer-events-none"
           style={{ fontSize: r.depth === 0 ? 12 : 10, lineHeight: 1.2, color: "var(--tan-2)" }}
         >
           {r.node.title}
         </span>
       )}
-      {r.children.map((c) => (
-        <Rect key={c.node.id ?? c.node.title} r={c} parent={r} selected={selected} onSelect={onSelect} />
-      ))}
-    </div>
+    </button>
   );
 }
 
@@ -117,14 +108,16 @@ export function CrossViewTreemap({ tree, atlasTotal }: { tree: ChunkNode[]; atla
   const [selected, setSelected] = useState<TreemapRect | null>(null);
   const rects = useMemo(
     () =>
-      buildTreemap(tree, {
-        minArea: 14,
-        maxDepth: MAX_DEPTH,
-        pad: 0.6,
-        padTop: 5,
-        minShare: MIN_SHARE,
-        atlasTotal,
-      }),
+      flattenTreemap(
+        buildTreemap(tree, {
+          minArea: 14,
+          maxDepth: MAX_DEPTH,
+          pad: 0.6,
+          padTop: 5,
+          minShare: MIN_SHARE,
+          atlasTotal,
+        }),
+      ),
     [tree, atlasTotal],
   );
   return (
@@ -133,20 +126,19 @@ export function CrossViewTreemap({ tree, atlasTotal }: { tree: ChunkNode[]; atla
         <div
           className="relative aspect-square w-full shrink-0"
           style={{ maxWidth: MAP_MAX_PX, background: "var(--surface)", borderRadius: 4 }}
-          role="img"
+          role="group"
           aria-label="Treemap of Atlas chunks sized by document count"
         >
           {rects.map((r) => (
             <Rect
-              key={r.node.id ?? r.node.title}
+              key={r.node.id ?? `${r.path.map((p) => p.title).join("/")}/${r.node.title}`}
               r={r}
-              parent={{ x: 0, y: 0, w: 100, h: 100 }}
               selected={selected}
               onSelect={(next) => setSelected((cur) => (cur === next ? null : next))}
             />
           ))}
         </div>
-        <aside className="min-h-[5.5rem] min-w-0 flex-1 sticky top-16 pt-1">
+        <aside className="min-h-[5.5rem] min-w-0 flex-1 sticky top-16 pt-1" aria-live="polite">
           <InfoPanel rect={selected} atlasTotal={atlasTotal} />
         </aside>
       </div>
