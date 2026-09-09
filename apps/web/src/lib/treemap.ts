@@ -83,6 +83,13 @@ export interface TreemapOptions {
    * still belongs on the map. Denominator is atlasTotal, never the parent.
    */
   minShare?: number;
+  /**
+   * Stricter atlas-total floor used from deepShareFromDepth onward (the 7th
+   * nesting: Agent artifacts → … → Allocation → Active Instances).
+   */
+  deepMinShare?: number;
+  /** 0-indexed depth at which deepMinShare replaces minShare. */
+  deepShareFromDepth?: number;
   /** Denominator for minShare — the Atlas total, not the sibling sum. */
   atlasTotal?: number;
 }
@@ -92,7 +99,13 @@ function keepNode(n: ChunkNode, opts: TreemapOptions, depth: number): boolean {
   if (opts.minShare == null || opts.minShare <= 0) return true;
   if (depth === 0) return true;
   const total = opts.atlasTotal ?? 0;
-  return total > 0 && n.docs / total >= opts.minShare;
+  if (total <= 0) return false;
+  const from = opts.deepShareFromDepth;
+  const floor =
+    from != null && depth >= from && opts.deepMinShare != null && opts.deepMinShare > 0
+      ? opts.deepMinShare
+      : opts.minShare;
+  return n.docs / total >= floor;
 }
 
 export function buildTreemap(roots: ChunkNode[], opts: TreemapOptions): TreemapRect[] {

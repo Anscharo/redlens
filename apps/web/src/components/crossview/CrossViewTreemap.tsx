@@ -23,7 +23,10 @@ const FILL_BY_DEPTH = [0.22, 0.34, 0.48, 0.62];
 const MAP_MAX_PX = 540;
 /** Nested chunks below this share of the Atlas are omitted. Top-level always stays. */
 const MIN_SHARE = 0.02;
-/** Sky Primitives subsections sit at depth 4; their ≥2% children reach depth 6. */
+/** Past six nestings (depth ≥ 6), the floor rises so instance-level slices stay off the map. */
+const DEEP_MIN_SHARE = 0.04;
+const DEEP_SHARE_FROM_DEPTH = 6;
+/** Sky Primitives subsections sit at depth 4; their ≥2%/≥4% children reach depth 6. */
 const MAX_DEPTH = 8;
 
 interface UnitBox {
@@ -116,7 +119,17 @@ function InfoPanel({ rect, atlasTotal }: { rect: TreemapRect | null; atlasTotal:
 export function CrossViewTreemap({ tree, atlasTotal }: { tree: ChunkNode[]; atlasTotal: number }) {
   const [selected, setSelected] = useState<TreemapRect | null>(null);
   const rects = useMemo(
-    () => buildTreemap(tree, { minArea: 14, maxDepth: MAX_DEPTH, pad: 0.6, padTop: 5, minShare: MIN_SHARE, atlasTotal }),
+    () =>
+      buildTreemap(tree, {
+        minArea: 14,
+        maxDepth: MAX_DEPTH,
+        pad: 0.6,
+        padTop: 5,
+        minShare: MIN_SHARE,
+        deepMinShare: DEEP_MIN_SHARE,
+        deepShareFromDepth: DEEP_SHARE_FROM_DEPTH,
+        atlasTotal,
+      }),
     [tree, atlasTotal],
   );
   return (

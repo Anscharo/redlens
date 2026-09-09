@@ -80,6 +80,33 @@ describe("CrossViewTreemap", () => {
     expect(screen.getByText("Supply Side")).toBeInTheDocument();
   });
 
+  it("omits chunks past six levels that hold under 4% of the Atlas", () => {
+    const nest = (title: string, docs: number, children?: ChunkNode[]): ChunkNode => ({
+      title,
+      docs,
+      ...(children ? { children } : {}),
+    });
+    const tree: ChunkNode[] = [
+      nest("L0", 70, [
+        nest("L1", 70, [
+          nest("L2", 21, [
+            nest("L3", 18, [
+              nest("L4", 15, [
+                nest("L5", 14, [
+                  nest("Deep Enough", 8),
+                  nest("Too Small Deep", 3),
+                ]),
+              ]),
+            ]),
+          ]),
+        ]),
+      ]),
+    ];
+    render(<CrossViewTreemap tree={tree} atlasTotal={100} />, { wrapper: wrap() });
+    expect(screen.getByText("Deep Enough")).toBeInTheDocument();
+    expect(screen.queryByText("Too Small Deep")).not.toBeInTheDocument();
+  });
+
   it("caps the map at 540px", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
     expect(screen.getByRole("img", { name: /Treemap of Atlas chunks/ })).toHaveStyle({ maxWidth: "540px" });

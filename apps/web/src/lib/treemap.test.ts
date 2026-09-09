@@ -178,4 +178,54 @@ describe("buildTreemap", () => {
     expect(titlesAt(rects, 4)).toEqual(["Supply Side"]);
     expect(titlesAt(rects, 6)).toEqual(["Active Instances"]);
   });
+
+  it("raises the atlas-total floor to deepMinShare from deepShareFromDepth", () => {
+    // depth 6 is the 7th nesting — more than six levels — so 3% drops and 4% stays.
+    // depth 5 is still on the 2% floor, so a 3% sibling there is kept.
+    const nest = (title: string, docs: number, children?: ChunkNode[]): ChunkNode => ({
+      title,
+      docs,
+      ...(children ? { children } : {}),
+    });
+    const tree: ChunkNode[] = [
+      nest("L0", 70, [
+        nest("L1", 70, [
+          nest("L2", 70, [
+            nest("L3", 70, [
+              nest("L4", 70, [
+                nest("L5", 60, [
+                  nest("Deep 4%", 4),
+                  nest("Deep 3%", 3),
+                ]),
+                nest("Mid 3%", 3),
+              ]),
+            ]),
+          ]),
+        ]),
+      ]),
+    ];
+    const rects = buildTreemap(tree, {
+      minArea: 0,
+      maxDepth: 8,
+      pad: 0,
+      padTop: 0,
+      minShare: 0.02,
+      deepMinShare: 0.04,
+      deepShareFromDepth: 6,
+      atlasTotal: 100,
+    });
+    const titlesAt = (rs: ReturnType<typeof buildTreemap>, depth: number): string[] => {
+      const out: string[] = [];
+      const walk = (nodes: typeof rs, d: number) => {
+        for (const n of nodes) {
+          if (d === depth) out.push(n.node.title);
+          walk(n.children, d + 1);
+        }
+      };
+      walk(rs, 0);
+      return out;
+    };
+    expect(titlesAt(rects, 5).sort()).toEqual(["L5", "Mid 3%"]);
+    expect(titlesAt(rects, 6)).toEqual(["Deep 4%"]);
+  });
 });
