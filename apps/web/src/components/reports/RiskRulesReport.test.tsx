@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { RiskRow, RiskJoin } from "../../lib/riskAssessmentIndex";
+import type { RiskRow, RiskJoin } from "@/lib/riskAssessmentIndex";
 import type { RiskDomain } from "@/lib/riskRules";
 
 Element.prototype.scrollIntoView = vi.fn();
@@ -94,19 +94,22 @@ const ROW_SC = makeRow({
 
 let mockJoin: RiskJoin = { rows: [ROW_ALLOC, ROW_SC], untriaged: 2, rejected: 1 };
 
-vi.mock("../../lib/riskAssessmentIndex", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/riskAssessmentIndex")>();
+vi.mock("../../lib/riskAssessmentLoad", () => ({
+  loadRiskAssessment: () =>
+    Promise.resolve({
+      rubricVersion: "rv1",
+      atlasCommit: null,
+      triageModel: "gpt-triage",
+      assessModel: "gpt-assess",
+      triage: [],
+      assessments: [],
+    }),
+}));
+
+vi.mock("@/lib/riskAssessmentIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/riskAssessmentIndex")>();
   return {
     ...actual,
-    loadRiskAssessment: () =>
-      Promise.resolve({
-        rubricVersion: "rv1",
-        atlasCommit: null,
-        triageModel: "gpt-triage",
-        assessModel: "gpt-assess",
-        triage: [],
-        assessments: [],
-      }),
     joinRisk: () => mockJoin,
   };
 });

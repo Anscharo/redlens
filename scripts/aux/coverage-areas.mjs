@@ -129,7 +129,7 @@ export const areas = [
   {
     id: "lib-reports-activity",
     label: "Lib · Reports (activity/rewards)",
-    match: [/^src\/lib\/(rewardsSearch|rewardsTypes|rewardsIndex|modFrequencyCharts|modFrequencyIndex|activeDataIndex|actorIndex|onchainAddressesIndex|processesIndex|primitiveStats|reportChains|treemap|productArea|owningAgent|reportFilter|csv|csvDownload|staleChunk|staleDates|curationStore)\.ts$/],
+    match: [/^src\/lib\/(rewardsSearch|rewardsTypes|rewardsIndex|modFrequencyCharts|modFrequencyIndex|activeDataIndex|actorIndex|onchainAddressesIndex|processesIndex|primitiveStats|reportChains|treemap|productArea|owningAgent|reportFilter|csv|csvDownload|staleChunk|staleDates|staleDatesSearch|curationStore)\.ts$/],
   },
   {
     id: "lib-crossview",
@@ -144,7 +144,7 @@ export const areas = [
   {
     id: "lib-address-chain",
     label: "Lib · Address/Chain",
-    match: [/^src\/lib\/(addresses|addressMap|balances|chainstate|explorer|tokens|rehypeEthAddresses)\.ts$/],
+    match: [/^src\/lib\/(addresses|addressMap|addressMerge|balances|chainstate|explorer|tokens|rehypeEthAddresses)\.ts$/],
   },
   {
     id: "lib-search",

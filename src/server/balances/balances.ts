@@ -49,8 +49,11 @@ function toMs(v: string | null): number | null {
   return Number.isNaN(t) ? null : t;
 }
 
-// Read the stored balances and shape the wire response. `refreshed` is caller-set.
-async function readCache(refreshed: boolean): Promise<BalancesResponse> {
+// Read the stored balances and shape the wire response. `refreshed` is
+// caller-set. Exported for the on-chain addresses report tool, which reads
+// the same cache the /reports/onchain-addresses page shows (never triggers a
+// refresh itself — that stays a user-initiated POST).
+export async function readCache(refreshed: boolean): Promise<BalancesResponse> {
   const rows = await sql<CachedRow[]>`
     SELECT address, chain, balances, balances_checked_at, has_code
     FROM atlas_addresses

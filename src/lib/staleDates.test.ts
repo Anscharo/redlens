@@ -5,10 +5,10 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import type { AtlasNode } from "@/types";
+import type { AtlasNode } from "../types";
 import { buildStaleDatesReport, extractDateClaims, staleDatesToCSV } from "./staleDates";
 
-const ROOT = path.resolve(__dirname, "../../../..");
+const ROOT = path.resolve(__dirname, "../..");
 const docs: Record<string, AtlasNode> = JSON.parse(
   fs.readFileSync(path.join(ROOT, "public/docs.json"), "utf8"),
 ).nodes;

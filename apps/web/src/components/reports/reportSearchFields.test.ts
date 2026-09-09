@@ -8,13 +8,19 @@ import { describe, it, expect } from "vitest";
 import type { SearchField } from "@/lib/reportFilter";
 import type { OFResponsibility } from "@/lib/facilitatorResponsibilities";
 import type { OGResponsibility } from "@/lib/govopsResponsibilities";
-import type { RiskRow } from "../../lib/riskAssessmentIndex";
+import type { RiskRow } from "@/lib/riskAssessmentIndex";
 import type { OeaRow } from "@/lib/oeaReport";
+import type { ProcessRow } from "@/lib/processesIndex";
+import type { DateClaim } from "@/lib/staleDates";
+import type { OnchainAddressRow } from "@/lib/onchainAddressesIndex";
 import { ofSearchFields } from "./OFCategoryTable";
 import { ogSearchFields } from "./OGCategoryTable";
-import { riskSearchFields } from "./RiskRulesTable";
-import { oeaSearchFields } from "./OeaAssessmentTable";
+import { riskSearchFields } from "@/lib/riskAssessmentIndex";
+import { oeaSearchFields } from "@/lib/oeaReport";
 import { icdSearchFields } from "@/lib/rewardsSearch";
+import { processSearchFields } from "@/lib/processesIndex";
+import { staleSearchFields } from "@/lib/staleDatesSearch";
+import { addrSearchFields } from "@/lib/onchainAddressesIndex";
 import type { RewardsAgent, RewardsInstance } from "@/lib/rewardsTypes";
 
 // label → hidden?, for the fields that carry a value (empty fields are noise).
@@ -114,5 +120,35 @@ describe("risk / oea / icd field shapes", () => {
     expect(despaced(f, "partner")).toBe(true);
     // params tuple renders as "key: value" (first tuple element only).
     expect(f.find((x) => x.label === "params")?.value).toBe("rate: 5%");
+  });
+
+  it("processSearchFields is title + doc no only, nothing hidden", () => {
+    const row = { uuid: "u", docNo: "A.1", title: "Onboard a Facilitator", category: "Governance", shape: "inline", status: "active", stepCount: 3 } as unknown as ProcessRow;
+    const f = processSearchFields(row);
+    expect(f.map((x) => x.label)).toEqual(["title", "doc no"]);
+    expect(hiddenLabels(f)).toEqual([]);
+  });
+
+  it("staleSearchFields hides only the derived month-name field", () => {
+    const row = {
+      docId: "u", docNo: "A.9.1", title: "Old Promise", raw: "March 26, 2026", dateISO: "2026-03-26",
+      precision: "day", context: "…will happen on March 26, 2026…", contextBefore: "…will happen on ",
+      contextAfter: "…", daysUntilStale: -10, transition: false,
+    } as unknown as DateClaim;
+    const f = staleSearchFields(row);
+    expect(hiddenLabels(f)).toEqual(["month"]);
+    expect(f.find((x) => x.label === "date")?.value).toBe("2026-03-26");
+  });
+
+  it("addrSearchFields hides program owner, implementation, roles, aliases, tokens, and doc titles", () => {
+    const row = {
+      address: "0xabc", chainlogId: "MCD_VAT", etherscanName: "Vat", owner: "Sky Ecosystem",
+      chain: "ethereum", type: "Sky Internal Contract", accountType: null, programOwnerName: null,
+      programOwner: null, implementation: null, roles: ["vault"], aliases: ["Vat"], expectedTokens: ["DAI"],
+      docs: [{ docNo: "A.1", title: "Vat Doc" }],
+    } as unknown as OnchainAddressRow;
+    const f = addrSearchFields(row);
+    expect(hiddenLabels(f)).toEqual(["aliases", "doc titles", "implementation", "program owner", "roles", "tokens"]);
+    expect(despaced(f, "owner")).toBe(true);
   });
 });

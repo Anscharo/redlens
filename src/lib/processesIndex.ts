@@ -1,7 +1,7 @@
-import type { AtlasNode } from "@/types";
-import { fetchJson } from "@/lib/verify";
-import { toCSV } from "@/lib/csv";
-import { atlasUrl } from "@/lib/routes";
+import type { AtlasNode } from "../types";
+import { toCSV } from "./csv";
+import { atlasUrl } from "./routes";
+import type { SearchField } from "./reportFilter";
 
 // One curated entry from public/processes.json — the hand-validated inventory.
 // Title + doc_no are resolved from docs.json at read time via the entry's uuid.
@@ -27,21 +27,6 @@ export interface ProcessRow {
   shape: "child" | "inline";
   status: "active" | "deferred-stub";
   stepCount: number | null;
-}
-
-let cache: Promise<ProcessEntry[]> | null = null;
-
-export function loadProcesses(): Promise<ProcessEntry[]> {
-  if (!cache) {
-    cache = fetchJson<ProcessEntry[]>(
-      `${import.meta.env.BASE_URL}processes.json`,
-      "processes.json",
-    ).catch((err) => {
-      cache = null;
-      throw err;
-    });
-  }
-  return cache;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,3 +180,11 @@ export function processRowsToCSV(
     }),
   );
 }
+
+// Header-box text filter: title + doc number. Category/status/shape are
+// pill-owned and deliberately excluded — shared by the report page and the
+// server-side atlas_report_processes tool's `filter` argument.
+export const processSearchFields = (r: ProcessRow): SearchField[] => [
+  { label: "title", value: r.title },
+  { label: "doc no", value: r.docNo },
+];

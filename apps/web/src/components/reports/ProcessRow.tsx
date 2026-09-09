@@ -3,7 +3,7 @@
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
-import type { ProcessRow as ProcessRowData } from "../../lib/processesIndex";
+import type { ProcessRow as ProcessRowData } from "@/lib/processesIndex";
 import type { LocalIgnore } from "../../lib/curationStore";
 import type { AtlasNode } from "@/types";
 import type { ReportQuery } from "@/lib/reportFilter";

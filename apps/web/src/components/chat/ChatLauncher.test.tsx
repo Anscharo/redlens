@@ -10,7 +10,6 @@ afterEach(cleanup);
 const context: PageContextView = {
   short: "Ask the Sky Atlas",
   placeholder: "Ask…",
-  label: "Sky Atlas",
   chip: "atlas",
 };
 
