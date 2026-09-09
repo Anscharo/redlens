@@ -21,7 +21,7 @@ import { atlasHref } from "@/lib/routes";
 // deepest square claim the click.
 const FILL_BY_DEPTH = [0.22, 0.34, 0.48, 0.62];
 /** Square cap. Details sit to the right from 650px of available width; stacked below. */
-const MAP_MAX_PX = 580;
+const MAP_MAX_PX = 610;
 /** Nested chunks below this share of the Atlas are omitted. Top-level always stays. */
 const MIN_SHARE = 0.02;
 /** Six levels: depth 0 (top-level groups) through depth 5. */

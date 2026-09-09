@@ -67,7 +67,7 @@ export function CrossViewPage({ tab }: { tab: CrossViewTab }) {
         </nav>
       </div>
       {/* Concepts gets its own (wider, lg+ only) row so a left TOC column fits
-          beside the max-w-3xl article measure. Shape widens to 4xl so the 580px
+          beside the max-w-3xl article measure. Shape widens to 4xl so the 610px
           chunk map can sit beside its details panel (side-by-side from 650px of
           available width; stacked below that). Glossary/audit keep the plain
           centered 3xl column. Below lg (TOC hidden), concepts collapses back to

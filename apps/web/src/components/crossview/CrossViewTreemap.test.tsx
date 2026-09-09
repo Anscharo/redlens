@@ -107,9 +107,9 @@ describe("CrossViewTreemap", () => {
     expect(screen.queryByText("Level 7")).not.toBeInTheDocument();
   });
 
-  it("caps the map at 580px", () => {
+  it("caps the map at 610px", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
-    expect(screen.getByRole("group", { name: /Treemap of Atlas chunks/ })).toHaveStyle({ maxWidth: "580px" });
+    expect(screen.getByRole("group", { name: /Treemap of Atlas chunks/ })).toHaveStyle({ maxWidth: "610px" });
   });
 
   it("sits the details beside the map from 650px of available width, stacked below that", () => {
