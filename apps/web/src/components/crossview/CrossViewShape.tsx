@@ -32,9 +32,8 @@ export function CrossViewShape({ data }: { data: CrossViewData }) {
         </h2>
         <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
           The whole Atlas as one square. Each chunk&apos;s area is its share of the corpus; its
-          largest sub-chunk sits in its top-left, recursively. Top-level groups always appear;
-          nested chunks under 2% of the Atlas are omitted. The map stops at six levels. Click a
-          square for details.
+          largest sub-chunk sits in its top-left, recursively. The map shows the biggest sections,
+          up to six levels. Click a square for details.
         </p>
         <CrossViewTreemap tree={data.chunkTree} atlasTotal={data.totals.docs} />
       </section>
