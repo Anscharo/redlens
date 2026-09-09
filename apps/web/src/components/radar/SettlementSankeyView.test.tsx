@@ -36,6 +36,11 @@ describe("SettlementSankeyView", () => {
     expect(container.querySelector('.msc-sankey-sink rect[fill="var(--msc-sky)"]')).toBeInTheDocument();
     expect(container.querySelector('.msc-sankey-sink rect[fill="var(--msc-prime-1)"]')).toBeInTheDocument();
     expect(container.querySelector('.msc-sankey-sink rect[fill="url(#msc-sankey-neg-prime)"]')).toBeInTheDocument();
+    // …and the key under the chart says what the stripes mean.
+    const caption = container.querySelector("figcaption")!;
+    expect(caption).toHaveTextContent("striped · a loss, paid back out to the venue");
+    expect(caption).toHaveTextContent("to Sky");
+    expect(caption).toHaveTextContent("Spark");
   });
 
   it("names the chart on a figure so the Sky link stays in the accessibility tree", () => {

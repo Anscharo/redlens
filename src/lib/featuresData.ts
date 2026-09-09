@@ -171,7 +171,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "MSC ecosystem overview",
-        what: "The Radar front page opens with a cross-prime Monthly Settlement Cycle view: an orbital chart — Sky as a central donut, split into one wedge per Prime that paid into it, with each Prime orbiting as a pie of its gross-revenue line items (cost of funds and Sky Direct Exposure facing Sky, supply kept, and each demand-side series), a supply loss shown as a hole in the pie's middle, and an arrow running from its To-Sky slices to its wedge — next to a stacked timeline of what each Prime kept, with Sky's monthly take overlaid as a line.",
+        what: "The Radar front page opens with a cross-prime Monthly Settlement Cycle view: an orbital chart — Sky as a central donut, split into one wedge per Prime that paid into it, with each Prime orbiting as a pie of its gross-revenue line items (cost of funds and Sky Direct Exposure facing Sky, supply-side kept, and each demand-side series), a supply-side loss shown as a hole in the pie's middle, and an arrow running from its To-Sky slices to its wedge — next to a stacked timeline of what each Prime kept, with Sky's monthly take overlaid as a line.",
         how: [
           "Open Radar; the orbital chart (titled Sky System Settlements) shows the latest settled month across all Primes, with the color key and reading guide under it. Primes keep one fixed order and color everywhere on the overview — the Atlas's own Prime Agent order (Spark, Grove, Keel, Skybase, Obex, Pattern, Osero, Launch Agent 7).",
           "Click a month column in the Prime-side earnings chart to switch the orbital chart and the figures under it, or press its ▶ play button to step through the months (it opens paused on the latest).",
@@ -182,12 +182,12 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "Monthly settlement charts",
-        what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows last month's take; a full cycle page charts Sky's share, supply kept, and demand-side, plus the demand-side mix and venue AUM.",
+        what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows last month's take; a full cycle page charts Sky's share, supply-side kept, and demand-side, plus the demand-side mix and venue AUM.",
         how: [
           "Open a Prime Agent on Radar (Spark, Grove, Obex, …).",
           "The Monthly settlement card in the top right shows the latest cycle; the `full cycle` link under the figure opens the charts.",
           "On that page, Sky Forum opens the forum post for the month selected in the charts.",
-          "Ask Chat or an MCP client about a month's To Sky / supply kept / demand-side — it will say those figures are not from the Atlas.",
+          "Ask Chat or an MCP client about a month's To Sky / supply-side kept / demand-side — it will say those figures are not from the Atlas.",
           "On the cycle page, click a month in the Summary bars. Primes with several venues have a PnL / AUM toggle.",
           "In the venue flow chart, hover a flow, a venue name, or its row in the table below — that venue lights up in both, and its figures appear on the flows.",
           "Click the Sky label beside the venue flow chart to open that month in the ecosystem overview on the Radar front page.",

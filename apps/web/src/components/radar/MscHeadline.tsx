@@ -69,7 +69,7 @@ export function MscHeadline({ eco, labels, identity }: Props) {
         <Figure label="Sky Direct Exposure" value={eco.sde} muted />
       </div>
       <span className="msc-headline-divider" aria-hidden="true" />
-      <Figure label={labels?.kept ?? "Supply kept by Primes"} value={eco.kept} />
+      <Figure label={labels?.kept ?? "Supply-side kept by Primes"} value={eco.kept} />
       <Figure label={labels?.demand ?? "Demand-side to Primes"} value={eco.demand} />
     </div>
   );

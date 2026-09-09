@@ -81,7 +81,7 @@ describe("MscRing", () => {
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     expect(
       screen.getByRole("link", {
-        name: "Spark, Jul 2026: $10.00M to Sky (74% of its gross revenue) — $9.90M cost of funds, $100k Sky Direct Exposure; $2.00M supply kept, $1.50M demand-side. Open settlement page.",
+        name: "Spark, Jul 2026: $10.00M to Sky (74% of its gross revenue) — $9.90M cost of funds, $100k Sky Direct Exposure; $2.00M supply-side kept, $1.50M demand-side. Open settlement page.",
       }),
     ).toBeInTheDocument();
   });
@@ -98,7 +98,7 @@ describe("MscRing", () => {
     // One pill per slice, named by the workbook's line item.
     expect(screen.getByText("$9.90M cost of funds → Sky")).toBeInTheDocument();
     expect(screen.getByText("$100k Sky Direct Exposure → Sky")).toBeInTheDocument();
-    expect(screen.getByText("$2.00M supply kept")).toBeInTheDocument();
+    expect(screen.getByText("$2.00M supply-side kept")).toBeInTheDocument();
     expect(screen.getByText("$1.40M agent rate (demand-side)")).toBeInTheDocument();
     expect(screen.getByText("$100k distribution rewards (demand-side)")).toBeInTheDocument();
   });
@@ -147,11 +147,35 @@ describe("MscRing", () => {
     const { container } = render(
       <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$497" />,
     );
-    expect(screen.getByText("−$107 supply loss — the hole")).toBeInTheDocument();
+    expect(screen.getByText("−$107 supply-side loss — the hole")).toBeInTheDocument();
     const hole = container.querySelector('.msc-ring-mark[data-mark="osero::loss"] circle.msc-ring-hole')!;
     expect(hole).toHaveAttribute("fill", "url(#msc-ring-neg-kept)");
     // No kept slice: the loss lives in the hole.
     expect(container.querySelector('.msc-ring-mark[data-mark="osero::kept"]')).not.toBeInTheDocument();
+  });
+
+  it("tags each arrow with the To-Sky components it actually carries, so the key's SDE row lights only those", () => {
+    const { layout, primes } = ringPrimes(
+      [flow(), flow({ prime: "grove", sky: 5_000_000, cof: 5_000_000, sde: 0 })],
+      "2026-07",
+    );
+    const { container } = render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$15.00M" />);
+    const spark = container.querySelector('.msc-ring-mark[data-mark="spark::sky"] .msc-ring-arrow')!;
+    const grove = container.querySelector('.msc-ring-mark[data-mark="grove::sky"] .msc-ring-arrow')!;
+    expect(spark).toHaveAttribute("data-cof", "true");
+    expect(spark).toHaveAttribute("data-sde", "true");
+    expect(grove).toHaveAttribute("data-cof", "true");
+    expect(grove).not.toHaveAttribute("data-sde");
+    // A Sky wedge's figure names its prime, so it can fade with the wedge.
+    for (const f of container.querySelectorAll('.msc-ring-figure[data-kind="sky"]')) {
+      expect(f.getAttribute("data-prime")).toBeTruthy();
+    }
+    // Focus on a prime fades every other prime, the Sky disc and the other
+    // wedges; hovering its Sky wedge counts as focus too.
+    const style = container.querySelector("style")!.textContent!;
+    expect(style).toContain('.msc-ring-prime[data-prime="spark"]:hover, a:focus-visible > .msc-ring-prime[data-prime="spark"], .msc-ring-mark[data-mark="spark::share"]:hover');
+    expect(style).toContain('.msc-ring-prime:not([data-prime="spark"]), .msc-ring-sky-disc, .msc-ring-sky-wedge:not([data-prime="spark"])');
+    expect(style).toContain('.msc-ring-pill[data-mark="grove::cof"] { opacity: 1; }');
   });
 
   it("labels the Sky pie 'To Sky', never 'Sky' alone", () => {

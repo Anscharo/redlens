@@ -68,20 +68,36 @@ describe("MscOverview", () => {
     );
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
     expect(screen.getByText(/not the Protocol's Net Revenue/)).toBeInTheDocument();
-    expect(screen.getByText(/supply loss \(the hole\)/)).toBeInTheDocument();
+    expect(screen.getByText(/supply-side loss \(the hole\)/)).toBeInTheDocument();
+    // No "kept · supply kept" — a row carries a code only when it adds one.
+    expect(screen.getByText("supply-side kept")).toBeInTheDocument();
+    // The key is grouped by where the money goes, in the pie's order.
+    const key = document.querySelector(".msc-key")!;
+    const groups = [...key.querySelectorAll(".msc-key-group")].map((g) => ({
+      title: g.querySelector(".msc-key-title")!.textContent,
+      keys: [...g.querySelectorAll(".msc-key-item")].map((i) => i.getAttribute("data-key")),
+    }));
+    expect(groups).toEqual([
+      { title: "To Sky", keys: ["cof", "sde"] },
+      { title: "Supply-side", keys: ["kept", "neg"] },
+      { title: "Demand-side", keys: ["agentRate", "distributionRewards", "gar", "chroniclePoints"] },
+    ]);
+    expect(document.querySelector(".msc-key-note")).toHaveTextContent("Pie area = gross revenue*");
     // Cross-chart hover styles: one :has() rule per prime in the stack.
     const style = document.querySelector("style")!.textContent!;
     expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="spark"][data-flow="kept"]:hover');
     expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="spark"][data-flow="sky"]:hover');
     expect(style).toContain('.msc-ring-prime[data-prime="spark"]');
-    // …and back: the ring's marks light the matching layer.
+    // …and back: the ring's marks light the matching layer, and the
+    // month's other primes fade while a pie is in focus.
     expect(style).toContain('.msc-ring-mark[data-mark="spark::sky"]:hover');
+    expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg:not([data-prime="spark"]) { opacity: 0.22; }');
     expect(screen.getAllByText("To Sky").length).toBeGreaterThanOrEqual(1); // headline card + donut center
     // Headline card reads as the equation it is.
     expect(screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure")).toBeInTheDocument();
     expect(screen.getByText("cost of funds")).toBeInTheDocument();
     expect(screen.getByText("Sky Direct Exposure")).toBeInTheDocument();
-    expect(screen.getByText("Supply kept by Primes")).toBeInTheDocument();
+    expect(screen.getByText("Supply-side kept by Primes")).toBeInTheDocument();
     expect(screen.getByText("Demand-side to Primes")).toBeInTheDocument();
     // eco sky = 100; eco kept = (200-60) + 0 = 140; demand = 50 + 32004.
     // "$140" also rides the ring's hover amounts, so match all.

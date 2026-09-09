@@ -114,6 +114,23 @@ export function SettlementSankeyView({
         );
       })}
       </svg>
+      {/* The stripes are the one mark on this chart that isn't self-
+          evident: a striped ribbon or out-bar is money going back OUT to a
+          losing venue, in the series' own color. Named here so nobody
+          reads it as a texture. */}
+      <figcaption className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mt-1" style={{ color: "var(--tan-3)" }}>
+        <span><Swatch background="var(--msc-sky)" /> to Sky</span>
+        <span><Swatch background="var(--msc-kept)" /> supply-side kept</span>
+        <span><Swatch background={primeColor} /> {primeLabel}</span>
+        <span>
+          <Swatch background="repeating-linear-gradient(45deg, var(--msc-kept) 0, var(--msc-kept) 2px, transparent 2px, transparent 4px)" />
+          striped · a loss, paid back out to the venue
+        </span>
+      </figcaption>
     </figure>
   );
+}
+
+function Swatch({ background }: { background: string }) {
+  return <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background }} aria-hidden="true" />;
 }

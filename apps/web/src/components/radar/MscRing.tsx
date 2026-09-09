@@ -2,6 +2,7 @@ import { formatMonth, formatUsd } from "../../lib/settlements";
 import type { RingLayout } from "../../lib/mscOverviewLayout";
 import { markId, PillOverlay } from "./MscRingPills";
 import { RingPrimeGroup, type MscRingPrime } from "./MscRingPrime";
+import { RingHoverStyles } from "./MscRingHoverStyles";
 
 export type { MscRingPrime } from "./MscRingPrime";
 
@@ -45,7 +46,7 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
 
   return (
     <>
-      <PillHoverStyles primes={primes} />
+      <RingHoverStyles primes={primes} />
       <figure
         className="msc-ring-frame"
         aria-label={`Monthly Settlement Cycle flows for ${formatMonth(month)}`}
@@ -88,7 +89,7 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
         ))}
         {layout.skyWedges.map((w) =>
           w.figureX != null && w.figureY != null ? (
-            <text key={w.prime} x={w.figureX} y={w.figureY} textAnchor="middle" fontSize={15} className="msc-ring-figure" data-kind="sky">
+            <text key={w.prime} x={w.figureX} y={w.figureY} textAnchor="middle" fontSize={15} className="msc-ring-figure" data-kind="sky" data-prime={w.prime}>
               <tspan x={w.figureX} dy={-4}>
                 {labelOf(w.prime)}
               </tspan>
@@ -114,28 +115,4 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
       </figure>
     </>
   );
-}
-
-/* Pills paint in a top layer, so they are no longer descendants of the mark
-   they name and plain `.mark:hover .pill` can't reach them. One generated
-   `:has()` rule per mark pairs them back up by id — the same trick the venue
-   sankey's VenueHoverStyles uses. Keyboard focus on a prime's link reveals
-   that prime's pills (prefix match) since there is no per-mark focus target. */
-function PillHoverStyles({ primes }: { primes: MscRingPrime[] }) {
-  const css = primes
-    .flatMap((p) => {
-      const kinds = [...p.ring.slices.map((s) => s.kind as string), "share", "gross"];
-      if (p.ring.hole) kinds.push("loss");
-      if (p.ring.arrow) kinds.push(p.ring.arrow.kind);
-      const rules = kinds.map((k) => {
-        const id = markId(p.flow.prime, k);
-        return `.msc-ring:has(.msc-ring-mark[data-mark="${id}"]:hover) .msc-ring-pill[data-mark="${id}"] { opacity: 1; }`;
-      });
-      rules.push(
-        `.msc-ring:has(a:focus-visible .msc-ring-prime[data-prime="${p.flow.prime}"]) .msc-ring-pill[data-mark^="${p.flow.prime}::"] { opacity: 1; }`,
-      );
-      return rules;
-    })
-    .join("\n");
-  return <style>{css}</style>;
 }

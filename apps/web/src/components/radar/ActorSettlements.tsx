@@ -98,7 +98,7 @@ export function ActorSettlements({ slug, name }: Props) {
           kept: supplyKept(report),
           demand: demandSideRevenue(report.headline),
         }}
-        labels={{ kept: "Supply kept", demand: "Demand-side" }}
+        labels={{ kept: "Supply-side kept", demand: "Demand-side" }}
         identity={{ label: name, color }}
       />
       {gap > 1 && (

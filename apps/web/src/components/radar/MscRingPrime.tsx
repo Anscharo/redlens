@@ -1,4 +1,4 @@
-import { formatMonth, formatUsd } from "../../lib/settlements";
+import { formatMonth, formatUsd, SETTLEMENT_NEAR_ZERO } from "../../lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 import type { RingPrime } from "../../lib/mscOverviewLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
@@ -24,10 +24,16 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
     <g className="msc-ring-prime" data-prime={flow.prime}>
       {arrow && (
         <g className="msc-ring-mark" data-mark={markId(flow.prime, arrow.kind)}>
+          {/* Which components the arrow actually carries, so the key's CoF
+              and SDE rows light only the arrows with that money in them.
+              From the signed figures, not the slices: a negative SDE has no
+              slice but still rides the arrow. */}
           <path
             d={arrow.path}
             className={arrow.signed < 0 ? "msc-ring-arrow" : "msc-ring-arrow msc-ring-sky"}
             fill={arrow.signed < 0 ? `url(#msc-ring-neg-${arrow.kind})` : undefined}
+            data-cof={Math.abs(arrow.cof) >= SETTLEMENT_NEAR_ZERO ? "true" : undefined}
+            data-sde={Math.abs(arrow.sde) >= SETTLEMENT_NEAR_ZERO ? "true" : undefined}
           />
         </g>
       )}
@@ -49,7 +55,7 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
         ) : null,
       )}
       {/* The loss hole: striped in the kept color, the same mark the key
-          uses for "supply loss". Its AREA is the loss. */}
+          uses for "supply-side loss". Its AREA is the loss. */}
       {ring.hole && (
         <g className="msc-ring-mark" data-mark={markId(flow.prime, "loss")}>
           <circle cx={ring.cx} cy={ring.cy} r={ring.hole.r} className="msc-ring-hole" fill="url(#msc-ring-neg-kept)" />
@@ -77,7 +83,7 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
   return (
     <SvgRouteLink
       to={to}
-      label={`${label}, ${formatMonth(month)}: ${formatUsd(flow.sky, true)} to Sky${shareText} — ${formatUsd(flow.cof, true)} cost of funds, ${formatUsd(flow.sde, true)} Sky Direct Exposure; ${formatUsd(flow.kept, true)} supply kept, ${formatUsd(flow.demand, true)} demand-side. Open settlement page.`}
+      label={`${label}, ${formatMonth(month)}: ${formatUsd(flow.sky, true)} to Sky${shareText} — ${formatUsd(flow.cof, true)} cost of funds, ${formatUsd(flow.sde, true)} Sky Direct Exposure; ${formatUsd(flow.kept, true)} supply-side kept, ${formatUsd(flow.demand, true)} demand-side. Open settlement page.`}
     >
       {group}
     </SvgRouteLink>

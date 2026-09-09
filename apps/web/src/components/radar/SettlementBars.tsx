@@ -30,7 +30,7 @@ export function SettlementBars({
             data-active={m.month === selected ? "true" : undefined}
             onClick={() => onSelect(m.month)}
             aria-pressed={m.month === selected}
-            aria-label={`${formatMonth(m.month)}: ${formatUsd(m.sky, true)} to Sky, ${formatUsd(m.kept, true)} supply kept, ${formatUsd(m.demand, true)} demand-side`}
+            aria-label={`${formatMonth(m.month)}: ${formatUsd(m.sky, true)} to Sky, ${formatUsd(m.kept, true)} supply-side kept, ${formatUsd(m.demand, true)} demand-side`}
           >
             <span className="msc-bar-cluster" aria-hidden="true">
               <ThreeWayTrack value={m.sky} peakPos={peakPos} peakNeg={peakNeg} barClass="msc-bar-sky" />
@@ -43,7 +43,7 @@ export function SettlementBars({
       </div>
       <p className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1" style={{ color: "var(--tan-3)" }}>
         <span><span className="msc-bar-sky inline-block w-2 h-2 mr-1 align-middle" /> to Sky</span>
-        <span><span className="msc-bar-prime inline-block w-2 h-2 mr-1 align-middle" /> supply kept</span>
+        <span><span className="msc-bar-prime inline-block w-2 h-2 mr-1 align-middle" /> supply-side kept</span>
         <span><span className="msc-bar-demand inline-block w-2 h-2 mr-1 align-middle" /> demand-side</span>
       </p>
     </div>

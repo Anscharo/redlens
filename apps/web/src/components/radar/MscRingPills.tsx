@@ -35,7 +35,7 @@ export const SLICE_TOKEN: Record<string, string> = {
 export const SLICE_LABEL: Record<string, string> = {
   cof: "cost of funds → Sky",
   sde: "Sky Direct Exposure → Sky",
-  kept: "supply kept",
+  kept: "supply-side kept",
   ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, `${s.label.toLowerCase()} (demand-side)`])),
 };
 
@@ -50,7 +50,7 @@ export function pillText(kind: string, signed: number, primeLabel: string, share
   }
   if (kind === "share") return `${amount} to Sky from ${primeLabel}`;
   if (kind === "gross") return `${amount} gross revenue* of ${primeLabel}`;
-  if (kind === "loss") return `${amount} supply loss — the hole`;
+  if (kind === "loss") return `${amount} supply-side loss — the hole`;
   if (kind in SLICE_LABEL) return `${amount} ${SLICE_LABEL[kind]}`;
   return `${amount} ${kind}`;
 }

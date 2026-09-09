@@ -20,7 +20,7 @@ const TRACK_H = 380;
 // Per-prime categorical fills, assigned by the stable roster order from
 // primeStackMonths (fixed order, never re-cycled when a month lacks a prime).
 // Dedicated tokens rather than the depth palette: prime identity colors must
-// avoid blue, green, magenta and red in EVERY theme — those are the flow
+// avoid blue, green, teal and red in EVERY theme — those are the flow
 // colors. Primes past the list fold to gray.
 const PRIME_FILLS = ["--msc-prime-1", "--msc-prime-2", "--msc-prime-3", "--msc-prime-4", "--msc-prime-5"] as const;
 export const primeFill = (i: number): string =>
@@ -192,8 +192,8 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect, al
     const amount = formatUsd(s.value, true);
     if (flow === "sky") return `${primeLabel(s.prime)} ${amount} to Sky`;
     return s.value < 0
-      ? `${primeLabel(s.prime)} ${amount} supply loss`
-      : `${primeLabel(s.prime)} ${amount} kept (supply kept + demand-side)`;
+      ? `${primeLabel(s.prime)} ${amount} supply-side loss`
+      : `${primeLabel(s.prime)} ${amount} kept (supply-side kept + demand-side)`;
   };
   const seg = (s: { prime: string; value: number; top: number; h: number }, flow: "kept" | "sky") => {
     if (s.h < 0.5) return null;

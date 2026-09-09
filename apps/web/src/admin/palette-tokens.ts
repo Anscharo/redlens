@@ -118,7 +118,7 @@ export const PALETTE_TOKENS: readonly PaletteToken[] = [
 
   // ─── Monthly Settlement Cycle series (to Sky / supply kept / demand-side) ───
   { name: "msc-sky", label: "MSC to Sky", group: "msc", alpha: false },
-  { name: "msc-kept", label: "MSC supply kept", group: "msc", alpha: false },
+  { name: "msc-kept", label: "MSC supply-side kept", group: "msc", alpha: false },
   { name: "msc-demand", label: "MSC demand-side", group: "msc", alpha: false },
   { name: "msc-prime-1", label: "MSC prime 1", group: "msc", alpha: false },
   { name: "msc-prime-2", label: "MSC prime 2", group: "msc", alpha: false },

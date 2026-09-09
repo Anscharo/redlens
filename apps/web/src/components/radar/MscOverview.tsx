@@ -21,7 +21,8 @@ import { layoutMscRing } from "../../lib/mscOverviewLayout";
 import { track } from "../../lib/analytics";
 import { MscHeadline } from "./MscHeadline";
 import { MscRing, type MscRingPrime } from "./MscRing";
-import { SLICE_CODE, SLICE_TOKEN } from "./MscRingPills";
+import { DIM } from "./MscRingHoverStyles";
+import { RingKey } from "./MscRingKey";
 import { MscTimeseries, primeFill } from "./MscTimeseries";
 
 const mscCodec = urlString(null);
@@ -145,10 +146,11 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
    SELECTED month lights the same money on the ring (a kept layer → that
    prime's bar and plate; a To-Sky layer → its arrow and Sky wedge), and the
    ring's marks light the matching layer back. Other months' layers describe
-   different numbers than the ring shows, so they don't. Static CSS can't
-   express "same data-prime as the hovered element", so the rules are
-   generated per prime — the same trick as the venue sankey's
-   VenueHoverStyles. */
+   different numbers than the ring shows, so they don't. Either way the
+   rest of the other chart fades to DIM, so the pairing is unmistakable
+   rather than an outline you have to look for. Static CSS can't express
+   "same data-prime as the hovered element", so the rules are generated per
+   prime — the same trick as the venue sankey's VenueHoverStyles. */
 function PrimeHoverStyles({ primes }: { primes: string[] }) {
   const css = primes
     .map((p) => {
@@ -161,17 +163,24 @@ function PrimeHoverStyles({ primes }: { primes: string[] }) {
         `.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="${p}"][data-flow="${flow}"]`;
       const keptKinds = ["kept", ...DEMAND_SERIES.map((s) => s.key)];
       // Lit marks get an outline in the text ink (fills never change, so
-      // the audited fill/ink pairs hold in every state).
-      const lit = "{ opacity: 1; stroke: var(--tan); stroke-width: 2; }";
+      // the audited fill/ink pairs hold at rest and when lit).
+      const lit = "{ opacity: 1; stroke: var(--tan); stroke-width: 2.5; }";
+      // Everything on the ring that is not prime p.
+      const ringOthers = `.msc-ring :is(.msc-ring-prime:not([data-prime="${p}"]), .msc-ring-sky-disc, .msc-ring-sky-wedge:not([data-prime="${p}"]), .msc-ring-figure[data-kind="sky"]:not([data-prime="${p}"]))`;
+      // Every segment of the selected month that is not prime p's.
+      const colOthers = `.msc-bar-col[data-active="true"] .msc-ts-seg:not([data-prime="${p}"])`;
       return [
         // Timeseries → ring. A kept layer = supply kept + demand-side slices
         // (+ the loss hole); a To-Sky layer = the two To-Sky slices, the
         // arrow and the wedge.
+        `${seg("kept")} ${ringOthers}, ${seg("sky")} ${ringOthers} { opacity: ${DIM}; }`,
         `${seg("kept")} ${prime} :is(${keptKinds.map((k) => `.msc-ring-${k}`).join(", ")}, .msc-ring-hole) ${lit}`,
-        `${seg("kept")} ${prime} .msc-ring-label { fill: var(--tan); }`,
+        `${seg("kept")} ${prime} .msc-ring-label, ${seg("sky")} ${prime} .msc-ring-label { fill: var(--tan); }`,
         `${seg("sky")} ${prime} :is(.msc-ring-cof, .msc-ring-sde, .msc-ring-arrow) ${lit}`,
         `${seg("sky")} .msc-ring-sky-wedge[data-prime="${p}"] ${lit}`,
-        // Ring → timeseries.
+        // Ring → timeseries: the prime's pie (or its wedge) in focus fades
+        // the month's other primes; the hovered mark then names its layer.
+        `.msc-overview-row:has(${prime}:hover, .msc-ring-mark[data-mark="${p}::share"]:hover) ${colOthers} { opacity: ${DIM}; }`,
         `${mark([...keptKinds, "loss", "gross"])} ${layer("kept")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
         // The To-Sky box already wears an outline, so it lights by filling.
         `${mark(["cof", "sde", "sky", "share"])} ${layer("sky")} { background: color-mix(in srgb, var(--msc-sky) 40%, transparent); }`,
@@ -179,36 +188,4 @@ function PrimeHoverStyles({ primes }: { primes: string[] }) {
     })
     .join("\n");
   return <style>{css}</style>;
-}
-
-function RingKey() {
-  const swatch = (background: string) => (
-    <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background }} />
-  );
-  return (
-    <div className="mono text-[10px] mt-5" style={{ color: "var(--tan-3)" }}>
-      <p className="flex flex-wrap gap-x-4 gap-y-1 justify-center">
-        <span className="msc-key-item" data-key="cof">{swatch(`var(${SLICE_TOKEN.cof})`)} CoF · cost of funds → Sky</span>
-        <span className="msc-key-item" data-key="sde">{swatch(`var(${SLICE_TOKEN.sde})`)} SDE · Sky Direct Exposure → Sky</span>
-        <span className="msc-key-item" data-key="kept">{swatch(`var(${SLICE_TOKEN.kept})`)} kept · supply kept</span>
-        <span className="msc-key-item" data-key="neg">
-          {swatch(
-            "repeating-linear-gradient(45deg, var(--msc-kept) 0, var(--msc-kept) 2px, transparent 2px, transparent 4px)",
-          )}
-          supply loss (the hole)
-        </span>
-        {DEMAND_SERIES.map((s) => (
-          <span key={s.key} className="msc-key-item" data-key={s.key}>
-            {swatch(`var(${SLICE_TOKEN[s.key]})`)} {SLICE_CODE[s.key]} · {s.label.toLowerCase()} (demand-side)
-          </span>
-        ))}
-      </p>
-      <p className="text-center mt-1">
-        Pie area = gross revenue*. Hover for figures; click a Prime for its page.
-      </p>
-      <p className="text-center mt-1 italic">
-        *Gross revenue = To Sky + supply kept + demand-side.
-      </p>
-    </div>
-  );
 }

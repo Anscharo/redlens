@@ -94,14 +94,14 @@ describe("MscTimeseries", () => {
     const spark = document.querySelectorAll('.msc-ts-seg[data-prime="spark"][data-flow="kept"]');
     expect(spark).toHaveLength(2);
     expect([...spark].map((el) => el.querySelector(".msc-ts-pill")?.textContent).sort()).toEqual([
-      "Spark $400k kept (supply kept + demand-side)",
-      "Spark $500k kept (supply kept + demand-side)",
+      "Spark $400k kept (supply-side kept + demand-side)",
+      "Spark $500k kept (supply-side kept + demand-side)",
     ]);
     for (const el of spark) {
       expect((el as HTMLElement).style.background).toContain("--msc-prime-1");
     }
     const osero = document.querySelector('.msc-ts-seg[data-prime="osero"][data-flow="kept"]') as HTMLElement;
-    expect(osero.querySelector(".msc-ts-pill")?.textContent).toBe("Osero −$50k supply loss");
+    expect(osero.querySelector(".msc-ts-pill")?.textContent).toBe("Osero −$50k supply-side loss");
     // A loss month gets no "kept" micro label; its "Sky" label stays.
     const lossCol = osero.closest(".msc-bar-col") as HTMLElement;
     const labels = [...lossCol.querySelectorAll(".msc-ts-microlabel")].map((el) => el.textContent);
