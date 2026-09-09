@@ -11,7 +11,6 @@ import type { ChatSession } from "./useChatSession";
 const context: PageContextView = {
   short: "Ask the Sky Atlas",
   placeholder: "Ask…",
-  label: "Sky Atlas",
   chip: "atlas",
 };
 vi.mock("./pageContext", () => ({ usePageContext: () => context }));

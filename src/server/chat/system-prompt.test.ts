@@ -4,6 +4,7 @@
 import { describe, it, expect } from "bun:test";
 import { loadIndexes } from "../retrieval/indexes.ts";
 import { agentArtifactRoster, buildSystemPrompt, pageContextLine, validReportTool } from "./system-prompt.ts";
+import { REPORT_DESCRIPTIONS } from "../../lib/routes.ts";
 
 const ix = loadIndexes();
 
@@ -26,8 +27,18 @@ describe("pageContextLine", () => {
     expect(
       pageContextLine({ actorSlug: "spark", path: "/radar/spark/settlements", mscMonth: "2026-07" }),
     ).toContain("ask_external_msc");
-    expect(pageContextLine({ reportName: "Stale Dates" })).toBe("Report: Stale Dates");
+    expect(pageContextLine({ reportName: "Stale Dates" })).toContain("Report: Stale Dates — ");
     expect(pageContextLine({ path: "/atlas" })).toBe("Route /atlas");
+  });
+
+  it("appends the report's one-line description (from REPORT_DESCRIPTIONS, not restated here) when its title is recognized", () => {
+    expect(pageContextLine({ reportName: "Stale Dates" })).toBe(
+      `Report: Stale Dates — ${REPORT_DESCRIPTIONS["stale-dates"]}`,
+    );
+  });
+
+  it("falls back to the bare report name when it doesn't match a known report title", () => {
+    expect(pageContextLine({ reportName: "Some Future Report" })).toBe("Report: Some Future Report");
   });
 
   it("returns null when ctx has none of the recognized fields", () => {

@@ -12,7 +12,7 @@
 import { shortAddr } from "../../lib/format";
 import { Address } from "../Address";
 import { HEADER_OFFSET } from "../../lib/layout";
-import { addrSearchFields, type OnchainAddressRow } from "../../lib/onchainAddressesIndex";
+import { addrSearchFields, type OnchainAddressRow } from "@/lib/onchainAddressesIndex";
 import { hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 import { TypePill, DocsCell, BalanceCells } from "./OnchainAddressCells";

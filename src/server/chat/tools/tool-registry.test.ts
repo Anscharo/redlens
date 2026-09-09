@@ -17,6 +17,7 @@ import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
 import { ATLAS_TOOLS, TOOLS_BY_NAME, toolDescription, type AtlasTool } from "./tool-registry.ts";
 import { execToolDetailed } from "./llm-tools.ts";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
+import { REPORT_CHAT_TOOLS } from "../../../lib/routes.ts";
 
 function mockDb(rows: unknown[] = []) {
   const fn = Object.assign(
@@ -105,6 +106,12 @@ test("TOOLS_BY_NAME indexes every ATLAS_TOOLS entry by its own unique name", () 
   for (const t of ATLAS_TOOLS) expect(TOOLS_BY_NAME.get(t.name)).toBe(t);
 });
 
+test("REPORT_CHAT_TOOLS names only registered tools — a route wired to a renamed/removed tool would silently no-op via validReportTool", () => {
+  for (const [route, toolName] of Object.entries(REPORT_CHAT_TOOLS)) {
+    expect(TOOLS_BY_NAME.has(toolName!), `${route} -> ${toolName}`).toBe(true);
+  }
+});
+
 test("every tool is read-only/non-destructive/idempotent and closed-world", () => {
   for (const t of ATLAS_TOOLS) {
     expect(t.annotations?.readOnlyHint).toBe(true);
@@ -142,6 +149,11 @@ const ARGS: Record<string, Record<string, unknown>> = {
   atlas_report_govops_responsibilities: {},
   atlas_report_rewards: {},
   atlas_report_active_data: {},
+  atlas_report_stale_dates: {},
+  atlas_report_processes: {},
+  atlas_report_oea_assessment: {},
+  atlas_report_risk_rules: {},
+  atlas_report_addresses: {},
 };
 
 test("ARGS fixture covers exactly the registered tool set (fails loudly on drift)", () => {

@@ -42,7 +42,6 @@ import { ChatPanel } from "./ChatPanel";
 const baseContext: PageContextView = {
   short: "Ask the Sky Atlas",
   placeholder: "Ask about the Sky Atlas…",
-  label: "Sky Atlas",
   chip: "atlas",
 };
 
@@ -154,6 +153,25 @@ describe("ChatPanel signed in, empty thread", () => {
     expect(send).toHaveBeenCalledWith(
       "Trace the governance path for an Atlas amendment.",
       expect.objectContaining({ path: "/atlas", nodeId: "n1", nodeTitle: "T", nodeDocNo: "A.1" }),
+      undefined,
+    );
+  });
+
+  it("forwards every PageContext field to send() — including mscMonth — without hand-picking", async () => {
+    renderPanel({
+      context: {
+        ...baseContext,
+        path: "/radar/spark/settlements",
+        actorSlug: "spark",
+        mscMonth: "2026-08",
+      },
+    });
+    const textarea = screen.getByPlaceholderText("Ask about the Sky Atlas…");
+    fireEvent.change(textarea, { target: { value: "how much did they earn" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    expect(send).toHaveBeenCalledWith(
+      "how much did they earn",
+      { path: "/radar/spark/settlements", actorSlug: "spark", mscMonth: "2026-08" },
       undefined,
     );
   });

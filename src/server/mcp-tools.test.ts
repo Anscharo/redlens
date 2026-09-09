@@ -71,7 +71,7 @@ function makeAtlas() {
 
 const call = (name: string, args: Record<string, unknown>) => TOOLS_BY_NAME.get(name)!.handler(makeAtlas(), args);
 
-// ── Registry integrity (all 25 tools) ───────────────────────────────────────
+// ── Registry integrity (all 30 tools) ───────────────────────────────────────
 test("external_msc is MCP-only, description leads with Rule 1, and is not in ATLAS_TOOLS", () => {
   expect(EXTERNAL_TOOLS.length).toBeGreaterThan(0);
   for (const t of EXTERNAL_TOOLS) {
@@ -83,11 +83,11 @@ test("external_msc is MCP-only, description leads with Rule 1, and is not in ATL
   expect(EXTERNAL_TOOLS.find((t) => t.name === "external_msc")!.description).toMatch(/\baggregate\b/);
 });
 
-test("tool registry is well-formed: 25 unique tools, valid shapes + handlers", () => {
-  expect(ATLAS_TOOLS.length).toBe(25);
+test("tool registry is well-formed: 30 unique tools, valid shapes + handlers", () => {
+  expect(ATLAS_TOOLS.length).toBe(30);
   const names = ATLAS_TOOLS.map((t) => t.name);
   expect(new Set(names).size).toBe(names.length); // unique
-  expect(TOOLS_BY_NAME.size).toBe(25);
+  expect(TOOLS_BY_NAME.size).toBe(30);
   for (const t of ATLAS_TOOLS) {
     expect(t.name).toMatch(/^atlas_/);
     expect(typeof t.description).toBe("string");

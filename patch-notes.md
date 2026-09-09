@@ -32,6 +32,9 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
+## 2026-09-09
+- Chat and MCP now serve the Stale Dates, Atlas Processes, OEA Task Assessment, Risk Rules Assessment, and On-Chain Addresses reports directly instead of just pointing at the page
+
 ## 2026-09-08
 - Chat now stays where you scrolled while a reply arrives, with a "New messages below" button to jump to the newest text
 - Documents without subsections now show their whole text in the reader instead of a scrolling box

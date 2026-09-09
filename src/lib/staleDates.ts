@@ -5,10 +5,10 @@
 // component recomputes on every load, so it tracks both atlas updates (fresh
 // docs.json) and the actual date — no build step or stored artifact.
 
-import type { AtlasNode } from "@/types";
-import { stripMarkdownLinks } from "@/lib/atlasHelpers";
-import { toCSV } from "@/lib/csv";
-import { atlasUrl } from "@/lib/routes";
+import type { AtlasNode } from "../types";
+import { stripMarkdownLinks } from "./atlasHelpers";
+import { toCSV } from "./csv";
+import { atlasUrl } from "./routes";
 
 export type DatePrecision = "day" | "month" | "quarter";
 

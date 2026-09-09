@@ -10,12 +10,12 @@
 // just the primary. If a future build ever keys an address per-chain for
 // display too, rowKey (address|chain) already splits them cleanly.
 
-import type { AtlasNode, AddressInfo } from "@/types";
-import { toCSV } from "@/lib/csv";
-import { atlasUrl } from "@/lib/routes";
-import type { SearchField } from "@/lib/reportFilter";
-import type { AddressBalances, BalanceMap } from "@/lib/balances";
-import { formatUnits } from "@/lib/tokens";
+import type { AtlasNode, AddressInfo } from "../types";
+import { toCSV } from "./csv";
+import { atlasUrl } from "./routes";
+import type { SearchField } from "./reportFilter";
+import type { AddressBalances, BalanceMap } from "./balances";
+import { formatUnits } from "./tokens";
 import { resolveOwner } from "./addressName";
 
 // Dedicated balance columns in the report + CSV; every other fetched token

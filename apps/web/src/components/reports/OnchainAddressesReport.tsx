@@ -10,7 +10,7 @@ import {
   onchainCsvRowCount,
   addrSearchFields,
   ADDRESS_TYPES,
-} from "../../lib/onchainAddressesIndex";
+} from "@/lib/onchainAddressesIndex";
 import { filterRows, type ReportMode } from "@/lib/reportFilter";
 import type { ReportId } from "@/types";
 import { CategoryPills } from "./CategoryPills";

@@ -6,6 +6,13 @@ import { atlasDescribe } from "./tools/tools.ts";
 import { config } from "../config.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { TOOLS_BY_NAME } from "./tools/tool-registry.ts";
+import { REPORT_TITLES, REPORT_DESCRIPTIONS } from "../../lib/routes.ts";
+
+// reportName on the wire is the display title (REPORT_TITLES[id]), not the id —
+// reverse-look-up to find the matching one-line description, if any.
+const TITLE_TO_REPORT_ID: Record<string, string> = Object.fromEntries(
+  Object.entries(REPORT_TITLES).map(([id, title]) => [title, id]),
+);
 
 export interface PageContext {
   path?: string; // route, e.g. /atlas/<uuid>
@@ -72,7 +79,11 @@ export function pageContextLine(ctx?: PageContext): string | null {
     }
     return `Radar actor page for "${ctx.actorSlug}"`;
   }
-  if (ctx.reportName) return `Report: ${ctx.reportName}`;
+  if (ctx.reportName) {
+    const id = TITLE_TO_REPORT_ID[ctx.reportName];
+    const description = id ? REPORT_DESCRIPTIONS[id] : undefined;
+    return `Report: ${ctx.reportName}${description ? ` — ${description}` : ""}`;
+  }
   if (ctx.path) return `Route ${ctx.path}`;
   return null;
 }

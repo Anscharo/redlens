@@ -39,9 +39,8 @@ describe("usePageContext", () => {
   it("returns the generic Sky Atlas context on an unrecognized route", () => {
     const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/some-other-page") });
     expect(result.current).toMatchObject({
-      short: "Ask the Sky Atlas",
+      short: "Ask Atlas",
       placeholder: "Ask about the Sky Atlas…",
-      label: "Sky Atlas",
       chip: "atlas",
     });
   });
@@ -50,8 +49,9 @@ describe("usePageContext", () => {
     const { result } = renderHook(() => usePageContext(), {
       wrapper: wrap("/atlas?id=11111111-1111-1111-1111-111111111111"),
     });
-    expect(result.current.short).toBe("Ask about this document");
-    await waitFor(() => expect(result.current.short).toBe("Ask about Some Node"));
+    expect(result.current.short).toBe("Ask Atlas");
+    await waitFor(() => expect(result.current.nodeTitle).toBe("Some Node"));
+    expect(result.current.short).toBe("Ask Atlas");
     expect(result.current.nodeDocNo).toBe("A.1.1");
     expect(result.current.chip).toBe("atlas · A.1.1");
     expect(result.current.nodeId).toBe("11111111-1111-1111-1111-111111111111");
@@ -61,7 +61,7 @@ describe("usePageContext", () => {
     const { result } = renderHook(() => usePageContext(), {
       wrapper: wrap("/atlas?id=22222222-2222-2222-2222-222222222222"),
     });
-    await waitFor(() => expect(result.current.short).toBe("Ask about this document"));
+    await waitFor(() => expect(result.current.short).toBe("Ask Atlas"));
     expect(result.current.chip).toBe("atlas");
   });
 
@@ -70,20 +70,20 @@ describe("usePageContext", () => {
     const { result } = renderHook(() => usePageContext(), {
       wrapper: wrap("/atlas?id=11111111-1111-1111-1111-111111111111"),
     });
-    await waitFor(() => expect(result.current.short).toBe("Ask about this document"));
+    await waitFor(() => expect(result.current.short).toBe("Ask Atlas"));
   });
 
   it("derives a radar actor context from the slug, deslugging it for display", () => {
     const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/radar/prime-agent-foo") });
     expect(result.current.actorSlug).toBe("prime-agent-foo");
-    expect(result.current.short).toBe("Ask about Prime Agent Foo");
+    expect(result.current.short).toBe("Ask Atlas");
     expect(result.current.chip).toBe("radar · Prime Agent Foo");
   });
 
   it("names the nested settlements page in chat context", () => {
     const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/radar/spark/settlements") });
     expect(result.current.actorSlug).toBe("spark");
-    expect(result.current.short).toBe("Ask about Spark's monthly settlement");
+    expect(result.current.short).toBe("Ask Atlas");
     expect(result.current.chip).toBe("radar · settlement");
   });
 
@@ -94,17 +94,23 @@ describe("usePageContext", () => {
     expect(result.current.reportName).toBe("Operational Facilitator Responsibilities");
     expect(result.current.reportTool).toBeTruthy();
     expect(result.current.reportFilter).toBe("budget");
-    expect(result.current.short).toBe("Ask about the Operational Facilitator Responsibilities report");
-    expect(result.current.chip).toBe("report");
+    expect(result.current.short).toBe("Ask Atlas");
+    expect(result.current.chip).toBe("Operational Facilitator Responsibilities");
   });
 
   it("derives name-aware context for reports without a backing tool", () => {
-    const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/reports/stale-dates") });
-    expect(result.current.reportName).toBe("Stale Dates");
+    const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/reports/mod-frequency") });
+    expect(result.current.reportName).toBe("Modification Frequency");
     expect(result.current.reportTool).toBeUndefined();
     expect(result.current.reportFilter).toBeUndefined();
-    expect(result.current.short).toBe("Ask about the Stale Dates report");
-    expect(result.current.chip).toBe("report");
+    expect(result.current.short).toBe("Ask Atlas");
+    expect(result.current.chip).toBe("Modification Frequency");
+  });
+
+  it("recognizes Stale Dates as a tool-backed report", () => {
+    const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/reports/stale-dates") });
+    expect(result.current.reportName).toBe("Stale Dates");
+    expect(result.current.reportTool).toBe("atlas_report_stale_dates");
   });
 
   it("names CrossView sub-pages after the parent report title", () => {

@@ -19,6 +19,11 @@ import {
   buildGovOpsResponsibilitiesReport,
   buildRewardsReport,
   buildActiveDataReport,
+  buildStaleDatesReportTool,
+  buildProcessesReport,
+  buildOeaAssessmentReport,
+  buildRiskRulesReport,
+  buildOnchainAddressesReport,
 } from "../../reports/index.ts";
 import { atlasFirstSeen } from "../../history/first-seen.ts";
 
@@ -551,6 +556,60 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "only with include_provenance:true.",
     shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
     handler: (ix, a) => buildActiveDataReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
+  },
+  {
+    name: "atlas_report_stale_dates",
+    annotations: readOnlyAtlasTool("Atlas Report Stale Dates"),
+    description:
+      "Curated report (not raw graph calls) — SAbR's OWN computed report, not atlas text: every future-tense dated claim " +
+      "in atlas prose checked against today, bucketed stale (date passed) / due_soon (within a week) / upcoming. Each row: " +
+      "the doc, the matched date text, its ISO boundary date, and days until/since stale. The Atlas itself never defines " +
+      "\"stale\" — this is SAbR's own extraction; say so if asked what the concept means.",
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildStaleDatesReportTool(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
+  },
+  {
+    name: "atlas_report_processes",
+    annotations: readOnlyAtlasTool("Atlas Report Processes"),
+    description:
+      "Curated report (not raw graph calls) — the hand-curated inventory of governance, settlement, lifecycle, and " +
+      "operational processes (public/processes.json), joined against live doc titles/doc_nos. Each row: the doc, its " +
+      "category, whether it's a child-document or inline process, active/deferred-stub status, and a step count.",
+    shape: { filter: FILTER_PARAM },
+    handler: (ix, a) => buildProcessesReport(ix, { filter: filterArg(a) }),
+  },
+  {
+    name: "atlas_report_oea_assessment",
+    annotations: readOnlyAtlasTool("Atlas Report OEA Assessment"),
+    description:
+      "Curated report (not raw graph calls) — every task the Operational Executor Agent performs, rated weak/mid/strong " +
+      "for definitional precision and for incentives/penalties. AI-drafted against a fixed rubric, human-reviewed. Each " +
+      "row: the task, its rating + reasoning, and freshness status (fresh/stale/unassessed) against the live atlas text.",
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildOeaAssessmentReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
+  },
+  {
+    name: "atlas_report_risk_rules",
+    annotations: readOnlyAtlasTool("Atlas Report Risk Rules"),
+    description:
+      "Curated report (not raw graph calls) — every atlas paragraph defining a risk rule across peg maintenance, " +
+      "allocation risk, and smart contract security, scored 1-5 for precision and weak/mid/strong for penalties and " +
+      "incentives. AI-drafted against a fixed rubric, human-reviewed. A rating is flagged stale the moment the atlas " +
+      "text it describes changes. Each row: the doc, domain(s), rating + reasoning, and freshness status.",
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildRiskRulesReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
+  },
+  {
+    name: "atlas_report_addresses",
+    annotations: readOnlyAtlasTool("Atlas Report On-Chain Addresses"),
+    description:
+      "Curated report (not raw graph calls) — every on-chain address the Atlas mentions in one call: chain, type " +
+      "(EOA/Multisig/Token/Sky Internal Contract/other), CHAIN_LOG name, associated owner, roles, and cached token " +
+      "balances (ETH/USDS/SKY plus others) from the last refresh — never a live chain query. Each row also lists every " +
+      "mentioning atlas doc. For one already-known address prefer atlas_get_address; use this for 'every address of " +
+      "type X' / 'which addresses does agent Y hold' questions.",
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildOnchainAddressesReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
 ];
 
