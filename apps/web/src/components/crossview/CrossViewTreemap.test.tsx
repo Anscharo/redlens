@@ -28,10 +28,14 @@ const TREE: ChunkNode[] = [
   { title: "Root B", docs: 10 }, // no id — should render with no reader link
 ];
 
+function rectFor(title: string): HTMLElement {
+  return screen.getByText(title).closest("div") as HTMLElement;
+}
+
 describe("CrossViewTreemap", () => {
-  it("shows the default hint in the info panel before any hover", () => {
+  it("shows the default hint in the info panel before any click", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
-    expect(screen.getByText(/Hover a square for details/)).toBeInTheDocument();
+    expect(screen.getByText(/Click a square for details/)).toBeInTheDocument();
   });
 
   it("renders labels for large-enough rects", () => {
@@ -40,10 +44,9 @@ describe("CrossViewTreemap", () => {
     expect(screen.getByText("Root B")).toBeInTheDocument();
   });
 
-  it("fills the info panel with breadcrumb, title, doc count, and reader link on hover of a leaf with an id", () => {
+  it("fills the info panel with breadcrumb, title, doc count, and reader link on click of a leaf with an id", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
-    const child = screen.getByText("Child A1").closest("div") as HTMLElement;
-    fireEvent.mouseOver(child);
+    fireEvent.click(rectFor("Child A1"));
 
     const panel = within(screen.getByRole("complementary"));
     expect(panel.getByText("Root A")).toBeInTheDocument(); // breadcrumb = ancestors only, excluding self
@@ -53,28 +56,36 @@ describe("CrossViewTreemap", () => {
     expect(link).toHaveAttribute("href", atlasHref("child-a1"));
   });
 
-  it("shows sub-chunk count for a hovered rect with children, and no reader link when the rect has no id", () => {
+  it("keeps the selected details (and reader link) after the pointer leaves the map", () => {
+    render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
+    fireEvent.click(rectFor("Child A1"));
+    const outer = screen.getByRole("img", { name: /Treemap of Atlas chunks/ });
+    fireEvent.mouseLeave(outer);
+    const panel = within(screen.getByRole("complementary"));
+    expect(panel.getByRole("link", { name: /open in reader/ })).toHaveAttribute("href", atlasHref("child-a1"));
+  });
+
+  it("toggles the selected rect off on a second click", () => {
+    render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
+    const rootA = rectFor("Root A");
+    fireEvent.click(rootA);
+    expect(rootA).toHaveAttribute("data-state", "active");
+    expect(screen.queryByText(/Click a square for details/)).not.toBeInTheDocument();
+
+    fireEvent.click(rootA);
+    expect(rootA).toHaveAttribute("data-state", "inactive");
+    expect(screen.getByText(/Click a square for details/)).toBeInTheDocument();
+  });
+
+  it("shows sub-chunk count for a selected rect with children, and no reader link when the rect has no id", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
     const panel = within(screen.getByRole("complementary"));
-    const rootA = screen.getByText("Root A").closest("div") as HTMLElement;
-    fireEvent.mouseOver(rootA);
+    fireEvent.click(rectFor("Root A"));
     expect(panel.getByText(/2 sub-chunks/)).toBeInTheDocument();
 
-    const rootB = screen.getByText("Root B").closest("div") as HTMLElement;
-    fireEvent.mouseOver(rootB);
+    fireEvent.click(rectFor("Root B"));
     expect(panel.queryByRole("link", { name: /open in reader/ })).not.toBeInTheDocument();
     // Root B is a top-level rect — empty ancestor path falls back to "Atlas".
     expect(panel.getByText("Atlas")).toBeInTheDocument();
-  });
-
-  it("clears the hovered rect and reverts to the default hint on mouse leave", () => {
-    render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
-    const rootA = screen.getByText("Root A").closest("div") as HTMLElement;
-    fireEvent.mouseOver(rootA);
-    expect(screen.queryByText(/Hover a square for details/)).not.toBeInTheDocument();
-
-    const outer = screen.getByRole("img", { name: /Treemap of Atlas chunks/ });
-    fireEvent.mouseLeave(outer);
-    expect(screen.getByText(/Hover a square for details/)).toBeInTheDocument();
   });
 });
