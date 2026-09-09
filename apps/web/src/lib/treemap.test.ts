@@ -51,4 +51,62 @@ describe("buildTreemap", () => {
     const rects = buildTreemap(tree, { minArea: 0, maxDepth: 1, pad: 0, padTop: 0 });
     expect(rects[0].children).toHaveLength(0);
   });
+
+  it("omits nodes at or below minShare of atlasTotal at every depth", () => {
+    const mixed: ChunkNode[] = [
+      {
+        title: "Big",
+        docs: 90,
+        children: [
+          { title: "Big.major", docs: 80 },
+          { title: "Tiny nested", docs: 2 }, // 2% — not more than 2%
+        ],
+      },
+      { title: "Medium", docs: 8 },
+      { title: "Tiny root", docs: 2 },
+    ];
+    const rects = buildTreemap(mixed, {
+      minArea: 0,
+      maxDepth: 3,
+      pad: 0,
+      padTop: 0,
+      minShare: 0.02,
+      atlasTotal: 100,
+    });
+    expect(rects.map((r) => r.node.title)).toEqual(["Big", "Medium"]);
+    expect(rects[0].children.map((c) => c.node.title)).toEqual(["Big.major"]);
+  });
+
+  it("keeps a nested node just above minShare of the Atlas, not of its parent", () => {
+    const mixed: ChunkNode[] = [
+      {
+        title: "Mid",
+        docs: 40,
+        children: [
+          { title: "Mid.major", docs: 37 },
+          { title: "Small of parent", docs: 3 }, // 3% of Atlas (keep), 7.5% of parent
+        ],
+      },
+      {
+        title: "Other",
+        docs: 40,
+        children: [
+          { title: "Other.major", docs: 39 },
+          { title: "Tiny of parent", docs: 1 }, // 1% of Atlas (drop) even though 2.5% of parent
+        ],
+      },
+      { title: "Tiny root", docs: 20 },
+    ];
+    const rects = buildTreemap(mixed, {
+      minArea: 0,
+      maxDepth: 3,
+      pad: 0,
+      padTop: 0,
+      minShare: 0.02,
+      atlasTotal: 100,
+    });
+    expect(rects.map((r) => r.node.title)).toEqual(["Mid", "Other", "Tiny root"]);
+    expect(rects[0].children.map((c) => c.node.title)).toEqual(["Mid.major", "Small of parent"]);
+    expect(rects[1].children.map((c) => c.node.title)).toEqual(["Other.major"]);
+  });
 });

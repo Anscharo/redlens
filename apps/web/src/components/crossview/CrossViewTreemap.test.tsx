@@ -23,9 +23,11 @@ const TREE: ChunkNode[] = [
     children: [
       { id: "child-a1", doc_no: "A.1.1", title: "Child A1", docs: 60 },
       { id: "child-a2", doc_no: "A.1.2", title: "Child A2", docs: 30 },
+      { id: "child-tiny", doc_no: "A.1.3", title: "Nested Tiny", docs: 1 }, // 1% of Atlas — omitted
     ],
   },
-  { title: "Root B", docs: 10 }, // no id — should render with no reader link
+  { title: "Root B", docs: 8 },
+  { title: "Root Tiny", docs: 2 }, // 2% — not more than 2%, omitted
 ];
 
 function rectFor(title: string): HTMLElement {
@@ -38,10 +40,17 @@ describe("CrossViewTreemap", () => {
     expect(screen.getByText(/Click a square for details/)).toBeInTheDocument();
   });
 
-  it("renders labels for large-enough rects", () => {
+  it("renders labels for large-enough rects that pass the 2% Atlas floor", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
     expect(screen.getByText("Root A")).toBeInTheDocument();
     expect(screen.getByText("Root B")).toBeInTheDocument();
+    expect(screen.queryByText("Root Tiny")).not.toBeInTheDocument();
+    expect(screen.queryByText("Nested Tiny")).not.toBeInTheDocument();
+  });
+
+  it("caps the map at 640px", () => {
+    render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
+    expect(screen.getByRole("img", { name: /Treemap of Atlas chunks/ })).toHaveStyle({ maxWidth: "640px" });
   });
 
   it("fills the info panel with breadcrumb, title, doc count, and reader link on click of a leaf with an id", () => {
@@ -81,7 +90,7 @@ describe("CrossViewTreemap", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
     const panel = within(screen.getByRole("complementary"));
     fireEvent.click(rectFor("Root A"));
-    expect(panel.getByText(/2 sub-chunks/)).toBeInTheDocument();
+    expect(panel.getByText(/3 sub-chunks/)).toBeInTheDocument();
 
     fireEvent.click(rectFor("Root B"));
     expect(panel.queryByRole("link", { name: /open in reader/ })).not.toBeInTheDocument();

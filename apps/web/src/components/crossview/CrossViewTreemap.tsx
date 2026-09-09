@@ -19,6 +19,9 @@ import { atlasHref } from "@/lib/routes";
 // rects keep the existing nested-div event model (stopPropagation so the
 // deepest rect claims the click).
 const FILL_BY_DEPTH = [0.22, 0.34, 0.48, 0.62];
+const MAP_MAX_PX = 640;
+/** Chunks at or below this share of the Atlas are omitted at every depth. */
+const MIN_SHARE = 0.02;
 
 interface UnitBox {
   x: number;
@@ -110,14 +113,14 @@ function InfoPanel({ rect, atlasTotal }: { rect: TreemapRect | null; atlasTotal:
 export function CrossViewTreemap({ tree, atlasTotal }: { tree: ChunkNode[]; atlasTotal: number }) {
   const [selected, setSelected] = useState<TreemapRect | null>(null);
   const rects = useMemo(
-    () => buildTreemap(tree, { minArea: 14, maxDepth: 4, pad: 0.6, padTop: 5 }),
-    [tree],
+    () => buildTreemap(tree, { minArea: 14, maxDepth: 4, pad: 0.6, padTop: 5, minShare: MIN_SHARE, atlasTotal }),
+    [tree, atlasTotal],
   );
   return (
     <div>
       <div
         className="relative aspect-square w-full"
-        style={{ background: "var(--surface)", borderRadius: 4 }}
+        style={{ maxWidth: MAP_MAX_PX, background: "var(--surface)", borderRadius: 4 }}
         role="img"
         aria-label="Treemap of Atlas chunks sized by document count"
       >

@@ -77,11 +77,22 @@ export interface TreemapOptions {
   pad: number;
   /** Extra top inset reserving space for the rect's own label. */
   padTop: number;
+  /** Omit nodes whose docs / atlasTotal is not strictly greater than this, at every depth. */
+  minShare?: number;
+  /** Denominator for minShare — the Atlas total, not the sibling sum. */
+  atlasTotal?: number;
+}
+
+function keepNode(n: ChunkNode, opts: TreemapOptions): boolean {
+  if (n.docs <= 0) return false;
+  if (opts.minShare == null || opts.minShare <= 0) return true;
+  const total = opts.atlasTotal ?? 0;
+  return total > 0 && n.docs / total > opts.minShare;
 }
 
 export function buildTreemap(roots: ChunkNode[], opts: TreemapOptions): TreemapRect[] {
   const layout = (nodes: ChunkNode[], box: Box, depth: number, path: ChunkNode[]): TreemapRect[] => {
-    const sorted = [...nodes].sort((a, b) => b.docs - a.docs).filter((n) => n.docs > 0);
+    const sorted = [...nodes].filter((n) => keepNode(n, opts)).sort((a, b) => b.docs - a.docs);
     const total = sorted.reduce((s, n) => s + n.docs, 0);
     const boxArea = box.w * box.h;
     if (total === 0 || boxArea <= 0) return [];
