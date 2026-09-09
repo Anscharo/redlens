@@ -232,7 +232,7 @@ export function JuniorPane({
           ✕
         </button>
       </div>
-      <div ref={scrollerRef} className="overflow-y-auto flex-1">
+      <div ref={scrollerRef} className="junior-scroll overflow-y-auto flex-1">
         <div ref={contentRef} className="mx-auto px-3 py-2">
           <AtlasActionsContext.Provider value={ctxValue}>{items}</AtlasActionsContext.Provider>
         </div>
