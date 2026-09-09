@@ -80,9 +80,17 @@ describe("CrossViewTreemap", () => {
     expect(screen.getByText("Supply Side")).toBeInTheDocument();
   });
 
-  it("caps the map at 640px", () => {
+  it("caps the map at 540px", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
-    expect(screen.getByRole("img", { name: /Treemap of Atlas chunks/ })).toHaveStyle({ maxWidth: "640px" });
+    expect(screen.getByRole("img", { name: /Treemap of Atlas chunks/ })).toHaveStyle({ maxWidth: "540px" });
+  });
+
+  it("sits the details beside the map from 650px of available width, stacked below that", () => {
+    render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
+    const map = screen.getByRole("img", { name: /Treemap of Atlas chunks/ });
+    const row = map.parentElement as HTMLElement;
+    expect(row.className).toMatch(/@min-\[650px\]:flex-row/);
+    expect(row).toContainElement(screen.getByRole("complementary"));
   });
 
   it("fills the info panel with breadcrumb, title, doc count, and reader link on click of a leaf with an id", () => {

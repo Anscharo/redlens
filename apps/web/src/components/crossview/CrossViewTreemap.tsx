@@ -19,7 +19,8 @@ import { atlasHref } from "@/lib/routes";
 // rects keep the existing nested-div event model (stopPropagation so the
 // deepest rect claims the click).
 const FILL_BY_DEPTH = [0.22, 0.34, 0.48, 0.62];
-const MAP_MAX_PX = 640;
+/** Square cap. Details sit to the right from 650px of available width; stacked below. */
+const MAP_MAX_PX = 540;
 /** Nested chunks below this share of the Atlas are omitted. Top-level always stays. */
 const MIN_SHARE = 0.02;
 /** Sky Primitives subsections sit at depth 4; their ≥2% children reach depth 6. */
@@ -119,26 +120,28 @@ export function CrossViewTreemap({ tree, atlasTotal }: { tree: ChunkNode[]; atla
     [tree, atlasTotal],
   );
   return (
-    <div>
-      <div
-        className="relative aspect-square w-full"
-        style={{ maxWidth: MAP_MAX_PX, background: "var(--surface)", borderRadius: 4 }}
-        role="img"
-        aria-label="Treemap of Atlas chunks sized by document count"
-      >
-        {rects.map((r) => (
-          <Rect
-            key={r.node.id ?? r.node.title}
-            r={r}
-            parent={{ x: 0, y: 0, w: 100, h: 100 }}
-            selected={selected}
-            onSelect={(next) => setSelected((cur) => (cur === next ? null : next))}
-          />
-        ))}
+    <div className="@container">
+      <div className="flex flex-col gap-4 @min-[650px]:flex-row @min-[650px]:items-start">
+        <div
+          className="relative aspect-square w-full shrink-0"
+          style={{ maxWidth: MAP_MAX_PX, background: "var(--surface)", borderRadius: 4 }}
+          role="img"
+          aria-label="Treemap of Atlas chunks sized by document count"
+        >
+          {rects.map((r) => (
+            <Rect
+              key={r.node.id ?? r.node.title}
+              r={r}
+              parent={{ x: 0, y: 0, w: 100, h: 100 }}
+              selected={selected}
+              onSelect={(next) => setSelected((cur) => (cur === next ? null : next))}
+            />
+          ))}
+        </div>
+        <aside className="min-h-[5.5rem] min-w-0 flex-1 sticky top-16 pt-1">
+          <InfoPanel rect={selected} atlasTotal={atlasTotal} />
+        </aside>
       </div>
-      <aside className="mt-3 min-h-[5.5rem]">
-        <InfoPanel rect={selected} atlasTotal={atlasTotal} />
-      </aside>
     </div>
   );
 }
