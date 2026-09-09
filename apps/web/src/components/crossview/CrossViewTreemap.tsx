@@ -20,14 +20,11 @@ import { atlasHref } from "@/lib/routes";
 // deepest rect claims the click).
 const FILL_BY_DEPTH = [0.22, 0.34, 0.48, 0.62];
 /** Square cap. Details sit to the right from 650px of available width; stacked below. */
-const MAP_MAX_PX = 540;
+const MAP_MAX_PX = 580;
 /** Nested chunks below this share of the Atlas are omitted. Top-level always stays. */
 const MIN_SHARE = 0.02;
-/** Past six nestings (depth ≥ 6), the floor rises so instance-level slices stay off the map. */
-const DEEP_MIN_SHARE = 0.04;
-const DEEP_SHARE_FROM_DEPTH = 6;
-/** Sky Primitives subsections sit at depth 4; their ≥2%/≥4% children reach depth 6. */
-const MAX_DEPTH = 8;
+/** Six levels: depth 0 (top-level groups) through depth 5. */
+const MAX_DEPTH = 6;
 
 interface UnitBox {
   x: number;
@@ -104,7 +101,7 @@ function InfoPanel({ rect, atlasTotal }: { rect: TreemapRect | null; atlasTotal:
         {n.title}
       </p>
       <p className="mono text-xs mt-2" style={{ color: "var(--tan-2)" }}>
-        {n.docs.toLocaleString()} docs · {pct}% of the Atlas
+        {n.docs.toLocaleString()} docs · {pct}% of the Atlas · level {rect.depth + 1}
         {n.children?.length ? ` · ${n.children.length} sub-chunks` : ""}
       </p>
       {n.id && (
@@ -126,8 +123,6 @@ export function CrossViewTreemap({ tree, atlasTotal }: { tree: ChunkNode[]; atla
         pad: 0.6,
         padTop: 5,
         minShare: MIN_SHARE,
-        deepMinShare: DEEP_MIN_SHARE,
-        deepShareFromDepth: DEEP_SHARE_FROM_DEPTH,
         atlasTotal,
       }),
     [tree, atlasTotal],

@@ -80,7 +80,7 @@ describe("CrossViewTreemap", () => {
     expect(screen.getByText("Supply Side")).toBeInTheDocument();
   });
 
-  it("omits chunks past six levels that hold under 4% of the Atlas", () => {
+  it("stops at six levels even when a seventh would pass the 2% floor", () => {
     const nest = (title: string, docs: number, children?: ChunkNode[]): ChunkNode => ({
       title,
       docs,
@@ -93,8 +93,7 @@ describe("CrossViewTreemap", () => {
             nest("L3", 18, [
               nest("L4", 15, [
                 nest("L5", 14, [
-                  nest("Deep Enough", 8),
-                  nest("Too Small Deep", 3),
+                  nest("Level 7", 8),
                 ]),
               ]),
             ]),
@@ -103,13 +102,13 @@ describe("CrossViewTreemap", () => {
       ]),
     ];
     render(<CrossViewTreemap tree={tree} atlasTotal={100} />, { wrapper: wrap() });
-    expect(screen.getByText("Deep Enough")).toBeInTheDocument();
-    expect(screen.queryByText("Too Small Deep")).not.toBeInTheDocument();
+    expect(screen.getByText("L5")).toBeInTheDocument();
+    expect(screen.queryByText("Level 7")).not.toBeInTheDocument();
   });
 
-  it("caps the map at 540px", () => {
+  it("caps the map at 580px", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
-    expect(screen.getByRole("img", { name: /Treemap of Atlas chunks/ })).toHaveStyle({ maxWidth: "540px" });
+    expect(screen.getByRole("img", { name: /Treemap of Atlas chunks/ })).toHaveStyle({ maxWidth: "580px" });
   });
 
   it("sits the details beside the map from 650px of available width, stacked below that", () => {
@@ -128,6 +127,7 @@ describe("CrossViewTreemap", () => {
     expect(panel.getByText("Root A")).toBeInTheDocument(); // breadcrumb = ancestors only, excluding self
     expect(panel.getByText(/A\.1\.1/)).toBeInTheDocument();
     expect(panel.getByText(/60% of the Atlas/)).toBeInTheDocument();
+    expect(panel.getByText(/level 2/)).toBeInTheDocument();
     const link = panel.getByRole("link", { name: /open in reader/ });
     expect(link).toHaveAttribute("href", atlasHref("child-a1"));
   });
@@ -158,6 +158,7 @@ describe("CrossViewTreemap", () => {
     const panel = within(screen.getByRole("complementary"));
     fireEvent.click(rectFor("Root A"));
     expect(panel.getByText(/3 sub-chunks/)).toBeInTheDocument();
+    expect(panel.getByText(/level 1/)).toBeInTheDocument();
 
     fireEvent.click(rectFor("Root B"));
     expect(panel.queryByRole("link", { name: /open in reader/ })).not.toBeInTheDocument();
