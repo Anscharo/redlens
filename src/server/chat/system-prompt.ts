@@ -6,6 +6,13 @@ import { atlasDescribe } from "./tools/tools.ts";
 import { config } from "../config.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { TOOLS_BY_NAME } from "./tools/tool-registry.ts";
+import { REPORT_TITLES, REPORT_DESCRIPTIONS } from "../../lib/routes.ts";
+
+// reportName on the wire is the display title (REPORT_TITLES[id]), not the id —
+// reverse-look-up to find the matching one-line description, if any.
+const TITLE_TO_REPORT_ID: Record<string, string> = Object.fromEntries(
+  Object.entries(REPORT_TITLES).map(([id, title]) => [title, id]),
+);
 
 export interface PageContext {
   path?: string; // route, e.g. /atlas/<uuid>
@@ -72,7 +79,11 @@ export function pageContextLine(ctx?: PageContext): string | null {
     }
     return `Radar actor page for "${ctx.actorSlug}"`;
   }
-  if (ctx.reportName) return `Report: ${ctx.reportName}`;
+  if (ctx.reportName) {
+    const id = TITLE_TO_REPORT_ID[ctx.reportName];
+    const description = id ? REPORT_DESCRIPTIONS[id] : undefined;
+    return `Report: ${ctx.reportName}${description ? ` — ${description}` : ""}`;
+  }
   if (ctx.path) return `Route ${ctx.path}`;
   return null;
 }
@@ -163,11 +174,11 @@ export function buildSystemPrompt(
     "- `atlas_get` — fetch full node(s) by UUID or doc_no (with ancestor chain). Use after a search to read a doc in full.",
     "- `atlas_entities` / `atlas_entity` / `atlas_entity_params` — resolve a name to a slug with `atlas_entities`, then read what an actor ACTUALLY HAS or its configured values (an agent's instances, a multisig's signer count and threshold, an instance's rate or status). `atlas_entity` also returns an `addresses` block: every on-chain address the actor holds plus those held by the entities it is linked to, each with the owner and its provenance doc_nos. A document existing FOR an entity (a scaffold hub) does NOT mean the entity has that thing populated: read the instance's real params/status, never infer it from a doc title.",
     "- `atlas_get_address` — resolve an on-chain address (0x… / base58) to its atlas entity, roles, and chain-state. This is the REVERSE direction only: it takes an address you already have.",
-    "- Addresses hang off the entity that HOLDS them, so an actor's own edges expose only its own address, and `atlas_query` returns documents — never addresses. For every address connected to an actor — the multisigs it signs, the instances it runs — call `atlas_entity` and read its `addresses` block, or `atlas_report_multisigs` for every multisig at once, or `atlas_traverse` (which accepts an entity slug and returns address nodes). Never answer an address question with an entity name that has no address attached.",
+    "- Addresses hang off the entity that HOLDS them, so an actor's own edges expose only its own address, and `atlas_query` returns documents — never addresses. For every address connected to an actor — the multisigs it signs, the instances it runs — call `atlas_entity` and read its `addresses` block, or `atlas_report_multisigs` for every multisig at once, or `atlas_traverse` (which accepts an entity slug and returns address nodes). For the full inventory of every address the atlas mentions (type, owner, cached balances) call `atlas_report_addresses`; for one already-known address prefer `atlas_get_address`. Never answer an address question with an entity name that has no address attached.",
     "- `atlas_filter` — complete class listing by exact `title`, `title_prefix`, type, `doc_no_pattern`, ancestor, or depth. Ranked search is not a census: use this (or class-mode `atlas_first_seen`) for oldest / all / how many.",
     "- `atlas_edges` — enumerate all graph edges of a type or all edges from/to an entity slug; use for exhaustive relationship maps.",
     "- `atlas_history_stats` — summarize Atlas history by month/quarter; use for trend, timeline, and coverage-window questions.",
-    "- `atlas_report_*` — curated, one-call rollups too big to assemble by hand (each documents its own return shape). `atlas_report_multisigs`: every multisig with its chain and on-chain address, threshold, signer orgs + counts, modification authorities, purpose, provenance — multisig, address-inventory, and security-review questions. `atlas_report_primitive_matrix`: the agent × primitive-subtype activation matrix (engaged = Active|Completed vs Inactive), classing each primitive universal/optional/dormant — missing_agents means Inactive (present but not engaged), not absent — primitive-structure questions. `atlas_report_facilitator_responsibilities`: every Operational/Core Facilitator responsibility grouped by category with duty text + attribution — 'what is a Facilitator responsible for'. `atlas_report_govops_responsibilities`: the GovOps counterpart — 'what is GovOps responsible for'. `atlas_report_rewards`: the per-agent integrator reward rollup (operational chain plus Distribution Reward / Integration Boost primitives with each Instance/Invocation's status, reward code/partner, address, chain, cadence) — reward-program / integrator questions. `atlas_report_active_data`: one row per Active Data doc (controller, resolved Responsible Party with evidence, prime→executor→facilitator/govops chain, approving Facilitator, update process) — 'who maintains / is responsible for this Active Data'.",
+    "- `atlas_report_*` — curated, one-call rollups too big to assemble by hand (each documents its own return shape). `atlas_report_multisigs`: every multisig with its chain and on-chain address, threshold, signer orgs + counts, modification authorities, purpose, provenance — multisig and security-review questions. `atlas_report_primitive_matrix`: the agent × primitive-subtype activation matrix (engaged = Active|Completed vs Inactive), classing each primitive universal/optional/dormant — missing_agents means Inactive (present but not engaged), not absent — primitive-structure questions. `atlas_report_facilitator_responsibilities`: every Operational/Core Facilitator responsibility grouped by category with duty text + attribution — 'what is a Facilitator responsible for'. `atlas_report_govops_responsibilities`: the GovOps counterpart — 'what is GovOps responsible for'. `atlas_report_rewards`: the per-agent integrator reward rollup (operational chain plus Distribution Reward / Integration Boost primitives with each Instance/Invocation's status, reward code/partner, address, chain, cadence) — reward-program / integrator questions. `atlas_report_active_data`: one row per Active Data doc (controller, resolved Responsible Party with evidence, prime→executor→facilitator/govops chain, approving Facilitator, update process) — 'who maintains / is responsible for this Active Data'. `atlas_report_stale_dates`: SAbR's own dated-claim scan (stale / due-soon / upcoming) — not an atlas concept. `atlas_report_processes`: the curated governance/settlement/lifecycle/ops process inventory. `atlas_report_oea_assessment`: every Operational Executor Agent task rated for precision and incentives. `atlas_report_risk_rules`: every atlas risk-rule paragraph scored for precision and enforcement. `atlas_report_addresses`: every on-chain address the atlas mentions (chain, type, CHAIN_LOG name, owner, cached balances) — full inventory; for one already-known address prefer atlas_get_address.",
     "- `atlas_first_seen` — bulk 'since when' / oldest first-seen, derived from atlas_history. For a named class pass `title` / `type` / … (not ids from search). Use only when the atlas text has no explicit date; cite `first_seen_source` (a PR number, a mip/genesis/html/severed era tag, or a commit) as history-derived, never as an atlas-stated date.",
     "- `atlas_describe` — re-inspect the live schema (types, edge kinds, entity slugs) if you need exact vocabulary for a filter.",
     "- `export_findings` — hand the user a downloadable file. Call it ONLY when the user explicitly asks to export, save, or download what you found: use `format: \"markdown\"` for prose and `format: \"csv\"` (with `columns` + `rows`) for tabular data. Answer the question first; then, if asked, export. After calling it, tell the user their file is downloading.",

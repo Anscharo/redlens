@@ -10,7 +10,7 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 } as unknown as typeof ResizeObserver;
 
-import type { StaleDatesReport as StaleDatesReportData, DateClaim } from "../../lib/staleDates";
+import type { StaleDatesReport as StaleDatesReportData, DateClaim } from "@/lib/staleDates";
 
 function claim(over: Partial<DateClaim>): DateClaim {
   return {
@@ -51,8 +51,8 @@ const reportFixture: StaleDatesReportData = {
 let buildImpl = () => reportFixture;
 
 vi.mock("../../lib/docs", () => ({ loadDocs: () => Promise.resolve({}) }));
-vi.mock("../../lib/staleDates", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/staleDates")>();
+vi.mock("@/lib/staleDates", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/staleDates")>();
   return {
     ...actual,
     buildStaleDatesReport: () => buildImpl(),

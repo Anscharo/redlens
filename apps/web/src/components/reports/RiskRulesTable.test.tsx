@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { AtlasNode } from "@/types";
-import type { RiskRow } from "../../lib/riskAssessmentIndex";
+import type { RiskRow } from "@/lib/riskAssessmentIndex";
 import { EMPTY_QUERY } from "@/lib/reportFilter";
 
 vi.mock("../NodeContent", () => ({

@@ -14,7 +14,7 @@ import { usePrefs } from "./usePrefs";
 import { useStickToBottom } from "./useStickToBottom";
 import { track } from "../../lib/analytics";
 import { ratioPct } from "../../lib/formatTokens";
-import type { PageContextView } from "./pageContext";
+import { toPageContext, type PageContextView } from "./pageContext";
 import type { Placement } from "./types";
 import type { ChatSession } from "./useChatSession";
 
@@ -71,20 +71,7 @@ export function ChatPanel({
     // The reader asked for this turn, so follow it down even if they had
     // scrolled up — their own send is the one movement they expect.
     stick();
-    const { rateLimited: rl } = await session.send(
-      trimmed,
-      {
-        path: context.path,
-        nodeId: context.nodeId,
-        nodeTitle: context.nodeTitle,
-        nodeDocNo: context.nodeDocNo,
-        actorSlug: context.actorSlug,
-        reportName: context.reportName,
-        reportTool: context.reportTool,
-        reportFilter: context.reportFilter,
-      },
-      prefs.delivery ?? undefined,
-    );
+    const { rateLimited: rl } = await session.send(trimmed, toPageContext(context), prefs.delivery ?? undefined);
     // send() (useChatStream) always sets `kind` for a real 429; this fallback
     // only guards a caller that omits it (defense in depth, not the normal path).
     session.setRateLimit(rl ? { ...rl, kind: rl.kind ?? (rl.resetsAt ? "token" : "commons") } : null);

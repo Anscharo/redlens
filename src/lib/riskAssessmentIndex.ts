@@ -6,13 +6,13 @@
 // under it — never silently reused. Triage freshness itself is enforced
 // script-side (triage entries store only the hash, not the quote).
 
-import { fetchJson } from "@/lib/verify";
-import { toCSV } from "@/lib/csv";
-import { atlasUrl } from "@/lib/routes";
-import type { Rating } from "@/lib/oeaAssessment";
-import { normalizeAssessedText } from "@/lib/oeaTasks";
-import { RISK_DOMAIN_LABELS, type RiskCandidate, type RiskDomain } from "@/lib/riskRules";
-import type { Preciseness, RiskAssessmentArtifact, RiskAssessmentEntry, RiskTriageEntry } from "@/lib/riskAssessment";
+import { toCSV } from "./csv";
+import { atlasUrl } from "./routes";
+import type { Rating } from "./oeaAssessment";
+import { normalizeAssessedText } from "./oeaTasks";
+import { RISK_DOMAIN_LABELS, type RiskCandidate, type RiskDomain } from "./riskRules";
+import type { Preciseness, RiskAssessmentArtifact, RiskAssessmentEntry, RiskTriageEntry } from "./riskAssessment";
+import type { SearchField } from "./reportFilter";
 
 export type RiskRowStatus = "fresh" | "stale" | "unassessed";
 
@@ -27,21 +27,6 @@ export interface RiskJoin {
   rows: RiskRow[]; // triaged-in rules only
   untriaged: number; // candidates the script hasn't triaged yet
   rejected: number; // triage said out-of-scope or not-a-rule
-}
-
-let cache: Promise<RiskAssessmentArtifact> | null = null;
-
-export function loadRiskAssessment(): Promise<RiskAssessmentArtifact> {
-  if (!cache) {
-    cache = fetchJson<RiskAssessmentArtifact>(
-      `${import.meta.env.BASE_URL}risk-assessment.json`,
-      "risk-assessment.json",
-    ).catch((err) => {
-      cache = null;
-      throw err;
-    });
-  }
-  return cache;
 }
 
 export function joinRisk(candidates: RiskCandidate[], artifact: RiskAssessmentArtifact | null): RiskJoin {
@@ -155,3 +140,15 @@ export function riskRowsToCSV(rows: readonly RiskRow[]): string {
     ]),
   );
 }
+
+// The search haystack as labelled fields; the rated paragraph (quote) and
+// covered prime agents only render in the expanded body, so matches on them
+// surface via the floating aside — shared by the report page and the
+// server-side atlas_report_risk_rules tool's `filter` argument.
+export const riskSearchFields = (r: RiskRow): SearchField[] => [
+  { label: "doc no", value: r.candidate.docNo },
+  { label: "title", value: r.candidate.title },
+  { label: "summary", value: r.triage.description ?? "" },
+  { label: "source paragraph", value: r.candidate.quote, hidden: true },
+  { label: "doc is owned by agent matching", value: (r.candidate.agents ?? []).join(", "), hidden: true, despace: true },
+];

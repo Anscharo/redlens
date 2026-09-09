@@ -4,7 +4,7 @@ import { ROUTES, REPORT_CHAT_TOOLS, REPORT_TITLES } from "@/lib/routes";
 import { loadAtlas } from "../../lib/docs";
 
 // Mirrors the server's PageContext (src/server/chat/system-prompt.ts) plus the
-// UI-only fields the launcher/composer render (short, placeholder, chip, label).
+// UI-only fields the launcher/composer render (short, placeholder, chip).
 export interface PageContext {
   path?: string;
   nodeId?: string;
@@ -20,8 +20,15 @@ export interface PageContext {
 export interface PageContextView extends PageContext {
   short: string; // launcher pill label
   placeholder: string; // composer placeholder
-  label: string; // context badge primary label
   chip: string; // composer context chip (mono)
+}
+
+// Strips the UI-only fields before the context goes over the wire, so every
+// PageContext field (new ones included) reaches the server without being
+// hand-picked at each call site.
+export function toPageContext(view: PageContextView): PageContext {
+  const { short, placeholder, chip, ...rest } = view;
+  return rest;
 }
 
 // Resolve a /reports/<id>[/…] path to its display title via REPORT_TITLES.
@@ -42,6 +49,12 @@ function deslug(slug: string): string {
     .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
     .join(" ");
 }
+
+const baseContext = {
+  short: "Ask Atlas",
+  placeholder: "Ask about the Sky Atlas…",
+  chip: "atlas",
+};
 
 // Derives page context from the wouter route. Atlas node titles are resolved
 // asynchronously from the cached docs.json (loadAtlas is memoised).
@@ -71,16 +84,13 @@ export function usePageContext(): PageContextView {
 
   // Atlas node page
   if (nodeId) {
-    const title = node?.title ?? "this document";
     const doc = node?.doc_no;
     return {
+      ...baseContext,
       path: location,
       nodeId,
       nodeTitle: node?.title,
       nodeDocNo: doc,
-      short: `Ask about ${title}`,
-      placeholder: `Ask about ${title}…`,
-      label: title,
       chip: doc ? `atlas · ${doc}` : "atlas",
     };
   }
@@ -94,12 +104,10 @@ export function usePageContext(): PageContextView {
     const settlements = sub === "settlements";
     const mscMonth = settlements ? searchParams.get("msc")?.trim() || undefined : undefined;
     return {
+      ...baseContext,
       path: location,
       actorSlug: slug,
       mscMonth,
-      short: settlements ? `Ask about ${name}'s monthly settlement` : `Ask about ${name}`,
-      placeholder: settlements ? `Ask about ${name}'s monthly settlement…` : `Ask about ${name}…`,
-      label: settlements ? `${name} · Monthly settlement` : name,
       chip: settlements ? "radar · settlement" : `radar · ${name}`,
     };
   }
@@ -114,23 +122,18 @@ export function usePageContext(): PageContextView {
     // it so the chat can scope its report-tool call to what the user is viewing.
     const reportFilter = (reportTool && searchParams.get("q")?.trim()) || undefined;
     return {
+      ...baseContext,
       path: location,
       reportName,
       reportTool,
       reportFilter,
-      short: `Ask about the ${reportName} report`,
-      placeholder: `Ask about the ${reportName} report…`,
-      label: reportName,
-      chip: "report",
+      chip: `${reportName}`,
     };
   }
 
   // Everywhere else
   return {
+    ...baseContext,
     path: location,
-    short: "Ask the Sky Atlas",
-    placeholder: "Ask about the Sky Atlas…",
-    label: "Sky Atlas",
-    chip: "atlas",
   };
 }

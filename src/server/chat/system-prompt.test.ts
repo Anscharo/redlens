@@ -4,6 +4,8 @@
 import { describe, it, expect } from "bun:test";
 import { loadIndexes } from "../retrieval/indexes.ts";
 import { agentArtifactRoster, buildSystemPrompt, pageContextLine, validReportTool } from "./system-prompt.ts";
+import { REPORT_DESCRIPTIONS } from "../../lib/routes.ts";
+import { TOOLS_BY_NAME } from "./tools/tool-registry.ts";
 
 const ix = loadIndexes();
 
@@ -26,8 +28,18 @@ describe("pageContextLine", () => {
     expect(
       pageContextLine({ actorSlug: "spark", path: "/radar/spark/settlements", mscMonth: "2026-07" }),
     ).toContain("ask_external_msc");
-    expect(pageContextLine({ reportName: "Stale Dates" })).toBe("Report: Stale Dates");
+    expect(pageContextLine({ reportName: "Stale Dates" })).toContain("Report: Stale Dates — ");
     expect(pageContextLine({ path: "/atlas" })).toBe("Route /atlas");
+  });
+
+  it("appends the report's one-line description (from REPORT_DESCRIPTIONS, not restated here) when its title is recognized", () => {
+    expect(pageContextLine({ reportName: "Stale Dates" })).toBe(
+      `Report: Stale Dates — ${REPORT_DESCRIPTIONS["stale-dates"]}`,
+    );
+  });
+
+  it("falls back to the bare report name when it doesn't match a known report title", () => {
+    expect(pageContextLine({ reportName: "Some Future Report" })).toBe("Report: Some Future Report");
   });
 
   it("returns null when ctx has none of the recognized fields", () => {
@@ -55,6 +67,8 @@ describe("validReportTool", () => {
 
   it("returns the tool name when it's a real registered atlas_report_ tool", () => {
     expect(validReportTool({ reportTool: "atlas_report_multisigs" })).toBe("atlas_report_multisigs");
+    expect(validReportTool({ reportTool: "atlas_report_stale_dates" })).toBe("atlas_report_stale_dates");
+    expect(validReportTool({ reportTool: "atlas_report_addresses" })).toBe("atlas_report_addresses");
   });
 });
 
@@ -82,6 +96,20 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("answer immediately once you have the evidence");
     expect(prompt).toContain("## Citations & rendering");
     expect(prompt).not.toContain("## Current page");
+  });
+
+  it("names every registered atlas_report_* tool in the Tools section", () => {
+    // Page context only injects a report tool when the user is already on
+    // that page. Off-page questions ("what's stale", "every address") learn
+    // the one-call rollup exists from this paragraph — a newly registered
+    // atlas_report_* that isn't named here is invisible to those turns.
+    const prompt = buildSystemPrompt(ix);
+    const toolsSection = prompt.slice(prompt.indexOf("## Tools"), prompt.indexOf("## Reporting vs. ruling"));
+    const reportTools = [...TOOLS_BY_NAME.keys()].filter((n) => n.startsWith("atlas_report_"));
+    expect(reportTools.length).toBeGreaterThan(0);
+    for (const name of reportTools) {
+      expect(toolsSection).toContain(name);
+    }
   });
 
   it("names the tool-round budget passed in, independent of the atlas load", () => {
@@ -205,10 +233,10 @@ describe("buildSystemPrompt", () => {
   });
 
   it("names a report page without a tool and still treats 'this' as the report", () => {
-    const prompt = buildSystemPrompt(ix, { path: "/reports/stale-dates", reportName: "Stale Dates" });
-    expect(prompt).toContain('Report: Stale Dates');
+    const prompt = buildSystemPrompt(ix, { path: "/reports/mod-frequency", reportName: "Modification Frequency" });
+    expect(prompt).toContain("Report: Modification Frequency");
     expect(prompt).not.toContain("This report is backed by");
-    expect(prompt).toContain('as that report unless they say otherwise');
+    expect(prompt).toContain("as that report unless they say otherwise");
   });
 
   it("truncates a long reportFilter to 100 chars", () => {
