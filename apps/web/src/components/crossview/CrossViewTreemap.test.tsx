@@ -27,7 +27,7 @@ const TREE: ChunkNode[] = [
     ],
   },
   { title: "Root B", docs: 8 },
-  { title: "Root Tiny", docs: 2 }, // 2% — not more than 2%, omitted
+  { title: "Root Tiny", docs: 2 }, // 2% of Atlas, but top-level — keep
 ];
 
 function rectFor(title: string): HTMLElement {
@@ -40,12 +40,44 @@ describe("CrossViewTreemap", () => {
     expect(screen.getByText(/Click a square for details/)).toBeInTheDocument();
   });
 
-  it("renders labels for large-enough rects that pass the 2% Atlas floor", () => {
+  it("omits nested chunks under 2% of the Atlas", () => {
     render(<CrossViewTreemap tree={TREE} atlasTotal={100} />, { wrapper: wrap() });
     expect(screen.getByText("Root A")).toBeInTheDocument();
     expect(screen.getByText("Root B")).toBeInTheDocument();
-    expect(screen.queryByText("Root Tiny")).not.toBeInTheDocument();
     expect(screen.queryByText("Nested Tiny")).not.toBeInTheDocument();
+  });
+
+  it("renders Sky Primitives subsections that hold ≥ 2% of the Atlas", () => {
+    const deep: ChunkNode[] = [
+      {
+        title: "Agent artifacts",
+        docs: 70,
+        children: [
+          {
+            title: "List of Prime Agent Artifacts",
+            docs: 70,
+            children: [
+              {
+                title: "Spark",
+                docs: 21,
+                children: [
+                  {
+                    title: "Sky Primitives",
+                    docs: 18,
+                    children: [{ title: "Supply Side", docs: 15 }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      { title: "Accessibility", docs: 1 },
+    ];
+    render(<CrossViewTreemap tree={deep} atlasTotal={100} />, { wrapper: wrap() });
+    expect(screen.getByText("Spark")).toBeInTheDocument();
+    expect(screen.getByText("Sky Primitives")).toBeInTheDocument();
+    expect(screen.getByText("Supply Side")).toBeInTheDocument();
   });
 
   it("caps the map at 640px", () => {

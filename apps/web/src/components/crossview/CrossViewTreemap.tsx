@@ -20,8 +20,10 @@ import { atlasHref } from "@/lib/routes";
 // deepest rect claims the click).
 const FILL_BY_DEPTH = [0.22, 0.34, 0.48, 0.62];
 const MAP_MAX_PX = 640;
-/** Chunks at or below this share of the Atlas are omitted at every depth. */
+/** Nested chunks below this share of the Atlas are omitted. Top-level always stays. */
 const MIN_SHARE = 0.02;
+/** Sky Primitives subsections sit at depth 4; their ≥2% children reach depth 6. */
+const MAX_DEPTH = 8;
 
 interface UnitBox {
   x: number;
@@ -113,7 +115,7 @@ function InfoPanel({ rect, atlasTotal }: { rect: TreemapRect | null; atlasTotal:
 export function CrossViewTreemap({ tree, atlasTotal }: { tree: ChunkNode[]; atlasTotal: number }) {
   const [selected, setSelected] = useState<TreemapRect | null>(null);
   const rects = useMemo(
-    () => buildTreemap(tree, { minArea: 14, maxDepth: 4, pad: 0.6, padTop: 5, minShare: MIN_SHARE, atlasTotal }),
+    () => buildTreemap(tree, { minArea: 14, maxDepth: MAX_DEPTH, pad: 0.6, padTop: 5, minShare: MIN_SHARE, atlasTotal }),
     [tree, atlasTotal],
   );
   return (

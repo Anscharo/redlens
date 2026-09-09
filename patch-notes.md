@@ -33,7 +33,7 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 ## 2026-09-09
-- Enlarged the CrossView chunk map, switched it to click-to-select, and hid chunks at or under 2% of the Atlas
+- Enlarged the CrossView chunk map, switched it to click-to-select, and hid nested chunks under 2% of the Atlas
 
 ## 2026-09-08
 - Chat now stays where you scrolled while a reply arrives, with a "New messages below" button to jump to the newest text
