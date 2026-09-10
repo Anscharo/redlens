@@ -389,6 +389,25 @@ export const config = {
   // at 23.6s — a 20s deadline would kill over half of them.
   chatVerifierSliceTimeoutMs: Number(process.env.CHAT_VERIFIER_SLICE_TIMEOUT_MS ?? 45_000),
 
+  // Per-paragraph refutation (verify/paragraph-refute.ts, docs/chat-system.md
+  // §6.1). "paragraph" runs the `refute` audit on each paragraph as it closes
+  // during streaming — the recall lever (8 of 13 planted contradictions were
+  // silent on the whole-answer read) and the latency lever (the verdict lands
+  // close to generation end instead of one more whole-answer round trip
+  // after it) — "answer" is the pre-2026-09 behavior (one refute call over
+  // the finished answer). An unrecognised value normalizes to "paragraph"
+  // rather than throwing, so a typo'd env var degrades toward the safer
+  // (higher-recall) default instead of silently reverting to the weaker one.
+  chatRefuteMode: (process.env.CHAT_REFUTE_MODE === "answer" ? "answer" : "paragraph") as "paragraph" | "answer",
+  // Concurrent in-flight refute calls per burst — paragraphs close faster
+  // than a single call round-trips, so without a cap a long answer would fire
+  // one call per paragraph all at once.
+  chatRefuteConcurrency: Number(process.env.CHAT_REFUTE_CONCURRENCY ?? 3),
+  // Paragraphs beyond this many in one burst are concatenated into ONE extra
+  // call instead of one each — every call carries the full evidence set, so
+  // call count (not paragraph count) is what scales input tokens.
+  chatRefuteMaxParagraphs: Number(process.env.CHAT_REFUTE_MAX_PARAGRAPHS ?? 8),
+
   // Per-turn model routing (rules-based — src/server/chat/model-router.ts). Each slot
   // is a CSV: first entry = primary model, rest = OpenRouter fallback models
   // tried in order on provider failure. Unset tier slots inherit chatModel +

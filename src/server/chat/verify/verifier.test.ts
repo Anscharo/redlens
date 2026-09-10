@@ -3,7 +3,7 @@
 // which is unchanged by the redesign.
 import { test, expect } from "bun:test";
 import type OpenAI from "openai";
-import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, type Contradiction, type Verdict } from "./verifier.ts";
+import { computeOverall, evidenceFromResults, evidenceFromTranscript, priorTurnsEvidence, type Contradiction, type Verdict } from "./verifier.ts";
 import type { CheckReport } from "./verify-checks.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -48,6 +48,33 @@ test("computeOverall: an overreach ruling alone is warn, even with zero contradi
 
 test("computeOverall: any agreed contradiction beats a ruling straight to fail", () => {
   expect(computeOverall(cleanChecks, verdict({ ruling_issued: true, contradictions: [contradiction({ agreed: true })] }))).toBe("fail");
+});
+
+// The confirm gate itself failing (timeout/unparseable/throw) returns
+// agreed:∅ from runConfirm — indistinguishable from a considered "no, none of
+// these" unless `confirm.parsed` is checked. Reading it as clean would be the
+// only path that asserts cleanliness the second auditor never actually
+// granted; reading it as a fail would blame the answer for a harness outage.
+test("computeOverall: a confirm gate that ran but never parsed, with a candidate on the table, is unverified — not pass, not fail", () => {
+  expect(
+    computeOverall(
+      cleanChecks,
+      verdict({ contradictions: [contradiction({ agreed: false })], confirm: { ran: true, model: "m", candidates: 1, agreed: 0, parsed: false } }),
+    ),
+  ).toBe("unverified");
+});
+
+test("computeOverall: confirm parsed and genuinely disagreed (agreed:0) still passes", () => {
+  expect(
+    computeOverall(
+      cleanChecks,
+      verdict({ contradictions: [contradiction({ agreed: false })], confirm: { ran: true, model: "m", candidates: 1, agreed: 0, parsed: true } }),
+    ),
+  ).toBe("pass");
+});
+
+test("computeOverall: confirm never ran (no candidates) does not trip the outage check", () => {
+  expect(computeOverall(cleanChecks, verdict({ confirm: null }))).toBe("pass");
 });
 
 test("evidenceFromTranscript labels tool results in order and budgets newest-first", () => {
@@ -126,4 +153,51 @@ test("prefetch evidence survives budget pressure that evicts newer tool results"
   expect(prefetch?.content).toBe("PREFETCH-FACT-CONTENT");
   // Labels stay contiguous after the reserve/evict partition.
   expect(kept.map((e) => e.label)).toEqual(kept.map((_, i) => `[E${i + 1}]`));
+});
+
+// evidenceFromResults is the mid-stream twin of evidenceFromTranscript (same
+// material, {name, content} pairs instead of transcript messages) — it must
+// agree on labels/sourceClass/budgeting on the same material, or the
+// per-paragraph refuter would see different evidence than the whole-answer
+// audit sees for an identical turn. `args` legitimately differs ("(streamed)"
+// vs the real tool_call arguments string) since there is no arguments string
+// to recover mid-stream.
+test("evidenceFromResults agrees with evidenceFromTranscript on labels, sourceClass, and content for the same material", () => {
+  const results = [
+    { name: "atlas_search", content: "A".repeat(100) },
+    { name: "atlas_get", content: "B".repeat(100) },
+  ];
+  const transcript: Msg[] = [
+    { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "atlas_search", arguments: '{"q":"a"}' } }] },
+    { role: "tool", tool_call_id: "c1", content: "A".repeat(100) },
+    { role: "assistant", content: null, tool_calls: [{ id: "c2", type: "function", function: { name: "atlas_get", arguments: '{"id":"x"}' } }] },
+    { role: "tool", tool_call_id: "c2", content: "B".repeat(100) },
+  ];
+  const fromResults = evidenceFromResults(results, 1000);
+  const fromTranscript = evidenceFromTranscript(transcript, 1000);
+  expect(fromResults.map((e) => ({ label: e.label, tool: e.tool, content: e.content, sourceClass: e.sourceClass }))).toEqual(
+    fromTranscript.map((e) => ({ label: e.label, tool: e.tool, content: e.content, sourceClass: e.sourceClass })),
+  );
+  expect(fromResults.every((e) => e.args === "(streamed)")).toBe(true);
+
+  // Same budget policy: a tight cap keeps the newest entry, truncated.
+  const tight = evidenceFromResults(results, 50);
+  expect(tight).toHaveLength(1);
+  expect(tight[0].tool).toBe("atlas_get");
+  expect(tight[0].content.length).toBeLessThanOrEqual(50 + "…[truncated]".length);
+
+  // The prefetch entry is exempt from eviction under budget pressure, same as
+  // evidenceFromTranscript.
+  const withPrefetch = [
+    { name: "atlas_prefetch", content: "PREFETCH-FACT-CONTENT" },
+    { name: "atlas_query", content: "x".repeat(5000) },
+  ];
+  const kept = evidenceFromResults(withPrefetch, 200);
+  const prefetch = kept.find((e) => e.tool === "atlas_prefetch");
+  expect(prefetch?.content).toBe("PREFETCH-FACT-CONTENT");
+  expect(prefetch?.sourceClass).toBe("reference");
+
+  // External MSC tools are classed the same way.
+  const external = evidenceFromResults([{ name: "ask_external_msc", content: '{"not_atlas":true}' }], 1000);
+  expect(external[0]!.sourceClass).toBe("external");
 });

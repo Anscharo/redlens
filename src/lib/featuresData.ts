@@ -266,7 +266,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Ask across every Prime at once — top venues by revenue, ecosystem totals, or a range of months — not just one Prime at a time.",
           "Ask it to draft a message to someone else explaining what the Atlas says; the draft carries links to the source documents, and you can export it to send.",
           "Check the answer's verification badge — it says \"no contradictions found\" when nothing in the answer conflicts with the retrieved atlas text, or lists any disputed statement alongside what the atlas actually says — and click the inline sources to jump to the cited docs; while an answer is still being checked the badge reads \"verifying…\".",
-          "While it works the panel shows a checklist of what it is doing; click a step to see the lookups it made, the model's reasoning and its draft, and after the answer lands the checklist collapses to one line.",
+          "While it works the panel shows a checklist of what it is doing, and it stays open through the whole turn — click a step to see the lookups it made, the model's reasoning and its draft; a reopened or previously loaded chat instead starts with that checklist folded to one summary line, and clicking the line unfolds the same steps (click again to fold it back).",
           'Scroll up while a reply is arriving and the thread holds still — the "New messages below" button jumps you to the newest text.',
           "The usage meter under the composer shows your usage / credits; click the pie to see every limit.",
           "Dock the panel to the side with the dock icon in the header, or pop it out to a floating window.",

@@ -24,8 +24,9 @@ import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifie
 import { gatedChat } from "./verify/stream-link-gate.ts";
 import { createCitationGate } from "./verify/definition-block-gate.ts";
 import { isUncheckableAnswer, judgeSmalltalk } from "./verify/smalltalk.ts";
-import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
+import { computeOverall, evidenceFromResults, evidenceFromTranscript, priorTurnsEvidence, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
 import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
+import { createParagraphRefuter, type ParagraphRefute } from "./verify/paragraph-refute.ts";
 import { createParagraphStream, type ParagraphEvidence } from "./verify/incremental.ts";
 import { atlasDescribe } from "./tools/tools.ts";
 import { isExternalMscTool } from "../external/envelope.ts";
@@ -71,6 +72,12 @@ export type HarnessEvent =
   // full-text pass after `done` remains the authority — it alone owns
   // completeness, the external disclaimer, and the length cap.
   | { type: "paragraph_check"; index: number; text: string; findings: string[] }
+  // CHAT_REFUTE_MODE="paragraph" (the default, docs/chat-system.md §6.1): one
+  // per paragraph once its `refute` model call lands — during streaming when
+  // it lands in time, or right before `verify_result` for whatever is still
+  // outstanding at generation end. `parsed:false` means the model call failed
+  // or timed out for that paragraph, not that it found nothing.
+  | { type: "paragraph_refute"; index: number; parsed: boolean; candidates: number }
   | {
       type: "verify_result";
       overall: VerifyOverall;
@@ -113,7 +120,11 @@ export function describeCall(name: string, args: Record<string, unknown>): strin
   if (name === "ask_external_msc" || name === "external_msc") {
     return "Consulting settlement sources (not Atlas)…";
   }
-  const query = args.query;
+  // `query` is the standardized arg name (feedback_query_param_standard); `q`
+  // is a deprecated alias kept for MCP back-compat — an MCP-era caller can
+  // still send it, and without this fallback the ticker silently degrades to
+  // the generic "Consulting atlas_query…" for a call that DID carry a query.
+  const query = args.query ?? args.q;
   if (typeof query === "string" && query.length > 0) return `Searching the atlas for “${query.slice(0, 80)}”…`;
   if (name === "atlas_get") return "Reading documents…";
   return `Consulting ${name}…`;
@@ -127,6 +138,14 @@ export function describeCall(name: string, args: Record<string, unknown>): strin
 // sourceless branch here only ever describes conversation grounding.
 function checkingDetail(citations: number, sources: number): string {
   const subject = citations > 0 ? `${citations} cited claim${citations === 1 ? "" : "s"}` : "the answer";
+  if (sources > 0) return `Cross-checking ${subject} against ${sources} source${sources === 1 ? "" : "s"}…`;
+  return `Cross-checking ${subject} against earlier turns of this conversation…`;
+}
+
+// Paragraph-mode twin: the audit already ran per paragraph, so the subject is
+// paragraph count rather than citation count.
+function checkingDetailParagraphs(paragraphs: number, sources: number): string {
+  const subject = paragraphs > 0 ? `${paragraphs} paragraph${paragraphs === 1 ? "" : "s"}` : "the answer";
   if (sources > 0) return `Cross-checking ${subject} against ${sources} source${sources === 1 ? "" : "s"}…`;
   return `Cross-checking ${subject} against earlier turns of this conversation…`;
 }
@@ -323,11 +342,14 @@ async function runAudit(params: {
   checks: CheckReport;
   signal?: AbortSignal;
   obs?: ErrorContext;
+  paragraphRefutes?: ParagraphRefute[];
+  settleMs?: number;
 }): Promise<{ run: VerifierRun; modelLabel: string }> {
   const models = sliceModels();
   const run = await runSlicedVerifier({
     call: params.jsonCall, models, ix: params.ix, question: params.question, answer: params.answer,
     evidence: params.evidence, checks: params.checks, signal: params.signal, obs: params.obs,
+    paragraphRefutes: params.paragraphRefutes, settleMs: params.settleMs,
   });
   return { run, modelLabel: `sliced(${[...new Set(Object.values(models))].join(",")})` };
 }
@@ -427,11 +449,53 @@ export async function* runVerifiedChat(opts: {
   // turn ever streamed and set aside.
   let incrementalParagraphs = 0;
   let incrementalFlagged = 0;
+  // Indices already reported via a mid-stream `paragraph_refute` event this
+  // burst — `settle()` returns the WHOLE burst, so this is what keeps the
+  // post-loop flush from re-yielding one the reader already saw.
+  const reportedRefutes = new Set<number>();
   const resetParagraphs = () => {
     paragraphs.reset();
     incrementalParagraphs = 0;
     incrementalFlagged = 0;
+    reportedRefutes.clear();
   };
+
+  // ── Per-paragraph refutation (CHAT_REFUTE_MODE="paragraph", the default) ──
+  // Runs the `refute` model audit per paragraph as it closes, instead of once
+  // over the finished answer (docs/chat-system.md §6.1) — the recall lever
+  // (per-paragraph reading catches contradictions a whole-answer read stays
+  // silent on) and the latency lever (the verdict is mostly ready by
+  // generation end). Created here, not lazily at verification time, so
+  // submissions happen as paragraphs close during streaming — `settle()` at
+  // verification time then mostly collects work already done. Gated on
+  // chatVerifyChecks too (not just a configured model) so CHAT_VERIFY_CHECKS=0
+  // spends nothing, same bar the whole-answer audit is held to below.
+  const verifierModel = opts.jsonCall ? config.chatVerifierModel : "";
+  const paragraphMode = config.chatRefuteMode === "paragraph" && !!verifierModel && config.chatVerifyChecks;
+  // Prior-turn answers, computed ONCE from the pre-turn message list — the
+  // slice this produces is identical whether read from opts.messages now or
+  // from done.transcript after the loop (the last `user` message is the same
+  // one either way; only tool/assistant messages of THIS turn get appended
+  // after it), so both the per-paragraph evidence below and the whole-answer
+  // baseEvidence further down share this one computation.
+  const prevEvidence = priorTurnsEvidence(opts.messages);
+  // Named history tool results (name preserved, unlike historyTexts' flat
+  // strings) so evidenceFromResults can classify the prefetch round by name —
+  // losing that name would silently drop both its [REFERENCE] class and its
+  // budget-eviction exemption for every per-paragraph call.
+  const historyResults = evidenceFromTranscript(opts.messages, Infinity).map((e) => ({ name: e.tool, content: e.content }));
+  const paragraphEvidenceFor = (paragraphText: string): EvidenceEntry[] => {
+    const ce = constEvidence(opts.ix, paragraphText);
+    const turnEvidence = evidenceFromResults([...historyResults, ...gateResults]);
+    return [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...(ce ? [ce] : []), ...turnEvidence];
+  };
+  const refuter = paragraphMode
+    ? createParagraphRefuter({
+        call: opts.jsonCall!, model: sliceModels().refute, ix: opts.ix, question: opts.question,
+        evidence: paragraphEvidenceFor, signal: opts.signal, timeoutMs: config.chatVerifierSliceTimeoutMs,
+        concurrency: config.chatRefuteConcurrency, maxParagraphs: config.chatRefuteMaxParagraphs, obs: opts.obs,
+      })
+    : null;
 
   // ── Small-talk judge (concurrent — never blocks the answer) ──────────────
   // Fired alongside the conversationalist, not after it, so its ruling has
@@ -467,6 +531,7 @@ export async function* runVerifiedChat(opts: {
           incrementalParagraphs++;
           if (tail.findings.length > 0) incrementalFlagged++;
           yield { type: "paragraph_check", ...tail };
+          refuter?.submit(tail.index, tail.text);
         }
       } catch (err) {
         captureError(err, opts.obs, { stage: "incremental_checks" });
@@ -476,6 +541,7 @@ export async function* runVerifiedChat(opts: {
     }
     if (ev.type === "tool_call") {
       resetParagraphs(); // the buffered draft is being set aside
+      refuter?.reset(); // stale burst — its results are dropped when they land
       announced = false; // next generation round re-announces
       yield { type: "status", stage: "querying", detail: describeCall(ev.name, ev.args) };
       yield ev;
@@ -483,6 +549,7 @@ export async function* runVerifiedChat(opts: {
     }
     if (ev.type === "clear") {
       resetParagraphs(); // the buffered draft is being set aside
+      refuter?.reset(); // stale burst — its results are dropped when they land
       yield ev;
       continue;
     }
@@ -497,11 +564,18 @@ export async function* runVerifiedChat(opts: {
           incrementalParagraphs++;
           if (pc.findings.length > 0) incrementalFlagged++;
           yield { type: "paragraph_check", ...pc };
+          refuter?.submit(pc.index, pc.text);
         }
       } catch (err) {
         // An incremental-check failure must never break a turn — the
         // full-text pass after `done` is still the authority.
         captureError(err, opts.obs, { stage: "incremental_checks" });
+      }
+    }
+    if (refuter) {
+      for (const r of refuter.drain()) {
+        reportedRefutes.add(r.index);
+        yield { type: "paragraph_refute", index: r.index, parsed: r.parsed, candidates: r.contradictions.length };
       }
     }
   }
@@ -586,12 +660,8 @@ export async function* runVerifiedChat(opts: {
   const evidence = evidenceFromTranscript(done.transcript);
   let toolTexts: string[];
   let checks: CheckReport;
-  // Earlier-turn answers count as grounding for follow-ups (the system prompt
-  // says so), so the verifier gets them as one [E-prev] entry alongside the
-  // schema — otherwise every "summarize what you said" turn has nothing to
-  // check its claims against.
-  // Hoisted above the status events because it is also half of `grounded`.
-  const prevEvidence = priorTurnsEvidence(done.transcript);
+  // prevEvidence was hoisted to the top of this function (paragraph mode needs
+  // it before `done` exists) — identical result either way, see that comment.
   // Entering verification is progress worth surfacing — but only when there is
   // something to name as the basis: this turn's retrievals, or earlier turns
   // of the conversation. With neither (a tool-free answer that still carries
@@ -619,6 +689,7 @@ export async function* runVerifiedChat(opts: {
         telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped, retitled: repair.retitled },
         refs: refsMeta(refs), identifiers: identifiersMeta(identifiers), checks: { ...checks, citations: checks.citations.length },
         incremental: { paragraphs: incrementalParagraphs, flagged: incrementalFlagged },
+        refuteMode: config.chatRefuteMode,
       },
       overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: null,
     });
@@ -633,7 +704,8 @@ export async function* runVerifiedChat(opts: {
   // the verify badge trail rather than waiting on the audit below.
   yield { type: "answer_final", content: done.content };
 
-  const verifierModel = opts.jsonCall ? config.chatVerifierModel : "";
+  // verifierModel/paragraphMode were hoisted to the top of this function so
+  // the per-paragraph refuter could be created before streaming started.
   // constEvidence is computed from the audited answer (done.content) itself,
   // not once up front — kept as a function of answerText since baseEvidence
   // is shared with runAudit below and must stay in sync with whatever text
@@ -644,10 +716,31 @@ export async function* runVerifiedChat(opts: {
   };
   let verdict: Verdict | null = null;
   if (verifierModel) {
-    if (grounded) yield { type: "status", stage: "checking", detail: checkingDetail(checks.citations.length, evidence.length) };
+    if (grounded) {
+      const detail = paragraphMode
+        ? checkingDetailParagraphs(incrementalParagraphs, evidence.length)
+        : checkingDetail(checks.citations.length, evidence.length);
+      yield { type: "status", stage: "checking", detail };
+    }
+    // Paragraph mode: collect whatever the per-paragraph refuter produced
+    // during streaming — most of it should already be landed by now — then
+    // report anything not already surfaced via a mid-stream `paragraph_refute`.
+    let paragraphRefutes: ParagraphRefute[] | undefined;
+    let settleMs: number | undefined;
+    if (paragraphMode && refuter) {
+      const settleStart = Date.now();
+      paragraphRefutes = await refuter.settle(config.chatVerifierSliceTimeoutMs);
+      settleMs = Date.now() - settleStart;
+      for (const r of paragraphRefutes) {
+        if (reportedRefutes.has(r.index)) continue;
+        reportedRefutes.add(r.index);
+        yield { type: "paragraph_refute", index: r.index, parsed: r.parsed, candidates: r.contradictions.length };
+      }
+    }
     const { run, modelLabel } = await runAudit({
       jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
       answer: done.content, evidence: baseEvidence(evidence, done.content), checks, signal: opts.signal, obs: opts.obs,
+      paragraphRefutes, settleMs,
     });
     verdict = run.verdict;
     checksMeta.push({

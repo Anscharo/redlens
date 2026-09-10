@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { AtlasMarkdown, extractSources, balanceFences } from "./markdown";
 
@@ -147,6 +147,24 @@ describe("balanceFences", () => {
   it("treats text with no fences as balanced (zero is even)", () => {
     expect(balanceFences("no fences here")).toBe("no fences here");
   });
+
+  it("leaves text with a complete $$ math block untouched", () => {
+    const text = "Before.\n\n$$\nx^2 + y^2\n$$\n\nAfter.";
+    expect(balanceFences(text)).toBe(text);
+  });
+
+  it("closes a half-open $$ block right after a paragraph break that already streamed in, not at the end", () => {
+    const text =
+      "Intro.\n\n$$\nx^2 + y^2\n\nAnd here is a whole extra paragraph that streamed in afterward, with [a link](/atlas/11111111-1111-1111-1111-111111111111).";
+    expect(balanceFences(text)).toBe(
+      "Intro.\n\n$$\nx^2 + y^2\n$$\n\nAnd here is a whole extra paragraph that streamed in afterward, with [a link](/atlas/11111111-1111-1111-1111-111111111111).",
+    );
+  });
+
+  it("appends a synthetic closing $$ at the end when still mid-formula (no paragraph break yet)", () => {
+    const text = "Intro.\n\n$$\nx^2 + \\frac{1}{y";
+    expect(balanceFences(text)).toBe("Intro.\n\n$$\nx^2 + \\frac{1}{y\n$$");
+  });
 });
 
 describe("AtlasMarkdown", () => {
@@ -181,6 +199,52 @@ describe("AtlasMarkdown", () => {
     const content = "| A | B |\n| - | - |\n| 1 | 2 |";
     render(<AtlasMarkdown content={content} onAtlas={vi.fn()} />);
     expect(screen.getByRole("table")).toBeInTheDocument();
+  });
+});
+
+// Chat shares the atlas reader's LaTeX pipeline (../lib/markdownMath.ts) so a
+// formula quoted verbatim from an atlas doc — e.g. A.3.2.2.1.1.1.1.1.5's
+// `$$\text{RRC} = K \times \frac{1}{CR} \times \text{EAD} \times \text{ECR}$$`
+// — renders the same way in chat as it does in the reader. KaTeX is
+// lazy-loaded (see chatMath.ts), so these assertions wait for it.
+describe("AtlasMarkdown — math rendering", () => {
+  it("renders a $$...$$ block as a KaTeX display block", async () => {
+    const { container } = render(
+      <AtlasMarkdown content={"$$\n\\text{RRC} = K \\times \\frac{1}{CR}\n$$"} onAtlas={vi.fn()} />,
+    );
+    await waitFor(() => expect(container.querySelector(".katex-display")).toBeInTheDocument());
+  });
+
+  it("renders inline $...$ math as KaTeX", async () => {
+    const { container } = render(<AtlasMarkdown content="The formula is $\\text{RRC}$ here." onAtlas={vi.fn()} />);
+    await waitFor(() => expect(container.querySelector(".katex")).toBeInTheDocument());
+  });
+
+  it("does not treat ordinary currency dollar amounts as math", async () => {
+    render(<AtlasMarkdown content="Costs run $5,000 per month, sometimes $10 and $20." onAtlas={vi.fn()} />);
+    expect(
+      await screen.findByText("Costs run $5,000 per month, sometimes $10 and $20."),
+    ).toBeInTheDocument();
+  });
+
+  it("still renders an atlas link in a paragraph alongside a math block", async () => {
+    const onAtlas = vi.fn();
+    const content =
+      "See [Risk Doc](/atlas/11111111-1111-1111-1111-111111111111) for the formula:\n\n$$\nx^2 + y^2\n$$";
+    const { container } = render(<AtlasMarkdown content={content} onAtlas={onAtlas} />);
+    await waitFor(() => expect(container.querySelector(".katex-display")).toBeInTheDocument());
+    const link = screen.getByText("Risk Doc");
+    expect(link).toHaveAttribute("href", "/atlas?id=11111111-1111-1111-1111-111111111111");
+    fireEvent.click(link);
+    expect(onAtlas).toHaveBeenCalledWith("11111111-1111-1111-1111-111111111111");
+  });
+
+  it("extractSources is unaffected by math content in the same answer", () => {
+    const content =
+      "See [Risk Doc](/atlas/11111111-1111-1111-1111-111111111111) for the formula:\n\n$$\nx^2 + y^2\n$$";
+    expect(extractSources(content)).toEqual([
+      { uuid: "11111111-1111-1111-1111-111111111111", title: "Risk Doc" },
+    ]);
   });
 });
 

@@ -54,4 +54,38 @@ describe("ParagraphChecks", () => {
     render(<ParagraphChecks checks={checks} />);
     expect(screen.queryByText("Do not repeat me in the DOM body.")).toBeNull();
   });
+
+  it("renders a pending model mark", () => {
+    const checks: ParagraphCheck[] = [{ index: 0, text: "A paragraph.", findings: [], model: "pending" }];
+    const { container } = render(<ParagraphChecks checks={checks} />);
+    expect(container.querySelector("li")).toHaveAttribute("data-model", "pending");
+    expect(screen.getByLabelText("model check pending")).toBeInTheDocument();
+  });
+
+  it("renders an ok model mark", () => {
+    const checks: ParagraphCheck[] = [{ index: 0, text: "A paragraph.", findings: [], model: "ok" }];
+    const { container } = render(<ParagraphChecks checks={checks} />);
+    expect(container.querySelector("li")).toHaveAttribute("data-model", "ok");
+    expect(screen.getByLabelText("no contradictions found")).toBeInTheDocument();
+  });
+
+  it("renders a candidate model mark", () => {
+    const checks: ParagraphCheck[] = [{ index: 0, text: "A paragraph.", findings: [], model: "candidate" }];
+    const { container } = render(<ParagraphChecks checks={checks} />);
+    expect(container.querySelector("li")).toHaveAttribute("data-model", "candidate");
+    expect(screen.getByLabelText("possible contradiction, being confirmed")).toBeInTheDocument();
+  });
+
+  it("renders a failed model mark", () => {
+    const checks: ParagraphCheck[] = [{ index: 0, text: "A paragraph.", findings: [], model: "failed" }];
+    const { container } = render(<ParagraphChecks checks={checks} />);
+    expect(container.querySelector("li")).toHaveAttribute("data-model", "failed");
+    expect(screen.getByLabelText("model check unavailable")).toBeInTheDocument();
+  });
+
+  it("renders no model mark when model is absent", () => {
+    const checks: ParagraphCheck[] = [{ index: 0, text: "A paragraph.", findings: [] }];
+    render(<ParagraphChecks checks={checks} />);
+    expect(screen.queryByLabelText(/model check|contradiction/)).toBeNull();
+  });
 });

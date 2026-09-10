@@ -15,6 +15,7 @@ const ENV_KEYS = [
   "CHAT_MAX_ITERATIONS", "CHAT_TEMPERATURE", "CHAT_MAX_OUTPUT_TOKENS",
   "CHAT_CAPTURE_CONTENT", "CHAT_TOOL_RESULT_MAX_CHARS", "CHAT_VERIFIER_MODEL",
   "CHAT_VERIFY_CHECKS", "CHAT_PREFETCH", "CHAT_VERIFIER_EVIDENCE_MAX_CHARS",
+  "CHAT_REFUTE_MODE", "CHAT_REFUTE_CONCURRENCY", "CHAT_REFUTE_MAX_PARAGRAPHS",
   "CHAT_MODEL_FAST",
   "CHAT_MODEL_STRONG", "CHAT_MODEL_FALLBACKS", "CHAT_REFERENCE_CITATION_MODELS", "RATE_LIMIT_TOKENS_PER_WINDOW",
   "RATE_LIMIT_WINDOW_MINUTES", "RATE_LIMIT_TOKENS_PER_WINDOW_BOOSTED", "RATE_LIMIT_BOOST_LOGINS",
@@ -85,6 +86,9 @@ test("defaults when no env is set", async () => {
   expect(config.chatVerifyChecks).toBe(true);
   expect(config.chatPrefetch).toBe(true);
   expect(config.chatVerifierEvidenceMaxChars).toBe(120_000);
+  expect(config.chatRefuteMode).toBe("paragraph");
+  expect(config.chatRefuteConcurrency).toBe(3);
+  expect(config.chatRefuteMaxParagraphs).toBe(8);
   expect(config.chatModelFast).toEqual([]);
   expect(config.chatModelStrong).toEqual([]);
   expect(config.chatModelFallbacks).toEqual([]);
@@ -149,6 +153,9 @@ test("all env overrides take effect", async () => {
     CHAT_VERIFY_CHECKS: "0",
     CHAT_PREFETCH: "0",
     CHAT_VERIFIER_EVIDENCE_MAX_CHARS: "222",
+    CHAT_REFUTE_MODE: "answer",
+    CHAT_REFUTE_CONCURRENCY: "5",
+    CHAT_REFUTE_MAX_PARAGRAPHS: "12",
     CHAT_MODEL_FAST: "fast-a,fast-b",
     CHAT_MODEL_STRONG: "strong-a",
     CHAT_MODEL_FALLBACKS: "fb-a,fb-b",
@@ -212,6 +219,9 @@ test("all env overrides take effect", async () => {
   expect(config.chatVerifyChecks).toBe(false);
   expect(config.chatPrefetch).toBe(false);
   expect(config.chatVerifierEvidenceMaxChars).toBe(222);
+  expect(config.chatRefuteMode).toBe("answer");
+  expect(config.chatRefuteConcurrency).toBe(5);
+  expect(config.chatRefuteMaxParagraphs).toBe(12);
   expect(config.chatModelFast).toEqual(["fast-a", "fast-b"]);
   expect(config.chatModelStrong).toEqual(["strong-a"]);
   expect(config.chatModelFallbacks).toEqual(["fb-a", "fb-b"]);
@@ -376,4 +386,11 @@ test("a provider with only one of client id/secret set stays disabled", async ()
   const config = await freshConfig();
   expect(config.githubAuthEnabled).toBe(false);
   expect(config.authProvidersCsv).toBe("");
+});
+
+test("an unrecognised CHAT_REFUTE_MODE normalizes to the safer paragraph default rather than throwing", async () => {
+  clearAll();
+  process.env.CHAT_REFUTE_MODE = "yolo";
+  const config = await freshConfig();
+  expect(config.chatRefuteMode).toBe("paragraph");
 });

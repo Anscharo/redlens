@@ -36,7 +36,8 @@
 - Private previews now accept a pull request URL and compare it against sky-ecosystem/next-gen-atlas main
 - Chat delivery updated for consistency. No longer rewrites answers. Cites and confirms better.
 - Fixed the chat and MCP atlas search skipping every Agent artifact (Spark, Grove, Amatsu, …) when a query was scoped to the Agent Scope.
-- Chat now checks each paragraph as it is written; open the Synthesizing step to see the results.
+- Chat now checks each paragraph as it is written, including the model's contradiction check, so the verdict is ready sooner; open the Synthesizing step to see the results.
+- Chat now renders formulas quoted from the atlas.
 
 ## 2026-09-09
 - Enlarged the CrossView chunk map to show more details

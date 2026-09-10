@@ -138,7 +138,7 @@ test("an AGREED contradiction → fail; a disagreed one still carries the candid
   });
   expect(agreedRun.verdict?.contradictions[0].agreed).toBe(true);
   expect(computeOverall(null, agreedRun.verdict)).toBe("fail");
-  expect(agreedRun.verdict?.confirm).toEqual({ ran: true, model: "m", candidates: 1, agreed: 1 });
+  expect(agreedRun.verdict?.confirm).toEqual({ ran: true, model: "m", candidates: 1, agreed: 1, parsed: true });
 
   const disagreedRun = await runSlicedVerifier({
     call: dispatchCall({ refute: refuteText, overreach: '{"ruling_issued":false,"notes":""}', confirm: '{"agree":[],"notes":""}' }),
@@ -186,6 +186,22 @@ test("usage sums across every call that ran, including the conditional confirm",
   });
   // Three calls (refute + overreach + confirm), each fixture usage {input:10,output:5}.
   expect(run.usage).toEqual({ input: 30, output: 15 });
+});
+
+test("confirm outage (unparseable) with a candidate on the table: confirm.parsed:false, computeOverall → unverified (not pass, not fail)", async () => {
+  const answer = "X is 5.";
+  const evidence = [{ label: "[E1]", tool: "atlas_get", args: "{}", content: "X is 7." }];
+  const refuteText = JSON.stringify({ contradictions: [{ answer_span: "X is 5.", evidence_span: "X is 7.", why: "value differs" }], not_found: [], notes: "" });
+  const run = await runSlicedVerifier({
+    call: dispatchCall({ refute: refuteText, overreach: '{"ruling_issued":false,"notes":""}', confirm: "not json" }),
+    models: { refute: "m", overreach: "m", confirm: "m" },
+    ix, question: "q", answer, evidence, checks: CLEAN_CHECKS,
+  });
+  expect(run.verdict?.confirm).toEqual({ ran: true, model: "m", candidates: 1, agreed: 0, parsed: false });
+  // The candidate is still on the verdict (agreed:false) as the calibration
+  // record, but computeOverall must not read the outage as a considered "no".
+  expect(run.verdict?.contradictions[0].agreed).toBe(false);
+  expect(computeOverall(null, run.verdict)).toBe("unverified");
 });
 
 test("not_found is carried from the refute slice, capped at 5 there", async () => {

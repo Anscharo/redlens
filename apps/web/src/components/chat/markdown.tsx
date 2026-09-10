@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { atlasHref } from "@/lib/routes";
 import { DEFINITION_RE, normalizeLabel, parseDefinitions, unwrapCodeCitations } from "./citations";
+import { useMathPlugins, closeOpenMathFence } from "./chatMath";
 
 // Agent citations are markdown links of the form [Title](/atlas/<uuid>)
 // (system-prompt.ts forces UUID hrefs). We intercept those, SPA-navigate via
@@ -97,9 +97,12 @@ export function extractSources(content: string): Source[] {
 // Mid-stream, a half-streamed ``` fence would swallow the rest of the panel as
 // a code block. If the fence count is odd, append a synthetic closer for
 // rendering only (the raw buffer is untouched; done.content is authoritative).
+// A half-open $$ display-math block has the same failure mode, but worse —
+// see closeOpenMathFence (chatMath.ts) for why it needs different handling.
 export function balanceFences(text: string): string {
   const fences = (text.match(/```/g) ?? []).length;
-  return fences % 2 === 1 ? text + "\n```" : text;
+  const closed = fences % 2 === 1 ? text + "\n```" : text;
+  return closeOpenMathFence(closed);
 }
 
 export function AtlasMarkdown({ content, onAtlas }: { content: string; onAtlas: (uuid: string) => void }) {
@@ -131,9 +134,11 @@ export function AtlasMarkdown({ content, onAtlas }: { content: string; onAtlas: 
     [onAtlas],
   );
 
+  const { remarkPlugins, rehypePlugins } = useMathPlugins(content);
+
   return (
     <div className="rlc-md">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} components={components}>
         {unwrapCodeCitations(content)}
       </ReactMarkdown>
     </div>

@@ -584,18 +584,22 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 }
 .rlc-superseded-text .rlc-md a:hover { color: var(--tan-2); text-decoration-color: var(--tan-3); }
 
-/* ── Per-paragraph deterministic checks ──────────────────────────────────
+/* ── Per-paragraph checks (deterministic + model) ─────────────────────────
    Rendered under the Synthesizing stage row's draft (live or superseded) —
-   the incremental deterministic audit pass, one row per checked paragraph.
-   A later pass adds a per-paragraph MODEL audit; this list is deterministic
-   only, so it stays compact/quiet rather than reading as a verdict. */
+   one row per checked paragraph. Each row carries two marks: the
+   deterministic finding(s)/`.rlc-para-ok` checkmark, and `.rlc-para-model`
+   for the concurrent model (`refute`) audit's state. */
 .rlc-para-checks { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .rlc-para-checks li { display: flex; align-items: baseline; gap: 7px; font: 400 12px/1.4 "Source Code Pro", monospace; }
 .rlc-para-mark { color: var(--tan-3); flex-shrink: 0; }
-.rlc-para-checks li[data-state="ok"] > span:last-child { color: var(--terminal-green); }
+.rlc-para-ok { color: var(--terminal-green); }
 .rlc-para-checks li[data-state="flagged"] { flex-direction: column; align-items: flex-start; gap: 1px; }
 .rlc-para-checks li[data-state="flagged"] .rlc-para-mark { color: var(--warn); }
 .rlc-para-finding { color: var(--tan-3); }
+.rlc-para-model[data-model="pending"] { color: var(--tan-3); }
+.rlc-para-model[data-model="ok"] { color: var(--terminal-green); }
+.rlc-para-model[data-model="candidate"] { color: var(--warn); }
+.rlc-para-model[data-model="failed"] { color: var(--tan-3); }
 
 /* ── Verification badge (reliability harness) ──────────────────────────── */
 .rlc-verify { margin-top: 8px; }
@@ -903,6 +907,15 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   font-style: italic;
   color: var(--tan-2);
 }
+
+/* KaTeX math quoted from the atlas (shared pipeline with the reader — see
+   ../lib/markdownMath.ts). index.css's global `.katex` rule tints math with
+   the reader's text token (--tan); chat prose reads in --tan-2, so pin math
+   to match the surrounding paragraph instead of standing out a shade
+   brighter. A long display formula scrolls horizontally inside the message
+   bubble rather than widening the panel. */
+.rlc-md .katex { color: var(--tan-2); }
+.rlc-md .katex-display { overflow-x: auto; max-width: 100%; }
 
 /* ── Streaming caret + thinking twinkle ────────────────────────────────── */
 .rlc-twinkle { color: var(--accent); animation: rlc-twinkle 1.4s ease-in-out infinite; display: inline-block; }

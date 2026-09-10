@@ -5,6 +5,13 @@
 // conditional confirm, never four: the clean-answer turn (the overwhelming
 // majority) pays for exactly two calls.
 //
+// PARAGRAPH MODE (CHAT_REFUTE_MODE="paragraph", the default): the caller
+// passes `paragraphRefutes` — one ParagraphRefute per paragraph, already
+// produced during streaming by verify/paragraph-refute.ts. `refute` is then
+// NOT run here (its candidates already exist); only `overreach` runs, and the
+// paragraph results are merged (paragraph-merge.ts) into the same backbone
+// shape the whole-answer `refute` slice would have produced.
+//
 // The Verdict is annotate-only: `computeOverall` (verifier.ts) reads it in
 // code, so the model can never upgrade its own finding into a worse badge
 // than the confirm gate agreed to, or a better one than the deterministic
@@ -18,6 +25,8 @@ import type { Contradiction, EvidenceEntry, Verdict, VerifierRun } from "./verif
 import { runSlice, type SliceName, type SliceResult } from "./verifier-slices.ts";
 import { runConfirm } from "./confirm.ts";
 import { refuteAbsenceSentences } from "./absence.ts";
+import type { ParagraphRefute } from "./paragraph-refute.ts";
+import { mergeParagraphRefutes } from "./paragraph-merge.ts";
 
 export const SLICES: SliceName[] = ["refute", "overreach"];
 
@@ -47,6 +56,13 @@ export async function runSlicedVerifier(params: {
   signal?: AbortSignal;
   timeoutMs?: number;
   obs?: ErrorContext;
+  // Paragraph mode (see header). When present, `refute` is skipped here — its
+  // work already happened per paragraph during streaming.
+  paragraphRefutes?: ParagraphRefute[];
+  // Wall-clock the orchestrator already spent in `refuter.settle()`, folded
+  // into the returned `latencyMs` so it reflects the WAIT the reader
+  // experiences, not just this function's own two calls.
+  settleMs?: number;
 }): Promise<VerifierRun & { slices: SliceResult[] }> {
   const timeoutMs = params.timeoutMs ?? config.chatVerifierSliceTimeoutMs;
   // Same hard-deadline semantics as every harness call: cancel the provider
@@ -54,8 +70,10 @@ export async function runSlicedVerifier(params: {
   const timed: JsonCall = (args) =>
     callWithTimeout(params.call, { model: args.model, messages: args.messages, maxTokens: args.maxTokens }, timeoutMs, params.signal);
 
+  const paragraphMode = params.paragraphRefutes !== undefined;
+  const slicesToRun: SliceName[] = paragraphMode ? ["overreach"] : SLICES;
   const results = await Promise.all(
-    SLICES.map((slice) =>
+    slicesToRun.map((slice) =>
       runSlice({
         call: timed, model: params.models[slice], slice,
         question: params.question, answer: params.answer, evidence: params.evidence,
@@ -65,15 +83,24 @@ export async function runSlicedVerifier(params: {
   for (const r of results) {
     if (!r.parsed) captureEvent("chat_slice_unparseable", params.obs, { slice: r.slice, model: params.models[r.slice] });
   }
-
-  const refuteResult = results.find((r) => r.slice === "refute")!;
   const overreachResult = results.find((r) => r.slice === "overreach")!;
 
   // Two sources of candidate, both already code-validated on their own terms
-  // (refute.ts's validateContradictions; the owner-token bar in absence.ts):
-  // the model's own finding, and a deterministic parameter-table refutation
-  // of an absence sentence the model never had to flag itself.
-  const candidates: Contradiction[] = [...refuteResult.contradictions, ...refuteAbsenceSentences(params.answer, params.ix)];
+  // (refute.ts's validateContradictions / paragraph-refute.ts's per-paragraph
+  // runSlice; the owner-token bar in absence.ts): the model's own finding(s),
+  // and a deterministic parameter-table refutation of an absence sentence the
+  // model never had to flag itself.
+  const backbone = paragraphMode
+    ? mergeParagraphRefutes(params.paragraphRefutes!)
+    : (() => {
+        const refuteResult = results.find((r) => r.slice === "refute")!;
+        return {
+          candidates: refuteResult.contradictions, notFound: refuteResult.notFound,
+          discardedTotal: results.reduce((s, r) => s + r.discarded, 0), parsed: refuteResult.parsed,
+          notes: "", usage: [] as { input: number; output: number }[], paragraphs: undefined,
+        };
+      })();
+  const candidates: Contradiction[] = [...backbone.candidates, ...refuteAbsenceSentences(params.answer, params.ix)];
 
   // The confirm gate is CONDITIONAL — it costs a call only when there is
   // something to look at, so the common clean turn never pays for it.
@@ -86,23 +113,33 @@ export async function runSlicedVerifier(params: {
   }
 
   // A parsed backbone from EITHER slice is enough to produce a verdict — only
-  // total silence (neither parsed) degrades to null/unverified.
-  const verdict: Verdict | null = results.some((r) => r.parsed)
+  // total silence (neither parsed) degrades to null/unverified. In paragraph
+  // mode "the refute slice" is the merged paragraph burst.
+  const anyParsed = paragraphMode ? overreachResult.parsed || backbone.parsed : results.some((r) => r.parsed);
+  const verdict: Verdict | null = anyParsed
     ? {
         contradictions: candidates,
-        not_found: refuteResult.notFound,
+        not_found: backbone.notFound,
         ruling_issued: overreachResult.rulingIssued,
-        notes: buildNotes(results, results.reduce((s, r) => s + r.discarded, 0)),
-        refuteParsed: refuteResult.parsed,
+        notes: buildNotes(results, backbone.discardedTotal, backbone.notes || undefined),
+        refuteParsed: backbone.parsed,
         confirm: confirmRun
-          ? { ran: true, model: confirmModel, candidates: candidates.length, agreed: confirmRun.agreed.size }
+          ? { ran: true, model: confirmModel, candidates: candidates.length, agreed: confirmRun.agreed.size, parsed: confirmRun.parsed }
           : null,
+        ...(backbone.paragraphs ? { paragraphs: backbone.paragraphs } : {}),
       }
     : null;
 
-  const usages = [...results.map((r) => r.usage), confirmRun?.usage ?? null].filter((u): u is { input: number; output: number } => u !== null);
-  // Wall-clock, not a sum: the two slices overlap, and confirm runs AFTER them.
-  const latencyMs = (Math.max(...results.map((r) => r.latencyMs ?? 0)) + (confirmRun?.latencyMs ?? 0)) || null;
+  const usages = [...results.map((r) => r.usage), ...backbone.usage, confirmRun?.usage ?? null].filter(
+    (u): u is { input: number; output: number } => u !== null,
+  );
+  // Wall-clock, not a sum: in whole-answer mode the two slices overlap and
+  // confirm runs after them; in paragraph mode the settle wait already
+  // overlapped every paragraph call, so it plays the role the max() plays
+  // above — overreach and confirm still run serially after it.
+  const latencyMs = paragraphMode
+    ? (params.settleMs ?? 0) + (overreachResult.latencyMs ?? 0) + (confirmRun?.latencyMs ?? 0) || null
+    : (Math.max(...results.map((r) => r.latencyMs ?? 0)) + (confirmRun?.latencyMs ?? 0)) || null;
 
   return {
     verdict,
@@ -115,9 +152,10 @@ export async function runSlicedVerifier(params: {
   };
 }
 
-function buildNotes(results: SliceResult[], discardedTotal: number): string {
+function buildNotes(results: SliceResult[], discardedTotal: number, extra?: string): string {
   return [
     ...results.filter((r) => r.notes).map((r) => `${r.slice}: ${r.notes}`),
+    extra ?? "",
     discardedTotal ? `${discardedTotal} candidate(s) discarded: span not found` : "",
   ]
     .filter(Boolean)

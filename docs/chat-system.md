@@ -37,7 +37,10 @@ placements persisted in localStorage. `useChatStream.send(text, pageContext)`
 POSTs `{ message, conversationId, pageContext }` to `/api/chat`, then reads the
 response as a raw stream (not `EventSource`, since it's a POST), buffering on
 `\n\n` and parsing `data:` SSE frames into typed `ChatEvent`s. A `dispatch()`
-reducer mutates the last assistant message per event.
+reducer mutates the last assistant message per event. Answers render through
+`chat/markdown.tsx`'s `AtlasMarkdown`, which shares the atlas reader's LaTeX
+pipeline (`apps/web/src/lib/markdownMath.ts`) so a formula quoted verbatim
+from a document renders identically in chat and in the reader.
 
 **While a turn is in flight**, the message renders as a stage checklist
 (`StageList`) — one row per stage the turn has reached (`recalling`,
@@ -348,7 +351,7 @@ single-prompt `runVerifier` and the earlier `claims`/`figures`/`sets`/`overreach
 four-slice split are both retired — `pnpm eval:verifier` grades the current
 design directly, there is no legacy fallback to keep grading.
 
-Two narrow auditors run concurrently, each a JSON-mode, temp-0 call:
+Two narrow auditors run, each a JSON-mode, temp-0 call:
 
 - **`refute`** — lists only statements the answer makes that the retrieved
   evidence contradicts, each with a quoted evidence span and a reason. It never
@@ -356,9 +359,13 @@ Two narrow auditors run concurrently, each a JSON-mode, temp-0 call:
   because a wrongly-asserted "supported" once passed a real defect straight
   through (the single verifier blessed `"Spark is a Pioneer"` off adjacent
   scaffold boilerplate). Refutation-only removes that failure mode by removing
-  the claim it has to make.
+  the claim it has to make. **Since 2026-09-10 this runs PER PARAGRAPH by
+  default** (`CHAT_REFUTE_MODE=paragraph`) — see below — rather than once over
+  the finished answer.
 - **`overreach`** — unchanged: flags an answer that issues a ruling or verdict
-  instead of reporting what the atlas says.
+  instead of reporting what the atlas says. Always runs once over the whole
+  answer, in both refute modes — stance is a whole-answer property, not a
+  per-paragraph one.
 
 **The load-bearing idea is still "show your work," enforced in code, not the
 prompt.** Every `refute` finding's evidence span is re-checked against the
@@ -387,18 +394,57 @@ where it is the confirm gate's calibration record and nothing else reads it:
   model auditors
 - no verdict at all (harness degraded before producing one) ⇒ `unverified`
 - any agreed **contradiction** ⇒ `fail`
+- the confirm gate RAN but never parsed (timeout/unparseable/throw) while a
+  candidate was on the table ⇒ `unverified` — `runConfirm` returns
+  `agreed: ∅` on both an outage and a genuine "no, none of these", so
+  `Verdict.confirm.parsed` is what tells them apart; without it an outage
+  silently reads as the clean pass the second auditor never actually granted
 - `rulingIssued` (from `overreach`) ⇒ `warn`
 - the refute backbone never parsed and nothing else is wrong ⇒ `unverified`
 - otherwise `pass`
 
 An unagreed candidate does not appear anywhere in this list — it is not noise
 worth a `warn`, it is a rejected candidate, and rejected candidates are silent.
+A confirm-outage candidate is different: it is not rejected, it was simply
+never looked at, which is why it gets its own `unverified` rung instead of
+falling into "unagreed."
 
 Per-slice model overrides go through
 `CHAT_VERIFIER_SLICE_MODELS="refute=m1,overreach=m2,confirm=m3"`; unnamed slices
 fall back to `CHAT_VERIFIER_MODEL`. Model choice (gemma-4) stays the default
 pending a re-targeted `pnpm eval:slices` against the new three-auditor shape —
 see §12.
+
+**Per-paragraph refutation is the default (`CHAT_REFUTE_MODE=paragraph`,
+`verify/paragraph-refute.ts`).** Instead of one `refute` call over the
+finished answer, `chat-orchestrator.ts` submits each paragraph to a
+`createParagraphRefuter` as it closes during streaming (the same
+`verify/paragraphs.ts` segmentation the deterministic `paragraph_check` pass
+already uses) — a `paragraph_refute` SSE event lands per paragraph, either
+mid-stream (when the call lands in time) or in one flush right before
+`verify_result` for whatever is still outstanding. This is both a recall lever
+(reading one paragraph at a time catches contradictions a whole-answer read
+stays silent on — measured on the eval corpus, §12) and a latency lever (the
+verdict is mostly ready by generation end instead of one more whole-answer
+round trip after it). Concurrency is capped (`CHAT_REFUTE_CONCURRENCY`,
+default 3) via a simple semaphore; paragraphs at or beyond
+`CHAT_REFUTE_MAX_PARAGRAPHS` (default 8) are concatenated into ONE extra call
+at flush time, keyed by the first overflowing paragraph's index — every call
+carries the full evidence set, so call count rather than paragraph count is
+what scales input tokens. A `tool_call` or `clear` — the draft being set aside
+— resets the refuter to a new burst; a call still in flight from the old burst
+writes nothing when it lands (checked at land time via an integer burst tag),
+so a stale paragraph's contradiction can never leak into the shipped verdict.
+`refuteParsed` on the merged `Verdict` now means "every paragraph of the FINAL
+burst parsed" — a single unparsed or timed-out paragraph flips it `false`
+(degrading `overall` to `unverified` unless something else already agreed to a
+contradiction), the same honest rule the whole-answer mode used for its one
+call. `Verdict.paragraphs` (`{count, parsed, candidates, discarded, timedOut}`)
+is the calibration record. `overreach` and the conditional `confirm` call are
+unaffected — `confirm` still runs once over every candidate merged across
+paragraphs plus any absence-contract candidate. Set `CHAT_REFUTE_MODE=answer`
+to fall back to the pre-2026-09 one-call-over-the-finished-answer behavior;
+`pnpm eval:verifier --mode paragraph|answer` (§12) grades either.
 
 ### 6.2 The absence contract (`verify/absence.ts`)
 
@@ -478,21 +524,19 @@ Auditing a greeting is pure cost. The bypass has three conditions, and is
 
 ### Deferred (2026-09-10)
 
-Two follow-ups the refutation-only overhaul surfaced but did not build:
+One follow-up the refutation-only overhaul surfaced but did not build:
 
-- **Per-paragraph incremental refutation — deterministic half done (2026-09-10,
-  `verify/incremental.ts`), model half not started.** The plumbing now exists:
-  paragraph segmentation on the token stream (never splitting inside a fenced
-  code block; reference-style link definitions collected rather than checked
-  as prose), an evidence snapshot per paragraph, and a `paragraph_check` event
-  carrying that paragraph's deterministic findings. What's still deferred is
-  running the `refute` slice on each paragraph as it completes instead of once
-  over the finished answer, so the badge could land closer to `answer_final`
-  rather than trailing it by the whole-answer audit's latency. Decide after a
-  week of `message_checks` `verify`-kind latency on the new three-auditor
-  shape — the pre-overhaul baseline was p50 13.4s / p90 30s over 86 dev-DB
-  turns, and the new shape's extra conditional `confirm` call needs its own
-  measurement before this is worth building.
+- **Per-paragraph incremental refutation — DONE (2026-09-10, both halves).**
+  The deterministic half (`verify/incremental.ts`: paragraph segmentation on
+  the token stream, never splitting inside a fenced code block; reference-style
+  link definitions collected rather than checked as prose; a `paragraph_check`
+  event carrying that paragraph's deterministic findings) now has a model half:
+  `verify/paragraph-refute.ts` runs the `refute` slice per paragraph as it
+  closes, by default (`CHAT_REFUTE_MODE=paragraph` — see §6.1), instead of once
+  over the finished answer. `pnpm eval:verifier --mode paragraph|answer` (§12)
+  grades either mode against the same corpus, so measure with that rather than
+  by feel before adjusting `CHAT_REFUTE_CONCURRENCY` /
+  `CHAT_REFUTE_MAX_PARAGRAPHS`.
 - **Prior-turn tool evidence is never replayed to the answerer.** `chat.ts`
   replays only `{role, content}` for history, so the model that writes a
   follow-up answer never sees this turn's or earlier turns' raw tool results —
@@ -682,6 +726,7 @@ cookie.
 { type: "status",      stage, detail? }             // "recalling" | "querying" | "synthesizing" | "comparing" | "checking"
 { type: "answer_final", content }                   // the answer reveal point — see §8
 { type: "paragraph_check", index, text, findings }  // incremental deterministic checks, per paragraph — see §6
+{ type: "paragraph_refute", index, parsed, candidates }  // per-paragraph MODEL audit (CHAT_REFUTE_MODE=paragraph, the default) — see §6.1
 { type: "export",      format, filename, mime, content, bytes }
 { type: "verify_result", overall, contradictions, notFound?, rulingIssued?,
                        invalidCitations, invalidDocNos, docNoMismatches,
@@ -842,6 +887,11 @@ than prefixing a label.
 resets to 0 on `tool_call` or `clear` — the buffered draft is being set aside.
 One is emitted right after the token that closes each paragraph, plus once
 more for the trailing paragraph at generation end, before `answer_final`.
+`paragraph_refute` shares the same `index`/burst-reset rule but lands on its
+own schedule — mid-stream when its model call lands in time, or in one flush
+right before `verify_result` for whatever paragraph of the FINAL burst is
+still outstanding; `parsed:false` means the call failed or timed out for that
+paragraph, not that it found nothing.
 
 **Ordering guarantees.** `meta` is always first and `done` always terminal.
 `answer_final` lands after the last `token` and before `verify_result`;
@@ -856,8 +906,8 @@ protocol extends backward-compatibly. Full shape, in order:
 
 ```
 meta → [facts, status:recalling] → (tool_call, status:querying, tool_result)*
-  → status:synthesizing → token* (paragraph_check)* → [status:comparing] → answer_final
-  → [status:checking] → verify_result → done
+  → status:synthesizing → token* (paragraph_check paragraph_refute?)* → [status:comparing] → answer_final
+  → [status:checking] → paragraph_refute* → verify_result → done
 ```
 
 **`done.content` is always the authoritative answer** — streamed tokens may be
@@ -885,7 +935,7 @@ All are `bun scripts/eval/*.ts`, run manually (none gate CI yet) and most need
 | Script | What it measures |
 |---|---|
 | `pnpm eval:golden` | End-to-end golden questions through the real loop, real tool registry, real OpenRouter. Rubric grader (`eval-golden-grade.ts`) is pure and unit-tested; outcomes are `answered` / `partial` / `honest_decline` / `hallucinated` / `truncated` / `tool_failure`. Fixtures in `eval-golden-questions.ts` derive from the readiness plan's own Readiness targets, because that plan's source assessment was never committed. |
-| `pnpm eval:verifier` | Gates the refutation-only verifier over tampered runs (swapped UUIDs, mutated numbers, appended rulings): contradiction catch-rate ≥0.8, ruling catch-rate ≥0.9, false-contradiction rate ≤0.05 on clean baselines. Fabrication/enumeration mutations are scored informationally, not gated — refutation-only has no claim table left to catch them against. |
+| `pnpm eval:verifier` | Gates the refutation-only verifier over tampered runs (swapped UUIDs, mutated numbers, appended rulings): contradiction catch-rate ≥0.8, ruling catch-rate ≥0.9, false-contradiction rate ≤0.05 on clean baselines. Fabrication/enumeration mutations are scored informationally, not gated — refutation-only has no claim table left to catch them against. `--mode paragraph\|answer` (default: `config.chatRefuteMode`) grades either refute mode over the same corpus — paragraph mode segments the (mutated) answer with the same `verify/paragraphs.ts` segmenter production uses and runs it through the real `createParagraphRefuter`, so this is literally the production merge path, not a parallel implementation. |
 | `pnpm eval:slices` | Per-slice bakeoff across models for `refute` / `overreach` / `confirm` — the instrument behind "gemma-4 wins every slice," now re-targeted at the three-auditor shape. |
 | `pnpm eval:retrieval` | Retrieval quality by slice (exact / disambiguation / prose control) — the instrument behind the kv-record grouping decision in §9. |
 | `pnpm eval:facts` | Facts-lane recall; source of the `-0.05` similarity margin knee. |

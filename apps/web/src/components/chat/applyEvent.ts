@@ -127,18 +127,42 @@ export function applyEvent(m: ChatMsg, ev: ChatEvent): ChatMsg {
       };
     }
 
-    case "paragraph_check":
+    case "paragraph_check": {
       // A set-aside draft's checks move onto SupersededDraft.checks on
       // `clear`, above — this only ever accumulates the CURRENT live draft's
-      // checks.
+      // checks. The model call is submitted right after this event, so this
+      // row becomes "pending" — UNLESS a `paragraph_refute` for this index
+      // already resolved first (odd timing), in which case its state stands.
+      const list = m.paragraphChecks ?? [];
+      const existing = list.find((c) => c.index === ev.index);
       return {
         ...m,
-        paragraphChecks: upsertParagraphCheck(m.paragraphChecks ?? [], {
+        paragraphChecks: upsertParagraphCheck(list, {
           index: ev.index,
           text: ev.text,
           findings: ev.findings,
+          model: existing?.model ?? "pending",
         }),
       };
+    }
+
+    case "paragraph_refute": {
+      // May arrive before its matching `paragraph_check` — create the row
+      // with empty text/findings if so; `paragraph_check` fills those in
+      // later without disturbing the model state already set here.
+      const list = m.paragraphChecks ?? [];
+      const existing = list.find((c) => c.index === ev.index);
+      const model: ParagraphCheck["model"] = !ev.parsed ? "failed" : ev.candidates > 0 ? "candidate" : "ok";
+      return {
+        ...m,
+        paragraphChecks: upsertParagraphCheck(list, {
+          index: ev.index,
+          text: existing?.text ?? "",
+          findings: existing?.findings ?? [],
+          model,
+        }),
+      };
+    }
 
     case "export":
       // Download/track side effects stay in the hook — this only records the

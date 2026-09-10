@@ -48,14 +48,25 @@ export interface VerifyState {
 }
 
 // One paragraph's deterministic audit result (server: `paragraph_check`,
-// api.ts). Mirrors the wire event minus its `type` tag. Reader-facing
-// `findings` are already phrased sentences, `[]` when the paragraph is
-// clean — this is the incremental deterministic pass, not the later
-// per-paragraph model audit.
+// api.ts), plus the model audit's state once it resolves (server:
+// `paragraph_refute`). Reader-facing `findings` are already phrased
+// sentences, `[]` when the paragraph is clean.
+//
+// `model` states:
+//   - "pending"   — submitted, no result yet. Set when `paragraph_check`
+//                   lands, since the server submits the model call right
+//                   after emitting that event.
+//   - "ok"        — the model call parsed and found 0 candidates.
+//   - "candidate" — the model call parsed and found >=1 contradiction
+//                   candidate, still under review by the confirm gate.
+//   - "failed"    — the model call failed or timed out for this paragraph.
+// Absent only before any `paragraph_check`/`paragraph_refute` has landed for
+// the index (should not happen in practice — see applyEvent).
 export interface ParagraphCheck {
   index: number;
   text: string;
   findings: string[];
+  model?: "pending" | "ok" | "candidate" | "failed";
 }
 
 // A downloadable file the agent produced this session via export_findings.

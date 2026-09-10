@@ -78,6 +78,13 @@ test("describeCall reads the standardized `query` arg for both atlas_search and 
   expect(describeCall("atlas_query", { entity: "spark" })).toBe("Consulting atlas_query…");
 });
 
+test("describeCall falls back to the deprecated `q` alias — an MCP-era caller can still send it", () => {
+  expect(describeCall("atlas_query", { q: "spark rewards" })).toBe('Searching the atlas for “spark rewards”…');
+  expect(describeCall("atlas_entities", { q: "keel" })).toBe('Searching the atlas for “keel”…');
+  // `query` still wins when both are present.
+  expect(describeCall("atlas_query", { query: "a", q: "b" })).toBe('Searching the atlas for “a”…');
+});
+
 // Both parseRefute and the overreach parser tolerate a bare "{}" — no
 // contradictions/not_found for refute, ruling_issued defaults false for
 // overreach — so one literal works as the universal "nothing to report" reply.
@@ -127,17 +134,26 @@ function fakeSlicedJson(scripts: Partial<Record<SliceName, string[]>>, calls: { 
 // concurrent auditors). No confirm call unless a candidate exists.
 const sliceRound = (model: string) => Array(SLICES.length).fill(model);
 
-function withModels(verifier: string, fn: () => Promise<void>): Promise<void> {
+// refuteMode defaults to "answer" — CHAT_REFUTE_MODE="paragraph" is the
+// runtime default, but every test in this file below was written against the
+// pre-2026-09 whole-answer sequencing (one refute call over the finished
+// answer, via the fakeSlicedJson/sliceRound fixtures). Pinning "answer" here
+// makes this file the answer-mode regression suite; paragraph-mode behavior
+// gets its own tests further down, opting in with the third argument.
+function withModels(verifier: string, fn: () => Promise<void>, refuteMode: "answer" | "paragraph" = "answer"): Promise<void> {
   const pv = config.chatVerifierModel;
   const pj = config.chatSmalltalkJudgeModel;
+  const pr = config.chatRefuteMode;
   config.chatVerifierModel = verifier;
   // The judge slot defaults ON in config — zero it here so every test
   // exercises the audit path it was written for; bypass tests opt back in
   // with the nested withJudge wrapper below.
   config.chatSmalltalkJudgeModel = "";
+  config.chatRefuteMode = refuteMode;
   return fn().finally(() => {
     config.chatVerifierModel = pv;
     config.chatSmalltalkJudgeModel = pj;
+    config.chatRefuteMode = pr;
   });
 }
 
@@ -667,8 +683,8 @@ test("verifier fail on a grounded turn: fail badge, annotate-only — the answer
     // Two slices, then one conditional confirm call, once a candidate exists.
     expect(jsonCalls.map((c) => c.model)).toEqual([...sliceRound("strong/verifier"), "strong/verifier"]);
     const verifyMeta = done.checksMeta.find((m) => m.kind === "verify")!;
-    const verdict = verifyMeta.verdict as { confirm: { ran: boolean; model: string | null; candidates: number; agreed: number } | null };
-    expect(verdict.confirm).toEqual({ ran: true, model: "strong/verifier", candidates: 1, agreed: 1 });
+    const verdict = verifyMeta.verdict as { confirm: { ran: boolean; model: string | null; candidates: number; agreed: number; parsed: boolean } | null };
+    expect(verdict.confirm).toEqual({ ran: true, model: "strong/verifier", candidates: 1, agreed: 1, parsed: true });
   }));
 
 test("an unagreed contradiction candidate never reaches the wire and the badge stays pass", () =>
@@ -689,6 +705,26 @@ test("an unagreed contradiction candidate never reaches the wire and the badge s
     const verdict = verifyMeta.verdict as { contradictions: { agreed: boolean }[] };
     expect(verdict.contradictions).toHaveLength(1);
     expect(verdict.contradictions[0].agreed).toBe(false);
+  }));
+
+test("a confirm gate OUTAGE (unparseable) with a candidate on the table reads unverified, not pass — no contradictions on the wire", () =>
+  withModels("strong/verifier", async () => {
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[textChunk("Some answer."), finishChunk("stop")]]),
+        // The confirm call itself fails to parse — NOT the same as it
+        // considering the candidate and disagreeing (that case is the
+        // previous test, and correctly stays "pass").
+        jsonCall: fakeSlicedJson({ refute: [sliceFail("Some answer.")], confirm: ["not json"] }),
+      }),
+    );
+    const verify = events.find((e) => e.type === "verify_result")!;
+    expect(verify.type === "verify_result" && verify.overall).toBe("unverified");
+    expect(verify.type === "verify_result" && verify.contradictions).toEqual([]);
+    const verifyMeta = lastDone(events).checksMeta.find((m) => m.kind === "verify")!;
+    const verdict = verifyMeta.verdict as { confirm: { ran: boolean; model: string | null; parsed: boolean; candidates: number; agreed: number } | null };
+    expect(verdict.confirm).toEqual({ ran: true, model: "strong/verifier", candidates: 1, agreed: 0, parsed: false });
   }));
 
 test("reasoning deltas pass through runVerifiedChat unmodified and never leak into the answer text", () =>
@@ -826,3 +862,122 @@ test("the round_checks row records the incremental paragraph tally for the final
     const verdict = round.verdict as { incremental: { paragraphs: number; flagged: number } };
     expect(verdict.incremental).toEqual({ paragraphs: 2, flagged: 1 });
   }));
+
+// ── Per-paragraph refutation (CHAT_REFUTE_MODE="paragraph", the default) ────
+// The file above pins "answer" mode via withModels' default third argument —
+// these tests opt into "paragraph" explicitly.
+
+test("paragraph mode: one paragraph_refute event per paragraph, all landing before verify_result", () =>
+  withModels(
+    "strong/verifier",
+    async () => {
+      const jsonCalls: { model: string }[] = [];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([[textChunk("First paragraph.\n\nSecond paragraph."), finishChunk("stop")]]),
+          jsonCall: fakeSlicedJson({}, jsonCalls),
+        }),
+      );
+      const refuteEvents = events.filter((e) => e.type === "paragraph_refute");
+      expect(refuteEvents.map((e) => (e.type === "paragraph_refute" ? e.index : -1))).toEqual([0, 1]);
+      expect(refuteEvents.every((e) => e.type === "paragraph_refute" && e.parsed && e.candidates === 0)).toBe(true);
+      const verifyIdx = events.findIndex((e) => e.type === "verify_result");
+      const lastRefuteIdx = events.map((e) => e.type === "paragraph_refute").lastIndexOf(true);
+      expect(lastRefuteIdx).toBeLessThan(verifyIdx);
+      const verify = events.find((e) => e.type === "verify_result")!;
+      expect(verify.type === "verify_result" && verify.overall).toBe("pass");
+      // Two refute calls (one per paragraph) + one overreach call; no confirm
+      // (nothing to confirm on a clean answer).
+      expect(jsonCalls).toHaveLength(3);
+    },
+    "paragraph",
+  ));
+
+test("paragraph mode: a per-paragraph contradiction is confirmed and reaches the wire, same as answer mode", () =>
+  withModels(
+    "strong/verifier",
+    async () => {
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([[textChunk("Bad paragraph."), finishChunk("stop")]]),
+          jsonCall: fakeSlicedJson({ refute: [sliceFail("Bad paragraph.")], confirm: [CONFIRM_AGREE] }),
+        }),
+      );
+      const verify = events.find((e) => e.type === "verify_result")!;
+      expect(verify.type === "verify_result" && verify.overall).toBe("fail");
+      expect(verify.type === "verify_result" && verify.contradictions).toHaveLength(1);
+      expect(verify.type === "verify_result" && verify.contradictions[0]).toMatchObject({ answer: "Bad paragraph.", evidence: REAL_SPAN });
+    },
+    "paragraph",
+  ));
+
+test("paragraph mode: a tool_call between bursts drops the earlier burst's refute — only the final burst's paragraph is ever reported", () =>
+  withModels(
+    "strong/verifier",
+    async () => {
+      const rounds = [
+        [textChunk("Pre-tool paragraph.\n\n"), toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+        [textChunk("Post-tool paragraph."), finishChunk("stop")],
+      ];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream(rounds),
+          jsonCall: fakeSlicedJson({}),
+        }),
+      );
+      // Whatever happened to the pre-tool burst's in-flight refute call, the
+      // reader is never told about it — a tool_call means that draft was set
+      // aside, and paragraph-refute.ts's burst tag drops it when it lands.
+      const refuteEvents = events.filter((e) => e.type === "paragraph_refute");
+      expect(refuteEvents).toHaveLength(1);
+      expect(refuteEvents[0]!.type === "paragraph_refute" && refuteEvents[0]!.index).toBe(0);
+      const verify = events.find((e) => e.type === "verify_result")!;
+      expect(verify.type === "verify_result" && verify.overall).toBe("pass");
+    },
+    "paragraph",
+  ));
+
+test("paragraph mode: the verify checksMeta latencyMs is the post-generation settle wait, not null", () =>
+  withModels(
+    "strong/verifier",
+    async () => {
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+          jsonCall: fakeSlicedJson({}),
+        }),
+      );
+      const verifyMeta = lastDone(events).checksMeta.find((m) => m.kind === "verify")!;
+      // Every fixture call reports latencyMs:5 (see fakeSlicedJson) — the
+      // returned number must be a real measurement, not the whole-answer
+      // path's max() (which would also be non-null here, so the meaningful
+      // assertion is that it's a finite, non-negative number at all).
+      expect(typeof verifyMeta.latencyMs).toBe("number");
+      expect(verifyMeta.latencyMs).toBeGreaterThanOrEqual(0);
+    },
+    "paragraph",
+  ));
+
+test("CHAT_REFUTE_MODE=answer (explicit) reproduces the pre-2026-09 sequence — no paragraph_refute events at all", () =>
+  withModels(
+    "strong/verifier",
+    async () => {
+      const jsonCalls: { model: string }[] = [];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+          jsonCall: fakeSlicedJson({}, jsonCalls),
+        }),
+      );
+      expect(events.some((e) => e.type === "paragraph_refute")).toBe(false);
+      expect(jsonCalls.map((c) => c.model)).toEqual(sliceRound("strong/verifier"));
+      const verify = events.find((e) => e.type === "verify_result")!;
+      expect(verify.type === "verify_result" && verify.overall).toBe("pass");
+    },
+    "answer",
+  ));

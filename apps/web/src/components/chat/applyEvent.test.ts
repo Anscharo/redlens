@@ -185,8 +185,8 @@ describe("applyEvent paragraph_check", () => {
     m = applyEvent(m, { type: "paragraph_check", index: 0, text: "First paragraph.", findings: [] });
     m = applyEvent(m, { type: "paragraph_check", index: 1, text: "Second paragraph.", findings: ["unsupported figure"] });
     expect(m.paragraphChecks).toEqual([
-      { index: 0, text: "First paragraph.", findings: [] },
-      { index: 1, text: "Second paragraph.", findings: ["unsupported figure"] },
+      { index: 0, text: "First paragraph.", findings: [], model: "pending" },
+      { index: 1, text: "Second paragraph.", findings: ["unsupported figure"], model: "pending" },
     ]);
   });
 
@@ -196,8 +196,8 @@ describe("applyEvent paragraph_check", () => {
     m = applyEvent(m, { type: "paragraph_check", index: 1, text: "Second.", findings: [] });
     m = applyEvent(m, { type: "paragraph_check", index: 0, text: "Repaired wording.", findings: [] });
     expect(m.paragraphChecks).toEqual([
-      { index: 0, text: "Repaired wording.", findings: [] },
-      { index: 1, text: "Second.", findings: [] },
+      { index: 0, text: "Repaired wording.", findings: [], model: "pending" },
+      { index: 1, text: "Second.", findings: [], model: "pending" },
     ]);
   });
 
@@ -206,7 +206,12 @@ describe("applyEvent paragraph_check", () => {
     m = applyEvent(m, { type: "paragraph_check", index: 0, text: "a preamble", findings: ["flagged"] });
     m = applyEvent(m, { type: "clear", reason: "tool_round" });
     expect(m.superseded).toEqual([
-      { text: "a preamble", reason: "tool_round", round: 1, checks: [{ index: 0, text: "a preamble", findings: ["flagged"] }] },
+      {
+        text: "a preamble",
+        reason: "tool_round",
+        round: 1,
+        checks: [{ index: 0, text: "a preamble", findings: ["flagged"], model: "pending" }],
+      },
     ]);
     expect(m.paragraphChecks).toEqual([]);
   });
@@ -219,11 +224,55 @@ describe("applyEvent paragraph_check", () => {
     expect(m.superseded ?? []).toEqual([]);
   });
 
+  it("paragraph_check sets model to pending", () => {
+    const m = applyEvent(baseMsg(), { type: "paragraph_check", index: 0, text: "First paragraph.", findings: [] });
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "First paragraph.", findings: [], model: "pending" }]);
+  });
+
+  it("paragraph_refute upserts ok when parsed with zero candidates", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "First paragraph.", findings: [] });
+    m = applyEvent(m, { type: "paragraph_refute", index: 0, parsed: true, candidates: 0 });
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "First paragraph.", findings: [], model: "ok" }]);
+  });
+
+  it("paragraph_refute upserts candidate when parsed with >=1 candidates", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "First paragraph.", findings: [] });
+    m = applyEvent(m, { type: "paragraph_refute", index: 0, parsed: true, candidates: 2 });
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "First paragraph.", findings: [], model: "candidate" }]);
+  });
+
+  it("paragraph_refute upserts failed when the model call did not parse", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "First paragraph.", findings: [] });
+    m = applyEvent(m, { type: "paragraph_refute", index: 0, parsed: false, candidates: 0 });
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "First paragraph.", findings: [], model: "failed" }]);
+  });
+
+  it("paragraph_refute arriving before its paragraph_check creates the row, and the later check keeps the model state", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "paragraph_refute", index: 0, parsed: true, candidates: 1 });
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "", findings: [], model: "candidate" }]);
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "First paragraph.", findings: [] });
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "First paragraph.", findings: [], model: "candidate" }]);
+  });
+
+  it("tool_round clear carries the model state onto the superseded draft's checks", () => {
+    let m = baseMsg({ draft: "a preamble", rounds: 1 });
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "a preamble", findings: [] });
+    m = applyEvent(m, { type: "paragraph_refute", index: 0, parsed: true, candidates: 0 });
+    m = applyEvent(m, { type: "clear", reason: "tool_round" });
+    expect(m.superseded).toEqual([
+      { text: "a preamble", reason: "tool_round", round: 1, checks: [{ index: 0, text: "a preamble", findings: [], model: "ok" }] },
+    ]);
+  });
+
   it("survives answer_final and done", () => {
     let m = baseMsg();
     m = applyEvent(m, { type: "paragraph_check", index: 0, text: "Only paragraph.", findings: [] });
     m = applyEvent(m, { type: "answer_final", content: "Only paragraph." });
-    expect(m.paragraphChecks).toEqual([{ index: 0, text: "Only paragraph.", findings: [] }]);
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "Only paragraph.", findings: [], model: "pending" }]);
     m = applyEvent(m, {
       type: "done",
       content: "Only paragraph.",
@@ -231,7 +280,7 @@ describe("applyEvent paragraph_check", () => {
       generationId: null,
       toolCalls: [],
     });
-    expect(m.paragraphChecks).toEqual([{ index: 0, text: "Only paragraph.", findings: [] }]);
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "Only paragraph.", findings: [], model: "pending" }]);
   });
 });
 

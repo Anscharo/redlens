@@ -35,7 +35,17 @@ export interface Verdict {
   ruling_issued: boolean;
   notes: string; // refute + overreach notes, ≤ 600 chars (persistence only)
   refuteParsed: boolean; // the refute backbone parsed
-  confirm: { ran: boolean; model: string | null; candidates: number; agreed: number } | null;
+  // `parsed: false` means the confirm call itself failed (timeout/unparseable/
+  // throw) — NOT that it disagreed. `runConfirm` returns `agreed: ∅` in both
+  // cases, so without this field an outage is indistinguishable from a
+  // considered "no, none of these" and reads as a clean pass — the only path
+  // that can assert cleanliness the second auditor never actually granted.
+  confirm: { ran: boolean; model: string | null; candidates: number; agreed: number; parsed: boolean } | null;
+  // Present only in paragraph refute mode (CHAT_REFUTE_MODE, verify/paragraph-refute.ts):
+  // per-burst stats for the persisted verdict — count of paragraphs submitted,
+  // how many parsed, how many raw candidates they produced before span
+  // validation, how many were discarded by validation, and how many timed out.
+  paragraphs?: { count: number; parsed: number; candidates: number; discarded: number; timedOut: number };
 }
 
 export type VerifyOverall = "pass" | "warn" | "fail" | "unverified";
@@ -54,6 +64,11 @@ export function computeOverall(checks: CheckReport | null, verdict: Verdict | nu
   // two auditors, one narrative and one adversarial-checklist, both read the
   // evidence as incompatible with the answer.
   if (verdict.contradictions.some((c) => c.agreed)) return "fail";
+  // The confirm gate itself failed to run (timeout/unparseable/throw) while
+  // there was at least one candidate on the table — not a clean pass (the
+  // second auditor never actually looked) and not a fail (nothing agreed to
+  // it either): the honest answer is that this candidate was never resolved.
+  if (verdict.confirm?.ran && !verdict.confirm.parsed && verdict.confirm.candidates > 0) return "unverified";
   // An overreach ruling is caution.
   if (verdict.ruling_issued) return "warn";
   // The refute backbone never parsed and nothing else is wrong — don't bless
@@ -77,32 +92,15 @@ export interface EvidenceEntry {
   sourceClass?: "atlas" | "external" | "reference";
 }
 
-// Pull the turn's tool calls + results out of the loop transcript, labeled
-// [E1..En] in chronological order. The char budget is applied NEWEST-first
-// (later rounds are usually the refined, relevant retrievals).
-export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chatVerifierEvidenceMaxChars): EvidenceEntry[] {
-  const callById = new Map<string, { tool: string; args: string }>();
-  const entries: EvidenceEntry[] = [];
-  for (const m of transcript) {
-    if (m.role === "assistant" && Array.isArray(m.tool_calls)) {
-      for (const tc of m.tool_calls) {
-        if (tc.type === "function") callById.set(tc.id, { tool: tc.function.name, args: tc.function.arguments });
-      }
-    }
-    if (m.role === "tool" && typeof m.content === "string") {
-      const call = callById.get(m.tool_call_id) ?? { tool: "unknown", args: "{}" };
-      entries.push({
-        label: `[E${entries.length + 1}]`,
-        tool: call.tool,
-        args: call.args,
-        content: m.content,
-        sourceClass: isExternalMscTool(call.tool) ? "external" : call.tool === FACT_TOOL_NAME ? "reference" : "atlas",
-      });
-    }
-  }
-  // Budget newest-first: walk from the end, keep entries while they fit; an
-  // oversized entry is truncated rather than dropped so its identity survives.
-  //
+// Budget a flat list of evidence entries to `maxChars`, newest-first (later
+// rounds are usually the refined, relevant retrievals), with the prefetch
+// round exempt from eviction and always kept first. Shared by
+// `evidenceFromTranscript` (whole-answer path) and `evidenceFromResults`
+// (per-paragraph path, chat-orchestrator.ts's `gateResults`) so the two
+// cannot drift on budgeting policy. `entries` is assumed already in
+// chronological order; labels are ignored on the way in and reassigned
+// `[E1], [E2], …` contiguous on the way out.
+export function budgetEvidence(entries: EvidenceEntry[], maxChars: number): EvidenceEntry[] {
   // The prefetch round is EXEMPT from eviction. It is always the oldest tool
   // entry (facts are seeded before the model runs), so newest-first budgeting
   // drops it first — precisely the material the answer was built from, on the
@@ -131,6 +129,51 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
   }
   // Re-label so [E1], [E2], … stay contiguous after the partition.
   return [...reserved, ...kept].map((e, i) => ({ ...e, label: `[E${i + 1}]` }));
+}
+
+// Pull the turn's tool calls + results out of the loop transcript, labeled
+// [E1..En] in chronological order, then budgeted (see budgetEvidence).
+export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chatVerifierEvidenceMaxChars): EvidenceEntry[] {
+  const callById = new Map<string, { tool: string; args: string }>();
+  const entries: EvidenceEntry[] = [];
+  for (const m of transcript) {
+    if (m.role === "assistant" && Array.isArray(m.tool_calls)) {
+      for (const tc of m.tool_calls) {
+        if (tc.type === "function") callById.set(tc.id, { tool: tc.function.name, args: tc.function.arguments });
+      }
+    }
+    if (m.role === "tool" && typeof m.content === "string") {
+      const call = callById.get(m.tool_call_id) ?? { tool: "unknown", args: "{}" };
+      entries.push({
+        label: `[E${entries.length + 1}]`,
+        tool: call.tool,
+        args: call.args,
+        content: m.content,
+        sourceClass: isExternalMscTool(call.tool) ? "external" : call.tool === FACT_TOOL_NAME ? "reference" : "atlas",
+      });
+    }
+  }
+  return budgetEvidence(entries, maxChars);
+}
+
+// Mid-stream twin of evidenceFromTranscript: the orchestrator's per-paragraph
+// refuter has no finished transcript to pull tool_calls/tool results out of —
+// it only has `results` accumulated live (chat-orchestrator.ts's
+// `historyResults`/`gateResults`, named `{name, content}` pairs). Same
+// labels/sourceClass rule, same newest-first budget with prefetch reserved —
+// factored through the shared `budgetEvidence` so the two paths cannot diverge
+// on policy. `args` is always "(streamed)": there is no tool_call arguments
+// string to recover mid-stream (or, for history, chat.ts replays only
+// `{role, content}` — see docs/chat-system.md §6's Deferred note).
+export function evidenceFromResults(results: { name: string; content: string }[], maxChars = config.chatVerifierEvidenceMaxChars): EvidenceEntry[] {
+  const entries: EvidenceEntry[] = results.map((r, i) => ({
+    label: `[E${i + 1}]`,
+    tool: r.name,
+    args: "(streamed)",
+    content: r.content,
+    sourceClass: isExternalMscTool(r.name) ? "external" : r.name === FACT_TOOL_NAME ? "reference" : "atlas",
+  }));
+  return budgetEvidence(entries, maxChars);
 }
 
 // Assistant answers from EARLIER turns of the conversation, folded into one
