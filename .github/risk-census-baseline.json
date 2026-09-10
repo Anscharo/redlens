@@ -7,6 +7,18 @@
       "title": "Changes To Approved Emergency Contact Mechanisms"
     },
     {
+      "taskKey": "u:f2e395a1-a532-401a-ac15-b29d27916473",
+      "uuid": "f2e395a1-a532-401a-ac15-b29d27916473",
+      "docNo": "A.1.10.2.3.2.2.3.2.3",
+      "title": "Risk Assessment Review"
+    },
+    {
+      "taskKey": "u:78ec918d-cd9e-4326-bfa9-ab338e658a8b",
+      "uuid": "78ec918d-cd9e-4326-bfa9-ab338e658a8b",
+      "docNo": "A.1.10.2.3.2.3.1",
+      "title": "Execution Through StarGuard"
+    },
+    {
       "taskKey": "u:cd57f7e4-6acd-431e-97fd-89c3453c8eba",
       "uuid": "cd57f7e4-6acd-431e-97fd-89c3453c8eba",
       "docNo": "A.1.10.3.2.3",
@@ -571,6 +583,42 @@
       "title": "Lawyer Registry Covered Areas"
     },
     {
+      "taskKey": "u:228f9955-6bba-4252-a101-5529e7a300b9",
+      "uuid": "228f9955-6bba-4252-a101-5529e7a300b9",
+      "docNo": "A.3.1.2.1",
+      "title": "Base Rate"
+    },
+    {
+      "taskKey": "u:e3a7ca35-0569-4867-bc64-e732622bda21",
+      "uuid": "e3a7ca35-0569-4867-bc64-e732622bda21",
+      "docNo": "A.3.1.2.2.2.1",
+      "title": "Sky Savings Rate Stability Parameter Bounded External Access Module Parameters"
+    },
+    {
+      "taskKey": "u:aff1868f-66aa-4252-851f-9343567a52eb",
+      "uuid": "aff1868f-66aa-4252-851f-9343567a52eb",
+      "docNo": "A.3.1.2.2.3",
+      "title": "Sky Savings Rate Current Value"
+    },
+    {
+      "taskKey": "u:335dd92b-cbd8-4d98-8d23-1dd57d98487d",
+      "uuid": "335dd92b-cbd8-4d98-8d23-1dd57d98487d",
+      "docNo": "A.3.1.2.4.1.1",
+      "title": "Dai Savings Rate Stability Parameter Bounded External Access Module Parameters"
+    },
+    {
+      "taskKey": "u:6b2b7302-e63b-457e-afeb-daab5ca7a7de",
+      "uuid": "6b2b7302-e63b-457e-afeb-daab5ca7a7de",
+      "docNo": "A.3.1.2.5",
+      "title": "Agent Credit Line Borrow Rate"
+    },
+    {
+      "taskKey": "u:154c3b5d-7a87-4dae-85f3-7d26deab9a31",
+      "uuid": "154c3b5d-7a87-4dae-85f3-7d26deab9a31",
+      "docNo": "A.3.1.2.7",
+      "title": "Rate Conventions"
+    },
+    {
       "taskKey": "u:bf561ea8-ab09-4ff5-a84d-2e92bcff997b",
       "uuid": "bf561ea8-ab09-4ff5-a84d-2e92bcff997b",
       "docNo": "A.3.3.2.7.1.1.3",
@@ -613,6 +661,12 @@
       "title": "ALLOCATOR-PRYSM-A Parameters"
     },
     {
+      "taskKey": "u:b113ca06-9a25-4abf-81f1-53f419ffe2d2",
+      "uuid": "b113ca06-9a25-4abf-81f1-53f419ffe2d2",
+      "docNo": "A.3.7.1.3.1",
+      "title": "Definitions"
+    },
+    {
       "taskKey": "u:2d4aa875-b7ea-49c3-9506-479f0b5d157c",
       "uuid": "2d4aa875-b7ea-49c3-9506-479f0b5d157c",
       "docNo": "A.3.7.1.3.4",
@@ -623,6 +677,12 @@
       "uuid": "ae2b5d27-b666-4796-8791-b59d151daf41",
       "docNo": "A.3.7.1.3.5.2",
       "title": "Operator Update Process"
+    },
+    {
+      "taskKey": "u:d547c23a-049b-46b2-81fe-e6a4c0105555",
+      "uuid": "d547c23a-049b-46b2-81fe-e6a4c0105555",
+      "docNo": "A.6.1.1.1.2.6.1.3.1.5.3.4.2",
+      "title": "Timelocks"
     },
     {
       "taskKey": "u:3c72575c-ce4e-4379-ba45-080f335851a1",
@@ -649,10 +709,64 @@
       "title": "RLUSD Risk Parameters"
     },
     {
+      "taskKey": "u:f87333c8-ec5e-4483-83a9-791e1f9f9634",
+      "uuid": "f87333c8-ec5e-4483-83a9-791e1f9f9634",
+      "docNo": "A.6.1.1.1.3.9.6.1",
+      "title": "Authorized Cancellers"
+    },
+    {
       "taskKey": "u:0e572cad-bdf2-437f-b272-0cd634424b19",
       "uuid": "0e572cad-bdf2-437f-b272-0cd634424b19",
       "docNo": "A.6.1.1.1.3.9.6.2",
       "title": "Cancellation Reasons"
+    },
+    {
+      "taskKey": "u:900c4a0d-ed93-41ad-b914-f84d50d6940e",
+      "uuid": "900c4a0d-ed93-41ad-b914-f84d50d6940e",
+      "docNo": "A.6.1.1.1.3.9.6.3",
+      "title": "Cancellation Authority"
+    },
+    {
+      "taskKey": "u:ea50c8da-008e-4f0f-b2df-ac666d5faf13",
+      "uuid": "ea50c8da-008e-4f0f-b2df-ac666d5faf13",
+      "docNo": "A.6.1.1.1.3.9.6.3.1",
+      "title": "Cancellation Authority Independence"
+    },
+    {
+      "taskKey": "u:817391bd-3748-479c-846e-f8d3e3ec56f4",
+      "uuid": "817391bd-3748-479c-846e-f8d3e3ec56f4",
+      "docNo": "A.6.1.1.1.3.9.7.1.5",
+      "title": "Cancellation Authority"
+    },
+    {
+      "taskKey": "u:3e8ed24b-da4a-4c3f-9a74-c3dd6a557abf",
+      "uuid": "3e8ed24b-da4a-4c3f-9a74-c3dd6a557abf",
+      "docNo": "A.6.1.1.1.3.9.7.2.1",
+      "title": "Spark USDS Morpho Vault - Ethereum Mainnet"
+    },
+    {
+      "taskKey": "u:603cf96e-5819-4e3d-942e-5290dd000847",
+      "uuid": "603cf96e-5819-4e3d-942e-5290dd000847",
+      "docNo": "A.6.1.1.1.3.9.7.2.2",
+      "title": "Spark Blue Chip USDC Morpho Vault - Ethereum Mainnet"
+    },
+    {
+      "taskKey": "u:5ef1e78f-e1d2-4b09-b00c-618e36ccb2d8",
+      "uuid": "5ef1e78f-e1d2-4b09-b00c-618e36ccb2d8",
+      "docNo": "A.6.1.1.1.3.9.7.2.3",
+      "title": "Spark Blue Chip USDT Morpho Vault - Ethereum Mainnet"
+    },
+    {
+      "taskKey": "u:85722a93-ec30-4e7f-883c-adde12b0ac6b",
+      "uuid": "85722a93-ec30-4e7f-883c-adde12b0ac6b",
+      "docNo": "A.6.1.1.1.3.9.7.2.4",
+      "title": "Spark USDC Morpho Vault - Base"
+    },
+    {
+      "taskKey": "u:67d8abe9-a398-4c7c-9e0d-ee48e97489e1",
+      "uuid": "67d8abe9-a398-4c7c-9e0d-ee48e97489e1",
+      "docNo": "A.6.1.1.1.3.9.7.2.5",
+      "title": "Sentora RLUSD Morpho Vault - Ethereum Mainnet"
     },
     {
       "taskKey": "u:7e53acf8-10e7-4250-a05c-bab8354aa738",
@@ -677,6 +791,48 @@
       "uuid": "0cf2ffe0-cb0b-4c3c-bd11-349cad3d4c98",
       "docNo": "A.6.1.1.2.2.6.1.2.2.1.2.2.3",
       "title": "PSM Facet"
+    },
+    {
+      "taskKey": "u:df09edaf-7a92-4d8e-ae86-a9666a0bf082",
+      "uuid": "df09edaf-7a92-4d8e-ae86-a9666a0bf082",
+      "docNo": "A.6.1.1.3.2.6.1.2.2.1.1.2.1.2.5.1.1",
+      "title": "swapUSDSToUSDC Function"
+    },
+    {
+      "taskKey": "u:1b18072b-c409-4d2f-a333-1e5c3ae8ab90",
+      "uuid": "1b18072b-c409-4d2f-a333-1e5c3ae8ab90",
+      "docNo": "A.6.1.1.3.2.6.1.2.2.1.1.2.1.2.5.2.1",
+      "title": "swapUSDCToUSDS Function"
+    },
+    {
+      "taskKey": "u:c4932ae7-0bf2-46fe-bbca-4bdd675368c9",
+      "uuid": "c4932ae7-0bf2-46fe-bbca-4bdd675368c9",
+      "docNo": "A.6.1.1.3.2.6.1.2.2.2.3.1",
+      "title": "Remove Compromised Relayer As Freezer"
+    },
+    {
+      "taskKey": "u:0ec7c5be-32a2-4d3b-b856-71face6612a9",
+      "uuid": "0ec7c5be-32a2-4d3b-b856-71face6612a9",
+      "docNo": "A.6.1.1.5.2.6.1.2.2.1.2.1.2.6.1.1",
+      "title": "swapUSDSToUSDC Function"
+    },
+    {
+      "taskKey": "u:f0117433-4568-4b4b-bed6-fce75f85939a",
+      "uuid": "f0117433-4568-4b4b-bed6-fce75f85939a",
+      "docNo": "A.6.1.1.5.2.6.1.2.2.1.2.1.2.6.2.1",
+      "title": "swapUSDCToUSDS Function"
+    },
+    {
+      "taskKey": "u:b08f57de-599d-46e4-aabe-64b1db5a38ad",
+      "uuid": "b08f57de-599d-46e4-aabe-64b1db5a38ad",
+      "docNo": "A.6.1.1.6.2.6.1.2.2.1.2.1.2.6.1.1",
+      "title": "swapUSDSToUSDC Function"
+    },
+    {
+      "taskKey": "u:355f4606-5346-41d5-8ea7-2c4490d761e1",
+      "uuid": "355f4606-5346-41d5-8ea7-2c4490d761e1",
+      "docNo": "A.6.1.1.6.2.6.1.2.2.1.2.1.2.6.2.1",
+      "title": "swapUSDCToUSDS Function"
     },
     {
       "taskKey": "u:0eed3609-62a2-4c5b-ae5b-4f78212252ee",
