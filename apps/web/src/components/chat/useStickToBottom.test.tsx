@@ -37,7 +37,7 @@ function Harness({ height = 400, contentHeight = 1000 }: { height?: number; cont
   const [conv, setConv] = useState("c1");
   const turnsRef = useRef(turns.length);
   turnsRef.current = turns.length;
-  const { threadRef, pending, jumpToBottom, stick } = useStickToBottom({
+  const { threadRef, pending, jumpToBottom, stick, showFrom } = useStickToBottom({
     follow: turns,
     streaming,
     resetKey: conv,
@@ -68,6 +68,19 @@ function Harness({ height = 400, contentHeight = 1000 }: { height?: number; cont
       <button onClick={() => setConv("c2")}>switch conversation</button>
       <button onClick={jumpToBottom}>jump</button>
       <button onClick={stick}>stick</button>
+      {/* A stand-in for a revealed answer: `data-top` is where its top sits
+          relative to the viewport (jsdom has no layout, so the rect is faked). */}
+      <button
+        onClick={() => {
+          const el = screen.getByTestId("thread");
+          const target = document.createElement("div");
+          const top = Number(el.dataset.answerTop ?? 0);
+          target.getBoundingClientRect = () => ({ top, bottom: top, left: 0, right: 0, width: 0, height: 0, x: 0, y: top, toJSON: () => ({}) });
+          showFrom(target);
+        }}
+      >
+        show from answer
+      </button>
     </div>
   );
 }
@@ -205,6 +218,48 @@ describe("useStickToBottom detach intent", () => {
     window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
   });
   afterEach(() => cleanup());
+
+  it("showFrom puts a tall answer's top at the top of the thread and detaches — later growth raises no pill", () => {
+    render(<Harness />); // 1000 tall, 400 viewport, at bottom: scrollTop 600
+    const el = screen.getByTestId("thread");
+    el.dataset.answerTop = "-200"; // answer starts 200px above the viewport top → content offset 400
+    fireEvent.click(screen.getByText("show from answer"));
+    expect(el.scrollTop).toBe(400);
+    // The programmatic scroll's own event must not count as the reader moving.
+    fireEvent.scroll(el, { target: { scrollTop: 400 } });
+    fireEvent.click(screen.getByText("add turn"));
+    expect(el.scrollTop).toBe(400); // detached: nothing moved
+    expect(screen.getByTestId("pending").textContent).toBe("false"); // no pill for the same turn's trailing chrome
+    // Once the reader scrolls on their own, growth is new again.
+    scrollUpBy(50);
+    fireEvent.click(screen.getByText("add turn"));
+    expect(screen.getByTestId("pending").textContent).toBe("true");
+  });
+
+  it("showFrom holds an answer that fits in place too — trailing chrome must not push its first lines off the top", () => {
+    render(<Harness />);
+    const el = screen.getByTestId("thread");
+    el.dataset.answerTop = "50"; // offset 650: at/near the bottom already
+    fireEvent.click(screen.getByText("show from answer"));
+    const placed = el.scrollTop;
+    fireEvent.scroll(el, { target: { scrollTop: placed } }); // the programmatic scroll's own event
+    fireEvent.click(screen.getByText("add turn")); // sources / badge land below
+    expect(el.scrollTop).toBe(placed);
+    expect(screen.getByTestId("pending").textContent).toBe("false");
+    // stick() (a send) releases the hold and re-follows.
+    fireEvent.click(screen.getByText("stick"));
+    fireEvent.click(screen.getByText("add turn"));
+    expect(el.scrollTop).toBe(1200 - 400);
+  });
+
+  it("showFrom never moves a reader who has already scrolled away", () => {
+    render(<Harness />);
+    const el = screen.getByTestId("thread");
+    scrollUpBy(300);
+    el.dataset.answerTop = "-200";
+    fireEvent.click(screen.getByText("show from answer"));
+    expect(el.scrollTop).toBe(300);
+  });
 
   it("detaches on a wheel-up before any scroll event arrives", () => {
     render(<Harness />);

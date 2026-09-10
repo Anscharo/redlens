@@ -28,7 +28,7 @@ The strong model is used if our system detects that the question asked is suffic
 
 ### The Returned Response
 
-While a turn is in progress, the user sees a live checklist of stages it has reached (recalling context, querying tools, synthesizing, comparing, checking) rather than the raw answer streaming in; a "details" toggle can open any stage to see its working content, like the tool calls made. The answer text itself only appears once generation finishes and citation repair has run — it renders in italics until the verifier's badge resolves, then goes upright. Sources are linked, and the badge flags anything the verifier could not confirm or found contradicted.
+While a turn is in progress, the user sees a live checklist of stages it has reached (recalling context, querying tools, synthesizing, comparing, checking) rather than the raw answer streaming in; clicking a stage row opens its working content, like the tool calls made or the answer as it is being written. The answer text itself only appears once generation finishes and citation repair has run — all at once, shown from its first line, with the verifier's badge marking it unverified until its verdict lands. Sources are linked, and the badge flags anything the verifier could not confirm or found contradicted.
 
 ### Follow-up Prompts
 

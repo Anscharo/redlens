@@ -264,7 +264,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Ask about a Prime Agent's monthly settlement dollars — Chat uses an isolated helper on Soter Labs workbooks / Sky Forum and says those figures are not from the Atlas.",
           "Ask across every Prime at once — top venues by revenue, ecosystem totals, or a range of months — not just one Prime at a time.",
           "Ask it to draft a message to someone else explaining what the Atlas says; the draft carries links to the source documents, and you can export it to send.",
-          "Check the answer's verification badge — it says \"no contradictions found\" when nothing in the answer conflicts with the retrieved atlas text, or lists any disputed statement alongside what the atlas actually says — and click the inline sources to jump to the cited docs; an answer still being checked shows in italics.",
+          "Check the answer's verification badge — it says \"no contradictions found\" when nothing in the answer conflicts with the retrieved atlas text, or lists any disputed statement alongside what the atlas actually says — and click the inline sources to jump to the cited docs; while an answer is still being checked the badge reads \"verifying…\".",
           "While it works the panel shows a checklist of what it is doing; click a step to see the lookups it made, the model's reasoning and its draft, and after the answer lands the checklist collapses to one line.",
           'Scroll up while a reply is arriving and the thread holds still — the "New messages below" button jumps you to the newest text.',
           "The usage meter under the composer shows your usage / credits; click the pie to see every limit.",

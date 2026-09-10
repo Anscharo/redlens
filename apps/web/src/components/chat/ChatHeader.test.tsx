@@ -2,6 +2,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import { Router } from "wouter";
+import { memoryLocation } from "wouter/memory-location";
 import { ChatHeader } from "./ChatHeader";
 
 function renderHeader(over: Partial<React.ComponentProps<typeof ChatHeader>> = {}) {
@@ -40,6 +42,31 @@ describe("ChatHeader", () => {
     const { onNewChat } = renderHeader();
     fireEvent.click(screen.getByLabelText("New chat"));
     expect(onNewChat).toHaveBeenCalled();
+  });
+
+  it("links to the Conversations page from the left of the title", () => {
+    renderHeader();
+    const link = screen.getByLabelText("Conversations");
+    expect(link).toHaveAttribute("href", "/conversations");
+    expect(link.compareDocumentPosition(screen.getByText("Atlas")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("disables the Conversations button while already on that page", () => {
+    const { hook } = memoryLocation({ path: "/conversations" });
+    render(
+      <Router hook={hook}>
+        <ChatHeader title={null} onNewChat={null} onClose={vi.fn()} placement="float" onTogglePlacement={vi.fn()} />
+      </Router>,
+    );
+    const btn = screen.getByLabelText("Conversations (this page)");
+    expect(btn.tagName).toBe("BUTTON");
+    expect(btn).toBeDisabled();
+    expect(screen.queryByLabelText("Conversations")).not.toBeInTheDocument();
+  });
+
+  it("renders no New chat button when onNewChat is null", () => {
+    renderHeader({ onNewChat: null });
+    expect(screen.queryByLabelText("New chat")).not.toBeInTheDocument();
   });
 
   it("calls onClose when Close is clicked", () => {

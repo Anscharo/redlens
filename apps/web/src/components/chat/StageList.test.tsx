@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { StageList, traceHeadline, things } from "./StageList";
+import { StageList, traceHeadline } from "./StageList";
 import type { TraceRow } from "./useChatStream";
 
 afterEach(cleanup);
@@ -122,11 +122,11 @@ describe("StageList", () => {
           { stage: "checking", details: ["Auditing…"], at: 1, round: 1 },
         ]}
         collapsed
-        summary="looked up 2 things over the atlas"
+        summary="atlas lookups and reasoning"
         renderSlot={noSlot}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /looked up 2 things over the atlas/ }));
+    fireEvent.click(screen.getByRole("button", { name: /atlas lookups and reasoning/ }));
     const rows = container.querySelectorAll("li.rlc-stage");
     expect(rows).toHaveLength(2);
     for (const row of rows) {
@@ -234,17 +234,49 @@ describe("StageList", () => {
     expect(screen.getByText("inner control")).toBeInTheDocument();
   });
 
+  it("keeps the tree (and the open row) when the turn finishes with a row open", () => {
+    const entries = [{ stage: "synthesizing", details: [], at: 5, round: 1 }];
+    const slot = () => <span>the draft</span>;
+    const { rerender } = render(<StageList entries={entries} collapsed={false} summary="s" renderSlot={slot} />);
+    fireEvent.click(screen.getByRole("button", { name: /Synthesizing/ }));
+    expect(screen.getByText("the draft")).toBeInTheDocument();
+    rerender(<StageList entries={entries} collapsed={true} summary="s" renderSlot={slot} />);
+    expect(screen.getByText("the draft")).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Answer progress" })).toBeInTheDocument();
+    // The row itself still folds on a second click.
+    fireEvent.click(screen.getByRole("button", { name: /Synthesizing/ }));
+    expect(screen.queryByText("the draft")).not.toBeInTheDocument();
+  });
+
+  it("keeps the full tree, with no summary head, when a list that mounted live finishes", () => {
+    const entries = [{ stage: "querying", details: ["Searching…"], at: 0, round: 1 }];
+    const { rerender } = render(<StageList entries={entries} collapsed={false} summary="s" renderSlot={noSlot} />);
+    rerender(<StageList entries={entries} collapsed={true} summary="s" renderSlot={noSlot} />);
+    expect(screen.getByText("Looking for evidence")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^s$/ })).toBeNull();
+    expect(document.querySelector("li.rlc-stage")?.getAttribute("data-state")).toBe("done");
+  });
+
+  it("marks the row whose `at` matches activeAt as active, not the list's last row", () => {
+    const entries = [
+      { stage: "querying", details: [], at: 0, round: 1 },
+      { stage: "synthesizing", details: [], at: 1, round: 1 },
+    ];
+    const { container } = render(<StageList entries={entries} collapsed={false} summary="s" activeAt={7} renderSlot={noSlot} />);
+    for (const row of container.querySelectorAll("li.rlc-stage")) expect(row.getAttribute("data-state")).toBe("done");
+  });
+
   it("shows a collapsed one-line summary instead of the tree when collapsed", () => {
     const { container } = render(
       <StageList
         entries={[{ stage: "querying", details: [], at: 0, round: 1 }]}
         collapsed
-        summary="looked up 2 things over the atlas"
+        summary="atlas lookups and reasoning"
         renderSlot={noSlot}
       />,
     );
     expect(container.querySelector("ol.rlc-stages")).toBeNull();
-    const head = screen.getByRole("button", { name: /looked up 2 things over the atlas/ });
+    const head = screen.getByRole("button", { name: /atlas lookups and reasoning/ });
     expect(head).toHaveAttribute("aria-expanded", "false");
   });
 
@@ -253,46 +285,38 @@ describe("StageList", () => {
       <StageList
         entries={[{ stage: "querying", details: ["Searching…"], at: 0, round: 1 }]}
         collapsed
-        summary="looked up 1 thing over the atlas"
+        summary="atlas lookups and reasoning"
         renderSlot={noSlot}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /looked up 1 thing over the atlas/ }));
+    fireEvent.click(screen.getByRole("button", { name: /atlas lookups and reasoning/ }));
     expect(screen.getByText("Looking for evidence")).toBeInTheDocument();
   });
 });
 
 describe("traceHeadline", () => {
-  it("says only what happened on a facts-only turn", () => {
+  it("names recall alone on a facts-only turn", () => {
     const trace: TraceRow[] = [{ name: "features", args: {}, ok: true, bytes: null, kind: "fact", summary: "the app's features guide", round: 0 }];
-    expect(traceHeadline(trace)).toBe("recalled 1 thing");
+    expect(traceHeadline(trace)).toBe("recall and reasoning");
   });
 
-  it("uses plural phrasing for multiple lookups", () => {
+  it("names lookups alone on a tools-only turn, with no count however many there were", () => {
     const trace: TraceRow[] = [
       { name: "atlas_query", args: {}, ok: true, bytes: 5, round: 1 },
       { name: "atlas_get", args: {}, ok: false, bytes: null, round: 1 },
     ];
-    expect(traceHeadline(trace)).toBe("looked up 2 things over the atlas");
+    expect(traceHeadline(trace)).toBe("atlas lookups and reasoning");
   });
 
-  it("combines recalled and looked-up when a turn has both", () => {
+  it("names both when a turn has both", () => {
     const trace: TraceRow[] = [
       { name: "glossary", args: {}, ok: true, bytes: null, kind: "fact", summary: "2 glossary definitions", round: 0 },
       { name: "atlas_get", args: {}, ok: true, bytes: 5, round: 1 },
     ];
-    expect(traceHeadline(trace)).toBe("recalled 1 thing · looked up 1 thing over the atlas");
+    expect(traceHeadline(trace)).toBe("recall, atlas lookups and reasoning");
   });
 
-  it("returns an empty string for an empty trace", () => {
-    expect(traceHeadline([])).toBe("");
-  });
-});
-
-describe("things", () => {
-  it("pluralizes correctly", () => {
-    expect(things(1)).toBe("1 thing");
-    expect(things(2)).toBe("2 things");
-    expect(things(0)).toBe("0 things");
+  it("falls back to plain reasoning for an empty trace — the head must never be blank", () => {
+    expect(traceHeadline([])).toBe("reasoning");
   });
 });

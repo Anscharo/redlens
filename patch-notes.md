@@ -33,11 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 ## 2026-09-10
-- Chat now recalls a role's definition, the documents titled with it and who holds it when a question names a role.
-- Chat citations now show the document title even when the model cited a document by its id.
+- Chat delivery updated for consistency. No longer rewrites answers. Cites and confirms better.
 - Fixed the chat and MCP atlas search skipping every Agent artifact (Spark, Grove, Amatsu, …) when a query was scoped to the Agent Scope.
-- The chat's verification badge now reports only statements the atlas contradicts, and no longer rewrites answers.
-- Chat now shows a checklist of what it is doing while it answers; click a step to see its working.
+
 
 ## 2026-09-09
 - Enlarged the CrossView chunk map to show more details

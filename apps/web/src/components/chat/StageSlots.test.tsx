@@ -143,10 +143,16 @@ describe("renderStageSlot / checking", () => {
     lengthCapped: false,
   };
 
-  it("renders findings once verify has resolved", () => {
-    const msg = baseMsg({ verify: { status: "pass", ...verify } });
+  it("renders findings once verify has resolved with something to report", () => {
+    const msg = baseMsg({ verify: { status: "fail", ...verify, rulingIssued: true } });
     const { container } = render(<Slot msg={msg} e={entry({ stage: "checking", round: 1 })} />);
     expect(container.querySelector(".rlc-verify-claims")).toBeInTheDocument();
+  });
+
+  it("renders nothing for a clean verdict — an empty findings box looks like a mistake", () => {
+    const msg = baseMsg({ verify: { status: "pass", ...verify } });
+    const { container } = render(<Slot msg={msg} e={entry({ stage: "checking", round: 1 })} />);
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("renders nothing while verify is still checking", () => {

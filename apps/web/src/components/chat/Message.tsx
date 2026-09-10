@@ -1,12 +1,19 @@
+import { useLayoutEffect, useRef } from "react";
 import { SparkMark } from "./glyphs";
 import { AtlasMarkdown, balanceFences, extractSources } from "./markdown";
 import { Sources } from "./Sources";
 import { ExportChips } from "./ExportChips";
 import { StageList, traceHeadline } from "./StageList";
 import { renderStageSlot } from "./StageSlots";
-import { useRevealOnDone } from "./useRevealOnDone";
 import { VerifyBadge } from "./VerifyBadge";
 import type { ChatMsg } from "./useChatStream";
+
+// The stages that run on the answer once it exists. Their rows render AFTER
+// the answer, so the answer sits directly under the Synthesizing row — the
+// place the reader was watching it form — and nothing already on screen
+// moves when these rows arrive or when the answer lands between them.
+const POST_ANSWER_STAGES = new Set(["comparing", "checking"]);
+const POST_ANSWER_SUMMARY = "compared and verified";
 
 function UserTurn({ text }: { text: string }) {
   return (
@@ -23,27 +30,45 @@ function AssistantTurn({
   msg,
   streaming,
   onAtlas,
+  onAnswerReveal,
 }: {
   msg: ChatMsg;
   streaming: boolean;
   onAtlas: (uuid: string) => void;
+  onAnswerReveal?: (el: HTMLElement) => void;
 }) {
   const stageLog = msg.stageLog ?? [];
+  const preStages = stageLog.filter((e) => !POST_ANSWER_STAGES.has(e.stage));
+  const postStages = stageLog.filter((e) => POST_ANSWER_STAGES.has(e.stage));
+  const activeAt = stageLog[stageLog.length - 1]?.at;
   // The answer is revealed once `answer_final` (or an early `done` with no
   // `answer_final` before it) has landed — see useChatStream's `generated`.
   // A loaded/historical message has no stageLog and is always `done`, so it
   // takes this same branch without ever touching the checklist above it.
   const generated = msg.generated || msg.done;
-  const { display, revealing } = useRevealOnDone(msg.content, generated);
   const sources = msg.done ? extractSources(msg.content) : [];
-  // Italic while unchecked: not yet `done`, or checked but still auditing.
-  // Flips to normal at `done` whether or not a verdict ever landed (verifier
-  // off entirely never sets `verify` at all) — see Message.test.tsx for both.
+  // Unchecked: not yet `done`, or checked but still auditing. Carried as
+  // data-state only — nothing restyles the text on the flip (an italic→
+  // upright change read as the answer "jumping"); the verify badge is the
+  // signal. See Message.test.tsx for both transitions.
   const provisional = !msg.done || msg.verify?.status === "checking";
+
+  // The reveal is the one moment the answer's height lands all at once, in
+  // the same commit that hides the live draft in the synthesizing row. Tell
+  // the thread so it can show the answer from its first line. Transition
+  // only (prev-ref): a hydrated message mounts with `generated` already
+  // true and must open at the bottom like any loaded thread.
+  const answerRef = useRef<HTMLDivElement>(null);
+  const prevGeneratedRef = useRef(generated);
+  useLayoutEffect(() => {
+    const was = prevGeneratedRef.current;
+    prevGeneratedRef.current = generated;
+    if (generated && !was && msg.content && answerRef.current) onAnswerReveal?.(answerRef.current);
+  }, [generated, msg.content, onAnswerReveal]);
   const failedEmpty = !streaming && !msg.content && msg.failed;
   // An aborted turn: stages ran, the turn ended, but no answer ever arrived.
   const stoppedEmpty = msg.done && !msg.content && !msg.failed && stageLog.length > 0;
-  const summary = traceHeadline(msg.trace) + (msg.rounds > 1 ? ` · ${msg.rounds} rounds` : "");
+  const summary = traceHeadline(msg.trace);
 
   return (
     <div className="rlc-turn mb-[18px]">
@@ -51,11 +76,12 @@ function AssistantTurn({
         <SparkMark size={13} />
         <span className="rlc-agent-label">atlas agent</span>
       </div>
-      {stageLog.length > 0 && (
+      {preStages.length > 0 && (
         <StageList
-          entries={stageLog}
+          entries={preStages}
           collapsed={msg.done}
           summary={summary}
+          activeAt={activeAt}
           renderSlot={(entry, active) => renderStageSlot(msg, entry, active, onAtlas)}
         />
       )}
@@ -82,18 +108,29 @@ function AssistantTurn({
       ) : generated ? (
         <>
           {/* data-state carries whether this answer has cleared verification
-              yet — chat.css italicizes it while "provisional". Message-level
-              only: verification is per-answer, and claim→text alignment is
-              too fuzzy to mark up per-span. */}
-          <div className="rlc-answer" data-state={provisional ? "provisional" : "final"}>
-            <AtlasMarkdown content={balanceFences(display)} onAtlas={onAtlas} />
+              yet. Message-level only: verification is per-answer, and
+              claim→text alignment is too fuzzy to mark up per-span. */}
+          <div ref={answerRef} className="rlc-answer" data-state={provisional ? "provisional" : "final"}>
+            <AtlasMarkdown content={balanceFences(msg.content)} onAtlas={onAtlas} />
           </div>
-          {revealing && <span className="rlc-caret" />}
+        </>
+      ) : null}
+      {postStages.length > 0 && (
+        <StageList
+          entries={postStages}
+          collapsed={msg.done}
+          summary={POST_ANSWER_SUMMARY}
+          activeAt={activeAt}
+          renderSlot={(entry, active) => renderStageSlot(msg, entry, active, onAtlas)}
+        />
+      )}
+      {generated && !failedEmpty && !stoppedEmpty && (
+        <>
           {msg.verify && <VerifyBadge verify={msg.verify} onAtlas={onAtlas} />}
           {msg.exports?.length ? <ExportChips exports={msg.exports} /> : null}
           {msg.done && <Sources sources={sources} onAtlas={onAtlas} />}
         </>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -102,11 +139,14 @@ export function Message({
   msg,
   streaming,
   onAtlas,
+  onAnswerReveal,
 }: {
   msg: ChatMsg;
   streaming: boolean;
   onAtlas: (uuid: string) => void;
+  // Called once, with the answer element, when this turn's answer is revealed.
+  onAnswerReveal?: (el: HTMLElement) => void;
 }) {
   if (msg.role === "user") return <UserTurn text={msg.content} />;
-  return <AssistantTurn msg={msg} streaming={streaming} onAtlas={onAtlas} />;
+  return <AssistantTurn msg={msg} streaming={streaming} onAtlas={onAtlas} onAnswerReveal={onAnswerReveal} />;
 }

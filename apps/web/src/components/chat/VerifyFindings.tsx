@@ -34,7 +34,28 @@ function ContradictionRow({ item, onAtlas }: { item: VerifyContradiction; onAtla
   );
 }
 
+export function hasFindings(verify: VerifyState): boolean {
+  return (
+    verify.invalidCitations.length > 0 ||
+    verify.invalidDocNos.length > 0 ||
+    verify.docNoMismatches.length > 0 ||
+    verify.ungroundedQuotes.length > 0 ||
+    verify.ungroundedAddresses.length > 0 ||
+    verify.ungroundedCitationValues.length > 0 ||
+    verify.lengthCapped ||
+    verify.paramMismatches.length > 0 ||
+    verify.completenessFailures.length > 0 ||
+    verify.missingExternalDisclaimer ||
+    verify.mscCitedAsAtlas.length > 0 ||
+    verify.rulingIssued ||
+    verify.contradictions.length > 0
+  );
+}
+
 export function VerifyFindings({ verify, onAtlas }: { verify: VerifyState; onAtlas: (uuid: string) => void }) {
+  // A clean verdict has nothing to list — an empty bordered box under
+  // "Verifying content" reads as a rendering mistake, not as "all clear".
+  if (!hasFindings(verify)) return null;
   return (
     <ul className="rlc-verify-claims">
       {verify.invalidCitations.map((uuid) => (

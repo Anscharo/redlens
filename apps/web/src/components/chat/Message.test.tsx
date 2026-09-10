@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Message } from "./Message";
 import type { ChatMsg } from "./useChatStream";
@@ -179,7 +179,47 @@ describe("Message stage checklist", () => {
     expect(screen.getByText("Searching…")).toBeInTheDocument();
   });
 
-  it("collapses to a one-line summary once the turn is done", () => {
+  it("renders the comparing and verifying rows AFTER the answer, the rest before it", () => {
+    const msg = baseMsg({
+      content: "the answer text",
+      generated: true,
+      stageLog: [
+        { stage: "querying", details: ["Searching…"], at: 0, round: 1 },
+        { stage: "synthesizing", details: [], at: 1, round: 1 },
+        { stage: "comparing", details: ["Comparing the draft…"], at: 2, round: 1 },
+        { stage: "checking", details: ["Cross-checking…"], at: 3, round: 1 },
+      ],
+    });
+    render(<Message msg={msg} streaming onAtlas={vi.fn()} />);
+    const answer = screen.getByText("the answer text");
+    const after = (label: string) => !!(answer.compareDocumentPosition(screen.getByText(label)) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(after("Looking for evidence")).toBe(false);
+    expect(after("Synthesizing")).toBe(false);
+    expect(after("Comparing results")).toBe(true);
+    expect(after("Verifying content")).toBe(true);
+    // Only the running stage (the last logged) is active, across both lists.
+    const active = document.querySelectorAll('li.rlc-stage[data-state="active"]');
+    expect(active).toHaveLength(1);
+    expect(active[0].textContent).toContain("Verifying content");
+  });
+
+  it("does not fold a live turn's checklist when it finishes — nothing on screen moves at the final render", () => {
+    const live = baseMsg({
+      generated: false,
+      stageLog: [
+        { stage: "querying", details: ["Searching…"], at: 0, round: 1 },
+        { stage: "synthesizing", details: [], at: 1, round: 1 },
+      ],
+      trace: [{ name: "atlas_get", args: {}, ok: true, bytes: 5, round: 1 }],
+    });
+    const { rerender } = render(<Message msg={live} streaming onAtlas={vi.fn()} />);
+    rerender(<Message msg={{ ...live, content: "done answer", generated: true, done: true, rounds: 1 }} streaming={false} onAtlas={vi.fn()} />);
+    expect(screen.getByText("Looking for evidence")).toBeInTheDocument();
+    expect(screen.getByText("Synthesizing")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /atlas lookups and reasoning/ })).toBeNull();
+  });
+
+  it("collapses to a one-line summary when a finished turn mounts (reopened panel / loaded thread)", () => {
     render(
       <Message
         msg={baseMsg({
@@ -194,7 +234,7 @@ describe("Message stage checklist", () => {
       />,
     );
     expect(screen.queryByText("Looking for evidence")).toBeNull();
-    expect(screen.getByRole("button", { name: /looked up 1 thing over the atlas/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /atlas lookups and reasoning/ })).toBeInTheDocument();
   });
 
   it("shows a muted stopped row for a turn that ended with no content, no failure, and stages that ran", () => {
@@ -302,44 +342,36 @@ describe("Message answer generation", () => {
   });
 });
 
-describe("Message reveal animation", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-  afterEach(() => {
-    vi.useRealTimers();
-    document.body.classList.remove("rlc-nomotion");
-  });
+describe("Message answer reveal", () => {
+  const synth = [{ stage: "synthesizing", details: [], at: 0, round: 1 }];
 
-  it("types out the final answer once revealed via `generated`", () => {
-    const msg = baseMsg({ generated: false, stageLog: [{ stage: "synthesizing", details: [], at: 0, round: 1 }] });
+  it("shows the whole answer at once on `generated` — no typewriter, no caret", () => {
+    const msg = baseMsg({ generated: false, stageLog: synth });
     const { rerender } = render(<Message msg={msg} streaming onAtlas={vi.fn()} />);
-
     const full = "The Operational Facilitator budget is signed off by the Prime Agent each quarter.";
-    act(() => {
-      rerender(<Message msg={{ ...msg, content: full, generated: true }} streaming={false} onAtlas={vi.fn()} />);
-    });
-    expect(screen.queryByText(full)).toBeNull();
-    expect(document.querySelector(".rlc-caret")).toBeInTheDocument();
-
-    act(() => {
-      vi.advanceTimersByTime(3000);
-    });
+    rerender(<Message msg={{ ...msg, content: full, generated: true }} streaming={false} onAtlas={vi.fn()} />);
     expect(screen.getByText(full)).toBeInTheDocument();
     expect(document.querySelector(".rlc-caret")).toBeNull();
   });
 
-  it("reveals instantly under prefers-reduced-motion (rlc-nomotion)", () => {
-    document.body.classList.add("rlc-nomotion");
-    const msg = baseMsg({ generated: false, stageLog: [{ stage: "synthesizing", details: [], at: 0, round: 1 }] });
-    const { rerender } = render(<Message msg={msg} streaming onAtlas={vi.fn()} />);
+  it("calls onAnswerReveal once, with the answer element, when generated flips true", () => {
+    const onAnswerReveal = vi.fn();
+    const msg = baseMsg({ generated: false, stageLog: synth });
+    const { rerender } = render(<Message msg={msg} streaming onAtlas={vi.fn()} onAnswerReveal={onAnswerReveal} />);
+    expect(onAnswerReveal).not.toHaveBeenCalled();
+    const revealed = { ...msg, content: "An answer.", generated: true };
+    rerender(<Message msg={revealed} streaming={false} onAtlas={vi.fn()} onAnswerReveal={onAnswerReveal} />);
+    expect(onAnswerReveal).toHaveBeenCalledTimes(1);
+    expect(onAnswerReveal.mock.calls[0][0]).toBe(document.querySelector(".rlc-answer"));
+    // Later updates to the same turn (verify badge, done) do not re-fire it.
+    rerender(<Message msg={{ ...revealed, done: true }} streaming={false} onAtlas={vi.fn()} onAnswerReveal={onAnswerReveal} />);
+    expect(onAnswerReveal).toHaveBeenCalledTimes(1);
+  });
 
-    const full = "Instant under reduced motion.";
-    act(() => {
-      rerender(<Message msg={{ ...msg, content: full, generated: true }} streaming={false} onAtlas={vi.fn()} />);
-    });
-    expect(screen.getByText(full)).toBeInTheDocument();
-    expect(document.querySelector(".rlc-caret")).toBeNull();
+  it("does not call onAnswerReveal for a message that mounts already generated (hydrated thread)", () => {
+    const onAnswerReveal = vi.fn();
+    render(<Message msg={baseMsg({ content: "Loaded answer.", done: true })} streaming={false} onAtlas={vi.fn()} onAnswerReveal={onAnswerReveal} />);
+    expect(onAnswerReveal).not.toHaveBeenCalled();
   });
 });
 

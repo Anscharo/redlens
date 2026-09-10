@@ -362,9 +362,22 @@ describe("ChatPanel header", () => {
   });
 
   it("calls session.newChat when New chat is clicked", () => {
-    renderPanel();
+    const userMsg: ChatMsg = { role: "user", content: "hello", draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true };
+    renderPanel({ session: { messages: [userMsg] } });
     fireEvent.click(screen.getByLabelText("New chat"));
     expect(newChat).toHaveBeenCalled();
+  });
+
+  it("moves focus into the composer when New chat is pressed", () => {
+    const userMsg: ChatMsg = { role: "user", content: "hello", draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true };
+    renderPanel({ session: { messages: [userMsg] } });
+    fireEvent.click(screen.getByLabelText("New chat"));
+    expect(screen.getByPlaceholderText(baseContext.placeholder)).toHaveFocus();
+  });
+
+  it("hides New chat while the thread is empty — there is nothing to start over from", () => {
+    renderPanel();
+    expect(screen.queryByLabelText("New chat")).not.toBeInTheDocument();
   });
 
   it("shows a dock icon while floating and pops out to anchored on toggle click", () => {

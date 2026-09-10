@@ -3,7 +3,7 @@ import { AtlasMarkdown, balanceFences } from "./markdown";
 import { ReasoningBlock } from "./ReasoningBlock";
 import { SupersededAnswer } from "./SupersededAnswer";
 import { TraceRowView } from "./TraceRow";
-import { VerifyFindings } from "./VerifyFindings";
+import { VerifyFindings, hasFindings } from "./VerifyFindings";
 import type { ChatMsg, StageLogEntry } from "./useChatStream";
 
 // The synthesizing stage can repeat (a turn may synthesize, search again, and
@@ -60,7 +60,9 @@ function synthesizingSlot(msg: ChatMsg, entry: StageLogEntry, onAtlas: (uuid: st
 }
 
 function checkingSlot(msg: ChatMsg, onAtlas: (uuid: string) => void): ReactNode {
-  if (!msg.verify || msg.verify.status === "checking") return null;
+  // Null (no disclosure affordance on the row) when there is nothing to
+  // disclose: still auditing, or a clean verdict.
+  if (!msg.verify || msg.verify.status === "checking" || !hasFindings(msg.verify)) return null;
   return <VerifyFindings verify={msg.verify} onAtlas={onAtlas} />;
 }
 

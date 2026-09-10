@@ -28,6 +28,11 @@ const base: VerifyState = {
 const noop = () => {};
 
 describe("VerifyFindings", () => {
+  it("renders nothing at all when there are no findings", () => {
+    const { container } = render(<VerifyFindings verify={{ ...base, status: "pass" }} onAtlas={noop} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("renders a contradiction row with the answer, evidence, and reason", () => {
     render(
       <VerifyFindings

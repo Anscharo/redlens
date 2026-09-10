@@ -348,6 +348,8 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   transition: background 100ms, color 100ms, border-color 100ms;
 }
 .rlc-iconbtn:hover { background: var(--hover); color: var(--tan); border-color: var(--border); }
+.rlc-iconbtn:disabled { opacity: 0.4; cursor: default; }
+.rlc-iconbtn:disabled:hover { background: transparent; color: var(--tan-3); border-color: transparent; }
 
 /* ── Scroll region ─────────────────────────────────────────────────────── */
 /* Non-scrolling box exactly spanning the conversation area — the context
@@ -413,6 +415,10 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 
 /* ── Stage checklist ───────────────────────────────────────────────────── */
 .rlc-stage-summary { margin: 2px 0 0; }
+/* The comparing/verifying rows render after the answer (Message.tsx's
+   POST_ANSWER_STAGES); give them the same breathing room the answer's last
+   paragraph has above the badge. */
+.rlc-answer + .rlc-stage-summary { margin-top: 4px; margin-bottom: 10px; }
 .rlc-stages { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
 /* .rlc-stage stacks column-wise (header row, then an optional slot below
    it) — the marker+label row itself is laid out by .rlc-stage-head /
@@ -453,9 +459,10 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
    header's own gap (9px). */
 .rlc-stage-slot { margin-top: 5px; margin-left: 15px; padding-left: 1px; }
 /* The live token buffer, shown only while the answer hasn't been revealed
-   yet — dimmed + italic marks it as still-forming, distinct from the final
-   .rlc-answer treatment it hands off to. */
-.rlc-stage-draft { color: var(--tan-2); font-style: italic; }
+   yet — dimmed marks it as still-forming. Upright, same as the .rlc-answer
+   it hands off to: the answer text is never italic (an italic→upright flip
+   read as the answer jumping). */
+.rlc-stage-draft { color: var(--tan-2); }
 
 /* An aborted turn: stages ran but no answer landed. */
 .rlc-stopped { font: 400 14px/1.5 var(--serif, "Lora", serif); color: var(--tan-3); font-style: italic; margin: 0; }
@@ -536,10 +543,9 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 
 /* ── Provisional (unverified) answer ─────────────────────────────────────
    Message.tsx sets data-state from `!done || verify?.status === "checking"`.
-   .rlc-md sets its own font-style via the `font` shorthand (defaulting it to
-   normal), so this has to out-specificity that rule rather than rely on
-   inheriting italic from an ancestor. */
-.rlc-answer[data-state="provisional"] .rlc-md { font-style: italic; }
+   Deliberately unstyled: the answer used to render italic until the verify
+   badge resolved, and the flip to upright read as the text jumping. The
+   badge is the unverified signal; the attribute stays for tests/tooling. */
 
 /* ── Superseded prior draft ──────────────────────────────────────────────
    A tool_round clear moves the already-streamed draft here instead of
@@ -862,7 +868,17 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-md a:hover { text-decoration-color: var(--accent); color: var(--tan); }
 .rlc-md { font: 400 15.5px/1.62 var(--serif, "Lora", serif); color: var(--tan-2); }
 .rlc-md p { margin: 0 0 11px; }
-.rlc-md ul, .rlc-md ol { margin: 0 0 12px; padding-left: 17px; display: flex; flex-direction: column; gap: 6px; }
+/* Tailwind's preflight zeroes list-style on every ul/ol, so markers have to
+   be put back here (same as .atlas-md in index.css) — without this an
+   ordered list in an answer rendered as bare lines with no numbers. Spacing
+   is li+li margin, not a flex gap: a flex container is one more thing that
+   can interfere with ::marker rendering, for no layout gain. */
+.rlc-md ul, .rlc-md ol { margin: 0 0 12px; padding-left: 21px; }
+.rlc-md ul { list-style-type: disc; }
+.rlc-md ol { list-style-type: decimal; }
+.rlc-md li + li { margin-top: 6px; }
+.rlc-md li > ul, .rlc-md li > ol { margin: 6px 0 0; }
+.rlc-md li::marker { color: var(--tan-3); }
 .rlc-md strong { color: var(--tan); font-weight: 600; }
 .rlc-md code { font-family: "Source Code Pro", monospace; font-size: 14px; }
 .rlc-md blockquote {
@@ -876,16 +892,6 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 }
 
 /* ── Streaming caret + thinking twinkle ────────────────────────────────── */
-.rlc-caret {
-  display: inline-block;
-  width: 7px;
-  height: 14px;
-  vertical-align: -2px;
-  margin-left: 1px;
-  background: var(--accent);
-  animation: rlc-blink 1s steps(2) infinite;
-}
-@keyframes rlc-blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
 .rlc-twinkle { color: var(--accent); animation: rlc-twinkle 1.4s ease-in-out infinite; display: inline-block; }
 @keyframes rlc-twinkle { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 

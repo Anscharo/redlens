@@ -49,11 +49,21 @@ model's reasoning trace and live token draft, verification findings — under
 its label, and a second click collapses it again; a row with no working
 content to show (nothing recalled/queried/etc. for that stage) renders
 without the disclosure affordance at all. The answer itself appears only on
-`answer_final` (the orchestrator's generation-end signal, §6/§8) and renders
-*italic* until the verify badge resolves (or immediately upright if
-verification is off). After `done`, the checklist collapses to one summary
-line that re-expands on click, so a finished turn doesn't leave a wall of
-stage rows behind it — and every row is `data-state="done"` once collapsed
+`answer_final` (the orchestrator's generation-end signal, §6/§8), all at once
+and upright — the verify badge, not a text style, is the "unverified" signal
+(it used to render italic until the badge resolved, and the flip to upright
+read as the answer jumping). When it lands, the thread shows it from its
+first line (`useStickToBottom`'s `showFrom`) instead of carrying the reader to
+its last, and stops following until they scroll. The checklist is split
+around the answer: `recalling`/`querying`/`synthesizing` rows render above
+it, `comparing`/`checking` rows below it (`POST_ANSWER_STAGES`, Message.tsx),
+so the answer sits directly under the Synthesizing row where the reader was
+watching it form, and the verification rows arriving never push it. A live
+turn's checklist never folds — the final render must not rearrange what is on
+screen. Only a finished turn that *mounts* finished (a reopened panel, a
+loaded thread) starts as one summary line per list that re-expands on click,
+so a history of turns doesn't read as a wall of stage rows — and every row is
+`data-state="done"` once the turn is over
 (no row keeps pulsing as "active" after the turn has ended, even the last
 one, whether the reader re-expands it or the turn stopped/failed).
 
@@ -528,8 +538,8 @@ the `round_checks` entry lands in `checksMeta`), before the verifier-model
 branch runs. Past that point `done.content` will not change again: there is
 no rewrite machinery (§6 is annotate-only), so the repaired content *is* the
 final answer. The client reveals on `answer_final` and lets the verify badge
-trail — the answer renders *italic* until a verdict lands (or immediately
-upright if verification is off), never blocked on the audit. `answer_final`
+trail — the answer is never blocked on the audit, and the badge alone marks
+it unverified until a verdict lands (no italic phase). `answer_final`
 is **not** emitted on the early-exit path (`chatVerifyChecks` off, an aborted
 turn, or empty content) — those still repair `done.content` for the wire, but
 skip the `round_checks` block `answer_final` trails, so the client falls back

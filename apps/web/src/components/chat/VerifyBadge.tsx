@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { VerifyState } from "./useChatStream";
-import { VerifyFindings } from "./VerifyFindings";
+import { VerifyFindings, hasFindings } from "./VerifyFindings";
 
 // Verification chip for an assistant answer (chat reliability harness,
 // refutation-only design — the verifier only ever reports what the evidence
@@ -27,25 +27,12 @@ export function VerifyBadge({ verify, onAtlas }: { verify: VerifyState; onAtlas:
   const [open, setOpen] = useState(false);
   if (verify.status === "unverified") return null;
 
-  const issues =
-    verify.contradictions.length +
-    (verify.rulingIssued ? 1 : 0) +
-    verify.invalidCitations.length +
-    verify.invalidDocNos.length +
-    verify.docNoMismatches.length +
-    verify.ungroundedQuotes.length +
-    verify.ungroundedAddresses.length +
-    // All three are hard failures server-side, and each can be a turn's ONLY
-    // finding. Omitting them from the count let such a turn render a red chip
-    // that refused to expand and explain itself.
-    verify.ungroundedCitationValues.length +
-    verify.paramMismatches.length +
-    verify.completenessFailures.length +
-    (verify.missingExternalDisclaimer ? 1 : 0) +
-    verify.mscCitedAsAtlas.length +
-    (verify.lengthCapped ? 1 : 0);
+  // Every hard failure counts, each of which can be a turn's ONLY finding —
+  // omitting one let a red chip refuse to expand and explain itself. The
+  // list lives in hasFindings so the chip and the findings list can never
+  // disagree about whether there is anything to show.
   const label = chipLabel(verify);
-  const expandable = issues > 0 && verify.status !== "checking";
+  const expandable = hasFindings(verify) && verify.status !== "checking";
 
   return (
     <div className="rlc-verify">

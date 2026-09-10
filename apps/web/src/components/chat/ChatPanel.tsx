@@ -38,6 +38,8 @@ export function ChatPanel({
   // is referenced as session.* at its single call site below.
   const { authed, messages, streaming } = session;
   const [draft, setDraft] = useState("");
+  // Counter, not boolean: every press must re-focus, even back to back.
+  const [composerFocus, setComposerFocus] = useState(0);
   const ctxPct = ratioPct(session.contextTokens, session.contextWindow);
 
   // Draft persistence: restore on mount, mirror to localStorage.
@@ -53,7 +55,7 @@ export function ChatPanel({
   // reports the new text instead. `resetKey` re-follows on a wholesale content
   // swap (conversation switch, new chat, a deleted current chat) — which
   // ChatWidget can trigger from outside this panel.
-  const { threadRef, pending, stick, jumpToBottom } = useStickToBottom({
+  const { threadRef, pending, stick, jumpToBottom, showFrom } = useStickToBottom({
     follow: messages,
     streaming,
     resetKey: `${session.conversationId}|${session.loadingHistory}`,
@@ -81,7 +83,14 @@ export function ChatPanel({
     <section className="rlc-panel" data-place={placement} role="dialog" aria-label="Atlas agent">
       <ChatHeader
         title={session.title}
-        onNewChat={session.newChat}
+        onNewChat={
+          empty
+            ? null
+            : () => {
+                session.newChat();
+                setComposerFocus((n) => n + 1);
+              }
+        }
         onClose={onClose}
         placement={placement}
         onTogglePlacement={onTogglePlacement}
@@ -122,7 +131,13 @@ export function ChatPanel({
             />
           ) : (
             messages.map((m, i) => (
-              <Message key={i} msg={m} streaming={streaming && i === messages.length - 1} onAtlas={onAtlas} />
+              <Message
+                key={i}
+                msg={m}
+                streaming={streaming && i === messages.length - 1}
+                onAtlas={onAtlas}
+                onAnswerReveal={showFrom}
+              />
             ))
           )}
         </div>
@@ -138,6 +153,7 @@ export function ChatPanel({
           onSend={() => void doSend(draft)}
           onStop={session.stop}
           streaming={streaming}
+          focusKey={composerFocus}
           locked={!!session.rateLimit}
           // The 429 lock note wins over the failed-turn note: a 429 already
           // carries its full explanation, and the stale error would otherwise
