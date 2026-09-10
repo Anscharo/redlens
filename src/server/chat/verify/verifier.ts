@@ -1,88 +1,64 @@
 // Verifier — the strong-model final claim audit of the chat reliability
 // harness. Runs ONCE per turn, after the answer already streamed (stream +
-// badge, never gate). Judges the synthesis against the evidence actually
-// retrieved this turn; `overall` is computed IN CODE so the model can never
-// upgrade a deterministic citation failure. Any transport/parse failure
-// degrades to "unverified" — verification flakiness must never break chat.
-import { z } from "zod";
+// badge, never gate). REFUTATION-ONLY: the model lists statements the
+// retrieved evidence CONTRADICTS (verify/refute.ts), not statements it
+// supports — a statement the evidence merely doesn't mention is not flagged.
+// `overall` is computed IN CODE so the model can never upgrade a
+// deterministic citation failure. Any transport/parse failure degrades to
+// "unverified" — verification flakiness must never break chat.
 import type OpenAI from "openai";
-import { callWithTimeout, type JsonCall } from "../llm.ts";
-import type { CheckReport } from "./verify-checks.ts";
-import type { RoundTelemetry } from "./round-checks.ts";
 import { config } from "../../config.ts";
-import { captureError, captureEvent, type ErrorContext } from "../../posthog-node.ts";
+import type { CheckReport } from "./verify-checks.ts";
 import { isExternalMscTool } from "../../external/envelope.ts";
 import { FACT_TOOL_NAME } from "../../facts/registry.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
-const ClaimSchema = z.object({
-  claim: z.string(),
-  status: z.enum(["supported", "unsupported", "contradicted"]),
-  evidence: z.array(z.string()).default([]),
-  cited_uuid: z.string().nullish(),
-  note: z.string().nullish(),
-  // Set by the sliced verifier (verifier-slices.ts's validateSpans): this
-  // claim's closest evidence was a [REFERENCE] entry — injected product
-  // documentation / glossary / entity rows, not retrieved atlas text. The
-  // escalation gate reads it so that summarising injected context cannot buy
-  // a rewrite. No slice prompt mentions the field, and the sliced path builds
-  // the flag in code rather than reading it off the model, so nothing a judge
-  // emits can set it; only the eval-only `parseVerdict` path would keep one.
-  reference: z.boolean().optional(),
-});
-
-const VerdictSchema = z.object({
-  claims: z.array(ClaimSchema).default([]),
-  invented_facts: z.array(z.string()).default([]),
-  ruling_issued: z.boolean().default(false),
-  confidence: z.number().min(0).max(1).nullable().default(null),
-  feedback: z.string().default(""),
-});
-
-export type Verdict = z.infer<typeof VerdictSchema>;
-export type VerifyOverall = "pass" | "warn" | "fail" | "unverified";
-
-// Tolerant parse: strip code fences, then salvage first-{ to last-}.
-export function parseVerdict(text: string): Verdict | null {
-  const stripped = text.replace(/```(?:json)?/g, "").trim();
-  const start = stripped.indexOf("{");
-  const end = stripped.lastIndexOf("}");
-  if (start === -1 || end <= start) return null;
-  try {
-    const parsed = VerdictSchema.safeParse(JSON.parse(stripped.slice(start, end + 1)));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
+// One code-validated contradiction between the answer and the retrieved
+// evidence. `answer_span`/`evidence_span` are re-checked against the answer
+// and the evidence respectively (verify/refute.ts's validateContradictions) —
+// the model cannot assert a contradiction into existence any more than the
+// old design let it assert support into existence.
+export interface Contradiction {
+  answer_span: string; // the answer sentence (validated: spanOverlap ≥ 0.8 vs the answer with link markup stripped)
+  evidence_span: string; // verbatim evidence (validated: locateSpan ≥ 0.8)
+  why: string; // ≤ 20 words
+  evidence_label: string; // "[E3]" — the entry the span matched
+  uuid: string | null; // nearest `"id":"<uuid>"` (or "uuid") preceding the match inside that entry, else null
+  source: "model" | "param-table";
+  agreed: boolean; // confirm-gate outcome
 }
+
+export interface Verdict {
+  contradictions: Contradiction[]; // ALL validated candidates (agreed and not)
+  not_found: string[]; // ≤ 5, text only
+  ruling_issued: boolean;
+  notes: string; // refute + overreach notes, ≤ 600 chars (persistence only)
+  refuteParsed: boolean; // the refute backbone parsed
+  confirm: { ran: boolean; model: string | null; candidates: number; agreed: number } | null;
+}
+
+export type VerifyOverall = "pass" | "warn" | "fail" | "unverified";
 
 // overall is computed here, not by the model. Deterministic failures are
 // un-appealable; the verdict can only add severity, never remove it.
+//
+// The confirm gate is a HARD gate: a contradiction candidate the second judge
+// did NOT agree with must never reach the reader. Unagreed candidates stay
+// only inside the persisted Verdict (message_checks.verdict) as the confirm
+// gate's calibration record — they never influence overall.
 export function computeOverall(checks: CheckReport | null, verdict: Verdict | null): VerifyOverall {
   if (checks?.failed) return "fail";
   if (!verdict) return "unverified";
-  const contradicted = verdict.claims.some((c) => c.status === "contradicted");
-  if (contradicted || verdict.ruling_issued) return "fail";
-  // `invented_facts` is a FREE-TEXT channel with no threshold, so a strict
-  // auditor writes wording critiques into it ("the phrasing is slightly
-  // stronger than the evidence warrants") and an answer with 13/13 supported
-  // claims got a red badge. It is therefore a severity UPGRADE, never a primary
-  // trigger: a genuine fabrication is by definition also an `unsupported` or
-  // `contradicted` claim, so requiring a claim-level counterpart loses no real
-  // detection — while a pure nuance critique has no counterpart and can no
-  // longer fail on its own. (Considered and rejected: a `severity` field on the
-  // verdict schema — new surface the judge fills unreliably, when the claim
-  // table already discriminates. The VERIFIER_SYSTEM definition of the field is
-  // tightened alongside this so the channel means what it says.)
-  if (verdict.claims.some((c) => c.status === "unsupported")) {
-    return verdict.invented_facts.length > 0 ? "fail" : "warn";
-  }
-  // An empty claim list means the audit produced nothing to check — typically a
-  // JSON-mode-degraded `{}` verdict, where the schema defaults claims/invented
-  // to []. That is NOT a clean pass: don't bless a substantive answer green when
-  // the verifier didn't actually check it. Degrade to unverified (badge hides).
-  if (verdict.claims.length === 0) return "unverified";
+  // An AGREED contradiction (refute + independent confirm) is a hard fail —
+  // two auditors, one narrative and one adversarial-checklist, both read the
+  // evidence as incompatible with the answer.
+  if (verdict.contradictions.some((c) => c.agreed)) return "fail";
+  // An overreach ruling is caution.
+  if (verdict.ruling_issued) return "warn";
+  // The refute backbone never parsed and nothing else is wrong — don't bless
+  // an answer the audit never actually checked.
+  if (!verdict.refuteParsed) return "unverified";
   return "pass";
 }
 
@@ -131,10 +107,10 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
   // entry (facts are seeded before the model runs), so newest-first budgeting
   // drops it first — precisely the material the answer was built from, on the
   // tool-heavy turns where the budget actually binds. The verifier then judges
-  // an answer against evidence missing its source and reports the content as
-  // unsupported, and the advisor rewrites away correct information. Facts are
-  // small and deterministic; reserving them costs little and removes a whole
-  // class of false "not supported by the provided evidence".
+  // an answer against evidence missing its source and can flag correct content
+  // as a false refutation, shipping a false fail badge on an otherwise-correct
+  // answer. Facts are small and deterministic; reserving them costs little and
+  // removes a whole class of false "not supported by the provided evidence".
   const isPrefetch = (e: EvidenceEntry) => e.tool === FACT_TOOL_NAME;
   let remaining = maxChars;
   const reserved: EvidenceEntry[] = [];
@@ -161,7 +137,7 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
 // evidence entry. The system prompt tells the model that atlas material already
 // in the conversation counts as grounding, so a follow-up ("summarize what you
 // just said") legitimately answers with zero this-turn tool calls — without
-// this entry the verifier flags every such claim as unsupported.
+// this entry the refute slice has nothing to check every such claim against.
 export function priorTurnsEvidence(transcript: Msg[], maxChars = 8000): EvidenceEntry | null {
   const lastUser = transcript.findLastIndex((m) => m.role === "user");
   const answers = transcript
@@ -187,109 +163,9 @@ export function priorTurnsEvidence(transcript: Msg[], maxChars = 8000): Evidence
   };
 }
 
-const VERIFIER_SYSTEM = [
-  "You are a strict verification auditor for a governance research assistant answering from the Sky Atlas.",
-  "Judge the assistant's answer ONLY against the evidence entries provided. Your own knowledge of Sky, MakerDAO, or governance is irrelevant; if the evidence does not contain a fact, the fact is unsupported even if you believe it is true.",
-  "[E-prev], when present, holds the assistant's own answers from earlier turns: claims that restate or summarize them are supported (conversation continuity), but NEW specifics absent from both [E-prev] and the tool evidence are not.",
-  "Claims include: numbers, dates, rates, role assignments, responsibilities, document identities and statuses, and existence/absence statements.",
-  "Hedged statements ('the atlas does not appear to cover X') are SUPPORTED when the evidence pattern matches the hedge (e.g. searches returned nothing relevant).",
-  "'invented_facts' lists ONLY facts the answer asserts with NO basis in the evidence — a fabricated number, date, name, address, role, relationship, or document identity. Each entry must name the specific asserted fact you can find nowhere in the evidence.",
-  "'invented_facts' is NOT a critique channel: wording, nuance, emphasis, hedging strength, conflated terminology, or 'the phrasing is stronger than the evidence warrants' are NOT invented facts. Put every such concern in 'feedback' and leave 'invented_facts' empty.",
-  "'ruling_issued' is true only if the answer itself adjudicates an eligibility/payment/dispute outcome instead of reporting what the atlas says.",
-  "Do NOT judge style, tone, or citation formatting — code handles that.",
-  "Respond with STRICT JSON only:",
-  '{"claims":[{"claim":"…","status":"supported|unsupported|contradicted","evidence":["E2"],"cited_uuid":null,"note":null}],"invented_facts":[],"ruling_issued":false,"confidence":0.0,"feedback":"≤80 words for a recovery advisor"}',
-].join("\n");
-
-export function buildVerifierPrompt(params: {
-  question: string;
-  answer: string;
-  evidence: EvidenceEntry[];
-  checks: CheckReport;
-  telemetry: RoundTelemetry;
-}): Msg[] {
-  const { question, answer, evidence, checks, telemetry } = params;
-  const evidenceBlock = evidence.length
-    ? evidence.map((e) => `${e.label} ${e.tool}(${e.args}) →\n${e.content}`).join("\n\n")
-    : "(no tools were called this turn — every factual claim is therefore unsupported unless it is a hedge)";
-  const telemetryBlock = [
-    `rounds=${telemetry.rounds} toolCalls=${telemetry.toolCalls} empty=${telemetry.emptyResults} errors=${telemetry.errorResults} repeated=${telemetry.repeatedQueries}`,
-    ...telemetry.notes.slice(0, 8),
-  ].join("\n");
-  const checksBlock = [
-    `citations=${checks.citations.length} invalid_citations=${checks.invalidCitations.join(",") || "none"}`,
-    `invalid_doc_numbers=${checks.invalidDocNos.join(",") || "none"} docno_mismatches=${checks.docNoMismatches.join("; ") || "none"}`,
-    `uncited_paragraphs=${checks.uncitedParagraphs} ungrounded_quotes=${checks.ungroundedQuotes.length}`,
-    `ungrounded_addresses=${checks.ungroundedAddresses.join(",") || "none"}`,
-    // Hard: a value used as citation link text (a figure, percentage, date, or
-    // address) that IS in the evidence but NOT in the doc it was cited to — a
-    // real number attributed to the wrong document.
-    `values_cited_to_wrong_doc=${checks.ungroundedCitationValues.join("; ") || "none"}`,
-    // Soft: an untraced figure may be computed, unit-converted, or a schema
-    // fact from [E0] — judge each against the evidence rather than assuming.
-    `numbers_not_found_verbatim_in_evidence=${checks.untracedNumbers.join(",") || "none"}`,
-    // Soft: the claim's wording barely overlaps the doc it cites. Paraphrase and
-    // synthesis depress overlap legitimately — but so does citing the WRONG
-    // document, which no other deterministic check can see. Read the cited doc
-    // in the evidence and judge whether it actually supports that sentence.
-    `claims_with_low_word_overlap_vs_cited_doc=${checks.lowOverlapCitations.join(" | ") || "none"}`,
-    ...(checks.lengthCapped ? ["answer_length_capped=true — the answer was cut off by the output length limit, it is incomplete"] : []),
-  ].join("\n");
-  return [
-    { role: "system", content: VERIFIER_SYSTEM },
-    {
-      role: "user",
-      content: [
-        `## Question\n${question}`,
-        `## Assistant's answer\n${answer}`,
-        `## Evidence retrieved this turn\n${evidenceBlock}`,
-        `## Retrieval telemetry\n${telemetryBlock}`,
-        `## Deterministic check results\n${checksBlock}`,
-      ].join("\n\n"),
-    },
-  ];
-}
-
 export interface VerifierRun {
   verdict: Verdict | null;
   usage: { input: number; output: number } | null;
   generationId: string | null;
   latencyMs: number | null;
-}
-
-export async function runVerifier(params: {
-  call: JsonCall;
-  model: string;
-  question: string;
-  answer: string;
-  evidence: EvidenceEntry[];
-  checks: CheckReport;
-  telemetry: RoundTelemetry;
-  signal?: AbortSignal;
-  timeoutMs?: number;
-  obs?: ErrorContext;
-}): Promise<VerifierRun> {
-  const timeoutMs = params.timeoutMs ?? config.chatVerifierTimeoutMs;
-  try {
-    // Hard deadline: a hung/slow verifier call must never stall the terminal
-    // done event — the answer already streamed. callWithTimeout CANCELS the
-    // provider request on timeout (so it stops burning tokens), then rejects →
-    // caught below → "unverified" badge, same as any verification flakiness.
-    const res = await callWithTimeout(
-      params.call,
-      { model: params.model, messages: buildVerifierPrompt(params), maxTokens: 2000 },
-      timeoutMs,
-      params.signal,
-    );
-    const verdict = parseVerdict(res.text);
-    // The call succeeded but the judge's JSON didn't parse — the turn silently
-    // degrades to "unverified" with no other record this happened.
-    if (!verdict && res.text.trim()) {
-      captureEvent("chat_verdict_unparseable", params.obs, { model: params.model, text_preview: res.text.slice(0, 300) });
-    }
-    return { verdict, usage: res.usage, generationId: res.generationId, latencyMs: res.latencyMs };
-  } catch (err) {
-    captureError(err, params.obs, { stage: "verifier_call", model: params.model });
-    return { verdict: null, usage: null, generationId: null, latencyMs: null };
-  }
 }

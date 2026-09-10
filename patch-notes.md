@@ -32,6 +32,11 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
+## 2026-09-10
+- Fixed the chat and MCP atlas search skipping every Agent artifact (Spark, Grove, Amatsu, …) when a query was scoped to the Agent Scope.
+- The chat's verification badge now reports only statements the atlas contradicts, and no longer rewrites answers.
+- Chat now shows a checklist of what it is doing while it answers; click a step to see its working.
+
 ## 2026-09-09
 - Enlarged the CrossView chunk map to show more details
 - Chat and MCP now serve the Stale Dates, Atlas Processes, OEA Task Assessment, Risk Rules Assessment, and On-Chain Addresses reports directly instead of just pointing at the page

@@ -4,7 +4,10 @@
 // or reduced it in SQL (class-mode atlas_first_seen). Ranked search plus a
 // hedge ("among those queried") is the incident's verifier-escape — it still
 // fails. Unverified on an exhaustive question is a hard fail (unlike absence,
-// whose unverified is a warn) and recovery must requery, not rewrite.
+// whose unverified is a warn). Recovery is not built (docs/plans/
+// chat-class-completeness.md, not started); a badge-only harness has nothing
+// to rewrite, so any future recovery here means re-running retrieval
+// (requery), not resurrecting a rewrite path.
 
 export type CompletenessOutcome = "grounded" | "refuted" | "unverified" | "noop";
 

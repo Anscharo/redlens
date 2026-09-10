@@ -1,9 +1,8 @@
 // Chat reliability harness orchestrator (docs/chat-system.md §6).
 // Wraps the pure runChat loop with: live status events, a streaming citation
 // gate (invalid links repaired before their tokens reach the client), pipelined
-// deterministic round checks, a post-answer verifier audit (stream + badge —
-// never gates the answer), and an escalation-only advisor capped at exactly
-// ONE recovery cycle.
+// deterministic round checks, and a post-answer verifier audit (stream + badge
+// — annotate-only, never gates or rewrites the answer).
 // Unset model slots degrade to today's behavior; harness flakiness never breaks
 // a turn. `transcript`/`checksMeta` are internal — the SSE route strips them
 // via sanitizeDone before events reach a client.
@@ -13,10 +12,10 @@ import type { ChatStream } from "./chat-loop.ts";
 import type { JsonCall } from "./llm.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { config } from "../config.ts";
-import { createRoundChecker, type RoundTelemetry } from "./verify/round-checks.ts";
+import { createRoundChecker } from "./verify/round-checks.ts";
 import { runDeterministicChecks, type CheckReport } from "./verify/verify-checks.ts";
-import { findParamsMentioned, formatParamMismatch, type ParamMismatch } from "./verify/param-checks.ts";
-import { COMPLETENESS_REQUERY_STEER, type CompletenessEvidence } from "./verify/completeness.ts";
+import { findParamsMentioned, type ParamMismatch } from "./verify/param-checks.ts";
+import type { CompletenessEvidence } from "./verify/completeness.ts";
 import { createLinkJudge, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
 import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation-normalize.ts";
 import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
@@ -26,16 +25,14 @@ import { isUncheckableAnswer, judgeSmalltalk } from "./verify/smalltalk.ts";
 import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
 import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
 import { atlasDescribe } from "./tools/tools.ts";
-import { adviseRecovery, type Recovery } from "./verify/advisor.ts";
 import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type DoneEvent = Extract<ChatEvent, { type: "done" }>;
 
 export interface CheckRowMeta {
-  kind: "round_checks" | "verify" | "verify_recheck" | "advisor_recovery" | "smalltalk_judge";
+  kind: "round_checks" | "verify" | "smalltalk_judge";
   model: string | null;
-  action: "annotate" | "revised" | null;
   verdict: unknown;
   overall: VerifyOverall | null;
   inputTokens: number | null;
@@ -46,18 +43,29 @@ export interface CheckRowMeta {
 
 export type HarnessEvent =
   | ChatEvent
-  // "comparing" is emitted here, by the orchestrator (see the verification
-  // block below). "synthesizing"/"finalizing" are staged-delivery-only stages
-  // synthesized by the SSE route (chat.ts) from token/done events — the
-  // orchestrator never yields them; they're in this union because it's the
-  // wire type both files share.
-  | { type: "status"; stage: "querying" | "reading" | "checking" | "advising" | "revising" | "comparing" | "synthesizing" | "finalizing"; detail?: string }
+  // "querying" fires per tool call; "synthesizing" fires once per generation
+  // burst (the run of tokens since the last tool_call, or since the stream
+  // started) right before its first token; "comparing"/"checking" bracket the
+  // post-answer audit below. All four are real progress the client renders as
+  // a stage checklist.
+  | { type: "status"; stage: "querying" | "checking" | "comparing" | "synthesizing"; detail?: string }
+  // Emitted once, right after deterministic repair succeeds — done.content is
+  // final past this point (rewrites are gone), so the client reveals the
+  // answer here and lets the verify badge trail. Not emitted on the
+  // config-off/aborted/empty-content early exit; the client falls back to
+  // revealing on `done` there.
+  | { type: "answer_final"; content: string }
   | {
       type: "verify_result";
       overall: VerifyOverall;
-      confidence: number | null;
-      action: "annotate" | "revised" | null;
-      claims: { claim: string; status: "supported" | "unsupported" | "contradicted" }[];
+      // AGREED contradictions only — refute + an independent confirm call both
+      // read the evidence as incompatible with the answer. Drives `overall`
+      // "fail" on its own. A candidate the confirm judge did NOT agree with
+      // never reaches this wire — it stays only in the persisted Verdict
+      // (message_checks.verdict) as the confirm gate's calibration record.
+      contradictions: { answer: string; evidence: string; why: string; uuid: string | null }[];
+      notFound: string[];
+      rulingIssued: boolean;
       invalidCitations: string[];
       invalidDocNos: string[];
       docNoMismatches: string[];
@@ -111,14 +119,18 @@ function verifyEvent(
   overall: VerifyOverall,
   verdict: Verdict | null,
   checks: CheckReport,
-  action: "annotate" | "revised" | null,
 ): Extract<HarnessEvent, { type: "verify_result" }> {
+  const asWire = (c: { answer_span: string; evidence_span: string; why: string; uuid: string | null }) =>
+    ({ answer: c.answer_span, evidence: c.evidence_span, why: c.why, uuid: c.uuid });
+  const contradictions = verdict?.contradictions ?? [];
   return {
     type: "verify_result",
     overall,
-    confidence: verdict?.confidence ?? null,
-    action,
-    claims: (verdict?.claims ?? []).map((c) => ({ claim: c.claim, status: c.status })),
+    // Unagreed candidates are dropped here — the confirm gate is hard, so a
+    // candidate the second judge did not agree with must never reach the wire.
+    contradictions: contradictions.filter((c) => c.agreed).map(asWire),
+    notFound: verdict?.not_found ?? [],
+    rulingIssued: verdict?.ruling_issued ?? false,
     invalidCitations: checks.invalidCitations,
     invalidDocNos: checks.invalidDocNos,
     docNoMismatches: checks.docNoMismatches,
@@ -153,10 +165,9 @@ function verifyEvent(
 //     definition nodes), so the swap is invisible to the user;
 //   • where the swap IS visible it is precisely the repair — the two measured
 //     malformed shapes otherwise ship as literal brackets in the prose;
-//   • and done.content is what the verifier, the advisor digest, the revision
-//     steer, the Sources cluster and the persisted message all read, so one
-//     canonical shape across those consumers beats byte-fidelity to raw model
-//     output.
+//   • and done.content is what the verifier, the Sources cluster and the
+//     persisted message all read, so one canonical shape across those
+//     consumers beats byte-fidelity to raw model output.
 // Exported for the offline evals (scripts/aux/eval-bakeoff.ts), which must grade
 // the string production would SHIP: a reference-style answer has no inline
 // citations at all until this runs, so a checker fed the raw model output scores
@@ -184,8 +195,9 @@ export function normalizeAndRepair(content: string, toolTexts: string[], ix: Ind
 // Reference bookkeeping for the checks row — observability only, never a
 // verdict. The remaining `undefinedLabels` here are the ones that could NOT be
 // resolved to a retrieved doc (the resolvable ones were already synthesized
-// into inline links by normalizeAndRepair); repairedChecks folds these into a
-// hard failure. `undefined` so the key vanishes from the persisted JSON on the
+// into inline links by normalizeAndRepair) and were de-linkified to plain text
+// — recorded here, never a failure (the reader saw prose, not a bad link).
+// `undefined` so the key vanishes from the persisted JSON on the
 // overwhelmingly common turn that uses no reference syntax at all.
 function refsMeta(r: ReferenceExpansion) {
   if (r.definitions.size + r.undefinedLabels.length + r.unusedLabels.length === 0) return undefined;
@@ -200,70 +212,28 @@ function identifiersMeta(i: IdentifierRepair) {
   return { linkified: i.linkified, removed: i.removed };
 }
 
-// Repair the answer's atlas links in code, then fold unrepairable (stripped)
-// links back into the report as hard failures — the link is gone from the
-// shipped text, but a fabricated citation still means an unsupported claim.
-// Unresolvable undefined reference labels (de-linkified to plain text by the
-// normalizer) fold in identically: a claim that cited a doc which turned out
-// not to resolve is just as unsupported. A length-capped answer (cut off
-// mid-generation) is folded the same way: it's not a citation problem, but it
-// must equally force `failed` so the escalation gate below sees it and the
-// harness attempts a recovery.
-// A tool result under this many characters carries no documents — an empty
-// envelope like {"mode":"search","count":0,"results":[]} is ~40 bytes. Used as
-// a fallback when the payload is not JSON. Length alone is not enough: a
-// `count: 0` envelope with a `filters_applied` hint is hundreds of bytes of
-// diagnostic text and still retrieved nothing.
-const EMPTY_RESULT_CHARS = 200;
-
-// Unsupported claims that may buy the costliest recovery there is. Reference-
-// grounded ones are excluded: they are descriptive prose restating context
-// RedLens injected for this turn (the product guide, glossary rows, entity
-// rows, censuses), where summarising IS the intended use — so `unsupported`
-// there says the paraphrase drifted from the wording, not that the answer is
-// ungrounded. Letting them through is what rewrote a correct orientation
-// answer: three demoted product claims ("Radar is at /radar") hit the trigger
-// exactly and the advisor deleted whole correct sections. This is the
-// per-claim form of the `prefetchOnly` suppression below, which only fires
-// when the turn has NO other evidence — one orientation search that returned
-// anything used to re-arm the rewrite.
-export const claimsDrivingEscalation = (verdict: Verdict | null): number =>
-  (verdict?.claims ?? []).filter((c) => c.status === "unsupported" && !c.reference).length;
-
-/** Atlas/external tool payload that actually retrieved something to cite. */
-function isSubstantiveEvidence(e: { sourceClass?: string; content: string }): boolean {
-  if (e.sourceClass === "reference") return false;
-  const trimmed = e.content.trim();
-  try {
-    const parsed = JSON.parse(trimmed) as { count?: unknown; results?: unknown };
-    if (parsed && typeof parsed === "object") {
-      if (parsed.count === 0) return false;
-      if (Array.isArray(parsed.results) && parsed.results.length === 0) return false;
-    }
-  } catch {
-    // Prose / non-JSON tool text: fall through to the byte floor.
-  }
-  return trimmed.length > EMPTY_RESULT_CHARS;
-}
-
+// Repair the answer's atlas links in code. A link the repair could not
+// resolve is de-linkified (stream-link-gate.ts did the same to the token
+// stream), so the reader never sees it — and the checks judge what the reader
+// sees: a stripped link is NOT folded back in as a failure. It used to be
+// ("a fabricated citation is still a fabrication"), which produced a red
+// badge naming a doc that appeared nowhere in the shipped answer (observed
+// 2026-09-10: "cites a document that does not exist: a2e7af9" under an answer
+// with no such link). The strip is still recorded on the round_checks row for
+// calibration. Unresolvable reference labels (de-linkified to plain text by
+// the normalizer) are treated identically. Only a length-capped answer (cut
+// off mid-generation) still forces `failed`: the reader sees the truncation.
 function repairedChecks(
   content: string,
   toolTexts: string[],
   ix: Indexes,
-  repair: CitationRepair,
   lengthCapped: boolean,
-  undefinedLabels: string[] = [],
   completeness?: { question: string; evidence: CompletenessEvidence[] },
   split?: { atlasTexts?: string[]; externalTexts?: string[] },
 ): CheckReport {
   const checks = runDeterministicChecks(content, toolTexts, ix, completeness, split);
-  if (repair.stripped.length === 0 && undefinedLabels.length === 0 && !lengthCapped) return checks;
-  return {
-    ...checks,
-    invalidCitations: [...checks.invalidCitations, ...repair.stripped.map((s) => s.target), ...undefinedLabels],
-    lengthCapped,
-    failed: true,
-  };
+  if (!lengthCapped) return checks;
+  return { ...checks, lengthCapped, failed: true };
 }
 
 const toolTextsOf = (transcript: Msg[]): string[] =>
@@ -291,13 +261,17 @@ const schemaEvidence = (ix: Indexes): EvidenceEntry => ({
 // [E-const]: deterministic parameter-table rows the answer text mentions
 // (docs/research/synlang-wiki.md §3.1) — evidence for the VERIFIER only,
 // never the answerer's prompt/loop (a measured ~6x loop-amplification cost is
-// why). Protects a correct answer that states a well-known frozen parameter
-// without re-retrieving it this turn from a false "unsupported" verdict, and
-// gives the absence contract (verify/absence.ts) something to refute a false
-// absence claim against. Uses the same broadened name-or-title matcher as the
-// Task-1 hard check (param-checks.ts's findParamsMentioned) — a false
-// positive here is cheap (one extra evidence row, not a wrongful failure), so
-// the ambiguous-doc suppression the hard check needs is deliberately skipped.
+// why). Gives the refute slice a real value to check a numeric/status claim
+// against even on a turn that never re-retrieved the owning doc, so it can
+// flag a WRONG figure as a genuine contradiction rather than having nothing
+// to compare against. (The absence contract, verify/absence.ts's
+// refuteAbsenceSentences, does NOT read this entry — it queries the parameter
+// index directly, so an absence sentence is refuted even when [E-const]
+// itself found nothing to attach to the answer's own claims.) Uses the same
+// broadened name-or-title matcher as the Task-1 hard check
+// (param-checks.ts's findParamsMentioned) — a false positive here is cheap
+// (one extra evidence row, not a wrongful failure), so the ambiguous-doc
+// suppression the hard check needs is deliberately skipped.
 const CONST_EVIDENCE_CAP = 40;
 function constEvidence(ix: Indexes, answerText: string): EvidenceEntry | null {
   const matches = findParamsMentioned(answerText, ix);
@@ -319,37 +293,10 @@ function constEvidence(ix: Indexes, answerText: string): EvidenceEntry | null {
   };
 }
 
-// One line per hard deterministic failure — fed to the advisor and the revision
-// steer so recovery targets the exact fabrication, not just "audit failed".
-function describeCheckFailures(checks: CheckReport): string[] {
-  return [
-    ...checks.invalidCitations.map((u) => `cited doc ${u} does not exist in the atlas — cite only docs retrieved this turn`),
-    ...checks.invalidDocNos.map((d) => `document number ${d} does not exist in the atlas — remove it or replace it with the real number from the tool results`),
-    ...checks.docNoMismatches.map((m) => `misattributed citation: ${m}`),
-    ...checks.ungroundedQuotes.map((q) => `quoted text not found in any retrieved source: "${q.slice(0, 80)}"`),
-    ...checks.ungroundedAddresses.map((a) => `address ${a} appears in no tool result this turn — remove it or replace it with an address you actually retrieved`),
-    ...checks.ungroundedCitationValues.map((v) => `${v} — cite the value to the document that actually contains it, or drop the figure`),
-    ...checks.paramMismatches.map((m) => `${formatParamMismatch(m)} — state the correct atlas value instead`),
-    ...checks.completenessFailures.map((d) =>
-      d.includes("requery") || d.includes("class was not listed")
-        ? d
-        : `${d} — ${COMPLETENESS_REQUERY_STEER}`,
-    ),
-    ...(checks.missingExternalDisclaimer
-      ? ["settlement figures were used but the answer did not say they are not from the Atlas — repeat the required disclaimer (Soter Labs workbooks / Sky Forum, not Atlas)"]
-      : []),
-    ...checks.mscCitedAsAtlas.map((m) => `${m} — link the workbook or the Sky Forum permalink instead`),
-    ...(checks.lengthCapped ? ["the previous answer was cut off by the output length limit before it finished — write a complete, more concise answer that fits"] : []),
-  ];
-}
-
-function retrievalTrouble(t: RoundTelemetry): boolean {
-  return t.emptyResults + t.errorResults >= config.chatAdvisorTriggerEmptyResults || t.repeatedQueries >= 2;
-}
-
-// One model audit of an answer: four concurrent narrow auditors
-// (verify/sliced-verifier.ts), one per failure class (claims/figures/sets/
-// overreach), over the same evidence. `modelLabel` is what the check row
+// One model audit of an answer: two concurrent narrow auditors
+// (verify/sliced-verifier.ts) — `refute` (evidence-contradiction) and
+// `overreach` (stance) — plus one CONDITIONAL `confirm` call that only runs
+// when either produced a candidate. `modelLabel` is what the check row
 // records as `model`.
 async function runAudit(params: {
   jsonCall: JsonCall;
@@ -369,54 +316,10 @@ async function runAudit(params: {
   return { run, modelLabel: `sliced(${[...new Set(Object.values(models))].join(",")})` };
 }
 
-// Corrective-run steering per advisor action. The revision run's base is the
-// full turn transcript (incl. the flagged answer), so the model sees all
-// evidence gathered; `requery` gets one extra tool round, others get none.
-function revisionSteer(recovery: Recovery, feedback: string): { steer: string; maxIterations: number } {
-  const fb = feedback ? ` Audit feedback: ${feedback}` : "";
-  switch (recovery.action) {
-    case "requery": {
-      const calls = recovery.calls.map((c) => `${c.name}(${JSON.stringify(c.args)})`).join("; ");
-      return {
-        steer: `Your previous answer failed a verification audit.${fb} ${recovery.guidance} Make exactly these tool calls first: ${calls || "the minimal calls that fill the gap"} — then write the corrected final answer with citations.`,
-        maxIterations: 2,
-      };
-    }
-    case "rewrite":
-      return {
-        steer: `Your previous answer failed a verification audit.${fb} ${recovery.guidance} Rewrite the complete answer now using ONLY the evidence already gathered above — remove or correct every flagged claim, keep everything that was supported, cite sources as instructed.`,
-        maxIterations: 1,
-      };
-    case "decline":
-      return {
-        steer: `Your previous answer failed a verification audit.${fb} ${recovery.guidance} The atlas does not support an answer here: write an honest, brief response saying so, naming exactly what was checked and found. No speculation.`,
-        maxIterations: 1,
-      };
-  }
-}
-
 export async function* runVerifiedChat(opts: {
   ix: Indexes;
   messages: Msg[];
   stream: ChatStream;
-  // Optional chain for the ONE advisor recovery cycle. The turn's own chain
-  // just failed an audit, so replaying the recovery on it asks the model that
-  // produced the flawed answer to fix it; escalating to the strong tier asks
-  // a different, presumably more capable model instead. That bet is only
-  // partly backed by measurement: the 2026-08-21 bakeoff (gemma vs luna, 14
-  // hard queries, 6 wins / 0 losses / 6 ties, 1.6x faster) measured FIRST-PASS
-  // open-ended generation, where gemma's failure mode is completeness (0.70
-  // vs 0.95) and luna's hard-fabrication rate is actually higher (0.07 vs 0).
-  // `troubled` below also fires on fabrication-class failures (ungrounded
-  // citations, param mismatches, contradicted claims), which that bakeoff
-  // did not evaluate for either model. The mitigating difference is that
-  // recovery is a narrower task than first-pass generation — the advisor's
-  // steer (`revisionSteer`) pins the model to the evidence already gathered
-  // and tells it exactly which claims to remove or correct — but that's a
-  // judgment call, not a measured one. Unset = replay on the turn's own
-  // chain, the old behavior. Escalate-only-up: a miss costs nothing, a fire
-  // costs tokens; re-verify after (below) still catches a bad revision.
-  recoveryStream?: ChatStream;
   jsonCall?: JsonCall;
   question: string;
   signal?: AbortSignal;
@@ -425,7 +328,6 @@ export async function* runVerifiedChat(opts: {
 }): AsyncGenerator<HarnessEvent> {
   const max = Math.max(1, opts.maxIterations ?? config.chatMaxIterations);
   const checker = createRoundChecker();
-  let roundsUsed = 0;
 
   // ── Streaming citation gate ───────────────────────────────────────────────
   // The same LinkJudge the post-answer repair pass uses, fed the same evidence
@@ -465,7 +367,6 @@ export async function* runVerifiedChat(opts: {
 
   const onRoundEnd = (info: RoundInfo) => {
     checker.record(info);
-    roundsUsed = Math.max(roundsUsed, info.iter + 1);
     for (const r of info.results) gateEvidence.push(r.content);
     judge = null; // new evidence — rebuild on the next link
   };
@@ -487,12 +388,26 @@ export async function* runVerifiedChat(opts: {
 
   // ── Conversationalist pass (answer streams at full speed) ────────────────
   let done: DoneEvent | null = null;
+  // Real progress, not a route-side inference: a burst is the run of tokens
+  // since the last tool_call (or since the stream started), and the FIRST
+  // token of each burst is preceded by a "synthesizing" status so the client
+  // can show it as a stage rather than silence before the draft appears.
+  let announced = false;
   for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd, obs: opts.obs, jsonCall: opts.jsonCall, userQuestion: opts.question }), makeGate)) {
     if (ev.type === "done") {
       done = ev;
       break; // held back — the harness emits its own terminal done
     }
-    if (ev.type === "tool_call") yield { type: "status", stage: "querying", detail: describeCall(ev.name, ev.args) };
+    if (ev.type === "tool_call") {
+      announced = false; // next generation round re-announces
+      yield { type: "status", stage: "querying", detail: describeCall(ev.name, ev.args) };
+      yield ev;
+      continue;
+    }
+    if (ev.type === "token" && !announced) {
+      announced = true;
+      yield { type: "status", stage: "synthesizing", detail: "Writing an answer from the evidence…" };
+    }
     yield ev;
   }
   if (!done) return; // loop can only end via done; defensive
@@ -547,7 +462,7 @@ export async function* runVerifiedChat(opts: {
   if (judgePromise) {
     const judge = await judgePromise; // long since resolved — it raced the whole answer
     checksMeta.push({
-      kind: "smalltalk_judge", model: smalltalkJudgeModel, action: null,
+      kind: "smalltalk_judge", model: smalltalkJudgeModel,
       verdict: { smalltalk: judge.smalltalk }, overall: null,
       inputTokens: judge.usage?.input ?? null, outputTokens: judge.usage?.output ?? null,
       generationId: judge.generationId, latencyMs: judge.latencyMs,
@@ -578,17 +493,16 @@ export async function* runVerifiedChat(opts: {
   let checks: CheckReport;
   // Earlier-turn answers count as grounding for follow-ups (the system prompt
   // says so), so the verifier gets them as one [E-prev] entry alongside the
-  // schema — otherwise every "summarize what you said" turn flags unsupported.
+  // schema — otherwise every "summarize what you said" turn has nothing to
+  // check its claims against.
   // Hoisted above the status events because it is also half of `grounded`.
   const prevEvidence = priorTurnsEvidence(done.transcript);
-  // Entering verification is progress worth surfacing in staged mode — but only
-  // when there is something to name as the basis: this turn's retrievals, or
-  // earlier turns of the conversation. With neither (a tool-free answer that
-  // still carries groundable content — pure small talk exited above) the audit
-  // still runs, silently — announcing a comparison against nothing is worse
-  // than no ticker at all, and the verdict badge is the outcome channel either
-  // way. The route stays mode-unaware; streaming mode just forwards these like
-  // any other status event.
+  // Entering verification is progress worth surfacing — but only when there is
+  // something to name as the basis: this turn's retrievals, or earlier turns
+  // of the conversation. With neither (a tool-free answer that still carries
+  // groundable content — pure small talk exited above) the audit still runs,
+  // silently — announcing a comparison against nothing is worse than no
+  // ticker at all, and the verdict badge is the outcome channel either way.
   const grounded = evidence.length > 0 || prevEvidence !== null;
   if (grounded) {
     yield {
@@ -600,12 +514,12 @@ export async function* runVerifiedChat(opts: {
     toolTexts = toolTextsOf(done.transcript);
     const { refs, repair, identifiers } = normalizeAndRepair(done.content, toolTexts, opts.ix);
     if (repair.content !== done.content) done = { ...done, content: repair.content };
-    checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped, refs.undefinedLabels, {
+    checks = repairedChecks(done.content, toolTexts, opts.ix, done.lengthCapped, {
       question: opts.question,
       evidence,
     }, splitFromTranscript(done.transcript));
     checksMeta.push({
-      kind: "round_checks", model: null, action: null,
+      kind: "round_checks", model: null,
       verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, refs: refsMeta(refs), identifiers: identifiersMeta(identifiers), checks: { ...checks, citations: checks.citations.length } },
       overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: null,
     });
@@ -615,9 +529,16 @@ export async function* runVerifiedChat(opts: {
     return;
   }
 
+  // done.content is final past this point — deterministic repair has already
+  // run and rewrites are gone, so the client reveals the answer now and lets
+  // the verify badge trail rather than waiting on the audit below.
+  yield { type: "answer_final", content: done.content };
+
   const verifierModel = opts.jsonCall ? config.chatVerifierModel : "";
-  // constEvidence is computed PER audited answer (done.content vs revDone.content
-  // below), not once — the two answers can mention different parameters.
+  // constEvidence is computed from the audited answer (done.content) itself,
+  // not once up front — kept as a function of answerText since baseEvidence
+  // is shared with runAudit below and must stay in sync with whatever text
+  // it audits.
   const baseEvidence = (turnEvidence: EvidenceEntry[], answerText: string) => {
     const ce = constEvidence(opts.ix, answerText);
     return [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...(ce ? [ce] : []), ...turnEvidence];
@@ -631,7 +552,7 @@ export async function* runVerifiedChat(opts: {
     });
     verdict = run.verdict;
     checksMeta.push({
-      kind: "verify", model: modelLabel, action: null, verdict: run.verdict,
+      kind: "verify", model: modelLabel, verdict: run.verdict,
       overall: computeOverall(checks, run.verdict),
       inputTokens: run.usage?.input ?? null, outputTokens: run.usage?.output ?? null,
       generationId: run.generationId, latencyMs: run.latencyMs,
@@ -639,167 +560,10 @@ export async function* runVerifiedChat(opts: {
   }
   const overall = verifierModel ? computeOverall(checks, verdict) : checks.failed ? "fail" : "unverified";
 
-  // ── Escalation gate (all free signals) ────────────────────────────────────
-  const exhausted = max > 1 && roundsUsed >= max - 1;
-  const advisorModel = opts.jsonCall ? config.chatAdvisorModel : "";
-  // A recovery cycle replays the whole turn transcript through the model — the
-  // single most expensive operation here — so it is reserved for `fail`, plus
-  // the two independent trouble signals below (which still admit `warn` via
-  // `overall !== "pass"`). A lone `unsupported` claim used to trigger it: the
-  // mildest signal buying the costliest response. `warn` now escalates on its
-  // own only once enough claims are unsupported that the answer is substantially
-  // ungrounded rather than imprecise in one spot.
-  const unsupportedClaims = claimsDrivingEscalation(verdict);
-  const troubled =
-    overall === "fail" ||
-    (overall === "warn" && unsupportedClaims >= config.chatAdvisorTriggerUnsupportedClaims) ||
-    (overall !== "pass" && (exhausted || retrievalTrouble(telemetry)));
-  // A turn whose only real evidence is the injected prefetch round must not be
-  // REWRITTEN over unsupported claims. Facts are reference material the answer
-  // is meant to restate in its own words, so a paraphrase reads as ungrounded
-  // to a span-matching judge; the advisor then replaces correct content with a
-  // hedge ("I cannot substantiate that from the retrieved material"), which is
-  // strictly worse for the reader. Observed twice in production on product /
-  // orientation questions where the atlas search came back empty.
-  //
-  // Narrow on purpose: this suppresses only the CLAIM-driven rewrite. A
-  // deterministic failure (invalid citation, ungrounded quote or figure, param
-  // mismatch — checks.failed, and therefore overall === "fail") still escalates
-  // exactly as before, because those are wrong regardless of where the content
-  // came from. The badge still shows the verdict; only the rewrite is withheld.
-  const substantiveEvidence = evidence.filter(isSubstantiveEvidence).length;
-  const prefetchOnly = substantiveEvidence === 0 && evidence.some((e) => e.sourceClass === "reference");
-  const escalate =
-    Boolean(advisorModel) && troubled && !opts.signal?.aborted && !(prefetchOnly && !checks.failed);
-
   // Deterministic-only turns stay quiet unless something actually failed —
   // a permanent "unverified" chip on every clean answer is noise, not signal.
   const emitVerify = verifierModel !== "" || checks.failed;
-  if (emitVerify) yield verifyEvent(overall, verdict, checks, escalate ? null : "annotate");
-
-  if (!escalate) {
-    yield finish(done);
-    return;
-  }
-
-  // ── One recovery cycle, hard cap ──────────────────────────────────────────
-  yield { type: "status", stage: "advising", detail: "Answer didn’t fully check out — conferring with advisor…" };
-  const digest = evidence.map((e) => `${e.tool}(${e.args.slice(0, 160)}) → ${e.content.slice(0, 200)}`).join("\n");
-  const checkFailures = describeCheckFailures(checks);
-  const adv = await adviseRecovery({
-    call: opts.jsonCall!, model: advisorModel, question: opts.question,
-    transcriptDigest: digest || "(no tools were called)", verdict, telemetry, checkFailures, signal: opts.signal, obs: opts.obs,
-  });
-  checksMeta.push({
-    kind: "advisor_recovery", model: advisorModel,
-    action: adv.recovery ? "revised" : "annotate",
-    verdict: adv.recovery ? { ...adv.recovery, originalAnswer: done.content } : null,
-    overall: null, inputTokens: adv.usage?.input ?? null, outputTokens: adv.usage?.output ?? null,
-    generationId: adv.generationId, latencyMs: adv.latencyMs,
-  });
-  if (!adv.recovery) {
-    // Advisor unavailable/undecided → annotate-only fallback; badge stays as-is.
-    yield finish(done);
-    return;
-  }
-
-  yield { type: "status", stage: "revising", detail: "Revising with corrections…" };
-  // The client keeps the flagged answer, struck through, above whatever the
-  // revision produces — this is NOT a wipe (contrast the tool_round/degenerate
-  // clears in chat-loop.ts). See the `restore` counterpart below for the
-  // abandoned-revision case.
-  yield { type: "clear", reason: "revision" };
-  const feedback = [verdict?.feedback ?? "", checkFailures.length ? `Deterministic failures: ${checkFailures.join("; ")}.` : ""]
-    .filter(Boolean).join(" ");
-  const { steer, maxIterations } = revisionSteer(adv.recovery, feedback);
-  // The transcript carries the ORIGINAL system prompt, whose citation-format
-  // instruction was fixed from the original chain's primary (citationStyleFor,
-  // model-router.ts). An escalated replay therefore asks the strong model for
-  // whatever format the default model was asked for. Deliberately left alone:
-  // every model accepts and every check parses both formats, and rewriting a
-  // system message mid-transcript is a bigger risk than a format mismatch.
-  const revMessages: Msg[] = [...done.transcript, { role: "system", content: steer }];
-  let revDone: DoneEvent | null = null;
-  try {
-    for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: revMessages, stream: opts.recoveryStream ?? opts.stream, signal: opts.signal, maxIterations, onRoundEnd, obs: opts.obs, jsonCall: opts.jsonCall, userQuestion: opts.question }), makeGate)) {
-      if (ev.type === "done") {
-        revDone = ev;
-        break;
-      }
-      if (ev.type === "tool_call") yield { type: "status", stage: "querying", detail: describeCall(ev.name, ev.args) };
-      yield ev;
-    }
-  } catch (err) {
-    // The revision replays the whole transcript, so it can fail where the
-    // original didn't (context overflow, provider error). The original answer
-    // is already in hand and merely failed an audit — never lose it to a
-    // recovery attempt. Harness flakiness must not break a turn, but the
-    // failure itself is worth knowing about.
-    captureError(err, opts.obs, { stage: "revision_loop" });
-    revDone = null;
-  }
-
-  // Failed/aborted revision → the original answer stands. The `revision`
-  // clear above told the client to keep the flagged answer struck-through
-  // and start rendering a fresh live buffer for the replacement — but that
-  // replacement never arrived, and done.content below is about to re-send
-  // the ORIGINAL answer. Without this signal the client would render the
-  // kept struck-through copy AND the same text again as the "new" answer.
-  // `restore` tells it to drop the kept copy so `done` is the only copy left.
-  if (!revDone || !revDone.content.trim()) {
-    yield { type: "clear", reason: "restore" };
-    yield finish(done);
-    return;
-  }
-
-  // ── Re-verify once; the second verdict is final even if amber ─────────────
-  // Same rule as the first pass: revDone.content already streamed to the
-  // client (via token events during the revision loop above) — a throw here
-  // must degrade to "skip the recheck", never lose the revised answer.
-  const revEvidence = evidenceFromTranscript(revDone.transcript);
-  let revChecks: CheckReport;
-  try {
-    const revToolTexts = toolTextsOf(revDone.transcript);
-    const { refs: revRefs, repair: revRepair } = normalizeAndRepair(revDone.content, revToolTexts, opts.ix);
-    if (revRepair.content !== revDone.content) revDone = { ...revDone, content: revRepair.content };
-    revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair, revDone.lengthCapped, revRefs.undefinedLabels, {
-      question: opts.question,
-      evidence: revEvidence,
-    }, splitFromTranscript(revDone.transcript));
-  } catch (err) {
-    captureError(err, opts.obs, { stage: "revision_citation_repair_or_checks" });
-    yield finish(revDone);
-    return;
-  }
-  let revVerdict: Verdict | null = null;
-  if (verifierModel && !opts.signal?.aborted) {
-    yield { type: "status", stage: "checking", detail: "Re-checking the revised answer…" };
-    const { run: rerun, modelLabel } = await runAudit({
-      jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
-      answer: revDone.content, evidence: baseEvidence(revEvidence, revDone.content), checks: revChecks, signal: opts.signal, obs: opts.obs,
-    });
-    revVerdict = rerun.verdict;
-    checksMeta.push({
-      kind: "verify_recheck", model: modelLabel, action: "revised", verdict: rerun.verdict,
-      overall: computeOverall(revChecks, rerun.verdict),
-      inputTokens: rerun.usage?.input ?? null, outputTokens: rerun.usage?.output ?? null,
-      generationId: rerun.generationId, latencyMs: rerun.latencyMs,
-    });
-  }
-  yield verifyEvent(verifierModel ? computeOverall(revChecks, revVerdict) : revChecks.failed ? "fail" : "unverified", revVerdict, revChecks, "revised");
-
-  yield finish({
-    type: "done",
-    content: revDone.content,
-    usage: { input: done.usage.input + revDone.usage.input, output: done.usage.output + revDone.usage.output },
-    // The revised run's context is the CURRENT one — it replayed the whole
-    // transcript through a fresh round, so its own contextTokens (falling
-    // back to the original's only if the revision never saw a usage chunk)
-    // describes what the shipped answer was actually produced against.
-    contextTokens: revDone.contextTokens ?? done.contextTokens,
-    generationId: revDone.generationId ?? done.generationId,
-    toolCalls: [...done.toolCalls, ...revDone.toolCalls],
-    lengthCapped: revDone.lengthCapped, // the revised answer is what's finalized
-    transcript: revDone.transcript,
-  });
+  if (emitVerify) yield verifyEvent(overall, verdict, checks);
+  yield finish(done);
+  return;
 }

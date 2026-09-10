@@ -585,9 +585,8 @@ export interface CheckReport {
 //     brief — even if the cited atlas doc happens to contain the same digits
 //     (findUngroundedCitationValues would skip that collision as "grounded").
 // Shape-only matching (any `$n` / `n USDS` link text once MSC ran) was the
-// previous false-positive: it hard-failed correct atlas citations and the
-// revision steer then told the model to re-cite a real atlas fact as a
-// workbook URL.
+// previous false-positive: it hard-failed correct atlas citations, and a fail
+// badge would then land on an answer that cited a real atlas fact correctly.
 export function findMscCitedAsAtlas(answer: string, externalTexts: string[], ix: Indexes): string[] {
   const cites = extractCitations(answer);
   if (cites.length === 0 || externalTexts.length === 0) return [];

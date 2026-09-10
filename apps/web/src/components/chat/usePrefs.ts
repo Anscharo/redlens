@@ -1,51 +1,45 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
-import type { Delivery } from "./api";
 
 // Chat preferences, persisted per-browser in localStorage and synced across
-// components (the NavBar dropdown and the chat panel) via a custom event +
-// the cross-tab `storage` event. Only reduce-motion has a switch in the UI
-// (the Account panel); `traces` is read by ChatPanel but currently has no
-// writer, so it sits at its default. color-scheme now lives in its own store,
+// components via a custom event + the cross-tab `storage` event. Only
+// reduce-motion has a switch in the UI (the Account panel, via
+// ProfileButton) — that's also the only consumer left; the chat panel itself
+// dropped its own usePrefs() call along with the header's `details` toggle.
+// color-scheme now lives in its own store,
 // `lib/theme.ts` — deliberately NOT a ChatPrefs field: this file discards its
 // whole record on a SCHEMA_VERSION mismatch (see below), and folding theme in
 // would mean a future chat-pref bump silently resets everyone's theme back to
 // dark. collapse-tree remains a follow-up (FE plan step 9).
 //
-// ChatPrefs stays boolean-only: every ChatPrefs field ends up rendered by
+// ChatPrefs stays boolean-only: every field ends up rendered by
 // PrefSwitch.tsx's generic on/onChange switch, whose `aria-checked` only
-// accepts boolean. delivery is a real preference (persisted the same way,
-// same record) but not a toggle, so it's added on the wider ChatSettings
-// instead — usePrefs() returns ChatSettings (a ChatPrefs), so existing
-// ChatPrefs-typed consumers are unaffected.
+// accepts boolean.
 export interface ChatPrefs {
-  traces: boolean; // show tool-call traces
   reduceMotion: boolean; // disable panel/turn/ember/caret animation
-}
-export interface ChatSettings extends ChatPrefs {
-  delivery: Delivery | null; // null = follow the server's env default
 }
 
 const KEY = "rlc-prefs";
-const DEFAULTS: ChatSettings = { traces: false, reduceMotion: false, delivery: null };
+const DEFAULTS: ChatPrefs = { reduceMotion: false };
 const EVENT = "rlc-prefs-change";
 
-// Bumped to 2 when the NavBar Account panel dropped the traces/reduceMotion
-// switches, so a value persisted under the old (unversioned) schema couldn't
-// keep a then-removed setting in effect with no way to turn it back off.
-//
-// Reduce motion has since been restored to that panel, and the version stays
-// at 2 deliberately: while the switches were gone `setPref` had no caller at
-// all, so no v2 record was ever written. Every stored value in the wild is
-// still unversioned and already discarded by the check below — the restored
-// switch starts from the default for everyone, and there is no v2 data for a
-// further bump to protect against.
-const SCHEMA_VERSION = 2;
+// Bumped to 3 when the streaming-vs-staged delivery split was removed: the
+// v2 record carried `traces` (renamed `details`) and `delivery`, neither of
+// which exists any more, so a v2 record is discarded rather than partially
+// adopted. (v2 itself was a prior bump for the same reason — see git
+// history — and by the time it landed had never actually been written,
+// since `setPref` had no caller while the switches were gone.) Still 3: the
+// header's `details` toggle was removed in favor of per-row disclosure
+// (each stage row expands on click, no pref involved), which drops `details`
+// from ChatPrefs but doesn't change the stored shape's *version* — a v3
+// record with a stray `details` key just has it ignored by the `DEFAULTS`
+// spread below.
+const SCHEMA_VERSION = 3;
 
-function read(): ChatSettings {
+function read(): ChatPrefs {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULTS;
-    const { v, ...parsed } = JSON.parse(raw) as Partial<ChatSettings> & { v?: number };
+    const { v, ...parsed } = JSON.parse(raw) as Partial<ChatPrefs> & { v?: number };
     if (v !== SCHEMA_VERSION) return DEFAULTS;
     return { ...DEFAULTS, ...parsed };
   } catch {
@@ -55,7 +49,7 @@ function read(): ChatSettings {
 
 // Cache the parsed value so getSnapshot returns a stable reference (avoids the
 // useSyncExternalStore infinite-loop when JSON.parse yields a fresh object).
-let snapshot: ChatSettings = read();
+let snapshot: ChatPrefs = read();
 
 function subscribe(cb: () => void): () => void {
   const handler = () => {
@@ -73,7 +67,7 @@ function subscribe(cb: () => void): () => void {
 export function usePrefs() {
   const prefs = useSyncExternalStore(subscribe, () => snapshot, () => DEFAULTS);
 
-  const setPref = useCallback(<K extends keyof ChatSettings>(key: K, value: ChatSettings[K]) => {
+  const setPref = useCallback(<K extends keyof ChatPrefs>(key: K, value: ChatPrefs[K]) => {
     const next = { ...read(), [key]: value };
     localStorage.setItem(KEY, JSON.stringify({ ...next, v: SCHEMA_VERSION }));
     snapshot = next;

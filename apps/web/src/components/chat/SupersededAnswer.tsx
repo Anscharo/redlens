@@ -13,7 +13,6 @@ export type SupersededAnswerProps = ComponentProps<"div"> & {
 // where the text went (beta feedback: "if a rewrite is requested that should
 // be placed below").
 const NOTE: Record<SupersededDraft["reason"], string> = {
-  revision: "A verification check found problems with this draft. The corrected answer is below.",
   tool_round: "The assistant set this aside to keep searching. It was never checked — the answer is below.",
 };
 
@@ -26,15 +25,7 @@ const NOTE: Record<SupersededDraft["reason"], string> = {
 // draft is that someone reads it, and they already saw this text with its
 // markdown rendered — handing back raw source ("**7 signers**", a bare
 // /atlas/<uuid> href) is the same loss in a different form. Citations stay
-// live: a revision usually invalidates ONE claim, so the rest are still worth
-// following.
-//
-// Strikethrough is reserved for a draft that was WRONG — rejected by the
-// verifier. That is the "cross it out" case. A `tool_round` draft was never
-// judged wrong, only unverified, so it is dimmed rather than struck; striking
-// it would assert an error that never happened. Markup follows that: <del>
-// only on `revision`. `tool_round` is a plain wrapper (the outer block is
-// already role="note").
+// live.
 //
 // Its note deliberately does NOT say when the text was written or what it was
 // written from. The clear fires whenever a round produced text AND tool calls,
@@ -42,16 +33,14 @@ const NOTE: Record<SupersededDraft["reason"], string> = {
 // (the model had atlas data, wrote from it, then decided to search again).
 // "Written before searching the atlas" was the first wording and it was only
 // true in the first case. What holds in every case: the model set it aside to
-// keep searching, and cleared text never reaches the verifier — only
-// done.content is audited.
-function DraftBody({ draft, onAtlas }: { draft: SupersededDraft; onAtlas: (uuid: string) => void }) {
-  const body = <AtlasMarkdown content={balanceFences(draft.text)} onAtlas={onAtlas} />;
-  if (draft.reason === "revision") {
-    return <del className="rlc-superseded-text">{body}</del>;
-  }
-  return <div className="rlc-superseded-text">{body}</div>;
-}
-
+// keep searching, and cleared text never reaches the verifier — only the
+// final answer is audited.
+//
+// Rendered by StageSlots.tsx inside the "synthesizing" stage row's slot
+// (shown once that row is clicked open), scoped to that round's own drafts
+// (`d.round === entry.round`) — a turn with more than one tool round shows
+// each superseded draft under the round that produced it, not all bunched at
+// the top of the turn the way the pre-checklist layout did.
 export function SupersededAnswer({ drafts, onAtlas, className, ...props }: SupersededAnswerProps) {
   if (!drafts.length) return null;
   return (
@@ -65,7 +54,9 @@ export function SupersededAnswer({ drafts, onAtlas, className, ...props }: Super
           aria-label="An earlier draft, replaced later in this answer"
         >
           <p className="rlc-superseded-note">{NOTE[draft.reason]}</p>
-          <DraftBody draft={draft} onAtlas={onAtlas} />
+          <div className="rlc-superseded-text">
+            <AtlasMarkdown content={balanceFences(draft.text)} onAtlas={onAtlas} />
+          </div>
         </div>
       ))}
     </div>

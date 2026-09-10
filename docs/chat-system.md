@@ -37,13 +37,30 @@ placements persisted in localStorage. `useChatStream.send(text, pageContext)`
 POSTs `{ message, conversationId, pageContext }` to `/api/chat`, then reads the
 response as a raw stream (not `EventSource`, since it's a POST), buffering on
 `\n\n` and parsing `data:` SSE frames into typed `ChatEvent`s. A `dispatch()`
-reducer mutates the last assistant message per event: `token` appends text,
-`reasoning` accumulates the model's thinking trace onto its own field, `clear`
-usually preserves the live buffer as a superseded draft rather than deleting it
-(see §11's `clear.reason` table), `tool_call`/`tool_result` build a trace,
-`facts` records injected knowledge, `status` drives a ticker or stage
-checklist, `verify_result` drives a pass/warn/fail badge, `export` auto-downloads
-a generated file, and `done` sets the authoritative final answer.
+reducer mutates the last assistant message per event.
+
+**While a turn is in flight**, the message renders as a stage checklist
+(`StageList`) — one row per stage the turn has reached (`recalling`,
+`querying`, `synthesizing`, `comparing`, `checking`), populated live off
+`status`/`facts`/`tool_call`/`tool_result`/`reasoning` events. Each row is its
+own disclosure: clicking it (there is no panel-wide toggle) expands that
+step's working content — facts recalled, tool calls with their results, the
+model's reasoning trace and live token draft, verification findings — under
+its label, and a second click collapses it again; a row with no working
+content to show (nothing recalled/queried/etc. for that stage) renders
+without the disclosure affordance at all. The answer itself appears only on
+`answer_final` (the orchestrator's generation-end signal, §6/§8) and renders
+*italic* until the verify badge resolves (or immediately upright if
+verification is off). After `done`, the checklist collapses to one summary
+line that re-expands on click, so a finished turn doesn't leave a wall of
+stage rows behind it — and every row is `data-state="done"` once collapsed
+(no row keeps pulsing as "active" after the turn has ended, even the last
+one, whether the reader re-expands it or the turn stopped/failed).
+
+Preferences (`usePrefs`): `reduceMotion`, plus placement. The old `details`
+header toggle, the `traces` preference, and the standalone `ToolTrace`
+component are gone — a stage row's working content opens per-row now (see
+above), and tool calls render inside their stage row.
 
 The client `ChatEvent` union in `api.ts` mirrors the server's `HarnessEvent` in
 `chat-orchestrator.ts` — **they must stay in sync**. The rule that keeps them
@@ -54,11 +71,11 @@ say why. Three (`paramMismatches`, `ungroundedCitationValues`, `lengthCapped`)
 were missing until 2026-08-21; when adding a fourth, wire it through to
 `VerifyBadge`'s `issues` count in the same change. Supporting surfaces:
 `VerifyBadge` (harness verdict), `ReasoningBlock` (the model's thinking trace,
-open by default and height-capped), `SupersededAnswer` (a revised-away draft,
-kept struck-through rather than deleted), `StageList` (staged delivery), `ToolTrace`,
-`Sources`, `LimitsMeter` + `ContextPie` (usage and context size),
+open by default and height-capped), `SupersededAnswer` (a draft set aside for a
+tool round, kept dimmed rather than deleted), `StageList` (the stage
+checklist), `Sources`, `LimitsMeter` + `ContextPie` (usage and context size),
 `RateLimitNote`, `ProfileButton` / `SignInButtons` (auth), `usePrefs`
-(delivery + placement preferences), `resume.ts` (conversation resume).
+(display + placement preferences), `resume.ts` (conversation resume).
 
 ## 2. Server lifecycle (`src/server/chat/chat.ts`)
 
@@ -93,24 +110,23 @@ kept struck-through rather than deleted), `StageList` (staged delivery), `ToolTr
    `credits.ts`). The commons gate **fails open**: `null` (key unset or credits
    API hiccup) never blocks chat; only a real `remaining <= 0` pauses chat for
    everyone (429 `commons_exhausted`).
-5. **Resolve delivery mode** — `resolveDeliveryMode(body.delivery, config.chatDeliveryMode)`, resolved
-   once up front so both the PostHog properties and the SSE loop use one value (§8).
-6. **Resolve conversation** — verify ownership of an existing `conversationId`
+5. **Resolve conversation** — verify ownership of an existing `conversationId`
    or `INSERT` a new `conversations` row; 404 `conversation_not_found` if the
    id isn't the caller's.
-7. **Persist the user message** before streaming, then reload full history.
-8. **Build the model input** — system prompt, windowed history, facts prefetch.
-9. **Model tier routing** — `routeTier` + `resolveTierModels`.
-10. **SSE stream** — emit `meta`, then run the harness, forwarding each event as
-    `data: {json}\n\n`.
-11. **Persist the assistant message** *after* the stream completes — never
+6. **Persist the user message** before streaming, then reload full history.
+7. **Build the model input** — system prompt, windowed history, facts prefetch.
+8. **Model tier routing** — `routeTier` + `resolveTierModels`.
+9. **SSE stream** — emit `meta`, then run the harness, forwarding every event
+   as-is, `data: {json}\n\n` (§8 — there is one delivery shape, not a mode
+   switch).
+10. **Persist the assistant message** *after* the stream completes — never
     partial; skipped on abort. Harness rows go to `message_checks`.
-12. **Post-response work** — conversation titling (`title.ts`) fires
+11. **Post-response work** — conversation titling (`title.ts`) fires
     fire-and-forget after the SSE response closes, so its budget
     (`CHAT_TITLE_TIMEOUT_MS`, default 20s) costs the user no latency. It
     re-fires at turns 4 and 10; a conversation ending at turns 1–3 keeps its
     truncated `slice(0, 60)` seed title.
-13. **Observability** — a per-turn PostHog trace keyed by conversation id
+12. **Observability** — a per-turn PostHog trace keyed by conversation id
     (semi-anonymous), not by user. `CHAT_CAPTURE_CONTENT` (on by default)
     controls whether raw prompt/response text rides the `$ai_generation` event
     or only token counts/latency/cost.
@@ -200,9 +216,7 @@ false fire over regex alone. Zero false fires is unreachable here — "what are
 the features of <doc title>?" out-scores every true positive — which is why the
 margin is set on the marginal trade rather than a clean separation, and why the
 cost asymmetry is the justification: a false fire buys a better *and* faster
-model, so it costs tokens, never correctness. The STRONG chain has a second job: it is also what the
-advisor's one recovery cycle replays on (§6.5), so a turn can reach the strong
-model by failing an audit as well as by matching a signal.
+model, so it costs tokens, never correctness.
 
 ## 4. The agentic loop (`chat-loop.ts`)
 
@@ -293,64 +307,87 @@ event reaches a client (test-asserted).
    atlas figure, so a numeric citation grounded in its own doc always passes.
    `tools/export-verify.ts` runs the same split and the same two checks over
    **exported files**, which outlive the conversation.
-3. **Sliced model verifier** (if `CHAT_VERIFIER_MODEL` set) — see below.
-4. **Advisor escalation** (if `CHAT_ADVISOR_MODEL` set) — see below.
+3. **Refutation-only verifier** (if `CHAT_VERIFIER_MODEL` set) — see below.
 
 All harness activity is recorded to `message_checks`, one row per activity
-(`round_checks`, `verify`, `verify_recheck`, `advisor_recovery`, `smalltalk_judge`),
-each with its own `generation_id` feeding the async cost backfill. Harness tokens
-count against the same per-user rate-limit window, so the harness can't spend
-invisibly.
+(`round_checks`, `verify`, `smalltalk_judge`), each with its own `generation_id`
+feeding the async cost backfill. Harness tokens count against the same per-user
+rate-limit window, so the harness can't spend invisibly.
 
-### 6.1 The sliced verifier (`verify/sliced-verifier.ts`, `verify/verifier-slices.ts`)
+### 6.1 The refutation-only verifier (`verify/sliced-verifier.ts`, `verify/verifier-slices.ts`)
 
-Since **2026-08-06 this is the only chat audit path.** `verify/verifier.ts`'s
-single-prompt `runVerifier` is retained solely so `pnpm eval:verifier` can still
-grade it — it is *not* a runtime fallback.
+Since **2026-09-10 the verifier no longer scores what the answer gets right — it
+only lists what the retrieved evidence CONTRADICTS.** Rewrites are gone; the
+verifier never rewrites an answer, it only reports findings on it. The old
+single-prompt `runVerifier` and the earlier `claims`/`figures`/`sets`/`overreach`
+four-slice split are both retired — `pnpm eval:verifier` grades the current
+design directly, there is no legacy fallback to keep grading.
 
-Four narrow auditors — **`claims`, `figures`, `sets`, `overreach`** — run
-concurrently, each a JSON-mode, temp-0 call. The split was driven by measurement,
-not taste: the single verifier already maxed fabrication (1.00) and ruling (1.00)
-detection but was broken on wrong-doc (0.26–0.39) and numbers (0.44–0.63), and
-missed structural misreads entirely. The slices sit on those fault lines.
+Two narrow auditors run concurrently, each a JSON-mode, temp-0 call:
 
-**The load-bearing idea is not the slicing — it is "show your work."** The single
-verifier once passed a real defect by asserting `"Spark is a Pioneer" [supported]`
-off adjacent scaffold boilerplate. So every `supported` verdict must now carry a
-**verbatim span**, and `validateSpans` re-checks that span against the evidence in
-code: a span that isn't really there downgrades the claim to unsupported. The
-model cannot assert support into existence.
+- **`refute`** — lists only statements the answer makes that the retrieved
+  evidence contradicts, each with a quoted evidence span and a reason. It never
+  lists what the answer gets right — there is no `supported` verdict any more,
+  because a wrongly-asserted "supported" once passed a real defect straight
+  through (the single verifier blessed `"Spark is a Pioneer"` off adjacent
+  scaffold boilerplate). Refutation-only removes that failure mode by removing
+  the claim it has to make.
+- **`overreach`** — unchanged: flags an answer that issues a ruling or verdict
+  instead of reporting what the atlas says.
 
-Results merge into the single-verifier `Verdict` shape so `computeOverall`, the
-advisor, the badge, and persistence consume it unchanged. The merge rule mirrors
-`computeOverall`'s philosophy — **severity can be added, never removed**: a parsed
-slice's contradiction or ruling always survives, but a clean-looking merge with
-the `claims` backbone missing degrades to `unverified` rather than blessing an
-answer the main audit never checked.
+**The load-bearing idea is still "show your work," enforced in code, not the
+prompt.** Every `refute` finding's evidence span is re-checked against the
+actual evidence text; a span that isn't really there is **DISCARDED**, never
+downgraded to a lesser status — refutation-only has no lesser status to
+downgrade to. A finding that survives validation becomes a **candidate**.
+Statements the auditor could not locate in evidence at all go to `notFound`
+(capped at 5), which is informational only and never affects `overall`.
 
-`overall` is computed **in code**, so the model can never upgrade a deterministic
-failure. `invented_facts` is a severity *upgrade* only (warn → fail): it cannot
-fail an otherwise-clean claim table, because a real fabrication always also
-surfaces as an unsupported/contradicted claim, while a lone entry there is
-usually a wording critique. Per-slice model overrides go through
-`CHAT_VERIFIER_SLICE_MODELS="claims=m1,figures=m2,…"`; unnamed slices fall back
-to `CHAT_VERIFIER_MODEL`.
+**`confirm` is a second, independent auditor, and it is conditional.** It runs
+only when at least one candidate survived code validation, so a clean answer —
+the common case — pays no extra model call. It reviews each candidate on its
+own and either agrees (the candidate becomes an agreed `contradiction`) or
+doesn't (it stays a `candidate`, unpromoted). Nothing ships as a contradiction
+on one auditor's word alone.
+
+`overall` is computed **in code** from the merged result — the model can never
+upgrade a deterministic failure, and a candidate cannot become a contradiction
+without `confirm`'s agreement. **The confirm gate is a HARD gate**: a candidate
+the second judge did not agree with must never reach the reader — it drops out
+of `overall`, the `verify_result` wire event, and the badge entirely, and
+survives only inside the full `Verdict` persisted to `message_checks.verdict`,
+where it is the confirm gate's calibration record and nothing else reads it:
+
+- a deterministic hard failure (`checks.failed`) ⇒ `fail`, independent of the
+  model auditors
+- no verdict at all (harness degraded before producing one) ⇒ `unverified`
+- any agreed **contradiction** ⇒ `fail`
+- `rulingIssued` (from `overreach`) ⇒ `warn`
+- the refute backbone never parsed and nothing else is wrong ⇒ `unverified`
+- otherwise `pass`
+
+An unagreed candidate does not appear anywhere in this list — it is not noise
+worth a `warn`, it is a rejected candidate, and rejected candidates are silent.
+
+Per-slice model overrides go through
+`CHAT_VERIFIER_SLICE_MODELS="refute=m1,overreach=m2,confirm=m3"`; unnamed slices
+fall back to `CHAT_VERIFIER_MODEL`. Model choice (gemma-4) stays the default
+pending a re-targeted `pnpm eval:slices` against the new three-auditor shape —
+see §12.
 
 ### 6.2 The absence contract (`verify/absence.ts`)
 
-An absence claim ("the atlas does not specify which chains") is supported by
-evidence *not* containing something — there is no span to quote, by construction,
-so `validateSpans` exempts it. That exemption alone produced a measured "false
-absence" epidemic: the model claiming the atlas is silent about X when X has a
-configured value, passing uncontested.
-
-So any claim marked `absence: true` **and** `supported` now gets a three-outcome
-audit, precedence `refuted > grounded > unverified`:
-
-- **REFUTED** — the parameter table proves a real value exists (forces `contradicted`).
-- **GROUNDED** — the evidence shows a genuine gap: a scaffold/placeholder doc, or
-  a search that empirically found nothing.
-- **UNVERIFIED** — neither; unproven either way.
+An absence claim ("the atlas does not specify which chains") used to need
+special handling because there is no evidence span to quote for something *not*
+being there. Under the refutation-only design it needs less: the parameter-table
+refutation for an absence-shaped statement is just an ordinary `refute` finding
+like any other — it requires the parameter's owner to be named in the same
+sentence (the same precision bar as §6.3), and it goes through the same
+`confirm` gate before it can ship as an agreed contradiction. There is no more
+three-outcome REFUTED/GROUNDED/UNVERIFIED split: refutation-only only ever
+asserts a contradiction (candidate → confirmed) or says nothing about the
+statement (`notFound` or silence) — it no longer tries to prove a gap is
+genuine, only to catch a false one.
 
 The originating call's raw `args` are load-bearing here: an empty search envelope
 (`{"count":0,"results":[]}`) carries no words of its own, so the query is the only
@@ -372,9 +409,7 @@ nothing to contradict. `auditCompleteness` is a three-outcome contract on
   their `total` is as complete a count as a class-mode listing.
 - **REFUTED** — that listing/extremum disagrees with a claimed count or winner.
 - **UNVERIFIED** — otherwise, including ids-mode `atlas_first_seen` on a search
-  batch. Hard-fails the turn (unlike absence’s unverified warn) and
-  `describeCheckFailures` steers the advisor to **requery** the class, not
-  rewrite from the page already gathered.
+  batch. Hard-fails the turn (unlike absence’s unverified warn).
 
 `atlas_filter` now matches exact `title` / `title_prefix`, collects the whole
 class, sorts by `doc_no`, then pages `{ total, count, offset, has_more }`.
@@ -416,45 +451,28 @@ Auditing a greeting is pure cost. The bypass has three conditions, and is
    set, 0 dangerous errors, p50 722ms). Setting it empty disables the bypass
    outright: no judge, no skip, every turn audits.
 
-### 6.5 Advisor escalation (`verify/advisor.ts`)
+### Deferred (2026-09-10)
 
-Runs on fail, on warn once `CHAT_ADVISOR_TRIGGER_UNSUPPORTED_CLAIMS` (default 3)
-unsupported claims accumulate, or on non-pass with retrieval trouble
-(`CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS`, default 2 — empty + error results
-combined, or ≥2 repeated queries) / an exhausted loop. Triggers are computed
-from free signals the harness already
-produces (verdict, loop telemetry via `verify/round-checks.ts`, retrieval
-quality) — never a model call to decide whether to make a model call.
+Two follow-ups the refutation-only overhaul surfaced but did not build:
 
-`adviseRecovery` returns **requery | rewrite | decline**, triggering exactly one
-revision + re-verify cycle — no retry loops; the second verdict is final even if
-amber. The revision replays the whole transcript, which is why a single
-unsupported claim no longer triggers it. On failure or abort, the original answer
-stands.
-
-The revision replays on the **strong tier**, not the chain that just failed the
-audit (`recoveryStream` on `runVerifiedChat`, built in `chat.ts` because the
-orchestrator is deliberately tier-blind; unset = replay on the turn's own chain).
-The advisor decides *what* to do; the tier decides *who* does it. Measured
-2026-08-21 over the 14 hard bakeoff queries under one judge — `gpt-5.6-luna` vs
-`gemma-4-31b-it`: **6 wins / 0 losses / 6 ties**, mean 0.942 vs 0.781, and 1.6x
-faster (26.6s vs 43.4s). Every win is a corpus-wide enumeration or generation
-question, and the mechanism is completeness (0.95 vs 0.70) rather than
-fabrication — the default model under-answers rather than inventing.
-
-That bakeoff measured **first-pass** open-ended generation, not recovery. It is
-only a partial justification for escalating recovery specifically: `troubled`
-(above) also fires on fabrication-class failures — ungrounded citations, param
-mismatches, contradicted claims — that the bakeoff never scored, and on that
-same run luna's hard-fabrication rate was *higher* than gemma's (0.07 vs 0).
-The mitigating difference is that revision is a narrower task than first-pass
-generation — the advisor's steer pins the model to evidence already gathered
-and names exactly which claims to fix — but that is a judgment call, not a
-measured one. Escalation is upward-only and fires only on demonstrated
-failure, so a miss costs nothing and a fire costs tokens; the re-verify pass
-after revision (below) still catches a bad recovery before it ships. Note the
-replayed transcript still carries the original citation-format instruction
-(§3) — every format is accepted downstream, so this is deliberate.
+- **Per-paragraph incremental refutation.** Run the `refute` slice on each
+  paragraph as it completes instead of once over the finished answer, so the
+  badge could land closer to `answer_final` rather than trailing it by the
+  whole-answer audit's latency. Decide after a week of `message_checks`
+  `verify`-kind latency on the new three-auditor shape — the pre-overhaul
+  baseline was p50 13.4s / p90 30s over 86 dev-DB turns, and the new shape's
+  extra conditional `confirm` call needs its own measurement before this is
+  worth building.
+- **Prior-turn tool evidence is never replayed to the answerer.** `chat.ts`
+  replays only `{role, content}` for history, so the model that writes a
+  follow-up answer never sees this turn's or earlier turns' raw tool results —
+  only `priorTurnsEvidence` hands the *verifier* a summary of earlier answers
+  (§6.1's `verifier.ts`) as `[E-prev]`. The system prompt tells the model that
+  atlas material already in the conversation counts as grounding, which is
+  true for the verifier's evidence but not for what the answerer itself can
+  see when composing a follow-up — it re-retrieves instead. Left as a
+  separate decision: whether the answerer should get its own prior-tool-result
+  replay, and at what budget cost.
 
 ## 7. Guard rails (pure code, no model in the loop)
 
@@ -463,7 +481,7 @@ the user. All are unit-tested and cost nothing.
 
 | Module | What it prevents |
 |---|---|
-| `verify/citation-repair.ts` | Models can't reliably transcribe 36-char UUIDs out of long tool results, so link targets are never trusted: every `/atlas/` link is validated in code, invalid targets are re-resolved from what was actually retrieved this turn (near-miss uuid, doc_no href, truncated uuid, title match), and anything unrepairable is de-linkified so a dead link can never ship. |
+| `verify/citation-repair.ts` | Models can't reliably transcribe 36-char UUIDs out of long tool results, so link targets are never trusted: every `/atlas/` link is validated in code, invalid targets are re-resolved from what was actually retrieved this turn (near-miss uuid, doc_no href, truncated uuid, title match), and anything unrepairable is de-linkified so a dead link can never ship. A stripped link is recorded on the `round_checks` row but is **not** a failure — the checks judge the text the reader sees, and the reader saw prose, not a bad link (a 2026-09-10 red badge named a doc that appeared nowhere in the shipped answer; this is why). |
 | `verify/stream-link-gate.ts` | The post-answer pass is the authority, but on its own a fabricated link is *visible* until `done.content` replaces it. This gate holds token text from `[` until the link closes (links are short — imperceptible), applies the **same** `LinkJudge`, and emits the repaired form, so the stream and `done.content` agree and nothing flashes wrong. Non-links flush raw past a 400-char cap. |
 | `verify/definition-block-gate.ts` | Reference-style answers open with a `[label]: /atlas/<uuid>` definition block — exactly the UUIDs a small model garbles. Buffers that block, repairs the whole citation table once, releases it, then streams prose through the ordinary inline gate. Anything that isn't a top definition block degrades to the plain inline gate. |
 | `verify/citation-normalize.ts` | The entire checking layer keys on the inline `[text](/atlas/<uuid>)` shape. One pure, idempotent pass expands reference-style links into it (and repairs two malformed shapes measured in the model bakeoff). Inline-only answers come back byte-identical. |
@@ -471,52 +489,64 @@ the user. All are unit-tested and cost nothing.
 | `repetition-guard.ts` | Answer streams that collapse into repetition (`"aaaa…"`, `"the same as the same as…"`). Pure character- and phrase-level check, tuned against observed 2026-08-06 degenerations; thresholds stay high enough that normal prose and short lists don't trip it. |
 | `output-budget.ts` | A single 300–600KB tool response overflowing the assistant that called it (observed on `atlas_entity` / `atlas_entity_params` for Prime Agents). See §5. |
 
-## 8. Delivery modes
+## 8. Delivery and the stage tree
 
-Two ways a turn reaches the user, selected by request body `delivery` ??
-`CHAT_DELIVERY_MODE`. An unrecognized value normalizes to `streaming` rather
-than throwing, since it doubles as the fallback for an invalid per-request
-override.
+There is one delivery mode, not a mode switch. The SSE route (`chat.ts`)
+forwards every event the harness yields, unchanged, as `data: {json}\n\n` —
+`resolveDeliveryMode`/`ChatBody.delivery`/`CHAT_DELIVERY_MODE` are gone. The
+client always renders the in-flight turn as a stage checklist and reveals the
+answer once (§1), rather than the server picking between two client shapes.
 
-**`streaming` (default)** — answer tokens forward live; the verify badge
-resolves a few seconds after the last token. The answer renders *italic* while
-provisional (not yet `done`, or `done` but still auditing) and flips upright
-once a verdict lands — or at `done` when the verifier is off entirely, so an
-answer can never be stranded italic. Nothing the reader has seen is
+**Stage production is the orchestrator's job**, not the route's:
+
+- `recalling` — fires in `chat.ts` before the harness runs, when a fact fired
+  (§3's facts prefetch).
+- `querying` — fires per tool call, in the conversationalist pass
+  (`runVerifiedChat`, `chat-orchestrator.ts`).
+- `synthesizing` — fires once per **generation burst** (the run of tokens
+  since the last `tool_call`, or since the stream started), right before that
+  burst's first `token`. A `tool_call` resets the burst, so a turn that calls
+  a tool and then answers gets two `synthesizing` events — one for any
+  pre-tool prose, one for the real answer. This used to be synthesized by the
+  SSE route from suppressed tokens in staged mode; it is real progress and now
+  belongs where the tokens themselves are produced.
+- `comparing` / `checking` — emitted by the post-answer verification block,
+  unchanged from before, and only when the turn has a basis to name (§11).
+
+Status rows accumulate every detail line they reported (`StageLogEntry.details`) and keep them after the stage completes — nothing shown in the checklist is ever replaced or removed.
+
+**`answer_final`** is a new `HarnessEvent`, `{ type: "answer_final", content
+}`, yielded once — right after deterministic citation repair succeeds (after
+the `round_checks` entry lands in `checksMeta`), before the verifier-model
+branch runs. Past that point `done.content` will not change again: there is
+no rewrite machinery (§6 is annotate-only), so the repaired content *is* the
+final answer. The client reveals on `answer_final` and lets the verify badge
+trail — the answer renders *italic* until a verdict lands (or immediately
+upright if verification is off), never blocked on the audit. `answer_final`
+is **not** emitted on the early-exit path (`chatVerifyChecks` off, an aborted
+turn, or empty content) — those still repair `done.content` for the wire, but
+skip the `round_checks` block `answer_final` trails, so the client falls back
+to revealing on `done` there, same as it always could.
+
+The client tracks two separate strings per message: `draft` (live tokens,
+shown inside the `synthesizing` stage row once that row is clicked open) and
+`content` (set only by `answer_final` or, on the early-exit path, `done`) —
+the rendered answer is always `content`, never `draft`. `token` and
+`reasoning` still forward exactly as before; nothing the reader has seen is
 deleted, except a repetition-loop draft: a `clear` moves the live buffer to
-`superseded`, where it stays
-visible above the replacement with an inline note saying why it stopped being
-the answer (beta feedback: "text shown to user to never be deleted just
-restyled … sometimes they actually want it"). Kept drafts are
+`superseded`, where it stays visible with an inline note saying why it
+stopped being the answer (beta feedback: "text shown to user to never be
+deleted just restyled … sometimes they actually want it"). Kept drafts are
 markdown-rendered with live citations, not raw source — handing back
-`[Title](/atlas/<uuid>)` for text the reader saw rendered is the same loss in a
-different form.
+`[Title](/atlas/<uuid>)` for text the reader saw rendered is the same loss in
+a different form.
 
-**`staged`** — the SSE route suppresses `token`/`clear` entirely and renders an
-honest stage progression instead, revealing the verified (possibly revised)
-answer once, in the terminal `done`. The draft answer, the after-the-fact badge
-downgrade, and the jarring mid-stream revision swap all disappear. Shape:
-
-- `meta` carries `delivery`. The route synthesizes `synthesizing` (once per
-  generation burst) and `finalizing` (before `done`); the orchestrator emits
-  `comparing` before the deterministic checks in **both** modes — it stays
-  mode-unaware.
-- Client: `StageList.tsx` renders a stage checklist while a turn is in flight
-  with empty content, gated `delivery !== "streaming"` so the default mode's
-  pre-token window is visually unchanged. The verify badge structurally appears
-  only with the revealed answer (no mid-flight fail→revised flicker).
-  `useRevealOnDone` display-streams the final text over ≤ ~1.8s (instant under
-  reduced motion) — display streaming, not generation streaming. Aborted staged
-  turns show "Stopped before an answer was ready."
-- Opt-in via the "staged" toggle (`usePrefs` `delivery`; null = follow server default).
-- Known cosmetic artifact: a model that leaks pre-tool text produces a
-  `synthesizing` stage before the first `querying` (the discarded burst) —
-  harmless, an honest record of what happened.
-
-**The default stays `streaming`** until the staged-vs-streaming A/B measures
-perceived latency. `chat_delivery` rides the PostHog trace properties for
-exactly that. Don't flip the default without the measurement — the whole trade
-is perceived latency: answer + verify (+ revision) before anything readable.
+**Superseded 2026-09-10** by this unified design: the pending
+staged-vs-streaming A/B (`chat_delivery` PostHog property, the "staged"
+`usePrefs` toggle, `useRevealOnDone`) is retired along with the two-mode
+split it was measuring — see
+[`docs/plans/archive/chat-staged-delivery.md`](./plans/archive/chat-staged-delivery.md)
+for the design that preceded it.
 
 ## 9. LLM & embeddings layer
 
@@ -534,7 +564,7 @@ mid-citation.
 `makeOpenrouterStream` sets `stream_options.include_usage: true` (load-bearing —
 otherwise streamed completions carry no usage for the rate limiter);
 `makeOpenrouterJson` provides the non-streamed, temp-0 JSON call for the verifier
-slices, advisor, and small-talk judge with a true request-cancelling timeout.
+slices and small-talk judge with a true request-cancelling timeout.
 
 `CHAT_CONTEXT_WINDOW_TOKENS` (default **200,000**) is what the UI context-size
 indicator meters against — sized to the **smallest** model in the deployed
@@ -578,7 +608,13 @@ specific doc (`via` on the tool result).
 `conversations`, `messages` (assistant content written post-stream, never
 partial; `generation_id` drives async cost backfill), and `message_checks`
 (migration `014_message_checks.sql` — one row per harness activity) hold chat
-state; `users` backs OAuth + JWT sessions. Retrieval tables are
+state; `users` backs OAuth + JWT sessions. `message_checks.kind` is now always
+one of `round_checks | verify | smalltalk_judge` — `verify_recheck` and
+`advisor_recovery` were the advisor/rewrite cycle's rows and nothing writes
+them any more; the table's `action` column (`'annotate' | 'revised' | NULL`
+per the migration comment) is likewise always inserted `NULL` now that
+verdicts are annotate-only — kept rather than dropped since it costs nothing
+idle and a migration to remove it isn't worth the churn. Retrieval tables are
 `atlas_doc_meta`, `atlas_doc_embeddings` (`vector(1024)` + HNSW cosine index),
 `atlas_addresses`, and `atlas_history`, with `sync_state`/`sync_log` as the
 "what's loaded" pointer. Document content, full-text (MiniSearch), and the graph
@@ -599,23 +635,24 @@ cookie.
 | `GET /api/usage` | `{ window: { tokens, limit, exceeded, resetsAt, windowMinutes, boosted }, global?: CommonsPool }`. Fetch on widget open and after each `done`. `global` is omitted when the commons feature is off or the credits API is unreachable. |
 | `POST /api/chat` | SSE (below). |
 
-**Request body:** `{ message, conversationId?, delivery?, pageContext? }`, where
+**Request body:** `{ message, conversationId?, pageContext? }`, where
 `pageContext` carries `{ path?, nodeId?, nodeTitle?, nodeDocNo?, actorSlug?, reportName? }`.
 
 **Response:** `text/event-stream`, frames of `data: <json>\n\n`. The event union
 (server `HarnessEvent` in `chat-orchestrator.ts`, mirrored client-side in `api.ts`):
 
 ```ts
-{ type: "meta",        conversationId, delivery? }
-{ type: "token",       text }                       // suppressed in staged mode
-{ type: "reasoning",   text }                       // forwarded in BOTH modes
-{ type: "clear",       reason? }                    // suppressed in staged mode
+{ type: "meta",        conversationId, tier? }
+{ type: "token",       text }
+{ type: "reasoning",   text }
+{ type: "clear",       reason? }
 { type: "tool_call",   name, args }
 { type: "tool_result", name, ok, bytes, truncated?, originalBytes? }
 { type: "facts",       facts: { id, summary }[], bytes? }
-{ type: "status",      stage, detail? }
+{ type: "status",      stage, detail? }             // "recalling" | "querying" | "synthesizing" | "comparing" | "checking"
+{ type: "answer_final", content }                   // the answer reveal point — see §8
 { type: "export",      format, filename, mime, content, bytes }
-{ type: "verify_result", overall, confidence, action, claims,
+{ type: "verify_result", overall, contradictions, notFound?, rulingIssued?,
                        invalidCitations, invalidDocNos, docNoMismatches,
                        ungroundedQuotes, ungroundedAddresses,
                        ungroundedCitationValues, paramMismatches,
@@ -643,52 +680,44 @@ scored *worse* (0.812) than its own adaptive default (0.908). Reasoning tokens
 also come out of `max_tokens` — at a tight cap a model returns
 `finish_reason:"length"` with an empty answer. A single global knob could only
 be set to a value the measurement rejects for at least one tier, so a revisit
-has to be per-tier. Unlike `token`, `reasoning` is forwarded in **staged** mode
-too — the client renders it above the answer in every render branch, including
-the staged checklist.
+has to be per-tier. The client renders `reasoning` above the answer inside the
+stage checklist's `synthesizing` row (§1, §8).
 
 **A `clear` does not delete text the reader has seen — with one exception.** It
 moves the live buffer into `ChatMsg.superseded` (a list of `{ text, reason }`,
-arrival order) and the replacement renders BELOW it. This was scoped to
-revisions first and that was wrong: `tool_round` fires *only when content is
-non-empty*, so it was deleting visible prose mid-answer, which is exactly the
-jarring disappearance the beta feedback named.
+arrival order) and the replacement renders BELOW it. `tool_round` fires *only
+when content is non-empty*, so a naive clear would delete visible prose
+mid-answer, which is exactly the jarring disappearance the beta feedback named.
 
 | reason | producer | rendering |
 |---|---|---|
 | `tool_round` | a round produced text *and* tool calls — the model set the text aside and kept searching | leaked tool-call markup is folded into `reasoning` (thinking); remaining prose is kept, dimmed italic, **not** struck — unverified, not judged wrong. The caption that explains the draft sits in a bordered translucent box, not italic. |
-| `revision` | the advisor is replacing an answer the reader has read | kept, struck |
 | `degenerate` | the draft fell into a repetition loop | **deleted** — the one clear that still wipes |
-| `restore` | a `revision` was abandoned; `done` re-sends the ORIGINAL | drops the kept `revision` entry only, so the identical text isn't shown twice |
 
 `degenerate` is the deliberate exception: what the reader saw is machine noise
 ("the the the the…"), not a draft anyone could want back, so keeping it would
 be the jarring thing. It wipes only the live buffer — drafts kept earlier in
 the same turn survive it.
 
-`restore` removes the last `revision` entry specifically, not the last entry: a
-revision that ran its own tool round pushed a `tool_round` draft on top of it,
-and that text was seen too, so it stays. A whitespace-only buffer is also
-dropped — there is nothing to read. Absent `reason` is treated as `tool_round`
-(preserve), so an older server can only ever keep too much, never delete.
-`superseded` is live-session-only, like `exports` — a reloaded conversation
-shows only the final answer.
+A whitespace-only buffer is also dropped — there is nothing to read. Absent
+`reason` is treated as `tool_round` (preserve), so an older server can only
+ever keep too much, never delete. `superseded` is live-session-only, like
+`exports` — a reloaded conversation shows only the final answer.
 
-**Slice JSON is repaired, and an unreadable verdict is dropped rather than
+**Slice JSON is repaired, and an unreadable finding is dropped rather than
 counted.** `parseJsonish` tries the text as written, then with trailing commas
 removed, then structurally closed (`closeTruncatedJson` shuts an unterminated
 string and every open array/object, tracking escapes so a brace inside a quoted
 span is not mistaken for structure) — output caps cut JSON mid-array routinely,
-and the claims already emitted are real judgements worth keeping. Per claim,
-`status` must be one of the three valid values; otherwise `repairStatus`
-normalises case/whitespace, recovers a status that leaked into the claim text
-(over-escaped quotes make one claim swallow the next one's fields — seen in
-production, where it recorded a `supported` claim as unsupported), and failing
-both, the claim is DROPPED. It must never default to `unsupported`: unsupported
-claims drive the warn verdict and feed the advisor-escalation threshold, so a
-parse defect would manufacture evidence against the answer. A whole-slice parse
-failure already contributed nothing (`parsed: false`); this extends the same
-fail-toward-silence rule to the individual row.
+and the findings already emitted are real judgements worth keeping. A row that
+still can't be repaired — malformed shape, a field that leaked into another
+row's text (over-escaped quotes make one entry swallow the next one's fields,
+seen in production) — is DROPPED, not defaulted into a contradiction.
+Refutation-only means silence is always the safe failure mode: a parse defect
+must never manufacture a contradiction the model never actually found, because
+that finding is what drives the fail verdict shown on the badge. A whole-slice
+parse failure already contributed nothing (`parsed: false`); this extends the
+same fail-toward-silence rule to the individual row.
 
 **Quoted spans that are not quotations.** `findUngroundedQuotes` is a hard
 failure — an inline quotation the sources do not contain is misattribution. But
@@ -697,8 +726,8 @@ and two shapes are not: a quoted QUESTION (the assistant inviting the reader to
 ask something) and a list item whose entire content is one quoted string (an
 example or suggestion). Both are now excluded. This was a live hard failure: an
 orientation answer closed with "You can ask things like:" and six example
-questions, each was read as an ungrounded atlas quote, the turn hard-failed, and
-the advisor replaced a correct answer with a hedge. The exclusion costs no
+questions, each was read as an ungrounded atlas quote, and the turn
+hard-failed for no real reason. The exclusion costs no
 detection — 0 of 11,340 served documents contain a quoted question of the
 qualifying length — and a real quotation in prose, a quoted bullet carrying
 attribution, and a `>` blockquote are all still captured.
@@ -719,21 +748,21 @@ practice, all of them observed wiping correct answers in production:
   (product guide, glossary rows, entity rows, censuses). It stays grouped with
   atlas rather than external for quote-grounding, because glossary definitions
   genuinely are atlas text.
-- The verbatim-span rule is **relaxed for `[REFERENCE]` entries, descriptive
+- The evidence-span match is **relaxed for `[REFERENCE]` entries, descriptive
   prose only**. Summarising injected documentation is its intended use, so an
-  exact-substring bar made a faithful restatement `unsupported` by construction.
-  Figures, dates, amounts, addresses, doc numbers, quoted atlas text and
-  citations still require an exact span whatever the source.
-- That relaxation is enforced **in `validateSpans`, not only in the prompt**.
-  It was stated to the judge and then undone by the code backstop, which knew
-  nothing about source class: measured against the real features guide, a
-  faithful paraphrase of a `[REFERENCE]` entry scores **0.56** (bar 0.8) and a
-  route span (`/radar`) is under the 8-char floor and scores 0. So a
-  reference-class match uses `REFERENCE_SPAN_THRESHOLD` (0.5) and
-  `REFERENCE_MIN_SPAN` (4), and only for descriptive prose — `hasCheckableToken`
-  puts any claim carrying a figure, uuid or address back on the strict bar, and
-  the `figures` slice never relaxes. Claims that pass this way are marked
-  `reference` on the verdict (`referenceGrounded` on the slice claim).
+  exact-substring bar would let a faithful restatement's evidence span fail
+  code validation by construction, and DISCARD a real finding. Figures, dates,
+  amounts, addresses, doc numbers, quoted atlas text and citations still
+  require an exact span whatever the source — that relaxation never applies to
+  a checkable value, only to descriptive prose, so it can't be used to smuggle
+  a wrong number past validation.
+- That relaxation is enforced **in code, not only the prompt**: measured against
+  the real features guide, a faithful paraphrase of a `[REFERENCE]` entry scores
+  **0.56** (bar 0.8) and a route span (`/radar`) is under the 8-char floor and
+  scores 0 — a prompt-only rule would silently discard both. So a reference-class
+  match uses `REFERENCE_SPAN_THRESHOLD` (0.5) and `REFERENCE_MIN_SPAN` (4), and
+  only for descriptive prose — `hasCheckableToken` puts any finding carrying a
+  figure, uuid or address back on the strict bar.
 
 **Promised-tool guard (2026-09-01).** The loop's exit contract is "text + no
 usable tool calls = the final answer", and it had one-shot guards for empty
@@ -742,8 +771,10 @@ content that *announced* a lookup it never made. Observed live 2026-08-20: a
 round wrote "One moment while I search the atlas." with `finish_reason: stop`
 and no tool_call deltas, and that shipped as the answer — badge-less, because a
 turn with no citation, figure or quote gives the deterministic checks nothing to
-fail and the verifier no claims, so `computeOverall` degrades to `unverified`.
-In staged delivery the reader waits the whole turn and is then shown a promise.
+fail and the verifier nothing to contradict, so `computeOverall` degrades to
+`unverified`.
+The reader waits the whole turn (the answer only reveals at
+`answer_final`/`done`, §8) and is then shown a promise.
 (Not the malformed-delta path the loop also documents: `chat_loop_malformed_tool_call`
 has never fired.)
 
@@ -765,58 +796,36 @@ zero false fires over 109 answers — and on real traffic 17 of 18 tool-free
 assistant answers never get past the envelope at all. See CLAUDE.md's "fourth consumer" note for
 why this lane scores per sentence and does not use `isSmallTalk`.
 
-**Prefetch-only turns are never rewritten.** When a turn's only substantive
-evidence is the prefetch round, a claim-driven escalation is suppressed
-(`prefetchOnly && !checks.failed` in the escalation gate): the advisor would
-replace correct content with a hedge, which is worse for the reader. A
-deterministic failure still escalates exactly as before — those are wrong
-wherever the content came from — and the badge still shows the verdict either
-way; only the rewrite is withheld.
-
-**…and reference-grounded claims never reach the trigger.** The guard above is
-turn-level, so a single orientation search returning anything re-armed the
-rewrite for an answer built entirely from injected documentation.
-`claimsDrivingEscalation` therefore skips claims marked `reference` before
-comparing against `chatAdvisorTriggerUnsupportedClaims` — the per-claim form of
-the same rule. A claim is marked whenever its span actually pointed at a
-`[REFERENCE]` entry (best overlap ≥ 0.25 — an invented span scores near zero
-against everything and would otherwise drift onto the largest haystack, which
-is usually the guide), **independently of which bar it was held to**: a demoted
-product figure is still wrong and still shown on the badge, it just cannot buy
-a whole-turn rewrite. Live failure: a bare "help me", three product claims
-demoted by the span bar (exactly the threshold), and the advisor deleted the
-answer's Reader and Reports sections as "unsupported".
-
 `paramMismatches` is structured rather than a sentence
 (`{ stated, actual, name, title, owner, uuid, doc_no }`) so the badge can link
 the parameter's document and show the reader-facing `title` instead of `name`,
-which is the terse extracted kv key (`maxamount`). The advisor steer still
-consumes a sentence, built by `formatParamMismatch`.
+which is the terse extracted kv key (`maxamount`).
 `ungroundedCitationValues` entries are already complete sentences server-side
 ("0.2% cited to A.1.1 (Title) but absent from it") — render them as-is rather
 than prefixing a label.
 
 **Stage vocabulary:** `recalling` (facts injected pre-model) · `querying` ·
-`reading` · `comparing` · `checking` · `advising` · `revising` · plus the
-staged-only `synthesizing` and `finalizing`.
+`synthesizing` (once per generation burst) · `comparing` · `checking` (§8).
 
 **Ordering guarantees.** `meta` is always first and `done` always terminal.
-`verify_result` lands between the last `token` and `done`. A revision emits
-`verify_result(fail)` → `status:advising` → `status:revising` →
-`clear(revision)` → tokens → a second `verify_result` → `done`. A promised-tool retry emits `clear(reason: "tool_round")` before its replacement round, which is indistinguishable on the wire from any other pre-tool clear. An **abandoned**
-revision (the replay threw, aborted, or produced nothing) emits
-`clear(restore)` → `done` carrying the ORIGINAL answer instead. More than one
-`clear` can arrive in a row: a revision that itself degenerates yields
-`clear(revision)` → `clear(degenerate)` … → `clear(restore)`, each wiping only
-the in-progress replacement while the kept draft survives until `restore`. Verification stages (`comparing`,
-`checking`) are emitted **only when the turn has a basis to name** — retrievals
-this turn, or earlier turns of the conversation — so no detail ever reads
-"against 0 sources"; zero cited claims degrades the subject to "the answer".
-Unknown event types are ignored by the client, so the protocol extends
-backward-compatibly.
+`answer_final` lands after the last `token` and before `verify_result`;
+`verify_result` lands between `answer_final` and `done`. A promised-tool retry
+emits `clear(reason: "tool_round")` before its replacement round, which is
+indistinguishable on the wire from any other pre-tool clear. Verification
+stages (`comparing`, `checking`) are emitted **only when the turn has a basis
+to name** — retrievals this turn, or earlier turns of the conversation — so no
+detail ever reads "against 0 sources"; zero cited claims degrades the subject
+to "the answer". Unknown event types are ignored by the client, so the
+protocol extends backward-compatibly. Full shape, in order:
+
+```
+meta → [facts, status:recalling] → (tool_call, status:querying, tool_result)*
+  → status:synthesizing → token* → [status:comparing] → answer_final
+  → [status:checking] → verify_result → done
+```
 
 **`done.content` is always the authoritative answer** — streamed tokens may be
-cleared or revised before it arrives.
+cleared before it arrives.
 
 **Aborts.** Always attach an `AbortController` and pass its signal to `fetch`;
 abort on widget close, new message, or unmount. It propagates to `req.signal`,
@@ -840,10 +849,8 @@ All are `bun scripts/eval/*.ts`, run manually (none gate CI yet) and most need
 | Script | What it measures |
 |---|---|
 | `pnpm eval:golden` | End-to-end golden questions through the real loop, real tool registry, real OpenRouter. Rubric grader (`eval-golden-grade.ts`) is pure and unit-tested; outcomes are `answered` / `partial` / `honest_decline` / `hallucinated` / `truncated` / `tool_failure`. Fixtures in `eval-golden-questions.ts` derive from the readiness plan's own Readiness targets, because that plan's source assessment was never committed. |
-| `pnpm eval:verifier` | Verifier catch-rate and false-positive rate over tampered runs (swapped UUIDs, mutated numbers, appended fabrications/rulings). The only remaining consumer of the legacy single-prompt `runVerifier`. |
-| `pnpm eval:slices` | Per-slice bakeoff across models — the instrument behind "gemma-4 wins every slice." |
-| `pnpm eval:advisor` | Advisor recovery-action quality. |
-| `pnpm eval:harness` | Full `runVerifiedChat`; harness-on vs harness-off is the A/B instrument. |
+| `pnpm eval:verifier` | Gates the refutation-only verifier over tampered runs (swapped UUIDs, mutated numbers, appended rulings): contradiction catch-rate ≥0.8, ruling catch-rate ≥0.9, false-contradiction rate ≤0.05 on clean baselines. Fabrication/enumeration mutations are scored informationally, not gated — refutation-only has no claim table left to catch them against. |
+| `pnpm eval:slices` | Per-slice bakeoff across models for `refute` / `overreach` / `confirm` — the instrument behind "gemma-4 wins every slice," now re-targeted at the three-auditor shape. |
 | `pnpm eval:retrieval` | Retrieval quality by slice (exact / disambiguation / prose control) — the instrument behind the kv-record grouping decision in §9. |
 | `pnpm eval:facts` | Facts-lane recall; source of the `-0.05` similarity margin knee. |
 | `pnpm eval:census` | Concept-census routing accuracy. |

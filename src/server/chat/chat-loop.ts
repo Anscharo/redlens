@@ -3,7 +3,7 @@
 // handler (Task: /api/chat) wraps a real OpenRouter stream around it and handles
 // auth + persistence; this file owns only the tool-calling control flow.
 //
-// Constraints baked in (see docs/plans/archive/chatbot-plan.md + advisor):
+// Constraints baked in (see docs/plans/archive/chatbot-plan.md):
 //   - hard maxIterations cap (the system-prompt budget is advisory)
 //   - final allowed iteration forces tool_choice:"none" → a text answer, never a
 //     dangling tool round
@@ -62,13 +62,7 @@ export type ChatEvent =
   //     prose as an unverified draft (dimmed, not struck). Not a wipe.
   //   - degenerate — the draft degenerated into a repetition loop and was
   //     abandoned. The one reason that still wipes.
-  //   - revision — the advisor is replacing a COMPLETE answer the reader has
-  //     already read. The client keeps that text, struck through, above the
-  //     replacement. Never a wipe.
-  //   - restore — a `revision` was started but abandoned, and the original
-  //     answer is about to be re-sent in `done`. The client drops its kept
-  //     copy so the answer is not shown twice.
-  | { type: "clear"; reason?: "tool_round" | "degenerate" | "revision" | "restore" }
+  | { type: "clear"; reason?: "tool_round" | "degenerate" }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; ok: boolean; bytes: number; truncated?: boolean; originalBytes?: number }
   // A downloadable artifact the model asked to hand the user (export_findings).
@@ -92,9 +86,9 @@ export type ChatEvent =
       // its own — the harness treats this as a hard failure so a truncated
       // answer never ships silently as if it were complete.
       lengthCapped: boolean;
-      // Full message array incl. tool results — the verifier's evidence source
-      // and the base for a revision run. INTERNAL: the SSE route strips it
-      // (sanitizeDone) before it ever reaches a client.
+      // Full message array incl. tool results — the verifier's evidence
+      // source. INTERNAL: the SSE route strips it (sanitizeDone) before it
+      // ever reaches a client.
       transcript: Msg[];
     };
 
@@ -152,7 +146,7 @@ export function reasoningDelta(delta: unknown): string {
 const FINAL_TURN_INSTRUCTION =
   "This is your final turn — no more tools are available. Write the complete answer now, using only the evidence already gathered above. Cite sources as instructed. If the gathered evidence does not answer the question, say plainly that the atlas does not appear to cover it and summarize what you did find. Do NOT describe further searches or say you will look something up — just answer.";
 
-// Compose guard steer (one-shot, docs/chat-system.md §4; staged-delivery prereq).
+// Compose guard steer (one-shot, docs/chat-system.md §4).
 // Even the forced-text final round can come back EMPTY — e.g. a model emitting
 // tool-call deltas despite tool_choice:"none" leaves content blank, and both
 // arms of the 2026-08-06 eval A/B shipped "" that way after burning every
@@ -188,9 +182,8 @@ const EARLY_ANSWER_NUDGE =
 // brief faces the same non-Atlas attribution rules the harness applies to the
 // chat answer (a file outlives the conversation — CLAUDE.md's citation dictate
 // is strictest about it). Which tool_call_ids belong to the external tool is
-// read back off the transcript rather than tracked in this loop's own state, so
-// a revision pass — which replays the first pass's transcript through a fresh
-// runChat — classifies those earlier rounds identically.
+// read back off the transcript rather than tracked in this loop's own state —
+// any downstream consumer of the transcript classifies those rounds identically.
 export function exportEvidence(msgs: Msg[]): ExportEvidence {
   const externalIds = new Set<string>();
   for (const m of msgs) {
@@ -552,8 +545,9 @@ export async function* runChat(opts: {
       // it directly and completely instead") is what the model follows there,
       // and FINAL_TURN_INSTRUCTION already forbids describing further searches.
       // Same reason the client already understands: prose the model set aside
-      // to go on searching. In staged mode nothing streamed, so this is a no-op
-      // for the reader and the turn just spends one more round.
+      // to go on searching. The reader never sees it (the answer only reveals
+      // at `answer_final`/`done`), so this clear is a no-op for them and the
+      // turn just spends one more round.
       yield { type: "clear", reason: "tool_round" };
       pendingSteer = PROMISED_TOOL_STEER;
       continue;

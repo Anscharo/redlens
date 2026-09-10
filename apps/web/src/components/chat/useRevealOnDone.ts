@@ -9,11 +9,13 @@ const MAX_MS = 1800;
 const MIN_MS = 260;
 
 // Types out `content` once `done` flips true, but ONLY when content was empty
-// right before that transition — a staged-mode reveal. A streaming-mode
-// `done` (content already present beforehand, grown by prior `token` events)
-// mirrors immediately with no animation. That gate can't be read off the
-// current props alone (content is already the final text by the time `done`
-// is true) — it's tracked via refs holding the PRIOR render's values.
+// right before that transition — i.e. the answer was just revealed
+// (`answer_final`, or an early `done` with no `answer_final` before it) after
+// a turn that streamed no visible content until then. A `done` that already
+// had content beforehand mirrors immediately with no animation. That gate
+// can't be read off the current props alone (content is already the final
+// text by the time `done` is true) — it's tracked via refs holding the PRIOR
+// render's values.
 export function useRevealOnDone(content: string, done: boolean) {
   const [display, setDisplay] = useState(content);
   const [revealing, setRevealing] = useState(false);

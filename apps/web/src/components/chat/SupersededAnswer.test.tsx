@@ -9,7 +9,7 @@ import type { SupersededDraft } from "./useChatStream";
 afterEach(cleanup);
 
 const noop = () => {};
-const draft = (text: string, reason: SupersededDraft["reason"] = "revision"): SupersededDraft => ({ text, reason });
+const draft = (text: string, reason: SupersededDraft["reason"] = "tool_round"): SupersededDraft => ({ text, reason, round: 1 });
 
 describe("SupersededAnswer", () => {
   it("renders nothing when no draft was kept", () => {
@@ -17,22 +17,12 @@ describe("SupersededAnswer", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("marks a rejected revision as <del>, with an inline plain-language note", () => {
-    const { container } = render(
-      <SupersededAnswer drafts={[draft("an earlier, incorrect answer")]} onAtlas={noop} />,
-    );
-    const caption = screen.getByText(/A verification check found problems with this draft/);
-    expect(caption).toBeInTheDocument();
-    expect(caption).toHaveClass("rlc-superseded-note");
-    const del = container.querySelector("del.rlc-superseded-text");
-    expect(del).toHaveTextContent("an earlier, incorrect answer");
-  });
-
-  // A tool_round draft was never judged wrong — <del> would announce
-  // retraction that did not happen. Dimmed italic via CSS; markup is a note.
+  // A tool_round draft was never judged wrong — <del> would announce a
+  // retraction that did not happen. Dimmed italic via CSS; markup is a plain
+  // wrapper with a note.
   it("does not strike a tool_round draft", () => {
     const { container } = render(
-      <SupersededAnswer drafts={[draft("let me look that up", "tool_round")]} onAtlas={noop} />,
+      <SupersededAnswer drafts={[draft("let me look that up")]} onAtlas={noop} />,
     );
     expect(container.querySelector("del")).toBeNull();
     const body = container.querySelector('[data-reason="tool_round"] .rlc-superseded-text');
@@ -43,7 +33,7 @@ describe("SupersededAnswer", () => {
   it("is one root so caller props are not copied onto every draft", () => {
     const { container } = render(
       <SupersededAnswer
-        drafts={[draft("preamble", "tool_round"), draft("bad", "revision")]}
+        drafts={[draft("preamble"), draft("more")]}
         onAtlas={noop}
         data-testid="kept"
       />,
@@ -57,15 +47,10 @@ describe("SupersededAnswer", () => {
     expect(screen.getAllByLabelText("An earlier draft, replaced later in this answer")).toHaveLength(1);
   });
 
-  // Each reason has to say WHY that block stopped being the answer — a
-  // rejected draft and preamble-before-a-search are not the same event.
-  it("gives each reason its own note and its own data-reason", () => {
-    const { container } = render(
-      <SupersededAnswer drafts={[draft("preamble", "tool_round"), draft("bad", "revision")]} onAtlas={noop} />,
-    );
-    expect(container.querySelectorAll(".rlc-superseded")).toHaveLength(2);
+  it("gives the tool_round reason its own note and data-reason", () => {
+    const { container } = render(<SupersededAnswer drafts={[draft("preamble")]} onAtlas={noop} />);
+    expect(container.querySelectorAll(".rlc-superseded")).toHaveLength(1);
     expect(container.querySelector('[data-reason="tool_round"]')).toHaveTextContent(/set this aside to keep searching/);
-    expect(container.querySelector('[data-reason="revision"]')).toHaveTextContent(/verification check found problems/);
   });
 
   it("keeps drafts in arrival order, oldest first", () => {
@@ -82,9 +67,9 @@ describe("SupersededAnswer", () => {
     const { container } = render(
       <SupersededAnswer drafts={[draft("a threshold of **7 signers** applies")]} onAtlas={noop} />,
     );
-    const del = container.querySelector("del.rlc-superseded-text");
-    expect(del?.querySelector("strong")).toHaveTextContent("7 signers");
-    expect(del).not.toHaveTextContent("**7 signers**");
+    const body = container.querySelector("div.rlc-superseded-text");
+    expect(body?.querySelector("strong")).toHaveTextContent("7 signers");
+    expect(body).not.toHaveTextContent("**7 signers**");
   });
 
   it("keeps the kept draft's atlas citations followable", async () => {

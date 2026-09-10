@@ -109,12 +109,25 @@ describe("detectLayout", () => {
 });
 
 describe("readConsolidated", () => {
-  it("reassembles buckets in doc-number order, joined with a newline", () => {
-    write("content/A.0 - Preamble.md", "first\n");
-    write("content/A.6 - Agent-Scope.md", "spine\n");
-    write("content/A.6.1.1.1 - Spark.md", "spark\n");
-    write("content/A.6.1.1.10 - Tenth-Star.md", "tenth\n");
-    write("content/A.6.1.2 - Executors.md", "executors\n");
+  it("reassembles by DOCUMENT order with absolute levels — not by bucket order", () => {
+    // Mirrors the real shape: A.6.1.2 lives in the A.6 file but is emitted after
+    // every Prime file, and every bucket opens at `#` whatever its true depth.
+    write("content/A.0 - Preamble.md", [heading(1, "A.0", "Preamble", U(1)), "first", ""].join("\n"));
+    write(
+      "content/A.6 - Agent-Scope.md",
+      [
+        heading(1, "A.6", "Agent Scope", U(2)),
+        "spine",
+        heading(2, "A.6.1", "Artifacts", U(3)),
+        heading(3, "A.6.1.1", "Primes", U(4)),
+        heading(3, "A.6.1.2", "Executors", U(5)),
+        "executors",
+        "",
+      ].join("\n"),
+    );
+    write("content/A.6.1.1.1 - Spark.md", [heading(1, "A.6.1.1.1", "Spark", U(6)), "spark", ""].join("\n"));
+    write("content/A.6.1.1.10 - Tenth-Star.md", [heading(1, "A.6.1.1.10", "Tenth Star", U(7)), "tenth", ""].join("\n"));
+    write("content/A.6.1.2.1 - Amatsu.md", [heading(1, "A.6.1.2.1", "Amatsu", U(8)), "amatsu", ""].join("\n"));
     write("content/README.md", "IGNORED\n"); // not a bucket file
 
     expect(listBuckets(path.join(dir, "content")).map((b: { bucket: string }) => b.bucket)).toEqual([
@@ -122,13 +135,23 @@ describe("readConsolidated", () => {
       "A.6",
       "A.6.1.1.1",
       "A.6.1.1.10",
-      "A.6.1.2",
+      "A.6.1.2.1",
     ]);
-    // Each file already ends with "\n", and join adds one more → the blank line
-    // that separates documents in the composed monolith.
-    expect(readConsolidated(path.join(dir, "content"))).toBe(
-      "first\n\nspine\n\nspark\n\ntenth\n\nexecutors\n",
-    );
+    const out = readConsolidated(path.join(dir, "content"));
+    const heads = out.split("\n").filter((l: string) => l.startsWith("#"));
+    expect(heads.map((l: string) => l.split(" ")[1])).toEqual([
+      "A.0", "A.6", "A.6.1", "A.6.1.1", "A.6.1.1.1", "A.6.1.1.10", "A.6.1.2", "A.6.1.2.1",
+    ]);
+    expect(heads.map((l: string) => l.match(/^#+/)![0].length)).toEqual([1, 1, 2, 3, 4, 4, 3, 4]);
+    // Each file ends with "\n"; a block keeps its own trailing lines, so the
+    // blank line that separates documents in the composed monolith survives.
+    expect(out).toContain("spark\n\n#### A.6.1.1.10");
+    expect(out).toContain("tenth\n\n### A.6.1.2");
+  });
+
+  it("refuses a bucket file with no Atlas headings — that text would belong to no document", () => {
+    write("content/A.0 - Preamble.md", "first\n");
+    expect(() => readConsolidated(path.join(dir, "content"))).toThrow(/no Atlas document headings/);
   });
 
   it("throws when two files claim the same bucket", () => {

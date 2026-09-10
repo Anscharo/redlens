@@ -8,8 +8,8 @@
 // link gate (stream-link-gate.ts), which applies the same repairs to token
 // events BEFORE they reach the client; repairCitations then runs post-answer
 // as the authority — before the deterministic checks, which validate the
-// repaired answer; stripped links are folded back in as hard failures by the
-// orchestrator.
+// repaired answer. A stripped link is recorded on the round_checks row but is
+// NOT a failure: the reader never saw it, and the checks judge what shipped.
 import { DOC_NO_CORE, UUID_RE } from "../../../lib/patterns.ts";
 import { normalizeForMatch } from "./verify-checks.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";

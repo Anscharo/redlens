@@ -9,8 +9,9 @@
 // downstream could catch it either: no citation, figure or quote means the
 // deterministic checks have nothing to fail, and no factual claim means the
 // verifier returns `claims: []`, which computeOverall degrades to `unverified`
-// — the badge hides. In staged delivery the user waits through the whole turn
-// and is then shown a promise. Observed live 2026-08-20; the user re-prompted
+// — the badge hides. The user waits through the whole turn (the answer only
+// reveals at `answer_final`/`done`) and is then shown a promise. Observed live
+// 2026-08-20; the user re-prompted
 // ("Still going?") and the identical question then retrieved and answered
 // normally, so the trigger is transient model behaviour, not a broken tool.
 // It is NOT the malformed-delta path chat-loop.ts also documents:

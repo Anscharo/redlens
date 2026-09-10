@@ -63,23 +63,6 @@ const canonicalHostRedirect =
   process.env.CANONICAL_HOST_REDIRECT === "1" ||
   (process.env.CANONICAL_HOST_REDIRECT !== "0" && railwayEnv === "production");
 
-// Env enum resolution, in one place. Every mode-style setting wants the same
-// three things — trim (a stray space in a Railway variable is invisible in the
-// dashboard), match exactly, and SAY SO on an unrecognized value instead of
-// silently falling back. Written per-setting, one of them always ends up as a
-// bare cast that quietly resolves a typo to the wrong mode.
-function envEnum<T extends string>(name: string, allowed: readonly T[], fallback: T): T {
-  const raw = (process.env[name] ?? "").trim();
-  if (!raw) return fallback;
-  const hit = allowed.find((a) => a === raw);
-  if (hit) return hit;
-  console.warn(`[config] ${name}="${raw}" is not one of ${allowed.join(", ")} — using "${fallback}".`);
-  return fallback;
-}
-
-// See the chatDeliveryMode field below for what the two modes mean.
-const chatDeliveryMode = envEnum("CHAT_DELIVERY_MODE", ["streaming", "staged"] as const, "streaming");
-
 export const config = {
   port,
 
@@ -207,8 +190,8 @@ export const config = {
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "google/gemma-4-31b-it",
   // Cheap LLM call that titles a conversation after assistant turns 1, 4, and
-  // 10 (title.ts). Unlike chatVerifierModel/chatAdvisorModel (empty = feature
-  // OFF, opt-in reliability-harness extras), this is chatModel-style
+  // 10 (title.ts). Unlike chatVerifierModel (empty = feature OFF, opt-in
+  // reliability-harness extras), this is chatModel-style
   // DEFAULTS-ON — titling is requested core behavior. An operator can still
   // disable it with CHAT_TITLE_MODEL="".
   chatTitleModel: process.env.CHAT_TITLE_MODEL ?? "google/gemma-4-31b-it",
@@ -223,15 +206,6 @@ export const config = {
   // isn't free: titling only re-fires at turns 4 and 10, so a conversation
   // that ends at turn 1-3 keeps its truncated slice(0,60) seed title forever.
   chatTitleTimeoutMs: Number(process.env.CHAT_TITLE_TIMEOUT_MS ?? 20_000),
-  // Chat delivery mode (docs/chat-system.md §8): "streaming" forwards
-  // answer tokens live as today (stream + post-hoc verify badge); "staged"
-  // suppresses tokens behind honest progress stages and reveals the answer only
-  // once, verified (possibly revised), in the terminal `done` event. Default
-  // stays "streaming" until the staged A/B measures perceived latency — an
-  // unrecognized value normalizes to "streaming" rather than throwing, since
-  // this also doubles as the fallback for an invalid per-request override
-  // (ChatBody.delivery in chat.ts). Resolved via envEnum above.
-  chatDeliveryMode,
   // The model context window the UI meters against (context-size indicator).
   // Sized to the SMALLEST model in the deployed routing chains (haiku, 200k),
   // not the primary's 256k — an OpenRouter failover sends the same full
@@ -251,8 +225,7 @@ export const config = {
   // rollups: questions that used to need four narrow tool calls now need one, so
   // the extra rounds bought latency rather than evidence.
   chatMaxIterations: Number(process.env.CHAT_MAX_ITERATIONS ?? 4),
-  // Strong-tier cap. Corpus-wide / extremum turns (and advisor recovery's
-  // answerer, which already replays on STRONG) need listing + first_seen + a
+  // Strong-tier cap. Corpus-wide / extremum turns need listing + first_seen + a
   // couple of lookups; 4 was the ranked-search budget. Never below the
   // default cap — raising CHAT_MAX_ITERATIONS raises both.
   chatMaxIterationsStrong: Number(process.env.CHAT_MAX_ITERATIONS_STRONG ?? 6),
@@ -284,12 +257,9 @@ export const config = {
   // chatModel (cross-family independence).
   // Empty = model verification off; deterministic checks still run.
   chatVerifierModel: process.env.CHAT_VERIFIER_MODEL ?? "",
-  // Optional per-slice model overrides, "claims=m1,figures=m2,…" — slices not
+  // Optional per-slice model overrides, "refute=m1,overreach=m2,…" — slices not
   // named fall back to chatVerifierModel. Lets roles use different models.
   chatVerifierSliceModels: process.env.CHAT_VERIFIER_SLICE_MODELS ?? "",
-  // Escalation-only recovery model; chat-tier is fine (recovery planning is
-  // easier than verification). Empty = advisor off.
-  chatAdvisorModel: process.env.CHAT_ADVISOR_MODEL ?? "",
   // Small-talk bypass judge — one tiny question-side classification ("does
   // this message expect factual content?") that is the FINAL gate on skipping
   // the audit for pure greetings (chat-orchestrator.ts + verify/smalltalk.ts).
@@ -409,10 +379,6 @@ export const config = {
   chatAnnouncementSimilarityMargin: Number(process.env.CHAT_ANNOUNCEMENT_SIMILARITY_MARGIN ?? 0.25),
   // Evidence digest budget for the final audit, newest-round-first.
   chatVerifierEvidenceMaxChars: Number(process.env.CHAT_VERIFIER_EVIDENCE_MAX_CHARS ?? 120_000),
-  // Hard cap on the verifier call; timeout → null → "unverified" badge (chat
-  // never blocks on the audit — the answer already streamed). The verifier is a
-  // stronger, slower model than the advisor, so its deadline is more generous.
-  chatVerifierTimeoutMs: Number(process.env.CHAT_VERIFIER_TIMEOUT_MS ?? 20_000),
   // Isolated MSC sub-agent (chat-only). Empty model = skip LLM, return the
   // deterministic brief. Defaults to the verifier model when set.
   chatExternalSubagentModel: process.env.CHAT_EXTERNAL_SUBAGENT_MODEL ?? process.env.CHAT_VERIFIER_MODEL ?? "",
@@ -422,18 +388,6 @@ export const config = {
   // single-prompt cap: the 2026-08-06 bakeoff measured gemma claims-slice p50
   // at 23.6s — a 20s deadline would kill over half of them.
   chatVerifierSliceTimeoutMs: Number(process.env.CHAT_VERIFIER_SLICE_TIMEOUT_MS ?? 45_000),
-  // Retrieval-trouble escalation threshold: ≥N empty/error tool results in a turn.
-  chatAdvisorTriggerEmptyResults: Number(process.env.CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS ?? 2),
-  // Unsupported-claim escalation threshold. A recovery cycle replays the ENTIRE
-  // turn transcript (every tool result, up to chatToolResultMaxChars each) — the
-  // most expensive thing the harness does — so one `unsupported` claim ("warn")
-  // must not buy it. Amber badges on its own; ≥N unsupported claims means the
-  // answer is substantially ungrounded and is worth the replay.
-  chatAdvisorTriggerUnsupportedClaims: Number(process.env.CHAT_ADVISOR_TRIGGER_UNSUPPORTED_CLAIMS ?? 3),
-  // Hard cap on the advisor call; timeout → null → annotate fallback (chat never
-  // blocks on the advisor). Smoke testing showed chat-tier models can need >5s
-  // for the recovery JSON, so this is env-tunable per deployed advisor model.
-  chatAdvisorTimeoutMs: Number(process.env.CHAT_ADVISOR_TIMEOUT_MS ?? 8000),
 
   // Per-turn model routing (rules-based — src/server/chat/model-router.ts). Each slot
   // is a CSV: first entry = primary model, rest = OpenRouter fallback models

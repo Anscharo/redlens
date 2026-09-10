@@ -1,65 +1,53 @@
-// Verifier unit tests: canned/garbage JsonCall, degradation to unverified,
-// and the code-overrides-model rule for overall.
+// Verifier unit tests: computeOverall's severity table for the refutation-only
+// Verdict shape, plus evidence assembly (evidenceFromTranscript / priorTurnsEvidence)
+// which is unchanged by the redesign.
 import { test, expect } from "bun:test";
 import type OpenAI from "openai";
-import type { JsonCall } from "../llm.ts";
-import { parseVerdict, computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, buildVerifierPrompt, type Verdict } from "./verifier.ts";
+import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, type Contradiction, type Verdict } from "./verifier.ts";
 import type { CheckReport } from "./verify-checks.ts";
-import type { RoundTelemetry } from "./round-checks.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
 const cleanChecks: CheckReport = { citations: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], bareAtlasLinks: [], uncitedParagraphs: 0, ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], untracedNumbers: [], lowOverlapCitations: [], paramMismatches: [], completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false, failed: false };
 const failedChecks: CheckReport = { ...cleanChecks, invalidCitations: ["00000000-dead-beef-0000-000000000000"], failed: true };
-const telemetry: RoundTelemetry = { rounds: 1, toolCalls: 1, emptyResults: 0, errorResults: 0, repeatedQueries: 0, notes: [] };
 
-const fakeCall = (text: string): JsonCall => async () => ({ text, usage: { input: 10, output: 5 }, generationId: "gen-v", latencyMs: 42 });
-
-test("parseVerdict: fenced JSON with surrounding prose is salvaged; garbage is null", () => {
-  const fenced = 'Sure!\n```json\n{"claims":[{"claim":"x","status":"supported"}],"ruling_issued":false}\n```';
-  expect(parseVerdict(fenced)?.claims[0]?.status).toBe("supported");
-  expect(parseVerdict("not json at all")).toBeNull();
-  expect(parseVerdict('{"claims":"wrong-shape"}')).toBeNull();
+const contradiction = (over: Partial<Contradiction> = {}): Contradiction => ({
+  answer_span: "a", evidence_span: "b", why: "w", evidence_label: "[E1]", uuid: null, source: "model", agreed: false, ...over,
+});
+const verdict = (over: Partial<Verdict> = {}): Verdict => ({
+  contradictions: [], not_found: [], ruling_issued: false, notes: "", refuteParsed: true, confirm: null, ...over,
 });
 
-test("computeOverall: model can add severity, never remove a deterministic failure", () => {
-  const passVerdict: Verdict = { claims: [{ claim: "x", status: "supported", evidence: [], cited_uuid: null, note: null }], invented_facts: [], ruling_issued: false, confidence: 0.9, feedback: "" };
-  // Deterministic failure is un-appealable, even with a glowing verdict.
-  expect(computeOverall(failedChecks, passVerdict)).toBe("fail");
-  expect(computeOverall(cleanChecks, passVerdict)).toBe("pass");
+test("computeOverall: a deterministic check failure is un-appealable, even with a clean verdict", () => {
+  expect(computeOverall(failedChecks, verdict())).toBe("fail");
+});
+
+test("computeOverall: no verdict at all → unverified", () => {
   expect(computeOverall(cleanChecks, null)).toBe("unverified");
-  expect(computeOverall(cleanChecks, { ...passVerdict, claims: [{ claim: "y", status: "unsupported", evidence: [], cited_uuid: null, note: null }] })).toBe("warn");
-  expect(computeOverall(cleanChecks, { ...passVerdict, claims: [{ claim: "y", status: "contradicted", evidence: [], cited_uuid: null, note: null }] })).toBe("fail");
-  expect(computeOverall(cleanChecks, { ...passVerdict, ruling_issued: true })).toBe("fail");
-  // An empty audit (JSON-degraded `{}` → claims:[]) is unverified, not a green pass.
-  expect(computeOverall(cleanChecks, { ...passVerdict, claims: [] })).toBe("unverified");
 });
 
-test("invented_facts upgrades severity but never fails a clean claim table", () => {
-  const supported = { claim: "x", status: "supported" as const, evidence: [], cited_uuid: null, note: null };
-  const unsupported = { claim: "y", status: "unsupported" as const, evidence: [], cited_uuid: null, note: null };
-  const base: Verdict = { claims: [supported], invented_facts: [], ruling_issued: false, confidence: 0.9, feedback: "" };
-  // The production false failure: every claim supported, but the auditor wrote a
-  // wording critique into the free-text channel. That is not a fabrication.
-  const nitpick = ["the phrasing conflates role with authorization mechanism", "the phrasing is slightly stronger than the evidence warrants"];
-  expect(computeOverall(cleanChecks, { ...base, invented_facts: nitpick })).toBe("pass");
-  // With a claim-level counterpart it IS a fabrication report: warn → fail.
-  expect(computeOverall(cleanChecks, { ...base, claims: [supported, unsupported] })).toBe("warn");
-  expect(computeOverall(cleanChecks, { ...base, claims: [supported, unsupported], invented_facts: ["a retainer of 250,000 USDS appears in no source"] })).toBe("fail");
-  // A contradicted claim still fails on its own, invented_facts or not.
-  expect(computeOverall(cleanChecks, { ...base, claims: [{ ...supported, status: "contradicted" }], invented_facts: [] })).toBe("fail");
+test("computeOverall: a clean, parsed refute backbone → pass", () => {
+  expect(computeOverall(cleanChecks, verdict())).toBe("pass");
 });
 
-test("the checks block carries the soft wrong-doc signal to the judge", () => {
-  const prompt = buildVerifierPrompt({
-    question: "q", answer: "a", evidence: [], telemetry,
-    checks: { ...cleanChecks, lowOverlapCitations: ['A.1.6 Some Doc ← "an unrelated sentence"'] },
-  });
-  const user = prompt[1].content as string;
-  expect(user).toContain('claims_with_low_word_overlap_vs_cited_doc=A.1.6 Some Doc ← "an unrelated sentence"');
-  // Absent → explicitly "none", so the judge never reads silence as a signal.
-  expect(buildVerifierPrompt({ question: "q", answer: "a", evidence: [], telemetry, checks: cleanChecks })[1].content as string)
-    .toContain("claims_with_low_word_overlap_vs_cited_doc=none");
+test("computeOverall: the refute backbone never parsed, nothing else wrong → unverified, not a green pass", () => {
+  expect(computeOverall(cleanChecks, verdict({ refuteParsed: false }))).toBe("unverified");
+});
+
+test("computeOverall: an AGREED contradiction fails on its own", () => {
+  expect(computeOverall(cleanChecks, verdict({ contradictions: [contradiction({ agreed: true })] }))).toBe("fail");
+});
+
+test("computeOverall: an unagreed candidate is a hard non-event — it must never reach the reader, so pass with nothing else wrong", () => {
+  expect(computeOverall(cleanChecks, verdict({ contradictions: [contradiction({ agreed: false })] }))).toBe("pass");
+});
+
+test("computeOverall: an overreach ruling alone is warn, even with zero contradictions", () => {
+  expect(computeOverall(cleanChecks, verdict({ ruling_issued: true }))).toBe("warn");
+});
+
+test("computeOverall: any agreed contradiction beats a ruling straight to fail", () => {
+  expect(computeOverall(cleanChecks, verdict({ ruling_issued: true, contradictions: [contradiction({ agreed: true })] }))).toBe("fail");
 });
 
 test("evidenceFromTranscript labels tool results in order and budgets newest-first", () => {
@@ -93,25 +81,6 @@ test("evidenceFromTranscript marks ask_external_msc as external", () => {
   expect(all[0]!.sourceClass).toBe("external");
 });
 
-test("runVerifier degrades to a null verdict on transport failure", async () => {
-  const boom: JsonCall = async () => {
-    throw new Error("provider 500");
-  };
-  const run = await runVerifier({ call: boom, model: "m", question: "q", answer: "a", evidence: [], checks: cleanChecks, telemetry });
-  expect(run.verdict).toBeNull();
-  expect(run.usage).toBeNull();
-});
-
-test("runVerifier carries usage + generation id from the JSON call", async () => {
-  const run = await runVerifier({
-    call: fakeCall('{"claims":[],"invented_facts":[],"ruling_issued":false,"confidence":1,"feedback":""}'),
-    model: "m", question: "q", answer: "a", evidence: [], checks: cleanChecks, telemetry,
-  });
-  expect(run.verdict).not.toBeNull();
-  expect(run.usage).toEqual({ input: 10, output: 5 });
-  expect(run.generationId).toBe("gen-v");
-});
-
 test("priorTurnsEvidence folds earlier assistant answers into one entry, newest-first budget", () => {
   const transcript: Msg[] = [
     { role: "system", content: "sys" },
@@ -140,8 +109,7 @@ test("priorTurnsEvidence folds earlier assistant answers into one entry, newest-
 // The prefetch round is seeded before the model runs, so it is always the
 // OLDEST tool entry — exactly what newest-first budgeting drops first. Losing
 // it makes the verifier judge an answer against evidence missing the material
-// the answer was built from, which reads as "not supported by the provided
-// evidence" and gets correct content rewritten away by the advisor.
+// the answer was built from.
 test("prefetch evidence survives budget pressure that evicts newer tool results", () => {
   const transcript = [
     { role: "assistant", content: null, tool_calls: [{ id: "call_prefetch", type: "function", function: { name: "atlas_prefetch", arguments: "{}" } }] },

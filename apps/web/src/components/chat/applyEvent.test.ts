@@ -1,0 +1,188 @@
+import { describe, expect, it } from "vitest";
+import { applyEvent } from "./applyEvent";
+import type { ChatMsg } from "./chatTypes";
+
+function baseMsg(overrides: Partial<ChatMsg> = {}): ChatMsg {
+  return {
+    role: "assistant",
+    content: "",
+    draft: "",
+    generated: false,
+    trace: [],
+    rounds: 0,
+    sources: [],
+    done: false,
+    ...overrides,
+  };
+}
+
+describe("applyEvent token/reasoning", () => {
+  it("token accumulates onto draft, not content, and clears statusLine", () => {
+    const m = applyEvent(baseMsg({ statusLine: "querying…" }), { type: "token", text: "Hello " });
+    expect(m.draft).toBe("Hello ");
+    expect(m.content).toBe("");
+    expect(m.statusLine).toBeNull();
+  });
+
+  it("reasoning accumulates onto its own field, never draft/content", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "reasoning", text: "Let me check " });
+    m = applyEvent(m, { type: "reasoning", text: "the atlas." });
+    expect(m.reasoning).toBe("Let me check the atlas.");
+    expect(m.draft).toBe("");
+    expect(m.content).toBe("");
+  });
+});
+
+describe("applyEvent answer_final / done", () => {
+  it("answer_final sets content, marks generated, and clears draft", () => {
+    const m = applyEvent(baseMsg({ draft: "partial" }), { type: "answer_final", content: "The final answer." });
+    expect(m.content).toBe("The final answer.");
+    expect(m.generated).toBe(true);
+    expect(m.draft).toBe("");
+  });
+
+  it("done reveals the answer even when no answer_final preceded it (early exit)", () => {
+    const m = applyEvent(baseMsg({ draft: "partial" }), {
+      type: "done",
+      content: "Early exit answer.",
+      usage: { input: 1, output: 1 },
+      generationId: null,
+      toolCalls: [],
+    });
+    expect(m.content).toBe("Early exit answer.");
+    expect(m.generated).toBe(true);
+    expect(m.draft).toBe("");
+    expect(m.done).toBe(true);
+  });
+
+  it("done resolves a stranded 'checking' verify so it doesn't spin forever", () => {
+    const m = applyEvent(
+      baseMsg({ verify: { status: "checking", contradictions: [], notFound: [], rulingIssued: false, invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [], completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false } }),
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    );
+    expect(m.verify).toBeUndefined();
+  });
+});
+
+describe("applyEvent clear", () => {
+  it("degenerate wipes the draft entirely", () => {
+    const m = applyEvent(baseMsg({ draft: "the the the" }), { type: "clear", reason: "degenerate" });
+    expect(m.draft).toBe("");
+    expect(m.superseded ?? []).toEqual([]);
+  });
+
+  it("tool_round moves the draft into superseded, stamped with the current round", () => {
+    const m = applyEvent(baseMsg({ draft: "a preamble", rounds: 2 }), { type: "clear", reason: "tool_round" });
+    expect(m.draft).toBe("");
+    expect(m.superseded).toEqual([{ text: "a preamble", reason: "tool_round", round: 2 }]);
+  });
+
+  it("a whitespace-only draft leaves no superseded entry", () => {
+    const m = applyEvent(baseMsg({ draft: "   \n  " }), { type: "clear", reason: "tool_round" });
+    expect(m.draft).toBe("");
+    expect(m.superseded ?? []).toEqual([]);
+  });
+
+  it("folds leaked tool-call markup into reasoning and keeps only the prose as superseded", () => {
+    const m = applyEvent(
+      baseMsg({
+        draft: 'Let me look that up.\n<tool_call>\n{"name":"atlas_query","arguments":{}}\n</tool_call>',
+        rounds: 1,
+      }),
+      { type: "clear", reason: "tool_round" },
+    );
+    expect(m.superseded).toEqual([{ text: "Let me look that up.", reason: "tool_round", round: 1 }]);
+    expect(m.reasoning).toContain("<tool_call>");
+  });
+});
+
+describe("applyEvent status", () => {
+  it("stamps a new stage row with the current round", () => {
+    const m = applyEvent(baseMsg({ rounds: 1 }), { type: "status", stage: "querying", detail: "Searching…" });
+    expect(m.stageLog).toEqual([{ stage: "querying", details: ["Searching…"], at: 0, round: 1 }]);
+  });
+
+  it("coalesces a same-stage status into the existing row, appending the detail rather than replacing it", () => {
+    let m = baseMsg({ rounds: 1 });
+    m = applyEvent(m, { type: "status", stage: "querying", detail: "first" });
+    m = applyEvent(m, { type: "status", stage: "querying", detail: "second" });
+    expect(m.stageLog).toEqual([{ stage: "querying", details: ["first", "second"], at: 0, round: 1 }]);
+  });
+
+  it("does not repeat an exact duplicate of the last detail line", () => {
+    let m = baseMsg({ rounds: 1 });
+    m = applyEvent(m, { type: "status", stage: "querying", detail: "Searching atlas_get…" });
+    m = applyEvent(m, { type: "status", stage: "querying", detail: "Searching atlas_get…" });
+    expect(m.stageLog).toEqual([{ stage: "querying", details: ["Searching atlas_get…"], at: 0, round: 1 }]);
+  });
+
+  it("a new stage starts a fresh row, leaving the previous stage's details intact", () => {
+    let m = baseMsg({ rounds: 1 });
+    m = applyEvent(m, { type: "status", stage: "querying", detail: "Searching…" });
+    m = applyEvent(m, { type: "status", stage: "comparing", detail: "Comparing 2 results…" });
+    expect(m.stageLog).toEqual([
+      { stage: "querying", details: ["Searching…"], at: 0, round: 1 },
+      { stage: "comparing", details: ["Comparing 2 results…"], at: 1, round: 1 },
+    ]);
+  });
+
+  it("seeds an empty checking verify state on the 'checking' stage", () => {
+    const m = applyEvent(baseMsg(), { type: "status", stage: "checking", detail: "Auditing…" });
+    expect(m.verify?.status).toBe("checking");
+    expect(m.verify?.contradictions).toEqual([]);
+  });
+
+  it("does not clobber an already-set verify state on a later 'checking' status", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "status", stage: "checking" });
+    m = applyEvent(m, {
+      type: "verify_result",
+      overall: "pass",
+      contradictions: [],
+      invalidCitations: [],
+      invalidDocNos: [],
+      docNoMismatches: [],
+      ungroundedQuotes: [],
+      ungroundedAddresses: [],
+    });
+    m = applyEvent(m, { type: "status", stage: "checking", detail: "again" });
+    expect(m.verify?.status).toBe("pass");
+  });
+});
+
+describe("applyEvent facts / tool_call / tool_result", () => {
+  it("facts rows are prepended at round 0", () => {
+    const m = applyEvent(baseMsg({ rounds: 3, trace: [{ name: "atlas_query", args: {}, ok: true, bytes: 1, round: 3 }] }), {
+      type: "facts",
+      facts: [{ id: "glossary", summary: "2 glossary definitions" }],
+    });
+    expect(m.trace[0]).toMatchObject({ name: "glossary", kind: "fact", round: 0 });
+    expect(m.trace[1]).toMatchObject({ name: "atlas_query", round: 3 });
+  });
+
+  it("tool_call rows are stamped with the message's current round", () => {
+    const m = applyEvent(baseMsg({ rounds: 2 }), { type: "tool_call", name: "atlas_get", args: { id: "x" } });
+    expect(m.trace).toEqual([{ name: "atlas_get", args: { id: "x" }, ok: null, bytes: null, round: 2 }]);
+  });
+
+  it("tool_result fills the oldest open row for that tool name", () => {
+    let m = baseMsg({
+      trace: [
+        { name: "atlas_get", args: {}, ok: null, bytes: null, round: 1 },
+        { name: "atlas_get", args: {}, ok: null, bytes: null, round: 2 },
+      ],
+    });
+    m = applyEvent(m, { type: "tool_result", name: "atlas_get", ok: true, bytes: 50 });
+    expect(m.trace[0]).toMatchObject({ ok: true, bytes: 50 });
+    expect(m.trace[1]).toMatchObject({ ok: null, bytes: null });
+  });
+});
+
+describe("applyEvent meta/error passthrough", () => {
+  it("returns the message unchanged for meta and error (handled by the hook)", () => {
+    const m = baseMsg({ content: "x" });
+    expect(applyEvent(m, { type: "meta", conversationId: "c1" })).toBe(m);
+    expect(applyEvent(m, { type: "error", message: "boom" })).toBe(m);
+  });
+});

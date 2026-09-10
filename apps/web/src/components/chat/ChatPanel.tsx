@@ -10,7 +10,6 @@ import { ErrorNote } from "./ErrorNote";
 import { LimitsMeter } from "./LimitsMeter";
 import { RateLimitNote } from "./RateLimitNote";
 import { NewMessagesPill } from "./NewMessagesPill";
-import { usePrefs } from "./usePrefs";
 import { useStickToBottom } from "./useStickToBottom";
 import { track } from "../../lib/analytics";
 import { ratioPct } from "../../lib/formatTokens";
@@ -38,7 +37,6 @@ export function ChatPanel({
   // Only the fields read more than once get a local name; everything else
   // is referenced as session.* at its single call site below.
   const { authed, messages, streaming } = session;
-  const { prefs, setPref } = usePrefs();
   const [draft, setDraft] = useState("");
   const ctxPct = ratioPct(session.contextTokens, session.contextWindow);
 
@@ -71,7 +69,7 @@ export function ChatPanel({
     // The reader asked for this turn, so follow it down even if they had
     // scrolled up — their own send is the one movement they expect.
     stick();
-    const { rateLimited: rl } = await session.send(trimmed, toPageContext(context), prefs.delivery ?? undefined);
+    const { rateLimited: rl } = await session.send(trimmed, toPageContext(context));
     // send() (useChatStream) always sets `kind` for a real 429; this fallback
     // only guards a caller that omits it (defense in depth, not the normal path).
     session.setRateLimit(rl ? { ...rl, kind: rl.kind ?? (rl.resetsAt ? "token" : "commons") } : null);
@@ -87,9 +85,6 @@ export function ChatPanel({
         onClose={onClose}
         placement={placement}
         onTogglePlacement={onTogglePlacement}
-        stages={prefs.delivery === "staged"}
-        onToggleDelivery={() => setPref("delivery", prefs.delivery === "staged" ? "streaming" : "staged")}
-        streaming={streaming}
       />
 
       {/* The wrap (not the scrollable thread itself) hosts the context line:
@@ -127,13 +122,7 @@ export function ChatPanel({
             />
           ) : (
             messages.map((m, i) => (
-              <Message
-                key={i}
-                msg={m}
-                streaming={streaming && i === messages.length - 1}
-                showTrace={prefs.traces}
-                onAtlas={onAtlas}
-              />
+              <Message key={i} msg={m} streaming={streaming && i === messages.length - 1} onAtlas={onAtlas} />
             ))
           )}
         </div>

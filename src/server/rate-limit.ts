@@ -103,7 +103,7 @@ export async function getWindowUsage(userId: string, nowMs: number = Date.now())
         });
 
   // One sum against the ledger — already includes both conversationalist
-  // tokens and reliability-harness (verifier/advisor) tokens, since
+  // tokens and reliability-harness (verifier) tokens, since
   // persistAssistant writes one usage_events row per turn covering both (see
   // chat.ts). The harness spends real tokens per turn — it must count against
   // the same budget, or checks become an invisible way past the window.

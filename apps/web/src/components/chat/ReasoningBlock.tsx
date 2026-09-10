@@ -5,19 +5,20 @@ export type ReasoningBlockProps = ComponentProps<"div"> & {
   text: string;
 };
 
-// Renders the model's reasoning trace above the answer. Message.tsx hoists
-// this above the per-delivery-mode content branches (thinking placeholder /
-// staged checklist / stopped / failed / answer) so it shows regardless of
-// which one is active — beta feedback: "render them immediately even if not
-// in streaming mode", and a reasoning block that only appears in one branch
-// is the bug that note is guarding against.
+// Renders the model's reasoning trace. This no longer sits at the top of
+// every turn: StageSlots.tsx renders it inside the "synthesizing" stage
+// row's slot (shown once that row is clicked open, and only on the FIRST
+// synthesizing entry, so a turn that synthesizes more than once doesn't
+// repeat it) — beta feedback originally asked for it to render as soon as
+// it's available, which the slot placement still honors (it shows the
+// moment its stage row is live, not only once the turn finishes).
 //
-// Open by default (unlike ToolTrace, which starts closed): "immediately"
-// means visible without a click. It's still collapsible, mirroring
-// ToolTrace's button + aria-expanded pattern, so a long trace doesn't
-// dominate the message once the reader has seen enough — and the open body
-// additionally caps its own height with a scroll container (chat.css) rather
-// than growing the whole message for a very long trace.
+// Open by default: "immediately" means visible without a click. It's still
+// collapsible (a button + aria-expanded pattern, mirroring the trace rows'
+// own collapsed-summary control), so a long trace doesn't dominate the
+// message once the reader has seen enough — and the open body additionally
+// caps its own height with a scroll container (chat.css) rather than
+// growing the whole message for a very long trace.
 export function ReasoningBlock({ text, ...props }: ReasoningBlockProps) {
   const [open, setOpen] = useState(true);
   if (!text) return null;

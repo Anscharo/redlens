@@ -12,12 +12,10 @@ const ENV_KEYS = [
   "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT",
   "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENROUTER_MANAGEMENT_KEY", "EMBED_MODEL",
   "SEMANTIC_MIN_SCORE", "SEMANTIC_EMBED_TIMEOUT_MS", "QUERY_EMBED_CACHE_SIZE", "CHAT_MODEL",
-  "CHAT_DELIVERY_MODE",
   "CHAT_MAX_ITERATIONS", "CHAT_TEMPERATURE", "CHAT_MAX_OUTPUT_TOKENS",
-  "CHAT_CAPTURE_CONTENT", "CHAT_TOOL_RESULT_MAX_CHARS", "CHAT_VERIFIER_MODEL", "CHAT_ADVISOR_MODEL",
-  "CHAT_VERIFY_CHECKS", "CHAT_PREFETCH", "CHAT_VERIFIER_EVIDENCE_MAX_CHARS", "CHAT_VERIFIER_TIMEOUT_MS",
-  "CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS", "CHAT_ADVISOR_TRIGGER_UNSUPPORTED_CLAIMS",
-  "CHAT_ADVISOR_TIMEOUT_MS", "CHAT_MODEL_FAST",
+  "CHAT_CAPTURE_CONTENT", "CHAT_TOOL_RESULT_MAX_CHARS", "CHAT_VERIFIER_MODEL",
+  "CHAT_VERIFY_CHECKS", "CHAT_PREFETCH", "CHAT_VERIFIER_EVIDENCE_MAX_CHARS",
+  "CHAT_MODEL_FAST",
   "CHAT_MODEL_STRONG", "CHAT_MODEL_FALLBACKS", "CHAT_REFERENCE_CITATION_MODELS", "RATE_LIMIT_TOKENS_PER_WINDOW",
   "RATE_LIMIT_WINDOW_MINUTES", "RATE_LIMIT_TOKENS_PER_WINDOW_BOOSTED", "RATE_LIMIT_BOOST_LOGINS",
   "MCP_PATH", "MCP_MAX_RESULT_CHARS", "RAILWAY_GIT_COMMIT_SHA", "APP_COMMIT", "GIT_COMMIT",
@@ -77,7 +75,6 @@ test("defaults when no env is set", async () => {
   expect(config.semanticEmbedTimeoutMs).toBe(10_000);
   expect(config.queryEmbedCacheSize).toBe(512);
   expect(config.chatModel).toBe("google/gemma-4-31b-it");
-  expect(config.chatDeliveryMode).toBe("streaming");
   expect(config.chatMaxIterations).toBe(4);
   expect(config.chatMaxIterationsStrong).toBe(6);
   expect(config.chatTemperature).toBe(0.3);
@@ -85,14 +82,9 @@ test("defaults when no env is set", async () => {
   expect(config.chatCaptureContent).toBe(true);
   expect(config.chatToolResultMaxChars).toBe(30_000);
   expect(config.chatVerifierModel).toBe("");
-  expect(config.chatAdvisorModel).toBe("");
   expect(config.chatVerifyChecks).toBe(true);
   expect(config.chatPrefetch).toBe(true);
   expect(config.chatVerifierEvidenceMaxChars).toBe(120_000);
-  expect(config.chatVerifierTimeoutMs).toBe(20_000);
-  expect(config.chatAdvisorTriggerEmptyResults).toBe(2);
-  expect(config.chatAdvisorTriggerUnsupportedClaims).toBe(3);
-  expect(config.chatAdvisorTimeoutMs).toBe(8000);
   expect(config.chatModelFast).toEqual([]);
   expect(config.chatModelStrong).toEqual([]);
   expect(config.chatModelFallbacks).toEqual([]);
@@ -147,7 +139,6 @@ test("all env overrides take effect", async () => {
     SEMANTIC_EMBED_TIMEOUT_MS: "1234",
     QUERY_EMBED_CACHE_SIZE: "10",
     CHAT_MODEL: "custom-chat",
-    CHAT_DELIVERY_MODE: "staged",
     CHAT_MAX_ITERATIONS: "9",
     CHAT_MAX_ITERATIONS_STRONG: "11",
     CHAT_TEMPERATURE: "0.9",
@@ -155,14 +146,9 @@ test("all env overrides take effect", async () => {
     CHAT_CAPTURE_CONTENT: "0",
     CHAT_TOOL_RESULT_MAX_CHARS: "111",
     CHAT_VERIFIER_MODEL: "verifier-model",
-    CHAT_ADVISOR_MODEL: "advisor-model",
     CHAT_VERIFY_CHECKS: "0",
     CHAT_PREFETCH: "0",
     CHAT_VERIFIER_EVIDENCE_MAX_CHARS: "222",
-    CHAT_VERIFIER_TIMEOUT_MS: "333",
-    CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS: "5",
-    CHAT_ADVISOR_TRIGGER_UNSUPPORTED_CLAIMS: "7",
-    CHAT_ADVISOR_TIMEOUT_MS: "444",
     CHAT_MODEL_FAST: "fast-a,fast-b",
     CHAT_MODEL_STRONG: "strong-a",
     CHAT_MODEL_FALLBACKS: "fb-a,fb-b",
@@ -216,7 +202,6 @@ test("all env overrides take effect", async () => {
   expect(config.semanticEmbedTimeoutMs).toBe(1234);
   expect(config.queryEmbedCacheSize).toBe(10);
   expect(config.chatModel).toBe("custom-chat");
-  expect(config.chatDeliveryMode).toBe("staged");
   expect(config.chatMaxIterations).toBe(9);
   expect(config.chatMaxIterationsStrong).toBe(11);
   expect(config.chatTemperature).toBe(0.9);
@@ -224,14 +209,9 @@ test("all env overrides take effect", async () => {
   expect(config.chatCaptureContent).toBe(false);
   expect(config.chatToolResultMaxChars).toBe(111);
   expect(config.chatVerifierModel).toBe("verifier-model");
-  expect(config.chatAdvisorModel).toBe("advisor-model");
   expect(config.chatVerifyChecks).toBe(false);
   expect(config.chatPrefetch).toBe(false);
   expect(config.chatVerifierEvidenceMaxChars).toBe(222);
-  expect(config.chatVerifierTimeoutMs).toBe(333);
-  expect(config.chatAdvisorTriggerEmptyResults).toBe(5);
-  expect(config.chatAdvisorTriggerUnsupportedClaims).toBe(7);
-  expect(config.chatAdvisorTimeoutMs).toBe(444);
   expect(config.chatModelFast).toEqual(["fast-a", "fast-b"]);
   expect(config.chatModelStrong).toEqual(["strong-a"]);
   expect(config.chatModelFallbacks).toEqual(["fb-a", "fb-b"]);
@@ -387,19 +367,6 @@ test("authProvidersCsv reflects only the fully-configured provider(s)", async ()
   expect(config.authProvidersCsv).toBe("google");
 });
 
-test("chatDeliveryMode normalizes an unrecognized value to streaming instead of throwing", async () => {
-  clearAll();
-  process.env.CHAT_DELIVERY_MODE = "yolo";
-  const config = await freshConfig();
-  expect(config.chatDeliveryMode).toBe("streaming");
-});
-
-test("chatDeliveryMode gets the same trim as its sibling — a padded value is not a typo", async () => {
-  clearAll();
-  process.env.CHAT_DELIVERY_MODE = " staged ";
-  const config = await freshConfig();
-  expect(config.chatDeliveryMode).toBe("staged");
-});
 
 test("a provider with only one of client id/secret set stays disabled", async () => {
   clearAll();

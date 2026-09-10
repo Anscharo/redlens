@@ -101,7 +101,7 @@ describe("useRevealOnDone", () => {
       window.matchMedia = realMatchMedia;
     });
 
-    it("does not animate an empty final answer (aborted staged turn)", () => {
+    it("does not animate an empty final answer (a turn that ended with no content)", () => {
       const { result, rerender } = renderHook(({ content, done }) => useRevealOnDone(content, done), {
         initialProps: { content: "", done: false },
       });

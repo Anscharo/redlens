@@ -1,111 +1,23 @@
 import { useCallback, useRef, useState } from "react";
-import { apiUrl, type ChatEvent, type Delivery, type ParamMismatch, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
+import { apiUrl, type ChatEvent } from "./api";
 import type { PageContext } from "./pageContext";
 import type { RateLimitState } from "./types";
 import { downloadFile } from "../../lib/csvDownload";
 import { absolutizeAtlasLinks } from "@/lib/routes";
 import { track } from "../../lib/analytics";
-import { appendReasoning, splitToolRoundText } from "./splitToolRound";
+import { applyEvent } from "./applyEvent";
+import type { ChatMsg } from "./chatTypes";
 
-export interface TraceRow {
-  name: string;
-  args: Record<string, unknown>;
-  ok: boolean | null; // null until the matching tool_result arrives
-  bytes: number | null;
-  // "fact" rows are knowledge the server injected before the model ran (no call
-  // to pair with a result, so they arrive already resolved). `summary` is the
-  // server's reader-facing phrase for what it contributed.
-  kind?: "tool" | "fact";
-  summary?: string;
-}
-
-// Reliability-harness verdict for one assistant message. "checking" while the
-// audit is in flight; "revised" when the answer was replaced after escalation.
-export interface VerifyState {
-  status: VerifyOverall | "checking" | "revised";
-  claims: VerifyClaim[];
-  invalidCitations: string[];
-  invalidDocNos: string[];
-  docNoMismatches: string[];
-  ungroundedQuotes: string[];
-  ungroundedAddresses: string[];
-  ungroundedCitationValues: string[];
-  paramMismatches: ParamMismatch[];
-  completenessFailures: string[];
-  missingExternalDisclaimer: boolean;
-  mscCitedAsAtlas: string[];
-  lengthCapped: boolean;
-}
-
-// A downloadable file the agent produced this session via export_findings.
-// Auto-downloaded on arrival; kept on the message so the reply can offer a
-// re-download button. Live-session only — not persisted across reloads.
-export interface ExportArtifact {
-  format: "markdown" | "csv";
-  filename: string;
-  mime: string;
-  content: string;
-  bytes: number;
-}
-
-// One row per distinct stage the harness has entered, in arrival order. `at`
-// is the entry's position in stageLog, not a wall-clock timestamp — keeps
-// render output deterministic (see CLAUDE.md deterministic-builds convention,
-// which this mirrors for UI state even though it isn't a build artifact).
-export interface StageLogEntry {
-  stage: string;
-  detail: string | null;
-  at: number;
-}
-
-// One draft the turn showed the reader and then replaced. `reason` mirrors the
-// server's `clear.reason` (chat-loop.ts): `tool_round` = prose the model set
-// aside to go on searching (it may have been written from atlas data already
-// retrieved, or before any — the clear fires on any round that produced both
-// text and tool calls). Leaked tool-call markup in that same buffer is stripped
-// out and appended to `reasoning` instead — it is thinking, not a draft.
-// `revision` = a complete answer the verifier rejected (kept whole).
-// There is deliberately no `degenerate` member — that clear is the one that
-// genuinely deletes (see the dispatch).
-export interface SupersededDraft {
-  text: string;
-  reason: "tool_round" | "revision";
-}
-
-export interface ChatMsg {
-  role: "user" | "assistant";
-  content: string;
-  trace: TraceRow[];
-  rounds: number;
-  sources: ToolCallRecord[]; // authoritative tool calls from `done`
-  done: boolean;
-  verify?: VerifyState;
-  statusLine?: string | null; // transient harness status ticker (streaming only)
-  // Set when the turn ended via the SSE "error" event or a fetch/read
-  // exception (never for the 429 path, which finalizes with its message as
-  // `content` instead). Lets the UI distinguish "no answer because it broke"
-  // from a genuinely empty response.
-  failed?: boolean;
-  exports?: ExportArtifact[]; // files handed to the user this session (live only)
-  // Accumulated model "thinking" text from `reasoning` deltas. Rendered above
-  // the answer (ReasoningBlock), separately from `content` so it never gets
-  // treated as answer prose (markdown, citations, verification). Live-session
-  // only — not persisted (hydrate.ts never sets it), same as `exports`.
-  reasoning?: string;
-  // Every draft this turn streamed to the reader and then moved on from, in
-  // arrival order. NOTHING the reader has seen is ever deleted (beta feedback:
-  // "text shown to user to never be deleted just restyled … i just saw text
-  // disappear from under my eyes") — a `clear` moves the live buffer here and
-  // the replacement renders BELOW it, rather than the text vanishing. Carries
-  // its `reason` so the UI can say WHY each block stopped being the answer.
-  // Live-session only — not persisted, same as `exports`.
-  superseded?: SupersededDraft[];
-  // Staged-mode progress checklist (populated in both modes; only rendered in
-  // staged). Optional because hydrated/persisted messages (hydrate.ts) predate
-  // it and never need it — send() seeds [] on live turns; readers `?? []`.
-  stageLog?: StageLogEntry[];
-  delivery?: Delivery; // captured from `meta`
-}
+// Re-exported so existing `from "./useChatStream"` imports keep working — the
+// shared shape now lives in chatTypes.ts (imported by applyEvent.ts too).
+export type {
+  ChatMsg,
+  TraceRow,
+  VerifyState,
+  ExportArtifact,
+  StageLogEntry,
+  SupersededDraft,
+} from "./chatTypes";
 
 export interface SendResult {
   rateLimited?: RateLimitState;
@@ -215,100 +127,10 @@ export function useChatStream(handlers: StreamHandlers = {}) {
         case "meta":
           convIdRef.current = ev.conversationId;
           setConversationId(ev.conversationId);
-          if (ev.delivery) patchLast((m) => ({ ...m, delivery: ev.delivery }));
           break;
-        case "token":
-          // Answer is streaming — the status ticker yields to the live text.
-          patchLast((m) => ({ ...m, content: m.content + ev.text, statusLine: null }));
-          break;
-        case "reasoning":
-          // Accumulates like `token`, but onto its own field — it must never
-          // join `content`, which is answer prose run through markdown,
-          // citation extraction, and the verifier.
-          patchLast((m) => ({ ...m, reasoning: (m.reasoning ?? "") + ev.text }));
-          break;
-        case "status":
-          patchLast((m) => {
-            // Coalesce consecutive same-stage events into one row (querying
-            // fires once per tool call — the row shows the latest detail); a
-            // different stage appends a new row. `at` is the row's array
-            // index at the moment it's first appended, and never changes on
-            // a later detail-only update.
-            const log = m.stageLog ?? [];
-            const last = log[log.length - 1];
-            const stageLog =
-              last && last.stage === ev.stage
-                ? [...log.slice(0, -1), { ...last, detail: ev.detail ?? null }]
-                : [...log, { stage: ev.stage, detail: ev.detail ?? null, at: log.length }];
-            return {
-              ...m,
-              statusLine: ev.detail ?? `${ev.stage}…`,
-              stageLog,
-              ...(ev.stage === "checking" && !m.verify
-                ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [], completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false } }
-                : {}),
-            };
-          });
-          break;
-        case "verify_result":
-          patchLast((m) => ({
-            ...m,
-            verify: {
-              status: ev.action === "revised" ? "revised" : ev.overall,
-              claims: ev.claims,
-              invalidCitations: ev.invalidCitations,
-              invalidDocNos: ev.invalidDocNos,
-              docNoMismatches: ev.docNoMismatches,
-              ungroundedQuotes: ev.ungroundedQuotes,
-              ungroundedAddresses: ev.ungroundedAddresses,
-              ungroundedCitationValues: ev.ungroundedCitationValues ?? [],
-              paramMismatches: ev.paramMismatches ?? [],
-              completenessFailures: ev.completenessFailures ?? [],
-              missingExternalDisclaimer: ev.missingExternalDisclaimer ?? false,
-              mscCitedAsAtlas: ev.mscCitedAsAtlas ?? [],
-              lengthCapped: ev.lengthCapped ?? false,
-            },
-          }));
-          break;
-        case "clear":
-          patchLast((m) => {
-            const kept = m.superseded ?? [];
-            if (ev.reason === "restore") {
-              // The advisor's revision was abandoned and `done` is about to
-              // re-send the ORIGINAL answer verbatim. Drop the copy we kept
-              // for it — otherwise the identical text renders twice, once
-              // struck and once live. Removes the last `revision` entry
-              // specifically, NOT the last entry: a revision that ran its own
-              // tool round pushed a `tool_round` draft on top of it, and that
-              // text was seen too, so it stays.
-              const i = kept.map((d) => d.reason).lastIndexOf("revision");
-              return { ...m, content: "", superseded: i < 0 ? kept : [...kept.slice(0, i), ...kept.slice(i + 1)] };
-            }
-            // `degenerate` is the ONE clear that really does delete. The
-            // draft fell into a repetition loop, so what the reader saw is
-            // machine noise ("the the the the…"), not a draft anyone could
-            // want back — keeping it would be the jarring thing.
-            if (ev.reason === "degenerate") return { ...m, content: "" };
-            // Every other clear — `revision`, `tool_round`, or an absent
-            // reason from an older server — keeps what streamed. The reader
-            // watched this text arrive; it gets restyled and pushed above the
-            // replacement, never deleted. Whitespace-only buffers are the
-            // other thing dropped: there is nothing to read.
-            if (!m.content.trim()) return { ...m, content: "" };
-            if (ev.reason === "revision") {
-              return { ...m, content: "", superseded: [...kept, { text: m.content, reason: "revision" }] };
-            }
-            // A tool round (or an older server with no reason) often mixes a
-            // real preamble with leaked tool-call markup. Markup is thinking,
-            // not a draft; the rest stays a prechecked answer.
-            const { thinking, draft } = splitToolRoundText(m.content);
-            return {
-              ...m,
-              content: "",
-              reasoning: appendReasoning(m.reasoning, thinking),
-              superseded: draft ? [...kept, { text: draft, reason: "tool_round" }] : kept,
-            };
-          });
+        case "error":
+          setError(ev.message);
+          finalizeLast({ failed: true });
           break;
         case "export": {
           // Auto-download the file the moment it arrives (CSV keeps the Excel
@@ -317,81 +139,26 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           // m.exports is the gesture-safe fallback + re-download.
           // Markdown leaves the app, so rewrite the in-app citation links
           // (`/atlas/<id>`) to absolute URLs that resolve outside it. CSV is
-          // left byte-for-byte as built server-side.
+          // left byte-for-byte as built server-side. The rewritten content is
+          // what gets pushed onto the message (below) — applyEvent's `export`
+          // case just packages whatever content it's handed.
           const content = ev.format === "markdown" ? absolutizeAtlasLinks(ev.content) : ev.content;
-          const artifact: ExportArtifact = {
-            format: ev.format,
-            filename: ev.filename,
-            mime: ev.mime,
-            content,
-            bytes: content.length,
-          };
+          const rewritten = { ...ev, content };
           try {
-            downloadFile(artifact.filename, artifact.content, artifact.mime, artifact.format === "csv");
+            downloadFile(rewritten.filename, rewritten.content, rewritten.mime, rewritten.format === "csv");
           } catch {
             // Blocked/unsupported — the fallback button still lets the user save it.
           }
-          track("chat_export", { format: artifact.format, bytes: artifact.bytes });
-          patchLast((m) => ({ ...m, exports: [...(m.exports ?? []), artifact] }));
+          track("chat_export", { format: rewritten.format, bytes: rewritten.content.length });
+          patchLast((m) => applyEvent(m, rewritten));
           break;
         }
-        case "facts":
-          // Prepended, not appended: facts ran before the first tool call, so
-          // the trace reads in the order things actually happened.
-          patchLast((m) => ({
-            ...m,
-            trace: [
-              ...ev.facts.map((fa) => ({
-                name: fa.id,
-                args: {},
-                ok: true,
-                bytes: null,
-                kind: "fact" as const,
-                summary: fa.summary,
-              })),
-              ...m.trace,
-            ],
-          }));
-          break;
-        case "tool_call":
-          // rounds is bumped in the send loop (it has the contiguous-run state).
-          patchLast((m) => ({
-            ...m,
-            trace: [...m.trace, { name: ev.name, args: ev.args, ok: null, bytes: null }],
-          }));
-          break;
-        case "tool_result":
-          patchLast((m) => {
-            const trace = m.trace.slice();
-            // Fill the OLDEST open row for this tool name — the server emits
-            // tool_result events in call order (chat-loop.ts pushes results in
-            // parsedCalls order regardless of Promise.all completion order), so
-            // a forward scan keeps repeated-tool-name rounds correctly paired.
-            for (let i = 0; i < trace.length; i++) {
-              if (trace[i].name === ev.name && trace[i].ok === null) {
-                trace[i] = { ...trace[i], ok: ev.ok, bytes: ev.bytes };
-                break;
-              }
-            }
-            return { ...m, trace };
-          });
-          break;
         case "done":
-          patchLast((m) => ({
-            ...m,
-            content: ev.content, // authoritative final answer
-            sources: ev.toolCalls,
-            done: true,
-            statusLine: null,
-            // A "checking" chip that never resolved (verifier off/failed
-            // silently) must not spin forever.
-            ...(m.verify?.status === "checking" ? { verify: undefined } : {}),
-          }));
+          patchLast((m) => applyEvent(m, ev));
           setContextTokens(ev.contextTokens ?? null);
           break;
-        case "error":
-          setError(ev.message);
-          finalizeLast({ failed: true });
+        default:
+          patchLast((m) => applyEvent(m, ev));
           break;
       }
     },
@@ -399,7 +166,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
   );
 
   const send = useCallback(
-    async (text: string, pageContext?: PageContext, delivery?: Delivery): Promise<SendResult> => {
+    async (text: string, pageContext?: PageContext): Promise<SendResult> => {
       const trimmed = text.trim();
       if (!trimmed || streaming) return {};
       setError(null);
@@ -409,8 +176,8 @@ export function useChatStream(handlers: StreamHandlers = {}) {
 
       setMessages((prev) => [
         ...prev,
-        { role: "user", content: trimmed, trace: [], rounds: 0, sources: [], done: true, stageLog: [] },
-        { role: "assistant", content: "", trace: [], rounds: 0, sources: [], done: false, stageLog: [] },
+        { role: "user", content: trimmed, draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true, stageLog: [] },
+        { role: "assistant", content: "", draft: "", generated: false, trace: [], rounds: 0, sources: [], done: false, stageLog: [] },
       ]);
       setStreaming(true);
 
@@ -429,7 +196,6 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             message: trimmed,
             conversationId: convIdRef.current ?? undefined,
             pageContext,
-            ...(delivery ? { delivery } : {}),
           }),
           signal: ctrl.signal,
         });
@@ -531,12 +297,12 @@ export function useChatStream(handlers: StreamHandlers = {}) {
         // The stream ended. If a terminal event ("done"/"error") came through
         // it already marked the message done and this no-ops; if the connection
         // was simply cut (proxy, server crash mid-turn) nothing else ever
-        // would, and staged mode's checklist — which renders on `!done` —
+        // would, and the progress checklist — which renders on `!done` —
         // would pulse forever behind an already-re-enabled input. Asking the
         // message whether it is still pending beats tracking a second list of
         // which event types count as terminal. `failed` only surfaces copy when
-        // the answer is empty (Message.tsx); a partially streamed answer just
-        // freezes as-is, which is what streaming mode already degraded to.
+        // the answer is empty (Message.tsx); a partially streamed draft just
+        // freezes as-is.
         finalizeIfPending();
       } catch (err) {
         // AbortError (user pressed stop / closed) is expected — not an error.
