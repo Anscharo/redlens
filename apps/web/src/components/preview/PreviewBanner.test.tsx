@@ -120,6 +120,37 @@ describe("PreviewBanner", () => {
     expect(screen.getByText(/a private preview of/)).toBeTruthy();
   });
 
+  it("links a private PR preview to the private repo's pull, not canonical", async () => {
+    mockMeta({
+      sha: "ghi",
+      repo: "acme/secret-atlas",
+      ref: "feature/spark",
+      kind: "branch",
+      private: true,
+      prNumber: 42,
+      prTitle: "Spark the atlas",
+    });
+    renderBanner(PREVIEW_SOURCE);
+
+    expect(await screen.findByText("PRIVATE PREVIEW")).toBeTruthy();
+    const link = await screen.findByRole("link", { name: "view PR on GitHub ↗" });
+    expect(link).toHaveAttribute("href", "https://github.com/acme/secret-atlas/pull/42");
+  });
+
+  it("links a private pull-N ref (Contents-only fallback) to the private repo's pull", async () => {
+    mockMeta({
+      sha: "ghi",
+      repo: "acme/secret-atlas",
+      ref: "pull-7",
+      kind: "branch",
+      private: true,
+    });
+    renderBanner(PREVIEW_SOURCE);
+
+    const link = await screen.findByRole("link", { name: "view PR on GitHub ↗" });
+    expect(link).toHaveAttribute("href", "https://github.com/acme/secret-atlas/pull/7");
+  });
+
   it("shows the new-address safety warning for a private preview even though it's not a fork", async () => {
     // The server doesn't set forkOwner for private previews, so isFork is
     // false — the warning must be gated on private too, not just isFork.

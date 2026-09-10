@@ -25,9 +25,23 @@ const CANONICAL_REPO = "sky-ecosystem/next-gen-atlas";
 
 // Link back to the original source on GitHub (PR / branch / commit).
 function sourceUrl(m: PreviewMeta): string {
+  // Public canonical PRs live on sky-ecosystem/next-gen-atlas even when the
+  // head repo is a fork. Private `owner:repo:pull-N` previews keep kind
+  // "branch" (so the pr-state worker doesn't confuse them with canonical
+  // PR numbers) but still link back to the private repo's PR.
   if (m.kind === "pr" && m.prNumber) return `https://github.com/${CANONICAL_REPO}/pull/${m.prNumber}`;
+  if (m.prNumber) return `https://github.com/${m.repo}/pull/${m.prNumber}`;
+  const pull = m.ref?.match(/^pull-(\d+)$/);
+  if (pull) return `https://github.com/${m.repo}/pull/${pull[1]}`;
   if (m.kind === "branch") return `https://github.com/${m.repo}/tree/${m.ref}`;
   return `https://github.com/${m.repo}/commit/${m.sha}`;
+}
+
+function sourceLabel(m: PreviewMeta): string {
+  if (m.kind === "pr" && m.prNumber) return "view PR on GitHub ↗";
+  if (m.prNumber || /^pull-\d+$/.test(m.ref ?? "")) return "view PR on GitHub ↗";
+  if (m.kind === "branch") return "view branch ↗";
+  return "view commit ↗";
 }
 
 export function PreviewBanner() {
@@ -51,7 +65,7 @@ export function PreviewBanner() {
   const isPrivate = !!meta?.private;
   const label = meta?.prTitle ? `${meta.ref} — ${meta.prTitle}` : meta?.ref ?? preview.id;
   const src = meta ? sourceUrl(meta) : null;
-  const srcLabel = meta?.kind === "pr" ? "view PR on GitHub ↗" : meta?.kind === "branch" ? "view branch ↗" : "view commit ↗";
+  const srcLabel = meta ? sourceLabel(meta) : "view commit ↗";
   return (
     <header
       className="flex items-center gap-3 px-4 py-2 text-sm"

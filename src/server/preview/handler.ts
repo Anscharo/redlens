@@ -236,8 +236,8 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
   }
   // G3/G7: for a private repo, authorize BEFORE any sha-bearing event
   // (isBlockedSha/bundleReady/build) reaches an unauthorized caller — and, for a
-  // deferred-private resolution, before the branch→sha lookup itself, so an
-  // unauthorized caller can never probe branch existence. The resolve cache may
+  // deferred-private resolution, before the branch/PR→sha lookup itself, so an
+  // unauthorized caller can never probe branch or PR existence. The resolve cache may
   // hold a private Resolved (incl. sha) or the PendingPrivate marker, but the
   // authorization decision is never cached; it's re-run per request against the
   // live session/collaborator state.

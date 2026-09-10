@@ -6,6 +6,9 @@
 //   owner:branch       → branch `branch` on `owner/next-gen-atlas` (a fork)
 //   owner:repo:branch  → branch on `owner/repo` (a RENAMED fork — the repo name
 //                        never mattered for safety, only lineage does)
+//   owner:repo:pull-N  → PR #N against `owner/repo` (private-preview grammar).
+//                        Resolves to that PR's HEAD commit and is compared
+//                        against canonical next-gen-atlas main, not the PR base.
 //   branch             → branch on the canonical repo
 //   <40-hex>           → a pinned SHA (repo recovered from the previews table upstream)
 // `/` in a branch name is encoded as `~` in the URL id (git forbids `~` in refs,
@@ -122,10 +125,11 @@ export interface Resolved {
    *  the preview, so its entry can carry a date like a live history entry does.
    *  Absent when GitHub didn't return one (the preview still builds). */
   date?: string;
-  /** True only for a private, non-canonical BRANCH preview resolved through the
-   *  GitHub App installation path (see resolvePrivacy). PRs and the canonical
-   *  repo are always public — this field is explicit `false` there too so the
-   *  contract is obvious at every return site. */
+  /** True only for a private, non-canonical preview resolved through the
+   *  GitHub App installation path (see resolvePrivacy). Canonical-repo PRs
+   *  (`pull-N`) are always public — this field is explicit `false` there too
+   *  so the contract is obvious at every return site. Private `owner:repo:pull-N`
+   *  ids resolve as kind "branch" (the PR's HEAD) with this flag set. */
   private?: boolean;
 }
 
@@ -138,10 +142,11 @@ function commitDate(json: any): string | undefined {
 
 export type ResolveError = "gate-rejected" | "not-found" | "not-a-fork" | "app-not-installed";
 
-/** Interim result for a private, non-canonical branch preview: the repo is known
- *  and confirmed private (the App is installed), but the branch→sha lookup is
- *  deliberately withheld until the handler has authorized the caller (G7).
- *  resolvePrivateBranch(repo, ref) finishes the resolution once authorized. */
+/** Interim result for a private, non-canonical preview: the repo is known
+ *  and confirmed private (the App is installed), but the branch/PR→sha lookup
+ *  is deliberately withheld until the handler has authorized the caller (G7).
+ *  resolvePrivateBranch(repo, ref) finishes the resolution once authorized
+ *  (a `pull-N` ref is the private-PR form). */
 export interface PendingPrivate {
   authRequired: true;
   repo: string;
@@ -203,6 +208,47 @@ async function resolveDefaultBranch(gh: GhClient, repo: string, ref: string): Pr
   return r.ok && typeof def === "string" && def ? def : null;
 }
 
+function prState(json: any): "open" | "merged" | "closed" {
+  return json?.merged_at ? "merged" : json?.state === "closed" ? "closed" : "open";
+}
+
+/**
+ * Resolve a repo-local PR to its HEAD commit. Prefers the Pulls API (gives the
+ * head *branch* name + metadata); falls back to `refs/pull/N/head` which only
+ * needs Contents:read — the permission the GitHub App already has. Either way
+ * this is the PR's HEAD, never its base branch: private previews then redline
+ * that tree against canonical next-gen-atlas main.
+ */
+async function resolvePullHead(
+  gh: GhClient,
+  repo: string,
+  n: number,
+): Promise<{ sha: string; ref: string; date?: string; pr?: Resolved["pr"] } | null> {
+  const pr = await gh.fetchJson(`/repos/${repo}/pulls/${n}`);
+  const head = pr.json?.head;
+  if (pr.ok && typeof head?.sha === "string" && head.sha) {
+    const branch = typeof head.ref === "string" && head.ref ? head.ref : `pull-${n}`;
+    const headRepo = typeof head.repo?.full_name === "string" && head.repo.full_name ? head.repo.full_name : repo;
+    const c = await gh.fetchJson(`/repos/${headRepo}/commits/${head.sha}`);
+    return {
+      sha: head.sha,
+      ref: branch,
+      date: c.ok ? commitDate(c.json) : undefined,
+      pr: {
+        number: n,
+        title: pr.json.title ?? "",
+        author: pr.json.user?.login ?? "",
+        state: prState(pr.json),
+      },
+    };
+  }
+  const r = await gh.fetchJson(`/repos/${repo}/git/ref/pull/${n}/head`);
+  const sha = r.json?.object?.sha;
+  if (!r.ok || typeof sha !== "string" || !sha) return null;
+  const c = await gh.fetchJson(`/repos/${repo}/commits/${sha}`);
+  return { sha, ref: `pull-${n}`, date: c.ok ? commitDate(c.json) : undefined };
+}
+
 export async function resolveRef(
   p: ParsedId,
   gh: GhClient,
@@ -214,11 +260,7 @@ export async function resolveRef(
     const r = await gh.fetchJson(`/repos/${CANONICAL_REPO}/pulls/${p.prNumber}`);
     const head = r.json?.head;
     if (r.status === 404 || !r.ok || !head?.repo?.full_name || !head?.sha) return { error: "not-found" };
-    const state: "open" | "merged" | "closed" = r.json.merged_at
-      ? "merged"
-      : r.json.state === "closed"
-        ? "closed"
-        : "open";
+    const state = prState(r.json);
     // The pulls payload carries no head-commit date, so ask for the commit
     // itself. Best-effort: a failure here only costs the entry its date.
     const c = await gh.fetchJson(`/repos/${head.repo.full_name}/commits/${head.sha}`);
@@ -236,10 +278,11 @@ export async function resolveRef(
   // sha ids are resolved upstream via the previews table, not here.
   if (p.kind === "sha") return { error: "not-found" };
 
-  // branch — canonical or fork. Non-canonical repos are screened for privacy
-  // first (private-preview grammar is branch-only — PRs above are always
-  // public), then either routed through the installation-token path or fall
-  // through to the existing public fork-lineage screen unchanged.
+  // branch — canonical or fork, including the private-preview `pull-N` ref
+  // (owner:repo:pull-N). Non-canonical repos are screened for privacy first,
+  // then either routed through the installation-token path or fall through to
+  // the existing public fork-lineage screen unchanged. Canonical `pull-N` ids
+  // (kind "pr" above) stay on the public PR path.
   if (p.repo !== CANONICAL_REPO) {
     if (config.privatePreviewsEnabled) {
       const privacy = await resolvePrivacy(p.repo, gh);
@@ -258,6 +301,16 @@ export async function resolveRef(
     const lineage = await checkForkLineage(p.repo, gh);
     if (lineage !== "ok") return { error: lineage === "not-found" ? "not-found" : "not-a-fork" };
   }
+  const pn = p.ref.match(PULL_RE);
+  if (pn) {
+    // Public (or canonical) `owner:repo:pull-N`: resolve the PR HEAD now. Do
+    // NOT attach `pr` — fetchPreviewFiles treats that as "compare against
+    // canonical PR #N's base", which is the wrong repo and the wrong base.
+    // Kind stays "branch" so the compare is vs canonical main.
+    const head = await resolvePullHead(gh, p.repo, Number(pn[1]));
+    if (!head) return { error: "not-found" };
+    return { repo: p.repo, sha: head.sha, kind: "branch", ref: head.ref, date: head.date, private: false };
+  }
   const ref = await resolveDefaultBranch(gh, p.repo, p.ref);
   if (!ref) return { error: "not-found" };
   const r = await gh.fetchJson(`/repos/${p.repo}/branches/${encodeURIComponent(ref)}`);
@@ -270,15 +323,25 @@ export async function resolveRef(
  * Second half of resolveRef's private branch path (see PendingPrivate), split
  * out so it runs ONLY after authorizePreviewAccess has granted the caller (G7).
  * Mints the installation token, resolves the ref (incl. the "HEAD" default-
- * branch sentinel), and looks up the branch tip. Withholding this until
- * post-auth is what keeps a private repo's branch existence from leaking to an
- * unauthorized caller. App-not-installed here means the token could not be
- * minted (e.g. the App was uninstalled between resolve and this call).
+ * branch sentinel and a `pull-N` PR HEAD), and looks up the branch tip.
+ * Withholding this until post-auth is what keeps a private repo's branch/PR
+ * existence from leaking to an unauthorized caller. App-not-installed here
+ * means the token could not be minted (e.g. the App was uninstalled between
+ * resolve and this call).
  */
 export async function resolvePrivateBranch(repo: string, ref: string): Promise<Resolved | { error: ResolveError }> {
   const tok = await installationToken(repo);
   if (!tok) return { error: "app-not-installed" };
   const igh = makeGhClient(tok);
+  const pn = ref.match(PULL_RE);
+  if (pn) {
+    const head = await resolvePullHead(igh, repo, Number(pn[1]));
+    if (!head) return { error: "not-found" };
+    // kind stays "branch" so pr-state.ts (kind='pr' against the canonical
+    // repo) never overlays this row with some other PR #N's state. `pr` is
+    // still attached for the banner (title / author / GitHub link).
+    return { repo, sha: head.sha, kind: "branch", ref: head.ref, date: head.date, pr: head.pr, private: true };
+  }
   const real = await resolveDefaultBranch(igh, repo, ref);
   if (!real) return { error: "not-found" };
   const r = await igh.fetchJson(`/repos/${repo}/branches/${encodeURIComponent(real)}`);
