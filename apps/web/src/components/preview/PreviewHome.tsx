@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { parsePreviewInput, localPreviews } from "../../lib/previewLocal";
+import { parsePreviewInput, parsePrivateInput, isPrivatePrId, localPreviews } from "../../lib/previewLocal";
 import { initAnalytics, register, track, pageview } from "../../lib/analytics";
 import { ProfileButton } from "../chat/ProfileButton";
 import { usersEnabled } from "../../lib/usersEnabled";
@@ -46,38 +46,6 @@ function mergeEntries(rows: DbRow[]): Entry[] {
     });
   }
   return [...out.values()].sort((a, b) => b.at - a.at);
-}
-
-// Private-repo input → the `owner:repo:branch` preview-id grammar (branch `/`
-// encoded as `~`; the sentinel `HEAD` means "the repo's default branch", which
-// the server resolves). Accepts, in order:
-//   - a full github.com URL, scheme optional, .git optional:
-//       github.com/OWNER/REPO                 → default branch
-//       github.com/OWNER/REPO/tree/BRANCH     → BRANCH (may contain /)
-//   - OWNER/REPO@BRANCH                        → BRANCH
-//   - OWNER/REPO                               → default branch
-function parsePrivateInput(raw: string): string | null {
-  const s = raw.trim();
-  if (!s) return null;
-  const mk = (owner: string, repo: string, ref: string) => `${owner}:${repo}:${ref.replaceAll("/", "~")}`;
-
-  const url = s.match(/github\.com\/([\w.-]+)\/([^/\s]+?)(?:\.git)?(?:\/(.*))?$/i);
-  if (url) {
-    const [, owner, repo, rest = ""] = url;
-    if (!rest || rest === "/") return mk(owner, repo, "HEAD");
-    const tree = rest.match(/^tree\/(.+?)\/?$/);
-    return tree ? mk(owner, repo, decodeURIComponent(tree[1])) : null;
-  }
-  // URL-shaped but not a github.com repo URL — don't fall through to the id forms.
-  if (/^https?:\/\/|github\.com/i.test(s)) return null;
-
-  // Strip an optional trailing .git (a clone-URL suffix) in these forms too, so
-  // `owner/repo.git` / `owner/repo.git@branch` resolve like the URL form does.
-  const at = s.match(/^([\w.-]+)\/([\w.-]+?)(?:\.git)?@(.+)$/);
-  if (at) return mk(at[1], at[2], at[3]);
-  const bare = s.match(/^([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
-  if (bare) return mk(bare[1], bare[2], "HEAD");
-  return null;
 }
 
 export function PreviewHome() {
@@ -180,7 +148,7 @@ export function PreviewHome() {
             <input
               value={privateInput}
               onChange={(e) => setPrivateInput(e.target.value)}
-              placeholder="github.com/owner/repo — or …/tree/branch, owner/repo@branch"
+              placeholder="github.com/owner/repo — or …/pull/N, …/tree/branch, owner/repo@branch"
               className="flex-1 px-3 py-2 rounded mono text-sm"
               style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--tan)" }}
             />
@@ -193,9 +161,14 @@ export function PreviewHome() {
               Preview private repo
             </button>
           </form>
+          {privateId && isPrivatePrId(privateId) && (
+            <p className="mono text-xs mt-2" style={{ color: "var(--tan-3)" }}>
+              will compare with sky-ecosystem/next-gen-atlas:main branch
+            </p>
+          )}
           {privateInput && !privateId && (
             <p className="mono text-xs mt-2" style={{ color: "var(--red)" }}>
-              Paste a github.com/owner/repo URL (optionally /tree/branch), or owner/repo@branch.
+              Paste a github.com/owner/repo URL (optionally /pull/N or /tree/branch), or owner/repo@branch.
             </p>
           )}
         </section>

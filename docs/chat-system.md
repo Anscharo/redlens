@@ -307,7 +307,15 @@ event reaches a client (test-asserted).
 
 1. **Conversationalist pass** — runs `runChat`, forwarding token/tool/status
    events (through the streaming citation gate, §7) but holding back `done`.
-2. **Deterministic checks** — `expandReferenceLinks` normalizes reference-style
+2. **Incremental deterministic checks** (`verify/incremental.ts`) — as the
+   answer streams, each completed paragraph is checked against the evidence
+   retrieved so far (citation validity, doc numbers, quotes, addresses, cited
+   values, parameter values, MSC-as-atlas) and a `paragraph_check` event
+   carries its findings; the full-text pass after `done` remains the
+   authority (it alone owns completeness, the external disclaimer and the
+   length cap). Reveal timing is unchanged; this is the substrate for the
+   per-paragraph model audit.
+3. **Deterministic checks** — `expandReferenceLinks` normalizes reference-style
    citations into the canonical inline shape, `repairCitations` fixes or strips
    Atlas links, `repairIdentifierLeaks` promotes or deletes leaked slugs, then
    `runDeterministicChecks` validates UUIDs, doc_nos, quotes, addresses,
@@ -324,7 +332,7 @@ event reaches a client (test-asserted).
    atlas figure, so a numeric citation grounded in its own doc always passes.
    `tools/export-verify.ts` runs the same split and the same two checks over
    **exported files**, which outlive the conversation.
-3. **Refutation-only verifier** (if `CHAT_VERIFIER_MODEL` set) — see below.
+4. **Refutation-only verifier** (if `CHAT_VERIFIER_MODEL` set) — see below.
 
 All harness activity is recorded to `message_checks`, one row per activity
 (`round_checks`, `verify`, `smalltalk_judge`), each with its own `generation_id`
@@ -472,14 +480,19 @@ Auditing a greeting is pure cost. The bypass has three conditions, and is
 
 Two follow-ups the refutation-only overhaul surfaced but did not build:
 
-- **Per-paragraph incremental refutation.** Run the `refute` slice on each
-  paragraph as it completes instead of once over the finished answer, so the
-  badge could land closer to `answer_final` rather than trailing it by the
-  whole-answer audit's latency. Decide after a week of `message_checks`
-  `verify`-kind latency on the new three-auditor shape — the pre-overhaul
-  baseline was p50 13.4s / p90 30s over 86 dev-DB turns, and the new shape's
-  extra conditional `confirm` call needs its own measurement before this is
-  worth building.
+- **Per-paragraph incremental refutation — deterministic half done (2026-09-10,
+  `verify/incremental.ts`), model half not started.** The plumbing now exists:
+  paragraph segmentation on the token stream (never splitting inside a fenced
+  code block; reference-style link definitions collected rather than checked
+  as prose), an evidence snapshot per paragraph, and a `paragraph_check` event
+  carrying that paragraph's deterministic findings. What's still deferred is
+  running the `refute` slice on each paragraph as it completes instead of once
+  over the finished answer, so the badge could land closer to `answer_final`
+  rather than trailing it by the whole-answer audit's latency. Decide after a
+  week of `message_checks` `verify`-kind latency on the new three-auditor
+  shape — the pre-overhaul baseline was p50 13.4s / p90 30s over 86 dev-DB
+  turns, and the new shape's extra conditional `confirm` call needs its own
+  measurement before this is worth building.
 - **Prior-turn tool evidence is never replayed to the answerer.** `chat.ts`
   replays only `{role, content}` for history, so the model that writes a
   follow-up answer never sees this turn's or earlier turns' raw tool results —
@@ -668,6 +681,7 @@ cookie.
 { type: "facts",       facts: { id, summary }[], bytes? }
 { type: "status",      stage, detail? }             // "recalling" | "querying" | "synthesizing" | "comparing" | "checking"
 { type: "answer_final", content }                   // the answer reveal point — see §8
+{ type: "paragraph_check", index, text, findings }  // incremental deterministic checks, per paragraph — see §6
 { type: "export",      format, filename, mime, content, bytes }
 { type: "verify_result", overall, contradictions, notFound?, rulingIssued?,
                        invalidCitations, invalidDocNos, docNoMismatches,
@@ -824,6 +838,11 @@ than prefixing a label.
 **Stage vocabulary:** `recalling` (facts injected pre-model) · `querying` ·
 `synthesizing` (once per generation burst) · `comparing` · `checking` (§8).
 
+`paragraph_check.index` counts from 0 within the current generation burst and
+resets to 0 on `tool_call` or `clear` — the buffered draft is being set aside.
+One is emitted right after the token that closes each paragraph, plus once
+more for the trailing paragraph at generation end, before `answer_final`.
+
 **Ordering guarantees.** `meta` is always first and `done` always terminal.
 `answer_final` lands after the last `token` and before `verify_result`;
 `verify_result` lands between `answer_final` and `done`. A promised-tool retry
@@ -837,7 +856,7 @@ protocol extends backward-compatibly. Full shape, in order:
 
 ```
 meta → [facts, status:recalling] → (tool_call, status:querying, tool_result)*
-  → status:synthesizing → token* → [status:comparing] → answer_final
+  → status:synthesizing → token* (paragraph_check)* → [status:comparing] → answer_final
   → [status:checking] → verify_result → done
 ```
 

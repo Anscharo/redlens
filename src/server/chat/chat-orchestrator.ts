@@ -1,8 +1,10 @@
 // Chat reliability harness orchestrator (docs/chat-system.md §6).
 // Wraps the pure runChat loop with: live status events, a streaming citation
-// gate (invalid links repaired before their tokens reach the client), pipelined
-// deterministic round checks, and a post-answer verifier audit (stream + badge
-// — annotate-only, never gates or rewrites the answer).
+// gate (invalid links repaired before their tokens reach the client),
+// incremental per-paragraph deterministic checks (verify/incremental.ts —
+// `paragraph_check` events as the answer streams), pipelined deterministic
+// round checks over the finished answer, and a post-answer verifier audit
+// (stream + badge — annotate-only, never gates or rewrites the answer).
 // Unset model slots degrade to today's behavior; harness flakiness never breaks
 // a turn. `transcript`/`checksMeta` are internal — the SSE route strips them
 // via sanitizeDone before events reach a client.
@@ -24,7 +26,9 @@ import { createCitationGate } from "./verify/definition-block-gate.ts";
 import { isUncheckableAnswer, judgeSmalltalk } from "./verify/smalltalk.ts";
 import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
 import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
+import { createParagraphStream, type ParagraphEvidence } from "./verify/incremental.ts";
 import { atlasDescribe } from "./tools/tools.ts";
+import { isExternalMscTool } from "../external/envelope.ts";
 import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -55,6 +59,18 @@ export type HarnessEvent =
   // config-off/aborted/empty-content early exit; the client falls back to
   // revealing on `done` there.
   | { type: "answer_final"; content: string }
+  // Deterministic checks (docs/chat-system.md §6) run against EACH paragraph
+  // as it completes during streaming, not just once over the finished answer
+  // — the substrate for a later per-paragraph MODEL audit. `index` counts
+  // from 0 within the current generation burst and resets on `tool_call`/
+  // `clear` (the buffered draft is being set aside). `text` is the paragraph
+  // as checked: citation-repaired, reference-style links expanded. `findings`
+  // mirrors the wording of the whole-answer badge (verify/incremental.ts's
+  // describeFindings), empty when the paragraph is clean. Emitted once more
+  // at generation end for the trailing paragraph, before `answer_final`. The
+  // full-text pass after `done` remains the authority — it alone owns
+  // completeness, the external disclaimer, and the length cap.
+  | { type: "paragraph_check"; index: number; text: string; findings: string[] }
   | {
       type: "verify_result";
       overall: VerifyOverall;
@@ -336,7 +352,19 @@ export async function* runVerifiedChat(opts: {
   // done.content then matches what streamed instead of swapping it. The judge
   // is rebuilt lazily after each tool round; a gate failure falls back to
   // emitting the link as written, with the post-answer pass as the safety net.
-  const gateEvidence: string[] = toolTextsOf(opts.messages);
+  // History tool texts count as atlas evidence for the incremental checks
+  // below, same as splitFromTranscript classifies them. In practice this is
+  // the facts prefetch round (sourceClass "reference", grouped with atlas),
+  // not earlier turns' raw tool results — §6's Deferred list notes
+  // `chat.ts` replays only `{role, content}` for history, so a genuine prior
+  // tool result is never in `opts.messages` to begin with, and there is no
+  // assistant tool_call name left to pair one with even if it were.
+  const historyTexts = toolTextsOf(opts.messages);
+  const gateEvidence: string[] = [...historyTexts];
+  // This turn's tool results, named — the incremental checks below split them
+  // by provenance the same way splitFromTranscript does for the whole-answer
+  // pass (isExternalMscTool), which gateEvidence's flat content list can't.
+  const gateResults: { name: string; content: string }[] = [];
   let judge: LinkJudge | null = null;
   const renderLink = (title: string, target: string, raw: string): string => {
     try {
@@ -374,8 +402,35 @@ export async function* runVerifiedChat(opts: {
 
   const onRoundEnd = (info: RoundInfo) => {
     checker.record(info);
-    for (const r of info.results) gateEvidence.push(r.content);
+    for (const r of info.results) {
+      gateEvidence.push(r.content);
+      gateResults.push({ name: r.name, content: r.content });
+    }
     judge = null; // new evidence — rebuild on the next link
+  };
+
+  // ── Incremental (per-paragraph) deterministic checks ─────────────────────
+  // Same checks the whole-answer pass runs, but per paragraph as it streams
+  // (docs/chat-system.md §6). `evidence` is a getter, not a snapshot: it reads
+  // gateResults/gateEvidence live, so a paragraph is checked against whatever
+  // has been retrieved by the time IT closes. Reveal timing is unchanged —
+  // the answer still reveals at `answer_final`; the full-text pass after
+  // `done` remains the authority.
+  const paragraphEvidence = (): ParagraphEvidence => ({
+    atlasTexts: [...historyTexts, ...gateResults.filter((r) => !isExternalMscTool(r.name)).map((r) => r.content)],
+    externalTexts: gateResults.filter((r) => isExternalMscTool(r.name)).map((r) => r.content),
+    allTexts: gateEvidence,
+  });
+  const paragraphs = createParagraphStream({ ix: opts.ix, question: opts.question, evidence: paragraphEvidence });
+  // Tallied for the round_checks row, reset alongside the paragraph stream —
+  // this describes the FINAL burst (the shipped answer), not every draft the
+  // turn ever streamed and set aside.
+  let incrementalParagraphs = 0;
+  let incrementalFlagged = 0;
+  const resetParagraphs = () => {
+    paragraphs.reset();
+    incrementalParagraphs = 0;
+    incrementalFlagged = 0;
   };
 
   // ── Small-talk judge (concurrent — never blocks the answer) ──────────────
@@ -402,12 +457,32 @@ export async function* runVerifiedChat(opts: {
   let announced = false;
   for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd, obs: opts.obs, jsonCall: opts.jsonCall, userQuestion: opts.question }), makeGate)) {
     if (ev.type === "done") {
+      // Flush the trailing paragraph BEFORE breaking — this is still inside
+      // the streaming loop, ahead of the bypass/checks-off exits below, so it
+      // fires on every turn with a non-empty draft regardless of what happens
+      // to the answer afterward.
+      try {
+        const tail = paragraphs.flush();
+        if (tail) {
+          incrementalParagraphs++;
+          if (tail.findings.length > 0) incrementalFlagged++;
+          yield { type: "paragraph_check", ...tail };
+        }
+      } catch (err) {
+        captureError(err, opts.obs, { stage: "incremental_checks" });
+      }
       done = ev;
       break; // held back — the harness emits its own terminal done
     }
     if (ev.type === "tool_call") {
+      resetParagraphs(); // the buffered draft is being set aside
       announced = false; // next generation round re-announces
       yield { type: "status", stage: "querying", detail: describeCall(ev.name, ev.args) };
+      yield ev;
+      continue;
+    }
+    if (ev.type === "clear") {
+      resetParagraphs(); // the buffered draft is being set aside
       yield ev;
       continue;
     }
@@ -416,6 +491,19 @@ export async function* runVerifiedChat(opts: {
       yield { type: "status", stage: "synthesizing", detail: "Writing an answer from the evidence…" };
     }
     yield ev;
+    if (ev.type === "token") {
+      try {
+        for (const pc of paragraphs.push(ev.text)) {
+          incrementalParagraphs++;
+          if (pc.findings.length > 0) incrementalFlagged++;
+          yield { type: "paragraph_check", ...pc };
+        }
+      } catch (err) {
+        // An incremental-check failure must never break a turn — the
+        // full-text pass after `done` is still the authority.
+        captureError(err, opts.obs, { stage: "incremental_checks" });
+      }
+    }
   }
   if (!done) return; // loop can only end via done; defensive
   const checksMeta: CheckRowMeta[] = [];
@@ -527,7 +615,11 @@ export async function* runVerifiedChat(opts: {
     }, splitFromTranscript(done.transcript));
     checksMeta.push({
       kind: "round_checks", model: null,
-      verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped, retitled: repair.retitled }, refs: refsMeta(refs), identifiers: identifiersMeta(identifiers), checks: { ...checks, citations: checks.citations.length } },
+      verdict: {
+        telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped, retitled: repair.retitled },
+        refs: refsMeta(refs), identifiers: identifiersMeta(identifiers), checks: { ...checks, citations: checks.citations.length },
+        incremental: { paragraphs: incrementalParagraphs, flagged: incrementalFlagged },
+      },
       overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: null,
     });
   } catch (err) {

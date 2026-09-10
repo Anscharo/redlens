@@ -584,6 +584,19 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 }
 .rlc-superseded-text .rlc-md a:hover { color: var(--tan-2); text-decoration-color: var(--tan-3); }
 
+/* ── Per-paragraph deterministic checks ──────────────────────────────────
+   Rendered under the Synthesizing stage row's draft (live or superseded) —
+   the incremental deterministic audit pass, one row per checked paragraph.
+   A later pass adds a per-paragraph MODEL audit; this list is deterministic
+   only, so it stays compact/quiet rather than reading as a verdict. */
+.rlc-para-checks { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.rlc-para-checks li { display: flex; align-items: baseline; gap: 7px; font: 400 12px/1.4 "Source Code Pro", monospace; }
+.rlc-para-mark { color: var(--tan-3); flex-shrink: 0; }
+.rlc-para-checks li[data-state="ok"] > span:last-child { color: var(--terminal-green); }
+.rlc-para-checks li[data-state="flagged"] { flex-direction: column; align-items: flex-start; gap: 1px; }
+.rlc-para-checks li[data-state="flagged"] .rlc-para-mark { color: var(--warn); }
+.rlc-para-finding { color: var(--tan-3); }
+
 /* ── Verification badge (reliability harness) ──────────────────────────── */
 .rlc-verify { margin-top: 8px; }
 .rlc-statusline { margin-top: 6px; }

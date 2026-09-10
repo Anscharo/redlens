@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 import { AtlasMarkdown, balanceFences } from "./markdown";
+import { ParagraphChecks } from "./ParagraphChecks";
 import type { SupersededDraft } from "./useChatStream";
 
 export type SupersededAnswerProps = ComponentProps<"div"> & {
@@ -57,6 +58,7 @@ export function SupersededAnswer({ drafts, onAtlas, className, ...props }: Super
           <div className="rlc-superseded-text">
             <AtlasMarkdown content={balanceFences(draft.text)} onAtlas={onAtlas} />
           </div>
+          {draft.checks?.length ? <ParagraphChecks checks={draft.checks} /> : null}
         </div>
       ))}
     </div>

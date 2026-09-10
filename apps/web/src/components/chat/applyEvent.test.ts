@@ -179,6 +179,62 @@ describe("applyEvent facts / tool_call / tool_result", () => {
   });
 });
 
+describe("applyEvent paragraph_check", () => {
+  it("appends checks in index order", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "First paragraph.", findings: [] });
+    m = applyEvent(m, { type: "paragraph_check", index: 1, text: "Second paragraph.", findings: ["unsupported figure"] });
+    expect(m.paragraphChecks).toEqual([
+      { index: 0, text: "First paragraph.", findings: [] },
+      { index: 1, text: "Second paragraph.", findings: ["unsupported figure"] },
+    ]);
+  });
+
+  it("a re-emitted index replaces that entry in place rather than appending", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "Draft wording.", findings: ["flagged"] });
+    m = applyEvent(m, { type: "paragraph_check", index: 1, text: "Second.", findings: [] });
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "Repaired wording.", findings: [] });
+    expect(m.paragraphChecks).toEqual([
+      { index: 0, text: "Repaired wording.", findings: [] },
+      { index: 1, text: "Second.", findings: [] },
+    ]);
+  });
+
+  it("tool_round clear carries the checks onto the superseded draft, then resets", () => {
+    let m = baseMsg({ draft: "a preamble", rounds: 1 });
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "a preamble", findings: ["flagged"] });
+    m = applyEvent(m, { type: "clear", reason: "tool_round" });
+    expect(m.superseded).toEqual([
+      { text: "a preamble", reason: "tool_round", round: 1, checks: [{ index: 0, text: "a preamble", findings: ["flagged"] }] },
+    ]);
+    expect(m.paragraphChecks).toEqual([]);
+  });
+
+  it("degenerate clear wipes checks without creating a superseded draft", () => {
+    let m = baseMsg({ draft: "the the the" });
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "the the the", findings: [] });
+    m = applyEvent(m, { type: "clear", reason: "degenerate" });
+    expect(m.paragraphChecks).toEqual([]);
+    expect(m.superseded ?? []).toEqual([]);
+  });
+
+  it("survives answer_final and done", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "Only paragraph.", findings: [] });
+    m = applyEvent(m, { type: "answer_final", content: "Only paragraph." });
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "Only paragraph.", findings: [] }]);
+    m = applyEvent(m, {
+      type: "done",
+      content: "Only paragraph.",
+      usage: { input: 1, output: 1 },
+      generationId: null,
+      toolCalls: [],
+    });
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "Only paragraph.", findings: [] }]);
+  });
+});
+
 describe("applyEvent meta/error passthrough", () => {
   it("returns the message unchanged for meta and error (handled by the hook)", () => {
     const m = baseMsg({ content: "x" });

@@ -47,6 +47,17 @@ export interface VerifyState {
   lengthCapped: boolean;
 }
 
+// One paragraph's deterministic audit result (server: `paragraph_check`,
+// api.ts). Mirrors the wire event minus its `type` tag. Reader-facing
+// `findings` are already phrased sentences, `[]` when the paragraph is
+// clean — this is the incremental deterministic pass, not the later
+// per-paragraph model audit.
+export interface ParagraphCheck {
+  index: number;
+  text: string;
+  findings: string[];
+}
+
 // A downloadable file the agent produced this session via export_findings.
 // Auto-downloaded on arrival; kept on the message so the reply can offer a
 // re-download button. Live-session only — not persisted across reloads.
@@ -90,6 +101,11 @@ export interface SupersededDraft {
   reason: "tool_round";
   // The turn's `rounds` value at the moment this draft was superseded.
   round: number;
+  // The paragraph checks that had landed for this draft before it was set
+  // aside. A set-aside draft keeps its marks — nothing shown is ever
+  // removed, same rule as the draft text itself. Absent/[] when none had
+  // landed yet.
+  checks?: ParagraphCheck[];
 }
 
 export interface ChatMsg {
@@ -134,4 +150,9 @@ export interface ChatMsg {
   // messages predate it and never need it — send() seeds [] on live turns;
   // readers `?? []`).
   stageLog?: StageLogEntry[];
+  // Deterministic per-paragraph audit results for the CURRENT live draft, in
+  // index order. Reset to [] on `clear` (a set-aside draft's checks move onto
+  // its SupersededDraft.checks first). Live-session only — not persisted,
+  // same as `exports`/`reasoning`.
+  paragraphChecks?: ParagraphCheck[];
 }

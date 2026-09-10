@@ -1,6 +1,22 @@
 import type { ChatEvent } from "./api";
-import type { ChatMsg } from "./chatTypes";
+import type { ChatMsg, ParagraphCheck } from "./chatTypes";
 import { appendReasoning, splitToolRoundText } from "./splitToolRound";
+
+// Upsert by `index`: a re-emitted index replaces that entry in place,
+// otherwise the new check is inserted in index order (checks normally arrive
+// in order, but this keeps rendering correct even if one is ever re-sent
+// out of order).
+function upsertParagraphCheck(list: ParagraphCheck[], check: ParagraphCheck): ParagraphCheck[] {
+  const i = list.findIndex((c) => c.index === check.index);
+  if (i !== -1) {
+    const next = list.slice();
+    next[i] = check;
+    return next;
+  }
+  const insertAt = list.findIndex((c) => c.index > check.index);
+  if (insertAt === -1) return [...list, check];
+  return [...list.slice(0, insertAt), check, ...list.slice(insertAt)];
+}
 
 // Pure per-message event application, split out of useChatStream's old
 // `dispatch` switch. Handles every event EXCEPT `meta`/`error` — those touch
@@ -92,21 +108,37 @@ export function applyEvent(m: ChatMsg, ev: ChatEvent): ChatMsg {
       const kept = m.superseded ?? [];
       // `degenerate` is the ONE clear that really deletes — a repetition
       // loop, machine noise no one wants back.
-      if (ev.reason === "degenerate") return { ...m, draft: "" };
+      if (ev.reason === "degenerate") return { ...m, draft: "", paragraphChecks: [] };
       // Every other clear (`tool_round` / absent reason) keeps what
       // streamed — restyled, pushed above the replacement, never deleted.
       // Whitespace-only buffers are dropped: nothing to read.
-      if (!m.draft.trim()) return { ...m, draft: "" };
+      if (!m.draft.trim()) return { ...m, draft: "", paragraphChecks: [] };
       // Mixed preamble + leaked tool-call markup: markup is thinking, not a
       // draft; the rest stays a prechecked answer.
       const { thinking, draft } = splitToolRoundText(m.draft);
       return {
         ...m,
         draft: "",
+        paragraphChecks: [],
         reasoning: appendReasoning(m.reasoning, thinking),
-        superseded: draft ? [...kept, { text: draft, reason: "tool_round" as const, round: m.rounds }] : kept,
+        superseded: draft
+          ? [...kept, { text: draft, reason: "tool_round" as const, round: m.rounds, checks: m.paragraphChecks }]
+          : kept,
       };
     }
+
+    case "paragraph_check":
+      // A set-aside draft's checks move onto SupersededDraft.checks on
+      // `clear`, above — this only ever accumulates the CURRENT live draft's
+      // checks.
+      return {
+        ...m,
+        paragraphChecks: upsertParagraphCheck(m.paragraphChecks ?? [], {
+          index: ev.index,
+          text: ev.text,
+          findings: ev.findings,
+        }),
+      };
 
     case "export":
       // Download/track side effects stay in the hook — this only records the

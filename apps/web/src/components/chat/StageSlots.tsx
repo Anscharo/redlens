@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AtlasMarkdown, balanceFences } from "./markdown";
+import { ParagraphChecks } from "./ParagraphChecks";
 import { ReasoningBlock } from "./ReasoningBlock";
 import { SupersededAnswer } from "./SupersededAnswer";
 import { TraceRowView } from "./TraceRow";
@@ -55,6 +56,12 @@ function synthesizingSlot(msg: ChatMsg, entry: StageLogEntry, onAtlas: (uuid: st
         <AtlasMarkdown content={balanceFences(msg.draft)} onAtlas={onAtlas} />
       </div>,
     );
+  }
+  // Regardless of `msg.generated`: the checks belong to the round that ran
+  // them, and they must keep rendering once the draft they audited is
+  // cleared out (answer_final/done wipe `draft`, not `paragraphChecks`).
+  if (isLast && msg.paragraphChecks?.length) {
+    parts.push(<ParagraphChecks key="checks" checks={msg.paragraphChecks} />);
   }
   return parts.length ? <>{parts}</> : null;
 }

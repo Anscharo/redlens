@@ -151,7 +151,7 @@ test("no model slots: pass-through + status ticker; done carries checksMeta; san
 
     expect(kinds(events)).toEqual([
       "status:querying", "tool_call", "tool_result", "status:synthesizing", "token",
-      "status:comparing", "answer_final", "done",
+      "paragraph_check", "status:comparing", "answer_final", "done",
     ]);
     const done = lastDone(events);
     expect(done.content).toBe("Answer.");
@@ -202,7 +202,7 @@ test("small-talk bypass: zero tools + uncheckable answer + judge says smalltalk 
       );
       // Straight to done: no comparing/checking ticker, no verify chip, no
       // slice calls — only the one judge call, recorded in checksMeta.
-      expect(kinds(events)).toEqual(["status:synthesizing", "token", "done"]);
+      expect(kinds(events)).toEqual(["status:synthesizing", "token", "paragraph_check", "done"]);
       expect(judgeCalls).toEqual([{ model: "fast/judge" }]);
       expect(sliceCalls).toEqual([]);
       const done = lastDone(events);
@@ -430,7 +430,7 @@ test("verifier pass: checking status counts real sources, verify_result pass", (
     );
     expect(kinds(events)).toEqual([
       "status:querying", "tool_call", "tool_result", "status:synthesizing", "token",
-      "status:comparing", "answer_final", "status:checking", "verify_result", "done",
+      "paragraph_check", "status:comparing", "answer_final", "status:checking", "verify_result", "done",
     ]);
     // One tool result → one evidence entry: singular, and never "0 sources".
     const checking = events.find((e) => e.type === "status" && e.stage === "checking")!;
@@ -458,7 +458,7 @@ test("comparing status fires on a grounded turn even with no verifier model", ()
     );
     expect(kinds(events)).toEqual([
       "status:querying", "tool_call", "tool_result", "status:synthesizing", "token",
-      "status:comparing", "answer_final", "done",
+      "paragraph_check", "status:comparing", "answer_final", "done",
     ]);
   }));
 
@@ -475,7 +475,7 @@ test("ungrounded turn: verification stages are suppressed, the audit still runs"
         jsonCall: fakeSlicedJson({}),
       }),
     );
-    expect(kinds(events)).toEqual(["status:synthesizing", "token", "answer_final", "verify_result", "done"]);
+    expect(kinds(events)).toEqual(["status:synthesizing", "token", "paragraph_check", "answer_final", "verify_result", "done"]);
     expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify"]);
   }));
 
@@ -652,7 +652,7 @@ test("verifier fail on a grounded turn: fail badge, annotate-only — the answer
     // No revision machinery of any kind — one audit, one confirm, one badge, done.
     expect(kinds(events)).toEqual([
       "status:querying", "tool_call", "tool_result", "status:synthesizing", "token",
-      "status:comparing", "answer_final", "status:checking", "verify_result", "done",
+      "paragraph_check", "status:comparing", "answer_final", "status:checking", "verify_result", "done",
     ]);
     const verify = events.find((e) => e.type === "verify_result")!;
     expect(verify.type === "verify_result" && verify.overall).toBe("fail");
@@ -753,4 +753,76 @@ test("answer_final fires right after deterministic repair, before the checking s
     expect(checkingIdx).toBeGreaterThan(-1);
     expect(answerFinalIdx).toBeLessThan(checkingIdx);
     expect(lastDone(events).content).toBe(repaired);
+  }));
+
+// ── Incremental (per-paragraph) deterministic checks ───────────────────────
+test("a streamed two-paragraph answer yields two paragraph_check events — the tail flushed before answer_final", () =>
+  withModels("", async () => {
+    // The first paragraph closes (and checks) the moment the closing token
+    // arrives; the second has no trailing blank line, so it is the trailing
+    // paragraph flushed at generation end, inside the streaming loop, well
+    // before the repair/checks block that produces answer_final.
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[textChunk("The Stability Scope covers protocol rates.\n\nThe Accessibility Scope covers frontends."), finishChunk("stop")]]),
+      }),
+    );
+    const checkEvents = events.filter((e) => e.type === "paragraph_check");
+    expect(checkEvents).toHaveLength(2);
+    expect(checkEvents.map((e) => (e.type === "paragraph_check" ? e.index : -1))).toEqual([0, 1]);
+    expect(checkEvents.map((e) => (e.type === "paragraph_check" ? e.text : ""))).toEqual([
+      "The Stability Scope covers protocol rates.", "The Accessibility Scope covers frontends.",
+    ]);
+    const lastCheckIdx = events.map((e) => e.type === "paragraph_check").lastIndexOf(true);
+    const answerFinalIdx = events.findIndex((e) => e.type === "answer_final");
+    expect(lastCheckIdx).toBeLessThan(answerFinalIdx);
+  }));
+
+test("a tool_call between bursts resets the paragraph index to 0", () =>
+  withModels("", async () => {
+    const rounds = [
+      [textChunk("Pre-tool paragraph.\n\n"), toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+      [textChunk("Post-tool paragraph.\n\n"), finishChunk("stop")],
+    ];
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], question: "hi", maxIterations: 3, stream: fakeStream(rounds) }),
+    );
+    const checkEvents = events.filter((e) => e.type === "paragraph_check");
+    expect(checkEvents.map((e) => (e.type === "paragraph_check" ? e.index : -1))).toEqual([0, 0]);
+    expect(checkEvents.map((e) => (e.type === "paragraph_check" ? e.text : ""))).toEqual([
+      "Pre-tool paragraph.", "Post-tool paragraph.",
+    ]);
+  }));
+
+test("a paragraph with a fabricated doc number carries the finding on its paragraph_check event", () =>
+  withModels("", async () => {
+    // repairCitations only rewrites markdown links, so this is the one finding
+    // class that survives to be checked here — a bad /atlas/ link is already
+    // de-linkified by the streaming citation gate before the paragraph stream
+    // ever sees the text (same reasoning as incremental.test.ts).
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[textChunk("That rule is defined in Q.99.42.7 of the atlas."), finishChunk("stop")]]),
+      }),
+    );
+    const checkEvents = events.filter((e) => e.type === "paragraph_check");
+    expect(checkEvents).toHaveLength(1); // flushed as the trailing paragraph — no blank line ends it
+    expect(checkEvents[0].type === "paragraph_check" && checkEvents[0].findings).toEqual([
+      "document number does not exist in the atlas: Q.99.42.7",
+    ]);
+  }));
+
+test("the round_checks row records the incremental paragraph tally for the final burst", () =>
+  withModels("", async () => {
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[textChunk("First paragraph here.\n\nThat rule is defined in Q.99.42.7 of the atlas."), finishChunk("stop")]]),
+      }),
+    );
+    const round = lastDone(events).checksMeta.find((c) => c.kind === "round_checks")!;
+    const verdict = round.verdict as { incremental: { paragraphs: number; flagged: number } };
+    expect(verdict.incremental).toEqual({ paragraphs: 2, flagged: 1 });
   }));

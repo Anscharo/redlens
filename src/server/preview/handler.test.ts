@@ -381,6 +381,71 @@ test("/events: deferred private-branch id — a forbidden caller is denied and t
 
 // ---------------------------------------------------------------------------
 // rateLimited / ipHits — the per-IP fixed window on the events endpoint.
+
+test("/events: deferred private-PR id — a forbidden caller never fetches pulls or git/ref (G7)", async () => {
+  const { handlePreview } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+
+  const orig = {
+    enabled: config.privatePreviewsEnabled,
+    appId: config.githubAppId,
+    key: config.githubAppPrivateKey,
+    fetch: globalThis.fetch,
+  };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  let pullFetched = false;
+  let refFetched = false;
+  let tokenMinted = false;
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) return Response.json({ id: 77 });
+    if (u.endsWith("/access_tokens")) {
+      tokenMinted = true;
+      return Response.json({ token: "inst-tok" });
+    }
+    if (u.includes("/pulls/")) {
+      pullFetched = true;
+      return Response.json({ head: { sha: "e".repeat(40), ref: "feat" } });
+    }
+    if (u.includes("/git/ref/")) {
+      refFetched = true;
+      return Response.json({ object: { sha: "e".repeat(40) } });
+    }
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return new Response("no", { status: 404 });
+    return new Response("no", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  try {
+    accessDecision = "forbidden";
+    const id = encodeURIComponent("octocat:secret-atlas:pull-42");
+    const pathname = `/api/preview/${id}/events`;
+    const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+    const events = await readSSE(res);
+
+    expect(events).toContainEqual({ phase: "failed", code: "forbidden" });
+    expect(pullFetched).toBe(false);
+    expect(refFetched).toBe(false);
+    expect(tokenMinted).toBe(false);
+    expect(accessCalls.some((c) => c.repo === "octocat/secret-atlas")).toBe(true);
+    expect(events.some((e) => e.phase === "ready" || e.phase === "fetching")).toBe(false);
+    expect(inflightShas().size).toBe(0);
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+});
+
+// ---------------------------------------------------------------------------
+// rateLimited / ipHits — the per-IP fixed window on the events endpoint.
 // Direct (no HTTP): driving the real threshold via ~30+ full SSE round-trips
 // per case would work but is slow and indirect; the exported map/function let
 // this pin the actual guard (a real bug — an off-by-one on `> IP_LIMIT` vs

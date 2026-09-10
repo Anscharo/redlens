@@ -33,9 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 ## 2026-09-10
+- Private previews now accept a pull request URL and compare it against sky-ecosystem/next-gen-atlas main
 - Chat delivery updated for consistency. No longer rewrites answers. Cites and confirms better.
 - Fixed the chat and MCP atlas search skipping every Agent artifact (Spark, Grove, Amatsu, …) when a query was scoped to the Agent Scope.
-
+- Chat now checks each paragraph as it is written; open the Synthesizing step to see the results.
 
 ## 2026-09-09
 - Enlarged the CrossView chunk map to show more details

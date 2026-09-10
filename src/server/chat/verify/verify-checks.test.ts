@@ -812,3 +812,15 @@ test("a citation hung on the end of a blockquote line is attribution, not quoted
   // stripping the tail must not excuse an invented quote
   expect(findUngroundedQuotes(`> The facilitator is paid nine million a year in gold [${doc.title}](/atlas/${uuid})`, evidence, ix)).toHaveLength(1);
 });
+
+test("a verbatim LaTeX quote matches its JSON-encoded evidence (backslashes and $ delimiters are formatting)", () => {
+  // The live case: A.3.2.2.1.1.1.1.1.5's formula sits in a $$ block; the answer
+  // quoted it inline with $…$ and lowercase k. Evidence arrives JSON-encoded, so
+  // every backslash is doubled there and single in the answer.
+  const source = "The RRC is computed as follows:\n\n$$\n\\text{RRC} = K \\times \\frac{1}{CR} \\times \\text{EAD} \\times \\text{ECR}\n$$\n\nThe parameters of this formula are defined below.";
+  const evidence = [JSON.stringify({ results: [{ id: "x", content: source }] })];
+  const answer = 'The atlas defines it as "$\\text{RRC} = k \\times \\frac{1}{CR} \\times \\text{EAD} \\times \\text{ECR}$" for each Prime.';
+  expect(findUngroundedQuotes(answer, evidence, ix)).toEqual([]);
+  // Symmetry must not make an invented formula pass.
+  expect(findUngroundedQuotes('The atlas defines it as "$\\text{RRC} = k \\times \\text{EAD} \\div \\text{Gold reserves}$" here.', evidence, ix)).toHaveLength(1);
+});

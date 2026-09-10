@@ -317,10 +317,12 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
   const sha = resolved.sha;
   const paths = previewPaths(sha);
   const t0 = Date.now();
-  // Private previews (branch-only grammar, see resolve.ts) are gated on GitHub
-  // App installation, not fork/trust screening — installation IS the trust
-  // grant, since only someone who can install the App on the repo can produce
-  // a preview of it at all.
+  // Private previews (branch or private-PR `pull-N` grammar, see resolve.ts) are
+  // gated on GitHub App installation, not fork/trust screening — installation
+  // IS the trust grant, since only someone who can install the App on the repo
+  // can produce a preview of it at all. A private PR still skips the GitHub
+  // compare (which would use the PR's base branch) and redlines against live
+  // canonical main via the serve-time diffDocs fallback.
   const priv = !!resolved.private;
   try {
     // Admin takedown: a blocked sha never rebuilds.

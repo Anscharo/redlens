@@ -72,6 +72,21 @@ describe("SupersededAnswer", () => {
     expect(body).not.toHaveTextContent("**7 signers**");
   });
 
+  it("renders a draft's paragraph checks under its text", () => {
+    const withChecks: SupersededDraft = {
+      ...draft("a preamble"),
+      checks: [{ index: 0, text: "a preamble", findings: ["flagged claim"] }],
+    };
+    const { container } = render(<SupersededAnswer drafts={[withChecks]} onAtlas={noop} />);
+    expect(container.querySelector(".rlc-para-checks")).toBeInTheDocument();
+    expect(container.querySelector('[data-reason="tool_round"] .rlc-para-checks')).toBeInTheDocument();
+  });
+
+  it("renders no paragraph checks for a draft that has none", () => {
+    const { container } = render(<SupersededAnswer drafts={[draft("plain preamble")]} onAtlas={noop} />);
+    expect(container.querySelector(".rlc-para-checks")).toBeNull();
+  });
+
   it("keeps the kept draft's atlas citations followable", async () => {
     const onAtlas = vi.fn();
     render(

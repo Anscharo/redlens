@@ -123,6 +123,31 @@ describe("renderStageSlot / synthesizing", () => {
     const { container } = render(<Slot msg={msg} e={msg.stageLog![0]} />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("shows paragraph checks on the last synthesizing entry only", () => {
+    const msg = baseMsg({
+      draft: "the answer so far",
+      paragraphChecks: [{ index: 0, text: "the answer so far", findings: [] }],
+      stageLog: [entry({ stage: "synthesizing", at: 0, round: 1 }), entry({ stage: "synthesizing", at: 3, round: 2 })],
+    });
+    const first = msg.stageLog![0];
+    const last = msg.stageLog![1];
+    const { container: firstContainer } = render(<Slot msg={msg} e={first} />);
+    expect(firstContainer.querySelector(".rlc-para-checks")).toBeNull();
+    const { container: lastContainer } = render(<Slot msg={msg} e={last} />);
+    expect(lastContainer.querySelector(".rlc-para-checks")).toBeInTheDocument();
+  });
+
+  it("keeps paragraph checks rendered once the answer has been generated", () => {
+    const msg = baseMsg({
+      draft: "",
+      generated: true,
+      paragraphChecks: [{ index: 0, text: "final paragraph", findings: [] }],
+      stageLog: [entry({ stage: "synthesizing", at: 0, round: 1 })],
+    });
+    const { container } = render(<Slot msg={msg} e={msg.stageLog![0]} />);
+    expect(container.querySelector(".rlc-para-checks")).toBeInTheDocument();
+  });
 });
 
 describe("renderStageSlot / checking", () => {

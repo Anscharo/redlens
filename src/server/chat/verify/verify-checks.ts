@@ -107,13 +107,21 @@ export function normalizeForMatch(s: string): string {
     // Tool results arrive as JSON, so a source line break is the literal two
     // characters \n — nothing quoting it verbatim could ever match.
     .replace(/\\[nrt]/g, " ")
-    .replace(/\\(.)/g, "$1")
+    // Then drop EVERY remaining backslash, not "one escape level". Evidence is
+    // JSON-encoded (`\\frac`) while the answer quotes the raw text (`\frac`);
+    // unescaping one level left `\frac` on one side and `frac` on the other,
+    // so a verbatim quote of the Required Risk Capital formula hard-failed
+    // (2026-09-10). Symmetric stripping is what a match needs; the formatting
+    // pass below already treats markup as noise, and LaTeX commands are markup.
+    .replace(/\\/g, "")
     // Evidence carries raw markdown; an answer quotes the RENDERED text. Both
     // sides collapse to link text so `see [A.2.2.9.1 - Foo](uuid)` matches a
     // faithful quote of `see A.2.2.9.1 - Foo`.
     .replace(new RegExp(MD_LINK_SRC, "g"), "$1")
     .replace(/[“”"‘’']/g, "")
-    .replace(/[*_`]/g, "")
+    // `$` is a math delimiter (`$$…$$` in the atlas, `$…$` in an answer) —
+    // formatting, same as emphasis and code marks.
+    .replace(/[*_`$]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }

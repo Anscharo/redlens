@@ -65,6 +65,16 @@ export type ChatEvent =
       //   - degenerate — a repetition loop; the client still wipes.
       reason?: "tool_round" | "degenerate";
     }
+  // A deterministic per-paragraph audit result — the incremental pass that
+  // runs while the answer streams (a per-paragraph MODEL audit is a later
+  // step; this is deterministic only). Emitted right after the token that
+  // completes a paragraph, plus once more at generation end for the trailing
+  // paragraph, before `answer_final`. Ordering within a generation burst:
+  // token* (paragraph_check)* … answer_final. `index` counts from 0 within
+  // the current burst and resets on `tool_call`/`clear`. `text` is the
+  // checked paragraph (citation-repaired). `findings` are reader-facing
+  // sentences, `[]` when clean.
+  | { type: "paragraph_check"; index: number; text: string; findings: string[] }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; ok: boolean; bytes: number; truncated?: boolean; originalBytes?: number }
   // A downloadable file the agent produced via the export_findings tool.

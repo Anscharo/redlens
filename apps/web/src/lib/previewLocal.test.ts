@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePreviewInput, previewLabel } from "./previewLocal";
+import { parsePreviewInput, parsePrivateInput, isPrivatePrId, previewLabel } from "./previewLocal";
 
 describe("parsePreviewInput", () => {
   it("parses GitHub URLs (PR / tree / commit, canonical + fork)", () => {
@@ -60,5 +60,37 @@ describe("previewLabel", () => {
   it("falls back to the canonical repo for a bare branch", () => {
     expect(previewLabel("my-branch")).toBe("sky-ecosystem/next-gen-atlas");
     expect(previewLabel("feat~parser-fix")).toBe("sky-ecosystem/next-gen-atlas");
+  });
+
+  it("uses the PR number for a private owner:repo:pull-N id", () => {
+    expect(previewLabel("acme:secret-atlas:pull-42")).toBe("PR #42");
+  });
+});
+
+describe("parsePrivateInput", () => {
+  it("parses github PR URLs to owner:repo:pull-N", () => {
+    expect(parsePrivateInput("https://github.com/acme/secret-atlas/pull/42")).toBe("acme:secret-atlas:pull-42");
+    expect(parsePrivateInput("https://github.com/acme/secret-atlas/pull/42/files")).toBe("acme:secret-atlas:pull-42");
+    expect(parsePrivateInput("github.com/acme/secret-atlas.git/pull/9")).toBe("acme:secret-atlas:pull-9");
+  });
+
+  it("still parses branch and bare-repo forms", () => {
+    expect(parsePrivateInput("acme/secret-atlas@feature/foo")).toBe("acme:secret-atlas:feature~foo");
+    expect(parsePrivateInput("acme/secret-atlas")).toBe("acme:secret-atlas:HEAD");
+    expect(parsePrivateInput("https://github.com/acme/secret-atlas/tree/feature/foo")).toBe("acme:secret-atlas:feature~foo");
+  });
+
+  it("rejects unparseable input", () => {
+    expect(parsePrivateInput("")).toBeNull();
+    expect(parsePrivateInput("not a url")).toBeNull();
+    expect(parsePrivateInput("https://gitlab.com/acme/secret-atlas/pull/1")).toBeNull();
+  });
+});
+
+describe("isPrivatePrId", () => {
+  it("detects the owner:repo:pull-N grammar", () => {
+    expect(isPrivatePrId("acme:secret-atlas:pull-42")).toBe(true);
+    expect(isPrivatePrId("acme:secret-atlas:main")).toBe(false);
+    expect(isPrivatePrId("pull-256")).toBe(false);
   });
 });
