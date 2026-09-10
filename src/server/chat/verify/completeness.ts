@@ -86,8 +86,20 @@ export function isCompleteFilterListing(e: CompletenessEvidence): boolean {
   return true;
 }
 
+// atlas_report_* are curated whole-atlas rollups (see tool-registry.ts ~:491-614);
+// row-list reports share { report, total, returned, truncated, note? } plus one
+// named payload array, so an untruncated one is class grounding just like a
+// complete atlas_filter listing.
+export function isCompleteReportListing(e: CompletenessEvidence): boolean {
+  if (!e.tool.startsWith("atlas_report_")) return false;
+  const body = parseJson(e.content);
+  if (!body || typeof body.total !== "number") return false;
+  if (body.truncated === true) return false;
+  return true;
+}
+
 function classGrounding(evidence: CompletenessEvidence[]): CompletenessEvidence | null {
-  return evidence.find((e) => isClassModeFirstSeen(e) || isCompleteFilterListing(e)) ?? null;
+  return evidence.find((e) => isClassModeFirstSeen(e) || isCompleteFilterListing(e) || isCompleteReportListing(e)) ?? null;
 }
 
 function claimedUuids(answer: string): string[] {
@@ -104,7 +116,7 @@ function claimedCount(answer: string): number | null {
 function refuteAgainst(answer: string, e: CompletenessEvidence): string | null {
   const body = parseJson(e.content);
   if (!body) return null;
-  if (e.tool === "atlas_filter" && typeof body.total === "number") {
+  if ((e.tool === "atlas_filter" || e.tool.startsWith("atlas_report_")) && typeof body.total === "number") {
     const n = claimedCount(answer);
     if (n != null && n !== body.total) {
       return `listing total is ${body.total} but the answer claimed all ${n}`;
@@ -135,7 +147,13 @@ export function auditCompleteness(
   if (ground) {
     const clash = refuteAgainst(answer, ground);
     if (clash) return { outcome: "refuted", detail: clash };
-    return { outcome: "grounded", detail: ground.tool === "atlas_first_seen" ? "class-mode atlas_first_seen" : "untruncated atlas_filter" };
+    const detail =
+      ground.tool === "atlas_first_seen"
+        ? "class-mode atlas_first_seen"
+        : ground.tool.startsWith("atlas_report_")
+          ? "untruncated atlas_report_*"
+          : "untruncated atlas_filter";
+    return { outcome: "grounded", detail };
   }
   return { outcome: "unverified", detail: COMPLETENESS_REQUERY_STEER };
 }
@@ -166,7 +184,13 @@ function isRankedOnly(call: ToolChoiceCall): boolean {
 }
 
 function isMembershipCall(call: ToolChoiceCall): boolean {
-  return call.name === "atlas_search" || call.name === "atlas_query" || call.name === "atlas_filter" || call.name === "atlas_first_seen";
+  return (
+    call.name === "atlas_search" ||
+    call.name === "atlas_query" ||
+    call.name === "atlas_filter" ||
+    call.name === "atlas_first_seen" ||
+    call.name.startsWith("atlas_report_")
+  );
 }
 
 // Eval / bakeoff tool-choice arm: the incident is search-then-ids, not a prose
@@ -188,6 +212,7 @@ export function scoreCompletenessToolChoice(question: string, calls: ToolChoiceC
 
   const listingQs = /\ball\b|\bevery\b|how many/i.test(question);
   const filter = calls.find((c) => c.name === "atlas_filter");
+  const report = calls.find((c) => c.name.startsWith("atlas_report_"));
   const classSeen = calls.find((c) => c.name === "atlas_first_seen" && hasClassArgs(c.args) && !hasIdsArgs(c.args));
   if (listingQs && filter) {
     if (filter.result?.has_more === true || filter.result?.truncated === true) {
@@ -195,10 +220,20 @@ export function scoreCompletenessToolChoice(question: string, calls: ToolChoiceC
     }
     return { pass: true, reason: "complete atlas_filter listing" };
   }
+  if (listingQs && report) {
+    if (report.result?.truncated === true) {
+      return { pass: false, reason: "atlas_report_* listing used for an exhaustive question was truncated" };
+    }
+    return { pass: true, reason: "untruncated atlas_report_* listing" };
+  }
   if (classSeen) return { pass: true, reason: "class-mode atlas_first_seen" };
   if (filter && filter.result?.has_more !== true && filter.result?.truncated !== true) {
     return { pass: true, reason: "complete atlas_filter listing" };
   }
   if (filter) return { pass: false, reason: "atlas_filter listing was incomplete" };
+  if (report && report.result?.truncated !== true) {
+    return { pass: true, reason: "untruncated atlas_report_* listing" };
+  }
+  if (report) return { pass: false, reason: "atlas_report_* listing was truncated" };
   return { pass: false, reason: "no complete class listing or class-mode first_seen" };
 }

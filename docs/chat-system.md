@@ -250,6 +250,10 @@ mixed as evidence:
 | Output | `export_findings` (chat-only; emits the `export` SSE event) |
 | External (not Atlas) | `external_msc` (MCP) and `ask_external_msc` (chat-only sub-agent). Curated Monthly Settlement Cycle views from Soter Labs workbooks + Sky Forum permalinks. Views: `month`/`series`/`venues` are per-prime and **require** `prime` (their errors return `available_primes` so a wrong guess self-corrects rather than reading as "no data"); `compare` ranks primes for one month; `aggregate` is the cross-prime, multi-month roll-up (ecosystem + per-prime totals, top venues across every prime); `terms` needs nothing. `aggregate` computes supply-side revenue as `prime_agent_revenue − cof` per prime — never `Σ` per-venue `Profit to Grove`, which drops non-venue revenue and spread reimbursement (a $7.29M gap, all Spark) — nests `cof`/`sde` under `to_sky` rather than beside it, treats `value_eom` as a stock (latest, not summed), and returns a `foot_delta` that re-checks the three-way identity. See `.claude/skills/settlement-reports/SKILL.md`. Tool results carry `source_class: "external"`; the verifier ignores them for Atlas quote-grounding and requires the non-Atlas disclaimer. |
 
+`atlas_query`, `atlas_entities`, and `atlas_params` take their free-text search
+argument as `query`; `q` still works but is a deprecated alias kept for
+backward compatibility, not the documented name.
+
 Search is **hybrid RAG**: a lexical leg (in-memory MiniSearch / BM25, boosting
 title, doc_no, and type) and a semantic leg (query embedded, then pgvector
 cosine search over `atlas_doc_embeddings` with a relevance floor, degrading to
@@ -362,7 +366,10 @@ nothing to contradict. `auditCompleteness` is a three-outcome contract on
 **which tools ran**, not on quoting:
 
 - **GROUNDED** — this turn includes class-mode `atlas_first_seen` (`class_total`)
-  or an `atlas_filter` listing with `has_more` and `truncated` both false.
+  or an `atlas_filter` listing with `has_more` and `truncated` both false. An
+  untruncated `atlas_report_*` result (`truncated` false, numeric `total`) also
+  satisfies class grounding — the curated reports are whole-atlas rollups, so
+  their `total` is as complete a count as a class-mode listing.
 - **REFUTED** — that listing/extremum disagrees with a claimed count or winner.
 - **UNVERIFIED** — otherwise, including ids-mode `atlas_first_seen` on a search
   batch. Hard-fails the turn (unlike absence’s unverified warn) and

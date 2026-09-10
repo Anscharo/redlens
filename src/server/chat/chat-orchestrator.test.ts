@@ -7,7 +7,7 @@ import { loadIndexes } from "../retrieval/indexes.ts";
 import { config } from "../config.ts";
 import type { ChatStream } from "./chat-loop.ts";
 import type { JsonCall } from "./llm.ts";
-import { runVerifiedChat, sanitizeDone, claimsDrivingEscalation, type HarnessEvent, type HarnessDone } from "./chat-orchestrator.ts";
+import { runVerifiedChat, sanitizeDone, claimsDrivingEscalation, describeCall, type HarnessEvent, type HarnessDone } from "./chat-orchestrator.ts";
 import type { Verdict } from "./verify/verifier.ts";
 import { SLICES } from "./verify/sliced-verifier.ts";
 import type { SliceName } from "./verify/verifier-slices.ts";
@@ -78,6 +78,14 @@ const userMsg: Msg = { role: "user", content: "hi" };
 const REAL_SPAN = "Use atlas_entities to search/list entities by name, type, or subtype.";
 test("REAL_SPAN literal used by sliced-verifier PASS fixtures is still present in atlas_describe's [E0] schema evidence", () => {
   expect(JSON.stringify(atlasDescribe(ix))).toContain(REAL_SPAN);
+});
+
+test("describeCall reads the standardized `query` arg for both atlas_search and atlas_query", () => {
+  expect(describeCall("atlas_search", { query: "keel maxAmount", k: 10 })).toBe('Searching the atlas for “keel maxAmount”…');
+  expect(describeCall("atlas_query", { query: "spark rewards" })).toBe('Searching the atlas for “spark rewards”…');
+  // No `query` present (e.g. an entity/target_type-only atlas_query call) falls
+  // back to the generic "Consulting <tool>…" line rather than crashing.
+  expect(describeCall("atlas_query", { entity: "spark" })).toBe("Consulting atlas_query…");
 });
 
 const SLICE_EMPTY = '{"claims":[],"ruling_issued":false,"notes":""}';

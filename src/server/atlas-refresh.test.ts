@@ -175,14 +175,14 @@ describe("patchDocs", () => {
       {},
     );
 
-    const lean = (await atlasQuery(ix, { q: "zebraword", k: 10, enrich: false })) as Record<string, any>;
+    const lean = (await atlasQuery(ix, { query: "zebraword", k: 10, enrich: false })) as Record<string, any>;
     expect(lean.mode).toBe("search");
     expect(lean.results.length).toBeGreaterThan(0);
     expect(lean.results[0].content).toBeUndefined(); // lean: no full content
     expect(lean.results[0].snippet).toBeDefined(); // but a snippet
     expect(lean.ancestors).toBeUndefined(); // no ancestor map when not enriched
 
-    const rich = (await atlasQuery(ix, { q: "zebraword", k: 10, enrich: true })) as Record<string, any>;
+    const rich = (await atlasQuery(ix, { query: "zebraword", k: 10, enrich: true })) as Record<string, any>;
     expect(rich.results[0].content).toBeDefined();
     expect(rich.results[0].snippet).toBeUndefined(); // no redundant snippet alongside content
     const childRow = rich.results.find((r: any) => r.id === "child");

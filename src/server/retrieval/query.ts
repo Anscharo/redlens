@@ -11,7 +11,7 @@ import { sql } from "../db.ts";
 import { livenessOf, withLivenessHint, type ToolResult } from "../chat/tools/tools.ts";
 
 export interface QueryArgs {
-  q?: string;
+  query?: string;
   entity?: string;
   edge_types?: string[];
   target_type?: string;
@@ -26,6 +26,8 @@ export interface QueryArgs {
   direction?: "out" | "in" | "both";
   k: number;
   enrich: boolean;
+  /** @deprecated alias of `query` */
+  q?: string;
 }
 
 // "30d" → ISO date 30 days ago; ISO strings pass through.
@@ -175,8 +177,9 @@ function enrichNode(ix: Indexes, n: AtlasNode, enrich: boolean, includeParams: b
 }
 
 export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult> {
-  if (!a.q && !a.entity && !a.target_type) {
-    return { error: "at least one of q, entity, or target_type is required" };
+  const query = a.query ?? a.q;
+  if (!query && !a.entity && !a.target_type) {
+    return { error: "at least one of query, entity, or target_type is required" };
   }
 
   // `entity` accepts natural-language names ("Spark Protocol") — resolved
@@ -271,7 +274,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   }
 
   // ── entity_broad ──────────────────────────────────────────────────────────────
-  if (entityId && !a.edge_types?.length && !a.q) {
+  if (entityId && !a.edge_types?.length && !query) {
     const grouped: Record<string, unknown[]> = {};
     for (const { edge_type, doc } of entityDocs(ix, entityId, undefined, a.target_type, dir)) {
       (grouped[edge_type] ??= []).push(doc);
@@ -301,7 +304,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   }
 
   // ── type_list ────────────────────────────────────────────────────────────────
-  if (!a.entity && !a.q && a.target_type) {
+  if (!a.entity && !query && a.target_type) {
     const rows = [...ix.docMap.values()].filter((d) => d.type === a.target_type);
     const kept = constrain(rows.map((r) => r.id)).slice(0, a.k).map((id) => ix.docMap.get(id)!);
     return withBudget(enrich(kept), { mode: "type_list", type: a.target_type });
@@ -316,22 +319,22 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
 
   // ── search ───────────────────────────────────────────────────────────────────
   let searchHits: { id: string; rrf_score: number; score: number; sources: string[]; snippet?: string; via?: Via }[] = [];
-  // Populated only when a.q ran the search leg; surfaces a degraded-to-
+  // Populated only when `query` ran the search leg; surfaces a degraded-to-
   // lexical-only semantic leg into the result envelope below.
   let semSkipped: string | null = null;
-  if (a.q) {
-    const { phrases, casePhrases } = extractPhrases(a.q);
+  if (query) {
+    const { phrases, casePhrases } = extractPhrases(query);
     const fetchK = Math.min(a.k * 4, 200);
     const [lex, semResult] = await Promise.all([
-      Promise.resolve(runLexical(ix, a.q, a.target_type, fetchK)),
+      Promise.resolve(runLexical(ix, query, a.target_type, fetchK)),
       // runSemantic no longer throws on a normal degraded-leg failure; this
       // catch is defensive-only, preserving the reason rather than the old
       // information-destroying `.catch(() => [])`.
-      runSemantic(ix, a.q, a.target_type, fetchK).catch(
+      runSemantic(ix, query, a.target_type, fetchK).catch(
         (err): SemanticResult => ({ hits: [], skipped: (err as Error).message }),
       ),
     ]);
-    const sem = attributeSemanticHits(a.q, lex, semResult.hits, ix, await buildLeafScorer(a.q, semResult.hits, ix));
+    const sem = attributeSemanticHits(query, lex, semResult.hits, ix, await buildLeafScorer(query, semResult.hits, ix));
     semSkipped = semResult.skipped;
     let merged = filterByType(rrfMerge(lex, sem), ix, a.target_type);
     // Quoted phrases require an exact match — same shared post-filter
@@ -346,16 +349,16 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   }
 
   // ── intersect / narrow ────────────────────────────────────────────────────────
-  if (!a.q && entityDocIds) {
+  if (!query && entityDocIds) {
     const ids = [...entityDocIds].slice(0, a.k);
     const nodes = ids.map((id) => ix.docMap.get(id)!).filter(Boolean);
     return withBudget(enrich(nodes), { entity: a.entity, resolved_entity: resolvedEntity, mode: "entity_narrow" });
   }
 
-  let hits = a.q && entityDocIds ? searchHits.filter((h) => entityDocIds!.has(h.id)) : searchHits;
+  let hits = query && entityDocIds ? searchHits.filter((h) => entityDocIds!.has(h.id)) : searchHits;
   const constrained = new Set(constrain(hits.map((h) => h.id)));
   hits = hits.filter((h) => constrained.has(h.id)).slice(0, a.k);
-  const mode = a.q && entityDocIds ? "hybrid_graph" : "search";
+  const mode = query && entityDocIds ? "hybrid_graph" : "search";
   const results = hits.map((h) => {
     const n = ix.docMap.get(h.id)!;
     // `sources` lets the caller tell agreed hits (lexical ∩ semantic) apart from
@@ -364,7 +367,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     return {
       ...enrichNode(ix, n, a.enrich, !!a.include_params),
       // Verbatim: this is a tool result an agent quotes from and is graded on.
-      ...(a.enrich ? {} : { snippet: buildAgentSnippet(n.content, a.q ?? "") }),
+      ...(a.enrich ? {} : { snippet: buildAgentSnippet(n.content, query ?? "") }),
       score: h.rrf_score || h.score,
       sources: h.sources,
       ...(h.via ? { via: h.via } : {}),

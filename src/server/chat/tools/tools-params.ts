@@ -17,12 +17,12 @@ function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-export function atlasParams(ix: Indexes, opts: { q: string; limit: number }): ToolResult {
+export function atlasParams(ix: Indexes, opts: { query?: string; limit: number }): ToolResult {
   // Only tokens of length >=3 constrain the match — short query words (or a
   // query that normalizes to nothing) would otherwise vacuously match every
   // row, so both cases are treated as "no usable query".
-  const tokens = normalizeForMatch(opts.q).split(/\s+/).filter((w) => w.length >= 3);
-  if (tokens.length === 0) return { error: "q must contain at least one search term of 3+ characters" };
+  const tokens = normalizeForMatch(opts.query ?? "").split(/\s+/).filter((w) => w.length >= 3);
+  if (tokens.length === 0) return { error: "query must contain at least one search term of 3+ characters" };
 
   const limit = Math.min(Math.max(1, opts.limit || 25), 100);
 

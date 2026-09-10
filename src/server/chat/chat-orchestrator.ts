@@ -85,12 +85,12 @@ export function sanitizeDone(done: DoneEvent & { checksMeta?: CheckRowMeta[] }):
 }
 
 // Human-readable status detail off the tool args — zero model cost.
-function describeCall(name: string, args: Record<string, unknown>): string {
+export function describeCall(name: string, args: Record<string, unknown>): string {
   if (name === "ask_external_msc" || name === "external_msc") {
     return "Consulting settlement sources (not Atlas)…";
   }
-  const q = [args.search, args.q, args.query, args.term].find((v) => typeof v === "string" && v.length > 0);
-  if (typeof q === "string") return `Searching the atlas for “${q.slice(0, 80)}”…`;
+  const query = args.query;
+  if (typeof query === "string" && query.length > 0) return `Searching the atlas for “${query.slice(0, 80)}”…`;
   if (name === "atlas_get") return "Reading documents…";
   return `Consulting ${name}…`;
 }
