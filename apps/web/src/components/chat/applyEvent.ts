@@ -18,6 +18,25 @@ function upsertParagraphCheck(list: ParagraphCheck[], check: ParagraphCheck): Pa
   return [...list.slice(0, insertAt), check, ...list.slice(insertAt)];
 }
 
+// The model (`refute`) audit is best-effort: the server usually follows a
+// `paragraph_check` with a `paragraph_refute` for the same index, but in
+// `answer` mode (CHAT_REFUTE_MODE=answer) or against an older build no
+// `paragraph_refute` ever arrives. A row stuck at "pending" forever would
+// render a hollow mark next to every paragraph after the verdict lands, and
+// misreads as "the model check is still running" rather than "it never ran".
+// Once the turn's verdict is in (verify_result) or the turn is over (done),
+// any row still "pending" gets its `model` REMOVED — not set to "failed",
+// since nothing failed, the mode simply didn't run — and `ParagraphChecks`
+// already renders no mark at all when `model` is undefined.
+function clearPendingModelMarks<T extends ParagraphCheck[] | undefined>(list: T): T {
+  if (!list || !list.some((c) => c.model === "pending")) return list;
+  return list.map((c) => {
+    if (c.model !== "pending") return c;
+    const { model: _pending, ...rest } = c;
+    return rest;
+  }) as T;
+}
+
 // Pure per-message event application, split out of useChatStream's old
 // `dispatch` switch. Handles every event EXCEPT `meta`/`error` — those touch
 // hook-level state (conversationId, the error banner), not the message
@@ -85,6 +104,11 @@ export function applyEvent(m: ChatMsg, ev: ChatEvent): ChatMsg {
     case "verify_result":
       return {
         ...m,
+        // verify_result precedes done (see api.ts's event-ordering comment),
+        // so this is normally where a stuck "pending" mark gets cleared —
+        // done repeats the same clear defensively in case it ever lands
+        // first instead.
+        paragraphChecks: clearPendingModelMarks(m.paragraphChecks),
         verify: {
           status: ev.overall,
           contradictions: ev.contradictions,
@@ -226,6 +250,13 @@ export function applyEvent(m: ChatMsg, ev: ChatEvent): ChatMsg {
         sources: ev.toolCalls,
         done: true,
         statusLine: null,
+        // The turn is over — clear any mark still "pending" (verify_result
+        // usually already did; see the comment there and on
+        // clearPendingModelMarks). Superseded drafts keep their own checks
+        // frozen from when they were set aside, so they need the same
+        // clear here.
+        paragraphChecks: clearPendingModelMarks(m.paragraphChecks),
+        superseded: m.superseded?.map((d) => ({ ...d, checks: clearPendingModelMarks(d.checks) })),
         // A "checking" chip that never resolved (verifier off/failed
         // silently) must not spin forever.
         ...(m.verify?.status === "checking" ? { verify: undefined } : {}),

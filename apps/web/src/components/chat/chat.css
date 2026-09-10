@@ -637,7 +637,30 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-verify-claims li + li { margin-top: 4px; }
 .rlc-verify-claims li[data-status="contradicted"] code { color: var(--error-text); }
 .rlc-verify-quote { color: var(--tan-2); font-style: italic; }
-.rlc-verify-notfound { margin: 6px 0 0; font: 400 11.5px/1.4 "Source Code Pro", monospace; color: var(--tan-3); }
+.rlc-verify-notfound { margin: 6px 0 0; }
+/* The disclosure toggle reuses .rlc-stage-toggle's plain-row treatment
+   (no border/background, pointer cursor) so it reads as "more detail
+   available" rather than as a warning — see the comment on NotFoundNote. */
+.rlc-verify-notfound-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--tan-3);
+  font: 400 11.5px/1.4 "Source Code Pro", monospace;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+.rlc-verify-notfound-list {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  list-style: disc;
+  color: var(--tan-3);
+  font: 400 11.5px/1.4 "Source Code Pro", monospace;
+}
+.rlc-verify-notfound-list li + li { margin-top: 3px; }
 
 /* ── Trace rows + collapsed-checklist summary head ─────────────────────────
    The old standalone collapsible trace card is gone — trace rows now render
