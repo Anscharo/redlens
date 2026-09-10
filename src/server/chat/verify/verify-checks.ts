@@ -198,11 +198,22 @@ function quotedPairs(line: string): { text: string; start: number; end: number }
   return out;
 }
 
+// A citation the model hung on the END of a blockquote line — one or more
+// `[text](/atlas/<uuid>)` links, or a bare uuid — is attribution, not quoted
+// text. Left in, the span ends with the link text or the id and can never match
+// the source. Observed live 2026-09-10: a verbatim two-sentence quote of A.1.7.1
+// hard-failed because the model appended `[<uuid>](/atlas/<uuid>)` to the line.
+// Only the TAIL is stripped: a link mid-sentence may be part of the quoted atlas
+// text itself (atlas docs contain inline links) and still collapses to its text.
+const TRAILING_CITATIONS = /(?:\s*(?:\[[^\]]+\]\([^)\s]+\)|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))+\s*[.,;:]?\s*$/i;
+
 export function extractQuotedSpans(answer: string): string[] {
   const spans: string[] = [];
   for (const line of answer.split("\n")) {
     const bq = line.match(/^\s*>\s?(.+)$/);
-    if (bq && !isAttributionLine(bq[1]) && !isSelfAuthoredCallout(bq[1])) spans.push(stripQuoteDecoration(bq[1]));
+    if (bq && !isAttributionLine(bq[1]) && !isSelfAuthoredCallout(bq[1])) {
+      spans.push(stripQuoteDecoration(bq[1].replace(TRAILING_CITATIONS, "")));
+    }
   }
   // Inline pass: collapse markdown links to their text FIRST — a quote inside
   // one link's title otherwise pairs with the quote in the next link's title,

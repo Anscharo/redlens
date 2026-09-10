@@ -799,3 +799,16 @@ test("a quoted term echoed from the user's question is not treated as an atlas q
   expect(findUngroundedQuotes(answer, evidence, ix)).toEqual(["operational facilitators."]);
   expect(findUngroundedQuotes(answer, evidence, ix, "How are Operational Facilitators rewarded?")).toEqual([]);
 });
+
+
+test("a citation hung on the end of a blockquote line is attribution, not quoted text", () => {
+  const [uuid, doc] = [...ix.docMap.entries()].find(([, d]) => d.content.length > 60 && d.content.length < 400 && !d.content.includes("\n"))!;
+  const verbatim = doc.content.trim();
+  const evidence = [JSON.stringify({ results: [{ id: uuid, title: doc.title, content: doc.content }] })];
+  // uuid as link text (the live case) and title as link text both pass; a bare uuid too.
+  expect(findUngroundedQuotes(`Per the atlas:\n\n> ${verbatim} [${uuid}](/atlas/${uuid})`, evidence, ix)).toEqual([]);
+  expect(findUngroundedQuotes(`> ${verbatim} [${doc.title}](/atlas/${uuid})`, evidence, ix)).toEqual([]);
+  expect(findUngroundedQuotes(`> ${verbatim} ${uuid}`, evidence, ix)).toEqual([]);
+  // stripping the tail must not excuse an invented quote
+  expect(findUngroundedQuotes(`> The facilitator is paid nine million a year in gold [${doc.title}](/atlas/${uuid})`, evidence, ix)).toHaveLength(1);
+});

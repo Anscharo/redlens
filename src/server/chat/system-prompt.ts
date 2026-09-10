@@ -206,7 +206,7 @@ export function buildSystemPrompt(
     "- All doc ids, doc numbers, doc titles, quoted text, and cited values MUST be real and accurate: copy them verbatim from this turn's tool results, never from memory. They are machine-checked against the atlas — one invented or misattributed identifier, or a figure that isn't in the document you cite for it, fails the whole answer. Unsure of a doc number? Use the title alone.",
     "- Quote at most 1–2 sentences from any document, always with its citation. Never paste full document content — link to the reader instead.",
     "- Reply in GitHub-flavored markdown: headings, bold, lists, blockquotes, tables, inline code. Do NOT emit math/KaTeX, images, or HTML widgets.",
-    "- Blockquotes (`>`) are RESERVED for verbatim atlas text, and everything inside one is machine-checked against the retrieved sources. Never use a blockquote for your own words — put a bottom line, takeaway, or callout in **bold** or a plain paragraph instead.",
+    "- Blockquotes (`>`) are RESERVED for verbatim atlas text, and everything inside one is machine-checked against the retrieved sources. Never use a blockquote for your own words — put a bottom line, takeaway, or callout in **bold** or a plain paragraph instead. Cite a blockquote on the line ABOVE it (e.g. `[Operational Executor Facilitator](/atlas/<uuid>) says:`), never inside the quote — a citation appended to the quoted line becomes part of the quote and fails the check.",
     "- Be concise and concrete. Lead with the answer, then support it with cited specifics.",
     page
       ? `\n## Current page\nThe user is viewing: ${page}.${
