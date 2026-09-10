@@ -20,7 +20,9 @@ is unreadable with the shared service token. Two things are therefore new:
 
 The redline itself needs no GitHub compare API: private previews use the existing local
 `diffDocs` content diff against live main (the same fallback branch/sha previews already
-use), which works on shared-but-unmergeable history.
+use), which works on shared-but-unmergeable history. A pasted private PR URL resolves to
+that PR's HEAD commit (`refs/pull/N/head`, or the Pulls API HEAD branch when the App has
+Pull requests:read) and takes this same vs-main path — never the PR's own base branch.
 
 ## Auth model — one mandatory app, login untouched
 
@@ -108,7 +110,8 @@ installation) — our Contents+Metadata grant is more than enough. Rate limit �
 
 - No `patches.json` and no renumber/identity-swap detection (the PR-diff path is skipped for
   the local `diffDocs`); redlines are added/changed markers only.
-- `pr-state.ts` never touches private rows (no `pr_number`) — no banner state flips.
+- `pr-state.ts` never touches private rows (`kind` stays `"branch"` even for a
+  private PR URL, so a private repo's PR #N cannot collide with canonical PR #N).
 - A revoked collaborator retains access for up to the ~60 s access-cache TTL.
 
 ## Rollout

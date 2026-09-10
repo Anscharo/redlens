@@ -186,6 +186,21 @@ describe("PreviewHome private repo form", () => {
     expect(screen.getByRole("button", { name: "Preview private repo" })).toBeDisabled();
   });
 
+  it("notes that a pasted PR URL will compare against canonical main", () => {
+    render(<PreviewHome />);
+    fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), {
+      target: { value: "https://github.com/acme/secret-atlas/pull/42" },
+    });
+    expect(screen.getByText("will compare with sky-ecosystem/next-gen-atlas:main branch")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Preview private repo" })).not.toBeDisabled();
+  });
+
+  it("does not show the compare note for a branch paste", () => {
+    render(<PreviewHome />);
+    fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: "acme/secret-atlas@main" } });
+    expect(screen.queryByText(/will compare with sky-ecosystem/)).toBeNull();
+  });
+
   // (input, expected preview-id) — covers every accepted private-input shape.
   const cases: [string, string][] = [
     ["acme/secret-atlas@feature/foo", "acme:secret-atlas:feature~foo"], // owner/repo@branch, slash → ~
@@ -193,6 +208,8 @@ describe("PreviewHome private repo form", () => {
     ["https://github.com/acme/secret-atlas", "acme:secret-atlas:HEAD"], // full URL, default branch
     ["github.com/acme/secret-atlas.git", "acme:secret-atlas:HEAD"], // URL, .git suffix, default branch
     ["https://github.com/acme/secret-atlas/tree/feature/foo", "acme:secret-atlas:feature~foo"], // URL + branch
+    ["https://github.com/acme/secret-atlas/pull/42", "acme:secret-atlas:pull-42"], // PR URL
+    ["https://github.com/acme/secret-atlas/pull/42/files", "acme:secret-atlas:pull-42"], // PR URL + tab
     ["acme/secret-atlas.git", "acme:secret-atlas:HEAD"], // bare owner/repo.git, default branch
     ["acme/secret-atlas.git@main", "acme:secret-atlas:main"], // bare owner/repo.git@branch
   ];

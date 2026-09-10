@@ -32,6 +32,9 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
+## 2026-09-10
+- Private previews now accept a pull request URL and compare it against sky-ecosystem/next-gen-atlas main
+
 ## 2026-09-09
 - Enlarged the CrossView chunk map to show more details
 - Chat and MCP now serve the Stale Dates, Atlas Processes, OEA Task Assessment, Risk Rules Assessment, and On-Chain Addresses reports directly instead of just pointing at the page

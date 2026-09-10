@@ -23,6 +23,8 @@ The server makes exactly these calls, so this is the whole permission surface:
 | `GET /repos/{repo}` (private? metadata) | installation token | **Metadata: read** |
 | `GET /repos/{repo}/collaborators/{login}/permission` (access check) | installation token | **Metadata: read** |
 | `GET /repos/{repo}/branches/{ref}` (resolve the branch tip) | installation token | **Contents: read** |
+| `GET /repos/{repo}/pulls/{n}` (private PR → HEAD branch; optional) | installation token | **Pull requests: read** if granted; otherwise skipped |
+| `GET /repos/{repo}/git/ref/pull/{n}/head` (PR HEAD sha fallback) | installation token | **Contents: read** |
 | `GET /repos/{repo}/tarball/{sha}` (download the private atlas) | installation token | **Contents: read** |
 
 So the App needs exactly two **Repository permissions**:
@@ -32,6 +34,11 @@ So the App needs exactly two **Repository permissions**:
   collaborator-permission endpoint requires, and that endpoint returns the
   *effective, highest* access across repo/team/org/enterprise, so org- and
   team-granted access is honored)
+
+**Pull requests → Read-only** is optional. When present, a pasted private PR URL
+resolves to the PR's HEAD *branch* name for the banner; without it the server
+falls back to `refs/pull/N/head` (Contents:read) and still redlines that HEAD
+against `sky-ecosystem/next-gen-atlas:main`, never the PR's base branch.
 
 **No** Account permissions, **no** Organization permissions, **no** write
 scopes, **no** webhooks, **no** user-authorization/OAuth. If a screen asks for
@@ -58,7 +65,9 @@ GitHub Apps → New GitHub App**.
 5. **Webhook** — **uncheck "Active".** The server polls on demand; there is no
    webhook handler. Leave Webhook URL and secret blank.
 6. **Repository permissions** — set **Contents: Read-only** and confirm
-   **Metadata: Read-only** is selected. Leave everything else at *No access*.
+   **Metadata: Read-only** is selected. **Pull requests: Read-only** is
+   optional (private PR URLs work without it via `refs/pull/N/head`). Leave
+   everything else at *No access*.
 7. **Organization / Account permissions** — leave all at *No access*.
 8. **Subscribe to events** — none.
 9. **Where can this App be installed?**
