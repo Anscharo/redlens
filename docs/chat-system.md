@@ -167,6 +167,13 @@ injected knowledge as ordinary turn evidence with zero special-casing, because
 
 - **Glossary + entity rows** (`prefetch.ts`) — definitional questions answer in
   one pass instead of burning a tool round.
+- **Role dossiers** (`facts/roles.ts`) — for a defined role the question names
+  (a Definitions entry ending in Facilitator / GovOps / Agent / Delegate /
+  Conserver / Council / Foundation; alias- and plural-tolerant, including the
+  atlas's own interior-word abbreviation "Operational Facilitator"): its
+  definition, the role family's Article, every document titled with the role,
+  and any "The <role> for X is Y" assignment. Exists because ranked search never
+  surfaced A.1.7.1 for the example question about facilitator rewards.
 - **Concept censuses** (`concepts-prefetch.ts`) — routed 1-of-N by similarity.
 - **App features** (`features.ts`) — product questions about the reader itself.
 
