@@ -16,7 +16,7 @@ import { createRoundChecker } from "./verify/round-checks.ts";
 import { runDeterministicChecks, type CheckReport } from "./verify/verify-checks.ts";
 import { findParamsMentioned, type ParamMismatch } from "./verify/param-checks.ts";
 import type { CompletenessEvidence } from "./verify/completeness.ts";
-import { createLinkJudge, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
+import { createLinkJudge, displayText, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
 import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation-normalize.ts";
 import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
 import { gatedChat } from "./verify/stream-link-gate.ts";
@@ -342,8 +342,15 @@ export async function* runVerifiedChat(opts: {
     try {
       judge ??= createLinkJudge(gateEvidence, opts.ix);
       const v = judge(title, target);
-      if (v.action === "repair") return `[${title}](/atlas/${v.to})`;
+      if (v.action === "repair") return `[${displayText(title, v.to, opts.ix)}](/atlas/${v.to})`;
       if (v.action === "strip") return title;
+      // keep — but a uuid used as the link text still reads as an address to the
+      // reader; show the title, same as the post-answer pass will.
+      const uuid = target.match(/[0-9a-f-]{36}/i)?.[0];
+      if (uuid) {
+        const text = displayText(title, uuid, opts.ix);
+        if (text !== title) return `[${text}](/atlas/${uuid.toLowerCase()})`;
+      }
     } catch (err) {
       captureError(err, opts.obs, { stage: "stream_link_gate" });
     }
@@ -520,7 +527,7 @@ export async function* runVerifiedChat(opts: {
     }, splitFromTranscript(done.transcript));
     checksMeta.push({
       kind: "round_checks", model: null,
-      verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, refs: refsMeta(refs), identifiers: identifiersMeta(identifiers), checks: { ...checks, citations: checks.citations.length } },
+      verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped, retitled: repair.retitled }, refs: refsMeta(refs), identifiers: identifiersMeta(identifiers), checks: { ...checks, citations: checks.citations.length } },
       overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: null,
     });
   } catch (err) {

@@ -33,6 +33,7 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 ## 2026-09-10
+- Chat citations now show the document title even when the model cited a document by its id.
 - Fixed the chat and MCP atlas search skipping every Agent artifact (Spark, Grove, Amatsu, …) when a query was scoped to the Agent Scope.
 - The chat's verification badge now reports only statements the atlas contradicts, and no longer rewrites answers.
 - Chat now shows a checklist of what it is doing while it answers; click a step to see its working.

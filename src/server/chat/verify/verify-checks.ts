@@ -253,8 +253,14 @@ function quoteSegments(span: string): string[] {
 
 // A quote is grounded if every verifiable segment appears in the turn's
 // tool-result evidence or in the title/content of any doc the answer cites.
-export function findUngroundedQuotes(answer: string, evidenceTexts: string[], ix: Indexes): string[] {
-  const spans = extractQuotedSpans(answer);
+export function findUngroundedQuotes(answer: string, evidenceTexts: string[], ix: Indexes, question?: string): string[] {
+  // A quoted span that the USER wrote — the answer echoing the question's own
+  // term ("…specifically for \"Operational Facilitators.\"") — is a scare quote,
+  // not a passage copied from a rule document. Observed live 2026-09-10 as a
+  // hard fail on an answer whose only quotation was the reader's phrase.
+  const q = question ? normalizeForMatch(question) : "";
+  const bare = (s: string) => s.replace(/^[\s"',.;:!?()—–-]+|[\s"',.;:!?()—–-]+$/g, "");
+  const spans = extractQuotedSpans(answer).filter((s) => !(q && q.includes(bare(s))));
   if (spans.length === 0) return [];
   const haystacks = [
     ...evidenceTexts.map(normalizeForMatch),
@@ -616,7 +622,7 @@ export function runDeterministicChecks(
   const invalidCitations = findInvalidCitationUuids(citations, ix);
   const invalidDocNos = findInvalidDocNos(answer, ix);
   const docNoMismatches = findDocNoMismatches(citations, ix);
-  const ungroundedQuotes = findUngroundedQuotes(answer, atlasTexts, ix);
+  const ungroundedQuotes = findUngroundedQuotes(answer, atlasTexts, ix, completeness?.question);
   const ungroundedAddresses = findUngroundedAddresses(answer, evidenceTexts);
   const ungroundedCitationValues = findUngroundedCitationValues(answer, atlasTexts, ix);
   const paramMismatches = findParamMismatches(answer, ix);

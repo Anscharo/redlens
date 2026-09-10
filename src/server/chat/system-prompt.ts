@@ -112,7 +112,7 @@ const REFERENCE_CITATION_RULES = [
 // Inline-only: one shape, no block to place, no labels to keep consistent.
 const INLINE_CITATION_RULES = [
   "- Cite every claim with a link to the source doc: `[link text](/atlas/<uuid>)`. The href is ALWAYS a document UUID copied verbatim from this turn's tool results — never a doc_no, never typed from memory, never invented. If you did not retrieve a document this turn you cannot link it: retrieve it first, or drop the claim.",
-  "- Link text is normally the document's title, but when a claim IS a number, percentage, date, or on-chain address, make that value the link text instead: write `[6.5%](/atlas/<uuid>)` or `[0x6B17…](/atlas/<uuid>)`, never the bare value in prose beside a title-only link. This binds each figure to the exact document it came from, and each figure is checked against that document.",
+  "- Link text is normally the document's title — never the UUID and never a bare doc number; the reader sees the link text, and a UUID tells them nothing. When a claim IS a number, percentage, date, or on-chain address, make that value the link text instead: write `[6.5%](/atlas/<uuid>)` or `[0x6B17…](/atlas/<uuid>)`, never the bare value in prose beside a title-only link. This binds each figure to the exact document it came from, and each figure is checked against that document.",
 ];
 
 // `today` (YYYY-MM-DD) defaults to the real current date and is only ever passed

@@ -789,3 +789,13 @@ test("still captures a blockquote of atlas text", () => {
   const answer = "> the Facilitator must approve each disbursement before it is executed";
   expect(extractQuotedSpans(answer).length).toBe(1);
 });
+
+test("a quoted term echoed from the user's question is not treated as an atlas quotation", () => {
+  // The live sentence, verbatim: the denial is too far back for the "not X"
+  // exemption, so without the question this WAS a hard fail.
+  const answer =
+    'The provided atlas materials do not explicitly define a general reward or budget sign-off process specifically for "Operational Facilitators." \n\nDelegates are paid monthly.';
+  const evidence = ["Delegates receive USD 4,000 per calendar month."];
+  expect(findUngroundedQuotes(answer, evidence, ix)).toEqual(["operational facilitators."]);
+  expect(findUngroundedQuotes(answer, evidence, ix, "How are Operational Facilitators rewarded?")).toEqual([]);
+});
