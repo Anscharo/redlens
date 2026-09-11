@@ -113,7 +113,7 @@ export function ActorSettlements({ slug, name }: Props) {
         selected={month}
         onSelect={selectMonth}
       />
-      <ActorSettlementVenues report={report} name={name} primeColor={color} />
+      <ActorSettlementVenues report={report} name={name} />
     </>
   );
 }

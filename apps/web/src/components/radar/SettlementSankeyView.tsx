@@ -32,15 +32,11 @@ export function SettlementSankeyView({
   layout,
   primeLabel,
   month,
-  primeColor,
 }: {
   rows: SankeyVenue[];
   layout: SankeyLayout;
   primeLabel: string;
   month?: string;
-  /** The Prime's identity color: its sink bar (the ribbons into it stay
-   *  supply-kept green — that is what they are). */
-  primeColor: string;
 }) {
   const byId = useMemo(() => new Map(rows.map((v) => [v.id, v])), [rows]);
   // Gross per direction — each bar is labelled with its own, so a sink's two
@@ -67,7 +63,6 @@ export function SettlementSankeyView({
       <figcaption className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: "var(--tan-3)" }}>
         <span><Swatch background="var(--msc-sky)" /> to Sky</span>
         <span><Swatch background="var(--msc-kept)" /> supply-side kept</span>
-        <span><Swatch background={primeColor} /> {primeLabel}</span>
         <span>
           <Swatch background="repeating-linear-gradient(45deg, var(--msc-loss) 0, var(--msc-loss) 2px, transparent 2px, transparent 4px)" />
           striped · venue loss, taken off the Prime's share
@@ -98,7 +93,10 @@ export function SettlementSankeyView({
           <SankeySinkNode
             key={n.id}
             n={n}
-            fill={n.flow === "out" ? "url(#msc-sankey-loss)" : series === "sky" ? "var(--msc-sky)" : primeColor}
+            // The Prime's bar is supply-side green like the ribbons into it —
+            // on this chart the bar IS supply-side kept, not the Prime as an
+            // entity, so it does not wear the identity color the overview uses.
+            fill={n.flow === "out" ? "url(#msc-sankey-loss)" : series === "sky" ? "var(--msc-sky)" : "var(--msc-kept)"}
             skyTo={month && n.id === "sky" ? `${ROUTES.RADAR}?msc=${month}` : undefined}
             gross={gross[n.id] ?? 0}
             netted={n.flow === "in" && (gross[`${n.id}-out`] ?? 0) > 0}

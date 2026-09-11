@@ -12,12 +12,9 @@ import { SettlementAum } from "./SettlementAum";
 export function ActorSettlementVenues({
   report,
   name,
-  primeColor,
 }: {
   report: SettlementReport;
   name: string;
-  /** The Prime's identity color (its bar on the Sankey). */
-  primeColor: string;
 }) {
   const multi = hasMultiVenuePnl(report);
   const aum = hasVenueAum(report);
@@ -68,7 +65,7 @@ export function ActorSettlementVenues({
         </div>
       )}
       {showPnl && (
-        <SettlementVenuePnl venues={report.venues} primeLabel={name} month={report.month} primeColor={primeColor} />
+        <SettlementVenuePnl venues={report.venues} primeLabel={name} month={report.month} />
       )}
       {showAum && <SettlementAum venues={report.venues} />}
     </>

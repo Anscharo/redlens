@@ -23,7 +23,7 @@ describe("SettlementSankeyView", () => {
     ]);
     const layout = layoutVenueSankey(rows, "Spark");
     const { container } = render(
-      <SettlementSankeyView rows={rows} layout={layout} primeLabel="Spark" primeColor="var(--msc-prime-1)" />,
+      <SettlementSankeyView rows={rows} layout={layout} primeLabel="Spark" />,
     );
     // One loss pattern, in the loss red.
     const loss = container.querySelector("pattern#msc-sankey-loss rect") as SVGElement;
@@ -33,7 +33,7 @@ describe("SettlementSankeyView", () => {
     expect(container.querySelector('path[fill="var(--accent)"]')).not.toBeInTheDocument();
     // In-bars: Sky in blue, the Prime in its identity color; the Prime's out-bar striped in it.
     expect(container.querySelector('.msc-sankey-sink rect[fill="var(--msc-sky)"]')).toBeInTheDocument();
-    expect(container.querySelector('.msc-sankey-sink rect[fill="var(--msc-prime-1)"]')).toBeInTheDocument();
+    expect(container.querySelectorAll('.msc-sankey-sink rect[fill="var(--msc-kept)"]')).toHaveLength(1);
     expect(container.querySelector('.msc-sankey-sink rect[fill="url(#msc-sankey-loss)"]')).toBeInTheDocument();
     // …and the key under the chart says what the stripes mean.
     const caption = container.querySelector("figcaption")!;
@@ -53,7 +53,6 @@ describe("SettlementSankeyView", () => {
         layout={layout}
         primeLabel="Spark"
         month="2026-07"
-        primeColor="var(--msc-prime-1)"
       />,
     );
     expect(container.querySelector("svg.msc-sankey")).not.toHaveAttribute("role");

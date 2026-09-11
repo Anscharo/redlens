@@ -153,12 +153,12 @@ describe("ActorSettlements", () => {
     // Prime-side labels drop the ecosystem card's "by Primes" qualifier.
     expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
     expect(screen.queryByText("Supply-side kept by Primes")).not.toBeInTheDocument();
-    // The identity swatch and the Prime's Sankey bar are the same color —
-    // the roster index the overview uses (spark is first in PRIME_ORDER).
+    // The identity swatch is the roster color the overview uses (spark is
+    // first in PRIME_ORDER); the Sankey's Prime bar is supply-side green.
     const swatch = container.querySelector(".msc-identity-swatch") as HTMLElement;
     expect(swatch.style.background).toBe("var(--msc-prime-1)");
-    const primeBar = container.querySelector(".msc-sankey-sink rect[fill='var(--msc-prime-1)']");
-    expect(primeBar).toBeInTheDocument();
+    expect(container.querySelector(".msc-sankey-sink rect[fill='var(--msc-kept)']")).toBeInTheDocument();
+    expect(container.querySelector(".msc-sankey-sink rect[fill='var(--msc-prime-1)']")).not.toBeInTheDocument();
   });
 
   it("switches month from the bar control", async () => {
