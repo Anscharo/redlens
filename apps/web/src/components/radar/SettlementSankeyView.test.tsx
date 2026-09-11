@@ -37,7 +37,7 @@ describe("SettlementSankeyView", () => {
     expect(container.querySelector('.msc-sankey-sink rect[fill="url(#msc-sankey-loss)"]')).toBeInTheDocument();
     // …and the key under the chart says what the stripes mean.
     const caption = container.querySelector("figcaption")!;
-    expect(caption).toHaveTextContent("striped · a loss, paid back out to the venue");
+    expect(caption).toHaveTextContent("striped · venue loss, taken off the Prime's share");
     expect(caption).toHaveTextContent("to Sky");
     expect(caption).toHaveTextContent("Spark");
   });

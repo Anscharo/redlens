@@ -8,9 +8,10 @@ import { ROUTES } from "@/lib/routes";
 import { SankeySinkNode, SankeyVenueNode } from "./SettlementSankeyNodes";
 
 /** Ribbons are the series color of what they carry — To Sky blue, supply
- *  kept green — and a NEGATIVE one (money going back out to a losing venue)
- *  is the loss mark: stripes in the loss red, the same mark as everywhere
- *  else in the MSC charts. */
+ *  kept green — and a NEGATIVE one (a venue that lost money that month,
+ *  which comes off the sink's share; nothing is paid to the venue) is the
+ *  loss mark: stripes in the loss red, the same mark as everywhere else in
+ *  the MSC charts. */
 function linkFill(l: SankeyLink): string {
   return l.signed < 0 ? "url(#msc-sankey-loss)" : `var(--msc-${l.to === "sky" ? "sky" : "kept"})`;
 }
@@ -61,15 +62,15 @@ export function SettlementSankeyView({
       aria-label={`Venue flows to Sky and ${primeLabel}`}
     >
       {/* Legend first. The stripes are the one mark on this chart that isn't
-          self-evident: a striped ribbon or out-bar is money going back OUT
-          to a losing venue. */}
+          self-evident: a striped ribbon is a venue's loss, and the striped
+          out-bar is those losses coming off the Prime's share. */}
       <figcaption className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: "var(--tan-3)" }}>
         <span><Swatch background="var(--msc-sky)" /> to Sky</span>
         <span><Swatch background="var(--msc-kept)" /> supply-side kept</span>
         <span><Swatch background={primeColor} /> {primeLabel}</span>
         <span>
           <Swatch background="repeating-linear-gradient(45deg, var(--msc-loss) 0, var(--msc-loss) 2px, transparent 2px, transparent 4px)" />
-          striped · a loss, paid back out to the venue
+          striped · venue loss, taken off the Prime's share
         </span>
       </figcaption>
       <svg
