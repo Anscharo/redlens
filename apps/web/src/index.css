@@ -137,16 +137,16 @@
   --msc-cp-ink: #160e0d;
   --msc-loss: #c67267; /* a loss, always STRIPED — the theme's accent red */
   /* MSC prime identity colors (timeseries stacks, pie rims, the Prime's
-     bar on the flow chart and its own settlement page): violet, rose,
-     teal, plum, light grey, slate — six slots, one per Prime that has
+     bar on the flow chart and its own settlement page): teal, slate,
+     violet, plum, light grey, rose — six slots, one per Prime that has
      published, clear of the flow colors (blue, green, orange, brown) and
      validated as an adjacent set (2026-09-11). */
-  --msc-prime-1: #b191ea; /* purple */
-  --msc-prime-2: #fab2cd; /* gold */
-  --msc-prime-3: #009494; /* sand */
-  --msc-prime-4: #7e4d8a; /* brown */
-  --msc-prime-5: #cac2bd; /* warm gray */
-  --msc-prime-6: #6c7680;
+  --msc-prime-1: #009494;
+  --msc-prime-2: #6c7680;
+  --msc-prime-3: #b191ea;
+  --msc-prime-4: #7e4d8a;
+  --msc-prime-5: #cac2bd;
+  --msc-prime-6: #fab2cd;
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
@@ -316,12 +316,12 @@
   --msc-cp: #c2ae92;
   --msc-cp-ink: #050505;
   --msc-loss: #b91c1c; /* a loss, always STRIPED — the theme's accent red */
-  --msc-prime-1: #6c44a4; /* purple */
-  --msc-prime-2: #cb7196; /* gold */
-  --msc-prime-3: #006364; /* sand */
-  --msc-prime-4: #552660; /* brown */
-  --msc-prime-5: #8c857f; /* warm gray */
-  --msc-prime-6: #454e58;
+  --msc-prime-1: #006364;
+  --msc-prime-2: #454e58;
+  --msc-prime-3: #6c44a4;
+  --msc-prime-4: #552660;
+  --msc-prime-5: #8c857f;
+  --msc-prime-6: #cb7196;
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
@@ -628,12 +628,12 @@
      --selected-hint — as a lightness ramp, alternating light/dark so adjacent
      stack layers stay separable. Gold vs blue is giedi's bipolar axis: what
      a Prime kept is gold, what went to Sky is blue, nothing else has a hue. */
-  --msc-prime-1: #dcc8a6;
-  --msc-prime-2: #8d7751;
-  --msc-prime-3: #c5ad86;
+  --msc-prime-1: #c5ad86;
+  --msc-prime-2: #6a5b44;
+  --msc-prime-3: #dcc8a6;
   --msc-prime-4: #726042;
   --msc-prime-5: #a9926b;
-  --msc-prime-6: #6a5b44;
+  --msc-prime-6: #8d7751;
 }
 
 /* ─── Giedi structural override ──────────────────────────────────────────

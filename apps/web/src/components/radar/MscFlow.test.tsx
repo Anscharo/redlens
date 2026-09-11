@@ -65,7 +65,7 @@ describe("MscFlow", () => {
     const kids = [...container.querySelector("svg")!.children];
     expect(kids[kids.length - 1]).toHaveClass("msc-ring-pills");
     // Source bars in the left gutter, named the key's way.
-    expect(screen.getByText("CoF · cost of funds")).toBeInTheDocument();
+    expect(screen.getByText("CoF · earned toward cost of funds")).toBeInTheDocument();
     expect(screen.getByText("supply-side kept")).toBeInTheDocument();
     // The Prime links to its page with the same accessible name as the orbit.
     expect(screen.getByRole("link", { name: /Spark, Jul 2026: \$10.00M to Sky \(74% of its gross revenue\)/ })).toHaveAttribute("href", "/radar/spark-party/settlements");

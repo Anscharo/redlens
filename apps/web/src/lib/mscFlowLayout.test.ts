@@ -57,7 +57,7 @@ describe("layoutMscFlow", () => {
     expect(l.height).toBeGreaterThan(l.agents[1].y + l.agents[1].h);
   });
 
-  it("keeps a supply-side loss as a figure: cost of funds feeds the Prime in full, nothing is drawn for what was lost", () => {
+  it("shows a supply-side loss as more leaving than arriving: the source feeds cof − loss, Sky gets the full cost of funds", () => {
     // Grove, Mar 2026: cof 3.12M, SDE 3.25M, kept −2.07M, demand 0.2M.
     const l = layoutMscFlow([
       flow({ prime: "grove", sky: 6_373_855, cof: 3_122_471, sde: 3_251_384, kept: -2_066_170, demand: 198_006, demandParts: { agentRate: 6_287, distributionRewards: 191_719 } }),
@@ -65,13 +65,17 @@ describe("layoutMscFlow", () => {
     const g = l.agents[0];
     expect(g.loss).toBeCloseTo(2_066_170);
     expect(g.inbound.find((x) => x.kind === "kept")).toBeUndefined();
-    expect(g.inbound.find((x) => x.kind === "cof")?.value).toBe(3_122_471);
+    expect(g.inbound.find((x) => x.kind === "cof")?.value).toBeCloseTo(3_122_471 - 2_066_170);
     expect(g.outbound.find((x) => x.kind === "cof")?.value).toBe(3_122_471);
     expect(g.gross).toBeCloseTo(3_122_471 + 3_251_384 - 2_066_170 + 198_006);
-    expect(l.sources.find((s) => s.kind === "cof")?.value).toBe(3_122_471);
-    // The bar is the taller side: in (cof + sde + AR + DR), four ribbons.
-    expect(g.inbound.map((x) => x.kind)).toEqual(["cof", "sde", "agentRate", "distributionRewards"]);
-    expect(g.h).toBeGreaterThan(0);
+    expect(l.sources.find((s) => s.kind === "cof")?.value).toBeCloseTo(3_122_471 - 2_066_170);
+    // The To-Sky side (6.37M) outweighs everything that arrived (4.51M):
+    // the bar is the outgoing side, and its left edge is partly unfed.
+    const inTotal = g.inbound.reduce((n, x) => n + x.value, 0);
+    const outTotal = g.outbound.reduce((n, x) => n + x.value, 0);
+    expect(outTotal).toBeGreaterThan(inTotal);
+    const lastIn = g.inbound[g.inbound.length - 1];
+    expect(lastIn.path).toMatch(/^M/);
   });
 
   it("gives a demand-only Prime no To-Sky ribbon and no Sky share", () => {

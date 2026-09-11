@@ -5,18 +5,17 @@
 // Primes. MIDDLE: one bar per Prime (an "agent"), fed by its sources.
 // RIGHT: Sky, one bar, split into what each Prime sent it, by type.
 //
-// A Prime's bar is as tall as everything it accounts for: cost of funds in
-// full (it is owed whether or not the book earned it), Sky Direct Exposure,
-// supply-side kept and the demand-side series. What goes on to Sky leaves
-// from its right edge (cost of funds + SDE); what it kept leaves as a short
-// STUB in the item's color that stops right there — so the two sides of a
-// bar always add up to the same height, and a bare edge never reads as a
-// drawing error. A supply-side LOSS is the one case where less comes in
-// than goes out: the book earned less than its cost of funds, so the
-// cost-of-funds source feeds the Prime only what was earned (cof − loss),
-// and the shortfall is a STRIPED stub on the bar's left edge where a ribbon
-// isn't — the same stripes the orbital chart's hole wears. The loss is
-// every negative line item summed, like the hole.
+// A Prime's bar is as tall as the larger of its two sides: what feeds it
+// (what the book EARNED toward cost of funds, Sky Direct Exposure,
+// supply-side kept, the demand-side series) and what leaves it for Sky
+// (cost of funds in full + SDE). The two sides need not match, and nothing
+// is drawn to make them: what a Prime kept simply stops at its bar. A
+// supply-side LOSS is the case where more leaves than arrives — the book
+// earned less than its cost of funds, still owes all of it, and pays the
+// rest itself — so the cost-of-funds source feeds the Prime only cof − loss
+// while the full cost of funds goes on to Sky, and the unfed stretch of the
+// bar's left edge IS the loss (also a line on the gross pill; the orbital
+// chart's hole).
 //
 // Pure math, no DOM — the view maps over prebuilt path strings.
 
@@ -41,7 +40,7 @@ export const HEADER_Y = 52;
  *  it adds one ("CoF · cost of funds", plain "supply-side kept"). Lives
  *  here because the gutter is sized from the widest of them. */
 export const SOURCE_LABEL: Record<string, string> = {
-  cof: "CoF · cost of funds",
+  cof: "CoF · earned toward cost of funds",
   sde: "SDE · Sky Direct Exposure",
   kept: "supply-side kept",
   ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, `${SLICE_CODE[s.key]} · ${s.label.toLowerCase()}`])),
@@ -146,10 +145,11 @@ function account(p: PrimeFlowTotals) {
   for (const s of DEMAND_SERIES) items[s.key] = p.demandParts[s.key] ?? 0;
   const near = (v: number) => Math.abs(v) >= SETTLEMENT_NEAR_ZERO;
   const loss = KINDS.reduce((n, k) => n + (items[k] < 0 && near(items[k]) ? -items[k] : 0), 0);
-  // Sources: every positive item, cost of funds in full (it is owed
-  // whether or not the book earned it).
+  // Sources: every positive item — except cost of funds, which the book
+  // may not have earned in full (the loss comes off it); it is still owed
+  // in full, so the outbound side carries all of it.
   const inbound = KINDS.map((k) => {
-    const v = Math.max(0, items[k]);
+    const v = k === "cof" ? Math.max(0, items.cof - loss) : Math.max(0, items[k]);
     return { kind: k, value: near(v) ? v : 0 };
   }).filter((x) => x.value > 0);
   const outbound = (["cof", "sde"] as SliceKind[])
