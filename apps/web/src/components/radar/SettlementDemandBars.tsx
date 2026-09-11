@@ -29,6 +29,13 @@ export function SettlementDemandBars({
       <p className="mono text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--tan-3)" }}>
         Demand-side
       </p>
+      <p className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: "var(--tan-3)" }}>
+        {series.map((s) => (
+          <span key={s.key}>
+            <span className={`${s.barClass} inline-block w-2 h-2 mr-1 align-middle`} /> {s.label.toLowerCase()}
+          </span>
+        ))}
+      </p>
       <div className="flex items-end gap-3 mb-2" role="group" aria-label="Demand-side months">
         {reports.map((r) => {
           const parts = series.map((s) => ({ ...s, value: demandPart(r.headline, s.key) }));
@@ -58,13 +65,6 @@ export function SettlementDemandBars({
           );
         })}
       </div>
-      <p className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1" style={{ color: "var(--tan-3)" }}>
-        {series.map((s) => (
-          <span key={s.key}>
-            <span className={`${s.barClass} inline-block w-2 h-2 mr-1 align-middle`} /> {s.label.toLowerCase()}
-          </span>
-        ))}
-      </p>
     </div>
   );
 }

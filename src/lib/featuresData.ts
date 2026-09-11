@@ -170,15 +170,28 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: ["From Radar, open a primitive to view its dashboard and activation matrix."],
       },
       {
+        name: "MSC ecosystem overview",
+        what: "The Radar front page opens with a cross-prime Monthly Settlement Cycle view: a three-stage flow chart — the line-item sources on the left (cost of funds, Sky Direct Exposure, supply-side kept, each demand-side series), one bar per Prime in the middle, and Sky on the right split by what each Prime sent it — with an ORBIT pill that swaps in the orbital pies (Sky as a central pie, each Prime orbiting as a pie of its gross-revenue line items, a supply-side loss as a hole in the middle, an arrow to its Sky wedge) — next to a timeline of what each Prime sent to Sky, month by month, stacked in the Primes' colors.",
+        how: [
+          "Open Radar; the chart (titled Sky System Settlements) shows the latest settled month across all Primes as the flow chart, with the color key and reading guide under it; the ORBIT / FLOW pills beside the title switch styles. Primes keep one fixed order and color everywhere on the overview — the Atlas's own Prime Agent order (Spark, Grove, Keel, Skybase, Obex, Pattern, Osero, Launch Agent 7).",
+          "The `orbit` / `flow` pills beside the chart's title switch it to a three-stage flow chart of the same month: the line-item sources on the left (cost of funds, Sky Direct Exposure, supply-side kept, each demand-side series), one bar per Prime in the middle fed by ribbons in the same colors, and Sky on the right split by Prime and by type. A supply-side loss shows as a striped gap on a Prime's bar where no ribbon arrives — more leaves that bar for Sky than came in. The choice is in the URL (`?view=flow`), so a link can open either.",
+          "Click a month column in the To Sky by month chart to switch the settlements chart and the figures under it, or press its ▶ play button to step through the months (it opens paused on the latest). In the left nav, a Prime with settlement workbooks opens into Info and Settlements; on a settlements page every Prime is open, so you can step straight to another Prime's chart.",
+          "Hover a slice, the loss hole, or a Sky wedge for its figure, a Prime's name for its gross revenue, or an arrow for its cost of funds and Sky Direct Exposure components, the To-Sky total and the share of that Prime's gross revenue it is; hover a timeline segment to light that Prime up on the orbital chart.",
+          "Click a Prime's pie to open its settlement page for the month you had selected.",
+        ],
+        note: "Every circle — the donut, each pie, each loss hole — is on one area scale, so a pie's ring area is its gross revenue exactly; the smallest pies are floored to stay visible. To Sky is a pass-through (cost of funds + Sky Direct Exposure), not the Prime's revenue, so it is never part of a Prime's bar — it lives in the arrow and Sky's donut. A share over 100% on an arrow is real: that Prime owed Sky more than it made that month. Hidden when settlements.json has not been built. Figures are Soter Labs OEA calculations, not the on-chain GovOps spell.",
+      },
+      {
         name: "Monthly settlement charts",
-        what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows last month's take; a full cycle page charts Sky's share, supply kept, and demand-side, plus the demand-side mix and venue AUM.",
+        what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows last month's take; a full cycle page charts Sky's share, supply-side kept, and demand-side, plus the demand-side mix and venue AUM.",
         how: [
           "Open a Prime Agent on Radar (Spark, Grove, Obex, …).",
           "The Monthly settlement card in the top right shows the latest cycle; the `full cycle` link under the figure opens the charts.",
           "On that page, Sky Forum opens the forum post for the month selected in the charts.",
-          "Ask Chat or an MCP client about a month's To Sky / supply kept / demand-side — it will say those figures are not from the Atlas.",
+          "Ask Chat or an MCP client about a month's To Sky / supply-side kept / demand-side — it will say those figures are not from the Atlas.",
           "On the cycle page, click a month in the Summary bars. Primes with several venues have a PnL / AUM toggle.",
           "In the venue flow chart, hover a flow, a venue name, or its row in the table below — that venue lights up in both, and its figures appear on the flows.",
+          "Click the Sky label beside the venue flow chart to open that month in the ecosystem overview on the Radar front page.",
           "A sink with loss-making venues gets two bars: what came in (`$X gross in`) and, in red just below it, what went back out (`−$Y out`), with the `net` the pair settles to underneath. A longer red bar than green means the month went backwards.",
         ],
         note: "Hidden when settlements.json has not been built (`pnpm settlements:parse`). Figures are Soter Labs OEA calculations, not the on-chain GovOps spell. Chat and MCP can answer the same views — they always say the numbers are not from the Atlas.",
@@ -313,7 +326,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "Colour schemes",
-        what: "The whole app can run in the original charcoal dark scheme, a high-contrast greyscale one, or a light one.",
+        what: "The whole app can run in the red-earth, colorful dark scheme, the desaturated Giedi scheme, or the bright Sky-inspired light one.",
         how: [
           "Click the sun, moon, or eclipse button in the top-right corner — it shows which scheme is on — and pick Dark, Giedi, or Light.",
           "Every page follows the choice — the reader, Radar, reports, and the Atlas agent.",

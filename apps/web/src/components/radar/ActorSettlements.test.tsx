@@ -119,8 +119,12 @@ beforeEach(() => {
 describe("ActorSettlements", () => {
   it("renders Spark figures, the Sankey, and the venue table for the latest month", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
-    await waitFor(() => expect(screen.getByText("Supply kept")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Supply-side kept")).toBeInTheDocument());
     expect(screen.getByLabelText(/Venue flows to Sky and Spark/)).toBeInTheDocument();
+    // The Sky sink label links back to the ecosystem overview for this month.
+    expect(
+      screen.getByRole("link", { name: /ecosystem Monthly Settlement Cycle overview/ }),
+    ).toHaveAttribute("href", "/radar?msc=2026-07");
     expect(screen.getAllByText("SparkLend USDS").length).toBeGreaterThan(0);
     expect(screen.getByText("synthetic")).toBeInTheDocument();
     expect(screen.getByText(/Headline prime-agent revenue is \$100 above/)).toBeInTheDocument();
@@ -141,9 +145,25 @@ describe("ActorSettlements", () => {
     expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
   });
 
+  it("shows the To Sky equation card with the prime's identity color, and paints its Sankey bar in it", async () => {
+    const { container } = render(<ActorSettlements slug="spark" name="Spark" />);
+    await waitFor(() => screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure"));
+    expect(screen.getByText("cost of funds")).toBeInTheDocument();
+    expect(screen.getByText("Sky Direct Exposure")).toBeInTheDocument();
+    // Prime-side labels drop the ecosystem card's "by Primes" qualifier.
+    expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
+    expect(screen.queryByText("Supply-side kept by Primes")).not.toBeInTheDocument();
+    // The identity swatch is the roster color the overview uses (spark is
+    // first in PRIME_ORDER); the Sankey's Prime bar is supply-side green.
+    const swatch = container.querySelector(".msc-identity-swatch") as HTMLElement;
+    expect(swatch.style.background).toBe("var(--msc-prime-1)");
+    expect(container.querySelector(".msc-sankey-sink rect[fill='var(--msc-kept)']")).toBeInTheDocument();
+    expect(container.querySelector(".msc-sankey-sink rect[fill='var(--msc-prime-1)']")).not.toBeInTheDocument();
+  });
+
   it("switches month from the bar control", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
-    await waitFor(() => screen.getByText("Supply kept"));
+    await waitFor(() => screen.getByText("Supply-side kept"));
     fireEvent.click(screen.getByRole("button", { name: /Jun 2026: \$10 to Sky/ }));
     expect(screen.getByText("June venue")).toBeInTheDocument();
     expect(screen.queryByText("SparkLend USDS")).not.toBeInTheDocument();
@@ -155,7 +175,7 @@ describe("ActorSettlements", () => {
     await waitFor(() => screen.getByText(/no venue-level PnL for Keel/));
     expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
     expect(screen.getByText("To Sky")).toBeInTheDocument();
-    expect(screen.getByText("Supply kept")).toBeInTheDocument();
+    expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
     expect(screen.getAllByText("Demand-side").length).toBeGreaterThan(0);
     expect(screen.getByText("$36,231")).toBeInTheDocument();
     expect(screen.getByLabelText("Demand-side months")).toBeInTheDocument();
@@ -185,7 +205,7 @@ describe("ActorSettlements", () => {
   it("resolves Spark's workbooks from the composite-party slug", async () => {
     window.history.pushState({}, "", "/radar/spark-party/settlements");
     render(<ActorSettlements slug="spark-party" name="Spark" />);
-    await waitFor(() => expect(screen.getByText("Supply kept")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Supply-side kept")).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "2026-07 source" })).toHaveAttribute(
       "href",
       "https://github.com/soterlabs/settlement-reports/tree/main/reports/spark/2026-07",
@@ -194,7 +214,7 @@ describe("ActorSettlements", () => {
 
   it("explains when a slug has no MSC workbooks", async () => {
     const { rerender } = render(<ActorSettlements slug="spark" name="Spark" />);
-    await screen.findByText("Supply kept");
+    await screen.findByText("Supply-side kept");
     rerender(<ActorSettlements slug="spark-proxy" name="Spark Proxy" />);
     expect(screen.getByText(/No published Monthly Settlement Cycle workbooks for Spark Proxy/)).toBeInTheDocument();
   });

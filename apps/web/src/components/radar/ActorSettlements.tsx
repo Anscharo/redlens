@@ -8,15 +8,18 @@ import {
   revenueGap,
   summaryThreeWay,
   activeDemandSeries,
-  headlineFigures,
+  demandSideRevenue,
+  supplyKept,
   settlementsArtifactMissing,
 } from "../../lib/settlements";
-import type { HeadlineFigure } from "../../lib/settlements";
 import { loadForumTopics } from "../../lib/forumTopics";
 import { forumTopicUrlForMonth } from "@/lib/forumMonths";
+import { primeRoster } from "@/lib/settlementsOverview";
 import { SettlementBars } from "./SettlementBars";
 import { SettlementDemandBars } from "./SettlementDemandBars";
 import { ActorSettlementVenues } from "./ActorSettlementVenues";
+import { MscHeadline } from "./MscHeadline";
+import { primeFill } from "./MscTimeseries";
 
 const mscCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
@@ -57,6 +60,9 @@ export function ActorSettlements({ slug, name }: Props) {
   }
 
   const gap = revenueGap(report);
+  // The Prime's identity color: the same roster index the overview uses for
+  // its ring rim and timeseries layer, so the two pages agree on who is who.
+  const color = primeFill(primeRoster(bundle).indexOf(report.prime));
   const workbook = `${SOURCE}/tree/main/reports/${report.prime}/${month}`;
   const forumUrl = forumTopicUrlForMonth(topics ?? [], month);
   const selectMonth = (m: string) => setMsc(m === latest ? null : m);
@@ -64,10 +70,9 @@ export function ActorSettlements({ slug, name }: Props) {
   return (
     <>
       <p className="text-xs mb-4" style={{ color: "var(--tan-3)" }}>
-        From Soter Labs' published Monthly Settlement Cycle workbooks — OEA
-        calculations, not the on-chain GovOps spell and not Sky Atlas figures.
-        “To Sky” is what this Prime owed Sky, not the Protocol’s Net Revenue,
-        which the Atlas defines as income minus expenses (A.2.3.1.2.1.1).{" "}
+        Soter Labs' Monthly Settlement Cycle workbooks (OEA calculations, not
+        Atlas figures). “To Sky” is what this Prime owed Sky, not the Protocol’s
+        Net Revenue (A.2.3.1.2.1.1).{" "}
         <a href={workbook} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
           {month} source
         </a>
@@ -85,11 +90,17 @@ export function ActorSettlements({ slug, name }: Props) {
         selected={month}
         onSelect={selectMonth}
       />
-      <div className="flex flex-wrap gap-x-6 gap-y-1 mb-4 text-sm">
-        {headlineFigures(report).map((f) => (
-          <Figure key={f.label} {...f} />
-        ))}
-      </div>
+      <MscHeadline
+        eco={{
+          sky: report.headline.skyRevenue,
+          cof: report.headline.cof,
+          sde: report.headline.sdeRevenue,
+          kept: supplyKept(report),
+          demand: demandSideRevenue(report.headline),
+        }}
+        labels={{ kept: "Supply-side kept", demand: "Demand-side" }}
+        identity={{ label: name, color }}
+      />
       {gap > 1 && (
         <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
           Headline prime-agent revenue is {formatUsd(gap)} above the venue rows
@@ -104,23 +115,5 @@ export function ActorSettlements({ slug, name }: Props) {
       />
       <ActorSettlementVenues report={report} name={name} />
     </>
-  );
-}
-
-function Figure({ label, value, component }: HeadlineFigure) {
-  return (
-    <div>
-      <div className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>
-        {label}
-      </div>
-      <div
-        className={component ? "mono text-sm" : "mono text-lg"}
-        style={{
-          color: component ? "var(--tan-3)" : value < 0 ? "var(--accent)" : "var(--tan)",
-        }}
-      >
-        {formatUsd(value)}
-      </div>
-    </div>
   );
 }

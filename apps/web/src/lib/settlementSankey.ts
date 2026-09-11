@@ -17,9 +17,10 @@ export interface SankeyNode {
   height: number;
   kind: "venue" | "sky" | "prime";
   /**
-   * Sink nodes only: whether this bar is what arrived or what went back out to
-   * loss-making venues. The two are separate bars so each one's length is its
-   * own gross figure — netting them inside one bar made a bar whose length
+   * Sink nodes only: whether this bar is what arrived or what the losing
+   * venues took off it (a loss is netted off the sink's share, not paid to
+   * the venue). The two are separate bars so each one's length is its own
+   * gross figure — netting them inside one bar made a bar whose length
    * matched no number on the page.
    */
   flow?: "in" | "out";
