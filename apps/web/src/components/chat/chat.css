@@ -505,7 +505,7 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-export-name { font: 400 12.5px/1 "Source Code Pro", monospace; color: var(--tan-2); }
 
 /* ── Reasoning ("thinking") trace ────────────────────────────────────────
-   Rendered by StageSlots.tsx inside the synthesizing stage row's slot (once
+   Rendered by StageSlot.tsx inside the synthesizing stage row's slot (once
    that row is clicked open, first occurrence only) — see ReasoningBlock.tsx. Same
    collapsible shape as the trace rows below, but OPEN by default: the beta
    feedback asked for these to show immediately, not tucked behind a click.

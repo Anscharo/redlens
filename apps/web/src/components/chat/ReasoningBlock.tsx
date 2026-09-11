@@ -6,7 +6,7 @@ export type ReasoningBlockProps = ComponentProps<"div"> & {
 };
 
 // Renders the model's reasoning trace. This no longer sits at the top of
-// every turn: StageSlots.tsx renders it inside the "synthesizing" stage
+// every turn: StageSlot.tsx renders it inside the "synthesizing" stage
 // row's slot (shown once that row is clicked open, and only on the FIRST
 // synthesizing entry, so a turn that synthesizes more than once doesn't
 // repeat it) — beta feedback originally asked for it to render as soon as

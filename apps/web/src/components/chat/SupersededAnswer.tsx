@@ -37,7 +37,7 @@ const NOTE: Record<SupersededDraft["reason"], string> = {
 // keep searching, and cleared text never reaches the verifier — only the
 // final answer is audited.
 //
-// Rendered by StageSlots.tsx inside the "synthesizing" stage row's slot
+// Rendered by StageSlot.tsx inside the "synthesizing" stage row's slot
 // (shown once that row is clicked open), scoped to that round's own drafts
 // (`d.round === entry.round`) — a turn with more than one tool round shows
 // each superseded draft under the round that produced it, not all bunched at

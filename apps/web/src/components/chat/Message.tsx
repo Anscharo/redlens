@@ -4,9 +4,10 @@ import { AtlasMarkdown, balanceFences, extractSources } from "./markdown";
 import { Sources } from "./Sources";
 import { ExportChips } from "./ExportChips";
 import { StageList, traceHeadline } from "./StageList";
-import { renderStageSlot } from "./StageSlots";
+import { StageSlot } from "./StageSlot";
+import { stageSlotContent } from "./stageSlotContent";
 import { VerifyBadge } from "./VerifyBadge";
-import type { ChatMsg } from "./useChatStream";
+import type { ChatMsg, StageLogEntry } from "./useChatStream";
 
 // The stages that run on the answer once it exists. Their rows render AFTER
 // the answer, so the answer sits directly under the Synthesizing row — the
@@ -69,6 +70,12 @@ function AssistantTurn({
   // An aborted turn: stages ran, the turn ended, but no answer ever arrived.
   const stoppedEmpty = msg.done && !msg.content && !msg.failed && stageLog.length > 0;
   const summary = traceHeadline(msg.trace);
+  // null for a stage with nothing to disclose — StageList renders that row
+  // as plain text instead of a disclosure button.
+  const slotFor = (entry: StageLogEntry) => {
+    const content = stageSlotContent(msg, entry);
+    return content && <StageSlot content={content} onAtlas={onAtlas} />;
+  };
 
   return (
     <div className="rlc-turn mb-[18px]">
@@ -82,7 +89,7 @@ function AssistantTurn({
           collapsed={msg.done}
           summary={summary}
           activeAt={activeAt}
-          renderSlot={(entry, active) => renderStageSlot(msg, entry, active, onAtlas)}
+          renderSlot={slotFor}
         />
       )}
       {/* Pre-first-stage window only — once a stage row exists the checklist
@@ -121,7 +128,7 @@ function AssistantTurn({
           collapsed={msg.done}
           summary={POST_ANSWER_SUMMARY}
           activeAt={activeAt}
-          renderSlot={(entry, active) => renderStageSlot(msg, entry, active, onAtlas)}
+          renderSlot={slotFor}
         />
       )}
       {generated && !failedEmpty && !stoppedEmpty && (

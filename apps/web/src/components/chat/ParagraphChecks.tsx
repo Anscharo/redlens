@@ -31,7 +31,7 @@ function ModelMark({ model }: { model: ParagraphCheck["model"] }) {
 }
 
 // The incremental per-paragraph audit — rendered under the Synthesizing
-// stage row (StageSlots.tsx) once at least one check has landed. A summary
+// stage row (StageSlot.tsx) once at least one check has landed. A summary
 // line always shows (count + outcome); the list below it names only the
 // paragraphs that have a deterministic finding or a model state worth
 // calling out, so a clean run doesn't restate "checked, no findings" once

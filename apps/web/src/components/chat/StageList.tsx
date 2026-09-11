@@ -57,7 +57,10 @@ export interface StageListProps {
   // list" is not "the running stage" — defaults to it when there is one list.
   activeAt?: number;
   children?: never;
-  renderSlot: (entry: StageLogEntry, active: boolean) => ReactNode;
+  // The working content to disclose under `entry`'s row, or null when that
+  // stage has nothing to show — a row with no slot renders as plain text
+  // rather than as a disclosure button.
+  renderSlot: (entry: StageLogEntry) => ReactNode;
 }
 
 // The turn's "what it's doing" checklist. While the turn is live it always
@@ -123,7 +126,7 @@ export function StageList({ entries, collapsed, summary, activeAt, renderSlot }:
             // turn's checklist doesn't keep "Verifying content" pulsing
             // forever after its verdict already rendered.
             const active = !collapsed && entry.at === runningAt;
-            const slot = renderSlot(entry, active);
+            const slot = renderSlot(entry);
             const rowOpen = open.has(entry.at);
             const slotId = `rlc-stage-slot-${entry.at}`;
             // The header (marker + label + active detail) is the click
