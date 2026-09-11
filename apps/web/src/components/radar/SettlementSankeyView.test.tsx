@@ -39,7 +39,7 @@ describe("SettlementSankeyView", () => {
     const caption = container.querySelector("figcaption")!;
     expect(caption).toHaveTextContent("striped · venue loss, taken off the Prime's share");
     expect(caption).toHaveTextContent("to Sky");
-    expect(caption).toHaveTextContent("Spark");
+    expect(caption).toHaveTextContent("supply-side kept");
   });
 
   it("names the chart on a figure so the Sky link stays in the accessibility tree", () => {
