@@ -74,26 +74,34 @@
 
   --max-prose-width: 90ch;
 
-  /* ─── Depth palette ─── */
-  /* 6-color jewel-tone cycle (red, orange, green, blue, purple, magenta) starting at depth-1, looping through depth-17.
-     All six pass WCAG AA (4.5:1+) on --bg, --bg-deep, and --surface — verify with wcag-contrast before changing. */
+  /* ─── Depth palette ─── a FIVE-stop WARM cycle, red-led:
+       red → coral → orange → amber → tan → repeat.
+     Charcoal keeps a warm ramp to match its own reddish identity (the bg's red
+     undertone, --red burn, tan text), while the light theme runs the mirror
+     cool ramp (blue → … → slate-teal). A document changes hue family when you
+     switch themes, the way the entity palette already does. Replaces the older
+     six-hue rainbow (red/orange/green/blue/purple/magenta), whose cool/pink
+     half fought the warm surfaces. Stops lighten monotonically, so deeper
+     nesting reads as a warmer, lighter colour.
+     All five pass WCAG AA (4.5:1+) on --bg, --bg-deep, and --surface — verify
+     with wcag-contrast before changing. */
   --depth-1: #e25549;  /* red */
-  --depth-2: #d98e2b;  /* orange */
-  --depth-3: #55a653;  /* green */
-  --depth-4: #6e8ee8;  /* blue */
-  --depth-5: #a878e8;  /* purple */
-  --depth-6: #d864b8;  /* magenta */
-  --depth-7: #e25549;  /* red */
-  --depth-8: #d98e2b;  /* orange */
-  --depth-9: #55a653;  /* green */
-  --depth-10: #6e8ee8; /* blue */
-  --depth-11: #a878e8; /* purple */
-  --depth-12: #d864b8; /* magenta */
-  --depth-13: #e25549; /* red */
-  --depth-14: #d98e2b; /* orange */
-  --depth-15: #55a653; /* green */
-  --depth-16: #6e8ee8; /* blue */
-  --depth-17: #a878e8; /* purple */
+  --depth-2: #e5794f;  /* coral */
+  --depth-3: #dd922f;  /* orange */
+  --depth-4: #cea63a;  /* amber */
+  --depth-5: #cbb782;  /* tan — cycle repeats after here */
+  --depth-6: #e25549;  /* red */
+  --depth-7: #e5794f;  /* coral */
+  --depth-8: #dd922f;  /* orange */
+  --depth-9: #cea63a;  /* amber */
+  --depth-10: #cbb782; /* tan */
+  --depth-11: #e25549; /* red */
+  --depth-12: #e5794f; /* coral */
+  --depth-13: #dd922f; /* orange */
+  --depth-14: #cea63a; /* amber */
+  --depth-15: #cbb782; /* tan */
+  --depth-16: #e25549; /* red */
+  --depth-17: #e5794f; /* coral */
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
@@ -205,42 +213,43 @@
   --entity-bridge: #047857;
   --entity-fallback: #666666;
 
-  /* ─── Depth palette ─── a SEVEN-stop cycle (not six), running Sky's
-     brand violet first and then descending the wheel:
-       violet → blue → cyan-blue → green → gold → red → red-pink → repeat.
+  /* ─── Depth palette ─── a FIVE-stop cool cycle, blue-led, teal-capped:
+       blue → cyan-blue → green → teal → slate-teal → repeat.
 
-     Intensity is maximised, not merely adequate: each stop is the most
-     chromatic colour of its hue that still clears 4.5:1 on --bg-deep, found by
-     searching OKLCH lightness × chroma rather than by eye. Sky's #581BE0 opens
-     the cycle exactly; the rest are chosen for hue and pushed to the gamut edge
-     (blue, red and red-pink reach C 0.22-0.23, near the violet's 0.257 —
-     cyan/green/gold cap near 0.11 because sRGB holds far less chroma there at a
-     readable lightness).
+     The warm end of the original seven-stop cycle (gold #876801, red #dd0204,
+     red-pink #d2007d) is deliberately gone: on these light surfaces those hues
+     read as alarm/error rather than as ordinary nesting depth. Violet was
+     dropped too so the root reads as blue, not purple; the descent then runs
+     through two deeper teals before looping, so consecutive depths step gently
+     and the whole ramp stays in one cool family.
 
-     Stop 2 is a true blue (260°), NOT Sky's indigo #4331E9. The indigo is only
-     9° from the violet, so running the two together read as one smudged step
-     rather than a progression. The indigo is not lost — it carries the
-     decorative --red slot in this theme, which is where a brand colour with no
-     ordering duty belongs.
+     Every stop clears 4.5:1 on both --surface (white) and --bg-deep; the two
+     teals sit a touch deeper than the blue/cyan/green trio (≈6.0 and 7.3:1 on
+     white vs their ≈5.1) so deeper nesting also reads as a deeper colour.
 
-     Seventeen slots over a seven-cycle: 1-7, 8-14, then 15-17 restart it. */
-  --depth-1: #581be0; /* violet — Sky #581BE0, exact */
-  --depth-2: #0064ee; /* blue */
-  --depth-3: #03769d; /* dark cyan-blue */
-  --depth-4: #037e3f; /* deep green */
-  --depth-5: #876801; /* gold */
-  --depth-6: #dd0204; /* red */
-  --depth-7: #d2007d; /* deep red-pink */
-  --depth-8: #581be0;
-  --depth-9: #0064ee;
-  --depth-10: #03769d;
-  --depth-11: #037e3f;
-  --depth-12: #876801;
-  --depth-13: #dd0204;
-  --depth-14: #d2007d;
-  --depth-15: #581be0;
-  --depth-16: #0064ee;
-  --depth-17: #03769d;
+     Stop 1 is a true blue (260°), NOT Sky's indigo #4331E9. The indigo is only
+     9° from violet, so the two read as one smudged step rather than a distinct
+     colour. The indigo is not lost — it carries the decorative --red slot in
+     this theme, which is where a brand colour with no ordering duty belongs.
+
+     Seventeen slots over a five-cycle: 1-5, 6-10, 11-15, then 16-17 restart it. */
+  --depth-1: #0064ee; /* blue */
+  --depth-2: #03769d; /* dark cyan-blue */
+  --depth-3: #037e3f; /* deep green */
+  --depth-4: #0a7060; /* teal */
+  --depth-5: #155e70; /* slate-teal — cycle repeats after here */
+  --depth-6: #0064ee; /* blue */
+  --depth-7: #03769d; /* dark cyan-blue */
+  --depth-8: #037e3f; /* deep green */
+  --depth-9: #0a7060; /* teal */
+  --depth-10: #155e70; /* slate-teal */
+  --depth-11: #0064ee; /* blue */
+  --depth-12: #03769d; /* dark cyan-blue */
+  --depth-13: #037e3f; /* deep green */
+  --depth-14: #0a7060; /* teal */
+  --depth-15: #155e70; /* slate-teal */
+  --depth-16: #0064ee; /* blue */
+  --depth-17: #03769d; /* dark cyan-blue */
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
