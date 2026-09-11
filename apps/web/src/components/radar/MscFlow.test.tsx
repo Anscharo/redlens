@@ -40,9 +40,12 @@ describe("MscFlow", () => {
     // One mark per line item, the ribbon in the item's own fill class.
     expect(container.querySelector('.msc-ring-prime[data-prime="spark"] .msc-ring-mark[data-mark="spark::cof"] path.msc-ring-slice.msc-ring-cof')).toBeInTheDocument();
     expect(container.querySelector('.msc-ring-mark[data-mark="spark::agentRate"] path.msc-ring-agentRate')).toBeInTheDocument();
-    // What stayed is a stub in the same mark, on the far side of the bar; To-Sky items have none.
-    expect(container.querySelector('.msc-ring-mark[data-mark="spark::kept"] rect.msc-flow-stub.msc-ring-kept')).toBeInTheDocument();
-    expect(container.querySelector('.msc-ring-mark[data-mark="spark::cof"] rect.msc-flow-stub')).not.toBeInTheDocument();
+    // No stubs: a mark is its ribbon and nothing else.
+    expect(container.querySelector("rect.msc-flow-stub")).not.toBeInTheDocument();
+    // Column headers over the three node groups.
+    expect(screen.getByText("SOURCE")).toBeInTheDocument();
+    expect(screen.getByText("PRIME")).toBeInTheDocument();
+    expect(screen.getByText("SKY")).toBeInTheDocument();
     // Sky's column names no Prime; the share pill does.
     expect(container.querySelector('.msc-ring-figure[data-kind="sky"]')).not.toBeInTheDocument();
     // The To-Sky ribbons are one mark (the orbit's arrow), tagged by component.
@@ -72,12 +75,11 @@ describe("MscFlow", () => {
     expect(style).toContain('.msc-ring-pill[data-mark="grove::kept"] { opacity: 1; }');
   });
 
-  it("draws a supply-side loss as a striped gap on the Prime's in side", () => {
+  it("carries a supply-side loss on the gross pill instead of drawing a gap", () => {
     const flows = [flow({ prime: "grove", sky: 3_000_000, cof: 3_000_000, sde: 0, kept: -1_000_000, demand: 100_000, demandParts: { agentRate: 100_000 } })];
     const { container } = render(<MscFlow layout={layoutMscFlow(flows)} primes={primes(flows)} month="2026-07" centerFigure="$3.00M" />);
-    const gap = container.querySelector('.msc-ring-mark[data-mark="grove::loss"] rect.msc-ring-hole')!;
-    expect(gap).toHaveAttribute("fill", "url(#msc-ring-neg-kept)");
-    expect(container.querySelector("defs pattern#msc-ring-neg-kept")).toBeInTheDocument();
+    expect(container.querySelector(".msc-ring-hole")).not.toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-mark[data-mark="grove::loss"]')).not.toBeInTheDocument();
     expect(screen.getByText("−$1.00M supply-side loss")).toBeInTheDocument();
     expect(container.querySelector('.msc-ring-mark[data-mark="grove::kept"]')).not.toBeInTheDocument();
   });

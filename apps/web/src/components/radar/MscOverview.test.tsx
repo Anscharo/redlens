@@ -85,8 +85,8 @@ describe("MscOverview", () => {
     expect(document.querySelector(".msc-key-note")).toHaveTextContent("Pie area = gross revenue*");
     // Cross-chart hover styles: one :has() rule per prime in the stack.
     const style = document.querySelector("style")!.textContent!;
-    expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="spark"][data-flow="kept"]:hover');
     expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="spark"][data-flow="sky"]:hover');
+    expect(style).not.toContain('[data-flow="kept"]');
     expect(style).toContain('.msc-ring-prime[data-prime="spark"]');
     // …and back: the ring's marks light the matching layer, and the
     // month's other primes fade while a pie is in focus.
@@ -109,7 +109,7 @@ describe("MscOverview", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       render(<MscOverview actors={ACTORS} />);
-      await waitFor(() => screen.getByText("Prime-side earnings and To Sky by month"));
+      await waitFor(() => screen.getByText("To Sky by month, per Prime"));
       expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
       await act(async () => {
         await vi.advanceTimersByTimeAsync(2500);
@@ -152,7 +152,7 @@ describe("MscOverview", () => {
     expect(container.querySelector(".msc-ring-sky-disc")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
     // The key's loss row and reading guide describe the chart on screen.
-    expect(screen.getByText(/supply-side loss \(the gap\)/)).toBeInTheDocument();
+    expect(screen.getByText(/^striped · supply-side loss$/)).toBeInTheDocument();
     expect(document.querySelector(".msc-key-note")).toHaveTextContent("A Prime's bar = gross revenue*");
     expect(track).toHaveBeenCalledWith("msc_overview_style", { view: "flow" });
     fireEvent.click(orbit);
@@ -162,7 +162,7 @@ describe("MscOverview", () => {
 
   it("selects a month from the timeseries and syncs ?msc (latest month clears it)", async () => {
     render(<MscOverview actors={ACTORS} />);
-    await waitFor(() => screen.getByText("Prime-side earnings and To Sky by month"));
+    await waitFor(() => screen.getByText("To Sky by month, per Prime"));
     fireEvent.click(screen.getByRole("button", { name: /Jun 2026: .*\$10 to Sky/ }));
     expect(window.location.search).toBe("?msc=2026-06");
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jun 2026")).toBeInTheDocument();

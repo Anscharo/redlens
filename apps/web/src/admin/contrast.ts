@@ -29,7 +29,7 @@ export const SWATCH_WORST_BG: Record<string, string> = {
   "entity-instance": "surface", "entity-multisig": "surface", "entity-fallback": "surface",
   "diff-removed-fg": "diff-removed-bg",
   ...Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`depth-${i + 1}`, "surface"])),
-  ...Object.fromEntries(["sky", "sky-2", "sky-3", "sky-4", "sde", "kept", "demand", "dr", "gar", "cp"].map((k) => [`msc-${k}`, "bg-deep"])),
+  ...Object.fromEntries(["sky", "sky-2", "sky-3", "sky-4", "sde", "kept", "demand", "dr", "gar", "cp", "loss"].map((k) => [`msc-${k}`, "bg-deep"])),
   ...Object.fromEntries(["sky", "sde", "kept", "demand", "dr", "gar", "cp"].map((k) => [`msc-${k}-ink`, `msc-${k}`])),
 };
 
@@ -121,4 +121,5 @@ export const AUDIT_PAIRS: readonly AuditPair[] = [
   { fg: "msc-sky",        bg: "bg-deep",    label: "MSC To-Sky series / chart card" },
   { fg: "msc-kept",       bg: "bg-deep",    label: "MSC supply-kept series / chart card" },
   { fg: "msc-demand",     bg: "bg-deep",    label: "MSC demand-side series / chart card" },
+  { fg: "msc-loss",       bg: "bg-deep",    label: "MSC loss stripes / chart card" },
 ];

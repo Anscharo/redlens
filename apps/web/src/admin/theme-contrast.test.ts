@@ -149,6 +149,7 @@ const NON_TEXT_PAIR_LABELS = new Set<string>([
   "MSC To-Sky series / chart card",
   "MSC supply-kept series / chart card",
   "MSC demand-side series / chart card",
+  "MSC loss stripes / chart card",
 ]);
 
 // The ONE accepted exception, named rather than hidden in a lowered threshold.

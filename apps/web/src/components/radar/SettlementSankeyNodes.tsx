@@ -35,7 +35,8 @@ export function SankeyVenueNode({
 
   const node = (
     <g className="msc-sankey-node msc-sankey-venue" data-venue={n.id}>
-      <rect x={n.x} y={n.y} width={n.width} height={n.height} fill="var(--border)" />
+      {/* Endcaps are bolder than the flows they feed — the general rule. */}
+      <rect x={n.x} y={n.y} width={n.width} height={n.height} fill="var(--tan-3)" />
       <text
         x={n.x - 6}
         y={n.labelY}

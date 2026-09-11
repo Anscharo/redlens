@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import {
-  DEMAND_SERIES,
   loadSettlements,
   formatMonth,
   formatUsd,
@@ -160,10 +159,9 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
   );
 }
 
-/* Cross-chart hover, per FLOW not per prime: a timeseries layer in the
-   SELECTED month lights the same money on the ring (a kept layer → that
-   prime's bar and plate; a To-Sky layer → its arrow and Sky wedge), and the
-   ring's marks light the matching layer back. Other months' layers describe
+/* Cross-chart hover: a To-Sky segment in the SELECTED month lights the
+   same money on the ring (that prime's To-Sky slices, arrow and Sky
+   wedge), and the ring's To-Sky marks light the segment back. Other months' layers describe
    different numbers than the ring shows, so they don't. Either way the
    rest of the other chart fades to DIM, so the pairing is unmistakable
    rather than an outline you have to look for. Static CSS can't express
@@ -179,7 +177,6 @@ function PrimeHoverStyles({ primes }: { primes: string[] }) {
         `.msc-overview-row:has(${kinds.map((k) => `.msc-ring-mark[data-mark="${p}::${k}"]:hover`).join(", ")})`;
       const layer = (flow: string) =>
         `.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="${p}"][data-flow="${flow}"]`;
-      const keptKinds = ["kept", ...DEMAND_SERIES.map((s) => s.key)];
       // Lit marks get an outline in the text ink (fills never change, so
       // the audited fill/ink pairs hold at rest and when lit).
       const lit = "{ opacity: 1; stroke: var(--tan); stroke-width: 2.5; }";
@@ -188,20 +185,16 @@ function PrimeHoverStyles({ primes }: { primes: string[] }) {
       // Every segment of the selected month that is not prime p's.
       const colOthers = `.msc-bar-col[data-active="true"] .msc-ts-seg:not([data-prime="${p}"])`;
       return [
-        // Timeseries → ring. A kept layer = supply kept + demand-side slices
-        // (+ the loss hole); a To-Sky layer = the two To-Sky slices, the
-        // arrow and the wedge.
-        `${seg("kept")} ${ringOthers}, ${seg("sky")} ${ringOthers} { opacity: ${DIM}; }`,
-        `${seg("kept")} ${prime} :is(${keptKinds.map((k) => `.msc-ring-${k}`).join(", ")}, .msc-ring-hole) ${lit}`,
-        `${seg("kept")} ${prime} .msc-ring-label, ${seg("sky")} ${prime} .msc-ring-label { fill: var(--tan); }`,
+        // Timeseries → ring: a To-Sky segment = the two To-Sky slices, the
+        // arrow and the wedge of that Prime.
+        `${seg("sky")} ${ringOthers} { opacity: ${DIM}; }`,
+        `${seg("sky")} ${prime} .msc-ring-label { fill: var(--tan); }`,
         `${seg("sky")} ${prime} :is(.msc-ring-cof, .msc-ring-sde, .msc-ring-arrow) ${lit}`,
         `${seg("sky")} .msc-ring-sky-wedge[data-prime="${p}"] ${lit}`,
         // Ring → timeseries: the prime's pie (or its wedge) in focus fades
-        // the month's other primes; the hovered mark then names its layer.
+        // the month's other primes; the To-Sky marks name its segment.
         `.msc-overview-row:has(${prime}:hover, .msc-ring-mark[data-mark="${p}::share"]:hover) ${colOthers} { opacity: ${DIM}; }`,
-        `${mark([...keptKinds, "loss", "gross"])} ${layer("kept")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
-        // The To-Sky box already wears an outline, so it lights by filling.
-        `${mark(["cof", "sde", "sky", "share"])} ${layer("sky")} { background: color-mix(in srgb, var(--msc-sky) 40%, transparent); }`,
+        `${mark(["cof", "sde", "sky", "share"])} ${layer("sky")} { outline: 2px solid var(--tan); outline-offset: -2px; }`,
       ].join("\n");
     })
     .join("\n");

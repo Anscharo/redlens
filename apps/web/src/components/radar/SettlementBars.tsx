@@ -21,6 +21,11 @@ export function SettlementBars({
       <p className="mono text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--tan-3)" }}>
         Summary
       </p>
+      <p className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: "var(--tan-3)" }}>
+        <span><span className="msc-bar-sky inline-block w-2 h-2 mr-1 align-middle" /> to Sky</span>
+        <span><span className="msc-bar-prime inline-block w-2 h-2 mr-1 align-middle" /> supply-side kept</span>
+        <span><span className="msc-bar-demand inline-block w-2 h-2 mr-1 align-middle" /> demand-side</span>
+      </p>
       <div className="flex items-end gap-3 mb-2" role="group" aria-label="Settlement months">
         {months.map((m) => (
           <button
@@ -41,11 +46,6 @@ export function SettlementBars({
           </button>
         ))}
       </div>
-      <p className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1" style={{ color: "var(--tan-3)" }}>
-        <span><span className="msc-bar-sky inline-block w-2 h-2 mr-1 align-middle" /> to Sky</span>
-        <span><span className="msc-bar-prime inline-block w-2 h-2 mr-1 align-middle" /> supply-side kept</span>
-        <span><span className="msc-bar-demand inline-block w-2 h-2 mr-1 align-middle" /> demand-side</span>
-      </p>
     </div>
   );
 }

@@ -105,49 +105,45 @@
      theme. Sky's wedge shades instead step toward the TEXT ink, so one ink
      reads across the whole Sky pie (the "To Sky" total spans its wedges).
      A loss is never a color of its own: it's stripes in the series' color.
-     Every value is built in OKLCH (scratch: one lightness/chroma band per
-     theme — dark fills L 0.66 at C ~0.11, light fills L 0.50 at C ~0.12,
-     sub-steps +0.08 L per step, chroma easing off) so nothing is a
-     saturated block and nothing is chalk; the Prime set passes the dataviz
-     validator's CVD and normal-vision floors (2026-09-08).
-     The demand-side family is TEAL (OKLCH hue 200) by request — it replaced
-     a magenta that passed every validator check. Teal sits between the
-     Sky blue (hue 262) and the kept green (hue 148), and no hue in that
-     gap clears the validator's normal-vision floor against both (measured
-     2026-09-09: the requested hue 223 was ΔE 2.5 from Sky's blue under
-     deutan; hue 200 is the closest that lifts the worst pair to the
-     WARN band — ΔE 6.2 deutan vs blue, 9.5 normal vs green). The slice
-     codes ("AR $1.4M"), the gaps and the key are the secondary encoding
-     that WARN band requires; don't move the hue toward blue again. */
-  --msc-sky: #6f92d3; /* CoF, the Sky pie, the To-Sky line */
+     The three family colors are the DESIGNER'S originals (2026-09-11): the
+     blue, sage green and orange that the settlement pages launched with.
+     Their variations are distinct hues, not one-hue lightness ramps —
+     "shades of green, teal and blue together are not enough contrast":
+     SDE is a cyan-leaning blue beside cost of funds; the demand-side
+     series step orange → yellow → salmon → tan. Each variation clears the
+     dataviz validator's normal-vision floor (ΔE ≥ 15) against its
+     neighbours in the slice order, and the Prime set does too. The one
+     pair under the floor is the originals themselves (sage vs orange,
+     ΔE 10.8) — kept by request; the slice codes, gaps and key are the
+     secondary encoding. A loss is never a hue of its own on a fill: it is
+     the theme's accent red, --msc-loss, always striped. */
+  --msc-sky: #6e8ee8; /* CoF, the Sky pie, the To-Sky line */
   --msc-sky-ink: #160e0d;
-  --msc-sky-2: #8cabe4; /* Sky wedge shades: 2nd, 3rd, 4th+ biggest contributor */
-  --msc-sky-3: #a8c2ef;
-  --msc-sky-4: #c3d5f6;
-  --msc-sde: #a0bbeb; /* Sky Direct Exposure */
+  --msc-sky-2: #8caaeb; /* Sky wedge shades: 2nd, 3rd, 4th+ biggest contributor */
+  --msc-sky-3: #a8c1f6;
+  --msc-sky-4: #c3d4f9;
+  --msc-sde: #8ecfe9; /* Sky Direct Exposure */
   --msc-sde-ink: #160e0d;
-  --msc-kept: #63a46d; /* supply kept */
+  --msc-kept: #9ab58a; /* supply kept */
   --msc-kept-ink: #160e0d;
-  --msc-demand: #10a6ad; /* agent rate — the demand-side family color (teal) */
+  --msc-demand: #e0a060; /* agent rate — the demand-side family color (teal) */
   --msc-demand-ink: #160e0d;
-  --msc-dr: #5dbcc1; /* distribution rewards */
+  --msc-dr: #efe176; /* distribution rewards */
   --msc-dr-ink: #160e0d;
-  --msc-gar: #8dd2d6; /* accessibility rewards */
+  --msc-gar: #e68485; /* accessibility rewards */
   --msc-gar-ink: #160e0d;
-  --msc-cp: #b8e9eb; /* chronicle points */
+  --msc-cp: #e1ceb5; /* chronicle points */
   --msc-cp-ink: #160e0d;
-  /* MSC prime identity colors (timeseries layers, pie rims, the Prime's
-     own bar on its settlement page). Deliberately NO blue, green,
-     teal/cyan, or red in any theme — those are the flow colors — and
-     purple rather than orange, never both. Only two hues are left that
-     carry identity at chart chroma, so the five are two violets and two
-     golds at different lightness plus one neutral, ordered so neighbours
-     in the stack always differ by hue or by a big lightness step. */
-  --msc-prime-1: #b699eb; /* purple */
-  --msc-prime-2: #deb95c; /* gold */
-  --msc-prime-3: #7d5fad; /* sand */
-  --msc-prime-4: #a2822a; /* brown */
-  --msc-prime-5: #c1b5ab; /* warm gray */
+  --msc-loss: #c67267; /* a loss, always STRIPED — the theme's accent red */
+  /* MSC prime identity colors (timeseries stacks, pie rims, the Prime's
+     bar on the flow chart and its own settlement page): violet, rose,
+     teal, brown, grey — five hues clear of the flow colors (blue, green,
+     orange), validated as an adjacent set (2026-09-11). */
+  --msc-prime-1: #b191ea; /* purple */
+  --msc-prime-2: #fab2cd; /* gold */
+  --msc-prime-3: #009494; /* sand */
+  --msc-prime-4: #7c5336; /* brown */
+  --msc-prime-5: #c5bcb4; /* warm gray */
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
@@ -299,28 +295,29 @@
   /* MSC settlement series — see the :root block note. The family colors
      are deep here, so their ink is the page; the paler sub-steps take the
      text ink. Sky's wedge shades step toward black (the text ink). */
-  --msc-sky: #3a60aa; /* blue */
+  --msc-sky: #345fb2; /* blue */
   --msc-sky-ink: #fafafa;
-  --msc-sky-2: #2e5091;
+  --msc-sky-2: #2c4f94;
   --msc-sky-3: #234077;
   --msc-sky-4: #1a315e;
-  --msc-sde: #8eabe1;
+  --msc-sde: #61b1cf;
   --msc-sde-ink: #050505;
-  --msc-kept: #2f743d; /* green */
+  --msc-kept: #427138; /* green */
   --msc-kept-ink: #fafafa;
-  --msc-demand: #007176; /* teal (hue 200, see the :root note) */
+  --msc-demand: #a34d00; /* teal (hue 200, see the :root note) */
   --msc-demand-ink: #fafafa;
-  --msc-dr: #38abb1;
+  --msc-dr: #c3b438;
   --msc-dr-ink: #050505;
-  --msc-gar: #7ac6ca;
-  --msc-gar-ink: #050505;
-  --msc-cp: #bae0e2;
+  --msc-gar: #b5494e;
+  --msc-gar-ink: #fafafa;
+  --msc-cp: #c4ad8e;
   --msc-cp-ink: #050505;
-  --msc-prime-1: #714ca6; /* purple */
-  --msc-prime-2: #a78000; /* gold */
-  --msc-prime-3: #472c6d; /* sand */
-  --msc-prime-4: #694e00; /* brown */
-  --msc-prime-5: #8a7e75; /* warm gray */
+  --msc-loss: #b91c1c; /* a loss, always STRIPED — the theme's accent red */
+  --msc-prime-1: #6c44a4; /* purple */
+  --msc-prime-2: #cb7196; /* gold */
+  --msc-prime-3: #006364; /* sand */
+  --msc-prime-4: #532d0f; /* brown */
+  --msc-prime-5: #877e77; /* warm gray */
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
@@ -622,6 +619,7 @@
   --msc-gar-ink: #141414;
   --msc-cp: #dbdbdb;
   --msc-cp-ink: #141414;
+  --msc-loss: #ce746a; /* a loss, always STRIPED — the theme's accent red */
   /* Prime identities: the theme's OTHER hue — the warm gold (hue 80) of
      --selected-hint — as a lightness ramp, alternating light/dark so adjacent
      stack layers stay separable. Gold vs blue is giedi's bipolar axis: what
@@ -2748,10 +2746,9 @@ a.atlas-annotates:focus-visible {
   height: 1px;
   background: var(--border);
 }
-/* Each series carries its color in --msc-bar-color, so a NEGATIVE month
-   keeps it (color = series, everywhere in the MSC charts) and is marked by
-   stripes — the same mark as the overview timeseries, the ring's loss hole
-   and the Sankey's out-flows — instead of a loss hue. The demand-side
+/* Each series carries its color in --msc-bar-color; a NEGATIVE month is
+   the loss mark — stripes in --msc-loss, the same mark as the overview
+   timeseries, the ring's hole and the Sankey's out-flows. The demand-side
    series share the ring's slice tokens, so the two pages agree. */
 .msc-bar-sky {
   --msc-bar-color: var(--msc-sky);
@@ -2785,8 +2782,8 @@ a.atlas-annotates:focus-visible {
 .msc-bar-fill[data-negative="true"] {
   background: repeating-linear-gradient(
     45deg,
-    var(--msc-bar-color) 0,
-    var(--msc-bar-color) 4px,
+    var(--msc-loss) 0,
+    var(--msc-loss) 4px,
     transparent 4px,
     transparent 8px
   );
@@ -3155,19 +3152,31 @@ a.atlas-annotates:focus-visible {
     transition: opacity 0.1s;
   }
 }
-/* The flow chart's own marks. Ribbons have no gap stroke (they never
-   touch), the Prime's bar wears its identity color and takes the outline a
-   hovered pie's rim does, and labels that ribbons pass under get a halo in
-   the card color. */
+/* The flow chart's own marks. The general rule: BARS (the endcaps) are
+   bold and full-strength with a hairline card-colored edge; RIBBONS (the
+   flows) are lighter, and come up to full only when lit — hovered, or
+   named by the key or the timeseries. Labels that ribbons pass under get
+   a halo in the card color. */
 .msc-flow .msc-ring-slice,
-.msc-flow .msc-ring-hole {
-  stroke: none;
-}
-/* The To-Sky ribbons carry figures, so they paint at full strength: their
-   ink was audited against the fill at 100%, and the orbit's 75% arrow rest
-   would put that text under the 4.5:1 bar. */
 .msc-flow .msc-ring-arrow {
+  stroke: none;
+  opacity: 0.6;
+  transition: opacity 0.1s;
+}
+.msc-flow .msc-ring-mark:hover :is(.msc-ring-slice, .msc-ring-arrow),
+.msc-flow .msc-ring-prime:hover :is(.msc-ring-slice, .msc-ring-arrow) {
   opacity: 1;
+}
+.msc-flow-source rect,
+.msc-flow-agent,
+.msc-flow .msc-ring-sky-wedge {
+  stroke: var(--bg-deep);
+  stroke-width: 1.5;
+}
+/* Column headers over the three node groups. */
+.msc-flow-header {
+  fill: var(--tan-3);
+  letter-spacing: 0.14em;
 }
 /* The source bars join the key's hover: they fade with everything else and
    the hovered row's bar comes back lit. */

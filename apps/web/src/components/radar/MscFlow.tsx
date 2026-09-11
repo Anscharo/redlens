@@ -1,5 +1,5 @@
 import { formatMonth, formatUsd } from "../../lib/settlements";
-import { NODE_W, SOURCE_LABEL, type FlowLayout } from "../../lib/mscFlowLayout";
+import { AGENT_W, HEADERS, HEADER_Y, LEFT_X, MID_X, NODE_W, RIGHT_X, SOURCE_LABEL, type FlowLayout } from "../../lib/mscFlowLayout";
 import { RingHoverStyles } from "./MscRingHoverStyles";
 import { markId, AmountPill, pillText } from "./MscRingPills";
 import { FlowAgentGroup } from "./MscFlowAgent";
@@ -25,7 +25,7 @@ export function MscFlow({ layout, primes, month, centerFigure }: Props) {
   const labelOf = (prime: string) => meta.get(prime)?.label ?? prime;
   const marks = layout.agents.map((a) => ({
     prime: a.prime,
-    kinds: [...a.inbound.map((l) => l.kind as string), "gross", ...(a.outbound.length ? ["sky", "share"] : []), ...(a.loss ? ["loss"] : [])],
+    kinds: [...a.inbound.map((l) => l.kind as string), "gross", ...(a.outbound.length ? ["sky", "share"] : [])],
   }));
   const { sky } = layout;
   return (
@@ -33,11 +33,16 @@ export function MscFlow({ layout, primes, month, centerFigure }: Props) {
       <RingHoverStyles marks={marks} />
       <figure className="msc-ring-frame msc-flow-frame" aria-label={`Monthly Settlement Cycle flows for ${formatMonth(month)}`}>
         <svg className="msc-ring msc-flow" viewBox={`0 0 ${layout.width} ${layout.height}`} preserveAspectRatio="xMidYMid meet">
-          <defs>
-            <pattern id="msc-ring-neg-kept" patternUnits="userSpaceOnUse" width={8} height={8} patternTransform="rotate(45)">
-              <rect width={4.5} height={8} style={{ fill: "var(--msc-kept)" }} />
-            </pattern>
-          </defs>
+          {/* Column headers over the three node groups. */}
+          <text x={LEFT_X + NODE_W} y={HEADER_Y} textAnchor="end" fontSize={26} className="msc-flow-header mono">
+            {HEADERS.source}
+          </text>
+          <text x={MID_X + AGENT_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={26} className="msc-flow-header mono">
+            {HEADERS.prime}
+          </text>
+          <text x={RIGHT_X + NODE_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={26} className="msc-flow-header mono">
+            {HEADERS.sky}
+          </text>
           {layout.sources.map((s) => (
             <g key={s.kind} className="msc-flow-source" data-kind={s.kind}>
               <rect x={s.x} y={s.y} width={NODE_W} height={s.h} className={`msc-ring-${s.kind}`} />
@@ -80,13 +85,19 @@ export function MscFlow({ layout, primes, month, centerFigure }: Props) {
               const first = a.outbound[0];
               return (
                 <g key={a.prime}>
-                  <AmountPill scale={PILL_SCALE} mark={markId(a.prime, "gross")} text={pillText("gross", a.gross, label)} x={a.grossPillX} y={a.grossPillY} toX={a.labelX} toY={a.grossAnchorY} />
+                  <AmountPill
+                    scale={PILL_SCALE}
+                    mark={markId(a.prime, "gross")}
+                    text={pillText("gross", a.gross, label)}
+                    detail={a.loss > 0 ? [`−${formatUsd(a.loss, true)} supply-side loss`] : undefined}
+                    x={a.grossPillX}
+                    y={a.grossPillY}
+                    toX={a.labelX}
+                    toY={a.grossAnchorY}
+                  />
                   {a.inbound.map((l) => (
                     <AmountPill scale={PILL_SCALE} key={l.kind} mark={markId(a.prime, l.kind)} text={pillText(l.kind, l.value, label)} x={l.pillX} y={l.pillY} toX={l.midX} toY={l.midY} />
                   ))}
-                  {a.loss && (
-                    <AmountPill scale={PILL_SCALE} mark={markId(a.prime, "loss")} text={pillText("loss", -a.loss.value, label)} x={a.loss.pillX} y={a.loss.pillY} toX={a.loss.x + a.loss.w / 2} toY={a.loss.y + a.loss.h / 2} />
-                  )}
                   {first && (
                     <AmountPill
                       scale={PILL_SCALE}

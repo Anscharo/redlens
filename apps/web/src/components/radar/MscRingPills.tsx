@@ -29,6 +29,8 @@ export const SLICE_TOKEN: Record<string, string> = {
   distributionRewards: "--msc-dr",
   gar: "--msc-gar",
   chroniclePoints: "--msc-cp",
+  /** The loss mark's color (always striped). */
+  neg: "--msc-loss",
 };
 
 /** Human names for the pie's line items (the workbook Summary's rows). */

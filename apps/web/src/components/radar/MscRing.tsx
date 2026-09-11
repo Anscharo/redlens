@@ -63,22 +63,12 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
           viewBox={`${layout.x} ${layout.y} ${layout.width} ${layout.height}`}
           preserveAspectRatio="xMidYMid meet"
         >
-        {/* Diagonal stripes in each series' own color: a negative flow keeps
-            its category color (colors mean category on this chart) and is
-            marked by stripes instead of a "loss" hue. */}
+        {/* The loss mark: diagonal stripes in the loss red (a negative
+            arrow, the hole) — the same mark every MSC chart uses. */}
         <defs>
-          {(["sky", "kept", "demand"] as const).map((k) => (
-            <pattern
-              key={k}
-              id={`msc-ring-neg-${k}`}
-              patternUnits="userSpaceOnUse"
-              width={8}
-              height={8}
-              patternTransform="rotate(45)"
-            >
-              <rect width={4.5} height={8} style={{ fill: `var(--msc-${k})` }} />
-            </pattern>
-          ))}
+          <pattern id="msc-ring-loss" patternUnits="userSpaceOnUse" width={8} height={8} patternTransform="rotate(45)">
+            <rect width={4.5} height={8} style={{ fill: "var(--msc-loss)" }} />
+          </pattern>
         </defs>
         {/* The Sky pie IS the sum of the To-Sky flows, one wedge per Prime —
             so "these flows add up to Sky" is visible rather than asserted. */}

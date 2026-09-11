@@ -33,7 +33,7 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 ## 2026-09-08
-- Added a Monthly Settlement Cycle overview to the Radar front page: Sky's take as a pie, orbited by each Prime's month as a pie (or, with the flow pill, a three-stage chart of sources, Primes and Sky), with a prime-earnings timeline that plays through the months
+- Added a Monthly Settlement Cycle overview to the Radar front page: Sky's take as a pie, orbited by each Prime's month as a pie (or, with the flow pill, a three-stage chart of sources, Primes and Sky), with a per-Prime To-Sky timeline that plays through the months
 - Prime settlement pages now use the overview's colours and its To Sky headline card, and the venue flow chart's key says that a striped flow is a loss
 - Chat now stays where you scrolled while a reply arrives, with a "New messages below" button to jump to the newest text
 

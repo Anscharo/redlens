@@ -48,7 +48,7 @@ export function RingKey({ view = "orbit" }: { view?: "orbit" | "flow" }) {
         </KeyGroup>
         <KeyGroup title="Supply-side">
           <KeyItem id="kept" label="supply-side kept" />
-          <KeyItem id="neg" code="striped" label={orbit ? "supply-side loss (the hole)" : "supply-side loss (the gap)"} striped />
+          <KeyItem id="neg" code="striped" label={orbit ? "supply-side loss (the hole)" : "supply-side loss"} striped />
         </KeyGroup>
         <KeyGroup title="Demand-side">
           {DEMAND_SERIES.map((s) => (
@@ -60,7 +60,7 @@ export function RingKey({ view = "orbit" }: { view?: "orbit" | "flow" }) {
         <p>
           {orbit
             ? "Pie area = gross revenue*. "
-            : "A Prime's bar = gross revenue* (+ the loss gap); ribbons are the money in and out. "}
+            : "A Prime's bar = gross revenue*; ribbons are the money in and out. "}
           Hover for figures; click a Prime for its page.
         </p>
         <p className="mt-1 italic">*Gross revenue = To Sky + supply-side kept + demand-side.</p>

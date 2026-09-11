@@ -25,6 +25,15 @@ const MONTHS: PrimeStackMonth[] = [
       { prime: "osero", value: 500_000 },
     ],
   },
+  {
+    month: "2026-08",
+    sky: 950_000,
+    parts: [{ prime: "spark", value: 100_000 }],
+    skyParts: [
+      { prime: "spark", value: 1_000_000 },
+      { prime: "keel", value: -50_000 },
+    ],
+  },
 ];
 const PRIMES = ["spark", "keel", "osero"];
 const label = (p: string) => p.charAt(0).toUpperCase() + p.slice(1);
@@ -47,37 +56,44 @@ function renderChart(onSelect = vi.fn(), onTogglePlay = vi.fn(), playing = false
 }
 
 describe("MscTimeseries", () => {
-  it("renders a clickable column per month with the figures in the aria-label", () => {
+  it("renders a clickable column per month with the To-Sky total in the aria-label", () => {
     const onSelect = renderChart();
-    const jul = screen.getByRole("button", {
-      name: "Jul 2026: $730k prime-side earnings across 3 primes, $2.00M to Sky",
-    });
+    const jul = screen.getByRole("button", { name: "Jul 2026: $2.00M to Sky across 2 primes" });
     expect(jul).toHaveAttribute("aria-pressed", "true");
-    const jun = screen.getByRole("button", { name: /Jun 2026: \$400k prime-side/ });
+    const jun = screen.getByRole("button", { name: "Jun 2026: $1.00M to Sky across 1 prime" });
     fireEvent.click(jun);
     expect(onSelect).toHaveBeenCalledWith("2026-06");
   });
 
-  it("stacks To Sky per prime in a second track that sums to the line", () => {
+  it("stacks what each Prime sent to Sky as solid segments in the Prime's color, one track per month", () => {
     renderChart();
-    const sky = document.querySelectorAll('.msc-ts-track-sky .msc-ts-seg[data-flow="sky"]');
-    expect(sky).toHaveLength(3);
-    const jul = [...sky].filter((el) => el.closest('button[aria-pressed="true"]')) as HTMLElement[];
+    expect(document.querySelectorAll('button[aria-pressed="true"] .msc-ts-track')).toHaveLength(1);
+    const jul = [...document.querySelectorAll('button[aria-pressed="true"] .msc-ts-seg[data-flow="sky"]')] as HTMLElement[];
     expect(jul.map((el) => el.querySelector(".msc-ts-pill")?.textContent)).toEqual([
       "Spark $1.50M to Sky",
       "Osero $500k to Sky",
     ]);
-    // A transparent box: Sky's blue ring outside, the prime's color inside.
-    expect(jul[0].style.boxShadow).toContain("--msc-sky");
-    expect(jul[0].style.outline).toContain("--msc-prime-1");
-    expect(jul[0].style.background).toBe("transparent");
-    // Stack top (min top) meets the line's y for that month: heights sum to
-    // the To-Sky total on the shared scale.
+    expect(jul[0].style.background).toBe("var(--msc-prime-1)");
+    expect(jul[1].style.background).toBe("var(--msc-prime-3)");
+    expect(jul[0].style.outline).toBe("");
+    // The stack sums to the month's total on the shared scale: 2.0M vs 1.0M.
     const heights = jul.map((el) => parseFloat(el.style.height));
-    const keptJul = [...document.querySelectorAll('button[aria-pressed="true"] .msc-ts-seg[data-flow="kept"]')] as HTMLElement[];
-    const keptPos = keptJul.filter((el) => !el.style.background.includes("gradient")).map((el) => parseFloat(el.style.height));
-    // 2.0M of sky vs 0.78M of positive kept on one scale.
-    expect(heights.reduce((a, b) => a + b, 0) / keptPos.reduce((a, b) => a + b, 0)).toBeCloseTo(2_000_000 / 780_000, 1);
+    const jun = document.querySelector('.msc-ts-seg[data-prime="spark"]') as HTMLElement;
+    expect(heights.reduce((a, b) => a + b, 0) / parseFloat(jun.style.height)).toBeCloseTo(2, 1);
+    // No kept track, no total line, no micro labels: the stack top is the total.
+    expect(document.querySelector('.msc-ts-track[data-flow="kept"]')).toBeNull();
+    expect(document.querySelector(".msc-ts-line")).toBeNull();
+    expect(document.querySelector(".msc-ts-microlabel")).toBeNull();
+  });
+
+  it("marks a negative month with loss-red stripes below the zero line", () => {
+    renderChart();
+    const keel = document.querySelector('.msc-ts-seg[data-prime="keel"]') as HTMLElement;
+    expect(keel.style.background).toContain("repeating-linear-gradient");
+    expect(keel.style.background).toContain("--msc-loss");
+    expect(keel.querySelector(".msc-ts-pill")?.textContent).toBe("Keel −$50k to Sky");
+    const spark = document.querySelector('button[aria-label^="Aug 2026"] .msc-ts-seg[data-prime="spark"]') as HTMLElement;
+    expect(parseFloat(keel.style.top)).toBeGreaterThan(parseFloat(spark.style.top));
   });
 
   it("offers a play/pause control for the month autoplay", () => {
@@ -89,41 +105,6 @@ describe("MscTimeseries", () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it("stacks per-prime segments with stable colors and named hover pills, negatives as loss", () => {
-    renderChart();
-    const spark = document.querySelectorAll('.msc-ts-seg[data-prime="spark"][data-flow="kept"]');
-    expect(spark).toHaveLength(2);
-    expect([...spark].map((el) => el.querySelector(".msc-ts-pill")?.textContent).sort()).toEqual([
-      "Spark $400k kept (supply-side kept + demand-side)",
-      "Spark $500k kept (supply-side kept + demand-side)",
-    ]);
-    for (const el of spark) {
-      expect((el as HTMLElement).style.background).toContain("--msc-prime-1");
-    }
-    const osero = document.querySelector('.msc-ts-seg[data-prime="osero"][data-flow="kept"]') as HTMLElement;
-    expect(osero.querySelector(".msc-ts-pill")?.textContent).toBe("Osero −$50k supply-side loss");
-    // A loss month gets no "kept" micro label; its "Sky" label stays.
-    const lossCol = osero.closest(".msc-bar-col") as HTMLElement;
-    const labels = [...lossCol.querySelectorAll(".msc-ts-microlabel")].map((el) => el.textContent);
-    expect(labels).not.toContain("kept");
-    // Negative months keep the prime's own color, marked by stripes.
-    expect(osero.style.background).toContain("repeating-linear-gradient");
-    expect(osero.style.background).toContain("--msc-prime-3");
-    expect(osero.style.background).not.toContain("--accent");
-  });
-
-  it("draws the To-Sky line with hoverable points carrying their figure", () => {
-    renderChart();
-    const line = document.querySelector(".msc-ts-line polyline")!;
-    expect(line.getAttribute("stroke")).toBe("var(--msc-sky)");
-    const dots = document.querySelectorAll(".msc-ts-dot");
-    expect(dots).toHaveLength(2);
-    // Each point: an oversized hit circle, the visible dot, and its amount.
-    expect(dots[0].querySelectorAll("circle")).toHaveLength(2);
-    expect(dots[0].textContent).toBe("$1.00M");
-    expect(dots[1].textContent).toBe("$2.00M");
-  });
-
   it("labels the y axis with round tick values and gridlines", () => {
     renderChart();
     const labels = [...document.querySelectorAll(".msc-ts-axis")].map((t) => t.textContent);
@@ -131,15 +112,18 @@ describe("MscTimeseries", () => {
     expect(document.querySelectorAll(".msc-ts-gridline")).toHaveLength(3);
   });
 
-  it("shows a legend entry per prime plus the line", () => {
+  it("shows a legend entry per prime, above the chart", () => {
     renderChart();
     expect(screen.getByText("Spark")).toBeInTheDocument();
     expect(screen.getByText("Keel")).toBeInTheDocument();
     expect(screen.getByText("Osero")).toBeInTheDocument();
-    expect(screen.getByText("to Sky (line)")).toBeInTheDocument();
+    expect(screen.queryByText("to Sky (line)")).not.toBeInTheDocument();
+    const legend = screen.getByText("Spark").closest("p")!;
+    const chart = document.querySelector(".msc-ts-grid")!;
+    expect(legend.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("assigns fixed fills and folds overflow primes to gray", () => {
+  it("assigns fills by roster order and folds the overflow to gray", () => {
     expect(primeFill(0)).toBe("var(--msc-prime-1)");
     expect(primeFill(4)).toBe("var(--msc-prime-5)");
     expect(primeFill(5)).toBe("var(--gray)");

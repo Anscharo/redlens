@@ -108,8 +108,8 @@ describe("MscRing", () => {
     const { container } = render(
       <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="-$497" />,
     );
-    expect(container.querySelector('path[fill="url(#msc-ring-neg-sky)"]')).toBeInTheDocument();
-    expect(container.querySelector("defs pattern#msc-ring-neg-sky")).toBeInTheDocument();
+    expect(container.querySelector('path[fill="url(#msc-ring-loss)"]')).toBeInTheDocument();
+    expect(container.querySelector("defs pattern#msc-ring-loss")).toBeInTheDocument();
     // The solid sky class is reserved for positive flows.
     expect(container.querySelector(".msc-ring-sky")).not.toBeInTheDocument();
   });
@@ -149,7 +149,7 @@ describe("MscRing", () => {
     );
     expect(screen.getByText("−$107 supply-side loss")).toBeInTheDocument();
     const hole = container.querySelector('.msc-ring-mark[data-mark="osero::loss"] circle.msc-ring-hole')!;
-    expect(hole).toHaveAttribute("fill", "url(#msc-ring-neg-kept)");
+    expect(hole).toHaveAttribute("fill", "url(#msc-ring-loss)");
     // No kept slice: the loss lives in the hole.
     expect(container.querySelector('.msc-ring-mark[data-mark="osero::kept"]')).not.toBeInTheDocument();
   });

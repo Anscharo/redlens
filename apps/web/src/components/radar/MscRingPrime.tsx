@@ -40,7 +40,7 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
           <path
             d={arrow.path}
             className={arrow.signed < 0 ? "msc-ring-arrow" : "msc-ring-arrow msc-ring-sky"}
-            fill={arrow.signed < 0 ? `url(#msc-ring-neg-${arrow.kind})` : undefined}
+            fill={arrow.signed < 0 ? "url(#msc-ring-loss)" : undefined}
             data-cof={Math.abs(arrow.cof) >= SETTLEMENT_NEAR_ZERO ? "true" : undefined}
             data-sde={Math.abs(arrow.sde) >= SETTLEMENT_NEAR_ZERO ? "true" : undefined}
           />
@@ -67,7 +67,7 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
           uses for "supply-side loss". Its AREA is the loss. */}
       {ring.hole && (
         <g className="msc-ring-mark" data-mark={markId(flow.prime, "loss")}>
-          <circle cx={ring.cx} cy={ring.cy} r={ring.hole.r} className="msc-ring-hole" fill="url(#msc-ring-neg-kept)" />
+          <circle cx={ring.cx} cy={ring.cy} r={ring.hole.r} className="msc-ring-hole" fill="url(#msc-ring-loss)" />
         </g>
       )}
       <g className="msc-ring-mark" data-mark={markId(flow.prime, "gross")}>

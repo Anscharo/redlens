@@ -1,5 +1,5 @@
 import { formatUsd } from "../../lib/settlements";
-import { NODE_W, type FlowAgent, type FlowLink } from "../../lib/mscFlowLayout";
+import { AGENT_W, type FlowAgent, type FlowLink } from "../../lib/mscFlowLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
 import { markId, SLICE_CODE } from "./MscRingPills";
 import { primeLinkLabel, type OverviewPrime } from "./MscRingPrime";
@@ -17,26 +17,18 @@ function LinkFigure({ l }: { l: FlowLink }) {
 
 /** One Prime on the flow chart: its bar in its identity color, the ribbons
  *  feeding it (one mark per line item, the same marks the orbital pie's
- *  slices are), its To-Sky ribbons (one mark — the orbit's arrow), a stub
- *  on the right for each item that stayed, the loss stub on the left where
- *  a ribbon isn't, and its name + gross above the bar. */
+ *  slices are), its To-Sky ribbons (one mark — the orbit's arrow), and its
+ *  name + gross above the bar. What it kept stops at the bar; a loss is a
+ *  line on the gross pill, not a mark. */
 export function FlowAgentGroup({ agent, flow, label, bandColor, to, month }: OverviewPrime & { agent: FlowAgent; month: string }) {
   const p = agent.prime;
   const group = (
     <g className="msc-ring-prime" data-prime={p}>
-      {/* Each inbound ribbon's mark also holds the stub of what stayed, on
-          the far side of the bar, so the pair hover and light as one. */}
-      {agent.inbound.map((l) => {
-        const stub = agent.retained.find((s) => s.kind === l.kind);
-        return (
-          <g key={l.kind} className="msc-ring-mark" data-mark={markId(p, l.kind)}>
-            <path d={l.path} className={`msc-ring-slice msc-ring-${l.kind}`} />
-            {stub && (
-              <rect x={stub.x} y={stub.y} width={stub.w} height={stub.h} rx={Math.min(5, stub.h / 2)} className={`msc-ring-slice msc-ring-${l.kind} msc-flow-stub`} />
-            )}
-          </g>
-        );
-      })}
+      {agent.inbound.map((l) => (
+        <g key={l.kind} className="msc-ring-mark" data-mark={markId(p, l.kind)}>
+          <path d={l.path} className={`msc-ring-slice msc-ring-${l.kind}`} />
+        </g>
+      ))}
       {agent.outbound.length > 0 && (
         <g className="msc-ring-mark" data-mark={markId(p, "sky")}>
           {agent.outbound.map((l) => (
@@ -50,12 +42,7 @@ export function FlowAgentGroup({ agent, flow, label, bandColor, to, month }: Ove
           ))}
         </g>
       )}
-      {agent.loss && (
-        <g className="msc-ring-mark" data-mark={markId(p, "loss")}>
-          <rect x={agent.loss.x} y={agent.loss.y} width={agent.loss.w} height={agent.loss.h} className="msc-ring-hole" fill="url(#msc-ring-neg-kept)" />
-        </g>
-      )}
-      <rect x={agent.x} y={agent.y} width={NODE_W} height={agent.h} className="msc-flow-agent" style={{ fill: bandColor }} />
+      <rect x={agent.x} y={agent.y} width={AGENT_W} height={agent.h} className="msc-flow-agent" style={{ fill: bandColor }} />
       {agent.inbound.map((l) => (
         <LinkFigure key={`in-${l.kind}`} l={l} />
       ))}

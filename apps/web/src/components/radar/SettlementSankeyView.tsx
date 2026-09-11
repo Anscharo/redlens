@@ -9,11 +9,10 @@ import { SankeySinkNode, SankeyVenueNode } from "./SettlementSankeyNodes";
 
 /** Ribbons are the series color of what they carry — To Sky blue, supply
  *  kept green — and a NEGATIVE one (money going back out to a losing venue)
- *  keeps that color and is striped, the same mark as everywhere else in
- *  the MSC charts, rather than turning a loss hue. */
+ *  is the loss mark: stripes in the loss red, the same mark as everywhere
+ *  else in the MSC charts. */
 function linkFill(l: SankeyLink): string {
-  const series = l.to === "sky" ? "sky" : "kept";
-  return l.signed < 0 ? `url(#msc-sankey-neg-${series})` : `var(--msc-${series})`;
+  return l.signed < 0 ? "url(#msc-sankey-loss)" : `var(--msc-${l.to === "sky" ? "sky" : "kept"})`;
 }
 
 function SankeyLinkPath({ l }: { l: SankeyLink }) {
@@ -61,25 +60,28 @@ export function SettlementSankeyView({
       className="msc-sankey-frame"
       aria-label={`Venue flows to Sky and ${primeLabel}`}
     >
+      {/* Legend first. The stripes are the one mark on this chart that isn't
+          self-evident: a striped ribbon or out-bar is money going back OUT
+          to a losing venue. */}
+      <figcaption className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: "var(--tan-3)" }}>
+        <span><Swatch background="var(--msc-sky)" /> to Sky</span>
+        <span><Swatch background="var(--msc-kept)" /> supply-side kept</span>
+        <span><Swatch background={primeColor} /> {primeLabel}</span>
+        <span>
+          <Swatch background="repeating-linear-gradient(45deg, var(--msc-loss) 0, var(--msc-loss) 2px, transparent 2px, transparent 4px)" />
+          striped · a loss, paid back out to the venue
+        </span>
+      </figcaption>
       <svg
         className="msc-sankey"
         viewBox={`0 0 ${layout.width} ${layout.height}`}
         style={{ color: "var(--tan-2)" }}
       >
-      {/* Diagonal stripes per series, for the negative ribbons and the
-          sinks' out-bars. */}
+      {/* The loss mark, for the negative ribbons and the sinks' out-bars. */}
       <defs>
-        {(
-          [
-            ["sky", "var(--msc-sky)"],
-            ["kept", "var(--msc-kept)"],
-            ["prime", primeColor],
-          ] as const
-        ).map(([k, color]) => (
-          <pattern key={k} id={`msc-sankey-neg-${k}`} patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
-            <rect width={3} height={6} style={{ fill: color }} />
-          </pattern>
-        ))}
+        <pattern id="msc-sankey-loss" patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
+          <rect width={3} height={6} style={{ fill: "var(--msc-loss)" }} />
+        </pattern>
       </defs>
       {layout.links.map((l) => (
         <SankeyLinkPath key={`${l.from}-${l.to}`} l={l} />
@@ -95,13 +97,7 @@ export function SettlementSankeyView({
           <SankeySinkNode
             key={n.id}
             n={n}
-            fill={
-              n.flow === "out"
-                ? `url(#msc-sankey-neg-${series})`
-                : series === "sky"
-                  ? "var(--msc-sky)"
-                  : primeColor
-            }
+            fill={n.flow === "out" ? "url(#msc-sankey-loss)" : series === "sky" ? "var(--msc-sky)" : primeColor}
             skyTo={month && n.id === "sky" ? `${ROUTES.RADAR}?msc=${month}` : undefined}
             gross={gross[n.id] ?? 0}
             netted={n.flow === "in" && (gross[`${n.id}-out`] ?? 0) > 0}
@@ -114,19 +110,6 @@ export function SettlementSankeyView({
         );
       })}
       </svg>
-      {/* The stripes are the one mark on this chart that isn't self-
-          evident: a striped ribbon or out-bar is money going back OUT to a
-          losing venue, in the series' own color. Named here so nobody
-          reads it as a texture. */}
-      <figcaption className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mt-1" style={{ color: "var(--tan-3)" }}>
-        <span><Swatch background="var(--msc-sky)" /> to Sky</span>
-        <span><Swatch background="var(--msc-kept)" /> supply-side kept</span>
-        <span><Swatch background={primeColor} /> {primeLabel}</span>
-        <span>
-          <Swatch background="repeating-linear-gradient(45deg, var(--msc-kept) 0, var(--msc-kept) 2px, transparent 2px, transparent 4px)" />
-          striped · a loss, paid back out to the venue
-        </span>
-      </figcaption>
     </figure>
   );
 }

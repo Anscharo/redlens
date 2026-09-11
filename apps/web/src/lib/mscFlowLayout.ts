@@ -31,6 +31,12 @@ import { textWidth } from "./textWidth";
  *  empty. Type sizes are set for that scale (roughly half on screen). */
 export const WIDTH = 2000;
 export const NODE_W = 18;
+/** The Prime column's bars are the chart's "islands" — wider than the
+ *  source and Sky bars so they read as the middle stage. */
+export const AGENT_W = 40;
+/** Column headers over the three node groups, and where they sit. */
+export const HEADERS = { source: "SOURCE", prime: "PRIME", sky: "SKY" } as const;
+export const HEADER_Y = 52;
 /** Source names in the left gutter — the key's wording: a code only where
  *  it adds one ("CoF · cost of funds", plain "supply-side kept"). Lives
  *  here because the gutter is sized from the widest of them. */
@@ -45,12 +51,12 @@ const SOURCE_CHAR_PX = 17.4;
 /** Column x: sources (labels in the gutter to their left, which is as wide
  *  as the widest label needs), Primes, Sky (its per-Prime name + figure in
  *  the gutter to its right). */
-const LEFT_X = Math.max(...Object.values(SOURCE_LABEL).map((l) => textWidth(l, SOURCE_FONT, SOURCE_CHAR_PX))) + 24;
-const MID_X = 1000;
+export const LEFT_X = Math.max(...Object.values(SOURCE_LABEL).map((l) => textWidth(l, SOURCE_FONT, SOURCE_CHAR_PX))) + 24;
+export const MID_X = 1000;
 /** Sky's bar sits near the right edge; its per-Prime shares are named by
  *  their hover pills, not in a gutter. */
 const RIGHT_GUTTER = 40;
-const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
+export const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
 /** The tallest column's bars sum to this. Kept short on purpose: every
  *  Prime gap holds a two-line name block, and a taller canvas would scale
  *  the whole chart (type included) down to fit the card. */
@@ -58,14 +64,12 @@ const INNER_H = 400;
 const SOURCE_GAP = 16;
 /** Room above each Prime's bar for its name (36px) and gross figure (24px). */
 const AGENT_GAP = 84;
-const TOP = 88;
+/** Below the headers and the first Prime's name block. */
+const TOP = 150;
 const BOTTOM_PAD = 16;
 const MIN_T = 1.5;
 /** Two lines in the left gutter: name over amount. */
 const SOURCE_LABEL_BLOCK = 72;
-/** Length of the stubs on a Prime's bar: the loss on its left edge, what
- *  it kept on its right. */
-const STUB_W = 60;
 /** Pill center above the mark it names — clears a 2×-scale pill (60 tall). */
 const PILL_LIFT = 50;
 /** A share's pill sits left of Sky's bar, inside the canvas. */
@@ -95,15 +99,6 @@ export interface FlowSource {
   labelY: number;
 }
 
-export interface FlowStub {
-  kind: SliceKind;
-  value: number;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 export interface FlowAgent {
   prime: string;
   x: number;
@@ -112,12 +107,8 @@ export interface FlowAgent {
   inbound: FlowLink[];
   /** To Sky: cost of funds and Sky Direct Exposure. */
   outbound: FlowLink[];
-  /** What stayed with the Prime — supply-side kept and the demand-side
-   *  series — as stubs on the right edge, under the To-Sky ribbons. Each
-   *  belongs to the mark of its inbound ribbon. */
-  retained: FlowStub[];
-  /** Loss stub on the left edge, or null. */
-  loss: (FlowStub & { pillX: number; pillY: number }) | null;
+  /** Every negative line item summed — a figure, not a mark (0 when none). */
+  loss: number;
   sky: number;
   cof: number;
   sde: number;
@@ -155,10 +146,10 @@ function account(p: PrimeFlowTotals) {
   for (const s of DEMAND_SERIES) items[s.key] = p.demandParts[s.key] ?? 0;
   const near = (v: number) => Math.abs(v) >= SETTLEMENT_NEAR_ZERO;
   const loss = KINDS.reduce((n, k) => n + (items[k] < 0 && near(items[k]) ? -items[k] : 0), 0);
-  // Sources: every positive item — except cost of funds, which the book
-  // may not have earned in full (the loss comes off it).
+  // Sources: every positive item, cost of funds in full (it is owed
+  // whether or not the book earned it).
   const inbound = KINDS.map((k) => {
-    const v = k === "cof" ? Math.max(0, items.cof - loss) : Math.max(0, items[k]);
+    const v = Math.max(0, items[k]);
     return { kind: k, value: near(v) ? v : 0 };
   }).filter((x) => x.value > 0);
   const outbound = (["cof", "sde"] as SliceKind[])
@@ -182,14 +173,10 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
   const t = (v: number) => (v > 0 ? Math.max(MIN_T, (v / colMax) * INNER_H) : 0);
 
   // Bars are sized FROM their ribbons (the floor makes a stack of hairlines
-  // taller than its exact share), so every bar is the sum of what docks:
-  // the in side is the inbound ribbons plus the loss stub, the out side is
-  // the To-Sky ribbons plus the stubs of what stays; the bar is the taller
-  // of the two (they differ only by the floor).
-  const stays = (a: (typeof acc)[number]["a"]) => a.inbound.filter((x) => x.kind !== "cof" && x.kind !== "sde");
-  const inH = ({ a }: (typeof acc)[number]) => a.inbound.reduce((n, x) => n + t(x.value), 0) + t(a.loss);
-  const outH = ({ a }: (typeof acc)[number]) =>
-    a.outbound.reduce((n, x) => n + t(x.value), 0) + stays(a).reduce((n, x) => n + t(x.value), 0);
+  // taller than its exact share), so every bar is the sum of what docks on
+  // its taller side: the inbound ribbons, or the To-Sky ribbons.
+  const inH = ({ a }: (typeof acc)[number]) => a.inbound.reduce((n, x) => n + t(x.value), 0);
+  const outH = ({ a }: (typeof acc)[number]) => a.outbound.reduce((n, x) => n + t(x.value), 0);
   // The Prime column is the tallest (its gaps hold the names); the source
   // and Sky columns are centered on it so the outer ribbons climb less.
   const agents = stackBars(acc.map((r) => ({ item: r, h: Math.max(inH(r), outH(r)) })), TOP, AGENT_GAP, 0);
@@ -226,22 +213,14 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
       inY += t(x.value);
       return l;
     });
-    const loss = a.loss > 0
-      ? { kind: "kept" as SliceKind, value: a.loss, x: MID_X - STUB_W, y: inY, w: STUB_W, h: t(a.loss), pillX: MID_X - STUB_W / 2, pillY: inY - PILL_LIFT }
-      : null;
     let outY = y;
     const shareY = skyCursor;
     const outbound = a.outbound.map((x) => {
-      const l = link(x.kind, x.value, MID_X + NODE_W, outY, RIGHT_X, skyCursor, "start");
+      const l = link(x.kind, x.value, MID_X + AGENT_W, outY, RIGHT_X, skyCursor, "start");
       segments.push({ prime: p.prime, kind: x.kind, y: skyCursor, h: t(x.value) });
       skyCursor += t(x.value);
       outY += t(x.value);
       return l;
-    });
-    const retained: FlowStub[] = stays(a).map((x) => {
-      const s = { kind: x.kind, value: x.value, x: MID_X + NODE_W, y: outY, w: STUB_W, h: t(x.value) };
-      outY += s.h;
-      return s;
     });
     const skyValue = a.outbound.reduce((n, x) => n + x.value, 0);
     if (skyValue > 0) {
@@ -252,11 +231,11 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
     // clear of the bar's top; the gross pill hangs above both.
     const labelY = y - 44;
     return {
-      prime: p.prime, x: MID_X, y, h, inbound, outbound, retained, loss,
+      prime: p.prime, x: MID_X, y, h, inbound, outbound, loss: a.loss,
       sky: a.sky, cof: a.cof, sde: a.sde, gross: a.gross,
       share: a.gross >= SETTLEMENT_NEAR_ZERO ? a.sky / a.gross : null,
-      labelX: MID_X + NODE_W / 2, labelY,
-      grossPillX: MID_X + NODE_W / 2, grossPillY: labelY - 56, grossAnchorY: labelY - 28,
+      labelX: MID_X + AGENT_W / 2, labelY,
+      grossPillX: MID_X + AGENT_W / 2, grossPillY: labelY - 56, grossAnchorY: labelY - 28,
     };
   });
 
