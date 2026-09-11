@@ -602,26 +602,27 @@
   /* MSC settlement series. The one hue this theme owns is its electric
      blue (hue 245 — see --red-dim), and it goes to the money that is the
      point of the chart: everything To Sky (the line, the Sky pie, CoF and
-     SDE). Supply kept and the demand-side family are lightness steps of
-     grey, every one above this theme's 5:1 floor on the chart card and all
-     with the page as ink: the demand-side family steps up from mid-grey,
-     supply kept is the lightest so it never meets them. */
+     SDE). The prime-side money takes the theme's OTHER hue, gold, at real
+     chroma — greys collapsed into each other on the demand-side stack —
+     with supply kept a pale gold and the demand-side series stepping
+     orange-gold → amber → pale yellow → warm grey, every one above this
+     theme's 5:1 floor on the chart card and all with the page as ink. */
   --msc-sky: #4fa6e9;
   --msc-sky-ink: #141414;
   --msc-sky-2: #7cbbf0;
   --msc-sky-3: #a2d0f9;
   --msc-sky-4: #c3e2fe;
-  --msc-sde: #9bcaf2;
+  --msc-sde: #95e2f5;
   --msc-sde-ink: #141414;
-  --msc-kept: #e5ddd0;
+  --msc-kept: #e7debd;
   --msc-kept-ink: #141414;
-  --msc-demand: #868686;
+  --msc-demand: #f39e4c;
   --msc-demand-ink: #141414;
-  --msc-dr: #a1a1a1;
+  --msc-dr: #bc7a51;
   --msc-dr-ink: #141414;
-  --msc-gar: #bebebe;
+  --msc-gar: #f1df88;
   --msc-gar-ink: #141414;
-  --msc-cp: #dbdbdb;
+  --msc-cp: #a59d91;
   --msc-cp-ink: #141414;
   --msc-loss: #ce746a; /* a loss, always STRIPED — the theme's accent red */
   /* Prime identities: the theme's OTHER hue — the warm gold (hue 80) of
