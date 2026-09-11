@@ -25,11 +25,9 @@ import { SLICE_CODE, type SliceKind } from "./mscOverviewLayout";
 import { fitOnRibbon, ribbonPath, stackBars } from "./mscFlowGeometry";
 import { textWidth } from "./textWidth";
 
-/** A WIDE canvas — about 2:1, the shape of the card beside the timeseries
- *  — so `meet` scaling fills the card's width rather than leaving the sides
- *  empty. Type sizes are set for that scale (roughly half on screen). */
-/** 3:1 — wider than the card, so `meet` scaling is height-bound and the
- *  drawing runs the card's full width. */
+/** A WIDE canvas — 3:1, wider than the card beside the timeseries — so
+ *  `meet` scaling is height-bound and the drawing runs the card's full
+ *  width. Type sizes are set for that scale (roughly half on screen). */
 export const WIDTH = 3000;
 export const NODE_W = 18;
 /** The Prime column's bars are the chart's "islands" — wider than the
@@ -53,11 +51,14 @@ const SOURCE_CHAR_PX = 19.6;
  *  as the widest label needs), Primes, Sky (its per-Prime name + figure in
  *  the gutter to its right). */
 export const LEFT_X = Math.max(...Object.values(SOURCE_LABEL).map((l) => textWidth(l, SOURCE_FONT, SOURCE_CHAR_PX))) + 24;
-export const MID_X = 1500;
 /** Sky's bar sits near the right edge; its per-Prime shares are named by
  *  their hover pills, not in a gutter. */
 const RIGHT_GUTTER = 40;
 export const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
+/** The Prime column sits 3/5 of the way across the ribbon span: the left
+ *  half carries up to seven sources fanning into every Prime, the right
+ *  only the two To-Sky ribbons, so the busier side gets the room. */
+export const MID_X = LEFT_X + NODE_W + 0.6 * (RIGHT_X - LEFT_X - NODE_W - AGENT_W);
 /** The tallest column's bars sum to this. Kept short on purpose: every
  *  Prime gap holds a two-line name block, and a taller canvas would scale
  *  the whole chart (type included) down to fit the card. */
