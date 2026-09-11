@@ -629,12 +629,12 @@
      --selected-hint — as a lightness ramp, alternating light/dark so adjacent
      stack layers stay separable. Gold vs blue is giedi's bipolar axis: what
      a Prime kept is gold, what went to Sky is blue, nothing else has a hue. */
-  --msc-prime-1: #c5ad86;
-  --msc-prime-2: #6a5b44;
-  --msc-prime-3: #dcc8a6;
-  --msc-prime-4: #726042;
-  --msc-prime-5: #a9926b;
-  --msc-prime-6: #8d7751;
+  --msc-prime-1: #eac586;
+  --msc-prime-2: #75603b;
+  --msc-prime-3: #f8eace;
+  --msc-prime-4: #a37734;
+  --msc-prime-5: #c5b59b;
+  --msc-prime-6: #bd7221;
 }
 
 /* ─── Giedi structural override ──────────────────────────────────────────
