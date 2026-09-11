@@ -477,7 +477,11 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
             );
           }
         } else if (!priv) {
-          console.warn(`[preview] ${sha.slice(0, 8)}: no merge base — diffing against live main`);
+          // Two distinct causes land here, and the log should say which: the
+          // compare itself failed (network error, or no service token so it
+          // was never attempted), or it succeeded without a merge_base_commit.
+          const why = filesR.ok ? "no merge base" : config.githubToken ? "compare failed" : "no GitHub token, compare skipped";
+          console.warn(`[preview] ${sha.slice(0, 8)}: ${why} — diffing against live main`);
         }
         writeDiffArtifacts(paths.outDir, computeDiffArtifacts(base, byId, mainDocs));
       } catch (e) {

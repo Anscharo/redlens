@@ -62,9 +62,10 @@ export function computeDiffArtifacts(
     const beforeNode = live.get(id) ?? base.get(id);
     const afterNode = head.get(id);
     if (!beforeNode || !afterNode) continue;
+    // No delete needed on an empty diff: `changed` and `added` are disjoint,
+    // so nothing can have written patches[id] before this point.
     const dl = contentDiff(beforeNode.content ?? "", afterNode.content ?? "");
     if (dl.length) patches[id] = dl;
-    else delete patches[id];
     if (beforeNode.doc_no !== afterNode.doc_no) renumbered[id] = [beforeNode.doc_no, afterNode.doc_no];
     if (beforeNode.title !== afterNode.title) retitled[id] = [beforeNode.title ?? "", afterNode.title ?? ""];
   }
