@@ -322,7 +322,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "Colour schemes",
-        what: "The whole app can run in the original charcoal dark scheme, a high-contrast greyscale one, or a light one.",
+        what: "The whole app can run in the red-earth, colorful dark scheme, the desaturated Giedi scheme, or the bright Sky-inspired light one.",
         how: [
           "Click the sun, moon, or eclipse button in the top-right corner — it shows which scheme is on — and pick Dark, Giedi, or Light.",
           "Every page follows the choice — the reader, Radar, reports, and the Atlas agent.",

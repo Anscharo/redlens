@@ -692,9 +692,9 @@ describe("no two entity colours collapse into each other", () => {
 });
 
 // ─── Test I ─────────────────────────────────────────────────────────────
-// giedi is ADVERTISED as high contrast — "greyscale · high contrast" in the
-// THEMES registry, and again in the Features guide and the patch notes. That
-// is a measurable claim, and for a while it was not a true one: the theme won
+// giedi is the desaturated theme, and it was launched as the high-contrast
+// one (the patch notes still say so). That is a measurable claim, and for a
+// while it was not a true one: the theme won
 // on chrome (chiclets, links, focus ring) while its BODY PROSE was the
 // lowest-contrast of the three themes, which is the opposite of what a reader
 // would infer from the label.
