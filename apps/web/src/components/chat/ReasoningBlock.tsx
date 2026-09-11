@@ -1,4 +1,4 @@
-import { useState, type ComponentProps } from "react";
+import { useId, useState, type ComponentProps } from "react";
 
 export type ReasoningBlockProps = ComponentProps<"div"> & {
   /** Accumulated reasoning/"thinking" text streamed for this turn. */
@@ -19,18 +19,32 @@ export type ReasoningBlockProps = ComponentProps<"div"> & {
 // message once the reader has seen enough — and the open body additionally
 // caps its own height with a scroll container (chat.css) rather than
 // growing the whole message for a very long trace.
-export function ReasoningBlock({ text, ...props }: ReasoningBlockProps) {
+export function ReasoningBlock({ text, className, ...props }: ReasoningBlockProps) {
   const [open, setOpen] = useState(true);
+  const bodyId = useId();
   if (!text) return null;
   return (
-    <div className="rlc-reasoning" {...props}>
-      <button className="rlc-reasoning-head" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+    // className is merged, not overridden: `{...props}` spreads last so a
+    // caller can override every other attribute, but letting it replace
+    // `rlc-reasoning` would strip the component of all its styling.
+    <div className={["rlc-reasoning", className].filter(Boolean).join(" ")} {...props}>
+      <button
+        type="button"
+        className="rlc-reasoning-head"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={bodyId}
+      >
         <span className="rlc-reasoning-caret" data-open={open} aria-hidden="true">
           ▾
         </span>
         <span>thinking</span>
       </button>
-      {open && <div className="rlc-reasoning-body">{text}</div>}
+      {open && (
+        <div id={bodyId} className="rlc-reasoning-body">
+          {text}
+        </div>
+      )}
     </div>
   );
 }

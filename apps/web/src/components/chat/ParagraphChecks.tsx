@@ -23,8 +23,10 @@ function hasRow(c: ParagraphCheck): boolean {
 function ModelMark({ model }: { model: ParagraphCheck["model"] }) {
   const label = model ? MODEL_ROW_LABEL[model] : undefined;
   if (!label) return null;
+  // No aria-label: it is prohibited on a roleless <span> (implicit `generic`
+  // role, so Chrome and Firefox drop it) and the visible text IS the label.
   return (
-    <span className="rlc-para-model" data-model={model} aria-label={label}>
+    <span className="rlc-para-model" data-model={model}>
       {label}
     </span>
   );

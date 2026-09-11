@@ -357,3 +357,20 @@ describe("traceHeadline", () => {
     expect(traceHeadline([])).toBe("reasoning");
   });
 });
+
+describe("StageList / list name", () => {
+  const entries = [{ stage: "querying", details: [], at: 0, round: 1 }];
+
+  it("names the list 'Answer progress' by default", () => {
+    render(<StageList entries={entries} collapsed={false} summary="s" renderSlot={noSlot} />);
+    expect(screen.getByRole("list", { name: "Answer progress" })).toBeInTheDocument();
+  });
+
+  // A turn renders two StageLists (Message.tsx); sharing one name leaves a
+  // screen-reader user unable to tell them apart.
+  it("uses a caller's name instead, so the two lists in one turn are distinguishable", () => {
+    render(<StageList entries={entries} collapsed={false} summary="s" label="Answer checks" renderSlot={noSlot} />);
+    expect(screen.getByRole("list", { name: "Answer checks" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Answer progress" })).toBeNull();
+  });
+});

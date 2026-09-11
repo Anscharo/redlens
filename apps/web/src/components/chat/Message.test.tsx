@@ -431,4 +431,32 @@ describe("Message provisional answer rendering", () => {
     render(<Message msg={baseMsg({ content: "an unverified-mode answer", done: true })} streaming={false} onAtlas={vi.fn()} />);
     expect(document.querySelector(".rlc-answer")?.getAttribute("data-state")).toBe("final");
   });
+
+  // The turn's rows are split into two lists so the answer can sit between
+  // them. They are separate lists to a screen reader, so one shared name
+  // ("Answer progress" twice) leaves no way to tell which is which.
+  it("gives the pre-answer and post-answer stage lists distinct accessible names", () => {
+    render(
+      <Message
+        msg={baseMsg({
+          // Live (not done): a finished turn's lists mount collapsed to their
+          // summary head and render no <ol> at all.
+          content: "an answer",
+          generated: true,
+          done: false,
+          stageLog: [
+            { stage: "querying", details: [], at: 0, round: 1 },
+            { stage: "checking", details: [], at: 1, round: 1 },
+          ],
+        })}
+        streaming={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    const lists = screen.getAllByRole("list");
+    const names = lists.map((l) => l.getAttribute("aria-label")).filter(Boolean);
+    expect(names).toContain("Answer progress");
+    expect(names).toContain("Answer checks");
+    expect(new Set(names).size).toBe(names.length);
+  });
 });

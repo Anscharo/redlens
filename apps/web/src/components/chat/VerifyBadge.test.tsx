@@ -217,4 +217,18 @@ describe("VerifyBadge", () => {
     fireEvent.click(screen.getByRole("link", { name: "open the source" }));
     expect(onAtlas).toHaveBeenCalledWith("u-2");
   });
+
+  it("points the chip at the findings list it reveals, and claims no target while unexpandable", () => {
+    const clean = render(<VerifyBadge verify={{ ...base, status: "pass" }} onAtlas={noop} />);
+    expect(screen.getByRole("button")).not.toHaveAttribute("aria-controls");
+    clean.unmount();
+
+    const verify: VerifyState = { ...base, status: "fail", rulingIssued: true };
+    const { container } = render(<VerifyBadge verify={verify} onAtlas={noop} />);
+    const chip = screen.getByRole("button");
+    const id = chip.getAttribute("aria-controls");
+    expect(id).toBeTruthy();
+    fireEvent.click(chip);
+    expect(container.querySelector(`#${CSS.escape(id!)}`)).toHaveClass("rlc-verify-claims");
+  });
 });

@@ -44,8 +44,13 @@ export function useMathPlugins(content: string): {
   const hasMath = MATH_RE.test(content);
   const [katexReady, setKatexReady] = useState(!!rehypePluginsMath);
 
+  // Guarded on `katexReady`, NOT on the module cache: an instance that
+  // mounted math-free before the cache was populated, and gains math after
+  // some OTHER instance finished the load, would skip a module-cache guard
+  // and keep rendering raw $$ forever. loadKatex() returns its resolved
+  // promise in that case, so the extra call costs nothing.
   useEffect(() => {
-    if (hasMath && !rehypePluginsMath) {
+    if (hasMath && !katexReady) {
       loadKatex()
         .then(() => setKatexReady(true))
         .catch(() => {
@@ -53,7 +58,7 @@ export function useMathPlugins(content: string): {
           // plain text, and a later message with math will retry the import.
         });
     }
-  }, [hasMath]);
+  }, [hasMath, katexReady]);
 
   const usesMath = hasMath && katexReady;
   return {

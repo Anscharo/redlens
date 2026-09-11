@@ -61,6 +61,7 @@ function NotFoundNote({ items }: { items: string[] }) {
 
 export function VerifyBadge({ verify, onAtlas }: { verify: VerifyState; onAtlas: (uuid: string) => void }) {
   const [open, setOpen] = useState(false);
+  const findingsId = useId();
   if (verify.status === "unverified") return null;
 
   // Every hard failure counts, each of which can be a turn's ONLY finding —
@@ -78,12 +79,13 @@ export function VerifyBadge({ verify, onAtlas }: { verify: VerifyState; onAtlas:
         onClick={() => expandable && setOpen((v) => !v)}
         disabled={!expandable}
         aria-expanded={expandable ? open : undefined}
+        aria-controls={expandable ? findingsId : undefined}
       >
         <span className="rlc-verify-dot" aria-hidden="true" />
         {label}
       </button>
       <NotFoundNote items={verify.notFound} />
-      {open && <VerifyFindings verify={verify} onAtlas={onAtlas} />}
+      {open && <VerifyFindings id={findingsId} verify={verify} onAtlas={onAtlas} />}
     </div>
   );
 }

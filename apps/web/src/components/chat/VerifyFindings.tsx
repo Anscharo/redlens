@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { atlasHref } from "@/lib/routes";
 import { track } from "../../lib/analytics";
 import type { VerifyContradiction } from "./api";
@@ -52,12 +53,19 @@ export function hasFindings(verify: VerifyState): boolean {
   );
 }
 
-export function VerifyFindings({ verify, onAtlas }: { verify: VerifyState; onAtlas: (uuid: string) => void }) {
+export type VerifyFindingsProps = ComponentProps<"ul"> & {
+  /** The verdict whose findings to list. Renders nothing for a clean one. */
+  verify: VerifyState;
+  /** Opens an atlas document behind a citation link in a finding. */
+  onAtlas: (uuid: string) => void;
+};
+
+export function VerifyFindings({ verify, onAtlas, className, ...props }: VerifyFindingsProps) {
   // A clean verdict has nothing to list — an empty bordered box under
   // "Verifying content" reads as a rendering mistake, not as "all clear".
   if (!hasFindings(verify)) return null;
   return (
-    <ul className="rlc-verify-claims">
+    <ul className={["rlc-verify-claims", className].filter(Boolean).join(" ")} {...props}>
       {verify.invalidCitations.map((uuid) => (
         <li key={uuid} data-status="contradicted">
           cites a document that does not exist: <code>{uuid}</code>

@@ -50,7 +50,7 @@ describe("ParagraphChecks", () => {
     expect(screen.getByText("1 paragraph checked, 1 flagged")).toBeInTheDocument();
     const li = container.querySelector("li")!;
     expect(li).toHaveAttribute("data-model", "candidate");
-    expect(screen.getByLabelText("possible contradiction, being confirmed")).toBeInTheDocument();
+    expect(screen.getByText("possible contradiction, being confirmed")).toBeInTheDocument();
   });
 
   it("renders a row for a failed model state even with no deterministic finding", () => {
@@ -59,7 +59,7 @@ describe("ParagraphChecks", () => {
     expect(screen.getByText("1 paragraph checked, 1 flagged")).toBeInTheDocument();
     const li = container.querySelector("li")!;
     expect(li).toHaveAttribute("data-model", "failed");
-    expect(screen.getByLabelText("model check unavailable")).toBeInTheDocument();
+    expect(screen.getByText("model check unavailable")).toBeInTheDocument();
   });
 
   it("renders no row for an ok or pending model state when there is no deterministic finding", () => {
@@ -112,7 +112,7 @@ describe("ParagraphChecks", () => {
   it("renders a finding row with no model mark when model is absent", () => {
     const checks: ParagraphCheck[] = [{ index: 0, text: "A paragraph.", findings: ["a finding"] }];
     render(<ParagraphChecks checks={checks} />);
-    expect(screen.queryByLabelText(/model check|contradiction/)).toBeNull();
+    expect(screen.queryByText(/model check|contradiction/)).toBeNull();
   });
 
   it("does not keep 'being confirmed' after the candidate mark is cleared (verdict landed)", () => {
@@ -120,6 +120,6 @@ describe("ParagraphChecks", () => {
     const { container } = render(<ParagraphChecks checks={checks} />);
     expect(screen.getByText("1 paragraph checked, no findings")).toBeInTheDocument();
     expect(container.querySelector("li")).toBeNull();
-    expect(screen.queryByLabelText("possible contradiction, being confirmed")).toBeNull();
+    expect(screen.queryByText("possible contradiction, being confirmed")).toBeNull();
   });
 });

@@ -56,6 +56,11 @@ export interface StageListProps {
   // across two lists (before / after the answer), so "the last row of this
   // list" is not "the running stage" — defaults to it when there is one list.
   activeAt?: number;
+  // Accessible name for this list. A turn renders TWO StageLists (before and
+  // after the answer — see Message.tsx), so they must not share one name:
+  // a reader hearing "Answer progress list" twice in one message has no way
+  // to tell which is which.
+  label?: string;
   children?: never;
   // The working content to disclose under `entry`'s row, or null when that
   // stage has nothing to show — a row with no slot renders as plain text
@@ -76,7 +81,14 @@ export interface StageListProps {
 // working content — lookups, reasoning + draft, verify findings — under its
 // label; clicking again collapses just that row. `open` tracks expanded rows
 // by their stable `entry.at` key, so re-renders mid-stream don't reset it.
-export function StageList({ entries, collapsed, summary, activeAt, renderSlot }: StageListProps) {
+export function StageList({
+  entries,
+  collapsed,
+  summary,
+  activeAt,
+  label = "Answer progress",
+  renderSlot,
+}: StageListProps) {
   // Fixed at mount: a live checklist stays a checklist for the rest of its
   // life — the final render must not rearrange what is on screen.
   const [liveAtMount] = useState(!collapsed);
@@ -118,7 +130,7 @@ export function StageList({ entries, collapsed, summary, activeAt, renderSlot }:
         </button>
       )}
       {showTree && (
-        <ol id={treeId} className="rlc-stages" aria-label="Answer progress">
+        <ol id={treeId} className="rlc-stages" aria-label={label}>
           {entries.map((entry) => {
             // A row only pulses/shows its live detail while the turn is still
             // running — once `collapsed` (the turn is done), every row is

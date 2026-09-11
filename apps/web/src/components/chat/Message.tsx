@@ -15,6 +15,8 @@ import type { ChatMsg, StageLogEntry } from "./useChatStream";
 // moves when these rows arrive or when the answer lands between them.
 const POST_ANSWER_STAGES = new Set(["comparing", "checking"]);
 const POST_ANSWER_SUMMARY = "compared and verified";
+// Both lists belong to one turn, so each needs its own accessible name.
+const POST_ANSWER_LABEL = "Answer checks";
 
 function UserTurn({ text }: { text: string }) {
   return (
@@ -128,6 +130,7 @@ function AssistantTurn({
           collapsed={msg.done}
           summary={POST_ANSWER_SUMMARY}
           activeAt={activeAt}
+          label={POST_ANSWER_LABEL}
           renderSlot={slotFor}
         />
       )}
