@@ -31,6 +31,7 @@ function configure({
     added: new Set(added),
     changed: new Set(changed),
     renumbered: {},
+    retitled: {},
     reusedSlot: {},
     identitySwap: {},
     formerUuid: {},

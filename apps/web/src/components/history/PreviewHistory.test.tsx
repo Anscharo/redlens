@@ -29,7 +29,16 @@ const mockDiff = vi.mocked(usePreviewDiff);
 const mockPatch = vi.mocked(usePreviewPatch);
 
 function setDiff(over: Partial<PreviewDiff>) {
-  mockDiff.mockReturnValue({ added: new Set(), changed: new Set(), renumbered: {}, reusedSlot: {}, identitySwap: {}, formerUuid: {}, ...over });
+  mockDiff.mockReturnValue({
+    added: new Set(),
+    changed: new Set(),
+    renumbered: {},
+    retitled: {},
+    reusedSlot: {},
+    identitySwap: {},
+    formerUuid: {},
+    ...over,
+  });
 }
 
 const PR_META = {
@@ -110,6 +119,39 @@ describe("PreviewHistory preview entry", () => {
         (_content, el) => el?.tagName === "P" && el.textContent === "renumbered A.1.2 → A.2.3",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("shows the retitled note when a changed doc's title differs from live", () => {
+    setDiff({ changed: new Set(["n1"]), retitled: { n1: ["Old", "New"] } });
+    render(<PreviewHistory nodeId="n1" />);
+    const line = screen.getByText((_content, el) => el?.tagName === "P" && !!el.textContent?.includes("retitled"));
+    expect(line.textContent).toContain("Old");
+    expect(line.textContent).toContain("New");
+  });
+
+  it("omits the retitled note under an identity swap (the ⚠ paragraph already carries both titles)", () => {
+    setDiff({
+      changed: new Set(["n1"]),
+      retitled: { n1: ["Operational GovOps", "Sky Primitives"] },
+      identitySwap: { n1: { oldTitle: "Operational GovOps", newTitle: "Sky Primitives" } },
+    });
+    render(<PreviewHistory nodeId="n1" />);
+    expect(screen.getByText(/Identity changed/)).toBeInTheDocument();
+    expect(screen.queryByText(/retitled/)).toBeNull();
+  });
+
+  it("shows a neutral fallback sentence for a changed doc with no patch, renumber, retitle or swap", () => {
+    setDiff({ changed: new Set(["n1"]) });
+    render(<PreviewHistory nodeId="n1" />);
+    expect(screen.getByText("No visible difference from the live atlas.")).toBeInTheDocument();
+    expect(screen.queryByTestId("diff-view")).not.toBeInTheDocument();
+  });
+
+  it("does not show the neutral fallback sentence when a patch is available", () => {
+    setDiff({ changed: new Set(["n1"]) });
+    mockPatch.mockReturnValue([["+", "added line"], ["-", "removed line"]] as DiffLine[]);
+    render(<PreviewHistory nodeId="n1" />);
+    expect(screen.queryByText("No visible difference from the live atlas.")).not.toBeInTheDocument();
   });
 
   it("marks a slot-reusing added doc with a superscript asterisk and disclaimer", async () => {

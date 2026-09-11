@@ -449,6 +449,56 @@ function stubGitHub(mergeBase: string | null): void {
   };
 }
 
+test("private build writes diff.json + patches.json vs live main (no GitHub compare is made)", async () => {
+  const sha = "privdiff1";
+  builtShas.push(sha);
+
+  let prevIndexes: unknown;
+  try {
+    prevIndexes = getIndexes();
+  } catch {
+    prevIndexes = undefined;
+  }
+  setIndexes({
+    docMap: new Map([[U(1), { id: U(1), doc_no: "A.1", title: "One", content: "live" }]]),
+    meta: { atlasCommit: "live-sha" },
+  } as never);
+
+  let fetchCalls = 0;
+  try {
+    const ev = await __runBuildForTest(privateResolved(sha), {
+      isBlockedSha: async () => false,
+      isKnownSha: async () => false,
+      previewsTodayCountForRepo: async () => 0,
+      installationToken: async () => "tok",
+      fetchAndExtract: async () => {
+        fetchCalls += 1;
+        return { srcDir: previewPaths(sha).srcDir, docCount: 2 };
+      },
+      spawnBuild: spawnWithDocs({
+        [U(1)]: { id: U(1), doc_no: "A.1", title: "One", content: "edited", contentHash: "h1" },
+        [U(3)]: { id: U(3), doc_no: "A.3", title: "Three", content: "brand new", contentHash: "h3" },
+      }),
+      upsertPreview: async () => {},
+    });
+    expect(ev.phase).toBe("ready");
+
+    // Only the head tree is ever fetched — private previews never compare, so
+    // there is no base tree to fetch (base defaults to live main).
+    expect(fetchCalls).toBe(1);
+
+    const diff = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.json"), "utf8"));
+    expect(diff.changed).toEqual([U(1)]);
+    expect(diff.added).toEqual([U(3)]);
+
+    const patches = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "patches.json"), "utf8"));
+    expect(patches[U(1)]).toBeDefined();
+    expect(patches[U(1)].some((l: [string, ...unknown[]]) => l[0] === "-" || l[0] === "+" || l[0] === "~")).toBe(true);
+  } finally {
+    setIndexes(prevIndexes as never);
+  }
+});
+
 test("doc-level diff: added/changed split by uuid against the merge base, not by filename", async () => {
   const sha = "diff0001";
   builtShas.push(sha);
@@ -536,23 +586,129 @@ test("doc-level diff: added/changed split by uuid against the merge base, not by
   }
 });
 
-test("doc-level diff: no merge base from GitHub → no diff.json, build still succeeds", async () => {
-  // Without a trustworthy base side we skip rather than guess; the reader falls
-  // back to the serve-time vs-main diff.
+test("doc-level diff: no merge base from GitHub → diffs against live main, both artifacts still written", async () => {
+  // No trustworthy merge base — the build no longer skips the diff, it widens
+  // to diffing against live main (same as the private-preview path).
   const sha = "diff0002";
   builtShas.push(sha);
   config.githubToken = "tok";
   stubGitHub(null);
 
-  const resolved: Resolved = { repo: CANONICAL_REPO, sha, kind: "branch", ref: "spark", private: false };
-  const ev = await __runBuildForTest(resolved, {
-    isBlockedSha: async () => false,
-    isKnownSha: async () => true,
-    forkGate: async () => ({ tier: undefined, count: async () => 0, quota: 10 }),
-    fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 1 }),
-    spawnBuild: fakeSpawn(),
-    upsertPreview: async () => {},
-  });
-  expect(ev.phase).toBe("ready");
-  expect(fs.existsSync(path.join(previewPaths(sha).outDir, "diff.json"))).toBe(false);
+  let prevIndexes: unknown;
+  try {
+    prevIndexes = getIndexes();
+  } catch {
+    prevIndexes = undefined;
+  }
+  setIndexes({ docMap: new Map(), meta: { atlasCommit: "live-sha" } } as never);
+
+  const origWarn = console.warn;
+  const warnings: string[] = [];
+  console.warn = (msg: string) => warnings.push(String(msg));
+
+  try {
+    const resolved: Resolved = { repo: CANONICAL_REPO, sha, kind: "branch", ref: "spark", private: false };
+    const ev = await __runBuildForTest(resolved, {
+      isBlockedSha: async () => false,
+      isKnownSha: async () => true,
+      forkGate: async () => ({ tier: undefined, count: async () => 0, quota: 10 }),
+      fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 1 }),
+      spawnBuild: fakeSpawn(),
+      upsertPreview: async () => {},
+    });
+    expect(ev.phase).toBe("ready");
+    expect(fs.existsSync(path.join(previewPaths(sha).outDir, "diff.json"))).toBe(true);
+    expect(fs.existsSync(path.join(previewPaths(sha).outDir, "patches.json"))).toBe(true);
+    expect(warnings.some((w) => w.includes("no merge base — diffing against live main"))).toBe(true);
+  } finally {
+    console.warn = origWarn;
+    setIndexes(prevIndexes as never);
+  }
+});
+
+test("doc-level diff: base tree fetch throws → falls back to live main, still ready", async () => {
+  const sha = "diff0003";
+  builtShas.push(sha);
+  config.githubToken = "tok";
+  stubGitHub("base-sha-that-will-fail");
+
+  let prevIndexes: unknown;
+  try {
+    prevIndexes = getIndexes();
+  } catch {
+    prevIndexes = undefined;
+  }
+  // atlasCommit deliberately differs from the merge base so loadBaseSnapshot
+  // can't short-circuit to the live snapshot — it must call the (throwing)
+  // fetcher instead.
+  setIndexes({
+    docMap: new Map([[U(1), { id: U(1), doc_no: "A.1", title: "One", content: "live" }]]),
+    meta: { atlasCommit: "live-sha" },
+  } as never);
+
+  const origWarn = console.warn;
+  const warnings: string[] = [];
+  console.warn = (msg: string) => warnings.push(String(msg));
+
+  try {
+    const resolved: Resolved = { repo: CANONICAL_REPO, sha, kind: "branch", ref: "spark", private: false };
+    const ev = await __runBuildForTest(resolved, {
+      isBlockedSha: async () => false,
+      isKnownSha: async () => true,
+      forkGate: async () => ({ tier: undefined, count: async () => 0, quota: 10 }),
+      fetchAndExtract: async (_repo, s) => {
+        if (s !== sha) throw new Error("base tree fetch exploded");
+        return { srcDir: previewPaths(sha).srcDir, docCount: 1 };
+      },
+      spawnBuild: spawnWithDocs({
+        [U(1)]: { id: U(1), doc_no: "A.1", title: "One", content: "edited", contentHash: "h1" },
+      }),
+      upsertPreview: async () => {},
+    });
+    expect(ev.phase).toBe("ready");
+    expect(fs.existsSync(path.join(previewPaths(sha).outDir, "patches.json"))).toBe(true);
+    expect(warnings.some((w) => w.includes("base") && w.includes("unavailable") && w.includes("diffing against live main"))).toBe(
+      true,
+    );
+  } finally {
+    console.warn = origWarn;
+    setIndexes(prevIndexes as never);
+  }
+});
+
+test("doc-level diff: indexes not loaded → artifacts skipped, build still ready (never fails the preview)", async () => {
+  const sha = "diff0004";
+  builtShas.push(sha);
+  config.githubToken = "tok";
+  stubGitHub("base-sha");
+
+  let prevIndexes: unknown;
+  try {
+    prevIndexes = getIndexes();
+  } catch {
+    prevIndexes = undefined;
+  }
+  setIndexes(undefined as never); // makes getIndexes() throw
+
+  const origWarn = console.warn;
+  const warnings: string[] = [];
+  console.warn = (msg: string) => warnings.push(String(msg));
+
+  try {
+    const resolved: Resolved = { repo: CANONICAL_REPO, sha, kind: "branch", ref: "spark", private: false };
+    const ev = await __runBuildForTest(resolved, {
+      isBlockedSha: async () => false,
+      isKnownSha: async () => true,
+      forkGate: async () => ({ tier: undefined, count: async () => 0, quota: 10 }),
+      fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 1 }),
+      spawnBuild: fakeSpawn(),
+      upsertPreview: async () => {},
+    });
+    expect(ev.phase).toBe("ready");
+    expect(fs.existsSync(path.join(previewPaths(sha).outDir, "diff.json"))).toBe(false);
+    expect(warnings.some((w) => w.includes("diff artifacts skipped"))).toBe(true);
+  } finally {
+    console.warn = origWarn;
+    setIndexes(prevIndexes as never);
+  }
 });
