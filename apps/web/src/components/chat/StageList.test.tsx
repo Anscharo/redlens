@@ -310,6 +310,8 @@ describe("StageList", () => {
     expect(container.querySelector("ol.rlc-stages")).toBeNull();
     const head = screen.getByRole("button", { name: /atlas lookups and reasoning/ });
     expect(head).toHaveAttribute("aria-expanded", "false");
+    expect(head).toHaveAttribute("aria-controls");
+    expect(document.getElementById(head.getAttribute("aria-controls")!)).toBeNull();
   });
 
   it("expands the collapsed summary into the full tree on click, its row already in the done tense", () => {
@@ -323,6 +325,9 @@ describe("StageList", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /atlas lookups and reasoning/ }));
     expect(screen.getByText("Looked for evidence")).toBeInTheDocument();
+    const head = screen.getByRole("button", { name: /atlas lookups and reasoning/ });
+    expect(head).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById(head.getAttribute("aria-controls")!)).toHaveClass("rlc-stages");
   });
 });
 

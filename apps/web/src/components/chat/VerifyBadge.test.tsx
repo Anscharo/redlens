@@ -103,10 +103,13 @@ describe("VerifyBadge", () => {
 
     const toggle = screen.getByRole("button", { name: "2 statements the retrieved sources don't cover" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveAttribute("aria-controls");
     expect(screen.queryByText("Sky has 12 facilitators")).not.toBeInTheDocument();
 
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const list = document.getElementById(toggle.getAttribute("aria-controls")!);
+    expect(list).toHaveClass("rlc-verify-notfound-list");
     expect(screen.getByText("Sky has 12 facilitators")).toBeInTheDocument();
     expect(screen.getByText("the cap is 100")).toBeInTheDocument();
   });

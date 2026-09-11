@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import type { StageLogEntry, TraceRow } from "./useChatStream";
 
 // docs/chat-system.md §8 user-facing stage copy. Unknown stages
@@ -81,6 +81,7 @@ export function StageList({ entries, collapsed, summary, activeAt, renderSlot }:
   const [open, setOpen] = useState<Set<number>>(new Set());
   const showTree = !collapsed || expanded || liveAtMount;
   const runningAt = activeAt ?? entries[entries.length - 1]?.at;
+  const treeId = useId();
 
   const toggleRow = (at: number) => {
     setOpen((prev) => {
@@ -101,7 +102,12 @@ export function StageList({ entries, collapsed, summary, activeAt, renderSlot }:
       {/* The summary line is the fold control once the turn is done: it opens
           the tree and, on a second click, folds it again. */}
       {collapsed && !liveAtMount && (
-        <button className="rlc-stage-summary-head" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
+        <button
+          className="rlc-stage-summary-head"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          aria-controls={treeId}
+        >
           <span className="rlc-trace-caret" data-open={expanded} aria-hidden="true">
             ▾
           </span>
@@ -109,7 +115,7 @@ export function StageList({ entries, collapsed, summary, activeAt, renderSlot }:
         </button>
       )}
       {showTree && (
-        <ol className="rlc-stages" aria-label="Answer progress">
+        <ol id={treeId} className="rlc-stages" aria-label="Answer progress">
           {entries.map((entry) => {
             // A row only pulses/shows its live detail while the turn is still
             // running — once `collapsed` (the turn is done), every row is

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { VerifyState } from "./useChatStream";
 import { VerifyFindings, hasFindings } from "./VerifyFindings";
 
@@ -31,6 +31,7 @@ function chipLabel(verify: VerifyState): string {
 // trace caret) — a plain disclosure, not a warning.
 function NotFoundNote({ items }: { items: string[] }) {
   const [open, setOpen] = useState(false);
+  const listId = useId();
   if (items.length === 0) return null;
   const n = items.length;
   return (
@@ -39,6 +40,7 @@ function NotFoundNote({ items }: { items: string[] }) {
         type="button"
         className="rlc-verify-notfound-toggle"
         aria-expanded={open}
+        aria-controls={listId}
         onClick={() => setOpen((v) => !v)}
       >
         <span className="rlc-trace-caret" data-open={open} aria-hidden="true">
@@ -47,7 +49,7 @@ function NotFoundNote({ items }: { items: string[] }) {
         {n} statement{n === 1 ? "" : "s"} the retrieved sources don't cover
       </button>
       {open && (
-        <ul className="rlc-verify-notfound-list">
+        <ul id={listId} className="rlc-verify-notfound-list">
           {items.map((s, i) => (
             <li key={i}>{s}</li>
           ))}
