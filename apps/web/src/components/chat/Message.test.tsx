@@ -173,10 +173,13 @@ describe("Message stage checklist", () => {
         onAtlas={vi.fn()}
       />,
     );
-    expect(screen.getByText("Looking for evidence")).toBeInTheDocument();
+    // querying (at 0) is done now that checking is the running row; its
+    // label and ellipsis both read as finished, while the active row keeps
+    // its present-continuous label and untouched detail copy.
+    expect(screen.getByText("Looked for evidence")).toBeInTheDocument();
     expect(screen.getByText("Verifying content")).toBeInTheDocument();
     expect(screen.getByText("Auditing 3 claims…")).toBeInTheDocument();
-    expect(screen.getByText("Searching…")).toBeInTheDocument();
+    expect(screen.getByText("Searching")).toBeInTheDocument();
   });
 
   it("renders the comparing and verifying rows AFTER the answer, the rest before it", () => {
@@ -193,9 +196,11 @@ describe("Message stage checklist", () => {
     render(<Message msg={msg} streaming onAtlas={vi.fn()} />);
     const answer = screen.getByText("the answer text");
     const after = (label: string) => !!(answer.compareDocumentPosition(screen.getByText(label)) & Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(after("Looking for evidence")).toBe(false);
-    expect(after("Synthesizing")).toBe(false);
-    expect(after("Comparing results")).toBe(true);
+    // Only checking (the last/active entry) is still running; every earlier
+    // stage — including comparing, which sits after the answer — is done.
+    expect(after("Looked for evidence")).toBe(false);
+    expect(after("Synthesized")).toBe(false);
+    expect(after("Compared results")).toBe(true);
     expect(after("Verifying content")).toBe(true);
     // Only the running stage (the last logged) is active, across both lists.
     const active = document.querySelectorAll('li.rlc-stage[data-state="active"]');
@@ -214,8 +219,10 @@ describe("Message stage checklist", () => {
     });
     const { rerender } = render(<Message msg={live} streaming onAtlas={vi.fn()} />);
     rerender(<Message msg={{ ...live, content: "done answer", generated: true, done: true, rounds: 1 }} streaming={false} onAtlas={vi.fn()} />);
-    expect(screen.getByText("Looking for evidence")).toBeInTheDocument();
-    expect(screen.getByText("Synthesizing")).toBeInTheDocument();
+    // The turn is over, so every row — including the one that was running —
+    // now reads in the simple past.
+    expect(screen.getByText("Looked for evidence")).toBeInTheDocument();
+    expect(screen.getByText("Synthesized")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /atlas lookups and reasoning/ })).toBeNull();
   });
 

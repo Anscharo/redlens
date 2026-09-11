@@ -4,53 +4,75 @@ export interface ParagraphChecksProps {
   checks: ParagraphCheck[] | undefined;
 }
 
-// Symbol + label per model-audit state, keyed by ParagraphCheck["model"].
-const MODEL_MARKS: Record<NonNullable<ParagraphCheck["model"]>, { symbol: string; label: string }> = {
-  pending: { symbol: "○", label: "model check pending" },
-  ok: { symbol: "✓", label: "no contradictions found" },
-  candidate: { symbol: "!", label: "possible contradiction, being confirmed" },
-  failed: { symbol: "–", label: "model check unavailable" },
+// Label per model-audit state that gets its own row — `ok` and `pending`
+// never do (see `hasRow` below): a clean or still-checking paragraph has
+// nothing to say beyond what the summary line already counts.
+const MODEL_ROW_LABEL: Partial<Record<NonNullable<ParagraphCheck["model"]>, string>> = {
+  candidate: "possible contradiction, being confirmed",
+  failed: "model check unavailable",
 };
 
-// A second mark for the model (`refute`) audit's state, rendered to the
-// right of the deterministic mark. Absent `model` (should not happen once a
-// row exists — see applyEvent) renders nothing.
+// A paragraph earns a row only when it has something to report: a
+// deterministic finding, or a model state worth surfacing on its own
+// (`candidate`/`failed`). `ok` and `pending` render nothing per paragraph —
+// the summary line covers "checked" and "still running" for the whole set.
+function hasRow(c: ParagraphCheck): boolean {
+  return c.findings.length > 0 || c.model === "candidate" || c.model === "failed";
+}
+
 function ModelMark({ model }: { model: ParagraphCheck["model"] }) {
-  if (!model) return null;
-  const { symbol, label } = MODEL_MARKS[model];
-  return <span className="rlc-para-model" data-model={model} aria-label={label}>{symbol}</span>;
+  const label = model ? MODEL_ROW_LABEL[model] : undefined;
+  if (!label) return null;
+  return (
+    <span className="rlc-para-model" data-model={model} aria-label={label}>
+      {label}
+    </span>
+  );
 }
 
 // The incremental per-paragraph audit — rendered under the Synthesizing
-// stage row (StageSlots.tsx) once at least one check has landed. Each row
-// carries two marks: the deterministic finding(s) (`c.findings`) and the
-// model's `refute` audit state (`c.model`), which resolves concurrently. The
-// paragraph's own text is already visible right above this list (the live
-// draft or a superseded draft), so a row never repeats it — `title` (first
-// 80 chars) only identifies the paragraph on hover.
+// stage row (StageSlots.tsx) once at least one check has landed. A summary
+// line always shows (count + outcome); the list below it names only the
+// paragraphs that have a deterministic finding or a model state worth
+// calling out, so a clean run doesn't restate "checked, no findings" once
+// per paragraph. The paragraph's own text is already visible right above
+// this (the live draft or a superseded draft), so a row never repeats it —
+// `title` (first 80 chars) only identifies the paragraph on hover.
 export function ParagraphChecks({ checks }: ParagraphChecksProps) {
   if (!checks?.length) return null;
+  const rows = checks.filter(hasRow);
+  const flagged = rows.length;
+  const pending = checks.some((c) => c.model === "pending");
+  const n = checks.length;
+  const summary =
+    `${n} paragraph${n === 1 ? "" : "s"} checked` +
+    (pending ? ", model check running" : flagged > 0 ? `, ${flagged} flagged` : ", no findings");
+
   return (
-    <ol className="rlc-para-checks" aria-label="Paragraph checks">
-      {checks.map((c) => {
-        const flagged = c.findings.length > 0;
-        const title = c.text.length > 80 ? `${c.text.slice(0, 80)}…` : c.text;
-        return (
-          <li key={c.index} data-state={flagged ? "flagged" : "ok"} data-model={c.model} title={title}>
-            <span className="rlc-para-mark">{`¶${c.index + 1}`}</span>
-            {flagged ? (
-              c.findings.map((finding, i) => (
-                <span key={i} className="rlc-para-finding">
-                  {finding}
-                </span>
-              ))
-            ) : (
-              <span className="rlc-para-ok" aria-label="no findings">✓</span>
-            )}
-            <ModelMark model={c.model} />
-          </li>
-        );
-      })}
-    </ol>
+    <div className="rlc-para-checks">
+      <p className="rlc-para-summary">{summary}</p>
+      {rows.length > 0 && (
+        <ul aria-label="Paragraph checks">
+          {rows.map((c) => {
+            const title = c.text.length > 80 ? `${c.text.slice(0, 80)}…` : c.text;
+            // data-state reflects the deterministic finding specifically (a
+            // candidate/failed row with no finding of its own is a plain
+            // row, not a stacked "flagged" one — see the CSS layout rule).
+            const flaggedRow = c.findings.length > 0;
+            return (
+              <li key={c.index} data-state={flaggedRow ? "flagged" : "ok"} data-model={c.model} title={title}>
+                <span className="rlc-para-mark">{`¶${c.index + 1}`}</span>
+                {c.findings.map((finding, i) => (
+                  <span key={i} className="rlc-para-finding">
+                    {finding}
+                  </span>
+                ))}
+                <ModelMark model={c.model} />
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }

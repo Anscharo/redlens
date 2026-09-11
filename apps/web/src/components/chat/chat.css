@@ -586,18 +586,18 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 
 /* ── Per-paragraph checks (deterministic + model) ─────────────────────────
    Rendered under the Synthesizing stage row's draft (live or superseded) —
-   one row per checked paragraph. Each row carries two marks: the
-   deterministic finding(s)/`.rlc-para-ok` checkmark, and `.rlc-para-model`
-   for the concurrent model (`refute`) audit's state. */
-.rlc-para-checks { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+   a summary line (count + outcome) plus one row per paragraph that has
+   something to report: a deterministic finding, or a model (`refute`)
+   audit state worth calling out on its own (`candidate`/`failed`). A clean
+   or still-pending paragraph gets no row — the summary already covers it. */
+.rlc-para-checks { margin: 6px 0 0; display: flex; flex-direction: column; gap: 3px; }
+.rlc-para-summary { font: 400 12.5px/1.4 "Source Code Pro", monospace; color: var(--tan-3); letter-spacing: 0.02em; margin: 0; }
+.rlc-para-checks ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .rlc-para-checks li { display: flex; align-items: baseline; gap: 7px; font: 400 12px/1.4 "Source Code Pro", monospace; }
 .rlc-para-mark { color: var(--tan-3); flex-shrink: 0; }
-.rlc-para-ok { color: var(--terminal-green); }
 .rlc-para-checks li[data-state="flagged"] { flex-direction: column; align-items: flex-start; gap: 1px; }
 .rlc-para-checks li[data-state="flagged"] .rlc-para-mark { color: var(--warn); }
 .rlc-para-finding { color: var(--tan-3); }
-.rlc-para-model[data-model="pending"] { color: var(--tan-3); }
-.rlc-para-model[data-model="ok"] { color: var(--terminal-green); }
 .rlc-para-model[data-model="candidate"] { color: var(--warn); }
 .rlc-para-model[data-model="failed"] { color: var(--tan-3); }
 

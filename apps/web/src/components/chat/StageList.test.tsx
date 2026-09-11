@@ -26,7 +26,7 @@ describe("StageList", () => {
     expect(container.querySelectorAll("li.rlc-stage")).toHaveLength(2);
   });
 
-  it("maps known stages to their user-facing label", () => {
+  it("maps known stages to their user-facing label — done rows in the simple past, the active (last) row present continuous", () => {
     render(
       <StageList
         entries={[
@@ -41,9 +41,30 @@ describe("StageList", () => {
         renderSlot={noSlot}
       />,
     );
-    for (const label of ["Recalling context", "Looking for evidence", "Comparing results", "Synthesizing", "Verifying content"]) {
+    for (const label of ["Recalled context", "Looked for evidence", "Compared results", "Synthesized"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
+    // checking is the last (active) entry — still present continuous.
+    expect(screen.getByText("Verifying content")).toBeInTheDocument();
+  });
+
+  it("strips a trailing ellipsis from a done row's detail but leaves the active row's detail untouched", () => {
+    render(
+      <StageList
+        entries={[
+          { stage: "querying", details: ["Searching the atlas…"], at: 0, round: 1 },
+          { stage: "synthesizing", details: ["Writing an answer from the evidence..."], at: 1, round: 1 },
+        ]}
+        collapsed={false}
+        summary=""
+        renderSlot={noSlot}
+      />,
+    );
+    // querying (done) — ellipsis (either form) stripped.
+    expect(screen.getByText("Searching the atlas")).toBeInTheDocument();
+    expect(screen.queryByText("Searching the atlas…")).toBeNull();
+    // synthesizing (active, the last entry) — copy is untouched.
+    expect(screen.getByText("Writing an answer from the evidence...")).toBeInTheDocument();
   });
 
   it("capitalizes an unrecognized stage's raw name", () => {
@@ -114,7 +135,7 @@ describe("StageList", () => {
     expect(container.querySelector("li.rlc-stage")).toHaveAttribute("data-round", "2");
   });
 
-  it("no row is active once collapsed, even the last one, but their detail lines stay visible when expanded", () => {
+  it("no row is active once collapsed, even the last one, but their detail lines stay visible when expanded — with the trailing ellipsis stripped now that they read as done", () => {
     const { container } = render(
       <StageList
         entries={[
@@ -132,8 +153,16 @@ describe("StageList", () => {
     for (const row of rows) {
       expect(row.getAttribute("data-state")).toBe("done");
     }
-    expect(screen.getByText("Searching…")).toBeInTheDocument();
-    expect(screen.getByText("Auditing…")).toBeInTheDocument();
+    expect(screen.getByText("Searching")).toBeInTheDocument();
+    expect(screen.getByText("Auditing")).toBeInTheDocument();
+    expect(screen.queryByText("Searching…")).toBeNull();
+    expect(screen.queryByText("Auditing…")).toBeNull();
+    // A finished/collapsed list reads entirely in the simple past, even the
+    // row that was last (querying's "Looking for evidence" never appears).
+    expect(screen.getByText("Looked for evidence")).toBeInTheDocument();
+    expect(screen.getByText("Verified content")).toBeInTheDocument();
+    expect(screen.queryByText("Looking for evidence")).toBeNull();
+    expect(screen.queryByText("Verifying content")).toBeNull();
   });
 
   it("renders a row with no toggle affordance (plain, not a button) when renderSlot returns null", () => {
@@ -204,7 +233,9 @@ describe("StageList", () => {
         renderSlot={(entry) => <span>{entry.stage} slot</span>}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /Looking for evidence/ }));
+    // querying (at 0) is not the last/active entry here — checking is — so
+    // it renders in the done (simple past) tense.
+    fireEvent.click(screen.getByRole("button", { name: /Looked for evidence/ }));
     expect(screen.getByText("querying slot")).toBeInTheDocument();
     expect(screen.queryByText("checking slot")).toBeNull();
   });
@@ -234,7 +265,7 @@ describe("StageList", () => {
     expect(screen.getByText("inner control")).toBeInTheDocument();
   });
 
-  it("keeps the tree (and the open row) when the turn finishes with a row open", () => {
+  it("keeps the tree (and the open row) when the turn finishes with a row open, flipping its label to the done tense", () => {
     const entries = [{ stage: "synthesizing", details: [], at: 5, round: 1 }];
     const slot = () => <span>the draft</span>;
     const { rerender } = render(<StageList entries={entries} collapsed={false} summary="s" renderSlot={slot} />);
@@ -243,16 +274,17 @@ describe("StageList", () => {
     rerender(<StageList entries={entries} collapsed={true} summary="s" renderSlot={slot} />);
     expect(screen.getByText("the draft")).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Answer progress" })).toBeInTheDocument();
+    expect(screen.getByText("Synthesized")).toBeInTheDocument();
     // The row itself still folds on a second click.
-    fireEvent.click(screen.getByRole("button", { name: /Synthesizing/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Synthesized/ }));
     expect(screen.queryByText("the draft")).not.toBeInTheDocument();
   });
 
-  it("keeps the full tree, with no summary head, when a list that mounted live finishes", () => {
+  it("keeps the full tree, with no summary head, when a list that mounted live finishes — its row now reads in the done tense", () => {
     const entries = [{ stage: "querying", details: ["Searching…"], at: 0, round: 1 }];
     const { rerender } = render(<StageList entries={entries} collapsed={false} summary="s" renderSlot={noSlot} />);
     rerender(<StageList entries={entries} collapsed={true} summary="s" renderSlot={noSlot} />);
-    expect(screen.getByText("Looking for evidence")).toBeInTheDocument();
+    expect(screen.getByText("Looked for evidence")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^s$/ })).toBeNull();
     expect(document.querySelector("li.rlc-stage")?.getAttribute("data-state")).toBe("done");
   });
@@ -280,7 +312,7 @@ describe("StageList", () => {
     expect(head).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("expands the collapsed summary into the full tree on click", () => {
+  it("expands the collapsed summary into the full tree on click, its row already in the done tense", () => {
     render(
       <StageList
         entries={[{ stage: "querying", details: ["Searching…"], at: 0, round: 1 }]}
@@ -290,7 +322,7 @@ describe("StageList", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /atlas lookups and reasoning/ }));
-    expect(screen.getByText("Looking for evidence")).toBeInTheDocument();
+    expect(screen.getByText("Looked for evidence")).toBeInTheDocument();
   });
 });
 

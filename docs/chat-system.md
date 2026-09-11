@@ -589,6 +589,8 @@ answer once (§1), rather than the server picking between two client shapes.
 
 Status rows accumulate every detail line they reported (`StageLogEntry.details`) and keep them after the stage completes — nothing shown in the checklist is ever replaced or removed.
 
+**Tense and per-paragraph disclosure (`StageList.tsx`, `ParagraphChecks.tsx`)**: a finished stage row reads in the simple past ("Looked for evidence") and only the currently-running row stays present continuous ("Looking for evidence") — a step that already happened shouldn't read as still happening. This is display-only: `stageLabel`/`stripTrailingEllipsis` pick the tense and drop a detail line's trailing "…"/"..." on a done row so it doesn't look like it's still going, but the logged `StageLogEntry.details` strings themselves are untouched, so the never-removed rule above still holds. The per-paragraph audit under the Synthesizing row follows the same "don't restate the default" instinct: `ParagraphChecks` renders one summary line (`N paragraphs checked`, plus `, no findings` / `, K flagged` / `, model check running` while any paragraph is still `pending`) and a row underneath only for a paragraph that has a deterministic finding or a model state worth naming on its own (`candidate`/`failed`) — a clean (`ok`) or still-pending paragraph gets no row, since the summary already accounts for it.
+
 **`answer_final`** is a new `HarnessEvent`, `{ type: "answer_final", content
 }`, yielded once — right after deterministic citation repair succeeds (after
 the `round_checks` entry lands in `checksMeta`), before the verifier-model

@@ -4,17 +4,29 @@ import type { StageLogEntry, TraceRow } from "./useChatStream";
 // docs/chat-system.md §8 user-facing stage copy. Unknown stages
 // (forward-compat with a server that adds one before the client updates)
 // fall back to a capitalized raw label instead of disappearing. Every turn
-// now runs the same stage vocabulary (see api.ts's `Stage` type).
-const STAGE_LABEL: Record<string, string> = {
-  recalling: "Recalling context",
-  querying: "Looking for evidence",
-  comparing: "Comparing results",
-  synthesizing: "Synthesizing",
-  checking: "Verifying content",
+// now runs the same stage vocabulary (see api.ts's `Stage` type). Two
+// tenses per stage: `active` while it's the running row, `done` once a
+// later stage (or the turn ending) supersedes it — a finished step reads
+// as something that happened, not something still happening.
+const STAGE_LABEL: Record<string, { active: string; done: string }> = {
+  recalling: { active: "Recalling context", done: "Recalled context" },
+  querying: { active: "Looking for evidence", done: "Looked for evidence" },
+  comparing: { active: "Comparing results", done: "Compared results" },
+  synthesizing: { active: "Synthesizing", done: "Synthesized" },
+  checking: { active: "Verifying content", done: "Verified content" },
 };
 
-function stageLabel(stage: string): string {
-  return STAGE_LABEL[stage] ?? stage.charAt(0).toUpperCase() + stage.slice(1);
+function stageLabel(stage: string, active: boolean): string {
+  const known = STAGE_LABEL[stage];
+  if (known) return active ? known.active : known.done;
+  return stage.charAt(0).toUpperCase() + stage.slice(1);
+}
+
+// A done row reads in the simple past, so a trailing "still working"
+// ellipsis on its detail line would read as running under a finished step.
+// Display-only — the logged string itself is untouched.
+function stripTrailingEllipsis(detail: string): string {
+  return detail.replace(/\s*(?:\.{3}|…)$/, "");
 }
 
 // The collapsed checklist's one-line summary (shown only for a turn that
@@ -120,12 +132,15 @@ export function StageList({ entries, collapsed, summary, activeAt, renderSlot }:
               <>
                 <span className="rlc-stage-marker" aria-hidden="true" />
                 <div className="rlc-stage-body">
-                  <span className="rlc-stage-label">{stageLabel(entry.stage)}</span>
+                  <span className="rlc-stage-label">{stageLabel(entry.stage, active)}</span>
                   {/* Every detail line the stage reported stays visible, done
-                      row or active — nothing shown to the reader disappears. */}
+                      row or active — nothing shown to the reader disappears.
+                      A done row strips a trailing ellipsis so it doesn't read
+                      as still in progress; the active row's copy is
+                      untouched. */}
                   {entry.details.map((d, di) => (
                     <span key={di} className="rlc-stage-detail">
-                      {d}
+                      {active ? d : stripTrailingEllipsis(d)}
                     </span>
                   ))}
                 </div>
