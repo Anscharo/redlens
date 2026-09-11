@@ -69,6 +69,11 @@ const AGENT_GAP = 96;
 /** Below the headers and the first Prime's name block. */
 const TOP = 150;
 const BOTTOM_PAD = 16;
+/** Fixed canvas height, so the viewBox — and with it the scale, the column
+ *  x positions and the headers — never changes from month to month. Tall
+ *  enough for the roster the workbooks have published (a seventh Prime
+ *  would stretch it, once). */
+export const HEIGHT = 1100;
 /** Ribbon floor. The canvas renders at about half size, so this is ~2px on
  *  screen: a Prime's smallest line item (Skybase's accessibility rewards,
  *  ~1% of the month) stays a visible hairline rather than vanishing. */
@@ -169,7 +174,7 @@ function account(p: PrimeFlowTotals) {
 
 export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
   const acc = primes.map((p) => ({ p, a: account(p) })).filter(({ a }) => a.total > 0 || a.loss > 0);
-  const empty: FlowLayout = { width: WIDTH, height: TOP + BOTTOM_PAD, sources: [], agents: [], sky: { x: RIGHT_X, y: TOP, h: 0, total: 0, segments: [], shares: [] } };
+  const empty: FlowLayout = { width: WIDTH, height: HEIGHT, sources: [], agents: [], sky: { x: RIGHT_X, y: TOP, h: 0, total: 0, segments: [], shares: [] } };
   if (acc.length === 0) return empty;
 
   const sourceTotal = (k: SliceKind) => acc.reduce((n, { a }) => n + (a.inbound.find((x) => x.kind === k)?.value ?? 0), 0);
@@ -252,7 +257,7 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
   );
   return {
     width: WIDTH,
-    height: bottom + BOTTOM_PAD,
+    height: Math.max(HEIGHT, bottom + BOTTOM_PAD),
     sources: sources.map((s) => ({ kind: s.item, value: sourceTotal(s.item), x: LEFT_X, y: s.y, h: s.h, labelY: s.labelY })),
     agents: out,
     sky: { x: RIGHT_X, y: skyY, h: skyH, total: skyTotal, segments, shares },

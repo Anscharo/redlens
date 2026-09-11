@@ -109,6 +109,14 @@ describe("layoutMscFlow", () => {
     expect(cof.pillY).toBeLessThan(cof.midY);
   });
 
+  it("keeps the canvas the same size whatever the month, so nothing moves between months", () => {
+    const one = layoutMscFlow([flow()]);
+    const six = layoutMscFlow(["spark", "grove", "keel", "skybase", "obex", "osero"].map((prime) => flow({ prime })));
+    expect(one.height).toBe(six.height);
+    expect(one.width).toBe(six.width);
+    expect(one.agents[0].x).toBe(six.agents[0].x);
+  });
+
   it("centers the source and Sky columns on the Prime column", () => {
     const l = layoutMscFlow([flow(), flow({ prime: "grove" }), flow({ prime: "obex" })]);
     const agentsBottom = l.agents[2].y + l.agents[2].h;
