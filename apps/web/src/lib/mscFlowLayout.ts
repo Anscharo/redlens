@@ -66,7 +66,10 @@ const AGENT_GAP = 84;
 /** Below the headers and the first Prime's name block. */
 const TOP = 150;
 const BOTTOM_PAD = 16;
-const MIN_T = 1.5;
+/** Ribbon floor. The canvas renders at about half size, so this is ~2px on
+ *  screen: a Prime's smallest line item (Skybase's accessibility rewards,
+ *  ~1% of the month) stays a visible hairline rather than vanishing. */
+const MIN_T = 4;
 /** Two lines in the left gutter: name over amount. */
 const SOURCE_LABEL_BLOCK = 72;
 /** Pill center above the mark it names — clears a 2×-scale pill (60 tall). */

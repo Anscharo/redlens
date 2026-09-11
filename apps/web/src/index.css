@@ -612,17 +612,17 @@
   --msc-sky-2: #7cbbf0;
   --msc-sky-3: #a2d0f9;
   --msc-sky-4: #c3e2fe;
-  --msc-sde: #71d9eb;
+  --msc-sde: #6fdae6;
   --msc-sde-ink: #141414;
-  --msc-kept: #dfd19d;
+  --msc-kept: #eee8d2;
   --msc-kept-ink: #141414;
-  --msc-demand: #f39e4c;
+  --msc-demand: #fda856;
   --msc-demand-ink: #141414;
-  --msc-dr: #bc7a51;
+  --msc-dr: #c37650;
   --msc-dr-ink: #141414;
   --msc-gar: #f1df88;
   --msc-gar-ink: #141414;
-  --msc-cp: #a59d91;
+  --msc-cp: #b8b0a3;
   --msc-cp-ink: #141414;
   --msc-loss: #ce746a; /* a loss, always STRIPED — the theme's accent red */
   /* Prime identities: the theme's OTHER hue — the warm gold (hue 80) of
