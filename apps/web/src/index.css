@@ -110,7 +110,8 @@
      Their variations are distinct hues, not one-hue lightness ramps —
      "shades of green, teal and blue together are not enough contrast":
      SDE is a cyan-leaning blue beside cost of funds; the demand-side
-     series step orange → yellow → salmon → tan. Each variation clears the
+     series step orange → brown → salmon → tan (a yellow step read too
+     close to the tan, so distribution rewards went brown). Each variation clears the
      dataviz validator's normal-vision floor (ΔE ≥ 15) against its
      neighbours in the slice order, and the Prime set does too. The one
      pair under the floor is the originals themselves (sage vs orange,
@@ -128,22 +129,24 @@
   --msc-kept-ink: #160e0d;
   --msc-demand: #e0a060; /* agent rate — the demand-side family color (teal) */
   --msc-demand-ink: #160e0d;
-  --msc-dr: #efe176; /* distribution rewards */
+  --msc-dr: #9d7a6b; /* distribution rewards */
   --msc-dr-ink: #160e0d;
-  --msc-gar: #e68485; /* accessibility rewards */
+  --msc-gar: #ed8b8b; /* accessibility rewards */
   --msc-gar-ink: #160e0d;
-  --msc-cp: #e1ceb5; /* chronicle points */
+  --msc-cp: #dfceb8; /* chronicle points */
   --msc-cp-ink: #160e0d;
   --msc-loss: #c67267; /* a loss, always STRIPED — the theme's accent red */
   /* MSC prime identity colors (timeseries stacks, pie rims, the Prime's
      bar on the flow chart and its own settlement page): violet, rose,
-     teal, brown, grey — five hues clear of the flow colors (blue, green,
-     orange), validated as an adjacent set (2026-09-11). */
+     teal, plum, light grey, slate — six slots, one per Prime that has
+     published, clear of the flow colors (blue, green, orange, brown) and
+     validated as an adjacent set (2026-09-11). */
   --msc-prime-1: #b191ea; /* purple */
   --msc-prime-2: #fab2cd; /* gold */
   --msc-prime-3: #009494; /* sand */
-  --msc-prime-4: #7c5336; /* brown */
-  --msc-prime-5: #c5bcb4; /* warm gray */
+  --msc-prime-4: #7e4d8a; /* brown */
+  --msc-prime-5: #cac2bd; /* warm gray */
+  --msc-prime-6: #6c7680;
 }
 
 /* ─── Alternate themes ────────────────────────────────────────────────────
@@ -306,18 +309,19 @@
   --msc-kept-ink: #fafafa;
   --msc-demand: #a34d00; /* teal (hue 200, see the :root note) */
   --msc-demand-ink: #fafafa;
-  --msc-dr: #c3b438;
-  --msc-dr-ink: #050505;
+  --msc-dr: #4f2b1a;
+  --msc-dr-ink: #fafafa;
   --msc-gar: #b5494e;
   --msc-gar-ink: #fafafa;
-  --msc-cp: #c4ad8e;
+  --msc-cp: #c2ae92;
   --msc-cp-ink: #050505;
   --msc-loss: #b91c1c; /* a loss, always STRIPED — the theme's accent red */
   --msc-prime-1: #6c44a4; /* purple */
   --msc-prime-2: #cb7196; /* gold */
   --msc-prime-3: #006364; /* sand */
-  --msc-prime-4: #532d0f; /* brown */
-  --msc-prime-5: #877e77; /* warm gray */
+  --msc-prime-4: #552660; /* brown */
+  --msc-prime-5: #8c857f; /* warm gray */
+  --msc-prime-6: #454e58;
 }
 
 /* "Giedi" (id: giedi) — the dark theme with the colour taken out: blacks, dark
@@ -629,6 +633,7 @@
   --msc-prime-3: #c5ad86;
   --msc-prime-4: #726042;
   --msc-prime-5: #a9926b;
+  --msc-prime-6: #6a5b44;
 }
 
 /* ─── Giedi structural override ──────────────────────────────────────────
@@ -2718,6 +2723,8 @@ a.atlas-annotates:focus-visible {
 .msc-bar-stack {
   display: flex;
   flex-direction: column-reverse;
+  /* A card-colored gap between stacked segments (the dataviz spacer rule). */
+  gap: 2px;
 }
 .msc-bar-col:hover {
   color: var(--tan-2);
@@ -2948,8 +2955,8 @@ a.atlas-annotates:focus-visible {
   position: absolute;
   left: 0;
   right: 0;
-  /* 1px separation line between stacked segments (dataviz spacer rule). */
-  box-shadow: inset 0 1px 0 var(--bg-deep);
+  /* A 2px card-colored gap between stacked segments (dataviz spacer rule). */
+  box-shadow: inset 0 2px 0 var(--bg-deep);
   transition: opacity 0.1s;
 }
 .msc-ts-grid {

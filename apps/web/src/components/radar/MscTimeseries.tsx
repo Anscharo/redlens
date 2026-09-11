@@ -19,9 +19,9 @@ const TRACK_H = 380;
 // Per-prime categorical fills, assigned by the stable roster order from
 // primeStackMonths (fixed order, never re-cycled when a month lacks a prime).
 // Dedicated tokens rather than the depth palette: prime identity colors must
-// avoid blue, green and orange in EVERY theme — those are the flow colors.
-// Primes past the list fold to gray.
-const PRIME_FILLS = ["--msc-prime-1", "--msc-prime-2", "--msc-prime-3", "--msc-prime-4", "--msc-prime-5"] as const;
+// avoid blue, green, orange and brown in EVERY theme — those are the flow
+// colors. One slot per Prime that has published; any past that fold to gray.
+const PRIME_FILLS = ["--msc-prime-1", "--msc-prime-2", "--msc-prime-3", "--msc-prime-4", "--msc-prime-5", "--msc-prime-6"] as const;
 export const primeFill = (i: number): string =>
   `var(${i < PRIME_FILLS.length ? PRIME_FILLS[i] : "--gray"})`;
 

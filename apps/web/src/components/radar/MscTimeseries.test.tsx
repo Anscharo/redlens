@@ -125,7 +125,7 @@ describe("MscTimeseries", () => {
 
   it("assigns fills by roster order and folds the overflow to gray", () => {
     expect(primeFill(0)).toBe("var(--msc-prime-1)");
-    expect(primeFill(4)).toBe("var(--msc-prime-5)");
-    expect(primeFill(5)).toBe("var(--gray)");
+    expect(primeFill(5)).toBe("var(--msc-prime-6)");
+    expect(primeFill(6)).toBe("var(--gray)");
   });
 });
