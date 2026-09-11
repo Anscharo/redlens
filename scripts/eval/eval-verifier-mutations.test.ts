@@ -18,6 +18,7 @@ import { extractCitations, findInvalidCitationUuids } from "../../src/server/cha
 import type { SavedRun } from "./eval-verifier-mutations.ts";
 import {
   buildMutations,
+  mutateContradiction,
   mutateEnumeration,
   mutateNumber,
   mutateUnknownUuid,
@@ -72,6 +73,61 @@ test("buildMutations always includes fabrication + ruling, others when applicabl
   expect(classes).toEqual(["unknown_uuid", "wrong_doc", "number", "fabrication", "ruling"]);
   const bare = buildMutations({ ...run, answer: "plain answer" }, ix).map((m) => m.class);
   expect(bare).toEqual(["fabrication", "ruling"]);
+});
+
+test("buildMutations marks fabrication and enumeration informational — the refutation verifier cannot catch either by construction", () => {
+  const byClass = new Map(buildMutations(run, ix).map((m) => [m.class, m]));
+  expect(byClass.get("fabrication")?.informational).toBe(true);
+  expect(byClass.get("ruling")?.informational).toBeUndefined();
+  expect(byClass.get("unknown_uuid")?.informational).toBeUndefined();
+});
+
+test("mutateContradiction swaps a number that is genuinely in the evidence for a different one also in the evidence", () => {
+  const withEvidence: SavedRun = {
+    id: "c1",
+    question: "q",
+    answer: "The capital ratio is 8.75%, well above the floor.",
+    evidence: [{ label: "[E1]", tool: "atlas_get", args: "{}", content: "The minimum capital ratio is 8.75%. The stress floor is 3.00%." }],
+  };
+  const mutated = mutateContradiction(withEvidence, ix)!;
+  expect(mutated).not.toBeNull();
+  expect(mutated).not.toContain("8.75%");
+  expect(mutated).toContain("3.00%".replace(/,/g, ""));
+});
+
+test("mutateContradiction never touches digits inside a uuid href or inline code", () => {
+  const withEvidence: SavedRun = {
+    id: "c2",
+    question: "q",
+    answer: `The rate is 8.75% per [Doc](/atlas/${realUuid}). See also \`code 99\`.`,
+    evidence: [{ label: "[E1]", tool: "atlas_get", args: "{}", content: "The rate is 8.75%. Elsewhere the rate is 12%." }],
+  };
+  const mutated = mutateContradiction(withEvidence, ix)!;
+  expect(mutated).toContain(`/atlas/${realUuid}`);
+  expect(mutated).toContain("`code 99`");
+});
+
+test("mutateContradiction falls back to swapping an entity name shared between answer and evidence", () => {
+  const named = ix.entities.filter((e) => e.name.length > 2);
+  const a = named[0];
+  // Neither name may be a substring of the other, or the swapped-in name
+  // would still leave the original name embedded in the text.
+  const b = a && named.find((e) => e.name !== a.name && !e.name.includes(a.name) && !a.name.includes(e.name));
+  if (!a || !b) return; // atlas too small in this environment — nothing to assert
+  const withEvidence: SavedRun = {
+    id: "c3",
+    question: "q",
+    answer: `${a.name} is responsible for this duty.`,
+    evidence: [{ label: "[E1]", tool: "atlas_get", args: "{}", content: `${a.name} and ${b.name} both appear here, no numbers at all.` }],
+  };
+  const mutated = mutateContradiction(withEvidence, ix);
+  expect(mutated).not.toBeNull();
+  expect(mutated).not.toContain(a.name);
+});
+
+test("mutateContradiction returns null when nothing in the answer is echoed by the evidence", () => {
+  const noOverlap: SavedRun = { id: "c4", question: "q", answer: "Plain prose with no shared facts.", evidence: [] };
+  expect(mutateContradiction(noOverlap, ix)).toBeNull();
 });
 
 test("mutateEnumeration clones a bulleted **Name** line with an unused phantom member", () => {

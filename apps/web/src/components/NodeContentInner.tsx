@@ -5,7 +5,7 @@ import type { Components } from "react-markdown";
 import type { AnchorHTMLAttributes } from "react";
 import type { Element } from "hast";
 import { ethAddressesPlugin, rehypeEthAddresses } from "../lib/rehypeEthAddresses";
-import { remarkDeMathProse } from "../lib/mathGuard";
+import { MATH_RE, loadMathPlugins, mathRemarkPlugins, mathRehypePlugin } from "../lib/markdownMath";
 import { UUID_RE } from "@/lib/patterns";
 import { atlasHref } from "@/lib/routes";
 import { resolveAtlasRef } from "../lib/docs";
@@ -110,44 +110,33 @@ const components: Components = {
   },
 };
 
-const MATH_RE = /\$\$|\$[^$\s]/;
 const rehypePluginsBase = [ethAddressesPlugin];
 
 let remarkPluginsMath: any[] | null = null;
 let rehypePluginsMath: any[] | null = null;
-let katexPromise: Promise<void> | null = null;
+let katexReadyPromise: Promise<void> | null = null;
 
-// KaTeX renders synchronously, so a wall-clock timeout isn't possible — these
-// bound the work instead: maxExpand kills macro-expansion bombs (\def chains),
-// maxSize caps glyphs at 50em (no viewport-filling rules from hostile previews).
-// Render errors stay inline (errorColor); anything that still throws is caught
-// by NodeContent's per-node ErrorBoundary.
-const KATEX_OPTIONS = { maxExpand: 1000, maxSize: 50, errorColor: "var(--red)" };
-
+// Assembles this renderer's own plugin arrays (remarkGfm + math + on-chain
+// address linkification) on top of the shared, module-cached KaTeX import —
+// see ../lib/markdownMath.ts for what's shared (the import, MATH_RE,
+// KATEX_OPTIONS, the guard) and why.
 function loadKatex(): Promise<void> {
-  if (!katexPromise) {
-    katexPromise = Promise.all([
-      import("rehype-katex"),
-      import("remark-math"),
-      import("katex/dist/katex.min.css"),
-    ])
-      .then(([rehypeKatexMod, remarkMathMod]) => {
-        // remarkDeMathProse runs AFTER remark-math to reclassify inline-math
-        // spans that are actually prose/currency (e.g. a `$100k … | … $` table
-        // row) back to literal text, so KaTeX never garbles them.
-        remarkPluginsMath = [remarkGfm, remarkMathMod.default, remarkDeMathProse];
-        rehypePluginsMath = [[rehypeKatexMod.default, KATEX_OPTIONS], rehypeEthAddresses()];
+  if (!katexReadyPromise) {
+    katexReadyPromise = loadMathPlugins()
+      .then(({ remarkMath, rehypeKatex }) => {
+        remarkPluginsMath = [remarkGfm, ...mathRemarkPlugins(remarkMath)];
+        rehypePluginsMath = [mathRehypePlugin(rehypeKatex), rehypeEthAddresses()];
       })
       .catch((err) => {
         // A rejected dynamic import (e.g. a stale chunk URL after a redeploy)
         // would otherwise cache forever — every future math node would await
         // the same dead promise and never render KaTeX again this session.
         // Clear it so the next node with math content retries the import.
-        katexPromise = null;
+        katexReadyPromise = null;
         throw err;
       });
   }
-  return katexPromise;
+  return katexReadyPromise;
 }
 
 export default function NodeContentInner({ content, onNavigate, highlight, noMath }: Props) {
@@ -161,7 +150,8 @@ export default function NodeContentInner({ content, onNavigate, highlight, noMat
         .catch(() => {
           // Leave katexReady false — plain markdown (with raw $...$ delimiters)
           // still renders via NodeContent's ErrorBoundary/fallback path, and a
-          // later node/effect run will retry now that katexPromise was cleared.
+          // later node/effect run will retry now that the shared import cache
+          // was cleared (loadMathPlugins in ../lib/markdownMath.ts).
         });
     }
   }, [hasMath]);

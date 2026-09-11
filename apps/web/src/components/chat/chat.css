@@ -152,8 +152,7 @@
 [data-scheme="light"] .rlc-stage[data-state="done"] {
   opacity: 0.75;
 }
-[data-scheme="light"] .rlc-send:disabled,
-[data-scheme="light"] .rlc-staged-toggle:disabled {
+[data-scheme="light"] .rlc-send:disabled {
   opacity: 0.58;
 }
 [data-scheme="light"] .rlc-starters-locked {
@@ -349,27 +348,8 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   transition: background 100ms, color 100ms, border-color 100ms;
 }
 .rlc-iconbtn:hover { background: var(--hover); color: var(--tan); border-color: var(--border); }
-
-/* Delivery-mode toggle (label flips streaming ↔ stages), sits in the header
-   row next to the dock/close icon buttons. Plain attribute-selector state —
-   no JS hover; native title= carries the hint. */
-.rlc-staged-toggle {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 9px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--tan-3);
-  font: 400 10.5px/1 "Source Code Pro", monospace;
-  letter-spacing: 0.04em;
-  text-transform: lowercase;
-  cursor: pointer;
-  transition: background 100ms, border-color 100ms, color 100ms;
-}
-.rlc-staged-toggle:hover:not(:disabled) { border-color: var(--accent); color: var(--tan); }
-.rlc-staged-toggle[aria-pressed="true"] { background: var(--red-dim); border-color: var(--red); color: var(--tan); }
-.rlc-staged-toggle:disabled { opacity: 0.4; cursor: default; }
+.rlc-iconbtn:disabled { opacity: 0.4; cursor: default; }
+.rlc-iconbtn:disabled:hover { background: transparent; color: var(--tan-3); border-color: transparent; }
 
 /* ── Scroll region ─────────────────────────────────────────────────────── */
 /* Non-scrolling box exactly spanning the conversation area — the context
@@ -433,9 +413,22 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-turn-error { display: flex; align-items: center; gap: 7px; color: var(--error-text); font: 400 13.5px/1.5 var(--serif, "Lora", serif); }
 .rlc-turn-error-icon { color: var(--red); }
 
-/* ── Staged-delivery stage checklist ───────────────────────────────────── */
+/* ── Stage checklist ───────────────────────────────────────────────────── */
+.rlc-stage-summary { margin: 2px 0 0; }
+/* The comparing/verifying rows render after the answer (Message.tsx's
+   POST_ANSWER_STAGES); give them the same breathing room the answer's last
+   paragraph has above the badge. */
+.rlc-answer + .rlc-stage-summary { margin-top: 4px; margin-bottom: 10px; }
 .rlc-stages { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
-.rlc-stage { display: flex; align-items: flex-start; gap: 9px; }
+/* .rlc-stage stacks column-wise (header row, then an optional slot below
+   it) — the marker+label row itself is laid out by .rlc-stage-head /
+   .rlc-stage-toggle, not by .rlc-stage, because the slot is a SIBLING of
+   that row, never nested inside it (a nested slot could carry its own
+   interactive elements — ReasoningBlock's "thinking" toggle, citation links
+   in a draft — and both a <button> inside a <button> and a click on one of
+   those bubbling up to collapse the row would be bugs). */
+.rlc-stage { display: flex; flex-direction: column; }
+.rlc-stage-head, .rlc-stage-toggle { display: flex; align-items: flex-start; gap: 9px; }
 .rlc-stage-marker { width: 6px; height: 6px; margin-top: 4px; border-radius: 50%; background: var(--gray); flex-shrink: 0; }
 .rlc-stage-body { display: flex; flex-direction: column; gap: 3px; }
 .rlc-stage-label { font: 400 12.5px/1.4 "Source Code Pro", monospace; color: var(--tan-3); letter-spacing: 0.02em; }
@@ -444,8 +437,34 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-stage[data-state="active"] .rlc-stage-marker { background: var(--accent); animation: rlc-pulse 1.1s ease-in-out infinite; }
 .rlc-stage[data-state="active"] .rlc-stage-label { color: var(--tan); }
 .rlc-stage-detail { font: 400 13px/1.5 var(--serif, "Lora", serif); color: var(--tan-2); }
+/* Each row's own disclosure control — the marker + label together are the
+   click target (no separate header button in the panel any more; a stage
+   row's working content is reached by clicking the row itself). Reset to
+   look exactly like the plain row it replaces: no border/background,
+   inherits the row's font, just a pointer cursor. The caret reuses
+   .rlc-trace-caret's rotate-on-closed treatment. */
+.rlc-stage-toggle {
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+/* A stage row's working content (lookups, reasoning, draft, findings) — a
+   sibling of the header row, not a child of it (see .rlc-stage above), so
+   it's indented by hand to sit under the label: marker width (6px) + the
+   header's own gap (9px). */
+.rlc-stage-slot { margin-top: 5px; margin-left: 15px; padding-left: 1px; }
+/* The live token buffer, shown only while the answer hasn't been revealed
+   yet — dimmed marks it as still-forming. Upright, same as the .rlc-answer
+   it hands off to: the answer text is never italic (an italic→upright flip
+   read as the answer jumping). */
+.rlc-stage-draft { color: var(--tan-2); }
 
-/* An aborted staged turn: stages ran but no answer landed. */
+/* An aborted turn: stages ran but no answer landed. */
 .rlc-stopped { font: 400 14px/1.5 var(--serif, "Lora", serif); color: var(--tan-3); font-style: italic; margin: 0; }
 
 /* ── Sources cluster ───────────────────────────────────────────────────── */
@@ -486,10 +505,9 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-export-name { font: 400 12.5px/1 "Source Code Pro", monospace; color: var(--tan-2); }
 
 /* ── Reasoning ("thinking") trace ────────────────────────────────────────
-   Rendered above the answer in BOTH streaming and staged delivery — see
-   Message.tsx, which hoists <ReasoningBlock> above the per-mode content
-   branches so no branch (especially the staged checklist) can swallow it.
-   Same collapsible shape as .rlc-trace below, but OPEN by default: the beta
+   Rendered by StageSlot.tsx inside the synthesizing stage row's slot (once
+   that row is clicked open, first occurrence only) — see ReasoningBlock.tsx. Same
+   collapsible shape as the trace rows below, but OPEN by default: the beta
    feedback asked for these to show immediately, not tucked behind a click.
    The scroll cap on the body is what keeps a long trace from dominating the
    message once it's open, instead of relying on the collapse alone. */
@@ -525,16 +543,15 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 
 /* ── Provisional (unverified) answer ─────────────────────────────────────
    Message.tsx sets data-state from `!done || verify?.status === "checking"`.
-   .rlc-md sets its own font-style via the `font` shorthand (defaulting it to
-   normal), so this has to out-specificity that rule rather than rely on
-   inheriting italic from an ancestor. */
-.rlc-answer[data-state="provisional"] .rlc-md { font-style: italic; }
+   Deliberately unstyled: the answer used to render italic until the verify
+   badge resolved, and the flip to upright read as the text jumping. The
+   badge is the unverified signal; the attribute stays for tests/tooling. */
 
 /* ── Superseded prior draft ──────────────────────────────────────────────
-   A revision / tool_round moves the already-streamed draft here instead of
+   A tool_round clear moves the already-streamed draft here instead of
    deleting it (beta feedback: "never ever remove text that user has seen").
-   Rendered above the live answer. <del> is only for `revision` (judged
-   wrong); `tool_round` is a plain wrapper. This just makes the block read. */
+   Rendered above the live answer as a plain (dimmed, italic) wrapper — the
+   draft was set aside, not judged wrong, so nothing here strikes it. */
 .rlc-superseded-list { display: block; }
 .rlc-superseded { margin-bottom: 10px; }
 /* Chrome that *describes* the draft, not the draft itself. Thinking and
@@ -553,30 +570,36 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 }
 .rlc-superseded-text { display: block; }
 /* The draft is rendered markdown, not plain text (SupersededAnswer.tsx), so
-   the strike and the dimming have to reach INSIDE .rlc-md rather than sit on
-   the <del> alone. `text-decoration` propagates to in-flow descendants, but
-   .rlc-md a sets its own `text-decoration: underline`, which replaces the
-   inherited strike on every citation — so links restate both. Colour is
-   re-bound to the muted tier throughout: a retracted draft must not read as
-   more prominent than the live answer sitting below it. */
-.rlc-superseded-text .rlc-md { color: var(--tan-3); text-decoration: line-through; }
-/* A `tool_round` draft was superseded, not WRONG — the model set it aside and
-   went on searching. Dim it like the others, but don't strike it:
-   a strike asserts the text was incorrect, which for this reason it never
-   was. Strike stays for `revision`, the one kept reason that does mean wrong.
-   (A repetition-loop draft is never kept at all — see useChatStream.) */
-.rlc-superseded[data-reason="tool_round"] .rlc-superseded-text .rlc-md,
-.rlc-superseded[data-reason="tool_round"] .rlc-superseded-text .rlc-md a {
-  text-decoration: none;
-  font-style: italic;
-}
+   the dimming has to reach INSIDE .rlc-md rather than sit on the wrapper
+   alone. Colour is re-bound to the muted tier throughout: a superseded draft
+   must not read as more prominent than the live answer sitting below it. The
+   draft was set aside, not judged wrong, so it's dimmed/italic rather than
+   struck — but citations keep their underline so they still read as links. */
+.rlc-superseded-text .rlc-md { color: var(--tan-3); text-decoration: none; font-style: italic; }
 .rlc-superseded-text .rlc-md strong { color: var(--tan-3); }
 .rlc-superseded-text .rlc-md a {
   color: var(--tan-3);
-  text-decoration: line-through underline;
+  text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--tan-3) 45%, transparent);
 }
 .rlc-superseded-text .rlc-md a:hover { color: var(--tan-2); text-decoration-color: var(--tan-3); }
+
+/* ── Per-paragraph checks (deterministic + model) ─────────────────────────
+   Rendered under the Synthesizing stage row's draft (live or superseded) —
+   a summary line (count + outcome) plus one row per paragraph that has
+   something to report: a deterministic finding, or a model (`refute`)
+   audit state worth calling out on its own (`candidate`/`failed`). A clean
+   or still-pending paragraph gets no row — the summary already covers it. */
+.rlc-para-checks { margin: 6px 0 0; display: flex; flex-direction: column; gap: 3px; }
+.rlc-para-summary { font: 400 12.5px/1.4 "Source Code Pro", monospace; color: var(--tan-3); letter-spacing: 0.02em; margin: 0; }
+.rlc-para-checks ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.rlc-para-checks li { display: flex; align-items: baseline; gap: 7px; font: 400 12px/1.4 "Source Code Pro", monospace; }
+.rlc-para-mark { color: var(--tan-3); flex-shrink: 0; }
+.rlc-para-checks li[data-state="flagged"] { flex-direction: column; align-items: flex-start; gap: 1px; }
+.rlc-para-checks li[data-state="flagged"] .rlc-para-mark { color: var(--warn); }
+.rlc-para-finding { color: var(--tan-3); }
+.rlc-para-model[data-model="candidate"] { color: var(--warn); }
+.rlc-para-model[data-model="failed"] { color: var(--tan-3); }
 
 /* ── Verification badge (reliability harness) ──────────────────────────── */
 .rlc-verify { margin-top: 8px; }
@@ -598,8 +621,7 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-verify-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gray); flex-shrink: 0; }
 .rlc-verify-chip[data-status="checking"] .rlc-verify-dot { background: var(--accent); animation: rlc-pulse 1.1s ease-in-out infinite; }
 .rlc-verify-chip[data-status="pass"] .rlc-verify-dot { background: var(--terminal-green); }
-.rlc-verify-chip[data-status="warn"] .rlc-verify-dot,
-.rlc-verify-chip[data-status="revised"] .rlc-verify-dot { background: var(--warn); }
+.rlc-verify-chip[data-status="warn"] .rlc-verify-dot { background: var(--warn); }
 .rlc-verify-chip[data-status="fail"] .rlc-verify-dot { background: var(--red); }
 @keyframes rlc-pulse { 50% { opacity: 0.35; } }
 .rlc-verify-claims {
@@ -613,24 +635,44 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   color: var(--tan-3);
 }
 .rlc-verify-claims li + li { margin-top: 4px; }
-.rlc-verify-claim-status { color: var(--warn); }
-.rlc-verify-claims li[data-status="contradicted"] .rlc-verify-claim-status,
 .rlc-verify-claims li[data-status="contradicted"] code { color: var(--error-text); }
-
-/* ── Tool trace ────────────────────────────────────────────────────────── */
-.rlc-trace {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--surface) 60%, var(--bg));
-  margin-bottom: 12px;
-  overflow: hidden;
+.rlc-verify-quote { color: var(--tan-2); font-style: italic; }
+.rlc-verify-notfound { margin: 6px 0 0; }
+/* The disclosure toggle reuses .rlc-stage-toggle's plain-row treatment
+   (no border/background, pointer cursor) so it reads as "more detail
+   available" rather than as a warning — see the comment on NotFoundNote. */
+.rlc-verify-notfound-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--tan-3);
+  font: 400 11.5px/1.4 "Source Code Pro", monospace;
+  letter-spacing: 0.03em;
+  cursor: pointer;
 }
-.rlc-trace-head {
+.rlc-verify-notfound-list {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  list-style: disc;
+  color: var(--tan-3);
+  font: 400 11.5px/1.4 "Source Code Pro", monospace;
+}
+.rlc-verify-notfound-list li + li { margin-top: 3px; }
+
+/* ── Trace rows + collapsed-checklist summary head ─────────────────────────
+   The old standalone collapsible trace card is gone — trace rows now render
+   inline inside a stage's slot, and the summary-head/caret look it used is
+   reused as-is for StageList's collapsed checklist button (same shape: a
+   muted head with a caret, click to expand). */
+.rlc-stage-summary-head {
   width: 100%;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 11px;
+  padding: 7px 0;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -639,10 +681,9 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   letter-spacing: 0.03em;
   transition: color 100ms;
 }
-.rlc-trace-head:hover { color: var(--tan); }
+.rlc-stage-summary-head:hover { color: var(--tan); }
 .rlc-trace-caret { display: inline-block; color: var(--accent); transition: transform 150ms; }
 .rlc-trace-caret[data-open="false"] { transform: rotate(-90deg); }
-.rlc-trace-rounds { margin-left: auto; color: var(--gray); }
 .rlc-trace-row {
   display: grid;
   grid-template-columns: 14px auto 1fr auto;
@@ -867,7 +908,17 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-md a:hover { text-decoration-color: var(--accent); color: var(--tan); }
 .rlc-md { font: 400 15.5px/1.62 var(--serif, "Lora", serif); color: var(--tan-2); }
 .rlc-md p { margin: 0 0 11px; }
-.rlc-md ul, .rlc-md ol { margin: 0 0 12px; padding-left: 17px; display: flex; flex-direction: column; gap: 6px; }
+/* Tailwind's preflight zeroes list-style on every ul/ol, so markers have to
+   be put back here (same as .atlas-md in index.css) — without this an
+   ordered list in an answer rendered as bare lines with no numbers. Spacing
+   is li+li margin, not a flex gap: a flex container is one more thing that
+   can interfere with ::marker rendering, for no layout gain. */
+.rlc-md ul, .rlc-md ol { margin: 0 0 12px; padding-left: 21px; }
+.rlc-md ul { list-style-type: disc; }
+.rlc-md ol { list-style-type: decimal; }
+.rlc-md li + li { margin-top: 6px; }
+.rlc-md li > ul, .rlc-md li > ol { margin: 6px 0 0; }
+.rlc-md li::marker { color: var(--tan-3); }
 .rlc-md strong { color: var(--tan); font-weight: 600; }
 .rlc-md code { font-family: "Source Code Pro", monospace; font-size: 14px; }
 .rlc-md blockquote {
@@ -880,17 +931,16 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   color: var(--tan-2);
 }
 
+/* KaTeX math quoted from the atlas (shared pipeline with the reader — see
+   ../lib/markdownMath.ts). index.css's global `.katex` rule tints math with
+   the reader's text token (--tan); chat prose reads in --tan-2, so pin math
+   to match the surrounding paragraph instead of standing out a shade
+   brighter. A long display formula scrolls horizontally inside the message
+   bubble rather than widening the panel. */
+.rlc-md .katex { color: var(--tan-2); }
+.rlc-md .katex-display { overflow-x: auto; max-width: 100%; }
+
 /* ── Streaming caret + thinking twinkle ────────────────────────────────── */
-.rlc-caret {
-  display: inline-block;
-  width: 7px;
-  height: 14px;
-  vertical-align: -2px;
-  margin-left: 1px;
-  background: var(--accent);
-  animation: rlc-blink 1s steps(2) infinite;
-}
-@keyframes rlc-blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
 .rlc-twinkle { color: var(--accent); animation: rlc-twinkle 1.4s ease-in-out infinite; display: inline-block; }
 @keyframes rlc-twinkle { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 

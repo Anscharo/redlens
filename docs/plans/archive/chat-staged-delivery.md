@@ -1,5 +1,7 @@
 # Staged delivery for chat (replace stream-then-check)
 
+> Superseded 2026-09-10 by the unified stage tree (docs/chat-system.md §8).
+
 **Decision (2026-08-06):** move the chat UX from "stream + badge, never gate" to **staged delivery** — the user watches honest progress stages while the harness works, and only the **final, verified (possibly revised) answer** is ever rendered. The draft answer, the badge downgrade after the fact, and the jarring mid-stream revision swap all disappear.
 
 ## User-facing stages

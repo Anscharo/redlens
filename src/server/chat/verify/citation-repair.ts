@@ -8,8 +8,8 @@
 // link gate (stream-link-gate.ts), which applies the same repairs to token
 // events BEFORE they reach the client; repairCitations then runs post-answer
 // as the authority — before the deterministic checks, which validate the
-// repaired answer; stripped links are folded back in as hard failures by the
-// orchestrator.
+// repaired answer. A stripped link is recorded on the round_checks row but is
+// NOT a failure: the reader never saw it, and the checks judge what shipped.
 import { DOC_NO_CORE, UUID_RE } from "../../../lib/patterns.ts";
 import { normalizeForMatch } from "./verify-checks.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
@@ -23,6 +23,22 @@ export interface CitationRepair {
   content: string;
   repaired: { title: string; from: string; to: string }[];
   stripped: { title: string; target: string }[];
+  // Links whose TEXT was the uuid itself (`[5caf90a5-…](/atlas/5caf90a5-…)`),
+  // rewritten to the document's title. Observed live 2026-09-10: the answerer
+  // cited six docs that way and the reader saw six raw uuids in the prose.
+  retitled: { from: string; to: string }[];
+}
+
+const UUID_ANYWHERE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+/** The text a citation should show. A uuid is an address, not a label — when
+ *  the model uses one as the link text, show the document's title instead.
+ *  Shared by the post-answer repair and the streaming gate so both render the
+ *  same thing. Returns `title` unchanged when it isn't a uuid or the doc is
+ *  unknown. */
+export function displayText(title: string, uuid: string, ix: Indexes): string {
+  if (!UUID_RE.test(title.trim())) return title;
+  return ix.docMap.get(uuid.toLowerCase())?.title ?? title;
 }
 
 const hex32 = (s: string) => s.toLowerCase().replace(/[^0-9a-f]/g, "");
@@ -162,7 +178,7 @@ export function repairDefinitionBlock(block: string, judge: LinkJudge): Citation
     stripped.push({ title: m[2], target: v.target });
     return null;
   });
-  return { content: kept.filter((l): l is string => l !== null).join("\n"), repaired, stripped };
+  return { content: kept.filter((l): l is string => l !== null).join("\n"), repaired, stripped, retitled: [] };
 }
 
 // Resolve a bare reference LABEL (used but never defined) to a doc UUID via the
@@ -179,17 +195,28 @@ export function repairCitations(answer: string, evidenceTexts: string[], ix: Ind
   const judge = createLinkJudge(evidenceTexts, ix);
   const repaired: CitationRepair["repaired"] = [];
   const stripped: CitationRepair["stripped"] = [];
+  const retitled: CitationRepair["retitled"] = [];
+  const retitle = (title: string, uuid: string): string => {
+    const text = displayText(title, uuid, ix);
+    if (text !== title) retitled.push({ from: title, to: text });
+    return text;
+  };
   // One generic scan (any whitespace-free-href link) replaces the old two-pass
   // atlas-then-pseudo rewrite; the judge dispatches per link.
   const content = answer.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, title: string, target: string) => {
     const v = judge(title, target);
-    if (v.action === "keep") return m;
+    if (v.action === "keep") {
+      const uuid = target.match(UUID_ANYWHERE)?.[0];
+      if (!uuid) return m;
+      const text = retitle(title, uuid);
+      return text === title ? m : `[${text}](/atlas/${uuid.toLowerCase()})`;
+    }
     if (v.action === "repair") {
       repaired.push({ title, from: v.from, to: v.to });
-      return `[${title}](/atlas/${v.to})`;
+      return `[${retitle(title, v.to)}](/atlas/${v.to})`;
     }
     stripped.push({ title, target: v.target });
     return title;
   });
-  return { content, repaired, stripped };
+  return { content, repaired, stripped, retitled };
 }

@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
-import { ChatHeader, DELIVERY_LOCKED_HINT, DELIVERY_MODE_HINT } from "./ChatHeader";
+import { Router } from "wouter";
+import { memoryLocation } from "wouter/memory-location";
+import { ChatHeader } from "./ChatHeader";
 
 function renderHeader(over: Partial<React.ComponentProps<typeof ChatHeader>> = {}) {
   const onNewChat = vi.fn();
@@ -15,9 +16,6 @@ function renderHeader(over: Partial<React.ComponentProps<typeof ChatHeader>> = {
     onClose,
     placement: "float" as const,
     onTogglePlacement,
-    stages: false,
-    onToggleDelivery: vi.fn(),
-    streaming: false,
     ...over,
   };
   const utils = render(<ChatHeader {...props} />);
@@ -46,6 +44,31 @@ describe("ChatHeader", () => {
     expect(onNewChat).toHaveBeenCalled();
   });
 
+  it("links to the Conversations page from the left of the title", () => {
+    renderHeader();
+    const link = screen.getByLabelText("Conversations");
+    expect(link).toHaveAttribute("href", "/conversations");
+    expect(link.compareDocumentPosition(screen.getByText("Atlas")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("disables the Conversations button while already on that page", () => {
+    const { hook } = memoryLocation({ path: "/conversations" });
+    render(
+      <Router hook={hook}>
+        <ChatHeader title={null} onNewChat={null} onClose={vi.fn()} placement="float" onTogglePlacement={vi.fn()} />
+      </Router>,
+    );
+    const btn = screen.getByLabelText("Conversations (this page)");
+    expect(btn.tagName).toBe("BUTTON");
+    expect(btn).toBeDisabled();
+    expect(screen.queryByLabelText("Conversations")).not.toBeInTheDocument();
+  });
+
+  it("renders no New chat button when onNewChat is null", () => {
+    renderHeader({ onNewChat: null });
+    expect(screen.queryByLabelText("New chat")).not.toBeInTheDocument();
+  });
+
   it("calls onClose when Close is clicked", () => {
     const { onClose } = renderHeader();
     fireEvent.click(screen.getByLabelText("Close"));
@@ -62,34 +85,5 @@ describe("ChatHeader", () => {
   it("shows a float-out control while anchored", () => {
     renderHeader({ placement: "anchored" });
     expect(screen.getByTitle("Pop out to a floating window")).toBeInTheDocument();
-  });
-
-  it("labels the delivery pill streaming when not in stages mode", () => {
-    renderHeader({ stages: false });
-    const toggle = screen.getByLabelText(DELIVERY_MODE_HINT);
-    expect(toggle).toHaveTextContent("streaming");
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
-    expect(toggle).toHaveAttribute("title", DELIVERY_MODE_HINT);
-    expect(toggle).toBeEnabled();
-  });
-
-  it("labels the delivery pill stages when pressed, and click flips", () => {
-    const onToggleDelivery = vi.fn();
-    renderHeader({ stages: true, onToggleDelivery });
-    const toggle = screen.getByLabelText(DELIVERY_MODE_HINT);
-    expect(toggle).toHaveTextContent("stages");
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(toggle);
-    expect(onToggleDelivery).toHaveBeenCalled();
-  });
-
-  it("disables the delivery pill while streaming and ignores clicks", async () => {
-    const onToggleDelivery = vi.fn();
-    renderHeader({ streaming: true, onToggleDelivery });
-    const toggle = screen.getByLabelText(DELIVERY_LOCKED_HINT);
-    expect(toggle).toBeDisabled();
-    expect(toggle).toHaveAttribute("title", DELIVERY_LOCKED_HINT);
-    await userEvent.click(toggle);
-    expect(onToggleDelivery).not.toHaveBeenCalled();
   });
 });

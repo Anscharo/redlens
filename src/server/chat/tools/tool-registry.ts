@@ -206,18 +206,19 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     annotations: readOnlyAtlasTool("Atlas Entities"),
     description:
       "Find entities by free-text name and/or structural filters — turns a name like 'Spark Protocol' into a slug " +
-      "(atlas_describe no longer lists slugs). Pass `q` for fuzzy name matching (ranked, with a score), and/or " +
+      "(atlas_describe no longer lists slugs). Pass `query` for fuzzy name matching (ranked, with a score), and/or " +
       "filter by `entity_type` / `subtype`. Paginated.",
     shape: {
-      q: z.string().optional().describe("Free-text name to match (fuzzy, ranked). Omit to list/browse by filter."),
+      query: z.string().optional().describe("Free-text name to match (fuzzy, ranked). Omit to list/browse by filter."),
       entity_type: z.string().optional().describe("Filter by entity type (e.g. 'agent', 'instance', 'multisig', 'facilitator_org')."),
       subtype: z.string().optional().describe("Filter by subtype, case-insensitive substring (e.g. 'reward', 'prime')."),
       limit: z.number().int().min(1).max(500).default(50),
       offset: z.number().int().min(0).default(0),
+      q: z.string().optional().describe("Deprecated alias of `query`."),
     },
     handler: (ix, a) =>
       atlasEntities(ix, {
-        q: a.q as string | undefined,
+        q: (a.query as string | undefined) ?? (a.q as string | undefined),
         entity_type: a.entity_type as string | undefined,
         subtype: a.subtype as string | undefined,
         limit: (a.limit as number | undefined) ?? 50,
@@ -334,14 +335,15 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     description:
       "Deterministic parameter table extracted from doc content at index build time (docs/research/synlang-wiki.md " +
       "§3.1) — name/value/unit/owner rows with source doc UUIDs, for rate limits, ratios, quorums, thresholds, and " +
-      "other configured numeric constants. Matches `q` against each row's name + owner + doc_no (every query token " +
+      "other configured numeric constants. Matches `query` against each row's name + owner + doc_no (every query token " +
       "of 3+ characters must appear somewhere in that combined text). Returns `{ count, truncated?, rows }`; each " +
       "row: `{ uuid, doc_no, name, value, unit, owner, context }`.",
     shape: {
-      q: z.string().describe("Search text matched against parameter name, owner, and doc_no (e.g. 'keel maxAmount', 'liquidation ratio')."),
+      query: z.string().optional().describe("Search text matched against parameter name, owner, and doc_no (e.g. 'keel maxAmount', 'liquidation ratio')."),
       limit: z.number().int().min(1).max(100).default(25),
+      q: z.string().optional().describe("Deprecated alias of `query`."),
     },
-    handler: (ix, a) => atlasParams(ix, { q: a.q as string, limit: (a.limit as number | undefined) ?? 25 }),
+    handler: (ix, a) => atlasParams(ix, { query: (a.query as string | undefined) ?? (a.q as string | undefined), limit: (a.limit as number | undefined) ?? 25 }),
   },
   {
     name: "atlas_history",
@@ -479,7 +481,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "START HERE for most substantive questions. One call combines search + entity-graph + doc-type + history + status + ancestor scope; prefer one rich atlas_query over chaining narrow tools.",
     annotations: readOnlyAtlasTool("Atlas Query"),
     description:
-      "One-call multi-dimensional atlas query. Combines any subset of: semantic/lexical search (q), " +
+      "One-call multi-dimensional atlas query. Combines any subset of: semantic/lexical search (query), " +
       "entity graph traversal (entity + edge_types), entity-chain traversal (entity + via_entity_type), " +
       "doc-type filter (target_type), history window (since/until/change_type), status filter, " +
       "ancestor scope (ancestor_id), and inline instance params (include_params). All active dimensions " +

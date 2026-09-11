@@ -13,7 +13,7 @@ describe("toChatMsgs", () => {
       },
     ];
     const [msg] = toChatMsgs(rows);
-    expect(msg.trace).toEqual([{ name: "atlas_search", args: { q: "foo" }, ok: true, bytes: 128 }]);
+    expect(msg.trace).toEqual([{ name: "atlas_search", args: { q: "foo" }, ok: true, bytes: 128, round: 0 }]);
     expect(msg.sources).toEqual([{ name: "atlas_search", args: { q: "foo" }, ok: true, bytes: 128 }]);
   });
 
@@ -37,6 +37,13 @@ describe("toChatMsgs", () => {
       expect(m.rounds).toBe(0);
       expect(m.verify).toBeUndefined();
     }
+  });
+
+  it("restores as the reveal state: empty draft, generated true", () => {
+    const rows: StoredMessage[] = [{ role: "assistant", content: "hello", createdAt: "t", toolCalls: null }];
+    const [msg] = toChatMsgs(rows);
+    expect(msg.draft).toBe("");
+    expect(msg.generated).toBe(true);
   });
 
   it("preserves role/content and produces one ChatMsg per row, in order", () => {

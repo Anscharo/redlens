@@ -68,6 +68,17 @@ export function FloatIcon({ size = 15 }: { size?: number }) {
   );
 }
 
+// Conversation list (three rows) — the header's link to the Conversations page.
+export function ConversationsIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+      <line x1="2.5" y1="4" x2="13.5" y2="4" />
+      <line x1="2.5" y1="8" x2="13.5" y2="8" />
+      <line x1="2.5" y1="12" x2="9.5" y2="12" />
+    </svg>
+  );
+}
+
 export function SendIcon({ size = 15 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

@@ -1,57 +1,41 @@
-// Sliced verification — four narrow auditors run CONCURRENTLY instead of one
-// prompt doing everything. Motivated by measurement, not taste:
+// Sliced verification — two narrow auditors run CONCURRENTLY: `refute` (the
+// only slice that reads evidence) lists contradictions between the answer and
+// the retrieved evidence (verify/refute.ts), `overreach` reads only the
+// answer's STANCE (does it adjudicate? does it present settlement figures as
+// Atlas text?). A third role, `confirm` (verify/confirm.ts), is not run
+// through this file at all — it only ever looks at the candidates the other
+// two slices already produced, so it has no prompt/parse pair here; it exists
+// in `SliceName`/`SLICE_NEEDS_EVIDENCE` purely so the shared types stay one
+// union instead of two.
 //
-//   fabrication 1.00 · ruling 1.00   ← the single verifier already maxes these
-//   wrong_doc 0.26-0.39 · number 0.44-0.63  ← broken in every model tested
-//   structural misreads               ← 100% missed (the 2026-07-15 audit)
+// STATUS: LIVE since 2026-09-10 — replaces the four-slice "prove every claim
+// supported" design (claims/figures/sets/overreach). That design's load-
+// bearing idea — SHOW YOUR WORK, a verbatim span re-checked by code — survives
+// here in the opposite direction: every contradiction the model asserts must
+// carry a span validate/refute.ts re-checks against the evidence, so the
+// model cannot assert a contradiction into existence. What changed is the
+// competing risk it guards against: not a fabricated SUPPORT claim off
+// adjacent scaffold text, but a fabricated CONTRADICTION — the old design's
+// false-positive surface (every claim needing proof) is gone by construction,
+// because "the evidence doesn't mention it" is no longer flaggable at all.
 //
-// So the slices sit on the FAULT LINES, not on the existing taxonomy.
-//
-// The load-bearing idea is not the slicing — it is SHOW YOUR WORK. The single
-// verifier passed a real defect by asserting `"Spark is a Pioneer" [supported]`
-// because the evidence superficially contained scaffold-hub boilerplate
-// ("...all data for Spark's Instances of the Pioneer Chain Primitive"). It
-// pattern-matched adjacent text into support. Here every `supported` verdict
-// must carry a VERBATIM span, and `validateSpans` re-checks that span against
-// the evidence in code: a span that isn't really there downgrades the claim to
-// unsupported. The model cannot assert support into existence.
-//
-// STATUS: LIVE since 2026-08-06 — verify/sliced-verifier.ts orchestrates these
-// slices as the ONLY chat audit path (the legacy single-prompt verifier.ts is
-// retained solely so scripts/aux/eval-verifier.ts can still grade it, not as a
-// runtime fallback). Keep prompt/evidence conventions in sync with verifier.ts
-// regardless. Measured via scripts/aux/eval-verifier-slices.ts.
+// Keep prompt/evidence conventions in sync with refute.ts/confirm.ts.
+// Measured via scripts/eval/eval-verifier-slices.ts.
 import type OpenAI from "openai";
 import type { JsonCall } from "../llm.ts";
-import type { EvidenceEntry } from "./verifier.ts";
-import { normalizeForMatch } from "./verify-checks.ts";
+import type { Contradiction, EvidenceEntry } from "./verifier.ts";
+import { buildRefutePrompt, parseRefute, validateContradictions, validateNotFound } from "./refute.ts";
+import { parseJsonish } from "./slice-json.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
-export type SliceName = "claims" | "figures" | "sets" | "overreach";
-
-export interface SliceClaim {
-  claim: string;
-  status: "supported" | "unsupported" | "contradicted";
-  span: string; // verbatim evidence text — code-validated
-  // An ABSENCE claim ("the atlas does not specify which chains") is supported
-  // by evidence NOT containing something — there is no span to quote, by
-  // construction. Demanding one punishes the single most valuable behaviour we
-  // have: admitting a gap. Exempt from span validation.
-  absence?: boolean;
-  spanValid?: boolean; // set by validateSpans; false ⇒ status forced to unsupported
-  spanScore?: number; // best token-overlap achieved against the evidence
-  // The claim's span actually pointed at a [REFERENCE] entry — it was judged
-  // against context RedLens injected, not against retrieved atlas text.
-  // Carried through to the Verdict so the escalation gate can keep injected
-  // documentation from buying a rewrite. Independent of whether the RELAXED
-  // bar applied (that also needs descriptive prose outside `figures`).
-  referenceGrounded?: boolean;
-}
+export type SliceName = "refute" | "overreach" | "confirm";
 
 export interface SliceResult {
   slice: SliceName;
-  claims: SliceClaim[];
+  contradictions: Contradiction[];
+  notFound: string[];
+  discarded: number;
   rulingIssued: boolean;
   notes: string;
   parsed: boolean;
@@ -59,350 +43,31 @@ export interface SliceResult {
   usage: { input: number; output: number } | null;
 }
 
-const JSON_ONLY = 'Respond with STRICT JSON only, no prose, no code fences.';
+const JSON_ONLY = "Respond with STRICT JSON only, no prose, no code fences.";
 
-// Every slice shares one rule: a claim is supported ONLY if you can quote the
-// evidence verbatim. Paraphrase is not support; adjacent text is not support.
-const SPAN_RULE = [
-  "A claim is `supported` ONLY if you can copy an EXACT, VERBATIM substring of the evidence that establishes it, into `span`.",
-  "Copy characters exactly — do not paraphrase, summarise, correct, or shorten with ellipses. Your span is re-checked against the evidence by code; an inexact span is treated as NO support.",
-  "Text that is merely ADJACENT or topically similar is not support. Scaffolding/boilerplate ('the documents herein contain all data for X's instances of Y') does NOT establish that X has a Y — it only describes a container.",
-  "If no exact span establishes the claim, mark it `unsupported` and set span to \"\". If the evidence states the opposite, mark it `contradicted`.",
-  "EXCEPTION — absence claims: if the claim is that the atlas does NOT contain/specify something, no span can exist. Mark it `supported` with span \"\" and set \"absence\":true, when the evidence is consistent with the gap (searches returned nothing relevant). Admitting a gap is correct behaviour, not a failure.",
-  // Reference evidence is RedLens-injected context — the product guide, glossary
-  // rows, entity rows, concept censuses — not a retrieval of atlas document
-  // text. Summarising it IS its intended use, so the verbatim-substring bar
-  // makes a faithful restatement `unsupported` by construction: measured in
-  // production, an answer built from the product guide had its exploration
-  // methods and example questions flagged as "not supported by the provided
-  // evidence" and the advisor rewrote correct information away. The exemption
-  // is deliberately narrow — descriptive prose only. Every figure, quote,
-  // address, doc number and citation still needs an exact span whatever its
-  // source, so nothing checkable becomes uncheckable.
-  "EXCEPTION — reference evidence: entries marked [REFERENCE] are context RedLens injected for this turn (product documentation, glossary rows, entity rows, censuses), not retrieved atlas text. A DESCRIPTIVE claim that faithfully restates or summarises a [REFERENCE] entry is `supported` — put the closest supporting substring in `span` and do not require it to be exact. This exemption covers prose only: figures, dates, amounts, on-chain addresses, document numbers, quoted atlas text and citations still require an EXACT verbatim span from the evidence, whatever its source. A claim that goes BEYOND what the reference entry says is still `unsupported`.",
-].join(" ");
-
-const PROMPTS: Record<SliceName, string> = {
-  claims: [
-    "You audit ONE thing: whether each factual claim in the answer is established by the retrieved evidence.",
-    SPAN_RULE,
-    "List each distinct factual claim (roles, responsibilities, statuses, existence, relationships). Ignore style and citation formatting.",
-    JSON_ONLY,
-    '{"claims":[{"claim":"…","status":"supported|unsupported|contradicted","span":"exact evidence substring or empty","absence":false}],"notes":"≤30 words"}',
-  ].join("\n"),
-  figures: [
-    "You audit ONE thing: every NUMBER, RATE, DATE and AMOUNT in the answer.",
-    "For each figure decide: `supported` if it appears verbatim in the evidence (put that exact substring in span); `supported` ALSO if it is correctly DERIVED from evidence figures — then put the arithmetic in span (e.g. '0.2% + 0.3% = 0.5%') and cite both source numbers; otherwise `unsupported`.",
-    "A figure that is neither in the evidence nor derivable from it is `unsupported`, even if it sounds plausible.",
-    JSON_ONLY,
-    '{"claims":[{"claim":"the figure and what it describes","status":"supported|unsupported|contradicted","span":"exact substring or arithmetic"}],"notes":"≤30 words"}',
-  ].join("\n"),
-  sets: [
-    "You audit ONE thing: ENUMERATIONS — every list, set, or 'the following X' in the answer.",
-    "For EACH listed member, is that member's inclusion established by an exact evidence span? Use one claim entry per member, phrased '<member> belongs to <set>'.",
-    SPAN_RULE,
-    "Then check COMPLETENESS: if the evidence shows a member the answer omitted, add a `contradicted` entry phrased 'the list omits <member>' with the span proving it belongs.",
-    "Beware containers: a document existing FOR an entity does not mean the entity has the thing the document would hold.",
-    JSON_ONLY,
-    '{"claims":[{"claim":"…","status":"supported|unsupported|contradicted","span":"exact evidence substring or empty","absence":false}],"notes":"≤30 words"}',
-  ].join("\n"),
-  overreach: [
-    "You audit TWO things: (1) does the answer ADJUDICATE rather than report? (2) does it present Soter Labs / Sky Forum settlement figures as Atlas text?",
-    "ruling_issued is true only if the answer itself decides an eligibility/payment/dispute outcome ('the applicant is hereby eligible', 'the facilitator must release payment') instead of reporting what the atlas says and leaving the decision open.",
-    "ruling_issued is ALSO true if settlement-cycle dollars (workbooks, MSC figures, To Sky / supply kept) are presented as something the Sky Atlas states, or cited as /atlas/<uuid>. Those figures are external (Soter Labs OEA calculations / forum posts), not Atlas.",
-    "Recommendations and analysis requested by the user are NOT rulings. Hedged reporting is NOT a ruling. Correctly labeled 'not from the Atlas' settlement figures are NOT a ruling.",
-    JSON_ONLY,
-    '{"ruling_issued":false,"claims":[],"notes":"quote the adjudicating sentence, or ≤20 words"}',
-  ].join("\n"),
-};
+const OVERREACH_PROMPT = [
+  "You audit TWO things: (1) does the answer ADJUDICATE rather than report? (2) does it present Soter Labs / Sky Forum settlement figures as Atlas text?",
+  "ruling_issued is true only if the answer itself decides an eligibility/payment/dispute outcome ('the applicant is hereby eligible', 'the facilitator must release payment') instead of reporting what the atlas says and leaving the decision open.",
+  "ruling_issued is ALSO true if settlement-cycle dollars (workbooks, MSC figures, To Sky / supply kept) are presented as something the Sky Atlas states, or cited as /atlas/<uuid>. Those figures are external (Soter Labs OEA calculations / forum posts), not Atlas.",
+  "Recommendations and analysis requested by the user are NOT rulings. Hedged reporting is NOT a ruling. Correctly labeled 'not from the Atlas' settlement figures are NOT a ruling.",
+  JSON_ONLY,
+  '{"ruling_issued":false,"notes":"quote the adjudicating sentence, or ≤20 words"}',
+].join("\n");
 
 // `overreach` needs no evidence at all — it reads the answer's stance, not its
-// facts. That makes it ~10x cheaper and faster than the others.
+// facts. `confirm` never runs through this file (see header) but needs an
+// entry so the Record type stays total over SliceName.
 export const SLICE_NEEDS_EVIDENCE: Record<SliceName, boolean> = {
-  claims: true, figures: true, sets: true, overreach: false,
+  refute: true,
+  overreach: false,
+  confirm: false,
 };
 
-export function buildSlicePrompt(slice: SliceName, params: { question: string; answer: string; evidence: EvidenceEntry[]; worklist?: string[] }): Msg[] {
-  const parts = [`## Question\n${params.question}`, `## Answer to audit\n${params.answer}`];
-  if (SLICE_NEEDS_EVIDENCE[slice]) {
-    parts.push(
-      `## Evidence retrieved this turn\n${
-        params.evidence.length
-          ? params.evidence
-              .map((e) => `${e.label}${e.sourceClass === "reference" ? " [REFERENCE]" : ""} ${e.tool}(${e.args}) →\n${e.content}`)
-              .join("\n\n")
-          : "(no tools were called — nothing is supported)"
-      }`,
-    );
-  }
-  if (params.worklist?.length) {
-    parts.push(`## Code already found these NOT verbatim in the evidence — decide derived vs invented for each\n${params.worklist.join(", ")}`);
-  }
+function buildOverreachPrompt(params: { question: string; answer: string }): Msg[] {
   return [
-    { role: "system", content: PROMPTS[slice] },
-    { role: "user", content: parts.join("\n\n") },
+    { role: "system", content: OVERREACH_PROMPT },
+    { role: "user", content: [`## Question\n${params.question}`, `## Answer to audit\n${params.answer}`].join("\n\n") },
   ];
-}
-
-const SLICE_STATUSES = new Set<SliceClaim["status"]>(["supported", "unsupported", "contradicted"]);
-// The model's own JSON leaking into a claim string — over-escaped quotes make
-// one claim swallow the next one's fields. The real status rides along inside
-// the text, so it can be recovered rather than guessed.
-const LEAKED_STATUS = /"status"\s*:\s*"(supported|unsupported|contradicted)"/;
-
-// Close whatever a truncated generation left open: an unterminated string,
-// then every unclosed array/object, innermost first. Output caps cut JSON
-// mid-structure routinely, and the claims already emitted are perfectly good
-// — discarding the whole slice over the tail loses real judgements. Strings
-// are tracked properly (escapes included) so a brace inside a quoted span is
-// never mistaken for structure.
-export function closeTruncatedJson(src: string): string {
-  const stack: string[] = [];
-  let inString = false;
-  let escaped = false;
-  for (const ch of src) {
-    if (escaped) { escaped = false; continue; }
-    if (inString) {
-      if (ch === "\\") escaped = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') inString = true;
-    else if (ch === "{" || ch === "[") stack.push(ch);
-    else if (ch === "}" || ch === "]") stack.pop();
-  }
-  let out = src;
-  if (inString) out += '"';
-  out = out.replace(/,\s*$/, ""); // dangling comma before the synthetic closers
-  for (let i = stack.length - 1; i >= 0; i--) out += stack[i] === "{" ? "}" : "]";
-  return out;
-}
-
-// Parse LLM JSON that is nearly right. Ordered cheapest-first: as written, then
-// trailing commas removed, then structurally closed. Returns null only when
-// nothing survives — matching citation-repair.ts's "repair, don't reject".
-export function parseJsonish(text: string): Record<string, unknown> | null {
-  const stripped = text.replace(/```(?:json)?/g, "").trim();
-  const s = stripped.indexOf("{");
-  if (s === -1) return null;
-  const e = stripped.lastIndexOf("}");
-  const candidates = [
-    e > s ? stripped.slice(s, e + 1) : "",
-    e > s ? stripped.slice(s, e + 1).replace(/,(\s*[}\]])/g, "$1") : "",
-    closeTruncatedJson(stripped.slice(s)),
-    closeTruncatedJson(stripped.slice(s)).replace(/,(\s*[}\]])/g, "$1"),
-  ];
-  for (const c of candidates) {
-    if (!c) continue;
-    try {
-      const j = JSON.parse(c) as unknown;
-      if (j && typeof j === "object" && !Array.isArray(j)) return j as Record<string, unknown>;
-    } catch {
-      // try the next repair
-    }
-  }
-  return null;
-}
-
-// A status we could not read is a claim we did not JUDGE — it must not become a
-// claim we judged UNSUPPORTED. Unsupported claims drive the warn verdict and
-// feed the advisor-escalation threshold, so defaulting a parse defect to
-// "unsupported" manufactures evidence against the answer. Fail toward silence:
-// normalise what we can, recover a leaked status, otherwise drop the row.
-export function repairStatus(o: Record<string, unknown>): SliceClaim["status"] | null {
-  const raw = typeof o.status === "string" ? o.status.trim().toLowerCase() : "";
-  if (SLICE_STATUSES.has(raw as SliceClaim["status"])) return raw as SliceClaim["status"];
-  const leaked = typeof o.claim === "string" ? LEAKED_STATUS.exec(o.claim) : null;
-  if (leaked) return leaked[1] as SliceClaim["status"];
-  return null;
-}
-
-// When a leak was recovered the claim text still carries the raw JSON tail —
-// cut it at the leak so the badge shows a sentence, not machine noise.
-const cleanClaimText = (t: string) => t.split(/"?\s*,\s*"status"\s*:/)[0].replace(/["\\]+$/, "").trim();
-
-export function parseSlice(text: string): { claims: SliceClaim[]; rulingIssued: boolean; notes: string } | null {
-  const j = parseJsonish(text);
-  if (!j) return null;
-  const raw = Array.isArray(j.claims) ? j.claims : [];
-  const claims: SliceClaim[] = raw.flatMap((c) => {
-    const o = c as Record<string, unknown>;
-    if (typeof o?.claim !== "string") return [];
-    const status = SLICE_STATUSES.has(o.status as SliceClaim["status"])
-      ? (o.status as SliceClaim["status"])
-      : repairStatus(o);
-    if (!status) return []; // unreadable judgement — drop, never assume guilt
-    return [{
-      claim: cleanClaimText(o.claim),
-      status,
-      span: typeof o.span === "string" ? o.span : "",
-      absence: o.absence === true,
-    }];
-  });
-  return { claims, rulingIssued: j.ruling_issued === true, notes: typeof j.notes === "string" ? j.notes : "" };
-}
-
-// Best token-overlap between the span and ANY window of the evidence.
-// Exact containment is the wrong bar: the 2026-07-15 slice grid measured
-// spanKill of 22-56 for gemma/haiku, driving their false-positive rate to
-// 50-75% — the check was grading TRANSCRIPTION, not judgment. Only a reasoning
-// model could copy 50+ chars verbatim (gpt-5-mini spanKill 0 → FPR 0%). This
-// codebase already knew that: citation-repair.ts exists because models cannot
-// transcribe even a 36-char uuid. So: repair, don't reject.
-//
-// Locality is what keeps this honest — a bag-of-words check over the whole
-// evidence would pass any span built from topical words. Sliding a window the
-// span's own size means the words must appear TOGETHER, so the pioneers span
-// ("Spark has an active Pioneer Chain instance") still scores ~0.3 against
-// scaffold text ("...data and specifications for Spark's Instances of the
-// Pioneer Chain Primitive") and is still rejected.
-// Word-ish tokens: punctuation dropped (`primitive.}` and `primitive` are the
-// same word), figures kept whole (`0.2%`), and a naive plural strip so
-// `sparks`/`spark` and `specifications`/`specification` match. Applied
-// identically to both sides, so the stemming only has to be consistent, not
-// linguistically correct. Short words are left alone (`is`, `has`, `as`).
-export function tokenize(s: string): string[] {
-  return (s.match(/[a-z0-9]+(?:\.[0-9]+)?%?/g) ?? []).map((t) => (t.length > 3 && t.endsWith("s") ? t.slice(0, -1) : t));
-}
-
-export function spanOverlap(span: string, hay: string): number {
-  const s = tokenize(span);
-  const h = tokenize(hay);
-  if (!s.length || !h.length) return 0;
-  const need = new Map<string, number>();
-  for (const t of s) need.set(t, (need.get(t) ?? 0) + 1);
-  // Window slightly larger than the span so an elision or inserted word does
-  // not push a genuine quote out of frame.
-  const size = Math.min(h.length, s.length + Math.ceil(s.length * 0.25) + 1);
-  const win = new Map<string, number>();
-  let matched = 0;
-  let best = 0;
-  const add = (t: string) => {
-    const cur = win.get(t) ?? 0;
-    win.set(t, cur + 1);
-    if (cur < (need.get(t) ?? 0)) matched++;
-  };
-  const rm = (t: string) => {
-    const cur = win.get(t) ?? 0;
-    win.set(t, cur - 1);
-    if (cur <= (need.get(t) ?? 0)) matched--;
-  };
-  for (let i = 0; i < h.length; i++) {
-    add(h[i]);
-    if (i >= size) rm(h[i - size]);
-    if (i >= size - 1) best = Math.max(best, matched / s.length);
-  }
-  return best;
-}
-
-export const SPAN_MATCH_THRESHOLD = 0.8;
-
-// ── The [REFERENCE] half of the bar ───────────────────────────────────────
-// The slice prompt tells the judge that a DESCRIPTIVE claim faithfully
-// restating a [REFERENCE] entry is supported and its span "need not be exact"
-// — and then this backstop, which knew nothing about source class, demoted it
-// anyway. Measured against the real product guide: a faithful paraphrase of
-// "Point Claude Code, Claude Desktop, Cursor/Windsurf, ... at the Atlas"
-// scores 0.56, and the span for a route (`/radar`) is shorter than the 8-char
-// floor and scores 0. Three such demotions is exactly the advisor-escalation
-// threshold, so an orientation answer built from injected documentation was
-// rewritten — correct sections deleted — over claims that were all true.
-// The prompt's exemption is now enforced in code as well as stated.
-//
-// Kept narrow, exactly as the prompt words it: the relaxation applies to
-// prose only. A claim carrying anything CHECKABLE — a figure, date, amount,
-// uuid, doc number or on-chain address — stays on the strict bar whatever its
-// source, and the `figures` slice never relaxes at all.
-export const REFERENCE_SPAN_THRESHOLD = 0.5;
-// A route or control name ("/radar", "Radar") is a legitimate short span when
-// the evidence is injected documentation; below this nothing is evidence.
-export const REFERENCE_MIN_SPAN = 4;
-const ATLAS_MIN_SPAN = 8;
-// A span has to have actually pointed AT the reference entry to be attributed
-// to it. Without a floor, an invented span (the pioneers case) scores near
-// zero against everything and the arbitrary winner of that near-zero max is
-// biased toward the reference entry — it is usually the largest haystack (the
-// features guide is ~8.6KB), so it has the most windows to luck into, and
-// glossary/entity facts put reference evidence on ordinary atlas turns too.
-// That would let three fabrications duck the escalation counter. Real
-// paraphrases sit at 0.4-1.0; fabrications land at 0-0.2.
-const REFERENCE_ATTRIBUTION_FLOOR = 0.25;
-
-const CHECKABLE_IN_CLAIM: RegExp[] = [
-  /\d/, // any figure, date, amount, count — numbers are the verifier's business
-  /[0-9a-f]{8}-[0-9a-f]{4}/i, // uuid
-  /0x[0-9a-fA-F]{4,}/, // evm address-ish
-];
-
-export const hasCheckableToken = (claim: string): boolean => CHECKABLE_IN_CLAIM.some((re) => re.test(claim));
-
-export interface SpanEvidence {
-  content: string;
-  sourceClass?: string;
-}
-
-// Bare strings are treated as retrieved atlas text — the strict path — so
-// every existing caller and test keeps its original semantics.
-const toHaystack = (e: string | SpanEvidence) =>
-  typeof e === "string"
-    ? { text: normalizeForMatch(e), reference: false }
-    : { text: normalizeForMatch(e.content), reference: e.sourceClass === "reference" };
-
-// Best match across the evidence, remembering WHICH class won it: exact
-// containment first (so an exact quote is never out-scored by a fuzzy hit in
-// the other class), then the sliding-window overlap.
-function bestMatch(span: string, hays: { text: string; reference: boolean }[]): { best: number; reference: boolean } {
-  const exact = hays.find((h) => h.text.includes(span));
-  if (exact) return { best: 1, reference: exact.reference };
-  let best = 0;
-  let reference = false;
-  for (const h of hays) {
-    const s = spanOverlap(span, h.text);
-    if (s > best) { best = s; reference = h.reference; }
-  }
-  return { best, reference };
-}
-
-// THE BACKSTOP. A `supported` verdict is only honoured when its span really
-// points at evidence — fuzzily, so imperfect copying doesn't kill valid
-// support, but locally, so a span assembled from scattered topical words
-// cannot buy support. The model still may not assert support into existence;
-// it just no longer has to be a photocopier.
-export function validateSpans(
-  claims: SliceClaim[],
-  evidence: (string | SpanEvidence)[],
-  opts: { threshold?: number; slice?: SliceName } = {},
-): SliceClaim[] {
-  const hays = evidence.map(toHaystack);
-  const threshold = opts.threshold ?? SPAN_MATCH_THRESHOLD;
-  return claims.map((c) => {
-    if (c.status !== "supported") return { ...c, spanValid: true };
-    // Absence is established by evidence NOT containing something — there is
-    // nothing to quote, so requiring a span would punish honest gap-admission.
-    if (c.absence) return { ...c, spanValid: true };
-    const span = normalizeForMatch(c.span ?? "");
-    // Derivation spans (arithmetic shown by the `figures` slice) are not
-    // quotations — they carry an operator and are judged on their own terms.
-    const isDerivation = /[+\-×*/=]/.test(c.span ?? "") && /\d/.test(c.span ?? "");
-    if (span.length < REFERENCE_MIN_SPAN) return { ...c, status: "unsupported", spanValid: false, spanScore: 0 };
-    const { best, reference } = bestMatch(span, hays);
-    // Two separate consequences, deliberately not the same condition:
-    //   `reference` — this claim was judged against injected documentation at
-    //     all. Carried out as `referenceGrounded` so the escalation gate can
-    //     keep it from buying a rewrite, whichever bar it was held to.
-    //   `relaxed`   — …AND it is descriptive prose, so the lower bar applies.
-    //     Anything checkable, and the whole `figures` slice, stays strict.
-    const relaxed = reference && opts.slice !== "figures" && !hasCheckableToken(c.claim);
-    const grounded = reference && best >= REFERENCE_ATTRIBUTION_FLOOR;
-    if (span.length < (relaxed ? REFERENCE_MIN_SPAN : ATLAS_MIN_SPAN)) {
-      return { ...c, status: "unsupported", spanValid: false, spanScore: best, referenceGrounded: grounded };
-    }
-    if (isDerivation) return { ...c, spanValid: true };
-    const ok = best >= (relaxed ? REFERENCE_SPAN_THRESHOLD : threshold);
-    return ok
-      ? { ...c, spanValid: true, spanScore: best, referenceGrounded: grounded }
-      : { ...c, status: "unsupported", spanValid: false, spanScore: best, referenceGrounded: grounded };
-  });
 }
 
 export async function runSlice(params: {
@@ -412,27 +77,44 @@ export async function runSlice(params: {
   question: string;
   answer: string;
   evidence: EvidenceEntry[];
-  worklist?: string[];
   signal?: AbortSignal;
   maxTokens?: number;
 }): Promise<SliceResult> {
-  const base: SliceResult = { slice: params.slice, claims: [], rulingIssued: false, notes: "", parsed: false, latencyMs: null, usage: null };
+  const base: SliceResult = {
+    slice: params.slice, contradictions: [], notFound: [], discarded: 0,
+    rulingIssued: false, notes: "", parsed: false, latencyMs: null, usage: null,
+  };
+  // confirm has its own runner (verify/confirm.ts, driven by sliced-verifier.ts
+  // once refute/overreach produce candidates) — runSlice never dispatches it.
+  if (params.slice === "confirm") return base;
   try {
+    if (params.slice === "overreach") {
+      const res = await params.call({
+        model: params.model, messages: buildOverreachPrompt(params),
+        maxTokens: params.maxTokens ?? 1000, signal: params.signal,
+      });
+      const j = parseJsonish(res.text);
+      if (!j) return { ...base, latencyMs: res.latencyMs, usage: res.usage };
+      return {
+        ...base,
+        rulingIssued: j.ruling_issued === true,
+        notes: typeof j.notes === "string" ? j.notes : "",
+        parsed: true, latencyMs: res.latencyMs, usage: res.usage,
+      };
+    }
     const res = await params.call({
-      model: params.model,
-      messages: buildSlicePrompt(params.slice, params),
+      model: params.model, messages: buildRefutePrompt(params),
       // Reasoning models spend output budget thinking before the JSON lands —
-      // too small a cap silently truncates them into "unparseable" (this is
-      // exactly what made gpt-5-mini look useless at 2000).
-      maxTokens: params.maxTokens ?? 4000,
-      signal: params.signal,
+      // too small a cap silently truncates them into "unparseable".
+      maxTokens: params.maxTokens ?? 4000, signal: params.signal,
     });
-    const parsed = parseSlice(res.text);
+    const parsed = parseRefute(res.text);
     if (!parsed) return { ...base, latencyMs: res.latencyMs, usage: res.usage };
-    const claims = SLICE_NEEDS_EVIDENCE[params.slice]
-      ? validateSpans(parsed.claims, params.evidence, { slice: params.slice })
-      : parsed.claims;
-    return { ...base, claims, rulingIssued: parsed.rulingIssued, notes: parsed.notes, parsed: true, latencyMs: res.latencyMs, usage: res.usage };
+    const { kept, discarded } = validateContradictions(parsed.contradictions, params.answer, params.evidence);
+    return {
+      ...base, contradictions: kept, notFound: validateNotFound(parsed.notFound, params.evidence), discarded,
+      notes: parsed.notes, parsed: true, latencyMs: res.latencyMs, usage: res.usage,
+    };
   } catch {
     return base;
   }

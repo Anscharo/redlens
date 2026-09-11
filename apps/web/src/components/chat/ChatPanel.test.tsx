@@ -14,7 +14,7 @@ vi.mock("../../lib/docs", () => ({ loadAtlas: () => Promise.resolve({ docs: {} }
 // this file's concern; keep it a resolved empty list so it never renders.
 vi.mock("../../lib/conversationsApi", () => ({ listConversations: vi.fn(async () => []) }));
 
-const { track, refresh, send, stop, setRateLimit, newChat, openConversation, openAuth, setPref } = vi.hoisted(() => ({
+const { track, refresh, send, stop, setRateLimit, newChat, openConversation, openAuth } = vi.hoisted(() => ({
   track: vi.fn(),
   refresh: vi.fn(),
   send: vi.fn(async (): Promise<SendResult> => ({})),
@@ -23,7 +23,6 @@ const { track, refresh, send, stop, setRateLimit, newChat, openConversation, ope
   newChat: vi.fn(),
   openConversation: vi.fn(),
   openAuth: vi.fn(),
-  setPref: vi.fn(),
 }));
 vi.mock("../../lib/analytics", () => ({ track }));
 // SignInButtons (rendered in the signed-out composer) gates on authProviders();
@@ -33,9 +32,6 @@ vi.mock("../../lib/authProviders", () => ({ authProviders: () => ["github", "goo
 // longer calls it directly (that's session.authed/openAuth now), but this
 // sibling component still does.
 vi.mock("./auth", () => ({ useAuth: () => ({ openAuth: vi.fn() }) }));
-
-let prefsState: { traces: boolean; reduceMotion: boolean; delivery: "staged" | "streaming" | null } = { traces: false, reduceMotion: false, delivery: null };
-vi.mock("./usePrefs", () => ({ usePrefs: () => ({ prefs: prefsState, setPref }) }));
 
 import { ChatPanel } from "./ChatPanel";
 
@@ -111,7 +107,6 @@ function ReactiveRateLimitPanel() {
 
 beforeEach(() => {
   localStorage.clear();
-  prefsState = { traces: false, reduceMotion: false, delivery: null };
   // jsdom doesn't implement Element.scrollTo
   Element.prototype.scrollTo = vi.fn();
 });
@@ -153,7 +148,6 @@ describe("ChatPanel signed in, empty thread", () => {
     expect(send).toHaveBeenCalledWith(
       "Trace the governance path for an Atlas amendment.",
       expect.objectContaining({ path: "/atlas", nodeId: "n1", nodeTitle: "T", nodeDocNo: "A.1" }),
-      undefined,
     );
   });
 
@@ -169,11 +163,7 @@ describe("ChatPanel signed in, empty thread", () => {
     const textarea = screen.getByPlaceholderText("Ask about the Sky Atlas…");
     fireEvent.change(textarea, { target: { value: "how much did they earn" } });
     fireEvent.click(screen.getByLabelText("Send"));
-    expect(send).toHaveBeenCalledWith(
-      "how much did they earn",
-      { path: "/radar/spark/settlements", actorSlug: "spark", mscMonth: "2026-08" },
-      undefined,
-    );
+    expect(send).toHaveBeenCalledWith("how much did they earn", { path: "/radar/spark/settlements", actorSlug: "spark", mscMonth: "2026-08" });
   });
 
   it("restores a persisted draft from localStorage on mount and shows it in the composer", () => {
@@ -193,7 +183,7 @@ describe("ChatPanel signed in, empty thread", () => {
     const textarea = screen.getByPlaceholderText("Ask about the Sky Atlas…");
     fireEvent.change(textarea, { target: { value: "my question" } });
     fireEvent.click(screen.getByLabelText("Send"));
-    expect(send).toHaveBeenCalledWith("my question", expect.any(Object), undefined);
+    expect(send).toHaveBeenCalledWith("my question", expect.any(Object));
     await waitFor(() => expect(screen.getByPlaceholderText("Ask about the Sky Atlas…")).toHaveValue(""));
     expect(localStorage.getItem("rlc-draft")).toBe("");
   });
@@ -295,10 +285,21 @@ describe("ChatPanel stream errors", () => {
   });
 });
 
+const doneAssistant = (content: string): ChatMsg => ({
+  role: "assistant",
+  content,
+  draft: "",
+  generated: true,
+  trace: [],
+  rounds: 1,
+  sources: [],
+  done: true,
+});
+
 describe("ChatPanel with messages", () => {
   const msgs: ChatMsg[] = [
-    { role: "user", content: "hello", trace: [], rounds: 0, sources: [], done: true },
-    { role: "assistant", content: "hi back", trace: [], rounds: 0, sources: [], done: true },
+    { role: "user", content: "hello", draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true },
+    doneAssistant("hi back"),
   ];
 
   it("renders each message via Message instead of the empty state", () => {
@@ -308,28 +309,35 @@ describe("ChatPanel with messages", () => {
     expect(screen.queryByText("Ask the Atlas")).toBeNull();
   });
 
-  it("passes showTrace from prefs down to Message/ToolTrace", () => {
-    prefsState = { traces: true, reduceMotion: false, delivery: null };
+  it("shows a round's tool rows in the slot once its stage row is clicked open", () => {
     renderPanel({
       session: {
         messages: [
           {
             role: "assistant",
-            content: "answer",
-            trace: [{ name: "atlas_get", args: {}, ok: true, bytes: 5 }],
+            content: "",
+            draft: "",
+            generated: false,
+            trace: [{ name: "atlas_get", args: {}, ok: true, bytes: 5, round: 1 }],
             rounds: 1,
             sources: [],
-            done: true,
+            done: false,
+            stageLog: [{ stage: "querying", details: ["Searching…"], at: 0, round: 1 }],
           },
         ],
       },
     });
-    expect(screen.getByText("looked up 1 thing over the atlas")).toBeInTheDocument();
+    expect(screen.queryByText("atlas_get")).toBeNull();
+    fireEvent.click(screen.getByText("Looking for evidence"));
+    expect(screen.getByText("atlas_get")).toBeInTheDocument();
   });
 
   it("shows a stop control while streaming and wires it to session.stop", () => {
     renderPanel({
-      session: { streaming: true, messages: [{ role: "assistant", content: "", trace: [], rounds: 0, sources: [], done: false }] },
+      session: {
+        streaming: true,
+        messages: [{ role: "assistant", content: "", draft: "", generated: false, trace: [], rounds: 0, sources: [], done: false }],
+      },
     });
     fireEvent.click(screen.getByLabelText("Stop"));
     expect(stop).toHaveBeenCalled();
@@ -354,9 +362,22 @@ describe("ChatPanel header", () => {
   });
 
   it("calls session.newChat when New chat is clicked", () => {
-    renderPanel();
+    const userMsg: ChatMsg = { role: "user", content: "hello", draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true };
+    renderPanel({ session: { messages: [userMsg] } });
     fireEvent.click(screen.getByLabelText("New chat"));
     expect(newChat).toHaveBeenCalled();
+  });
+
+  it("moves focus into the composer when New chat is pressed", () => {
+    const userMsg: ChatMsg = { role: "user", content: "hello", draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true };
+    renderPanel({ session: { messages: [userMsg] } });
+    fireEvent.click(screen.getByLabelText("New chat"));
+    expect(screen.getByPlaceholderText(baseContext.placeholder)).toHaveFocus();
+  });
+
+  it("hides New chat while the thread is empty — there is nothing to start over from", () => {
+    renderPanel();
+    expect(screen.queryByLabelText("New chat")).not.toBeInTheDocument();
   });
 
   it("shows a dock icon while floating and pops out to anchored on toggle click", () => {
@@ -368,50 +389,6 @@ describe("ChatPanel header", () => {
   it("shows a float-out control while anchored", () => {
     renderPanel({ placement: "anchored" });
     expect(screen.getByTitle("Pop out to a floating window")).toBeInTheDocument();
-  });
-});
-
-describe("ChatPanel delivery-mode toggle", () => {
-  it("shows streaming by default (delivery: null) and turns on stages (staged) on click", () => {
-    renderPanel();
-    const toggle = screen.getByLabelText("set deliver mode: stream or stages");
-    expect(toggle).toHaveTextContent("streaming");
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
-    expect(toggle).toBeEnabled();
-    fireEvent.click(toggle);
-    expect(setPref).toHaveBeenCalledWith("delivery", "staged");
-  });
-
-  it("shows stages when the pref is staged, and clicking flips to streaming", () => {
-    prefsState = { traces: false, reduceMotion: false, delivery: "staged" };
-    renderPanel();
-    const toggle = screen.getByLabelText("set deliver mode: stream or stages");
-    expect(toggle).toHaveTextContent("stages");
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(toggle);
-    expect(setPref).toHaveBeenCalledWith("delivery", "streaming");
-  });
-
-  it("disables the delivery toggle while a reply (including any revision) is still streaming", async () => {
-    renderPanel({
-      session: {
-        streaming: true,
-        messages: [{ role: "assistant", content: "partial", trace: [], rounds: 0, sources: [], done: false }],
-      },
-    });
-    const toggle = screen.getByLabelText("can't change delivery mode while a reply is in progress");
-    expect(toggle).toBeDisabled();
-    await userEvent.click(toggle);
-    expect(setPref).not.toHaveBeenCalled();
-  });
-
-  it("threads the delivery pref into send() as the third argument", () => {
-    prefsState = { traces: false, reduceMotion: false, delivery: "staged" };
-    renderPanel();
-    const textarea = screen.getByPlaceholderText("Ask about the Sky Atlas…");
-    fireEvent.change(textarea, { target: { value: "my question" } });
-    fireEvent.click(screen.getByLabelText("Send"));
-    expect(send).toHaveBeenCalledWith("my question", expect.any(Object), "staged");
   });
 });
 
@@ -429,15 +406,6 @@ function sizeThread(container: HTMLElement, { view = 400, content = 1000 } = {})
   thread.scrollTop = height - view;
   return { thread, grow: (by = 100) => (height += by) };
 }
-
-const assistant = (content: string): ChatMsg => ({
-  role: "assistant",
-  content,
-  trace: [],
-  rounds: 1,
-  sources: [],
-  done: true,
-});
 
 describe("ChatPanel scroll follow", () => {
   function renderThread(messages: ChatMsg[]) {
@@ -459,35 +427,35 @@ describe("ChatPanel scroll follow", () => {
   }
 
   it("keeps the thread exactly where the reader left it and offers the jump pill", () => {
-    const { thread, rerenderWith } = renderThread([assistant("first")]);
+    const { thread, rerenderWith } = renderThread([doneAssistant("first")]);
     fireEvent.scroll(thread, { target: { scrollTop: 300 } });
-    rerenderWith([assistant("first"), assistant("second")]);
+    rerenderWith([doneAssistant("first"), doneAssistant("second")]);
     expect(thread.scrollTop).toBe(300);
     expect(screen.getByRole("button", { name: /new messages below/i })).toBeInTheDocument();
   });
 
   it("hides the pill once the reader takes the jump", async () => {
-    const { thread, rerenderWith } = renderThread([assistant("first")]);
+    const { thread, rerenderWith } = renderThread([doneAssistant("first")]);
     fireEvent.scroll(thread, { target: { scrollTop: 300 } });
-    rerenderWith([assistant("first"), assistant("second")]);
+    rerenderWith([doneAssistant("first"), doneAssistant("second")]);
     await userEvent.click(screen.getByRole("button", { name: /new messages below/i }));
     expect(screen.queryByRole("button", { name: /new messages below/i })).not.toBeInTheDocument();
   });
 
   it("shows no pill while the reader is still at the bottom", () => {
-    const { rerenderWith } = renderThread([assistant("first")]);
-    rerenderWith([assistant("first"), assistant("second")]);
+    const { rerenderWith } = renderThread([doneAssistant("first")]);
+    rerenderWith([doneAssistant("first"), doneAssistant("second")]);
     expect(screen.queryByRole("button", { name: /below/i })).not.toBeInTheDocument();
   });
 
   it("re-follows when the reader sends, even from further up the thread", () => {
-    const { thread, rerenderWith } = renderThread([assistant("first")]);
+    const { thread, rerenderWith } = renderThread([doneAssistant("first")]);
     fireEvent.scroll(thread, { target: { scrollTop: 300 } });
-    rerenderWith([assistant("first"), assistant("second")]);
+    rerenderWith([doneAssistant("first"), doneAssistant("second")]);
     expect(screen.getByRole("button", { name: /new messages below/i })).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText("Ask about the Sky Atlas…"), { target: { value: "next" } });
     fireEvent.click(screen.getByLabelText("Send"));
-    rerenderWith([assistant("first"), assistant("second"), assistant("third")]);
+    rerenderWith([doneAssistant("first"), doneAssistant("second"), doneAssistant("third")]);
     expect(thread.scrollTop).toBe(800); // two turns taller than at mount
     expect(screen.queryByRole("button", { name: /below/i })).not.toBeInTheDocument();
   });

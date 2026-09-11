@@ -11,7 +11,7 @@ import { getIndexes } from "../retrieval/indexes.ts";
 import { getSessionUser } from "../session.ts";
 import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
 import { routeTier, resolveTierModels, citationStyleFor, iterationsForTier } from "./model-router.ts";
-import { runVerifiedChat, sanitizeDone, type HarnessEvent, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
+import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
 import { runFacts, factRound, summarizeFacts } from "../facts/registry.ts";
 import { windowHistory } from "./chat-history.ts";
@@ -29,17 +29,6 @@ interface ChatBody {
   message: string;
   conversationId?: string;
   pageContext?: PageContext;
-  // Per-request override of config.chatDeliveryMode (docs/chat-system.md §8),
-  // e.g. for eval-harness A/B runs. An unrecognized value falls back to the
-  // configured default rather than erroring the request.
-  delivery?: "streaming" | "staged";
-}
-
-// Effective delivery mode for this turn: a valid body override wins, else the
-// configured default. Centralized so an invalid body value normalizes the
-// same way an invalid CHAT_DELIVERY_MODE env value does in config.ts.
-function resolveDeliveryMode(bodyDelivery: unknown, fallback: "streaming" | "staged"): "streaming" | "staged" {
-  return bodyDelivery === "streaming" || bodyDelivery === "staged" ? bodyDelivery : fallback;
 }
 
 // Generous cap on raw user input: well above any real prompt (typical chat
@@ -118,11 +107,6 @@ export async function handleChat(req: Request): Promise<Response> {
   // also fires.
   let streamOwnsSlot = false;
   try {
-    // Staged-delivery mode switch (docs/chat-system.md §8): resolved
-    // once, up front, so it's available to both PostHog properties and the SSE
-    // loop below without re-deriving it.
-    const mode = resolveDeliveryMode(body.delivery, config.chatDeliveryMode);
-
     // Hard rate-limit gate on the user's token window — check BEFORE creating a
     // conversation or spending any LLM tokens. The 429 tells the user exactly how
     // many tokens they've used and when the window resets (+ Retry-After header).
@@ -215,14 +199,13 @@ export async function handleChat(req: Request): Promise<Response> {
     // user — semi-anonymous analytics: turns of one conversation stay grouped
     // together in PostHog, but no user identity is sent (userId stays DB-only,
     // via conversations.user_id, never leaves the server). The SAME obs feeds the
-    // answer stream, the harness jsonCall (verifier/advisor), and error capture,
+    // answer stream, the harness jsonCall (verifier), and error capture,
     // so every generation AND every error of the turn lands in one trace. No-op
     // when POSTHOG_KEY is unset (both factories fall back to the plain client).
     const obs = {
       distinctId: convId,
       traceId: crypto.randomUUID(),
-      // chat_delivery is the A/B measurement hinge (docs/chat-system.md §8).
-      properties: { chat_tier: route.tier, chat_route_reason: route.reason, chat_delivery: mode },
+      properties: { chat_tier: route.tier, chat_route_reason: route.reason },
     };
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
@@ -233,9 +216,7 @@ export async function handleChat(req: Request): Promise<Response> {
         // from ANY of it (including a client already gone, enqueue throwing)
         // still hits the finally and releases the slot.
         try {
-          // delivery rides on meta so the client knows staged is active without
-          // guessing from the absence of token events.
-          send({ type: "meta", conversationId: convId, tier: route.tier, delivery: mode });
+          send({ type: "meta", conversationId: convId, tier: route.tier });
 
           // Facts ran before the model did, and they shape the answer — so say so
           // rather than letting injected context look like the model knowing
@@ -246,54 +227,23 @@ export async function handleChat(req: Request): Promise<Response> {
             send({ type: "status", stage: "recalling", detail: summarizeFacts(facts) });
           }
 
-          // Staged mode never streams the draft: token/clear are swallowed, and a
-          // "synthesizing" status stands in for the first suppressed token of each
-          // generation burst (a burst = the run of tokens since the last tool_call,
-          // or since the stream started). Streaming mode forwards everything
-          // untouched — byte-for-byte today's behavior, zero regression risk.
-          let burstAnnounced = false;
-          const forward = (ev: HarnessEvent) => {
-            if (mode !== "staged") {
-              send(ev);
-              return;
-            }
-            if (ev.type === "tool_call") {
-              burstAnnounced = false; // next generation round re-announces
-              send(ev);
-              return;
-            }
-            if (ev.type === "token") {
-              if (!burstAnnounced) {
-                burstAnnounced = true;
-                send({ type: "status", stage: "synthesizing", detail: "Synthesizing an answer from the evidence…" });
-              }
-              return; // suppressed — the client never sees the draft
-            }
-            if (ev.type === "clear") return; // nothing streamed, nothing to clear
-            send(ev);
-          };
-
           let done: HarnessDone | null = null;
           const chatStream = makeOpenrouterStream(obs, models);
           // runVerifiedChat = runChat wrapped in the reliability harness (status
-          // events, deterministic checks, verifier audit, advisor escalation —
-          // model slots are env-gated, unset = pass-through). done carries the
-          // internal transcript/checksMeta; sanitizeDone strips them off the wire.
-          // The advisor's one recovery cycle replays on the STRONG chain rather
-          // than the chain that just failed the audit (chat-orchestrator.ts).
-          // Built here because the orchestrator is deliberately tier-blind.
-          // When the turn already routed strong this resolves to the same chain.
+          // events, deterministic checks, verifier audit — model slots are
+          // env-gated, unset = pass-through). done carries the internal
+          // transcript/checksMeta; sanitizeDone strips them off the wire. Every
+          // event is forwarded as-is; the client renders a stage checklist and
+          // reveals the answer on `answer_final` (see chat-orchestrator.ts).
           for await (const ev of runVerifiedChat({
             ix, messages, stream: chatStream, jsonCall: makeOpenrouterJson(obs),
-            recoveryStream: makeOpenrouterStream(obs, resolveTierModels("strong")),
             question: body.message, signal: req.signal, obs, maxIterations,
           })) {
             if (ev.type === "done") {
               done = ev as HarnessDone;
-              if (mode === "staged") send({ type: "status", stage: "finalizing", detail: "Preparing the final report…" });
               send(sanitizeDone(done));
             } else {
-              forward(ev);
+              send(ev);
             }
           }
           // Don't persist an empty assistant row for an aborted turn.
@@ -340,7 +290,7 @@ export async function handleChat(req: Request): Promise<Response> {
 
 // Exported for direct unit testing (chat.test.ts) — constructing a full
 // HarnessDone via the real HTTP+streaming+harness path just to exercise the
-// usage_events summation would require standing up the verifier/advisor
+// usage_events summation would require standing up the verifier
 // network flow the "titling" describe block below already shows is a heavy
 // lift; this function's persistence logic is worth testing directly instead.
 export async function persistAssistant(
@@ -349,7 +299,7 @@ export async function persistAssistant(
   // Raw array + ::jsonb (see resolveConversation note) — not JSON.stringify'd.
   const toolCalls = done.toolCalls.length ? done.toolCalls : null;
 
-  // Harness (verifier/advisor) tokens count toward the conversation totals and
+  // Harness (verifier) tokens count toward the conversation totals and
   // the rate-limit window (via the usage_events row below) — never toward the
   // messages row, which stays conversationalist-only so the sums don't
   // double-count.
@@ -433,7 +383,7 @@ async function persistChecks(messageId: string, rows: CheckRowMeta[]): Promise<v
     rows.map(
       (r) => sql`
         INSERT INTO message_checks (message_id, kind, model, action, verdict, overall, input_tokens, output_tokens, generation_id, latency_ms)
-        VALUES (${messageId}, ${r.kind}, ${r.model}, ${r.action}, ${r.verdict ?? null}::jsonb, ${r.overall},
+        VALUES (${messageId}, ${r.kind}, ${r.model}, ${null}, ${r.verdict ?? null}::jsonb, ${r.overall},
                 ${r.inputTokens}, ${r.outputTokens}, ${r.generationId}, ${r.latencyMs})
       `,
     ),

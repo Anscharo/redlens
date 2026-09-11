@@ -1,54 +1,51 @@
-import { SparkMark, DockRightIcon, FloatIcon } from "./glyphs";
+import { Link, useLocation } from "wouter";
+import { ROUTES } from "@/lib/routes";
+import { SparkMark, DockRightIcon, FloatIcon, ConversationsIcon } from "./glyphs";
 import type { Placement } from "./types";
 
 interface ChatHeaderProps {
   title: string | null; // conversation title; null for a fresh/untitled thread
-  onNewChat: () => void;
+  onNewChat: (() => void) | null; // null hides the button (thread already empty — nothing to start over from)
   onClose: () => void;
   placement: Placement;
   onTogglePlacement: () => void;
-  // Delivery-mode preference (docs/chat-system.md §8). `stages` is the
-  // user-facing name for staged delivery (checklist, then reveal once);
-  // unpressed / "streaming" follows the server default.
-  stages: boolean;
-  onToggleDelivery: () => void;
-  // True for the whole in-flight SSE (tokens, verify, and any revision
-  // replay). The pref is stamped onto the request/message at send time, so
-  // flipping it mid-turn can't retarget the live stream.
-  streaming: boolean;
 }
 
-export const DELIVERY_MODE_HINT = "set deliver mode: stream or stages";
-export const DELIVERY_LOCKED_HINT = "can't change delivery mode while a reply is in progress";
-
-// Panel chrome: brand mark + conversation title (falls back to "Atlas" for a
-// fresh thread) on the left, New chat / dock-toggle / close on the right.
+// Panel chrome, left to right: a link to the Conversations page, brand mark,
+// conversation title (falls back to "Atlas" for a fresh thread), New chat
+// beside it (only once there is a thread to leave); dock-toggle / close on
+// the right.
 // Split out of ChatPanel.tsx once the title became dynamic and the panel
 // gained a New-chat action (chat-conversation-memory plan §7).
-export function ChatHeader({ title, onNewChat, onClose, placement, onTogglePlacement, stages, onToggleDelivery, streaming }: ChatHeaderProps) {
+export function ChatHeader({ title, onNewChat, onClose, placement, onTogglePlacement }: ChatHeaderProps) {
   const anchored = placement === "anchored";
-  const deliveryHint = streaming ? DELIVERY_LOCKED_HINT : DELIVERY_MODE_HINT;
+  const [path] = useLocation();
+  const onConversations = path === ROUTES.CONVERSATIONS;
   return (
     <header className="rlc-header">
+      {/* A link to the page you are already on does nothing when clicked, so
+          on /conversations it becomes a disabled button — same footprint,
+          no dead click. */}
+      {onConversations ? (
+        <button className="rlc-iconbtn" disabled title="Conversations (this page)" aria-label="Conversations (this page)">
+          <ConversationsIcon />
+        </button>
+      ) : (
+        <Link className="rlc-iconbtn" to={ROUTES.CONVERSATIONS} title="Conversations" aria-label="Conversations">
+          <ConversationsIcon />
+        </Link>
+      )}
       <SparkMark size={15} />
       <div>
         <div className="rlc-header-title">{title ?? "Atlas"}</div>
         <div className="rlc-header-sub">page-aware agent</div>
       </div>
-      <div className="ml-auto flex items-center gap-1">
-        <button
-          className="rlc-staged-toggle"
-          aria-pressed={stages}
-          onClick={onToggleDelivery}
-          disabled={streaming}
-          title={deliveryHint}
-          aria-label={deliveryHint}
-        >
-          {stages ? "stages" : "streaming"}
-        </button>
+      {onNewChat && (
         <button className="rlc-iconbtn" onClick={onNewChat} title="New chat" aria-label="New chat">
           +
         </button>
+      )}
+      <div className="ml-auto flex items-center gap-1">
         <button
           className="rlc-iconbtn"
           onClick={onTogglePlacement}

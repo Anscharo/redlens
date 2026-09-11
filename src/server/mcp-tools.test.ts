@@ -174,7 +174,7 @@ test("atlas_entity: resolves NL name, paginates, filters by type", () => {
 });
 
 test("atlas_entities: fuzzy search + type filter", () => {
-  const byName = call("atlas_entities", { q: "spark", limit: 50, offset: 0 }) as { results: any[] };
+  const byName = call("atlas_entities", { query: "spark", limit: 50, offset: 0 }) as { results: any[] };
   expect(byName.results[0].slug).toBe("spark"); // exact wins over spark-distribution-reward
   const insts = call("atlas_entities", { entity_type: "instance", limit: 50, offset: 0 }) as { total: number };
   expect(insts.total).toBe(1);
@@ -190,10 +190,20 @@ test("atlas_entity_params: id path + entity path with subtype filter", () => {
 
 // ── atlas_params (wired via TOOLS_BY_NAME; extraction itself is tools-params.test.ts's job) ──
 test("atlas_params: wired end-to-end, errors on an unusable query, returns a well-formed result otherwise", () => {
-  const empty = call("atlas_params", { q: "at" }) as { error?: string };
+  const empty = call("atlas_params", { query: "at" }) as { error?: string };
   expect(empty.error).toBeDefined();
-  const res = call("atlas_params", { q: "reward rate" }) as { count: number; rows: unknown[] };
+  const res = call("atlas_params", { query: "reward rate" }) as { count: number; rows: unknown[] };
   expect(res.count).toBe(res.rows.length);
+});
+
+test("atlas_params: `q` is a deprecated alias of `query`; `query` wins when both are present", () => {
+  const viaAlias = call("atlas_params", { q: "reward rate" }) as { count: number; rows: unknown[] };
+  const viaQuery = call("atlas_params", { query: "reward rate" }) as { count: number; rows: unknown[] };
+  expect(viaAlias.rows).toEqual(viaQuery.rows);
+  // q would match nothing ("at" alone is <3 chars after normalization is irrelevant here —
+  // it's just a different term), query should win over a conflicting q.
+  const both = call("atlas_params", { query: "reward rate", q: "zzzznomatch" }) as { count: number; rows: unknown[] };
+  expect(both.rows).toEqual(viaQuery.rows);
 });
 
 // ── filter ───────────────────────────────────────────────────────────────────
@@ -227,19 +237,19 @@ test("atlas_search: lexical results carry sources + snippet; phrase post-filter"
 
 // ── query: search / target_type / ancestor / entity_broad / type_list / chain ─
 test("atlas_query: search is lean by default and intersects target_type", async () => {
-  const s = (await call("atlas_query", { q: "zebraword", k: 10, enrich: false })) as Record<string, any>;
+  const s = (await call("atlas_query", { query: "zebraword", k: 10, enrich: false })) as Record<string, any>;
   expect(s.mode).toBe("search");
   expect(s.results[0].content).toBeUndefined(); // lean rows
   expect(s.results[0].snippet).toBeDefined();
   expect(s.results.map((r: any) => r.doc_no).sort()).toEqual(["A.1.1", "A.1.1.1"]);
 
   // target_type flows into the lexical leg's docMap post-filter → Section drops out.
-  const typed = (await call("atlas_query", { q: "zebraword", target_type: "Core", k: 10, enrich: false })) as { results: any[] };
+  const typed = (await call("atlas_query", { query: "zebraword", target_type: "Core", k: 10, enrich: false })) as { results: any[] };
   expect(typed.results.map((r) => r.doc_no)).toEqual(["A.1.1.1"]);
 });
 
 test("atlas_query: ancestor scope narrows results", async () => {
-  const under2 = (await call("atlas_query", { q: "zebraword", ancestor_id: "A.2", k: 10, enrich: false })) as { results: any[] };
+  const under2 = (await call("atlas_query", { query: "zebraword", ancestor_id: "A.2", k: 10, enrich: false })) as { results: any[] };
   expect(under2.results.length).toBe(0); // zebraword only under A.1
 });
 

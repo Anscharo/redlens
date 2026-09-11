@@ -87,7 +87,7 @@ describe("useChatStream facts", () => {
 
   it("logs the recall as a stage, like any other step of the turn", async () => {
     mockChat([
-      { type: "meta", conversationId: "c1", delivery: "staged" },
+      { type: "meta", conversationId: "c1" },
       { type: "facts", facts: [{ id: "entities", summary: "1 entity from the roster" }] },
       { type: "status", stage: "recalling", detail: "Recalled 1 entity from the roster" },
       { type: "done", content: "Answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
@@ -100,7 +100,7 @@ describe("useChatStream facts", () => {
 
     expect(result.current.messages.at(-1)?.stageLog?.[0]).toMatchObject({
       stage: "recalling",
-      detail: "Recalled 1 entity from the roster",
+      details: ["Recalled 1 entity from the roster"],
     });
   });
 });
@@ -152,9 +152,9 @@ describe("useChatStream event dispatch", () => {
       {
         type: "verify_result",
         overall: "warn",
-        confidence: 0.5,
-        action: "annotate",
-        claims: [{ claim: "x", status: "unsupported" }],
+        contradictions: [],
+        notFound: [],
+        rulingIssued: true,
         invalidCitations: [],
         invalidDocNos: [],
         docNoMismatches: [],
@@ -167,17 +167,18 @@ describe("useChatStream event dispatch", () => {
     await act(async () => {
       await result.current.send("question");
     });
-    expect(result.current.messages.at(-1)?.verify?.status).toBe("warn");
+    const verify = result.current.messages.at(-1)?.verify;
+    expect(verify?.status).toBe("warn");
+    expect(verify?.rulingIssued).toBe(true);
   });
 
-  it("marks verify as revised when the action is 'revised' regardless of overall", async () => {
+  it("parses a verify_result missing notFound/rulingIssued (older server) as empty/false", async () => {
     mockChat([
+      { type: "meta", conversationId: "c1" },
       {
         type: "verify_result",
-        overall: "fail",
-        confidence: 0.1,
-        action: "revised",
-        claims: [],
+        overall: "pass",
+        contradictions: [],
         invalidCitations: [],
         invalidDocNos: [],
         docNoMismatches: [],
@@ -190,7 +191,9 @@ describe("useChatStream event dispatch", () => {
     await act(async () => {
       await result.current.send("question");
     });
-    expect(result.current.messages.at(-1)?.verify?.status).toBe("revised");
+    const verify = result.current.messages.at(-1)?.verify;
+    expect(verify?.notFound).toEqual([]);
+    expect(verify?.rulingIssued).toBe(false);
   });
 
   it("clears leaked answer fragments on a 'clear' event (tool round discard)", async () => {
@@ -226,7 +229,7 @@ describe("useChatStream event dispatch", () => {
     expect(msg.content).toBe("real answer");
     // The reader watched "partial leaked text" arrive; a tool call must not
     // make it vanish from under them.
-    expect(msg.superseded).toEqual([{ text: "partial leaked text", reason: "tool_round" }]);
+    expect(msg.superseded).toEqual([{ text: "partial leaked text", reason: "tool_round", round: 0 }]);
     expect(msg.reasoning).toBeUndefined();
   });
 
@@ -243,7 +246,7 @@ describe("useChatStream event dispatch", () => {
       await result.current.send("question");
     });
     const msg = result.current.messages.at(-1)!;
-    expect(msg.superseded).toEqual([{ text: "Let me look that up.", reason: "tool_round" }]);
+    expect(msg.superseded).toEqual([{ text: "Let me look that up.", reason: "tool_round", round: 0 }]);
     expect(msg.reasoning).toContain("checking the scope");
     expect(msg.reasoning).toContain("<tool_call>");
     expect(msg.reasoning).toContain("atlas_query");
@@ -265,62 +268,9 @@ describe("useChatStream event dispatch", () => {
     expect(msg.reasoning).toBe("ool_call>");
   });
 
-  it("a revision keeps the whole buffer, including text that looks like a tool call", async () => {
-    mockChat([
-      { type: "token", text: "see <tool_call> in this wrong draft" },
-      { type: "clear", reason: "revision" },
-      { type: "token", text: "the corrected answer" },
-      { type: "done", content: "the corrected answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
-    ]);
-    const { result } = renderHook(() => useChatStream());
-    await act(async () => {
-      await result.current.send("question");
-    });
-    const msg = result.current.messages.at(-1)!;
-    expect(msg.superseded).toEqual([{ text: "see <tool_call> in this wrong draft", reason: "revision" }]);
-    expect(msg.reasoning).toBeUndefined();
-  });
-
-  it("clear reason 'revision' moves the streamed draft into superseded and clears content", async () => {
-    mockChat([
-      { type: "token", text: "a wrong draft" },
-      { type: "clear", reason: "revision" },
-      { type: "token", text: "the corrected answer" },
-      { type: "done", content: "the corrected answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
-    ]);
-    const { result } = renderHook(() => useChatStream());
-    await act(async () => {
-      await result.current.send("question");
-    });
-    const msg = result.current.messages.at(-1)!;
-    expect(msg.superseded).toEqual([{ text: "a wrong draft", reason: "revision" }]);
-    expect(msg.content).toBe("the corrected answer");
-  });
-
-  it("a second revision keeps both drafts, in arrival order", async () => {
-    mockChat([
-      { type: "token", text: "first draft" },
-      { type: "clear", reason: "revision" },
-      { type: "token", text: "second draft" },
-      { type: "clear", reason: "revision" },
-      { type: "token", text: "final answer" },
-      { type: "done", content: "final answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
-    ]);
-    const { result } = renderHook(() => useChatStream());
-    await act(async () => {
-      await result.current.send("question");
-    });
-    const msg = result.current.messages.at(-1)!;
-    expect(msg.superseded).toEqual([
-      { text: "first draft", reason: "revision" },
-      { text: "second draft", reason: "revision" },
-    ]);
-    expect(msg.content).toBe("final answer");
-  });
-
   it("a clear with nothing streamed yet keeps no draft — there is nothing to read", async () => {
     mockChat([
-      { type: "clear", reason: "revision" },
+      { type: "clear", reason: "tool_round" },
       { type: "token", text: "the answer" },
       { type: "done", content: "the answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
     ]);
@@ -331,43 +281,6 @@ describe("useChatStream event dispatch", () => {
     const msg = result.current.messages.at(-1)!;
     expect(msg.superseded).toBeUndefined();
     expect(msg.content).toBe("the answer");
-  });
-
-  it("clear reason 'restore' drops the struck draft so the original (resent in done) doesn't also show struck", async () => {
-    mockChat([
-      { type: "token", text: "a revision draft that itself failed" },
-      { type: "clear", reason: "revision" },
-      { type: "clear", reason: "restore" },
-      { type: "done", content: "the original answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
-    ]);
-    const { result } = renderHook(() => useChatStream());
-    await act(async () => {
-      await result.current.send("question");
-    });
-    const msg = result.current.messages.at(-1)!;
-    expect(msg.superseded).toEqual([]);
-    expect(msg.content).toBe("the original answer");
-  });
-
-  // A revision can run its own tool round before failing. `restore` must drop
-  // the ORIGINAL it kept (which `done` re-sends verbatim) and leave the
-  // revision's own preamble alone — that text was seen too.
-  it("clear reason 'restore' drops only the kept original, not a later tool_round draft", async () => {
-    mockChat([
-      { type: "token", text: "the original answer" },
-      { type: "clear", reason: "revision" },
-      { type: "token", text: "let me re-check that" },
-      { type: "clear", reason: "tool_round" },
-      { type: "clear", reason: "restore" },
-      { type: "done", content: "the original answer", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
-    ]);
-    const { result } = renderHook(() => useChatStream());
-    await act(async () => {
-      await result.current.send("question");
-    });
-    const msg = result.current.messages.at(-1)!;
-    expect(msg.superseded).toEqual([{ text: "let me re-check that", reason: "tool_round" }]);
-    expect(msg.content).toBe("the original answer");
   });
 
   // The one exception to "never delete what the reader saw": a repetition
@@ -403,7 +316,7 @@ describe("useChatStream event dispatch", () => {
       await result.current.send("question");
     });
     expect(result.current.messages.at(-1)?.superseded).toEqual([
-      { text: "let me look that up", reason: "tool_round" },
+      { text: "let me look that up", reason: "tool_round", round: 0 },
     ]);
   });
 
@@ -418,7 +331,7 @@ describe("useChatStream event dispatch", () => {
     await act(async () => {
       await result.current.send("question");
     });
-    expect(result.current.messages.at(-1)?.superseded).toEqual([{ text: "seen text", reason: "tool_round" }]);
+    expect(result.current.messages.at(-1)?.superseded).toEqual([{ text: "seen text", reason: "tool_round", round: 0 }]);
   });
 
   it("accumulates reasoning deltas onto their own field, never leaking into content", async () => {
@@ -451,10 +364,10 @@ describe("useChatStream event dispatch", () => {
 
   it("finalizes a stream that closes cleanly without a terminal event (no forever-pending turn)", async () => {
     // Proxy cut / server crash mid-turn: stages arrived, "done"/"error" never
-    // did. Staged mode renders its checklist on !done, so an unfinalized
-    // message would pulse forever behind a re-enabled input.
+    // did. The progress checklist renders on !done, so an unfinalized message
+    // would pulse forever behind a re-enabled input.
     mockChat([
-      { type: "meta", conversationId: "c1", delivery: "staged" },
+      { type: "meta", conversationId: "c1" },
       { type: "status", stage: "querying", detail: "Searching…" },
     ]);
     const { result } = renderHook(() => useChatStream());
@@ -533,7 +446,7 @@ describe("useChatStream event dispatch", () => {
     expect(result.current.contextTokens).toBeNull();
   });
 
-  it("keeps a partially streamed answer when the stream is truncated", async () => {
+  it("keeps a partially streamed draft when the stream is truncated (never revealed as content)", async () => {
     mockChat([
       { type: "meta", conversationId: "c1" },
       { type: "token", text: "half an ans" },
@@ -542,8 +455,40 @@ describe("useChatStream event dispatch", () => {
     await act(async () => {
       await result.current.send("question");
     });
-    expect(result.current.messages.at(-1)?.content).toBe("half an ans");
+    expect(result.current.messages.at(-1)?.draft).toBe("half an ans");
+    expect(result.current.messages.at(-1)?.content).toBe("");
+    expect(result.current.messages.at(-1)?.generated).toBe(false);
     expect(result.current.messages.at(-1)?.done).toBe(true);
+  });
+
+  it("reveals the draft as content on answer_final, before done/verification arrive", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      { type: "token", text: "The answer is 42." },
+      { type: "answer_final", content: "The answer is 42." },
+      { type: "status", stage: "checking", detail: "Auditing…" },
+      {
+        type: "verify_result",
+        overall: "pass",
+        contradictions: [],
+        invalidCitations: [],
+        invalidDocNos: [],
+        docNoMismatches: [],
+        ungroundedQuotes: [],
+        ungroundedAddresses: [],
+      },
+      { type: "done", content: "The answer is 42.", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const msg = result.current.messages.at(-1)!;
+    expect(msg.content).toBe("The answer is 42.");
+    expect(msg.generated).toBe(true);
+    expect(msg.draft).toBe("");
+    expect(msg.verify?.status).toBe("pass");
+    expect(msg.done).toBe(true);
   });
 
   it("skips a heartbeat/comment frame with no data: line", async () => {
@@ -846,8 +791,8 @@ describe("useChatStream hydrate", () => {
   it("seeds messages + conversationId, clearing error/streaming", () => {
     const { result } = renderHook(() => useChatStream());
     const seeded = [
-      { role: "user" as const, content: "hi", trace: [], rounds: 0, sources: [], done: true },
-      { role: "assistant" as const, content: "hello", trace: [], rounds: 0, sources: [], done: true },
+      { role: "user" as const, content: "hi", draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true },
+      { role: "assistant" as const, content: "hello", draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true },
     ];
     act(() => {
       result.current.hydrate("conv-1", seeded);
@@ -861,7 +806,7 @@ describe("useChatStream hydrate", () => {
   it("hydrate(null, []) clears to a fresh chat", () => {
     const { result } = renderHook(() => useChatStream());
     act(() => {
-      result.current.hydrate("conv-1", [{ role: "user", content: "hi", trace: [], rounds: 0, sources: [], done: true }]);
+      result.current.hydrate("conv-1", [{ role: "user", content: "hi", draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true }]);
     });
     act(() => {
       result.current.hydrate(null, []);
@@ -875,7 +820,7 @@ describe("useChatStream hydrate", () => {
     act(() => {
       result.current.hydrate(
         "conv-1",
-        [{ role: "assistant", content: "hi", trace: [], rounds: 0, sources: [], done: true }],
+        [{ role: "assistant", content: "hi", draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true }],
         18200,
       );
     });
@@ -885,7 +830,7 @@ describe("useChatStream hydrate", () => {
   it("defaults contextTokens to null when the third argument is omitted", () => {
     const { result } = renderHook(() => useChatStream());
     act(() => {
-      result.current.hydrate("conv-1", [{ role: "user", content: "hi", trace: [], rounds: 0, sources: [], done: true }]);
+      result.current.hydrate("conv-1", [{ role: "user", content: "hi", draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true }]);
     });
     expect(result.current.contextTokens).toBeNull();
   });
@@ -926,9 +871,9 @@ describe("useChatStream hydrate", () => {
     await act(async () => {
       controllerRef!.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "token", text: "partial" })}\n\n`));
     });
-    await waitFor(() => expect(result.current.messages.at(-1)?.content).toBe("partial"));
+    await waitFor(() => expect(result.current.messages.at(-1)?.draft).toBe("partial"));
 
-    const restored = [{ role: "user" as const, content: "restored", trace: [], rounds: 0, sources: [], done: true }];
+    const restored = [{ role: "user" as const, content: "restored", draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true }];
     act(() => {
       result.current.hydrate("other-conv", restored);
     });
@@ -1066,36 +1011,12 @@ describe("useChatStream stop/reset", () => {
   });
 });
 
-describe("useChatStream staged delivery: meta capture + stageLog", () => {
-  it("captures delivery from the meta event onto the message", async () => {
-    mockChat([
-      { type: "meta", conversationId: "c1", delivery: "staged" },
-      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
-    ]);
-    const { result } = renderHook(() => useChatStream());
-    await act(async () => {
-      await result.current.send("question");
-    });
-    expect(result.current.messages.at(-1)?.delivery).toBe("staged");
-  });
-
-  it("leaves delivery undefined when meta omits it", async () => {
-    mockChat([
-      { type: "meta", conversationId: "c1" },
-      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
-    ]);
-    const { result } = renderHook(() => useChatStream());
-    await act(async () => {
-      await result.current.send("question");
-    });
-    expect(result.current.messages.at(-1)?.delivery).toBeUndefined();
-  });
-
-  it("appends a new stageLog row per distinct stage, in order", async () => {
+describe("useChatStream stageLog", () => {
+  it("appends a new stageLog row per distinct stage, in order, stamped with the current round", async () => {
     mockChat([
       { type: "status", stage: "querying", detail: "Searching…" },
       { type: "status", stage: "comparing", detail: "Comparing 2 results…" },
-      { type: "status", stage: "finalizing" },
+      { type: "status", stage: "synthesizing" },
       { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
     ]);
     const { result } = renderHook(() => useChatStream());
@@ -1104,13 +1025,13 @@ describe("useChatStream staged delivery: meta capture + stageLog", () => {
     });
     const log = result.current.messages.at(-1)?.stageLog;
     expect(log).toEqual([
-      { stage: "querying", detail: "Searching…", at: 0 },
-      { stage: "comparing", detail: "Comparing 2 results…", at: 1 },
-      { stage: "finalizing", detail: null, at: 2 },
+      { stage: "querying", details: ["Searching…"], at: 0, round: 0 },
+      { stage: "comparing", details: ["Comparing 2 results…"], at: 1, round: 0 },
+      { stage: "synthesizing", details: [], at: 2, round: 0 },
     ]);
   });
 
-  it("coalesces consecutive same-stage events into one row, keeping the latest detail", async () => {
+  it("coalesces consecutive same-stage events into one row, keeping every detail line", async () => {
     mockChat([
       { type: "status", stage: "querying", detail: "Searching atlas_search…" },
       { type: "status", stage: "querying", detail: "Searching atlas_get…" },
@@ -1123,8 +1044,8 @@ describe("useChatStream staged delivery: meta capture + stageLog", () => {
     });
     const log = result.current.messages.at(-1)?.stageLog;
     expect(log).toEqual([
-      { stage: "querying", detail: "Searching atlas_get…", at: 0 },
-      { stage: "checking", detail: "Auditing…", at: 1 },
+      { stage: "querying", details: ["Searching atlas_search…", "Searching atlas_get…"], at: 0, round: 0 },
+      { stage: "checking", details: ["Auditing…"], at: 1, round: 0 },
     ]);
   });
 
@@ -1149,13 +1070,17 @@ describe("useChatStream staged delivery: meta capture + stageLog", () => {
       encoder.encode(`data: ${JSON.stringify({ type: "status", stage: "querying", detail: "Searching…" })}\n\n`),
     );
     await waitFor(() =>
-      expect(result.current.messages.at(-1)?.stageLog).toEqual([{ stage: "querying", detail: "Searching…", at: 0 }]),
+      expect(result.current.messages.at(-1)?.stageLog).toEqual([
+        { stage: "querying", details: ["Searching…"], at: 0, round: 0 },
+      ]),
     );
 
     act(() => {
       result.current.stop();
     });
-    expect(result.current.messages.at(-1)?.stageLog).toEqual([{ stage: "querying", detail: "Searching…", at: 0 }]);
+    expect(result.current.messages.at(-1)?.stageLog).toEqual([
+      { stage: "querying", details: ["Searching…"], at: 0, round: 0 },
+    ]);
     expect(result.current.messages.at(-1)?.done).toBe(true);
 
     // Unblock and finish the stream so nothing leaks into later tests.
@@ -1166,9 +1091,9 @@ describe("useChatStream staged delivery: meta capture + stageLog", () => {
   });
 });
 
-describe("useChatStream send(delivery) → POST body", () => {
-  function fetchMockWithBody() {
-    return vi.fn((_url: string, _init?: RequestInit) =>
+describe("useChatStream send() → POST body", () => {
+  it("posts message/conversationId/pageContext only — no delivery field", async () => {
+    const fetchMock = vi.fn((_url: string, _init?: RequestInit) =>
       Promise.resolve(
         new Response(
           sse([{ type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] }]),
@@ -1176,27 +1101,12 @@ describe("useChatStream send(delivery) → POST body", () => {
         ),
       ),
     );
-  }
-
-  it("includes delivery in the request body when provided", async () => {
-    const fetchMock = fetchMockWithBody();
-    vi.stubGlobal("fetch", fetchMock);
-    const { result } = renderHook(() => useChatStream());
-    await act(async () => {
-      await result.current.send("question", undefined, "staged");
-    });
-    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
-    expect(body.delivery).toBe("staged");
-  });
-
-  it("omits delivery from the request body when not provided", async () => {
-    const fetchMock = fetchMockWithBody();
     vi.stubGlobal("fetch", fetchMock);
     const { result } = renderHook(() => useChatStream());
     await act(async () => {
       await result.current.send("question");
     });
     const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
-    expect(body.delivery).toBeUndefined();
+    expect(body).toEqual({ message: "question" });
   });
 });
