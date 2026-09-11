@@ -373,7 +373,13 @@ actual evidence text; a span that isn't really there is **DISCARDED**, never
 downgraded to a lesser status — refutation-only has no lesser status to
 downgrade to. A finding that survives validation becomes a **candidate**.
 Statements the auditor could not locate in evidence at all go to `notFound`
-(capped at 5), which is informational only and never affects `overall`.
+(capped at 5), which is informational only and never affects `overall`. It is
+still held to code (`validateNotFound`, refute.ts): an entry whose words occur
+together anywhere in the evidence (overlap ≥ 0.6 — a looser bar than a
+contradiction's, because here overlap REMOVES a claim) is dropped as covered,
+and an entry under five words is dropped as a topic rather than a statement.
+Observed 2026-09-11 before this: "the savings rate" reported as uncovered while
+the evidence defined the Sky Savings Rate.
 
 **`confirm` is a second, independent auditor, and it is conditional.** It runs
 only when at least one candidate survived code validation, so a clean answer —
@@ -589,7 +595,7 @@ answer once (§1), rather than the server picking between two client shapes.
 
 Status rows accumulate every detail line they reported (`StageLogEntry.details`) and keep them after the stage completes — nothing shown in the checklist is ever replaced or removed.
 
-**Tense and per-paragraph disclosure (`StageList.tsx`, `ParagraphChecks.tsx`)**: a finished stage row reads in the simple past ("Looked for evidence") and only the currently-running row stays present continuous ("Looking for evidence") — a step that already happened shouldn't read as still happening. This is display-only: `stageLabel`/`stripTrailingEllipsis` pick the tense and drop a detail line's trailing "…"/"..." on a done row so it doesn't look like it's still going, but the logged `StageLogEntry.details` strings themselves are untouched, so the never-removed rule above still holds. The per-paragraph audit under the Synthesizing row follows the same "don't restate the default" instinct: `ParagraphChecks` renders one summary line (`N paragraphs checked`, plus `, no findings` / `, K flagged` / `, model check running` while any paragraph is still `pending`) and a row underneath only for a paragraph that has a deterministic finding or a model state worth naming on its own (`candidate`/`failed`) — a clean (`ok`) or still-pending paragraph gets no row, since the summary already accounts for it.
+**Tense and per-paragraph disclosure (`StageList.tsx`, `ParagraphChecks.tsx`)**: a finished stage row reads in the simple past ("Looked for evidence") and only the currently-running row stays present continuous ("Looking for evidence") — a step that already happened shouldn't read as still happening. This is display-only: `stageLabel`/`stripTrailingEllipsis` pick the tense and drop a detail line's trailing "…"/"..." on a done row so it doesn't look like it's still going, but the logged `StageLogEntry.details` strings themselves are untouched, so the never-removed rule above still holds. The per-paragraph audit renders under the Verifying row (or the Comparing row on a deterministic-only turn, which never gets a Verifying row) — it is about checking the answer, not writing it — and follows the same "don't restate the default" instinct: `ParagraphChecks` renders one summary line (`N paragraphs checked`, plus `, no findings` / `, K flagged` / `, model check running` while any paragraph is still `pending`) and a row underneath only for a paragraph that has a deterministic finding or a model state worth naming on its own (`candidate`/`failed`) — a clean (`ok`) or still-pending paragraph gets no row, since the summary already accounts for it.
 
 **`answer_final`** is a new `HarnessEvent`, `{ type: "answer_final", content
 }`, yielded once — right after deterministic citation repair succeeds (after

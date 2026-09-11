@@ -1,7 +1,7 @@
 // Refute-slice unit tests: prompt shape, parsing, and the code backstop
 // (validateContradictions) that re-checks both spans before a candidate can
 // ever reach the confirm gate.
-import { test, expect } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import { buildRefutePrompt, parseRefute, validateContradictions } from "./refute.ts";
 import type { EvidenceEntry } from "./verifier.ts";
 
@@ -124,4 +124,20 @@ test("validateContradictions: an unlocatable answer_span is discarded even when 
   );
   expect(kept).toHaveLength(0);
   expect(discarded).toBe(1);
+});
+
+describe("validateNotFound", () => {
+  const evidence = [
+    { label: "[E1]", tool: "atlas_get", args: "{}", content: JSON.stringify({ content: "The Sky Savings Rate (\"SSR\") is the rate that USDS holders can earn on their USDS within the Sky Savings Rate smart contracts." }) },
+  ];
+  test("drops an entry the evidence covers, and a bare topic that is not a statement", async () => {
+    const { validateNotFound } = await import("./refute.ts");
+    expect(validateNotFound(["the savings rate"], evidence)).toEqual([]); // topic, and covered
+    expect(validateNotFound(["USDS holders can earn the rate within the Sky Savings Rate smart contracts"], evidence)).toEqual([]); // covered
+  });
+  test("keeps a full statement the evidence genuinely does not cover", async () => {
+    const { validateNotFound } = await import("./refute.ts");
+    const claim = "Aligned Delegates are paid a fixed retainer from the Accessibility Reserve every quarter";
+    expect(validateNotFound([claim], evidence)).toEqual([claim]);
+  });
 });

@@ -24,7 +24,7 @@
 import type OpenAI from "openai";
 import type { JsonCall } from "../llm.ts";
 import type { Contradiction, EvidenceEntry } from "./verifier.ts";
-import { buildRefutePrompt, parseRefute, validateContradictions } from "./refute.ts";
+import { buildRefutePrompt, parseRefute, validateContradictions, validateNotFound } from "./refute.ts";
 import { parseJsonish } from "./slice-json.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -112,7 +112,7 @@ export async function runSlice(params: {
     if (!parsed) return { ...base, latencyMs: res.latencyMs, usage: res.usage };
     const { kept, discarded } = validateContradictions(parsed.contradictions, params.answer, params.evidence);
     return {
-      ...base, contradictions: kept, notFound: parsed.notFound, discarded,
+      ...base, contradictions: kept, notFound: validateNotFound(parsed.notFound, params.evidence), discarded,
       notes: parsed.notes, parsed: true, latencyMs: res.latencyMs, usage: res.usage,
     };
   } catch {

@@ -124,29 +124,44 @@ describe("renderStageSlot / synthesizing", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows paragraph checks on the last synthesizing entry only", () => {
+  it("never renders paragraph checks under a synthesizing entry", () => {
     const msg = baseMsg({
       draft: "the answer so far",
       paragraphChecks: [{ index: 0, text: "the answer so far", findings: [] }],
       stageLog: [entry({ stage: "synthesizing", at: 0, round: 1 }), entry({ stage: "synthesizing", at: 3, round: 2 })],
     });
-    const first = msg.stageLog![0];
-    const last = msg.stageLog![1];
-    const { container: firstContainer } = render(<Slot msg={msg} e={first} />);
-    expect(firstContainer.querySelector(".rlc-para-checks")).toBeNull();
-    const { container: lastContainer } = render(<Slot msg={msg} e={last} />);
-    expect(lastContainer.querySelector(".rlc-para-checks")).toBeInTheDocument();
+    for (const e of msg.stageLog!) {
+      const { container, unmount } = render(<Slot msg={msg} e={e} />);
+      expect(container.querySelector(".rlc-para-checks")).toBeNull();
+      unmount();
+    }
   });
+});
 
-  it("keeps paragraph checks rendered once the answer has been generated", () => {
+describe("renderStageSlot / comparing", () => {
+  it("shows paragraph checks under Comparing when the turn has no Verifying row (deterministic-only)", () => {
     const msg = baseMsg({
-      draft: "",
       generated: true,
       paragraphChecks: [{ index: 0, text: "final paragraph", findings: [] }],
-      stageLog: [entry({ stage: "synthesizing", at: 0, round: 1 })],
+      stageLog: [entry({ stage: "synthesizing", at: 0, round: 1 }), entry({ stage: "comparing", at: 1, round: 1 })],
     });
-    const { container } = render(<Slot msg={msg} e={msg.stageLog![0]} />);
+    const { container } = render(<Slot msg={msg} e={msg.stageLog![1]} />);
     expect(container.querySelector(".rlc-para-checks")).toBeInTheDocument();
+  });
+
+  it("leaves Comparing empty when a Verifying row exists — the checks live there instead", () => {
+    const msg = baseMsg({
+      generated: true,
+      paragraphChecks: [{ index: 0, text: "final paragraph", findings: [] }],
+      stageLog: [
+        entry({ stage: "comparing", at: 1, round: 1 }),
+        entry({ stage: "checking", at: 2, round: 1 }),
+      ],
+    });
+    const { container: comparing } = render(<Slot msg={msg} e={msg.stageLog![0]} />);
+    expect(comparing.querySelector(".rlc-para-checks")).toBeNull();
+    const { container: checking } = render(<Slot msg={msg} e={msg.stageLog![1]} />);
+    expect(checking.querySelector(".rlc-para-checks")).toBeInTheDocument();
   });
 });
 

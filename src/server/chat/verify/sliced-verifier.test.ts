@@ -205,7 +205,10 @@ test("confirm outage (unparseable) with a candidate on the table: confirm.parsed
 });
 
 test("not_found is carried from the refute slice, capped at 5 there", async () => {
-  const refuteText = JSON.stringify({ contradictions: [], not_found: ["a", "b", "c", "d", "e", "f"], notes: "" });
+  // Full statements, none present in the (empty) evidence — bare tokens would
+  // now be dropped by validateNotFound as topics rather than statements.
+  const stmt = (n: number) => `Statement number ${n} makes a claim the evidence never covers at all`;
+  const refuteText = JSON.stringify({ contradictions: [], not_found: [1, 2, 3, 4, 5, 6].map(stmt), notes: "" });
   const run = await runSlicedVerifier({
     call: dispatchCall({ refute: refuteText, overreach: '{"ruling_issued":false,"notes":""}' }),
     models: { refute: "m", overreach: "m", confirm: "m" },

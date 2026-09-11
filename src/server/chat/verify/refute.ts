@@ -23,7 +23,7 @@ export const REFUTE_PROMPT = [
   "You audit ONE thing: statements in the answer that the retrieved evidence CONTRADICTS — a different value, holder, date, status, count, or modality (must vs may).",
   "For each, copy the answer sentence verbatim into `answer_span`, copy the contradicting evidence VERBATIM into `evidence_span` (it is re-checked by code; an inexact span is discarded), and give ≤20 words `why`.",
   "A statement the evidence merely does not mention is NOT a contradiction — never list it there.",
-  "Statements you could not locate in the evidence go in `not_found` as short text, AT MOST 5.",
+  "Statements you could not locate in the evidence go in `not_found`, AT MOST 5 — each a full claim (subject plus what is said about it), never a bare topic or term.",
   "Do not report omissions or missing list members.",
   "Entries marked [REFERENCE] are context SAbR injected (product guide, glossary, entity rows) — not atlas text; a faithful restatement of one is never a contradiction.",
   "[E-prev] holds the assistant's earlier answers.",
@@ -144,4 +144,23 @@ export function validateContradictions(
     });
   }
   return { kept, discarded };
+}
+
+// `not_found` is the judge's OWN assertion of absence, and until now the one
+// output that reached the reader unchecked — observed live 2026-09-11: "the
+// savings rate" listed as uncovered while the evidence defined the Sky Savings
+// Rate two lines up. Hold it to code the way contradictions are: an entry
+// whose words occur together anywhere in the evidence is covered (a looser
+// bar than a contradiction's 0.8, because here overlap REMOVES a claim rather
+// than making one), and a bare topic or term is not a statement at all.
+export const NOT_FOUND_COVERED_THRESHOLD = 0.6;
+const NOT_FOUND_MIN_WORDS = 5;
+
+export function validateNotFound(entries: string[], evidence: EvidenceEntry[]): string[] {
+  return entries.filter((e) => {
+    const words = tokenize(e);
+    if (words.length < NOT_FOUND_MIN_WORDS) return false;
+    const { best } = locateSpan(e, evidence);
+    return best < NOT_FOUND_COVERED_THRESHOLD;
+  });
 }

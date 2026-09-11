@@ -57,20 +57,34 @@ function synthesizingSlot(msg: ChatMsg, entry: StageLogEntry, onAtlas: (uuid: st
       </div>,
     );
   }
-  // Regardless of `msg.generated`: the checks belong to the round that ran
-  // them, and they must keep rendering once the draft they audited is
-  // cleared out (answer_final/done wipe `draft`, not `paragraphChecks`).
-  if (isLast && msg.paragraphChecks?.length) {
-    parts.push(<ParagraphChecks key="checks" checks={msg.paragraphChecks} />);
-  }
   return parts.length ? <>{parts}</> : null;
 }
 
+// Per-paragraph checks are verification, not writing — they belong to the
+// Verifying row (model configured) or, on a deterministic-only turn where no
+// Verifying row ever appears, to the Comparing row. Never to Synthesizing:
+// the checks run WHILE the draft streams, but what they report is about the
+// checking of the answer, and the reader looks for it under that step.
+const hasStage = (msg: ChatMsg, stage: string) => (msg.stageLog ?? []).some((e) => e.stage === stage);
+
+function paragraphChecks(msg: ChatMsg): ReactNode {
+  return msg.paragraphChecks?.length ? <ParagraphChecks key="checks" checks={msg.paragraphChecks} /> : null;
+}
+
+function comparingSlot(msg: ChatMsg): ReactNode {
+  return hasStage(msg, "checking") ? null : paragraphChecks(msg);
+}
+
 function checkingSlot(msg: ChatMsg, onAtlas: (uuid: string) => void): ReactNode {
-  // Null (no disclosure affordance on the row) when there is nothing to
-  // disclose: still auditing, or a clean verdict.
-  if (!msg.verify || msg.verify.status === "checking" || !hasFindings(msg.verify)) return null;
-  return <VerifyFindings verify={msg.verify} onAtlas={onAtlas} />;
+  const parts: ReactNode[] = [];
+  const checks = paragraphChecks(msg);
+  if (checks) parts.push(checks);
+  // Whole-answer findings only once the verdict is in and there is something
+  // to disclose — a clean verdict adds nothing beyond the paragraph summary.
+  if (msg.verify && msg.verify.status !== "checking" && hasFindings(msg.verify)) {
+    parts.push(<VerifyFindings key="findings" verify={msg.verify} onAtlas={onAtlas} />);
+  }
+  return parts.length ? <>{parts}</> : null;
 }
 
 // The content shown under a stage row's label once that row is clicked open —
@@ -92,6 +106,8 @@ export function renderStageSlot(
       return queryingSlot(msg, entry);
     case "synthesizing":
       return synthesizingSlot(msg, entry, onAtlas);
+    case "comparing":
+      return comparingSlot(msg);
     case "checking":
       return checkingSlot(msg, onAtlas);
     default:
