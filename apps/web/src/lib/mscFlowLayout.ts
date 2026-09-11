@@ -35,7 +35,7 @@ export const NODE_W = 18;
 export const AGENT_W = 40;
 /** Column headers over the three node groups, and where they sit. */
 export const HEADERS = { source: "SOURCE", prime: "PRIME", sky: "SKY" } as const;
-export const HEADER_Y = 52;
+export const HEADER_Y = 40;
 /** Source names in the left gutter — the key's wording: a code only where
  *  it adds one ("CoF · cost of funds", plain "supply-side kept"). Lives
  *  here because the gutter is sized from the widest of them. */
@@ -62,18 +62,19 @@ export const MID_X = LEFT_X + NODE_W + 0.6 * (RIGHT_X - LEFT_X - NODE_W - AGENT_
 /** The tallest column's bars sum to this. Kept short on purpose: every
  *  Prime gap holds a two-line name block, and a taller canvas would scale
  *  the whole chart (type included) down to fit the card. */
-const INNER_H = 400;
-const SOURCE_GAP = 44;
+const INNER_H = 340;
+const SOURCE_GAP = 70;
 /** Room above each Prime's bar for its name (36px) and gross figure (24px). */
-const AGENT_GAP = 96;
-/** Below the headers and the first Prime's name block. */
-const TOP = 150;
+const AGENT_GAP = 128;
+/** Below the headers and the first Prime's name block, with clear air
+ *  between the PRIME header and the first name. */
+const TOP = 160;
 const BOTTOM_PAD = 16;
 /** Fixed canvas height, so the viewBox — and with it the scale, the column
  *  x positions and the headers — never changes from month to month. Tall
  *  enough for the roster the workbooks have published (a seventh Prime
  *  would stretch it, once). */
-export const HEIGHT = 1100;
+export const HEIGHT = 1200;
 /** Ribbon floor. The canvas renders at about half size, so this is ~2px on
  *  screen: a Prime's smallest line item (Skybase's accessibility rewards,
  *  ~1% of the month) stays a visible hairline rather than vanishing. */

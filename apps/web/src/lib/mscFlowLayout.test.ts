@@ -118,8 +118,10 @@ describe("layoutMscFlow", () => {
   });
 
   it("centers the source and Sky columns on the Prime column", () => {
-    const l = layoutMscFlow([flow(), flow({ prime: "grove" }), flow({ prime: "obex" })]);
-    const agentsBottom = l.agents[2].y + l.agents[2].h;
+    // Four Primes: enough Prime-column height for the (widely gapped)
+    // source column to center inside it rather than pin to the top.
+    const l = layoutMscFlow([flow(), flow({ prime: "grove" }), flow({ prime: "keel" }), flow({ prime: "obex" })]);
+    const agentsBottom = l.agents[3].y + l.agents[3].h;
     const agentsMid = (l.agents[0].y + agentsBottom) / 2;
     expect(l.sky.y + l.sky.h / 2).toBeCloseTo(agentsMid, 0);
     const srcTop = l.sources[0].y;
