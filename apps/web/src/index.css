@@ -2065,6 +2065,47 @@ a.atlas-annotates:focus-visible {
   border-left-color: var(--red);
   color: var(--tan) !important;
 }
+/* An actor with a sub nav: the row is a disclosure, the sub nav slides
+   open with a grid-rows transition (0fr → 1fr animates height without a
+   fixed max-height), and the chevron turns to match. */
+.actor-list-item[data-selected="true"] {
+  color: var(--tan) !important;
+}
+.actor-chevron {
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.25s ease;
+  opacity: 0.7;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+.actor-group[data-state="open"] .actor-chevron {
+  transform: rotate(45deg);
+}
+.actor-sub {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+.actor-sub[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.actor-sub > div {
+  overflow: hidden;
+  min-height: 0;
+}
+.actor-sub-item {
+  border-left-width: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .actor-chevron,
+  .actor-sub {
+    transition: none;
+  }
+}
 
 /* ─── Keyboard shortcut key caps ─── */
 /* ─── Search hint rows ─── */

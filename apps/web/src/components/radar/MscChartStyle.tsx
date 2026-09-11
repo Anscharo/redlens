@@ -1,4 +1,4 @@
-export const CHART_STYLES = ["orbit", "flow"] as const;
+export const CHART_STYLES = ["flow", "orbit"] as const;
 export type ChartStyle = (typeof CHART_STYLES)[number];
 
 /** The orbit / flow pills beside the overview chart's title. Fully

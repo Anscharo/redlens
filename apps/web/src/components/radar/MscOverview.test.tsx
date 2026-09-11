@@ -68,9 +68,9 @@ describe("MscOverview", () => {
     );
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
     expect(screen.getByText(/not the Protocol's Net Revenue/)).toBeInTheDocument();
-    expect(screen.getByText(/supply-side loss \(the hole\)/)).toBeInTheDocument();
+    expect(screen.getByText(/^striped · supply-side loss$/)).toBeInTheDocument();
     // No "kept · supply kept" — a row carries a code only when it adds one.
-    expect(screen.getByText("supply-side kept")).toBeInTheDocument();
+    expect(screen.getAllByText("supply-side kept").length).toBeGreaterThanOrEqual(1); // key row + flow source label
     // The key is grouped by where the money goes, in the pie's order.
     const key = document.querySelector(".msc-key")!;
     const groups = [...key.querySelectorAll(".msc-key-group")].map((g) => ({
@@ -82,7 +82,7 @@ describe("MscOverview", () => {
       { title: "Supply-side", keys: ["kept", "neg"] },
       { title: "Demand-side", keys: ["agentRate", "distributionRewards", "gar", "chroniclePoints"] },
     ]);
-    expect(document.querySelector(".msc-key-note")).toHaveTextContent("Pie area = gross revenue*");
+    expect(document.querySelector(".msc-key-note")).toHaveTextContent("A Prime's bar = gross revenue*");
     // Cross-chart hover styles: one :has() rule per prime in the stack.
     const style = document.querySelector("style")!.textContent!;
     expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="spark"][data-flow="sky"]:hover');
@@ -135,29 +135,29 @@ describe("MscOverview", () => {
     }
   });
 
-  it("switches between the orbital pies and the flow chart, synced to ?view", async () => {
+  it("opens on the flow chart and switches to the orbital pies, synced to ?view", async () => {
     const { container } = render(<MscOverview actors={ACTORS} />);
     await waitFor(() => screen.getByText("Monthly Settlement Cycle"));
     const group = screen.getByRole("group", { name: "Chart style" });
     const orbit = screen.getByRole("button", { name: "orbit" });
     const flowBtn = screen.getByRole("button", { name: "flow" });
     expect(group).toContainElement(orbit);
-    expect(orbit).toHaveAttribute("aria-pressed", "true");
-    expect(container.querySelector("svg.msc-flow")).not.toBeInTheDocument();
-    expect(screen.getByText(/supply-side loss \(the hole\)/)).toBeInTheDocument();
-    fireEvent.click(flowBtn);
-    expect(window.location.search).toBe("?view=flow");
     expect(flowBtn).toHaveAttribute("aria-pressed", "true");
     expect(container.querySelector("svg.msc-flow")).toBeInTheDocument();
     expect(container.querySelector(".msc-ring-sky-disc")).not.toBeInTheDocument();
+    fireEvent.click(orbit);
+    expect(window.location.search).toBe("?view=orbit");
+    expect(orbit).toHaveAttribute("aria-pressed", "true");
+    expect(container.querySelector("svg.msc-flow")).not.toBeInTheDocument();
+    expect(container.querySelector(".msc-ring-sky-disc")).toBeInTheDocument();
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
     // The key's loss row and reading guide describe the chart on screen.
-    expect(screen.getByText(/^striped · supply-side loss$/)).toBeInTheDocument();
-    expect(document.querySelector(".msc-key-note")).toHaveTextContent("A Prime's bar = gross revenue*");
-    expect(track).toHaveBeenCalledWith("msc_overview_style", { view: "flow" });
-    fireEvent.click(orbit);
+    expect(screen.getByText(/supply-side loss \(the hole\)/)).toBeInTheDocument();
+    expect(document.querySelector(".msc-key-note")).toHaveTextContent("Pie area = gross revenue*");
+    expect(track).toHaveBeenCalledWith("msc_overview_style", { view: "orbit" });
+    fireEvent.click(flowBtn);
     expect(window.location.search).toBe("");
-    expect(container.querySelector("svg.msc-flow")).not.toBeInTheDocument();
+    expect(container.querySelector("svg.msc-flow")).toBeInTheDocument();
   });
 
   it("selects a month from the timeseries and syncs ?msc (latest month clears it)", async () => {

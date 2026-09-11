@@ -16,6 +16,8 @@ import { Drawer, DrawerToggle } from "../Drawer";
 import { Loading } from "../Loading";
 import { RadarProvider } from "./RadarContext";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { useLoaded } from "../../hooks/useAtlasData";
+import { loadSettlements, reportsForPrime } from "../../lib/settlements";
 import { recordVisit } from "../../lib/visitHistory";
 import { actorHref, settlementsHref } from "@/lib/routes";
 
@@ -50,6 +52,16 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
       )
       .filter((g) => g.actors.length > 0);
   }, [sidebarGroups, query]);
+
+  // Actors with settlement workbooks get a sub nav (Info / Settlements).
+  // The artifact is soft-loaded: without it every actor is a plain link.
+  const settlements = useLoaded(loadSettlements, { soft: true });
+  const settledSlugs = useMemo(() => {
+    const out = new Set<string>();
+    if (!settlements) return out;
+    for (const g of sidebarGroups) for (const a of g.actors) if (reportsForPrime(settlements, a.slug).length > 0) out.add(a.slug);
+    return out;
+  }, [settlements, sidebarGroups]);
 
   const rewardsIndex = useMemo(() => buildRewardsIndex(docs, graph), [docs, graph]);
   const allActiveDataRows = useMemo(() => buildActiveDataRows(docs, graph), [docs, graph]);
@@ -92,7 +104,7 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
         breakpoint={850}
         desktopMode="sticky"
       >
-        <ActorList groups={filteredGroups} selectedSlug={actorSlug ?? null} />
+        <ActorList groups={filteredGroups} selectedSlug={actorSlug ?? null} page={page} settledSlugs={settledSlugs} />
       </Drawer>
       {!actorSlug ? (
         <div className="flex-1 min-w-0">

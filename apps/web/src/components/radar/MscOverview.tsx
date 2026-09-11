@@ -29,7 +29,7 @@ import { MscChartStyle, type ChartStyle } from "./MscChartStyle";
 import { MscTimeseries, primeFill } from "./MscTimeseries";
 
 const mscCodec = urlString(null);
-/** Chart style: the orbital pies (default, no param) or the three-stage flow. */
+/** Chart style: the three-stage flow (default, no param) or the orbital pies. */
 const viewCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
 /** Autoplay dwell per month. */
@@ -68,7 +68,7 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
     [bundle, month],
   );
   const [viewParam, setViewParam] = useUrlState("view", viewCodec);
-  const view: ChartStyle = viewParam === "flow" ? "flow" : "orbit";
+  const view: ChartStyle = viewParam === "orbit" ? "orbit" : "flow";
   // What both charts know about a Prime: its label, link and identity
   // color (the same as its timeseries layers, by stack order).
   const overviewPrimes = useMemo<OverviewPrime[]>(
@@ -142,7 +142,7 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
             <MscChartStyle
               value={view}
               onChange={(v) => {
-                setViewParam(v === "orbit" ? null : v);
+                setViewParam(v === "flow" ? null : v);
                 track("msc_overview_style", { view: v });
               }}
             />
