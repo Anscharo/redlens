@@ -114,4 +114,12 @@ describe("ParagraphChecks", () => {
     render(<ParagraphChecks checks={checks} />);
     expect(screen.queryByLabelText(/model check|contradiction/)).toBeNull();
   });
+
+  it("does not keep 'being confirmed' after the candidate mark is cleared (verdict landed)", () => {
+    const checks: ParagraphCheck[] = [{ index: 0, text: "A paragraph.", findings: [] }];
+    const { container } = render(<ParagraphChecks checks={checks} />);
+    expect(screen.getByText("1 paragraph checked, no findings")).toBeInTheDocument();
+    expect(container.querySelector("li")).toBeNull();
+    expect(screen.queryByLabelText("possible contradiction, being confirmed")).toBeNull();
+  });
 });

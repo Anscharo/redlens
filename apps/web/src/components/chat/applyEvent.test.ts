@@ -304,12 +304,47 @@ describe("applyEvent paragraph_check", () => {
     expect(m.paragraphChecks?.[0]).not.toHaveProperty("model");
   });
 
-  it("does not touch a resolved model mark (ok/candidate/failed) at verify_result or done", () => {
+  it("clears a candidate mark at verify_result — confirm has resolved, including on a pass", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "Second.", findings: [] });
+    m = applyEvent(m, { type: "paragraph_refute", index: 0, parsed: true, candidates: 1 });
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "Second.", findings: [], model: "candidate" }]);
+    m = applyEvent(m, {
+      type: "verify_result",
+      overall: "pass",
+      contradictions: [],
+      invalidCitations: [],
+      invalidDocNos: [],
+      docNoMismatches: [],
+      ungroundedQuotes: [],
+      ungroundedAddresses: [],
+    });
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "Second.", findings: [] }]);
+    expect(m.paragraphChecks?.[0]).not.toHaveProperty("model");
+  });
+
+  it("clears a candidate mark at verify_result on fail too — agreed contradictions live on the badge", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "Bad.", findings: [] });
+    m = applyEvent(m, { type: "paragraph_refute", index: 0, parsed: true, candidates: 1 });
+    m = applyEvent(m, {
+      type: "verify_result",
+      overall: "fail",
+      contradictions: [{ answer: "Bad.", evidence: "Good.", why: "differs", uuid: null }],
+      invalidCitations: [],
+      invalidDocNos: [],
+      docNoMismatches: [],
+      ungroundedQuotes: [],
+      ungroundedAddresses: [],
+    });
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "Bad.", findings: [] }]);
+    expect(m.paragraphChecks?.[0]).not.toHaveProperty("model");
+  });
+
+  it("does not touch a resolved model mark (ok/failed) at verify_result or done", () => {
     let m = baseMsg();
     m = applyEvent(m, { type: "paragraph_check", index: 0, text: "First.", findings: [] });
     m = applyEvent(m, { type: "paragraph_refute", index: 0, parsed: true, candidates: 0 });
-    m = applyEvent(m, { type: "paragraph_check", index: 1, text: "Second.", findings: [] });
-    m = applyEvent(m, { type: "paragraph_refute", index: 1, parsed: true, candidates: 1 });
     m = applyEvent(m, { type: "paragraph_check", index: 2, text: "Third.", findings: [] });
     m = applyEvent(m, { type: "paragraph_refute", index: 2, parsed: false, candidates: 0 });
     m = applyEvent(m, {
@@ -331,12 +366,30 @@ describe("applyEvent paragraph_check", () => {
     });
     expect(m.paragraphChecks).toEqual([
       { index: 0, text: "First.", findings: [], model: "ok" },
-      { index: 1, text: "Second.", findings: [], model: "candidate" },
       { index: 2, text: "Third.", findings: [], model: "failed" },
     ]);
   });
 
-  it("clears a superseded draft's pending mark at done, without touching a resolved one", () => {
+  it("clears a candidate mark at done when verify_result never arrived, including on a superseded draft", () => {
+    let m = baseMsg({ draft: "a preamble", rounds: 1 });
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "a preamble", findings: [] });
+    m = applyEvent(m, { type: "paragraph_refute", index: 0, parsed: true, candidates: 1 });
+    m = applyEvent(m, { type: "clear", reason: "tool_round" });
+    expect(m.superseded?.[0].checks?.[0]?.model).toBe("candidate");
+    m = applyEvent(m, { type: "paragraph_check", index: 0, text: "final para", findings: [] });
+    m = applyEvent(m, { type: "paragraph_refute", index: 0, parsed: true, candidates: 1 });
+    m = applyEvent(m, {
+      type: "done",
+      content: "final",
+      usage: { input: 1, output: 1 },
+      generationId: null,
+      toolCalls: [],
+    });
+    expect(m.paragraphChecks).toEqual([{ index: 0, text: "final para", findings: [] }]);
+    expect(m.superseded?.[0].checks).toEqual([{ index: 0, text: "a preamble", findings: [] }]);
+  });
+
+  it("clears a superseded draft's pending mark at done, without touching a resolved ok/failed one", () => {
     let m = baseMsg({ draft: "a preamble", rounds: 1 });
     m = applyEvent(m, { type: "paragraph_check", index: 0, text: "a preamble", findings: [] });
     m = applyEvent(m, { type: "clear", reason: "tool_round" });

@@ -59,6 +59,8 @@ export interface VerifyState {
 //   - "ok"        — the model call parsed and found 0 candidates.
 //   - "candidate" — the model call parsed and found >=1 contradiction
 //                   candidate, still under review by the confirm gate.
+//                   Cleared at verify_result/done: the gate has resolved,
+//                   and agreed contradictions live on the badge.
 //   - "failed"    — the model call failed or timed out for this paragraph.
 // Absent only before any `paragraph_check`/`paragraph_refute` has landed for
 // the index (should not happen in practice — see applyEvent).
