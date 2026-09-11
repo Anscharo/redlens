@@ -9,6 +9,7 @@ import type { AtlasNode } from "../../../types.ts";
 import type { CheckReport } from "./verify-checks.ts";
 import { computeOverall } from "./verifier.ts";
 import { runSlicedVerifier, sliceModels, SLICES } from "./sliced-verifier.ts";
+import type { ParagraphRefute } from "./paragraph-refute.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -202,6 +203,65 @@ test("confirm outage (unparseable) with a candidate on the table: confirm.parsed
   // record, but computeOverall must not read the outage as a considered "no".
   expect(run.verdict?.contradictions[0].agreed).toBe(false);
   expect(computeOverall(null, run.verdict)).toBe("unverified");
+});
+
+function para(p: Partial<ParagraphRefute> & { index: number }): ParagraphRefute {
+  return {
+    text: `p${p.index}`,
+    contradictions: [],
+    notFound: [],
+    discarded: 0,
+    parsed: true,
+    latencyMs: 1,
+    usage: { input: 1, output: 1 },
+    timedOut: false,
+    ...p,
+  };
+}
+
+const OVERREACH_CLEAN = '{"ruling_issued":false,"notes":""}';
+
+test("paragraph mode: empty paragraphRefutes → refuteParsed:false, computeOverall unverified, refute slice not called", async () => {
+  const calls: { model: string; role: string }[] = [];
+  const run = await runSlicedVerifier({
+    call: dispatchCall({ overreach: OVERREACH_CLEAN, refute: '{"contradictions":[],"not_found":[],"notes":""}' }, calls),
+    models: { refute: "m", overreach: "m", confirm: "m" },
+    ix, question: "q", answer: "The answer.", evidence: [], checks: CLEAN_CHECKS,
+    paragraphRefutes: [],
+  });
+  expect(calls.map((c) => c.role)).toEqual(["overreach"]);
+  expect(run.verdict?.refuteParsed).toBe(false);
+  expect(computeOverall(null, run.verdict)).toBe("unverified");
+});
+
+test("paragraph mode: one timed-out paragraph among clean ones → refuteParsed:false, computeOverall unverified", async () => {
+  const calls: { model: string; role: string }[] = [];
+  const run = await runSlicedVerifier({
+    call: dispatchCall({ overreach: OVERREACH_CLEAN }, calls),
+    models: { refute: "m", overreach: "m", confirm: "m" },
+    ix, question: "q", answer: "The answer.", evidence: [], checks: CLEAN_CHECKS,
+    paragraphRefutes: [
+      para({ index: 0 }),
+      para({ index: 1, parsed: false, timedOut: true, usage: null, latencyMs: null }),
+    ],
+  });
+  expect(calls.map((c) => c.role)).toEqual(["overreach"]);
+  expect(run.verdict?.refuteParsed).toBe(false);
+  expect(run.verdict?.paragraphs).toEqual({ count: 2, parsed: 1, candidates: 0, discarded: 0, timedOut: 1 });
+  expect(computeOverall(null, run.verdict)).toBe("unverified");
+});
+
+test("paragraph mode: every paragraph parsed clean → pass, refute slice not called, confirm not called", async () => {
+  const calls: { model: string; role: string }[] = [];
+  const run = await runSlicedVerifier({
+    call: dispatchCall({ overreach: OVERREACH_CLEAN, refute: "should not run" }, calls),
+    models: { refute: "m", overreach: "m", confirm: "m" },
+    ix, question: "q", answer: "The answer.", evidence: [], checks: CLEAN_CHECKS,
+    paragraphRefutes: [para({ index: 0 }), para({ index: 1 })],
+  });
+  expect(calls.map((c) => c.role)).toEqual(["overreach"]);
+  expect(run.verdict?.refuteParsed).toBe(true);
+  expect(computeOverall(null, run.verdict)).toBe("pass");
 });
 
 test("not_found is carried from the refute slice, capped at 5 there", async () => {
