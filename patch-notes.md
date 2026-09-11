@@ -32,6 +32,9 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
+## 2026-09-11
+- Private previews now show line diffs in the history panel
+
 ## 2026-09-10
 - Private previews now accept a pull request URL and compare it against sky-ecosystem/next-gen-atlas main
 

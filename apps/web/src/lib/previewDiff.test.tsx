@@ -29,6 +29,7 @@ describe("usePreviewDiff", () => {
     expect(result.current.added.size).toBe(0);
     expect(result.current.changed.size).toBe(0);
     expect(result.current.renumbered).toEqual({});
+    expect(result.current.retitled).toEqual({});
     expect(result.current.reusedSlot).toEqual({});
     expect(result.current.identitySwap).toEqual({});
     expect(result.current.formerUuid).toEqual({});
@@ -48,6 +49,7 @@ describe("usePreviewDiff", () => {
       added: ["a"],
       changed: ["b"],
       renumbered: { b: ["A.1", "A.2"] },
+      retitled: { b: ["Old Title", "New Title"] },
       reusedSlot: { c: { title: "Old" } },
       identitySwap: { d: { oldTitle: "X", newTitle: "Y" } },
       formerUuid: { e: { previousId: "old-e", previousTitle: "Old E", previousDocNo: "A.9" } },
@@ -61,6 +63,7 @@ describe("usePreviewDiff", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/preview/abc/diff.json");
     expect(result.current.changed.has("b")).toBe(true);
     expect(result.current.renumbered).toEqual({ b: ["A.1", "A.2"] });
+    expect(result.current.retitled).toEqual({ b: ["Old Title", "New Title"] });
     expect(result.current.reusedSlot).toEqual({ c: { title: "Old" } });
     expect(result.current.identitySwap.d.oldTitle).toBe("X");
     expect(result.current.formerUuid.e.previousId).toBe("old-e");
@@ -74,6 +77,7 @@ describe("usePreviewDiff", () => {
     await waitFor(() => expect(result.current.renumbered).toEqual({}));
     expect(result.current.added.size).toBe(0);
     expect(result.current.changed.size).toBe(0);
+    expect(result.current.retitled).toEqual({});
     expect(result.current.reusedSlot).toEqual({});
     expect(result.current.identitySwap).toEqual({});
     expect(result.current.formerUuid).toEqual({});

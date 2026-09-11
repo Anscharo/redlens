@@ -15,15 +15,8 @@ import { config } from "../config.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts";
 import { fetchPreviewFiles, type PreviewFiles } from "./pr-diff.ts";
-import { contentDiff } from "./patch-diff.ts";
-import {
-  diffSnapshots,
-  loadBaseSnapshot,
-  snapshotFromDocsJson,
-  type Snapshot,
-} from "./snapshot.ts";
-import type { DiffLine } from "../../lib/history";
-import { detectIdentitySwaps } from "./identity.ts";
+import { loadBaseSnapshot, snapshotFromDocsJson, type Snapshot } from "./snapshot.ts";
+import { computeDiffArtifacts, writeDiffArtifacts } from "./diff-artifacts.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
 import {
   upsertPreview,
@@ -321,8 +314,8 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
   // gated on GitHub App installation, not fork/trust screening — installation
   // IS the trust grant, since only someone who can install the App on the repo
   // can produce a preview of it at all. A private PR still skips the GitHub
-  // compare (which would use the PR's base branch) and redlines against live
-  // canonical main via the serve-time diffDocs fallback.
+  // compare (which would use the PR's base branch) — the build diffs against
+  // live main instead (see the diff-artifacts block below).
   const priv = !!resolved.private;
   try {
     // Admin takedown: a blocked sha never rebuilds.
@@ -367,9 +360,10 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
     try {
       emit(f, { phase: "fetching", sha });
       // Accurate diff is an independent GitHub round-trip — kick it off now so it
-      // overlaps the tarball fetch + the whole build. For canonical previews a
-      // failure is non-fatal (serve-time vs-main fallback); for forks a failed
-      // compare means no shared history with main → the build is rejected.
+      // overlaps the tarball fetch + the whole build. A failed compare (or no
+      // merge base) degrades to diffing against live main rather than failing
+      // the build; for forks specifically a failed compare means no shared
+      // history with main → the build is rejected instead (below).
       // Private previews skip this entirely — no PR/fork compare is meaningful
       // for a private-repo branch, and the service token can't see it anyway.
       const wantCompare = !priv && !!config.githubToken;
@@ -449,96 +443,45 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       }
       writeMeta(sha, meta);
       await deps.upsertPreview(meta);
-      // Accurate merge-base diff (PR, branch, or fork), written into the bundle as
-      // two artifacts: diff.json (added/changed ids — eager, drives markers) and
-      // patches.json (id → DiffLine[] — lazy, drives preview history). For
-      // canonical previews a failure is non-fatal: no diff.json → serve-time
-      // vs-main fallback.
+      // Doc-level diff + per-doc patches, written into the bundle as two
+      // artifacts: diff.json (added/changed ids — eager, drives markers) and
+      // patches.json (id → DiffLine[] — lazy, drives preview history). Base is
+      // the merge base when GitHub gave one, else live main (private previews
+      // never compare; a failed compare or failed base fetch degrades to the
+      // same). Soft end to end: nothing in this block can change the build
+      // outcome — a skipped artifact just means the reader falls back to the
+      // serve-time vs-main diff.
       try {
+        const byId = snapshotFromDocsJson(paths.outDir);
+        const live = getIndexes(); // cold start (indexes not loaded) → throws → outer catch
+        const mainDocs = live.docMap as Snapshot;
+        let base: Snapshot = mainDocs;
         if (filesR.ok && filesR.v.mergeBase) {
-          const byId = snapshotFromDocsJson(paths.outDir);
-          const mainDocs = getIndexes().docMap;
-          // Which docs this preview adds/changes, by DOCUMENT IDENTITY rather
-          // than by changed filename. Filenames stopped identifying documents
-          // when the atlas consolidated ~11k document.md files into ~16 composed
-          // files (upstream #294) — one changed file now spans a whole Scope.
-          // Comparing uuid-keyed snapshots is layout-blind, so it survives that
-          // regrouping and the next one.
-          const base = await loadBaseSnapshot(
-            filesR.v.mergeBase,
-            path.join(paths.dir, "base"),
-            // Same injected fetcher, token, and tarball route the head build used
-            // — only reachable on the public path (private previews set
-            // wantCompare = false), but it must not diverge if that ever changes.
-            (s, dir) =>
-              deps.fetchAndExtract(resolved.repo, s, token, dir, undefined, { apiTarball: priv }),
-            { atlasCommit: getIndexes().meta.atlasCommit, snapshot: () => mainDocs as Snapshot },
-          );
-          const { added, changed } = diffSnapshots(base, byId);
-          // An ADDED doc has no prior content anywhere — render its body as pure
-          // additions. CHANGED docs get their patch from the vs-main identity
-          // diff below.
-          const patches: Record<string, DiffLine[]> = {};
-          for (const id of added) {
-            const dl = contentDiff("", byId.get(id)?.content ?? "");
-            if (dl.length) patches[id] = dl;
+          try {
+            // The merge-base tree is the accurate base side (a branch merely
+            // behind main must not report every doc main moved ahead on). The
+            // identity-vs-filename reasoning lives with the diff in
+            // diff-artifacts.ts.
+            base = await loadBaseSnapshot(
+              filesR.v.mergeBase,
+              path.join(paths.dir, "base"),
+              // Same injected fetcher, token, and tarball route the head build
+              // used — only reachable on the public path (private previews set
+              // wantCompare = false), but it must not diverge if that ever changes.
+              (s, dir) => deps.fetchAndExtract(resolved.repo, s, token, dir, undefined, { apiTarball: priv }),
+              { atlasCommit: live.meta.atlasCommit, snapshot: () => mainDocs },
+            );
+          } catch (e) {
+            console.warn(
+              `[preview] ${sha.slice(0, 8)}: base ${filesR.v.mergeBase.slice(0, 8)} unavailable (${(e as Error).message}) — diffing against live main`,
+            );
           }
-          // For CHANGED docs the rendered redline is this uuid's content here vs
-          // on the LIVE atlas (what the reader is comparing against on screen),
-          // and renumberings are recorded explicitly.
-          const renumbered: Record<string, [string, string]> = {};
-          for (const id of changed) {
-            const mainNode = mainDocs.get(id);
-            const prevNode = byId.get(id);
-            if (!mainNode || !prevNode) continue;
-            const dl = contentDiff(mainNode.content ?? "", prevNode.content ?? "");
-            if (dl.length) patches[id] = dl;
-            else delete patches[id];
-            if (mainNode.doc_no !== prevNode.doc_no) renumbered[id] = [mainNode.doc_no, prevNode.doc_no];
-          }
-          // ADDED docs in a reused slot (new uuid at a doc number that exists on
-          // the live atlas under a different uuid): the GitHub per-path patch
-          // shows the old occupant's content being edited away — misleading for
-          // a new doc. Flag the reuse and show the doc's own content as pure
-          // additions; the old occupant's move shows on its own history entry.
-          const mainDocNos = new Map<string, string>();
-          for (const [mid, mnode] of mainDocs) mainDocNos.set(mnode.doc_no, mid);
-          // id → who held this doc number on the live atlas, and where that doc
-          // sits in THIS preview (absent = the occupant was removed). Lets the
-          // new doc's history reference the old occupant's move (both sides of
-          // a slot swap tell the story).
-          const reusedSlot: Record<string, { title: string; movedTo?: string }> = {};
-          for (const id of added) {
-            const prevNode = byId.get(id);
-            if (!prevNode) continue;
-            const occupant = mainDocNos.get(prevNode.doc_no);
-            if (occupant && occupant !== id) {
-              reusedSlot[id] = {
-                title: mainDocs.get(occupant)?.title ?? occupant.slice(0, 8),
-                movedTo: byId.get(occupant)?.doc_no,
-              };
-              const dl = contentDiff("", prevNode.content ?? "");
-              if (dl.length) patches[id] = dl;
-              else delete patches[id];
-            }
-          }
-          // UUID-identity reassignment: a stable uuid whose underlying document
-          // was wholly replaced (title changed + body rewritten), and — best
-          // effort — where the displaced old content moved to. Treated as a
-          // distinct WARNING in the UI, not an ordinary +/Δ.
-          const { identitySwap, formerUuid } = detectIdentitySwaps({ changed, added, mainById: mainDocs, previewById: byId });
-          fs.writeFileSync(
-            path.join(paths.outDir, "diff.json"),
-            JSON.stringify({ added, changed, renumbered, reusedSlot, identitySwap, formerUuid }),
-          );
-          fs.writeFileSync(path.join(paths.outDir, "patches.json"), JSON.stringify(patches));
-        } else if (filesR.ok) {
-          // No merge base from GitHub → no trustworthy base side. Skip diff.json
-          // rather than guess; the reader falls back to the serve-time vs-main diff.
-          console.warn(`[preview] ${sha.slice(0, 8)}: no merge base — skipping doc-level diff`);
+        } else if (!priv) {
+          console.warn(`[preview] ${sha.slice(0, 8)}: no merge base — diffing against live main`);
         }
-      } catch {
-        /* diff endpoint falls back to vs-main */
+        writeDiffArtifacts(paths.outDir, computeDiffArtifacts(base, byId, mainDocs));
+      } catch (e) {
+        console.warn(`[preview] ${sha.slice(0, 8)}: diff artifacts skipped (${(e as Error).message}) — reader falls back to the serve-time diff`);
       }
       emit(f, { phase: "ready", sha });
       evictLru(undefined, undefined, inflightShas());

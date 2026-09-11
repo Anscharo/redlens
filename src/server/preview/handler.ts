@@ -306,8 +306,10 @@ async function diffResponse(req: Request, sha: string): Promise<Response> {
   const gated = await gateSha(req, sha);
   if ("deny" in gated) return gated.deny;
   const { headers } = gated;
-  // PR previews ship an accurate diff.json in the bundle (GitHub PR files);
-  // serve it directly. Branch/sha previews fall through to the vs-main hash diff.
+  // Every built bundle ships an accurate diff.json (vs the merge base when
+  // GitHub gave one, else vs live main — see build.ts's diff-artifacts block);
+  // serve it directly. The vs-main hash diff below is for cold-start builds
+  // and pre-change bundles that never got one written.
   const bundleDiff = path.join(previewPaths(sha).outDir, "diff.json");
   if (fs.existsSync(bundleDiff)) {
     return new Response(Bun.file(bundleDiff), { headers: { "Content-Type": "application/json", ...headers } });

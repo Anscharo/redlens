@@ -7,10 +7,29 @@ import type { DiffLine } from "@/lib/history";
 // doc id to its [live, preview] doc numbers when the change includes a move.
 // Empty (and no fetch) outside preview mode, so the default context works
 // everywhere without a provider.
+/** UUID-identity reassignment value: id → old/new titles and (best-effort)
+ *  where the displaced old content moved to. */
+export interface IdentitySwap {
+  oldTitle: string;
+  newTitle: string;
+  movedTo?: { id: string; doc_no: string; title: string };
+}
+
+/** The other side of a swap: a doc that received content which previously
+ *  lived under a different uuid. */
+export interface FormerUuid {
+  previousId: string;
+  previousTitle: string;
+  previousDocNo: string;
+}
+
 export interface PreviewDiff {
   added: Set<string>;
   changed: Set<string>;
   renumbered: Record<string, [string, string]>;
+  /** Changed docs whose title differs from the live atlas (title-only or
+   *  title+content edits). id → [live title, preview title]. */
+  retitled: Record<string, [string, string]>;
   /** Added docs whose doc number exists on the live atlas under another uuid:
    *  id → the old occupant's title + where it sits in this preview (absent =
    *  removed by the preview). */
@@ -18,13 +37,21 @@ export interface PreviewDiff {
   /** UUID-identity reassignment: a stable uuid whose underlying *document* was
    *  wholly replaced (different title + rewritten body). id → old/new titles and
    *  (best-effort) where the displaced old content moved to. Drives the ⚠. */
-  identitySwap: Record<string, { oldTitle: string; newTitle: string; movedTo?: { id: string; doc_no: string; title: string } }>;
+  identitySwap: Record<string, IdentitySwap>;
   /** The other side of a swap: a new doc that received content which previously
    *  lived under a different uuid. id → that previous uuid + its old identity. */
-  formerUuid: Record<string, { previousId: string; previousTitle: string; previousDocNo: string }>;
+  formerUuid: Record<string, FormerUuid>;
 }
 
-const EMPTY: PreviewDiff = { added: new Set(), changed: new Set(), renumbered: {}, reusedSlot: {}, identitySwap: {}, formerUuid: {} };
+const EMPTY: PreviewDiff = {
+  added: new Set(),
+  changed: new Set(),
+  renumbered: {},
+  retitled: {},
+  reusedSlot: {},
+  identitySwap: {},
+  formerUuid: {},
+};
 
 const PreviewDiffContext = createContext<PreviewDiff>(EMPTY);
 
@@ -49,6 +76,8 @@ export function PreviewDiffProvider({ children }: { children: ReactNode }) {
           added: new Set<string>(d.added ?? []),
           changed: new Set<string>(d.changed ?? []),
           renumbered: d.renumbered ?? {},
+          // Absent on bundles built before retitle detection shipped.
+          retitled: d.retitled ?? {},
           // Older bundles shipped reusedSlot as a bare id array — normalize.
           reusedSlot: Array.isArray(d.reusedSlot)
             ? Object.fromEntries((d.reusedSlot as string[]).map((id) => [id, {}]))
