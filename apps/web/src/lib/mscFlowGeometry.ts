@@ -5,9 +5,9 @@ import { textWidth } from "./textWidth";
 /** The on-ribbon figure type: twice the orbital chart's in-slice figure
  *  (the flow canvas is wider than the orbit's and renders smaller, so its
  *  type is set larger to read the same on screen). */
-export const FIGURE_FONT = "30px 'Source Code Pro', 'Courier New', monospace";
-export const FIGURE_CHAR_PX = 18.2;
-export const FIGURE_H = 32;
+export const FIGURE_FONT = "34px 'Source Code Pro', 'Courier New', monospace";
+export const FIGURE_CHAR_PX = 20.6;
+export const FIGURE_H = 36;
 export const FIGURE_PAD = 6;
 
 /** A band of thickness t from the right edge of one node (x0, y0..y0+t)

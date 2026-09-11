@@ -34,22 +34,22 @@ export function MscFlow({ layout, primes, month, centerFigure }: Props) {
       <figure className="msc-ring-frame msc-flow-frame" aria-label={`Monthly Settlement Cycle flows for ${formatMonth(month)}`}>
         <svg className="msc-ring msc-flow" viewBox={`0 0 ${layout.width} ${layout.height}`} preserveAspectRatio="xMidYMid meet">
           {/* Column headers over the three node groups. */}
-          <text x={LEFT_X + NODE_W} y={HEADER_Y} textAnchor="end" fontSize={26} className="msc-flow-header mono">
+          <text x={LEFT_X + NODE_W} y={HEADER_Y} textAnchor="end" fontSize={30} className="msc-flow-header mono">
             {HEADERS.source}
           </text>
-          <text x={MID_X + AGENT_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={26} className="msc-flow-header mono">
+          <text x={MID_X + AGENT_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={30} className="msc-flow-header mono">
             {HEADERS.prime}
           </text>
-          <text x={RIGHT_X + NODE_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={26} className="msc-flow-header mono">
+          <text x={RIGHT_X + NODE_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={30} className="msc-flow-header mono">
             {HEADERS.sky}
           </text>
           {layout.sources.map((s) => (
             <g key={s.kind} className="msc-flow-source" data-kind={s.kind}>
               <rect x={s.x} y={s.y} width={NODE_W} height={s.h} className={`msc-ring-${s.kind}`} />
-              <text x={s.x - 12} y={s.labelY - 6} textAnchor="end" fontSize={32} className="msc-ring-label">
+              <text x={s.x - 12} y={s.labelY - 8} textAnchor="end" fontSize={36} className="msc-ring-label">
                 {SOURCE_LABEL[s.kind]}
               </text>
-              <text x={s.x - 12} y={s.labelY + 30} textAnchor="end" fontSize={30} className="msc-ring-sublabel mono">
+              <text x={s.x - 12} y={s.labelY + 32} textAnchor="end" fontSize={32} className="msc-ring-sublabel mono">
                 {formatUsd(s.value, true)}
               </text>
             </g>
@@ -57,10 +57,10 @@ export function MscFlow({ layout, primes, month, centerFigure }: Props) {
           {/* Sky: one bar, split by Prime and by type — the same "To Sky"
               name-then-figure treatment as the orbit's pie. The Primes are
               not named here again; each share's hover pill says whose. */}
-          <text x={sky.x + NODE_W / 2} y={sky.y - 60} textAnchor="middle" fontSize={48} className="msc-ring-label">
+          <text x={sky.x + NODE_W / 2} y={sky.y - 64} textAnchor="middle" fontSize={54} className="msc-ring-label">
             To Sky
           </text>
-          <text x={sky.x + NODE_W / 2} y={sky.y - 20} textAnchor="middle" fontSize={32} className="msc-ring-sublabel mono">
+          <text x={sky.x + NODE_W / 2} y={sky.y - 20} textAnchor="middle" fontSize={36} className="msc-ring-sublabel mono">
             {centerFigure}
           </text>
           {sky.shares.map((sh) => (

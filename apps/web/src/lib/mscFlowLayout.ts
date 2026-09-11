@@ -28,7 +28,9 @@ import { textWidth } from "./textWidth";
 /** A WIDE canvas — about 2:1, the shape of the card beside the timeseries
  *  — so `meet` scaling fills the card's width rather than leaving the sides
  *  empty. Type sizes are set for that scale (roughly half on screen). */
-export const WIDTH = 2000;
+/** 3:1 — wider than the card, so `meet` scaling is height-bound and the
+ *  drawing runs the card's full width. */
+export const WIDTH = 3000;
 export const NODE_W = 18;
 /** The Prime column's bars are the chart's "islands" — wider than the
  *  source and Sky bars so they read as the middle stage. */
@@ -45,13 +47,13 @@ export const SOURCE_LABEL: Record<string, string> = {
   kept: "supply-side kept",
   ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, `${SLICE_CODE[s.key]} · ${s.label.toLowerCase()}`])),
 };
-const SOURCE_FONT = "32px 'Inter', system-ui, sans-serif";
-const SOURCE_CHAR_PX = 17.4;
+const SOURCE_FONT = "36px 'Inter', system-ui, sans-serif";
+const SOURCE_CHAR_PX = 19.6;
 /** Column x: sources (labels in the gutter to their left, which is as wide
  *  as the widest label needs), Primes, Sky (its per-Prime name + figure in
  *  the gutter to its right). */
 export const LEFT_X = Math.max(...Object.values(SOURCE_LABEL).map((l) => textWidth(l, SOURCE_FONT, SOURCE_CHAR_PX))) + 24;
-export const MID_X = 1000;
+export const MID_X = 1500;
 /** Sky's bar sits near the right edge; its per-Prime shares are named by
  *  their hover pills, not in a gutter. */
 const RIGHT_GUTTER = 40;
@@ -60,9 +62,9 @@ export const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
  *  Prime gap holds a two-line name block, and a taller canvas would scale
  *  the whole chart (type included) down to fit the card. */
 const INNER_H = 400;
-const SOURCE_GAP = 16;
+const SOURCE_GAP = 44;
 /** Room above each Prime's bar for its name (36px) and gross figure (24px). */
-const AGENT_GAP = 84;
+const AGENT_GAP = 96;
 /** Below the headers and the first Prime's name block. */
 const TOP = 150;
 const BOTTOM_PAD = 16;
@@ -71,7 +73,7 @@ const BOTTOM_PAD = 16;
  *  ~1% of the month) stays a visible hairline rather than vanishing. */
 const MIN_T = 4;
 /** Two lines in the left gutter: name over amount. */
-const SOURCE_LABEL_BLOCK = 72;
+const SOURCE_LABEL_BLOCK = 84;
 /** Pill center above the mark it names — clears a 2×-scale pill (60 tall). */
 const PILL_LIFT = 50;
 /** A share's pill sits left of Sky's bar, inside the canvas. */
@@ -232,7 +234,7 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
     }
     // Name (36px) above the bar, gross (24px) on the line under it, just
     // clear of the bar's top; the gross pill hangs above both.
-    const labelY = y - 44;
+    const labelY = y - 50;
     return {
       prime: p.prime, x: MID_X, y, h, inbound, outbound, loss: a.loss,
       sky: a.sky, cof: a.cof, sde: a.sde, gross: a.gross,

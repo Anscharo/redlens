@@ -9,7 +9,7 @@ import { primeLinkLabel, type OverviewPrime } from "./MscRingPrime";
 function LinkFigure({ l }: { l: FlowLink }) {
   if (l.figureX == null || l.figureY == null) return null;
   return (
-    <text x={l.figureX} y={l.figureY + 10} textAnchor="middle" fontSize={30} className="msc-ring-figure mono" data-kind={l.kind}>
+    <text x={l.figureX} y={l.figureY + 12} textAnchor="middle" fontSize={34} className="msc-ring-figure mono" data-kind={l.kind}>
       {SLICE_CODE[l.kind]} {formatUsd(l.value, true)}
     </text>
   );
@@ -50,10 +50,10 @@ export function FlowAgentGroup({ agent, flow, label, bandColor, to, month }: Ove
         <LinkFigure key={`out-${l.kind}`} l={l} />
       ))}
       <g className="msc-ring-mark" data-mark={markId(p, "gross")}>
-        <text x={agent.labelX} y={agent.labelY} textAnchor="middle" fontSize={36} className="msc-ring-label msc-flow-halo">
+        <text x={agent.labelX} y={agent.labelY} textAnchor="middle" fontSize={42} className="msc-ring-label msc-flow-halo">
           {label}
         </text>
-        <text x={agent.labelX} y={agent.labelY + 30} textAnchor="middle" fontSize={24} className="msc-ring-sublabel mono msc-flow-halo">
+        <text x={agent.labelX} y={agent.labelY + 34} textAnchor="middle" fontSize={28} className="msc-ring-sublabel mono msc-flow-halo">
           {formatUsd(agent.gross, true)}
         </text>
       </g>
