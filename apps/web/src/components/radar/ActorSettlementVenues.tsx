@@ -6,6 +6,8 @@ import {
   type SettlementReport,
 } from "../../lib/settlements";
 import { Tooltip } from "../Tooltip";
+import { useTweened } from "../../hooks/useTweened";
+import { tweenVenues } from "../../lib/mscTween";
 import { SettlementVenuePnl } from "./SettlementSankey";
 import { SettlementAum } from "./SettlementAum";
 
@@ -16,6 +18,9 @@ export function ActorSettlementVenues({
   report: SettlementReport;
   name: string;
 }) {
+  // A month change is drawn as a transition: the rows tween (mscTween.ts)
+  // and the Sankey and AUM bars lay out from them every frame.
+  const venues = useTweened(report.venues, tweenVenues);
   const multi = hasMultiVenuePnl(report);
   const aum = hasVenueAum(report);
   const [view, setView] = useState<"pnl" | "aum">("pnl");
@@ -65,9 +70,9 @@ export function ActorSettlementVenues({
         </div>
       )}
       {showPnl && (
-        <SettlementVenuePnl venues={report.venues} primeLabel={name} month={report.month} />
+        <SettlementVenuePnl venues={venues} primeLabel={name} month={report.month} />
       )}
-      {showAum && <SettlementAum venues={report.venues} />}
+      {showAum && <SettlementAum venues={venues} />}
     </>
   );
 }

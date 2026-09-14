@@ -56,13 +56,10 @@ export function MscHeadline({ eco, month, labels, play }: Props) {
   return (
     <div className="msc-card rounded p-4 mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 text-sm">
       <div className="self-center">
-        <div className="mono" style={{ color: "var(--tan)" }}>
-          {month ? formatMonth(month) : "—"}
-        </div>
         {play && (
           <button
             type="button"
-            className="msc-ts-play mono text-[10px] mt-1"
+            className="msc-ts-play mono text-[10px] mb-1"
             onClick={play.onToggle}
             aria-pressed={play.playing}
             aria-label={play.playing ? "Pause the month autoplay" : "Play through the months, one second each"}
@@ -70,6 +67,9 @@ export function MscHeadline({ eco, month, labels, play }: Props) {
             {play.playing ? "❚❚ pause" : "▶ play"}
           </button>
         )}
+        <div className="mono" style={{ color: "var(--tan)" }}>
+          {month ? formatMonth(month) : "—"}
+        </div>
       </div>
       <span className="msc-headline-divider" aria-hidden="true" />
       <div className="flex flex-wrap items-end gap-x-3 gap-y-2" aria-label="To Sky equals cost of funds plus Sky Direct Exposure">

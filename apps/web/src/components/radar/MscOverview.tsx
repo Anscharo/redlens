@@ -1,4 +1,4 @@
-import { Suspense, use, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, use, useEffect, useMemo, useRef } from "react";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import {
   loadSettlements,
@@ -27,13 +27,13 @@ import { RingKey } from "./MscRingKey";
 import { MscChartStyle, type ChartStyle } from "./MscChartStyle";
 import { MscTimeseries, primeFill } from "./MscTimeseries";
 import { MscOverviewSkeleton, OverviewIntro } from "./MscOverviewSkeleton";
+import { useMonthAutoplay } from "../../hooks/useMonthAutoplay";
+import { useTweened } from "../../hooks/useTweened";
+import { tweenPrimeFlows } from "../../lib/mscTween";
 
 const mscCodec = urlString(null);
 /** Chart style: the three-stage flow (default, no param) or the orbital pies. */
 const viewCodec = urlString(null);
-/** Autoplay dwell per month. */
-const PLAY_MS = 1000;
-
 /** The cross-Prime Monthly Settlement Cycle section. Suspends on the
  *  settlements artifact behind a skeleton of the same cards at the same
  *  sizes (MscOverviewSkeleton), so the charts paint into place. */
@@ -51,18 +51,7 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
   const latest = months[months.length - 1] ?? null;
   const [msc, setMsc] = useUrlState("msc", mscCodec);
   const month = months.includes(msc ?? "") ? msc! : latest;
-  // Playback steps through the months, PLAY_MS each, looping. Opt-in: the
-  // page opens paused on the latest month (or ?msc); any click on a month
-  // column pauses it again.
-  const [playing, setPlaying] = useState(false);
-  useEffect(() => {
-    if (!playing || months.length < 2 || !month) return;
-    const id = setInterval(() => {
-      const next = months[(months.indexOf(month) + 1) % months.length];
-      setMsc(next === latest ? null : next);
-    }, PLAY_MS);
-    return () => clearInterval(id);
-  }, [playing, months, month, latest, setMsc]);
+  const play = useMonthAutoplay(months, month, latest, setMsc);
 
   const labelOf = useMemo(
     () => (prime: string) =>
@@ -77,22 +66,25 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
     () => (bundle && month ? primeFlowsForMonth(bundle, month) : []),
     [bundle, month],
   );
+  // The orbit lays itself out from the rows each render, so a month change
+  // is drawn by tweening the rows (the flow chart tweens its own layout).
+  const drawnFlows = useTweened(flows, tweenPrimeFlows);
   const [viewParam, setViewParam] = useUrlState("view", viewCodec);
   const view: ChartStyle = viewParam === "orbit" ? "orbit" : "flow";
   // What both charts know about a Prime: its label, link and identity
   // color (the same as its timeseries layers, by stack order).
   const overviewPrimes = useMemo<OverviewPrime[]>(
     () =>
-      flows.map((flow) => {
+      drawnFlows.map((flow) => {
         const actor = actorForPrimeKey(flow.prime, actors);
         const to = actor
           ? settlementsHref(actor.slug) + (month !== flow.latestMonth ? `?msc=${month}` : "")
           : null;
         return { flow, label: labelOf(flow.prime), bandColor: primeFill(stack.primes.indexOf(flow.prime)), to };
       }),
-    [flows, actors, month, labelOf, stack.primes],
+    [drawnFlows, actors, month, labelOf, stack.primes],
   );
-  const layout = useMemo(() => layoutMscRing(flows, labelOf), [flows, labelOf]);
+  const layout = useMemo(() => layoutMscRing(drawnFlows, labelOf), [drawnFlows, labelOf]);
   const flowLayout = useMemo(() => (view === "flow" ? layoutMscFlow(flows) : null), [view, flows]);
   const ringPrimes = useMemo<MscRingPrime[]>(
     () => layout.primes.map((ring) => ({ ...overviewPrimes.find((p) => p.flow.prime === ring.prime)!, ring })),
@@ -115,7 +107,7 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
 
   return (
     <OverviewIntro>
-      <MscHeadline eco={eco} month={month} play={{ playing, onToggle: () => setPlaying((p) => !p) }} />
+      <MscHeadline eco={eco} month={month} play={{ playing: play.playing, onToggle: play.toggle }} />
       <PrimeHoverStyles primes={stack.primes} />
       {/* The timeseries card sets the row's height; the ring card stretches
           to match and its chart fills whatever is left under the title and
@@ -128,7 +120,7 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
             primeLabel={labelOf}
             selected={month}
             onSelect={(m) => {
-              setPlaying(false);
+              play.pause();
               setMsc(m === latest ? null : m);
             }}
           />

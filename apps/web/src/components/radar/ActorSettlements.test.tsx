@@ -169,7 +169,8 @@ describe("ActorSettlements", () => {
     expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
     expect(screen.queryByText("Supply-side kept by Primes")).not.toBeInTheDocument();
     // The card is headed by the settlement month, not the Prime's name.
-    expect(container.querySelector(".msc-card")).toHaveTextContent(/^Jul 2026/);
+    expect(container.querySelector(".msc-card")).toHaveTextContent(/^▶ play\s*Jul 2026/);
+    expect(screen.getByRole("button", { name: /Play through the months/ })).toBeInTheDocument();
     // No identity swatch on the card; the Sankey's Prime bar is supply-side green.
     expect(container.querySelector(".msc-identity-swatch")).toBeNull();
     expect(container.querySelector(".msc-sankey-sink rect[fill='var(--msc-kept)']")).toBeInTheDocument();

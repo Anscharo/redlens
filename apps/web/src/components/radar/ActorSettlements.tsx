@@ -19,6 +19,7 @@ import { SettlementDemandBars } from "./SettlementDemandBars";
 import { ActorSettlementVenues } from "./ActorSettlementVenues";
 import { MscHeadline } from "./MscHeadline";
 import { ActorSettlementsSkeleton } from "./ActorSettlementsSkeleton";
+import { useMonthAutoplay } from "../../hooks/useMonthAutoplay";
 
 const mscCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
@@ -47,6 +48,7 @@ function ActorSettlementsLoaded({ slug, name }: Props) {
   const latest = months[months.length - 1] ?? null;
   const [msc, setMsc] = useUrlState("msc", mscCodec);
   const month = months.includes(msc ?? "") ? msc! : latest;
+  const play = useMonthAutoplay(months, month, latest, setMsc);
   const report = reports.find((r) => r.month === month) ?? null;
   const demandSeries = useMemo(() => activeDemandSeries(reports), [reports]);
 
@@ -68,7 +70,10 @@ function ActorSettlementsLoaded({ slug, name }: Props) {
   const gap = revenueGap(report);
   const workbook = `${SOURCE}/tree/main/reports/${report.prime}/${month}`;
   const forumUrl = forumTopicUrlForMonth(topics ?? [], month);
-  const selectMonth = (m: string) => setMsc(m === latest ? null : m);
+  const selectMonth = (m: string) => {
+    play.pause();
+    setMsc(m === latest ? null : m);
+  };
 
   return (
     <>
@@ -97,6 +102,7 @@ function ActorSettlementsLoaded({ slug, name }: Props) {
           demand: demandSideRevenue(report.headline),
         }}
         month={month}
+        play={{ playing: play.playing, onToggle: play.toggle }}
         labels={{ kept: "Supply-side kept", demand: "Demand-side" }}
       />
       {/* Summary and demand-side mix side by side; they stack on a narrow page. */}
