@@ -40,18 +40,8 @@ const label = (p: string) => p.charAt(0).toUpperCase() + p.slice(1);
 
 afterEach(cleanup);
 
-function renderChart(onSelect = vi.fn(), onTogglePlay = vi.fn(), playing = false) {
-  render(
-    <MscTimeseries
-      primes={PRIMES}
-      months={MONTHS}
-      primeLabel={label}
-      selected="2026-07"
-      onSelect={onSelect}
-      playing={playing}
-      onTogglePlay={onTogglePlay}
-    />,
-  );
+function renderChart(onSelect = vi.fn()) {
+  render(<MscTimeseries primes={PRIMES} months={MONTHS} primeLabel={label} selected="2026-07" onSelect={onSelect} />);
   return onSelect;
 }
 
@@ -96,13 +86,9 @@ describe("MscTimeseries", () => {
     expect(parseFloat(keel.style.top)).toBeGreaterThan(parseFloat(spark.style.top));
   });
 
-  it("offers a play/pause control for the month autoplay", () => {
-    const onToggle = vi.fn();
-    renderChart(vi.fn(), onToggle, true);
-    const btn = screen.getByRole("button", { name: "Pause the month autoplay" });
-    expect(btn).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(btn);
-    expect(onToggle).toHaveBeenCalledTimes(1);
+  it("has no play control of its own — that sits under the month on the headline card", () => {
+    renderChart();
+    expect(screen.queryByRole("button", { name: /autoplay|Play through/ })).not.toBeInTheDocument();
   });
 
   it("labels the y axis with round tick values and gridlines", () => {

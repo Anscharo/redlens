@@ -116,7 +116,7 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
           Source workbooks
         </a>
       </p>
-      <MscHeadline eco={eco} month={month} />
+      <MscHeadline eco={eco} month={month} play={{ playing, onToggle: () => setPlaying((p) => !p) }} />
       <PrimeHoverStyles primes={stack.primes} />
       {/* The timeseries card sets the row's height; the ring card stretches
           to match and its chart fills whatever is left under the title and
@@ -132,8 +132,6 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
               setPlaying(false);
               setMsc(m === latest ? null : m);
             }}
-            playing={playing}
-            onTogglePlay={() => setPlaying((p) => !p)}
           />
         </div>
         <div className="msc-card msc-ring-card rounded p-4 flex-1 min-w-0 flex flex-col" style={{ flexBasis: 340, maxWidth: "100%" }}>

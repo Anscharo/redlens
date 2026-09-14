@@ -43,12 +43,9 @@ interface Props {
   primeLabel: (prime: string) => string;
   selected: string;
   onSelect: (month: string) => void;
-  /** Autoplay through the months (the overview advances `selected`). */
-  playing: boolean;
-  onTogglePlay: () => void;
 }
 
-export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, playing, onTogglePlay }: Props) {
+export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }: Props) {
   const posPeak = Math.max(1, ...months.map((m) => m.skyParts.reduce((n, p) => n + Math.max(0, p.value), 0)));
   const negPeak = Math.max(0, ...months.map((m) => -m.skyParts.reduce((n, p) => n + Math.min(0, p.value), 0)));
   const span = posPeak + negPeak;
@@ -64,17 +61,8 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect, 
 
   return (
     <div className="mb-4 min-w-0 max-w-full">
-      <p className="text-sm mb-2 flex items-center gap-3" style={{ color: "var(--tan)" }}>
-        <span>To Sky by month, per Prime</span>
-        <button
-          type="button"
-          className="msc-ts-play mono text-[10px]"
-          onClick={onTogglePlay}
-          aria-pressed={playing}
-          aria-label={playing ? "Pause the month autoplay" : "Play through the months, one second each"}
-        >
-          {playing ? "❚❚ pause" : "▶ play"}
-        </button>
+      <p className="text-sm mb-2" style={{ color: "var(--tan)" }}>
+        To Sky by month, per Prime
       </p>
       <p className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: "var(--tan-3)", maxWidth: width }}>
         {primes.map((p, i) => (

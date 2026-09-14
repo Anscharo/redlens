@@ -21,6 +21,8 @@ interface Props {
   /** On a Prime's page, its identity color as a swatch before the month —
    *  the same color as its ring rim and timeseries layer on the overview. */
   identity?: { color: string };
+  /** The overview's month autoplay, under the month it steps through. */
+  play?: { playing: boolean; onToggle: () => void };
 }
 
 function Figure({ label, value, muted }: { label: string; value: number; muted?: boolean }) {
@@ -51,12 +53,25 @@ function Op({ children }: { children: string }) {
  *  Prime's on its settlement page (same component, so the two pages can't
  *  drift). To Sky is shown as the equation it is — cost of funds + Sky
  *  Direct Exposure — so nobody adds the two components on top of it. */
-export function MscHeadline({ eco, month, labels, identity }: Props) {
+export function MscHeadline({ eco, month, labels, identity, play }: Props) {
   return (
     <div className="msc-card rounded p-4 mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 text-sm">
-      <div className="flex items-center gap-2 self-center mono" style={{ color: "var(--tan)" }}>
-        {identity && <span className="msc-identity-swatch" style={{ background: identity.color }} aria-hidden="true" />}
-        {formatMonth(month)}
+      <div className="self-center">
+        <div className="flex items-center gap-2 mono" style={{ color: "var(--tan)" }}>
+          {identity && <span className="msc-identity-swatch" style={{ background: identity.color }} aria-hidden="true" />}
+          {formatMonth(month)}
+        </div>
+        {play && (
+          <button
+            type="button"
+            className="msc-ts-play mono text-[10px] mt-1"
+            onClick={play.onToggle}
+            aria-pressed={play.playing}
+            aria-label={play.playing ? "Pause the month autoplay" : "Play through the months, one second each"}
+          >
+            {play.playing ? "❚❚ pause" : "▶ play"}
+          </button>
+        )}
       </div>
       <span className="msc-headline-divider" aria-hidden="true" />
       <div className="flex flex-wrap items-end gap-x-3 gap-y-2" aria-label="To Sky equals cost of funds plus Sky Direct Exposure">
