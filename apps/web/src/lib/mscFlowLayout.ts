@@ -45,8 +45,8 @@ export const SOURCE_LABEL: Record<string, string> = {
   kept: "supply-side kept",
   ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, `${SLICE_CODE[s.key]} · ${s.label.toLowerCase()}`])),
 };
-const SOURCE_FONT = "36px 'Inter', system-ui, sans-serif";
-const SOURCE_CHAR_PX = 19.6;
+const SOURCE_FONT = "44px 'Inter', system-ui, sans-serif";
+const SOURCE_CHAR_PX = 24;
 /** Column x: sources (labels in the gutter to their left, which is as wide
  *  as the widest label needs), Primes, Sky (its per-Prime name + figure in
  *  the gutter to its right). */
@@ -59,13 +59,15 @@ export const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
  *  half carries up to seven sources fanning into every Prime, the right
  *  only the two To-Sky ribbons, so the busier side gets the room. */
 export const MID_X = LEFT_X + NODE_W + 0.6 * (RIGHT_X - LEFT_X - NODE_W - AGENT_W);
-/** The tallest column's bars sum to this. Kept short on purpose: every
- *  Prime gap holds a two-line name block, and a taller canvas would scale
- *  the whole chart (type included) down to fit the card. */
+/** The tallest column's bars sum to this. Kept short on purpose: the bars
+ *  are spread over the canvas height (space-between, like a flex column),
+ *  so the gaps between them are what is left of the band. */
 const INNER_H = 340;
+/** Gap floors: a column whose bars plus these overflow the band stacks at
+ *  these and stretches the canvas instead. */
 const SOURCE_GAP = 70;
-/** Room above each Prime's bar for its name (36px) and gross figure (24px). */
-const AGENT_GAP = 128;
+/** Room above each Prime's bar for its name (42px) and gross figure (28px). */
+const AGENT_GAP = 120;
 /** Below the headers and the first Prime's name block, with clear air
  *  between the PRIME header and the first name. */
 const TOP = 160;
@@ -79,8 +81,8 @@ export const HEIGHT = 1200;
  *  screen: a Prime's smallest line item (Skybase's accessibility rewards,
  *  ~1% of the month) stays a visible hairline rather than vanishing. */
 const MIN_T = 4;
-/** Two lines in the left gutter: name over amount. */
-const SOURCE_LABEL_BLOCK = 84;
+/** Two lines in the left gutter: name (44px) over amount (38px). */
+const SOURCE_LABEL_BLOCK = 100;
 /** Pill center above the mark it names — clears a 3×-scale pill (90 tall). */
 const PILL_LIFT = 65;
 /** A share's pill sits left of Sky's bar, inside the canvas. */
@@ -149,6 +151,20 @@ export interface FlowLayout {
   sky: { x: number; y: number; h: number; total: number; segments: { prime: string; kind: SliceKind; y: number; h: number }[]; shares: FlowSkyShare[] };
 }
 
+/** The vertical band every column's bars are laid out in. A source label
+ *  is centered on its bar, so that column's band stops half a label block
+ *  short of the bottom edge and the last label stays on the canvas. */
+const BAND_H = HEIGHT - BOTTOM_PAD - TOP;
+const SOURCE_BAND_H = BAND_H - SOURCE_LABEL_BLOCK / 2;
+
+/** Space-between over the band: equal gaps, never below the floor. */
+function spread<T>(bars: { item: T; h: number }[], bandH: number, minGap: number, labelBlock: number) {
+  const sumH = bars.reduce((n, b) => n + b.h, 0);
+  if (bars.length <= 1) return stackBars(bars, TOP + Math.max(0, (bandH - sumH) / 2), minGap, labelBlock);
+  const gap = Math.max(minGap, (bandH - sumH) / (bars.length - 1));
+  return stackBars(bars, TOP, gap, labelBlock);
+}
+
 const KINDS: SliceKind[] = ["cof", "sde", "kept", ...DEMAND_SERIES.map((s) => s.key)];
 
 /** One Prime's signed line items, and what the chart draws of them. */
@@ -189,16 +205,15 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
   // its taller side: the inbound ribbons, or the To-Sky ribbons.
   const inH = ({ a }: (typeof acc)[number]) => a.inbound.reduce((n, x) => n + t(x.value), 0);
   const outH = ({ a }: (typeof acc)[number]) => a.outbound.reduce((n, x) => n + t(x.value), 0);
-  // The Prime column is the tallest (its gaps hold the names); the source
-  // and Sky columns are centered on it so the outer ribbons climb less.
-  const agents = stackBars(acc.map((r) => ({ item: r, h: Math.max(inH(r), outH(r)) })), TOP, AGENT_GAP, 0);
-  const agentsSpan = agents.length ? agents[agents.length - 1].y + agents[agents.length - 1].h - TOP : 0;
-  const centered = (span: number) => TOP + Math.max(0, (agentsSpan - span) / 2);
+  // Every column uses the whole band between the headers and the bottom
+  // edge: the source and Prime columns spread their bars over it with equal
+  // gaps (first bar at the top, last at the bottom — a lone bar centers),
+  // and the Sky bar centers on it.
+  const agents = spread(acc.map((r) => ({ item: r, h: Math.max(inH(r), outH(r)) })), BAND_H, AGENT_GAP, 0);
   const sourceBars = sourceKinds.map((k) => ({ item: k, h: acc.reduce((n, { a }) => n + t(a.inbound.find((x) => x.kind === k)?.value ?? 0), 0) }));
-  const sourcesSpan = sourceBars.reduce((n, b) => n + b.h, 0) + SOURCE_GAP * Math.max(0, sourceBars.length - 1);
-  const sources = stackBars(sourceBars, centered(sourcesSpan), SOURCE_GAP, SOURCE_LABEL_BLOCK);
+  const sources = spread(sourceBars, SOURCE_BAND_H, SOURCE_GAP, SOURCE_LABEL_BLOCK);
   const skyH = acc.reduce((n, { a }) => n + a.outbound.reduce((m, x) => m + t(x.value), 0), 0);
-  const skyY = centered(skyH);
+  const skyY = TOP + Math.max(0, (BAND_H - skyH) / 2);
 
   // Ribbons: from each source down its bar in Prime order; into each Prime
   // down its bar in source order; into Sky, Prime-major, cost of funds first.
@@ -258,7 +273,7 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
   );
   return {
     width: WIDTH,
-    height: Math.max(HEIGHT, bottom + BOTTOM_PAD),
+    height: Math.max(HEIGHT, Math.round(bottom + BOTTOM_PAD)),
     sources: sources.map((s) => ({ kind: s.item, value: sourceTotal(s.item), x: LEFT_X, y: s.y, h: s.h, labelY: s.labelY })),
     agents: out,
     sky: { x: RIGHT_X, y: skyY, h: skyH, total: skyTotal, segments, shares },

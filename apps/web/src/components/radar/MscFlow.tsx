@@ -47,10 +47,10 @@ export function MscFlow({ layout, primes, month, centerFigure }: Props) {
           {layout.sources.map((s) => (
             <g key={s.kind} className="msc-flow-source" data-kind={s.kind}>
               <rect x={s.x} y={s.y} width={NODE_W} height={s.h} className={`msc-ring-${s.kind}`} />
-              <text x={s.x - 12} y={s.labelY - 8} textAnchor="end" fontSize={36} className="msc-ring-label">
+              <text x={s.x - 12} y={s.labelY - 10} textAnchor="end" fontSize={44} className="msc-ring-label">
                 {SOURCE_LABEL[s.kind]}
               </text>
-              <text x={s.x - 12} y={s.labelY + 32} textAnchor="end" fontSize={32} className="msc-ring-sublabel mono">
+              <text x={s.x - 12} y={s.labelY + 36} textAnchor="end" fontSize={38} className="msc-ring-sublabel mono">
                 {formatUsd(s.value, true)}
               </text>
             </g>

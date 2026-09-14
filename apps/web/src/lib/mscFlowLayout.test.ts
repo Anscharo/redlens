@@ -117,15 +117,20 @@ describe("layoutMscFlow", () => {
     expect(one.agents[0].x).toBe(six.agents[0].x);
   });
 
-  it("centers the source and Sky columns on the Prime column", () => {
-    // Four Primes: enough Prime-column height for the (widely gapped)
-    // source column to center inside it rather than pin to the top.
+  it("spreads the source and Prime bars over the canvas height with equal gaps, and centers Sky on it", () => {
     const l = layoutMscFlow([flow(), flow({ prime: "grove" }), flow({ prime: "keel" }), flow({ prime: "obex" })]);
-    const agentsBottom = l.agents[3].y + l.agents[3].h;
-    const agentsMid = (l.agents[0].y + agentsBottom) / 2;
+    // Space-between: first bars share the top edge, the last ones reach the
+    // bottom (the source column stops short by half a label block so the
+    // last label stays on the canvas), and every gap in a column is equal.
+    expect(l.sources[0].y).toBe(l.agents[0].y);
+    const lastA = l.agents[l.agents.length - 1];
+    const lastS = l.sources[l.sources.length - 1];
+    expect(lastA.y + lastA.h).toBeGreaterThan(l.height * 0.95);
+    expect(lastS.y + lastS.h).toBeGreaterThan(l.height * 0.9);
+    expect(lastS.labelY).toBeLessThan(l.height);
+    const gaps = (bars: { y: number; h: number }[]) => bars.slice(1).map((b, i) => b.y - (bars[i].y + bars[i].h));
+    for (const g of [gaps(l.agents), gaps(l.sources)]) for (const x of g) expect(x).toBeCloseTo(g[0], 6);
+    const agentsMid = (l.agents[0].y + lastA.y + lastA.h) / 2;
     expect(l.sky.y + l.sky.h / 2).toBeCloseTo(agentsMid, 0);
-    const srcTop = l.sources[0].y;
-    const srcBottom = l.sources[l.sources.length - 1].y + l.sources[l.sources.length - 1].h;
-    expect((srcTop + srcBottom) / 2).toBeCloseTo(agentsMid, 0);
   });
 });
