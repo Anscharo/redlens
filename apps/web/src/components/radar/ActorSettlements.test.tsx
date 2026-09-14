@@ -126,7 +126,8 @@ describe("ActorSettlements", () => {
     expect(screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure")).toBeInTheDocument();
     expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
     expect(screen.getByText("Summary")).toBeInTheDocument();
-    expect(screen.getByText("Demand-side")).toBeInTheDocument();
+    // "Demand-side" is both the headline card's label and the bar chart's title.
+    expect(screen.getAllByText("Demand-side")).toHaveLength(2);
     expect(skeleton.querySelectorAll(".msc-bar-cluster")).toHaveLength(6);
     expect(skeleton.querySelectorAll(".msc-bar-stack")).toHaveLength(6);
   });
