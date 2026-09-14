@@ -52,22 +52,18 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
           {layout.sources.map((s) => (
             <g key={s.kind} className="msc-flow-source" data-kind={s.kind} style={{ opacity: s.alpha }}>
               <rect x={s.x} y={s.y} width={NODE_W} height={s.h} className={`msc-ring-${s.kind}`} />
-              <text x={s.x - 12} y={s.labelY - 10} textAnchor="end" fontSize={44} className="msc-ring-label">
+              <text x={s.x - 12} y={s.labelY + 15} textAnchor="end" fontSize={44} className="msc-ring-label">
                 {SOURCE_LABEL[s.kind]}
-              </text>
-              <text x={s.x - 12} y={s.labelY + 36} textAnchor="end" fontSize={38} className="msc-ring-sublabel mono">
-                {formatUsd(s.value, true)}
+                <tspan className="msc-ring-sublabel mono"> | {formatUsd(s.value, true)}</tspan>
               </text>
             </g>
           ))}
           {/* Sky: one bar, split by Prime and by type — the same "To Sky"
               name-then-figure treatment as the orbit's pie. The Primes are
               not named here again; each share's hover pill says whose. */}
-          <text x={sky.x + NODE_W / 2} y={sky.y - 64} textAnchor="middle" fontSize={54} className="msc-ring-label">
+          <text x={sky.x + NODE_W} y={sky.y - 24} textAnchor="end" fontSize={54} className="msc-ring-label">
             To Sky
-          </text>
-          <text x={sky.x + NODE_W / 2} y={sky.y - 20} textAnchor="middle" fontSize={36} className="msc-ring-sublabel mono">
-            {centerFigure}
+            <tspan className="msc-ring-sublabel mono"> | {centerFigure}</tspan>
           </text>
           {sky.shares.map((sh) => (
             <g key={sh.prime} className="msc-ring-mark" data-mark={markId(sh.prime, "share")} style={{ opacity: sh.alpha }}>

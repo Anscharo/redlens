@@ -48,10 +48,16 @@ export const SOURCE_LABEL: Record<string, string> = {
 };
 const SOURCE_FONT = "44px 'Inter', system-ui, sans-serif";
 const SOURCE_CHAR_PX = 24;
+/** The amount follows the name on the same line, " | $12.71M", in mono at
+ *  the same size; the gutter is sized for the widest name plus the widest
+ *  compact amount. */
+const AMOUNT_FONT = "44px 'Source Code Pro', 'Courier New', monospace";
+const AMOUNT_CHAR_PX = 26.5;
+const AMOUNT_ROOM = textWidth(" | $00.00M", AMOUNT_FONT, AMOUNT_CHAR_PX);
 /** Column x: sources (labels in the gutter to their left, which is as wide
  *  as the widest label needs), Primes, Sky (its per-Prime name + figure in
  *  the gutter to its right). */
-export const LEFT_X = Math.max(...Object.values(SOURCE_LABEL).map((l) => textWidth(l, SOURCE_FONT, SOURCE_CHAR_PX))) + 24;
+export const LEFT_X = Math.max(...Object.values(SOURCE_LABEL).map((l) => textWidth(l, SOURCE_FONT, SOURCE_CHAR_PX))) + AMOUNT_ROOM + 24;
 /** Sky's bar sits near the right edge; its per-Prime shares are named by
  *  their hover pills, not in a gutter. */
 const RIGHT_GUTTER = 40;
@@ -82,8 +88,8 @@ export const HEIGHT = 1200;
  *  screen: a Prime's smallest line item (Skybase's accessibility rewards,
  *  ~1% of the month) stays a visible hairline rather than vanishing. */
 const MIN_T = 4;
-/** Two lines in the left gutter: name (44px) over amount (38px). */
-const SOURCE_LABEL_BLOCK = 100;
+/** One line in the left gutter: name and amount, 44px. */
+const SOURCE_LABEL_BLOCK = 56;
 /** Pill center above the mark it names — clears a 3×-scale pill (90 tall). */
 const PILL_LIFT = 65;
 /** A share's pill sits left of Sky's bar, inside the canvas. */
@@ -274,15 +280,15 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
       const sh = skyCursor - shareY;
       shares.push({ prime: p.prime, value: skyValue, y: shareY, h: sh, pillX: RIGHT_X - SHARE_PILL_INSET, pillY: shareY + sh / 2 - PILL_LIFT });
     }
-    // Name (36px) above the bar, gross (24px) on the line under it, just
-    // clear of the bar's top; the gross pill hangs above both.
-    const labelY = y - 50;
+    // Name and gross on one line above the bar, just clear of its top; the
+    // gross pill hangs above it.
+    const labelY = y - 24;
     return {
       prime: p.prime, x: MID_X, y, h, inbound, outbound, loss: a.loss,
       sky: a.sky, cof: a.cof, sde: a.sde, gross: a.gross,
       share: a.gross >= SETTLEMENT_NEAR_ZERO ? a.sky / a.gross : null,
       labelX: MID_X + AGENT_W / 2, labelY,
-      grossPillX: MID_X + AGENT_W / 2, grossPillY: labelY - 56, grossAnchorY: labelY - 28,
+      grossPillX: MID_X + AGENT_W / 2, grossPillY: labelY - 60, grossAnchorY: labelY - 30,
     };
   });
 

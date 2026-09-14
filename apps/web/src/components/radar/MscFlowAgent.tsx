@@ -52,9 +52,7 @@ export function FlowAgentGroup({ agent, flow, label, bandColor, to, month }: Ove
       <g className="msc-ring-mark" data-mark={markId(p, "gross")}>
         <text x={agent.labelX} y={agent.labelY} textAnchor="middle" fontSize={42} className="msc-ring-label msc-flow-halo">
           {label}
-        </text>
-        <text x={agent.labelX} y={agent.labelY + 34} textAnchor="middle" fontSize={28} className="msc-ring-sublabel mono msc-flow-halo">
-          {formatUsd(agent.gross, true)}
+          <tspan className="msc-ring-sublabel mono"> | {formatUsd(agent.gross, true)}</tspan>
         </text>
       </g>
     </g>
