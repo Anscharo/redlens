@@ -12,10 +12,10 @@ interface Props {
   name?: string;
 }
 
-/** The Monthly settlement box floated top-right of a Prime's actor page —
- *  its gross revenue across every published cycle — with a small chart
- *  beside it of that revenue month by month, split by where it went. Both
- *  are links to the Prime's settlement page. */
+/** The Monthly settlement card floated top-right of a Prime's actor page:
+ *  its gross revenue across every published cycle, and to the right a
+ *  small chart of that revenue month by month, split by where it went.
+ *  Both halves are links to the Prime's settlement page. */
 export function ActorSettlementTeaser({ slug, name }: Props) {
   const bundle = useLoaded(loadSettlements, { soft: true });
   const months = useMemo(() => (bundle ? grossByMonth(reportsForPrime(bundle, slug)) : []), [bundle, slug]);
@@ -28,7 +28,6 @@ export function ActorSettlementTeaser({ slug, name }: Props) {
 
   return (
     <div className="msc-teaser-wrap" style={{ scrollMarginTop: HEADER_OFFSET }} id="msc">
-      <MscGrossSpark points={months} href={href} name={name ?? slug} />
       <Link to={href} className="msc-teaser" data-testid="msc-teaser">
         <h2 className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>
           Monthly settlement
@@ -49,6 +48,7 @@ export function ActorSettlementTeaser({ slug, name }: Props) {
           full cycle <span className="enlargen">→</span>
         </span>
       </Link>
+      <MscGrossSpark points={months} href={href} name={name ?? slug} />
     </div>
   );
 }

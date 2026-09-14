@@ -83,7 +83,8 @@ describe("ActorSettlementTeaser", () => {
       "Jul 2026 · $250 gross",
     ]);
     expect(cols[1].querySelectorAll(".msc-gross-pill")[1]).toHaveTextContent("to Sky $100 · kept $150 · demand $0");
-    expect(chart.compareDocumentPosition(screen.getByTestId("msc-teaser")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The chart sits to the right of the figures.
+    expect(chart.compareDocumentPosition(screen.getByTestId("msc-teaser")) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
   it("treats the composite-party slug as the prime", async () => {
