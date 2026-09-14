@@ -50,53 +50,59 @@ afterEach(() => {
 });
 
 describe("ActorSettlementTeaser", () => {
-  it("shows the cumulative amount to Sky over every cycle; the box is a link to the full cycle page", async () => {
+  it("shows gross revenue across every cycle; the box is a link to the full cycle page", async () => {
     render(<ActorSettlementTeaser slug="spark" name="Spark" />);
-    await waitFor(() => expect(screen.getByText("$110 to Sky")).toBeInTheDocument());
+    // Jun: par 20 − cof 8 = 12 kept + 10 to Sky = 22; Jul: 150 + 100 = 250.
+    await waitFor(() => expect(screen.getByText("$272 gross revenue")).toBeInTheDocument());
     expect(screen.getByText("Jun 2026 – Jul 2026 · 2 cycles")).toBeInTheDocument();
-    expect(screen.queryByText("$100 to Sky")).not.toBeInTheDocument();
-    const figure = screen.getByText("$110 to Sky");
+    expect(screen.queryByText(/to Sky$/)).not.toBeInTheDocument();
+    const figure = screen.getByText("$272 gross revenue");
     const box = screen.getByTestId("msc-teaser");
     expect(box.tagName).toBe("A");
     expect(box).toHaveAttribute("href", "/radar/spark/settlements");
     expect(box).toContainElement(figure);
     expect(box).toHaveTextContent(/full cycle/);
-    expect(screen.getByText("OEA calculation, not the on-chain GovOps spell")).toBeInTheDocument();
+    expect(screen.getByText(/OEA calculation, not the on-chain GovOps spell/)).toBeInTheDocument();
   });
 
-  it("draws a cumulative area chart beside the box that links to the same page", async () => {
+  it("draws a stacked gross-revenue chart beside the box that links to the same page", async () => {
     render(<ActorSettlementTeaser slug="spark" name="Spark" />);
-    const chart = await screen.findByRole("link", { name: /Spark: \$110 to Sky over 2 cycles, cumulative/ });
+    const chart = await screen.findByRole("link", { name: /Spark: \$272 gross revenue over 2 cycles/ });
     expect(chart).toHaveAttribute("href", "/radar/spark/settlements");
-    expect(chart.querySelector(".msc-cum-area")).toBeTruthy();
-    expect(chart.querySelector(".msc-cum-line")).toBeTruthy();
-    // One hover column per month, each carrying that month's running total.
-    const cols = [...chart.querySelectorAll(".msc-cum-col")];
-    expect(cols.map((c) => c.querySelector(".msc-cum-pill")?.textContent)).toEqual([
-      "Jun 2026 · $10 cumulative ($10 that month)",
-      "Jul 2026 · $110 cumulative ($100 that month)",
+    // One column per month, stacked to Sky then kept (no demand-side in the fixture).
+    const cols = [...chart.querySelectorAll(".msc-gross-col")];
+    expect(cols.map((c) => [...c.querySelectorAll("rect[data-series]")].map((r) => r.getAttribute("data-series")))).toEqual([
+      ["sky", "kept"],
+      ["sky", "kept"],
     ]);
+    const jul = cols[1].querySelectorAll("rect[data-series]");
+    expect(parseFloat(jul[1].getAttribute("y")!)).toBeLessThan(parseFloat(jul[0].getAttribute("y")!));
+    expect(cols.map((c) => c.querySelector(".msc-gross-pill")?.textContent)).toEqual([
+      "Jun 2026 · $22 gross",
+      "Jul 2026 · $250 gross",
+    ]);
+    expect(cols[1].querySelectorAll(".msc-gross-pill")[1]).toHaveTextContent("to Sky $100 · kept $150 · demand $0");
     expect(chart.compareDocumentPosition(screen.getByTestId("msc-teaser")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("treats the composite-party slug as the prime", async () => {
     render(<ActorSettlementTeaser slug="spark-party" />);
-    await waitFor(() => expect(screen.getByText("$110 to Sky")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("$272 gross revenue")).toBeInTheDocument());
     expect(screen.getByTestId("msc-teaser")).toHaveAttribute("href", "/radar/spark-party/settlements");
   });
 
-  it("shows Keel's latest demand-side total as kept, with no chart, when nothing went to Sky", async () => {
+  it("charts a demand-side-only Prime (Keel) too: its gross revenue is its rewards", async () => {
     render(<ActorSettlementTeaser slug="keel" name="Keel" />);
-    await waitFor(() => expect(screen.getByText("$36,231 kept")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("$36,231 gross revenue")).toBeInTheDocument());
     expect(screen.getByText("Jul 2026")).toBeInTheDocument();
-    expect(screen.queryByText("$0 to Sky")).not.toBeInTheDocument();
-    expect(document.querySelector(".msc-teaser-chart")).toBeNull();
+    const chart = screen.getByRole("link", { name: /Keel: \$36k gross revenue over 1 cycle/ });
+    expect([...chart.querySelectorAll("rect[data-series]")].map((r) => r.getAttribute("data-series"))).toEqual(["demand"]);
     expect(screen.getByTestId("msc-teaser")).toHaveAttribute("href", "/radar/keel/settlements");
   });
 
   it("renders nothing for a slug with no MSC workbooks", async () => {
     const { rerender } = render(<ActorSettlementTeaser slug="spark" />);
-    await screen.findByText("$110 to Sky");
+    await screen.findByText("$272 gross revenue");
     rerender(<ActorSettlementTeaser slug="spark-proxy" />);
     expect(screen.queryByRole("heading", { name: "Monthly settlement" })).not.toBeInTheDocument();
   });

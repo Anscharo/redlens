@@ -177,23 +177,17 @@ export function teaserFigure(report: SettlementReport): { amount: number; suffix
   return { amount: sky, suffix: "to Sky" };
 }
 
-/** One month of a Prime's running To-Sky total — the actor page's
- *  cumulative teaser chart. */
-export interface CumulativeMonth {
-  month: string;
-  sky: number;
-  cumulative: number;
+/** One month of a Prime's gross revenue, split by where it went — the
+ *  actor page's teaser chart. gross = sky + kept + demand (kept can be
+ *  negative: a supply-side loss). */
+export interface GrossMonth extends ThreeWayMonth {
+  gross: number;
 }
 
-/** Running total of what a Prime sent to Sky, in the given (month-sorted)
- *  order. Empty when no month sent anything — a demand-side-only Prime
- *  (Keel) keeps the single-month "kept" teaser instead. */
-export function cumulativeToSky(rows: readonly SettlementReport[]): CumulativeMonth[] {
-  if (!rows.some((r) => Math.abs(r.headline.skyRevenue) >= NEAR_ZERO)) return [];
-  let run = 0;
+export function grossByMonth(rows: readonly SettlementReport[]): GrossMonth[] {
   return rows.map((r) => {
-    run += r.headline.skyRevenue;
-    return { month: r.month, sky: r.headline.skyRevenue, cumulative: run };
+    const t = summaryThreeWay(r);
+    return { ...t, gross: t.sky + t.kept + t.demand };
   });
 }
 

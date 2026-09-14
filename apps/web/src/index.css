@@ -2755,38 +2755,25 @@ a.atlas-annotates:focus-visible {
   height: auto;
   overflow: visible;
 }
-.msc-cum-area {
-  fill: var(--msc-sky);
-  fill-opacity: 0.28;
-}
-.msc-cum-line {
-  fill: none;
-  stroke: var(--msc-sky);
-  stroke-width: 2;
-  stroke-linejoin: round;
-}
-.msc-cum-zero {
+.msc-gross-zero {
   stroke: var(--border);
   stroke-width: 1;
 }
-.msc-cum-dot {
-  fill: var(--msc-sky);
-}
-.msc-cum-axis {
+.msc-gross-axis {
   fill: var(--tan-3);
 }
-.msc-cum-pill {
+.msc-gross-pill {
   fill: var(--tan);
 }
-/* Hovering a month's column shows its figure in place of the caption. */
-.msc-cum-hover {
+/* Hovering a month's column shows its figures in place of the caption. */
+.msc-gross-hover {
   opacity: 0;
   transition: opacity 0.1s;
 }
-.msc-cum-col:hover .msc-cum-hover {
+.msc-gross-col:hover .msc-gross-hover {
   opacity: 1;
 }
-.msc-teaser-chart:has(.msc-cum-col:hover) .msc-cum-caption {
+.msc-teaser-chart:has(.msc-gross-col:hover) .msc-gross-caption {
   opacity: 0;
 }
 @media (max-width: 639px) {

@@ -183,10 +183,10 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "Monthly settlement charts",
-        what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows the running total sent to Sky and a small cumulative chart; a full cycle page charts Sky's share, supply-side kept, and demand-side, plus the demand-side mix and venue AUM.",
+        what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows its gross revenue across every cycle and a small month-by-month chart of where it went; a full cycle page charts Sky's share, supply-side kept, and demand-side, plus the demand-side mix and venue AUM.",
         how: [
           "Open a Prime Agent on Radar (Spark, Grove, Obex, …).",
-          "The Monthly settlement card in the top right shows what the Prime has sent to Sky across every cycle, with a small cumulative area chart beside it (hover a month for its running total); click either to open the charts.",
+          "The Monthly settlement card in the top right shows the Prime's gross revenue across every cycle, with a small stacked chart beside it of each month's revenue split into to Sky, supply-side kept and demand-side (hover a month for its figures); click either to open the charts.",
           "On that page, Sky Forum opens the forum post for the month selected in the charts.",
           "Ask Chat or an MCP client about a month's To Sky / supply-side kept / demand-side — it will say those figures are not from the Atlas.",
           "On the cycle page, click a month in the Summary bars. Primes with several venues have a PnL / AUM toggle.",
