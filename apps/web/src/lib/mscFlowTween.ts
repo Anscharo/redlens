@@ -37,15 +37,19 @@ const flatAgent = (a: FlowAgent): FlowAgent => ({
 
 /** Pair `to`'s items with their `from` twins (or a flat stand-in), then
  *  append `from`'s items that `to` lacks, paired with a flat stand-in of
- *  themselves. Output order is `to`'s, so the settled frame is `to` itself. */
-function pair<T>(from: T[], to: T[], key: (x: T) => string, flat: (x: T) => T): { a: T; b: T }[] {
+ *  themselves. Output order is `to`'s, so the settled frame is `to` itself.
+ *  `alpha` is the pair's opacity at progress k: an entering item fades in,
+ *  a leaving one fades out, one present both months stays opaque — so a
+ *  label never sits on a neighbour's while its bar is still flat. */
+function pair<T>(from: T[], to: T[], key: (x: T) => string, flat: (x: T) => T, k: number): { a: T; b: T; alpha?: number }[] {
   const byKey = new Map(from.map((x) => [key(x), x]));
   const seen = new Set<string>();
-  const out = to.map((b) => {
+  const out: { a: T; b: T; alpha?: number }[] = to.map((b) => {
     seen.add(key(b));
-    return { a: byKey.get(key(b)) ?? flat(b), b };
+    const a = byKey.get(key(b));
+    return a ? { a, b } : { a: flat(b), b, alpha: k };
   });
-  for (const a of from) if (!seen.has(key(a))) out.push({ a, b: flat(a) });
+  for (const a of from) if (!seen.has(key(a))) out.push({ a, b: flat(a), alpha: 1 - k });
   return out;
 }
 
@@ -79,8 +83,8 @@ function tweenAgent(a: FlowAgent, b: FlowAgent, k: number): FlowAgent {
     labelY: mix(a.labelY, b.labelY, k),
     grossPillY: mix(a.grossPillY, b.grossPillY, k),
     grossAnchorY: mix(a.grossAnchorY, b.grossAnchorY, k),
-    inbound: pair(a.inbound, b.inbound, (l) => l.kind, flatLink).map(({ a: la, b: lb }) => tweenLink(la, lb, k)),
-    outbound: pair(a.outbound, b.outbound, (l) => l.kind, flatLink).map(({ a: la, b: lb }) => tweenLink(la, lb, k)),
+    inbound: pair(a.inbound, b.inbound, (l) => l.kind, flatLink, k).map(({ a: la, b: lb }) => tweenLink(la, lb, k)),
+    outbound: pair(a.outbound, b.outbound, (l) => l.kind, flatLink, k).map(({ a: la, b: lb }) => tweenLink(la, lb, k)),
   };
 }
 
@@ -94,26 +98,28 @@ export function tweenFlowLayout(from: FlowLayout, to: FlowLayout, k: number): Fl
   return {
     width: to.width,
     height: to.height,
-    sources: pair(from.sources, to.sources, (s) => s.kind, flatSource).map(({ a, b }) => ({
+    sources: pair(from.sources, to.sources, (s) => s.kind, flatSource, k).map(({ a, b, alpha }) => ({
       ...b,
+      alpha,
       value: mix(a.value, b.value, k),
       y: mix(a.y, b.y, k),
       h: mix(a.h, b.h, k),
       labelY: mix(a.labelY, b.labelY, k),
     })),
-    agents: pair(from.agents, to.agents, (a) => a.prime, flatAgent).map(({ a, b }) => tweenAgent(a, b, k)),
+    agents: pair(from.agents, to.agents, (a) => a.prime, flatAgent, k).map(({ a, b, alpha }) => ({ ...tweenAgent(a, b, k), alpha })),
     sky: {
       x: to.sky.x,
       y: mix(from.sky.y, to.sky.y, k),
       h: mix(from.sky.h, to.sky.h, k),
       total: mix(from.sky.total, to.sky.total, k),
-      segments: pair(from.sky.segments, to.sky.segments, segKey, (s) => ({ ...s, h: 0 })).map(({ a, b }) => ({
+      segments: pair(from.sky.segments, to.sky.segments, segKey, (s) => ({ ...s, h: 0 }), k).map(({ a, b }) => ({
         ...b,
         y: mix(a.y, b.y, k),
         h: mix(a.h, b.h, k),
       })),
-      shares: pair(from.sky.shares, to.sky.shares, (s) => s.prime, flatShare).map(({ a, b }) => ({
+      shares: pair(from.sky.shares, to.sky.shares, (s) => s.prime, flatShare, k).map(({ a, b, alpha }) => ({
         ...b,
+        alpha,
         value: mix(a.value, b.value, k),
         y: mix(a.y, b.y, k),
         h: mix(a.h, b.h, k),

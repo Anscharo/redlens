@@ -116,7 +116,14 @@ export interface FlowLink {
   figureY: number | null;
 }
 
-export interface FlowSource {
+/** Set only mid-transition (mscFlowTween.ts): an item entering or leaving
+ *  the chart fades as it grows or shrinks, so its label never sits on a
+ *  neighbour's. Absent (fully opaque) on a settled layout. */
+export interface Fading {
+  alpha?: number;
+}
+
+export interface FlowSource extends Fading {
   kind: SliceKind;
   value: number;
   x: number;
@@ -125,7 +132,7 @@ export interface FlowSource {
   labelY: number;
 }
 
-export interface FlowAgent {
+export interface FlowAgent extends Fading {
   prime: string;
   x: number;
   y: number;
@@ -147,7 +154,7 @@ export interface FlowAgent {
   grossAnchorY: number;
 }
 
-export interface FlowSkyShare {
+export interface FlowSkyShare extends Fading {
   prime: string;
   value: number;
   y: number;

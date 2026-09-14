@@ -55,6 +55,9 @@ describe("tweenFlowLayout", () => {
     const target = july.agents.find((a) => a.prime === "grove")!;
     expect(grove.h).toBeCloseTo(target.h * 0.25);
     expect(grove.y).toBeCloseTo(target.y);
+    // Fading in with its bar; the Prime that stays is left opaque.
+    expect(grove.alpha).toBeCloseTo(0.25);
+    expect(early.agents.find((a) => a.prime === "spark")!.alpha).toBeUndefined();
     for (const l of grove.inbound) {
       const t = target.inbound.find((x) => x.kind === l.kind)!;
       expect(l.geom.t).toBeCloseTo(t.geom.t * 0.25);
@@ -69,6 +72,8 @@ describe("tweenFlowLayout", () => {
     const was = july.agents.find((a) => a.prime === "grove")!;
     expect(grove.h).toBeCloseTo(was.h * 0.25);
     expect(grove.outbound[0].geom.t).toBeCloseTo(was.outbound[0].geom.t * 0.25);
+    expect(grove.alpha).toBeCloseTo(0.25);
+    expect(late.sky.shares.find((s) => s.prime === "grove")!.alpha).toBeCloseTo(0.25);
     // A source only that Prime fed thins out the same way.
     expect(late.sources.map((s) => s.kind)).toEqual(june.sources.map((s) => s.kind));
   });

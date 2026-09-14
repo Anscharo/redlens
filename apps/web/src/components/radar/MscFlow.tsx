@@ -50,7 +50,7 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
             {HEADERS.sky}
           </text>
           {layout.sources.map((s) => (
-            <g key={s.kind} className="msc-flow-source" data-kind={s.kind}>
+            <g key={s.kind} className="msc-flow-source" data-kind={s.kind} style={{ opacity: s.alpha }}>
               <rect x={s.x} y={s.y} width={NODE_W} height={s.h} className={`msc-ring-${s.kind}`} />
               <text x={s.x - 12} y={s.labelY - 10} textAnchor="end" fontSize={44} className="msc-ring-label">
                 {SOURCE_LABEL[s.kind]}
@@ -70,7 +70,7 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
             {centerFigure}
           </text>
           {sky.shares.map((sh) => (
-            <g key={sh.prime} className="msc-ring-mark" data-mark={markId(sh.prime, "share")}>
+            <g key={sh.prime} className="msc-ring-mark" data-mark={markId(sh.prime, "share")} style={{ opacity: sh.alpha }}>
               {sky.segments
                 .filter((seg) => seg.prime === sh.prime)
                 .map((seg) => (

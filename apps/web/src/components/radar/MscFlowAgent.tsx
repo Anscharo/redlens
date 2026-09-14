@@ -23,7 +23,7 @@ function LinkFigure({ l }: { l: FlowLink }) {
 export function FlowAgentGroup({ agent, flow, label, bandColor, to, month }: OverviewPrime & { agent: FlowAgent; month: string }) {
   const p = agent.prime;
   const group = (
-    <g className="msc-ring-prime" data-prime={p}>
+    <g className="msc-ring-prime" data-prime={p} style={{ opacity: agent.alpha }}>
       {agent.inbound.map((l) => (
         <g key={l.kind} className="msc-ring-mark" data-mark={markId(p, l.kind)}>
           <path d={l.path} className={`msc-ring-slice msc-ring-${l.kind}`} />
