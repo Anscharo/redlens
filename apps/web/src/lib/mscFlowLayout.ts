@@ -58,9 +58,13 @@ const AMOUNT_ROOM = textWidth(" | $00.00M", AMOUNT_FONT, AMOUNT_CHAR_PX);
  *  as the widest label needs), Primes, Sky (its per-Prime name + figure in
  *  the gutter to its right). */
 export const LEFT_X = Math.max(...Object.values(SOURCE_LABEL).map((l) => textWidth(l, SOURCE_FONT, SOURCE_CHAR_PX))) + AMOUNT_ROOM + 24;
-/** Sky's bar sits near the right edge; its per-Prime shares are named by
- *  their hover pills, not in a gutter. */
-const RIGHT_GUTTER = 40;
+/** Sky's bar sits near the right edge, with its label — "To Sky | $15.86M",
+ *  54px, left-aligned to the bar's own edge — running into a gutter sized
+ *  for it. Its per-Prime shares are named by their hover pills. */
+const SKY_LABEL_ROOM =
+  textWidth("To Sky", "54px 'Inter', system-ui, sans-serif", 29.5) +
+  textWidth(" | $00.00M", "54px 'Source Code Pro', 'Courier New', monospace", 32.5);
+const RIGHT_GUTTER = SKY_LABEL_ROOM + 24 - NODE_W;
 export const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
 /** The Prime column sits 3/5 of the way across the ribbon span: the left
  *  half carries up to seven sources fanning into every Prime, the right

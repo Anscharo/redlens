@@ -61,7 +61,7 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
           {/* Sky: one bar, split by Prime and by type — the same "To Sky"
               name-then-figure treatment as the orbit's pie. The Primes are
               not named here again; each share's hover pill says whose. */}
-          <text x={sky.x + NODE_W} y={sky.y - 24} textAnchor="end" fontSize={54} className="msc-ring-label">
+          <text x={sky.x} y={sky.y - 24} textAnchor="start" fontSize={54} className="msc-ring-label">
             To Sky
             <tspan className="msc-ring-sublabel mono"> | {centerFigure}</tspan>
           </text>
