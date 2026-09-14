@@ -267,17 +267,16 @@ describe("demand-side cycles", () => {
     expect(hasVenueAum(keel)).toBe(false);
   });
 
-  it("keeps the largest AUM venues, ordered by name so the list holds still across months, and folds the tail into Other", () => {
-    // Values run against the names: the largest are Z, Y, X, W.
+  it("keeps the largest AUM venues, largest first, and folds the tail into Other", () => {
     const many = Array.from({ length: 15 }, (_, i) => ({
       id: `v${i}`,
-      label: String.fromCharCode(90 - i),
+      label: `V${i}`,
       synthetic: false,
       valueEom: 15 - i,
     }));
     const out = collapseAum(many, 4);
     expect(out).toHaveLength(5);
-    expect(out.slice(0, 4).map((v) => v.label)).toEqual(["W", "X", "Y", "Z"]);
+    expect(out.slice(0, 4).map((v) => v.id)).toEqual(["v0", "v1", "v2", "v3"]);
     expect(out[4]!.label).toMatch(/Other venues \(11\)/);
     expect(out[4]!.valueEom).toBe(many.slice(4).reduce((n, v) => n + v.valueEom, 0));
   });

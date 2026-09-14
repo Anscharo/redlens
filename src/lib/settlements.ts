@@ -280,12 +280,8 @@ export function collapseAum(
     }))
     .filter((v) => Math.abs(v.valueEom) >= minAbs)
     .sort((a, b) => Math.abs(b.valueEom) - Math.abs(a.valueEom));
-  // The largest make the cut; the rows shown are ordered by NAME, which
-  // holds still from month to month so a change reads as a bar moving,
-  // not the list reshuffling. Other stays last.
-  const byName = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label);
-  if (kept.length <= topN) return kept.sort(byName);
-  const head = kept.slice(0, topN).sort(byName);
+  if (kept.length <= topN) return kept;
+  const head = kept.slice(0, topN);
   const tail = kept.slice(topN);
   return [
     ...head,
