@@ -29,7 +29,8 @@ import { textWidth } from "./textWidth";
  *  `meet` scaling is height-bound and the drawing runs the card's full
  *  width. Type sizes are set for that scale (roughly half on screen). */
 export const WIDTH = 3000;
-export const NODE_W = 18;
+/** Source and Sky bars: ~6px on screen at the card's usual render scale. */
+export const NODE_W = 25;
 /** The Prime column's bars are the chart's "islands" — wider than the
  *  source and Sky bars so they read as the middle stage. */
 export const AGENT_W = 40;
