@@ -85,11 +85,6 @@ export function ActorSettlements({ slug, name }: Props) {
           </>
         )}
       </p>
-      <SettlementBars
-        months={reports.map(summaryThreeWay)}
-        selected={month}
-        onSelect={selectMonth}
-      />
       <MscHeadline
         eco={{
           sky: report.headline.skyRevenue,
@@ -100,6 +95,11 @@ export function ActorSettlements({ slug, name }: Props) {
         }}
         labels={{ kept: "Supply-side kept", demand: "Demand-side" }}
         identity={{ label: name, color }}
+      />
+      <SettlementBars
+        months={reports.map(summaryThreeWay)}
+        selected={month}
+        onSelect={selectMonth}
       />
       {gap > 1 && (
         <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
