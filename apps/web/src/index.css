@@ -2903,7 +2903,9 @@ a.atlas-annotates:focus-visible {
 }
 .msc-aum-row {
   display: grid;
-  grid-template-columns: minmax(0, 14rem) 1fr 4.5rem;
+  /* The label column fits all but the handful of longest venue names (60+
+     characters at this size); those still truncate with their title. */
+  grid-template-columns: minmax(0, 26rem) 1fr 4.5rem;
   gap: 10px;
   align-items: center;
 }
