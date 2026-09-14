@@ -153,6 +153,8 @@ describe("ActorSettlements", () => {
     // Prime-side labels drop the ecosystem card's "by Primes" qualifier.
     expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
     expect(screen.queryByText("Supply-side kept by Primes")).not.toBeInTheDocument();
+    // The card is headed by the settlement month, not the Prime's name.
+    expect(container.querySelector(".msc-card")).toHaveTextContent(/^Jul 2026/);
     // The identity swatch is the roster color the overview uses (spark is
     // first in PRIME_ORDER); the Sankey's Prime bar is supply-side green.
     const swatch = container.querySelector(".msc-identity-swatch") as HTMLElement;

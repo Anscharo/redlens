@@ -93,8 +93,9 @@ export function ActorSettlements({ slug, name }: Props) {
           kept: supplyKept(report),
           demand: demandSideRevenue(report.headline),
         }}
+        month={month}
         labels={{ kept: "Supply-side kept", demand: "Demand-side" }}
-        identity={{ label: name, color }}
+        identity={{ color }}
       />
       {/* Summary and demand-side mix side by side; they stack on a narrow page. */}
       <div className="flex flex-wrap gap-x-10 items-start">

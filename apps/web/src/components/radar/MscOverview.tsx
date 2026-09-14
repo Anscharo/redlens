@@ -116,7 +116,7 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
           Source workbooks
         </a>
       </p>
-      <MscHeadline eco={eco} />
+      <MscHeadline eco={eco} month={month} />
       <PrimeHoverStyles primes={stack.primes} />
       {/* The timeseries card sets the row's height; the ring card stretches
           to match and its chart fills whatever is left under the title and

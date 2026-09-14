@@ -1,4 +1,4 @@
-import { formatUsd } from "../../lib/settlements";
+import { formatMonth, formatUsd } from "../../lib/settlements";
 
 /** The five figures the card shows — an ecosystem month's (EcosystemThreeWay
  *  satisfies this) or one Prime's. */
@@ -12,13 +12,15 @@ export interface MscFigures {
 
 interface Props {
   eco: MscFigures;
+  /** The settlement month these figures are for (YYYY-MM), named at the
+   *  head of the card so the numbers are never read as a running total. */
+  month: string;
   /** The two prime-side labels: the ecosystem card says "by Primes" /
    *  "to Primes"; a Prime's own page drops the qualifier. */
   labels?: { kept: string; demand: string };
-  /** The Prime whose figures these are, with its identity color — the same
-   *  color as its ring rim and timeseries layer on the overview and its bar
-   *  on the venue Sankey below. */
-  identity?: { label: string; color: string };
+  /** On a Prime's page, its identity color as a swatch before the month —
+   *  the same color as its ring rim and timeseries layer on the overview. */
+  identity?: { color: string };
 }
 
 function Figure({ label, value, muted }: { label: string; value: number; muted?: boolean }) {
@@ -49,18 +51,14 @@ function Op({ children }: { children: string }) {
  *  Prime's on its settlement page (same component, so the two pages can't
  *  drift). To Sky is shown as the equation it is — cost of funds + Sky
  *  Direct Exposure — so nobody adds the two components on top of it. */
-export function MscHeadline({ eco, labels, identity }: Props) {
+export function MscHeadline({ eco, month, labels, identity }: Props) {
   return (
     <div className="msc-card rounded p-4 mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 text-sm">
-      {identity && (
-        <>
-          <div className="flex items-center gap-2 self-center" style={{ color: "var(--tan)" }}>
-            <span className="msc-identity-swatch" style={{ background: identity.color }} aria-hidden="true" />
-            {identity.label}
-          </div>
-          <span className="msc-headline-divider" aria-hidden="true" />
-        </>
-      )}
+      <div className="flex items-center gap-2 self-center mono" style={{ color: "var(--tan)" }}>
+        {identity && <span className="msc-identity-swatch" style={{ background: identity.color }} aria-hidden="true" />}
+        {formatMonth(month)}
+      </div>
+      <span className="msc-headline-divider" aria-hidden="true" />
       <div className="flex flex-wrap items-end gap-x-3 gap-y-2" aria-label="To Sky equals cost of funds plus Sky Direct Exposure">
         <Figure label="To Sky" value={eco.sky} />
         <Op>=</Op>
