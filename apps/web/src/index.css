@@ -138,14 +138,14 @@
   --msc-loss: #c67267; /* a loss, always STRIPED — the theme's accent red */
   /* MSC prime identity colors (timeseries stacks, pie rims, the Prime's
      bar on the flow chart and its own settlement page): teal, slate,
-     violet, plum, light grey, rose — six slots, one per Prime that has
+     light grey, violet, plum, rose — six slots, one per Prime that has
      published, clear of the flow colors (blue, green, orange, brown) and
      validated as an adjacent set (2026-09-11). */
   --msc-prime-1: #009494;
   --msc-prime-2: #6c7680;
-  --msc-prime-3: #b191ea;
-  --msc-prime-4: #7e4d8a;
-  --msc-prime-5: #cac2bd;
+  --msc-prime-3: #cac2bd;
+  --msc-prime-4: #b191ea;
+  --msc-prime-5: #7e4d8a;
   --msc-prime-6: #fab2cd;
 }
 
@@ -318,9 +318,9 @@
   --msc-loss: #b91c1c; /* a loss, always STRIPED — the theme's accent red */
   --msc-prime-1: #006364;
   --msc-prime-2: #454e58;
-  --msc-prime-3: #6c44a4;
-  --msc-prime-4: #552660;
-  --msc-prime-5: #8c857f;
+  --msc-prime-3: #8c857f;
+  --msc-prime-4: #6c44a4;
+  --msc-prime-5: #552660;
   --msc-prime-6: #cb7196;
 }
 
