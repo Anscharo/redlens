@@ -186,19 +186,23 @@ describe("PreviewHome private repo form", () => {
     expect(screen.getByRole("button", { name: "Preview private repo" })).toBeDisabled();
   });
 
-  it("notes that a pasted PR URL will compare against canonical main", () => {
+  it("notes that a pasted PR URL will compare against its own base branch", () => {
     render(<PreviewHome />);
     fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), {
       target: { value: "https://github.com/acme/secret-atlas/pull/42" },
     });
-    expect(screen.getByText("will compare with sky-ecosystem/next-gen-atlas:main branch")).toBeInTheDocument();
+    expect(screen.getByText("will compare with the pull request's base branch")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Preview private repo" })).not.toBeDisabled();
   });
 
-  it("does not show the compare note for a branch paste", () => {
+  it("notes that a pasted branch will compare against the closest shared point with sky main or the fork's default branch", () => {
     render(<PreviewHome />);
     fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: "acme/secret-atlas@main" } });
-    expect(screen.queryByText(/will compare with sky-ecosystem/)).toBeNull();
+    expect(
+      screen.getByText(
+        "will compare with the closest shared point with sky-ecosystem/next-gen-atlas:main or this fork's own default branch",
+      ),
+    ).toBeInTheDocument();
   });
 
   // (input, expected preview-id) — covers every accepted private-input shape.

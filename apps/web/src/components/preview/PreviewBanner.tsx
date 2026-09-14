@@ -1,26 +1,12 @@
 import { useEffect, useState } from "react";
+import { useLocation, useSearch } from "wouter";
 import { useDataSource } from "../../lib/dataSource";
+import { usePreviewDiff } from "../../lib/previewDiff";
+import { baseLine, baseSwitch, type PreviewMeta } from "../../lib/previewMetaCopy";
+import { Link } from "../Link";
 
 // Rendered by the App shell when a preview data source is active. Reads the
 // bundle's meta.json for the PR/branch label + author + state + GitHub source.
-interface PreviewMeta {
-  sha: string;
-  repo: string;
-  ref: string;
-  kind: string;
-  prNumber?: number;
-  prTitle?: string;
-  prAuthor?: string;
-  prState?: string;
-  forkOwner?: string;
-  private?: boolean;
-  trustTier?: string;
-  aheadBy?: number;
-  behindBy?: number;
-  newAddresses?: number;
-  addressCheckFailed?: boolean;
-}
-
 const CANONICAL_REPO = "sky-ecosystem/next-gen-atlas";
 
 // Link back to the original source on GitHub (PR / branch / commit).
@@ -46,6 +32,9 @@ function sourceLabel(m: PreviewMeta): string {
 
 export function PreviewBanner() {
   const { base, preview } = useDataSource();
+  const { activeBase } = usePreviewDiff();
+  const [location] = useLocation();
+  const search = useSearch();
   const [meta, setMeta] = useState<PreviewMeta | null>(null);
   useEffect(() => {
     if (!preview) return;
@@ -66,6 +55,9 @@ export function PreviewBanner() {
   const label = meta?.prTitle ? `${meta.ref} — ${meta.prTitle}` : meta?.ref ?? preview.id;
   const src = meta ? sourceUrl(meta) : null;
   const srcLabel = meta ? sourceLabel(meta) : "view commit ↗";
+  const line = meta ? baseLine(meta, activeBase ?? null) : "";
+  // wouter's useSearch() strips the leading "?"; URLSearchParams doesn't care.
+  const switchLink = meta ? baseSwitch(meta, activeBase ?? null, search) : null;
   return (
     <header
       className="flex items-center gap-3 px-4 py-2 text-sm"
@@ -87,14 +79,20 @@ export function PreviewBanner() {
         ) : (
           <strong>{label}</strong>
         )}
-        {isFork ? ` · by ${meta!.forkOwner ?? meta!.repo.split("/")[0]}` : ""}
+        {isFork ? ` · by ${meta!.forkOwner ?? meta!.repo!.split("/")[0]}` : ""}
         {meta?.prAuthor ? ` · proposed by ${meta.prAuthor}` : ""}
         {meta?.prState && meta.prState !== "open" ? ` · ${meta.prState}` : ""}
-        {isFork && meta!.behindBy === 0 && meta!.aheadBy === 0
-          ? " · up to date with sky-ecosystem/next-gen-atlas:main"
-          : ""}
-        {isFork && (meta!.behindBy ?? 0) > 0 ? ` · ${meta!.behindBy} commits behind main` : ""}
+        {line ? ` · ${line}` : ""}
       </span>
+      {switchLink && (
+        // Compose with the current path (relative to the router base) so the
+        // switch never navigates away from wherever the user is — a Link's
+        // href is router.base + `to`, which would otherwise drop the /atlas
+        // (or /reports/…) segment and land back on the bare preview root.
+        <Link to={`${location}${switchLink.href}`} className="mono text-xs" style={{ color: "var(--accent)" }}>
+          {switchLink.label}
+        </Link>
+      )}
       {meta?.trustTier === "unknown" && (
         <span className="mono text-xs" style={{ color: "var(--red)" }}>
           author has no PRs accepted into the atlas

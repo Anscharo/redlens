@@ -13,6 +13,7 @@ import { config } from "../config.ts";
 import { CANONICAL_REPO, type Resolved } from "./resolve.ts";
 import { rebuildFromDisk, getIndexes, setIndexes, type AtlasNode } from "../retrieval/indexes.ts";
 import { snapshotFromSrcDir } from "./snapshot.ts";
+import { __resetForkPointCacheForTest } from "./fork-point.ts";
 
 const tmpDirs: string[] = [];
 function mkTmp(): string {
@@ -84,6 +85,7 @@ test("baseMeta maps the resolved ref onto PreviewMeta, incl. headCommitAt from t
     kind: "pr",
     ref: "pull-211",
     pr: { number: 211, title: "History tab", author: "anscharo", state: "open" },
+    prBase: { repo: "sky-ecosystem/next-gen-atlas", ref: "develop", sha: "tipsha" },
     date: "2026-07-29T08:29:55Z",
   };
   const m = baseMeta(resolved, "deadbeef", 42, 0);
@@ -95,11 +97,18 @@ test("baseMeta maps the resolved ref onto PreviewMeta, incl. headCommitAt from t
   expect(m.prTitle).toBe("History tab");
   expect(m.docCount).toBe(42);
   expect(typeof m.resolvedAt).toBe("string");
+  // Only repo/ref persist (never `sha` — a pinned-sha rebuild re-resolves the tip).
+  expect(m.prBase).toEqual({ repo: "sky-ecosystem/next-gen-atlas", ref: "develop" });
 });
 
 test("baseMeta leaves headCommitAt undefined when GitHub returned no date", () => {
   const resolved: Resolved = { repo: "o/r", sha: "abc", kind: "branch", ref: "feat/x" };
   expect(baseMeta(resolved, "abc", 1, 0).headCommitAt).toBeUndefined();
+});
+
+test("baseMeta leaves prBase undefined when the resolved ref carries none (a plain branch preview)", () => {
+  const resolved: Resolved = { repo: "o/r", sha: "abc", kind: "branch", ref: "feat/x" };
+  expect(baseMeta(resolved, "abc", 1, 0).prBase).toBeUndefined();
 });
 
 // ---------------------------------------------------------------------------
@@ -207,7 +216,7 @@ test("private build: a fresh sha over the per-repo daily quota fails as quota-ex
 test("public canonical build: forkGate path, service token, no private flag", async () => {
   const sha = "pub00001";
   builtShas.push(sha);
-  config.githubToken = ""; // empty → skips the fetchPreviewFiles compare (no network)
+  config.githubToken = ""; // empty → startCandidates short-circuits to the live-main stub (no network)
   const resolved: Resolved = { repo: CANONICAL_REPO, sha, kind: "branch", ref: "develop", private: false };
   let installCalled = false;
   const ev = await __runBuildForTest(resolved, {
@@ -328,11 +337,14 @@ test("fork build: forkOwner/aheadBy/behindBy land in meta, and diff.json capture
   // told apart rather than rendered as one document being edited away.
   const newId = "99999999-8888-7777-6666-555555555555";
 
-  config.githubToken = "test-token"; // non-empty → wantCompare true (no priv, no empty-token short-circuit)
+  config.githubToken = "test-token"; // non-empty → startCandidates attempts a real compare (no priv, no empty-token short-circuit)
   const origFetch = globalThis.fetch;
   globalThis.fetch = (async (url: string | URL) => {
     const u = String(url);
-    if (u.includes("/compare/main...")) {
+    // The sky candidate's compare base is the SERVED atlas commit (liveCommit,
+    // from rebuildFromDisk() below), not a literal "main" — this fork branch
+    // has no prBase/defaultBranch, so it's the only compare made.
+    if (u.includes("/compare/")) {
       // merge_base_commit is what gates the doc-level diff block; without it
       // runBuild logs "no merge base" and writes no diff.json at all.
       return Response.json({
@@ -416,7 +428,7 @@ test("fork build: forkOwner/aheadBy/behindBy land in meta, and diff.json capture
 // Filenames stopped identifying documents when the atlas consolidated ~11k
 // document.md files into ~16 composed ones (upstream #294).
 //
-// This drives the real wiring — fetchPreviewFiles (via a stubbed fetch),
+// This drives the real wiring — resolveCandidates (via a stubbed fetch),
 // snapshotFromDocsJson over the built bundle, loadBaseSnapshot through the
 // injected fetcher, and diff.json/patches.json on disk.
 // ---------------------------------------------------------------------------
@@ -436,22 +448,44 @@ function spawnWithDocs(nodes: Record<string, unknown>): BuildDeps["spawnBuild"] 
   };
 }
 
-/** Stub GitHub so fetchPreviewFiles resolves with (or without) a merge base. */
+/** Stub GitHub so the sky candidate's compare resolves with (or without) a merge base. */
 function stubGitHub(mergeBase: string | null): void {
+  // Every caller below resolves a plain canonical branch (no prBase, no
+  // defaultBranch), so the ONLY call made is the sky candidate's own compare —
+  // everything else 404s harmlessly.
   // @ts-expect-error stub
   globalThis.fetch = (url: string) => {
     const u = String(url);
-    const body =
-      u.includes("/compare/") ? (mergeBase ? { merge_base_commit: { sha: mergeBase } } : {})
-      : u.includes("/files") ? []
-      : { base: { ref: "main" } };
+    const body = mergeBase ? { merge_base_commit: { sha: mergeBase } } : {};
+    if (!u.includes("/compare/")) return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve(null) } as Response);
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
   };
 }
 
-test("private build writes diff.json + patches.json vs live main (no GitHub compare is made)", async () => {
-  const sha = "privdiff1";
+// A private preview DOES compare now (startCandidates → resolveCandidates →
+// the private path's commit-list walk in fork-point.ts), so these two replace
+// the old single "no GitHub compare is made" test — split on whether that walk
+// finds a fork point, each with a deterministic stub (no real network call).
+const LIVE_SHA = "live00000000000000000000000000000000000f";
+
+function stubForkPointWalk(opts: { found: boolean; aheadBy?: number; behindBy?: number }): void {
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.includes("/commits?sha=")) return Response.json(opts.found ? [{ sha: LIVE_SHA }] : []);
+    if (u.includes("/compare/")) {
+      // The canonical-side compare (behindBy) and the repo-side compare
+      // (aheadBy) share this stub — tell them apart by which repo's URL it is.
+      const isCanonicalSide = u.includes(`/repos/${CANONICAL_REPO}/compare/`);
+      return Response.json({ ahead_by: isCanonicalSide ? (opts.behindBy ?? 0) : (opts.aheadBy ?? 0) });
+    }
+    return new Response("not found", { status: 404 });
+  }) as unknown as typeof fetch;
+}
+
+test("private build: fork point found → bases.auto is sky, diff.sky.json/diff.json identical, aheadBy/behindBy on meta", async () => {
+  const sha = "privdiffA";
   builtShas.push(sha);
+  __resetForkPointCacheForTest();
 
   let prevIndexes: unknown;
   try {
@@ -461,8 +495,13 @@ test("private build writes diff.json + patches.json vs live main (no GitHub comp
   }
   setIndexes({
     docMap: new Map([[U(1), { id: U(1), doc_no: "A.1", title: "One", content: "live" }]]),
-    meta: { atlasCommit: "live-sha" },
+    meta: { atlasCommit: LIVE_SHA },
   } as never);
+
+  const origFetch = globalThis.fetch;
+  stubForkPointWalk({ found: true, aheadBy: 4, behindBy: 1 });
+  const origWarn = console.warn;
+  console.warn = () => {};
 
   let fetchCalls = 0;
   try {
@@ -483,18 +522,76 @@ test("private build writes diff.json + patches.json vs live main (no GitHub comp
     });
     expect(ev.phase).toBe("ready");
 
-    // Only the head tree is ever fetched — private previews never compare, so
-    // there is no base tree to fetch (base defaults to live main).
+    // The found fork point IS the live commit, so loadBaseSnapshot's
+    // live-shortcut fires — only the head tree is ever fetched via the
+    // injected fetchAndExtract (the fork-point walk itself uses raw fetch).
     expect(fetchCalls).toBe(1);
+
+    const meta = readMeta(sha);
+    expect(meta?.bases?.auto).toBe("sky");
+    expect(meta?.aheadBy).toBe(4);
+    expect(meta?.behindBy).toBe(1);
 
     const diff = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.json"), "utf8"));
     expect(diff.changed).toEqual([U(1)]);
     expect(diff.added).toEqual([U(3)]);
+    const diffSky = fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.sky.json"), "utf8");
+    expect(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.json"), "utf8")).toBe(diffSky);
 
     const patches = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "patches.json"), "utf8"));
     expect(patches[U(1)]).toBeDefined();
     expect(patches[U(1)].some((l: [string, ...unknown[]]) => l[0] === "-" || l[0] === "+" || l[0] === "~")).toBe(true);
   } finally {
+    globalThis.fetch = origFetch;
+    console.warn = origWarn;
+    setIndexes(prevIndexes as never);
+  }
+});
+
+test("private build: no fork point found → bases.auto is live-main, warns 'no fork point found'", async () => {
+  const sha = "privdiffB";
+  builtShas.push(sha);
+  __resetForkPointCacheForTest();
+
+  let prevIndexes: unknown;
+  try {
+    prevIndexes = getIndexes();
+  } catch {
+    prevIndexes = undefined;
+  }
+  setIndexes({
+    docMap: new Map([[U(1), { id: U(1), doc_no: "A.1", title: "One", content: "live" }]]),
+    meta: { atlasCommit: "live-sha-b" },
+  } as never);
+
+  const origFetch = globalThis.fetch;
+  stubForkPointWalk({ found: false });
+  const origWarn = console.warn;
+  const warnings: string[] = [];
+  console.warn = (msg: string) => warnings.push(String(msg));
+
+  try {
+    const ev = await __runBuildForTest(privateResolved(sha), {
+      isBlockedSha: async () => false,
+      isKnownSha: async () => false,
+      previewsTodayCountForRepo: async () => 0,
+      installationToken: async () => "tok",
+      fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 1 }),
+      spawnBuild: spawnWithDocs({
+        [U(3)]: { id: U(3), doc_no: "A.3", title: "Three", content: "brand new", contentHash: "h3" },
+      }),
+      upsertPreview: async () => {},
+    });
+    expect(ev.phase).toBe("ready");
+
+    const meta = readMeta(sha);
+    expect(meta?.bases?.auto).toBe("live-main");
+    expect(warnings.some((w) => w.includes("no fork point found"))).toBe(true);
+    expect(fs.existsSync(path.join(previewPaths(sha).outDir, "diff.json"))).toBe(true);
+    expect(fs.existsSync(path.join(previewPaths(sha).outDir, "diff.sky.json"))).toBe(false);
+  } finally {
+    globalThis.fetch = origFetch;
+    console.warn = origWarn;
     setIndexes(prevIndexes as never);
   }
 });
@@ -708,6 +805,241 @@ test("doc-level diff: indexes not loaded → artifacts skipped, build still read
     expect(fs.existsSync(path.join(previewPaths(sha).outDir, "diff.json"))).toBe(false);
     expect(warnings.some((w) => w.includes("diff artifacts skipped"))).toBe(true);
   } finally {
+    console.warn = origWarn;
+    setIndexes(prevIndexes as never);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// A PR whose declared base is NOT sky main: bases.auto is "repo" (no switch
+// compare needed — pickAuto forces "repo" for any PR whenever one resolved),
+// the repo pair's REFERENCE is its own base (not live main, see
+// diff-artifacts.ts's header) so upstream drift never leaks into the rendered
+// patch, drift is measured for the repo candidate, and the merge-base tarball
+// is fetched from the HEAD repo while the drift TIP tarball is fetched from
+// the base's own repo (they differ here on purpose: this PR's head is a fork).
+// ---------------------------------------------------------------------------
+
+test("PR against a non-main base: bases.auto is repo, reference is the base (no upstream drift in the patch), drift present, base fetched from the head repo", async () => {
+  const sha = "prnonmain";
+  builtShas.push(sha);
+  config.githubToken = "tok";
+
+  const HEAD_REPO = "someone/next-gen-atlas"; // this PR's head is a fork
+  const REPO_MERGE_BASE = "repo-merge-base-sha";
+  const DEVELOP_TIP = "develop-tip-sha";
+  const LIVE_ATLAS_COMMIT = "live-sha-pr";
+
+  // The PR's actual base (`develop`, not sky main): U(1) exists but this PR
+  // never touches it; U(2) is what the PR actually edits.
+  const repoBaseSrc = mkTmp();
+  fs.mkdirSync(path.join(repoBaseSrc, "content"), { recursive: true });
+  fs.writeFileSync(
+    path.join(repoBaseSrc, "content", "A.0 - Base.md"),
+    [
+      `# A.1 - One [Core]  <!-- UUID: ${U(1)} -->`, "", "shared, untouched by this PR", "",
+      `# A.2 - Two [Core]  <!-- UUID: ${U(2)} -->`, "", "before PR edit", "",
+    ].join("\n"),
+  );
+  const prevMin = process.env.ATLAS_MIN_NODES;
+  process.env.ATLAS_MIN_NODES = "0"; // 2-document fixture, not the real ~11k
+  const baseParsed = snapshotFromSrcDir(repoBaseSrc);
+
+  // Live main: BOTH docs have since diverged independently of this PR — the
+  // exact upstream drift a wrong reference snapshot would leak into the patch.
+  let prevIndexes: unknown;
+  try {
+    prevIndexes = getIndexes();
+  } catch {
+    prevIndexes = undefined;
+  }
+  setIndexes({
+    docMap: new Map([
+      [U(1), { id: U(1), doc_no: "A.1", title: "One", content: "shared, untouched by this PR — UPSTREAM EDIT" }],
+      [U(2), { id: U(2), doc_no: "A.2", title: "Two", content: "LIVE HAS A DIFFERENT UNRELATED EDIT OF TWO" }],
+    ]),
+    meta: { atlasCommit: LIVE_ATLAS_COMMIT },
+  } as never);
+
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    // The sky candidate's own compare (against the served atlas commit) —
+    // no merge base, so sky never resolves; only `repo` is in play.
+    if (u.includes(`/compare/${LIVE_ATLAS_COMMIT}...`)) return Response.json({});
+    // The repo candidate's compare against its declared base (`develop`).
+    if (u.includes("/compare/develop...")) return Response.json({ merge_base_commit: { sha: REPO_MERGE_BASE }, ahead_by: 3, behind_by: 0 });
+    // Base-drift's tip compare: the base branch's CURRENT tip vs served atlas.
+    if (u.includes(`/compare/${DEVELOP_TIP}...`)) return Response.json({ merge_base_commit: { sha: "old-fork-point" }, ahead_by: 3, behind_by: 0 });
+    return new Response("not found", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  // Track write ORDER (meta.json must land after diff.json — bundleReady()
+  // only checks meta.json) and which repo each base tarball fetch used.
+  const writeOrder: string[] = [];
+  const fsMut = fs as unknown as { writeFileSync: typeof fs.writeFileSync; copyFileSync: typeof fs.copyFileSync };
+  const origWriteFileSync = fsMut.writeFileSync;
+  const origCopyFileSync = fsMut.copyFileSync;
+  fsMut.writeFileSync = ((p: fs.PathOrFileDescriptor, data: unknown, opts?: unknown) => {
+    if (String(p).endsWith("meta.json")) writeOrder.push("meta");
+    return (origWriteFileSync as (p: fs.PathOrFileDescriptor, data: unknown, opts?: unknown) => void)(p, data, opts);
+  }) as typeof fs.writeFileSync;
+  fsMut.copyFileSync = ((src: fs.PathLike, dest: fs.PathLike, mode?: number) => {
+    if (String(dest).endsWith("diff.json")) writeOrder.push("diff");
+    return (origCopyFileSync as (src: fs.PathLike, dest: fs.PathLike, mode?: number) => void)(src, dest, mode);
+  }) as typeof fs.copyFileSync;
+
+  let repoBaseFetches = 0;
+  let repoBaseFetchRepo = "";
+  let driftTipFetchRepo = "";
+  const origWarn = console.warn;
+  console.warn = () => {};
+
+  try {
+    const resolved: Resolved = {
+      repo: HEAD_REPO,
+      sha,
+      kind: "pr",
+      ref: "pull-900",
+      pr: { number: 900, title: "t", author: "a", state: "open" },
+      prBase: { repo: CANONICAL_REPO, ref: "develop", sha: DEVELOP_TIP },
+      private: false,
+    };
+    const ev = await __runBuildForTest(resolved, {
+      isBlockedSha: async () => false,
+      isKnownSha: async () => true,
+      forkGate: async () => ({ tier: undefined, count: async () => 0, quota: 10 }),
+      fetchAndExtract: async (repo, s) => {
+        if (s === REPO_MERGE_BASE) {
+          repoBaseFetches += 1;
+          repoBaseFetchRepo = repo;
+          return { srcDir: repoBaseSrc, docCount: 2 };
+        }
+        if (s === DEVELOP_TIP) {
+          driftTipFetchRepo = repo;
+          throw new Error("no fixture for the base-drift tip tree"); // drift's docsDiffer degrades to undefined; drift itself still resolves
+        }
+        return { srcDir: previewPaths(sha).srcDir, docCount: 2 };
+      },
+      spawnBuild: spawnWithDocs({
+        [U(1)]: { id: U(1), doc_no: "A.1", title: "One", content: "shared, untouched by this PR", contentHash: baseParsed.get(U(1))!.contentHash },
+        [U(2)]: { id: U(2), doc_no: "A.2", title: "Two", content: "after PR edit", contentHash: "h2-edited-by-pr" },
+      }),
+      upsertPreview: async () => {},
+    });
+    expect(ev.phase).toBe("ready");
+
+    const meta = readMeta(sha);
+    expect(meta?.bases?.auto).toBe("repo");
+    expect(meta?.bases?.sky).toBeUndefined(); // sky never resolved (no merge base)
+    expect(meta?.bases?.repo?.drift).toBeDefined();
+
+    // Merge-base tarball comes from the HEAD repo (an ancestor of the head
+    // commit, reachable there); the drift tip comes from the BASE's own repo
+    // (its current tip can be ahead of anything the head repo's history has).
+    expect(repoBaseFetchRepo).toBe(HEAD_REPO);
+    expect(driftTipFetchRepo).toBe(CANONICAL_REPO);
+    expect(repoBaseFetches).toBe(1);
+
+    const diffRepo = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.repo.json"), "utf8"));
+    expect(diffRepo.changed).toEqual([U(2)]); // U(1) untouched between base and head — no marker at all
+    expect(diffRepo.added).toEqual([]);
+
+    const patchesRepo = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "patches.repo.json"), "utf8"));
+    expect(patchesRepo[U(1)]).toBeUndefined(); // the upstream-only doc gets no patch
+    expect(patchesRepo[U(2)]).toBeDefined();
+    const rendered = JSON.stringify(patchesRepo[U(2)]);
+    expect(rendered).toContain("before"); // reference = base ("before PR edit"), not live
+    expect(rendered).not.toContain("UNRELATED EDIT"); // live's drift never leaks in
+
+    // diff.json is the `auto` ("repo") pair, copied byte-for-byte.
+    expect(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.json"), "utf8")).toBe(
+      fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.repo.json"), "utf8"),
+    );
+
+    expect(writeOrder.indexOf("diff")).toBeGreaterThanOrEqual(0);
+    expect(writeOrder.indexOf("meta")).toBeGreaterThan(writeOrder.indexOf("diff"));
+  } finally {
+    globalThis.fetch = origFetch;
+    fsMut.writeFileSync = origWriteFileSync;
+    fsMut.copyFileSync = origCopyFileSync;
+    console.warn = origWarn;
+    setIndexes(prevIndexes as never);
+    if (prevMin === undefined) delete process.env.ATLAS_MIN_NODES;
+    else process.env.ATLAS_MIN_NODES = prevMin;
+  }
+});
+
+// The most common production PR shape: a canonical `pull-N` declared against
+// sky main itself. pr-diff-auto.ts's pickAuto collapses this to a single
+// `sky` candidate (no separate `repo` pair, no switch, no drift) so it behaves
+// exactly like today — this is the end-to-end proof of that collapse.
+test("canonical PR against sky main collapses to a single sky candidate: bases.auto is sky, no repo candidate/diff, diff.json equals diff.sky.json", async () => {
+  const sha = "canonicalpr";
+  builtShas.push(sha);
+  config.githubToken = "tok";
+  const LIVE = "live-canonical-pr";
+
+  let prevIndexes: unknown;
+  try {
+    prevIndexes = getIndexes();
+  } catch {
+    prevIndexes = undefined;
+  }
+  setIndexes({
+    docMap: new Map([[U(1), { id: U(1), doc_no: "A.1", title: "One", content: "live" }]]),
+    meta: { atlasCommit: LIVE },
+  } as never);
+
+  const origFetch = globalThis.fetch;
+  // Both the sky candidate's own compare (vs the served atlas commit) and the
+  // repo candidate's compare (vs the PR's declared base, "main") resolve to
+  // the SAME merge base — pinned to LIVE so loadBaseSnapshot's live-shortcut
+  // fires and no tarball fetch is needed.
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.includes(`/compare/${LIVE}...`) || u.includes("/compare/main...")) {
+      return Response.json({ merge_base_commit: { sha: LIVE }, ahead_by: 2, behind_by: 1 });
+    }
+    return new Response("not found", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  const origWarn = console.warn;
+  console.warn = () => {};
+
+  try {
+    const resolved: Resolved = {
+      repo: CANONICAL_REPO,
+      sha,
+      kind: "pr",
+      ref: "pull-500",
+      pr: { number: 500, title: "t", author: "a", state: "open" },
+      prBase: { repo: CANONICAL_REPO, ref: "main" },
+      private: false,
+    };
+    const ev = await __runBuildForTest(resolved, {
+      isBlockedSha: async () => false,
+      isKnownSha: async () => true,
+      forkGate: async () => ({ tier: undefined, count: async () => 0, quota: 10 }),
+      fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 1 }),
+      spawnBuild: spawnWithDocs({
+        [U(1)]: { id: U(1), doc_no: "A.1", title: "One", content: "edited by PR", contentHash: "h1" },
+      }),
+      upsertPreview: async () => {},
+    });
+    expect(ev.phase).toBe("ready");
+
+    const meta = readMeta(sha);
+    expect(meta?.bases?.auto).toBe("sky");
+    expect(meta?.bases?.repo).toBeUndefined();
+    expect(meta?.aheadBy).toBe(2);
+    expect(meta?.behindBy).toBe(1);
+
+    expect(fs.existsSync(path.join(previewPaths(sha).outDir, "diff.repo.json"))).toBe(false);
+    const diffSky = fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.sky.json"), "utf8");
+    expect(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.json"), "utf8")).toBe(diffSky);
+  } finally {
+    globalThis.fetch = origFetch;
     console.warn = origWarn;
     setIndexes(prevIndexes as never);
   }

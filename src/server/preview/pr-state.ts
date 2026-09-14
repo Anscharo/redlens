@@ -28,9 +28,14 @@ export async function sweepPrStates(
     const r = await gh.fetchJson(`/repos/${CANONICAL_REPO}/pulls/${pr_number}`);
     if (!r.ok || !r.json) continue;
     const state = r.json.merged_at ? "merged" : r.json.state === "closed" ? "closed" : "open";
+    // kind = 'pr' is load-bearing: a private or fork PR preview (resolved as
+    // kind "branch" — see resolve.ts) can share a bare PR NUMBER with an
+    // unrelated canonical PR by coincidence. Without this filter, that row
+    // would get overlaid with canonical PR #N's state, a completely different
+    // pull request.
     const changed = (await sql`
       UPDATE previews SET pr_state = ${state}
-      WHERE pr_number = ${pr_number} AND pr_state IS DISTINCT FROM ${state}
+      WHERE pr_number = ${pr_number} AND kind = 'pr' AND pr_state IS DISTINCT FROM ${state}
       RETURNING sha
     `) as unknown[];
     if (Array.isArray(changed)) updated += changed.length;

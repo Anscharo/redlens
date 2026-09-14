@@ -67,7 +67,25 @@ test("upsertPreview issues an INSERT ... ON CONFLICT with the meta fields", asyn
   expect(calls[0]!.values).toContain("trusted");
 });
 
-test("upsertPreview defaults optional fields to null", async () => {
+test("upsertPreview writes prBase.repo/ref when set", async () => {
+  queued.push([]);
+  await upsertPreview({
+    sha: "s3",
+    repo: "blimpa/next-gen-atlas",
+    ref: "feature/x",
+    kind: "branch",
+    resolvedAt: "t",
+    docCount: 1,
+    buildMs: 5,
+    prBase: { repo: "sky-ecosystem/next-gen-atlas", ref: "main", sha: "irrelevant-not-persisted" },
+  } as any);
+  expect(calls[0]!.values).toContain("sky-ecosystem/next-gen-atlas");
+  expect(calls[0]!.values).toContain("main");
+  // Only repo + ref are persisted (no pr_base_sha column) — base-drift re-resolves the tip.
+  expect(calls[0]!.values).not.toContain("irrelevant-not-persisted");
+});
+
+test("upsertPreview defaults optional fields, including prBase, to null", async () => {
   queued.push([]);
   await upsertPreview({
     sha: "s2",
@@ -79,6 +97,9 @@ test("upsertPreview defaults optional fields to null", async () => {
     buildMs: 1,
   } as any);
   expect(calls[0]!.values).toContain(null);
+  // pr_base_repo / pr_base_ref (the last two interpolated values, right before
+  // last_access = now()) are both null when no prBase was resolved.
+  expect(calls[0]!.values.slice(-2)).toEqual([null, null]);
 });
 
 test("getPreviewRow returns the row, or null when unknown", async () => {

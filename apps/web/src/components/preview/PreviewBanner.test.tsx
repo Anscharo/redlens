@@ -6,8 +6,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import { Router } from "wouter";
+import { memoryLocation } from "wouter/memory-location";
 import { PreviewBanner } from "./PreviewBanner";
 import { DataSourceContext, type DataSource } from "../../lib/dataSource";
+import type { ActiveBase } from "../../lib/previewMetaCopy";
+
+let activeBaseValue: ActiveBase | null = null;
+vi.mock("../../lib/previewDiff", () => ({
+  usePreviewDiff: () => ({ activeBase: activeBaseValue }),
+}));
 
 function mockMeta(meta: Record<string, unknown> | null) {
   vi.spyOn(globalThis, "fetch").mockResolvedValue({
@@ -24,6 +32,20 @@ function renderBanner(source: DataSource) {
   );
 }
 
+// Under a nested <Router base>, a Link's href is `router.base + to` — composing
+// the switch link with only the query string (dropping the current path) would
+// navigate away from wherever the user is (e.g. back off of /atlas).
+function renderBannerUnderRouter(source: DataSource, routerBase: string, path: string) {
+  const { hook } = memoryLocation({ path, record: true });
+  return render(
+    <Router base={routerBase} hook={hook}>
+      <DataSourceContext.Provider value={source}>
+        <PreviewBanner />
+      </DataSourceContext.Provider>
+    </Router>,
+  );
+}
+
 const PREVIEW_SOURCE: DataSource = {
   base: "/api/preview/abc/",
   preview: { id: "pr-88", sha: "abc" },
@@ -32,6 +54,7 @@ const PREVIEW_SOURCE: DataSource = {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  activeBaseValue = null;
 });
 beforeEach(() => mockMeta(null));
 
@@ -160,5 +183,111 @@ describe("PreviewBanner", () => {
     });
     renderBanner(PREVIEW_SOURCE);
     await waitFor(() => expect(screen.getByText(/2 new on-chain addresses/)).toBeTruthy());
+  });
+
+  it("renders the repo drift line for the repo base, in context", async () => {
+    activeBaseValue = { key: "repo", repo: "acme/fork", ref: "main", auto: true };
+    mockMeta({
+      sha: "abc", repo: "acme/fork", ref: "main", kind: "pr", prNumber: 88,
+      bases: {
+        auto: "repo",
+        sky: { repo: "sky-ecosystem/next-gen-atlas", ref: "main", mergeBase: "x" },
+        repo: {
+          repo: "acme/fork", ref: "main", mergeBase: "y",
+          drift: { sha: "s", commitsAhead: 3, commitsBehind: 2, docsDiffer: 1, vsAtlasCommit: "v" },
+        },
+      },
+    });
+    renderBanner(PREVIEW_SOURCE);
+    expect(
+      await screen.findByText(
+        /redlined against acme\/fork:main · base forked from sky-ecosystem\/next-gen-atlas:main 3 commits ago · 2 commits behind main · 1 doc differ/,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("shows an 'N commits behind main' sky line for a private branch with no forkOwner", async () => {
+    activeBaseValue = { key: "sky", repo: "acme/secret-atlas", ref: "feature", auto: true };
+    mockMeta({
+      sha: "ghi", repo: "acme/secret-atlas", ref: "feature", kind: "branch", private: true,
+      bases: { auto: "sky", sky: { repo: "acme/secret-atlas", ref: "feature", mergeBase: "x", behindBy: 4 } },
+    });
+    renderBanner(PREVIEW_SOURCE);
+    expect(await screen.findByText(/4 commits behind main/)).toBeTruthy();
+  });
+
+  it("shows the switch link only when both base candidates exist, pointing at ?base=", async () => {
+    activeBaseValue = { key: "sky", repo: "sky-ecosystem/next-gen-atlas", ref: "main", auto: true };
+    mockMeta({
+      sha: "abc", repo: "acme/fork", ref: "main", kind: "pr", prNumber: 88,
+      bases: {
+        auto: "sky",
+        sky: { repo: "sky-ecosystem/next-gen-atlas", ref: "main", mergeBase: "x" },
+        repo: { repo: "acme/base", ref: "develop", mergeBase: "y" },
+      },
+    });
+    renderBanner(PREVIEW_SOURCE);
+    const link = await screen.findByRole("link", { name: "compare against acme/base:develop instead" });
+    expect(link.getAttribute("href")).toContain("?base=repo");
+  });
+
+  it("preserves the current sub-route + other params when composing the switch link's href", async () => {
+    activeBaseValue = { key: "sky", repo: "sky-ecosystem/next-gen-atlas", ref: "main", auto: true };
+    mockMeta({
+      sha: "abc", repo: "acme/fork", ref: "main", kind: "pr", prNumber: 88,
+      bases: {
+        auto: "sky",
+        sky: { repo: "sky-ecosystem/next-gen-atlas", ref: "main", mergeBase: "x" },
+        repo: { repo: "acme/base", ref: "develop", mergeBase: "y" },
+      },
+    });
+    renderBannerUnderRouter(PREVIEW_SOURCE, "/preview/pr-88", "/preview/pr-88/atlas?subset=changed");
+    const link = await screen.findByRole("link", { name: "compare against acme/base:develop instead" });
+    expect(link.getAttribute("href")).toBe("/preview/pr-88/atlas?subset=changed&base=repo");
+  });
+
+  it("shows a 'back to' link when the URL forces a non-auto base", async () => {
+    activeBaseValue = { key: "repo", repo: "acme/base", ref: "develop", auto: false };
+    mockMeta({
+      sha: "abc", repo: "acme/fork", ref: "main", kind: "pr", prNumber: 88,
+      bases: {
+        auto: "sky",
+        sky: { repo: "sky-ecosystem/next-gen-atlas", ref: "main", mergeBase: "x" },
+        repo: { repo: "acme/base", ref: "develop", mergeBase: "y" },
+      },
+    });
+    renderBanner(PREVIEW_SOURCE);
+    expect(await screen.findByRole("link", { name: "back to sky-ecosystem/next-gen-atlas:main" })).toBeTruthy();
+  });
+
+  it("omits the switch link when only one base candidate exists", async () => {
+    activeBaseValue = { key: "sky", repo: "sky-ecosystem/next-gen-atlas", ref: "main", auto: true };
+    mockMeta({
+      sha: "abc", repo: "acme/fork", ref: "main", kind: "branch",
+      bases: { auto: "sky", sky: { repo: "sky-ecosystem/next-gen-atlas", ref: "main", mergeBase: "x" } },
+    });
+    renderBanner(PREVIEW_SOURCE);
+    await screen.findByText("PREVIEW");
+    expect(screen.queryByText(/compare against|back to/)).toBeNull();
+  });
+
+  it("shows the degraded live-main note", async () => {
+    activeBaseValue = { key: "live-main", auto: true };
+    mockMeta({
+      sha: "abc", repo: "acme/fork", ref: "main", kind: "branch",
+      bases: { auto: "live-main", reason: "no fork point found" },
+    });
+    renderBanner(PREVIEW_SOURCE);
+    expect(await screen.findByText(/redlined against live main \(no fork point found\)/)).toBeTruthy();
+  });
+
+  it("renders an old bundle (no bases field) exactly as before, unaffected by the new copy", async () => {
+    mockMeta({
+      sha: "def", repo: "mallory/next-gen-atlas", ref: "sneaky", kind: "branch",
+      forkOwner: "mallory", behindBy: 5,
+    });
+    renderBanner(PREVIEW_SOURCE);
+    expect(await screen.findByText(/5 commits behind main/)).toBeTruthy();
+    expect(screen.queryByText(/redlined against/)).toBeNull();
   });
 });

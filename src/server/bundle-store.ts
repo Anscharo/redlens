@@ -106,6 +106,12 @@ const PREVIEW_ALLOWLIST = new Set([
   "meta.json",
   "diff.json",
   "patches.json",
+  // Per-candidate diff pairs (see preview/cache.ts PreviewBases): diff.json /
+  // patches.json stay the `auto` pair for old clients and the e2e canary.
+  "diff.sky.json",
+  "diff.repo.json",
+  "patches.sky.json",
+  "patches.repo.json",
 ]);
 
 export const MAIN_STORE: BundleStore = {
@@ -283,7 +289,15 @@ export function evictLru(store: BundleStore, skip?: Set<string>): string[] {
 // but are never materialised by publishBundle or hydrateBundleFromStore (they
 // are written by the preview build itself, and meta.json does not even live in
 // the artifact subdir).
-const NOT_MATERIALISED = new Set(["meta.json", "diff.json", "patches.json"]);
+const NOT_MATERIALISED = new Set([
+  "meta.json",
+  "diff.json",
+  "patches.json",
+  "diff.sky.json",
+  "diff.repo.json",
+  "patches.sky.json",
+  "patches.repo.json",
+]);
 
 /** Names a bundle writer may materialise into <sha>'s artifact dir. */
 function materialisable(store: BundleStore, name: string): boolean {

@@ -814,6 +814,95 @@ test("diffResponse serves the bundle's own diff.json directly when present, with
   expect(await res.json()).toEqual({ added: [], changed: [] });
 });
 
+test("GET /api/preview/<sha>/diff.repo.json is served from the bundle when present, and 404s when absent", async () => {
+  const { call, previewPaths, writeMeta } = await freshHandler();
+  const SHA_DIFF_REPO = "f".repeat(40);
+  makeReadyBundle(previewPaths, writeMeta, SHA_DIFF_REPO, { private: false });
+  // makeReadyBundle writes docs.json + diff.json only — diff.repo.json (the
+  // `repo`-candidate pair) is a distinct, allowlisted, optional artifact.
+  const missing = await call(`/api/preview/${SHA_DIFF_REPO}/diff.repo.json`);
+  expect(missing.status).toBe(404);
+
+  fs.writeFileSync(
+    path.join(previewPaths(SHA_DIFF_REPO).outDir, "diff.repo.json"),
+    JSON.stringify({ added: ["x"], changed: [] }),
+  );
+  const present = await call(`/api/preview/${SHA_DIFF_REPO}/diff.repo.json`);
+  expect(present.status).toBe(200);
+  expect(await present.json()).toEqual({ added: ["x"], changed: [] });
+});
+
+// ---------------------------------------------------------------------------
+// resolveId: sha-rebuild branch — kind + prBase reconstruction from a
+// previews row. Exported directly from handler.ts so this doesn't need a full
+// /events SSE round-trip or a real background build to observe.
+// ---------------------------------------------------------------------------
+
+test("resolveId: sha rebuild of a canonical PR row reconstructs kind 'pr' + prBase (no sha — base-drift re-resolves the tip)", async () => {
+  const { resolveId } = await import("./handler.ts");
+  const SHA_PR_ROW = "c".repeat(40);
+  dbQueued = [
+    [
+      {
+        sha: SHA_PR_ROW,
+        repo: "sky-ecosystem/next-gen-atlas",
+        ref: "pull-99",
+        kind: "pr",
+        pr_number: 99,
+        pr_title: "Title",
+        pr_author: "alice",
+        pr_state: "open",
+        doc_count: 1,
+        build_ms: 1,
+        blocked_at: null,
+        trust_tier: null,
+        private: false,
+        pr_base_repo: "sky-ecosystem/next-gen-atlas",
+        pr_base_ref: "main",
+      },
+    ],
+  ];
+  const r = await resolveId(SHA_PR_ROW);
+  expect(r).toMatchObject({
+    repo: "sky-ecosystem/next-gen-atlas",
+    sha: SHA_PR_ROW,
+    kind: "pr",
+    pr: { number: 99, title: "Title", author: "alice", state: "open" },
+    prBase: { repo: "sky-ecosystem/next-gen-atlas", ref: "main" },
+  });
+  expect((r as any).prBase.sha).toBeUndefined();
+});
+
+test("resolveId: sha rebuild of a plain branch row (null base columns) reconstructs kind 'branch' + no prBase", async () => {
+  const { resolveId } = await import("./handler.ts");
+  const SHA_BRANCH_ROW = "d".repeat(40);
+  dbQueued = [
+    [
+      {
+        sha: SHA_BRANCH_ROW,
+        repo: "blimpa/next-gen-atlas",
+        ref: "spark",
+        kind: "branch",
+        pr_number: null,
+        pr_title: null,
+        pr_author: null,
+        pr_state: null,
+        doc_count: 1,
+        build_ms: 1,
+        blocked_at: null,
+        trust_tier: null,
+        private: false,
+        pr_base_repo: null,
+        pr_base_ref: null,
+      },
+    ],
+  ];
+  const r = await resolveId(SHA_BRANCH_ROW);
+  expect(r).toMatchObject({ repo: "blimpa/next-gen-atlas", sha: SHA_BRANCH_ROW, kind: "branch" });
+  expect((r as any).prBase).toBeUndefined();
+  expect((r as any).pr).toBeUndefined();
+});
+
 // ---------------------------------------------------------------------------
 // /api/preview/list — untested by any existing case.
 // ---------------------------------------------------------------------------

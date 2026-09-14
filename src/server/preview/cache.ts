@@ -61,9 +61,57 @@ export interface PreviewMeta {
    * since an unreadable map can't prove the fork introduces no payment addresses.
    */
   addressCheckFailed?: boolean;
-  /** Diff recovery was bounded — markers may miss docs on very large forks. */
   /** Built from a private repo — gates every sha-keyed response. */
   private?: boolean;
+  /** The PR's base branch (PR previews only). Persisted to the previews row so a
+   *  pinned-sha rebuild keeps PR-base treatment without re-asking GitHub. */
+  prBase?: { repo: string; ref: string };
+  /** The diff-base candidates this bundle's redlines were computed against.
+   *  `sky` = merge base with sky-ecosystem/next-gen-atlas:main (the fork
+   *  point); `repo` = merge base with the head repo's own base (the PR's base
+   *  branch, or the fork's default branch). The build writes one
+   *  diff.<key>.json + patches.<key>.json pair per candidate; `auto` names the
+   *  pair also copied to diff.json / patches.json. "live-main" = degraded: no
+   *  candidate could be resolved and the redline is vs the served atlas. */
+  bases?: PreviewBases;
+}
+
+export type BaseKey = "sky" | "repo";
+
+export interface BaseCandidateMeta {
+  repo: string;
+  ref: string;
+  mergeBase: string;
+  /** From GitHub's compare of the base ref vs the head (commits the head adds /
+   *  commits on the base the head lacks). Absent when the compare gave none. */
+  aheadBy?: number;
+  behindBy?: number;
+}
+
+/** How the `repo` candidate's base TIP relates to sky main — what the banner
+ *  reports as "base forked from sky main N commits ago · M commits behind
+ *  main · K docs differ". */
+export interface BaseDrift {
+  /** The base branch tip the drift was measured on. */
+  sha: string;
+  forkPoint?: string;
+  /** Commits on the base branch since the fork point (its own work). */
+  commitsAhead?: number;
+  /** Commits on sky main since the fork point (what the base hasn't taken). */
+  commitsBehind?: number;
+  /** Docs that differ between the base tip and the served atlas (added +
+   *  changed + removed). */
+  docsDiffer?: number;
+  vsAtlasCommit: string;
+}
+
+export interface PreviewBases {
+  auto: BaseKey | "live-main";
+  /** Why `auto` is what it is when that isn't obvious: a degrade cause
+   *  ("no fork point found", "compare failed") or "candidates diverged". */
+  reason?: string;
+  sky?: BaseCandidateMeta;
+  repo?: BaseCandidateMeta & { drift?: BaseDrift };
 }
 
 export interface PreviewPaths {

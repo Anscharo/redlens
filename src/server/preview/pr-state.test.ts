@@ -58,9 +58,13 @@ test("no preview rows → short-circuits without any GitHub calls", async () => 
 
 test("merged PR updates pr_state to merged and counts it", async () => {
   stubFetch({ 256: { status: 200, json: { merged_at: "2026-01-01T00:00:00Z", state: "closed" } } });
-  const { sql } = fakeSql([{ pr_number: 256 }], { 256: [{ sha: "abc" }] });
+  const { sql, calls } = fakeSql([{ pr_number: 256 }], { 256: [{ sha: "abc" }] });
   const result = await sweepPrStates(sql, "tok");
   expect(result).toEqual({ checked: 1, updated: 1 });
+  // Load-bearing: the UPDATE never overlays a private/fork PR preview sharing
+  // this number (resolved as kind "branch") with canonical PR #256's state.
+  const updateSql = calls.find((c) => c.includes("UPDATE previews SET pr_state"));
+  expect(updateSql).toContain("kind = 'pr'");
 });
 
 test("closed (not merged) PR maps to closed state", async () => {

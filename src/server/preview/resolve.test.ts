@@ -240,7 +240,9 @@ test("resolvePrivateBranch: pull-N uses the Pulls API HEAD branch, not the PR ba
     state: "open",
     merged_at: null,
     head: { sha: "prheadsha", ref: "feature/spark", repo: { full_name: "acme/secret-atlas" } },
-    base: { ref: "develop" }, // must NOT become the compare/ref — that's the whole point
+    // must NOT become the compare/ref itself — that's the whole point — but IS
+    // captured as prBase, the actual diff-base candidate.
+    base: { ref: "develop", sha: "basesha1", repo: { full_name: "acme/secret-atlas" } },
   };
   commitJson = { commit: { committer: { date: "2026-09-10T00:00:00Z" } } };
   const r = await resolvePrivateBranch("acme/secret-atlas", "pull-42");
@@ -252,7 +254,9 @@ test("resolvePrivateBranch: pull-N uses the Pulls API HEAD branch, not the PR ba
     private: true,
     date: "2026-09-10T00:00:00Z",
     pr: { number: 42, title: "Spark", author: "alice", state: "open" },
+    prBase: { repo: "acme/secret-atlas", ref: "develop", sha: "basesha1" },
   });
+  expect((r as any).defaultBranch).toBeUndefined(); // a PR redlines against prBase, not the fork's default branch
   expect(lastPullReq?.url).toBe("https://api.github.com/repos/acme/secret-atlas/pulls/42");
   expect((lastPullReq?.headers as any)?.authorization).toBe("Bearer inst-tok");
   // Contents fallback was not needed.
@@ -276,6 +280,7 @@ test("resolvePrivateBranch: pull-N falls back to git ref pull/N/head when Pulls 
     date: "2026-09-10T12:00:00Z",
   });
   expect((r as any).pr).toBeUndefined();
+  expect((r as any).prBase).toBeUndefined(); // the Contents-only fallback carries no base branch
   expect(lastRefReq?.url).toBe("https://api.github.com/repos/acme/secret-atlas/git/ref/pull/7/head");
   expect((lastRefReq?.headers as any)?.authorization).toBe("Bearer inst-tok");
 });
@@ -318,7 +323,7 @@ test("resolveRef: gate OFF, a structurally-private repo still behaves exactly as
   expect(await resolveRef(decodeId("acme:lookalike:main")!, ghVisible)).toEqual({ error: "not-a-fork" });
 });
 
-test("resolveRef: PUBLIC non-canonical pull-N resolves the PR HEAD as a branch (no pr, so compare stays vs main)", async () => {
+test("resolveRef: PUBLIC non-canonical pull-N resolves the PR HEAD as a branch, carrying pr + prBase (compare keys on prBase, never pr.number)", async () => {
   config.privatePreviewsEnabled = true;
   const gh = fakeGh({
     "/repos/blimpa/next-gen-atlas": { json: { private: false, fork: true, source: { full_name: "sky-ecosystem/next-gen-atlas" } } },
@@ -328,7 +333,7 @@ test("resolveRef: PUBLIC non-canonical pull-N resolves the PR HEAD as a branch (
         user: { login: "b" },
         state: "open",
         head: { sha: "forkprhead", ref: "feat", repo: { full_name: "blimpa/next-gen-atlas" } },
-        base: { ref: "develop" },
+        base: { ref: "develop", sha: "basesha2", repo: { full_name: "blimpa/next-gen-atlas" } },
       },
     },
     "/repos/blimpa/next-gen-atlas/commits/forkprhead": {
@@ -343,9 +348,13 @@ test("resolveRef: PUBLIC non-canonical pull-N resolves the PR HEAD as a branch (
     ref: "feat",
     private: false,
     date: "2026-09-01T00:00:00Z",
+    pr: { number: 3, title: "x", author: "b", state: "open" },
+    prBase: { repo: "blimpa/next-gen-atlas", ref: "develop", sha: "basesha2" },
   });
-  // Attaching `pr` would send fetchPreviewFiles down the canonical-PR-base path.
-  expect((r as any).pr).toBeUndefined();
+  // kind stays "branch" (not "pr") — pr-state.ts (kind='pr' only) must never
+  // overlay this row with canonical PR #3's state, and build.ts's fork/trust
+  // screening (kind === "pr") must still fork-treat it.
+  expect(r).toMatchObject({ kind: "branch" });
 });
 
 test("resolveRef: canonical branch always resolves with private:false", async () => {

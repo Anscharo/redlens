@@ -37,6 +37,7 @@ function setDiff(over: Partial<PreviewDiff>) {
     reusedSlot: {},
     identitySwap: {},
     formerUuid: {},
+    activeBase: null,
     ...over,
   });
 }
@@ -147,6 +148,16 @@ describe("PreviewHistory preview entry", () => {
     expect(screen.queryByTestId("diff-view")).not.toBeInTheDocument();
   });
 
+  it("names the repo base in the neutral fallback sentence when redlined against a repo base", async () => {
+    setDiff({
+      changed: new Set(["n1"]),
+      activeBase: { key: "repo", repo: "acme/fork", ref: "main", auto: true },
+    });
+    mockMeta({ ...PR_META, bases: { auto: "repo", repo: { repo: "acme/fork", ref: "main", mergeBase: "x" } } });
+    render(<PreviewHistory nodeId="n1" />);
+    expect(await screen.findByText("No visible difference from acme/fork:main.")).toBeInTheDocument();
+  });
+
   it("does not show the neutral fallback sentence when a patch is available", () => {
     setDiff({ changed: new Set(["n1"]) });
     mockPatch.mockReturnValue([["+", "added line"], ["-", "removed line"]] as DiffLine[]);
@@ -201,7 +212,7 @@ describe("PreviewHistory live section", () => {
   it("always renders the live atlas history below the preview entry", () => {
     setDiff({ added: new Set(["n1"]) });
     render(<PreviewHistory nodeId="n1" />);
-    expect(screen.getByText("On the Live Atlas")).toBeInTheDocument();
+    expect(screen.getByText("On the live atlas")).toBeInTheDocument();
     expect(screen.getByTestId("live-history")).toHaveTextContent("live:n1");
   });
 
@@ -209,5 +220,15 @@ describe("PreviewHistory live section", () => {
     setDiff({});
     render(<PreviewHistory nodeId="n1" />);
     expect(screen.getByTestId("live-history")).toBeInTheDocument();
+  });
+
+  it("names the repo base in the heading when redlined against a repo base", async () => {
+    setDiff({
+      added: new Set(["n1"]),
+      activeBase: { key: "repo", repo: "acme/fork", ref: "main", auto: true },
+    });
+    mockMeta({ ...PR_META, bases: { auto: "repo", repo: { repo: "acme/fork", ref: "main", mergeBase: "x" } } });
+    render(<PreviewHistory nodeId="n1" />);
+    expect(await screen.findByText("On acme/fork:main")).toBeInTheDocument();
   });
 });

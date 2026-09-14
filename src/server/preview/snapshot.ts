@@ -73,6 +73,9 @@ export function snapshotFromDocsJson(outDir: string): Snapshot {
  * `fetchTree` is passed in rather than imported so this shares runBuild's
  * injected tarball fetcher: the token differs per preview (service token vs
  * GitHub-App installation token) and hermetic build tests stub it out.
+ *
+ * Concurrent loads need distinct scratch dirs — this rm's whatever `scratchDir`
+ * it's given, so two callers sharing one would race each other's cleanup.
  */
 export async function loadBaseSnapshot(
   mergeBase: string,

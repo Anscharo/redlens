@@ -14,9 +14,7 @@ import { spawn } from "node:child_process";
 import { config } from "../config.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts";
-import { fetchPreviewFiles, type PreviewFiles } from "./pr-diff.ts";
-import { loadBaseSnapshot, snapshotFromDocsJson, type Snapshot } from "./snapshot.ts";
-import { computeDiffArtifacts, writeDiffArtifacts } from "./diff-artifacts.ts";
+import { startCandidates, writeDiffBases } from "./diff-base.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
 import {
   upsertPreview,
@@ -211,12 +209,15 @@ export async function countNewAddresses(outDir: string, mainDir: string = config
 
 // Is this preview a FORK preview? PRs are publicly proposed against canonical,
 // so they're never fork-treated — even though a PR's head repo usually IS a
-// fork. Only bare branch/sha previews of non-canonical repos count. Exported
-// for direct unit testing (also reachable indirectly via runBuild, but a fork
-// build's meta-shaping needs a fully-mocked build to reach, so a direct test
-// is the cheap way to pin this predicate on its own).
+// fork. `pr` metadata now rides on fork PRs too (owner:repo:pull-N, the
+// private-preview grammar), so `kind` — not the presence of `pr` — is the
+// discriminator: only `kind === "pr"` is a canonical PR. Only bare branch/sha
+// previews of non-canonical repos count as fork previews. Exported for direct
+// unit testing (also reachable indirectly via runBuild, but a fork build's
+// meta-shaping needs a fully-mocked build to reach, so a direct test is the
+// cheap way to pin this predicate on its own).
 export function isForkPreview(resolved: Resolved): boolean {
-  return !resolved.pr && isFork(resolved.repo);
+  return resolved.kind !== "pr" && isFork(resolved.repo);
 }
 
 // Trust screening + quota pool selection. Treatment follows the EFFECTIVE tier
@@ -234,12 +235,15 @@ export function isForkPreview(resolved: Resolved): boolean {
 export async function forkGate(
   resolved: Resolved,
 ): Promise<{ tier?: TrustTier; count: () => Promise<number>; quota: number } | "fork-not-trusted"> {
-  if (!resolved.pr && !isFork(resolved.repo)) {
+  if (resolved.kind !== "pr" && !isFork(resolved.repo)) {
     return { count: () => previewsTodayCount("canonical"), quota: config.previewDailyQuota };
   }
   const gh = makeGhClient(config.githubToken);
-  if (resolved.pr) {
-    const tier = effectivePrTier((await computeTrust(resolved.pr.author, gh)).tier);
+  // `kind`, not the presence of `pr`, is the discriminator: a fork's own
+  // owner:repo:pull-N preview carries `pr` metadata too (see isForkPreview),
+  // but it's screened by fork-OWNER trust below, not by the PR author.
+  if (resolved.kind === "pr") {
+    const tier = effectivePrTier((await computeTrust(resolved.pr?.author ?? "", gh)).tier);
     if (tier === "trusted")
       return { tier, count: () => previewsTodayCount("canonical"), quota: config.previewDailyQuota };
     if (tier === "known")
@@ -271,6 +275,10 @@ export function baseMeta(resolved: Resolved, sha: string, docCount: number, t0: 
     prAuthor: resolved.pr?.author,
     prState: resolved.pr?.state,
     headCommitAt: resolved.date,
+    // Persisted (via db.ts's upsert) so a pinned-sha rebuild keeps PR-base
+    // treatment without re-asking GitHub — only repo/ref survive that
+    // round-trip, never `sha` (see Resolved.prBase's own doc comment).
+    prBase: resolved.prBase && { repo: resolved.prBase.repo, ref: resolved.prBase.ref },
     resolvedAt: new Date().toISOString(),
     docCount,
     buildMs: Date.now() - t0,
@@ -313,9 +321,12 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
   // Private previews (branch or private-PR `pull-N` grammar, see resolve.ts) are
   // gated on GitHub App installation, not fork/trust screening — installation
   // IS the trust grant, since only someone who can install the App on the repo
-  // can produce a preview of it at all. A private PR still skips the GitHub
-  // compare (which would use the PR's base branch) — the build diffs against
-  // live main instead (see the diff-artifacts block below).
+  // can produce a preview of it at all. Unlike before, a private preview DOES
+  // compare now: in-repo via the installation token (a canonical-network cross-
+  // repo compare still isn't possible, but a private branch's own base or a
+  // private PR's declared base is reachable), and its fork point with sky main
+  // is found by walking commit lists (fork-point.ts) since a private repo is
+  // never a registered GitHub fork of canonical. See diff-base.ts.
   const priv = !!resolved.private;
   try {
     // Admin takedown: a blocked sha never rebuilds.
@@ -359,20 +370,13 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
     await acquire();
     try {
       emit(f, { phase: "fetching", sha });
-      // Accurate diff is an independent GitHub round-trip — kick it off now so it
-      // overlaps the tarball fetch + the whole build. A failed compare (or no
-      // merge base) degrades to diffing against live main rather than failing
-      // the build; for forks specifically a failed compare means no shared
-      // history with main → the build is rejected instead (below).
-      // Private previews skip this entirely — no PR/fork compare is meaningful
-      // for a private-repo branch, and the service token can't see it anyway.
-      const wantCompare = !priv && !!config.githubToken;
-      const filesP: Promise<{ ok: true; v: PreviewFiles } | { ok: false }> = wantCompare
-        ? fetchPreviewFiles(resolved, config.githubToken).then(
-            (v) => ({ ok: true as const, v }),
-            () => ({ ok: false as const }),
-          )
-        : Promise.resolve({ ok: false as const });
+      // Diff-base candidate resolution is an independent GitHub round-trip (or,
+      // for a private preview, a commit-list walk) — kick it off now so it
+      // overlaps the tarball fetch + the whole build. writeDiffBases (below,
+      // once the head is built) degrades to live main on any failure; for
+      // public forks specifically a failed compare means no shared history
+      // with main → the build is rejected instead (see the not-derived check).
+      const candidatesP = startCandidates(resolved, token, priv);
 
       fs.rmSync(paths.dir, { recursive: true, force: true });
       fs.mkdirSync(paths.outDir, { recursive: true });
@@ -396,14 +400,40 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       if (graph.code !== 0 || glossary.code !== 0)
         return fail(f, sha, "build-failed", buildErrorTail(graph.code !== 0 ? graph.stderr : glossary.stderr));
 
+      // Resolve the candidates NOW (before spending any work on them): a
+      // public fork whose compare failed outright gets rejected below without
+      // ever fetching a base tree or computing base-drift for a build we're
+      // about to delete anyway.
+      const candidates = await candidatesP;
+
       // A private repo is structurally `isFork` (any non-canonical repo is) but
-      // must never get fork treatment: no not-derived rejection (no compare was
-      // attempted above) and no fork banner fields on its meta.
+      // must never get fork treatment: no not-derived rejection and no fork
+      // banner fields on its meta.
       const fork = !priv && isForkPreview(resolved);
-      const filesR = priv ? ({ ok: false as const }) : await filesP;
-      // Shared-history screen: a fork whose compare vs main failed (no common
-      // ancestor / unknown commit) is not a derivative of the atlas — reject.
-      if (fork && !filesR.ok) return fail(f, sha, "not-derived");
+      // Shared-history screen: a public fork whose compare vs main failed (no
+      // common ancestor / unknown commit) is not a derivative of the atlas —
+      // reject. `fork` already implies `!priv`, but the explicit `!priv` is
+      // kept because pr-diff.ts's own note says `compareOk: false` IS
+      // reachable on the private path too (a raw network error in the
+      // fork-point walk) — private previews must never hit this branch.
+      if (fork && !priv && !candidates.compareOk) return fail(f, sha, "not-derived");
+
+      // Doc-level diff + per-doc patches, written into the bundle as artifacts:
+      // diff.json / patches.json (the `auto` candidate's pair — added/changed
+      // ids and id → DiffLine[], driving markers + preview history), plus one
+      // diff.<key>.json / patches.<key>.json pair per candidate that resolved
+      // (the reader's base switcher). Soft end to end: nothing in here can
+      // change the build outcome by itself — a skipped artifact just means the
+      // reader falls back to the serve-time vs-main diff. The head's docs.json
+      // must already be on disk, so this can only run after the build above.
+      const db = await writeDiffBases(Promise.resolve(candidates), {
+        resolved,
+        token,
+        priv,
+        sha,
+        paths,
+        fetchTree: (repo, s, dir) => deps.fetchAndExtract(repo, s, token, dir, undefined, { apiTarball: priv }),
+      });
 
       const meta: PreviewMeta = baseMeta(resolved, sha, docCount, t0);
       // Diff baseline: which main this bundle's redlines were computed against.
@@ -421,10 +451,6 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       if (!priv) meta.trustTier = gate!.tier;
       if (fork) {
         meta.forkOwner = repoOwner(resolved.repo);
-        if (filesR.ok) {
-          meta.aheadBy = filesR.v.aheadBy;
-          meta.behindBy = filesR.v.behindBy;
-        }
         const newAddrs = await countNewAddresses(paths.outDir);
         // Fail closed: an unreadable main map is NOT "zero new addresses" — flag
         // it so the banner/interstitial still warn (the swapped-payment-address
@@ -434,59 +460,28 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       }
       if (priv) {
         meta.private = true;
-        // No GitHub compare was attempted for private previews, but the
+        // A private preview DOES compare now (see startCandidates), but the
         // swapped-payment-address screen is a purely local file compare (this
-        // bundle's addresses.atlas.json vs main's) — still worth running.
+        // bundle's addresses.atlas.json vs main's) regardless — still worth
+        // running unconditionally here.
         const newAddrs = await countNewAddresses(paths.outDir);
         if (newAddrs === undefined) meta.addressCheckFailed = true;
         else meta.newAddresses = newAddrs;
       }
+      // The sky candidate's ahead/behind counts ride on meta whenever one
+      // resolved — no longer fork-only: a private branch's fork-point walk
+      // (and a canonical branch's ordinary sky compare) now populate these too.
+      if (db.bases.sky) {
+        meta.aheadBy = db.bases.sky.aheadBy;
+        meta.behindBy = db.bases.sky.behindBy;
+      }
+      meta.bases = db.bases;
+      // Meta is written LAST, after every diff artifact: bundleReady() only
+      // checks for meta.json, so writing it earlier would let a concurrent
+      // viewer receive `ready` (or find the bundle already "ready" on a fresh
+      // request) with no diff.json on disk yet.
       writeMeta(sha, meta);
       await deps.upsertPreview(meta);
-      // Doc-level diff + per-doc patches, written into the bundle as two
-      // artifacts: diff.json (added/changed ids — eager, drives markers) and
-      // patches.json (id → DiffLine[] — lazy, drives preview history). Base is
-      // the merge base when GitHub gave one, else live main (private previews
-      // never compare; a failed compare or failed base fetch degrades to the
-      // same). Soft end to end: nothing in this block can change the build
-      // outcome — a skipped artifact just means the reader falls back to the
-      // serve-time vs-main diff.
-      try {
-        const byId = snapshotFromDocsJson(paths.outDir);
-        const live = getIndexes(); // cold start (indexes not loaded) → throws → outer catch
-        const mainDocs = live.docMap as Snapshot;
-        let base: Snapshot = mainDocs;
-        if (filesR.ok && filesR.v.mergeBase) {
-          try {
-            // The merge-base tree is the accurate base side (a branch merely
-            // behind main must not report every doc main moved ahead on). The
-            // identity-vs-filename reasoning lives with the diff in
-            // diff-artifacts.ts.
-            base = await loadBaseSnapshot(
-              filesR.v.mergeBase,
-              path.join(paths.dir, "base"),
-              // Same injected fetcher, token, and tarball route the head build
-              // used — only reachable on the public path (private previews set
-              // wantCompare = false), but it must not diverge if that ever changes.
-              (s, dir) => deps.fetchAndExtract(resolved.repo, s, token, dir, undefined, { apiTarball: priv }),
-              { atlasCommit: live.meta.atlasCommit, snapshot: () => mainDocs },
-            );
-          } catch (e) {
-            console.warn(
-              `[preview] ${sha.slice(0, 8)}: base ${filesR.v.mergeBase.slice(0, 8)} unavailable (${(e as Error).message}) — diffing against live main`,
-            );
-          }
-        } else if (!priv) {
-          // Two distinct causes land here, and the log should say which: the
-          // compare itself failed (network error, or no service token so it
-          // was never attempted), or it succeeded without a merge_base_commit.
-          const why = filesR.ok ? "no merge base" : config.githubToken ? "compare failed" : "no GitHub token, compare skipped";
-          console.warn(`[preview] ${sha.slice(0, 8)}: ${why} — diffing against live main`);
-        }
-        writeDiffArtifacts(paths.outDir, computeDiffArtifacts(base, byId, mainDocs));
-      } catch (e) {
-        console.warn(`[preview] ${sha.slice(0, 8)}: diff artifacts skipped (${(e as Error).message}) — reader falls back to the serve-time diff`);
-      }
       emit(f, { phase: "ready", sha });
       evictLru(undefined, undefined, inflightShas());
     } finally {
