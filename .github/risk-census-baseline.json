@@ -697,6 +697,18 @@
       "title": "Compromised Key Response"
     },
     {
+      "taskKey": "u:4999a374-380b-4694-a67c-0fa471b4cf43",
+      "uuid": "4999a374-380b-4694-a67c-0fa471b4cf43",
+      "docNo": "A.6.1.1.1.3.2.1.1.2.1.5",
+      "title": "USDT Risk Parameters"
+    },
+    {
+      "taskKey": "u:37ff9748-6f72-4adf-af97-0f90cb7154b4",
+      "uuid": "37ff9748-6f72-4adf-af97-0f90cb7154b4",
+      "docNo": "A.6.1.1.1.3.2.1.1.2.1.12",
+      "title": "LBTC Risk Parameters"
+    },
+    {
       "taskKey": "u:119a4bbf-9a37-4a2c-bac9-11e969244bfe",
       "uuid": "119a4bbf-9a37-4a2c-bac9-11e969244bfe",
       "docNo": "A.6.1.1.1.3.2.1.1.2.1.19",

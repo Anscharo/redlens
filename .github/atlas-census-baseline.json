@@ -139,7 +139,7 @@
     },
     "Core|plain": {
       "total": 8199,
-      "uncovered": 6317,
+      "uncovered": 6313,
       "samples": [
         "A.0.1.1.1",
         "A.0.1.1.10",
