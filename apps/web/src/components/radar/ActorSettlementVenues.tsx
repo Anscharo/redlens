@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useUrlState, urlString } from "../../hooks/useUrlState";
 import {
   hasMultiVenuePnl,
   hasVenueAum,
@@ -10,6 +10,8 @@ import { useTweened } from "../../hooks/useTweened";
 import { tweenVenues } from "../../lib/mscTween";
 import { SettlementVenuePnl } from "./SettlementSankey";
 import { SettlementAum } from "./SettlementAum";
+
+const venuesCodec = urlString(null);
 
 export function ActorSettlementVenues({
   report,
@@ -23,7 +25,10 @@ export function ActorSettlementVenues({
   const venues = useTweened(report.venues, tweenVenues);
   const multi = hasMultiVenuePnl(report);
   const aum = hasVenueAum(report);
-  const [view, setView] = useState<"pnl" | "aum">("pnl");
+  // ?venues=aum; PnL is the default and needs no param.
+  const [venuesParam, setVenuesParam] = useUrlState("venues", venuesCodec);
+  const view: "pnl" | "aum" = venuesParam === "aum" ? "aum" : "pnl";
+  const setView = (v: "pnl" | "aum") => setVenuesParam(v === "aum" ? "aum" : null);
   const toggle = multi && aum;
   const showPnl = multi && (!toggle || view === "pnl");
   const showAum = aum && (!multi || view === "aum");

@@ -155,9 +155,15 @@ describe("ActorSettlements", () => {
     fireEvent.click(aum);
     expect(pnl).toHaveAttribute("aria-pressed", "false");
     expect(aum).toHaveAttribute("aria-pressed", "true");
+    // The choice lives in the URL; PnL is the default and clears it.
+    expect(window.location.search).toContain("venues=aum");
     expect(screen.getByText("Venue AUM (end of month)")).toBeInTheDocument();
     expect(screen.getByText("$753.00M")).toBeInTheDocument();
     expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
+    // Rows carry the key the reorder animation slides them by.
+    expect(document.querySelectorAll(".msc-aum-row[data-flip-key]").length).toBeGreaterThan(0);
+    fireEvent.click(pnl);
+    expect(window.location.search).not.toContain("venues=");
   });
 
   it("shows the To Sky equation card headed by the month, and paints its Sankey bar supply-side green", async () => {
