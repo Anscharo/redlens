@@ -36,11 +36,14 @@ export function ActorSettlementTeaser({ slug, name }: Props) {
         <p className="mono text-[10px] mt-2" style={{ color: "var(--tan-3)" }}>
           {period}
         </p>
-        <p className="mono text-lg" style={{ color: "var(--tan)" }}>
-          {formatUsd(total)} gross revenue
+        <p className="mono text-lg leading-tight mt-1" style={{ color: "var(--tan)" }}>
+          {formatUsd(total, true)}
+        </p>
+        <p className="mono text-[10px]" style={{ color: "var(--tan-2)" }}>
+          gross revenue
         </p>
         <p className="text-[10px] mt-1" style={{ color: "var(--tan-3)" }}>
-          To Sky + supply-side kept + demand-side · OEA calculation, not the on-chain GovOps spell
+          OEA calculation, not the on-chain GovOps spell
         </p>
         <span className="msc-teaser-link mono text-[10px] text-accent">
           full cycle <span className="enlargen">→</span>
