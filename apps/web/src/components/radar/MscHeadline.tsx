@@ -24,16 +24,20 @@ interface Props {
   play?: { playing: boolean; onToggle: () => void };
 }
 
+// Every cell on the card is the same two rows — a LABEL_ROW-tall label
+// line over a VALUE_ROW-tall figure line, both at one size — so with the
+// cells bottom-aligned every label shares a baseline and every figure
+// shares a baseline, month and operators included.
+const LABEL_ROW = "h-5 leading-5";
+const VALUE_ROW = "mono text-lg leading-7";
+
 function Figure({ label, value, muted }: { label: string; value: number | null; muted?: boolean }) {
   return (
     <div>
-      <div className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>
+      <div className={`mono text-[10px] uppercase tracking-wider ${LABEL_ROW}`} style={{ color: "var(--tan-3)" }}>
         {label}
       </div>
-      <div
-        className={muted ? "mono text-base" : "mono text-lg"}
-        style={{ color: muted ? "var(--tan-2)" : value != null && value < 0 ? "var(--accent)" : "var(--tan)" }}
-      >
+      <div className={VALUE_ROW} style={{ color: muted ? "var(--tan-2)" : value != null && value < 0 ? "var(--accent)" : "var(--tan)" }}>
         {value == null ? "—" : formatUsd(value)}
       </div>
     </div>
@@ -42,9 +46,12 @@ function Figure({ label, value, muted }: { label: string; value: number | null; 
 
 function Op({ children }: { children: string }) {
   return (
-    <span className="mono text-xl self-end pb-0.5" style={{ color: "var(--tan-3)" }} aria-hidden="true">
-      {children}
-    </span>
+    <div aria-hidden="true">
+      <div className={LABEL_ROW} />
+      <div className={VALUE_ROW} style={{ color: "var(--tan-3)" }}>
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -55,19 +62,21 @@ function Op({ children }: { children: string }) {
 export function MscHeadline({ eco, month, labels, play }: Props) {
   return (
     <div className="msc-card rounded p-4 mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 text-sm">
-      <div className="self-center">
-        {play && (
-          <button
-            type="button"
-            className="msc-ts-play mono text-[10px] mb-1"
-            onClick={play.onToggle}
-            aria-pressed={play.playing}
-            aria-label={play.playing ? "Pause the month autoplay" : "Play through the months, one second each"}
-          >
-            {play.playing ? "❚❚ pause" : "▶ play"}
-          </button>
-        )}
-        <div className="mono" style={{ color: "var(--tan)" }}>
+      <div className="flex flex-col items-center">
+        <div className={`${LABEL_ROW} flex items-center`}>
+          {play && (
+            <button
+              type="button"
+              className="msc-ts-play mono text-[10px] leading-none"
+              onClick={play.onToggle}
+              aria-pressed={play.playing}
+              aria-label={play.playing ? "Pause the month autoplay" : "Play through the months, one second each"}
+            >
+              {play.playing ? "❚❚ pause" : "▶ play"}
+            </button>
+          )}
+        </div>
+        <div className={VALUE_ROW} style={{ color: "var(--tan)" }}>
           {month ? formatMonth(month) : "—"}
         </div>
       </div>
