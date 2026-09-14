@@ -3209,12 +3209,12 @@ a.atlas-annotates:focus-visible {
 .msc-flow .msc-ring-slice,
 .msc-flow .msc-ring-arrow {
   stroke: none;
-  opacity: 0.85;
+  opacity: 0.75;
   transition: opacity 0.1s;
 }
 .msc-flow .msc-ring-mark:hover :is(.msc-ring-slice, .msc-ring-arrow),
 .msc-flow .msc-ring-prime:hover :is(.msc-ring-slice, .msc-ring-arrow) {
-  opacity: 1;
+  opacity: 0.96; /* LIT in MscRingHoverStyles: a lit ribbon stays a touch under the bars */
 }
 .msc-flow-source rect,
 .msc-flow-agent,
@@ -3230,7 +3230,7 @@ a.atlas-annotates:focus-visible {
 /* The source bars join the key's hover: they fade with everything else and
    the hovered row's bar comes back lit. */
 .msc-ring-card:has(.msc-key-item:hover) .msc-flow-source rect {
-  opacity: 0.45;
+  opacity: 0.5;
 }
 .msc-ring-card:has(.msc-key-item[data-key="cof"]:hover) .msc-flow-source[data-kind="cof"] rect,
 .msc-ring-card:has(.msc-key-item[data-key="sde"]:hover) .msc-flow-source[data-kind="sde"] rect,
@@ -3279,7 +3279,7 @@ a:focus-visible > .msc-ring-prime .msc-flow-agent {
    then the reading guide. Hovering an item lights every slice it describes
    on every pie — and the arrows carrying that money for the To-Sky rows —
    while everything else on the chart fades. The fade is the general rule
-   here (0.45 = DIM in MscRingHoverStyles); the lit rules below out-rank it
+   here (0.5 = DIM in MscRingHoverStyles); the lit rules below out-rank it
    by their [data-key] attribute, and the Sky pie is kept for the To-Sky
    rows because that is where that money lands. */
 .msc-key {
@@ -3309,7 +3309,7 @@ a:focus-visible > .msc-ring-prime .msc-flow-agent {
   border-top: 1px solid var(--border);
 }
 .msc-ring-card:has(.msc-key-item:hover) .msc-ring :is(.msc-ring-slice, .msc-ring-hole, .msc-ring-arrow, .msc-ring-figure, .msc-ring-sky-disc, .msc-ring-sky-wedge) {
-  opacity: 0.45;
+  opacity: 0.5;
 }
 .msc-ring-card:has(.msc-key-item:is([data-key="cof"], [data-key="sde"]):hover) .msc-ring :is(.msc-ring-sky-disc, .msc-ring-sky-wedge, .msc-ring-figure[data-kind="sky"]) {
   opacity: 1;
@@ -3359,7 +3359,7 @@ a .msc-ring-prime :is(path, circle) {
 }
 .msc-ring-prime:hover :is(.msc-ring-arrow, .msc-ring-hole),
 a:focus-visible > .msc-ring-prime :is(.msc-ring-arrow, .msc-ring-hole) {
-  opacity: 1;
+  opacity: 0.96; /* LIT in MscRingHoverStyles */
 }
 .msc-ring-prime:hover .msc-ring-rim,
 a:focus-visible > .msc-ring-prime .msc-ring-rim {

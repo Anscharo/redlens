@@ -11,14 +11,17 @@ export interface PrimeMarks {
 /** How far the rest of the chart fades when one thing is in focus. Low
  *  enough that the lit marks are unmistakable, high enough that the faded
  *  ones still show where they are. */
-export const DIM = 0.45;
+export const DIM = 0.5;
+/** Where a lit ribbon comes up to: just short of full, so it still reads
+ *  a touch lighter than the solid bars it runs between. */
+export const LIT = 0.96;
 
 /* Static CSS can't say "everything that is NOT the hovered prime", so the
    focus rules are generated per prime (the venue sankey's VenueHoverStyles
    trick). Three things put a prime in focus — hovering its pie, keyboard
    focus on its link, hovering its Sky wedge — and in that state every OTHER
    prime, the Sky disc and every other wedge fade to DIM, the prime's own
-   wedge gets the text-ink outline, and its arrow and hole come up to full.
+   wedge gets the text-ink outline, and its arrow and hole come up to LIT.
 
    Pills paint in a top layer, so they are no longer descendants of the
    mark they name and plain `.mark:hover .pill` can't reach them; one
@@ -38,7 +41,7 @@ export function RingHoverStyles({ marks }: { marks: PrimeMarks[] }) {
         `.msc-ring:has(a:focus-visible > .msc-ring-prime[data-prime="${id}"]) .msc-ring-pill[data-mark^="${id}::"] { opacity: 1; }`,
         `${focus} ${others} { opacity: ${DIM}; }`,
         `${focus} .msc-ring-sky-wedge[data-prime="${id}"] { stroke: var(--tan); stroke-width: 2.5; }`,
-        `${focus} .msc-ring-prime[data-prime="${id}"] :is(.msc-ring-arrow, .msc-ring-hole) { opacity: 1; }`,
+        `${focus} .msc-ring-prime[data-prime="${id}"] :is(.msc-ring-arrow, .msc-ring-hole) { opacity: ${LIT}; }`,
         `${focus} .msc-ring-prime[data-prime="${id}"] .msc-ring-rim { stroke-width: 4.5; stroke-opacity: 1; }`,
         `${focus} .msc-ring-prime[data-prime="${id}"] .msc-ring-label { fill: var(--tan); }`,
       );

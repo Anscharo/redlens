@@ -91,7 +91,7 @@ describe("MscOverview", () => {
     // …and back: the ring's marks light the matching layer, and the
     // month's other primes fade while a pie is in focus.
     expect(style).toContain('.msc-ring-mark[data-mark="spark::sky"]:hover');
-    expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg:not([data-prime="spark"]) { opacity: 0.45; }');
+    expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg:not([data-prime="spark"]) { opacity: 0.5; }');
     expect(screen.getAllByText("To Sky").length).toBeGreaterThanOrEqual(1); // headline card + donut center
     // Headline card reads as the equation it is.
     expect(screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure")).toBeInTheDocument();
