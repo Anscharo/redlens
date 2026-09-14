@@ -96,23 +96,26 @@ export function ActorSettlements({ slug, name }: Props) {
         labels={{ kept: "Supply-side kept", demand: "Demand-side" }}
         identity={{ label: name, color }}
       />
-      <SettlementBars
-        months={reports.map(summaryThreeWay)}
-        selected={month}
-        onSelect={selectMonth}
-      />
+      {/* Summary and demand-side mix side by side; they stack on a narrow page. */}
+      <div className="flex flex-wrap gap-x-10 items-start">
+        <SettlementBars
+          months={reports.map(summaryThreeWay)}
+          selected={month}
+          onSelect={selectMonth}
+        />
+        <SettlementDemandBars
+          reports={reports}
+          series={demandSeries}
+          selected={month}
+          onSelect={selectMonth}
+        />
+      </div>
       {gap > 1 && (
         <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
           Headline prime-agent revenue is {formatUsd(gap)} above the venue rows
           (unattributed to any venue).
         </p>
       )}
-      <SettlementDemandBars
-        reports={reports}
-        series={demandSeries}
-        selected={month}
-        onSelect={selectMonth}
-      />
       <ActorSettlementVenues report={report} name={name} />
     </>
   );
