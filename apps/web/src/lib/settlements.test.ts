@@ -17,6 +17,7 @@ import {
   supplyKept,
   isDemandSideCycle,
   teaserFigure,
+  cumulativeToSky,
   summaryThreeWay,
   threeWayPeaks,
   barFillStyle,
@@ -159,6 +160,21 @@ describe("demand-side cycles", () => {
   it("teases Sky's take when present, else the demand-side total as kept", () => {
     expect(teaserFigure(report())).toEqual({ amount: 60, suffix: "to Sky" });
     expect(teaserFigure(keel)).toEqual({ amount: 36_231, suffix: "kept" });
+  });
+
+  it("runs a cumulative To-Sky total over a Prime's months, and none for a demand-side-only Prime", () => {
+    const rows = [
+      report({ month: "2026-05", headline: { ...report().headline, skyRevenue: 10 } }),
+      report({ month: "2026-06", headline: { ...report().headline, skyRevenue: -4 } }),
+      report({ month: "2026-07", headline: { ...report().headline, skyRevenue: 60 } }),
+    ];
+    expect(cumulativeToSky(rows)).toEqual([
+      { month: "2026-05", sky: 10, cumulative: 10 },
+      { month: "2026-06", sky: -4, cumulative: 6 },
+      { month: "2026-07", sky: 60, cumulative: 66 },
+    ]);
+    expect(cumulativeToSky([keel])).toEqual([]);
+    expect(cumulativeToSky([])).toEqual([]);
   });
 
   it("splits the Summary into Sky / supply kept / demand-side", () => {

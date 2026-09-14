@@ -2711,24 +2711,93 @@ a.atlas-annotates:focus-visible {
 }
 
 /* ─── MSC settlement charts (radar actor page) ─── */
-.msc-teaser {
+/* The Monthly settlement box and its cumulative chart, floated top-right
+   of a Prime's actor page. Both are links to the settlement page. */
+.msc-teaser-wrap {
   float: right;
-  width: 14.5rem;
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
   margin: 0 0 1rem 1.25rem;
-  padding: 12px 14px 14px;
+}
+.msc-teaser,
+.msc-teaser-chart {
+  display: block;
   border: 1px solid var(--border);
   border-radius: 3px;
   background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.1s;
+}
+.msc-teaser:hover,
+.msc-teaser-chart:hover {
+  border-color: var(--border-muted);
+}
+.msc-teaser {
+  width: 14.5rem;
+  padding: 12px 14px 14px;
 }
 .msc-teaser-link {
   display: inline-block;
   margin-top: 6px;
 }
+.msc-teaser:hover .msc-teaser-link {
+  text-decoration: underline;
+}
+.msc-teaser-chart {
+  width: 16rem;
+  padding: 8px 10px;
+}
+.msc-teaser-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.msc-cum-area {
+  fill: var(--msc-sky);
+  fill-opacity: 0.28;
+}
+.msc-cum-line {
+  fill: none;
+  stroke: var(--msc-sky);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.msc-cum-zero {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.msc-cum-dot {
+  fill: var(--msc-sky);
+}
+.msc-cum-axis {
+  fill: var(--tan-3);
+}
+.msc-cum-pill {
+  fill: var(--tan);
+}
+/* Hovering a month's column shows its figure in place of the caption. */
+.msc-cum-hover {
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.msc-cum-col:hover .msc-cum-hover {
+  opacity: 1;
+}
+.msc-teaser-chart:has(.msc-cum-col:hover) .msc-cum-caption {
+  opacity: 0;
+}
 @media (max-width: 639px) {
-  .msc-teaser {
+  .msc-teaser-wrap {
     float: none;
-    width: 100%;
+    flex-direction: column;
     margin: 0 0 1rem 0;
+  }
+  .msc-teaser,
+  .msc-teaser-chart {
+    width: 100%;
   }
 }
 .msc-bar-col {

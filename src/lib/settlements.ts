@@ -177,6 +177,26 @@ export function teaserFigure(report: SettlementReport): { amount: number; suffix
   return { amount: sky, suffix: "to Sky" };
 }
 
+/** One month of a Prime's running To-Sky total — the actor page's
+ *  cumulative teaser chart. */
+export interface CumulativeMonth {
+  month: string;
+  sky: number;
+  cumulative: number;
+}
+
+/** Running total of what a Prime sent to Sky, in the given (month-sorted)
+ *  order. Empty when no month sent anything — a demand-side-only Prime
+ *  (Keel) keeps the single-month "kept" teaser instead. */
+export function cumulativeToSky(rows: readonly SettlementReport[]): CumulativeMonth[] {
+  if (!rows.some((r) => Math.abs(r.headline.skyRevenue) >= NEAR_ZERO)) return [];
+  let run = 0;
+  return rows.map((r) => {
+    run += r.headline.skyRevenue;
+    return { month: r.month, sky: r.headline.skyRevenue, cumulative: run };
+  });
+}
+
 /** Summary three-way: Sky take, supply-side kept (`par − CoF`), demand-side. */
 export interface ThreeWayMonth {
   month: string;
