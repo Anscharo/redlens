@@ -89,11 +89,23 @@ const PILL_LIFT = 65;
 /** A share's pill sits left of Sky's bar, inside the canvas. */
 const SHARE_PILL_INSET = 220;
 
+/** A ribbon's endpoints: the right edge of one bar (x0, y0..y0+t) to the
+ *  left edge of another (x1, y1..y1+t). Kept beside the path so the
+ *  month-to-month tween (mscFlowTween.ts) can regenerate it. */
+export interface RibbonGeom {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  t: number;
+}
+
 export interface FlowLink {
   prime: string;
   kind: SliceKind;
   value: number;
   path: string;
+  geom: RibbonGeom;
   /** Ribbon midpoint — where the pill's leader touches it. */
   midX: number;
   midY: number;
@@ -232,7 +244,7 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
       const fit = fitOnRibbon(text, x0, y0, x1, y1, th, toward);
       const midX = (x0 + x1) / 2;
       const midY = (y0 + y1) / 2 + th / 2;
-      return { prime: p.prime, kind, value, path: ribbonPath(x0, y0, x1, y1, th), midX, midY, pillX: midX, pillY: midY - PILL_LIFT - th / 2, figureX: fit?.x ?? null, figureY: fit?.y ?? null };
+      return { prime: p.prime, kind, value, path: ribbonPath(x0, y0, x1, y1, th), geom: { x0, y0, x1, y1, t: th }, midX, midY, pillX: midX, pillY: midY - PILL_LIFT - th / 2, figureX: fit?.x ?? null, figureY: fit?.y ?? null };
     };
     const inbound = a.inbound.map((x) => {
       const sy = srcCursor.get(x.kind)!;

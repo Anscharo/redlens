@@ -4,6 +4,7 @@ import { RingHoverStyles } from "./MscRingHoverStyles";
 import { markId, AmountPill, pillText } from "./MscRingPills";
 import { FlowAgentGroup } from "./MscFlowAgent";
 import type { OverviewPrime } from "./MscRingPrime";
+import { useTweenedFlow } from "../../hooks/useTweenedFlow";
 
 /** Pills draw at three times the orbit's size: this 3000-wide canvas
  *  renders at roughly a third, so the hover text lands near 16px on screen. */
@@ -20,11 +21,15 @@ interface Props {
 /** The three-stage flow chart: sources → Primes → Sky. Speaks the orbital
  *  chart's mark vocabulary (.msc-ring-prime / .msc-ring-mark / data-mark /
  *  .msc-ring-<kind> / .msc-ring-sky-wedge), so the key, the cross-chart
- *  hover and the pills work on it unchanged. */
-export function MscFlow({ layout, primes, month, centerFigure }: Props) {
+ *  hover and the pills work on it unchanged. A month change is drawn as a
+ *  transition (useTweenedFlow): bars stretch and slide, ribbons re-thread,
+ *  a Prime that joins or leaves grows in or peels away. */
+export function MscFlow({ layout: target, primes, month, centerFigure }: Props) {
+  const layout = useTweenedFlow(target);
   const meta = new Map(primes.map((p) => [p.flow.prime, p]));
   const labelOf = (prime: string) => meta.get(prime)?.label ?? prime;
-  const marks = layout.agents.map((a) => ({
+  // Hover rules come from the month being shown, not the frame in flight.
+  const marks = target.agents.map((a) => ({
     prime: a.prime,
     kinds: [...a.inbound.map((l) => l.kind as string), "gross", ...(a.outbound.length ? ["sky", "share"] : [])],
   }));
