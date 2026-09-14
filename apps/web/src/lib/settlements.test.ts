@@ -302,9 +302,14 @@ describe("loadSettlements", () => {
     expect(fetchJson.mock.calls[0][0]).toMatch(/settlements\.json$/);
   });
 
-  it("returns EMPTY_SETTLEMENTS when the artifact is missing, and retries next call", async () => {
+  it("returns EMPTY_SETTLEMENTS when the artifact is missing, and keeps that one promise (use() re-reads it)", async () => {
     fetchJson.mockRejectedValueOnce(new Error("settlements.json: 404"));
-    await expect(loadSettlements()).resolves.toBe(EMPTY_SETTLEMENTS);
+    const first = loadSettlements();
+    await expect(first).resolves.toBe(EMPTY_SETTLEMENTS);
+    expect(loadSettlements()).toBe(first);
+    expect(fetchJson).toHaveBeenCalledTimes(1);
+    // A reset (tests, or a deliberate refetch) tries the network again.
+    resetSettlementsCache();
     fetchJson.mockResolvedValueOnce({ source: {}, reports: [report()] });
     await expect(loadSettlements()).resolves.toEqual({ source: {}, reports: [report()] });
     expect(fetchJson).toHaveBeenCalledTimes(2);

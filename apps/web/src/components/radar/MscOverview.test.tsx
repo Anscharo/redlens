@@ -44,6 +44,7 @@ vi.mock("../../lib/analytics", () => ({ track: (...a: unknown[]) => track(...a) 
 
 import { MscOverview } from "./MscOverview";
 import { EMPTY_SETTLEMENTS } from "../../lib/settlements";
+import { fulfilled } from "../../test/fulfilled";
 
 const ACTORS = [{ slug: "spark-party", name: "Spark" }];
 
@@ -54,12 +55,30 @@ afterEach(() => {
 
 beforeEach(() => {
   loadSettlements.mockReset();
-  loadSettlements.mockResolvedValue(FIXTURE);
+  // use() reads the mocked loader every render: a pre-fulfilled promise (see fulfilled.ts).
+  loadSettlements.mockReturnValue(fulfilled(FIXTURE));
   track.mockReset();
   window.history.pushState({}, "", "/radar");
 });
 
 describe("MscOverview", () => {
+  it("shows the same cards, empty and full-size, while the settlements load", async () => {
+    loadSettlements.mockReturnValue(new Promise(() => {}));
+    render(<MscOverview actors={ACTORS} />);
+    const skeleton = screen.getByTestId("msc-overview-skeleton");
+    expect(screen.getByText("Monthly Settlement Cycle")).toBeInTheDocument();
+    // The headline card keeps its labels; every figure is a dash.
+    expect(screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure")).toBeInTheDocument();
+    expect(screen.getByText("Supply-side kept by Primes")).toBeInTheDocument();
+    expect(skeleton.querySelectorAll(".msc-card")).toHaveLength(3);
+    // The timeseries track and the flow canvas are already their real sizes.
+    expect(skeleton.querySelector(".msc-ts-grid")).toHaveAttribute("height", "380");
+    expect(skeleton.querySelector("svg.msc-flow")).toHaveAttribute("viewBox", "0 0 3000 1200");
+    expect(skeleton.querySelector(".msc-flow-header")).toHaveTextContent("SOURCE");
+    expect(screen.getByRole("group", { name: "Chart style" })).toBeInTheDocument();
+    expect(document.querySelector(".msc-key")).toBeInTheDocument();
+  });
+
   it("renders the ring, disclaimer, and ecosystem headline row for the latest month", async () => {
     render(<MscOverview actors={ACTORS} />);
     await waitFor(() => expect(screen.getByText("Monthly Settlement Cycle")).toBeInTheDocument());
@@ -184,13 +203,8 @@ describe("MscOverview", () => {
     );
   });
 
-  it("renders nothing while loading and when the artifact is missing", async () => {
-    loadSettlements.mockReturnValue(new Promise(() => {}));
-    const { container } = render(<MscOverview actors={ACTORS} />);
-    expect(container).toBeEmptyDOMElement();
-    cleanup();
-
-    loadSettlements.mockResolvedValue(EMPTY_SETTLEMENTS);
+  it("renders nothing when the artifact is missing", async () => {
+    loadSettlements.mockReturnValue(fulfilled(EMPTY_SETTLEMENTS));
     const { container: c2 } = render(<MscOverview actors={ACTORS} />);
     await waitFor(() => expect(loadSettlements).toHaveBeenCalled());
     expect(c2).toBeEmptyDOMElement();

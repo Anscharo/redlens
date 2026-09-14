@@ -18,6 +18,24 @@ interface Props {
   centerFigure: string;
 }
 
+/** The column headers over the three node groups — pure chrome, so the
+ *  overview's loading skeleton draws them on an empty canvas too. */
+export function FlowHeaders() {
+  return (
+    <>
+      <text x={LEFT_X + NODE_W} y={HEADER_Y} textAnchor="end" fontSize={30} className="msc-flow-header mono">
+        {HEADERS.source}
+      </text>
+      <text x={MID_X + AGENT_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={30} className="msc-flow-header mono">
+        {HEADERS.prime}
+      </text>
+      <text x={RIGHT_X + NODE_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={30} className="msc-flow-header mono">
+        {HEADERS.sky}
+      </text>
+    </>
+  );
+}
+
 /** The three-stage flow chart: sources → Primes → Sky. Speaks the orbital
  *  chart's mark vocabulary (.msc-ring-prime / .msc-ring-mark / data-mark /
  *  .msc-ring-<kind> / .msc-ring-sky-wedge), so the key, the cross-chart
@@ -39,16 +57,7 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
       <RingHoverStyles marks={marks} />
       <figure className="msc-ring-frame msc-flow-frame" aria-label={`Monthly Settlement Cycle flows for ${formatMonth(month)}`}>
         <svg className="msc-ring msc-flow" viewBox={`0 0 ${layout.width} ${layout.height}`} preserveAspectRatio="xMidYMid meet">
-          {/* Column headers over the three node groups. */}
-          <text x={LEFT_X + NODE_W} y={HEADER_Y} textAnchor="end" fontSize={30} className="msc-flow-header mono">
-            {HEADERS.source}
-          </text>
-          <text x={MID_X + AGENT_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={30} className="msc-flow-header mono">
-            {HEADERS.prime}
-          </text>
-          <text x={RIGHT_X + NODE_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={30} className="msc-flow-header mono">
-            {HEADERS.sky}
-          </text>
+          <FlowHeaders />
           {layout.sources.map((s) => (
             <g key={s.kind} className="msc-flow-source" data-kind={s.kind} style={{ opacity: s.alpha }}>
               <rect x={s.x} y={s.y} width={NODE_W} height={s.h} className={`msc-ring-${s.kind}`} />

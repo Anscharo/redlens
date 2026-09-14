@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useLoaded } from "../../hooks/useAtlasData";
+import { Suspense, use, useEffect, useMemo, useRef, useState } from "react";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import {
   loadSettlements,
@@ -27,16 +26,27 @@ import { DIM } from "./MscRingHoverStyles";
 import { RingKey } from "./MscRingKey";
 import { MscChartStyle, type ChartStyle } from "./MscChartStyle";
 import { MscTimeseries, primeFill } from "./MscTimeseries";
+import { MscOverviewSkeleton, OverviewIntro } from "./MscOverviewSkeleton";
 
 const mscCodec = urlString(null);
 /** Chart style: the three-stage flow (default, no param) or the orbital pies. */
 const viewCodec = urlString(null);
-const SOURCE = "https://github.com/soterlabs/settlement-reports";
 /** Autoplay dwell per month. */
 const PLAY_MS = 1000;
 
+/** The cross-Prime Monthly Settlement Cycle section. Suspends on the
+ *  settlements artifact behind a skeleton of the same cards at the same
+ *  sizes (MscOverviewSkeleton), so the charts paint into place. */
 export function MscOverview({ actors }: { actors: OverviewActor[] }) {
-  const bundle = useLoaded(loadSettlements, { soft: true });
+  return (
+    <Suspense fallback={<MscOverviewSkeleton />}>
+      <MscOverviewLoaded actors={actors} />
+    </Suspense>
+  );
+}
+
+function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
+  const bundle = use(loadSettlements());
   const months = useMemo(() => (bundle ? settlementMonths(bundle) : []), [bundle]);
   const latest = months[months.length - 1] ?? null;
   const [msc, setMsc] = useUrlState("msc", mscCodec);
@@ -94,28 +104,17 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
   );
 
   const viewed = useRef(false);
-  const ready = Boolean(bundle && !settlementsArtifactMissing(bundle) && month && eco && flows.length > 0);
+  const ready = Boolean(!settlementsArtifactMissing(bundle) && month && eco && flows.length > 0);
   useEffect(() => {
     if (!ready || viewed.current) return;
     viewed.current = true;
     track("msc_overview_view", { month: month!, primes: flows.length });
   }, [ready, month, flows.length]);
 
-  if (!bundle || settlementsArtifactMissing(bundle) || !month || !eco) return null;
+  if (settlementsArtifactMissing(bundle) || !month || !eco) return null;
 
   return (
-    <section className="px-6 pt-4">
-      <h2 className="text-xl mb-3" style={{ color: "var(--tan)" }}>
-        Monthly Settlement Cycle
-      </h2>
-      <p className="text-xs mb-4 max-w-3xl" style={{ color: "var(--tan-3)" }}>
-        Soter Labs' Monthly Settlement Cycle workbooks (OEA calculations, not
-        Atlas figures). “To Sky” is what Primes owed Sky, not the Protocol's Net
-        Revenue (A.2.3.1.2.1.1).{" "}
-        <a href={SOURCE} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-          Source workbooks
-        </a>
-      </p>
+    <OverviewIntro>
       <MscHeadline eco={eco} month={month} play={{ playing, onToggle: () => setPlaying((p) => !p) }} />
       <PrimeHoverStyles primes={stack.primes} />
       {/* The timeseries card sets the row's height; the ring card stretches
@@ -153,7 +152,7 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
           <RingKey view={view} />
         </div>
       </div>
-    </section>
+    </OverviewIntro>
   );
 }
 

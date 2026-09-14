@@ -103,6 +103,7 @@ vi.mock("../../lib/forumTopics", () => ({
 
 import { ActorSettlements } from "./ActorSettlements";
 import { EMPTY_SETTLEMENTS } from "../../lib/settlements";
+import { fulfilled } from "../../test/fulfilled";
 
 afterEach(() => {
   cleanup();
@@ -111,12 +112,25 @@ afterEach(() => {
 
 beforeEach(() => {
   loadSettlements.mockReset();
-  loadSettlements.mockResolvedValue(FIXTURE);
+  // use() reads the mocked loader every render: a pre-fulfilled promise (see fulfilled.ts).
+  loadSettlements.mockReturnValue(fulfilled(FIXTURE));
   loadForumTopics.mockReset();
   loadForumTopics.mockResolvedValue([]);
 });
 
 describe("ActorSettlements", () => {
+  it("shows the headline card and empty bar charts at full size while the workbooks load", () => {
+    loadSettlements.mockReturnValue(new Promise(() => {}));
+    render(<ActorSettlements slug="spark" name="Spark" />);
+    const skeleton = screen.getByTestId("settlements-skeleton");
+    expect(screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure")).toBeInTheDocument();
+    expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
+    expect(screen.getByText("Summary")).toBeInTheDocument();
+    expect(screen.getByText("Demand-side")).toBeInTheDocument();
+    expect(skeleton.querySelectorAll(".msc-bar-cluster")).toHaveLength(6);
+    expect(skeleton.querySelectorAll(".msc-bar-stack")).toHaveLength(6);
+  });
+
   it("renders Spark figures, the Sankey, and the venue table for the latest month", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => expect(screen.getByText("Supply-side kept")).toBeInTheDocument());
@@ -145,7 +159,7 @@ describe("ActorSettlements", () => {
     expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
   });
 
-  it("shows the To Sky equation card with the prime's identity color, and paints its Sankey bar in it", async () => {
+  it("shows the To Sky equation card headed by the month, and paints its Sankey bar supply-side green", async () => {
     const { container } = render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure"));
     expect(screen.getByText("cost of funds")).toBeInTheDocument();
@@ -155,10 +169,8 @@ describe("ActorSettlements", () => {
     expect(screen.queryByText("Supply-side kept by Primes")).not.toBeInTheDocument();
     // The card is headed by the settlement month, not the Prime's name.
     expect(container.querySelector(".msc-card")).toHaveTextContent(/^Jul 2026/);
-    // The identity swatch is the roster color the overview uses (spark is
-    // first in PRIME_ORDER); the Sankey's Prime bar is supply-side green.
-    const swatch = container.querySelector(".msc-identity-swatch") as HTMLElement;
-    expect(swatch.style.background).toBe("var(--msc-prime-1)");
+    // No identity swatch on the card; the Sankey's Prime bar is supply-side green.
+    expect(container.querySelector(".msc-identity-swatch")).toBeNull();
     expect(container.querySelector(".msc-sankey-sink rect[fill='var(--msc-kept)']")).toBeInTheDocument();
     expect(container.querySelector(".msc-sankey-sink rect[fill='var(--msc-prime-1)']")).not.toBeInTheDocument();
   });
@@ -222,7 +234,7 @@ describe("ActorSettlements", () => {
   });
 
   it("does not claim a prime has no workbooks when the artifact failed to load", async () => {
-    loadSettlements.mockResolvedValue(EMPTY_SETTLEMENTS);
+    loadSettlements.mockReturnValue(fulfilled(EMPTY_SETTLEMENTS));
     render(<ActorSettlements slug="spark" name="Spark" />);
     expect(await screen.findByText("Settlement figures could not be loaded.")).toBeInTheDocument();
     expect(screen.queryByText(/No published Monthly Settlement Cycle workbooks/)).not.toBeInTheDocument();

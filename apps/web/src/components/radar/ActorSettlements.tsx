@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Suspense, use, useMemo } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import {
@@ -14,12 +14,11 @@ import {
 } from "../../lib/settlements";
 import { loadForumTopics } from "../../lib/forumTopics";
 import { forumTopicUrlForMonth } from "@/lib/forumMonths";
-import { primeRoster } from "@/lib/settlementsOverview";
 import { SettlementBars } from "./SettlementBars";
 import { SettlementDemandBars } from "./SettlementDemandBars";
 import { ActorSettlementVenues } from "./ActorSettlementVenues";
 import { MscHeadline } from "./MscHeadline";
-import { primeFill } from "./MscTimeseries";
+import { ActorSettlementsSkeleton } from "./ActorSettlementsSkeleton";
 
 const mscCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
@@ -29,13 +28,21 @@ interface Props {
   name: string;
 }
 
-export function ActorSettlements({ slug, name }: Props) {
-  const bundle = useLoaded(loadSettlements, { soft: true });
-  const topics = useLoaded(loadForumTopics, { soft: true });
-  const reports = useMemo(
-    () => (bundle ? reportsForPrime(bundle, slug) : []),
-    [bundle, slug],
+/** A Prime's Monthly Settlement Cycle charts. Suspends on the settlements
+ *  artifact behind a skeleton of the same chrome at the same sizes
+ *  (ActorSettlementsSkeleton), so the charts paint into place. */
+export function ActorSettlements(props: Props) {
+  return (
+    <Suspense fallback={<ActorSettlementsSkeleton />}>
+      <ActorSettlementsLoaded {...props} />
+    </Suspense>
   );
+}
+
+function ActorSettlementsLoaded({ slug, name }: Props) {
+  const bundle = use(loadSettlements());
+  const topics = useLoaded(loadForumTopics, { soft: true });
+  const reports = useMemo(() => reportsForPrime(bundle, slug), [bundle, slug]);
   const months = reports.map((r) => r.month);
   const latest = months[months.length - 1] ?? null;
   const [msc, setMsc] = useUrlState("msc", mscCodec);
@@ -43,7 +50,6 @@ export function ActorSettlements({ slug, name }: Props) {
   const report = reports.find((r) => r.month === month) ?? null;
   const demandSeries = useMemo(() => activeDemandSeries(reports), [reports]);
 
-  if (!bundle) return null;
   if (settlementsArtifactMissing(bundle)) {
     return (
       <p className="text-sm italic" style={{ color: "var(--tan-3)" }}>
@@ -60,9 +66,6 @@ export function ActorSettlements({ slug, name }: Props) {
   }
 
   const gap = revenueGap(report);
-  // The Prime's identity color: the same roster index the overview uses for
-  // its ring rim and timeseries layer, so the two pages agree on who is who.
-  const color = primeFill(primeRoster(bundle).indexOf(report.prime));
   const workbook = `${SOURCE}/tree/main/reports/${report.prime}/${month}`;
   const forumUrl = forumTopicUrlForMonth(topics ?? [], month);
   const selectMonth = (m: string) => setMsc(m === latest ? null : m);
@@ -95,7 +98,6 @@ export function ActorSettlements({ slug, name }: Props) {
         }}
         month={month}
         labels={{ kept: "Supply-side kept", demand: "Demand-side" }}
-        identity={{ color }}
       />
       {/* Summary and demand-side mix side by side; they stack on a narrow page. */}
       <div className="flex flex-wrap gap-x-10 items-start">

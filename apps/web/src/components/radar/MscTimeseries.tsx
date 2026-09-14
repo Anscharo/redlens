@@ -10,11 +10,11 @@ import type { PrimeStackMonth } from "@/lib/settlementsOverview";
 // Fixed pixel geometry: the axis/grid overlay and the flex columns must
 // agree on x positions, so columns are a fixed COL_W wide with a GAP_PX gap
 // after an AXIS_W label gutter.
-const COL_W = 48;
-const GAP_PX = 12;
-const AXIS_W = 46;
+export const COL_W = 48;
+export const GAP_PX = 12;
+export const AXIS_W = 46;
 // Matches the ring's typical rendered height so the two charts read as one row.
-const TRACK_H = 380;
+export const TRACK_H = 380;
 
 // Per-prime categorical fills, assigned by the stable roster order from
 // primeStackMonths (fixed order, never re-cycled when a month lacks a prime).
