@@ -154,6 +154,26 @@ describe("MscOverview", () => {
     }
   });
 
+  it("steps a month back and forward on the arrow keys, without wrapping or stealing typed arrows", async () => {
+    render(<MscOverview actors={ACTORS} />);
+    await waitFor(() => screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026"));
+    fireEvent.keyDown(document, { key: "ArrowRight" }); // already the latest: stays
+    expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+    expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jun 2026")).toBeInTheDocument();
+    expect(window.location.search).toBe("?msc=2026-06");
+    fireEvent.keyDown(document, { key: "ArrowLeft" }); // first month: stays
+    expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jun 2026")).toBeInTheDocument();
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    fireEvent.keyDown(input, { key: "ArrowRight" });
+    expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jun 2026")).toBeInTheDocument();
+    input.remove();
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
+    expect(window.location.search).toBe("");
+  });
+
   it("opens on the flow chart and switches to the orbital pies, synced to ?view", async () => {
     const { container } = render(<MscOverview actors={ACTORS} />);
     await waitFor(() => screen.getByText("Monthly Settlement Cycle"));
