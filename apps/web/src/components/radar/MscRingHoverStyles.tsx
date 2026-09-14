@@ -11,7 +11,7 @@ export interface PrimeMarks {
 /** How far the rest of the chart fades when one thing is in focus. Low
  *  enough that the lit marks are unmistakable, high enough that the faded
  *  ones still show where they are. */
-export const DIM = 0.22;
+export const DIM = 0.45;
 
 /* Static CSS can't say "everything that is NOT the hovered prime", so the
    focus rules are generated per prime (the venue sankey's VenueHoverStyles
