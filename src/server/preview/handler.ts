@@ -136,6 +136,9 @@ export async function resolveId(rawId: string): Promise<ResolveResult> {
           // (pr-diff.ts) keys on `prBase`, never `pr.number`, so this never
           // sends a private PR's number at canonical /pulls/N.
           prBase: row.pr_base_repo && row.pr_base_ref ? { repo: row.pr_base_repo, ref: row.pr_base_ref } : undefined,
+          // Same round-trip for a fork branch's `repo` candidate: without it a
+          // rebuilt bundle would redline against sky only and lose the switch.
+          defaultBranch: row.default_branch ?? undefined,
           private: row.private,
         }
       : { error: "not-found" };

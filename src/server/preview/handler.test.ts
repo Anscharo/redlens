@@ -894,11 +894,12 @@ test("resolveId: sha rebuild of a plain branch row (null base columns) reconstru
         private: false,
         pr_base_repo: null,
         pr_base_ref: null,
+        default_branch: "develop",
       },
     ],
   ];
   const r = await resolveId(SHA_BRANCH_ROW);
-  expect(r).toMatchObject({ repo: "blimpa/next-gen-atlas", sha: SHA_BRANCH_ROW, kind: "branch" });
+  expect(r).toMatchObject({ repo: "blimpa/next-gen-atlas", sha: SHA_BRANCH_ROW, kind: "branch", defaultBranch: "develop" });
   expect((r as any).prBase).toBeUndefined();
   expect((r as any).pr).toBeUndefined();
 });

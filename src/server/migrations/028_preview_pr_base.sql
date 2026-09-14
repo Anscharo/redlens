@@ -8,8 +8,13 @@
 --     in (usually the canonical repo, or the PR's own repo for a fork PR).
 --   previews.pr_base_ref  — the base branch name (e.g. "main", "develop").
 --
+--   previews.default_branch — the head repo's default branch (fork BRANCH
+--     previews only): the `repo` diff-base candidate of a fork branch, which a
+--     rebuild would otherwise lose (the switch would silently vanish).
+--
 -- No pr_base_sha column: the tip is re-resolved on rebuild (base drift is the
--- point of tracking it — a stale pinned sha would defeat that). Both columns
+-- point of tracking it — a stale pinned sha would defeat that). All columns
 -- default NULL so every existing branch/canonical-branch preview is unaffected.
 ALTER TABLE previews ADD COLUMN IF NOT EXISTS pr_base_repo TEXT;
 ALTER TABLE previews ADD COLUMN IF NOT EXISTS pr_base_ref TEXT;
+ALTER TABLE previews ADD COLUMN IF NOT EXISTS default_branch TEXT;

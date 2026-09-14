@@ -66,6 +66,9 @@ export interface PreviewMeta {
   /** The PR's base branch (PR previews only). Persisted to the previews row so a
    *  pinned-sha rebuild keeps PR-base treatment without re-asking GitHub. */
   prBase?: { repo: string; ref: string };
+  /** The head repo's default branch (fork branch previews only) — the `repo`
+   *  candidate's ref, persisted for the same rebuild round-trip as prBase. */
+  defaultBranch?: string;
   /** The diff-base candidates this bundle's redlines were computed against.
    *  `sky` = merge base with sky-ecosystem/next-gen-atlas:main (the fork
    *  point); `repo` = merge base with the head repo's own base (the PR's base

@@ -94,10 +94,12 @@ export function baseLine(meta: PreviewMeta, active: ActiveBase | null): string {
       if (ahead === 0 && behind === 0) {
         segments.push(`base is up to date with ${CANONICAL_MAIN}`);
       } else {
-        if (ahead !== undefined) segments.push(`base forked from ${CANONICAL_MAIN} ${plural(ahead, "commit")} ago`);
+        // A stale fork main with no unique commits (ahead === 0, the common
+        // case) is just "behind" — "forked 0 commits ago" would be noise.
+        if (ahead) segments.push(`base forked from ${CANONICAL_MAIN} ${plural(ahead, "commit")} ago`);
         if (behind !== undefined) segments.push(`${plural(behind, "commit")} behind main`);
       }
-      if (docsDiffer !== undefined) segments.push(`${plural(docsDiffer, "doc")} differ`);
+      if (docsDiffer !== undefined) segments.push(`${plural(docsDiffer, "doc")} differ${docsDiffer === 1 ? "s" : ""}`);
     }
     return segments.join(" · ");
   }

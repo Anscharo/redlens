@@ -49,6 +49,18 @@ describe("baseLine", () => {
     );
   });
 
+  it("repo key: a stale fork main with no unique commits omits the '0 commits ago' segment", () => {
+    const meta = {
+      bases: {
+        auto: "repo" as const,
+        repo: { repo: "acme/fork", ref: "main", mergeBase: "x", drift: { sha: "t", commitsAhead: 0, commitsBehind: 9, docsDiffer: 41, vsAtlasCommit: "l" } },
+      },
+    };
+    expect(baseLine(meta, { key: "repo", repo: "acme/fork", ref: "main", auto: true })).toBe(
+      `redlined against acme/fork:main · 9 commits behind main · 41 docs differ`,
+    );
+  });
+
   it("repo key: pluralizes singular commit/doc counts", () => {
     const m = meta({
       auto: "repo",
@@ -60,7 +72,7 @@ describe("baseLine", () => {
       },
     });
     expect(baseLine(m, { key: "repo", repo: "acme/fork", ref: "main", auto: true })).toBe(
-      `redlined against acme/fork:main · base forked from ${CANONICAL_MAIN} 1 commit ago · 1 commit behind main · 1 doc differ`,
+      `redlined against acme/fork:main · base forked from ${CANONICAL_MAIN} 1 commit ago · 1 commit behind main · 1 doc differs`,
     );
   });
 

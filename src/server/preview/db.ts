@@ -23,6 +23,9 @@ export interface PreviewRow {
    *  and migrations/028_preview_pr_base.sql. NULL for every branch preview. */
   pr_base_repo: string | null;
   pr_base_ref: string | null;
+  /** The head repo's default branch (fork branch previews only) — the `repo`
+   *  diff-base candidate a pinned-sha rebuild would otherwise lose. */
+  default_branch: string | null;
 }
 
 /** Upsert on a successful build. created_at is preserved on conflict (re-builds
@@ -30,18 +33,19 @@ export interface PreviewRow {
 export async function upsertPreview(m: PreviewMeta): Promise<void> {
   await sql`
     INSERT INTO previews
-      (sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, build_ms, trust_tier, private, pr_base_repo, pr_base_ref, last_access)
+      (sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, build_ms, trust_tier, private, pr_base_repo, pr_base_ref, default_branch, last_access)
     VALUES
       (${m.sha}, ${m.repo}, ${m.ref}, ${m.kind}, ${m.prNumber ?? null}, ${m.prTitle ?? null},
        ${m.prAuthor ?? null}, ${m.prState ?? null}, ${m.docCount}, ${m.buildMs}, ${m.trustTier ?? null},
-       ${m.private ?? false}, ${m.prBase?.repo ?? null}, ${m.prBase?.ref ?? null}, now())
+       ${m.private ?? false}, ${m.prBase?.repo ?? null}, ${m.prBase?.ref ?? null}, ${m.defaultBranch ?? null}, now())
     ON CONFLICT (sha) DO UPDATE SET
       repo = EXCLUDED.repo, ref = EXCLUDED.ref, kind = EXCLUDED.kind,
       pr_number = EXCLUDED.pr_number, pr_title = EXCLUDED.pr_title,
       pr_author = EXCLUDED.pr_author, pr_state = EXCLUDED.pr_state,
       doc_count = EXCLUDED.doc_count, build_ms = EXCLUDED.build_ms,
       trust_tier = EXCLUDED.trust_tier, private = EXCLUDED.private,
-      pr_base_repo = EXCLUDED.pr_base_repo, pr_base_ref = EXCLUDED.pr_base_ref, last_access = now()
+      pr_base_repo = EXCLUDED.pr_base_repo, pr_base_ref = EXCLUDED.pr_base_ref,
+      default_branch = EXCLUDED.default_branch, last_access = now()
   `;
 }
 

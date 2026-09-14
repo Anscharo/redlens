@@ -40,12 +40,15 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
   // UUID (former).
   const swap = diff.identitySwap[nodeId];
   const former = diff.formerUuid[nodeId];
+  // A PR is anything with a PR number — same rule as PreviewBanner. Only a
+  // canonical PR (kind "pr") lives on the canonical repo; a fork's or private
+  // repo's own PR (kind stays "branch", see resolve.ts) links to that repo.
+  const isPr = !!meta?.prNumber;
   const srcUrl = meta
-    ? meta.kind === "pr" && meta.prNumber
-      ? `https://github.com/${CANONICAL}/pull/${meta.prNumber}`
+    ? isPr
+      ? `https://github.com/${meta.kind === "pr" ? CANONICAL : meta.repo}/pull/${meta.prNumber}`
       : `https://github.com/${meta.repo}/commit/${meta.sha}`
     : null;
-  const isPr = meta?.kind === "pr" && !!meta.prNumber;
   // What actually made the change — a PR or a bare branch. Until meta.json lands
   // we don't know which, so fall back to the neutral "preview".
   const source = meta ? (isPr ? "pull request" : "branch") : "preview";
@@ -132,8 +135,10 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
           above, the live rail then runs up to just under the divider instead of
           starting at the first entry. */}
       <TimelineRow hideTop={!status}>
+        {/* Always the live atlas: the section below is Postgres history of
+            live main, whatever base the redline above was computed against. */}
         <h4 className="mb-2 text-sm" style={{ color: "var(--tan-3)" }}>
-          On {label}
+          On the live atlas
         </h4>
         {reused && (
           <p className="mb-2 leading-snug" style={{ color: "var(--tan-3)" }}>

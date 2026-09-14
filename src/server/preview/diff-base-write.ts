@@ -14,7 +14,7 @@ import path from "node:path";
 import { config } from "../config.ts";
 import { makeGhClient, type Resolved } from "./resolve.ts";
 import { loadBaseSnapshot, type Snapshot } from "./snapshot.ts";
-import { computeDiffArtifacts, type PreviewDiffJson } from "./diff-artifacts.ts";
+import { computeDiffArtifacts, writeDiffArtifacts, type PreviewDiffJson } from "./diff-artifacts.ts";
 import { computeBaseDrift } from "./base-drift.ts";
 import type { Candidates, Candidate } from "./pr-diff.ts";
 import type { BaseKey, BaseCandidateMeta, PreviewBases, PreviewPaths } from "./cache.ts";
@@ -45,63 +45,68 @@ function writeDiffPair(outDir: string, key: BaseKey, a: { diff: PreviewDiffJson;
 
 /**
  * Load (deduped by mergeBase, so two candidates sharing one merge base fetch
- * it once) each present candidate's base snapshot, write its diff/patch pair,
- * copy the `auto` pair to the plain diff.json/patches.json, and compute
- * base-drift for the `repo` candidate.
+ * it once) each present candidate's base snapshot, write a diff/patch pair
+ * for every candidate whose base actually loaded, copy the `auto` pair to the
+ * plain diff.json/patches.json, and compute base-drift for the `repo`
+ * candidate. A candidate whose merge-base tree could not be fetched is
+ * DROPPED from the advertised bases rather than silently redlined against
+ * live main under its own name — the label and the bytes must agree; when
+ * that was the `auto` candidate, `auto` moves to the other one, or to
+ * "live-main" with a reason (and the vs-main pair goes to diff.json).
  */
 export async function writeCandidateDiffs(candidates: Candidates, opts: WriteCandidateDiffsOpts): Promise<PreviewBases> {
   const { resolved, token, priv, sha8, paths, fetchTree, head, mainDocs, live } = opts;
 
-  // mergeBase → snapshot, keyed so a shared merge base (sky and repo agreeing)
-  // is fetched once. A Promise (not the resolved value) is cached: baseFor is
-  // called for both keys before either awaits, so the cache must be populated
-  // synchronously on first call to dedupe correctly.
-  const baseCache = new Map<string, Promise<Snapshot>>();
-  const failedBases = new Set<string>();
-  function baseFor(mergeBase: string): Promise<Snapshot> {
-    const cached = baseCache.get(mergeBase);
-    if (cached) return cached;
-    const p = loadBaseSnapshot(
-      mergeBase,
-      path.join(paths.dir, `base-${mergeBase.slice(0, 8)}`),
-      (s, d) => fetchTree(resolved.repo, s, d),
-      { atlasCommit: live.meta.atlasCommit, snapshot: () => mainDocs },
-    ).catch((e) => {
-      console.warn(
-        `[preview] ${sha8}: base ${mergeBase.slice(0, 8)} unavailable (${(e as Error).message}) — diffing against live main`,
-      );
-      failedBases.add(mergeBase);
-      return mainDocs;
-    });
-    baseCache.set(mergeBase, p);
-    return p;
-  }
-
-  const baseSnapshots: Partial<Record<BaseKey, Snapshot>> = {};
+  const present = (["sky", "repo"] as const).filter((k) => candidates[k]);
+  const loaded = new Map<string, Snapshot>();
+  const failed = new Map<string, string>();
   await Promise.all(
-    (["sky", "repo"] as const).map(async (key) => {
-      const c = candidates[key];
-      if (!c) return;
-      const base = await baseFor(c.mergeBase);
-      baseSnapshots[key] = base;
-      // sky renders against live main (today's behaviour); repo renders
-      // against its OWN merge base so a PR's redline never shows drift main
-      // or the base branch picked up independently of the change under review.
-      const reference = key === "repo" ? base : mainDocs;
-      writeDiffPair(paths.outDir, key, computeDiffArtifacts(base, head, reference));
+    [...new Set(present.map((k) => candidates[k]!.mergeBase))].map(async (mergeBase) => {
+      try {
+        loaded.set(
+          mergeBase,
+          await loadBaseSnapshot(
+            mergeBase,
+            path.join(paths.dir, `base-${mergeBase.slice(0, 8)}`),
+            (s, d) => fetchTree(resolved.repo, s, d),
+            { atlasCommit: live.meta.atlasCommit, snapshot: () => mainDocs },
+          ),
+        );
+      } catch (e) {
+        const why = `base ${mergeBase.slice(0, 8)} unavailable (${(e as Error).message})`;
+        failed.set(mergeBase, why);
+        console.warn(`[preview] ${sha8}: ${why} — diffing against live main`);
+      }
     }),
   );
 
-  if (candidates.auto !== "live-main") {
-    fs.copyFileSync(path.join(paths.outDir, `diff.${candidates.auto}.json`), path.join(paths.outDir, "diff.json"));
-    fs.copyFileSync(path.join(paths.outDir, `patches.${candidates.auto}.json`), path.join(paths.outDir, "patches.json"));
+  const kept = present.filter((k) => loaded.has(candidates[k]!.mergeBase));
+  for (const key of kept) {
+    const base = loaded.get(candidates[key]!.mergeBase)!;
+    // sky renders against live main (today's behaviour); repo renders against
+    // its OWN merge base so a PR's redline never shows drift main or the base
+    // branch picked up independently of the change under review.
+    writeDiffPair(paths.outDir, key, computeDiffArtifacts(base, head, key === "repo" ? base : mainDocs));
   }
 
-  const bases: PreviewBases = { auto: candidates.auto };
-  if (candidates.reason) bases.reason = candidates.reason;
-  if (candidates.sky) bases.sky = stripKey(candidates.sky);
-  if (candidates.repo) {
-    const repoCandidate = candidates.repo;
+  let auto: PreviewBases["auto"] = candidates.auto;
+  let reason = candidates.reason;
+  if (auto !== "live-main" && !kept.includes(auto)) {
+    reason = failed.get(candidates[auto]!.mergeBase) ?? reason;
+    auto = kept[0] ?? "live-main";
+  }
+  if (auto === "live-main") {
+    writeDiffArtifacts(paths.outDir, computeDiffArtifacts(mainDocs, head, mainDocs));
+  } else {
+    fs.copyFileSync(path.join(paths.outDir, `diff.${auto}.json`), path.join(paths.outDir, "diff.json"));
+    fs.copyFileSync(path.join(paths.outDir, `patches.${auto}.json`), path.join(paths.outDir, "patches.json"));
+  }
+
+  const bases: PreviewBases = { auto };
+  if (reason) bases.reason = reason;
+  if (kept.includes("sky")) bases.sky = stripKey(candidates.sky!);
+  if (kept.includes("repo")) {
+    const repoCandidate = candidates.repo!;
     bases.repo = stripKey(repoCandidate);
     try {
       const drift = await computeBaseDrift({
@@ -111,9 +116,7 @@ export async function writeCandidateDiffs(candidates: Candidates, opts: WriteCan
         repoGh: makeGhClient(token),
         canonicalGh: makeGhClient(config.githubToken),
         live: { atlasCommit: live.meta.atlasCommit ?? "", snapshot: () => mainDocs },
-        // Only the REAL merge-base snapshot is reusable here — a base that
-        // failed to load above fell back to mainDocs, which is not the base tip.
-        mergeBaseSnapshot: failedBases.has(repoCandidate.mergeBase) ? undefined : baseSnapshots.repo,
+        mergeBaseSnapshot: loaded.get(repoCandidate.mergeBase),
         fetchTree: (s, d) => fetchTree(repoCandidate.repo, s, d),
         scratchDir: paths.dir,
       });

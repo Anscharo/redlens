@@ -279,6 +279,7 @@ export function baseMeta(resolved: Resolved, sha: string, docCount: number, t0: 
     // treatment without re-asking GitHub — only repo/ref survive that
     // round-trip, never `sha` (see Resolved.prBase's own doc comment).
     prBase: resolved.prBase && { repo: resolved.prBase.repo, ref: resolved.prBase.ref },
+    defaultBranch: resolved.defaultBranch,
     resolvedAt: new Date().toISOString(),
     docCount,
     buildMs: Date.now() - t0,

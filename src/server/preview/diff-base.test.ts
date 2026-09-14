@@ -259,7 +259,7 @@ describe("writeDiffBases", () => {
     }
   });
 
-  test("base fetch failure: falls back to live main, warns, pair still written", async () => {
+  test("base fetch failure: the candidate is dropped, auto degrades to live-main with the reason, diff.json is vs live", async () => {
     const root = mkTmp();
     dirs.push(root);
     const paths = previewPaths("fail1", root);
@@ -286,13 +286,17 @@ describe("writeDiffBases", () => {
             throw new Error("network exploded");
           },
         });
-        expect(result.bases.sky).toMatchObject({ mergeBase: "unreachable-mb" });
-        expect(fs.existsSync(path.join(paths.outDir, "diff.sky.json"))).toBe(true);
+        // The label and the bytes must agree: a base that never loaded is not
+        // advertised, so the bar says "live main", not "sky main".
+        expect(result.bases.sky).toBeUndefined();
+        expect(result.bases.auto).toBe("live-main");
+        expect(result.bases.reason).toContain("base unreacha unavailable");
+        expect(fs.existsSync(path.join(paths.outDir, "diff.sky.json"))).toBe(false);
         expect(fs.existsSync(path.join(paths.outDir, "diff.json"))).toBe(true);
         expect(warnings.some((w) => w.includes("unavailable") && w.includes("diffing against live main"))).toBe(true);
         // Fell back to live main as the base — the patch is LIVE-X → HEAD-X,
         // never anything from the unreachable base tree.
-        const rendered = JSON.stringify(JSON.parse(fs.readFileSync(path.join(paths.outDir, "patches.sky.json"), "utf8"))[ID]);
+        const rendered = JSON.stringify(JSON.parse(fs.readFileSync(path.join(paths.outDir, "patches.json"), "utf8"))[ID]);
         expect(rendered).toContain("LIVE");
         expect(rendered).toContain("HEAD");
       } finally {

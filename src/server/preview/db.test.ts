@@ -97,9 +97,24 @@ test("upsertPreview defaults optional fields, including prBase, to null", async 
     buildMs: 1,
   } as any);
   expect(calls[0]!.values).toContain(null);
-  // pr_base_repo / pr_base_ref (the last two interpolated values, right before
-  // last_access = now()) are both null when no prBase was resolved.
-  expect(calls[0]!.values.slice(-2)).toEqual([null, null]);
+  // pr_base_repo / pr_base_ref / default_branch (the last three interpolated
+  // values, right before last_access = now()) are all null when nothing was resolved.
+  expect(calls[0]!.values.slice(-3)).toEqual([null, null, null]);
+});
+
+test("upsertPreview persists a fork branch's defaultBranch (the repo candidate a rebuild must keep)", async () => {
+  queued.push([]);
+  await upsertPreview({
+    sha: "s4",
+    repo: "blimpa/next-gen-atlas",
+    ref: "feature/x",
+    kind: "branch",
+    resolvedAt: "t",
+    docCount: 1,
+    buildMs: 5,
+    defaultBranch: "develop",
+  } as any);
+  expect(calls[0]!.values.slice(-3)).toEqual([null, null, "develop"]);
 });
 
 test("getPreviewRow returns the row, or null when unknown", async () => {

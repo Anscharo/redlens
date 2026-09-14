@@ -97,6 +97,7 @@ test("baseMeta maps the resolved ref onto PreviewMeta, incl. headCommitAt from t
   expect(m.prTitle).toBe("History tab");
   expect(m.docCount).toBe(42);
   expect(typeof m.resolvedAt).toBe("string");
+  expect(baseMeta({ ...resolved, kind: "branch", defaultBranch: "develop" }, "d", 1, 0).defaultBranch).toBe("develop");
   // Only repo/ref persist (never `sha` — a pinned-sha rebuild re-resolves the tip).
   expect(m.prBase).toEqual({ repo: "sky-ecosystem/next-gen-atlas", ref: "develop" });
 });
