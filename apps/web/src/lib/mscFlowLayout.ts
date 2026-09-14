@@ -81,8 +81,8 @@ export const HEIGHT = 1200;
 const MIN_T = 4;
 /** Two lines in the left gutter: name over amount. */
 const SOURCE_LABEL_BLOCK = 84;
-/** Pill center above the mark it names — clears a 2×-scale pill (60 tall). */
-const PILL_LIFT = 50;
+/** Pill center above the mark it names — clears a 3×-scale pill (90 tall). */
+const PILL_LIFT = 65;
 /** A share's pill sits left of Sky's bar, inside the canvas. */
 const SHARE_PILL_INSET = 220;
 

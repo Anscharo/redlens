@@ -5,8 +5,9 @@ import { markId, AmountPill, pillText } from "./MscRingPills";
 import { FlowAgentGroup } from "./MscFlowAgent";
 import type { OverviewPrime } from "./MscRingPrime";
 
-/** Pills draw at twice the orbit's size: this canvas renders about half. */
-const PILL_SCALE = 2;
+/** Pills draw at three times the orbit's size: this 3000-wide canvas
+ *  renders at roughly a third, so the hover text lands near 16px on screen. */
+const PILL_SCALE = 3;
 
 interface Props {
   layout: FlowLayout;
