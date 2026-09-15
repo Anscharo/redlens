@@ -163,6 +163,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Open Radar and pick an actor from the list.",
           "Scan the dashboard sections; the composite party view ties an Agent's associated legal entities together as one party.",
           "History on the dashboard shows the latest 12 atlas edits; the `all N changes` link opens every change.",
+          "Responsibilities shows up to five Active Data rows; `View all in Active Data Report` opens the rest.",
           "On a Prime Agent, Omni lists each shared emergency-response protocol with a short essence of its summary.",
         ],
       },
