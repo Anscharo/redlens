@@ -89,6 +89,19 @@ function protoVec(tl: Ternlight, text: string): Float32Array {
   return v;
 }
 
+/** On-device embed for callers outside the facts fire/no-fire lane (teachings). */
+export function onDeviceEmbed(text: string): Float32Array | null {
+  const tl = loadTernlight();
+  if (!tl) return null;
+  return protoVec(tl, text);
+}
+
+export function onDeviceCosine(a: Float32Array, b: Float32Array): number {
+  const tl = loadTernlight();
+  if (!tl) return 0;
+  return tl.cosineSim(a, b);
+}
+
 const bestSim = (tl: Ternlight, v: Float32Array, prototypes: string[]) =>
   Math.max(...prototypes.map((p) => tl.cosineSim(v, protoVec(tl, p))));
 

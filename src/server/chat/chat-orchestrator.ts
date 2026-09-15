@@ -31,6 +31,8 @@ import { createParagraphStream, type ParagraphEvidence } from "./verify/incremen
 import { atlasDescribe } from "./tools/tools.ts";
 import { isExternalMscTool } from "../external/envelope.ts";
 import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
+import { withTeachHint } from "./teach/hint.ts";
+import { isUserTeachingTool } from "./teach/inject.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type DoneEvent = Extract<ChatEvent, { type: "done" }>;
@@ -277,9 +279,15 @@ const toolTextsOf = (transcript: Msg[]): string[] =>
 function splitFromTranscript(transcript: Msg[]): { atlasTexts: string[]; externalTexts: string[] } {
   const entries = evidenceFromTranscript(transcript, 500_000);
   return {
-    atlasTexts: entries.filter((e) => e.sourceClass !== "external").map((e) => e.content),
+    atlasTexts: entries.filter((e) => e.sourceClass !== "external" && e.sourceClass !== "user").map((e) => e.content),
     externalTexts: entries.filter((e) => e.sourceClass === "external").map((e) => e.content),
   };
+}
+
+function applyTeachHint(d: DoneEvent): DoneEvent {
+  if (!config.chatTeach || !d.content.trim()) return d;
+  const content = withTeachHint(d.content);
+  return content === d.content ? d : { ...d, content };
 }
 
 // The live schema the system prompt hands the model (doc counts, type + edge
@@ -381,7 +389,11 @@ export async function* runVerifiedChat(opts: {
   // `chat.ts` replays only `{role, content}` for history, so a genuine prior
   // tool result is never in `opts.messages` to begin with, and there is no
   // assistant tool_call name left to pair one with even if it were.
-  const historyTexts = toolTextsOf(opts.messages);
+  const historyEntries = evidenceFromTranscript(opts.messages, Infinity);
+  const historyTexts = historyEntries.map((e) => e.content);
+  const historyAtlasTexts = historyEntries
+    .filter((e) => e.sourceClass !== "external" && e.sourceClass !== "user")
+    .map((e) => e.content);
   const gateEvidence: string[] = [...historyTexts];
   // This turn's tool results, named — the incremental checks below split them
   // by provenance the same way splitFromTranscript does for the whole-answer
@@ -439,7 +451,10 @@ export async function* runVerifiedChat(opts: {
   // the answer still reveals at `answer_final`; the full-text pass after
   // `done` remains the authority.
   const paragraphEvidence = (): ParagraphEvidence => ({
-    atlasTexts: [...historyTexts, ...gateResults.filter((r) => !isExternalMscTool(r.name)).map((r) => r.content)],
+    atlasTexts: [
+      ...historyAtlasTexts,
+      ...gateResults.filter((r) => !isExternalMscTool(r.name) && !isUserTeachingTool(r.name)).map((r) => r.content),
+    ],
     externalTexts: gateResults.filter((r) => isExternalMscTool(r.name)).map((r) => r.content),
     allTexts: gateEvidence,
   });
@@ -483,7 +498,7 @@ export async function* runVerifiedChat(opts: {
   // strings) so evidenceFromResults can classify the prefetch round by name —
   // losing that name would silently drop both its [REFERENCE] class and its
   // budget-eviction exemption for every per-paragraph call.
-  const historyResults = evidenceFromTranscript(opts.messages, Infinity).map((e) => ({ name: e.tool, content: e.content }));
+  const historyResults = historyEntries.map((e) => ({ name: e.tool, content: e.content }));
   const paragraphEvidenceFor = (paragraphText: string): EvidenceEntry[] => {
     const ce = constEvidence(opts.ix, paragraphText);
     const turnEvidence = evidenceFromResults([...historyResults, ...gateResults]);
@@ -599,6 +614,7 @@ export async function* runVerifiedChat(opts: {
       } catch (err) {
         captureError(err, opts.obs, { stage: "citation_repair_verify_disabled" });
       }
+      done = applyTeachHint(done);
     }
     yield finish(done);
     return;
@@ -695,13 +711,14 @@ export async function* runVerifiedChat(opts: {
     });
   } catch (err) {
     captureError(err, opts.obs, { stage: "citation_repair_or_checks" });
-    yield finish(done);
+    yield finish(applyTeachHint(done));
     return;
   }
 
   // done.content is final past this point — deterministic repair has already
   // run and rewrites are gone, so the client reveals the answer now and lets
   // the verify badge trail rather than waiting on the audit below.
+  done = applyTeachHint(done);
   yield { type: "answer_final", content: done.content };
 
   // verifierModel/paragraphMode were hoisted to the top of this function so

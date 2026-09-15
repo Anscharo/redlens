@@ -419,6 +419,28 @@ test("verification disabled: done.content still carries the gate's citation repa
     }
   }));
 
+test("a miss-shaped answer gets the /teach invitation on answer_final and done", () =>
+  withModels("", async () => {
+    const answer = "I couldn't find a document naming the freeze role.";
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(answer), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+    );
+    const done = lastDone(events);
+    expect(done.content).toContain("/teach");
+    const answerFinal = events.find((e) => e.type === "answer_final");
+    expect(answerFinal?.type === "answer_final" && answerFinal.content).toContain("/teach");
+  }));
+
+test("a found answer is not appended a /teach invitation", () =>
+  withModels("", async () => {
+    const answer = "Spark is a Prime Agent documented under the Spark artifact.";
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(answer), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+    );
+    expect(lastDone(events).content).toContain("Spark is a Prime Agent");
+    expect(lastDone(events).content).not.toContain("/teach");
+  }));
+
 test("deterministic-only mode flags fabricated doc numbers as hard failures", () =>
   withModels("", async () => {
     const bad = "That rule is defined in Q.99.42.7 of the atlas.";

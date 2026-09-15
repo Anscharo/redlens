@@ -241,6 +241,123 @@ describe("handleChat", () => {
     });
   });
 
+  // /teach: review + persist a note, no atlas harness. The review call is a
+  // non-streaming JSON completion (makeOpenrouterJson), so these tests install
+  // a JSON fetch mock — not the SSE dispatcher the rest of this file uses.
+  describe("/teach", () => {
+    const TEACH_NOTE = "Spark freeze lives under the Spark artifact";
+    let savedReviewModel: string;
+
+    function jsonReview(text: string): typeof fetch {
+      return (async () =>
+        new Response(
+          JSON.stringify({
+            id: "gen-teach",
+            choices: [{ message: { content: text } }],
+            usage: { prompt_tokens: 8, completion_tokens: 4 },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        )) as unknown as typeof fetch;
+    }
+
+    beforeAll(() => {
+      savedReviewModel = config.chatTeachReviewModel;
+      config.chatTeachReviewModel = "google/gemma-4-31b-it";
+    });
+
+    afterAll(() => {
+      config.chatTeachReviewModel = savedReviewModel;
+    });
+
+    it("bare /teach replies with help and does not review or insert", async () => {
+      installHappyHandlers();
+      let fetchCalls = 0;
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = (async () => {
+        fetchCalls++;
+        throw new Error("review must not run for bare /teach");
+      }) as unknown as typeof fetch;
+      try {
+        const res = await handleChat(await authedRequest({ message: "/teach" }));
+        const evs = await events(res);
+        const final = evs.find((e) => e.type === "answer_final");
+        expect(final.content).toContain("/teach");
+        expect(final.content).toContain("remember");
+        expect(evs.find((e) => e.type === "meta").tier).toBe("default");
+        expect(fetchCalls).toBe(0);
+        expect(queryLog.some((q) => q.text.includes("INSERT INTO chat_teachings"))).toBe(false);
+        expect(evs.some((e) => e.type === "token")).toBe(false);
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("saves an accepted note after a JSON review", async () => {
+      installHappyHandlers();
+      sqlHandlers.push((text) => {
+        if (text.includes("INSERT INTO chat_teachings")) return [{ id: "teach-1" }];
+        return undefined;
+      });
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      const prevKey = config.openrouterApiKey;
+      config.openrouterApiKey = "";
+      g.__llmFetchCurrentImpl = jsonReview('{"accept":true,"reason":"ok","subject":"Spark freeze"}');
+      try {
+        const res = await handleChat(await authedRequest({ message: `/teach ${TEACH_NOTE}` }));
+        const evs = await events(res);
+        const final = evs.find((e) => e.type === "answer_final");
+        expect(final.content).toContain("Saved");
+        expect(final.content).toContain("Spark freeze");
+        expect(evs.find((e) => e.type === "meta").tier).toBe("default");
+        expect(queryLog.some((q) => q.text.includes("INSERT INTO chat_teachings"))).toBe(true);
+        const insert = queryLog.find((q) => q.text.includes("INSERT INTO chat_teachings"));
+        expect(insert?.values).toContain(TEACH_NOTE);
+      } finally {
+        config.openrouterApiKey = prevKey;
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("injects a matching note on a later question", async () => {
+      installHappyHandlers();
+      sqlHandlers.push((text) => {
+        if (text.includes("FROM chat_teachings") && text.includes("SELECT id, subject, content")) {
+          return [{ id: "t1", subject: "Spark freeze", content: TEACH_NOTE }];
+        }
+        return undefined;
+      });
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Spark freeze is under the Spark artifact.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "where is the spark freeze documented?" }));
+        const evs = await events(res);
+        const facts = evs.find((e) => e.type === "facts");
+        expect(facts?.facts?.some((s: { id: string }) => s.id === "teachings")).toBe(true);
+        const recalled = evs.find((e) => e.type === "status" && e.stage === "recalling");
+        expect(recalled?.detail).toMatch(/your notes/);
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("ignores /teach when the flag is off", async () => {
+      const prev = config.chatTeach;
+      config.chatTeach = false;
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("ok");
+      try {
+        const res = await handleChat(await authedRequest({ message: `/teach ${TEACH_NOTE}` }));
+        const evs = await events(res);
+        expect(evs.find((e) => e.type === "done").content).toBe("ok");
+        expect(queryLog.some((q) => q.text.includes("INSERT INTO chat_teachings"))).toBe(false);
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+        config.chatTeach = prev;
+      }
+    });
+  });
+
   // Delivery is unified (docs/chat-system.md §8): the route always forwards
   // every event as-is. The stage checklist (synthesizing/comparing/checking)
   // and the answer-reveal-on-`answer_final` behavior are the orchestrator's

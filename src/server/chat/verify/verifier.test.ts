@@ -108,6 +108,16 @@ test("evidenceFromTranscript marks ask_external_msc as external", () => {
   expect(all[0]!.sourceClass).toBe("external");
 });
 
+test("evidenceFromTranscript marks user_teachings as user, not atlas", () => {
+  const transcript: Msg[] = [
+    { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "user_teachings", arguments: "{}" } }] },
+    { role: "tool", tool_call_id: "c1", content: '{"note":"Spark freeze lives under Spark"}' },
+  ];
+  const all = evidenceFromTranscript(transcript, 1000);
+  expect(all[0]!.sourceClass).toBe("user");
+  expect(all[0]!.tool).toBe("user_teachings");
+});
+
 test("priorTurnsEvidence folds earlier assistant answers into one entry, newest-first budget", () => {
   const transcript: Msg[] = [
     { role: "system", content: "sys" },
