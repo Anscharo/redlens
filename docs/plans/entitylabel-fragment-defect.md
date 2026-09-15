@@ -13,13 +13,27 @@ declines to render went 56 → 34; the 34 are Phase 4.5a's ICD-constructed strin
 (`spUSDS underlying asset`, `Base - <long vault name>`), deliberately exempt —
 locked decision 5.
 
-48 labels changed; 46 of them are a clause or a bare `Its` becoming the facet's
+47 labels changed; 46 of them are a clause or a bare `Its` becoming the facet's
 real name (`Wrap Proxy ETH Facet`, `PSM Facet`, `The Beacon`, `Aave v3 Facet`…)
-via Phase 4.5. 45 addresses gain a renderable Owner and none lose one. Only 2
-addresses end up with no label at all, and only one previously *rendering* label
-got shorter (`The Sky.money Frontend Governance Reward payment` → `Frontend
-Governance Reward payment`) — the cost of dropping `.` from the capture class,
-which is what stops the backwards walk crossing a sentence.
+via Phase 4.5. 45 addresses gain a renderable Owner, **none lose one, and none
+got shorter**. Only 2 addresses end up with no label at all.
+
+**Amends locked decision 7.** The plan said to drop `.` from the capture class
+outright. That also cost names spelled with a dot — `The Sky.money Frontend
+Governance Reward payment` came out as `Frontend Governance Reward payment`. The
+shipped rule is narrower and costs nothing: a `.` is punctuation only when it
+ENDS A SENTENCE (letter, `.`, optional closing quote, space, capitalised word),
+and the capture may contain any other dot. `Sky.money` and `U.S.A` are letters
+either side; `v1.5` and `0.75` touch a digit; neither is a sentence end. Measured
+over all 428 addresses, this differs from the drop-`.` version on exactly one
+label — the one above, recovered — and reintroduces no fragment.
+
+One further widening, deliberate: the word after the space is not required to be
+Capital-then-lowercase, because an acronym starts a sentence too ("…deposits
+assets. ALM Proxy's address is"). Crossing that boundary costs the whole label
+(the clause fails `isPlausibleName`, so the answer is `null`); stopping at it
+costs at most a leading acronym. Same asymmetry `isPlausibleName` already
+encodes by treating any `". "` as a break.
 
 `src/lib/addressName.ts` and `.claude/skills/address-extraction/SKILL.md` point
 here for the incident; `node scripts/aux/label-quality.mjs` is the re-runnable

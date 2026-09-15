@@ -66,21 +66,45 @@ const TOKEN_RE = new RegExp(
   "g",
 );
 
+// What a "." means inside a name. A dot is punctuation only when it ENDS A
+// SENTENCE — letter, ".", optional closing quote/bracket, space, capitalised
+// word ("…into WETH. Its address is"). A dot between letters ("Sky.money",
+// "U.S.A") or touching a digit ("v1.5", "0.75") is part of the token.
+//
+// This matters because the capture below is non-greedy and walks BACKWARDS to
+// the first capital: let it cross a sentence end and it swallows the sentence
+// before the name, which is exactly how `entityLabel` used to ship clauses
+// (docs/plans/entitylabel-fragment-defect.md). So a name may contain a dot —
+// just never one that starts a new sentence.
+//
+// The capitalised word is NOT required to be Capital-then-lowercase: an acronym
+// starts a sentence too ("…deposits assets. ALM Proxy's address is"), and
+// letting the walk cross that one costs the whole label (the clause it captures
+// fails isPlausibleName, so the answer becomes null) where stopping at it costs
+// at most a leading acronym. Same reason isPlausibleName treats any ". " as a
+// break: erring toward "this is a sentence" only ever shortens a name.
+const NAME_CHAR = `(?:[A-Za-z0-9 &'’-]|\\.(?!["')\\]]?\\s+[A-Z]))`;
+const NAME = `([A-Z]${NAME_CHAR}{2,60}?)`;
+const NAME_GREEDY = `([A-Z]${NAME_CHAR}{2,60})`;
+
 // Entity label patterns — try to pull a proper-noun phrase near the address.
 // Each captures group 1 = the entity name.
 const ENTITY_PATTERNS = [
   // "address of the X is" / "address of X is"
-  /\baddress\s+of\s+(?:the\s+)?([A-Z][A-Za-z0-9 &''’-]{2,60}?)\s+(?:is|on|at)\b/,
+  new RegExp(`\\baddress\\s+of\\s+(?:the\\s+)?${NAME}\\s+(?:is|on|at)\\b`),
   // "the X address is" / "X's address is"
-  /\b(?:the\s+)?([A-Z][A-Za-z0-9 &''’-]{2,60}?)(?:['’]s)?\s+address\s+(?:is|on)\b/,
+  new RegExp(`\\b(?:the\\s+)?${NAME}(?:['’]s)?\\s+address\\s+(?:is|on)\\b`),
   // "reward address for (the) X is" (Integration Boost / partner phrasing)
-  /\breward\s+address\s+for\s+(?:the\s+)?([A-Z][A-Za-z0-9 &''’-]{2,60}?)\s+is\b/,
+  new RegExp(`\\breward\\s+address\\s+for\\s+(?:the\\s+)?${NAME}\\s+is\\b`),
   // "X at address"
-  /\b([A-Z][A-Za-z0-9 &''’-]{2,60}?)\s+at\s+address\b/,
+  new RegExp(`\\b${NAME}\\s+at\\s+address\\b`),
   // "Recipient: X" / "Multisig: X" — keyword match is case-insensitive
-  /\b(?:Recipient|Multisig|Operator|Owner|Controller|Executor)\s*[:-]\s*([A-Z][A-Za-z0-9 &''’-]{2,60})/i,
+  new RegExp(
+    `\\b(?:Recipient|Multisig|Operator|Owner|Controller|Executor)\\s*[:-]\\s*${NAME_GREEDY}`,
+    "i",
+  ),
   // Markdown bold/italic name immediately followed by colon: **X:** or *X:*
-  /\*\*([A-Z][A-Za-z0-9 &''’-]{2,60}?)\*\*\s*[:-]/,
+  new RegExp(`\\*\\*${NAME}\\*\\*\\s*[:-]`),
 ];
 
 // Combined text for pattern scanning: the sliding window plus any table cells

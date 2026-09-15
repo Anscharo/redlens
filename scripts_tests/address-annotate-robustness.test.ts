@@ -168,8 +168,10 @@ describe("extractEntityLabel — typographic apostrophes", () => {
 });
 
 describe("extractEntityLabel — sentence boundaries", () => {
-  // The capture class has no ".", so a non-greedy walk backwards stops at the
-  // end of the previous sentence instead of swallowing it.
+  // A "." only ends a sentence when it reads like one: letter, dot, space,
+  // capitalised word. The capture may contain any other dot, so the non-greedy
+  // walk backwards stops at the end of the previous sentence without costing
+  // names that are spelled with a dot.
   it("does not reach back across a period into the preceding sentence", () => {
     const [c, i] = ctx("Rewards accrue to the vault buffer. The Beacon's address is ");
     expect(extractEntityLabel(c, i, null)).toBe("The Beacon");
@@ -178,6 +180,34 @@ describe("extractEntityLabel — sentence boundaries", () => {
   it("returns null rather than a clause when the only capital is mid-sentence", () => {
     const [c, i] = ctx("converts between DAI and USDS at 1:1 through the converter. Its address is ");
     expect(extractEntityLabel(c, i, null)).toBeNull();
+  });
+
+  it("stops at a sentence that starts with an acronym, rather than swallowing it", () => {
+    // "assets. ALM" is a sentence break even though "ALM" is not
+    // Capital-then-lowercase. Crossing it would capture the clause, which then
+    // fails isPlausibleName and costs the label entirely.
+    const [c, i] = ctx("The Basin Facet deposits and withdraws assets. ALM Proxy's address is ");
+    expect(extractEntityLabel(c, i, null)).toBe("ALM Proxy");
+  });
+
+  it("keeps a dot BETWEEN letters — a domain-style name is one token", () => {
+    const [c, i] = ctx("The Sky.money Frontend Reward address is ");
+    expect(extractEntityLabel(c, i, null)).toBe("The Sky.money Frontend Reward");
+  });
+
+  it("keeps a dot touching a digit — a version or decimal is one token", () => {
+    const [c, i] = ctx("The address of Uniswap v3.1 Facet is ");
+    expect(extractEntityLabel(c, i, null)).toBe("Uniswap v3.1 Facet");
+  });
+
+  it("keeps an initialism's internal dots", () => {
+    const [c, i] = ctx("U.S.A Reserve Multisig's address is ");
+    expect(extractEntityLabel(c, i, null)).toBe("U.S.A Reserve Multisig");
+  });
+
+  it("a dot followed by a lowercase word is not a break either", () => {
+    const [c, i] = ctx("The Grove Vault v2.beta address is ");
+    expect(extractEntityLabel(c, i, null)).toBe("The Grove Vault v2.beta");
   });
 });
 
