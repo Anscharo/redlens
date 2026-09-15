@@ -38,7 +38,7 @@ interface Props {
  *  (ActorSettlementsSkeleton), so the charts paint into place. */
 export function ActorSettlements(props: Props) {
   return (
-    <Suspense fallback={<ActorSettlementsSkeleton />}>
+    <Suspense fallback={<ActorSettlementsSkeleton name={props.name} />}>
       <ActorSettlementsLoaded {...props} />
     </Suspense>
   );
@@ -113,13 +113,13 @@ function ActorSettlementsLoaded({ slug, name }: Props) {
           </>
         )}
       </p>
-      {/* One card of month charts — the monthly summary, then the demand-side
-          mix under it with its columns on the same grid — above the month's
-          figures. */}
+      {/* One card of month charts — monthly summary left, demand-side mix
+          right — above the month's figures. */}
       <SettlementCharts
         reports={shown.rows}
         selected={month}
         onSelect={selectMonth}
+        name={name}
         paging={paging}
       />
       <MscHeadline

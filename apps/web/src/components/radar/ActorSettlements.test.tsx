@@ -126,7 +126,9 @@ describe("ActorSettlements", () => {
     expect(screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure")).toBeInTheDocument();
     expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
     expect(screen.getByText("monthly summary")).toBeInTheDocument();
+    expect(screen.getByText("demand side")).toBeInTheDocument();
     expect(screen.getByText("Demand-side")).toBeInTheDocument();
+    expect(screen.getByText(/Total Spark earnings/)).toBeInTheDocument();
     expect(skeleton.querySelectorAll(".msc-bar-cluster")).toHaveLength(6);
     expect(skeleton.querySelectorAll(".msc-bar-stack")).toHaveLength(6);
   });
@@ -135,18 +137,21 @@ describe("ActorSettlements", () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => expect(screen.getByText("Supply-side kept")).toBeInTheDocument());
     expect(screen.getByRole("heading", { name: "monthly summary" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Trailing 2 Months" })).toBeInTheDocument();
-    expect(screen.getByText(/Agent earnings/)).toBeInTheDocument();
-    expect(screen.getByText("$237")).toBeInTheDocument();
-    const legend = document.querySelector(".msc-charts-legend")!;
-    expect(legend).toHaveTextContent("to Sky");
-    expect(legend).toHaveTextContent("supply-side kept");
-    expect(legend).toHaveTextContent("demand-side");
-    expect(legend).toHaveTextContent("|");
-    expect(legend).toHaveTextContent("agent rate");
-    expect(legend).toHaveTextContent("distribution rewards");
-    expect(legend.querySelector(".msc-bar-rate")).toBeInTheDocument();
-    expect(legend.querySelector(".msc-bar-demand")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "demand side" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trailing 2 Months – Total Spark earnings $237" })).toBeInTheDocument();
+    const panes = document.querySelectorAll(".msc-charts-pane");
+    expect(panes).toHaveLength(2);
+    expect(panes[0]).toContainElement(screen.getByLabelText("Settlement months"));
+    expect(panes[1]).toContainElement(screen.getByLabelText("Demand-side months"));
+    const legends = document.querySelectorAll(".msc-charts-legend");
+    expect(legends[0]).toHaveTextContent("to Sky");
+    expect(legends[0]).toHaveTextContent("supply-side kept");
+    expect(legends[0]).toHaveTextContent("demand-side");
+    expect(legends[0]).not.toHaveTextContent("agent rate");
+    expect(legends[1]).toHaveTextContent("agent rate");
+    expect(legends[1]).toHaveTextContent("distribution rewards");
+    expect(legends[1].querySelector(".msc-bar-rate")).toBeInTheDocument();
+    expect(legends[0].querySelector(".msc-bar-demand")).toBeInTheDocument();
     expect(screen.getByLabelText(/Venue flows to Sky and Spark/)).toBeInTheDocument();
     // The Sky sink label links back to the ecosystem overview for this month.
     expect(
@@ -218,10 +223,9 @@ describe("ActorSettlements", () => {
     expect(screen.getAllByText("Demand-side").length).toBeGreaterThan(0);
     expect(screen.getAllByText("$36,231").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("Demand-side months")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Trailing 1 Month" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trailing 1 Month – Total Keel earnings $36,231" })).toBeInTheDocument();
     expect(screen.getByText("agent rate")).toBeInTheDocument();
     expect(screen.getByText("distribution rewards")).toBeInTheDocument();
-    expect(document.querySelector(".msc-charts-legend")).toHaveTextContent("|");
     expect(screen.getByText(/Sky's take is zero/)).toBeInTheDocument();
   });
 
@@ -261,7 +265,7 @@ describe("ActorSettlements", () => {
     loadSettlements.mockReturnValue(fulfilled({ ...FIXTURE, reports: run }));
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => screen.getByText("Supply-side kept"));
-    expect(screen.getByRole("heading", { name: "Trailing 12 Months" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Trailing 12 Months – Total Spark earnings/ })).toBeInTheDocument();
     const cols = () => [...screen.getByLabelText("Settlement months").querySelectorAll("button")];
     expect(cols()).toHaveLength(12);
     expect(cols()[0]).toHaveAttribute("aria-label", expect.stringMatching(/^Mar 2025/));

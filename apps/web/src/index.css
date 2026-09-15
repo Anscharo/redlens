@@ -2762,9 +2762,18 @@ a.atlas-annotates:focus-visible {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem 1.5rem;
-  margin-bottom: 0.5rem;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.msc-charts-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.5rem 2.5rem;
+}
+.msc-charts-pane {
+  min-width: 0;
+  flex: 1 1 16rem;
 }
 .msc-charts-legend {
   display: flex;
@@ -2772,10 +2781,6 @@ a.atlas-annotates:focus-visible {
   align-items: center;
   gap: 0.25rem 1rem;
   margin: 0 0 0.75rem;
-}
-.msc-legend-sep {
-  color: var(--tan-3);
-  margin: 0 0.15rem;
 }
 /* The Monthly settlement card floated top-right of a Prime's actor page:
    one bordered card holding the figures (left) and the month-by-month

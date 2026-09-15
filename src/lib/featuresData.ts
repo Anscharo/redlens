@@ -187,7 +187,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           "Open a Prime Agent on Radar (Spark, Grove, Obex, …).",
           "The Monthly settlement card in the top right shows the Prime's total gross revenue over its last twelve cycles, with a small stacked chart beside it of each month's revenue split into to Sky, supply-side kept and demand-side (hover a month for its figures); the whole card is one link to the charts.",
-          "The settlement charts show a year of cycles at a time; a Prime with more gets ‹ › arrows beside the Summary title to page back through older ones.",
+          "The settlement charts show a year of cycles at a time; a Prime with more gets ‹ › arrows beside the Trailing N Months heading to page back through older ones.",
           "On that page, Sky Forum opens the forum post for the month selected in the charts.",
           "Ask Chat or an MCP client about a month's To Sky / supply-side kept / demand-side — it will say those figures are not from the Atlas.",
           "On the cycle page, click a month in the monthly summary bars. Primes with several venues have a PnL / AUM toggle.",

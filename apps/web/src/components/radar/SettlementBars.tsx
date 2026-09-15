@@ -27,7 +27,7 @@ export function SettlementBars({
   const { peakPos, peakNeg } = threeWayPeaks(months);
   const keys = months.map((m) => m.month);
   return (
-    <div className="mb-4">
+    <div>
       <div className="flex items-end gap-3 mb-2" role="group" aria-label="Settlement months">
         {months.map((m, i) => (
           <button
