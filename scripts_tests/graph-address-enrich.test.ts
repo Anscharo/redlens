@@ -161,6 +161,42 @@ describe("enrichAddresses — 4.5d doc titles and 4.5e on-chain fallback", () =>
   });
 });
 
+describe("enrichAddresses — 4.5c/4.5d titles must look like names", () => {
+  // 4.5c/4.5d are the only passes that copy free text into a label, so they are
+  // the only ones gated on isPlausibleName. A Core title can be a whole sentence;
+  // an owner name cannot. See docs/plans/entitylabel-fragment-defect.md.
+  it("refuses a doc title with an internal sentence break, and one over the length cap", () => {
+    const A3 = "0x3333333333333333333333333333333333333333";
+    const { result, addressesAtlas } = run({
+      allDocs: [
+        doc("A.1", "Wrap Proxy ETH Facet", [A1]),
+        doc("A.2", "The ALM Proxy. It wraps native ETH into WETH", [A2]),
+        doc("A.3", "The current whitelisted SparkLend Security Access Multisig", [A3]),
+      ],
+      addressesAtlas: Object.fromEntries([A1, A2, A3].map((a) => [a, { chain: "ethereum" }])),
+    });
+    expect(addressesAtlas[A1].entityLabel).toBe("Wrap Proxy ETH Facet");
+    expect(addressesAtlas[A2].entityLabel).toBeUndefined();
+    expect(addressesAtlas[A3].entityLabel).toBeUndefined();
+    expect(result).toMatchObject({ titleLabeled: 1 });
+  });
+
+  it("refuses a parent title that is prose, and still borrows a real one", () => {
+    const { result, addressesAtlas } = run({
+      allDocs: [
+        doc("A.1", "Keel Allocator Vault"),
+        doc("A.1.1", "Addresses", [A1]),
+        doc("A.2", "shares are redeemed. Its"),
+        doc("A.2.1", "Addresses", [A2]),
+      ],
+      addressesAtlas: { [A1]: { chain: "ethereum" }, [A2]: { chain: "ethereum" } },
+    });
+    expect(addressesAtlas[A1].entityLabel).toBe("Keel Allocator Vault");
+    expect(addressesAtlas[A2].entityLabel).toBeUndefined();
+    expect(result).toMatchObject({ parentLabeled: 1 });
+  });
+});
+
 describe("enrichAddresses — pass order", () => {
   it("earlier passes win: ICD label beats entity link beats parent title beats doc title beats chainlog", () => {
     // Every pass could label A1; only 4.5a's label may survive. A2 is offered

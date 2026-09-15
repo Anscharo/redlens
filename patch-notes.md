@@ -36,8 +36,6 @@
 - Radar actor pages now show the latest 12 history entries, with a full history page for the rest
 - Prime Agent pages now show each agent's unique Omni topics, hiding empty template docs
 - Instance cards on Radar actor pages now tile across the page
-
-## 2026-09-14
 - Previews now redline a change against the branch it was actually made on, the preview bar shows how far that base has drifted from the main atlas, and a private pull request missing Pull requests: Read asks the owner to grant it on GitHub
 
 ## 2026-09-11
