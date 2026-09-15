@@ -11,6 +11,7 @@ import { config } from "../../config.ts";
 import type { CheckReport } from "./verify-checks.ts";
 import { isExternalMscTool } from "../../external/envelope.ts";
 import { FACT_TOOL_NAME } from "../../facts/registry.ts";
+import { isUserTeachingTool } from "../teach/inject.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -89,7 +90,7 @@ export interface EvidenceEntry {
   // injecting it. Deliberately still grouped with atlas (not external) for
   // quote-grounding in splitFromTranscript: glossary definitions genuinely are
   // atlas text, and moving them out would start failing quotes that are real.
-  sourceClass?: "atlas" | "external" | "reference";
+  sourceClass?: "atlas" | "external" | "reference" | "user";
 }
 
 // Budget a flat list of evidence entries to `maxChars`, newest-first (later
@@ -149,7 +150,13 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
         tool: call.tool,
         args: call.args,
         content: m.content,
-        sourceClass: isExternalMscTool(call.tool) ? "external" : call.tool === FACT_TOOL_NAME ? "reference" : "atlas",
+        sourceClass: isExternalMscTool(call.tool)
+          ? "external"
+          : call.tool === FACT_TOOL_NAME
+            ? "reference"
+            : isUserTeachingTool(call.tool)
+              ? "user"
+              : "atlas",
       });
     }
   }
@@ -171,7 +178,13 @@ export function evidenceFromResults(results: { name: string; content: string }[]
     tool: r.name,
     args: "(streamed)",
     content: r.content,
-    sourceClass: isExternalMscTool(r.name) ? "external" : r.name === FACT_TOOL_NAME ? "reference" : "atlas",
+    sourceClass: isExternalMscTool(r.name)
+      ? "external"
+      : r.name === FACT_TOOL_NAME
+        ? "reference"
+        : isUserTeachingTool(r.name)
+          ? "user"
+          : "atlas",
   }));
   return budgetEvidence(entries, maxChars);
 }

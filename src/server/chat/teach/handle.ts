@@ -1,0 +1,104 @@
+// /teach turn: review the body, persist an accepted (or LLM-rejected) row,
+// return the assistant copy the SSE route ships. No atlas harness.
+import { config } from "../../config.ts";
+import { captureError, type ErrorContext } from "../../posthog-node.ts";
+import type { JsonCall } from "../llm.ts";
+import { TEACH_HELP } from "./parse.ts";
+import { reviewTeaching } from "./review.ts";
+import {
+  countTeachingsToday,
+  embedTeaching,
+  findAcceptedByHash,
+  insertTeaching,
+  teachingHash,
+} from "./store.ts";
+
+export interface TeachTurnResult {
+  content: string;
+  usage: { input: number; output: number };
+  generationId: string | null;
+  accepted: boolean;
+}
+
+export async function runTeachCommand(opts: {
+  userId: string;
+  convId: string;
+  text: string;
+  jsonCall: JsonCall;
+  signal?: AbortSignal;
+  obs?: ErrorContext;
+}): Promise<TeachTurnResult> {
+  const empty = { usage: { input: 0, output: 0 }, generationId: null as string | null, accepted: false };
+  if (!opts.text) {
+    return { content: TEACH_HELP, ...empty };
+  }
+
+  const today = await countTeachingsToday(opts.userId);
+  if (today >= config.chatTeachMaxPerDay) {
+    return {
+      content: `You've taught me ${today} notes in the last day (the cap is ${config.chatTeachMaxPerDay}). Try again tomorrow.`,
+      ...empty,
+    };
+  }
+
+  const hash = teachingHash(opts.text);
+  const existing = await findAcceptedByHash(opts.userId, hash);
+  if (existing) {
+    return {
+      content: "I already have that note — I'll keep using it on your future chats.",
+      ...empty,
+    };
+  }
+
+  const review = await reviewTeaching(opts.text, opts.jsonCall, { signal: opts.signal, obs: opts.obs });
+  if (!review.accept) {
+    if (review.model) {
+      try {
+        await insertTeaching({
+          userId: opts.userId,
+          conversationId: opts.convId,
+          content: opts.text,
+          subject: review.subject,
+          status: "rejected",
+          rejectReason: review.reason,
+          contentHash: hash,
+          reviewModel: review.model,
+          review: { accept: false, reason: review.reason, subject: review.subject },
+        });
+      } catch (err) {
+        captureError(err, opts.obs, { stage: "teach_insert_rejected" });
+      }
+    }
+    const why = review.reason && review.reason !== "heuristic" ? ` (${review.reason})` : "";
+    return {
+      content: `I couldn't save that as a teaching${why}. Try a short, concrete note about what I should remember — a name, where it lives in the Atlas, or how it relates to something I missed.`,
+      usage: review.usage,
+      generationId: review.generationId,
+      accepted: false,
+    };
+  }
+
+  const row = await insertTeaching({
+    userId: opts.userId,
+    conversationId: opts.convId,
+    content: opts.text,
+    subject: review.subject,
+    status: "accepted",
+    rejectReason: null,
+    contentHash: hash,
+    reviewModel: review.model,
+    review: { accept: true, reason: review.reason, subject: review.subject },
+  });
+
+  void embedTeaching(row.id, `${review.subject}\n${opts.text}`).catch((err) =>
+    captureError(err, opts.obs, { stage: "teach_embed" }),
+  );
+
+  const subject = review.subject ? ` as “${review.subject}”` : "";
+  return {
+    content: `Saved${subject}. I'll use this note on your future chats when it matches the question. Teachings stay private to your account.`,
+    usage: review.usage,
+    generationId: review.generationId,
+    accepted: true,
+  };
+}

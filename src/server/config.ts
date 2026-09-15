@@ -276,6 +276,20 @@ export const config = {
   // seeded as a synthetic tool round before the first LLM request — saves a
   // tool round trip on definition/entity questions. Free, pure code.
   chatPrefetch: process.env.CHAT_PREFETCH !== "0",
+  // /teach: users save private notes that later turns inject on match.
+  // CHAT_TEACH=0 turns off the command, the miss-hint, injection, and the
+  // system-prompt section together.
+  chatTeach: process.env.CHAT_TEACH !== "0",
+  // Advanced-model gibberish review for a /teach body. Empty string disables
+  // the LLM judge (heuristic only). Unset defaults to the strong-tier primary
+  // so a surprising note is read by a capable model, not the fast one.
+  chatTeachReviewModel:
+    process.env.CHAT_TEACH_REVIEW_MODEL ??
+    ((process.env.CHAT_MODEL_STRONG ?? "").split(",").map((s) => s.trim()).filter(Boolean)[0] ||
+      process.env.CHAT_MODEL ||
+      "google/gemma-4-31b-it"),
+  chatTeachReviewTimeoutMs: Number(process.env.CHAT_TEACH_REVIEW_TIMEOUT_MS ?? 15_000),
+  chatTeachMaxPerDay: Number(process.env.CHAT_TEACH_MAX_PER_DAY ?? 40),
   // Similarity lane for fact triggers (facts/similarity.ts): an on-device
   // embedding (ternlight, ~2ms, no network) catches product questions phrased
   // in words no regex anticipates ("show me around", "what should i try
