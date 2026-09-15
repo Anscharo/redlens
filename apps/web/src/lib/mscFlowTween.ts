@@ -10,7 +10,7 @@
 // Column x positions and the canvas never change between months (the
 // layout fixes them), so only y, height and thickness interpolate.
 import { ribbonPath } from "./mscFlowGeometry";
-import type { FlowAgent, FlowLayout, FlowLink, FlowSkyShare, FlowSource, RibbonGeom } from "./mscFlowLayout";
+import type { FlowAgent, FlowLayout, FlowLink, FlowSkyShare, FlowSkySource, FlowSource, RibbonGeom } from "./mscFlowLayout";
 
 const mix = (a: number, b: number, k: number) => a + (b - a) * k;
 
@@ -88,6 +88,33 @@ function tweenAgent(a: FlowAgent, b: FlowAgent, k: number): FlowAgent {
   };
 }
 
+/** Sky's left-hand node, present only in months with a demand side: it
+ *  fades in or out when one month has it and the other does not. Its
+ *  ribbons are paired by source kind, like every other pair here. */
+function tweenSkySource(a: FlowSkySource | null, b: FlowSkySource | null, k: number): FlowSkySource | null {
+  if (!a && !b) return null;
+  if (!a) return { ...b!, alpha: k };
+  if (!b) return { ...a, alpha: 1 - k };
+  const flat = (l: FlowSkySource["links"][number]) => ({ ...l, value: 0, geom: { ...l.geom, t: 0 } });
+  return {
+    ...b,
+    y: mix(a.y, b.y, k),
+    h: mix(a.h, b.h, k),
+    value: mix(a.value, b.value, k),
+    labelY: mix(a.labelY, b.labelY, k),
+    links: pair(a.links, b.links, (l) => l.kind, flat, k).map(({ a: la, b: lb }) => {
+      const geom: RibbonGeom = {
+        x0: lb.geom.x0,
+        x1: lb.geom.x1,
+        y0: mix(la.geom.y0, lb.geom.y0, k),
+        y1: mix(la.geom.y1, lb.geom.y1, k),
+        t: mix(la.geom.t, lb.geom.t, k),
+      };
+      return { ...lb, value: mix(la.value, lb.value, k), geom, path: ribbonPath(geom.x0, geom.y0, geom.x1, geom.y1, geom.t) };
+    }),
+  };
+}
+
 /** The frame between two layouts at progress k (0 = from, 1 = to). At k = 1
  *  the result is `to` with its vanished items collapsed to nothing — the
  *  caller swaps in `to` itself once the transition ends. */
@@ -106,6 +133,7 @@ export function tweenFlowLayout(from: FlowLayout, to: FlowLayout, k: number): Fl
       h: mix(a.h, b.h, k),
       labelY: mix(a.labelY, b.labelY, k),
     })),
+    skySource: tweenSkySource(from.skySource, to.skySource, k),
     agents: pair(from.agents, to.agents, (a) => a.prime, flatAgent, k).map(({ a, b, alpha }) => ({ ...tweenAgent(a, b, k), alpha })),
     sky: {
       x: to.sky.x,

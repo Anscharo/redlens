@@ -63,6 +63,14 @@ export function RingKey({ view = "orbit" }: { view?: "orbit" | "flow" }) {
             : "A Prime's bar = gross revenue*; ribbons are the money in and out. "}
           Hover for figures; click a Prime for its page.
         </p>
+        {!orbit && (
+          <p className="mt-1">
+            Sky is at both ends: the demand-side series are owed BY Sky
+            (A.2.4.1.2.2.1.1.1), so they start at the Sky node on the left,
+            while cost of funds and Sky Direct Exposure are owed TO Sky
+            (A.2.4.1.2.2.1.1.2) and leave on the right.
+          </p>
+        )}
         <p className="mt-1 italic">*Gross revenue = To Sky + supply-side kept + demand-side.</p>
       </div>
     </div>

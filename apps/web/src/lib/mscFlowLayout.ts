@@ -5,6 +5,17 @@
 // Primes. MIDDLE: one bar per Prime (an "agent"), fed by its sources.
 // RIGHT: Sky, one bar, split into what each Prime sent it, by type.
 //
+// SKY IS AT BOTH ENDS, and the source column is grouped by ORIGIN to say so.
+// The Monthly Settlement Cycle settles two amounts running in opposite
+// directions: what a Prime owes Sky for Supply Side Primitives
+// (A.2.4.1.2.2.1.1.2), which leaves the Prime's bar on the right, and what
+// SKY OWES THE PRIME for Demand Side Primitives and the Agent Rate
+// (A.2.4.1.2.2.1.1.1), which is every demand-side source. Drawing those as
+// plain sources said the Prime earned them: for Keel, Skybase and Osero
+// that is the WHOLE bar, fed from the left with nothing going out. So the
+// demand-side bars now hang off their own Sky node in the left gutter
+// (`skySource`), and the two groups carry their own headings.
+//
 // A Prime's bar is as tall as the larger of its two sides: what feeds it
 // (what the book EARNED toward cost of funds, Sky Direct Exposure,
 // supply-side kept, the demand-side series) and what leaves it for Sky
@@ -37,6 +48,21 @@ export const AGENT_W = 40;
 /** Column headers over the three node groups, and where they sit. */
 export const HEADERS = { source: "SOURCE", prime: "PRIME", sky: "SKY" } as const;
 export const HEADER_Y = 40;
+/** Where each source's money comes FROM. "earned" is the Prime's own book
+ *  (its venues); "sky" is the amount due from Sky under
+ *  A.2.4.1.2.2.1.1.1, which is every demand-side series. */
+export const SOURCE_ORIGIN: Record<string, "earned" | "sky"> = {
+  cof: "earned",
+  sde: "earned",
+  kept: "earned",
+  ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, "sky" as const])),
+};
+/** The heading over each source group, right-aligned to the source bars. */
+export const GROUP_HEADING = { earned: "EARNED BY THE PRIME", sky: "OWED BY SKY" } as const;
+/** A group heading sits this far above its first bar. */
+const GROUP_HEADING_DY = 46;
+/** Extra air between the two source groups, so they read as two. */
+const GROUP_GAP = 96;
 /** Source names in the left gutter — the key's wording: a code only where
  *  it adds one ("CoF · cost of funds", plain "supply-side kept"). Lives
  *  here because the gutter is sized from the widest of them. */
@@ -57,7 +83,14 @@ const AMOUNT_ROOM = textWidth(" | $00.00M", AMOUNT_FONT, AMOUNT_CHAR_PX);
 /** Column x: sources (labels in the gutter to their left, which is as wide
  *  as the widest label needs), Primes, Sky (its per-Prime name + figure in
  *  the gutter to its right). */
-export const LEFT_X = Math.max(...Object.values(SOURCE_LABEL).map((l) => textWidth(l, SOURCE_FONT, SOURCE_CHAR_PX))) + AMOUNT_ROOM + 24;
+const LABEL_ROOM = Math.max(...Object.values(SOURCE_LABEL).map((l) => textWidth(l, SOURCE_FONT, SOURCE_CHAR_PX))) + AMOUNT_ROOM + 24;
+/** Sky's node in the LEFT gutter, which the demand-side bars hang off. Its
+ *  own label goes further left still, so the gutter carries both. */
+export const SKY_SRC_X = LABEL_ROOM;
+/** Gap between that node and the source bars it feeds — long enough for a
+ *  readable ribbon, short enough that the group still reads as one. */
+const SKY_SRC_GAP = 150;
+export const LEFT_X = SKY_SRC_X + NODE_W + SKY_SRC_GAP;
 /** Sky's bar sits near the right edge, with its label — "To Sky | $15.86M",
  *  54px, left-aligned to the bar's own edge — running into a gutter sized
  *  for it. Its per-Prime shares are named by their hover pills. */
@@ -140,6 +173,24 @@ export interface FlowSource extends Fading {
   y: number;
   h: number;
   labelY: number;
+  /** Where this source's money comes from (SOURCE_ORIGIN). */
+  origin: "earned" | "sky";
+  /** Right edge of its label. A Sky-origin bar's label clears the Sky node
+   *  in the gutter; an earned one's runs up to its own bar. */
+  labelX: number;
+  /** Set on the FIRST bar of each group: the group's heading baseline. */
+  headingY?: number;
+}
+
+/** Sky's node in the left gutter: the origin of every demand-side source,
+ *  with one ribbon into each. Null when the month has no demand side. */
+export interface FlowSkySource extends Fading {
+  x: number;
+  y: number;
+  h: number;
+  value: number;
+  labelY: number;
+  links: { kind: SliceKind; value: number; path: string; geom: RibbonGeom }[];
 }
 
 export interface FlowAgent extends Fading {
@@ -177,6 +228,8 @@ export interface FlowLayout {
   width: number;
   height: number;
   sources: FlowSource[];
+  /** The left-hand Sky node (see FlowSkySource). */
+  skySource: FlowSkySource | null;
   agents: FlowAgent[];
   sky: { x: number; y: number; h: number; total: number; segments: { prime: string; kind: SliceKind; y: number; h: number }[]; shares: FlowSkyShare[] };
 }
@@ -221,7 +274,7 @@ function account(p: PrimeFlowTotals) {
 
 export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
   const acc = primes.map((p) => ({ p, a: account(p) })).filter(({ a }) => a.total > 0 || a.loss > 0);
-  const empty: FlowLayout = { width: WIDTH, height: HEIGHT, sources: [], agents: [], sky: { x: RIGHT_X, y: TOP, h: 0, total: 0, segments: [], shares: [] } };
+  const empty: FlowLayout = { width: WIDTH, height: HEIGHT, sources: [], skySource: null, agents: [], sky: { x: RIGHT_X, y: TOP, h: 0, total: 0, segments: [], shares: [] } };
   if (acc.length === 0) return empty;
 
   const sourceTotal = (k: SliceKind) => acc.reduce((n, { a }) => n + (a.inbound.find((x) => x.kind === k)?.value ?? 0), 0);
@@ -241,7 +294,17 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
   // and the Sky bar centers on it.
   const agents = spread(acc.map((r) => ({ item: r, h: Math.max(inH(r), outH(r)) })), BAND_H, AGENT_GAP, 0);
   const sourceBars = sourceKinds.map((k) => ({ item: k, h: acc.reduce((n, { a }) => n + t(a.inbound.find((x) => x.kind === k)?.value ?? 0), 0) }));
-  const sources = spread(sourceBars, SOURCE_BAND_H, SOURCE_GAP, SOURCE_LABEL_BLOCK);
+  // KINDS orders earned first, then the Sky-owed demand series, so the two
+  // groups are already contiguous. The band gives up GROUP_GAP before the
+  // spread and the Sky group takes it back, which separates the groups
+  // without pushing the last bar off the bottom.
+  const skyFirst = sourceKinds.findIndex((k) => SOURCE_ORIGIN[k] === "sky");
+  const mixed = skyFirst > 0;
+  const spreadBand = SOURCE_BAND_H - (mixed ? GROUP_GAP : 0);
+  const sources = spread(sourceBars, spreadBand, SOURCE_GAP, SOURCE_LABEL_BLOCK).map((s, i) => {
+    const shift = mixed && i >= skyFirst ? GROUP_GAP : 0;
+    return { ...s, y: s.y + shift, labelY: s.labelY + shift };
+  });
   const skyH = acc.reduce((n, { a }) => n + a.outbound.reduce((m, x) => m + t(x.value), 0), 0);
   const skyY = TOP + Math.max(0, (BAND_H - skyH) / 2);
 
@@ -296,6 +359,24 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
     };
   });
 
+  // Sky's left-hand node: as tall as the demand bars it feeds (their gaps
+  // are not money), centred on their span, one ribbon into each.
+  const owed = sources.filter((s) => SOURCE_ORIGIN[s.item] === "sky");
+  let skySource: FlowSkySource | null = null;
+  if (owed.length > 0) {
+    const h = owed.reduce((n, s) => n + s.h, 0);
+    const span0 = owed[0].y;
+    const span1 = owed[owed.length - 1].y + owed[owed.length - 1].h;
+    const y = span0 + (span1 - span0 - h) / 2;
+    let cursor = y;
+    const links = owed.map((s) => {
+      const geom = { x0: SKY_SRC_X + NODE_W, y0: cursor, x1: LEFT_X, y1: s.y, t: s.h };
+      cursor += s.h;
+      return { kind: s.item, value: sourceTotal(s.item), path: ribbonPath(geom.x0, geom.y0, geom.x1, geom.y1, geom.t), geom };
+    });
+    skySource = { x: SKY_SRC_X, y, h, value: owed.reduce((n, s) => n + sourceTotal(s.item), 0), labelY: y - 24, links };
+  }
+
   const bottom = Math.max(
     ...agents.map((g) => g.y + g.h),
     ...sources.map((s) => Math.max(s.y + s.h, s.labelY + SOURCE_LABEL_BLOCK / 2)),
@@ -304,7 +385,22 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
   return {
     width: WIDTH,
     height: Math.max(HEIGHT, Math.round(bottom + BOTTOM_PAD)),
-    sources: sources.map((s) => ({ kind: s.item, value: sourceTotal(s.item), x: LEFT_X, y: s.y, h: s.h, labelY: s.labelY })),
+    sources: sources.map((s, i) => {
+      const origin = SOURCE_ORIGIN[s.item];
+      return {
+        kind: s.item,
+        value: sourceTotal(s.item),
+        x: LEFT_X,
+        y: s.y,
+        h: s.h,
+        labelY: s.labelY,
+        origin,
+        // A Sky-owed label clears the gutter node; an earned one runs up to its bar.
+        labelX: origin === "sky" ? SKY_SRC_X : LEFT_X,
+        headingY: i === 0 || (mixed && i === skyFirst) ? s.y - GROUP_HEADING_DY : undefined,
+      };
+    }),
+    skySource,
     agents: out,
     sky: { x: RIGHT_X, y: skyY, h: skyH, total: skyTotal, segments, shares },
   };

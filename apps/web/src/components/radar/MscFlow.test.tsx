@@ -32,6 +32,31 @@ function primes(flows: PrimeFlowTotals[]): OverviewPrime[] {
 afterEach(cleanup);
 
 describe("MscFlow", () => {
+  it("hangs the demand-side sources off a Sky node in the left gutter, so Sky is at both ends", () => {
+    const flows = [flow({ prime: "keel", sky: 0, cof: 0, sde: 0, kept: 0, demand: 36_231, demandParts: { agentRate: 32_004, distributionRewards: 4_227 } })];
+    const { container } = render(<MscFlow layout={layoutMscFlow(flows)} primes={primes(flows)} month="2026-07" centerFigure="$0" />);
+    const node = container.querySelector(".msc-flow-sky-source")!;
+    expect(node).toBeInTheDocument();
+    // Named and totalled, in Sky's own blue like the bar on the right.
+    expect(node).toHaveTextContent(/^Sky \| \$36k$/);
+    expect(node.querySelector("rect.msc-ring-sky-wedge")).toHaveStyle({ fill: "var(--msc-sky)" });
+    // One ribbon per demand-side source, in that source's own fill.
+    expect([...node.querySelectorAll("path.msc-ring-slice")].map((p) => p.getAttribute("class"))).toEqual([
+      "msc-ring-slice msc-ring-agentRate",
+      "msc-ring-slice msc-ring-distributionRewards",
+    ]);
+    // It sits left of the source bars it feeds.
+    const srcX = Number(container.querySelector('.msc-flow-source[data-kind="agentRate"] rect')!.getAttribute("x"));
+    expect(Number(node.querySelector("rect")!.getAttribute("x"))).toBeLessThan(srcX);
+  });
+
+  it("draws no left-hand Sky node in a month with no demand side", () => {
+    const flows = [flow({ demand: 0, demandParts: {} })];
+    const { container } = render(<MscFlow layout={layoutMscFlow(flows)} primes={primes(flows)} month="2026-07" centerFigure="$10.00M" />);
+    expect(container.querySelector(".msc-flow-sky-source")).not.toBeInTheDocument();
+    expect(screen.queryByText("OWED BY SKY")).not.toBeInTheDocument();
+  });
+
   it("speaks the orbit's mark vocabulary, so the key, hover and pills carry over", () => {
     const flows = [flow(), flow({ prime: "grove", sky: 5_000_000, cof: 5_000_000, sde: 0, kept: 1_000_000, demand: 0, demandParts: {} })];
     const { container } = render(<MscFlow layout={layoutMscFlow(flows)} primes={primes(flows)} month="2026-07" centerFigure="$15.00M" />);
@@ -46,6 +71,11 @@ describe("MscFlow", () => {
     expect(screen.getByText("SOURCE")).toBeInTheDocument();
     expect(screen.getByText("PRIME")).toBeInTheDocument();
     expect(screen.getByText("SKY")).toBeInTheDocument();
+    // The source column is grouped by where the money comes FROM.
+    expect(screen.getByText("EARNED BY THE PRIME")).toBeInTheDocument();
+    expect(screen.getByText("OWED BY SKY")).toBeInTheDocument();
+    expect(container.querySelector('.msc-flow-source[data-kind="kept"][data-origin="earned"]')).toBeInTheDocument();
+    expect(container.querySelector('.msc-flow-source[data-kind="agentRate"][data-origin="sky"]')).toBeInTheDocument();
     // Sky's column names no Prime; the share pill does.
     expect(container.querySelector('.msc-ring-figure[data-kind="sky"]')).not.toBeInTheDocument();
     // The To-Sky ribbons are one mark (the orbit's arrow), tagged by component.

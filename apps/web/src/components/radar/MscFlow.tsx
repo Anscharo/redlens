@@ -1,5 +1,5 @@
 import { formatMonth, formatUsd } from "../../lib/settlements";
-import { AGENT_W, HEADERS, HEADER_Y, LEFT_X, MID_X, NODE_W, RIGHT_X, SOURCE_LABEL, type FlowLayout } from "../../lib/mscFlowLayout";
+import { AGENT_W, GROUP_HEADING, HEADERS, HEADER_Y, LEFT_X, MID_X, NODE_W, RIGHT_X, SOURCE_LABEL, type FlowLayout } from "../../lib/mscFlowLayout";
 import { RingHoverStyles } from "./MscRingHoverStyles";
 import { markId, AmountPill, pillText } from "./MscRingPills";
 import { FlowAgentGroup } from "./MscFlowAgent";
@@ -58,10 +58,40 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
       <figure className="msc-ring-frame msc-flow-frame" aria-label={`Monthly Settlement Cycle flows for ${formatMonth(month)}`}>
         <svg className="msc-ring msc-flow" viewBox={`0 0 ${layout.width} ${layout.height}`} preserveAspectRatio="xMidYMid meet">
           <FlowHeaders />
+          {/* Sky's LEFT node and its ribbons into the demand-side bars: that
+              money is owed BY Sky (A.2.4.1.2.2.1.1.1), so it starts here and
+              Sky appears at both ends of the chart. Drawn under the source
+              bars so the ribbons dock behind them. */}
+          {layout.skySource && (
+            <g className="msc-flow-sky-source" style={{ opacity: layout.skySource.alpha }}>
+              {layout.skySource.links.map((l) => (
+                <path key={l.kind} d={l.path} className={`msc-ring-slice msc-ring-${l.kind}`} />
+              ))}
+              {/* Painted in Sky's own blue, like the bar on the right, so the
+                  two ends read as the same party rather than two charts. */}
+              <rect
+                x={layout.skySource.x}
+                y={layout.skySource.y}
+                width={NODE_W}
+                height={layout.skySource.h}
+                className="msc-ring-sky-wedge"
+                style={{ fill: "var(--msc-sky)" }}
+              />
+              <text x={layout.skySource.x + NODE_W} y={layout.skySource.labelY} textAnchor="end" fontSize={44} className="msc-ring-label">
+                Sky
+                <tspan className="msc-ring-sublabel mono"> | {formatUsd(layout.skySource.value, true)}</tspan>
+              </text>
+            </g>
+          )}
           {layout.sources.map((s) => (
-            <g key={s.kind} className="msc-flow-source" data-kind={s.kind} style={{ opacity: s.alpha }}>
+            <g key={s.kind} className="msc-flow-source" data-kind={s.kind} data-origin={s.origin} style={{ opacity: s.alpha }}>
+              {s.headingY != null && (
+                <text x={LEFT_X + NODE_W} y={s.headingY} textAnchor="end" fontSize={30} className="msc-flow-header mono">
+                  {GROUP_HEADING[s.origin]}
+                </text>
+              )}
               <rect x={s.x} y={s.y} width={NODE_W} height={s.h} className={`msc-ring-${s.kind}`} />
-              <text x={s.x - 12} y={s.labelY + 15} textAnchor="end" fontSize={44} className="msc-ring-label">
+              <text x={s.labelX - 12} y={s.labelY + 15} textAnchor="end" fontSize={44} className="msc-ring-label">
                 {SOURCE_LABEL[s.kind]}
                 <tspan className="msc-ring-sublabel mono"> | {formatUsd(s.value, true)}</tspan>
               </text>

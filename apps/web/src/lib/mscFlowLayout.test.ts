@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { layoutMscFlow, AGENT_W, HEADERS, NODE_W, WIDTH } from "./mscFlowLayout";
+import { layoutMscFlow, AGENT_W, GROUP_HEADING, HEADERS, NODE_W, WIDTH } from "./mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
 const flow = (over: Partial<PrimeFlowTotals> = {}): PrimeFlowTotals => ({
@@ -85,6 +85,36 @@ describe("layoutMscFlow", () => {
     expect(k.inbound.map((x) => x.kind)).toEqual(["agentRate", "distributionRewards"]);
     expect(l.sky.shares).toEqual([]);
     expect(l.sky.h).toBe(0);
+    // Its whole bar is money SKY OWES IT (A.2.4.1.2.2.1.1.1), so every
+    // source hangs off the left-hand Sky node rather than looking earned.
+    expect(l.sources.every((s) => s.origin === "sky")).toBe(true);
+    expect(l.skySource).not.toBeNull();
+    expect(l.skySource!.value).toBeCloseTo(36_231);
+    expect(l.skySource!.links.map((x) => x.kind)).toEqual(["agentRate", "distributionRewards"]);
+    expect(l.skySource!.x + NODE_W).toBeLessThan(l.sources[0].x);
+    // Its bar is exactly the demand bars it feeds; the ribbons tile it.
+    expect(l.skySource!.h).toBeCloseTo(l.sources.reduce((n, s) => n + s.h, 0));
+    const last = l.skySource!.links[l.skySource!.links.length - 1];
+    expect(last.geom.y0 + last.geom.t).toBeCloseTo(l.skySource!.y + l.skySource!.h);
+  });
+
+  it("splits the source column by origin, and drops the Sky node when nothing is owed", () => {
+    const l = layoutMscFlow([flow(), flow({ prime: "grove" })]);
+    // Earned first, Sky-owed after — the order KINDS already uses.
+    expect(l.sources.map((s) => [s.kind, s.origin])).toEqual([
+      ["cof", "earned"], ["sde", "earned"], ["kept", "earned"],
+      ["agentRate", "sky"], ["distributionRewards", "sky"],
+    ]);
+    // One heading per group, on its first bar.
+    expect(l.sources.filter((s) => s.headingY != null).map((s) => s.kind)).toEqual(["cof", "agentRate"]);
+    expect(GROUP_HEADING).toEqual({ earned: "EARNED BY THE PRIME", sky: "OWED BY SKY" });
+    // A Sky-owed label clears the gutter node; an earned one runs to its bar.
+    expect(l.sources[0].labelX).toBe(l.sources[0].x);
+    expect(l.sources[3].labelX).toBe(l.skySource!.x);
+    // A supply-only month has no left Sky node at all.
+    const supplyOnly = layoutMscFlow([flow({ demand: 0, demandParts: {} })]);
+    expect(supplyOnly.sources.every((s) => s.origin === "earned")).toBe(true);
+    expect(supplyOnly.skySource).toBeNull();
   });
 
   it("folds a negative SDE into the loss rather than drawing it as money to Sky", () => {
@@ -129,7 +159,15 @@ describe("layoutMscFlow", () => {
     expect(lastS.y + lastS.h).toBeGreaterThan(l.height * 0.9);
     expect(lastS.labelY).toBeLessThan(l.height);
     const gaps = (bars: { y: number; h: number }[]) => bars.slice(1).map((b, i) => b.y - (bars[i].y + bars[i].h));
-    for (const g of [gaps(l.agents), gaps(l.sources)]) for (const x of g) expect(x).toBeCloseTo(g[0], 6);
+    for (const x of gaps(l.agents)) expect(x).toBeCloseTo(gaps(l.agents)[0], 6);
+    // The source column is two groups, so its gaps are equal WITHIN a group
+    // and wider across the seam between earned and Sky-owed.
+    const srcGaps = gaps(l.sources);
+    const seam = l.sources.findIndex((s) => s.origin === "sky") - 1;
+    expect(seam).toBeGreaterThanOrEqual(0);
+    const within = srcGaps.filter((_, i) => i !== seam);
+    for (const x of within) expect(x).toBeCloseTo(within[0], 6);
+    expect(srcGaps[seam]).toBeGreaterThan(within[0] + 50);
     const agentsMid = (l.agents[0].y + lastA.y + lastA.h) / 2;
     expect(l.sky.y + l.sky.h / 2).toBeCloseTo(agentsMid, 0);
   });
