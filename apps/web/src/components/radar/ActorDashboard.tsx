@@ -109,7 +109,7 @@ export function ActorDashboard({ profile }: Props) {
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-8">
         <div className="lg:col-span-2 min-w-0 flow-root">
           {/* Floated first → top-right of the agent header; null if no MSC workbook. */}
-          <ActorSettlementTeaser slug={entity.slug} />
+          <ActorSettlementTeaser slug={entity.slug} name={entity.name} />
           {/* Header */}
           <div className="mb-6">
             <p className="mono text-xs mb-1" style={{ color: "var(--tan-3)" }}>
