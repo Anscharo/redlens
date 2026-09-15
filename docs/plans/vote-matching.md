@@ -1,6 +1,7 @@
 # Matching atlas vote references to vote.sky.money — plan + micro-tests
 
-*Status: PLAN ONLY (2026-09-15). Nothing is built. Three research notes carry the evidence:
+*Status: PLAN ONLY (2026-09-15; revised the same day after the sky.money domains were
+whitelisted — see §2b). Nothing is built. Three research notes carry the evidence:
 `docs/research/vote-matching/atlas-vote-references.md` (what the atlas says about votes),
 `docs/research/vote-matching/vote-corpus.md` (polls vs executives, API shape, the link census),
 `docs/research/vote-matching/stale-dates-vs-votes.md` (the Stale Dates cross-check). Numbers
@@ -32,10 +33,10 @@ Vote" is the executive *dated* 2025-09-18).
 
 ## 2. Data sources (what this environment can and cannot reach)
 
-- **Blocked**: `vote.sky.money` and `developers.sky.money` are refused by the egress policy of
-  this session (403 on CONNECT). The portal's JSON API (poll ids, slugs, tallies, spell status)
-  is therefore out of reach here; the shape is reconstructed from the portal source in
-  `vote-corpus.md` §2 so ingestion can be written blind and tested elsewhere.
+- **The portal API is reachable** (the sky.money domains were whitelisted for this work on
+  2026-09-15; the earlier draft of this plan recorded them as blocked, and `vote-corpus.md` §2
+  still describes the shapes as reconstructed from portal source — they are now confirmed live).
+  What it adds beyond the git corpora is in §2b.
 - **Reachable, and sufficient for matching**: plain git.
   - `https://github.com/sky-ecosystem/executive-votes` — 31 executives 2025-05-29 → 2026-09-10
     (`<yyyy>/executive-vote-<yyyy-mm-dd>-<slug>.md`, frontmatter `title/summary/date/address`,
@@ -51,6 +52,26 @@ Vote" is the executive *dated* 2025-09-18).
     pollId/slug/multihash, `governance/votes/*.md` 227 executives) — the 2019 → May 2025 archive.
 - **Atlas side, already in the repo**: `public/docs.json`, `atlas_history` rows (`commit_sha`,
   `committed_at`, `pr_number`, `pr_title` per doc change), the atlas submodule's git log.
+
+### 2b. What the portal API adds (verified live, 2026-09-15)
+
+| Endpoint | Returns | Why it matters here |
+|---|---|---|
+| `/api/polling/all-polls-with-tally?pageSize=30&page=N` | 144 polls, 5 pages (`pageSize` caps at 30) | Supplies the `pollId` / `multiHash` / `slug` the poll markdown lacks, **and a `url` pointing at the file in `sky-ecosystem/polls`** — the file↔pollId join `vote-corpus.md` §3 recorded as missing. 129 of 144 `url`s resolve to that repo. |
+| same, `tally` block | `winner`, `winningOptionName`, `numVoters`, participation | Poll **outcome**: 143 Yes, **1 No** (Grove Liquidity Layer, 2025-07-28). Near-constant, but the single failure is precisely the case where an atlas claim resting on a poll would be wrong. |
+| `/api/executive?start&limit` | 31 executives, 2025-05-29 → 2026-09-10 (Sky era only) | `spellData.datePassed` and `dateExecuted` per spell. All 31 were cast. |
+| `/api/executive/hat` | current hat + `skyOnHat` | Live support threshold. |
+
+This upgrades K1's evidence from *an executive file exists on that date* to *the spell passed on
+X and executed on Y*. Typical shape: proposal date → passed +1 to +3d → executed +2 to +4d.
+
+**Three dates per executive, and they disagree.** The 2026-01-29 file
+`executive-vote-2026-01-29-msc-pattern-and-skybase-onboarding.md` carries frontmatter `date:
+2026-01-26`, the API reports the same 2026-01-26, and the spell actually passed 2026-01-30 — one
+spell (`0x4d99868F…`), three dates. The atlas cites "the January 29, 2026 Executive Vote", i.e.
+the **filename** date. Keying K1 on the API date alone loses this executive and both Skybase
+claims that name it (`36556509`, `be600bf6`). So K1 resolves in order: filename date → API `date`
+→ `datePassed` within +4d.
 
 ## 3. What the atlas says (census, 11,529 docs)
 
@@ -115,9 +136,25 @@ the sentence names happen?*".
 For a class-A/C claim with a K1 date hit, check the executive's Proposal Details for the
 claim's subject nouns (agent name, module name, amount). Tested regression case: the Osero genesis
 transfer (`65638659`) names the March 26, 2026 executive; that executive exists and scores 0.18 by
-text similarity, but names Amatsu, Ozone, Keel, Prysm — **Osero appears nowhere**. Date-only
-matching marks it matched; it is in fact unfulfilled. K4 is what turns "an executive happened that
-day" into "this claim was enacted".
+text similarity, but names Amatsu, Ozone, Keel, Prysm — **Osero appears literally zero times**.
+Date-only matching marks it matched; it is in fact unfulfilled. K4 is what turns "an executive
+happened that day" into "this claim was enacted".
+
+**Weight the nouns, or K4 passes the one claim we know is false.** Running the end-to-end test
+below with a plain "half the subject words appear" rule, the Osero claim *passes* — on the token
+`USDS`, which appears in **31 of 31** executives and therefore carries no evidence at all. The
+same goes for `Bridge`, `Spell`, `Agent`. K4 scores by inverse document frequency across the
+executive corpus (or restricts to entity nouns from the graph's entity list), and counts a
+match only when at least one *discriminating* token is present. A claim whose only matches are corpus-wide tokens is
+`date-hit-no-subject`, not `enacted`.
+
+**End-to-end result (K1 → K4, live API, all 19 dated claims):** 17 of 19 resolve to an executive
+(the 2 misses are both the January date drift above, recovered by the filename rule); every one of
+those 17 spells passed and executed. Subject confirmed in the body for 15 of 19 — but that 15
+includes the Osero false positive under the unweighted rule, which is what motivates the IDF
+weighting above. Two rows land at PARTIAL and are correct to flag: `ff3aa296` (Stage 1, whose subject
+words are calendar months) and `badd8b62` (the Spell Reviewer Checklist, genuinely absent from the
+June 18 executive).
 
 ### K5 · Date window + text similarity (fallback) — **low precision, keep as tiebreaker only**
 ±21d window over polls+executives, TF-IDF over title+summary against the claim context. Tested on
@@ -224,10 +261,11 @@ authored *after* the vote it names has either been back-dated or missed its slot
   authorization:{kind: atlas|poll|forum|other, atlas_uuid?, poll_slug?, url}, proposal_url}]}],
   polls:[{start, end, slug?, pollId?, title, summary, tags[], discussion_link, atlas_uuids[]}]}`.
   Resolve doc_no-only fragments to uuids at sync time against that build's docs.json.
-- When network policy allows, layer the portal API (`/api/executive`, `/api/polling/
-  all-polls-with-tally`) for `pollId`/`slug`/tallies/`spellData`; until then the chain is the
-  fallback for poll ids and spell status (`PollCreated` logs, `spell.done()`,
-  `chief.approvals`), read with the viem multicall pattern that backs `pnpm snap:chainstate`.
+- Layer the portal API (`/api/executive`, `/api/polling/all-polls-with-tally`) for
+  `pollId`/`slug`/tallies/`spellData` — reachable today (§2b), so the sync writes enactment dates,
+  not just file existence. Keep the chain as the offline fallback for poll ids and spell status (`PollCreated` logs, `spell.done()`,
+  `chief.approvals`), read with the viem multicall pattern in
+  `scripts/required/snap-chainstate.mjs`.
 - Carry the authoring lag: `atlas_history` already stores `committed_at` per doc change, so the
   "authored after the vote it names" check (§5b) needs no new data, only the first-seen commit.
 - Graph: one new edge type (`scheduled_in_vote` / `enacted_in_vote`, source doc → vote id, with
