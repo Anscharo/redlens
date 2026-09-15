@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs import from TypeScript test
-import { extractRoles, extractEntityLabel, extractExpectedTokens } from "../scripts/lib/address-annotate.mjs";
+import { extractRoles, extractEntityLabel, extractExpectedTokens, isPlausibleName } from "../scripts/lib/address-annotate.mjs";
 
 // Helpers: build a content string with the address at a known index.
 const ADDR = "0x1234567890123456789012345678901234567890";
@@ -227,6 +227,16 @@ describe("extractEntityLabel — table fallback", () => {
     expect(extractEntityLabel(c, i, table)).toBe("Buffer");
   });
 
+  it("takes a delegate name from a 'Delegate Name' column (real A.1 table shape)", () => {
+    const [c, i] = ctx("is ");
+    const table = {
+      headers: ["Delegate Name", "EA Address", "Forum Post"],
+      cells: ["Bonapublica", ADDR, "https://forum.skyeco.com/t/…"],
+      columnIndex: 1,
+    };
+    expect(extractEntityLabel(c, i, table)).toBe("Bonapublica");
+  });
+
   it("skips cell that looks like an address", () => {
     const other = "0xabcdef1234567890abcdef1234567890abcdef12";
     const [c, i] = ctx("is ");
@@ -237,6 +247,107 @@ describe("extractEntityLabel — table fallback", () => {
     };
     // other is also an address, so no valid sibling label
     expect(extractEntityLabel(c, i, table)).toBeNull();
+  });
+});
+
+// --------------------------------------------------------------------------
+// extractEntityLabel — the sentence-fragment defect
+// --------------------------------------------------------------------------
+
+// Real A.2 / A.6 prose with a dummy address appended, so these assert the
+// EXTRACTOR, not an atlas SHA. Every one of them shipped the quoted clause as
+// an entityLabel before the capture class dropped "." and the possessive
+// stopped treating a bare "s" as one.
+// See docs/plans/entitylabel-fragment-defect.md.
+describe("extractEntityLabel — sentence fragments are never labels", () => {
+  const FRAGMENT_PROSE: [string, string][] = [
+    [
+      "…into WETH. It",
+      "The Wrap Proxy ETH Facet (`WrapProxyETHFacet`) wraps the ALM Proxy’s entire native ETH balance into WETH. Its address on Ethereum Mainnet is ",
+    ],
+    [
+      "…Basin shares. It",
+      "The Basin Facet (`BasinFacet`) deposits assets into and withdraws them from a Basin in exchange for Basin shares. Its address on Ethereum Mainnet is ",
+    ],
+    [
+      "…no-fee path. It",
+      "The PSM Facet (`PSMFacet`) swaps between USDS and USDC by routing through DAI and the Lite PSM’s no-fee path. Its address on Ethereum Mainnet is ",
+    ],
+  ];
+
+  for (const [was, prose] of FRAGMENT_PROSE) {
+    it(`returns null instead of "${was}"`, () => {
+      const [c, i] = ctx(prose);
+      expect(extractEntityLabel(c, i, null)).toBeNull();
+    });
+  }
+
+  it("keeps the real name when the sentence before it also ends in a period", () => {
+    // Same shape as the fragments above, but this one has a name of its own:
+    // the clause "Sky Governance through the Pause Proxy. The Beacon" must not
+    // beat it.
+    const [c, i] = ctx(
+      "It is controlled by Sky Governance through the Pause Proxy. The Beacon’s address on Ethereum Mainnet is ",
+    );
+    expect(extractEntityLabel(c, i, null)).toBe("The Beacon");
+  });
+
+  it('"Its address on … is" yields null, not "Its"', () => {
+    // The tightened possessive ((?:['’]s)? rather than ['’]?s?) stops "It" + "s"
+    // parsing as a possessive; EXACT_PRONOUN then rejects the bare "Its".
+    const [c, i] = ctx("Its address on Ethereum is ");
+    expect(extractEntityLabel(c, i, null)).toBeNull();
+  });
+
+  it("refuses a Purpose/Description cell that is a sentence", () => {
+    const [c, i] = ctx("is ");
+    const table = {
+      headers: ["Address", "Purpose"],
+      cells: [
+        ADDR,
+        "Holds the ALM Proxy’s entire native ETH balance. It is drained on each rebalance.",
+      ],
+      columnIndex: 0,
+    };
+    // Neither the header loop (no longer keyed on "purpose") nor the generic
+    // sibling fallback (now gated on isPlausibleName) may return it.
+    expect(extractEntityLabel(c, i, table)).toBeNull();
+  });
+});
+
+// --------------------------------------------------------------------------
+// isPlausibleName
+// --------------------------------------------------------------------------
+
+describe("isPlausibleName", () => {
+  it("accepts the delegate-style names that are an address's only human string", () => {
+    for (const good of ["Bonapublica", "BLUE", "Cloaky", "AegisD", "The Sky Frontier Foundation's multisig"]) {
+      expect(isPlausibleName(good), good).toBe(true);
+    }
+  });
+
+  it("rejects clauses, bare pronouns, and over-long phrases", () => {
+    for (const bad of [
+      "",
+      "ab",
+      "ALM Proxy's entire native ETH balance into WETH. It",
+      "Basin in exchange for Basin shares. It",
+      "Its",
+      "It’s",
+      "The",
+      "rewards paid out monthly",
+      "Rewards paid to the",
+      "The current whitelisted SparkLend Security Access Multisig",
+    ]) {
+      expect(isPlausibleName(bad), JSON.stringify(bad)).toBe(false);
+    }
+  });
+
+  it("is null- and whitespace-safe", () => {
+    expect(isPlausibleName(null)).toBe(false);
+    expect(isPlausibleName(undefined)).toBe(false);
+    expect(isPlausibleName("   ")).toBe(false);
+    expect(isPlausibleName("  The Beacon  ")).toBe(true);
   });
 });
 

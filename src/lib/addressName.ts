@@ -21,15 +21,25 @@ export interface NameFields {
 const TRAILING_PROSE =
   /\b(it|its|the|this|that|these|those|a|an|and|or|of|to|for|from|into|via|with|through|is|are|be|as|at|by|on|in)$/i;
 
+// A bare pronoun is never a name — "Its address on Ethereum is …" once parsed
+// as the entity "Its".
+const EXACT_PRONOUN = /^(The|This|That|These|Those|It|Its|It['’]s)$/i;
+
 /**
  * True when `label` looks like a real name rather than a scraped prose fragment.
  *
  * `entityLabel` is produced by a build-time heuristic
- * (scripts/lib/address-annotate.mjs) that grabs text near the address; a sizeable
- * share of the time it returns a sentence fragment ("ALM Proxy's entire native
- * ETH balance into WETH. It") instead of a name. Until the pipeline defect is
- * fixed (docs/plans/entitylabel-fragment-defect.md), this guard keeps fragments
- * off every user-facing surface AND out of the DB label written for chat.
+ * (scripts/lib/address-annotate.mjs) that grabs text near the address. The
+ * extractor now gates every one of its return paths on `isPlausibleName` — this
+ * function's byte-identical twin — so a fragment should never reach an artifact
+ * in the first place. This guard stays as the **tripwire against an extractor
+ * regression**: an atlas regrouping or a widened pattern that starts scraping
+ * clauses again is caught here, before the fragment reaches any user-facing
+ * surface or the DB label written for chat.
+ *
+ * Keep the predicates in sync with `isPlausibleName`
+ * (scripts_tests/label-predicate-sync.test.ts runs one fixture list through
+ * both); docs/plans/entitylabel-fragment-defect.md has the incident.
  *
  * Deliberately conservative and cheap: a *false reject* only downgrades the name
  * to the address itself, which is honest; a *false accept* puts a garbage phrase
@@ -42,6 +52,7 @@ export function isCleanLabel(label: string | null | undefined): label is string 
   if (/[.?!]["')\]]?\s/.test(s)) return false; // an internal sentence break — the strongest fragment tell
   if (/^[a-z]/.test(s)) return false; // names are Title-Cased or all-caps; prose fragments start lowercase
   if (TRAILING_PROSE.test(s)) return false; // ends on a dangling function word
+  if (EXACT_PRONOUN.test(s)) return false; // a bare pronoun, not a name
   return true;
 }
 

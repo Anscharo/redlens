@@ -53,6 +53,7 @@ import {
   extractRoles,
   extractEntityLabel,
   extractExpectedTokens,
+  isPlausibleName,
 } from "../lib/address-annotate.mjs";
 import { normalizeChainLabel } from "../lib/chains.mjs";
 import { codeUnitCompare } from "../lib/natural-sort.mjs";
@@ -127,7 +128,9 @@ console.log(`  ${Object.keys(addressesAtlas).length} atlas, ${Object.keys(addres
 // in one place — no loopback needed.
 //
 // GENERIC_LABELS filters out single-word prose artifacts that aren't real
-// entity names (e.g. "contract", "address" picked up from nearby text).
+// entity names (e.g. "contract", "address" picked up from nearby text);
+// isPlausibleName filters out sentence-shaped ones. Both run BEFORE the
+// longest-wins pick, so a clause can neither win it nor survive as an alias.
 // ---------------------------------------------------------------------------
 {
   const GENERIC_LABELS = new Set([
@@ -181,10 +184,15 @@ console.log(`  ${Object.keys(addressesAtlas).length} atlas, ${Object.keys(addres
     // however many other docs placed it on ethereum. Phase 4.5a still applies
     // the ICD-stated chain on top, which outranks both.
 
-    // Entity label: pick longest non-generic candidate
-    const labelPool = [...g.labels];
-    const candidates = labelPool.filter((l) => !GENERIC_LABELS.has(l.toLowerCase()));
-    const pool = candidates.length ? candidates : labelPool;
+    // Entity label: pick the longest plausible, non-generic candidate.
+    // Longest-wins is still the right tie-break among NAMES ("Spark Operations
+    // Multisig" over "Spark"); it is only wrong when clauses are in the pool.
+    // When nothing survives, write null rather than a consolation fragment —
+    // Phase 4.5b–e then get their chance to fill the slot from an entity name,
+    // a parent/doc title, or the chainlog.
+    const pool = [...g.labels].filter(
+      (l) => !GENERIC_LABELS.has(l.toLowerCase()) && isPlausibleName(l),
+    );
     pool.sort((a, b) => b.length - a.length || codeUnitCompare(a, b));
     entry.entityLabel = pool[0] ?? null;
     entry.aliases = pool.length > 1 ? pool.slice(1) : [];
