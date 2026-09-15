@@ -159,13 +159,48 @@ const INSTALLATION_CACHE_MAX = 1000; // FIFO cap — matches handler.ts's RESOLV
 // dead id until process restart. Bounded staleness + eviction-on-mint-failure
 // (see installationToken) recover from a reinstall promptly.
 const INSTALLATION_ID_TTL_MS = 30 * 60_000;
-const installationIdCache = new Map<string, { id: number; exp: number }>();
 
-/** The App's installation id for `repo`, or null if not installed / lookup failed. */
-export async function installationIdForRepo(repo: string): Promise<number | null> {
+export interface InstallationInfo {
+  id: number;
+  /** Configure page for this install (user or org). Null if GitHub omitted it. */
+  htmlUrl: string | null;
+  /** Repo permissions this install has actually granted (not the App's requested set). */
+  permissions: Record<string, string>;
+}
+
+const installationCache = new Map<string, { info: InstallationInfo; exp: number }>();
+
+function parseInstallation(json: any): InstallationInfo | null {
+  const id = json?.id;
+  if (typeof id !== "number") return null;
+  const htmlUrl = typeof json?.html_url === "string" && json.html_url ? json.html_url : null;
+  const permissions: Record<string, string> = {};
+  const raw = json?.permissions;
+  if (raw && typeof raw === "object") {
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof v === "string") permissions[k] = v;
+    }
+  }
+  return { id, htmlUrl, permissions };
+}
+
+/** GitHub's pending-permission review screen for an install, or null if we have no html_url. */
+export function permissionsUpdateUrl(htmlUrl: string | null | undefined): string | null {
+  if (typeof htmlUrl !== "string" || !htmlUrl) return null;
+  return `${htmlUrl.replace(/\/+$/, "")}/permissions/update`;
+}
+
+/** True when this install has granted Pull requests: read or write. */
+export function installationHasPullsRead(permissions: Record<string, string> | undefined): boolean {
+  const p = permissions?.pull_requests;
+  return p === "read" || p === "write";
+}
+
+/** The App's installation for `repo`, or null if not installed / lookup failed. */
+export async function installationInfoForRepo(repo: string): Promise<InstallationInfo | null> {
   const now = Date.now();
-  const cached = installationIdCache.get(repo);
-  if (cached && cached.exp > now) return cached.id;
+  const cached = installationCache.get(repo);
+  if (cached && cached.exp > now) return cached.info;
 
   const r = await ghFetch(`https://api.github.com/repos/${repo}/installation`, await appJwt());
   if (!r) return null; // network throw
@@ -176,14 +211,20 @@ export async function installationIdForRepo(repo: string): Promise<number | null
     if (r.status !== 404) console.debug(`[github-app] installation lookup failed for ${repo}: ${r.status}`);
     return null;
   }
-  const id = r.json?.id;
-  if (typeof id !== "number") return null;
+  const info = parseInstallation(r.json);
+  if (!info) return null;
 
-  installationIdCache.set(repo, { id, exp: now + INSTALLATION_ID_TTL_MS });
-  if (installationIdCache.size > INSTALLATION_CACHE_MAX) {
-    installationIdCache.delete(installationIdCache.keys().next().value!);
+  installationCache.set(repo, { info, exp: now + INSTALLATION_ID_TTL_MS });
+  if (installationCache.size > INSTALLATION_CACHE_MAX) {
+    installationCache.delete(installationCache.keys().next().value!);
   }
-  return id;
+  return info;
+}
+
+/** The App's installation id for `repo`, or null if not installed / lookup failed. */
+export async function installationIdForRepo(repo: string): Promise<number | null> {
+  const info = await installationInfoForRepo(repo);
+  return info?.id ?? null;
 }
 
 interface TokenCacheEntry {
@@ -209,7 +250,7 @@ export async function installationToken(repo: string): Promise<string | null> {
     // A mint failure against a cached id is the tell-tale of a removed/reinstalled
     // installation (the id is now dead). Evict it so the next call re-resolves the
     // current installation id instead of retrying the stale one until it expires.
-    installationIdCache.delete(repo);
+    installationCache.delete(repo);
     return null;
   }
 
@@ -285,6 +326,6 @@ export async function userRepoPermission(repo: string, login: string): Promise<P
 export function __resetCachesForTest(): void {
   cachedJwt = null;
   cachedInstallUrl = null;
-  installationIdCache.clear();
+  installationCache.clear();
   installationTokenCache.clear();
 }

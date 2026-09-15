@@ -101,7 +101,10 @@ async function openAtlasPrs(): Promise<OpenPr[]> {
   return prs;
 }
 
-async function resolveId(rawId: string): Promise<ResolveResult> {
+// Exported for direct testing of the sha-rebuild branch (kind/prBase
+// reconstruction from a previews row) without driving the full /events SSE
+// flow + a real background build; every other caller is internal (drive()).
+export async function resolveId(rawId: string): Promise<ResolveResult> {
   const hit = resolveCache.get(rawId);
   const now = Date.now();
   if (hit && now - hit.at < RESOLVE_TTL_MS) return hit.v;
@@ -117,11 +120,25 @@ async function resolveId(rawId: string): Promise<ResolveResult> {
       ? {
           repo: row.repo,
           sha: row.sha,
-          kind: "branch",
+          // Rebuild the ORIGINAL kind, not a hardcoded "branch": a canonical PR
+          // row must come back as kind "pr" so build.ts's fork/trust screening
+          // (keys on kind === "pr", not on the presence of `pr`) never gives it
+          // fork treatment, and so pr-state.ts's `kind = 'pr'`-filtered UPDATE
+          // still finds it. Everything else (fork/private PRs, plain branches)
+          // stays "branch" exactly as resolveRef/resolvePrivateBranch produced it.
+          kind: row.kind === "pr" ? "pr" : "branch",
           ref: row.ref,
           pr: row.pr_number
             ? { number: row.pr_number, title: row.pr_title ?? "", author: row.pr_author ?? "", state: (row.pr_state as any) ?? "open" }
             : undefined,
+          // No sha here (see Resolved.prBase) — base-drift re-resolves the tip
+          // rather than trusting a persisted one. The candidate resolver
+          // (pr-diff.ts) keys on `prBase`, never `pr.number`, so this never
+          // sends a private PR's number at canonical /pulls/N.
+          prBase: row.pr_base_repo && row.pr_base_ref ? { repo: row.pr_base_repo, ref: row.pr_base_ref } : undefined,
+          // Same round-trip for a fork branch's `repo` candidate: without it a
+          // rebuilt bundle would redline against sky only and lose the switch.
+          defaultBranch: row.default_branch ?? undefined,
           private: row.private,
         }
       : { error: "not-found" };
@@ -272,6 +289,16 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     return () => {};
   }
   if (bundleReady(sha)) {
+    // A private PR first built without Pull requests:read has no prBase on
+    // disk. After the owner grants it, this same id re-resolves with prBase —
+    // rebuild so the redline switches onto the PR's own base instead of
+    // serving the fallback bundle. Same-sha, so the quota (new-sha) gate
+    // doesn't fire. A bundle that already recorded a prBase is left alone.
+    const meta = readMeta(sha);
+    if (r.prBase && !meta?.prBase) {
+      getOrStartBuild(r);
+      return subscribeBuild(sha, send);
+    }
     touch(sha);
     void touchPreview(sha).catch(() => {});
     send({ phase: "ready", sha });
@@ -306,10 +333,13 @@ async function diffResponse(req: Request, sha: string): Promise<Response> {
   const gated = await gateSha(req, sha);
   if ("deny" in gated) return gated.deny;
   const { headers } = gated;
-  // Every built bundle ships an accurate diff.json (vs the merge base when
-  // GitHub gave one, else vs live main — see build.ts's diff-artifacts block);
-  // serve it directly. The vs-main hash diff below is for cold-start builds
-  // and pre-change bundles that never got one written.
+  // Every built bundle ships an accurate diff.json — the `auto` diff-base pair
+  // (the PR's own base, the fork's merge base, or live main when neither
+  // candidate resolved — see build.ts's diff-artifacts block and
+  // PreviewMeta.bases); serve it directly. diff.sky.json / diff.repo.json (the
+  // other candidate pairs) are plain allowlisted artifacts, served by
+  // artifactResponse below, not this endpoint. The vs-main hash diff below is
+  // for cold-start builds and pre-change bundles that never got a diff.json written.
   const bundleDiff = path.join(previewPaths(sha).outDir, "diff.json");
   if (fs.existsSync(bundleDiff)) {
     return new Response(Bun.file(bundleDiff), { headers: { "Content-Type": "application/json", ...headers } });

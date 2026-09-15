@@ -11,6 +11,9 @@ interface PreviewChangeNotesProps {
   source: string;
   hasPatch: boolean;
   status: "Added" | "Changed";
+  /** What this preview's redlines are compared against — "the live atlas" or
+   *  "{repo}:{ref}" — from previewMetaCopy's diffBaseLabel(). */
+  label: string;
 }
 
 // Prose notes about *how* a doc changed in this preview: the ⚠ identity
@@ -20,7 +23,7 @@ interface PreviewChangeNotesProps {
 // a raw-only edit the parser normalises away, or a hash-only change — the
 // client can't tell these apart, and a bare "Changed" heading with nothing
 // under it reads as a bug.
-export function PreviewChangeNotes({ swap, former, renumber, retitle, source, hasPatch, status }: PreviewChangeNotesProps) {
+export function PreviewChangeNotes({ swap, former, renumber, retitle, source, hasPatch, status, label }: PreviewChangeNotesProps) {
   const silent = status === "Changed" && !hasPatch && !renumber && !retitle && !swap;
   return (
     <>
@@ -53,7 +56,7 @@ export function PreviewChangeNotes({ swap, former, renumber, retitle, source, ha
       )}
       {silent && (
         <p className="mt-1" style={{ color: "var(--tan-3)" }}>
-          No visible difference from the live atlas.
+          No visible difference from {label}.
         </p>
       )}
     </>

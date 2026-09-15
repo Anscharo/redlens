@@ -18,11 +18,27 @@ is unreadable with the shared service token. Two things are therefore new:
 2. **A per-visitor authorization gate** in the preview HTTP path — the first authorization
    concept the preview feature has ever had.
 
-The redline itself needs no GitHub compare API: private previews use the existing local
-`diffDocs` content diff against live main (the same fallback branch/sha previews already
-use), which works on shared-but-unmergeable history. A pasted private PR URL resolves to
-that PR's HEAD commit (`refs/pull/N/head`, or the Pulls API HEAD branch when the App has
-Pull requests:read) and takes this same vs-main path — never the PR's own base branch.
+The redline now runs the same diff-base candidate resolution as a public preview, just
+authenticated with the installation token instead of the shared service token (the only
+credential that can read a private repo at all). Every PR — canonical, public fork-owned, or
+private — is compared against its own declared base branch (the `repo` candidate); every
+branch is compared against whichever of two candidates is more recent: the merge base with
+sky-ecosystem/next-gen-atlas:main (found by walking commit lists rather than a GitHub compare,
+since a private repo shares commit history with sky but is never a true GitHub fork of a
+public one — `fork-point.ts`) or the merge base with the repo's own default branch. A pasted
+private PR URL resolves to that PR's HEAD commit (`refs/pull/N/head`, or the Pulls API HEAD
+branch plus declared base when the App has **Pull requests:read**); without that permission
+there is no base to read, and the preview falls back to branch rules. The preview bar then
+prompts the install owner to grant Pull requests: Read (linking to GitHub's
+`{html_url}/permissions/update` screen) and rebuilds against the PR's own base after they
+accept and reload. The old "vs live main, no compare" path survives only as the
+`live-main` degrade when neither candidate resolves.
+
+(A related fix on the *public* side: a public fork's own PR — `owner:repo:pull-N` — now runs
+its sky-main compare inside the fork's own repo, so a failed compare there no longer wrongly
+rejects it as `not-derived`; `checkForkLineage` remains the actual fork-lineage screen. This
+doesn't touch the private path at all — a private repo is never fork/not-derived-screened,
+see `build.ts`'s `fork = !priv && isForkPreview(resolved)`.)
 
 ## Auth model — one mandatory app, login untouched
 
@@ -90,9 +106,15 @@ Gaps found in review (all closed in the implementation):
 | Persist `github_login`; refresh every login | `src/server/auth.ts` |
 | Privacy sequencing, `Resolved.private`, `app-not-installed` | `src/server/preview/resolve.ts` |
 | Private tarball via the API endpoint | `src/server/preview/tarball.ts` |
-| Skip fork/trust + compare gates; write `private`; per-repo quota | `src/server/preview/build.ts` |
-| `PreviewMeta.private` | `src/server/preview/cache.ts` |
+| Skip fork/trust screening for private (compare no longer skipped — see below); write `private`; per-repo quota | `src/server/preview/build.ts` |
+| `PreviewMeta.private`, `PreviewMeta.prBase`, `PreviewBases`/`BaseKey`/`BaseCandidateMeta`/`BaseDrift` | `src/server/preview/cache.ts` |
 | `previews.private`; exclude private from `/list`; `ON CONFLICT` | `src/server/preview/db.ts` |
+| `previews.pr_base_repo` / `pr_base_ref` persistence | `src/server/migrations/028_preview_pr_base.sql`, `src/server/preview/db.ts` |
+| `previews.default_branch` persistence (fork branch `repo` candidate across sha rebuilds) | `src/server/migrations/029_preview_default_branch.sql`, `src/server/preview/db.ts` |
+| Diff-base candidate resolution (`sky` / `repo` merge bases, `pickAuto`) | `src/server/preview/pr-diff.ts` (now the candidate resolver), `src/server/preview/pr-diff-auto.ts` |
+| Fork-point walk for repos with no true GitHub fork relationship (private repos; also the public sky-compare fallback) | `src/server/preview/fork-point.ts` |
+| Base-drift banner metrics (commits ahead/behind sky main, docs differ) | `src/server/preview/base-drift.ts` |
+| Per-candidate diff/patch artifact build (`diff.<key>.json` / `patches.<key>.json`, plus the auto-selected pair) | `src/server/preview/diff-base.ts` |
 | Three fail-closed enforcement points + private headers | `src/server/preview/handler.ts` |
 | `auth-required` / `forbidden` / `app-not-installed` screens; PRIVATE chip | `src/components/preview/*` |
 | Columns `users.github_login`, `previews.private` | `src/server/migrations/018_private_previews.sql` |
@@ -108,10 +130,11 @@ installation) — our Contents+Metadata grant is more than enough. Rate limit �
 
 ## Accepted losses for private previews
 
-- No `patches.json` and no renumber/identity-swap detection (the PR-diff path is skipped for
-  the local `diffDocs`); redlines are added/changed markers only.
-- `pr-state.ts` never touches private rows (`kind` stays `"branch"` even for a
-  private PR URL, so a private repo's PR #N cannot collide with canonical PR #N).
+- `pr-state.ts`'s sweep (`UPDATE previews SET pr_state = … WHERE kind = 'pr'`) only ever
+  touches canonical PR rows. A fork's own PR and every private PR keep `kind` = `"branch"`
+  precisely so they stay invisible to that filter — it's what stops their `pr_number` from
+  colliding with a canonical PR of the same number, but it also means their banner never
+  picks up a merged/closed flip from the sweep.
 - A revoked collaborator retains access for up to the ~60 s access-cache TTL.
 
 ## Rollout
@@ -121,8 +144,9 @@ The feature is inert until the GitHub App is registered and `GITHUB_APP_ID` +
 safe to ship ahead of that. Public previews are entirely unaffected on every path.
 
 **Registering + installing the App:** see `docs/github-app-setup.md` for the step-by-step
-runbook (exact permissions — Contents:read + Metadata:read only — settings, env vars, and how
-repo owners install it).
+runbook (the exact permissions — Contents:read and Metadata:read always required, plus
+**Pull requests:read** to redline a PR against its own base branch rather than falling back to
+branch rules — settings, env vars, and how repo owners install it).
 
 ## Verification
 

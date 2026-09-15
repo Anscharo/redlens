@@ -1,0 +1,11 @@
+-- Fork-branch diff-base persistence (companion to 028_preview_pr_base.sql).
+--
+--   previews.default_branch — the head repo's default branch (fork BRANCH
+--     previews only): the `repo` diff-base candidate of a fork branch, which a
+--     pinned-sha rebuild (resolveId's "sha" branch in handler.ts) would
+--     otherwise lose — the base switch would silently vanish after eviction.
+--
+-- Its own file rather than an edit to 028: the runner skips applied files by
+-- name, and 028 had already run on a deployed DB. Defaults NULL, so every
+-- existing PR/canonical-branch preview row is unaffected.
+ALTER TABLE previews ADD COLUMN IF NOT EXISTS default_branch TEXT;

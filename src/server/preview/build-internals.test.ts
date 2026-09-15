@@ -113,6 +113,21 @@ test("isForkPreview: true only for a bare branch/sha preview of a non-canonical 
   ).toBe(false);
 });
 
+test("isForkPreview: true for a fork's owner:repo:pull-N preview even though `pr` metadata is attached — kind, not the presence of `pr`, is the discriminator", () => {
+  // owner:repo:pull-N (the private-preview PR grammar) resolves as kind
+  // "branch" with `pr`/`prBase` attached (see resolve.ts's resolvePullHead) —
+  // unlike a canonical `pull-N`, which resolves as kind "pr".
+  expect(
+    isForkPreview({
+      repo: "someone/next-gen-atlas",
+      sha: "x",
+      kind: "branch",
+      ref: "pull-9",
+      pr: { number: 9, title: "t", author: "someone", state: "open" },
+    }),
+  ).toBe(true);
+});
+
 // ---------------------------------------------------------------------------
 // forkGate — the real trust/quota gate. It's already a BuildDeps field, so
 // runBuild's tests can swap it out, but that never exercises ITS OWN branches —
@@ -220,6 +235,43 @@ test("forkGate: bare fork branch tiers — refused owner is rejected outright; t
     globalThis.fetch = stubTrustFetch({ createdAt: new Date(0).toISOString() }); // old account, no merged history
     const unknown = await forkGate({ repo: "branch-unknown-owner/next-gen-atlas", sha: "x", kind: "branch", ref: "wip", private: false });
     expect(unknown).toMatchObject({ tier: "unknown", quota: config.previewUnknownForkDailyQuota });
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("forkGate: an owner:repo:pull-N fork preview scores the fork OWNER, not pr.author — kind stays 'branch' even though `pr` is attached", async () => {
+  try {
+    // The author would score "trusted" (atlas-merged) if forkGate mistakenly
+    // used the PR path here; the owner is a fresh account with no merged
+    // history, which scores "refused" for a bare fork branch.
+    globalThis.fetch = stubTrustFetch({ createdAt: new Date().toISOString() });
+    const resolved: Resolved = {
+      repo: "pr-fork-owner-unscored/next-gen-atlas",
+      sha: "x",
+      kind: "branch",
+      ref: "pull-9",
+      pr: { number: 9, title: "t", author: "pr-fork-owner-unscored-author", state: "open" },
+      private: false,
+    };
+    const gate = await forkGate(resolved);
+    expect(gate).toBe("fork-not-trusted");
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("forkGate: kind 'pr' takes the PR-author path even when the head repo is fork-shaped (kind, not repo shape, is the discriminator)", async () => {
+  try {
+    globalThis.fetch = stubTrustFetch({ atlasMerged: 1 });
+    const gate = await forkGate({
+      repo: "someone/fork-shaped-head",
+      sha: "x",
+      kind: "pr",
+      ref: "pull-77",
+      pr: { number: 77, title: "t", author: "pr-kind-discriminator-author", state: "open" },
+    });
+    expect(gate).toMatchObject({ tier: "trusted", quota: config.previewDailyQuota });
   } finally {
     restoreFetch();
   }
