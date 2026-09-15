@@ -76,7 +76,7 @@ describe("MscFlow", () => {
     expect(screen.getByText("PRIME")).toBeInTheDocument();
     expect(screen.getByText("SKY")).toBeInTheDocument();
     // The source column is grouped by where the money comes FROM.
-    expect(screen.getByText("EARNED BY THE PRIME")).toBeInTheDocument();
+    expect(screen.getByText("EARNED IN THE PRIME'S ALLOCATION SYSTEM")).toBeInTheDocument();
     // The Sky group's heading carries its total, so the node needs no label.
     expect(screen.getByText(/^OWED BY SKY \| \$/)).toBeInTheDocument();
     expect(container.querySelector('.msc-flow-source[data-kind="kept"][data-origin="earned"]')).toBeInTheDocument();

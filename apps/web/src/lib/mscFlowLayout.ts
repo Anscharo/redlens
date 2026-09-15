@@ -48,9 +48,17 @@ export const AGENT_W = 40;
 /** Column headers over the three node groups, and where they sit. */
 export const HEADERS = { source: "SOURCE", prime: "PRIME", sky: "SKY" } as const;
 export const HEADER_Y = 40;
-/** Where each source's money comes FROM. "earned" is the Prime's own book
- *  (its venues); "sky" is the amount due from Sky under
- *  A.2.4.1.2.2.1.1.1, which is every demand-side series. */
+/** Where each source's money ARISES. "earned" is the Prime's Allocation
+ *  System; "sky" is the amount due from Sky under A.2.4.1.2.2.1.1.1, which
+ *  is every demand-side series.
+ *
+ *  Note this is not "what the Prime keeps": Sky Direct Exposures are held
+ *  by Sky and merely implemented through the Prime's Allocation System, and
+ *  "All yield on Sky Direct Exposures is also due exclusively to Sky and is
+ *  not retained by the Prime Agent" (A.2.2.10.1.1.1.1.5). SDE is grouped
+ *  here because that is where it is earned, and the chart shows it leaving
+ *  again on the right — which is why the heading names the Allocation
+ *  System rather than saying the Prime earned it. */
 export const SOURCE_ORIGIN: Record<string, "earned" | "sky"> = {
   cof: "earned",
   sde: "earned",
@@ -58,7 +66,10 @@ export const SOURCE_ORIGIN: Record<string, "earned" | "sky"> = {
   ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, "sky" as const])),
 };
 /** The heading over each source group, right-aligned to the source bars. */
-export const GROUP_HEADING = { earned: "EARNED BY THE PRIME", sky: "OWED BY SKY" } as const;
+export const GROUP_HEADING = {
+  earned: "EARNED IN THE PRIME'S ALLOCATION SYSTEM",
+  sky: "OWED BY SKY",
+} as const;
 /** A group heading sits this far above its first bar. */
 const GROUP_HEADING_DY = 46;
 /** Extra air between the two source groups, so they read as two. */

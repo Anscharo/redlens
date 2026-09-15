@@ -107,7 +107,7 @@ describe("layoutMscFlow", () => {
     ]);
     // One heading per group, on its first bar.
     expect(l.sources.filter((s) => s.headingY != null).map((s) => s.kind)).toEqual(["cof", "agentRate"]);
-    expect(GROUP_HEADING).toEqual({ earned: "EARNED BY THE PRIME", sky: "OWED BY SKY" });
+    expect(GROUP_HEADING).toEqual({ earned: "EARNED IN THE PRIME'S ALLOCATION SYSTEM", sky: "OWED BY SKY" });
     // A Sky-owed label clears the gutter node; an earned one runs to its bar.
     expect(l.sources[0].labelX).toBe(l.sources[0].x);
     expect(l.sources[3].labelX).toBe(l.skySource!.x);
