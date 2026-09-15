@@ -183,10 +183,11 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       },
       {
         name: "Monthly settlement charts",
-        what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows its gross revenue over the last year of cycles and a small month-by-month chart of where it went; a full cycle page charts Sky's share, supply-side kept, and demand-side, plus the demand-side mix and venue AUM.",
+        what: "On primes that publish a Monthly Settlement Cycle workbook, the actor page shows the last year of cycles as three running totals with a small month-by-month chart; a full cycle page charts Sky's share, supply-side kept, and demand-side, plus the demand-side mix and venue AUM.",
         how: [
           "Open a Prime Agent on Radar (Spark, Grove, Obex, …).",
-          "The Monthly settlement card in the top right shows the Prime's total gross revenue over its last twelve cycles, with a small stacked chart beside it of each month's revenue split into to Sky, supply-side kept and demand-side (hover a month for its figures); the whole card is one link to the charts.",
+          "The Monthly settlement card in the top right totals the Prime's last twelve cycles three ways — to Sky, supply-side kept, and demand-side from Sky — each on its own line, led by whichever the Prime actually has (a demand-only Prime like Keel leads with what Sky owes it). The three are never added: they are two settlement amounts running in opposite directions, and the Atlas defines no term for their sum.",
+          "Beside those figures the card charts the same three series month by month, clustered the way the settlement page's monthly summary is, so the card previews that chart; hover a month for its figures. The whole card is one link to the charts.",
           "The settlement charts show a year of cycles at a time; a Prime with more gets ‹ › arrows beside the Trailing N Months heading to page back through older ones.",
           "Under the charts, the selected month's card shows To Sky as the equation it is, cost of funds + Sky Direct Exposure, then the two sides of the cycle as separate figures: supply-side kept, and demand-side from Sky. They are never added together, because the Monthly Settlement Cycle settles them as two amounts running in opposite directions (A.2.4.1.2.2.1.1.1 and A.2.4.1.2.2.1.1.2). A negative figure is written in the same red the charts stripe a loss in.",
           "On that page, Sky Forum opens the forum post for the month selected in the charts.",

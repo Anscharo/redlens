@@ -17,7 +17,6 @@ import {
   supplyKept,
   isDemandSideCycle,
   teaserFigure,
-  grossByMonth,
   cycleWindow,
   windowOffsetFor,
   summaryThreeWay,
@@ -32,6 +31,8 @@ import {
   settlementsArtifactMissing,
   supplyKeptTotal,
   demandSideTotal,
+  cycleTotals,
+  leadCycleTotal,
   type SettlementHeadline,
   type SettlementReport,
   type SettlementsBundle,
@@ -166,15 +167,18 @@ describe("demand-side cycles", () => {
     expect(teaserFigure(keel)).toEqual({ amount: 36_231, suffix: "kept" });
   });
 
-  it("splits each month's gross revenue into to Sky / kept / demand-side, for every kind of Prime", () => {
-    // Spark-shaped: par 100, cof 40 → kept 60; sky 60; no demand → gross 120.
-    expect(grossByMonth([report()])).toEqual([{ month: "2026-07", sky: 60, kept: 60, demand: 0, gross: 120 }]);
-    // Keel: all demand-side.
-    expect(grossByMonth([keel])).toEqual([{ month: "2026-07", sky: 0, kept: 0, demand: 36_231, gross: 36_231 }]);
-    // A supply-side loss makes kept negative and comes off the gross.
+  it("keeps the three sides of a window apart, and leads with the one that exists", () => {
+    const r = report();
+    // sky 60, kept 100 − 40 = 60, no demand.
+    expect(cycleTotals([r])).toEqual({ sky: 60, kept: 60, demand: 0 });
+    expect(leadCycleTotal(cycleTotals([r]))).toEqual({ amount: 60, label: "to Sky" });
+    // A demand-only Prime sent Sky nothing, so the demand side leads.
+    expect(cycleTotals([keel])).toEqual({ sky: 0, kept: 0, demand: 36_231 });
+    expect(leadCycleTotal(cycleTotals([keel]))).toEqual({ amount: 36_231, label: "demand-side from Sky" });
+    // A supply-side loss stays negative rather than being netted away.
     const loss = report({ month: "2026-06", headline: { ...report().headline, primeAgentRevenue: 20, cof: 40 } });
-    expect(grossByMonth([loss, report()]).map((m) => [m.month, m.kept, m.gross])).toEqual([["2026-06", -20, 40], ["2026-07", 60, 120]]);
-    expect(grossByMonth([])).toEqual([]);
+    expect(cycleTotals([loss, r])).toEqual({ sky: 120, kept: 40, demand: 0 });
+    expect(cycleTotals([])).toEqual({ sky: 0, kept: 0, demand: 0 });
   });
 
   it("windows a run of cycles to a trailing year, paged a full window at a time and never a stub", () => {

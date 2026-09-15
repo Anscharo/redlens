@@ -1,10 +1,19 @@
 import { useMemo } from "react";
 import { Link } from "../Link";
 import { useLoaded } from "../../hooks/useAtlasData";
-import { loadSettlements, reportsForPrime, formatMonth, formatUsd, grossByMonth, cycleWindow } from "../../lib/settlements";
+import {
+  loadSettlements,
+  reportsForPrime,
+  formatMonth,
+  formatUsd,
+  summaryThreeWay,
+  cycleTotals,
+  leadCycleTotal,
+  cycleWindow,
+} from "../../lib/settlements";
 import { settlementsHref } from "@/lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
-import { MscGrossSpark } from "./MscGrossSpark";
+import { MscCycleSpark } from "./MscCycleSpark";
 
 interface Props {
   slug: string;
@@ -12,23 +21,61 @@ interface Props {
   name?: string;
 }
 
+/** One running total on the card. The lead gets the big type; the other two
+ *  sit under it at one smaller size, so none of the three reads as the sum
+ *  of the others. A negative total is the loss red the charts stripe. */
+function Total({ amount, label, lead }: { amount: number; label: string; lead?: boolean }) {
+  const ink = amount < 0 ? "var(--msc-loss)" : lead ? "var(--tan)" : "var(--tan-2)";
+  if (lead) {
+    return (
+      <>
+        <p className="mono text-lg leading-tight mt-1" style={{ color: ink }}>
+          {formatUsd(amount, true)}
+        </p>
+        <p className="mono text-[10px]" style={{ color: "var(--tan-2)" }}>
+          {label}
+        </p>
+      </>
+    );
+  }
+  return (
+    <p className="mono text-[10px] mt-0.5" style={{ color: "var(--tan-3)" }}>
+      <span style={{ color: ink }}>{formatUsd(amount, true)}</span> {label}
+    </p>
+  );
+}
+
 /** The Monthly settlement card floated top-right of a Prime's actor page:
- *  its total gross revenue over the trailing year of published cycles, and
- *  to the right a small chart of that revenue month by month, split by
- *  where it went. The whole card is ONE link to the Prime's settlement
- *  page, so hovering either half lights the card as a unit. */
+ *  the trailing year of cycles as three SEPARATE running totals, and beside
+ *  them the same clustered month-by-month chart its settlement page leads
+ *  with. The whole card is ONE link to that page, so hovering either half
+ *  lights the card as a unit.
+ *
+ *  The three totals are never added. What a Prime owes Sky and what Sky
+ *  owes the Prime settle as two amounts in opposite directions
+ *  (A.2.4.1.2.2.1.1.2 and A.2.4.1.2.2.1.1.1), and the Atlas defines no term
+ *  for their sum — which is why the old single "gross revenue" figure and
+ *  its stacked chart are gone. */
 export function ActorSettlementTeaser({ slug, name }: Props) {
   const bundle = useLoaded(loadSettlements, { soft: true });
-  const months = useMemo(
-    () => (bundle ? cycleWindow(grossByMonth(reportsForPrime(bundle, slug))).rows : []),
+  const rows = useMemo(
+    () => (bundle ? cycleWindow(reportsForPrime(bundle, slug)).rows : []),
     [bundle, slug],
   );
-  if (months.length === 0) return null;
-  const n = months.length;
-  const first = months[0];
-  const last = months[n - 1];
-  const period = n === 1 ? formatMonth(first.month) : `${formatMonth(first.month)} – ${formatMonth(last.month)} · ${n} cycles`;
-  const total = months.reduce((s, m) => s + m.gross, 0);
+  if (rows.length === 0) return null;
+  const n = rows.length;
+  const months = rows.map(summaryThreeWay);
+  const totals = cycleTotals(rows);
+  const lead = leadCycleTotal(totals);
+  const rest = [
+    { amount: totals.kept, label: "supply-side kept" },
+    { amount: totals.demand, label: "demand-side from Sky" },
+    { amount: totals.sky, label: "to Sky" },
+  ].filter((r) => r.label !== lead.label);
+  const period =
+    n === 1
+      ? formatMonth(months[0].month)
+      : `${formatMonth(months[0].month)} – ${formatMonth(months[n - 1].month)} · ${n} cycles`;
 
   return (
     <Link
@@ -37,7 +84,7 @@ export function ActorSettlementTeaser({ slug, name }: Props) {
       style={{ scrollMarginTop: HEADER_OFFSET }}
       id="msc"
       data-testid="msc-teaser"
-      aria-label={`${name ?? slug}: ${formatUsd(total, true)} total gross revenue over ${n} ${n === 1 ? "cycle" : "cycles"} — open the settlement charts`}
+      aria-label={`${name ?? slug} over ${n} ${n === 1 ? "cycle" : "cycles"}: ${formatUsd(totals.sky, true)} to Sky, ${formatUsd(totals.kept, true)} supply-side kept, ${formatUsd(totals.demand, true)} demand-side from Sky — open the settlement charts`}
     >
       <div className="msc-teaser">
         <h2 className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>
@@ -46,12 +93,10 @@ export function ActorSettlementTeaser({ slug, name }: Props) {
         <p className="mono text-[10px] mt-2" style={{ color: "var(--tan-3)" }}>
           {period}
         </p>
-        <p className="mono text-lg leading-tight mt-1" style={{ color: "var(--tan)" }}>
-          {formatUsd(total, true)}
-        </p>
-        <p className="mono text-[10px]" style={{ color: "var(--tan-2)" }}>
-          total gross revenue
-        </p>
+        <Total amount={lead.amount} label={lead.label} lead />
+        {rest.map((r) => (
+          <Total key={r.label} amount={r.amount} label={r.label} />
+        ))}
         <p className="text-[10px] mt-1" style={{ color: "var(--tan-3)" }}>
           OEA calculation, not the on-chain GovOps spell
         </p>
@@ -59,7 +104,7 @@ export function ActorSettlementTeaser({ slug, name }: Props) {
           full cycle <span className="enlargen">→</span>
         </span>
       </div>
-      <MscGrossSpark points={months} />
+      <MscCycleSpark points={months} />
     </Link>
   );
 }

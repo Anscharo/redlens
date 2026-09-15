@@ -50,65 +50,85 @@ afterEach(() => {
 });
 
 describe("ActorSettlementTeaser", () => {
-  it("shows total gross revenue across every cycle; the whole card is ONE link to the full cycle page", async () => {
+  it("shows the trailing cycles as three separate totals, never summed, in ONE link to the full cycle page", async () => {
     render(<ActorSettlementTeaser slug="spark" name="Spark" />);
-    // Jun: par 20 − cof 8 = 12 kept + 10 to Sky = 22; Jul: 150 + 100 = 250.
-    await waitFor(() => expect(screen.getByText("$272")).toBeInTheDocument());
-    expect(screen.getByText("total gross revenue")).toBeInTheDocument();
+    // 2 cycles: sky 10 + 100 = 110; kept (20−8) + (200−50) = 162; no demand.
+    await waitFor(() => expect(screen.getByText("$110")).toBeInTheDocument());
+    // Scoped to the figures half: the legend names these series too.
+    const figures = screen.getByTestId("msc-teaser").querySelector(".msc-teaser")!;
+    expect(figures).toHaveTextContent(/\$110\s*to Sky/);
+    expect(figures).toHaveTextContent("$162 supply-side kept");
+    expect(figures).toHaveTextContent("$0 demand-side from Sky");
     expect(screen.getByText("Jun 2026 – Jul 2026 · 2 cycles")).toBeInTheDocument();
-    // The figure is gross revenue, not the old "… to Sky" teaser; "to Sky" survives only in the legend.
-    expect(screen.getByText("to Sky").closest(".msc-gross-legend")).not.toBeNull();
-    const figure = screen.getByText("$272");
+    // The removed design: no single summed figure, no "gross revenue" label.
+    expect(screen.queryByText("$272")).not.toBeInTheDocument();
+    expect(screen.queryByText(/gross revenue/)).not.toBeInTheDocument();
     const card = screen.getByTestId("msc-teaser");
     expect(card.tagName).toBe("A");
     expect(card).toHaveAttribute("href", "/radar/spark/settlements");
-    expect(card).toContainElement(figure);
+    expect(card).toContainElement(screen.getByText("$110"));
     expect(card).toContainElement(card.querySelector("svg"));
     expect(card).toHaveTextContent(/full cycle/);
-    expect(card).toHaveAccessibleName(/Spark: \$272 total gross revenue over 2 cycles/);
-    // Figures and chart are two halves of the same link, not two links.
+    // The accessible name carries all three, each named, none added.
+    expect(card).toHaveAccessibleName(
+      "Spark over 2 cycles: $110 to Sky, $162 supply-side kept, $0 demand-side from Sky — open the settlement charts",
+    );
     expect(screen.getAllByRole("link")).toHaveLength(1);
     expect(screen.getByText("OEA calculation, not the on-chain GovOps spell")).toBeInTheDocument();
   });
 
-  it("draws a stacked gross-revenue chart in the card's right half", async () => {
+  it("charts the months as CLUSTERED three-way bars, the settlement page's summary shape", async () => {
     render(<ActorSettlementTeaser slug="spark" name="Spark" />);
     const chart = (await screen.findByTestId("msc-teaser")).querySelector(".msc-teaser-chart")!;
-    // One column per month, stacked to Sky then kept (no demand-side in the fixture).
     const cols = [...chart.querySelectorAll(".msc-gross-col")];
+    // Every month draws all three series, in the summary chart's order.
     expect(cols.map((c) => [...c.querySelectorAll("rect[data-series]")].map((r) => r.getAttribute("data-series")))).toEqual([
-      ["sky", "kept"],
-      ["sky", "kept"],
+      ["sky", "kept", "demand"],
+      ["sky", "kept", "demand"],
     ]);
-    const jul = cols[1].querySelectorAll("rect[data-series]");
-    expect(parseFloat(jul[1].getAttribute("y")!)).toBeLessThan(parseFloat(jul[0].getAttribute("y")!));
-    expect(cols.map((c) => c.querySelector(".msc-gross-pill")?.textContent)).toEqual([
-      "Jun 2026 · $22 gross",
-      "Jul 2026 · $250 gross",
-    ]);
-    expect(cols[1].querySelectorAll(".msc-gross-pill")[1]).toHaveTextContent("to Sky $100 · kept $150 · demand $0");
+    // Clustered, not stacked: within a month the bars sit side by side.
+    const jul = [...cols[1].querySelectorAll("rect[data-series]")] as SVGRectElement[];
+    const xs = jul.map((r) => parseFloat(r.getAttribute("x")!));
+    expect(xs[1]).toBeGreaterThan(xs[0]);
+    expect(xs[2]).toBeGreaterThan(xs[1]);
+    // …and they share the zero line rather than resting on each other.
+    const bottoms = jul.map((r) => parseFloat(r.getAttribute("y")!) + parseFloat(r.getAttribute("height")!));
+    for (const b of bottoms) expect(b).toBeCloseTo(bottoms[0], 6);
+    expect(cols[1].querySelectorAll(".msc-gross-pill")[1]).toHaveTextContent("$100 to Sky · $150 kept · $0 demand");
+    // The legend names all three series.
+    const legend = chart.querySelector(".msc-gross-legend")!;
+    expect(legend).toHaveTextContent("to Sky");
+    expect(legend).toHaveTextContent("supply-side kept");
+    expect(legend).toHaveTextContent("demand-side");
     // The chart sits to the right of the figures.
-    expect(chart.compareDocumentPosition(screen.getByText("$272")) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(chart.compareDocumentPosition(screen.getByText("$110")) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
   it("treats the composite-party slug as the prime", async () => {
     render(<ActorSettlementTeaser slug="spark-party" />);
-    await waitFor(() => expect(screen.getByText("$272")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("$110")).toBeInTheDocument());
     expect(screen.getByTestId("msc-teaser")).toHaveAttribute("href", "/radar/spark-party/settlements");
   });
 
-  it("charts a demand-side-only Prime (Keel) too: its gross revenue is its rewards", async () => {
+  it("leads a demand-only Prime (Keel) with what Sky owes it, since it sent Sky nothing", async () => {
     render(<ActorSettlementTeaser slug="keel" name="Keel" />);
     await waitFor(() => expect(screen.getByText("$36k")).toBeInTheDocument());
-    expect(screen.getByText("Jul 2026")).toBeInTheDocument();
-    const card = screen.getByRole("link", { name: /Keel: \$36k total gross revenue over 1 cycle/ });
-    expect([...card.querySelectorAll("rect[data-series]")].map((r) => r.getAttribute("data-series"))).toEqual(["demand"]);
+    // The lead is the demand side, not a zero To-Sky figure.
+    const card = screen.getByTestId("msc-teaser");
+    expect(card.querySelector(".msc-teaser")).toHaveTextContent(/\$36k\s*demand-side from Sky/);
+    // The period line; the chart's hover pill names the month too.
+    expect(card.querySelector(".msc-teaser")).toHaveTextContent("Jul 2026");
+    expect(card).toHaveAccessibleName(/Keel over 1 cycle: \$0 to Sky, \$0 supply-side kept, \$36k demand-side from Sky/);
+    // All three bars still draw, so the shape matches every other Prime's.
+    expect([...card.querySelectorAll("rect[data-series]")].map((r) => r.getAttribute("data-series"))).toEqual([
+      "sky", "kept", "demand",
+    ]);
     expect(card).toHaveAttribute("href", "/radar/keel/settlements");
   });
 
   it("renders nothing for a slug with no MSC workbooks", async () => {
     const { rerender } = render(<ActorSettlementTeaser slug="spark" />);
-    await screen.findByText("$272");
+    await screen.findByText("$110");
     rerender(<ActorSettlementTeaser slug="spark-proxy" />);
     expect(screen.queryByRole("heading", { name: "Monthly settlement" })).not.toBeInTheDocument();
   });

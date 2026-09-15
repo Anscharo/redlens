@@ -177,19 +177,12 @@ export function teaserFigure(report: SettlementReport): { amount: number; suffix
   return { amount: sky, suffix: "to Sky" };
 }
 
-/** One month of a Prime's gross revenue, split by where it went — the
- *  actor page's teaser chart. gross = sky + kept + demand (kept can be
- *  negative: a supply-side loss). */
-export interface GrossMonth extends ThreeWayMonth {
-  gross: number;
-}
-
-export function grossByMonth(rows: readonly SettlementReport[]): GrossMonth[] {
-  return rows.map((r) => {
-    const t = summaryThreeWay(r);
-    return { ...t, gross: t.sky + t.kept + t.demand };
-  });
-}
+// There is deliberately no `grossByMonth` / "gross revenue" helper here any
+// more. It summed sky + kept + demand, which adds what a Prime owes Sky to
+// what Sky owes the Prime — two settlement amounts running in opposite
+// directions (A.2.4.1.2.2.1.1.2 and A.2.4.1.2.2.1.1.1) that the Atlas never
+// totals, and "gross revenue" is not an Atlas term. Use `cycleTotals` and
+// keep the three apart.
 
 /** The most cycles any settlement chart shows at once: a year. */
 export const CYCLE_WINDOW = 12;
@@ -291,6 +284,33 @@ export function activeDemandSeries(reports: readonly SettlementReport[]) {
  *  month whose cost of funds outran its revenue is a loss. */
 export function supplyKeptTotal(reports: readonly SettlementReport[]): number {
   return reports.reduce((sum, r) => sum + supplyKept(r), 0);
+}
+
+/** What the Prime owed Sky, summed over the given months. */
+export function skyTotal(reports: readonly SettlementReport[]): number {
+  return reports.reduce((sum, r) => sum + r.headline.skyRevenue, 0);
+}
+
+/** The three running totals of a window of cycles, kept APART. There is no
+ *  fourth field on purpose: adding them would mix what the Prime owes Sky
+ *  with what Sky owes the Prime, and the Atlas defines no such total. */
+export interface CycleTotals {
+  sky: number;
+  kept: number;
+  demand: number;
+}
+
+export function cycleTotals(reports: readonly SettlementReport[]): CycleTotals {
+  return { sky: skyTotal(reports), kept: supplyKeptTotal(reports), demand: demandSideTotal(reports) };
+}
+
+/** Which total leads the actor page's card: what went to Sky, unless this
+ *  Prime sent Sky nothing over the window (Keel and Skybase never do), in
+ *  which case the demand side is the only figure it has. */
+export function leadCycleTotal(t: CycleTotals): { amount: number; label: string } {
+  if (Math.abs(t.sky) >= NEAR_ZERO) return { amount: t.sky, label: "to Sky" };
+  if (Math.abs(t.demand) >= NEAR_ZERO) return { amount: t.demand, label: "demand-side from Sky" };
+  return { amount: t.kept, label: "supply-side kept" };
 }
 
 /** Demand-side (agent rate + rewards) over the given months — what Sky
