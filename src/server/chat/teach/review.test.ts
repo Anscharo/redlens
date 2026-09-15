@@ -37,13 +37,18 @@ describe("parseReview", () => {
 
 describe("reviewTeaching", () => {
   const note = "Spark freeze lives under the Spark artifact";
-  const emptyUsage = { input: 0, output: 0, generationId: null as string | null, latencyMs: 0 };
+  const emptyCall = {
+    text: "",
+    usage: { input: 0, output: 0 },
+    generationId: null as string | null,
+    latencyMs: 0,
+  };
 
   it("skips the model on a heuristic reject", async () => {
     let called = false;
     const jsonCall = async () => {
       called = true;
-      return { text: "", ...emptyUsage };
+      return emptyCall;
     };
     const r = await reviewTeaching("hi", jsonCall);
     expect(r.accept).toBe(false);

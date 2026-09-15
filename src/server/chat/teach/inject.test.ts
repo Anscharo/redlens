@@ -20,7 +20,9 @@ describe("teachingRound", () => {
     if (assistant.role !== "assistant" || !("tool_calls" in assistant) || !assistant.tool_calls) {
       throw new Error("expected tool_calls");
     }
-    expect(assistant.tool_calls[0]!.function.name).toBe(TEACH_TOOL_NAME);
+    const call = assistant.tool_calls[0]!;
+    if (call.type !== "function") throw new Error("expected function tool call");
+    expect(call.function.name).toBe(TEACH_TOOL_NAME);
     if (tool.role !== "tool") throw new Error("expected tool");
     const payload = JSON.parse(String(tool.content)) as { note: string; teachings: { subject: string; note: string }[] };
     expect(payload.note).toContain("NOT Atlas");
