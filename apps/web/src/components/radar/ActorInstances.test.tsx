@@ -8,7 +8,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { ActorInstances } from "./ActorInstances";
+import { ActorInstances, INSTANCE_CARD_MIN } from "./ActorInstances";
 import type { RadarInstance, RadarPrimitive, InstanceParam } from "../../lib/actorIndex";
 import { EXPLORER } from "@/lib/explorer";
 
@@ -207,6 +207,25 @@ describe("ActorInstances parameter value rendering", () => {
     renderWithParam(param("Threshold", "42%"));
     expect(screen.getByText("Threshold")).toBeInTheDocument();
     expect(screen.getByText("42%")).toBeInTheDocument();
+  });
+
+  it("keeps a 32rem card floor so long keys cannot crush the value column", () => {
+    const { container } = render(
+      <ActorInstances
+        primitives={[
+          prim({
+            instances: [
+              inst({
+                signalParams: [param("Integration Boost Data Submission Format", "Aave")],
+              }),
+            ],
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getByText("Aave")).toBeInTheDocument();
+    const grid = container.querySelector("[style*='minmax']");
+    expect(grid?.getAttribute("style")).toContain(INSTANCE_CARD_MIN);
   });
 
   it("links the instance displayName when it has a docId", () => {

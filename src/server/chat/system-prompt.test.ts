@@ -28,6 +28,9 @@ describe("pageContextLine", () => {
     expect(
       pageContextLine({ actorSlug: "spark", path: "/radar/spark/settlements", mscMonth: "2026-07" }),
     ).toContain("ask_external_msc");
+    expect(pageContextLine({ actorSlug: "spark", path: "/radar/spark/history" })).toBe(
+      'Radar history page for "spark"',
+    );
     expect(pageContextLine({ reportName: "Stale Dates" })).toContain("Report: Stale Dates — ");
     expect(pageContextLine({ path: "/atlas" })).toBe("Route /atlas");
   });

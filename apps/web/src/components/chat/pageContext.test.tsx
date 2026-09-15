@@ -107,6 +107,13 @@ describe("usePageContext", () => {
     expect(result.current.mscMonth).toBeUndefined();
   });
 
+  it("names the nested history page in chat context", () => {
+    const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/radar/spark/history") });
+    expect(result.current.actorSlug).toBe("spark");
+    expect(result.current.chip).toBe("radar · history");
+    expect(result.current.mscMonth).toBeUndefined();
+  });
+
   it("forwards the selected MSC month from ?msc= on the settlements page", () => {
     const { result } = renderHook(() => usePageContext(), {
       wrapper: wrap("/radar/spark/settlements?msc=2026-07"),

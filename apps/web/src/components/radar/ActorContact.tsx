@@ -2,11 +2,6 @@ import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
 import type { ActorContact } from "../../lib/actorIndex";
 
-const SCOPE_LABEL: Record<string, string> = {
-  ecosystem: "Emergency · Ecosystem",
-  agent_specific: "Emergency · Agent",
-};
-
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <tr className="border-t border-[var(--border)]">
@@ -22,8 +17,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 export function ActorContact({ contact }: { contact: ActorContact }) {
-  const { channels, emergency } = contact;
-  if (channels.length === 0 && emergency.length === 0) return null;
+  const { channels } = contact;
+  if (channels.length === 0) return null;
 
   return (
     <section className="mb-6">
@@ -64,13 +59,6 @@ export function ActorContact({ contact }: { contact: ActorContact }) {
               </Row>
             ),
           )}
-          {emergency.map((em) => (
-            <Row key={em.docId} label={SCOPE_LABEL[em.scope] ?? "Emergency"}>
-              <AtlasLink to={atlasHref(em.docId)} className="text-accent hover:underline">
-                {em.status === "placeholder" ? "Not yet specified" : "Response protocol"}
-              </AtlasLink>
-            </Row>
-          ))}
         </tbody>
       </table>
     </section>

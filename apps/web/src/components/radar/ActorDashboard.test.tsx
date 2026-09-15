@@ -11,15 +11,20 @@ import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { ActorProfile } from "../../lib/actorIndex";
 import type { GraphEntity, AtlasNode } from "@/types";
+import { EMPTY_OMNI } from "../../lib/omniDocs";
 
 Element.prototype.scrollIntoView = vi.fn();
 
 vi.mock("./ActorChain", () => ({ ActorChain: () => <div data-testid="chain" /> }));
 vi.mock("./ActorContact", () => ({ ActorContact: () => <div data-testid="contact" /> }));
+vi.mock("./ActorOmni", () => ({ ActorOmni: () => <div data-testid="omni" /> }));
 vi.mock("./ActorResponsibilities", () => ({ ActorResponsibilities: () => <div data-testid="resp" /> }));
 vi.mock("./ActorInstances", () => ({ ActorInstances: () => <div data-testid="instances" /> }));
 vi.mock("./ActorRewards", () => ({ ActorRewards: () => <div data-testid="rewards" /> }));
-vi.mock("./ActorHistory", () => ({ ActorHistory: () => <div data-testid="history" /> }));
+vi.mock("./ActorHistory", () => ({
+  ActorHistory: () => <div data-testid="history" />,
+  HISTORY_PREVIEW_LIMIT: 12,
+}));
 vi.mock("./ActorSettlementTeaser", () => ({ ActorSettlementTeaser: () => <div data-testid="settlements" /> }));
 
 import { ActorDashboard } from "./ActorDashboard";
@@ -45,6 +50,7 @@ function profile(overrides: Partial<ActorProfile> = {}): ActorProfile {
     comprisesMembers: [],
     partOfComposite: null,
     contact: { channels: [], emergency: [] },
+    omni: EMPTY_OMNI,
     ...overrides,
   } as ActorProfile;
 }
@@ -55,13 +61,19 @@ describe("ActorDashboard header", () => {
     expect(screen.getByRole("heading", { name: "Spark" })).toBeInTheDocument();
     expect(screen.getByText("Prime Agent")).toBeInTheDocument();
     expect(screen.getByTestId("settlements")).toBeInTheDocument();
+    expect(screen.getByTestId("omni")).toBeInTheDocument();
+    expect(screen.getByTestId("contact")).toBeInTheDocument();
   });
 
-  it("places the MSC teaser before the name so it floats to the top-right", () => {
+  it("places the MSC teaser in the title-row cell, not in the history column", () => {
     render(<ActorDashboard profile={profile()} />);
-    const teaser = screen.getByTestId("settlements");
-    const name = screen.getByRole("heading", { name: "Spark" });
-    expect(teaser.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const teaserSlot = screen.getByTestId("actor-dash-teaser");
+    const historySlot = screen.getByTestId("actor-dash-history");
+    expect(teaserSlot).toContainElement(screen.getByTestId("settlements"));
+    expect(historySlot).not.toContainElement(screen.getByTestId("settlements"));
+    expect(screen.getByTestId("actor-dash-title")).toContainElement(
+      screen.getByRole("heading", { name: "Spark" }),
+    );
   });
 
   it("shows 'Executor Agent' for a non-prime agent", () => {
@@ -182,6 +194,44 @@ describe("ActorDashboard sections", () => {
     expect(el.scrollIntoView).toHaveBeenCalled();
     document.body.removeChild(el);
     window.location.hash = "";
+  });
+
+  it("places history across from related parties, not inside the contact stack", () => {
+    render(<ActorDashboard profile={profile()} />);
+    const chainSlot = screen.getByTestId("actor-dash-chain");
+    const rest = screen.getByTestId("actor-dash-rest");
+    const historySlot = screen.getByTestId("actor-dash-history");
+    const teaserSlot = screen.getByTestId("actor-dash-teaser");
+    expect(chainSlot).toContainElement(screen.getByTestId("chain"));
+    expect(historySlot).toContainElement(screen.getByTestId("history"));
+    expect(rest).toContainElement(screen.getByTestId("contact"));
+    expect(rest).not.toContainElement(screen.getByTestId("chain"));
+    expect(teaserSlot).not.toContainElement(screen.getByTestId("chain"));
+  });
+
+  it("places instance docs after the contact/history row so they fill the page width", () => {
+    render(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    const history = screen.getByTestId("history");
+    const instances = screen.getByTestId("instances");
+    expect(history.compareDocumentPosition(instances) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("places responsibilities in the left column next to history", () => {
+    render(
+      <ActorDashboard
+        profile={profile({ adRows: [{} as never], primitives: [{} as never] })}
+      />,
+    );
+    const rest = screen.getByTestId("actor-dash-rest");
+    const historySlot = screen.getByTestId("actor-dash-history");
+    expect(rest).toContainElement(screen.getByTestId("contact"));
+    expect(rest).toContainElement(screen.getByTestId("resp"));
+    expect(rest).not.toContainElement(screen.getByTestId("history"));
+    expect(historySlot).toContainElement(screen.getByTestId("history"));
+    expect(
+      historySlot.compareDocumentPosition(screen.getByTestId("instances")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("renders the rewards section when a rewards agent is present", () => {

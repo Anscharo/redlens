@@ -32,9 +32,11 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
-
-
 ## 2026-09-15
+- Radar actor pages now show at most five responsibility rows, with the rest in the Active Data report
+- Radar actor pages now show the latest 12 history entries across from related parties, with a full history page for the rest
+- Prime Agent pages now list each Prime's emergency-response Omni docs, with a short essence of each
+- Instance cards on Radar actor pages now tile across the page
 - Previews now redline a change against the branch it was actually made on, the preview bar shows how far that base has drifted from the main atlas, and a private pull request missing Pull requests: Read asks the owner to grant it on GitHub
 
 ## 2026-09-11

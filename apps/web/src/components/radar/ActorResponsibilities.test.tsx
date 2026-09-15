@@ -3,7 +3,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { ActorResponsibilities } from "./ActorResponsibilities";
+import { ActorResponsibilities, RESP_PREVIEW_LIMIT } from "./ActorResponsibilities";
 import type { ActiveDataRow } from "@/lib/activeDataIndex";
 
 afterEach(cleanup);
@@ -83,5 +83,17 @@ describe("ActorResponsibilities", () => {
     render(<ActorResponsibilities rows={[]} />);
     const link = screen.getByRole("link", { name: /View all in Active Data Report/ });
     expect(link).toHaveAttribute("href", "/reports/active-data");
+  });
+
+  it("caps the dashboard table at RESP_PREVIEW_LIMIT and still offers the report link", () => {
+    const rows = Array.from({ length: RESP_PREVIEW_LIMIT + 2 }, (_, i) =>
+      row({ activeDataId: `ad-${i}`, activeDataTitle: `Duty ${i + 1}` }),
+    );
+    render(<ActorResponsibilities rows={rows} />);
+    expect(screen.getByText("Duty 1")).toBeInTheDocument();
+    expect(screen.getByText(`Duty ${RESP_PREVIEW_LIMIT}`)).toBeInTheDocument();
+    expect(screen.queryByText(`Duty ${RESP_PREVIEW_LIMIT + 1}`)).not.toBeInTheDocument();
+    expect(screen.queryByText(`Duty ${RESP_PREVIEW_LIMIT + 2}`)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /View all in Active Data Report/ })).toBeInTheDocument();
   });
 });

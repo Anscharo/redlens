@@ -3,6 +3,8 @@ import { AtlasLink } from "../AtlasLink";
 import type { ActiveDataRow } from "@/lib/activeDataIndex";
 import { ROUTES, atlasHref } from "@/lib/routes";
 
+export const RESP_PREVIEW_LIMIT = 5;
+
 interface Props {
   rows: ActiveDataRow[];
 }
@@ -42,6 +44,7 @@ function Row({ r }: { r: ActiveDataRow }) {
 }
 
 export function ActorResponsibilities({ rows }: Props) {
+  const visible = rows.slice(0, RESP_PREVIEW_LIMIT);
   return (
     <div>
       <div className="overflow-x-auto">
@@ -56,7 +59,7 @@ export function ActorResponsibilities({ rows }: Props) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {visible.map((r) => (
               <Row key={r.activeDataId} r={r} />
             ))}
           </tbody>

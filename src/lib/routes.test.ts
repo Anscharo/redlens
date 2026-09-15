@@ -6,6 +6,7 @@ import {
   atlasUrl,
   actorHref,
   settlementsHref,
+  historyHref,
   ROUTES,
   REPORT_TITLES,
   REPORT_DESCRIPTIONS,
@@ -71,6 +72,7 @@ describe("activeNavPageFor", () => {
     expect(activeNavPageFor(ROUTES.ATLAS)).toBe("atlas");
     expect(activeNavPageFor(ROUTES.RADAR_ACTOR.replace(":slug", "keel"))).toBe("radar");
     expect(activeNavPageFor(ROUTES.RADAR_ACTOR_SETTLEMENTS.replace(":slug", "keel"))).toBe("radar");
+    expect(activeNavPageFor(ROUTES.RADAR_ACTOR_HISTORY.replace(":slug", "keel"))).toBe("radar");
     expect(activeNavPageFor(ROUTES.REPORTS_ONCHAIN_ADDRESSES)).toBe("reports");
   });
 
@@ -80,12 +82,14 @@ describe("activeNavPageFor", () => {
   });
 });
 
-describe("actorHref / settlementsHref", () => {
-  it("builds the actor dashboard and nested settlements paths", () => {
+describe("actorHref / settlementsHref / historyHref", () => {
+  it("builds the actor dashboard and nested settlements/history paths", () => {
     expect(actorHref("spark")).toBe("/radar/spark");
     expect(actorHref("spark", "msc")).toBe("/radar/spark#msc");
     expect(settlementsHref("spark")).toBe("/radar/spark/settlements");
+    expect(historyHref("spark")).toBe("/radar/spark/history");
     expect(ROUTES.RADAR_ACTOR_SETTLEMENTS).toBe("/radar/:slug/settlements");
+    expect(ROUTES.RADAR_ACTOR_HISTORY).toBe("/radar/:slug/history");
   });
 });
 

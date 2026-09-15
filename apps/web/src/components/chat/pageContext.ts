@@ -95,20 +95,21 @@ export function usePageContext(): PageContextView {
     };
   }
 
-  // Radar actor page (/radar/:slug) and its settlements sub-page
+  // Radar actor page (/radar/:slug) and nested settlements / history pages
   if (location.startsWith(ROUTES.RADAR + "/")) {
     const rest = location.slice(ROUTES.RADAR.length + 1);
     const [rawSlug, sub] = rest.split("/");
     const slug = decodeURIComponent(rawSlug ?? "");
     const name = deslug(slug);
     const settlements = sub === "settlements";
+    const history = sub === "history";
     const mscMonth = settlements ? searchParams.get("msc")?.trim() || undefined : undefined;
     return {
       ...baseContext,
       path: location,
       actorSlug: slug,
       mscMonth,
-      chip: settlements ? "radar · settlement" : `radar · ${name}`,
+      chip: settlements ? "radar · settlement" : history ? "radar · history" : `radar · ${name}`,
     };
   }
 

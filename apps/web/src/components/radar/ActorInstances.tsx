@@ -1,6 +1,4 @@
-import { useMemo } from "react";
 import { AtlasLink } from "../AtlasLink";
-import { prepareWithSegments, measureNaturalWidth } from "@chenglou/pretext";
 import type { RadarInstance, RadarPrimitive, InstanceParam } from "../../lib/actorIndex";
 import { toAnchorId } from "../../lib/anchorId";
 import { atlasHref } from "@/lib/routes";
@@ -19,13 +17,9 @@ const RATE_LIMIT_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MD_LINK_RE = /\[([^\]]+)\]\(([^)]+)\)/g;
 const PLACEHOLDER_RE = /will be specified in a future iteration/i;
-const PARAM_FONT = '10px "Source Code Pro", monospace';
-const MIN_DOTS_PX = 30;
-
-function measureKeyPx(key: string): number {
-  try { return measureNaturalWidth(prepareWithSegments(key, PARAM_FONT)); }
-  catch { return key.length * 6; }
-}
+/** Floor for each instance card. 20rem left only a few px for values after a
+ *  long param key, so `word-break` stacked them one character per line. */
+export const INSTANCE_CARD_MIN = "32rem";
 
 function renderValue(
   value: string,
@@ -66,16 +60,16 @@ function renderValue(
   return value;
 }
 
-function ParamLine({ p, colWidth, instanceHint, addrMap }: { p: InstanceParam; colWidth: number; instanceHint: string; addrMap: Record<string, AddressInfo> }) {
+function ParamLine({ p, instanceHint, addrMap }: { p: InstanceParam; instanceHint: string; addrMap: Record<string, AddressInfo> }) {
   return (
-    <div className="flex py-0.5 w-full items-baseline">
-      <span className="mono text-[10px] shrink-0" style={{ color: "var(--tan-3)" }}>
+    <div className="flex py-0.5 w-full items-baseline min-w-0">
+      <span className="mono text-[10px] shrink-0 pr-1" style={{ color: "var(--tan-3)" }}>
         {p.key}
       </span>
-      <span className="flex-1 min-w-0" style={{ borderBottom: "1px dotted color-mix(in srgb, var(--tan-3) 25%, transparent)", margin: "0 4px 3px" }} />
+      <span className="flex-1 min-w-3" style={{ borderBottom: "1px dotted color-mix(in srgb, var(--tan-3) 25%, transparent)", margin: "0 4px 3px" }} />
       <span
-        className="mono text-[10px] shrink-0 text-right leading-relaxed"
-        style={{ maxWidth: `calc(100% - ${colWidth}px)`, wordBreak: "break-word", color: "var(--tan-2)" }}
+        className="mono text-[10px] text-right leading-relaxed shrink-0"
+        style={{ minWidth: "10rem", maxWidth: "50%", overflowWrap: "break-word", color: "var(--tan-2)" }}
       >
         {/* Param key first: it's the more specific signal (e.g. "Token Address
             (Avalanche)" on an instance whose name says "Ethereum Mainnet - …"
@@ -91,13 +85,9 @@ function InstanceCard({ inst }: { inst: RadarInstance }) {
   // Loaded here rather than drilled from ActorInstances: loadAddresses() is
   // module-cached, so every card resolves from the one in-flight request.
   const addrMap = useAddressMap();
-  const colWidth = useMemo(() => {
-    if (inst.signalParams.length === 0) return MIN_DOTS_PX;
-    return Math.max(...inst.signalParams.map((p) => measureKeyPx(p.key))) + MIN_DOTS_PX;
-  }, [inst.signalParams]);
 
   return (
-    <div className="rounded p-3 break-inside-avoid" style={{ background: "var(--bg-deep)", border: "1px solid var(--border)", maxWidth: "600px" }}>
+    <div className="rounded p-3 h-full min-w-0" style={{ background: "var(--bg-deep)", border: "1px solid var(--border)" }}>
       <div className="flex items-center gap-2 flex-wrap mb-2">
         {inst.docId ? (
           <AtlasLink to={atlasHref(inst.docId)} className="text-sm hover:underline" style={{ color: "var(--tan)" }}>
@@ -109,8 +99,8 @@ function InstanceCard({ inst }: { inst: RadarInstance }) {
         {inst.status && <StatusPill s={inst.status} />}
       </div>
       {inst.signalParams.length > 0 && (
-        <div>
-          {inst.signalParams.map((p) => <ParamLine key={p.key} p={p} colWidth={colWidth} instanceHint={inst.displayName} addrMap={addrMap} />)}
+        <div className="min-w-0">
+          {inst.signalParams.map((p) => <ParamLine key={p.key} p={p} instanceHint={inst.displayName} addrMap={addrMap} />)}
         </div>
       )}
     </div>
@@ -227,12 +217,12 @@ function ActorItemsSection({ groups, pick, anchorPrefix }: SectionProps) {
                       <span className="mono text-[10px] px-1 rounded" style={{ color: "var(--error-text)", border: "1px solid var(--red)" }} title="Not listed in Current Primitives (A.2.2.1.5.1)">unknown</span>
                     )}
                   </div>
-                  <div style={{ columns: "520px", columnGap: "0.75rem" }}>
+                  <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(min(${INSTANCE_CARD_MIN}, 100%), 1fr))` }}>
                     {withStatusAnchors(prim, items, anchorPrefix).map(({ inst, anchorId }) => (
                       <div
                         key={inst.id}
                         id={anchorId}
-                        className="mb-2"
+                        className="min-w-0"
                         style={anchorId ? { scrollMarginTop: HEADER_OFFSET } : undefined}
                       >
                         <InstanceCard inst={inst} />

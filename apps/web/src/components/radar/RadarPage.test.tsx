@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 // RadarPage is the /radar shell: it Suspense-loads docs+graph, builds the
 // sidebar actor groups and (when a slug is present) an actor profile, then
-// routes to one of three surfaces — PrimitiveDashboard (index), ActorDashboard
-// (profile found), or "actor not found" (slug with no profile). The data-index
-// builders and the leaf surfaces are covered by their own tests, so here they
-// are mocked to isolate RadarPage's own branching + the search-filter logic.
+// routes to one of four surfaces — PrimitiveDashboard (index), ActorDashboard
+// (profile found), ActorSettlementsPage, ActorHistoryPage, or "actor not found"
+// (slug with no profile). The data-index builders and the leaf surfaces are
+// covered by their own tests, so here they are mocked to isolate RadarPage's
+// own branching + the search-filter logic.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, waitFor } from "@testing-library/react";
@@ -96,6 +97,11 @@ vi.mock("./ActorSettlementsPage", () => ({
     <div data-testid="settlements-page">{profile.entity.name} settlements</div>
   ),
 }));
+vi.mock("./ActorHistoryPage", () => ({
+  ActorHistoryPage: ({ profile }: { profile: { entity: { name: string } } }) => (
+    <div data-testid="history-page">{profile.entity.name} history</div>
+  ),
+}));
 
 import { RadarPage } from "./RadarPage";
 
@@ -153,6 +159,20 @@ describe("RadarPage actor page", () => {
       expect.objectContaining({
         path: "/radar/spark/settlements",
         label: "Spark Radar Entity · Monthly settlement",
+      }),
+    );
+  });
+
+  it("renders the history page and records a distinct visit", async () => {
+    render(<RadarPage query="" actorSlug="spark" page="history" />);
+    expect(await screen.findByTestId("history-page")).toHaveTextContent("Spark Radar Entity history");
+    expect(screen.queryByTestId("actor-dashboard")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("settlements-page")).not.toBeInTheDocument();
+    await waitFor(() => expect(recordVisit).toHaveBeenCalledTimes(1));
+    expect(recordVisit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "/radar/spark/history",
+        label: "Spark Radar Entity · History",
       }),
     );
   });

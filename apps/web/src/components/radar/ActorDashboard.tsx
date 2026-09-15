@@ -3,13 +3,14 @@ import { Link } from "../Link";
 import { AtlasLink } from "../AtlasLink";
 import type { ActorProfile, ActorRelation, Recommendation } from "../../lib/actorIndex";
 import { ENTITY_TYPE_LABEL, ENTITY_TYPE_COLOR, edgeLabel } from "../../lib/entityGraph";
-import { atlasHref, actorHref } from "@/lib/routes";
+import { atlasHref, actorHref, historyHref } from "@/lib/routes";
 import { ActorChain } from "./ActorChain";
 import { ActorContact } from "./ActorContact";
+import { ActorOmni } from "./ActorOmni";
 import { ActorResponsibilities } from "./ActorResponsibilities";
 import { ActorRewards } from "./ActorRewards";
 import { ActorInstances } from "./ActorInstances";
-import { ActorHistory } from "./ActorHistory";
+import { ActorHistory, HISTORY_PREVIEW_LIMIT } from "./ActorHistory";
 import { ActorSettlementTeaser } from "./ActorSettlementTeaser";
 
 interface Props {
@@ -106,12 +107,11 @@ export function ActorDashboard({ profile }: Props) {
 
   return (
     <div className="flex-1 px-6 py-6 min-w-0">
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-8">
-        <div className="lg:col-span-2 min-w-0 flow-root">
-          {/* Floated first → top-right of the agent header; null if no MSC workbook. */}
-          <ActorSettlementTeaser slug={entity.slug} />
-          {/* Header */}
-          <div className="mb-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Named areas at lg: teaser sits in the title row; History starts on
+            the Related Parties row (Executor Agent), not across from Contact. */}
+        <div className="actor-dash" data-testid="actor-dash">
+          <div className="actor-dash-title mb-6" data-testid="actor-dash-title">
             <p className="mono text-xs mb-1" style={{ color: "var(--tan-3)" }}>
               radar
             </p>
@@ -144,77 +144,93 @@ export function ActorDashboard({ profile }: Props) {
             </div>
           </div>
 
-          {/* Chain — always shown */}
-          <div className="mb-6">
+          <div className="actor-dash-teaser" data-testid="actor-dash-teaser">
+            <ActorSettlementTeaser slug={entity.slug} />
+          </div>
+
+          <div className="actor-dash-chain min-w-0" data-testid="actor-dash-chain">
             <ActorChain chain={chain} currentSlug={entity.slug} />
           </div>
+
+          <div className="actor-dash-rest min-w-0" data-testid="actor-dash-rest">
+            <ActorContact contact={profile.contact} />
+            <ActorOmni omni={profile.omni} />
+
+            {entity.et === "composite_party" && (
+              <Section title="Composite Party">
+                <p className="text-sm mb-3" style={{ color: "var(--tan-2)" }}>
+                  A composite party is the named legal counterparty in a Sky{" "}
+                  <AtlasLink to={atlasHref("104c3543-ce94-4a2f-9968-57f1ee858085")} className="text-accent hover:underline">
+                    Ecosystem Accord
+                  </AtlasLink>
+                  {" "}— an agreement between Sky Ecosystem actors that is enforceable by Sky Governance. It may comprise the Prime Agent and associated legal entities (foundation, development company) acting together as a single party to the accord.
+                </p>
+                {comprisesMembers.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {comprisesMembers.map((m) =>
+                      m.slug ? (
+                        <Link key={m.slug} to={actorHref(m.slug)}
+                          className="text-xs px-2 py-0.5 rounded border border-[var(--border)] text-accent hover:border-[var(--accent)] transition-colors">
+                          {m.name}
+                        </Link>
+                      ) : (
+                        <span key={m.name} className="text-xs px-2 py-0.5 rounded border border-[var(--border)] text-tan-2">
+                          {m.name}
+                        </span>
+                      )
+                    )}
+                  </div>
+                )}
+              </Section>
+            )}
+
+            {adRows.length > 0 && (
+              <Section title="Responsibilities">
+                <ActorResponsibilities rows={adRows} />
+              </Section>
+            )}
+          </div>
+
+          <aside className="actor-dash-history min-w-0" data-testid="actor-dash-history">
+            <Section title={"History of Doc Changes affecting " + profile.entity.name}>
+              <ActorHistory
+                profile={profile}
+                limit={HISTORY_PREVIEW_LIMIT}
+                moreHref={historyHref(entity.slug)}
+              />
+            </Section>
+          </aside>
         </div>
 
-        <div className="min-w-0">
-          {/* Contact — governance channels + emergency response (Prime Agents) */}
-          <ActorContact contact={profile.contact} />
-
-          {entity.et === "composite_party" && (
-            <Section title="Composite Party">
-              <p className="text-sm mb-3" style={{ color: "var(--tan-2)" }}>
-                A composite party is the named legal counterparty in a Sky{" "}
-                <AtlasLink to={atlasHref("104c3543-ce94-4a2f-9968-57f1ee858085")} className="text-accent hover:underline">
-                  Ecosystem Accord
-                </AtlasLink>
-                {" "}— an agreement between Sky Ecosystem actors that is enforceable by Sky Governance. It may comprise the Prime Agent and associated legal entities (foundation, development company) acting together as a single party to the accord.
-              </p>
-              {comprisesMembers.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {comprisesMembers.map((m) =>
-                    m.slug ? (
-                      <Link key={m.slug} to={actorHref(m.slug)}
-                        className="text-xs px-2 py-0.5 rounded border border-[var(--border)] text-accent hover:border-[var(--accent)] transition-colors">
-                        {m.name}
-                      </Link>
-                    ) : (
-                      <span key={m.name} className="text-xs px-2 py-0.5 rounded border border-[var(--border)] text-tan-2">
-                        {m.name}
-                      </span>
-                    )
-                  )}
-                </div>
-              )}
-            </Section>
-          )}
-          {adRows.length > 0 && (
-            <Section title="Responsibilities">
-              <ActorResponsibilities rows={adRows} />
-            </Section>
-          )}
-          {primitives.length > 0 && (
+        {primitives.length > 0 && (
+          <div className="min-w-0">
             <Section title="Primitives">
               <ActorInstances primitives={primitives} />
             </Section>
-          )}
-          {relations.length > 0 && (
+          </div>
+        )}
+
+        {relations.length > 0 && (
+          <div className="min-w-0">
             <Section title="Relationships">
               {relations.map((r, i) => (
                 <RelationRow key={i} r={r} />
               ))}
             </Section>
-          )}
-          {recommendations.length > 0 && (
+          </div>
+        )}
+        {recommendations.length > 0 && (
+          <div className="min-w-0">
             <Section title="Notable">
               {recommendations.map((rec, i) => (
                 <RecRow key={i} rec={rec} />
               ))}
             </Section>
-          )}
-        </div>
-
-        <aside className="min-w-0">
-          <Section title={"History of Doc Changes affecting " + profile.entity.name}>
-            <ActorHistory profile={profile} />
-          </Section>
-        </aside>
+          </div>
+        )}
 
         {rewardsAgent && (
-          <div className="lg:col-span-2 min-w-0">
+          <div className="min-w-0">
             <Section title="Rewards">
               <ActorRewards agent={rewardsAgent} />
             </Section>
