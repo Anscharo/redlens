@@ -8,27 +8,35 @@ import { MscGrossSpark } from "./MscGrossSpark";
 
 interface Props {
   slug: string;
-  /** The Prime's display name (the chart link's accessible name). */
+  /** The Prime's display name (the card link's accessible name). */
   name?: string;
 }
 
 /** The Monthly settlement card floated top-right of a Prime's actor page:
- *  its gross revenue across every published cycle, and to the right a
- *  small chart of that revenue month by month, split by where it went.
- *  Both halves are links to the Prime's settlement page. */
+ *  its total gross revenue across every published cycle, and to the right
+ *  a small chart of that revenue month by month, split by where it went.
+ *  The whole card is ONE link to the Prime's settlement page, so hovering
+ *  either half lights the card as a unit. */
 export function ActorSettlementTeaser({ slug, name }: Props) {
   const bundle = useLoaded(loadSettlements, { soft: true });
   const months = useMemo(() => (bundle ? grossByMonth(reportsForPrime(bundle, slug)) : []), [bundle, slug]);
   if (months.length === 0) return null;
-  const href = settlementsHref(slug);
+  const n = months.length;
   const first = months[0];
-  const last = months[months.length - 1];
-  const period = months.length === 1 ? formatMonth(first.month) : `${formatMonth(first.month)} – ${formatMonth(last.month)} · ${months.length} cycles`;
+  const last = months[n - 1];
+  const period = n === 1 ? formatMonth(first.month) : `${formatMonth(first.month)} – ${formatMonth(last.month)} · ${n} cycles`;
   const total = months.reduce((s, m) => s + m.gross, 0);
 
   return (
-    <div className="msc-teaser-wrap" style={{ scrollMarginTop: HEADER_OFFSET }} id="msc">
-      <Link to={href} className="msc-teaser" data-testid="msc-teaser">
+    <Link
+      to={settlementsHref(slug)}
+      className="msc-teaser-wrap"
+      style={{ scrollMarginTop: HEADER_OFFSET }}
+      id="msc"
+      data-testid="msc-teaser"
+      aria-label={`${name ?? slug}: ${formatUsd(total, true)} total gross revenue over ${n} ${n === 1 ? "cycle" : "cycles"} — open the settlement charts`}
+    >
+      <div className="msc-teaser">
         <h2 className="mono text-[10px] uppercase tracking-wider" style={{ color: "var(--tan-3)" }}>
           Monthly settlement
         </h2>
@@ -39,7 +47,7 @@ export function ActorSettlementTeaser({ slug, name }: Props) {
           {formatUsd(total, true)}
         </p>
         <p className="mono text-[10px]" style={{ color: "var(--tan-2)" }}>
-          gross revenue
+          total gross revenue
         </p>
         <p className="text-[10px] mt-1" style={{ color: "var(--tan-3)" }}>
           OEA calculation, not the on-chain GovOps spell
@@ -47,8 +55,8 @@ export function ActorSettlementTeaser({ slug, name }: Props) {
         <span className="msc-teaser-link mono text-[10px] text-accent">
           full cycle <span className="enlargen">→</span>
         </span>
-      </Link>
-      <MscGrossSpark points={months} href={href} name={name ?? slug} />
-    </div>
+      </div>
+      <MscGrossSpark points={months} />
+    </Link>
   );
 }

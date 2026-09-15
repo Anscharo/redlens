@@ -2713,8 +2713,9 @@ a.atlas-annotates:focus-visible {
 /* ─── MSC settlement charts (radar actor page) ─── */
 /* The Monthly settlement card floated top-right of a Prime's actor page:
    one bordered card holding the figures (left) and the month-by-month
-   chart (right), each a link to the settlement page, so the two halves
-   always share one height. */
+   chart (right). The card itself is the ONE link to the settlement page,
+   so hovering either half lights the whole card and the halves always
+   share one height. */
 .msc-teaser-wrap {
   float: right;
   display: flex;
@@ -2723,16 +2724,11 @@ a.atlas-annotates:focus-visible {
   border: 1px solid var(--border);
   border-radius: 3px;
   background: var(--surface);
-}
-.msc-teaser,
-.msc-teaser-chart {
-  display: block;
   color: inherit;
   text-decoration: none;
   transition: background-color 0.1s;
 }
-.msc-teaser:hover,
-.msc-teaser-chart:hover {
+.msc-teaser-wrap:hover {
   background: var(--row-hover);
 }
 .msc-teaser {
@@ -2743,7 +2739,7 @@ a.atlas-annotates:focus-visible {
   display: inline-block;
   margin-top: 4px;
 }
-.msc-teaser:hover .msc-teaser-link {
+.msc-teaser-wrap:hover .msc-teaser-link {
   text-decoration: underline;
 }
 .msc-teaser-chart {

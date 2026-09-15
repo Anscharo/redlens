@@ -1,11 +1,10 @@
-import { Link } from "../Link";
 import { formatMonth, formatUsd, type GrossMonth } from "../../lib/settlements";
 
 // A small stacked-column chart of a Prime's gross revenue by month, split
 // by where it went — to Sky, supply-side kept, demand-side — in the Summary
-// chart's colors; the companion to the Monthly settlement box on its actor
-// page. The whole chart is a link to the Prime's settlement page, like the
-// box beside it. Fixed pixel geometry (the svg scales with its box).
+// chart's colors; the right half of the Monthly settlement card on its
+// actor page (the card itself is the link). Fixed pixel geometry (the svg
+// scales with its box).
 const W = 256;
 const H = 120;
 const PAD_L = 6;
@@ -21,14 +20,7 @@ const SERIES = [
   { key: "demand", fill: "var(--msc-demand)" },
 ] as const;
 
-interface Props {
-  points: GrossMonth[];
-  href: string;
-  /** The Prime's display name, for the link's accessible name. */
-  name: string;
-}
-
-export function MscGrossSpark({ points, href, name }: Props) {
+export function MscGrossSpark({ points }: { points: GrossMonth[] }) {
   const n = points.length;
   const innerW = W - PAD_L - PAD_R;
   const innerH = H - PAD_T - PAD_B;
@@ -41,14 +33,9 @@ export function MscGrossSpark({ points, href, name }: Props) {
   const slot = innerW / n;
   const colW = Math.min(28, slot - GAP);
   const x = (i: number) => PAD_L + i * slot + (slot - colW) / 2;
-  const total = points.reduce((s, p) => s + p.gross, 0);
 
   return (
-    <Link
-      to={href}
-      className="msc-teaser-chart"
-      aria-label={`${name}: ${formatUsd(total, true)} gross revenue over ${n} ${n === 1 ? "cycle" : "cycles"} — open the settlement charts`}
-    >
+    <div className="msc-teaser-chart">
       <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true">
         <text x={PAD_L} y={12} fontSize={9} className="mono msc-gross-axis msc-gross-caption">
           gross revenue by month
@@ -86,6 +73,6 @@ export function MscGrossSpark({ points, href, name }: Props) {
           );
         })}
       </svg>
-    </Link>
+    </div>
   );
 }

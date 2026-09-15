@@ -50,26 +50,29 @@ afterEach(() => {
 });
 
 describe("ActorSettlementTeaser", () => {
-  it("shows gross revenue across every cycle; the box is a link to the full cycle page", async () => {
+  it("shows total gross revenue across every cycle; the whole card is ONE link to the full cycle page", async () => {
     render(<ActorSettlementTeaser slug="spark" name="Spark" />);
     // Jun: par 20 − cof 8 = 12 kept + 10 to Sky = 22; Jul: 150 + 100 = 250.
     await waitFor(() => expect(screen.getByText("$272")).toBeInTheDocument());
-    expect(screen.getByText("gross revenue")).toBeInTheDocument();
+    expect(screen.getByText("total gross revenue")).toBeInTheDocument();
     expect(screen.getByText("Jun 2026 – Jul 2026 · 2 cycles")).toBeInTheDocument();
     expect(screen.queryByText(/to Sky$/)).not.toBeInTheDocument();
     const figure = screen.getByText("$272");
-    const box = screen.getByTestId("msc-teaser");
-    expect(box.tagName).toBe("A");
-    expect(box).toHaveAttribute("href", "/radar/spark/settlements");
-    expect(box).toContainElement(figure);
-    expect(box).toHaveTextContent(/full cycle/);
+    const card = screen.getByTestId("msc-teaser");
+    expect(card.tagName).toBe("A");
+    expect(card).toHaveAttribute("href", "/radar/spark/settlements");
+    expect(card).toContainElement(figure);
+    expect(card).toContainElement(card.querySelector("svg"));
+    expect(card).toHaveTextContent(/full cycle/);
+    expect(card).toHaveAccessibleName(/Spark: \$272 total gross revenue over 2 cycles/);
+    // Figures and chart are two halves of the same link, not two links.
+    expect(screen.getAllByRole("link")).toHaveLength(1);
     expect(screen.getByText("OEA calculation, not the on-chain GovOps spell")).toBeInTheDocument();
   });
 
-  it("draws a stacked gross-revenue chart beside the box that links to the same page", async () => {
+  it("draws a stacked gross-revenue chart in the card's right half", async () => {
     render(<ActorSettlementTeaser slug="spark" name="Spark" />);
-    const chart = await screen.findByRole("link", { name: /Spark: \$272 gross revenue over 2 cycles/ });
-    expect(chart).toHaveAttribute("href", "/radar/spark/settlements");
+    const chart = (await screen.findByTestId("msc-teaser")).querySelector(".msc-teaser-chart")!;
     // One column per month, stacked to Sky then kept (no demand-side in the fixture).
     const cols = [...chart.querySelectorAll(".msc-gross-col")];
     expect(cols.map((c) => [...c.querySelectorAll("rect[data-series]")].map((r) => r.getAttribute("data-series")))).toEqual([
@@ -84,7 +87,7 @@ describe("ActorSettlementTeaser", () => {
     ]);
     expect(cols[1].querySelectorAll(".msc-gross-pill")[1]).toHaveTextContent("to Sky $100 · kept $150 · demand $0");
     // The chart sits to the right of the figures.
-    expect(chart.compareDocumentPosition(screen.getByTestId("msc-teaser")) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(chart.compareDocumentPosition(screen.getByText("$272")) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
   it("treats the composite-party slug as the prime", async () => {
@@ -97,9 +100,9 @@ describe("ActorSettlementTeaser", () => {
     render(<ActorSettlementTeaser slug="keel" name="Keel" />);
     await waitFor(() => expect(screen.getByText("$36k")).toBeInTheDocument());
     expect(screen.getByText("Jul 2026")).toBeInTheDocument();
-    const chart = screen.getByRole("link", { name: /Keel: \$36k gross revenue over 1 cycle/ });
-    expect([...chart.querySelectorAll("rect[data-series]")].map((r) => r.getAttribute("data-series"))).toEqual(["demand"]);
-    expect(screen.getByTestId("msc-teaser")).toHaveAttribute("href", "/radar/keel/settlements");
+    const card = screen.getByRole("link", { name: /Keel: \$36k total gross revenue over 1 cycle/ });
+    expect([...card.querySelectorAll("rect[data-series]")].map((r) => r.getAttribute("data-series"))).toEqual(["demand"]);
+    expect(card).toHaveAttribute("href", "/radar/keel/settlements");
   });
 
   it("renders nothing for a slug with no MSC workbooks", async () => {
