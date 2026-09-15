@@ -45,7 +45,7 @@ export function ActorSettlementsSkeleton({ name }: { name: string }) {
           className="text-sm font-medium m-0 mb-3"
           style={{ color: "var(--tan)" }}
         >
-          Trailing {SKELETON_MONTHS} Months – Total {name} earnings
+          Trailing {SKELETON_MONTHS} Months – Total {name} retained revenue
         </h2>
         <div className="msc-charts-row">
           <div className="msc-charts-pane">

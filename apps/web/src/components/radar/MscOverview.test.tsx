@@ -69,8 +69,8 @@ describe("MscOverview", () => {
     expect(screen.getByText("Monthly Settlement Cycle")).toBeInTheDocument();
     // The headline card keeps its labels; every figure is a dash.
     expect(screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure")).toBeInTheDocument();
-    expect(screen.getByLabelText("Primes earnings equals supply-side kept plus demand-side")).toBeInTheDocument();
-    expect(screen.getByText("Primes earnings")).toBeInTheDocument();
+    expect(screen.getByLabelText("Primes retained revenue equals supply-side kept plus demand-side")).toBeInTheDocument();
+    expect(screen.getByText("Primes retained revenue")).toBeInTheDocument();
     expect(skeleton.querySelectorAll(".msc-card")).toHaveLength(3);
     // The timeseries track and the flow canvas are already their real sizes.
     expect(skeleton.querySelector(".msc-ts-grid")).toHaveAttribute("height", "380");
@@ -118,14 +118,14 @@ describe("MscOverview", () => {
     expect(screen.getByText("cost of funds")).toBeInTheDocument();
     expect(screen.getByText("Sky Direct Exposure")).toBeInTheDocument();
     // The prime side reads as its own equation, the way To Sky does.
-    expect(screen.getByLabelText("Primes earnings equals supply-side kept plus demand-side")).toBeInTheDocument();
+    expect(screen.getByLabelText("Primes retained revenue equals supply-side kept plus demand-side")).toBeInTheDocument();
     expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
     // Also the chart key's group heading, hence getAllByText.
     expect(screen.getAllByText("Demand-side").length).toBeGreaterThan(0);
     // eco sky = 100; eco kept = (200-60) + 0 = 140; demand = 50 + 32004.
     // "$140" also rides the ring's hover amounts, so match all.
     expect(screen.getAllByText("$140").length).toBeGreaterThan(0);
-    // Earnings is the sum of the two: 140 + 32,054.
+    // Retained revenue is the sum of the two: 140 + 32,054.
     expect(screen.getByText("$32,194")).toBeInTheDocument();
     expect(track).toHaveBeenCalledTimes(1);
   });

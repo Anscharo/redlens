@@ -17,8 +17,8 @@ interface Props {
   /** The settlement month these figures are for (YYYY-MM), named at the
    *  head of the card so the numbers are never read as a running total. */
   month: string | null;
-  /** Whose earnings the prime-side equation is: the ecosystem card says
-   *  "Primes", a Prime's own page names the Prime ("Spark"). */
+  /** Whose retained revenue the prime-side equation is: the ecosystem card
+   *  says "Primes", a Prime's own page names the Prime ("Spark"). */
   earner?: string;
   /** The overview's month autoplay, under the month it steps through. */
   play?: { playing: boolean; onToggle: () => void };
@@ -64,14 +64,15 @@ function Op({ children }: { children: string }) {
 /** The month's figures as a card — the ecosystem's on the overview, one
  *  Prime's on its settlement page (same component, so the two pages can't
  *  drift). Both sides of the cycle are shown as the equations they are —
- *  To Sky = cost of funds + Sky Direct Exposure, and the Prime's earnings
- *  = supply-side kept + demand-side — so nobody adds a component on top of
+ *  To Sky = cost of funds + Sky Direct Exposure, and retained revenue =
+ *  supply-side kept + demand-side — so nobody adds a component on top of
  *  its own total. The two totals together are the month's gross revenue.
- *  Earnings is the same quantity `agentEarningsTotal` sums over a window
- *  for the charts card's heading: revenue the Prime keeps from the cycle,
- *  before any operating cost of its own (these workbooks carry none). */
+ *  Retained revenue is the same quantity `retainedRevenueTotal` sums over
+ *  a window for the charts card's heading: revenue the Prime keeps from
+ *  the cycle, before any operating cost of its own (these workbooks carry
+ *  none, which is why it is not called earnings or profit). */
 export function MscHeadline({ eco, month, earner, play }: Props) {
-  const earnings = eco ? eco.kept + eco.demand : null;
+  const retained = eco ? eco.kept + eco.demand : null;
   const who = earner ?? "Primes";
   return (
     <div className="msc-card rounded p-4 mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 text-sm">
@@ -104,9 +105,9 @@ export function MscHeadline({ eco, month, earner, play }: Props) {
       <span className="msc-headline-divider" aria-hidden="true" />
       <div
         className="flex flex-wrap items-end gap-x-3 gap-y-2"
-        aria-label={`${who} earnings equals supply-side kept plus demand-side`}
+        aria-label={`${who} retained revenue equals supply-side kept plus demand-side`}
       >
-        <Figure label={`${who} earnings`} value={earnings} />
+        <Figure label={`${who} retained revenue`} value={retained} />
         <Op>=</Op>
         <Figure label="Supply-side kept" value={eco?.kept ?? null} muted />
         <Op>+</Op>

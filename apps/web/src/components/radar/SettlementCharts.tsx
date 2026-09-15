@@ -1,5 +1,5 @@
 import {
-  agentEarningsTotal,
+  retainedRevenueTotal,
   formatUsd,
   summaryThreeWay,
   activeDemandSeries,
@@ -12,7 +12,7 @@ interface Props {
   reports: SettlementReport[];
   selected: string;
   onSelect: (month: string) => void;
-  /** Prime display name, used in “Total {name} earnings”. */
+  /** Prime display name, used in “Total {name} retained revenue”. */
   name: string;
   paging?: CyclePaging;
 }
@@ -21,7 +21,7 @@ const TITLE = "mono text-[10px] uppercase tracking-wider mb-2";
 
 export function SettlementCharts({ reports, selected, onSelect, name, paging }: Props) {
   const n = reports.length;
-  const earnings = agentEarningsTotal(reports);
+  const retained = retainedRevenueTotal(reports);
   const series = activeDemandSeries(reports);
   return (
     <section className="msc-card rounded p-4 mb-4" aria-labelledby="msc-charts-heading">
@@ -33,8 +33,8 @@ export function SettlementCharts({ reports, selected, onSelect, name, paging }: 
         >
           Trailing {n} {n === 1 ? "Month" : "Months"}
           {" – "}
-          Total {name} earnings{" "}
-          <span className="mono">{formatUsd(earnings)}</span>
+          Total {name} retained revenue{" "}
+          <span className="mono">{formatUsd(retained)}</span>
         </h2>
         {paging && (
           <span className="msc-cycle-paging" role="group" aria-label="Cycles shown">

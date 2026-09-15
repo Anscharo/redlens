@@ -279,8 +279,17 @@ export function activeDemandSeries(reports: readonly SettlementReport[]) {
   );
 }
 
-/** Supply-side kept + demand-side, summed over the given months. */
-export function agentEarningsTotal(reports: readonly SettlementReport[]): number {
+/** Retained revenue: supply-side kept + demand-side, summed over the given
+ *  months — everything a Prime keeps from the cycle, the remainder of its
+ *  revenue after what goes to Sky.
+ *
+ *  Not "earnings": these workbooks carry none of the Prime's own operating
+ *  costs, so this is revenue retained, never profit. NOTE it is also not an
+ *  Atlas-defined term — the Atlas's nearest calculated figures are Instance
+ *  Revenue and Total Allocation System Revenue (A.2.4.1.2.2.1.1.2.1.1 /
+ *  A.2.4.1.2.2.1.1.2.1), which are gross and scoped to one Primitive. Like
+ *  cost of funds, this is Soter Labs' OEA vocabulary, not the Atlas's. */
+export function retainedRevenueTotal(reports: readonly SettlementReport[]): number {
   return reports.reduce((sum, r) => sum + supplyKept(r) + demandSideRevenue(r.headline), 0);
 }
 
