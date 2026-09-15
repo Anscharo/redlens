@@ -107,6 +107,7 @@ Gaps found in review (all closed in the implementation):
 | `PreviewMeta.private`, `PreviewMeta.prBase`, `PreviewBases`/`BaseKey`/`BaseCandidateMeta`/`BaseDrift` | `src/server/preview/cache.ts` |
 | `previews.private`; exclude private from `/list`; `ON CONFLICT` | `src/server/preview/db.ts` |
 | `previews.pr_base_repo` / `pr_base_ref` persistence | `src/server/migrations/028_preview_pr_base.sql`, `src/server/preview/db.ts` |
+| `previews.default_branch` persistence (fork branch `repo` candidate across sha rebuilds) | `src/server/migrations/029_preview_default_branch.sql`, `src/server/preview/db.ts` |
 | Diff-base candidate resolution (`sky` / `repo` merge bases, `pickAuto`) | `src/server/preview/pr-diff.ts` (now the candidate resolver), `src/server/preview/pr-diff-auto.ts` |
 | Fork-point walk for repos with no true GitHub fork relationship (private repos; also the public sky-compare fallback) | `src/server/preview/fork-point.ts` |
 | Base-drift banner metrics (commits ahead/behind sky main, docs differ) | `src/server/preview/base-drift.ts` |
