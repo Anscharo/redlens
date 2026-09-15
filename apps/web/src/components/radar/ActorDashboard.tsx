@@ -148,7 +148,8 @@ export function ActorDashboard({ profile }: Props) {
 
         <div className="min-w-0">
           {/* Related parties sit in this column so History starts across from
-              Executor Agent, not below the chain. Contact + shared Omni follow. */}
+              Executor Agent. Contact, Omni, and Responsibilities fill the rest
+              of the column so it is not empty beside History. */}
           <ActorChain chain={chain} currentSlug={entity.slug} />
           <ActorContact contact={profile.contact} />
           <ActorOmni omni={profile.omni} />
@@ -180,6 +181,12 @@ export function ActorDashboard({ profile }: Props) {
               )}
             </Section>
           )}
+
+          {adRows.length > 0 && (
+            <Section title="Responsibilities">
+              <ActorResponsibilities rows={adRows} />
+            </Section>
+          )}
         </div>
 
         <aside className="min-w-0">
@@ -200,13 +207,6 @@ export function ActorDashboard({ profile }: Props) {
           </div>
         )}
 
-        {adRows.length > 0 && (
-          <div className="lg:col-span-2 min-w-0">
-            <Section title="Responsibilities">
-              <ActorResponsibilities rows={adRows} />
-            </Section>
-          </div>
-        )}
         {relations.length > 0 && (
           <div className="lg:col-span-2 min-w-0">
             <Section title="Relationships">

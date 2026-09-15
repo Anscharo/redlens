@@ -209,15 +209,20 @@ describe("ActorDashboard sections", () => {
     expect(history.compareDocumentPosition(instances) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("places instance docs before responsibilities so they sit under history", () => {
+  it("places responsibilities in the left column next to history", () => {
     render(
       <ActorDashboard
         profile={profile({ adRows: [{} as never], primitives: [{} as never] })}
       />,
     );
-    const instances = screen.getByTestId("instances");
+    const contact = screen.getByTestId("contact");
     const resp = screen.getByTestId("resp");
-    expect(instances.compareDocumentPosition(resp) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const history = screen.getByTestId("history");
+    const instances = screen.getByTestId("instances");
+    const left = contact.parentElement!;
+    expect(left.contains(resp)).toBe(true);
+    expect(left.contains(history)).toBe(false);
+    expect(history.compareDocumentPosition(instances) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("renders the rewards section when a rewards agent is present", () => {
