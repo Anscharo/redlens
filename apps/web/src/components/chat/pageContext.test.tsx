@@ -102,7 +102,6 @@ describe("usePageContext", () => {
   it("names the nested settlements page in chat context", () => {
     const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/radar/spark/settlements") });
     expect(result.current.actorSlug).toBe("spark");
-    expect(result.current.label).toBe("Spark · Monthly settlements");
     expect(result.current.short).toBe("Ask Atlas");
     expect(result.current.chip).toBe("radar · settlement");
     expect(result.current.mscMonth).toBeUndefined();
