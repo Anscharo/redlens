@@ -11,16 +11,24 @@ export const REQUIRED_OMNI_TITLES = {
   agentEmergency: "Agent-Specific Emergency Response",
 } as const;
 
+const CHANNEL_TITLES = new Set(["Sky Forum", "Discord"]);
+const PLACEHOLDER_RE = /will be specified in a future iteration/i;
+const DIRECTORY_RE = /^(the documents herein|the provisions herein)\b/i;
+const ACCORD_RE = /has formally agreed to/i;
+
 export interface OmniDocRef {
   id: string;
   docNo: string;
   title: string;
+  content: string;
 }
 
 export interface ActorOmni {
   root: OmniDocRef | null;
   /** Direct children of the root Omni Document, in parse order. */
   sections: OmniDocRef[];
+  /** Governance-info children that aren't forum/discord or placeholder stubs. */
+  notes: OmniDocRef[];
   required: {
     root: OmniDocRef | null;
     govInfo: OmniDocRef | null;
@@ -32,11 +40,12 @@ export interface ActorOmni {
 export const EMPTY_OMNI: ActorOmni = {
   root: null,
   sections: [],
+  notes: [],
   required: { root: null, govInfo: null, ecosystemEmergency: null, agentEmergency: null },
 };
 
 function ref(d: AtlasNode): OmniDocRef {
-  return { id: d.id, docNo: d.doc_no, title: d.title };
+  return { id: d.id, docNo: d.doc_no, title: d.title, content: d.content ?? "" };
 }
 
 function numberedChildren(parent: AtlasNode, docs: Record<string, AtlasNode>): AtlasNode[] {
@@ -57,6 +66,23 @@ function byTitle(nodes: AtlasNode[], title: string): AtlasNode | undefined {
   return nodes.find((n) => n.title === title);
 }
 
+export function isOmniPlaceholder(content: string): boolean {
+  return PLACEHOLDER_RE.test(content);
+}
+
+/** One-line glance copy, or null when the doc is a stub / directory intro. */
+export function omniExcerpt(content: string): string | null {
+  const t = content.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/\s+/g, " ").trim();
+  if (!t || isOmniPlaceholder(t) || DIRECTORY_RE.test(t) || ACCORD_RE.test(t)) return null;
+  return t.length > 220 ? `${t.slice(0, 217)}…` : t;
+}
+
+export function omniNoteLabel(title: string): string {
+  if (title === REQUIRED_OMNI_TITLES.ecosystemEmergency) return "Ecosystem emergency";
+  if (title === REQUIRED_OMNI_TITLES.agentEmergency) return "Agent emergency";
+  return title;
+}
+
 /** Per-agent Omni Document catalog. Empty when the defining doc has no
  *  "Omni Documents" child — executors/facilitators, or a truncated artifact. */
 export function collectActorOmni(
@@ -72,10 +98,14 @@ export function collectActorOmni(
   const govKids = govInfo ? numberedChildren(govInfo, docs) : [];
   const ecosystemEmergency = byTitle(govKids, REQUIRED_OMNI_TITLES.ecosystemEmergency);
   const agentEmergency = byTitle(govKids, REQUIRED_OMNI_TITLES.agentEmergency);
+  const notes = govKids
+    .filter((k) => !CHANNEL_TITLES.has(k.title) && !isOmniPlaceholder(k.content ?? ""))
+    .map(ref);
 
   return {
     root: ref(root),
     sections: sections.map(ref),
+    notes,
     required: {
       root: ref(root),
       govInfo: govInfo ? ref(govInfo) : null,
@@ -89,4 +119,9 @@ export function collectActorOmni(
 export function extraOmniSections(omni: ActorOmni): OmniDocRef[] {
   const govId = omni.required.govInfo?.id;
   return govId ? omni.sections.filter((s) => s.id !== govId) : omni.sections;
+}
+
+/** Unique topics + specified gov notes. Required template docs stay out. */
+export function omniGlance(omni: ActorOmni): OmniDocRef[] {
+  return [...omni.notes, ...extraOmniSections(omni)];
 }

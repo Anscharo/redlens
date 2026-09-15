@@ -46,23 +46,29 @@ describe("ActorContact", () => {
     expect(screen.getByRole("link", { name: "Discord" })).toBeInTheDocument();
   });
 
-  it("shows 'Not yet specified' for a placeholder emergency status", () => {
-    const contact: ActorContactData = {
-      channels: [],
-      emergency: [{ scope: "ecosystem", status: "placeholder", docId: "doc-4" }],
-    };
-    render(<ActorContact contact={contact} />);
-    expect(screen.getByText("Not yet specified")).toBeInTheDocument();
-    expect(screen.getByText(/Emergency . Ecosystem/)).toBeInTheDocument();
+  it("hides placeholder emergencies — those belong on Omni only when specified", () => {
+    const { container } = render(
+      <ActorContact
+        contact={{
+          channels: [],
+          emergency: [{ scope: "ecosystem", status: "placeholder", docId: "doc-4" }],
+        }}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows 'Response protocol' for a non-placeholder emergency status", () => {
-    const contact: ActorContactData = {
-      channels: [],
-      emergency: [{ scope: "agent_specific", status: "active", docId: "doc-5" }],
-    };
-    render(<ActorContact contact={contact} />);
-    expect(screen.getByText("Response protocol")).toBeInTheDocument();
-    expect(screen.getByText(/Emergency . Agent/)).toBeInTheDocument();
+  it("does not list a specified emergency under Contact", () => {
+    render(
+      <ActorContact
+        contact={{
+          channels: [{ platform: "forum", category: "Spark Prime", docId: "doc-1" }],
+          emergency: [{ scope: "agent_specific", status: "specified", docId: "doc-5" }],
+        }}
+      />,
+    );
+    expect(screen.queryByText("Response protocol")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Emergency/)).not.toBeInTheDocument();
+    expect(screen.getByText("Sky Forum")).toBeInTheDocument();
   });
 });

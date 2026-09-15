@@ -34,7 +34,7 @@
 -->
 ## 2026-09-15
 - Radar actor pages now show the latest 12 history entries, with a full history page for the rest
-- Prime Agent pages now list each agent's Omni Documents
+- Prime Agent pages now show each agent's unique Omni topics, hiding empty template docs
 - Instance cards on Radar actor pages now tile across the page
 
 ## 2026-09-14

@@ -3,6 +3,8 @@ import type { AtlasNode } from "@/types";
 import {
   collectActorOmni,
   extraOmniSections,
+  omniExcerpt,
+  omniGlance,
   EMPTY_OMNI,
   REQUIRED_OMNI_TITLES,
 } from "./omniDocs";
@@ -46,10 +48,12 @@ describe("collectActorOmni", () => {
     const eco = doc({
       id: "eco", doc_no: "A.6.1.1.1.3.1.2", title: REQUIRED_OMNI_TITLES.ecosystemEmergency,
       parentId: gov.id, order: 1,
+      content: "This protocol will be specified in a future iteration of the Spark Artifact.",
     });
     const agentEm = doc({
       id: "agent-em", doc_no: "A.6.1.1.1.3.1.3", title: REQUIRED_OMNI_TITLES.agentEmergency,
       parentId: gov.id, order: 2,
+      content: "This protocol will be specified in a future iteration of the Spark Artifact.",
     });
     const accords = doc({
       id: "accords", doc_no: "A.6.1.1.1.3.2", title: "Ecosystem Accords",
@@ -61,15 +65,15 @@ describe("collectActorOmni", () => {
     };
 
     const omni = collectActorOmni(agent, docs);
-    expect(omni.root).toEqual({ id: "omni", docNo: "A.6.1.1.1.3", title: "Omni Documents" });
-    expect(omni.sections.map((s) => s.id)).toEqual(["gov", "accords"]);
-    expect(omni.required).toEqual({
-      root: omni.root,
-      govInfo: { id: "gov", docNo: "A.6.1.1.1.3.1", title: REQUIRED_OMNI_TITLES.govInfo },
-      ecosystemEmergency: { id: "eco", docNo: "A.6.1.1.1.3.1.2", title: REQUIRED_OMNI_TITLES.ecosystemEmergency },
-      agentEmergency: { id: "agent-em", docNo: "A.6.1.1.1.3.1.3", title: REQUIRED_OMNI_TITLES.agentEmergency },
+    expect(omni.root).toEqual({
+      id: "omni", docNo: "A.6.1.1.1.3", title: "Omni Documents", content: "",
     });
+    expect(omni.sections.map((s) => s.id)).toEqual(["gov", "accords"]);
+    expect(omni.notes).toEqual([]);
+    expect(omni.required.ecosystemEmergency?.id).toBe("eco");
+    expect(omni.required.agentEmergency?.id).toBe("agent-em");
     expect(extraOmniSections(omni).map((s) => s.title)).toEqual(["Ecosystem Accords"]);
+    expect(omniGlance(omni).map((s) => s.title)).toEqual(["Ecosystem Accords"]);
   });
 
   it("still finds emergencies when parentId is flattened at the depth-6 cap", () => {
@@ -109,5 +113,54 @@ describe("collectActorOmni", () => {
     expect(omni.required.govInfo?.id).toBe("gov");
     expect(omni.required.ecosystemEmergency).toBeNull();
     expect(omni.required.agentEmergency).toBeNull();
+  });
+
+  it("puts a specified emergency and a delegation doc in notes, skipping forum and stubs", () => {
+    const agent = doc({ id: "agent", doc_no: "A.6.1.1.1", title: "Spark" });
+    const root = doc({
+      id: "omni", doc_no: "A.6.1.1.1.3", title: REQUIRED_OMNI_TITLES.root, parentId: agent.id,
+    });
+    const gov = doc({
+      id: "gov", doc_no: "A.6.1.1.1.3.1", title: REQUIRED_OMNI_TITLES.govInfo, parentId: root.id,
+    });
+    const forum = doc({
+      id: "forum", doc_no: "A.6.1.1.1.3.1.1", title: "Sky Forum", parentId: gov.id, order: 0,
+    });
+    const eco = doc({
+      id: "eco", doc_no: "A.6.1.1.1.3.1.2", title: REQUIRED_OMNI_TITLES.ecosystemEmergency,
+      parentId: gov.id, order: 1,
+      content: "This protocol will be specified in a future iteration of the Spark Artifact.",
+    });
+    const specified = doc({
+      id: "agent-em", doc_no: "A.6.1.1.1.3.1.3", title: REQUIRED_OMNI_TITLES.agentEmergency,
+      parentId: gov.id, order: 2,
+      content: "The Core Facilitator convenes an emergency call within 24 hours.",
+    });
+    const delegates = doc({
+      id: "del", doc_no: "A.6.1.1.1.3.1.4", title: "Delegation Framework",
+      parentId: gov.id, order: 3,
+      content: "The documents herein specify Spark’s governance delegation system.",
+    });
+    const omni = collectActorOmni(agent, {
+      [agent.id]: agent, [root.id]: root, [gov.id]: gov,
+      [forum.id]: forum, [eco.id]: eco, [specified.id]: specified, [delegates.id]: delegates,
+    });
+    expect(omni.notes.map((n) => n.title)).toEqual([
+      REQUIRED_OMNI_TITLES.agentEmergency,
+      "Delegation Framework",
+    ]);
+  });
+});
+
+describe("omniExcerpt", () => {
+  it("returns null for placeholders, directory intros, and accord signings", () => {
+    expect(omniExcerpt("This protocol will be specified in a future iteration.")).toBeNull();
+    expect(omniExcerpt("The documents herein specify Spark's strategy.")).toBeNull();
+    expect(omniExcerpt("Spark has formally agreed to the Ecosystem Accords herein.")).toBeNull();
+  });
+
+  it("keeps operational prose", () => {
+    const text = "Keel may invest idle funds in low-risk decentralized finance opportunities.";
+    expect(omniExcerpt(text)).toBe(text);
   });
 });

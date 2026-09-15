@@ -152,7 +152,7 @@ export function ActorDashboard({ profile }: Props) {
         </div>
 
         <div className="min-w-0">
-          {/* Contact — governance channels + emergency response (Prime Agents) */}
+          {/* Contact — forum / discord. Omni — unique topics, specified protocols. */}
           <ActorContact contact={profile.contact} />
           <ActorOmni omni={profile.omni} />
 

@@ -8,8 +8,12 @@ import { EMPTY_OMNI, type ActorOmni as ActorOmniData, type OmniDocRef } from "..
 
 afterEach(cleanup);
 
-function ref(id: string, title: string, docNo = "A.1"): OmniDocRef {
-  return { id, docNo, title };
+function ref(id: string, title: string, docNo = "A.1", content = ""): OmniDocRef {
+  return { id, docNo, title, content };
+}
+
+function omni(over: Partial<ActorOmniData>): ActorOmniData {
+  return { ...EMPTY_OMNI, ...over };
 }
 
 describe("ActorOmni", () => {
@@ -18,29 +22,67 @@ describe("ActorOmni", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("lists the required omni docs and extra sections", () => {
+  it("renders nothing when the required docs are only empty template stubs", () => {
+    const root = ref("omni", "Omni Documents");
+    const gov = ref("gov", "Governance Information Unrelated To Root Edit Primitive");
+    const { container } = render(
+      <ActorOmni
+        omni={omni({
+          root,
+          sections: [gov],
+          required: {
+            root,
+            govInfo: gov,
+            ecosystemEmergency: ref("eco", "Sky Ecosystem Emergency Response", "A.1", "will be specified in a future iteration"),
+            agentEmergency: ref("ag", "Agent-Specific Emergency Response", "A.1", "will be specified in a future iteration"),
+          },
+        })}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("chips extra sections and skips listing required template titles", () => {
     const root = ref("omni", "Omni Documents", "A.6.1.1.1.3");
     const gov = ref("gov", "Governance Information Unrelated To Root Edit Primitive");
-    const omni: ActorOmniData = {
-      root,
-      sections: [gov, ref("accords", "Ecosystem Accords", "A.6.1.1.1.3.2")],
-      required: {
-        root,
-        govInfo: gov,
-        ecosystemEmergency: ref("eco", "Sky Ecosystem Emergency Response"),
-        agentEmergency: null,
-      },
-    };
-    render(<ActorOmni omni={omni} />);
-    expect(screen.getByRole("heading", { name: "Omni Documents" })).toBeInTheDocument();
-    expect(screen.getByText("Root")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Omni Documents" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("omni"),
+    render(
+      <ActorOmni
+        omni={omni({
+          root,
+          sections: [gov, ref("accords", "Ecosystem Accords", "A.6.1.1.1.3.2")],
+          required: { root, govInfo: gov, ecosystemEmergency: null, agentEmergency: null },
+        })}
+      />,
     );
-    expect(screen.getByText("Governance information")).toBeInTheDocument();
-    expect(screen.getByText("missing")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ecosystem Accords" })).toBeInTheDocument();
-    expect(screen.getByText("A.6.1.1.1.3.2")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Omni" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ecosystem Accords" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("accords"),
+    );
+    expect(screen.queryByText("Root")).not.toBeInTheDocument();
+    expect(screen.queryByText("Governance information")).not.toBeInTheDocument();
+    expect(screen.queryByText("missing")).not.toBeInTheDocument();
+  });
+
+  it("shows a specified emergency protocol excerpt, not the placeholder", () => {
+    const root = ref("omni", "Omni Documents");
+    render(
+      <ActorOmni
+        omni={omni({
+          root,
+          notes: [
+            ref(
+              "eco",
+              "Sky Ecosystem Emergency Response",
+              "A.1",
+              "The Core Facilitator convenes an emergency call within 24 hours.",
+            ),
+          ],
+          required: { root, govInfo: null, ecosystemEmergency: null, agentEmergency: null },
+        })}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Ecosystem emergency" })).toBeInTheDocument();
+    expect(screen.getByText(/convenes an emergency call/)).toBeInTheDocument();
   });
 });

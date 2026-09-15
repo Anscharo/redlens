@@ -1,40 +1,38 @@
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
 import type { ActorOmni, OmniDocRef } from "../../lib/omniDocs";
-import { extraOmniSections } from "../../lib/omniDocs";
+import { omniExcerpt, omniGlance, omniNoteLabel } from "../../lib/omniDocs";
 
-const REQUIRED_ROWS: { key: keyof ActorOmni["required"]; label: string }[] = [
-  { key: "root", label: "Root" },
-  { key: "govInfo", label: "Governance information" },
-  { key: "ecosystemEmergency", label: "Ecosystem emergency" },
-  { key: "agentEmergency", label: "Agent emergency" },
-];
+const CHIP =
+  "text-xs px-2 py-0.5 rounded border border-[var(--border)] text-accent hover:border-[var(--accent)] transition-colors";
 
-function Row({ label, doc }: { label: string; doc: OmniDocRef | null }) {
+function Chip({ doc }: { doc: OmniDocRef }) {
   return (
-    <tr className="border-t border-[var(--border)]">
-      <td
-        className="py-1.5 pr-4 mono text-[10px] w-44 align-top pt-2"
-        style={{ color: "var(--tan-3)" }}
-      >
-        {label}
-      </td>
-      <td className="py-1.5">
-        {doc ? (
-          <AtlasLink to={atlasHref(doc.id)} className="text-sm text-accent hover:underline">
-            {doc.title}
-          </AtlasLink>
-        ) : (
-          <span className="text-sm" style={{ color: "var(--tan-3)" }}>missing</span>
-        )}
-      </td>
-    </tr>
+    <AtlasLink to={atlasHref(doc.id)} className={CHIP}>
+      {omniNoteLabel(doc.title)}
+    </AtlasLink>
+  );
+}
+
+function Excerpt({ doc }: { doc: OmniDocRef }) {
+  const excerpt = omniExcerpt(doc.content);
+  return (
+    <div className="w-full">
+      <AtlasLink to={atlasHref(doc.id)} className="text-sm text-accent hover:underline">
+        {omniNoteLabel(doc.title)}
+      </AtlasLink>
+      {excerpt && (
+        <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--tan-2)" }}>
+          {excerpt}
+        </p>
+      )}
+    </div>
   );
 }
 
 export function ActorOmni({ omni }: { omni: ActorOmni }) {
-  if (!omni.root) return null;
-  const extra = extraOmniSections(omni);
+  const glance = omniGlance(omni);
+  if (glance.length === 0) return null;
 
   return (
     <section className="mb-6">
@@ -42,18 +40,13 @@ export function ActorOmni({ omni }: { omni: ActorOmni }) {
         className="mono text-[10px] uppercase tracking-wider mb-3"
         style={{ color: "var(--tan-3)" }}
       >
-        Omni Documents
+        Omni
       </h2>
-      <table className="w-full text-sm border-collapse">
-        <tbody>
-          {REQUIRED_ROWS.map(({ key, label }) => (
-            <Row key={key} label={label} doc={omni.required[key]} />
-          ))}
-          {extra.map((s) => (
-            <Row key={s.id} label={s.docNo} doc={s} />
-          ))}
-        </tbody>
-      </table>
+      <div className="flex flex-wrap gap-2 items-start">
+        {glance.map((doc) =>
+          omniExcerpt(doc.content) ? <Excerpt key={doc.id} doc={doc} /> : <Chip key={doc.id} doc={doc} />,
+        )}
+      </div>
     </section>
   );
 }
