@@ -183,25 +183,6 @@ export function ActorDashboard({ profile }: Props) {
               )}
             </Section>
           )}
-          {adRows.length > 0 && (
-            <Section title="Responsibilities">
-              <ActorResponsibilities rows={adRows} />
-            </Section>
-          )}
-          {relations.length > 0 && (
-            <Section title="Relationships">
-              {relations.map((r, i) => (
-                <RelationRow key={i} r={r} />
-              ))}
-            </Section>
-          )}
-          {recommendations.length > 0 && (
-            <Section title="Notable">
-              {recommendations.map((rec, i) => (
-                <RecRow key={i} rec={rec} />
-              ))}
-            </Section>
-          )}
         </div>
 
         <aside className="min-w-0">
@@ -218,6 +199,32 @@ export function ActorDashboard({ profile }: Props) {
           <div className="lg:col-span-2 min-w-0">
             <Section title="Primitives">
               <ActorInstances primitives={primitives} />
+            </Section>
+          </div>
+        )}
+
+        {adRows.length > 0 && (
+          <div className="lg:col-span-2 min-w-0">
+            <Section title="Responsibilities">
+              <ActorResponsibilities rows={adRows} />
+            </Section>
+          </div>
+        )}
+        {relations.length > 0 && (
+          <div className="lg:col-span-2 min-w-0">
+            <Section title="Relationships">
+              {relations.map((r, i) => (
+                <RelationRow key={i} r={r} />
+              ))}
+            </Section>
+          </div>
+        )}
+        {recommendations.length > 0 && (
+          <div className="lg:col-span-2 min-w-0">
+            <Section title="Notable">
+              {recommendations.map((rec, i) => (
+                <RecRow key={i} rec={rec} />
+              ))}
             </Section>
           </div>
         )}

@@ -199,6 +199,17 @@ describe("ActorDashboard sections", () => {
     expect(history.compareDocumentPosition(instances) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it("places instance docs before responsibilities so they sit under history", () => {
+    render(
+      <ActorDashboard
+        profile={profile({ adRows: [{} as never], primitives: [{} as never] })}
+      />,
+    );
+    const instances = screen.getByTestId("instances");
+    const resp = screen.getByTestId("resp");
+    expect(instances.compareDocumentPosition(resp) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("renders the rewards section when a rewards agent is present", () => {
     render(<ActorDashboard profile={profile({ rewardsAgent: { name: "Spark" } as never })} />);
     expect(screen.getByText("Rewards")).toBeInTheDocument();
