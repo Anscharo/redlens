@@ -103,7 +103,7 @@ describe("MscFlow", () => {
     expect(screen.getByText("CoF · earned toward cost of funds")).toBeInTheDocument();
     expect(screen.getByText("supply-side kept")).toBeInTheDocument();
     // The Prime links to its page with the same accessible name as the orbit.
-    expect(screen.getByRole("link", { name: /Spark, Jul 2026: \$10.00M to Sky \(74% of its gross revenue\)/ })).toHaveAttribute("href", "/radar/spark-party/settlements");
+    expect(screen.getByRole("link", { name: /^Spark, Jul 2026: owed Sky \$10.00M/ })).toHaveAttribute("href", "/radar/spark-party/settlements");
     // Generated hover rules: focus on a Prime fades the rest.
     const style = container.querySelector("style")!.textContent!;
     expect(style).toContain('.msc-ring-mark[data-mark="spark::share"]:hover');

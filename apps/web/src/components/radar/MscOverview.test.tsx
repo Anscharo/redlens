@@ -198,7 +198,7 @@ describe("MscOverview", () => {
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
     // The key's loss row and reading guide describe the chart on screen.
     expect(screen.getByText(/supply-side loss \(the hole\)/)).toBeInTheDocument();
-    expect(document.querySelector(".msc-key-note")).toHaveTextContent("Pie area = gross revenue*");
+    expect(document.querySelector(".msc-key-note")).toHaveTextContent("Every pie is what that party RECEIVED");
     expect(track).toHaveBeenCalledWith("msc_overview_style", { view: "orbit" });
     fireEvent.click(flowBtn);
     expect(window.location.search).toBe("");

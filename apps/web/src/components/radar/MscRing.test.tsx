@@ -76,12 +76,12 @@ describe("MscRing", () => {
     expect(container.querySelector('[data-prime="obex"]')).toBeInTheDocument();
   });
 
-  it("puts the three figures in the aria-label", () => {
+  it("names both directions in the aria-label: what it owed Sky, and what it received", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
     expect(
       screen.getByRole("link", {
-        name: "Spark, Jul 2026: $10.00M to Sky (74% of its gross revenue) — $9.90M cost of funds, $100k Sky Direct Exposure; $2.00M supply-side kept, $1.50M demand-side. Open settlement page.",
+        name: "Spark, Jul 2026: owed Sky $10.00M — $9.90M cost of funds, $100k Sky Direct Exposure; received $3.50M — $2.00M supply-side kept, $1.50M demand-side from Sky. Open settlement page.",
       }),
     ).toBeInTheDocument();
   });
@@ -89,15 +89,17 @@ describe("MscRing", () => {
   it("names what each hover pill is, not just its number — the arrow is the only mark for To Sky (it's a pass-through, not revenue)", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
     render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
-    // 10M ÷ (10M + 2M + 1.5M) = 74%
-    // One arrow pill: both components, then the total with its share.
+    // One arrow pill per lane: the To-Sky total with its two components,
+    // and the demand-side total Sky owes back.
     expect(screen.getByText("$9.90M cost of funds")).toBeInTheDocument();
     expect(screen.getByText("$100k Sky Direct Exposure")).toBeInTheDocument();
-    expect(screen.getByText("$10.00M to Sky — 74% of Spark's gross revenue*")).toBeInTheDocument();
-    expect(screen.getByText("$13.50M gross revenue* of Spark")).toBeInTheDocument();
-    // One pill per slice, named by the workbook's line item.
-    expect(screen.getByText("$9.90M cost of funds → Sky")).toBeInTheDocument();
-    expect(screen.getByText("$100k Sky Direct Exposure → Sky")).toBeInTheDocument();
+    expect(screen.getByText("$10.00M to Sky")).toBeInTheDocument();
+    expect(screen.getByText("$1.50M demand-side, from Sky to Spark")).toBeInTheDocument();
+    // The pie's total is what it RECEIVED — no gross-revenue figure anywhere.
+    expect(screen.getByText("$3.50M received by Spark — supply-side kept + demand-side")).toBeInTheDocument();
+    expect(screen.queryByText(/gross revenue/)).not.toBeInTheDocument();
+    // Cost of funds and SDE are Sky's receipts, so they are not slices here.
+    expect(screen.queryByText("$9.90M cost of funds → Sky")).not.toBeInTheDocument();
     expect(screen.getByText("$2.00M supply-side kept")).toBeInTheDocument();
     expect(screen.getByText("$1.40M agent rate (demand-side)")).toBeInTheDocument();
     expect(screen.getByText("$100k distribution rewards (demand-side)")).toBeInTheDocument();
@@ -127,16 +129,23 @@ describe("MscRing", () => {
     expect(container.querySelector('.msc-ring-mark[data-mark="spark::kept"] path.msc-ring-kept')).toBeInTheDocument();
     expect(container.querySelector('.msc-ring-pill[data-mark="spark::kept"]')).toBeInTheDocument();
     expect(container.querySelector('.msc-ring-mark[data-mark="spark::agentRate"] path.msc-ring-agentRate')).toBeInTheDocument();
-    expect(container.querySelector('.msc-ring-mark[data-mark="spark::gross"] text.msc-ring-label')).toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-mark[data-mark="spark::received"] text.msc-ring-label')).toBeInTheDocument();
   });
 
-  it("gives Sky one wedge per contributing prime, in that prime's own color", () => {
+  it("gives Sky one wedge per contributing prime, split by cost of funds and SDE", () => {
     const { layout, primes } = ringPrimes([flow(), flow({ prime: "grove", sky: 9_000_000 })], "2026-07");
     const { container } = render(
       <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$19.00M" />,
     );
-    expect(container.querySelectorAll(".msc-ring-sky-wedge")).toHaveLength(2);
+    // One group per contributing Prime…
+    expect(container.querySelectorAll('.msc-ring-mark[data-mark$="::share"]')).toHaveLength(2);
     expect(container.querySelector('.msc-ring-sky-wedge[data-prime="spark"]')).toBeInTheDocument();
+    // …each split into the cost of funds and SDE it is made of.
+    const spark = container.querySelector('.msc-ring-mark[data-mark="spark::share"]')!;
+    expect([...spark.querySelectorAll(".msc-ring-sky-wedge")].map((w) => w.getAttribute("data-kind"))).toEqual([
+      "cof",
+      "sde",
+    ]);
   });
 
   it("draws a supply loss as a striped hole in the pie's middle", () => {
@@ -175,7 +184,7 @@ describe("MscRing", () => {
     const style = container.querySelector("style")!.textContent!;
     expect(style).toContain('.msc-ring-prime[data-prime="spark"]:hover, a:focus-visible > .msc-ring-prime[data-prime="spark"], .msc-ring-mark[data-mark="spark::share"]:hover');
     expect(style).toContain('.msc-ring-prime:not([data-prime="spark"]), .msc-ring-sky-disc, .msc-ring-sky-wedge:not([data-prime="spark"])');
-    expect(style).toContain('.msc-ring-pill[data-mark="grove::cof"] { opacity: 1; }');
+    expect(style).toContain('.msc-ring-pill[data-mark="grove::kept"] { opacity: 1; }');
   });
 
   it("labels the Sky pie 'To Sky', never 'Sky' alone", () => {
@@ -184,10 +193,15 @@ describe("MscRing", () => {
     expect(screen.getByText("To Sky")).toBeInTheDocument();
   });
 
-  it("puts the share in the link's accessible name", () => {
+  it("draws a second arrow from Sky to the Prime for the demand side", () => {
     const { layout, primes } = ringPrimes([flow()], "2026-07");
-    render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
-    expect(screen.getByRole("link", { name: /74% of its gross revenue/ })).toBeInTheDocument();
+    const { container } = render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
+    const inbound = container.querySelector('.msc-ring-mark[data-mark="spark::demand"] path.msc-ring-demand-arrow');
+    expect(inbound).toBeInTheDocument();
+    // Its own lane, distinct from the To-Sky arrow's path.
+    const outbound = container.querySelector('.msc-ring-mark[data-mark="spark::sky"] path.msc-ring-arrow')!;
+    expect(inbound!.getAttribute("d")).not.toBe(outbound.getAttribute("d"));
+    expect(container.querySelector('.msc-ring-pill[data-mark="spark::demand"]')).toBeInTheDocument();
   });
 
   it("draws the prime's identity as its rim only and tags each figure with its slice kind", () => {
@@ -203,8 +217,10 @@ describe("MscRing", () => {
     const figures = container.querySelectorAll(".msc-ring-figure");
     expect(figures.length).toBeGreaterThan(0);
     for (const f of figures) expect(f.getAttribute("data-kind")).toBeTruthy();
-    // Sky's wedges: the biggest contributor in Sky's blue, the rest in the shade tokens.
-    const wedge = container.querySelector(".msc-ring-sky-wedge") as SVGElement;
-    expect(wedge.style.fill).toBe("var(--msc-sky)");
+    // Sky's wedge is split by what it is made of, each part in its own class.
+    const parts = [...container.querySelectorAll(".msc-ring-sky-wedge")];
+    expect(parts.map((w) => w.getAttribute("data-kind"))).toEqual(["cof", "sde"]);
+    expect(parts[0]).toHaveClass("msc-ring-cof");
+    expect(parts[1]).toHaveClass("msc-ring-sde");
   });
 });

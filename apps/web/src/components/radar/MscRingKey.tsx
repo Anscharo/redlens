@@ -31,7 +31,7 @@ function KeyGroup({ title, children }: { title: string; children: React.ReactNod
 }
 
 /** The chart's key, grouped by where the money goes — the three groups are
- *  the three parts of gross revenue, in the pie's clockwise order — with the
+ *  the three destinations a cycle's money has, in the pie's clockwise order — with the
  *  reading guide under a rule. Hovering an item lights every slice it
  *  describes (index.css, keyed on data-key). A row carries a code only when
  *  the code is not the label again ("CoF · cost of funds", never
@@ -59,10 +59,17 @@ export function RingKey({ view = "orbit" }: { view?: "orbit" | "flow" }) {
       <div className="msc-key-note text-center">
         <p>
           {orbit
-            ? "Pie area = gross revenue*. "
+            ? "Every pie is what that party RECEIVED: a Prime's is supply-side kept + demand-side, Sky's is cost of funds + Sky Direct Exposure. Two arrows run between them, one each way. "
             : "A Prime's bar = gross revenue*; ribbons are the money in and out. "}
           Hover for figures; click a Prime for its page.
         </p>
+        {orbit && (
+          <p className="mt-1">
+            The two never merge into one pie: what a Prime owes Sky and what Sky
+            owes the Prime are separate settlement amounts running in opposite
+            directions (A.2.4.1.2.2.1.1.2 and A.2.4.1.2.2.1.1.1).
+          </p>
+        )}
         {!orbit && (
           <p className="mt-1">
             Sky is at both ends: the demand-side series are owed BY Sky
@@ -73,7 +80,9 @@ export function RingKey({ view = "orbit" }: { view?: "orbit" | "flow" }) {
             so none of its yield is the Prime's to keep (A.2.2.10.1.1.1.1.5).
           </p>
         )}
-        <p className="mt-1 italic">*Gross revenue = To Sky + supply-side kept + demand-side.</p>
+        {/* The footnote belongs to the flow chart's bar, the one mark that
+            still uses gross revenue; the orbit no longer sums the two sides. */}
+        {!orbit && <p className="mt-1 italic">*Gross revenue = To Sky + supply-side kept + demand-side.</p>}
       </div>
     </div>
   );

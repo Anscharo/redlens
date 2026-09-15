@@ -10,16 +10,23 @@
 // total, or a Prime's positive line items) renders at R_MAX, and every
 // other circle's area is proportional on the same scale.
 //
-// A PRIME'S PIE is the highest-fidelity split the workbook Summary gives:
-//   to Sky:      cost of funds, Sky Direct Exposure
-//   kept:        supply kept (prime agent revenue − cost of funds)
-//   demand-side: agent rate, distribution rewards, accessibility rewards,
-//                Chronicle points
+// EVERY PIE IS WHAT THAT PARTY RECEIVED, and nothing else — the one rule
+// that makes a pie's area mean something. Mixing what a Prime keeps with
+// what it owes Sky (the old "gross revenue" pie) summed money moving in
+// opposite directions, which the Monthly Settlement Cycle settles as two
+// separate amounts (A.2.4.1.2.2.1.1.1 and A.2.4.1.2.2.1.1.2). So:
+//
+//   A PRIME'S PIE  = supply kept (prime agent revenue − cost of funds)
+//                    + agent rate, distribution rewards, accessibility
+//                      rewards, Chronicle points
+//   SKY'S PIE      = cost of funds + Sky Direct Exposure, subdivided by
+//                    Prime so "these flows add up to Sky" stays visible
+//
 // Positive items are the slices; the pie's AREA is their sum. A negative
 // item (a supply LOSS — Grove in 3 of 7 months) is a HOLE in the middle
-// whose area is the loss, so the visible ring area is exactly gross
-// revenue (= To Sky + supply kept + demand-side). The To-Sky slices face
-// Sky and the arrow leaves from them.
+// whose area is the loss, so the visible ring area is exactly what the
+// party received. Two arrows run between each Prime and Sky, in opposite
+// lanes: what it owed Sky, and the demand-side Sky owed it.
 //
 // Placement: Primes go clockwise from 12 o'clock in the order given (the
 // caller passes PRIME_ORDER), each given an angular slot proportional to
@@ -69,7 +76,7 @@ const HOLE_RIM = 6;
 const CLEARANCE = 22;
 /** Minimum gap between a pie and the donut — room for the arrow. */
 const DONUT_GAP = 70;
-/** Room reserved outside a pie for its name and gross figure (two lines). */
+/** Room reserved outside a pie for its name and received figure (2 lines). */
 const LABEL_OUT = 50;
 /** Padding around the cropped viewBox. */
 const CROP_PAD = 24;
@@ -88,7 +95,7 @@ const DOCK_INSET = 0.15;
 /** Permanent figure labels: a slice or wedge shows its figure only when the
  *  measured text box fits INSIDE it — inside the pie's edge, clear of the
  *  hole, within the slice's angles — at one of a few radii along its
- *  mid-angle (see fitInSector). A pie's gross goes under the name always. */
+ *  mid-angle (see fitInSector). A pie's received total goes under the name. */
 const FIGURE_FONT = "15px 'Source Code Pro', 'Courier New', monospace";
 const FIGURE_CHAR_PX = 9.1;
 const NAME_FONT = "15px 'Inter', system-ui, sans-serif";
@@ -115,6 +122,8 @@ export const SLICE_CODE: Record<string, string> = {
 const MAX_LEAN = Math.PI / 3;
 /** Leader length from a mark to its hover pill. */
 const PILL_OFFSET = 40;
+/** Clearance between the two arrow lanes of one Prime. */
+const LANE_GAP = 3;
 
 /** Working canvas height (see WIDTH). */
 export const HEIGHT = 2 * (R_MAX + DONUT_GAP + 2 * R_MAX + 2 * LABEL_OUT + 8);
@@ -154,16 +163,16 @@ export interface RingHole {
 }
 
 export interface RingArrow {
-  kind: "sky";
+  /** "sky" runs Prime → Sky (what it owed); "demand" runs Sky → Prime
+   *  (A.2.4.1.2.2.1.1.1). They travel in opposite lanes of the same
+   *  corridor, so the two-way traffic is visible. */
+  kind: "sky" | "demand";
   /** Magnitude of the whole arrow (cof + sde); sign in `signed`. */
   value: number;
   signed: number;
   /** Its two components (signed). */
   cof: number;
   sde: number;
-  /** To-Sky ÷ gross revenue (To-Sky + kept + demand). Null when the
-   *  denominator isn't positive. */
-  share: number | null;
   /** Angle (radians) where the tip meets the donut — inside its own wedge. */
   dock: number;
   path: string;
@@ -189,6 +198,10 @@ export interface RingSkyWedge {
   figureY: number | null;
   /** Mid-transition opacity of a Prime entering or leaving (else 1). */
   alpha: number;
+  /** Sky's pie is what SKY received, so a wedge splits into the two things
+   *  it is made of: cost of funds and Sky Direct Exposure. Only the
+   *  non-zero ones, cost of funds first. */
+  parts: { kind: "cof" | "sde"; value: number; path: string }[];
 }
 
 export interface RingPrime {
@@ -206,8 +219,11 @@ export interface RingPrime {
   hole: RingHole | null;
   /** The To-Sky arrow, or null for a prime that pays Sky nothing. */
   arrow: RingArrow | null;
-  /** Gross revenue: To-Sky + kept + demand (signed) — the ring's area. */
-  gross: number;
+  /** The demand-side arrow FROM Sky, or null when Sky owes it nothing. */
+  demandArrow: RingArrow | null;
+  /** What this Prime received: supply kept + demand-side (signed) — the
+   *  ring's area. Never its To-Sky money, which is Sky's receipt. */
+  received: number;
   /** Name, centered outside the pie on the side away from Sky. */
   labelX: number;
   labelY: number;
@@ -333,11 +349,12 @@ function orbit(t: number, cy: number): [number, number] {
   return [CX + ORBIT_RX * Math.cos(t), cy + ORBIT_RY * Math.sin(t)];
 }
 
-/** The prime's line items, signed, in slice order. */
-function lineItems(p: PrimeFlowTotals): Array<{ kind: SliceKind; signed: number }> {
+/** What the PRIME received, signed, in slice order: what it kept supply-side
+ *  and the demand-side series Sky owes it. Cost of funds and Sky Direct
+ *  Exposure are deliberately absent — those are Sky's receipts and belong to
+ *  Sky's pie, not to a pie of the Prime's. */
+function primeItems(p: PrimeFlowTotals): Array<{ kind: SliceKind; signed: number }> {
   const items: Array<{ kind: SliceKind; signed: number }> = [
-    { kind: "cof", signed: p.cof },
-    { kind: "sde", signed: p.sde },
     { kind: "kept", signed: p.kept },
     ...DEMAND_SERIES.map((s) => ({ kind: s.key, signed: p.demandParts[s.key] ?? 0 })),
   ];
@@ -351,12 +368,16 @@ export function layoutMscRing(
   const cy = HEIGHT / 2;
   const rows = primes
     .map((p) => {
-      const items = lineItems(p);
+      const items = primeItems(p);
       const sky = Math.abs(p.sky) >= SETTLEMENT_NEAR_ZERO ? p.sky : 0;
       const positives = items.filter((it) => it.signed > 0).reduce((n, it) => n + it.signed, 0);
       const loss = items.filter((it) => it.signed < 0).reduce((n, it) => n - it.signed, 0);
+      // The demand-side arrow's magnitude: what Sky owes this Prime.
+      const demand = items
+        .filter((it) => it.kind !== "kept" && it.signed > 0)
+        .reduce((n, it) => n + it.signed, 0);
       const alpha = Math.max(0, Math.min(1, p.alpha ?? 1));
-      return { p, items, sky, positives, loss, gross: positives - loss, alpha };
+      return { p, items, sky, positives, loss, demand, received: positives - loss, alpha };
     })
     .filter((r) => r.items.length > 0 || r.sky !== 0);
 
@@ -374,12 +395,14 @@ export function layoutMscRing(
   };
   if (rows.length === 0) return empty;
 
-  const maxSky = Math.max(1, ...rows.map((r) => Math.abs(r.sky)));
-  const widthOf = (v: number) => Math.max(W_MIN, (W_MAX * v) / maxSky);
+  // Both arrow lanes share one width scale, so a To-Sky arrow and a
+  // demand-side arrow of the same size look the same size.
+  const maxFlow = Math.max(1, ...rows.map((r) => Math.max(Math.abs(r.sky), r.demand)));
+  const widthOf = (v: number) => Math.max(W_MIN, (W_MAX * v) / maxFlow);
 
   // Area ∝ dollars on one scale shared by the donut and the pies, pinned so
   // the month's biggest amount is R_MAX. A pie's outer area is its positive
-  // items; its hole's area is its loss; the visible ring is gross revenue.
+  // items; its hole's area is its loss; the visible ring is what it received.
   const skyTotal = rows.reduce((n, r) => n + Math.abs(r.sky), 0);
   const ref = Math.max(1, skyTotal, ...rows.map((r) => r.positives));
   const radiusFor = (v: number) => R_MAX * Math.sqrt(Math.max(0, v) / ref);
@@ -416,6 +439,21 @@ export function layoutMscRing(
       textWidth(formatUsd(value, true), FIGURE_FONT, FIGURE_CHAR_PX),
     );
     const fit = fitInSector(CX, cy, skyR, skyInnerR, a0, a1, w, WEDGE_LABEL_H);
+    // Split the wedge by what it is made of. Only positive components get a
+    // sub-slice; a negative SDE (Spark, Jul 2026) leaves cost of funds as
+    // the whole wedge rather than drawing a backwards slice.
+    const comps = ([
+      { kind: "cof" as const, value: x.r.p.cof },
+      { kind: "sde" as const, value: x.r.p.sde },
+    ]).filter((c) => c.value >= SETTLEMENT_NEAR_ZERO);
+    const compSum = comps.reduce((n, c) => n + c.value, 0) || 1;
+    let pa = a0;
+    const parts = comps.map((c) => {
+      const p0 = pa;
+      const p1 = comps.length === 1 ? a1 : pa + ((a1 - a0) * c.value) / compSum;
+      pa = p1;
+      return { kind: c.kind, value: c.value, path: annulusPath(CX, cy, skyR, skyInnerR, p0, p1) };
+    });
     return {
       prime: x.r.p.prime,
       path: annulusPath(CX, cy, skyR, skyInnerR, a0, a1),
@@ -426,6 +464,7 @@ export function layoutMscRing(
       figureX: fit?.x ?? null,
       figureY: fit?.y ?? null,
       alpha: x.r.alpha,
+      parts,
     };
   });
 
@@ -507,15 +546,18 @@ export function layoutMscRing(
     const s = shape[i];
     const toward = Math.atan2(py - cy, px - CX);
 
-    // Slices: positive items clockwise, rotated so the To-Sky pair is
-    // centered on the direction to Sky (the arrow leaves from them).
+    // Slices: positive items clockwise, rotated so the DEMAND-side run is
+    // centered on the direction to Sky — that is the money the demand
+    // arrow brings in from there, so it lands where it belongs. (It used
+    // to be the To-Sky pair, which this pie no longer contains.)
     const positives = r.items.filter((it) => it.signed > 0);
     const total = r.positives || 1;
-    const toSkyShare = positives
-      .filter((it) => it.kind === "cof" || it.kind === "sde")
+    const demandShare = positives
+      .filter((it) => it.kind !== "kept")
       .reduce((n, it) => n + it.signed / total, 0);
-    // Direction to Sky = toward + π.
-    let a = toward + Math.PI - toSkyShare * Math.PI;
+    // Direction to Sky = toward + π. The demand run is the LAST stretch of
+    // the pie, so start it so that stretch's centre lands on that direction.
+    let a = toward + Math.PI + demandShare * Math.PI;
     const slices: RingSlice[] = positives.map((it) => {
       const span = (it.signed / total) * TWO_PI;
       const a0 = a;
@@ -556,40 +598,72 @@ export function layoutMscRing(
           }
         : null;
 
-    // The arrow leaves the pie's edge toward the nearest point of this
-    // prime's own wedge and ends on the donut's outer edge.
-    let arrow: RingArrow | null = null;
+    // Two lanes between this Prime and Sky. The To-Sky arrow leaves the
+    // pie's edge for the nearest point of the Prime's own wedge; the
+    // demand-side arrow comes back the other way. Each is pushed off the
+    // centre line by its own half-width so the pair reads as two lanes
+    // rather than one arrow drawn over another.
     const range = wedgeRange.get(r.p.prime);
-    if (r.sky !== 0 && range) {
+    const skyW = widthOf(Math.abs(r.sky));
+    const demandW = widthOf(r.demand);
+    const dockAngle = (() => {
+      if (!range) return toward;
       const [a0, a1] = range;
       const mid = (a0 + a1) / 2;
       const half = Math.max(0, ((a1 - a0) / 2) * (1 - 2 * DOCK_INSET));
-      const dock = mid + Math.max(-half, Math.min(half, angDiff(mid, toward)));
-      const x1 = CX + skyR * Math.cos(dock);
-      const y1 = cy + skyR * Math.sin(dock);
-      const dx = x1 - px;
-      const dy = y1 - py;
+      return mid + Math.max(-half, Math.min(half, angDiff(mid, toward)));
+    })();
+    /** One lane: `out` runs Prime → Sky, otherwise Sky → Prime. */
+    const lane = (out: boolean, w: number, offset: number) => {
+      const sx = CX + skyR * Math.cos(out ? dockAngle : toward);
+      const sy = cy + skyR * Math.sin(out ? dockAngle : toward);
+      const dx = sx - px;
+      const dy = sy - py;
       const len = Math.hypot(dx, dy) || 1;
       const ux = dx / len;
       const uy = dy / len;
-      const x0 = px + ux * (s.r + 2);
-      const y0 = py + uy * (s.r + 2);
+      // Perpendicular shift, opposite sides for the two lanes.
+      const nx = -uy * offset;
+      const ny = ux * offset;
+      const pieX = px + ux * (s.r + 2) + nx;
+      const pieY = py + uy * (s.r + 2) + ny;
+      const skyX = sx + nx;
+      const skyY = sy + ny;
+      const [x0, y0, x1, y1] = out ? [pieX, pieY, skyX, skyY] : [skyX, skyY, pieX, pieY];
       const amountX = (x0 + x1) / 2;
       const amountY = (y0 + y1) / 2;
+      return {
+        path: arrowPath(x0, y0, x1, y1, w),
+        amountX,
+        amountY,
+        pillX: amountX - uy * PILL_OFFSET,
+        pillY: amountY + ux * PILL_OFFSET,
+      };
+    };
+    let arrow: RingArrow | null = null;
+    if (r.sky !== 0 && range) {
+      const g = lane(true, skyW, skyW / 2 + LANE_GAP);
       arrow = {
         kind: "sky",
         value: Math.abs(r.sky),
         signed: r.sky,
         cof: r.p.cof,
         sde: r.p.sde,
-        share: r.gross >= SETTLEMENT_NEAR_ZERO ? r.sky / r.gross : null,
-        dock,
-        path: arrowPath(x0, y0, x1, y1, widthOf(Math.abs(r.sky))),
-        amountX,
-        amountY,
-        // Off to the side of the arrow (perpendicular), never on top of it.
-        pillX: amountX - uy * PILL_OFFSET,
-        pillY: amountY + ux * PILL_OFFSET,
+        dock: dockAngle,
+        ...g,
+      };
+    }
+    let demandArrow: RingArrow | null = null;
+    if (r.demand >= SETTLEMENT_NEAR_ZERO) {
+      const g = lane(false, demandW, -(demandW / 2 + LANE_GAP));
+      demandArrow = {
+        kind: "demand",
+        value: r.demand,
+        signed: r.demand,
+        cof: 0,
+        sde: 0,
+        dock: toward,
+        ...g,
       };
     }
 
@@ -609,7 +683,8 @@ export function layoutMscRing(
       slices,
       hole,
       arrow,
-      gross: r.gross,
+      demandArrow,
+      received: r.received,
       labelX: px,
       labelY,
       // Clear of the name + figure pair.

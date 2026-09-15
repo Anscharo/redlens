@@ -44,11 +44,14 @@ describe("layoutMscRing (orbital pies)", () => {
     expect(layoutMscRing([flow({ sky: 0, cof: 0, sde: 0, kept: 0, demand: 0, demandParts: {} })]).primes).toEqual([]);
   });
 
-  it("slices each pie by the workbook's line items, To-Sky pair first, demand-side series last", () => {
+  it("slices a Prime's pie by what it RECEIVED — supply kept, then the demand-side series", () => {
     const layout = layoutMscRing(APRIL);
     const grove = layout.primes.find((p) => p.prime === "grove")!;
-    expect(grove.slices.map((s) => s.kind)).toEqual(["cof", "sde", "kept", "agentRate", "distributionRewards", "chroniclePoints"]);
-    expect(grove.slices.map((s) => s.signed)).toEqual([2_950_000, 6_400_000, 3_590_000, 45_000, 125_000, 17_000]);
+    // Cost of funds and Sky Direct Exposure are Sky's receipts, so they are
+    // absent here: the pie is only what Grove got to keep.
+    expect(grove.slices.map((s) => s.kind)).toEqual(["kept", "agentRate", "distributionRewards", "chroniclePoints"]);
+    expect(grove.slices.map((s) => s.signed)).toEqual([3_590_000, 45_000, 125_000, 17_000]);
+    expect(grove.received).toBe(3_590_000 + 45_000 + 125_000 + 17_000);
     expect(grove.hole).toBeNull();
     // No wedge for a series the prime doesn't have (Grove has no GAR).
     expect(grove.slices.some((s) => s.kind === "gar")).toBe(false);
@@ -58,29 +61,33 @@ describe("layoutMscRing (orbital pies)", () => {
     }
   });
 
-  it("turns a loss into a hole whose area is the loss, so the ring's area is gross revenue", () => {
+  it("turns a loss into a hole, and clamps it when the Prime received less than nothing", () => {
     const layout = layoutMscRing([MARCH_GROVE, flow({ prime: "spark" })]);
     const grove = layout.primes.find((p) => p.prime === "grove")!;
     const spark = layout.primes.find((p) => p.prime === "spark")!;
     expect(grove.hole).not.toBeNull();
     expect(grove.hole!.signed).toBe(-2_070_000);
     expect(grove.hole!.kinds).toEqual(["kept"]);
-    // Slices exclude the loss.
-    expect(grove.slices.map((s) => s.kind)).toEqual(["cof", "sde", "agentRate", "distributionRewards"]);
-    // One area scale: ring area ∝ gross revenue on both pies.
-    expect(grove.gross).toBeCloseTo(6_370_000 - 2_070_000 + 198_000, 0);
-    expect(sliceArea(grove) / sliceArea(spark)).toBeCloseTo(grove.gross / spark.gross, 2);
-    // The hole never breaches the rim.
+    // Slices exclude the loss, and no longer carry Sky's cost of funds / SDE.
+    expect(grove.slices.map((s) => s.kind)).toEqual(["agentRate", "distributionRewards"]);
+    // Grove's loss outran everything it received that month, so `received`
+    // is negative and the hole is clamped to just inside the rim.
+    expect(grove.received).toBeCloseTo(198_000 - 2_070_000, 0);
     expect(grove.hole!.r).toBeLessThan(grove.r - 5);
+    expect(grove.hole!.r).toBeGreaterThan(grove.r - 7);
+    // A Prime with no loss has no hole and a positive area.
+    expect(spark.hole).toBeNull();
+    expect(spark.received).toBeGreaterThan(0);
+    expect(sliceArea(spark)).toBeGreaterThan(0);
   });
 
-  it("faces the To-Sky slices toward Sky so the arrow leaves from them", () => {
+  it("faces the demand-side slices toward Sky, where the demand arrow brings them in", () => {
     const layout = layoutMscRing(APRIL);
     for (const p of layout.primes) {
-      const toSky = p.slices.filter((s) => s.kind === "cof" || s.kind === "sde");
-      if (toSky.length === 0) continue;
-      // The To-Sky pair is one contiguous run whose angular center points at Sky.
-      const center = (toSky[0].a0 + toSky[toSky.length - 1].a1) / 2;
+      const demand = p.slices.filter((s) => s.kind !== "kept");
+      if (demand.length === 0) continue;
+      // The demand run is contiguous and its angular center points at Sky.
+      const center = (demand[0].a0 + demand[demand.length - 1].a1) / 2;
       const towardSky = Math.atan2(layout.cy - p.cy, layout.cx - p.cx);
       const diff = Math.abs(((center - towardSky + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
       expect(diff).toBeLessThan(1e-6);
@@ -89,12 +96,13 @@ describe("layoutMscRing (orbital pies)", () => {
 
   it("puts the donut and the pies on one area scale: $20.6M To Sky outranks a $13.1M Prime", () => {
     const layout = layoutMscRing(APRIL);
-    const grove = layout.primes.find((p) => p.prime === "grove")!; // positives 13.1M
-    const spark = layout.primes.find((p) => p.prime === "spark")!; // 12.19M
+    const grove = layout.primes.find((p) => p.prime === "grove")!; // received 3.777M
+    const spark = layout.primes.find((p) => p.prime === "spark")!; // received 2.885M
     const keel = layout.primes.find((p) => p.prime === "keel")!; // 55k → floor
     expect(layout.skyR).toBe(140);
-    expect(grove.r / layout.skyR).toBeCloseTo(Math.sqrt(13_127_000 / 20_610_000), 2);
-    expect(spark.r / layout.skyR).toBeCloseTo(Math.sqrt(12_218_000 / 20_610_000), 2);
+    // Sky's pie is the whole To-Sky total; a Prime's is only what it kept.
+    expect(grove.r / layout.skyR).toBeCloseTo(Math.sqrt(3_777_000 / 20_610_000), 2);
+    expect(spark.r / layout.skyR).toBeCloseTo(Math.sqrt(2_885_000 / 20_610_000), 2);
     // Sky is a full pie: on this chart a hole means a loss.
     expect(layout.skyInnerR).toBe(0);
     expect(keel.r).toBeGreaterThanOrEqual(22);
@@ -108,10 +116,10 @@ describe("layoutMscRing (orbital pies)", () => {
     expect(layout.skyR).toBeGreaterThanOrEqual(80);
   });
 
-  it("gives each arrow the share of the prime's gross revenue that went to Sky", () => {
+  it("carries the To-Sky arrow's two components, and no share of a total that no longer exists", () => {
     const layout = layoutMscRing(JULY);
     const grove = layout.primes.find((p) => p.prime === "grove")!;
-    expect(grove.arrow!.share).toBeCloseTo(8_003_550 / (8_003_550 + 1_563_759 + 114_024), 6);
+    expect("share" in grove.arrow!).toBe(false);
     expect(grove.arrow!.cof).toBe(3_300_000);
     expect(grove.arrow!.sde).toBe(4_703_550);
     const skybase = layout.primes.find((p) => p.prime === "skybase")!;
@@ -119,9 +127,39 @@ describe("layoutMscRing (orbital pies)", () => {
     expect(layout.skyWedges.map((w) => w.prime)).not.toContain("skybase");
   });
 
-  it("reports a share over 100% when a prime owed Sky more than it made (Grove, Mar 2026)", () => {
-    const layout = layoutMscRing([MARCH_GROVE]);
-    expect(layout.primes[0].arrow!.share).toBeGreaterThan(1);
+  it("runs a second arrow the other way, from Sky to the Prime, for the demand side", () => {
+    const layout = layoutMscRing(JULY);
+    const grove = layout.primes.find((p) => p.prime === "grove")!;
+    // 72k agent rate + 29k distribution rewards + 13,024 Chronicle points.
+    expect(grove.demandArrow!.value).toBeCloseTo(114_024);
+    expect(grove.demandArrow!.kind).toBe("demand");
+    expect(grove.demandArrow!.path).toMatch(/^M/);
+    // It points INTO the pie: its tip is nearer the Prime than its tail.
+    const tip = grove.demandArrow!.path.match(/L([\d.-]+),([\d.-]+) L/);
+    expect(tip).not.toBeNull();
+    // The two lanes are offset from each other rather than drawn on one line.
+    expect(
+      Math.hypot(grove.arrow!.amountX - grove.demandArrow!.amountX, grove.arrow!.amountY - grove.demandArrow!.amountY),
+    ).toBeGreaterThan(1);
+    // A Prime Sky owes nothing gets no second arrow.
+    const noDemand = layoutMscRing([flow({ demand: 0, demandParts: {} })]);
+    expect(noDemand.primes[0].demandArrow).toBeNull();
+    // A demand-only Prime has the inbound arrow and no outbound one.
+    const keel = layout.primes.find((p) => p.prime === "keel")!;
+    expect(keel.arrow).toBeNull();
+    expect(keel.demandArrow!.value).toBeGreaterThan(0);
+  });
+
+  it("splits each Sky wedge into the cost of funds and Sky Direct Exposure it is made of", () => {
+    const layout = layoutMscRing(JULY);
+    const grove = layout.skyWedges.find((w) => w.prime === "grove")!;
+    expect(grove.parts.map((p) => p.kind)).toEqual(["cof", "sde"]);
+    expect(grove.parts.map((p) => p.value)).toEqual([3_300_000, 4_703_550]);
+    for (const part of grove.parts) expect(part.path).toMatch(/^M/);
+    // Obex has no SDE, so cost of funds is its whole wedge.
+    const obex = layout.skyWedges.find((w) => w.prime === "obex")!;
+    expect(obex.parts.map((p) => p.kind)).toEqual(["cof"]);
+    expect(obex.parts[0].path).toBe(obex.path);
   });
 
   it("subdivides the Sky donut into one wedge per contributing prime, together making the whole ring", () => {
@@ -205,12 +243,11 @@ describe("layoutMscRing (orbital pies)", () => {
     expect(layoutMscRing(JULY).primes.every((p) => p.alpha === 1)).toBe(true);
   });
 
-  it("gives a slice or wedge a permanent figure only when it has room, and every pie its gross under the name", () => {
+  it("gives a slice or wedge a permanent figure only when it has room", () => {
     const layout = layoutMscRing(APRIL);
     const grove = layout.primes.find((p) => p.prime === "grove")!;
     const keel = layout.primes.find((p) => p.prime === "keel")!;
-    // Grove's big SDE slice carries a figure; its $17k Chronicle sliver doesn't.
-    expect(grove.slices.find((s) => s.kind === "sde")!.figureX).not.toBeNull();
+    // A $17k Chronicle sliver never has room for "CP $17k".
     expect(grove.slices.find((s) => s.kind === "chroniclePoints")!.figureX).toBeNull();
     // A 22px pie is too small for any in-slice figure.
     expect(keel.slices.every((s) => s.figureX === null)).toBe(true);
@@ -264,7 +301,7 @@ describe("layoutMscRing (orbital pies)", () => {
     }
   });
 
-  it("keeps a demand-only prime as a pie with no arrow (Keel/Skybase)", () => {
+  it("keeps a demand-only prime as a pie with no To-Sky arrow (Keel/Skybase)", () => {
     const layout = layoutMscRing([flow({ prime: "keel", sky: 0, cof: 0, sde: 0, kept: 0, demand: 280_000, demandParts: { agentRate: 250_000, distributionRewards: 30_000 } })]);
     expect(layout.primes).toHaveLength(1);
     expect(layout.primes[0].arrow).toBeNull();

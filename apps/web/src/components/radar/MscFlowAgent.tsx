@@ -59,7 +59,7 @@ export function FlowAgentGroup({ agent, flow, label, bandColor, to, month }: Ove
   );
   if (!to) return group;
   return (
-    <SvgRouteLink to={to} label={primeLinkLabel(flow, label, month, agent.share)}>
+    <SvgRouteLink to={to} label={primeLinkLabel(flow, label, month)}>
       {group}
     </SvgRouteLink>
   );

@@ -19,18 +19,6 @@ const WEDGE_PILL_GAP = 44;
 
 export function MscRing({ layout, primes, month, centerFigure }: Props) {
   const labelOf = (prime: string) => primes.find((p) => p.flow.prime === prime)?.label ?? prime;
-  // Sky's wedges are shades of Sky's own blue — the BIGGEST contributor in
-  // the blue itself, then the --msc-sky-2/3/4 shades down the ranking — so
-  // the pie reads as one pool of money and the shading carries size. The
-  // shades are theme tokens audited against --msc-sky-ink, which is what
-  // the figures on them (and the "To Sky" total across them) are set in.
-  const rank = new Map(
-    [...layout.skyWedges].sort((a, b) => b.value - a.value).map((w, i) => [w.prime, i] as const),
-  );
-  const shade = (prime: string) => {
-    const r = rank.get(prime) ?? 0;
-    return r === 0 ? "var(--msc-sky)" : `var(--msc-sky-${Math.min(r + 1, 4)})`;
-  };
   // Wedge pills ride just outside the donut on the wedge's own radial, where
   // its arrow docks.
   const midR = (layout.skyR + layout.skyInnerR) / 2;
@@ -45,9 +33,10 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
   }));
 
   const marks = primes.map((p) => {
-    const kinds = [...p.ring.slices.map((s) => s.kind as string), "share", "gross"];
+    const kinds = [...p.ring.slices.map((s) => s.kind as string), "share", "received"];
     if (p.ring.hole) kinds.push("loss");
     if (p.ring.arrow) kinds.push(p.ring.arrow.kind);
+    if (p.ring.demandArrow) kinds.push("demand");
     return { prime: p.flow.prime, kinds };
   });
 
@@ -70,18 +59,24 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
             <rect width={4.5} height={8} style={{ fill: "var(--msc-loss)" }} />
           </pattern>
         </defs>
-        {/* The Sky pie IS the sum of the To-Sky flows, one wedge per Prime —
-            so "these flows add up to Sky" is visible rather than asserted. */}
+        {/* Sky's pie is what SKY received — cost of funds and Sky Direct
+            Exposure — one wedge per Prime, so "these flows add up to Sky"
+            is visible rather than asserted, and each wedge split by which
+            of the two it is. The two fills are the same tokens the source
+            labels and the key use, so a wedge names itself. */}
         <circle cx={layout.cx} cy={layout.cy} r={layout.skyR} className="msc-ring-sky-disc" />
         {layout.skyWedges.map((w) => (
           <g key={w.prime} className="msc-ring-mark" data-mark={markId(w.prime, "share")} style={w.alpha < 1 ? { opacity: w.alpha } : undefined}>
-            <path
-              d={w.path}
-              fillRule="evenodd"
-              className="msc-ring-sky-wedge"
-              data-prime={w.prime}
-              style={{ fill: shade(w.prime) }}
-            />
+            {w.parts.map((part) => (
+              <path
+                key={part.kind}
+                d={part.path}
+                fillRule="evenodd"
+                className={`msc-ring-sky-wedge msc-ring-${part.kind}`}
+                data-prime={w.prime}
+                data-kind={part.kind}
+              />
+            ))}
           </g>
         ))}
         {layout.skyWedges.map((w) =>

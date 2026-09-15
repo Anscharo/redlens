@@ -52,6 +52,9 @@ export function pillText(kind: string, signed: number, primeLabel: string, share
   }
   if (kind === "share") return `${amount} to Sky from ${primeLabel}`;
   if (kind === "gross") return `${amount} gross revenue* of ${primeLabel}`;
+  // The orbit's pies are what each party RECEIVED, so its totals say so.
+  if (kind === "received") return `${amount} received by ${primeLabel} — supply-side kept + demand-side`;
+  if (kind === "demand") return `${amount} demand-side, from Sky to ${primeLabel}`;
   if (kind === "loss") return `${amount} supply-side loss`;
   if (kind in SLICE_LABEL) return `${amount} ${SLICE_LABEL[kind]}`;
   return `${amount} ${kind}`;
@@ -132,8 +135,8 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
       {rings.map(({ ring, label }) => (
         <g key={ring.prime}>
           <AmountPill
-            mark={markId(ring.prime, "gross")}
-            text={pillText("gross", ring.gross, label)}
+            mark={markId(ring.prime, "received")}
+            text={pillText("received", ring.received, label)}
             x={ring.grossPillX}
             y={ring.grossPillY}
             toX={ring.grossAnchorX}
@@ -163,7 +166,7 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
           {ring.arrow && (
             <AmountPill
               mark={markId(ring.prime, ring.arrow.kind)}
-              text={pillText(ring.arrow.kind, ring.arrow.signed, label, ring.arrow.share)}
+              text={pillText(ring.arrow.kind, ring.arrow.signed, label)}
               detail={[
                 `${formatUsd(ring.arrow.cof, true)} cost of funds`,
                 `${formatUsd(ring.arrow.sde, true)} Sky Direct Exposure`,
@@ -172,6 +175,16 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
               y={ring.arrow.pillY}
               toX={ring.arrow.amountX}
               toY={ring.arrow.amountY}
+            />
+          )}
+          {ring.demandArrow && (
+            <AmountPill
+              mark={markId(ring.prime, "demand")}
+              text={pillText("demand", ring.demandArrow.signed, label)}
+              x={ring.demandArrow.pillX}
+              y={ring.demandArrow.pillY}
+              toX={ring.demandArrow.amountX}
+              toY={ring.demandArrow.amountY}
             />
           )}
         </g>

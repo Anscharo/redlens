@@ -3339,6 +3339,12 @@ a.atlas-annotates:focus-visible {
 .msc-ring-agentRate {
   fill: var(--msc-rate);
 }
+/* The orbit's second arrow lane: what Sky owes a Prime, in the demand
+   family so it reads as the demand-side money it carries, against the
+   To-Sky arrow's blue running the other way. */
+.msc-ring-demand-arrow {
+  fill: var(--msc-demand);
+}
 .msc-ring-distributionRewards {
   fill: var(--msc-dr);
 }

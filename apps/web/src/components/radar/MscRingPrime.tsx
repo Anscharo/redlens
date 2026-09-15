@@ -2,7 +2,7 @@ import { formatMonth, formatUsd, SETTLEMENT_NEAR_ZERO } from "../../lib/settleme
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 import type { RingPrime } from "../../lib/mscOverviewLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
-import { markId, formatShare, SLICE_CODE } from "./MscRingPills";
+import { markId, SLICE_CODE } from "./MscRingPills";
 
 /** One Prime on the overview, as both charts see it. */
 export interface OverviewPrime {
@@ -19,14 +19,16 @@ export interface MscRingPrime extends OverviewPrime {
   ring: RingPrime;
 }
 
-/** The link's accessible name — every figure, since the shapes have none. */
-export function primeLinkLabel(flow: PrimeFlowTotals, label: string, month: string, share: number | null): string {
-  const shareText = share != null ? ` (${formatShare(share)} of its gross revenue)` : "";
-  return `${label}, ${formatMonth(month)}: ${formatUsd(flow.sky, true)} to Sky${shareText} — ${formatUsd(flow.cof, true)} cost of funds, ${formatUsd(flow.sde, true)} Sky Direct Exposure; ${formatUsd(flow.kept, true)} supply-side kept, ${formatUsd(flow.demand, true)} demand-side. Open settlement page.`;
+/** The link's accessible name — every figure, since the shapes have none.
+ *  Named as two directions rather than one total: what the Prime owed Sky,
+ *  and what it received. */
+export function primeLinkLabel(flow: PrimeFlowTotals, label: string, month: string): string {
+  return `${label}, ${formatMonth(month)}: owed Sky ${formatUsd(flow.sky, true)} — ${formatUsd(flow.cof, true)} cost of funds, ${formatUsd(flow.sde, true)} Sky Direct Exposure; received ${formatUsd(flow.kept + flow.demand, true)} — ${formatUsd(flow.kept, true)} supply-side kept, ${formatUsd(flow.demand, true)} demand-side from Sky. Open settlement page.`;
 }
 
-/** One prime: a pie of its gross-revenue line items (a loss as a hole in
- *  the middle), its name outside, and its To-Sky arrow. */
+/** One prime: a pie of what it RECEIVED — supply-side kept and the
+ *  demand-side series — with a loss as a hole in the middle, its name
+ *  outside, and its two arrows: what it owed Sky, and what Sky owed it. */
 export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrime & { month: string }) {
   const arrow = ring.arrow;
   const group = (
@@ -44,6 +46,13 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
             data-cof={Math.abs(arrow.cof) >= SETTLEMENT_NEAR_ZERO ? "true" : undefined}
             data-sde={Math.abs(arrow.sde) >= SETTLEMENT_NEAR_ZERO ? "true" : undefined}
           />
+        </g>
+      )}
+      {/* The other lane: what SKY OWES this Prime (A.2.4.1.2.2.1.1.1),
+          pointing the other way and painted in the demand family. */}
+      {ring.demandArrow && (
+        <g className="msc-ring-mark" data-mark={markId(flow.prime, "demand")}>
+          <path d={ring.demandArrow.path} className="msc-ring-arrow msc-ring-demand-arrow" />
         </g>
       )}
       {/* Identity ring in the prime's color, just outside the slices — the
@@ -70,11 +79,11 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
           <circle cx={ring.cx} cy={ring.cy} r={ring.hole.r} className="msc-ring-hole" fill="url(#msc-ring-loss)" />
         </g>
       )}
-      <g className="msc-ring-mark" data-mark={markId(flow.prime, "gross")}>
+      <g className="msc-ring-mark" data-mark={markId(flow.prime, "received")}>
         <text x={ring.labelX} y={ring.labelY} textAnchor="middle" fontSize={24} className="msc-ring-label">
           {label}
         </text>
-        {/* Gross revenue on the line under the name — the pie's area, in words. */}
+        {/* What it received, on the line under the name — the pie's area. */}
         <text
           x={ring.labelX}
           y={ring.labelY + 20}
@@ -82,14 +91,14 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
           fontSize={16}
           className="msc-ring-sublabel mono"
         >
-          {formatUsd(ring.gross, true)}
+          {formatUsd(ring.received, true)}
         </text>
       </g>
     </g>
   );
   if (!to) return group;
   return (
-    <SvgRouteLink to={to} label={primeLinkLabel(flow, label, month, arrow?.share ?? null)}>
+    <SvgRouteLink to={to} label={primeLinkLabel(flow, label, month)}>
       {group}
     </SvgRouteLink>
   );
