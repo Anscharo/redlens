@@ -2773,7 +2773,7 @@ a.atlas-annotates:focus-visible {
 }
 .msc-charts-pane {
   min-width: 0;
-  flex: 1 1 16rem;
+  flex: 0 1 auto;
 }
 .msc-charts-legend {
   display: flex;
