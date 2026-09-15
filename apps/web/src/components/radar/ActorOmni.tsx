@@ -37,7 +37,7 @@ export function ActorOmni({ omni }: { omni: ActorOmni }) {
   if (rows.length === 0) return null;
 
   return (
-    <section className="mb-6">
+    <section className="mb-6" data-testid="actor-omni">
       <h2
         className="mono text-[10px] uppercase tracking-wider mb-3"
         style={{ color: "var(--tan-3)" }}

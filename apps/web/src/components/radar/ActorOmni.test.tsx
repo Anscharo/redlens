@@ -87,6 +87,7 @@ describe("ActorOmni", () => {
         })}
       />,
     );
+    expect(screen.getByTestId("actor-omni")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Omni" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: ECO })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: AGENT })).toBeInTheDocument();
