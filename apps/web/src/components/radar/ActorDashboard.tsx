@@ -144,15 +144,12 @@ export function ActorDashboard({ profile }: Props) {
               )}
             </div>
           </div>
-
-          {/* Chain — always shown */}
-          <div className="mb-6">
-            <ActorChain chain={chain} currentSlug={entity.slug} />
-          </div>
         </div>
 
         <div className="min-w-0">
-          {/* Contact — forum / discord. Omni — unique topics, specified protocols. */}
+          {/* Related parties sit in this column so History starts across from
+              Executor Agent, not below the chain. Contact + shared Omni follow. */}
+          <ActorChain chain={chain} currentSlug={entity.slug} />
           <ActorContact contact={profile.contact} />
           <ActorOmni omni={profile.omni} />
 

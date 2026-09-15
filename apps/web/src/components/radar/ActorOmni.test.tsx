@@ -4,7 +4,13 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { ActorOmni } from "./ActorOmni";
-import { EMPTY_OMNI, type ActorOmni as ActorOmniData, type OmniDocRef } from "../../lib/omniDocs";
+import {
+  EMPTY_OMNI,
+  FUTURE_ITERATION_ESSENCE,
+  REQUIRED_OMNI_TITLES,
+  type ActorOmni as ActorOmniData,
+  type OmniDocRef,
+} from "../../lib/omniDocs";
 
 afterEach(cleanup);
 
@@ -16,73 +22,89 @@ function omni(over: Partial<ActorOmniData>): ActorOmniData {
   return { ...EMPTY_OMNI, ...over };
 }
 
+const ROOT = REQUIRED_OMNI_TITLES.root;
+const GOV = REQUIRED_OMNI_TITLES.govInfo;
+const ECO = REQUIRED_OMNI_TITLES.ecosystemEmergency;
+const AGENT = REQUIRED_OMNI_TITLES.agentEmergency;
+
 describe("ActorOmni", () => {
   it("renders nothing when there is no root Omni Document", () => {
     const { container } = render(<ActorOmni omni={EMPTY_OMNI} />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders nothing when the required docs are only empty template stubs", () => {
-    const root = ref("omni", "Omni Documents");
-    const gov = ref("gov", "Governance Information Unrelated To Root Edit Primitive");
-    const { container } = render(
-      <ActorOmni
-        omni={omni({
-          root,
-          sections: [gov],
-          required: {
-            root,
-            govInfo: gov,
-            ecosystemEmergency: ref("eco", "Sky Ecosystem Emergency Response", "A.1", "will be specified in a future iteration"),
-            agentEmergency: ref("ag", "Agent-Specific Emergency Response", "A.1", "will be specified in a future iteration"),
-          },
-        })}
-      />,
+  it("lists only the required Omni docs, with the essence of each summary", () => {
+    const root = ref(
+      "omni",
+      ROOT,
+      "A.6.1.1.1.3",
+      "The documents herein define Spark’s strategic intent and operational processes relating to infrastructure inherited from Sky Core, activities unrelated to Sky Primitives, or activities spanning multiple Sky Primitives.",
     );
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it("chips extra sections and skips listing required template titles", () => {
-    const root = ref("omni", "Omni Documents", "A.6.1.1.1.3");
-    const gov = ref("gov", "Governance Information Unrelated To Root Edit Primitive");
+    const gov = ref(
+      "gov",
+      GOV,
+      "A.6.1.1.1.3.1",
+      "The documents herein specify Spark governance information that is unrelated to the use of the Root Edit Primitive. The governance process for updating the Spark Artifact is specified in the Root Edit Primitive above at [A.6.1.1.1.2.2.2 - Root Edit Primitive](f60887de-a4eb-4e4b-8aa6-e22cf724772a).",
+    );
+    const eco = ref(
+      "eco",
+      ECO,
+      "A.6.1.1.1.3.1.4",
+      "The documents herein specify Spark’s emergency response protocol in situations that impact the entire Sky Ecosystem. This protocol will be specified in a future iteration of the Spark Artifact.",
+    );
+    const agent = ref(
+      "ag",
+      AGENT,
+      "A.6.1.1.1.3.1.5",
+      "The documents herein specify Spark’s emergency response protocol in situations solely impacting Spark versus the broader Sky Ecosystem. This protocol will be specified in a future iteration of the Spark Artifact.",
+    );
     render(
       <ActorOmni
         omni={omni({
           root,
           sections: [gov, ref("accords", "Ecosystem Accords", "A.6.1.1.1.3.2")],
-          required: { root, govInfo: gov, ecosystemEmergency: null, agentEmergency: null },
+          notes: [ref("del", "Delegation Framework")],
+          required: {
+            root,
+            govInfo: gov,
+            ecosystemEmergency: eco,
+            agentEmergency: agent,
+          },
         })}
       />,
     );
     expect(screen.getByRole("heading", { name: "Omni" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Ecosystem Accords" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: ROOT })).toHaveAttribute(
       "href",
-      expect.stringContaining("accords"),
+      expect.stringContaining("omni"),
     );
-    expect(screen.queryByText("Root")).not.toBeInTheDocument();
-    expect(screen.queryByText("Governance information")).not.toBeInTheDocument();
-    expect(screen.queryByText("missing")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: GOV })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: ECO })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: AGENT })).toBeInTheDocument();
+    expect(screen.getAllByText(new RegExp(`“${FUTURE_ITERATION_ESSENCE}”`))).toHaveLength(2);
+    expect(
+      screen.getByText(
+        /“infrastructure inherited from Sky Core, activities unrelated to Sky Primitives/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/“The governance process for updating the Spark Artifact is specified/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Ecosystem Accords")).not.toBeInTheDocument();
+    expect(screen.queryByText("Delegation Framework")).not.toBeInTheDocument();
   });
 
-  it("shows a specified emergency protocol excerpt, not the placeholder", () => {
-    const root = ref("omni", "Omni Documents");
-    render(
+  it("does not list extra Omni sections when required docs are missing", () => {
+    const root = ref("omni", ROOT, "A.6.1.1.1.3");
+    const { container } = render(
       <ActorOmni
         omni={omni({
           root,
-          notes: [
-            ref(
-              "eco",
-              "Sky Ecosystem Emergency Response",
-              "A.1",
-              "The Core Facilitator convenes an emergency call within 24 hours.",
-            ),
-          ],
-          required: { root, govInfo: null, ecosystemEmergency: null, agentEmergency: null },
+          sections: [ref("accords", "Ecosystem Accords", "A.6.1.1.1.3.2")],
+          required: { root: null, govInfo: null, ecosystemEmergency: null, agentEmergency: null },
         })}
       />,
     );
-    expect(screen.getByRole("link", { name: "Ecosystem emergency" })).toBeInTheDocument();
-    expect(screen.getByText(/convenes an emergency call/)).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
   });
 });

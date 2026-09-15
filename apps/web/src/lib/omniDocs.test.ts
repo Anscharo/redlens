@@ -3,9 +3,10 @@ import type { AtlasNode } from "@/types";
 import {
   collectActorOmni,
   extraOmniSections,
-  omniExcerpt,
-  omniGlance,
+  omniEssence,
+  requiredOmniDocs,
   EMPTY_OMNI,
+  FUTURE_ITERATION_ESSENCE,
   REQUIRED_OMNI_TITLES,
 } from "./omniDocs";
 
@@ -73,7 +74,12 @@ describe("collectActorOmni", () => {
     expect(omni.required.ecosystemEmergency?.id).toBe("eco");
     expect(omni.required.agentEmergency?.id).toBe("agent-em");
     expect(extraOmniSections(omni).map((s) => s.title)).toEqual(["Ecosystem Accords"]);
-    expect(omniGlance(omni).map((s) => s.title)).toEqual(["Ecosystem Accords"]);
+    expect(requiredOmniDocs(omni).map((s) => s.title)).toEqual([
+      REQUIRED_OMNI_TITLES.root,
+      REQUIRED_OMNI_TITLES.govInfo,
+      REQUIRED_OMNI_TITLES.ecosystemEmergency,
+      REQUIRED_OMNI_TITLES.agentEmergency,
+    ]);
   });
 
   it("still finds emergencies when parentId is flattened at the depth-6 cap", () => {
@@ -152,15 +158,37 @@ describe("collectActorOmni", () => {
   });
 });
 
-describe("omniExcerpt", () => {
-  it("returns null for placeholders, directory intros, and accord signings", () => {
-    expect(omniExcerpt("This protocol will be specified in a future iteration.")).toBeNull();
-    expect(omniExcerpt("The documents herein specify Spark's strategy.")).toBeNull();
-    expect(omniExcerpt("Spark has formally agreed to the Ecosystem Accords herein.")).toBeNull();
+describe("omniEssence", () => {
+  it("extracts the future-iteration clause from emergency stubs", () => {
+    expect(
+      omniEssence(
+        "The documents herein specify Spark’s emergency response protocol in situations that impact the entire Sky Ecosystem. This protocol will be specified in a future iteration of the Spark Artifact.",
+      ),
+    ).toBe(FUTURE_ITERATION_ESSENCE);
   });
 
-  it("keeps operational prose", () => {
-    const text = "Keel may invest idle funds in low-risk decentralized finance opportunities.";
-    expect(omniExcerpt(text)).toBe(text);
+  it("takes the relating-to remainder of the Omni Documents directory sentence", () => {
+    expect(
+      omniEssence(
+        "The documents herein define Spark’s strategic intent and operational processes relating to infrastructure inherited from Sky Core, activities unrelated to Sky Primitives, or activities spanning multiple Sky Primitives.",
+      ),
+    ).toBe(
+      "infrastructure inherited from Sky Core, activities unrelated to Sky Primitives, or activities spanning multiple Sky Primitives",
+    );
+  });
+
+  it("prefers the non-directory sentence of governance information", () => {
+    expect(
+      omniEssence(
+        "The documents herein specify Spark governance information that is unrelated to the use of the Root Edit Primitive. The governance process for updating the Spark Artifact is specified in the Root Edit Primitive above at [A.6.1.1.1.2.2.2 - Root Edit Primitive](f60887de-a4eb-4e4b-8aa6-e22cf724772a).",
+      ),
+    ).toBe(
+      "The governance process for updating the Spark Artifact is specified in the Root Edit Primitive",
+    );
+  });
+
+  it("keeps a specified emergency's operational sentence", () => {
+    const text = "The Core Facilitator convenes an emergency call within 24 hours.";
+    expect(omniEssence(text)).toBe("The Core Facilitator convenes an emergency call within 24 hours");
   });
 });

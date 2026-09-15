@@ -192,6 +192,16 @@ describe("ActorDashboard sections", () => {
     window.location.hash = "";
   });
 
+  it("places related parties in the left column so history starts across from Executor Agent", () => {
+    render(<ActorDashboard profile={profile()} />);
+    const chain = screen.getByTestId("chain");
+    const contact = screen.getByTestId("contact");
+    const history = screen.getByTestId("history");
+    expect(chain.parentElement).toBe(contact.parentElement);
+    expect(chain.parentElement).not.toBe(history.parentElement);
+    expect(chain.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("places instance docs after the contact/history row so they fill the page width", () => {
     render(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
     const history = screen.getByTestId("history");

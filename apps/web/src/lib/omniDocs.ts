@@ -14,7 +14,10 @@ export const REQUIRED_OMNI_TITLES = {
 const CHANNEL_TITLES = new Set(["Sky Forum", "Discord"]);
 const PLACEHOLDER_RE = /will be specified in a future iteration/i;
 const DIRECTORY_RE = /^(the documents herein|the provisions herein)\b/i;
-const ACCORD_RE = /has formally agreed to/i;
+const RELATING_TO_RE = /\brelating to\s+(.+)/i;
+const ABOVE_AT_RE = /\s+above at\s+.+$/i;
+/** The load-bearing clause of the current emergency stubs. */
+export const FUTURE_ITERATION_ESSENCE = "will be specified in a future iteration";
 
 export interface OmniDocRef {
   id: string;
@@ -70,17 +73,42 @@ export function isOmniPlaceholder(content: string): boolean {
   return PLACEHOLDER_RE.test(content);
 }
 
-/** One-line glance copy, or null when the doc is a stub / directory intro. */
-export function omniExcerpt(content: string): string | null {
-  const t = content.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/\s+/g, " ").trim();
-  if (!t || isOmniPlaceholder(t) || DIRECTORY_RE.test(t) || ACCORD_RE.test(t)) return null;
-  return t.length > 220 ? `${t.slice(0, 217)}…` : t;
+function firstParagraph(content: string): string {
+  return content
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-export function omniNoteLabel(title: string): string {
-  if (title === REQUIRED_OMNI_TITLES.ecosystemEmergency) return "Ecosystem emergency";
-  if (title === REQUIRED_OMNI_TITLES.agentEmergency) return "Agent emergency";
-  return title;
+function sentences(text: string): string[] {
+  return text
+    .split(/(?<=\.)\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function stripDirectory(s: string): string {
+  return s
+    .replace(/^(the documents herein|the provisions herein)\s+(?:define|specify)\s+/i, "")
+    .replace(/^[A-Za-z][\w .'-]*['’]s\s+/u, "")
+    .trim();
+}
+
+/** Distinctive remainder of a required Omni doc's summary — not the title restatement. */
+export function omniEssence(content: string): string | null {
+  const t = firstParagraph(content);
+  if (!t) return null;
+  if (PLACEHOLDER_RE.test(t)) return FUTURE_ITERATION_ESSENCE;
+
+  const operational = sentences(t).find((s) => !DIRECTORY_RE.test(s));
+  let pick = operational ?? sentences(t)[0] ?? t;
+  pick = pick.replace(ABOVE_AT_RE, "");
+  if (DIRECTORY_RE.test(pick)) {
+    const relating = pick.match(RELATING_TO_RE);
+    pick = relating ? relating[1] : stripDirectory(pick);
+  }
+  pick = pick.replace(/\.$/, "").trim();
+  return pick || null;
 }
 
 /** Per-agent Omni Document catalog. Empty when the defining doc has no
@@ -121,7 +149,10 @@ export function extraOmniSections(omni: ActorOmni): OmniDocRef[] {
   return govId ? omni.sections.filter((s) => s.id !== govId) : omni.sections;
 }
 
-/** Unique topics + specified gov notes. Required template docs stay out. */
-export function omniGlance(omni: ActorOmni): OmniDocRef[] {
-  return [...omni.notes, ...extraOmniSections(omni)];
+/** The four Omni docs every Prime Artifact must carry (A.1.14.2.5.1), in spec order. */
+export function requiredOmniDocs(omni: ActorOmni): OmniDocRef[] {
+  const { root, govInfo, ecosystemEmergency, agentEmergency } = omni.required;
+  return [root, govInfo, ecosystemEmergency, agentEmergency].filter(
+    (d): d is OmniDocRef => d !== null,
+  );
 }
