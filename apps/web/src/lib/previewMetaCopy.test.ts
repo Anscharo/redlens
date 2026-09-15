@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { baseLine, baseSwitch, diffBaseLabel, CANONICAL_MAIN, type PreviewMeta, type PreviewBases } from "./previewMetaCopy";
+import { baseLine, baseSwitch, diffBaseLabel, pullsPermissionCopy, CANONICAL_MAIN, type PreviewMeta, type PreviewBases } from "./previewMetaCopy";
 
 function meta(bases?: PreviewBases, extra: Partial<PreviewMeta> = {}): PreviewMeta {
   return { sha: "x", repo: "r", ref: "b", kind: "branch", ...extra, bases };
@@ -160,6 +160,31 @@ describe("baseSwitch", () => {
       "?base=repo&subset=changed",
     );
     expect(r?.href).toBe("?subset=changed");
+  });
+});
+
+describe("pullsPermissionCopy", () => {
+  it("returns null when the flag is off", () => {
+    expect(pullsPermissionCopy({})).toBeNull();
+    expect(pullsPermissionCopy({ needsPullsPermission: false })).toBeNull();
+  });
+
+  it("links to GitHub's permission review screen when a URL is present", () => {
+    const r = pullsPermissionCopy({
+      needsPullsPermission: true,
+      permissionsUrl: "https://github.com/settings/installations/1/permissions/update",
+    });
+    expect(r?.href).toBe("https://github.com/settings/installations/1/permissions/update");
+    expect(r?.linkLabel).toBe("Review permissions on GitHub ↗");
+    expect(r?.body).toMatch(/review the new permission on GitHub/);
+    expect(r?.body).toMatch(/reload this page/);
+  });
+
+  it("asks the owner when there is no review URL", () => {
+    const r = pullsPermissionCopy({ needsPullsPermission: true });
+    expect(r?.href).toBeNull();
+    expect(r?.body).toMatch(/Ask the person who installed the App/);
+    expect(r?.body).not.toMatch(/If you own or administer/);
   });
 });
 

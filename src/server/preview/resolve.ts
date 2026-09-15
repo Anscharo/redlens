@@ -31,7 +31,13 @@
 // happen downstream (build.ts).
 
 import { config } from "../config.ts";
-import { installationIdForRepo, installationToken } from "./github-app.ts";
+import {
+  installationIdForRepo,
+  installationToken,
+  installationInfoForRepo,
+  installationHasPullsRead,
+  permissionsUpdateUrl,
+} from "./github-app.ts";
 
 export const CANONICAL_OWNER = "sky-ecosystem";
 export const ATLAS_REPO_NAME = "next-gen-atlas";
@@ -168,6 +174,14 @@ export interface Resolved {
    *  `repo` diff-base candidate for a fork branch. Absent for canonical refs
    *  (where it would coincide with sky main) and for PRs (prBase covers it). */
   defaultBranch?: string;
+  /** Private `pull-N` whose HEAD came from the Contents-only fallback because
+   *  this install hasn't granted Pull requests:read. Drives the banner CTA;
+   *  not persisted to the previews row. */
+  needsPullsPermission?: boolean;
+  /** GitHub's pending-permission review URL for this install (`html_url` +
+   *  `/permissions/update`). Absent when GitHub omitted html_url — the banner
+   *  still prompts, just without a one-click link. */
+  permissionsUrl?: string;
 }
 
 /** Head-commit date from a GitHub commit-ish payload (branches and commits both
@@ -268,6 +282,16 @@ async function repoDefaultBranch(gh: GhClient, repo: string, cache?: Map<string,
 
 function prState(json: any): "open" | "merged" | "closed" {
   return json?.merged_at ? "merged" : json?.state === "closed" ? "closed" : "open";
+}
+
+/** When a private PR HEAD has no prBase, check whether that's because this
+ *  install lacks Pull requests:read. Empty object if the install already has
+ *  it (Pulls failed for some other reason) or we couldn't load the install. */
+async function pullsPermissionGap(repo: string): Promise<Pick<Resolved, "needsPullsPermission" | "permissionsUrl">> {
+  const install = await installationInfoForRepo(repo);
+  if (!install || installationHasPullsRead(install.permissions)) return {};
+  const url = permissionsUpdateUrl(install.htmlUrl);
+  return { needsPullsPermission: true, ...(url ? { permissionsUrl: url } : {}) };
 }
 
 /** The PR's declared base branch, read off a Pulls API payload. Pure. Returns
@@ -450,7 +474,8 @@ export async function resolvePrivateBranch(repo: string, ref: string): Promise<R
     // `prBase` are still attached — `pr` for the banner (title / author /
     // GitHub link), `prBase` as the diff-base candidate; no defaultBranch, a
     // PR is redlined against prBase, not the fork's default branch.
-    return { repo, sha: head.sha, kind: "branch", ref: head.ref, date: head.date, pr: head.pr, prBase: head.prBase, private: true };
+    const gap = head.prBase ? {} : await pullsPermissionGap(repo);
+    return { repo, sha: head.sha, kind: "branch", ref: head.ref, date: head.date, pr: head.pr, prBase: head.prBase, private: true, ...gap };
   }
   const real = await resolveDefaultBranch(igh, repo, ref, repoCache);
   if (!real) return { error: "not-found" };

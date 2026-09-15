@@ -39,6 +39,7 @@ config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" })
 // …/access_tokens → mintedToken (500 when null); GET …/branches/<ref> → branchJson
 // (404 when null). lastBranchReq captures the branch call for URL/auth assertions.
 let installedId: number | null = null;
+let installJson: Record<string, unknown> | null = null; // extra fields on GET …/installation (html_url, permissions)
 let mintedToken: string | null = null;
 let branchJson: any = null;
 let repoJson: any = null; // GET /repos/<owner>/<repo> (default_branch lookup for HEAD)
@@ -51,7 +52,10 @@ let lastRefReq: { url: string; headers: any } | null = null;
 function installFetch(): void {
   globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
     const u = String(url);
-    if (u.endsWith("/installation")) return installedId == null ? new Response("no", { status: 404 }) : Response.json({ id: installedId });
+    if (u.endsWith("/installation")) {
+      if (installedId == null) return new Response("no", { status: 404 });
+      return Response.json({ id: installedId, ...(installJson ?? {}) });
+    }
     if (u.endsWith("/access_tokens")) return mintedToken == null ? new Response("no", { status: 500 }) : Response.json({ token: mintedToken });
     if (u.includes("/pulls/")) {
       lastPullReq = { url: u, headers: init?.headers };
@@ -78,6 +82,7 @@ function installFetch(): void {
 beforeEach(() => {
   __resetCachesForTest();
   installedId = null;
+  installJson = null;
   mintedToken = null;
   branchJson = null;
   repoJson = null;
@@ -257,6 +262,7 @@ test("resolvePrivateBranch: pull-N uses the Pulls API HEAD branch, not the PR ba
     prBase: { repo: "acme/secret-atlas", ref: "develop", sha: "basesha1" },
   });
   expect((r as any).defaultBranch).toBeUndefined(); // a PR redlines against prBase, not the fork's default branch
+  expect((r as any).needsPullsPermission).toBeUndefined();
   expect(lastPullReq?.url).toBe("https://api.github.com/repos/acme/secret-atlas/pulls/42");
   expect((lastPullReq?.headers as any)?.authorization).toBe("Bearer inst-tok");
   // Contents fallback was not needed.
@@ -281,8 +287,44 @@ test("resolvePrivateBranch: pull-N falls back to git ref pull/N/head when Pulls 
   });
   expect((r as any).pr).toBeUndefined();
   expect((r as any).prBase).toBeUndefined(); // the Contents-only fallback carries no base branch
+  expect((r as any).needsPullsPermission).toBe(true); // install listed no pull_requests
+  expect((r as any).permissionsUrl).toBeUndefined(); // stub installation had no html_url
   expect(lastRefReq?.url).toBe("https://api.github.com/repos/acme/secret-atlas/git/ref/pull/7/head");
   expect((lastRefReq?.headers as any)?.authorization).toBe("Bearer inst-tok");
+});
+
+test("resolvePrivateBranch: pull-N fallback carries the install's permissions/update URL", async () => {
+  installedId = 42;
+  mintedToken = "inst-tok";
+  installJson = {
+    html_url: "https://github.com/organizations/acme/settings/installations/42",
+    permissions: { contents: "read", metadata: "read" },
+  };
+  pullJson = null;
+  refJson = { object: { sha: "refheadsha" } };
+  commitJson = { commit: { committer: { date: "2026-09-10T12:00:00Z" } } };
+  const r = await resolvePrivateBranch("acme/secret-atlas", "pull-7");
+  expect(r).toMatchObject({
+    needsPullsPermission: true,
+    permissionsUrl: "https://github.com/organizations/acme/settings/installations/42/permissions/update",
+    prBase: undefined,
+  });
+});
+
+test("resolvePrivateBranch: pull-N fallback does not prompt when the install already has Pulls:read", async () => {
+  installedId = 42;
+  mintedToken = "inst-tok";
+  installJson = {
+    html_url: "https://github.com/settings/installations/42",
+    permissions: { contents: "read", metadata: "read", pull_requests: "read" },
+  };
+  pullJson = null; // Pulls failed for some other reason
+  refJson = { object: { sha: "refheadsha" } };
+  commitJson = { commit: { committer: { date: "2026-09-10T12:00:00Z" } } };
+  const r = await resolvePrivateBranch("acme/secret-atlas", "pull-7");
+  expect((r as any).needsPullsPermission).toBeUndefined();
+  expect((r as any).permissionsUrl).toBeUndefined();
+  expect((r as any).prBase).toBeUndefined();
 });
 
 test("resolvePrivateBranch: pull-N that does not exist -> not-found", async () => {

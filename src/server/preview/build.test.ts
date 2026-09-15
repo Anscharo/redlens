@@ -112,6 +112,28 @@ test("baseMeta leaves prBase undefined when the resolved ref carries none (a pla
   expect(baseMeta(resolved, "abc", 1, 0).prBase).toBeUndefined();
 });
 
+test("baseMeta copies the Pulls-permission prompt onto a Contents-only private PR", () => {
+  const resolved: Resolved = {
+    repo: "acme/secret",
+    sha: "abc",
+    kind: "branch",
+    ref: "pull-7",
+    private: true,
+    needsPullsPermission: true,
+    permissionsUrl: "https://github.com/settings/installations/1/permissions/update",
+  };
+  const m = baseMeta(resolved, "abc", 1, 0);
+  expect(m.needsPullsPermission).toBe(true);
+  expect(m.permissionsUrl).toBe("https://github.com/settings/installations/1/permissions/update");
+});
+
+test("baseMeta omits the Pulls-permission prompt when resolve did not set it", () => {
+  const resolved: Resolved = { repo: "o/r", sha: "abc", kind: "branch", ref: "feat/x" };
+  const m = baseMeta(resolved, "abc", 1, 0);
+  expect(m.needsPullsPermission).toBeUndefined();
+  expect(m.permissionsUrl).toBeUndefined();
+});
+
 // ---------------------------------------------------------------------------
 // runBuild orchestration (via the __runBuildForTest DI seam). These drive the
 // private/public build branches — trust/quota gate, installation-token

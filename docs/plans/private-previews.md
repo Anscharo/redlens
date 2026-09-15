@@ -28,8 +28,11 @@ since a private repo shares commit history with sky but is never a true GitHub f
 public one — `fork-point.ts`) or the merge base with the repo's own default branch. A pasted
 private PR URL resolves to that PR's HEAD commit (`refs/pull/N/head`, or the Pulls API HEAD
 branch plus declared base when the App has **Pull requests:read**); without that permission
-there is no base to read, and the preview falls back to branch rules. The old "vs live main,
-no compare" path survives only as the `live-main` degrade when neither candidate resolves.
+there is no base to read, and the preview falls back to branch rules. The preview bar then
+prompts the install owner to grant Pull requests: Read (linking to GitHub's
+`{html_url}/permissions/update` screen) and rebuilds against the PR's own base after they
+accept and reload. The old "vs live main, no compare" path survives only as the
+`live-main` degrade when neither candidate resolves.
 
 (A related fix on the *public* side: a public fork's own PR — `owner:repo:pull-N` — now runs
 its sky-main compare inside the fork's own repo, so a failed compare there no longer wrongly

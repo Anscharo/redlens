@@ -732,6 +732,124 @@ test("/events: an authorized private sha resolution with an already-ready bundle
   expect(accessCalls.some((c) => c.repo === TEST_REPO)).toBe(true); // the private+ok path really ran authorizePreviewAccess
 });
 
+test("/events: a ready private-PR bundle built without a PR base rebuilds once resolve now has one", async () => {
+  const { handlePreview, previewPaths, writeMeta } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+
+  const orig = {
+    enabled: config.privatePreviewsEnabled,
+    appId: config.githubAppId,
+    key: config.githubAppPrivateKey,
+    fetch: globalThis.fetch,
+  };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  const SHA = "5".repeat(40);
+  makeReadyBundle(previewPaths, writeMeta, SHA, { private: true, repo: "octocat/grant-atlas" });
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) {
+      return Response.json({
+        id: 77,
+        html_url: "https://github.com/settings/installations/77",
+        permissions: { contents: "read", metadata: "read", pull_requests: "read" },
+      });
+    }
+    if (u.endsWith("/access_tokens")) return Response.json({ token: "inst-tok" });
+    if (u.includes("/pulls/")) {
+      return Response.json({
+        title: "Spark",
+        user: { login: "alice" },
+        state: "open",
+        head: { sha: SHA, ref: "feat", repo: { full_name: "octocat/grant-atlas" } },
+        base: { ref: "main", sha: "b".repeat(40), repo: { full_name: "octocat/grant-atlas" } },
+      });
+    }
+    if (u.includes("/commits/")) return Response.json({ commit: { committer: { date: "2026-01-01T00:00:00Z" } } });
+    if (u.includes("/tarball/")) return new Response("not found", { status: 404 });
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return new Response("no", { status: 404 });
+    return new Response("no", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  try {
+    accessDecision = "ok";
+    dbQueued = [[], [], [{ sha: SHA }]];
+    const id = encodeURIComponent("octocat:grant-atlas:pull-3");
+    const pathname = `/api/preview/${id}/events`;
+    const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+    const events = await readSSE(res);
+    expect(events).toContainEqual({ phase: "fetching", sha: SHA });
+    expect(events.some((e) => e.phase === "ready")).toBe(false);
+    expect(inflightShas().size).toBe(0);
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+});
+
+test("/events: a ready Contents-only private-PR bundle is not rebuilt while Pulls is still unauthorized", async () => {
+  const { handlePreview, previewPaths, writeMeta } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+
+  const orig = {
+    enabled: config.privatePreviewsEnabled,
+    appId: config.githubAppId,
+    key: config.githubAppPrivateKey,
+    fetch: globalThis.fetch,
+  };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  const SHA = "4".repeat(40);
+  makeReadyBundle(previewPaths, writeMeta, SHA, { private: true, repo: "octocat/grant-atlas" });
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) {
+      return Response.json({
+        id: 77,
+        html_url: "https://github.com/settings/installations/77",
+        permissions: { contents: "read", metadata: "read" },
+      });
+    }
+    if (u.endsWith("/access_tokens")) return Response.json({ token: "inst-tok" });
+    if (u.includes("/pulls/")) return new Response("no", { status: 404 });
+    if (u.includes("/git/ref/")) return Response.json({ object: { sha: SHA } });
+    if (u.includes("/commits/")) return Response.json({ commit: { committer: { date: "2026-01-01T00:00:00Z" } } });
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return new Response("no", { status: 404 });
+    return new Response("no", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  try {
+    accessDecision = "ok";
+    dbQueued = [[], []]; // isBlockedSha → false, then touchPreview
+    const id = encodeURIComponent("octocat:grant-atlas:pull-4");
+    const pathname = `/api/preview/${id}/events`;
+    const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+    const events = await readSSE(res);
+    expect(events).toContainEqual({ phase: "ready", sha: SHA });
+    expect(events.some((e) => e.phase === "fetching")).toBe(false);
+    expect(inflightShas().size).toBe(0);
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+});
+
 test("/events: authorized deferred-private branch with no ready bundle completes the branch lookup and starts a real background build", async () => {
   const { handlePreview } = await freshHandler();
   const { inflightShas } = await import("./build.ts");

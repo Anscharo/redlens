@@ -49,6 +49,8 @@ export interface PreviewMeta {
   newAddresses?: number;
   addressCheckFailed?: boolean;
   bases?: PreviewBases;
+  needsPullsPermission?: boolean;
+  permissionsUrl?: string;
 }
 
 /** The diff-base actually resolved for this render — see previewDiff.tsx's
@@ -156,4 +158,19 @@ export function diffBaseLabel(meta: PreviewMeta, active: ActiveBase | null): str
     return `${repo}:${ref}`;
   }
   return "the live atlas";
+}
+
+/** Banner copy + optional GitHub review-permissions link when a private PR
+ *  preview was built without Pull requests: Read. Null when the flag is off. */
+export function pullsPermissionCopy(
+  meta: Pick<PreviewMeta, "needsPullsPermission" | "permissionsUrl">,
+): { body: string; href: string | null; linkLabel: string } | null {
+  if (!meta.needsPullsPermission) return null;
+  return {
+    body: meta.permissionsUrl
+      ? "Needs Pull requests: Read to redline this PR against its own base. If you own or administer the install, review the new permission on GitHub, then reload this page. Otherwise ask the person who installed the App."
+      : "Needs Pull requests: Read to redline this PR against its own base. Ask the person who installed the App to review the new permission on GitHub, then reload this page.",
+    href: meta.permissionsUrl ?? null,
+    linkLabel: "Review permissions on GitHub ↗",
+  };
 }

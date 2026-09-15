@@ -42,7 +42,10 @@ So the App needs exactly three **Repository permissions**:
   falls back to `refs/pull/N/head` (Contents:read) — but with no base info, so
   the preview builds and follows branch rules instead (compared against the
   closest shared point with sky main or the repo's own default branch), and the
-  preview bar says so.
+  preview bar says so — with a link to GitHub's permission-review screen
+  (`{installation.html_url}/permissions/update`) so the install owner can grant
+  Pull requests: Read. After they accept and reload, the preview rebuilds
+  against the PR's own base.
 
 **No** Account permissions, **no** Organization permissions, **no** write
 scopes, **no** webhooks, **no** user-authorization/OAuth. If a screen asks for
@@ -152,6 +155,16 @@ any login:
 SAbR surfaces this: if someone opens a private preview for a repo the App
 isn't on yet, the UI shows an **"install the app"** screen. Viewers never do this
 — only the repo owner, once per repo.
+
+If the App is already installed but was granted before **Pull requests: Read**
+was added to the App's registration, GitHub keeps the old Contents+Metadata
+grant until an owner/admin accepts the new permission. Opening a private pull
+request in that state still builds (against a fallback base) and the preview
+bar links to GitHub's **Review request** screen
+(`https://github.com/settings/installations/<id>/permissions/update`, or the
+org equivalent). After they accept and reload the preview, it rebuilds against
+the PR's own base. Collaborators who can't administer the install see the same
+prompt and should ask the person who installed the App.
 
 ---
 

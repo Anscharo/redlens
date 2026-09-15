@@ -33,7 +33,7 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 ## 2026-09-14
-- Previews now redline a change against the branch it was actually made on, and the preview bar shows how far that base has drifted from the main atlas
+- Previews now redline a change against the branch it was actually made on, the preview bar shows how far that base has drifted from the main atlas, and a private pull request missing Pull requests: Read asks the owner to grant it on GitHub
 
 ## 2026-09-11
 - Private previews now show line diffs in the history panel

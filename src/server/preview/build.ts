@@ -280,6 +280,11 @@ export function baseMeta(resolved: Resolved, sha: string, docCount: number, t0: 
     // round-trip, never `sha` (see Resolved.prBase's own doc comment).
     prBase: resolved.prBase && { repo: resolved.prBase.repo, ref: resolved.prBase.ref },
     defaultBranch: resolved.defaultBranch,
+    // Banner-only: a Contents-only private PR fallback. Dropped on a rebuild
+    // once Pulls:read lands and prBase is set. Not written to the previews row.
+    ...(resolved.needsPullsPermission
+      ? { needsPullsPermission: true as const, ...(resolved.permissionsUrl ? { permissionsUrl: resolved.permissionsUrl } : {}) }
+      : {}),
     resolvedAt: new Date().toISOString(),
     docCount,
     buildMs: Date.now() - t0,

@@ -289,6 +289,16 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     return () => {};
   }
   if (bundleReady(sha)) {
+    // A private PR first built without Pull requests:read has no prBase on
+    // disk. After the owner grants it, this same id re-resolves with prBase —
+    // rebuild so the redline switches onto the PR's own base instead of
+    // serving the fallback bundle. Same-sha, so the quota (new-sha) gate
+    // doesn't fire. A bundle that already recorded a prBase is left alone.
+    const meta = readMeta(sha);
+    if (r.prBase && !meta?.prBase) {
+      getOrStartBuild(r);
+      return subscribeBuild(sha, send);
+    }
     touch(sha);
     void touchPreview(sha).catch(() => {});
     send({ phase: "ready", sha });

@@ -201,7 +201,7 @@ describe("PreviewBanner", () => {
     renderBanner(PREVIEW_SOURCE);
     expect(
       await screen.findByText(
-        /redlined against acme\/fork:main · base forked from sky-ecosystem\/next-gen-atlas:main 3 commits ago · 2 commits behind main · 1 doc differ/,
+        /redlined against acme\/fork:main · base forked from sky-ecosystem\/next-gen-atlas:main 3 commits ago · 2 commits behind main · 1 doc differs/,
       ),
     ).toBeTruthy();
   });
@@ -279,6 +279,46 @@ describe("PreviewBanner", () => {
     });
     renderBanner(PREVIEW_SOURCE);
     expect(await screen.findByText(/redlined against live main \(no fork point found\)/)).toBeTruthy();
+  });
+
+  it("prompts to review GitHub App permissions on a private PR built without Pull requests: Read", async () => {
+    mockMeta({
+      sha: "ghi",
+      repo: "acme/secret-atlas",
+      ref: "pull-7",
+      kind: "branch",
+      private: true,
+      needsPullsPermission: true,
+      permissionsUrl: "https://github.com/organizations/acme/settings/installations/9/permissions/update",
+    });
+    renderBanner(PREVIEW_SOURCE);
+    expect(await screen.findByText("PERMISSION")).toBeTruthy();
+    expect(await screen.findByText(/Needs Pull requests: Read/)).toBeTruthy();
+    const link = await screen.findByRole("link", { name: "Review permissions on GitHub ↗" });
+    expect(link).toHaveAttribute(
+      "href",
+      "https://github.com/organizations/acme/settings/installations/9/permissions/update",
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("asks the owner to grant Pull requests: Read when there is no review URL", async () => {
+    mockMeta({
+      sha: "ghi", repo: "acme/secret-atlas", ref: "pull-7", kind: "branch",
+      private: true, needsPullsPermission: true,
+    });
+    renderBanner(PREVIEW_SOURCE);
+    expect(await screen.findByText(/Ask the person who installed the App/)).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Review permissions on GitHub ↗" })).toBeNull();
+  });
+
+  it("omits the permission prompt when the flag is off", async () => {
+    mockMeta({
+      sha: "ghi", repo: "acme/secret-atlas", ref: "feature", kind: "branch", private: true,
+    });
+    renderBanner(PREVIEW_SOURCE);
+    await screen.findByText("PRIVATE PREVIEW");
+    expect(screen.queryByText(/Needs Pull requests: Read/)).toBeNull();
   });
 
   it("renders an old bundle (no bases field) exactly as before, unaffected by the new copy", async () => {
