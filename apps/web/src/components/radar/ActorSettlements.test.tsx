@@ -124,21 +124,21 @@ describe("ActorSettlements", () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     const skeleton = screen.getByTestId("settlements-skeleton");
     expect(screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure")).toBeInTheDocument();
-    expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
+    expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument();
     expect(screen.getByText("monthly summary")).toBeInTheDocument();
     expect(screen.getByText("demand side")).toBeInTheDocument();
-    expect(screen.getByText("Demand-side")).toBeInTheDocument();
-    expect(screen.getByText(/Total Spark retained revenue/)).toBeInTheDocument();
+    expect(screen.getByText("Demand-side from Sky to Spark")).toBeInTheDocument();
+    expect(screen.getByText(/Spark kept/)).toBeInTheDocument();
     expect(skeleton.querySelectorAll(".msc-bar-cluster")).toHaveLength(6);
     expect(skeleton.querySelectorAll(".msc-bar-stack")).toHaveLength(6);
   });
 
   it("renders Spark figures, the Sankey, and the venue table for the latest month", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
-    await waitFor(() => expect(screen.getByText("Supply-side kept")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument());
     expect(screen.getByRole("heading", { name: "monthly summary" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "demand side" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Trailing 2 Months – Total Spark retained revenue $237" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trailing 2 Months – Spark kept $162 supply-side, earned $75 demand-side" })).toBeInTheDocument();
     const panes = document.querySelectorAll(".msc-charts-pane");
     expect(panes).toHaveLength(2);
     expect(panes[0]).toContainElement(screen.getByLabelText("Settlement months"));
@@ -189,10 +189,13 @@ describe("ActorSettlements", () => {
     expect(screen.getByText("cost of funds")).toBeInTheDocument();
     expect(screen.getByText("Sky Direct Exposure")).toBeInTheDocument();
     // The prime side is its own equation, named for the Prime: kept 150 + demand 70.
-    expect(screen.getByLabelText("Spark retained revenue equals supply-side kept plus demand-side")).toBeInTheDocument();
-    expect(screen.getByText("Spark retained revenue")).toBeInTheDocument();
-    expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
-    expect(screen.getAllByText("$220").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText(/^Supply-side kept by Spark, and demand-side owed by Sky to Spark/)).toBeInTheDocument();
+    expect(screen.getByText("Demand-side from Sky to Spark")).toBeInTheDocument();
+    expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument();
+    // Each side keeps its own figure: kept 150, demand 70, never a $220 total.
+    expect(screen.getAllByText("$150").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("$70").length).toBeGreaterThan(0);
+    expect(screen.queryByText("$220")).not.toBeInTheDocument();
     // The card is headed by the settlement month, not the Prime's name.
     const headline = screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure").closest(".msc-card")!;
     expect(headline).toHaveTextContent(/^▶ play\s*Jul 2026/);
@@ -209,7 +212,7 @@ describe("ActorSettlements", () => {
 
   it("switches month from the bar control", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
-    await waitFor(() => screen.getByText("Supply-side kept"));
+    await waitFor(() => screen.getByText(/^Supply-side kept by /));
     fireEvent.click(screen.getByRole("button", { name: /Jun 2026: \$10 to Sky/ }));
     expect(screen.getByText("June venue")).toBeInTheDocument();
     expect(screen.queryByText("SparkLend USDS")).not.toBeInTheDocument();
@@ -221,11 +224,11 @@ describe("ActorSettlements", () => {
     await waitFor(() => screen.getByText(/no venue-level PnL for Keel/));
     expect(screen.queryByLabelText(/Venue flows/)).not.toBeInTheDocument();
     expect(screen.getByText("To Sky")).toBeInTheDocument();
-    expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
-    expect(screen.getAllByText("Demand-side").length).toBeGreaterThan(0);
+    expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument();
+    expect(screen.getByText("Demand-side from Sky to Keel")).toBeInTheDocument();
     expect(screen.getAllByText("$36,231").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("Demand-side months")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Trailing 1 Month – Total Keel retained revenue $36,231" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trailing 1 Month – Keel kept $0 supply-side, earned $36,231 demand-side" })).toBeInTheDocument();
     expect(screen.getByText("agent rate")).toBeInTheDocument();
     expect(screen.getByText("distribution rewards")).toBeInTheDocument();
     expect(screen.getByText(/Sky's take is zero/)).toBeInTheDocument();
@@ -252,7 +255,7 @@ describe("ActorSettlements", () => {
   it("resolves Spark's workbooks from the composite-party slug", async () => {
     window.history.pushState({}, "", "/radar/spark-party/settlements");
     render(<ActorSettlements slug="spark-party" name="Spark" />);
-    await waitFor(() => expect(screen.getByText("Supply-side kept")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/^Supply-side kept by /)).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "2026-07 source" })).toHaveAttribute(
       "href",
       "https://github.com/soterlabs/settlement-reports/tree/main/reports/spark/2026-07",
@@ -266,8 +269,8 @@ describe("ActorSettlements", () => {
     });
     loadSettlements.mockReturnValue(fulfilled({ ...FIXTURE, reports: run }));
     render(<ActorSettlements slug="spark" name="Spark" />);
-    await waitFor(() => screen.getByText("Supply-side kept"));
-    expect(screen.getByRole("heading", { name: /Trailing 12 Months – Total Spark retained revenue/ })).toBeInTheDocument();
+    await waitFor(() => screen.getByText(/^Supply-side kept by /));
+    expect(screen.getByRole("heading", { name: /Trailing 12 Months – Spark kept/ })).toBeInTheDocument();
     const cols = () => [...screen.getByLabelText("Settlement months").querySelectorAll("button")];
     expect(cols()).toHaveLength(12);
     expect(cols()[0]).toHaveAttribute("aria-label", expect.stringMatching(/^Mar 2025/));
@@ -301,7 +304,7 @@ describe("ActorSettlements", () => {
 
   it("explains when a slug has no MSC workbooks", async () => {
     const { rerender } = render(<ActorSettlements slug="spark" name="Spark" />);
-    await screen.findByText("Supply-side kept");
+    await screen.findByText(/^Supply-side kept by /);
     rerender(<ActorSettlements slug="spark-proxy" name="Spark Proxy" />);
     expect(screen.getByText(/No published Monthly Settlement Cycle workbooks for Spark Proxy/)).toBeInTheDocument();
   });

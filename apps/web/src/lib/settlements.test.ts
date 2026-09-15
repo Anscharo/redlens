@@ -30,7 +30,8 @@ import {
   collapseAum,
   EMPTY_SETTLEMENTS,
   settlementsArtifactMissing,
-  retainedRevenueTotal,
+  supplyKeptTotal,
+  demandSideTotal,
   type SettlementHeadline,
   type SettlementReport,
   type SettlementsBundle,
@@ -267,7 +268,7 @@ describe("demand-side cycles", () => {
     expect(sky + kept + demand).toBe(h.primeAgentRevenue + demand + h.sdeRevenue);
   });
 
-  it("sums retained revenue over a window of months", () => {
+  it("sums each side of the cycle over a window of months, separately", () => {
     const many = Array.from({ length: 13 }, (_, i) => {
       const d = new Date(Date.UTC(2025, i, 1));
       const month = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -281,8 +282,9 @@ describe("demand-side cycles", () => {
     expect(windowed[0]!.month).toBe("2025-02");
     expect(windowed.at(-1)!.month).toBe("2026-01");
     expect(cycleWindow(many.slice(0, 8)).rows).toHaveLength(8);
-    // kept = 10 − 4, demand = 3 → $9 per month × 12
-    expect(retainedRevenueTotal(windowed)).toBe(9 * 12);
+    // The two sides never merge into one figure: kept = 10 − 4, demand = 3.
+    expect(supplyKeptTotal(windowed)).toBe(6 * 12);
+    expect(demandSideTotal(windowed)).toBe(3 * 12);
   });
 
   it("activates demand-series that appear in any month", () => {

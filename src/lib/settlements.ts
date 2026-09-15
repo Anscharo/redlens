@@ -279,18 +279,24 @@ export function activeDemandSeries(reports: readonly SettlementReport[]) {
   );
 }
 
-/** Retained revenue: supply-side kept + demand-side, summed over the given
- *  months — everything a Prime keeps from the cycle, the remainder of its
- *  revenue after what goes to Sky.
- *
- *  Not "earnings": these workbooks carry none of the Prime's own operating
- *  costs, so this is revenue retained, never profit. NOTE it is also not an
- *  Atlas-defined term — the Atlas's nearest calculated figures are Instance
- *  Revenue and Total Allocation System Revenue (A.2.4.1.2.2.1.1.2.1.1 /
- *  A.2.4.1.2.2.1.1.2.1), which are gross and scoped to one Primitive. Like
- *  cost of funds, this is Soter Labs' OEA vocabulary, not the Atlas's. */
-export function retainedRevenueTotal(reports: readonly SettlementReport[]): number {
-  return reports.reduce((sum, r) => sum + supplyKept(r) + demandSideRevenue(r.headline), 0);
+/** The two sides are summed SEPARATELY and never added together. The
+ *  Monthly Settlement Cycle settles them as two amounts running in
+ *  opposite directions: what a Prime owes Sky for Supply Side Primitives
+ *  (A.2.4.1.2.2.1.1.2) and what Sky owes the Prime for Demand Side
+ *  Primitives and the Agent Rate (A.2.4.1.2.2.1.1.1). They are settled in
+ *  the same vote (A.2.4.1.2.2.1.1.3), but the Atlas defines no term for
+ *  their sum — so neither do we. */
+
+/** Supply-side kept (`par − CoF`), summed over the given months. Signed: a
+ *  month whose cost of funds outran its revenue is a loss. */
+export function supplyKeptTotal(reports: readonly SettlementReport[]): number {
+  return reports.reduce((sum, r) => sum + supplyKept(r), 0);
+}
+
+/** Demand-side (agent rate + rewards) over the given months — what Sky
+ *  owes the Prime, not what the Prime kept out of its own revenue. */
+export function demandSideTotal(reports: readonly SettlementReport[]): number {
+  return reports.reduce((sum, r) => sum + demandSideRevenue(r.headline), 0);
 }
 
 export function venuePnlCount(report: SettlementReport): number {

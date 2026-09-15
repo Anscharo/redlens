@@ -1,5 +1,6 @@
 import {
-  retainedRevenueTotal,
+  supplyKeptTotal,
+  demandSideTotal,
   formatUsd,
   summaryThreeWay,
   activeDemandSeries,
@@ -21,7 +22,8 @@ const TITLE = "mono text-[10px] uppercase tracking-wider mb-2";
 
 export function SettlementCharts({ reports, selected, onSelect, name, paging }: Props) {
   const n = reports.length;
-  const retained = retainedRevenueTotal(reports);
+  const supply = supplyKeptTotal(reports);
+  const demand = demandSideTotal(reports);
   const series = activeDemandSeries(reports);
   return (
     <section className="msc-card rounded p-4 mb-4" aria-labelledby="msc-charts-heading">
@@ -33,8 +35,8 @@ export function SettlementCharts({ reports, selected, onSelect, name, paging }: 
         >
           Trailing {n} {n === 1 ? "Month" : "Months"}
           {" – "}
-          Total {name} retained revenue{" "}
-          <span className="mono">{formatUsd(retained)}</span>
+          {name} kept <span className="mono">{formatUsd(supply)}</span> supply-side,
+          {" "}earned <span className="mono">{formatUsd(demand)}</span> demand-side
         </h2>
         {paging && (
           <span className="msc-cycle-paging" role="group" aria-label="Cycles shown">

@@ -63,17 +63,18 @@ function Op({ children }: { children: string }) {
 
 /** The month's figures as a card — the ecosystem's on the overview, one
  *  Prime's on its settlement page (same component, so the two pages can't
- *  drift). Both sides of the cycle are shown as the equations they are —
- *  To Sky = cost of funds + Sky Direct Exposure, and retained revenue =
- *  supply-side kept + demand-side — so nobody adds a component on top of
- *  its own total. The two totals together are the month's gross revenue.
- *  Retained revenue is the same quantity `retainedRevenueTotal` sums over
- *  a window for the charts card's heading: revenue the Prime keeps from
- *  the cycle, before any operating cost of its own (these workbooks carry
- *  none, which is why it is not called earnings or profit). */
+ *  drift). To Sky is shown as the equation it is, cost of funds + Sky
+ *  Direct Exposure, so nobody adds the components on top of the total.
+ *
+ *  The supply and demand sides are NOT summed into one figure, because the
+ *  Monthly Settlement Cycle settles them as two amounts running in
+ *  opposite directions: what a Prime owes Sky for Supply Side Primitives
+ *  (A.2.4.1.2.2.1.1.2) and what Sky owes the Prime for Demand Side
+ *  Primitives and the Agent Rate (A.2.4.1.2.2.1.1.1), settled together but
+ *  never added (A.2.4.1.2.2.1.1.3). The demand-side label names that
+ *  direction rather than leaving it to be guessed. */
 export function MscHeadline({ eco, month, earner, play }: Props) {
-  const retained = eco ? eco.kept + eco.demand : null;
-  const who = earner ?? "Primes";
+  const who = earner ? `${earner}` : "Primes";
   return (
     <div className="msc-card rounded p-4 mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 text-sm">
       <div className="flex flex-col items-center">
@@ -105,13 +106,10 @@ export function MscHeadline({ eco, month, earner, play }: Props) {
       <span className="msc-headline-divider" aria-hidden="true" />
       <div
         className="flex flex-wrap items-end gap-x-3 gap-y-2"
-        aria-label={`${who} retained revenue equals supply-side kept plus demand-side`}
+        aria-label={`Supply-side kept by ${who}, and demand-side owed by Sky to ${who} — two separate settlement amounts, never added`}
       >
-        <Figure label={`${who} retained revenue`} value={retained} />
-        <Op>=</Op>
-        <Figure label="Supply-side kept" value={eco?.kept ?? null} muted />
-        <Op>+</Op>
-        <Figure label="Demand-side" value={eco?.demand ?? null} muted />
+        <Figure label={`Supply-side kept by ${who}`} value={eco?.kept ?? null} />
+        <Figure label={`Demand-side from Sky to ${who}`} value={eco?.demand ?? null} />
       </div>
     </div>
   );
