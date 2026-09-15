@@ -1,84 +1,65 @@
 import { Link } from "./Link";
-import { reportHref, REPORT_TITLES, REPORT_DESCRIPTIONS } from "@/lib/routes";
+import { reportHref } from "@/lib/routes";
+import { buildReportCatalog, type ReportCard } from "@/lib/reportCatalog";
 import { track } from "../lib/analytics";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-import type { ReportId } from "@/types";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 
-// Titles + descriptions come from routes.ts (REPORT_TITLES / REPORT_DESCRIPTIONS
-// — shared with visit-history capture and the chat's page-context line, so this
-// same copy is what the model gets asked "what is this report" on the page).
-type ReportCard = { id: ReportId; title: string; description: string };
-const card = (id: ReportId): ReportCard => ({
-  id,
-  title: REPORT_TITLES[id],
-  description: REPORT_DESCRIPTIONS[id],
-});
+// Thin renderer over src/lib/reportCatalog.ts, which owns the grouping, the
+// provenance metadata, and the query filter. Groups are by SUBJECT (what a
+// report is about, which is how people browse); provenance rides along as a
+// per-card badge so neither axis has to distort the other.
 
-const SECTIONS: { title: string; reports: ReportCard[] }[] = [
-  {
-    title: "OEA Reports",
-    reports: [card("of-responsibilities"), card("gov-ops-responsibilities"), card("oea-assessment")],
-  },
-  {
-    title: "General Reports",
-    reports: [
-      card("active-data"),
-      card("rewards"),
-      card("risk-rules"),
-      card("onchain-addresses"),
-      card("stale-dates"),
-      card("mod-frequency"),
-      card("processes"),
-      card("crossview"),
-    ],
-  },
-];
+function Card({ card }: { card: ReportCard }) {
+  return (
+    <Link
+      to={reportHref(card.id)}
+      className="w-full text-left px-4 py-4 rounded border transition-colors hover:bg-[var(--hover)] block no-underline"
+      style={{ borderColor: "var(--border)" }}
+      onClick={() => track("report_open", { report_id: card.id })}
+    >
+      <p className="text-sm font-medium mb-1 flex items-center gap-2 flex-wrap" style={{ color: "var(--tan)" }}>
+        {card.title}
+        <ProvenanceBadge provenance={card.provenance} />
+      </p>
+      <p className="text-xs" style={{ color: "var(--tan-3)" }}>
+        {card.description}
+      </p>
+    </Link>
+  );
+}
 
 export function ReportsIndex({ query }: { query: string }) {
   useDocumentTitle("Sky Atlas Reports");
-  const q = query.trim().toLowerCase();
-  const sections = SECTIONS.map((s) => ({
-    ...s,
-    reports: q
-      ? s.reports.filter(
-          (r) => r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q),
-        )
-      : s.reports,
-  })).filter((s) => s.reports.length > 0);
+  const groups = buildReportCatalog(query);
 
   return (
     <div className="px-6 py-8">
       <div className="max-w-2xl mx-auto">
         <p className="mono text-xs text-tan-3 mb-1">reports</p>
-        <h1 className="text-xl font-semibold mb-6" style={{ color: "var(--tan)" }}>
+        <h1 className="text-xl font-semibold mb-1" style={{ color: "var(--tan)" }}>
           Reports
         </h1>
-        {sections.map((s) => (
-          <section key={s.title} className="mb-8">
-            <h2 className="text-xs mono text-tan-3 uppercase tracking-wider mb-3 pb-1 border-b border-[var(--border)]">
-              {s.title}
+        <p className="text-xs mb-6" style={{ color: "var(--tan-3)" }}>
+          Unlabelled reports are rebuilt from the Atlas every time you open them. A badge marks the
+          ones that are not.
+        </p>
+        {groups.map((g) => (
+          <section key={g.title} className="mb-8">
+            <h2 className="text-xs mono text-tan-3 uppercase tracking-wider mb-1 pb-1 border-b border-[var(--border)]">
+              {g.title}
             </h2>
+            <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
+              {g.hint}
+            </p>
             <div className="space-y-3">
-              {s.reports.map((r) => (
-                <Link
-                  key={r.id}
-                  to={reportHref(r.id)}
-                  className="w-full text-left px-4 py-4 rounded border transition-colors hover:bg-[var(--hover)] block no-underline"
-                  style={{ borderColor: "var(--border)" }}
-                  onClick={() => track("report_open", { report_id: r.id })}
-                >
-                  <p className="text-sm font-medium mb-1" style={{ color: "var(--tan)" }}>
-                    {r.title}
-                  </p>
-                  <p className="text-xs" style={{ color: "var(--tan-3)" }}>
-                    {r.description}
-                  </p>
-                </Link>
+              {g.cards.map((c) => (
+                <Card key={c.id} card={c} />
               ))}
             </div>
           </section>
         ))}
-        {sections.length === 0 && (
+        {groups.length === 0 && (
           <p className="mono text-xs" style={{ color: "var(--tan-3)" }}>
             No reports match "{query}".
           </p>
