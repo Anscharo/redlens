@@ -2587,11 +2587,34 @@ a.atlas-annotates:focus-visible {
   color: var(--tan-2);
 }
 
+/* ─── Radar actor dashboard (title | teaser / chain | history / rest | history) ─── */
+.actor-dash {
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 1024px) {
+  .actor-dash {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 26rem);
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "title teaser"
+      "chain history"
+      "rest history";
+    column-gap: 2rem;
+    align-items: start;
+  }
+  .actor-dash-title { grid-area: title; }
+  .actor-dash-teaser { grid-area: teaser; }
+  .actor-dash-chain { grid-area: chain; }
+  .actor-dash-rest { grid-area: rest; }
+  .actor-dash-history { grid-area: history; }
+}
+
 /* ─── MSC settlement charts (radar actor page) ─── */
 .msc-teaser {
-  float: right;
   width: 14.5rem;
-  margin: 0 0 1rem 1.25rem;
+  margin: 0 0 1rem auto;
   padding: 12px 14px 14px;
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -2603,7 +2626,6 @@ a.atlas-annotates:focus-visible {
 }
 @media (max-width: 639px) {
   .msc-teaser {
-    float: none;
     width: 100%;
     margin: 0 0 1rem 0;
   }
