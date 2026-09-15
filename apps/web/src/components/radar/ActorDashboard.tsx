@@ -144,13 +144,13 @@ export function ActorDashboard({ profile }: Props) {
               )}
             </div>
           </div>
+
+          {/* Same flow as the floated teaser so Related Parties wraps into the
+              space under the title instead of leaving it empty. */}
+          <ActorChain chain={chain} currentSlug={entity.slug} />
         </div>
 
         <div className="min-w-0">
-          {/* Related parties sit in this column so History starts across from
-              Executor Agent. Contact, Omni, and Responsibilities fill the rest
-              of the column so it is not empty beside History. */}
-          <ActorChain chain={chain} currentSlug={entity.slug} />
           <ActorContact contact={profile.contact} />
           <ActorOmni omni={profile.omni} />
 
