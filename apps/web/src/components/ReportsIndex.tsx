@@ -28,6 +28,7 @@ const SECTIONS: { title: string; reports: ReportCard[] }[] = [
       card("onchain-addresses"),
       card("stale-dates"),
       card("mod-frequency"),
+      card("potential-mistakes"),
       card("processes"),
       card("crossview"),
     ],

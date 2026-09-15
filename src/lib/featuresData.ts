@@ -196,7 +196,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Using a report",
         what: "Extracted, filterable tables you can narrow and export.",
         how: [
-          "Open Reports and pick one — responsibilities by facilitator or GovOps, Active Data, integrator rewards, on-chain addresses, stale dates, modification frequency, processes, and more.",
+          "Open Reports and pick one — responsibilities by facilitator or GovOps, Active Data, integrator rewards, on-chain addresses, stale dates, modification frequency, processes, potential mistakes, and more.",
           "Use the filter pills to narrow; the URL updates so you can share the exact filtered view.",
           "Click Download CSV to export — full or filtered, with UUIDs and direct Atlas links.",
         ],
@@ -209,6 +209,16 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Follow the link to the rubric page to see exactly what the ratings are scored against.",
         ],
         note: "Ratings are AI-drafted and human-reviewed — treat them as a starting point, not a verdict.",
+      },
+      {
+        name: "Potential Mistakes",
+        what: "Suspected typos, grammar slips, broken cross-references, wrong figures and internal contradictions in the Atlas text — each one quoted and linked to its document.",
+        how: [
+          "Open Potential Mistakes and filter by severity, category, which sweep pass found it, or Doc status.",
+          "Read the quoted Atlas text next to the explanation, then follow the document link to check it at the source.",
+          "Use the Doc status pills to find findings whose document has been renumbered or removed since the sweep ran.",
+        ],
+        note: "LLM-generated and re-run by hand, not when the Atlas updates — so a finding may already be fixed upstream. Each row is a suspicion to check, not a confirmed defect.",
       },
     ],
   },
