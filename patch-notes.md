@@ -32,6 +32,9 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
+## 2026-09-15
+- Filled in the owner shown for 45 on-chain addresses, including every ALM facet contract, which previously showed no owner
+
 ## 2026-09-11
 - Private previews now show line diffs in the history panel
 

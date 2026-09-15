@@ -1,12 +1,23 @@
 # entityLabel extraction: stop emitting sentence fragments
 
-Status: **plan**. Source defect is still live on `main`. Display-time
-`isCleanLabel` (PR #363) hides most fragments from the UI and chat; this plan
-fixes the pipeline so the filter is a tripwire, not the real gate.
+Status: **shipped** (branch `cursor/entitylabel-fragment-plan-223f`). The
+pipeline now filters at the source and display-time `isCleanLabel` (PR #363) is
+a tripwire against extractor regression, not the real gate.
 
-`src/lib/addressName.ts` already points here. Do not archive this file until
-the pipeline change has shipped and the leftover-filter comment in
-`isCleanLabel` has been rewritten.
+Measured on the atlas at submodule `0587f18c`: fragment-shaped `entityLabel`s
+went **65 → 0** (18 internal sentence breaks, 32 dangling function words, 15 bare
+pronouns), over-length labels 31 → 9 (the 9 survivors are Phase 4.5a's
+ICD-constructed vault names, deliberately exempt — locked decision 5). 48 labels
+changed; 46 of them are a clause or a bare `Its` becoming the facet's real name
+(`Wrap Proxy ETH Facet`, `PSM Facet`, `The Beacon`, `Aave v3 Facet`…) via Phase
+4.5. Only 2 addresses end up with no label at all, and only one previously
+*rendering* label got shorter (`The Sky.money Frontend Governance Reward payment`
+→ `Frontend Governance Reward payment`) — the cost of dropping `.` from the
+capture class, which is what stops the backwards walk crossing a sentence.
+
+`src/lib/addressName.ts` and `.claude/skills/address-extraction/SKILL.md` point
+here for the incident; `node scripts/aux/label-quality.mjs` is the re-runnable
+scan.
 
 ## Incident
 

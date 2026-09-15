@@ -149,14 +149,35 @@ describe("extractRoles — word boundary: compound words do not fire", () => {
 // ---------------------------------------------------------------------------
 
 describe("extractEntityLabel — typographic apostrophes", () => {
+  // Both forms must be *consumed* as the possessive, not captured as part of
+  // the name — the possessive group is ['’]s, so the label comes out bare.
   it("ASCII apostrophe in possessive ('X's address')", () => {
     const [c, i] = ctx("Sky Frontier Foundation's address is ");
-    expect(extractEntityLabel(c, i, null)).toContain("Sky Frontier Foundation");
+    expect(extractEntityLabel(c, i, null)).toBe("Sky Frontier Foundation");
   });
 
   it("typographic right-single-quote in possessive ('X’s address')", () => {
     const [c, i] = ctx("Sky Frontier Foundation’s address is ");
-    expect(extractEntityLabel(c, i, null)).toContain("Sky Frontier Foundation");
+    expect(extractEntityLabel(c, i, null)).toBe("Sky Frontier Foundation");
+  });
+
+  it("a bare trailing 's' is not a possessive (‘Its address’ is not entity ‘It’)", () => {
+    const [c, i] = ctx("Its address on Ethereum Mainnet is ");
+    expect(extractEntityLabel(c, i, null)).toBeNull();
+  });
+});
+
+describe("extractEntityLabel — sentence boundaries", () => {
+  // The capture class has no ".", so a non-greedy walk backwards stops at the
+  // end of the previous sentence instead of swallowing it.
+  it("does not reach back across a period into the preceding sentence", () => {
+    const [c, i] = ctx("Rewards accrue to the vault buffer. The Beacon's address is ");
+    expect(extractEntityLabel(c, i, null)).toBe("The Beacon");
+  });
+
+  it("returns null rather than a clause when the only capital is mid-sentence", () => {
+    const [c, i] = ctx("converts between DAI and USDS at 1:1 through the converter. Its address is ");
+    expect(extractEntityLabel(c, i, null)).toBeNull();
   });
 });
 
