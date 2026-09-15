@@ -37,7 +37,7 @@ function profile(): ActorProfile {
 describe("ActorHistoryPage", () => {
   it("titles the page and links back to the actor dashboard", () => {
     render(<ActorHistoryPage profile={profile()} />);
-    expect(screen.getByRole("heading", { level: 1, name: "History of doc changes" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "History of doc changes related to Spark" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "radar · Spark" })).toHaveAttribute("href", "/radar/spark");
     expect(screen.getByTestId("history-body")).toBeInTheDocument();
   });

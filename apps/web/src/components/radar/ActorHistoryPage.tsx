@@ -18,7 +18,7 @@ export function ActorHistoryPage({ profile }: Props) {
           </Link>
         </p>
         <h1 className="text-xl font-semibold mb-6" style={{ color: "var(--tan)" }}>
-          History of doc changes
+          History of doc changes related to {entity.name}
         </h1>
         <ActorHistory profile={profile} />
       </div>
