@@ -29,8 +29,8 @@ export const SWATCH_WORST_BG: Record<string, string> = {
   "entity-instance": "surface", "entity-multisig": "surface", "entity-fallback": "surface",
   "diff-removed-fg": "diff-removed-bg",
   ...Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`depth-${i + 1}`, "surface"])),
-  ...Object.fromEntries(["sky", "sky-2", "sky-3", "sky-4", "sde", "kept", "demand", "dr", "gar", "cp", "loss"].map((k) => [`msc-${k}`, "bg-deep"])),
-  ...Object.fromEntries(["sky", "sde", "kept", "demand", "dr", "gar", "cp"].map((k) => [`msc-${k}-ink`, `msc-${k}`])),
+  ...Object.fromEntries(["sky", "sky-2", "sky-3", "sky-4", "sde", "kept", "demand", "rate", "dr", "gar", "cp", "loss"].map((k) => [`msc-${k}`, "bg-deep"])),
+  ...Object.fromEntries(["sky", "sde", "kept", "demand", "rate", "dr", "gar", "cp"].map((k) => [`msc-${k}-ink`, `msc-${k}`])),
 };
 
 export interface AuditPair {

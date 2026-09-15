@@ -167,7 +167,7 @@ describe("RadarPage actor page", () => {
     expect(recordVisit).toHaveBeenCalledWith(
       expect.objectContaining({
         path: "/radar/spark/settlements",
-        label: "Spark Radar Entity · Monthly settlement",
+        label: "Spark Radar Entity · Monthly settlements",
       }),
     );
   });

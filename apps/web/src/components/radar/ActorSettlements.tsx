@@ -6,8 +6,6 @@ import {
   reportsForPrime,
   formatUsd,
   revenueGap,
-  summaryThreeWay,
-  activeDemandSeries,
   demandSideRevenue,
   supplyKept,
   settlementsArtifactMissing,
@@ -17,8 +15,7 @@ import {
 } from "../../lib/settlements";
 import { loadForumTopics } from "../../lib/forumTopics";
 import { forumTopicUrlForMonth } from "@/lib/forumMonths";
-import { SettlementBars } from "./SettlementBars";
-import { SettlementDemandBars } from "./SettlementDemandBars";
+import { SettlementCharts } from "./SettlementCharts";
 import { ActorSettlementVenues } from "./ActorSettlementVenues";
 import { MscHeadline } from "./MscHeadline";
 import { ActorSettlementsSkeleton } from "./ActorSettlementsSkeleton";
@@ -74,7 +71,6 @@ function ActorSettlementsLoaded({ slug, name }: Props) {
         onLater: () => setPage({ month, offset: Math.max(0, offset - CYCLE_WINDOW) }),
       }
     : undefined;
-  const demandSeries = useMemo(() => activeDemandSeries(reports), [reports]);
 
   if (settlementsArtifactMissing(bundle)) {
     return (
@@ -117,23 +113,15 @@ function ActorSettlementsLoaded({ slug, name }: Props) {
           </>
         )}
       </p>
-      {/* One card of month charts — the Summary, then the demand-side mix
-          under it with its columns on the same grid — above the month's
+      {/* One card of month charts — the monthly summary, then the demand-side
+          mix under it with its columns on the same grid — above the month's
           figures. */}
-      <div className="msc-card rounded p-4 mb-4">
-        <SettlementBars
-          months={shown.rows.map(summaryThreeWay)}
-          selected={month}
-          onSelect={selectMonth}
-          paging={paging}
-        />
-        <SettlementDemandBars
-          reports={shown.rows}
-          series={demandSeries}
-          selected={month}
-          onSelect={selectMonth}
-        />
-      </div>
+      <SettlementCharts
+        reports={shown.rows}
+        selected={month}
+        onSelect={selectMonth}
+        paging={paging}
+      />
       <MscHeadline
         eco={{
           sky: report.headline.skyRevenue,

@@ -190,7 +190,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "The settlement charts show a year of cycles at a time; a Prime with more gets ‹ › arrows beside the Summary title to page back through older ones.",
           "On that page, Sky Forum opens the forum post for the month selected in the charts.",
           "Ask Chat or an MCP client about a month's To Sky / supply-side kept / demand-side — it will say those figures are not from the Atlas.",
-          "On the cycle page, click a month in the Summary bars. Primes with several venues have a PnL / AUM toggle.",
+          "On the cycle page, click a month in the monthly summary bars. Primes with several venues have a PnL / AUM toggle.",
           "In the venue flow chart, hover a flow, a venue name, or its row in the table below — that venue lights up in both, and its figures appear on the flows.",
           "Click the Sky label beside the venue flow chart to open that month in the ecosystem overview on the Radar front page.",
           "A sink with loss-making venues gets two bars: what came in (`$X gross in`) and, in red just below it, what went back out (`−$Y out`), with the `net` the pair settles to underneath. A longer red bar than green means the month went backwards.",

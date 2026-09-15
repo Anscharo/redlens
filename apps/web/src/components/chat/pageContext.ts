@@ -99,7 +99,7 @@ export function usePageContext(): PageContextView {
       mscMonth,
       short: settlements ? `Ask about ${name}'s monthly settlement` : `Ask about ${name}`,
       placeholder: settlements ? `Ask about ${name}'s monthly settlement…` : `Ask about ${name}…`,
-      label: settlements ? `${name} · Monthly settlement` : name,
+      label: settlements ? `${name} · Monthly settlements` : name,
       chip: settlements ? "radar · settlement" : `radar · ${name}`,
     };
   }

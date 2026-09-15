@@ -279,6 +279,11 @@ export function activeDemandSeries(reports: readonly SettlementReport[]) {
   );
 }
 
+/** Supply-side kept + demand-side, summed over the given months. */
+export function agentEarningsTotal(reports: readonly SettlementReport[]): number {
+  return reports.reduce((sum, r) => sum + supplyKept(r) + demandSideRevenue(r.headline), 0);
+}
+
 export function venuePnlCount(report: SettlementReport): number {
   return report.venues.filter(
     (v) => Math.abs(v.profitToSky) + Math.abs(v.profitToGrove) >= NEAR_ZERO,

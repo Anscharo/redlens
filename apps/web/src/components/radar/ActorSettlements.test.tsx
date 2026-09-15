@@ -125,9 +125,8 @@ describe("ActorSettlements", () => {
     const skeleton = screen.getByTestId("settlements-skeleton");
     expect(screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure")).toBeInTheDocument();
     expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
-    expect(screen.getByText("Summary")).toBeInTheDocument();
-    // "Demand-side" is both the headline card's label and the bar chart's title.
-    expect(screen.getAllByText("Demand-side")).toHaveLength(2);
+    expect(screen.getByText("monthly summary")).toBeInTheDocument();
+    expect(screen.getByText("Demand-side")).toBeInTheDocument();
     expect(skeleton.querySelectorAll(".msc-bar-cluster")).toHaveLength(6);
     expect(skeleton.querySelectorAll(".msc-bar-stack")).toHaveLength(6);
   });
@@ -135,6 +134,19 @@ describe("ActorSettlements", () => {
   it("renders Spark figures, the Sankey, and the venue table for the latest month", async () => {
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => expect(screen.getByText("Supply-side kept")).toBeInTheDocument());
+    expect(screen.getByRole("heading", { name: "monthly summary" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trailing 2 Months" })).toBeInTheDocument();
+    expect(screen.getByText(/Agent earnings/)).toBeInTheDocument();
+    expect(screen.getByText("$237")).toBeInTheDocument();
+    const legend = document.querySelector(".msc-charts-legend")!;
+    expect(legend).toHaveTextContent("to Sky");
+    expect(legend).toHaveTextContent("supply-side kept");
+    expect(legend).toHaveTextContent("demand-side");
+    expect(legend).toHaveTextContent("|");
+    expect(legend).toHaveTextContent("agent rate");
+    expect(legend).toHaveTextContent("distribution rewards");
+    expect(legend.querySelector(".msc-bar-rate")).toBeInTheDocument();
+    expect(legend.querySelector(".msc-bar-demand")).toBeInTheDocument();
     expect(screen.getByLabelText(/Venue flows to Sky and Spark/)).toBeInTheDocument();
     // The Sky sink label links back to the ecosystem overview for this month.
     expect(
@@ -178,7 +190,7 @@ describe("ActorSettlements", () => {
     const headline = screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure").closest(".msc-card")!;
     expect(headline).toHaveTextContent(/^▶ play\s*Jul 2026/);
     // The month charts sit in their own card ABOVE the figures.
-    const charts = screen.getByText("Summary").closest(".msc-card")!;
+    const charts = screen.getByRole("heading", { name: "monthly summary" }).closest(".msc-card")!;
     expect(charts).toContainElement(screen.getByLabelText("Demand-side months"));
     expect(charts.compareDocumentPosition(headline) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("button", { name: /Play through the months/ })).toBeInTheDocument();
@@ -206,8 +218,10 @@ describe("ActorSettlements", () => {
     expect(screen.getAllByText("Demand-side").length).toBeGreaterThan(0);
     expect(screen.getByText("$36,231")).toBeInTheDocument();
     expect(screen.getByLabelText("Demand-side months")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trailing 1 Months" })).toBeInTheDocument();
     expect(screen.getByText("agent rate")).toBeInTheDocument();
     expect(screen.getByText("distribution rewards")).toBeInTheDocument();
+    expect(document.querySelector(".msc-charts-legend")).toHaveTextContent("|");
     expect(screen.getByText(/Sky's take is zero/)).toBeInTheDocument();
   });
 
@@ -247,6 +261,7 @@ describe("ActorSettlements", () => {
     loadSettlements.mockReturnValue(fulfilled({ ...FIXTURE, reports: run }));
     render(<ActorSettlements slug="spark" name="Spark" />);
     await waitFor(() => screen.getByText("Supply-side kept"));
+    expect(screen.getByRole("heading", { name: "Trailing 12 Months" })).toBeInTheDocument();
     const cols = () => [...screen.getByLabelText("Settlement months").querySelectorAll("button")];
     expect(cols()).toHaveLength(12);
     expect(cols()[0]).toHaveAttribute("aria-label", expect.stringMatching(/^Mar 2025/));

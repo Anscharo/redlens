@@ -18,7 +18,7 @@ export function ActorSettlementsPage({ profile }: Props) {
           </Link>
         </p>
         <h1 className="text-xl font-semibold mb-6" style={{ color: "var(--tan)" }}>
-          Monthly settlement
+          Monthly settlements
         </h1>
         <ActorSettlements slug={entity.slug} name={entity.name} />
       </div>

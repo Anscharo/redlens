@@ -82,7 +82,7 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
     : !profile
       ? null
       : page === "settlements"
-        ? `${profile.entity.name} monthly settlement · Radar: Sky Atlas by Redline`
+        ? `${profile.entity.name} monthly settlements · Radar: Sky Atlas by Redline`
         : `${profile.entity.name} Radar: Sky Atlas by Redline`;
   useDocumentTitle(title);
 
@@ -91,7 +91,7 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
     if (!actorSlug || !profile) return;
     const path = page === "settlements" ? settlementsHref(actorSlug) : actorHref(actorSlug);
     const label = page === "settlements"
-      ? `${profile.entity.name} · Monthly settlement`
+      ? `${profile.entity.name} · Monthly settlements`
       : profile.entity.name;
     void recordVisit({ path, label, base: routerBase });
   }, [actorSlug, profile, routerBase, page]);

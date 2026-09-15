@@ -84,6 +84,7 @@ describe("usePageContext", () => {
     const { result } = renderHook(() => usePageContext(), { wrapper: wrap("/radar/spark/settlements") });
     expect(result.current.actorSlug).toBe("spark");
     expect(result.current.short).toBe("Ask about Spark's monthly settlement");
+    expect(result.current.label).toBe("Spark · Monthly settlements");
     expect(result.current.chip).toBe("radar · settlement");
   });
 

@@ -109,9 +109,11 @@
      blue, sage green and orange that the settlement pages launched with.
      Their variations are distinct hues, not one-hue lightness ramps —
      "shades of green, teal and blue together are not enough contrast":
-     SDE is a cyan-leaning blue beside cost of funds; the demand-side
-     series step orange → brown → salmon → tan (a yellow step read too
-     close to the tan, so distribution rewards went brown). Each variation clears the
+     SDE is a cyan-leaning blue beside cost of funds; agent rate is a
+     distinct teal (not the demand-side aggregate, which stays orange);
+     the rest of the demand-side stack steps brown → salmon → tan (a
+     yellow step read too close to the tan, so distribution rewards went
+     brown). Each variation clears the
      dataviz validator's normal-vision floor (ΔE ≥ 15) against its
      neighbours in the slice order, and the Prime set does too. The one
      pair under the floor is the originals themselves (sage vs orange,
@@ -127,12 +129,9 @@
   --msc-sde-ink: #160e0d;
   --msc-kept: #9ab58a; /* supply kept */
   --msc-kept-ink: #160e0d;
-  --msc-demand: #e0a060; /* the demand-side family color (the Summary's demand-side total) */
+  --msc-demand: #e0a060; /* demand-side aggregate (orange family) */
   --msc-demand-ink: #160e0d;
-  /* Agent rate, the biggest demand-side line item: its own token so a theme
-     can part it from the family color where the two would read as one
-     (giedi); here it IS the family color, as it always was. */
-  --msc-rate: #e0a060;
+  --msc-rate: #8fb8c2; /* agent rate — teal, distinct from the demand-side aggregate */
   --msc-rate-ink: #160e0d;
   --msc-dr: #9d7a6b; /* distribution rewards */
   --msc-dr-ink: #160e0d;
@@ -312,9 +311,9 @@
   --msc-sde-ink: #050505;
   --msc-kept: #427138; /* green */
   --msc-kept-ink: #fafafa;
-  --msc-demand: #a34d00; /* teal (hue 200, see the :root note) */
+  --msc-demand: #a34d00; /* demand-side aggregate (orange family) */
   --msc-demand-ink: #fafafa;
-  --msc-rate: #a34d00; /* agent rate = the family color, as in the dark theme */
+  --msc-rate: #006d77; /* agent rate — teal, distinct from the demand-side aggregate */
   --msc-rate-ink: #fafafa;
   --msc-dr: #4f2b1a;
   --msc-dr-ink: #fafafa;
@@ -611,9 +610,11 @@
      point of the chart: everything To Sky (the line, the Sky pie, CoF and
      SDE). The prime-side money takes the theme's OTHER hue, gold, at real
      chroma — greys collapsed into each other on the demand-side stack —
-     with supply kept a pale gold and the demand-side series stepping
-     orange-gold → amber → pale yellow → warm grey, every one above this
-     theme's 5:1 floor on the chart card and all with the page as ink. */
+     with supply kept a pale gold, the demand-side aggregate orange-gold,
+     and agent rate a mint that is not Sky/SDE blue. The rest of the
+     demand-side stack steps amber → pale yellow → warm grey, every one
+     above this theme's 5:1 floor on the chart card and all with the page
+     as ink. */
   --msc-sky: #4fa6e9;
   --msc-sky-ink: #141414;
   --msc-sky-2: #7cbbf0;
@@ -625,10 +626,7 @@
   --msc-kept-ink: #141414;
   --msc-demand: #fda856;
   --msc-demand-ink: #141414;
-  /* Agent rate parts from the family orange here (ΔE 14 in OKLab; they
-     were one color and read as one on the settlement page): a deeper
-     red-orange, 6:1 on the page as ink and above the 5:1 floor on the card. */
-  --msc-rate: #ee6b3f;
+  --msc-rate: #5ec8a8; /* agent rate — mint, not Sky/SDE blue and not demand gold */
   --msc-rate-ink: #141414;
   --msc-dr: #c37650;
   --msc-dr-ink: #141414;
@@ -2723,6 +2721,25 @@ a.atlas-annotates:focus-visible {
 }
 
 /* ─── MSC settlement charts (radar actor page) ─── */
+.msc-charts-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.msc-charts-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  margin: 0 0 0.75rem;
+}
+.msc-legend-sep {
+  color: var(--tan-3);
+  margin: 0 0.15rem;
+}
 /* The Monthly settlement card floated top-right of a Prime's actor page:
    one bordered card holding the figures (left) and the month-by-month
    chart (right). The card itself is the ONE link to the settlement page,
@@ -3253,7 +3270,8 @@ a.atlas-annotates:focus-visible {
    a hairline GAP in the card color, never a border — a border around every
    fill is what made the pies read as a colouring book. Slice fills are the
    series tokens — the To-Sky pair in Sky's blues, supply kept in green,
-   the demand-side series in teal steps — the same ones the key, the
+   agent rate in teal, the rest of the demand-side stack in brown/salmon/tan
+   — the same ones the key, the
    timeseries and the Prime's own page use. */
 .msc-ring-rim {
   fill: none;
