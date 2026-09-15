@@ -17,9 +17,9 @@ interface Props {
   /** The settlement month these figures are for (YYYY-MM), named at the
    *  head of the card so the numbers are never read as a running total. */
   month: string | null;
-  /** The two prime-side labels: the ecosystem card says "by Primes" /
-   *  "to Primes"; a Prime's own page drops the qualifier. */
-  labels?: { kept: string; demand: string };
+  /** Whose earnings the prime-side equation is: the ecosystem card says
+   *  "Primes", a Prime's own page names the Prime ("Spark"). */
+  earner?: string;
   /** The overview's month autoplay, under the month it steps through. */
   play?: { playing: boolean; onToggle: () => void };
 }
@@ -37,7 +37,13 @@ function Figure({ label, value, muted }: { label: string; value: number | null; 
       <div className={`mono text-[10px] uppercase tracking-wider ${LABEL_ROW}`} style={{ color: "var(--tan-3)" }}>
         {label}
       </div>
-      <div className={VALUE_ROW} style={{ color: muted ? "var(--tan-2)" : value != null && value < 0 ? "var(--accent)" : "var(--tan)" }}>
+      {/* A negative figure is written in the loss red the charts stripe a
+          loss in, and that beats the muted treatment — a negative component
+          (a negative SDE, a supply-side loss) is the thing worth seeing. */}
+      <div
+        className={VALUE_ROW}
+        style={{ color: value != null && value < 0 ? "var(--msc-loss)" : muted ? "var(--tan-2)" : "var(--tan)" }}
+      >
         {value == null ? "—" : formatUsd(value)}
       </div>
     </div>
@@ -57,9 +63,16 @@ function Op({ children }: { children: string }) {
 
 /** The month's figures as a card — the ecosystem's on the overview, one
  *  Prime's on its settlement page (same component, so the two pages can't
- *  drift). To Sky is shown as the equation it is — cost of funds + Sky
- *  Direct Exposure — so nobody adds the two components on top of it. */
-export function MscHeadline({ eco, month, labels, play }: Props) {
+ *  drift). Both sides of the cycle are shown as the equations they are —
+ *  To Sky = cost of funds + Sky Direct Exposure, and the Prime's earnings
+ *  = supply-side kept + demand-side — so nobody adds a component on top of
+ *  its own total. The two totals together are the month's gross revenue.
+ *  Earnings is the same quantity `agentEarningsTotal` sums over a window
+ *  for the charts card's heading: revenue the Prime keeps from the cycle,
+ *  before any operating cost of its own (these workbooks carry none). */
+export function MscHeadline({ eco, month, earner, play }: Props) {
+  const earnings = eco ? eco.kept + eco.demand : null;
+  const who = earner ?? "Primes";
   return (
     <div className="msc-card rounded p-4 mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 text-sm">
       <div className="flex flex-col items-center">
@@ -89,8 +102,16 @@ export function MscHeadline({ eco, month, labels, play }: Props) {
         <Figure label="Sky Direct Exposure" value={eco?.sde ?? null} muted />
       </div>
       <span className="msc-headline-divider" aria-hidden="true" />
-      <Figure label={labels?.kept ?? "Supply-side kept by Primes"} value={eco?.kept ?? null} />
-      <Figure label={labels?.demand ?? "Demand-side to Primes"} value={eco?.demand ?? null} />
+      <div
+        className="flex flex-wrap items-end gap-x-3 gap-y-2"
+        aria-label={`${who} earnings equals supply-side kept plus demand-side`}
+      >
+        <Figure label={`${who} earnings`} value={earnings} />
+        <Op>=</Op>
+        <Figure label="Supply-side kept" value={eco?.kept ?? null} muted />
+        <Op>+</Op>
+        <Figure label="Demand-side" value={eco?.demand ?? null} muted />
+      </div>
     </div>
   );
 }

@@ -188,9 +188,11 @@ describe("ActorSettlements", () => {
     await waitFor(() => screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure"));
     expect(screen.getByText("cost of funds")).toBeInTheDocument();
     expect(screen.getByText("Sky Direct Exposure")).toBeInTheDocument();
-    // Prime-side labels drop the ecosystem card's "by Primes" qualifier.
+    // The prime side is its own equation, named for the Prime: kept 150 + demand 70.
+    expect(screen.getByLabelText("Spark earnings equals supply-side kept plus demand-side")).toBeInTheDocument();
+    expect(screen.getByText("Spark earnings")).toBeInTheDocument();
     expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
-    expect(screen.queryByText("Supply-side kept by Primes")).not.toBeInTheDocument();
+    expect(screen.getAllByText("$220").length).toBeGreaterThan(0);
     // The card is headed by the settlement month, not the Prime's name.
     const headline = screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure").closest(".msc-card")!;
     expect(headline).toHaveTextContent(/^▶ play\s*Jul 2026/);

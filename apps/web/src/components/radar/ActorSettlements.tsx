@@ -132,7 +132,7 @@ function ActorSettlementsLoaded({ slug, name }: Props) {
         }}
         month={month}
         play={{ playing: play.playing, onToggle: play.toggle }}
-        labels={{ kept: "Supply-side kept", demand: "Demand-side" }}
+        earner={name}
       />
       {gap > 1 && (
         <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>

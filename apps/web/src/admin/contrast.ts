@@ -124,4 +124,12 @@ export const AUDIT_PAIRS: readonly AuditPair[] = [
   { fg: "msc-demand",     bg: "bg-deep",    label: "MSC demand-side series / chart card" },
   { fg: "msc-rate",       bg: "bg-deep",    label: "MSC agent-rate series / chart card" },
   { fg: "msc-loss",       bg: "bg-deep",    label: "MSC loss stripes / chart card" },
+  // A NEGATIVE figure is WRITTEN in the same red the charts stripe a loss in
+  // — never --accent, which is a violet in light and white in giedi, so a
+  // loss read as a link there. Real text, so these hold the 4.5:1 bar: the
+  // headline card and the Sankey's out-bar sit on --bg-deep, the venue
+  // table on --bg / --surface.
+  { fg: "msc-loss",       bg: "bg",         label: "MSC loss figure / bg" },
+  { fg: "msc-loss",       bg: "surface",    label: "MSC loss figure / surface" },
+  { fg: "msc-loss",       bg: "bg-deep",    label: "MSC loss figure / chart card" },
 ];

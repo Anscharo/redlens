@@ -64,7 +64,7 @@ export function ActorSettlementsSkeleton({ name }: { name: string }) {
           </div>
         </div>
       </section>
-      <MscHeadline eco={null} month={null} labels={{ kept: "Supply-side kept", demand: "Demand-side" }} />
+      <MscHeadline eco={null} month={null} earner={name} />
     </div>
   );
 }

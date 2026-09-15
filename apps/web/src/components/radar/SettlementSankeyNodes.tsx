@@ -135,7 +135,7 @@ export function SankeySinkNode({
         dominantBaseline="middle"
         className="mono msc-sankey-amount msc-sankey-sink-total"
         fontSize={9}
-        style={out ? { fill: "var(--accent)" } : undefined}
+        style={out ? { fill: "var(--msc-loss)" } : undefined}
       >
         {figure}
       </text>
@@ -147,7 +147,7 @@ export function SankeySinkNode({
           dominantBaseline="middle"
           className="mono msc-sankey-amount msc-sankey-sink-net"
           fontSize={9}
-          style={{ fill: net < 0 ? "var(--accent)" : "var(--tan-2)" }}
+          style={{ fill: net < 0 ? "var(--msc-loss)" : "var(--tan-2)" }}
         >
           net {formatUsd(net, true)}
         </text>
