@@ -14,6 +14,7 @@ import type { AtlasNode } from "@/types";
 import type { ActorProfile, RadarInstance } from "../../lib/actorIndex";
 import type { HistoryEntry } from "@/lib/history";
 import { RadarProvider } from "./RadarContext";
+import { EMPTY_OMNI } from "../../lib/omniDocs";
 
 const configChild: AtlasNode = {
   id: "config-1", doc_no: "A.9.1", title: "Rate Limit Config", type: "Core", depth: 4,
@@ -39,7 +40,7 @@ vi.mock("../../lib/docs", () => ({
   loadAtlas: () => (atlasRejects ? Promise.reject(new Error("boom")) : Promise.resolve({ byParent })),
 }));
 
-import { ActorHistory } from "./ActorHistory";
+import { ActorHistory, HISTORY_PREVIEW_LIMIT } from "./ActorHistory";
 
 const docs: Record<string, AtlasNode> = {
   "def-1": { id: "def-1", doc_no: "A.2", title: "Spark Agent", type: "Core", depth: 2, parentId: null, content: "", contentHash: "", order: 0, addressRefs: [] },
@@ -66,13 +67,14 @@ function profile(): ActorProfile {
     instances: [instance()], invocations: [], primitives: [],
     recommendations: [], comprisesMembers: [], partOfComposite: null,
     contact: { channels: [], emergency: [] },
+    omni: EMPTY_OMNI,
   } as ActorProfile;
 }
 
-function renderHistory() {
+function renderHistory(props: { limit?: number; moreHref?: string } = {}) {
   return render(
     <RadarProvider value={{ docs }}>
-      <ActorHistory profile={profile()} />
+      <ActorHistory profile={profile()} {...props} />
     </RadarProvider>,
   );
 }
@@ -232,5 +234,32 @@ describe("ActorHistory", () => {
     atlasRejects = true;
     renderHistory();
     await waitFor(() => expect(screen.getByText("no history recorded")).toBeInTheDocument());
+  });
+
+  it("caps the dashboard preview at HISTORY_PREVIEW_LIMIT and links to the full list", async () => {
+    const entries: HistoryEntry[] = Array.from({ length: HISTORY_PREVIEW_LIMIT + 2 }, (_, i) => ({
+      date: `2025-01-${String(i + 1).padStart(2, "0")}`,
+      commitHash: `commit${String(i).padStart(4, "0")}`,
+      changeType: "modified" as const,
+    }));
+    historyByDoc = new Map([["def-1", entries]]);
+    renderHistory({ limit: HISTORY_PREVIEW_LIMIT, moreHref: "/radar/spark/history" });
+
+    expect(await screen.findByText(/2025-01-14/)).toBeInTheDocument();
+    // Newest first: 14, 13, … down to 03 are the 12 shown; 02 and 01 are hidden.
+    expect(screen.getByText(/2025-01-03/)).toBeInTheDocument();
+    expect(screen.queryByText(/2025-01-02/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/2025-01-01/)).not.toBeInTheDocument();
+    const more = screen.getByRole("link", { name: /all 14 changes/ });
+    expect(more).toHaveAttribute("href", "/radar/spark/history");
+  });
+
+  it("does not offer the full-list link when everything fits in the preview", async () => {
+    historyByDoc = new Map<string, HistoryEntry[]>([
+      ["def-1", [{ date: "2025-01-02", commitHash: "abc1234", changeType: "modified" }]],
+    ]);
+    renderHistory({ limit: HISTORY_PREVIEW_LIMIT, moreHref: "/radar/spark/history" });
+    expect(await screen.findByText(/2025-01-02/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /all \d+ changes/ })).not.toBeInTheDocument();
   });
 });

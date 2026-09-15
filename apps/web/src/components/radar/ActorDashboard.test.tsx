@@ -11,15 +11,20 @@ import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { ActorProfile } from "../../lib/actorIndex";
 import type { GraphEntity, AtlasNode } from "@/types";
+import { EMPTY_OMNI } from "../../lib/omniDocs";
 
 Element.prototype.scrollIntoView = vi.fn();
 
 vi.mock("./ActorChain", () => ({ ActorChain: () => <div data-testid="chain" /> }));
 vi.mock("./ActorContact", () => ({ ActorContact: () => <div data-testid="contact" /> }));
+vi.mock("./ActorOmni", () => ({ ActorOmni: () => <div data-testid="omni" /> }));
 vi.mock("./ActorResponsibilities", () => ({ ActorResponsibilities: () => <div data-testid="resp" /> }));
 vi.mock("./ActorInstances", () => ({ ActorInstances: () => <div data-testid="instances" /> }));
 vi.mock("./ActorRewards", () => ({ ActorRewards: () => <div data-testid="rewards" /> }));
-vi.mock("./ActorHistory", () => ({ ActorHistory: () => <div data-testid="history" /> }));
+vi.mock("./ActorHistory", () => ({
+  ActorHistory: () => <div data-testid="history" />,
+  HISTORY_PREVIEW_LIMIT: 12,
+}));
 vi.mock("./ActorSettlementTeaser", () => ({ ActorSettlementTeaser: () => <div data-testid="settlements" /> }));
 
 import { ActorDashboard } from "./ActorDashboard";
@@ -45,6 +50,7 @@ function profile(overrides: Partial<ActorProfile> = {}): ActorProfile {
     comprisesMembers: [],
     partOfComposite: null,
     contact: { channels: [], emergency: [] },
+    omni: EMPTY_OMNI,
     ...overrides,
   } as ActorProfile;
 }
@@ -55,6 +61,8 @@ describe("ActorDashboard header", () => {
     expect(screen.getByRole("heading", { name: "Spark" })).toBeInTheDocument();
     expect(screen.getByText("Prime Agent")).toBeInTheDocument();
     expect(screen.getByTestId("settlements")).toBeInTheDocument();
+    expect(screen.getByTestId("omni")).toBeInTheDocument();
+    expect(screen.getByTestId("contact")).toBeInTheDocument();
   });
 
   it("places the MSC teaser before the name so it floats to the top-right", () => {
@@ -182,6 +190,13 @@ describe("ActorDashboard sections", () => {
     expect(el.scrollIntoView).toHaveBeenCalled();
     document.body.removeChild(el);
     window.location.hash = "";
+  });
+
+  it("places instance docs after the contact/history row so they fill the page width", () => {
+    render(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    const history = screen.getByTestId("history");
+    const instances = screen.getByTestId("instances");
+    expect(history.compareDocumentPosition(instances) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("renders the rewards section when a rewards agent is present", () => {

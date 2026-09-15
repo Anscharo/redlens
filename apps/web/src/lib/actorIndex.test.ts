@@ -7,6 +7,7 @@ import path from "node:path";
 import type { AtlasNode, GraphEntity, RelationEdge } from "@/types";
 import type { GraphData } from "@/lib/graphData";
 import { buildSidebarActors, buildActorProfile } from "./actorIndex";
+import { EMPTY_OMNI } from "./omniDocs";
 import { buildChainMap, buildActiveDataRows, type ActiveDataRow } from "@/lib/activeDataIndex";
 import { buildRewardsIndex } from "@/lib/rewardsIndex";
 import { EXEC_EDGES, FAC_EDGES, CHAIN_EDGES } from "@/lib/roleEdges";
@@ -285,6 +286,26 @@ describe("buildActorProfile — contact channels", () => {
     const p = profile(noContact!.slug)!;
     expect(p.contact.channels).toEqual([]);
     expect(p.contact.emergency).toEqual([]);
+  });
+});
+
+describe("buildActorProfile — omni docs", () => {
+  it("every prime agent has the four required Omni Documents from A.1.14.2.5.1", () => {
+    const primes = graph.participants.filter((e) => e.et === "agent" && e.st === "prime");
+    expect(primes.length).toBeGreaterThan(0);
+    for (const e of primes) {
+      const p = profile(e.slug)!;
+      expect(p.omni.root, e.slug).not.toBeNull();
+      expect(p.omni.required.govInfo, `${e.slug} gov info`).not.toBeNull();
+      expect(p.omni.required.ecosystemEmergency, `${e.slug} ecosystem emergency`).not.toBeNull();
+      expect(p.omni.required.agentEmergency, `${e.slug} agent emergency`).not.toBeNull();
+    }
+  });
+
+  it("is empty for an entity with no Omni Documents child", () => {
+    const fac = graph.participants.find((e) => e.et === "facilitator_org");
+    expect(fac).toBeDefined();
+    expect(profile(fac!.slug)!.omni).toEqual(EMPTY_OMNI);
   });
 });
 

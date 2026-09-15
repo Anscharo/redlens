@@ -192,11 +192,18 @@ function mergeByCommit(
   return [...byCommit.values()].sort((a, b) => b.date.localeCompare(a.date));
 }
 
+/** Latest commits shown on the actor dashboard; the rest live on /radar/:slug/history. */
+export const HISTORY_PREVIEW_LIMIT = 12;
+
 interface Props {
   profile: ActorProfile;
+  /** When set, only the newest `limit` commits render and `moreHref` is offered. */
+  limit?: number;
+  /** Dashboard link to the full history page. Ignored unless `limit` truncates. */
+  moreHref?: string;
 }
 
-export function ActorHistory({ profile }: Props) {
+export function ActorHistory({ profile, limit, moreHref }: Props) {
   const { docs } = useRadar();
   const [entries, setEntries] = useState<MergedEntry[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -234,9 +241,11 @@ export function ActorHistory({ profile }: Props) {
   if (!entries || entries.length === 0) {
     return <p className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>no history recorded</p>;
   }
+  const visible = limit != null ? entries.slice(0, limit) : entries;
+  const hidden = entries.length - visible.length;
   return (
     <div>
-      {entries.map((e) => (
+      {visible.map((e) => (
         <Entry
           key={e.commitHash}
           entry={e}
@@ -244,6 +253,14 @@ export function ActorHistory({ profile }: Props) {
           agentName={profile.entity.name}
         />
       ))}
+      {hidden > 0 && moreHref && (
+        <Link
+          to={moreHref}
+          className="mono text-[10px] text-accent hover:underline mt-3 inline-block"
+        >
+          all {entries.length} changes <span className="enlargen">→</span>
+        </Link>
+      )}
     </div>
   );
 }

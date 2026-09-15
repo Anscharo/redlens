@@ -10,18 +10,19 @@ import { buildPrimitiveStats } from "../../lib/primitiveStats";
 import { ActorList } from "./ActorList";
 import { ActorDashboard } from "./ActorDashboard";
 import { ActorSettlementsPage } from "./ActorSettlementsPage";
+import { ActorHistoryPage } from "./ActorHistoryPage";
 import { PrimitiveDashboard } from "./PrimitiveDashboard";
 import { Drawer, DrawerToggle } from "../Drawer";
 import { Loading } from "../Loading";
 import { RadarProvider } from "./RadarContext";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { recordVisit } from "../../lib/visitHistory";
-import { actorHref, settlementsHref } from "@/lib/routes";
+import { actorHref, settlementsHref, historyHref } from "@/lib/routes";
 
 interface Props {
   query: string;
   actorSlug?: string;
-  page?: "settlements";
+  page?: "settlements" | "history";
 }
 
 interface InnerProps extends Props {
@@ -64,16 +65,24 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
       ? null
       : page === "settlements"
         ? `${profile.entity.name} monthly settlement · Radar: Sky Atlas by Redline`
-        : `${profile.entity.name} Radar: Sky Atlas by Redline`;
+        : page === "history"
+          ? `${profile.entity.name} history · Radar: Sky Atlas by Redline`
+          : `${profile.entity.name} Radar: Sky Atlas by Redline`;
   useDocumentTitle(title);
 
   // Append the actor / settlements page to the visit log once it resolves.
   useEffect(() => {
     if (!actorSlug || !profile) return;
-    const path = page === "settlements" ? settlementsHref(actorSlug) : actorHref(actorSlug);
+    const path = page === "settlements"
+      ? settlementsHref(actorSlug)
+      : page === "history"
+        ? historyHref(actorSlug)
+        : actorHref(actorSlug);
     const label = page === "settlements"
       ? `${profile.entity.name} · Monthly settlement`
-      : profile.entity.name;
+      : page === "history"
+        ? `${profile.entity.name} · History`
+        : profile.entity.name;
     void recordVisit({ path, label, base: routerBase });
   }, [actorSlug, profile, routerBase, page]);
 
@@ -93,6 +102,8 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
         <Loading>actor not found</Loading>
       ) : page === "settlements" ? (
         <ActorSettlementsPage profile={profile} />
+      ) : page === "history" ? (
+        <ActorHistoryPage profile={profile} />
       ) : (
         <ActorDashboard profile={profile} />
       )}

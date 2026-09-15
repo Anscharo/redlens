@@ -97,7 +97,7 @@ function InstanceCard({ inst }: { inst: RadarInstance }) {
   }, [inst.signalParams]);
 
   return (
-    <div className="rounded p-3 break-inside-avoid" style={{ background: "var(--bg-deep)", border: "1px solid var(--border)", maxWidth: "600px" }}>
+    <div className="rounded p-3 h-full" style={{ background: "var(--bg-deep)", border: "1px solid var(--border)" }}>
       <div className="flex items-center gap-2 flex-wrap mb-2">
         {inst.docId ? (
           <AtlasLink to={atlasHref(inst.docId)} className="text-sm hover:underline" style={{ color: "var(--tan)" }}>
@@ -227,12 +227,11 @@ function ActorItemsSection({ groups, pick, anchorPrefix }: SectionProps) {
                       <span className="mono text-[10px] px-1 rounded" style={{ color: "var(--error-text)", border: "1px solid var(--red)" }} title="Not listed in Current Primitives (A.2.2.1.5.1)">unknown</span>
                     )}
                   </div>
-                  <div style={{ columns: "520px", columnGap: "0.75rem" }}>
+                  <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(20rem, 1fr))" }}>
                     {withStatusAnchors(prim, items, anchorPrefix).map(({ inst, anchorId }) => (
                       <div
                         key={inst.id}
                         id={anchorId}
-                        className="mb-2"
                         style={anchorId ? { scrollMarginTop: HEADER_OFFSET } : undefined}
                       >
                         <InstanceCard inst={inst} />

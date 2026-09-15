@@ -77,6 +77,9 @@ export function pageContextLine(ctx?: PageContext): string | null {
       const month = ctx.mscMonth ? ` month ${ctx.mscMonth}` : "";
       return `Radar monthly settlement page for "${ctx.actorSlug}"${month}. Dollar figures are not Atlas — call ask_external_msc with view=month, actor_slug="${ctx.actorSlug}"${ctx.mscMonth ? `, month="${ctx.mscMonth}"` : ""}.`;
     }
+    if (ctx.path?.includes("/history")) {
+      return `Radar history page for "${ctx.actorSlug}"`;
+    }
     return `Radar actor page for "${ctx.actorSlug}"`;
   }
   if (ctx.reportName) {

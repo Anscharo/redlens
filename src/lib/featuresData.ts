@@ -158,10 +158,12 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     features: [
       {
         name: "Actor dashboards",
-        what: "A full profile per party: responsibilities, primitives, relationships, rewards, invoked instances, on-chain state, contact, and its own change history.",
+        what: "A full profile per party: responsibilities, primitives, Omni Documents, relationships, rewards, invoked instances, on-chain state, contact, and its own change history.",
         how: [
           "Open Radar and pick an actor from the list.",
           "Scan the dashboard sections; the composite party view ties an Agent's associated legal entities together as one party.",
+          "History on the dashboard shows the latest 12 atlas edits; the `all N changes` link opens every change.",
+          "On a Prime Agent, Omni Documents lists the required artifact docs plus any extra sections.",
         ],
       },
       {

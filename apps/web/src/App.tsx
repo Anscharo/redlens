@@ -254,6 +254,13 @@ export default function App() {
                 </Suspense>
               )}
             </Route>
+            <Route path={ROUTES.RADAR_ACTOR_HISTORY}>
+              {(params: { slug: string }) => (
+                <Suspense fallback={<Loading />}>
+                  <RadarPage actorSlug={params.slug} query={query} page="history" />
+                </Suspense>
+              )}
+            </Route>
             <Route path={ROUTES.RADAR_ACTOR}>
               {(params: { slug: string }) => (
                 <Suspense fallback={<Loading />}>

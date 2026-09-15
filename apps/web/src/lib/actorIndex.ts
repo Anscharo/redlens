@@ -5,6 +5,7 @@ import { CHAIN_EDGES, EXEC_EDGES, FAC_EDGES, GOV_EDGES } from "@/lib/roleEdges";
 import type { GraphData } from "./graph";
 import type { InstanceMeta, InvocationMeta, RewardsAgent } from "@/lib/rewardsTypes";
 import type { ActiveDataRow } from "@/lib/activeDataIndex";
+import { collectActorOmni, type ActorOmni } from "./omniDocs";
 
 export interface ChainNode {
   id: string;
@@ -104,6 +105,7 @@ export interface ActorProfile {
   comprisesMembers: { name: string; slug: string | null }[];
   partOfComposite: { name: string; slug: string | null } | null;
   contact: ActorContact;
+  omni: ActorOmni;
 }
 export interface SidebarActor {
   id: string;
@@ -419,6 +421,8 @@ export function buildActorProfile(
   contact.channels.sort((a, b) => (a.platform === b.platform ? 0 : a.platform === "forum" ? -1 : 1));
   contact.emergency.sort((a, b) => (a.scope === b.scope ? 0 : a.scope === "ecosystem" ? -1 : 1));
 
+  const omni = collectActorOmni(definingDoc, docs);
+
   return {
     entity,
     definingDoc,
@@ -433,5 +437,6 @@ export function buildActorProfile(
     comprisesMembers,
     partOfComposite,
     contact,
+    omni,
   };
 }

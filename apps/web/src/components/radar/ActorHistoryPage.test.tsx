@@ -6,9 +6,9 @@ import type { ActorProfile } from "../../lib/actorIndex";
 import type { GraphEntity } from "@/types";
 import { EMPTY_OMNI } from "../../lib/omniDocs";
 
-vi.mock("./ActorSettlements", () => ({ ActorSettlements: () => <div data-testid="settlements-body" /> }));
+vi.mock("./ActorHistory", () => ({ ActorHistory: () => <div data-testid="history-body" /> }));
 
-import { ActorSettlementsPage } from "./ActorSettlementsPage";
+import { ActorHistoryPage } from "./ActorHistoryPage";
 
 afterEach(cleanup);
 
@@ -34,11 +34,11 @@ function profile(): ActorProfile {
   } as ActorProfile;
 }
 
-describe("ActorSettlementsPage", () => {
+describe("ActorHistoryPage", () => {
   it("titles the page and links back to the actor dashboard", () => {
-    render(<ActorSettlementsPage profile={profile()} />);
-    expect(screen.getByRole("heading", { level: 1, name: "Monthly settlement" })).toBeInTheDocument();
+    render(<ActorHistoryPage profile={profile()} />);
+    expect(screen.getByRole("heading", { level: 1, name: "History of doc changes" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "radar · Spark" })).toHaveAttribute("href", "/radar/spark");
-    expect(screen.getByTestId("settlements-body")).toBeInTheDocument();
+    expect(screen.getByTestId("history-body")).toBeInTheDocument();
   });
 });

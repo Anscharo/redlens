@@ -3,13 +3,14 @@ import { Link } from "../Link";
 import { AtlasLink } from "../AtlasLink";
 import type { ActorProfile, ActorRelation, Recommendation } from "../../lib/actorIndex";
 import { ENTITY_TYPE_LABEL, ENTITY_TYPE_COLOR, edgeLabel } from "../../lib/entityGraph";
-import { atlasHref, actorHref } from "@/lib/routes";
+import { atlasHref, actorHref, historyHref } from "@/lib/routes";
 import { ActorChain } from "./ActorChain";
 import { ActorContact } from "./ActorContact";
+import { ActorOmni } from "./ActorOmni";
 import { ActorResponsibilities } from "./ActorResponsibilities";
 import { ActorRewards } from "./ActorRewards";
 import { ActorInstances } from "./ActorInstances";
-import { ActorHistory } from "./ActorHistory";
+import { ActorHistory, HISTORY_PREVIEW_LIMIT } from "./ActorHistory";
 import { ActorSettlementTeaser } from "./ActorSettlementTeaser";
 
 interface Props {
@@ -153,6 +154,7 @@ export function ActorDashboard({ profile }: Props) {
         <div className="min-w-0">
           {/* Contact — governance channels + emergency response (Prime Agents) */}
           <ActorContact contact={profile.contact} />
+          <ActorOmni omni={profile.omni} />
 
           {entity.et === "composite_party" && (
             <Section title="Composite Party">
@@ -186,11 +188,6 @@ export function ActorDashboard({ profile }: Props) {
               <ActorResponsibilities rows={adRows} />
             </Section>
           )}
-          {primitives.length > 0 && (
-            <Section title="Primitives">
-              <ActorInstances primitives={primitives} />
-            </Section>
-          )}
           {relations.length > 0 && (
             <Section title="Relationships">
               {relations.map((r, i) => (
@@ -209,9 +206,21 @@ export function ActorDashboard({ profile }: Props) {
 
         <aside className="min-w-0">
           <Section title={"History of Doc Changes affecting " + profile.entity.name}>
-            <ActorHistory profile={profile} />
+            <ActorHistory
+              profile={profile}
+              limit={HISTORY_PREVIEW_LIMIT}
+              moreHref={historyHref(entity.slug)}
+            />
           </Section>
         </aside>
+
+        {primitives.length > 0 && (
+          <div className="lg:col-span-2 min-w-0">
+            <Section title="Primitives">
+              <ActorInstances primitives={primitives} />
+            </Section>
+          </div>
+        )}
 
         {rewardsAgent && (
           <div className="lg:col-span-2 min-w-0">
