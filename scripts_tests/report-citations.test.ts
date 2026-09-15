@@ -35,6 +35,16 @@ describe("isNormativeClaim", () => {
     expect(isNormativeClaim("threshold ≥ 7")).toBe(true);
     expect(isNormativeClaim("this is prohibited")).toBe(true);
   });
+  it("ignores normative words inside inline code, link targets and URLs", () => {
+    // Regression: a path under scripts/required/ flagged every line that named it.
+    expect(isNormativeClaim("read with the pattern in `scripts/required/snap-chainstate.mjs`")).toBe(false);
+    expect(isNormativeClaim("the `requires approval from <role>` pattern binds roles")).toBe(false);
+    expect(isNormativeClaim("see [the guide](https://example.com/requirements.html)")).toBe(false);
+    expect(isNormativeClaim("see https://example.com/must-read for background")).toBe(false);
+    // …but prose around the code span is still read.
+    expect(isNormativeClaim("`build-index.mjs` must run before `build-graph.mjs`")).toBe(true);
+    expect(isNormativeClaim("the [threshold](https://x.test/t) must be 7")).toBe(true);
+  });
   it("leaves descriptive prose alone", () => {
     expect(isNormativeClaim("the multisig currently has 5 signers")).toBe(false);
     expect(isNormativeClaim("Redline is the Operational Facilitator")).toBe(false);
@@ -124,6 +134,16 @@ describe("analyzeReportCitations", () => {
     const md = ["```bash", "# you must run this", 'echo "should work"', "```"].join("\n");
     const { claims } = analyzeReportCitations(md);
     expect(claims).toHaveLength(0);
+  });
+
+  it("does not hide a citation that lives inside backticks", () => {
+    // The stripping is for normative detection only — the citation check reads the
+    // raw line, so a doc_no or UUID in a code span still counts.
+    const md = "The multisig must hold 7 signers (`A.2.11.1.2`).\n";
+    const { claims, uncited } = analyzeReportCitations(md);
+    expect(claims).toHaveLength(1);
+    expect(claims[0].cited).toBe(true);
+    expect(uncited).toHaveLength(0);
   });
 
   it("does not treat headings as claims", () => {

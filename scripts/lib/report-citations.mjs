@@ -51,9 +51,25 @@ export function hasCitation(text) {
   );
 }
 
+// Identifiers are not prose. A path (`scripts/required/build-index.mjs`), a field
+// name (`spellData.hasBeenCast`), a quoted regex, or a link target
+// (…/requirements.html) NAMES a thing — it imposes no duty — yet each carries
+// words this module's patterns look for. Strip them before testing for normative
+// wording. Only that test reads the stripped text: the citation check still reads
+// the raw line, because a doc_no or UUID legitimately lives inside backticks
+// (`A.2.4.1`, `ff3aa296-…`), and stripping it there would hide real citations.
+function proseOnly(line) {
+  return line
+    .replace(/`[^`]*`/g, " ") // inline code spans
+    .replace(/\]\([^)]*\)/g, "] ") // markdown link/image destination, keeping the text
+    .replace(/<https?:\/\/[^>]*>/g, " ") // autolinks
+    .replace(/https?:\/\/\S+/g, " "); // bare URLs
+}
+
 /** True if `line` reads as a normative "has-to" claim. */
 export function isNormativeClaim(line) {
-  return NORMATIVE_PATTERNS.some((re) => re.test(line));
+  const prose = proseOnly(line);
+  return NORMATIVE_PATTERNS.some((re) => re.test(prose));
 }
 
 // Strip fenced code blocks so `must`/`should` inside code samples never flag.
