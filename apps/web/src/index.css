@@ -314,8 +314,8 @@
   --msc-kept-ink: #fafafa;
   --msc-demand: #a34d00; /* demand-side aggregate (orange family) */
   --msc-demand-ink: #fafafa;
-  --msc-rate: #a82571; /* agent rate — hot pink, not the demand-side orange */
-  --msc-rate-ink: #fafafa;
+  --msc-rate: #df419b; /* agent rate — hot pink; dark ink, same as paler SDE/CP */
+  --msc-rate-ink: #050505;
   --msc-dr: #4f2b1a;
   --msc-dr-ink: #fafafa;
   --msc-gar: #b5494e;
