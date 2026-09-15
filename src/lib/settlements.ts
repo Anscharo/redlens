@@ -191,6 +191,33 @@ export function grossByMonth(rows: readonly SettlementReport[]): GrossMonth[] {
   });
 }
 
+/** The most cycles any settlement chart shows at once: a year. */
+export const CYCLE_WINDOW = 12;
+
+/** The window of at most `size` rows (chronological input) ending `offset`
+ *  rows before the last one — offset 0 is the trailing year. The window is
+ *  always full when there are enough rows, so paging never shows a stub. */
+export function cycleWindow<T>(
+  rows: readonly T[],
+  offset = 0,
+  size = CYCLE_WINDOW,
+): { rows: T[]; earlier: boolean; later: boolean } {
+  const end = rows.length - Math.min(Math.max(0, offset), Math.max(0, rows.length - size));
+  const start = Math.max(0, end - size);
+  return { rows: rows.slice(start, end), earlier: start > 0, later: end < rows.length };
+}
+
+/** The window offset that keeps row `index` on screen: the current offset
+ *  when the row is already in its window, else the window that ends on
+ *  the row (a selected month is never hidden by paging). */
+export function windowOffsetFor(total: number, offset: number, index: number, size = CYCLE_WINDOW): number {
+  const max = Math.max(0, total - size);
+  const o = Math.min(Math.max(0, offset), max);
+  const end = total - o;
+  if (index >= end - size && index < end) return o;
+  return Math.min(total - 1 - index, max);
+}
+
 /** Summary three-way: Sky take, supply-side kept (`par − CoF`), demand-side. */
 export interface ThreeWayMonth {
   month: string;

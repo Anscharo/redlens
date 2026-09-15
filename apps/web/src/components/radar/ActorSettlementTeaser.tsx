@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "../Link";
 import { useLoaded } from "../../hooks/useAtlasData";
-import { loadSettlements, reportsForPrime, formatMonth, formatUsd, grossByMonth } from "../../lib/settlements";
+import { loadSettlements, reportsForPrime, formatMonth, formatUsd, grossByMonth, cycleWindow } from "../../lib/settlements";
 import { settlementsHref } from "@/lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { MscGrossSpark } from "./MscGrossSpark";
@@ -13,13 +13,16 @@ interface Props {
 }
 
 /** The Monthly settlement card floated top-right of a Prime's actor page:
- *  its total gross revenue across every published cycle, and to the right
- *  a small chart of that revenue month by month, split by where it went.
- *  The whole card is ONE link to the Prime's settlement page, so hovering
- *  either half lights the card as a unit. */
+ *  its total gross revenue over the trailing year of published cycles, and
+ *  to the right a small chart of that revenue month by month, split by
+ *  where it went. The whole card is ONE link to the Prime's settlement
+ *  page, so hovering either half lights the card as a unit. */
 export function ActorSettlementTeaser({ slug, name }: Props) {
   const bundle = useLoaded(loadSettlements, { soft: true });
-  const months = useMemo(() => (bundle ? grossByMonth(reportsForPrime(bundle, slug)) : []), [bundle, slug]);
+  const months = useMemo(
+    () => (bundle ? cycleWindow(grossByMonth(reportsForPrime(bundle, slug))).rows : []),
+    [bundle, slug],
+  );
   if (months.length === 0) return null;
   const n = months.length;
   const first = months[0];

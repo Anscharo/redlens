@@ -175,7 +175,12 @@ describe("ActorSettlements", () => {
     expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
     expect(screen.queryByText("Supply-side kept by Primes")).not.toBeInTheDocument();
     // The card is headed by the settlement month, not the Prime's name.
-    expect(container.querySelector(".msc-card")).toHaveTextContent(/^▶ play\s*Jul 2026/);
+    const headline = screen.getByLabelText("To Sky equals cost of funds plus Sky Direct Exposure").closest(".msc-card")!;
+    expect(headline).toHaveTextContent(/^▶ play\s*Jul 2026/);
+    // The month charts sit in their own card ABOVE the figures.
+    const charts = screen.getByText("Summary").closest(".msc-card")!;
+    expect(charts).toContainElement(screen.getByLabelText("Demand-side months"));
+    expect(charts.compareDocumentPosition(headline) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("button", { name: /Play through the months/ })).toBeInTheDocument();
     // No identity swatch on the card; the Sankey's Prime bar is supply-side green.
     expect(container.querySelector(".msc-identity-swatch")).toBeNull();
@@ -232,6 +237,45 @@ describe("ActorSettlements", () => {
       "href",
       "https://github.com/soterlabs/settlement-reports/tree/main/reports/spark/2026-07",
     );
+  });
+
+  it("shows a year of cycles at a time, with ‹ › paging and a year row under the months", async () => {
+    const run = Array.from({ length: 14 }, (_, i) => {
+      const m = String(i + 1).padStart(2, "0");
+      return { ...FIXTURE.reports[1], month: i < 12 ? `2025-${m}` : `2026-${String(i - 11).padStart(2, "0")}` };
+    });
+    loadSettlements.mockReturnValue(fulfilled({ ...FIXTURE, reports: run }));
+    render(<ActorSettlements slug="spark" name="Spark" />);
+    await waitFor(() => screen.getByText("Supply-side kept"));
+    const cols = () => [...screen.getByLabelText("Settlement months").querySelectorAll("button")];
+    expect(cols()).toHaveLength(12);
+    expect(cols()[0]).toHaveAttribute("aria-label", expect.stringMatching(/^Mar 2025/));
+    expect(cols()[11]).toHaveAttribute("aria-label", expect.stringMatching(/^Feb 2026/));
+    // Twelve columns: month names on one row, the year under its first month.
+    expect(cols()[0]).toHaveTextContent(/^Mar\s*2025$/);
+    expect(cols()[10]).toHaveTextContent(/^Jan\s*2026$/);
+    expect(cols()[11]).toHaveTextContent(/^Feb$/);
+    // The demand-side chart shows the same window on the same grid.
+    expect(screen.getByLabelText("Demand-side months").querySelectorAll("button")).toHaveLength(12);
+    const earlier = screen.getByRole("button", { name: "Earlier cycles" });
+    const later = screen.getByRole("button", { name: "Later cycles" });
+    expect(later).toBeDisabled();
+    fireEvent.click(earlier);
+    expect(cols()[0]).toHaveAttribute("aria-label", expect.stringMatching(/^Jan 2025/));
+    expect(cols()[11]).toHaveAttribute("aria-label", expect.stringMatching(/^Dec 2025/));
+    expect(earlier).toBeDisabled();
+    expect(later).toBeEnabled();
+    // The selected (latest) month is off screen now; picking a shown one is fine.
+    fireEvent.click(cols()[0]);
+    expect(cols()[0]).toHaveAttribute("aria-pressed", "true");
+    // Paging is explicit: it may scroll the selection off screen.
+    fireEvent.click(later);
+    expect(cols()[0]).toHaveAttribute("aria-label", expect.stringMatching(/^Mar 2025/));
+    expect(cols().some((c) => c.getAttribute("aria-pressed") === "true")).toBe(false);
+    // But moving the selection (here → from the hidden Jan to Feb 2025) brings its month back into view.
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(cols()[0]).toHaveAttribute("aria-label", expect.stringMatching(/^Jan 2025/));
+    expect(cols()[1]).toHaveAttribute("aria-pressed", "true");
   });
 
   it("explains when a slug has no MSC workbooks", async () => {

@@ -6,7 +6,7 @@ const SKELETON_MONTHS = 6;
 
 function EmptyBars({ title, cluster }: { title: string; cluster: boolean }) {
   return (
-    <div className={cluster ? "mb-4" : "mb-5"}>
+    <div className={cluster ? "mb-4" : "mb-2"}>
       <p className="mono text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--tan-3)" }}>
         {title}
       </p>
@@ -32,9 +32,9 @@ function EmptyBars({ title, cluster }: { title: string; cluster: boolean }) {
 }
 
 /** A Prime's settlement page before settlements.json lands: the intro's
- *  height, the headline card with dashed figures, and the Summary and
- *  demand-side bar charts as empty tracks at their real size, so the loaded
- *  page paints into place. */
+ *  height, the card of Summary and demand-side bar charts as empty tracks
+ *  at their real size, then the headline card with dashed figures, so the
+ *  loaded page paints into place. */
 export function ActorSettlementsSkeleton() {
   return (
     <div data-testid="settlements-skeleton" aria-busy="true" aria-label="Loading the Monthly Settlement Cycle">
@@ -43,11 +43,11 @@ export function ActorSettlementsSkeleton() {
         Atlas figures). “To Sky” is what this Prime owed Sky, not the Protocol’s
         Net Revenue (A.2.3.1.2.1.1).
       </p>
-      <MscHeadline eco={null} month={null} labels={{ kept: "Supply-side kept", demand: "Demand-side" }} />
-      <div className="flex flex-wrap gap-x-10 items-start">
+      <div className="msc-card rounded p-4 mb-4">
         <EmptyBars title="Summary" cluster />
         <EmptyBars title="Demand-side" cluster={false} />
       </div>
+      <MscHeadline eco={null} month={null} labels={{ kept: "Supply-side kept", demand: "Demand-side" }} />
     </div>
   );
 }

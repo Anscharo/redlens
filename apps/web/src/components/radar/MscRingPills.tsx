@@ -25,7 +25,7 @@ export const SLICE_TOKEN: Record<string, string> = {
   cof: "--msc-sky",
   sde: "--msc-sde",
   kept: "--msc-kept",
-  agentRate: "--msc-demand",
+  agentRate: "--msc-rate",
   distributionRewards: "--msc-dr",
   gar: "--msc-gar",
   chroniclePoints: "--msc-cp",

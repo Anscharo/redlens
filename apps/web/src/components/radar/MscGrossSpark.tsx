@@ -4,20 +4,21 @@ import { formatMonth, formatUsd, type GrossMonth } from "../../lib/settlements";
 // by where it went — to Sky, supply-side kept, demand-side — in the Summary
 // chart's colors; the right half of the Monthly settlement card on its
 // actor page (the card itself is the link). Fixed pixel geometry (the svg
-// scales with its box).
+// scales with its box); the legend is HTML under it, on the same line as
+// the figures' "full cycle" link.
 const W = 256;
-const H = 120;
+const H = 100;
 const PAD_L = 6;
 const PAD_R = 6;
 const PAD_T = 30;
-/** Month labels, then the legend, under the columns. */
-const PAD_B = 32;
+/** Month labels under the columns. */
+const PAD_B = 16;
 const GAP = 4;
 
 const SERIES = [
-  { key: "sky", fill: "var(--msc-sky)" },
-  { key: "kept", fill: "var(--msc-kept)" },
-  { key: "demand", fill: "var(--msc-demand)" },
+  { key: "sky", label: "to Sky", fill: "var(--msc-sky)" },
+  { key: "kept", label: "kept", fill: "var(--msc-kept)" },
+  { key: "demand", label: "demand-side", fill: "var(--msc-demand)" },
 ] as const;
 
 export function MscGrossSpark({ points }: { points: GrossMonth[] }) {
@@ -40,9 +41,6 @@ export function MscGrossSpark({ points }: { points: GrossMonth[] }) {
         <text x={PAD_L} y={12} fontSize={9} className="mono msc-gross-axis msc-gross-caption">
           gross revenue by month
         </text>
-        <text x={PAD_L} y={H - 5} fontSize={9} className="mono msc-gross-axis">
-          <tspan fill="var(--msc-sky)">■</tspan> to Sky <tspan fill="var(--msc-kept)">■</tspan> kept <tspan fill="var(--msc-demand)">■</tspan> demand-side
-        </text>
         <line x1={PAD_L} x2={W - PAD_R} y1={zero} y2={zero} className="msc-gross-zero" />
         {points.map((p, i) => {
           // Positive parts stack up from the zero line, negatives down.
@@ -60,7 +58,7 @@ export function MscGrossSpark({ points }: { points: GrossMonth[] }) {
                 if (v < 0) bottom += h;
                 return <rect key={key} x={x(i)} y={ry} width={colW} height={h} fill={fill} data-series={key} />;
               })}
-              <text x={x(i) + colW / 2} y={H - 18} fontSize={8} textAnchor="middle" className="mono msc-gross-axis">
+              <text x={x(i) + colW / 2} y={H - 4} fontSize={8} textAnchor="middle" className="mono msc-gross-axis">
                 {formatMonth(p.month).slice(0, 3)}
               </text>
               <text x={x(i) + colW / 2} y={12} fontSize={9} textAnchor={anchor} className="mono msc-gross-pill msc-gross-hover">
@@ -73,6 +71,13 @@ export function MscGrossSpark({ points }: { points: GrossMonth[] }) {
           );
         })}
       </svg>
+      <p className="msc-gross-legend mono text-[10px]" style={{ color: "var(--tan-3)" }}>
+        {SERIES.map(({ key, label, fill }) => (
+          <span key={key}>
+            <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background: fill }} /> {label}
+          </span>
+        ))}
+      </p>
     </div>
   );
 }

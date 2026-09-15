@@ -1,4 +1,4 @@
-import { Suspense, use, useMemo } from "react";
+import { Suspense, use, useMemo, useState } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import {
@@ -11,6 +11,9 @@ import {
   demandSideRevenue,
   supplyKept,
   settlementsArtifactMissing,
+  cycleWindow,
+  windowOffsetFor,
+  CYCLE_WINDOW,
 } from "../../lib/settlements";
 import { loadForumTopics } from "../../lib/forumTopics";
 import { forumTopicUrlForMonth } from "@/lib/forumMonths";
@@ -50,6 +53,23 @@ function ActorSettlementsLoaded({ slug, name }: Props) {
   const month = months.includes(msc ?? "") ? msc! : latest;
   const play = useMonthAutoplay(months, month, latest, setMsc);
   const report = reports.find((r) => r.month === month) ?? null;
+  // The bar charts show a year of cycles at a time. The arrows page that
+  // window (and may page the selected month off screen); when the SELECTION
+  // moves (click, keys, autoplay), the window follows it into view. The
+  // page remembers which month it was set for, so the two never fight.
+  const [page, setPage] = useState({ month, offset: 0 });
+  const offset = page.month === month
+    ? page.offset
+    : windowOffsetFor(months.length, page.offset, months.indexOf(month ?? ""));
+  const shown = cycleWindow(reports, offset);
+  const paging = months.length > CYCLE_WINDOW
+    ? {
+        earlier: shown.earlier,
+        later: shown.later,
+        onEarlier: () => setPage({ month, offset: offset + CYCLE_WINDOW }),
+        onLater: () => setPage({ month, offset: Math.max(0, offset - CYCLE_WINDOW) }),
+      }
+    : undefined;
   const demandSeries = useMemo(() => activeDemandSeries(reports), [reports]);
 
   if (settlementsArtifactMissing(bundle)) {
@@ -93,6 +113,23 @@ function ActorSettlementsLoaded({ slug, name }: Props) {
           </>
         )}
       </p>
+      {/* One card of month charts — the Summary, then the demand-side mix
+          under it with its columns on the same grid — above the month's
+          figures. */}
+      <div className="msc-card rounded p-4 mb-4">
+        <SettlementBars
+          months={shown.rows.map(summaryThreeWay)}
+          selected={month}
+          onSelect={selectMonth}
+          paging={paging}
+        />
+        <SettlementDemandBars
+          reports={shown.rows}
+          series={demandSeries}
+          selected={month}
+          onSelect={selectMonth}
+        />
+      </div>
       <MscHeadline
         eco={{
           sky: report.headline.skyRevenue,
@@ -105,20 +142,6 @@ function ActorSettlementsLoaded({ slug, name }: Props) {
         play={{ playing: play.playing, onToggle: play.toggle }}
         labels={{ kept: "Supply-side kept", demand: "Demand-side" }}
       />
-      {/* Summary and demand-side mix side by side; they stack on a narrow page. */}
-      <div className="flex flex-wrap gap-x-10 items-start">
-        <SettlementBars
-          months={reports.map(summaryThreeWay)}
-          selected={month}
-          onSelect={selectMonth}
-        />
-        <SettlementDemandBars
-          reports={reports}
-          series={demandSeries}
-          selected={month}
-          onSelect={selectMonth}
-        />
-      </div>
       {gap > 1 && (
         <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
           Headline prime-agent revenue is {formatUsd(gap)} above the venue rows

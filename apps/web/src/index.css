@@ -127,8 +127,13 @@
   --msc-sde-ink: #160e0d;
   --msc-kept: #9ab58a; /* supply kept */
   --msc-kept-ink: #160e0d;
-  --msc-demand: #e0a060; /* agent rate — the demand-side family color (teal) */
+  --msc-demand: #e0a060; /* the demand-side family color (the Summary's demand-side total) */
   --msc-demand-ink: #160e0d;
+  /* Agent rate, the biggest demand-side line item: its own token so a theme
+     can part it from the family color where the two would read as one
+     (giedi); here it IS the family color, as it always was. */
+  --msc-rate: #e0a060;
+  --msc-rate-ink: #160e0d;
   --msc-dr: #9d7a6b; /* distribution rewards */
   --msc-dr-ink: #160e0d;
   --msc-gar: #ed8b8b; /* accessibility rewards */
@@ -309,6 +314,8 @@
   --msc-kept-ink: #fafafa;
   --msc-demand: #a34d00; /* teal (hue 200, see the :root note) */
   --msc-demand-ink: #fafafa;
+  --msc-rate: #a34d00; /* agent rate = the family color, as in the dark theme */
+  --msc-rate-ink: #fafafa;
   --msc-dr: #4f2b1a;
   --msc-dr-ink: #fafafa;
   --msc-gar: #b5494e;
@@ -618,6 +625,11 @@
   --msc-kept-ink: #141414;
   --msc-demand: #fda856;
   --msc-demand-ink: #141414;
+  /* Agent rate parts from the family orange here (ΔE 14 in OKLab; they
+     were one color and read as one on the settlement page): a deeper
+     red-orange, 6:1 on the page as ink and above the 5:1 floor on the card. */
+  --msc-rate: #ee6b3f;
+  --msc-rate-ink: #141414;
   --msc-dr: #c37650;
   --msc-dr-ink: #141414;
   --msc-gar: #f1df88;
@@ -2742,16 +2754,28 @@ a.atlas-annotates:focus-visible {
 .msc-teaser-wrap:hover .msc-teaser-link {
   text-decoration: underline;
 }
+/* The chart half: the svg takes the height the figures set, and the legend
+   sits under it with the figures' bottom padding, level with "full cycle". */
 .msc-teaser-chart {
+  display: flex;
+  flex-direction: column;
   width: 16rem;
-  padding: 8px 10px;
+  padding: 10px 10px 12px;
   border-left: 1px solid var(--border);
 }
 .msc-teaser-chart svg {
   display: block;
+  flex: 1 1 auto;
   width: 100%;
-  height: 100%;
+  height: auto;
+  min-height: 0;
   overflow: visible;
+}
+.msc-gross-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+  margin-top: 4px;
 }
 .msc-gross-zero {
   stroke: var(--border);
@@ -2806,11 +2830,13 @@ a.atlas-annotates:focus-visible {
   gap: 3px;
   height: 88px;
 }
+/* A demand-side stack is as wide as a Summary cluster (3 × 10px + 2 gaps),
+   so the two charts' month columns line up under each other. */
 .msc-bar-track,
 .msc-bar-stack {
   position: relative;
   height: 88px;
-  width: 22px;
+  width: 36px;
   background: var(--bg-deep);
   border: 1px solid var(--border);
   border-radius: 2px;
@@ -2828,6 +2854,30 @@ a.atlas-annotates:focus-visible {
 }
 .msc-bar-col:hover {
   color: var(--tan-2);
+}
+/* ‹ › paging when a Prime has more cycles than the charts show at once. */
+.msc-cycle-paging {
+  display: inline-flex;
+  gap: 2px;
+}
+.msc-cycle-paging button {
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 5px;
+  color: var(--tan-2);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.msc-cycle-paging button:hover:not(:disabled) {
+  color: var(--tan);
+  border-color: var(--gray);
+}
+.msc-cycle-paging button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 .msc-bar-col:hover .msc-bar-track,
 .msc-bar-col:hover .msc-bar-stack {
@@ -2863,9 +2913,11 @@ a.atlas-annotates:focus-visible {
 .msc-bar-prime {
   --msc-bar-color: var(--msc-kept);
 }
-.msc-bar-demand,
-.msc-bar-rate {
+.msc-bar-demand {
   --msc-bar-color: var(--msc-demand);
+}
+.msc-bar-rate {
+  --msc-bar-color: var(--msc-rate);
 }
 .msc-bar-dr {
   --msc-bar-color: var(--msc-dr);
@@ -3182,7 +3234,7 @@ a.atlas-annotates:focus-visible {
   fill: var(--msc-kept-ink);
 }
 .msc-ring-figure[data-kind="agentRate"] {
-  fill: var(--msc-demand-ink);
+  fill: var(--msc-rate-ink);
 }
 .msc-ring-figure[data-kind="distributionRewards"] {
   fill: var(--msc-dr-ink);
@@ -3225,7 +3277,7 @@ a.atlas-annotates:focus-visible {
   fill: var(--msc-kept);
 }
 .msc-ring-agentRate {
-  fill: var(--msc-demand);
+  fill: var(--msc-rate);
 }
 .msc-ring-distributionRewards {
   fill: var(--msc-dr);

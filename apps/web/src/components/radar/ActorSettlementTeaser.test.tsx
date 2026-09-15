@@ -56,7 +56,8 @@ describe("ActorSettlementTeaser", () => {
     await waitFor(() => expect(screen.getByText("$272")).toBeInTheDocument());
     expect(screen.getByText("total gross revenue")).toBeInTheDocument();
     expect(screen.getByText("Jun 2026 – Jul 2026 · 2 cycles")).toBeInTheDocument();
-    expect(screen.queryByText(/to Sky$/)).not.toBeInTheDocument();
+    // The figure is gross revenue, not the old "… to Sky" teaser; "to Sky" survives only in the legend.
+    expect(screen.getByText("to Sky").closest(".msc-gross-legend")).not.toBeNull();
     const figure = screen.getByText("$272");
     const card = screen.getByTestId("msc-teaser");
     expect(card.tagName).toBe("A");

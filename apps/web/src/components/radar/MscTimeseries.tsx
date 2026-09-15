@@ -1,5 +1,6 @@
 import { formatMonth, formatUsd } from "../../lib/settlements";
 import type { PrimeStackMonth } from "@/lib/settlementsOverview";
+import { MscMonthLabel } from "./MscMonthLabel";
 
 // One stack per month: what each Prime sent TO SKY, in the Prime's identity
 // color, so the stack's top is the month's To-Sky total. Nothing else is
@@ -58,6 +59,7 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
   const y = (v: number) => zeroY - px(v);
   const colorOf = (prime: string) => primeFill(primes.indexOf(prime));
   const width = AXIS_W + months.length * COL_W + (months.length - 1) * GAP_PX;
+  const monthKeys = months.map((m) => m.month);
 
   return (
     <div className="mb-4 min-w-0 max-w-full">
@@ -88,7 +90,8 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
           {months.map((m, i) => (
             <MonthColumn key={m.month} m={m} zeroY={zeroY} px={px} colorOf={colorOf}
               primeLabel={primeLabel} selected={selected} onSelect={onSelect}
-              align={i === 0 ? "start" : i === months.length - 1 ? "end" : "center"} />
+              align={i === 0 ? "start" : i === months.length - 1 ? "end" : "center"}
+              label={<MscMonthLabel months={monthKeys} index={i} />} />
           ))}
         </div>
       </div>
@@ -96,8 +99,9 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
   );
 }
 
-function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect, align }: {
+function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect, align, label }: {
   m: PrimeStackMonth;
+  label: React.ReactNode;
   zeroY: number;
   px: (v: number) => number;
   colorOf: (prime: string) => string;
@@ -150,7 +154,7 @@ function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect, al
           )}
         </span>
       </span>
-      <span className="mono text-[10px]">{formatMonth(m.month)}</span>
+      {label}
     </button>
   );
 }

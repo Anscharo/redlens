@@ -86,6 +86,24 @@ describe("MscTimeseries", () => {
     expect(parseFloat(keel.style.top)).toBeGreaterThan(parseFloat(spark.style.top));
   });
 
+  it("writes 'Jan 2026' on one row up to six columns, and puts the year on its own row past that", () => {
+    renderChart();
+    const labelOf = (col: HTMLElement) => col.lastElementChild!.textContent;
+    expect(labelOf(screen.getByRole("button", { name: /^Jun 2026/ }))).toBe("Jun 2026");
+    cleanup();
+    const run = Array.from({ length: 8 }, (_, i) => ({
+      ...MONTHS[0],
+      month: i < 2 ? `2025-${11 + i}` : `2026-0${i - 1}`,
+    }));
+    render(<MscTimeseries primes={PRIMES} months={run} primeLabel={label} selected="2026-01" onSelect={vi.fn()} />);
+    const cols = screen.getAllByRole("button");
+    expect(cols).toHaveLength(8);
+    expect(labelOf(cols[0])).toBe("Nov2025");
+    expect(labelOf(cols[1])).toBe("Dec ");
+    expect(labelOf(cols[2])).toBe("Jan2026");
+    expect(labelOf(cols[3])).toBe("Feb ");
+  });
+
   it("has no play control of its own — that sits under the month on the headline card", () => {
     renderChart();
     expect(screen.queryByRole("button", { name: /autoplay|Play through/ })).not.toBeInTheDocument();

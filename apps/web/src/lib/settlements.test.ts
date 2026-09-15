@@ -18,6 +18,8 @@ import {
   isDemandSideCycle,
   teaserFigure,
   grossByMonth,
+  cycleWindow,
+  windowOffsetFor,
   summaryThreeWay,
   threeWayPeaks,
   barFillStyle,
@@ -171,6 +173,26 @@ describe("demand-side cycles", () => {
     const loss = report({ month: "2026-06", headline: { ...report().headline, primeAgentRevenue: 20, cof: 40 } });
     expect(grossByMonth([loss, report()]).map((m) => [m.month, m.kept, m.gross])).toEqual([["2026-06", -20, 40], ["2026-07", 60, 120]]);
     expect(grossByMonth([])).toEqual([]);
+  });
+
+  it("windows a run of cycles to a trailing year, paged a full window at a time and never a stub", () => {
+    const run = Array.from({ length: 15 }, (_, i) => i + 1);
+    expect(cycleWindow(run)).toEqual({ rows: run.slice(3), earlier: true, later: false });
+    // Paging back a full window is clamped so the window stays full.
+    expect(cycleWindow(run, 12)).toEqual({ rows: run.slice(0, 12), earlier: false, later: true });
+    expect(cycleWindow(run, 2)).toEqual({ rows: run.slice(1, 13), earlier: true, later: true });
+    expect(cycleWindow([1, 2, 3])).toEqual({ rows: [1, 2, 3], earlier: false, later: false });
+    expect(cycleWindow([1, 2, 3], 5)).toEqual({ rows: [1, 2, 3], earlier: false, later: false });
+    expect(cycleWindow([], 0)).toEqual({ rows: [], earlier: false, later: false });
+  });
+
+  it("keeps a selected cycle on screen: the offset holds while it is in view, else the window ends on it", () => {
+    expect(windowOffsetFor(15, 0, 14)).toBe(0);
+    expect(windowOffsetFor(15, 0, 3)).toBe(0);
+    expect(windowOffsetFor(15, 0, 2)).toBe(3); // clamped to a full window (rows 0..11)
+    expect(windowOffsetFor(15, 3, 0)).toBe(3);
+    expect(windowOffsetFor(15, 3, 13)).toBe(1); // window ends on row 13
+    expect(windowOffsetFor(5, 0, 2)).toBe(0);
   });
 
   it("splits the Summary into Sky / supply kept / demand-side", () => {

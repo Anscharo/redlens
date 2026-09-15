@@ -4,6 +4,7 @@ import {
   loadSettlements,
   formatMonth,
   formatUsd,
+  cycleWindow,
   settlementsArtifactMissing,
 } from "../../lib/settlements";
 import {
@@ -47,7 +48,9 @@ export function MscOverview({ actors }: { actors: OverviewActor[] }) {
 
 function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
   const bundle = use(loadSettlements());
-  const months = useMemo(() => (bundle ? settlementMonths(bundle) : []), [bundle]);
+  // The trailing year of cycles: what the timeseries shows and what the
+  // month selector, autoplay and arrow keys step through.
+  const months = useMemo(() => (bundle ? cycleWindow(settlementMonths(bundle)).rows : []), [bundle]);
   const latest = months[months.length - 1] ?? null;
   const [msc, setMsc] = useUrlState("msc", mscCodec);
   const month = months.includes(msc ?? "") ? msc! : latest;
@@ -58,10 +61,10 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
       actorForPrimeKey(prime, actors)?.name ?? prime.charAt(0).toUpperCase() + prime.slice(1),
     [actors],
   );
-  const stack = useMemo(
-    () => (bundle ? primeStackMonths(bundle) : { primes: [], months: [] }),
-    [bundle],
-  );
+  const stack = useMemo(() => {
+    const all = bundle ? primeStackMonths(bundle) : { primes: [], months: [] };
+    return { primes: all.primes, months: all.months.filter((m) => months.includes(m.month)) };
+  }, [bundle, months]);
   const flows = useMemo(
     () => (bundle && month ? primeFlowsForMonth(bundle, month) : []),
     [bundle, month],
