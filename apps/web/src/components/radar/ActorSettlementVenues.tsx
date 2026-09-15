@@ -12,6 +12,9 @@ import { SettlementVenuePnl } from "./SettlementSankey";
 import { SettlementAum } from "./SettlementAum";
 
 const venuesCodec = urlString(null);
+/** A month change on the venue charts, slower than the overview's: a
+ *  Sankey re-threading a dozen ribbons at once needs the time to be seen. */
+export const SETTLE_TWEEN_MS = 1500;
 
 export function ActorSettlementVenues({
   report,
@@ -22,7 +25,7 @@ export function ActorSettlementVenues({
 }) {
   // A month change is drawn as a transition: the rows tween (mscTween.ts)
   // and the Sankey and AUM bars lay out from them every frame.
-  const venues = useTweened(report.venues, tweenVenues);
+  const venues = useTweened(report.venues, tweenVenues, SETTLE_TWEEN_MS);
   const multi = hasMultiVenuePnl(report);
   const aum = hasVenueAum(report);
   // ?venues=aum; PnL is the default and needs no param.

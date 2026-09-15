@@ -22,10 +22,16 @@ describe("tweenPrimeFlows", () => {
   it("grows a new Prime from zero and shrinks a leaving one to zero, kept after the rest", () => {
     const june = [flow()];
     const july = [flow(), flow({ prime: "grove", sky: 400 })];
-    expect(tweenPrimeFlows(june, july, 0.25).find((f) => f.prime === "grove")!.sky).toBe(100);
+    const grove = tweenPrimeFlows(june, july, 0.25).find((f) => f.prime === "grove")!;
+    expect(grove.sky).toBe(100);
+    // Entering: a quarter of the way in; the Prime present both months carries no alpha.
+    expect(grove.alpha).toBe(0.25);
+    expect(tweenPrimeFlows(june, july, 0.25)[0].alpha).toBeUndefined();
     const back = tweenPrimeFlows(july, june, 0.75);
     expect(back.map((f) => f.prime)).toEqual(["spark", "grove"]);
     expect(back[1].sky).toBe(100);
+    // Leaving: a quarter of the way out.
+    expect(back[1].alpha).toBe(0.25);
   });
 
   it("is the endpoints at 0 and 1", () => {

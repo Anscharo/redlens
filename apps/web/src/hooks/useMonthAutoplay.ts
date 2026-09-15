@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-/** Autoplay dwell per month. */
+/** Autoplay dwell per month (the default; a page whose charts take longer
+ *  to transition passes a longer one). */
 export const PLAY_MS = 1000;
 
 /** Is the key press typed into a field, where the arrows mean the caret? */
@@ -10,7 +11,7 @@ function typing(target: EventTarget | null): boolean {
   return Boolean(el.closest("input, textarea, select, [contenteditable=''], [contenteditable='true']"));
 }
 
-/** Steps `month` through `months` (PLAY_MS each, looping) while playing,
+/** Steps `month` through `months` (`dwellMs` each, looping) while playing,
  *  and one month at a time on ← / → (no wrap; typing in a field or holding
  *  a modifier leaves the arrows alone). Opt-in: a page opens paused on its
  *  latest month (or ?msc); selecting a month by hand, or an arrow key,
@@ -22,6 +23,7 @@ export function useMonthAutoplay(
   month: string | null,
   latest: string | null,
   setMsc: (m: string | null) => void,
+  dwellMs = PLAY_MS,
 ): { playing: boolean; toggle: () => void; pause: () => void } {
   const [playing, setPlaying] = useState(false);
   useEffect(() => {
@@ -29,9 +31,9 @@ export function useMonthAutoplay(
     const id = setInterval(() => {
       const next = months[(months.indexOf(month) + 1) % months.length];
       setMsc(next === latest ? null : next);
-    }, PLAY_MS);
+    }, dwellMs);
     return () => clearInterval(id);
-  }, [playing, months, month, latest, setMsc]);
+  }, [playing, months, month, latest, setMsc, dwellMs]);
   useEffect(() => {
     if (months.length < 2 || !month) return;
     const onKey = (e: KeyboardEvent) => {

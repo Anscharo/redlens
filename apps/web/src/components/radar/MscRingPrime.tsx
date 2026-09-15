@@ -30,7 +30,7 @@ export function primeLinkLabel(flow: PrimeFlowTotals, label: string, month: stri
 export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscRingPrime & { month: string }) {
   const arrow = ring.arrow;
   const group = (
-    <g className="msc-ring-prime" data-prime={flow.prime}>
+    <g className="msc-ring-prime" data-prime={flow.prime} style={ring.alpha < 1 ? { opacity: ring.alpha } : undefined}>
       {arrow && (
         <g className="msc-ring-mark" data-mark={markId(flow.prime, arrow.kind)}>
           {/* Which components the arrow actually carries, so the key's CoF

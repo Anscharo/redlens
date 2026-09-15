@@ -29,6 +29,12 @@
 // Prime's own wedge is always on its side of Sky, and its arrow docks at
 // the nearest point of that wedge, never closer than DOCK_INSET of the
 // wedge's span to either edge.
+//
+// Transitions: a row's `alpha` (set by tweenPrimeFlows for a Prime only
+// one of two months has) scales every FLOOR and every reserve of room the
+// row gets — the minimum pie, its name's room, its clearance, its minimum
+// wedge — so a Prime arriving from nothing takes up nothing at first and
+// the others drift over as it grows, instead of jumping to make it a slot.
 
 import { DEMAND_SERIES, SETTLEMENT_NEAR_ZERO, formatUsd, type DemandKey } from "@/lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
@@ -181,6 +187,8 @@ export interface RingSkyWedge {
   /** Permanent figure inside the wedge, when it has room. */
   figureX: number | null;
   figureY: number | null;
+  /** Mid-transition opacity of a Prime entering or leaving (else 1). */
+  alpha: number;
 }
 
 export interface RingPrime {
@@ -208,6 +216,8 @@ export interface RingPrime {
   grossPillY: number;
   grossAnchorX: number;
   grossAnchorY: number;
+  /** Mid-transition opacity of a Prime entering or leaving (else 1). */
+  alpha: number;
 }
 
 export interface RingLayout {
@@ -345,7 +355,8 @@ export function layoutMscRing(
       const sky = Math.abs(p.sky) >= SETTLEMENT_NEAR_ZERO ? p.sky : 0;
       const positives = items.filter((it) => it.signed > 0).reduce((n, it) => n + it.signed, 0);
       const loss = items.filter((it) => it.signed < 0).reduce((n, it) => n - it.signed, 0);
-      return { p, items, sky, positives, loss, gross: positives - loss };
+      const alpha = Math.max(0, Math.min(1, p.alpha ?? 1));
+      return { p, items, sky, positives, loss, gross: positives - loss, alpha };
     })
     .filter((r) => r.items.length > 0 || r.sky !== 0);
 
@@ -375,17 +386,19 @@ export function layoutMscRing(
   const skyR = Math.max(SKY_MIN_R, radiusFor(skyTotal));
   const skyInnerR = 0;
 
+  // Floors and reserved room scale with the row's alpha (1 for a real row).
   const shape = rows.map((r) => {
-    const r0 = Math.max(PIE_MIN_R, radiusFor(r.positives));
-    const holeR = r.loss > 0 ? Math.min(r0 - HOLE_RIM, Math.max(HOLE_MIN_R, radiusFor(r.loss))) : 0;
-    return { r: r0, holeR, spaceR: r0 + LABEL_OUT };
+    const r0 = Math.max(PIE_MIN_R * r.alpha, radiusFor(r.positives));
+    const holeR =
+      r.loss > 0 ? Math.max(0, Math.min(r0 - HOLE_RIM, Math.max(HOLE_MIN_R * r.alpha, radiusFor(r.loss)))) : 0;
+    return { r: r0, holeR, spaceR: r0 + LABEL_OUT * r.alpha, clear: (CLEARANCE / 2) * r.alpha };
   });
 
   // Sky's wedges in row order (the caller's PRIME_ORDER), rotated so the
   // first contributor's wedge is centered at 12 o'clock.
   const contributors = rows.map((r, i) => ({ r, i })).filter((x) => x.r.sky !== 0);
   const floorShare = MIN_WEDGE / TWO_PI;
-  const shares = contributors.map((x) => Math.max(Math.abs(x.r.sky) / (skyTotal || 1), floorShare));
+  const shares = contributors.map((x) => Math.max(Math.abs(x.r.sky) / (skyTotal || 1), floorShare * x.r.alpha));
   const shareSum = shares.reduce((n, s) => n + s, 0) || 1;
   const spans = shares.map((s) => (s / shareSum) * TWO_PI);
   let wa = START_ANGLE - (spans[0] ?? 0) / 2;
@@ -412,6 +425,7 @@ export function layoutMscRing(
       value,
       figureX: fit?.x ?? null,
       figureY: fit?.y ?? null,
+      alpha: x.r.alpha,
     };
   });
 
@@ -430,9 +444,9 @@ export function layoutMscRing(
   if (rows.length >= 2) angles[1] = norm(START_ANGLE + Math.PI);
   if (rows.length >= 3) {
     const rest = rows.map((_, i) => i).slice(2);
-    const weights = rest.map((i) => shape[i].spaceR + CLEARANCE / 2);
+    const weights = rest.map((i) => shape[i].spaceR + shape[i].clear);
     // Edge margins so the first/last of the rest clear Grove/Spark.
-    const edge = (shape[1].spaceR + shape[0].spaceR) / 2 + CLEARANCE;
+    const edge = (shape[1].spaceR + shape[0].spaceR) / 2 + shape[0].clear + shape[1].clear;
     const totalW = weights.reduce((n, w) => n + w, 0) + edge;
     let cum = edge / 2;
     rest.forEach((i, k) => {
@@ -476,7 +490,7 @@ export function layoutMscRing(
       const pi = placed(i, angles[i]);
       const pj = placed(j, angles[j]);
       const d = Math.hypot(pi.x - pj.x, pi.y - pj.y);
-      const need = shape[i].spaceR + shape[j].spaceR + CLEARANCE;
+      const need = shape[i].spaceR + shape[i].clear + shape[j].spaceR + shape[j].clear;
       if (d >= need) continue;
       const speed = (t: number) => Math.hypot(ORBIT_RX * Math.sin(t), ORBIT_RY * Math.cos(t));
       const dTheta = (need - d) / ((speed(angles[i]) + speed(angles[j])) / 2 || 1);
@@ -584,8 +598,9 @@ export function layoutMscRing(
     // UNDER the name (labelY + 16, drawn by the view), so the two read the
     // same way everywhere; the gross pill goes beyond both.
     const above = py <= cy;
-    const labelY = above ? py - s.r - 38 : py + s.r + 26;
+    const labelY = above ? py - s.r - 38 * r.alpha : py + s.r + 26 * r.alpha;
     return {
+      alpha: r.alpha,
       prime: r.p.prime,
       angle: t,
       cx: px,
@@ -617,11 +632,12 @@ function fitViewBox(primes: RingPrime[], skyR: number, cy: number) {
   let y0 = cy - skyR - 38 - 24;
   let y1 = cy + skyR;
   for (const p of primes) {
-    x0 = Math.min(x0, p.cx - p.r, p.labelX - NAME_HALF_W);
-    x1 = Math.max(x1, p.cx + p.r, p.labelX + NAME_HALF_W);
+    // A Prime mid-arrival reserves only its alpha's share of the name room.
+    x0 = Math.min(x0, p.cx - p.r, p.labelX - NAME_HALF_W * p.alpha);
+    x1 = Math.max(x1, p.cx + p.r, p.labelX + NAME_HALF_W * p.alpha);
     // The name's line box is ~18px tall, the figure sits 16px under it.
-    y0 = Math.min(y0, p.cy - p.r, p.labelY - 20);
-    y1 = Math.max(y1, p.cy + p.r, p.labelY + 26);
+    y0 = Math.min(y0, p.cy - p.r, p.labelY - 20 * p.alpha);
+    y1 = Math.max(y1, p.cy + p.r, p.labelY + 26 * p.alpha);
   }
   return {
     x: x0 - CROP_PAD,

@@ -74,7 +74,7 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
             so "these flows add up to Sky" is visible rather than asserted. */}
         <circle cx={layout.cx} cy={layout.cy} r={layout.skyR} className="msc-ring-sky-disc" />
         {layout.skyWedges.map((w) => (
-          <g key={w.prime} className="msc-ring-mark" data-mark={markId(w.prime, "share")}>
+          <g key={w.prime} className="msc-ring-mark" data-mark={markId(w.prime, "share")} style={w.alpha < 1 ? { opacity: w.alpha } : undefined}>
             <path
               d={w.path}
               fillRule="evenodd"

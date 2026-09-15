@@ -175,6 +175,36 @@ describe("layoutMscRing (orbital pies)", () => {
     expect(layout.width / layout.height).toBeGreaterThan(1.8);
   });
 
+  it("lets a Prime arrive without a jump: at alpha ≈ 0 it takes no room and the others stay put", () => {
+    const june = JULY.filter((f) => f.prime !== "obex");
+    const before = layoutMscRing(june);
+    // Obex a hair into its arrival (what the tween hands the layout on its first frame).
+    const k = 0.002;
+    const obex = JULY[4];
+    const arriving = layoutMscRing([
+      ...june,
+      { ...obex, sky: obex.sky * k, cof: obex.cof * k, kept: obex.kept * k, demand: obex.demand * k, demandParts: { agentRate: 71_997 * k }, alpha: k },
+    ]);
+    expect(arriving.primes.map((p) => p.prime)).toEqual([...june.map((f) => f.prime), "obex"]);
+    // The newcomer's only footprint is its own ~2px radius (area scale), so
+    // its neighbours move by a few pixels — the start of a glide, not a slot.
+    for (const p of before.primes) {
+      const after = arriving.primes.find((q) => q.prime === p.prime)!;
+      expect(Math.hypot(after.cx - p.cx, after.cy - p.cy)).toBeLessThan(8);
+      expect(after.alpha).toBe(1);
+    }
+    const newcomer = arriving.primes[5];
+    expect(newcomer.alpha).toBe(k);
+    expect(newcomer.r).toBeLessThan(8);
+    expect(Math.abs(newcomer.labelY - newcomer.cy)).toBeLessThan(newcomer.r + 1);
+    expect(arriving.skyWedges.find((w) => w.prime === "obex")!.alpha).toBe(k);
+    // Its box and its wedge are hairlines, so the frame does not grow for it.
+    expect(Math.abs(arriving.width - before.width)).toBeLessThan(3);
+    expect(Math.abs(arriving.height - before.height)).toBeLessThan(3);
+    // A real row has alpha 1 everywhere.
+    expect(layoutMscRing(JULY).primes.every((p) => p.alpha === 1)).toBe(true);
+  });
+
   it("gives a slice or wedge a permanent figure only when it has room, and every pie its gross under the name", () => {
     const layout = layoutMscRing(APRIL);
     const grove = layout.primes.find((p) => p.prime === "grove")!;

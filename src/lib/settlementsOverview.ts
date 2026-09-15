@@ -68,6 +68,10 @@ export interface PrimeFlowTotals {
    *  `?msc` when it equals the selected month, so a prime whose only month
    *  is older than the ecosystem's latest still gets a clean link. */
   latestMonth: string;
+  /** How far into (or out of) the chart the Prime is during a month
+   *  transition, 0..1: a Prime only one of the two months has grows in or
+   *  shrinks away. Absent (= 1) on real rows; set by the tween. */
+  alpha?: number;
 }
 
 /** All primes that published a workbook for `month`, in PRIME_ORDER — the

@@ -26,6 +26,10 @@ import { useMonthAutoplay } from "../../hooks/useMonthAutoplay";
 
 const mscCodec = urlString(null);
 const SOURCE = "https://github.com/soterlabs/settlement-reports";
+/** Autoplay dwell here: the venue Sankey's transition (SETTLE_TWEEN_MS,
+ *  ActorSettlementVenues) is slow enough to follow, and a month should
+ *  settle and be read before the next one starts. */
+const SETTLE_PLAY_MS = 2400;
 
 interface Props {
   slug: string;
@@ -51,7 +55,7 @@ function ActorSettlementsLoaded({ slug, name }: Props) {
   const latest = months[months.length - 1] ?? null;
   const [msc, setMsc] = useUrlState("msc", mscCodec);
   const month = months.includes(msc ?? "") ? msc! : latest;
-  const play = useMonthAutoplay(months, month, latest, setMsc);
+  const play = useMonthAutoplay(months, month, latest, setMsc, SETTLE_PLAY_MS);
   const report = reports.find((r) => r.month === month) ?? null;
   // The bar charts show a year of cycles at a time. The arrows page that
   // window (and may page the selected month off screen); when the SELECTION
