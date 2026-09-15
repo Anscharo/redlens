@@ -4,14 +4,17 @@
 // otherwise grows past its intended size) so the diff logic is testable
 // without driving a full build.
 //
-// `base`/`head`/`live` are three separate snapshots on purpose: `base` is the
-// merge base (or live main when there isn't one — see build.ts), `head` is
-// this preview's own built docs.json, and `live` is the CURRENTLY SERVED main
-// atlas. `added`/`changed` come from diffSnapshots(base, head); the rendered
-// patch and the renumbered/retitled fields compare against LIVE (what the
-// reader is looking at on screen right now), falling back to `base` only when
-// a changed doc isn't on live at all (class 4: main never had it, or it has
-// since been removed there).
+// `base`/`head`/`reference` are three separate snapshots on purpose: `base` is
+// the merge base (or live main when there isn't one — see build.ts), `head` is
+// this preview's own built docs.json, and `reference` is the snapshot the
+// reader compares against — live main for the sky candidate, the candidate's
+// own merge base for the repo candidate (so upstream drift never appears
+// inside a patch). `added`/`changed` come from diffSnapshots(base, head); the
+// rendered patch and the renumbered/retitled fields compare against
+// `reference` (what the reader is looking at on screen right now, or the
+// candidate's own base), falling back to `base` only when a changed doc isn't
+// on `reference` at all (class 4: it was never there, or has since been
+// removed).
 
 import fs from "node:fs";
 import path from "node:path";
@@ -33,7 +36,7 @@ export interface PreviewDiffJson {
 export function computeDiffArtifacts(
   base: Snapshot,
   head: Snapshot,
-  live: Snapshot,
+  reference: Snapshot,
 ): { diff: PreviewDiffJson; patches: Record<string, DiffLine[]> } {
   // Which docs this preview adds/changes, by DOCUMENT IDENTITY rather than by
   // changed filename. Filenames stopped identifying documents when the atlas
@@ -51,15 +54,15 @@ export function computeDiffArtifacts(
     if (dl.length) patches[id] = dl;
   }
 
-  // For CHANGED docs the rendered redline is this uuid's content here vs on
-  // the LIVE atlas (what the reader is comparing against on screen), and
+  // For CHANGED docs the rendered redline is this uuid's content here vs the
+  // REFERENCE snapshot (what the reader is comparing against on screen), and
   // renumberings/retitles are recorded explicitly. A doc changed vs the merge
-  // base but absent from live (removed there, or live never had it) falls
-  // back to the base side rather than being skipped — it still needs a patch.
+  // base but absent from reference (removed there, or reference never had it)
+  // falls back to the base side rather than being skipped — it still needs a patch.
   const renumbered: Record<string, [string, string]> = {};
   const retitled: Record<string, [string, string]> = {};
   for (const id of changed) {
-    const beforeNode = live.get(id) ?? base.get(id);
+    const beforeNode = reference.get(id) ?? base.get(id);
     const afterNode = head.get(id);
     if (!beforeNode || !afterNode) continue;
     // No delete needed on an empty diff: `changed` and `added` are disjoint,
@@ -71,25 +74,25 @@ export function computeDiffArtifacts(
   }
 
   // ADDED docs in a reused slot (new uuid at a doc number that exists on the
-  // live atlas under a different uuid): the GitHub per-path patch shows the
-  // old occupant's content being edited away — misleading for a new doc. Flag
-  // the reuse and show the doc's own content as pure additions; the old
-  // occupant's move shows on its own history entry. Compares vs LIVE, same as
-  // the renumber/retitle checks above.
-  const liveDocNos = new Map<string, string>();
-  for (const [lid, lnode] of live) liveDocNos.set(lnode.doc_no, lid);
-  // id → who held this doc number on the live atlas, and where that doc sits
-  // in THIS preview (absent = the occupant was removed). Lets the new doc's
-  // history reference the old occupant's move (both sides of a slot swap tell
-  // the story).
+  // reference snapshot under a different uuid): the GitHub per-path patch
+  // shows the old occupant's content being edited away — misleading for a new
+  // doc. Flag the reuse and show the doc's own content as pure additions; the
+  // old occupant's move shows on its own history entry. Compares vs
+  // REFERENCE, same as the renumber/retitle checks above.
+  const referenceDocNos = new Map<string, string>();
+  for (const [rid, rnode] of reference) referenceDocNos.set(rnode.doc_no, rid);
+  // id → who held this doc number on the reference snapshot, and where that
+  // doc sits in THIS preview (absent = the occupant was removed). Lets the new
+  // doc's history reference the old occupant's move (both sides of a slot
+  // swap tell the story).
   const reusedSlot: Record<string, { title: string; movedTo?: string }> = {};
   for (const id of added) {
     const node = head.get(id);
     if (!node) continue;
-    const occupant = liveDocNos.get(node.doc_no);
+    const occupant = referenceDocNos.get(node.doc_no);
     if (occupant && occupant !== id) {
       reusedSlot[id] = {
-        title: live.get(occupant)?.title ?? occupant.slice(0, 8),
+        title: reference.get(occupant)?.title ?? occupant.slice(0, 8),
         movedTo: head.get(occupant)?.doc_no,
       };
       const dl = contentDiff("", node.content ?? "");
@@ -102,7 +105,7 @@ export function computeDiffArtifacts(
   // wholly replaced (title changed + body rewritten), and — best effort —
   // where the displaced old content moved to. Treated as a distinct WARNING
   // in the UI, not an ordinary +/Δ.
-  const { identitySwap, formerUuid } = detectIdentitySwaps({ changed, added, mainById: live, previewById: head });
+  const { identitySwap, formerUuid } = detectIdentitySwaps({ changed, added, mainById: reference, previewById: head });
 
   return { diff: { added, changed, renumbered, retitled, reusedSlot, identitySwap, formerUuid }, patches };
 }

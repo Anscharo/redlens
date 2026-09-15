@@ -10,9 +10,12 @@ import {
   appJwt,
   appInstallUrl,
   installationIdForRepo,
+  installationInfoForRepo,
   installationToken,
   userRepoPermission,
   normalizePem,
+  permissionsUpdateUrl,
+  installationHasPullsRead,
   __resetCachesForTest,
 } from "./github-app.ts";
 
@@ -138,6 +141,52 @@ test("installationIdForRepo: 200 -> numeric id", async () => {
     Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ id: 999 }) } as Response);
   const id = await installationIdForRepo("owner/private-repo-2");
   expect(id).toBe(999);
+});
+
+test("installationInfoForRepo: captures html_url + granted permissions", async () => {
+  // @ts-expect-error stub
+  globalThis.fetch = () =>
+    Promise.resolve({
+      status: 200,
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          id: 9,
+          html_url: "https://github.com/organizations/acme/settings/installations/9",
+          permissions: { contents: "read", metadata: "read" },
+        }),
+    } as Response);
+  const info = await installationInfoForRepo("acme/secret");
+  expect(info).toEqual({
+    id: 9,
+    htmlUrl: "https://github.com/organizations/acme/settings/installations/9",
+    permissions: { contents: "read", metadata: "read" },
+  });
+  // Cached — a second call must not refetch.
+  // @ts-expect-error stub
+  globalThis.fetch = () => {
+    throw new Error("installation lookup should have been cached");
+  };
+  expect(await installationInfoForRepo("acme/secret")).toEqual(info);
+});
+
+test("permissionsUpdateUrl: appends /permissions/update, stripping a trailing slash", () => {
+  expect(permissionsUpdateUrl("https://github.com/settings/installations/1")).toBe(
+    "https://github.com/settings/installations/1/permissions/update",
+  );
+  expect(permissionsUpdateUrl("https://github.com/organizations/acme/settings/installations/9/")).toBe(
+    "https://github.com/organizations/acme/settings/installations/9/permissions/update",
+  );
+  expect(permissionsUpdateUrl(null)).toBeNull();
+  expect(permissionsUpdateUrl("")).toBeNull();
+});
+
+test("installationHasPullsRead: only read/write count", () => {
+  expect(installationHasPullsRead({ pull_requests: "read" })).toBe(true);
+  expect(installationHasPullsRead({ pull_requests: "write" })).toBe(true);
+  expect(installationHasPullsRead({ pull_requests: "none" })).toBe(false);
+  expect(installationHasPullsRead({ contents: "read" })).toBe(false);
+  expect(installationHasPullsRead(undefined)).toBe(false);
 });
 
 // ---------------------------------------------------------------------------

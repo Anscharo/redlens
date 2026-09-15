@@ -241,7 +241,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Turn a proposed Atlas edit into a readable, redlined view before it lands.",
         how: [
           "Open Preview and paste an Atlas PR, branch, or fork URL — or pick one from the open-PRs tab.",
-          "To preview a private repo, paste its GitHub URL or pull-request URL into the private-repo box — a PR is compared against sky-ecosystem/next-gen-atlas main.",
+          "To preview a private repo, paste its GitHub URL or pull-request URL into the private-repo box — a pull request is redlined against its own base branch, and a branch against the closest shared point with sky-ecosystem/next-gen-atlas:main or the fork's own default branch. If a private pull request is missing Pull requests: Read, the preview bar links to GitHub so the person who installed the App can grant it, then reload.",
+          "The preview bar names the base in use and, when it isn't sky main, how far that base has drifted — use the `compare against … instead` link there to switch.",
           "The Changed-only filter hides untouched sections; the rollup badge counts what moved.",
           "Watch for the ⚠ UUID-swap warning (a document's identity changed) and the build-error detail if the preview failed to build.",
           "History inside a preview is scoped to that preview, so you can see the change against what it edits.",

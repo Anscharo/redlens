@@ -183,13 +183,16 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
     <PreviewInterstitial sha={sha} base={base}>
       <Router base={routerBase}>
         <DataSourceContext.Provider value={{ base, preview: { id, sha } }}>
-          <PreviewDiffProvider>
-            <PreviewViewProvider>
+          {/* PreviewViewProvider must be outermost: PreviewDiffProvider reads
+              usePreviewView()'s baseKey (?base=) to pick which diff pair to
+              fetch, and a provider only sees context from its ANCESTORS. */}
+          <PreviewViewProvider>
+            <PreviewDiffProvider>
               <AuthProvider>
                 <App />
               </AuthProvider>
-            </PreviewViewProvider>
-          </PreviewDiffProvider>
+            </PreviewDiffProvider>
+          </PreviewViewProvider>
         </DataSourceContext.Provider>
       </Router>
     </PreviewInterstitial>

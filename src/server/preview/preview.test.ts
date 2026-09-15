@@ -8,7 +8,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { execFileSync } from "node:child_process";
 
-import { decodeId, gateError, resolveRef, checkForkLineage, isFork, repoOwner, type GhClient } from "./resolve.ts";
+import { decodeId, gateError, resolveRef, checkForkLineage, isFork, repoOwner, prBaseOf, type GhClient } from "./resolve.ts";
 import { tierFor, effectivePrTier } from "./trust.ts";
 import {
   gunzipCapped,
@@ -57,9 +57,12 @@ test("isFork / repoOwner helpers", () => {
   expect(repoOwner("blimpa/next-gen-atlas")).toBe("blimpa");
 });
 
-function fakeGh(map: Record<string, { ok?: boolean; status?: number; json: any }>): GhClient {
+// `calls`, when passed, records every path fetched — used to prove a repo
+// lookup shared across privacy/lineage/default-branch checks happens once.
+function fakeGh(map: Record<string, { ok?: boolean; status?: number; json: any }>, calls?: string[]): GhClient {
   return {
     async fetchJson(p) {
+      calls?.push(p);
       const r = map[p];
       if (!r) return { ok: false, status: 404, json: null };
       return { ok: r.ok ?? true, status: r.status ?? 200, json: r.json };
@@ -67,10 +70,17 @@ function fakeGh(map: Record<string, { ok?: boolean; status?: number; json: any }
   };
 }
 
-test("resolveRef: PR → fork head repo + sha + state + head-commit date", async () => {
+test("resolveRef: PR → fork head repo + sha + state + head-commit date + prBase against the canonical repo", async () => {
   const gh = fakeGh({
     "/repos/sky-ecosystem/next-gen-atlas/pulls/256": {
-      json: { title: "Spark", user: { login: "blimpa" }, state: "open", merged_at: null, head: { repo: { full_name: "blimpa/next-gen-atlas" }, sha: "deadbeef" } },
+      json: {
+        title: "Spark",
+        user: { login: "blimpa" },
+        state: "open",
+        merged_at: null,
+        head: { repo: { full_name: "blimpa/next-gen-atlas" }, sha: "deadbeef" },
+        base: { ref: "main", sha: "basesha", repo: { full_name: "sky-ecosystem/next-gen-atlas" } },
+      },
     },
     // The pulls payload has no commit date, so resolveRef asks for the commit.
     "/repos/blimpa/next-gen-atlas/commits/deadbeef": {
@@ -78,7 +88,17 @@ test("resolveRef: PR → fork head repo + sha + state + head-commit date", async
     },
   });
   const r = await resolveRef(decodeId("pull-256")!, gh);
-  expect(r).toMatchObject({ repo: "blimpa/next-gen-atlas", sha: "deadbeef", kind: "pr", ref: "pull-256", pr: { state: "open", author: "blimpa" }, date: "2026-06-15T10:00:00Z" });
+  expect(r).toMatchObject({
+    repo: "blimpa/next-gen-atlas",
+    sha: "deadbeef",
+    kind: "pr",
+    ref: "pull-256",
+    pr: { state: "open", author: "blimpa" },
+    date: "2026-06-15T10:00:00Z",
+    // A PR — even a fork PR — is redlined against ITS OWN declared base, in the
+    // repo the PR was opened against (canonical here), never a fork's default branch.
+    prBase: { repo: "sky-ecosystem/next-gen-atlas", ref: "main", sha: "basesha" },
+  });
 });
 
 test("resolveRef: a PR still resolves when the head-commit lookup fails, just undated", async () => {
@@ -158,6 +178,64 @@ test("resolveRef: RENAMED fork resolves through the same lineage screen", async 
   // canonical-owner lookalike repo goes through lineage too (and fails it)
   const lookalike = fakeGh({ "/repos/sky-ecosystem/lookalike": { json: { fork: false } } });
   expect(await resolveRef(decodeId("sky-ecosystem:lookalike:main")!, lookalike)).toEqual({ error: "not-a-fork" });
+});
+
+test("resolveRef: fork branch resolve sets defaultBranch as the `repo` diff-base candidate, fetching /repos/{repo} exactly once", async () => {
+  const calls: string[] = [];
+  const gh = fakeGh(
+    {
+      "/repos/blimpa/next-gen-atlas": {
+        json: { fork: true, source: { full_name: "sky-ecosystem/next-gen-atlas" }, default_branch: "trunk" },
+      },
+      "/repos/blimpa/next-gen-atlas/branches/spark": { json: { commit: { sha: "forktip" } } },
+    },
+    calls,
+  );
+  const r = await resolveRef(decodeId("blimpa:spark")!, gh);
+  expect(r).toMatchObject({ repo: "blimpa/next-gen-atlas", sha: "forktip", kind: "branch", ref: "spark", defaultBranch: "trunk" });
+  // checkForkLineage and the defaultBranch population share the same GET
+  // /repos/{repo} instead of each issuing their own round-trip.
+  expect(calls.filter((p) => p === "/repos/blimpa/next-gen-atlas")).toHaveLength(1);
+});
+
+test("resolveRef: canonical branch never carries defaultBranch (it would coincide with sky main)", async () => {
+  const gh = fakeGh({
+    "/repos/sky-ecosystem/next-gen-atlas/branches/main": { json: { commit: { sha: "tip123" } } },
+  });
+  const r = await resolveRef(decodeId("main")!, gh);
+  expect((r as any).defaultBranch).toBeUndefined();
+});
+
+// ---------------------------------------------------------------------------
+// prBaseOf — pure helper reading a PR's declared base off a Pulls API payload.
+// ---------------------------------------------------------------------------
+
+test("prBaseOf: missing base -> undefined", () => {
+  expect(prBaseOf({}, "fallback/repo")).toBeUndefined();
+  expect(prBaseOf(null, "fallback/repo")).toBeUndefined();
+});
+
+test("prBaseOf: empty or missing ref -> undefined", () => {
+  expect(prBaseOf({ base: {} }, "fallback/repo")).toBeUndefined();
+  expect(prBaseOf({ base: { ref: "" } }, "fallback/repo")).toBeUndefined();
+});
+
+test("prBaseOf: missing base.repo falls back to the given repo", () => {
+  expect(prBaseOf({ base: { ref: "main" } }, "fallback/repo")).toEqual({ repo: "fallback/repo", ref: "main", sha: undefined });
+});
+
+test("prBaseOf: missing sha is omitted, not empty string", () => {
+  expect(prBaseOf({ base: { ref: "main", repo: { full_name: "acme/atlas" } } }, "fallback/repo")).toEqual({
+    repo: "acme/atlas",
+    ref: "main",
+    sha: undefined,
+  });
+});
+
+test("prBaseOf: full payload reads repo, ref, and sha off base", () => {
+  expect(
+    prBaseOf({ base: { ref: "develop", sha: "abc123", repo: { full_name: "acme/atlas" } } }, "fallback/repo"),
+  ).toEqual({ repo: "acme/atlas", ref: "develop", sha: "abc123" });
 });
 
 test("trust tierFor: whitelist/atlas-merged → trusted; org-merged → known; history-less by account age", () => {
