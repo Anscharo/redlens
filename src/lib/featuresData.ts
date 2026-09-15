@@ -196,7 +196,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Using a report",
         what: "Extracted, filterable tables you can narrow and export.",
         how: [
-          "Open Reports and pick one — responsibilities by facilitator or GovOps, Active Data, integrator rewards, on-chain addresses, stale dates, modification frequency, processes, potential mistakes, and more.",
+          "Open Reports and pick one — they are grouped by subject: roles and duties, on-chain and money, rules and risk, Atlas structure, and Atlas health.",
+          "Most reports are rebuilt from the Atlas every time you open them. A badge on the card marks the ones that are not: \u201cAI-assessed\u201d for rubric-scored ratings, \u201ccurated\u201d for hand-maintained lists that can lag the Atlas.",
           "Use the filter pills to narrow; the URL updates so you can share the exact filtered view.",
           "Click Download CSV to export — full or filtered, with UUIDs and direct Atlas links.",
         ],
