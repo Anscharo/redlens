@@ -1,6 +1,6 @@
 -- Ground-truth "does this address have on-chain bytecode" signal for the
--- On-Chain Addresses report's classifier, written on demand by the same
--- /api/balances refresh that writes balances (015): sync's atlas_addresses
+-- On-Chain Addresses report's classifier, written by the same refresh paths
+-- that write balances (015): sync's atlas_addresses
 -- upsert ON CONFLICT set-list doesn't include this column, so it survives a
 -- re-sync of an unchanged address, exactly like balances/balances_checked_at.
 --

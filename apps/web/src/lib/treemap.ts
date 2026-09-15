@@ -77,11 +77,28 @@ export interface TreemapOptions {
   pad: number;
   /** Extra top inset reserving space for the rect's own label. */
   padTop: number;
+  /**
+   * Nested nodes whose docs / atlasTotal is below this are omitted. Top-level
+   * groups (depth 0) always stay — Accessibility is 0.2% of the Atlas and
+   * still belongs on the map. Denominator is atlasTotal, never the parent.
+   */
+  minShare?: number;
+  /** Denominator for minShare — the Atlas total, not the sibling sum. */
+  atlasTotal?: number;
+}
+
+function keepNode(n: ChunkNode, opts: TreemapOptions, depth: number): boolean {
+  if (n.docs <= 0) return false;
+  if (opts.minShare == null || opts.minShare <= 0) return true;
+  if (depth === 0) return true;
+  const total = opts.atlasTotal ?? 0;
+  if (total <= 0) return false;
+  return n.docs / total >= opts.minShare;
 }
 
 export function buildTreemap(roots: ChunkNode[], opts: TreemapOptions): TreemapRect[] {
   const layout = (nodes: ChunkNode[], box: Box, depth: number, path: ChunkNode[]): TreemapRect[] => {
-    const sorted = [...nodes].sort((a, b) => b.docs - a.docs).filter((n) => n.docs > 0);
+    const sorted = [...nodes].filter((n) => keepNode(n, opts, depth)).sort((a, b) => b.docs - a.docs);
     const total = sorted.reduce((s, n) => s + n.docs, 0);
     const boxArea = box.w * box.h;
     if (total === 0 || boxArea <= 0) return [];
@@ -110,4 +127,17 @@ export function buildTreemap(roots: ChunkNode[], opts: TreemapOptions): TreemapR
     });
   };
   return layout(roots, { x: 0, y: 0, w: 100, h: 100 }, 0, []);
+}
+
+/** Parent-first walk. Coordinates are already root-space, so the UI can paint these as siblings. */
+export function flattenTreemap(rects: TreemapRect[]): TreemapRect[] {
+  const out: TreemapRect[] = [];
+  const walk = (nodes: TreemapRect[]) => {
+    for (const n of nodes) {
+      out.push(n);
+      walk(n.children);
+    }
+  };
+  walk(rects);
+  return out;
 }

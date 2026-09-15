@@ -122,6 +122,22 @@ describe("fetchSolanaBalances", () => {
     expect(fetchAccounts).not.toHaveBeenCalled();
   });
 
+  it("returns a checked-and-empty row for an address whose account doesn't exist", async () => {
+    // The rolling refresh's progress invariant (refresh.ts): an unfunded or
+    // never-created account has no balance to report, but it must still come
+    // back as CHECKED — otherwise it stays the oldest unchecked row forever and
+    // the worker re-selects it every cycle instead of refreshing anything else.
+    const fetchAccounts = mock(async (keys: string[]) => ({
+      accounts: new Map(keys.map((k) => [k, null])),
+      failed: 0,
+    }));
+    const rows = await fetchSolanaBalances([input(OWNER, "solana"), input(OTHER, "solana")], { fetchAccounts });
+    expect(rows).toEqual([
+      { address: OWNER, chain: "solana", balances: {} },
+      { address: OTHER, chain: "solana", balances: {} },
+    ]);
+  });
+
   it("returns one row per address that had a balance", async () => {
     const usdsAta = associatedTokenAddress(OWNER, USDS, SPL_TOKEN_PROGRAM);
     const fetchAccounts = mock(async (keys: string[]) => ({
@@ -148,10 +164,13 @@ describe("fetchSolanaBalances", () => {
     expect(lines.join(" ")).toContain("HTTP 403");
   });
 
-  it("drops an address that isn't a valid pubkey", async () => {
+  it("asks nothing for an address that isn't a valid pubkey, but still reports it as checked", async () => {
     const fetchAccounts = mock(async () => ({ accounts: new Map(), failed: 0 }));
-    await fetchSolanaBalances([input("not-base58-0OIl", "solana")], { fetchAccounts });
+    const rows = await fetchSolanaBalances([input("not-base58-0OIl", "solana")], { fetchAccounts });
     expect(fetchAccounts).not.toHaveBeenCalled();
+    // Nothing can ever be read for it, so it is checked-and-empty by
+    // definition — the one way it stops blocking the refresh rotation.
+    expect(rows).toEqual([{ address: "not-base58-0OIl", chain: "solana", balances: {} }]);
   });
 });
 

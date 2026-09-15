@@ -19,6 +19,11 @@ import {
   buildGovOpsResponsibilitiesReport,
   buildRewardsReport,
   buildActiveDataReport,
+  buildStaleDatesReportTool,
+  buildProcessesReport,
+  buildOeaAssessmentReport,
+  buildRiskRulesReport,
+  buildOnchainAddressesReport,
 } from "../../reports/index.ts";
 import { atlasFirstSeen } from "../../history/first-seen.ts";
 
@@ -201,18 +206,19 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     annotations: readOnlyAtlasTool("Atlas Entities"),
     description:
       "Find entities by free-text name and/or structural filters — turns a name like 'Spark Protocol' into a slug " +
-      "(atlas_describe no longer lists slugs). Pass `q` for fuzzy name matching (ranked, with a score), and/or " +
+      "(atlas_describe no longer lists slugs). Pass `query` for fuzzy name matching (ranked, with a score), and/or " +
       "filter by `entity_type` / `subtype`. Paginated.",
     shape: {
-      q: z.string().optional().describe("Free-text name to match (fuzzy, ranked). Omit to list/browse by filter."),
+      query: z.string().optional().describe("Free-text name to match (fuzzy, ranked). Omit to list/browse by filter."),
       entity_type: z.string().optional().describe("Filter by entity type (e.g. 'agent', 'instance', 'multisig', 'facilitator_org')."),
       subtype: z.string().optional().describe("Filter by subtype, case-insensitive substring (e.g. 'reward', 'prime')."),
       limit: z.number().int().min(1).max(500).default(50),
       offset: z.number().int().min(0).default(0),
+      q: z.string().optional().describe("Deprecated alias of `query`."),
     },
     handler: (ix, a) =>
       atlasEntities(ix, {
-        q: a.q as string | undefined,
+        q: (a.query as string | undefined) ?? (a.q as string | undefined),
         entity_type: a.entity_type as string | undefined,
         subtype: a.subtype as string | undefined,
         limit: (a.limit as number | undefined) ?? 50,
@@ -329,14 +335,15 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     description:
       "Deterministic parameter table extracted from doc content at index build time (docs/research/synlang-wiki.md " +
       "§3.1) — name/value/unit/owner rows with source doc UUIDs, for rate limits, ratios, quorums, thresholds, and " +
-      "other configured numeric constants. Matches `q` against each row's name + owner + doc_no (every query token " +
+      "other configured numeric constants. Matches `query` against each row's name + owner + doc_no (every query token " +
       "of 3+ characters must appear somewhere in that combined text). Returns `{ count, truncated?, rows }`; each " +
       "row: `{ uuid, doc_no, name, value, unit, owner, context }`.",
     shape: {
-      q: z.string().describe("Search text matched against parameter name, owner, and doc_no (e.g. 'keel maxAmount', 'liquidation ratio')."),
+      query: z.string().optional().describe("Search text matched against parameter name, owner, and doc_no (e.g. 'keel maxAmount', 'liquidation ratio')."),
       limit: z.number().int().min(1).max(100).default(25),
+      q: z.string().optional().describe("Deprecated alias of `query`."),
     },
-    handler: (ix, a) => atlasParams(ix, { q: a.q as string, limit: (a.limit as number | undefined) ?? 25 }),
+    handler: (ix, a) => atlasParams(ix, { query: (a.query as string | undefined) ?? (a.q as string | undefined), limit: (a.limit as number | undefined) ?? 25 }),
   },
   {
     name: "atlas_history",
@@ -474,7 +481,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "START HERE for most substantive questions. One call combines search + entity-graph + doc-type + history + status + ancestor scope; prefer one rich atlas_query over chaining narrow tools.",
     annotations: readOnlyAtlasTool("Atlas Query"),
     description:
-      "One-call multi-dimensional atlas query. Combines any subset of: semantic/lexical search (q), " +
+      "One-call multi-dimensional atlas query. Combines any subset of: semantic/lexical search (query), " +
       "entity graph traversal (entity + edge_types), entity-chain traversal (entity + via_entity_type), " +
       "doc-type filter (target_type), history window (since/until/change_type), status filter, " +
       "ancestor scope (ancestor_id), and inline instance params (include_params). All active dimensions " +
@@ -551,6 +558,60 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "only with include_provenance:true.",
     shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
     handler: (ix, a) => buildActiveDataReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
+  },
+  {
+    name: "atlas_report_stale_dates",
+    annotations: readOnlyAtlasTool("Atlas Report Stale Dates"),
+    description:
+      "Curated report (not raw graph calls) — SAbR's OWN computed report, not atlas text: every future-tense dated claim " +
+      "in atlas prose checked against today, bucketed stale (date passed) / due_soon (within a week) / upcoming. Each row: " +
+      "the doc, the matched date text, its ISO boundary date, and days until/since stale. The Atlas itself never defines " +
+      "\"stale\" — this is SAbR's own extraction; say so if asked what the concept means.",
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildStaleDatesReportTool(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
+  },
+  {
+    name: "atlas_report_processes",
+    annotations: readOnlyAtlasTool("Atlas Report Processes"),
+    description:
+      "Curated report (not raw graph calls) — the hand-curated inventory of governance, settlement, lifecycle, and " +
+      "operational processes (public/processes.json), joined against live doc titles/doc_nos. Each row: the doc, its " +
+      "category, whether it's a child-document or inline process, active/deferred-stub status, and a step count.",
+    shape: { filter: FILTER_PARAM },
+    handler: (ix, a) => buildProcessesReport(ix, { filter: filterArg(a) }),
+  },
+  {
+    name: "atlas_report_oea_assessment",
+    annotations: readOnlyAtlasTool("Atlas Report OEA Assessment"),
+    description:
+      "Curated report (not raw graph calls) — every task the Operational Executor Agent performs, rated weak/mid/strong " +
+      "for definitional precision and for incentives/penalties. AI-drafted against a fixed rubric, human-reviewed. Each " +
+      "row: the task, its rating + reasoning, and freshness status (fresh/stale/unassessed) against the live atlas text.",
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildOeaAssessmentReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
+  },
+  {
+    name: "atlas_report_risk_rules",
+    annotations: readOnlyAtlasTool("Atlas Report Risk Rules"),
+    description:
+      "Curated report (not raw graph calls) — every atlas paragraph defining a risk rule across peg maintenance, " +
+      "allocation risk, and smart contract security, scored 1-5 for precision and weak/mid/strong for penalties and " +
+      "incentives. AI-drafted against a fixed rubric, human-reviewed. A rating is flagged stale the moment the atlas " +
+      "text it describes changes. Each row: the doc, domain(s), rating + reasoning, and freshness status.",
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildRiskRulesReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
+  },
+  {
+    name: "atlas_report_addresses",
+    annotations: readOnlyAtlasTool("Atlas Report On-Chain Addresses"),
+    description:
+      "Curated report (not raw graph calls) — every on-chain address the Atlas mentions in one call: chain, type " +
+      "(EOA/Multisig/Token/Sky Internal Contract/other), CHAIN_LOG name, associated owner, roles, and cached token " +
+      "balances (ETH/USDS/SKY plus others) from the last refresh — never a live chain query. Each row also lists every " +
+      "mentioning atlas doc. For one already-known address prefer atlas_get_address; use this for 'every address of " +
+      "type X' / 'which addresses does agent Y hold' questions.",
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildOnchainAddressesReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
 ];
 

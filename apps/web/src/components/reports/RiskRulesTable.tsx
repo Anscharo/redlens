@@ -1,31 +1,14 @@
 import type { AtlasNode } from "@/types";
 import type { Preciseness } from "@/lib/riskAssessment";
-import type { RiskRow } from "../../lib/riskAssessmentIndex";
+import { riskSearchFields, type RiskRow } from "@/lib/riskAssessmentIndex";
 import { RISK_DOMAIN_LABELS, type RiskDomain } from "@/lib/riskRules";
 import { RatingPill } from "./OeaAssessmentTable";
 import { NodeContent } from "../NodeContent";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
-import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "@/lib/reportFilter";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
-
-// The search haystack as labelled fields; the rated paragraph (quote) and
-// covered prime agents only render in the expanded body, so matches on them
-// surface via the floating aside. Keep in sync with the cells below.
-export const riskSearchFields = (r: RiskRow): SearchField[] => [
-  { label: "doc no", value: r.candidate.docNo },
-  { label: "title", value: r.candidate.title },
-  { label: "summary", value: r.triage.description ?? "" },
-  // Same thing the expanded body labels "Source paragraph" — keep the terms
-  // identical so the aside and the expanded view obviously refer to one field.
-  { label: "source paragraph", value: r.candidate.quote, hidden: true },
-  // Replicated agent-artifact rules are one row per agent's copy (joinRisk
-  // re-expands them), so this is the row's own artifact location. The label
-  // phrases it as ownership so an agent-name query reads as "this doc lives
-  // under that agent", not as text found inside the rule.
-  { label: "doc is owned by agent matching", value: (r.candidate.agents ?? []).join(", "), hidden: true, despace: true },
-];
 
 const SCORE_STYLE: Record<Preciseness, string> = {
   1: "bg-[color-mix(in_srgb,var(--red)_35%,transparent)] text-tan",

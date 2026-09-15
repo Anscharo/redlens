@@ -49,18 +49,14 @@ vi.mock("../../lib/docs", () => ({
     }),
 }));
 
-vi.mock("../../lib/processesIndex", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../lib/processesIndex")>();
-  return {
-    ...actual,
-    loadProcesses: () =>
-      Promise.resolve([
-        { uuid: "uuid-1", category: "Governance", shape: "inline", status: "active" },
-        { uuid: "uuid-2", category: "Governance", shape: "inline", status: "active" },
-        { uuid: "uuid-3", category: "Settlement", shape: "child", status: "deferred-stub" },
-      ]),
-  };
-});
+vi.mock("../../lib/processesLoad", () => ({
+  loadProcesses: () =>
+    Promise.resolve([
+      { uuid: "uuid-1", category: "Governance", shape: "inline", status: "active" },
+      { uuid: "uuid-2", category: "Governance", shape: "inline", status: "active" },
+      { uuid: "uuid-3", category: "Settlement", shape: "child", status: "deferred-stub" },
+    ]),
+}));
 
 // The full markdown renderer isn't relevant to URL/filter behavior and pulls
 // in a lazy-loaded chunk — stub it out.

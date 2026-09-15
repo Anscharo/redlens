@@ -16,6 +16,7 @@ import type OpenAI from "openai";
 import { definitionRows, matchQuestionEntities } from "../prefetch.ts";
 import { censusPrefetchRows, CENSUSES_NOTE } from "../concepts-prefetch.ts";
 import { featuresFact } from "./features.ts";
+import { rolesFact } from "./roles.ts";
 import { looksLikeFactQuestion } from "./similarity.ts";
 import type { Fact, FactContext } from "./types.ts";
 
@@ -29,8 +30,8 @@ const NOTE =
   "Each section carries its own handling note where one applies.";
 
 // Order is the transcript order, and the tie-break when several fire: atlas
-// facts first (definitions, then the entities they hang off, then our
-// cross-cutting analyses), product documentation last.
+// facts first (definitions, then role dossiers, then the entities they hang
+// off, then our cross-cutting analyses), product documentation last.
 export const FACTS: Fact[] = [
   {
     id: "glossary",
@@ -41,6 +42,7 @@ export const FACTS: Fact[] = [
       return { key: "definitions", value: rows, count: rows.length };
     },
   },
+  rolesFact,
   {
     id: "entities",
     what: "Roster rows for entities the question names in full (slug/name/alias containment).",

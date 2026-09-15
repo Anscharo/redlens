@@ -112,6 +112,20 @@ if (parsedIds.size < MIN_DOCS) {
   );
 }
 
+// 1b. Tree integrity: only Scopes may be parentless. The consolidated layout's
+//     bucket files are file-relative (each opens at `#`), and a loader that
+//     forgets to re-derive levels parses every artifact root as a depth-1 orphan —
+//     content count still matches, so the recount below cannot see it. That is
+//     exactly how 11 artifact roots (7,917 docs) went unreachable from A.6 for a
+//     month (2026-08-11 → 2026-09-10) while the reader's doc_no tree hid it.
+const orphans = Object.values(parsed).filter((n) => !n.parentId && n.type !== "Scope");
+if (orphans.length) {
+  failures.push(
+    `${orphans.length} non-Scope document(s) have no parent (${orphans.slice(0, 5).map((n) => n.doc_no).join(", ")}${orphans.length > 5 ? ", …" : ""}). ` +
+      "The loader is not restoring absolute heading levels for this layout — see scripts/lib/atlas-source.mjs restoreAbsoluteLevels.",
+  );
+}
+
 // 2. Independent recount of the source tree.
 const { uuids: srcIds, fileCount } = scanSourceUuids(SRC_DIR);
 console.log(`check:atlas — ${srcIds.size} documents found in ${SRC_DIR} (${fileCount} .md files)`);

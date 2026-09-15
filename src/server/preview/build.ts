@@ -14,16 +14,7 @@ import { spawn } from "node:child_process";
 import { config } from "../config.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts";
-import { fetchPreviewFiles, type PreviewFiles } from "./pr-diff.ts";
-import { contentDiff } from "./patch-diff.ts";
-import {
-  diffSnapshots,
-  loadBaseSnapshot,
-  snapshotFromDocsJson,
-  type Snapshot,
-} from "./snapshot.ts";
-import type { DiffLine } from "../../lib/history";
-import { detectIdentitySwaps } from "./identity.ts";
+import { startCandidates, writeDiffBases } from "./diff-base.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
 import {
   upsertPreview,
@@ -218,12 +209,15 @@ export async function countNewAddresses(outDir: string, mainDir: string = config
 
 // Is this preview a FORK preview? PRs are publicly proposed against canonical,
 // so they're never fork-treated — even though a PR's head repo usually IS a
-// fork. Only bare branch/sha previews of non-canonical repos count. Exported
-// for direct unit testing (also reachable indirectly via runBuild, but a fork
-// build's meta-shaping needs a fully-mocked build to reach, so a direct test
-// is the cheap way to pin this predicate on its own).
+// fork. `pr` metadata now rides on fork PRs too (owner:repo:pull-N, the
+// private-preview grammar), so `kind` — not the presence of `pr` — is the
+// discriminator: only `kind === "pr"` is a canonical PR. Only bare branch/sha
+// previews of non-canonical repos count as fork previews. Exported for direct
+// unit testing (also reachable indirectly via runBuild, but a fork build's
+// meta-shaping needs a fully-mocked build to reach, so a direct test is the
+// cheap way to pin this predicate on its own).
 export function isForkPreview(resolved: Resolved): boolean {
-  return !resolved.pr && isFork(resolved.repo);
+  return resolved.kind !== "pr" && isFork(resolved.repo);
 }
 
 // Trust screening + quota pool selection. Treatment follows the EFFECTIVE tier
@@ -241,12 +235,15 @@ export function isForkPreview(resolved: Resolved): boolean {
 export async function forkGate(
   resolved: Resolved,
 ): Promise<{ tier?: TrustTier; count: () => Promise<number>; quota: number } | "fork-not-trusted"> {
-  if (!resolved.pr && !isFork(resolved.repo)) {
+  if (resolved.kind !== "pr" && !isFork(resolved.repo)) {
     return { count: () => previewsTodayCount("canonical"), quota: config.previewDailyQuota };
   }
   const gh = makeGhClient(config.githubToken);
-  if (resolved.pr) {
-    const tier = effectivePrTier((await computeTrust(resolved.pr.author, gh)).tier);
+  // `kind`, not the presence of `pr`, is the discriminator: a fork's own
+  // owner:repo:pull-N preview carries `pr` metadata too (see isForkPreview),
+  // but it's screened by fork-OWNER trust below, not by the PR author.
+  if (resolved.kind === "pr") {
+    const tier = effectivePrTier((await computeTrust(resolved.pr?.author ?? "", gh)).tier);
     if (tier === "trusted")
       return { tier, count: () => previewsTodayCount("canonical"), quota: config.previewDailyQuota };
     if (tier === "known")
@@ -278,6 +275,16 @@ export function baseMeta(resolved: Resolved, sha: string, docCount: number, t0: 
     prAuthor: resolved.pr?.author,
     prState: resolved.pr?.state,
     headCommitAt: resolved.date,
+    // Persisted (via db.ts's upsert) so a pinned-sha rebuild keeps PR-base
+    // treatment without re-asking GitHub — only repo/ref survive that
+    // round-trip, never `sha` (see Resolved.prBase's own doc comment).
+    prBase: resolved.prBase && { repo: resolved.prBase.repo, ref: resolved.prBase.ref },
+    defaultBranch: resolved.defaultBranch,
+    // Banner-only: a Contents-only private PR fallback. Dropped on a rebuild
+    // once Pulls:read lands and prBase is set. Not written to the previews row.
+    ...(resolved.needsPullsPermission
+      ? { needsPullsPermission: true as const, ...(resolved.permissionsUrl ? { permissionsUrl: resolved.permissionsUrl } : {}) }
+      : {}),
     resolvedAt: new Date().toISOString(),
     docCount,
     buildMs: Date.now() - t0,
@@ -317,10 +324,15 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
   const sha = resolved.sha;
   const paths = previewPaths(sha);
   const t0 = Date.now();
-  // Private previews (branch-only grammar, see resolve.ts) are gated on GitHub
-  // App installation, not fork/trust screening — installation IS the trust
-  // grant, since only someone who can install the App on the repo can produce
-  // a preview of it at all.
+  // Private previews (branch or private-PR `pull-N` grammar, see resolve.ts) are
+  // gated on GitHub App installation, not fork/trust screening — installation
+  // IS the trust grant, since only someone who can install the App on the repo
+  // can produce a preview of it at all. Unlike before, a private preview DOES
+  // compare now: in-repo via the installation token (a canonical-network cross-
+  // repo compare still isn't possible, but a private branch's own base or a
+  // private PR's declared base is reachable), and its fork point with sky main
+  // is found by walking commit lists (fork-point.ts) since a private repo is
+  // never a registered GitHub fork of canonical. See diff-base.ts.
   const priv = !!resolved.private;
   try {
     // Admin takedown: a blocked sha never rebuilds.
@@ -364,19 +376,13 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
     await acquire();
     try {
       emit(f, { phase: "fetching", sha });
-      // Accurate diff is an independent GitHub round-trip — kick it off now so it
-      // overlaps the tarball fetch + the whole build. For canonical previews a
-      // failure is non-fatal (serve-time vs-main fallback); for forks a failed
-      // compare means no shared history with main → the build is rejected.
-      // Private previews skip this entirely — no PR/fork compare is meaningful
-      // for a private-repo branch, and the service token can't see it anyway.
-      const wantCompare = !priv && !!config.githubToken;
-      const filesP: Promise<{ ok: true; v: PreviewFiles } | { ok: false }> = wantCompare
-        ? fetchPreviewFiles(resolved, config.githubToken).then(
-            (v) => ({ ok: true as const, v }),
-            () => ({ ok: false as const }),
-          )
-        : Promise.resolve({ ok: false as const });
+      // Diff-base candidate resolution is an independent GitHub round-trip (or,
+      // for a private preview, a commit-list walk) — kick it off now so it
+      // overlaps the tarball fetch + the whole build. writeDiffBases (below,
+      // once the head is built) degrades to live main on any failure; for
+      // public forks specifically a failed compare means no shared history
+      // with main → the build is rejected instead (see the not-derived check).
+      const candidatesP = startCandidates(resolved, token, priv);
 
       fs.rmSync(paths.dir, { recursive: true, force: true });
       fs.mkdirSync(paths.outDir, { recursive: true });
@@ -400,14 +406,40 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       if (graph.code !== 0 || glossary.code !== 0)
         return fail(f, sha, "build-failed", buildErrorTail(graph.code !== 0 ? graph.stderr : glossary.stderr));
 
+      // Resolve the candidates NOW (before spending any work on them): a
+      // public fork whose compare failed outright gets rejected below without
+      // ever fetching a base tree or computing base-drift for a build we're
+      // about to delete anyway.
+      const candidates = await candidatesP;
+
       // A private repo is structurally `isFork` (any non-canonical repo is) but
-      // must never get fork treatment: no not-derived rejection (no compare was
-      // attempted above) and no fork banner fields on its meta.
+      // must never get fork treatment: no not-derived rejection and no fork
+      // banner fields on its meta.
       const fork = !priv && isForkPreview(resolved);
-      const filesR = priv ? ({ ok: false as const }) : await filesP;
-      // Shared-history screen: a fork whose compare vs main failed (no common
-      // ancestor / unknown commit) is not a derivative of the atlas — reject.
-      if (fork && !filesR.ok) return fail(f, sha, "not-derived");
+      // Shared-history screen: a public fork whose compare vs main failed (no
+      // common ancestor / unknown commit) is not a derivative of the atlas —
+      // reject. `fork` already implies `!priv`, but the explicit `!priv` is
+      // kept because pr-diff.ts's own note says `compareOk: false` IS
+      // reachable on the private path too (a raw network error in the
+      // fork-point walk) — private previews must never hit this branch.
+      if (fork && !priv && !candidates.compareOk) return fail(f, sha, "not-derived");
+
+      // Doc-level diff + per-doc patches, written into the bundle as artifacts:
+      // diff.json / patches.json (the `auto` candidate's pair — added/changed
+      // ids and id → DiffLine[], driving markers + preview history), plus one
+      // diff.<key>.json / patches.<key>.json pair per candidate that resolved
+      // (the reader's base switcher). Soft end to end: nothing in here can
+      // change the build outcome by itself — a skipped artifact just means the
+      // reader falls back to the serve-time vs-main diff. The head's docs.json
+      // must already be on disk, so this can only run after the build above.
+      const db = await writeDiffBases(Promise.resolve(candidates), {
+        resolved,
+        token,
+        priv,
+        sha,
+        paths,
+        fetchTree: (repo, s, dir) => deps.fetchAndExtract(repo, s, token, dir, undefined, { apiTarball: priv }),
+      });
 
       const meta: PreviewMeta = baseMeta(resolved, sha, docCount, t0);
       // Diff baseline: which main this bundle's redlines were computed against.
@@ -425,10 +457,6 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       if (!priv) meta.trustTier = gate!.tier;
       if (fork) {
         meta.forkOwner = repoOwner(resolved.repo);
-        if (filesR.ok) {
-          meta.aheadBy = filesR.v.aheadBy;
-          meta.behindBy = filesR.v.behindBy;
-        }
         const newAddrs = await countNewAddresses(paths.outDir);
         // Fail closed: an unreadable main map is NOT "zero new addresses" — flag
         // it so the banner/interstitial still warn (the swapped-payment-address
@@ -438,106 +466,28 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       }
       if (priv) {
         meta.private = true;
-        // No GitHub compare was attempted for private previews, but the
+        // A private preview DOES compare now (see startCandidates), but the
         // swapped-payment-address screen is a purely local file compare (this
-        // bundle's addresses.atlas.json vs main's) — still worth running.
+        // bundle's addresses.atlas.json vs main's) regardless — still worth
+        // running unconditionally here.
         const newAddrs = await countNewAddresses(paths.outDir);
         if (newAddrs === undefined) meta.addressCheckFailed = true;
         else meta.newAddresses = newAddrs;
       }
+      // The sky candidate's ahead/behind counts ride on meta whenever one
+      // resolved — no longer fork-only: a private branch's fork-point walk
+      // (and a canonical branch's ordinary sky compare) now populate these too.
+      if (db.bases.sky) {
+        meta.aheadBy = db.bases.sky.aheadBy;
+        meta.behindBy = db.bases.sky.behindBy;
+      }
+      meta.bases = db.bases;
+      // Meta is written LAST, after every diff artifact: bundleReady() only
+      // checks for meta.json, so writing it earlier would let a concurrent
+      // viewer receive `ready` (or find the bundle already "ready" on a fresh
+      // request) with no diff.json on disk yet.
       writeMeta(sha, meta);
       await deps.upsertPreview(meta);
-      // Accurate merge-base diff (PR, branch, or fork), written into the bundle as
-      // two artifacts: diff.json (added/changed ids — eager, drives markers) and
-      // patches.json (id → DiffLine[] — lazy, drives preview history). For
-      // canonical previews a failure is non-fatal: no diff.json → serve-time
-      // vs-main fallback.
-      try {
-        if (filesR.ok && filesR.v.mergeBase) {
-          const byId = snapshotFromDocsJson(paths.outDir);
-          const mainDocs = getIndexes().docMap;
-          // Which docs this preview adds/changes, by DOCUMENT IDENTITY rather
-          // than by changed filename. Filenames stopped identifying documents
-          // when the atlas consolidated ~11k document.md files into ~16 composed
-          // files (upstream #294) — one changed file now spans a whole Scope.
-          // Comparing uuid-keyed snapshots is layout-blind, so it survives that
-          // regrouping and the next one.
-          const base = await loadBaseSnapshot(
-            filesR.v.mergeBase,
-            path.join(paths.dir, "base"),
-            // Same injected fetcher, token, and tarball route the head build used
-            // — only reachable on the public path (private previews set
-            // wantCompare = false), but it must not diverge if that ever changes.
-            (s, dir) =>
-              deps.fetchAndExtract(resolved.repo, s, token, dir, undefined, { apiTarball: priv }),
-            { atlasCommit: getIndexes().meta.atlasCommit, snapshot: () => mainDocs as Snapshot },
-          );
-          const { added, changed } = diffSnapshots(base, byId);
-          // An ADDED doc has no prior content anywhere — render its body as pure
-          // additions. CHANGED docs get their patch from the vs-main identity
-          // diff below.
-          const patches: Record<string, DiffLine[]> = {};
-          for (const id of added) {
-            const dl = contentDiff("", byId.get(id)?.content ?? "");
-            if (dl.length) patches[id] = dl;
-          }
-          // For CHANGED docs the rendered redline is this uuid's content here vs
-          // on the LIVE atlas (what the reader is comparing against on screen),
-          // and renumberings are recorded explicitly.
-          const renumbered: Record<string, [string, string]> = {};
-          for (const id of changed) {
-            const mainNode = mainDocs.get(id);
-            const prevNode = byId.get(id);
-            if (!mainNode || !prevNode) continue;
-            const dl = contentDiff(mainNode.content ?? "", prevNode.content ?? "");
-            if (dl.length) patches[id] = dl;
-            else delete patches[id];
-            if (mainNode.doc_no !== prevNode.doc_no) renumbered[id] = [mainNode.doc_no, prevNode.doc_no];
-          }
-          // ADDED docs in a reused slot (new uuid at a doc number that exists on
-          // the live atlas under a different uuid): the GitHub per-path patch
-          // shows the old occupant's content being edited away — misleading for
-          // a new doc. Flag the reuse and show the doc's own content as pure
-          // additions; the old occupant's move shows on its own history entry.
-          const mainDocNos = new Map<string, string>();
-          for (const [mid, mnode] of mainDocs) mainDocNos.set(mnode.doc_no, mid);
-          // id → who held this doc number on the live atlas, and where that doc
-          // sits in THIS preview (absent = the occupant was removed). Lets the
-          // new doc's history reference the old occupant's move (both sides of
-          // a slot swap tell the story).
-          const reusedSlot: Record<string, { title: string; movedTo?: string }> = {};
-          for (const id of added) {
-            const prevNode = byId.get(id);
-            if (!prevNode) continue;
-            const occupant = mainDocNos.get(prevNode.doc_no);
-            if (occupant && occupant !== id) {
-              reusedSlot[id] = {
-                title: mainDocs.get(occupant)?.title ?? occupant.slice(0, 8),
-                movedTo: byId.get(occupant)?.doc_no,
-              };
-              const dl = contentDiff("", prevNode.content ?? "");
-              if (dl.length) patches[id] = dl;
-              else delete patches[id];
-            }
-          }
-          // UUID-identity reassignment: a stable uuid whose underlying document
-          // was wholly replaced (title changed + body rewritten), and — best
-          // effort — where the displaced old content moved to. Treated as a
-          // distinct WARNING in the UI, not an ordinary +/Δ.
-          const { identitySwap, formerUuid } = detectIdentitySwaps({ changed, added, mainById: mainDocs, previewById: byId });
-          fs.writeFileSync(
-            path.join(paths.outDir, "diff.json"),
-            JSON.stringify({ added, changed, renumbered, reusedSlot, identitySwap, formerUuid }),
-          );
-          fs.writeFileSync(path.join(paths.outDir, "patches.json"), JSON.stringify(patches));
-        } else if (filesR.ok) {
-          // No merge base from GitHub → no trustworthy base side. Skip diff.json
-          // rather than guess; the reader falls back to the serve-time vs-main diff.
-          console.warn(`[preview] ${sha.slice(0, 8)}: no merge base — skipping doc-level diff`);
-        }
-      } catch {
-        /* diff endpoint falls back to vs-main */
-      }
       emit(f, { phase: "ready", sha });
       evictLru(undefined, undefined, inflightShas());
     } finally {

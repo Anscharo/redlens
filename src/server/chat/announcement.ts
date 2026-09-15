@@ -7,10 +7,18 @@
 // search the atlas." and never emits a tool_call is non-empty and
 // non-repetitive, so it shipped as the answer and the turn ended. Nothing
 // downstream could catch it either: no citation, figure or quote means the
-// deterministic checks have nothing to fail, and no factual claim means the
-// verifier returns `claims: []`, which computeOverall degrades to `unverified`
-// — the badge hides. In staged delivery the user waits through the whole turn
-// and is then shown a promise. Observed live 2026-08-20; the user re-prompted
+// deterministic checks have nothing to fail, and a promise contains no
+// statement for the refute-only judge (verify/verifier.ts's computeOverall)
+// to contradict — refutation by construction cannot flag "the evidence
+// doesn't cover this" — so the refute slice reports an empty contradictions
+// list and computeOverall reads that as `pass`: the badge says "no
+// contradictions found" over an answer that made no claims at all. (If the
+// slice's JSON fails to parse against near-empty evidence instead, `verdict`
+// or `refuteParsed` comes back false and computeOverall degrades to
+// `unverified`, hiding the badge.) Either way, nothing downstream flags the
+// missing lookup. The user waits through the whole turn (the answer only
+// reveals at `answer_final`/`done`) and is then shown a promise. Observed live
+// 2026-08-20; the user re-prompted
 // ("Still going?") and the identical question then retrieved and answered
 // normally, so the trigger is transient model behaviour, not a broken tool.
 // It is NOT the malformed-delta path chat-loop.ts also documents:

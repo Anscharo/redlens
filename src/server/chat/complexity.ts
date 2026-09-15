@@ -18,8 +18,7 @@
 // The cost asymmetry is what makes a permissive lane safe here, and it is
 // unusual: a false fire routes an easy question to a model the same bakeoff
 // showed is both BETTER and FASTER (0.942 vs 0.781, 26.6s vs 43.4s), so it
-// costs tokens — not quality, not latency. A miss is simply today's behavior,
-// and the advisor's recovery cycle escalates a failed turn anyway
+// costs tokens — not quality, not latency. A miss is simply today's behavior
 // (docs/chat-system.md §6.5). Nothing here can make an answer worse.
 // Cost, measured 2026-08-21: 122ms on the FIRST call of a process (lazy WASM
 // instantiate plus one embed per prototype, cached thereafter), 1.9ms every

@@ -2,10 +2,10 @@
 // StaleDatesReport.tsx so the page file stays data + <ReportShell>.
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
-import type { DateClaim } from "../../lib/staleDates";
+import type { DateClaim } from "@/lib/staleDates";
 import { hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
-import { staleSearchFields } from "./staleDatesSearch";
+import { staleSearchFields } from "@/lib/staleDatesSearch";
 
 function staleness(c: DateClaim): string {
   // The viewer's local day and the day the atlas text was written against can

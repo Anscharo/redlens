@@ -14,7 +14,7 @@ import {
 } from "./external-tools.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import { config } from "../../config.ts";
-import { captureError, type ErrorContext } from "../../posthog-node.ts";
+import { captureError, captureEvent, type ErrorContext } from "../../posthog-node.ts";
 
 function toJsonSchema(shape: z.ZodRawShape): Record<string, unknown> {
   const schema = zodToJsonSchema(z.object(shape), { $refStrategy: "none", target: "openApi3" }) as Record<
@@ -118,10 +118,17 @@ export function applyChatToolBudget(rawJson: string, budget = config.chatToolRes
 export async function execToolDetailed(ix: Indexes, name: string, rawArgs: string, obs?: ErrorContext): Promise<ChatToolResult> {
   const tool = TOOLS_BY_NAME.get(name);
   if (!tool) return applyChatToolBudget(JSON.stringify({ error: `unknown tool: ${name}` }));
-  const parsed = z.object(tool.shape).safeParse(safeParseArgs(rawArgs));
+  const raw = safeParseArgs(rawArgs);
+  const parsed = z.object(tool.shape).safeParse(raw);
   if (!parsed.success) {
     return applyChatToolBudget(JSON.stringify({ error: "invalid tool arguments", details: parsed.error.issues }));
   }
+  // A key the model sent that the tool shape doesn't declare (e.g. a stale
+  // alias, a hallucinated param) is silently dropped by safeParse rather than
+  // rejected — never add .strict(), it would turn a harmless extra key into a
+  // hard tool-call failure. Still worth knowing about, so it doesn't go dark.
+  const strippedKeys = Object.keys(raw).filter((k) => !(k in tool.shape));
+  if (strippedKeys.length) captureEvent("chat_tool_arg_stripped", obs, { tool: name, keys: strippedKeys });
   try {
     return applyChatToolBudget(JSON.stringify(await tool.handler(ix, parsed.data as Record<string, unknown>)));
   } catch (e) {

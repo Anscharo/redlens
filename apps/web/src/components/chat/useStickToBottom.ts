@@ -46,6 +46,16 @@ export function useStickToBottom({
   // down there", and plenty of message updates (a verify badge landing, a
   // status-line tick) change the array without adding any.
   const lastHeightRef = useRef(0);
+  // Set by showFrom(): the reader was placed at the TOP of a just-revealed
+  // answer. While it holds, the follow effect neither moves them (the
+  // turn's trailing chrome — sources cluster, verify badge — would
+  // otherwise pull a short answer's first lines off the top) nor raises the
+  // pill (that growth is below them by design, not "new messages"). Cleared
+  // by a real scroll, stick(), or a reset.
+  const alignedRef = useRef(false);
+  // The scrollTop showFrom() wrote: its own scroll event must not count as
+  // the reader moving.
+  const alignedTopRef = useRef(0);
   const [pending, setPending] = useState(false);
 
   const toBottom = useCallback((animate: boolean) => {
@@ -85,6 +95,7 @@ export function useStickToBottom({
     };
 
     const onScroll = () => {
+      if (Math.abs(el.scrollTop - alignedTopRef.current) > BOTTOM_SLACK_PX) alignedRef.current = false;
       const stuck = isNearBottom(el);
       if (stuck === stuckRef.current) return;
       stuckRef.current = stuck;
@@ -111,6 +122,7 @@ export function useStickToBottom({
   // the switched-to conversation opens at its newest turn.
   useLayoutEffect(() => {
     stuckRef.current = true;
+    alignedRef.current = false;
     // No committed bottom for the new thread — the follow effect must not
     // treat the previous conversation's height as "the reader scrolled away".
     lastHeightRef.current = 0;
@@ -136,7 +148,10 @@ export function useStickToBottom({
     ) {
       stuckRef.current = false;
     }
-    if (stuckRef.current) toBottom(false);
+    if (alignedRef.current) {
+      // Holding at the answer's top: appending below a top-anchored scroller
+      // moves nothing by itself, so doing nothing IS the hold.
+    } else if (stuckRef.current) toBottom(false);
     else if (el && el.scrollHeight > lastHeightRef.current) setPending(true);
     if (el) lastHeightRef.current = el.scrollHeight;
   }, [follow, toBottom]);
@@ -145,7 +160,29 @@ export function useStickToBottom({
    *  is about to arrive at the bottom (sending a message). */
   const stick = useCallback(() => {
     stuckRef.current = true;
+    alignedRef.current = false;
     lastHeightRef.current = 0;
+    setPending(false);
+  }, []);
+
+  /** Put `target`'s top at the top of the thread — for an answer that has
+   *  just been revealed, so the reader starts at its first line instead of
+   *  being carried to its last — and hold there (see alignedRef). Only acts
+   *  while still following the bottom: a reader who has scrolled away is
+   *  never moved (the hook's one rule). */
+  const showFrom = useCallback((target: HTMLElement) => {
+    const el = ref.current;
+    if (!el || !stuckRef.current) return;
+    const pad = parseFloat(getComputedStyle(el).paddingTop) || 0;
+    const top = target.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - pad;
+    el.scrollTop = Math.max(0, top);
+    alignedTopRef.current = el.scrollTop; // read back: the browser clamps
+    stuckRef.current = isNearBottom(el);
+    alignedRef.current = true;
+    // This commit's height is the new baseline: the parent's follow effect
+    // runs after this (child effects first) and must not read the reveal
+    // itself as growth to flag.
+    lastHeightRef.current = el.scrollHeight;
     setPending(false);
   }, []);
 
@@ -157,5 +194,5 @@ export function useStickToBottom({
     toBottom(!streaming);
   }, [stick, toBottom, streaming]);
 
-  return { threadRef: ref, pending, stick, jumpToBottom };
+  return { threadRef: ref, pending, stick, jumpToBottom, showFrom };
 }

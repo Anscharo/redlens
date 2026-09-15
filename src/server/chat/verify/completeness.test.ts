@@ -80,6 +80,42 @@ test("non-exhaustive Q is a no-op even with a unique-oldest-sounding answer", ()
   expect(auditCompleteness("What is a Rate Limit?", "The oldest definition is in the glossary.", []).outcome).toBe("noop");
 });
 
+test("untruncated atlas_report_* listing grounds a completeness assertion", () => {
+  const audit = auditCompleteness("What are all the multisigs?", "These are all 7 multisigs.", [
+    ev("atlas_report_multisigs", {}, { report: "multisigs", total: 7, returned: 7, truncated: false, multisigs: [] }),
+  ]);
+  expect(audit.outcome).toBe("grounded");
+  expect(audit.detail).toBe("untruncated atlas_report_*");
+});
+
+test("truncated atlas_report_* listing does not ground", () => {
+  const audit = auditCompleteness("What are all the multisigs?", "These are all 7 multisigs.", [
+    ev("atlas_report_multisigs", {}, { report: "multisigs", total: 7, returned: 3, truncated: true, multisigs: [] }),
+  ]);
+  expect(audit.outcome).toBe("unverified");
+  expect(audit.detail).toBe(COMPLETENESS_REQUERY_STEER);
+});
+
+test("claimed all-N vs atlas_report_* total refutes", () => {
+  const audit = auditCompleteness("How many multisigs are there?", "There are all 7 multisigs.", [
+    ev("atlas_report_multisigs", {}, { report: "multisigs", total: 9, returned: 9, truncated: false, multisigs: [] }),
+  ]);
+  expect(audit.outcome).toBe("refuted");
+});
+
+test("scoreCompletenessToolChoice accepts an untruncated atlas_report_* call", () => {
+  expect(
+    scoreCompletenessToolChoice("What are all the multisigs?", [
+      { name: "atlas_report_multisigs", args: {}, result: { total: 7, truncated: false } },
+    ]).pass,
+  ).toBe(true);
+  expect(
+    scoreCompletenessToolChoice("What are all the multisigs?", [
+      { name: "atlas_report_multisigs", args: {}, result: { total: 7, truncated: true } },
+    ]).pass,
+  ).toBe(false);
+});
+
 test("scoreCompletenessToolChoice fails search-first and ids-mode first_seen", () => {
   expect(
     scoreCompletenessToolChoice(Q, [{ name: "atlas_search", args: { query: "rate limit" } }]).pass,

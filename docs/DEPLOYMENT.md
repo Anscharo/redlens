@@ -151,6 +151,8 @@ e. **Set the worker variables:**
 | `ATLAS_WORKER_FULL=1` | optional | Force a full history rebuild from the beginning |
 | `CHAINSTATE_REFRESH_SECONDS` | optional | Age past which the worker re-runs the contract-state multicall sweep (default `86400`, daily; `604800` for the weekly cadence the old committed-file workflow had) |
 | `ETH_RPC_URL` | optional | Mainnet RPC for that sweep; the public `CHAIN_RPC.ethereum` default is used when unset |
+| `BALANCES_REFRESH_SECONDS` | optional | Age past which an address's token balances are eligible for the worker's rolling refresh (default `86400`, daily). A lookup still happens at most hourly |
+| `BALANCES_REFRESH_BATCH` | optional | Addresses fetched per lookup, one chain at a time (default `50`) |
 
 ## 5. Configure services and deploy
 
@@ -492,6 +494,16 @@ straight into the Postgres `chain_state` table on its own time gate
   single-row `chain_state` table and served from `GET /api/chain-state`. The
   row populates on the worker's first post-deploy cycle; until then the route
   503s and the footer shows no on-chain values.
+- **Address token balances** refresh on the same worker, rolling: at most once
+  an hour it fetches up to `BALANCES_REFRESH_BATCH` (default 50) of the oldest
+  addresses whose `balances_checked_at` is past `BALANCES_REFRESH_SECONDS`
+  (default daily), all on a single chain — one multicall against one endpoint.
+  `POST /api/balances` (the report's Refresh button) refreshes every address
+  whose `balances_checked_at` is NULL or older than an hour, skipping rows the
+  worker wrote inside that window so a click during a rolling cycle does not
+  re-RPC them. A successful POST still stands the worker down for an hour
+  (worker gates on MAX). Served from `GET /api/balances`. Local `--no-fetch` skips both on-chain steps
+  — use the report's Refresh balances button to populate them.
 
 ## Troubleshooting
 

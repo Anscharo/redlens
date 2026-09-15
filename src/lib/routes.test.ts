@@ -8,6 +8,7 @@ import {
   settlementsHref,
   ROUTES,
   REPORT_TITLES,
+  REPORT_DESCRIPTIONS,
   activeNavPageFor,
   usesWindowScroll,
 } from "./routes";
@@ -48,6 +49,20 @@ describe("CrossView route registration", () => {
     // ROUTES.REPORTS_* constant; crossview's slug ("crossview") is the same
     // last segment as its ROUTES.REPORTS_CROSSVIEW route.
     expect(ROUTES.REPORTS_CROSSVIEW.split("/").pop()).toBe("crossview");
+  });
+});
+
+describe("REPORT_DESCRIPTIONS", () => {
+  it("has exactly one entry per REPORT_TITLES id — ReportsIndex.tsx's card() reads it unguarded", () => {
+    // A report id with a title but no description renders `undefined` as the
+    // card's body text on /reports instead of failing a build check.
+    expect(Object.keys(REPORT_DESCRIPTIONS).sort()).toEqual(Object.keys(REPORT_TITLES).sort());
+  });
+
+  it("every description is non-empty prose, not a placeholder", () => {
+    for (const [id, description] of Object.entries(REPORT_DESCRIPTIONS)) {
+      expect(description.length, `${id} description`).toBeGreaterThan(20);
+    }
   });
 });
 

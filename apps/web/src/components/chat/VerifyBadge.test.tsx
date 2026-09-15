@@ -8,7 +8,9 @@ import type { VerifyState } from "./useChatStream";
 afterEach(cleanup);
 
 const base: Omit<VerifyState, "status"> = {
-  claims: [],
+  contradictions: [],
+  notFound: [],
+  rulingIssued: false,
   invalidCitations: [],
   invalidDocNos: [],
   docNoMismatches: [],
@@ -41,22 +43,17 @@ describe("VerifyBadge", () => {
   it("shows the pass label with no issues and stays unexpandable", () => {
     render(<VerifyBadge verify={{ ...base, status: "pass" }} onAtlas={noop} />);
     const btn = screen.getByRole("button");
-    expect(btn).toHaveTextContent("verified against the atlas");
+    expect(btn).toHaveTextContent("no contradictions found");
     expect(btn).toBeDisabled();
   });
 
-  it("shows the revised label", () => {
-    render(<VerifyBadge verify={{ ...base, status: "revised" }} onAtlas={noop} />);
-    expect(screen.getByRole("button")).toHaveTextContent("revised after a verification check");
-  });
-
-  it("shows a pluralized caution count for warn status and expands claim details on click", () => {
+  it("shows a pluralized disputed-statement count for fail status and expands rows on click", () => {
     const verify: VerifyState = {
       ...base,
-      status: "warn",
-      claims: [
-        { claim: "Sky is a DAO", status: "unsupported" },
-        { claim: "This is fine", status: "supported" },
+      status: "fail",
+      contradictions: [
+        { answer: "Sky is a DAO", evidence: "Sky is not a DAO", why: "the atlas defines it as a protocol, not a DAO", uuid: "u-1" },
+        { answer: "the cap is 100", evidence: "the cap is 50", why: "wrong figure", uuid: null },
       ],
       invalidCitations: ["11111111-1111-1111-1111-111111111111"],
       invalidDocNos: ["A.9.9"],
@@ -66,8 +63,7 @@ describe("VerifyBadge", () => {
     };
     render(<VerifyBadge verify={verify} onAtlas={noop} />);
     const btn = screen.getByRole("button");
-    // 1 unsupported claim + 1 invalidCitation + 1 invalidDocNo + 1 docNoMismatch + 1 quote + 1 address = 6
-    expect(btn).toHaveTextContent("caution: 6 unsupported claims");
+    expect(btn).toHaveTextContent("2 statements disputed by the atlas");
     expect(btn).not.toBeDisabled();
     expect(btn).toHaveAttribute("aria-expanded", "false");
 
@@ -80,27 +76,51 @@ describe("VerifyBadge", () => {
     expect(screen.getByText(/…”/)).toBeInTheDocument(); // truncated long quote
     expect(screen.getByText(/address not found in any retrieved source/)).toBeInTheDocument();
     expect(screen.getByText("Sky is a DAO")).toBeInTheDocument();
-    // supported claims are filtered out of the flagged list
-    expect(screen.queryByText("This is fine")).toBeNull();
+    expect(screen.getByText("Sky is not a DAO")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "open the source" })).toHaveAttribute("href", expect.stringContaining("u-1"));
   });
 
-  it("uses singular claim wording for exactly one unsupported claim", () => {
-    const verify: VerifyState = {
-      ...base,
-      status: "warn",
-      claims: [{ claim: "one bad claim", status: "contradicted" }],
-    };
-    render(<VerifyBadge verify={verify} onAtlas={noop} />);
-    expect(screen.getByRole("button")).toHaveTextContent("caution: 1 unsupported claim");
-  });
-
-  it("shows the fail label", () => {
-    render(<VerifyBadge verify={{ ...base, status: "fail", claims: [{ claim: "bad", status: "contradicted" }] }} onAtlas={noop} />);
+  it("keeps 'failed verification' wording when a fail has no contradictions (deterministic-only)", () => {
+    render(<VerifyBadge verify={{ ...base, status: "fail", ungroundedAddresses: ["0xabc"] }} onAtlas={noop} />);
     expect(screen.getByRole("button")).toHaveTextContent("failed verification");
   });
 
+  it("shows ruling wording for a warn — warn is ruling-only, an unagreed candidate never drives it", () => {
+    const verify: VerifyState = { ...base, status: "warn", rulingIssued: true };
+    render(<VerifyBadge verify={verify} onAtlas={noop} />);
+    expect(screen.getByRole("button")).toHaveTextContent("caution: the answer issues a ruling");
+  });
+
+  it("renders no not-found disclosure when notFound is empty", () => {
+    render(<VerifyBadge verify={{ ...base, status: "pass" }} onAtlas={noop} />);
+    expect(screen.queryByText(/retrieved sources/)).not.toBeInTheDocument();
+  });
+
+  it("shows a collapsed not-found disclosure below the chip on pass, not counted as an issue", () => {
+    render(<VerifyBadge verify={{ ...base, status: "pass", notFound: ["Sky has 12 facilitators", "the cap is 100"] }} onAtlas={noop} />);
+    const chip = screen.getByRole("button", { name: /no contradictions found/ });
+    expect(chip).toBeDisabled(); // notFound never makes the chip expandable
+
+    const toggle = screen.getByRole("button", { name: "2 statements the retrieved sources don't cover" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveAttribute("aria-controls");
+    expect(screen.queryByText("Sky has 12 facilitators")).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const list = document.getElementById(toggle.getAttribute("aria-controls")!);
+    expect(list).toHaveClass("rlc-verify-notfound-list");
+    expect(screen.getByText("Sky has 12 facilitators")).toBeInTheDocument();
+    expect(screen.getByText("the cap is 100")).toBeInTheDocument();
+  });
+
+  it("singularizes the not-found disclosure label for one statement", () => {
+    render(<VerifyBadge verify={{ ...base, status: "pass", notFound: ["only one"] }} onAtlas={noop} />);
+    expect(screen.getByRole("button", { name: "1 statement the retrieved sources don't cover" })).toBeInTheDocument();
+  });
+
   // Regression: a param mismatch is a HARD server-side failure that can be the
-  // ONLY finding — the verifier's claim table stays clean because the sentence
+  // ONLY finding — the deterministic checks stay clean because the sentence
   // is well-supported prose, it just states the wrong number. Before these two
   // arrays reached the client, such a turn rendered an unexpandable red chip
   // that told the user the answer failed and then refused to say why.
@@ -183,5 +203,32 @@ describe("VerifyBadge", () => {
     fireEvent.click(screen.getByRole("button"));
     fireEvent.click(screen.getByRole("link"));
     expect(onAtlas).toHaveBeenCalledWith("u-1");
+  });
+
+  it("invokes onAtlas instead of navigating when a contradiction's source link is clicked", () => {
+    const onAtlas = vi.fn();
+    const verify: VerifyState = {
+      ...base,
+      status: "fail",
+      contradictions: [{ answer: "x says y", evidence: "x actually says z", why: "wrong", uuid: "u-2" }],
+    };
+    render(<VerifyBadge verify={verify} onAtlas={onAtlas} />);
+    fireEvent.click(screen.getByRole("button"));
+    fireEvent.click(screen.getByRole("link", { name: "open the source" }));
+    expect(onAtlas).toHaveBeenCalledWith("u-2");
+  });
+
+  it("points the chip at the findings list it reveals, and claims no target while unexpandable", () => {
+    const clean = render(<VerifyBadge verify={{ ...base, status: "pass" }} onAtlas={noop} />);
+    expect(screen.getByRole("button")).not.toHaveAttribute("aria-controls");
+    clean.unmount();
+
+    const verify: VerifyState = { ...base, status: "fail", rulingIssued: true };
+    const { container } = render(<VerifyBadge verify={verify} onAtlas={noop} />);
+    const chip = screen.getByRole("button");
+    const id = chip.getAttribute("aria-controls");
+    expect(id).toBeTruthy();
+    fireEvent.click(chip);
+    expect(container.querySelector(`#${CSS.escape(id!)}`)).toHaveClass("rlc-verify-claims");
   });
 });

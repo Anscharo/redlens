@@ -5,7 +5,7 @@ import type { AddressInfo } from "@/types";
 import type { BalanceMap, AddressBalances } from "@/lib/balances";
 import { compactAmount } from "@/lib/tokens";
 import { resolveAddressName } from "./addressName";
-import { PRIMARY_BALANCE_SYMBOLS } from "./onchainAddressesIndex";
+import { PRIMARY_BALANCE_SYMBOLS } from "@/lib/onchainAddressesIndex";
 
 export interface HeldBalance {
   symbol: string;

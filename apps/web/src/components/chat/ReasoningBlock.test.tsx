@@ -28,4 +28,19 @@ describe("ReasoningBlock", () => {
     expect(head).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("A longer thinking trace.")).toBeInTheDocument();
   });
+
+  it("points the toggle at the body it reveals, so the disclosure is followable", () => {
+    const { container } = render(<ReasoningBlock text="A thinking trace." />);
+    const head = screen.getByRole("button");
+    const id = head.getAttribute("aria-controls");
+    expect(id).toBeTruthy();
+    expect(container.querySelector(`#${CSS.escape(id!)}`)).toHaveTextContent("A thinking trace.");
+  });
+
+  it("keeps its own class when a caller passes className, instead of being stripped of its styling", () => {
+    const { container } = render(<ReasoningBlock text="A thinking trace." className="extra" />);
+    const root = container.firstElementChild!;
+    expect(root).toHaveClass("rlc-reasoning");
+    expect(root).toHaveClass("extra");
+  });
 });

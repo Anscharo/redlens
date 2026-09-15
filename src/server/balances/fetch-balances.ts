@@ -184,27 +184,34 @@ async function fetchChain(
 }
 
 /**
- * Pure: one row per address this chain had anything to say about.
+ * Pure: one row per requested address once this chain's RPC has answered.
  *
- * Keyed on the union of the two maps, not just the balance keys. An address
- * holding nothing still has a useful eth_getCode answer, and those are exactly
- * the addresses most likely to be mislabelled — an unverified contract with no
- * tokens. Iterating balances alone discarded their hasCode on every sweep.
+ * The rolling refresh's progress invariant (refresh.ts): a cycle that writes
+ * nothing re-selects the same rows, so every address we were ASKED about must
+ * come back when the multicall returned — empty balances allowed (persist
+ * COALESCEs those onto the stored value). Dropping a verified contract whose
+ * every allowFailure entry failed used to stall the rotation for every other
+ * address.
  *
- * An empty balance map is still emitted alongside a code answer; refreshBalances
- * COALESCEs it so it can't overwrite a good reading (viem reports failed
- * multicall entries by omission, so empty is indistinguishable from failed).
+ * hasCode is only attached when this sweep actually ran eth_getCode for that
+ * address; omitting the property (vs `undefined`) is what persist's COALESCE
+ * keys on. An empty balance map still travels with a code answer, which is
+ * how an unverified contract holding no tokens keeps its hasCode.
  */
 export function assembleChainResults(
   chain: string,
+  requested: readonly string[],
   balances: Map<string, BalanceMap>,
   codeResults: Map<string, boolean>,
 ): BalanceResult[] {
   const out: BalanceResult[] = [];
-  for (const address of new Set([...balances.keys(), ...codeResults.keys()])) {
+  const seen = new Set<string>();
+  for (const raw of requested) {
+    const address = raw.toLowerCase();
+    if (seen.has(address)) continue;
+    seen.add(address);
     const bal = balances.get(address) ?? {};
     const hasCode = codeResults.get(address);
-    if (Object.keys(bal).length === 0 && hasCode === undefined) continue;
     out.push({ address, chain, balances: bal, ...(hasCode !== undefined ? { hasCode } : {}) });
   }
   return out;
@@ -212,21 +219,34 @@ export function assembleChainResults(
 
 // Fetch balances for many addresses across chains (one multicall per chain).
 // `chains` optionally restricts which chains to fetch. Returns one result per
-// (address, chain) that produced at least one balance OR an eth_getCode answer.
+// requested (address, chain) whose RPC answered — including a checked-and-empty
+// row when the multicall had nothing to report, and for every address on a
+// chain this module has no way to read (see `unsupported` below).
 export async function fetchBalances(
   inputs: AddressInput[],
   chains?: string[],
 ): Promise<BalanceResult[]> {
   const byChain = new Map<string, AddressInput[]>();
+  // Addresses whose chain has no registry entry to fetch against. Reporting
+  // them as checked-and-empty (rather than dropping them) is what stops the
+  // worker's rolling refresh from re-selecting the same unreadable rows every
+  // cycle and starving every other address — see refresh.ts's progress
+  // invariant. Nothing is overwritten: persistBalanceResults COALESCEs an
+  // empty map onto the stored value.
+  const unsupported: BalanceResult[] = [];
   for (const inp of inputs) {
     if (chains && !chains.includes(inp.chain)) continue;
-    if (!NATIVE_TOKEN[inp.chain] || !rpcFor(inp.chain)) continue; // non-EVM/unsupported
+    if (inp.chain === "solana") continue; // its own path below
+    if (!NATIVE_TOKEN[inp.chain] || !rpcFor(inp.chain)) {
+      unsupported.push({ address: inp.address.toLowerCase(), chain: inp.chain, balances: {} });
+      continue;
+    }
     const list = byChain.get(inp.chain) ?? [];
     list.push(inp);
     byChain.set(inp.chain, list);
   }
 
-  const out: BalanceResult[] = [];
+  const out: BalanceResult[] = [...unsupported];
 
   // Solana takes its own path: no multicall, and its token accounts are derived
   // rather than looked up (see solana-balances.ts).
@@ -240,7 +260,12 @@ export async function fetchBalances(
   for (const [chain, list] of byChain) {
     try {
       const { balances, codeResults } = await fetchChain(chain, list);
-      out.push(...assembleChainResults(chain, balances, codeResults));
+      out.push(...assembleChainResults(
+        chain,
+        list.map((i) => i.address),
+        balances,
+        codeResults,
+      ));
     } catch (e) {
       console.warn(`balances: chain ${chain} failed (${(e as Error).message}) — skipped`);
     }

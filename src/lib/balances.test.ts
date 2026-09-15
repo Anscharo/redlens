@@ -27,7 +27,7 @@ describe("refreshAllowed", () => {
 });
 
 function makeResponse(overrides: Partial<BalancesResponse> = {}): BalancesResponse {
-  return { lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {}, ...overrides };
+  return { lastCheckedAt: null, oldestCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {}, ...overrides };
 }
 
 function installFetch(impl: (url: string, init?: RequestInit) => Response | Promise<Response>) {

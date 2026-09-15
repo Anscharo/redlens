@@ -14,10 +14,16 @@ export interface SavedRun {
 }
 
 export interface Mutation {
-  class: "unknown_uuid" | "wrong_doc" | "number" | "fabrication" | "ruling" | "enumeration";
+  class: "unknown_uuid" | "wrong_doc" | "number" | "fabrication" | "ruling" | "enumeration" | "contradiction";
   // Deterministic classes MUST be caught by pure code checks (catch rate 1.0
   // by construction); model classes measure the verifier LLM.
   deterministic: boolean;
+  // The refutation-only verifier cannot catch these BY CONSTRUCTION: an
+  // appended/phantom fact is something the evidence never mentions, not
+  // something it contradicts — "the evidence doesn't mention it" is no longer
+  // flaggable at all under the new design. Reported by eval-verifier.ts, never
+  // gated on.
+  informational?: boolean;
   answer: string;
 }
 
@@ -93,17 +99,70 @@ export function mutateEnumeration(run: SavedRun): string | null {
   return lines.join("\n");
 }
 
+// A genuine CONTRADICTION mutation — the answer ends up disagreeing with a
+// real evidence figure or a real evidence entity, as opposed to the other
+// mutations here which plant something the evidence is merely SILENT about.
+// This is the class the refutation-only verifier is actually built to catch.
+//
+// Preferred: swap a number the answer states — one that genuinely occurs in
+// the evidence — for a DIFFERENT number that also occurs in the evidence.
+// Numbers inside uuids/hex addresses are excluded (boundary lookarounds), and
+// numbers inside link hrefs or inline code are protected the same way
+// mutateNumber protects them, so the corruption lands in prose.
+//
+// Fallback: two entity names both present in the evidence, one of them also
+// named in the answer — swap it for the other. Covers runs with no shared
+// numeric figure between answer and evidence.
+export function mutateContradiction(run: SavedRun, ix: Indexes): string | null {
+  const evidenceText = run.evidence.map((e) => e.content).join("\n");
+
+  const protectedSpans: Array<[number, number]> = [];
+  for (const re of [/\(\/atlas\/[^)]*\)/g, /`[^`]*`/g]) {
+    for (let m = re.exec(run.answer); m; m = re.exec(run.answer)) protectedSpans.push([m.index, m.index + m[0].length]);
+  }
+  // Boundary lookarounds exclude digit runs glued to hex/uuid characters —
+  // "6f1e2a3b" or "…-0000-…" are not facts a claim states.
+  const numRe = /(?<![0-9a-f-])\d+(?:,\d{3})*(?:\.\d+)?(?![0-9a-f-])/gi;
+  const evidenceNumbers = new Set((evidenceText.match(numRe) ?? []).map((n) => n.replace(/,/g, "")));
+  for (let m = numRe.exec(run.answer); m; m = numRe.exec(run.answer)) {
+    const [s, e] = [m.index, m.index + m[0].length];
+    if (protectedSpans.some(([ps, pe]) => s >= ps && e <= pe)) continue;
+    const norm = m[0].replace(/,/g, "");
+    if (!evidenceNumbers.has(norm)) continue; // must be a REAL evidence figure to begin with
+    const alt = [...evidenceNumbers].find((n) => n !== norm);
+    if (!alt) continue;
+    return run.answer.slice(0, s) + alt + run.answer.slice(e);
+  }
+
+  const namesInEvidence = ix.entities.map((e) => e.name).filter((n) => n.length > 2 && evidenceText.includes(n));
+  for (const name of namesInEvidence) {
+    const idx = run.answer.indexOf(name);
+    if (idx === -1) continue;
+    const other = namesInEvidence.find((n) => n !== name);
+    if (!other) continue;
+    return run.answer.slice(0, idx) + other + run.answer.slice(idx + name.length);
+  }
+  return null;
+}
+
 export function buildMutations(run: SavedRun, ix: Indexes): Mutation[] {
   const out: Mutation[] = [];
   const enumeration = mutateEnumeration(run);
-  if (enumeration) out.push({ class: "enumeration", deterministic: false, answer: enumeration });
+  // Informational: an appended phantom list member is never CONTRADICTED by
+  // the evidence, only unmentioned — the refutation-only verifier cannot
+  // catch this by construction.
+  if (enumeration) out.push({ class: "enumeration", deterministic: false, informational: true, answer: enumeration });
   const unknownUuid = mutateUnknownUuid(run.answer);
   if (unknownUuid) out.push({ class: "unknown_uuid", deterministic: true, answer: unknownUuid });
   const wrongDoc = mutateWrongDoc(run.answer, ix);
   if (wrongDoc) out.push({ class: "wrong_doc", deterministic: false, answer: wrongDoc });
   const number = mutateNumber(run.answer);
   if (number) out.push({ class: "number", deterministic: false, answer: number });
-  out.push({ class: "fabrication", deterministic: false, answer: appendFabrication(run.answer) });
+  const contradiction = mutateContradiction(run, ix);
+  if (contradiction) out.push({ class: "contradiction", deterministic: false, answer: contradiction });
+  // Informational, same reason as enumeration: an appended fabricated fact is
+  // unmentioned by the evidence, not contradicted by it.
+  out.push({ class: "fabrication", deterministic: false, informational: true, answer: appendFabrication(run.answer) });
   out.push({ class: "ruling", deterministic: false, answer: appendRuling(run.answer) });
   return out;
 }

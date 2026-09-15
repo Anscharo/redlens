@@ -12,7 +12,7 @@ import {
   isICDLocation,
   isICD,
   isGlobalActivationStatus,
-  ancestorByStripping,
+  ancestorByStripping, annotationTarget,
   primitiveRootFor,
   UUID_SRC,
 } from "./graph-patterns.mjs";
@@ -34,8 +34,11 @@ export function extractDocEdges(allDocs, docById, docByDocNo, entityByDocId) {
   }
 
   // --- 2b. annotates (*.0.3.X, *.0.4.X, *.varX) ---
+  // Target from the spec-defined suffix, not parentId: the depth cap can park an
+  // annotation under a capped ancestor several levels above its real target.
   for (const d of allDocs.filter(isAnnotation)) {
-    if (d.parentId) addEdge(d.id, "doc", d.parentId, "doc", "annotates", [d.doc_no]);
+    const target = annotationTarget(d, docByDocNo) ?? (d.parentId ? { id: d.parentId } : null);
+    if (target) addEdge(d.id, "doc", target.id, "doc", "annotates", [d.doc_no]);
   }
 
   // --- 2c. active_data_for (*.0.6.X → containing ADC) ---

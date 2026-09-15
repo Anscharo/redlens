@@ -186,3 +186,12 @@ test("resolveLabelToUuid: a slug mapping uniquely to a doc resolves; nonsense is
   expect(resolveLabelToUuid(slug, judge)).toBe(doc.id);
   expect(resolveLabelToUuid("totally-made-up-nonexistent-label-xyz", judge)).toBeNull();
 });
+
+test("a uuid used as the link text is shown as the document's title", () => {
+  const uuid = ix.docMap.keys().next().value as string;
+  const title = ix.docMap.get(uuid)!.title;
+  const r = repairCitations(`See [${uuid}](/atlas/${uuid}) for details.`, [], ix);
+  expect(r.content).toBe(`See [${title}](/atlas/${uuid}) for details.`);
+  expect(r.retitled).toEqual([{ from: uuid, to: title }]);
+  expect(r.repaired).toEqual([]);
+});

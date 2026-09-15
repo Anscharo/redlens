@@ -97,7 +97,7 @@ export const areas = [
   { id: "backend-history", label: "Backend · History", match: [/^src\/server\/history\//] },
   // The LLM tool layer the chat agent calls: registry + graph/history tool impls.
   { id: "backend-chat-tools", label: "Backend · Chat/AI (tools)", match: [/^src\/server\/chat\/tools\//] },
-  // Answer grounding: verifier(s), verify-checks, citation repair + stream gate, round checks, advisor.
+  // Answer grounding: verifier(s), verify-checks, citation repair + stream gate, round checks.
   { id: "backend-chat-verify", label: "Backend · Chat/AI (verify)", match: [/^src\/server\/chat\/verify\//] },
   // Conversation orchestration + LLM plumbing. Listed after chat/tools + chat/verify
   // so those claim their nested files; this catches the rest of chat/.
@@ -129,7 +129,7 @@ export const areas = [
   {
     id: "lib-reports-activity",
     label: "Lib · Reports (activity/rewards)",
-    match: [/^src\/lib\/(rewardsSearch|rewardsTypes|rewardsIndex|modFrequencyCharts|modFrequencyIndex|activeDataIndex|actorIndex|onchainAddressesIndex|processesIndex|primitiveStats|reportChains|treemap|productArea|owningAgent|reportFilter|csv|csvDownload|staleChunk|staleDates|curationStore)\.ts$/],
+    match: [/^src\/lib\/(rewardsSearch|rewardsTypes|rewardsIndex|modFrequencyCharts|modFrequencyIndex|activeDataIndex|actorIndex|onchainAddressesIndex|processesIndex|primitiveStats|reportChains|treemap|productArea|owningAgent|reportFilter|csv|csvDownload|staleChunk|staleDates|staleDatesSearch|curationStore)\.ts$/],
   },
   {
     id: "lib-crossview",
@@ -144,7 +144,7 @@ export const areas = [
   {
     id: "lib-address-chain",
     label: "Lib · Address/Chain",
-    match: [/^src\/lib\/(addresses|addressMap|balances|chainstate|explorer|tokens|rehypeEthAddresses)\.ts$/],
+    match: [/^src\/lib\/(addresses|addressMap|addressMerge|balances|chainstate|explorer|tokens|rehypeEthAddresses)\.ts$/],
   },
   {
     id: "lib-search",

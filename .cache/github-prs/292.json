@@ -1,0 +1,10 @@
+{
+  "number": 292,
+  "title": "Atlas Edit Proposal — 2026-08-10",
+  "body": "On behalf of Core GovOps, we are submitting the Atlas Edit Weekly Cycle proposal below.\n\nThis proposal includes the following edits:\n\n- **Add Diamond PAU Subtree** — Adds a new Diamond PAU subtree, consolidating the Liquidity Layer's parameter, role, contract, and operational process definitions under it, and adds a placeholder for the PAS (Parallelized Allocation System).\n\n- **Add A Maximum Exposure Tolerance For Accrued Interest** — Adds a rule permitting actual exposure to exceed a specified maximum by up to 5% where the excess is solely accrued interest, and makes a Prime Agent responsible for claiming and returning that interest to keep exposure within the specified maximum.\n\n- **Clarify The Bases For Modifying Smart Burn Engine Parameters** — Clarifies the distinction between the governance process and the technical limitations for updating the parameters of the Smart Burn Engine.\n\n- **Update Osero SparkLend USDS Instance Capital Ratio Requirement To 25%** — Reduces the Capital Ratio Requirement for Osero's Ethereum Mainnet SparkLend USDS Instance from 100% to 25%.\n\n- **Standardize Operational Weekly Cycle Terminology** — Corrects documents that named the Operational Weekly Cycle imprecisely.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/292",
+  "commentCount": 1,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

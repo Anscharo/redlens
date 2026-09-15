@@ -57,10 +57,10 @@ export function getModel(): string {
 // Per-request PostHog attribution for one chat turn. distinctId is the
 // CONVERSATION id, not the signed-in user — PostHog groups a conversation's
 // turns together without ever learning who the user is. traceId groups every
-// generation of a single turn — the answer stream AND the harness's
-// verifier/advisor/revision rounds — under one trace in the LLM view. Use a
-// fresh per-turn id (not the conversation id): a trace is one turn's work, so
-// human think-time between turns never inflates trace-level latency.
+// generation of a single turn — the answer stream AND the harness's verifier
+// rounds — under one trace in the LLM view. Use a fresh per-turn id (not the
+// conversation id): a trace is one turn's work, so human think-time between
+// turns never inflates trace-level latency.
 export interface ChatObservability {
   distinctId?: string;
   traceId?: string;
@@ -82,9 +82,9 @@ function posthogParams(obs: ChatObservability, surface: string): Record<string, 
   };
 }
 
-// Non-streamed JSON-mode call for the reliability harness's grader/planner
-// roles (verifier, advisor). temperature:0 — these are judges, not writers.
-// The injection seam mirroring ChatStream: orchestrator/verifier/advisor unit
+// Non-streamed JSON-mode call for the reliability harness's grader role
+// (verifier). temperature:0 — these are judges, not writers.
+// The injection seam mirroring ChatStream: orchestrator/verifier unit
 // tests swap in a fake JsonCall, no network.
 export type JsonCall = (params: {
   model: string;
@@ -95,7 +95,7 @@ export type JsonCall = (params: {
 
 // Run a JsonCall under a hard deadline that ACTUALLY cancels the provider
 // request on timeout — not just a Promise.race that leaves the call running.
-// The harness's verifier/advisor stream the answer first, so a hung judge must
+// The harness's verifier streams the answer first, so a hung judge must
 // both stop blocking the terminal event AND stop burning tokens after the turn.
 // We abort a controller wired into the call's signal (combined with the caller's
 // signal, so a client disconnect still cancels). On timeout the call rejects
@@ -124,7 +124,7 @@ export function callWithTimeout(
 }
 
 // Build a JsonCall bound to one turn's observability context. Used for the
-// harness's verifier/advisor roles so their generations land in the SAME trace as
+// harness's verifier role so its generations land in the SAME trace as
 // the answer stream (chat.ts passes the shared per-turn obs). When PostHog is off
 // this is exactly the old plain-client behavior.
 export function makeOpenrouterJson(obs: ChatObservability = {}, surface = "atlas-chat-verify"): JsonCall {

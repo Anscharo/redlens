@@ -15,7 +15,6 @@ const context: PageContextView = {
   nodeId: "abc",
   short: "Ask about this document",
   placeholder: "Ask…",
-  label: "Some Doc",
   chip: "atlas · A.1.1",
 };
 vi.mock("../chat/pageContext", () => ({ usePageContext: () => context }));

@@ -145,10 +145,30 @@ Run `pnpm census:chains` after any registry edit — its completeness pass names
 Runs in `build-graph` Phase 2.6 (via `address-annotate.mjs`). Each address gets three annotation fields written into `public/addresses.atlas.json`:
 
 - **`roles: string[]`** — flat multi-tag array from the closed vocabulary `ROLE_VOCAB`. Multiple roles per address are supported.
-- **`entityLabel: string`** — best-effort proper-noun phrase extracted from the 200 chars before the address in the atlas text.
+- **`entityLabel: string | null`** — best-effort proper-noun phrase extracted from the 200 chars before the address in the atlas text.
 - **`expectedTokens: string[]`** — token symbols (e.g. `USDS`, `SKY`, `MKR`) mentioned within ±300 chars of the address.
 
 `ROLE_VOCAB` is the authoritative closed list of role tags. Add new roles there, not ad hoc in call sites.
+
+### `entityLabel` is a plausible NAME or `null` — never a clause
+
+`extractEntityLabel` scrapes prose, so for a year it shipped sentence fragments as names: the A.2 facet paragraphs turned `…wraps the ALM Proxy's entire native ETH balance into WETH. Its address on … is` into the label `ALM Proxy's entire native ETH balance into WETH. It`, and `Its address on …` into the label `Its`. Two extractor bugs did it — a capture class containing a bare `.`, which let the non-greedy `{2,60}?` walk backwards across a sentence boundary, and a possessive written `['’]?s?`, which read the bare `s` of `Its` as one.
+
+The capture keeps its dot, and the reach-back is trimmed off afterwards. `SENTENCE_BREAK` defines a sentence end precisely — letter, `.`, optional closing quote/bracket, space, capitalised word — and `afterLastSentenceBreak()` keeps only what follows the last one, so `…Pause Proxy. The Beacon` yields `The Beacon`. A dot between letters (`Sky.money`, `U.S.A`) or touching a digit (`v1.5`, `0.75`) is part of the token and stays in the name; banning `.` from the class outright cost those names their first half. The capitalised word is deliberately not required to be Capital-then-lowercase — an acronym starts a sentence too (`…deposits assets. ALM Proxy's address is`). Only the prose patterns are trimmed: a table cell is the whole candidate, and cutting a Purpose paragraph down to its last sentence would manufacture a name out of prose.
+
+> **Do not move that rule into the regex.** The natural encoding — `(?:[class]|\.(?!…)){2,60}?`, a lookahead inside the quantified capture — runs fine on Node and **segfaults Bun** (1.1 GB RSS, SIGILL, on 1.3.11 and 1.3.14). The image runs `bun run build:graph`, so that is a crashed Docker build and a failed Railway deploy, while `pnpm test` stays green because vitest runs on Node. Anything quantified over a group in these patterns needs a `bun` run over the real corpus before it ships, not just the unit tests.
+
+Both are fixed, and **every return path out of `extractEntityLabel` — both prose patterns and both table loops — is gated on `isPlausibleName(label)`**, exported from the same module. It rejects anything under 3 or over 48 characters, containing an internal sentence break, starting lowercase, ending on a dangling function word, or equal to a bare pronoun. When nothing survives, the answer is `null`: a null label falls back cleanly (no owner in the UI, chainlog/Etherscan internally) and lets Phase 4.5b–e fill the slot from an entity name, a parent/doc title, or the chainlog — which is how those facets now read `Wrap Proxy ETH Facet` and `PSM Facet`. A fragment blocks all of that, because 4.5 never overwrites a label Phase 2.6 already set.
+
+`isPlausibleName` is the **build-side twin of `isCleanLabel`** (`src/lib/addressName.ts`), the display filter every user-facing surface and the chat's `doc-rows.ts` run labels through. Two copies, because `apps/web` must not take a packaging dependency on `scripts/`; `scripts_tests/label-predicate-sync.test.ts` runs one fixture list through both and fails if they disagree, so keep the predicates identical when you touch either. The display filter is now a **tripwire against extractor regression**, not the real gate.
+
+Three rules follow from that:
+
+- **Never run the prose validator on structured fills.** Phase 4.5a (ICD params) and 4.5b (graph entity names) CONSTRUCT their labels, and 4.5e's values are identifiers (`MCD_VAT`); `spUSDS underlying asset` is honest data that merely starts lowercase. Only 4.5c/4.5d, which copy a doc title verbatim, are gated.
+- **Table headers name things; they don't describe them.** `LABEL_HEADER_KEYWORDS` deliberately omits `description`, `details` and `purpose` — a Purpose cell is a sentence, and the generic sibling-cell fallback below it would otherwise hand back a 200-character paragraph.
+- **Phase 2.6's longest-wins pick runs over plausible names only.** Longest-wins is still right among names (`Spark Operations Multisig` over `Spark`); it was only wrong because clauses were in the pool. `aliases` is the rest of that filtered pool, so a rejected fragment cannot ship as an alias either — which is also what keeps Solana `programOwnerName` (derived from `entityLabel` in `build-addresses`) fragment-free.
+
+`node scripts/aux/label-quality.mjs` scans the built artifact: fragment-shaped labels and aliases must be **0** (`--compare <old atlas.json>` diffs against a previous build).
 
 ---
 

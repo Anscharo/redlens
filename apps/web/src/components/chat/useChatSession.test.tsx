@@ -61,7 +61,7 @@ describe("useChatSession.openConversation", () => {
     expect(getConversation).toHaveBeenCalledWith("conv-1");
     expect(result.current.title).toBe("Server title");
     expect(result.current.messages).toEqual([
-      { role: "assistant", content: "hi", trace: [], rounds: 0, sources: [], done: true, verify: undefined },
+      { role: "assistant", content: "hi", draft: "", generated: true, trace: [], rounds: 0, sources: [], done: true, verify: undefined },
     ]);
     expect(result.current.loadingHistory).toBe(false);
   });

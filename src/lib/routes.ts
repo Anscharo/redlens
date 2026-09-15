@@ -106,6 +106,11 @@ export const REPORT_CHAT_TOOLS: Partial<Record<string, string>> = {
   [ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES]: "atlas_report_govops_responsibilities",
   [ROUTES.REPORTS_ACTIVE_DATA]: "atlas_report_active_data",
   [ROUTES.REPORTS_REWARDS]: "atlas_report_rewards",
+  [ROUTES.REPORTS_STALE_DATES]: "atlas_report_stale_dates",
+  [ROUTES.REPORTS_PROCESSES]: "atlas_report_processes",
+  [ROUTES.REPORTS_OEA_ASSESSMENT]: "atlas_report_oea_assessment",
+  [ROUTES.REPORTS_RISK_RULES]: "atlas_report_risk_rules",
+  [ROUTES.REPORTS_ONCHAIN_ADDRESSES]: "atlas_report_addresses",
 };
 
 // Top-level pages that carry a constant title, for the same consumers as
@@ -131,6 +136,25 @@ export const REPORT_TITLES: Record<string, string> = {
   "onchain-addresses": "On-Chain Addresses",
   "mod-frequency": "Modification Frequency",
   crossview: "Atlas CrossView",
+};
+
+// One-line "what this report shows" — the same copy the /reports index cards
+// render. These are SAbR's own report concepts (e.g. "stale dates" is not
+// atlas vocabulary), so the chat's page-context line also carries this text —
+// without it the model has nothing but a report title to answer "what is
+// this" questions with. Keyed by REPORT_TITLES id.
+export const REPORT_DESCRIPTIONS: Record<string, string> = {
+  "of-responsibilities": "Every Atlas section mandating action from an Operational Facilitator, grouped by duty type with per-agent filtering.",
+  "gov-ops-responsibilities": "Every Atlas section mandating action from an Operational or Core GovOps — role definitions, per-executor assignments, scattered duties, and Active Data they maintain as Responsible Party.",
+  "oea-assessment": "Every task the Operational Executor Agent performs, rated weak/mid/strong for definitional precision and for incentives/penalties — AI-drafted against a fixed rubric, human-reviewed, with per-task reasoning.",
+  "active-data": "All Active Data sections, their Responsible Parties, edit processes, and agent assignments — with CSV export.",
+  rewards: "Every Distribution Reward and Integration Boost instance each Prime Agent has invoked — reward codes, partner names, and on-chain reward addresses.",
+  "risk-rules": "Every atlas paragraph defining a risk rule — peg maintenance, allocation risk, smart contract security — scored 1–5 for precision and weak/mid/strong for penalties and incentives, AI-drafted against a fixed rubric and human-reviewed.",
+  "onchain-addresses": "Every on-chain address the Atlas mentions — with its CHAIN_LOG name, associated owner, chain, type (EOA, Multisig, Token, Sky internal contract, other), and the docs it appears in, with CSV export.",
+  "stale-dates": "Future-tense claims checked against today — dates the atlas still phrases as upcoming but that have already passed, plus claims due within the next week. Not an atlas concept: computed by SAbR from atlas prose against the current date.",
+  "mod-frequency": "An edit timeline by month, week, or commit, a per-section and per-type share matching a typed ≤/> edit-count filter (with the Agent Scope split out by agent, each downloadable separately), and the matching document list.",
+  processes: "The curated inventory of governance, settlement, lifecycle, and operational processes — title, doc number, step count, status, responsible party.",
+  crossview: "The Atlas as functional chunks: hierarchical weight maps of scopes, agent artifacts, and primitives, a cross-cutting concept catalog with its audit trail, and the glossary of defined terms.",
 };
 
 // URL builders for SPA links. Use these with wouter's <Link to={...}> so back-button

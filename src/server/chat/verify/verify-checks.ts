@@ -107,13 +107,21 @@ export function normalizeForMatch(s: string): string {
     // Tool results arrive as JSON, so a source line break is the literal two
     // characters \n — nothing quoting it verbatim could ever match.
     .replace(/\\[nrt]/g, " ")
-    .replace(/\\(.)/g, "$1")
+    // Then drop EVERY remaining backslash, not "one escape level". Evidence is
+    // JSON-encoded (`\\frac`) while the answer quotes the raw text (`\frac`);
+    // unescaping one level left `\frac` on one side and `frac` on the other,
+    // so a verbatim quote of the Required Risk Capital formula hard-failed
+    // (2026-09-10). Symmetric stripping is what a match needs; the formatting
+    // pass below already treats markup as noise, and LaTeX commands are markup.
+    .replace(/\\/g, "")
     // Evidence carries raw markdown; an answer quotes the RENDERED text. Both
     // sides collapse to link text so `see [A.2.2.9.1 - Foo](uuid)` matches a
     // faithful quote of `see A.2.2.9.1 - Foo`.
     .replace(new RegExp(MD_LINK_SRC, "g"), "$1")
     .replace(/[“”"‘’']/g, "")
-    .replace(/[*_`]/g, "")
+    // `$` is a math delimiter (`$$…$$` in the atlas, `$…$` in an answer) —
+    // formatting, same as emphasis and code marks.
+    .replace(/[*_`$]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -198,11 +206,22 @@ function quotedPairs(line: string): { text: string; start: number; end: number }
   return out;
 }
 
+// A citation the model hung on the END of a blockquote line — one or more
+// `[text](/atlas/<uuid>)` links, or a bare uuid — is attribution, not quoted
+// text. Left in, the span ends with the link text or the id and can never match
+// the source. Observed live 2026-09-10: a verbatim two-sentence quote of A.1.7.1
+// hard-failed because the model appended `[<uuid>](/atlas/<uuid>)` to the line.
+// Only the TAIL is stripped: a link mid-sentence may be part of the quoted atlas
+// text itself (atlas docs contain inline links) and still collapses to its text.
+const TRAILING_CITATIONS = /(?:\s*(?:\[[^\]]+\]\([^)\s]+\)|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))+\s*[.,;:]?\s*$/i;
+
 export function extractQuotedSpans(answer: string): string[] {
   const spans: string[] = [];
   for (const line of answer.split("\n")) {
     const bq = line.match(/^\s*>\s?(.+)$/);
-    if (bq && !isAttributionLine(bq[1]) && !isSelfAuthoredCallout(bq[1])) spans.push(stripQuoteDecoration(bq[1]));
+    if (bq && !isAttributionLine(bq[1]) && !isSelfAuthoredCallout(bq[1])) {
+      spans.push(stripQuoteDecoration(bq[1].replace(TRAILING_CITATIONS, "")));
+    }
   }
   // Inline pass: collapse markdown links to their text FIRST — a quote inside
   // one link's title otherwise pairs with the quote in the next link's title,
@@ -253,8 +272,14 @@ function quoteSegments(span: string): string[] {
 
 // A quote is grounded if every verifiable segment appears in the turn's
 // tool-result evidence or in the title/content of any doc the answer cites.
-export function findUngroundedQuotes(answer: string, evidenceTexts: string[], ix: Indexes): string[] {
-  const spans = extractQuotedSpans(answer);
+export function findUngroundedQuotes(answer: string, evidenceTexts: string[], ix: Indexes, question?: string): string[] {
+  // A quoted span that the USER wrote — the answer echoing the question's own
+  // term ("…specifically for \"Operational Facilitators.\"") — is a scare quote,
+  // not a passage copied from a rule document. Observed live 2026-09-10 as a
+  // hard fail on an answer whose only quotation was the reader's phrase.
+  const q = question ? normalizeForMatch(question) : "";
+  const bare = (s: string) => s.replace(/^[\s"',.;:!?()—–-]+|[\s"',.;:!?()—–-]+$/g, "");
+  const spans = extractQuotedSpans(answer).filter((s) => !(q && q.includes(bare(s))));
   if (spans.length === 0) return [];
   const haystacks = [
     ...evidenceTexts.map(normalizeForMatch),
@@ -585,9 +610,8 @@ export interface CheckReport {
 //     brief — even if the cited atlas doc happens to contain the same digits
 //     (findUngroundedCitationValues would skip that collision as "grounded").
 // Shape-only matching (any `$n` / `n USDS` link text once MSC ran) was the
-// previous false-positive: it hard-failed correct atlas citations and the
-// revision steer then told the model to re-cite a real atlas fact as a
-// workbook URL.
+// previous false-positive: it hard-failed correct atlas citations, and a fail
+// badge would then land on an answer that cited a real atlas fact correctly.
 export function findMscCitedAsAtlas(answer: string, externalTexts: string[], ix: Indexes): string[] {
   const cites = extractCitations(answer);
   if (cites.length === 0 || externalTexts.length === 0) return [];
@@ -617,7 +641,7 @@ export function runDeterministicChecks(
   const invalidCitations = findInvalidCitationUuids(citations, ix);
   const invalidDocNos = findInvalidDocNos(answer, ix);
   const docNoMismatches = findDocNoMismatches(citations, ix);
-  const ungroundedQuotes = findUngroundedQuotes(answer, atlasTexts, ix);
+  const ungroundedQuotes = findUngroundedQuotes(answer, atlasTexts, ix, completeness?.question);
   const ungroundedAddresses = findUngroundedAddresses(answer, evidenceTexts);
   const ungroundedCitationValues = findUngroundedCitationValues(answer, atlasTexts, ix);
   const paramMismatches = findParamMismatches(answer, ix);

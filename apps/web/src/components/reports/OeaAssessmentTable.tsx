@@ -1,21 +1,12 @@
 import type { Rating, PrecisionElement } from "@/lib/oeaAssessment";
 import { PRECISION_ELEMENTS } from "@/lib/oeaAssessment";
 import type { OeaMechanism, OeaRow } from "@/lib/oeaReport";
+import { oeaSearchFields } from "@/lib/oeaReport";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
-import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "@/lib/reportFilter";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
-
-// The search haystack as labelled fields; the covered prime agents are
-// searched but never rendered in the row, so agent-name matches surface via
-// the floating aside. Keep in sync with the cells below.
-export const oeaSearchFields = (r: OeaRow): SearchField[] => [
-  { label: "doc no", value: r.task.docNo },
-  { label: "title", value: r.task.title },
-  { label: "task text", value: r.task.assessedText },
-  { label: "covered primes", value: (r.task.agents ?? []).join(", "), hidden: true, despace: true },
-];
 
 const RATING_STYLE: Record<Rating, string> = {
   weak: "bg-[color-mix(in_srgb,var(--red)_30%,transparent)] text-tan",

@@ -23,8 +23,10 @@ export function parsePreviewInput(raw: string): string | null {
     const [, owner, repo, rest = ""] = url;
     const canonical = owner === CANONICAL_OWNER && repo === ATLAS_REPO_NAME;
     const pull = rest.match(/^pull\/(\d+)/);
-    // PR numbers are repo-local: a fork's /pull/N is a PR against the FORK,
-    // not the atlas — only the canonical repo's PRs are previewable.
+    // PR numbers are repo-local: a fork's own github.com/…/pull/N URL is
+    // ambiguous as a URL paste (only the canonical repo's /pull/N URLs are
+    // accepted here) — a fork's own PR is still previewable, pasted as
+    // owner:repo:pull-N instead (see the bare-id forms below).
     if (pull) return canonical ? `pull-${pull[1]}` : null;
     const tree = rest.match(/^tree\/(.+?)\/?$/);
     if (tree) {
@@ -55,12 +57,60 @@ export function parsePreviewInput(raw: string): string | null {
   return null;
 }
 
+/** Private-repo paste → `owner:repo:branch` (branch `/` encoded as `~`; the
+ *  sentinel `HEAD` means "the repo's default branch") or `owner:repo:pull-N`
+ *  for a PR URL. The server resolves a private `pull-N` to that PR's HEAD
+ *  commit and redlines it against the PR's own base branch (read via the
+ *  installation token, which needs Pull requests:read); without that
+ *  permission the HEAD comes from `refs/pull/N/head` with no base info, and
+ *  the preview falls back to branch rules — the closest shared point with
+ *  sky-ecosystem/next-gen-atlas:main or the repo's own default branch.
+ *  Accepts, in order:
+ *    - a full github.com URL, scheme optional, .git optional:
+ *        github.com/OWNER/REPO                 → default branch
+ *        github.com/OWNER/REPO/tree/BRANCH     → BRANCH (may contain /)
+ *        github.com/OWNER/REPO/pull/N          → that repo's PR #N
+ *    - OWNER/REPO@BRANCH                        → BRANCH
+ *    - OWNER/REPO                               → default branch */
+export function parsePrivateInput(raw: string): string | null {
+  const s = raw.trim();
+  if (!s) return null;
+  const mk = (owner: string, repo: string, ref: string) => `${owner}:${repo}:${ref.replaceAll("/", "~")}`;
+
+  const url = s.match(/github\.com\/([\w.-]+)\/([^/\s]+?)(?:\.git)?(?:\/(.*))?$/i);
+  if (url) {
+    const [, owner, repo, rest = ""] = url;
+    if (!rest || rest === "/") return mk(owner, repo, "HEAD");
+    const pull = rest.match(/^pull\/(\d+)/);
+    if (pull) return `${owner}:${repo}:pull-${pull[1]}`;
+    const tree = rest.match(/^tree\/(.+?)\/?$/);
+    return tree ? mk(owner, repo, decodeURIComponent(tree[1])) : null;
+  }
+  // URL-shaped but not a github.com repo URL — don't fall through to the id forms.
+  if (/^https?:\/\/|github\.com/i.test(s)) return null;
+
+  // Strip an optional trailing .git (a clone-URL suffix) in these forms too, so
+  // `owner/repo.git` / `owner/repo.git@branch` resolve like the URL form does.
+  const at = s.match(/^([\w.-]+)\/([\w.-]+?)(?:\.git)?@(.+)$/);
+  if (at) return mk(at[1], at[2], at[3]);
+  const bare = s.match(/^([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
+  if (bare) return mk(bare[1], bare[2], "HEAD");
+  return null;
+}
+
+/** True when a parsed private-preview id is a PR (`owner:repo:pull-N`). */
+export function isPrivatePrId(id: string): boolean {
+  return /:pull-\d+$/.test(id);
+}
+
 /** Human label for the "Preparing preview…" line: the PR number when the id is
  *  a PR, otherwise the owner/repo it points at (short sha as a last resort). */
 export function previewLabel(id: string): string {
   const s = id.trim();
   const pull = s.match(/^pull-(\d+)$/);
   if (pull) return `PR #${pull[1]}`;
+  const privatePull = s.match(/^[\w.-]+:[\w.-]+:pull-(\d+)$/);
+  if (privatePull) return `PR #${privatePull[1]}`;
   if (SHA_RE.test(s)) return s.slice(0, 7);
   const parts = s.split(":"); // owner:repo:ref | owner:ref | bare ref (canonical branch)
   if (parts.length >= 3) return `${parts[0]}/${parts[1]}`;

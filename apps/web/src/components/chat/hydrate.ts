@@ -7,7 +7,8 @@ import type { StoredMessage } from "../../lib/conversationsApi";
 // (the reliability-harness badge, not persisted). `trace` (tool calls)
 // restores in FULL: ToolCallRecord's `ok`/`bytes` are non-nullable on write,
 // unlike the live-stream TraceRow which starts them null until tool_result
-// arrives.
+// arrives. A restored message is always the reveal state: `draft` empty,
+// `generated: true` — there is no live stream to hydrate a draft from.
 export function toChatMsgs(rows: StoredMessage[]): ChatMsg[] {
   return rows.map((row) => {
     const toolCalls = row.toolCalls ?? [];
@@ -16,10 +17,13 @@ export function toChatMsgs(rows: StoredMessage[]): ChatMsg[] {
       args: t.args,
       ok: t.ok,
       bytes: t.bytes,
+      round: 0,
     }));
     return {
       role: row.role,
       content: row.content,
+      draft: "",
+      generated: true,
       trace,
       rounds: 0,
       sources: toolCalls,

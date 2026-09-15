@@ -10,3 +10,8 @@ export { buildFacilitatorResponsibilitiesReport } from "./facilitator-responsibi
 export { buildGovOpsResponsibilitiesReport } from "./govops-responsibilities.ts";
 export { buildRewardsReport } from "./rewards.ts";
 export { buildActiveDataReport } from "./active-data.ts";
+export { buildStaleDatesReportTool } from "./stale-dates.ts";
+export { buildProcessesReport } from "./processes.ts";
+export { buildOeaAssessmentReport } from "./oea-assessment.ts";
+export { buildRiskRulesReport } from "./risk-rules.ts";
+export { buildOnchainAddressesReport } from "./onchain-addresses.ts";

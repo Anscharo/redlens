@@ -31,6 +31,14 @@ describe("Composer", () => {
     expect(screen.getByText("atlas · A.1.1")).toBeInTheDocument();
   });
 
+  it("focuses the textarea when focusKey changes, never on a first 0", () => {
+    const { rerender } = setup();
+    const ta = screen.getByPlaceholderText("Ask…");
+    expect(ta).not.toHaveFocus();
+    rerender(<Composer draft="" onDraftChange={vi.fn()} onSend={vi.fn()} onStop={vi.fn()} streaming={false} placeholder="Ask…" chip="atlas" focusKey={1} />);
+    expect(ta).toHaveFocus();
+  });
+
   it("propagates textarea input to onDraftChange", () => {
     const { onDraftChange } = setup();
     fireEvent.change(screen.getByPlaceholderText("Ask…"), { target: { value: "hello" } });

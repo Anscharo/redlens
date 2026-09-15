@@ -1,0 +1,10 @@
+{
+  "number": 305,
+  "title": "Add Skybase to Current Authorized Forum Accounts",
+  "body": "## Summary\n\nRegisters Skybase's authorized Sky Forum account (Ekliptyka) in A.2.7.1.1.1.1.4.0.6.1 - Current Authorized Forum Accounts. Skybase is listed with the role Prime Agent, consistent with the other Stars in the table.\n\n## Change\n\nSingle-line addition to the Current Authorized Forum Accounts table in `content/A.2 - The-Support-Scope.md`:\n\n| Entity Name | Role | Entity Handle | Handles of Authorized Representatives |\n|---|---|---|---|\n| Skybase | Prime Agent | Ekliptyka | N/A |\n\n## Process\n\nEnacted via the Direct Edit process.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+  "author": "redlexic",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/305",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

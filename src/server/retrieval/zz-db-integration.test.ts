@@ -221,7 +221,7 @@ describe("atlasQuery — semantic search leg (DB-backed, mocked)", () => {
       return Promise.resolve([{ id: "sem-only", type: "Core", score: 0.9 }]);
     };
 
-    const res = await atlasQuery(ix, { q: "zzqx", k: 10, enrich: false });
+    const res = await atlasQuery(ix, { query: "zzqx", k: 10, enrich: false });
     const ids = (res.results as { id: string; sources: string[] }[]).map((r) => r.id);
     expect(ids).toContain("lex-only");
     expect(ids).toContain("sem-only");
@@ -241,7 +241,7 @@ describe("atlasQuery — semantic search leg (DB-backed, mocked)", () => {
           { id: "a", type: "Core", score: 0.9 },
           { id: "b", type: "Core", score: 0.1 }, // below floor — and everything after it too
         ]);
-      const res = await atlasQuery(ix, { q: "anything", k: 10, enrich: false });
+      const res = await atlasQuery(ix, { query: "anything", k: 10, enrich: false });
       const ids = (res.results as { id: string }[]).map((r) => r.id);
       expect(ids).toContain("a");
       expect(ids).not.toContain("b");
@@ -254,7 +254,7 @@ describe("atlasQuery — semantic search leg (DB-backed, mocked)", () => {
     const a = node({ id: "a", title: "Alpha", content: "alpha wording" });
     const ix = buildIndexes([a], [], [], { atlasCommit: "t" });
     unsafeImpl = () => Promise.reject(new Error("pgvector down"));
-    const res = await atlasQuery(ix, { q: "alpha", k: 10, enrich: false });
+    const res = await atlasQuery(ix, { query: "alpha", k: 10, enrich: false });
     const ids = (res.results as { id: string }[]).map((r) => r.id);
     expect(ids).toContain("a");
   });
@@ -283,7 +283,7 @@ describe("atlasQuery — semantic search leg (DB-backed, mocked)", () => {
       }
       return Promise.resolve([]);
     };
-    const res = await atlasQuery(ix, { q: "network", k: 10, enrich: false });
+    const res = await atlasQuery(ix, { query: "network", k: 10, enrich: false });
     const ids = (res.results as { id: string }[]).map((r) => r.id);
     expect(ids).toContain("c");
   });
@@ -298,7 +298,7 @@ describe("atlasQuery — semantic search leg (DB-backed, mocked)", () => {
       }
       return Promise.resolve([]);
     };
-    const res = await atlasQuery(ix, { q: "network", k: 10, enrich: false });
+    const res = await atlasQuery(ix, { query: "network", k: 10, enrich: false });
     expect((res.results as { id: string }[]).map((r) => r.id)).toContain("c");
   });
 });

@@ -9,7 +9,10 @@
 //             redlines vs the OLD main. Swept once main moves past the bundle's
 //             recorded baseline — except bundles touched within the grace
 //             window, so an actively-browsed preview isn't yanked mid-session.
-//             The next visit rebuilds against current main (quota-free).
+//             The next visit rebuilds against current main (quota-free). A
+//             bundle with no `meta.bases` at all (built under the old
+//             single-base semantics — local dev, where /tmp isn't wiped) is
+//             swept the same way, regardless of how fresh its baseline looks.
 //   lru     — orphan/interrupted dirs and the >KEEP overflow now also get
 //             collected when no builds are happening.
 //
@@ -74,7 +77,10 @@ export async function sweepPreviewBundles(opts: SweepOpts = {}): Promise<SweepRe
     }
     if (!mainCommit) continue;
     const meta = readMeta(sha, root);
-    if (meta?.baseAtlasCommit === mainCommit) continue; // current — keep
+    // `bases` absent means this bundle predates the multi-candidate diff-base
+    // work — a fresh-looking baseAtlasCommit still can't be trusted since the
+    // bundle never wrote the diff.<key>.json pairs the reader now expects.
+    if (meta?.baseAtlasCommit === mainCommit && meta?.bases !== undefined) continue; // current — keep
     let mtime = 0;
     try {
       mtime = fs.statSync(path.join(root, sha)).mtimeMs;

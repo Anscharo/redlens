@@ -26,7 +26,7 @@ export interface StoredMessage {
   createdAt: string;
   // Present (non-empty) on assistant messages that made tool calls; null on
   // every other row. See src/components/chat/hydrate.ts for how this
-  // restores a full ToolTrace on rehydration.
+  // restores the full tool-call trace (TraceRow[]) on rehydration.
   toolCalls: ToolCallRecord[] | null;
 }
 

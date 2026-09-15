@@ -171,8 +171,8 @@ describe("handleChat", () => {
     return (async () => sseResponse(text)) as unknown as typeof fetch;
   }
 
-  // Chunk-array SSE builder for scripting multi-event rounds (staged-delivery
-  // tests): each entry is one `data:` frame, closed with [DONE].
+  // Chunk-array SSE builder for scripting multi-event rounds: each entry is
+  // one `data:` frame, closed with [DONE].
   function sseChunksResponse(chunks: unknown[]): Response {
     const body = chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join("") + "data: [DONE]\n\n";
     return new Response(
@@ -241,98 +241,43 @@ describe("handleChat", () => {
     });
   });
 
-  describe("delivery mode", () => {
-    it("meta carries the effective delivery mode, defaulting to streaming", async () => {
+  // Delivery is unified (docs/chat-system.md §8): the route always forwards
+  // every event as-is. The stage checklist (synthesizing/comparing/checking)
+  // and the answer-reveal-on-`answer_final` behavior are the orchestrator's
+  // job (chat-orchestrator.test.ts) and the client's; this file only asserts
+  // the route itself no longer shapes or gates events.
+  describe("event delivery", () => {
+    it("meta carries no delivery field", async () => {
       installHappyHandlers();
       const prevImpl = g.__llmFetchCurrentImpl!;
       g.__llmFetchCurrentImpl = sseAnswer("Hi.");
       try {
         const res = await handleChat(await authedRequest({ message: "hello" }));
         const [meta] = await events(res);
-        expect(meta.delivery).toBe("streaming");
+        expect(meta.type).toBe("meta");
+        expect("delivery" in meta).toBe(false);
       } finally {
         g.__llmFetchCurrentImpl = prevImpl;
       }
     });
 
-    it("body.delivery overrides the configured default", async () => {
-      installHappyHandlers();
-      const prevImpl = g.__llmFetchCurrentImpl!;
-      g.__llmFetchCurrentImpl = sseAnswer("Hi.");
-      try {
-        const res = await handleChat(await authedRequest({ message: "hello", delivery: "staged" }));
-        const [meta] = await events(res);
-        expect(meta.delivery).toBe("staged");
-      } finally {
-        g.__llmFetchCurrentImpl = prevImpl;
-      }
-    });
-
-    it("staged mode, simple turn (no tools): no tokens, exactly one synthesizing status, finalizing right before done", async () => {
-      installHappyHandlers();
-      const prevImpl = g.__llmFetchCurrentImpl!;
-      g.__llmFetchCurrentImpl = sseAnswer("Hi there.");
-      try {
-        const res = await handleChat(await authedRequest({ message: "hello", delivery: "staged" }));
-        const evs = await events(res);
-        expect(evs.some((e) => e.type === "token")).toBe(false);
-        expect(evs.filter((e) => e.type === "status" && e.stage === "synthesizing")).toHaveLength(1);
-        const doneIdx = evs.findIndex((e) => e.type === "done");
-        expect(evs[doneIdx - 1]).toMatchObject({ type: "status", stage: "finalizing" });
-        expect(evs[doneIdx].content).toBe("Hi there.");
-      } finally {
-        g.__llmFetchCurrentImpl = prevImpl;
-      }
-    });
-
-    it("an invalid body.delivery falls back to the configured default instead of erroring", async () => {
-      installHappyHandlers();
-      const prevImpl = g.__llmFetchCurrentImpl!;
-      g.__llmFetchCurrentImpl = sseAnswer("Hi.");
-      try {
-        const res = await handleChat(await authedRequest({ message: "hello", delivery: "yolo" }));
-        expect(res.status).toBe(200);
-        const [meta] = await events(res);
-        expect(meta.delivery).toBe("streaming"); // config default, unchanged by the bogus value
-      } finally {
-        g.__llmFetchCurrentImpl = prevImpl;
-      }
-    });
-
-    it("config.chatDeliveryMode supplies the default when body omits delivery", async () => {
-      installHappyHandlers();
-      const prevMode = config.chatDeliveryMode;
-      config.chatDeliveryMode = "staged";
-      const prevImpl = g.__llmFetchCurrentImpl!;
-      g.__llmFetchCurrentImpl = sseAnswer("Hi.");
-      try {
-        const res = await handleChat(await authedRequest({ message: "hello" }));
-        const [meta] = await events(res);
-        expect(meta.delivery).toBe("staged");
-      } finally {
-        g.__llmFetchCurrentImpl = prevImpl;
-        config.chatDeliveryMode = prevMode;
-      }
-    });
-
-    it("streaming mode (default) emits token events end to end with no synthesizing/finalizing statuses", async () => {
+    it("forwards token events end to end, and never emits a finalizing status", async () => {
       installHappyHandlers();
       const prevImpl = g.__llmFetchCurrentImpl!;
       g.__llmFetchCurrentImpl = sseAnswer("Hello from the atlas.");
       try {
-        const res = await handleChat(await authedRequest({ message: "What's new?", delivery: "streaming" }));
+        const res = await handleChat(await authedRequest({ message: "What's new?" }));
         const evs = await events(res);
         const tokenText = evs.filter((e) => e.type === "token").map((e) => e.text).join("");
         expect(tokenText).toBe("Hello from the atlas.");
-        expect(evs.some((e) => e.type === "clear")).toBe(false);
-        expect(evs.some((e) => e.type === "status" && (e.stage === "synthesizing" || e.stage === "finalizing"))).toBe(false);
+        expect(evs.some((e) => e.type === "status" && e.stage === "finalizing")).toBe(false);
         expect(evs.find((e) => e.type === "done").content).toBe("Hello from the atlas.");
       } finally {
         g.__llmFetchCurrentImpl = prevImpl;
       }
     });
 
-    it("staged mode suppresses token+clear, announces one synthesizing status per generation burst, and finalizes right before done", async () => {
+    it("forwards tool rounds untouched, including the orchestrator's synthesizing status per burst", async () => {
       installHappyHandlers();
       // Round 1: pre-tool content ("Thinking...", discarded via `clear`) then a
       // tool call — a real, no-network tool (see chat-orchestrator.test.ts's
@@ -360,24 +305,20 @@ describe("handleChat", () => {
       const prevImpl = g.__llmFetchCurrentImpl!;
       g.__llmFetchCurrentImpl = multiRoundSse([round1, round2]);
       try {
-        const res = await handleChat(await authedRequest({ message: "Describe the atlas structure using a lookup.", delivery: "staged" }));
+        const res = await handleChat(await authedRequest({ message: "Describe the atlas structure using a lookup." }));
         const evs = await events(res);
-
-        expect(evs.some((e) => e.type === "token")).toBe(false);
-        expect(evs.some((e) => e.type === "clear")).toBe(false);
-
-        const synthIdx = evs.map((e, i) => (e.type === "status" && e.stage === "synthesizing" ? i : -1)).filter((i) => i >= 0);
-        expect(synthIdx).toHaveLength(2); // one per burst: pre-tool noise, then the real answer
 
         const toolCallIdx = evs.findIndex((e) => e.type === "tool_call");
         expect(toolCallIdx).toBeGreaterThan(-1);
-        expect(synthIdx[0]).toBeLessThan(toolCallIdx); // burst 1 announced before the tool round
-        expect(synthIdx[1]).toBeGreaterThan(toolCallIdx); // burst 2 announced after it (tool_call reset the burst)
+        const synthIdx = evs.map((e, i) => (e.type === "status" && e.stage === "synthesizing" ? i : -1)).filter((i) => i >= 0);
+        expect(synthIdx).toHaveLength(2); // one per burst: pre-tool noise, then the real answer
+        expect(synthIdx[0]).toBeLessThan(toolCallIdx);
+        expect(synthIdx[1]).toBeGreaterThan(toolCallIdx);
 
-        const doneIdx = evs.findIndex((e) => e.type === "done");
-        expect(doneIdx).toBeGreaterThan(0);
-        expect(evs[doneIdx - 1]).toMatchObject({ type: "status", stage: "finalizing" });
-        expect(evs[doneIdx].content).toBe("Final answer.");
+        const answerFinal = evs.find((e) => e.type === "answer_final");
+        expect(answerFinal?.content).toBe("Final answer.");
+        expect(evs.some((e) => e.type === "status" && e.stage === "finalizing")).toBe(false);
+        expect(evs.find((e) => e.type === "done").content).toBe("Final answer.");
       } finally {
         g.__llmFetchCurrentImpl = prevImpl;
       }
@@ -845,7 +786,7 @@ describe("handleChat", () => {
 // window. usage_events is the append-only ledger that delete can't touch.
 // persistAssistant is called directly here (not through the full HTTP +
 // streaming + harness path handleChat exercises above) — getting a non-null
-// checksMeta token count out of the real verifier/advisor flow would require
+// checksMeta token count out of the real verifier flow would require
 // standing up the same kind of network-mock machinery as the "titling" block,
 // just to prove a one-line summation; a direct call is the precise tool.
 describe("persistAssistant — usage ledger", () => {

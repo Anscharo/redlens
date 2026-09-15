@@ -4,7 +4,7 @@ import { extractLinkedIds, type LoadedData } from "@/lib/atlasHelpers";
 import { type AtlasNode, type AddressInfo } from "@/types";
 import { type ChainValue } from "../lib/chainstate";
 import { findCousinDocs, type CousinDoc } from "../lib/cousins";
-import { chainlogNamedAddresses } from "../lib/onchainAddressesIndex";
+import { chainlogNamedAddresses } from "@/lib/onchainAddressesIndex";
 import type { GraphData } from "../lib/graph";
 
 export function useNodeAnnotations(id: string, data: LoadedData | null, graph: GraphData | null) {

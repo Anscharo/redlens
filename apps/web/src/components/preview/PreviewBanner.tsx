@@ -1,37 +1,40 @@
 import { useEffect, useState } from "react";
+import { useLocation, useSearch } from "wouter";
 import { useDataSource } from "../../lib/dataSource";
+import { usePreviewDiff } from "../../lib/previewDiff";
+import { baseLine, baseSwitch, pullsPermissionCopy, type PreviewMeta } from "../../lib/previewMetaCopy";
+import { Link } from "../Link";
 
 // Rendered by the App shell when a preview data source is active. Reads the
 // bundle's meta.json for the PR/branch label + author + state + GitHub source.
-interface PreviewMeta {
-  sha: string;
-  repo: string;
-  ref: string;
-  kind: string;
-  prNumber?: number;
-  prTitle?: string;
-  prAuthor?: string;
-  prState?: string;
-  forkOwner?: string;
-  private?: boolean;
-  trustTier?: string;
-  aheadBy?: number;
-  behindBy?: number;
-  newAddresses?: number;
-  addressCheckFailed?: boolean;
-}
-
 const CANONICAL_REPO = "sky-ecosystem/next-gen-atlas";
 
 // Link back to the original source on GitHub (PR / branch / commit).
 function sourceUrl(m: PreviewMeta): string {
+  // Public canonical PRs live on sky-ecosystem/next-gen-atlas even when the
+  // head repo is a fork. Private `owner:repo:pull-N` previews keep kind
+  // "branch" (so the pr-state worker doesn't confuse them with canonical
+  // PR numbers) but still link back to the private repo's PR.
   if (m.kind === "pr" && m.prNumber) return `https://github.com/${CANONICAL_REPO}/pull/${m.prNumber}`;
+  if (m.prNumber) return `https://github.com/${m.repo}/pull/${m.prNumber}`;
+  const pull = m.ref?.match(/^pull-(\d+)$/);
+  if (pull) return `https://github.com/${m.repo}/pull/${pull[1]}`;
   if (m.kind === "branch") return `https://github.com/${m.repo}/tree/${m.ref}`;
   return `https://github.com/${m.repo}/commit/${m.sha}`;
 }
 
+function sourceLabel(m: PreviewMeta): string {
+  if (m.kind === "pr" && m.prNumber) return "view PR on GitHub ↗";
+  if (m.prNumber || /^pull-\d+$/.test(m.ref ?? "")) return "view PR on GitHub ↗";
+  if (m.kind === "branch") return "view branch ↗";
+  return "view commit ↗";
+}
+
 export function PreviewBanner() {
   const { base, preview } = useDataSource();
+  const { activeBase } = usePreviewDiff();
+  const [location] = useLocation();
+  const search = useSearch();
   const [meta, setMeta] = useState<PreviewMeta | null>(null);
   useEffect(() => {
     if (!preview) return;
@@ -51,13 +54,18 @@ export function PreviewBanner() {
   const isPrivate = !!meta?.private;
   const label = meta?.prTitle ? `${meta.ref} — ${meta.prTitle}` : meta?.ref ?? preview.id;
   const src = meta ? sourceUrl(meta) : null;
-  const srcLabel = meta?.kind === "pr" ? "view PR on GitHub ↗" : meta?.kind === "branch" ? "view branch ↗" : "view commit ↗";
+  const srcLabel = meta ? sourceLabel(meta) : "view commit ↗";
+  const line = meta ? baseLine(meta, activeBase ?? null) : "";
+  // wouter's useSearch() strips the leading "?"; URLSearchParams doesn't care.
+  const switchLink = meta ? baseSwitch(meta, activeBase ?? null, search) : null;
+  const perm = meta ? pullsPermissionCopy(meta) : null;
   return (
+    <div>
     <header
       className="flex items-center gap-3 px-4 py-2 text-sm"
       style={{
         background: "var(--hover)",
-        borderBottom: `1px solid ${isFork ? "var(--red)" : "var(--accent)"}`,
+        borderBottom: `1px solid ${perm ? "var(--red)" : isFork ? "var(--red)" : "var(--accent)"}`,
         color: "var(--tan)",
       }}
     >
@@ -73,14 +81,20 @@ export function PreviewBanner() {
         ) : (
           <strong>{label}</strong>
         )}
-        {isFork ? ` · by ${meta!.forkOwner ?? meta!.repo.split("/")[0]}` : ""}
+        {isFork ? ` · by ${meta!.forkOwner ?? meta!.repo!.split("/")[0]}` : ""}
         {meta?.prAuthor ? ` · proposed by ${meta.prAuthor}` : ""}
         {meta?.prState && meta.prState !== "open" ? ` · ${meta.prState}` : ""}
-        {isFork && meta!.behindBy === 0 && meta!.aheadBy === 0
-          ? " · up to date with sky-ecosystem/next-gen-atlas:main"
-          : ""}
-        {isFork && (meta!.behindBy ?? 0) > 0 ? ` · ${meta!.behindBy} commits behind main` : ""}
+        {line ? ` · ${line}` : ""}
       </span>
+      {switchLink && (
+        // Compose with the current path (relative to the router base) so the
+        // switch never navigates away from wherever the user is — a Link's
+        // href is router.base + `to`, which would otherwise drop the /atlas
+        // (or /reports/…) segment and land back on the bare preview root.
+        <Link to={`${location}${switchLink.href}`} className="mono text-xs" style={{ color: "var(--accent)" }}>
+          {switchLink.label}
+        </Link>
+      )}
       {meta?.trustTier === "unknown" && (
         <span className="mono text-xs" style={{ color: "var(--red)" }}>
           author has no PRs accepted into the atlas
@@ -105,5 +119,20 @@ export function PreviewBanner() {
         exit preview
       </a>
     </header>
+    {perm && (
+      <p
+        className="flex items-center gap-3 px-4 py-2 text-sm"
+        style={{ background: "var(--hover)", borderBottom: "1px solid var(--red)", color: "var(--tan)" }}
+      >
+        <span style={{ color: "var(--red)", fontWeight: 600, letterSpacing: "0.05em" }}>PERMISSION</span>
+        <span>{perm.body}</span>
+        {perm.href ? (
+          <a href={perm.href} target="_blank" rel="noreferrer" className="ml-auto" style={{ color: "var(--red)" }}>
+            {perm.linkLabel}
+          </a>
+        ) : null}
+      </p>
+    )}
+    </div>
   );
 }

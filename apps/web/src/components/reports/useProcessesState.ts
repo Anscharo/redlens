@@ -4,20 +4,14 @@
 import { useMemo } from "react";
 import { urlBool, urlString } from "../../hooks/useUrlState";
 import { loadAtlas } from "../../lib/docs";
-import { loadProcesses, buildProcessRows, indexByParentDocNo, type ProcessRow } from "../../lib/processesIndex";
+import { buildProcessRows, indexByParentDocNo, processSearchFields, type ProcessRow } from "@/lib/processesIndex";
+import { loadProcesses } from "../../lib/processesLoad";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useLocalIgnores } from "../../hooks/useLocalIgnores";
-import { filterRows, type ReportMode, type SearchField } from "@/lib/reportFilter";
+import { filterRows, type ReportMode } from "@/lib/reportFilter";
 import type { ReportId } from "@/types";
 import { SHAPE_VALUES, STATUS_VALUES } from "./ProcessesFilters";
 import { useReportEnum, useReportFilter, useReportQuery, useReportSwitch } from "./useReportQuery";
-
-// Header-box text filter: title + doc number. Category/status/shape are
-// pill-owned and deliberately excluded.
-const searchFields = (r: ProcessRow): SearchField[] => [
-  { label: "title", value: r.title },
-  { label: "doc no", value: r.docNo },
-];
 
 const REPORT: ReportId = "processes";
 const categoryCodec = urlString(null);
@@ -47,7 +41,7 @@ export function useProcessesState(query: string, mode: ReportMode) {
       if (!showIgnored && ignoresByUuid.has(r.uuid)) return false;
       return true;
     });
-    return filterRows(base, rq, searchFields);
+    return filterRows(base, rq, processSearchFields);
   }, [rows, status, shape, category, showIgnored, ignoresByUuid, rq]);
 
   const byCategory = useMemo(() => {

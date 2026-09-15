@@ -32,11 +32,32 @@
   a bloated date block hides every earlier date entirely, which is why the
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
+
+
+## 2026-09-15
+- Previews now redline a change against the branch it was actually made on, the preview bar shows how far that base has drifted from the main atlas, and a private pull request missing Pull requests: Read asks the owner to grant it on GitHub
+
+## 2026-09-11
+- Private previews now show line diffs in the history panel
+
+## 2026-09-10
+- Private previews now accept a pull request URL and compare it against sky-ecosystem/next-gen-atlas main
+- Chat delivery updated for consistency. No longer rewrites answers. Cites and confirms better.
+- Fixed the chat and MCP atlas search skipping every Agent artifact (Spark, Grove, Amatsu, …) when a query was scoped to the Agent Scope.
+- Chat now checks each paragraph as it is written, including the model's contradiction check, so the verdict is ready sooner; open the Verifying step to see the results.
+- Chat now renders formulas quoted from the atlas.
+
+## 2026-09-09
+- Enlarged the CrossView chunk map to show more details
+- Chat and MCP now serve the Stale Dates, Atlas Processes, OEA Task Assessment, Risk Rules Assessment, and On-Chain Addresses reports directly instead of just pointing at the page
+
 ## 2026-09-08
 - Added a Monthly Settlement Cycle overview to the Radar front page: Sky's take as a pie, orbited by each Prime's month as a pie (or, with the flow pill, a three-stage chart of sources, Primes and Sky), with a per-Prime To-Sky timeline that plays through the months
 - Prime settlement pages now use the overview's colours and its To Sky headline card, chart a year of cycles as a monthly summary, and the venue flow chart's key says that a striped flow is a loss
 - A Prime's Radar page now shows its total gross revenue over the last year of settlement cycles, with a small month-by-month chart of where it went beside the Monthly settlement card; the card opens its settlement charts, which show a year of cycles at a time with arrows for older ones
 - Chat now stays where you scrolled while a reply arrives, with a "New messages below" button to jump to the newest text
+- Documents without subsections now show their whole text in the reader instead of a scrolling box
+- Clicking between documents no longer jumps the reader to a different spot before scrolling to the new one
 
 ## 2026-09-04
 - On-chain addresses now appear as a pill across documents, reports, and dashboards, showing the balance they hold in green with a hover for the name and full token holdings

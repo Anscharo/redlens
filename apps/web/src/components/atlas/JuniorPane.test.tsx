@@ -122,6 +122,46 @@ describe("JuniorPane selection-group wrapper (R2)", () => {
     expect(group.querySelectorAll(".atlas-node.is-selected")).toHaveLength(1);
   });
 
+  it("marks the selected root data-has-children when it has descendants (the body clamp keys on it)", () => {
+    const { container } = setup();
+    const selected = container.querySelector(".atlas-node.is-selected");
+    expect(selected?.getAttribute("data-has-children")).toBe("true");
+    // Descendants are not selected and JuniorPane has no pendulum, so the
+    // marker stays off them even when they have children of their own.
+    const child = container.querySelector("#junior-child");
+    expect(child?.getAttribute("data-has-children")).toBeNull();
+  });
+
+  it("does not mark a non-selected parent further down the slice", () => {
+    const split = makeNode({ id: "split", doc_no: "A.1", title: "Split Title", depth: 1, parentId: null });
+    const child = makeNode({ id: "child", doc_no: "A.1.1", title: "Child Title", depth: 2, parentId: "split" });
+    const grand = makeNode({ id: "grand", doc_no: "A.1.1.1", title: "Grand Title", depth: 3, parentId: "child" });
+    const loaded = makeLoadedData({
+      atlas: makeAtlasBundle([split, child, grand]),
+      flatNodes: [split, child, grand].map((node) => makeFlatEntry({ node, depth: node.depth })),
+    });
+    const { container } = render(
+      <JuniorPane splitId="split" data={loaded} onShiftNavigate={vi.fn()} onClose={() => {}} />,
+    );
+    expect(container.querySelector("#junior-split")?.getAttribute("data-has-children")).toBe("true");
+    expect(container.querySelector("#junior-child")?.getAttribute("data-has-children")).toBeNull();
+    expect(container.querySelector("#junior-grand")?.getAttribute("data-has-children")).toBeNull();
+  });
+
+  it("does not mark a childless split root — nothing for the clamp to protect", () => {
+    const leaf = makeNode({ id: "leaf", doc_no: "A.9", title: "Leaf Title", depth: 1, parentId: null });
+    const loaded = makeLoadedData({
+      atlas: makeAtlasBundle([leaf]),
+      flatNodes: [makeFlatEntry({ node: leaf, depth: 1 })],
+    });
+    const { container } = render(
+      <JuniorPane splitId="leaf" data={loaded} onShiftNavigate={vi.fn()} onClose={() => {}} />,
+    );
+    const selected = container.querySelector(".atlas-node.is-selected");
+    expect(selected).not.toBeNull();
+    expect(selected?.getAttribute("data-has-children")).toBeNull();
+  });
+
   it("renders no selection-group for an unknown splitId (nothing to bound)", () => {
     const onShiftNavigate = vi.fn();
     const { container } = render(

@@ -1,4 +1,4 @@
-import { useRef, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
 import { PinIcon, SendIcon } from "./glyphs";
 
 interface ComposerProps {
@@ -21,6 +21,10 @@ interface ComposerProps {
   // the PREVIOUS conversationId (or none), so it's posted to the wrong
   // conversation instead of the one the user just opened.
   historyLoading?: boolean;
+  // Bump to move keyboard focus into the textarea (ChatPanel does this on
+  // New chat, whose button disappears the moment the thread empties — so
+  // focus would otherwise fall to the body). 0 / undefined never focuses.
+  focusKey?: number;
   // Footer slot, rendered below the input — ChatPanel passes the LimitsMeter
   // here. Composition instead of props: the composer doesn't consume any of
   // the meter's data, so it shouldn't have to thread it through.
@@ -40,10 +44,15 @@ export function Composer({
   placeholder,
   chip,
   historyLoading,
+  focusKey,
   children,
 }: ComposerProps) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const disabled = !!locked || !!historyLoading;
+
+  useEffect(() => {
+    if (focusKey) taRef.current?.focus();
+  }, [focusKey]);
 
   const autoGrow = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const ta = e.target;

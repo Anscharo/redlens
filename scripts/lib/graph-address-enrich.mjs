@@ -9,12 +9,19 @@
  *   4.5d — Doc-titled: any address-bearing doc with a descriptive title
  *   4.5e — Chainlog/Etherscan fallback: last resort from on-chain data
  *
+ * 4.5c and 4.5d are the two passes that copy free-text into a label, so they —
+ * and only they — run it past isPlausibleName: a 90-character Core title is not
+ * an owner name. 4.5a/4.5b build their labels from structured ICD params and
+ * graph entity names, and 4.5e's values are identifiers (`MCD_VAT`); running a
+ * prose validator over any of those would only reject good data.
+ *
  * Mutates addressesAtlas in place; the caller (build-graph.mjs) owns writing
  * public/addresses.atlas.json and logging the summary. Never touches
  * addresses.json (on-chain data) — see build-graph.mjs header.
  */
 
 import { ancestorByStripping } from "./graph-patterns.mjs";
+import { isPlausibleName } from "./address-annotate.mjs";
 
 export function enrichAddresses({
   allDocs,
@@ -67,7 +74,7 @@ export function enrichAddresses({
     // Parent via doc_no arithmetic, not parentId: heading depth caps at 6, and
     // these generic "Address" leaves sit well below that in the artifact trees.
     const parentDoc = ancestorByStripping(doc, 1, docByDocNo);
-    if (!parentDoc) continue;
+    if (!parentDoc || !isPlausibleName(parentDoc.title)) continue;
     for (const addr of doc.addressRefs) {
       const entry = addressesAtlas[addr.toLowerCase()] ?? addressesAtlas[addr];
       if (!entry || entry.entityLabel) continue;
@@ -80,6 +87,7 @@ export function enrichAddresses({
   const SKIP_TITLE_D = /^address(?:es)?$|^parameters?$/i;
   for (const doc of allDocs) {
     if (!doc.addressRefs?.length || SKIP_TITLE_D.test(doc.title.trim())) continue;
+    if (!isPlausibleName(doc.title)) continue;
     for (const addr of doc.addressRefs) {
       const entry = addressesAtlas[addr.toLowerCase()] ?? addressesAtlas[addr];
       if (!entry || entry.entityLabel) continue;

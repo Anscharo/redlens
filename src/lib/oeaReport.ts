@@ -4,6 +4,7 @@ import { normalizeAssessedText, OEA_CATEGORY_LABELS, type OeaTask } from "./oeaT
 import { toCSV } from "./csv";
 import { atlasUrl } from "./routes";
 import { expandCopies } from "./dutyCollapse";
+import type { SearchField } from "./reportFilter";
 
 export type OeaRowStatus = "fresh" | "stale" | "unassessed";
 
@@ -122,6 +123,17 @@ function expandTaskCopies(task: OeaTask): OeaTask[] {
 export function oeaCsvRowCount(rows: readonly OeaRow[]): number {
   return rows.reduce((n, r) => n + expandTaskCopies(r.task).length, 0);
 }
+
+// The search haystack as labelled fields; the covered prime agents are
+// searched but never rendered in the row, so agent-name matches surface via
+// the floating aside — shared by the report page and the server-side
+// atlas_report_oea_assessment tool's `filter` argument.
+export const oeaSearchFields = (r: OeaRow): SearchField[] => [
+  { label: "doc no", value: r.task.docNo },
+  { label: "title", value: r.task.title },
+  { label: "task text", value: r.task.assessedText },
+  { label: "covered primes", value: (r.task.agents ?? []).join(", "), hidden: true, despace: true },
+];
 
 export function oeaRowsToCSV(rows: readonly OeaRow[]): string {
   const expanded = rows.flatMap((r) => expandTaskCopies(r.task).map((task) => ({ ...r, task })));

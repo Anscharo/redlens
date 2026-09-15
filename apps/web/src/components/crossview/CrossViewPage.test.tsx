@@ -108,6 +108,12 @@ describe("CrossViewPage", () => {
     expect(await screen.findByTestId("crossview-shape")).toHaveTextContent("abc1234deadbeef");
   });
 
+  it("widens the shape column so the chunk map can sit beside its details", async () => {
+    render(<CrossViewPage tab="shape" />, { wrapper: wrap() });
+    const shape = await screen.findByTestId("crossview-shape");
+    expect(shape.parentElement?.parentElement).toHaveClass("max-w-4xl");
+  });
+
   it("shows an error state on the shape tab when crossview data fails to load", async () => {
     loadCrossViewImpl = () => Promise.reject(new Error("boom"));
     render(<CrossViewPage tab="shape" />, { wrapper: wrap() });

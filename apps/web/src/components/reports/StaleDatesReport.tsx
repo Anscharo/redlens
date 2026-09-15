@@ -2,14 +2,14 @@ import { useMemo } from "react";
 import { loadDocs } from "../../lib/docs";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUTCDay } from "../../hooks/useUTCDay";
-import { buildStaleDatesReport, staleDatesToCSV, DUE_SOON_DAYS } from "../../lib/staleDates";
+import { buildStaleDatesReport, staleDatesToCSV, DUE_SOON_DAYS } from "@/lib/staleDates";
 import { filterRows, type ReportMode } from "@/lib/reportFilter";
 import type { ReportId } from "@/types";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { ReportShell } from "./ReportShell";
 import { StaleDatesSection } from "./StaleDatesSection";
 import { useReportQuery } from "./useReportQuery";
-import { staleSearchFields, STALE_SEARCHES } from "./staleDatesSearch";
+import { staleSearchFields, STALE_SEARCHES } from "@/lib/staleDatesSearch";
 
 const REPORT: ReportId = "stale-dates";
 

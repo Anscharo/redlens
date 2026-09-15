@@ -381,6 +381,71 @@ test("/events: deferred private-branch id — a forbidden caller is denied and t
 
 // ---------------------------------------------------------------------------
 // rateLimited / ipHits — the per-IP fixed window on the events endpoint.
+
+test("/events: deferred private-PR id — a forbidden caller never fetches pulls or git/ref (G7)", async () => {
+  const { handlePreview } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+
+  const orig = {
+    enabled: config.privatePreviewsEnabled,
+    appId: config.githubAppId,
+    key: config.githubAppPrivateKey,
+    fetch: globalThis.fetch,
+  };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  let pullFetched = false;
+  let refFetched = false;
+  let tokenMinted = false;
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) return Response.json({ id: 77 });
+    if (u.endsWith("/access_tokens")) {
+      tokenMinted = true;
+      return Response.json({ token: "inst-tok" });
+    }
+    if (u.includes("/pulls/")) {
+      pullFetched = true;
+      return Response.json({ head: { sha: "e".repeat(40), ref: "feat" } });
+    }
+    if (u.includes("/git/ref/")) {
+      refFetched = true;
+      return Response.json({ object: { sha: "e".repeat(40) } });
+    }
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return new Response("no", { status: 404 });
+    return new Response("no", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  try {
+    accessDecision = "forbidden";
+    const id = encodeURIComponent("octocat:secret-atlas:pull-42");
+    const pathname = `/api/preview/${id}/events`;
+    const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+    const events = await readSSE(res);
+
+    expect(events).toContainEqual({ phase: "failed", code: "forbidden" });
+    expect(pullFetched).toBe(false);
+    expect(refFetched).toBe(false);
+    expect(tokenMinted).toBe(false);
+    expect(accessCalls.some((c) => c.repo === "octocat/secret-atlas")).toBe(true);
+    expect(events.some((e) => e.phase === "ready" || e.phase === "fetching")).toBe(false);
+    expect(inflightShas().size).toBe(0);
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+});
+
+// ---------------------------------------------------------------------------
+// rateLimited / ipHits — the per-IP fixed window on the events endpoint.
 // Direct (no HTTP): driving the real threshold via ~30+ full SSE round-trips
 // per case would work but is slow and indirect; the exported map/function let
 // this pin the actual guard (a real bug — an off-by-one on `> IP_LIMIT` vs
@@ -667,6 +732,124 @@ test("/events: an authorized private sha resolution with an already-ready bundle
   expect(accessCalls.some((c) => c.repo === TEST_REPO)).toBe(true); // the private+ok path really ran authorizePreviewAccess
 });
 
+test("/events: a ready private-PR bundle built without a PR base rebuilds once resolve now has one", async () => {
+  const { handlePreview, previewPaths, writeMeta } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+
+  const orig = {
+    enabled: config.privatePreviewsEnabled,
+    appId: config.githubAppId,
+    key: config.githubAppPrivateKey,
+    fetch: globalThis.fetch,
+  };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  const SHA = "5".repeat(40);
+  makeReadyBundle(previewPaths, writeMeta, SHA, { private: true, repo: "octocat/grant-atlas" });
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) {
+      return Response.json({
+        id: 77,
+        html_url: "https://github.com/settings/installations/77",
+        permissions: { contents: "read", metadata: "read", pull_requests: "read" },
+      });
+    }
+    if (u.endsWith("/access_tokens")) return Response.json({ token: "inst-tok" });
+    if (u.includes("/pulls/")) {
+      return Response.json({
+        title: "Spark",
+        user: { login: "alice" },
+        state: "open",
+        head: { sha: SHA, ref: "feat", repo: { full_name: "octocat/grant-atlas" } },
+        base: { ref: "main", sha: "b".repeat(40), repo: { full_name: "octocat/grant-atlas" } },
+      });
+    }
+    if (u.includes("/commits/")) return Response.json({ commit: { committer: { date: "2026-01-01T00:00:00Z" } } });
+    if (u.includes("/tarball/")) return new Response("not found", { status: 404 });
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return new Response("no", { status: 404 });
+    return new Response("no", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  try {
+    accessDecision = "ok";
+    dbQueued = [[], [], [{ sha: SHA }]];
+    const id = encodeURIComponent("octocat:grant-atlas:pull-3");
+    const pathname = `/api/preview/${id}/events`;
+    const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+    const events = await readSSE(res);
+    expect(events).toContainEqual({ phase: "fetching", sha: SHA });
+    expect(events.some((e) => e.phase === "ready")).toBe(false);
+    expect(inflightShas().size).toBe(0);
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+});
+
+test("/events: a ready Contents-only private-PR bundle is not rebuilt while Pulls is still unauthorized", async () => {
+  const { handlePreview, previewPaths, writeMeta } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+
+  const orig = {
+    enabled: config.privatePreviewsEnabled,
+    appId: config.githubAppId,
+    key: config.githubAppPrivateKey,
+    fetch: globalThis.fetch,
+  };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  const SHA = "4".repeat(40);
+  makeReadyBundle(previewPaths, writeMeta, SHA, { private: true, repo: "octocat/grant-atlas" });
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) {
+      return Response.json({
+        id: 77,
+        html_url: "https://github.com/settings/installations/77",
+        permissions: { contents: "read", metadata: "read" },
+      });
+    }
+    if (u.endsWith("/access_tokens")) return Response.json({ token: "inst-tok" });
+    if (u.includes("/pulls/")) return new Response("no", { status: 404 });
+    if (u.includes("/git/ref/")) return Response.json({ object: { sha: SHA } });
+    if (u.includes("/commits/")) return Response.json({ commit: { committer: { date: "2026-01-01T00:00:00Z" } } });
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return new Response("no", { status: 404 });
+    return new Response("no", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  try {
+    accessDecision = "ok";
+    dbQueued = [[], []]; // isBlockedSha → false, then touchPreview
+    const id = encodeURIComponent("octocat:grant-atlas:pull-4");
+    const pathname = `/api/preview/${id}/events`;
+    const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+    const events = await readSSE(res);
+    expect(events).toContainEqual({ phase: "ready", sha: SHA });
+    expect(events.some((e) => e.phase === "fetching")).toBe(false);
+    expect(inflightShas().size).toBe(0);
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+});
+
 test("/events: authorized deferred-private branch with no ready bundle completes the branch lookup and starts a real background build", async () => {
   const { handlePreview } = await freshHandler();
   const { inflightShas } = await import("./build.ts");
@@ -747,6 +930,96 @@ test("diffResponse serves the bundle's own diff.json directly when present, with
   // Exactly what makeReadyBundle wrote — proves the bundle file was served
   // as-is, not recomputed against getIndexes().
   expect(await res.json()).toEqual({ added: [], changed: [] });
+});
+
+test("GET /api/preview/<sha>/diff.repo.json is served from the bundle when present, and 404s when absent", async () => {
+  const { call, previewPaths, writeMeta } = await freshHandler();
+  const SHA_DIFF_REPO = "f".repeat(40);
+  makeReadyBundle(previewPaths, writeMeta, SHA_DIFF_REPO, { private: false });
+  // makeReadyBundle writes docs.json + diff.json only — diff.repo.json (the
+  // `repo`-candidate pair) is a distinct, allowlisted, optional artifact.
+  const missing = await call(`/api/preview/${SHA_DIFF_REPO}/diff.repo.json`);
+  expect(missing.status).toBe(404);
+
+  fs.writeFileSync(
+    path.join(previewPaths(SHA_DIFF_REPO).outDir, "diff.repo.json"),
+    JSON.stringify({ added: ["x"], changed: [] }),
+  );
+  const present = await call(`/api/preview/${SHA_DIFF_REPO}/diff.repo.json`);
+  expect(present.status).toBe(200);
+  expect(await present.json()).toEqual({ added: ["x"], changed: [] });
+});
+
+// ---------------------------------------------------------------------------
+// resolveId: sha-rebuild branch — kind + prBase reconstruction from a
+// previews row. Exported directly from handler.ts so this doesn't need a full
+// /events SSE round-trip or a real background build to observe.
+// ---------------------------------------------------------------------------
+
+test("resolveId: sha rebuild of a canonical PR row reconstructs kind 'pr' + prBase (no sha — base-drift re-resolves the tip)", async () => {
+  const { resolveId } = await import("./handler.ts");
+  const SHA_PR_ROW = "c".repeat(40);
+  dbQueued = [
+    [
+      {
+        sha: SHA_PR_ROW,
+        repo: "sky-ecosystem/next-gen-atlas",
+        ref: "pull-99",
+        kind: "pr",
+        pr_number: 99,
+        pr_title: "Title",
+        pr_author: "alice",
+        pr_state: "open",
+        doc_count: 1,
+        build_ms: 1,
+        blocked_at: null,
+        trust_tier: null,
+        private: false,
+        pr_base_repo: "sky-ecosystem/next-gen-atlas",
+        pr_base_ref: "main",
+      },
+    ],
+  ];
+  const r = await resolveId(SHA_PR_ROW);
+  expect(r).toMatchObject({
+    repo: "sky-ecosystem/next-gen-atlas",
+    sha: SHA_PR_ROW,
+    kind: "pr",
+    pr: { number: 99, title: "Title", author: "alice", state: "open" },
+    prBase: { repo: "sky-ecosystem/next-gen-atlas", ref: "main" },
+  });
+  expect((r as any).prBase.sha).toBeUndefined();
+});
+
+test("resolveId: sha rebuild of a plain branch row (null base columns) reconstructs kind 'branch' + no prBase", async () => {
+  const { resolveId } = await import("./handler.ts");
+  const SHA_BRANCH_ROW = "d".repeat(40);
+  dbQueued = [
+    [
+      {
+        sha: SHA_BRANCH_ROW,
+        repo: "blimpa/next-gen-atlas",
+        ref: "spark",
+        kind: "branch",
+        pr_number: null,
+        pr_title: null,
+        pr_author: null,
+        pr_state: null,
+        doc_count: 1,
+        build_ms: 1,
+        blocked_at: null,
+        trust_tier: null,
+        private: false,
+        pr_base_repo: null,
+        pr_base_ref: null,
+        default_branch: "develop",
+      },
+    ],
+  ];
+  const r = await resolveId(SHA_BRANCH_ROW);
+  expect(r).toMatchObject({ repo: "blimpa/next-gen-atlas", sha: SHA_BRANCH_ROW, kind: "branch", defaultBranch: "develop" });
+  expect((r as any).prBase).toBeUndefined();
+  expect((r as any).pr).toBeUndefined();
 });
 
 // ---------------------------------------------------------------------------

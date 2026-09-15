@@ -29,7 +29,17 @@ const mockDiff = vi.mocked(usePreviewDiff);
 const mockPatch = vi.mocked(usePreviewPatch);
 
 function setDiff(over: Partial<PreviewDiff>) {
-  mockDiff.mockReturnValue({ added: new Set(), changed: new Set(), renumbered: {}, reusedSlot: {}, identitySwap: {}, formerUuid: {}, ...over });
+  mockDiff.mockReturnValue({
+    added: new Set(),
+    changed: new Set(),
+    renumbered: {},
+    retitled: {},
+    reusedSlot: {},
+    identitySwap: {},
+    formerUuid: {},
+    activeBase: null,
+    ...over,
+  });
 }
 
 const PR_META = {
@@ -112,6 +122,49 @@ describe("PreviewHistory preview entry", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the retitled note when a changed doc's title differs from live", () => {
+    setDiff({ changed: new Set(["n1"]), retitled: { n1: ["Old", "New"] } });
+    render(<PreviewHistory nodeId="n1" />);
+    const line = screen.getByText((_content, el) => el?.tagName === "P" && !!el.textContent?.includes("retitled"));
+    expect(line.textContent).toContain("Old");
+    expect(line.textContent).toContain("New");
+  });
+
+  it("omits the retitled note under an identity swap (the ⚠ paragraph already carries both titles)", () => {
+    setDiff({
+      changed: new Set(["n1"]),
+      retitled: { n1: ["Operational GovOps", "Sky Primitives"] },
+      identitySwap: { n1: { oldTitle: "Operational GovOps", newTitle: "Sky Primitives" } },
+    });
+    render(<PreviewHistory nodeId="n1" />);
+    expect(screen.getByText(/Identity changed/)).toBeInTheDocument();
+    expect(screen.queryByText(/retitled/)).toBeNull();
+  });
+
+  it("shows a neutral fallback sentence for a changed doc with no patch, renumber, retitle or swap", () => {
+    setDiff({ changed: new Set(["n1"]) });
+    render(<PreviewHistory nodeId="n1" />);
+    expect(screen.getByText("No visible difference from the live atlas.")).toBeInTheDocument();
+    expect(screen.queryByTestId("diff-view")).not.toBeInTheDocument();
+  });
+
+  it("names the repo base in the neutral fallback sentence when redlined against a repo base", async () => {
+    setDiff({
+      changed: new Set(["n1"]),
+      activeBase: { key: "repo", repo: "acme/fork", ref: "main", auto: true },
+    });
+    mockMeta({ ...PR_META, bases: { auto: "repo", repo: { repo: "acme/fork", ref: "main", mergeBase: "x" } } });
+    render(<PreviewHistory nodeId="n1" />);
+    expect(await screen.findByText("No visible difference from acme/fork:main.")).toBeInTheDocument();
+  });
+
+  it("does not show the neutral fallback sentence when a patch is available", () => {
+    setDiff({ changed: new Set(["n1"]) });
+    mockPatch.mockReturnValue([["+", "added line"], ["-", "removed line"]] as DiffLine[]);
+    render(<PreviewHistory nodeId="n1" />);
+    expect(screen.queryByText("No visible difference from the live atlas.")).not.toBeInTheDocument();
+  });
+
   it("marks a slot-reusing added doc with a superscript asterisk and disclaimer", async () => {
     setDiff({ added: new Set(["n1"]), reusedSlot: { n1: { title: "Old Doc", movedTo: "A.9" } } });
     render(<PreviewHistory nodeId="n1" />);
@@ -159,7 +212,7 @@ describe("PreviewHistory live section", () => {
   it("always renders the live atlas history below the preview entry", () => {
     setDiff({ added: new Set(["n1"]) });
     render(<PreviewHistory nodeId="n1" />);
-    expect(screen.getByText("On the Live Atlas")).toBeInTheDocument();
+    expect(screen.getByText("On the live atlas")).toBeInTheDocument();
     expect(screen.getByTestId("live-history")).toHaveTextContent("live:n1");
   });
 
@@ -167,5 +220,27 @@ describe("PreviewHistory live section", () => {
     setDiff({});
     render(<PreviewHistory nodeId="n1" />);
     expect(screen.getByTestId("live-history")).toBeInTheDocument();
+  });
+
+  it("keeps the live-history heading on the live atlas even when redlined against a repo base", async () => {
+    setDiff({
+      changed: new Set(["n1"]),
+      activeBase: { key: "repo", repo: "acme/fork", ref: "main", auto: true },
+    });
+    mockMeta({ ...PR_META, bases: { auto: "repo", repo: { repo: "acme/fork", ref: "main", mergeBase: "x" } } });
+    render(<PreviewHistory nodeId="n1" />);
+    // The comparison label goes on the silent-change sentence only; the
+    // section below is Postgres history of live main regardless of base.
+    expect(await screen.findByText(/No visible difference from acme\/fork:main/)).toBeInTheDocument();
+    expect(screen.getByText("On the live atlas")).toBeInTheDocument();
+    expect(screen.queryByText("On acme/fork:main")).toBeNull();
+  });
+
+  it("treats a fork/private PR (kind branch + prNumber) as a pull request and links that repo's PR", async () => {
+    setDiff({ added: new Set(["n1"]) });
+    mockMeta({ ...PR_META, kind: "branch", repo: "acme/fork", prNumber: 5, prTitle: "Fork PR" });
+    render(<PreviewHistory nodeId="n1" />);
+    expect(await screen.findByText(/Added\s*in this pull request/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "PR 5" })).toHaveAttribute("href", "https://github.com/acme/fork/pull/5");
   });
 });

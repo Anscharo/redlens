@@ -49,16 +49,16 @@ function withTrace(ctx: ErrorContext, extra?: Record<string, unknown>): Record<s
 }
 
 // Best-effort exception capture for internal failures the chat harness
-// deliberately swallows to keep a turn alive (verifier/advisor transport
-// errors, tool handler crashes, revision-loop failures). No-op when
-// POSTHOG_KEY is unset, same silent-disable as getPosthog().
+// deliberately swallows to keep a turn alive (verifier transport errors,
+// tool handler crashes). No-op when POSTHOG_KEY is unset, same
+// silent-disable as getPosthog().
 export function captureError(error: unknown, ctx: ErrorContext = {}, extra?: Record<string, unknown>): void {
   getPosthog()?.captureException(error, ctx.distinctId, withTrace(ctx, extra));
 }
 
 // Best-effort event capture for silent DEGRADATIONS that aren't exceptions —
-// a judge/advisor call succeeded but returned unparseable JSON, so the turn
-// falls back to "unverified"/"annotate" with no other record it happened.
+// a judge call succeeded but returned unparseable JSON, so the turn falls
+// back to "unverified" with no other record it happened.
 export function captureEvent(event: string, ctx: ErrorContext = {}, properties?: Record<string, unknown>): void {
   const ph = getPosthog();
   if (!ph) return;

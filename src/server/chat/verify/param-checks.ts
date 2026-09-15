@@ -252,26 +252,26 @@ function splitAnswerSentences(text: string): string[] {
 // outcome-equivalent (a row is only ever flagged when some sentence satisfies
 // both conditions) and avoids maintaining two separate candidate-selection
 // code paths for one property.
-// One detected mismatch, structured rather than pre-formatted. The advisor
-// steer wants a sentence (formatParamMismatch below), but the SSE badge wants
-// the parts: `title` + `uuid` let the client link the parameter's document
-// instead of printing a bare doc_no, and `name` — the terse extracted kv key
-// ("maxamount") — is machine vocabulary that should never reach a reader on
-// its own. Kept anyway because the advisor prompt names it, which is how the
-// model finds the value it got wrong.
+// One detected mismatch, structured rather than pre-formatted. formatParamMismatch
+// below renders a sentence used as a dedupe key (see findParamMismatches), but the
+// SSE badge wants the parts: `title` + `uuid` let the client link the parameter's
+// document instead of printing a bare doc_no, and `name` — the terse extracted kv
+// key ("maxamount") — is machine vocabulary that should never reach a reader on
+// its own.
 export interface ParamMismatch {
   stated: string; // the number as the answer wrote it
   actual: string; // our extraction's value, unit-formatted
-  name: string; // extracted kv key — advisor-facing
+  name: string; // extracted kv key — internal/dedupe-facing, not shown to the reader directly
   title: string; // containing doc's title — reader-facing
   owner: string | null;
   uuid: string;
   doc_no: string;
 }
 
-// The advisor steer sentence. Wording is load-bearing for the recovery prompt —
-// it names the exact figure to correct — so it stays as it was when this was
-// the only representation.
+// Renders one mismatch as a sentence naming the exact figure and its atlas
+// value. Used internally as the dedupe key in findParamMismatches (a figure
+// restated across sentences collapses to one entry) and persisted on the
+// round's checks for the reader/record-facing side of a fail badge.
 export function formatParamMismatch(m: ParamMismatch): string {
   const owner = m.owner ? ` (${m.owner})` : "";
   return `answer states ${m.stated} for ${m.name}${owner} but the atlas value is ${m.actual} — ${m.doc_no}`;

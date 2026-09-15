@@ -4,7 +4,7 @@
 //   base — buildSystemPrompt(ix) as shipped
 //   wiki — same + scripts/eval/eval-corpora/wiki-card.md appended to the system prompt
 // Deterministic metrics only (no judge model): retrieval rounds, tool messages,
-// fabrications, verifier verdicts, escalations, latency, tokens. Final answers are
+// fabrications, verifier verdicts, latency, tokens. Final answers are
 // saved to the report for manual quality judging.
 //
 //   pnpm eval:wiki-ab
@@ -116,9 +116,6 @@ interface Result {
   toolMsgs: number; // tool-result messages in the transcript
   fabs: number; // deterministic fabrication count on the final answer
   overall: string | null; // verifier verdict
-  overallRecheck: string | null;
-  escalated: boolean;
-  action: string | null;
   emptyAnswer: boolean;
   latencyMs: number;
   usage: { input: number; output: number };
@@ -130,8 +127,8 @@ interface Result {
 async function runOne(q: BakeoffQuery, arm: Arm): Promise<Result> {
   const started = Date.now();
   const base: Result = {
-    id: q.id, arm, toolRounds: 0, toolMsgs: 0, fabs: 0, overall: null, overallRecheck: null,
-    escalated: false, action: null, emptyAnswer: false, latencyMs: 0,
+    id: q.id, arm, toolRounds: 0, toolMsgs: 0, fabs: 0, overall: null,
+    emptyAnswer: false, latencyMs: 0,
     usage: { input: 0, output: 0 }, harnessTokens: 0, finalAnswer: "", error: null,
   };
   try {
@@ -156,22 +153,17 @@ async function runOne(q: BakeoffQuery, arm: Arm): Promise<Result> {
       evidence: evidenceFromTranscript(t),
     });
     const meta = done.checksMeta ?? [];
-    const advisorRow = meta.find((m) => m.kind === "advisor_recovery");
-    const advVerdict = advisorRow?.verdict as { action?: string } | null | undefined;
     return {
       ...base,
       toolRounds: t.filter((m) => m.role === "assistant" && "tool_calls" in m && Array.isArray(m.tool_calls) && m.tool_calls.length > 0).length,
       toolMsgs: t.filter((m) => m.role === "tool").length,
       fabs: c.invalidCitations.length + c.invalidDocNos.length + c.docNoMismatches.length + c.ungroundedQuotes.length,
       overall: meta.find((m) => m.kind === "verify")?.overall ?? null,
-      overallRecheck: meta.find((m) => m.kind === "verify_recheck")?.overall ?? null,
-      escalated: Boolean(advisorRow),
-      action: advVerdict?.action ?? null,
       emptyAnswer: !done.content.trim(),
       latencyMs: Date.now() - started,
       usage: done.usage,
       harnessTokens: meta
-        .filter((m) => m.kind === "verify" || m.kind === "verify_recheck" || m.kind === "advisor_recovery")
+        .filter((m) => m.kind === "verify")
         .reduce((s, m) => s + (m.inputTokens ?? 0) + (m.outputTokens ?? 0), 0),
       finalAnswer: done.content,
     };
@@ -185,14 +177,14 @@ const save = () => {
   fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true });
   fs.writeFileSync(REPORT_PATH, JSON.stringify({
     ranAt: new Date().toISOString(),
-    slots: { chat: config.chatModel, verifier: config.chatVerifierModel, advisor: config.chatAdvisorModel },
+    slots: { chat: config.chatModel, verifier: config.chatVerifierModel },
     cardChars: CARD.length,
     queries: Object.fromEntries(queries.map((q) => [q.id, { query: q.query, expect: q.expect }])),
     results,
   }, null, 2));
 };
 
-console.log(`wiki-card A/B — chat=${config.chatModel} verifier=${config.chatVerifierModel || "(none)"} advisor=${config.chatAdvisorModel || "(none)"}`);
+console.log(`wiki-card A/B — chat=${config.chatModel} verifier=${config.chatVerifierModel || "(none)"}`);
 console.log(`${queries.length} queries × 2 arms, card ≈ ${Math.round(CARD.length / 4)} tokens\n`);
 
 let cursor = 0;
@@ -207,7 +199,7 @@ async function worker() {
       save();
       const tag = r.error
         ? `ERROR ${r.error.slice(0, 40)}`
-        : `rounds=${r.toolRounds} tools=${r.toolMsgs} fabs=${r.fabs} overall=${r.overall ?? "—"}${r.escalated ? ` ESC→${r.action ?? "none"}` : ""} ${(r.latencyMs / 1000).toFixed(0)}s`;
+        : `rounds=${r.toolRounds} tools=${r.toolMsgs} fabs=${r.fabs} overall=${r.overall ?? "—"} ${(r.latencyMs / 1000).toFixed(0)}s`;
       console.log(`[${results.length}/${queries.length * 2}] ${queries[i].id.padEnd(26)} ${arm.padEnd(4)} ${tag}`);
     }
   }
@@ -236,7 +228,7 @@ for (const arm of ["base", "wiki"] as const) {
   console.log(`  rounds mean        ${mean(rs.map((r) => r.toolRounds)).toFixed(2)}   tool msgs mean ${mean(rs.map((r) => r.toolMsgs)).toFixed(2)}`);
   console.log(`  fabrications total ${rs.reduce((s, r) => s + r.fabs, 0)}`);
   console.log(`  verdicts           ${dist(rs)}`);
-  console.log(`  escalations        ${rs.filter((r) => r.escalated).length}   empty answers ${rs.filter((r) => r.emptyAnswer).length}`);
+  console.log(`  empty answers      ${rs.filter((r) => r.emptyAnswer).length}`);
   console.log(`  latency mean       ${(mean(rs.map((r) => r.latencyMs)) / 1000).toFixed(1)}s`);
   console.log(`  tokens mean        in ${Math.round(mean(rs.map((r) => r.usage.input)))} out ${Math.round(mean(rs.map((r) => r.usage.output)))} harness ${Math.round(mean(rs.map((r) => r.harnessTokens)))}`);
 }

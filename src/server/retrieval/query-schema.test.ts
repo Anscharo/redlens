@@ -17,7 +17,7 @@ describe("atlasQueryShape", () => {
 
   it("accepts a fully populated set of fields", () => {
     const input = {
-      q: "savings rate",
+      query: "savings rate",
       entity: "spark",
       edge_types: ["mentions"],
       target_type: "Core",
@@ -57,5 +57,14 @@ describe("atlasQueryShape", () => {
     expect(() => schema.parse({ recent_commits: 501 })).toThrow();
     expect(schema.parse({ recent_commits: 500 }).recent_commits).toBe(500);
     expect(schema.parse({}).recent_commits).toBeUndefined();
+  });
+
+  it("`q` is accepted as a deprecated alias field, and `query` wins when both are present (atlasQuery resolves the precedence; the schema just lets both through)", () => {
+    const both = schema.parse({ query: "savings rate", q: "zzzznotarealterm" });
+    expect(both.query).toBe("savings rate");
+    expect(both.q).toBe("zzzznotarealterm");
+    const aliasOnly = schema.parse({ q: "savings rate" });
+    expect(aliasOnly.q).toBe("savings rate");
+    expect(aliasOnly.query).toBeUndefined();
   });
 });

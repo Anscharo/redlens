@@ -17,6 +17,7 @@ import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
 import { ATLAS_TOOLS, TOOLS_BY_NAME, toolDescription, type AtlasTool } from "./tool-registry.ts";
 import { execToolDetailed } from "./llm-tools.ts";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
+import { REPORT_CHAT_TOOLS } from "../../../lib/routes.ts";
 
 function mockDb(rows: unknown[] = []) {
   const fn = Object.assign(
@@ -105,6 +106,12 @@ test("TOOLS_BY_NAME indexes every ATLAS_TOOLS entry by its own unique name", () 
   for (const t of ATLAS_TOOLS) expect(TOOLS_BY_NAME.get(t.name)).toBe(t);
 });
 
+test("REPORT_CHAT_TOOLS names only registered tools — a route wired to a renamed/removed tool would silently no-op via validReportTool", () => {
+  for (const [route, toolName] of Object.entries(REPORT_CHAT_TOOLS)) {
+    expect(TOOLS_BY_NAME.has(toolName!), `${route} -> ${toolName}`).toBe(true);
+  }
+});
+
 test("every tool is read-only/non-destructive/idempotent and closed-world", () => {
   for (const t of ATLAS_TOOLS) {
     expect(t.annotations?.readOnlyHint).toBe(true);
@@ -123,25 +130,30 @@ const ARGS: Record<string, Record<string, unknown>> = {
   atlas_get_address: { address: "0x0000000000000000000000000000000000dEaD" },
   atlas_neighbors: { id: "D1" },
   atlas_traverse: { id: "D1", direction: "both" },
-  atlas_entities: { q: "ent" },
+  atlas_entities: { query: "ent" },
   atlas_edges: {},
   atlas_entity: { name: "ent" },
   atlas_filter: { type: "Core" },
   atlas_entity_params: { id: "D1" },
-  atlas_params: { q: "governance duties" },
+  atlas_params: { query: "governance duties" },
   atlas_history: { id: "D1", with_diff: true },
   atlas_recent_changes: {},
   atlas_history_stats: { include_top_docs: true, include_prs: true, group_by: ["doc_type"] },
   atlas_pr: { pr_number: 1 },
   atlas_changed_between: { commit_a: "abc1234", commit_b: "def5678" },
   atlas_first_seen: { ids: ["D1", "ent"] },
-  atlas_query: { q: "governance" },
+  atlas_query: { query: "governance" },
   atlas_report_multisigs: {},
   atlas_report_primitive_matrix: {},
   atlas_report_facilitator_responsibilities: {},
   atlas_report_govops_responsibilities: {},
   atlas_report_rewards: {},
   atlas_report_active_data: {},
+  atlas_report_stale_dates: {},
+  atlas_report_processes: {},
+  atlas_report_oea_assessment: {},
+  atlas_report_risk_rules: {},
+  atlas_report_addresses: {},
 };
 
 test("ARGS fixture covers exactly the registered tool set (fails loudly on drift)", () => {

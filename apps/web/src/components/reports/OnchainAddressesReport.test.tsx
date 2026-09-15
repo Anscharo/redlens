@@ -55,6 +55,7 @@ const addrMap: Record<string, AddressInfo> = {
 let balancesImpl: () => Promise<BalancesResponse> = () =>
   Promise.resolve({
     lastCheckedAt: "2026-08-01T00:00:00.000Z",
+    oldestCheckedAt: "2026-08-01T00:00:00.000Z",
     nextRefreshAt: "2020-01-01T00:00:00.000Z", // in the past — refresh allowed
     refreshed: false,
     addresses: {
@@ -90,6 +91,7 @@ afterEach(() => {
   balancesImpl = () =>
     Promise.resolve({
       lastCheckedAt: "2026-08-01T00:00:00.000Z",
+      oldestCheckedAt: "2026-08-01T00:00:00.000Z",
       nextRefreshAt: "2020-01-01T00:00:00.000Z",
       refreshed: false,
       addresses: {
@@ -162,6 +164,7 @@ describe("OnchainAddressesReport", () => {
     balancesImpl = () =>
       Promise.resolve({
         lastCheckedAt: "2026-08-05T09:00:00.000Z",
+        oldestCheckedAt: "2026-08-05T09:00:00.000Z",
         nextRefreshAt: new Date(Date.now() + 3_600_000).toISOString(), // an hour out — cooldown active
         refreshed: false,
         addresses: {},
@@ -169,7 +172,7 @@ describe("OnchainAddressesReport", () => {
     render(<OnchainAddressesReport query="" mode="broad" />);
     const btn = await screen.findByRole("button", { name: "Refresh balances" });
     expect(btn).toBeDisabled();
-    expect(screen.getByText(/balances updated/)).toBeInTheDocument();
+    expect(screen.getByText(/balances updated since/)).toBeInTheDocument();
   });
 
   it("runs a refresh on click, disabling the button meanwhile and updating the balances line", async () => {
@@ -185,12 +188,13 @@ describe("OnchainAddressesReport", () => {
 
     resolveRefresh({
       lastCheckedAt: "2026-08-05T10:00:00.000Z",
+      oldestCheckedAt: "2026-08-05T10:00:00.000Z",
       nextRefreshAt: new Date(Date.now() + 3_600_000).toISOString(),
       refreshed: true,
       addresses: {},
     });
     expect(await screen.findByRole("button", { name: "Refresh balances" })).toBeInTheDocument();
-    expect(screen.getByText(/balances updated/)).toBeInTheDocument();
+    expect(screen.getByText(/balances updated since/)).toBeInTheDocument();
   });
 
   it("shows a balances-unavailable message when the refresh request fails", async () => {

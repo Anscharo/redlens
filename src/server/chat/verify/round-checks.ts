@@ -1,7 +1,7 @@
 // Deterministic per-round retrieval telemetry for the chat reliability harness
 // (docs/chat-system.md §6). Pure code, zero model cost —
-// accumulated across a turn via chat-loop's onRoundEnd, it feeds the advisor
-// escalation gate ("retrieval trouble") and the verifier prompt's telemetry
+// accumulated across a turn via chat-loop's onRoundEnd, it is persisted on the
+// turn's `round_checks` row and folded into the verifier prompt's telemetry
 // section. Model-based round digests are explicitly NOT v1.
 import { isErrorResult, type RoundInfo } from "../chat-loop.ts";
 
@@ -17,7 +17,7 @@ export interface RoundTelemetry {
   // literals directly and live outside this file's ownership — keeping this
   // optional means adding it here doesn't force an edit across that boundary.
   semanticSkips?: number; // a tool result carried a semantic_skipped reason (degraded to lexical-only)
-  notes: string[]; // human-readable, one per flagged event — fed to verifier/advisor prompts
+  notes: string[]; // human-readable, one per flagged event — fed to the verifier prompt and persisted on round_checks
 }
 
 // "Ran fine, found nothing": every array field is empty and no field carries a

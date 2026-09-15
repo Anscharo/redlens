@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useDataSource } from "../../lib/dataSource";
 import { usePreviewDiff, usePreviewPatch } from "../../lib/previewDiff";
+import { diffBaseLabel, type PreviewMeta } from "../../lib/previewMetaCopy";
 import { NodeHistory } from "./NodeHistory";
 import { DiffView } from "./DiffView";
+import { PreviewChangeNotes } from "./PreviewChangeNotes";
 import { CONTENT_INDENT, LINE1_H, TimelineRow } from "./Timeline";
 
 // History tab in preview mode. The real per-doc history lives in Postgres for
@@ -10,34 +12,24 @@ import { CONTENT_INDENT, LINE1_H, TimelineRow } from "./Timeline";
 // synthesize "this preview adds/changes this doc" from the accurate diff, with a
 // link to the source. (Diff-as-history; real per-commit history is P2.)
 const CANONICAL = "sky-ecosystem/next-gen-atlas";
-// The ⚠ glyph renders small for its weight next to 11px mono — size it up 25%.
-const WARN_GLYPH = { fontSize: "1.25em" };
-
-interface Meta {
-  ref: string;
-  kind: string;
-  repo: string;
-  sha: string;
-  prNumber?: number;
-  prTitle?: string;
-  prAuthor?: string;
-  /** ISO timestamp of the preview's head commit (added to meta.json server-side);
-   *  the preview entry shows its date. Optional — older cached previews lack it. */
-  headCommitAt?: string;
-}
 
 export function PreviewHistory({ nodeId }: { nodeId: string }) {
   const { base } = useDataSource();
   const diff = usePreviewDiff();
   const patch = usePreviewPatch(nodeId);
-  const [meta, setMeta] = useState<Meta | null>(null);
+  const [meta, setMeta] = useState<PreviewMeta | null>(null);
   useEffect(() => {
     fetch(`${base}meta.json`).then((r) => r.json()).then(setMeta).catch(() => {});
   }, [base]);
+  // "the live atlas" (sky/absent) or "{repo}:{ref}" (repo base) — what this
+  // preview's redlines are actually compared against.
+  const label = diffBaseLabel(meta ?? {}, diff.activeBase ?? null);
 
   const status = diff.added.has(nodeId) ? "Added" : diff.changed.has(nodeId) ? "Changed" : null;
   // A changed doc that moved: same UUID, new doc number ([live, preview]).
   const renumber = diff.renumbered[nodeId];
+  // A changed doc whose title differs from the live atlas.
+  const retitle = diff.retitled[nodeId];
   // Added doc whose doc number exists on the live atlas under another uuid
   // (slot reuse, flagged server-side with the old occupant's title + where it
   // moved). The label gets an asterisk; the disclaimer below the live-history
@@ -48,12 +40,15 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
   // UUID (former).
   const swap = diff.identitySwap[nodeId];
   const former = diff.formerUuid[nodeId];
+  // A PR is anything with a PR number — same rule as PreviewBanner. Only a
+  // canonical PR (kind "pr") lives on the canonical repo; a fork's or private
+  // repo's own PR (kind stays "branch", see resolve.ts) links to that repo.
+  const isPr = !!meta?.prNumber;
   const srcUrl = meta
-    ? meta.kind === "pr" && meta.prNumber
-      ? `https://github.com/${CANONICAL}/pull/${meta.prNumber}`
+    ? isPr
+      ? `https://github.com/${meta.kind === "pr" ? CANONICAL : meta.repo}/pull/${meta.prNumber}`
       : `https://github.com/${meta.repo}/commit/${meta.sha}`
     : null;
-  const isPr = meta?.kind === "pr" && !!meta.prNumber;
   // What actually made the change — a PR or a bare branch. Until meta.json lands
   // we don't know which, so fall back to the neutral "preview".
   const source = meta ? (isPr ? "pull request" : "branch") : "preview";
@@ -108,28 +103,19 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
               className={`italic text-[12px] ${hasLine1 ? "leading-snug mt-1" : ""}`}
               style={{ color: "var(--tan)", ...(hasLine1 ? null : { lineHeight: `${LINE1_H}px` }) }}
             >
-              Branch: {meta.repo.split("/")[0]}/{meta.ref}
+              Branch: {meta.repo?.split("/")[0]}/{meta.ref}
             </p>
           )}
-          {swap && (
-            <p className="my-2 leading-snug" style={{ color: "var(--warn)" }}>
-              <span style={WARN_GLYPH}>⚠</span> Identity changed — this UUID now holds a different document: “{swap.oldTitle}” <span className="enlargen">→</span> “{swap.newTitle}”.{" "}
-              {swap.movedTo
-                ? `The previous content moved to ${swap.movedTo.doc_no} (“${swap.movedTo.title}”) under a new UUID.`
-                : `The previous content is not present in this ${source}.`}
-            </p>
-          )}
-          {former && (
-            <p className="my-2 leading-snug" style={{ color: "var(--warn)" }}>
-              <span style={WARN_GLYPH}>⚠</span> This content previously appeared under a different UUID — {former.previousId} (“{former.previousTitle}” at {former.previousDocNo}).
-            </p>
-          )}
-          {renumber && (
-            <p className="mt-1" style={{ color: "var(--lilac)" }}>
-              renumbered {renumber[0]}{" "}
-              <span className="enlargen">→</span> {renumber[1]}
-            </p>
-          )}
+          <PreviewChangeNotes
+            swap={swap}
+            former={former}
+            renumber={renumber}
+            retitle={retitle}
+            source={source}
+            hasPatch={!!patch && patch.length > 0}
+            status={status}
+            label={label}
+          />
           {srcUrl && (
             <a href={srcUrl} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: "var(--accent)" }}>
               view on GitHub
@@ -149,8 +135,10 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
           above, the live rail then runs up to just under the divider instead of
           starting at the first entry. */}
       <TimelineRow hideTop={!status}>
+        {/* Always the live atlas: the section below is Postgres history of
+            live main, whatever base the redline above was computed against. */}
         <h4 className="mb-2 text-sm" style={{ color: "var(--tan-3)" }}>
-          On the Live Atlas
+          On the live atlas
         </h4>
         {reused && (
           <p className="mb-2 leading-snug" style={{ color: "var(--tan-3)" }}>

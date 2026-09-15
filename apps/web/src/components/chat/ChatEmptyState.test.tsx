@@ -15,7 +15,6 @@ import { ChatEmptyState } from "./ChatEmptyState";
 const baseContext: PageContextView = {
   short: "Ask the Sky Atlas",
   placeholder: "Ask about the Sky Atlas…",
-  label: "Sky Atlas",
   chip: "atlas",
 };
 
@@ -59,9 +58,9 @@ describe("ChatEmptyState greeting + starters", () => {
 
   it("shows name-aware copy without promising a one-call pull when there is no reportTool", () => {
     listConversations.mockResolvedValue([]);
-    renderEmpty({ context: { ...baseContext, reportName: "Stale Dates" } });
-    expect(screen.getByText("Viewing the Stale Dates report")).toBeInTheDocument();
-    expect(screen.getByText("What is the Stale Dates report about?")).toBeInTheDocument();
+    renderEmpty({ context: { ...baseContext, reportName: "Modification Frequency" } });
+    expect(screen.getByText("Viewing the Modification Frequency report")).toBeInTheDocument();
+    expect(screen.getByText("What is the Modification Frequency report about?")).toBeInTheDocument();
     expect(screen.queryByText(/pull this full report in one call/i)).toBeNull();
   });
 

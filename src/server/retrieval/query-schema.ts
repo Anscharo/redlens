@@ -5,7 +5,7 @@
 import { z } from "zod";
 
 export const atlasQueryShape = {
-  q: z.string().optional().describe("Keyword/semantic search terms (hybrid by default)."),
+  query: z.string().optional().describe("Keyword/semantic search terms (hybrid by default)."),
   entity: z.string().optional().describe("Entity slug. With no other graph params: edge-grouped docs (broad view)."),
   edge_types: z.array(z.string()).optional().describe("Filter entity edges to these types."),
   target_type: z.string().optional().describe("Atlas doc type filter (e.g. 'Active Data', 'Primitive Instance')."),
@@ -39,4 +39,5 @@ export const atlasQueryShape = {
         "fetch full text for the ids you want with atlas_get. Set true to inline full content + ancestor ids " +
         "(ancestors are deduped into a top-level `ancestors` map).",
     ),
+  q: z.string().optional().describe("Deprecated alias of `query`."),
 } as const;

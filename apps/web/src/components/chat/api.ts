@@ -11,9 +11,17 @@ export function apiUrl(path: string): string {
 // the `meta`/`error` envelope events emitted by the route (src/server/chat/chat.ts).
 export type VerifyOverall = "pass" | "warn" | "fail" | "unverified";
 
-export interface VerifyClaim {
-  claim: string;
-  status: "supported" | "unsupported" | "contradicted";
+// A statement the verifier's evidence contradicts (server: chat/verify — the
+// refutation-only design). `uuid` is the cited/relevant doc when the auditor
+// could resolve one, else null. Only AGREED contradictions (a second
+// `confirm` auditor independently agreed) reach the wire — the confirm gate
+// is a hard gate, so a candidate it did not agree with is dropped server-side
+// and never reaches the client at all.
+export interface VerifyContradiction {
+  answer: string; // the sentence/statement from the answer being disputed
+  evidence: string; // the quoted evidence span that contradicts it
+  why: string; // the auditor's stated reason
+  uuid: string | null;
 }
 
 // A wrong stated value for a known atlas parameter (server:
@@ -30,31 +38,23 @@ export interface ParamMismatch {
   doc_no: string;
 }
 
-// docs/chat-system.md §8. "streaming" (default) is today's
-// token-by-token render; "staged" suppresses token/clear and renders an honest
-// stage progression, revealing the verified answer once in `done`.
-export type Delivery = "streaming" | "staged";
-
-// Full stage vocabulary post staged-delivery: the original harness stages plus
-// comparing/synthesizing/finalizing, which only ever fire in staged mode.
+// The streaming-vs-staged delivery split is gone: every token/clear is always
+// forwarded, and the orchestrator emits `status{stage:"synthesizing"}` once
+// per generation burst plus `answer_final` after citation repair (before
+// checking/verify_result/done). Stage vocabulary below.
 export type Stage =
   | "recalling"
   | "querying"
-  | "reading"
-  | "checking"
-  | "advising"
-  | "revising"
-  | "comparing"
   | "synthesizing"
-  | "finalizing";
+  | "comparing"
+  | "checking";
 
 export type ChatEvent =
-  | { type: "meta"; conversationId: string; delivery?: Delivery }
+  | { type: "meta"; conversationId: string; tier?: string }
   | { type: "token"; text: string }
   // Incremental reasoning/"thinking" delta — interleaved with the rest of
-  // the stream in BOTH streaming and staged delivery. Never part of the
-  // answer: useChatStream accumulates it onto ChatMsg.reasoning, never
-  // `content`.
+  // the stream. Never part of the answer: useChatStream accumulates it onto
+  // ChatMsg.reasoning, never `content`/`draft`.
   | { type: "reasoning"; text: string }
   | {
       type: "clear";
@@ -63,13 +63,29 @@ export type ChatEvent =
       //     calls. The client keeps remaining prose as an unverified draft
       //     (not struck) and folds leaked tool-call markup into thinking.
       //   - degenerate — a repetition loop; the client still wipes.
-      //   - revision — the streamed draft failed verification and is about
-      //     to be replaced; the client keeps it struck through.
-      //   - restore — a revision attempt failed and the ORIGINAL answer is
-      //     about to be re-sent in `done`; the struck draft is dropped so
-      //     the reader doesn't see the same text twice.
-      reason?: "tool_round" | "degenerate" | "revision" | "restore";
+      reason?: "tool_round" | "degenerate";
     }
+  // A deterministic per-paragraph audit result — the incremental pass that
+  // runs while the answer streams (a per-paragraph MODEL audit runs
+  // concurrently — see `paragraph_refute` below). Emitted right after the
+  // token that completes a paragraph, plus once more at generation end for
+  // the trailing paragraph, before `answer_final`. Ordering within a
+  // generation burst: token* (paragraph_check | paragraph_refute)* …
+  // answer_final — a `paragraph_refute` for a given index may arrive before
+  // or after its `paragraph_check` (the model call races the deterministic
+  // one). `index` counts from 0 within the current burst and resets on
+  // `tool_call`/`clear`. `text` is the checked paragraph (citation-repaired).
+  // `findings` are reader-facing sentences, `[]` when clean.
+  | { type: "paragraph_check"; index: number; text: string; findings: string[] }
+  // The model's `refute` audit result for one paragraph, submitted right
+  // after that paragraph's `paragraph_check` and reported when it resolves —
+  // may land before or after the matching `paragraph_check` event.
+  // `parsed:false` means the model call failed or timed out for this
+  // paragraph. `candidates` is the count of contradiction candidates the
+  // model asserted that survived code-span validation — they still have to
+  // clear the confirm gate before affecting the verdict, so this is "under
+  // review", not a verdict.
+  | { type: "paragraph_refute"; index: number; parsed: boolean; candidates: number }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; ok: boolean; bytes: number; truncated?: boolean; originalBytes?: number }
   // A downloadable file the agent produced via the export_findings tool.
@@ -81,12 +97,26 @@ export type ChatEvent =
   // definitions, entity rows, censuses, app documentation — src/server/facts).
   // One entry per fact that fired, already phrased for the reader.
   | { type: "facts"; facts: { id: string; summary: string }[]; bytes?: number }
+  // The final answer text, after deterministic citation repair, emitted once
+  // per turn BEFORE checking/verify_result/done — rewrites are gone, so this
+  // content is final. If the server took an early exit, no `answer_final`
+  // arrives and `done` is the reveal instead.
+  | { type: "answer_final"; content: string }
   | {
       type: "verify_result";
       overall: VerifyOverall;
-      confidence: number | null;
-      action: "annotate" | "revised" | null;
-      claims: VerifyClaim[];
+      // Contradictions both auditors agreed on — these drive `fail`. An
+      // unagreed candidate never reaches this array or the wire at all; it
+      // survives only in the persisted Verdict (message_checks.verdict) as
+      // the confirm gate's calibration record.
+      contradictions: VerifyContradiction[];
+      // Statements the auditor could not locate in evidence at all, capped at
+      // 5. Informational only — never affects `overall`. Optional so an older
+      // server that predates this field still parses.
+      notFound?: string[];
+      // The answer issued a ruling/verdict instead of reporting what the
+      // atlas says (the `overreach` auditor). Optional for the same reason.
+      rulingIssued?: boolean;
       invalidCitations: string[];
       invalidDocNos: string[];
       docNoMismatches: string[];

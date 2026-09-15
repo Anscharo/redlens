@@ -6,7 +6,7 @@
 // The semantic leg is FORCED off below rather than assumed off. It short-
 // circuits to [] only when `config.openrouterApiKey` is falsy, and that used to
 // be left to ambient env — but bun auto-loads `.env.local`, so any developer
-// with a real OPENROUTER_API_KEY exported turned every `q:` case here into a
+// with a real OPENROUTER_API_KEY exported turned every `query:` case here into a
 // live embedding request, and on a network hiccup embed.ts retries 4× with
 // 1s/2s/4s/8s of real sleep (~15s per call). beforeAll/afterAll pin the key to
 // "" and put it back, so the file behaves identically with or without a key.
@@ -107,10 +107,20 @@ function buildFixture() {
 }
 
 describe("atlasQuery — validation", () => {
-  it("errors when none of q/entity/target_type are given", async () => {
+  it("errors when none of query/entity/target_type are given, naming `query` (not the deprecated `q`)", async () => {
     const { ix } = buildFixture();
     const res = await atlasQuery(ix, { k: 10, enrich: false });
-    expect(res.error).toMatch(/at least one of/);
+    expect(res.error).toBe("at least one of query, entity, or target_type is required");
+  });
+
+  it("`q` is a deprecated alias of `query`; `query` wins when both are present", async () => {
+    const { ix } = buildFixture();
+    const viaAlias = await atlasQuery(ix, { q: "savings rate", k: 10, enrich: false });
+    const viaQuery = await atlasQuery(ix, { query: "savings rate", k: 10, enrich: false });
+    expect(viaAlias.results).toEqual(viaQuery.results);
+    // `query` set alongside a conflicting `q` must win.
+    const both = await atlasQuery(ix, { query: "savings rate", q: "zzzznotarealterm", k: 10, enrich: false });
+    expect(both.results).toEqual(viaQuery.results);
   });
 
   it("errors when the entity doesn't resolve to anything", async () => {
@@ -184,9 +194,9 @@ describe("atlasQuery — entity_narrow", () => {
 });
 
 describe("atlasQuery — search / hybrid_graph", () => {
-  it("plain q performs lexical search (semantic leg forced off — see the file header)", async () => {
+  it("plain query performs lexical search (semantic leg forced off — see the file header)", async () => {
     const { ix } = buildFixture();
-    const res = await atlasQuery(ix, { q: "savings rate", k: 10, enrich: false });
+    const res = await atlasQuery(ix, { query: "savings rate", k: 10, enrich: false });
     expect(res.mode).toBe("search");
     const ids = (res.results as { id: string }[]).map((r) => r.id);
     expect(ids).toContain("spark-doc");
@@ -194,22 +204,22 @@ describe("atlasQuery — search / hybrid_graph", () => {
     expect((res.results as { snippet?: string }[])[0].snippet).toBeDefined();
   });
 
-  it("q + entity combined narrows to hybrid_graph mode, intersecting search hits with entity docs", async () => {
+  it("query + entity combined narrows to hybrid_graph mode, intersecting search hits with entity docs", async () => {
     const { ix } = buildFixture();
     // direction defaults to "both", so keeper-network's connected docs are
     // keeper-doc (its own active_data_for edge) AND spark-doc (inbound
     // cites_entity from spark-doc) — both also lexically match "active data"
     // (one term each via OR combine), so both should survive the intersection.
-    const res = await atlasQuery(ix, { q: "active data", entity: "keeper-network", k: 10, enrich: false });
+    const res = await atlasQuery(ix, { query: "active data", entity: "keeper-network", k: 10, enrich: false });
     expect(res.mode).toBe("hybrid_graph");
     const ids = (res.results as { id: string }[]).map((r) => r.id);
     expect(ids.sort()).toEqual(["keeper-doc", "spark-doc"]);
   });
 
-  it("q + entity narrows to just the entity's own docs when edge_types pins a single relation", async () => {
+  it("query + entity narrows to just the entity's own docs when edge_types pins a single relation", async () => {
     const { ix } = buildFixture();
     const res = await atlasQuery(ix, {
-      q: "active data",
+      query: "active data",
       entity: "keeper-network",
       edge_types: ["active_data_for"],
       k: 10,
@@ -222,7 +232,7 @@ describe("atlasQuery — search / hybrid_graph", () => {
 
   it("enrich=true inlines full content + ancestor_ids and dedupes ancestors at the top level", async () => {
     const { ix } = buildFixture();
-    const res = await atlasQuery(ix, { q: "savings rate", k: 10, enrich: true });
+    const res = await atlasQuery(ix, { query: "savings rate", k: 10, enrich: true });
     const first = (res.results as { id: string; content?: string; ancestor_ids?: string[] }[])[0];
     expect(first.content).toBeDefined();
     expect(first.ancestor_ids).toContain("root");
@@ -232,16 +242,16 @@ describe("atlasQuery — search / hybrid_graph", () => {
 
   it("include_params inlines immediate children as params", async () => {
     const { ix } = buildFixture();
-    const res = await atlasQuery(ix, { q: "savings rate", k: 10, enrich: false, include_params: true });
+    const res = await atlasQuery(ix, { query: "savings rate", k: 10, enrich: false, include_params: true });
     const first = (res.results as { id: string; params?: unknown[] }[])[0];
     expect(first.params).toEqual([expect.objectContaining({ id: "spark-child" })]);
   });
 
-  it("quoted phrase in q requires the exact phrase (post-filter)", async () => {
+  it("quoted phrase in query requires the exact phrase (post-filter)", async () => {
     const { ix } = buildFixture();
     // "Savings Rate" appears in spark-doc; a phrase not present anywhere should
     // filter every hit away even if individual terms match.
-    const res = await atlasQuery(ix, { q: '"totally absent phrase"', k: 10, enrich: false });
+    const res = await atlasQuery(ix, { query: '"totally absent phrase"', k: 10, enrich: false });
     expect(res.results).toEqual([]);
   });
 });
@@ -303,7 +313,7 @@ describe("zero results with filters applied", () => {
     // activeFilters/emptyByFilters branch either way.
     const { ix } = buildFixture();
     const out = (await atlasQuery(ix, {
-      q: "spark",
+      query: "spark",
       status: "Suspended",
       k: 10,
       enrich: false,
@@ -316,7 +326,7 @@ describe("zero results with filters applied", () => {
 
   it("stays silent when a query legitimately finds nothing with no filters", async () => {
     const { ix } = buildFixture();
-    const out = (await atlasQuery(ix, { q: "zzzznotarealterm", k: 10, enrich: false })) as Record<string, unknown>;
+    const out = (await atlasQuery(ix, { query: "zzzznotarealterm", k: 10, enrich: false })) as Record<string, unknown>;
     expect(out.count).toBe(0);
     expect(out).not.toHaveProperty("filters_applied");
     expect(out).not.toHaveProperty("hint");
