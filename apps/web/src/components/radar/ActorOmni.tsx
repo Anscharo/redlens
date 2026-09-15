@@ -9,7 +9,7 @@ function OmniRow({ doc }: { doc: OmniDocRef }) {
     <div className="flex py-1.5 w-full items-baseline min-w-0 border-t border-[var(--border)]">
       <AtlasLink
         to={atlasHref(doc.id)}
-        className="text-sm text-accent hover:underline min-w-0"
+        className="text-sm text-tan hover:underline min-w-0"
       >
         {doc.title}
       </AtlasLink>

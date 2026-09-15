@@ -89,8 +89,9 @@ describe("ActorOmni", () => {
     );
     expect(screen.getByTestId("actor-omni")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Omni" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: ECO })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: AGENT })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: ECO })).toHaveClass("text-tan");
+    expect(screen.getByRole("link", { name: AGENT })).toHaveClass("text-tan");
+    expect(screen.getByRole("link", { name: ECO })).not.toHaveClass("text-accent");
     expect(screen.getAllByText(new RegExp(`“${FUTURE_ITERATION_ESSENCE}”`))).toHaveLength(2);
     expect(screen.queryByRole("link", { name: ROOT })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: GOV })).not.toBeInTheDocument();
