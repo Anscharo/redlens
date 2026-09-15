@@ -136,3 +136,9 @@ docs/ds/
 .claude/skills/mcp-analytics/references/installation.md
 .claude/skills/mcp-analytics/references/intent.md
 .claude/skills/mcp-analytics/references/start-here.md
+
+# Derived report export: rendered from public/potential-mistakes.json by
+# `pnpm mistakes:render`. The JSON is the committed source of truth (it also
+# backs /reports/potential-mistakes); this markdown is generated on demand and
+# would go stale the moment the JSON changed without a re-render.
+ATLAS-FINDINGS.md

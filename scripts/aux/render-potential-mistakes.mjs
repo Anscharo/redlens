@@ -2,6 +2,11 @@
 // the single source of truth (it also backs the /reports/potential-mistakes
 // page); this markdown is a derived, human-readable export.
 //
+// The output is gitignored and generated on demand (`pnpm mistakes:render`),
+// like every other derived artifact in this repo. Committing it would leave a
+// second copy of the findings that goes stale as soon as the JSON is edited
+// without a re-render.
+//
 // Every Issue/Suggested line carries its doc_no INLINE, not just in the heading
 // above it: each line is a concrete claim about a specific Atlas document, and
 // the citation dictate requires the reference to be reachable from the claim
