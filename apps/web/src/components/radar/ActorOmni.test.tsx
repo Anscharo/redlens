@@ -33,7 +33,21 @@ describe("ActorOmni", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("lists only the required Omni docs, with the essence of each summary", () => {
+  it("hides the directory Omni Documents and Governance Information rows", () => {
+    const root = ref("omni", ROOT);
+    const gov = ref("gov", GOV);
+    const { container } = render(
+      <ActorOmni
+        omni={omni({
+          root,
+          required: { root, govInfo: gov, ecosystemEmergency: null, agentEmergency: null },
+        })}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("lists only the emergency-response Omni docs, with the essence of each summary", () => {
     const root = ref(
       "omni",
       ROOT,
@@ -74,22 +88,11 @@ describe("ActorOmni", () => {
       />,
     );
     expect(screen.getByRole("heading", { name: "Omni" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: ROOT })).toHaveAttribute(
-      "href",
-      expect.stringContaining("omni"),
-    );
-    expect(screen.getByRole("link", { name: GOV })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: ECO })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: AGENT })).toBeInTheDocument();
     expect(screen.getAllByText(new RegExp(`“${FUTURE_ITERATION_ESSENCE}”`))).toHaveLength(2);
-    expect(
-      screen.getByText(
-        /“infrastructure inherited from Sky Core, activities unrelated to Sky Primitives/,
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/“The governance process for updating the Spark Artifact is specified/),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: ROOT })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: GOV })).not.toBeInTheDocument();
     expect(screen.queryByText("Ecosystem Accords")).not.toBeInTheDocument();
     expect(screen.queryByText("Delegation Framework")).not.toBeInTheDocument();
   });

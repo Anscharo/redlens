@@ -149,10 +149,8 @@ export function extraOmniSections(omni: ActorOmni): OmniDocRef[] {
   return govId ? omni.sections.filter((s) => s.id !== govId) : omni.sections;
 }
 
-/** The four Omni docs every Prime Artifact must carry (A.1.14.2.5.1), in spec order. */
-export function requiredOmniDocs(omni: ActorOmni): OmniDocRef[] {
-  const { root, govInfo, ecosystemEmergency, agentEmergency } = omni.required;
-  return [root, govInfo, ecosystemEmergency, agentEmergency].filter(
-    (d): d is OmniDocRef => d !== null,
-  );
+/** Emergency-response Omni docs — directory intros (root / gov info) stay off the page. */
+export function omniRows(omni: ActorOmni): OmniDocRef[] {
+  const { ecosystemEmergency, agentEmergency } = omni.required;
+  return [ecosystemEmergency, agentEmergency].filter((d): d is OmniDocRef => d !== null);
 }

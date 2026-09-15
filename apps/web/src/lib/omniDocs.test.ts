@@ -4,7 +4,7 @@ import {
   collectActorOmni,
   extraOmniSections,
   omniEssence,
-  requiredOmniDocs,
+  omniRows,
   EMPTY_OMNI,
   FUTURE_ITERATION_ESSENCE,
   REQUIRED_OMNI_TITLES,
@@ -74,9 +74,7 @@ describe("collectActorOmni", () => {
     expect(omni.required.ecosystemEmergency?.id).toBe("eco");
     expect(omni.required.agentEmergency?.id).toBe("agent-em");
     expect(extraOmniSections(omni).map((s) => s.title)).toEqual(["Ecosystem Accords"]);
-    expect(requiredOmniDocs(omni).map((s) => s.title)).toEqual([
-      REQUIRED_OMNI_TITLES.root,
-      REQUIRED_OMNI_TITLES.govInfo,
+    expect(omniRows(omni).map((s) => s.title)).toEqual([
       REQUIRED_OMNI_TITLES.ecosystemEmergency,
       REQUIRED_OMNI_TITLES.agentEmergency,
     ]);

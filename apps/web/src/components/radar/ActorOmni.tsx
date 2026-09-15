@@ -1,7 +1,7 @@
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
 import type { ActorOmni, OmniDocRef } from "../../lib/omniDocs";
-import { omniEssence, requiredOmniDocs } from "../../lib/omniDocs";
+import { omniEssence, omniRows } from "../../lib/omniDocs";
 
 function OmniRow({ doc }: { doc: OmniDocRef }) {
   const essence = omniEssence(doc.content);
@@ -33,7 +33,7 @@ function OmniRow({ doc }: { doc: OmniDocRef }) {
 }
 
 export function ActorOmni({ omni }: { omni: ActorOmni }) {
-  const rows = requiredOmniDocs(omni);
+  const rows = omniRows(omni);
   if (rows.length === 0) return null;
 
   return (

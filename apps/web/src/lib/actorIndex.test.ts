@@ -7,7 +7,7 @@ import path from "node:path";
 import type { AtlasNode, GraphEntity, RelationEdge } from "@/types";
 import type { GraphData } from "@/lib/graphData";
 import { buildSidebarActors, buildActorProfile } from "./actorIndex";
-import { EMPTY_OMNI, extraOmniSections, requiredOmniDocs, REQUIRED_OMNI_TITLES } from "./omniDocs";
+import { EMPTY_OMNI, extraOmniSections, omniRows, REQUIRED_OMNI_TITLES } from "./omniDocs";
 import { buildChainMap, buildActiveDataRows, type ActiveDataRow } from "@/lib/activeDataIndex";
 import { buildRewardsIndex } from "@/lib/rewardsIndex";
 import { EXEC_EDGES, FAC_EDGES, CHAIN_EDGES } from "@/lib/roleEdges";
@@ -308,11 +308,9 @@ describe("buildActorProfile — omni docs", () => {
     expect(profile(fac!.slug)!.omni).toEqual(EMPTY_OMNI);
   });
 
-  it("keeps extra Omni sections out of the required shared set", () => {
+  it("lists only the shared emergency-response Omni docs", () => {
     const spark = profile("spark")!;
-    expect(requiredOmniDocs(spark.omni).map((d) => d.title)).toEqual([
-      REQUIRED_OMNI_TITLES.root,
-      REQUIRED_OMNI_TITLES.govInfo,
+    expect(omniRows(spark.omni).map((d) => d.title)).toEqual([
       REQUIRED_OMNI_TITLES.ecosystemEmergency,
       REQUIRED_OMNI_TITLES.agentEmergency,
     ]);
