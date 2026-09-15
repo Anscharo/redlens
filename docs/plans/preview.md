@@ -103,7 +103,9 @@ win. Work is on branch **`futures`**. Build order is the "Build sequencing" sect
     `NodeHistory` below ("On the live atlas" — UUIDs are stable so `/api/history/<uuid>` is valid).
   - **Unified accurate diff** — `fetchPreviewFiles`: PR → `/pulls/{n}/files`; branch/sha/fork →
     `compare/main...{sha}` (merge-base, works cross-fork by bare sha). The "branch/sha degrade"
-    item is FIXED. Compare's 300-file cap (files don't paginate — verified) recovered via
+    item is FIXED. (2026-09-14: the compare now runs against the PR's own base branch, or the
+    later of two merge-base candidates for a fork branch — see `docs/plans/private-previews.md`.)
+    Compare's 300-file cap (files don't paginate — verified) recovered via
     per-commit union (≤100 commits, then `diffTruncated`). `runBuild` restructured: diff fetch
     starts before the tarball, graph ∥ glossary (`Promise.all`) — GitHub round-trip fully hidden.
   - **Fork unlock + screening** — see "Fork screening" (Identity section) + security class 3:
@@ -143,8 +145,10 @@ win. Work is on branch **`futures`**. Build order is the "Build sequencing" sect
 - **Diff is now GitHub PR-files, not the vs-main hash diff, for PRs** (supersedes "Visual
   indicators" + the P2 "merge-base diff baseline"). GitHub computes head-vs-base, so we get
   merge-base accuracy *for free* without git history — the P2 item is effectively done for PRs.
-  The vs-main `diffDocs` survives only as the branch/sha fallback. Diff lives in the bundle
-  (`out/diff.json`), immutable per preview sha — no longer keyed by `(previewSha, mainSha)` for PRs.
+  The vs-main `diffDocs` survives only as the `"live-main"` degrade (2026-09-14: when neither
+  diff-base candidate resolves — see `docs/plans/private-previews.md`), not a branch/sha
+  fallback in general. Diff lives in the bundle (`out/diff.json`), immutable per preview sha —
+  no longer keyed by `(previewSha, mainSha)` for PRs.
 - **Changed docs DO get a node-level border now** (dashed green; added = solid). The earlier
   "only border added; changed is too noisy" note was because of the vs-main false positives — the
   PR-files diff removed them, so changed is real and bordered. (Word-level underlines still P2.)

@@ -17,12 +17,16 @@ afterEach(() => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
-function makeBundle(sha: string, opts: { base?: string; ageMs?: number; unfinished?: boolean } = {}): void {
+function makeBundle(sha: string, opts: { base?: string; ageMs?: number; unfinished?: boolean; bases?: boolean } = {}): void {
   const dir = path.join(root, sha);
   fs.mkdirSync(path.join(dir, "out"), { recursive: true });
   if (!opts.unfinished) {
     const meta: Record<string, unknown> = { sha, repo: "r/r", ref: "x", kind: "branch" };
     if (opts.base) meta.baseAtlasCommit = opts.base;
+    // Real bundles always carry `bases` (diff-base.ts's meta.bases) alongside
+    // baseAtlasCommit — opt in per-fixture so the "legacy, no bases at all"
+    // staleness rule (below) has something to distinguish itself from.
+    if (opts.bases) meta.bases = { auto: "live-main" };
     fs.writeFileSync(path.join(dir, "meta.json"), JSON.stringify(meta));
     fs.writeFileSync(path.join(dir, "out", "docs.json"), "{}");
   }
@@ -45,11 +49,18 @@ describe("sweepPreviewBundles", () => {
 
   test("stale baseline past the grace window is removed; current baseline stays", async () => {
     makeBundle("stale", { base: OLD, ageMs: 120_000 });
-    makeBundle("current", { base: MAIN, ageMs: 120_000 });
+    makeBundle("current", { base: MAIN, ageMs: 120_000, bases: true });
     const r = await sweepPreviewBundles({ ...base, root });
     expect(r.stale).toBe(1);
     expect(has("stale")).toBe(false);
     expect(has("current")).toBe(true);
+  });
+
+  test("a matching baseline with no meta.bases at all (pre multi-candidate diff-base bundle) counts as stale too", async () => {
+    makeBundle("no-bases", { base: MAIN, ageMs: 120_000 }); // matching baseline, but `bases` omitted
+    const r = await sweepPreviewBundles({ ...base, root });
+    expect(r.stale).toBe(1);
+    expect(has("no-bases")).toBe(false);
   });
 
   test("stale baseline inside the grace window survives (active session)", async () => {
@@ -102,7 +113,7 @@ describe("sweepPreviewBundles", () => {
     const live = getIndexes().meta.atlasCommit;
     expect(typeof live).toBe("string"); // sanity: real artifacts are present in this env
 
-    makeBundle("live-baseline", { base: live!, ageMs: 120_000 });
+    makeBundle("live-baseline", { base: live!, ageMs: 120_000, bases: true });
     const r = await sweepPreviewBundles({ root, blocked: new Set(), skip: new Set(), graceMs: 60_000 }); // no mainCommit key
     expect(r.stale).toBe(0);
     expect(has("live-baseline")).toBe(true);

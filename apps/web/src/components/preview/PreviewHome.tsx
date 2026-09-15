@@ -161,9 +161,11 @@ export function PreviewHome() {
               Preview private repo
             </button>
           </form>
-          {privateId && isPrivatePrId(privateId) && (
+          {privateId && (
             <p className="mono text-xs mt-2" style={{ color: "var(--tan-3)" }}>
-              will compare with sky-ecosystem/next-gen-atlas:main branch
+              {isPrivatePrId(privateId)
+                ? "will compare with the pull request's base branch"
+                : "will compare with the closest shared point with sky-ecosystem/next-gen-atlas:main or this fork's own default branch"}
             </p>
           )}
           {privateInput && !privateId && (
