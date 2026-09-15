@@ -37,8 +37,12 @@ describe("MscFlow", () => {
     const { container } = render(<MscFlow layout={layoutMscFlow(flows)} primes={primes(flows)} month="2026-07" centerFigure="$0" />);
     const node = container.querySelector(".msc-flow-sky-source")!;
     expect(node).toBeInTheDocument();
-    // Named and totalled, in Sky's own blue like the bar on the right.
-    expect(node).toHaveTextContent(/^Sky \| \$36k$/);
+    // In Sky's own blue like the bar on the right, and with NO label of its
+    // own: a second "Sky | …" line sat in the line-item column and read as a
+    // fourth source. The group heading carries the name and the total.
+    expect(node).toHaveTextContent("");
+    expect(node.querySelector("text")).toBeNull();
+    expect(screen.getByText("OWED BY SKY | $36k")).toBeInTheDocument();
     expect(node.querySelector("rect.msc-ring-sky-wedge")).toHaveStyle({ fill: "var(--msc-sky)" });
     // One ribbon per demand-side source, in that source's own fill.
     expect([...node.querySelectorAll("path.msc-ring-slice")].map((p) => p.getAttribute("class"))).toEqual([
@@ -73,7 +77,8 @@ describe("MscFlow", () => {
     expect(screen.getByText("SKY")).toBeInTheDocument();
     // The source column is grouped by where the money comes FROM.
     expect(screen.getByText("EARNED BY THE PRIME")).toBeInTheDocument();
-    expect(screen.getByText("OWED BY SKY")).toBeInTheDocument();
+    // The Sky group's heading carries its total, so the node needs no label.
+    expect(screen.getByText(/^OWED BY SKY \| \$/)).toBeInTheDocument();
     expect(container.querySelector('.msc-flow-source[data-kind="kept"][data-origin="earned"]')).toBeInTheDocument();
     expect(container.querySelector('.msc-flow-source[data-kind="agentRate"][data-origin="sky"]')).toBeInTheDocument();
     // Sky's column names no Prime; the share pill does.

@@ -69,6 +69,9 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
               ))}
               {/* Painted in Sky's own blue, like the bar on the right, so the
                   two ends read as the same party rather than two charts. */}
+              {/* No label of its own: the group heading above already reads
+                  "OWED BY SKY | <total>". A second "Sky | …" line here sat in
+                  the line-item column and read as a fourth source. */}
               <rect
                 x={layout.skySource.x}
                 y={layout.skySource.y}
@@ -77,17 +80,16 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
                 className="msc-ring-sky-wedge"
                 style={{ fill: "var(--msc-sky)" }}
               />
-              <text x={layout.skySource.x + NODE_W} y={layout.skySource.labelY} textAnchor="end" fontSize={44} className="msc-ring-label">
-                Sky
-                <tspan className="msc-ring-sublabel mono"> | {formatUsd(layout.skySource.value, true)}</tspan>
-              </text>
             </g>
           )}
           {layout.sources.map((s) => (
             <g key={s.kind} className="msc-flow-source" data-kind={s.kind} data-origin={s.origin} style={{ opacity: s.alpha }}>
+              {/* The group heading carries the group's total, so the Sky node
+                  below needs no label of its own. */}
               {s.headingY != null && (
                 <text x={LEFT_X + NODE_W} y={s.headingY} textAnchor="end" fontSize={30} className="msc-flow-header mono">
                   {GROUP_HEADING[s.origin]}
+                  {s.origin === "sky" && layout.skySource ? ` | ${formatUsd(layout.skySource.value, true)}` : ""}
                 </text>
               )}
               <rect x={s.x} y={s.y} width={NODE_W} height={s.h} className={`msc-ring-${s.kind}`} />
