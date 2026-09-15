@@ -209,6 +209,26 @@ describe("extractEntityLabel — sentence boundaries", () => {
     const [c, i] = ctx("The Grove Vault v2.beta address is ");
     expect(extractEntityLabel(c, i, null)).toBe("The Grove Vault v2.beta");
   });
+
+  it("keeps only the last sentence when the window holds several", () => {
+    // The capture class contains "." on purpose — expressing the rule as a
+    // lookahead inside the quantified capture segfaults Bun (see the
+    // SENTENCE_BREAK comment in address-annotate.mjs). So the whole reach-back
+    // is trimmed off afterwards, and a window of full sentences must still
+    // yield the name from the last one.
+    const [c, i] = ctx(
+      "The Beacon whitelists Facets. Only registered Facets may be called. " +
+        "Sky Governance controls it through the Pause Proxy. The Wrap Proxy ETH Facet's address is ",
+    );
+    expect(extractEntityLabel(c, i, null)).toBe("The Wrap Proxy ETH Facet");
+  });
+
+  it("a dotted name in the last sentence survives the trim", () => {
+    const [c, i] = ctx(
+      "Rewards are paid monthly. The Sky.money v2.1 Reward Multisig's address is ",
+    );
+    expect(extractEntityLabel(c, i, null)).toBe("The Sky.money v2.1 Reward Multisig");
+  });
 });
 
 describe("extractEntityLabel — extra whitespace", () => {

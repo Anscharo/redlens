@@ -66,45 +66,47 @@ const TOKEN_RE = new RegExp(
   "g",
 );
 
-// What a "." means inside a name. A dot is punctuation only when it ENDS A
-// SENTENCE — letter, ".", optional closing quote/bracket, space, capitalised
-// word ("…into WETH. Its address is"). A dot between letters ("Sky.money",
-// "U.S.A") or touching a digit ("v1.5", "0.75") is part of the token.
+// A "." ends a sentence in exactly one shape: letter, ".", optional closing
+// quote/bracket, space, capitalised word ("\u2026into WETH. Its address is"). A dot
+// between letters ("Sky.money", "U.S.A") or touching a digit ("v1.5", "0.75") is
+// part of the token, not punctuation.
 //
-// This matters because the capture below is non-greedy and walks BACKWARDS to
-// the first capital: let it cross a sentence end and it swallows the sentence
-// before the name, which is exactly how `entityLabel` used to ship clauses
-// (docs/plans/entitylabel-fragment-defect.md). So a name may contain a dot —
-// just never one that starts a new sentence.
-//
-// The capitalised word is NOT required to be Capital-then-lowercase: an acronym
-// starts a sentence too ("…deposits assets. ALM Proxy's address is"), and
-// letting the walk cross that one costs the whole label (the clause it captures
-// fails isPlausibleName, so the answer becomes null) where stopping at it costs
-// at most a leading acronym. Same reason isPlausibleName treats any ". " as a
-// break: erring toward "this is a sentence" only ever shortens a name.
-const NAME_CHAR = `(?:[A-Za-z0-9 &'’-]|\\.(?!["')\\]]?\\s+[A-Z]))`;
-const NAME = `([A-Z]${NAME_CHAR}{2,60}?)`;
-const NAME_GREEDY = `([A-Z]${NAME_CHAR}{2,60})`;
+// This is enforced AFTER the match, not inside it. The capture below is
+// non-greedy and walks backwards to the first capital, so it can reach over a
+// sentence end and swallow the sentence before the name \u2014 which is how
+// `entityLabel` used to ship clauses (docs/plans/entitylabel-fragment-defect.md).
+// Keeping "." out of the capture class stops that, but it also splits names
+// spelled with a dot. Expressing the rule as a lookahead INSIDE the quantified
+// capture stops both \u2014 and segfaults Bun: `(?:[class]|\\.(?!\u2026)){2,60}?` sends
+// JSC to 1.1GB and a SIGILL on this corpus, which is a crashed Docker build, not
+// a failed test (Bun 1.3.11 and 1.3.14 alike; the plain class never did this).
+// So the class stays plain and the trim happens in JS, which is also strictly
+// better: it keeps the name AFTER the break instead of losing the whole match.
+const SENTENCE_BREAK = /(?<=[A-Za-z])\.["')\]]?\s+(?=[A-Z])/g;
 
-// Entity label patterns — try to pull a proper-noun phrase near the address.
+/** The text after the last sentence break in `s` \u2014 all of `s` when there is none. */
+function afterLastSentenceBreak(s) {
+  let end = 0;
+  SENTENCE_BREAK.lastIndex = 0;
+  for (let m; (m = SENTENCE_BREAK.exec(s)) !== null; ) end = m.index + m[0].length;
+  return end ? s.slice(end) : s;
+}
+
+// Entity label patterns \u2014 try to pull a proper-noun phrase near the address.
 // Each captures group 1 = the entity name.
 const ENTITY_PATTERNS = [
   // "address of the X is" / "address of X is"
-  new RegExp(`\\baddress\\s+of\\s+(?:the\\s+)?${NAME}\\s+(?:is|on|at)\\b`),
+  /\baddress\s+of\s+(?:the\s+)?([A-Z][A-Za-z0-9 .&'\u2019-]{2,60}?)\s+(?:is|on|at)\b/,
   // "the X address is" / "X's address is"
-  new RegExp(`\\b(?:the\\s+)?${NAME}(?:['’]s)?\\s+address\\s+(?:is|on)\\b`),
+  /\b(?:the\s+)?([A-Z][A-Za-z0-9 .&'\u2019-]{2,60}?)(?:['\u2019]s)?\s+address\s+(?:is|on)\b/,
   // "reward address for (the) X is" (Integration Boost / partner phrasing)
-  new RegExp(`\\breward\\s+address\\s+for\\s+(?:the\\s+)?${NAME}\\s+is\\b`),
+  /\breward\s+address\s+for\s+(?:the\s+)?([A-Z][A-Za-z0-9 .&'\u2019-]{2,60}?)\s+is\b/,
   // "X at address"
-  new RegExp(`\\b${NAME}\\s+at\\s+address\\b`),
-  // "Recipient: X" / "Multisig: X" — keyword match is case-insensitive
-  new RegExp(
-    `\\b(?:Recipient|Multisig|Operator|Owner|Controller|Executor)\\s*[:-]\\s*${NAME_GREEDY}`,
-    "i",
-  ),
+  /\b([A-Z][A-Za-z0-9 .&'\u2019-]{2,60}?)\s+at\s+address\b/,
+  // "Recipient: X" / "Multisig: X" \u2014 keyword match is case-insensitive
+  /\b(?:Recipient|Multisig|Operator|Owner|Controller|Executor)\s*[:-]\s*([A-Z][A-Za-z0-9 .&'\u2019-]{2,60})/i,
   // Markdown bold/italic name immediately followed by colon: **X:** or *X:*
-  new RegExp(`\\*\\*${NAME}\\*\\*\\s*[:-]`),
+  /\*\*([A-Z][A-Za-z0-9 .&'\u2019-]{2,60}?)\*\*\s*[:-]/,
 ];
 
 // Combined text for pattern scanning: the sliding window plus any table cells
@@ -195,7 +197,10 @@ export function extractEntityLabel(content, matchIndex, table) {
   for (const re of ENTITY_PATTERNS) {
     const m = before.match(re);
     if (m && m[1]) {
-      const label = m[1].trim().replace(/\s+/g, " ");
+      // Drop whatever the backwards walk picked up from the previous sentence.
+      // Table cells are NOT trimmed: there the whole cell is the candidate, and
+      // cutting a prose cell down to its last sentence would manufacture a name.
+      const label = afterLastSentenceBreak(m[1]).trim().replace(/\s+/g, " ");
       if (isPlausibleName(label)) return label;
     }
   }

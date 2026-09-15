@@ -22,11 +22,25 @@ got shorter**. Only 2 addresses end up with no label at all.
 outright. That also cost names spelled with a dot — `The Sky.money Frontend
 Governance Reward payment` came out as `Frontend Governance Reward payment`. The
 shipped rule is narrower and costs nothing: a `.` is punctuation only when it
-ENDS A SENTENCE (letter, `.`, optional closing quote, space, capitalised word),
-and the capture may contain any other dot. `Sky.money` and `U.S.A` are letters
-either side; `v1.5` and `0.75` touch a digit; neither is a sentence end. Measured
-over all 428 addresses, this differs from the drop-`.` version on exactly one
-label — the one above, recovered — and reintroduces no fragment.
+ENDS A SENTENCE (letter, `.`, optional closing quote, space, capitalised word).
+`Sky.money` and `U.S.A` are letters either side; `v1.5` and `0.75` touch a digit;
+neither is a sentence end. Measured over all 428 addresses, this differs from the
+drop-`.` version on exactly one label — the one above, recovered — and
+reintroduces no fragment.
+
+**The rule is applied AFTER the match, not inside it, and that is load-bearing.**
+The obvious encoding — keep `.` in the capture but guard it with a lookahead,
+`(?:[class]|\.(?!…)){2,60}?` — works under Node and **segfaults Bun**: 1.1 GB
+RSS and a SIGILL on this corpus, on 1.3.11 and 1.3.14 alike. That is a crashed
+Docker build, not a failed test, and it is invisible to the vitest suite because
+vitest runs on Node while the image's `bun run build:graph` does not. It was
+caught by the `Images: web (build + boot)` CI job (and the Railway deploy status)
+after a green local run. So the capture class stays plain and
+`afterLastSentenceBreak()` trims in JS — which is also strictly better: it keeps
+the name AFTER the break (`…Pause Proxy. The Beacon` → `The Beacon`) instead of
+failing the whole match. Prose patterns only; a table cell is never trimmed,
+since cutting a Purpose paragraph down to its last sentence would manufacture a
+name out of prose.
 
 One further widening, deliberate: the word after the space is not required to be
 Capital-then-lowercase, because an acronym starts a sentence too ("…deposits
