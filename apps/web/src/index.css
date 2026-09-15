@@ -109,11 +109,12 @@
      blue, sage green and orange that the settlement pages launched with.
      Their variations are distinct hues, not one-hue lightness ramps —
      "shades of green, teal and blue together are not enough contrast":
-     SDE is a cyan-leaning blue beside cost of funds; agent rate is a
-     distinct teal (not the demand-side aggregate, which stays orange);
-     the rest of the demand-side stack steps brown → salmon → tan (a
-     yellow step read too close to the tan, so distribution rewards went
-     brown). Each variation clears the
+     SDE is a cyan-leaning blue beside cost of funds. The demand-side
+     stack stays off that cool range (green / teal / blue belong to
+     kept / SDE / Sky): agent rate is hot pink (OKLCH H~350), the
+     demand-side aggregate stays orange, and the rest of the stack
+     steps brown → salmon → tan (a yellow step read too close to the
+     tan, so distribution rewards went brown). Each variation clears the
      dataviz validator's normal-vision floor (ΔE ≥ 15) against its
      neighbours in the slice order, and the Prime set does too. The one
      pair under the floor is the originals themselves (sage vs orange,
@@ -131,7 +132,7 @@
   --msc-kept-ink: #160e0d;
   --msc-demand: #e0a060; /* demand-side aggregate (orange family) */
   --msc-demand-ink: #160e0d;
-  --msc-rate: #8fb8c2; /* agent rate — teal, distinct from the demand-side aggregate */
+  --msc-rate: #fb55b1; /* agent rate — hot pink, not the demand-side orange */
   --msc-rate-ink: #160e0d;
   --msc-dr: #9d7a6b; /* distribution rewards */
   --msc-dr-ink: #160e0d;
@@ -313,7 +314,7 @@
   --msc-kept-ink: #fafafa;
   --msc-demand: #a34d00; /* demand-side aggregate (orange family) */
   --msc-demand-ink: #fafafa;
-  --msc-rate: #006d77; /* agent rate — teal, distinct from the demand-side aggregate */
+  --msc-rate: #a82571; /* agent rate — hot pink, not the demand-side orange */
   --msc-rate-ink: #fafafa;
   --msc-dr: #4f2b1a;
   --msc-dr-ink: #fafafa;
@@ -611,7 +612,7 @@
      SDE). The prime-side money takes the theme's OTHER hue, gold, at real
      chroma — greys collapsed into each other on the demand-side stack —
      with supply kept a pale gold, the demand-side aggregate orange-gold,
-     and agent rate a mint that is not Sky/SDE blue. The rest of the
+     and agent rate a hot pink that is not Sky/SDE blue. The rest of the
      demand-side stack steps amber → pale yellow → warm grey, every one
      above this theme's 5:1 floor on the chart card and all with the page
      as ink. */
@@ -626,7 +627,7 @@
   --msc-kept-ink: #141414;
   --msc-demand: #fda856;
   --msc-demand-ink: #141414;
-  --msc-rate: #5ec8a8; /* agent rate — mint, not Sky/SDE blue and not demand gold */
+  --msc-rate: #fb75bb; /* agent rate — hot pink, not Sky/SDE blue and not demand gold */
   --msc-rate-ink: #141414;
   --msc-dr: #c37650;
   --msc-dr-ink: #141414;
@@ -3270,8 +3271,8 @@ a.atlas-annotates:focus-visible {
    a hairline GAP in the card color, never a border — a border around every
    fill is what made the pies read as a colouring book. Slice fills are the
    series tokens — the To-Sky pair in Sky's blues, supply kept in green,
-   agent rate in teal, the rest of the demand-side stack in brown/salmon/tan
-   — the same ones the key, the
+   agent rate in hot pink, the rest of the demand-side stack in orange /
+   brown / salmon / tan — the same ones the key, the
    timeseries and the Prime's own page use. */
 .msc-ring-rim {
   fill: none;
