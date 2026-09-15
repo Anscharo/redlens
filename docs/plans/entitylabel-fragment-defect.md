@@ -4,16 +4,22 @@ Status: **shipped** (branch `cursor/entitylabel-fragment-plan-223f`). The
 pipeline now filters at the source and display-time `isCleanLabel` (PR #363) is
 a tripwire against extractor regression, not the real gate.
 
-Measured on the atlas at submodule `0587f18c`: fragment-shaped `entityLabel`s
-went **65 → 0** (18 internal sentence breaks, 32 dangling function words, 15 bare
-pronouns), over-length labels 31 → 9 (the 9 survivors are Phase 4.5a's
-ICD-constructed vault names, deliberately exempt — locked decision 5). 48 labels
-changed; 46 of them are a clause or a bare `Its` becoming the facet's real name
-(`Wrap Proxy ETH Facet`, `PSM Facet`, `The Beacon`, `Aave v3 Facet`…) via Phase
-4.5. Only 2 addresses end up with no label at all, and only one previously
-*rendering* label got shorter (`The Sky.money Frontend Governance Reward payment`
-→ `Frontend Governance Reward payment`) — the cost of dropping `.` from the
-capture class, which is what stops the backwards walk crossing a sentence.
+Measured on the atlas at submodule `0587f18c`: addresses carrying a
+fragment-shaped `entityLabel` went **33 → 0** of 428. (Per-rule hits overlap —
+`…into WETH. It` is both an internal sentence break and a dangling function word
+— so they sum to more than the address count: 18 sentence breaks, 32 trailing
+function words, 15 bare pronouns, all → 0.) Addresses whose label `isCleanLabel`
+declines to render went 56 → 34; the 34 are Phase 4.5a's ICD-constructed strings
+(`spUSDS underlying asset`, `Base - <long vault name>`), deliberately exempt —
+locked decision 5.
+
+48 labels changed; 46 of them are a clause or a bare `Its` becoming the facet's
+real name (`Wrap Proxy ETH Facet`, `PSM Facet`, `The Beacon`, `Aave v3 Facet`…)
+via Phase 4.5. 45 addresses gain a renderable Owner and none lose one. Only 2
+addresses end up with no label at all, and only one previously *rendering* label
+got shorter (`The Sky.money Frontend Governance Reward payment` → `Frontend
+Governance Reward payment`) — the cost of dropping `.` from the capture class,
+which is what stops the backwards walk crossing a sentence.
 
 `src/lib/addressName.ts` and `.claude/skills/address-extraction/SKILL.md` point
 here for the incident; `node scripts/aux/label-quality.mjs` is the re-runnable

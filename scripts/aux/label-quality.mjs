@@ -6,16 +6,22 @@
  * is the FRAGMENT rules: no internal sentence break, no dangling function word,
  * no bare pronoun. Those are the shapes prose-scraping produces, and every path
  * that scrapes prose (the extractor, the Phase 2.6 pool, the 4.5c/4.5d title
- * fills) is gated on isPlausibleName — so a non-zero count there means an
- * extraction path got past the predicate.
+ * fills) is gated on isPlausibleName — so a non-zero count means an extraction
+ * path got past the predicate.
  *
- * The other two rules are reported but NOT a gate: Phase 4.5a CONSTRUCTS labels
- * from ICD params ("spUSDS underlying asset", "Base - <long vault name>") and is
- * deliberately exempt from the prose validator. Those labels are honest data
- * that isCleanLabel simply declines to render.
+ * The other rules are reported but NOT a gate: Phase 4.5a CONSTRUCTS labels from
+ * ICD params ("spUSDS underlying asset", "Base - <long vault name>") and is
+ * deliberately exempt from the prose validator. Those are honest data that
+ * isCleanLabel simply declines to render.
  *
  * A rising NULL rate is expected and fine: a null owner falls back cleanly (no
  * owner in the UI, chainlog/Etherscan internally), a clause does not.
+ *
+ * `RULES` below is a THIRD copy of the predicate, and a copy that disagreed with
+ * the real one would make this scan lie about the very thing it gates. So it is
+ * not authoritative: `isPlausibleName` is imported, and every label is checked
+ * for AGREEMENT between the two. A mismatch prints `[drift]` and fails the run.
+ * RULES exists only to say WHICH rule a rejected label tripped.
  *
  * Run: node scripts/aux/label-quality.mjs [--samples N] [--compare <atlas.json>]
  */
@@ -23,6 +29,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isPlausibleName } from "../lib/address-annotate.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const arg = (flag, dflt) => {
@@ -32,9 +39,6 @@ const arg = (flag, dflt) => {
 const SAMPLES = Number(arg("--samples", 15));
 const COMPARE = arg("--compare", null);
 
-// Same predicates as isPlausibleName, split apart so the report can say WHICH
-// rule a label trips — a fragment and an over-long ICD label are not the same
-// finding. Keep in sync with scripts/lib/address-annotate.mjs.
 const RULES = {
   "sentence-break": (s) => /[.?!]["')\]]?\s/.test(s),
   "trailing-prose": (s) =>
@@ -45,62 +49,77 @@ const RULES = {
   lowercase: (s) => /^[a-z]/.test(s),
 };
 const FRAGMENT_RULES = ["sentence-break", "trailing-prose", "pronoun"];
+const which = (s) => Object.keys(RULES).filter((r) => RULES[r](s));
 
 function scan(file) {
   const rows = Object.entries(JSON.parse(readFileSync(file, "utf8")).addresses);
+  // Per-rule counts OVERLAP — "…into WETH. It" trips sentence-break AND
+  // trailing-prose — so the headline counts distinct addresses, not rule hits.
   const hits = new Map(Object.keys(RULES).map((r) => [r, []]));
-  let labeled = 0;
+  const fragmentAddrs = new Set();
+  const unrenderable = new Set();
+  const drift = [];
   const aliasFails = [];
+  let labeled = 0;
+
+  const check = (s) => {
+    const broken = which(s);
+    if (isPlausibleName(s) !== (broken.length === 0)) drift.push([s, broken]);
+    return broken;
+  };
+
   for (const [addr, a] of rows) {
     for (const alias of a.aliases ?? []) {
       const t = String(alias).trim();
-      for (const r of FRAGMENT_RULES) if (RULES[r](t)) aliasFails.push([addr, t, r]);
+      const broken = check(t).filter((r) => FRAGMENT_RULES.includes(r));
+      if (broken.length) aliasFails.push([addr, t, broken.join("+")]);
     }
     if (!a.entityLabel) continue;
     labeled++;
     const s = String(a.entityLabel).trim();
-    for (const [rule, test] of Object.entries(RULES)) if (test(s)) hits.get(rule).push([addr, s]);
+    for (const rule of check(s)) {
+      hits.get(rule).push([addr, s]);
+      (FRAGMENT_RULES.includes(rule) ? fragmentAddrs : unrenderable).add(addr);
+    }
   }
-  return { rows, labeled, hits, aliasFails };
+  return { rows, labeled, hits, fragmentAddrs, unrenderable, aliasFails, drift };
 }
 
-function report(title, { rows, labeled, hits, aliasFails }) {
-  const fragments = FRAGMENT_RULES.reduce((n, r) => n + hits.get(r).length, 0);
+function report(title, r) {
+  const { rows, labeled, hits, fragmentAddrs, unrenderable, aliasFails, drift } = r;
+  const pct = (n) => `${((n / rows.length) * 100).toFixed(1)}%`;
   console.log(`\n${title} — ${rows.length} addresses`);
-  console.log(`  with a label:        ${labeled} (${((labeled / rows.length) * 100).toFixed(1)}%)`);
-  console.log(`  null:                ${rows.length - labeled} (${(((rows.length - labeled) / rows.length) * 100).toFixed(1)}%)`);
-  console.log(`  FRAGMENT-SHAPED:     ${fragments}   <- gate: 0`);
-  for (const r of FRAGMENT_RULES) console.log(`      ${r.padEnd(16)} ${hits.get(r).length}`);
+  console.log(`  with a label:        ${labeled} (${pct(labeled)})`);
+  console.log(`  null:                ${rows.length - labeled} (${pct(rows.length - labeled)})`);
+  console.log(`  FRAGMENT-SHAPED:     ${fragmentAddrs.size} addresses   <- gate: 0`);
+  console.log(`      by rule (overlapping): ${FRAGMENT_RULES.map((x) => `${x} ${hits.get(x).length}`).join(", ")}`);
   console.log(`  aliases, fragment-shaped: ${aliasFails.length}   <- gate: 0`);
-  console.log(`  not renderable (ICD-constructed; isCleanLabel hides these, not a gate):`);
-  for (const r of ["too-long", "too-short", "lowercase"]) console.log(`      ${r.padEnd(16)} ${hits.get(r).length}`);
-  for (const r of FRAGMENT_RULES) {
-    for (const [addr, s] of hits.get(r).slice(0, SAMPLES)) console.log(`  [${r}] ${addr}  ${JSON.stringify(s)}`);
+  console.log(`  not renderable (${unrenderable.size} addresses; ICD-constructed, isCleanLabel hides these, not a gate)`);
+  console.log(`      by rule (overlapping): ${["too-long", "too-short", "lowercase"].map((x) => `${x} ${hits.get(x).length}`).join(", ")}`);
+  for (const rule of FRAGMENT_RULES) {
+    for (const [addr, s] of hits.get(rule).slice(0, SAMPLES)) console.log(`  [${rule}] ${addr}  ${JSON.stringify(s)}`);
   }
-  for (const [addr, s, r] of aliasFails.slice(0, SAMPLES)) console.log(`  [alias ${r}] ${addr}  ${JSON.stringify(s)}`);
-  return fragments + aliasFails.length;
+  for (const [addr, s, rule] of aliasFails.slice(0, SAMPLES)) console.log(`  [alias ${rule}] ${addr}  ${JSON.stringify(s)}`);
+  for (const [s, broken] of drift) {
+    console.log(`  [drift] isPlausibleName and this script's RULES disagree on ${JSON.stringify(s)} (rules: ${broken.join("+") || "none"})`);
+  }
+  return fragmentAddrs.size + aliasFails.length + drift.length;
 }
 
 const now = scan(path.join(ROOT, "public/addresses.atlas.json"));
-const fragments = report("entityLabel quality", now);
+const failures = report("entityLabel quality", now);
 
 if (COMPARE) {
-  const was = scan(path.resolve(COMPARE));
-  report(`baseline (${COMPARE})`, was);
-  const nowLabels = new Map(
-    Object.entries(JSON.parse(readFileSync(path.join(ROOT, "public/addresses.atlas.json"), "utf8")).addresses),
-  );
-  const wasLabels = new Map(Object.entries(JSON.parse(readFileSync(path.resolve(COMPARE), "utf8")).addresses));
-  const changed = [];
-  for (const [addr, a] of wasLabels) {
-    const b = nowLabels.get(addr);
-    if ((a.entityLabel ?? null) !== (b?.entityLabel ?? null)) changed.push([addr, a.entityLabel ?? null, b?.entityLabel ?? null]);
-  }
+  report(`baseline (${COMPARE})`, scan(path.resolve(COMPARE)));
+  const label = (f) =>
+    new Map(Object.entries(JSON.parse(readFileSync(f, "utf8")).addresses).map(([a, x]) => [a, x.entityLabel ?? null]));
+  const [was, is] = [label(path.resolve(COMPARE)), label(path.join(ROOT, "public/addresses.atlas.json"))];
+  const changed = [...was].filter(([addr, l]) => l !== (is.get(addr) ?? null));
   console.log(`\n  ${changed.length} labels changed vs baseline`);
-  for (const [addr, from, to] of changed.slice(0, SAMPLES)) {
-    console.log(`    ${addr}\n      was ${JSON.stringify(from)}\n      now ${JSON.stringify(to)}`);
+  for (const [addr, from] of changed.slice(0, SAMPLES)) {
+    console.log(`    ${addr}\n      was ${JSON.stringify(from)}\n      now ${JSON.stringify(is.get(addr) ?? null)}`);
   }
 }
 
 console.log();
-if (fragments > 0) process.exitCode = 1;
+if (failures > 0) process.exitCode = 1;
