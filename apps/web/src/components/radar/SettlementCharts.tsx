@@ -40,7 +40,7 @@ export function SettlementCharts({ reports, selected, onSelect, paging }: Props)
       </h2>
       <div className="msc-charts-meta">
         <h3 className="text-sm font-medium m-0" style={{ color: "var(--tan)" }}>
-          Trailing {n} Months
+          Trailing {n} {n === 1 ? "Month" : "Months"}
         </h3>
         <p className="m-0 text-sm" style={{ color: "var(--tan-2)" }}>
           Agent earnings{" "}

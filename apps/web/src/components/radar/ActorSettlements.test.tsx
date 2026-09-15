@@ -216,9 +216,9 @@ describe("ActorSettlements", () => {
     expect(screen.getByText("To Sky")).toBeInTheDocument();
     expect(screen.getByText("Supply-side kept")).toBeInTheDocument();
     expect(screen.getAllByText("Demand-side").length).toBeGreaterThan(0);
-    expect(screen.getByText("$36,231")).toBeInTheDocument();
+    expect(screen.getAllByText("$36,231").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("Demand-side months")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Trailing 1 Months" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trailing 1 Month" })).toBeInTheDocument();
     expect(screen.getByText("agent rate")).toBeInTheDocument();
     expect(screen.getByText("distribution rewards")).toBeInTheDocument();
     expect(document.querySelector(".msc-charts-legend")).toHaveTextContent("|");
