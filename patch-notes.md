@@ -35,6 +35,7 @@
 
 
 ## 2026-09-16
+- Chat's first example question now shows what changed in the latest Atlas updates, replacing one the Atlas could not fully answer
 - Chat can now say which month had the largest settlement flow across every Prime, and no longer reports empty settlement figures when its helper returns nothing
 
 ## 2026-09-15

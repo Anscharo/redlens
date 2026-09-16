@@ -6,8 +6,15 @@ import { listConversations, type ConversationSummary } from "../../lib/conversat
 import { ROUTES } from "@/lib/routes";
 import type { PageContextView } from "./pageContext";
 
+// Each starter is a showcase, so each must be ANSWERABLE with citations — the
+// old first slot asked who signs off on a facilitator budget, which the atlas
+// never states, so the very first click demonstrated a miss. Slot 1 now shows
+// the history lane (something a reader can't get by opening the atlas); the
+// other two show cross-document synthesis. "most recent" rather than "this
+// month" so a quiet month never yields "nothing changed". Re-verified
+// 2026-09-16: 3/3 runs badge "pass" with cited doc links.
 export const STARTERS = [
-  "How are Operational Facilitators rewarded, and who signs off on the budget?",
+  "What changed in the most recent Atlas updates, and which scopes were touched?",
   "What's the difference between a Prime Agent and an Aligned Delegate?",
   "Trace the governance path for an Atlas amendment.",
 ];
