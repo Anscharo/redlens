@@ -5,7 +5,7 @@ import { captureError, type ErrorContext } from "../../posthog-node.ts";
 import type { JsonCall } from "../llm.ts";
 import { onDeviceEmbed } from "../../facts/similarity.ts";
 import { teachingEmbedText } from "./match.ts";
-import { TEACH_HELP } from "./parse.ts";
+import { countTeachingWords, TEACH_HELP, TEACH_LENGTH_RULE, TEACH_MAX_WORDS } from "./parse.ts";
 import { reviewTeaching } from "./review.ts";
 import {
   countTeachingsToday,
@@ -32,6 +32,33 @@ export async function runTeachCommand(opts: {
   const empty = { usage: { input: 0, output: 0 }, generationId: null as string | null, accepted: false };
   if (!opts.text) {
     return { content: TEACH_HELP, ...empty };
+  }
+
+  // Over the embedder's window (see TEACH_MAX_WORDS). Rejected before any
+  // model call, but STORED as a rejected row like an LLM rejection, so the
+  // audit trail shows whether users actually want long notes — the signal for
+  // whether sentence-level chunking is worth building.
+  const words = countTeachingWords(opts.text);
+  if (words > TEACH_MAX_WORDS) {
+    try {
+      await insertTeaching({
+        userId: opts.userId,
+        conversationId: opts.convId,
+        content: opts.text,
+        subject: "",
+        status: "rejected",
+        rejectReason: "too long",
+        contentHash: teachingHash(opts.text),
+        reviewModel: null,
+        review: { accept: false, reason: "too long", words },
+      });
+    } catch (err) {
+      captureError(err, opts.obs, { stage: "teach_insert_rejected" });
+    }
+    return {
+      content: `That note is ${words} words; I can only remember notes under ${TEACH_MAX_WORDS}. ${TEACH_LENGTH_RULE}`,
+      ...empty,
+    };
   }
 
   const today = await countTeachingsToday(opts.userId);

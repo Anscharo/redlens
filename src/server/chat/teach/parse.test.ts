@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from "bun:test";
-import { parseTeachCommand, TEACH_HELP, TEACH_MAX_CHARS } from "./parse.ts";
+import { countTeachingWords, parseTeachCommand, TEACH_HELP, TEACH_LENGTH_RULE, TEACH_MAX_WORDS } from "./parse.ts";
 
 describe("parseTeachCommand", () => {
   it("returns null when the message is not a /teach command", () => {
@@ -22,13 +22,24 @@ describe("parseTeachCommand", () => {
     expect(parseTeachCommand("  /teach   ")).toEqual({ text: "" });
   });
 
-  it("caps an oversized body", () => {
-    const body = "word ".repeat(TEACH_MAX_CHARS);
-    const parsed = parseTeachCommand(`/teach ${body}`)!;
-    expect(parsed.text.length).toBe(TEACH_MAX_CHARS);
+  // The handler rejects over the word cap with the count; the parser must not
+  // silently trim the body first, or the user never learns why.
+  it("passes an oversized body through whole", () => {
+    const body = "word ".repeat(TEACH_MAX_WORDS * 3).trim();
+    expect(parseTeachCommand(`/teach ${body}`)!.text).toBe(body);
   });
 });
 
-test("TEACH_HELP names the command", () => {
+describe("countTeachingWords", () => {
+  it("counts word-like tokens only", () => {
+    expect(countTeachingWords("When I say MSC I mean monthly settlement reports.")).toBe(9);
+    expect(countTeachingWords("  — … --  ")).toBe(0);
+    expect(countTeachingWords("a\nb\tc")).toBe(3);
+  });
+});
+
+test("TEACH_HELP names the command and the length rule", () => {
   expect(TEACH_HELP).toContain("/teach");
+  expect(TEACH_HELP).toContain(TEACH_LENGTH_RULE);
+  expect(TEACH_LENGTH_RULE).toContain(String(TEACH_MAX_WORDS));
 });

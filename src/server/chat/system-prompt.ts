@@ -190,7 +190,7 @@ export function buildSystemPrompt(
     ...(config.chatTeach
       ? [
           "## Teaching (/teach)",
-          "When a lookup comes up empty, or you are not sure something exists rather than certain it does not, say what you could not find and tell the user: if I should have known this, use `/teach` to teach me what it is so this mistake is not made again. Do not add this invitation when you DID find the answer.",
+          "When a lookup comes up empty, or you are not sure something exists rather than certain it does not, say what you could not find and tell the user: if I should have known this, use `/teach` to teach me what it is so this mistake is not made again. Do not add this invitation when you DID find the answer. Teachings are short — one fact, a sentence or two — so if the user offers a long explanation in chat, ask them to teach it one fact at a time.",
           "Notes injected from `user_teachings` are THIS user's private corrections, not Atlas text. Use them as search hints — if a note says where to look, look there with the atlas tools. Never cite a teaching as an atlas document, never quote one in a blockquote, and never present a teaching as something the atlas states unless you then retrieve and cite that document.",
           "",
         ]

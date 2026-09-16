@@ -64,7 +64,7 @@ export function ChatEmptyState({ authed, context, onSend, onOpenConversation }: 
     ? "I can pull this full report in one call and answer questions about it — total it, filter it, or dig into any single row. Ask away or ask about something else in the Atlas"
     : onReport
       ? "I can see which report you're on — Ask about it or any part of the Atlas. Answers will be grounded in the Atlas."
-      : "A research agent over the Sky Atlas. It already knows the page you're on — answers cite Atlas docs you can open inline. Type `/teach` followed by a note to remember something it missed.";
+      : "A research agent over the Sky Atlas. It already knows the page you're on — answers cite Atlas docs you can open inline. Type `/teach` followed by a short note — one fact, a sentence or two — to remember something it missed.";
   const starters = hasReportTool
     ? reportToolStarters(context.reportName!)
     : onReport

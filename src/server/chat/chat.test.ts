@@ -292,6 +292,30 @@ describe("handleChat", () => {
       }
     });
 
+    it("rejects an over-long note before review, stores it as rejected, and says the count", async () => {
+      installHappyHandlers();
+      sqlHandlers.push((text) => {
+        if (text.includes("INSERT INTO chat_teachings")) return [{ id: "teach-long" }];
+        return undefined;
+      });
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = (async () => {
+        throw new Error("review must not run for an over-long note");
+      }) as unknown as typeof fetch;
+      try {
+        const long = Array.from({ length: 70 }, (_, i) => `word${i}`).join(" ");
+        const res = await handleChat(await authedRequest({ message: `/teach ${long}` }));
+        const final = (await events(res)).find((e) => e.type === "answer_final");
+        expect(final.content).toContain("70 words");
+        expect(final.content).toContain("two notes");
+        const insert = queryLog.find((q) => q.text.includes("INSERT INTO chat_teachings"));
+        expect(insert?.values).toContain("rejected");
+        expect(insert?.values).toContain("too long");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
     it("saves an accepted note after a JSON review", async () => {
       installHappyHandlers();
       sqlHandlers.push((text) => {

@@ -201,8 +201,11 @@ over-injecting costs ~2k discarded tokens a large model can ignore, while
 under-injecting can lose the answer. `CHAT_PREFETCH=0` kills every fact at once.
 
 **User teachings (`/teach`, `src/server/chat/teach/`).** A signed-in user can start
-a message with `/teach`; the rest of the message is a note. A cheap heuristic
-rejects empty/spam, then an advanced model (`CHAT_TEACH_REVIEW_MODEL`, defaulting
+a message with `/teach`; the rest of the message is a note, capped at
+`TEACH_MAX_WORDS` (60 — set by ternlight's 128-token window; over-cap notes are
+rejected with the count, stored as `rejected`/"too long" so demand for long
+notes is measurable, and every touchpoint says "one fact per note, a sentence
+or two"). A cheap heuristic rejects empty/spam, then an advanced model (`CHAT_TEACH_REVIEW_MODEL`, defaulting
 to the strong-tier primary) reviews for gibberish and prompt-injection — it does
 not fact-check against the Atlas. Accepted notes land in `chat_teachings`,
 scoped to that `user_id`. Later turns inject matching notes as a **separate**
