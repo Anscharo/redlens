@@ -307,6 +307,7 @@ describe("buildRoutes gating", () => {
     expect(typeof r["/api/history/batch"].POST).toBe("function");
     expect(typeof r["/api/balances"].GET).toBe("function");
     expect(typeof r["/api/balances"].POST).toBe("function");
+    expect(Object.keys(r)).toContain("/api/reports/search");
   });
 });
 

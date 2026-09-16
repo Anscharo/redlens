@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@chenglou/pretext": "0.0.5",
-    "@ternlight/base": "0.1.1",
     "@uiw/react-color": "2.10.1",
     "graphology": "0.26.0",
     "graphology-traversal": "0.3.1",

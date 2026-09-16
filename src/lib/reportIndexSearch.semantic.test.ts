@@ -4,12 +4,13 @@ import {
   buildReportFieldVecs,
   cosineSim,
   filterReportSections,
+  hitsFromScores,
   scoreReportQuery,
   SEMANTIC_MIN,
 } from "./reportIndexSearch";
 
-const idsOf = (query: string, scores?: Map<string, number>) =>
-  filterReportSections(REPORT_INDEX_SECTIONS, query, scores).flatMap((s) => s.reports.map((r) => r.id));
+const idsOf = (query: string, extraIds?: Set<string>) =>
+  filterReportSections(REPORT_INDEX_SECTIONS, query, extraIds).flatMap((s) => s.reports.map((r) => r.id));
 
 describe("report index ternlight scoring", () => {
   it("paraphrases of a title beat the floor; noise stays under it", async () => {
@@ -20,22 +21,22 @@ describe("report index ternlight scoring", () => {
 
     const wallet = score("wallet addresses");
     expect(wallet.get("onchain-addresses")!).toBeGreaterThanOrEqual(SEMANTIC_MIN);
-    expect(idsOf("wallet addresses", wallet)).toContain("onchain-addresses");
+    expect(idsOf("wallet addresses", hitsFromScores(wallet))).toContain("onchain-addresses");
 
     const stale = score("outdated dates");
     expect(stale.get("stale-dates")!).toBeGreaterThanOrEqual(SEMANTIC_MIN);
-    expect(idsOf("outdated dates", stale)).toEqual(["stale-dates"]);
+    expect(idsOf("outdated dates", hitsFromScores(stale))).toEqual(["stale-dates"]);
 
     const duties = score("facilitator duties");
     expect(duties.get("of-responsibilities")!).toBeGreaterThanOrEqual(SEMANTIC_MIN);
-    expect(idsOf("facilitator duties", duties)).toContain("of-responsibilities");
+    expect(idsOf("facilitator duties", hitsFromScores(duties))).toContain("of-responsibilities");
 
     // Direct name is lexical; the score lane still ranks it first.
     const name = score("stale dates");
     expect(name.get("stale-dates")!).toBeGreaterThan(SEMANTIC_MIN);
 
-    expect(idsOf("zzz-nonexistent", score("zzz-nonexistent"))).toEqual([]);
-    expect(idsOf("hello world", score("hello world"))).toEqual([]);
-    expect(idsOf("etherscan", score("etherscan"))).toEqual([]);
+    expect(idsOf("zzz-nonexistent", hitsFromScores(score("zzz-nonexistent")))).toEqual([]);
+    expect(idsOf("hello world", hitsFromScores(score("hello world")))).toEqual([]);
+    expect(idsOf("etherscan", hitsFromScores(score("etherscan")))).toEqual([]);
   });
 });

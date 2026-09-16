@@ -1,17 +1,25 @@
 // @vitest-environment jsdom
-import { it, expect, describe, afterEach, vi } from "vitest";
+import { it, expect, describe, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { ReportsIndex } from "./ReportsIndex";
 
-vi.mock("../lib/reportIndexEmbed", () => ({
-  loadReportIndexEmbedder: () => Promise.resolve(null),
-  scoreReportIndex: () => new Map(),
-}));
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
-afterEach(cleanup);
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ hits: [] }),
+    }),
+  );
+});
 
 function wrap(path = "/reports") {
   const { hook } = memoryLocation({ path, record: true });
@@ -29,6 +37,7 @@ describe("ReportsIndex", () => {
     expect(screen.getByRole("link", { name: /Operational Facilitator Responsibilities/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Active Data Index/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Atlas Processes/ })).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("filters cards by title match, dropping empty sections", () => {
@@ -54,6 +63,24 @@ describe("ReportsIndex", () => {
     expect(screen.getByRole("link", { name: /Active Data Index/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Atlas CrossView/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Operational Facilitator Responsibilities/ })).toBeNull();
+  });
+
+  it("unions server semantic hits with the lexical filter", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ hits: ["onchain-addresses"] }),
+      }),
+    );
+    render(<ReportsIndex query="wallet addresses" />, { wrapper: wrap() });
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /On-Chain Addresses/ })).toBeInTheDocument();
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/reports/search?q=wallet%20addresses",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 
   it("shows a no-results message when nothing matches, quoting the raw query", async () => {

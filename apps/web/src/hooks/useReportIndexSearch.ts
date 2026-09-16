@@ -1,42 +1,51 @@
 import { useEffect, useMemo, useState } from "react";
 import { REPORT_INDEX_SECTIONS } from "@/lib/reportCatalog";
-import { filterReportSections, normalizeReportIndexQuery } from "@/lib/reportIndexSearch";
-import { loadReportIndexEmbedder, scoreReportIndex } from "../lib/reportIndexEmbed";
+import {
+  filterReportSections,
+  normalizeReportIndexQuery,
+  type ReportIndexSearchResponse,
+} from "@/lib/reportIndexSearch";
 
 /**
- * /reports index filter. Lexical matches apply on this render; ternlight
- * scores join in once the wasm chunk is ready for the current query. A
- * load failure stays lexical-only.
+ * /reports index filter. Lexical matches apply on this render; semantic
+ * hits from GET /api/reports/search join in once that round-trip lands.
+ * A load failure stays lexical-only.
  */
 export function useReportIndexSearch(query: string) {
   const q = normalizeReportIndexQuery(query);
-  const [scored, setScored] = useState<{ q: string; scores: Map<string, number> } | null>(null);
+  const [scored, setScored] = useState<{ q: string; hits: ReadonlySet<string> } | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!q) {
       setScored(null);
+      setFailed(false);
       return;
     }
-    let cancelled = false;
-    void loadReportIndexEmbedder().then((emb) => {
-      if (cancelled) return;
-      if (!emb) {
+    setFailed(false);
+    const ac = new AbortController();
+    void fetch(`/api/reports/search?q=${encodeURIComponent(query.trim())}`, { signal: ac.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`reports-search: ${res.status}`);
+        return res.json() as Promise<ReportIndexSearchResponse>;
+      })
+      .then((body) => {
+        if (ac.signal.aborted) return;
+        const hits = Array.isArray(body.hits) ? body.hits : [];
+        setScored({ q, hits: new Set(hits) });
+      })
+      .catch((err: unknown) => {
+        if (ac.signal.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
         setFailed(true);
-        return;
-      }
-      setScored({ q, scores: scoreReportIndex(emb, q) });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [q]);
+      });
+    return () => ac.abort();
+  }, [q, query]);
 
-  const scores = scored?.q === q ? scored.scores : undefined;
+  const extraIds = scored?.q === q ? scored.hits : undefined;
   const sections = useMemo(
-    () => filterReportSections(REPORT_INDEX_SECTIONS, query, scores),
-    [query, scores],
+    () => filterReportSections(REPORT_INDEX_SECTIONS, query, extraIds),
+    [query, extraIds],
   );
-  const pending = q !== "" && sections.length === 0 && scores == null && !failed;
+  const pending = q !== "" && sections.length === 0 && extraIds == null && !failed;
   return { sections, pending };
 }

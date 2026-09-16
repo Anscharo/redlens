@@ -211,9 +211,6 @@ export default defineConfig(() => {
           "**/addresses.atlas.json",
           "**/relations.json",
           "**/history/**",
-          // ternlight's ~7 MB wasm is a reports-index search chunk, not a
-          // boot asset — precaching it would bloat every install.
-          "**/*.wasm",
         ],
         // navigateFallback disabled (vite-plugin-pwa defaults it to "index.html").
         // Navigations must reach the Bun server, which serves the SPA shell with the
@@ -274,15 +271,6 @@ export default defineConfig(() => {
       },
     }),
   ],
-    // `@ternlight/base/web` is fetched only from the reports-index search
-    // (see reportIndexEmbed.ts). Exclude it from the dep optimizer so Vite
-    // does not prebundle the wasm-pack glue — the ~7 MB file is not on the
-    // boot path. The default/browser entry (pkg-bundler) is unused: Vite 8.0
-    // cannot `import` a .wasm ESM asset.
-    optimizeDeps: {
-      exclude: ["@ternlight/base", "@ternlight/base/web"],
-    },
-    assetsInclude: ["**/*.wasm"],
     define: {
       __COMMIT_HASH__: JSON.stringify(commitHash),
       __BUILD_TIME__: JSON.stringify(buildTime),

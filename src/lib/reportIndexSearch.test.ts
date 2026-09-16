@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { REPORT_INDEX_SECTIONS } from "./reportCatalog";
-import { cosineSim, filterReportSections, normalizeReportIndexQuery, SEMANTIC_MIN } from "./reportIndexSearch";
+import { cosineSim, filterReportSections, hitsFromScores, normalizeReportIndexQuery, SEMANTIC_MIN } from "./reportIndexSearch";
 
-const idsOf = (query: string, scores?: Map<string, number>) =>
-  filterReportSections(REPORT_INDEX_SECTIONS, query, scores).flatMap((s) => s.reports.map((r) => r.id));
+const idsOf = (query: string, extraIds?: Set<string>) =>
+  filterReportSections(REPORT_INDEX_SECTIONS, query, extraIds).flatMap((s) => s.reports.map((r) => r.id));
 
 describe("normalizeReportIndexQuery", () => {
   it("trims, lowercases, and unwraps mode quotes", () => {
@@ -81,19 +81,21 @@ describe("cosineSim", () => {
   });
 });
 
-describe("filterReportSections — semantic scores", () => {
-  it("includes a report that only the score lane matches", () => {
-    const scores = new Map<string, number>([["stale-dates", SEMANTIC_MIN], ["rewards", 0.1]]);
-    expect(idsOf("wallet addresses", scores)).toEqual(["stale-dates"]);
+describe("hitsFromScores", () => {
+  it("keeps ids at or above the floor", () => {
+    expect(
+      hitsFromScores(new Map([["stale-dates", SEMANTIC_MIN], ["rewards", 0.1]])),
+    ).toEqual(new Set(["stale-dates"]));
+    expect(hitsFromScores(new Map([["stale-dates", SEMANTIC_MIN - 0.01]])).size).toBe(0);
+  });
+});
+
+describe("filterReportSections — semantic ids", () => {
+  it("includes a report that only the extra-id lane matches", () => {
+    expect(idsOf("wallet addresses", new Set(["stale-dates"]))).toEqual(["stale-dates"]);
   });
 
-  it("does not include a report whose score is under the floor", () => {
-    const scores = new Map<string, number>([["stale-dates", SEMANTIC_MIN - 0.01]]);
-    expect(idsOf("wallet addresses", scores)).toEqual([]);
-  });
-
-  it("keeps a lexical name match even when its score is missing or low", () => {
-    const scores = new Map<string, number>([["rewards", 0]]);
-    expect(idsOf("reward", scores)).toEqual(["rewards"]);
+  it("keeps a lexical name match even when extra ids omit it", () => {
+    expect(idsOf("reward", new Set())).toEqual(["rewards"]);
   });
 });

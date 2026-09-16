@@ -3,10 +3,12 @@
 //   1. Lexical — case-insensitive substring (and token-AND) over title,
 //      category, and description. A category hit keeps every report in that
 //      section, which is what "search over the categories we now have" means.
-//   2. Semantic — optional cosine scores from ternlight (wired by the web
-//      hook). A report whose score is ≥ SEMANTIC_MIN is kept even when no
-//      field contains the query, so "wallet addresses" can surface On-Chain
-//      Addresses. Direct name matches never depend on this lane.
+//      This lane runs in the browser so a name match is instant.
+//   2. Semantic — optional extra ids from GET /api/reports/search, which
+//      scores the query with on-device ternlight on the server (the same
+//      engine chat facts already load). A report in that set is kept even
+//      when no field contains the query, so "wallet addresses" can surface
+//      On-Chain Addresses. Direct name matches never depend on this lane.
 //
 // Ranking is catalog order, not score — the index is eleven cards, and
 // jumping around as the user types is worse than a stable filter.
@@ -46,15 +48,14 @@ function fieldMatch(field: string, q: string, qTokens: string[]): boolean {
 }
 
 /**
- * Filter the catalog by query. `scores` is optional: omit it (or pass scores
+ * Filter the catalog by query. `extraIds` is optional: omit it (or pass ids
  * for a *different* query) and only the lexical lane runs. Same-identity
  * return for a blank query so memoized consumers don't re-render.
  */
 export function filterReportSections(
   sections: readonly ReportIndexSection[],
   query: string,
-  scores?: ReadonlyMap<string, number>,
-  semanticMin = SEMANTIC_MIN,
+  extraIds?: ReadonlySet<string>,
 ): ReportIndexSection[] {
   const q = normalizeReportIndexQuery(query);
   if (!q) return sections as ReportIndexSection[];
@@ -69,7 +70,7 @@ export function filterReportSections(
       (r) =>
         fieldMatch(r.title, q, qTokens) ||
         fieldMatch(r.description, q, qTokens) ||
-        (scores != null && (scores.get(r.id) ?? 0) >= semanticMin),
+        extraIds?.has(r.id) === true,
     );
     if (reports.length > 0) out.push({ ...section, reports });
   }
@@ -79,10 +80,7 @@ export function filterReportSections(
 export type EmbedFn = (text: string) => Float32Array;
 export type CosineFn = (a: Float32Array, b: Float32Array) => number;
 
-/**
- * Cosine similarity for L2-normalized vectors (a dot product). Local copy so
- * the browser loader can use `@ternlight/base/web`, which does not export one.
- */
+/** Cosine similarity for L2-normalized vectors (a dot product). */
 export function cosineSim(a: Float32Array, b: Float32Array): number {
   if (a.length !== b.length) {
     throw new Error(`vector length mismatch: ${a.length} vs ${b.length}`);
@@ -121,4 +119,20 @@ export function scoreReportQuery(
     scores.set(id, max);
   }
   return scores;
+}
+
+/** Ids whose best field-score clears the semantic floor. */
+export function hitsFromScores(
+  scores: ReadonlyMap<string, number>,
+  semanticMin = SEMANTIC_MIN,
+): Set<string> {
+  const hits = new Set<string>();
+  for (const [id, s] of scores) {
+    if (s >= semanticMin) hits.add(id);
+  }
+  return hits;
+}
+
+export interface ReportIndexSearchResponse {
+  hits: string[];
 }
