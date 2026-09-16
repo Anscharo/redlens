@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { REPORT_INDEX_SECTIONS } from "./reportCatalog";
-import { cosineSim, filterReportSections, hitsFromScores, normalizeReportIndexQuery, SEMANTIC_MIN } from "./reportIndexSearch";
+import { REPORT_INDEX_GROUPS } from "./reportCatalog";
+import { cosineSim, filterReportGroups, hitsFromScores, normalizeReportIndexQuery, SEMANTIC_MIN } from "./reportIndexSearch";
 
 const idsOf = (query: string, extraIds?: Set<string>) =>
-  filterReportSections(REPORT_INDEX_SECTIONS, query, extraIds).flatMap((s) => s.reports.map((r) => r.id));
+  filterReportGroups(REPORT_INDEX_GROUPS, query, extraIds).flatMap((g) => g.cards.map((c) => c.id));
 
 describe("normalizeReportIndexQuery", () => {
   it("trims, lowercases, and unwraps mode quotes", () => {
@@ -15,11 +15,11 @@ describe("normalizeReportIndexQuery", () => {
   });
 });
 
-describe("filterReportSections — lexical", () => {
-  it("returns the same section array identity for a blank query", () => {
-    expect(filterReportSections(REPORT_INDEX_SECTIONS, "")).toBe(REPORT_INDEX_SECTIONS);
-    expect(filterReportSections(REPORT_INDEX_SECTIONS, "   ")).toBe(REPORT_INDEX_SECTIONS);
-    expect(filterReportSections(REPORT_INDEX_SECTIONS, '""')).toBe(REPORT_INDEX_SECTIONS);
+describe("filterReportGroups — lexical", () => {
+  it("returns the same group array identity for a blank query", () => {
+    expect(filterReportGroups(REPORT_INDEX_GROUPS, "")).toBe(REPORT_INDEX_GROUPS);
+    expect(filterReportGroups(REPORT_INDEX_GROUPS, "   ")).toBe(REPORT_INDEX_GROUPS);
+    expect(filterReportGroups(REPORT_INDEX_GROUPS, '""')).toBe(REPORT_INDEX_GROUPS);
   });
 
   it("matches a report name substring", () => {
@@ -36,23 +36,28 @@ describe("filterReportSections — lexical", () => {
     expect(idsOf("Active Data")).toEqual(["gov-ops-responsibilities", "active-data"]);
   });
 
-  it("keeps every report in a section whose category matches", () => {
-    const oea = filterReportSections(REPORT_INDEX_SECTIONS, "oea reports");
-    expect(oea).toHaveLength(1);
-    expect(oea[0]!.title).toBe("OEA Reports");
-    expect(oea[0]!.reports.map((r) => r.id)).toEqual([
-      "of-responsibilities",
-      "gov-ops-responsibilities",
-      "oea-assessment",
+  it("keeps every report in a group whose title matches", () => {
+    const health = filterReportGroups(REPORT_INDEX_GROUPS, "atlas health");
+    expect(health).toHaveLength(1);
+    expect(health[0]!.title).toBe("Atlas health");
+    expect(health[0]!.cards.map((c) => c.id)).toEqual([
+      "potential-mistakes",
+      "stale-dates",
+      "mod-frequency",
     ]);
-    // Same array identity as the catalog section — not a filtered copy.
-    expect(oea[0]).toBe(REPORT_INDEX_SECTIONS[0]);
+    // Same array identity as the catalog group — not a filtered copy.
+    expect(health[0]).toBe(REPORT_INDEX_GROUPS.find((g) => g.title === "Atlas health"));
 
-    const general = filterReportSections(REPORT_INDEX_SECTIONS, "general");
-    expect(general).toHaveLength(1);
-    expect(general[0]!.title).toBe("General Reports");
-    expect(general[0]!.reports).toHaveLength(8);
-    expect(general[0]).toBe(REPORT_INDEX_SECTIONS[1]);
+    const roles = filterReportGroups(REPORT_INDEX_GROUPS, "roles & duties");
+    expect(roles).toHaveLength(1);
+    expect(roles[0]!.title).toBe("Roles & duties");
+    expect(roles[0]!.cards).toHaveLength(3);
+    expect(roles[0]).toBe(REPORT_INDEX_GROUPS[0]);
+  });
+
+  it("keeps every report in a group whose hint matches", () => {
+    const ids = idsOf("obliges");
+    expect(ids).toEqual(["of-responsibilities", "gov-ops-responsibilities", "oea-assessment"]);
   });
 
   it("matches description copy that is not in the title", () => {
@@ -64,8 +69,26 @@ describe("filterReportSections — lexical", () => {
     expect(ids).not.toContain("rewards");
   });
 
-  it("drops empty sections and matches nothing for noise", () => {
-    expect(filterReportSections(REPORT_INDEX_SECTIONS, "zzz-nonexistent")).toEqual([]);
+  it("filters by provenance label, so 'curated' finds the hand-maintained reports", () => {
+    expect(idsOf("curated")).toEqual(["processes"]);
+  });
+
+  // Potential Mistakes is an LLM sweep, not a hand-maintained inventory: its
+  // findings are model judgement, which is what the badge has to warn about.
+  it("finds the AI-assessed reports by their badge label", () => {
+    expect([...idsOf("AI-assessed")].sort()).toEqual([
+      "oea-assessment",
+      "potential-mistakes",
+      "risk-rules",
+    ]);
+  });
+
+  it("drops empty groups and matches nothing for noise", () => {
+    expect(filterReportGroups(REPORT_INDEX_GROUPS, "zzz-nonexistent")).toEqual([]);
+  });
+
+  it("ignores surrounding whitespace and case", () => {
+    expect(idsOf("  REWARD  ")).toEqual(["rewards"]);
   });
 });
 
@@ -90,7 +113,7 @@ describe("hitsFromScores", () => {
   });
 });
 
-describe("filterReportSections — semantic ids", () => {
+describe("filterReportGroups — semantic ids", () => {
   it("includes a report that only the extra-id lane matches", () => {
     expect(idsOf("wallet addresses", new Set(["stale-dates"]))).toEqual(["stale-dates"]);
   });

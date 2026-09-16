@@ -16,6 +16,7 @@ export const FOCUS_HINTS: Readonly<Record<string, string>> = {
   tree: "[↑][↓][←][→] [Enter] (+ [Shift]) to navigate",
   "search-recents": "[↑][↓] to browse recent searches · [Enter] to run",
   search: "[Enter] → jump to first result",
+  "mistakes-pager": "[←][→] previous / next finding",
   // The reader's row keys act on what the row currently is, so it names all
   // three outcomes rather than promising "open" to a row that would close.
   "reader-row-open": "[Enter] / [Space] → open",

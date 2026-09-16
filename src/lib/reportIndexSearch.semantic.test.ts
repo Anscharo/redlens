@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { REPORT_INDEX_CARDS, REPORT_INDEX_SECTIONS } from "./reportCatalog";
+import { REPORT_INDEX_CARDS, REPORT_INDEX_GROUPS } from "./reportCatalog";
 import {
   buildReportFieldVecs,
   cosineSim,
-  filterReportSections,
+  filterReportGroups,
   hitsFromScores,
   scoreReportQuery,
   SEMANTIC_MIN,
 } from "./reportIndexSearch";
 
 const idsOf = (query: string, extraIds?: Set<string>) =>
-  filterReportSections(REPORT_INDEX_SECTIONS, query, extraIds).flatMap((s) => s.reports.map((r) => r.id));
+  filterReportGroups(REPORT_INDEX_GROUPS, query, extraIds).flatMap((g) => g.cards.map((c) => c.id));
 
 describe("report index ternlight scoring", () => {
   it("paraphrases of a title beat the floor; noise stays under it", async () => {

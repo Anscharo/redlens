@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { REPORT_INDEX_SECTIONS } from "@/lib/reportCatalog";
+import { REPORT_INDEX_GROUPS } from "@/lib/reportCatalog";
 import {
-  filterReportSections,
+  filterReportGroups,
   normalizeReportIndexQuery,
   type ReportIndexSearchResponse,
 } from "@/lib/reportIndexSearch";
@@ -42,10 +42,10 @@ export function useReportIndexSearch(query: string) {
   }, [q, query]);
 
   const extraIds = scored?.q === q ? scored.hits : undefined;
-  const sections = useMemo(
-    () => filterReportSections(REPORT_INDEX_SECTIONS, query, extraIds),
+  const groups = useMemo(
+    () => filterReportGroups(REPORT_INDEX_GROUPS, query, extraIds),
     [query, extraIds],
   );
-  const pending = q !== "" && sections.length === 0 && extraIds == null && !failed;
-  return { sections, pending };
+  const pending = q !== "" && groups.length === 0 && extraIds == null && !failed;
+  return { groups, pending };
 }

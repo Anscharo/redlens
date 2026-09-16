@@ -1,19 +1,20 @@
 // Filter for the /reports index. Two lanes, OR'd:
 //
 //   1. Lexical — case-insensitive substring (and token-AND) over title,
-//      category, and description. A category hit keeps every report in that
-//      section, which is what "search over the categories we now have" means.
-//      This lane runs in the browser so a name match is instant.
+//      category, hint, description, and provenance badge. A group-title or
+//      hint hit keeps every report in that group, which is what "search over
+//      the categories we now have" means. This lane runs in the browser so a
+//      name match is instant.
 //   2. Semantic — optional extra ids from GET /api/reports/search, which
 //      scores the query with on-device ternlight on the server (the same
 //      engine chat facts already load). A report in that set is kept even
 //      when no field contains the query, so "wallet addresses" can surface
 //      On-Chain Addresses. Direct name matches never depend on this lane.
 //
-// Ranking is catalog order, not score — the index is eleven cards, and
+// Ranking is catalog order, not score — the index is a handful of cards, and
 // jumping around as the user types is worse than a stable filter.
-import type { ReportIndexCard, ReportIndexSection } from "./reportCatalog";
-import { reportEmbedFields } from "./reportCatalog";
+import type { ReportCard, ReportCardGroup } from "./reportCatalog";
+import { PROVENANCE_LABELS, reportEmbedFields } from "./reportCatalog";
 
 // Floor against noise. Measured against this catalog in
 // reportIndexSearch.semantic.test.ts (max of title/category/description/full
@@ -47,32 +48,40 @@ function fieldMatch(field: string, q: string, qTokens: string[]): boolean {
   return qTokens.length > 0 && qTokens.every((t) => fn.includes(t));
 }
 
+function badgeLabel(card: ReportCard): string | null {
+  return card.provenance === "live" ? null : PROVENANCE_LABELS[card.provenance];
+}
+
 /**
  * Filter the catalog by query. `extraIds` is optional: omit it (or pass ids
  * for a *different* query) and only the lexical lane runs. Same-identity
  * return for a blank query so memoized consumers don't re-render.
  */
-export function filterReportSections(
-  sections: readonly ReportIndexSection[],
+export function filterReportGroups(
+  groups: readonly ReportCardGroup[],
   query: string,
   extraIds?: ReadonlySet<string>,
-): ReportIndexSection[] {
+): ReportCardGroup[] {
   const q = normalizeReportIndexQuery(query);
-  if (!q) return sections as ReportIndexSection[];
+  if (!q) return groups as ReportCardGroup[];
   const qTokens = tokens(q);
-  const out: ReportIndexSection[] = [];
-  for (const section of sections) {
-    if (fieldMatch(section.title, q, qTokens)) {
-      out.push(section);
+  const out: ReportCardGroup[] = [];
+  for (const group of groups) {
+    if (fieldMatch(group.title, q, qTokens) || fieldMatch(group.hint, q, qTokens)) {
+      out.push(group);
       continue;
     }
-    const reports = section.reports.filter(
-      (r) =>
-        fieldMatch(r.title, q, qTokens) ||
-        fieldMatch(r.description, q, qTokens) ||
-        extraIds?.has(r.id) === true,
-    );
-    if (reports.length > 0) out.push({ ...section, reports });
+    const cards = group.cards.filter((c) => {
+      const label = badgeLabel(c);
+      return (
+        fieldMatch(c.title, q, qTokens) ||
+        fieldMatch(c.description, q, qTokens) ||
+        fieldMatch(c.category, q, qTokens) ||
+        (label != null && fieldMatch(label, q, qTokens)) ||
+        extraIds?.has(c.id) === true
+      );
+    });
+    if (cards.length > 0) out.push({ ...group, cards });
   }
   return out;
 }
@@ -92,7 +101,7 @@ export function cosineSim(a: Float32Array, b: Float32Array): number {
 }
 
 /** Per-card field vectors, with identical strings sharing one embedding. */
-export function buildReportFieldVecs(cards: readonly ReportIndexCard[], embed: EmbedFn): Map<string, Float32Array[]> {
+export function buildReportFieldVecs(cards: readonly ReportCard[], embed: EmbedFn): Map<string, Float32Array[]> {
   const cache = new Map<string, Float32Array>();
   const vec = (t: string) => {
     let v = cache.get(t);

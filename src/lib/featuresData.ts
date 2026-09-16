@@ -196,7 +196,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         name: "Using a report",
         what: "Extracted, filterable tables you can narrow and export.",
         how: [
-          "Open Reports and pick one — responsibilities by facilitator or GovOps, Active Data, integrator rewards, on-chain addresses, stale dates, modification frequency, processes, and more.",
+          "Open Reports and pick one — they are grouped by subject: roles and duties, on-chain and money, rules and risk, Atlas structure, and Atlas health.",
+          "Most reports are rebuilt from the Atlas every time you open them. A badge on the card marks the ones that are not: \u201cAI-assessed\u201d for rubric-scored ratings, \u201ccurated\u201d for hand-maintained lists that can lag the Atlas.",
           "Use the filter pills to narrow; the URL updates so you can share the exact filtered view.",
           "Click Download CSV to export — full or filtered, with UUIDs and direct Atlas links.",
         ],
@@ -206,7 +207,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "The Reports list search matches names, categories, and descriptions, including similar phrasing.",
         how: [
           "Open Reports and type in the search pill — it filters the list in place.",
-          "A name fragment jumps to that report; a category like OEA or general shows that group; describing what you want (wallet addresses, outdated dates) finds the matching report even when the title is different.",
+          "A name fragment jumps to that report; a subject group like roles and duties or Atlas health shows that group; a badge label like curated or AI-assessed finds those reports.",
+          "Describing what you want (wallet addresses, outdated dates) finds the matching report even when the title is different.",
         ],
       },
       {
@@ -217,6 +219,17 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Follow the link to the rubric page to see exactly what the ratings are scored against.",
         ],
         note: "Ratings are AI-drafted and human-reviewed — treat them as a starting point, not a verdict.",
+      },
+      {
+        name: "Potential Mistakes",
+        what: "Suspected typos, grammar slips, broken cross-references, wrong figures and internal contradictions in the Atlas text — each one quoted and linked to its document.",
+        how: [
+          "Open Potential Mistakes and filter by severity, category, which sweep pass found it, or Doc status.",
+          "Read the quoted Atlas text next to the explanation, then follow the document link to check it at the source.",
+          "On a phone, findings show one at a time — swipe left or right, or use the previous/next buttons (or [←][→]). Filters start folded; tap the truncated disclaimer to read it in full.",
+          "Use the Doc status pills to find findings whose document has been renumbered or removed since the sweep ran.",
+        ],
+        note: "LLM-generated and re-run by hand, not when the Atlas updates — so a finding may already be fixed upstream. Each row is a suspicion to check, not a confirmed defect.",
       },
     ],
   },
