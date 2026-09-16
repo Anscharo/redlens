@@ -129,7 +129,7 @@ describe("validateFinding", () => {
 
   it("accepts a well-formed finding and stamps the current doc_no", () => {
     const res = validateFinding(base, map);
-    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error(`expected a valid finding, got: ${res.reason}`);
     expect(res.finding).toMatchObject({ docNo: n.doc_no, uuid: n.id, id: "A.1.2#wrong-word" });
   });
 
