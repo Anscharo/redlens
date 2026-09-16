@@ -1,5 +1,7 @@
 import { useEffect, useRef, type ChangeEvent, type KeyboardEvent, type ReactNode } from "react";
+import { acceptSlashCompletion, completeSlashCommand } from "@/lib/chatSlashCommands";
 import { PinIcon, SendIcon } from "./glyphs";
+import { SlashGhost } from "./SlashGhost";
 
 interface ComposerProps {
   draft: string;
@@ -32,7 +34,9 @@ interface ComposerProps {
 }
 
 // Auto-growing textarea + context chip + send/stop. Enter sends, Shift+Enter
-// newlines. While streaming the send button becomes a stop button.
+// newlines. While streaming the send button becomes a stop button. A draft
+// that is a lone `/t` offers the matching slash command as a ghost; Tab or
+// Space accepts it (src/lib/chatSlashCommands.ts holds the list).
 export function Composer({
   draft,
   onDraftChange,
@@ -49,6 +53,7 @@ export function Composer({
 }: ComposerProps) {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const disabled = !!locked || !!historyLoading;
+  const completion = completeSlashCommand(draft);
 
   useEffect(() => {
     if (focusKey) taRef.current?.focus();
@@ -62,6 +67,13 @@ export function Composer({
   };
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Tab must be swallowed or focus leaves the textarea; Space must be, or
+    // the textarea inserts its own space after the one we add.
+    if (completion && (e.key === "Tab" || e.key === " ") && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      onDraftChange(acceptSlashCompletion(completion));
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!streaming && draft.trim() && !disabled) {
@@ -74,7 +86,8 @@ export function Composer({
   return (
     <div className="rlc-composer">
       {notice}
-      <div className="rlc-inputwrap">
+      <div className="rlc-inputwrap" data-state={completion ? "completing" : undefined}>
+        {completion && <SlashGhost completion={completion} />}
         <textarea
           ref={taRef}
           className="rlc-textarea"
@@ -93,7 +106,15 @@ export function Composer({
             <span className="rlc-chip-label">{chip}</span>
           </span>
           <span className="rlc-hint">
-            {streaming ? "streaming…" : historyLoading ? "loading…" : locked ? "locked" : "↵ to send"}
+            {streaming
+              ? "streaming…"
+              : historyLoading
+                ? "loading…"
+                : locked
+                  ? "locked"
+                  : completion
+                    ? "⇥ to complete"
+                    : "↵ to send"}
           </span>
           {streaming ? (
             <button className="rlc-stop" onClick={onStop} title="Stop generating" aria-label="Stop">

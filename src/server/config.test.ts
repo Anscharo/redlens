@@ -14,7 +14,9 @@ const ENV_KEYS = [
   "SEMANTIC_MIN_SCORE", "SEMANTIC_EMBED_TIMEOUT_MS", "QUERY_EMBED_CACHE_SIZE", "CHAT_MODEL",
   "CHAT_MAX_ITERATIONS", "CHAT_TEMPERATURE", "CHAT_MAX_OUTPUT_TOKENS",
   "CHAT_CAPTURE_CONTENT", "CHAT_TOOL_RESULT_MAX_CHARS", "CHAT_VERIFIER_MODEL",
-  "CHAT_VERIFY_CHECKS", "CHAT_PREFETCH", "CHAT_VERIFIER_EVIDENCE_MAX_CHARS",
+  "CHAT_VERIFY_CHECKS", "CHAT_PREFETCH", "CHAT_TEACH", "CHAT_TEACH_REVIEW_MODEL",
+  "CHAT_TEACH_REVIEW_TIMEOUT_MS", "CHAT_TEACH_MAX_PER_DAY",
+  "CHAT_VERIFIER_EVIDENCE_MAX_CHARS",
   "CHAT_REFUTE_MODE", "CHAT_REFUTE_CONCURRENCY", "CHAT_REFUTE_MAX_PARAGRAPHS",
   "CHAT_MODEL_FAST",
   "CHAT_MODEL_STRONG", "CHAT_MODEL_FALLBACKS", "CHAT_REFERENCE_CITATION_MODELS", "RATE_LIMIT_TOKENS_PER_WINDOW",
@@ -85,6 +87,10 @@ test("defaults when no env is set", async () => {
   expect(config.chatVerifierModel).toBe("");
   expect(config.chatVerifyChecks).toBe(true);
   expect(config.chatPrefetch).toBe(true);
+  expect(config.chatTeach).toBe(true);
+  expect(config.chatTeachReviewModel).toBe("google/gemma-4-31b-it");
+  expect(config.chatTeachReviewTimeoutMs).toBe(15_000);
+  expect(config.chatTeachMaxPerDay).toBe(40);
   expect(config.chatVerifierEvidenceMaxChars).toBe(120_000);
   expect(config.chatRefuteMode).toBe("paragraph");
   expect(config.chatRefuteConcurrency).toBe(3);
@@ -152,6 +158,10 @@ test("all env overrides take effect", async () => {
     CHAT_VERIFIER_MODEL: "verifier-model",
     CHAT_VERIFY_CHECKS: "0",
     CHAT_PREFETCH: "0",
+    CHAT_TEACH: "0",
+    CHAT_TEACH_REVIEW_MODEL: "review-model",
+    CHAT_TEACH_REVIEW_TIMEOUT_MS: "9000",
+    CHAT_TEACH_MAX_PER_DAY: "7",
     CHAT_VERIFIER_EVIDENCE_MAX_CHARS: "222",
     CHAT_REFUTE_MODE: "answer",
     CHAT_REFUTE_CONCURRENCY: "5",
@@ -218,6 +228,10 @@ test("all env overrides take effect", async () => {
   expect(config.chatVerifierModel).toBe("verifier-model");
   expect(config.chatVerifyChecks).toBe(false);
   expect(config.chatPrefetch).toBe(false);
+  expect(config.chatTeach).toBe(false);
+  expect(config.chatTeachReviewModel).toBe("review-model");
+  expect(config.chatTeachReviewTimeoutMs).toBe(9000);
+  expect(config.chatTeachMaxPerDay).toBe(7);
   expect(config.chatVerifierEvidenceMaxChars).toBe(222);
   expect(config.chatRefuteMode).toBe("answer");
   expect(config.chatRefuteConcurrency).toBe(5);
@@ -256,6 +270,13 @@ test("all env overrides take effect", async () => {
   expect(config.atlasStaleSeconds).toBe(7000);
   expect(config.atlasStuckSeconds).toBe(800);
   expect(config.atlasUpdaterDeadSeconds).toBe(900);
+});
+
+test("teach review model defaults to the strong-tier primary when unset", async () => {
+  clearAll();
+  process.env.CHAT_MODEL_STRONG = "strong-a,strong-b";
+  const config = await freshConfig();
+  expect(config.chatTeachReviewModel).toBe("strong-a");
 });
 
 test("appCommit falls through APP_COMMIT, GIT_COMMIT, SOURCE_COMMIT in order", async () => {

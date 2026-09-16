@@ -710,6 +710,7 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   background: rgba(0, 0, 0, 0.18);
 }
 .rlc-inputwrap {
+  position: relative; /* anchors the slash-command ghost overlay */
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
@@ -719,6 +720,14 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
+/* The textarea and its slash-command ghost overlay share ONE font+padding rule
+   so the overlay's `/t` sits exactly over the typed `/t` — split them and the
+   two drift the first time someone retunes the composer type. */
+.rlc-textarea,
+.rlc-slash-ghost {
+  font: 400 15.5px/1.5 var(--serif, "Lora", serif);
+  padding: 10px 12px 4px;
+}
 .rlc-textarea {
   width: 100%;
   resize: none;
@@ -726,11 +735,26 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   outline: none;
   background: transparent;
   color: var(--tan);
-  font: 400 15.5px/1.5 var(--serif, "Lora", serif);
-  padding: 10px 12px 4px;
   max-height: 120px;
 }
 .rlc-textarea::placeholder { color: var(--gray); }
+/* Slash-command autocomplete (SlashGhost.tsx): while a completion is offered
+   the textarea's own text goes transparent (caret kept) and the overlay paints
+   the typed prefix in the accent with the remainder translucent. */
+.rlc-slash-ghost {
+  position: absolute;
+  inset: 0 0 auto 0;
+  pointer-events: none;
+  white-space: pre;
+  overflow: hidden;
+  color: var(--tan);
+}
+.rlc-slash-typed { color: var(--accent); }
+.rlc-slash-rest { color: color-mix(in srgb, var(--tan) 45%, transparent); }
+.rlc-inputwrap[data-state="completing"] .rlc-textarea {
+  color: transparent;
+  caret-color: var(--tan);
+}
 
 .rlc-composer-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px 10px; }
 .rlc-chip {

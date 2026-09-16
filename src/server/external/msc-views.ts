@@ -273,6 +273,8 @@ export function buildMscView(
     let months: string[];
     if (raw.from || raw.to) {
       months = all.filter((m) => (!raw.from || m >= raw.from) && (!raw.to || m <= raw.to));
+    } else if (raw.month === "all") {
+      months = all; // every published month — "which month was biggest", "over time"
     } else if (raw.month && raw.month !== "latest") {
       months = all.filter((m) => m === raw.month);
     } else {
@@ -344,6 +346,22 @@ export function buildMscView(
       .slice(0, 20)
       .map((v) => ({ prime: v.prime, id: v.id, label: v.label, chain: v.chain, revenue_to_prime: v.revenue_to_prime, profit_to_sky: v.profit_to_sky, profit_to_grove: v.profit_to_grove, value_eom_latest: v.value_eom, months_counted: v.months }));
 
+    // Ecosystem per month — the only place "which month was biggest" can be
+    // answered: series is per-prime and by_prime sums the months away. Same
+    // bases as by_prime (rule 1 and rule 2 above), so the columns foot to the
+    // ecosystem block. primes_reported travels with each row because a month
+    // with fewer published workbooks is not comparable on its face.
+    const byMonth = months.map((month) => {
+      const rs = reports.filter((r) => r.month === month);
+      return {
+        month,
+        to_sky: rs.reduce((n, r) => n + r.headline.skyRevenue, 0),
+        supply_kept: rs.reduce((n, r) => n + supplyKept(r), 0),
+        demand_side: rs.reduce((n, r) => n + demandSideRevenue(r.headline), 0),
+        primes_reported: rs.length,
+      };
+    });
+
     const eco = primeRows.reduce(
       (a, r) => ({ to_sky: a.to_sky + r.to_sky, supply_kept: a.supply_kept + r.supply_kept, demand_side: a.demand_side + r.demand_side }),
       { to_sky: 0, supply_kept: 0, demand_side: 0 },
@@ -366,14 +384,25 @@ export function buildMscView(
         `Venue revenue rows sum $${Math.round(venueSum)} against headline prime agent revenue $${Math.round(totalPar)} (gap $${Math.round(Math.abs(venueSum - totalPar))}). Rank venues by these rows, but never total them into a headline.`,
       );
     }
+    const coverage = new Set(byMonth.map((m) => m.primes_reported));
+    if (coverage.size > 1) {
+      traps.push(
+        `Months in this range have different numbers of published workbooks (${byMonth.map((m) => `${m.month}: ${m.primes_reported}`).join(", ")}). A month with more primes reporting is not a like-for-like maximum — say which primes are counted when ranking months.`,
+      );
+    }
 
     const sources: MscSourceRow[] = reports.map((r) => ({ kind: "soter_workbook" as const, prime: r.prime, month: r.month, url: workbookUrl(r.prime, r.month) }));
     return wrap(sources, {
       view,
       months,
+      // Always present, not only on the empty-range error: a caller that asked
+      // for the default (latest month) learns here that earlier months exist
+      // and can widen with month:"all" or from/to on the next round.
+      months_available: all,
       primes: primeRows.map((r) => r.prime),
       metric,
       by_prime: primeRows,
+      by_month: byMonth,
       ecosystem: { ...eco, prime_agent_revenue: totalPar, to_sky_components: componentsOf(totalCof, totalSde), foot_delta: footDelta },
       top_venues: topVenues,
       traps,
@@ -495,6 +524,13 @@ export function buildMscView(
 }
 
 /** Deterministic brief when the sub-agent is unavailable — numbers only, no narrative. */
+// Bounds the deterministic brief. The largest view is aggregate over the
+// 24-month ceiling: 3 ecosystem flows + 24 months + one row per prime. This is
+// the FALLBACK the main model reads when the sub-model contributes nothing, so
+// it must not truncate the very table that answers the question (the
+// sub-model's own output is capped separately in subagent.ts).
+const BRIEF_FIGURES_CAP = 40;
+
 export function briefFromView(view: Record<string, unknown>): Record<string, unknown> {
   const figures: { name: string; value: number; unit: string }[] = [];
   const tw = view.three_way as Record<string, number> | undefined;
@@ -518,12 +554,34 @@ export function briefFromView(view: Record<string, unknown>): Record<string, unk
       if (typeof r.to_sky === "number") figures.push({ name: `${r.prime} To Sky`, value: r.to_sky, unit: "USD" });
     }
   }
+  // aggregate carries its money under ecosystem / by_month / by_prime rather
+  // than three_way / points / rows. Without this branch the fallback brief for
+  // the one cross-prime view was EMPTY — the main model saw source links and
+  // nothing else, and reported that the tool returned no figures.
+  if (view.view === "aggregate") {
+    const months = Array.isArray(view.months) ? (view.months as string[]) : [];
+    const span = months.length > 1 ? ` ${months[0]}..${months[months.length - 1]}` : months.length === 1 ? ` ${months[0]}` : "";
+    const eco = view.ecosystem as Record<string, number> | undefined;
+    if (eco && typeof eco.to_sky === "number") {
+      figures.push({ name: `Ecosystem To Sky${span}`, value: eco.to_sky, unit: "USD" });
+      figures.push({ name: `Ecosystem supply kept${span}`, value: eco.supply_kept, unit: "USD" });
+      figures.push({ name: `Ecosystem demand-side${span}`, value: eco.demand_side, unit: "USD" });
+    }
+    const byMonth = view.by_month as Array<Record<string, number | string>> | undefined;
+    for (const m of byMonth ?? []) {
+      if (typeof m.to_sky === "number") figures.push({ name: `To Sky ${m.month} (${m.primes_reported} primes)`, value: m.to_sky, unit: "USD" });
+    }
+    const byPrime = view.by_prime as Array<Record<string, number | string>> | undefined;
+    for (const r of byPrime ?? []) {
+      if (typeof r.to_sky === "number") figures.push({ name: `${r.prime} To Sky${span}`, value: r.to_sky, unit: "USD" });
+    }
+  }
   return {
     source_class: view.source_class,
     not_atlas: true,
     required_disclaimer: view.required_disclaimer,
     sources: view.sources,
-    figures: figures.slice(0, 12),
+    figures: figures.slice(0, BRIEF_FIGURES_CAP),
     forum: view.forum ?? null,
     workbook_url: view.workbook_url ?? null,
     notes: "",

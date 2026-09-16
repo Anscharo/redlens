@@ -6,8 +6,15 @@ import { listConversations, type ConversationSummary } from "../../lib/conversat
 import { ROUTES } from "@/lib/routes";
 import type { PageContextView } from "./pageContext";
 
+// Each starter is a showcase, so each must be ANSWERABLE with citations — the
+// old first slot asked who signs off on a facilitator budget, which the atlas
+// never states, so the very first click demonstrated a miss. Slot 1 now shows
+// the history lane (something a reader can't get by opening the atlas); the
+// other two show cross-document synthesis. "most recent" rather than "this
+// month" so a quiet month never yields "nothing changed". Re-verified
+// 2026-09-16: 3/3 runs badge "pass" with cited doc links.
 export const STARTERS = [
-  "How are Operational Facilitators rewarded, and who signs off on the budget?",
+  "What changed in the most recent Atlas updates, and which scopes were touched?",
   "What's the difference between a Prime Agent and an Aligned Delegate?",
   "Trace the governance path for an Atlas amendment.",
 ];
@@ -64,7 +71,7 @@ export function ChatEmptyState({ authed, context, onSend, onOpenConversation }: 
     ? "I can pull this full report in one call and answer questions about it — total it, filter it, or dig into any single row. Ask away or ask about something else in the Atlas"
     : onReport
       ? "I can see which report you're on — Ask about it or any part of the Atlas. Answers will be grounded in the Atlas."
-      : "A research agent over the Sky Atlas. It already knows the page you're on — answers cite Atlas docs you can open inline.";
+      : "A research agent over the Sky Atlas. It already knows the page you're on — answers cite Atlas docs you can open inline. Type `/teach` followed by a short note — one fact, a sentence or two — to remember something it missed.";
   const starters = hasReportTool
     ? reportToolStarters(context.reportName!)
     : onReport

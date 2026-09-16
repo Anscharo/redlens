@@ -2,7 +2,7 @@
 // (validateContradictions) that re-checks both spans before a candidate can
 // ever reach the confirm gate.
 import { describe, test, expect } from "bun:test";
-import { buildRefutePrompt, parseRefute, validateContradictions } from "./refute.ts";
+import { buildRefutePrompt, parseRefute, validateContradictions, REFUTE_PROMPT } from "./refute.ts";
 import type { EvidenceEntry } from "./verifier.ts";
 
 const ev = (content: string, sourceClass?: "atlas" | "reference" | "external"): EvidenceEntry =>
@@ -13,6 +13,19 @@ test("buildRefutePrompt marks [REFERENCE] entries so the judge can tell them fro
   expect(String(user.content)).toContain("[E1] [REFERENCE]");
   const [, plain] = buildRefutePrompt({ question: "q", answer: "a", evidence: [ev("some atlas text", "atlas")] });
   expect(String(plain.content)).not.toContain("[REFERENCE]");
+});
+
+test("buildRefutePrompt marks user teachings as not Atlas", () => {
+  const [, user] = buildRefutePrompt({
+    question: "q",
+    answer: "a",
+    evidence: [{ label: "[E1]", tool: "user_teachings", args: "{}", content: "a private note", sourceClass: "user" }],
+  });
+  expect(String(user.content)).toContain("[USER NOTE, not Atlas]");
+});
+
+test("REFUTE_PROMPT tells the judge user notes are not atlas text", () => {
+  expect(REFUTE_PROMPT).toContain("[USER NOTE, not Atlas]");
 });
 
 test("buildRefutePrompt lists no evidence gracefully", () => {

@@ -200,6 +200,44 @@ suppressed when the question names a real atlas subject. Its margin
 over-injecting costs ~2k discarded tokens a large model can ignore, while
 under-injecting can lose the answer. `CHAT_PREFETCH=0` kills every fact at once.
 
+**User teachings (`/teach`, `src/server/chat/teach/`).** A signed-in user can start
+a message with `/teach`; the rest of the message is a note, capped at
+`TEACH_MAX_WORDS` (60 — set by ternlight's 128-token window; over-cap notes are
+rejected with the count, stored as `rejected`/"too long" so demand for long
+notes is measurable, and every touchpoint says "one fact per note, a sentence
+or two"; the review model reads the whole capped note, no second character
+window). A cheap heuristic rejects empty/spam, then an advanced model (`CHAT_TEACH_REVIEW_MODEL`, defaulting
+to the strong-tier primary) reviews for gibberish and prompt-injection — it does
+not fact-check against the Atlas. Accepted notes land in `chat_teachings`,
+scoped to that `user_id`. Later turns inject matching notes as a **separate**
+synthetic tool round named `user_teachings` (`sourceClass: "user"`), so
+quote-grounding never treats a note as atlas text. Matching is lexical token
+overlap plus on-device ternlight, with a SQL `tsvector` lane for larger
+notebooks. The note's 384-dim ternlight vector is embedded **once, at accept**
+(`ternlight_embedding`, migration 031); a turn embeds only the question and
+Postgres returns each row's cosine (`ternlight_sim`), with a one-time backfill
+for rows that predate the column. (030's 1024-dim OpenRouter vector was never
+read and was dropped in 031 — no network embed anywhere on the teach path.) A note is injected only when a lane clears
+its floor (`TEACH_LEX_FLOOR` term overlap or `TEACH_TERNLIGHT_FLOOR` cosine) —
+there is no small-notebook shortcut, which used to put every note on every turn.
+Small talk skips matching entirely, `CHAT_FACT_SIMILARITY=0` makes it lexical-only
+(the on-device embedder is never loaded), and a partial unique index
+(migration 032) keeps one accepted copy of a note per user under concurrent
+`/teach`. Teachings are excluded from export grounding too (`exportEvidence`),
+mirroring the orchestrator's atlas-evidence split.
+When an answer reads as a miss, the system prompt asks the model to invite
+`/teach`, and `withTeachHint` appends the invitation if the model forgot.
+`CHAT_TEACH=0` turns the command, hint, injection, and prompt section off —
+server-side only; the composer's slash completion (below) still advertises it.
+
+Client-side, the composer autocompletes slash commands: while the draft is a
+lone `/word` token that prefixes a registered command, `SlashGhost.tsx` overlays
+the typed part in the accent and the remainder translucently, and Tab or Space
+accepts it as `/teach `. The list and the pure completion rule live in
+`src/lib/chatSlashCommands.ts` (shared via `@/`, so a future server command has
+one registry); its test asserts every entry is one `parseTeachCommand` accepts.
+Sharing notes across users is deferred.
+
 **Tier routing** (`model-router.ts`) classifies the message by regex signals into
 FAST/DEFAULT/STRONG model chains — free, no pre-flight LLM call; with no env
 config it's a no-op. STRONG fires on comparison, rule interaction, implications,
@@ -282,7 +320,7 @@ mixed as evidence:
 | History | `atlas_history`, `atlas_history_stats`, `atlas_recent_changes`, `atlas_changed_between`, `atlas_first_seen`, `atlas_pr` |
 | Curated reports | `atlas_report_multisigs`, `atlas_report_primitive_matrix`, `atlas_report_rewards`, `atlas_report_active_data`, `atlas_report_facilitator_responsibilities`, `atlas_report_govops_responsibilities`, `atlas_report_stale_dates`, `atlas_report_processes`, `atlas_report_oea_assessment`, `atlas_report_risk_rules`, `atlas_report_addresses` |
 | Output | `export_findings` (chat-only; emits the `export` SSE event) |
-| External (not Atlas) | `external_msc` (MCP) and `ask_external_msc` (chat-only sub-agent). Curated Monthly Settlement Cycle views from Soter Labs workbooks + Sky Forum permalinks. Views: `month`/`series`/`venues` are per-prime and **require** `prime` (their errors return `available_primes` so a wrong guess self-corrects rather than reading as "no data"); `compare` ranks primes for one month; `aggregate` is the cross-prime, multi-month roll-up (ecosystem + per-prime totals, top venues across every prime); `terms` needs nothing. `aggregate` computes supply-side revenue as `prime_agent_revenue − cof` per prime — never `Σ` per-venue `Profit to Grove`, which drops non-venue revenue and spread reimbursement (a $7.29M gap, all Spark) — nests `cof`/`sde` under `to_sky` rather than beside it, treats `value_eom` as a stock (latest, not summed), and returns a `foot_delta` that re-checks the three-way identity. See `.claude/skills/settlement-reports/SKILL.md`. Tool results carry `source_class: "external"`; the verifier ignores them for Atlas quote-grounding and requires the non-Atlas disclaimer. |
+| External (not Atlas) | `external_msc` (MCP) and `ask_external_msc` (chat-only sub-agent). Curated Monthly Settlement Cycle views from Soter Labs workbooks + Sky Forum permalinks. Views: `month`/`series`/`venues` are per-prime and **require** `prime` (their errors return `available_primes` so a wrong guess self-corrects rather than reading as "no data"); `compare` ranks primes for one month; `aggregate` is the cross-prime, multi-month roll-up (ecosystem + per-prime totals, an ecosystem `by_month` series, top venues across every prime) — it covers only the latest month unless `month: "all"` or `from`/`to` is passed, and always returns `months_available` so a default call can widen on the next round; `terms` needs nothing. `aggregate` computes supply-side revenue as `prime_agent_revenue − cof` per prime — never `Σ` per-venue `Profit to Grove`, which drops non-venue revenue and spread reimbursement (a $7.29M gap, all Spark) — nests `cof`/`sde` under `to_sky` rather than beside it, treats `value_eom` as a stock (latest, not summed), and returns a `foot_delta` that re-checks the three-way identity; it also flags a range whose months have different numbers of published workbooks, since such a "highest month" is partly a coverage artifact. The deterministic brief (`briefFromView`) has a branch for every money view, aggregate included — it is what the main model reads when the sub-model returns nothing usable, and an empty one reads as "the tool returned no figures". See `.claude/skills/settlement-reports/SKILL.md`. Tool results carry `source_class: "external"`; the verifier ignores them for Atlas quote-grounding and requires the non-Atlas disclaimer. |
 
 `atlas_query`, `atlas_entities`, and `atlas_params` take their free-text search
 argument as `query`; `q` still works but is a deprecated alias kept for

@@ -50,7 +50,7 @@ const APP_REF = /\b(app|application|site|website|platform|tool|redlens?|sabr|red
 // "how do i find the stability rate" is an atlas question with the same shape.
 const HOW_TO = /\b(how (do|can) i|where (do|can) i|where is|can i)\b/i;
 const APP_ARTIFACT =
-  /\b(csv|exports?|downloads?|buttons?|pages?|tabs?|panels?|sidebars?|shortcuts?|keyboard|bookmarks?|urls?|links?|filters?|columns?|toggles?|dark mode|themes?|sign(ing)? in|accounts?|collections?|mcp|previews?|radar|reports?|chat|conversations?)\b/i;
+  /(?:\b(csv|exports?|downloads?|buttons?|pages?|tabs?|panels?|sidebars?|shortcuts?|keyboard|bookmarks?|urls?|links?|filters?|columns?|toggles?|dark mode|themes?|sign(ing)? in|accounts?|collections?|mcp|previews?|radar|reports?|chat|conversations?|teachings?)\b|\/teach\b)/i;
 
 // Example questions for the registry's similarity lane (facts/similarity.ts),
 // which catches the phrasings no regex anticipates — "show me around", "what
@@ -66,6 +66,7 @@ export const FEATURES_PROTOTYPES = [
   "how do i export data from a page?",
   "where do i click to change a setting?",
   "what is this website for?",
+  "how do i teach the chat something it missed?",
 ];
 
 export function matchesFeaturesQuestion(question: string): boolean {
@@ -88,7 +89,7 @@ const GROUP_SIGNATURES: [string, RegExp][] = [
   ["reports", /\breports?\b|\bcsv\b|\bexports?\b|\btables?\b/i],
   ["crossview", /\bcross[- ]?view\b|\bconcepts?\b|\bglossar(y|ies)\b|\baudit\b/i],
   ["preview", /\bpreview\b|\bpull requests?\b|\bPR\b|\bbranch(es)?\b|\bforks?\b/i],
-  ["chat", /\bchat\b|\batlas agent\b|\bconversations?\b/i],
+  ["chat", /\bchat\b|\batlas agent\b|\bconversations?\b|\/teach|\bteachings?\b/i],
   ["mcp", /\bmcp\b|\bconnect\b|\bclaude\b|\bcursor\b|\bapi\b/i],
   ["platform", /\bsign(ing)? in\b|\baccounts?\b|\bcollections?\b|\bkeyboard\b|\bshortcuts?\b|\bthemes?\b/i],
 ];
@@ -139,6 +140,7 @@ const CHAT = {
     "Answer from document history — what changed, when, and at which atlas version.",
     "Use the page you are on: ask about \"this document\" or \"this report\" and I take it from there.",
     "Hand back a file when you ask me to export what I found.",
+    "Remember a note you teach me with `/teach` and use it on your later questions.",
   ],
   i_cannot: [
     "Change anything — not the Atlas, not the app, not your collections, not on-chain state.",
