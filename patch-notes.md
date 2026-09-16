@@ -34,7 +34,7 @@
 -->
 
 
-## 2026-09-15
+## 2026-09-16
 - Grouped the Reports index by subject and added a badge showing which reports are AI-assessed or hand-curated rather than rebuilt from the Atlas
 - Added a Potential Mistakes report listing suspected typos, broken references, wrong figures and contradictions in the Atlas text, each quoted and linked to its document
 - Previews now redline a change against the branch it was actually made on, the preview bar shows how far that base has drifted from the main atlas, and a private pull request missing Pull requests: Read asks the owner to grant it on GitHub
