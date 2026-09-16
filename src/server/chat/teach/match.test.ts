@@ -1,5 +1,6 @@
 import { describe, expect, it, test } from "bun:test";
-import { rankTeachings, selectTeachings, teachingEmbedText, tokensOf, type RankedTeaching } from "./match.ts";
+import { matchTeachings, rankTeachings, selectTeachings, teachingEmbedText, tokensOf, type RankedTeaching } from "./match.ts";
+import { config } from "../../config.ts";
 import { onDeviceCosine, onDeviceEmbed } from "../../facts/similarity.ts";
 import type { TeachingRow } from "./store.ts";
 
@@ -89,4 +90,22 @@ test("RankedTeaching shape is a TeachingRow plus scores", () => {
   const ranked: RankedTeaching[] = rankTeachings("spark", [row("a", "Spark", "Spark is a prime agent extra")]);
   expect(ranked[0]).toHaveProperty("lex");
   expect(ranked[0]).toHaveProperty("score");
+});
+
+// PR #386 review: matching must honour the similarity kill switch (it used to
+// load ternlight regardless) and must not rank a notebook for small talk.
+test("CHAT_FACT_SIMILARITY=0 leaves ranking lexical-only", () => {
+  const prev = config.chatFactSimilarity;
+  config.chatFactSimilarity = false;
+  try {
+    const [r] = rankTeachings("spark freeze", [{ id: "a", subject: "Spark freeze", content: "lives under Spark" }]);
+    expect(r!.ternlight).toBeNull();
+    expect(r!.lex).toBeGreaterThan(0);
+  } finally {
+    config.chatFactSimilarity = prev;
+  }
+});
+
+test("small talk matches nothing without touching the store", async () => {
+  expect(await matchTeachings("00000000-0000-0000-0000-000000000000", "thanks, that helped")).toEqual([]);
 });

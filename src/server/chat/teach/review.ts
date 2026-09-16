@@ -83,7 +83,10 @@ export async function reviewTeaching(
         model,
         messages: [
           { role: "system", content: REVIEW_SYSTEM },
-          { role: "user", content: text.slice(0, 4000) },
+          // The whole note: handle.ts rejects anything over TEACH_MAX_WORDS
+          // before review runs, so there is no second, character-based window
+          // for a jailbreak to hide behind (PR #386 review).
+          { role: "user", content: text },
         ],
         maxTokens: 120,
       },

@@ -57,10 +57,15 @@ export async function insertTeaching(row: {
       ${row.status}, ${row.rejectReason}, ${row.contentHash}, ${row.reviewModel},
       ${row.review}::jsonb, ${tl}::vector
     )
+    ON CONFLICT (user_id, content_hash) WHERE status = 'accepted' DO NOTHING
     RETURNING id
   `) as { id: string }[];
-  if (!inserted[0]) throw new Error("chat_teachings insert returned no id");
-  return inserted[0];
+  if (inserted[0]) return inserted[0];
+  // A concurrent identical /teach won the race (migration 032's partial unique
+  // index): answer with the row that exists rather than failing the turn.
+  const existing = row.status === "accepted" ? await findAcceptedByHash(row.userId, row.contentHash) : null;
+  if (!existing) throw new Error("chat_teachings insert returned no id");
+  return existing;
 }
 
 // Cap on how many of one user's notes we load per turn. Matching then ranks.

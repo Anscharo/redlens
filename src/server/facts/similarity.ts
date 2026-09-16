@@ -94,6 +94,7 @@ function protoVec(tl: Ternlight, text: string): Float32Array {
  *  and holds every key forever, so routing arbitrary questions and notes
  *  through it grew without bound (one entry per distinct chat message). */
 export function onDeviceEmbed(text: string): Float32Array | null {
+  if (!config.chatFactSimilarity) return null; // the kill switch covers teach matching too
   const tl = loadTernlight();
   if (!tl) return null;
   return tl.embed(text);

@@ -17,7 +17,7 @@
 // an MSC note showed up under "what jobs are there in sky" and "hello there"
 // (observed 2026-09-16), and the stage ticker read as if the chat always
 // recalled something.
-import { onDeviceCosine, onDeviceEmbed } from "../../facts/similarity.ts";
+import { isSmallTalk, onDeviceCosine, onDeviceEmbed } from "../../facts/similarity.ts";
 import { listAcceptedTeachings, searchTeachingsSql, storeTernlight, type TeachingRow } from "./store.ts";
 
 /** The one text both the write-time embed and any fallback embed use, so the
@@ -114,7 +114,8 @@ export function backfillTernlight(rows: TeachingRow[], qVec: Float32Array | null
 }
 
 export async function matchTeachings(userId: string, question: string): Promise<RankedTeaching[]> {
-  const qVec = onDeviceEmbed(question); // the ONLY embed on the hot path
+  if (isSmallTalk(question)) return []; // "thanks" never ranks a notebook, or touches the DB
+  const qVec = onDeviceEmbed(question); // the ONLY embed on the hot path; null under CHAT_FACT_SIMILARITY=0
   const qArr = qVec ? Array.from(qVec) : null;
   const [recent, sqlHits] = await Promise.all([
     listAcceptedTeachings(userId, qArr),

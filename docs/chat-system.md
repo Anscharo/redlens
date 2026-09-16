@@ -205,7 +205,8 @@ a message with `/teach`; the rest of the message is a note, capped at
 `TEACH_MAX_WORDS` (60 — set by ternlight's 128-token window; over-cap notes are
 rejected with the count, stored as `rejected`/"too long" so demand for long
 notes is measurable, and every touchpoint says "one fact per note, a sentence
-or two"). A cheap heuristic rejects empty/spam, then an advanced model (`CHAT_TEACH_REVIEW_MODEL`, defaulting
+or two"; the review model reads the whole capped note, no second character
+window). A cheap heuristic rejects empty/spam, then an advanced model (`CHAT_TEACH_REVIEW_MODEL`, defaulting
 to the strong-tier primary) reviews for gibberish and prompt-injection — it does
 not fact-check against the Atlas. Accepted notes land in `chat_teachings`,
 scoped to that `user_id`. Later turns inject matching notes as a **separate**
@@ -219,6 +220,11 @@ for rows that predate the column. (030's 1024-dim OpenRouter vector was never
 read and was dropped in 031 — no network embed anywhere on the teach path.) A note is injected only when a lane clears
 its floor (`TEACH_LEX_FLOOR` term overlap or `TEACH_TERNLIGHT_FLOOR` cosine) —
 there is no small-notebook shortcut, which used to put every note on every turn.
+Small talk skips matching entirely, `CHAT_FACT_SIMILARITY=0` makes it lexical-only
+(the on-device embedder is never loaded), and a partial unique index
+(migration 032) keeps one accepted copy of a note per user under concurrent
+`/teach`. Teachings are excluded from export grounding too (`exportEvidence`),
+mirroring the orchestrator's atlas-evidence split.
 When an answer reads as a miss, the system prompt asks the model to invite
 `/teach`, and `withTeachHint` appends the invitation if the model forgot.
 `CHAT_TEACH=0` turns the command, hint, injection, and prompt section off —
