@@ -117,7 +117,6 @@ Two things to know:
 
 ## Finishing
 
-The report is user-visible, so a refresh that changes what readers see needs:
+Commit `.github/mistakes-sweep-state.json` and `public/potential-mistakes.json` **together** — a state file ahead of the artifact retires documents whose findings never landed.
 
-- a one-line `patch-notes.md` bullet, dated the day it merges (skip it if you are extending an unreleased change from the same PR);
-- `.github/mistakes-sweep-state.json` and `public/potential-mistakes.json` committed **together** — a state file ahead of the artifact retires documents whose findings never landed.
+A refresh needs **no `patch-notes.md` bullet**. Re-running the sweep is routine data maintenance, not a shipped capability: the report already exists and already says when it was last swept. Add a note only if the refresh changes what the report *is* — a new category, a new filter, a change to how findings are presented.
