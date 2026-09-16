@@ -17,6 +17,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 
 import { loadAtlasSource } from "../lib/atlas-source.mjs";
+import { CORPUS_DETECTORS, runCorpusDetectors } from "../lib/mistakes-corpus.mjs";
 import {
   advanceState,
   buildBacklinks,
@@ -241,7 +242,7 @@ if (cmd === "plan") {
 
 // --- merge ------------------------------------------------------------------
 if (cmd === "merge") {
-  const { nodeMap, state } = load();
+  const { nodes, nodeMap, state } = load();
   const plan = readJson(path.join(WORK, "plan.json"), null);
   if (!plan) {
     console.error("[mistakes] no plan at .cache/mistakes-sweep/plan.json — run `pnpm mistakes:plan` first");
@@ -285,11 +286,22 @@ if (cmd === "merge") {
   }
 
   const artifact = readJson(ARTIFACT, { findings: [] });
+
+  // A full run re-derives everything, corpus-wide findings included: the
+  // detectors compare across documents, which is the one thing the chunked
+  // document sweep structurally cannot do. Their previous rows are retired and
+  // rebuilt, so --full genuinely means "re-derive", not "re-read the documents".
+  const full = plan.full || flag("full");
+  const corpus = full ? runCorpusDetectors(nodes) : [];
+  const ran = full ? Object.keys(CORPUS_DETECTORS) : [];
+  if (full) console.log(`corpus detectors: ${ran.join(", ")} → ${corpus.length} findings`);
+
   // A finding a human already ruled out must not come back on the next sweep of
   // its document — otherwise the review has to be re-applied by hand each time.
-  const vetoed = suppressRejected(incoming, artifact.rejected ?? []);
+  const vetoed = suppressRejected([...incoming, ...corpus], artifact.rejected ?? []);
   const merged = mergeFindings(artifact.findings, vetoed.findings, new Set(evaluated), plan.removed ?? [], {
     dropCorpus: flag("drop-corpus"),
+    corpusDetectors: ran,
   });
   const sha = plan.atlasSha ?? atlasSha();
   const next = {

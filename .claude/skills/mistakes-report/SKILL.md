@@ -37,6 +37,7 @@ This skill is the runbook for refreshing it. The sweep is **incremental**: a run
 | `.github/mistakes-sweep-state.json` | Per-document digests of what was last evaluated. Committed — without it every run is a full sweep. |
 | `.cache/mistakes-sweep/` | Scratch for one run: `plan.json`, `chunks/`, `findings/`. Gitignored, rebuilt by every `plan`. |
 | `scripts/lib/mistakes-sweep.mjs` | The pure logic (digest, plan, validate, merge). Tested by `scripts_tests/mistakes-sweep.test.ts`. |
+| `scripts/lib/mistakes-corpus.mjs` | Corpus-wide detectors — the cross-document comparisons the chunked fan-out cannot see. Tested by `scripts_tests/mistakes-corpus.test.ts`. |
 
 ## The cycle
 
@@ -104,7 +105,16 @@ One JSON object per line in `findings/NNN.jsonl`:
 
 **`merge` will not advance a chunk whose JSONL is malformed.** A truncated last line means the agent died mid-write; the chunk stays queued rather than being half-trusted.
 
-**Corpus-wide findings are hand-maintained.** A row with `uuid: null` is a defect that spans documents and belongs to none — today exactly one: "six prime artifacts say *circulating* where two say *total*", whose `docNo` is a wildcard (`A.6.1.1.*.…`). No chunk contains such a finding, so the fan-out cannot produce one and `merge` never retires one: dropping them on a sweep would delete a real finding nothing can rebuild. Edit them in the JSON by hand, and use `pnpm mistakes:merge --drop-corpus` for a deliberate purge.
+**Corpus-wide findings come from detectors, not from the fan-out.** A row with `uuid: null` is a defect that spans documents and belongs to none — "six prime artifacts say *circulating* where two say *total*", `docNo` a wildcard (`A.6.1.1.*.…`). No chunk contains such a finding, so no agent can report one. `scripts/lib/mistakes-corpus.mjs` produces them deterministically instead, and **`pnpm mistakes:merge` runs the detectors whenever the plan was `--full`**, retiring and rebuilding every row they own.
+
+What a corpus row may have done to it depends on whether something can rebuild it:
+
+| Row | On `--full` |
+|---|---|
+| carries a `detector` that just ran | retired and re-derived from scratch |
+| carries no `detector` (hand-authored) | kept — nothing can rebuild it. `--drop-corpus` is the deliberate purge |
+
+That is what makes `--full` mean *re-derive everything* rather than *re-read every document and hope*. Detector output is a candidate list like any other pass: expect false positives where artifacts legitimately differ (each Prime names its own executor agent, its own multisig), and veto those into `rejected` — `suppressRejected` keeps them out of every later run.
 
 **A finding that names one document belongs to that document.** Seven rows once carried `uuid: null` while naming a single doc — they showed as `corpus` in the report, could never be re-evaluated, and never drifted. They were backfilled by resolving each verbatim quote against the atlas (2026-09-16). If a sweep ever emits a document-anchored row without a UUID again, resolve it rather than leaving it corpus-wide: only a finding with no single home belongs in that bucket.
 

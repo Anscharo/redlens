@@ -264,16 +264,22 @@ export function suppressRejected(incoming, rejected = []) {
  * every document outside that set; findings are replaced for documents inside
  * it, and dropped for documents the atlas no longer has.
  */
-export function mergeFindings(previous, incoming, evaluated, removed = [], { dropCorpus = false } = {}) {
+export function mergeFindings(previous, incoming, evaluated, removed = [], { dropCorpus = false, corpusDetectors = [] } = {}) {
   const drop = new Set([...evaluated, ...removed]);
+  const rederived = new Set(corpusDetectors);
   // A corpus-wide finding (uuid null) spans documents — "these six artifacts
-  // say circulating where two say total". No chunk contains it, so
-  // validateFinding cannot regenerate one and no document sweep may retire it:
-  // dropping it on --full would delete a real finding nothing can rebuild.
-  // These rows are hand-maintained; `--drop-corpus` is the deliberate purge.
-  const kept = previous.filter((f) =>
-    f.uuid == null ? !dropCorpus : !drop.has(f.uuid),
-  );
+  // say circulating where two say total". No chunk of the document sweep
+  // contains it, so validateFinding can never rebuild one from agent output.
+  //
+  // What decides whether it may be retired is therefore whether something ELSE
+  // just rebuilt it. A row carrying a `detector` that ran this time is replaced
+  // by that detector's fresh output. A row with no detector is hand-authored,
+  // nothing can regenerate it, and only `--drop-corpus` removes it.
+  const kept = previous.filter((f) => {
+    if (f.uuid != null) return !drop.has(f.uuid);
+    if (f.detector) return !rederived.has(f.detector);
+    return !dropCorpus;
+  });
   return {
     findings: dedupeIds(sortFindings([...kept, ...incoming])),
     kept: kept.length,

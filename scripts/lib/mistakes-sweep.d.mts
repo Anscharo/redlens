@@ -21,6 +21,8 @@ export interface Mistake {
   docNo: string;
   /** null on a corpus-wide finding, which spans documents and belongs to none. */
   uuid: string | null;
+  /** Set on a corpus finding a detector produced, and can therefore rebuild. */
+  detector?: string;
   file: string;
   category: string;
   severity: string;
@@ -85,7 +87,7 @@ export function mergeFindings(
   incoming: Mistake[],
   evaluated: Set<string> | string[],
   removed?: string[],
-  opts?: { dropCorpus?: boolean },
+  opts?: { dropCorpus?: boolean; corpusDetectors?: string[] },
 ): { findings: Mistake[]; kept: number; replaced: number; added: number };
 export function sortFindings(findings: Mistake[]): Mistake[];
 export function compareDocNo(a: string, b: string): number;
