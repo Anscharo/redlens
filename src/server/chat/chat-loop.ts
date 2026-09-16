@@ -22,6 +22,7 @@ import { captureError, captureEvent, type ErrorContext } from "../posthog-node.t
 import type { JsonCall } from "./llm.ts";
 import { ASK_EXTERNAL_MSC, runAskExternalMsc } from "./tools/external-tools.ts";
 import { isExternalMscTool } from "../external/envelope.ts";
+import { isUserTeachingTool } from "./teach/inject.ts";
 import { isRepetitionLoop } from "./repetition-guard.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -186,18 +187,27 @@ const EARLY_ANSWER_NUDGE =
 // any downstream consumer of the transcript classifies those rounds identically.
 export function exportEvidence(msgs: Msg[]): ExportEvidence {
   const externalIds = new Set<string>();
+  // A user's /teach notes ride a synthetic tool round (teach/inject.ts). They
+  // are neither atlas text nor external figures, so an export must not treat
+  // them as grounding — the orchestrator already excludes them from atlas
+  // evidence (splitFromTranscript), and this is the export-side twin.
+  const teachingIds = new Set<string>();
   for (const m of msgs) {
     if (m.role !== "assistant" || !Array.isArray(m.tool_calls)) continue;
     for (const tc of m.tool_calls) {
-      if (tc.type === "function" && isExternalMscTool(tc.function.name)) externalIds.add(tc.id);
+      if (tc.type !== "function") continue;
+      if (isExternalMscTool(tc.function.name)) externalIds.add(tc.id);
+      else if (isUserTeachingTool(tc.function.name)) teachingIds.add(tc.id);
     }
   }
   const atlasTexts: string[] = [];
   const externalTexts: string[] = [];
   for (const m of msgs) {
     if (typeof m.content !== "string") continue;
-    if (m.role === "tool") (externalIds.has(m.tool_call_id) ? externalTexts : atlasTexts).push(m.content);
-    else if (m.role === "assistant") atlasTexts.push(m.content);
+    if (m.role === "tool") {
+      if (teachingIds.has(m.tool_call_id)) continue;
+      (externalIds.has(m.tool_call_id) ? externalTexts : atlasTexts).push(m.content);
+    } else if (m.role === "assistant") atlasTexts.push(m.content);
   }
   return { atlasTexts, externalTexts };
 }

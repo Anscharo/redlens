@@ -26,6 +26,7 @@ export const REFUTE_PROMPT = [
   "Statements you could not locate in the evidence go in `not_found`, AT MOST 5 — each a full claim (subject plus what is said about it), never a bare topic or term.",
   "Do not report omissions or missing list members.",
   "Entries marked [REFERENCE] are context SAbR injected (product guide, glossary, entity rows) — not atlas text; a faithful restatement of one is never a contradiction.",
+  "Entries marked [USER NOTE, not Atlas] are this user's private /teach notes — never treat them as atlas text or as a quotation of the atlas.",
   "[E-prev] holds the assistant's earlier answers.",
   "Respond with STRICT JSON only.",
   '{"contradictions":[{"answer_span":"…","evidence_span":"…","why":"…"}],"not_found":["…"],"notes":"≤30 words"}',
@@ -35,7 +36,11 @@ export function buildRefutePrompt(params: { question: string; answer: string; ev
   const { question, answer, evidence } = params;
   const evidenceBlock = evidence.length
     ? evidence
-        .map((e) => `${e.label}${e.sourceClass === "reference" ? " [REFERENCE]" : ""} ${e.tool}(${e.args}) →\n${e.content}`)
+        .map((e) => {
+          const tag =
+            e.sourceClass === "reference" ? " [REFERENCE]" : e.sourceClass === "user" ? " [USER NOTE, not Atlas]" : "";
+          return `${e.label}${tag} ${e.tool}(${e.args}) →\n${e.content}`;
+        })
         .join("\n\n")
     : "(no tools were called this turn — nothing to compare against)";
   return [

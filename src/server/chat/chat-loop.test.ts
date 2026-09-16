@@ -4,7 +4,7 @@
 import { test, expect } from "bun:test";
 import type OpenAI from "openai";
 import { loadIndexes } from "../retrieval/indexes.ts";
-import { runChat, reasoningDelta, type ChatStream, type ChatEvent } from "./chat-loop.ts";
+import { runChat, reasoningDelta, exportEvidence, type ChatStream, type ChatEvent } from "./chat-loop.ts";
 import { config } from "../config.ts";
 
 type Chunk = OpenAI.Chat.Completions.ChatCompletionChunk;
@@ -801,4 +801,27 @@ test("promised-tool guard: an empty retry still falls through to the compose gua
   expect(captured).toHaveLength(3);
   expect(captured[2].toolChoice).toBe("none");
   expect(events.at(-1)!.type === "done" && (events.at(-1) as { content: string }).content).toBe("Composed after all.");
+});
+
+// PR #386 review: the export path classified every non-MSC tool result as
+// atlas text, so a user's /teach notes counted as atlas grounding for an
+// exported file — the opposite of the orchestrator's split.
+test("exportEvidence keeps user teachings out of both atlas and external evidence", () => {
+  const msgs: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: "user", content: "where is the spark freeze?" },
+    { role: "assistant", content: null, tool_calls: [
+      { id: "t1", type: "function", function: { name: "user_teachings", arguments: "{}" } },
+      { id: "t2", type: "function", function: { name: "atlas_get", arguments: "{}" } },
+      { id: "t3", type: "function", function: { name: "external_msc", arguments: "{}" } },
+    ] },
+    { role: "tool", tool_call_id: "t1", content: "NOTE: spark freeze lives under Spark" },
+    { role: "tool", tool_call_id: "t2", content: "ATLAS: Spark Freeze document text" },
+    { role: "tool", tool_call_id: "t3", content: "MSC: to_sky 5" },
+    { role: "assistant", content: "The freeze is under the Spark artifact." },
+  ];
+  const ev = exportEvidence(msgs);
+  expect(ev.atlasTexts.some((t) => t.startsWith("NOTE:"))).toBe(false);
+  expect(ev.externalTexts.some((t) => t.startsWith("NOTE:"))).toBe(false);
+  expect(ev.atlasTexts).toContain("ATLAS: Spark Freeze document text");
+  expect(ev.externalTexts).toEqual(["MSC: to_sky 5"]);
 });

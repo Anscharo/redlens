@@ -63,6 +63,12 @@ const canonicalHostRedirect =
   process.env.CANONICAL_HOST_REDIRECT === "1" ||
   (process.env.CANONICAL_HOST_REDIRECT !== "0" && railwayEnv === "production");
 
+// One CSV rule for every comma-separated model list, parsed once — the
+// /teach review default and chatModelStrong used to each re-parse
+// CHAT_MODEL_STRONG with a copy of the same expression.
+const csv = (v: string | undefined): string[] => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+const chatModelStrongList = csv(process.env.CHAT_MODEL_STRONG);
+
 export const config = {
   port,
 
@@ -276,6 +282,20 @@ export const config = {
   // seeded as a synthetic tool round before the first LLM request — saves a
   // tool round trip on definition/entity questions. Free, pure code.
   chatPrefetch: process.env.CHAT_PREFETCH !== "0",
+  // /teach: users save private notes that later turns inject on match.
+  // CHAT_TEACH=0 turns off the command, the miss-hint, injection, and the
+  // system-prompt section together.
+  chatTeach: process.env.CHAT_TEACH !== "0",
+  // Advanced-model gibberish review for a /teach body. Empty string disables
+  // the LLM judge (heuristic only). Unset defaults to the strong-tier primary
+  // so a surprising note is read by a capable model, not the fast one.
+  chatTeachReviewModel:
+    process.env.CHAT_TEACH_REVIEW_MODEL ??
+    (chatModelStrongList[0] ||
+      process.env.CHAT_MODEL ||
+      "google/gemma-4-31b-it"),
+  chatTeachReviewTimeoutMs: Number(process.env.CHAT_TEACH_REVIEW_TIMEOUT_MS ?? 15_000),
+  chatTeachMaxPerDay: Number(process.env.CHAT_TEACH_MAX_PER_DAY ?? 40),
   // Similarity lane for fact triggers (facts/similarity.ts): an on-device
   // embedding (ternlight, ~2ms, no network) catches product questions phrased
   // in words no regex anticipates ("show me around", "what should i try
@@ -413,10 +433,10 @@ export const config = {
   // tried in order on provider failure. Unset tier slots inherit chatModel +
   // chatModelFallbacks, so with nothing set routing is a no-op and CHAT_MODEL
   // behaves exactly as before.
-  chatModelFast: (process.env.CHAT_MODEL_FAST ?? "").split(",").map((s) => s.trim()).filter(Boolean),
-  chatModelStrong: (process.env.CHAT_MODEL_STRONG ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  chatModelFast: csv(process.env.CHAT_MODEL_FAST),
+  chatModelStrong: chatModelStrongList,
   // Fallbacks for the default chain (also inherited by unset tiers).
-  chatModelFallbacks: (process.env.CHAT_MODEL_FALLBACKS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  chatModelFallbacks: csv(process.env.CHAT_MODEL_FALLBACKS),
   // Models PROMPTED for reference-style citations (system-prompt.ts). Every model
   // still accepts both formats — this is prompt wording only. Used to default to
   // `chatModelStrong` outright, on the theory that the strong tier IS the measured
