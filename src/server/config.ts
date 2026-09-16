@@ -63,6 +63,12 @@ const canonicalHostRedirect =
   process.env.CANONICAL_HOST_REDIRECT === "1" ||
   (process.env.CANONICAL_HOST_REDIRECT !== "0" && railwayEnv === "production");
 
+// One CSV rule for every comma-separated model list, parsed once — the
+// /teach review default and chatModelStrong used to each re-parse
+// CHAT_MODEL_STRONG with a copy of the same expression.
+const csv = (v: string | undefined): string[] => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+const chatModelStrongList = csv(process.env.CHAT_MODEL_STRONG);
+
 export const config = {
   port,
 
@@ -285,7 +291,7 @@ export const config = {
   // so a surprising note is read by a capable model, not the fast one.
   chatTeachReviewModel:
     process.env.CHAT_TEACH_REVIEW_MODEL ??
-    ((process.env.CHAT_MODEL_STRONG ?? "").split(",").map((s) => s.trim()).filter(Boolean)[0] ||
+    (chatModelStrongList[0] ||
       process.env.CHAT_MODEL ||
       "google/gemma-4-31b-it"),
   chatTeachReviewTimeoutMs: Number(process.env.CHAT_TEACH_REVIEW_TIMEOUT_MS ?? 15_000),
@@ -427,10 +433,10 @@ export const config = {
   // tried in order on provider failure. Unset tier slots inherit chatModel +
   // chatModelFallbacks, so with nothing set routing is a no-op and CHAT_MODEL
   // behaves exactly as before.
-  chatModelFast: (process.env.CHAT_MODEL_FAST ?? "").split(",").map((s) => s.trim()).filter(Boolean),
-  chatModelStrong: (process.env.CHAT_MODEL_STRONG ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  chatModelFast: csv(process.env.CHAT_MODEL_FAST),
+  chatModelStrong: chatModelStrongList,
   // Fallbacks for the default chain (also inherited by unset tiers).
-  chatModelFallbacks: (process.env.CHAT_MODEL_FALLBACKS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  chatModelFallbacks: csv(process.env.CHAT_MODEL_FALLBACKS),
   // Models PROMPTED for reference-style citations (system-prompt.ts). Every model
   // still accepts both formats — this is prompt wording only. Used to default to
   // `chatModelStrong` outright, on the theory that the strong tier IS the measured
