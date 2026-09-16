@@ -431,6 +431,25 @@ test("a miss-shaped answer gets the /teach invitation on answer_final and done",
     expect(answerFinal?.type === "answer_final" && answerFinal.content).toContain("/teach");
   }));
 
+// Review of #386: the small-talk bypass was the one exit that skipped the
+// hint. A miss-shaped, uncheckable answer the judge rules small talk still
+// gets the invitation — and still skips the audit.
+test("the small-talk bypass still appends the /teach invitation to a miss-shaped answer", () =>
+  withModels("strong/verifier", () =>
+    withJudge("fast/judge", async () => {
+      const miss = "I couldn't find a document naming the freeze role.";
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([[textChunk(miss), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({}), '{"smalltalk": true}'),
+        }),
+      );
+      const done = lastDone(events);
+      expect(done.checksMeta.map((c) => c.kind)).toEqual(["smalltalk_judge"]);
+      expect(done.content).toContain("/teach");
+    })));
+
 test("a found answer is not appended a /teach invitation", () =>
   withModels("", async () => {
     const answer = "Spark is a Prime Agent documented under the Spark artifact.";

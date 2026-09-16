@@ -654,7 +654,9 @@ export async function* runVerifiedChat(opts: {
     });
     if (done.toolCalls.length === 0 && !done.lengthCapped && isUncheckableAnswer(done.content) && judge.smalltalk) {
       captureEvent("chat_smalltalk_bypass", opts.obs, { chars: done.content.length });
-      yield finish(done);
+      // Same backstop as every other exit: a miss-shaped answer that the judge
+      // happened to rule small talk still gets the /teach invitation.
+      yield finish(applyTeachHint(done));
       return;
     }
   }
