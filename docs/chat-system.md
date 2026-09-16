@@ -213,7 +213,15 @@ notebooks; the 1024-dim OpenRouter vector is filled asynchronously after accept
 and is not on the chat hot path. A small notebook (≤4 notes) injects in full.
 When an answer reads as a miss, the system prompt asks the model to invite
 `/teach`, and `withTeachHint` appends the invitation if the model forgot.
-`CHAT_TEACH=0` turns the command, hint, injection, and prompt section off.
+`CHAT_TEACH=0` turns the command, hint, injection, and prompt section off —
+server-side only; the composer's slash completion (below) still advertises it.
+
+Client-side, the composer autocompletes slash commands: while the draft is a
+lone `/word` token that prefixes a registered command, `SlashGhost.tsx` overlays
+the typed part in the accent and the remainder translucently, and Tab or Space
+accepts it as `/teach `. The list and the pure completion rule live in
+`src/lib/chatSlashCommands.ts` (shared via `@/`, so a future server command has
+one registry); its test asserts every entry is one `parseTeachCommand` accepts.
 Sharing notes across users is deferred.
 
 **Tier routing** (`model-router.ts`) classifies the message by regex signals into

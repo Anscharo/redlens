@@ -35,7 +35,7 @@
 
 
 ## 2026-09-15
-- Chat now remembers notes you teach it with `/teach`
+- Chat now remembers notes you teach it with `/teach`; type `/` in the composer and it completes the command for you (Tab or Space to accept)
 - Previews now redline a change against the branch it was actually made on, the preview bar shows how far that base has drifted from the main atlas, and a private pull request missing Pull requests: Read asks the owner to grant it on GitHub
 
 ## 2026-09-11
