@@ -1798,18 +1798,6 @@
       "fix": "Should read 'the required percentage of the circulating KEEL token supply'."
     },
     {
-      "id": "A.6.1.1.3.2.2.2.2.1.2.1.1.2#contradiction-2",
-      "docNo": "A.6.1.1.3.2.2.2.2.1.2.1.1.2",
-      "uuid": "d4c3c15b-7cdc-4c57-9bf0-53bbfd95e52c",
-      "file": "A.6.1.1.3 - Keel.md",
-      "category": "contradiction",
-      "severity": "high",
-      "pass": "deterministic",
-      "quote": "cryptographic proof that the author controls an account holding the required percentage of the total KEEL token supply",
-      "issue": "Cites 'total KEEL token supply' but the rule it links (A.6.1.1.3.2.2.2.2.1.2.1.1) sets the threshold at 1% of the CIRCULATING token supply.",
-      "fix": "circulating KEEL token supply"
-    },
-    {
       "id": "A.6.1.1.3.2.5.2.2.4.1.6#typo",
       "docNo": "A.6.1.1.3.2.5.2.2.4.1.6",
       "uuid": "94bc2f19-0cbd-4afe-8c5d-d909092fb31d",
@@ -2002,18 +1990,6 @@
       "fix": "Change 'total SKYBASE token supply' to 'circulating SKYBASE token supply' to match A.6.1.1.4.2.2.2.2.1.2.1.1."
     },
     {
-      "id": "A.6.1.1.4.2.2.2.2.1.2.1.1.2#contradiction-2",
-      "docNo": "A.6.1.1.4.2.2.2.2.1.2.1.1.2",
-      "uuid": "f88fc097-7e41-41d7-aac9-992a9a11919f",
-      "file": "A.6.1.1.4 - Skybase.md",
-      "category": "contradiction",
-      "severity": "high",
-      "pass": "deterministic",
-      "quote": "the required percentage of the total SKYBASE token supply",
-      "issue": "Cites 'total SKYBASE token supply' but the linked rule sets 1% of the CIRCULATING token supply.",
-      "fix": "circulating SKYBASE token supply"
-    },
-    {
       "id": "A.6.1.1.4.2.5.1.1.4#typo",
       "docNo": "A.6.1.1.4.2.5.1.1.4",
       "uuid": "95beed80-4199-4c08-82bd-0ae7827c98b0",
@@ -2048,18 +2024,6 @@
       "quote": "The Data Submission Responsible Actor is The Data Submission Responsible Actor is.",
       "issue": "The parameter value is a self-referential, truncated sentence that names no actor, so the Compound Integration Boost Instance has no defined Data Submission Responsible Actor, unlike its sibling Instances (Euler, Curve, Morpho) which all name 'Core Council Risk Advisor'.",
       "fix": "Should read 'The Data Submission Responsible Actor is Core Council Risk Advisor.' (or the actual intended actor)"
-    },
-    {
-      "id": "A.6.1.1.5.2.2.2.2.1.2.1.1.2#contradiction",
-      "docNo": "A.6.1.1.5.2.2.2.2.1.2.1.1.2",
-      "uuid": "e0020160-9ee8-4f35-90f1-ba375d625689",
-      "file": "A.6.1.1.5 - Obex.md",
-      "category": "contradiction",
-      "severity": "high",
-      "pass": "deterministic",
-      "quote": "the required percentage of the total OBEX token supply",
-      "issue": "Cites 'total OBEX token supply' but the linked rule sets 1% of the CIRCULATING token supply.",
-      "fix": "circulating OBEX token supply"
     },
     {
       "id": "A.6.1.1.5.2.6.1.2.1.1.3.1.3#grammar",
@@ -2110,18 +2074,6 @@
       "fix": "Change 'total PATTERN token supply' to 'circulating PATTERN token supply' to match A.6.1.1.6.2.2.2.2.1.2.1.1."
     },
     {
-      "id": "A.6.1.1.6.2.2.2.2.1.2.1.1.2#contradiction",
-      "docNo": "A.6.1.1.6.2.2.2.2.1.2.1.1.2",
-      "uuid": "351f7eac-691a-4bcb-868e-5ca56787d53a",
-      "file": "A.6.1.1.6 - Pattern.md",
-      "category": "contradiction",
-      "severity": "high",
-      "pass": "deterministic",
-      "quote": "the required percentage of the total PATTERN token supply",
-      "issue": "Cites 'total PATTERN token supply' but the linked rule sets 1% of the CIRCULATING token supply.",
-      "fix": "circulating PATTERN token supply"
-    },
-    {
       "id": "A.6.1.1.6.2.6.1.2.2.1.2.1.2.3.2.1#contradiction",
       "docNo": "A.6.1.1.6.2.6.1.2.2.1.2.1.2.3.2.1",
       "uuid": "40875283-48ec-48f0-8b61-e45d33f976ab",
@@ -2134,18 +2086,6 @@
       "fix": "Should read that the operation only succeeds if the ALM Proxy holds enough vault shares to cover the requested underlying-asset withdrawal."
     },
     {
-      "id": "A.6.1.1.7.2.2.2.2.1.2.1.1.2#contradiction",
-      "docNo": "A.6.1.1.7.2.2.2.2.1.2.1.1.2",
-      "uuid": "caafe932-8fa7-4ee6-ba0b-dd49bcef1ee1",
-      "file": "A.6.1.1.7 - Osero.md",
-      "category": "contradiction",
-      "severity": "high",
-      "pass": "deterministic",
-      "quote": "the required percentage of the total OSERO token supply",
-      "issue": "Cites 'total OSERO token supply' but the linked rule sets 1% of the CIRCULATING token supply.",
-      "fix": "circulating OSERO token supply"
-    },
-    {
       "id": "A.6.1.1.8.2.2.2.2.1.2.1.1.1#contradiction",
       "docNo": "A.6.1.1.8.2.2.2.2.1.2.1.1.1",
       "uuid": "0048952f-30e2-484a-975a-62cc9e84c715",
@@ -2156,18 +2096,6 @@
       "quote": "The post must include cryptographic proof that the author controls an account holding the required percentage of the total Launch Agent 7 token supply specified in [A.6.1.1.8.2.2.2.2.1.2.1.1 - Root Edit Proposal Submission]",
       "issue": "It cites the submission threshold as a percentage of TOTAL supply, but the document it references (A.6.1.1.8.2.2.2.2.1.2.1.1) sets the threshold at 1% of the CIRCULATING token supply — two different bases, so the two documents state different proposal thresholds.",
       "fix": "Change 'total Launch Agent 7 token supply' to 'circulating Launch Agent 7 token supply' to match A.6.1.1.8.2.2.2.2.1.2.1.1 (or fix the basis in both)."
-    },
-    {
-      "id": "A.6.1.1.8.2.2.2.2.1.2.1.1.1#contradiction-2",
-      "docNo": "A.6.1.1.8.2.2.2.2.1.2.1.1.1",
-      "uuid": "0048952f-30e2-484a-975a-62cc9e84c715",
-      "file": "A.6.1.1.8 - Launch-Agent-7.md",
-      "category": "contradiction",
-      "severity": "high",
-      "pass": "deterministic",
-      "quote": "the required percentage of the total Launch Agent 7 token supply",
-      "issue": "Cites 'total Launch Agent 7 token supply' but the linked rule (A.6.1.1.8.2.2.2.2.1.2.1.1) sets 1% of the CIRCULATING token supply. Sixth and final instance of this template-propagated defect.",
-      "fix": "circulating Launch Agent 7 token supply"
     },
     {
       "id": "NR-18#grammar",
@@ -3670,18 +3598,6 @@
       "fix": "Probably `maxAmount`: 25,000,000 USDS / `slope`: 10,000,000 USDS per day, consistent with the other Solana limits."
     },
     {
-      "id": "A.6.1.1.3.2.6.1.2.2.1.1.2.1.2.3.2.1#contradiction",
-      "docNo": "A.6.1.1.3.2.6.1.2.2.1.1.2.1.2.3.2.1",
-      "uuid": "37c09b7c-6aa0-4c3c-861e-984de4e3ba4d",
-      "file": "A.6.1.1.3 - Keel.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "call the `withdrawERC4626` function ... providing the vault token address and the amount of the underlying asset to withdraw. The operation will only succeed if the ALM Proxy holds at least the amount of the underlying asset specified for withdrawal; otherwise, the transaction will revert.",
-      "issue": "A withdrawal from a vault cannot require the ALM Proxy to already hold the underlying amount it is withdrawing; the sibling redeem doc (a6474ee7) correctly states the precondition is holding enough vault SHARES, so this sentence is a copy-paste of the deposit precondition.",
-      "fix": "Should read 'only succeed if the ALM Proxy holds at least the number of vault shares needed to cover the specified withdrawal amount'."
-    },
-    {
       "id": "A.6.1.1.3.2.6.1.2.2.1.1.2.1.2.4#entity",
       "docNo": "A.6.1.1.3.2.6.1.2.2.1.1.2.1.2.4",
       "uuid": "ff9638aa-a4d5-4a5e-a2bb-9b924b9987f9",
@@ -4325,6 +4241,111 @@
       "issue": "Emissions are declared 'permanently disabled' and then, in the next sentence, revertible by Sky Governance — a rule and its stated exception that cannot both hold as written.",
       "fix": "State that emissions are disabled and may only be re-enabled by Sky Governance under the Risk Framework, dropping 'permanently'.",
       "rejectedReason": "Two-layer rule in one paragraph: Skybase Governance cannot re-enable; Sky Governance can, only under the Risk Framework.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.3.2.2.2.2.1.2.1.1.2#contradiction-2",
+      "docNo": "A.6.1.1.3.2.2.2.2.1.2.1.1.2",
+      "uuid": "d4c3c15b-7cdc-4c57-9bf0-53bbfd95e52c",
+      "file": "A.6.1.1.3 - Keel.md",
+      "category": "contradiction",
+      "severity": "high",
+      "pass": "deterministic",
+      "quote": "cryptographic proof that the author controls an account holding the required percentage of the total KEEL token supply",
+      "issue": "Cites 'total KEEL token supply' but the rule it links (A.6.1.1.3.2.2.2.2.1.2.1.1) sets the threshold at 1% of the CIRCULATING token supply.",
+      "fix": "circulating KEEL token supply",
+      "rejectedReason": "Duplicate: the same defect on the same document is already reported as A.6.1.1.3.2.2.2.2.1.2.1.1.2#contradiction, which cites more of the supporting text. Both passes found it independently.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.4.2.2.2.2.1.2.1.1.2#contradiction-2",
+      "docNo": "A.6.1.1.4.2.2.2.2.1.2.1.1.2",
+      "uuid": "f88fc097-7e41-41d7-aac9-992a9a11919f",
+      "file": "A.6.1.1.4 - Skybase.md",
+      "category": "contradiction",
+      "severity": "high",
+      "pass": "deterministic",
+      "quote": "the required percentage of the total SKYBASE token supply",
+      "issue": "Cites 'total SKYBASE token supply' but the linked rule sets 1% of the CIRCULATING token supply.",
+      "fix": "circulating SKYBASE token supply",
+      "rejectedReason": "Duplicate: the same defect on the same document is already reported as A.6.1.1.4.2.2.2.2.1.2.1.1.2#contradiction, which cites more of the supporting text. Both passes found it independently.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.5.2.2.2.2.1.2.1.1.2#contradiction",
+      "docNo": "A.6.1.1.5.2.2.2.2.1.2.1.1.2",
+      "uuid": "e0020160-9ee8-4f35-90f1-ba375d625689",
+      "file": "A.6.1.1.5 - Obex.md",
+      "category": "contradiction",
+      "severity": "high",
+      "pass": "deterministic",
+      "quote": "the required percentage of the total OBEX token supply",
+      "issue": "Cites 'total OBEX token supply' but the linked rule sets 1% of the CIRCULATING token supply.",
+      "fix": "circulating OBEX token supply",
+      "rejectedReason": "Duplicate: the same defect on the same document is already reported as A.6.1.1.5.2.2.2.2.1.2.1.1.1#contradiction, which cites more of the supporting text. Both passes found it independently.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.6.2.2.2.2.1.2.1.1.2#contradiction",
+      "docNo": "A.6.1.1.6.2.2.2.2.1.2.1.1.2",
+      "uuid": "351f7eac-691a-4bcb-868e-5ca56787d53a",
+      "file": "A.6.1.1.6 - Pattern.md",
+      "category": "contradiction",
+      "severity": "high",
+      "pass": "deterministic",
+      "quote": "the required percentage of the total PATTERN token supply",
+      "issue": "Cites 'total PATTERN token supply' but the linked rule sets 1% of the CIRCULATING token supply.",
+      "fix": "circulating PATTERN token supply",
+      "rejectedReason": "Duplicate: the same defect on the same document is already reported as A.6.1.1.6.2.2.2.2.1.2.1.1.1#contradiction, which cites more of the supporting text. Both passes found it independently.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.7.2.2.2.2.1.2.1.1.2#contradiction",
+      "docNo": "A.6.1.1.7.2.2.2.2.1.2.1.1.2",
+      "uuid": "caafe932-8fa7-4ee6-ba0b-dd49bcef1ee1",
+      "file": "A.6.1.1.7 - Osero.md",
+      "category": "contradiction",
+      "severity": "high",
+      "pass": "deterministic",
+      "quote": "the required percentage of the total OSERO token supply",
+      "issue": "Cites 'total OSERO token supply' but the linked rule sets 1% of the CIRCULATING token supply.",
+      "fix": "circulating OSERO token supply",
+      "rejectedReason": "Duplicate: the same defect on the same document is already reported as A.6.1.1.7.2.2.2.2.1.2.1.1.1#contradiction, which cites more of the supporting text. Both passes found it independently.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.8.2.2.2.2.1.2.1.1.1#contradiction-2",
+      "docNo": "A.6.1.1.8.2.2.2.2.1.2.1.1.1",
+      "uuid": "0048952f-30e2-484a-975a-62cc9e84c715",
+      "file": "A.6.1.1.8 - Launch-Agent-7.md",
+      "category": "contradiction",
+      "severity": "high",
+      "pass": "deterministic",
+      "quote": "the required percentage of the total Launch Agent 7 token supply",
+      "issue": "Cites 'total Launch Agent 7 token supply' but the linked rule (A.6.1.1.8.2.2.2.2.1.2.1.1) sets 1% of the CIRCULATING token supply. Sixth and final instance of this template-propagated defect.",
+      "fix": "circulating Launch Agent 7 token supply",
+      "rejectedReason": "Duplicate: the same defect on the same document is already reported as A.6.1.1.8.2.2.2.2.1.2.1.1.1#contradiction, which cites more of the supporting text. Both passes found it independently.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.3.2.6.1.2.2.1.1.2.1.2.3.2.1#contradiction",
+      "docNo": "A.6.1.1.3.2.6.1.2.2.1.1.2.1.2.3.2.1",
+      "uuid": "37c09b7c-6aa0-4c3c-861e-984de4e3ba4d",
+      "file": "A.6.1.1.3 - Keel.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "call the `withdrawERC4626` function ... providing the vault token address and the amount of the underlying asset to withdraw. The operation will only succeed if the ALM Proxy holds at least the amount of the underlying asset specified for withdrawal; otherwise, the transaction will revert.",
+      "issue": "A withdrawal from a vault cannot require the ALM Proxy to already hold the underlying amount it is withdrawing; the sibling redeem doc (a6474ee7) correctly states the precondition is holding enough vault SHARES, so this sentence is a copy-paste of the deposit precondition.",
+      "fix": "Should read 'only succeed if the ALM Proxy holds at least the number of vault shares needed to cover the specified withdrawal amount'.",
+      "rejectedReason": "Duplicate: the same defect on the same document is already reported as A.6.1.1.3.2.6.1.2.2.1.2.1.2.3.2.1#contradiction, which cites more of the supporting text. Both passes found it independently.",
       "rejectedOn": "2026-09-16",
       "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
     }

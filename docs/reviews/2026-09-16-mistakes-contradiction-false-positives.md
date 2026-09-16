@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-16
 **Corpus as reviewed:** `public/potential-mistakes.json` (`generatedAt` 2026-09-15, atlas SHA `d64eca4800553d21cf61cccba3c5f5a436edd256`, 11,529 documents scanned, 355 findings, 74 of them `contradiction`)
-**Outcome:** the 19 rows below were moved out of `findings` into `rejected` on 2026-09-16. The live report now shows 336 findings, 55 of them `contradiction`.
+**Outcome:** the 19 rows below were moved out of `findings` into `rejected` on 2026-09-16, and a follow-up pass over the remaining 55 moved 7 more as duplicates (see the addendum). The live report now shows 329 findings, 48 of them `contradiction`.
 **Question:** of the contradiction-category rows, which ones treat a general Atlas rule plus a nested exception or child refinement as if the two texts are incompatible?
 **Method:** re-read each flagged document and the documents the sweep named as its counterpart, in the atlas checkout at that SHA. The sweep’s `quote` / `issue` / `fix` fields are taken as the claim under review; the Atlas text is ground truth. This note covers only the 19 rows whose “clash” dissolves on that reading. It does not re-litigate the rest of the 74, and it does not touch language-pass findings.
 
@@ -291,7 +291,7 @@ That sentence is reused across Agent Creation, Prime Transformation, Executor Tr
 
 ## Out of scope of this note
 
-- The other 55 contradiction rows (including the 12 previously marked uncertain). Those are a different pile: some look load-bearing, some still need an author, none of them share this “general + nested exception” misread as cleanly.
+- ~~The other 55 contradiction rows~~ — reviewed in the addendum below. (6 of the 12 “uncertain” rows turned out to be in the 19 rejected here, leaving 6 among the 55.)
 - Language-pass false positives (title-equality Spark xrefs, copy-edit nits).
 - Confirmed real findings in other categories (for example LGD `min(...,0)` in A.3.2.2.1.1.1.1.1.2, DAB as a subset of ASC in A.3.3.2.3.1, Grove “5% of 3B” as 500M in A.2.8.2.2.2.1.2.1, burn `WAD*1` as 55% in A.3.5.2, Spark `100,000,00`, “proscribed” in A.1.1.3.1.0.6.1). This note does not reopen them.
 
@@ -302,3 +302,32 @@ That sentence is reused across Agent Creation, Prime Transformation, Executor Tr
 **These 19 are now vetoed in the data, not just in this note.** Each sits in `rejected` in `public/potential-mistakes.json` with its verdict and a link here. `suppressRejected` (`scripts/lib/mistakes-sweep.mjs`) drops an incoming finding that repeats a rejected `(uuid, category, quote)`, so re-sweeping any of these documents cannot quietly put them back. The veto is deliberately keyed on the quoted text: **if the Atlas rewrites the passage, the veto lapses and the finding can return** — which is exactly when a human should look at it again.
 
 If the factual prompt is retuned, the cheap fix is: **do not emit `contradiction` when the counterpart is a child of the flagged doc, the next sentence of the same doc, or a named special-case heading, unless the two texts still assert incompatible operative rules after that structure is applied.** The graph already knows that structure — `parent_of` edges give the parent/child test directly, and every one of these 19 now carries a UUID to look up.
+
+
+---
+
+# Addendum — the remaining 55, reviewed 2026-09-16
+
+Same method: each row re-read against the flagged document and every counterpart it names, in the checkout at `d64eca48`.
+
+## Outcome
+
+**No further false positives.** None of the 55 dissolves the way the 19 above do. What the pass did find is **7 duplicate pairs**: one defect, one document, reported once by the factual pass and once by the deterministic pass. Those 7 are now in `rejected` with a `Duplicate:` reason pointing at the surviving row — in each case the row citing more of the supporting text. No defect was lost: every dropped row still has a live row on the same document.
+
+Six of the seven are the same template-propagated defect the corpus-wide row describes (Keel, Skybase, Obex, Pattern, Osero, Launch Agent 7 all cite *total* token supply where the rule they link says *circulating*); the seventh is Keel's `withdrawERC4626` precondition.
+
+Contradictions: 55 → 48.
+
+## Three worth an author's eye
+
+These survive, but they are the weakest of the 48 and two are arguably mis-categorised.
+
+| Finding | Why it is still listed, and the caveat |
+|---|---|
+| A.1.6.10 Emergency contact derecognition | Closest of all 48 to the *lex specialis* reading that cleared A.1.6.8 above. It is kept because the conflict is in the **consequence**, not the procedure: A.1.6.6.1.1 gives a first Tier 1 (administrative) breach a public notice, while A.1.6.10 makes the same class of failure an automatic derecognition. A.1.6.1.4.1 shows the Atlas signposts such carve-outs when it means them; this one does not. The sweep's fix — say why it is carved out — is the right shape. |
+| A.1.2.2.1.3 “Supporting Documents always … contain at least one 0” | True except for `NR-`, which A.1.2.2.2.30 already declares “unlike other Supporting Documents” — but only for the Supporting Root derivation, not for this rule or A.1.2.1.1. A real gap, though it is an absolute rule missing a known exception rather than two rules fighting: `structural` fits it better than `contradiction`. |
+| A.1.2.2.2.6 “Core Documents … cannot contain 0's” | The mirror image, and verified: **59** documents typed `[Core]` under the `A.0` Preamble carry the `0` of their own scope address. Almost certainly the rule means the positions that mark a Supporting Document, not the scope segment — so again an under-specified rule rather than a contradiction. |
+
+## What the 48 look like
+
+Most are unambiguous and mechanical: a parameter named where its sibling is meant (`kbump` for `khump`), a directory entry declaring `Completed` inside the Active Instances Directory, `master` branch where three sibling documents and the live URL say `main`, one `RateLimitID` bound to two values, a parent declaring IDs “to be specified in a future iteration” while its own children specify them, and the ERC-4626 withdraw family that states a precondition in underlying assets for an operation that burns shares.
