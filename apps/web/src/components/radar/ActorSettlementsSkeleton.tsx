@@ -45,7 +45,7 @@ export function ActorSettlementsSkeleton({ name }: { name: string }) {
           className="text-sm font-medium m-0 mb-3"
           style={{ color: "var(--tan)" }}
         >
-          Trailing {SKELETON_MONTHS} Months – {name} kept supply-side, earned demand-side
+          Trailing {SKELETON_MONTHS} Months – {name} sent to Sky, kept supply-side, earned demand-side
         </h2>
         <div className="msc-charts-row">
           <div className="msc-charts-pane">

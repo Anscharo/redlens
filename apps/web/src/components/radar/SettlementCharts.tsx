@@ -1,4 +1,5 @@
 import {
+  skyTotal,
   supplyKeptTotal,
   demandSideTotal,
   formatUsd,
@@ -22,6 +23,8 @@ const TITLE = "mono text-[10px] uppercase tracking-wider mb-2";
 
 export function SettlementCharts({ reports, selected, onSelect, name, paging }: Props) {
   const n = reports.length;
+  // All three sides of the window, reported separately and never summed.
+  const sky = skyTotal(reports);
   const supply = supplyKeptTotal(reports);
   const demand = demandSideTotal(reports);
   const series = activeDemandSeries(reports);
@@ -35,7 +38,8 @@ export function SettlementCharts({ reports, selected, onSelect, name, paging }: 
         >
           Trailing {n} {n === 1 ? "Month" : "Months"}
           {" – "}
-          {name} kept <span className="mono">{formatUsd(supply)}</span> supply-side,
+          {name} sent <span className="mono">{formatUsd(sky)}</span> to Sky,
+          {" "}kept <span className="mono">{formatUsd(supply)}</span> supply-side,
           {" "}earned <span className="mono">{formatUsd(demand)}</span> demand-side
         </h2>
         {paging && (
