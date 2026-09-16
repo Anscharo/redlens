@@ -26,6 +26,7 @@ import {
   isStateUsable,
   mergeFindings,
   planSweep,
+  suppressRejected,
   validateFinding,
 } from "../lib/mistakes-sweep.mjs";
 
@@ -284,7 +285,10 @@ if (cmd === "merge") {
   }
 
   const artifact = readJson(ARTIFACT, { findings: [] });
-  const merged = mergeFindings(artifact.findings, incoming, new Set(evaluated), plan.removed ?? [], {
+  // A finding a human already ruled out must not come back on the next sweep of
+  // its document — otherwise the review has to be re-applied by hand each time.
+  const vetoed = suppressRejected(incoming, artifact.rejected ?? []);
+  const merged = mergeFindings(artifact.findings, vetoed.findings, new Set(evaluated), plan.removed ?? [], {
     dropCorpus: flag("drop-corpus"),
   });
   const sha = plan.atlasSha ?? atlasSha();
@@ -299,7 +303,7 @@ if (cmd === "merge") {
   console.log(`chunks processed ${plan.chunks.length - skipped.length}/${plan.chunks.length}`);
   if (skipped.length) console.log(`  unprocessed: ${skipped.join(", ")} (stay queued for the next plan)`);
   console.log(`documents evaluated ${evaluated.length}`);
-  console.log(`findings: ${merged.kept} kept, ${merged.replaced} replaced, ${merged.added} added${rejected ? `, ${rejected} rejected` : ""}`);
+  console.log(`findings: ${merged.kept} kept, ${merged.replaced} replaced, ${merged.added} added${rejected ? `, ${rejected} invalid` : ""}${vetoed.suppressed ? `, ${vetoed.suppressed} previously rejected by review` : ""}`);
   console.log(`total ${artifact.findings.length} → ${merged.findings.length}`);
 
   if (flag("dry-run")) {

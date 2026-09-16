@@ -33,7 +33,7 @@ This skill is the runbook for refreshing it. The sweep is **incremental**: a run
 
 | Path | Role |
 |---|---|
-| `public/potential-mistakes.json` | The artifact. Single source of truth, committed, backs the live report. |
+| `public/potential-mistakes.json` | The artifact. Single source of truth, committed, backs the live report. `findings` is what users see; `rejected` is the human veto list (see below). |
 | `.github/mistakes-sweep-state.json` | Per-document digests of what was last evaluated. Committed — without it every run is a full sweep. |
 | `.cache/mistakes-sweep/` | Scratch for one run: `plan.json`, `chunks/`, `findings/`. Gitignored, rebuilt by every `plan`. |
 | `scripts/lib/mistakes-sweep.mjs` | The pure logic (digest, plan, validate, merge). Tested by `scripts_tests/mistakes-sweep.test.ts`. |
@@ -97,6 +97,8 @@ One JSON object per line in `findings/NNN.jsonl`:
 **Write the output file even when a chunk yields nothing.** An empty `findings/NNN.jsonl` means "read it, found nothing" and retires those documents until they next change. A *missing* file means "never processed" and keeps them queued. A killed agent's silence is otherwise indistinguishable from a clean bill of health — this is the failure that quarantined several partial runs during the original sweep.
 
 **Never hand-edit the state file to mark documents scanned.** It is the record of what was actually read.
+
+**A finding a human ruled out belongs in `rejected`, not deleted.** The artifact carries a `rejected` list beside `findings`: same row shape plus `rejectedReason`, `rejectedOn` and `rejectedIn` (the review that argued it). The report reads `findings` only, so a rejected row is invisible to users, and `suppressRejected` drops any incoming finding repeating a rejected `(uuid, category, quote)` — so re-sweeping that document cannot put it back. Deleting the row instead would mean re-applying the veto by hand after every sweep. The key includes the quote on purpose: **if upstream rewrites the passage the veto lapses**, because nobody has judged the new wording. Rejecting findings is a human call — record it in a `docs/reviews/` note and point `rejectedIn` at it.
 
 **A re-evaluated document's old findings are dropped.** That is the point: a defect fixed upstream disappears instead of lingering. It also means a lazy re-read silently deletes real findings, so agents get the whole document, not a diff of it.
 

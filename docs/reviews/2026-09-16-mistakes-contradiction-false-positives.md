@@ -1,7 +1,8 @@
 # Contradiction false positives in the Potential Mistakes sweep
 
 **Date:** 2026-09-16
-**Corpus:** `public/potential-mistakes.json` (`generatedAt` 2026-09-15, atlas SHA `d64eca4800553d21cf61cccba3c5f5a436edd256`, 11,529 documents scanned, 355 findings, 74 of them `contradiction`)
+**Corpus as reviewed:** `public/potential-mistakes.json` (`generatedAt` 2026-09-15, atlas SHA `d64eca4800553d21cf61cccba3c5f5a436edd256`, 11,529 documents scanned, 355 findings, 74 of them `contradiction`)
+**Outcome:** the 19 rows below were moved out of `findings` into `rejected` on 2026-09-16. The live report now shows 336 findings, 55 of them `contradiction`.
 **Question:** of the contradiction-category rows, which ones treat a general Atlas rule plus a nested exception or child refinement as if the two texts are incompatible?
 **Method:** re-read each flagged document and the documents the sweep named as its counterpart, in the atlas checkout at that SHA. The sweep’s `quote` / `issue` / `fix` fields are taken as the claim under review; the Atlas text is ground truth. This note covers only the 19 rows whose “clash” dissolves on that reading. It does not re-litigate the rest of the 74, and it does not touch language-pass findings.
 
@@ -13,7 +14,7 @@
 
 The shared detector failure: the factual pass scores **surface incompatibility of isolated sentences**. Atlas nesting is built to let a later sentence, a child, or a named special case narrow the earlier one. That is how A.1.6.8 sits beside A.1.6.6.0.3.2, how A.2.8.2.1.2.9.1 sits beside A.2.8.2.1.2.1, and how A.6.1.1.1.3.1.3.2.2 sits under A.6.1.1.1.3.1.3.2.
 
-The 19 rows can stay in the live report as “the model thought this”; this note is the human veto. They do not need Atlas edits on the strength of the sweep’s `fix` field.
+These 19 do not need Atlas edits on the strength of the sweep’s `fix` field. They have been moved out of `findings` into the artifact’s `rejected` list, each carrying its one-line verdict from the table below and a pointer back to this note — so the report no longer shows them, and `mergeFindings` will not let a later sweep re-add them.
 
 ---
 
@@ -298,4 +299,6 @@ That sentence is reused across Agent Creation, Prime Transformation, Executor Tr
 
 ## What this implies
 
-Leave the 19 rows in `public/potential-mistakes.json` until a later sweep refresh; this file is the human veto, not a merge-time drop. If the factual prompt is retuned, the cheap fix is: **do not emit `contradiction` when the counterpart is a child of the flagged doc, the next sentence of the same doc, or a named special-case heading, unless the two texts still assert incompatible operative rules after that structure is applied.**
+**These 19 are now vetoed in the data, not just in this note.** Each sits in `rejected` in `public/potential-mistakes.json` with its verdict and a link here. `suppressRejected` (`scripts/lib/mistakes-sweep.mjs`) drops an incoming finding that repeats a rejected `(uuid, category, quote)`, so re-sweeping any of these documents cannot quietly put them back. The veto is deliberately keyed on the quoted text: **if the Atlas rewrites the passage, the veto lapses and the finding can return** — which is exactly when a human should look at it again.
+
+If the factual prompt is retuned, the cheap fix is: **do not emit `contradiction` when the counterpart is a child of the flagged doc, the next sentence of the same doc, or a named special-case heading, unless the two texts still assert incompatible operative rules after that structure is applied.** The graph already knows that structure — `parent_of` edges give the parent/child test directly, and every one of these 19 now carries a UUID to look up.

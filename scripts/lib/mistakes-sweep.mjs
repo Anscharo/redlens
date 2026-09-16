@@ -236,6 +236,26 @@ export function dedupeIds(findings) {
   });
 }
 
+/** The identity a human veto is recorded against: this claim, about this text,
+ *  in this document. If the quoted text changes the veto lapses on purpose —
+ *  that is the point at which someone should look at it again. */
+const rejectionKey = (f) => `${f.uuid ?? ""}\u0000${f.category}\u0000${f.quote}`;
+
+/**
+ * Drop incoming findings a human already reviewed and ruled out.
+ *
+ * Without this a rejected finding comes straight back the next time its
+ * document is swept, and the human veto has to be re-applied by hand every
+ * time — which is how a review like docs/reviews/*-false-positives.md becomes
+ * a document nobody trusts.
+ */
+export function suppressRejected(incoming, rejected = []) {
+  if (!rejected.length) return { findings: incoming, suppressed: 0 };
+  const veto = new Set(rejected.map(rejectionKey));
+  const findings = incoming.filter((f) => !veto.has(rejectionKey(f)));
+  return { findings, suppressed: incoming.length - findings.length };
+}
+
 /**
  * Fold this run's findings into the previous artifact.
  *

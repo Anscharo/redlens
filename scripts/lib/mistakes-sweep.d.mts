@@ -76,6 +76,10 @@ export function validateFinding(
   nodeMap: Record<string, MistakeSweepNode>,
 ): ValidationResult;
 export function dedupeIds(findings: Mistake[]): Mistake[];
+export function suppressRejected(
+  incoming: Mistake[],
+  rejected?: Mistake[],
+): { findings: Mistake[]; suppressed: number };
 export function mergeFindings(
   previous: Mistake[],
   incoming: Mistake[],

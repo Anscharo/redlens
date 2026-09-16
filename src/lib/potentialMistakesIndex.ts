@@ -38,6 +38,16 @@ export interface Mistake {
   fix: string | null;
 }
 
+/** A finding a human read against the source and ruled out. */
+export interface RejectedMistake extends Mistake {
+  /** One line on why it is not a real defect. */
+  rejectedReason: string;
+  /** YYYY-MM-DD the veto was recorded. */
+  rejectedOn: string;
+  /** Repo path of the review that carries the full reasoning. */
+  rejectedIn: string;
+}
+
 export interface MistakesFile {
   generatedAt: string;
   atlasSha: string;
@@ -45,6 +55,14 @@ export interface MistakesFile {
   note: string;
   passes: Record<MistakePass, string>;
   findings: Mistake[];
+  /**
+   * Findings reviewed and rejected. Held OUT of `findings` so the report never
+   * shows them, and held IN this file so a later sweep cannot quietly re-add
+   * them: `mergeFindings` drops an incoming row that repeats a rejected
+   * (uuid, category, quote). The veto lapses if the quoted text itself changes,
+   * which is the point at which a human should look again.
+   */
+  rejected?: RejectedMistake[];
 }
 
 /** How a stored finding lines up with the atlas currently being served. */

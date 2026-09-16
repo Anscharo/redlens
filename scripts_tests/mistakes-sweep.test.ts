@@ -18,6 +18,7 @@ import {
   mergeFindings,
   planSweep,
   sortFindings,
+  suppressRejected,
   validateFinding,
   STATE_VERSION,
 } from "../scripts/lib/mistakes-sweep.mjs";
@@ -308,6 +309,44 @@ describe("mergeFindings", () => {
     const corpus = { ...f("x"), uuid: null };
     const out = mergeFindings([corpus], [], new Set(), [], { dropCorpus: true });
     expect(out.findings).toHaveLength(0);
+  });
+});
+
+describe("suppressRejected", () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    id: "A.1#contradiction", docNo: "A.1", uuid: "u1", file: "", category: "contradiction",
+    severity: "medium", pass: "factual", quote: "the quoted passage", issue: "i", fix: "",
+    ...over,
+  });
+
+  // Without this, a reviewed-and-rejected finding returns the next time its
+  // document is swept and the human veto has to be re-applied by hand forever.
+  it("drops an incoming finding a review already ruled out", () => {
+    const out = suppressRejected([row()], [row()]);
+    expect(out.findings).toHaveLength(0);
+    expect(out.suppressed).toBe(1);
+  });
+
+  it("keeps a different claim about the same passage", () => {
+    const out = suppressRejected([row({ category: "numeric" })], [row()]);
+    expect(out.findings).toHaveLength(1);
+  });
+
+  it("keeps the same claim about a different document", () => {
+    const out = suppressRejected([row({ uuid: "u2" })], [row()]);
+    expect(out.findings).toHaveLength(1);
+  });
+
+  // The veto was about THAT text. Once upstream rewrites the passage nobody has
+  // judged the new wording, so the finding is allowed back.
+  it("lapses when the quoted text itself changes", () => {
+    const out = suppressRejected([row({ quote: "the rewritten passage" })], [row()]);
+    expect(out.findings).toHaveLength(1);
+    expect(out.suppressed).toBe(0);
+  });
+
+  it("is a no-op when nothing has been rejected", () => {
+    expect(suppressRejected([row()], []).findings).toHaveLength(1);
   });
 });
 

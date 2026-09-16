@@ -778,18 +778,6 @@
       "fix": "the transaction will fail and no Dai will be minted"
     },
     {
-      "id": "A.3.7.1.1.4#contradiction",
-      "docNo": "A.3.7.1.1.4",
-      "uuid": "a38e05bf-0820-4916-a71c-cff4f54e45df",
-      "file": "A.3 - The-Stability-Scope.md",
-      "category": "contradiction",
-      "severity": "high",
-      "pass": "factual",
-      "quote": "...will specifically use the Chronicle v3 oracle solution, until at least January 1st 2026. ... Other oracle solutions, including diversified oracles, will only be considered until January 1st, 2026, and only if there are unresolvable security con...",
-      "issue": "The two sentences cannot both hold: the first mandates exclusive use of Chronicle v3 until at least 2026-01-01, while the second confines consideration of alternatives to the window ending on that same date; as written the escape hatch for unresolvable Chronicle security concerns expired before it could ever be used (and is dead as of 2026-09-15).",
-      "fix": "'Other oracle solutions ... will only be considered after January 1st, 2026, and only if there are unresolvable security concerns with the Chronicle v3 oracles.'"
-    },
-    {
       "id": "A.3.7.1.5.4.1#markdown",
       "docNo": "A.3.7.1.5.4.1",
       "uuid": "5f2109db-6680-478b-b72a-45f30065b626",
@@ -2338,18 +2326,6 @@
       "fix": "Align the subdocument with its parent: the Core Facilitator renders the RD ineligible for RD income (and, for a Level 3 RD, transfers the rank), rather than 'removing them from RD status'."
     },
     {
-      "id": "A.1.6.8#contradiction",
-      "docNo": "A.1.6.8",
-      "uuid": "7b0da718-62c1-4718-8d9d-47faa1647c6f",
-      "file": "A.1 - The-Governance-Scope.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "The Core Facilitator must initiate a formal adjudication pursuant to [A.1.5.9 - Adjudication Process](560e1024-0897-4f1e-ae71-3ba31e29ed57) where there is an allegation concerning AD breach of operational security.",
-      "issue": "This makes adjudication mandatory on any allegation, which cannot both hold with A.1.6.6.0.3.2 ('Where an allegation fails to meet this threshold, the Core Facilitator may decline to initiate adjudication') and A.1.6.6.0.4.1 / A.1.5.8.0.4.1 ('the Core Facilitator must decide whether to initiate a formal adjudication process') in the same Article.",
-      "fix": "'must initiate a formal adjudication ... where there is a credible-evidence-supported allegation concerning AD breach of operational security' (i.e. subject the mandate to the A.1.6.6.0.3.2 credible-evidence threshold)."
-    },
-    {
       "id": "A.1.6.10#contradiction",
       "docNo": "A.1.6.10",
       "uuid": "d5d4cc4a-8877-4931-861f-056793387b92",
@@ -2360,18 +2336,6 @@
       "quote": "ADs must strictly adhere to all onboarding procedures and usage instructions associated with this emergency contact mechanism. ADs that fail to do so will be considered in misalignment and will be derecognized.",
       "issue": "Mandates automatic derecognition for what is by description an administrative/procedural failure, contradicting the Graduated Response Framework, which states that 'Breaches of Aligned Delegate requirements are categorized into two (2) tiers' (A.1.6.6.1), puts 'minor communication lapses, and similar administrative failures' in Tier 1 (a public notice, not derecognition — A.1.6.6.1.1), reserves immediate derecognition for the seven enumerated Tier 2 integrity breaches (A.1.6.6.1.2), none of which covers this, and which A.1.5.9.2.1 says 'should be applied' to AD breaches.",
       "fix": "Route the failure through the Graduated Response Framework (Tier 1 notice, escalating to Tier 2), or state explicitly why this requirement is carved out of A.1.6.6.1 the way A.1.6.1.4.1 carves out the Probationary Period."
-    },
-    {
-      "id": "A.1.9.1.3.1#contradiction",
-      "docNo": "A.1.9.1.3.1",
-      "uuid": "45a7ccff-09fa-4d95-b3d8-e3f34f7917cf",
-      "file": "A.1 - The-Governance-Scope.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "Where an Emergency Response Group Member is a team, the two (2) team members responsible for incident response are required to join the Signal Group.",
-      "issue": "Fixes Signal Group membership at exactly two per team, contradicting A.1.9.1.2.3 ('A team may assign more than two (2) of its team members ... at the discretion of Core GovOps') and A.1.9.1.2.3.1, which expressly permits Soter Labs to assign more than two members to 'the permissioned Emergency Response Communication Channels defined in A.1.9.1.3' — of which this Signal Group is one.",
-      "fix": "'the team members responsible for incident response are required to join the Signal Group' (drop the hard count of two so the A.1.9.1.2.3 / A.1.9.1.2.3.1 exceptions can apply)."
     },
     {
       "id": "A.1.9.1.3.2#governance",
@@ -2566,18 +2530,6 @@
       "fix": "Should say the Primitive's *Instance* Status is `Completed` while its Global Activation Status remains Active (and cannot be deactivated)."
     },
     {
-      "id": "A.2.2.2#contradiction",
-      "docNo": "A.2.2.2",
-      "uuid": "bdbb8ac9-d87e-4052-9e69-8267f38a54cf",
-      "file": "A.2 - The-Support-Scope.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "All Sky Primitive Process Definitions are structured according to a common data schema ... At present, only the Distribution Reward Primitive and the Integration Boost Primitive specifications are structured using this schema.",
-      "issue": "The same document asserts that all Sky Primitive Process Definitions are structured according to the schema and then that only two Primitive specifications currently are; both cannot be true.",
-      "fix": "The opening sentence should say Process Definitions 'must be' / 'will be' structured according to the common schema, reconciling it with the 'at present, only two' statement."
-    },
-    {
       "id": "A.2.2.5.4.1.1.3#contradiction",
       "docNo": "A.2.2.5.4.1.1.3",
       "uuid": "309e17ed-c75a-48f5-859f-70a5cb29a1f8",
@@ -2660,30 +2612,6 @@
       "quote": "- `Reward Code` - New value: set to the Reward Code from the approved Proposal - `Tracking Methodology` - New value: set to the tracking methodology from the approved Proposal",
       "issue": "This Integration Boost output requires copying a 'Reward Code' and 'Tracking Methodology' out of the approved Proposal, but the Integration Boost Proposal defines neither: its Initial Planning Document fields (A.2.2.9.2.2.3.1.3) and the ratified Instance Configuration parameters (A.2.2.9.2.2.3.6.3) list only Integration Partner Name/Reward Address/Chain, Cadence, Data Submission Format, Data Submission Responsible Actor, Savings Rate Adjustment Strategy and Custom Instance Parameters, and the Integration Boost onboarding update (A.2.2.9.2.2.3.1.4.1.1) records only the Integrator Name.",
       "fix": "Drop the Reward Code / Tracking Methodology fields here (they belong to the Distribution Reward version, A.2.2.9.1.2.3.6.4.1.2), or state where an Integration-Boost-only Integrator's Reward Code comes from."
-    },
-    {
-      "id": "A.2.2.10.1.1.1.2.1.2.1#contradiction",
-      "docNo": "A.2.2.10.1.1.1.2.1.2.1",
-      "uuid": "8b5f1ffd-9dfd-4aa0-8fc2-638a79d9fadb",
-      "file": "A.2 - The-Support-Scope.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "`maxAmount` sets a hard cap on the level of allocation to an Instance at any given time.",
-      "issue": "Describes maxAmount as a cap on the level of allocation to the Instance, while its own parent A.2.2.10.1.1.1.2.1.2 states rate limits 'do not act as a limit on the total amount that may be allocated to that Instance', and the RateLimits code in A.2.2.10.1.1.1.2.5.3.1 shows maxAmount only caps the refillable allowance (currentRateLimit), not cumulative allocation.",
-      "fix": "'`maxAmount` sets a hard cap on the rate limit's available allowance at any given time' — a ceiling on the refilling allowance, not on the Instance's total allocation"
-    },
-    {
-      "id": "A.2.2.10.1.1.1.2.4.1.3#contradiction",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.3",
-      "uuid": "92a74fe1-3115-4cd7-bbf8-4e16fb4b0aa8",
-      "file": "A.2 - The-Support-Scope.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "It already holds that value on the `RateLimits` contract and has no default at all. A rate limit that is already unlimited is locked the same way whether or not it was ever registered. Registering a default other than the unlimited value removes that lock.",
-      "issue": "The middle sentence says a currently-unlimited rate limit is locked 'whether or not it was ever registered', which contradicts both the enumerated second case (locked only if it 'has no default at all') and the closing sentence ('Registering a default other than the unlimited value removes that lock') — a rate limit that is unlimited but carries a finite registered default is locked by one sentence and unlocked by the other two.",
-      "fix": "Narrow the sentence to the case it is clarifying, e.g. 'A rate limit that is already unlimited is locked the same way whether or not the unlimited value was ever registered as its default.'"
     },
     {
       "id": "A.2.2.10.1.1.1.2.5.2.5.3.3#contradiction",
@@ -2782,18 +2710,6 @@
       "fix": "Either drop 'exclusively' here, or in A.2.8.1.1.2.3.2 say the parties' arguments reach the Facilitator only through the Core GovOps analysis"
     },
     {
-      "id": "A.2.8.2.1.2.9.1#contradiction",
-      "docNo": "A.2.8.2.1.2.9.1",
-      "uuid": "7d16afc8-0eb4-40db-81aa-915a7f052859",
-      "file": "A.2 - The-Support-Scope.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "Spark and Grove will share 50% of all revenue and expenses associated with Spark's Allocation System investments in USDe and sUSDe.",
-      "issue": "Within the same Accord, A.2.8.2.1.2.1 caps the revenue share at 'up to 40% maximum with JRC rental' and A.2.8.2.1.2.1.1 limits it to 'the spread earned on USDS debt', yet this arrangement is a 50% share of a broader revenue base and is explicitly paired with a Junior Risk Capital Rental from Grove (A.2.8.2.1.2.9.2).",
-      "fix": "State that the USDe/sUSDe share is an agreed exception to the 40% JRC-rental cap and to the USDS-spread-only base, or align the figures"
-    },
-    {
       "id": "A.2.8.2.2#contradiction",
       "docNo": "A.2.8.2.2",
       "uuid": "aa3b8e65-0ded-48c2-9c40-812debf99f32",
@@ -2876,18 +2792,6 @@
       "quote": "Decisions related to claim payouts require a quorum of three (3) experts from the Resilience Technical Committee with a simple majority (>50%).",
       "issue": "The quorum is unsatisfiable as the Atlas stands: the Active Data list of current Resilience Technical Committee members (A.2.9.1.1.1.2.3.0.6.1) contains a single entry ('Gallagher'), so no three-expert quorum can be formed and no claim payout decision can be taken.",
       "fix": "Either populate the member list to at least three members, or state the quorum as a proportion of appointed members; unclear — needs author."
-    },
-    {
-      "id": "A.2.9.1.1.1.4.2.2.7#contradiction",
-      "docNo": "A.2.9.1.1.1.4.2.2.7",
-      "uuid": "99079da7-e8e9-4660-96a6-269625d821cc",
-      "file": "A.2 - The-Support-Scope.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "The recommendations of the Resilience Technical Committee are non-binding and will not give rise to any right or claim to the beneficiaries nor give rise to any obligation or responsibility.",
-      "issue": "Contradicts A.2.9.1.1.1.3.3.1, which makes 'the payout of a claim ... subject to the approval of the Resilience Technical Committee (at their sole and absolute discretion)' (i.e. a binding gate), and A.2.9.1.1.1.4.2.2.5, which states the same recommendations 'are definitive, and are not subject to appeal' — a recommendation cannot simultaneously be definitive/approval-conferring and non-binding.",
-      "fix": "Unclear — needs author; either the RTC decision is a binding approval (fix 4.2.2.7) or it is advisory only (fix 3.3.1 and 4.2.2.5)."
     },
     {
       "id": "A.2.11.1.1.1#stale",
@@ -3130,18 +3034,6 @@
       "fix": "Use \"Dai\" consistently: \"...benefiting Dai users and USDS users... Dai users can access the legacy Dai Savings Rate Mechanism.\""
     },
     {
-      "id": "A.4.3.2.1#contradiction",
-      "docNo": "A.4.3.2.1",
-      "uuid": "caba97e4-4d4d-4aa9-9ed4-f0d1c8b1c552",
-      "file": "A.4 - The-Protocol-Scope.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "SKY token rewards are not currently available to USDS users.",
-      "issue": "A.4.1.2.2.4.1 (8189e776-d631-44a0-81e5-3b2d5d88ef54) states in the present tense that 'USDS users may be able to earn SKY Rewards' and that the emission funding was replaced by an implemented solution funding those rewards from SKY held by the Sky Protocol; that describes a live mechanism the same chunk says is not available.",
-      "fix": "unclear — needs author: either mark the SKY Rewards funding solution in A.4.1.2.2.4.1 as historical/inactive, or drop the 'not currently available' statement"
-    },
-    {
       "id": "A.4.4.1.3.8.5.1#numeric",
       "docNo": "A.4.4.1.3.8.5.1",
       "uuid": "13c51e11-8ea3-4d4e-b631-2e99c559a914",
@@ -3176,30 +3068,6 @@
       "quote": "In the short term while Utilization is above 100%, the `line` must be set to 200,000,000 USDS.",
       "issue": "Same unsatisfiable condition as A.4.4.1.3.8.6.2.2.3.1: Utilization is borrowed/supplied and borrowing is capped at the stUSDS contract balance (A.4.4.1.3.4), so 'above 100%' can never occur and the short-term `line` rule is dead.",
       "fix": "Probably 'while Utilization is at or near 100%' (or above the 90% Target Utilization) — needs author"
-    },
-    {
-      "id": "A.4.6.1.1#contradiction",
-      "docNo": "A.4.6.1.1",
-      "uuid": "e6807f67-0d3c-4b6a-a3df-6da987147b72",
-      "file": "A.4 - The-Protocol-Scope.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "These include the DssBlow2 contract for adding Dai and USDS to the Surplus Buffer, and the Pause Proxy contract for non-stablecoins.",
-      "issue": "This parent document classifies the Pause Proxy as the destination for non-stablecoins only, but its own subdocument A.4.6.1.1.1.2 (Transfer Of Other Stablecoins) directs stablecoins other than Dai or USDS to be 'sent to the Pause Proxy contract without conversion', so the stated taxonomy contradicts the rule beneath it.",
-      "fix": "Say the Pause Proxy receives non-stablecoins and any stablecoin other than Dai or USDS that is not converted, rather than 'for non-stablecoins'."
-    },
-    {
-      "id": "A.5.2.1.3.1#contradiction",
-      "docNo": "A.5.2.1.3.1",
-      "uuid": "65625a56-0d3e-45b3-958d-0517fd861bd2",
-      "file": "A.5 - The-Accessibility-Scope.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "The Accessibility communication channel budget is: - 0 USDS per month, implemented with DssVest. It is a monthly recurring budget.",
-      "issue": "The budget funding this Section is set to 0 USDS per month, which cannot fund the obligation in A.5.2.1.1 that 'Sky must support the accessibility of the Sky Ecosystem by paying Ecosystem Actors to maintain accounts and channels on external platforms', and a DssVest stream of zero per month is not a payable stream.",
-      "fix": "State the real recurring amount, or mark the budget as discontinued/unfunded and reconcile the 'must pay Ecosystem Actors' obligation in A.5.2.1.1 — unclear, needs author."
     },
     {
       "id": "A.5.3.1.1.1#entity",
@@ -3562,30 +3430,6 @@
       "fix": "'with the specified amount of USDe' (assets), leaving sUSDe for the cooldownShares variant."
     },
     {
-      "id": "A.6.1.1.1.3.1.3.2#contradiction",
-      "docNo": "A.6.1.1.1.3.1.3.2",
-      "uuid": "7fcbb9da-7559-4a18-ab68-f0840a3fe921",
-      "file": "A.6.1.1.1 - Spark.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "SPK holders may assign (\"delegate\") the full voting power of their wallet to an Active Delegate at any time (see [A.6.1.1.1.3.1.3.8 - Registry of Delegates](f49a1e26-f774-4fbd-b7f8-156639e077f2)).",
-      "issue": "\"at any time\" is contradicted by its own subdocuments: A.6.1.1.1.3.1.3.2.2 (99c40e7d) states voting power \"including delegations\" cannot be altered for the duration of an active proposal, and A.6.1.1.1.3.1.3.2.3 (375d4774) permits revoking or moving a delegation only \"whenever no proposal is live\".",
-      "fix": "Qualify the parent rule (e.g. \"at any time, effective from the next snapshot block\") or align the subdocuments with it."
-    },
-    {
-      "id": "A.6.1.1.1.3.1.3.3.3#contradiction",
-      "docNo": "A.6.1.1.1.3.1.3.3.3",
-      "uuid": "46e9d0bb-e251-4f07-8327-804456f2e68a",
-      "file": "A.6.1.1.1 - Spark.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "The Delegate must cast a vote (For / Against) on 100% of governance proposals within the designated voting window",
-      "issue": "A mandatory 100% For/Against participation rate cannot coexist with A.6.1.1.1.3.1.3.5.2 (ca90a844), which sets the compliance floor at a voting percentage of 85%, nor with A.6.1.1.1.3.1.3.3.4 (16eb44b8), which permits Abstain for disclosed conflicts.",
-      "fix": "unclear - needs author: state the duty at the same level as enforcement (e.g. \">= 85%, excluding disclosed-conflict abstentions\") or raise the non-performance threshold to 100%."
-    },
-    {
       "id": "A.6.1.1.1.3.1.3.3.4.1#structural",
       "docNo": "A.6.1.1.1.3.1.3.3.4.1",
       "uuid": "cfdf3c2d-6ede-49f0-8f2c-0cd91a5602bc",
@@ -3598,18 +3442,6 @@
       "fix": "unclear - needs author: either name the second recipient (e.g. \"to both the Spark Foundation and the Sky Forum\") or drop \"both\"."
     },
     {
-      "id": "A.6.1.1.1.3.2.1.1.1.3#contradiction",
-      "docNo": "A.6.1.1.1.3.2.1.1.1.3",
-      "uuid": "9006fd8d-bd13-48fc-bf2f-04f47579b3b0",
-      "file": "A.6.1.1.1 - Spark.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "All markets except Dai use this IRM. The IRM for Dai is independent of utilization and is defined as a spread over the Sky Savings Rate set forth in [A.3.1.2.2 - Sky Savings Rate](2674cccb-d779-4868-b83f-8cb86648c88a).",
-      "issue": "Contradicted by A.6.1.1.1.3.2.1.1.2.1.2 - Dai Risk Parameters (7d8ed55b), which gives Dai an Optimal Utilization of 80%, Slope 1 of SSR + 1.25% and Slope 2 of 15%; a rate that differs between optimal and 100% utilization is by definition utilization-dependent.",
-      "fix": "unclear - needs author: either Dai's Optimal Utilization/Slope 2 entries are stale, or the claim that Dai's IRM is utilization-independent is wrong."
-    },
-    {
       "id": "A.6.1.1.1.3.2.1.1.3.2.2#numeric",
       "docNo": "A.6.1.1.1.3.2.1.1.3.2.2",
       "uuid": "93b851d7-9825-4022-a583-51a4bbdf4f9c",
@@ -3620,18 +3452,6 @@
       "quote": "- Borrow cap - `gap`: 10,000 wstETH - `ttl`: 12 hours - `max`: 1 wstETH",
       "issue": "The borrow-cap target gap (10,000 wstETH) is 10,000x the absolute maximum the borrow cap may be raised to (1 wstETH), so the automator's target can never be reached - while A.6.1.1.1.3.2.1.1.2.1.8 (5d721ab3) lists wstETH with Borrowing: Yes and Borrow Cap: Set by cap automator.",
       "fix": "unclear - needs author: `max` looks like a unit/decimal slip (compare WETH's `max`: Unlimited), or the wstETH borrow cap is deliberately disabled and should be stated as such."
-    },
-    {
-      "id": "A.6.1.1.1.3.2.1.1.3.2.6#contradiction",
-      "docNo": "A.6.1.1.1.3.2.1.1.3.2.6",
-      "uuid": "07f1853e-ec34-44ae-b137-708a81cd3195",
-      "file": "A.6.1.1.1 - Spark.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "- Supply cap - `gap`: 150 million USDC - `ttl`: 12 hours - `max`: 0 (no cap)",
-      "issue": "\"0 (no cap)\" makes 0 mean unlimited, contradicting A.6.1.1.1.3.2.1.1.3.1.3 (35323a90), which defines `max` as the maximum the cap can be increased to, and contradicting the sibling sDai entry (21bdfe50) where `max`: 0 sDAI means zero because sDai is not borrowable; WETH writes unlimited as \"Unlimited\".",
-      "fix": "Write \"Unlimited\" (as the WETH entry does) rather than 0 for an uncapped max, so the same value does not carry two opposite meanings in one sibling set."
     },
     {
       "id": "A.6.1.1.1.3.4.2.2.1.1#typo",
@@ -3668,18 +3488,6 @@
       "quote": "##### A.6.1.1.2.2.1.1.3 - Completed Instances Directory [Core] ... The Instances of the Agent Creation Primitive with `Completed` Status are contained herein.",
       "issue": "This container document is titled '… Directory' although its own body says instances are 'contained herein', and it duplicates the title of the actual directory document A.6.1.1.2.2.1.1.1.3; every sibling primitive names the equivalent container 'Completed Instances' (A.6.1.1.2.2.1.2.3, .1.3.3, .1.4.3).",
       "fix": "Rename to 'A.6.1.1.2.2.1.1.3 - Completed Instances' (and likewise A.6.1.1.2.2.1.1.4 to 'In Progress Invocations')."
-    },
-    {
-      "id": "A.6.1.1.2.2.2.2.2.1.2.1.4#contradiction",
-      "docNo": "A.6.1.1.2.2.2.2.2.1.2.1.4",
-      "uuid": "f6dd56ae-ee72-4109-be99-eaf69c92c3be",
-      "file": "A.6.1.1.2 - Grove.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "The cut-off time for submitting the proposal in a Forum post is Wednesday 16:00 UTC. ... Proposals that do not require Core Council Risk Advisor approval may instead follow the later end-of-Friday submission deadline.",
-      "issue": "The same document states the forum-post submission cut-off flatly as Wednesday 16:00 UTC (with post-cut-off inclusion left to Operational Facilitator discretion) and then gives a different, later end-of-Friday deadline for a subset of proposals, so two conflicting deadlines govern the same act.",
-      "fix": "unclear — needs author: either state Wednesday 16:00 UTC as the deadline only for risk-increasing proposals, or drop the end-of-Friday sentence."
     },
     {
       "id": "A.6.1.1.2.2.3.2.2.1.2.1.3#contradiction",
@@ -3776,18 +3584,6 @@
       "quote": "A.6.1.1.2.2.6.1.3.7.2.1.2.2.1 - Token Address [Core] ... `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`",
       "issue": "For the 'USDG To USDC Via Paxos' Instance the Token Address is identical to that Instance's Underlying Asset Address (A.6.1.1.2.2.6.1.3.7.2.1.2.2.2) and to the USDG underlying address used by the sibling Morpho Instance (A.6.1.1.2.2.6.1.3.7.1.1.2.2.2), yet the Instance's 'Token to Receive' is USDC - so the USDC address appears to have been replaced by the USDG address.",
       "fix": "Token Address should be the USDC contract address on Robinhood Chain, not 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168 (USDG)."
-    },
-    {
-      "id": "A.6.1.1.2.3.1.4.2#contradiction",
-      "docNo": "A.6.1.1.2.3.1.4.2",
-      "uuid": "b742c40b-2185-4468-8d86-6825f2cc90ae",
-      "file": "A.6.1.1.2 - Grove.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "GROVE holders may assign (“delegate”) the full voting power of their wallet to an Active Delegate at any time",
-      "issue": "'at any time' contradicts its own subdocuments: A.6.1.1.2.3.1.4.2.2 says voting power including delegations cannot be altered for the duration of an active proposal, and A.6.1.1.2.3.1.4.2.3 says delegation may be moved only 'whenever no proposal is live'.",
-      "fix": "Should read that holders may delegate at any time when no proposal is live, with changes taking effect at the next snapshot-block."
     },
     {
       "id": "A.6.1.1.2.3.6.7#xref",
@@ -3992,30 +3788,6 @@
       "quote": "##### A.6.1.1.4.2.1.1.4 - In Progress Invocations Directory [Core] <!-- UUID: 58ddd7d7-28af-4ca3-ac6a-f5d2105f9e79 -->",
       "issue": "Same defect as the sibling above: the Invocation container at this position is titled as the hub Directory document (duplicating A.6.1.1.4.2.1.1.1.4's title within the same Primitive), whereas A.6.1.1.4.2.1.2.4, A.6.1.1.4.2.1.3.4 and A.6.1.1.4.2.1.4.4 are all titled 'In Progress Invocations'.",
       "fix": "Rename to 'In Progress Invocations'."
-    },
-    {
-      "id": "A.6.1.1.4.2.1.3.1.4#contradiction",
-      "docNo": "A.6.1.1.4.2.1.3.1.4",
-      "uuid": "09e544ef-8565-49d2-8dd6-e1b0aa53cb21",
-      "file": "A.6.1.1.4 - Skybase.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "Because the Executor Transformation Primitive is deployed solely for the one-time transformation of the Agent, no further Instances of the Primitive can be Invoked.",
-      "issue": "This boilerplate presupposes the Primitive has already been deployed once, but Skybase's Executor Transformation Primitive has Global Activation Status `Inactive` (A.6.1.1.4.2.1.3.1.1) with no Instance in either its Active or Completed containers — so 'no further Instances' would mean zero Instances can ever exist; every other Primitive using this sentence (Agent Creation, Prime Transformation, Agent Token, Root Edit) is `Completed`/`Active` with an Instance recorded.",
-      "fix": "Use the standard in-progress-Directory wording for an un-Invoked Primitive, or state that the Primitive is inapplicable because Skybase is a Prime Agent (A.6.1.1.4.2.1.2.3.1.1.1)."
-    },
-    {
-      "id": "A.6.1.1.4.2.1.4.2.1.1.6#contradiction",
-      "docNo": "A.6.1.1.4.2.1.4.2.1.1.6",
-      "uuid": "f56670f9-5a43-4b47-b94a-99026f8d87c0",
-      "file": "A.6.1.1.4 - Skybase.md",
-      "category": "contradiction",
-      "severity": "medium",
-      "pass": "factual",
-      "quote": "Token emissions beyond the Genesis Supply are permanently disabled; this cannot be reverted by Skybase Governance. Sky Governance retains the ability to revert where Skybase is in violation of Risk Capital requirements and emissions are required by the Risk Framework.",
-      "issue": "Emissions are declared 'permanently disabled' and then, in the next sentence, revertible by Sky Governance — a rule and its stated exception that cannot both hold as written.",
-      "fix": "State that emissions are disabled and may only be re-enabled by Sky Governance under the Risk Framework, dropping 'permanently'."
     },
     {
       "id": "A.6.1.1.4.2.3.2.2.1.2.1.3#contradiction",
@@ -4268,6 +4040,293 @@
       "quote": "[A.1.5.5.0.4.1 - Operationally Active - Whether An Entity Is \"Operationally Active\" In A Role Is Determined Purely On A Formal Basis](38c70e00-b5b8-4d1b-9f57-809ef284cb25)",
       "issue": "link text title \"Operationally Active - Whether An Entity Is \"Operationally Active\" In A Role Is Determined Purely On A Formal Basis\" but target title is \"Operationally Active - Whether An Entity Is “Operationally Active\" In A Role Is Determined Purely On A Formal Basis\"",
       "fix": null
+    }
+  ],
+  "rejected": [
+    {
+      "id": "A.3.7.1.1.4#contradiction",
+      "docNo": "A.3.7.1.1.4",
+      "uuid": "a38e05bf-0820-4916-a71c-cff4f54e45df",
+      "file": "A.3 - The-Stability-Scope.md",
+      "category": "contradiction",
+      "severity": "high",
+      "pass": "factual",
+      "quote": "...will specifically use the Chronicle v3 oracle solution, until at least January 1st 2026. ... Other oracle solutions, including diversified oracles, will only be considered until January 1st, 2026, and only if there are unresolvable security con...",
+      "issue": "The two sentences cannot both hold: the first mandates exclusive use of Chronicle v3 until at least 2026-01-01, while the second confines consideration of alternatives to the window ending on that same date; as written the escape hatch for unresolvable Chronicle security concerns expired before it could ever be used (and is dead as of 2026-09-15).",
+      "fix": "'Other oracle solutions ... will only be considered after January 1st, 2026, and only if there are unresolvable security concerns with the Chronicle v3 oracles.'",
+      "rejectedReason": "Exclusive use “until at least” 2026-01-01, with an alternatives window *during* that lock-in for unresolvable Chronicle security concerns — a hatch inside the exclusive period, not two timelines.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.1.6.8#contradiction",
+      "docNo": "A.1.6.8",
+      "uuid": "7b0da718-62c1-4718-8d9d-47faa1647c6f",
+      "file": "A.1 - The-Governance-Scope.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "The Core Facilitator must initiate a formal adjudication pursuant to [A.1.5.9 - Adjudication Process](560e1024-0897-4f1e-ae71-3ba31e29ed57) where there is an allegation concerning AD breach of operational security.",
+      "issue": "This makes adjudication mandatory on any allegation, which cannot both hold with A.1.6.6.0.3.2 ('Where an allegation fails to meet this threshold, the Core Facilitator may decline to initiate adjudication') and A.1.6.6.0.4.1 / A.1.5.8.0.4.1 ('the Core Facilitator must decide whether to initiate a formal adjudication process') in the same Article.",
+      "fix": "'must initiate a formal adjudication ... where there is a credible-evidence-supported allegation concerning AD breach of operational security' (i.e. subject the mandate to the A.1.6.6.0.3.2 credible-evidence threshold).",
+      "rejectedReason": "Opsec-specific “must initiate” in A.1.6.8 sits beside the general allegation discretion in A.1.6.6.0.3.2 / A.1.6.6.0.4.1 — *lex specialis*, not a clash.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.1.9.1.3.1#contradiction",
+      "docNo": "A.1.9.1.3.1",
+      "uuid": "45a7ccff-09fa-4d95-b3d8-e3f34f7917cf",
+      "file": "A.1 - The-Governance-Scope.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "Where an Emergency Response Group Member is a team, the two (2) team members responsible for incident response are required to join the Signal Group.",
+      "issue": "Fixes Signal Group membership at exactly two per team, contradicting A.1.9.1.2.3 ('A team may assign more than two (2) of its team members ... at the discretion of Core GovOps') and A.1.9.1.2.3.1, which expressly permits Soter Labs to assign more than two members to 'the permissioned Emergency Response Communication Channels defined in A.1.9.1.3' — of which this Signal Group is one.",
+      "fix": "'the team members responsible for incident response are required to join the Signal Group' (drop the hard count of two so the A.1.9.1.2.3 / A.1.9.1.2.3.1 exceptions can apply).",
+      "rejectedReason": "Names the two incident-response members who join the Signal Group. A.1.9.1.2.3 / A.1.9.1.2.3.1 already allow extra assignees; that is not a cap of two.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.2.2.2#contradiction",
+      "docNo": "A.2.2.2",
+      "uuid": "bdbb8ac9-d87e-4052-9e69-8267f38a54cf",
+      "file": "A.2 - The-Support-Scope.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "All Sky Primitive Process Definitions are structured according to a common data schema ... At present, only the Distribution Reward Primitive and the Integration Boost Primitive specifications are structured using this schema.",
+      "issue": "The same document asserts that all Sky Primitive Process Definitions are structured according to the schema and then that only two Primitive specifications currently are; both cannot be true.",
+      "fix": "The opening sentence should say Process Definitions 'must be' / 'will be' structured according to the common schema, reconciling it with the 'at present, only two' statement.",
+      "rejectedReason": "Same document: all Process Definitions follow the schema; “at present” only two Primitives use it; “in future” the rest will.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.2.2.10.1.1.1.2.1.2.1#contradiction",
+      "docNo": "A.2.2.10.1.1.1.2.1.2.1",
+      "uuid": "8b5f1ffd-9dfd-4aa0-8fc2-638a79d9fadb",
+      "file": "A.2 - The-Support-Scope.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "`maxAmount` sets a hard cap on the level of allocation to an Instance at any given time.",
+      "issue": "Describes maxAmount as a cap on the level of allocation to the Instance, while its own parent A.2.2.10.1.1.1.2.1.2 states rate limits 'do not act as a limit on the total amount that may be allocated to that Instance', and the RateLimits code in A.2.2.10.1.1.1.2.5.3.1 shows maxAmount only caps the refillable allowance (currentRateLimit), not cumulative allocation.",
+      "fix": "'`maxAmount` sets a hard cap on the rate limit's available allowance at any given time' — a ceiling on the refilling allowance, not on the Instance's total allocation",
+      "rejectedReason": "Parent A.2.2.10.1.1.1.2.1.2 already says rate limits are not a cumulative allocation cap. The child’s own example is a refillable-allowance ceiling.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.2.2.10.1.1.1.2.4.1.3#contradiction",
+      "docNo": "A.2.2.10.1.1.1.2.4.1.3",
+      "uuid": "92a74fe1-3115-4cd7-bbf8-4e16fb4b0aa8",
+      "file": "A.2 - The-Support-Scope.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "It already holds that value on the `RateLimits` contract and has no default at all. A rate limit that is already unlimited is locked the same way whether or not it was ever registered. Registering a default other than the unlimited value removes that lock.",
+      "issue": "The middle sentence says a currently-unlimited rate limit is locked 'whether or not it was ever registered', which contradicts both the enumerated second case (locked only if it 'has no default at all') and the closing sentence ('Registering a default other than the unlimited value removes that lock') — a rate limit that is unlimited but carries a finite registered default is locked by one sentence and unlocked by the other two.",
+      "fix": "Narrow the sentence to the case it is clarifying, e.g. 'A rate limit that is already unlimited is locked the same way whether or not the unlimited value was ever registered as its default.'",
+      "rejectedReason": "“Whether or not registered” glosses case 2 (unlimited on-chain, no default). The closing sentence is how you leave that case, not a third lock rule.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.2.8.2.1.2.9.1#contradiction",
+      "docNo": "A.2.8.2.1.2.9.1",
+      "uuid": "7d16afc8-0eb4-40db-81aa-915a7f052859",
+      "file": "A.2 - The-Support-Scope.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "Spark and Grove will share 50% of all revenue and expenses associated with Spark's Allocation System investments in USDe and sUSDe.",
+      "issue": "Within the same Accord, A.2.8.2.1.2.1 caps the revenue share at 'up to 40% maximum with JRC rental' and A.2.8.2.1.2.1.1 limits it to 'the spread earned on USDS debt', yet this arrangement is a 50% share of a broader revenue base and is explicitly paired with a Junior Risk Capital Rental from Grove (A.2.8.2.1.2.9.2).",
+      "fix": "State that the USDe/sUSDe share is an agreed exception to the 40% JRC-rental cap and to the USDS-spread-only base, or align the figures",
+      "rejectedReason": "A.2.8.2.1.2.1 is the general force-share-with-JRC cap (40%, USDS-spread base). A.2.8.2.1.2.9 is a named USDe/sUSDe deal at 50% of a broader base, paired with its own JRC rental in A.2.8.2.1.2.9.2.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.2.9.1.1.1.4.2.2.7#contradiction",
+      "docNo": "A.2.9.1.1.1.4.2.2.7",
+      "uuid": "99079da7-e8e9-4660-96a6-269625d821cc",
+      "file": "A.2 - The-Support-Scope.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "The recommendations of the Resilience Technical Committee are non-binding and will not give rise to any right or claim to the beneficiaries nor give rise to any obligation or responsibility.",
+      "issue": "Contradicts A.2.9.1.1.1.3.3.1, which makes 'the payout of a claim ... subject to the approval of the Resilience Technical Committee (at their sole and absolute discretion)' (i.e. a binding gate), and A.2.9.1.1.1.4.2.2.5, which states the same recommendations 'are definitive, and are not subject to appeal' — a recommendation cannot simultaneously be definitive/approval-conferring and non-binding.",
+      "fix": "Unclear — needs author; either the RTC decision is a binding approval (fix 4.2.2.7) or it is advisory only (fix 3.3.1 and 4.2.2.5).",
+      "rejectedReason": "“Non-binding” = no beneficiary right of action (same Article as A.2.9.1.1.1.3.3.1). “Definitive” in A.2.9.1.1.1.4.2.2.5 = the recommendation is unappealable. Payout still needs a SKY vote (A.2.9.1.1.1.4.2.2.8).",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.4.3.2.1#contradiction",
+      "docNo": "A.4.3.2.1",
+      "uuid": "caba97e4-4d4d-4aa9-9ed4-f0d1c8b1c552",
+      "file": "A.4 - The-Protocol-Scope.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "SKY token rewards are not currently available to USDS users.",
+      "issue": "A.4.1.2.2.4.1 (8189e776-d631-44a0-81e5-3b2d5d88ef54) states in the present tense that 'USDS users may be able to earn SKY Rewards' and that the emission funding was replaced by an implemented solution funding those rewards from SKY held by the Sky Protocol; that describes a live mechanism the same chunk says is not available.",
+      "fix": "unclear — needs author: either mark the SKY Rewards funding solution in A.4.1.2.2.4.1 as historical/inactive, or drop the 'not currently available' statement",
+      "rejectedReason": "A.4.1.2.2.4.1 says USDS users “may be able” and points at A.4.3.2. A.4.3.2.1 is the live switch, presently off. The funding-history paragraph is not a live-rewards claim.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.4.6.1.1#contradiction",
+      "docNo": "A.4.6.1.1",
+      "uuid": "e6807f67-0d3c-4b6a-a3df-6da987147b72",
+      "file": "A.4 - The-Protocol-Scope.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "These include the DssBlow2 contract for adding Dai and USDS to the Surplus Buffer, and the Pause Proxy contract for non-stablecoins.",
+      "issue": "This parent document classifies the Pause Proxy as the destination for non-stablecoins only, but its own subdocument A.4.6.1.1.1.2 (Transfer Of Other Stablecoins) directs stablecoins other than Dai or USDS to be 'sent to the Pause Proxy contract without conversion', so the stated taxonomy contradicts the rule beneath it.",
+      "fix": "Say the Pause Proxy receives non-stablecoins and any stablecoin other than Dai or USDS that is not converted, rather than 'for non-stablecoins'.",
+      "rejectedReason": "Parent splits Dai/USDS via DssBlow2 vs everything else via Pause Proxy. Child A.4.6.1.1.1.2 elaborates “everything else” (other stablecoins: convert, or send to Pause Proxy).",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.5.2.1.3.1#contradiction",
+      "docNo": "A.5.2.1.3.1",
+      "uuid": "65625a56-0d3e-45b3-958d-0517fd861bd2",
+      "file": "A.5 - The-Accessibility-Scope.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "The Accessibility communication channel budget is: - 0 USDS per month, implemented with DssVest. It is a monthly recurring budget.",
+      "issue": "The budget funding this Section is set to 0 USDS per month, which cannot fund the obligation in A.5.2.1.1 that 'Sky must support the accessibility of the Sky Ecosystem by paying Ecosystem Actors to maintain accounts and channels on external platforms', and a DssVest stream of zero per month is not a payable stream.",
+      "fix": "State the real recurring amount, or mark the budget as discontinued/unfunded and reconcile the 'must pay Ecosystem Actors' obligation in A.5.2.1.1 — unclear, needs author.",
+      "rejectedReason": "A.5.2.1.3.1 is the current appropriation (0 USDS / month). A.5.2.1.1 is the standing pay-actors duty. An unfunded duty is not a textual clash.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.1.3.1.3.2#contradiction",
+      "docNo": "A.6.1.1.1.3.1.3.2",
+      "uuid": "7fcbb9da-7559-4a18-ab68-f0840a3fe921",
+      "file": "A.6.1.1.1 - Spark.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "SPK holders may assign (\"delegate\") the full voting power of their wallet to an Active Delegate at any time (see [A.6.1.1.1.3.1.3.8 - Registry of Delegates](f49a1e26-f774-4fbd-b7f8-156639e077f2)).",
+      "issue": "\"at any time\" is contradicted by its own subdocuments: A.6.1.1.1.3.1.3.2.2 (99c40e7d) states voting power \"including delegations\" cannot be altered for the duration of an active proposal, and A.6.1.1.1.3.1.3.2.3 (375d4774) permits revoking or moving a delegation only \"whenever no proposal is live\".",
+      "fix": "Qualify the parent rule (e.g. \"at any time, effective from the next snapshot block\") or align the subdocuments with it.",
+      "rejectedReason": "Parent permission; children A.6.1.1.1.3.1.3.2.2 / A.6.1.1.1.3.1.3.2.3 add the snapshot lock and next-block effect.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.1.3.1.3.3.3#contradiction",
+      "docNo": "A.6.1.1.1.3.1.3.3.3",
+      "uuid": "46e9d0bb-e251-4f07-8327-804456f2e68a",
+      "file": "A.6.1.1.1 - Spark.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "The Delegate must cast a vote (For / Against) on 100% of governance proposals within the designated voting window",
+      "issue": "A mandatory 100% For/Against participation rate cannot coexist with A.6.1.1.1.3.1.3.5.2 (ca90a844), which sets the compliance floor at a voting percentage of 85%, nor with A.6.1.1.1.3.1.3.3.4 (16eb44b8), which permits Abstain for disclosed conflicts.",
+      "fix": "unclear - needs author: state the duty at the same level as enforcement (e.g. \">= 85%, excluding disclosed-conflict abstentions\") or raise the non-performance threshold to 100%.",
+      "rejectedReason": "A.6.1.1.1.3.1.3.3.3 is the duty (For/Against on every proposal). A.6.1.1.1.3.1.3.5.2 is the offboarding floor (voting percentage under 85%, or three missed in a row). A.6.1.1.1.3.1.3.3.4 is the disclosed-conflict Abstain exception.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.1.3.2.1.1.1.3#contradiction",
+      "docNo": "A.6.1.1.1.3.2.1.1.1.3",
+      "uuid": "9006fd8d-bd13-48fc-bf2f-04f47579b3b0",
+      "file": "A.6.1.1.1 - Spark.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "All markets except Dai use this IRM. The IRM for Dai is independent of utilization and is defined as a spread over the Sky Savings Rate set forth in [A.3.1.2.2 - Sky Savings Rate](2674cccb-d779-4868-b83f-8cb86648c88a).",
+      "issue": "Contradicted by A.6.1.1.1.3.2.1.1.2.1.2 - Dai Risk Parameters (7d8ed55b), which gives Dai an Optimal Utilization of 80%, Slope 1 of SSR + 1.25% and Slope 2 of 15%; a rate that differs between optimal and 100% utilization is by definition utilization-dependent.",
+      "fix": "unclear - needs author: either Dai's Optimal Utilization/Slope 2 entries are stale, or the claim that Dai's IRM is utilization-independent is wrong.",
+      "rejectedReason": "Definitional doc: Dai’s IRM is an SSR spread, independent of utilization. The Dai params ICD (A.6.1.1.1.3.2.1.1.2.1.2) still lists Slope 1 / Slope 2 / Optimal Utilization, then restates the SSR-spread rule in prose. Leftover columns, not a second IRM.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.1.3.2.1.1.3.2.6#contradiction",
+      "docNo": "A.6.1.1.1.3.2.1.1.3.2.6",
+      "uuid": "07f1853e-ec34-44ae-b137-708a81cd3195",
+      "file": "A.6.1.1.1 - Spark.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "- Supply cap - `gap`: 150 million USDC - `ttl`: 12 hours - `max`: 0 (no cap)",
+      "issue": "\"0 (no cap)\" makes 0 mean unlimited, contradicting A.6.1.1.1.3.2.1.1.3.1.3 (35323a90), which defines `max` as the maximum the cap can be increased to, and contradicting the sibling sDai entry (21bdfe50) where `max`: 0 sDAI means zero because sDai is not borrowable; WETH writes unlimited as \"Unlimited\".",
+      "fix": "Write \"Unlimited\" (as the WETH entry does) rather than 0 for an uncapped max, so the same value does not carry two opposite meanings in one sibling set.",
+      "rejectedReason": "The parenthetical glosses `0` as unlimited in place. Sibling sDAI writes `0 sDAI` under “not a borrowable asset” (A.6.1.1.1.3.2.1.1.3.2.5). Notation drift, not two meanings of an unglossed zero.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.2.2.2.2.2.1.2.1.4#contradiction",
+      "docNo": "A.6.1.1.2.2.2.2.2.1.2.1.4",
+      "uuid": "f6dd56ae-ee72-4109-be99-eaf69c92c3be",
+      "file": "A.6.1.1.2 - Grove.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "The cut-off time for submitting the proposal in a Forum post is Wednesday 16:00 UTC. ... Proposals that do not require Core Council Risk Advisor approval may instead follow the later end-of-Friday submission deadline.",
+      "issue": "The same document states the forum-post submission cut-off flatly as Wednesday 16:00 UTC (with post-cut-off inclusion left to Operational Facilitator discretion) and then gives a different, later end-of-Friday deadline for a subset of proposals, so two conflicting deadlines govern the same act.",
+      "fix": "unclear — needs author: either state Wednesday 16:00 UTC as the deadline only for risk-increasing proposals, or drop the end-of-Friday sentence.",
+      "rejectedReason": "Wednesday 16:00 UTC is the default Forum cut-off; the next sentence is an explicit later-Friday path for proposals that skip Core Council Risk Advisor approval.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.2.3.1.4.2#contradiction",
+      "docNo": "A.6.1.1.2.3.1.4.2",
+      "uuid": "b742c40b-2185-4468-8d86-6825f2cc90ae",
+      "file": "A.6.1.1.2 - Grove.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "GROVE holders may assign (“delegate”) the full voting power of their wallet to an Active Delegate at any time",
+      "issue": "'at any time' contradicts its own subdocuments: A.6.1.1.2.3.1.4.2.2 says voting power including delegations cannot be altered for the duration of an active proposal, and A.6.1.1.2.3.1.4.2.3 says delegation may be moved only 'whenever no proposal is live'.",
+      "fix": "Should read that holders may delegate at any time when no proposal is live, with changes taking effect at the next snapshot-block.",
+      "rejectedReason": "Same shape as the Spark sibling, under A.6.1.1.2.3.1.4.2.2 / A.6.1.1.2.3.1.4.2.3.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.4.2.1.3.1.4#contradiction",
+      "docNo": "A.6.1.1.4.2.1.3.1.4",
+      "uuid": "09e544ef-8565-49d2-8dd6-e1b0aa53cb21",
+      "file": "A.6.1.1.4 - Skybase.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "Because the Executor Transformation Primitive is deployed solely for the one-time transformation of the Agent, no further Instances of the Primitive can be Invoked.",
+      "issue": "This boilerplate presupposes the Primitive has already been deployed once, but Skybase's Executor Transformation Primitive has Global Activation Status `Inactive` (A.6.1.1.4.2.1.3.1.1) with no Instance in either its Active or Completed containers — so 'no further Instances' would mean zero Instances can ever exist; every other Primitive using this sentence (Agent Creation, Prime Transformation, Agent Token, Root Edit) is `Completed`/`Active` with an Instance recorded.",
+      "fix": "Use the standard in-progress-Directory wording for an un-Invoked Primitive, or state that the Primitive is inapplicable because Skybase is a Prime Agent (A.6.1.1.4.2.1.2.3.1.1.1).",
+      "rejectedReason": "Singleton boilerplate used on every one-shot Primitive, including Inactive ones. “No further” means the Primitive is one-shot, not “an Instance already exists.”",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
+    },
+    {
+      "id": "A.6.1.1.4.2.1.4.2.1.1.6#contradiction",
+      "docNo": "A.6.1.1.4.2.1.4.2.1.1.6",
+      "uuid": "f56670f9-5a43-4b47-b94a-99026f8d87c0",
+      "file": "A.6.1.1.4 - Skybase.md",
+      "category": "contradiction",
+      "severity": "medium",
+      "pass": "factual",
+      "quote": "Token emissions beyond the Genesis Supply are permanently disabled; this cannot be reverted by Skybase Governance. Sky Governance retains the ability to revert where Skybase is in violation of Risk Capital requirements and emissions are required by the Risk Framework.",
+      "issue": "Emissions are declared 'permanently disabled' and then, in the next sentence, revertible by Sky Governance — a rule and its stated exception that cannot both hold as written.",
+      "fix": "State that emissions are disabled and may only be re-enabled by Sky Governance under the Risk Framework, dropping 'permanently'.",
+      "rejectedReason": "Two-layer rule in one paragraph: Skybase Governance cannot re-enable; Sky Governance can, only under the Risk Framework.",
+      "rejectedOn": "2026-09-16",
+      "rejectedIn": "docs/reviews/2026-09-16-mistakes-contradiction-false-positives.md"
     }
   ]
 }
