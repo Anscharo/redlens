@@ -27,16 +27,11 @@ const BAR_GAP = 1;
 /** A bar never vanishes entirely: a hairline still says "this exists". */
 const MIN_H = 1;
 
-/** Exported so the card can measure its legend and size itself to fit it
- *  on one line (ActorSettlementTeaser). */
-export const SERIES = [
+const SERIES = [
   { key: "sky", label: "to Sky", fill: "var(--msc-sky)" },
   { key: "kept", label: "supply-side kept", fill: "var(--msc-kept)" },
   { key: "demand", label: "demand-side", fill: "var(--msc-demand)" },
 ] as const;
-
-/** The svg's natural width, the chart half's other floor. */
-export const CHART_W = W;
 
 export function MscCycleSpark({ points }: { points: ThreeWayMonth[] }) {
   const n = points.length;

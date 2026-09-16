@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from "react";
+import { useMemo } from "react";
 import { Link } from "../Link";
 import { useLoaded } from "../../hooks/useAtlasData";
 import {
@@ -13,41 +13,10 @@ import {
 } from "../../lib/settlements";
 import { settlementsHref } from "@/lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
-import { textWidth } from "../../lib/textWidth";
-import { MscCycleSpark, SERIES, CHART_W } from "./MscCycleSpark";
+import { MscCycleSpark } from "./MscCycleSpark";
 
-// The card sizes itself to its own text. There is spare width beside it on
-// an actor page, and growing taller pushes the page's content down, so each
-// semantic line below gets the room to stay on ONE rendered line — measured
-// with pretext rather than guessed, the same rule the MSC charts follow for
-// their gutters. Floors keep a short month from shrinking the card; ceilings
-// keep one long line from running it off the page.
-const mono = (px: number) => `${px}px 'Source Code Pro', 'Courier New', monospace`;
-const MONO_10 = mono(10);
-const MONO_18 = mono(18);
-const INTER_10 = "10px 'Inter', system-ui, sans-serif";
-const MONO_10_CH = 6;
-const MONO_18_CH = 10.8;
-const INTER_10_CH = 4.7;
-/** .msc-teaser's left + right padding, plus a hair so nothing touches. */
-const FIG_PAD = 30;
-const FIG_MIN = 208;
-const FIG_MAX = 400;
-/** Tracking-wider on the heading, which pretext measures without. */
-const TRACKING = 0.05 * 10;
-/** .msc-teaser-chart's padding, and the gap between legend items. */
-const CHART_PAD = 22;
-const LEGEND_GAP = 12;
-/** A legend swatch (w-2) and its mr-1. */
-const SWATCH = 12;
-/** One string, so the line and its measurement cannot drift apart. */
+/** One string, so the rendered line and any copy edit stay in one place. */
 const DISCLAIMER = "OEA calculation, not the on-chain GovOps spell";
-
-/** Width of the legend on one line — the chart half can be no narrower. */
-const LEGEND_W =
-  SERIES.reduce((n, s) => n + SWATCH + textWidth(s.label, MONO_10, MONO_10_CH), 0) +
-  LEGEND_GAP * (SERIES.length - 1) +
-  CHART_PAD;
 
 interface Props {
   slug: string;
@@ -111,39 +80,11 @@ export function ActorSettlementTeaser({ slug, name }: Props) {
       ? formatMonth(months[0].month)
       : `${formatMonth(months[0].month)} – ${formatMonth(months[n - 1].month)} · ${n} cycles`;
 
-  // Every line of the figures half, at the size it actually renders.
-  const figuresW = Math.min(
-    FIG_MAX,
-    Math.max(
-      FIG_MIN,
-      Math.round(
-        FIG_PAD +
-          Math.max(
-            textWidth("MONTHLY SETTLEMENT", MONO_10, MONO_10_CH) + TRACKING * "MONTHLY SETTLEMENT".length,
-            textWidth(period, MONO_10, MONO_10_CH),
-            textWidth(formatUsd(lead.amount, true), MONO_18, MONO_18_CH),
-            textWidth(lead.label, MONO_10, MONO_10_CH),
-            ...rest.map((r) => textWidth(`${formatUsd(r.amount, true)} ${r.label}`, MONO_10, MONO_10_CH)),
-            textWidth(DISCLAIMER, INTER_10, INTER_10_CH),
-            textWidth("full cycle →", MONO_10, MONO_10_CH),
-          ),
-      ),
-    ),
-  );
-
   return (
     <Link
       to={settlementsHref(slug)}
       className="msc-teaser-wrap"
-      style={
-        {
-          scrollMarginTop: HEADER_OFFSET,
-          // Custom properties, not `width`, so the narrow breakpoint's
-          // `width: 100%` still wins and the halves stack on a phone.
-          "--msc-teaser-w": `${figuresW}px`,
-          "--msc-teaser-chart-w": `${Math.round(Math.max(LEGEND_W, CHART_W + CHART_PAD))}px`,
-        } as CSSProperties
-      }
+      style={{ scrollMarginTop: HEADER_OFFSET }}
       id="msc"
       data-testid="msc-teaser"
       aria-label={`${name ?? slug} over ${n} ${n === 1 ? "cycle" : "cycles"}: ${formatUsd(totals.sky, true)} to Sky, ${formatUsd(totals.kept, true)} supply-side kept, ${formatUsd(totals.demand, true)} demand-side from Sky — open the settlement charts`}

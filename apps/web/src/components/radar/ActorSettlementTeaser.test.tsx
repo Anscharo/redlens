@@ -126,25 +126,17 @@ describe("ActorSettlementTeaser", () => {
     expect(card).toHaveAttribute("href", "/radar/keel/settlements");
   });
 
-  it("sizes itself sideways from its measured text, so no line wraps and the card stays short", async () => {
+  it("leaves its own width to CSS, so the narrow breakpoint can still stack it", async () => {
     render(<ActorSettlementTeaser slug="spark" name="Spark" />);
     const card = await screen.findByTestId("msc-teaser");
-    const figures = Number(card.style.getPropertyValue("--msc-teaser-w").replace("px", ""));
-    const chart = Number(card.style.getPropertyValue("--msc-teaser-chart-w").replace("px", ""));
-    // Wider than the old fixed 13rem / 16rem, because the longest line
-    // (the OEA disclaimer) and the three-item legend now fit on one line.
-    expect(figures).toBeGreaterThanOrEqual(208);
-    expect(chart).toBeGreaterThan(256);
-    // Both are set as custom properties, never `width`, so the narrow
-    // breakpoint can still stack the halves at 100%.
+    // No inline width and no width custom properties: the halves are sized
+    // by `width: max-content` in index.css, which a media query can override.
+    // An inline width could not be, which is the whole reason it lives there.
     expect(card.style.width).toBe("");
-    // A longer period string widens the card rather than wrapping it.
-    cleanup();
-    const long = { ...FIXTURE, reports: FIXTURE.reports.filter((r) => r.prime === "spark") };
-    render(<ActorSettlementTeaser slug="spark" name="Spark" />);
-    expect(long.reports.length).toBeGreaterThan(0);
-    const again = await screen.findByTestId("msc-teaser");
-    expect(Number(again.style.getPropertyValue("--msc-teaser-w").replace("px", ""))).toBe(figures);
+    expect(card.getAttribute("style")).not.toMatch(/width/);
+    for (const half of [".msc-teaser", ".msc-teaser-chart"]) {
+      expect((card.querySelector(half) as HTMLElement).style.width).toBe("");
+    }
   });
 
   it("renders nothing for a slug with no MSC workbooks", async () => {

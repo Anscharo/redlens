@@ -2802,16 +2802,17 @@ a.atlas-annotates:focus-visible {
 .msc-teaser-wrap:hover {
   background: var(--row-hover);
 }
-/* Both halves are sized by the card from its measured text (see
-   ActorSettlementTeaser): it grows sideways into the spare width rather
-   than wrapping and pushing the page down. The fallbacks are what the
-   fixed widths used to be. */
+/* Both halves size themselves to their own text: an actor page has spare
+   width beside this card and none to spare below it, so a wrapped line
+   would cost height that pushes the page's content down. Every line here
+   is one semantic line (nowrap), and max-content makes the box exactly as
+   wide as the longest of them — the browser does the measuring, so the
+   width follows a copy edit on its own. */
 .msc-teaser {
-  width: var(--msc-teaser-w, 13rem);
+  width: max-content;
+  max-width: 26rem;
   padding: 10px 14px 12px;
 }
-/* Each line here is one semantic line and the width was measured to hold
-   it, so wrapping would mean a measurement is wrong — fail visibly. */
 .msc-teaser > * {
   white-space: nowrap;
 }
@@ -2824,10 +2825,14 @@ a.atlas-annotates:focus-visible {
 }
 /* The chart half: the svg takes the height the figures set, and the legend
    sits under it with the figures' bottom padding, level with "full cycle". */
+/* Sized by its legend on one line (max-content of the nowrap row), never
+   below the chart's own 256px drawing width. */
 .msc-teaser-chart {
   display: flex;
   flex-direction: column;
-  width: var(--msc-teaser-chart-w, 16rem);
+  width: max-content;
+  min-width: 16rem;
+  max-width: 26rem;
   padding: 10px 10px 12px;
   border-left: 1px solid var(--border);
 }
@@ -2839,8 +2844,8 @@ a.atlas-annotates:focus-visible {
   min-height: 0;
   overflow: visible;
 }
-/* The card is sized so these fit on one line; nowrap keeps them there
-   rather than silently wrapping if a measurement is ever off. */
+/* Nowrap is what makes the legend's max-content one line wide, which is
+   what sizes the chart half above. */
 .msc-gross-legend {
   display: flex;
   flex-wrap: nowrap;
@@ -2878,6 +2883,8 @@ a.atlas-annotates:focus-visible {
   .msc-teaser,
   .msc-teaser-chart {
     width: 100%;
+    min-width: 0;
+    max-width: none;
   }
   .msc-teaser-chart {
     border-left: none;
