@@ -72,25 +72,12 @@ describe("buildReportCatalog", () => {
 });
 
 describe("report embed fields", () => {
-  it("embed text carries title, category, hint, and description", () => {
+  it("embed text is title plus description, not the shared group labels", () => {
     const card = REPORT_INDEX_CARDS[0]!;
     const text = reportEmbedText(card);
     expect(text).toContain(card.title);
-    expect(text).toContain(card.category);
-    expect(text).toContain(card.hint);
     expect(text).toContain(card.description);
-    expect(reportEmbedFields(card)).toEqual([
-      card.title,
-      card.category,
-      card.hint,
-      card.description,
-      text,
-    ]);
-  });
-
-  it("includes the provenance badge label for non-live cards", () => {
-    const card = REPORT_INDEX_CARDS.find((c) => c.id === "processes")!;
-    expect(reportEmbedText(card)).toContain("curated");
-    expect(reportEmbedFields(card)).toContain("curated");
+    expect(text).not.toContain(card.category);
+    expect(reportEmbedFields(card)).toEqual([card.title, card.description, text]);
   });
 });

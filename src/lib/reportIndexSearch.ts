@@ -1,4 +1,4 @@
-// Filter for the /reports index. Two lanes, OR'd:
+// Filter for the /reports index. Two lanes:
 //
 //   1. Lexical — case-insensitive substring (and token-AND) over title,
 //      category, description, and provenance badge. A group-title hit keeps
@@ -6,23 +6,29 @@
 //      we now have" means. A hint hit is a fallback for purpose-queries
 //      ("obliges") that name no card. This lane runs in the browser so a
 //      name match is instant.
-//   2. Semantic — optional extra ids from GET /api/reports/search, which
-//      scores the query with on-device ternlight on the server (the same
-//      engine chat facts already load). A report in that set is kept even
-//      when no field contains the query, so "wallet addresses" can surface
-//      On-Chain Addresses. Direct name matches never depend on this lane.
+//   2. Semantic — extra ids from GET /api/reports/search, which scores the
+//      query with on-device ternlight on the server (the same engine chat
+//      facts already load). The index always asks for these, even when
+//      wording already hit, so a paraphrase that shares a title word
+//      ("facilitator duties") can still surface a meaning-only neighbour.
+//      The UI keeps the two sets apart: wording matches stay in catalog
+//      order; extras-only cards render under "Closest meaning".
 //
 // Ranking is catalog order, not score — the index is a handful of cards, and
 // jumping around as the user types is worse than a stable filter.
 import type { ReportCard, ReportCardGroup } from "./reportCatalog";
 import { PROVENANCE_LABELS, reportEmbedFields } from "./reportCatalog";
+import { counterpartTerm } from "./searchInflect";
 
-// Floor against noise. Measured against this catalog in
-// reportIndexSearch.semantic.test.ts (max of title/category/description/full
-// embeddings): unrelated strings top out ~0.23, in-vocabulary paraphrases
-// of titles clear 0.50, and 0.40 sits in the gap so "zzz-nonexistent" and
-// "hello world" never light up a card.
-export const SEMANTIC_MIN = 0.4;
+// Floor against noise. Re-measured against title+description embeddings
+// (reportIndexSearch.semantic.test.ts): pizza/hello/etherscan top out ~0.28,
+// in-vocabulary paraphrases of titles still clear 0.50, and 0.32 sits in the
+// gap. Group titles are lexical-only — embedding "Atlas health" made any
+// query containing "atlas" light up the whole index. Cap the extras so a
+// query that shares the word "atlas" (in every description) cannot dump
+// the whole catalog into Closest meaning.
+export const SEMANTIC_MIN = 0.32;
+export const SEMANTIC_MAX = 3;
 
 /** Strip mode-wrap quotes and lowercase; empty means "show everything". */
 export function normalizeReportIndexQuery(query: string): string {
@@ -40,13 +46,19 @@ function tokens(q: string): string[] {
   return q.split(/[^a-z0-9]+/).filter(Boolean);
 }
 
+function fieldHasToken(fn: string, t: string): boolean {
+  if (fn.includes(t)) return true;
+  const other = counterpartTerm(t);
+  return other != null && fn.includes(other);
+}
+
 function fieldMatch(field: string, q: string, qTokens: string[]): boolean {
   const f = field.toLowerCase();
   if (f.includes(q)) return true;
   const fn = f.replace(/[^a-z0-9]+/g, " ");
   const qn = q.replace(/[^a-z0-9]+/g, " ").trim();
   if (qn && fn.includes(qn)) return true;
-  return qTokens.length > 0 && qTokens.every((t) => fn.includes(t));
+  return qTokens.length > 0 && qTokens.every((t) => fieldHasToken(fn, t));
 }
 
 function badgeLabel(card: ReportCard): string | null {
@@ -87,6 +99,25 @@ export function filterReportGroups(
     });
     if (cards.length > 0) out.push({ ...group, cards });
     else if (fieldMatch(group.hint, q, qTokens)) out.push(group);
+  }
+  return out;
+}
+
+/** Card ids currently shown across groups. */
+export function cardIdsIn(groups: readonly ReportCardGroup[]): Set<string> {
+  return new Set(groups.flatMap((g) => g.cards.map((c) => c.id)));
+}
+
+/** Catalog groups narrowed to a set of card ids, preserving catalog order. */
+export function groupsForIds(
+  groups: readonly ReportCardGroup[],
+  ids: ReadonlySet<string>,
+): ReportCardGroup[] {
+  if (ids.size === 0) return [];
+  const out: ReportCardGroup[] = [];
+  for (const group of groups) {
+    const cards = group.cards.filter((c) => ids.has(c.id));
+    if (cards.length > 0) out.push({ ...group, cards });
   }
   return out;
 }
@@ -135,16 +166,19 @@ export function scoreReportQuery(
   return scores;
 }
 
-/** Ids whose best field-score clears the semantic floor. */
+/** Highest-scoring ids that clear the semantic floor, capped at `semanticMax`. */
 export function hitsFromScores(
   scores: ReadonlyMap<string, number>,
   semanticMin = SEMANTIC_MIN,
+  semanticMax = SEMANTIC_MAX,
 ): Set<string> {
-  const hits = new Set<string>();
-  for (const [id, s] of scores) {
-    if (s >= semanticMin) hits.add(id);
-  }
-  return hits;
+  return new Set(
+    [...scores]
+      .filter(([, s]) => s >= semanticMin)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, semanticMax)
+      .map(([id]) => id),
+  );
 }
 
 export interface ReportIndexSearchResponse {

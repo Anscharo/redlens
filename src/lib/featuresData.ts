@@ -208,7 +208,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           "Open Reports and type in the search pill — it filters the list in place.",
           "A name fragment jumps to that report; a subject group like roles and duties or Atlas health shows that group; a badge label like curated or AI-assessed finds those reports.",
-          "Describing what you want (wallet addresses, outdated dates) finds the matching report even when the title is different.",
+          "Describing what you want (wallet addresses, outdated dates) finds the matching report even when the title is different. Similar-meaning extras show under Closest meaning, not mixed in with name matches.",
         ],
       },
       {

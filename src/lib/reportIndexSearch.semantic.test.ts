@@ -6,6 +6,7 @@ import {
   filterReportGroups,
   hitsFromScores,
   scoreReportQuery,
+  SEMANTIC_MAX,
   SEMANTIC_MIN,
 } from "./reportIndexSearch";
 
@@ -31,6 +32,20 @@ describe("report index ternlight scoring", () => {
     expect(duties.get("of-responsibilities")!).toBeGreaterThanOrEqual(SEMANTIC_MIN);
     expect(idsOf("facilitator duties", hitsFromScores(duties))).toContain("of-responsibilities");
 
+    const processList = score("process list");
+    expect(processList.get("processes")!).toBeGreaterThanOrEqual(SEMANTIC_MIN);
+
+    const who = score("who has to do what");
+    expect(who.get("of-responsibilities")!).toBeGreaterThanOrEqual(SEMANTIC_MIN);
+
+    const responsible = score("who is responsible");
+    expect(responsible.get("of-responsibilities")!).toBeGreaterThanOrEqual(SEMANTIC_MIN);
+    expect(idsOf("who is responsible", hitsFromScores(responsible))).toContain("of-responsibilities");
+
+    const typos = hitsFromScores(score("typos in the atlas"));
+    expect(typos.size).toBeLessThanOrEqual(SEMANTIC_MAX);
+    expect(typos).toContain("potential-mistakes");
+
     // Direct name is lexical; the score lane still ranks it first.
     const name = score("stale dates");
     expect(name.get("stale-dates")!).toBeGreaterThan(SEMANTIC_MIN);
@@ -38,5 +53,6 @@ describe("report index ternlight scoring", () => {
     expect(idsOf("zzz-nonexistent", hitsFromScores(score("zzz-nonexistent")))).toEqual([]);
     expect(idsOf("hello world", hitsFromScores(score("hello world")))).toEqual([]);
     expect(idsOf("etherscan", hitsFromScores(score("etherscan")))).toEqual([]);
+    expect(idsOf("pizza", hitsFromScores(score("pizza")))).toEqual([]);
   });
 });

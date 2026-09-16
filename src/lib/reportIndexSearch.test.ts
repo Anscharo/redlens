@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { REPORT_INDEX_GROUPS } from "./reportCatalog";
-import { cosineSim, filterReportGroups, hitsFromScores, normalizeReportIndexQuery, SEMANTIC_MIN } from "./reportIndexSearch";
+import {
+  cosineSim,
+  filterReportGroups,
+  groupsForIds,
+  hitsFromScores,
+  normalizeReportIndexQuery,
+  SEMANTIC_MAX,
+  SEMANTIC_MIN,
+} from "./reportIndexSearch";
 
 const idsOf = (query: string, extraIds?: Set<string>) =>
   filterReportGroups(REPORT_INDEX_GROUPS, query, extraIds).flatMap((g) => g.cards.map((c) => c.id));
@@ -29,6 +37,10 @@ describe("filterReportGroups — lexical", () => {
 
   it("matches hyphen-insensitive title tokens (on-chain / on chain)", () => {
     expect(idsOf("on chain")).toContain("onchain-addresses");
+  });
+
+  it("matches a plural of a word that only appears singular in the copy", () => {
+    expect(idsOf("multisigs")).toContain("onchain-addresses");
   });
 
   it("description copy can surface a report whose title does not contain the query", () => {
@@ -110,6 +122,32 @@ describe("hitsFromScores", () => {
       hitsFromScores(new Map([["stale-dates", SEMANTIC_MIN], ["rewards", 0.1]])),
     ).toEqual(new Set(["stale-dates"]));
     expect(hitsFromScores(new Map([["stale-dates", SEMANTIC_MIN - 0.01]])).size).toBe(0);
+  });
+
+  it("keeps only the highest-scoring extras when more than SEMANTIC_MAX clear the floor", () => {
+    expect(
+      hitsFromScores(
+        new Map([
+          ["a", 0.9],
+          ["b", 0.8],
+          ["c", 0.7],
+          ["d", 0.6],
+        ]),
+      ),
+    ).toEqual(new Set(["a", "b", "c"]));
+    expect(SEMANTIC_MAX).toBe(3);
+  });
+});
+
+describe("groupsForIds", () => {
+  it("narrows catalog groups to the given card ids", () => {
+    const groups = groupsForIds(REPORT_INDEX_GROUPS, new Set(["stale-dates", "rewards"]));
+    expect(groups.map((g) => g.title)).toEqual(["On-chain & money", "Atlas health"]);
+    expect(groups.flatMap((g) => g.cards.map((c) => c.id))).toEqual(["rewards", "stale-dates"]);
+  });
+
+  it("returns nothing for an empty id set", () => {
+    expect(groupsForIds(REPORT_INDEX_GROUPS, new Set())).toEqual([]);
   });
 });
 

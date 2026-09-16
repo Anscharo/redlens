@@ -113,10 +113,28 @@ describe("ReportsIndex", () => {
     await waitFor(() => {
       expect(screen.getByRole("link", { name: /On-Chain Addresses/ })).toBeInTheDocument();
     });
+    expect(screen.getByText(/Closest meaning, not an exact wording match/)).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(
       "/api/reports/search?q=wallet%20addresses",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
+  });
+
+  it("keeps a name match and lists meaning extras under Closest meaning", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ hits: ["rewards", "onchain-addresses"] }),
+      }),
+    );
+    render(<ReportsIndex query="reward" />, { wrapper: wrap() });
+    expect(screen.getByRole("link", { name: /Integrator Reward Relationships/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Closest meaning/)).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByText(/Closest meaning, not an exact wording match/)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: /On-Chain Addresses/ })).toBeInTheDocument();
   });
 
   it("highlights a punctuation-tolerant category match as one mark", () => {

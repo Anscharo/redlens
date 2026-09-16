@@ -144,27 +144,17 @@ export const REPORT_INDEX_GROUPS: ReportCardGroup[] = buildReportCatalog();
 
 export const REPORT_INDEX_CARDS: ReportCard[] = REPORT_INDEX_GROUPS.flatMap((g) => g.cards);
 
-function provenanceLabel(card: ReportCard): string | null {
-  return card.provenance === "live" ? null : PROVENANCE_LABELS[card.provenance];
-}
-
 /** Concatenated haystack — one of the fields scored for semantic search. */
 export function reportEmbedText(card: ReportCard): string {
-  return [card.title, card.category, card.hint, card.description, provenanceLabel(card)]
-    .filter(Boolean)
-    .join(". ");
+  return `${card.title}. ${card.description}`;
 }
 
 /**
- * Texts embedded per card. Title / category / hint / description / badge
- * are scored separately (and alongside the concat) so a short paraphrase of
- * the name isn't diluted by the description. Category and hint repeat
- * across a group; callers should cache by string.
+ * Texts embedded per card. Title and description are scored separately (and
+ * alongside the concat) so a short paraphrase of the name isn't diluted by
+ * the description. Group titles/hints stay lexical-only: embedding
+ * "Atlas health" made any query containing "atlas" light up the whole index.
  */
 export function reportEmbedFields(card: ReportCard): string[] {
-  const label = provenanceLabel(card);
-  const fields = [card.title, card.category, card.hint, card.description];
-  if (label) fields.push(label);
-  fields.push(reportEmbedText(card));
-  return fields;
+  return [card.title, card.description, reportEmbedText(card)];
 }
