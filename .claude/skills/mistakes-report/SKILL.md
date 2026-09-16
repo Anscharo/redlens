@@ -25,6 +25,8 @@ This skill is the runbook for refreshing it. The sweep is **incremental**: a run
 
 - **`pnpm mistakes:status`** — read-only. How much has drifted since the last sweep. Safe anywhere, writes nothing.
 - **`pnpm mistakes:plan [--full] [--limit=N] [--max-bytes=N] [--no-backlinks]`** — computes the work plan, writes `.cache/mistakes-sweep/chunks/NNN.md` (the documents to read) and `plan.json`. `--full` re-queues the whole corpus; `--limit` caps a sitting and leaves the rest queued for next time; `--no-backlinks` skips the cross-reference expansion below.
+
+  **`--full` churns. It is not a refresh, it is a re-sweep.** The corpus detectors are pure code and re-derive identically, but the `language` and `factual` passes are model judgement: re-reading all 11,529 documents returns differently-worded findings, different borderline calls, and `merge` replaces every evaluated document's rows with whatever came back. A rejected finding that returns slightly reworded also escapes `suppressRejected`, whose key is deliberately quote-exact. Reach for `--full` when the atlas restructures or the prompts change — not to "refresh" the report, which is what the incremental path already does.
 - **`pnpm mistakes:merge [--dry-run] [--drop-corpus]`** — folds agent output back into the artifact and advances the sweep state. `--drop-corpus` also retires the hand-maintained corpus-wide rows (see below).
 - **`pnpm mistakes:bootstrap`** — one-off, already done. Adopts an existing whole-corpus sweep as the incremental baseline.
 - **`pnpm mistakes:render`** — regenerates the gitignored `ATLAS-FINDINGS.md` export from the JSON.
