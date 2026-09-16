@@ -5,6 +5,7 @@ import {
   type DemandKey,
   type SettlementReport,
 } from "../../lib/settlements";
+import { Tooltip } from "../Tooltip";
 import { MscMonthLabel } from "./MscMonthLabel";
 
 type Series = { key: DemandKey; label: string; barClass: string };
@@ -49,7 +50,14 @@ export function SettlementDemandBars({
                 {parts.map((p) => {
                   const h = (Math.abs(p.value) / peak) * 100;
                   if (h < 0.4) return null;
-                  return <span key={p.key} className={p.barClass} style={{ flex: `0 0 ${h}%` }} />;
+                  return (
+                    // delay={0}: the segment is the whole point of this chart —
+                    // the amount should appear the instant the pointer lands,
+                    // not after the 200ms app default used elsewhere.
+                    <Tooltip key={p.key} delay={0} content={`${p.label} ${formatUsd(p.value)}`}>
+                      <span className={p.barClass} style={{ flex: `0 0 ${h}%` }} />
+                    </Tooltip>
+                  );
                 })}
               </span>
               <MscMonthLabel months={keys} index={i} />

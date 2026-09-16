@@ -193,7 +193,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Under the charts, the selected month's card shows To Sky as the equation it is, cost of funds + Sky Direct Exposure, then the two sides of the cycle as separate figures: supply-side kept, and demand-side from Sky. They are never added together, because the Monthly Settlement Cycle settles them as two amounts running in opposite directions (A.2.4.1.2.2.1.1.1 and A.2.4.1.2.2.1.1.2). A negative figure is written in the same red the charts stripe a loss in.",
           "On that page, Sky Forum opens the forum post for the month selected in the charts.",
           "Ask Chat or an MCP client about a month's To Sky / supply-side kept / demand-side — it will say those figures are not from the Atlas.",
-          "On the cycle page, click a month in the monthly summary bars. Primes with several venues have a PnL / AUM toggle.",
+          "On the cycle page, click a month in the monthly summary bars. Hover a demand-side bar segment for that series' amount — Agent rate, Distribution rewards, and the rest. Primes with several venues have a PnL / AUM toggle.",
           "In the venue flow chart, hover a flow, a venue name, or its row in the table below — that venue lights up in both, and its figures appear on the flows.",
           "Click the Sky label beside the venue flow chart to open that month in the ecosystem overview on the Radar front page.",
           "A sink with loss-making venues gets two bars: what came in (`$X gross in`) and, in red just below it, what went back out (`−$Y out`), with the `net` the pair settles to underneath. A longer red bar than green means the month went backwards.",
