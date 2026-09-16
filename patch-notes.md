@@ -35,8 +35,9 @@
 
 
 ## 2026-09-16
-- Chat's first example question now shows what changed in the latest Atlas updates, replacing one the Atlas could not fully answer
 - Chat can now say which month had the largest settlement flow across every Prime, and no longer reports empty settlement figures when its helper returns nothing
+- Grouped the Reports index by subject and added a badge showing which reports are AI-assessed or hand-curated rather than rebuilt from the Atlas
+- Added a Potential Mistakes report listing suspected typos, broken references, wrong figures and contradictions in the Atlas text, each quoted and linked; on a phone, swipe between findings one at a time.
 
 ## 2026-09-15
 - Chat now remembers notes you teach it with `/teach`; type `/` in the composer and it completes the command for you (Tab or Space to accept)

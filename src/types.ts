@@ -9,7 +9,8 @@ export type ReportId =
   | "risk-rules"
   | "onchain-addresses"
   | "mod-frequency"
-  | "crossview";
+  | "crossview"
+  | "potential-mistakes";
 
 export interface AtlasNode {
   id: string;
