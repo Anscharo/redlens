@@ -119,6 +119,12 @@ describe("ReportsIndex", () => {
     );
   });
 
+  it("highlights a punctuation-tolerant category match as one mark", () => {
+    render(<ReportsIndex query="on chain" />, { wrapper: wrap() });
+    const heading = screen.getByRole("heading", { name: /On-chain & money/i });
+    expect([...heading.querySelectorAll("mark.q-mark")].map((m) => m.textContent)).toContain("On-chain");
+  });
+
   it("shows a no-results message when nothing matches, quoting the raw query", async () => {
     render(<ReportsIndex query="zzz-nonexistent" />, { wrapper: wrap() });
     await waitFor(() => {

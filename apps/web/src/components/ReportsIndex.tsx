@@ -22,11 +22,11 @@ function Card({ card, rq }: { card: ReportCard; rq: ReturnType<typeof parseRepor
       onClick={() => track("report_open", { report_id: card.id })}
     >
       <p className="text-sm font-medium mb-1 flex items-center gap-2 flex-wrap" style={{ color: "var(--tan)" }}>
-        <Highlight text={card.title} rq={rq} />
+        <Highlight text={card.title} rq={rq} punct />
         <ProvenanceBadge provenance={card.provenance} />
       </p>
       <p className="text-xs" style={{ color: "var(--tan-3)" }}>
-        <Highlight text={card.description} rq={rq} />
+        <Highlight text={card.description} rq={rq} punct />
       </p>
     </Link>
   );
@@ -51,10 +51,10 @@ export function ReportsIndex({ query }: { query: string }) {
         {groups.map((g) => (
           <section key={g.title} className="mb-8">
             <h2 className="text-xs mono text-tan-3 uppercase tracking-wider mb-1 pb-1 border-b border-[var(--border)]">
-              <Highlight text={g.title} rq={rq} />
+              <Highlight text={g.title} rq={rq} punct />
             </h2>
             <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
-              <Highlight text={g.hint} rq={rq} />
+              <Highlight text={g.hint} rq={rq} punct />
             </p>
             <div className="space-y-3">
               {g.cards.map((c) => (
