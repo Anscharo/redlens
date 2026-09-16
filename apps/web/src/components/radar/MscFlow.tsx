@@ -1,5 +1,5 @@
 import { formatMonth, formatUsd } from "../../lib/settlements";
-import { AGENT_W, GROUP_HEADING, HEADERS, HEADER_Y, LEFT_X, MID_X, NODE_W, RIGHT_X, SOURCE_LABEL, type FlowLayout } from "../../lib/mscFlowLayout";
+import { AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADERS, HEADER_SIZE, HEADER_Y, LEFT_X, MID_X, NODE_W, RIGHT_X, SOURCE_LABEL, type FlowLayout } from "../../lib/mscFlowLayout";
 import { RingHoverStyles } from "./MscRingHoverStyles";
 import { markId, AmountPill, pillText } from "./MscRingPills";
 import { FlowAgentGroup } from "./MscFlowAgent";
@@ -23,13 +23,13 @@ interface Props {
 export function FlowHeaders() {
   return (
     <>
-      <text x={LEFT_X + NODE_W} y={HEADER_Y} textAnchor="end" fontSize={30} className="msc-flow-header mono">
+      <text x={LEFT_X + NODE_W} y={HEADER_Y} textAnchor="end" fontSize={HEADER_SIZE} className="msc-flow-header mono">
         {HEADERS.source}
       </text>
-      <text x={MID_X + AGENT_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={30} className="msc-flow-header mono">
+      <text x={MID_X + AGENT_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={HEADER_SIZE} className="msc-flow-header mono">
         {HEADERS.prime}
       </text>
-      <text x={RIGHT_X + NODE_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={30} className="msc-flow-header mono">
+      <text x={RIGHT_X + NODE_W / 2} y={HEADER_Y} textAnchor="middle" fontSize={HEADER_SIZE} className="msc-flow-header mono">
         {HEADERS.sky}
       </text>
     </>
@@ -87,7 +87,7 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
               {/* The group heading carries the group's total, so the Sky node
                   below needs no label of its own. */}
               {s.headingY != null && (
-                <text x={LEFT_X + NODE_W} y={s.headingY} textAnchor="end" fontSize={30} className="msc-flow-header mono">
+                <text x={LEFT_X + NODE_W} y={s.headingY} textAnchor="end" fontSize={GROUP_HEADING_SIZE} className="msc-flow-group-heading mono">
                   {GROUP_HEADING[s.origin]}
                   {s.origin === "sky" && layout.skySource ? ` | ${formatUsd(layout.skySource.value, true)}` : ""}
                 </text>

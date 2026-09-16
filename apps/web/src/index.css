@@ -3419,8 +3419,10 @@ a.atlas-annotates:focus-visible {
   stroke: var(--bg-deep);
   stroke-width: 1.5;
 }
-/* Column headers over the three node groups. */
-.msc-flow-header {
+/* Column headers over the three node groups — larger than the group
+   headings under SOURCE (those use .msc-flow-group-heading). */
+.msc-flow-header,
+.msc-flow-group-heading {
   fill: var(--tan-3);
   letter-spacing: 0.14em;
 }

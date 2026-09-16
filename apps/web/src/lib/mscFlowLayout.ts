@@ -45,9 +45,15 @@ export const NODE_W = 25;
 /** The Prime column's bars are the chart's "islands" — wider than the
  *  source and Sky bars so they read as the middle stage. */
 export const AGENT_W = 40;
-/** Column headers over the three node groups, and where they sit. */
+/** Column headers over the three node groups, and where they sit.
+ *  Bigger than the group headings under SOURCE so they read as the
+ *  columns, not as another caption. Size is on a 3000-wide canvas
+ *  that renders at about half; 48 lands near 24px on screen. */
 export const HEADERS = { source: "SOURCE", prime: "PRIME", sky: "SKY" } as const;
-export const HEADER_Y = 40;
+export const HEADER_SIZE = 48;
+export const HEADER_Y = 56;
+/** Group headings under SOURCE — smaller than the column labels. */
+export const GROUP_HEADING_SIZE = 30;
 /** Where each source's money ARISES. "earned" is the Prime's Allocation
  *  System; "sky" is the amount due from Sky under A.2.4.1.2.2.1.1.1, which
  *  is every demand-side series.

@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { layoutMscFlow } from "../../lib/mscFlowLayout";
+import { layoutMscFlow, GROUP_HEADING_SIZE, HEADER_SIZE } from "../../lib/mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 import { MscFlow } from "./MscFlow";
 import type { OverviewPrime } from "./MscRingPrime";
@@ -71,12 +71,11 @@ describe("MscFlow", () => {
     expect(container.querySelector('.msc-ring-mark[data-mark="spark::agentRate"] path.msc-ring-agentRate')).toBeInTheDocument();
     // No stubs: a mark is its ribbon and nothing else.
     expect(container.querySelector("rect.msc-flow-stub")).not.toBeInTheDocument();
-    // Column headers over the three node groups.
-    expect(screen.getByText("SOURCE")).toBeInTheDocument();
-    expect(screen.getByText("PRIME")).toBeInTheDocument();
-    expect(screen.getByText("SKY")).toBeInTheDocument();
-    // The source column is grouped by where the money comes FROM.
-    expect(screen.getByText("EARNED IN THE PRIME'S ALLOCATION SYSTEM")).toBeInTheDocument();
+    // Column headers over the three node groups — bigger than the group caption.
+    expect(screen.getByText("SOURCE")).toHaveAttribute("font-size", String(HEADER_SIZE));
+    expect(screen.getByText("PRIME")).toHaveAttribute("font-size", String(HEADER_SIZE));
+    expect(screen.getByText("SKY")).toHaveAttribute("font-size", String(HEADER_SIZE));
+    expect(screen.getByText("EARNED IN THE PRIME'S ALLOCATION SYSTEM")).toHaveAttribute("font-size", String(GROUP_HEADING_SIZE));
     // The Sky group's heading carries its total, so the node needs no label.
     expect(screen.getByText(/^OWED BY SKY \| \$/)).toBeInTheDocument();
     expect(container.querySelector('.msc-flow-source[data-kind="kept"][data-origin="earned"]')).toBeInTheDocument();

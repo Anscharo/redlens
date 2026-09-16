@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { layoutMscFlow, AGENT_W, GROUP_HEADING, HEADERS, NODE_W, WIDTH } from "./mscFlowLayout";
+import { layoutMscFlow, AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADER_SIZE, HEADERS, NODE_W, WIDTH } from "./mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
 const flow = (over: Partial<PrimeFlowTotals> = {}): PrimeFlowTotals => ({
@@ -53,6 +53,7 @@ describe("layoutMscFlow", () => {
     expect(l.sources[0].x).toBeLessThan(spark.x);
     expect(spark.x + AGENT_W).toBeLessThan(l.sky.x);
     expect(HEADERS).toEqual({ source: "SOURCE", prime: "PRIME", sky: "SKY" });
+    expect(HEADER_SIZE).toBeGreaterThan(GROUP_HEADING_SIZE);
     expect(l.sky.x + NODE_W).toBeLessThan(WIDTH);
     expect(l.height).toBeGreaterThan(l.agents[1].y + l.agents[1].h);
   });
