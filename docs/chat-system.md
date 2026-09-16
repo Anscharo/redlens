@@ -210,7 +210,9 @@ synthetic tool round named `user_teachings` (`sourceClass: "user"`), so
 quote-grounding never treats a note as atlas text. Matching is lexical token
 overlap plus on-device ternlight, with a SQL `tsvector` lane for larger
 notebooks; the 1024-dim OpenRouter vector is filled asynchronously after accept
-and is not on the chat hot path. A small notebook (≤4 notes) injects in full.
+and is not on the chat hot path. A note is injected only when a lane clears
+its floor (`TEACH_LEX_FLOOR` term overlap or `TEACH_TERNLIGHT_FLOOR` cosine) —
+there is no small-notebook shortcut, which used to put every note on every turn.
 When an answer reads as a miss, the system prompt asks the model to invite
 `/teach`, and `withTeachHint` appends the invitation if the model forgot.
 `CHAT_TEACH=0` turns the command, hint, injection, and prompt section off —

@@ -7,13 +7,16 @@
 //   3. (stored pgvector is filled asynchronously; the hot path does not wait
 //      on an OpenRouter query embed)
 //
-// A small notebook (≤ SMALL_NOTEBOOK teachings) is injected in full — ranking
-// still runs, but a miss costs a few hundred tokens a large model can ignore.
+// A row is injected ONLY when a lane clears its floor — a direct term match
+// (lex) or semantic overlap (ternlight). There is deliberately no "small
+// notebook injects in full" shortcut: it made every note ride every turn, so
+// an MSC note showed up under "what jobs are there in sky" and "hello there"
+// (observed 2026-09-16), and the stage ticker read as if the chat always
+// recalled something.
 import { onDeviceCosine, onDeviceEmbed } from "../../facts/similarity.ts";
 import { listAcceptedTeachings, searchTeachingsSql, type TeachingRow } from "./store.ts";
 
 export const TEACH_MAX_INJECT = 5;
-export const TEACH_SMALL_NOTEBOOK = 4;
 export const TEACH_LEX_FLOOR = 0.12;
 export const TEACH_TERNLIGHT_FLOOR = 0.32;
 
@@ -76,8 +79,6 @@ export function rankTeachings(question: string, rows: TeachingRow[]): RankedTeac
 }
 
 export function selectTeachings(ranked: RankedTeaching[]): RankedTeaching[] {
-  if (ranked.length === 0) return [];
-  if (ranked.length <= TEACH_SMALL_NOTEBOOK) return ranked;
   return ranked
     .filter((r) => r.lex >= TEACH_LEX_FLOOR || (r.ternlight ?? 0) >= TEACH_TERNLIGHT_FLOOR)
     .slice(0, TEACH_MAX_INJECT);

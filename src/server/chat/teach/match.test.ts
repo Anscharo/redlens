@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from "bun:test";
-import { rankTeachings, selectTeachings, TEACH_SMALL_NOTEBOOK, tokensOf, type RankedTeaching } from "./match.ts";
+import { rankTeachings, selectTeachings, tokensOf, type RankedTeaching } from "./match.ts";
 import type { TeachingRow } from "./store.ts";
 
 const row = (id: string, subject: string, content: string): TeachingRow => ({ id, subject, content });
@@ -24,13 +24,23 @@ describe("rankTeachings / selectTeachings", () => {
     expect(ranked[0]!.lex).toBeGreaterThan(ranked[1]!.lex);
   });
 
-  it("injects a small notebook in full even when scores are low", () => {
+  // Regression: a ≤4-note notebook used to inject in full, so one MSC note rode
+  // every turn — including "what jobs are there in sky" and "hello there".
+  it("injects nothing from a small notebook when no note matches", () => {
     const ranked = rankTeachings("hello there", [
       row("a", "Note one", "Alpha beta gamma"),
       row("b", "Note two", "Delta epsilon zeta"),
     ]);
-    expect(ranked.length).toBeLessThanOrEqual(TEACH_SMALL_NOTEBOOK);
-    expect(selectTeachings(ranked).map((r) => r.id).sort()).toEqual(["a", "b"]);
+    expect(selectTeachings(ranked)).toEqual([]);
+  });
+
+  it("keeps a small-notebook note on a direct term match and drops its unrelated sibling", () => {
+    const rows = [
+      row("msc", "MSC abbreviation meaning", "when i say msc i mean monthly settlement reports"),
+      row("other", "Note two", "Delta epsilon zeta"),
+    ];
+    expect(selectTeachings(rankTeachings("what is the month with highest msc flow", rows)).map((r) => r.id)).toEqual(["msc"]);
+    expect(selectTeachings(rankTeachings("what jobs are there in sky", rows))).toEqual([]);
   });
 
   it("filters a large notebook to matching rows", () => {
