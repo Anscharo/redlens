@@ -58,9 +58,10 @@ export interface MistakesFile {
   /**
    * Findings reviewed and rejected. Held OUT of `findings` so the report never
    * shows them, and held IN this file so a later sweep cannot quietly re-add
-   * them: `mergeFindings` drops an incoming row that repeats a rejected
-   * (uuid, category, quote). The veto lapses if the quoted text itself changes,
-   * which is the point at which a human should look again.
+   * them: `suppressRejected` (scripts/lib/mistakes-sweep.mjs) drops an incoming
+   * row that repeats a rejected (uuid, category, quote) before `mergeFindings`
+   * ever sees it. The veto lapses if the quoted text itself changes, which is
+   * the point at which a human should look again.
    */
   rejected?: RejectedMistake[];
 }

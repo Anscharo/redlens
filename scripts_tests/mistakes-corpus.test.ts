@@ -105,6 +105,63 @@ describe("templateDivergence", () => {
     expect(templateDivergence(nodes as never)).toHaveLength(0);
   });
 
+  // The divergence that matters most is a link pointing somewhere else while
+  // reading identically. An earlier version masked every doc_no and UUID to a
+  // placeholder, so those compared equal and this case produced NOTHING.
+  it("sees a link whose target differs though its text does not", () => {
+    const names = ["Spark", "Grove", "Keel", "Skybase", "Obex"];
+    const uuid = (a: number, n: number) => `${String(a).repeat(8)}-0000-4000-8000-${String(n).repeat(12)}`;
+    const nodes: N[] = [];
+    names.forEach((nm, i) => {
+      const a = i + 1;
+      nodes.push(node(`A.6.1.1.${a}`, nm, ""));
+      nodes.push({ ...node(`A.6.1.1.${a}.9.2`, "Active Instances", ""), id: uuid(a, 2) });
+      nodes.push({ ...node(`A.6.1.1.${a}.9.3`, "Active Instances", ""), id: uuid(a, 3) });
+      // Keel links to .9.3; everyone else to .9.2. The visible text is identical.
+      nodes.push(node(
+        `A.6.1.1.${a}.9.1`, "In Progress",
+        `Invocations that complete successfully are always moved to [Active Instances](${uuid(a, a === 3 ? 3 : 2)}) for the record.`,
+      ));
+    });
+    const [f, ...rest] = templateDivergence(nodes as never);
+    expect(rest).toHaveLength(0);
+    // The quoted fragments come from normalized text, which is lowercased.
+    expect(f.issue).toContain("a.6.1.1.*.9.3"); // the target Keel actually links to
+    expect(f.issue).toContain("a.6.1.1.*.9.2"); // the one everyone else links to
+    expect(f.issue).toContain("Keel");
+  });
+
+  // An N-way split is N-1 rows naming who departs from the norm, not one row
+  // per pair saying everyone differs from everyone.
+  it("measures each variant against the majority reading", () => {
+    const nodes = artifacts(SENT("total"), {
+      3: SENT("circulating")("Keel"), 4: SENT("circulating")("Skybase"),
+      5: SENT("circulating")("Obex"), 6: SENT("circulating")("Pattern"),
+      7: SENT("outstanding")("Osero"),
+    });
+    const out = templateDivergence(nodes as never);
+    expect(out).toHaveLength(2);
+    expect(out.every((f) => f.issue.includes("circulating"))).toBe(true);
+  });
+
+  // Regression: comparing each variant against the SLOT's majority rather than
+  // its sentence family silently lost this. A document holds several sentences,
+  // so the divergent pair are usually BOTH minorities within the slot -- here
+  // the shared preamble outnumbers either reading of the sentence that differs.
+  it("finds a divergence whose both readings are slot minorities", () => {
+    const withPreamble = (word: string) => (agent: string) =>
+      `The Root Edit process begins with a ${agent} token holder submitting a full proposal for review. ` +
+      `A ${agent} token holder must hold at least 1% of the ${word} token supply to submit a proposal.`;
+    const nodes = artifacts(withPreamble("total"), {
+      3: withPreamble("circulating")("Keel"), 4: withPreamble("circulating")("Skybase"),
+      5: withPreamble("circulating")("Obex"), 6: withPreamble("circulating")("Pattern"),
+    });
+    const out = templateDivergence(nodes as never);
+    expect(out).toHaveLength(1);
+    expect(out[0].issue).toContain("circulating");
+    expect(out[0].issue).toContain("total");
+  });
+
   it("gives two divergent sentences in one slot distinct ids", () => {
     const two = (a: string, b: string) => (agent: string) =>
       `A ${agent} token holder must hold at least 1% of the ${a} token supply to submit a proposal. ` +

@@ -310,6 +310,38 @@ describe("mergeFindings", () => {
     const out = mergeFindings([corpus], [], new Set(), [], { dropCorpus: true });
     expect(out.findings).toHaveLength(0);
   });
+
+  // A corpus row may be retired exactly when something just rebuilt it. Getting
+  // this wrong either re-immortalises detector rows or deletes hand-authored
+  // ones that nothing can regenerate.
+  describe("a corpus row that a detector owns", () => {
+    const owned = { ...f("x"), uuid: null, detector: "template-divergence" };
+
+    it("is replaced by that detector's fresh output when it ran", () => {
+      const fresh = { ...owned, id: "A.2#structural" };
+      const out = mergeFindings([owned], [fresh], new Set(), [], {
+        corpusDetectors: ["template-divergence"],
+      });
+      expect(out.findings.map((x) => x.id)).toEqual(["A.2#structural"]);
+    });
+
+    it("survives a run where its detector did not run", () => {
+      const out = mergeFindings([owned], [], new Set(), [], { corpusDetectors: [] });
+      expect(out.findings).toHaveLength(1);
+    });
+
+    it("survives a run of some OTHER detector", () => {
+      const out = mergeFindings([owned], [], new Set(), [], { corpusDetectors: ["something-else"] });
+      expect(out.findings).toHaveLength(1);
+    });
+
+    // --drop-corpus is for rows nothing can rebuild. A detector row is rebuilt
+    // by its detector, so it must not depend on that flag.
+    it("is untouched by --drop-corpus, which is for hand-authored rows", () => {
+      const out = mergeFindings([owned], [], new Set(), [], { dropCorpus: true });
+      expect(out.findings).toHaveLength(1);
+    });
+  });
 });
 
 describe("suppressRejected", () => {
