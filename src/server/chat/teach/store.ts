@@ -2,14 +2,14 @@
 // leak one user's notes into another user's turn.
 import { createHash } from "node:crypto";
 import { sql, toVectorLiteral } from "../../db.ts";
-import { config } from "../../config.ts";
-import { embedBatch } from "../../retrieval/embed.ts";
 
 export interface TeachingRow {
   id: string;
   subject: string | null;
   content: string;
-  embedding?: number[] | null;
+  /** Cosine of the stored on-device vector vs the question, computed in SQL.
+   *  NULL when the row predates migration 031 (or no question vector). */
+  ternlight_sim?: number | null;
 }
 
 export function teachingHash(content: string): string {
@@ -44,15 +44,18 @@ export async function insertTeaching(row: {
   contentHash: string;
   reviewModel: string | null;
   review: unknown;
+  /** On-device vector, embedded ONCE here at write time (migration 031). */
+  ternlight?: number[] | null;
 }): Promise<{ id: string }> {
+  const tl = row.ternlight && row.ternlight.length > 0 ? toVectorLiteral(row.ternlight) : null;
   const inserted = (await sql`
     INSERT INTO chat_teachings (
       user_id, conversation_id, content, subject, status, reject_reason,
-      content_hash, review_model, review
+      content_hash, review_model, review, ternlight_embedding
     ) VALUES (
       ${row.userId}, ${row.conversationId}, ${row.content}, ${row.subject},
       ${row.status}, ${row.rejectReason}, ${row.contentHash}, ${row.reviewModel},
-      ${row.review}::jsonb
+      ${row.review}::jsonb, ${tl}::vector
     )
     RETURNING id
   `) as { id: string }[];
@@ -63,9 +66,13 @@ export async function insertTeaching(row: {
 // Cap on how many of one user's notes we load per turn. Matching then ranks.
 export const TEACH_FETCH_CAP = 200;
 
-export async function listAcceptedTeachings(userId: string): Promise<TeachingRow[]> {
+// `qVec` is the question's on-device vector; Postgres returns each row's
+// cosine against it as ternlight_sim (NULL when either side is NULL), so the
+// hot path never re-embeds a note. NULL qVec means ternlight failed to load.
+export async function listAcceptedTeachings(userId: string, qVec: number[] | null = null): Promise<TeachingRow[]> {
+  const q = qVec ? toVectorLiteral(qVec) : null;
   const rows = (await sql`
-    SELECT id, subject, content
+    SELECT id, subject, content, 1 - (ternlight_embedding <=> ${q}::vector) AS ternlight_sim
     FROM chat_teachings
     WHERE user_id = ${userId} AND status = 'accepted'
     ORDER BY created_at DESC
@@ -74,15 +81,26 @@ export async function listAcceptedTeachings(userId: string): Promise<TeachingRow
   return rows;
 }
 
+// Backfill for rows written before migration 031: the read path computed the
+// vector once (match.ts), so store it and never compute it again.
+export async function storeTernlight(id: string, vec: number[]): Promise<void> {
+  await sql`
+    UPDATE chat_teachings
+    SET ternlight_embedding = ${toVectorLiteral(vec)}::vector, updated_at = now()
+    WHERE id = ${id} AND ternlight_embedding IS NULL
+  `;
+}
+
 // Lexical SQL lane: teachings whose tsvector matches the question, used as an
 // extra recall set when the user has more notes than TEACH_FETCH_CAP. Never
 // throws on a junk query — websearch_to_tsquery can reject odd punctuation.
-export async function searchTeachingsSql(userId: string, question: string): Promise<TeachingRow[]> {
+export async function searchTeachingsSql(userId: string, question: string, qVec: number[] | null = null): Promise<TeachingRow[]> {
   const q = question.trim().slice(0, 500);
   if (q.length < 3) return [];
+  const v = qVec ? toVectorLiteral(qVec) : null;
   try {
     const rows = (await sql`
-      SELECT id, subject, content
+      SELECT id, subject, content, 1 - (ternlight_embedding <=> ${v}::vector) AS ternlight_sim
       FROM chat_teachings
       WHERE user_id = ${userId}
         AND status = 'accepted'
@@ -93,19 +111,5 @@ export async function searchTeachingsSql(userId: string, question: string): Prom
     return rows;
   } catch {
     return [];
-  }
-}
-
-export async function embedTeaching(id: string, text: string): Promise<void> {
-  if (!config.openrouterApiKey) return;
-  try {
-    const [vec] = await embedBatch([text.slice(0, 8000)]);
-    await sql`
-      UPDATE chat_teachings
-      SET embedding = ${toVectorLiteral(vec)}::vector, updated_at = now()
-      WHERE id = ${id}
-    `;
-  } catch (err) {
-    console.warn(`[teach] embed failed for ${id}: ${(err as Error).message}`);
   }
 }

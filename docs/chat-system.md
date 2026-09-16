@@ -209,8 +209,11 @@ scoped to that `user_id`. Later turns inject matching notes as a **separate**
 synthetic tool round named `user_teachings` (`sourceClass: "user"`), so
 quote-grounding never treats a note as atlas text. Matching is lexical token
 overlap plus on-device ternlight, with a SQL `tsvector` lane for larger
-notebooks; the 1024-dim OpenRouter vector is filled asynchronously after accept
-and is not on the chat hot path. A note is injected only when a lane clears
+notebooks. The note's 384-dim ternlight vector is embedded **once, at accept**
+(`ternlight_embedding`, migration 031); a turn embeds only the question and
+Postgres returns each row's cosine (`ternlight_sim`), with a one-time backfill
+for rows that predate the column. (030's 1024-dim OpenRouter vector was never
+read and was dropped in 031 — no network embed anywhere on the teach path.) A note is injected only when a lane clears
 its floor (`TEACH_LEX_FLOOR` term overlap or `TEACH_TERNLIGHT_FLOOR` cosine) —
 there is no small-notebook shortcut, which used to put every note on every turn.
 When an answer reads as a miss, the system prompt asks the model to invite

@@ -3,11 +3,12 @@
 import { config } from "../../config.ts";
 import { captureError, type ErrorContext } from "../../posthog-node.ts";
 import type { JsonCall } from "../llm.ts";
+import { onDeviceEmbed } from "../../facts/similarity.ts";
+import { teachingEmbedText } from "./match.ts";
 import { TEACH_HELP } from "./parse.ts";
 import { reviewTeaching } from "./review.ts";
 import {
   countTeachingsToday,
-  embedTeaching,
   findAcceptedByHash,
   insertTeaching,
   teachingHash,
@@ -78,7 +79,9 @@ export async function runTeachCommand(opts: {
     };
   }
 
-  const row = await insertTeaching({
+  // Embedded once, here, on-device (~2ms) — never again on a chat turn.
+  const ternlight = onDeviceEmbed(teachingEmbedText(review.subject, opts.text));
+  await insertTeaching({
     userId: opts.userId,
     conversationId: opts.convId,
     content: opts.text,
@@ -88,11 +91,8 @@ export async function runTeachCommand(opts: {
     contentHash: hash,
     reviewModel: review.model,
     review: { accept: true, reason: review.reason, subject: review.subject },
+    ternlight: ternlight ? Array.from(ternlight) : null,
   });
-
-  void embedTeaching(row.id, `${review.subject}\n${opts.text}`).catch((err) =>
-    captureError(err, opts.obs, { stage: "teach_embed" }),
-  );
 
   const subject = review.subject ? ` as “${review.subject}”` : "";
   return {

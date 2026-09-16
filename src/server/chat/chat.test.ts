@@ -299,8 +299,6 @@ describe("handleChat", () => {
         return undefined;
       });
       const prevImpl = g.__llmFetchCurrentImpl!;
-      const prevKey = config.openrouterApiKey;
-      config.openrouterApiKey = "";
       g.__llmFetchCurrentImpl = jsonReview('{"accept":true,"reason":"ok","subject":"Spark freeze"}');
       try {
         const res = await handleChat(await authedRequest({ message: `/teach ${TEACH_NOTE}` }));
@@ -312,8 +310,9 @@ describe("handleChat", () => {
         expect(queryLog.some((q) => q.text.includes("INSERT INTO chat_teachings"))).toBe(true);
         const insert = queryLog.find((q) => q.text.includes("INSERT INTO chat_teachings"));
         expect(insert?.values).toContain(TEACH_NOTE);
+        // The on-device vector rides the INSERT itself — no async embed after.
+        expect(insert?.values.some((v: unknown) => typeof v === "string" && /^\[-?\d/.test(v))).toBe(true);
       } finally {
-        config.openrouterApiKey = prevKey;
         g.__llmFetchCurrentImpl = prevImpl;
       }
     });

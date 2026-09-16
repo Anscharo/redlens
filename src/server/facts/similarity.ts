@@ -89,11 +89,14 @@ function protoVec(tl: Ternlight, text: string): Float32Array {
   return v;
 }
 
-/** On-device embed for callers outside the facts fire/no-fire lane (teachings). */
+/** On-device embed for callers outside the facts fire/no-fire lane (teachings).
+ *  Deliberately NOT via protoVec: that cache is for the fixed prototype sets
+ *  and holds every key forever, so routing arbitrary questions and notes
+ *  through it grew without bound (one entry per distinct chat message). */
 export function onDeviceEmbed(text: string): Float32Array | null {
   const tl = loadTernlight();
   if (!tl) return null;
-  return protoVec(tl, text);
+  return tl.embed(text);
 }
 
 export function onDeviceCosine(a: Float32Array, b: Float32Array): number {

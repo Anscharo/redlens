@@ -3,9 +3,13 @@
 // Three lanes, any one of which can keep a row:
 //   1. lexical — significant-token overlap (and the SQL tsvector lane that
 //      feeds extra rows into this set)
-//   2. ternlight — on-device 384-dim cosine of question vs subject+content
-//   3. (stored pgvector is filled asynchronously; the hot path does not wait
-//      on an OpenRouter query embed)
+//   2. ternlight — 384-dim cosine of question vs subject+content. The note's
+//      vector is embedded ONCE, at accept (store.ts, migration 031); per turn
+//      only the QUESTION is embedded and Postgres returns the cosine as
+//      ternlight_sim. A row written before 031 is embedded here on its first
+//      match and written back, so it too is computed exactly once.
+// (030's 1024-dim OpenRouter vector was never read by anything and was dropped
+// in 031 — the notebook is one space, ternlight, on-device.)
 //
 // A row is injected ONLY when a lane clears its floor — a direct term match
 // (lex) or semantic overlap (ternlight). There is deliberately no "small
@@ -14,7 +18,13 @@
 // (observed 2026-09-16), and the stage ticker read as if the chat always
 // recalled something.
 import { onDeviceCosine, onDeviceEmbed } from "../../facts/similarity.ts";
-import { listAcceptedTeachings, searchTeachingsSql, type TeachingRow } from "./store.ts";
+import { listAcceptedTeachings, searchTeachingsSql, storeTernlight, type TeachingRow } from "./store.ts";
+
+/** The one text both the write-time embed and any fallback embed use, so the
+ *  stored vector and a freshly computed one are the same vector. */
+export function teachingEmbedText(subject: string | null | undefined, content: string): string {
+  return `${subject ?? ""} ${content}`;
+}
 
 export const TEACH_MAX_INJECT = 5;
 export const TEACH_LEX_FLOOR = 0.12;
@@ -63,10 +73,12 @@ export function rankTeachings(question: string, rows: TeachingRow[]): RankedTeac
   }
 
   const ranked: RankedTeaching[] = unique.map((r) => {
-    const blob = `${r.subject ?? ""} ${r.content}`;
+    const blob = teachingEmbedText(r.subject, r.content);
     const lex = lexScore(qTokens, tokensOf(blob));
-    let ternlight: number | null = null;
-    if (qVec) {
+    // SQL-computed cosine from the stored vector wins; embedding here is the
+    // fallback for a row that has none (pre-031, or a unit-test row).
+    let ternlight: number | null = typeof r.ternlight_sim === "number" ? r.ternlight_sim : null;
+    if (ternlight === null && qVec) {
       const tVec = onDeviceEmbed(blob);
       if (tVec) ternlight = onDeviceCosine(qVec, tVec);
     }
@@ -84,10 +96,30 @@ export function selectTeachings(ranked: RankedTeaching[]): RankedTeaching[] {
     .slice(0, TEACH_MAX_INJECT);
 }
 
+// Rows with no stored vector (pre-031) get one computed here and written
+// back, fire-and-forget — the write must never fail the turn.
+export function backfillTernlight(rows: TeachingRow[], qVec: Float32Array | null): TeachingRow[] {
+  if (!qVec) return rows;
+  const seen = new Set<string>();
+  return rows.map((r) => {
+    if (typeof r.ternlight_sim === "number" || seen.has(r.id)) return r;
+    seen.add(r.id);
+    const tVec = onDeviceEmbed(teachingEmbedText(r.subject, r.content));
+    if (!tVec) return r;
+    void storeTernlight(r.id, Array.from(tVec)).catch((err) => {
+      console.warn(`[teach] ternlight backfill failed for ${r.id}: ${(err as Error).message}`);
+    });
+    return { ...r, ternlight_sim: onDeviceCosine(qVec, tVec) };
+  });
+}
+
 export async function matchTeachings(userId: string, question: string): Promise<RankedTeaching[]> {
+  const qVec = onDeviceEmbed(question); // the ONLY embed on the hot path
+  const qArr = qVec ? Array.from(qVec) : null;
   const [recent, sqlHits] = await Promise.all([
-    listAcceptedTeachings(userId),
-    searchTeachingsSql(userId, question),
+    listAcceptedTeachings(userId, qArr),
+    searchTeachingsSql(userId, question, qArr),
   ]);
-  return selectTeachings(rankTeachings(question, [...sqlHits, ...recent]));
+  const rows = backfillTernlight([...sqlHits, ...recent], qVec);
+  return selectTeachings(rankTeachings(question, rows));
 }
