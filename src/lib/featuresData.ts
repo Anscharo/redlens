@@ -264,7 +264,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Click the Atlas agent launcher in the bottom-right (it shows ⌘K), or press ⌘K / Ctrl-K — it already knows the document or report you're viewing.",
           "Ask it what the app can do, or what it can do itself — it answers from this guide, and keeps the two apart.",
           "Ask about a Prime Agent's monthly settlement dollars — Chat uses an isolated helper on Soter Labs workbooks / Sky Forum and says those figures are not from the Atlas.",
-          "Ask across every Prime at once — top venues by revenue, ecosystem totals, or a range of months — not just one Prime at a time.",
+          "Ask across every Prime at once — top venues by revenue, ecosystem totals, a range of months, or which month was the largest — not just one Prime at a time.",
           "Ask it to draft a message to someone else explaining what the Atlas says; the draft carries links to the source documents, and you can export it to send.",
           "Type `/teach` followed by a note at the start of a message to remember a miss on later chats — teachings stay on your account. Start a message with / and the composer completes the command in place; press Tab or Space to accept it.",
           "Check the answer's verification badge — it says \"no contradictions found\" when nothing in the answer conflicts with the retrieved atlas text, or lists any disputed statement alongside what the atlas actually says — and click the inline sources to jump to the cited docs; while an answer is still being checked the badge reads \"verifying…\".",

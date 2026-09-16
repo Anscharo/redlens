@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-09-16
+- Chat can now say which month had the largest settlement flow across every Prime, and no longer reports empty settlement figures when its helper returns nothing
+
 ## 2026-09-15
 - Chat now remembers notes you teach it with `/teach`; type `/` in the composer and it completes the command for you (Tab or Space to accept)
 - Previews now redline a change against the branch it was actually made on, the preview bar shows how far that base has drifted from the main atlas, and a private pull request missing Pull requests: Read asks the owner to grant it on GitHub
