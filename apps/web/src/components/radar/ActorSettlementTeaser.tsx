@@ -31,14 +31,12 @@ function Total({ amount, label, lead }: { amount: number; label: string; lead?: 
   const ink = amount < 0 ? "var(--msc-loss)" : lead ? "var(--tan)" : "var(--tan-2)";
   if (lead) {
     return (
-      <>
-        <p className="mono text-lg leading-tight mt-1" style={{ color: ink }}>
-          {formatUsd(amount, true)}
-        </p>
-        <p className="mono text-[10px]" style={{ color: "var(--tan-2)" }}>
+      <p className="msc-teaser-lead mono text-lg leading-tight mt-1" style={{ color: ink }}>
+        {formatUsd(amount, true)}{" "}
+        <span className="text-[10px]" style={{ color: "var(--tan-2)" }}>
           {label}
-        </p>
-      </>
+        </span>
+      </p>
     );
   }
   return (

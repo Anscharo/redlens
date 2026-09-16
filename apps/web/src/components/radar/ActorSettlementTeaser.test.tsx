@@ -56,7 +56,9 @@ describe("ActorSettlementTeaser", () => {
     await waitFor(() => expect(screen.getByText("$110")).toBeInTheDocument());
     // Scoped to the figures half: the legend names these series too.
     const figures = screen.getByTestId("msc-teaser").querySelector(".msc-teaser")!;
-    expect(figures).toHaveTextContent(/\$110\s*to Sky/);
+    const leadLine = figures.querySelector(".msc-teaser-lead")!;
+    expect(leadLine).toHaveTextContent("$110 to Sky");
+    expect(leadLine).not.toHaveTextContent("supply-side");
     expect(figures).toHaveTextContent("$162 supply-side kept");
     expect(figures).toHaveTextContent("$0 demand-side from Sky");
     expect(screen.getByText("Jun 2026 – Jul 2026 · 2 cycles")).toBeInTheDocument();
@@ -115,7 +117,9 @@ describe("ActorSettlementTeaser", () => {
     await waitFor(() => expect(screen.getByText("$36k")).toBeInTheDocument());
     // The lead is the demand side, not a zero To-Sky figure.
     const card = screen.getByTestId("msc-teaser");
-    expect(card.querySelector(".msc-teaser")).toHaveTextContent(/\$36k\s*demand-side from Sky/);
+    const leadLine = card.querySelector(".msc-teaser-lead")!;
+    expect(leadLine).toHaveTextContent("$36k demand-side from Sky");
+    expect(leadLine).not.toHaveTextContent("to Sky");
     // The period line; the chart's hover pill names the month too.
     expect(card.querySelector(".msc-teaser")).toHaveTextContent("Jul 2026");
     expect(card).toHaveAccessibleName(/Keel over 1 cycle: \$0 to Sky, \$0 supply-side kept, \$36k demand-side from Sky/);
