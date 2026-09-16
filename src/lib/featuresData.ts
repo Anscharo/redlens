@@ -17,7 +17,7 @@
 // Accuracy rules, learned the hard way:
 //   - Never hardcode a count that the app derives elsewhere (reports, MCP
 //     tools). Counts drift the day after they ship; the /connect page reads
-//     the tool count live, and ReportsIndex owns the report list.
+//     the tool count live, and reportCatalog.ts owns the report list.
 //   - Sign-in providers are per-environment (authProviders()). Production
 //     offers GitHub; say "sign in", not a fixed provider pair.
 //   - Gesture copy must match src/lib/hintText.ts, which is what the footer
@@ -199,6 +199,14 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Open Reports and pick one — responsibilities by facilitator or GovOps, Active Data, integrator rewards, on-chain addresses, stale dates, modification frequency, processes, and more.",
           "Use the filter pills to narrow; the URL updates so you can share the exact filtered view.",
           "Click Download CSV to export — full or filtered, with UUIDs and direct Atlas links.",
+        ],
+      },
+      {
+        name: "Finding a report",
+        what: "The Reports list search matches names, categories, and descriptions, including similar phrasing.",
+        how: [
+          "Open Reports and type in the search pill — it filters the list in place.",
+          "A name fragment jumps to that report; a category like OEA or general shows that group; describing what you want (wallet addresses, outdated dates) finds the matching report even when the title is different.",
         ],
       },
       {

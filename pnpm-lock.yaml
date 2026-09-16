@@ -105,6 +105,9 @@ importers:
       '@chenglou/pretext':
         specifier: 0.0.5
         version: 0.0.5
+      '@ternlight/base':
+        specifier: 0.1.1
+        version: 0.1.1
       '@uiw/react-color':
         specifier: 2.10.1
         version: 2.10.1(@babel/runtime@7.29.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)

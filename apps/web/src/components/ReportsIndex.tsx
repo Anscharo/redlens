@@ -1,50 +1,15 @@
 import { Link } from "./Link";
-import { reportHref, REPORT_TITLES, REPORT_DESCRIPTIONS } from "@/lib/routes";
+import { reportHref } from "@/lib/routes";
+import { parseReportQuery } from "@/lib/reportFilter";
 import { track } from "../lib/analytics";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-import type { ReportId } from "@/types";
-
-// Titles + descriptions come from routes.ts (REPORT_TITLES / REPORT_DESCRIPTIONS
-// — shared with visit-history capture and the chat's page-context line, so this
-// same copy is what the model gets asked "what is this report" on the page).
-type ReportCard = { id: ReportId; title: string; description: string };
-const card = (id: ReportId): ReportCard => ({
-  id,
-  title: REPORT_TITLES[id],
-  description: REPORT_DESCRIPTIONS[id],
-});
-
-const SECTIONS: { title: string; reports: ReportCard[] }[] = [
-  {
-    title: "OEA Reports",
-    reports: [card("of-responsibilities"), card("gov-ops-responsibilities"), card("oea-assessment")],
-  },
-  {
-    title: "General Reports",
-    reports: [
-      card("active-data"),
-      card("rewards"),
-      card("risk-rules"),
-      card("onchain-addresses"),
-      card("stale-dates"),
-      card("mod-frequency"),
-      card("processes"),
-      card("crossview"),
-    ],
-  },
-];
+import { useReportIndexSearch } from "../hooks/useReportIndexSearch";
+import { Highlight } from "./reports/Highlight";
 
 export function ReportsIndex({ query }: { query: string }) {
   useDocumentTitle("Sky Atlas Reports");
-  const q = query.trim().toLowerCase();
-  const sections = SECTIONS.map((s) => ({
-    ...s,
-    reports: q
-      ? s.reports.filter(
-          (r) => r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q),
-        )
-      : s.reports,
-  })).filter((s) => s.reports.length > 0);
+  const { sections, pending } = useReportIndexSearch(query);
+  const rq = parseReportQuery(query);
 
   return (
     <div className="px-6 py-8">
@@ -56,7 +21,7 @@ export function ReportsIndex({ query }: { query: string }) {
         {sections.map((s) => (
           <section key={s.title} className="mb-8">
             <h2 className="text-xs mono text-tan-3 uppercase tracking-wider mb-3 pb-1 border-b border-[var(--border)]">
-              {s.title}
+              <Highlight text={s.title} rq={rq} />
             </h2>
             <div className="space-y-3">
               {s.reports.map((r) => (
@@ -68,10 +33,10 @@ export function ReportsIndex({ query }: { query: string }) {
                   onClick={() => track("report_open", { report_id: r.id })}
                 >
                   <p className="text-sm font-medium mb-1" style={{ color: "var(--tan)" }}>
-                    {r.title}
+                    <Highlight text={r.title} rq={rq} />
                   </p>
                   <p className="text-xs" style={{ color: "var(--tan-3)" }}>
-                    {r.description}
+                    <Highlight text={r.description} rq={rq} />
                   </p>
                 </Link>
               ))}
@@ -80,7 +45,7 @@ export function ReportsIndex({ query }: { query: string }) {
         ))}
         {sections.length === 0 && (
           <p className="mono text-xs" style={{ color: "var(--tan-3)" }}>
-            No reports match "{query}".
+            {pending ? "Searching…" : `No reports match "${query}".`}
           </p>
         )}
       </div>
