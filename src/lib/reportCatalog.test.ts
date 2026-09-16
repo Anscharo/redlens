@@ -67,14 +67,15 @@ describe("buildReportCatalog", () => {
   it("filters by provenance label, so 'curated' finds the hand-maintained reports", () => {
     const ids = buildReportCatalog("curated").flatMap((g) => g.cards).map((c) => c.id);
     expect(ids).toContain("processes");
-    expect(ids).toContain("potential-mistakes");
     // …and not the live ones.
     expect(ids).not.toContain("active-data");
   });
 
+  // Potential Mistakes is an LLM sweep, not a hand-maintained inventory: its
+  // findings are model judgement, which is what the badge has to warn about.
   it("finds the AI-assessed reports by their badge label", () => {
     const ids = buildReportCatalog("AI-assessed").flatMap((g) => g.cards).map((c) => c.id);
-    expect([...ids].sort()).toEqual(["oea-assessment", "risk-rules"]);
+    expect([...ids].sort()).toEqual(["oea-assessment", "potential-mistakes", "risk-rules"]);
   });
 
   it("returns no groups when nothing matches", () => {

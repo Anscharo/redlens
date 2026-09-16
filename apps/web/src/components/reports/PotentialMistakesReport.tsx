@@ -1,6 +1,6 @@
 // Potential Mistakes — suspected defects in the Atlas source text.
 //
-// The rows are a curated, hand-run artifact (public/potential-mistakes.json),
+// The rows are a hand-run LLM sweep (public/potential-mistakes.json),
 // NOT derived from the atlas at load time. The one live computation is
 // resolveMistakes(), which re-checks every finding's UUID against the atlas
 // currently being served so drift is visible instead of silent. See
@@ -86,7 +86,10 @@ export function PotentialMistakesReport({ query, mode }: { query: string; mode: 
     <ReportShell
       report={REPORT}
       title="Potential Mistakes"
-      maxWidth="max-w-7xl"
+      // Full width minus the shell's px-6 gutter: every row carries a quote, an
+      // explanation and a suggested fix, so a capped column wraps all three into
+      // narrow ribbons and the table scrolls when the screen has room to spare.
+      maxWidth="max-w-none"
       description="Suspected typos, grammar slips, broken references and internal inconsistencies in the Atlas source text — each one quoted, explained, and linked to the document it was found in."
       query={query}
       searches={MISTAKE_SEARCHES}

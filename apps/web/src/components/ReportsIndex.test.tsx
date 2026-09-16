@@ -41,12 +41,13 @@ describe("ReportsIndex", () => {
     render(<ReportsIndex query="" />, { wrapper: wrap() });
 
     // Curated: hand-maintained, can lag the atlas.
-    for (const title of ["Potential Mistakes", "Atlas Processes"]) {
+    for (const title of ["Atlas Processes"]) {
       const card = screen.getByText(title).closest("a")!;
       expect(within(card).getByText("curated")).toBeInTheDocument();
     }
-    // AI-assessed: rubric-scored, human-reviewed.
-    for (const title of ["OEA Task Assessment", "Risk Rules Assessment"]) {
+    // AI-assessed: model output, human-reviewed — a rubric score for the two
+    // assessments, an LLM defect sweep for Potential Mistakes.
+    for (const title of ["OEA Task Assessment", "Risk Rules Assessment", "Potential Mistakes"]) {
       const card = screen.getByText(title).closest("a")!;
       expect(within(card).getByText("AI-assessed")).toBeInTheDocument();
     }
@@ -68,8 +69,8 @@ describe("ReportsIndex", () => {
   it("filters by the badge label, so 'curated' narrows to the hand-maintained reports", () => {
     render(<ReportsIndex query="curated" />, { wrapper: wrap() });
 
-    expect(screen.getByText("Potential Mistakes")).toBeInTheDocument();
     expect(screen.getByText("Atlas Processes")).toBeInTheDocument();
+    expect(screen.queryByText("Potential Mistakes")).toBeNull();
     expect(screen.queryByText("Active Data Index")).toBeNull();
   });
 

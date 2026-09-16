@@ -36,7 +36,7 @@ export const REPORT_PROVENANCE: Record<ReportId, ReportProvenance> = {
   "mod-frequency": "live",
   processes: "curated",
   crossview: "live",
-  "potential-mistakes": "curated",
+  "potential-mistakes": "ai-assessed",
 };
 
 /** Badge text. `live` has no badge, so no label. */
@@ -48,7 +48,7 @@ export const PROVENANCE_LABELS: Record<Exclude<ReportProvenance, "live">, string
 /** Badge tooltip — says what the label means for the reader. */
 export const PROVENANCE_TITLES: Record<Exclude<ReportProvenance, "live">, string> = {
   "ai-assessed":
-    "Ratings are AI-drafted against a published rubric, then human-reviewed — a starting point, not a verdict.",
+    "AI-drafted and human-reviewed rather than recomputed from the Atlas — a starting point, not a verdict.",
   curated:
     "Hand-maintained rather than recomputed from the Atlas, so it can lag until someone refreshes it.",
 };
