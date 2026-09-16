@@ -35,9 +35,23 @@ test("sign → verify round-trips subject + provider", async () => {
   expect(typeof payload?.exp).toBe("number");
 });
 
+/**
+ * Change the signature in a way that ALWAYS changes the bytes it decodes to.
+ *
+ * Overwriting the last characters does not: an HS256 signature is 32 bytes,
+ * which is 43 base64url characters carrying 258 bits, so the final character's
+ * low 2 bits are padding and mutating it decodes to the same signature about 1
+ * time in 700 (measured). That is what made this test flake in CI. The first
+ * character has all 6 bits significant, so changing it always tampers.
+ */
+function tamperSignature(token: string): string {
+  const [header, payload, signature] = token.split(".");
+  return `${header}.${payload}.${signature[0] === "A" ? "B" : "A"}${signature.slice(1)}`;
+}
+
 test("verify rejects a tampered token", async () => {
   const token = await signSession({ id: "user-1", provider: "github" });
-  expect(await verifySession(token.slice(0, -2) + "xx")).toBeNull();
+  expect(await verifySession(tamperSignature(token))).toBeNull();
 });
 
 test("verify returns null when the secret is unset", async () => {
