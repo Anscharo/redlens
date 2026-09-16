@@ -6,6 +6,9 @@ import {
   type ReportIndexSearchResponse,
 } from "@/lib/reportIndexSearch";
 
+/** Pause before the semantic round-trip so typing doesn't embed every prefix. Lexical filtering stays sync. */
+export const REPORT_INDEX_SEARCH_DEBOUNCE_MS = 200;
+
 /**
  * /reports index filter. Lexical matches apply on this render; semantic
  * hits from GET /api/reports/search join in once that round-trip lands.
@@ -24,27 +27,32 @@ export function useReportIndexSearch(query: string) {
     }
     setFailed(false);
     const ac = new AbortController();
-    void fetch(`/api/reports/search?q=${encodeURIComponent(query.trim())}`, { signal: ac.signal })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`reports-search: ${res.status}`);
-        return res.json() as Promise<ReportIndexSearchResponse>;
-      })
-      .then((body) => {
-        if (ac.signal.aborted) return;
-        const hits = Array.isArray(body.hits) ? body.hits : [];
-        setScored({ q, hits: new Set(hits) });
-      })
-      .catch((err: unknown) => {
-        if (ac.signal.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
-        setFailed(true);
-      });
-    return () => ac.abort();
-  }, [q, query]);
+    const timer = setTimeout(() => {
+      void fetch(`/api/reports/search?q=${encodeURIComponent(q)}`, { signal: ac.signal })
+        .then(async (res) => {
+          if (!res.ok) throw new Error(`reports-search: ${res.status}`);
+          return res.json() as Promise<ReportIndexSearchResponse>;
+        })
+        .then((body) => {
+          if (ac.signal.aborted) return;
+          const hits = Array.isArray(body.hits) ? body.hits : [];
+          setScored({ q, hits: new Set(hits) });
+        })
+        .catch((err: unknown) => {
+          if (ac.signal.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
+          setFailed(true);
+        });
+    }, REPORT_INDEX_SEARCH_DEBOUNCE_MS);
+    return () => {
+      clearTimeout(timer);
+      ac.abort();
+    };
+  }, [q]);
 
   const extraIds = scored?.q === q ? scored.hits : undefined;
   const groups = useMemo(
-    () => filterReportGroups(REPORT_INDEX_GROUPS, query, extraIds),
-    [query, extraIds],
+    () => filterReportGroups(REPORT_INDEX_GROUPS, q, extraIds),
+    [q, extraIds],
   );
   const pending = q !== "" && groups.length === 0 && extraIds == null && !failed;
   return { groups, pending };
