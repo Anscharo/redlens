@@ -17,6 +17,9 @@ import { createPortal } from "react-dom";
 interface TooltipProps {
   content: ReactNode;
   delay?: number;
+  /** When false, the tip ignores the pointer so it cannot cover a sibling
+   *  trigger (vertical stacked bars). Default true. */
+  interactive?: boolean;
   children: ReactElement;
 }
 
@@ -36,7 +39,7 @@ interface Placement {
 
 const INITIAL: Placement = { left: 0, top: 0, maxHeight: 0, placed: false };
 
-export function Tooltip({ content, delay = 200, children }: TooltipProps) {
+export function Tooltip({ content, delay = 200, interactive = true, children }: TooltipProps) {
   const triggerRef = useRef<HTMLElement | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
   const showTimer = useRef<number | null>(null);
@@ -183,8 +186,8 @@ export function Tooltip({ content, delay = 200, children }: TooltipProps) {
         <div
           ref={tipRef}
           role="tooltip"
-          onMouseEnter={cancelHide}
-          onMouseLeave={scheduleHide}
+          onMouseEnter={interactive ? cancelHide : undefined}
+          onMouseLeave={interactive ? scheduleHide : undefined}
           style={{
             position: "fixed",
             left: pos.left,
@@ -203,6 +206,7 @@ export function Tooltip({ content, delay = 200, children }: TooltipProps) {
             fontSize: 11,
             lineHeight: 1.45,
             boxShadow: "0 4px 12px var(--shadow-strong)",
+            pointerEvents: interactive ? undefined : "none",
           }}
         >
           {content}

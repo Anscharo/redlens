@@ -54,7 +54,7 @@ export function SettlementDemandBars({
                     // delay={0}: the segment is the whole point of this chart —
                     // the amount should appear the instant the pointer lands,
                     // not after the 200ms app default used elsewhere.
-                    <Tooltip key={p.key} delay={0} content={`${p.label} ${formatUsd(p.value)}`}>
+                    <Tooltip key={p.key} delay={0} interactive={false} content={`${p.label} ${formatUsd(p.value)}`}>
                       <span className={p.barClass} style={{ flex: `0 0 ${h}%` }} />
                     </Tooltip>
                   );
