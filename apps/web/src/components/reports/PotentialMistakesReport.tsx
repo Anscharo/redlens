@@ -12,11 +12,8 @@ import { loadPotentialMistakes } from "../../lib/potentialMistakesLoad";
 import {
   CATEGORY_LABELS,
   MISTAKE_SEARCHES,
-  PASSES,
   PASS_LABELS,
-  SEVERITIES,
   STATUS_LABELS,
-  countBy,
   mistakeSearchFields,
   mistakesToCSV,
   presentCategories,
@@ -27,15 +24,15 @@ import {
 } from "@/lib/potentialMistakesIndex";
 import { filterRows, type ReportMode } from "@/lib/reportFilter";
 import type { ReportId } from "@/types";
-import { CategoryPills, categoryCodec } from "./CategoryPills";
+import { categoryCodec } from "./CategoryPills";
 import { DownloadCsvButton } from "./DownloadCsvButton";
+import { MistakesFilters } from "./MistakesFilters";
 import { MistakesProvenance } from "./MistakesProvenance";
 import { PotentialMistakesTable } from "./PotentialMistakesTable";
 import { ReportShell } from "./ReportShell";
 import { useReportFilter, useReportQuery } from "./useReportQuery";
 
 const REPORT: ReportId = "potential-mistakes";
-const STATUSES: readonly MistakeStatus[] = ["current", "renumbered", "missing", "corpus"];
 
 // Each filter is single-select and clears on re-click, so they all use the
 // shared nullable enum codec keyed by its own label map.
@@ -75,10 +72,12 @@ export function PotentialMistakesReport({ query, mode }: { query: string; mode: 
     () => all?.filter((r) => r.status === "renumbered" || r.status === "missing").length ?? 0,
     [all],
   );
-  const cats = useMemo(() => (all ? presentCategories(all) : []), [all]);
   const catLabels = useMemo(
-    () => Object.fromEntries(cats.map((c) => [c, CATEGORY_LABELS[c] ?? c])),
-    [cats],
+    () =>
+      Object.fromEntries(
+        (all ? presentCategories(all) : []).map((c) => [c, CATEGORY_LABELS[c] ?? c]),
+      ),
+    [all],
   );
 
   const loading = !all || !rows;
@@ -86,9 +85,9 @@ export function PotentialMistakesReport({ query, mode }: { query: string; mode: 
     <ReportShell
       report={REPORT}
       title="Potential Mistakes"
-      // Chrome stays in the default column. The table is `fullWidth` so it can
-      // use the window minus the shell's px-6 gutter without stretching the
-      // provenance copy (capped at 80ch) to match.
+      // Chrome (title, provenance, filters) stays in the default 5xl column.
+      // The table is `fullWidth` so it can use the window minus the shell's
+      // px-6 gutter without stretching that column to match.
       maxWidth="max-w-5xl"
       description="Suspected typos, grammar slips, broken references and internal inconsistencies in the Atlas source text — each one quoted, explained, and linked to the document it was found in."
       query={query}
@@ -101,43 +100,17 @@ export function PotentialMistakesReport({ query, mode }: { query: string; mode: 
       ]}
       controls={
         all && (
-          <div className="flex flex-col gap-1.5 mb-4">
-            <CategoryPills
-              categories={SEVERITIES}
-              active={severity}
-              onToggle={toggleSeverity}
-              label="Severity"
-              labelTitle="How confident the sweep was that this is a real defect — not how damaging it would be."
-              counts={countBy(all, (r) => r.severity)}
-              showSingle
-            />
-            <CategoryPills
-              categories={cats}
-              active={category}
-              onToggle={toggleCategory}
-              label="Category"
-              display={catLabels}
-              counts={countBy(all, (r) => r.category)}
-            />
-            <CategoryPills
-              categories={PASSES}
-              active={pass}
-              onToggle={togglePass}
-              label="Found by"
-              labelTitle="Which sweep pass reported the finding: a language read, a consistency read, or a mechanical scan."
-              display={PASS_LABELS}
-              counts={countBy(all, (r) => r.pass)}
-            />
-            <CategoryPills
-              categories={STATUSES}
-              active={status}
-              onToggle={toggleStatus}
-              label="Doc status"
-              labelTitle="Checked live against the Atlas being served right now — findings whose document moved or vanished since the sweep."
-              display={STATUS_LABELS}
-              counts={countBy(all, (r) => r.status)}
-            />
-          </div>
+          <MistakesFilters
+            all={all}
+            severity={severity}
+            onSeverity={toggleSeverity}
+            pass={pass}
+            onPass={togglePass}
+            status={status}
+            onStatus={toggleStatus}
+            category={category}
+            onCategory={toggleCategory}
+          />
         )
       }
       count={rows ? `${rows.length} of ${all?.length ?? 0} findings` : undefined}

@@ -35,6 +35,9 @@ describe("PotentialMistakesPager", () => {
     expect(screen.getByText("first quote")).toBeInTheDocument();
     expect(screen.queryByText("second quote")).not.toBeInTheDocument();
     expect(screen.getByText("1 of 3")).toBeInTheDocument();
+    expect(screen.getByText("A.1")).toBeInTheDocument();
+    expect(screen.queryByText("Example")).not.toBeInTheDocument();
+    expect(screen.getByText("Typo / spelling").parentElement).toHaveClass("flex");
     expect(screen.getByRole("button", { name: "Previous finding" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Next finding" }));

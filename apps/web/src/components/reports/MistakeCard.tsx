@@ -47,26 +47,27 @@ export function MistakeCard({ r, rq }: { r: MistakeRow; rq: ReportQuery }) {
           <dt className="mono text-[10px] text-tan-3">Document</dt>
           <dd className="mt-0.5 m-0">
             {r.uuid ? (
-              <AtlasLink to={atlasHref(r.uuid)} className="text-sm text-tan hover:underline text-left block">
-                <Highlight text={r.title || r.docNo} rq={rq} />
+              <AtlasLink to={atlasHref(r.uuid)} className="mono text-sm text-accent hover:underline">
+                <Highlight text={r.docNo} rq={rq} />
               </AtlasLink>
             ) : (
-              <span className="text-sm text-tan-2">Corpus-wide</span>
+              <span className="mono text-sm text-tan-2">
+                <Highlight text={r.docNo} rq={rq} />
+              </span>
             )}
-            <span className="mono text-[10px] text-accent block">
-              <Highlight text={r.docNo} rq={rq} />
-            </span>
             <StatusNote r={r} />
           </dd>
         </div>
         <div>
           <dt className="mono text-[10px] text-tan-3">Category</dt>
-          <dd className="mt-0.5 m-0">
-            <span className="mono text-[10px] block" style={{ color: SEV_TONE[r.severity] }}>
+          <dd className="mt-0.5 m-0 flex flex-wrap items-baseline gap-x-2">
+            <span className="mono text-[10px] whitespace-nowrap" style={{ color: SEV_TONE[r.severity] }}>
               {r.severity}
             </span>
-            <span className="mono text-[10px] text-tan-3 block">{CATEGORY_LABELS[r.category] ?? r.category}</span>
-            <span className="mono text-[10px] text-tan-3 block">{PASS_LABELS[r.pass]}</span>
+            <span className="mono text-[10px] text-tan-3 whitespace-nowrap">
+              {CATEGORY_LABELS[r.category] ?? r.category}
+            </span>
+            <span className="mono text-[10px] text-tan-3 whitespace-nowrap">{PASS_LABELS[r.pass]}</span>
           </dd>
         </div>
         <div>
