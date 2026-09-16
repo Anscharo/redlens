@@ -120,4 +120,39 @@ describe("PotentialMistakesReport", () => {
     expect(screen.getByText("1 of 3 findings")).toBeInTheDocument();
     expect(window.location.search).toContain("sev=medium");
   });
+
+  // The suggested fix only gets its own column when all three prose columns can
+  // still hold 50ch. Narrow (and jsdom, which has no matchMedia) keeps it under
+  // the explanation, labelled — the label is what makes it readable there.
+  describe("the suggested-fix column", () => {
+    const matchMedia = (matches: boolean) =>
+      vi.fn().mockImplementation((query: string) => ({
+        matches,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }));
+
+    afterEach(() => {
+      Reflect.deleteProperty(window, "matchMedia");
+    });
+
+    it("stays under the explanation, labelled, when the screen is too narrow", async () => {
+      window.matchMedia = matchMedia(false) as unknown as typeof window.matchMedia;
+      render(<PotentialMistakesReport query="" mode="broad" />);
+      await screen.findByText("Sky Ecoystem");
+      expect(screen.queryByText("Suggested")).not.toBeInTheDocument();
+      expect(screen.getAllByText(/suggested:/).length).toBeGreaterThan(0);
+    });
+
+    it("becomes its own column on a wide screen, dropping the inline label", async () => {
+      window.matchMedia = matchMedia(true) as unknown as typeof window.matchMedia;
+      render(<PotentialMistakesReport query="" mode="broad" />);
+      await screen.findByText("Sky Ecoystem");
+      expect(screen.getByRole("columnheader", { name: "Suggested" })).toBeInTheDocument();
+      expect(screen.queryAllByText(/suggested:/)).toHaveLength(0);
+      // The fix text itself is still there — it moved, it did not vanish.
+      expect(screen.getByText("Sky Ecosystem")).toBeInTheDocument();
+    });
+  });
 });
