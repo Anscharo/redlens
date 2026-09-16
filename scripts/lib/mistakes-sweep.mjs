@@ -169,6 +169,17 @@ export function chunkDocs(nodes, { maxBytes = 40_000 } = {}) {
 
 const SEVERITIES = new Set(["high", "medium", "low"]);
 const PASSES = new Set(["language", "factual", "deterministic"]);
+/** The report's filter pills are built from this same vocabulary. A category
+ *  outside it round-trips badly: `presentCategories()` renders a pill for it,
+ *  but `categoryCodec(CATEGORY_LABELS)` cannot decode it from the URL, so the
+ *  pill looks broken. Kept in sync with CATEGORY_LABELS (src/lib/
+ *  potentialMistakesIndex.ts) by scripts_tests/mistakes-sweep.test.ts, which
+ *  can import the TypeScript this module cannot. */
+export const CATEGORIES = new Set([
+  "numeric", "entity", "governance", "contradiction", "structural", "xref",
+  "stale", "placeholder", "copy-paste", "wrong-word", "typo", "grammar",
+  "markdown", "naming", "duplication",
+]);
 
 /**
  * Validate one agent-reported finding against the artifact's schema.
@@ -187,6 +198,7 @@ export function validateFinding(row, nodeMap) {
     if (typeof row[field] !== "string" || !row[field].trim())
       return { ok: false, reason: `missing ${field}` };
   }
+  if (!CATEGORIES.has(row.category)) return { ok: false, reason: `bad category ${row.category}` };
   if (!SEVERITIES.has(row.severity)) return { ok: false, reason: `bad severity ${row.severity}` };
   if (!PASSES.has(row.pass)) return { ok: false, reason: `bad pass ${row.pass}` };
   // The quote must be verbatim atlas text — that is what makes a finding
@@ -200,7 +212,9 @@ export function validateFinding(row, nodeMap) {
       id: `${node.doc_no}#${row.category}`,
       docNo: node.doc_no,
       uuid: node.id,
-      file: row.file ?? "",
+      // Stamped from the atlas, like id and docNo: agents are told not to supply
+      // it, and a re-evaluated document must not lose the source file it had.
+      file: node.file ?? row.file ?? "",
       category: row.category,
       severity: row.severity,
       pass: row.pass,
@@ -230,9 +244,16 @@ export function dedupeIds(findings) {
  * every document outside that set; findings are replaced for documents inside
  * it, and dropped for documents the atlas no longer has.
  */
-export function mergeFindings(previous, incoming, evaluated, removed = []) {
+export function mergeFindings(previous, incoming, evaluated, removed = [], { dropCorpus = false } = {}) {
   const drop = new Set([...evaluated, ...removed]);
-  const kept = previous.filter((f) => !drop.has(f.uuid));
+  // A corpus-wide finding (uuid null) spans documents — "these six artifacts
+  // say circulating where two say total". No chunk contains it, so
+  // validateFinding cannot regenerate one and no document sweep may retire it:
+  // dropping it on --full would delete a real finding nothing can rebuild.
+  // These rows are hand-maintained; `--drop-corpus` is the deliberate purge.
+  const kept = previous.filter((f) =>
+    f.uuid == null ? !dropCorpus : !drop.has(f.uuid),
+  );
   return {
     findings: dedupeIds(sortFindings([...kept, ...incoming])),
     kept: kept.length,

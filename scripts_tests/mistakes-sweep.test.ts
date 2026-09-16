@@ -3,9 +3,11 @@
 // the artifact still looks plausible — so they are pinned here instead.
 
 import { describe, it, expect } from "vitest";
+import { CATEGORY_LABELS } from "../src/lib/potentialMistakesIndex";
 import {
   advanceState,
   buildBacklinks,
+  CATEGORIES,
   chunkDocs,
   compareDocNo,
   dedupeIds,
@@ -27,6 +29,7 @@ type Node = {
   type: string;
   content: string;
   contentHash: string;
+  file?: string;
 };
 
 const node = (over: Partial<Node> = {}): Node => ({
@@ -226,6 +229,32 @@ describe("validateFinding", () => {
   it("rejects a finding missing its issue text", () => {
     expect(validateFinding({ ...base, issue: "  " }, map).ok).toBe(false);
   });
+
+  // An unknown category renders a filter pill the report cannot decode back out
+  // of the URL, so the pill silently does nothing.
+  it("rejects a category outside the report's vocabulary", () => {
+    expect(validateFinding({ ...base, category: "spelling" }, map)).toMatchObject({
+      ok: false,
+      reason: "bad category spelling",
+    });
+  });
+
+  // `file` is stamped like id and docNo — agents are told not to supply it, and
+  // a re-evaluated document must not lose the source file it already had.
+  it("stamps the source file from the atlas, ignoring whatever the agent sent", () => {
+    const withFile = { [n.id]: { ...n, file: "A.1 - The-Governance-Scope.md" } };
+    const res = validateFinding({ ...base, file: "invented.md" }, withFile);
+    if (!res.ok) throw new Error(res.reason);
+    expect(res.finding.file).toBe("A.1 - The-Governance-Scope.md");
+  });
+});
+
+describe("the category vocabulary", () => {
+  // This module is .mjs and cannot import the report's TypeScript. The test can,
+  // so the two lists are pinned here rather than left to drift.
+  it("matches the report's CATEGORY_LABELS exactly", () => {
+    expect([...CATEGORIES].sort()).toEqual(Object.keys(CATEGORY_LABELS).sort());
+  });
 });
 
 describe("mergeFindings", () => {
@@ -263,6 +292,21 @@ describe("mergeFindings", () => {
 
   it("drops findings for documents the atlas no longer has", () => {
     const out = mergeFindings([f("gone")], [], new Set(), ["gone"]);
+    expect(out.findings).toHaveLength(0);
+  });
+
+  // A corpus-wide row spans documents and belongs to none, so no chunk can
+  // regenerate it — validateFinding requires a known uuid. Retiring it on a
+  // sweep would delete a real finding nothing can rebuild.
+  it("keeps a corpus-wide finding through a sweep of every document", () => {
+    const corpus = { ...f("x"), uuid: null };
+    const out = mergeFindings([corpus], [], new Set(["x", "y"]), ["z"]);
+    expect(out.findings).toHaveLength(1);
+  });
+
+  it("retires a corpus-wide finding only when asked to", () => {
+    const corpus = { ...f("x"), uuid: null };
+    const out = mergeFindings([corpus], [], new Set(), [], { dropCorpus: true });
     expect(out.findings).toHaveLength(0);
   });
 });

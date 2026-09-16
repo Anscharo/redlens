@@ -25,7 +25,7 @@ This skill is the runbook for refreshing it. The sweep is **incremental**: a run
 
 - **`pnpm mistakes:status`** — read-only. How much has drifted since the last sweep. Safe anywhere, writes nothing.
 - **`pnpm mistakes:plan [--full] [--limit=N] [--max-bytes=N] [--no-backlinks]`** — computes the work plan, writes `.cache/mistakes-sweep/chunks/NNN.md` (the documents to read) and `plan.json`. `--full` re-queues the whole corpus; `--limit` caps a sitting and leaves the rest queued for next time; `--no-backlinks` skips the cross-reference expansion below.
-- **`pnpm mistakes:merge [--dry-run]`** — folds agent output back into the artifact and advances the sweep state.
+- **`pnpm mistakes:merge [--dry-run] [--drop-corpus]`** — folds agent output back into the artifact and advances the sweep state. `--drop-corpus` also retires the hand-maintained corpus-wide rows (see below).
 - **`pnpm mistakes:bootstrap`** — one-off, already done. Adopts an existing whole-corpus sweep as the incremental baseline.
 - **`pnpm mistakes:render`** — regenerates the gitignored `ATLAS-FINDINGS.md` export from the JSON.
 
@@ -89,8 +89,8 @@ One JSON object per line in `findings/NNN.jsonl`:
 - **`quote`** — **verbatim** atlas text, copied not paraphrased. `merge` rejects any finding whose quote is not a literal substring of the document; that check is the only thing standing between a hallucinated quote and the committed artifact.
 - **`severity`** — `high` / `medium` / `low`. This is **confidence that it is a real defect**, not how damaging it would be.
 - **`pass`** — `language`, `factual`, or `deterministic`.
-- **`category`** — one of: `numeric`, `entity`, `governance`, `contradiction`, `structural`, `xref`, `stale`, `placeholder`, `copy-paste`, `wrong-word`, `typo`, `grammar`, `markdown`, `naming`, `duplication`. Adding a category means adding a label to `scripts/aux/render-potential-mistakes.mjs` and the report's filter pills too.
-- **`id`, `docNo`, `file`** are stamped by `merge` from the live atlas — agents do not supply them.
+- **`category`** — one of: `numeric`, `entity`, `governance`, `contradiction`, `structural`, `xref`, `stale`, `placeholder`, `copy-paste`, `wrong-word`, `typo`, `grammar`, `markdown`, `naming`, `duplication`. **`merge` rejects anything else**: an unknown category renders a filter pill the report cannot decode back out of the URL, so the pill silently does nothing. Adding one means editing `CATEGORIES` (`scripts/lib/mistakes-sweep.mjs`), `CATEGORY_LABELS` (`src/lib/potentialMistakesIndex.ts` — a test pins the two together) and `scripts/aux/render-potential-mistakes.mjs`.
+- **`id`, `docNo`, `file`** are stamped by `merge` from the live atlas — agents do not supply them. `file` comes from a layout-blind scan of the source tree, not the loader, for the same reason `check:atlas` does its own recount.
 
 ## Rules that keep the sweep honest
 
@@ -101,6 +101,8 @@ One JSON object per line in `findings/NNN.jsonl`:
 **A re-evaluated document's old findings are dropped.** That is the point: a defect fixed upstream disappears instead of lingering. It also means a lazy re-read silently deletes real findings, so agents get the whole document, not a diff of it.
 
 **`merge` will not advance a chunk whose JSONL is malformed.** A truncated last line means the agent died mid-write; the chunk stays queued rather than being half-trusted.
+
+**Corpus-wide findings are hand-maintained.** A handful of rows carry `uuid: null` — a defect that spans documents and belongs to none ("six prime artifacts say *circulating* where two say *total*"). No chunk contains such a finding, so the fan-out cannot produce one and `merge` never retires one: dropping them on a sweep would delete a real finding nothing can rebuild. Edit them in the JSON by hand, and use `pnpm mistakes:merge --drop-corpus` for a deliberate purge.
 
 ## Cross-reference expansion
 

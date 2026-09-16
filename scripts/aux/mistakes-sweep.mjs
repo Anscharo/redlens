@@ -4,6 +4,8 @@
 //   pnpm mistakes:bootstrap            adopt the existing sweep as the baseline (one-off)
 //   pnpm mistakes:plan  [--full]       write the work plan + chunk files
 //   pnpm mistakes:merge [--dry-run]    fold agent output into the artifact
+//                       [--drop-corpus] also retire the hand-maintained
+//                                       corpus-wide rows (see mergeFindings)
 //
 // The LLM judgement happens between `plan` and `merge` and is driven by
 // .claude/skills/mistakes-report — this script only decides what needs looking
@@ -54,8 +56,46 @@ function atlasSha() {
   }
 }
 
+// uuid → the source file the document lives in, found WITHOUT asking the
+// loader — the same deliberately dumb, layout-blind scan check:atlas uses, for
+// the same reason: this is the value shown as `Source File` in the report's
+// CSV, and a loader that mis-parses a layout would agree with itself.
+const FRONTMATTER_ID_RE = /^id: ([0-9a-f-]{36})$/;
+const HEADING_UUID_RE = /^#{1,6} .+<!-- UUID: ([0-9a-f-]{36}) -->\s*$/;
+
+function sourceFiles(srcDir) {
+  const byUuid = new Map();
+  const files = [];
+  const contentRoot = path.join(srcDir, "content");
+  if (fs.existsSync(contentRoot)) {
+    const stack = [contentRoot];
+    while (stack.length) {
+      for (const e of fs.readdirSync(stack.pop(), { withFileTypes: true })) {
+        const full = path.join(e.parentPath ?? e.path, e.name);
+        if (e.isDirectory()) stack.push(full);
+        else if (e.name.endsWith(".md")) files.push(full);
+      }
+    }
+  } else {
+    const monolith = path.join(srcDir, "Sky Atlas/Sky Atlas.md");
+    if (fs.existsSync(monolith)) files.push(monolith);
+  }
+  for (const f of files) {
+    const name = path.basename(f);
+    for (const line of fs.readFileSync(f, "utf8").split("\n")) {
+      const m = FRONTMATTER_ID_RE.exec(line) ?? HEADING_UUID_RE.exec(line);
+      if (m) byUuid.set(m[1], name);
+    }
+  }
+  return byUuid;
+}
+
 function load() {
   const { nodes, nodeMap, layout } = loadAtlasSource(ATLAS);
+  // Attach the source file so validateFinding can stamp it, the way it stamps
+  // id and docNo — agents are told not to supply `file`.
+  const fileOf = sourceFiles(ATLAS);
+  for (const node of nodes) node.file = fileOf.get(node.id) ?? "";
   const raw = readJson(STATE, null);
   // A state from an older digest recipe cannot be compared against the current
   // one. Treating its digests as current would mark changed docs clean, so the
@@ -244,7 +284,9 @@ if (cmd === "merge") {
   }
 
   const artifact = readJson(ARTIFACT, { findings: [] });
-  const merged = mergeFindings(artifact.findings, incoming, new Set(evaluated), plan.removed ?? []);
+  const merged = mergeFindings(artifact.findings, incoming, new Set(evaluated), plan.removed ?? [], {
+    dropCorpus: flag("drop-corpus"),
+  });
   const sha = plan.atlasSha ?? atlasSha();
   const next = {
     ...artifact,

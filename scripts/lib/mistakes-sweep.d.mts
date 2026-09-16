@@ -11,13 +11,16 @@ export interface MistakeSweepNode {
   type: string;
   content: string;
   contentHash: string;
+  /** Source .md the document lives in. Attached by the CLI, not the loader. */
+  file?: string;
 }
 
 /** A row in public/potential-mistakes.json. */
 export interface Mistake {
   id: string;
   docNo: string;
-  uuid: string;
+  /** null on a corpus-wide finding, which spans documents and belongs to none. */
+  uuid: string | null;
   file: string;
   category: string;
   severity: string;
@@ -52,6 +55,7 @@ export type ValidationResult =
   | { ok: false; reason: string };
 
 export const STATE_VERSION: number;
+export const CATEGORIES: Set<string>;
 export function docDigest(node: MistakeSweepNode): string;
 export function emptyState(): SweepState;
 export function isStateUsable(state: unknown): boolean;
@@ -77,6 +81,7 @@ export function mergeFindings(
   incoming: Mistake[],
   evaluated: Set<string> | string[],
   removed?: string[],
+  opts?: { dropCorpus?: boolean },
 ): { findings: Mistake[]; kept: number; replaced: number; added: number };
 export function sortFindings(findings: Mistake[]): Mistake[];
 export function compareDocNo(a: string, b: string): number;
