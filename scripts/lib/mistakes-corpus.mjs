@@ -60,10 +60,16 @@ export function normalizeForCompare(text, artifactName, docNoOf) {
     .replace(/A\.[0-9]+(?:\.[0-9]+)+/g, toSlot)
     .replace(/\ban\b/gi, "a")
     .replace(/\s+/g, " ")
-    // A space before a comma, or a trailing full stop the sentence splitter may
-    // or may not have taken, is formatting. Left in, it reports two artifacts as
-    // disagreeing about a rule when they differ by one keystroke of whitespace.
+    // A space before a comma, a doubled-up mark, or a trailing full stop the
+    // sentence splitter may or may not have taken, is formatting. Left in, it
+    // reports two artifacts as disagreeing about a RULE when they differ by one
+    // keystroke of punctuation -- two live rows read "Skybase says
+    // `directory](...),;` while everyone says `directory](...),`". The run
+    // collapse has to be its own pass: the stray mark sits mid-sentence, glued
+    // to a link's closing paren, so neither the whitespace rule above nor the
+    // end-of-string strip below can reach it.
     .replace(/\s+([,.;:])/g, "$1")
+    .replace(/([,.;:])[,.;:]+/g, "$1")
     .replace(/[.,;:]+$/, "")
     .trim()
     .toLowerCase();
@@ -76,6 +82,35 @@ const splitSentences = (text) =>
 export function uniqueWords(a, b) {
   const other = new Set(b.split(" "));
   return [...new Set(a.split(" ").filter((w) => w && !other.has(w)))];
+}
+
+/**
+ * A reference as normalizeForCompare leaves it: a slot marker (`A.6.1.1.*.2.2`)
+ * or a doc_no it could not place in the slot space. Both are MADE of digits, so
+ * anything that asks "did a number move here" has to strip them first.
+ */
+const REFERENCE_RE = /a\.[0-9]+(?:\.(?:\*|[0-9]+|var[0-9]+))*/g;
+
+/** The distinct references inside a set of words, in order, for comparison. */
+const referencesIn = (words) => (words.join(" ").match(REFERENCE_RE) ?? []).sort().join("|");
+
+/**
+ * Two kinds of divergence are high-confidence defects rather than wording.
+ *
+ * A real NUMBER moved -- the heuristic this started as. It must be asked with
+ * references REMOVED: a rewritten slot marker is all digits, so testing the raw
+ * words marked every link divergence high by construction (13 of 20 live rows,
+ * including two that differed only by a stray semicolon).
+ *
+ * A reference points at a different SLOT. The template puts the same link in
+ * every artifact, so a different target is a routing mistake, not a choice.
+ * Comparing the reference SETS, not merely "a unique word holds a reference",
+ * keeps `to [x` vs `to[x` -- same target, missing space -- out of this class.
+ */
+function divergenceSeverity(majorOnly, minorOnly) {
+  const numberMoved = /[0-9]/.test([...majorOnly, ...minorOnly].join(" ").replace(REFERENCE_RE, ""));
+  const targetMoved = referencesIn(majorOnly) !== referencesIn(minorOnly);
+  return numberMoved || targetMoved ? "high" : "medium";
 }
 
 /** Word-level edit distance via LCS -- how far apart two sentences really are. */
@@ -193,7 +228,7 @@ export function templateDivergence(nodes) {
         uuid: null,
         file: "A.6.1.1.* (all prime artifacts)",
         category: "structural",
-        severity: /[0-9]/.test([...majorOnly, ...minorOnly].join("")) ? "high" : "medium",
+        severity: divergenceSeverity(majorOnly, minorOnly),
         pass: "deterministic",
         detector: "template-divergence",
         quote: minor[1][0].raw,

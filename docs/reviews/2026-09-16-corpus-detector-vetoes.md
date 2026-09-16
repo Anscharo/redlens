@@ -5,13 +5,13 @@
 **Question:** of the template divergences the detector reports across the eight Prime Agent artifacts, which are the artifacts legitimately differing rather than the template drifting?
 **Method:** read each divergent sentence in every artifact it appears in, at atlas SHA `d64eca48`. The detector's own output is the claim under review; the Atlas text is ground truth.
 
-This note exists because `rejectedIn` must point at the review that actually argues a veto. These sixteen are detector output and are not discussed in the contradiction false-positives note, which covers a different pass.
+This note exists because `rejectedIn` names the review that actually argues a veto. These sixteen are detector output, and the contradiction false-positives note covers a different pass, so it does not discuss them.
 
 ---
 
 ## Bottom line
 
-**Sixteen of the detector's 36 findings are vetoed.** None is the template drifting. They fall into three kinds:
+**Sixteen of the detector's 34 findings are vetoed.** None is the template drifting. They fall into three kinds:
 
 1. **The artifacts really are different.** Each Prime names its own executor agent, its own relayer multisig, its own protocol deployment. A detector that compares the same slot across artifacts will always surface these, because that is what the slot holds.
 2. **Structural difference by design.** Some Primes hold a named Liquidity Layer; others reference the Allocation System Primitive directly.
@@ -35,9 +35,10 @@ The twenty that survive are divergences in what a sentence *says*: a link routed
 
 ## What this says about the detector
 
-Every veto above is a **false positive by construction**, not a bug: the detector's job is to notice that one slot reads differently across artifacts, and an agent naming its own executor is exactly that. The signal survives anyway because the vetoes are recorded — `suppressRejected` keys on `(uuid, category, quote)`, so each stays out of later runs until the Atlas rewrites that sentence, at which point a human should look again.
+Every veto above is a **false positive by construction**, not a bug: the detector's job is to notice that one slot reads differently across artifacts, and an agent naming its own executor is exactly that. The signal survives anyway because the vetoes are recorded — `suppressRejected` keys on `(uuid, category, quote)`, so each stays out of later runs until the Atlas rewrites that sentence -- the point at which a human looks again.
 
 Two limitations are worth stating rather than discovering:
 
 - **A three-way split is reported as two rows** against the majority reading, not one row describing the split.
 - **ALL-CAPS tokens are masked as the agent's own**, so a slot where one artifact says `SKY` and another says `USDS` compares equal. That is the price of masking token symbols, which is what makes any comparison possible at all.
+- **Severity is a heuristic, not a verdict.** `high` means a real number moved or a reference points at a different slot; everything else is `medium`. It says how mechanical the difference is, not how much it matters -- the `circulating` vs `total` defect this detector was written for is `medium`.

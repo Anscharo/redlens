@@ -54,6 +54,15 @@ describe("normalizeForCompare", () => {
       normalizeForCompare("A <agent>'s x", "Nothing"),
     );
   });
+
+  // A stray mark glued to a link's closing paren sits MID-sentence, so neither
+  // the space-before-comma rule nor the end-of-string strip reaches it. Left in,
+  // it reported two artifacts as disagreeing about a rule over one keystroke.
+  it("ignores a doubled-up punctuation mark mid-sentence", () => {
+    expect(normalizeForCompare("see the directory](A.1.2),; and stop", "X")).toBe(
+      normalizeForCompare("see the directory](A.1.2), and stop", "X"),
+    );
+  });
 });
 
 describe("wordDistance / uniqueWords", () => {
@@ -129,6 +138,8 @@ describe("templateDivergence", () => {
     expect(f.issue).toContain("a.6.1.1.*.9.3"); // the target Keel actually links to
     expect(f.issue).toContain("a.6.1.1.*.9.2"); // the one everyone else links to
     expect(f.issue).toContain("Keel");
+    // A routing mistake is the class this detector was extended to catch.
+    expect(f.severity).toBe("high");
   });
 
   // An N-way split is N-1 rows naming who departs from the norm, not one row
@@ -174,3 +185,35 @@ describe("templateDivergence", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+// Severity says how MECHANICAL a divergence is, not how much it matters. The
+// digit test came first and had to be re-scoped: a rewritten reference is made
+// of digits, so asking the raw words marked 13 of 20 live rows high by
+// construction -- including two that differed only by a stray semicolon.
+describe("templateDivergence severity", () => {
+  const only = (nodes: N[]) => {
+    const found = templateDivergence(nodes as never);
+    expect(found).toHaveLength(1);
+    return found[0];
+  };
+
+  it("calls a differing word medium, though the sentence carries a number", () => {
+    expect(only(artifacts(SENT("total"), { 3: SENT("circulating")("Keel") })).severity).toBe("medium");
+  });
+
+  it("calls a differing number high", () => {
+    const keel = SENT("total")("Keel").replace("1%", "5%");
+    expect(only(artifacts(SENT("total"), { 3: keel })).severity).toBe("high");
+  });
+
+  // Same target, one missing space. A real defect -- the rendered text runs the
+  // words together -- but a formatting one, so it must not outrank a routing
+  // mistake in a report that sorts high first.
+  it("calls a link that lost its leading space medium, not high", () => {
+    const sentence = (agent: string) =>
+      `An ${agent} invocation that completes is always moved to [Active Instances](A.6.1.9.2) for the record.`;
+    const keel = sentence("Keel").replace("to [", "to[");
+    expect(only(artifacts(sentence, { 3: keel })).severity).toBe("medium");
+  });
+});
+

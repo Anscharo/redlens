@@ -11,7 +11,13 @@ export interface CorpusMistake extends Mistake {
 }
 
 export function slotKey(docNo: string): { slot: string; root: string } | null;
-export function normalizeForCompare(text: string, artifactName: string): string;
+export function normalizeForCompare(
+  text: string,
+  artifactName: string,
+  /** Resolves a UUID to its doc_no. The load-bearing argument: without it a
+   *  UUID cannot be placed in the slot space and falls back to <uuid>. */
+  docNoOf?: (uuid: string) => string | undefined,
+): string;
 export function uniqueWords(a: string, b: string): string[];
 export function wordDistance(a: string, b: string): number;
 export function templateDivergence(nodes: MistakeSweepNode[]): CorpusMistake[];

@@ -299,7 +299,7 @@ That sentence is reused across Agent Creation, Prime Transformation, Executor Tr
 
 ## What this implies
 
-**These 19 are now vetoed in the data, not just in this note.** Each sits in `rejected` in `public/potential-mistakes.json` with its verdict and a link here. `suppressRejected` (`scripts/lib/mistakes-sweep.mjs`) drops an incoming finding that repeats a rejected `(uuid, category, quote)`, so re-sweeping any of these documents cannot quietly put them back. The veto is deliberately keyed on the quoted text: **if the Atlas rewrites the passage, the veto lapses and the finding can return** — which is exactly when a human should look at it again.
+**These 19 are now vetoed in the data, not just in this note.** Each sits in `rejected` in `public/potential-mistakes.json` with its verdict and a link here. `suppressRejected` (`scripts/lib/mistakes-sweep.mjs`) drops an incoming finding that repeats a rejected `(uuid, category, quote)`, so re-sweeping any of these documents does not quietly put them back. The veto is deliberately keyed on the quoted text: **if the Atlas rewrites the passage, the veto lapses and the finding can return** — which is exactly when a human looks at it again.
 
 If the factual prompt is retuned, the cheap fix is: **do not emit `contradiction` when the counterpart is a child of the flagged doc, the next sentence of the same doc, or a named special-case heading, unless the two texts still assert incompatible operative rules after that structure is applied.** The graph already knows that structure — `parent_of` edges give the parent/child test directly, and every one of these 19 now carries a UUID to look up.
 
