@@ -94,7 +94,7 @@ describe("ReportsIndex", () => {
 
   it("a category match keeps every report in that group", () => {
     render(<ReportsIndex query="atlas health" />, { wrapper: wrap() });
-    expect(screen.getByText("Atlas health")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Atlas health/i })).toBeInTheDocument();
     expect(screen.queryByText("Roles & duties")).toBeNull();
     expect(screen.getByRole("link", { name: /Potential Mistakes/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Stale Dates/ })).toBeInTheDocument();

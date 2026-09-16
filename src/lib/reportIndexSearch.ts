@@ -1,9 +1,10 @@
 // Filter for the /reports index. Two lanes, OR'd:
 //
 //   1. Lexical — case-insensitive substring (and token-AND) over title,
-//      category, hint, description, and provenance badge. A group-title or
-//      hint hit keeps every report in that group, which is what "search over
-//      the categories we now have" means. This lane runs in the browser so a
+//      category, description, and provenance badge. A group-title hit keeps
+//      every report in that group, which is what "search over the categories
+//      we now have" means. A hint hit is a fallback for purpose-queries
+//      ("obliges") that name no card. This lane runs in the browser so a
 //      name match is instant.
 //   2. Semantic — optional extra ids from GET /api/reports/search, which
 //      scores the query with on-device ternlight on the server (the same
@@ -67,7 +68,10 @@ export function filterReportGroups(
   const qTokens = tokens(q);
   const out: ReportCardGroup[] = [];
   for (const group of groups) {
-    if (fieldMatch(group.title, q, qTokens) || fieldMatch(group.hint, q, qTokens)) {
+    // A category-title hit keeps the whole group. Hint is a fallback for
+    // purpose-queries ("obliges") that name no card — not a second whole-group
+    // path, or "reward" would also keep On-Chain Addresses via the group blurb.
+    if (fieldMatch(group.title, q, qTokens)) {
       out.push(group);
       continue;
     }
@@ -82,6 +86,7 @@ export function filterReportGroups(
       );
     });
     if (cards.length > 0) out.push({ ...group, cards });
+    else if (fieldMatch(group.hint, q, qTokens)) out.push(group);
   }
   return out;
 }
