@@ -12,19 +12,19 @@ description: >
 license: MIT
 metadata:
   author: anscharo
-  version: "1.0"
+  version: "1.1"
 ---
 
 # mistakes-report
 
 `public/potential-mistakes.json` holds the suspected defects in the Atlas source text — typos, wrong words, broken cross-references, wrong figures, contradictions. It is **committed data, not a build artifact**: the sweep is LLM judgement, hand-run, and deliberately does **not** re-run on an atlas bump. That is what the report's provenance banner promises readers, so keep it true.
 
-This skill is the runbook for refreshing it. The sweep is **incremental**: only documents whose title, type, or body changed since the last run are re-read.
+This skill is the runbook for refreshing it. The sweep is **incremental**: a run re-reads the documents whose title, type, or body changed since the last one — plus, via the atlas link graph, the unchanged documents that cross-reference them.
 
 ## Entry points
 
 - **`pnpm mistakes:status`** — read-only. How much has drifted since the last sweep. Safe anywhere, writes nothing.
-- **`pnpm mistakes:plan [--full] [--limit=N] [--max-bytes=N]`** — computes the work plan, writes `.cache/mistakes-sweep/chunks/NNN.md` (the documents to read) and `plan.json`. `--full` re-queues the whole corpus; `--limit` caps a sitting and leaves the rest queued for next time.
+- **`pnpm mistakes:plan [--full] [--limit=N] [--max-bytes=N] [--no-backlinks]`** — computes the work plan, writes `.cache/mistakes-sweep/chunks/NNN.md` (the documents to read) and `plan.json`. `--full` re-queues the whole corpus; `--limit` caps a sitting and leaves the rest queued for next time; `--no-backlinks` skips the cross-reference expansion below.
 - **`pnpm mistakes:merge [--dry-run]`** — folds agent output back into the artifact and advances the sweep state.
 - **`pnpm mistakes:bootstrap`** — one-off, already done. Adopts an existing whole-corpus sweep as the incremental baseline.
 - **`pnpm mistakes:render`** — regenerates the gitignored `ATLAS-FINDINGS.md` export from the JSON.
@@ -47,7 +47,7 @@ pnpm mistakes:status     # is there anything to do?
 pnpm mistakes:plan
 ```
 
-Read `.cache/mistakes-sweep/plan.json`. If `queued` is 0, stop — nothing changed, and there is nothing honest to add to the report.
+Read `.cache/mistakes-sweep/plan.json`. `counts` breaks the corpus into `new` / `changed` / `linked` / `unchanged` / `removed`, and `linkedBecause` maps each re-queued citer to what it points at. If `queued` is 0, stop — nothing changed, and there is nothing honest to add to the report.
 
 ### 2. Fan out
 
@@ -102,9 +102,18 @@ One JSON object per line in `findings/NNN.jsonl`:
 
 **`merge` will not advance a chunk whose JSONL is malformed.** A truncated last line means the agent died mid-write; the chunk stays queued rather than being half-trusted.
 
-## Known limitation
+## Cross-reference expansion
 
-Incremental evaluation is per-document. A **corpus-wide** finding — a cross-reference from a document that did not change to one that did — will not be revisited by a `changed`-only run. Periodically (an atlas restructuring, a large upstream merge) run `pnpm mistakes:plan --full` to re-derive those. Say so plainly rather than implying every run re-checks everything.
+A document can be broken by a document other than itself: it cites a title that was renamed, restates a figure that moved, or links to a document that was deleted. Its own text never changed, so a per-document diff skips it.
+
+The planner closes that with the atlas link graph. `buildBacklinks()` inverts the same UUID markdown links `build-graph` emits as the `cites` edge, and any unchanged document that points at something `new`, `changed` or `removed` is re-queued in its own **`linked`** bucket. Its chunk entry carries a `Re-queued: cross-references …` line naming the target and what happened to it — an agent handed only the citing text cannot tell a stale reference from a fine one.
+
+Two things to know:
+
+- **One hop.** A re-queued citer is not itself "changed", so nothing expands from it. Without that, a one-word fix walks outward until it has re-read the corpus. The cost is real but small: the live atlas has ~2,200 cross-references over 11.5k documents, mean fan-in 1.7 and max 24.
+- **The index is derived, not loaded.** `public/relations.json` is built ephemerally and never committed, so a planner that read it would queue different documents on a fresh checkout. One deliberate difference from the `cites` edge: a link into a document the atlas no longer has is *kept*, because that dangling reference is the whole point.
+
+`--no-backlinks` turns the expansion off. `--full` still exists for the case the expansion genuinely cannot see: a pure renumbering leaves every digest unchanged (`doc_no` is excluded by design), so nothing is `changed` and nothing expands — yet every link label that embeds a doc_no is now suspect.
 
 ## Finishing
 

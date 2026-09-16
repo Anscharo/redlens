@@ -5,10 +5,12 @@
 import { describe, it, expect } from "vitest";
 import {
   advanceState,
+  buildBacklinks,
   chunkDocs,
   compareDocNo,
   dedupeIds,
   docDigest,
+  docsToEvaluate,
   emptyState,
   isStateUsable,
   mergeFindings,
@@ -86,6 +88,79 @@ describe("planSweep", () => {
   it("--full re-queues even unchanged documents", () => {
     const n = node();
     expect(planSweep([n], stateOf([n]), { full: true }).new).toEqual([n.id]);
+  });
+});
+
+describe("buildBacklinks", () => {
+  const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  const B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+
+  it("indexes markdown UUID links by the document they point at", () => {
+    const docs = [node({ id: A, content: `see [B.1 - Other](${B}) for detail` }), node({ id: B })];
+    expect([...(buildBacklinks(docs).get(B) ?? [])]).toEqual([A]);
+  });
+
+  it("ignores a self-link", () => {
+    expect(buildBacklinks([node({ id: A, content: `[self](${A})` })]).size).toBe(0);
+  });
+
+  // A link into a document the atlas has dropped is a dangling reference — the
+  // citing document is the only place left to notice it from.
+  it("keeps a link whose target is no longer in the corpus", () => {
+    const docs = [node({ id: A, content: `[gone](${B})` })];
+    expect([...(buildBacklinks(docs).get(B) ?? [])]).toEqual([A]);
+  });
+});
+
+describe("planSweep cross-reference expansion", () => {
+  const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  const B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+  const C = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+
+  // A cites B. B's title moves; A's own text did not, so a per-document diff
+  // skips it — and misses that A now names a title that no longer exists.
+  const citer = (over: Partial<Node> = {}) => node({ id: A, content: `see [B](${B})`, ...over });
+
+  it("re-queues an unchanged document that cross-references a changed one", () => {
+    const before = [citer(), node({ id: B })];
+    const after = [citer(), node({ id: B, title: "Renamed" })];
+    const plan = planSweep(after, stateOf(before), { backlinks: buildBacklinks(after) });
+    expect(plan.changed).toEqual([B]);
+    expect(plan.linked).toEqual([A]);
+    expect(plan.linkedBecause[A]).toEqual([B]);
+    expect(plan.unchanged).toHaveLength(0);
+  });
+
+  it("re-queues a document whose target the atlas deleted", () => {
+    const plan = planSweep([citer()], stateOf([citer(), node({ id: B })]), {
+      backlinks: buildBacklinks([citer()]),
+    });
+    expect(plan.removed).toEqual([B]);
+    expect(plan.linked).toEqual([A]);
+  });
+
+  // One hop. A cites B, C cites A; only B moved, so C stays skipped — otherwise
+  // a one-word fix walks outward until it has re-read the corpus.
+  it("expands one hop only", () => {
+    const docs = [citer(), node({ id: B }), node({ id: C, content: `see [A](${A})` })];
+    const moved = [citer(), node({ id: B, title: "Renamed" }), docs[2]];
+    const plan = planSweep(moved, stateOf(docs), { backlinks: buildBacklinks(moved) });
+    expect(plan.linked).toEqual([A]);
+    expect(plan.unchanged).toEqual([C]);
+  });
+
+  it("leaves everything skipped when nothing the citer points at moved", () => {
+    const docs = [citer(), node({ id: B })];
+    const plan = planSweep(docs, stateOf(docs), { backlinks: buildBacklinks(docs) });
+    expect(plan.linked).toHaveLength(0);
+    expect(plan.unchanged).toEqual([A, B]);
+  });
+
+  it("sends new, changed and linked documents to the model", () => {
+    const before = [citer(), node({ id: B })];
+    const after = [citer(), node({ id: B, contentHash: "hash-z" }), node({ id: C })];
+    const plan = planSweep(after, stateOf(before), { backlinks: buildBacklinks(after) });
+    expect(docsToEvaluate(plan).sort()).toEqual([A, B, C].sort());
   });
 });
 

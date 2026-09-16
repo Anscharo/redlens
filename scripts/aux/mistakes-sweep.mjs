@@ -17,6 +17,7 @@ import { execFileSync } from "node:child_process";
 import { loadAtlasSource } from "../lib/atlas-source.mjs";
 import {
   advanceState,
+  buildBacklinks,
   chunkDocs,
   docsToEvaluate,
   emptyState,
@@ -69,14 +70,22 @@ function describe(plan, layout) {
   console.log(`atlas: ${plan.total} documents (${layout} layout)`);
   console.log(`  new        ${plan.new.length}`);
   console.log(`  changed    ${plan.changed.length}`);
+  console.log(`  linked     ${plan.linked.length}  (unchanged, but cross-reference a doc that moved)`);
   console.log(`  unchanged  ${plan.unchanged.length}  (${pct}% skipped)`);
   console.log(`  removed    ${plan.removed.length}`);
 }
 
+// The cross-reference expansion is on by default — a citation into a document
+// that moved is exactly the class of defect a per-document diff cannot see.
+// `--no-backlinks` turns it off for a sitting where only the moved documents
+// themselves are worth the tokens.
+const backlinksFor = (nodes, full) => (full || flag("no-backlinks") ? null : buildBacklinks(nodes));
+
 // --- status -----------------------------------------------------------------
 if (cmd === "status") {
   const { nodes, layout, state, stale } = load();
-  const plan = planSweep(nodes, state, { full: stale || flag("full") });
+  const full = stale || flag("full");
+  const plan = planSweep(nodes, state, { full, backlinks: backlinksFor(nodes, full) });
   describe(plan, layout);
   console.log(`last swept: ${state.sweptAt ?? "never"} @ ${(state.atlasSha ?? "—").slice(0, 8)}`);
   process.exit(0);
@@ -123,10 +132,9 @@ if (cmd === "bootstrap") {
 if (cmd === "plan") {
   const { nodes, state, layout, stale } = load();
   const full = flag("full") || stale;
-  const plan = planSweep(nodes, state, { full });
-  describe(plan, layout);
-
   const byUuid = new Map(nodes.map((n) => [n.id, n]));
+  const plan = planSweep(nodes, state, { full, backlinks: backlinksFor(nodes, full) });
+  describe(plan, layout);
   let queue = docsToEvaluate(plan).map((uuid) => byUuid.get(uuid));
   const limit = Number.parseInt(opt("limit", ""), 10);
   // A capped run is how a large backlog is worked down over several sittings:
@@ -141,7 +149,17 @@ if (cmd === "plan") {
   chunks.forEach((docs, i) => {
     const id = String(i + 1).padStart(3, "0");
     const body = docs
-      .map((d) => `## ${d.doc_no} - ${d.title} [${d.type}]\nUUID: ${d.id}\n\n${d.content}`)
+      .map((d) => {
+        // A linked document is here because of something OUTSIDE it, so say what:
+        // an agent handed only the citing text cannot tell a stale reference from
+        // a fine one.
+        const targets = (plan.linkedBecause[d.id] ?? []).map((uuid) => {
+          const t = byUuid.get(uuid);
+          return t ? `${t.doc_no} - ${t.title} (changed)` : `${uuid} (removed from the atlas)`;
+        });
+        const why = targets.length ? `Re-queued: cross-references ${targets.join("; ")}\n` : "";
+        return `## ${d.doc_no} - ${d.title} [${d.type}]\nUUID: ${d.id}\n${why}\n${d.content}`;
+      })
       .join("\n\n---\n\n");
     fs.writeFileSync(path.join(CHUNKS, `${id}.md`), `${body}\n`);
   });
@@ -156,10 +174,12 @@ if (cmd === "plan") {
         counts: {
           new: plan.new.length,
           changed: plan.changed.length,
+          linked: plan.linked.length,
           unchanged: plan.unchanged.length,
           removed: plan.removed.length,
         },
         removed: plan.removed,
+        linkedBecause: plan.linkedBecause,
         queued: queue.length,
         chunks: chunks.map((docs, i) => ({
           id: String(i + 1).padStart(3, "0"),

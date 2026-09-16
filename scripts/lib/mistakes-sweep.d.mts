@@ -38,8 +38,12 @@ export interface SweepState {
 export interface SweepPlan {
   new: string[];
   changed: string[];
+  /** Unchanged documents re-queued because they cross-reference a moved one. */
+  linked: string[];
   unchanged: string[];
   removed: string[];
+  /** citer uuid → the moved/removed uuids it cross-references. */
+  linkedBecause: Record<string, string[]>;
   total: number;
 }
 
@@ -51,10 +55,12 @@ export const STATE_VERSION: number;
 export function docDigest(node: MistakeSweepNode): string;
 export function emptyState(): SweepState;
 export function isStateUsable(state: unknown): boolean;
+/** target uuid → uuids of the documents whose text links to it. */
+export function buildBacklinks(nodes: MistakeSweepNode[]): Map<string, Set<string>>;
 export function planSweep(
   nodes: MistakeSweepNode[],
   state: SweepState | null,
-  opts?: { full?: boolean },
+  opts?: { full?: boolean; backlinks?: Map<string, Set<string>> | null },
 ): SweepPlan;
 export function docsToEvaluate(plan: SweepPlan): string[];
 export function chunkDocs(
