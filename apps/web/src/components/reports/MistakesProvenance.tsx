@@ -24,7 +24,7 @@ export function MistakesProvenance({
 }) {
   return (
     <div
-      className="rounded border border-[var(--border)] px-3 py-2.5 mb-4 text-xs leading-relaxed"
+      className="rounded border border-[var(--border)] px-3 py-2.5 mb-4 text-xs leading-relaxed max-w-[80ch]"
       style={{ borderLeftWidth: "3px", borderLeftColor: "var(--warn)" }}
     >
       <p className="text-tan-2">

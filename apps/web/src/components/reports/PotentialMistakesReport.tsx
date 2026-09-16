@@ -86,10 +86,10 @@ export function PotentialMistakesReport({ query, mode }: { query: string; mode: 
     <ReportShell
       report={REPORT}
       title="Potential Mistakes"
-      // Full width minus the shell's px-6 gutter: every row carries a quote, an
-      // explanation and a suggested fix, so a capped column wraps all three into
-      // narrow ribbons and the table scrolls when the screen has room to spare.
-      maxWidth="max-w-none"
+      // Chrome stays in the default column. The table is `fullWidth` so it can
+      // use the window minus the shell's px-6 gutter without stretching the
+      // provenance copy (capped at 80ch) to match.
+      maxWidth="max-w-5xl"
       description="Suspected typos, grammar slips, broken references and internal inconsistencies in the Atlas source text — each one quoted, explained, and linked to the document it was found in."
       query={query}
       searches={MISTAKE_SEARCHES}
@@ -158,6 +158,7 @@ export function PotentialMistakesReport({ query, mode }: { query: string; mode: 
       loading={loading}
       viewProps={{ row_count: all?.length ?? 0, drifted }}
       noRows={!loading && rows.length === 0}
+      fullWidth={rows && rows.length > 0 ? <PotentialMistakesTable rows={rows} rq={rq} /> : undefined}
     >
       {file && all && (
         <MistakesProvenance
@@ -168,7 +169,6 @@ export function PotentialMistakesReport({ query, mode }: { query: string; mode: 
           drifted={drifted}
         />
       )}
-      {rows && <PotentialMistakesTable rows={rows} rq={rq} />}
     </ReportShell>
   );
 }

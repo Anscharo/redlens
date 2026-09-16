@@ -3,15 +3,11 @@
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
-import {
-  CATEGORY_LABELS,
-  PASS_LABELS,
-  STATUS_LABELS,
-  mistakeSearchFields,
-  type MistakeRow,
-} from "@/lib/potentialMistakesIndex";
+import { CATEGORY_LABELS, PASS_LABELS, mistakeSearchFields, type MistakeRow } from "@/lib/potentialMistakesIndex";
 import { hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
+import { Fix, SEV_TONE, StatusNote } from "./MistakeCard";
+import { PotentialMistakesPager } from "./PotentialMistakesPager";
 
 // Prose stops being readable somewhere past ~65ch, so the quote, the
 // explanation and the suggested fix are each capped there. The fix only earns a
@@ -24,15 +20,16 @@ import { Highlight, MatchAside } from "./Highlight";
 // here is rem or ch rather than px so the whole table scales together when a
 // reader enlarges their base font: a px breakpoint against ch columns would
 // split into three columns that no longer fit 50ch each.
-const SPLIT_FIX_AT = "(min-width: 110rem)";
+export const SPLIT_FIX_AT = "(min-width: 110rem)";
+// Tailwind `md` is 48rem. Below that a four-column table is unreadable, so the
+// pager shows one stacked finding at a time instead.
+export const MOBILE_AT = "(max-width: 47.99rem)";
 const PROSE = "max-w-[65ch]";
 const PROSE_SPLIT = "max-w-[65ch] min-w-[50ch]";
-
-const SEV_TONE: Record<MistakeRow["severity"], string> = {
-  high: "var(--error-text)",
-  medium: "var(--warn)",
-  low: "var(--tan-3)",
-};
+// ReportShell's px-6 gutter is 1.5rem a side. The table must not grow the page
+// past that — flex min-width:auto on the app shell otherwise lets wide columns
+// push the whole window sideways.
+const TABLE_MAX = "w-full min-w-0 overflow-x-auto [max-width:calc(100vw-3rem)]";
 
 function headers(split: boolean): [label: string, width: string][] {
   const prose = split ? PROSE_SPLIT : PROSE;
@@ -43,30 +40,6 @@ function headers(split: boolean): [label: string, width: string][] {
     ["What looks wrong", prose],
     ...(split ? ([["Suggested", prose]] as [string, string][]) : []),
   ];
-}
-
-// A row whose document moved or vanished since the sweep is the one case where
-// the stored doc_no is actively misleading, so it is called out inline rather
-// than only in the filter pills.
-function StatusNote({ r }: { r: MistakeRow }) {
-  if (r.status === "current") return null;
-  const tone = r.status === "missing" ? "var(--error-text)" : "var(--warn)";
-  return (
-    <span className="mono text-[10px] block mt-0.5" style={{ color: tone }}>
-      {STATUS_LABELS[r.status]}
-      {r.status === "renumbered" && ` → ${r.currentDocNo}`}
-    </span>
-  );
-}
-
-function Fix({ r, rq, split }: { r: MistakeRow; rq: ReportQuery; split: boolean }) {
-  if (!r.fix) return <p className="mono text-[10px] text-tan-3">needs an author decision</p>;
-  return (
-    <p className="mono text-[10px] text-tan-3">
-      {!split && "suggested: "}
-      <Highlight text={r.fix} rq={rq} />
-    </p>
-  );
 }
 
 function Row({ r, rq, split }: { r: MistakeRow; rq: ReportQuery; split: boolean }) {
@@ -137,10 +110,12 @@ function Row({ r, rq, split }: { r: MistakeRow; rq: ReportQuery; split: boolean 
 }
 
 export function PotentialMistakesTable({ rows, rq }: { rows: readonly MistakeRow[]; rq: ReportQuery }) {
+  const mobile = useMediaQuery(MOBILE_AT);
   const split = useMediaQuery(SPLIT_FIX_AT);
   if (!rows.length) return null;
+  if (mobile) return <PotentialMistakesPager rows={rows} rq={rq} />;
   return (
-    <div className="overflow-x-auto">
+    <div className={TABLE_MAX}>
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="border-b border-[var(--border)]">
