@@ -102,7 +102,9 @@ One JSON object per line in `findings/NNN.jsonl`:
 
 **`merge` will not advance a chunk whose JSONL is malformed.** A truncated last line means the agent died mid-write; the chunk stays queued rather than being half-trusted.
 
-**Corpus-wide findings are hand-maintained.** A handful of rows carry `uuid: null` — a defect that spans documents and belongs to none ("six prime artifacts say *circulating* where two say *total*"). No chunk contains such a finding, so the fan-out cannot produce one and `merge` never retires one: dropping them on a sweep would delete a real finding nothing can rebuild. Edit them in the JSON by hand, and use `pnpm mistakes:merge --drop-corpus` for a deliberate purge.
+**Corpus-wide findings are hand-maintained.** A row with `uuid: null` is a defect that spans documents and belongs to none — today exactly one: "six prime artifacts say *circulating* where two say *total*", whose `docNo` is a wildcard (`A.6.1.1.*.…`). No chunk contains such a finding, so the fan-out cannot produce one and `merge` never retires one: dropping them on a sweep would delete a real finding nothing can rebuild. Edit them in the JSON by hand, and use `pnpm mistakes:merge --drop-corpus` for a deliberate purge.
+
+**A finding that names one document belongs to that document.** Seven rows once carried `uuid: null` while naming a single doc — they showed as `corpus` in the report, could never be re-evaluated, and never drifted. They were backfilled by resolving each verbatim quote against the atlas (2026-09-16). If a sweep ever emits a document-anchored row without a UUID again, resolve it rather than leaving it corpus-wide: only a finding with no single home belongs in that bucket.
 
 ## Cross-reference expansion
 
