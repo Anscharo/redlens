@@ -77,6 +77,10 @@ playwright/.cache/
 .cache/atlas-rag/meta.json
 .cache/atlas-rag/vectors.bin
 .cache/processes-audit.json
+# Scratch for one Potential Mistakes sweep (plan, chunks, agent output). Rebuilt
+# by every `pnpm mistakes:plan`; the durable record is the committed artifact
+# public/potential-mistakes.json plus .github/mistakes-sweep-state.json.
+.cache/mistakes-sweep/
 # Chat/model eval report outputs — regenerable by re-running the evals; the
 # durable corpus they grade against lives in scripts/eval/eval-corpora/ (committed).
 .cache/eval-*.json
