@@ -56,7 +56,7 @@ export function CategoryPills<T extends string>({
             key={c}
             onClick={() => onToggle(c)}
             data-active={isActive ? "true" : undefined}
-            className="scope-pill mono text-xs px-2 py-0.5 rounded"
+            className="scope-pill mono text-xs px-2 py-0.5 rounded whitespace-nowrap shrink-0"
           >
             {isMulti && (
               <span

@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { it, expect, describe, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { ReportsIndex } from "./ReportsIndex";
+import { REPORT_GROUPS } from "@/lib/reportCatalog";
 
 afterEach(() => {
   cleanup();
@@ -17,39 +18,66 @@ function wrap(path = "/reports") {
 }
 
 describe("ReportsIndex", () => {
-  it("renders both sections with all report cards when query is empty", () => {
+  it("renders every subject group with its hint when query is empty", () => {
     render(<ReportsIndex query="" />, { wrapper: wrap() });
 
     expect(screen.getByRole("heading", { name: "Reports", level: 1 })).toBeInTheDocument();
-    expect(screen.getByText("OEA Reports")).toBeInTheDocument();
-    expect(screen.getByText("General Reports")).toBeInTheDocument();
-    // A representative card from each section.
+    for (const g of REPORT_GROUPS) {
+      expect(screen.getByText(g.title)).toBeInTheDocument();
+      expect(screen.getByText(g.hint)).toBeInTheDocument();
+    }
+    // A representative card from three different groups.
     expect(screen.getByText("Operational Facilitator Responsibilities")).toBeInTheDocument();
     expect(screen.getByText("Active Data Index")).toBeInTheDocument();
-    expect(screen.getByText("Atlas Processes")).toBeInTheDocument();
+    expect(screen.getByText("Potential Mistakes")).toBeInTheDocument();
   });
 
-  it("filters cards by title match, dropping empty sections", () => {
+  it("explains that unbadged reports are rebuilt from the Atlas", () => {
+    render(<ReportsIndex query="" />, { wrapper: wrap() });
+    expect(screen.getByText(/Unlabelled reports are rebuilt from the Atlas/)).toBeInTheDocument();
+  });
+
+  it("badges only the reports that are not rebuilt live", () => {
+    render(<ReportsIndex query="" />, { wrapper: wrap() });
+
+    // Curated: hand-maintained, can lag the atlas.
+    for (const title of ["Atlas Processes"]) {
+      const card = screen.getByText(title).closest("a")!;
+      expect(within(card).getByText("curated")).toBeInTheDocument();
+    }
+    // AI-assessed: model output, human-reviewed — a rubric score for the two
+    // assessments, an LLM defect sweep for Potential Mistakes.
+    for (const title of ["OEA Task Assessment", "Risk Rules Assessment", "Potential Mistakes"]) {
+      const card = screen.getByText(title).closest("a")!;
+      expect(within(card).getByText("AI-assessed")).toBeInTheDocument();
+    }
+    // Live reports carry no badge at all — that is what keeps a badge meaningful.
+    const live = screen.getByText("Active Data Index").closest("a")!;
+    expect(within(live).queryByText("curated")).toBeNull();
+    expect(within(live).queryByText("AI-assessed")).toBeNull();
+  });
+
+  it("filters cards by title match, dropping emptied groups", () => {
     render(<ReportsIndex query="reward" />, { wrapper: wrap() });
 
     expect(screen.getByText("Integrator Reward Relationships")).toBeInTheDocument();
-    // OEA Reports section has no match for "rewards" so it's dropped entirely.
-    expect(screen.queryByText("OEA Reports")).toBeNull();
-    expect(screen.getByText("General Reports")).toBeInTheDocument();
+    expect(screen.getByText("On-chain & money")).toBeInTheDocument();
+    expect(screen.queryByText("Roles & duties")).toBeNull();
+    expect(screen.queryByText("Atlas health")).toBeNull();
   });
 
-  it("filters cards by description match too", () => {
-    render(<ReportsIndex query="etherscan" />, { wrapper: wrap() });
-    // No report description mentions "etherscan" — sanity-check the "no match" path
-    // exercises the empty state instead of asserting a fragile positive match.
-    expect(screen.getByText(/No reports match/)).toBeInTheDocument();
+  it("filters by the badge label, so 'curated' narrows to the hand-maintained reports", () => {
+    render(<ReportsIndex query="curated" />, { wrapper: wrap() });
+
+    expect(screen.getByText("Atlas Processes")).toBeInTheDocument();
+    expect(screen.queryByText("Potential Mistakes")).toBeNull();
+    expect(screen.queryByText("Active Data Index")).toBeNull();
   });
 
   it("shows a no-results message when nothing matches, quoting the raw query", () => {
     render(<ReportsIndex query="zzz-nonexistent" />, { wrapper: wrap() });
     expect(screen.getByText('No reports match "zzz-nonexistent".')).toBeInTheDocument();
-    expect(screen.queryByText("OEA Reports")).toBeNull();
-    expect(screen.queryByText("General Reports")).toBeNull();
+    for (const g of REPORT_GROUPS) expect(screen.queryByText(g.title)).toBeNull();
   });
 
   it("links each card to its report route", () => {
