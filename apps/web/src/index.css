@@ -2802,9 +2802,18 @@ a.atlas-annotates:focus-visible {
 .msc-teaser-wrap:hover {
   background: var(--row-hover);
 }
+/* Both halves are sized by the card from its measured text (see
+   ActorSettlementTeaser): it grows sideways into the spare width rather
+   than wrapping and pushing the page down. The fallbacks are what the
+   fixed widths used to be. */
 .msc-teaser {
-  width: 13rem;
+  width: var(--msc-teaser-w, 13rem);
   padding: 10px 14px 12px;
+}
+/* Each line here is one semantic line and the width was measured to hold
+   it, so wrapping would mean a measurement is wrong — fail visibly. */
+.msc-teaser > * {
+  white-space: nowrap;
 }
 .msc-teaser-link {
   display: inline-block;
@@ -2818,7 +2827,7 @@ a.atlas-annotates:focus-visible {
 .msc-teaser-chart {
   display: flex;
   flex-direction: column;
-  width: 16rem;
+  width: var(--msc-teaser-chart-w, 16rem);
   padding: 10px 10px 12px;
   border-left: 1px solid var(--border);
 }
@@ -2830,9 +2839,12 @@ a.atlas-annotates:focus-visible {
   min-height: 0;
   overflow: visible;
 }
+/* The card is sized so these fit on one line; nowrap keeps them there
+   rather than silently wrapping if a measurement is ever off. */
 .msc-gross-legend {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   gap: 0 0.75rem;
   margin-top: 4px;
 }
