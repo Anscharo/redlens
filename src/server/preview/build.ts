@@ -285,6 +285,12 @@ export function baseMeta(resolved: Resolved, sha: string, docCount: number, t0: 
     ...(resolved.needsPullsPermission
       ? { needsPullsPermission: true as const, ...(resolved.permissionsUrl ? { permissionsUrl: resolved.permissionsUrl } : {}) }
       : {}),
+    // Banner-only too: the install covers every repo on its account. Re-derived
+    // on every resolvePrivateBranch; handler.ts overlays it onto a ready
+    // bundle's meta.json so the ACCESS row clears once the owner narrows.
+    ...(resolved.grantTooBroad
+      ? { grantTooBroad: true as const, ...(resolved.installSettingsUrl ? { installSettingsUrl: resolved.installSettingsUrl } : {}) }
+      : {}),
     resolvedAt: new Date().toISOString(),
     docCount,
     buildMs: Date.now() - t0,
@@ -370,7 +376,7 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
     // `== null` proves `token: string` below without a non-null assertion.
     if (token == null) {
       // Carry the install URL so the client can offer a one-click install action.
-      fail(f, sha, "app-not-installed", (await appInstallUrl().catch(() => null)) ?? undefined);
+      fail(f, sha, "app-not-installed", (await appInstallUrl(resolved.repo).catch(() => null)) ?? undefined);
       return;
     }
     await acquire();

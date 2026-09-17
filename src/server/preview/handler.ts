@@ -24,7 +24,7 @@ import {
   type PendingPrivate,
 } from "./resolve.ts";
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
-import { previewPaths, artifactPath, bundleReady, readMeta, touch, remove as removeBundle } from "./cache.ts";
+import { previewPaths, artifactPath, bundleReady, readMeta, writeMeta, touch, remove as removeBundle, type PreviewMeta } from "./cache.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
 import { getPreviewRow, touchPreview, isBlockedSha, listPreviews } from "./db.ts";
 import { authorizePreviewAccess } from "./access.ts";
@@ -235,8 +235,41 @@ function eventsResponse(req: Request, rawId: string, ip: string): Response {
 // An app-not-installed failure carries the App's install URL so the client can
 // offer a one-click "Install the Sky Atlas by Redline GitHub App" action instead of dead-end copy;
 // every other failure code has no attached message.
-async function failInstallMessage(code: string): Promise<string | undefined> {
-  return code === "app-not-installed" ? ((await appInstallUrl().catch(() => null)) ?? undefined) : undefined;
+async function failInstallMessage(code: string, repo: string | undefined): Promise<string | undefined> {
+  return code === "app-not-installed" ? ((await appInstallUrl(repo).catch(() => null)) ?? undefined) : undefined;
+}
+
+/** The repo a preview id names, for targeting the install link at its owner. */
+function repoOfId(rawId: string): string | undefined {
+  const p = decodeId(rawId);
+  return p?.kind === "branch" ? p.repo : undefined;
+}
+
+/** Overlay a freshly-resolved All-repos grant flag onto a ready bundle's meta.
+ *  The banner reads meta.json, not the resolve, and a same-sha ready bundle
+ *  does not rebuild — so without this the ACCESS row would stick until the
+ *  commit moved. Only call after resolvePrivateBranch (a SHA/DB resolve never
+ *  re-derives the flag, and applying this there would wipe a still-valid row).
+ *  Returns the patched meta, or null when nothing changed. */
+export function syncBroadGrantMeta(
+  meta: PreviewMeta,
+  r: Pick<Resolved, "grantTooBroad" | "installSettingsUrl">,
+): PreviewMeta | null {
+  const want = !!r.grantTooBroad;
+  const have = !!meta.grantTooBroad;
+  const wantUrl = want ? r.installSettingsUrl : undefined;
+  const haveUrl = have ? meta.installSettingsUrl : undefined;
+  if (want === have && wantUrl === haveUrl) return null;
+  const next: PreviewMeta = { ...meta };
+  if (want) {
+    next.grantTooBroad = true;
+    if (r.installSettingsUrl) next.installSettingsUrl = r.installSettingsUrl;
+    else delete next.installSettingsUrl;
+  } else {
+    delete next.grantTooBroad;
+    delete next.installSettingsUrl;
+  }
+  return next;
 }
 
 // Returns the unsubscribe fn for the SSE stream (noop if it terminated synchronously).
@@ -248,7 +281,7 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
   send({ phase: "resolving" });
   const resolved = await resolveId(rawId);
   if ("error" in resolved) {
-    send({ phase: "failed", code: resolved.error, message: await failInstallMessage(resolved.error) });
+    send({ phase: "failed", code: resolved.error, message: await failInstallMessage(resolved.error, repoOfId(rawId)) });
     return () => {};
   }
   // G3/G7: for a private repo, authorize BEFORE any sha-bearing event
@@ -267,7 +300,7 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     }
     const done = await resolvePrivateBranch(resolved.repo, resolved.ref);
     if ("error" in done) {
-      send({ phase: "failed", code: done.error, message: await failInstallMessage(done.error) });
+      send({ phase: "failed", code: done.error, message: await failInstallMessage(done.error, resolved.repo) });
       return () => {};
     }
     r = done;
@@ -303,6 +336,14 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     if ((r.prBase && !meta?.prBase) || (r.defaultBranch && !meta?.defaultBranch && !meta?.prBase)) {
       getOrStartBuild(r);
       return subscribeBuild(sha, send);
+    }
+    // Banner-only: keep ACCESS in sync with the live install without a rebuild.
+    // `authRequired` is the tell that r came from resolvePrivateBranch this
+    // request (fresh repository_selection). A SHA/DB resolve must not run this
+    // — it never carries grantTooBroad, and would clear a still-valid row.
+    if (meta && "authRequired" in resolved) {
+      const synced = syncBroadGrantMeta(meta, r);
+      if (synced) writeMeta(sha, synced);
     }
     touch(sha);
     void touchPreview(sha).catch(() => {});

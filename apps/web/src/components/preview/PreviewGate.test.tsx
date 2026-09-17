@@ -120,6 +120,28 @@ describe("PreviewGate access-failure screens (private previews)", () => {
     expect(link.getAttribute("href")).toBe("https://github.com/apps/redlens/installations/new");
   });
 
+  it("app-not-installed names the one repo to grant and the 'Only select repositories' step", () => {
+    render(<PreviewGate id="acme:atlas-fork:main" routerBase="/preview/acme:atlas-fork:main" />);
+    emit({
+      phase: "failed",
+      code: "app-not-installed",
+      message: "https://github.com/apps/redlens/installations/new/permissions?target_id=42",
+    });
+    expect(screen.getAllByText("acme/atlas-fork").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Only select repositories")).toBeTruthy();
+    expect(screen.queryByText(/all repositories/i)).toBeNull();
+    const link = screen.getByRole("link", { name: "Install the Sky Atlas by Redline GitHub App ↗" });
+    expect(link.getAttribute("href")).toBe("https://github.com/apps/redlens/installations/new/permissions?target_id=42");
+  });
+
+  it("app-not-installed on a bare-SHA id falls back to 'this repository' instead of guessing a repo", () => {
+    const sha = "a".repeat(40);
+    render(<PreviewGate id={sha} routerBase={`/preview/${sha}`} />);
+    emit({ phase: "failed", code: "app-not-installed", message: "https://github.com/apps/redlens/installations/new" });
+    expect(screen.getByText(/isn't installed on this repository yet/)).toBeTruthy();
+    expect(screen.queryByText(/next-gen-atlas/)).toBeNull();
+  });
+
   it("shows app-not-installed copy with no install link when there's no message", () => {
     render(<PreviewGate id="pr-88" routerBase="/preview/pr-88" />);
     emit({ phase: "failed", code: "app-not-installed" });

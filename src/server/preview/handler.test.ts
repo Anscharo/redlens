@@ -175,16 +175,16 @@ async function freshHandler() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pv-h2-"));
   process.env.PREVIEW_DIR = dir;
   const { handlePreview } = await import("./handler.ts");
-  const { previewPaths, writeMeta } = await import("./cache.ts");
+  const { previewPaths, writeMeta, readMeta } = await import("./cache.ts");
   const call = (pathname: string) => Promise.resolve(handlePreview(new Request("http://x" + pathname), stubServer, pathname));
-  return { call, handlePreview, previewPaths, writeMeta };
+  return { call, handlePreview, previewPaths, writeMeta, readMeta };
 }
 
 function makeReadyBundle(
   previewPaths: (sha: string) => { outDir: string },
   writeMeta: (sha: string, meta: PreviewMeta, root?: string) => void,
   sha: string,
-  opts: { private?: boolean; repo?: string; defaultBranch?: string } = {},
+  opts: { private?: boolean; repo?: string; defaultBranch?: string; extra?: Partial<PreviewMeta> } = {},
 ): void {
   const p = previewPaths(sha);
   fs.mkdirSync(p.outDir, { recursive: true });
@@ -202,6 +202,7 @@ function makeReadyBundle(
     buildMs: 1,
     private: opts.private,
     ...(opts.defaultBranch ? { defaultBranch: opts.defaultBranch } : {}),
+    ...opts.extra,
   });
 }
 
@@ -900,6 +901,181 @@ test("/events: a ready Contents-only bundle that already redlines against the de
   const events = await contentsOnlyEvents(SHA, { defaultBranch: "main" }, [[], []]);
   expect(events).toContainEqual({ phase: "ready", sha: SHA });
   expect(events.some((e) => e.phase === "fetching")).toBe(false);
+});
+
+test("syncBroadGrantMeta: clears, sets, and no-ops", async () => {
+  const { syncBroadGrantMeta } = await import("./handler.ts");
+  const base: PreviewMeta = {
+    sha: "x", repo: "o/r", ref: "main", kind: "branch", resolvedAt: "t", docCount: 0, buildMs: 1,
+    grantTooBroad: true, installSettingsUrl: "https://github.com/settings/installations/1",
+  };
+  expect(syncBroadGrantMeta(base, {})).toEqual({
+    sha: "x", repo: "o/r", ref: "main", kind: "branch", resolvedAt: "t", docCount: 0, buildMs: 1,
+  });
+  const added = syncBroadGrantMeta(
+    { sha: "x", repo: "o/r", ref: "main", kind: "branch", resolvedAt: "t", docCount: 0, buildMs: 1 },
+    { grantTooBroad: true, installSettingsUrl: "https://github.com/settings/installations/1" },
+  );
+  expect(added?.grantTooBroad).toBe(true);
+  expect(added?.installSettingsUrl).toBe("https://github.com/settings/installations/1");
+  expect(syncBroadGrantMeta(base, { grantTooBroad: true, installSettingsUrl: "https://github.com/settings/installations/1" })).toBeNull();
+});
+
+test("/events: a ready private bundle drops grantTooBroad once the install is narrowed, without rebuilding", async () => {
+  const { handlePreview, previewPaths, writeMeta, readMeta } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+
+  const orig = {
+    enabled: config.privatePreviewsEnabled,
+    appId: config.githubAppId,
+    key: config.githubAppPrivateKey,
+    fetch: globalThis.fetch,
+  };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  const SHA = "ab".repeat(20);
+  makeReadyBundle(previewPaths, writeMeta, SHA, {
+    private: true,
+    repo: "octocat/grant-atlas",
+    extra: { grantTooBroad: true, installSettingsUrl: "https://github.com/settings/installations/77" },
+  });
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) {
+      return Response.json({
+        id: 77,
+        html_url: "https://github.com/settings/installations/77",
+        permissions: { contents: "read", metadata: "read" },
+        repository_selection: "selected",
+      });
+    }
+    if (u.endsWith("/access_tokens")) return Response.json({ token: "inst-tok" });
+    if (u.includes("/branches/")) return Response.json({ commit: { sha: SHA, commit: { committer: { date: "2026-01-01T00:00:00Z" } } } });
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return new Response("no", { status: 404 });
+    return new Response("no", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  try {
+    accessDecision = "ok";
+    dbQueued = [[], []];
+    const id = encodeURIComponent("octocat:grant-atlas:main");
+    const pathname = `/api/preview/${id}/events`;
+    const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+    const events = await readSSE(res);
+    expect(events).toContainEqual({ phase: "ready", sha: SHA });
+    expect(events.some((e) => e.phase === "fetching")).toBe(false);
+    expect(inflightShas().size).toBe(0);
+    const meta = readMeta(SHA);
+    expect(meta?.grantTooBroad).toBeUndefined();
+    expect(meta?.installSettingsUrl).toBeUndefined();
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+});
+
+test("/events: a ready private bundle gains grantTooBroad when the install is All repositories, without rebuilding", async () => {
+  const { handlePreview, previewPaths, writeMeta, readMeta } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+
+  const orig = {
+    enabled: config.privatePreviewsEnabled,
+    appId: config.githubAppId,
+    key: config.githubAppPrivateKey,
+    fetch: globalThis.fetch,
+  };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  const SHA = "ac".repeat(20);
+  makeReadyBundle(previewPaths, writeMeta, SHA, { private: true, repo: "octocat/grant-atlas" });
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) {
+      return Response.json({
+        id: 77,
+        html_url: "https://github.com/settings/installations/77",
+        permissions: { contents: "read", metadata: "read" },
+        repository_selection: "all",
+      });
+    }
+    if (u.endsWith("/access_tokens")) return Response.json({ token: "inst-tok" });
+    if (u.includes("/branches/")) return Response.json({ commit: { sha: SHA, commit: { committer: { date: "2026-01-01T00:00:00Z" } } } });
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return new Response("no", { status: 404 });
+    return new Response("no", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  try {
+    accessDecision = "ok";
+    dbQueued = [[], []];
+    const id = encodeURIComponent("octocat:grant-atlas:main");
+    const pathname = `/api/preview/${id}/events`;
+    const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+    const events = await readSSE(res);
+    expect(events).toContainEqual({ phase: "ready", sha: SHA });
+    expect(events.some((e) => e.phase === "fetching")).toBe(false);
+    expect(inflightShas().size).toBe(0);
+    const meta = readMeta(SHA);
+    expect(meta?.grantTooBroad).toBe(true);
+    expect(meta?.installSettingsUrl).toBe("https://github.com/settings/installations/77");
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+});
+
+test("/events: a pinned-sha visit does not wipe grantTooBroad (it never re-derives the flag)", async () => {
+  const { handlePreview, previewPaths, writeMeta, readMeta } = await freshHandler();
+  const SHA = "ad".repeat(20);
+  makeReadyBundle(previewPaths, writeMeta, SHA, {
+    private: true,
+    extra: { grantTooBroad: true, installSettingsUrl: "https://github.com/settings/installations/1" },
+  });
+
+  dbQueued = [
+    [
+      {
+        sha: SHA,
+        repo: TEST_REPO,
+        ref: "main",
+        kind: "branch",
+        pr_number: null,
+        pr_title: null,
+        pr_author: null,
+        pr_state: null,
+        doc_count: 0,
+        build_ms: 0,
+        blocked_at: null,
+        trust_tier: null,
+        private: true,
+      },
+    ],
+    [],
+    [],
+  ];
+  accessDecision = "ok";
+  const pathname = `/api/preview/${SHA}/events`;
+  const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+  const events = await readSSE(res);
+  expect(events).toContainEqual({ phase: "ready", sha: SHA });
+  const meta = readMeta(SHA);
+  expect(meta?.grantTooBroad).toBe(true);
+  expect(meta?.installSettingsUrl).toBe("https://github.com/settings/installations/1");
 });
 
 test("/events: authorized deferred-private branch with no ready bundle completes the branch lookup and starts a real background build", async () => {

@@ -35,6 +35,7 @@
 
 
 ## 2026-09-17
+- Pointed the private preview install screen at the repo's own GitHub account, named the one repository to grant, and flagged installs granted to every repository.
 - Fixed private pull request previews showing changes from the rest of the repo when the GitHub App can't read pull requests; they now compare against the repo's main branch
 
 ## 2026-09-16

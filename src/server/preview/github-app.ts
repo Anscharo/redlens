@@ -112,7 +112,9 @@ async function ghFetch(
         accept: "application/vnd.github+json",
         "x-github-api-version": "2022-11-28",
         "user-agent": "redlens-preview",
-        authorization: `Bearer ${token}`,
+        // An empty token means an unauthenticated call (public endpoints only,
+        // e.g. the account-id lookup below); GitHub rejects a bare `Bearer `.
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
         ...(init?.headers ?? {}),
       },
     });
@@ -139,14 +141,60 @@ async function ghFetch(
 // caller falls back to generic "ask the owner" copy rather than a broken link.
 let cachedInstallUrl: string | null = null;
 
-/** The App's install URL, or null if it couldn't be determined (unconfigured/failed). */
-export async function appInstallUrl(): Promise<string | null> {
-  if (cachedInstallUrl) return cachedInstallUrl;
-  if (!config.githubAppId || !config.githubAppPrivateKey) return null;
-  const r = await ghFetch("https://api.github.com/app", await appJwt());
-  const slug = r?.ok ? r.json?.slug : null;
-  if (typeof slug === "string" && slug) cachedInstallUrl = `https://github.com/apps/${slug}/installations/new`;
-  return cachedInstallUrl;
+// GitHub's install page also accepts `/installations/new/permissions?target_id=<account id>`,
+// which skips the account picker and opens the permission screen for THAT account
+// only — so an installer is never offered every org they belong to. The id of a
+// user or org is public (GET /users/<login>, no auth needed), so it can be looked
+// up for the repo the preview named even though the App can't see the repo yet.
+// GitHub's docs name the key `suggested_target_id` (marked required on that path)
+// while its own install buttons emit `target_id`; both are sent so the link is
+// right whichever one this path honours.
+// The repository itself CAN'T be pre-set: `repository_ids[]` ticks "Only select
+// repositories" with the listed repos, but a private repo's numeric id is
+// invisible until the App is installed on it — exactly the state this link is
+// shown in. So we pass a PLACEHOLDER id the account can't own: GitHub drops ids
+// the target doesn't own, and the presence of the parameter is what flips the
+// selector off its "All repositories" default. Decided 2026-09-17 without a
+// verified GitHub reference (docs unreachable from the sandbox) — if the
+// install page ever errors on it, drop INSTALL_REPO_PLACEHOLDER first. The
+// install screen's copy names the repo to pick either way.
+const INSTALL_REPO_PLACEHOLDER = "&repository_ids[]=0";
+const OWNER_ID_CACHE_MAX = 1000;
+const OWNER_ID_TTL_MS = 24 * 60 * 60_000; // account ids never change; TTL only bounds a deleted/renamed login
+const ownerIdCache = new Map<string, { id: number; exp: number }>();
+
+/** Numeric GitHub account id for a user/org login, or null if unknown. Public endpoint. */
+export async function accountIdForLogin(login: string): Promise<number | null> {
+  const now = Date.now();
+  const cached = ownerIdCache.get(login);
+  if (cached && cached.exp > now) return cached.id;
+  const r = await ghFetch(`https://api.github.com/users/${encodeURIComponent(login)}`, config.githubToken);
+  const id = r?.ok ? r.json?.id : null;
+  if (typeof id !== "number" || !Number.isFinite(id)) return null;
+  ownerIdCache.set(login, { id, exp: now + OWNER_ID_TTL_MS });
+  if (ownerIdCache.size > OWNER_ID_CACHE_MAX) ownerIdCache.delete(ownerIdCache.keys().next().value!);
+  return id;
+}
+
+/**
+ * The App's install URL, or null if it couldn't be determined (unconfigured/failed).
+ * With `repo` ("owner/name"), targets that owner's account when its id resolves
+ * (`/installations/new/permissions?suggested_target_id=…&target_id=…&repository_ids[]=0`, the placeholder
+ * pre-selecting "Only select repositories"); otherwise the generic page.
+ */
+export async function appInstallUrl(repo?: string): Promise<string | null> {
+  if (!cachedInstallUrl) {
+    if (!config.githubAppId || !config.githubAppPrivateKey) return null;
+    const r = await ghFetch("https://api.github.com/app", await appJwt());
+    const slug = r?.ok ? r.json?.slug : null;
+    if (typeof slug === "string" && slug) cachedInstallUrl = `https://github.com/apps/${slug}/installations/new`;
+    if (!cachedInstallUrl) return null;
+  }
+  const owner = repo?.split("/")[0];
+  if (!owner) return cachedInstallUrl;
+  const id = await accountIdForLogin(owner);
+  if (id === null) return cachedInstallUrl;
+  return `${cachedInstallUrl}/permissions?suggested_target_id=${id}&target_id=${id}${INSTALL_REPO_PLACEHOLDER}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +214,9 @@ export interface InstallationInfo {
   htmlUrl: string | null;
   /** Repo permissions this install has actually granted (not the App's requested set). */
   permissions: Record<string, string>;
+  /** GitHub's `repository_selection`: "all" = every repo on the account, "selected" =
+   *  a chosen list. Null when GitHub omitted or mis-shaped it. */
+  repositorySelection: "all" | "selected" | null;
 }
 
 const installationCache = new Map<string, { info: InstallationInfo; exp: number }>();
@@ -181,7 +232,9 @@ function parseInstallation(json: any): InstallationInfo | null {
       if (typeof v === "string") permissions[k] = v;
     }
   }
-  return { id, htmlUrl, permissions };
+  const sel = json?.repository_selection;
+  const repositorySelection = sel === "all" || sel === "selected" ? sel : null;
+  return { id, htmlUrl, permissions, repositorySelection };
 }
 
 /** GitHub's pending-permission review screen for an install, or null if we have no html_url. */
@@ -196,10 +249,12 @@ export function installationHasPullsRead(permissions: Record<string, string> | u
   return p === "read" || p === "write";
 }
 
-/** The App's installation for `repo`, or null if not installed / lookup failed. */
-export async function installationInfoForRepo(repo: string): Promise<InstallationInfo | null> {
+/** The App's installation for `repo`, or null if not installed / lookup failed.
+ *  `refresh` skips the cache read (the write still happens) — for the one
+ *  reader that must not serve a stale answer, see resolve.ts's broadGrant. */
+export async function installationInfoForRepo(repo: string, opts?: { refresh?: boolean }): Promise<InstallationInfo | null> {
   const now = Date.now();
-  const cached = installationCache.get(repo);
+  const cached = opts?.refresh ? undefined : installationCache.get(repo);
   if (cached && cached.exp > now) return cached.info;
 
   const r = await ghFetch(`https://api.github.com/repos/${repo}/installation`, await appJwt());
@@ -348,6 +403,7 @@ export async function userRepoPermission(repo: string, login: string): Promise<P
 export function __resetCachesForTest(): void {
   cachedJwt = null;
   cachedInstallUrl = null;
+  ownerIdCache.clear();
   installationCache.clear();
   installationTokenCache.clear();
 }

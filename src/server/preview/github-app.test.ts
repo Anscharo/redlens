@@ -143,6 +143,36 @@ test("installationIdForRepo: 200 -> numeric id", async () => {
   expect(id).toBe(999);
 });
 
+test("installationInfoForRepo: repository_selection is null unless GitHub says all/selected", async () => {
+  // @ts-expect-error stub
+  globalThis.fetch = () =>
+    Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ id: 3, repository_selection: "weird" }) } as Response);
+  expect((await installationInfoForRepo("acme/x"))?.repositorySelection).toBeNull();
+  __resetCachesForTest();
+  // @ts-expect-error stub
+  globalThis.fetch = () =>
+    Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ id: 3, repository_selection: "selected" }) } as Response);
+  expect((await installationInfoForRepo("acme/x"))?.repositorySelection).toBe("selected");
+});
+
+test("installationInfoForRepo: refresh bypasses the cache read and re-caches the fresh answer", async () => {
+  let calls = 0;
+  // @ts-expect-error stub
+  globalThis.fetch = () => {
+    calls++;
+    return Promise.resolve({
+      status: 200,
+      ok: true,
+      json: () => Promise.resolve({ id: 5, repository_selection: calls === 1 ? "all" : "selected" }),
+    } as Response);
+  };
+  expect((await installationInfoForRepo("acme/x"))?.repositorySelection).toBe("all");
+  expect((await installationInfoForRepo("acme/x"))?.repositorySelection).toBe("all"); // cached
+  expect((await installationInfoForRepo("acme/x", { refresh: true }))?.repositorySelection).toBe("selected");
+  expect((await installationInfoForRepo("acme/x"))?.repositorySelection).toBe("selected"); // re-cached
+  expect(calls).toBe(2);
+});
+
 test("installationInfoForRepo: captures html_url + granted permissions", async () => {
   // @ts-expect-error stub
   globalThis.fetch = () =>
@@ -154,6 +184,7 @@ test("installationInfoForRepo: captures html_url + granted permissions", async (
           id: 9,
           html_url: "https://github.com/organizations/acme/settings/installations/9",
           permissions: { contents: "read", metadata: "read" },
+          repository_selection: "all",
         }),
     } as Response);
   const info = await installationInfoForRepo("acme/secret");
@@ -161,6 +192,7 @@ test("installationInfoForRepo: captures html_url + granted permissions", async (
     id: 9,
     htmlUrl: "https://github.com/organizations/acme/settings/installations/9",
     permissions: { contents: "read", metadata: "read" },
+    repositorySelection: "all",
   });
   // Cached — a second call must not refetch.
   // @ts-expect-error stub
@@ -253,6 +285,38 @@ test("appInstallUrl: failed /app -> null, not cached (retries next call)", async
   expect(await appInstallUrl()).toBeNull(); // failure is not cached
   expect(await appInstallUrl()).toBe("https://github.com/apps/later/installations/new");
   expect(calls).toBe(2);
+});
+
+test("appInstallUrl(repo): targets the repo owner's account via its public id (no Bearer on that call)", async () => {
+  const seen: { url: string; auth: string | null }[] = [];
+  const realToken = config.githubToken;
+  config.githubToken = ""; // unauthenticated owner lookup must send no authorization header
+  // @ts-expect-error stub
+  globalThis.fetch = (url: string, init?: RequestInit) => {
+    const u = String(url);
+    seen.push({ url: u, auth: ((init?.headers as Record<string, string>)?.authorization as string) ?? null });
+    if (u === "https://api.github.com/app")
+      return Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ slug: "redlens-preview" }) } as Response);
+    if (u === "https://api.github.com/users/acme")
+      return Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ id: 4242, login: "acme" }) } as Response);
+    return Promise.resolve({ status: 404, ok: false, json: () => Promise.resolve({}) } as Response);
+  };
+  try {
+    expect(await appInstallUrl("acme/atlas-private")).toBe(
+      "https://github.com/apps/redlens-preview/installations/new/permissions?suggested_target_id=4242&target_id=4242&repository_ids[]=0",
+    );
+    expect(seen.find((c) => c.url.endsWith("/users/acme"))?.auth).toBeNull();
+    // Owner id is cached: a second call for the same owner makes no further fetch.
+    const before = seen.length;
+    expect(await appInstallUrl("acme/other-repo")).toBe(
+      "https://github.com/apps/redlens-preview/installations/new/permissions?suggested_target_id=4242&target_id=4242&repository_ids[]=0",
+    );
+    expect(seen.length).toBe(before);
+    // Unknown owner -> generic install page, never a broken link.
+    expect(await appInstallUrl("nobody/atlas")).toBe("https://github.com/apps/redlens-preview/installations/new");
+  } finally {
+    config.githubToken = realToken;
+  }
 });
 
 test("appInstallUrl: unconfigured app -> null without any fetch", async () => {

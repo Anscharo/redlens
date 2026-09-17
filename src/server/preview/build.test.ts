@@ -127,6 +127,19 @@ test("baseMeta copies the Pulls-permission prompt onto a Contents-only private P
   expect(m.permissionsUrl).toBe("https://github.com/settings/installations/1/permissions/update");
 });
 
+test("baseMeta copies the over-broad-grant nudge onto a private preview, and omits it otherwise", () => {
+  const flagged: Resolved = {
+    repo: "acme/secret", sha: "abc", kind: "branch", ref: "main", private: true,
+    grantTooBroad: true, installSettingsUrl: "https://github.com/settings/installations/1",
+  };
+  const m = baseMeta(flagged, "abc", 1, 0);
+  expect(m.grantTooBroad).toBe(true);
+  expect(m.installSettingsUrl).toBe("https://github.com/settings/installations/1");
+  const plain = baseMeta({ repo: "o/r", sha: "abc", kind: "branch", ref: "feat/x" }, "abc", 1, 0);
+  expect(plain.grantTooBroad).toBeUndefined();
+  expect(plain.installSettingsUrl).toBeUndefined();
+});
+
 test("baseMeta omits the Pulls-permission prompt when resolve did not set it", () => {
   const resolved: Resolved = { repo: "o/r", sha: "abc", kind: "branch", ref: "feat/x" };
   const m = baseMeta(resolved, "abc", 1, 0);

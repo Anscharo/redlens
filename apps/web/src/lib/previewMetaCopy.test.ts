@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { baseLine, baseSwitch, diffBaseLabel, pullsPermissionCopy, CANONICAL_MAIN, type PreviewMeta, type PreviewBases } from "./previewMetaCopy";
+import { baseLine, baseSwitch, broadGrantCopy, diffBaseLabel, pullsPermissionCopy, CANONICAL_MAIN, type PreviewMeta, type PreviewBases } from "./previewMetaCopy";
 
 function meta(bases?: PreviewBases, extra: Partial<PreviewMeta> = {}): PreviewMeta {
   return { sha: "x", repo: "r", ref: "b", kind: "branch", ...extra, bases };
@@ -182,6 +182,33 @@ describe("pullsPermissionCopy", () => {
 
   it("asks the owner when there is no review URL", () => {
     const r = pullsPermissionCopy({ needsPullsPermission: true });
+    expect(r?.href).toBeNull();
+    expect(r?.body).toMatch(/Ask the person who installed the App/);
+    expect(r?.body).not.toMatch(/If you own or administer/);
+  });
+});
+
+describe("broadGrantCopy", () => {
+  it("returns null when the flag is off", () => {
+    expect(broadGrantCopy({ repo: "acme/atlas" })).toBeNull();
+    expect(broadGrantCopy({ repo: "acme/atlas", grantTooBroad: false })).toBeNull();
+  });
+
+  it("names the one repo and links to the install's settings page", () => {
+    const r = broadGrantCopy({
+      repo: "acme/atlas",
+      grantTooBroad: true,
+      installSettingsUrl: "https://github.com/organizations/acme/settings/installations/9",
+    });
+    expect(r?.label).toBe("ACCESS");
+    expect(r?.href).toBe("https://github.com/organizations/acme/settings/installations/9");
+    expect(r?.linkLabel).toBe("Narrow repository access on GitHub ↗");
+    expect(r?.body).toMatch(/only needs acme\/atlas/);
+    expect(r?.body).toMatch(/If you own or administer the install/);
+  });
+
+  it("asks the owner when there is no settings URL", () => {
+    const r = broadGrantCopy({ repo: "acme/atlas", grantTooBroad: true });
     expect(r?.href).toBeNull();
     expect(r?.body).toMatch(/Ask the person who installed the App/);
     expect(r?.body).not.toMatch(/If you own or administer/);

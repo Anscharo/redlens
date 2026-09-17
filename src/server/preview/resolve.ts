@@ -187,6 +187,13 @@ export interface Resolved {
    *  `/permissions/update`). Absent when GitHub omitted html_url — the banner
    *  still prompts, just without a one-click link. */
   permissionsUrl?: string;
+  /** The install this private preview rode was granted "All repositories" on
+   *  its account; the App only needs this one repo. Drives a banner nudge to
+   *  narrow the grant; not persisted to the previews row. */
+  grantTooBroad?: boolean;
+  /** The install's own settings page (GitHub's `html_url`), where repository
+   *  access is changed. Absent when GitHub omitted it — the banner still nudges. */
+  installSettingsUrl?: string;
 }
 
 /** Head-commit date from a GitHub commit-ish payload (branches and commits both
@@ -298,6 +305,23 @@ function pullsPermissionGap(install: InstallationInfo | null): Pick<Resolved, "n
   if (!install || installationHasPullsRead(install.permissions)) return {};
   const url = permissionsUpdateUrl(install.htmlUrl);
   return { needsPullsPermission: true, ...(url ? { permissionsUrl: url } : {}) };
+}
+
+/** Was this install granted every repo on its account? The App needs exactly the
+ *  one repo being previewed (docs/github-app-setup.md §4), and the install
+ *  screen can't pre-select it (a private repo's id is invisible pre-install),
+ *  so the over-broad grant is caught here, after the fact, and surfaced on the
+ *  banner. Empty object when the selection is "selected" or unknown. */
+async function broadGrant(repo: string): Promise<Pick<Resolved, "grantTooBroad" | "installSettingsUrl">> {
+  let install = await installationInfoForRepo(repo);
+  // A cached "all" is never trusted: the person who just narrowed the grant on
+  // GitHub reloads to see the row clear, and the 30-min install cache would
+  // keep it up. One extra GitHub call per private resolve, only while the
+  // grant is over-broad — a temporary state. A cached "selected" is fine to
+  // serve (a widening lagging 30 min costs nothing).
+  if (install?.repositorySelection === "all") install = await installationInfoForRepo(repo, { refresh: true });
+  if (install?.repositorySelection !== "all") return {};
+  return { grantTooBroad: true, ...(install.htmlUrl ? { installSettingsUrl: install.htmlUrl } : {}) };
 }
 
 /** The PR's declared base branch, read off a Pulls API payload. Pure. Returns
@@ -468,6 +492,9 @@ export async function resolvePrivateBranch(repo: string, ref: string): Promise<R
   const tok = await installationToken(repo);
   if (!tok) return { error: "app-not-installed" };
   const igh = makeGhClient(tok);
+  // installationInfoForRepo is cached (the token mint above just populated it),
+  // so this is a Map read, not a second GitHub call.
+  const broad = await broadGrant(repo);
   // Scoped to this one call: resolveDefaultBranch's "HEAD" sentinel lookup and
   // the defaultBranch population below share a single GET /repos/{repo}.
   const repoCache = new Map<string, RepoLookup>();
@@ -518,6 +545,7 @@ export async function resolvePrivateBranch(repo: string, ref: string): Promise<R
       private: true,
       ...(defaultBranch ? { defaultBranch } : {}),
       ...gap,
+      ...broad,
     };
   }
   const real = await resolveDefaultBranch(igh, repo, ref, repoCache);
@@ -526,5 +554,5 @@ export async function resolvePrivateBranch(repo: string, ref: string): Promise<R
   const sha = r.json?.commit?.sha;
   if (r.status === 404 || !r.ok || !sha) return { error: "not-found" };
   const defaultBranch = await repoDefaultBranch(igh, repo, repoCache);
-  return { repo, sha, kind: "branch", ref: real, date: commitDate(r.json), private: true, defaultBranch };
+  return { repo, sha, kind: "branch", ref: real, date: commitDate(r.json), private: true, defaultBranch, ...broad };
 }
