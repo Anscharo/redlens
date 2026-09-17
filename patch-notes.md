@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-09-17
+- Fixed private pull request previews showing changes from the rest of the repo when the GitHub App can't read pull requests; they now compare against the repo's main branch
+
 ## 2026-09-16
 - Reports search now matches categories and descriptions, including similar phrasing, not just report names
 - Chat now remembers notes you teach it with `/teach`; type `/` in the composer and it completes the command for you (Tab or Space to accept)

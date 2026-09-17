@@ -66,8 +66,9 @@ export interface PreviewMeta {
   /** The PR's base branch (PR previews only). Persisted to the previews row so a
    *  pinned-sha rebuild keeps PR-base treatment without re-asking GitHub. */
   prBase?: { repo: string; ref: string };
-  /** The head repo's default branch (fork branch previews only) — the `repo`
-   *  candidate's ref, persisted for the same rebuild round-trip as prBase. */
+  /** The head repo's default branch (fork branch previews, and private PRs
+   *  built without Pull requests:read) — the `repo` candidate's ref, persisted
+   *  for the same rebuild round-trip as prBase. */
   defaultBranch?: string;
   /** Private PR preview built without Pull requests:read — banner prompts the
    *  install owner to grant it. Not persisted to the previews row. */

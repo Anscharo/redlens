@@ -37,6 +37,7 @@ import {
   installationInfoForRepo,
   installationHasPullsRead,
   permissionsUpdateUrl,
+  forgetInstallation,
 } from "./github-app.ts";
 
 export const CANONICAL_OWNER = "sky-ecosystem";
@@ -170,9 +171,11 @@ export interface Resolved {
    *  branch rules. `sha` is absent on a pinned-sha rebuild from the previews
    *  row (only repo + ref are persisted); base-drift re-resolves the tip. */
   prBase?: { repo: string; ref: string; sha?: string };
-  /** The head repo's default branch (non-canonical branch previews only) — the
-   *  `repo` diff-base candidate for a fork branch. Absent for canonical refs
-   *  (where it would coincide with sky main) and for PRs (prBase covers it). */
+  /** The head repo's default branch — the `repo` diff-base candidate for a
+   *  non-canonical branch preview, and for a private PR resolved through the
+   *  Contents-only fallback (no declared base to read, so the default branch
+   *  stands in for it). Absent for canonical refs (where it would coincide
+   *  with sky main) and for PRs that carry a prBase. */
   defaultBranch?: string;
   /** Private `pull-N` whose HEAD came from the Contents-only fallback because
    *  this install hasn't granted Pull requests:read. Drives the banner CTA;
@@ -467,15 +470,52 @@ export async function resolvePrivateBranch(repo: string, ref: string): Promise<R
   const repoCache = new Map<string, RepoLookup>();
   const pn = ref.match(PULL_RE);
   if (pn) {
-    const head = await resolvePullHead(igh, repo, Number(pn[1]));
+    const n = Number(pn[1]);
+    let gh = igh;
+    let head = await resolvePullHead(gh, repo, n);
     if (!head) return { error: "not-found" };
+    let gap: Pick<Resolved, "needsPullsPermission" | "permissionsUrl"> = {};
+    if (!head.prBase) {
+      // The cached token + install info may predate a Pull requests: Read
+      // grant (see forgetInstallation). Drop both so the gap check reads the
+      // install's CURRENT grant, and retry once on a fresh token when that
+      // grant includes Pulls — "accept, then reload" has to work on the first
+      // reload, not 55 minutes later.
+      forgetInstallation(repo);
+      gap = await pullsPermissionGap(repo);
+      if (!gap.needsPullsPermission) {
+        const fresh = await installationToken(repo);
+        const retry = fresh ? await resolvePullHead(makeGhClient(fresh), repo, n) : null;
+        if (fresh && retry?.prBase) {
+          head = retry;
+          gh = makeGhClient(fresh);
+        }
+      }
+    }
+    // Still no declared base (Contents-only install): hand the build the
+    // repo's default branch as its `repo` diff-base candidate, exactly as a
+    // plain branch preview gets. Without it the only candidates left are the
+    // sky fork point and live main, so a PR against the repo's own main was
+    // redlined with everything that main carries beyond sky counted as the
+    // PR's changes (observed 2026-09 on every private PR preview built so far).
+    const defaultBranch = head.prBase ? undefined : await repoDefaultBranch(gh, repo, repoCache);
     // kind stays "branch" so pr-state.ts (kind='pr' against the canonical
     // repo) never overlays this row with some other PR #N's state. `pr` and
     // `prBase` are still attached — `pr` for the banner (title / author /
-    // GitHub link), `prBase` as the diff-base candidate; no defaultBranch, a
-    // PR is redlined against prBase, not the fork's default branch.
-    const gap = head.prBase ? {} : await pullsPermissionGap(repo);
-    return { repo, sha: head.sha, kind: "branch", ref: head.ref, date: head.date, pr: head.pr, prBase: head.prBase, private: true, ...gap };
+    // GitHub link), `prBase` as the diff-base candidate. A PR with a declared
+    // base carries no defaultBranch: it is redlined against prBase.
+    return {
+      repo,
+      sha: head.sha,
+      kind: "branch",
+      ref: head.ref,
+      date: head.date,
+      pr: head.pr,
+      prBase: head.prBase,
+      private: true,
+      ...(defaultBranch ? { defaultBranch } : {}),
+      ...gap,
+    };
   }
   const real = await resolveDefaultBranch(igh, repo, ref, repoCache);
   if (!real) return { error: "not-found" };

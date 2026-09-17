@@ -268,6 +268,19 @@ export async function installationToken(repo: string): Promise<string | null> {
   return token;
 }
 
+/**
+ * Drop the cached installation info + token for `repo`. A token keeps the
+ * permissions it was MINTED with, and the info cache holds the install's
+ * granted set for 30 minutes — so after an owner accepts a new permission
+ * (Pull requests: Read), both caches keep answering with the old grant until
+ * they expire. resolve.ts calls this when a private PR falls back to the
+ * Contents-only path, so the grant is re-read instead of waited out.
+ */
+export function forgetInstallation(repo: string): void {
+  installationCache.delete(repo);
+  installationTokenCache.delete(repo);
+}
+
 // ---------------------------------------------------------------------------
 // Repo-scoped calls (installation token)
 // ---------------------------------------------------------------------------

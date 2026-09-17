@@ -150,6 +150,25 @@ test("repoCandidate branch: skipped when there is neither prBase nor defaultBran
   expect(repoGh.calls.length).toBe(0);
 });
 
+test("private PR without Pulls:read (ref pull-N, no prBase): the default branch is the repo candidate, and auto picks it", async () => {
+  // The shape resolvePrivateBranch hands back from the Contents-only fallback.
+  // The repo's own main carries work sky main doesn't, so its merge base with
+  // the head sits AHEAD of the sky fork point — auto must land on `repo`, or
+  // the redline counts all of that main's work as this PR's.
+  const resolved: Resolved = { repo: "acme/secret-atlas", sha: "headsha", kind: "branch", ref: "pull-7", defaultBranch: "main", private: true };
+  const repoGh = fakeGh({
+    "/repos/acme/secret-atlas/compare/main...headsha": { json: { merge_base_commit: { sha: "mainmb" }, ahead_by: 3, behind_by: 12 } },
+    "/repos/acme/secret-atlas/compare/forkpoint...mainmb": { json: { status: "ahead" } },
+  });
+  const repo = await repoCandidate(resolved, repoGh);
+  expect(repo).toEqual({ key: "repo", repo: "acme/secret-atlas", ref: "main", mergeBase: "mainmb", aheadBy: 3, behindBy: 12 });
+  const sky: Candidate = { key: "sky", repo: CANONICAL_REPO, ref: "main", mergeBase: "forkpoint" };
+  expect((await pickAuto(resolved, sky, repo, repoGh)).auto).toBe("repo");
+  // A mirror that shares no commit SHAs with sky has no fork point at all —
+  // the repo candidate alone still wins, instead of the live-main degrade.
+  expect((await pickAuto(resolved, null, repo, repoGh)).auto).toBe("repo");
+});
+
 test("repoCandidate: a failed compare (404) is null, not a throw", async () => {
   const repoGh = fakeGh({});
   const resolved: Resolved = {
