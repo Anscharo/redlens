@@ -107,43 +107,9 @@ export function ActorDashboard({ profile }: Props) {
 
   return (
     <div className="flex-1 px-6 py-6 min-w-0">
-      {/* The right-hand stack is a FLOAT, not a grid column. Two grid columns
-          would leave the shorter one's tail empty — a dead gap under History
-          that Primitives, right beside it, could not reach. A float is the one
-          layout that lets the main flow run alongside it and then widen to the
-          full page the moment the float ends, so Primitives fills that space
-          instead of stopping at a column edge. It still starts level with the
-          agent's name, because it comes first in the flow. */}
-      {/* Narrow screens have no float and would otherwise read the aside
-          first, putting History above the agent's name — so below `lg` this is
-          a flex column that orders the main stack back on top. At `lg` it
-          becomes a block box again, which is what the float needs. */}
-      <div className="max-w-6xl mx-auto flex flex-col lg:block">
-        <aside className="order-2 min-w-0 lg:float-right lg:w-1/2 lg:pl-8">
-          {/* The settlement card leads the column rather than floating on its
-              own, so it keeps its top-right place. Null if no MSC workbook. */}
-          <ActorSettlementTeaser slug={entity.slug} name={entity.name} />
-          <Section title={"History of Doc Changes affecting " + entity.name}>
-            <ActorHistory profile={profile} limit={HISTORY_PREVIEW} />
-          </Section>
-          {relations.length > 0 && (
-            <Section title="Relationships">
-              {relations.map((r, i) => (
-                <RelationRow key={i} r={r} />
-              ))}
-            </Section>
-          )}
-          {recommendations.length > 0 && (
-            <Section title="Notable">
-              {recommendations.map((rec, i) => (
-                <RecRow key={i} rec={rec} />
-              ))}
-            </Section>
-          )}
-        </aside>
-
-        <div className="order-1 min-w-0">
-          {/* Header */}
+      <div className="max-w-6xl mx-auto">
+        <div className="min-w-0">
+          {/* Header, full width above the masonry. */}
           <div className="mb-6">
             <p className="mono text-xs mb-1" style={{ color: "var(--tan-3)" }}>
               radar
@@ -176,15 +142,59 @@ export function ActorDashboard({ profile }: Props) {
               )}
             </div>
           </div>
+        </div>
 
-          <div className="mb-6">
+        {/* A masonry: one multi-column flow of blocks, each kept whole by
+            `break-inside-avoid`. The browser fills the columns and balances
+            their heights, so no block leaves a dead tail under it — and the
+            column count follows the width, so the same blocks fall into two
+            columns on a wide screen and one on a narrow one with nothing to
+            reorder. A grid or a float had to be told which side each section
+            lived on, and whichever side ran out first left the gap. */}
+        <div className="actor-masonry min-w-0">
+          <div className="break-inside-avoid mb-6">
             <ActorChain chain={chain} currentSlug={entity.slug} />
           </div>
 
-          <ActorOmni topics={profile.omni} />
-          <ActorContact contact={profile.contact} />
+          <div className="break-inside-avoid">
+            {/* Null if no MSC workbook. */}
+            <ActorSettlementTeaser slug={entity.slug} name={entity.name} />
+          </div>
+
+          <div className="break-inside-avoid">
+            <ActorOmni topics={profile.omni} />
+          </div>
+          <div className="break-inside-avoid">
+            <ActorContact contact={profile.contact} />
+          </div>
+
+          <div className="break-inside-avoid">
+            <Section title={"History of Doc Changes affecting " + entity.name}>
+              <ActorHistory profile={profile} limit={HISTORY_PREVIEW} />
+            </Section>
+          </div>
+
+          {relations.length > 0 && (
+            <div className="break-inside-avoid">
+              <Section title="Relationships">
+                {relations.map((r, i) => (
+                  <RelationRow key={i} r={r} />
+                ))}
+              </Section>
+            </div>
+          )}
+          {recommendations.length > 0 && (
+            <div className="break-inside-avoid">
+              <Section title="Notable">
+                {recommendations.map((rec, i) => (
+                  <RecRow key={i} rec={rec} />
+                ))}
+              </Section>
+            </div>
+          )}
 
           {entity.et === "composite_party" && (
+            <div className="break-inside-avoid">
             <Section title="Composite Party">
               <p className="text-sm mb-3" style={{ color: "var(--tan-2)" }}>
                 A composite party is the named legal counterparty in a Sky{" "}
@@ -210,31 +220,29 @@ export function ActorDashboard({ profile }: Props) {
                 </div>
               )}
             </Section>
+            </div>
           )}
-          {/* Primitives comes before Responsibilities because it is the long,
-              open-ended section: it is the one that should run down the lane
-              beside the float and then spread to the full page underneath it.
-              Its instance cards already flow at `columns: 520px`, so the extra
-              width becomes a second column of cards rather than wider cards.
-              Responsibilities is a fixed 640px-wide table that gains nothing
-              from the lane, so it takes the full-width space after. */}
+
+          {/* Primitives is last in the masonry and is the only block allowed
+              to split across columns — it is the open-ended one, so it is
+              what fills whatever the fixed blocks left. Its own primitives
+              stay whole (`break-inside-avoid` inside ActorInstances). */}
           {primitives.length > 0 && (
             <Section title="Primitives">
               <ActorInstances primitives={primitives} />
             </Section>
           )}
+        </div>
+
+        {/* The two wide tables sit under the masonry at full width: both are
+            640px+ of columns that would only gain a horizontal scrollbar from
+            a masonry column. */}
+        <div className="min-w-0">
           {adRows.length > 0 && (
             <Section title="Responsibilities">
               <ActorResponsibilities rows={adRows} />
             </Section>
           )}
-        </div>
-
-        {/* Rewards is wide tables, so it waits for the float to end rather
-            than starting in the narrow lane beside it. The clear also makes
-            the container enclose the float when the flow is the shorter side
-            (an actor with almost no primitives). */}
-        <div className="order-3 min-w-0 clear-both">
           {rewardsAgent && (
             <Section title="Rewards">
               <ActorRewards agent={rewardsAgent} />

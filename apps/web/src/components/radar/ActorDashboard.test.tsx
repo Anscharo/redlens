@@ -58,28 +58,24 @@ describe("ActorDashboard header", () => {
     expect(screen.getByTestId("settlements")).toBeInTheDocument();
   });
 
-  it("floats the MSC teaser and History as an aside the main stack flows around", () => {
+  it("lays the blocks out as one masonry, each kept whole", () => {
     render(<ActorDashboard profile={profile()} />);
     const teaser = screen.getByTestId("settlements");
     const history = screen.getByTestId("history");
-    const aside = teaser.closest("aside")!;
-    // The teaser leads the aside and History follows it, so History begins
-    // beside the name and type pill rather than below the chain.
-    expect(aside).toContainElement(history);
-    expect(teaser.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // It is a float, not a grid column: the main stack runs alongside it and
-    // then widens past it, so Primitives can use the space under History.
-    expect(aside.className).toContain("lg:float-right");
-    // The aside comes first in the document (a float must precede the content
-    // that flows around it); `order` puts the header back on top below `lg`.
+    const masonry = teaser.closest(".actor-masonry")!;
+    // One flow of blocks, not two hand-assigned columns: the browser decides
+    // which column each lands in and balances their heights, so nothing
+    // leaves a dead tail under it.
+    expect(masonry).toContainElement(history);
+    expect(teaser.closest(".break-inside-avoid")).not.toBeNull();
+    expect(history.closest(".break-inside-avoid")).not.toBeNull();
+    // The header sits above the masonry at full width.
     const name = screen.getByRole("heading", { name: "Spark" });
-    expect(aside.contains(name)).toBe(false);
-    expect(teaser.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(name.closest("div.order-1")).not.toBeNull();
-    expect(aside.className).toContain("order-2");
+    expect(masonry.contains(name)).toBe(false);
+    expect(name.compareDocumentPosition(teaser) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("puts Primitives ahead of Responsibilities, so it is the section beside the float", () => {
+  it("keeps Primitives in the masonry and the wide tables under it", () => {
     render(
       <ActorDashboard
         profile={profile({
@@ -90,6 +86,14 @@ describe("ActorDashboard header", () => {
     );
     const primitives = screen.getByRole("heading", { name: "Primitives" });
     const responsibilities = screen.getByRole("heading", { name: "Responsibilities" });
+    // Primitives is the one block deliberately NOT wrapped in
+    // break-inside-avoid: it splits across columns to absorb whatever the
+    // fixed blocks left over.
+    expect(primitives.closest(".actor-masonry")).not.toBeNull();
+    expect(primitives.closest(".break-inside-avoid")).toBeNull();
+    // Responsibilities is a 640px table, so it lives under the masonry where
+    // it has the full width instead of a column's worth.
+    expect(responsibilities.closest(".actor-masonry")).toBeNull();
     expect(
       primitives.compareDocumentPosition(responsibilities) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();

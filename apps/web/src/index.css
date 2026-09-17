@@ -3601,6 +3601,23 @@ a:focus-visible > .msc-ring-prime .msc-ring-rim {
   fill: var(--gray);
 }
 
+/* The actor dashboard's masonry. `columns` with a WIDTH rather than a count
+   is what makes the layout answer the viewport on its own: the browser fits
+   as many 25rem columns as there is room for and balances their heights, so
+   the same blocks land in two columns on a wide screen and one on a phone,
+   with no breakpoint and nothing to reorder. Blocks opt out of being split
+   with `break-inside: avoid`; the one that doesn't (Primitives) is the one
+   that should absorb the leftover space.
+
+   `column-fill: balance` is the default, but it is stated because it is the
+   whole point — `auto` would fill the first column to full height and leave
+   the second short, which is exactly the dead space this replaced. */
+.actor-masonry {
+  columns: 25rem;
+  column-gap: 2rem;
+  column-fill: balance;
+}
+
 /* An agent's Omni Documents line: two lines of space, then ellipsis — the
    count in the heading already says how many there are, and every topic is
    listed on the artifact itself. */
