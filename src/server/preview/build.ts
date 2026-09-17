@@ -15,6 +15,7 @@ import { config } from "../config.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts";
 import { startCandidates, writeDiffBases } from "./diff-base.ts";
+import { readDiffCounts, diffBaseLogLine } from "./diff-base-record.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
 import {
   upsertPreview,
@@ -488,12 +489,15 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
         meta.behindBy = db.bases.sky.behindBy;
       }
       meta.bases = db.bases;
+      if (!db.artifactsSkipped) meta.diffCounts = readDiffCounts(paths.outDir);
       // Meta is written LAST, after every diff artifact: bundleReady() only
       // checks for meta.json, so writing it earlier would let a concurrent
       // viewer receive `ready` (or find the bundle already "ready" on a fresh
       // request) with no diff.json on disk yet.
       writeMeta(sha, meta);
       await deps.upsertPreview(meta);
+      // The one POSITIVE record of the pick — until now only a degrade logged.
+      console.log(diffBaseLogLine(meta));
       emit(f, { phase: "ready", sha });
       evictLru(undefined, undefined, inflightShas());
     } finally {

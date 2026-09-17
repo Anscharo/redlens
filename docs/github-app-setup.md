@@ -219,3 +219,23 @@ GitHub's own answer to "can this account read this repo?".
 4. A repo the App isn't installed on → the "install the app" screen.
 5. Direct-hit `/api/preview/<sha>/docs.json` for a private bundle without an
    authorized session → `401`/`403`, never the content.
+
+## Debugging "the preview shows the wrong diff"
+
+Every successful build records what it was redlined against on its `previews`
+row (the bundle's own `meta.json` is on ephemeral disk and does not survive a
+deploy). From a shell in the web container:
+
+```bash
+bun -e 'import {sql} from "bun";console.table(await sql`SELECT left(sha,8) AS sha, repo, ref, diff_base_kind, diff_base, diff_added, diff_changed, diff_bases->>$$reason$$ AS reason, last_access FROM previews WHERE private ORDER BY last_access DESC LIMIT 20`)'
+```
+
+- `diff_base_kind = 'repo'` with `diff_base` naming the PR's base (or the repo's
+  default branch) is the healthy shape; `diff_changed` should be PR-sized.
+- `'sky'` on a private PR means no repo-side base resolved: the doc list is
+  everything the private repo carries beyond the sky fork point.
+- `'live-main'` is the degrade — `reason` says why (no fork point found, a base
+  tarball that would not load) and `diff_changed` is usually in the hundreds.
+- `diff_bases` holds both candidates with their merge bases and ahead/behind.
+- The row is overwritten on a same-sha rebuild; the per-build history is the
+  `[preview] <sha8>: redlined vs …` line in the server log.

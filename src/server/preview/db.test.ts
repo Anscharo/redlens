@@ -97,9 +97,56 @@ test("upsertPreview defaults optional fields, including prBase, to null", async 
     buildMs: 1,
   } as any);
   expect(calls[0]!.values).toContain(null);
-  // pr_base_repo / pr_base_ref / default_branch (the last three interpolated
-  // values, right before last_access = now()) are all null when nothing was resolved.
-  expect(calls[0]!.values.slice(-3)).toEqual([null, null, null]);
+  // pr_base_repo / pr_base_ref / default_branch, then the six diff-base record
+  // columns (the last nine interpolated values, right before last_access =
+  // now()) are all null when nothing was resolved.
+  expect(calls[0]!.values.slice(-9)).toEqual([null, null, null, null, null, null, null, null, null]);
+});
+
+test("upsertPreview records the base actually used: kind, branch@commit, both candidates, served atlas, doc-list size", async () => {
+  queued.push([]);
+  const bases = {
+    auto: "repo" as const,
+    sky: { repo: "sky-ecosystem/next-gen-atlas", ref: "main", mergeBase: "f".repeat(40), behindBy: 14 },
+    repo: { repo: "acme/secret-atlas", ref: "main", mergeBase: "a".repeat(40), aheadBy: 3 },
+  };
+  await upsertPreview({
+    sha: "s5",
+    repo: "acme/secret-atlas",
+    ref: "pull-7",
+    kind: "branch",
+    resolvedAt: "t",
+    docCount: 1,
+    buildMs: 5,
+    private: true,
+    defaultBranch: "main",
+    bases,
+    baseAtlasCommit: "c".repeat(40),
+    diffCounts: { added: 2, changed: 9 },
+  } as any);
+  expect(calls[0]!.strings.join("")).toContain("::jsonb"); // Bun.sql needs the cast to encode an object as jsonb
+  // The RAW object is bound (never JSON.stringify'd — that double-encodes into a jsonb string scalar).
+  expect(calls[0]!.values.slice(-6)).toEqual(["repo", `acme/secret-atlas:main@${"a".repeat(40)}`, bases, "c".repeat(40), 2, 9]);
+});
+
+test("upsertPreview records a live-main degrade as sky main at the served atlas commit", async () => {
+  queued.push([]);
+  await upsertPreview({
+    sha: "s6",
+    repo: "acme/secret-atlas",
+    ref: "pull-8",
+    kind: "branch",
+    resolvedAt: "t",
+    docCount: 1,
+    buildMs: 5,
+    bases: { auto: "live-main", reason: "no fork point found" },
+    baseAtlasCommit: "c".repeat(40),
+  } as any);
+  expect(calls[0]!.values.slice(-6, -3)).toEqual([
+    "live-main",
+    `sky-ecosystem/next-gen-atlas:main@${"c".repeat(40)}`,
+    { auto: "live-main", reason: "no fork point found" },
+  ]);
 });
 
 test("upsertPreview persists a fork branch's defaultBranch (the repo candidate a rebuild must keep)", async () => {
@@ -114,7 +161,7 @@ test("upsertPreview persists a fork branch's defaultBranch (the repo candidate a
     buildMs: 5,
     defaultBranch: "develop",
   } as any);
-  expect(calls[0]!.values.slice(-3)).toEqual([null, null, "develop"]);
+  expect(calls[0]!.values.slice(-9, -6)).toEqual([null, null, "develop"]);
 });
 
 test("getPreviewRow returns the row, or null when unknown", async () => {

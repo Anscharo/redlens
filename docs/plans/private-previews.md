@@ -111,6 +111,7 @@ Gaps found in review (all closed in the implementation):
 | `previews.private`; exclude private from `/list`; `ON CONFLICT` | `src/server/preview/db.ts` |
 | `previews.pr_base_repo` / `pr_base_ref` persistence | `src/server/migrations/028_preview_pr_base.sql`, `src/server/preview/db.ts` |
 | `previews.default_branch` persistence (fork branch `repo` candidate across sha rebuilds) | `src/server/migrations/029_preview_default_branch.sql`, `src/server/preview/db.ts` |
+| Durable record of the base ACTUALLY used — `previews.diff_base_kind` / `diff_base` (`owner/repo:branch@commit`) / `diff_bases` (both candidates, jsonb) / `base_atlas_commit` / `diff_added` / `diff_changed`, plus one `[preview] <sha8>: redlined vs …` log line per build | `src/server/migrations/033_preview_diff_base.sql`, `src/server/preview/diff-base-record.ts`, `src/server/preview/db.ts` |
 | Diff-base candidate resolution (`sky` / `repo` merge bases, `pickAuto`) | `src/server/preview/pr-diff.ts` (now the candidate resolver), `src/server/preview/pr-diff-auto.ts` |
 | Fork-point walk for repos with no true GitHub fork relationship (private repos; also the public sky-compare fallback) | `src/server/preview/fork-point.ts` |
 | Base-drift banner metrics (commits ahead/behind sky main, docs differ) | `src/server/preview/base-drift.ts` |

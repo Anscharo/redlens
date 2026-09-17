@@ -8,7 +8,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { countNewAddresses, baseMeta, __runBuildForTest, type BuildDeps } from "./build.ts";
-import { previewPaths, readMeta } from "./cache.ts";
+import { previewPaths, readMeta, type PreviewMeta } from "./cache.ts";
+import { diffBaseLabel } from "./diff-base-record.ts";
 import { config } from "../config.ts";
 import { CANONICAL_REPO, type Resolved } from "./resolve.ts";
 import { rebuildFromDisk, getIndexes, setIndexes, type AtlasNode } from "../retrieval/indexes.ts";
@@ -930,6 +931,10 @@ test("PR against a non-main base: bases.auto is repo, reference is the base (no 
   let driftTipFetchRepo = "";
   const origWarn = console.warn;
   console.warn = () => {};
+  const origLog = console.log;
+  const logged: string[] = [];
+  console.log = (...a: unknown[]) => void logged.push(a.join(" "));
+  let upserted: PreviewMeta | undefined;
 
   try {
     const resolved: Resolved = {
@@ -961,13 +966,23 @@ test("PR against a non-main base: bases.auto is repo, reference is the base (no 
         [U(1)]: { id: U(1), doc_no: "A.1", title: "One", content: "shared, untouched by this PR", contentHash: baseParsed.get(U(1))!.contentHash },
         [U(2)]: { id: U(2), doc_no: "A.2", title: "Two", content: "after PR edit", contentHash: "h2-edited-by-pr" },
       }),
-      upsertPreview: async () => {},
+      upsertPreview: async (m) => void (upserted = m),
     });
     expect(ev.phase).toBe("ready");
 
     const meta = readMeta(sha);
     expect(meta?.bases?.auto).toBe("repo");
     expect(meta?.bases?.sky).toBeUndefined(); // sky never resolved (no merge base)
+
+    // The durable record: the row gets the same meta the bundle does, carrying
+    // the base actually used (branch@merge-base commit) and the doc-list size,
+    // and the build says so in one positive log line — no repo name in it.
+    expect(upserted?.bases).toEqual(meta?.bases);
+    expect(upserted?.diffCounts).toEqual({ added: 0, changed: 1 });
+    expect(diffBaseLabel(upserted!)).toBe(`${CANONICAL_REPO}:develop@${REPO_MERGE_BASE}`);
+    const line = logged.find((l) => l.startsWith(`[preview] ${sha.slice(0, 8)}: redlined vs repo develop@${REPO_MERGE_BASE.slice(0, 8)}`));
+    expect(line).toContain("+0 added, 1 changed");
+    expect(line).not.toContain(HEAD_REPO);
     expect(meta?.bases?.repo?.drift).toBeDefined();
 
     // Merge-base tarball comes from the HEAD repo (an ancestor of the head
@@ -1000,6 +1015,7 @@ test("PR against a non-main base: bases.auto is repo, reference is the base (no 
     fsMut.writeFileSync = origWriteFileSync;
     fsMut.copyFileSync = origCopyFileSync;
     console.warn = origWarn;
+    console.log = origLog;
     setIndexes(prevIndexes as never);
     if (prevMin === undefined) delete process.env.ATLAS_MIN_NODES;
     else process.env.ATLAS_MIN_NODES = prevMin;
