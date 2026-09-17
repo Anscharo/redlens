@@ -7042,7 +7042,7 @@
   },
   "transitionary-measures": {
     "counts": {
-      "total": 22
+      "total": 21
     },
     "members": [
       {
@@ -7058,11 +7058,6 @@
       {
         "uuid": "d33ac81e-bab1-4969-b46d-e605da2afae3",
         "doc_no": "A.3.2.2.4.5",
-        "title": "Short Term Transitionary Measures"
-      },
-      {
-        "uuid": "22b8f8bf-b477-4439-86f7-ec605d3c657a",
-        "doc_no": "A.4.4.1.4",
         "title": "Short Term Transitionary Measures"
       },
       {
@@ -7704,7 +7699,7 @@
   },
   "prohibition-language": {
     "counts": {
-      "total": 54
+      "total": 55
     },
     "members": [
       {
@@ -7851,6 +7846,11 @@
         "uuid": "d0fb8761-2fcb-4d81-b498-38cd44f47fb0",
         "doc_no": "A.2.2.1.2.4.2",
         "title": "Global Primitive Deactivation"
+      },
+      {
+        "uuid": "de233df4-34cc-4e88-a065-9a9dde9add3c",
+        "doc_no": "A.2.3.1.4.1",
+        "title": "Staking Rewards Rate Adjustment"
       },
       {
         "uuid": "bfcb512b-787c-4509-b130-7bf1abd84c36",
@@ -15638,6 +15638,12 @@
         "bucket": "genesis capital backstop"
       },
       {
+        "uuid": "2b209018-e632-47a4-bc1b-11c5d101c952",
+        "doc_no": "A.4.1.2.1.3.1",
+        "title": "Current Value",
+        "bucket": "current value"
+      },
+      {
         "uuid": "f6d2bae6-7ebc-42cd-a507-900f4bcfb98f",
         "doc_no": "A.4.2",
         "title": "SkyLink",
@@ -15774,12 +15780,6 @@
         "doc_no": "A.4.4.1.3.9.2.3",
         "title": "Current Value",
         "bucket": "current value"
-      },
-      {
-        "uuid": "22b8f8bf-b477-4439-86f7-ec605d3c657a",
-        "doc_no": "A.4.4.1.4",
-        "title": "Short Term Transitionary Measures",
-        "bucket": "short term transitionary measures"
       },
       {
         "uuid": "60000393-7e7c-4aa4-928c-30a1a562fa77",
