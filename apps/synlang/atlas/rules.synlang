@@ -1,0 +1,17 @@
+;; rules.synlang — derived relations over the Definitions Space.
+;; These are the "inference" half: nothing here is stored, everything is computed on query.
+
+;; Transitive closure of the mentions graph: which terms does a definition depend on,
+;; directly or through other definitions? Recursive relation over data → tabled, so the
+;; solver computes the closure instead of unfolding (see rules-and-rewriting).
+(tabled reaches-term)
+(= (reaches-term $a $b) (mentions $a $b))
+(= (reaches-term $a $b) (and (mentions $a $c) (reaches-term $c $b)))
+
+;; Resolve a display name OR an alias to its term symbol. The body is a single top-level
+;; (or ...), the one rule shape allowed to leave a right-hand variable free.
+(= (lookup $name $t) (or (term $t $name) (alias $t $name)))
+
+;; A glossary row: symbol, display name, definition text. Every variable is bound on the
+;; left, so this is an ordinary rewrite.
+(= (glossary $t $name $text) (and (term $t $name) (definition $t $text)))
