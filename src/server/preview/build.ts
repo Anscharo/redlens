@@ -286,7 +286,8 @@ export function baseMeta(resolved: Resolved, sha: string, docCount: number, t0: 
       ? { needsPullsPermission: true as const, ...(resolved.permissionsUrl ? { permissionsUrl: resolved.permissionsUrl } : {}) }
       : {}),
     // Banner-only too: the install covers every repo on its account. Re-derived
-    // on every resolve, so it clears itself once the owner narrows the grant.
+    // on every resolvePrivateBranch; handler.ts overlays it onto a ready
+    // bundle's meta.json so the ACCESS row clears once the owner narrows.
     ...(resolved.grantTooBroad
       ? { grantTooBroad: true as const, ...(resolved.installSettingsUrl ? { installSettingsUrl: resolved.installSettingsUrl } : {}) }
       : {}),
