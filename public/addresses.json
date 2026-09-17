@@ -4922,6 +4922,21 @@
       "base"
     ]
   },
+  "0xbeef0786756810478b88982de00f3cd7fdb8e7c7": {
+    "chain": "base",
+    "chains": [
+      "base"
+    ],
+    "etherscanName": "VaultV2",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "base": true
+    },
+    "presentOnChains": [
+      "base"
+    ]
+  },
   "0xbeef0e0834849acc03f0089f01f4f1eeb06873c9": {
     "chain": "base",
     "chains": [
