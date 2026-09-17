@@ -107,9 +107,11 @@ export function ActorDashboard({ profile }: Props) {
 
   return (
     <div className="flex-1 px-6 py-6 min-w-0">
-      <div className="max-w-6xl mx-auto">
-        <div className="min-w-0">
-          {/* Header, full width above the masonry. */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-8">
+        <div className="lg:col-span-2 min-w-0 flow-root">
+          {/* Floated first → top-right of the agent header; null if no MSC workbook. */}
+          <ActorSettlementTeaser slug={entity.slug} name={entity.name} />
+          {/* Header */}
           <div className="mb-6">
             <p className="mono text-xs mb-1" style={{ color: "var(--tan-3)" }}>
               radar
@@ -142,59 +144,20 @@ export function ActorDashboard({ profile }: Props) {
               )}
             </div>
           </div>
-        </div>
 
-        {/* A masonry: one multi-column flow of blocks, each kept whole by
-            `break-inside-avoid`. The browser fills the columns and balances
-            their heights, so no block leaves a dead tail under it — and the
-            column count follows the width, so the same blocks fall into two
-            columns on a wide screen and one on a narrow one with nothing to
-            reorder. A grid or a float had to be told which side each section
-            lived on, and whichever side ran out first left the gap. */}
-        <div className="actor-masonry min-w-0">
-          <div className="break-inside-avoid mb-6">
+          {/* Chain — always shown */}
+          <div className="mb-6">
             <ActorChain chain={chain} currentSlug={entity.slug} />
           </div>
 
-          <div className="break-inside-avoid">
-            {/* Null if no MSC workbook. */}
-            <ActorSettlementTeaser slug={entity.slug} name={entity.name} />
-          </div>
+          <ActorOmni topics={profile.omni} />
+        </div>
 
-          <div className="break-inside-avoid">
-            <ActorOmni topics={profile.omni} />
-          </div>
-          <div className="break-inside-avoid">
-            <ActorContact contact={profile.contact} />
-          </div>
-
-          <div className="break-inside-avoid">
-            <Section title={"History of Doc Changes affecting " + entity.name}>
-              <ActorHistory profile={profile} limit={HISTORY_PREVIEW} />
-            </Section>
-          </div>
-
-          {relations.length > 0 && (
-            <div className="break-inside-avoid">
-              <Section title="Relationships">
-                {relations.map((r, i) => (
-                  <RelationRow key={i} r={r} />
-                ))}
-              </Section>
-            </div>
-          )}
-          {recommendations.length > 0 && (
-            <div className="break-inside-avoid">
-              <Section title="Notable">
-                {recommendations.map((rec, i) => (
-                  <RecRow key={i} rec={rec} />
-                ))}
-              </Section>
-            </div>
-          )}
+        <div className="min-w-0">
+          {/* Contact — governance channels + emergency response (Prime Agents) */}
+          <ActorContact contact={profile.contact} />
 
           {entity.et === "composite_party" && (
-            <div className="break-inside-avoid">
             <Section title="Composite Party">
               <p className="text-sm mb-3" style={{ color: "var(--tan-2)" }}>
                 A composite party is the named legal counterparty in a Sky{" "}
@@ -220,13 +183,12 @@ export function ActorDashboard({ profile }: Props) {
                 </div>
               )}
             </Section>
-            </div>
           )}
-
-          {/* Primitives is last in the masonry and is the only block allowed
-              to split across columns — it is the open-ended one, so it is
-              what fills whatever the fixed blocks left. Its own primitives
-              stay whole (`break-inside-avoid` inside ActorInstances). */}
+          {adRows.length > 0 && (
+            <Section title="Responsibilities">
+              <ActorResponsibilities rows={adRows} />
+            </Section>
+          )}
           {primitives.length > 0 && (
             <Section title="Primitives">
               <ActorInstances primitives={primitives} />
@@ -234,21 +196,38 @@ export function ActorDashboard({ profile }: Props) {
           )}
         </div>
 
-        {/* The two wide tables sit under the masonry at full width: both are
-            640px+ of columns that would only gain a horizontal scrollbar from
-            a masonry column. */}
-        <div className="min-w-0">
-          {adRows.length > 0 && (
-            <Section title="Responsibilities">
-              <ActorResponsibilities rows={adRows} />
+        {/* History used to be the whole of this column and filled it, because
+            it ran to every change ever recorded. Capping it at twenty left the
+            column's tail empty, so Relationships and Notable — the two short
+            sections — moved up here to fill it rather than sit at the bottom
+            of a left column that is already the long one. */}
+        <aside className="min-w-0">
+          <Section title={"History of Doc Changes affecting " + profile.entity.name}>
+            <ActorHistory profile={profile} limit={HISTORY_PREVIEW} />
+          </Section>
+          {relations.length > 0 && (
+            <Section title="Relationships">
+              {relations.map((r, i) => (
+                <RelationRow key={i} r={r} />
+              ))}
             </Section>
           )}
-          {rewardsAgent && (
+          {recommendations.length > 0 && (
+            <Section title="Notable">
+              {recommendations.map((rec, i) => (
+                <RecRow key={i} rec={rec} />
+              ))}
+            </Section>
+          )}
+        </aside>
+
+        {rewardsAgent && (
+          <div className="lg:col-span-2 min-w-0">
             <Section title="Rewards">
               <ActorRewards agent={rewardsAgent} />
             </Section>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

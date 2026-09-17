@@ -58,45 +58,22 @@ describe("ActorDashboard header", () => {
     expect(screen.getByTestId("settlements")).toBeInTheDocument();
   });
 
-  it("lays the blocks out as one masonry, each kept whole", () => {
-    render(<ActorDashboard profile={profile()} />);
-    const teaser = screen.getByTestId("settlements");
-    const history = screen.getByTestId("history");
-    const masonry = teaser.closest(".actor-masonry")!;
-    // One flow of blocks, not two hand-assigned columns: the browser decides
-    // which column each lands in and balances their heights, so nothing
-    // leaves a dead tail under it.
-    expect(masonry).toContainElement(history);
-    expect(teaser.closest(".break-inside-avoid")).not.toBeNull();
-    expect(history.closest(".break-inside-avoid")).not.toBeNull();
-    // The header sits above the masonry at full width.
-    const name = screen.getByRole("heading", { name: "Spark" });
-    expect(masonry.contains(name)).toBe(false);
-    expect(name.compareDocumentPosition(teaser) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it("keeps Primitives in the masonry and the wide tables under it", () => {
+  it("fills the History column with Relationships and Notable", () => {
     render(
       <ActorDashboard
         profile={profile({
-          adRows: [{ activeDataId: "ad1" }] as unknown as ActorProfile["adRows"],
-          primitives: [{ st: "p1" }] as unknown as ActorProfile["primitives"],
+          relations: [
+            { edge: { e: "prime_agent_for" }, direction: "outbound", otherLabel: "Sky Core", otherSlug: "sky-core" },
+          ] as unknown as ActorProfile["relations"],
+          recommendations: [{ label: "note", detail: "d" }] as unknown as ActorProfile["recommendations"],
         })}
       />,
     );
-    const primitives = screen.getByRole("heading", { name: "Primitives" });
-    const responsibilities = screen.getByRole("heading", { name: "Responsibilities" });
-    // Primitives is the one block deliberately NOT wrapped in
-    // break-inside-avoid: it splits across columns to absorb whatever the
-    // fixed blocks left over.
-    expect(primitives.closest(".actor-masonry")).not.toBeNull();
-    expect(primitives.closest(".break-inside-avoid")).toBeNull();
-    // Responsibilities is a 640px table, so it lives under the masonry where
-    // it has the full width instead of a column's worth.
-    expect(responsibilities.closest(".actor-masonry")).toBeNull();
-    expect(
-      primitives.compareDocumentPosition(responsibilities) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    // Capping History at twenty emptied the tail of its column; the two short
+    // sections moved up to fill it instead of sitting under the long column.
+    const aside = screen.getByTestId("history").closest("aside")!;
+    expect(aside).toContainElement(screen.getByRole("heading", { name: "Relationships" }));
+    expect(aside).toContainElement(screen.getByRole("heading", { name: "Notable" }));
   });
 
   it("caps the dashboard's history at HISTORY_PREVIEW entries", () => {

@@ -212,12 +212,7 @@ function ActorItemsSection({ groups, pick, anchorPrefix }: SectionProps) {
             {cat.primitives.map((prim) => {
               const items = pick(prim);
               return (
-                <div
-                  key={prim.st}
-                  id={primId(prim)}
-                  className="break-inside-avoid"
-                  style={{ scrollMarginTop: HEADER_OFFSET }}
-                >
+                <div key={prim.st} id={primId(prim)} style={{ scrollMarginTop: HEADER_OFFSET }}>
                   <div className="flex items-baseline gap-2 mb-2 flex-wrap">
                     {prim.docId ? (
                       <AtlasLink to={atlasHref(prim.docId)} className="mono text-[11px] hover:underline" style={{ color: "var(--accent)" }}>
@@ -232,10 +227,7 @@ function ActorItemsSection({ groups, pick, anchorPrefix }: SectionProps) {
                       <span className="mono text-[10px] px-1 rounded" style={{ color: "var(--error-text)", border: "1px solid var(--red)" }} title="Not listed in Current Primitives (A.2.2.1.5.1)">unknown</span>
                     )}
                   </div>
-                  {/* The dashboard is a masonry of columns now, so the cards
-                      stack single-file and the masonry decides how many
-                      columns there are. A nested multicol here would fight it. */}
-                  <div>
+                  <div style={{ columns: "520px", columnGap: "0.75rem" }}>
                     {withStatusAnchors(prim, items, anchorPrefix).map(({ inst, anchorId }) => (
                       <div
                         key={inst.id}
