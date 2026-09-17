@@ -82,7 +82,7 @@
       ]
     },
     "Core|addr": {
-      "total": 422,
+      "total": 424,
       "uncovered": 0,
       "samples": []
     },
@@ -122,7 +122,7 @@
       "samples": []
     },
     "Core|bullet-kv": {
-      "total": 370,
+      "total": 372,
       "uncovered": 133,
       "samples": [
         "A.3.3.2.7.1.1.2",
@@ -138,8 +138,8 @@
       "samples": []
     },
     "Core|plain": {
-      "total": 8199,
-      "uncovered": 6313,
+      "total": 8214,
+      "uncovered": 6320,
       "samples": [
         "A.0.1.1.1",
         "A.0.1.1.10",
@@ -256,7 +256,7 @@
       ]
     },
     "Core|s:transfer,uuid-link": {
-      "total": 4,
+      "total": 3,
       "uncovered": 0,
       "samples": []
     },
@@ -276,7 +276,7 @@
       "samples": []
     },
     "Core|uuid-link": {
-      "total": 1597,
+      "total": 1602,
       "uncovered": 0,
       "samples": []
     },
