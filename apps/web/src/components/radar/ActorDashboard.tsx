@@ -107,13 +107,42 @@ export function ActorDashboard({ profile }: Props) {
 
   return (
     <div className="flex-1 px-6 py-6 min-w-0">
-      {/* Two columns from the very top, so History starts level with the
-          agent's name and type pill rather than below the chain. Each column
-          is its own stack, and the sections are split between them so the
-          shorter one does not leave dead space under History — with History
-          and Responsibilities both capped, the two stay close in height. */}
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-8 items-start">
-        <div className="min-w-0">
+      {/* The right-hand stack is a FLOAT, not a grid column. Two grid columns
+          would leave the shorter one's tail empty — a dead gap under History
+          that Primitives, right beside it, could not reach. A float is the one
+          layout that lets the main flow run alongside it and then widen to the
+          full page the moment the float ends, so Primitives fills that space
+          instead of stopping at a column edge. It still starts level with the
+          agent's name, because it comes first in the flow. */}
+      {/* Narrow screens have no float and would otherwise read the aside
+          first, putting History above the agent's name — so below `lg` this is
+          a flex column that orders the main stack back on top. At `lg` it
+          becomes a block box again, which is what the float needs. */}
+      <div className="max-w-6xl mx-auto flex flex-col lg:block">
+        <aside className="order-2 min-w-0 lg:float-right lg:w-1/2 lg:pl-8">
+          {/* The settlement card leads the column rather than floating on its
+              own, so it keeps its top-right place. Null if no MSC workbook. */}
+          <ActorSettlementTeaser slug={entity.slug} name={entity.name} />
+          <Section title={"History of Doc Changes affecting " + entity.name}>
+            <ActorHistory profile={profile} limit={HISTORY_PREVIEW} />
+          </Section>
+          {relations.length > 0 && (
+            <Section title="Relationships">
+              {relations.map((r, i) => (
+                <RelationRow key={i} r={r} />
+              ))}
+            </Section>
+          )}
+          {recommendations.length > 0 && (
+            <Section title="Notable">
+              {recommendations.map((rec, i) => (
+                <RecRow key={i} rec={rec} />
+              ))}
+            </Section>
+          )}
+        </aside>
+
+        <div className="order-1 min-w-0">
           {/* Header */}
           <div className="mb-6">
             <p className="mono text-xs mb-1" style={{ color: "var(--tan-3)" }}>
@@ -182,49 +211,36 @@ export function ActorDashboard({ profile }: Props) {
               )}
             </Section>
           )}
-          {adRows.length > 0 && (
-            <Section title="Responsibilities">
-              <ActorResponsibilities rows={adRows} />
-            </Section>
-          )}
+          {/* Primitives comes before Responsibilities because it is the long,
+              open-ended section: it is the one that should run down the lane
+              beside the float and then spread to the full page underneath it.
+              Its instance cards already flow at `columns: 520px`, so the extra
+              width becomes a second column of cards rather than wider cards.
+              Responsibilities is a fixed 640px-wide table that gains nothing
+              from the lane, so it takes the full-width space after. */}
           {primitives.length > 0 && (
             <Section title="Primitives">
               <ActorInstances primitives={primitives} />
             </Section>
           )}
-        </div>
-
-        <div className="min-w-0">
-          {/* The settlement card is this column's first block rather than a
-              float, so it keeps its top-right place without needing room
-              inside a half-width column. Null if no MSC workbook. */}
-          <ActorSettlementTeaser slug={entity.slug} name={entity.name} />
-          <Section title={"History of Doc Changes affecting " + entity.name}>
-            <ActorHistory profile={profile} limit={HISTORY_PREVIEW} />
-          </Section>
-          {relations.length > 0 && (
-            <Section title="Relationships">
-              {relations.map((r, i) => (
-                <RelationRow key={i} r={r} />
-              ))}
-            </Section>
-          )}
-          {recommendations.length > 0 && (
-            <Section title="Notable">
-              {recommendations.map((rec, i) => (
-                <RecRow key={i} rec={rec} />
-              ))}
+          {adRows.length > 0 && (
+            <Section title="Responsibilities">
+              <ActorResponsibilities rows={adRows} />
             </Section>
           )}
         </div>
 
-        {rewardsAgent && (
-          <div className="lg:col-span-2 min-w-0">
+        {/* Rewards is wide tables, so it waits for the float to end rather
+            than starting in the narrow lane beside it. The clear also makes
+            the container enclose the float when the flow is the shorter side
+            (an actor with almost no primitives). */}
+        <div className="order-3 min-w-0 clear-both">
+          {rewardsAgent && (
             <Section title="Rewards">
               <ActorRewards agent={rewardsAgent} />
             </Section>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

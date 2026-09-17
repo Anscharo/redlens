@@ -58,19 +58,41 @@ describe("ActorDashboard header", () => {
     expect(screen.getByTestId("settlements")).toBeInTheDocument();
   });
 
-  it("starts the right column with the MSC teaser and History, level with the header", () => {
+  it("floats the MSC teaser and History as an aside the main stack flows around", () => {
     render(<ActorDashboard profile={profile()} />);
     const teaser = screen.getByTestId("settlements");
     const history = screen.getByTestId("history");
-    // Both live in the second column, whose first block is the teaser — so
-    // History begins beside the name and type pill, not below the chain.
-    const right = teaser.closest("div.min-w-0")!;
-    expect(right).toContainElement(history);
+    const aside = teaser.closest("aside")!;
+    // The teaser leads the aside and History follows it, so History begins
+    // beside the name and type pill rather than below the chain.
+    expect(aside).toContainElement(history);
     expect(teaser.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // The header is in the sibling column that comes first in the document.
+    // It is a float, not a grid column: the main stack runs alongside it and
+    // then widens past it, so Primitives can use the space under History.
+    expect(aside.className).toContain("lg:float-right");
+    // The aside comes first in the document (a float must precede the content
+    // that flows around it); `order` puts the header back on top below `lg`.
     const name = screen.getByRole("heading", { name: "Spark" });
-    expect(right.contains(name)).toBe(false);
-    expect(name.compareDocumentPosition(teaser) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(aside.contains(name)).toBe(false);
+    expect(teaser.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(name.closest("div.order-1")).not.toBeNull();
+    expect(aside.className).toContain("order-2");
+  });
+
+  it("puts Primitives ahead of Responsibilities, so it is the section beside the float", () => {
+    render(
+      <ActorDashboard
+        profile={profile({
+          adRows: [{ activeDataId: "ad1" }] as unknown as ActorProfile["adRows"],
+          primitives: [{ st: "p1" }] as unknown as ActorProfile["primitives"],
+        })}
+      />,
+    );
+    const primitives = screen.getByRole("heading", { name: "Primitives" });
+    const responsibilities = screen.getByRole("heading", { name: "Responsibilities" });
+    expect(
+      primitives.compareDocumentPosition(responsibilities) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("caps the dashboard's history at HISTORY_PREVIEW entries", () => {
