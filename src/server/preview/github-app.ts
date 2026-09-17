@@ -269,15 +269,24 @@ export async function installationToken(repo: string): Promise<string | null> {
 }
 
 /**
- * Drop the cached installation info + token for `repo`. A token keeps the
- * permissions it was MINTED with, and the info cache holds the install's
- * granted set for 30 minutes — so after an owner accepts a new permission
- * (Pull requests: Read), both caches keep answering with the old grant until
- * they expire. resolve.ts calls this when a private PR falls back to the
- * Contents-only path, so the grant is re-read instead of waited out.
+ * Drop the cached installation info for `repo`, so the next lookup re-reads
+ * the install's CURRENT grant. The info cache holds the granted permission set
+ * for 30 minutes — after an owner accepts a new permission (Pull requests:
+ * Read) it keeps answering with the old one. resolve.ts calls this when a
+ * private PR falls back to the Contents-only path. Cheap on purpose (one
+ * app-JWT GET): it runs on every such resolve while the permission is missing.
  */
-export function forgetInstallation(repo: string): void {
+export function forgetInstallationInfo(repo: string): void {
   installationCache.delete(repo);
+}
+
+/**
+ * Drop the cached installation token for `repo`. A token keeps the permissions
+ * it was MINTED with, so one minted before a grant still 403s on what the
+ * grant added. Only worth calling once the fresh install info shows the grant
+ * — until then a re-mint buys nothing and costs a token per resolve.
+ */
+export function forgetInstallationToken(repo: string): void {
   installationTokenCache.delete(repo);
 }
 
