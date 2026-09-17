@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { countNewAddresses, baseMeta, __runBuildForTest, type BuildDeps } from "./build.ts";
 import { previewPaths, readMeta, type PreviewMeta } from "./cache.ts";
-import { diffBaseLabel } from "./diff-base-record.ts";
+import { diffBaseLabel, diffBaseType } from "./diff-base-record.ts";
 import { config } from "../config.ts";
 import { CANONICAL_REPO, type Resolved } from "./resolve.ts";
 import { rebuildFromDisk, getIndexes, setIndexes, type AtlasNode } from "../retrieval/indexes.ts";
@@ -979,8 +979,9 @@ test("PR against a non-main base: bases.auto is repo, reference is the base (no 
     // and the build says so in one positive log line — no repo name in it.
     expect(upserted?.bases).toEqual(meta?.bases);
     expect(upserted?.diffCounts).toEqual({ added: 0, changed: 1 });
+    expect(diffBaseType(upserted!)).toBe("pr-base"); // a declared PR base, not the default branch standing in
     expect(diffBaseLabel(upserted!)).toBe(`${CANONICAL_REPO}:develop@${REPO_MERGE_BASE}`);
-    const line = logged.find((l) => l.startsWith(`[preview] ${sha.slice(0, 8)}: redlined vs repo develop@${REPO_MERGE_BASE.slice(0, 8)}`));
+    const line = logged.find((l) => l.startsWith(`[preview] ${sha.slice(0, 8)}: redlined vs pr-base develop@${REPO_MERGE_BASE.slice(0, 8)} (LCA)`));
     expect(line).toContain("+0 added, 1 changed");
     expect(line).not.toContain(HEAD_REPO);
     expect(meta?.bases?.repo?.drift).toBeDefined();

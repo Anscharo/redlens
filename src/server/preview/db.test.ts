@@ -97,13 +97,13 @@ test("upsertPreview defaults optional fields, including prBase, to null", async 
     buildMs: 1,
   } as any);
   expect(calls[0]!.values).toContain(null);
-  // pr_base_repo / pr_base_ref / default_branch, then the six diff-base record
-  // columns (the last nine interpolated values, right before last_access =
+  // pr_base_repo / pr_base_ref / default_branch, then the seven diff-base record
+  // columns (the last ten interpolated values, right before last_access =
   // now()) are all null when nothing was resolved.
-  expect(calls[0]!.values.slice(-9)).toEqual([null, null, null, null, null, null, null, null, null]);
+  expect(calls[0]!.values.slice(-10)).toEqual(Array(10).fill(null));
 });
 
-test("upsertPreview records the base actually used: kind, branch@commit, both candidates, served atlas, doc-list size", async () => {
+test("upsertPreview records the base actually used: type, LCA flag, branch@commit, every candidate, served atlas, doc-list size", async () => {
   queued.push([]);
   const bases = {
     auto: "repo" as const,
@@ -126,10 +126,18 @@ test("upsertPreview records the base actually used: kind, branch@commit, both ca
   } as any);
   expect(calls[0]!.strings.join("")).toContain("::jsonb"); // Bun.sql needs the cast to encode an object as jsonb
   // The RAW object is bound (never JSON.stringify'd — that double-encodes into a jsonb string scalar).
-  expect(calls[0]!.values.slice(-6)).toEqual(["repo", `acme/secret-atlas:main@${"a".repeat(40)}`, bases, "c".repeat(40), 2, 9]);
+  expect(calls[0]!.values.slice(-7)).toEqual([
+    "fork-default", // ref pull-7 with no declared prBase: the default branch stood in
+    true,
+    `acme/secret-atlas:main@${"a".repeat(40)}`,
+    { candidates: { "nga-main": bases.sky, "fork-default": bases.repo } },
+    "c".repeat(40),
+    2,
+    9,
+  ]);
 });
 
-test("upsertPreview records a live-main degrade as sky main at the served atlas commit", async () => {
+test("upsertPreview records the no-LCA degrade as nga-main with diff_base_lca false, at the served atlas commit", async () => {
   queued.push([]);
   await upsertPreview({
     sha: "s6",
@@ -142,10 +150,11 @@ test("upsertPreview records a live-main degrade as sky main at the served atlas 
     bases: { auto: "live-main", reason: "no fork point found" },
     baseAtlasCommit: "c".repeat(40),
   } as any);
-  expect(calls[0]!.values.slice(-6, -3)).toEqual([
-    "live-main",
+  expect(calls[0]!.values.slice(-7, -3)).toEqual([
+    "nga-main",
+    false,
     `sky-ecosystem/next-gen-atlas:main@${"c".repeat(40)}`,
-    { auto: "live-main", reason: "no fork point found" },
+    { reason: "no fork point found", candidates: {} },
   ]);
 });
 
@@ -161,7 +170,7 @@ test("upsertPreview persists a fork branch's defaultBranch (the repo candidate a
     buildMs: 5,
     defaultBranch: "develop",
   } as any);
-  expect(calls[0]!.values.slice(-9, -6)).toEqual([null, null, "develop"]);
+  expect(calls[0]!.values.slice(-10, -7)).toEqual([null, null, "develop"]);
 });
 
 test("getPreviewRow returns the row, or null when unknown", async () => {
