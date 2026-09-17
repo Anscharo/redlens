@@ -37,7 +37,9 @@ import {
   installationInfoForRepo,
   installationHasPullsRead,
   permissionsUpdateUrl,
-  forgetInstallation,
+  forgetInstallationInfo,
+  forgetInstallationToken,
+  type InstallationInfo,
 } from "./github-app.ts";
 
 export const CANONICAL_OWNER = "sky-ecosystem";
@@ -273,7 +275,8 @@ async function resolveDefaultBranch(
 }
 
 /** The head repo's default branch — the `repo` diff-base candidate for a fork
- *  BRANCH preview (never set for PRs; prBase covers those). Reuses whatever
+ *  BRANCH preview, and the stand-in base for a private PR that resolved with no
+ *  prBase (never set for a PR that carries one). Reuses whatever
  *  repoInfo() already fetched/cached for this repo earlier in the same resolve
  *  (the privacy/lineage checks, or the "HEAD" sentinel above) instead of a
  *  dedicated round-trip. */
@@ -289,9 +292,9 @@ function prState(json: any): "open" | "merged" | "closed" {
 
 /** When a private PR HEAD has no prBase, check whether that's because this
  *  install lacks Pull requests:read. Empty object if the install already has
- *  it (Pulls failed for some other reason) or we couldn't load the install. */
-async function pullsPermissionGap(repo: string): Promise<Pick<Resolved, "needsPullsPermission" | "permissionsUrl">> {
-  const install = await installationInfoForRepo(repo);
+ *  it (Pulls failed for some other reason) or we couldn't load the install.
+ *  Pure — the caller owns the (deliberately uncached) install lookup. */
+function pullsPermissionGap(install: InstallationInfo | null): Pick<Resolved, "needsPullsPermission" | "permissionsUrl"> {
   if (!install || installationHasPullsRead(install.permissions)) return {};
   const url = permissionsUpdateUrl(install.htmlUrl);
   return { needsPullsPermission: true, ...(url ? { permissionsUrl: url } : {}) };
@@ -471,25 +474,25 @@ export async function resolvePrivateBranch(repo: string, ref: string): Promise<R
   const pn = ref.match(PULL_RE);
   if (pn) {
     const n = Number(pn[1]);
-    let gh = igh;
-    let head = await resolvePullHead(gh, repo, n);
+    let head = await resolvePullHead(igh, repo, n);
     if (!head) return { error: "not-found" };
     let gap: Pick<Resolved, "needsPullsPermission" | "permissionsUrl"> = {};
     if (!head.prBase) {
-      // The cached token + install info may predate a Pull requests: Read
-      // grant (see forgetInstallation). Drop both so the gap check reads the
-      // install's CURRENT grant, and retry once on a fresh token when that
-      // grant includes Pulls — "accept, then reload" has to work on the first
-      // reload, not 55 minutes later.
-      forgetInstallation(repo);
-      gap = await pullsPermissionGap(repo);
-      if (!gap.needsPullsPermission) {
+      // The cached install info may predate a Pull requests: Read grant, so
+      // re-read it: the banner prompt must reflect the install's CURRENT grant.
+      // Only when that grant really includes Pulls is the cached TOKEN the
+      // suspect (it keeps the permissions it was minted with) — drop it and
+      // retry once, so "accept, then reload" works on the first reload, not 55
+      // minutes later. While the permission is still missing, or the install
+      // lookup itself failed, the token stays cached: a re-mint buys nothing.
+      forgetInstallationInfo(repo);
+      const install = await installationInfoForRepo(repo);
+      gap = pullsPermissionGap(install);
+      if (install && installationHasPullsRead(install.permissions)) {
+        forgetInstallationToken(repo);
         const fresh = await installationToken(repo);
         const retry = fresh ? await resolvePullHead(makeGhClient(fresh), repo, n) : null;
-        if (fresh && retry?.prBase) {
-          head = retry;
-          gh = makeGhClient(fresh);
-        }
+        if (retry?.prBase) head = retry;
       }
     }
     // Still no declared base (Contents-only install): hand the build the
@@ -498,7 +501,7 @@ export async function resolvePrivateBranch(repo: string, ref: string): Promise<R
     // sky fork point and live main, so a PR against the repo's own main was
     // redlined with everything that main carries beyond sky counted as the
     // PR's changes (observed 2026-09 on every private PR preview built so far).
-    const defaultBranch = head.prBase ? undefined : await repoDefaultBranch(gh, repo, repoCache);
+    const defaultBranch = head.prBase ? undefined : await repoDefaultBranch(igh, repo, repoCache);
     // kind stays "branch" so pr-state.ts (kind='pr' against the canonical
     // repo) never overlays this row with some other PR #N's state. `pr` and
     // `prBase` are still attached — `pr` for the banner (title / author /

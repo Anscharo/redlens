@@ -294,8 +294,13 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     // rebuild so the redline switches onto the PR's own base instead of
     // serving the fallback bundle. Same-sha, so the quota (new-sha) gate
     // doesn't fire. A bundle that already recorded a prBase is left alone.
+    // Same for a bundle that recorded NO base at all (a Contents-only private
+    // PR built before the default branch stood in for the missing prBase, or
+    // one whose default-branch lookup failed that day): once resolve has a
+    // default branch, rebuild so the `repo` candidate exists. Never downgrades
+    // — a bundle that holds a real prBase keeps it even if Pulls later 403s.
     const meta = readMeta(sha);
-    if (r.prBase && !meta?.prBase) {
+    if ((r.prBase && !meta?.prBase) || (r.defaultBranch && !meta?.defaultBranch && !meta?.prBase)) {
       getOrStartBuild(r);
       return subscribeBuild(sha, send);
     }
