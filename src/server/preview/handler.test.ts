@@ -184,7 +184,7 @@ function makeReadyBundle(
   previewPaths: (sha: string) => { outDir: string },
   writeMeta: (sha: string, meta: PreviewMeta, root?: string) => void,
   sha: string,
-  opts: { private?: boolean; repo?: string; extra?: Partial<PreviewMeta> } = {},
+  opts: { private?: boolean; repo?: string; defaultBranch?: string; extra?: Partial<PreviewMeta> } = {},
 ): void {
   const p = previewPaths(sha);
   fs.mkdirSync(p.outDir, { recursive: true });
@@ -201,6 +201,7 @@ function makeReadyBundle(
     docCount: 0,
     buildMs: 1,
     private: opts.private,
+    ...(opts.defaultBranch ? { defaultBranch: opts.defaultBranch } : {}),
     ...opts.extra,
   });
 }
@@ -610,12 +611,9 @@ test("/events: an app-not-installed resolve failure carries the App's install UR
   // installed on it either (installation lookup also 404) → resolvePrivacy
   // returns "app-not-installed", which resolveRef surfaces directly (no
   // PendingPrivate — there's no installation to defer a lookup through).
-  // The owner's public account id resolves, so the install link targets that
-  // account (never the installer's whole org list).
   globalThis.fetch = (async (url: string | URL) => {
     const u = String(url);
     if (u.endsWith("/app")) return Response.json({ slug: "redlens-preview" });
-    if (u.endsWith("/users/noinstall")) return Response.json({ id: 777, login: "noinstall" });
     return new Response("not found", { status: 404 });
   }) as unknown as typeof fetch;
 
@@ -627,7 +625,7 @@ test("/events: an app-not-installed resolve failure carries the App's install UR
     expect(events).toContainEqual({
       phase: "failed",
       code: "app-not-installed",
-      message: "https://github.com/apps/redlens-preview/installations/new/permissions?suggested_target_id=777&target_id=777&repository_ids[]=0",
+      message: "https://github.com/apps/redlens-preview/installations/new",
     });
   } finally {
     globalThis.fetch = orig.fetch;
@@ -852,6 +850,57 @@ test("/events: a ready Contents-only private-PR bundle is not rebuilt while Pull
     config.githubAppPrivateKey = orig.key;
     accessDecision = "ok";
   }
+});
+
+// A Contents-only private PR (no Pull requests:read) whose repo metadata IS
+// readable, so resolve hands back the default branch as the stand-in base.
+async function contentsOnlyEvents(sha: string, bundle: { defaultBranch?: string }, dbRows: unknown[][]): Promise<any[]> {
+  const { handlePreview, previewPaths, writeMeta } = await freshHandler();
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+  const orig = { enabled: config.privatePreviewsEnabled, appId: config.githubAppId, key: config.githubAppPrivateKey, fetch: globalThis.fetch };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+  makeReadyBundle(previewPaths, writeMeta, sha, { private: true, repo: "octocat/grant-atlas", ...bundle });
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) return Response.json({ id: 77, permissions: { contents: "read", metadata: "read" } });
+    if (u.endsWith("/access_tokens")) return Response.json({ token: "inst-tok" });
+    if (u.includes("/git/ref/")) return Response.json({ object: { sha } });
+    if (u.includes("/commits/")) return Response.json({ commit: { committer: { date: "2026-01-01T00:00:00Z" } } });
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return Response.json({ default_branch: "main" });
+    return new Response("no", { status: 404 }); // Pulls 404s; so does the tarball, which ends a started build
+  }) as unknown as typeof fetch;
+  try {
+    accessDecision = "ok";
+    dbQueued = dbRows;
+    const pathname = `/api/preview/${encodeURIComponent("octocat:grant-atlas:pull-4")}/events`;
+    return await readSSE(handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response);
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+}
+
+test("/events: a ready Contents-only bundle that recorded NO base rebuilds once resolve has a default branch to stand in", async () => {
+  // The upgrade case: a bundle built before the default branch stood in for a
+  // missing prBase (or while its lookup failed) was redlined vs sky / live main.
+  const SHA = "3".repeat(40);
+  const events = await contentsOnlyEvents(SHA, {}, [[], [], [{ sha: SHA }]]);
+  expect(events).toContainEqual({ phase: "fetching", sha: SHA });
+  expect(events.some((e) => e.phase === "ready")).toBe(false);
+});
+
+test("/events: a ready Contents-only bundle that already redlines against the default branch is served, not rebuilt", async () => {
+  const SHA = "2".repeat(40);
+  const events = await contentsOnlyEvents(SHA, { defaultBranch: "main" }, [[], []]);
+  expect(events).toContainEqual({ phase: "ready", sha: SHA });
+  expect(events.some((e) => e.phase === "fetching")).toBe(false);
 });
 
 test("syncBroadGrantMeta: clears, sets, and no-ops", async () => {

@@ -89,7 +89,14 @@ describe("PotentialMistakesReport", () => {
     expect(screen.getByText("Misspelling of Ecosystem.")).toBeInTheDocument();
     expect(screen.getByText("100,000,00 USDC")).toBeInTheDocument();
     expect(screen.getByText("3 of 3 findings")).toBeInTheDocument();
-    expect(screen.getByRole("table").parentElement).toHaveClass("[max-width:calc(100vw-3rem)]");
+    const table = screen.getByRole("table");
+    expect(table.parentElement).toHaveClass("[max-width:calc(100vw-3rem)]");
+    // Quote and issue share leftover width instead of flooring at 50ch each,
+    // which used to force a horizontal scrollbar at the 48rem table breakpoint.
+    expect(table).toHaveClass("table-fixed");
+    expect(screen.getByRole("columnheader", { name: "Quoted Atlas text" })).toHaveClass("min-w-0");
+    expect(screen.getByRole("columnheader", { name: "What looks wrong" })).toHaveClass("min-w-0");
+    expect(screen.getByRole("columnheader", { name: "Quoted Atlas text" })).not.toHaveClass("min-w-[50ch]");
   });
 
   it("flags a finding whose document moved or vanished since the sweep", async () => {
@@ -129,9 +136,9 @@ describe("PotentialMistakesReport", () => {
     expect(window.location.search).toContain("sev=medium");
   });
 
-  // The suggested fix only gets its own column when all three prose columns can
-  // still hold 50ch. Narrow (and jsdom, which has no matchMedia) keeps it under
-  // the explanation, labelled — the label is what makes it readable there.
+  // The suggested fix only gets its own column on a wide screen (110rem).
+  // Narrow (and jsdom, which has no matchMedia) keeps it under the explanation,
+  // labelled — the label is what makes it readable there.
   describe("the suggested-fix column", () => {
     const matchMedia = (matches: (query: string) => boolean) =>
       vi.fn().mockImplementation((query: string) => ({

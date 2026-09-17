@@ -41,6 +41,7 @@ config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" })
 let installedId: number | null = null;
 let installJson: Record<string, unknown> | null = null; // extra fields on GET …/installation (html_url, permissions)
 let mintedToken: string | null = null;
+let mintCount = 0; // POST …/access_tokens calls — a re-mint is the cost the fallback must not pay needlessly
 let branchJson: any = null;
 let repoJson: any = null; // GET /repos/<owner>/<repo> (default_branch lookup for HEAD)
 let pullJson: any = null; // GET /repos/.../pulls/<n>
@@ -56,7 +57,10 @@ function installFetch(): void {
       if (installedId == null) return new Response("no", { status: 404 });
       return Response.json({ id: installedId, ...(installJson ?? {}) });
     }
-    if (u.endsWith("/access_tokens")) return mintedToken == null ? new Response("no", { status: 500 }) : Response.json({ token: mintedToken });
+    if (u.endsWith("/access_tokens")) {
+      mintCount++;
+      return mintedToken == null ? new Response("no", { status: 500 }) : Response.json({ token: mintedToken });
+    }
     if (u.includes("/pulls/")) {
       lastPullReq = { url: u, headers: init?.headers };
       return pullJson == null ? new Response("no", { status: 404 }) : Response.json(pullJson);
@@ -84,6 +88,7 @@ beforeEach(() => {
   installedId = null;
   installJson = null;
   mintedToken = null;
+  mintCount = 0;
   branchJson = null;
   repoJson = null;
   pullJson = null;
@@ -276,6 +281,7 @@ test("resolvePrivateBranch: pull-N falls back to git ref pull/N/head when Pulls 
   pullJson = null; // 404/403 — App has Contents but not Pull requests
   refJson = { object: { sha: "refheadsha" } };
   commitJson = { commit: { committer: { date: "2026-09-10T12:00:00Z" } } };
+  repoJson = { default_branch: "main" };
   const r = await resolvePrivateBranch("acme/secret-atlas", "pull-7");
   expect(r).toMatchObject({
     repo: "acme/secret-atlas",
@@ -284,11 +290,19 @@ test("resolvePrivateBranch: pull-N falls back to git ref pull/N/head when Pulls 
     ref: "pull-7",
     private: true,
     date: "2026-09-10T12:00:00Z",
+    // No declared base to read, so the repo's default branch stands in as the
+    // `repo` diff-base candidate — without it the only candidates were the sky
+    // fork point and live main, and the PR was redlined with everything the
+    // repo's own main carries beyond sky.
+    defaultBranch: "main",
   });
   expect((r as any).pr).toBeUndefined();
   expect((r as any).prBase).toBeUndefined(); // the Contents-only fallback carries no base branch
   expect((r as any).needsPullsPermission).toBe(true); // install listed no pull_requests
   expect((r as any).permissionsUrl).toBeUndefined(); // stub installation had no html_url
+  // Still ungranted: the install info is re-read, but the token stays cached —
+  // a re-mint on every such resolve would buy nothing.
+  expect(mintCount).toBe(1);
   expect(lastRefReq?.url).toBe("https://api.github.com/repos/acme/secret-atlas/git/ref/pull/7/head");
   expect((lastRefReq?.headers as any)?.authorization).toBe("Bearer inst-tok");
 });
@@ -375,6 +389,79 @@ test("resolvePrivateBranch: a selected-repos install (or an unknown selection) d
   installJson = null; // GitHub omitted repository_selection entirely
   r = await resolvePrivateBranch("acme/secret-atlas", "main");
   expect((r as any).grantTooBroad).toBeUndefined();
+});
+
+test("resolvePrivateBranch: pull-N fallback with an unreadable default branch still resolves, just without the candidate", async () => {
+  installedId = 42;
+  mintedToken = "inst-tok";
+  pullJson = null;
+  refJson = { object: { sha: "refheadsha" } };
+  repoJson = null; // GET /repos/<repo> failed
+  const r = await resolvePrivateBranch("acme/secret-atlas", "pull-7");
+  expect(r).toMatchObject({ sha: "refheadsha", ref: "pull-7", private: true });
+  expect("defaultBranch" in (r as object)).toBe(false);
+});
+
+test("resolvePrivateBranch: pull-N fallback whose install re-read FAILS keeps the cached token (no re-mint on a flaky lookup)", async () => {
+  installedId = 42;
+  mintedToken = "inst-tok";
+  pullJson = null;
+  refJson = { object: { sha: "refheadsha" } };
+  repoJson = { default_branch: "main" };
+  let installReads = 0;
+  const stub = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    // First read backs the token mint; the fallback's re-read is the flaky one.
+    if (String(url).endsWith("/installation") && ++installReads > 1) return new Response("boom", { status: 502 });
+    return stub(url as any, init);
+  }) as unknown as typeof fetch;
+
+  const r = await resolvePrivateBranch("acme/secret-atlas", "pull-7");
+  expect(installReads).toBe(2);
+  expect(mintCount).toBe(1); // unknown grant is not a reason to suspect the token
+  expect(r).toMatchObject({ sha: "refheadsha", ref: "pull-7", defaultBranch: "main" });
+  expect((r as any).needsPullsPermission).toBeUndefined(); // can't tell, so don't prompt
+});
+
+test("resolvePrivateBranch: a token minted BEFORE the Pulls:read grant is dropped and the PR re-read on a fresh one", async () => {
+  // The owner accepted Pull requests: Read, but the cached installation token
+  // still carries the grant it was minted with, so Pulls 403s on it. The
+  // fallback must not be the final answer: forget the install, see the grant,
+  // mint again, and come back with the PR's real base.
+  installedId = 42;
+  installJson = { permissions: { contents: "read", metadata: "read", pull_requests: "read" } };
+  refJson = { object: { sha: "refheadsha" } };
+  repoJson = { default_branch: "main" };
+  const pull = {
+    title: "Spark",
+    user: { login: "alice" },
+    state: "open",
+    merged_at: null,
+    head: { sha: "prheadsha", ref: "feature/spark", repo: { full_name: "acme/secret-atlas" } },
+    base: { ref: "develop", sha: "basesha1", repo: { full_name: "acme/secret-atlas" } },
+  };
+  let mints = 0;
+  const stub = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+    const u = String(url);
+    if (u.endsWith("/access_tokens")) return Response.json({ token: `tok-${++mints}` });
+    if (u.includes("/pulls/")) {
+      const auth = (init?.headers as any)?.authorization;
+      return auth === "Bearer tok-1" ? new Response("no", { status: 403 }) : Response.json(pull);
+    }
+    return stub(url as any, init);
+  }) as unknown as typeof fetch;
+
+  const r = await resolvePrivateBranch("acme/secret-atlas", "pull-42");
+  expect(mints).toBe(2);
+  expect(r).toMatchObject({
+    sha: "prheadsha",
+    ref: "feature/spark",
+    pr: { number: 42 },
+    prBase: { repo: "acme/secret-atlas", ref: "develop", sha: "basesha1" },
+  });
+  expect((r as any).needsPullsPermission).toBeUndefined();
+  expect("defaultBranch" in (r as object)).toBe(false); // a declared base wins; no stand-in needed
 });
 
 test("resolvePrivateBranch: pull-N that does not exist -> not-found", async () => {

@@ -1,16 +1,21 @@
 import { Link } from "./Link";
 import { reportHref } from "@/lib/routes";
-import { buildReportCatalog, type ReportCard } from "@/lib/reportCatalog";
+import { parseReportQuery } from "@/lib/reportFilter";
+import type { ReportCard, ReportCardGroup } from "@/lib/reportCatalog";
 import { track } from "../lib/analytics";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { useReportIndexSearch } from "../hooks/useReportIndexSearch";
+import { Highlight } from "./reports/Highlight";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 
-// Thin renderer over src/lib/reportCatalog.ts, which owns the grouping, the
-// provenance metadata, and the query filter. Groups are by SUBJECT (what a
-// report is about, which is how people browse); provenance rides along as a
-// per-card badge so neither axis has to distort the other.
+// Thin renderer over src/lib/reportCatalog.ts (grouping + provenance) and
+// useReportIndexSearch (lexical filter + server paraphrases). Groups are by
+// SUBJECT (what a report is about, which is how people browse); provenance
+// rides along as a per-card badge so neither axis has to distort the other.
+// Meaning-only extras render in their own block so a vector hit is visible
+// instead of looking like a name match.
 
-function Card({ card }: { card: ReportCard }) {
+function Card({ card, rq }: { card: ReportCard; rq: ReturnType<typeof parseReportQuery> }) {
   return (
     <Link
       to={reportHref(card.id)}
@@ -19,11 +24,11 @@ function Card({ card }: { card: ReportCard }) {
       onClick={() => track("report_open", { report_id: card.id })}
     >
       <p className="text-sm font-medium mb-1 flex items-center gap-2 flex-wrap" style={{ color: "var(--tan)" }}>
-        {card.title}
+        <Highlight text={card.title} rq={rq} punct />
         <ProvenanceBadge provenance={card.provenance} />
       </p>
       <p className="text-xs" style={{ color: "var(--tan-3)" }}>
-        {card.description}
+        <Highlight text={card.description} rq={rq} punct />
       </p>
     </Link>
   );
@@ -31,7 +36,24 @@ function Card({ card }: { card: ReportCard }) {
 
 export function ReportsIndex({ query }: { query: string }) {
   useDocumentTitle("Sky Atlas Reports");
-  const groups = buildReportCatalog(query);
+  const { wording, meaning, pending, byMeaning } = useReportIndexSearch(query);
+  const rq = parseReportQuery(query);
+  const sections = (groups: ReportCardGroup[], keyPrefix: string) =>
+    groups.map((g) => (
+      <section key={`${keyPrefix}${g.title}`} className="mb-8">
+        <h2 className="text-xs mono text-tan-3 uppercase tracking-wider mb-1 pb-1 border-b border-[var(--border)]">
+          <Highlight text={g.title} rq={rq} punct />
+        </h2>
+        <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
+          <Highlight text={g.hint} rq={rq} punct />
+        </p>
+        <div className="space-y-3">
+          {g.cards.map((c) => (
+            <Card key={c.id} card={c} rq={rq} />
+          ))}
+        </div>
+      </section>
+    ));
 
   return (
     <div className="px-6 py-8">
@@ -44,24 +66,18 @@ export function ReportsIndex({ query }: { query: string }) {
           Unlabelled reports are rebuilt from the Atlas every time you open them. A badge marks the
           ones that are not.
         </p>
-        {groups.map((g) => (
-          <section key={g.title} className="mb-8">
-            <h2 className="text-xs mono text-tan-3 uppercase tracking-wider mb-1 pb-1 border-b border-[var(--border)]">
-              {g.title}
-            </h2>
-            <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
-              {g.hint}
+        {sections(wording, "")}
+        {byMeaning && (
+          <>
+            <p className="text-xs mb-6" style={{ color: "var(--tan-3)" }}>
+              Closest meaning, not an exact wording match.
             </p>
-            <div className="space-y-3">
-              {g.cards.map((c) => (
-                <Card key={c.id} card={c} />
-              ))}
-            </div>
-          </section>
-        ))}
-        {groups.length === 0 && (
+            {sections(meaning, "meaning-")}
+          </>
+        )}
+        {wording.length === 0 && meaning.length === 0 && (
           <p className="mono text-xs" style={{ color: "var(--tan-3)" }}>
-            No reports match "{query}".
+            {pending ? "Searching…" : `No reports match "${query}".`}
           </p>
         )}
       </div>
