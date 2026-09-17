@@ -4,6 +4,7 @@
 
 import { sql } from "../db.ts";
 import type { PreviewMeta } from "./cache.ts";
+import { diffBaseType, diffBaseHasLca, diffBaseLabel, diffBaseCandidates, type DiffBaseCandidates } from "./diff-base-record.ts";
 
 export interface PreviewRow {
   sha: string;
@@ -26,6 +27,15 @@ export interface PreviewRow {
   /** The head repo's default branch (fork branch previews only) — the `repo`
    *  diff-base candidate a pinned-sha rebuild would otherwise lose. */
   default_branch: string | null;
+  /** What the bundle was ACTUALLY redlined against — see
+   *  migrations/033_preview_diff_base.sql. All NULL on older rows. */
+  diff_base_type: string | null;
+  diff_base_lca: boolean | null;
+  diff_base: string | null;
+  diff_bases: DiffBaseCandidates | null;
+  base_atlas_commit: string | null;
+  diff_added: number | null;
+  diff_changed: number | null;
 }
 
 /** Upsert on a successful build. created_at is preserved on conflict (re-builds
@@ -33,11 +43,14 @@ export interface PreviewRow {
 export async function upsertPreview(m: PreviewMeta): Promise<void> {
   await sql`
     INSERT INTO previews
-      (sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, build_ms, trust_tier, private, pr_base_repo, pr_base_ref, default_branch, last_access)
+      (sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, build_ms, trust_tier, private, pr_base_repo, pr_base_ref, default_branch,
+       diff_base_type, diff_base_lca, diff_base, diff_bases, base_atlas_commit, diff_added, diff_changed, last_access)
     VALUES
       (${m.sha}, ${m.repo}, ${m.ref}, ${m.kind}, ${m.prNumber ?? null}, ${m.prTitle ?? null},
        ${m.prAuthor ?? null}, ${m.prState ?? null}, ${m.docCount}, ${m.buildMs}, ${m.trustTier ?? null},
-       ${m.private ?? false}, ${m.prBase?.repo ?? null}, ${m.prBase?.ref ?? null}, ${m.defaultBranch ?? null}, now())
+       ${m.private ?? false}, ${m.prBase?.repo ?? null}, ${m.prBase?.ref ?? null}, ${m.defaultBranch ?? null},
+       ${diffBaseType(m)}, ${diffBaseHasLca(m)}, ${diffBaseLabel(m)}, ${diffBaseCandidates(m)}::jsonb, ${m.baseAtlasCommit ?? null},
+       ${m.diffCounts?.added ?? null}, ${m.diffCounts?.changed ?? null}, now())
     ON CONFLICT (sha) DO UPDATE SET
       repo = EXCLUDED.repo, ref = EXCLUDED.ref, kind = EXCLUDED.kind,
       pr_number = EXCLUDED.pr_number, pr_title = EXCLUDED.pr_title,
@@ -45,7 +58,10 @@ export async function upsertPreview(m: PreviewMeta): Promise<void> {
       doc_count = EXCLUDED.doc_count, build_ms = EXCLUDED.build_ms,
       trust_tier = EXCLUDED.trust_tier, private = EXCLUDED.private,
       pr_base_repo = EXCLUDED.pr_base_repo, pr_base_ref = EXCLUDED.pr_base_ref,
-      default_branch = EXCLUDED.default_branch, last_access = now()
+      default_branch = EXCLUDED.default_branch,
+      diff_base_type = EXCLUDED.diff_base_type, diff_base_lca = EXCLUDED.diff_base_lca, diff_base = EXCLUDED.diff_base,
+      diff_bases = EXCLUDED.diff_bases, base_atlas_commit = EXCLUDED.base_atlas_commit,
+      diff_added = EXCLUDED.diff_added, diff_changed = EXCLUDED.diff_changed, last_access = now()
   `;
 }
 

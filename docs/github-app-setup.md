@@ -219,3 +219,39 @@ GitHub's own answer to "can this account read this repo?".
 4. A repo the App isn't installed on → the "install the app" screen.
 5. Direct-hit `/api/preview/<sha>/docs.json` for a private bundle without an
    authorized session → `401`/`403`, never the content.
+
+## Debugging "the preview shows the wrong diff"
+
+Every successful build records what it was redlined against on its `previews`
+row (the bundle's own `meta.json` is on ephemeral disk and does not survive a
+deploy). From a shell in the web container:
+
+```bash
+bun -e 'import {sql} from "bun";console.table(await sql`SELECT left(sha,8) AS sha, repo, ref, diff_base_type AS type, diff_base_lca AS lca, diff_base, diff_added, diff_changed, diff_bases->>$$reason$$ AS reason, last_access FROM previews WHERE private ORDER BY last_access DESC LIMIT 20`)'
+```
+
+Two columns, two questions. `diff_base_type` is WHICH BRANCH the base is:
+
+| `diff_base_type` | The base branch | Healthy for |
+|---|---|---|
+| `pr-base` | the PR's own declared base branch | every PR whose base could be read |
+| `fork-default` | the repo's default branch | a branch preview; a private PR built without Pull requests: Read (the default branch stands in for the base) |
+| `nga-main` | `sky-ecosystem/next-gen-atlas:main` | a PR or branch of the canonical repo itself |
+
+`diff_base_lca` is whether a LAST COMMON ANCESTOR with that branch was found.
+`true`: the doc list is computed against that ancestor, and `diff_base`
+(`owner/repo:branch@commit`) names it. `false`: none was found, so the preview
+was compared against nga main's TIP as served at build time — the degrade.
+`diff_bases->>'reason'` says why, and `diff_changed` is usually in the hundreds
+because everything upstream changed since the branch was cut shows up too.
+
+- `nga-main` on a **private or fork PR** means no repo-side base resolved: even
+  with an LCA, the doc list is everything that repo carries beyond nga main,
+  not just the PR. A mirror that syncs upstream by copying content rather than
+  merging commits shares no commit SHAs with nga main (upstream is squash-merged),
+  so its LCA is ancient or absent — check `diff_bases->'candidates'->'nga-main'->>'behindBy'`.
+- `SELECT … WHERE NOT diff_base_lca` lists every degraded preview.
+- `diff_bases->'candidates'` holds EVERY candidate that resolved, keyed by the
+  same three types, each with its LCA (`mergeBase`) and ahead/behind.
+- The row is overwritten on a same-sha rebuild; the per-build history is the
+  `[preview] <sha8>: redlined vs …` line in the server log.

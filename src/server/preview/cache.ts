@@ -88,6 +88,10 @@ export interface PreviewMeta {
    *  pair also copied to diff.json / patches.json. "live-main" = degraded: no
    *  candidate could be resolved and the redline is vs the served atlas. */
   bases?: PreviewBases;
+  /** Size of the automatic pair's doc list (diff.json). Persisted to the
+   *  previews row with the base it was computed against — see
+   *  diff-base-record.ts. Absent when the diff artifacts were skipped. */
+  diffCounts?: { added: number; changed: number };
 }
 
 export type BaseKey = "sky" | "repo";
