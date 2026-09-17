@@ -74,6 +74,11 @@ export interface PreviewMeta {
   needsPullsPermission?: boolean;
   /** GitHub pending-permission review URL (`html_url/permissions/update`). */
   permissionsUrl?: string;
+  /** The install was granted "All repositories" — banner nudges the owner to
+   *  narrow it to this repo. Not persisted to the previews row. */
+  grantTooBroad?: boolean;
+  /** The install's settings page (GitHub `html_url`), where repo access is changed. */
+  installSettingsUrl?: string;
   /** The diff-base candidates this bundle's redlines were computed against.
    *  `sky` = merge base with sky-ecosystem/next-gen-atlas:main (the fork
    *  point); `repo` = merge base with the head repo's own base (the PR's base

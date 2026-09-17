@@ -210,6 +210,9 @@ export interface InstallationInfo {
   htmlUrl: string | null;
   /** Repo permissions this install has actually granted (not the App's requested set). */
   permissions: Record<string, string>;
+  /** GitHub's `repository_selection`: "all" = every repo on the account, "selected" =
+   *  a chosen list. Null when GitHub omitted or mis-shaped it. */
+  repositorySelection: "all" | "selected" | null;
 }
 
 const installationCache = new Map<string, { info: InstallationInfo; exp: number }>();
@@ -225,7 +228,9 @@ function parseInstallation(json: any): InstallationInfo | null {
       if (typeof v === "string") permissions[k] = v;
     }
   }
-  return { id, htmlUrl, permissions };
+  const sel = json?.repository_selection;
+  const repositorySelection = sel === "all" || sel === "selected" ? sel : null;
+  return { id, htmlUrl, permissions, repositorySelection };
 }
 
 /** GitHub's pending-permission review screen for an install, or null if we have no html_url. */

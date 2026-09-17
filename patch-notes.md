@@ -35,7 +35,7 @@
 
 
 ## 2026-09-17
-- Pointed the private preview install screen at the repo's own GitHub account and named the one repository to grant.
+- Pointed the private preview install screen at the repo's own GitHub account, named the one repository to grant, and flagged installs granted to every repository.
 
 ## 2026-09-16
 - Chat now remembers notes you teach it with `/teach`; type `/` in the composer and it completes the command for you (Tab or Space to accept)

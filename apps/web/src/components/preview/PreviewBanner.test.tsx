@@ -312,12 +312,28 @@ describe("PreviewBanner", () => {
     expect(screen.queryByRole("link", { name: "Review permissions on GitHub ↗" })).toBeNull();
   });
 
+  it("nudges the install owner to narrow an All-repositories grant, alongside the permission prompt", async () => {
+    mockMeta({
+      sha: "ghi", repo: "acme/secret-atlas", ref: "pull-7", kind: "branch", private: true,
+      needsPullsPermission: true,
+      grantTooBroad: true, installSettingsUrl: "https://github.com/organizations/acme/settings/installations/9",
+    });
+    renderBanner(PREVIEW_SOURCE);
+    expect(await screen.findByText("ACCESS")).toBeTruthy();
+    expect(await screen.findByText("PERMISSION")).toBeTruthy(); // both rows render, one each
+    expect(await screen.findByText(/only needs acme\/secret-atlas/)).toBeTruthy();
+    const link = await screen.findByRole("link", { name: "Narrow repository access on GitHub ↗" });
+    expect(link).toHaveAttribute("href", "https://github.com/organizations/acme/settings/installations/9");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
   it("omits the permission prompt when the flag is off", async () => {
     mockMeta({
       sha: "ghi", repo: "acme/secret-atlas", ref: "feature", kind: "branch", private: true,
     });
     renderBanner(PREVIEW_SOURCE);
     await screen.findByText("PRIVATE PREVIEW");
+    expect(screen.queryByText("ACCESS")).toBeNull();
     expect(screen.queryByText(/Needs Pull requests: Read/)).toBeNull();
   });
 

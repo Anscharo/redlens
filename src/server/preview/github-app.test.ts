@@ -143,6 +143,18 @@ test("installationIdForRepo: 200 -> numeric id", async () => {
   expect(id).toBe(999);
 });
 
+test("installationInfoForRepo: repository_selection is null unless GitHub says all/selected", async () => {
+  // @ts-expect-error stub
+  globalThis.fetch = () =>
+    Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ id: 3, repository_selection: "weird" }) } as Response);
+  expect((await installationInfoForRepo("acme/x"))?.repositorySelection).toBeNull();
+  __resetCachesForTest();
+  // @ts-expect-error stub
+  globalThis.fetch = () =>
+    Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ id: 3, repository_selection: "selected" }) } as Response);
+  expect((await installationInfoForRepo("acme/x"))?.repositorySelection).toBe("selected");
+});
+
 test("installationInfoForRepo: captures html_url + granted permissions", async () => {
   // @ts-expect-error stub
   globalThis.fetch = () =>
@@ -154,6 +166,7 @@ test("installationInfoForRepo: captures html_url + granted permissions", async (
           id: 9,
           html_url: "https://github.com/organizations/acme/settings/installations/9",
           permissions: { contents: "read", metadata: "read" },
+          repository_selection: "all",
         }),
     } as Response);
   const info = await installationInfoForRepo("acme/secret");
@@ -161,6 +174,7 @@ test("installationInfoForRepo: captures html_url + granted permissions", async (
     id: 9,
     htmlUrl: "https://github.com/organizations/acme/settings/installations/9",
     permissions: { contents: "read", metadata: "read" },
+    repositorySelection: "all",
   });
   // Cached — a second call must not refetch.
   // @ts-expect-error stub

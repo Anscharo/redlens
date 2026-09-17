@@ -170,6 +170,13 @@ ever rejects that, remove `INSTALL_REPO_PLACEHOLDER` in
 `src/server/preview/github-app.ts`. Viewers never do this — only the repo
 owner, once per repo.
 
+If an install was granted **All repositories** anyway, SAbR catches it after the
+fact: every private resolve reads the install's `repository_selection`, and
+when it is `all` the preview bar shows an **ACCESS** row naming the one repo the
+App needs, linking to the install's settings page (`installation.html_url`)
+where repository access is narrowed. The row clears on the next preview once
+the grant is "Only select repositories".
+
 If the App is already installed but was granted before **Pull requests: Read**
 was added to the App's registration, GitHub keeps the old Contents+Metadata
 grant until an owner/admin accepts the new permission. Opening a private pull

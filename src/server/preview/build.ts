@@ -285,6 +285,11 @@ export function baseMeta(resolved: Resolved, sha: string, docCount: number, t0: 
     ...(resolved.needsPullsPermission
       ? { needsPullsPermission: true as const, ...(resolved.permissionsUrl ? { permissionsUrl: resolved.permissionsUrl } : {}) }
       : {}),
+    // Banner-only too: the install covers every repo on its account. Re-derived
+    // on every resolve, so it clears itself once the owner narrows the grant.
+    ...(resolved.grantTooBroad
+      ? { grantTooBroad: true as const, ...(resolved.installSettingsUrl ? { installSettingsUrl: resolved.installSettingsUrl } : {}) }
+      : {}),
     resolvedAt: new Date().toISOString(),
     docCount,
     buildMs: Date.now() - t0,

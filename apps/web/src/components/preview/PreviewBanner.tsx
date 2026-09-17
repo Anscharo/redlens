@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useDataSource } from "../../lib/dataSource";
 import { usePreviewDiff } from "../../lib/previewDiff";
-import { baseLine, baseSwitch, pullsPermissionCopy, type PreviewMeta } from "../../lib/previewMetaCopy";
+import { baseLine, baseSwitch, broadGrantCopy, pullsPermissionCopy, type PreviewMeta } from "../../lib/previewMetaCopy";
 import { Link } from "../Link";
 
 // Rendered by the App shell when a preview data source is active. Reads the
@@ -58,7 +58,9 @@ export function PreviewBanner() {
   const line = meta ? baseLine(meta, activeBase ?? null) : "";
   // wouter's useSearch() strips the leading "?"; URLSearchParams doesn't care.
   const switchLink = meta ? baseSwitch(meta, activeBase ?? null, search) : null;
-  const perm = meta ? pullsPermissionCopy(meta) : null;
+  // Install-owner nudges, one row each: a missing permission, an over-broad grant.
+  const notices = meta ? [pullsPermissionCopy(meta), broadGrantCopy(meta)].filter((n) => n !== null) : [];
+  const perm = notices.length > 0;
   return (
     <div>
     <header
@@ -119,20 +121,21 @@ export function PreviewBanner() {
         exit preview
       </a>
     </header>
-    {perm && (
+    {notices.map((n) => (
       <p
+        key={n.label}
         className="flex items-center gap-3 px-4 py-2 text-sm"
         style={{ background: "var(--hover)", borderBottom: "1px solid var(--red)", color: "var(--tan)" }}
       >
-        <span style={{ color: "var(--red)", fontWeight: 600, letterSpacing: "0.05em" }}>PERMISSION</span>
-        <span>{perm.body}</span>
-        {perm.href ? (
-          <a href={perm.href} target="_blank" rel="noreferrer" className="ml-auto" style={{ color: "var(--red)" }}>
-            {perm.linkLabel}
+        <span style={{ color: "var(--red)", fontWeight: 600, letterSpacing: "0.05em" }}>{n.label}</span>
+        <span>{n.body}</span>
+        {n.href ? (
+          <a href={n.href} target="_blank" rel="noreferrer" className="ml-auto" style={{ color: "var(--red)" }}>
+            {n.linkLabel}
           </a>
         ) : null}
       </p>
-    )}
+    ))}
     </div>
   );
 }

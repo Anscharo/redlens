@@ -327,6 +327,42 @@ test("resolvePrivateBranch: pull-N fallback does not prompt when the install alr
   expect((r as any).prBase).toBeUndefined();
 });
 
+test("resolvePrivateBranch: an install granted All repositories flags grantTooBroad with its settings page", async () => {
+  installedId = 42;
+  mintedToken = "inst-tok";
+  installJson = {
+    html_url: "https://github.com/organizations/acme/settings/installations/42",
+    permissions: { contents: "read", metadata: "read", pull_requests: "read" },
+    repository_selection: "all",
+  };
+  branchJson = { commit: { sha: "privtip", commit: { committer: { date: "2026-07-01T00:00:00Z" } } } };
+  const r = await resolvePrivateBranch("acme/secret-atlas", "main");
+  expect(r).toMatchObject({
+    private: true,
+    grantTooBroad: true,
+    installSettingsUrl: "https://github.com/organizations/acme/settings/installations/42",
+  });
+  // The PR path carries it too.
+  pullJson = { head: { sha: "prsha", ref: "feat" }, base: { ref: "main" }, title: "t", user: { login: "u" }, state: "open" };
+  commitJson = { commit: { committer: { date: "2026-07-02T00:00:00Z" } } };
+  const pr = await resolvePrivateBranch("acme/secret-atlas", "pull-7");
+  expect((pr as any).grantTooBroad).toBe(true);
+});
+
+test("resolvePrivateBranch: a selected-repos install (or an unknown selection) does not flag grantTooBroad", async () => {
+  installedId = 42;
+  mintedToken = "inst-tok";
+  installJson = { html_url: "https://github.com/settings/installations/42", repository_selection: "selected" };
+  branchJson = { commit: { sha: "privtip", commit: { committer: { date: "2026-07-01T00:00:00Z" } } } };
+  let r = await resolvePrivateBranch("acme/secret-atlas", "main");
+  expect((r as any).grantTooBroad).toBeUndefined();
+  expect((r as any).installSettingsUrl).toBeUndefined();
+  __resetCachesForTest();
+  installJson = null; // GitHub omitted repository_selection entirely
+  r = await resolvePrivateBranch("acme/secret-atlas", "main");
+  expect((r as any).grantTooBroad).toBeUndefined();
+});
+
 test("resolvePrivateBranch: pull-N that does not exist -> not-found", async () => {
   installedId = 42;
   mintedToken = "inst-tok";
