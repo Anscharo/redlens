@@ -1260,6 +1260,22 @@
       "ethereum"
     ]
   },
+  "0xa1ea1ba18e88c381c724a75f23a130420c403f9a": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "chainlogId": "MKR_SKY",
+    "etherscanName": "MkrSky",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
   "0x38d1114b4ce3e079cc0f627df6ac2776b5887776": {
     "chain": "ethereum",
     "chains": [
@@ -1313,6 +1329,38 @@
       "plasma"
     ]
   },
+  "0xb44c2fb4181d7cb06bdff34a46fdfe4a259b40fc": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "chainlogId": "REWARDS_LSSKY_SKY",
+    "etherscanName": "StakingRewards",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x675671a8756ddb69f7254afb030865388ef699ee": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "chainlogId": "REWARDS_DIST_LSSKY_SKY",
+    "etherscanName": "VestedRewardsDistribution",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
   "0xbb865f94b8a92e57f79fcc89dfd4dcf0d3fdea16": {
     "chain": "ethereum",
     "chains": [
@@ -1362,38 +1410,6 @@
     ],
     "chainlogId": "FLAP_SKY_ORACLE",
     "etherscanName": "Chronicle_SKY_USD_2",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0xb44c2fb4181d7cb06bdff34a46fdfe4a259b40fc": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "chainlogId": "REWARDS_LSSKY_SKY",
-    "etherscanName": "StakingRewards",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0x675671a8756ddb69f7254afb030865388ef699ee": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "chainlogId": "REWARDS_DIST_LSSKY_SKY",
-    "etherscanName": "VestedRewardsDistribution",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {

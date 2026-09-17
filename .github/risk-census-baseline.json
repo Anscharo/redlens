@@ -7,6 +7,12 @@
       "title": "Changes To Approved Emergency Contact Mechanisms"
     },
     {
+      "taskKey": "u:2c577553-830f-4b9f-ab5f-dddd0fd62cfa",
+      "uuid": "2c577553-830f-4b9f-ab5f-dddd0fd62cfa",
+      "docNo": "A.1.10.2.3.2.2.3.2.2",
+      "title": "Prime Agent Publishes Spell Actions On Sky Forum"
+    },
+    {
       "taskKey": "u:f2e395a1-a532-401a-ac15-b29d27916473",
       "uuid": "f2e395a1-a532-401a-ac15-b29d27916473",
       "docNo": "A.1.10.2.3.2.2.3.2.3",
@@ -17,6 +23,12 @@
       "uuid": "78ec918d-cd9e-4326-bfa9-ab338e658a8b",
       "docNo": "A.1.10.2.3.2.3.1",
       "title": "Execution Through StarGuard"
+    },
+    {
+      "taskKey": "u:45adb133-13b4-402c-8c2b-2473d78ff72e",
+      "uuid": "45adb133-13b4-402c-8c2b-2473d78ff72e",
+      "docNo": "A.1.10.2.5.2.3",
+      "title": "Morpho Deployment Verification Guide"
     },
     {
       "taskKey": "u:cd57f7e4-6acd-431e-97fd-89c3453c8eba",
@@ -517,6 +529,78 @@
       "title": "Set Unlimited RateLimit"
     },
     {
+      "taskKey": "u:686b81a9-450d-4340-a25a-5a069cbe8788",
+      "uuid": "686b81a9-450d-4340-a25a-5a069cbe8788",
+      "docNo": "A.2.2.10.1.1.1.3.1",
+      "title": "Role Configuration"
+    },
+    {
+      "taskKey": "u:881e768f-3438-4163-8965-a4bbd1752b94",
+      "uuid": "881e768f-3438-4163-8965-a4bbd1752b94",
+      "docNo": "A.2.2.10.1.1.1.3.2.1",
+      "title": "Eligible Loan Assets"
+    },
+    {
+      "taskKey": "u:fe70a940-5ada-48c5-8826-b361ef33275f",
+      "uuid": "fe70a940-5ada-48c5-8826-b361ef33275f",
+      "docNo": "A.2.2.10.1.1.1.3.2.2",
+      "title": "Eligible Collateral And Liquidation Loan-To-Value Limits"
+    },
+    {
+      "taskKey": "u:191fbabc-d4e1-4ec4-9ea8-35b80eb809b0",
+      "uuid": "191fbabc-d4e1-4ec4-9ea8-35b80eb809b0",
+      "docNo": "A.2.2.10.1.1.1.3.2.3.1",
+      "title": "Multi-Source Oracle Methodology"
+    },
+    {
+      "taskKey": "u:fe7c0ccf-c570-471a-815a-6b4b9cda5e29",
+      "uuid": "fe7c0ccf-c570-471a-815a-6b4b9cda5e29",
+      "docNo": "A.2.2.10.1.1.1.3.2.3.2",
+      "title": "Eligible Collateral Oracle Methodologies"
+    },
+    {
+      "taskKey": "u:079d2e2c-fa22-4f3c-a929-82d45af38097",
+      "uuid": "079d2e2c-fa22-4f3c-a929-82d45af38097",
+      "docNo": "A.2.2.10.1.1.1.3.2.3.3",
+      "title": "Temporary Single-Source Oracle Exception"
+    },
+    {
+      "taskKey": "u:c7723797-b2c8-4334-a185-592797456f87",
+      "uuid": "c7723797-b2c8-4334-a185-592797456f87",
+      "docNo": "A.2.2.10.1.1.1.3.2.3.4",
+      "title": "New Collateral Oracle Approval"
+    },
+    {
+      "taskKey": "u:4d30ef6e-bed6-4abd-b6dd-7c748e9d7ef1",
+      "uuid": "4d30ef6e-bed6-4abd-b6dd-7c748e9d7ef1",
+      "docNo": "A.2.2.10.1.1.1.3.2.4",
+      "title": "Interest Rate Requirements"
+    },
+    {
+      "taskKey": "u:14aba6cb-eb34-4780-84c1-908666835569",
+      "uuid": "14aba6cb-eb34-4780-84c1-908666835569",
+      "docNo": "A.2.2.10.1.1.1.3.3.1",
+      "title": "Vault Timelock Requirements"
+    },
+    {
+      "taskKey": "u:91ba9acf-6ed7-4214-8b6b-adfb03427ae1",
+      "uuid": "91ba9acf-6ed7-4214-8b6b-adfb03427ae1",
+      "docNo": "A.2.2.10.1.1.1.3.3.2",
+      "title": "Adapter Timelock Requirements"
+    },
+    {
+      "taskKey": "u:8e63ce99-4c7a-497f-a20a-92cba946b77d",
+      "uuid": "8e63ce99-4c7a-497f-a20a-92cba946b77d",
+      "docNo": "A.2.2.10.1.1.1.3.4",
+      "title": "Eligible Chains"
+    },
+    {
+      "taskKey": "u:41824fb1-a4e0-4f58-9095-0b3e646fb42c",
+      "uuid": "41824fb1-a4e0-4f58-9095-0b3e646fb42c",
+      "docNo": "A.2.2.10.1.1.1.3.5",
+      "title": "Transition And Compliance"
+    },
+    {
       "taskKey": "u:f14bd41f-87a4-4cf9-aa04-189db73e0f08",
       "uuid": "f14bd41f-87a4-4cf9-aa04-189db73e0f08",
       "docNo": "A.2.2.10.1.1.1.6.1.1",
@@ -565,6 +649,12 @@
       "title": "Step 0: Net Revenue"
     },
     {
+      "taskKey": "u:c4ef7fd6-c70c-4fe9-9665-97ad17443390",
+      "uuid": "c4ef7fd6-c70c-4fe9-9665-97ad17443390",
+      "docNo": "A.2.3.1.5",
+      "title": "Allocation Modification"
+    },
+    {
       "taskKey": "u:7f43aea7-9b81-48ef-b3ce-fdfae7e8a551",
       "uuid": "7f43aea7-9b81-48ef-b3ce-fdfae7e8a551",
       "docNo": "A.2.4.1.1",
@@ -575,6 +665,12 @@
       "uuid": "a8075d68-a5ba-4b4d-bce5-0ad58130f9e5",
       "docNo": "A.2.8.2.2.2.4.5.2.3",
       "title": "Grove Foundation Grant Authorization: August 2026"
+    },
+    {
+      "taskKey": "u:bd2d15af-e32a-4ce9-a7ac-5a5ff1665fd4",
+      "uuid": "bd2d15af-e32a-4ce9-a7ac-5a5ff1665fd4",
+      "docNo": "A.2.8.2.2.2.4.5.2.4",
+      "title": "Grove Foundation Grant Authorization: September 2026"
     },
     {
       "taskKey": "u:a176f67f-009f-44a0-a19b-169c2eb376a4",
@@ -619,6 +715,12 @@
       "title": "Rate Conventions"
     },
     {
+      "taskKey": "u:20aa9663-214b-46f5-8b37-53be387b996b",
+      "uuid": "20aa9663-214b-46f5-8b37-53be387b996b",
+      "docNo": "A.3.2.2.1.1.1.1.3.8.2",
+      "title": "Noncompliant Morpho Vault Allocations"
+    },
+    {
       "taskKey": "u:bf561ea8-ab09-4ff5-a84d-2e92bcff997b",
       "uuid": "bf561ea8-ab09-4ff5-a84d-2e92bcff997b",
       "docNo": "A.3.3.2.7.1.1.3",
@@ -629,6 +731,12 @@
       "uuid": "ddb90fee-2851-4bf0-b924-f1d73e30ce7a",
       "docNo": "A.3.5.2",
       "title": "Smart Burn Engine Parameters"
+    },
+    {
+      "taskKey": "u:0803e6b5-5755-431c-9ef0-999115f6f897",
+      "uuid": "0803e6b5-5755-431c-9ef0-999115f6f897",
+      "docNo": "A.3.5.2.2.2",
+      "title": "Deployment"
     },
     {
       "taskKey": "u:499570de-9fae-4009-be34-c3330266030a",

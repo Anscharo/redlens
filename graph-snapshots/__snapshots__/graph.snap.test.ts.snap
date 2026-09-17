@@ -5840,13 +5840,13 @@ exports[`allocation-system sub-doc content > Osero > Ethereum Mainnet - SparkLen
     "title": "Outflow RateLimitID",
   },
   {
-    "content": "The current \`maxAmount\` and \`slope\` for this conduit's inflow/outflow are defined in the subdocuments herein.",
+    "content": "The current \`maxAmount\` and \`slope\` for this conduit's inflow/outflow are defined in the subdocuments herein. These values are set via a cBEAM, as specified in [A.6.1.1.7.2.6.1.2.1.1.2.2 - Diamond PAU Rate Limits](325731dc-5e89-4a8a-9d64-91b203febf48).",
     "title": "Rate Limits",
   },
   {
     "content": "The deposit rate limits are:
-- \`maxAmount\`: 5,000,000 USDS
-- \`slope\`: 5,000,000 USDS per day",
+- \`maxAmount\`: 50,000,000 USDS
+- \`slope\`: 50,000,000 USDS per day",
     "title": "Deposit Rate Limits",
   },
   {
@@ -11900,12 +11900,12 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 9,
   "annotates": 101,
   "can_modify_signers_of": 32,
-  "cites": 2221,
+  "cites": 2245,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
   "defines_entity": 420,
-  "duty_for": 866,
+  "duty_for": 865,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 9,
@@ -11920,7 +11920,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "invoked_by": 214,
   "listed_in": 49,
   "located_at": 207,
-  "mentions": 702,
+  "mentions": 704,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -15205,8 +15205,8 @@ exports[`instances > allocation-system instances 1`] = `
     "params": {
       "Asset Supplied By Osero Liquidity Layer": "USDS",
       "Capital Ratio Requirement": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 5%.",
-      "Deposit Rate Limits / maxAmount": "5,000,000 USDS",
-      "Deposit Rate Limits / slope": "5,000,000 USDS per day",
+      "Deposit Rate Limits / maxAmount": "50,000,000 USDS",
+      "Deposit Rate Limits / slope": "50,000,000 USDS per day",
       "Inflow RateLimitID": "0x5534da2f28b3dd200cb0042c0876cd6e2beca93d3232c366ec077018c82da73d",
       "Max Slippage": "The \`maxSlippage\` for this Instance is 0.01%.",
       "Maximum Exposure": "The Maximum Exposure for this Instance is 100,000,000 USDS.",
