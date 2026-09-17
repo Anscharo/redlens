@@ -349,6 +349,20 @@ test("resolvePrivateBranch: an install granted All repositories flags grantTooBr
   expect((pr as any).grantTooBroad).toBe(true);
 });
 
+test("resolvePrivateBranch: a narrowed grant clears grantTooBroad on the next resolve despite the install cache", async () => {
+  installedId = 42;
+  mintedToken = "inst-tok";
+  installJson = { html_url: "https://github.com/settings/installations/42", repository_selection: "all" };
+  branchJson = { commit: { sha: "privtip", commit: { committer: { date: "2026-07-01T00:00:00Z" } } } };
+  expect((await resolvePrivateBranch("acme/secret-atlas", "main") as any).grantTooBroad).toBe(true);
+  // The owner narrows the grant on GitHub. No cache reset: the 30-min install
+  // cache still says "all", and a cached "all" must be re-checked, not served.
+  installJson = { html_url: "https://github.com/settings/installations/42", repository_selection: "selected" };
+  const r = await resolvePrivateBranch("acme/secret-atlas", "main");
+  expect((r as any).grantTooBroad).toBeUndefined();
+  expect((r as any).installSettingsUrl).toBeUndefined();
+});
+
 test("resolvePrivateBranch: a selected-repos install (or an unknown selection) does not flag grantTooBroad", async () => {
   installedId = 42;
   mintedToken = "inst-tok";

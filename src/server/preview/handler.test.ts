@@ -627,7 +627,7 @@ test("/events: an app-not-installed resolve failure carries the App's install UR
     expect(events).toContainEqual({
       phase: "failed",
       code: "app-not-installed",
-      message: "https://github.com/apps/redlens-preview/installations/new/permissions?target_id=777&repository_ids[]=0",
+      message: "https://github.com/apps/redlens-preview/installations/new/permissions?suggested_target_id=777&target_id=777&repository_ids[]=0",
     });
   } finally {
     globalThis.fetch = orig.fetch;

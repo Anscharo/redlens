@@ -102,6 +102,6 @@ describe("previewRepo", () => {
     expect(previewRepo("acme:main")).toBe("acme/next-gen-atlas");
     expect(previewRepo("pull-256")).toBe("sky-ecosystem/next-gen-atlas");
     expect(previewRepo("main")).toBe("sky-ecosystem/next-gen-atlas");
-    expect(previewRepo("a".repeat(40))).toBe("sky-ecosystem/next-gen-atlas");
+    expect(previewRepo("a".repeat(40))).toBeNull(); // a bare SHA names no repo
   });
 });

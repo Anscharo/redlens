@@ -155,6 +155,24 @@ test("installationInfoForRepo: repository_selection is null unless GitHub says a
   expect((await installationInfoForRepo("acme/x"))?.repositorySelection).toBe("selected");
 });
 
+test("installationInfoForRepo: refresh bypasses the cache read and re-caches the fresh answer", async () => {
+  let calls = 0;
+  // @ts-expect-error stub
+  globalThis.fetch = () => {
+    calls++;
+    return Promise.resolve({
+      status: 200,
+      ok: true,
+      json: () => Promise.resolve({ id: 5, repository_selection: calls === 1 ? "all" : "selected" }),
+    } as Response);
+  };
+  expect((await installationInfoForRepo("acme/x"))?.repositorySelection).toBe("all");
+  expect((await installationInfoForRepo("acme/x"))?.repositorySelection).toBe("all"); // cached
+  expect((await installationInfoForRepo("acme/x", { refresh: true }))?.repositorySelection).toBe("selected");
+  expect((await installationInfoForRepo("acme/x"))?.repositorySelection).toBe("selected"); // re-cached
+  expect(calls).toBe(2);
+});
+
 test("installationInfoForRepo: captures html_url + granted permissions", async () => {
   // @ts-expect-error stub
   globalThis.fetch = () =>
@@ -285,13 +303,13 @@ test("appInstallUrl(repo): targets the repo owner's account via its public id (n
   };
   try {
     expect(await appInstallUrl("acme/atlas-private")).toBe(
-      "https://github.com/apps/redlens-preview/installations/new/permissions?target_id=4242&repository_ids[]=0",
+      "https://github.com/apps/redlens-preview/installations/new/permissions?suggested_target_id=4242&target_id=4242&repository_ids[]=0",
     );
     expect(seen.find((c) => c.url.endsWith("/users/acme"))?.auth).toBeNull();
     // Owner id is cached: a second call for the same owner makes no further fetch.
     const before = seen.length;
     expect(await appInstallUrl("acme/other-repo")).toBe(
-      "https://github.com/apps/redlens-preview/installations/new/permissions?target_id=4242&repository_ids[]=0",
+      "https://github.com/apps/redlens-preview/installations/new/permissions?suggested_target_id=4242&target_id=4242&repository_ids[]=0",
     );
     expect(seen.length).toBe(before);
     // Unknown owner -> generic install page, never a broken link.

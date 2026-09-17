@@ -118,10 +118,13 @@ export function previewLabel(id: string): string {
   return `${CANONICAL_OWNER}/${ATLAS_REPO_NAME}`;
 }
 
-/** The "owner/name" repo a preview id names — the one repo an installer should grant. */
-export function previewRepo(id: string): string {
+/** The "owner/name" repo a preview id names — the one repo an installer should
+ *  grant. Null for a bare SHA: the repo behind it lives in the previews table,
+ *  not the id, so naming the canonical repo there would be a guess. */
+export function previewRepo(id: string): string | null {
   const s = id.trim();
-  if (/^pull-\d+$/.test(s) || SHA_RE.test(s)) return `${CANONICAL_OWNER}/${ATLAS_REPO_NAME}`;
+  if (SHA_RE.test(s)) return null;
+  if (/^pull-\d+$/.test(s)) return `${CANONICAL_OWNER}/${ATLAS_REPO_NAME}`;
   const parts = s.split(":"); // owner:repo:ref | owner:ref | bare ref (canonical branch)
   if (parts.length >= 3) return `${parts[0]}/${parts[1]}`;
   if (parts.length === 2) return `${parts[0]}/${ATLAS_REPO_NAME}`;

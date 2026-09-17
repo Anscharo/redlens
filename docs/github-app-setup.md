@@ -157,7 +157,9 @@ any login:
 SAbR surfaces this: if someone opens a private preview for a repo the App
 isn't on yet, the UI shows an **"install the app"** screen naming the
 `owner/name` repo and the "Only select repositories" step. Its link is
-`…/installations/new/permissions?target_id=<account id>`, which opens GitHub's
+`…/installations/new/permissions?suggested_target_id=<account id>&target_id=<account id>`
+(GitHub documents the first key as required on that path; its own install
+buttons emit the second — both are sent), which opens GitHub's
 permission screen for **that repo's owning account only** (the account id is
 public, `GET /users/<login>`), so the installer is never offered every org they
 belong to. The repo itself can't be pre-ticked: GitHub's `repository_ids[]`
@@ -175,7 +177,9 @@ fact: every private resolve reads the install's `repository_selection`, and
 when it is `all` the preview bar shows an **ACCESS** row naming the one repo the
 App needs, linking to the install's settings page (`installation.html_url`)
 where repository access is narrowed. Reloading the same preview after
-narrowing updates the on-disk meta (no rebuild) and the row clears.
+narrowing updates the on-disk meta (no rebuild) and the row clears: a cached
+`repository_selection: all` is always re-checked against GitHub on the next
+private resolve, so the 30-minute installation cache never keeps the row up.
 
 If the App is already installed but was granted before **Pull requests: Read**
 was added to the App's registration, GitHub keeps the old Contents+Metadata

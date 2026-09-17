@@ -146,6 +146,9 @@ let cachedInstallUrl: string | null = null;
 // only — so an installer is never offered every org they belong to. The id of a
 // user or org is public (GET /users/<login>, no auth needed), so it can be looked
 // up for the repo the preview named even though the App can't see the repo yet.
+// GitHub's docs name the key `suggested_target_id` (marked required on that path)
+// while its own install buttons emit `target_id`; both are sent so the link is
+// right whichever one this path honours.
 // The repository itself CAN'T be pre-set: `repository_ids[]` ticks "Only select
 // repositories" with the listed repos, but a private repo's numeric id is
 // invisible until the App is installed on it — exactly the state this link is
@@ -176,7 +179,7 @@ export async function accountIdForLogin(login: string): Promise<number | null> {
 /**
  * The App's install URL, or null if it couldn't be determined (unconfigured/failed).
  * With `repo` ("owner/name"), targets that owner's account when its id resolves
- * (`/installations/new/permissions?target_id=…&repository_ids[]=0`, the placeholder
+ * (`/installations/new/permissions?suggested_target_id=…&target_id=…&repository_ids[]=0`, the placeholder
  * pre-selecting "Only select repositories"); otherwise the generic page.
  */
 export async function appInstallUrl(repo?: string): Promise<string | null> {
@@ -190,7 +193,8 @@ export async function appInstallUrl(repo?: string): Promise<string | null> {
   const owner = repo?.split("/")[0];
   if (!owner) return cachedInstallUrl;
   const id = await accountIdForLogin(owner);
-  return id === null ? cachedInstallUrl : `${cachedInstallUrl}/permissions?target_id=${id}${INSTALL_REPO_PLACEHOLDER}`;
+  if (id === null) return cachedInstallUrl;
+  return `${cachedInstallUrl}/permissions?suggested_target_id=${id}&target_id=${id}${INSTALL_REPO_PLACEHOLDER}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -245,10 +249,12 @@ export function installationHasPullsRead(permissions: Record<string, string> | u
   return p === "read" || p === "write";
 }
 
-/** The App's installation for `repo`, or null if not installed / lookup failed. */
-export async function installationInfoForRepo(repo: string): Promise<InstallationInfo | null> {
+/** The App's installation for `repo`, or null if not installed / lookup failed.
+ *  `refresh` skips the cache read (the write still happens) — for the one
+ *  reader that must not serve a stale answer, see resolve.ts's broadGrant. */
+export async function installationInfoForRepo(repo: string, opts?: { refresh?: boolean }): Promise<InstallationInfo | null> {
   const now = Date.now();
-  const cached = installationCache.get(repo);
+  const cached = opts?.refresh ? undefined : installationCache.get(repo);
   if (cached && cached.exp > now) return cached.info;
 
   const r = await ghFetch(`https://api.github.com/repos/${repo}/installation`, await appJwt());

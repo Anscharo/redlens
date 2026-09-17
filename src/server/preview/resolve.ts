@@ -307,7 +307,13 @@ async function pullsPermissionGap(repo: string): Promise<Pick<Resolved, "needsPu
  *  so the over-broad grant is caught here, after the fact, and surfaced on the
  *  banner. Empty object when the selection is "selected" or unknown. */
 async function broadGrant(repo: string): Promise<Pick<Resolved, "grantTooBroad" | "installSettingsUrl">> {
-  const install = await installationInfoForRepo(repo);
+  let install = await installationInfoForRepo(repo);
+  // A cached "all" is never trusted: the person who just narrowed the grant on
+  // GitHub reloads to see the row clear, and the 30-min install cache would
+  // keep it up. One extra GitHub call per private resolve, only while the
+  // grant is over-broad — a temporary state. A cached "selected" is fine to
+  // serve (a widening lagging 30 min costs nothing).
+  if (install?.repositorySelection === "all") install = await installationInfoForRepo(repo, { refresh: true });
   if (install?.repositorySelection !== "all") return {};
   return { grantTooBroad: true, ...(install.htmlUrl ? { installSettingsUrl: install.htmlUrl } : {}) };
 }
