@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { AtlasNode, GraphEntity, RelationEdge } from "@/types";
 import type { GraphData } from "@/lib/graphData";
-import { buildSidebarActors, buildActorProfile } from "./actorIndex";
+import { buildSidebarActors, buildActorProfile, omniTopics } from "./actorIndex";
 import { buildChainMap, buildActiveDataRows, type ActiveDataRow } from "@/lib/activeDataIndex";
 import { buildRewardsIndex } from "@/lib/rewardsIndex";
 import { EXEC_EDGES, FAC_EDGES, CHAIN_EDGES } from "@/lib/roleEdges";
@@ -350,5 +350,44 @@ describe("buildActorProfile — synthetic: zero-exec fallback, missing RP, no re
       facilitators: [{ id: "syn-fac-no-exec", slug: "facnoexec", name: "FacNoExec", et: "facilitator_org", st: null, docId: "syn-fac-doc" }],
       govops: [],
     });
+  });
+});
+
+
+describe("omniTopics", () => {
+  const doc = (id: string, title: string, parentId: string | null, order: number) =>
+    ({ id, doc_no: id, title, type: "Core", depth: 3, parentId, order, content: "", addressRefs: [] }) as AtlasNode;
+
+  const agent = doc("A.6.1.1.1", "Spark", null, 0);
+  const docs: Record<string, AtlasNode> = {
+    [agent.id]: agent,
+    "A.6.1.1.1.2": doc("A.6.1.1.1.2", "Sky Primitives", agent.id, 1),
+    "A.6.1.1.1.3": doc("A.6.1.1.1.3", "Omni Documents", agent.id, 2),
+    // Deliberately out of insertion order: the helper sorts by `order`.
+    "A.6.1.1.1.3.3": doc("A.6.1.1.1.3.3", "Ecosystem Accords", "A.6.1.1.1.3", 3),
+    "A.6.1.1.1.3.1": doc("A.6.1.1.1.3.1", "Governance Information Unrelated To Root Edit Primitive", "A.6.1.1.1.3", 1),
+    "A.6.1.1.1.3.2": doc("A.6.1.1.1.3.2", "Arkis Infrastructure", "A.6.1.1.1.3", 2),
+  };
+
+  it("lists the agent's omni topics in document order, flagging the universal two", () => {
+    expect(omniTopics(agent, docs).map((t) => [t.title, t.universal])).toEqual([
+      ["Governance Information Unrelated To Root Edit Primitive", true],
+      ["Arkis Infrastructure", false],
+      ["Ecosystem Accords", true],
+    ]);
+  });
+
+  it("finds the section by title, so a renumbering cannot break it", () => {
+    const renumbered = { ...docs };
+    // Same tree, different doc numbers — the titles are what is matched.
+    const moved = { ...renumbered["A.6.1.1.1.3"], doc_no: "A.7.2.9" };
+    renumbered["A.6.1.1.1.3"] = moved;
+    expect(omniTopics(agent, renumbered)).toHaveLength(3);
+  });
+
+  it("is empty for an actor with no Omni Documents section, and for none at all", () => {
+    const exec = doc("A.6.1.2.1", "Amatsu", null, 0);
+    expect(omniTopics(exec, docs)).toEqual([]);
+    expect(omniTopics(null, docs)).toEqual([]);
   });
 });

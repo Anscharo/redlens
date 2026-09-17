@@ -4,6 +4,7 @@ export const ROUTES = {
   RADAR: "/radar",
   RADAR_ACTOR: "/radar/:slug",
   RADAR_ACTOR_SETTLEMENTS: "/radar/:slug/settlements",
+  RADAR_ACTOR_HISTORY: "/radar/:slug/history",
   SEARCH_HINTS: "/search-hints",
   PROVENANCE: "/provenance",
   PRIVACY: "/privacy",
@@ -191,4 +192,5 @@ export const absolutizeAtlasLinks = (markdown: string): string =>
 export const actorHref = (slug: string, fragment?: string) =>
   `${ROUTES.RADAR}/${slug}${fragment ? `#${fragment}` : ""}`;
 export const settlementsHref = (slug: string) => `${ROUTES.RADAR}/${slug}/settlements`;
+export const actorHistoryHref = (slug: string) => `${ROUTES.RADAR}/${slug}/history`;
 export const reportHref = (id: string) => `${ROUTES.REPORTS}/${id}`;

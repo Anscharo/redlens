@@ -29,6 +29,7 @@ function profile(): ActorProfile {
     comprisesMembers: [],
     partOfComposite: null,
     contact: { channels: [], emergency: [] },
+    omni: [],
   } as ActorProfile;
 }
 

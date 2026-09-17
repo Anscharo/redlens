@@ -162,6 +162,15 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           "Open Radar and pick an actor from the list.",
           "Scan the dashboard sections; the composite party view ties an Agent's associated legal entities together as one party.",
+          "An Agent artifact's Omni documents line counts its Omni Documents and names the governance topics that are its own — the ones beyond the standard set every Agent carries. Some Agents run a long list of them, some run none, and Executor Agents have no Omni section at all. Each topic links straight to its Atlas document.",
+          "Responsibilities and Change history each show the first twenty rows; Responsibilities links the rest into the Active Data Report, and Change history links its older entries to the actor's own history page.",
+        ],
+      },
+      {
+        name: "Full actor change history",
+        what: "Every recorded change to an actor's documents on one page, rather than the dashboard's twenty most recent.",
+        how: [
+          "Open an actor on Radar and follow the “N older changes →” link under Change history, or go to /radar/<actor>/history directly.",
         ],
       },
       {

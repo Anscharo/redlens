@@ -3600,3 +3600,14 @@ a:focus-visible > .msc-ring-prime .msc-ring-rim {
 .msc-ring-pill-anchor {
   fill: var(--gray);
 }
+
+/* An agent's Omni Documents line: two lines of space, then ellipsis — the
+   count in the heading already says how many there are, and every topic is
+   listed on the artifact itself. */
+.msc-omni-line {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}

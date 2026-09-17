@@ -10,6 +10,7 @@ import { buildPrimitiveStats } from "../../lib/primitiveStats";
 import { ActorList } from "./ActorList";
 import { ActorDashboard } from "./ActorDashboard";
 import { ActorSettlementsPage } from "./ActorSettlementsPage";
+import { ActorHistoryPage } from "./ActorHistoryPage";
 import { PrimitiveDashboard } from "./PrimitiveDashboard";
 import { MscOverview } from "./MscOverview";
 import { Drawer, DrawerToggle } from "../Drawer";
@@ -24,7 +25,7 @@ import { actorHref, settlementsHref } from "@/lib/routes";
 interface Props {
   query: string;
   actorSlug?: string;
-  page?: "settlements";
+  page?: "settlements" | "history";
 }
 
 interface InnerProps extends Props {
@@ -116,6 +117,8 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
         </div>
       ) : !profile ? (
         <Loading>actor not found</Loading>
+      ) : page === "history" ? (
+        <ActorHistoryPage profile={profile} />
       ) : page === "settlements" ? (
         <ActorSettlementsPage profile={profile} />
       ) : (

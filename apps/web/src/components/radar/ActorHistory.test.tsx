@@ -66,6 +66,7 @@ function profile(): ActorProfile {
     instances: [instance()], invocations: [], primitives: [],
     recommendations: [], comprisesMembers: [], partOfComposite: null,
     contact: { channels: [], emergency: [] },
+    omni: [],
   } as ActorProfile;
 }
 

@@ -19,7 +19,7 @@ vi.mock("./ActorContact", () => ({ ActorContact: () => <div data-testid="contact
 vi.mock("./ActorResponsibilities", () => ({ ActorResponsibilities: () => <div data-testid="resp" /> }));
 vi.mock("./ActorInstances", () => ({ ActorInstances: () => <div data-testid="instances" /> }));
 vi.mock("./ActorRewards", () => ({ ActorRewards: () => <div data-testid="rewards" /> }));
-vi.mock("./ActorHistory", () => ({ ActorHistory: () => <div data-testid="history" /> }));
+vi.mock("./ActorHistory", () => ({ ActorHistory: () => <div data-testid="history" />, HISTORY_PREVIEW: 20 }));
 vi.mock("./ActorSettlementTeaser", () => ({ ActorSettlementTeaser: () => <div data-testid="settlements" /> }));
 
 import { ActorDashboard } from "./ActorDashboard";
@@ -45,6 +45,7 @@ function profile(overrides: Partial<ActorProfile> = {}): ActorProfile {
     comprisesMembers: [],
     partOfComposite: null,
     contact: { channels: [], emergency: [] },
+    omni: [],
     ...overrides,
   } as ActorProfile;
 }
@@ -57,11 +58,24 @@ describe("ActorDashboard header", () => {
     expect(screen.getByTestId("settlements")).toBeInTheDocument();
   });
 
-  it("places the MSC teaser before the name so it floats to the top-right", () => {
+  it("starts the right column with the MSC teaser and History, level with the header", () => {
     render(<ActorDashboard profile={profile()} />);
     const teaser = screen.getByTestId("settlements");
+    const history = screen.getByTestId("history");
+    // Both live in the second column, whose first block is the teaser — so
+    // History begins beside the name and type pill, not below the chain.
+    const right = teaser.closest("div.min-w-0")!;
+    expect(right).toContainElement(history);
+    expect(teaser.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The header is in the sibling column that comes first in the document.
     const name = screen.getByRole("heading", { name: "Spark" });
-    expect(teaser.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(right.contains(name)).toBe(false);
+    expect(name.compareDocumentPosition(teaser) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("caps the dashboard's history at HISTORY_PREVIEW entries", () => {
+    render(<ActorDashboard profile={profile()} />);
+    expect(screen.getByTestId("history")).toBeInTheDocument();
   });
 
   it("shows 'Executor Agent' for a non-prime agent", () => {

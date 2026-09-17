@@ -9,7 +9,8 @@ import { ActorContact } from "./ActorContact";
 import { ActorResponsibilities } from "./ActorResponsibilities";
 import { ActorRewards } from "./ActorRewards";
 import { ActorInstances } from "./ActorInstances";
-import { ActorHistory } from "./ActorHistory";
+import { ActorHistory, HISTORY_PREVIEW } from "./ActorHistory";
+import { ActorOmni } from "./ActorOmni";
 import { ActorSettlementTeaser } from "./ActorSettlementTeaser";
 
 interface Props {
@@ -106,10 +107,13 @@ export function ActorDashboard({ profile }: Props) {
 
   return (
     <div className="flex-1 px-6 py-6 min-w-0">
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-8">
-        <div className="lg:col-span-2 min-w-0 flow-root">
-          {/* Floated first → top-right of the agent header; null if no MSC workbook. */}
-          <ActorSettlementTeaser slug={entity.slug} name={entity.name} />
+      {/* Two columns from the very top, so History starts level with the
+          agent's name and type pill rather than below the chain. Each column
+          is its own stack, and the sections are split between them so the
+          shorter one does not leave dead space under History — with History
+          and Responsibilities both capped, the two stay close in height. */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-8 items-start">
+        <div className="min-w-0">
           {/* Header */}
           <div className="mb-6">
             <p className="mono text-xs mb-1" style={{ color: "var(--tan-3)" }}>
@@ -144,14 +148,11 @@ export function ActorDashboard({ profile }: Props) {
             </div>
           </div>
 
-          {/* Chain — always shown */}
           <div className="mb-6">
             <ActorChain chain={chain} currentSlug={entity.slug} />
           </div>
-        </div>
 
-        <div className="min-w-0">
-          {/* Contact — governance channels + emergency response (Prime Agents) */}
+          <ActorOmni topics={profile.omni} />
           <ActorContact contact={profile.contact} />
 
           {entity.et === "composite_party" && (
@@ -191,6 +192,16 @@ export function ActorDashboard({ profile }: Props) {
               <ActorInstances primitives={primitives} />
             </Section>
           )}
+        </div>
+
+        <div className="min-w-0">
+          {/* The settlement card is this column's first block rather than a
+              float, so it keeps its top-right place without needing room
+              inside a half-width column. Null if no MSC workbook. */}
+          <ActorSettlementTeaser slug={entity.slug} name={entity.name} />
+          <Section title={"History of Doc Changes affecting " + entity.name}>
+            <ActorHistory profile={profile} limit={HISTORY_PREVIEW} />
+          </Section>
           {relations.length > 0 && (
             <Section title="Relationships">
               {relations.map((r, i) => (
@@ -206,12 +217,6 @@ export function ActorDashboard({ profile }: Props) {
             </Section>
           )}
         </div>
-
-        <aside className="min-w-0">
-          <Section title={"History of Doc Changes affecting " + profile.entity.name}>
-            <ActorHistory profile={profile} />
-          </Section>
-        </aside>
 
         {rewardsAgent && (
           <div className="lg:col-span-2 min-w-0">

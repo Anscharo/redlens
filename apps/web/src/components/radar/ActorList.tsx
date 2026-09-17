@@ -7,7 +7,7 @@ interface Props {
   groups: SidebarGroup[];
   selectedSlug: string | null;
   /** Which page of the selected actor is open. */
-  page?: "settlements";
+  page?: "settlements" | "history";
   /** Actors with published Monthly Settlement Cycle workbooks — the ones
    *  that get a sub nav (Info / Settlements) instead of a plain link. */
   settledSlugs?: ReadonlySet<string>;
@@ -107,7 +107,7 @@ function ActorDisclosure({
   open: boolean;
   onToggle: () => void;
   selected: boolean;
-  page?: "settlements";
+  page?: "settlements" | "history";
 }) {
   const subId = `actor-sub-${actor.slug}`;
   return (

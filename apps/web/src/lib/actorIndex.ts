@@ -83,6 +83,16 @@ export interface ActorContact {
   channels: ContactChannel[];
   emergency: ContactEmergency[];
 }
+/** One of an agent's Omni Documents — the governance topics its artifact
+ *  carries beyond the standard primitives. `universal` marks the two every
+ *  agent has, which the page surfaces elsewhere (Governance Information
+ *  feeds Contact; Ecosystem Accords are their own relation). */
+export interface OmniTopic {
+  id: string;
+  docNo: string;
+  title: string;
+  universal: boolean;
+}
 export interface Recommendation {
   kind: "missing-rp" | "governance-edge" | "no-rewards";
   label: string;
@@ -104,6 +114,7 @@ export interface ActorProfile {
   comprisesMembers: { name: string; slug: string | null }[];
   partOfComposite: { name: string; slug: string | null } | null;
   contact: ActorContact;
+  omni: OmniTopic[];
 }
 export interface SidebarActor {
   id: string;
@@ -421,6 +432,7 @@ export function buildActorProfile(
 
   return {
     entity,
+    omni: omniTopics(definingDoc, docs),
     definingDoc,
     chain,
     adRows,
@@ -434,4 +446,39 @@ export function buildActorProfile(
     partOfComposite,
     contact,
   };
+}
+
+/** Every agent artifact carries an "Omni Documents" child whose own children
+ *  are that agent's bespoke governance topics — Spark has ten (Arkis
+ *  Infrastructure, Offchain Collateralized Lending, …), Pattern has one. The
+ *  spread is the interesting part, so the page shows it.
+ *
+ *  Found by TITLE from the agent's defining doc, not by doc number: A.6.1.1.X.3
+ *  is editorial and renumbers, and the section title has not (see CLAUDE.md on
+ *  doc_nos as identifiers). Returns [] for anything with no such child, which
+ *  is every Executor Agent and every non-agent actor.
+ */
+const OMNI_PARENT_TITLE = "omni documents";
+/** The two topics every agent has, already surfaced elsewhere on the page. */
+const UNIVERSAL_OMNI = [/^governance information/i, /^ecosystem accords$/i];
+
+export function omniTopics(
+  definingDoc: AtlasNode | null,
+  docs: Record<string, AtlasNode>,
+): OmniTopic[] {
+  if (!definingDoc) return [];
+  const all = Object.values(docs);
+  const parent = all.find(
+    (d) => d.parentId === definingDoc.id && d.title.trim().toLowerCase() === OMNI_PARENT_TITLE,
+  );
+  if (!parent) return [];
+  return all
+    .filter((d) => d.parentId === parent.id)
+    .sort((a, b) => a.order - b.order)
+    .map((d) => ({
+      id: d.id,
+      docNo: d.doc_no,
+      title: d.title.trim(),
+      universal: UNIVERSAL_OMNI.some((re) => re.test(d.title.trim())),
+    }));
 }

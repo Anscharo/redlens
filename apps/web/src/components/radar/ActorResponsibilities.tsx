@@ -3,6 +3,10 @@ import { AtlasLink } from "../AtlasLink";
 import type { ActiveDataRow } from "@/lib/activeDataIndex";
 import { ROUTES, atlasHref } from "@/lib/routes";
 
+/** The dashboard is a summary: a long Active Data table is the report's
+ *  job, and the link below already goes there. */
+export const RESPONSIBILITIES_PREVIEW = 20;
+
 interface Props {
   rows: ActiveDataRow[];
 }
@@ -42,6 +46,8 @@ function Row({ r }: { r: ActiveDataRow }) {
 }
 
 export function ActorResponsibilities({ rows }: Props) {
+  const shown = rows.slice(0, RESPONSIBILITIES_PREVIEW);
+  const hidden = rows.length - shown.length;
   return (
     <div>
       <div className="overflow-x-auto">
@@ -56,7 +62,7 @@ export function ActorResponsibilities({ rows }: Props) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {shown.map((r) => (
               <Row key={r.activeDataId} r={r} />
             ))}
           </tbody>
@@ -67,7 +73,8 @@ export function ActorResponsibilities({ rows }: Props) {
           to={ROUTES.REPORTS_ACTIVE_DATA}
           className="mono text-[11px] text-accent hover:underline"
         >
-          View all in Active Data Report <span className="enlargen">→</span>
+          {hidden > 0 ? `${hidden} more in the Active Data Report` : "View all in Active Data Report"}{" "}
+          <span className="enlargen">→</span>
         </Link>
       </div>
     </div>

@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-09-17
+- An Agent's Radar page now names the governance topics in its Omni Documents, keeps its change history and responsibilities to the twenty most recent, and links the rest of the history to a new full history page
+
 ## 2026-09-15
 - Previews now redline a change against the branch it was actually made on, the preview bar shows how far that base has drifted from the main atlas, and a private pull request missing Pull requests: Read asks the owner to grant it on GitHub
 

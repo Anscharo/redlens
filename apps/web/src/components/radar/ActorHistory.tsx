@@ -4,7 +4,7 @@ import { Tooltip } from "../Tooltip";
 import { ATLAS_REPO, CHANGE_COLOR, isGitSha, loadHistoryBatch, movePaths, prHref, severedRange, type HistoryEntry } from "@/lib/history";
 import type { ActorProfile } from "../../lib/actorIndex";
 import type { AtlasNode } from "@/types";
-import { ROUTES } from "@/lib/routes";
+import { ROUTES, actorHistoryHref } from "@/lib/routes";
 import { useRadar } from "./RadarContext";
 import { loadAtlas } from "../../lib/docs";
 import { descendantIds } from "../../lib/instanceDescendants";
@@ -192,11 +192,18 @@ function mergeByCommit(
   return [...byCommit.values()].sort((a, b) => b.date.localeCompare(a.date));
 }
 
+/** How many entries the actor dashboard shows before linking to the full
+ *  history page. A busy agent has hundreds; the dashboard is a summary. */
+export const HISTORY_PREVIEW = 20;
+
 interface Props {
   profile: ActorProfile;
+  /** Show only the most recent `limit` entries, with a link to the rest.
+   *  Omitted on /radar/:slug/history, which shows every entry. */
+  limit?: number;
 }
 
-export function ActorHistory({ profile }: Props) {
+export function ActorHistory({ profile, limit }: Props) {
   const { docs } = useRadar();
   const [entries, setEntries] = useState<MergedEntry[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -234,9 +241,11 @@ export function ActorHistory({ profile }: Props) {
   if (!entries || entries.length === 0) {
     return <p className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>no history recorded</p>;
   }
+  const shown = limit != null ? entries.slice(0, limit) : entries;
+  const hidden = entries.length - shown.length;
   return (
     <div>
-      {entries.map((e) => (
+      {shown.map((e) => (
         <Entry
           key={e.commitHash}
           entry={e}
@@ -244,6 +253,16 @@ export function ActorHistory({ profile }: Props) {
           agentName={profile.entity.name}
         />
       ))}
+      {hidden > 0 && (
+        <div className="mt-3">
+          <Link
+            to={actorHistoryHref(profile.entity.slug)}
+            className="mono text-[11px] text-accent hover:underline"
+          >
+            {hidden} older {hidden === 1 ? "change" : "changes"} <span className="enlargen">→</span>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
