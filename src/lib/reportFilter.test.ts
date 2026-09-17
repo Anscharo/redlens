@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   queryTokens, parseReportQuery, fieldMatches, rowMatches, filterRows,
-  flexTokenSource, excerptAround, hiddenMatches, trimLinksAround, displayQuery, hasActiveFilter,
+  flexTokenSource, punctTokenSource, excerptAround, hiddenMatches, trimLinksAround, displayQuery, hasActiveFilter,
   filteredExportName, insertBeforeExt, EMPTY_QUERY,
   type SearchField,
 } from "./reportFilter";
@@ -177,6 +177,14 @@ describe("filterRows", () => {
   });
   it("returns the same array identity for a blank query", () => {
     expect(filterRows(rows, parseReportQuery("  "), fieldsOf)).toBe(rows);
+  });
+});
+
+describe("punctTokenSource", () => {
+  it("treats hyphens and ampersands as separators, so 'on chain' locates 'On-chain'", () => {
+    expect(new RegExp(punctTokenSource("on chain"), "i").exec("On-chain & money")?.[0]).toBe("On-chain");
+    expect(new RegExp(punctTokenSource("on-chain"), "i").exec("on chain money")?.[0]).toBe("on chain");
+    expect(new RegExp(punctTokenSource("csv-export"), "i").exec("with CSV export.")?.[0]).toBe("CSV export");
   });
 });
 

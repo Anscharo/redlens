@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { it, expect, describe, afterEach, vi } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import { it, expect, describe, afterEach, beforeEach, vi } from "vitest";
+import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
@@ -9,7 +9,17 @@ import { REPORT_GROUPS } from "@/lib/reportCatalog";
 
 afterEach(() => {
   cleanup();
-  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ hits: [] }),
+    }),
+  );
 });
 
 function wrap(path = "/reports") {
@@ -30,6 +40,7 @@ describe("ReportsIndex", () => {
     expect(screen.getByText("Operational Facilitator Responsibilities")).toBeInTheDocument();
     expect(screen.getByText("Active Data Index")).toBeInTheDocument();
     expect(screen.getByText("Potential Mistakes")).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("explains that unbadged reports are rebuilt from the Atlas", () => {
@@ -60,10 +71,17 @@ describe("ReportsIndex", () => {
   it("filters cards by title match, dropping emptied groups", () => {
     render(<ReportsIndex query="reward" />, { wrapper: wrap() });
 
-    expect(screen.getByText("Integrator Reward Relationships")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Integrator Reward Relationships/ })).toBeInTheDocument();
     expect(screen.getByText("On-chain & money")).toBeInTheDocument();
     expect(screen.queryByText("Roles & duties")).toBeNull();
     expect(screen.queryByText("Atlas health")).toBeNull();
+  });
+
+  it("filters cards by description match too", () => {
+    render(<ReportsIndex query="csv export" />, { wrapper: wrap() });
+    expect(screen.getByRole("link", { name: /Active Data Index/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /On-Chain Addresses/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Integrator Reward Relationships/ })).toBeNull();
   });
 
   it("filters by the badge label, so 'curated' narrows to the hand-maintained reports", () => {
@@ -74,15 +92,68 @@ describe("ReportsIndex", () => {
     expect(screen.queryByText("Active Data Index")).toBeNull();
   });
 
-  it("shows a no-results message when nothing matches, quoting the raw query", () => {
+  it("a category match keeps every report in that group", () => {
+    render(<ReportsIndex query="atlas health" />, { wrapper: wrap() });
+    expect(screen.getByRole("heading", { name: /Atlas health/i })).toBeInTheDocument();
+    expect(screen.queryByText("Roles & duties")).toBeNull();
+    expect(screen.getByRole("link", { name: /Potential Mistakes/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Stale Dates/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Operational Facilitator Responsibilities/ })).toBeNull();
+  });
+
+  it("unions server semantic hits with the lexical filter", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ hits: ["onchain-addresses"] }),
+      }),
+    );
+    render(<ReportsIndex query="wallet addresses" />, { wrapper: wrap() });
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /On-Chain Addresses/ })).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Closest meaning, not an exact wording match/)).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/reports/search?q=wallet%20addresses",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
+  it("keeps a name match and lists meaning extras under Closest meaning", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ hits: ["rewards", "onchain-addresses"] }),
+      }),
+    );
+    render(<ReportsIndex query="reward" />, { wrapper: wrap() });
+    expect(screen.getByRole("link", { name: /Integrator Reward Relationships/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Closest meaning/)).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByText(/Closest meaning, not an exact wording match/)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: /On-Chain Addresses/ })).toBeInTheDocument();
+  });
+
+  it("highlights a punctuation-tolerant category match as one mark", () => {
+    render(<ReportsIndex query="on chain" />, { wrapper: wrap() });
+    const heading = screen.getByRole("heading", { name: /On-chain & money/i });
+    expect([...heading.querySelectorAll("mark.q-mark")].map((m) => m.textContent)).toContain("On-chain");
+  });
+
+  it("shows a no-results message when nothing matches, quoting the raw query", async () => {
     render(<ReportsIndex query="zzz-nonexistent" />, { wrapper: wrap() });
-    expect(screen.getByText('No reports match "zzz-nonexistent".')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('No reports match "zzz-nonexistent".')).toBeInTheDocument();
+    });
     for (const g of REPORT_GROUPS) expect(screen.queryByText(g.title)).toBeNull();
   });
 
   it("links each card to its report route", () => {
     render(<ReportsIndex query="" />, { wrapper: wrap() });
-    const link = screen.getByText("Integrator Reward Relationships").closest("a");
+    const link = screen.getByRole("link", { name: /Integrator Reward Relationships/ });
     expect(link).toHaveAttribute("href", "/reports/rewards");
   });
 });

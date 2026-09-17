@@ -1,13 +1,17 @@
-// The /reports index catalog: which reports exist, how they group, and where
-// each one's data comes from.
+// The /reports index catalog: which reports exist, how they group, where each
+// one's data comes from, and the per-card copy search embeds.
 //
-// Kept as a pure module (no React) so the grouping and the filter are testable
-// without rendering, per the house rule that report data logic lives in
-// src/lib/. ReportsIndex is a thin renderer over buildReportCatalog().
+// Kept as a pure module (no React) so the grouping is testable without
+// rendering, per the house rule that report data logic lives in src/lib/.
+// Filtering lives in reportIndexSearch.ts (lexical + optional semantic ids) —
+// this file must not import that module, or the server embedder and the
+// catalog completeness check would share a cycle.
 //
 // Titles and descriptions stay in routes.ts — they are shared with visit-history
-// capture and the chat's page-context line. This module adds only the two things
-// the index itself needs: grouping and provenance.
+// capture and the chat's page-context line. This module adds the two things
+// the index itself needs: grouping and provenance. Search (and ReportsIndex)
+// both read from here so a new report can't be listed in one and invisible
+// to the other.
 
 import type { ReportId } from "../types";
 import { REPORT_TITLES, REPORT_DESCRIPTIONS } from "./routes";
@@ -98,6 +102,10 @@ export interface ReportCard {
   title: string;
   description: string;
   provenance: ReportProvenance;
+  /** Subject-group title — stamped so search can score the category per card. */
+  category: string;
+  /** Subject-group hint — same for every card in the group; cached on embed. */
+  hint: string;
 }
 
 export interface ReportCardGroup {
@@ -106,12 +114,14 @@ export interface ReportCardGroup {
   cards: ReportCard[];
 }
 
-function toCard(id: ReportId): ReportCard {
+function toCard(id: ReportId, category: string, hint: string): ReportCard {
   return {
     id,
     title: REPORT_TITLES[id],
     description: REPORT_DESCRIPTIONS[id],
     provenance: REPORT_PROVENANCE[id],
+    category,
+    hint,
   };
 }
 
@@ -120,26 +130,31 @@ export function catalogReportIds(): ReportId[] {
   return REPORT_GROUPS.flatMap((g) => g.reports);
 }
 
+/** The index's groups, unfiltered. Query matching lives in reportIndexSearch. */
+export function buildReportCatalog(): ReportCardGroup[] {
+  return REPORT_GROUPS.map((g) => ({
+    title: g.title,
+    hint: g.hint,
+    cards: g.reports.map((id) => toCard(id, g.title, g.hint)),
+  }));
+}
+
+/** Stable catalog identity — a blank-query filter returns this same array. */
+export const REPORT_INDEX_GROUPS: ReportCardGroup[] = buildReportCatalog();
+
+export const REPORT_INDEX_CARDS: ReportCard[] = REPORT_INDEX_GROUPS.flatMap((g) => g.cards);
+
+/** Concatenated haystack — one of the fields scored for semantic search. */
+export function reportEmbedText(card: ReportCard): string {
+  return `${card.title}. ${card.description}`;
+}
+
 /**
- * The index's groups, filtered by the header-box query. Matches title,
- * description, and the provenance label (so "curated" narrows to the
- * hand-maintained reports); empty groups drop out.
+ * Texts embedded per card. Title and description are scored separately (and
+ * alongside the concat) so a short paraphrase of the name isn't diluted by
+ * the description. Group titles/hints stay lexical-only: embedding
+ * "Atlas health" made any query containing "atlas" light up the whole index.
  */
-export function buildReportCatalog(query: string): ReportCardGroup[] {
-  const q = query.trim().toLowerCase();
-  return REPORT_GROUPS.map((g) => {
-    const cards = g.reports.map(toCard);
-    return {
-      title: g.title,
-      hint: g.hint,
-      cards: q
-        ? cards.filter(
-            (c) =>
-              c.title.toLowerCase().includes(q) ||
-              c.description.toLowerCase().includes(q) ||
-              (c.provenance !== "live" && PROVENANCE_LABELS[c.provenance].toLowerCase().includes(q)),
-          )
-        : cards,
-    };
-  }).filter((g) => g.cards.length > 0);
+export function reportEmbedFields(card: ReportCard): string[] {
+  return [card.title, card.description, reportEmbedText(card)];
 }

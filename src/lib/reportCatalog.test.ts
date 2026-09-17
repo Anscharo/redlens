@@ -4,8 +4,12 @@ import {
   REPORT_PROVENANCE,
   PROVENANCE_LABELS,
   PROVENANCE_TITLES,
+  REPORT_INDEX_CARDS,
+  REPORT_INDEX_GROUPS,
   buildReportCatalog,
   catalogReportIds,
+  reportEmbedText,
+  reportEmbedFields,
 } from "./reportCatalog";
 import { REPORT_TITLES, REPORT_DESCRIPTIONS } from "./routes";
 
@@ -39,52 +43,41 @@ describe("catalog completeness", () => {
   });
 
   it("carries the shared title and description onto each card", () => {
-    const card = buildReportCatalog("").flatMap((g) => g.cards).find((c) => c.id === "rewards");
+    const card = buildReportCatalog().flatMap((g) => g.cards).find((c) => c.id === "rewards");
     expect(card?.title).toBe(REPORT_TITLES.rewards);
     expect(card?.description).toBe(REPORT_DESCRIPTIONS.rewards);
+  });
+
+  it("stamps each card with its group title as category", () => {
+    for (const group of REPORT_INDEX_GROUPS) {
+      expect(group.cards.length).toBeGreaterThan(0);
+      for (const card of group.cards) {
+        expect(card.category).toBe(group.title);
+        expect(card.hint).toBe(group.hint);
+        expect(card.title).toBe(REPORT_TITLES[card.id]);
+        expect(card.description.length).toBeGreaterThan(20);
+      }
+    }
   });
 });
 
 describe("buildReportCatalog", () => {
-  it("returns every group and card for an empty query", () => {
-    const groups = buildReportCatalog("");
+  it("returns every group and card, unfiltered", () => {
+    const groups = buildReportCatalog();
     expect(groups).toHaveLength(REPORT_GROUPS.length);
     expect(groups.flatMap((g) => g.cards)).toHaveLength(catalogReportIds().length);
+    expect(REPORT_INDEX_GROUPS).toHaveLength(REPORT_GROUPS.length);
+    expect(REPORT_INDEX_CARDS).toHaveLength(catalogReportIds().length);
   });
+});
 
-  it("filters by title and drops emptied groups", () => {
-    const groups = buildReportCatalog("reward");
-    expect(groups.flatMap((g) => g.cards).map((c) => c.id)).toEqual(["rewards"]);
-    expect(groups).toHaveLength(1);
-    expect(groups[0].title).toBe("On-chain & money");
-  });
-
-  it("filters by description text", () => {
-    const ids = buildReportCatalog("multisig").flatMap((g) => g.cards).map((c) => c.id);
-    expect(ids.length).toBeGreaterThan(0);
-  });
-
-  it("filters by provenance label, so 'curated' finds the hand-maintained reports", () => {
-    const ids = buildReportCatalog("curated").flatMap((g) => g.cards).map((c) => c.id);
-    expect(ids).toContain("processes");
-    // …and not the live ones.
-    expect(ids).not.toContain("active-data");
-  });
-
-  // Potential Mistakes is an LLM sweep, not a hand-maintained inventory: its
-  // findings are model judgement, which is what the badge has to warn about.
-  it("finds the AI-assessed reports by their badge label", () => {
-    const ids = buildReportCatalog("AI-assessed").flatMap((g) => g.cards).map((c) => c.id);
-    expect([...ids].sort()).toEqual(["oea-assessment", "potential-mistakes", "risk-rules"]);
-  });
-
-  it("returns no groups when nothing matches", () => {
-    expect(buildReportCatalog("zzz-nonexistent")).toEqual([]);
-  });
-
-  it("ignores surrounding whitespace and case", () => {
-    expect(buildReportCatalog("  REWARD  ").flatMap((g) => g.cards).map((c) => c.id)).toEqual([
-      "rewards",
-    ]);
+describe("report embed fields", () => {
+  it("embed text is title plus description, not the shared group labels", () => {
+    const card = REPORT_INDEX_CARDS[0]!;
+    const text = reportEmbedText(card);
+    expect(text).toContain(card.title);
+    expect(text).toContain(card.description);
+    expect(text).not.toContain(card.category);
+    expect(reportEmbedFields(card)).toEqual([card.title, card.description, text]);
   });
 });

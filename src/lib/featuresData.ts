@@ -17,7 +17,7 @@
 // Accuracy rules, learned the hard way:
 //   - Never hardcode a count that the app derives elsewhere (reports, MCP
 //     tools). Counts drift the day after they ship; the /connect page reads
-//     the tool count live, and ReportsIndex owns the report list.
+//     the tool count live, and reportCatalog.ts owns the report list.
 //   - Sign-in providers are per-environment (authProviders()). Production
 //     offers GitHub; say "sign in", not a fixed provider pair.
 //   - Gesture copy must match src/lib/hintText.ts, which is what the footer
@@ -200,6 +200,15 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Most reports are rebuilt from the Atlas every time you open them. A badge on the card marks the ones that are not: \u201cAI-assessed\u201d for rubric-scored ratings, \u201ccurated\u201d for hand-maintained lists that can lag the Atlas.",
           "Use the filter pills to narrow; the URL updates so you can share the exact filtered view.",
           "Click Download CSV to export — full or filtered, with UUIDs and direct Atlas links.",
+        ],
+      },
+      {
+        name: "Finding a report",
+        what: "The Reports list search matches names, categories, and descriptions, including similar phrasing.",
+        how: [
+          "Open Reports and type in the search pill — it filters the list in place.",
+          "A name fragment jumps to that report; a subject group like roles and duties or Atlas health shows that group; a badge label like curated or AI-assessed finds those reports.",
+          "Describing what you want (wallet addresses, outdated dates) finds the matching report even when the title is different. Similar-meaning extras show under Closest meaning, not mixed in with name matches.",
         ],
       },
       {

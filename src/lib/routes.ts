@@ -75,7 +75,7 @@ export interface ScopeConfig {
 export const SCOPE_CONFIG: Record<SearchScope, ScopeConfig> = {
   atlas:   { label: "atlas",   placeholder: "Search the Atlas or type /h for query help" },
   radar:   { label: "radar",   placeholder: "Filter actors — name, role" },
-  reports: { label: "reports", placeholder: "Filter reports" },
+  reports: { label: "reports", placeholder: "Search reports — name, category, or topic" },
 };
 
 // Per-report search-pill config: on a report page the pill shows a short
