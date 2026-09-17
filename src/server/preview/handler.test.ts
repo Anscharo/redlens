@@ -609,9 +609,12 @@ test("/events: an app-not-installed resolve failure carries the App's install UR
   // installed on it either (installation lookup also 404) → resolvePrivacy
   // returns "app-not-installed", which resolveRef surfaces directly (no
   // PendingPrivate — there's no installation to defer a lookup through).
+  // The owner's public account id resolves, so the install link targets that
+  // account (never the installer's whole org list).
   globalThis.fetch = (async (url: string | URL) => {
     const u = String(url);
     if (u.endsWith("/app")) return Response.json({ slug: "redlens-preview" });
+    if (u.endsWith("/users/noinstall")) return Response.json({ id: 777, login: "noinstall" });
     return new Response("not found", { status: 404 });
   }) as unknown as typeof fetch;
 
@@ -623,7 +626,7 @@ test("/events: an app-not-installed resolve failure carries the App's install UR
     expect(events).toContainEqual({
       phase: "failed",
       code: "app-not-installed",
-      message: "https://github.com/apps/redlens-preview/installations/new",
+      message: "https://github.com/apps/redlens-preview/installations/new/permissions?target_id=777",
     });
   } finally {
     globalThis.fetch = orig.fetch;

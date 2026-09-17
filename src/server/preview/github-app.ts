@@ -112,7 +112,9 @@ async function ghFetch(
         accept: "application/vnd.github+json",
         "x-github-api-version": "2022-11-28",
         "user-agent": "redlens-preview",
-        authorization: `Bearer ${token}`,
+        // An empty token means an unauthenticated call (public endpoints only,
+        // e.g. the account-id lookup below); GitHub rejects a bare `Bearer `.
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
         ...(init?.headers ?? {}),
       },
     });
@@ -139,14 +141,49 @@ async function ghFetch(
 // caller falls back to generic "ask the owner" copy rather than a broken link.
 let cachedInstallUrl: string | null = null;
 
-/** The App's install URL, or null if it couldn't be determined (unconfigured/failed). */
-export async function appInstallUrl(): Promise<string | null> {
-  if (cachedInstallUrl) return cachedInstallUrl;
-  if (!config.githubAppId || !config.githubAppPrivateKey) return null;
-  const r = await ghFetch("https://api.github.com/app", await appJwt());
-  const slug = r?.ok ? r.json?.slug : null;
-  if (typeof slug === "string" && slug) cachedInstallUrl = `https://github.com/apps/${slug}/installations/new`;
-  return cachedInstallUrl;
+// GitHub's install page also accepts `/installations/new/permissions?target_id=<account id>`,
+// which skips the account picker and opens the permission screen for THAT account
+// only — so an installer is never offered every org they belong to. The id of a
+// user or org is public (GET /users/<login>, no auth needed), so it can be looked
+// up for the repo the preview named even though the App can't see the repo yet.
+// What CAN'T be pre-set is the repository itself: `repository_ids[]` would tick
+// "Only select repositories" with that one repo, but a private repo's numeric id
+// is invisible until the App is installed on it — exactly the state this link is
+// shown in. The install screen's copy names the repo instead.
+const OWNER_ID_CACHE_MAX = 1000;
+const OWNER_ID_TTL_MS = 24 * 60 * 60_000; // account ids never change; TTL only bounds a deleted/renamed login
+const ownerIdCache = new Map<string, { id: number; exp: number }>();
+
+/** Numeric GitHub account id for a user/org login, or null if unknown. Public endpoint. */
+export async function accountIdForLogin(login: string): Promise<number | null> {
+  const now = Date.now();
+  const cached = ownerIdCache.get(login);
+  if (cached && cached.exp > now) return cached.id;
+  const r = await ghFetch(`https://api.github.com/users/${encodeURIComponent(login)}`, config.githubToken);
+  const id = r?.ok ? r.json?.id : null;
+  if (typeof id !== "number" || !Number.isFinite(id)) return null;
+  ownerIdCache.set(login, { id, exp: now + OWNER_ID_TTL_MS });
+  if (ownerIdCache.size > OWNER_ID_CACHE_MAX) ownerIdCache.delete(ownerIdCache.keys().next().value!);
+  return id;
+}
+
+/**
+ * The App's install URL, or null if it couldn't be determined (unconfigured/failed).
+ * With `repo` ("owner/name"), targets that owner's account when its id resolves
+ * (`/installations/new/permissions?target_id=…`); otherwise the generic page.
+ */
+export async function appInstallUrl(repo?: string): Promise<string | null> {
+  if (!cachedInstallUrl) {
+    if (!config.githubAppId || !config.githubAppPrivateKey) return null;
+    const r = await ghFetch("https://api.github.com/app", await appJwt());
+    const slug = r?.ok ? r.json?.slug : null;
+    if (typeof slug === "string" && slug) cachedInstallUrl = `https://github.com/apps/${slug}/installations/new`;
+    if (!cachedInstallUrl) return null;
+  }
+  const owner = repo?.split("/")[0];
+  if (!owner) return cachedInstallUrl;
+  const id = await accountIdForLogin(owner);
+  return id === null ? cachedInstallUrl : `${cachedInstallUrl}/permissions?target_id=${id}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +363,7 @@ export async function userRepoPermission(repo: string, login: string): Promise<P
 export function __resetCachesForTest(): void {
   cachedJwt = null;
   cachedInstallUrl = null;
+  ownerIdCache.clear();
   installationCache.clear();
   installationTokenCache.clear();
 }

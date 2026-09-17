@@ -148,13 +148,22 @@ any login:
    - Owner-only App: GitHub → the account → **Settings → GitHub Apps → your App →
      Install**, or `https://github.com/apps/<app-slug>/installations/new`.
    - Public App: `https://github.com/apps/<app-slug>` → **Install**.
-2. Choose **"Only select repositories"** and pick the private atlas repo(s).
-   (Granting all repos also works but is broader than needed.)
+2. Choose **"Only select repositories"** and pick **the atlas repo only**. Do
+   not pick "All repositories": the App needs nothing outside that one repo,
+   and the grant is the one permission event in the whole system, so keep it
+   to the repo the preview named.
 3. Install.
 
 SAbR surfaces this: if someone opens a private preview for a repo the App
-isn't on yet, the UI shows an **"install the app"** screen. Viewers never do this
-— only the repo owner, once per repo.
+isn't on yet, the UI shows an **"install the app"** screen naming the
+`owner/name` repo and the "Only select repositories" step. Its link is
+`…/installations/new/permissions?target_id=<account id>`, which opens GitHub's
+permission screen for **that repo's owning account only** (the account id is
+public, `GET /users/<login>`), so the installer is never offered every org they
+belong to. The repo itself can't be pre-ticked: GitHub's `repository_ids[]`
+parameter needs the repo's numeric id, and a private repo's id is invisible to
+the App until it is installed — which is exactly the state that screen is shown
+in. Viewers never do this — only the repo owner, once per repo.
 
 If the App is already installed but was granted before **Pull requests: Read**
 was added to the App's registration, GitHub keeps the old Contents+Metadata

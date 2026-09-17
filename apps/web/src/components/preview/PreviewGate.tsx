@@ -6,7 +6,7 @@ import { DataSourceContext } from "../../lib/dataSource";
 import { PreviewDiffProvider } from "../../lib/previewDiff";
 import { PreviewViewProvider } from "../../lib/previewView";
 import { PreviewInterstitial } from "./PreviewInterstitial";
-import { recordLocalPreview, previewLabel } from "../../lib/previewLocal";
+import { recordLocalPreview, previewLabel, previewRepo } from "../../lib/previewLocal";
 import { BuildErrorDetail } from "./BuildErrorDetail";
 import { stashAuthReturn } from "../../lib/authReturn";
 import { apiUrl } from "../chat/api";
@@ -115,14 +115,21 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
 
     if (code === "app-not-installed") {
       const installUrl = message && /^https?:\/\//.test(message) ? message : null;
+      const repo = previewRepo(id);
       return (
         <Centered>
-          <p className="text-red">The Sky Atlas by Redline GitHub App isn't installed on this repository yet.</p>
+          <p className="text-red">
+            The Sky Atlas by Redline GitHub App isn't installed on <span className="mono">{repo}</span> yet.
+          </p>
           {installUrl ? (
             <>
+              {/* GitHub's install page defaults to "All repositories" and we can't
+                  pre-tick a private repo (its id is invisible until the App is on
+                  it), so the copy has to carry the one-repo instruction. */}
               <p className="text-sm" style={{ color: "var(--tan-3)" }}>
-                If you own or administer the repo, install the app and choose this repository — then reload. Otherwise,
-                ask the repo owner/admin to install it.
+                If you own or administer <span className="mono">{repo}</span>, install the app: on GitHub's page choose{" "}
+                <strong>Only select repositories</strong> and pick <span className="mono">{repo}</span> only — it needs
+                nothing else — then reload. Otherwise, ask the repo owner/admin to do that.
               </p>
               <a
                 href={installUrl}
@@ -144,7 +151,7 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
             </>
           ) : (
             <p className="text-sm" style={{ color: "var(--tan-3)" }}>
-              Ask the repo owner/admin to install it, then reopen this link.
+              Ask the repo owner/admin to install it on <span className="mono">{repo}</span> only, then reopen this link.
             </p>
           )}
           <a href={`${import.meta.env.BASE_URL}preview`} className="text-sm" style={{ color: "var(--accent)" }}>

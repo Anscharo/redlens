@@ -370,7 +370,7 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
     // `== null` proves `token: string` below without a non-null assertion.
     if (token == null) {
       // Carry the install URL so the client can offer a one-click install action.
-      fail(f, sha, "app-not-installed", (await appInstallUrl().catch(() => null)) ?? undefined);
+      fail(f, sha, "app-not-installed", (await appInstallUrl(resolved.repo).catch(() => null)) ?? undefined);
       return;
     }
     await acquire();

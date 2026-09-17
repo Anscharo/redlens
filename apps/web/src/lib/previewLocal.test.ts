@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePreviewInput, parsePrivateInput, isPrivatePrId, previewLabel } from "./previewLocal";
+import { parsePreviewInput, parsePrivateInput, isPrivatePrId, previewLabel, previewRepo } from "./previewLocal";
 
 describe("parsePreviewInput", () => {
   it("parses GitHub URLs (PR / tree / commit, canonical + fork)", () => {
@@ -92,5 +92,16 @@ describe("isPrivatePrId", () => {
     expect(isPrivatePrId("acme:secret-atlas:pull-42")).toBe(true);
     expect(isPrivatePrId("acme:secret-atlas:main")).toBe(false);
     expect(isPrivatePrId("pull-256")).toBe(false);
+  });
+});
+
+describe("previewRepo", () => {
+  it("names the owner/name repo for every id grammar", () => {
+    expect(previewRepo("acme:atlas-fork:main")).toBe("acme/atlas-fork");
+    expect(previewRepo("acme:atlas-fork:pull-7")).toBe("acme/atlas-fork");
+    expect(previewRepo("acme:main")).toBe("acme/next-gen-atlas");
+    expect(previewRepo("pull-256")).toBe("sky-ecosystem/next-gen-atlas");
+    expect(previewRepo("main")).toBe("sky-ecosystem/next-gen-atlas");
+    expect(previewRepo("a".repeat(40))).toBe("sky-ecosystem/next-gen-atlas");
   });
 });

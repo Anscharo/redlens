@@ -255,6 +255,38 @@ test("appInstallUrl: failed /app -> null, not cached (retries next call)", async
   expect(calls).toBe(2);
 });
 
+test("appInstallUrl(repo): targets the repo owner's account via its public id (no Bearer on that call)", async () => {
+  const seen: { url: string; auth: string | null }[] = [];
+  const realToken = config.githubToken;
+  config.githubToken = ""; // unauthenticated owner lookup must send no authorization header
+  // @ts-expect-error stub
+  globalThis.fetch = (url: string, init?: RequestInit) => {
+    const u = String(url);
+    seen.push({ url: u, auth: ((init?.headers as Record<string, string>)?.authorization as string) ?? null });
+    if (u === "https://api.github.com/app")
+      return Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ slug: "redlens-preview" }) } as Response);
+    if (u === "https://api.github.com/users/acme")
+      return Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ id: 4242, login: "acme" }) } as Response);
+    return Promise.resolve({ status: 404, ok: false, json: () => Promise.resolve({}) } as Response);
+  };
+  try {
+    expect(await appInstallUrl("acme/atlas-private")).toBe(
+      "https://github.com/apps/redlens-preview/installations/new/permissions?target_id=4242",
+    );
+    expect(seen.find((c) => c.url.endsWith("/users/acme"))?.auth).toBeNull();
+    // Owner id is cached: a second call for the same owner makes no further fetch.
+    const before = seen.length;
+    expect(await appInstallUrl("acme/other-repo")).toBe(
+      "https://github.com/apps/redlens-preview/installations/new/permissions?target_id=4242",
+    );
+    expect(seen.length).toBe(before);
+    // Unknown owner -> generic install page, never a broken link.
+    expect(await appInstallUrl("nobody/atlas")).toBe("https://github.com/apps/redlens-preview/installations/new");
+  } finally {
+    config.githubToken = realToken;
+  }
+});
+
 test("appInstallUrl: unconfigured app -> null without any fetch", async () => {
   config.githubAppId = "";
   let calls = 0;

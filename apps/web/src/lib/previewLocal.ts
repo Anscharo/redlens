@@ -118,6 +118,16 @@ export function previewLabel(id: string): string {
   return `${CANONICAL_OWNER}/${ATLAS_REPO_NAME}`;
 }
 
+/** The "owner/name" repo a preview id names — the one repo an installer should grant. */
+export function previewRepo(id: string): string {
+  const s = id.trim();
+  if (/^pull-\d+$/.test(s) || SHA_RE.test(s)) return `${CANONICAL_OWNER}/${ATLAS_REPO_NAME}`;
+  const parts = s.split(":"); // owner:repo:ref | owner:ref | bare ref (canonical branch)
+  if (parts.length >= 3) return `${parts[0]}/${parts[1]}`;
+  if (parts.length === 2) return `${parts[0]}/${ATLAS_REPO_NAME}`;
+  return `${CANONICAL_OWNER}/${ATLAS_REPO_NAME}`;
+}
+
 export interface LocalPreview {
   id: string;
   sha: string;
