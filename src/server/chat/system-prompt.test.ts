@@ -3,6 +3,7 @@
 // network/DB), plus the pure helpers pageContextLine / validReportTool.
 import { describe, it, expect } from "bun:test";
 import { loadIndexes } from "../retrieval/indexes.ts";
+import { config } from "../config.ts";
 import { agentArtifactRoster, buildSystemPrompt, pageContextLine, validReportTool } from "./system-prompt.ts";
 import { REPORT_DESCRIPTIONS } from "../../lib/routes.ts";
 import { TOOLS_BY_NAME } from "./tools/tool-registry.ts";
@@ -125,6 +126,27 @@ describe("buildSystemPrompt", () => {
     const prompt = buildSystemPrompt(ix);
     expect(prompt).toContain("SAbR's own EXTRACTION from the atlas documents");
     expect(prompt).toContain("our extraction shows");
+  });
+
+  it("has a /teach section that invites a miss to be taught, and forbids citing teachings as atlas", () => {
+    const prompt = buildSystemPrompt(ix);
+    const tools = prompt.indexOf("## Tools");
+    const teaching = prompt.indexOf("## Teaching (/teach)");
+    const ruling = prompt.indexOf("## Reporting vs. ruling");
+    expect(teaching).toBeGreaterThan(tools);
+    expect(ruling).toBeGreaterThan(teaching);
+    expect(prompt).toContain("use `/teach` to teach me what it is so this mistake is not made again");
+    expect(prompt).toContain("Never cite a teaching as an atlas document");
+  });
+
+  it("omits the /teach section when CHAT_TEACH is off", () => {
+    const prev = config.chatTeach;
+    config.chatTeach = false;
+    try {
+      expect(buildSystemPrompt(ix)).not.toContain("## Teaching (/teach)");
+    } finally {
+      config.chatTeach = prev;
+    }
   });
 
   // Beta testers ask the chat to compose messages/emails/forum replies about

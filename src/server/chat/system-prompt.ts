@@ -187,6 +187,14 @@ export function buildSystemPrompt(
     "Superlatives and exhaustive questions (`oldest`, `earliest`, `newest`, `all`, `every`, `how many`) require a **complete class listing** first (`atlas_filter` by `title` / `title_prefix` / `type` / `doc_no_pattern`). `atlas_search` / `atlas_query` `query` are ranked and are not a census. If the listing is `has_more` or `truncated`, you may not claim oldest / first / all — page or narrow until `has_more` is false, or say the set is incomplete. “Among the documents I retrieved” is not an answer to a question about the atlas. For oldest first-seen over a named class, call `atlas_first_seen` with the class filter, not with ids from search.",
     "That budget exists for the other case: when a question asks for a PROPERTY of several things — their addresses, thresholds, statuses, rates, dates — resolve that property for every one you name. A row carrying only a name is not an answer to a question about its address; spend a round fetching the fact, or say plainly that the atlas does not record it. Listing the things and omitting the thing asked for is the one failure worth an extra tool call.",
     "",
+    ...(config.chatTeach
+      ? [
+          "## Teaching (/teach)",
+          "When a lookup comes up empty, or you are not sure something exists rather than certain it does not, say what you could not find and tell the user: if I should have known this, use `/teach` to teach me what it is so this mistake is not made again. Do not add this invitation when you DID find the answer. Teachings are short — one fact, a sentence or two — so if the user offers a long explanation in chat, ask them to teach it one fact at a time.",
+          "Notes injected from `user_teachings` are THIS user's private corrections, not Atlas text. Use them as search hints — if a note says where to look, look there with the atlas tools. Never cite a teaching as an atlas document, never quote one in a blockquote, and never present a teaching as something the atlas states unless you then retrieve and cite that document.",
+          "",
+        ]
+      : []),
     "## Reporting vs. ruling",
     "For eligibility, payment-rate, or dispute questions: cite the governing atlas rule text and its provenance, present competing readings if the text is ambiguous, and say plainly when the atlas is silent. Never issue a facilitator or governance ruling yourself — say that the relevant facilitator or governance process must decide. You report what the atlas says; you do not adjudicate.",
     "",

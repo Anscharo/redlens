@@ -22,6 +22,10 @@ import { tryAcquireChatSlot, releaseChatSlot } from "./concurrency.ts";
 import { json } from "../http.ts";
 import { fetchCommons } from "./credits.ts";
 import { captureError, type ErrorContext } from "../posthog-node.ts";
+import { parseTeachCommand } from "./teach/parse.ts";
+import { runTeachCommand } from "./teach/handle.ts";
+import { matchTeachings } from "./teach/match.ts";
+import { teachingRound, summarizeTeachings } from "./teach/inject.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -164,24 +168,30 @@ export async function handleChat(req: Request): Promise<Response> {
     ])) as [{ role: string; content: string }[], unknown];
 
     const ix = getIndexes();
+    const teachCmd = config.chatTeach ? parseTeachCommand(body.message) : null;
 
     // Per-turn tier routing (rules-based, free): pick the model chain before any
     // LLM work. Follow-up turns (an assistant reply already in history) never
     // route fast on brevity alone — see model-router.ts. This runs BEFORE the
     // system prompt is built because the citation format the prompt asks for
-    // depends on which model will read it.
+    // depends on which model will read it. /teach is its own path (review +
+    // persist, no atlas harness) and records reason "teach".
     const priorAssistants = history.filter((m) => m.role === "assistant").length;
-    const route = routeTier(body.message, { followUp: priorAssistants > 0 });
+    const route = teachCmd
+      ? { tier: "default" as const, reason: "teach" }
+      : routeTier(body.message, { followUp: priorAssistants > 0 });
     const models = resolveTierModels(route.tier);
     const maxIterations = iterationsForTier(route.tier);
 
     // The DB keeps the full conversation; the model gets a windowed replay
     // (recent turns verbatim, older ones truncated, hard char budget) so long
     // conversations never grow the per-round context without bound.
-    const messages: Msg[] = [
-      { role: "system", content: buildSystemPrompt(ix, body.pageContext, citationStyleFor(models[0]), undefined, maxIterations) },
-      ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-    ];
+    const messages: Msg[] = teachCmd
+      ? []
+      : [
+          { role: "system", content: buildSystemPrompt(ix, body.pageContext, citationStyleFor(models[0]), undefined, maxIterations) },
+          ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+        ];
 
     // Facts (facts/registry.ts): deterministic, pure-code knowledge blocks that
     // fire on the question — glossary definitions, entity rows, concept censuses,
@@ -189,8 +199,25 @@ export async function handleChat(req: Request): Promise<Response> {
     // so a question they already answer needs ONE request instead of tool-round →
     // answer-round. Injects nothing on a miss; the harness treats what they do
     // inject as ordinary turn evidence.
-    const facts = config.chatPrefetch ? runFacts({ ix, question: body.message, page: body.pageContext }) : null;
+    const facts = !teachCmd && config.chatPrefetch
+      ? runFacts({ ix, question: body.message, page: body.pageContext })
+      : null;
     if (facts) messages.push(...factRound(body.message, facts));
+
+    // Matched /teach notes for THIS user only. A miss (none, or the table not
+    // migrated yet) injects nothing — never fail a turn over a teaching lookup.
+    let teachings: Awaited<ReturnType<typeof matchTeachings>> | null = null;
+    if (!teachCmd && config.chatTeach) {
+      try {
+        const hits = await matchTeachings(userId, body.message);
+        if (hits.length > 0) {
+          teachings = hits;
+          messages.push(...teachingRound(body.message, hits));
+        }
+      } catch (err) {
+        captureError(err, {}, { stage: "teach_match", conversationId: convId });
+      }
+    }
 
     const startedAt = Date.now();
     const encoder = new TextEncoder();
@@ -218,13 +245,61 @@ export async function handleChat(req: Request): Promise<Response> {
         try {
           send({ type: "meta", conversationId: convId, tier: route.tier });
 
+          if (teachCmd) {
+            send({ type: "status", stage: "synthesizing", detail: teachCmd.text ? "Reviewing your note…" : "How to teach me…" });
+            const result = await runTeachCommand({
+              userId,
+              convId,
+              text: teachCmd.text,
+              jsonCall: makeOpenrouterJson(obs, "atlas-chat-teach-review"),
+              signal: req.signal,
+              obs,
+            });
+            const done: HarnessDone = {
+              type: "done",
+              content: result.content,
+              usage: result.usage,
+              contextTokens: null,
+              generationId: result.generationId,
+              toolCalls: [],
+              lengthCapped: false,
+              transcript: [],
+              checksMeta: [],
+            };
+            send({ type: "answer_final", content: done.content });
+            send(sanitizeDone(done));
+            if (!req.signal.aborted) {
+              await persistAssistant(userId, convId, done, Date.now() - startedAt, obs);
+              const TITLE_AT_TURNS = new Set([1, 4, 10]);
+              if (TITLE_AT_TURNS.has(priorAssistants + 1)) {
+                void titleConversation(convId, buildTitleTranscript(history, done.content), obs).catch((err) =>
+                  captureError(err, obs, { stage: "title" }),
+                );
+              }
+            }
+            return;
+          }
+
           // Facts ran before the model did, and they shape the answer — so say so
           // rather than letting injected context look like the model knowing
           // things. Both surfaces the client already has: a trace row per fact,
           // and a stage the ticker/checklist shows like any other step.
-          if (facts) {
-            send({ type: "facts", facts: facts.used, bytes: facts.content.length });
-            send({ type: "status", stage: "recalling", detail: summarizeFacts(facts) });
+          // Teachings ride the same ticker so a recalled note is never silent.
+          const recalled = [
+            ...(facts?.used ?? []),
+            ...(teachings ? [{ id: "teachings", summary: summarizeTeachings(teachings.length) }] : []),
+          ];
+          if (recalled.length > 0) {
+            send({
+              type: "facts",
+              facts: recalled,
+              bytes: (facts?.content.length ?? 0) + (teachings ? teachings.reduce((n, t) => n + t.content.length, 0) : 0),
+            });
+            send({
+              type: "status",
+              stage: "recalling",
+              detail: summarizeFacts({ content: "", counts: {}, used: recalled }),
+            });
           }
 
           let done: HarnessDone | null = null;

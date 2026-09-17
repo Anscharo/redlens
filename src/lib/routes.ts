@@ -31,6 +31,7 @@ export const ROUTES = {
   REPORTS_RISK_RUBRIC: "/reports/risk-rules/rubric",
   REPORTS_ONCHAIN_ADDRESSES: "/reports/onchain-addresses",
   REPORTS_MOD_FREQUENCY: "/reports/mod-frequency",
+  REPORTS_POTENTIAL_MISTAKES: "/reports/potential-mistakes",
 } as const;
 
 export type NavPage = "atlas" | "radar" | "reports";
@@ -75,7 +76,7 @@ export interface ScopeConfig {
 export const SCOPE_CONFIG: Record<SearchScope, ScopeConfig> = {
   atlas:   { label: "atlas",   placeholder: "Search the Atlas or type /h for query help" },
   radar:   { label: "radar",   placeholder: "Filter actors — name, role" },
-  reports: { label: "reports", placeholder: "Filter reports" },
+  reports: { label: "reports", placeholder: "Search reports — name, category, or topic" },
 };
 
 // Per-report search-pill config: on a report page the pill shows a short
@@ -93,6 +94,7 @@ export const REPORT_SCOPE_CONFIG: Partial<Record<string, ScopeConfig>> = {
   [ROUTES.REPORTS_RISK_RULES]:              { label: "risk",    placeholder: "Filter rules — title, doc no, text" },
   [ROUTES.REPORTS_ONCHAIN_ADDRESSES]:       { label: "addrs",   placeholder: "Filter addresses — address, owner, chainlog, chain, doc" },
   [ROUTES.REPORTS_MOD_FREQUENCY]:           { label: "modfreq", placeholder: "Filter docs — doc no, title, type, section" },
+  [ROUTES.REPORTS_POTENTIAL_MISTAKES]:      { label: "mistakes", placeholder: "Filter findings — doc no, title, quoted text, issue" },
 };
 
 // Reports whose data is also exposed to the chat agent as a one-call
@@ -137,6 +139,7 @@ export const REPORT_TITLES: Record<string, string> = {
   "onchain-addresses": "On-Chain Addresses",
   "mod-frequency": "Modification Frequency",
   crossview: "Atlas CrossView",
+  "potential-mistakes": "Potential Mistakes",
 };
 
 // One-line "what this report shows" — the same copy the /reports index cards
@@ -156,6 +159,7 @@ export const REPORT_DESCRIPTIONS: Record<string, string> = {
   "mod-frequency": "An edit timeline by month, week, or commit, a per-section and per-type share matching a typed ≤/> edit-count filter (with the Agent Scope split out by agent, each downloadable separately), and the matching document list.",
   processes: "The curated inventory of governance, settlement, lifecycle, and operational processes — title, doc number, step count, status, responsible party.",
   crossview: "The Atlas as functional chunks: hierarchical weight maps of scopes, agent artifacts, and primitives, a cross-cutting concept catalog with its audit trail, and the glossary of defined terms.",
+  "potential-mistakes": "Suspected defects in the Atlas source text — typos, grammar slips, broken cross-references, wrong figures and internal contradictions, each quoted and linked to its document. Not an atlas concept and not a build artifact: an LLM-generated sweep that is re-run by hand, so findings can lag the current Atlas.",
 };
 
 // URL builders for SPA links. Use these with wouter's <Link to={...}> so back-button
