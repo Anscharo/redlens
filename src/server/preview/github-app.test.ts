@@ -271,13 +271,13 @@ test("appInstallUrl(repo): targets the repo owner's account via its public id (n
   };
   try {
     expect(await appInstallUrl("acme/atlas-private")).toBe(
-      "https://github.com/apps/redlens-preview/installations/new/permissions?target_id=4242",
+      "https://github.com/apps/redlens-preview/installations/new/permissions?target_id=4242&repository_ids[]=0",
     );
     expect(seen.find((c) => c.url.endsWith("/users/acme"))?.auth).toBeNull();
     // Owner id is cached: a second call for the same owner makes no further fetch.
     const before = seen.length;
     expect(await appInstallUrl("acme/other-repo")).toBe(
-      "https://github.com/apps/redlens-preview/installations/new/permissions?target_id=4242",
+      "https://github.com/apps/redlens-preview/installations/new/permissions?target_id=4242&repository_ids[]=0",
     );
     expect(seen.length).toBe(before);
     // Unknown owner -> generic install page, never a broken link.

@@ -146,10 +146,16 @@ let cachedInstallUrl: string | null = null;
 // only — so an installer is never offered every org they belong to. The id of a
 // user or org is public (GET /users/<login>, no auth needed), so it can be looked
 // up for the repo the preview named even though the App can't see the repo yet.
-// What CAN'T be pre-set is the repository itself: `repository_ids[]` would tick
-// "Only select repositories" with that one repo, but a private repo's numeric id
-// is invisible until the App is installed on it — exactly the state this link is
-// shown in. The install screen's copy names the repo instead.
+// The repository itself CAN'T be pre-set: `repository_ids[]` ticks "Only select
+// repositories" with the listed repos, but a private repo's numeric id is
+// invisible until the App is installed on it — exactly the state this link is
+// shown in. So we pass a PLACEHOLDER id the account can't own: GitHub drops ids
+// the target doesn't own, and the presence of the parameter is what flips the
+// selector off its "All repositories" default. Decided 2026-09-17 without a
+// verified GitHub reference (docs unreachable from the sandbox) — if the
+// install page ever errors on it, drop INSTALL_REPO_PLACEHOLDER first. The
+// install screen's copy names the repo to pick either way.
+const INSTALL_REPO_PLACEHOLDER = "&repository_ids[]=0";
 const OWNER_ID_CACHE_MAX = 1000;
 const OWNER_ID_TTL_MS = 24 * 60 * 60_000; // account ids never change; TTL only bounds a deleted/renamed login
 const ownerIdCache = new Map<string, { id: number; exp: number }>();
@@ -170,7 +176,8 @@ export async function accountIdForLogin(login: string): Promise<number | null> {
 /**
  * The App's install URL, or null if it couldn't be determined (unconfigured/failed).
  * With `repo` ("owner/name"), targets that owner's account when its id resolves
- * (`/installations/new/permissions?target_id=…`); otherwise the generic page.
+ * (`/installations/new/permissions?target_id=…&repository_ids[]=0`, the placeholder
+ * pre-selecting "Only select repositories"); otherwise the generic page.
  */
 export async function appInstallUrl(repo?: string): Promise<string | null> {
   if (!cachedInstallUrl) {
@@ -183,7 +190,7 @@ export async function appInstallUrl(repo?: string): Promise<string | null> {
   const owner = repo?.split("/")[0];
   if (!owner) return cachedInstallUrl;
   const id = await accountIdForLogin(owner);
-  return id === null ? cachedInstallUrl : `${cachedInstallUrl}/permissions?target_id=${id}`;
+  return id === null ? cachedInstallUrl : `${cachedInstallUrl}/permissions?target_id=${id}${INSTALL_REPO_PLACEHOLDER}`;
 }
 
 // ---------------------------------------------------------------------------

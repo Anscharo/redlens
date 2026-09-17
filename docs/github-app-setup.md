@@ -163,7 +163,12 @@ public, `GET /users/<login>`), so the installer is never offered every org they
 belong to. The repo itself can't be pre-ticked: GitHub's `repository_ids[]`
 parameter needs the repo's numeric id, and a private repo's id is invisible to
 the App until it is installed — which is exactly the state that screen is shown
-in. Viewers never do this — only the repo owner, once per repo.
+in. The link therefore carries a placeholder `&repository_ids[]=0` so the
+selector opens on "Only select repositories" (an id the account doesn't own is
+dropped from the list) instead of its "All repositories" default; if GitHub
+ever rejects that, remove `INSTALL_REPO_PLACEHOLDER` in
+`src/server/preview/github-app.ts`. Viewers never do this — only the repo
+owner, once per repo.
 
 If the App is already installed but was granted before **Pull requests: Read**
 was added to the App's registration, GitHub keeps the old Contents+Metadata
