@@ -8,15 +8,15 @@ export * from "@/lib/settlements";
 
 let cached: Promise<SettlementsBundle> | null = null;
 
+/** One promise per session, kept even after a failed fetch (it then
+ *  resolves to EMPTY_SETTLEMENTS): the pages read it with React's use(),
+ *  which needs the same promise back on every render to settle. */
 export function loadSettlements(): Promise<SettlementsBundle> {
   if (!cached) {
     cached = fetchJson<SettlementsBundle>(
       `${import.meta.env.BASE_URL}settlements.json`,
       "settlements.json",
-    ).catch(() => {
-      cached = null;
-      return EMPTY_SETTLEMENTS;
-    });
+    ).catch(() => EMPTY_SETTLEMENTS);
   }
   return cached;
 }

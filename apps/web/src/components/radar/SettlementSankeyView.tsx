@@ -4,11 +4,16 @@ import {
   type SankeyVenue,
   type SankeyLayout,
 } from "../../lib/settlementSankey";
+import { ROUTES } from "@/lib/routes";
 import { SankeySinkNode, SankeyVenueNode } from "./SettlementSankeyNodes";
 
+/** Ribbons are the series color of what they carry — To Sky blue, supply
+ *  kept green — and a NEGATIVE one (a venue that lost money that month,
+ *  which comes off the sink's share; nothing is paid to the venue) is the
+ *  loss mark: stripes in the loss red, the same mark as everywhere else in
+ *  the MSC charts. */
 function linkFill(l: SankeyLink): string {
-  if (l.signed < 0) return "var(--accent)";
-  return l.to === "sky" ? "var(--depth-4)" : "var(--entity-delegate-org)";
+  return l.signed < 0 ? "url(#msc-sankey-loss)" : `var(--msc-${l.to === "sky" ? "sky" : "kept"})`;
 }
 
 function SankeyLinkPath({ l }: { l: SankeyLink }) {
@@ -26,10 +31,12 @@ export function SettlementSankeyView({
   rows,
   layout,
   primeLabel,
+  month,
 }: {
   rows: SankeyVenue[];
   layout: SankeyLayout;
   primeLabel: string;
+  month?: string;
 }) {
   const byId = useMemo(() => new Map(rows.map((v) => [v.id, v])), [rows]);
   // Gross per direction — each bar is labelled with its own, so a sink's two
@@ -46,13 +53,32 @@ export function SettlementSankeyView({
   }, [rows]);
 
   return (
-    <svg
-      className="msc-sankey"
-      viewBox={`0 0 ${layout.width} ${layout.height}`}
-      role="img"
+    <figure
+      className="msc-sankey-frame"
       aria-label={`Venue flows to Sky and ${primeLabel}`}
-      style={{ color: "var(--tan-2)" }}
     >
+      {/* Legend first. The stripes are the one mark on this chart that isn't
+          self-evident: a striped ribbon is a venue's loss, and the striped
+          out-bar is those losses coming off the Prime's share. */}
+      <figcaption className="mono text-[10px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: "var(--tan-3)" }}>
+        <span><Swatch background="var(--msc-sky)" /> to Sky</span>
+        <span><Swatch background="var(--msc-kept)" /> supply-side kept</span>
+        <span>
+          <Swatch background="repeating-linear-gradient(45deg, var(--msc-loss) 0, var(--msc-loss) 2px, transparent 2px, transparent 4px)" />
+          striped · venue loss, taken off the Prime's share
+        </span>
+      </figcaption>
+      <svg
+        className="msc-sankey"
+        viewBox={`0 0 ${layout.width} ${layout.height}`}
+        style={{ color: "var(--tan-2)" }}
+      >
+      {/* The loss mark, for the negative ribbons and the sinks' out-bars. */}
+      <defs>
+        <pattern id="msc-sankey-loss" patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
+          <rect width={3} height={6} style={{ fill: "var(--msc-loss)" }} />
+        </pattern>
+      </defs>
       {layout.links.map((l) => (
         <SankeyLinkPath key={`${l.from}-${l.to}`} l={l} />
       ))}
@@ -62,10 +88,16 @@ export function SettlementSankeyView({
           if (!v) return null;
           return <SankeyVenueNode key={n.id} n={n} v={v} primeLabel={primeLabel} />;
         }
+        const series = n.kind === "sky" ? "sky" : "prime";
         return (
           <SankeySinkNode
             key={n.id}
             n={n}
+            // The Prime's bar is supply-side green like the ribbons into it —
+            // on this chart the bar IS supply-side kept, not the Prime as an
+            // entity, so it does not wear the identity color the overview uses.
+            fill={n.flow === "out" ? "url(#msc-sankey-loss)" : series === "sky" ? "var(--msc-sky)" : "var(--msc-kept)"}
+            skyTo={month && n.id === "sky" ? `${ROUTES.RADAR}?msc=${month}` : undefined}
             gross={gross[n.id] ?? 0}
             netted={n.flow === "in" && (gross[`${n.id}-out`] ?? 0) > 0}
             net={
@@ -76,6 +108,11 @@ export function SettlementSankeyView({
           />
         );
       })}
-    </svg>
+      </svg>
+    </figure>
   );
+}
+
+function Swatch({ background }: { background: string }) {
+  return <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background }} aria-hidden="true" />;
 }

@@ -168,6 +168,17 @@ describe("Tooltip", () => {
     expect(onBlur).toHaveBeenCalledTimes(1);
   });
 
+  it("lets pointer events pass through a non-interactive tooltip", () => {
+    render(
+      <Tooltip content="overlay" delay={0} interactive={false}>
+        <button>trigger</button>
+      </Tooltip>,
+    );
+    fireEvent.mouseEnter(screen.getByText("trigger"));
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(screen.getByRole("tooltip")).toHaveStyle({ pointerEvents: "none" });
+  });
+
   it("cleans up pending timers and the active-tooltip slot on unmount", () => {
     const { unmount } = render(
       <Tooltip content="text" delay={100}>
