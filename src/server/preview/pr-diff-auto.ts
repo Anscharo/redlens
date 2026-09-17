@@ -2,7 +2,7 @@
 // redlines against. Split out of pr-diff.ts to keep that file within the
 // ~150-line convention; the two candidate resolvers stay there.
 
-import { CANONICAL_REPO, CANONICAL_MAIN_REF, type GhClient, type Resolved } from "./resolve.ts";
+import { CANONICAL_REPO, CANONICAL_MAIN_REF, isPullRef, type GhClient, type Resolved } from "./resolve.ts";
 import type { BaseKey } from "./cache.ts";
 // type-only: pr-diff.ts imports pickAuto from here, so a value import back
 // would be a circular dependency.
@@ -21,7 +21,9 @@ function autoResult(auto: BaseKey | "live-main", sky?: Candidate, repo?: Candida
 /**
  * A PR forces "repo" whenever one resolved (no extra compare — the PR's
  * declared base is definitionally the meaningful diff), except when that
- * base is sky main itself, which collapses to a single "sky" candidate. A branch with both
+ * base is sky main itself, which collapses to a single "sky" candidate. A PR
+ * whose base could not be read (Contents-only fallback) is still a PR: its
+ * stand-in default-branch candidate is forced the same way. A branch with both
  * candidates asks GitHub which merge base is later: "ahead" (repo's is
  * later) → "repo", "behind" → "sky", "identical" → collapse to ONE candidate
  * (drop `repo`, keep `sky`), "diverged" or a failed compare → "sky" + reason.
@@ -46,6 +48,14 @@ export async function pickAuto(
     if (sky) return autoResult("sky", sky);
     return autoResult("live-main");
   }
+
+  // A PR resolved through the Contents-only fallback has no declared base, but
+  // it is still a PR and the repo's default branch stands in for that base
+  // (resolvePrivateBranch). Force `repo` like the arm above instead of asking
+  // which merge base is later: a PR branch that took a newer sky main than the
+  // repo's own main carries compares "diverged", and the sky pick that follows
+  // counts all of that main's work as this PR's changes.
+  if (isPullRef(resolved.ref) && repo) return autoResult("repo", sky ?? undefined, repo);
 
   if (sky && repo) {
     // A raw network throw must degrade like a non-ok response — resolveCandidates

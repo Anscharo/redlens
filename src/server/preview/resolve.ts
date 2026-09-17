@@ -56,6 +56,15 @@ export type ParsedId =
 const SHA_RE = /^[0-9a-f]{40}$/i;
 const PULL_RE = /^pull-(\d+)$/;
 
+/** Is this resolved `ref` a PR? True only for a PR whose HEAD came from the
+ *  `refs/pull/N/head` fallback — a PR read through the Pulls API carries its
+ *  head BRANCH name as `ref` (and a `prBase`) instead. Every layer already
+ *  reads a `pull-N` ref as a PR (decodeId, resolveRef), so a branch literally
+ *  named that way was never reachable as a branch. */
+export function isPullRef(ref: string): boolean {
+  return PULL_RE.test(ref);
+}
+
 function decodeRef(s: string): string {
   return s.replaceAll("~", "/");
 }
