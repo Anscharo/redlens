@@ -326,18 +326,24 @@ describe("startCandidates", () => {
     }
   });
 
-  test("private preview attempts resolution even with no service token configured", async () => {
+  test("private preview resolves its in-repo candidate with no service token configured (the installation token is enough)", async () => {
     config.githubToken = "";
     const origFetch = globalThis.fetch;
-    let hit = false;
-    globalThis.fetch = (async () => {
-      hit = true;
+    const fetched: string[] = [];
+    globalThis.fetch = (async (url: string | URL) => {
+      const u = String(url);
+      fetched.push(u);
+      if (u.endsWith("/repos/acme/secret-atlas/compare/main...headsha")) return Response.json({ merge_base_commit: { sha: "mainmb" }, ahead_by: 2 });
       return new Response("not found", { status: 404 });
     }) as unknown as typeof fetch;
     try {
-      const result = await startCandidates({ ...RESOLVED, private: true }, "inst-tok", true);
-      expect(hit).toBe(true); // attempted the fork-point walk, unlike the public no-token stub above
-      expect(result.auto).toBe("live-main"); // no fork point turned up (every call 404s)
+      const resolved = { repo: "acme/secret-atlas", sha: "headsha", kind: "branch" as const, ref: "pull-7", defaultBranch: "main", private: true };
+      const result = await startCandidates(resolved, "inst-tok", true);
+      // Unlike the public no-token stub above, the compare ran — and it is the
+      // ONLY call: no nga-main commit list is walked for a private preview.
+      expect(fetched).toEqual(["https://api.github.com/repos/acme/secret-atlas/compare/main...headsha"]);
+      expect(result).toMatchObject({ auto: "repo", repo: { ref: "main", mergeBase: "mainmb" }, compareOk: true });
+      expect(result.sky).toBeUndefined();
     } finally {
       globalThis.fetch = origFetch;
     }

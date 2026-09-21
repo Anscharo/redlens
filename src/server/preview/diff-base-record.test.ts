@@ -20,6 +20,24 @@ test("diffBaseType: the internal `repo` slot is pr-base with a declared PR base,
   expect(diffBaseType({ bases: { auto: "repo", repo: OWN } })).toBe("fork-default");
 });
 
+test("diffBaseType: a PR declared against nga main is pr-base, not nga-main — the collapsed sky slot IS its declared base", () => {
+  const NGA_BASE = { repo: "sky-ecosystem/next-gen-atlas", ref: "main" };
+  const m = { bases: { auto: "sky" as const, sky: NGA }, prBase: NGA_BASE };
+  expect(diffBaseType(m)).toBe("pr-base");
+  expect(diffBaseHasLca(m)).toBe(true);
+  expect(diffBaseLabel(m)).toBe(`sky-ecosystem/next-gen-atlas:main@${"f".repeat(40)}`);
+  // …and the candidate is keyed the same way, so the type always names a key that exists.
+  expect(diffBaseCandidates(m)).toEqual({ candidates: { "pr-base": NGA } });
+  // A fork PR that also resolved an nga-main candidate keeps the two apart.
+  expect(diffBaseCandidates({ bases: { auto: "repo", sky: NGA, repo: OWN }, prBase: PR_BASE })).toEqual({
+    candidates: { "nga-main": NGA, "pr-base": OWN },
+  });
+  // A PR whose base did not resolve was compared against live nga main: that is what gets recorded.
+  const degraded = { bases: { auto: "live-main" as const, reason: "PR base did not resolve" }, prBase: PR_BASE };
+  expect(diffBaseType(degraded)).toBe("nga-main");
+  expect(diffBaseHasLca(degraded)).toBe(false);
+});
+
 test("diffBaseType: both the nga-main LCA and the no-LCA degrade are nga-main — the LCA flag tells them apart", () => {
   expect(diffBaseType({ bases: { auto: "sky", sky: NGA } })).toBe("nga-main");
   expect(diffBaseHasLca({ bases: { auto: "sky", sky: NGA } })).toBe(true);
@@ -67,7 +85,7 @@ test("readDiffCounts: sizes of diff.json's lists; undefined when there is no rea
 
 test("diffBaseLogLine: names the type, the LCA, the other candidate, the sizes and the served atlas — never the repo", () => {
   const line = diffBaseLogLine(meta({ bases: { auto: "repo", sky: NGA, repo: OWN }, baseAtlasCommit: "c".repeat(40), diffCounts: { added: 2, changed: 9 } }));
-  expect(line).toBe("[preview] 12345678: redlined vs fork-default main@aaaaaaaa (LCA) · +2 added, 9 changed · nga-main LCA ffffffff · 14 behind nga-main · served atlas cccccccc");
+  expect(line).toBe("[preview] 12345678: redlined vs fork-default main@aaaaaaaa (LCA) · +2 added, 9 changed · nga-main candidate ffffffff · 14 behind nga-main · served atlas cccccccc");
   expect(line).not.toContain("acme");
   expect(diffBaseLogLine(meta({ bases: { auto: "repo", repo: OWN }, prBase: PR_BASE }))).toBe(
     "[preview] 12345678: redlined vs pr-base main@aaaaaaaa (LCA) · served atlas ?",
@@ -76,7 +94,7 @@ test("diffBaseLogLine: names the type, the LCA, the other candidate, the sizes a
 
 test("diffBaseLogLine: the no-LCA degrade is loud and carries its reason; an nga-main pick lists the candidate it passed over", () => {
   expect(diffBaseLogLine(meta({ bases: { auto: "live-main", reason: "no fork point found" }, baseAtlasCommit: "c".repeat(40) }))).toBe(
-    "[preview] 12345678: redlined vs nga-main TIP @cccccccc · NO LCA · (no fork point found) · served atlas cccccccc",
+    "[preview] 12345678: redlined vs LIVE nga-main @cccccccc · NO LCA · (no fork point found) · served atlas cccccccc",
   );
   expect(diffBaseLogLine(meta({ bases: { auto: "sky", reason: "candidates diverged", sky: NGA, repo: OWN } }))).toBe(
     "[preview] 12345678: redlined vs nga-main main@ffffffff (LCA) · (candidates diverged) · 14 behind nga-main · fork-default candidate main@aaaaaaaa · served atlas ?",

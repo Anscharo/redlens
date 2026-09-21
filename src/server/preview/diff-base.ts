@@ -90,14 +90,17 @@ export async function writeDiffBases(
   const head = snapshotFromDocsJson(opts.paths.outDir);
   const mainDocs = live.docMap as Snapshot;
 
-  // No candidate resolved at all (pickAuto only returns "live-main" when
-  // neither sky nor repo came back) — today's plain vs-live-main diff.
+  // No usable base: a PR whose own base did not resolve, a private preview
+  // with no base branch to compare against (its default branch itself), or a
+  // public one whose compares failed — the plain vs-live-nga-main diff. The
+  // cause is RECORDED (banner, meta.json, previews row), not only logged: it
+  // is the first thing anyone diagnosing a surprising redline needs.
   if (candidates.auto === "live-main") {
     const why =
-      candidates.reason ?? (opts.priv ? "no fork point found" : candidates.compareOk ? "no merge base" : "compare failed");
+      candidates.reason ?? (opts.priv ? "no base branch to compare against" : candidates.compareOk ? "no merge base" : "compare failed");
     console.warn(`[preview] ${sha8}: ${why} — diffing against live main`);
     writeDiffArtifacts(opts.paths.outDir, computeDiffArtifacts(mainDocs, head, mainDocs));
-    return { candidates, bases: { auto: "live-main", reason: candidates.reason } };
+    return { candidates, bases: { auto: "live-main", reason: why } };
   }
 
   const bases = await writeCandidateDiffs(candidates, {

@@ -334,12 +334,12 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
   // Private previews (branch or private-PR `pull-N` grammar, see resolve.ts) are
   // gated on GitHub App installation, not fork/trust screening — installation
   // IS the trust grant, since only someone who can install the App on the repo
-  // can produce a preview of it at all. Unlike before, a private preview DOES
-  // compare now: in-repo via the installation token (a canonical-network cross-
-  // repo compare still isn't possible, but a private branch's own base or a
-  // private PR's declared base is reachable), and its fork point with sky main
-  // is found by walking commit lists (fork-point.ts) since a private repo is
-  // never a registered GitHub fork of canonical. See diff-base.ts.
+  // can produce a preview of it at all. A private preview compares INSIDE its
+  // own repo via the installation token (a private branch's default branch, a
+  // private PR's declared base). It never looks for an ancestor shared with
+  // nga main — a cross-repo compare isn't possible, and intersecting commit
+  // lists is meaningless for a mirror of a squash-merged upstream — so with no
+  // base branch it is redlined against live nga main. See pr-diff.ts.
   const priv = !!resolved.private;
   try {
     // Admin takedown: a blocked sha never rebuilds.
@@ -426,9 +426,9 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       // Shared-history screen: a public fork whose compare vs main failed (no
       // common ancestor / unknown commit) is not a derivative of the atlas —
       // reject. `fork` already implies `!priv`, but the explicit `!priv` is
-      // kept because pr-diff.ts's own note says `compareOk: false` IS
-      // reachable on the private path too (a raw network error in the
-      // fork-point walk) — private previews must never hit this branch.
+      // kept because `compareOk: false` IS reachable on the private path too
+      // (startCandidates' catch-all) — private previews must never hit this
+      // branch.
       if (fork && !priv && !candidates.compareOk) return fail(f, sha, "not-derived");
 
       // Doc-level diff + per-doc patches, written into the bundle as artifacts:
@@ -482,8 +482,8 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
         else meta.newAddresses = newAddrs;
       }
       // The sky candidate's ahead/behind counts ride on meta whenever one
-      // resolved — no longer fork-only: a private branch's fork-point walk
-      // (and a canonical branch's ordinary sky compare) now populate these too.
+      // resolved — a public fork's or a canonical branch's canonical compare.
+      // Never for a private preview: it has no sky candidate (pr-diff.ts).
       if (db.bases.sky) {
         meta.aheadBy = db.bases.sky.aheadBy;
         meta.behindBy = db.bases.sky.behindBy;

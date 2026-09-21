@@ -10,7 +10,6 @@
 
 import path from "node:path";
 import { CANONICAL_REPO, type GhClient } from "./resolve.ts";
-import { resolveForkPoint } from "./fork-point.ts";
 import { diffSnapshots, loadBaseSnapshot, type Snapshot } from "./snapshot.ts";
 import type { BaseDrift } from "./cache.ts";
 import type { Candidate } from "./pr-diff.ts";
@@ -50,21 +49,18 @@ async function resolveTipSha(candidate: Candidate, prBaseSha: string | undefined
 
 /** Ahead/behind between the base tip and the served atlasCommit. Public: a
  *  bare-sha canonical compare (fork commits are reachable through the
- *  canonical network). Private: no cross-repo compare is possible, so the
- *  fork point is found by walking commit lists (fork-point.ts). */
+ *  canonical network). Private: none — no cross-repo compare is possible, and
+ *  counting commits since a shared SHA is meaningless for a mirror that takes
+ *  squash-merged upstream by content (see pr-diff.ts). A private base's drift
+ *  is reported by CONTENT alone: `docsDiffer`. */
 async function tipCounts(
-  candidate: Candidate,
   tipSha: string,
   priv: boolean,
-  repoGh: GhClient,
   canonicalGh: GhClient,
   atlasCommit: string,
 ): Promise<{ forkPoint?: string; commitsAhead?: number; commitsBehind?: number }> {
+  if (priv) return {};
   try {
-    if (priv) {
-      const fp = await resolveForkPoint({ repoGh, canonicalGh, repo: candidate.repo, tip: tipSha, atlasCommit });
-      return fp ? { forkPoint: fp.mergeBase, commitsAhead: fp.aheadBy, commitsBehind: fp.behindBy } : {};
-    }
     const r = await canonicalGh.fetchJson(
       `/repos/${CANONICAL_REPO}/compare/${encodeURIComponent(atlasCommit)}...${encodeURIComponent(tipSha)}`,
     );
@@ -84,7 +80,7 @@ export async function computeBaseDrift(opts: ComputeBaseDriftOpts): Promise<Base
   const tipSha = await resolveTipSha(candidate, prBaseSha, repoGh);
   if (!tipSha) return undefined;
 
-  const counts = await tipCounts(candidate, tipSha, priv, repoGh, canonicalGh, live.atlasCommit);
+  const counts = await tipCounts(tipSha, priv, canonicalGh, live.atlasCommit);
 
   let docsDiffer: number | undefined;
   try {

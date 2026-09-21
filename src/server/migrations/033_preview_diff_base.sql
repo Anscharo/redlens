@@ -10,17 +10,20 @@
 -- The record answers two questions separately (see diff-base-record.ts):
 --
 --   diff_base_type     WHICH BRANCH is the base:
---                        'pr-base'       the PR's own declared base branch
+--                        'pr-base'       the PR's own declared base branch,
+--                                        including nga main itself
 --                        'fork-default'  the repo's default branch (a branch
 --                                        preview, or a PR whose base could not
 --                                        be read and the default stands in)
 --                        'nga-main'      sky-ecosystem/next-gen-atlas:main
---   diff_base_lca      was a LAST COMMON ANCESTOR with that branch found?
---                        true   the doc list is computed against that ancestor
---                        false  none found: compared against the branch TIP as
---                               served at build time. This is the degrade —
---                               `WHERE NOT diff_base_lca` finds every preview
---                               whose redline also carries upstream's drift.
+--   diff_base_lca      is the doc list computed against a LAST COMMON ANCESTOR?
+--                        true   yes — diff_base names that ancestor commit
+--                        false  no — compared against LIVE nga main as served
+--                               at build time, so upstream's drift shows up
+--                               too. NOT "a search ran and failed": a private
+--                               preview of its own default branch has no base
+--                               branch by design. diff_bases->>'reason' says
+--                               which; `WHERE NOT diff_base_lca` lists them.
 --   diff_base          '<owner>/<repo>:<branch>@<commit>' — the ancestor commit,
 --                      or the served atlas commit when diff_base_lca is false.
 --   diff_bases         jsonb { reason?, candidates: { <type>: { repo, ref,

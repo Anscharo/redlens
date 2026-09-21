@@ -113,7 +113,9 @@ export interface BaseDrift {
   /** The base branch tip the drift was measured on. */
   sha: string;
   forkPoint?: string;
-  /** Commits on the base branch since the fork point (its own work). */
+  /** Commits on the base branch since the fork point (its own work). This and
+   *  the two fields around it are PUBLIC-only: a private base has no fork point
+   *  with sky main to count from (base-drift.ts) — only `docsDiffer`. */
   commitsAhead?: number;
   /** Commits on sky main since the fork point (what the base hasn't taken). */
   commitsBehind?: number;
@@ -126,7 +128,8 @@ export interface BaseDrift {
 export interface PreviewBases {
   auto: BaseKey | "live-main";
   /** Why `auto` is what it is when that isn't obvious: a degrade cause
-   *  ("no fork point found", "compare failed") or "candidates diverged". */
+   *  ("PR base did not resolve", "no base branch to compare against",
+   *  "compare failed") or "candidates diverged". */
   reason?: string;
   sky?: BaseCandidateMeta;
   repo?: BaseCandidateMeta & { drift?: BaseDrift };

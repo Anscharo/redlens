@@ -10,15 +10,20 @@
 // answers them separately:
 //
 //   TYPE — which branch is the base?
-//     pr-base       the PR's own declared base branch
+//     pr-base       the PR's own declared base branch — INCLUDING a PR declared
+//                   against nga main (internally collapsed into the `sky` slot)
 //     fork-default  the repo's default branch (a branch preview, or a PR whose
 //                   base could not be read and the default branch stands in)
-//     nga-main      sky-ecosystem/next-gen-atlas:main
-//   LCA — was a last common ancestor with that branch found?
-//     true   the doc list is computed against that ancestor commit
-//     false  none was found: compared against the branch TIP as served today
-//            (the degrade — everything upstream changed since shows up too).
-//            Only ever false for nga-main.
+//     nga-main      sky-ecosystem/next-gen-atlas:main, for a preview with no PR
+//                   base and no default-branch base
+//   LCA — is the doc list computed against a last common ancestor?
+//     true   yes: `diff_base` names that ancestor commit
+//     false  no: the preview was compared against LIVE nga main as served at
+//            build time, so everything upstream changed since shows up too.
+//            It does NOT mean "an ancestor search ran and failed" — a private
+//            preview of its own default branch has no base branch by design,
+//            and a PR whose base compare failed lands here as well. The type
+//            is always nga-main when this is false; `reason` says which.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -34,15 +39,25 @@ function repoSlotType(meta: RecordMeta): DiffBaseType {
   return meta.prBase ? "pr-base" : "fork-default";
 }
 
+/** The internal `sky` slot is nga main's LCA — and, for a PR with a declared
+ *  base, only ever picked when that base IS nga main (pickAuto collapses the
+ *  two into this slot), which makes it the PR's own base. */
+function skySlotType(meta: RecordMeta): DiffBaseType {
+  return meta.prBase && meta.bases?.auto === "sky" ? "pr-base" : "nga-main";
+}
+
 /** Which branch the automatic pick is. Null when the bundle recorded no bases
  *  at all (cold start: the diff artifacts were skipped). */
 export function diffBaseType(meta: RecordMeta): DiffBaseType | null {
-  if (!meta.bases) return null;
-  return meta.bases.auto === "repo" ? repoSlotType(meta) : "nga-main";
+  const b = meta.bases;
+  if (!b) return null;
+  if (b.auto === "repo") return repoSlotType(meta);
+  return b.auto === "sky" ? skySlotType(meta) : "nga-main";
 }
 
-/** Was the doc list computed against a last common ancestor (true), or against
- *  the branch tip because none was found (false)? Null with no bases. */
+/** Is the doc list computed against a last common ancestor (true), or against
+ *  live nga main (false — see the header for what that does and doesn't mean)?
+ *  Null with no bases. */
 export function diffBaseHasLca(meta: RecordMeta): boolean | null {
   if (!meta.bases) return null;
   return meta.bases.auto !== "live-main";
@@ -75,7 +90,7 @@ export function diffBaseCandidates(meta: RecordMeta): DiffBaseCandidates | null 
   if (!b) return null;
   const out: DiffBaseCandidates = { candidates: {} };
   if (b.reason) out.reason = b.reason;
-  if (b.sky) out.candidates["nga-main"] = b.sky;
+  if (b.sky) out.candidates[skySlotType(meta)] = b.sky;
   if (b.repo) out.candidates[repoSlotType(meta)] = b.repo;
   return out;
 }
@@ -101,11 +116,11 @@ export function diffBaseLogLine(meta: PreviewMeta): string {
   const type = diffBaseType(meta);
   const parts: string[] = [];
   if (!b || !type) parts.push("no diff base recorded");
-  else if (b.auto === "live-main") parts.push(`redlined vs nga-main TIP @${short(meta.baseAtlasCommit)} · NO LCA`);
+  else if (b.auto === "live-main") parts.push(`redlined vs LIVE nga-main @${short(meta.baseAtlasCommit)} · NO LCA`);
   else parts.push(`redlined vs ${type} ${b[b.auto]?.ref}@${short(b[b.auto]?.mergeBase)} (LCA)`);
   if (b?.reason) parts.push(`(${b.reason})`);
   if (meta.diffCounts) parts.push(`+${meta.diffCounts.added} added, ${meta.diffCounts.changed} changed`);
-  if (b?.sky && b.auto !== "sky") parts.push(`nga-main LCA ${short(b.sky.mergeBase)}`);
+  if (b?.sky && b.auto !== "sky") parts.push(`nga-main candidate ${short(b.sky.mergeBase)}`);
   if (b?.sky?.behindBy !== undefined) parts.push(`${b.sky.behindBy} behind nga-main`);
   if (b?.repo && b.auto !== "repo") parts.push(`${repoSlotType(meta)} candidate ${b.repo.ref}@${short(b.repo.mergeBase)}`);
   parts.push(`served atlas ${short(meta.baseAtlasCommit)}`);
