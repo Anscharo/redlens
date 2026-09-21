@@ -35,12 +35,12 @@ describe("stale dates report", () => {
   });
 
   it.skipIf(!hasGenesisClaim)("finds the known stale governance claims (as of 2026-06-11)", () => {
-    const staleDocNos = new Set(report.stale.map((c) => c.docNo));
     // Genesis Capital transfers "will be included in the March 26, 2026
     // Executive Vote" — verified stale claims at the fixed date.
+    // Don't pin a corpus-wide stale count: atlas retensing shrinks that
+    // bucket without meaning extraction broke.
     const genesis = report.stale.filter((c) => c.dateISO === "2026-03-26");
     expect(genesis.length).toBeGreaterThanOrEqual(3);
-    expect(staleDocNos.size).toBeGreaterThanOrEqual(20);
   });
 
   it("registry tables produce no false positives", () => {
