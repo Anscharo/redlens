@@ -158,12 +158,18 @@ test("private PR without Pulls:read (ref pull-N, no prBase): the default branch 
   const resolved: Resolved = { repo: "acme/secret-atlas", sha: "headsha", kind: "branch", ref: "pull-7", defaultBranch: "main", private: true };
   const repoGh = fakeGh({
     "/repos/acme/secret-atlas/compare/main...headsha": { json: { merge_base_commit: { sha: "mainmb" }, ahead_by: 3, behind_by: 12 } },
-    "/repos/acme/secret-atlas/compare/forkpoint...mainmb": { json: { status: "ahead" } },
+    // What a PR branch that pulled a newer sky main than the repo's own main
+    // would answer. It must never be asked: a PR is forced onto `repo`, the
+    // same as one with a declared base, or this status would pick `sky`.
+    "/repos/acme/secret-atlas/compare/forkpoint...mainmb": { json: { status: "diverged" } },
   });
   const repo = await repoCandidate(resolved, repoGh);
   expect(repo).toEqual({ key: "repo", repo: "acme/secret-atlas", ref: "main", mergeBase: "mainmb", aheadBy: 3, behindBy: 12 });
   const sky: Candidate = { key: "sky", repo: CANONICAL_REPO, ref: "main", mergeBase: "forkpoint" };
-  expect((await pickAuto(resolved, sky, repo, repoGh)).auto).toBe("repo");
+  const picked = await pickAuto(resolved, sky, repo, repoGh);
+  expect(picked).toMatchObject({ auto: "repo", sky, repo });
+  expect(picked.reason).toBeUndefined();
+  expect(repoGh.calls).toEqual(["/repos/acme/secret-atlas/compare/main...headsha"]); // no candidate compare
   // A mirror that shares no commit SHAs with sky has no fork point at all —
   // the repo candidate alone still wins, instead of the live-main degrade.
   expect((await pickAuto(resolved, null, repo, repoGh)).auto).toBe("repo");

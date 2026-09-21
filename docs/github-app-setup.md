@@ -40,8 +40,8 @@ So the App needs exactly three **Repository permissions**:
   against its own base branch (the same treatment every canonical, public, and
   fork PR gets). Without it, a pasted private PR URL still resolves — the HEAD
   falls back to `refs/pull/N/head` (Contents:read) — but with no base info, so
-  the preview builds and follows branch rules instead (compared against the
-  closest shared point with sky main or the repo's own default branch), and the
+  the repo's own default branch stands in for the PR's base (right for a PR
+  that targets it, wrong for one that targets another branch), and the
   preview bar says so — with a link to GitHub's permission-review screen
   (`{installation.html_url}/permissions/update`) so the install owner can grant
   Pull requests: Read. After they accept and reload, the preview rebuilds

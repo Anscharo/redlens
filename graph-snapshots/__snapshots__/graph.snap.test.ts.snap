@@ -330,6 +330,98 @@ exports[`allocation-system sub-doc content > Grove > Avalanche - Curve USDS/USDC
 ]
 `;
 
+exports[`allocation-system sub-doc content > Grove > Base - Grove x Steakhouse USDC Morpho Vault V2 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation Coverage",
+  },
+  {
+    "content": "The documents herein define the parameters of the Grove x Steakhouse USDC Morpho Vault V2 Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers.",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Base",
+    "title": "Network",
+  },
+  {
+    "content": "Morpho",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDC",
+    "title": "Asset Supplied By Grove Liquidity Layer",
+  },
+  {
+    "content": "grove-steakUSDC",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xbeef0786756810478b88982DE00F3CD7fdB8e7c7\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow are defined in the subdocuments herein.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The inflow RateLimitID is: \`0x75df43c10c790bf60cc8db589d93ba979a8711aab94a828290155f0f9cb7e6ac\`.",
+    "title": "Inflow RateLimitID",
+  },
+  {
+    "content": "The outflow RateLimitID is: \`0x44630fb26e1343e99745c4ae29b1587eeb182f2a1da8b0cbe543a46f677766b9\`.",
+    "title": "Outflow RateLimitID",
+  },
+  {
+    "content": "The current \`maxAmount\` and \`slope\` for this conduit’s inflow and outflow are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The deposit rate limits are:
+
+- \`maxAmount\`: 20,000,000 USDC
+- \`slope\`: 20,000,000 USDC per day",
+    "title": "Deposit Rate Limits",
+  },
+  {
+    "content": "The withdrawal rate limits are:
+
+- \`maxAmount\`: Unlimited",
+    "title": "Withdrawal Rate Limits",
+  },
+  {
+    "content": "Controllers now have protections that require a \`maxExchangeRate\` to be set for deposits. The following ensures 1 share can represent at most 1.15 USDC.
+
+- \`setMaxExchangeRate(GROVE_X_STEAKHOUSE_USDC_V2_BASE, 1e18, 1.15e6)\`",
+    "title": "Max Exchange Rate",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+  {
+    "content": "The documents herein contain operational parameters or configuration details unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer parameters.",
+    "title": "Instance-specific Operational Parameters",
+  },
+]
+`;
+
 exports[`allocation-system sub-doc content > Grove > Base - Morpho Grove x Steakhouse High Yield Vault USDC 1`] = `
 [
   {
@@ -2739,9 +2831,9 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove Di
   {
     "content": "The deposit rate limits are:
 
-- Aggregate: \`maxAmount\`: 5,000,000 (normalized), \`slope\`: 5,000,000 (normalized) per day
-- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 5,000,000 AUSD per day
-- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 5,000,000 USDC per day",
+- Aggregate: \`maxAmount\`: 25,000,000 (normalized), \`slope\`: 25,000,000 (normalized) per day
+- AUSD: \`maxAmount\`: 25,000,000 AUSD, \`slope\`: 25,000,000 AUSD per day
+- USDC: \`maxAmount\`: 25,000,000 USDC, \`slope\`: 25,000,000 USDC per day",
     "title": "Deposit Rate Limits",
   },
   {
@@ -2755,8 +2847,8 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove Di
   {
     "content": "The swap rate limits are:
 
-- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 5,000,000 AUSD per day
-- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 5,000,000 USDC per day
+- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 25,000,000 AUSD per day
+- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 25,000,000 USDC per day
 - \`maxSlippage\`: 0.1%",
     "title": "Swap Rate Limits",
   },
@@ -4072,8 +4164,8 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenize
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 15,000,000 USDS
-- \`slope\`: 15,000,000 USDS per day",
+- \`maxAmount\`: 50,000,000 USDS
+- \`slope\`: 50,000,000 USDS per day",
     "title": "Inflow Rate Limits",
   },
   {
@@ -5748,13 +5840,13 @@ exports[`allocation-system sub-doc content > Osero > Ethereum Mainnet - SparkLen
     "title": "Outflow RateLimitID",
   },
   {
-    "content": "The current \`maxAmount\` and \`slope\` for this conduit's inflow/outflow are defined in the subdocuments herein.",
+    "content": "The current \`maxAmount\` and \`slope\` for this conduit's inflow/outflow are defined in the subdocuments herein. These values are set via a cBEAM, as specified in [A.6.1.1.7.2.6.1.2.1.1.2.2 - Diamond PAU Rate Limits](325731dc-5e89-4a8a-9d64-91b203febf48).",
     "title": "Rate Limits",
   },
   {
     "content": "The deposit rate limits are:
-- \`maxAmount\`: 5,000,000 USDS
-- \`slope\`: 5,000,000 USDS per day",
+- \`maxAmount\`: 50,000,000 USDS
+- \`slope\`: 50,000,000 USDS per day",
     "title": "Deposit Rate Limits",
   },
   {
@@ -9647,6 +9739,10 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Sentora 
 - \`setMaxExchangeRate(SENTORA_RLUSD_VAULT, 1e18, 3e18)\`",
     "title": "Max Exchange Rate",
   },
+  {
+    "content": "Force-Deallocate Penalty: 0.01%",
+    "title": "Force-Deallocate Penalty",
+  },
 ]
 `;
 
@@ -11804,27 +11900,27 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 9,
   "annotates": 101,
   "can_modify_signers_of": 32,
-  "cites": 2210,
+  "cites": 2245,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 419,
-  "duty_for": 866,
+  "defines_entity": 420,
+  "duty_for": 865,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 9,
   "governance_channel": 10,
-  "has_address": 292,
+  "has_address": 294,
   "has_status": 136,
   "holds_role_for": 5,
   "implements": 188,
-  "instance_of": 208,
+  "instance_of": 209,
   "integration_partner_of": 10,
   "invocation_of": 5,
-  "invoked_by": 213,
+  "invoked_by": 214,
   "listed_in": 49,
-  "located_at": 206,
-  "mentions": 700,
+  "located_at": 207,
+  "mentions": 704,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -13886,6 +13982,28 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.2",
+    "name": "Base - Grove x Steakhouse USDC Morpho Vault V2",
+    "params": {
+      "Asset Supplied By Grove Liquidity Layer": "USDC",
+      "Deposit Rate Limits / maxAmount": "20,000,000 USDC",
+      "Deposit Rate Limits / slope": "20,000,000 USDC per day",
+      "Inflow RateLimitID": "0x75df43c10c790bf60cc8db589d93ba979a8711aab94a828290155f0f9cb7e6ac",
+      "Max Exchange Rate": "Controllers now have protections that require a \`maxExchangeRate\` to be set for deposits. The following ensures 1 share can represent at most 1.15 USDC.
+
+- \`setMaxExchangeRate(GROVE_X_STEAKHOUSE_USDC_V2_BASE, 1e18, 1.15e6)\`",
+      "Network": "Base",
+      "Outflow RateLimitID": "0x44630fb26e1343e99745c4ae29b1587eeb182f2a1da8b0cbe543a46f677766b9",
+      "Target Protocol": "Morpho",
+      "Token": "grove-steakUSDC",
+      "Token Address": "0xbeef0786756810478b88982DE00F3CD7fdB8e7c7",
+      "Underlying Asset Address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "Withdrawal Rate Limits / maxAmount": "Unlimited",
+    },
+    "slug": "grove-allocation-system-base-grove-x-steakhouse-usdc-morpho-vault-v2",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.2",
     "name": "Base - Morpho Grove x Steakhouse High Yield Vault USDC",
     "params": {
       "Asset Supplied By Grove Liquidity Layer": "USDC",
@@ -14390,9 +14508,9 @@ exports[`instances > allocation-system instances 1`] = `
       "CRR": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 10%.",
       "Deposit Rate Limits": "The deposit rate limits are:
 
-- Aggregate: \`maxAmount\`: 5,000,000 (normalized), \`slope\`: 5,000,000 (normalized) per day
-- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 5,000,000 AUSD per day
-- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 5,000,000 USDC per day",
+- Aggregate: \`maxAmount\`: 25,000,000 (normalized), \`slope\`: 25,000,000 (normalized) per day
+- AUSD: \`maxAmount\`: 25,000,000 AUSD, \`slope\`: 25,000,000 AUSD per day
+- USDC: \`maxAmount\`: 25,000,000 USDC, \`slope\`: 25,000,000 USDC per day",
       "Deposit RateLimitID (AUSD)": "The deposit RateLimitID for AUSD is: \`0x89c0cb8c17898781d7c1776eafcf73fd0b570659ad5c3791ddcbefe66b001541\`.",
       "Deposit RateLimitID (USDC)": "The deposit RateLimitID for USDC is: \`0x71efb11b03476e40dcc1ade629d360114fcbf838d70a3211270f69414ba9a187\`.",
       "Maximum Exposure": "Total exposure through this Instance may not exceed 25,000,000 USDS.",
@@ -14689,8 +14807,8 @@ exports[`instances > allocation-system instances 1`] = `
       "Basin Contract Address": "0xf08943f817e1F902dEbC884c7B19Ea5764594Ac9",
       "CRR": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 1.5%.",
       "Centrifuge ERC-7540 Vault Address": "0xFE6920eB6C421f1179cA8c8d4170530CDBdfd77A",
-      "Inflow Rate Limits / maxAmount": "15,000,000 USDS",
-      "Inflow Rate Limits / slope": "15,000,000 USDS per day",
+      "Inflow Rate Limits / maxAmount": "50,000,000 USDS",
+      "Inflow Rate Limits / slope": "50,000,000 USDS per day",
       "Inflow RateLimitID": "0x44ad4f925dffddd260f6ba5813208bf35b11b254e79611cbc8443c1504f68e68",
       "JTRSY Rate Provider Address": "0x29209ceCFeFa6f675E6f1f829320D67cE2b025E5",
       "Maximum Exposure": "Total exposure through this Instance may not exceed 50,000,000 USDS.",
@@ -15087,8 +15205,8 @@ exports[`instances > allocation-system instances 1`] = `
     "params": {
       "Asset Supplied By Osero Liquidity Layer": "USDS",
       "Capital Ratio Requirement": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 5%.",
-      "Deposit Rate Limits / maxAmount": "5,000,000 USDS",
-      "Deposit Rate Limits / slope": "5,000,000 USDS per day",
+      "Deposit Rate Limits / maxAmount": "50,000,000 USDS",
+      "Deposit Rate Limits / slope": "50,000,000 USDS per day",
       "Inflow RateLimitID": "0x5534da2f28b3dd200cb0042c0876cd6e2beca93d3232c366ec077018c82da73d",
       "Max Slippage": "The \`maxSlippage\` for this Instance is 0.01%.",
       "Maximum Exposure": "The Maximum Exposure for this Instance is 100,000,000 USDS.",
@@ -15359,7 +15477,7 @@ exports[`instances > instance counts by type 1`] = `
 {
   "agent-creation": 8,
   "agent-token": 8,
-  "allocation-system": 124,
+  "allocation-system": 125,
   "core-governance-reward": 1,
   "distribution-reward": 15,
   "ecosystem-upkeep-fee": 8,

@@ -28,7 +28,9 @@ since a private repo shares commit history with sky but is never a true GitHub f
 public one — `fork-point.ts`) or the merge base with the repo's own default branch. A pasted
 private PR URL resolves to that PR's HEAD commit (`refs/pull/N/head`, or the Pulls API HEAD
 branch plus declared base when the App has **Pull requests:read**); without that permission
-there is no base to read, and the preview falls back to branch rules. The preview bar then
+there is no base to read, so the repo's own default branch stands in for it and the PR is
+redlined against that (forced, like a declared base — never the sky fork point, which would
+count everything the repo's main carries beyond sky as the PR's changes). The preview bar then
 prompts the install owner to grant Pull requests: Read (linking to GitHub's
 `{html_url}/permissions/update` screen) and rebuilds against the PR's own base after they
 accept and reload. The old "vs live main, no compare" path survives only as the
