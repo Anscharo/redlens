@@ -1,5 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
-import { currentHeadSha, discoverCanary, pinnedCanary, type CanaryTarget } from "./preview-canary";
+import {
+  currentHeadSha,
+  discoverCanary,
+  isPreviewDiffResponse,
+  pinnedCanary,
+  type CanaryTarget,
+} from "./preview-canary";
 
 // Atlas-preview redline canary against a REAL upstream PR. Two ways to target:
 //   pinned    — ATLAS_PREVIEW_CANARY_PR + ATLAS_PREVIEW_CANARY_SHA (dispatch
@@ -56,15 +62,15 @@ test("previews an atlas PR canary and redlines the docs it changed", async ({ pa
     `preview canary: atlas PR #${number} at ${headSha} from ${headRepo} (${expectedIds.length} expected docs)`,
   );
 
-  // Capture the preview bundle's diff.json (fetched once the build is ready).
-  // Match any status so a 5xx fails immediately instead of waiting out BUILD_TIMEOUT.
-  const diffResponse = page.waitForResponse(
-    (r) => /\/api\/preview\/[0-9a-f]+\/diff\.json$/.test(r.url()),
-    { timeout: BUILD_TIMEOUT },
-  );
+  // Capture the preview-diff fetch (plain diff.json, or diff.sky.json /
+  // diff.repo.json — PreviewDiffProvider prefers the keyed auto pair).
+  // isPreviewDiffResponse ignores a non-200 keyed file (client falls back
+  // to plain) and matches any status on the settled URL so a 5xx fails
+  // immediately instead of waiting out BUILD_TIMEOUT.
+  const diffResponse = page.waitForResponse(isPreviewDiffResponse, { timeout: BUILD_TIMEOUT });
   await page.goto(`/preview/pull-${number}`, { waitUntil: "domcontentloaded" });
   const response = await awaitDismissingInterstitial(page, diffResponse);
-  expect(response.status(), `preview diff.json HTTP ${response.status()} ${response.url()}`).toBe(200);
+  expect(response.status(), `preview diff HTTP ${response.status()} ${response.url()}`).toBe(200);
   const diff = (await response.json()) as {
     added?: string[];
     changed?: string[];
