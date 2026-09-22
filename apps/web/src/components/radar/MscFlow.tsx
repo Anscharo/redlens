@@ -9,10 +9,9 @@ import { markId } from "./MscRingPills";
 import { FlowAgentGroup } from "./MscFlowAgent";
 import { FlowSources } from "./MscFlowSources";
 import { FlowPills } from "./MscFlowPills";
-import { MscZoomReset } from "./MscZoomReset";
 import type { OverviewPrime } from "./MscRingPrime";
 import { useTweenedFlow } from "../../hooks/useTweenedFlow";
-import { useSvgZoom } from "../../hooks/useSvgZoom";
+import { useSvgZoom, useZoomReport } from "../../hooks/useSvgZoom";
 
 interface Props {
   layout: FlowLayout;
@@ -20,6 +19,9 @@ interface Props {
   month: string;
   /** Compact ecosystem To-Sky figure, shown beside the Sky bar. */
   centerFigure: string;
+  /** Reports the zoom upward so the reset control can sit in the card's
+   *  title row instead of floating over the drawing. */
+  onZoom?: (state: { zoomed: boolean; reset: () => void } | null) => void;
 }
 
 /** The column headers over the three node groups — pure chrome, so the
@@ -51,9 +53,10 @@ export function FlowHeaders() {
  *  viewBox about the pointer (useSvgZoom) so the hairline ribbons can be
  *  hovered; the zoom is on the view, not the data, so it survives a month
  *  change and the tween never sees it. */
-export function MscFlow({ layout: target, primes, month, centerFigure }: Props) {
+export function MscFlow({ layout: target, primes, month, centerFigure, onZoom }: Props) {
   const layout = useTweenedFlow(target);
   const zoom = useSvgZoom(layout.width, layout.height);
+  useZoomReport(zoom.zoomed, zoom.reset, onZoom);
   const meta = new Map(primes.map((p) => [p.flow.prime, p]));
   const labelOf = (prime: string) => meta.get(prime)?.label ?? prime;
   // Hover rules come from the month being shown, not the frame in flight.
@@ -139,7 +142,6 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
           </g>
           <FlowPills layout={layout} labelOf={labelOf} />
         </svg>
-        {zoom.zoomed && <MscZoomReset onReset={zoom.reset} />}
       </figure>
     </>
   );

@@ -183,6 +183,23 @@ describe("MscOverview", () => {
     expect(window.location.search).toBe("");
   });
 
+  it("puts the zoom reset in the title row, only while a chart is zoomed", async () => {
+    const { container } = render(<MscOverview actors={ACTORS} />);
+    await waitFor(() => screen.getByText("Monthly Settlement Cycle"));
+    // At rest the row is just the title and the style pills.
+    expect(screen.queryByRole("button", { name: /Reset zoom/ })).not.toBeInTheDocument();
+    const svg = container.querySelector("svg.msc-flow")!;
+    fireEvent.wheel(svg, { deltaY: -400 });
+    const reset = screen.getByRole("button", { name: /Reset zoom/ });
+    // It belongs to the card's title row, beside the style pills — not to
+    // the figure it undoes.
+    const titleRow = screen.getByRole("group", { name: "Chart style" }).closest("p")!;
+    expect(titleRow).toContainElement(reset);
+    expect(container.querySelector("figure")).not.toContainElement(reset);
+    fireEvent.click(reset);
+    expect(screen.queryByRole("button", { name: /Reset zoom/ })).not.toBeInTheDocument();
+  });
+
   it("opens on the sankey and switches to the pies, synced to ?view", async () => {
     const { container } = render(<MscOverview actors={ACTORS} />);
     await waitFor(() => screen.getByText("Monthly Settlement Cycle"));

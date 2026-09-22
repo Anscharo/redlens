@@ -1,4 +1,4 @@
-import { Suspense, use, useEffect, useMemo, useRef } from "react";
+import { Suspense, use, useEffect, useMemo, useRef, useState } from "react";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import {
   loadSettlements,
@@ -26,6 +26,7 @@ import type { OverviewPrime } from "./MscRingPrime";
 import { DIM } from "./MscRingHoverStyles";
 import { RingKey } from "./MscRingKey";
 import { MscChartStyle, type ChartStyle } from "./MscChartStyle";
+import { MscZoomReset } from "./MscZoomReset";
 import { MscTimeseries, primeFill } from "./MscTimeseries";
 import { MscOverviewSkeleton, OverviewIntro } from "./MscOverviewSkeleton";
 import { useMonthAutoplay } from "../../hooks/useMonthAutoplay";
@@ -98,6 +99,10 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
     [bundle, month],
   );
 
+  // Reported up by whichever chart is mounted, so the reset control can
+  // live in the title row; null again as soon as that chart unmounts.
+  const [zoom, setZoom] = useState<{ zoomed: boolean; reset: () => void } | null>(null);
+
   const viewed = useRef(false);
   const ready = Boolean(!settlementsArtifactMissing(bundle) && month && eco && flows.length > 0);
   useEffect(() => {
@@ -138,11 +143,19 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
                 track("msc_overview_style", { view: v });
               }}
             />
+            {/* The way out of a zoomed chart sits here, at the end of the
+                title row, rather than floating over the drawing it undoes.
+                The chart still owns its zoom and only reports it up. */}
+            {zoom?.zoomed && (
+              <span className="ml-auto">
+                <MscZoomReset onReset={zoom.reset} />
+              </span>
+            )}
           </p>
           {flowLayout ? (
-            <MscFlow layout={flowLayout} primes={overviewPrimes} month={month} centerFigure={formatUsd(eco.sky, true)} />
+            <MscFlow layout={flowLayout} primes={overviewPrimes} month={month} centerFigure={formatUsd(eco.sky, true)} onZoom={setZoom} />
           ) : (
-            <MscRing layout={layout} primes={ringPrimes} month={month} centerFigure={formatUsd(eco.sky, true)} />
+            <MscRing layout={layout} primes={ringPrimes} month={month} centerFigure={formatUsd(eco.sky, true)} onZoom={setZoom} />
           )}
           <RingKey view={view} />
         </div>

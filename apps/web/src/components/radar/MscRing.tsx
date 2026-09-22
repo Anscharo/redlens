@@ -5,8 +5,7 @@ import { PillOverlay } from "./MscRingPills";
 import { RingChart } from "./MscRingChart";
 import type { MscRingPrime } from "./MscRingPrime";
 import { RingHoverStyles } from "./MscRingHoverStyles";
-import { MscZoomReset } from "./MscZoomReset";
-import { useSvgZoom } from "../../hooks/useSvgZoom";
+import { useSvgZoom, useZoomReport } from "../../hooks/useSvgZoom";
 
 export type { MscRingPrime } from "./MscRingPrime";
 
@@ -16,6 +15,9 @@ interface Props {
   month: string;
   /** Compact ecosystem To-Sky figure, shown above the Sky pie. */
   centerFigure: string;
+  /** Reports the zoom upward so the reset control can sit in the card's
+   *  title row instead of floating over the drawing. */
+  onZoom?: (state: { zoomed: boolean; reset: () => void } | null) => void;
 }
 
 /** How far outside the donut a wedge's pill sits (matches PILL_OFFSET). */
@@ -24,7 +26,7 @@ const WEDGE_PILL_GAP = 56;
  *  the canvas renders at about half, so a 1× pill read at ~8px. */
 const PILL_SCALE = 1.6;
 
-export function MscRing({ layout, primes, month, centerFigure }: Props) {
+export function MscRing({ layout, primes, month, centerFigure, onZoom }: Props) {
   const labelOf = (prime: string) => primes.find((p) => p.flow.prime === prime)?.label ?? prime;
   // The wheel zooms the VIEW, not the data, so it survives a month change
   // and the layout never sees it. The hook works in a 0-based drawing of
@@ -40,6 +42,7 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
   // starts over — which is right here, since the old box may not even be
   // inside the new drawing.
   const zoom = useSvgZoom(layout.width, layout.height);
+  useZoomReport(zoom.zoomed, zoom.reset, onZoom);
   const [vx, vy, vw, vh] = zoom.viewBox.split(" ").map(Number);
   // useId's own value carries colons; strip them so the `url(#…)` reference
   // is a plain token in every renderer.
@@ -116,7 +119,6 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
             />
           </g>
         </svg>
-        {zoom.zoomed && <MscZoomReset onReset={zoom.reset} />}
       </figure>
     </>
   );

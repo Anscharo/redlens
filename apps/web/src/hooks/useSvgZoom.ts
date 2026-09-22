@@ -113,3 +113,18 @@ export function useSvgZoom(width: number, height: number) {
     pan: { onPointerDown, onPointerMove, onPointerUp: endDrag, onPointerCancel: endDrag },
   };
 }
+
+/** Report a chart's zoom state upward, so the way back out can live in the
+ *  page's chrome rather than floating over the drawing. The chart owns the
+ *  zoom — only the control moved — and unmounting (switching chart styles)
+ *  clears the report, so the button never outlives the chart it resets. */
+export function useZoomReport(
+  zoomed: boolean,
+  reset: () => void,
+  report?: (state: { zoomed: boolean; reset: () => void } | null) => void,
+) {
+  useEffect(() => {
+    report?.({ zoomed, reset });
+    return () => report?.(null);
+  }, [zoomed, reset, report]);
+}
