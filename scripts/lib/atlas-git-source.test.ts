@@ -105,6 +105,46 @@ describe("detectFormat", () => {
   });
 });
 
+describe("atlasCommits", () => {
+  it("lists atlas-touching commits oldest-first, and ignores everything else", () => {
+    write("README.md", "unrelated\n");
+    commit("docs: no atlas here");
+
+    write("Sky Atlas/Sky Atlas.md", MONOLITH);
+    const mono = commit("Add Sky Atlas.md with a long subject");
+
+    write("notes.txt", "still not atlas\n");
+    commit("chore: skip me");
+
+    fs.rmSync(path.join(repo, "Sky Atlas"), { recursive: true });
+    writeAtomized();
+    const atomized = commit("Atomize the atlas (#236)");
+
+    const commits = src.atlasCommits();
+    expect(commits.map((c: { hash: string }) => c.hash)).toEqual([mono, atomized]);
+    expect(commits[0]).toMatchObject({
+      hash: mono,
+      message: "Add Sky Atlas.md with a long subject",
+    });
+    expect(commits[0].date).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(commits[1].message).toBe("Atomize the atlas (#236)");
+  });
+
+  it("returns no rows when the log is empty, and a ref stops before later commits", () => {
+    write("README.md", "unrelated\n");
+    commit("no atlas");
+    expect(src.atlasCommits()).toEqual([]);
+
+    write("Sky Atlas/Sky Atlas.md", MONOLITH);
+    const first = commit("first atlas");
+    write("Sky Atlas/Sky Atlas.md", MONOLITH + "\nmore\n");
+    commit("second atlas");
+
+    expect(src.atlasCommits().map((c: { hash: string }) => c.hash)).toHaveLength(2);
+    expect(src.atlasCommits(first).map((c: { hash: string }) => c.hash)).toEqual([first]);
+  });
+});
+
 describe("loadSnapshot", () => {
   it("agrees on uuids and contentHashes across all three layouts", () => {
     write("Sky Atlas/Sky Atlas.md", MONOLITH);
