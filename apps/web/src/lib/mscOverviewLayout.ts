@@ -6,15 +6,15 @@
 // Pure math, no DOM — the view just maps over prebuilt SVG path strings
 // (settlementSankey.ts precedent).
 //
-// ONE size scale for everything: the month's biggest amount (the To-Sky
+// ONE area scale for everything: the month's biggest amount (the To-Sky
 // total, or a Prime's positive line items) renders at R_MAX, and every
-// other circle is sized from the same scale — a compressed one, not an
-// area-proportional one, because the month's amounts span three orders of
-// magnitude and true area put half the Primes on the minimum. See SIZE_EXP
-// for the trade that buys.
+// other circle's AREA is proportional on the same scale. The one
+// exception is a row small enough to hit PIE_MIN_R — at most one in any
+// published month. Getting back to true area took doubling R_MAX; see
+// SIZE_EXP for the whole argument.
 //
 // EVERY PIE IS WHAT THAT PARTY RECEIVED, and nothing else — the one rule
-// that makes a pie's size mean something. Mixing what a Prime keeps with
+// that makes a pie's area mean something. Mixing what a Prime keeps with
 // what it owes Sky (the old "gross revenue" pie) summed money moving in
 // opposite directions, which the Monthly Settlement Cycle settles as two
 // separate amounts (A.2.4.1.2.2.1.1.1 and A.2.4.1.2.2.1.1.2). So:
@@ -25,10 +25,10 @@
 //   SKY'S PIE      = cost of funds + Sky Direct Exposure, subdivided by
 //                    Prime so "these flows add up to Sky" stays visible
 //
-// Positive items are the slices, and the pie's SIZE comes from their sum.
-// A negative item (a supply LOSS — Grove in 3 of 7 months) is a HOLE in
-// the middle sized from the loss on the same scale, so the visible ring is
-// what the party received. Two arrows run between each Prime and Sky, in
+// Positive items are the slices; the pie's AREA is their sum. A negative
+// item (a supply LOSS — Grove in 3 of 7 months) is a HOLE in the middle
+// whose area is the loss, so the visible ring area is exactly what the
+// party received. Two arrows run between each Prime and Sky, in
 // opposite lanes: what it owed Sky, and the demand-side Sky owed it.
 //
 // Placement: Primes go clockwise from 12 o'clock in the order given (the
@@ -61,16 +61,16 @@ const CX = WIDTH / 2;
  *  card's own (~950:420): the bottom arc sets the height, so when Sky and
  *  the pies grow, RX has to grow with them or the box turns square, the
  *  height starts binding and every label on screen gets smaller. */
-const ORBIT_RX = 600;
+const ORBIT_RX = 780;
 const ORBIT_RY = 250;
 /** Where the first Prime sits: 9 o'clock. The card is wide, so the big
  *  Primes (first in PRIME_ORDER) take the sides and the small ones the
  *  top/bottom, which keeps the cropped box wide and the drawing large. */
 const START_ANGLE = Math.PI;
-/** Sky pie: on the SAME size scale as the pies (see R_MAX), with a floor
+/** Sky pie: on the SAME area scale as the pies (see R_MAX), with a floor
  *  so the label always fits. No hole — a hole means a loss here. */
 const SKY_MIN_R = 100;
-/** ONE size scale for the donut and every pie: the month's biggest
+/** ONE area scale for the donut and every pie: the month's biggest
  *  amount renders at this radius — in practice Sky, which is four times
  *  the biggest Prime in every published month.
  *
@@ -82,50 +82,54 @@ const SKY_MIN_R = 100;
  *  bounded by the crop going TALL: the bottom Primes are pushed out to
  *  skyR + their own radius + DONUT_GAP, so each unit of R_MAX costs two
  *  units of the box's height, the card scales the box to fit, and past
- *  some point the labels lose more than the circles gain. 170 (with
- *  ORBIT_RX widened to match) is where that trade stops paying. */
-const R_MAX = 170;
+ *  some point the labels lose more than the circles gain: 170 → 240 (the
+ *  largest circle's AREA doubled) cost about 8% of every label's rendered
+ *  size, paid back by raising the type with it. ORBIT_RX has to widen
+ *  alongside or the box turns square and the loss is far worse. */
+const R_MAX = 240;
 /**
  * The size exponent: radius = R_MAX * (value / ref) ** SIZE_EXP.
  *
- * 0.5 is true area-proportionality (area ∝ dollars) and is what this chart
- * used to do. It cannot survive this data: a month spans three orders of
- * magnitude between the biggest Prime and the smallest ($3.92M vs $12.1k in
- * Jul 2026), and against a `ref` that is the To-Sky total — four times the
- * biggest Prime — every Prime below ~$500k came out under the minimum pie
- * and rendered at exactly the same size. Three or four of six rows were
- * sized by the FLOOR rather than by their money, which is the one thing a
- * size encoding must never do.
+ * 0.5 is true area-proportionality: a pie's AREA is its dollars. That is
+ * what this chart wants to say, and for a while it could not say it. A
+ * month spans three orders of magnitude between the biggest Prime and the
+ * smallest ($3.92M vs $12.1k in Jul 2026), and against a `ref` that is the
+ * To-Sky total — four times the biggest Prime — every Prime below ~$500k
+ * came out under the minimum pie. Three or four of six rows were sized by
+ * the FLOOR rather than by their money, which is the one thing a size
+ * encoding must never do.
  *
- * A Flannery-style compromise is the way out: still one monotone scale
- * shared by the donut and every pie, so bigger always means more and the
- * ranking is exact, but a pie's AREA is no longer readable as dollars — it
- * overstates the small end on purpose. Read the figures for amounts; read
- * the circles for rank and rough magnitude. MscRingKey's reading guide
- * says exactly that — keep the two in step if this number moves.
+ * It is BACK AT 0.5 — area IS dollars again — and that was bought with
+ * R_MAX, not conceded. The exponent, the FLOOR and R_MAX are three
+ * independent levers, and the pile-up is a fight between the last two:
+ * a row is lost to the floor when R_MAX * (v/ref) ** 0.5 falls under it.
+ * The chart passed through 0.3 (no pile-up, but a 3.6–5.7× span of radius
+ * over a 324× span of money — "all much of a muchness") and 0.45 at
+ * R_MAX 170 (6.7–13.1×, one row on the floor), where true area still
+ * failed: Jan 2026 put Keel ($28.5k) at 7.1 and Grove ($6.3k) on the 7.0
+ * floor, two rows a 4.5× difference apart at the same size.
  *
- * 0.45, not the 0.3 first shipped: 0.3 fixed the pile-up but squeezed the
- * whole set into a 3.6–5.7× span of radius over a 324× span of money,
- * which read as "the pies are all much of a muchness". The exponent, the
- * FLOOR and R_MAX are three independent levers and all three had to move
- * — raising the exponent alone drives the small end straight back under
- * the floor. With R_MAX at 170 and the floor at 7, measured over all
- * seven published months, 0.45 nearly doubles the span again (6.7–13.1×)
- * while still putting at most one row on the minimum.
+ * Doubling the largest circle's AREA (R_MAX 170 → 240, radius × √2) moves
+ * every radius up by the same factor while the floor does not follow, and
+ * that is what finally clears the small end: at 240 with a floor of 6,
+ * measured over all seven published months, 0.5 puts exactly one row on
+ * the minimum (Jan's Grove, the genuine smallest) and spans 8.3–18.0×.
  *
- * 0.45 and not 0.5 is a measured stop, not a taste: at true area Jan 2026
- * renders Keel ($28.5k) at 7.1 and Grove ($6.3k) at the 7.0 floor — two
- * rows a 4.5× difference apart, the same size. That is the exact defect
- * this scale exists to prevent, so area-proportionality cannot come back
- * until the floor can go lower than a hoverable disc.
+ * Note what R_MAX alone does NOT do: it is a single multiplier on every
+ * circle, so raising it cannot widen the span between two unfloored pies.
+ * The span in the numbers above came from the EXPONENT; R_MAX bought the
+ * headroom that let the exponent go up. Whoever moves one must check the
+ * other.
  */
-const SIZE_EXP = 0.45;
+const SIZE_EXP = 0.5;
 /** Smallest pie, so a Prime that rounds to nothing is still a visible,
- *  hoverable disc. Deliberately well below the smallest real row — the
- *  floor is a backstop for a row with no money, never the thing that sizes
- *  the small end, and it has to stay below whatever SIZE_EXP gives the
- *  smallest real Prime or the pile-up comes straight back. */
-const PIE_MIN_R = 7;
+ *  hoverable disc. The one place this chart is NOT area-proportional, so
+ *  it is kept well below the smallest real row: a backstop for a row with
+ *  no money, never the thing that sizes the small end. It must stay under
+ *  whatever SIZE_EXP gives the smallest real Prime — at R_MAX 240 that is
+ *  Jan 2026's $6.3k Grove, the only floored row in seven months — or the
+ *  pile-up comes straight back. */
+const PIE_MIN_R = 6;
 /** A loss hole is never smaller than this (a hairline hole reads as a
  *  rendering glitch) nor closer than HOLE_RIM to the pie's edge. Both sit
  *  under PIE_MIN_R, or the floor pie would be all hole. */
@@ -138,7 +142,7 @@ const DONUT_GAP = 70;
 /** Room reserved outside a pie for its name and received figure (2 lines):
  *  NAME_SIZE + SUBLABEL_DY + LABEL_GAP, spelled out rather than derived
  *  because it is declared above the type block. Keep it in step. */
-const LABEL_OUT = 74;
+const LABEL_OUT = 77;
 /** Padding around the cropped viewBox. */
 const CROP_PAD = 24;
 /** Half-width allowance for a name under a pie, for the crop. */
@@ -168,17 +172,17 @@ const DOCK_INSET = 0.15;
  * fit inside fewer slices, so a few figures fall back to the hover pill.
  */
 export const NAME_SIZE = 32;
-export const SUBLABEL_SIZE = 22;
-export const FIGURE_SIZE = 21;
+export const SUBLABEL_SIZE = 25;
+export const FIGURE_SIZE = 24;
 /** Baseline-to-baseline for a name and the figure line under it, and the
  *  gap that pair keeps from the pie's rim. */
-export const SUBLABEL_DY = 28;
+export const SUBLABEL_DY = 31;
 const LABEL_GAP = 14;
 /** Sky's name + total sit above its disc on the same pattern. */
 export const SKY_LABEL_DY = 24 + SUBLABEL_DY;
 export const SKY_SUBLABEL_DY = 24;
 /** The wedge's two lines straddle the fitted centre (see MscRing). */
-export const WEDGE_TSPAN_DY = [-6, 25] as const;
+export const WEDGE_TSPAN_DY = [-7, 28] as const;
 /** Permanent figure labels: a slice or wedge shows its figure only when the
  *  measured text box fits INSIDE it — inside the pie's edge, clear of the
  *  hole, within the slice's angles — at one of a few radii along its
@@ -187,12 +191,12 @@ export const WEDGE_TSPAN_DY = [-6, 25] as const;
  *  strings and MUST move with the sizes above, or every measurement in the
  *  test environment silently goes wrong. */
 const FIGURE_FONT = `${FIGURE_SIZE}px 'Source Code Pro', 'Courier New', monospace`;
-const FIGURE_CHAR_PX = 12.7;
+const FIGURE_CHAR_PX = 14.5;
 const NAME_FONT = `${NAME_SIZE}px 'Inter', system-ui, sans-serif`;
 const NAME_CHAR_PX = 17.5;
 /** Line box of one figure line, and the two-line wedge label. */
-const FIGURE_H = 22;
-const WEDGE_LABEL_H = 48;
+const FIGURE_H = 25;
+const WEDGE_LABEL_H = 54;
 /** Breathing room between a figure's box and any edge. */
 const FIGURE_PAD = 5;
 
@@ -300,8 +304,8 @@ export interface RingPrime {
   prime: string;
   /** Angle of the pie's center around Sky (radians, 12 o'clock = −π/2). */
   angle: number;
-  /** Pie center and outer radius (sized from the positive line items on
-   *  the shared SIZE_EXP scale — bigger means more, not area ∝ dollars). */
+  /** Pie center and outer radius (area ∝ the positive line items, on the
+   *  scale shared with the donut — unless the row hit PIE_MIN_R). */
   cx: number;
   cy: number;
   r: number;
@@ -313,8 +317,8 @@ export interface RingPrime {
   arrow: RingArrow | null;
   /** The demand-side arrow FROM Sky, or null when Sky owes it nothing. */
   demandArrow: RingArrow | null;
-  /** What this Prime received: supply kept + demand-side (signed) — what
-   *  the ring stands for. Never its To-Sky money, which is Sky's receipt. */
+  /** What this Prime received: supply kept + demand-side (signed) — the
+   *  ring's area. Never its To-Sky money, which is Sky's receipt. */
   received: number;
   /** Name, centered outside the pie on the side away from Sky. */
   labelX: number;
@@ -407,7 +411,11 @@ function fitInSector(
   const hw = w / 2 + FIGURE_PAD;
   const hh = h / 2 + FIGURE_PAD;
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-  const radii = [(rOut + rIn) / 2, rOut * 0.62, rOut * 0.5, rOut * 0.4, rOut * 0.3];
+  // Out-to-in. The two shallowest were added when the type grew: a wide
+  // slice has the most room near the middle of the pie, and without them a
+  // figure that fits perfectly well at 0.22r was being sent to the hover
+  // pill. Every guard below still applies at every radius.
+  const radii = [(rOut + rIn) / 2, rOut * 0.62, rOut * 0.5, rOut * 0.4, rOut * 0.3, rOut * 0.22, rOut * 0.15];
   for (const fr of radii) {
     const x = cx + fr * Math.cos(mid);
     const y = cy + fr * Math.sin(mid);
@@ -492,10 +500,10 @@ export function layoutMscRing(
   const maxFlow = Math.max(1, ...rows.map((r) => Math.max(Math.abs(r.sky), r.demand)));
   const widthOf = (v: number) => Math.max(W_MIN, (W_MAX * v) / maxFlow);
 
-  // One size scale shared by the donut and the pies (see SIZE_EXP), pinned
-  // so the month's biggest amount is R_MAX. A pie's outer circle is its
-  // positive items, its hole is its loss, and the ring between them is what
-  // it received — in rank, not in area: SIZE_EXP is not 0.5.
+  // Area ∝ dollars on one scale shared by the donut and the pies (see
+  // SIZE_EXP), pinned so the month's biggest amount is R_MAX. A pie's
+  // outer area is its positive items; its hole's area is its loss; the
+  // visible ring is what it received.
   const skyTotal = rows.reduce((n, r) => n + Math.abs(r.sky), 0);
   const ref = Math.max(1, skyTotal, ...rows.map((r) => r.positives));
   const radiusFor = (v: number) => R_MAX * Math.pow(Math.max(0, v) / ref, SIZE_EXP);
@@ -504,11 +512,13 @@ export function layoutMscRing(
 
   // Floors and reserved room scale with the row's alpha (1 for a real row).
   // A row mid-transition also has its RADIUS damped, by alpha ** (0.5 −
-  // SIZE_EXP): the tween scales a newcomer's money linearly, and under a
-  // flatter exponent that alone would have it pop to half size a tenth of
-  // the way in. The damping puts the arrival back on the square-root curve
-  // it grew in on when the chart was area-proportional, so changing
-  // SIZE_EXP re-sizes the pies without re-timing the transition.
+  // SIZE_EXP), which keeps an arrival on the square-root curve whatever
+  // the exponent is: the tween scales a newcomer's money linearly, and
+  // under a flatter exponent that alone would have it pop to half size a
+  // tenth of the way in. At the present SIZE_EXP of 0.5 the term is
+  // alpha ** 0 = 1 and does nothing, which is the point — the timing does
+  // not move when the sizing does. Leave it in; it is load-bearing the
+  // moment SIZE_EXP is not 0.5.
   const shape = rows.map((r) => {
     const grow = r.alpha < 1 ? Math.pow(r.alpha, 0.5 - SIZE_EXP) : 1;
     const r0 = Math.max(PIE_MIN_R * r.alpha, radiusFor(r.positives) * grow);

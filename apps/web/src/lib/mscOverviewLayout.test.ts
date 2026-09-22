@@ -99,13 +99,19 @@ describe("layoutMscRing (orbital pies)", () => {
     const grove = layout.primes.find((p) => p.prime === "grove")!; // received 3.777M
     const spark = layout.primes.find((p) => p.prime === "spark")!; // received 2.885M
     const keel = layout.primes.find((p) => p.prime === "keel")!; // 55k, the smallest
-    expect(layout.skyR).toBe(170);
-    // One monotone scale, shared with the donut: r = R_MAX * (v/ref) ** 0.45.
-    // Not 0.5 — see SIZE_EXP for why area-proportionality cannot come back.
-    const size = (v: number) => Math.pow(v / 20_610_000, 0.45);
+    expect(layout.skyR).toBe(240);
+    // True area, shared with the donut: r = R_MAX * sqrt(v / ref), so a
+    // pie of twice the area is twice the money. See SIZE_EXP for what it
+    // took to get back here.
+    const size = (v: number) => Math.sqrt(v / 20_610_000);
     expect(grove.r / layout.skyR).toBeCloseTo(size(3_777_000), 2);
     expect(spark.r / layout.skyR).toBeCloseTo(size(2_885_000), 2);
     expect(keel.r / layout.skyR).toBeCloseTo(size(55_000), 2);
+    // The claim the key makes in so many words: twice the area is twice
+    // the money. It has not always been true — see SIZE_EXP — so pin it.
+    const area = (r: number) => Math.PI * r ** 2;
+    expect(area(grove.r) / area(spark.r)).toBeCloseTo(3_777_000 / 2_885_000, 2);
+    expect(area(grove.r) / area(layout.skyR)).toBeCloseTo(3_777_000 / 20_610_000, 2);
     // Sky is a full pie: on this chart a hole means a loss.
     expect(layout.skyInnerR).toBe(0);
     expect(keel.r).toBeLessThan(spark.r);
@@ -134,24 +140,25 @@ describe("layoutMscRing (orbital pies)", () => {
     expect(radii.filter((r) => r <= min + 0.01)).toHaveLength(1);
     // Strictly decreasing, and an order of magnitude is a big step.
     for (let i = 1; i < radii.length; i++) expect(radii[i]).toBeLessThan(radii[i - 1]);
-    expect(radii[0] / radii[2]).toBeGreaterThan(3); // 4M vs 240k
-    expect(radii[2] / radii[4]).toBeGreaterThan(3); // 240k vs 12k
+    expect(radii[0] / radii[2]).toBeGreaterThan(3.9); // 4M vs 240k
+    expect(radii[2] / radii[4]).toBeGreaterThan(3.9); // 240k vs 12k
     // A 3× difference is a clear step, not two discs of one size.
-    expect(radii[3] / radii[4]).toBeGreaterThan(1.4); // 36k vs 12k
-    // …and the whole set spans much more than the 5× the first pass at this
+    expect(radii[3] / radii[4]).toBeGreaterThan(1.7); // 36k vs 12k
+    // …and the whole set spans far more than the 5× the first pass at this
     // gave. That was the complaint: differentiated, but all of a muchness.
-    expect(radii[0] / min).toBeGreaterThan(9);
+    expect(radii[0] / min).toBeGreaterThan(15);
     // The floor is a backstop for a row with no money, not the small end:
-    // it catches $1 and leaves a real $36k Prime well clear of it.
+    // it catches $1 and sits BELOW every real row, including the $12k one.
     const none = layoutMscRing([...decades, flow({ prime: "skybase", sky: 0, cof: 0, sde: 0, kept: 1, demand: 0, demandParts: {} })]);
-    expect(none.primes.find((p) => p.prime === "skybase")!.r).toBe(min);
-    expect(radii[3] / min).toBeGreaterThan(1.4);
+    const tiny = none.primes.find((p) => p.prime === "skybase")!.r;
+    expect(tiny).toBe(6);
+    expect(tiny).toBeLessThan(min);
   });
 
   it("lets a Prime outrank the donut when it earns more than Sky takes", () => {
     const layout = layoutMscRing([flow({ sky: 1_000_000, cof: 1_000_000, sde: 0, kept: 8_000_000, demand: 1_000_000, demandParts: { agentRate: 1_000_000 } })]);
-    expect(layout.primes[0].r).toBe(170);
-    expect(layout.skyR).toBeLessThan(170);
+    expect(layout.primes[0].r).toBe(240);
+    expect(layout.skyR).toBeLessThan(240);
     expect(layout.skyR).toBeGreaterThanOrEqual(100);
   });
 
@@ -265,9 +272,13 @@ describe("layoutMscRing (orbital pies)", () => {
     expect(arriving.primes.map((p) => p.prime)).toEqual([...june.map((f) => f.prime), "obex"]);
     // The newcomer's only footprint is its own ~2px radius (area scale), so
     // its neighbours move by a few pixels — the start of a glide, not a slot.
+    // A drift, not a re-slot. The bound is a fraction of the drawing, not
+    // a pixel count: the canvas grows whenever R_MAX does, and "barely
+    // moved" has to mean the same thing at either size.
+    const drift = before.width * 0.007;
     for (const p of before.primes) {
       const after = arriving.primes.find((q) => q.prime === p.prime)!;
-      expect(Math.hypot(after.cx - p.cx, after.cy - p.cy)).toBeLessThan(8);
+      expect(Math.hypot(after.cx - p.cx, after.cy - p.cy)).toBeLessThan(drift);
       expect(after.alpha).toBe(1);
     }
     const newcomer = arriving.primes[5];
@@ -321,7 +332,7 @@ describe("layoutMscRing (orbital pies)", () => {
       const layout = layoutMscRing(month);
       // Cropped: the box hugs the content (the wide orbit may run past the
       // working canvas horizontally, which is fine — it's just a viewBox).
-      expect(layout.height).toBeLessThan(700);
+      expect(layout.height).toBeLessThan(900);
       expect(layout.width).toBeGreaterThan(layout.height * 1.8);
       for (let i = 0; i < layout.primes.length; i++) {
         const a = layout.primes[i];

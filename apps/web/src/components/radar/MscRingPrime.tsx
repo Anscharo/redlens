@@ -73,8 +73,8 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
         ) : null,
       )}
       {/* The loss hole: striped in the kept color, the same mark the key
-          uses for "supply-side loss". Sized from the loss on the pies' own
-          scale (SIZE_EXP) — the loss by rank, not by area. */}
+          uses for "supply-side loss". Its AREA is the loss, on the same
+          scale as the slices around it. */}
       {ring.hole && (
         <g className="msc-ring-mark" data-mark={markId(flow.prime, "loss")}>
           <circle cx={ring.cx} cy={ring.cy} r={ring.hole.r} className="msc-ring-hole" fill="url(#msc-ring-loss)" />
@@ -84,9 +84,8 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
         <text x={ring.labelX} y={ring.labelY} textAnchor="middle" fontSize={NAME_SIZE} className="msc-ring-label">
           {label}
         </text>
-        {/* What it received, on the line under the name — what the pie's
-            size stands for, and the only place it is readable as dollars
-            (the size scale is compressed; see SIZE_EXP). */}
+        {/* What it received, on the line under the name — the ring's area,
+            in figures. */}
         <text
           x={ring.labelX}
           y={ring.labelY + SUBLABEL_DY}

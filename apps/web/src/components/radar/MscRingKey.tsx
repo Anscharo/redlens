@@ -63,15 +63,16 @@ export function RingKey({ view = "pies" }: { view?: "pies" | "sankey" }) {
             : "A Prime's bar = gross revenue*; ribbons are the money in and out. "}
           Hover for figures; click a Prime for its page.
         </p>
-        {/* The size caveat is stated, not implied: the pies are sized on a
-            compressed scale (mscOverviewLayout's SIZE_EXP) because a month
-            spans three orders of magnitude, so a reader must not measure
-            areas off them. Keep this in step with that constant. */}
+        {/* The size encoding is stated, not implied. It was NOT always
+            readable as dollars — the scale was compressed for a while to
+            stop the small Primes piling up on the minimum pie — so if
+            mscOverviewLayout's SIZE_EXP ever leaves 0.5 again, this
+            sentence has to change with it. */}
         {pies && (
           <p className="mt-1">
-            A circle's size is its rank and rough magnitude, not its dollars:
-            the smallest Primes are a thousandth of the largest, so the sizes
-            are compressed to keep them apart. The figures are the amounts.
+            A pie's area is that amount, on one scale shared with Sky's —
+            so a pie twice the area is twice the money. Only a Prime too
+            small to draw is held at a minimum size.
           </p>
         )}
         {pies && (
