@@ -26,7 +26,7 @@ export interface Contradiction {
   why: string; // ≤ 20 words
   evidence_label: string; // "[E3]" — the entry the span matched
   uuid: string | null; // nearest `"id":"<uuid>"` (or "uuid") preceding the match inside that entry, else null
-  source: "model" | "param-table";
+  source: "model" | "param-table" | "cited-doc";
   agreed: boolean; // confirm-gate outcome
 }
 

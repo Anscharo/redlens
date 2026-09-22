@@ -138,7 +138,7 @@ function AssistantTurn({
         <>
           {msg.verify && <VerifyBadge verify={msg.verify} onAtlas={onAtlas} />}
           {msg.exports?.length ? <ExportChips exports={msg.exports} /> : null}
-          {msg.done && <Sources sources={sources} onAtlas={onAtlas} />}
+          {msg.done && <Sources sources={sources} marks={msg.citationMarks} onAtlas={onAtlas} />}
         </>
       )}
     </div>

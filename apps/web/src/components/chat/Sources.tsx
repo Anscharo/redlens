@@ -3,6 +3,8 @@ import { loadAtlas } from "../../lib/docs";
 import { atlasHref } from "@/lib/routes";
 import { track } from "../../lib/analytics";
 import type { Source } from "./markdown";
+import type { CitationMark } from "./api";
+import { SourceMark } from "./SourceMark";
 
 interface ResolvedDoc {
   docNo: string;
@@ -15,7 +17,19 @@ interface ResolvedDoc {
 // doc_no *and* the real title from the cached docs.json (loadAtlas is
 // memoised), falling back to the link text only when the uuid isn't in the
 // bundle.
-export function Sources({ sources, onAtlas }: { sources: Source[]; onAtlas: (uuid: string) => void }) {
+export function Sources({
+  sources,
+  marks,
+  onAtlas,
+}: {
+  sources: Source[];
+  // Per-doc citation-check verdicts, keyed by uuid (server: `citation_marks`).
+  // Optional/absent means the check never landed for this turn — every chip
+  // renders unmarked, same as a doc uuid missing from a marks map that did
+  // arrive.
+  marks?: Record<string, CitationMark>;
+  onAtlas: (uuid: string) => void;
+}) {
   const [resolved, setResolved] = useState<Record<string, ResolvedDoc>>({});
 
   useEffect(() => {
@@ -57,6 +71,7 @@ export function Sources({ sources, onAtlas }: { sources: Source[]; onAtlas: (uui
             >
               {r?.docNo && <span className="rlc-cite-doc">{r.docNo}</span>}
               <span className="rlc-cite-title">{r?.title ?? s.title}</span>
+              <SourceMark mark={marks?.[s.uuid]} />
             </a>
           );
         })}

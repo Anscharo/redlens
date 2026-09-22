@@ -93,7 +93,7 @@ export function countUncitedParagraphs(answer: string): number {
 // some later "](" — swallowing hundreds of characters of real evidence and
 // silently turning faithful quotes into "fabrications". Link text is
 // single-line and short; an href never contains whitespace.
-const MD_LINK_SRC = String.raw`\[([^\]\n]{1,120})\]\([^)\s]*\)`;
+export const MD_LINK_SRC = String.raw`\[([^\]\n]{1,120})\]\([^)\s]*\)`;
 
 // Whitespace/case/punctuation-tolerant containment form. Quote marks and
 // markdown emphasis are authoring noise, not evidence differences: a model
@@ -496,7 +496,7 @@ const isCitationOnly = (seg: string): boolean =>
 // claim escapes from both sides. Since the system prompt asks for exactly that
 // shape ("Quote at most 1–2 sentences … always followed by its link"), a
 // citation-only segment is folded back onto the sentence it follows.
-function claimSegments(answer: string): string[] {
+export function claimSegments(answer: string): string[] {
   const out: string[] = [];
   for (const line of answer.split("\n")) {
     // Headings carry no claim; blockquotes (content AND their attribution line)

@@ -38,6 +38,16 @@ export interface ParamMismatch {
   doc_no: string;
 }
 
+// Per-source-doc verdict from the post-answer citation check (server: judges
+// each (claim, cited doc) pair against that doc). Keyed by doc uuid on the
+// wire (see the `citation_marks` event below) — one entry per cited doc that
+// was actually checked; an uncited/unchecked doc gets no entry at all, which
+// the Sources chip renders as no mark rather than as any particular verdict.
+export interface CitationMark {
+  status: "backed" | "unbacked" | "disputed";
+  claims: { claim: string; verdict: "supports" | "says_nothing" | "contradicts" }[];
+}
+
 // The streaming-vs-staged delivery split is gone: every token/clear is always
 // forwarded, and the orchestrator emits `status{stage:"synthesizing"}` once
 // per generation burst plus `answer_final` after citation repair (before
@@ -102,6 +112,12 @@ export type ChatEvent =
   // content is final. If the server took an early exit, no `answer_final`
   // arrives and `done` is the reveal instead.
   | { type: "answer_final"; content: string }
+  // Post-answer citation check: one entry per cited doc the server actually
+  // judged against its content, keyed by doc uuid. Arrives after
+  // `answer_final` and before `verify_result`/`done` — may never arrive at
+  // all (feature off, no citations, timeout), in which case no source chip
+  // gets a mark.
+  | { type: "citation_marks"; marks: Record<string, CitationMark> }
   | {
       type: "verify_result";
       overall: VerifyOverall;

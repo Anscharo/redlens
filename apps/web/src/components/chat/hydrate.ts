@@ -29,6 +29,9 @@ export function toChatMsgs(rows: StoredMessage[]): ChatMsg[] {
       sources: toolCalls,
       done: true,
       verify: undefined,
+      // citation_marks is a live-turn event like verify_result — not
+      // persisted, so a reloaded message never carries stale marks.
+      citationMarks: undefined,
     };
   });
 }

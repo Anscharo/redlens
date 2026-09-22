@@ -544,11 +544,11 @@ are gated out — refuting is hard-failure-adjacent, so it needs a high precisio
 bar. `findParamsMentioned` / `formatParamValue` are also consumed directly by the
 absence contract.
 
-### 6.4 Small-talk bypass (`verify/smalltalk.ts`)
+### 6.4 Small-talk bypass (`verify/smalltalk.ts` + `verify/smalltalk-jev.ts`)
 
 Auditing a greeting is pure cost. The bypass has three conditions, and is
-**fail-closed at every one** — timeout, error, or unparseable JSON all return
-`smalltalk: false`, which keeps the full audit:
+**fail-closed at every one** — a timeout, a transport error, or an answer of
+the wrong type all rule `smalltalk: false`, which keeps the full audit:
 
 1. **Answer-side, deterministic** — `isUncheckableAnswer`: the reply is under
    `SMALLTALK_MAX_CHARS` (600) and contains no groundable marker at all. Every
@@ -556,16 +556,27 @@ Auditing a greeting is pure cost. The bypass has three conditions, and is
    links, any markdown link, bare autolinks, reference labels, EVM addresses,
    **any digit**, braces/backticks. A zero-tool answer that cites or quantifies
    is exactly the hallucination case the verifier exists for.
-2. **Question-side, model** — the deterministic predicate can't tell "thanks!"
+2. **Question-side, judged** — the deterministic predicate can't tell "thanks!"
    from "is the fee governance-controlled?" answered with a marker-free "Yes."
-   So one tiny classification call on the user message asks: does it expect
-   factual content? Runs **concurrently** with the conversationalist (first user
-   message of a conversation only, and only when the message itself is
-   marker-free), so the ruling resolves before the answer finishes streaming.
-3. `CHAT_SMALLTALK_JUDGE_MODEL` must be set — default
-   `google/gemma-4-26b-a4b-it`, the 2026-08-13 bakeoff winner (100% on a 42-case
-   set, 0 dangerous errors, p50 722ms). Setting it empty disables the bypass
-   outright: no judge, no skip, every turn audits.
+   So one tiny judgment on the user message asks: does it expect factual
+   content? Runs **concurrently** with the conversationalist, so the ruling
+   resolves before the answer finishes streaming (measured over 45 paired
+   `message_checks` rows it was never the slower of the two). Fires on **every**
+   turn whose message is marker-free — the first-turn-only gate was removed
+   2026-09-22, so a late "thanks!" no longer pays a full audit. The judgment is
+   message-only; the prior turn is deliberately not in state.
+3. `CHAT_SMALLTALK_JUDGE_MODEL` must be set — default `typesafe/jev-1.13`, a
+   **Jev Noul** (`verify/smalltalk-jev.ts`), so the ruling is a probability and
+   the threshold is ours (`SMALLTALK_JEV_THRESHOLD`, 0.65, sitting in a
+   measured 0.50/0.76 separation gap). It replaced `google/gemma-4-26b-a4b-it`
+   on 2026-09-22: the chat-model judge lost 6–8 hard cases in the dangerous
+   direction and failed ~2% of calls outright, and a failed judge silently
+   costs the bypass. Bakeoff and real-traffic numbers:
+   [`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md) §A0;
+   instrument: `bun scripts/aux/eval-smalltalk-judge.ts` (labeled) and
+   `scripts/aux/eval-smalltalk-real.ts` (real traffic, needs `DATABASE_URL`).
+   Setting it empty disables the bypass outright: no judge, no skip, every turn
+   audits.
 
 ### Deferred (2026-09-10)
 
@@ -648,6 +659,29 @@ is **not** emitted on the early-exit path (`chatVerifyChecks` off, an aborted
 turn, or empty content) — those still repair `done.content` for the wire, but
 skip the `round_checks` block `answer_final` trails, so the client falls back
 to revealing on `done` there, same as it always could.
+
+**`citation_marks`** (2026-09-22) is yielded at most once, after `answer_final`
+and before `verify_result`/`done`: `{ type: "citation_marks", marks:
+Record<uuid, { status: "backed" | "unbacked" | "disputed", claims: [{ claim,
+verdict }] }> }`. It is the per-citation check (`verify/citation-marks.ts`):
+every (claim, cited doc) pair from `citationPairs` (`verify/cite-pairs.ts`) is
+judged by a Jev Choice — does *this* document support, contradict, say
+nothing about, or merely get pointed at by the sentence linking it? — which is
+the one thing the pooled-evidence `refute` auditor structurally cannot see
+(repointing a link leaves its input byte-identical). A Jev `contradicts` never
+reaches the chip on its own: it becomes a `Contradiction` with `source:
+"cited-doc"` and must pass the same `confirm` gate as every other candidate;
+unconfirmed, it is downgraded to "doesn't cover this line". Per document,
+worst verdict wins; a document with any unjudged pair gets no mark, and a
+pointer-only document ("the document X changes often") gets none either. The
+marks render on the Sources chips — a ✓ on every backed source, by explicit
+product decision, as an exception to the list-by-exception rule for stage
+rows. Started concurrently with the audit, so it never delays it; bounded by
+its own 8 s deadline and fail-open (a timeout means no marks, never a warning).
+Raw verdicts persist as a `message_checks` row of kind `citation_check`; like
+the verify badge, marks are not rehydrated on reload. Measurement and the
+residual error classes: [`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md)
+§A1. `CHAT_CITATION_CHECK_MODEL=""` turns it off.
 
 The client tracks two separate strings per message: `draft` (live tokens,
 shown inside the `synthesizing` stage row once that row is clicked open) and

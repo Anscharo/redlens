@@ -28,6 +28,7 @@ import { judgeSmalltalkJev } from "./verify/smalltalk-jev.ts";
 import { computeOverall, evidenceFromResults, evidenceFromTranscript, priorTurnsEvidence, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
 import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
 import { createParagraphRefuter, type ParagraphRefute } from "./verify/paragraph-refute.ts";
+import { runCitationMarks, type CitationMark } from "./verify/citation-marks.ts";
 import { createParagraphStream, type ParagraphEvidence } from "./verify/incremental.ts";
 import { atlasDescribe } from "./tools/tools.ts";
 import { isExternalMscTool } from "../external/envelope.ts";
@@ -39,7 +40,7 @@ type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type DoneEvent = Extract<ChatEvent, { type: "done" }>;
 
 export interface CheckRowMeta {
-  kind: "round_checks" | "verify" | "smalltalk_judge";
+  kind: "round_checks" | "verify" | "smalltalk_judge" | "citation_check";
   model: string | null;
   verdict: unknown;
   overall: VerifyOverall | null;
@@ -63,6 +64,11 @@ export type HarnessEvent =
   // config-off/aborted/empty-content early exit; the client falls back to
   // revealing on `done` there.
   | { type: "answer_final"; content: string }
+  // Per-cited-doc Sources-chip mark (verify/citation-marks.ts) — emitted once,
+  // after `answer_final` and before `verify_result`/`done`, only when at least
+  // one citation was judged. Keyed by uuid; a doc with no key gets no chip
+  // change (nothing was judged for it, or its only citations were pointers).
+  | { type: "citation_marks"; marks: Record<string, CitationMark> }
   // Deterministic checks (docs/chat-system.md §6) run against EACH paragraph
   // as it completes during streaming, not just once over the finished answer
   // — the substrate for a later per-paragraph MODEL audit. `index` counts
@@ -361,6 +367,30 @@ async function runAudit(params: {
     paragraphRefutes: params.paragraphRefutes, settleMs: params.settleMs,
   });
   return { run, modelLabel: `sliced(${[...new Set(Object.values(models))].join(",")})` };
+}
+
+// Resolves the citation-marks promise (or does nothing when the feature is
+// off) into the one event and one checksMeta row it can produce, so both call
+// sites in runVerifiedChat below — the verifierModel and no-verifierModel
+// paths — stay in lockstep on what "no marks" vs "nothing was judged" means.
+async function resolveCitationMarks(
+  promise: ReturnType<typeof runCitationMarks> | null,
+  model: string,
+): Promise<{ event: Extract<HarnessEvent, { type: "citation_marks" }> | null; meta: CheckRowMeta | null }> {
+  if (!promise) return { event: null, meta: null };
+  const run = await promise;
+  const event = Object.keys(run.marks).length > 0 ? ({ type: "citation_marks" as const, marks: run.marks }) : null;
+  if (run.judged.length === 0) return { event, meta: null };
+  const counts: Record<string, number> = {};
+  for (const m of Object.values(run.marks)) counts[m.status] = (counts[m.status] ?? 0) + 1;
+  return {
+    event,
+    meta: {
+      kind: "citation_check", model,
+      verdict: { counts, judged: run.judged, confirm: run.confirm },
+      overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: run.latencyMs,
+    },
+  };
 }
 
 export async function* runVerifiedChat(opts: {
@@ -742,6 +772,18 @@ export async function* runVerifiedChat(opts: {
   done = applyTeachHint(done);
   yield { type: "answer_final", content: done.content };
 
+  // Per-doc Sources-chip check (verify/citation-marks.ts) — started here,
+  // concurrently with the verifier audit below rather than serially after it;
+  // resolved and emitted once, after answer_final and before verify_result.
+  const citationMarksModel = config.chatCitationCheckModel;
+  const citationMarksPromise = citationMarksModel
+    ? runCitationMarks({
+        answer: done.content, ix: opts.ix, model: citationMarksModel,
+        jsonCall: opts.jsonCall, confirmModel: opts.jsonCall ? sliceModels().confirm : undefined,
+        signal: opts.signal, obs: opts.obs,
+      })
+    : null;
+
   // verifierModel/paragraphMode were hoisted to the top of this function so
   // the per-paragraph refuter could be created before streaming started.
   // constEvidence is computed from the audited answer (done.content) itself,
@@ -775,11 +817,22 @@ export async function* runVerifiedChat(opts: {
         yield { type: "paragraph_refute", index: r.index, parsed: r.parsed, candidates: r.contradictions.length };
       }
     }
-    const { run, modelLabel } = await runAudit({
+    // Started as a promise, not awaited yet — the marks resolve below run
+    // concurrently with it rather than delaying its start.
+    const auditPromise = runAudit({
       jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
       answer: done.content, evidence: baseEvidence(evidence, done.content), checks, signal: opts.signal, obs: opts.obs,
       paragraphRefutes, settleMs,
     });
+    // Nothing awaits the audit while the marks resolve, so a rejection in
+    // that window would be an UNHANDLED one. This no-op handler only marks it
+    // handled; the `await auditPromise` below still rethrows exactly as the
+    // old serial `await runAudit(...)` did.
+    auditPromise.catch(() => {});
+    const cm = await resolveCitationMarks(citationMarksPromise, citationMarksModel);
+    if (cm.event) yield cm.event;
+    if (cm.meta) checksMeta.push(cm.meta);
+    const { run, modelLabel } = await auditPromise;
     verdict = run.verdict;
     checksMeta.push({
       kind: "verify", model: modelLabel, verdict: run.verdict,
@@ -787,6 +840,10 @@ export async function* runVerifiedChat(opts: {
       inputTokens: run.usage?.input ?? null, outputTokens: run.usage?.output ?? null,
       generationId: run.generationId, latencyMs: run.latencyMs,
     });
+  } else {
+    const cm = await resolveCitationMarks(citationMarksPromise, citationMarksModel);
+    if (cm.event) yield cm.event;
+    if (cm.meta) checksMeta.push(cm.meta);
   }
   const overall = verifierModel ? computeOverall(checks, verdict) : checks.failed ? "fail" : "unverified";
 

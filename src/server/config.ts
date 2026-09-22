@@ -292,6 +292,13 @@ export const config = {
   // reads this yet — it is the eval's model slot (scripts/aux/
   // eval-smalltalk-judge.ts) until a bakeoff says otherwise.
   chatJevModel: process.env.CHAT_JEV_MODEL ?? "typesafe/jev-1.13",
+  // Per-doc Sources-chip citation check (verify/citation-marks.ts): judges
+  // every (claim, cited doc) pair in the finished answer with Jev
+  // (cite-support.ts's judgeCitation) and sends the client one mark per
+  // cited doc — backed / unbacked ("doesn't cover a line") / disputed. Runs
+  // after answer_final, alongside the verifier audit, never gating delivery.
+  // "" disables the feature outright: no Jev calls, no `citation_marks` event.
+  chatCitationCheckModel: process.env.CHAT_CITATION_CHECK_MODEL ?? "typesafe/jev-1.13",
   // Deterministic checks (free, pure code) — independent of the model slots.
   chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
   // Deterministic pre-lookup (glossary + entity match on the user's message)

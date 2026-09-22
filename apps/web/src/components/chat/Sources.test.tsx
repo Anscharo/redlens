@@ -96,4 +96,61 @@ describe("Sources", () => {
     });
     expect(onAtlas).toHaveBeenCalledWith("11111111-1111-1111-1111-111111111111");
   });
+
+  const UUID = "11111111-1111-1111-1111-111111111111";
+  const sourceFor = (uuid: string) => [{ uuid, title: "Some Doc" }];
+
+  it("renders no mark when no marks prop is passed", () => {
+    render(<Sources sources={sourceFor(UUID)} onAtlas={vi.fn()} />);
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("renders no mark when the chip's uuid is absent from the marks map", () => {
+    render(
+      <Sources
+        sources={sourceFor(UUID)}
+        marks={{ "22222222-2222-2222-2222-222222222222": { status: "backed", claims: [] } }}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("renders a backed mark with the correct accessible name and data-status", () => {
+    render(
+      <Sources sources={sourceFor(UUID)} marks={{ [UUID]: { status: "backed", claims: [] } }} onAtlas={vi.fn()} />,
+    );
+    const mark = screen.getByRole("img", { name: "Checked: this source backs the answer" });
+    expect(mark).toHaveAttribute("data-status", "backed");
+  });
+
+  it("renders an unbacked mark with an informational accessible name and lists the unstated claim in the title", () => {
+    render(
+      <Sources
+        sources={sourceFor(UUID)}
+        marks={{
+          [UUID]: { status: "unbacked", claims: [{ claim: "The threshold is 7 signers", verdict: "says_nothing" }] },
+        }}
+        onAtlas={vi.fn()}
+      />,
+    );
+    const mark = screen.getByRole("img", { name: "This source doesn't cover every line citing it" });
+    expect(mark).toHaveAttribute("data-status", "unbacked");
+    expect(mark).toHaveAttribute("title", 'Not stated in this source: "The threshold is 7 signers"');
+  });
+
+  it("renders a disputed mark with a warning accessible name and lists the contradicted claim in the title", () => {
+    render(
+      <Sources
+        sources={sourceFor(UUID)}
+        marks={{
+          [UUID]: { status: "disputed", claims: [{ claim: "The threshold is 7 signers", verdict: "contradicts" }] },
+        }}
+        onAtlas={vi.fn()}
+      />,
+    );
+    const mark = screen.getByRole("img", { name: "This source may say otherwise" });
+    expect(mark).toHaveAttribute("data-status", "disputed");
+    expect(mark).toHaveAttribute("title", 'This source says otherwise: "The threshold is 7 signers"');
+  });
 });

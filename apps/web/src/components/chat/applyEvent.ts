@@ -105,6 +105,13 @@ export function applyEvent(m: ChatMsg, ev: ChatEvent): ChatMsg {
       };
     }
 
+    case "citation_marks":
+      // Merges by doc uuid rather than replacing wholesale — nothing shown is
+      // ever removed, same rule as the rest of the message. In practice the
+      // server sends exactly one of these per turn, but a re-send should add
+      // to, not clobber, marks already on screen.
+      return { ...m, citationMarks: { ...m.citationMarks, ...ev.marks } };
+
     case "verify_result":
       return {
         ...m,

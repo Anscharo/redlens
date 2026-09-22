@@ -151,6 +151,31 @@ describe("applyEvent status", () => {
   });
 });
 
+describe("applyEvent citation_marks", () => {
+  const UUID_A = "11111111-1111-1111-1111-111111111111";
+  const UUID_B = "22222222-2222-2222-2222-222222222222";
+
+  it("sets citationMarks from the event, keyed by doc uuid", () => {
+    const m = applyEvent(baseMsg(), {
+      type: "citation_marks",
+      marks: { [UUID_A]: { status: "backed", claims: [{ claim: "X is Y", verdict: "supports" }] } },
+    });
+    expect(m.citationMarks).toEqual({
+      [UUID_A]: { status: "backed", claims: [{ claim: "X is Y", verdict: "supports" }] },
+    });
+  });
+
+  it("merges a later citation_marks onto an earlier one rather than replacing it", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "citation_marks", marks: { [UUID_A]: { status: "backed", claims: [] } } });
+    m = applyEvent(m, { type: "citation_marks", marks: { [UUID_B]: { status: "disputed", claims: [] } } });
+    expect(m.citationMarks).toEqual({
+      [UUID_A]: { status: "backed", claims: [] },
+      [UUID_B]: { status: "disputed", claims: [] },
+    });
+  });
+});
+
 describe("applyEvent facts / tool_call / tool_result", () => {
   it("facts rows are prepended at round 0", () => {
     const m = applyEvent(baseMsg({ rounds: 3, trace: [{ name: "atlas_query", args: {}, ok: true, bytes: 1, round: 3 }] }), {

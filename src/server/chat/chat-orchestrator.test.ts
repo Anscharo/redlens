@@ -144,16 +144,23 @@ function withModels(verifier: string, fn: () => Promise<void>, refuteMode: "answ
   const pv = config.chatVerifierModel;
   const pj = config.chatSmalltalkJudgeModel;
   const pr = config.chatRefuteMode;
+  const pc = config.chatCitationCheckModel;
   config.chatVerifierModel = verifier;
   // The judge slot defaults ON in config — zero it here so every test
   // exercises the audit path it was written for; bypass tests opt back in
   // with the nested withJudge wrapper below.
   config.chatSmalltalkJudgeModel = "";
   config.chatRefuteMode = refuteMode;
+  // Citation-marks also defaults ON — zero it too, so the event-order
+  // assertions in this file (written before the feature existed) don't have
+  // to account for an extra citation_marks event on every grounded turn.
+  // Opt-in tests further down restore it explicitly.
+  config.chatCitationCheckModel = "";
   return fn().finally(() => {
     config.chatVerifierModel = pv;
     config.chatSmalltalkJudgeModel = pj;
     config.chatRefuteMode = pr;
+    config.chatCitationCheckModel = pc;
   });
 }
 
@@ -1064,4 +1071,107 @@ test("CHAT_REFUTE_MODE=answer (explicit) reproduces the pre-2026-09 sequence —
       expect(verify.type === "verify_result" && verify.overall).toBe("pass");
     },
     "answer",
+  ));
+
+// ── Citation marks (per-doc Sources-chip check, verify/citation-marks.ts) ───
+// withModels zeroes chatCitationCheckModel by default (same reasoning as the
+// smalltalk judge slot), so every test above this section runs with the
+// feature off and never has to account for an extra citation_marks event.
+// judgeCitation posts to /systemone (Jev), not the sliced-verifier's jsonCall
+// — same split withJudge/withJudgeRuling exploit for the smalltalk judge.
+function withCitationCheck(model: string, fn: () => Promise<void>): Promise<void> {
+  const prev = config.chatCitationCheckModel;
+  const prevKey = config.openrouterApiKey;
+  config.chatCitationCheckModel = model;
+  config.openrouterApiKey = config.openrouterApiKey || "test-key"; // askJev refuses without one
+  return fn().finally(() => {
+    config.chatCitationCheckModel = prev;
+    config.openrouterApiKey = prevKey;
+  });
+}
+function withCiteJudge(verdict: string, fn: () => Promise<void>): Promise<void> {
+  const prevFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: any, init: any) => {
+    if (!String(url).includes("/systemone")) return prevFetch(url, init);
+    return new Response(
+      JSON.stringify({
+        answers: { support: { type: "choice", choice: verdict, probabilities: { [verdict]: 1 }, confidence: 1 } },
+        usage: { input_tokens: 10, output_tokens: 2, cost: 0.000001 },
+        id: "gen-dec-cite",
+      }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+  return fn().finally(() => {
+    globalThis.fetch = prevFetch;
+  });
+}
+// A real doc from the loaded ix fixture — any uuid it recognizes will do, and
+// citationPairs needs a claim with ≥3 real words once the link markup is
+// stripped, not a bare "See [Doc](...)".
+const [CITE_UUID] = ix.docMap.keys();
+const ANSWER_WITH_CITE = `This document explains various governance details here [Doc](/atlas/${CITE_UUID}).`;
+
+test("citation marks: one event after answer_final and before verify_result, backed on a supports verdict", () =>
+  withModels("strong/verifier", () =>
+    withCitationCheck("cite/judge", () =>
+      withCiteJudge("supports", async () => {
+        const events = await collect(
+          runVerifiedChat({
+            ix, messages: [userMsg], question: "hi", maxIterations: 3,
+            stream: fakeStream([[textChunk(ANSWER_WITH_CITE), finishChunk("stop")]]),
+            jsonCall: fakeSlicedJson({}),
+          }),
+        );
+        const markEvents = events.filter((e) => e.type === "citation_marks");
+        expect(markEvents).toHaveLength(1);
+        const marks = (markEvents[0] as Extract<HarnessEvent, { type: "citation_marks" }>).marks;
+        expect(marks[CITE_UUID]?.status).toBe("backed");
+        const finalIdx = events.findIndex((e) => e.type === "answer_final");
+        const markIdx = events.findIndex((e) => e.type === "citation_marks");
+        const verifyIdx = events.findIndex((e) => e.type === "verify_result");
+        expect(finalIdx).toBeLessThan(markIdx);
+        expect(markIdx).toBeLessThan(verifyIdx);
+      }),
+    ),
+  ));
+
+test("citation marks: no citations in the answer — no event and no /systemone call", () =>
+  withModels("strong/verifier", () =>
+    withCitationCheck("cite/judge", async () => {
+      let called = false;
+      const prevFetch = globalThis.fetch;
+      globalThis.fetch = (async (url: any, init: any) => {
+        if (String(url).includes("/systemone")) called = true;
+        return prevFetch(url, init);
+      }) as typeof fetch;
+      try {
+        const events = await collect(
+          runVerifiedChat({
+            ix, messages: [userMsg], question: "hi", maxIterations: 3,
+            stream: fakeStream([[textChunk("An answer with no citations at all."), finishChunk("stop")]]),
+            jsonCall: fakeSlicedJson({}),
+          }),
+        );
+        expect(events.some((e) => e.type === "citation_marks")).toBe(false);
+        expect(called).toBe(false);
+      } finally {
+        globalThis.fetch = prevFetch;
+      }
+    }),
+  ));
+
+test("citation marks: chatCitationCheckModel='' disables the feature — no event even with a citation present", () =>
+  withModels("strong/verifier", () =>
+    withCiteJudge("supports", async () => {
+      // withModels already zeroed chatCitationCheckModel; no withCitationCheck here.
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([[textChunk(ANSWER_WITH_CITE), finishChunk("stop")]]),
+          jsonCall: fakeSlicedJson({}),
+        }),
+      );
+      expect(events.some((e) => e.type === "citation_marks")).toBe(false);
+    }),
   ));

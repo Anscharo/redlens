@@ -1,6 +1,6 @@
 # Jev (TypeSafe) in SAbR — reference notes
 
-**Status: reference only — not scheduled for implementation** (decided 2026-09-21), **except the small-talk judge seat, which has now been measured** (2026-09-22, section A0 below). Sections A1/A2/A3/B remain unbuilt research.
+**Status (2026-09-22):** **A0 — small-talk judge — is SHIPPED**: Jev replaced the gemma classifier in that seat and the judge now runs on every turn, not only the first. **A1 — citation support — is WIRED** as per-document marks on the answer's Sources chips (✓ backed / – doesn't cover a line / ! may say otherwise), with every Jev `contradicts` routed through the existing `confirm` gate first; see "Wired" at the end of §A1. **A2, A3 and B remain unbuilt research.**
 
 ## A0. Small-talk judge seat — MEASURED 2026-09-22
 
@@ -59,7 +59,9 @@ Held out before wiring, because no first-turn result can speak for later turns �
 
 **Negative result worth keeping: hardening the criterion made it worse.** The obvious companion change to the expansion was a clause in the `false` criterion naming follow-up shapes explicitly ("a message referring back to something said earlier… is also false"). Written, measured, reverted the same day. Accuracy stayed 100% both ways — but the separation gap **narrowed from 0.50/0.76 to 0.58/0.69**, squeezing the threshold from both sides at once. The plain criterion already handles follow-ups without being told (`is that everything?` 0.45, `so, thoughts?` 0.25, `what else?` 0.16). The lesson generalizes to every Jev question here: at 100% accuracy the metric to tune on is the **margin**, not the score, and more criteria text is not automatically more precision. The reverted wording is pinned with a comment in `smalltalk-jev.ts` so it is not "fixed" again.
 
-**Gemma is out of the seat.** `judgeSmalltalk` survives in `verify/smalltalk.ts` **solely as the bakeoff's baseline arm**, on the same precedent that keeps `verifier.ts`'s `runVerifier` alive for `pnpm eval:verifier` — it is the only way to re-check this decision later instead of taking it on faith. Nothing on a request path calls it. Delete it only together with that arm.
+**Gemma is gone, not retired.** `judgeSmalltalk`, its prompt, its tests and the bakeoff's baseline arm were all deleted on 2026-09-22 (initially kept as an eval-only baseline on the `runVerifier` precedent, then removed by decision). `verify/smalltalk.ts` is now purely deterministic — `GROUNDABLE_RES` and `isUncheckableAnswer`, no model, no network. The numbers in this section are the only record of the comparison, which is why they are stated here in full rather than as "see the eval".
+
+`eval-smalltalk-judge.ts` is still a bakeoff: `JUDGE_MODELS` takes any number of **Jev** models, which is how a new release gets compared against the pinned one before the pin moves.
 
 **Deterministic checks should NOT move to Jev.** `GROUNDABLE_RES` (`smalltalk.ts:15`) detects digits, links, UUID fragments and addresses — regex does that exactly, in microseconds, and Jev is documented weak on literal/numeric detection. The place a cheap judgment would *add* rather than replace: the judge never fires after the first turn, so `"thanks!"` at turn 3 always pays a full audit. Separate follow-on.
 
@@ -78,7 +80,97 @@ Jev is on OpenRouter, so there is no new vendor, key, or SDK.
 - Latency: marketing says ~100 ms; TypeSafe's own cookbooks measured 0.16–1.2 s. Measure from Railway.
 - Documented weak spots (`docs.typesafe.ai/model-jaggedness/jev-1.13`): reads literally; can't count; weak on numeric/date comparison; degrades on multi-hop wording; **accuracy falls as irrelevant state grows** (→ one claim + one doc per request, not a batch); not hardened against adversarial state; cannot generate.
 
-## A1. "Is this claim backed up by the doc it references?" — the lead
+## A1 — MEASURED 2026-09-22. Big catch-rate win, one unresolved design flaw.
+
+`pnpm eval:citation` (`scripts/eval/eval-citation.ts` + `-cases.ts`, judged by `verify/cite-support.ts`). **506 cases from 17 stored answers**: 97 real citations plus 409 built by repointing a real sentence at a different document, which keeps the prose real and makes the label certain. $0.02 for the whole run; reruns are free (`.cache/jev/citation`, keyed on model+state+questions).
+
+**The Choice gate is closed:** OpenRouter's `/systemone` returns `probabilities` *and* `confidence` for a Choice intact. The three-Noul fallback this doc reserved is not needed.
+
+Flag rate = the share where the check surfaces something (`contradicts` hard, `says_nothing` soft). For the real citations that is the **false**-flag rate.
+
+| case class | n | lexical (ships, dark) | Jev | Jev + children |
+|---|---|---|---|---|
+| **real citations** | 97 | **6%** | 21% | 21% |
+| random doc | 97 | 70% | 100% | 100% |
+| parent doc | 91 | 58% | 95% | 49% |
+| sibling doc | 88 | 51% | 97% | 95% |
+| **same title** | 38 | 24% | **76%** | 76% |
+| **cited elsewhere** | 95 | 46% | **94%** | 93% |
+
+**The upside is real and large** on the two classes that motivated the check. `same_title` (the atlas has 142 identically-titled "Rate Limits" docs, one per agent) goes 24% → 76%. `cited_elsewhere` — the link now points at the wrong one of two documents the same answer already cites, so the right source is definitely inside the turn's pooled evidence — goes 46% → 94%. (That class does **not** assert the claim is true in the substituted doc; only that the attribution moved within the evidence the turn actually used.) It is the class the shipped `refute` auditor **cannot see at all**: repointing a link leaves the answer prose byte-identical, and refute has no way to resolve a UUID to a document, so it scores 0 there by construction rather than by weakness.
+
+**On the corpus's independence:** 97 citations, but they come from 17 stored answers to roughly ten distinct questions, so these are not 97 independent samples — several sentences in one answer share a topic and a retrieval set.
+
+**The headline against it — 21% vs 6% false flags — does not survive reading the cases, but it does not clear Jev either.** Of the 20 flagged real citations, 6 are markdown table rows and 14 prose. Adjudicating the 14 by hand:
+
+- **~2 are not claims at all** — `* **Spark**:` and `* **Keel**:`, bullet labels left behind by the segmenter. Garbage in. The lexical check never saw these because `MIN_CLAIM_WORDS` (6) silently filtered them; `citationPairs` deliberately dropped that filter, and this is the cost.
+- **~6 are a citation class the question does not model.** "Documents regarding `Instance Financial CRRs` (…) show high modification counts" cites the doc it is *about*. The doc cannot state its own revision history, so `says_nothing` is literally correct — but the citation is correct usage too. **This is a pointer, not a source**, and A1 as specified conflates the two. Any wiring must separate them or it will emit a soft note on legitimate citations every time an answer says "the document X".
+- The remainder are genuinely borderline, and some are probably real defects — which is the methodological catch worth stating plainly: **"positive" here means "a model wrote it", and the entire premise of this check is that models mis-cite.** So 21% is an *upper bound* on the false-flag rate, not a measurement of one.
+
+**Children in state: only matters for the parent class, and it reframes that class rather than settling it.** Adding children drops the parent flag rate 95% → 49% and changes nothing else (real citations 21% either way, same_title 76% either way). Whether that is a fix or a regression depends on an unanswered product question — *is citing a parent a misattribution?* The reader renders a doc together with its children, so a human following the link sees the text. The lexical check's own comment asserts parent-flagging is "intended, not noise". **This eval labels `parent` a negative, and that label is contestable** — it is the one number in the table that should not be read as settled.
+
+### Second pass (same day): fix the inputs, keep the full judgment
+
+The first pass above over-read its own noise. Retreating to `contradicts`-only (1.4% false contradictions on prose, 26% catch on same-title) was considered and **rejected**: it throws away the half of the check that attests a paraphrase is actually backed. Instead, the three causes of the false flags were fixed at their source, in `verify/cite-pairs.ts`:
+
+1. **Tables** — rows are rewritten into labelled prose before segmentation (`Sender: Sky Core; Recipient: …; Amount(s): …`), with link-only cells folded on as the row's citation. The judge was previously handed `| Sky Core | 5M USDS | Planned |` with no header.
+2. **Degenerate segments** — a pair needs three real words once links and markup are gone. All 16 pairs this removed were bare label bullets (`* **Aave**`, `* **Spark**:`). Those bullets do imply a claim from their heading ("Aave is an integration-boost vendor"); judging them would need the heading in state — future scope.
+3. **Pointer citations** — a fourth Choice option, `about_document`: the claim is about the document itself (it exists, its title, how often it changed, "e.g." examples), so the link is a pointer, not a source. It is never a flag.
+
+**Results** — 407 cases from 15 answers, 80 real citations (after the fixes), $0.02, cached reruns make zero calls:
+
+| class | n | lexical | Jev 3-option | **Jev + `about_document`** |
+|---|---|---|---|---|
+| **real citations (false-flag, unadjudicated)** | 80 | 8% | 18% | **11%** |
+| random | 80 | 85% | 100% | 100% |
+| parent | 74 | 76% | 100% | 99% |
+| sibling | 71 | 68% | 97% | 96% |
+| **same title** | 24 | 50% | 71% | **71%** |
+| **cited elsewhere** | 78 | 59% | 92% | **92%** |
+
+The pointer option took 5 real citations out of the flag column and cost nothing on any negative class.
+
+**Adjudicated by reading each flagged real citation against its cited doc (9 flags):** 3 are fair catches — a conjunct the cited doc does not state ("designating support actors **and** resolving disputes"), a "baseline requires **three**" attributed to a doc that says **seven**, and the answer's own security recommendation cited to the framework's Purpose doc. 6 are false: two `contradicts` on "Sky Core" vs the doc's "Sky **Pause Proxy**" (domain equivalence Jev does not know), two partial-support strictness cases where the main clause is stated but a trailing conjunct is not, and two "e.g." pointers the new option missed. **True false-flag rate ≈ 6/80 = 7.5%** — level with the lexical check's 8% (itself unadjudicated), while catching 71% vs 50% on same-title and 92% vs 59% on cited-elsewhere.
+
+### Positive attestation — Jev's `supports` is trustworthy
+
+The question that decides whether this can do more than find contradictions: when Jev says a document **supports** a claim, how often is that wrong? On the repointed negatives:
+
+| class | n | `supports` | explained | **unexplained false support** |
+|---|---|---|---|---|
+| random | 80 | 0 | — | **0%** |
+| parent | 74 | 0 | — | **0%** |
+| sibling | 71 | 2 | — | 3% |
+| same title | 24 | 6 | 5 have byte-identical content to the original | 4% (1) |
+| cited elsewhere | 78 | 6 | 2 identical; reading the other 4, most are genuinely supported ("mutually exclusive pathways" → a doc that says exactly that) | ≤5% |
+
+**Real false support is roughly 3% or less.** That is the number the 2026-09-10 refutation-only overhaul lacked when it retired support verdicts ("a wrong 'supported' passed a real defect") — that was a model judging a whole answer against pooled evidence; this is one sentence against one document, a far narrower claim.
+
+One limit this exposes, true of any content check: for **templated documents with identical text**, nothing can tell Spark's doc from Grove's unless the claim names the agent. 5 of 24 same-title pairs are exactly that.
+
+### What it can do — and the decisions that are not mine to make
+
+- **Refute by citation** (`contradicts`) — a `Contradiction` with `source: "cited-doc"` through the existing `confirm` gate. The two domain-equivalence false contradictions are the kind that gate exists to stop.
+- **Unbacked citation** (`says_nothing`) — a soft note, `notFound` precedent. ~7.5% true false-flag; most residual errors are partial-support strictness.
+- **Attestation** (`supports`, ≤3% false) — the new capability. It could power an aggregate ("12 of 14 citations checked against their source"), suppress the dark lexical check whenever Jev has ruled, or feed a per-answer confidence. **Two standing rules constrain how it surfaces:** the 2026-09-10 refutation-only stance, and the chat rule of per-item marks only where there is a finding, never rows of default ticks. So a ✓ per citation is out unless that rule changes; an aggregate is the open question.
+
+**Before wiring any of it:** fix the two residual false-flag classes if cheap (partial-support strictness in the criteria — measure the margin, per the A0 lesson that more criteria text can make it worse; domain equivalence via the confirm gate), and decide how `supports` surfaces.
+
+### Wired 2026-09-22 — Sources chip marks
+
+`verify/citation-marks.ts`, started right after `answer_final` and run concurrently with the audit; one `citation_marks` SSE event before `verify_result`; `message_checks` kind `citation_check` keeps the raw verdicts. Per document, worst verdict wins; any unjudged pair ⇒ no mark; pointer-only ⇒ no mark. A ✓ on every backed source is a deliberate exception, chosen by the user, to the "list by exception" rule for stage rows. `CHAT_CITATION_CHECK_MODEL=""` disables it. Not rehydrated on reload, same as the verify badge.
+
+**Live check on three stored answers (real Jev, real confirm on gemma-4-31b):**
+
+| answer | pairs | wall | cost | marks |
+|---|---|---|---|---|
+| token-transfer ledger | 23 | 4.8 s (incl. one confirm call) | $0.0007 | 20 ✓, 2 – |
+| multisig security | 7 | 0.7 s | $0.0002 | 4 ✓, 1 – |
+| orgs / roles | 5 | 0.4 s | $0.0001 | 3 ✓, 1 – |
+
+The confirm gate did its job on the first answer: Jev again called the two "Sky Core" vs "Sky **Pause Proxy**" rows `contradicts`; confirm agreed with **0 of 2**, so both surfaced as the muted "doesn't cover" mark, not a warning. The other three muted marks are exactly the three fair catches from the hand adjudication above. The answer is revealed at `answer_final` and the marks arrive while the verify badge is still running, so none of that wall time is added in front of the user.
+
+## Original A1 design notes (pre-measurement)
 
 **Most of this already exists, dark.** `findLowOverlapCitations` (`src/server/chat/verify/verify-checks.ts:537`) already pairs each cited *sentence* with the *one document it links to* — `claimSegments` (`:499`) splits sentences, folds trailing citation-only fragments back, strips anchor text — and scores lexical overlap against `ix.docMap.get(uuid)`. It runs every turn, is persisted to `message_checks.verdict`, and **is read by nothing**: not the badge, not the wire, not the verifier prompt (its "informs the verifier prompt" comment is stale). Jev is its semantic successor on the same seam.
 

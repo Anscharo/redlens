@@ -1,4 +1,4 @@
-import type { ParamMismatch, ToolCallRecord, VerifyContradiction, VerifyOverall } from "./api";
+import type { CitationMark, ParamMismatch, ToolCallRecord, VerifyContradiction, VerifyOverall } from "./api";
 
 // Shared ChatMsg/trace/verify shape, split out of useChatStream.ts so
 // applyEvent.ts (pure event-application logic) and useChatStream.ts (the
@@ -168,4 +168,10 @@ export interface ChatMsg {
   // its SupersededDraft.checks first). Live-session only — not persisted,
   // same as `exports`/`reasoning`.
   paragraphChecks?: ParagraphCheck[];
+  // Per-source-doc citation verdicts from the post-answer citation check
+  // (server: `citation_marks`), keyed by doc uuid. May never arrive (feature
+  // off, no citations, timeout) — absent/undefined means no marks, not "all
+  // clean". Live-session only — not persisted, same reasoning as
+  // `verify`/`exports`/`reasoning` (see hydrate.ts).
+  citationMarks?: Record<string, CitationMark>;
 }

@@ -486,6 +486,13 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-cite:hover { background: var(--hover); border-color: var(--accent); }
 .rlc-cite-doc { font: 400 11.5px/1 "Source Code Pro", monospace; color: var(--tan-3); }
 .rlc-cite-title { font: 400 14px/1 var(--serif, "Lora", serif); color: var(--tan-2); }
+/* Post-answer citation-check mark, appended after the title. "unbacked" is
+   deliberately muted/informational (never reads as an error) — see the
+   verify chip's dot for the same tri-state palette. */
+.rlc-cite-mark { font: 400 12px/1 "Source Code Pro", monospace; }
+.rlc-cite-mark[data-status="backed"] { color: var(--terminal-green); }
+.rlc-cite-mark[data-status="unbacked"] { color: var(--tan-3); }
+.rlc-cite-mark[data-status="disputed"] { color: var(--warn); }
 
 /* ── Export / download chips (export_findings tool) ─────────────────────── */
 .rlc-exports { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 8px; }
