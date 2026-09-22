@@ -93,7 +93,7 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
       ) : (
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <label htmlFor="feedback-message" style={{ fontSize: 12, color: "var(--tan-3)" }}>
-            What&rsquo;s broken, confusing, or missing?
+            How can we help?
           </label>
           <textarea
             id="feedback-message"
