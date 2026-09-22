@@ -43,6 +43,7 @@ vi.mock("../../lib/settlements", async (importOriginal) => {
 vi.mock("../../lib/analytics", () => ({ track: (...a: unknown[]) => track(...a) }));
 
 import { MscOverview } from "./MscOverview";
+import { TRACK_H } from "./MscTimeseries";
 import { EMPTY_SETTLEMENTS } from "../../lib/settlements";
 import { fulfilled } from "../../test/fulfilled";
 
@@ -73,7 +74,7 @@ describe("MscOverview", () => {
     expect(screen.getByText("Supply-side kept by Primes")).toBeInTheDocument();
     expect(skeleton.querySelectorAll(".msc-card")).toHaveLength(3);
     // The timeseries track and the flow canvas are already their real sizes.
-    expect(skeleton.querySelector(".msc-ts-grid")).toHaveAttribute("height", "380");
+    expect(skeleton.querySelector(".msc-ts-grid")).toHaveAttribute("height", String(TRACK_H));
     expect(skeleton.querySelector("svg.msc-flow")).toHaveAttribute("viewBox", "0 0 3000 1200");
     expect(skeleton.querySelector(".msc-flow-header")).toHaveTextContent("SOURCE");
     expect(screen.getByRole("group", { name: "Chart style" })).toBeInTheDocument();

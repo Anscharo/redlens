@@ -50,13 +50,13 @@ export function FlowAgentGroup({ agent, flow, label, bandColor, to, month }: Ove
         <LinkFigure key={`out-${l.kind}`} l={l} />
       ))}
       <g className="msc-ring-mark" data-mark={markId(p, "gross")}>
-        {/* Two centred lines, name over gross. Both sit on the column's
-            centre, which is the same x for every Prime — so they line up
-            down the column without depending on how wide a name measures. */}
-        <text x={agent.labelX} y={agent.labelY - AGENT_LINE_H} textAnchor="middle" fontSize={42} className="msc-ring-label msc-flow-halo">
+        {/* Two centred lines UNDER the bar, name over gross. Both sit on the
+            column's centre, which is the same x for every Prime — so they
+            line up down the column without depending on a measurement. */}
+        <text x={agent.labelX} y={agent.labelY} textAnchor="middle" fontSize={42} className="msc-ring-label msc-flow-halo">
           {label}
         </text>
-        <text x={agent.labelX} y={agent.labelY} textAnchor="middle" fontSize={42} className="msc-ring-sublabel msc-flow-halo mono">
+        <text x={agent.labelX} y={agent.labelY + AGENT_LINE_H} textAnchor="middle" fontSize={42} className="msc-ring-sublabel msc-flow-halo mono">
           {formatUsd(agent.gross, true)}
         </text>
       </g>

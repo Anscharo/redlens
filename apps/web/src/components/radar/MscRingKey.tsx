@@ -56,12 +56,9 @@ export function RingKey({ view = "pies" }: { view?: "pies" | "sankey" }) {
         )}
         {!pies && (
           <p className="mt-1">
-            Sky is at both ends: the demand-side series are owed BY Sky
-            (A.2.4.1.2.2.1.1.1), so they start at the Sky node on the left,
-            while cost of funds and Sky Direct Exposure are owed TO Sky
-            (A.2.4.1.2.2.1.1.2) and leave on the right. A Sky Direct Exposure
-            is held by Sky and only run through the Prime's Allocation System,
-            so none of its yield is the Prime's to keep (A.2.2.10.1.1.1.1.5).
+            Sky is at both ends — it owes the demand-side series
+            (A.2.4.1.2.2.1.1.1) and is owed cost of funds and Sky Direct
+            Exposure (A.2.4.1.2.2.1.1.2).
           </p>
         )}
         {/* The footnote belongs to the flow chart's bar, the one mark that

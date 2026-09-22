@@ -129,7 +129,7 @@ export function MscFlow({ layout: target, primes, month, centerFigure, onZoom }:
                 into the gutter and centred on the bar the way a source label
                 is centred on its own. The Primes are not named here again;
                 each share's hover pill says whose. */}
-            <text x={SKY_LABEL_X} y={sky.y + sky.h / 2 + 18} textAnchor="end" fontSize={54} className="msc-ring-label">
+            <text x={SKY_LABEL_X} y={sky.y + sky.h + 60} textAnchor="end" fontSize={54} className="msc-ring-label">
               To Sky
               <tspan className="msc-ring-sublabel mono"> | {centerFigure}</tspan>
             </text>

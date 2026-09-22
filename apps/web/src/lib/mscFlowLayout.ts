@@ -169,8 +169,10 @@ export const SKY_PIPE_SPACE = textWidth(" ", SKY_MONO_FONT, SKY_MONO_CHAR_PX);
 export const SKY_LABEL_GAP = gapFor(SKY_PIPE_SPACE);
 /** Where every right-hand label ends: the SKY header and the To Sky line. */
 export const SKY_LABEL_X = WIDTH - EDGE_PAD;
-const RIGHT_GUTTER = SKY_LABEL_ROOM + SKY_LABEL_GAP + EDGE_PAD;
-export const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
+/** Sky's bar sits hard against the right edge. Its label used to sit
+ *  BESIDE it, which cost a gutter as wide as "To Sky | $00.00M"; under the
+ *  bar it costs nothing horizontal, so the drawing runs the full canvas. */
+export const RIGHT_X = WIDTH - EDGE_PAD - NODE_W;
 /** A Prime's label is TWO CENTRED LINES over its bar — the name, then the
  *  gross under it. It was one line centred on its pipe character, which
  *  only lines up if every name measures exactly right; the measurement is
@@ -193,7 +195,7 @@ const SOURCE_GAP = 70;
 const AGENT_GAP = 118;
 /** Below the headers and the first Prime's name block, with clear air
  *  between the PRIME header and the first name. */
-const TOP = 185;
+const TOP = 100;
 const BOTTOM_PAD = 16;
 /** Fixed canvas height, so the viewBox — and with it the scale, the column
  *  x positions and the headers — never changes from month to month. Tall
@@ -349,6 +351,9 @@ export interface FlowLayout {
  *  short of the bottom edge and the last label stays on the canvas. */
 const BAND_H = HEIGHT - BOTTOM_PAD - TOP;
 const SOURCE_BAND_H = BAND_H - SOURCE_LABEL_BLOCK / 2;
+/** A Prime's two label lines hang UNDER its bar, so its band stops a whole
+ *  label block short of the bottom and the last one stays on the canvas. */
+const AGENT_BAND_H = BAND_H - 2 * AGENT_LINE_H;
 
 /** Space-between over the band: equal gaps, never below the floor. */
 function spread<T>(bars: { item: T; h: number }[], bandH: number, minGap: number, labelBlock: number) {
@@ -402,7 +407,7 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
   // edge: the source and Prime columns spread their bars over it with equal
   // gaps (first bar at the top, last at the bottom — a lone bar centers),
   // and the Sky bar centers on it.
-  const agents = spread(acc.map((r) => ({ item: r, h: Math.max(inH(r), outH(r)) })), BAND_H, AGENT_GAP, 0);
+  const agents = spread(acc.map((r) => ({ item: r, h: Math.max(inH(r), outH(r)) })), AGENT_BAND_H, AGENT_GAP, 0);
   const sourceBars = sourceKinds.map((k) => ({ item: k, h: acc.reduce((n, { a }) => n + t(a.inbound.find((x) => x.kind === k)?.value ?? 0), 0) }));
   // KINDS orders earned first, then the Sky-owed demand series, so the two
   // groups are already contiguous. The band gives up GROUP_GAP before the
@@ -416,7 +421,10 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
     return { ...s, y: s.y + shift, labelY: s.labelY + shift };
   });
   const skyH = acc.reduce((n, { a }) => n + a.outbound.reduce((m, x) => m + t(x.value), 0), 0);
-  const skyY = TOP + Math.max(0, (BAND_H - skyH) / 2);
+  // Centred on the PRIME band, not the whole canvas: Sky's own label hangs
+  // under its bar like theirs, so it shares their shortened band and the
+  // two columns stay level with each other.
+  const skyY = TOP + Math.max(0, (AGENT_BAND_H - skyH) / 2);
 
   // Ribbons: from each source down its bar in Prime order; into each Prime
   // down its bar in source order; into Sky, Prime-major, cost of funds first.
@@ -459,22 +467,23 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
       const sh = skyCursor - shareY;
       shares.push({ prime: p.prime, value: skyValue, y: shareY, h: sh, pillX: RIGHT_X - SHARE_PILL_INSET, pillY: shareY + sh / 2 - PILL_LIFT });
     }
-    // labelY is the GROSS line, just clear of the bar's top; the name sits
-    // one line above it and the gross pill above them both.
-    const labelY = y - 24;
+    // The label block hangs UNDER the bar: the name first, the gross a line
+    // below it. labelY is the NAME's baseline. The gross pill still rises
+    // above the bar, where there is nothing else.
+    const labelY = y + h + AGENT_LINE_H;
     return {
       prime: p.prime, x: MID_X, y, h, inbound, outbound, loss: a.loss,
       sky: a.sky, cof: a.cof, sde: a.sde, gross: a.gross,
       share: a.gross >= SETTLEMENT_NEAR_ZERO ? a.sky / a.gross : null,
       labelX: MID_X + AGENT_W / 2, labelY,
       grossPillX: MID_X + AGENT_W / 2,
-      grossPillY: labelY - AGENT_LINE_H - 60,
-      grossAnchorY: labelY - AGENT_LINE_H - 30,
+      grossPillY: y - 84,
+      grossAnchorY: y - 30,
     };
   });
 
   const bottom = Math.max(
-    ...agents.map((g) => g.y + g.h),
+    ...agents.map((g) => g.y + g.h + 2 * AGENT_LINE_H),
     ...sources.map((s) => Math.max(s.y + s.h, s.labelY + SOURCE_LABEL_BLOCK / 2)),
     skyY + skyH,
   );

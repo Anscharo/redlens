@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { layoutMscFlow, AGENT_LINE_H, GROUP_HEADING_SIZE, HEADER_SIZE, LABEL_X, SKY_LABEL_X, sourceBarX, sourceBracket } from "../../lib/mscFlowLayout";
+import { layoutMscFlow, AGENT_LINE_H, NODE_W, GROUP_HEADING_SIZE, HEADER_SIZE, LABEL_X, SKY_LABEL_X, sourceBarX, sourceBracket } from "../../lib/mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 import { MscFlow } from "./MscFlow";
 import type { OverviewPrime } from "./MscRingPrime";
@@ -112,8 +112,10 @@ describe("MscFlow", () => {
       expect(t).toHaveAttribute("text-anchor", "end");
       expect(t).toHaveAttribute("x", String(SKY_LABEL_X));
     }
+    // The To Sky line sits UNDER Sky's bar, flush with the same right edge.
     const skyBar = layoutMscFlow(flows).sky;
-    expect(Number(toSky.getAttribute("y"))).toBeCloseTo(skyBar.y + skyBar.h / 2 + 18, 6);
+    expect(Number(toSky.getAttribute("y"))).toBeGreaterThan(skyBar.y + skyBar.h);
+    expect(skyBar.x + NODE_W).toBe(SKY_LABEL_X);
     // The Prime is two centred lines over its bar: the name, the gross under
     // it, both on the column's centre so they cannot drift apart.
     const agent = layoutMscFlow(flows).agents[0];

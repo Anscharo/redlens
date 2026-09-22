@@ -17,8 +17,9 @@ import { MscTimeseriesPill, type PillHover } from "./MscTimeseriesPill";
 export const COL_W = 48;
 export const GAP_PX = 12;
 export const AXIS_W = 46;
-// Matches the ring's typical rendered height so the two charts read as one row.
-export const TRACK_H = 380;
+// The row's height, and so both charts': the ring card stretches to match
+// this and its drawing fills whatever is left under the title.
+export const TRACK_H = 470;
 
 // Per-prime categorical fills, assigned by the stable roster order from
 // primeStackMonths (fixed order, never re-cycled when a month lacks a prime).
