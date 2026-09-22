@@ -1,9 +1,13 @@
 // Offline bakeoff for the small-talk judge seat (CHAT_SMALLTALK_JUDGE_MODEL).
-// Runs the SHIPPED judge path for each arm — judgeSmalltalk's prompt/parse/
-// timeout over the production OpenRouter JsonCall for a chat model,
-// judgeSmalltalkJev's Noul over the production /systemone client for Jev — so
-// this measures the functions the server would actually run, never a
-// reimplementation. Cases: scripts/aux/eval-smalltalk-cases.ts.
+// Runs the SHIPPED judge path — judgeSmalltalkJev's Noul over the production
+// /systemone client — so this measures the function the server actually runs,
+// never a reimplementation. Cases: scripts/aux/eval-smalltalk-cases.ts.
+//
+// JUDGE_MODELS takes any number of Jev models, so this is still a bakeoff: it
+// is how a new Jev release gets compared against the pinned one before the
+// pin moves. The retired chat-model arm (gemma, prompted for JSON) was deleted
+// with its judge on 2026-09-22; docs/plans/jev-typesafe.md §A0 keeps its
+// numbers.
 //
 // Reports accuracy split by ERROR DIRECTION, because the two are not
 // symmetric: a false "smalltalk" on a factual question bypasses the audit
@@ -15,19 +19,17 @@
 // threshold that reaches zero is the one that keeps the most greeting recall.)
 //
 // Usage:  bun scripts/aux/eval-smalltalk-judge.ts
-//         JUDGE_MODELS="google/gemma-4-26b-a4b-it,typesafe/jev-1.13" bun …
-import { judgeSmalltalk } from "../../src/server/chat/verify/smalltalk.ts";
+//         JUDGE_MODELS="typesafe/jev-1.13,~typesafe/jev-latest" bun …
 import { judgeSmalltalkJev, SMALLTALK_JEV_THRESHOLD } from "../../src/server/chat/verify/smalltalk-jev.ts";
-import { openrouterJson } from "../../src/server/chat/llm.ts";
+import { config } from "../../src/server/config.ts";
 import { CASES } from "./eval-smalltalk-cases.ts";
 import fs from "node:fs";
 import path from "node:path";
 
-const MODELS = (process.env.JUDGE_MODELS ?? ["google/gemma-4-26b-a4b-it", "typesafe/jev-1.13"].join(","))
+const MODELS = (process.env.JUDGE_MODELS ?? config.chatJevModel)
   .split(",").map((s) => s.trim()).filter(Boolean);
 const PASSES = Number(process.env.JUDGE_PASSES ?? 2);
 const CONCURRENCY = 6;
-const isJev = (m: string) => m.startsWith("typesafe/");
 
 interface CaseResult {
   q: string; expected: boolean; hard: boolean;
@@ -82,14 +84,10 @@ const report: Record<string, unknown> = {};
 for (const model of MODELS) {
   const t0 = Date.now();
   const results: CaseResult[] = await pool(runs, CONCURRENCY, async (c) => {
-    if (isJev(model)) {
-      // threshold 0 keeps the raw probability meaningful for the sweep; the
-      // boolean this arm returns here is ignored in favour of p >= thr below.
-      const r = await judgeSmalltalkJev({ question: c.q, model, threshold: 0 });
-      return { q: c.q, expected: c.expected, hard: c.hard, got: r.smalltalk, p: r.p, failed: r.p === null, latencyMs: r.latencyMs, costUsd: r.costUsd };
-    }
-    const r = await judgeSmalltalk({ call: openrouterJson, model, question: c.q });
-    return { q: c.q, expected: c.expected, hard: c.hard, got: r.smalltalk, p: null, failed: r.usage === null, latencyMs: r.latencyMs, costUsd: null };
+    // threshold 0 keeps the raw probability meaningful for the sweep; the
+    // boolean is re-derived below at the shipped threshold.
+    const r = await judgeSmalltalkJev({ question: c.q, model, threshold: 0 });
+    return { q: c.q, expected: c.expected, hard: c.hard, got: r.smalltalk, p: r.p, failed: r.p === null, latencyMs: r.latencyMs, costUsd: r.costUsd };
   });
   const wall = Date.now() - t0;
   const ok = results.filter((r) => !r.failed);
@@ -99,11 +97,11 @@ for (const model of MODELS) {
   console.log(`\n=== ${model} ===`);
   console.log(`calls ${results.length} | failures ${results.length - ok.length} | latency p50 ${quantile(lats, 0.5)}ms p95 ${quantile(lats, 0.95)}ms | wall ${wall}ms` + (cost ? ` | cost $${cost.toFixed(5)} ($${(cost / ok.length).toFixed(7)}/call)` : ""));
 
-  let sweep: { thr: number; dangerous: number; missed: number }[] = [];
+  const sweep: { thr: number; dangerous: number; missed: number }[] = [];
   let operating: number | null = null;
-  let fired = (r: CaseResult) => r.got;
+  let fired: (r: CaseResult) => boolean;
 
-  if (isJev(model)) {
+  {
     // The threshold is OURS — sweep it and pick from the dangerous side.
     for (let t = 0; t <= 1.0001; t += 0.05) {
       const thr = Number(t.toFixed(2));

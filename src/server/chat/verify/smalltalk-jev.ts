@@ -1,32 +1,40 @@
-// Jev candidate for the small-talk judge seat (smalltalk.ts's judgeSmalltalk,
-// today google/gemma-4-26b-a4b-it). Same seat, same fail-closed contract, same
-// SmalltalkJudgeRun shape — so the bakeoff scores one production function
-// against another rather than a reimplementation of either.
+// The judged half of the small-talk bypass: one Jev Noul on the user's
+// message, asking whether a reply to it needs any factual content. The
+// deterministic half (which messages and answers qualify at all) is
+// smalltalk.ts. This is the FINAL gate on skipping the audit, and it is
+// fail-closed everywhere — a timeout, a transport error or an answer of the
+// wrong type all rule "not small talk", which keeps the full audit.
 //
-// Two structural differences from the chat-model judge, both in Jev's favour
-// and both worth keeping in mind when reading the numbers:
-//   1. There is no JSON to parse, so the `chat_smalltalk_judge_unparseable`
+// Replaced a chat-model classifier (google/gemma-4-26b-a4b-it, prompted for
+// {"smalltalk": bool}) on 2026-09-22; see docs/plans/jev-typesafe.md §A0 for
+// the bakeoff. Two structural differences carried the decision, beyond the
+// accuracy gap:
+//   1. There is no JSON to parse, so the old `chat_smalltalk_judge_unparseable`
 //      failure mode cannot occur — a malformed answer is not representable.
 //   2. The ruling arrives as P(yes), not a boolean, so the threshold is OURS.
-//      The bypass is fail-closed by design (judge failure = full audit), so
-//      the operating point is picked from the dangerous-error direction: the
-//      highest threshold at which no factual question is ruled small talk.
+//      The bypass is fail-closed by design, so the operating point is picked
+//      from the dangerous-error direction: no factual message may be ruled
+//      small talk.
 import { askJev, noulOf } from "../../jev.ts";
 import { captureError, type ErrorContext } from "../../posthog-node.ts";
-import type { SmalltalkJudgeRun } from "./smalltalk.ts";
 
-export interface SmalltalkJevRun extends SmalltalkJudgeRun {
+export interface SmalltalkJevRun {
+  smalltalk: boolean;
   /** Raw P(pure conversation). null when the call failed — never coerced to 0. */
   p: number | null;
+  usage: { input: number; output: number } | null;
   costUsd: number | null;
+  generationId: string | null;
+  latencyMs: number | null;
 }
 
 // Jev reads LITERALLY, which is the whole risk in this seat: the dangerous
 // class is a casual phrasing that looks like a courtesy but asks for facts
 // ("what's new?", "any updates?", "help"). Those go in `false` verbatim,
 // because the model cannot infer our product's reading of them from the
-// bare words. Mirrors JUDGE_PROMPT's semantics sentence for sentence so the
-// two arms are answering the SAME question, not two different ones.
+// bare words. The wording mirrors the retired chat-model prompt sentence for
+// sentence, so the bakeoff compared two arms answering the SAME question
+// rather than two differently-worded ones.
 export const SMALLTALK_QUESTION = {
   type: "noul" as const,
   instructions:

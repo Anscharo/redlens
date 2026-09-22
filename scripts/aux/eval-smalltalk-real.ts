@@ -19,16 +19,14 @@
 //
 // SENDS REAL STORED USER MESSAGES TO OPENROUTER. Run it deliberately.
 //   DATABASE_URL=… bun scripts/aux/eval-smalltalk-real.ts
-import { judgeSmalltalk, isUncheckableAnswer } from "../../src/server/chat/verify/smalltalk.ts";
+import { isUncheckableAnswer } from "../../src/server/chat/verify/smalltalk.ts";
 import { judgeSmalltalkJev, SMALLTALK_JEV_THRESHOLD } from "../../src/server/chat/verify/smalltalk-jev.ts";
-import { openrouterJson } from "../../src/server/chat/llm.ts";
 import { config } from "../../src/server/config.ts";
 import { sql } from "../../src/server/db.ts";
 import fs from "node:fs";
 import path from "node:path";
 
-const GEMMA = process.env.JUDGE_BASELINE ?? config.chatSmalltalkJudgeModel;
-const JEV = process.env.JUDGE_JEV ?? config.chatJevModel;
+const JEV = process.env.JUDGE_JEV ?? config.chatSmalltalkJudgeModel;
 const LIMIT = Number(process.env.JUDGE_LIMIT ?? 400);
 const CONCURRENCY = 4;
 // "first" = the original one-call-per-conversation population. "later" = the
@@ -72,32 +70,18 @@ if (!eligible.length) {
   process.exit(0);
 }
 
-interface Row { q: string; jevP: number | null; jev: boolean; gemma: boolean; gemmaFailed: boolean; jevMs: number | null; gemmaMs: number | null; cost: number | null }
+interface Row { q: string; jevP: number | null; jev: boolean; jevMs: number | null; cost: number | null }
 
 const results: Row[] = await pool(eligible, CONCURRENCY, async (q) => {
-  const [j, g] = await Promise.all([
-    judgeSmalltalkJev({ question: q, model: JEV, threshold: 0 }),
-    judgeSmalltalk({ call: openrouterJson, model: GEMMA, question: q }),
-  ]);
-  return {
-    q,
-    jevP: j.p,
-    jev: j.p !== null && j.p >= SMALLTALK_JEV_THRESHOLD,
-    gemma: g.smalltalk,
-    gemmaFailed: g.usage === null,
-    jevMs: j.latencyMs,
-    gemmaMs: g.latencyMs,
-    cost: j.costUsd,
-  };
+  const j = await judgeSmalltalkJev({ question: q, model: JEV, threshold: 0 });
+  return { q, jevP: j.p, jev: j.p !== null && j.p >= SMALLTALK_JEV_THRESHOLD, jevMs: j.latencyMs, cost: j.costUsd };
 });
 
 const scored = results.filter((r) => r.jevP !== null);
-const gemmaOk = results.filter((r) => !r.gemmaFailed);
 const q50 = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : null);
 
-console.log(`\njev failures ${results.length - scored.length}/${results.length} | gemma failures ${results.length - gemmaOk.length}/${results.length}`);
-console.log(`latency p50 — jev ${q50(scored.map((r) => r.jevMs!).filter(Boolean))}ms | gemma ${q50(gemmaOk.map((r) => r.gemmaMs!).filter(Boolean))}ms`);
-console.log(`jev cost $${scored.reduce((s, r) => s + (r.cost ?? 0), 0).toFixed(5)} over ${scored.length} calls`);
+console.log(`\nfailures ${results.length - scored.length}/${results.length} | latency p50 ${q50(scored.map((r) => r.jevMs!).filter(Boolean))}ms`);
+console.log(`cost $${scored.reduce((s, r) => s + (r.cost ?? 0), 0).toFixed(5)} over ${scored.length} calls`);
 
 // ── Does the separation gap survive? ──────────────────────────────────────
 const GAP_LO = 0.52, GAP_HI = 0.75; // measured bounds on the labeled set
@@ -114,21 +98,20 @@ console.log(`\nSEPARATION: ${inGap.length} of ${scored.length} real messages fal
   (inGap.length === 0 ? "  → gap SURVIVES on real traffic" : `  → gap is POPULATED; the threshold is not resting on empty space`));
 for (const r of inGap.slice(0, 15)) console.log(`   p=${r.jevP!.toFixed(2)}  ${clean(r.q)}`);
 
-// ── Agreement ─────────────────────────────────────────────────────────────
-const both = scored.filter((r) => !r.gemmaFailed);
-const agree = both.filter((r) => r.jev === r.gemma);
-const jevOnly = both.filter((r) => r.jev && !r.gemma);
-const gemmaOnly = both.filter((r) => !r.jev && r.gemma);
-console.log(`\nagreement ${agree.length}/${both.length} (${((100 * agree.length) / both.length).toFixed(1)}%)`);
-console.log(`  both say SMALL TALK (bypass): ${both.filter((r) => r.jev && r.gemma).length}`);
-console.log(`  both say FACTUAL (audit):     ${both.filter((r) => !r.jev && !r.gemma).length}`);
-console.log(`\njev bypasses, gemma audits (${jevOnly.length}) — a Jev-only bypass is the risk direction, adjudicate each:`);
-for (const r of jevOnly) console.log(`   p=${r.jevP!.toFixed(2)}  ${clean(r.q)}`);
-console.log(`\ngemma bypasses, jev audits (${gemmaOnly.length}) — gemma-only bypasses; a wrong one here ships today:`);
-for (const r of gemmaOnly) console.log(`   p=${r.jevP!.toFixed(2)}  ${clean(r.q)}`);
+// ── What would actually be bypassed ───────────────────────────────────────
+// There are no labels, so this list IS the check: every message the audit
+// would be skipped for, printed in full for adjudication. A wrong one here is
+// the only error that costs trust.
+const bypassed = scored.filter((r) => r.jev);
+console.log(`\nWOULD BYPASS: ${bypassed.length} of ${scored.length} — read every one:`);
+for (const r of bypassed.sort((a, b) => b.jevP! - a.jevP!)) console.log(`   p=${r.jevP!.toFixed(2)}  ${clean(r.q)}`);
+// The near misses say how much room the threshold has on this traffic.
+const near = scored.filter((r) => !r.jev && r.jevP! >= SMALLTALK_JEV_THRESHOLD - 0.25).sort((a, b) => b.jevP! - a.jevP!);
+console.log(`\nclosest AUDITED messages (nothing here should look like pure small talk):`);
+for (const r of near.slice(0, 10)) console.log(`   p=${r.jevP!.toFixed(2)}  ${clean(r.q)}`);
 
 const out = path.join(".cache", "eval-smalltalk-real.json");
 fs.mkdirSync(".cache", { recursive: true });
-fs.writeFileSync(out, JSON.stringify({ generatedAt: new Date().toISOString(), models: { GEMMA, JEV }, threshold: SMALLTALK_JEV_THRESHOLD, counts: { eligible: eligible.length, agree: agree.length, jevOnly: jevOnly.length, gemmaOnly: gemmaOnly.length, inGap: inGap.length }, results }, null, 2));
+fs.writeFileSync(out, JSON.stringify({ generatedAt: new Date().toISOString(), model: JEV, population: POPULATION, threshold: SMALLTALK_JEV_THRESHOLD, counts: { eligible: eligible.length, bypassed: bypassed.length, inGap: inGap.length }, results }, null, 2));
 console.log(`\nwrote ${out}`);
 process.exit(0);
