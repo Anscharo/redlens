@@ -268,8 +268,25 @@ export function makeAtlasGitSource(repoDir) {
     return parseMonolithic(text);
   };
 
+  /** Every commit (oldest-first) that touches either the legacy monolithic
+   *  Sky Atlas.md or the content/ tree (both the atomized and consolidated
+   *  eras) — the commit list every per-commit walk iterates (build-history,
+   *  build-doc-versions), so they can never disagree about what "the atlas's
+   *  history" is. `ref` defaults to the checked-out HEAD. */
+  const atlasCommits = (ref = "") => {
+    const raw = git(`log --reverse --format="%H %aI %s" ${ref} -- "${ATLAS_FILE}" "${CONTENT_DIR}"`);
+    return raw
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        const [hash, date, ...rest] = line.split(" ");
+        return { hash, date, message: rest.join(" ") };
+      });
+  };
+
   return {
     git,
+    atlasCommits,
     detectFormat,
     loadSnapshot,
     loadAtomizedAt,
