@@ -112,7 +112,7 @@ test("defaults when no env is set", async () => {
   expect(config.previewForkDailyQuota).toBe(7);
   expect(config.previewUnknownForkDailyQuota).toBe(2);
   expect(config.previewMaxConcurrentBuilds).toBe(2);
-  expect(config.previewBuildTimeoutMs).toBe(120_000);
+  expect(config.previewBuildTimeoutMs).toBe(300_000);
   expect(config.previewSweepIntervalMs).toBe(600_000);
   expect(config.previewSweepGraceMs).toBe(600_000);
   expect(config.previewCacheKeep).toBe(20);

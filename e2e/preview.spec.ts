@@ -11,7 +11,10 @@ import { currentHeadSha, discoverCanary, pinnedCanary, type CanaryTarget } from 
 // e2e/check-canary-skips.mjs so silence can't last forever. Candidate selection
 // and the expected-diff derivation live in e2e/preview-canary.ts.
 
-const BUILD_TIMEOUT = 150_000; // first preview build clones + builds the atlas
+// Server default is PREVIEW_BUILD_TIMEOUT_MS (5 min). Wait a little longer so
+// a kill at the server cap still surfaces as a non-200 rather than this wait
+// timing out with no response at all.
+const BUILD_TIMEOUT = 330_000;
 
 /** Non-trusted fork previews gate <App/> — and therefore the diff.json fetch —
  *  behind a click-through interstitial (PreviewGate.tsx). Poll for its button
@@ -54,12 +57,15 @@ test("previews an atlas PR canary and redlines the docs it changed", async ({ pa
   );
 
   // Capture the preview bundle's diff.json (fetched once the build is ready).
+  // Match any status so a 5xx fails immediately instead of waiting out BUILD_TIMEOUT.
   const diffResponse = page.waitForResponse(
-    (r) => /\/api\/preview\/[0-9a-f]+\/diff\.json$/.test(r.url()) && r.status() === 200,
+    (r) => /\/api\/preview\/[0-9a-f]+\/diff\.json$/.test(r.url()),
     { timeout: BUILD_TIMEOUT },
   );
   await page.goto(`/preview/pull-${number}`, { waitUntil: "domcontentloaded" });
-  const diff = (await (await awaitDismissingInterstitial(page, diffResponse)).json()) as {
+  const response = await awaitDismissingInterstitial(page, diffResponse);
+  expect(response.status(), `preview diff.json HTTP ${response.status()} ${response.url()}`).toBe(200);
+  const diff = (await response.json()) as {
     added?: string[];
     changed?: string[];
     renumbered?: Record<string, unknown>;
