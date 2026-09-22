@@ -153,7 +153,7 @@ export function zoomKeyAction(key: string): ZoomKeyAction | null {
 /** How much bigger a hover pill may get as the chart zooms in. A pill is
  *  drawn in DRAWING units, so at 8x it would come out eight times the size
  *  it has at rest and swamp what it is naming. */
-export const MAX_PILL_GROWTH = 2;
+export const MAX_PILL_GROWTH = 1.5;
 
 /** The factor to multiply a pill's own scale by, so that however far the
  *  chart is zoomed the pill never renders more than MAX_PILL_GROWTH times
