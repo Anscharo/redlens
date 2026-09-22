@@ -196,10 +196,14 @@ describe("atlas artifact store: worker publish is load-bearing (phase 4)", () =>
   it("atlas-worker heartbeats on the rebuild path, not only the fast exit", () => {
     // 2026-09-22: production cron rebuilt every 12 min (staleEmbeds=1) then
     // sync.ts no-op'd; heartbeat lived only on the skip path, so freshness
-    // stayed 503 while Railway showed green ticks.
+    // stayed 503 while Railway showed green ticks. After publish, not
+    // after integrity: a failed publish must leave freshness stale.
     const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
     const calls = [...worker.matchAll(/await touchSyncHeartbeat\(/g)];
     expect(calls.length).toBe(2);
-    expect(worker).toMatch(/post-sync integrity OK[\s\S]*await touchSyncHeartbeat\(verifyDb\)/);
+    const publish = worker.indexOf('run("bun", ["scripts/required/publish-artifacts.ts"])');
+    const hb = worker.lastIndexOf("await touchSyncHeartbeat(verifyDb)");
+    expect(publish).toBeGreaterThan(-1);
+    expect(hb).toBeGreaterThan(publish);
   });
 });

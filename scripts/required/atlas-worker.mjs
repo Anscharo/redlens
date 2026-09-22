@@ -355,13 +355,6 @@ async function main() {
   console.log(
     `atlas-worker: post-sync integrity OK — ${verified.currentDocs} docs, ${verified.currentAddresses} addresses`,
   );
-  // sync.ts no-ops when the pointer already matches and does not touch
-  // synced_at. A single forever-stale embedding (observed 2026-09-22:
-  // staleEmbeds=1 while embeddings itself had 0 to write) skips the
-  // fast-exit heartbeat above, so a green rebuild tick left production
-  // stale for days. Heartbeat on this path too.
-  await touchSyncHeartbeat(verifyDb);
-  await verifyDb.close();
 
   // ── Publish the artifact set every web instance reads ────────────────────
   // After the integrity gate (so we never publish artifacts for a sha whose rows
@@ -370,6 +363,15 @@ async function main() {
   // must fail the run. `run()` already throws on a non-zero exit.
   console.log("atlas-worker: publish-artifacts…");
   run("bun", ["scripts/required/publish-artifacts.ts"]);
+
+  // sync.ts no-ops when the pointer already matches and does not touch
+  // synced_at. A leftover stale embedding skips the fast-exit heartbeat,
+  // so a green rebuild tick left production stale for days. Heartbeat
+  // only after publish succeeds, matching the fast-exit guarantee that
+  // web instances can fetch the artifact set. (Tails below are best-effort,
+  // same as the fast-exit path which heartbeats before them.)
+  await touchSyncHeartbeat(verifyDb);
+  await verifyDb.close();
 
   // ── Parallel: embeddings + history ───────────────────────────────────────
   // build-history reads its own incremental cursor from atlas_history and

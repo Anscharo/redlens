@@ -209,7 +209,7 @@ a. **Health check:**
    hasn't advanced. That includes the lightweight-check fast exit *and* the
    rebuild path (a leftover stale embedding forces a rebuild even when the
    SHA matches; `sync.ts` then no-ops without writing `synced_at`, so the
-   worker has to heartbeat after integrity). "stale" therefore means the
+   worker has to heartbeat after `publish-artifacts`). "stale" therefore means the
    worker hasn't completed a tick in over an hour, not just that the atlas
    hasn't changed. `ATLAS_STUCK_SECONDS` (default 30m),
    `ATLAS_UPDATE_MAX_BACKOFF_MS` (default 30m), `ATLAS_UPDATE_ESCALATE_AFTER`
