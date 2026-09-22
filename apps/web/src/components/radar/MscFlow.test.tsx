@@ -169,7 +169,7 @@ describe("MscFlow", () => {
     expect(container.querySelectorAll('.msc-ring-mark[data-mark="grove::share"] rect.msc-ring-sky-wedge')).toHaveLength(1);
     // Pills name the number; the To-Sky pill carries its components.
     expect(screen.getByText("$9.90M cost of funds → Sky")).toBeInTheDocument();
-    expect(screen.getByText("$10.00M to Sky — 74% of what ran through Spark")).toBeInTheDocument();
+    expect(screen.getByText("$10.00M to Sky — 74% of what flowed through Spark")).toBeInTheDocument();
     expect(screen.getByText("$13.50M through Spark: To Sky + supply-side kept + demand-side")).toBeInTheDocument();
     // The sum has no name — not in the Atlas, and not one of ours either.
     expect(screen.queryByText(/gross revenue/i)).not.toBeInTheDocument();

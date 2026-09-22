@@ -51,7 +51,7 @@ export function pillText(kind: string, signed: number, primeLabel: string, share
   const amount = formatUsd(signed, true);
   if (kind === "sky") {
     return share != null
-      ? `${amount} to Sky — ${formatShare(share)} of what ran through ${primeLabel}`
+      ? `${amount} to Sky — ${formatShare(share)} of what flowed through ${primeLabel}`
       : `${amount} to Sky`;
   }
   if (kind === "share") return `${amount} to Sky from ${primeLabel}`;
