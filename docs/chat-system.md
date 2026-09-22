@@ -128,8 +128,13 @@ checklist), `Sources`, `LimitsMeter` + `ContextPie` (usage and context size),
    or `INSERT` a new `conversations` row; 404 `conversation_not_found` if the
    id isn't the caller's.
 6. **Persist the user message** before streaming, then reload full history.
-7. **Build the model input** — system prompt, windowed history, facts prefetch.
-8. **Model tier routing** — `routeTier` + `resolveTierModels`.
+7. **Build the model input** — `prepareTurn` (`turn-setup.ts`): the Jev
+   prefetch judgement, tier routing (`routeTier` + `resolveTierModels`), system
+   prompt, windowed history, facts round and Jev-filtered `/teach` notes. It is
+   the one assembly `pnpm eval:tools` also runs; the per-user `/teach` lookup
+   stays in `chat.ts` and comes in as an argument.
+8. **Model tier routing** — part of step 7, decided before the prompt is
+   built because the citation format depends on the model.
 9. **SSE stream** — emit `meta`, then run the harness, forwarding every event
    as-is, `data: {json}\n\n` (§8 — there is one delivery shape, not a mode
    switch).
@@ -769,7 +774,7 @@ from cache, against 66% for gpt-5.6-luna. Compare `$ai_cache_read_input_tokens`
 and `$ai_time_to_first_token` after deploy. Further trimming of the prompt or
 tool text is deliberately NOT done here: an earlier verbosity cut made tool
 choice worse, and CI can't see tool choice, so any such change needs an
-end-to-end A/B first.
+end-to-end A/B first — `pnpm eval:tools` (§12).
 
 `CHAT_CONTEXT_WINDOW_TOKENS` (default **200,000**) is what the UI context-size
 indicator meters against — sized to the **smallest** model in the deployed
@@ -1073,6 +1078,7 @@ All are `bun scripts/eval/*.ts`, run manually (none gate CI yet) and most need
 | `pnpm eval:census` | Concept-census routing accuracy. |
 | `pnpm eval:complexity` | Tier-router similarity lane: recall vs false fires over 180 labeled questions. |
 | `pnpm eval:bakeoff`, `eval:wiki-ab` | Model bakeoffs and the constraints-wiki A/B. |
+| `pnpm eval:tools`, `eval:tools:compare` | Tool choice on ~60 synthetic cases through production's own pre-first-token assembly (`prepareTurn`) and loop (`runChat`, no verifier), real models: first call acceptable, required/forbidden tools, rounds, tool errors, empty results, and `atlas_query` params set outside what the question needs. Arms: production routing and a forced tier (default: both, so the default model is always measured). `compare` is the A/B gate for any prompt or tool-definition change: per-case flips plus an exact sign test over paired runs; exits 1 when B is significantly worse. |
 
 Open instrument work: wiring `eval:golden` into CI/release gating still needs a
 decision on where and how often the LLM spend is worth it.

@@ -60,6 +60,8 @@
     "eval:citation": "bun scripts/eval/eval-citation.ts",
     "eval:announce": "bun scripts/eval/eval-announce.ts",
     "eval:completeness": "bun scripts/eval/eval-completeness.ts",
+    "eval:tools": "bun scripts/eval/eval-tools.ts",
+    "eval:tools:compare": "bun scripts/eval/eval-tools-compare.ts",
     "census:embed-units": "bun scripts/aux/embed-units-census.ts",
     "build:at": "node --env-file-if-exists=.env.local scripts/required/build-at.mjs",
     "build:ts": "tsc -b",
@@ -81,7 +83,7 @@
     "preview": "pnpm --filter sabr-web preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:server": "pnpm check:mocks && bun test src/server scripts/eval/eval-verifier-mutations.test.ts scripts/eval/eval-retrieval-queries.test.ts",
+    "test:server": "pnpm check:mocks && bun test src/server scripts/eval/eval-verifier-mutations.test.ts scripts/eval/eval-retrieval-queries.test.ts scripts/eval/eval-tools-score.test.ts",
     "test:snap": "vitest run --config vitest.snap.config.ts",
     "test:snap:update": "vitest run --config vitest.snap.config.ts -u",
     "test:e2e": "playwright test --project=core",
@@ -92,7 +94,7 @@
     "knip": "knip",
     "pull-atlas": "git submodule update --init --recursive",
     "test:coverage": "vitest run --coverage",
-    "test:server:coverage": "pnpm check:mocks && bun test src/server scripts/eval/eval-verifier-mutations.test.ts scripts/eval/eval-retrieval-queries.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage/bun",
+    "test:server:coverage": "pnpm check:mocks && bun test src/server scripts/eval/eval-verifier-mutations.test.ts scripts/eval/eval-retrieval-queries.test.ts scripts/eval/eval-tools-score.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage/bun",
     "coverage:areas": "node scripts/aux/coverage-areas.mjs"
   },
   "dependencies": {

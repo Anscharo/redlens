@@ -320,6 +320,25 @@ export const config = {
   // answer) is never worse than today: judgePrefetch returns null and every
   // caller falls back to its existing lane.
   chatPrefetchJudgeDeadlineMs: Number(process.env.CHAT_PREFETCH_JUDGE_DEADLINE_MS ?? 600),
+  // "Did it answer the question?" (verify/answer-coverage.ts): one Jev request
+  // over question + answer after `answer_final`, concurrent with the audit —
+  // a Choice (answers / declines / deflects / asks) plus one Noul per question
+  // part, so a dropped part can be NAMED. Measured 2026-09-22 (docs/plans/
+  // jev-typesafe.md §2): `deflects` caught 84/84 gold announcements, real
+  // answers topped out at 0.16; per-part Nouls separate under-answering where
+  // a `partial` option could not. "" disables it (no call, no event).
+  chatAnswerCoverageModel: process.env.CHAT_ANSWER_COVERAGE_MODEL ?? "typesafe/jev-1.13",
+  // Jev screen in front of the per-paragraph refute (verify/refute-screen.ts).
+  //   "shadow" (default) — Jev screens every paragraph and its verdict is
+  //       recorded beside gemma's; gemma still runs on every paragraph. This
+  //       is the measurement phase: the offline bakeoff (85/100 planted
+  //       contradictions at P ≥ 0.2, ~90% of clean paragraphs skippable) is
+  //       in-sample and was never compared against paragraph-mode gemma on
+  //       real traffic.
+  //   "gate" — gemma runs only on paragraphs Jev flags or cannot fit.
+  //   "off"  — no screen.
+  chatRefuteScreen: (process.env.CHAT_REFUTE_SCREEN ?? "shadow") as "off" | "shadow" | "gate",
+  chatRefuteScreenModel: process.env.CHAT_REFUTE_SCREEN_MODEL ?? "typesafe/jev-1.13",
   // Deterministic checks (free, pure code) — independent of the model slots.
   chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
   // Deterministic pre-lookup (glossary + entity match on the user's message)
