@@ -37,6 +37,9 @@
 ## 2026-09-22
 - Gave atlas pull-request previews five minutes to finish building, so large PRs no longer time out at two minutes.
 
+## 2026-09-21
+- Private previews no longer compare against an old shared point in the repo's history; a pull request compares against its own base, a branch against the repo's default branch, and anything else against the live Atlas
+
 ## 2026-09-17
 - Pointed the private preview install screen at the repo's own GitHub account, named the one repository to grant, and flagged installs granted to every repository.
 - Fixed private pull request previews showing changes from the rest of the repo when the GitHub App can't read pull requests; they now compare against the repo's main branch

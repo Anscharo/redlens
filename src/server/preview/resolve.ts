@@ -17,12 +17,15 @@
 // names.
 //
 // Diff base: a PR preview is redlined against its own declared base branch
-// (`Resolved.prBase`, read off the Pulls payload) — never canonical
-// next-gen-atlas main. A fork BRANCH preview (no PR) declares no base, so it
-// redlines against the later of two candidates: its fork point with sky main,
-// and its merge base with the fork's own default branch (`Resolved.defaultBranch`)
-// — that candidate selection runs downstream (build.ts/pr-diff.ts); this module
-// only resolves the ref and hands back the candidates it read from GitHub.
+// (`Resolved.prBase`, read off the Pulls payload), or — when that could not be
+// read — the repo's default branch standing in for it; failing both, against
+// live next-gen-atlas main. Never against its fork point with nga main. A
+// public fork BRANCH preview (no PR) declares no base, so it redlines against
+// the later of two candidates: its fork point with nga main, and its merge
+// base with the fork's own default branch (`Resolved.defaultBranch`); a
+// PRIVATE branch has only the second. That selection runs downstream
+// (build.ts/pr-diff.ts/pr-diff-auto.ts); this module only resolves the ref and
+// hands back what it read from GitHub.
 //
 // Fork screening: any non-canonical repo (including a canonical-owner repo that
 // isn't THE atlas) resolves only if it is a TRUE fork of the canonical atlas
@@ -178,8 +181,8 @@ export interface Resolved {
    *  PR preview (canonical `pull-N`, public and private `owner:repo:pull-N`).
    *  Read off the Pulls payload (`base.repo.full_name`, `base.ref`, `base.sha`);
    *  absent when the PR HEAD came from the `refs/pull/N/head` fallback (the
-   *  GitHub App lacks Pull requests:read), in which case the preview follows
-   *  branch rules. `sha` is absent on a pinned-sha rebuild from the previews
+   *  GitHub App lacks Pull requests:read), in which case `defaultBranch`
+   *  stands in for it and is forced the same way. `sha` is absent on a pinned-sha rebuild from the previews
    *  row (only repo + ref are persisted); base-drift re-resolves the tip. */
   prBase?: { repo: string; ref: string; sha?: string };
   /** The head repo's default branch — the `repo` diff-base candidate for a
@@ -336,8 +339,8 @@ async function broadGrant(repo: string): Promise<Pick<Resolved, "grantTooBroad" 
 /** The PR's declared base branch, read off a Pulls API payload. Pure. Returns
  *  undefined unless `base.ref` is a real, non-empty string — a payload that
  *  doesn't shape like a PR (or a `refs/pull/N/head` fallback, which carries no
- *  base at all) yields no prBase, and the caller follows branch/fork rules
- *  instead. `fallbackRepo` covers the (in practice always-present, but never
+ *  base at all) yields no prBase, and the caller hands back the repo's
+ *  default branch to stand in for it. `fallbackRepo` covers the (in practice always-present, but never
  *  guaranteed) case where GitHub omits `base.repo` — a PR's base branch lives
  *  in the repo the PR was opened against, so that repo is always a safe
  *  fallback. `sha` is included only when GitHub gave one; a pinned-sha rebuild
@@ -357,7 +360,7 @@ export function prBaseOf(pullsJson: any, fallbackRepo: string): Resolved["prBase
  * head *branch* name + metadata, plus the base branch via prBaseOf); falls back
  * to `refs/pull/N/head` which only needs Contents:read — the permission the
  * GitHub App already has, but carries no base branch, so `prBase` is absent on
- * that path and the preview follows branch rules instead. Either way this is
+ * that path and the repo's default branch stands in for it. Either way this is
  * the PR's HEAD, never its base branch directly — but a PR is always redlined
  * against its own base branch (`prBase`) when one was resolved, never against
  * canonical next-gen-atlas main.
