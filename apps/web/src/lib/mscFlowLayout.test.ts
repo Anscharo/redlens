@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { layoutMscFlow, AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADER_SIZE, HEADERS, LABEL_X, LEFT_X, NODE_W, owedBySky, PIPE_SPACE, primeLabelStartX, SKY_LABEL_ROOM, SKY_LABEL_X, SKY_PIPE_SPACE, sourceBarX, sourceBracket, sourceLabelWidth, WIDTH } from "./mscFlowLayout";
+import { layoutMscFlow, AGENT_LINE_H, AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADER_SIZE, HEADERS, LABEL_X, LEFT_X, NODE_W, owedBySky, PIPE_SPACE, SKY_LABEL_ROOM, SKY_LABEL_X, SKY_PIPE_SPACE, sourceBarX, sourceBracket, sourceLabelWidth, WIDTH } from "./mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
 const flow = (over: Partial<PrimeFlowTotals> = {}): PrimeFlowTotals => ({
@@ -175,11 +175,19 @@ describe("layoutMscFlow", () => {
     // The To Sky line is set larger, so its floor is larger too.
     expect(SKY_PIPE_SPACE).toBeGreaterThan(PIPE_SPACE);
     expect(SKY_LABEL_X).toBeLessThan(WIDTH);
-    // CENTRE: a start-anchored "Name | $x" begins far enough left that its
-    // pipe lands on the column's centre — further left for a longer name.
-    const c = l.agents[0].labelX;
-    expect(primeLabelStartX("Spark", c)).toBeLessThan(c);
-    expect(primeLabelStartX("A Much Longer Prime Name", c)).toBeLessThan(primeLabelStartX("Spark", c));
+    // The gap between bars has to clear the label block above the lower one
+    // (two 42px lines); if it ever stops, the names sit on the bar above.
+    const six = layoutMscFlow(["spark", "grove", "keel", "skybase", "obex", "osero"].map((p, i) =>
+      flow({ prime: p, sky: 10_000_000 / (i + 1), kept: 2_000_000 / (i + 1), cof: 9_900_000 / (i + 1) })));
+    for (let i = 1; i < six.agents.length; i++) {
+      const gap = six.agents[i].y - (six.agents[i - 1].y + six.agents[i - 1].h);
+      expect(gap).toBeGreaterThan(2 * AGENT_LINE_H);
+    }
+    // CENTRE: every Prime's label is anchored on the same x — the column's
+    // centre — so the names line up without depending on how wide they are.
+    const centres = new Set(l.agents.map((a) => a.labelX));
+    expect(centres.size).toBe(1);
+    expect([...centres][0]).toBeCloseTo(l.agents[0].x + AGENT_W / 2, 6);
     // The ribbon span is most of the canvas, not a pair of fat gutters.
     // (The gutters are label-width plus one pipe-space of air, so this is a
     // floor on the drawing, not a target — the room either side of the

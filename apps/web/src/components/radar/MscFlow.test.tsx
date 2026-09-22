@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { layoutMscFlow, GROUP_HEADING_SIZE, HEADER_SIZE, LABEL_X, primeLabelStartX, SKY_LABEL_X, sourceBarX, sourceBracket } from "../../lib/mscFlowLayout";
+import { layoutMscFlow, AGENT_LINE_H, GROUP_HEADING_SIZE, HEADER_SIZE, LABEL_X, SKY_LABEL_X, sourceBarX, sourceBracket } from "../../lib/mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 import { MscFlow } from "./MscFlow";
 import type { OverviewPrime } from "./MscRingPrime";
@@ -114,11 +114,17 @@ describe("MscFlow", () => {
     }
     const skyBar = layoutMscFlow(flows).sky;
     expect(Number(toSky.getAttribute("y"))).toBeCloseTo(skyBar.y + skyBar.h / 2 + 18, 6);
-    // The Prime's label is start-anchored at the x that puts its PIPE on the
-    // column's centre line.
+    // The Prime is two centred lines over its bar: the name, the gross under
+    // it, both on the column's centre so they cannot drift apart.
+    const agent = layoutMscFlow(flows).agents[0];
     const primeLabel = screen.getByText("Spark");
-    expect(primeLabel).toHaveAttribute("text-anchor", "start");
-    expect(Number(primeLabel.getAttribute("x"))).toBeCloseTo(primeLabelStartX("Spark", layoutMscFlow(flows).agents[0].labelX), 6);
+    expect(primeLabel).toHaveAttribute("text-anchor", "middle");
+    expect(Number(primeLabel.getAttribute("x"))).toBeCloseTo(agent.labelX, 6);
+    const gross = [...container.querySelectorAll("text.msc-ring-sublabel")].find(
+      (t) => Number(t.getAttribute("x")) === agent.labelX,
+    )!;
+    expect(gross).toHaveAttribute("text-anchor", "middle");
+    expect(Number(gross.getAttribute("y")) - Number(primeLabel.getAttribute("y"))).toBeCloseTo(AGENT_LINE_H, 6);
     expect(container.querySelector('.msc-flow-source[data-kind="kept"][data-origin="earned"]')).toBeInTheDocument();
     expect(container.querySelector('.msc-flow-source[data-kind="agentRate"][data-origin="sky"]')).toBeInTheDocument();
     // Sky's column names no Prime; the share pill does.

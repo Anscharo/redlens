@@ -171,22 +171,13 @@ export const SKY_LABEL_GAP = gapFor(SKY_PIPE_SPACE);
 export const SKY_LABEL_X = WIDTH - EDGE_PAD;
 const RIGHT_GUTTER = SKY_LABEL_ROOM + SKY_LABEL_GAP + EDGE_PAD;
 export const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
-/** A Prime's label reads "Name | $12.71M" — the name in Inter, the pipe and
- *  the figure in mono — and the PIPE is what sits on the column's centre
- *  line, so the names hang left of it and the figures right of it whatever
- *  their lengths. Measured, never guessed (textWidth). */
-const AGENT_FONT = "42px 'Inter', system-ui, sans-serif";
-const AGENT_CHAR_PX = 23;
-const AGENT_MONO_FONT = "42px 'Source Code Pro', 'Courier New', monospace";
-const AGENT_MONO_CHAR_PX = 25.3;
-/** Where a start-anchored "Name | $x" begins so its pipe lands on centerX. */
-export function primeLabelStartX(label: string, centerX: number): number {
-  const toPipe =
-    textWidth(label, AGENT_FONT, AGENT_CHAR_PX) +
-    textWidth(" ", AGENT_MONO_FONT, AGENT_MONO_CHAR_PX) +
-    textWidth("|", AGENT_MONO_FONT, AGENT_MONO_CHAR_PX) / 2;
-  return centerX - toPipe;
-}
+/** A Prime's label is TWO CENTRED LINES over its bar — the name, then the
+ *  gross under it. It was one line centred on its pipe character, which
+ *  only lines up if every name measures exactly right; the measurement is
+ *  close but not exact, so the pipes came out a hair apart down the column
+ *  and read as no alignment at all. Two centred lines need no measurement:
+ *  the column's centre is the same x for every Prime. */
+export const AGENT_LINE_H = 48;
 /** The Prime column sits 3/5 of the way across the ribbon span: the left
  *  half carries up to seven sources fanning into every Prime, the right
  *  only the two To-Sky ribbons, so the busier side gets the room. */
@@ -199,10 +190,10 @@ const INNER_H = 340;
  *  these and stretches the canvas instead. */
 const SOURCE_GAP = 70;
 /** Room above each Prime's bar for its name (42px) and gross figure (28px). */
-const AGENT_GAP = 120;
+const AGENT_GAP = 118;
 /** Below the headers and the first Prime's name block, with clear air
  *  between the PRIME header and the first name. */
-const TOP = 160;
+const TOP = 185;
 const BOTTOM_PAD = 16;
 /** Fixed canvas height, so the viewBox — and with it the scale, the column
  *  x positions and the headers — never changes from month to month. Tall
@@ -468,15 +459,17 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
       const sh = skyCursor - shareY;
       shares.push({ prime: p.prime, value: skyValue, y: shareY, h: sh, pillX: RIGHT_X - SHARE_PILL_INSET, pillY: shareY + sh / 2 - PILL_LIFT });
     }
-    // Name and gross on one line above the bar, just clear of its top; the
-    // gross pill hangs above it.
+    // labelY is the GROSS line, just clear of the bar's top; the name sits
+    // one line above it and the gross pill above them both.
     const labelY = y - 24;
     return {
       prime: p.prime, x: MID_X, y, h, inbound, outbound, loss: a.loss,
       sky: a.sky, cof: a.cof, sde: a.sde, gross: a.gross,
       share: a.gross >= SETTLEMENT_NEAR_ZERO ? a.sky / a.gross : null,
       labelX: MID_X + AGENT_W / 2, labelY,
-      grossPillX: MID_X + AGENT_W / 2, grossPillY: labelY - 60, grossAnchorY: labelY - 30,
+      grossPillX: MID_X + AGENT_W / 2,
+      grossPillY: labelY - AGENT_LINE_H - 60,
+      grossAnchorY: labelY - AGENT_LINE_H - 30,
     };
   });
 
