@@ -100,7 +100,7 @@ test("defaults when no env is set", async () => {
   expect(config.chatModelFallbacks).toEqual([]);
   expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini"]);
   expect(config.rateLimitTokensPerWindow).toBe(1_000_000_000_000);
-  expect(config.rateLimitWindowMinutes).toBe(120);
+  expect(config.rateLimitWindowMinutes).toBe(90);
   expect(config.rateLimitTokensPerWindowBoosted).toBe(3_000_000);
   expect(config.rateLimitBoostLogins).toEqual([]);
   expect(config.mcpPath).toBe("/mcp");

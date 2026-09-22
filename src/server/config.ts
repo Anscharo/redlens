@@ -471,7 +471,7 @@ export const config = {
   // RATE_LIMIT_TOKENS_PER_WINDOW back down (750_000 was the last live value)
   // if per-user abuse becomes a problem.
   rateLimitTokensPerWindow: Number(process.env.RATE_LIMIT_TOKENS_PER_WINDOW ?? 1_000_000_000_000),
-  rateLimitWindowMinutes: Number(process.env.RATE_LIMIT_WINDOW_MINUTES ?? 120),
+  rateLimitWindowMinutes: Number(process.env.RATE_LIMIT_WINDOW_MINUTES ?? 90),
   // Raised 500k → 750k after beta feedback: testers were hitting the window
   // mid-session on ordinary research. The per-user window is a FAIRNESS gate
   // (no one visitor monopolises a shared singleton), not the cost backstop —
