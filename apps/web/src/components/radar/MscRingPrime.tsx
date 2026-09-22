@@ -1,6 +1,6 @@
 import { formatMonth, formatUsd, SETTLEMENT_NEAR_ZERO } from "../../lib/settlements";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
-import type { RingPrime } from "../../lib/mscOverviewLayout";
+import { FIGURE_SIZE, NAME_SIZE, SUBLABEL_DY, SUBLABEL_SIZE, type RingPrime } from "../../lib/mscOverviewLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
 import { markId, SLICE_CODE } from "./MscRingPills";
 
@@ -67,20 +67,21 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
       {/* In-slice figures, in the slice's own ink (data-kind → token). */}
       {ring.slices.map((s) =>
         s.figureX != null && s.figureY != null ? (
-          <text key={`${s.kind}-fig`} x={s.figureX} y={s.figureY + 5} textAnchor="middle" fontSize={15} className="msc-ring-figure mono" data-kind={s.kind}>
+          <text key={`${s.kind}-fig`} x={s.figureX} y={s.figureY + FIGURE_SIZE / 3} textAnchor="middle" fontSize={FIGURE_SIZE} className="msc-ring-figure mono" data-kind={s.kind}>
             {SLICE_CODE[s.kind]} {formatUsd(s.signed, true)}
           </text>
         ) : null,
       )}
       {/* The loss hole: striped in the kept color, the same mark the key
-          uses for "supply-side loss". Its AREA is the loss. */}
+          uses for "supply-side loss". Sized from the loss on the pies' own
+          scale (SIZE_EXP) — the loss by rank, not by area. */}
       {ring.hole && (
         <g className="msc-ring-mark" data-mark={markId(flow.prime, "loss")}>
           <circle cx={ring.cx} cy={ring.cy} r={ring.hole.r} className="msc-ring-hole" fill="url(#msc-ring-loss)" />
         </g>
       )}
       <g className="msc-ring-mark" data-mark={markId(flow.prime, "received")}>
-        <text x={ring.labelX} y={ring.labelY} textAnchor="middle" fontSize={24} className="msc-ring-label">
+        <text x={ring.labelX} y={ring.labelY} textAnchor="middle" fontSize={NAME_SIZE} className="msc-ring-label">
           {label}
         </text>
         {/* What it received, on the line under the name — what the pie's
@@ -88,9 +89,9 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
             (the size scale is compressed; see SIZE_EXP). */}
         <text
           x={ring.labelX}
-          y={ring.labelY + 20}
+          y={ring.labelY + SUBLABEL_DY}
           textAnchor="middle"
-          fontSize={16}
+          fontSize={SUBLABEL_SIZE}
           className="msc-ring-sublabel mono"
         >
           {formatUsd(ring.received, true)}

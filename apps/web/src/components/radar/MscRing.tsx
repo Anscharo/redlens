@@ -1,8 +1,12 @@
-import { formatMonth, formatUsd } from "../../lib/settlements";
+import { useId } from "react";
+import { formatMonth } from "../../lib/settlements";
 import type { RingLayout } from "../../lib/mscOverviewLayout";
-import { markId, PillOverlay } from "./MscRingPills";
-import { RingPrimeGroup, type MscRingPrime } from "./MscRingPrime";
+import { PillOverlay } from "./MscRingPills";
+import { RingChart } from "./MscRingChart";
+import type { MscRingPrime } from "./MscRingPrime";
 import { RingHoverStyles } from "./MscRingHoverStyles";
+import { MscZoomReset } from "./MscZoomReset";
+import { useSvgZoom } from "../../hooks/useSvgZoom";
 
 export type { MscRingPrime } from "./MscRingPrime";
 
@@ -14,11 +18,32 @@ interface Props {
   centerFigure: string;
 }
 
-/** How far outside the donut a wedge's pill sits. */
-const WEDGE_PILL_GAP = 44;
+/** How far outside the donut a wedge's pill sits (matches PILL_OFFSET). */
+const WEDGE_PILL_GAP = 56;
+/** The orbit's pills are drawn at this multiple of their base 16px type —
+ *  the canvas renders at about half, so a 1× pill read at ~8px. */
+const PILL_SCALE = 1.6;
 
 export function MscRing({ layout, primes, month, centerFigure }: Props) {
   const labelOf = (prime: string) => primes.find((p) => p.flow.prime === prime)?.label ?? prime;
+  // The wheel zooms the VIEW, not the data, so it survives a month change
+  // and the layout never sees it. The hook works in a 0-based drawing of
+  // layout.width × layout.height, while this chart's own frame is a CROP
+  // starting at (layout.x, layout.y) — so the drawing is translated into
+  // the hook's space rather than the hook being taught about the crop.
+  // Unzoomed, "0 0 w h" over a translated drawing is the same picture as
+  // the crop was, to the pixel.
+  //
+  // One difference from the flow chart: that canvas is the same size every
+  // month, so its zoom survives a month change. This one's box is cropped
+  // to the month's own content, so a month change resizes it and the hook
+  // starts over — which is right here, since the old box may not even be
+  // inside the new drawing.
+  const zoom = useSvgZoom(layout.width, layout.height);
+  const [vx, vy, vw, vh] = zoom.viewBox.split(" ").map(Number);
+  // useId's own value carries colons; strip them so the `url(#…)` reference
+  // is a plain token in every renderer.
+  const clipId = `msc-ring-clip${useId().replace(/[^\w-]/g, "")}`;
   // Wedge pills ride just outside the donut on the wedge's own radial, where
   // its arrow docks.
   const midR = (layout.skyR + layout.skyInnerR) / 2;
@@ -45,65 +70,53 @@ export function MscRing({ layout, primes, month, centerFigure }: Props) {
       <RingHoverStyles marks={marks} />
       <figure
         className="msc-ring-frame"
+        style={{ position: "relative" }}
         aria-label={`Monthly Settlement Cycle flows for ${formatMonth(month)}`}
       >
+        {/* touch-action is only surrendered once zoomed, so a finger drag
+            over the chart still scrolls the page on a phone at rest. */}
         <svg
+          ref={zoom.ref}
           className="msc-ring"
-          viewBox={`${layout.x} ${layout.y} ${layout.width} ${layout.height}`}
+          viewBox={zoom.viewBox}
           preserveAspectRatio="xMidYMid meet"
+          data-zoomed={zoom.zoomed ? "true" : undefined}
+          style={{ cursor: zoom.zoomed ? "grab" : undefined, touchAction: zoom.zoomed ? "none" : undefined }}
+          onDoubleClick={zoom.reset}
+          {...zoom.pan}
         >
-        {/* The loss mark: diagonal stripes in the loss red (a negative
-            arrow, the hole) — the same mark every MSC chart uses. */}
-        <defs>
-          <pattern id="msc-ring-loss" patternUnits="userSpaceOnUse" width={8} height={8} patternTransform="rotate(45)">
-            <rect width={4.5} height={8} style={{ fill: "var(--msc-loss)" }} />
-          </pattern>
-        </defs>
-        {/* Sky's pie is what SKY received — cost of funds and Sky Direct
-            Exposure — one wedge per Prime, so "these flows add up to Sky"
-            is visible rather than asserted, and each wedge split by which
-            of the two it is. The two fills are the same tokens the source
-            labels and the key use, so a wedge names itself. */}
-        <circle cx={layout.cx} cy={layout.cy} r={layout.skyR} className="msc-ring-sky-disc" />
-        {layout.skyWedges.map((w) => (
-          <g key={w.prime} className="msc-ring-mark" data-mark={markId(w.prime, "share")} style={w.alpha < 1 ? { opacity: w.alpha } : undefined}>
-            {w.parts.map((part) => (
-              <path
-                key={part.kind}
-                d={part.path}
-                fillRule="evenodd"
-                className={`msc-ring-sky-wedge msc-ring-${part.kind}`}
-                data-prime={w.prime}
-                data-kind={part.kind}
-              />
-            ))}
+          <desc>Scroll or pinch over the chart to zoom in on a slice, drag to pan, double-click to reset.</desc>
+          {/* The loss mark: diagonal stripes in the loss red (a negative
+              arrow, the hole) — the same mark every MSC chart uses. */}
+          <defs>
+            <pattern id="msc-ring-loss" patternUnits="userSpaceOnUse" width={8} height={8} patternTransform="rotate(45)">
+              <rect width={4.5} height={8} style={{ fill: "var(--msc-loss)" }} />
+            </pattern>
+            {/* `.msc-ring` is overflow: visible (the hover pills have to be
+                able to leave the frame), which at 1× is invisible and once
+                zoomed lets the whole drawing spill over the card. So the
+                CHART is clipped to the current view and the PILLS are not —
+                the one layer that is supposed to escape. */}
+            <clipPath id={clipId}>
+              <rect x={vx} y={vy} width={vw} height={vh} />
+            </clipPath>
+          </defs>
+          <g clipPath={`url(#${clipId})`}>
+            {/* The crop, expressed as a transform so the zoom can work in a
+                plain 0-based box. */}
+            <g transform={`translate(${-layout.x},${-layout.y})`}>
+              <RingChart layout={layout} primes={primes} month={month} centerFigure={centerFigure} labelOf={labelOf} />
+            </g>
           </g>
-        ))}
-        {layout.skyWedges.map((w) =>
-          w.figureX != null && w.figureY != null ? (
-            <text key={w.prime} x={w.figureX} y={w.figureY} textAnchor="middle" fontSize={15} className="msc-ring-figure" data-kind="sky" data-prime={w.prime}>
-              <tspan x={w.figureX} dy={-4}>
-                {labelOf(w.prime)}
-              </tspan>
-              <tspan x={w.figureX} dy={18} className="mono">
-                {formatUsd(w.value, true)}
-              </tspan>
-            </text>
-          ) : null,
-        )}
-        {/* Sky's name and total above its pie — the same name-then-figure
-            treatment, sizes and inks as a Prime's. */}
-        <text x={layout.cx} y={layout.cy - layout.skyR - 38} textAnchor="middle" fontSize={24} className="msc-ring-label">
-          To Sky
-        </text>
-        <text x={layout.cx} y={layout.cy - layout.skyR - 18} textAnchor="middle" fontSize={16} className="msc-ring-sublabel mono">
-          {centerFigure}
-        </text>
-        {primes.map((p) => (
-          <RingPrimeGroup key={p.flow.prime} {...p} month={month} />
-        ))}
-        <PillOverlay rings={primes.map((p) => ({ ring: p.ring, label: p.label }))} wedges={wedgePills} />
+          <g transform={`translate(${-layout.x},${-layout.y})`}>
+            <PillOverlay
+              rings={primes.map((p) => ({ ring: p.ring, label: p.label }))}
+              wedges={wedgePills}
+              scale={PILL_SCALE}
+            />
+          </g>
         </svg>
+        {zoom.zoomed && <MscZoomReset onReset={zoom.reset} />}
       </figure>
     </>
   );

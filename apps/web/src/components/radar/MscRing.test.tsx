@@ -122,14 +122,50 @@ describe("MscRing", () => {
       <MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$19.00M" />,
     );
     const kids = [...container.querySelector("svg.msc-ring")!.children];
-    // Last child = painted last = on top of every prime, wedge and label.
-    expect(kids[kids.length - 1]).toHaveClass("msc-ring-pills");
+    // Last layer = painted last = on top of every prime, wedge and label.
+    expect(kids[kids.length - 1].querySelector(":scope > .msc-ring-pills")).toBeInTheDocument();
     expect(kids.some((el) => el.querySelector(".msc-ring-prime"))).toBe(true);
     // Pills are paired to their marks by id, since they no longer nest inside them.
     expect(container.querySelector('.msc-ring-mark[data-mark="spark::kept"] path.msc-ring-kept')).toBeInTheDocument();
     expect(container.querySelector('.msc-ring-pill[data-mark="spark::kept"]')).toBeInTheDocument();
     expect(container.querySelector('.msc-ring-mark[data-mark="spark::agentRate"] path.msc-ring-agentRate')).toBeInTheDocument();
     expect(container.querySelector('.msc-ring-mark[data-mark="spark::received"] text.msc-ring-label')).toBeInTheDocument();
+  });
+
+  it("wires the wheel zoom without moving the chart at rest", () => {
+    const { layout, primes } = ringPrimes([flow()], "2026-07");
+    const { container } = render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
+    const svg = container.querySelector("svg.msc-ring")!;
+    // Unzoomed the view is the whole drawing, and the crop the layout
+    // computed is carried by a translate instead — the same picture the
+    // chart had before it could zoom, to the pixel.
+    expect(svg.getAttribute("viewBox")).toBe(`0 0 ${layout.width} ${layout.height}`);
+    expect(svg).not.toHaveAttribute("data-zoomed");
+    const moved = [...svg.querySelectorAll(":scope > g, :scope > [clip-path] > g")].map((g) =>
+      g.getAttribute("transform"),
+    );
+    expect(moved).toContain(`translate(${-layout.x},${-layout.y})`);
+    // The gesture is named for anyone who cannot discover it by trying.
+    expect(svg.querySelector("desc")!.textContent).toMatch(/Scroll or pinch/);
+    // No reset button until there is something to reset.
+    expect(screen.queryByRole("button", { name: /reset zoom/i })).not.toBeInTheDocument();
+  });
+
+  it("clips the chart to the frame but lets the pill layer escape it", () => {
+    const { layout, primes } = ringPrimes([flow()], "2026-07");
+    const { container } = render(<MscRing layout={layout} primes={primes} month="2026-07" centerFigure="$10.00M" />);
+    const svg = container.querySelector("svg.msc-ring")!;
+    // `.msc-ring` is overflow: visible, so a zoomed drawing would spill over
+    // the card without this. The clip tracks the current view exactly.
+    const clipped = svg.querySelector("g[clip-path]")!;
+    expect(clipped.querySelector(".msc-ring-prime")).toBeInTheDocument();
+    expect(clipped.querySelector(".msc-ring-pills")).not.toBeInTheDocument();
+    const id = clipped.getAttribute("clip-path")!.replace(/^url\(#|\)$/g, "");
+    const rect = svg.querySelector(`defs clipPath#${CSS.escape(id)} rect`)!;
+    expect(rect.getAttribute("width")).toBe(String(layout.width));
+    expect(rect.getAttribute("height")).toBe(String(layout.height));
+    // Pills stay outside the clip: hover text is allowed to leave the frame.
+    expect(svg.querySelector(".msc-ring-pills")!.closest("g[clip-path]")).toBeNull();
   });
 
   it("gives Sky one wedge per contributing prime, split by cost of funds and SDE", () => {

@@ -56,8 +56,12 @@ import { textWidth } from "./textWidth";
 export const WIDTH = 1300;
 const CX = WIDTH / 2;
 /** Orbit circle the pie centers start on — a lower bound; a pie that would
- *  lean into Sky is pushed further out. Round, so no direction is favoured. */
-const ORBIT_RX = 520;
+ *  lean into Sky is pushed further out. Round, so no direction is favoured.
+ *  RX is the free parameter that keeps the cropped box's aspect near the
+ *  card's own (~950:420): the bottom arc sets the height, so when Sky and
+ *  the pies grow, RX has to grow with them or the box turns square, the
+ *  height starts binding and every label on screen gets smaller. */
+const ORBIT_RX = 600;
 const ORBIT_RY = 250;
 /** Where the first Prime sits: 9 o'clock. The card is wide, so the big
  *  Primes (first in PRIME_ORDER) take the sides and the small ones the
@@ -65,10 +69,22 @@ const ORBIT_RY = 250;
 const START_ANGLE = Math.PI;
 /** Sky pie: on the SAME size scale as the pies (see R_MAX), with a floor
  *  so the label always fits. No hole — a hole means a loss here. */
-const SKY_MIN_R = 80;
+const SKY_MIN_R = 100;
 /** ONE size scale for the donut and every pie: the month's biggest
- *  amount renders at this radius. */
-const R_MAX = 140;
+ *  amount renders at this radius — in practice Sky, which is four times
+ *  the biggest Prime in every published month.
+ *
+ *  Spending this is not free and not a no-op. The viewBox is cropped to
+ *  the content and the card's height sets the scale, so growing every
+ *  circle by the same factor would cancel out — but the FLOOR and the
+ *  label type do not grow with it, so a bigger R_MAX buys real room at
+ *  the small end and pushes the type down relative to the drawing. It is
+ *  bounded by the crop going TALL: the bottom Primes are pushed out to
+ *  skyR + their own radius + DONUT_GAP, so each unit of R_MAX costs two
+ *  units of the box's height, the card scales the box to fit, and past
+ *  some point the labels lose more than the circles gain. 170 (with
+ *  ORBIT_RX widened to match) is where that trade stops paying. */
+const R_MAX = 170;
 /**
  * The size exponent: radius = R_MAX * (value / ref) ** SIZE_EXP.
  *
@@ -81,36 +97,52 @@ const R_MAX = 140;
  * sized by the FLOOR rather than by their money, which is the one thing a
  * size encoding must never do.
  *
- * 0.3 is a Flannery-style compromise: still one monotone scale shared by
- * the donut and every pie, so bigger always means more and the ranking is
- * exact, but a pie's AREA is no longer readable as dollars — it
- * overstates the small end on purpose. Measured over all seven published
- * months, it puts at most one row on the floor (and in six of the seven,
- * none), and an order of magnitude of money is always at least a doubling
- * of radius. Read the figures for amounts; read the circles for rank and
- * rough magnitude. MscRingKey's reading guide says exactly that — keep the
- * two in step if this number moves.
+ * A Flannery-style compromise is the way out: still one monotone scale
+ * shared by the donut and every pie, so bigger always means more and the
+ * ranking is exact, but a pie's AREA is no longer readable as dollars — it
+ * overstates the small end on purpose. Read the figures for amounts; read
+ * the circles for rank and rough magnitude. MscRingKey's reading guide
+ * says exactly that — keep the two in step if this number moves.
+ *
+ * 0.45, not the 0.3 first shipped: 0.3 fixed the pile-up but squeezed the
+ * whole set into a 3.6–5.7× span of radius over a 324× span of money,
+ * which read as "the pies are all much of a muchness". The exponent, the
+ * FLOOR and R_MAX are three independent levers and all three had to move
+ * — raising the exponent alone drives the small end straight back under
+ * the floor. With R_MAX at 170 and the floor at 7, measured over all
+ * seven published months, 0.45 nearly doubles the span again (6.7–13.1×)
+ * while still putting at most one row on the minimum.
+ *
+ * 0.45 and not 0.5 is a measured stop, not a taste: at true area Jan 2026
+ * renders Keel ($28.5k) at 7.1 and Grove ($6.3k) at the 7.0 floor — two
+ * rows a 4.5× difference apart, the same size. That is the exact defect
+ * this scale exists to prevent, so area-proportionality cannot come back
+ * until the floor can go lower than a hoverable disc.
  */
-const SIZE_EXP = 0.3;
+const SIZE_EXP = 0.45;
 /** Smallest pie, so a Prime that rounds to nothing is still a visible,
- *  hoverable disc. Deliberately well below the smallest real row: under
- *  SIZE_EXP the floor is a backstop for a row with no money, not the thing
- *  that sizes the small end. */
-const PIE_MIN_R = 13;
+ *  hoverable disc. Deliberately well below the smallest real row — the
+ *  floor is a backstop for a row with no money, never the thing that sizes
+ *  the small end, and it has to stay below whatever SIZE_EXP gives the
+ *  smallest real Prime or the pile-up comes straight back. */
+const PIE_MIN_R = 7;
 /** A loss hole is never smaller than this (a hairline hole reads as a
- *  rendering glitch) nor closer than HOLE_RIM to the pie's edge. */
-const HOLE_MIN_R = 6;
-const HOLE_RIM = 6;
+ *  rendering glitch) nor closer than HOLE_RIM to the pie's edge. Both sit
+ *  under PIE_MIN_R, or the floor pie would be all hole. */
+const HOLE_MIN_R = 4;
+const HOLE_RIM = 4;
 /** Minimum clearance between two pies (including their names). */
 const CLEARANCE = 22;
 /** Minimum gap between a pie and the donut — room for the arrow. */
 const DONUT_GAP = 70;
-/** Room reserved outside a pie for its name and received figure (2 lines). */
-const LABEL_OUT = 50;
+/** Room reserved outside a pie for its name and received figure (2 lines):
+ *  NAME_SIZE + SUBLABEL_DY + LABEL_GAP, spelled out rather than derived
+ *  because it is declared above the type block. Keep it in step. */
+const LABEL_OUT = 74;
 /** Padding around the cropped viewBox. */
 const CROP_PAD = 24;
 /** Half-width allowance for a name under a pie, for the crop. */
-const NAME_HALF_W = 80;
+const NAME_HALF_W = 106;
 /** Arrow shaft width: linear in the To-Sky amount, biggest at W_MAX. */
 const W_MAX = 22;
 const W_MIN = 3;
@@ -121,17 +153,46 @@ const HEAD_FLARE = 7;
 const MIN_WEDGE = 0.05;
 /** Keep a dock point this fraction of its wedge's span inside either edge. */
 const DOCK_INSET = 0.15;
+/**
+ * TYPE. Every size on this chart lives here and is exported, because the
+ * layout MEASURES the same strings the view draws: a size the view hard-
+ * codes and the layout does not know about silently breaks `fitInSector`
+ * (a figure placed where its real box does not fit) and `fitViewBox` (a
+ * name cropped off the frame). The view imports these; it never writes a
+ * number of its own.
+ *
+ * The working canvas is ~1250×700 and the card renders it about 0.55×, so
+ * these are roughly doubled from the 15/24/16 they were: at 15px the
+ * in-slice figures landed near 8px on screen, which is what "all labels
+ * are too small" meant. The cost is paid by `fitInSector` — bigger boxes
+ * fit inside fewer slices, so a few figures fall back to the hover pill.
+ */
+export const NAME_SIZE = 32;
+export const SUBLABEL_SIZE = 22;
+export const FIGURE_SIZE = 21;
+/** Baseline-to-baseline for a name and the figure line under it, and the
+ *  gap that pair keeps from the pie's rim. */
+export const SUBLABEL_DY = 28;
+const LABEL_GAP = 14;
+/** Sky's name + total sit above its disc on the same pattern. */
+export const SKY_LABEL_DY = 24 + SUBLABEL_DY;
+export const SKY_SUBLABEL_DY = 24;
+/** The wedge's two lines straddle the fitted centre (see MscRing). */
+export const WEDGE_TSPAN_DY = [-6, 25] as const;
 /** Permanent figure labels: a slice or wedge shows its figure only when the
  *  measured text box fits INSIDE it — inside the pie's edge, clear of the
  *  hole, within the slice's angles — at one of a few radii along its
- *  mid-angle (see fitInSector). A pie's received total goes under the name. */
-const FIGURE_FONT = "15px 'Source Code Pro', 'Courier New', monospace";
-const FIGURE_CHAR_PX = 9.1;
-const NAME_FONT = "15px 'Inter', system-ui, sans-serif";
-const NAME_CHAR_PX = 8.2;
-/** Line box of one 15px line, and the two-line wedge label. */
-const FIGURE_H = 16;
-const WEDGE_LABEL_H = 34;
+ *  mid-angle (see fitInSector). A pie's received total goes under the name.
+ *  The CHAR_PX numbers are textWidth's jsdom fallback for these exact font
+ *  strings and MUST move with the sizes above, or every measurement in the
+ *  test environment silently goes wrong. */
+const FIGURE_FONT = `${FIGURE_SIZE}px 'Source Code Pro', 'Courier New', monospace`;
+const FIGURE_CHAR_PX = 12.7;
+const NAME_FONT = `${NAME_SIZE}px 'Inter', system-ui, sans-serif`;
+const NAME_CHAR_PX = 17.5;
+/** Line box of one figure line, and the two-line wedge label. */
+const FIGURE_H = 22;
+const WEDGE_LABEL_H = 48;
 /** Breathing room between a figure's box and any edge. */
 const FIGURE_PAD = 5;
 
@@ -149,8 +210,9 @@ export const SLICE_CODE: Record<string, string> = {
 /** How far (radians) a Prime may sit from its own wedge before its slot is
  *  pulled toward it — beyond this the arrow would cross the donut. */
 const MAX_LEAN = Math.PI / 3;
-/** Leader length from a mark to its hover pill. */
-const PILL_OFFSET = 40;
+/** Leader length from a mark to its hover pill — grown with the pill's own
+ *  type (MscRingPills' `scale`), so the pill still clears the mark. */
+const PILL_OFFSET = 56;
 /** Clearance between the two arrow lanes of one Prime. */
 const LANE_GAP = 3;
 
@@ -543,10 +605,17 @@ export function layoutMscRing(
 
   // Where prime i's pie lands at orbit angle t: pushed straight out from
   // Sky until it clears the donut by DONUT_GAP.
+  //
+  // The PIE's radius is what has to clear, not `spaceR` — a Prime's name
+  // is always drawn on the side AWAY from Sky (see labelY below), so the
+  // room reserved for it never sits in this corridor. Reserving it here
+  // pushed every Prime a whole label further out for nothing, and since
+  // the bottom arc is what sets the cropped box's height, that was ~70
+  // units of dead vertical on a drawing the card scales to fit.
   const placed = (i: number, t: number) => {
     let [x, y] = orbit(t, cy);
     const d = Math.hypot(x - CX, y - cy) || 1;
-    const need = skyR + shape[i].spaceR + DONUT_GAP;
+    const need = skyR + shape[i].r + DONUT_GAP;
     if (d < need) {
       x += ((x - CX) / d) * (need - d);
       y += ((y - cy) / d) * (need - d);
@@ -707,10 +776,14 @@ export function layoutMscRing(
 
     // Name outside the pie on the side away from Sky (above for the upper
     // half, below for the lower), with the gross figure always on the line
-    // UNDER the name (labelY + 16, drawn by the view), so the two read the
-    // same way everywhere; the gross pill goes beyond both.
+    // UNDER the name (labelY + SUBLABEL_DY, drawn by the view), so the two
+    // read the same way everywhere; the gross pill goes beyond both.
     const above = py <= cy;
-    const labelY = above ? py - s.r - 38 * r.alpha : py + s.r + 26 * r.alpha;
+    // Above: the pair hangs off the rim, so the FIGURE's baseline (labelY +
+    // SUBLABEL_DY) plus its descender is what has to clear the pie. Below:
+    // the NAME's baseline clears it by its own size.
+    const aboveOff = SUBLABEL_DY + LABEL_GAP;
+    const labelY = above ? py - s.r - aboveOff * r.alpha : py + s.r + NAME_SIZE * r.alpha;
     return {
       alpha: r.alpha,
       prime: r.p.prime,
@@ -727,9 +800,9 @@ export function layoutMscRing(
       labelY,
       // Clear of the name + figure pair.
       grossPillX: px,
-      grossPillY: above ? labelY - 28 : labelY + 44,
+      grossPillY: above ? labelY - 46 : labelY + SUBLABEL_DY + 40,
       grossAnchorX: px,
-      grossAnchorY: above ? labelY - 12 : labelY + 22,
+      grossAnchorY: above ? labelY - 20 : labelY + SUBLABEL_DY + 8,
     };
   });
 
@@ -741,16 +814,18 @@ export function layoutMscRing(
 function fitViewBox(primes: RingPrime[], skyR: number, cy: number) {
   let x0 = CX - skyR;
   let x1 = CX + skyR;
-  // Sky's name and figure sit above its pie, like a Prime's (see MscRing).
-  let y0 = cy - skyR - 38 - 24;
+  // Sky's name and figure sit above its pie, like a Prime's (see MscRing);
+  // the name's own ascent is the last thing above it.
+  let y0 = cy - skyR - SKY_LABEL_DY - NAME_SIZE;
   let y1 = cy + skyR;
   for (const p of primes) {
     // A Prime mid-arrival reserves only its alpha's share of the name room.
     x0 = Math.min(x0, p.cx - p.r, p.labelX - NAME_HALF_W * p.alpha);
     x1 = Math.max(x1, p.cx + p.r, p.labelX + NAME_HALF_W * p.alpha);
-    // The name's line box is ~18px tall, the figure sits 16px under it.
-    y0 = Math.min(y0, p.cy - p.r, p.labelY - 20 * p.alpha);
-    y1 = Math.max(y1, p.cy + p.r, p.labelY + 26 * p.alpha);
+    // Above the name's baseline: its ascent. Below the figure's baseline,
+    // SUBLABEL_DY further down: that figure's descender.
+    y0 = Math.min(y0, p.cy - p.r, p.labelY - NAME_SIZE * 0.8 * p.alpha);
+    y1 = Math.max(y1, p.cy + p.r, p.labelY + (SUBLABEL_DY + 6) * p.alpha);
   }
   return {
     x: x0 - CROP_PAD,

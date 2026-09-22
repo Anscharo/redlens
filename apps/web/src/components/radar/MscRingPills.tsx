@@ -113,16 +113,20 @@ interface OverlayProps {
   rings: { ring: RingPrime; label: string }[];
   /** Sky wedge pills: one per contributing prime. */
   wedges: { prime: string; label: string; value: number; x: number; y: number; toX: number; toY: number }[];
+  /** Type multiplier for every pill here — see AmountPill's `scale`. The
+   *  orbit's canvas renders at about half, so it asks for more than 1. */
+  scale?: number;
 }
 
 /** Every pill on the chart, rendered LAST so it paints over every bar,
  *  arrow and label — a pill nested in its own prime's group was painted
  *  over by whichever prime came after it. */
-export function PillOverlay({ rings, wedges }: OverlayProps) {
+export function PillOverlay({ rings, wedges, scale = 1 }: OverlayProps) {
   return (
     <g className="msc-ring-pills">
       {wedges.map((w) => (
         <AmountPill
+          scale={scale}
           key={markId(w.prime, "share")}
           mark={markId(w.prime, "share")}
           text={pillText("share", w.value, w.label)}
@@ -135,6 +139,7 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
       {rings.map(({ ring, label }) => (
         <g key={ring.prime}>
           <AmountPill
+          scale={scale}
             mark={markId(ring.prime, "received")}
             text={pillText("received", ring.received, label)}
             x={ring.grossPillX}
@@ -144,6 +149,7 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
           />
           {ring.slices.map((s) => (
             <AmountPill
+          scale={scale}
               key={s.kind}
               mark={markId(ring.prime, s.kind)}
               text={pillText(s.kind, s.signed, label)}
@@ -155,6 +161,7 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
           ))}
           {ring.hole && (
             <AmountPill
+          scale={scale}
               mark={markId(ring.prime, "loss")}
               text={pillText("loss", ring.hole.signed, label)}
               x={ring.hole.pillX}
@@ -165,6 +172,7 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
           )}
           {ring.arrow && (
             <AmountPill
+          scale={scale}
               mark={markId(ring.prime, ring.arrow.kind)}
               text={pillText(ring.arrow.kind, ring.arrow.signed, label)}
               detail={[
@@ -179,6 +187,7 @@ export function PillOverlay({ rings, wedges }: OverlayProps) {
           )}
           {ring.demandArrow && (
             <AmountPill
+          scale={scale}
               mark={markId(ring.prime, "demand")}
               text={pillText("demand", ring.demandArrow.signed, label)}
               x={ring.demandArrow.pillX}

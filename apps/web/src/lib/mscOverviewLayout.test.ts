@@ -73,8 +73,8 @@ describe("layoutMscRing (orbital pies)", () => {
     // Grove's loss outran everything it received that month, so `received`
     // is negative and the hole is clamped to just inside the rim.
     expect(grove.received).toBeCloseTo(198_000 - 2_070_000, 0);
-    expect(grove.hole!.r).toBeLessThan(grove.r - 5);
-    expect(grove.hole!.r).toBeGreaterThan(grove.r - 7);
+    expect(grove.hole!.r).toBeLessThan(grove.r - 3);
+    expect(grove.hole!.r).toBeGreaterThan(grove.r - 5);
     // A Prime with no loss has no hole and a positive area.
     expect(spark.hole).toBeNull();
     expect(spark.received).toBeGreaterThan(0);
@@ -99,10 +99,10 @@ describe("layoutMscRing (orbital pies)", () => {
     const grove = layout.primes.find((p) => p.prime === "grove")!; // received 3.777M
     const spark = layout.primes.find((p) => p.prime === "spark")!; // received 2.885M
     const keel = layout.primes.find((p) => p.prime === "keel")!; // 55k, the smallest
-    expect(layout.skyR).toBe(140);
-    // One monotone scale, shared with the donut: r = R_MAX * (v/ref) ** 0.3.
-    // Not 0.5 — see SIZE_EXP for why area-proportionality had to go.
-    const size = (v: number) => Math.pow(v / 20_610_000, 0.3);
+    expect(layout.skyR).toBe(170);
+    // One monotone scale, shared with the donut: r = R_MAX * (v/ref) ** 0.45.
+    // Not 0.5 — see SIZE_EXP for why area-proportionality cannot come back.
+    const size = (v: number) => Math.pow(v / 20_610_000, 0.45);
     expect(grove.r / layout.skyR).toBeCloseTo(size(3_777_000), 2);
     expect(spark.r / layout.skyR).toBeCloseTo(size(2_885_000), 2);
     expect(keel.r / layout.skyR).toBeCloseTo(size(55_000), 2);
@@ -129,24 +129,30 @@ describe("layoutMscRing (orbital pies)", () => {
     decades[0] = { ...decades[0], sky: 16_000_000, cof: 16_000_000 };
     const radii = layoutMscRing(decades).primes.map((p) => p.r);
     const min = Math.min(...radii);
+    // THE non-negotiable one: whatever the scale, only the single smallest
+    // row may be sized by the floor rather than by its money.
     expect(radii.filter((r) => r <= min + 0.01)).toHaveLength(1);
-    // Strictly decreasing, and every order of magnitude at least doubles.
+    // Strictly decreasing, and an order of magnitude is a big step.
     for (let i = 1; i < radii.length; i++) expect(radii[i]).toBeLessThan(radii[i - 1]);
-    expect(radii[0] / radii[2]).toBeGreaterThan(1.9); // 4M vs 240k
-    expect(radii[2] / radii[4]).toBeGreaterThan(1.9); // 240k vs 12k
-    // A 3× difference is still a clear step, not two discs of one size.
-    expect(radii[3] / radii[4]).toBeGreaterThan(1.3); // 36k vs 12k
-    // The floor is a backstop for a row with no money, not the small end.
+    expect(radii[0] / radii[2]).toBeGreaterThan(3); // 4M vs 240k
+    expect(radii[2] / radii[4]).toBeGreaterThan(3); // 240k vs 12k
+    // A 3× difference is a clear step, not two discs of one size.
+    expect(radii[3] / radii[4]).toBeGreaterThan(1.4); // 36k vs 12k
+    // …and the whole set spans much more than the 5× the first pass at this
+    // gave. That was the complaint: differentiated, but all of a muchness.
+    expect(radii[0] / min).toBeGreaterThan(9);
+    // The floor is a backstop for a row with no money, not the small end:
+    // it catches $1 and leaves a real $36k Prime well clear of it.
     const none = layoutMscRing([...decades, flow({ prime: "skybase", sky: 0, cof: 0, sde: 0, kept: 1, demand: 0, demandParts: {} })]);
-    expect(none.primes.find((p) => p.prime === "skybase")!.r).toBe(13);
-    expect(min).toBeGreaterThan(13);
+    expect(none.primes.find((p) => p.prime === "skybase")!.r).toBe(min);
+    expect(radii[3] / min).toBeGreaterThan(1.4);
   });
 
   it("lets a Prime outrank the donut when it earns more than Sky takes", () => {
     const layout = layoutMscRing([flow({ sky: 1_000_000, cof: 1_000_000, sde: 0, kept: 8_000_000, demand: 1_000_000, demandParts: { agentRate: 1_000_000 } })]);
-    expect(layout.primes[0].r).toBe(140);
-    expect(layout.skyR).toBeLessThan(140);
-    expect(layout.skyR).toBeGreaterThanOrEqual(80);
+    expect(layout.primes[0].r).toBe(170);
+    expect(layout.skyR).toBeLessThan(170);
+    expect(layout.skyR).toBeGreaterThanOrEqual(100);
   });
 
   it("carries the To-Sky arrow's two components, and no share of a total that no longer exists", () => {
