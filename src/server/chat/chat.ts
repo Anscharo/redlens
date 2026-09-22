@@ -21,11 +21,12 @@ import { getWindowUsage } from "../rate-limit.ts";
 import { tryAcquireChatSlot, releaseChatSlot } from "./concurrency.ts";
 import { json } from "../http.ts";
 import { fetchCommons } from "./credits.ts";
-import { captureError, type ErrorContext } from "../posthog-node.ts";
+import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
 import { parseTeachCommand } from "./teach/parse.ts";
 import { runTeachCommand } from "./teach/handle.ts";
-import { matchTeachings } from "./teach/match.ts";
+import { matchTeachings, type RankedTeaching } from "./teach/match.ts";
 import { teachingRound, summarizeTeachings } from "./teach/inject.ts";
+import { judgePrefetch, filterTeachingsByJev, JEV_CENSUS_THRESHOLD } from "./prefetch-judge.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -153,6 +154,25 @@ export async function handleChat(req: Request): Promise<Response> {
       return json({ error: "conversation_not_found" }, 404);
     }
 
+    // Computed here (not next to the other routing below) so it can gate the
+    // /teach lookup kicked off immediately after — /teach never reads a
+    // matched teaching, so a turn that opens with it must not pay for one.
+    const teachCmd = config.chatTeach ? parseTeachCommand(body.message) : null;
+
+    // Kick off the matched-/teach lookup as early as possible — it only needs
+    // userId + message, so it overlaps the user-message INSERT and history
+    // SELECT immediately below instead of stacking after them. .catch() at
+    // creation, not at the await site below: this promise sits unawaited for
+    // a while, so a DB blip must be swallowed right here or Bun sees it as an
+    // unhandled rejection before anything ever awaits it.
+    const teachingsPromise: Promise<RankedTeaching[]> =
+      !teachCmd && config.chatTeach
+        ? matchTeachings(userId, body.message).catch((err) => {
+            captureError(err, {}, { stage: "teach_match", conversationId: convId });
+            return [] as RankedTeaching[];
+          })
+        : Promise.resolve([] as RankedTeaching[]);
+
     // Persist the user message before streaming, then load history (includes it).
     // The updated_at bump runs alongside the history SELECT — independent
     // writes, no added latency — so a conversation whose stream later aborts or
@@ -168,7 +188,23 @@ export async function handleChat(req: Request): Promise<Response> {
     ])) as [{ role: string; content: string }[], unknown];
 
     const ix = getIndexes();
-    const teachCmd = config.chatTeach ? parseTeachCommand(body.message) : null;
+    const teachHits = await teachingsPromise; // already overlapped the two queries above
+
+    // Pre-first-token Jev judgement — model-router.ts's header comment and
+    // config.ts's chatPrefetchJudgeModel are the two places this exception is
+    // explained. ONE request, ≤chatPrefetchJudgeDeadlineMs (default 600ms),
+    // read before routeTier so its complexity score can join tier routing
+    // this same turn. /teach never reaches routeTier/runFacts/the teach
+    // filter this judgement feeds, so it never runs one either.
+    const jevStartedAt = Date.now();
+    const judgement =
+      !teachCmd && config.chatPrefetchJudgeModel
+        ? await judgePrefetch({
+            question: body.message,
+            notes: teachHits.map((h) => ({ id: h.id, subject: h.subject, content: h.content })),
+          })
+        : null;
+    const jevLatencyMs = Date.now() - jevStartedAt;
 
     // Per-turn tier routing (rules-based, free): pick the model chain before any
     // LLM work. Follow-up turns (an assistant reply already in history) never
@@ -179,7 +215,7 @@ export async function handleChat(req: Request): Promise<Response> {
     const priorAssistants = history.filter((m) => m.role === "assistant").length;
     const route = teachCmd
       ? { tier: "default" as const, reason: "teach" }
-      : routeTier(body.message, { followUp: priorAssistants > 0 });
+      : routeTier(body.message, { followUp: priorAssistants > 0, jevComplexity: judgement?.complexity });
     const models = resolveTierModels(route.tier);
     const maxIterations = iterationsForTier(route.tier);
 
@@ -198,26 +234,21 @@ export async function handleChat(req: Request): Promise<Response> {
     // app documentation. Seeded as a synthetic tool round after the user message
     // so a question they already answer needs ONE request instead of tool-round →
     // answer-round. Injects nothing on a miss; the harness treats what they do
-    // inject as ordinary turn evidence.
+    // inject as ordinary turn evidence. jevCensus (set only when the judge ran)
+    // REPLACES the census fact's own similarity lane rather than adding to it
+    // — see concepts-prefetch.ts's routeCensuses.
     const facts = !teachCmd && config.chatPrefetch
-      ? runFacts({ ix, question: body.message, page: body.pageContext })
+      ? runFacts({ ix, question: body.message, page: body.pageContext, jevCensus: judgement?.census })
       : null;
     if (facts) messages.push(...factRound(body.message, facts));
 
-    // Matched /teach notes for THIS user only. A miss (none, or the table not
-    // migrated yet) injects nothing — never fail a turn over a teaching lookup.
-    let teachings: Awaited<ReturnType<typeof matchTeachings>> | null = null;
-    if (!teachCmd && config.chatTeach) {
-      try {
-        const hits = await matchTeachings(userId, body.message);
-        if (hits.length > 0) {
-          teachings = hits;
-          messages.push(...teachingRound(body.message, hits));
-        }
-      } catch (err) {
-        captureError(err, {}, { stage: "teach_match", conversationId: convId });
-      }
-    }
+    // Matched /teach notes for THIS user only, Jev-filtered when a judgement
+    // landed (a miss keeps today's whole shortlist — filterTeachingsByJev
+    // fails open). A miss/empty lookup (table not migrated yet, etc.)
+    // injects nothing — never fail a turn over a teaching lookup.
+    const keptTeachings = filterTeachingsByJev(teachHits, judgement);
+    const teachings = keptTeachings.length > 0 ? keptTeachings : null;
+    if (teachings) messages.push(...teachingRound(body.message, teachings));
 
     const startedAt = Date.now();
     const encoder = new TextEncoder();
@@ -234,6 +265,25 @@ export async function handleChat(req: Request): Promise<Response> {
       traceId: crypto.randomUUID(),
       properties: { chat_tier: route.tier, chat_route_reason: route.reason },
     };
+
+    // Telemetry for the pre-first-token judge — gated the same as the call
+    // itself, so a disabled/teach turn emits nothing. Held until `obs` exists
+    // (rather than fired right after the await above) so it joins this turn's
+    // trace. Counts and slugs only, never note text or ids beyond a count —
+    // this is a conversation-keyed event, not a user-content one.
+    if (!teachCmd && config.chatPrefetchJudgeModel) {
+      captureEvent("chat_prefetch_judge", obs, {
+        latency_ms: jevLatencyMs,
+        timed_out: judgement === null && jevLatencyMs >= config.chatPrefetchJudgeDeadlineMs,
+        complexity_p: judgement?.complexity ?? null,
+        census_fired: judgement
+          ? Object.entries(judgement.census).filter(([, p]) => p >= JEV_CENSUS_THRESHOLD).map(([slug]) => slug)
+          : [],
+        teach_kept: keptTeachings.length,
+        teach_dropped: teachHits.length - keptTeachings.length,
+      });
+    }
+
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         const send = (e: { type: string } & Record<string, unknown>) =>

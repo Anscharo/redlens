@@ -240,8 +240,9 @@ one registry); its test asserts every entry is one `parseTeachCommand` accepts.
 Sharing notes across users is deferred.
 
 **Tier routing** (`model-router.ts`) classifies the message by regex signals into
-FAST/DEFAULT/STRONG model chains — free, no pre-flight LLM call; with no env
-config it's a no-op. STRONG fires on comparison, rule interaction, implications,
+FAST/DEFAULT/STRONG model chains; with no env config it's a no-op. Until
+2026-09-22 it made no pre-flight model call at all; it now reads ONE Jev score
+(see "Pre-first-token Jev judgement" below). STRONG fires on comparison, rule interaction, implications,
 governance-risk wording, **enumeration** ("all of the X", or "all … that/which/who"
 within 90 chars), **synthesis** (generate / compile / enumerate / inventory /
 timeline / trends), ≥2 question marks, or >350 chars. The last two signal groups
@@ -264,6 +265,34 @@ deterministic signals (so a regex keeps its own `reason`) but *before* the fast
 check, since whole-corpus questions are often short and lookup-shaped. It gets
 its own `reason` — `"similarity"` — so PostHog's `chat_route_reason` meters the
 lane's fire rate with no new instrumentation.
+
+**Pre-first-token Jev judgement** (`chat/prefetch-judge.ts`, 2026-09-22). The
+old rule, "nothing runs before the first token except code", was changed by
+decision: exactly **one** Jev request may run before the first model call, under
+a hard `CHAT_PREFETCH_JUDGE_DEADLINE_MS` (600) deadline. A late, failed or
+disabled (`CHAT_PREFETCH_JUDGE_MODEL=""`) judgement leaves the turn exactly as
+before. The rule was a reaction to an earlier pre-flight planner that cost
+1.5–4 s per turn; this call measured p50 373 / p95 553 / max 726 ms over 145
+real messages from a dev machine (live latency is unmeasured). One request
+carries a complexity Noul, one Noul per census slug, and one per `/teach` note
+on the shortlist:
+- **Complexity** — STRONG with reason `"jev"` at P ≥ 0.58, **in addition to**
+  the regex and similarity lanes above (checked after them). Held out: 12/14
+  against 4/14. On real traffic it recovers ~23 whole-corpus questions the lanes
+  miss, and the strong-routed share rises from ~17% to ~35% — a token cost,
+  since a false fire lands on the model measured better and faster.
+- **Census** — `routeCensuses` takes the Jev scores and they **replace** the
+  similarity lane: regex matches ∪ the top 3 slugs at P ≥ 0.60. The similarity
+  lane had drifted: on 145 real messages it fired 7 times with none correct,
+  while Jev at 0.60 fired on none and routed 47/50 labeled census questions
+  (similarity: 43/50).
+- **`/teach`** — a filter over today's shortlist at P ≥ 0.5. It only ever removes
+  a note, and a note missing from the judgement is kept. The evidence is thin:
+  20 synthetic pairs and the one real stored note.
+
+The features fact stays on its regex and similarity lanes: Jev reads "how do I
+find <title>?" literally. Numbers and adjudication are in
+[`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md) §"Research round 2026-09-22".
 
 Unlike every other consumer of the embedding, this lane does **not** suppress on
 `namesAtlasSubject`. That suppressor is what holds the features lane to 1 false

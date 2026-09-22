@@ -186,6 +186,58 @@ The confirm gate did its job on the first answer: Jev again called the two "Sky 
 - **Streaming seam:** `paragraph-refute.ts`'s semaphore / burst-reset / settle are generic; only `runOne` is refute-specific. Plug-in points are `chat-orchestrator.ts` ≈ `:507` (create), `:549/:582` (submit), `:591` (drain). UI needs one new slot — `ParagraphCheck.model` holds a single model check today. When wiring comes, refactor `runOne` to accept a slice-shaped callback rather than forking the file. *All production wiring is deferred until the eval says yes.*
 - Numbers stay in code (`findUngroundedCitationValues`, `param-checks.ts`) — Jev's weakest skill, already covered deterministically.
 
+## Research round 2026-09-22 — prefetch gating, answer confidence, speed
+
+Four parallel research passes. Offline only: committed eval corpora, synthetic labeled sets, and local aggregate DB statistics; no stored user message was sent to Jev. Raw results were kept in the session scratchpad, not the repo. Every threshold below is fitted in-sample or on small held-out halves, so treat differences of 1–2 cases as noise.
+
+**Latency, measured once for all of it.** Request cost is almost flat in question count: 1 / 5 / 15 Nouls over one message ran at p50 369 / 354 / 395 ms and p95 445 / 463 / 580 ms. The combined per-turn prefetch request (12 Nouls) ran at p50 370, p95 469, max 555 ms over 60 runs. All of this is from a dev machine. The old gemma small-talk judge ran about 1.5–1.9× slower live than in its eval; if Jev does too, live p95 is about 700 ms. It is unmeasured until a deployment exists.
+
+### 1. Jev deciding what the system prompt includes (pre-first-token)
+
+| lane | status quo (held out) | Jev (held out) | reading |
+|---|---|---|---|
+| complexity → strong tier | 4/14, 1/76 false fires | **12–13/14, 0–5/76** | Clear win: the regexes score 0 on paraphrases. The lane's own real-traffic check has never been run. |
+| census routing | 23/25, 0/76 | 25/25, 1–2/76 | Right slug ranked first 49/50. **Not comparable yet**: the incumbent's 0 false fires were validated on real traffic, which is what moved its margin from 0.2 to 0.4. |
+| features fact | 25/28, 5/92 | alone: 28/28 at 11/92; **Jev replacing the embedding behind the same regex and suppressors: 26/28 at 1/92** | Marginal. Jev reads "how do I find <title>?" literally and doesn't know the app's name. The winning threshold's tie range is narrower than rerun noise. |
+| /teach notes | matcher: one shared word clears the 0.12 overlap floor, no stemming, similarity is topical, current message only | **as a filter over today's shortlist: wrong injections 21 → 5 of 109, 10/11 kept** | Promising, but 20 synthetic labeled pairs only. |
+| glossary / entity / role | — | — | No arm: for these the match *is* the extraction. |
+
+The rule "nothing runs before the first token except code" (`model-router.ts`) stands until the user decides: `routeTier` runs before the system prompt is built, so a Jev call here adds its latency to every turn. The shape that bounds the cost is a hard 600 ms deadline that falls back to today's lanes, so it is never worse than the status quo in accuracy.
+
+#### Real-traffic check — RUN 2026-09-22, user-authorized
+
+145 distinct real user messages from the dev DB went through the combined request; every fire was adjudicated by reading it. A subagent was blocked by the permission classifier from sending them (the authorization had been relayed to it second-hand); the pass was then run from the main session, where the user had authorized it directly.
+
+- **Latency on real messages:** p50 373 ms, p95 553 ms, max 726 ms. Under the 600 ms cap at p95; the cap falls back on the tail.
+- **Complexity:** today's lanes route 25/145 to the strong tier. Adjudication: 12 of the 14 embedding-lane fires are genuine and 1 is false ("some of those dont exist"). Jev ≥ 0.58 fires on 40, with ~2 clear false and ~3 borderline (external settlement aggregates). It **recovers ~23 genuine whole-corpus questions today's lanes miss** ("what are the most edited docs?", "what emergency processes exist?", "show me all addresses carrying erc20 balances", "what is the longest doc?"). Jev also misses a few the embedding catches ("whats the most edited doc in the atlas", 0.48), so the rule is **today's lanes OR Jev**: 51/145 strong-routed (~35%, up from ~17%). A false fire only moves a turn to the model measured better and faster, so it costs tokens, not correctness.
+- **Census:** real traffic contains essentially no census questions. **Today's similarity lane fires on 7 real messages and none of them is correct** — the lane no longer meets its own zero-real-false-fire rule. Jev's highest top-slug score on any real message is 0.53. At **Jev ≥ 0.60 it fires on zero real messages** and routes 47/50 labeled census questions with 0/152 labeled false fires (status quo 43/50). Jev replaces the census similarity lane.
+- **Teach:** the dev DB holds one real note, so this is a check, not a validation. Today's matcher injects it on 8 messages, one of them purely on the word "say". Jev as a filter (≥ 0.5) drops that one (P 0.09) and one borderline, and keeps all 6 genuine msc/settlement questions.
+- **Decision (user, 2026-09-22):** the pre-first-token rule changes to allow this one request under a hard 600 ms cap, falling back to today's lanes. Features stays on today's lanes.
+
+### 2. Answer confidence and "answers the question" (A2, measured)
+
+- **`deflects` is clean.** It flagged 84/84 gold announcements, including all 12 the regexes miss (the live guard gets 75%). Real answers top out at P = 0.16. Every one of the 19 real fires was a genuine non-answer: mid-task narration, a raw tool-call payload, "shall I proceed?".
+- **`partial` does not detect under-answering** (49 of 58 mid-band answers were ruled `answers`). **One Noul per question part does**, and it names the part that was dropped ("when" on the token ledger, "history" on spell-history). Lowest-part score vs the judge band: AUC 0.875, in-sample.
+- **Clarifying questions** also land in `deflects`; a fifth option, `asks`, separates them. Re-measure its margin before shipping.
+- **Size:** question + answer fits easily — max 6.3k tokens in the corpus, and 169/169 dev-DB turns under 3k.
+- **What it cannot tell:** an honest "the atlas doesn't record this" from under-retrieval. That needs evidence (the absence and class-completeness checks), not Jev.
+- The strong judge's completeness score is itself contaminated by correctness (ρ 0.75 with its honesty score), so it is a proxy, not a label. There are 71 disagreements to hand-adjudicate.
+
+### 3. Jev in front of the per-paragraph refute (hybrid screen)
+
+- **Fit:** evidence narrowed to the docs the paragraph cites (else the top-8 records by overlap) fits **66/66** paragraphs (max 18.7k Jev tokens). Un-narrowed, 62/66 fit.
+- **Recall on planted mutations** (one Choice per statement, P(contradicted) ≥ 0.2): number swaps 61/64, name swaps 24/36, **85/100 overall**. 60 of 66 clean paragraphs skipped; 3 of the 6 "false" flags were real errors in the stored answers that gemma per paragraph also missed.
+- **Blind spot:** list completeness — a duplicated or phantom list member.
+- **Speed:** Jev 0.40 s p50 per paragraph; gemma spot calls 3.8 s p50, and 2 of 10 hit the 4,000-token output cap (about 61 s, which is the 45 s timeout in production, so an "unverified" badge).
+- **Cannot replace refute:** Jev returns no verbatim evidence span for code to re-validate, and `confirm` needs one. A second Jev Choice can pick the contradicting *record* (55/65); code would still have to extract the span.
+- **Supported shape:** Jev screens every paragraph; gemma runs only on flagged or oversized ones; Jev flags also enter `confirm` as extra candidates. First run `pnpm eval:verifier --mode paragraph` (never recorded) and log Jev silently next to gemma.
+
+### 4. Speed levers that did NOT pan out
+
+- **Pruning tool results by relevance** — Jev ranks better than a rank cutoff (AUC 0.77 vs 0.73), but at ~98% cited-doc recall it removes only about 2–3% of real-traffic context, for +0.4 s per tool round. Tool results are only about 12% of billed input.
+- **Speculative first-round tool routing (A3)** — only 34% of opening calls are closed-set; 48% are free-text `atlas_query`, which Jev cannot author. Single closed-set-call turns are 18/110 (16%). The A3 gate query was run: the idea is closed.
+- **The context prize is elsewhere.** Every chat-model call carries about 15k tokens of fixed overhead: ~40k chars of tool definitions plus ~20k of system prompt, roughly the whole median context. Prompt caching or trimming tool definitions would move more than any Jev pruning.
+
 ## A2. "Does the response answer the question?"
 
 **Nothing at runtime measures this today.** Its shape is the `overreach` slot: question + answer only, no evidence, `warn`-or-softer. It targets the default model's *measured* failure mode — under-answering (completeness 0.70 vs 0.95) — and the system prompt's own named failure: "listing the things and omitting the thing asked for."

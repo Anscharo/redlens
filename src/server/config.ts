@@ -299,6 +299,27 @@ export const config = {
   // after answer_final, alongside the verifier audit, never gating delivery.
   // "" disables the feature outright: no Jev calls, no `citation_marks` event.
   chatCitationCheckModel: process.env.CHAT_CITATION_CHECK_MODEL ?? "typesafe/jev-1.13",
+  // Pre-first-token prefetch judge (chat/prefetch-judge.ts): ONE Jev request,
+  // read before routeTier/runFacts/the teach filter, under a hard
+  // chatPrefetchJudgeDeadlineMs cap that falls back to today's regex +
+  // on-device-similarity lanes on a miss. This is the ONE exception to
+  // model-router.ts's "nothing runs before the first token except code" rule
+  // — see that file's header, and docs/plans/jev-typesafe.md's "Research
+  // round 2026-09-22 — prefetch gating" for the measurement behind it: the
+  // archived pre-flight planner was dropped for taxing every turn 1.5-4s;
+  // this adds ≤600ms worst case, measured p50 373ms / p95 553ms / max 726ms
+  // on 145 real messages from a dev machine — live latency unmeasured. ""
+  // disables the call outright: no request, every downstream lane (tier
+  // routing, census routing, /teach filtering) behaves exactly as it does
+  // today.
+  chatPrefetchJudgeModel: process.env.CHAT_PREFETCH_JUDGE_MODEL ?? "typesafe/jev-1.13",
+  // Hard WALL-CLOCK deadline, owned by the caller exactly like
+  // verify/smalltalk-jev.ts — askJev's own timeoutMs is per-attempt and
+  // retries a 5xx three times with backoff, so this is what actually bounds
+  // the added latency. A miss (timeout, transport error, or an unparseable
+  // answer) is never worse than today: judgePrefetch returns null and every
+  // caller falls back to its existing lane.
+  chatPrefetchJudgeDeadlineMs: Number(process.env.CHAT_PREFETCH_JUDGE_DEADLINE_MS ?? 600),
   // Deterministic checks (free, pure code) — independent of the model slots.
   chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
   // Deterministic pre-lookup (glossary + entity match on the user's message)
