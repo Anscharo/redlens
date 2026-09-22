@@ -6,9 +6,9 @@ import { z } from "zod";
 
 export const atlasQueryShape = {
   query: z.string().optional().describe("Keyword/semantic search terms (hybrid by default)."),
-  entity: z.string().optional().describe("Entity slug. With no other graph params: edge-grouped docs (broad view)."),
+  entity: z.string().optional().describe("Entity slug or name. With no other graph params: edge-grouped docs (broad view)."),
   edge_types: z.array(z.string()).optional().describe("Filter entity edges to these types."),
-  target_type: z.string().optional().describe("Atlas doc type filter (e.g. 'Active Data', 'Primitive Instance')."),
+  target_type: z.string().optional().describe("Atlas doc type filter (e.g. 'Active Data', 'Type Specification')."),
   via_entity_type: z.string().optional().describe("Entity-chain: entity → entities of this type → their docs."),
   recent_commits: z
     .number()

@@ -748,7 +748,28 @@ mid-citation.
 `makeOpenrouterStream` sets `stream_options.include_usage: true` (load-bearing —
 otherwise streamed completions carry no usage for the rate limiter);
 `makeOpenrouterJson` provides the non-streamed, temp-0 JSON call for the verifier
-slices and small-talk judge with a true request-cancelling timeout.
+slices with a true request-cancelling timeout. (The small-talk judge moved to Jev
+in 2026-09 and does not use it.)
+
+**Prompt caching (2026-09-22).** Every chat round re-sends ~16.6k tokens of
+fixed overhead — a ~5.5k-token system prompt and ~11k tokens of tool
+definitions. Two changes keep that overhead cacheable without altering a word
+the model reads:
+- `makeOpenrouterStream` sends `session_id` = a hash of the conversation id
+  (`sessionParam`), so OpenRouter routes the whole conversation to one provider
+  and that provider's prompt cache stays warm. By default OpenRouter keys that
+  routing on a hash of the first system message, and ours changes whenever the
+  user navigates, because the current page is part of it.
+- The per-turn date/commit line sits at the end of the system prompt
+  (`## Session`), just before `## Current page`, so two days share a 99.2%
+  identical prefix instead of ~3%.
+
+Baseline before the change (PostHog, 30 days): gemma-4-31b read 15% of its input
+from cache, against 66% for gpt-5.6-luna. Compare `$ai_cache_read_input_tokens`
+and `$ai_time_to_first_token` after deploy. Further trimming of the prompt or
+tool text is deliberately NOT done here: an earlier verbosity cut made tool
+choice worse, and CI can't see tool choice, so any such change needs an
+end-to-end A/B first.
 
 `CHAT_CONTEXT_WINDOW_TOKENS` (default **200,000**) is what the UI context-size
 indicator meters against — sized to the **smallest** model in the deployed

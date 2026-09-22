@@ -12,6 +12,7 @@ import {
   callWithTimeout,
   makeOpenrouterJson,
   makeOpenrouterStream,
+  sessionParam,
   type JsonCall,
 } from "./llm.ts";
 
@@ -294,5 +295,25 @@ describe("makeOpenrouterStream", () => {
     });
     const body = capturedBody as unknown as Record<string, unknown>;
     expect("reasoning" in body).toBe(false);
+  });
+});
+
+// OpenRouter sticky routing (Tier A of the 2026-09-22 context review): one
+// session per conversation so the provider's prompt cache stays warm.
+describe("sessionParam", () => {
+  it("is stable within a conversation and differs across conversations", () => {
+    const a1 = sessionParam({ distinctId: "conv-a" }).session_id;
+    expect(a1).toBe(sessionParam({ distinctId: "conv-a" }).session_id);
+    expect(a1).not.toBe(sessionParam({ distinctId: "conv-b" }).session_id);
+  });
+
+  it("never sends the raw conversation id — only a hash of it, within OpenRouter's 256-char cap", () => {
+    const id = sessionParam({ distinctId: "11111111-2222-3333-4444-555555555555" }).session_id!;
+    expect(id).not.toContain("11111111");
+    expect(id).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it("is absent without a conversation, so anonymous callers and tests send nothing new", () => {
+    expect(sessionParam({})).toEqual({});
   });
 });
