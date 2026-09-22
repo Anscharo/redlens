@@ -11,7 +11,7 @@ import { FlowSources } from "./MscFlowSources";
 import { FlowPills } from "./MscFlowPills";
 import type { OverviewPrime } from "./MscRingPrime";
 import { useTweenedFlow } from "../../hooks/useTweenedFlow";
-import { useSvgZoom, useZoomReport } from "../../hooks/useSvgZoom";
+import { pillScale, useSvgZoom, useZoomReport } from "../../hooks/useSvgZoom";
 
 export interface MscFlowProps {
   layout: FlowLayout;
@@ -147,7 +147,7 @@ export function MscFlow({ layout: target, primes, month, centerFigure, onZoom }:
               return m ? <FlowAgentGroup key={a.prime} agent={a} {...m} month={month} /> : null;
             })}
           </g>
-          <FlowPills layout={layout} labelOf={labelOf} />
+          <FlowPills layout={layout} labelOf={labelOf} damp={pillScale(zoom.base, zoom.view)} />
         </svg>
       </figure>
     </>

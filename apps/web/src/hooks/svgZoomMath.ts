@@ -149,3 +149,17 @@ export function zoomKeyAction(key: string): ZoomKeyAction | null {
       return null;
   }
 }
+
+/** How much bigger a hover pill may get as the chart zooms in. A pill is
+ *  drawn in DRAWING units, so at 8x it would come out eight times the size
+ *  it has at rest and swamp what it is naming. */
+export const MAX_PILL_GROWTH = 2;
+
+/** The factor to multiply a pill's own scale by, so that however far the
+ *  chart is zoomed the pill never renders more than MAX_PILL_GROWTH times
+ *  its resting size. 1 until the zoom passes that point, then it shrinks
+ *  the pill exactly as fast as the zoom grows it. */
+export function pillScale(base: ViewBox, v: ViewBox, max = MAX_PILL_GROWTH): number {
+  const zoom = v.w > 0 ? base.w / v.w : 1;
+  return Math.min(1, max / Math.max(1, zoom));
+}

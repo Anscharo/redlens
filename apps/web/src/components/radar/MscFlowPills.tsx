@@ -4,13 +4,20 @@ import { markId, AmountPill, pillText } from "./MscRingPills";
 
 /** Pills draw at three times the orbit's size: this 3000-wide canvas
  *  renders at roughly a third, so the hover text lands near 16px on screen. */
-const PILL_SCALE = 3;
+const BASE_PILL_SCALE = 3;
 
 /** Every hover pill on the flow chart, in one top layer so a pill is never
  *  painted under a later mark. One per Sky share, one per Prime's gross,
  *  one per inbound ribbon, and one for the To-Sky pair. */
-export function FlowPills({ layout, labelOf }: { layout: FlowLayout; labelOf: (prime: string) => string }) {
+export function FlowPills({ layout, labelOf, damp = 1 }: {
+  layout: FlowLayout;
+  labelOf: (prime: string) => string;
+  /** Shrinks every pill as the chart zooms in, so one never renders more
+   *  than twice the size it has at rest (svgZoomMath's pillScale). */
+  damp?: number;
+}) {
   const { sky } = layout;
+  const PILL_SCALE = BASE_PILL_SCALE * damp;
   return (
     <g className="msc-ring-pills">
       {sky.shares.map((sh) => (

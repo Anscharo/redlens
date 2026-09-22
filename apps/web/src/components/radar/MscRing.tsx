@@ -5,7 +5,7 @@ import { PillOverlay } from "./MscRingPills";
 import { RingChart } from "./MscRingChart";
 import type { MscRingPrime } from "./MscRingPrime";
 import { RingHoverStyles } from "./MscRingHoverStyles";
-import { useSvgZoom, useZoomReport } from "../../hooks/useSvgZoom";
+import { pillScale, useSvgZoom, useZoomReport } from "../../hooks/useSvgZoom";
 
 export type { MscRingPrime } from "./MscRingPrime";
 
@@ -122,7 +122,7 @@ export function MscRing({ layout, primes, month, centerFigure, onZoom }: MscRing
             <PillOverlay
               rings={primes.map((p) => ({ ring: p.ring, label: p.label }))}
               wedges={wedgePills}
-              scale={PILL_SCALE}
+              scale={PILL_SCALE * pillScale(zoom.base, zoom.view)}
             />
           </g>
         </svg>

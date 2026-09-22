@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { clampView, clientToView, fillBase, KEY_PAN_FRACTION, KEY_ZOOM_STEP, MAX_SCALE, panBy, rebase, viewScale, wheelFactor, zoomAt, zoomKeyAction, type ViewBox } from "./useSvgZoom";
+import { clampView, clientToView, fillBase, KEY_PAN_FRACTION, KEY_ZOOM_STEP, MAX_SCALE, panBy, rebase, viewScale, wheelFactor, zoomAt, zoomKeyAction, pillScale, MAX_PILL_GROWTH, type ViewBox } from "./useSvgZoom";
 
 const W = 3000;
 const H = 1200;
@@ -215,5 +215,30 @@ describe("zoomKeyAction — the chart's keyboard map", () => {
     expect(panned.x).toBeGreaterThanOrEqual(base.x - 1e-6);
     const out = zoomAt(base, base, base.w / 2, base.h / 2, 1 / KEY_ZOOM_STEP);
     expect(out.w).toBeLessThanOrEqual(base.w + 1e-6);
+  });
+});
+
+describe("pillScale — a hover pill may not outgrow the thing it names", () => {
+  const base: ViewBox = { x: 0, y: 0, w: 1000, h: 500 };
+  const at = (zoom: number): ViewBox => ({ x: 0, y: 0, w: base.w / zoom, h: base.h / zoom });
+
+  it("leaves the pill alone until it would pass the cap", () => {
+    expect(pillScale(base, base)).toBe(1);
+    expect(pillScale(base, at(1.5))).toBe(1);
+    expect(pillScale(base, at(MAX_PILL_GROWTH))).toBe(1);
+  });
+
+  it("past the cap, shrinks exactly as fast as the zoom grows it", () => {
+    for (const zoom of [2.5, 4, MAX_SCALE]) {
+      const rendered = zoom * pillScale(base, at(zoom));
+      expect(rendered).toBeCloseTo(MAX_PILL_GROWTH, 6);
+    }
+  });
+
+  it("never grows a pill, and survives a degenerate view", () => {
+    // Zoomed OUT past the base cannot happen (clampView forbids it), but the
+    // factor must not blow the pill up if it ever did.
+    expect(pillScale(base, { x: 0, y: 0, w: base.w * 4, h: base.h * 4 })).toBe(1);
+    expect(pillScale(base, { x: 0, y: 0, w: 0, h: 0 })).toBe(1);
   });
 });
