@@ -9,12 +9,10 @@
 // documents, one per agent. This check pairs ONE sentence with the ONE
 // document it cites and asks only about that pair.
 //
-// The lexical ancestor of this check already ships and is DARK:
-// findLowOverlapCitations (verify-checks.ts) computes exactly these pairs,
-// scores word overlap, writes the result into CheckReport.lowOverlapCitations
-// — and nothing reads it. This module is its semantic successor. Pair
-// extraction lives in cite-pairs.ts and still segments with the same
-// `claimSegments`, so the two can never disagree about what a sentence is.
+// It replaced a lexical ancestor, findLowOverlapCitations, which scored word
+// overlap on the same pairs every turn and was read by nothing; it was deleted
+// on 2026-09-22 after this check measured better on every wrong-doc class
+// (docs/plans/jev-typesafe.md §A1). Pair extraction lives in cite-pairs.ts.
 //
 // NOTHING ON A REQUEST PATH CALLS THIS YET. It exists to be measured
 // (scripts/eval/eval-citation.ts). See docs/plans/jev-typesafe.md §A1 for the

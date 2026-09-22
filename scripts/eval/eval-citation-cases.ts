@@ -18,7 +18,7 @@
 //                    vocabulary, different subject.
 //   same_title     — a different doc with the IDENTICAL title (the atlas has
 //                    142 "Rate Limits", one per agent). Word overlap is near
-//                    perfect, so the lexical check is blind here by
+//                    perfect, so any lexical check is blind here by
 //                    construction. This is the class the whole check is for.
 //   cited_elsewhere — a doc the SAME ANSWER cites somewhere else: topically
 //                    adjacent and definitely inside the turn's pooled

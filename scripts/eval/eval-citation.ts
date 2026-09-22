@@ -2,14 +2,14 @@
 //
 //   pnpm eval:citation
 //
-// Two measured arms:
-//   1. findLowOverlapCitations — the lexical check that already ships and
-//      whose output nothing reads. The incumbent for THIS check.
-//   2. Jev, one Choice per (claim, cited doc) pair, in two question variants:
-//      the original three options, and the same plus `about_document` — the
-//      pointer option (a claim ABOUT a document, which the document cannot
-//      state). Children-in-state was measured on 2026-09-22 and changed
-//      nothing on real citations, so it is no longer an arm.
+// One judge, Jev — one Choice per (claim, cited doc) pair, in two question
+// variants:
+// the original three options, and the same plus `about_document` — the
+// pointer option (a claim ABOUT a document, which the document cannot state).
+// Children-in-state was measured on 2026-09-22 and changed nothing on real
+// citations, so it is no longer an arm. The lexical baseline this was first
+// scored against (findLowOverlapCitations, word overlap) was deleted the same
+// day; its numbers are kept in docs/plans/jev-typesafe.md §A1.
 //
 // The shipped `refute` auditor is NOT an arm here, and deliberately: every
 // negative below is built by repointing a citation's LINK, which leaves the
@@ -30,7 +30,6 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { judgeCitation, buildCiteRequest, CITE_QUESTION, CITE_QUESTION_3, type CiteVerdict } from "../../src/server/chat/verify/cite-support.ts";
-import { findLowOverlapCitations } from "../../src/server/chat/verify/verify-checks.ts";
 import { buildCases, type CaseKind, type CiteCase } from "./eval-citation-cases.ts";
 import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { config } from "../../src/server/config.ts";
@@ -83,17 +82,7 @@ if (!cases.length) {
   process.exit(0);
 }
 
-// ── Arm 1: the lexical incumbent ──────────────────────────────────────────
-// Reconstructs the shape it expects: the claim followed by its link. Its
-// segmentation is the same one citationPairs used, so this is the real
-// function on real input, not an approximation of it.
-function lexicalFlags(c: CiteCase): boolean {
-  const doc = ix.docMap.get(c.uuid);
-  if (!doc) return false;
-  return findLowOverlapCitations(`${c.claim} [${doc.title}](/atlas/${c.uuid}).`, ix).length > 0;
-}
-
-// ── Arm 2: Jev ────────────────────────────────────────────────────────────
+// ── Jev ────────────────────────────────────────────────────────────
 type Q = typeof CITE_QUESTION | typeof CITE_QUESTION_3;
 async function jevVerdict(c: CiteCase, question: Q): Promise<{ verdict: CiteVerdict | null; cost: number; ms: number | null; cacheHit: boolean }> {
   const req = buildCiteRequest(c, ix, { question });
@@ -106,7 +95,7 @@ async function jevVerdict(c: CiteCase, question: Q): Promise<{ verdict: CiteVerd
   return { verdict: j.verdict, cost: j.costUsd ?? 0, ms: j.latencyMs, cacheHit: false };
 }
 
-interface Row { c: CiteCase; lexical: boolean; q3: CiteVerdict | null; q4: CiteVerdict | null }
+interface Row { c: CiteCase; q3: CiteVerdict | null; q4: CiteVerdict | null }
 
 let spend = 0;
 let calls = 0;
@@ -114,7 +103,7 @@ const rows: Row[] = await pool(cases, CONCURRENCY, async (c) => {
   const [a, b] = [await jevVerdict(c, CITE_QUESTION_3), await jevVerdict(c, CITE_QUESTION)];
   spend += a.cost + b.cost;
   calls += (a.cacheHit ? 0 : 1) + (b.cacheHit ? 0 : 1);
-  return { c, lexical: lexicalFlags(c), q3: a.verdict, q4: b.verdict };
+  return { c, q3: a.verdict, q4: b.verdict };
 });
 
 // A "flag" is any verdict that would surface something to the user:
@@ -123,14 +112,13 @@ const flags = (v: CiteVerdict | null) => v === "contradicts" || v === "says_noth
 const pct = (n: number, d: number) => (d === 0 ? "   —" : `${((100 * n) / d).toFixed(0).padStart(3)}%`);
 
 console.log(`\nnetwork calls ${calls} (rest cached) | spend $${spend.toFixed(4)} | model ${MODEL}\n`);
-console.log("                     n   lexical   3-option  +pointer      (flag rate; for POSITIVE this is the FALSE-flag rate)");
+console.log("                     n   3-option  +pointer      (flag rate; for POSITIVE this is the FALSE-flag rate)");
 for (const k of KINDS) {
   const rs = rows.filter((r) => r.c.kind === k);
   if (!rs.length) continue;
-  const lex = rs.filter((r) => r.lexical).length;
   const p = rs.filter((r) => flags(r.q3)).length;
   const kd = rs.filter((r) => flags(r.q4)).length;
-  console.log(`  ${k.padEnd(16)} ${String(rs.length).padStart(4)}   ${pct(lex, rs.length)}      ${pct(p, rs.length)}   ${pct(kd, rs.length)}${k === "positive" ? "   <- LOWER IS BETTER" : ""}`);
+  console.log(`  ${k.padEnd(16)} ${String(rs.length).padStart(4)}   ${pct(p, rs.length)}   ${pct(kd, rs.length)}${k === "positive" ? "   <- LOWER IS BETTER" : ""}`);
 }
 
 // Verdict mix on the real citations — says_nothing is the atomization tax and

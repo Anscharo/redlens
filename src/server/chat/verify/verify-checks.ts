@@ -351,8 +351,9 @@ export function findUntracedNumbers(answer: string, evidenceTexts: string[]): st
 // exactly a real figure attributed to the wrong document. Percentages and
 // decimals are examined even when small — unlike `findUntracedNumbers`'s ≤20
 // integer skip — because a bare `5%` is precisely the gap this closes.
-// Complements `findLowOverlapCitations`: overlap scores prose sentences, this
-// scores citations whose text IS the claim.
+// Complements the per-citation Jev check (citation-marks.ts), which judges
+// prose sentences against the doc they cite; this scores citations whose text
+// IS the claim, in code, where an exact value match is better than a model.
 const PERCENT_RE = /\d[\d,]*(?:\.\d+)?\s*%/g;
 const ISO_DATE_RE = /\b\d{4}-\d{2}-\d{2}\b/g;
 const SLASH_DATE_RE = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g;
@@ -454,14 +455,12 @@ export function findUngroundedCitationValues(answer: string, evidenceTexts: stri
   return [...new Set(out)];
 }
 
-// A citation whose UUID is real but points at the WRONG document passes every
-// other deterministic check (`findInvalidCitationUuids` only asks whether the
-// uuid exists; `findDocNoMismatches` only fires when the link TEXT leads with a
-// doc_no). It is the worst-caught failure class across models, so this is a free
-// lexical assist: how much of the claim sentence's distinctive vocabulary
-// actually occurs in the cited doc. Deliberately a SOFT signal — paraphrase,
-// synthesis, and pronoun-carrying prose all legitimately depress overlap, so the
-// verifier adjudicates rather than the answer failing outright.
+// "Distinctive words" — lowercased, stopwords out, plurals folded. Originally
+// the vocabulary of a lexical wrong-doc check (word overlap between a cited
+// sentence and its doc), deleted 2026-09-22 once the per-citation Jev check
+// (citation-marks.ts) replaced it: that check had been computed every turn and
+// read by nothing. The word list survives for claimSegments' citation-only test
+// and for absence.ts.
 const OVERLAP_STOPWORDS = new Set(
   ("the and are was were for from with without into over under about that this these those which who whom whose " +
     "what when where why how all any both each few more most other some such only own same too very per also " +
@@ -470,12 +469,11 @@ const OVERLAP_STOPWORDS = new Set(
     "have had having does did done being been").split(" "),
 );
 // Plural/possessive folding so `facilitators` matches `Facilitator`. Crude on
-// purpose: the check is a ratio over many words, not a parser.
+// purpose: callers compare sets of many words, not parse.
 const foldWord = (w: string) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
 
 // Exported for absence.ts, which scopes an absence claim to the evidence that
-// is ABOUT it — the same "distinctive words only" notion of aboutness this
-// overlap check uses, so the two can't drift apart.
+// is ABOUT it, using this one "distinctive words only" notion of aboutness.
 export function contentWords(text: string): string[] {
   const words = text.toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) ?? [];
   return [...new Set(words.filter((w) => !OVERLAP_STOPWORDS.has(w)).map(foldWord))];
@@ -492,7 +490,7 @@ const isCitationOnly = (seg: string): boolean =>
 //
 // Splitting at sentence ends alone loses every trailing citation: `Foo is bar.
 // [Doc](/atlas/x)` becomes a prose segment with no citation (nothing to check)
-// plus a citation segment with no prose (dropped by MIN_CLAIM_WORDS), so the
+// plus a citation segment with no prose (too few words to be a claim), so the
 // claim escapes from both sides. Since the system prompt asks for exactly that
 // shape ("Quote at most 1–2 sentences … always followed by its link"), a
 // citation-only segment is folded back onto the sentence it follows.
@@ -520,41 +518,6 @@ export function claimSegments(answer: string): string[] {
     }
   }
   return out;
-}
-
-// Below this many distinctive words the ratio is noise (a bare "See [Doc](…)"
-// would flag every time), so short segments are skipped outright — that is where
-// the false positives would come from. Tuned against the real index over 400
-// sampled docs: correctly-cited sentences 0% flagged (verbatim AND with half
-// their words dropped to simulate paraphrase), wrong-doc citations 86.5%
-// flagged, bare "See [Doc](…)." never flagged. A sentence citing its own doc's
-// PARENT flags ~60% of the time — intended, not noise: since atomization a
-// parent's content does not contain its children's text, so that IS a
-// misattribution worth the verifier's attention.
-const MIN_CLAIM_WORDS = 6;
-const MIN_CITATION_OVERLAP = 0.25;
-
-export function findLowOverlapCitations(answer: string, ix: Indexes): string[] {
-  const out: string[] = [];
-  for (const seg of claimSegments(answer)) {
-    const cites = extractCitations(seg);
-    if (cites.length === 0) continue;
-    // Strip the links first: the link TEXT is normally the cited doc's own
-    // title, which would guarantee overlap and make the check inert.
-    const prose = seg.replace(new RegExp(MD_LINK_SRC, "g"), " ");
-    const words = contentWords(prose);
-    if (words.length < MIN_CLAIM_WORDS) continue;
-    for (const c of cites) {
-      const doc = ix.docMap.get(c.uuid);
-      if (!doc) continue; // an unknown uuid is already a hard failure
-      const hay = new Set(contentWords(`${doc.title}\n${doc.content}`));
-      const hits = words.filter((w) => hay.has(w)).length;
-      if (hits / words.length < MIN_CITATION_OVERLAP) {
-        out.push(`${doc.doc_no} ${doc.title} ← "${prose.replace(/\s+/g, " ").trim().slice(0, 100)}"`);
-      }
-    }
-  }
-  return [...new Set(out)];
 }
 
 export interface CheckReport {
@@ -587,15 +550,14 @@ export interface CheckReport {
   mscCitedAsAtlas: string[];
   // Soft wrong-doc assist: claim sentences whose vocabulary barely occurs in the
   // doc they cite. Informs the verifier prompt; never fails a turn.
-  lowOverlapCitations: string[];
   // True when the answer was cut off by the output-token cap (chat-loop.ts's
   // finish_reason "length") rather than ending on its own. Not derivable from
   // the answer text — set by the caller, defaults false here.
   lengthCapped: boolean;
   // Hard deterministic failure — invented citation targets, invented/misattributed
   // doc numbers, invented quotes, invented addresses, or a length-capped answer.
-  // Soft signals (bare links, uncited paragraphs, untraced numbers, low-overlap
-  // citations) inform, they don't fail.
+  // Soft signals (bare links, uncited paragraphs, untraced numbers) inform,
+  // they don't fail.
   failed: boolean;
 }
 
@@ -659,7 +621,6 @@ export function runDeterministicChecks(
     ungroundedAddresses,
     ungroundedCitationValues,
     untracedNumbers: findUntracedNumbers(answer, evidenceTexts),
-    lowOverlapCitations: findLowOverlapCitations(answer, ix),
     paramMismatches,
     completenessFailures,
     missingExternalDisclaimer,

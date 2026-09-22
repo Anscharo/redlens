@@ -16,8 +16,8 @@
 //      only other content was a link — were judged as claims. A pair now needs
 //      at least three real words once links and markup are gone.
 //
-// Segmentation itself is still `claimSegments`, shared with the lexical check
-// findLowOverlapCitations, so the two cannot disagree on what a sentence is.
+// Segmentation itself is `claimSegments` (verify-checks.ts), which decides the
+// sentence a trailing or dash-attributed citation belongs to.
 import { claimSegments, extractCitations, MD_LINK_SRC } from "./verify-checks.ts";
 
 export interface CitationPair {

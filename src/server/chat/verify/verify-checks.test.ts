@@ -17,7 +17,7 @@ import {
   findUngroundedCitationValues,
   findUntracedNumbers,
   findUngroundedQuotes,
-  findLowOverlapCitations,
+  claimSegments,
   findMscCitedAsAtlas,
   runDeterministicChecks,
 } from "./verify-checks.ts";
@@ -264,66 +264,35 @@ test("untraced numbers: soft signal, tolerant of identifiers and small counts", 
   expect(findUntracedNumbers("The retainer is 250,000 USDS.", evidence)).toEqual(["250000"]);
 });
 
-test("low-overlap citations: soft wrong-doc assist, quiet on prose drawn from the cited doc", () => {
-  const doc = [...ix.docMap.values()].find((d) => (d.content ?? "").replace(/\s+/g, " ").trim().length > 400)!;
-  // One segment: links stripped, sentence terminators removed so the claim and
-  // its citation stay in the same claim unit.
-  const fromDoc = doc.content
-    .replace(/\[[^\]]*\]\([^)]*\)/g, " ").replace(/[.!?|#>]/g, " ").replace(/\s+/g, " ").trim()
-    .split(" ").slice(0, 25).join(" ");
-  const cite = `[${doc.title}](/atlas/${doc.id})`;
-  expect(findLowOverlapCitations(`${fromDoc}, per ${cite}.`, ix)).toEqual([]);
-
-  // Same shape, same citation — vocabulary that occurs nowhere in the cited doc.
-  const offTopic = "The quarterly submarine inspection roster obliges every harbour warden to photograph each trombone before the meteorite auction closes";
-  const flagged = findLowOverlapCitations(`${offTopic}, per ${cite}.`, ix);
-  expect(flagged).toHaveLength(1);
-  expect(flagged[0]).toContain(doc.title);
-
-  // Too few distinctive words to judge → skipped, not guessed at.
-  expect(findLowOverlapCitations(`See ${cite}.`, ix)).toEqual([]);
-  // A nonexistent uuid belongs to the hard citation check, not this one.
-  expect(findLowOverlapCitations(`${offTopic}, per [X](/atlas/${FAKE_UUID}).`, ix)).toEqual([]);
-  // Blockquotes are quotations, not claims — the quote check owns them.
-  expect(findLowOverlapCitations(`> ${offTopic}, per ${cite}.`, ix)).toEqual([]);
-});
-
-test("low-overlap citations: a citation trailing its sentence is still scored", () => {
-  const doc = [...ix.docMap.values()].find((d) => (d.content ?? "").replace(/\s+/g, " ").trim().length > 400)!;
-  const cite = `[${doc.title}](/atlas/${doc.id})`;
-  const offTopic = "The quarterly submarine inspection roster obliges every harbour warden to photograph each trombone before the meteorite auction closes";
+// claimSegments owns which sentence a citation belongs to, for the per-citation
+// Jev check (cite-pairs.ts). These shapes used to be covered only through the
+// lexical low-overlap check, deleted 2026-09-22; the segmentation they pin is
+// still load-bearing.
+test("claimSegments folds a trailing citation back onto the sentence it closes", () => {
+  const cite = `[Doc](/atlas/${FAKE_UUID})`;
+  const prose = "The quarterly roster obliges every harbour warden to photograph each trombone";
+  const ownsCite = (segs: string[]) => segs.filter((s) => s.includes("/atlas/"));
 
   // The shape the system prompt actually asks for — link AFTER the period.
-  // Splitting at sentence ends leaves the prose citation-less and the citation
-  // prose-less, so before the fold-back both halves escaped the check.
-  expect(findLowOverlapCitations(`${offTopic}. ${cite}`, ix)).toHaveLength(1);
+  // Split at sentence ends alone, the prose is citation-less and the citation
+  // prose-less, so the claim would escape from both sides.
+  const trailing = claimSegments(`${prose}. ${cite}`);
+  expect(trailing).toHaveLength(1);
+  expect(trailing[0]).toContain(prose);
+  expect(trailing[0]).toContain(cite);
   // Attribution on its own line, the convention models use under a quote.
-  expect(findLowOverlapCitations(`${offTopic}.\n— ${cite}`, ix)).toHaveLength(1);
-  // Inline, mid-sentence, prose continuing after it.
-  expect(findLowOverlapCitations(`${offTopic} ${cite} and it applies broadly.`, ix)).toHaveLength(1);
-
-  // Prose drawn from the cited doc stays quiet in the trailing shape too —
-  // the fold-back must not manufacture false positives.
-  const fromDoc = doc.content
-    .replace(/\[[^\]]*\]\([^)]*\)/g, " ").replace(/[.!?|#>]/g, " ").replace(/\s+/g, " ").trim()
-    .split(" ").slice(0, 25).join(" ");
-  expect(findLowOverlapCitations(`${fromDoc}. ${cite}`, ix)).toEqual([]);
+  expect(ownsCite(claimSegments(`${prose}.\n— ${cite}`))[0]).toContain(prose);
+  // Inline, mid-sentence, prose continuing after it — one unit.
+  expect(claimSegments(`${prose} ${cite} and it applies broadly.`)).toHaveLength(1);
 
   // A trailing SOURCES LIST is a bibliography, not a claim about the sentence
-  // above it: folding those bullets in would flag every entry. Plain `-` bullets
-  // are therefore never folded (unlike an em/en-dash attribution).
-  expect(findLowOverlapCitations(`${offTopic}.\n\n- ${cite}`, ix)).toEqual([]);
-});
-
-test("low-overlap citations never fail a turn — paraphrase legitimately depresses overlap", () => {
-  const doc = [...ix.docMap.values()].find((d) => (d.content ?? "").replace(/\s+/g, " ").trim().length > 400)!;
-  const report = runDeterministicChecks(
-    `The quarterly submarine inspection roster obliges every harbour warden to photograph each trombone, per [${doc.title}](/atlas/${doc.id}).`,
-    [],
-    ix,
-  );
-  expect(report.lowOverlapCitations).toHaveLength(1);
-  expect(report.failed).toBe(false);
+  // above it: plain `-` bullets are never folded (unlike an em/en-dash
+  // attribution), or every entry would be judged against that sentence.
+  const listed = claimSegments(`${prose}.\n\n- ${cite}`);
+  expect(listed).toHaveLength(2);
+  expect(listed[0]).not.toContain("/atlas/");
+  // Blockquotes are quotations, not claims — the quote check owns them.
+  expect(claimSegments(`> ${prose}, per ${cite}.`)).toEqual([]);
 });
 
 test("untraced numbers never fail a turn; ungrounded addresses always do", () => {
