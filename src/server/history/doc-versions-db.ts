@@ -25,12 +25,20 @@ function insertSql(chunk: DocVersionRow[]): { text: string; params: unknown[] } 
   };
 }
 
-/** Append (idempotently) the rows of newly walked commits. */
-export async function upsertDocVersions(sql: SQL, rows: DocVersionRow[], chunkSize = 2000): Promise<void> {
+async function insertChunks(tx: SQL, rows: DocVersionRow[], chunkSize: number): Promise<void> {
   for (let i = 0; i < rows.length; i += chunkSize) {
     const { text, params } = insertSql(rows.slice(i, i + chunkSize));
-    await sql.unsafe(text, params);
+    await tx.unsafe(text, params);
   }
+}
+
+/** Append (idempotently) the rows of newly walked commits. ONE transaction so a
+ *  chunk boundary that falls inside a commit (the markdown-migration commit is
+ *  7,681 rows; a corpus renumber is ~11k) cannot persist a partial commit and
+ *  then have the cursor skip the rest. Empty input is a no-op. */
+export async function upsertDocVersions(sql: SQL, rows: DocVersionRow[], chunkSize = 2000): Promise<void> {
+  if (!rows.length) return;
+  await sql.begin(async (tx) => insertChunks(tx, rows, chunkSize));
 }
 
 /** Replace the whole table in ONE transaction: a full walk (first run, `--full`,
@@ -40,10 +48,7 @@ export async function upsertDocVersions(sql: SQL, rows: DocVersionRow[], chunkSi
 export async function replaceDocVersions(sql: SQL, rows: DocVersionRow[], chunkSize = 2000): Promise<void> {
   await sql.begin(async (tx) => {
     await tx`DELETE FROM atlas_doc_versions`;
-    for (let i = 0; i < rows.length; i += chunkSize) {
-      const { text, params } = insertSql(rows.slice(i, i + chunkSize));
-      await tx.unsafe(text, params);
-    }
+    await insertChunks(tx, rows, chunkSize);
   });
 }
 

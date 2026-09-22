@@ -30,15 +30,15 @@ function fakeSql(cursorRows: unknown[] = []) {
   return { sql: sql as never, log };
 }
 
-test("upsertDocVersions: one chunked INSERT … ON CONFLICT per chunk, a removal bound as null", async () => {
+test("upsertDocVersions: every INSERT runs inside ONE transaction, a removal bound as null", async () => {
   const { sql, log } = fakeSql();
   await upsertDocVersions(sql, [row(1), row(2, null), row(3)], 2);
-  expect(log.map((l) => l.kind)).toEqual(["sql.unsafe", "sql.unsafe"]);
-  expect(log[0]!.text).toContain("INSERT INTO atlas_doc_versions (doc_id,commit_seq,commit_sha,fingerprint)");
-  expect(log[0]!.text).toContain("ON CONFLICT (doc_id, commit_seq) DO UPDATE");
-  expect(log[0]!.params).toHaveLength(8); // 2 rows × 4 columns
-  expect(log[0]!.params[7]).toBeNull(); // row(2)'s fingerprint
-  expect(log[1]!.params).toHaveLength(4);
+  expect(log.map((l) => l.kind)).toEqual(["begin", "tx.unsafe", "tx.unsafe", "commit"]);
+  expect(log[1]!.text).toContain("INSERT INTO atlas_doc_versions (doc_id,commit_seq,commit_sha,fingerprint)");
+  expect(log[1]!.text).toContain("ON CONFLICT (doc_id, commit_seq) DO UPDATE");
+  expect(log[1]!.params).toHaveLength(8); // 2 rows × 4 columns
+  expect(log[1]!.params[7]).toBeNull(); // row(2)'s fingerprint
+  expect(log[2]!.params).toHaveLength(4);
 });
 
 test("upsertDocVersions: nothing to write issues no statement", async () => {
