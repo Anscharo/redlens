@@ -184,4 +184,12 @@ describe("atlas artifact store: worker publish is load-bearing (phase 4)", () =>
     expect(worker).not.toContain("web instances keep building their own");
     expect(worker).not.toMatch(/publish-artifacts failed[\s\S]*console\.warn/);
   });
+
+  it("atlas-worker kills a hung tick so Railway cron can retry", () => {
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    expect(worker).toContain("const HARD_CAP_MS = 15 * 60 * 1000");
+    expect(worker).toContain("atlas-worker: hard cap (15m) — exiting so cron can retry");
+    expect(worker).toContain("hardCap.unref()");
+    expect(worker).toMatch(/hard cap[\s\S]*process\.exit\(1\)/);
+  });
 });
