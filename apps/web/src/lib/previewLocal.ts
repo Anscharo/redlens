@@ -63,8 +63,11 @@ export function parsePreviewInput(raw: string): string | null {
  *  commit and redlines it against the PR's own base branch (read via the
  *  installation token, which needs Pull requests:read); without that
  *  permission the HEAD comes from `refs/pull/N/head` with no base info, and
- *  the preview falls back to branch rules — the closest shared point with
- *  sky-ecosystem/next-gen-atlas:main or the repo's own default branch.
+ *  the repo's own default branch stands in for the PR's base. A private
+ *  BRANCH is redlined against the repo's default branch; a private preview
+ *  with no base branch at all (the default branch itself) against live
+ *  sky-ecosystem/next-gen-atlas:main. No ancestor shared with sky main is
+ *  ever searched for — see src/server/preview/pr-diff.ts.
  *  Accepts, in order:
  *    - a full github.com URL, scheme optional, .git optional:
  *        github.com/OWNER/REPO                 → default branch

@@ -165,7 +165,7 @@ export function PreviewHome() {
             <p className="mono text-xs mt-2" style={{ color: "var(--tan-3)" }}>
               {isPrivatePrId(privateId)
                 ? "will compare with the pull request's base branch"
-                : "will compare with the closest shared point with sky-ecosystem/next-gen-atlas:main or this fork's own default branch"}
+                : "will compare with this repo's default branch, or with the live sky-ecosystem/next-gen-atlas:main when there is none to compare against"}
             </p>
           )}
           {privateInput && !privateId && (

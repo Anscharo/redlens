@@ -21,16 +21,18 @@ is unreadable with the shared service token. Two things are therefore new:
 The redline now runs the same diff-base candidate resolution as a public preview, just
 authenticated with the installation token instead of the shared service token (the only
 credential that can read a private repo at all). Every PR — canonical, public fork-owned, or
-private — is compared against its own declared base branch (the `repo` candidate); every
-branch is compared against whichever of two candidates is more recent: the merge base with
-sky-ecosystem/next-gen-atlas:main (found by walking commit lists rather than a GitHub compare,
-since a private repo shares commit history with sky but is never a true GitHub fork of a
-public one — `fork-point.ts`) or the merge base with the repo's own default branch. A pasted
+private — is compared against its own declared base branch (the `repo` candidate), and never
+against its fork point with sky main: when its base does not resolve it is compared against
+live sky main instead. A PRIVATE branch is compared against the merge base with the repo's own
+default branch, and a private preview with no base branch (the default branch itself) against
+live sky main. No private preview searches for an ancestor shared with sky main — a cross-repo
+compare is impossible outside a fork network, and the alternative (intersecting commit lists)
+needs shared commit SHAs that a mirror of a squash-merged upstream does not have; it found an
+absent or ancient "fork point" and redlined the repo's whole history (removed 2026-09). A pasted
 private PR URL resolves to that PR's HEAD commit (`refs/pull/N/head`, or the Pulls API HEAD
 branch plus declared base when the App has **Pull requests:read**); without that permission
 there is no base to read, so the repo's own default branch stands in for it and the PR is
-redlined against that (forced, like a declared base — never the sky fork point, which would
-count everything the repo's main carries beyond sky as the PR's changes). The preview bar then
+redlined against that (forced, like a declared base). The preview bar then
 prompts the install owner to grant Pull requests: Read (linking to GitHub's
 `{html_url}/permissions/update` screen) and rebuilds against the PR's own base after they
 accept and reload. The old "vs live main, no compare" path survives only as the
@@ -113,8 +115,8 @@ Gaps found in review (all closed in the implementation):
 | `previews.private`; exclude private from `/list`; `ON CONFLICT` | `src/server/preview/db.ts` |
 | `previews.pr_base_repo` / `pr_base_ref` persistence | `src/server/migrations/028_preview_pr_base.sql`, `src/server/preview/db.ts` |
 | `previews.default_branch` persistence (fork branch `repo` candidate across sha rebuilds) | `src/server/migrations/029_preview_default_branch.sql`, `src/server/preview/db.ts` |
+| Durable record of the base ACTUALLY used — `previews.diff_base_type` (`pr-base` / `fork-default` / `nga-main`: which branch) + `diff_base_lca` (was a last common ancestor found, or is it that branch's tip) / `diff_base` (`owner/repo:branch@commit`) / `diff_bases` (every candidate, jsonb) / `base_atlas_commit` / `diff_added` / `diff_changed`, plus one `[preview] <sha8>: redlined vs …` log line per build. The record has its own vocabulary; the bundle's internal `sky` / `repo` / `live-main` keys never reach it | `src/server/migrations/033_preview_diff_base.sql`, `src/server/preview/diff-base-record.ts`, `src/server/preview/db.ts` |
 | Diff-base candidate resolution (`sky` / `repo` merge bases, `pickAuto`) | `src/server/preview/pr-diff.ts` (now the candidate resolver), `src/server/preview/pr-diff-auto.ts` |
-| Fork-point walk for repos with no true GitHub fork relationship (private repos; also the public sky-compare fallback) | `src/server/preview/fork-point.ts` |
 | Base-drift banner metrics (commits ahead/behind sky main, docs differ) | `src/server/preview/base-drift.ts` |
 | Per-candidate diff/patch artifact build (`diff.<key>.json` / `patches.<key>.json`, plus the auto-selected pair) | `src/server/preview/diff-base.ts` |
 | Three fail-closed enforcement points + private headers | `src/server/preview/handler.ts` |

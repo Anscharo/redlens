@@ -7,15 +7,10 @@
 // resolveCandidates builds its own GhClients internally via makeGhClient, so
 // its one test stubs globalThis.fetch (restored in afterEach) — same pattern
 // open-prs.test.ts uses.
-import { test, expect, afterEach, beforeEach } from "bun:test";
+import { test, expect, afterEach } from "bun:test";
 import { skyCandidate, repoCandidate, pickAuto, resolveCandidates, CompareError, type Candidate } from "./pr-diff.ts";
-import { __resetForkPointCacheForTest } from "./fork-point.ts";
 import { CANONICAL_REPO, type Resolved } from "./resolve.ts";
 import { config } from "../config.ts";
-
-beforeEach(() => {
-  __resetForkPointCacheForTest();
-});
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -73,7 +68,11 @@ test("skyCandidate public: 404 throws CompareError — load-bearing for the fork
   );
 });
 
-test("skyCandidate private: uses the fork-point commit-list walk, never a cross-repo compare", async () => {
+test("skyCandidate private: always null, and makes no GitHub call — a private preview never searches for an nga-main ancestor", async () => {
+  // Wired so a commit-list walk WOULD find a shared sha if one were attempted.
+  // nga main is squash-merged: a mirror that takes it by content shares no
+  // commit SHAs (or only its original import), so that "ancestor" was absent or
+  // ancient and redlined the repo's whole history as the preview's change.
   const repoGh = fakeGh({
     "/repos/priv/repo/commits?sha=headsha&per_page=100&page=1": { json: [{ sha: "headsha" }, { sha: "shared1" }] },
     "/repos/priv/repo/compare/shared1...headsha": { json: { ahead_by: 4 } },
@@ -83,15 +82,9 @@ test("skyCandidate private: uses the fork-point commit-list walk, never a cross-
     "/repos/sky-ecosystem/next-gen-atlas/compare/shared1...atlasX": { json: { ahead_by: 9 } },
   });
   const resolved: Resolved = { repo: "priv/repo", sha: "headsha", kind: "branch", ref: "spark", private: true };
-  const c = await skyCandidate(resolved, { canonicalGh, repoGh, priv: true, atlasCommit: "atlasX" });
-  expect(c).toEqual({ key: "sky", repo: CANONICAL_REPO, ref: "main", mergeBase: "shared1", aheadBy: 4, behindBy: 9 });
-});
-
-test("skyCandidate private: no fork point is null, never a throw", async () => {
-  const repoGh = fakeGh({ "/repos/priv/repo/commits?sha=headsha&per_page=100&page=1": { json: [{ sha: "headsha" }] } });
-  const canonicalGh = fakeGh({ "/repos/sky-ecosystem/next-gen-atlas/commits?sha=atlasY&per_page=100&page=1": { json: [{ sha: "other" }] } });
-  const resolved: Resolved = { repo: "priv/repo", sha: "headsha", kind: "branch", ref: "spark", private: true };
-  expect(await skyCandidate(resolved, { canonicalGh, repoGh, priv: true, atlasCommit: "atlasY" })).toBeNull();
+  expect(await skyCandidate(resolved, { canonicalGh, repoGh, priv: true, atlasCommit: "atlasX" })).toBeNull();
+  expect(repoGh.calls).toEqual([]);
+  expect(canonicalGh.calls).toEqual([]);
 });
 
 // ---------------------------------------------------------------------------
@@ -219,14 +212,28 @@ test("pickAuto: a PR forces repo even with both candidates present — no extra 
   expect(repoGh.calls.length).toBe(0);
 });
 
-test("pickAuto: PR with only sky resolved falls back to sky", async () => {
-  const resolved: Resolved = { repo: "acme/fork", sha: "s", kind: "branch", ref: "feature", prBase: { repo: "acme/fork", ref: "main" } };
-  expect(await pickAuto(resolved, skyC, null, fakeGh({}))).toEqual({ auto: "sky", sky: skyC });
+test("pickAuto: a PR whose own base did not resolve goes to live nga main — NEVER the nga-main fork point, even when one resolved", async () => {
+  // The fork point is what the REPO shares with nga main, not what the PR
+  // changes: on a repo carrying its own unpublished work it counts all of that
+  // work as this PR's. A declared base and the pull-N stand-in behave alike.
+  const declared: Resolved = { repo: "acme/fork", sha: "s", kind: "branch", ref: "feature", prBase: { repo: "acme/fork", ref: "main" } };
+  const fallback: Resolved = { repo: "acme/fork", sha: "s", kind: "branch", ref: "pull-7", defaultBranch: "main" };
+  const repoGh = fakeGh({});
+  expect(await pickAuto(declared, skyC, null, repoGh)).toEqual({ auto: "live-main", reason: "PR base did not resolve" });
+  expect(await pickAuto(declared, null, null, repoGh)).toEqual({ auto: "live-main", reason: "PR base did not resolve" });
+  expect(await pickAuto(fallback, skyC, null, repoGh)).toEqual({ auto: "live-main", reason: "PR base unreadable and no default branch resolved" });
+  expect(repoGh.calls.length).toBe(0);
 });
 
-test("pickAuto: PR with neither candidate degrades to live-main", async () => {
-  const resolved: Resolved = { repo: "acme/fork", sha: "s", kind: "branch", ref: "feature", prBase: { repo: "acme/fork", ref: "main" } };
-  expect(await pickAuto(resolved, null, null, fakeGh({}))).toEqual({ auto: "live-main" });
+test("pickAuto: a PR declared against nga main whose own compare failed uses the canonical compare — it is the SAME base, not a fork point", async () => {
+  // pull-256's shape: ~390 docs against live main, the real 53 against the
+  // merge base. Losing that to a transient failure of the redundant repo-side
+  // compare would be a regression, and the sky candidate IS this PR's base.
+  const resolved: Resolved = { repo: "acme/fork", sha: "s", kind: "pr", ref: "pull-256", prBase: { repo: CANONICAL_REPO, ref: "main" } };
+  expect(await pickAuto(resolved, skyC, null, fakeGh({}))).toEqual({ auto: "sky", sky: skyC });
+  // …but only for nga main: a PR against another canonical branch has no such twin.
+  const develop: Resolved = { ...resolved, prBase: { repo: CANONICAL_REPO, ref: "develop" } };
+  expect(await pickAuto(develop, skyC, null, fakeGh({}))).toEqual({ auto: "live-main", reason: "PR base did not resolve" });
 });
 
 test("pickAuto: branch, status ahead -> repo", async () => {
@@ -288,17 +295,14 @@ test("resolveCandidates: a CompareError from the public sky compare is caught ->
   }
 });
 
-test("resolveCandidates: a private preview's null fork point still counts as compareOk true", async () => {
+test("resolveCandidates: a private preview has no sky candidate, which still counts as compareOk true — and no commit list is ever walked", async () => {
   const origToken = config.githubToken;
   config.githubToken = "svc-token";
   try {
-    // Two disjoint commit lists — canonical and the private repo share nothing,
-    // so the fork-point walk finds no intersection.
+    const fetched: string[] = [];
     // @ts-expect-error stub
     globalThis.fetch = (url: string) => {
-      const u = String(url);
-      if (u.includes("/repos/sky-ecosystem/next-gen-atlas/commits")) return Promise.resolve(jsonRes([{ sha: "sky-only" }], true, 200));
-      if (u.includes("/repos/priv/repo/commits")) return Promise.resolve(jsonRes([{ sha: "priv-only" }], true, 200));
+      fetched.push(String(url));
       return Promise.resolve(jsonRes(null, false, 404));
     };
     const resolved: Resolved = { repo: "priv/repo", sha: "headsha", kind: "branch", ref: "spark", private: true };
@@ -306,6 +310,7 @@ test("resolveCandidates: a private preview's null fork point still counts as com
     expect(result.compareOk).toBe(true);
     expect(result.sky).toBeUndefined();
     expect(result.auto).toBe("live-main");
+    expect(fetched.some((u) => u.includes("/commits"))).toBe(false);
   } finally {
     config.githubToken = origToken;
   }

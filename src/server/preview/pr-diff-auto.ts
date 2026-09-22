@@ -19,14 +19,24 @@ function autoResult(auto: BaseKey | "live-main", sky?: Candidate, repo?: Candida
 }
 
 /**
- * A PR forces "repo" whenever one resolved (no extra compare — the PR's
- * declared base is definitionally the meaningful diff), except when that
- * base is sky main itself, which collapses to a single "sky" candidate. A PR
- * whose base could not be read (Contents-only fallback) is still a PR: its
- * stand-in default-branch candidate is forced the same way. A branch with both
- * candidates asks GitHub which merge base is later: "ahead" (repo's is
- * later) → "repo", "behind" → "sky", "identical" → collapse to ONE candidate
- * (drop `repo`, keep `sky`), "diverged" or a failed compare → "sky" + reason.
+ * A PR is redlined against ITS OWN base, or against live nga main — never
+ * against the nga-main fork point as a competing candidate. "PR" means a
+ * declared base (`prBase`) or a `pull-N` ref (the Contents-only fallback, where
+ * the repo's default branch stands in for the unreadable base):
+ *   - its `repo` candidate resolved → "repo", no extra compare. When that base
+ *     IS nga main the two candidates are one base, collapsed into the `sky`
+ *     slot (no switch, no drift vs main itself).
+ *   - it did not → "live-main" + reason. The one exception is a PR declared
+ *     against nga main whose own compare failed while the canonical one
+ *     succeeded: that `sky` candidate is the same base, so it is used.
+ * A fork point is what a repo shares with nga main, not what a PR changes: on
+ * a repo that carries its own unpublished work it counts all of that work as
+ * the PR's (the 2026-09 private-preview reports).
+ *
+ * A BRANCH (no PR) with both candidates asks GitHub which merge base is later:
+ * "ahead" (repo's is later) → "repo", "behind" → "sky", "identical" → collapse
+ * to ONE candidate (drop `repo`, keep `sky`), "diverged" or a failed compare →
+ * "sky" + reason. A private branch never has a `sky` candidate (pr-diff.ts).
  */
 export async function pickAuto(
   resolved: Resolved,
@@ -34,28 +44,18 @@ export async function pickAuto(
   repo: Candidate | null,
   repoGh: GhClient,
 ): Promise<AutoPick> {
-  if (resolved.prBase) {
-    // A PR whose declared base IS sky main has one meaningful base, not two:
-    // its `repo` candidate is the same merge base as `sky`. Collapse to the
-    // sky candidate (so the reader sees no switch, drift is not measured
-    // against main itself, and patches keep comparing against live main —
-    // today's canonical-PR behaviour). Prefer the sky candidate's own counts
-    // when it resolved; fall back to the repo compare's otherwise.
-    if (repo && repo.repo === CANONICAL_REPO && repo.ref === CANONICAL_MAIN_REF) {
-      return autoResult("sky", sky ?? { ...repo, key: "sky" });
+  if (resolved.prBase || isPullRef(resolved.ref)) {
+    const isNgaMain = (c: { repo: string; ref: string }) => c.repo === CANONICAL_REPO && c.ref === CANONICAL_MAIN_REF;
+    if (repo) {
+      // Prefer the sky candidate's own counts when it resolved; fall back to
+      // the repo compare's otherwise. Patches keep comparing against live main
+      // — today's canonical-PR behaviour.
+      if (isNgaMain(repo)) return autoResult("sky", sky ?? { ...repo, key: "sky" });
+      return autoResult("repo", sky ?? undefined, repo);
     }
-    if (repo) return autoResult("repo", sky ?? undefined, repo);
-    if (sky) return autoResult("sky", sky);
-    return autoResult("live-main");
+    if (sky && resolved.prBase && isNgaMain(resolved.prBase)) return autoResult("sky", sky);
+    return autoResult("live-main", undefined, undefined, resolved.prBase ? "PR base did not resolve" : "PR base unreadable and no default branch resolved");
   }
-
-  // A PR resolved through the Contents-only fallback has no declared base, but
-  // it is still a PR and the repo's default branch stands in for that base
-  // (resolvePrivateBranch). Force `repo` like the arm above instead of asking
-  // which merge base is later: a PR branch that took a newer sky main than the
-  // repo's own main carries compares "diverged", and the sky pick that follows
-  // counts all of that main's work as this PR's changes.
-  if (isPullRef(resolved.ref) && repo) return autoResult("repo", sky ?? undefined, repo);
 
   if (sky && repo) {
     // A raw network throw must degrade like a non-ok response — resolveCandidates

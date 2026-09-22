@@ -26,7 +26,6 @@ The server makes exactly these calls, so this is the whole permission surface:
 | `GET /repos/{repo}/pulls/{n}` (private PR → HEAD branch + declared base branch; requires Pull requests:read) | installation token | **Pull requests: read** if granted; otherwise skipped |
 | `GET /repos/{repo}/git/ref/pull/{n}/head` (PR HEAD sha fallback, no base info) | installation token | **Contents: read** |
 | `GET /repos/{repo}/compare/{base}...{head}` (merge base + ahead/behind for a candidate diff base) | installation token | **Contents: read** |
-| `GET /repos/{repo}/commits?sha=` (fork-point walk — a private repo is never a true GitHub fork, so its merge base with sky main is found by intersecting commit lists instead of a cross-repo compare) | installation token | **Contents: read** |
 | `GET /repos/{repo}/tarball/{sha}` (download the private atlas) | installation token | **Contents: read** |
 
 So the App needs exactly three **Repository permissions**:
@@ -74,8 +73,8 @@ GitHub Apps → New GitHub App**.
 6. **Repository permissions** — set **Contents: Read-only**, confirm
    **Metadata: Read-only** is selected, and set **Pull requests: Read-only**
    (required to redline a private PR against its own base branch — without it
-   the preview still builds, but only against the closest shared point with
-   sky main or the repo's default branch). Leave everything else at
+   the preview still builds, with the repo's default branch standing in for
+   the PR's base). Leave everything else at
    *No access*.
 7. **Organization / Account permissions** — leave all at *No access*.
 8. **Subscribe to events** — none.
@@ -219,3 +218,53 @@ GitHub's own answer to "can this account read this repo?".
 4. A repo the App isn't installed on → the "install the app" screen.
 5. Direct-hit `/api/preview/<sha>/docs.json` for a private bundle without an
    authorized session → `401`/`403`, never the content.
+
+## Debugging "the preview shows the wrong diff"
+
+Every successful build records what it was redlined against on its `previews`
+row (the bundle's own `meta.json` is on ephemeral disk and does not survive a
+deploy). From a shell in the web container:
+
+```bash
+bun -e 'import {sql} from "bun";console.table(await sql`SELECT left(sha,8) AS sha, repo, ref, diff_base_type AS type, diff_base_lca AS lca, diff_base, diff_added, diff_changed, diff_bases->>$$reason$$ AS reason, last_access FROM previews WHERE private ORDER BY last_access DESC LIMIT 20`)'
+```
+
+Two columns, two questions. `diff_base_type` is WHICH BRANCH the base is:
+
+| `diff_base_type` | The base branch | Healthy for |
+|---|---|---|
+| `pr-base` | the PR's own declared base branch — including nga main itself | every PR whose base could be read |
+| `fork-default` | the repo's default branch | a branch preview; a private PR built without Pull requests: Read (the default branch stands in for the base) |
+| `nga-main` | `sky-ecosystem/next-gen-atlas:main` | a branch of the canonical repo; a public fork branch whose nga-main merge base is the later one; anything compared against live nga main (`diff_base_lca = false`) |
+
+`diff_base_lca` is whether the doc list is computed against a LAST COMMON
+ANCESTOR. `true`: it is, and `diff_base` (`owner/repo:branch@commit`) names that
+ancestor. `false`: the preview was compared against LIVE nga main as served at
+build time, so everything upstream changed since the branch was cut shows up
+too and `diff_changed` is often in the hundreds. **It does not mean an ancestor
+search ran and failed** — read `diff_bases->>'reason'`:
+
+| `reason` | What happened |
+|---|---|
+| `no base branch to compare against` | a private preview of the repo's own default branch — by design, there is nothing in-repo to compare it with |
+| `PR base did not resolve` | the compare against the PR's declared base failed (GitHub error, base branch deleted) |
+| `PR base unreadable and no default branch resolved` | a private PR without Pull requests: Read, whose default-branch lookup also failed |
+| `compare failed` / `no merge base` | a public preview whose canonical compare failed or found no common history |
+
+A PR is never redlined against a fork point with nga main — only against its
+own base, or live nga main. A private preview never searches for an nga-main
+ancestor at all: nga main is squash-merged, so a mirror that takes it by
+copying content shares no commit SHAs with it (or only its original import),
+and the "ancestor" such a search found was absent or ancient.
+
+- A PR declared against nga main itself is `pr-base` (its `diff_base` reads
+  `sky-ecosystem/next-gen-atlas:main@…`), so `diff_base_type = 'pr-base'` finds
+  every PR redlined against its declared base.
+- `nga-main` with `diff_base_lca = true` only ever comes from a PUBLIC branch
+  preview (a canonical branch, or a fork branch whose nga-main merge base is the
+  later one).
+- `SELECT … WHERE NOT diff_base_lca` lists every degraded preview.
+- `diff_bases->'candidates'` holds EVERY candidate that resolved, keyed by the
+  same three types, each with its LCA (`mergeBase`) and ahead/behind.
+- The row is overwritten on a same-sha rebuild; the per-build history is the
+  `[preview] <sha8>: redlined vs …` line in the server log.
