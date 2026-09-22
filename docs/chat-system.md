@@ -108,8 +108,9 @@ checklist), `Sources`, `LimitsMeter` + `ContextPie` (usage and context size),
    insert/history reload would otherwise leak it silently), and the stream's
    own `finally` once it owns the slot.
 4. **Rate-limit + commons gate** (parallel) — per-user rolling token window
-   (`RATE_LIMIT_TOKENS_PER_WINDOW`, default 750,000 tokens /
-   `RATE_LIMIT_WINDOW_MINUTES`, default 120; 429 with `Retry-After` if
+   (`RATE_LIMIT_TOKENS_PER_WINDOW`, default 1,000,000,000,000 tokens —
+   effectively disabled as of 2026-09-22; 750,000 was the last live value /
+   `RATE_LIMIT_WINDOW_MINUTES`, default 90; 429 with `Retry-After` if
    exceeded). Named GitHub logins get a higher ceiling:
    `RATE_LIMIT_BOOST_LOGINS` (comma-separated, case-insensitive) →
    `RATE_LIMIT_TOKENS_PER_WINDOW_BOOSTED` (default 3,000,000), an explicit
