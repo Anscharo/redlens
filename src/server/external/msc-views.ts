@@ -72,9 +72,9 @@ const TERMS = [
       "Agent rate plus distribution rewards, Chronicle points, and accessibility rewards (GAR) when present. Keel and Skybase settle as demand-side-only cycles. NOT Atlas vocabulary, and note the direction flips by party: Distribution Rewards are an EXPENSE of the Sky Protocol in the Atlas (A.2.3.1.2.1.3.3) and revenue to the Prime here.",
   },
   {
-    term: "Gross revenue",
+    term: "What ran through a Prime",
     meaning:
-      "SAbR's name, on the Radar overview chart, for everything a Prime's book generated in the month before cost of funds: prime agent revenue + demand-side + Sky Direct Exposure — equally To Sky + supply kept + demand-side, since the three-way foots. It is the workbook's prime_agent_total_revenue plus SDE; the workbooks themselves name no such total. NOT Atlas vocabulary, and NOT the Atlas's Net Revenue (next entry).",
+      "The height of a Prime's bar on the Radar overview chart: To Sky + supply-side kept + demand-side, equally prime agent revenue + demand-side + Sky Direct Exposure, since the three-way foots. It has NO NAME — not in the Atlas, which never totals it, and not in the workbooks. SAbR called it \"gross revenue\" for a while; that was our coinage and it is gone. Describe it by its parts and never coin a word for it, because the sum adds what a Prime owes Sky (A.2.4.1.2.2.1.1.2) to what Sky owes the Prime (A.2.4.1.2.2.1.1.1) — two settlement amounts running in opposite directions. It is also NOT the Atlas's Net Revenue (next entry).",
   },
   {
     term: "Net Revenue",

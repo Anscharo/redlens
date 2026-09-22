@@ -32,7 +32,7 @@ export function RingKey({ view = "pies" }: { view?: "pies" | "sankey" }) {
         <p>
           {pies
             ? "Every pie is what that party RECEIVED: a Prime's is supply-side kept + demand-side, Sky's is cost of funds + Sky Direct Exposure. Two arrows run between them, one each way. "
-            : "A Prime's bar = gross revenue*; ribbons are the money in and out. "}
+            : "A Prime's bar is what ran through it — To Sky + supply-side kept + demand-side; ribbons are the money in and out. "}
           Hover for figures; click a Prime for its page.
         </p>
         {/* The size encoding is stated, not implied. It was NOT always
@@ -61,9 +61,6 @@ export function RingKey({ view = "pies" }: { view?: "pies" | "sankey" }) {
             Exposure (A.2.4.1.2.2.1.1.2).
           </p>
         )}
-        {/* The footnote belongs to the flow chart's bar, the one mark that
-            still uses gross revenue; the pies no longer sum the two sides. */}
-        {!pies && <p className="mt-1 italic">*Gross revenue = To Sky + supply-side kept + demand-side.</p>}
       </div>
     </div>
   );

@@ -103,7 +103,9 @@ describe("MscOverview", () => {
       { title: "Supply-side", keys: ["kept", "neg"] },
       { title: "Demand-side", keys: ["agentRate", "distributionRewards", "gar", "chroniclePoints"] },
     ]);
-    expect(document.querySelector(".msc-key-note")).toHaveTextContent("A Prime's bar = gross revenue*");
+    // The bar's total is described by its parts, never given a name we coined.
+    expect(document.querySelector(".msc-key-note")).toHaveTextContent("A Prime's bar is what ran through it");
+    expect(document.querySelector(".msc-key-note")).not.toHaveTextContent(/gross revenue/i);
     // Cross-chart hover styles: one :has() rule per prime in the stack.
     const style = document.querySelector("style")!.textContent!;
     expect(style).toContain('.msc-bar-col[data-active="true"] .msc-ts-seg[data-prime="spark"][data-flow="sky"]:hover');

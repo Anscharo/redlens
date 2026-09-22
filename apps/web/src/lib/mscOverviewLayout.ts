@@ -1,6 +1,6 @@
 // Orbital-chart geometry for the /radar MSC overview: Sky as a central
 // PIE, subdivided into one wedge per Prime by its share of the To-Sky
-// total, and each Prime as a PIE of its gross-revenue line items orbiting
+// total, and each Prime as a PIE of the line items it received, orbiting
 // it, with an arrow from the pie's To-Sky slices into its own wedge. (Sky
 // is a full pie, not a donut: on this chart a hole means a loss.)
 // Pure math, no DOM — the view just maps over prebuilt SVG path strings
@@ -323,7 +323,7 @@ export interface RingPrime {
   /** Name, centered outside the pie on the side away from Sky. */
   labelX: number;
   labelY: number;
-  /** Where the gross-revenue pill sits (off the name) and its anchor. */
+  /** Where the bar's total pill sits (off the name) and its anchor. */
   grossPillX: number;
   grossPillY: number;
   grossAnchorX: number;

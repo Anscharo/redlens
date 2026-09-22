@@ -38,16 +38,24 @@ export const SLICE_LABEL: Record<string, string> = {
 };
 
 /** Pill text names what it is, not just the number — a bare "$2.6M" says
- *  nothing about which flow it belongs to. */
+ *  nothing about which flow it belongs to.
+ *
+ *  The bar's own total is DESCRIBED, never named. It used to read "gross
+ *  revenue*", which is SAbR's coinage: it sums what a Prime owes Sky with
+ *  what Sky owes the Prime, two settlement amounts running in opposite
+ *  directions (A.2.4.1.2.2.1.1.2 and A.2.4.1.2.2.1.1.1) that the Atlas
+ *  never totals and has no word for. src/lib/settlements.ts dropped the
+ *  helper for the same reason; this was the last place the term survived.
+ *  Say what went through the bar, and list its parts. */
 export function pillText(kind: string, signed: number, primeLabel: string, share?: number | null): string {
   const amount = formatUsd(signed, true);
   if (kind === "sky") {
     return share != null
-      ? `${amount} to Sky — ${formatShare(share)} of ${primeLabel}'s gross revenue*`
+      ? `${amount} to Sky — ${formatShare(share)} of what ran through ${primeLabel}`
       : `${amount} to Sky`;
   }
   if (kind === "share") return `${amount} to Sky from ${primeLabel}`;
-  if (kind === "gross") return `${amount} gross revenue* of ${primeLabel}`;
+  if (kind === "gross") return `${amount} through ${primeLabel}: To Sky + supply-side kept + demand-side`;
   // The orbit's pies are what each party RECEIVED, so its totals say so.
   if (kind === "received") return `${amount} received by ${primeLabel} — supply-side kept + demand-side`;
   if (kind === "demand") return `${amount} demand-side, from Sky to ${primeLabel}`;
