@@ -13,10 +13,19 @@
 // (A.2.4.1.2.2.1.1.1), which is every demand-side source. Drawing those as
 // plain sources said the Prime earned them: for Keel, Skybase and Osero
 // that is the WHOLE bar, fed from the left with nothing going out. So the
-// demand-side bars now hang off their own Sky node in the left gutter
-// (`skySource`), under a heading that names the party and carries the
-// group's total; the earned group above it is separated by a blank band
-// rather than a caption of its own (GROUP_HEADING).
+// demand-side rows are BRACKETED (`sourceBracket`) — a `[` in Sky's own
+// blue down the far left of the drawing, under a heading that names the
+// party and carries the group's total. The bracket is what says "these are
+// Sky's, not the Prime's", and its colour is what puts Sky at the left end
+// of the chart as well as the right; it replaced a small Sky node with a
+// ribbon into each demand bar, which said the same thing but read as a
+// fourth stage of the flow. The earned group above it is separated by a
+// blank band rather than a caption of its own (GROUP_HEADING).
+//
+// The source bars are NOT a column: each sits its own label-length from the
+// left edge (`sourceBarX`), so the gap between a name and the bar it names
+// is the same on every row. Lined up, a short name like "AR · agent rate"
+// left a dead channel as wide as the longest name.
 //
 // A Prime's bar is as tall as the larger of its two sides: what feeds it
 // (what the book EARNED toward cost of funds, Sky Direct Exposure,
@@ -107,33 +116,38 @@ const SOURCE_CHAR_PX = 24;
 const AMOUNT_FONT = "44px 'Source Code Pro', 'Courier New', monospace";
 const AMOUNT_CHAR_PX = 26.5;
 const AMOUNT_ROOM = textWidth(" | $00.00M", AMOUNT_FONT, AMOUNT_CHAR_PX);
+/** The canvas' own margin, left and right. */
+const EDGE_PAD = 10;
+/** The Sky bracket's column: a spine at BRACKET_X with both arms turning
+ *  right, toward the rows it gathers. Reserved in EVERY month, demand side
+ *  or not, so the labels never shift between months. */
+export const BRACKET_X = EDGE_PAD;
+export const BRACKET_ARM = 18;
+const BRACKET_GAP = 14;
 /** EVERY left-hand label starts here — the source lines, the OWED BY SKY
- *  heading and the SOURCE column header — flush against the canvas' left
- *  edge rather than right-aligned into a gutter sized for the single
- *  longest string. The ragged edge moves to the right, where the column it
- *  names is, and the drawing gets the slack back. */
-export const LABEL_X = 12;
-/** Air between a label's longest line and the mark it names. */
-const LABEL_GAP = 24;
-/** The two groups' labels are sized separately because they never share a
- *  row: the earned group is the top of the column and the Sky-owed group
- *  the bottom, so the Sky node only has to clear the demand-side names. */
-export const sourceGroupRoom = (origin: "earned" | "sky") =>
-  Math.max(
-    0,
-    ...Object.keys(SOURCE_LABEL)
-      .filter((k) => SOURCE_ORIGIN[k] === origin)
-      .map((k) => textWidth(SOURCE_LABEL[k], SOURCE_FONT, SOURCE_CHAR_PX)),
-  ) + AMOUNT_ROOM;
-/** Sky's node in the LEFT gutter, which the demand-side bars hang off:
- *  just clear of the longest demand-side label. */
-export const SKY_SRC_X = LABEL_X + sourceGroupRoom("sky") + LABEL_GAP;
-/** Gap between that node and the source bars it feeds — long enough for a
- *  readable ribbon, short enough that the group still reads as one. */
-const SKY_SRC_GAP = 120;
-/** The source column: clear of BOTH the Sky node's ribbons and the longest
- *  earned label, whichever reaches further. */
-export const LEFT_X = Math.max(SKY_SRC_X + NODE_W + SKY_SRC_GAP, LABEL_X + sourceGroupRoom("earned") + LABEL_GAP);
+ *  heading and the SOURCE column header — flush left, just clear of the
+ *  bracket column, rather than right-aligned into a gutter sized for the
+ *  single longest string. */
+export const LABEL_X = BRACKET_X + BRACKET_ARM + BRACKET_GAP;
+/** Air between a label and the bar it names — the SAME on every row, which
+ *  is what turns the source column into a stagger. */
+const LABEL_GAP = 20;
+/** The reserved width of one source's whole label line: its name in Inter
+ *  plus the amount in mono. The AMOUNT is reserved at its widest (" |
+ *  $00.00M") rather than measured per month, so a bar sits at the same x
+ *  whatever the month's figures are — the same reason the canvas is a fixed
+ *  size. */
+export function sourceLabelWidth(kind: string): number {
+  return textWidth(SOURCE_LABEL[kind], SOURCE_FONT, SOURCE_CHAR_PX) + AMOUNT_ROOM;
+}
+/** Where one source's bar goes: its own label's end plus the shared gap. */
+export function sourceBarX(kind: string): number {
+  return LABEL_X + sourceLabelWidth(kind) + LABEL_GAP;
+}
+/** The rightmost source edge — the longest label's bar, and the left
+ *  boundary everything downstream is measured from (MID_X, the ribbon
+ *  span). Every other bar sits left of it. */
+export const LEFT_X = Math.max(...Object.keys(SOURCE_LABEL).map(sourceBarX));
 /** Sky's bar sits near the right edge, with its label — "To Sky | $15.86M",
  *  54px, RIGHT-aligned flush to the canvas edge and centred on the bar's own
  *  height, the mirror of the left column's treatment — running into a gutter
@@ -142,8 +156,8 @@ const SKY_LABEL_ROOM =
   textWidth("To Sky", "54px 'Inter', system-ui, sans-serif", 29.5) +
   textWidth(" | $00.00M", "54px 'Source Code Pro', 'Courier New', monospace", 32.5);
 /** Where every right-hand label ends: the SKY header and the To Sky line. */
-export const SKY_LABEL_X = WIDTH - LABEL_X;
-const RIGHT_GUTTER = SKY_LABEL_ROOM + LABEL_GAP + LABEL_X;
+export const SKY_LABEL_X = WIDTH - EDGE_PAD;
+const RIGHT_GUTTER = SKY_LABEL_ROOM + LABEL_GAP + EDGE_PAD;
 export const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
 /** A Prime's label reads "Name | $12.71M" — the name in Inter, the pipe and
  *  the figure in mono — and the PIPE is what sits on the column's centre
@@ -244,15 +258,48 @@ export interface FlowSource extends Fading {
   headingY?: number;
 }
 
-/** Sky's node in the left gutter: the origin of every demand-side source,
- *  with one ribbon into each. Null when the month has no demand side. */
-export interface FlowSkySource extends Fading {
+/** The `[` down the far left that gathers the Sky-owed rows, and the total
+ *  it stands for. Derived from the rows themselves (sourceBracket) rather
+ *  than carried on the layout, so it follows the month-to-month tween
+ *  without the tween knowing about it. */
+export interface FlowBracket {
   x: number;
-  y: number;
-  h: number;
+  /** Top and bottom of the rows it spans, labels included. */
+  y0: number;
+  y1: number;
+  arm: number;
+  path: string;
   value: number;
-  labelY: number;
-  links: { kind: SliceKind; value: number; path: string; geom: RibbonGeom }[];
+}
+
+/** Half a source row: its bar's label reaches this far above and below the
+ *  baseline, so a bracket sized to the BARS alone would clip a label. */
+const ROW_HALF = 26;
+
+/** Everything Sky owes this month — the sum of the Sky-owed rows, which the
+ *  OWED BY SKY heading carries whether or not a bracket is drawn. */
+export function owedBySky(sources: readonly FlowSource[]): number {
+  return sources.reduce((n, s) => n + (s.origin === "sky" ? s.value : 0), 0);
+}
+
+/** The bracket for a month's Sky-owed rows, or null when there is nothing
+ *  to gather: no demand side at all, or a single row — one row is not a
+ *  group, and a `[` around it would be a stray glyph. The heading still
+ *  says whose the row is in that case. */
+export function sourceBracket(sources: readonly FlowSource[]): FlowBracket | null {
+  const owed = sources.filter((s) => s.origin === "sky");
+  if (owed.length < 2) return null;
+  const y0 = Math.min(...owed.map((s) => Math.min(s.y, s.labelY - ROW_HALF)));
+  const y1 = Math.max(...owed.map((s) => Math.max(s.y + s.h, s.labelY + ROW_HALF)));
+  const arm = BRACKET_ARM;
+  return {
+    x: BRACKET_X,
+    y0,
+    y1,
+    arm,
+    path: `M${BRACKET_X + arm},${y0} H${BRACKET_X} V${y1} H${BRACKET_X + arm}`,
+    value: owedBySky(sources),
+  };
 }
 
 export interface FlowAgent extends Fading {
@@ -290,8 +337,6 @@ export interface FlowLayout {
   width: number;
   height: number;
   sources: FlowSource[];
-  /** The left-hand Sky node (see FlowSkySource). */
-  skySource: FlowSkySource | null;
   agents: FlowAgent[];
   sky: { x: number; y: number; h: number; total: number; segments: { prime: string; kind: SliceKind; y: number; h: number }[]; shares: FlowSkyShare[] };
 }
@@ -336,7 +381,7 @@ function account(p: PrimeFlowTotals) {
 
 export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
   const acc = primes.map((p) => ({ p, a: account(p) })).filter(({ a }) => a.total > 0 || a.loss > 0);
-  const empty: FlowLayout = { width: WIDTH, height: HEIGHT, sources: [], skySource: null, agents: [], sky: { x: RIGHT_X, y: TOP, h: 0, total: 0, segments: [], shares: [] } };
+  const empty: FlowLayout = { width: WIDTH, height: HEIGHT, sources: [], agents: [], sky: { x: RIGHT_X, y: TOP, h: 0, total: 0, segments: [], shares: [] } };
   if (acc.length === 0) return empty;
 
   const sourceTotal = (k: SliceKind) => acc.reduce((n, { a }) => n + (a.inbound.find((x) => x.kind === k)?.value ?? 0), 0);
@@ -390,7 +435,9 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
     };
     const inbound = a.inbound.map((x) => {
       const sy = srcCursor.get(x.kind)!;
-      const l = link(x.kind, x.value, LEFT_X + NODE_W, sy, MID_X, inY, "end");
+      // Each ribbon leaves its OWN bar's right edge, so they fan from the
+      // staggered source edges into the Prime column.
+      const l = link(x.kind, x.value, sourceBarX(x.kind) + NODE_W, sy, MID_X, inY, "end");
       srcCursor.set(x.kind, sy + t(x.value));
       inY += t(x.value);
       return l;
@@ -421,24 +468,6 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
     };
   });
 
-  // Sky's left-hand node: as tall as the demand bars it feeds (their gaps
-  // are not money), centred on their span, one ribbon into each.
-  const owed = sources.filter((s) => SOURCE_ORIGIN[s.item] === "sky");
-  let skySource: FlowSkySource | null = null;
-  if (owed.length > 0) {
-    const h = owed.reduce((n, s) => n + s.h, 0);
-    const span0 = owed[0].y;
-    const span1 = owed[owed.length - 1].y + owed[owed.length - 1].h;
-    const y = span0 + (span1 - span0 - h) / 2;
-    let cursor = y;
-    const links = owed.map((s) => {
-      const geom = { x0: SKY_SRC_X + NODE_W, y0: cursor, x1: LEFT_X, y1: s.y, t: s.h };
-      cursor += s.h;
-      return { kind: s.item, value: sourceTotal(s.item), path: ribbonPath(geom.x0, geom.y0, geom.x1, geom.y1, geom.t), geom };
-    });
-    skySource = { x: SKY_SRC_X, y, h, value: owed.reduce((n, s) => n + sourceTotal(s.item), 0), labelY: y - 24, links };
-  }
-
   const bottom = Math.max(
     ...agents.map((g) => g.y + g.h),
     ...sources.map((s) => Math.max(s.y + s.h, s.labelY + SOURCE_LABEL_BLOCK / 2)),
@@ -452,7 +481,8 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
       return {
         kind: s.item,
         value: sourceTotal(s.item),
-        x: LEFT_X,
+        // Staggered: each bar sits its own label-length from the left edge.
+        x: sourceBarX(s.item),
         y: s.y,
         h: s.h,
         labelY: s.labelY,
@@ -464,7 +494,6 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
         headingY: origin === "sky" && i === skyFirst ? s.y - GROUP_HEADING_DY : undefined,
       };
     }),
-    skySource,
     agents: out,
     sky: { x: RIGHT_X, y: skyY, h: skyH, total: skyTotal, segments, shares },
   };

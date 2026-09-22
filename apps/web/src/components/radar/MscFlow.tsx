@@ -1,7 +1,8 @@
 import { formatMonth, formatUsd } from "../../lib/settlements";
 import {
   AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADERS, HEADER_SIZE, HEADER_Y,
-  LABEL_X, MID_X, NODE_W, SKY_LABEL_X, SOURCE_LABEL, type FlowLayout,
+  LABEL_X, MID_X, NODE_W, owedBySky, SKY_LABEL_X, SOURCE_LABEL, sourceBracket,
+  type FlowLayout,
 } from "../../lib/mscFlowLayout";
 import { RingHoverStyles } from "./MscRingHoverStyles";
 import { markId } from "./MscRingPills";
@@ -60,6 +61,8 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
     kinds: [...a.inbound.map((l) => l.kind as string), "gross", ...(a.outbound.length ? ["sky", "share"] : [])],
   }));
   const { sky } = layout;
+  // Derived from the tweened rows, so the bracket grows and slides with them.
+  const bracket = sourceBracket(layout.sources);
   // touch-action is only surrendered once zoomed, so a finger drag over the
   // chart still scrolls the page on a phone at rest.
   return (
@@ -78,39 +81,33 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
         >
           <desc>Scroll or pinch over the chart to zoom in on a ribbon, drag to pan, double-click to reset.</desc>
           <FlowHeaders />
-          {/* Sky's LEFT node and its ribbons into the demand-side bars: that
-              money is owed BY Sky (A.2.4.1.2.2.1.1.1), so it starts here and
-              Sky appears at both ends of the chart. Drawn under the source
-              bars so the ribbons dock behind them. */}
-          {layout.skySource && (
-            <g className="msc-flow-sky-source" style={{ opacity: layout.skySource.alpha }}>
-              {layout.skySource.links.map((l) => (
-                <path key={l.kind} d={l.path} className={`msc-ring-slice msc-ring-${l.kind}`} />
-              ))}
-              {/* Painted in Sky's own blue, like the bar on the right, so the
-                  two ends read as the same party rather than two charts. */}
-              {/* No label of its own: the group heading above already reads
-                  "OWED BY SKY | <total>". A second "Sky | …" line here sat in
-                  the line-item column and read as a fourth source. */}
-              <rect
-                x={layout.skySource.x}
-                y={layout.skySource.y}
-                width={NODE_W}
-                height={layout.skySource.h}
-                className="msc-ring-sky-wedge"
-                style={{ fill: "var(--msc-sky)" }}
-              />
-            </g>
+          {/* The Sky BRACKET: a `[` down the far left gathering the
+              demand-side rows, in the same blue as Sky's bar on the right.
+              That money is owed BY Sky (A.2.4.1.2.2.1.1.1), so Sky is at
+              both ends of the chart — drawn as a bracket rather than a
+              node-and-ribbons because those ribbons read as a fourth stage
+              of the flow. It carries no label of its own: the heading above
+              reads "OWED BY SKY | <total>". Absent when the month has fewer
+              than two Sky-owed rows — one row is not a group. */}
+          {bracket && (
+            <path
+              d={bracket.path}
+              className="msc-flow-sky-bracket"
+              style={{ fill: "none", stroke: "var(--msc-sky)", strokeWidth: 5, strokeLinecap: "round", strokeLinejoin: "round" }}
+            />
           )}
           {layout.sources.map((s) => (
             <g key={s.kind} className="msc-flow-source" data-kind={s.kind} data-origin={s.origin} style={{ opacity: s.alpha }}>
-              {/* The Sky group's heading carries its total, so the Sky node
-                  below needs no label of its own. The earned group has no
-                  heading at all — its line items name themselves. */}
+              {/* The heading sits ABOVE the bracketed rows, flush left with
+                  every other label rather than beside the bracket: the
+                  bracket's column is 18 units wide and would need the text
+                  turned on its side. It carries the group total whether or
+                  not a bracket was drawn. The earned group has no heading at
+                  all — its line items name themselves. */}
               {s.headingY != null && (
                 <text x={LABEL_X} y={s.headingY} textAnchor="start" fontSize={GROUP_HEADING_SIZE} className="msc-flow-group-heading mono">
                   {GROUP_HEADING.sky}
-                  {layout.skySource ? ` | ${formatUsd(layout.skySource.value, true)}` : ""}
+                  {` | ${formatUsd(owedBySky(layout.sources), true)}`}
                 </text>
               )}
               <rect x={s.x} y={s.y} width={NODE_W} height={s.h} className={`msc-ring-${s.kind}`} />

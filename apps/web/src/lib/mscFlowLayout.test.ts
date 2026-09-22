@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { layoutMscFlow, AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADER_SIZE, HEADERS, LABEL_X, NODE_W, primeLabelStartX, SKY_LABEL_X, sourceGroupRoom, WIDTH } from "./mscFlowLayout";
+import { layoutMscFlow, AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADER_SIZE, HEADERS, LABEL_X, LEFT_X, NODE_W, owedBySky, primeLabelStartX, SKY_LABEL_X, sourceBarX, sourceBracket, sourceLabelWidth, WIDTH } from "./mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
 const flow = (over: Partial<PrimeFlowTotals> = {}): PrimeFlowTotals => ({
@@ -86,20 +86,35 @@ describe("layoutMscFlow", () => {
     expect(k.inbound.map((x) => x.kind)).toEqual(["agentRate", "distributionRewards"]);
     expect(l.sky.shares).toEqual([]);
     expect(l.sky.h).toBe(0);
-    // Its whole bar is money SKY OWES IT (A.2.4.1.2.2.1.1.1), so every
-    // source hangs off the left-hand Sky node rather than looking earned.
+    // Its whole bar is money SKY OWES IT (A.2.4.1.2.2.1.1.1), so every row
+    // is bracketed rather than left to look earned.
     expect(l.sources.every((s) => s.origin === "sky")).toBe(true);
-    expect(l.skySource).not.toBeNull();
-    expect(l.skySource!.value).toBeCloseTo(36_231);
-    expect(l.skySource!.links.map((x) => x.kind)).toEqual(["agentRate", "distributionRewards"]);
-    expect(l.skySource!.x + NODE_W).toBeLessThan(l.sources[0].x);
-    // Its bar is exactly the demand bars it feeds; the ribbons tile it.
-    expect(l.skySource!.h).toBeCloseTo(l.sources.reduce((n, s) => n + s.h, 0));
-    const last = l.skySource!.links[l.skySource!.links.length - 1];
-    expect(last.geom.y0 + last.geom.t).toBeCloseTo(l.skySource!.y + l.skySource!.h);
+    const b = sourceBracket(l.sources)!;
+    expect(b).not.toBeNull();
+    expect(b.value).toBeCloseTo(36_231);
+    expect(owedBySky(l.sources)).toBeCloseTo(36_231);
+    // It spans every Sky-owed row, labels included, and stands clear of both
+    // the labels and the bars.
+    expect(b.y0).toBeLessThanOrEqual(Math.min(...l.sources.map((s) => s.y)));
+    expect(b.y1).toBeGreaterThanOrEqual(Math.max(...l.sources.map((s) => s.y + s.h)));
+    expect(b.x + b.arm).toBeLessThanOrEqual(LABEL_X);
+    // A `[`: an arm in at the top, the spine, an arm in at the bottom.
+    expect(b.path).toBe(`M${b.x + b.arm},${b.y0} H${b.x} V${b.y1} H${b.x + b.arm}`);
   });
 
-  it("splits the source column by origin, and drops the Sky node when nothing is owed", () => {
+  it("draws no bracket around a group of one, or none at all", () => {
+    // One demand series only — a bracket round a single row is a stray glyph.
+    const one = layoutMscFlow([flow({ prime: "keel", sky: 0, cof: 0, sde: 0, kept: 0, demand: 32_004, demandParts: { agentRate: 32_004 } })]);
+    expect(one.sources.map((s) => s.kind)).toEqual(["agentRate"]);
+    expect(sourceBracket(one.sources)).toBeNull();
+    // ...but the heading's total is still there to say whose it is.
+    expect(owedBySky(one.sources)).toBeCloseTo(32_004);
+    const none = layoutMscFlow([flow({ demand: 0, demandParts: {} })]);
+    expect(sourceBracket(none.sources)).toBeNull();
+    expect(owedBySky(none.sources)).toBe(0);
+  });
+
+  it("splits the source column by origin, and brackets only what Sky owes", () => {
     const l = layoutMscFlow([flow(), flow({ prime: "grove" })]);
     // Earned first, Sky-owed after — the order KINDS already uses.
     expect(l.sources.map((s) => [s.kind, s.origin])).toEqual([
@@ -112,20 +127,40 @@ describe("layoutMscFlow", () => {
     expect(GROUP_HEADING).toEqual({ sky: "OWED BY SKY" });
     // Every left-hand label starts at the same x, flush left.
     expect(l.sources.map((s) => s.labelX)).toEqual(l.sources.map(() => LABEL_X));
-    // A supply-only month has no left Sky node at all.
+    // The bracket gathers the Sky-owed rows and nothing else.
+    const b = sourceBracket(l.sources)!;
+    const owed = l.sources.filter((s) => s.origin === "sky");
+    expect(b.y0).toBeLessThanOrEqual(owed[0].y);
+    expect(b.y1).toBeGreaterThanOrEqual(owed[owed.length - 1].y + owed[owed.length - 1].h);
+    expect(b.y0).toBeGreaterThan(l.sources[0].y + l.sources[0].h);
+    // A supply-only month is not bracketed at all.
     const supplyOnly = layoutMscFlow([flow({ demand: 0, demandParts: {} })]);
     expect(supplyOnly.sources.every((s) => s.origin === "earned")).toBe(true);
-    expect(supplyOnly.skySource).toBeNull();
+    expect(sourceBracket(supplyOnly.sources)).toBeNull();
   });
 
   it("anchors the three columns left / pipe-centred / right, and spends the slack on the ribbons", () => {
     const l = layoutMscFlow([flow(), flow({ prime: "grove" })]);
-    // LEFT: labels flush to the gutter's left edge, with room to run before
-    // the mark they name — the Sky node for a Sky-owed label, its own bar
-    // for an earned one.
-    expect(LABEL_X).toBeLessThan(l.skySource!.x);
-    expect(LABEL_X + sourceGroupRoom("sky")).toBeLessThanOrEqual(l.skySource!.x);
-    expect(LABEL_X + sourceGroupRoom("earned")).toBeLessThanOrEqual(l.sources[0].x);
+    // LEFT: every label starts flush at LABEL_X and its own bar follows it
+    // — the bars are a stagger, not a column.
+    for (const s of l.sources) {
+      expect(s.labelX).toBe(LABEL_X);
+      expect(s.x).toBe(sourceBarX(s.kind));
+      expect(s.x - (LABEL_X + sourceLabelWidth(s.kind))).toBeCloseTo(l.sources[0].x - (LABEL_X + sourceLabelWidth("cof")), 6);
+    }
+    // The longest label (cost of funds) owns the rightmost bar, which is the
+    // left boundary everything downstream is measured from.
+    expect(Math.max(...l.sources.map((s) => s.x))).toBe(LEFT_X);
+    expect(l.sources.find((s) => s.kind === "cof")!.x).toBe(LEFT_X);
+    // Bar x follows label length: strictly ordered, ties only where two
+    // labels measure the same.
+    const byLen = [...l.sources].sort((a, b2) => sourceLabelWidth(a.kind) - sourceLabelWidth(b2.kind));
+    for (let i = 1; i < byLen.length; i++) {
+      const wider = sourceLabelWidth(byLen[i].kind) > sourceLabelWidth(byLen[i - 1].kind);
+      if (wider) expect(byLen[i].x).toBeGreaterThan(byLen[i - 1].x);
+      else expect(byLen[i].x).toBe(byLen[i - 1].x);
+    }
+    expect(byLen[byLen.length - 1].x).toBeGreaterThan(byLen[0].x);
     // RIGHT: the To Sky line ends at the canvas' right margin, clear of the
     // bar, which is why the gutter is no wider than that line needs.
     expect(l.sky.x + NODE_W).toBeLessThan(SKY_LABEL_X);
@@ -136,7 +171,7 @@ describe("layoutMscFlow", () => {
     expect(primeLabelStartX("Spark", c)).toBeLessThan(c);
     expect(primeLabelStartX("A Much Longer Prime Name", c)).toBeLessThan(primeLabelStartX("Spark", c));
     // The ribbon span is most of the canvas, not a pair of fat gutters.
-    expect(l.sky.x - (l.sources[0].x + NODE_W)).toBeGreaterThan(WIDTH * 0.42);
+    expect(l.sky.x - (LEFT_X + NODE_W)).toBeGreaterThan(WIDTH * 0.42);
   });
 
   it("folds a negative SDE into the loss rather than drawing it as money to Sky", () => {
