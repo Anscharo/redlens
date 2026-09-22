@@ -535,6 +535,20 @@ service. Check worker logs for `atlas-worker: done`.
 Both must reference `${{Postgres.DATABASE_URL}}` from the same Postgres
 instance in the same Railway project.
 
+**Worker service looks healthy (no stuck/failed runs) but `/api/freshness` is stale**
+→ A hung tick is only one failure mode, and Railway would show it as still
+running. Check three other things, in order:
+1. You are on the **worker** service (`railway.worker.toml` / cron `*/12`),
+   not the web service. Cron ticks are short-lived executions; between them
+   nothing is running, which looks idle rather than failed.
+2. The latest cron execution's **timestamp** is within ~12 minutes. If the
+   last run is days old, cron is not firing (dashboard overrode
+   `cronSchedule`, or this environment has no worker service).
+3. That run's logs contain `atlas-worker: heartbeat ok`. If they do not, the
+   tick never reached the heartbeat (or `DATABASE_URL` is a different
+   Postgres / empty `sync_state` — that now **fails** the run instead of
+   logging a warning and exiting 0).
+
 **atlas-update workflow pushes fail**
 → The bot isn't a branch-protection bypass actor (step 8d), or the
 `ATLAS_BOT_*` secrets are missing (step 9).
