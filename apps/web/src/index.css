@@ -3418,6 +3418,12 @@ a.atlas-annotates:focus-visible {
 }
 /* Column headers over the three node groups — larger than the group
    headings under SOURCE (those use .msc-flow-group-heading). */
+/* The zoom reset in the chart card's title row. Borrows .scope-pill's
+   surface so it reads as a sibling of the sankey / pies pills beside it. */
+.msc-zoom-reset {
+  border-radius: 4px;
+  line-height: 1.6;
+}
 .msc-flow-header,
 .msc-flow-group-heading {
   fill: var(--tan-3);

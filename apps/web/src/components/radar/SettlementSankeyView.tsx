@@ -5,7 +5,8 @@ import {
   type SankeyLayout,
 } from "../../lib/settlementSankey";
 import { ROUTES } from "@/lib/routes";
-import { SankeySinkNode, SankeyVenueNode } from "./SettlementSankeyNodes";
+import { SankeyVenueNode } from "./SettlementSankeyNodes";
+import { SankeySinkNode } from "./SettlementSankeySink";
 
 /** Ribbons are the series color of what they carry — To Sky blue, supply
  *  kept green — and a NEGATIVE one (a venue that lost money that month,

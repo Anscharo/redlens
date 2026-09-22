@@ -18,7 +18,7 @@ import { MscCycleSpark } from "./MscCycleSpark";
 /** One string, so the rendered line and any copy edit stay in one place. */
 const DISCLAIMER = "OEA calculation, not the on-chain GovOps spell";
 
-interface Props {
+export interface ActorSettlementTeaserProps {
   slug: string;
   /** The Prime's display name (the card link's accessible name). */
   name?: string;
@@ -57,7 +57,7 @@ function Total({ amount, label, lead }: { amount: number; label: string; lead?: 
  *  (A.2.4.1.2.2.1.1.2 and A.2.4.1.2.2.1.1.1), and the Atlas defines no term
  *  for their sum — which is why the old single "gross revenue" figure and
  *  its stacked chart are gone. */
-export function ActorSettlementTeaser({ slug, name }: Props) {
+export function ActorSettlementTeaser({ slug, name }: ActorSettlementTeaserProps) {
   const bundle = useLoaded(loadSettlements, { soft: true });
   const rows = useMemo(
     () => (bundle ? cycleWindow(reportsForPrime(bundle, slug)).rows : []),

@@ -3,7 +3,7 @@ import { Link } from "../Link";
 import { ROUTES, actorHref, settlementsHref } from "@/lib/routes";
 import type { SidebarActor, SidebarGroup } from "../../lib/actorIndex";
 
-interface Props {
+export interface ActorListProps {
   groups: SidebarGroup[];
   selectedSlug: string | null;
   /** Which page of the selected actor is open. */
@@ -34,7 +34,7 @@ function Badge({ st }: { st: string | null }) {
  *  and its Settlements page; the selected actor's opens on its own, and on
  *  a settlements page every one is open, so the reader can step straight
  *  from one Prime's settlement chart to another's. */
-export function ActorList({ groups, selectedSlug, page, settledSlugs }: Props) {
+export function ActorList({ groups, selectedSlug, page, settledSlugs }: ActorListProps) {
   // Manual toggles on top of the page-derived default; cleared whenever the
   // page changes so the default reasserts itself.
   const [manual, setManual] = useState<Record<string, boolean>>({});

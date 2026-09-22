@@ -1,64 +1,14 @@
-import { DEMAND_SERIES, formatUsd } from "../../lib/settlements";
 import type { RingPrime } from "../../lib/mscOverviewLayout";
 import { textWidth } from "../../lib/textWidth";
+import { formatUsd } from "../../lib/settlements";
+import { markId, pillText } from "../../lib/mscPills";
+
+export * from "../../lib/mscPills";
 
 /** Must match the pill's <text> (16px .mono). */
 const PILL_FONT = "16px 'Source Code Pro', 'Courier New', monospace";
 const PILL_FONT_PX = 16;
 const PILL_CHAR_FALLBACK = 9.7;
-
-/** Marks and their pills live in different SVG layers (pills paint last, over
- *  everything), so they're paired by id rather than by nesting — see the
- *  generated `:has()` rules in MscRing. */
-export const markId = (prime: string, kind: string): string => `${prime}::${kind}`;
-
-/** "71%" — whole percent; a share over 100% is real (a Prime that owed Sky
- *  more than it made that month) and is shown as such. */
-export const formatShare = (share: number): string => `${Math.round(share * 100)}%`;
-
-export { SLICE_CODE } from "../../lib/mscOverviewLayout";
-
-/** The series token each line item is drawn in — the ring's slice fills
- *  (index.css `.msc-ring-<kind>`), the key's swatches and the Prime page's
- *  demand-side bars all read the same one. */
-export const SLICE_TOKEN: Record<string, string> = {
-  cof: "--msc-sky",
-  sde: "--msc-sde",
-  kept: "--msc-kept",
-  agentRate: "--msc-rate",
-  distributionRewards: "--msc-dr",
-  gar: "--msc-gar",
-  chroniclePoints: "--msc-cp",
-  /** The loss mark's color (always striped). */
-  neg: "--msc-loss",
-};
-
-/** Human names for the pie's line items (the workbook Summary's rows). */
-export const SLICE_LABEL: Record<string, string> = {
-  cof: "cost of funds → Sky",
-  sde: "Sky Direct Exposure → Sky",
-  kept: "supply-side kept",
-  ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, `${s.label.toLowerCase()} (demand-side)`])),
-};
-
-/** Pill text names what it is, not just the number — a bare "$2.6M" says
- *  nothing about which flow it belongs to. */
-export function pillText(kind: string, signed: number, primeLabel: string, share?: number | null): string {
-  const amount = formatUsd(signed, true);
-  if (kind === "sky") {
-    return share != null
-      ? `${amount} to Sky — ${formatShare(share)} of ${primeLabel}'s gross revenue*`
-      : `${amount} to Sky`;
-  }
-  if (kind === "share") return `${amount} to Sky from ${primeLabel}`;
-  if (kind === "gross") return `${amount} gross revenue* of ${primeLabel}`;
-  // The orbit's pies are what each party RECEIVED, so its totals say so.
-  if (kind === "received") return `${amount} received by ${primeLabel} — supply-side kept + demand-side`;
-  if (kind === "demand") return `${amount} demand-side, from Sky to ${primeLabel}`;
-  if (kind === "loss") return `${amount} supply-side loss`;
-  if (kind in SLICE_LABEL) return `${amount} ${SLICE_LABEL[kind]}`;
-  return `${amount} ${kind}`;
-}
 
 interface PillProps {
   mark: string;

@@ -1,0 +1,125 @@
+import { use, useEffect, useMemo } from "react";
+import { useRouter } from "wouter";
+import { loadDocs } from "../../lib/docs";
+import { loadGraph } from "../../lib/graph";
+import { useDataSource } from "../../lib/dataSource";
+import { buildRewardsIndex } from "@/lib/rewardsIndex";
+import { buildActiveDataRows } from "@/lib/activeDataIndex";
+import { buildSidebarActors, buildActorProfile } from "../../lib/actorIndex";
+import { buildPrimitiveStats } from "../../lib/primitiveStats";
+import { ActorList } from "./ActorList";
+import { ActorDashboard } from "./ActorDashboard";
+import { ActorSettlementsPage } from "./ActorSettlementsPage";
+import { PrimitiveDashboard } from "./PrimitiveDashboard";
+import { MscOverview } from "./MscOverview";
+import { Drawer } from "../Drawer";
+import { Loading } from "../Loading";
+import { RadarProvider } from "./RadarContext";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { useLoaded } from "../../hooks/useAtlasData";
+import { loadSettlements, reportsForPrime } from "../../lib/settlements";
+import { recordVisit } from "../../lib/visitHistory";
+import { actorHref, settlementsHref } from "@/lib/routes";
+
+export interface RadarLoadedProps {
+  query: string;
+  actorSlug?: string;
+  page?: "settlements";
+  /** Whether the actor drawer is open on a narrow viewport. */
+  drawerOpen: boolean;
+  /** Called when picking an actor should close that drawer. */
+  onDrawerClose: () => void;
+}
+
+export function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: RadarLoadedProps) {
+  const { base } = useDataSource(); // data-source base (/api/...), NOT the router base
+  const { base: routerBase } = useRouter(); // "" live / /preview/<id> in preview
+  const docs = use(loadDocs(base));
+  const graph = use(loadGraph(base));
+
+  const sidebarGroups = useMemo(() => buildSidebarActors(graph, docs), [graph, docs]);
+  const filteredGroups = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sidebarGroups;
+    // The search pill promises "name, role" — a role query matches a group's
+    // label ("facilitator", "prime") and keeps that whole group.
+    return sidebarGroups
+      .map((g) =>
+        g.label.toLowerCase().includes(q)
+          ? g
+          : { ...g, actors: g.actors.filter((a) => a.name.toLowerCase().includes(q)) },
+      )
+      .filter((g) => g.actors.length > 0);
+  }, [sidebarGroups, query]);
+
+  // Actors with settlement workbooks get a sub nav (Info / Settlements).
+  // The artifact is soft-loaded: without it every actor is a plain link.
+  const settlements = useLoaded(loadSettlements, { soft: true });
+  const settledSlugs = useMemo(() => {
+    const out = new Set<string>();
+    if (!settlements) return out;
+    for (const g of sidebarGroups) for (const a of g.actors) if (reportsForPrime(settlements, a.slug).length > 0) out.add(a.slug);
+    return out;
+  }, [settlements, sidebarGroups]);
+
+  const rewardsIndex = useMemo(() => buildRewardsIndex(docs, graph), [docs, graph]);
+  const allActiveDataRows = useMemo(() => buildActiveDataRows(docs, graph), [docs, graph]);
+  const primitiveStats = useMemo(() => buildPrimitiveStats(graph, docs), [graph, docs]);
+  // Roster for the MSC overview's prime→actor mapping — derived, never a
+  // hardcoded prime list.
+  const overviewActors = useMemo(
+    () => sidebarGroups.flatMap((g) => g.actors.map((a) => ({ slug: a.slug, name: a.name }))),
+    [sidebarGroups],
+  );
+  const profile = useMemo(() => {
+    if (!actorSlug) return null;
+    return buildActorProfile(actorSlug, graph, docs, rewardsIndex, allActiveDataRows);
+  }, [actorSlug, graph, docs, rewardsIndex, allActiveDataRows]);
+
+  const title = !actorSlug
+    ? "Sky Ecosystem Radar Overview · Sky Atlas by Redline"
+    : !profile
+      ? null
+      : page === "settlements"
+        ? `${profile.entity.name} monthly settlements · Radar: Sky Atlas by Redline`
+        : `${profile.entity.name} Radar: Sky Atlas by Redline`;
+  useDocumentTitle(title);
+
+  // Append the actor / settlements page to the visit log once it resolves.
+  useEffect(() => {
+    if (!actorSlug || !profile) return;
+    const path = page === "settlements" ? settlementsHref(actorSlug) : actorHref(actorSlug);
+    const label = page === "settlements"
+      ? `${profile.entity.name} · Monthly settlements`
+      : profile.entity.name;
+    void recordVisit({ path, label, base: routerBase });
+  }, [actorSlug, profile, routerBase, page]);
+
+  return (
+    <RadarProvider value={{ docs }}>
+      <Drawer
+        open={drawerOpen}
+        onClose={onDrawerClose}
+        breakpoint={850}
+        desktopMode="sticky"
+      >
+        <ActorList groups={filteredGroups} selectedSlug={actorSlug ?? null} page={page} settledSlugs={settledSlugs} />
+      </Drawer>
+      {!actorSlug ? (
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl px-6 pt-6" style={{ color: "var(--tan)" }}>
+            Sky Ecosystem Radar Overview
+          </h1>
+          <MscOverview actors={overviewActors} />
+          <PrimitiveDashboard agents={primitiveStats} />
+        </div>
+      ) : !profile ? (
+        <Loading>actor not found</Loading>
+      ) : page === "settlements" ? (
+        <ActorSettlementsPage profile={profile} />
+      ) : (
+        <ActorDashboard profile={profile} />
+      )}
+    </RadarProvider>
+  );
+}

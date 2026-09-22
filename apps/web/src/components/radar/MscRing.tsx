@@ -9,7 +9,7 @@ import { useSvgZoom, useZoomReport } from "../../hooks/useSvgZoom";
 
 export type { MscRingPrime } from "./MscRingPrime";
 
-interface Props {
+export interface MscRingProps {
   layout: RingLayout;
   primes: MscRingPrime[];
   month: string;
@@ -26,7 +26,7 @@ const WEDGE_PILL_GAP = 56;
  *  the canvas renders at about half, so a 1× pill read at ~8px. */
 const PILL_SCALE = 1.6;
 
-export function MscRing({ layout, primes, month, centerFigure, onZoom }: Props) {
+export function MscRing({ layout, primes, month, centerFigure, onZoom }: MscRingProps) {
   const labelOf = (prime: string) => primes.find((p) => p.flow.prime === prime)?.label ?? prime;
   // The wheel zooms the VIEW, not the data, so it survives a month change
   // and the layout never sees it. The hook works in a 0-based drawing of
@@ -83,12 +83,19 @@ export function MscRing({ layout, primes, month, centerFigure, onZoom }: Props) 
           className="msc-ring"
           viewBox={zoom.viewBox}
           preserveAspectRatio="xMidYMid meet"
-          data-zoomed={zoom.zoomed ? "true" : undefined}
+          data-state={zoom.zoomed ? "zoomed" : "default"}
           style={{ cursor: zoom.zoomed ? "grab" : undefined, touchAction: zoom.zoomed ? "none" : undefined }}
           onDoubleClick={zoom.reset}
           {...zoom.pan}
+          {...zoom.keys}
         >
-          <desc>Scroll or pinch over the chart to zoom in on a slice, drag to pan, double-click to reset.</desc>
+          {/* The svg takes focus for its key map, so it needs a name of its
+              own — the figure's label names the figure, not this. */}
+          <title>{`Monthly Settlement Cycle: Sky and each Prime for ${formatMonth(month)}`}</title>
+          <desc>
+            Scroll or pinch over the chart to zoom in on a slice, drag to pan, double-click
+            to reset. From the keyboard: + and − zoom, the arrow keys pan, 0 or Escape resets.
+          </desc>
           {/* The loss mark: diagonal stripes in the loss red (a negative
               arrow, the hole) — the same mark every MSC chart uses. */}
           <defs>

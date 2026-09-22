@@ -183,6 +183,23 @@ describe("MscOverview", () => {
     expect(window.location.search).toBe("");
   });
 
+  it("zooms from the keyboard, so the gesture is not mouse-only", async () => {
+    const { container } = render(<MscOverview actors={ACTORS} />);
+    await waitFor(() => screen.getByText("Monthly Settlement Cycle"));
+    const svg = container.querySelector("svg.msc-flow")!;
+    // Focusable, and named for itself — the figure's label names the figure.
+    expect(svg).toHaveAttribute("tabindex", "0");
+    expect(svg.querySelector("title")).toHaveTextContent(/Monthly Settlement Cycle/);
+    const whole = svg.getAttribute("viewBox");
+    fireEvent.keyDown(svg, { key: "+" });
+    expect(svg.getAttribute("viewBox")).not.toBe(whole);
+    expect(svg).toHaveAttribute("data-state", "zoomed");
+    // Escape is the same way out the reset button gives.
+    fireEvent.keyDown(svg, { key: "Escape" });
+    expect(svg.getAttribute("viewBox")).toBe(whole);
+    expect(svg).toHaveAttribute("data-state", "default");
+  });
+
   it("puts the zoom reset in the title row, only while a chart is zoomed", async () => {
     const { container } = render(<MscOverview actors={ACTORS} />);
     await waitFor(() => screen.getByText("Monthly Settlement Cycle"));

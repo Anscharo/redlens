@@ -10,7 +10,7 @@ import {
 import { SettlementBars, type CyclePaging } from "./SettlementBars";
 import { SettlementDemandBars } from "./SettlementDemandBars";
 
-interface Props {
+export interface SettlementChartsProps {
   reports: SettlementReport[];
   selected: string;
   onSelect: (month: string) => void;
@@ -21,7 +21,7 @@ interface Props {
 
 const TITLE = "mono text-[10px] uppercase tracking-wider mb-2";
 
-export function SettlementCharts({ reports, selected, onSelect, name, paging }: Props) {
+export function SettlementCharts({ reports, selected, onSelect, name, paging }: SettlementChartsProps) {
   const n = reports.length;
   // All three sides of the window, reported separately and never summed.
   const sky = skyTotal(reports);

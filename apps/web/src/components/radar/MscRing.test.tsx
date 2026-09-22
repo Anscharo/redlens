@@ -140,7 +140,7 @@ describe("MscRing", () => {
     // computed is carried by a translate instead — the same picture the
     // chart had before it could zoom, to the pixel.
     expect(svg.getAttribute("viewBox")).toBe(`0 0 ${layout.width} ${layout.height}`);
-    expect(svg).not.toHaveAttribute("data-zoomed");
+    expect(svg).toHaveAttribute("data-state", "default");
     const moved = [...svg.querySelectorAll(":scope > g, :scope > [clip-path] > g")].map((g) =>
       g.getAttribute("transform"),
     );

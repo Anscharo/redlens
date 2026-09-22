@@ -28,7 +28,7 @@ const SOURCE = "https://github.com/soterlabs/settlement-reports";
  *  settle and be read before the next one starts. */
 const SETTLE_PLAY_MS = 2400;
 
-interface Props {
+export interface ActorSettlementsProps {
   slug: string;
   name: string;
 }
@@ -36,7 +36,7 @@ interface Props {
 /** A Prime's Monthly Settlement Cycle charts. Suspends on the settlements
  *  artifact behind a skeleton of the same chrome at the same sizes
  *  (ActorSettlementsSkeleton), so the charts paint into place. */
-export function ActorSettlements(props: Props) {
+export function ActorSettlements(props: ActorSettlementsProps) {
   return (
     <Suspense fallback={<ActorSettlementsSkeleton name={props.name} />}>
       <ActorSettlementsLoaded {...props} />
@@ -44,7 +44,7 @@ export function ActorSettlements(props: Props) {
   );
 }
 
-function ActorSettlementsLoaded({ slug, name }: Props) {
+function ActorSettlementsLoaded({ slug, name }: ActorSettlementsProps) {
   const bundle = use(loadSettlements());
   const topics = useLoaded(loadForumTopics, { soft: true });
   const reports = useMemo(() => reportsForPrime(bundle, slug), [bundle, slug]);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { clampView, clientToView, fillBase, MAX_SCALE, panBy, rebase, viewScale, wheelFactor, zoomAt, type ViewBox } from "./useSvgZoom";
+import { clampView, clientToView, fillBase, KEY_PAN_FRACTION, KEY_ZOOM_STEP, MAX_SCALE, panBy, rebase, viewScale, wheelFactor, zoomAt, zoomKeyAction, type ViewBox } from "./useSvgZoom";
 
 const W = 3000;
 const H = 1200;
@@ -169,5 +169,51 @@ describe("wheelFactor", () => {
     expect(wheelFactor(-10, 0, true)).toBeGreaterThan(wheelFactor(-10, 0, false));
     expect(wheelFactor(-1, 1, false)).toBeCloseTo(wheelFactor(-16, 0, false), 6);
     expect(wheelFactor(-1, 2, false)).toBeCloseTo(wheelFactor(-100, 0, false), 6);
+  });
+});
+
+describe("zoomKeyAction — the chart's keyboard map", () => {
+  const base: ViewBox = { x: 0, y: 0, w: 1000, h: 500 };
+
+  it("maps + and - to a zoom either way, and nothing else to a zoom", () => {
+    expect(zoomKeyAction("+")).toEqual({ kind: "zoom", factor: KEY_ZOOM_STEP });
+    expect(zoomKeyAction("=")).toEqual({ kind: "zoom", factor: KEY_ZOOM_STEP });
+    expect(zoomKeyAction("-")).toEqual({ kind: "zoom", factor: 1 / KEY_ZOOM_STEP });
+    expect(zoomKeyAction("_")).toEqual({ kind: "zoom", factor: 1 / KEY_ZOOM_STEP });
+  });
+
+  it("maps the arrows to a pan that moves the drawing the way the key points", () => {
+    // ArrowRight looks further right, so the BOX moves right — which is a
+    // negative drag of the drawing, the same sign a leftward drag has.
+    expect(zoomKeyAction("ArrowRight")).toEqual({ kind: "pan", dx: -KEY_PAN_FRACTION, dy: 0 });
+    expect(zoomKeyAction("ArrowLeft")).toEqual({ kind: "pan", dx: KEY_PAN_FRACTION, dy: 0 });
+    expect(zoomKeyAction("ArrowDown")).toEqual({ kind: "pan", dx: 0, dy: -KEY_PAN_FRACTION });
+    expect(zoomKeyAction("ArrowUp")).toEqual({ kind: "pan", dx: 0, dy: KEY_PAN_FRACTION });
+  });
+
+  it("maps 0 and Escape to a reset, and claims no other key", () => {
+    expect(zoomKeyAction("0")).toEqual({ kind: "reset" });
+    expect(zoomKeyAction("Escape")).toEqual({ kind: "reset" });
+    for (const k of ["a", "Enter", "Tab", " ", "PageDown", "Home"]) {
+      expect(zoomKeyAction(k)).toBeNull();
+    }
+  });
+
+  it("zooms about the centre, so a keyboard user keeps what they were looking at", () => {
+    const action = zoomKeyAction("+")!;
+    if (action.kind !== "zoom") throw new Error("expected a zoom");
+    const v = zoomAt(base, base, base.w / 2, base.h / 2, action.factor);
+    expect(v.w).toBeCloseTo(base.w / KEY_ZOOM_STEP, 6);
+    // The centre point is still the centre.
+    expect(v.x + v.w / 2).toBeCloseTo(base.x + base.w / 2, 6);
+    expect(v.y + v.h / 2).toBeCloseTo(base.y + base.h / 2, 6);
+  });
+
+  it("cannot pan or zoom out past the whole drawing", () => {
+    const zoomedIn = zoomAt(base, base, 0, 0, 4);
+    const panned = panBy(zoomedIn, base, KEY_PAN_FRACTION * zoomedIn.w * 50, 0);
+    expect(panned.x).toBeGreaterThanOrEqual(base.x - 1e-6);
+    const out = zoomAt(base, base, base.w / 2, base.h / 2, 1 / KEY_ZOOM_STEP);
+    expect(out.w).toBeLessThanOrEqual(base.w + 1e-6);
   });
 });

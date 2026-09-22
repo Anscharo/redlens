@@ -43,7 +43,7 @@ function ticksFor(posPeak: number, negPeak: number): number[] {
   return out;
 }
 
-interface Props {
+export interface MscTimeseriesProps {
   primes: string[];
   months: PrimeStackMonth[];
   primeLabel: (prime: string) => string;
@@ -51,7 +51,7 @@ interface Props {
   onSelect: (month: string) => void;
 }
 
-export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }: Props) {
+export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }: MscTimeseriesProps) {
   const posPeak = Math.max(1, ...months.map((m) => m.skyParts.reduce((n, p) => n + Math.max(0, p.value), 0)));
   const negPeak = Math.max(0, ...months.map((m) => -m.skyParts.reduce((n, p) => n + Math.min(0, p.value), 0)));
   const span = posPeak + negPeak;

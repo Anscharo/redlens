@@ -110,3 +110,42 @@ export function wheelFactor(deltaY: number, deltaMode: number, ctrlKey: boolean)
   return Math.exp((-px * (ctrlKey ? 4 : 1)) / 400);
 }
 
+
+/** One press of the keyboard map, as an action the caller applies to its
+ *  view — so the map itself is testable without a DOM. Zoom steps by this
+ *  much per press, panning by this fraction of the box. */
+export const KEY_ZOOM_STEP = 1.3;
+export const KEY_PAN_FRACTION = 1 / 8;
+
+export type ZoomKeyAction =
+  | { kind: "zoom"; factor: number }
+  | { kind: "pan"; dx: number; dy: number }
+  | { kind: "reset" };
+
+/** The chart's keyboard map, mirroring what the pointer can do: + / - zoom
+ *  about the centre, the arrows pan, 0 and Escape go back to the whole
+ *  drawing. Returns null for a key the chart does not claim, so the caller
+ *  leaves it to the page (and only preventDefaults what it handled). */
+export function zoomKeyAction(key: string): ZoomKeyAction | null {
+  switch (key) {
+    case "+":
+    case "=":
+      return { kind: "zoom", factor: KEY_ZOOM_STEP };
+    case "-":
+    case "_":
+      return { kind: "zoom", factor: 1 / KEY_ZOOM_STEP };
+    case "ArrowLeft":
+      return { kind: "pan", dx: KEY_PAN_FRACTION, dy: 0 };
+    case "ArrowRight":
+      return { kind: "pan", dx: -KEY_PAN_FRACTION, dy: 0 };
+    case "ArrowUp":
+      return { kind: "pan", dy: KEY_PAN_FRACTION, dx: 0 };
+    case "ArrowDown":
+      return { kind: "pan", dy: -KEY_PAN_FRACTION, dx: 0 };
+    case "0":
+    case "Escape":
+      return { kind: "reset" };
+    default:
+      return null;
+  }
+}

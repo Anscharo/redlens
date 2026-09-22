@@ -3,11 +3,11 @@ import { actorHref } from "@/lib/routes";
 import type { ActorProfile } from "../../lib/actorIndex";
 import { ActorSettlements } from "./ActorSettlements";
 
-interface Props {
+export interface ActorSettlementsPageProps {
   profile: ActorProfile;
 }
 
-export function ActorSettlementsPage({ profile }: Props) {
+export function ActorSettlementsPage({ profile }: ActorSettlementsPageProps) {
   const { entity } = profile;
   return (
     <div className="flex-1 px-6 py-6 min-w-0">

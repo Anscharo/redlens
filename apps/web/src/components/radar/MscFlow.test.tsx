@@ -165,7 +165,7 @@ describe("MscFlow", () => {
     const { container } = render(<MscFlow layout={layout} primes={primes(flows)} month="2026-07" centerFigure="$10.00M" />);
     const svg = container.querySelector("svg.msc-flow")!;
     expect(svg).toHaveAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
-    expect(svg).not.toHaveAttribute("data-zoomed");
+    expect(svg).toHaveAttribute("data-state", "default");
     expect(svg.querySelector("desc")!.textContent).toMatch(/zoom/i);
     expect(screen.queryByRole("button", { name: "Reset zoom" })).not.toBeInTheDocument();
   });

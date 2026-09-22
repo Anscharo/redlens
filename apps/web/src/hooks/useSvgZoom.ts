@@ -2,8 +2,8 @@
 // lives in svgZoomMath.ts and is re-exported here, so a caller (or a test)
 // has one module to reach for.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent } from "react";
-import { clientToView, fillBase, panBy, rebase, viewScale, wheelFactor, zoomAt, type ViewBox } from "./svgZoomMath";
+import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
+import { clientToView, fillBase, panBy, rebase, viewScale, wheelFactor, zoomAt, zoomKeyAction, type ViewBox } from "./svgZoomMath";
 
 export * from "./svgZoomMath";
 
@@ -92,6 +92,23 @@ export function useSvgZoom(width: number, height: number) {
     const s = viewScale(view, el.getBoundingClientRect());
     setView((v) => panBy(v, base, cdx / s, cdy / s));
   };
+  // The pointer gestures, reachable from the keyboard: zoom about the box's
+  // centre (there is no pointer to anchor on), pan by a fraction of it, and
+  // back out. Without this the wheel zoom is mouse-only — and the <desc>
+  // would be advertising an affordance a keyboard user cannot reach.
+  const onKeyDown = (e: ReactKeyboardEvent<SVGSVGElement>) => {
+    const action = zoomKeyAction(e.key);
+    if (!action || e.altKey || e.ctrlKey || e.metaKey) return;
+    // Arrows still scroll the page while the whole drawing is in view.
+    if (action.kind === "pan" && !zoomed) return;
+    e.preventDefault();
+    setView((v) => {
+      if (action.kind === "reset") return base;
+      if (action.kind === "pan") return panBy(v, base, action.dx * v.w, action.dy * v.h);
+      return zoomAt(v, base, v.x + v.w / 2, v.y + v.h / 2, action.factor);
+    });
+  };
+
   const endDrag = (e: ReactPointerEvent<SVGSVGElement>) => {
     const d = drag.current;
     if (d?.moved) ref.current?.releasePointerCapture?.(e.pointerId);
@@ -111,6 +128,10 @@ export function useSvgZoom(width: number, height: number) {
     zoomed,
     reset,
     pan: { onPointerDown, onPointerMove, onPointerUp: endDrag, onPointerCancel: endDrag },
+    /** Spread onto the svg to make the same gestures keyboard-reachable.
+     *  tabIndex rides along because a key map on an unfocusable element is
+     *  no map at all. */
+    keys: { tabIndex: 0, onKeyDown },
   };
 }
 

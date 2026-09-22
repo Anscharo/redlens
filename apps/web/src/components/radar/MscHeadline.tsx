@@ -10,7 +10,7 @@ export interface MscFigures {
   demand: number;
 }
 
-interface Props {
+export interface MscHeadlineProps {
   /** Null while the settlements are still loading: the card keeps its
    *  labels and shape and shows a dash for each figure. */
   eco: MscFigures | null;
@@ -73,7 +73,7 @@ function Op({ children }: { children: string }) {
  *  Primitives and the Agent Rate (A.2.4.1.2.2.1.1.1), settled together but
  *  never added (A.2.4.1.2.2.1.1.3). The demand-side label names that
  *  direction rather than leaving it to be guessed. */
-export function MscHeadline({ eco, month, earner, play }: Props) {
+export function MscHeadline({ eco, month, earner, play }: MscHeadlineProps) {
   const who = earner ? `${earner}` : "Primes";
   return (
     <div className="msc-card rounded p-4 mb-4 flex flex-wrap items-end gap-x-4 gap-y-3 text-sm">

@@ -13,7 +13,7 @@ import type { OverviewPrime } from "./MscRingPrime";
 import { useTweenedFlow } from "../../hooks/useTweenedFlow";
 import { useSvgZoom, useZoomReport } from "../../hooks/useSvgZoom";
 
-interface Props {
+export interface MscFlowProps {
   layout: FlowLayout;
   primes: OverviewPrime[];
   month: string;
@@ -53,7 +53,7 @@ export function FlowHeaders() {
  *  viewBox about the pointer (useSvgZoom) so the hairline ribbons can be
  *  hovered; the zoom is on the view, not the data, so it survives a month
  *  change and the tween never sees it. */
-export function MscFlow({ layout: target, primes, month, centerFigure, onZoom }: Props) {
+export function MscFlow({ layout: target, primes, month, centerFigure, onZoom }: MscFlowProps) {
   const layout = useTweenedFlow(target);
   const zoom = useSvgZoom(layout.width, layout.height);
   useZoomReport(zoom.zoomed, zoom.reset, onZoom);
@@ -81,12 +81,19 @@ export function MscFlow({ layout: target, primes, month, centerFigure, onZoom }:
           className="msc-ring msc-flow"
           viewBox={zoom.viewBox}
           preserveAspectRatio="xMidYMid meet"
-          data-zoomed={zoom.zoomed ? "true" : undefined}
+          data-state={zoom.zoomed ? "zoomed" : "default"}
           style={{ cursor: zoom.zoomed ? "grab" : undefined, touchAction: zoom.zoomed ? "none" : undefined }}
           onDoubleClick={zoom.reset}
           {...zoom.pan}
+          {...zoom.keys}
         >
-          <desc>Scroll or pinch over the chart to zoom in on a ribbon, drag to pan, double-click to reset.</desc>
+          {/* The svg takes focus for its key map, so it needs a name of its
+              own — the figure's label names the figure, not this. */}
+          <title>{`Monthly Settlement Cycle: Sources, Primes and Sky for ${formatMonth(month)}`}</title>
+          <desc>
+            Scroll or pinch over the chart to zoom in on a ribbon, drag to pan, double-click
+            to reset. From the keyboard: + and − zoom, the arrow keys pan, 0 or Escape resets.
+          </desc>
           {/* The drawing is CLIPPED to whatever the zoom is showing, which
               an outer <svg> would normally do for itself — `.msc-ring` sets
               `overflow: visible` so the hover pills can escape the viewBox,

@@ -1,34 +1,6 @@
 import { DEMAND_SERIES } from "../../lib/settlements";
-import { SLICE_CODE, SLICE_TOKEN } from "./MscRingPills";
-
-function Swatch({ background }: { background: string }) {
-  return <span className="inline-block w-2 h-2 mr-1 align-middle" style={{ background }} />;
-}
-
-function KeyItem({ id, code, label, striped }: { id: string; code?: string; label: string; striped?: boolean }) {
-  const color = `var(${SLICE_TOKEN[id] ?? SLICE_TOKEN.kept})`;
-  return (
-    <span className="msc-key-item" data-key={id}>
-      <Swatch
-        background={
-          striped
-            ? `repeating-linear-gradient(45deg, ${color} 0, ${color} 2px, transparent 2px, transparent 4px)`
-            : color
-        }
-      />
-      {code ? `${code} · ${label}` : label}
-    </span>
-  );
-}
-
-function KeyGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="msc-key-group">
-      <p className="msc-key-title">{title}</p>
-      {children}
-    </div>
-  );
-}
+import { SLICE_CODE } from "./MscRingPills";
+import { KeyGroup, KeyItem } from "./MscKeyParts";
 
 /** The chart's key, grouped by where the money goes — the three groups are
  *  the three destinations a cycle's money has, in the pie's clockwise order — with the
