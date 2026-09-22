@@ -348,13 +348,20 @@ async function main() {
     SELECT atlas_sha FROM sync_state WHERE id = 1
   `.then((r) => r[0]?.atlas_sha ?? null).catch(() => null);
   const verified = await inspectStructuralSnapshot(verifyDb, verifiedState);
-  await verifyDb.close();
   if (!verified.healthy) {
+    await verifyDb.close();
     throw new Error(`post-sync structural integrity failed: ${verified.reasons.join("; ")}`);
   }
   console.log(
     `atlas-worker: post-sync integrity OK — ${verified.currentDocs} docs, ${verified.currentAddresses} addresses`,
   );
+  // sync.ts no-ops when the pointer already matches and does not touch
+  // synced_at. A single forever-stale embedding (observed 2026-09-22:
+  // staleEmbeds=1 while embeddings itself had 0 to write) skips the
+  // fast-exit heartbeat above, so a green rebuild tick left production
+  // stale for days. Heartbeat on this path too.
+  await touchSyncHeartbeat(verifyDb);
+  await verifyDb.close();
 
   // ── Publish the artifact set every web instance reads ────────────────────
   // After the integrity gate (so we never publish artifacts for a sha whose rows

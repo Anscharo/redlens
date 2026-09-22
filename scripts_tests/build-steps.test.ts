@@ -192,4 +192,14 @@ describe("atlas artifact store: worker publish is load-bearing (phase 4)", () =>
     expect(worker).toContain("hardCap.unref()");
     expect(worker).toMatch(/hard cap[\s\S]*process\.exit\(1\)/);
   });
+
+  it("atlas-worker heartbeats on the rebuild path, not only the fast exit", () => {
+    // 2026-09-22: production cron rebuilt every 12 min (staleEmbeds=1) then
+    // sync.ts no-op'd; heartbeat lived only on the skip path, so freshness
+    // stayed 503 while Railway showed green ticks.
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    const calls = [...worker.matchAll(/await touchSyncHeartbeat\(/g)];
+    expect(calls.length).toBe(2);
+    expect(worker).toMatch(/post-sync integrity OK[\s\S]*await touchSyncHeartbeat\(verifyDb\)/);
+  });
 });
