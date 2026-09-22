@@ -1,12 +1,13 @@
-import { formatMonth, formatUsd } from "../../lib/settlements";
+import { useId } from "react";
+import { formatMonth } from "../../lib/settlements";
 import {
-  AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADERS, HEADER_SIZE, HEADER_Y,
-  LABEL_X, MID_X, NODE_W, owedBySky, SKY_LABEL_X, SOURCE_LABEL, sourceBracket,
-  type FlowLayout,
+  AGENT_W, HEADERS, HEADER_SIZE, HEADER_Y, LABEL_X, MID_X, NODE_W, owedBySky,
+  SKY_LABEL_X, sourceBracket, type FlowLayout,
 } from "../../lib/mscFlowLayout";
 import { RingHoverStyles } from "./MscRingHoverStyles";
 import { markId } from "./MscRingPills";
 import { FlowAgentGroup } from "./MscFlowAgent";
+import { FlowSources } from "./MscFlowSources";
 import { FlowPills } from "./MscFlowPills";
 import { MscFlowZoomReset } from "./MscFlowZoomReset";
 import type { OverviewPrime } from "./MscRingPrime";
@@ -63,6 +64,9 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
   const { sky } = layout;
   // Derived from the tweened rows, so the bracket grows and slides with them.
   const bracket = sourceBracket(layout.sources);
+  // Stable per instance, so two of these charts on one page never share a
+  // clip path (useId's own colons are not safe inside a url(#…) reference).
+  const clipId = `msc-flow-clip-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   // touch-action is only surrendered once zoomed, so a finger drag over the
   // chart still scrolls the page on a phone at rest.
   return (
@@ -80,65 +84,59 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
           {...zoom.pan}
         >
           <desc>Scroll or pinch over the chart to zoom in on a ribbon, drag to pan, double-click to reset.</desc>
-          <FlowHeaders />
-          {/* The Sky BRACKET: a `[` down the far left gathering the
-              demand-side rows, in the same blue as Sky's bar on the right.
-              That money is owed BY Sky (A.2.4.1.2.2.1.1.1), so Sky is at
-              both ends of the chart — drawn as a bracket rather than a
-              node-and-ribbons because those ribbons read as a fourth stage
-              of the flow. It carries no label of its own: the heading above
-              reads "OWED BY SKY | <total>". Absent when the month has fewer
-              than two Sky-owed rows — one row is not a group. */}
-          {bracket && (
-            <path
-              d={bracket.path}
-              className="msc-flow-sky-bracket"
-              style={{ fill: "none", stroke: "var(--msc-sky)", strokeWidth: 5, strokeLinecap: "round", strokeLinejoin: "round" }}
-            />
-          )}
-          {layout.sources.map((s) => (
-            <g key={s.kind} className="msc-flow-source" data-kind={s.kind} data-origin={s.origin} style={{ opacity: s.alpha }}>
-              {/* The heading sits ABOVE the bracketed rows, flush left with
-                  every other label rather than beside the bracket: the
-                  bracket's column is 18 units wide and would need the text
-                  turned on its side. It carries the group total whether or
-                  not a bracket was drawn. The earned group has no heading at
-                  all — its line items name themselves. */}
-              {s.headingY != null && (
-                <text x={LABEL_X} y={s.headingY} textAnchor="start" fontSize={GROUP_HEADING_SIZE} className="msc-flow-group-heading mono">
-                  {GROUP_HEADING.sky}
-                  {` | ${formatUsd(owedBySky(layout.sources), true)}`}
-                </text>
-              )}
-              <rect x={s.x} y={s.y} width={NODE_W} height={s.h} className={`msc-ring-${s.kind}`} />
-              <text x={s.labelX} y={s.labelY + 15} textAnchor="start" fontSize={44} className="msc-ring-label">
-                {SOURCE_LABEL[s.kind]}
-                <tspan className="msc-ring-sublabel mono"> | {formatUsd(s.value, true)}</tspan>
-              </text>
-            </g>
-          ))}
-          {/* Sky: one bar, split by Prime and by type — the same "To Sky"
-              name-then-figure treatment as the orbit's pie, right-aligned
-              into the gutter and centred on the bar the way a source label
-              is centred on its own. The Primes are not named here again;
-              each share's hover pill says whose. */}
-          <text x={SKY_LABEL_X} y={sky.y + sky.h / 2 + 18} textAnchor="end" fontSize={54} className="msc-ring-label">
-            To Sky
-            <tspan className="msc-ring-sublabel mono"> | {centerFigure}</tspan>
-          </text>
-          {sky.shares.map((sh) => (
-            <g key={sh.prime} className="msc-ring-mark" data-mark={markId(sh.prime, "share")} style={{ opacity: sh.alpha }}>
-              {sky.segments
-                .filter((seg) => seg.prime === sh.prime)
-                .map((seg) => (
-                  <rect key={seg.kind} x={sky.x} y={seg.y} width={NODE_W} height={seg.h} className="msc-ring-sky-wedge" data-prime={seg.prime} style={{ fill: `var(--msc-${seg.kind === "cof" ? "sky" : "sde"})` }} />
-                ))}
-            </g>
-          ))}
-          {layout.agents.map((a) => {
-            const m = meta.get(a.prime);
-            return m ? <FlowAgentGroup key={a.prime} agent={a} {...m} month={month} /> : null;
-          })}
+          {/* The drawing is CLIPPED to whatever the zoom is showing, which
+              an outer <svg> would normally do for itself — `.msc-ring` sets
+              `overflow: visible` so the hover pills can escape the viewBox,
+              and that also let a zoomed-in drawing spill across the card.
+              The clip rect IS the current view, so it tracks the zoom; the
+              pill layer below is deliberately left outside it, so a pill on
+              a mark at the edge still reads whole. */}
+          <defs>
+            <clipPath id={clipId}>
+              <rect x={zoom.view.x} y={zoom.view.y} width={zoom.view.w} height={zoom.view.h} />
+            </clipPath>
+          </defs>
+          <g className="msc-flow-content" clipPath={`url(#${clipId})`}>
+            <FlowHeaders />
+            {/* The Sky BRACKET: a `[` down the far left gathering the
+                demand-side rows, in the same blue as Sky's bar on the right.
+                That money is owed BY Sky (A.2.4.1.2.2.1.1.1), so Sky is at
+                both ends of the chart — drawn as a bracket rather than a
+                node-and-ribbons because those ribbons read as a fourth stage
+                of the flow. It carries no label of its own: the heading above
+                reads "OWED BY SKY | <total>". Absent when the month has fewer
+                than two Sky-owed rows — one row is not a group. */}
+            {bracket && (
+              <path
+                d={bracket.path}
+                className="msc-flow-sky-bracket"
+                style={{ fill: "none", stroke: "var(--msc-sky)", strokeWidth: 5, strokeLinecap: "round", strokeLinejoin: "round" }}
+              />
+            )}
+            <FlowSources sources={layout.sources} owed={owedBySky(layout.sources)} />
+            {/* Sky: one bar, split by Prime and by type — the same "To Sky"
+                name-then-figure treatment as the orbit's pie, right-aligned
+                into the gutter and centred on the bar the way a source label
+                is centred on its own. The Primes are not named here again;
+                each share's hover pill says whose. */}
+            <text x={SKY_LABEL_X} y={sky.y + sky.h / 2 + 18} textAnchor="end" fontSize={54} className="msc-ring-label">
+              To Sky
+              <tspan className="msc-ring-sublabel mono"> | {centerFigure}</tspan>
+            </text>
+            {sky.shares.map((sh) => (
+              <g key={sh.prime} className="msc-ring-mark" data-mark={markId(sh.prime, "share")} style={{ opacity: sh.alpha }}>
+                {sky.segments
+                  .filter((seg) => seg.prime === sh.prime)
+                  .map((seg) => (
+                    <rect key={seg.kind} x={sky.x} y={seg.y} width={NODE_W} height={seg.h} className="msc-ring-sky-wedge" data-prime={seg.prime} style={{ fill: `var(--msc-${seg.kind === "cof" ? "sky" : "sde"})` }} />
+                  ))}
+              </g>
+            ))}
+            {layout.agents.map((a) => {
+              const m = meta.get(a.prime);
+              return m ? <FlowAgentGroup key={a.prime} agent={a} {...m} month={month} /> : null;
+            })}
+          </g>
           <FlowPills layout={layout} labelOf={labelOf} />
         </svg>
         {zoom.zoomed && <MscFlowZoomReset onReset={zoom.reset} />}

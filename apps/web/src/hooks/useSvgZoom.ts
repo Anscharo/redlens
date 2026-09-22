@@ -138,6 +138,9 @@ export function useSvgZoom(width: number, height: number) {
 
   return {
     ref,
+    /** The box itself, for a caller that has to draw it — the clip rect that
+     *  keeps a zoomed drawing inside its frame is the same rectangle. */
+    view,
     viewBox: `${view.x} ${view.y} ${view.w} ${view.h}`,
     zoomed,
     reset,

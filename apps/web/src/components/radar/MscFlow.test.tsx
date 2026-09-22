@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { layoutMscFlow, GROUP_HEADING_SIZE, HEADER_SIZE, LABEL_X, primeLabelStartX, SKY_LABEL_X, sourceBarX, sourceBracket } from "../../lib/mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
@@ -168,6 +168,34 @@ describe("MscFlow", () => {
     expect(svg).not.toHaveAttribute("data-zoomed");
     expect(svg.querySelector("desc")!.textContent).toMatch(/zoom/i);
     expect(screen.queryByRole("button", { name: "Reset zoom" })).not.toBeInTheDocument();
+  });
+
+  it("clips the drawing to the current zoom, and leaves the pill layer outside the clip", () => {
+    const flows = [flow()];
+    const layout = layoutMscFlow(flows);
+    const { container } = render(<MscFlow layout={layout} primes={primes(flows)} month="2026-07" centerFigure="$10.00M" />);
+    const svg = container.querySelector("svg.msc-flow")!;
+    const clipBox = () =>
+      ["x", "y", "width", "height"]
+        .map((a) => Number(container.querySelector("clipPath > rect")!.getAttribute(a)))
+        .join(" ");
+    // `.msc-ring` sets overflow: visible so the pills can escape, so the
+    // drawing needs its own clip — and it is the view, not the canvas.
+    const id = container.querySelector("clipPath")!.getAttribute("id")!;
+    expect(id).toMatch(/^msc-flow-clip-[A-Za-z0-9]+$/);
+    const content = container.querySelector("g.msc-flow-content")!;
+    expect(content.getAttribute("clip-path")).toBe(`url(#${id})`);
+    expect(content.querySelector('.msc-ring-prime[data-prime="spark"]')).toBeInTheDocument();
+    expect(clipBox()).toBe(svg.getAttribute("viewBox"));
+    // The pills paint last, OUTSIDE the clip, so one on an edge mark reads whole.
+    const pills = container.querySelector("g.msc-ring-pills")!;
+    expect(pills.parentElement).toBe(svg);
+    expect(pills.closest("g.msc-flow-content")).toBeNull();
+    // Zoom in: the clip rect follows the viewBox rather than staying the canvas.
+    fireEvent.wheel(svg, { deltaY: -400, clientX: 0, clientY: 0 });
+    expect(svg.getAttribute("viewBox")).not.toBe(`0 0 ${layout.width} ${layout.height}`);
+    expect(Number(container.querySelector("clipPath > rect")!.getAttribute("width"))).toBeLessThan(layout.width);
+    expect(clipBox()).toBe(svg.getAttribute("viewBox"));
   });
 
   it("renders an unmatched Prime unlinked", () => {
