@@ -1,5 +1,5 @@
 import { formatUsd } from "../../lib/settlements";
-import { AGENT_W, PIPE_HALF, type FlowAgent, type FlowLink } from "../../lib/mscFlowLayout";
+import { AGENT_W, hitStroke, PIPE_HALF, type FlowAgent, type FlowLink } from "../../lib/mscFlowLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
 import { markId, SLICE_CODE } from "./MscRingPills";
 import { primeLinkLabel, type OverviewPrime } from "./MscRingPrime";
@@ -27,6 +27,11 @@ export function FlowAgentGroup({ agent, flow, label, bandColor, to, month }: Ove
       {agent.inbound.map((l) => (
         <g key={l.kind} className="msc-ring-mark" data-mark={markId(p, l.kind)}>
           <path d={l.path} className={`msc-ring-slice msc-ring-${l.kind}`} />
+          {/* Invisible padding on a hairline: it sits inside the same mark
+              group, so hovering it lights the ribbon it belongs to. */}
+          {hitStroke(l.geom.t) > 0 && (
+            <path d={l.path} className="msc-flow-hit" strokeWidth={hitStroke(l.geom.t)} />
+          )}
         </g>
       ))}
       {agent.outbound.length > 0 && (
@@ -40,6 +45,11 @@ export function FlowAgentGroup({ agent, flow, label, bandColor, to, month }: Ove
               data-sde={l.kind === "sde" ? "true" : undefined}
             />
           ))}
+          {agent.outbound.map((l) =>
+            hitStroke(l.geom.t) > 0 ? (
+              <path key={`hit-${l.kind}`} d={l.path} className="msc-flow-hit" strokeWidth={hitStroke(l.geom.t)} />
+            ) : null,
+          )}
         </g>
       )}
       <rect x={agent.x} y={agent.y} width={AGENT_W} height={agent.h} className="msc-flow-agent" style={{ fill: bandColor }} />

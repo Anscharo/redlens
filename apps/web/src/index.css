@@ -3400,6 +3400,17 @@ a.atlas-annotates:focus-visible {
    flows) are lighter, and come up to full only when lit — hovered, or
    named by the key or the timeseries. Labels that ribbons pass under get
    a halo in the card color. */
+/* An invisible hit target that pads a hairline ribbon out to something a
+   pointer can actually land on. `pointer-events: all` is what makes it
+   work: the default (visiblePainted) ignores a transparent stroke, and
+   `all` hits the fill and stroke regions whatever they are painted with.
+   Drawn inside its ribbon's own .msc-ring-mark, so hovering it lights the
+   ribbon; never shown, so the chart is unchanged. */
+.msc-flow .msc-flow-hit {
+  fill: none;
+  stroke: transparent;
+  pointer-events: all;
+}
 .msc-flow .msc-ring-slice,
 .msc-flow .msc-ring-arrow {
   stroke: none;

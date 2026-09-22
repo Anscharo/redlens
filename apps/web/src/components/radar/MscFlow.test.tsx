@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { layoutMscFlow, NODE_W, PIPE_HALF, GROUP_HEADING_SIZE, HEADER_SIZE, LABEL_X, SKY_LABEL_X, sourceBarX, sourceBracket } from "../../lib/mscFlowLayout";
+import { layoutMscFlow, HIT_MIN_T, NODE_W, PIPE_HALF, GROUP_HEADING_SIZE, HEADER_SIZE, LABEL_X, SKY_LABEL_X, sourceBarX, sourceBracket } from "../../lib/mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 import { MscFlow } from "./MscFlow";
 import type { OverviewPrime } from "./MscRingPrime";
@@ -77,6 +77,32 @@ describe("MscFlow", () => {
     const { container } = render(<MscFlow layout={layoutMscFlow(flows)} primes={primes(flows)} month="2026-07" centerFigure="$0" />);
     expect(container.querySelector("path.msc-flow-sky-bracket")).not.toBeInTheDocument();
     expect(screen.getByText("OWED BY SKY | $32k")).toBeInTheDocument();
+  });
+
+  it("pads a hairline ribbon's hit area without drawing anything", () => {
+    // sde is a hairline against cof in this fixture (100k against 9.9M).
+    const flows = [flow(), flow({ prime: "grove", sky: 5_000_000, cof: 4_900_000, sde: 100_000 })];
+    const l = layoutMscFlow(flows);
+    const { container } = render(<MscFlow layout={l} primes={primes(flows)} month="2026-07" centerFigure="$15.00M" />);
+    const thin = l.agents.flatMap((a) => [...a.inbound, ...a.outbound]).filter((x) => x.geom.t < HIT_MIN_T);
+    const fat = l.agents.flatMap((a) => [...a.inbound, ...a.outbound]).filter((x) => x.geom.t >= HIT_MIN_T);
+    expect(thin.length).toBeGreaterThan(0);
+    const hits = [...container.querySelectorAll("path.msc-flow-hit")];
+    // One per thin ribbon, and none for a ribbon already wide enough to hit.
+    expect(hits).toHaveLength(thin.length);
+    for (const h of hits) {
+      const d = h.getAttribute("d");
+      const ribbon = thin.find((x) => x.path === d)!;
+      expect(ribbon).toBeDefined();
+      // The stroke pads the ribbon out to exactly the minimum target.
+      expect(ribbon.geom.t + Number(h.getAttribute("stroke-width"))).toBeCloseTo(HIT_MIN_T, 6);
+      // It lives inside its ribbon's own mark, so hovering it lights that
+      // ribbon rather than nothing.
+      expect(h.closest(".msc-ring-mark")).not.toBeNull();
+    }
+    for (const x of fat) {
+      expect(hits.some((h) => h.getAttribute("d") === x.path)).toBe(false);
+    }
   });
 
   it("speaks the orbit's mark vocabulary, so the key, hover and pills carry over", () => {

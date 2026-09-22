@@ -183,6 +183,16 @@ export const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
 export const AGENT_LINE_H = 48;
 /** How far the name and the gross sit from the pipe's own centre. */
 export const PIPE_HALF = 16;
+/** A hairline ribbon is a few pixels of target on screen, which is not
+ *  enough to hover. Any ribbon thinner than this gets an invisible stroke
+ *  widening it to this much — the hit area grows, the drawing does not. */
+export const HIT_MIN_T = 28;
+/** The stroke that pads `t` out to HIT_MIN_T; a stroke straddles the path,
+ *  so it adds half its width to each side. Zero once the ribbon is already
+ *  wide enough to hit, which is when no padding should be drawn at all. */
+export function hitStroke(t: number): number {
+  return Math.max(0, HIT_MIN_T - t);
+}
 /** The Prime column sits 3/5 of the way across the ribbon span: the left
  *  half carries up to seven sources fanning into every Prime, the right
  *  only the two To-Sky ribbons, so the busier side gets the room. */
