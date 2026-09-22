@@ -183,27 +183,27 @@ describe("MscOverview", () => {
     expect(window.location.search).toBe("");
   });
 
-  it("opens on the flow chart and switches to the orbital pies, synced to ?view", async () => {
+  it("opens on the sankey and switches to the pies, synced to ?view", async () => {
     const { container } = render(<MscOverview actors={ACTORS} />);
     await waitFor(() => screen.getByText("Monthly Settlement Cycle"));
     const group = screen.getByRole("group", { name: "Chart style" });
-    const orbit = screen.getByRole("button", { name: "orbit" });
-    const flowBtn = screen.getByRole("button", { name: "flow" });
-    expect(group).toContainElement(orbit);
-    expect(flowBtn).toHaveAttribute("aria-pressed", "true");
+    const pies = screen.getByRole("button", { name: "pies" });
+    const sankey = screen.getByRole("button", { name: "sankey" });
+    expect(group).toContainElement(pies);
+    expect(sankey).toHaveAttribute("aria-pressed", "true");
     expect(container.querySelector("svg.msc-flow")).toBeInTheDocument();
     expect(container.querySelector(".msc-ring-sky-disc")).not.toBeInTheDocument();
-    fireEvent.click(orbit);
-    expect(window.location.search).toBe("?view=orbit");
-    expect(orbit).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(pies);
+    expect(window.location.search).toBe("?view=pies");
+    expect(pies).toHaveAttribute("aria-pressed", "true");
     expect(container.querySelector("svg.msc-flow")).not.toBeInTheDocument();
     expect(container.querySelector(".msc-ring-sky-disc")).toBeInTheDocument();
     expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
     // The key's loss row and reading guide describe the chart on screen.
     expect(screen.getByText(/supply-side loss \(the hole\)/)).toBeInTheDocument();
     expect(document.querySelector(".msc-key-note")).toHaveTextContent("Every pie is what that party RECEIVED");
-    expect(track).toHaveBeenCalledWith("msc_overview_style", { view: "orbit" });
-    fireEvent.click(flowBtn);
+    expect(track).toHaveBeenCalledWith("msc_overview_style", { view: "pies" });
+    fireEvent.click(sankey);
     expect(window.location.search).toBe("");
     expect(container.querySelector("svg.msc-flow")).toBeInTheDocument();
   });

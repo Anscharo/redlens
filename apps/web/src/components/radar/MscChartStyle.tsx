@@ -1,7 +1,7 @@
-export const CHART_STYLES = ["flow", "orbit"] as const;
+export const CHART_STYLES = ["sankey", "pies"] as const;
 export type ChartStyle = (typeof CHART_STYLES)[number];
 
-/** The orbit / flow pills beside the overview chart's title. Fully
+/** The sankey / pies pills beside the overview chart's title. Fully
  *  controlled: the overview owns the choice (it lives in the URL). */
 export function MscChartStyle({ value, onChange }: { value: ChartStyle; onChange: (style: ChartStyle) => void }) {
   return (

@@ -37,8 +37,8 @@ function KeyGroup({ title, children }: { title: string; children: React.ReactNod
  *  the code is not the label again ("CoF · cost of funds", never
  *  "kept · supply-side kept"); the supply-side rows name the flow the way
  *  the demand-side heading does. */
-export function RingKey({ view = "orbit" }: { view?: "orbit" | "flow" }) {
-  const orbit = view === "orbit";
+export function RingKey({ view = "pies" }: { view?: "pies" | "sankey" }) {
+  const pies = view === "pies";
   return (
     <div className="mono text-[10px] mt-5" style={{ color: "var(--tan-3)" }}>
       <div className="msc-key">
@@ -48,7 +48,7 @@ export function RingKey({ view = "orbit" }: { view?: "orbit" | "flow" }) {
         </KeyGroup>
         <KeyGroup title="Supply-side">
           <KeyItem id="kept" label="supply-side kept" />
-          <KeyItem id="neg" code="striped" label={orbit ? "supply-side loss (the hole)" : "supply-side loss"} striped />
+          <KeyItem id="neg" code="striped" label={pies ? "supply-side loss (the hole)" : "supply-side loss"} striped />
         </KeyGroup>
         <KeyGroup title="Demand-side">
           {DEMAND_SERIES.map((s) => (
@@ -58,7 +58,7 @@ export function RingKey({ view = "orbit" }: { view?: "orbit" | "flow" }) {
       </div>
       <div className="msc-key-note text-center">
         <p>
-          {orbit
+          {pies
             ? "Every pie is what that party RECEIVED: a Prime's is supply-side kept + demand-side, Sky's is cost of funds + Sky Direct Exposure. Two arrows run between them, one each way. "
             : "A Prime's bar = gross revenue*; ribbons are the money in and out. "}
           Hover for figures; click a Prime for its page.
@@ -67,21 +67,21 @@ export function RingKey({ view = "orbit" }: { view?: "orbit" | "flow" }) {
             compressed scale (mscOverviewLayout's SIZE_EXP) because a month
             spans three orders of magnitude, so a reader must not measure
             areas off them. Keep this in step with that constant. */}
-        {orbit && (
+        {pies && (
           <p className="mt-1">
             A circle's size is its rank and rough magnitude, not its dollars:
             the smallest Primes are a thousandth of the largest, so the sizes
             are compressed to keep them apart. The figures are the amounts.
           </p>
         )}
-        {orbit && (
+        {pies && (
           <p className="mt-1">
             The two never merge into one pie: what a Prime owes Sky and what Sky
             owes the Prime are separate settlement amounts running in opposite
             directions (A.2.4.1.2.2.1.1.2 and A.2.4.1.2.2.1.1.1).
           </p>
         )}
-        {!orbit && (
+        {!pies && (
           <p className="mt-1">
             Sky is at both ends: the demand-side series are owed BY Sky
             (A.2.4.1.2.2.1.1.1), so they start at the Sky node on the left,
@@ -92,8 +92,8 @@ export function RingKey({ view = "orbit" }: { view?: "orbit" | "flow" }) {
           </p>
         )}
         {/* The footnote belongs to the flow chart's bar, the one mark that
-            still uses gross revenue; the orbit no longer sums the two sides. */}
-        {!orbit && <p className="mt-1 italic">*Gross revenue = To Sky + supply-side kept + demand-side.</p>}
+            still uses gross revenue; the pies no longer sum the two sides. */}
+        {!pies && <p className="mt-1 italic">*Gross revenue = To Sky + supply-side kept + demand-side.</p>}
       </div>
     </div>
   );

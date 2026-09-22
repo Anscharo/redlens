@@ -9,7 +9,7 @@ import { markId } from "./MscRingPills";
 import { FlowAgentGroup } from "./MscFlowAgent";
 import { FlowSources } from "./MscFlowSources";
 import { FlowPills } from "./MscFlowPills";
-import { MscFlowZoomReset } from "./MscFlowZoomReset";
+import { MscZoomReset } from "./MscZoomReset";
 import type { OverviewPrime } from "./MscRingPrime";
 import { useTweenedFlow } from "../../hooks/useTweenedFlow";
 import { useSvgZoom } from "../../hooks/useSvgZoom";
@@ -139,7 +139,7 @@ export function MscFlow({ layout: target, primes, month, centerFigure }: Props) 
           </g>
           <FlowPills layout={layout} labelOf={labelOf} />
         </svg>
-        {zoom.zoomed && <MscFlowZoomReset onReset={zoom.reset} />}
+        {zoom.zoomed && <MscZoomReset onReset={zoom.reset} />}
       </figure>
     </>
   );

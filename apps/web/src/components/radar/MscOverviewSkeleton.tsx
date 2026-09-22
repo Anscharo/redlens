@@ -56,14 +56,14 @@ export function MscOverviewSkeleton() {
           <div className="msc-card msc-ring-card rounded p-4 flex-1 min-w-0 flex flex-col" style={{ flexBasis: 340, maxWidth: "100%" }}>
             <p className="text-sm mb-2 flex flex-wrap items-center gap-3" style={{ color: "var(--tan)" }}>
               <span>Sky System Settlements</span>
-              <MscChartStyle value="flow" onChange={() => {}} />
+              <MscChartStyle value="sankey" onChange={() => {}} />
             </p>
             <figure className="msc-ring-frame msc-flow-frame" aria-hidden="true">
               <svg className="msc-ring msc-flow" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet">
                 <FlowHeaders />
               </svg>
             </figure>
-            <RingKey view="flow" />
+            <RingKey view="sankey" />
           </div>
         </div>
       </div>

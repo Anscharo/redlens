@@ -33,7 +33,7 @@ import { useTweened } from "../../hooks/useTweened";
 import { tweenPrimeFlows } from "../../lib/mscTween";
 
 const mscCodec = urlString(null);
-/** Chart style: the three-stage flow (default, no param) or the orbital pies. */
+/** Chart style: the three-stage sankey (default, no param) or the pies. */
 const viewCodec = urlString(null);
 /** The cross-Prime Monthly Settlement Cycle section. Suspends on the
  *  settlements artifact behind a skeleton of the same cards at the same
@@ -69,11 +69,11 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
     () => (bundle && month ? primeFlowsForMonth(bundle, month) : []),
     [bundle, month],
   );
-  // The orbit lays itself out from the rows each render, so a month change
-  // is drawn by tweening the rows (the flow chart tweens its own layout).
+  // The pies lay themselves out from the rows each render, so a month
+  // change is drawn by tweening the rows (the sankey tweens its own layout).
   const drawnFlows = useTweened(flows, tweenPrimeFlows);
   const [viewParam, setViewParam] = useUrlState("view", viewCodec);
-  const view: ChartStyle = viewParam === "orbit" ? "orbit" : "flow";
+  const view: ChartStyle = viewParam === "pies" ? "pies" : "sankey";
   // What both charts know about a Prime: its label, link and identity
   // color (the same as its timeseries layers, by stack order).
   const overviewPrimes = useMemo<OverviewPrime[]>(
@@ -88,7 +88,7 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
     [drawnFlows, actors, month, labelOf, stack.primes],
   );
   const layout = useMemo(() => layoutMscRing(drawnFlows, labelOf), [drawnFlows, labelOf]);
-  const flowLayout = useMemo(() => (view === "flow" ? layoutMscFlow(flows) : null), [view, flows]);
+  const flowLayout = useMemo(() => (view === "sankey" ? layoutMscFlow(flows) : null), [view, flows]);
   const ringPrimes = useMemo<MscRingPrime[]>(
     () => layout.primes.map((ring) => ({ ...overviewPrimes.find((p) => p.flow.prime === ring.prime)!, ring })),
     [layout, overviewPrimes],
@@ -134,7 +134,7 @@ function MscOverviewLoaded({ actors }: { actors: OverviewActor[] }) {
             <MscChartStyle
               value={view}
               onChange={(v) => {
-                setViewParam(v === "flow" ? null : v);
+                setViewParam(v === "sankey" ? null : v);
                 track("msc_overview_style", { view: v });
               }}
             />
