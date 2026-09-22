@@ -83,7 +83,9 @@ export function RingPrimeGroup({ flow, ring, label, bandColor, to, month }: MscR
         <text x={ring.labelX} y={ring.labelY} textAnchor="middle" fontSize={24} className="msc-ring-label">
           {label}
         </text>
-        {/* What it received, on the line under the name — the pie's area. */}
+        {/* What it received, on the line under the name — what the pie's
+            size stands for, and the only place it is readable as dollars
+            (the size scale is compressed; see SIZE_EXP). */}
         <text
           x={ring.labelX}
           y={ring.labelY + 20}

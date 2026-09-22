@@ -6,12 +6,15 @@
 // Pure math, no DOM — the view just maps over prebuilt SVG path strings
 // (settlementSankey.ts precedent).
 //
-// ONE area scale for everything: the month's biggest amount (the To-Sky
+// ONE size scale for everything: the month's biggest amount (the To-Sky
 // total, or a Prime's positive line items) renders at R_MAX, and every
-// other circle's area is proportional on the same scale.
+// other circle is sized from the same scale — a compressed one, not an
+// area-proportional one, because the month's amounts span three orders of
+// magnitude and true area put half the Primes on the minimum. See SIZE_EXP
+// for the trade that buys.
 //
 // EVERY PIE IS WHAT THAT PARTY RECEIVED, and nothing else — the one rule
-// that makes a pie's area mean something. Mixing what a Prime keeps with
+// that makes a pie's size mean something. Mixing what a Prime keeps with
 // what it owes Sky (the old "gross revenue" pie) summed money moving in
 // opposite directions, which the Monthly Settlement Cycle settles as two
 // separate amounts (A.2.4.1.2.2.1.1.1 and A.2.4.1.2.2.1.1.2). So:
@@ -22,11 +25,11 @@
 //   SKY'S PIE      = cost of funds + Sky Direct Exposure, subdivided by
 //                    Prime so "these flows add up to Sky" stays visible
 //
-// Positive items are the slices; the pie's AREA is their sum. A negative
-// item (a supply LOSS — Grove in 3 of 7 months) is a HOLE in the middle
-// whose area is the loss, so the visible ring area is exactly what the
-// party received. Two arrows run between each Prime and Sky, in opposite
-// lanes: what it owed Sky, and the demand-side Sky owed it.
+// Positive items are the slices, and the pie's SIZE comes from their sum.
+// A negative item (a supply LOSS — Grove in 3 of 7 months) is a HOLE in
+// the middle sized from the loss on the same scale, so the visible ring is
+// what the party received. Two arrows run between each Prime and Sky, in
+// opposite lanes: what it owed Sky, and the demand-side Sky owed it.
 //
 // Placement: Primes go clockwise from 12 o'clock in the order given (the
 // caller passes PRIME_ORDER), each given an angular slot proportional to
@@ -60,14 +63,40 @@ const ORBIT_RY = 250;
  *  Primes (first in PRIME_ORDER) take the sides and the small ones the
  *  top/bottom, which keeps the cropped box wide and the drawing large. */
 const START_ANGLE = Math.PI;
-/** Sky pie: on the SAME area scale as the pies (see R_MAX), with a floor
+/** Sky pie: on the SAME size scale as the pies (see R_MAX), with a floor
  *  so the label always fits. No hole — a hole means a loss here. */
 const SKY_MIN_R = 80;
-/** ONE area scale for the donut and every pie: the month's biggest
+/** ONE size scale for the donut and every pie: the month's biggest
  *  amount renders at this radius. */
 const R_MAX = 140;
-/** Smallest pie, so a $13k Prime is still a visible, hoverable disc. */
-const PIE_MIN_R = 22;
+/**
+ * The size exponent: radius = R_MAX * (value / ref) ** SIZE_EXP.
+ *
+ * 0.5 is true area-proportionality (area ∝ dollars) and is what this chart
+ * used to do. It cannot survive this data: a month spans three orders of
+ * magnitude between the biggest Prime and the smallest ($3.92M vs $12.1k in
+ * Jul 2026), and against a `ref` that is the To-Sky total — four times the
+ * biggest Prime — every Prime below ~$500k came out under the minimum pie
+ * and rendered at exactly the same size. Three or four of six rows were
+ * sized by the FLOOR rather than by their money, which is the one thing a
+ * size encoding must never do.
+ *
+ * 0.3 is a Flannery-style compromise: still one monotone scale shared by
+ * the donut and every pie, so bigger always means more and the ranking is
+ * exact, but a pie's AREA is no longer readable as dollars — it
+ * overstates the small end on purpose. Measured over all seven published
+ * months, it puts at most one row on the floor (and in six of the seven,
+ * none), and an order of magnitude of money is always at least a doubling
+ * of radius. Read the figures for amounts; read the circles for rank and
+ * rough magnitude. MscRingKey's reading guide says exactly that — keep the
+ * two in step if this number moves.
+ */
+const SIZE_EXP = 0.3;
+/** Smallest pie, so a Prime that rounds to nothing is still a visible,
+ *  hoverable disc. Deliberately well below the smallest real row: under
+ *  SIZE_EXP the floor is a backstop for a row with no money, not the thing
+ *  that sizes the small end. */
+const PIE_MIN_R = 13;
 /** A loss hole is never smaller than this (a hairline hole reads as a
  *  rendering glitch) nor closer than HOLE_RIM to the pie's edge. */
 const HOLE_MIN_R = 6;
@@ -209,7 +238,8 @@ export interface RingPrime {
   prime: string;
   /** Angle of the pie's center around Sky (radians, 12 o'clock = −π/2). */
   angle: number;
-  /** Pie center and outer radius (area ∝ the positive line items). */
+  /** Pie center and outer radius (sized from the positive line items on
+   *  the shared SIZE_EXP scale — bigger means more, not area ∝ dollars). */
   cx: number;
   cy: number;
   r: number;
@@ -221,8 +251,8 @@ export interface RingPrime {
   arrow: RingArrow | null;
   /** The demand-side arrow FROM Sky, or null when Sky owes it nothing. */
   demandArrow: RingArrow | null;
-  /** What this Prime received: supply kept + demand-side (signed) — the
-   *  ring's area. Never its To-Sky money, which is Sky's receipt. */
+  /** What this Prime received: supply kept + demand-side (signed) — what
+   *  the ring stands for. Never its To-Sky money, which is Sky's receipt. */
   received: number;
   /** Name, centered outside the pie on the side away from Sky. */
   labelX: number;
@@ -400,20 +430,28 @@ export function layoutMscRing(
   const maxFlow = Math.max(1, ...rows.map((r) => Math.max(Math.abs(r.sky), r.demand)));
   const widthOf = (v: number) => Math.max(W_MIN, (W_MAX * v) / maxFlow);
 
-  // Area ∝ dollars on one scale shared by the donut and the pies, pinned so
-  // the month's biggest amount is R_MAX. A pie's outer area is its positive
-  // items; its hole's area is its loss; the visible ring is what it received.
+  // One size scale shared by the donut and the pies (see SIZE_EXP), pinned
+  // so the month's biggest amount is R_MAX. A pie's outer circle is its
+  // positive items, its hole is its loss, and the ring between them is what
+  // it received — in rank, not in area: SIZE_EXP is not 0.5.
   const skyTotal = rows.reduce((n, r) => n + Math.abs(r.sky), 0);
   const ref = Math.max(1, skyTotal, ...rows.map((r) => r.positives));
-  const radiusFor = (v: number) => R_MAX * Math.sqrt(Math.max(0, v) / ref);
+  const radiusFor = (v: number) => R_MAX * Math.pow(Math.max(0, v) / ref, SIZE_EXP);
   const skyR = Math.max(SKY_MIN_R, radiusFor(skyTotal));
   const skyInnerR = 0;
 
   // Floors and reserved room scale with the row's alpha (1 for a real row).
+  // A row mid-transition also has its RADIUS damped, by alpha ** (0.5 −
+  // SIZE_EXP): the tween scales a newcomer's money linearly, and under a
+  // flatter exponent that alone would have it pop to half size a tenth of
+  // the way in. The damping puts the arrival back on the square-root curve
+  // it grew in on when the chart was area-proportional, so changing
+  // SIZE_EXP re-sizes the pies without re-timing the transition.
   const shape = rows.map((r) => {
-    const r0 = Math.max(PIE_MIN_R * r.alpha, radiusFor(r.positives));
+    const grow = r.alpha < 1 ? Math.pow(r.alpha, 0.5 - SIZE_EXP) : 1;
+    const r0 = Math.max(PIE_MIN_R * r.alpha, radiusFor(r.positives) * grow);
     const holeR =
-      r.loss > 0 ? Math.max(0, Math.min(r0 - HOLE_RIM, Math.max(HOLE_MIN_R * r.alpha, radiusFor(r.loss)))) : 0;
+      r.loss > 0 ? Math.max(0, Math.min(r0 - HOLE_RIM, Math.max(HOLE_MIN_R * r.alpha, radiusFor(r.loss) * grow))) : 0;
     return { r: r0, holeR, spaceR: r0 + LABEL_OUT * r.alpha, clear: (CLEARANCE / 2) * r.alpha };
   });
 

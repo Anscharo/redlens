@@ -63,6 +63,17 @@ export function RingKey({ view = "orbit" }: { view?: "orbit" | "flow" }) {
             : "A Prime's bar = gross revenue*; ribbons are the money in and out. "}
           Hover for figures; click a Prime for its page.
         </p>
+        {/* The size caveat is stated, not implied: the pies are sized on a
+            compressed scale (mscOverviewLayout's SIZE_EXP) because a month
+            spans three orders of magnitude, so a reader must not measure
+            areas off them. Keep this in step with that constant. */}
+        {orbit && (
+          <p className="mt-1">
+            A circle's size is its rank and rough magnitude, not its dollars:
+            the smallest Primes are a thousandth of the largest, so the sizes
+            are compressed to keep them apart. The figures are the amounts.
+          </p>
+        )}
         {orbit && (
           <p className="mt-1">
             The two never merge into one pie: what a Prime owes Sky and what Sky

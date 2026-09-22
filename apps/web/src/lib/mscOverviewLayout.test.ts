@@ -94,19 +94,52 @@ describe("layoutMscRing (orbital pies)", () => {
     }
   });
 
-  it("puts the donut and the pies on one area scale: $20.6M To Sky outranks a $13.1M Prime", () => {
+  it("puts the donut and the pies on one size scale: $20.6M To Sky outranks a $13.1M Prime", () => {
     const layout = layoutMscRing(APRIL);
     const grove = layout.primes.find((p) => p.prime === "grove")!; // received 3.777M
     const spark = layout.primes.find((p) => p.prime === "spark")!; // received 2.885M
-    const keel = layout.primes.find((p) => p.prime === "keel")!; // 55k → floor
+    const keel = layout.primes.find((p) => p.prime === "keel")!; // 55k, the smallest
     expect(layout.skyR).toBe(140);
-    // Sky's pie is the whole To-Sky total; a Prime's is only what it kept.
-    expect(grove.r / layout.skyR).toBeCloseTo(Math.sqrt(3_777_000 / 20_610_000), 2);
-    expect(spark.r / layout.skyR).toBeCloseTo(Math.sqrt(2_885_000 / 20_610_000), 2);
+    // One monotone scale, shared with the donut: r = R_MAX * (v/ref) ** 0.3.
+    // Not 0.5 — see SIZE_EXP for why area-proportionality had to go.
+    const size = (v: number) => Math.pow(v / 20_610_000, 0.3);
+    expect(grove.r / layout.skyR).toBeCloseTo(size(3_777_000), 2);
+    expect(spark.r / layout.skyR).toBeCloseTo(size(2_885_000), 2);
+    expect(keel.r / layout.skyR).toBeCloseTo(size(55_000), 2);
     // Sky is a full pie: on this chart a hole means a loss.
     expect(layout.skyInnerR).toBe(0);
-    expect(keel.r).toBeGreaterThanOrEqual(22);
     expect(keel.r).toBeLessThan(spark.r);
+  });
+
+  it("differentiates the small end: at most one pie on the floor, and an order of magnitude is a visible step", () => {
+    // Three orders of magnitude, the spread a real month has.
+    const decades = [4_000_000, 800_000, 240_000, 36_000, 12_000].map((v, i) =>
+      flow({
+        prime: ["spark", "grove", "obex", "keel", "osero"][i],
+        sky: 0,
+        cof: 0,
+        sde: 0,
+        kept: v,
+        demand: 0,
+        demandParts: {},
+      }),
+    );
+    // …against a To-Sky total four times the biggest Prime, which is what
+    // squeezed every small pie onto the minimum when area meant dollars.
+    decades[0] = { ...decades[0], sky: 16_000_000, cof: 16_000_000 };
+    const radii = layoutMscRing(decades).primes.map((p) => p.r);
+    const min = Math.min(...radii);
+    expect(radii.filter((r) => r <= min + 0.01)).toHaveLength(1);
+    // Strictly decreasing, and every order of magnitude at least doubles.
+    for (let i = 1; i < radii.length; i++) expect(radii[i]).toBeLessThan(radii[i - 1]);
+    expect(radii[0] / radii[2]).toBeGreaterThan(1.9); // 4M vs 240k
+    expect(radii[2] / radii[4]).toBeGreaterThan(1.9); // 240k vs 12k
+    // A 3× difference is still a clear step, not two discs of one size.
+    expect(radii[3] / radii[4]).toBeGreaterThan(1.3); // 36k vs 12k
+    // The floor is a backstop for a row with no money, not the small end.
+    const none = layoutMscRing([...decades, flow({ prime: "skybase", sky: 0, cof: 0, sde: 0, kept: 1, demand: 0, demandParts: {} })]);
+    expect(none.primes.find((p) => p.prime === "skybase")!.r).toBe(13);
+    expect(min).toBeGreaterThan(13);
   });
 
   it("lets a Prime outrank the donut when it earns more than Sky takes", () => {
@@ -249,7 +282,7 @@ describe("layoutMscRing (orbital pies)", () => {
     const keel = layout.primes.find((p) => p.prime === "keel")!;
     // A $17k Chronicle sliver never has room for "CP $17k".
     expect(grove.slices.find((s) => s.kind === "chroniclePoints")!.figureX).toBeNull();
-    // A 22px pie is too small for any in-slice figure.
+    // Keel's pie is far too small for any in-slice figure.
     expect(keel.slices.every((s) => s.figureX === null)).toBe(true);
     // Sky's two big wedges carry name + amount; Obex's 10% wedge is too narrow for two lines.
     expect(layout.skyWedges.filter((w) => w.figureX != null).map((w) => w.prime)).toEqual(["spark", "grove"]);
