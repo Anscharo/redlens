@@ -40,6 +40,13 @@ const label = (p: string) => p.charAt(0).toUpperCase() + p.slice(1);
 
 afterEach(cleanup);
 
+/** Hover a segment and read the portalled pill's text (the pill lives in
+ *  <body>, not in the segment — see MscTimeseriesPill). */
+function pillTextFor(seg: HTMLElement): string | null | undefined {
+  fireEvent.pointerEnter(seg);
+  return document.body.querySelector(":scope > .msc-ts-pill")?.textContent;
+}
+
 function renderChart(onSelect = vi.fn()) {
   render(<MscTimeseries primes={PRIMES} months={MONTHS} primeLabel={label} selected="2026-07" onSelect={onSelect} />);
   return onSelect;
@@ -59,7 +66,7 @@ describe("MscTimeseries", () => {
     renderChart();
     expect(document.querySelectorAll('button[aria-pressed="true"] .msc-ts-track')).toHaveLength(1);
     const jul = [...document.querySelectorAll('button[aria-pressed="true"] .msc-ts-seg[data-flow="sky"]')] as HTMLElement[];
-    expect(jul.map((el) => el.querySelector(".msc-ts-pill")?.textContent)).toEqual([
+    expect(jul.map((el) => pillTextFor(el))).toEqual([
       "Spark $1.50M to Sky",
       "Osero $500k to Sky",
     ]);
@@ -81,7 +88,7 @@ describe("MscTimeseries", () => {
     const keel = document.querySelector('.msc-ts-seg[data-prime="keel"]') as HTMLElement;
     expect(keel.style.background).toContain("repeating-linear-gradient");
     expect(keel.style.background).toContain("--msc-loss");
-    expect(keel.querySelector(".msc-ts-pill")?.textContent).toBe("Keel −$50k to Sky");
+    expect(pillTextFor(keel)).toBe("Keel −$50k to Sky");
     const spark = document.querySelector('button[aria-label^="Aug 2026"] .msc-ts-seg[data-prime="spark"]') as HTMLElement;
     expect(parseFloat(keel.style.top)).toBeGreaterThan(parseFloat(spark.style.top));
   });
@@ -109,11 +116,38 @@ describe("MscTimeseries", () => {
     expect(screen.queryByRole("button", { name: /autoplay|Play through/ })).not.toBeInTheDocument();
   });
 
-  it("labels the y axis with round tick values and gridlines", () => {
+  it("labels the y axis with round tick values and gridlines, at the denser half-step", () => {
     renderChart();
     const labels = [...document.querySelectorAll(".msc-ts-axis")].map((t) => t.textContent);
-    expect(labels).toEqual(["$0", "$1.00M", "$2.00M"]);
-    expect(document.querySelectorAll(".msc-ts-gridline")).toHaveLength(3);
+    // Was $0/$1.00M/$2.00M (posPeak/3); the /6 raw step halves it to $500k.
+    expect(labels).toEqual(["$0", "$500k", "$1.00M", "$1.50M", "$2.00M"]);
+    expect(document.querySelectorAll(".msc-ts-gridline").length).toBeGreaterThan(3);
+  });
+
+  it("floats each month's To-Sky total above its bar, to the nearest $100k, in the sky token", () => {
+    renderChart();
+    const totals = [...document.querySelectorAll(".msc-ts-total")] as HTMLElement[];
+    // 1.0M / 2.0M / 950k → nearest $100k, rendered "1.0m"-style.
+    expect(totals.map((t) => t.textContent)).toEqual(["1.0m", "2.0m", "1.0m"]);
+    expect(totals.every((t) => t.style.color === "var(--msc-sky)")).toBe(true);
+    // Never clipped off the top of the track, and the taller month sits higher.
+    const tops = totals.map((t) => parseFloat(t.style.top));
+    expect(Math.min(...tops)).toBeGreaterThanOrEqual(0);
+    expect(tops[1]).toBeLessThan(tops[0]);
+    // Decorative: the column button's aria-label already states the total.
+    expect(totals.every((t) => t.closest("[aria-hidden='true']") !== null)).toBe(true);
+  });
+
+  it("renders the hover pill in the body, not inside the clipping chart wrapper", () => {
+    renderChart();
+    const seg = document.querySelector('.msc-ts-seg[data-prime="spark"]') as HTMLElement;
+    fireEvent.pointerEnter(seg);
+    const pill = document.body.querySelector(":scope > .msc-ts-pill") as HTMLElement;
+    expect(pill).toBeTruthy();
+    expect(pill.closest(".msc-ts-seg")).toBeNull();
+    expect(pill).toHaveAttribute("data-align", "start");
+    fireEvent.pointerLeave(seg);
+    expect(document.body.querySelector(":scope > .msc-ts-pill")).toBeNull();
   });
 
   it("shows a legend entry per prime, above the chart", () => {

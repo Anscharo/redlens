@@ -1,6 +1,9 @@
-import { formatMonth, formatUsd } from "../../lib/settlements";
+import { useCallback, useState } from "react";
+import { formatUsd } from "../../lib/settlements";
 import type { PrimeStackMonth } from "@/lib/settlementsOverview";
 import { MscMonthLabel } from "./MscMonthLabel";
+import { MonthColumn } from "./MscTimeseriesColumn";
+import { MscTimeseriesPill, type PillHover } from "./MscTimeseriesPill";
 
 // One stack per month: what each Prime sent TO SKY, in the Prime's identity
 // color, so the stack's top is the month's To-Sky total. Nothing else is
@@ -26,9 +29,11 @@ const PRIME_FILLS = ["--msc-prime-1", "--msc-prime-2", "--msc-prime-3", "--msc-p
 export const primeFill = (i: number): string =>
   `var(${i < PRIME_FILLS.length ? PRIME_FILLS[i] : "--gray"})`;
 
-/** Round tick step: posPeak/3 snapped up to 1/2/5 × 10^n, ticks both ways. */
+/** Round tick step: posPeak/6 snapped up to 1/2/5 × 10^n, ticks both ways.
+ *  /6 rather than /3 so the axis reads $5m/$10m/$15m/$20m instead of only
+ *  the decades — ~6 labels over a 380px track, still round numbers. */
 function ticksFor(posPeak: number, negPeak: number): number[] {
-  const raw = posPeak / 3;
+  const raw = posPeak / 6;
   const mag = 10 ** Math.floor(Math.log10(raw));
   const norm = raw / mag;
   const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * mag;
@@ -60,6 +65,11 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
   const colorOf = (prime: string) => primeFill(primes.indexOf(prime));
   const width = AXIS_W + months.length * COL_W + (months.length - 1) * GAP_PX;
   const monthKeys = months.map((m) => m.month);
+  // The hover pill is portalled out of the chart — see MscTimeseriesPill for
+  // why CSS alone cannot put it above the legend. One state write per
+  // segment enter/leave, none on mousemove.
+  const [hover, setHover] = useState<PillHover | null>(null);
+  const clearHover = useCallback(() => setHover(null), []);
 
   return (
     <div className="mb-4 min-w-0 max-w-full">
@@ -86,75 +96,17 @@ export function MscTimeseries({ primes, months, primeLabel, selected, onSelect }
           ))}
           <line x1={AXIS_W} x2={width} y1={zeroY} y2={zeroY} stroke="var(--border)" strokeWidth={1} />
         </svg>
-        <div className="flex items-start relative" style={{ gap: GAP_PX, marginLeft: AXIS_W }}>
+        <div className="flex items-start relative" style={{ gap: GAP_PX, marginLeft: AXIS_W }} onPointerLeave={clearHover}>
           {months.map((m, i) => (
-            <MonthColumn key={m.month} m={m} zeroY={zeroY} px={px} colorOf={colorOf}
+            <MonthColumn key={m.month} m={m} zeroY={zeroY} px={px} colorOf={colorOf} width={COL_W}
               primeLabel={primeLabel} selected={selected} onSelect={onSelect}
+              onHover={setHover} onLeave={clearHover}
               align={i === 0 ? "start" : i === months.length - 1 ? "end" : "center"}
               label={<MscMonthLabel months={monthKeys} index={i} />} />
           ))}
         </div>
       </div>
+      <MscTimeseriesPill hover={hover} onDismiss={clearHover} />
     </div>
-  );
-}
-
-function MonthColumn({ m, zeroY, px, colorOf, primeLabel, selected, onSelect, align, label }: {
-  m: PrimeStackMonth;
-  label: React.ReactNode;
-  zeroY: number;
-  px: (v: number) => number;
-  colorOf: (prime: string) => string;
-  primeLabel: (prime: string) => string;
-  selected: string;
-  onSelect: (month: string) => void;
-  /** Where a segment's hover pill hangs: edge columns keep theirs inside
-   *  the chart instead of overflowing it. */
-  align: "start" | "center" | "end";
-}) {
-  // Positive parts stack upward from the zero line, negatives downward.
-  let up = 0;
-  let down = 0;
-  const segs = m.skyParts.map((p) => {
-    const h = px(Math.abs(p.value));
-    const top = p.value >= 0 ? zeroY - up - h : zeroY + down;
-    if (p.value >= 0) up += h;
-    else down += h;
-    return { ...p, top, h };
-  });
-  // A negative month (a Prime owed less than nothing) is the loss mark:
-  // stripes in the loss red, stacked below the zero line.
-  const stripes = "repeating-linear-gradient(45deg, var(--msc-loss) 0, var(--msc-loss) 4px, transparent 4px, transparent 8px)";
-  return (
-    <button
-      type="button"
-      className="msc-bar-col"
-      style={{ width: COL_W }}
-      data-active={m.month === selected ? "true" : undefined}
-      onClick={() => onSelect(m.month)}
-      aria-pressed={m.month === selected}
-      aria-label={`${formatMonth(m.month)}: ${formatUsd(m.sky, true)} to Sky across ${m.skyParts.length} ${m.skyParts.length === 1 ? "prime" : "primes"}`}
-    >
-      <span className="msc-ts-tracks" aria-hidden="true">
-        <span className="msc-ts-track msc-ts-track-sky" data-flow="sky">
-          {segs.map((s) =>
-            s.h < 0.5 ? null : (
-              <span
-                key={s.prime}
-                className="msc-ts-seg"
-                data-prime={s.prime}
-                data-flow="sky"
-                style={{ top: s.top, height: s.h, background: s.value < 0 ? stripes : colorOf(s.prime) }}
-              >
-                <span className="msc-ts-pill mono" data-align={align}>
-                  {`${primeLabel(s.prime)} ${formatUsd(s.value, true)} to Sky`}
-                </span>
-              </span>
-            ),
-          )}
-        </span>
-      </span>
-      {label}
-    </button>
   );
 }

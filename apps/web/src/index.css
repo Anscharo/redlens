@@ -3151,12 +3151,25 @@ a.atlas-annotates:focus-visible {
   line-height: 1;
   color: var(--tan-3);
 }
-/* A segment's hover pill — the ring's pills, in HTML: names the number,
-   hangs above the segment, revealed by CSS on hover. */
-.msc-ts-pill {
+/* The month's To-Sky total, floated above its bar in the To-Sky blue.
+   Positioned by the component (top) against .msc-ts-tracks. */
+.msc-ts-total {
   position: absolute;
-  bottom: 100%;
-  margin-bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+/* A segment's hover pill — the ring's pills, in HTML: names the number,
+   hangs above the segment. PORTALLED into <body> and positioned from the
+   segment's viewport rect (see MscTimeseriesPill.tsx): the chart wrapper is
+   `overflow-x: auto`, hence a clipping ancestor no z-index can escape, so
+   an in-flow pill was clipped by the chart and painted under the legend. */
+.msc-ts-pill {
+  position: fixed;
+  z-index: 50;
   padding: 2px 7px;
   font-size: 10px;
   line-height: 1.4;
@@ -3165,23 +3178,7 @@ a.atlas-annotates:focus-visible {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 9px;
-  opacity: 0;
   pointer-events: none;
-  z-index: 3;
-  transition: opacity 0.1s;
-}
-.msc-ts-pill[data-align="center"] {
-  left: 50%;
-  transform: translateX(-50%);
-}
-.msc-ts-pill[data-align="start"] {
-  left: 0;
-}
-.msc-ts-pill[data-align="end"] {
-  right: 0;
-}
-.msc-ts-seg:hover .msc-ts-pill {
-  opacity: 1;
 }
 .msc-ts-seg {
   position: absolute;
