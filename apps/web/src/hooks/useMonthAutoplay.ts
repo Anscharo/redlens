@@ -49,5 +49,16 @@ export function useMonthAutoplay(
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [months, month, latest, setMsc]);
-  return { playing, toggle: () => setPlaying((p) => !p), pause: () => setPlaying(false) };
+  // Pressing play advances a month AT ONCE rather than sitting still for a
+  // whole dwell first: a second of nothing reads as a dead button. The
+  // interval effect above then re-arms on the new month, so every month
+  // still gets a full dwell — the first one just doesn't precede any motion.
+  const toggle = () => {
+    if (!playing && months.length > 1 && month) {
+      const next = months[(months.indexOf(month) + 1) % months.length];
+      setMsc(next === latest ? null : next);
+    }
+    setPlaying(!playing);
+  };
+  return { playing, toggle, pause: () => setPlaying(false) };
 }

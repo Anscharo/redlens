@@ -143,11 +143,14 @@ describe("MscOverview", () => {
       expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: /Play through the months/ }));
       expect(screen.getByRole("button", { name: "Pause the month autoplay" })).toBeInTheDocument();
+      // Pressing play moves a month AT ONCE — a dwell of nothing first reads
+      // as a dead button. Two months in the fixture: Jul → Jun, no timers.
+      expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jun 2026")).toBeInTheDocument();
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1000);
       });
-      // Two months in the fixture: Jul → Jun.
-      expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jun 2026")).toBeInTheDocument();
+      // Then a full dwell each month, wrapping: Jun → Jul.
+      expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026")).toBeInTheDocument();
       // A click stops it.
       fireEvent.click(screen.getByRole("button", { name: /Jul 2026: .*to Sky/ }));
       expect(screen.getByRole("button", { name: /Play through the months/ })).toBeInTheDocument();
