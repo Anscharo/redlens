@@ -14,7 +14,9 @@
 // plain sources said the Prime earned them: for Keel, Skybase and Osero
 // that is the WHOLE bar, fed from the left with nothing going out. So the
 // demand-side bars now hang off their own Sky node in the left gutter
-// (`skySource`), and the two groups carry their own headings.
+// (`skySource`), under a heading that names the party and carries the
+// group's total; the earned group above it is separated by a blank band
+// rather than a caption of its own (GROUP_HEADING).
 //
 // A Prime's bar is as tall as the larger of its two sides: what feeds it
 // (what the book EARNED toward cost of funds, Sky Direct Exposure,
@@ -71,9 +73,17 @@ export const SOURCE_ORIGIN: Record<string, "earned" | "sky"> = {
   kept: "earned",
   ...Object.fromEntries(DEMAND_SERIES.map((s) => [s.key, "sky" as const])),
 };
-/** The heading over each source group, right-aligned to the source bars. */
+/** The heading over the Sky-owed source group, flush left in the label
+ *  gutter like every other left-hand label.
+ *
+ *  The earned group has NO heading: its three line items name themselves
+ *  ("CoF · earned toward cost of funds", "supply-side kept"), and the
+ *  caption that used to sit over them said the same thing twice. The
+ *  Sky-owed group keeps its heading because it carries the group total and
+ *  names the party the left-hand node belongs to. The blank band between
+ *  the two groups (GROUP_GAP) is what still reads as "two groups", so it
+ *  survives the heading's removal. */
 export const GROUP_HEADING = {
-  earned: "EARNED IN THE PRIME'S ALLOCATION SYSTEM",
   sky: "OWED BY SKY",
 } as const;
 /** A group heading sits this far above its first bar. */
@@ -97,25 +107,60 @@ const SOURCE_CHAR_PX = 24;
 const AMOUNT_FONT = "44px 'Source Code Pro', 'Courier New', monospace";
 const AMOUNT_CHAR_PX = 26.5;
 const AMOUNT_ROOM = textWidth(" | $00.00M", AMOUNT_FONT, AMOUNT_CHAR_PX);
-/** Column x: sources (labels in the gutter to their left, which is as wide
- *  as the widest label needs), Primes, Sky (its per-Prime name + figure in
- *  the gutter to its right). */
-const LABEL_ROOM = Math.max(...Object.values(SOURCE_LABEL).map((l) => textWidth(l, SOURCE_FONT, SOURCE_CHAR_PX))) + AMOUNT_ROOM + 24;
-/** Sky's node in the LEFT gutter, which the demand-side bars hang off. Its
- *  own label goes further left still, so the gutter carries both. */
-export const SKY_SRC_X = LABEL_ROOM;
+/** EVERY left-hand label starts here — the source lines, the OWED BY SKY
+ *  heading and the SOURCE column header — flush against the canvas' left
+ *  edge rather than right-aligned into a gutter sized for the single
+ *  longest string. The ragged edge moves to the right, where the column it
+ *  names is, and the drawing gets the slack back. */
+export const LABEL_X = 12;
+/** Air between a label's longest line and the mark it names. */
+const LABEL_GAP = 24;
+/** The two groups' labels are sized separately because they never share a
+ *  row: the earned group is the top of the column and the Sky-owed group
+ *  the bottom, so the Sky node only has to clear the demand-side names. */
+export const sourceGroupRoom = (origin: "earned" | "sky") =>
+  Math.max(
+    0,
+    ...Object.keys(SOURCE_LABEL)
+      .filter((k) => SOURCE_ORIGIN[k] === origin)
+      .map((k) => textWidth(SOURCE_LABEL[k], SOURCE_FONT, SOURCE_CHAR_PX)),
+  ) + AMOUNT_ROOM;
+/** Sky's node in the LEFT gutter, which the demand-side bars hang off:
+ *  just clear of the longest demand-side label. */
+export const SKY_SRC_X = LABEL_X + sourceGroupRoom("sky") + LABEL_GAP;
 /** Gap between that node and the source bars it feeds — long enough for a
  *  readable ribbon, short enough that the group still reads as one. */
-const SKY_SRC_GAP = 150;
-export const LEFT_X = SKY_SRC_X + NODE_W + SKY_SRC_GAP;
+const SKY_SRC_GAP = 120;
+/** The source column: clear of BOTH the Sky node's ribbons and the longest
+ *  earned label, whichever reaches further. */
+export const LEFT_X = Math.max(SKY_SRC_X + NODE_W + SKY_SRC_GAP, LABEL_X + sourceGroupRoom("earned") + LABEL_GAP);
 /** Sky's bar sits near the right edge, with its label — "To Sky | $15.86M",
- *  54px, left-aligned to the bar's own edge — running into a gutter sized
- *  for it. Its per-Prime shares are named by their hover pills. */
+ *  54px, RIGHT-aligned flush to the canvas edge and centred on the bar's own
+ *  height, the mirror of the left column's treatment — running into a gutter
+ *  sized for it. Its per-Prime shares are named by their hover pills. */
 const SKY_LABEL_ROOM =
   textWidth("To Sky", "54px 'Inter', system-ui, sans-serif", 29.5) +
   textWidth(" | $00.00M", "54px 'Source Code Pro', 'Courier New', monospace", 32.5);
-const RIGHT_GUTTER = SKY_LABEL_ROOM + 24 - NODE_W;
+/** Where every right-hand label ends: the SKY header and the To Sky line. */
+export const SKY_LABEL_X = WIDTH - LABEL_X;
+const RIGHT_GUTTER = SKY_LABEL_ROOM + LABEL_GAP + LABEL_X;
 export const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
+/** A Prime's label reads "Name | $12.71M" — the name in Inter, the pipe and
+ *  the figure in mono — and the PIPE is what sits on the column's centre
+ *  line, so the names hang left of it and the figures right of it whatever
+ *  their lengths. Measured, never guessed (textWidth). */
+const AGENT_FONT = "42px 'Inter', system-ui, sans-serif";
+const AGENT_CHAR_PX = 23;
+const AGENT_MONO_FONT = "42px 'Source Code Pro', 'Courier New', monospace";
+const AGENT_MONO_CHAR_PX = 25.3;
+/** Where a start-anchored "Name | $x" begins so its pipe lands on centerX. */
+export function primeLabelStartX(label: string, centerX: number): number {
+  const toPipe =
+    textWidth(label, AGENT_FONT, AGENT_CHAR_PX) +
+    textWidth(" ", AGENT_MONO_FONT, AGENT_MONO_CHAR_PX) +
+    textWidth("|", AGENT_MONO_FONT, AGENT_MONO_CHAR_PX) / 2;
+  return centerX - toPipe;
+}
 /** The Prime column sits 3/5 of the way across the ribbon span: the left
  *  half carries up to seven sources fanning into every Prime, the right
  *  only the two To-Sky ribbons, so the busier side gets the room. */
@@ -192,10 +237,10 @@ export interface FlowSource extends Fading {
   labelY: number;
   /** Where this source's money comes from (SOURCE_ORIGIN). */
   origin: "earned" | "sky";
-  /** Right edge of its label. A Sky-origin bar's label clears the Sky node
-   *  in the gutter; an earned one's runs up to its own bar. */
+  /** LEFT edge of its label — the same LABEL_X for every source, so the
+   *  whole column is flush left. */
   labelX: number;
-  /** Set on the FIRST bar of each group: the group's heading baseline. */
+  /** Set on the first Sky-owed bar: the group heading's baseline. */
   headingY?: number;
 }
 
@@ -412,9 +457,11 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
         h: s.h,
         labelY: s.labelY,
         origin,
-        // A Sky-owed label clears the gutter node; an earned one runs up to its bar.
-        labelX: origin === "sky" ? SKY_SRC_X : LEFT_X,
-        headingY: i === 0 || (mixed && i === skyFirst) ? s.y - GROUP_HEADING_DY : undefined,
+        // Every left-hand label starts at the same x, flush left.
+        labelX: LABEL_X,
+        // Only the Sky-owed group is headed (GROUP_HEADING); the earned
+        // group's blank band above it is separation enough.
+        headingY: origin === "sky" && i === skyFirst ? s.y - GROUP_HEADING_DY : undefined,
       };
     }),
     skySource,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { layoutMscFlow, AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADER_SIZE, HEADERS, NODE_W, WIDTH } from "./mscFlowLayout";
+import { layoutMscFlow, AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADER_SIZE, HEADERS, LABEL_X, NODE_W, primeLabelStartX, SKY_LABEL_X, sourceGroupRoom, WIDTH } from "./mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
 const flow = (over: Partial<PrimeFlowTotals> = {}): PrimeFlowTotals => ({
@@ -106,16 +106,37 @@ describe("layoutMscFlow", () => {
       ["cof", "earned"], ["sde", "earned"], ["kept", "earned"],
       ["agentRate", "sky"], ["distributionRewards", "sky"],
     ]);
-    // One heading per group, on its first bar.
-    expect(l.sources.filter((s) => s.headingY != null).map((s) => s.kind)).toEqual(["cof", "agentRate"]);
-    expect(GROUP_HEADING).toEqual({ earned: "EARNED IN THE PRIME'S ALLOCATION SYSTEM", sky: "OWED BY SKY" });
-    // A Sky-owed label clears the gutter node; an earned one runs to its bar.
-    expect(l.sources[0].labelX).toBe(l.sources[0].x);
-    expect(l.sources[3].labelX).toBe(l.skySource!.x);
+    // ONLY the Sky-owed group is headed: the earned group's line items name
+    // themselves, and the blank band above the seam separates the two.
+    expect(l.sources.filter((s) => s.headingY != null).map((s) => s.kind)).toEqual(["agentRate"]);
+    expect(GROUP_HEADING).toEqual({ sky: "OWED BY SKY" });
+    // Every left-hand label starts at the same x, flush left.
+    expect(l.sources.map((s) => s.labelX)).toEqual(l.sources.map(() => LABEL_X));
     // A supply-only month has no left Sky node at all.
     const supplyOnly = layoutMscFlow([flow({ demand: 0, demandParts: {} })]);
     expect(supplyOnly.sources.every((s) => s.origin === "earned")).toBe(true);
     expect(supplyOnly.skySource).toBeNull();
+  });
+
+  it("anchors the three columns left / pipe-centred / right, and spends the slack on the ribbons", () => {
+    const l = layoutMscFlow([flow(), flow({ prime: "grove" })]);
+    // LEFT: labels flush to the gutter's left edge, with room to run before
+    // the mark they name — the Sky node for a Sky-owed label, its own bar
+    // for an earned one.
+    expect(LABEL_X).toBeLessThan(l.skySource!.x);
+    expect(LABEL_X + sourceGroupRoom("sky")).toBeLessThanOrEqual(l.skySource!.x);
+    expect(LABEL_X + sourceGroupRoom("earned")).toBeLessThanOrEqual(l.sources[0].x);
+    // RIGHT: the To Sky line ends at the canvas' right margin, clear of the
+    // bar, which is why the gutter is no wider than that line needs.
+    expect(l.sky.x + NODE_W).toBeLessThan(SKY_LABEL_X);
+    expect(SKY_LABEL_X).toBeLessThan(WIDTH);
+    // CENTRE: a start-anchored "Name | $x" begins far enough left that its
+    // pipe lands on the column's centre — further left for a longer name.
+    const c = l.agents[0].labelX;
+    expect(primeLabelStartX("Spark", c)).toBeLessThan(c);
+    expect(primeLabelStartX("A Much Longer Prime Name", c)).toBeLessThan(primeLabelStartX("Spark", c));
+    // The ribbon span is most of the canvas, not a pair of fat gutters.
+    expect(l.sky.x - (l.sources[0].x + NODE_W)).toBeGreaterThan(WIDTH * 0.42);
   });
 
   it("folds a negative SDE into the loss rather than drawing it as money to Sky", () => {

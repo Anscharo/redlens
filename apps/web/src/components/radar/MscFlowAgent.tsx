@@ -1,5 +1,5 @@
 import { formatUsd } from "../../lib/settlements";
-import { AGENT_W, type FlowAgent, type FlowLink } from "../../lib/mscFlowLayout";
+import { AGENT_W, primeLabelStartX, type FlowAgent, type FlowLink } from "../../lib/mscFlowLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
 import { markId, SLICE_CODE } from "./MscRingPills";
 import { primeLinkLabel, type OverviewPrime } from "./MscRingPrime";
@@ -50,7 +50,10 @@ export function FlowAgentGroup({ agent, flow, label, bandColor, to, month }: Ove
         <LinkFigure key={`out-${l.kind}`} l={l} />
       ))}
       <g className="msc-ring-mark" data-mark={markId(p, "gross")}>
-        <text x={agent.labelX} y={agent.labelY} textAnchor="middle" fontSize={42} className="msc-ring-label msc-flow-halo">
+        {/* Centred on the PIPE, not on the string: the name hangs left of
+            the column's centre line and the figure right of it, so the
+            separators line up down the column whatever the names are. */}
+        <text x={primeLabelStartX(label, agent.labelX)} y={agent.labelY} textAnchor="start" fontSize={42} className="msc-ring-label msc-flow-halo">
           {label}
           <tspan className="msc-ring-sublabel mono"> | {formatUsd(agent.gross, true)}</tspan>
         </text>

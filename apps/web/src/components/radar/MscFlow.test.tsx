@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { layoutMscFlow, GROUP_HEADING_SIZE, HEADER_SIZE } from "../../lib/mscFlowLayout";
+import { layoutMscFlow, GROUP_HEADING_SIZE, HEADER_SIZE, LABEL_X, primeLabelStartX, SKY_LABEL_X } from "../../lib/mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 import { MscFlow } from "./MscFlow";
 import type { OverviewPrime } from "./MscRingPrime";
@@ -75,9 +75,32 @@ describe("MscFlow", () => {
     expect(screen.getByText("SOURCE")).toHaveAttribute("font-size", String(HEADER_SIZE));
     expect(screen.getByText("PRIME")).toHaveAttribute("font-size", String(HEADER_SIZE));
     expect(screen.getByText("SKY")).toHaveAttribute("font-size", String(HEADER_SIZE));
-    expect(screen.getByText("EARNED IN THE PRIME'S ALLOCATION SYSTEM")).toHaveAttribute("font-size", String(GROUP_HEADING_SIZE));
+    // The earned group has NO heading any more — its line items name
+    // themselves and the band above the seam is what separates the groups.
+    expect(screen.queryByText(/EARNED IN THE PRIME/)).not.toBeInTheDocument();
     // The Sky group's heading carries its total, so the node needs no label.
-    expect(screen.getByText(/^OWED BY SKY \| \$/)).toBeInTheDocument();
+    const heading = screen.getByText(/^OWED BY SKY \| \$/);
+    expect(heading).toHaveAttribute("font-size", String(GROUP_HEADING_SIZE));
+    // Every left-hand label is flush left in the same gutter.
+    for (const t of [screen.getByText("SOURCE"), heading, screen.getByText("supply-side kept")]) {
+      expect(t).toHaveAttribute("text-anchor", "start");
+      expect(t).toHaveAttribute("x", String(LABEL_X));
+    }
+    // The right column is anchored the other way: SKY and the To Sky line
+    // both end at the canvas' right margin, and To Sky is centred on the
+    // bar's own height the way a source label is centred on its bar.
+    const toSky = screen.getByText("To Sky");
+    for (const t of [screen.getByText("SKY"), toSky]) {
+      expect(t).toHaveAttribute("text-anchor", "end");
+      expect(t).toHaveAttribute("x", String(SKY_LABEL_X));
+    }
+    const skyBar = layoutMscFlow(flows).sky;
+    expect(Number(toSky.getAttribute("y"))).toBeCloseTo(skyBar.y + skyBar.h / 2 + 18, 6);
+    // The Prime's label is start-anchored at the x that puts its PIPE on the
+    // column's centre line.
+    const primeLabel = screen.getByText("Spark");
+    expect(primeLabel).toHaveAttribute("text-anchor", "start");
+    expect(Number(primeLabel.getAttribute("x"))).toBeCloseTo(primeLabelStartX("Spark", layoutMscFlow(flows).agents[0].labelX), 6);
     expect(container.querySelector('.msc-flow-source[data-kind="kept"][data-origin="earned"]')).toBeInTheDocument();
     expect(container.querySelector('.msc-flow-source[data-kind="agentRate"][data-origin="sky"]')).toBeInTheDocument();
     // Sky's column names no Prime; the share pill does.
@@ -116,6 +139,17 @@ describe("MscFlow", () => {
     expect(container.querySelector('.msc-ring-mark[data-mark="grove::loss"]')).not.toBeInTheDocument();
     expect(screen.getByText("−$1.00M supply-side loss")).toBeInTheDocument();
     expect(container.querySelector('.msc-ring-mark[data-mark="grove::kept"]')).not.toBeInTheDocument();
+  });
+
+  it("starts unzoomed: the whole drawing in frame, no reset control, and a hint for the gesture", () => {
+    const flows = [flow()];
+    const layout = layoutMscFlow(flows);
+    const { container } = render(<MscFlow layout={layout} primes={primes(flows)} month="2026-07" centerFigure="$10.00M" />);
+    const svg = container.querySelector("svg.msc-flow")!;
+    expect(svg).toHaveAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
+    expect(svg).not.toHaveAttribute("data-zoomed");
+    expect(svg.querySelector("desc")!.textContent).toMatch(/zoom/i);
+    expect(screen.queryByRole("button", { name: "Reset zoom" })).not.toBeInTheDocument();
   });
 
   it("renders an unmatched Prime unlinked", () => {
