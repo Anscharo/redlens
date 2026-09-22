@@ -268,14 +268,30 @@ export const config = {
   chatVerifierSliceModels: process.env.CHAT_VERIFIER_SLICE_MODELS ?? "",
   // Small-talk bypass judge — one tiny question-side classification ("does
   // this message expect factual content?") that is the FINAL gate on skipping
-  // the audit for pure greetings (chat-orchestrator.ts + verify/smalltalk.ts).
-  // Defaults ON with the 2026-08-13 bakeoff winner (scripts/aux/
-  // eval-smalltalk-judge.ts: 100% on the 42-case set, 0 dangerous errors,
-  // 0 call failures, p50 722ms — beat gemma-4-31b's 22% timeout rate,
-  // nemotron-lightning's misrulings, and gpt-oss-safeguard's all-greetings-
-  // are-factual). Set CHAT_SMALLTALK_JUDGE_MODEL="" (empty) to disable the
-  // bypass outright — fail-closed: no judge, no skip, every turn audits.
-  chatSmalltalkJudgeModel: process.env.CHAT_SMALLTALK_JUDGE_MODEL ?? "google/gemma-4-26b-a4b-it",
+  // the audit for pure conversation (chat-orchestrator.ts +
+  // verify/smalltalk-jev.ts). Set CHAT_SMALLTALK_JUDGE_MODEL="" (empty) to
+  // disable the bypass outright — fail-closed: no judge, no skip, every turn
+  // audits. This stays the bypass's kill switch; CHAT_JEV_MODEL is the shared
+  // client default and must not be the only way to turn a chat feature off.
+  //
+  // Jev since 2026-09-22, replacing google/gemma-4-26b-a4b-it outright. The
+  // bakeoff (scripts/aux/eval-smalltalk-judge.ts, 420 calls over 84 labeled
+  // cases + 141 real messages) is in docs/plans/jev-typesafe.md §A0. Short
+  // version: gemma lost 6-8 cases in the DANGEROUS direction (factual ruled
+  // small talk) on the hard tier and failed ~2% of calls outright — and a
+  // failed judge silently costs the bypass. Jev: 100% on every run, zero call
+  // failures, and a typed probability instead of a JSON string that can come
+  // back unparseable. It is a Noul, so the threshold is ours, not the model's
+  // (SMALLTALK_JEV_THRESHOLD).
+  chatSmalltalkJudgeModel: process.env.CHAT_SMALLTALK_JUDGE_MODEL ?? "typesafe/jev-1.13",
+  // Jev (TypeSafe System One) — typed-judgment model reached through
+  // OpenRouter's /systemone endpoint with the SAME OPENROUTER_API_KEY (no new
+  // vendor or key). Pinned, not `~typesafe/jev-latest`, so a floating release
+  // can't move a shipped threshold underneath us. "" disables every Jev
+  // caller, per the repo's model-slot convention. NOTHING on a request path
+  // reads this yet — it is the eval's model slot (scripts/aux/
+  // eval-smalltalk-judge.ts) until a bakeoff says otherwise.
+  chatJevModel: process.env.CHAT_JEV_MODEL ?? "typesafe/jev-1.13",
   // Deterministic checks (free, pure code) — independent of the model slots.
   chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
   // Deterministic pre-lookup (glossary + entity match on the user's message)

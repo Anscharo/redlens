@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-09-22
+- Brief conversational messages like "thanks" now skip the answer-checking pass anywhere in a conversation, not only on the first message
+
 ## 2026-09-21
 - Private previews no longer compare against an old shared point in the repo's history; a pull request compares against its own base, a branch against the repo's default branch, and anything else against the live Atlas
 

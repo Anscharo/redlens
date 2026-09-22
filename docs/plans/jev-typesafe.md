@@ -1,6 +1,67 @@
 # Jev (TypeSafe) in SAbR — reference notes
 
-**Status: reference only — not scheduled for implementation** (decided 2026-09-21). Research and design so the work can be picked up later without redoing the survey. Nothing below has been built; no code, config, or dependency in the repo references Jev.
+**Status: reference only — not scheduled for implementation** (decided 2026-09-21), **except the small-talk judge seat, which has now been measured** (2026-09-22, section A0 below). Sections A1/A2/A3/B remain unbuilt research.
+
+## A0. Small-talk judge seat — MEASURED 2026-09-22
+
+The seat is `judgeSmalltalk` (`verify/smalltalk.ts`, `config.chatSmalltalkJudgeModel` = `google/gemma-4-26b-a4b-it`) — **not** the `refute`/`overreach`/`confirm` verifier slices, which are a different gemma seat and untouched here. One binary call on the first user message; the final gate on skipping the audit for greetings; fail-closed (any failure ⇒ full audit).
+
+**Built:** `src/server/jev.ts` (raw-fetch `/systemone` client, same `OPENROUTER_API_KEY`, `CHAT_JEV_MODEL` default `typesafe/jev-1.13`), `verify/smalltalk-jev.ts` (`judgeSmalltalkJev`, one Noul), both with colocated tests; the bakeoff at `scripts/aux/eval-smalltalk-judge.ts` now runs both arms over `eval-smalltalk-cases.ts`. **Nothing is wired** — no request path reads any of it.
+
+**Why the old numbers couldn't decide it:** the 42-case set that chose the incumbent is saturated (gemma 100%, 0 dangerous). The case file adds a 42-case **hard** tier — single ambiguous words (`updates`, `status`, `rules`), greeting-shaped questions (`hi?`), non-English courtesies, compound courtesy-then-ask turns, and capability questions in conversational clothes. Labels follow the shipped prompt's own "when unsure: false", so ambiguity is labeled factual — the fail-closed direction.
+
+**Results** (84 cases × 2 and × 3 passes; 420 calls per arm total; both runs agree):
+
+| | gemma-4-26b-a4b-it | typesafe/jev-1.13 |
+|---|---|---|
+| accuracy, all cases | 95.0% / 97.4% | **100% / 100%** |
+| accuracy, hard tier | 91.0% / 94.6% | **100% / 100%** |
+| dangerous (factual ruled small talk) | 8 and 6 | **0 and 0** |
+| missed small talk (harmless) | 0 | 0 |
+| call failures **under 6-way concurrency** (5 s timeout ⇒ silent full audit) | 7/168 and 24/252 | **0/420** |
+| latency p50 / p95 | 938–1174 / 3040–3612 ms | **342–355 / 455–489 ms** |
+| cost per call | — | $0.0000194 |
+
+The failure column is an eval artefact and must not be read as a production rate: the bakeoff fires 6 concurrent calls, production fires one per conversation. The production figure is **1 null of 46** `smalltalk_judge` rows (~2%), with p50 1337 ms / p95 3473 ms — slower live than in the eval, and still a real hole, since a failed judge silently costs the bypass.
+
+Jev's two classes came back **fully separable on all three runs**, bounds within noise of each other: highest P(smalltalk) on a factual case **0.50–0.52**, lowest on a small-talk case **0.75–0.76**. `SMALLTALK_JEV_THRESHOLD = 0.65` sits mid-gap rather than at the sweep's own zero-dangerous edge (0.55), which is only ~0.03 above the worst factual case. The eval scores at that shipped constant, not at its own fitted point.
+
+Repeatable gemma errors, all in the dangerous direction: `hey, can you help me with something?`, `is that everything?`, `quick sanity check — does that sound right?`, plus `bonjour, comment ça marche?`, `hey, is that actually true?`, `who are you?`.
+
+**One caveat on the hard tier.** The 0.65 threshold is **in-sample**: picked from the same 84 cases it is scored on. Full separability makes that far less fragile than a fitted margin, but it is not a held-out number — real traffic is. (A second caveat, that the follow-up-shaped cases were out-of-population because the judge only ever saw first messages, was retired when that gate was removed; see "Multi-turn expansion" below. Those cases are now the most load-bearing in the file.)
+
+**"Should be faster" is true but is not the win — measured, not argued.** The judge races the conversationalist and is awaited before `finish` (`chat-orchestrator.ts:649`), so it *could* gate the turn. Over 45 paired rows in `message_checks` it never did: judge slower than the answer it raced on **0 of 45**, including on the three turns the bypass actually fired (763 ms judge vs 2065 ms answer at 58 chars). Even a one-line greeting answer outlasts the judge. The real wins are **correctness on the hard tier**, **removing the call-failure hole** that today silently costs the bypass, and **one fewer model family plus no unparseable-JSON path** (a Noul cannot be malformed).
+
+### Real-traffic check — RUN 2026-09-22, the gap survives
+
+`scripts/aux/eval-smalltalk-real.ts` (authorized before running; it sends stored user messages to OpenRouter). Population reproduced with the production predicates, not approximated: first user message of each conversation, `isUncheckableAnswer` true. Dev DB — 106 conversations, **60 distinct eligible messages**.
+
+- **Separation holds: 0 of 60 real messages fall inside the 0.52–0.75 gap.** The distribution is sharply bimodal — 54 below 0.1, 2 in 0.1–0.2, 4 above 0.9, and **nothing at all between 0.2 and 0.9**. The threshold is resting on empty space on real traffic, not just on hand-written cases. This is the check the census lane wishes it had run early, and it came back clean.
+- **100% agreement** (59 comparable rows): 4 bypassed by both, 55 audited by both, **zero disagreements in either direction**. So the swap changes no ruling on this traffic — it changes the failure rate and the hard-case headroom.
+- The 4 bypassed are `good morning`, `hello`, `ping`, `whats up` — all genuinely pure conversation. The sharpest evidence is a near-minimal pair: **`whats up` → 0.90 (bypass), `whats new` → 0.06 (audit)**. That is exactly the casual-factual trap the hard tier was built around, decided correctly with an 0.84 margin.
+- gemma failed 1 of 60 (~1.7%), matching the ~2% production rate; Jev failed 0. Latency p50 374 ms vs 920 ms. Cost for the whole pass: $0.0012.
+
+**Caveat that remains:** this is the dev DB, the same limitation the announce lane hit. 60 messages is enough to falsify the gap and it did not, but re-run against production before the swap ships.
+
+**Verdict: Jev takes the seat on reliability and headroom, not on rulings.** On today's traffic the two arms are indistinguishable; Jev wins because it never fails a call, never emits unparseable JSON, holds 100% on the hard tier where gemma loses 6–8 in the dangerous direction, and gives us the threshold instead of a boolean.
+
+### Multi-turn expansion — WIRED 2026-09-22
+
+The judge previously ran on the **first user message only**, so a bare `thanks!` on turn 3 always paid a full audit. That gate is gone: every marker-free user message is now judged.
+
+Held out before wiring, because no first-turn result can speak for later turns — the labeled set, the hard tier and the 60-message real check were all first messages. `JUDGE_POPULATION=later` over **81 distinct real later-turn messages**:
+
+- **0 of 81 inside the 0.52–0.75 gap.** The distribution is even more extreme than on first turns: 72 below 0.1, and **nothing whatsoever between 0.42 and 0.91**. Exactly one message would bypass (`ping`, 0.91).
+- Both disagreements with gemma are **gemma-only bypasses** (`werre what` p=0.32, `?` p=0.42) — i.e. Jev is the *more* conservative arm on precisely the ambiguous-alone messages this expansion newly exposes, and never bypasses where gemma audits.
+- The follow-up shapes the expansion exposes score at most **0.45** (`is that everything?`), 0.20 below the threshold.
+
+**The judgment stays message-only.** Feeding Jev the prior turn was considered and rejected: its accuracy degrades as irrelevant state grows, and judging the words alone already errs toward auditing, which is the fail-closed direction. A message that is pure conversation only *in context* gets audited — that costs a few seconds, never trust.
+
+**Negative result worth keeping: hardening the criterion made it worse.** The obvious companion change to the expansion was a clause in the `false` criterion naming follow-up shapes explicitly ("a message referring back to something said earlier… is also false"). Written, measured, reverted the same day. Accuracy stayed 100% both ways — but the separation gap **narrowed from 0.50/0.76 to 0.58/0.69**, squeezing the threshold from both sides at once. The plain criterion already handles follow-ups without being told (`is that everything?` 0.45, `so, thoughts?` 0.25, `what else?` 0.16). The lesson generalizes to every Jev question here: at 100% accuracy the metric to tune on is the **margin**, not the score, and more criteria text is not automatically more precision. The reverted wording is pinned with a comment in `smalltalk-jev.ts` so it is not "fixed" again.
+
+**Gemma is out of the seat.** `judgeSmalltalk` survives in `verify/smalltalk.ts` **solely as the bakeoff's baseline arm**, on the same precedent that keeps `verifier.ts`'s `runVerifier` alive for `pnpm eval:verifier` — it is the only way to re-check this decision later instead of taking it on faith. Nothing on a request path calls it. Delete it only together with that arm.
+
+**Deterministic checks should NOT move to Jev.** `GROUNDABLE_RES` (`smalltalk.ts:15`) detects digits, links, UUID fragments and addresses — regex does that exactly, in microseconds, and Jev is documented weak on literal/numeric detection. The place a cheap judgment would *add* rather than replace: the judge never fires after the first turn, so `"thanks!"` at turn 3 always pays a full audit. Separate follow-on.
 
 ## Context
 
@@ -61,7 +122,7 @@ Out of scope for Jev (generated text is the product): mistakes-sweep findings, O
 
 ## When this is picked up — first step: measure A1 and A2. No production wiring, no UI.
 
-1. **`src/server/jev.ts`** (~70 lines) + colocated test — raw-fetch client to `${config.openrouterBaseUrl}/systemone` with `config.openrouterApiKey`, AbortSignal + bounded backoff (429/529) mirroring `retrieval/embed.ts`; typed `choice()/noul()/score()` builders; returns `{answers, usage, cost, generationId, latencyMs}`. New config `CHAT_JEV_MODEL` (default `typesafe/jev-1.13`; `""` disables — the repo's model-slot convention). **First action, and a gate: one smoke request** to confirm OpenRouter's response carries `probabilities` / `confidence` for a Choice (their guide only shows a Noul answer). If the proxy strips them, A1 becomes **three Nouls** (`supports` / `contradicts` / `says_nothing`, each its own P(yes)) and the eval's arm list changes to match — a fallback, not a stop.
+1. ~~**`src/server/jev.ts`** + colocated test — raw-fetch client, `CHAT_JEV_MODEL`.~~ **DONE 2026-09-22 for A0** — see that section. The smoke-request gate passed: `questions` is a **record, not an array** (an array 400s), and a Noul answers `{type:"noul", noul:0.96}` with `usage.cost` inline and `id: "gen-dec-…"`. The Choice `probabilities`/`confidence` question the gate was written for is **still unconfirmed** — A0 only needed a Noul — so re-check it before building A1's three-way Choice, and keep the three-Noul fallback in reserve.
 2. **Export `claimSegments`** from `verify-checks.ts` (one word) so the Jev check and the lexical check can never disagree on what "a cited sentence" is.
 3. **`src/server/chat/verify/cite-support.ts`** + test — `citationPairs(answer, ix)` and a pure `buildCiteRequest(pair, ix)` (state + question, unit-testable offline), then `judgeCitation()`. Question criteria written per the primitives guide (one narrow judgment; literal wording; `what / not_for / examples` for the `says_nothing` vs `contradicts` boundary).
 4. **`scripts/eval/eval-citation.ts`** + `eval-citation-cases.ts` → `pnpm eval:citation`. Cases: the **84 real citations** in `scripts/eval/eval-corpora/{evidence,fable}` plus deterministic negatives per citation — random doc, **sibling**, **parent**, **same-title-other-agent** (the confusable lexical overlap cannot see) — plus modality/entity flips for `contradicts`. Arms: `findLowOverlapCitations` (incumbent), Jev Choice, Jev two-Noul variant, ± children in state. Disk cache `.cache/jev/<sha256(model+state+questions)>.json` so reruns are free and byte-stable.

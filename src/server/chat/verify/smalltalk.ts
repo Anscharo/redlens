@@ -33,7 +33,13 @@ export function isUncheckableAnswer(content: string): boolean {
   return !GROUNDABLE_RES.some((re) => re.test(content));
 }
 
-// ── Question-side judge — the LLM half, and the final gate ────────────────
+// ── Question-side judge — SUPERSEDED, kept only as the bakeoff baseline ───
+// The shipped seat is verify/smalltalk-jev.ts (a Jev Noul) since 2026-09-22.
+// Everything below is the previous chat-model implementation; NOTHING on a
+// request path calls it. It survives exactly as `verifier.ts`'s single-prompt
+// runVerifier survives for `pnpm eval:verifier` — as the baseline arm in
+// scripts/aux/eval-smalltalk-judge.ts, which is the only way to re-check the
+// swap rather than take it on faith. Delete it only together with that arm.
 // The deterministic predicate above cannot tell "thanks!" from "is the fee
 // governance-controlled?" answered with a marker-free "Yes." — a question can
 // expect facts without the answer showing any. So the bypass's last condition

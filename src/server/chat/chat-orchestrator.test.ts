@@ -181,26 +181,43 @@ test("no model slots: pass-through + status ticker; done carries checksMeta; san
   }));
 
 // ── Small-talk bypass ──────────────────────────────────────────────────────
-// Config-gates the judge slot the same way withModels gates the verifier.
+// Config-gates the judge slot the same way withModels gates the verifier. The
+// judge is a Jev Noul now, so it does NOT ride the JsonCall — it posts to
+// /systemone — which is why the ruling fixture below stubs fetch rather than
+// dispatching on prompt content.
+const realFetch = globalThis.fetch;
 function withJudge(model: string, fn: () => Promise<void>): Promise<void> {
   const prev = config.chatSmalltalkJudgeModel;
+  const prevKey = config.openrouterApiKey;
   config.chatSmalltalkJudgeModel = model;
+  config.openrouterApiKey = config.openrouterApiKey || "test-key"; // askJev refuses without one
   return fn().finally(() => {
     config.chatSmalltalkJudgeModel = prev;
+    config.openrouterApiKey = prevKey;
+    globalThis.fetch = realFetch;
   });
 }
-// Wraps a JsonCall so the judge's distinctive prompt gets a scripted ruling
-// and every other call falls through to the inner fake — content dispatch,
-// same principle as identifySlice.
+// Scripts the judge's ruling by stubbing the /systemone call, and passes the
+// inner JsonCall through untouched. Signature kept from the chat-model era so
+// the bypass tests below read the same; `ruling` is still the JSON the old
+// judge would have emitted, mapped onto the probability a Noul returns.
 function withJudgeRuling(inner: JsonCall, ruling: string, judgeCalls: { model: string }[] = []): JsonCall {
-  return async (params) => {
-    const sys = typeof params.messages[0]?.content === "string" ? params.messages[0].content : "";
-    if (sys.includes('{"smalltalk"')) {
-      judgeCalls.push({ model: params.model });
-      return { text: ruling, usage: { input: 5, output: 2 }, generationId: "gen-judge", latencyMs: 3 };
-    }
-    return inner(params);
-  };
+  const smalltalk = (JSON.parse(ruling) as { smalltalk: boolean }).smalltalk;
+  globalThis.fetch = (async (url: any, init: any) => {
+    if (!String(url).includes("/systemone")) return realFetch(url, init);
+    judgeCalls.push({ model: JSON.parse(init.body).model });
+    // Either side of SMALLTALK_JEV_THRESHOLD, not a bare 1/0 — the ruling is a
+    // thresholded probability and the fixture should exercise that.
+    return new Response(
+      JSON.stringify({
+        answers: { smalltalk: { type: "noul", noul: smalltalk ? 0.93 : 0.06 } },
+        usage: { input_tokens: 340, output_tokens: 22, cost: 0.0000194 },
+        id: "gen-dec-judge",
+      }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+  return inner;
 }
 const GREETING = "Hello! How can I help you with the Sky Atlas?";
 
@@ -262,8 +279,8 @@ test("a zero-tool answer with groundable content is never bypassed — even a sm
       expect(events.some((e) => e.type === "verify_result")).toBe(true);
       const meta = lastDone(events).checksMeta;
       expect(meta.map((c) => c.kind).slice(0, 3)).toEqual(["smalltalk_judge", "round_checks", "verify"]);
-      expect(meta[0].inputTokens).toBe(5);
-      expect(meta[0].outputTokens).toBe(2);
+      expect(meta[0].inputTokens).toBe(340);
+      expect(meta[0].outputTokens).toBe(22);
     })));
 
 test("the judge never fires on a groundable QUESTION — 'what is A.1.6?' needs no model to be ruled factual", () =>
@@ -281,7 +298,10 @@ test("the judge never fires on a groundable QUESTION — 'what is A.1.6?' needs 
       expect(events.some((e) => e.type === "verify_result")).toBe(true);
     })));
 
-test("the judge never fires past the first user message — later turns always audit", () =>
+// Reversed 2026-09-22: the judge used to be first-turn only, so a bare
+// "thanks!" on turn 3 always paid a full audit. Later turns are now judged
+// too — see the orchestrator's note for the measurement that allows it.
+test("the judge fires past the first user message — a late 'thanks!' can bypass", () =>
   withModels("strong/verifier", () =>
     withJudge("fast/judge", async () => {
       const judgeCalls: { model: string }[] = [];
@@ -297,8 +317,31 @@ test("the judge never fires past the first user message — later turns always a
           jsonCall: withJudgeRuling(fakeSlicedJson({}), '{"smalltalk": true}', judgeCalls),
         }),
       );
-      expect(judgeCalls).toEqual([]);
+      expect(judgeCalls.length).toBe(1);
+      expect(events.some((e) => e.type === "verify_result")).toBe(false);
+      expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["smalltalk_judge"]);
+    })));
+
+// The other half of the expansion: a later turn that only LOOKS conversational
+// still audits, because the ruling is what gates the bypass — not the turn
+// index. This is the case the first-turn gate used to hide.
+test("a later-turn follow-up ruled factual still gets the full audit", () =>
+  withModels("strong/verifier", () =>
+    withJudge("fast/judge", async () => {
+      const history: Msg[] = [
+        { role: "user", content: "what governs the fee?" },
+        { role: "assistant", content: "The fee is governed by A.1.6." },
+        { role: "user", content: "is that actually true?" },
+      ];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: history, question: "is that actually true?", maxIterations: 3,
+          stream: fakeStream([[textChunk("Yes, that is correct."), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({}), '{"smalltalk": false}'),
+        }),
+      );
       expect(events.some((e) => e.type === "verify_result")).toBe(true);
+      expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["smalltalk_judge", "round_checks", "verify"]);
     })));
 
 test("no judge model configured → bypass disabled outright, greetings get the full audit", () =>

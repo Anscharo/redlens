@@ -23,7 +23,8 @@ import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation
 import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
 import { gatedChat } from "./verify/stream-link-gate.ts";
 import { createCitationGate } from "./verify/definition-block-gate.ts";
-import { isUncheckableAnswer, judgeSmalltalk } from "./verify/smalltalk.ts";
+import { isUncheckableAnswer } from "./verify/smalltalk.ts";
+import { judgeSmalltalkJev } from "./verify/smalltalk-jev.ts";
 import { computeOverall, evidenceFromResults, evidenceFromTranscript, priorTurnsEvidence, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
 import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
 import { createParagraphRefuter, type ParagraphRefute } from "./verify/paragraph-refute.ts";
@@ -514,17 +515,32 @@ export async function* runVerifiedChat(opts: {
 
   // ── Small-talk judge (concurrent — never blocks the answer) ──────────────
   // Fired alongside the conversationalist, not after it, so its ruling has
-  // resolved by the time the stream ends. Question-side gates keep it to at
-  // most one tiny call per conversation: only the FIRST user message (later
-  // turns lean on conversation context and always audit), and only when the
-  // message itself contains nothing groundable — "what is A.1.6?" needs no
-  // judge to be ruled factual. judgeSmalltalk never rejects (fail-closed
-  // internally), so an unconsumed promise is safe to abandon.
-  const smalltalkJudgeModel = opts.jsonCall ? config.chatSmalltalkJudgeModel : "";
-  const firstTurn = opts.messages.filter((m) => m.role === "user").length <= 1;
+  // resolved by the time the stream ends. Measured over 45 paired
+  // message_checks rows it was never the slower of the two — even a 58-char
+  // greeting answer outlasted it — so this is not on the critical path.
+  //
+  // ONE question-side gate: the message itself must contain nothing
+  // groundable ("what is A.1.6?" needs no judge to be ruled factual).
+  // judgeSmalltalkJev never rejects (fail-closed internally), so an unconsumed
+  // promise is safe to abandon, and it owns its own 5s deadline across retries.
+  //
+  // NO LONGER first-turn only (2026-09-22). The old gate meant a bare
+  // "thanks!" on turn 3 always paid a full audit. Every later-turn user
+  // message now gets the judge, on measured grounds: over 81 distinct real
+  // later-turn messages the two classes stayed as separable as on first turns
+  // — nothing at all landed between 0.42 and 0.91 — and the follow-up-shaped
+  // phrasings this newly exposes ("is that everything?", "so, thoughts?",
+  // "quick sanity check — does that sound right?") score at most 0.45, well
+  // under the 0.65 threshold. The judgment stays MESSAGE-ONLY: feeding it the
+  // prior turn was considered and rejected, because Jev's accuracy degrades as
+  // irrelevant state grows and judging the words alone already errs toward
+  // auditing, which is the safe direction. The bypass's other conditions
+  // (zero tools, uncheckable ANSWER) are unchanged and still do the heavy
+  // lifting on later turns.
+  const smalltalkJudgeModel = config.chatSmalltalkJudgeModel;
   const judgePromise =
-    smalltalkJudgeModel && firstTurn && isUncheckableAnswer(opts.question)
-      ? judgeSmalltalk({ call: opts.jsonCall!, model: smalltalkJudgeModel, question: opts.question, signal: opts.signal, obs: opts.obs })
+    smalltalkJudgeModel && isUncheckableAnswer(opts.question)
+      ? judgeSmalltalkJev({ question: opts.question, model: smalltalkJudgeModel, signal: opts.signal, obs: opts.obs })
       : null;
 
   // ── Conversationalist pass (answer streams at full speed) ────────────────
@@ -623,8 +639,8 @@ export async function* runVerifiedChat(opts: {
   // ── Small-talk bypass ────────────────────────────────────────────────────
   // Skips the audit for pure greetings — behind deterministic conditions plus
   // the concurrent judge above, every one fail-closed toward auditing:
-  //   1. the judge fired at all (model configured + FIRST user message of the
-  //      conversation + the question itself contains nothing groundable);
+  //   1. the judge fired at all (model configured + the question itself
+  //      contains nothing groundable);
   //   2. zero tool rounds — the conversationalist itself judged no atlas was
   //      needed (the system prompt tells it plain conversation is tool-free);
   //   3. the answer contains nothing checkable — no doc numbers, links
@@ -642,13 +658,16 @@ export async function* runVerifiedChat(opts: {
   // always recorded in checksMeta when it fired — even if the ruling is
   // discarded because tools ran or the answer is checkable — so its tokens
   // land in message_checks and count toward the rate-limit window like every
-  // other harness call. The prompt is tiny (a few-line classifier + the user
-  // message, maxTokens 50), but it is still a billed call.
+  // other harness call. The state is tiny (one message + the question's
+  // criteria, ~340 input tokens, output free) but it is still a billed call —
+  // ~$0.00002, now once per marker-free turn rather than once per conversation.
   if (judgePromise) {
     const judge = await judgePromise; // long since resolved — it raced the whole answer
     checksMeta.push({
       kind: "smalltalk_judge", model: smalltalkJudgeModel,
-      verdict: { smalltalk: judge.smalltalk }, overall: null,
+      // The raw probability is recorded alongside the ruling: the threshold is
+      // ours, so a future move needs the distribution, not just the verdict.
+      verdict: { smalltalk: judge.smalltalk, p: judge.p }, overall: null,
       inputTokens: judge.usage?.input ?? null, outputTokens: judge.usage?.output ?? null,
       generationId: judge.generationId, latencyMs: judge.latencyMs,
     });
