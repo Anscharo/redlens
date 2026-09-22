@@ -169,17 +169,20 @@ export const SKY_PIPE_SPACE = textWidth(" ", SKY_MONO_FONT, SKY_MONO_CHAR_PX);
 export const SKY_LABEL_GAP = gapFor(SKY_PIPE_SPACE);
 /** Where every right-hand label ends: the SKY header and the To Sky line. */
 export const SKY_LABEL_X = WIDTH - EDGE_PAD;
-/** Sky's bar sits hard against the right edge. Its label used to sit
- *  BESIDE it, which cost a gutter as wide as "To Sky | $00.00M"; under the
- *  bar it costs nothing horizontal, so the drawing runs the full canvas. */
-export const RIGHT_X = WIDTH - EDGE_PAD - NODE_W;
-/** A Prime's label is TWO CENTRED LINES over its bar — the name, then the
- *  gross under it. It was one line centred on its pipe character, which
- *  only lines up if every name measures exactly right; the measurement is
- *  close but not exact, so the pipes came out a hair apart down the column
- *  and read as no alignment at all. Two centred lines need no measurement:
- *  the column's centre is the same x for every Prime. */
+/** Sky's label sits BESIDE its bar, vertically centred on it, ending at the
+ *  canvas' right margin — so the bar ends where "To Sky" begins and the
+ *  gutter is exactly as wide as that line needs. */
+const RIGHT_GUTTER = SKY_LABEL_ROOM + SKY_LABEL_GAP + EDGE_PAD;
+export const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
+/** A Prime's label is ONE line under its bar, "Name | $x", drawn as THREE
+ *  text runs rather than one string: the pipe centred on the column, the
+ *  name end-anchored just left of it, the gross start-anchored just right.
+ *  Anchoring does the alignment the browser is already doing anyway, so no
+ *  name is ever measured — which is what went wrong when the whole string
+ *  was offset by a measured width and every pipe landed a hair apart. */
 export const AGENT_LINE_H = 48;
+/** How far the name and the gross sit from the pipe's own centre. */
+export const PIPE_HALF = 16;
 /** The Prime column sits 3/5 of the way across the ribbon span: the left
  *  half carries up to seven sources fanning into every Prime, the right
  *  only the two To-Sky ribbons, so the busier side gets the room. */
@@ -351,9 +354,9 @@ export interface FlowLayout {
  *  short of the bottom edge and the last label stays on the canvas. */
 const BAND_H = HEIGHT - BOTTOM_PAD - TOP;
 const SOURCE_BAND_H = BAND_H - SOURCE_LABEL_BLOCK / 2;
-/** A Prime's two label lines hang UNDER its bar, so its band stops a whole
- *  label block short of the bottom and the last one stays on the canvas. */
-const AGENT_BAND_H = BAND_H - 2 * AGENT_LINE_H;
+/** A Prime's label hangs UNDER its bar, so its band stops a label block
+ *  short of the bottom and the last one stays on the canvas. */
+const AGENT_BAND_H = BAND_H - AGENT_LINE_H;
 
 /** Space-between over the band: equal gaps, never below the floor. */
 function spread<T>(bars: { item: T; h: number }[], bandH: number, minGap: number, labelBlock: number) {
@@ -467,9 +470,8 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
       const sh = skyCursor - shareY;
       shares.push({ prime: p.prime, value: skyValue, y: shareY, h: sh, pillX: RIGHT_X - SHARE_PILL_INSET, pillY: shareY + sh / 2 - PILL_LIFT });
     }
-    // The label block hangs UNDER the bar: the name first, the gross a line
-    // below it. labelY is the NAME's baseline. The gross pill still rises
-    // above the bar, where there is nothing else.
+    // The label hangs UNDER the bar, one line. The gross pill still rises
+    // above it, where there is nothing else.
     const labelY = y + h + AGENT_LINE_H;
     return {
       prime: p.prime, x: MID_X, y, h, inbound, outbound, loss: a.loss,
@@ -483,7 +485,7 @@ export function layoutMscFlow(primes: readonly PrimeFlowTotals[]): FlowLayout {
   });
 
   const bottom = Math.max(
-    ...agents.map((g) => g.y + g.h + 2 * AGENT_LINE_H),
+    ...agents.map((g) => g.y + g.h + AGENT_LINE_H),
     ...sources.map((s) => Math.max(s.y + s.h, s.labelY + SOURCE_LABEL_BLOCK / 2)),
     skyY + skyH,
   );

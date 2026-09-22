@@ -1,5 +1,5 @@
 import { formatUsd } from "../../lib/settlements";
-import { AGENT_LINE_H, AGENT_W, type FlowAgent, type FlowLink } from "../../lib/mscFlowLayout";
+import { AGENT_W, PIPE_HALF, type FlowAgent, type FlowLink } from "../../lib/mscFlowLayout";
 import { SvgRouteLink } from "./SvgRouteLink";
 import { markId, SLICE_CODE } from "./MscRingPills";
 import { primeLinkLabel, type OverviewPrime } from "./MscRingPrime";
@@ -50,13 +50,17 @@ export function FlowAgentGroup({ agent, flow, label, bandColor, to, month }: Ove
         <LinkFigure key={`out-${l.kind}`} l={l} />
       ))}
       <g className="msc-ring-mark" data-mark={markId(p, "gross")}>
-        {/* Two centred lines UNDER the bar, name over gross. Both sit on the
-            column's centre, which is the same x for every Prime — so they
-            line up down the column without depending on a measurement. */}
-        <text x={agent.labelX} y={agent.labelY} textAnchor="middle" fontSize={42} className="msc-ring-label msc-flow-halo">
+        {/* "Name | $x" under the bar as THREE runs: the pipe centred on the
+            column, the name end-anchored to its left, the gross start-
+            anchored to its right. The anchors do the work, so no name is
+            measured and every pipe lands on the same x. */}
+        <text x={agent.labelX - PIPE_HALF} y={agent.labelY} textAnchor="end" fontSize={42} className="msc-ring-label msc-flow-halo">
           {label}
         </text>
-        <text x={agent.labelX} y={agent.labelY + AGENT_LINE_H} textAnchor="middle" fontSize={42} className="msc-ring-sublabel msc-flow-halo mono">
+        <text x={agent.labelX} y={agent.labelY} textAnchor="middle" fontSize={42} className="msc-ring-sublabel msc-flow-halo mono">
+          |
+        </text>
+        <text x={agent.labelX + PIPE_HALF} y={agent.labelY} textAnchor="start" fontSize={42} className="msc-ring-sublabel msc-flow-halo mono">
           {formatUsd(agent.gross, true)}
         </text>
       </g>

@@ -2,7 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { layoutMscFlow, AGENT_LINE_H, NODE_W, GROUP_HEADING_SIZE, HEADER_SIZE, LABEL_X, SKY_LABEL_X, sourceBarX, sourceBracket } from "../../lib/mscFlowLayout";
+import { layoutMscFlow, NODE_W, PIPE_HALF, GROUP_HEADING_SIZE, HEADER_SIZE, LABEL_X, SKY_LABEL_X, sourceBarX, sourceBracket } from "../../lib/mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 import { MscFlow } from "./MscFlow";
 import type { OverviewPrime } from "./MscRingPrime";
@@ -112,21 +112,23 @@ describe("MscFlow", () => {
       expect(t).toHaveAttribute("text-anchor", "end");
       expect(t).toHaveAttribute("x", String(SKY_LABEL_X));
     }
-    // The To Sky line sits UNDER Sky's bar, flush with the same right edge.
+    // The To Sky line sits BESIDE Sky's bar, centred on it.
     const skyBar = layoutMscFlow(flows).sky;
-    expect(Number(toSky.getAttribute("y"))).toBeGreaterThan(skyBar.y + skyBar.h);
-    expect(skyBar.x + NODE_W).toBe(SKY_LABEL_X);
-    // The Prime is two centred lines over its bar: the name, the gross under
-    // it, both on the column's centre so they cannot drift apart.
+    expect(Number(toSky.getAttribute("y"))).toBeCloseTo(skyBar.y + skyBar.h / 2 + 18, 6);
+    expect(skyBar.x + NODE_W).toBeLessThan(SKY_LABEL_X);
+    // "Name | $x" under the bar as three anchored runs on ONE line: the pipe
+    // centred on the column, the name ending left of it, the gross starting
+    // right of it — so the pipes line up with nothing measured.
     const agent = layoutMscFlow(flows).agents[0];
     const primeLabel = screen.getByText("Spark");
-    expect(primeLabel).toHaveAttribute("text-anchor", "middle");
-    expect(Number(primeLabel.getAttribute("x"))).toBeCloseTo(agent.labelX, 6);
-    const gross = [...container.querySelectorAll("text.msc-ring-sublabel")].find(
-      (t) => Number(t.getAttribute("x")) === agent.labelX,
-    )!;
-    expect(gross).toHaveAttribute("text-anchor", "middle");
-    expect(Number(gross.getAttribute("y")) - Number(primeLabel.getAttribute("y"))).toBeCloseTo(AGENT_LINE_H, 6);
+    expect(primeLabel).toHaveAttribute("text-anchor", "end");
+    expect(Number(primeLabel.getAttribute("x"))).toBeCloseTo(agent.labelX - PIPE_HALF, 6);
+    const pipe = [...container.querySelectorAll("text")].find((t) => t.textContent === "|")!;
+    expect(pipe).toHaveAttribute("text-anchor", "middle");
+    expect(Number(pipe.getAttribute("x"))).toBeCloseTo(agent.labelX, 6);
+    // All three share the one baseline, below the bar.
+    expect(Number(pipe.getAttribute("y"))).toBe(Number(primeLabel.getAttribute("y")));
+    expect(Number(pipe.getAttribute("y"))).toBeGreaterThan(agent.y + agent.h);
     expect(container.querySelector('.msc-flow-source[data-kind="kept"][data-origin="earned"]')).toBeInTheDocument();
     expect(container.querySelector('.msc-flow-source[data-kind="agentRate"][data-origin="sky"]')).toBeInTheDocument();
     // Sky's column names no Prime; the share pill does.

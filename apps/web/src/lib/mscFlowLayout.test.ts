@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { layoutMscFlow, AGENT_LINE_H, AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADER_SIZE, HEADERS, LABEL_X, LEFT_X, NODE_W, owedBySky, PIPE_SPACE, SKY_LABEL_X, SKY_PIPE_SPACE, sourceBarX, sourceBracket, sourceLabelWidth, WIDTH } from "./mscFlowLayout";
+import { layoutMscFlow, AGENT_LINE_H, AGENT_W, SKY_LABEL_ROOM, GROUP_HEADING, GROUP_HEADING_SIZE, HEADER_SIZE, HEADERS, LABEL_X, LEFT_X, NODE_W, owedBySky, PIPE_SPACE, SKY_LABEL_X, SKY_PIPE_SPACE, sourceBarX, sourceBracket, sourceLabelWidth, WIDTH } from "./mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
 const flow = (over: Partial<PrimeFlowTotals> = {}): PrimeFlowTotals => ({
@@ -161,10 +161,11 @@ describe("layoutMscFlow", () => {
       else expect(byLen[i].x).toBe(byLen[i - 1].x);
     }
     expect(byLen[byLen.length - 1].x).toBeGreaterThan(byLen[0].x);
-    // RIGHT: Sky's bar is hard against the margin, not held off it by a
-    // gutter for a label beside it — the To Sky line sits UNDER the bar now,
-    // so both end on the same right edge.
-    expect(l.sky.x + NODE_W).toBe(SKY_LABEL_X);
+    // RIGHT: the To Sky line ends at the canvas' right margin and the bar
+    // ends where that line begins, so the gutter is exactly as wide as the
+    // line needs and no wider.
+    expect(l.sky.x + NODE_W).toBeLessThan(SKY_LABEL_X);
+    expect(SKY_LABEL_X - SKY_LABEL_ROOM - (l.sky.x + NODE_W)).toBeGreaterThanOrEqual(SKY_PIPE_SPACE);
     // LEFT keeps at least the air that sits either side of the label's own
     // pipe between the text and the bar it names — below that they touch.
     for (const s of l.sources) {
@@ -179,7 +180,7 @@ describe("layoutMscFlow", () => {
       flow({ prime: p, sky: 10_000_000 / (i + 1), kept: 2_000_000 / (i + 1), cof: 9_900_000 / (i + 1) })));
     for (let i = 1; i < six.agents.length; i++) {
       const gap = six.agents[i].y - (six.agents[i - 1].y + six.agents[i - 1].h);
-      expect(gap).toBeGreaterThan(2 * AGENT_LINE_H);
+      expect(gap).toBeGreaterThan(AGENT_LINE_H);
     }
     // CENTRE: every Prime's label is anchored on the same x — the column's
     // centre — so the names line up without depending on how wide they are.
@@ -231,10 +232,10 @@ describe("layoutMscFlow", () => {
     expect(l.sources[0].y).toBe(l.agents[0].y);
     const lastA = l.agents[l.agents.length - 1];
     const lastS = l.sources[l.sources.length - 1];
-    // The Prime column stops a whole label block short, since its two label
-    // lines hang under the bar; the source column stops half a block short.
-    expect(lastA.y + lastA.h + 2 * AGENT_LINE_H).toBeGreaterThan(l.height * 0.95);
-    expect(lastA.y + lastA.h + 2 * AGENT_LINE_H).toBeLessThan(l.height);
+    // The Prime column stops a label block short, since its label hangs
+    // under the bar; the source column stops half a block short.
+    expect(lastA.y + lastA.h + AGENT_LINE_H).toBeGreaterThan(l.height * 0.95);
+    expect(lastA.y + lastA.h + AGENT_LINE_H).toBeLessThan(l.height);
     expect(lastS.y + lastS.h).toBeGreaterThan(l.height * 0.9);
     expect(lastS.labelY).toBeLessThan(l.height);
     const gaps = (bars: { y: number; h: number }[]) => bars.slice(1).map((b, i) => b.y - (bars[i].y + bars[i].h));
