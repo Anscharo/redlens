@@ -204,12 +204,14 @@ a. **Health check:**
    #     | "degraded"                (DB unreachable)
    ```
    Tunables (all optional, sane defaults): `ATLAS_STALE_SECONDS` (default 1h)
-   — `sync_state.synced_at` doubles as the worker heartbeat: every 12-min cron
-   tick touches it, including no-op runs where the atlas SHA hasn't advanced
-   (the worker's lightweight-check fast exit still issues an `UPDATE
-   sync_state SET synced_at = now()` before returning), so "stale" now
-   genuinely means the worker hasn't run in over an hour, not just that the
-   atlas hasn't changed. `ATLAS_STUCK_SECONDS` (default 30m),
+   — `sync_state.synced_at` doubles as the worker heartbeat: every successful
+   12-min cron tick touches it, including no-op runs where the atlas SHA
+   hasn't advanced. That includes the lightweight-check fast exit *and* the
+   rebuild path (a leftover stale embedding forces a rebuild even when the
+   SHA matches; `sync.ts` then no-ops without writing `synced_at`, so the
+   worker has to heartbeat after `publish-artifacts`). "stale" therefore means the
+   worker hasn't completed a tick in over an hour, not just that the atlas
+   hasn't changed. `ATLAS_STUCK_SECONDS` (default 30m),
    `ATLAS_UPDATE_MAX_BACKOFF_MS` (default 30m), `ATLAS_UPDATE_ESCALATE_AFTER`
    (default 3).
 
@@ -534,6 +536,22 @@ service. Check worker logs for `atlas-worker: done`.
 → Worker `DATABASE_URL` points to a different Postgres than the web service.
 Both must reference `${{Postgres.DATABASE_URL}}` from the same Postgres
 instance in the same Railway project.
+
+**Worker service looks healthy (no stuck/failed runs) but `/api/freshness` is stale**
+→ A hung tick is only one failure mode, and Railway would show it as still
+running. Check three other things, in order:
+1. You are on the **worker** service (`railway.worker.toml` / cron `*/12`),
+   not the web service. Cron ticks are short-lived executions; between them
+   nothing is running, which looks idle rather than failed.
+2. The latest cron execution's **timestamp** is within ~12 minutes. If the
+   last run is days old, cron is not firing (dashboard overrode
+   `cronSchedule`, or this environment has no worker service).
+3. That run's logs contain `atlas-worker: heartbeat ok`. If they do not, the
+   tick never reached the heartbeat. A SHA-current rebuild (`staleEmbeds>0`
+   then `sync:atlas — already current`) used to skip it entirely while
+   exiting 0; both the fast-exit and the rebuild path now heartbeat, and a
+   wrong `DATABASE_URL` / empty `sync_state` **fails** the run instead of
+   logging a warning.
 
 **atlas-update workflow pushes fail**
 → The bot isn't a branch-protection bypass actor (step 8d), or the

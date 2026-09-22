@@ -560,7 +560,7 @@ export const config = {
   // repo, so private previews don't share the fork trust pools.
   previewPrivateDailyQuota: Number(process.env.PREVIEW_PRIVATE_DAILY_QUOTA ?? 20),
   previewMaxConcurrentBuilds: Number(process.env.PREVIEW_MAX_CONCURRENT_BUILDS ?? 2),
-  previewBuildTimeoutMs: Number(process.env.PREVIEW_BUILD_TIMEOUT_MS ?? 120_000),
+  previewBuildTimeoutMs: Number(process.env.PREVIEW_BUILD_TIMEOUT_MS ?? 300_000),
   // Background bundle sweeper (preview/sweeper.ts): blocked-sha takedowns,
   // stale-vs-main eviction, LRU cap — all on a timer, not just after builds.
   previewSweepIntervalMs: Number(process.env.PREVIEW_SWEEP_INTERVAL_MS ?? 600_000),
