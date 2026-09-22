@@ -35,18 +35,6 @@ export function RingKey({ view = "pies" }: { view?: "pies" | "sankey" }) {
             : "A Prime's bar is what flowed through it — To Sky + supply-side kept + demand-side; ribbons are the money in and out. "}
           Hover for figures; click a Prime for its page.
         </p>
-        {/* The size encoding is stated, not implied. It was NOT always
-            readable as dollars — the scale was compressed for a while to
-            stop the small Primes piling up on the minimum pie — so if
-            mscOverviewLayout's SIZE_EXP ever leaves 0.5 again, this
-            sentence has to change with it. */}
-        {pies && (
-          <p className="mt-1">
-            A pie's area is that amount, on one scale shared with Sky's —
-            so a pie twice the area is twice the money. Only a Prime too
-            small to draw is held at a minimum size.
-          </p>
-        )}
         {pies && (
           <p className="mt-1">
             The two never merge into one pie: what a Prime owes Sky and what Sky

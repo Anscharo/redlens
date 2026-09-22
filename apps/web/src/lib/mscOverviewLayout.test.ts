@@ -107,7 +107,7 @@ describe("layoutMscRing (orbital pies)", () => {
     expect(grove.r / layout.skyR).toBeCloseTo(size(3_777_000), 2);
     expect(spark.r / layout.skyR).toBeCloseTo(size(2_885_000), 2);
     expect(keel.r / layout.skyR).toBeCloseTo(size(55_000), 2);
-    // The claim the key makes in so many words: twice the area is twice
+    // The encoding itself, which the key no longer spells out: twice the area is twice
     // the money. It has not always been true — see SIZE_EXP — so pin it.
     const area = (r: number) => Math.PI * r ** 2;
     expect(area(grove.r) / area(spark.r)).toBeCloseTo(3_777_000 / 2_885_000, 2);
