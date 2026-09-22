@@ -195,12 +195,12 @@ describe("PreviewHome private repo form", () => {
     expect(screen.getByRole("button", { name: "Preview private repo" })).not.toBeDisabled();
   });
 
-  it("notes that a pasted branch will compare against the closest shared point with sky main or the fork's default branch", () => {
+  it("notes that a pasted branch will compare against the repo's default branch, or live sky main when there is none", () => {
     render(<PreviewHome />);
     fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: "acme/secret-atlas@main" } });
     expect(
       screen.getByText(
-        "will compare with the closest shared point with sky-ecosystem/next-gen-atlas:main or this fork's own default branch",
+        "will compare with this repo's default branch, or with the live sky-ecosystem/next-gen-atlas:main when there is none to compare against",
       ),
     ).toBeInTheDocument();
   });

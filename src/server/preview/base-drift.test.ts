@@ -2,21 +2,16 @@
 // to sky main right now. Fake GhClient objects (no network); a fake fetchTree
 // that either writes a minimal atlas checkout or fails, per test.
 
-import { test, expect, afterEach, beforeEach } from "bun:test";
+import { test, expect, afterEach } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { computeBaseDrift } from "./base-drift.ts";
-import { __resetForkPointCacheForTest } from "./fork-point.ts";
 import type { Candidate } from "./pr-diff.ts";
 import type { Snapshot } from "./snapshot.ts";
 
 const tmpDirs: string[] = [];
 const origMinNodes = process.env.ATLAS_MIN_NODES;
-
-beforeEach(() => {
-  __resetForkPointCacheForTest();
-});
 
 afterEach(() => {
   for (const d of tmpDirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
@@ -44,8 +39,11 @@ function writeCheckout(root: string): void {
 }
 
 function fakeGh(byPath: Record<string, { ok?: boolean; status?: number; json: any }>): any {
+  const calls: string[] = [];
   return {
+    calls,
     async fetchJson(p: string) {
+      calls.push(p);
       const r = byPath[p];
       if (!r) return { ok: false, status: 404, json: null };
       return { ok: r.ok ?? true, status: r.status ?? 200, json: r.json };
@@ -152,10 +150,14 @@ test("public tip counts come from the canonical compare", async () => {
   expect(drift?.commitsBehind).toBe(7);
 });
 
-test("private tip counts come from the fork-point commit-list walk", async () => {
+test("a private base's drift is measured by CONTENT only: no commit counts, and no commit-list walk or cross-repo compare", async () => {
+  // Counting commits since a shared SHA is meaningless for a mirror that takes
+  // squash-merged upstream by content — it shares none, or only its original
+  // import. `docsDiffer` compares the documents themselves and still holds.
   process.env.ATLAS_MIN_NODES = "0";
   const fetchedInto = mkTmp();
   writeCheckout(fetchedInto);
+  // Wired so a walk WOULD find a fork point if one were attempted.
   const repoGh = fakeGh({
     "/repos/acme/priv/commits?sha=tipsha&per_page=100&page=1": { json: [{ sha: "tipsha" }, { sha: "shared1" }] },
     "/repos/acme/priv/compare/shared1...tipsha": { json: { ahead_by: 2 } },
@@ -176,9 +178,13 @@ test("private tip counts come from the fork-point commit-list walk", async () =>
     scratchDir: path.join(mkTmp(), "scratch"),
   });
 
-  expect(drift?.forkPoint).toBe("shared1");
-  expect(drift?.commitsAhead).toBe(2);
-  expect(drift?.commitsBehind).toBe(5);
+  expect(drift?.sha).toBe("tipsha");
+  expect(drift?.forkPoint).toBeUndefined();
+  expect(drift?.commitsAhead).toBeUndefined();
+  expect(drift?.commitsBehind).toBeUndefined();
+  expect(drift?.docsDiffer).toBeGreaterThan(0); // the checkout's docs vs an empty live atlas
+  expect(repoGh.calls).toEqual([]);
+  expect(canonicalGh.calls).toEqual([]);
 });
 
 test("a failed tip resolution degrades the whole result to undefined", async () => {

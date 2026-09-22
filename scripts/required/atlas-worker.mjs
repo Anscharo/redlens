@@ -137,6 +137,17 @@ async function main() {
   const t0 = Date.now();
   const full = process.env.ATLAS_WORKER_FULL === "1";
 
+  // Railway skips the next cron tick while this process is still alive. A hung
+  // GitHub/RPC fetch before the heartbeat would otherwise block every later
+  // */12 run (observed 2026-09-17: four days of stale). Kill the tick so cron
+  // can retry. unref() so a successful exit isn't held open for the remainder.
+  const HARD_CAP_MS = 15 * 60 * 1000;
+  const hardCap = setTimeout(() => {
+    console.error("atlas-worker: hard cap (15m) — exiting so cron can retry");
+    process.exit(1);
+  }, HARD_CAP_MS);
+  hardCap.unref();
+
   if (!process.env.DATABASE_URL) {
     console.error("atlas-worker: DATABASE_URL is required");
     process.exit(1);
@@ -346,8 +357,8 @@ async function main() {
     SELECT atlas_sha FROM sync_state WHERE id = 1
   `.then((r) => r[0]?.atlas_sha ?? null).catch(() => null);
   const verified = await inspectStructuralSnapshot(verifyDb, verifiedState);
-  await verifyDb.close();
   if (!verified.healthy) {
+    await verifyDb.close();
     throw new Error(`post-sync structural integrity failed: ${verified.reasons.join("; ")}`);
   }
   console.log(
@@ -361,6 +372,15 @@ async function main() {
   // must fail the run. `run()` already throws on a non-zero exit.
   console.log("atlas-worker: publish-artifacts…");
   run("bun", ["scripts/required/publish-artifacts.ts"]);
+
+  // sync.ts no-ops when the pointer already matches and does not touch
+  // synced_at. A leftover stale embedding skips the fast-exit heartbeat,
+  // so a green rebuild tick left production stale for days. Heartbeat
+  // only after publish succeeds, matching the fast-exit guarantee that
+  // web instances can fetch the artifact set. (Tails below are best-effort,
+  // same as the fast-exit path which heartbeats before them.)
+  await touchSyncHeartbeat(verifyDb);
+  await verifyDb.close();
 
   // ── Parallel: embeddings + history ───────────────────────────────────────
   // build-history reads its own incremental cursor from atlas_history and

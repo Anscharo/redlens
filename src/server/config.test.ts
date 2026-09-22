@@ -99,8 +99,8 @@ test("defaults when no env is set", async () => {
   expect(config.chatModelStrong).toEqual([]);
   expect(config.chatModelFallbacks).toEqual([]);
   expect(config.chatReferenceCitationModels).toEqual(["openai/gpt-5.6-luna", "openai/gpt-5-mini"]);
-  expect(config.rateLimitTokensPerWindow).toBe(750_000);
-  expect(config.rateLimitWindowMinutes).toBe(120);
+  expect(config.rateLimitTokensPerWindow).toBe(1_000_000_000_000);
+  expect(config.rateLimitWindowMinutes).toBe(90);
   expect(config.rateLimitTokensPerWindowBoosted).toBe(3_000_000);
   expect(config.rateLimitBoostLogins).toEqual([]);
   expect(config.mcpPath).toBe("/mcp");
@@ -112,7 +112,7 @@ test("defaults when no env is set", async () => {
   expect(config.previewForkDailyQuota).toBe(7);
   expect(config.previewUnknownForkDailyQuota).toBe(2);
   expect(config.previewMaxConcurrentBuilds).toBe(2);
-  expect(config.previewBuildTimeoutMs).toBe(120_000);
+  expect(config.previewBuildTimeoutMs).toBe(300_000);
   expect(config.previewSweepIntervalMs).toBe(600_000);
   expect(config.previewSweepGraceMs).toBe(600_000);
   expect(config.previewCacheKeep).toBe(20);

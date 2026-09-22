@@ -463,8 +463,15 @@ export const config = {
   // Per-user rolling token window — the HARD rate-limit gate. Counts
   // input+output tokens over the trailing `rateLimitWindowMinutes`; once the sum
   // reaches the limit, /api/chat returns 429 until enough usage ages out.
-  rateLimitTokensPerWindow: Number(process.env.RATE_LIMIT_TOKENS_PER_WINDOW ?? 750_000),
-  rateLimitWindowMinutes: Number(process.env.RATE_LIMIT_WINDOW_MINUTES ?? 120),
+  //
+  // Disabled 2026-09-22 by setting the default absurdly high (effectively
+  // unreachable) rather than removing the gate: the account-wide commons pool
+  // (chat/credits.ts) still hard-gates real spend, so this just stops
+  // individual users from being 429'd. Restore by dropping
+  // RATE_LIMIT_TOKENS_PER_WINDOW back down (750_000 was the last live value)
+  // if per-user abuse becomes a problem.
+  rateLimitTokensPerWindow: Number(process.env.RATE_LIMIT_TOKENS_PER_WINDOW ?? 1_000_000_000_000),
+  rateLimitWindowMinutes: Number(process.env.RATE_LIMIT_WINDOW_MINUTES ?? 90),
   // Raised 500k → 750k after beta feedback: testers were hitting the window
   // mid-session on ordinary research. The per-user window is a FAIRNESS gate
   // (no one visitor monopolises a shared singleton), not the cost backstop —
@@ -553,7 +560,7 @@ export const config = {
   // repo, so private previews don't share the fork trust pools.
   previewPrivateDailyQuota: Number(process.env.PREVIEW_PRIVATE_DAILY_QUOTA ?? 20),
   previewMaxConcurrentBuilds: Number(process.env.PREVIEW_MAX_CONCURRENT_BUILDS ?? 2),
-  previewBuildTimeoutMs: Number(process.env.PREVIEW_BUILD_TIMEOUT_MS ?? 120_000),
+  previewBuildTimeoutMs: Number(process.env.PREVIEW_BUILD_TIMEOUT_MS ?? 300_000),
   // Background bundle sweeper (preview/sweeper.ts): blocked-sha takedowns,
   // stale-vs-main eviction, LRU cap — all on a timer, not just after builds.
   previewSweepIntervalMs: Number(process.env.PREVIEW_SWEEP_INTERVAL_MS ?? 600_000),

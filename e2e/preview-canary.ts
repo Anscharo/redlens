@@ -163,3 +163,18 @@ export async function currentHeadSha(fetchImpl: typeof fetch, number: number): P
   const pr = await ghJson<PrPayload>(fetchImpl, `/repos/${CANONICAL}/pulls/${number}`);
   return pr?.head?.sha ?? null;
 }
+
+// PreviewDiffProvider fetches diff.sky.json / diff.repo.json first when
+// meta.json has a matching candidate (the usual case after per-base diffs).
+// A non-200 keyed response falls back to plain diff.json — so the canary
+// must not settle on that 404/5xx. Plain diff.json (any status) or a 200
+// keyed file is the response to assert on.
+const PREVIEW_DIFF_URL = /\/api\/preview\/[0-9a-f]+\/diff(?:\.(?:sky|repo))?\.json$/;
+const KEYED_DIFF_URL = /\/diff\.(?:sky|repo)\.json$/;
+
+export function isPreviewDiffResponse(r: { url(): string; status(): number }): boolean {
+  const url = (r.url().split("?")[0] ?? "").split("#")[0] ?? "";
+  if (!PREVIEW_DIFF_URL.test(url)) return false;
+  if (KEYED_DIFF_URL.test(url) && r.status() !== 200) return false;
+  return true;
+}

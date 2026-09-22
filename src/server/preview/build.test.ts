@@ -8,12 +8,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { countNewAddresses, baseMeta, __runBuildForTest, type BuildDeps } from "./build.ts";
-import { previewPaths, readMeta } from "./cache.ts";
+import { previewPaths, readMeta, type PreviewMeta } from "./cache.ts";
+import { diffBaseLabel, diffBaseType } from "./diff-base-record.ts";
 import { config } from "../config.ts";
 import { CANONICAL_REPO, type Resolved } from "./resolve.ts";
 import { rebuildFromDisk, getIndexes, setIndexes, type AtlasNode } from "../retrieval/indexes.ts";
 import { snapshotFromSrcDir } from "./snapshot.ts";
-import { __resetForkPointCacheForTest } from "./fork-point.ts";
 
 const tmpDirs: string[] = [];
 function mkTmp(): string {
@@ -498,30 +498,18 @@ function stubGitHub(mergeBase: string | null): void {
   };
 }
 
-// A private preview DOES compare now (startCandidates → resolveCandidates →
-// the private path's commit-list walk in fork-point.ts), so these two replace
-// the old single "no GitHub compare is made" test — split on whether that walk
-// finds a fork point, each with a deterministic stub (no real network call).
+// A private preview compares only INSIDE its own repo (the PR's base, or the
+// default branch). It never looks for an ancestor shared with nga main: the one
+// way to find it without a fork network — intersecting commit lists — needs
+// shared commit SHAs, and nga main is squash-merged, so a mirror that takes it
+// by content shares none, or only its original import. With no base branch to
+// compare against (here: the repo's own `main`), it is redlined against live
+// nga main, and says so.
 const LIVE_SHA = "live00000000000000000000000000000000000f";
 
-function stubForkPointWalk(opts: { found: boolean; aheadBy?: number; behindBy?: number }): void {
-  globalThis.fetch = (async (url: string | URL) => {
-    const u = String(url);
-    if (u.includes("/commits?sha=")) return Response.json(opts.found ? [{ sha: LIVE_SHA }] : []);
-    if (u.includes("/compare/")) {
-      // The canonical-side compare (behindBy) and the repo-side compare
-      // (aheadBy) share this stub — tell them apart by which repo's URL it is.
-      const isCanonicalSide = u.includes(`/repos/${CANONICAL_REPO}/compare/`);
-      return Response.json({ ahead_by: isCanonicalSide ? (opts.behindBy ?? 0) : (opts.aheadBy ?? 0) });
-    }
-    return new Response("not found", { status: 404 });
-  }) as unknown as typeof fetch;
-}
-
-test("private build: fork point found → bases.auto is sky, diff.sky.json/diff.json identical, aheadBy/behindBy on meta", async () => {
+test("private build with no base branch: redlined against live nga main, with the reason recorded — no commit-list walk, even though one would find a shared sha", async () => {
   const sha = "privdiffA";
   builtShas.push(sha);
-  __resetForkPointCacheForTest();
 
   let prevIndexes: unknown;
   try {
@@ -535,99 +523,62 @@ test("private build: fork point found → bases.auto is sky, diff.sky.json/diff.
   } as never);
 
   const origFetch = globalThis.fetch;
-  stubForkPointWalk({ found: true, aheadBy: 4, behindBy: 1 });
+  const fetched: string[] = [];
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    fetched.push(u);
+    // What the removed fork-point walk used to read: a commit list that DOES
+    // share a sha with nga main, and compares giving ahead/behind counts.
+    if (u.includes("/commits?sha=")) return Response.json([{ sha: LIVE_SHA }]);
+    if (u.includes("/compare/")) return Response.json({ ahead_by: 4 });
+    return new Response("not found", { status: 404 });
+  }) as unknown as typeof fetch;
   const origWarn = console.warn;
-  console.warn = () => {};
+  const warnings: string[] = [];
+  console.warn = (msg: string) => warnings.push(String(msg));
+  const origLog = console.log;
+  const logged: string[] = [];
+  console.log = (...a: unknown[]) => void logged.push(a.join(" "));
 
-  let fetchCalls = 0;
+  let upserted: PreviewMeta | undefined;
   try {
     const ev = await __runBuildForTest(privateResolved(sha), {
       isBlockedSha: async () => false,
       isKnownSha: async () => false,
       previewsTodayCountForRepo: async () => 0,
       installationToken: async () => "tok",
-      fetchAndExtract: async () => {
-        fetchCalls += 1;
-        return { srcDir: previewPaths(sha).srcDir, docCount: 2 };
-      },
+      fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 2 }),
       spawnBuild: spawnWithDocs({
         [U(1)]: { id: U(1), doc_no: "A.1", title: "One", content: "edited", contentHash: "h1" },
         [U(3)]: { id: U(3), doc_no: "A.3", title: "Three", content: "brand new", contentHash: "h3" },
       }),
-      upsertPreview: async () => {},
+      upsertPreview: async (m) => void (upserted = m),
     });
     expect(ev.phase).toBe("ready");
 
-    // The found fork point IS the live commit, so loadBaseSnapshot's
-    // live-shortcut fires — only the head tree is ever fetched via the
-    // injected fetchAndExtract (the fork-point walk itself uses raw fetch).
-    expect(fetchCalls).toBe(1);
+    expect(fetched.filter((u) => u.includes("/commits?sha=") || u.includes("/compare/"))).toEqual([]);
 
     const meta = readMeta(sha);
-    expect(meta?.bases?.auto).toBe("sky");
-    expect(meta?.aheadBy).toBe(4);
-    expect(meta?.behindBy).toBe(1);
+    expect(meta?.bases).toEqual({ auto: "live-main", reason: "no base branch to compare against" });
+    expect(meta?.aheadBy).toBeUndefined(); // no commit counts vs nga main for a private repo
+    expect(meta?.behindBy).toBeUndefined();
+    expect(warnings.some((w) => w.includes("no base branch to compare against"))).toBe(true);
 
     const diff = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.json"), "utf8"));
     expect(diff.changed).toEqual([U(1)]);
     expect(diff.added).toEqual([U(3)]);
-    const diffSky = fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.sky.json"), "utf8");
-    expect(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.json"), "utf8")).toBe(diffSky);
-
-    const patches = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "patches.json"), "utf8"));
-    expect(patches[U(1)]).toBeDefined();
-    expect(patches[U(1)].some((l: [string, ...unknown[]]) => l[0] === "-" || l[0] === "+" || l[0] === "~")).toBe(true);
-  } finally {
-    globalThis.fetch = origFetch;
-    console.warn = origWarn;
-    setIndexes(prevIndexes as never);
-  }
-});
-
-test("private build: no fork point found → bases.auto is live-main, warns 'no fork point found'", async () => {
-  const sha = "privdiffB";
-  builtShas.push(sha);
-  __resetForkPointCacheForTest();
-
-  let prevIndexes: unknown;
-  try {
-    prevIndexes = getIndexes();
-  } catch {
-    prevIndexes = undefined;
-  }
-  setIndexes({
-    docMap: new Map([[U(1), { id: U(1), doc_no: "A.1", title: "One", content: "live" }]]),
-    meta: { atlasCommit: "live-sha-b" },
-  } as never);
-
-  const origFetch = globalThis.fetch;
-  stubForkPointWalk({ found: false });
-  const origWarn = console.warn;
-  const warnings: string[] = [];
-  console.warn = (msg: string) => warnings.push(String(msg));
-
-  try {
-    const ev = await __runBuildForTest(privateResolved(sha), {
-      isBlockedSha: async () => false,
-      isKnownSha: async () => false,
-      previewsTodayCountForRepo: async () => 0,
-      installationToken: async () => "tok",
-      fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 1 }),
-      spawnBuild: spawnWithDocs({
-        [U(3)]: { id: U(3), doc_no: "A.3", title: "Three", content: "brand new", contentHash: "h3" },
-      }),
-      upsertPreview: async () => {},
-    });
-    expect(ev.phase).toBe("ready");
-
-    const meta = readMeta(sha);
-    expect(meta?.bases?.auto).toBe("live-main");
-    expect(warnings.some((w) => w.includes("no fork point found"))).toBe(true);
-    expect(fs.existsSync(path.join(previewPaths(sha).outDir, "diff.json"))).toBe(true);
     expect(fs.existsSync(path.join(previewPaths(sha).outDir, "diff.sky.json"))).toBe(false);
+    const patches = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "patches.json"), "utf8"));
+    expect(patches[U(1)].some((l: [string, ...unknown[]]) => l[0] === "-" || l[0] === "+" || l[0] === "~")).toBe(true);
+
+    // …and the durable record says exactly that.
+    expect(diffBaseType(upserted!)).toBe("nga-main");
+    expect(diffBaseLabel(upserted!)).toBe(`${CANONICAL_REPO}:main@${LIVE_SHA}`);
+    expect(logged.some((l) => l.includes("redlined vs LIVE nga-main") && l.includes("(no base branch to compare against)"))).toBe(true);
   } finally {
     globalThis.fetch = origFetch;
     console.warn = origWarn;
+    console.log = origLog;
     setIndexes(prevIndexes as never);
   }
 });
@@ -930,6 +881,10 @@ test("PR against a non-main base: bases.auto is repo, reference is the base (no 
   let driftTipFetchRepo = "";
   const origWarn = console.warn;
   console.warn = () => {};
+  const origLog = console.log;
+  const logged: string[] = [];
+  console.log = (...a: unknown[]) => void logged.push(a.join(" "));
+  let upserted: PreviewMeta | undefined;
 
   try {
     const resolved: Resolved = {
@@ -961,13 +916,24 @@ test("PR against a non-main base: bases.auto is repo, reference is the base (no 
         [U(1)]: { id: U(1), doc_no: "A.1", title: "One", content: "shared, untouched by this PR", contentHash: baseParsed.get(U(1))!.contentHash },
         [U(2)]: { id: U(2), doc_no: "A.2", title: "Two", content: "after PR edit", contentHash: "h2-edited-by-pr" },
       }),
-      upsertPreview: async () => {},
+      upsertPreview: async (m) => void (upserted = m),
     });
     expect(ev.phase).toBe("ready");
 
     const meta = readMeta(sha);
     expect(meta?.bases?.auto).toBe("repo");
     expect(meta?.bases?.sky).toBeUndefined(); // sky never resolved (no merge base)
+
+    // The durable record: the row gets the same meta the bundle does, carrying
+    // the base actually used (branch@merge-base commit) and the doc-list size,
+    // and the build says so in one positive log line — no repo name in it.
+    expect(upserted?.bases).toEqual(meta?.bases);
+    expect(upserted?.diffCounts).toEqual({ added: 0, changed: 1 });
+    expect(diffBaseType(upserted!)).toBe("pr-base"); // a declared PR base, not the default branch standing in
+    expect(diffBaseLabel(upserted!)).toBe(`${CANONICAL_REPO}:develop@${REPO_MERGE_BASE}`);
+    const line = logged.find((l) => l.startsWith(`[preview] ${sha.slice(0, 8)}: redlined vs pr-base develop@${REPO_MERGE_BASE.slice(0, 8)} (LCA)`));
+    expect(line).toContain("+0 added, 1 changed");
+    expect(line).not.toContain(HEAD_REPO);
     expect(meta?.bases?.repo?.drift).toBeDefined();
 
     // Merge-base tarball comes from the HEAD repo (an ancestor of the head
@@ -1000,6 +966,7 @@ test("PR against a non-main base: bases.auto is repo, reference is the base (no 
     fsMut.writeFileSync = origWriteFileSync;
     fsMut.copyFileSync = origCopyFileSync;
     console.warn = origWarn;
+    console.log = origLog;
     setIndexes(prevIndexes as never);
     if (prevMin === undefined) delete process.env.ATLAS_MIN_NODES;
     else process.env.ATLAS_MIN_NODES = prevMin;
