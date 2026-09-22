@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { layoutMscFlow, AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADER_SIZE, HEADERS, LABEL_X, LEFT_X, NODE_W, owedBySky, primeLabelStartX, SKY_LABEL_X, sourceBarX, sourceBracket, sourceLabelWidth, WIDTH } from "./mscFlowLayout";
+import { layoutMscFlow, AGENT_W, GROUP_HEADING, GROUP_HEADING_SIZE, HEADER_SIZE, HEADERS, LABEL_X, LEFT_X, NODE_W, owedBySky, PIPE_SPACE, primeLabelStartX, SKY_LABEL_ROOM, SKY_LABEL_X, SKY_PIPE_SPACE, sourceBarX, sourceBracket, sourceLabelWidth, WIDTH } from "./mscFlowLayout";
 import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
 
 const flow = (over: Partial<PrimeFlowTotals> = {}): PrimeFlowTotals => ({
@@ -164,6 +164,16 @@ describe("layoutMscFlow", () => {
     // RIGHT: the To Sky line ends at the canvas' right margin, clear of the
     // bar, which is why the gutter is no wider than that line needs.
     expect(l.sky.x + NODE_W).toBeLessThan(SKY_LABEL_X);
+    // Both ends keep at least the air that sits either side of the label's
+    // own pipe between the text and the bar it names — below that they read
+    // as touching. The left gap is the stagger's own gap; the right one is
+    // what is left of the gutter once the To Sky line has had its width.
+    for (const s of l.sources) {
+      expect(s.x - (LABEL_X + sourceLabelWidth(s.kind))).toBeGreaterThanOrEqual(PIPE_SPACE);
+    }
+    expect(SKY_LABEL_X - SKY_LABEL_ROOM - (l.sky.x + NODE_W)).toBeGreaterThanOrEqual(SKY_PIPE_SPACE);
+    // The To Sky line is set larger, so its floor is larger too.
+    expect(SKY_PIPE_SPACE).toBeGreaterThan(PIPE_SPACE);
     expect(SKY_LABEL_X).toBeLessThan(WIDTH);
     // CENTRE: a start-anchored "Name | $x" begins far enough left that its
     // pipe lands on the column's centre — further left for a longer name.
@@ -171,7 +181,10 @@ describe("layoutMscFlow", () => {
     expect(primeLabelStartX("Spark", c)).toBeLessThan(c);
     expect(primeLabelStartX("A Much Longer Prime Name", c)).toBeLessThan(primeLabelStartX("Spark", c));
     // The ribbon span is most of the canvas, not a pair of fat gutters.
-    expect(l.sky.x - (LEFT_X + NODE_W)).toBeGreaterThan(WIDTH * 0.42);
+    // (The gutters are label-width plus one pipe-space of air, so this is a
+    // floor on the drawing, not a target — the room either side of the
+    // canvas that useSvgZoom's filled base reclaims is on top of it.)
+    expect(l.sky.x - (LEFT_X + NODE_W)).toBeGreaterThan(WIDTH * 0.41);
   });
 
   it("folds a negative SDE into the loss rather than drawing it as money to Sky", () => {

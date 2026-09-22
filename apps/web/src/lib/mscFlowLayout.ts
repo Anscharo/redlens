@@ -129,9 +129,16 @@ const BRACKET_GAP = 14;
  *  bracket column, rather than right-aligned into a gutter sized for the
  *  single longest string. */
 export const LABEL_X = BRACKET_X + BRACKET_ARM + BRACKET_GAP;
-/** Air between a label and the bar it names — the SAME on every row, which
- *  is what turns the source column into a stagger. */
-const LABEL_GAP = 20;
+/** The air either side of a label's own pipe — the space character in
+ *  " | $12.47M", at that label's size. A label set closer to the bar it
+ *  names than its own pipe is to its own words reads as touching it, so
+ *  this is the FLOOR on every label-to-mark gap in the drawing. */
+export const PIPE_SPACE = textWidth(" ", AMOUNT_FONT, AMOUNT_CHAR_PX);
+/** At exactly the floor they still crowd, so every gap is half again. */
+const gapFor = (space: number) => Math.round(space * 1.5);
+/** Air between a source label and its bar — the SAME on every row, which is
+ *  what turns the source column into a stagger. */
+const LABEL_GAP = gapFor(PIPE_SPACE);
 /** The reserved width of one source's whole label line: its name in Inter
  *  plus the amount in mono. The AMOUNT is reserved at its widest (" |
  *  $00.00M") rather than measured per month, so a bar sits at the same x
@@ -152,12 +159,17 @@ export const LEFT_X = Math.max(...Object.keys(SOURCE_LABEL).map(sourceBarX));
  *  54px, RIGHT-aligned flush to the canvas edge and centred on the bar's own
  *  height, the mirror of the left column's treatment — running into a gutter
  *  sized for it. Its per-Prime shares are named by their hover pills. */
-const SKY_LABEL_ROOM =
-  textWidth("To Sky", "54px 'Inter', system-ui, sans-serif", 29.5) +
-  textWidth(" | $00.00M", "54px 'Source Code Pro', 'Courier New', monospace", 32.5);
+const SKY_FONT = "54px 'Inter', system-ui, sans-serif";
+const SKY_MONO_FONT = "54px 'Source Code Pro', 'Courier New', monospace";
+const SKY_MONO_CHAR_PX = 32.5;
+export const SKY_LABEL_ROOM =
+  textWidth("To Sky", SKY_FONT, 29.5) + textWidth(" | $00.00M", SKY_MONO_FONT, SKY_MONO_CHAR_PX);
+/** The same floor, in the To Sky line's own (larger) font. */
+export const SKY_PIPE_SPACE = textWidth(" ", SKY_MONO_FONT, SKY_MONO_CHAR_PX);
+export const SKY_LABEL_GAP = gapFor(SKY_PIPE_SPACE);
 /** Where every right-hand label ends: the SKY header and the To Sky line. */
 export const SKY_LABEL_X = WIDTH - EDGE_PAD;
-const RIGHT_GUTTER = SKY_LABEL_ROOM + LABEL_GAP + EDGE_PAD;
+const RIGHT_GUTTER = SKY_LABEL_ROOM + SKY_LABEL_GAP + EDGE_PAD;
 export const RIGHT_X = WIDTH - RIGHT_GUTTER - NODE_W;
 /** A Prime's label reads "Name | $12.71M" — the name in Inter, the pipe and
  *  the figure in mono — and the PIPE is what sits on the column's centre
