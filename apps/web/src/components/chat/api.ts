@@ -145,9 +145,6 @@ export type ChatEvent =
       // the confirm gate's calibration record.
       contradictions: VerifyContradiction[];
       // Statements the auditor could not locate in evidence at all, capped at
-      // 5. Informational only — never affects `overall`. Optional so an older
-      // server that predates this field still parses.
-      notFound?: string[];
       // The answer issued a ruling/verdict instead of reporting what the
       // atlas says (the `overreach` auditor). Optional for the same reason.
       rulingIssued?: boolean;

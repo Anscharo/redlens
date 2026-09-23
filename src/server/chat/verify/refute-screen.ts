@@ -13,8 +13,9 @@
 // Evidence: every doc the paragraph cites, read in FULL from the atlas index
 // (tool results can be excerpts), then tool-output records — cited-matching
 // first, then top-8 by overlap (refute-screen-evidence.ts) — then the
-// deterministic param-table rows. The schema entry [E0] is left out: it is
-// there for gemma's not_found, and pure distraction for this judgment.
+// deterministic param-table rows. The schema entry [E0] is left out: it stops
+// gemma reading true schema facts (doc counts, type vocabularies) as invented,
+// and is pure distraction for a per-statement judgment.
 import { askJev, choiceOf, withDeadline, type JevRun } from "../../jev.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import { captureError, type ErrorContext } from "../../posthog-node.ts";

@@ -40,7 +40,6 @@ export interface ParagraphRefute {
   index: number;
   text: string;
   contradictions: Contradiction[];
-  notFound: string[];
   discarded: number;
   parsed: boolean;
   latencyMs: number | null;
@@ -68,7 +67,7 @@ export interface ParagraphRefuter {
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const failedRefute = (index: number, text: string, timedOut: boolean): ParagraphRefute => ({
-  index, text, contradictions: [], notFound: [], discarded: 0, parsed: false, latencyMs: null, usage: null, timedOut,
+  index, text, contradictions: [], discarded: 0, parsed: false, latencyMs: null, usage: null, timedOut,
 });
 
 /** Normalizes the mode; a typo'd value falls to "shadow", which never changes what the reader sees. */
@@ -132,7 +131,7 @@ export function createParagraphRefuter(opts: {
       });
       if (!res.parsed) captureEvent("chat_slice_unparseable", opts.obs, { slice: "refute", paragraph: index });
       return {
-        index, text, contradictions: res.contradictions, notFound: res.notFound, discarded: res.discarded,
+        index, text, contradictions: res.contradictions, discarded: res.discarded,
         parsed: res.parsed, latencyMs: res.latencyMs, usage: res.usage, timedOut: false,
       };
     } catch {
@@ -180,7 +179,7 @@ export function createParagraphRefuter(opts: {
     const s = await screenOne(index, text, evidence, myBurst);
     const r: ParagraphRefute = needsGemma(s, text)
       ? await gemmaOne(index, text, evidence)
-      : { index, text, contradictions: [], notFound: [], discarded: 0, parsed: true, latencyMs: s!.latencyMs, usage: null, timedOut: false, screened: true };
+      : { index, text, contradictions: [], discarded: 0, parsed: true, latencyMs: s!.latencyMs, usage: null, timedOut: false, screened: true };
     report(index, s, r);
     return { ...r, screen: { mode, result: s } };
   }

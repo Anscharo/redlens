@@ -15,7 +15,7 @@ const contradiction = (over: Partial<Contradiction> = {}): Contradiction => ({
   answer_span: "a", evidence_span: "b", why: "w", evidence_label: "[E1]", uuid: null, source: "model", agreed: false, ...over,
 });
 const verdict = (over: Partial<Verdict> = {}): Verdict => ({
-  contradictions: [], not_found: [], ruling_issued: false, notes: "", refuteParsed: true, confirm: null, ...over,
+  contradictions: [], ruling_issued: false, notes: "", refuteParsed: true, confirm: null, ...over,
 });
 
 test("computeOverall: a deterministic check failure is un-appealable, even with a clean verdict", () => {

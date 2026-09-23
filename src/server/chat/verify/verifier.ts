@@ -33,7 +33,6 @@ export interface Contradiction {
 
 export interface Verdict {
   contradictions: Contradiction[]; // ALL validated candidates (agreed and not)
-  not_found: string[]; // ≤ 5, text only
   ruling_issued: boolean;
   notes: string; // refute + overreach notes, ≤ 600 chars (persistence only)
   refuteParsed: boolean; // the refute backbone parsed

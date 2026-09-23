@@ -24,7 +24,7 @@
 import type OpenAI from "openai";
 import type { JsonCall } from "../llm.ts";
 import type { Contradiction, EvidenceEntry } from "./verifier.ts";
-import { buildRefutePrompt, parseRefute, validateContradictions, validateNotFound } from "./refute.ts";
+import { buildRefutePrompt, parseRefute, validateContradictions } from "./refute.ts";
 import { parseJsonish } from "./slice-json.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -34,7 +34,6 @@ export type SliceName = "refute" | "overreach" | "confirm";
 export interface SliceResult {
   slice: SliceName;
   contradictions: Contradiction[];
-  notFound: string[];
   discarded: number;
   rulingIssued: boolean;
   notes: string;
@@ -81,7 +80,7 @@ export async function runSlice(params: {
   maxTokens?: number;
 }): Promise<SliceResult> {
   const base: SliceResult = {
-    slice: params.slice, contradictions: [], notFound: [], discarded: 0,
+    slice: params.slice, contradictions: [], discarded: 0,
     rulingIssued: false, notes: "", parsed: false, latencyMs: null, usage: null,
   };
   // confirm has its own runner (verify/confirm.ts, driven by sliced-verifier.ts
@@ -112,7 +111,7 @@ export async function runSlice(params: {
     if (!parsed) return { ...base, latencyMs: res.latencyMs, usage: res.usage };
     const { kept, discarded } = validateContradictions(parsed.contradictions, params.answer, params.evidence);
     return {
-      ...base, contradictions: kept, notFound: validateNotFound(parsed.notFound, params.evidence), discarded,
+      ...base, contradictions: kept, discarded,
       notes: parsed.notes, parsed: true, latencyMs: res.latencyMs, usage: res.usage,
     };
   } catch {

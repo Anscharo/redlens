@@ -58,7 +58,7 @@ describe("applyEvent answer_final / done", () => {
 
   it("done resolves a stranded 'checking' verify so it doesn't spin forever", () => {
     const m = applyEvent(
-      baseMsg({ verify: { status: "checking", contradictions: [], notFound: [], rulingIssued: false, invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [], completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false } }),
+      baseMsg({ verify: { status: "checking", contradictions: [], rulingIssued: false, invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [], completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false } }),
       { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
     );
     expect(m.verify).toBeUndefined();

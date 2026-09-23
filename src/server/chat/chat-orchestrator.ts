@@ -104,7 +104,6 @@ export type HarnessEvent =
       // never reaches this wire — it stays only in the persisted Verdict
       // (message_checks.verdict) as the confirm gate's calibration record.
       contradictions: { answer: string; evidence: string; why: string; uuid: string | null }[];
-      notFound: string[];
       rulingIssued: boolean;
       invalidCitations: string[];
       invalidDocNos: string[];
@@ -181,7 +180,6 @@ function verifyEvent(
     // Unagreed candidates are dropped here — the confirm gate is hard, so a
     // candidate the second judge did not agree with must never reach the wire.
     contradictions: contradictions.filter((c) => c.agreed).map(asWire),
-    notFound: verdict?.not_found ?? [],
     rulingIssued: verdict?.ruling_issued ?? false,
     invalidCitations: checks.invalidCitations,
     invalidDocNos: checks.invalidDocNos,

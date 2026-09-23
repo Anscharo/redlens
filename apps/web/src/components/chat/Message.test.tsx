@@ -110,7 +110,6 @@ describe("Message", () => {
           verify: {
             status: "pass",
             contradictions: [],
-            notFound: [],
             rulingIssued: false,
             invalidCitations: [],
             invalidDocNos: [],
@@ -139,7 +138,7 @@ describe("Message", () => {
           content: "See [Doc](/atlas/11111111-1111-1111-1111-111111111111)",
           done: true,
           verify: {
-            status: "pass", contradictions: [], notFound: [], rulingIssued: false, invalidCitations: [], invalidDocNos: [],
+            status: "pass", contradictions: [], rulingIssued: false, invalidCitations: [], invalidDocNos: [],
             docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [],
             completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false,
           },
@@ -425,7 +424,6 @@ describe("Message answer reveal", () => {
 describe("Message provisional answer rendering", () => {
   const verify = {
     contradictions: [],
-    notFound: [],
     rulingIssued: false,
     invalidCitations: [],
     invalidDocNos: [],

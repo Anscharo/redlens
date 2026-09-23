@@ -86,7 +86,6 @@ export function applyEvent(m: ChatMsg, ev: ChatEvent): ChatMsg {
               verify: {
                 status: "checking" as const,
                 contradictions: [],
-                notFound: [],
                 rulingIssued: false,
                 invalidCitations: [],
                 invalidDocNos: [],
@@ -135,7 +134,6 @@ export function applyEvent(m: ChatMsg, ev: ChatEvent): ChatMsg {
         verify: {
           status: ev.overall,
           contradictions: ev.contradictions,
-          notFound: ev.notFound ?? [],
           rulingIssued: ev.rulingIssued ?? false,
           invalidCitations: ev.invalidCitations,
           invalidDocNos: ev.invalidDocNos,

@@ -11,7 +11,6 @@ export interface GemmaOutcome {
   timedOut: boolean;
   candidates: { answer_span: string; evidence_span: string; why: string }[];
   discarded: number;
-  notFound: string[];
   latencyMs: number | null;
   wallMs: number;
   usage: { input: number; output: number } | null;

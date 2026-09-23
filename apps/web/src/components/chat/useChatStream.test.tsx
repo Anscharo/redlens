@@ -153,7 +153,6 @@ describe("useChatStream event dispatch", () => {
         type: "verify_result",
         overall: "warn",
         contradictions: [],
-        notFound: [],
         rulingIssued: true,
         invalidCitations: [],
         invalidDocNos: [],
@@ -172,7 +171,7 @@ describe("useChatStream event dispatch", () => {
     expect(verify?.rulingIssued).toBe(true);
   });
 
-  it("parses a verify_result missing notFound/rulingIssued (older server) as empty/false", async () => {
+  it("parses a verify_result missing rulingIssued (older server) as false", async () => {
     mockChat([
       { type: "meta", conversationId: "c1" },
       {
@@ -192,7 +191,6 @@ describe("useChatStream event dispatch", () => {
       await result.current.send("question");
     });
     const verify = result.current.messages.at(-1)?.verify;
-    expect(verify?.notFound).toEqual([]);
     expect(verify?.rulingIssued).toBe(false);
   });
 

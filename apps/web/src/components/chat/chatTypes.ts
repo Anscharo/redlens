@@ -24,15 +24,14 @@ export interface TraceRow {
 // Reliability-harness verdict for one assistant message. "checking" while the
 // audit is in flight. Refutation-only: the verifier never says what the
 // answer got right, only what the evidence contradicts — `contradictions`
-// (agreed by both auditors) drive `fail`, `rulingIssued` drives `warn`, and
-// `notFound` is informational only. A contradiction candidate the confirm
+// (agreed by both auditors) drive `fail` and `rulingIssued` drives `warn`.
+// A contradiction candidate the confirm
 // judge did NOT agree with never reaches this state at all — the confirm
 // gate is hard, and the unagreed candidate survives only in the persisted
 // Verdict (message_checks.verdict) as calibration data.
 export interface VerifyState {
   status: VerifyOverall | "checking";
   contradictions: VerifyContradiction[];
-  notFound: string[];
   rulingIssued: boolean;
   invalidCitations: string[];
   invalidDocNos: string[];

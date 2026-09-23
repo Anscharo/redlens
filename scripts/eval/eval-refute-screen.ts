@@ -137,7 +137,7 @@ async function gemmaCall(k: string, question: string, paragraph: string, evidenc
   const out: GemmaOutcome = {
     parsed: r.parsed, timedOut: r.timedOut || (!r.parsed && wallMs >= timeoutMs * 0.95),
     candidates: r.contradictions.map((x) => ({ answer_span: x.answer_span, evidence_span: x.evidence_span, why: x.why })),
-    discarded: r.discarded, notFound: r.notFound, latencyMs: r.latencyMs, wallMs, usage: r.usage,
+    discarded: r.discarded, latencyMs: r.latencyMs, wallMs, usage: r.usage,
   };
   if (!out.parsed && !out.timedOut) {
     spent.gemmaErrors++; // transport/unparseable — not cached, retried next run

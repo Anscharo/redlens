@@ -462,12 +462,14 @@ prompt.** Every `refute` finding's evidence span is re-checked against the
 actual evidence text; a span that isn't really there is **DISCARDED**, never
 downgraded to a lesser status — refutation-only has no lesser status to
 downgrade to. A finding that survives validation becomes a **candidate**.
-Statements the auditor could not locate in evidence at all go to `notFound`
-(capped at 5), which is informational only and never affects `overall`. It is
-still held to code (`validateNotFound`, refute.ts): an entry whose words occur
-together anywhere in the evidence (overlap ≥ 0.6 — a looser bar than a
-contradiction's, because here overlap REMOVES a claim) is dropped as covered,
-and an entry under five words is dropped as a topic rather than a statement.
+A statement the auditor cannot locate in the evidence is simply not reported.
+The judge used to return those as `not_found` and the reader saw them as "N
+statements the retrieved sources don't cover" — the last surviving channel of
+the pre-2026-09-10 "prove every claim supported" design. It never fed
+`overall`, needed a validation pass the day after it shipped, and was still
+surfacing the answer's own headings and the user's question echoed back a
+fortnight later, so it was removed outright on 2026-09-23. Absence is not
+evidence, which is what refutation-only meant in the first place.
 Observed 2026-09-11 before this: "the savings rate" reported as uncovered while
 the evidence defined the Sky Savings Rate.
 
@@ -588,8 +590,8 @@ sentence (the same precision bar as §6.3), and it goes through the same
 `confirm` gate before it can ship as an agreed contradiction. There is no more
 three-outcome REFUTED/GROUNDED/UNVERIFIED split: refutation-only only ever
 asserts a contradiction (candidate → confirmed) or says nothing about the
-statement (`notFound` or silence) — it no longer tries to prove a gap is
-genuine, only to catch a false one.
+statement — it no longer tries to prove a gap is genuine, only to catch a
+false one.
 
 The originating call's raw `args` are load-bearing here: an empty search envelope
 (`{"count":0,"results":[]}`) carries no words of its own, so the query is the only
@@ -980,7 +982,7 @@ cookie.
 { type: "paragraph_check", index, text, findings }  // incremental deterministic checks, per paragraph — see §6
 { type: "paragraph_refute", index, parsed, candidates }  // per-paragraph MODEL audit (CHAT_REFUTE_MODE=paragraph, the default) — see §6.1
 { type: "export",      format, filename, mime, content, bytes }
-{ type: "verify_result", overall, contradictions, notFound?, rulingIssued?,
+{ type: "verify_result", overall, contradictions, rulingIssued?,
                        invalidCitations, invalidDocNos, docNoMismatches,
                        ungroundedQuotes, ungroundedAddresses,
                        ungroundedCitationValues, paramMismatches,
