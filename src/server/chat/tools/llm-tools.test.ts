@@ -90,3 +90,27 @@ test("execToolDetailed does not capture chat_tool_arg_stripped when every arg ke
   await freshExecToolDetailed(ix, "atlas_get", JSON.stringify({ id: "nope" }));
   expect(events.find((e) => e.event === "chat_tool_arg_stripped")).toBeUndefined();
 });
+
+// A model that fills every property can write "" / [] for an unset string or
+// array, but has no unset value for a number or an enum — those get null.
+test("tools that read empty args as absent offer null exactly on their optional number/enum properties without a default", () => {
+  const params = (name: string) =>
+    (CHAT_TOOLS.find((t) => t.type === "function" && t.function.name === name) as unknown as { function: { parameters: { properties: Record<string, Record<string, unknown>> } } })
+      .function.parameters.properties;
+  const aq = params("atlas_query");
+  expect(aq.recent_commits.type).toEqual(["integer", "null"]);
+  expect(aq.change_type.type).toEqual(["string", "null"]);
+  expect(aq.change_type.enum).toEqual(["added", "content", "structural", "removed", null]);
+  expect(aq.direction.enum).toContain(null);
+  // Strings keep "" as their unset value (a null there made gemma send query:null);
+  // defaulted fields keep their default.
+  for (const k of ["query", "entity", "since", "status", "ancestor_id"]) expect(aq[k].type).toBe("string");
+  expect(aq.edge_types.type).toBe("array");
+  expect(aq.k.type).toBe("integer");
+  expect(aq.enrich.type).toBe("boolean");
+  expect(params("atlas_first_seen").event.enum).toContain(null);
+  expect(params("atlas_first_seen").ids.type).toBe("array");
+  expect(JSON.stringify([aq, params("atlas_first_seen")])).not.toContain("nullable");
+  // Tools that did not opt in are untouched.
+  expect(params("atlas_changed_between").change_type.type).toBe("string");
+});

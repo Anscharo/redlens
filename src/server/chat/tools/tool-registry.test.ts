@@ -14,7 +14,7 @@
 // exercising the handler wiring, not re-testing DB query logic.
 import { test, expect, mock, beforeEach } from "bun:test";
 import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
-import { ATLAS_TOOLS, TOOLS_BY_NAME, toolDescription, type AtlasTool } from "./tool-registry.ts";
+import { ATLAS_TOOLS, TOOLS_BY_NAME, omitEmptyArgs, toolDescription, type AtlasTool } from "./tool-registry.ts";
 import { execToolDetailed } from "./llm-tools.ts";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
 import { REPORT_CHAT_TOOLS } from "../../../lib/routes.ts";
@@ -194,4 +194,57 @@ test("execToolDetailed catches a throwing handler and returns its message as {er
   } finally {
     TOOLS_BY_NAME.set("atlas_describe", original);
   }
+});
+
+// ── empty arguments read as absent (emptyArgsAbsent) ─────────────────────────
+// The strong tier's model fills every declared property; these are its real
+// argument shapes from the 2026-09-22 eval:tools baseline.
+test("omitEmptyArgs drops blank strings, null, empty arrays and blank array elements; keeps numbers and booleans", () => {
+  expect(
+    omitEmptyArgs({ ids: [""], title: "Rate Limits", title_prefix: " ", type: "", event: "added", entity: null, edge_types: [] }),
+  ).toEqual({ title: "Rate Limits", event: "added" });
+  expect(omitEmptyArgs({ ids: ["", "A.1.9", null] })).toEqual({ ids: ["A.1.9"] });
+  expect(omitEmptyArgs({ k: 10, offset: 0, enrich: false, include_params: true, recent_commits: null })).toEqual({
+    k: 10, offset: 0, enrich: false, include_params: true,
+  });
+});
+
+test("only atlas_query and atlas_first_seen opt in to reading empty arguments as absent", () => {
+  expect(ATLAS_TOOLS.filter((t) => t.emptyArgsAbsent).map((t) => t.name).sort()).toEqual(["atlas_first_seen", "atlas_query"]);
+});
+
+const FIRST_SEEN_FILLED = { ids: [""], title: "D1", title_prefix: "", type: "", doc_no_pattern: "", ancestor_id: "", entity: "", event: "added" };
+
+test("atlas_first_seen: ids:[\"\"] beside a class filter runs class mode instead of the ids-and-class error", async () => {
+  const ix = makeIx();
+  const out = JSON.parse((await execToolDetailed(ix, "atlas_first_seen", JSON.stringify(FIRST_SEEN_FILLED))).content);
+  expect(out.error).toBeUndefined();
+  expect(out.class_total).toBe(1);
+  // The MCP transport calls the handler directly, after its own zod pass.
+  const viaHandler = (await TOOLS_BY_NAME.get("atlas_first_seen")!.handler(ix, FIRST_SEEN_FILLED)) as Record<string, unknown>;
+  expect(viaHandler.error).toBeUndefined();
+  expect(viaHandler.class_total).toBe(1);
+});
+
+test("atlas_first_seen: a real ids list beside a real class filter is still refused", async () => {
+  const out = JSON.parse((await execToolDetailed(makeIx(), "atlas_first_seen", JSON.stringify({ ids: ["D1"], title: "D1" }))).content);
+  expect(out.error).toMatch(/not both/);
+});
+
+test("atlas_query: null for an unset filter is not an invalid-arguments error, and filters nothing", async () => {
+  const ix = makeIx();
+  const args = {
+    query: "governance", entity: "", edge_types: [], target_type: "", via_entity_type: "", recent_commits: null, since: "", until: "",
+    change_type: null, status: "", ancestor_id: "", include_params: false, direction: "both", k: 10, enrich: false, q: "",
+  };
+  const out = JSON.parse((await execToolDetailed(ix, "atlas_query", JSON.stringify(args))).content);
+  expect(out.error).toBeUndefined();
+  expect(out.filters_applied).toBeUndefined();
+  expect(out.results.map((r: { id: string }) => r.id)).toContain("D0");
+});
+
+test("atlas_query: edge_types:[\"\"] does not intersect an entity's docs to nothing", async () => {
+  const out = JSON.parse((await execToolDetailed(makeIx(), "atlas_query", JSON.stringify({ entity: "ent", edge_types: [""] }))).content);
+  expect(out.mode).toBe("entity_broad");
+  expect(Object.keys(out.by_relationship)).toContain("defines_entity");
 });

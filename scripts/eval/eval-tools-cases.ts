@@ -118,6 +118,24 @@ export const TOOL_CASES: ToolCase[] = [
   { id: "describe-biggest", category: "describe", q: "Which part of the atlas is the biggest?", acceptFirst: ["atlas_describe"], note: "atlas_describe's stats section answers exactly this." },
   { id: "census-ghost-types", category: "describe", q: "Which document types are defined but never used?", acceptFirst: [NO_TOOL, "atlas_describe"], note: "The census fact fires with the summary; atlas_describe's censuses section has the member list." },
 
+  // ── Strong-routed atlas_query / atlas_first_seen ─────────────────────────
+  // Each is worded to hit a STRONG_SIGNALS pattern (model-router.ts), so the
+  // routed arm serves it on the strong tier, whose model fills every declared
+  // tool property (2026-09-22 baseline: recent_commits + change_type set on
+  // 12/12 of its atlas_query calls, 8 emptied; `ids: [""]` beside a class
+  // filter on 12/15 atlas_first_seen calls). No history window is allowed
+  // unless the question asks about recency.
+  { id: "strong-consequences", category: "strong", q: "What are the consequences if an Aligned Delegate misses a vote?", ...LOOKUP_RULE, note: "Routes strong (analysis). Glossary/role dossier fire, hence LOOKUP_RULE's atlas_get." },
+  { id: "strong-cycles", category: "strong", q: "Compare the Weekly Governance Cycle with the Monthly Governance Cycle.", ...LOOKUP_RULE, acceptFirst: [...LOOKUP, "atlas_report_processes"], note: "Routes strong (comparison). Both are inventoried processes, so the process report is a defensible first call, as in msc-near-process." },
+  { id: "strong-exec-vs-poll", category: "strong", q: "What is the difference between an executive vote and a governance poll?", ...LOOKUP_RULE, note: "Routes strong (comparison)." },
+  { id: "strong-penalties", category: "strong", q: "What penalties apply when a Prime Agent breaches its risk capital requirements?", ...LOOKUP_RULE, acceptFirst: [...LOOKUP, "atlas_report_risk_rules"], note: "Routes strong (governance-risk). The risk-rules report scores the penalties of every risk-rule paragraph, so it is a defensible first call." },
+  { id: "strong-permitted", category: "strong", q: "Is an Aligned Delegate permitted to accept payment from a Prime Agent?", ...LOOKUP_RULE, note: "Routes strong (governance-risk)." },
+  { id: "strong-multipart", category: "strong", q: "What is the Smart Burn Engine? Where does the money it spends come from?", ...LOOKUP_RULE, note: "Routes strong (multi-part)." },
+  { id: "strong-recent-scopes", category: "strong", q: "Compare the recent changes to the Governance Scope with those to the Support Scope.", acceptFirst: ["atlas_query", "atlas_recent_changes", "atlas_history_stats", "atlas_search"], allowAtlasQueryParams: ["recent_commits", "since", "until", "change_type", "ancestor_id"], note: "Routes strong (comparison). The one case here that ASKS for recency: atlas_query's recent_commits/since + ancestor_id scope it, atlas_recent_changes is the history tool, and a search to resolve either scope first is fine." },
+  { id: "strong-fs-two-docs", category: "strong", q: `Compare when {doc_no:${ERS}} and {doc_no:${ALIGNED_DELEGATES}} first appeared in the atlas.`, acceptFirst: ["atlas_first_seen", "atlas_history"], note: "Routes strong (comparison). ids-mode atlas_first_seen with both doc_nos, as hist-first-seen." },
+  { id: "strong-fs-class-title", category: "strong", q: "Of all the documents titled 'Rate Limits', which one was added to the atlas first?", acceptFirst: ["atlas_first_seen", "atlas_filter"], acceptAny: ["atlas_first_seen"], note: "Routes strong (enumeration). Prompt: oldest first-seen over a named class = class-mode atlas_first_seen (title), not ids from search." },
+  { id: "strong-fs-class-type", category: "strong", q: "Of all the Scenario documents in the atlas, which one appeared earliest?", acceptFirst: ["atlas_first_seen", "atlas_filter"], acceptAny: ["atlas_first_seen"], note: "Routes strong (enumeration). Class-mode atlas_first_seen by type." },
+
   // ── Follow-ups ───────────────────────────────────────────────────────────
   { id: "fu-threshold", category: "follow-up", q: "What's its signing threshold?", history: [{ role: "user", content: "What is the Spark Freezer Multisig?" }, { role: "assistant", content: FREEZER_ANSWER }], acceptFirst: ["atlas_entity", "atlas_entities", "atlas_report_multisigs", "atlas_entity_params"], note: "Prompt: a multisig's threshold comes from atlas_entity; the multisig report has it per row." },
   { id: "fu-ad-comp", category: "follow-up", q: "How are they compensated?", history: [{ role: "user", content: "What are Aligned Delegates?" }, { role: "assistant", content: AD_ANSWER }], ...LOOKUP_RULE, note: "" },

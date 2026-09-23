@@ -48,7 +48,32 @@ export interface AtlasTool extends DescribedTool {
   whenToUse?: string;
   shape: z.ZodRawShape;
   annotations?: ToolAnnotations;
+  // Read "" / [] / [""] / null arguments as absent (omitEmptyArgs) — the chat
+  // transport strips them before zod validation too, so a null never fails it.
+  emptyArgsAbsent?: boolean;
   handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
+}
+
+// A model that fills EVERY declared property — the strong tier's does, on every
+// tool (pnpm eval:tools, 2026-09-22) — writes "" / [] / [""] for the ones it
+// means to leave out. None of those is ever a meaningful filter value, yet
+// `ids: [""]` beside a class filter tripped atlas_first_seen's "not both" error
+// on 12 of that model's 15 calls, and `edge_types: [""]` would intersect an
+// entity's docs to nothing. Blank array elements are dropped with the rest;
+// numbers and booleans pass through untouched (0 and false are real values).
+export function omitEmptyArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const blank = (v: unknown) => v === null || v === undefined || (typeof v === "string" && v.trim() === "");
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(args)) {
+    if (blank(v)) continue;
+    if (Array.isArray(v)) {
+      const kept = v.filter((x) => !blank(x));
+      if (kept.length) out[k] = kept;
+      continue;
+    }
+    out[k] = v;
+  }
+  return out;
 }
 
 // Combines `description` + `whenToUse` for the two AGENT consumers (chat's JSON
@@ -473,7 +498,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
         .optional()
         .describe("Class mode only. `added` (default) = earliest added row; `modified` = earliest content edit."),
     },
-    handler: (ix, a) => atlasFirstSeen(ix, a as Parameters<typeof atlasFirstSeen>[1]),
+    emptyArgsAbsent: true,
+    handler: (ix, a) => atlasFirstSeen(ix, omitEmptyArgs(a) as Parameters<typeof atlasFirstSeen>[1]),
   },
   {
     name: "atlas_query",
@@ -488,7 +514,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "are intersected. Use instead of chaining atlas_search + atlas_get when the question spans dimensions. " +
       "Lean results by default — see `enrich`.",
     shape: atlasQueryShape,
-    handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
+    emptyArgsAbsent: true,
+    handler: (ix, a) => atlasQuery(ix, omitEmptyArgs(a) as unknown as QueryArgs),
   },
   // ── Curated reports (atlas_report_*) ──────────────────────────────────────
   // Model-ready rollups too expensive to assemble from primitive graph calls.
