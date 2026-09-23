@@ -84,6 +84,8 @@ playwright/.cache/
 # Chat/model eval report outputs — regenerable by re-running the evals; the
 # durable corpus they grade against lives in scripts/eval/eval-corpora/ (committed).
 .cache/eval-*.json
+# `pnpm eval:refute-screen --gemma` response cache (+ list-price lookup) — same reasoning as .cache/jev/ below.
+.cache/eval-refute-screen/
 # Jev (/systemone) response cache, keyed on model+state+questions — it is what
 # makes a re-run of `pnpm eval:citation` cost nothing and print identical
 # numbers. Regenerable, and it holds model output, so it is never committed.

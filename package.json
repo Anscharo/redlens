@@ -62,6 +62,7 @@
     "eval:completeness": "bun scripts/eval/eval-completeness.ts",
     "eval:tools": "bun scripts/eval/eval-tools.ts",
     "eval:tools:compare": "bun scripts/eval/eval-tools-compare.ts",
+    "eval:refute-screen": "bun scripts/eval/eval-refute-screen.ts",
     "census:embed-units": "bun scripts/aux/embed-units-census.ts",
     "build:at": "node --env-file-if-exists=.env.local scripts/required/build-at.mjs",
     "build:ts": "tsc -b",

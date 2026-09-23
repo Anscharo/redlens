@@ -525,6 +525,41 @@ paragraphs plus any absence-contract candidate. Set `CHAT_REFUTE_MODE=answer`
 to fall back to the pre-2026-09 one-call-over-the-finished-answer behavior;
 `pnpm eval:verifier --mode paragraph|answer` (§12) grades either.
 
+**Jev screen in front of the per-paragraph refute (2026-09-22,
+`verify/refute-screen.ts`, `CHAT_REFUTE_SCREEN`).** Each paragraph also goes to
+one Jev request. The state is the paragraph, the documents it cites (read in
+full from the atlas index, not from tool excerpts), and the most relevant
+tool-output records. Each statement gets a Choice over
+consistent / contradicted / unsupported, and a paragraph is flagged at
+P(contradicted) ≥ 0.2. The modes:
+- `shadow` (the default): the screen runs beside gemma and changes nothing the
+  reader sees. Its verdict is recorded per paragraph at
+  `message_checks.verdict->'paragraphs'->'screen'` on the `verify` row, next to
+  what gemma did on the same paragraph, plus a PostHog `chat_refute_screen`
+  event.
+- `gate`: gemma runs only on paragraphs the screen flags, can't fit, or fails
+  on. A clean screen counts as audited, so it never turns the badge
+  "unverified".
+- `off`: no screen.
+
+Jev cannot replace refute: it returns no verbatim evidence span, and `confirm`
+needs one. So the screen only decides whether gemma looks.
+
+Measured with `pnpm eval:refute-screen --gemma`, the first recorded run of
+paragraph-mode gemma, over 248 cases:
+- On 100 planted name/number contradictions, the screen flags **84**; gemma
+  catches **50** before confirm.
+- Gate mode would call gemma on 16 of 75 stored-answer paragraphs instead of 75,
+  and keep 58 of gemma's 61 catches. The losses are two number swaps Jev scored
+  at 0.03 and 0.17, and one spurious gemma candidate.
+- Latency: Jev p50 0.41 s against gemma's 4.4 s, and gemma timed out on 17 of the
+  248. Only one of those timeouts falls on a paragraph the gate would skip, so
+  the gate cuts calls and cost, not timeouts.
+- Blind spot: list completeness (a phantom or duplicate member).
+
+Shadow stays the default until its recorded verdicts have been compared with
+gemma's on real traffic.
+
 ### 6.2 The absence contract (`verify/absence.ts`)
 
 An absence claim ("the atlas does not specify which chains") used to need
@@ -717,6 +752,57 @@ the verify badge, marks are not rehydrated on reload. Measurement and the
 residual error classes: [`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md)
 §A1. `CHAT_CITATION_CHECK_MODEL=""` turns it off.
 
+**`answer_coverage`** (2026-09-22) is yielded at most once, after
+`answer_final` (and after `citation_marks`) and before `verify_result`/`done`:
+`{ type: "answer_coverage", verdict: "answers" | "declines" | "deflects" |
+"asks", missingParts: string[], parts?: string[] }`. It is the "did it answer
+the question?" check (`verify/answer-coverage.ts`): the audit asks whether
+the answer is *true*, this asks whether it *responds* (the promised-tool guard
+retries one shape of non-answer before it ships; this rules on every answer
+that did). ONE Jev request over `{ question, answer }` (link
+targets stripped — measured 309/311 agreement for −22% tokens): a Choice over
+`answers / declines / deflects / asks`, plus one Noul per question part when
+code splits the question into two or more (`verify/question-parts.ts`: split
+after `?`/`;`/`.`+capital, and within a sentence only before a wh-word or an
+auxiliary — noun conjunctions never split; 87% of real messages are one part).
+There is no `partial` option on purpose: it did not detect under-answering,
+while a Noul per part both detects it and **names** the dropped part. The
+ruling is thresholded in code, not Jev's argmax, and every floor is set so the
+line is only said when Jev is sure: **non-answer** = P(deflects) + P(asks) ≥
+0.5 (the two split their mass on narration-vs-question-back replies, so the
+sum is what separates: every real answer ≤ 0.05, every real non-answer ≥ 0.76,
+every gold announcement ≥ 0.99 — 84/84 announcement × question pairs, 28
+strings × 3 questions, 12 of the strings phrased around the announcement
+guard's regexes); `declines` needs ≥ 0.8 (mixed replies that deliver content and
+note a gap score 0.50–0.79, where "doesn't cover this" would misdescribe
+them); a part is missing below 0.35 (one confirmed drop at 0.17/0.19, the
+nearest non-drop at 0.48). `missingParts` is only ever set on `answers` /
+`declines` — a non-answer scores every part low, and naming them would just
+repeat it. A deterministic pre-check comes first: an answer that is a raw
+tool-call payload (a JSON object, or DSML markup) is ruled `deflects` in code
+with no request — load-bearing, since Jev alone ruled `{"id": [...]}` an
+answer. Started concurrently with the audit and bounded by its own 4 s
+deadline (measured p50 369 / p95 514 ms from a dev machine); fail-open — a
+timeout or a malformed reply means no event, never a warning. Not run on the
+small-talk bypass (it exits before `answer_final`), nor on a turn the judge
+ruled small talk that is audited anyway. The client renders it as the
+"answer confidence" line directly under the verify badge (`AnswerFacts.tsx`,
+copy in `confidenceFacts.ts`): nothing for `answers`; "Didn't answer the
+question" (`deflects`); "Asked you a clarifying question" (`asks`) and "Said
+the atlas doesn't cover this" (`declines`) as neutral facts; "Didn't address:
+“…”" for missing parts; plus "N of M checked sources back the answer" counted
+from `citation_marks`. The badge itself is the third fact (contradictions) and
+is not repeated. Raw distribution, per-part scores and latency persist as a
+`message_checks` row of kind `answer_coverage`; like the marks, the line is
+not rehydrated on reload. **Every threshold is in-sample** (311 real answers
+to 23 of our own bakeoff questions, tuned after reading the first run) and
+**no real-traffic false-fire pass has been run** — the same standing as the
+complexity lane; run one before lowering a floor. Known misfit: an apology
+for a failed tool call ("the history service connection closed") is ruled
+`declines` at 0.98+, so it reads "Said the atlas doesn't cover this".
+Measurement: [`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md) §2.
+`CHAT_ANSWER_COVERAGE_MODEL=""` turns it off.
+
 The client tracks two separate strings per message: `draft` (live tokens,
 shown inside the `synthesizing` stage row once that row is clicked open) and
 `content` (set only by `answer_final` or, on the early-exit path, `done`) —
@@ -819,7 +905,9 @@ specific doc (`via` on the tool result).
 partial; `generation_id` drives async cost backfill), and `message_checks`
 (migration `014_message_checks.sql` — one row per harness activity) hold chat
 state; `users` backs OAuth + JWT sessions. `message_checks.kind` is now always
-one of `round_checks | verify | smalltalk_judge` — `verify_recheck` and
+one of `round_checks | verify | smalltalk_judge | citation_check |
+answer_coverage` (plain `TEXT`, no CHECK constraint — a new kind needs no
+migration) — `verify_recheck` and
 `advisor_recovery` were the advisor/rewrite cycle's rows and nothing writes
 them any more; the table's `action` column (`'annotate' | 'revised' | NULL`
 per the migration comment) is likewise always inserted `NULL` now that
@@ -861,6 +949,8 @@ cookie.
 { type: "facts",       facts: { id, summary }[], bytes? }
 { type: "status",      stage, detail? }             // "recalling" | "querying" | "synthesizing" | "comparing" | "checking"
 { type: "answer_final", content }                   // the answer reveal point — see §8
+{ type: "citation_marks", marks }                   // per-cited-doc Sources-chip marks — see §8
+{ type: "answer_coverage", verdict, missingParts, parts? }  // "did it answer the question?" — see §8
 { type: "paragraph_check", index, text, findings }  // incremental deterministic checks, per paragraph — see §6
 { type: "paragraph_refute", index, parsed, candidates }  // per-paragraph MODEL audit (CHAT_REFUTE_MODE=paragraph, the default) — see §6.1
 { type: "export",      format, filename, mime, content, bytes }

@@ -9,6 +9,7 @@
 import type OpenAI from "openai";
 import { config } from "../../config.ts";
 import type { CheckReport } from "./verify-checks.ts";
+import type { ScreenRecord } from "./refute-screen-record.ts";
 import { isExternalMscTool } from "../../external/envelope.ts";
 import { FACT_TOOL_NAME } from "../../facts/registry.ts";
 import { isUserTeachingTool } from "../teach/inject.ts";
@@ -46,7 +47,9 @@ export interface Verdict {
   // per-burst stats for the persisted verdict — count of paragraphs submitted,
   // how many parsed, how many raw candidates they produced before span
   // validation, how many were discarded by validation, and how many timed out.
-  paragraphs?: { count: number; parsed: number; candidates: number; discarded: number; timedOut: number };
+  // `screen`: one row per paragraph call when the Jev refute screen ran
+  // (CHAT_REFUTE_SCREEN, verify/refute-screen-record.ts) — its calibration record.
+  paragraphs?: { count: number; parsed: number; candidates: number; discarded: number; timedOut: number; screen?: ScreenRecord[] };
 }
 
 export type VerifyOverall = "pass" | "warn" | "fail" | "unverified";
