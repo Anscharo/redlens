@@ -34,10 +34,8 @@
 -->
 
 
-## 2026-09-22
-- Added a line under each chat answer that says when it didn't answer the question or skipped part of it
-- Added a check mark next to each chat source that backs the answer, with a note when a source doesn't cover a line or may say otherwise
-- Brief conversational messages like "thanks" now skip the answer-checking pass anywhere in a conversation, not only on the first message
+## 2026-09-23
+- Chat answers now mark which sources back them and say when a reply didn't answer the question or skipped part of it
 
 ## 2026-09-21
 - Private previews no longer compare against an old shared point in the repo's history; a pull request compares against its own base, a branch against the repo's default branch, and anything else against the live Atlas
