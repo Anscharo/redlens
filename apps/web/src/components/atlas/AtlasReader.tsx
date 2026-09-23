@@ -144,12 +144,16 @@ export const AtlasReader = memo(function AtlasReader({
   //   - visualChildren: each node's IMMEDIATE on-screen children — the
   //     pendulum only ever discloses one level, so this is what handlePendulum
   //     and the "N hidden" tab both walk.
-  // Both pop the same set (entries with depth >= the current row), so they
+  //   - visualParent: the inverse of visualChildren, for walks that go UP
+  //     (filteredParentIds below). Recorded here rather than derived later
+  //     because the stack top already IS the parent at this point.
+  // All three pop the same set (entries with depth >= the current row), so they
   // share the walk; after popping, the stack top is the current row's
   // on-screen parent — free to record once we're there.
-  const { visualSpanCount, visualChildren } = useMemo(() => {
+  const { visualSpanCount, visualChildren, visualParent } = useMemo(() => {
     const counts = new Map<string, number>();
     const children = new Map<string, string[]>();
+    const parents = new Map<string, string>();
     const entries = data.flatNodes;
     const stack: { id: string; index: number; depth: number }[] = [];
     for (let i = 0; i < entries.length; i++) {
@@ -163,11 +167,12 @@ export const AtlasReader = memo(function AtlasReader({
         const arr = children.get(parentId);
         if (arr) arr.push(entries[i].node.id);
         else children.set(parentId, [entries[i].node.id]);
+        parents.set(entries[i].node.id, parentId);
       }
       stack.push({ id: entries[i].node.id, index: i, depth: d });
     }
     for (const top of stack) counts.set(top.id, entries.length - top.index - 1);
-    return { visualSpanCount: counts, visualChildren: children };
+    return { visualSpanCount: counts, visualChildren: children, visualParent: parents };
   }, [data.flatNodes]);
 
   // A doc reached from the sidebar (or any in-app link) may live inside a
@@ -437,19 +442,31 @@ export const AtlasReader = memo(function AtlasReader({
   // In the flat filtered view, a doc's "expand all children" affordance is only
   // meaningful if it actually has a descendant in the filter set. Collect every
   // ancestor of a matched doc so we can gate the affordance to those parents.
+  //
+  // The walk goes up visualParent, NOT node.parentId. Raw parentId comes from a
+  // heading-depth stack capped at 6 (atlas-parser.mjs), so for anything nested
+  // deeper it collapses onto the depth-5 ancestor and the real intermediate
+  // parents drop out of the chain entirely — the Morpho guide and its one child
+  // were shaped exactly like this when this was reported (numbered
+  // A.1.10.2.5.2.3 and .3.1 at the time; the child's parentId pointed at
+  // A.1.10.2.5.2, straight past its parent). Gating on that chain
+  // denied the chevron to every such intermediate row, even though
+  // handlePendulum (which always reads visualChildren) had children to act on:
+  // the control wasn't inert, it was missing. This is the same visual relation
+  // the unfiltered branch's hasChildren uses, so the two views now agree.
   const filteredParentIds = useMemo(() => {
     const set = new Set<string>();
     if (!filterSet) return set;
     for (const entry of data.flatNodes) {
       if (!filterSet.has(entry.node.id)) continue;
-      let pid = entry.node.parentId ?? null;
+      let pid = visualParent.get(entry.node.id) ?? null;
       while (pid && !set.has(pid)) {
         set.add(pid);
-        pid = data.atlas.docs[pid]?.parentId ?? null;
+        pid = visualParent.get(pid) ?? null;
       }
     }
     return set;
-  }, [data, filterSet]);
+  }, [data.flatNodes, visualParent, filterSet]);
 
   const docList = useMemo(() => {
     if (filterSet) {
