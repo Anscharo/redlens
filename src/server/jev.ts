@@ -72,6 +72,22 @@ export function choiceOf(run: JevRun, id: string): JevChoiceAnswer | null {
   return a && a.type === "choice" && typeof a.choice === "string" ? a : null;
 }
 
+/**
+ * The caller's WALL-CLOCK deadline as a signal to hand to askJev.
+ *
+ * askJev's own `timeoutMs` is PER ATTEMPT and it retries 429/5xx with backoff,
+ * so a caller that passes only a timeout has no bound on total time. Every Jev
+ * lane owns its own wall clock and composes it with any ambient signal — the
+ * same division as retrieval/embed.ts (per-attempt) vs search.ts (external
+ * deadline). This was five identical copies of the pair until 2026-09-23; one
+ * of them had additionally learned that the backoff sleep ignored the signal,
+ * a fix that now lives in askJev itself.
+ */
+export function withDeadline(ms: number, parent?: AbortSignal): AbortSignal {
+  const deadline = AbortSignal.timeout(ms);
+  return parent ? AbortSignal.any([parent, deadline]) : deadline;
+}
+
 // Retries mirror retrieval/embed.ts: bounded exponential backoff, and an
 // aborted signal (caller gave up / timed out) stops the loop immediately
 // rather than retrying against a request nobody is waiting for. A 4xx other
@@ -91,8 +107,7 @@ export async function askJev(params: {
 
   const attempt = params.attempt ?? 0;
   const timeoutMs = params.timeoutMs ?? 10_000;
-  const timer = AbortSignal.timeout(timeoutMs);
-  const signal = params.signal ? AbortSignal.any([params.signal, timer]) : timer;
+  const signal = withDeadline(timeoutMs, params.signal);
   const t0 = Date.now();
   try {
     const res = await fetch(`${config.openrouterBaseUrl}/systemone`, {
@@ -126,8 +141,37 @@ export async function askJev(params: {
     if ((err as { fatal?: boolean }).fatal || params.signal?.aborted || attempt >= 3) throw err;
     const wait = 500 * 2 ** attempt;
     console.warn(`  jev retry ${attempt + 1} in ${wait}ms: ${(err as Error).message}`);
-    await Bun.sleep(wait);
+    // The sleep listens to the caller's signal. Without this it ran to
+    // completion first, so an expired WALL-CLOCK deadline was honoured up to
+    // one backoff late (~1.6 s against the prefetch judge's documented 600 ms
+    // cap). Only refute-screen.ts noticed, and worked around it locally with a
+    // Promise.race; fixing it here makes every caller's deadline hard.
+    await sleepUnlessAborted(wait, params.signal);
     if (params.signal?.aborted) throw err;
     return askJev({ ...params, attempt: attempt + 1 });
   }
+}
+
+/**
+ * Resolves after `ms`, or as soon as `signal` aborts — whichever comes first.
+ *
+ * Deliberately does NOT removeEventListener. On Bun 1.3.14 removing a listener
+ * from an `AbortSignal.timeout()` signal DISARMS it: the signal then never
+ * aborts at all, so the caller's whole wall-clock deadline silently stops
+ * working (verified — attach+remove leaves `.aborted` false forever, while
+ * never attaching, or attaching and keeping, both abort on time). `once`
+ * retires the listener when it fires; when the timer wins instead, the extra
+ * `resolve()` is a no-op on a settled promise and the listener dies with the
+ * signal. At most one listener per retry, three per call.
+ */
+function sleepUnlessAborted(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) return Bun.sleep(ms);
+  if (signal.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener("abort", () => {
+      clearTimeout(timer);
+      resolve();
+    }, { once: true });
+  });
 }

@@ -381,6 +381,23 @@ degrades gracefully — harness flakiness never breaks a turn — and
 `transcript`/`checksMeta` are internal, stripped by `sanitizeDone` before any
 event reaches a client (test-asserted).
 
+**The failure rule, stated once: a Jev miss degrades toward MORE checking and
+LESS assertion.** Every Jev lane in the harness has a `catch`, and which way it
+falls is not a per-site judgement call — it follows from what the lane's answer
+is allowed to do:
+
+- A lane whose answer can **remove** work fails **closed**. The small-talk
+  bypass (§6.4) decides whether to skip the audit, so a failed judgement means
+  audit it. The paragraph screen (§6.6) decides whether to skip gemma, so a
+  null screen means gemma runs.
+- A lane whose answer can only **add** a warning fails **open**. Citation marks,
+  answer coverage and the prefetch judgement can each only put something new in
+  front of the reader, so a failure means no mark, no line, and today's
+  pre-Jev routing — never a fabricated finding.
+
+A new lane inherits one of those two by asking which it is. Each `catch` cites
+this rule rather than re-deriving it.
+
 1. **Conversationalist pass** — runs `runChat`, forwarding token/tool/status
    events (through the streaming citation gate, §7) but holding back `done`.
 2. **Incremental deterministic checks** (`verify/incremental.ts`) — as the

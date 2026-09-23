@@ -110,6 +110,19 @@ describe("askJev failure handling", () => {
     expect(calls).toHaveLength(1);
   });
 
+  // The backoff sleep listens to the caller's signal. It did not until
+  // 2026-09-23, so a caller's WALL-CLOCK deadline was honoured up to one
+  // backoff late — here that would be ~500 ms rather than ~100 ms, and up to
+  // ~1.6 s against the prefetch judge's 600 ms cap.
+  it("stops sleeping between retries the moment the caller's deadline expires", async () => {
+    stubFetch([() => new Response("boom", { status: 503 })]);
+    const t0 = Date.now();
+    await expect(
+      askJev({ state: {}, questions: q, model: "m", signal: AbortSignal.timeout(100) }),
+    ).rejects.toThrow();
+    expect(Date.now() - t0).toBeLessThan(400);
+  });
+
   it("throws on a response carrying no answers rather than returning an empty run", async () => {
     stubFetch([ok({ id: "gen-dec-1" })]);
     await expect(askJev({ state: {}, questions: q, model: "m" })).rejects.toThrow(/no answers/);

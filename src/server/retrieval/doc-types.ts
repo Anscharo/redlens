@@ -18,9 +18,15 @@
 // Archive …), which is worth saying out loud rather than calling a typo.
 import type { Indexes, AtlasNode } from "./indexes.ts";
 
-// The type-list Core. UUID is the stable identity (CLAUDE.md); the doc_no is
-// a comment because renumbering moves it.
-const TYPE_LIST_UUID = "428b7f2e-30b0-4119-a10a-9c3496f19bd2"; // A.1.2.2.2
+// The type-list Core, imported from the module that already anchors on it
+// (the ghost-doc-types census) so the two can't drift onto different roots.
+// UUID is the stable identity (CLAUDE.md); the doc_no is a comment because
+// renumbering moves it. The census's own alias map is deliberately NOT reused:
+// it answers "does any document carry this type" — where "Atlas Preamble"
+// folding into "Scope" is correct — whereas a target_type filter resolved that
+// way would quietly hand back every Scope to someone who asked for the
+// Preamble. Same anchor, different question.
+import { TYPE_REGISTRY_UUID as TYPE_LIST_UUID } from "../../lib/conceptsCensus.ts";
 
 /** "The Element Annotation Type" → "Element Annotation". */
 export function declaredTypeName(title: string): string {

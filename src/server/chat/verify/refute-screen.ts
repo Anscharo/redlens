@@ -15,11 +15,13 @@
 // first, then top-8 by overlap (refute-screen-evidence.ts) — then the
 // deterministic param-table rows. The schema entry [E0] is left out: it is
 // there for gemma's not_found, and pure distraction for this judgment.
-import { askJev, choiceOf, type JevRun } from "../../jev.ts";
+import { askJev, choiceOf, withDeadline, type JevRun } from "../../jev.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
+import { captureError, type ErrorContext } from "../../posthog-node.ts";
 import type { EvidenceEntry } from "./verifier.ts";
 import { claimSegments } from "./verify-checks.ts";
-import { tablesAsProse } from "./cite-pairs.ts";
+import { tablesAsProse, realWords, MIN_CLAIM_WORDS } from "./cite-pairs.ts";
+import { hasGroundableMarker } from "./smalltalk.ts";
 import { citedDocs, rankRecords, recordsOf, type EvidenceRecord } from "./refute-screen-evidence.ts";
 
 // P(contradicted) on the paragraph's WORST statement at which gemma is called.
@@ -56,12 +58,11 @@ export function unitQuestion(unit: string) {
 }
 
 const LINK = /\[([^\]\n]{1,120})\]\([^)\s]*\)/g;
-const realWords = (s: string) => (s.match(/[A-Za-z]{2,}/g) ?? []).length;
 /** Statements of a paragraph: tables → labelled prose, then claimSegments; link TEXT kept (it can be the value), URL dropped. */
 export function statementsOf(paragraph: string): string[] {
   return claimSegments(tablesAsProse(paragraph))
     .map((s) => s.replace(LINK, "$1").replace(/\*\*|__|`/g, "").replace(/^\s*(?:[-*+]|\d+\.)\s+/, "").replace(/\s+/g, " ").trim())
-    .filter((s) => realWords(s) >= 3);
+    .filter((s) => realWords(s) >= MIN_CLAIM_WORDS);
 }
 
 export interface ScreenRequest {
@@ -97,19 +98,23 @@ export function buildScreenRequest(p: { question: string; paragraph: string; evi
   const budgetChars = (SCREEN_MAX_TOKENS - questionTokens) * SCREEN_CHARS_PER_TOKEN;
   let chars = JSON.stringify({ question: p.question, paragraph: p.paragraph, evidence: core }).length;
   const fits = chars <= budgetChars;
-  const kept: EvidenceRecord[] = [];
+  // Each candidate is built ONCE and carried with its own measured length:
+  // the entry used to be built to measure it and then rebuilt for the body,
+  // so every kept record paid two JSON.parse and an extra JSON.stringify.
+  const kept: { rec: EvidenceRecord; entry: ReturnType<typeof toolEntry> }[] = [];
   let dropped = 0;
   for (const r of rankRecords(p.paragraph, recs, p.ix, 8)) {
     if (r.entry === "[E-const]") continue; // already in the core
-    const add = JSON.stringify(toolEntry(r)).length + 1;
+    const entry = toolEntry(r);
+    const add = JSON.stringify(entry).length + 1;
     if (fits && chars + add <= budgetChars) {
-      kept.push(r);
+      kept.push({ rec: r, entry });
       chars += add;
     } else dropped++;
   }
-  kept.sort((a, b) => a.pos - b.pos);
+  kept.sort((a, b) => a.rec.pos - b.rec.pos);
   return {
-    state: { question: p.question, paragraph: p.paragraph, evidence: [...core, ...kept.map(toolEntry)] },
+    state: { question: p.question, paragraph: p.paragraph, evidence: [...core, ...kept.map((k) => k.entry)] },
     questions: Object.fromEntries(statements.map((s, i) => [`u${i}`, unitQuestion(s)])),
     statements,
     estTokens: Math.ceil(chars / SCREEN_CHARS_PER_TOKEN) + questionTokens,
@@ -141,17 +146,16 @@ export interface ScreenResult {
 // precisely the shape a number swap hides in. So a paragraph is only skippable
 // when it carries nothing checkable at all: no prose once headings and rules
 // are stripped, and no figure, link, uuid or doc number anywhere in it.
-const CHECKABLE = [
-  /\d/, // any figure — the class the refute auditor exists for
-  /\[[^\]\n]{1,120}\]\([^)\s]*\)/, // a markdown link
-  /[0-9a-f]{8}-[0-9a-f]{4}/i, // uuid fragment
-  /\b[A-Z]{1,3}(?:\.\d+)+\b/, // doc_no shape
-];
+// The marker half is smalltalk.ts's GROUNDABLE_RES, via hasGroundableMarker —
+// the same question ("is there anything here the harness could check?") that
+// the small-talk bypass asks of a whole answer. A local four-regex copy lived
+// here first and silently dropped four of its classes, so a paragraph whose
+// only checkable content was a bare URL or an 0x address skipped the auditor.
 export function hasCheckableContent(paragraph: string): boolean {
   const body = paragraph
     .replace(/^\s*#{1,6}\s+.*$/gm, "") // headings
     .replace(/^\s*[-*_]{3,}\s*$/gm, ""); // horizontal rules
-  return realWords(body) >= 3 || CHECKABLE.some((re) => re.test(paragraph));
+  return realWords(body) >= MIN_CLAIM_WORDS || hasGroundableMarker(paragraph);
 }
 
 export function needsGemma(s: ScreenResult | null, paragraph: string): boolean {
@@ -190,6 +194,7 @@ export async function screenParagraph(p: {
   paragraph: string;
   evidence: EvidenceEntry[];
   ix: Indexes;
+  obs?: ErrorContext;
   model: string;
   signal?: AbortSignal;
   deadlineMs?: number;
@@ -198,14 +203,14 @@ export async function screenParagraph(p: {
     const req = buildScreenRequest(p);
     if (!req.fits || req.statements.length === 0) return unsent(req);
     const deadlineMs = p.deadlineMs ?? SCREEN_DEADLINE_MS;
-    const deadline = AbortSignal.timeout(deadlineMs);
-    const signal = p.signal ? AbortSignal.any([p.signal, deadline]) : deadline;
-    // Raced, not just signalled: askJev's backoff sleep between attempts does
-    // not listen to the signal, so without this a miss could land ~500 ms late.
-    const expired = new Promise<never>((_, reject) => signal.addEventListener("abort", () => reject(new Error("screen deadline")), { once: true }));
-    const run = await Promise.race([askJev({ state: req.state, questions: req.questions, model: p.model, signal, timeoutMs: deadlineMs }), expired]);
+    const signal = withDeadline(deadlineMs, p.signal);
+    const run = await askJev({ state: req.state, questions: req.questions, model: p.model, signal, timeoutMs: deadlineMs });
     return readScreen(req, run);
-  } catch {
+  } catch (err) {
+    // Reported, then null → gemma runs. Shadow mode is a MEASUREMENT phase, so
+    // a screen that silently never answers would quietly read as "Jev agreed
+    // with gemma everywhere" in the comparison.
+    captureError(err, p.obs, { stage: "refute_screen", model: p.model });
     return null;
   }
 }

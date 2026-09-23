@@ -9,13 +9,14 @@
 // allowed to mark a doc "disputed". An unconfirmed contradiction downgrades to
 // "unbacked" (informational) rather than shipping an unconfirmed warning —
 // the confirm gate is a HARD gate here too, same rule as computeOverall's.
+import { withDeadline } from "../../jev.ts";
 import { citationPairs, type CitationPair } from "./cite-pairs.ts";
 import { judgeCitation, type CiteVerdict } from "./cite-support.ts";
 import { runConfirm } from "./confirm.ts";
 import type { Contradiction } from "./verifier.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import type { JsonCall } from "../llm.ts";
-import type { ErrorContext } from "../../posthog-node.ts";
+import { captureError, type ErrorContext } from "../../posthog-node.ts";
 
 export type CitationMarkStatus = "backed" | "unbacked" | "disputed";
 
@@ -99,8 +100,7 @@ export async function runCitationMarks(p: {
 
     const t0 = Date.now();
     const deadlineMs = p.deadlineMs ?? 8000;
-    const deadline = AbortSignal.timeout(deadlineMs);
-    const signal = p.signal ? AbortSignal.any([p.signal, deadline]) : deadline;
+    const signal = withDeadline(deadlineMs, p.signal);
 
     const results: { pair: CitationPair; verdict: CiteVerdict | null; confidence: number | null; costUsd: number | null }[] = new Array(
       pairs.length,
@@ -160,9 +160,13 @@ export async function runCitationMarks(p: {
     const judged = results.map((r) => ({ uuid: r.pair.uuid, claim: r.pair.claim, verdict: r.verdict, confidence: r.confidence }));
     const marks = aggregateMarks(judged);
     return { marks, judged, calls, failed, costUsd, latencyMs: Date.now() - t0, confirm };
-  } catch {
+  } catch (err) {
     // Never throws outward — a failure here must mean "no marks", same
-    // fail-open discipline as judgeCitation itself.
+    // fail-open discipline as judgeCitation itself. Reported, though: a lane
+    // that silently produces nothing looks identical to a turn with no
+    // citations, which is exactly the confusion the other Jev lanes avoid by
+    // capturing here.
+    captureError(err, p.obs, { stage: "citation_marks", model: p.model });
     return EMPTY;
   }
 }

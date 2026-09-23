@@ -1,5 +1,6 @@
 import { describe, expect, it, afterEach, beforeEach } from "bun:test";
-import { citationPairs, buildCiteRequest, judgeCitation, CITE_QUESTION } from "./cite-support.ts";
+import { buildCiteRequest, judgeCitation, CITE_QUESTION } from "./cite-support.ts";
+import { citationPairs } from "./cite-pairs.ts";
 import { claimSegments } from "./verify-checks.ts";
 import { config } from "../../config.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
@@ -72,18 +73,6 @@ describe("buildCiteRequest", () => {
     expect(state.cited_doc.title).toBe("Facilitator");
     expect(state.cited_doc.children).toBeUndefined();
     expect(req.questions.support).toBe(CITE_QUESTION);
-  });
-
-  it("includes children only when asked — the atomization arm", () => {
-    const state = buildCiteRequest({ claim: "c", uuid: A }, ix, { withChildren: true })!.state as any;
-    expect(state.cited_doc.children).toHaveLength(1);
-    expect(state.cited_doc.children[0].title).toBe("Child");
-  });
-
-  it("truncates child content to its budget — irrelevant state costs accuracy", () => {
-    const big = { ...ix, childrenIndex: new Map([[A, [node(KID, "Child", "x".repeat(5000), A)]]]) } as unknown as Indexes;
-    const state = buildCiteRequest({ claim: "c", uuid: A }, big, { withChildren: true, maxChildChars: 50 })!.state as any;
-    expect(state.cited_doc.children[0].content).toHaveLength(50);
   });
 
   it("returns null for an unknown uuid rather than inventing a document", () => {

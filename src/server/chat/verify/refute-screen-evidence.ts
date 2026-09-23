@@ -77,6 +77,11 @@ export function recordsOf(ev: EvidenceEntry[]): EvidenceRecord[] {
 }
 
 const UUID_G = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+// A DELIBERATE narrow dialect of src/lib/patterns.ts's DOC_NO_CORE: "A" only,
+// not [A-Z]{1,3}. Every one of the 11,340 documents in the corpus is A.* or
+// NR-*, so this matches the same set today; it stays narrow because a loose
+// prefix turns ordinary prose capitals into phantom citations. Listed here
+// per patterns.ts's request that new dialects say why they exist.
 const DOCNO_G = /\bA\.\d+(?:\.\d+)*(?:\.var\d+)?\b|\bNR-\d+\b/g;
 const NUM_G = /(?<![0-9a-f-])\d+(?:,\d{3})*(?:\.\d+)?(?![0-9a-f-])/gi;
 

@@ -5,12 +5,11 @@
 // says whether that part was addressed, so a dropped part can be NAMED.
 // Annotate-only and fail-open: any failure returns null, which means "say
 // nothing", never a warning. Question wording: answer-coverage-questions.ts.
-import { askJev, choiceOf, noulOf } from "../../jev.ts";
+import { askJev, choiceOf, noulOf, withDeadline } from "../../jev.ts";
 import { captureError, type ErrorContext } from "../../posthog-node.ts";
 import { splitQuestionParts } from "./question-parts.ts";
 import { partQuestion, RESPONDS_QUESTION } from "./answer-coverage-questions.ts";
 
-export { splitQuestionParts };
 
 export type CoverageVerdict = "answers" | "declines" | "deflects" | "asks";
 
@@ -120,8 +119,7 @@ export async function judgeAnswerCoverage(params: {
   // timeoutMs is per attempt and it retries a 5xx with backoff, so on its own
   // a "4s" call could run ~20s (same division as smalltalk-jev.ts).
   const deadlineMs = params.deadlineMs ?? 4000;
-  const deadline = AbortSignal.timeout(deadlineMs);
-  const signal = params.signal ? AbortSignal.any([params.signal, deadline]) : deadline;
+  const signal = withDeadline(deadlineMs, params.signal);
   try {
     const { state, questions, parts } = buildCoverageRequest(params.question, params.answer);
     const run = await askJev({ state, questions, model: params.model, signal, timeoutMs: deadlineMs });

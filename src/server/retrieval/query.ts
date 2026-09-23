@@ -10,6 +10,7 @@ import { resolveTargetType } from "./doc-types.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { sql } from "../db.ts";
 import { livenessOf, withLivenessHint, type ToolResult } from "../chat/tools/tools.ts";
+import { pgType } from "../chat/tools/tools-history.ts";
 
 export interface QueryArgs {
   query?: string;
@@ -58,10 +59,10 @@ async function historySet(
   // removed | moved — while Postgres and this tool's own enum store
   // content/structural. A model that learned one wording got 0 rows from the
   // other with no way to tell why (found 2026-09-23). Accept BOTH here and
-  // normalize; tools-history.ts owns the same mapping for its own direction.
+  // normalize through tools-history.ts's `pgType`, which owns this mapping —
+  // a local copy is how the two sides come to disagree about one name.
   if (changeType) {
-    const stored = ({ modified: "content", moved: "structural" } as Record<string, string>)[changeType] ?? changeType;
-    params.push(stored);
+    params.push(pgType(changeType));
     conds.push(`change_type = $${params.length}`);
   }
   const rows = (await sql.unsafe(
@@ -247,7 +248,10 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   // emitted no hint at all — the caller saw a bare `count: 0` and reported the
   // atlas silent. `unknownFilterValues` names the ones that cannot match
   // ANYTHING, which is a stronger statement than "these were applied".
-  const knownEdgeTypes = new Set(ix.edges.map((e) => e.edge_type));
+  // Built only when there is something to check against it: scanning every
+  // edge (~17k) to learn the ~43 distinct types is wasted on the large
+  // majority of calls, which pass no edge_types at all.
+  const knownEdgeTypes = a.edge_types?.length ? new Set(ix.edges.map((e) => e.edge_type)) : new Set<string>();
   const unknownFilterValues = [
     targetType.problem ?? "",
     ...(a.edge_types ?? [])

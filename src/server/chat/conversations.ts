@@ -7,7 +7,7 @@ import { getSessionUser } from "../session.ts";
 import { json } from "../http.ts";
 import { HISTORY_BUDGET_CHARS } from "./chat-history.ts";
 import { aggregateMarks, type CitationMark } from "./verify/citation-marks.ts";
-import type { CiteVerdict } from "./verify/cite-support.ts";
+import { VERDICTS, type CiteVerdict } from "./verify/cite-support.ts";
 
 // Rough chars-per-token for the estimated-context fallback below. Estimation
 // only — measured rows never touch it.
@@ -108,11 +108,11 @@ async function listConversations(userId: string): Promise<ConversationListOut[]>
   }));
 }
 
-// Every CiteVerdict value the persisted citation_check payload can carry
-// (mirrors cite-support.ts's CiteVerdict — kept as a local runtime set here
-// since that union isn't exported as a value). Anything else in a stored
-// `verdict` field means a future/changed shape, not this one.
-const CITE_VERDICTS: ReadonlySet<string> = new Set(["supports", "contradicts", "says_nothing", "about_document"]);
+// Every CiteVerdict value the persisted citation_check payload can carry,
+// taken from the module that defines them so a new verdict can't be accepted
+// live and dropped on reload. Anything else in a stored `verdict` field means
+// a future/changed shape, not this one.
+const CITE_VERDICTS: ReadonlySet<string> = new Set(VERDICTS);
 
 // Defensive parse of a message_checks.verdict payload (JSONB, already
 // deserialized to a JS value by Bun.sql) into aggregateMarks' input shape.
@@ -183,7 +183,10 @@ async function getConversation(userId: string, id: string): Promise<Conversation
       ORDER BY created_at DESC LIMIT 200
     ) t ORDER BY created_at
   `) as { id: string; role: string; content: string; created_at: string | Date; tool_calls: unknown }[];
-  const marksByMessage = await citationMarksFor(rows.map((r) => r.id));
+  // Assistant rows only: a citation_check is always recorded against the
+  // answer it checked, so user ids would just widen the uuid array literal
+  // and the index probe for guaranteed misses.
+  const marksByMessage = await citationMarksFor(rows.filter((r) => r.role === "assistant").map((r) => r.id));
   return {
     id: conv.id,
     title: conv.title,

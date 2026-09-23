@@ -74,9 +74,12 @@ function cleanClaim(seg: string): string {
     .trim();
 }
 
-// Three words of at least two letters. `* **Spark**:` has one.
-const MIN_CLAIM_WORDS = 3;
-const realWords = (s: string) => (s.match(/[A-Za-z]{2,}/g) ?? []).length;
+// Three words of at least two letters. `* **Spark**:` has one. Exported
+// because refute-screen.ts applies the SAME floor to the statements it
+// screens, and the two are compared against each other in the eval — a
+// second copy is a silent way for them to stop meaning the same thing.
+export const MIN_CLAIM_WORDS = 3;
+export const realWords = (s: string) => (s.match(/[A-Za-z]{2,}/g) ?? []).length;
 
 /**
  * Every (claim, cited doc) pair in an answer that is worth judging. De-duplicated

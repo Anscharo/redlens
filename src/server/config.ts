@@ -68,6 +68,14 @@ const canonicalHostRedirect =
 // CHAT_MODEL_STRONG with a copy of the same expression.
 const csv = (v: string | undefined): string[] => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const chatModelStrongList = csv(process.env.CHAT_MODEL_STRONG);
+// The pinned Jev release every Jev-backed lane defaults to. Pinned, not
+// `~typesafe/jev-latest`, so a floating release can't move a shipped threshold
+// underneath us — which is why it is ONE constant: six copies meant a bump
+// could leave a single lane behind on the old model with every threshold
+// comment still claiming it was measured against the shipped one. Each lane
+// still reads its own env var, so `""` on any one of them disables that lane
+// alone (the repo's model-slot convention).
+const JEV_DEFAULT = "typesafe/jev-1.13";
 
 export const config = {
   port,
@@ -283,22 +291,23 @@ export const config = {
   // failures, and a typed probability instead of a JSON string that can come
   // back unparseable. It is a Noul, so the threshold is ours, not the model's
   // (SMALLTALK_JEV_THRESHOLD).
-  chatSmalltalkJudgeModel: process.env.CHAT_SMALLTALK_JUDGE_MODEL ?? "typesafe/jev-1.13",
+  chatSmalltalkJudgeModel: process.env.CHAT_SMALLTALK_JUDGE_MODEL ?? JEV_DEFAULT,
   // Jev (TypeSafe System One) — typed-judgment model reached through
   // OpenRouter's /systemone endpoint with the SAME OPENROUTER_API_KEY (no new
-  // vendor or key). Pinned, not `~typesafe/jev-latest`, so a floating release
-  // can't move a shipped threshold underneath us. "" disables every Jev
-  // caller, per the repo's model-slot convention. NOTHING on a request path
-  // reads this yet — it is the eval's model slot (scripts/aux/
-  // eval-smalltalk-judge.ts) until a bakeoff says otherwise.
-  chatJevModel: process.env.CHAT_JEV_MODEL ?? "typesafe/jev-1.13",
+  // vendor or key). Version pinning lives in JEV_DEFAULT above, which every
+  // lane shares. This is askJev's fallback model — what a caller that passes
+  // no model of its own gets — plus the eval's slot (scripts/aux/
+  // eval-smalltalk-judge.ts). It is NOT a master kill switch: each lane below
+  // carries its own env var, so `""` here disables only callers that named no
+  // model, per the repo's model-slot convention.
+  chatJevModel: process.env.CHAT_JEV_MODEL ?? JEV_DEFAULT,
   // Per-doc Sources-chip citation check (verify/citation-marks.ts): judges
   // every (claim, cited doc) pair in the finished answer with Jev
   // (cite-support.ts's judgeCitation) and sends the client one mark per
   // cited doc — backed / unbacked ("doesn't cover a line") / disputed. Runs
   // after answer_final, alongside the verifier audit, never gating delivery.
   // "" disables the feature outright: no Jev calls, no `citation_marks` event.
-  chatCitationCheckModel: process.env.CHAT_CITATION_CHECK_MODEL ?? "typesafe/jev-1.13",
+  chatCitationCheckModel: process.env.CHAT_CITATION_CHECK_MODEL ?? JEV_DEFAULT,
   // Pre-first-token prefetch judge (chat/prefetch-judge.ts): ONE Jev request,
   // read before routeTier/runFacts/the teach filter, under a hard
   // chatPrefetchJudgeDeadlineMs cap that falls back to today's regex +
@@ -312,7 +321,7 @@ export const config = {
   // disables the call outright: no request, every downstream lane (tier
   // routing, census routing, /teach filtering) behaves exactly as it does
   // today.
-  chatPrefetchJudgeModel: process.env.CHAT_PREFETCH_JUDGE_MODEL ?? "typesafe/jev-1.13",
+  chatPrefetchJudgeModel: process.env.CHAT_PREFETCH_JUDGE_MODEL ?? JEV_DEFAULT,
   // Hard WALL-CLOCK deadline, owned by the caller exactly like
   // verify/smalltalk-jev.ts — askJev's own timeoutMs is per-attempt and
   // retries a 5xx three times with backoff, so this is what actually bounds
@@ -327,7 +336,7 @@ export const config = {
   // jev-typesafe.md §2): `deflects` caught 84/84 gold announcements, real
   // answers topped out at 0.16; per-part Nouls separate under-answering where
   // a `partial` option could not. "" disables it (no call, no event).
-  chatAnswerCoverageModel: process.env.CHAT_ANSWER_COVERAGE_MODEL ?? "typesafe/jev-1.13",
+  chatAnswerCoverageModel: process.env.CHAT_ANSWER_COVERAGE_MODEL ?? JEV_DEFAULT,
   // Jev screen in front of the per-paragraph refute (verify/refute-screen.ts).
   //   "shadow" (default) — Jev screens every paragraph and its verdict is
   //       recorded beside gemma's; gemma still runs on every paragraph. This
@@ -338,7 +347,7 @@ export const config = {
   //   "gate" — gemma runs only on paragraphs Jev flags or cannot fit.
   //   "off"  — no screen.
   chatRefuteScreen: (process.env.CHAT_REFUTE_SCREEN ?? "shadow") as "off" | "shadow" | "gate",
-  chatRefuteScreenModel: process.env.CHAT_REFUTE_SCREEN_MODEL ?? "typesafe/jev-1.13",
+  chatRefuteScreenModel: process.env.CHAT_REFUTE_SCREEN_MODEL ?? JEV_DEFAULT,
   // Deterministic checks (free, pure code) — independent of the model slots.
   chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
   // Deterministic pre-lookup (glossary + entity match on the user's message)

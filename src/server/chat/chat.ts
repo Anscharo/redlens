@@ -27,7 +27,7 @@ import { parseTeachCommand } from "./teach/parse.ts";
 import { runTeachCommand } from "./teach/handle.ts";
 import { matchTeachings, type RankedTeaching } from "./teach/match.ts";
 import { summarizeTeachings } from "./teach/inject.ts";
-import { JEV_CENSUS_THRESHOLD } from "./prefetch-judge.ts";
+import { routeCensuses } from "../concepts-prefetch.ts";
 
 // /teach is its own path (review + persist, no atlas harness), so it never
 // runs prepareTurn and records reason "teach".
@@ -232,9 +232,12 @@ export async function handleChat(req: Request): Promise<Response> {
         latency_ms: jevLatencyMs,
         timed_out: judgement === null && jevLatencyMs >= config.chatPrefetchJudgeDeadlineMs,
         complexity_p: judgement?.complexity ?? null,
-        census_fired: judgement
-          ? Object.entries(judgement.census).filter(([, p]) => p >= JEV_CENSUS_THRESHOLD).map(([slug]) => slug)
-          : [],
+        // routeCensuses IS the function the fact called, so this reports what
+        // was actually injected. Re-deriving the threshold inline instead
+        // ignored MAX_CENSUSES (reporting 4 when 3 were injected) and claimed
+        // fires on turns where chatPrefetch is off and nothing ran at all —
+        // the parallel reimplementation concepts-prefetch.ts warns against.
+        census_fired: judgement && config.chatPrefetch ? routeCensuses(body.message, undefined, judgement.census) : [],
         teach_kept: teachKept,
         teach_dropped: teachHits.length - teachKept,
       });

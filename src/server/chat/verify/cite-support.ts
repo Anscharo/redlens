@@ -14,17 +14,21 @@
 // on 2026-09-22 after this check measured better on every wrong-doc class
 // (docs/plans/jev-typesafe.md §A1). Pair extraction lives in cite-pairs.ts.
 //
-// NOTHING ON A REQUEST PATH CALLS THIS YET. It exists to be measured
-// (scripts/eval/eval-citation.ts). See docs/plans/jev-typesafe.md §A1 for the
-// wiring design and the bar it has to clear first.
-import { askJev, choiceOf, type JevChoiceAnswer } from "../../jev.ts";
+// Wired on 2026-09-22: citation-marks.ts runs this over the finished answer's
+// pairs and the Sources chips carry the result. scripts/eval/eval-citation.ts
+// is still the measurement harness; docs/plans/jev-typesafe.md §A1 records the
+// bar it cleared.
+import { askJev, choiceOf, withDeadline, type JevChoiceAnswer } from "../../jev.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import type { CitationPair } from "./cite-pairs.ts";
 
-export { citationPairs, type CitationPair } from "./cite-pairs.ts";
 
 export type CiteVerdict = "supports" | "contradicts" | "says_nothing" | "about_document";
-const VERDICTS: string[] = ["supports", "contradicts", "says_nothing", "about_document"];
+// Exported as a value because a stored citation_check payload has to be
+// validated against the same list when it is read back (conversations.ts) —
+// the TS union alone can't do that, and a second literal copy is how a new
+// verdict comes to be silently dropped on reload only.
+export const VERDICTS: string[] = ["supports", "contradicts", "says_nothing", "about_document"];
 
 // One narrow judgment. `says_nothing` has to be a first-class option, not an
 // absence: without it the model is forced to choose between two wrong answers
@@ -62,28 +66,26 @@ type CiteQuestion = typeof CITE_QUESTION | typeof CITE_QUESTION_3;
  * Builds the request for one pair. Pure — no network — so the state and the
  * question can be asserted in a test without spending anything.
  *
- * `withChildren` exists because of atomization: since the atlas split into one
- * document per node, a parent's own content no longer contains its children's
- * text, so a sentence citing a parent reads `says_nothing` on the parent alone.
- * The eval measures both ways; which one ships is a measured decision, not a
- * guess. Children are title+content, truncated, and capped — Jev's accuracy
- * degrades as irrelevant state grows, so this is a budget, not a dump.
+ * The cited document is sent alone, WITHOUT its children. Atomization makes
+ * that a real choice: since the atlas split into one document per node, a
+ * parent's own content no longer contains its children's text, so a sentence
+ * citing a parent can read `says_nothing` on the parent alone. A
+ * children-attaching arm was written for the bakeoff and no arm of the shipped
+ * eval ever set it, so it is gone rather than sitting unexercised — Jev's
+ * accuracy degrades as irrelevant state grows, so re-adding it means measuring
+ * it, and that wants a budget written against fresh numbers.
  */
 export function buildCiteRequest(
   pair: CitationPair,
   ix: Indexes,
-  opts: { withChildren?: boolean; maxChildren?: number; maxChildChars?: number; question?: CiteQuestion } = {},
+  opts: { question?: CiteQuestion } = {},
 ): { state: unknown; questions: Record<string, CiteQuestion> } | null {
   const doc = ix.docMap.get(pair.uuid);
   if (!doc) return null; // an unknown uuid is already a hard failure elsewhere
-  const cited: Record<string, unknown> = { title: doc.title, content: doc.content };
-  if (opts.withChildren) {
-    const kids = (ix.childrenIndex.get(pair.uuid) ?? []).slice(0, opts.maxChildren ?? 12);
-    if (kids.length) {
-      cited.children = kids.map((k) => ({ title: k.title, content: k.content.slice(0, opts.maxChildChars ?? 1200) }));
-    }
-  }
-  return { state: { claim: pair.claim, cited_doc: cited }, questions: { support: opts.question ?? CITE_QUESTION } };
+  return {
+    state: { claim: pair.claim, cited_doc: { title: doc.title, content: doc.content } },
+    questions: { support: opts.question ?? CITE_QUESTION },
+  };
 }
 
 export interface CiteJudgement {
@@ -106,16 +108,14 @@ export async function judgeCitation(params: {
   pair: CitationPair;
   ix: Indexes;
   model?: string;
-  withChildren?: boolean;
   question?: CiteQuestion;
   signal?: AbortSignal;
   timeoutMs?: number;
 }): Promise<CiteJudgement> {
-  const req = buildCiteRequest(params.pair, params.ix, { withChildren: params.withChildren, question: params.question });
+  const req = buildCiteRequest(params.pair, params.ix, { question: params.question });
   if (!req) return FAILED;
   const deadlineMs = params.timeoutMs ?? 8000;
-  const deadline = AbortSignal.timeout(deadlineMs);
-  const signal = params.signal ? AbortSignal.any([params.signal, deadline]) : deadline;
+  const signal = withDeadline(deadlineMs, params.signal);
   try {
     const run = await askJev({ state: req.state, questions: req.questions, model: params.model, signal, timeoutMs: deadlineMs });
     const c: JevChoiceAnswer | null = choiceOf(run, "support");

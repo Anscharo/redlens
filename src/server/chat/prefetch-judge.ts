@@ -7,7 +7,7 @@
 // similarity lanes on a miss. Question wording lives in prefetch-questions.ts
 // (load-bearing — see that file's header); this module owns the request/
 // response shape, the deadline, and the three shipped thresholds.
-import { askJev, noulOf } from "../jev.ts";
+import { askJev, noulOf, withDeadline } from "../jev.ts";
 import { captureError, type ErrorContext } from "../posthog-node.ts";
 import { config } from "../config.ts";
 import { type CensusSlug, CENSUS_SLUGS } from "../../lib/conceptsCensus.ts";
@@ -73,8 +73,7 @@ export async function judgePrefetch(params: {
   if (!model) return null;
 
   const deadlineMs = params.deadlineMs ?? config.chatPrefetchJudgeDeadlineMs;
-  const deadline = AbortSignal.timeout(deadlineMs);
-  const signal = params.signal ? AbortSignal.any([params.signal, deadline]) : deadline;
+  const signal = withDeadline(deadlineMs, params.signal);
 
   const state: Record<string, unknown> = { message: params.question.slice(0, 2000) };
   if (params.notes.length > 0) {

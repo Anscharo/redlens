@@ -29,7 +29,18 @@ const GROUNDABLE_RES: RegExp[] = [
 // explanations get audited.
 export const SMALLTALK_MAX_CHARS = 600;
 
+/**
+ * Does this text carry anything the harness could check? The marker half of
+ * the test above, without the small-talk length cap — exported because
+ * refute-screen.ts's gate asks the identical question of a PARAGRAPH, where a
+ * 600-character ceiling would be meaningless. Keeping one list means a leak
+ * class added for the bypass is also one the paragraph gate stops skipping.
+ */
+export function hasGroundableMarker(text: string): boolean {
+  return GROUNDABLE_RES.some((re) => re.test(text));
+}
+
 export function isUncheckableAnswer(content: string): boolean {
   if (content.length > SMALLTALK_MAX_CHARS) return false;
-  return !GROUNDABLE_RES.some((re) => re.test(content));
+  return !hasGroundableMarker(content);
 }

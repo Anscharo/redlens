@@ -96,7 +96,7 @@ export function createParagraphRefuter(opts: {
   const defaultScreen: ScreenFn | null =
     config.chatRefuteScreenModel && config.openrouterApiKey
       ? (text, evidence) =>
-          screenParagraph({ question: opts.question, paragraph: text, evidence, ix: opts.ix, model: config.chatRefuteScreenModel, signal: opts.signal })
+          screenParagraph({ question: opts.question, paragraph: text, evidence, ix: opts.ix, model: config.chatRefuteScreenModel, signal: opts.signal, obs: opts.obs })
       : null;
   const screenFn = opts.screen ?? defaultScreen;
   const mode = resolveMode(opts.screenMode ?? config.chatRefuteScreen, screenFn);

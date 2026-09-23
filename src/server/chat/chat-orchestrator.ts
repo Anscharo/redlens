@@ -389,13 +389,15 @@ async function resolveCitationMarks(
   const run = await promise;
   const event = Object.keys(run.marks).length > 0 ? ({ type: "citation_marks" as const, marks: run.marks }) : null;
   if (run.judged.length === 0) return { event, meta: null };
-  const counts: Record<string, number> = {};
-  for (const m of Object.values(run.marks)) counts[m.status] = (counts[m.status] ?? 0) + 1;
+  // Only the raw judgements are stored. A per-status tally used to ride along,
+  // but conversations.ts deliberately re-folds `judged` through aggregateMarks
+  // on read rather than trusting a stored summary — so the tally had no reader
+  // and could only ever come to disagree with that fold.
   return {
     event,
     meta: {
       kind: "citation_check", model,
-      verdict: { counts, judged: run.judged, confirm: run.confirm },
+      verdict: { judged: run.judged, confirm: run.confirm },
       overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: run.latencyMs,
     },
   };
@@ -852,6 +854,7 @@ export async function* runVerifiedChat(opts: {
     return [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...(ce ? [ce] : []), ...turnEvidence];
   };
   let verdict: Verdict | null = null;
+  let auditPromise: ReturnType<typeof runAudit> | null = null;
   if (verifierModel) {
     if (grounded) {
       const detail = paragraphMode
@@ -874,24 +877,29 @@ export async function* runVerifiedChat(opts: {
         yield { type: "paragraph_refute", index: r.index, parsed: r.parsed, candidates: r.contradictions.length };
       }
     }
-    // Started as a promise, not awaited yet — the marks resolve below run
+    // Started as a promise, not awaited yet — the post-answer checks below run
     // concurrently with it rather than delaying its start.
-    const auditPromise = runAudit({
+    auditPromise = runAudit({
       jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
       answer: done.content, evidence: baseEvidence(evidence, done.content), checks, signal: opts.signal, obs: opts.obs,
       paragraphRefutes, settleMs,
     });
-    // Nothing awaits the audit while the marks resolve, so a rejection in
-    // that window would be an UNHANDLED one. This no-op handler only marks it
+    // Nothing awaits the audit while those resolve, so a rejection in that
+    // window would be an UNHANDLED one. This no-op handler only marks it
     // handled; the `await auditPromise` below still rethrows exactly as the
     // old serial `await runAudit(...)` did.
     auditPromise.catch(() => {});
-    const cm = await resolveCitationMarks(citationMarksPromise, citationMarksModel);
-    if (cm.event) yield cm.event;
-    if (cm.meta) checksMeta.push(cm.meta);
-    const cov = await resolveAnswerCoverage(coveragePromise, coverageModel);
-    if (cov.event) yield cov.event;
-    if (cov.meta) checksMeta.push(cov.meta);
+  }
+  // Drained once, for both branches: the audit is what's conditional, not
+  // these. Order is load-bearing — marks and coverage reach the client before
+  // `verify_result` (see HarnessEvent).
+  const cm = await resolveCitationMarks(citationMarksPromise, citationMarksModel);
+  if (cm.event) yield cm.event;
+  if (cm.meta) checksMeta.push(cm.meta);
+  const cov = await resolveAnswerCoverage(coveragePromise, coverageModel);
+  if (cov.event) yield cov.event;
+  if (cov.meta) checksMeta.push(cov.meta);
+  if (auditPromise) {
     const { run, modelLabel } = await auditPromise;
     verdict = run.verdict;
     checksMeta.push({
@@ -900,13 +908,6 @@ export async function* runVerifiedChat(opts: {
       inputTokens: run.usage?.input ?? null, outputTokens: run.usage?.output ?? null,
       generationId: run.generationId, latencyMs: run.latencyMs,
     });
-  } else {
-    const cm = await resolveCitationMarks(citationMarksPromise, citationMarksModel);
-    if (cm.event) yield cm.event;
-    if (cm.meta) checksMeta.push(cm.meta);
-    const cov = await resolveAnswerCoverage(coveragePromise, coverageModel);
-    if (cov.event) yield cov.event;
-    if (cov.meta) checksMeta.push(cov.meta);
   }
   const overall = verifierModel ? computeOverall(checks, verdict) : checks.failed ? "fail" : "unverified";
 

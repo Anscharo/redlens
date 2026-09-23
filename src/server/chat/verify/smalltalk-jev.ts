@@ -15,7 +15,7 @@
 //      The bypass is fail-closed by design, so the operating point is picked
 //      from the dangerous-error direction: no factual message may be ruled
 //      small talk.
-import { askJev, noulOf } from "../../jev.ts";
+import { askJev, noulOf, withDeadline } from "../../jev.ts";
 import { captureError, type ErrorContext } from "../../posthog-node.ts";
 
 export interface SmalltalkJevRun {
@@ -86,8 +86,7 @@ export async function judgeSmalltalkJev(params: {
   // deadline ends the loop instead of extending it. Same division as
   // retrieval/embed.ts (per-attempt) vs search.ts (external deadline).
   const deadlineMs = params.timeoutMs ?? 5000;
-  const deadline = AbortSignal.timeout(deadlineMs);
-  const signal = params.signal ? AbortSignal.any([params.signal, deadline]) : deadline;
+  const signal = withDeadline(deadlineMs, params.signal);
   try {
     const run = await askJev({
       state: { message: params.question.slice(0, 2000) },
