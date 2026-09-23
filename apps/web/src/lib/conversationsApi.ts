@@ -1,4 +1,4 @@
-import { apiUrl, type ToolCallRecord } from "../components/chat/api";
+import { apiUrl, type ToolCallRecord, type CitationMark } from "../components/chat/api";
 
 // Typed fetch wrappers for the /api/chat/conversations REST endpoints
 // (auth-gated via cookie), mirroring collectionsApi.ts. Backs the
@@ -28,6 +28,12 @@ export interface StoredMessage {
   // every other row. See src/components/chat/hydrate.ts for how this
   // restores the full tool-call trace (TraceRow[]) on rehydration.
   toolCalls: ToolCallRecord[] | null;
+  // Per-cited-doc Sources-chip marks, reconstructed server-side from the
+  // persisted citation_check row (src/server/chat/conversations.ts's
+  // citationMarksFor) — null when there's nothing to show (no row, or the
+  // row's judged pairs aggregated to zero marks). See hydrate.ts for how
+  // this restores ChatMsg.citationMarks on rehydration.
+  citationMarks: Record<string, CitationMark> | null;
 }
 
 export interface ConversationDetail {

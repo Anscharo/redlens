@@ -133,8 +133,33 @@ export interface ScreenResult {
 }
 
 /** THE gate rule: gemma is skipped only on a judged, fitting, non-empty, unflagged screen. */
-export function needsGemma(s: ScreenResult | null): boolean {
-  return !s || !s.fits || s.statements.length === 0 || s.flagged;
+// A paragraph with no statements is usually a heading or a `---` rule — 9 of
+// the 16 paragraphs gate mode still sent to gemma were exactly that, and gemma
+// found nothing in any of them (measured 2026-09-23). But "no statements" alone
+// is the WRONG test for skipping: statementsOf drops anything under three real
+// words, so the terse claim "Threshold: 3 of 5" also has none, and that is
+// precisely the shape a number swap hides in. So a paragraph is only skippable
+// when it carries nothing checkable at all: no prose once headings and rules
+// are stripped, and no figure, link, uuid or doc number anywhere in it.
+const CHECKABLE = [
+  /\d/, // any figure — the class the refute auditor exists for
+  /\[[^\]\n]{1,120}\]\([^)\s]*\)/, // a markdown link
+  /[0-9a-f]{8}-[0-9a-f]{4}/i, // uuid fragment
+  /\b[A-Z]{1,3}(?:\.\d+)+\b/, // doc_no shape
+];
+export function hasCheckableContent(paragraph: string): boolean {
+  const body = paragraph
+    .replace(/^\s*#{1,6}\s+.*$/gm, "") // headings
+    .replace(/^\s*[-*_]{3,}\s*$/gm, ""); // horizontal rules
+  return realWords(body) >= 3 || CHECKABLE.some((re) => re.test(paragraph));
+}
+
+export function needsGemma(s: ScreenResult | null, paragraph: string): boolean {
+  if (!s || !s.fits || s.flagged) return true;
+  // Nothing the screen could judge: send it to gemma anyway UNLESS there is
+  // nothing to check in the first place.
+  if (s.statements.length === 0) return hasCheckableContent(paragraph);
+  return false;
 }
 
 /** A screen that sent nothing: nothing to judge, or too big to send. */

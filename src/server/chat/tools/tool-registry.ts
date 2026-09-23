@@ -385,6 +385,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       with_diff: z.boolean().default(false).describe("Include line+word diffs in the response."),
     },
     handler: (ix, a) => atlasHistory(ix, a.id as string, a as Parameters<typeof atlasHistory>[2]),
+    // Same treatment as atlas_query (2026-09-23): the strong model fills every
+    // declared property, and an optional enum has no empty value — so it wrote a
+    // real change_type nobody asked for. `null` gives it a way to say "unset",
+    // and empty strings are read as absent.
+    emptyArgsAbsent: true,
   },
   {
     name: "atlas_recent_changes",
@@ -401,6 +406,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       k: z.number().int().min(1).max(200).default(50),
     },
     handler: (ix, a) => atlasRecentChanges(ix, a as Parameters<typeof atlasRecentChanges>[1]),
+    // Same treatment as atlas_query (2026-09-23): the strong model fills every
+    // declared property, and an optional enum has no empty value — so it wrote a
+    // real change_type nobody asked for. `null` gives it a way to say "unset",
+    // and empty strings are read as absent.
+    emptyArgsAbsent: true,
   },
   {
     name: "atlas_history_stats",
@@ -466,6 +476,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       limit: z.number().int().min(1).max(500).default(100),
     },
     handler: (ix, a) => atlasChangedBetween(ix, a as Parameters<typeof atlasChangedBetween>[1]),
+    // Same treatment as atlas_query (2026-09-23): the strong model fills every
+    // declared property, and an optional enum has no empty value — so it wrote a
+    // real change_type nobody asked for. `null` gives it a way to say "unset",
+    // and empty strings are read as absent.
+    emptyArgsAbsent: true,
   },
   {
     name: "atlas_first_seen",

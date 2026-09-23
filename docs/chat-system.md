@@ -747,10 +747,18 @@ marks render on the Sources chips — a ✓ on every backed source, by explicit
 product decision, as an exception to the list-by-exception rule for stage
 rows. Started concurrently with the audit, so it never delays it; bounded by
 its own 8 s deadline and fail-open (a timeout means no marks, never a warning).
-Raw verdicts persist as a `message_checks` row of kind `citation_check`; like
-the verify badge, marks are not rehydrated on reload. Measurement and the
-residual error classes: [`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md)
-§A1. `CHAT_CITATION_CHECK_MODEL=""` turns it off.
+Raw verdicts persist as a `message_checks` row of kind `citation_check`.
+Unlike the verify badge and the answer-coverage line, the marks ARE
+rehydrated on reload (2026-09-23): `GET /api/chat/conversations/:id`
+(`conversations.ts`'s `citationMarksFor`) re-runs `aggregateMarks` over each
+assistant message's stored `judged` pairs — the same fold a live turn uses,
+so a later change to the aggregation rule applies to old rows too without a
+backfill — and the client (`hydrate.ts`) restores the result straight into
+`ChatMsg.citationMarks`. A message with no citation_check row, or one whose
+pairs aggregate to zero marks, comes back `null` and renders like a message
+the live registry never judged. Measurement and the residual error classes:
+[`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md) §A1.
+`CHAT_CITATION_CHECK_MODEL=""` turns it off.
 
 **`answer_coverage`** (2026-09-22) is yielded at most once, after
 `answer_final` (and after `citation_marks`) and before `verify_result`/`done`:
@@ -793,8 +801,9 @@ the atlas doesn't cover this" (`declines`) as neutral facts; "Didn't address:
 “…”" for missing parts; plus "N of M checked sources back the answer" counted
 from `citation_marks`. The badge itself is the third fact (contradictions) and
 is not repeated. Raw distribution, per-part scores and latency persist as a
-`message_checks` row of kind `answer_coverage`; like the marks, the line is
-not rehydrated on reload. **Every threshold is in-sample** (311 real answers
+`message_checks` row of kind `answer_coverage`; unlike the marks (which now
+rehydrate — see `citation_marks` above), the line is not rehydrated on
+reload. **Every threshold is in-sample** (311 real answers
 to 23 of our own bakeoff questions, tuned after reading the first run) and
 **no real-traffic false-fire pass has been run** — the same standing as the
 complexity lane; run one before lowering a floor. Known misfit: an apology

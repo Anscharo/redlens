@@ -15,9 +15,11 @@ interface StoredMsg {
   id: string; conversation_id: string; role: string; content: string; created_at: string; tool_calls: unknown;
   context_tokens: number | null;
 }
+interface StoredCheck { message_id: string; kind: string; verdict: unknown }
 
 let conversations: Conv[] = [];
 let msgs: StoredMsg[] = [];
+let msgChecks: StoredCheck[] = [];
 let queryLog: { text: string; values: unknown[] }[] = [];
 let idCounter = 0;
 function nowIso(): string {
@@ -72,8 +74,16 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .slice(0, 200)
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
-      .map((m) => ({ role: m.role, content: m.content, created_at: m.created_at, tool_calls: m.tool_calls }));
+      .map((m) => ({ id: m.id, role: m.role, content: m.content, created_at: m.created_at, tool_calls: m.tool_calls }));
     return Promise.resolve(rows);
+  }
+  if (text.includes("FROM message_checks") && text.includes("kind = 'citation_check'")) {
+    // The real toUuidArrayLiteral/fromUuidArray impls are wired in below (not
+    // re-stubbed), so this round-trips exactly like Postgres would.
+    const [idsLiteral] = values as [string];
+    const ids = fromUuidArray(idsLiteral);
+    const rows = msgChecks.filter((c) => c.kind === "citation_check" && ids.includes(c.message_id));
+    return Promise.resolve(rows.map((c) => ({ message_id: c.message_id, verdict: c.verdict })));
   }
   if (text.includes("UPDATE conversations SET title") && text.includes("title_source = 'user'")) {
     const [title, id, userId] = values as [string, string, string];
@@ -125,6 +135,7 @@ afterAll(() => {
 beforeEach(() => {
   conversations = [];
   msgs = [];
+  msgChecks = [];
   queryLog = [];
   idCounter = 0;
 });
@@ -162,6 +173,13 @@ function seedMessage(over: Partial<StoredMsg> & { conversation_id: string; role:
   const m: StoredMsg = { id: `msg-${msgs.length}`, content: "hi", created_at: nowIso(), tool_calls: null, context_tokens: null, ...over };
   msgs.push(m);
   return m;
+}
+
+// Seeds a message_checks row of kind citation_check, in the same shape
+// resolveCitationMarks/persistChecks write (chat-orchestrator.ts /
+// verify/citation-marks.ts's CitationMarksRun.judged).
+function seedCitationCheck(messageId: string, judged: { uuid: string; claim: string; verdict: string | null }[]): void {
+  msgChecks.push({ message_id: messageId, kind: "citation_check", verdict: { judged, counts: {}, confirm: null } });
 }
 
 describe("handleConversations auth gate", () => {
@@ -321,6 +339,84 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
     const res = await handleConversations(req("/api/chat/conversations/c-2", { cookie: token }));
     const body = (await res.json()) as { contextTokens: number | null };
     expect(body.contextTokens).toBeNull();
+  });
+
+  describe("citationMarks (survives reload — reconstructed from message_checks)", () => {
+    it("recomputes marks via aggregateMarks over the persisted judged pairs", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      seedMessage({ conversation_id: "c-1", role: "user" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedCitationCheck(assistant.id, [
+        { uuid: "doc-a", claim: "The threshold is 7 signers.", verdict: "supports" },
+        { uuid: "doc-b", claim: "Rewards accrue daily.", verdict: null }, // unjudged — withholds the mark
+        { uuid: "doc-c", claim: "The fee is 10 bps.", verdict: "contradicts" },
+      ]);
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; citationMarks: unknown }[] };
+      const marks = body.messages.find((m) => m.role === "assistant")!.citationMarks as Record<
+        string,
+        { status: string }
+      >;
+      expect(marks["doc-a"].status).toBe("backed");
+      expect(marks["doc-c"].status).toBe("disputed");
+      expect(marks["doc-b"]).toBeUndefined(); // unjudged pair — no mark, not a guess
+    });
+
+    it("is null for a message with no citation_check row", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      seedMessage({ conversation_id: "c-1", role: "user" });
+      seedMessage({ conversation_id: "c-1", role: "assistant" });
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; citationMarks: unknown }[] };
+      expect(body.messages.find((m) => m.role === "assistant")!.citationMarks).toBeNull();
+    });
+
+    it("is null when the judged pairs aggregate to nothing (e.g. all unjudged)", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
+      seedCitationCheck(assistant.id, [{ uuid: "doc-a", claim: "Some claim.", verdict: null }]);
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const body = (await res.json()) as { messages: { role: string; citationMarks: unknown }[] };
+      expect(body.messages.find((m) => m.role === "assistant")!.citationMarks).toBeNull();
+    });
+
+    it("does not throw on a malformed/legacy verdict payload — degrades to null", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      const noJudgedField = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-no-judged" });
+      msgChecks.push({ message_id: noJudgedField.id, kind: "citation_check", verdict: { counts: {} } }); // no `judged` array
+      const stringVerdict = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-string-verdict" });
+      msgChecks.push({ message_id: stringVerdict.id, kind: "citation_check", verdict: "not-an-object" });
+      const badItems = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-bad-items" });
+      seedCitationCheck(badItems.id, [
+        { uuid: "doc-a", claim: "ok claim", verdict: "not_a_real_verdict" }, // dropped, not thrown
+        // @ts-expect-error — exercising a malformed row missing required fields
+        { claim: "missing uuid" },
+      ]);
+
+      const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { messages: { role: string; citationMarks: unknown }[] };
+      for (const m of body.messages) expect(m.citationMarks).toBeNull();
+    });
+
+    it("fires exactly one message_checks query for the whole conversation, not one per message", async () => {
+      const token = await authed();
+      seedConversation({ id: "c-1", user_id: "user-1" });
+      for (let i = 0; i < 5; i++) {
+        const m = seedMessage({ conversation_id: "c-1", role: "assistant", id: `m-${i}` });
+        seedCitationCheck(m.id, [{ uuid: `doc-${i}`, claim: "x", verdict: "supports" }]);
+      }
+      await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
+      const hits = queryLog.filter((q) => q.text.includes("FROM message_checks"));
+      expect(hits.length).toBe(1);
+    });
   });
 });
 

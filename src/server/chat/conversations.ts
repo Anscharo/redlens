@@ -2,10 +2,12 @@
 // Auth-gated, ownership scoped via WHERE user_id (mirrors collections.ts).
 // Conversations themselves are created only by POST /api/chat
 // (resolveConversation in chat.ts) — there is no POST here.
-import { sql } from "../db.ts";
+import { sql, toUuidArrayLiteral } from "../db.ts";
 import { getSessionUser } from "../session.ts";
 import { json } from "../http.ts";
 import { HISTORY_BUDGET_CHARS } from "./chat-history.ts";
+import { aggregateMarks, type CitationMark } from "./verify/citation-marks.ts";
+import type { CiteVerdict } from "./verify/cite-support.ts";
 
 // Rough chars-per-token for the estimated-context fallback below. Estimation
 // only — measured rows never touch it.
@@ -32,6 +34,14 @@ interface MessageOut {
   content: string;
   createdAt: string;
   toolCalls: unknown;
+  // Per-cited-doc Sources-chip marks, reconstructed from the persisted
+  // citation_check row (see citationMarksFor below) — null when there is
+  // nothing to show: no row was ever written for this message (feature off,
+  // small-talk bypass, no citations in the answer), or the row's judged pairs
+  // folded down to zero marks. Unlike `verify`/`answerCoverage` (deliberately
+  // NOT restored on reload — see hydrate.ts on the client), these marks ARE
+  // reconstructable because the raw per-pair verdicts are persisted.
+  citationMarks: Record<string, CitationMark> | null;
 }
 
 interface ConversationDetailOut {
@@ -98,6 +108,61 @@ async function listConversations(userId: string): Promise<ConversationListOut[]>
   }));
 }
 
+// Every CiteVerdict value the persisted citation_check payload can carry
+// (mirrors cite-support.ts's CiteVerdict — kept as a local runtime set here
+// since that union isn't exported as a value). Anything else in a stored
+// `verdict` field means a future/changed shape, not this one.
+const CITE_VERDICTS: ReadonlySet<string> = new Set(["supports", "contradicts", "says_nothing", "about_document"]);
+
+// Defensive parse of a message_checks.verdict payload (JSONB, already
+// deserialized to a JS value by Bun.sql) into aggregateMarks' input shape.
+// Never throws: a row in a shape this doesn't recognise — a future format
+// change, or anything otherwise corrupted — degrades to "no marks" for that
+// message (null) rather than failing the whole conversation load. A single
+// malformed pair within an otherwise-good row is dropped rather than
+// poisoning the row's other pairs.
+function judgedPairsFrom(verdict: unknown): { uuid: string; claim: string; verdict: CiteVerdict | null }[] | null {
+  if (!verdict || typeof verdict !== "object") return null;
+  const judged = (verdict as { judged?: unknown }).judged;
+  if (!Array.isArray(judged)) return null;
+  const out: { uuid: string; claim: string; verdict: CiteVerdict | null }[] = [];
+  for (const j of judged) {
+    if (!j || typeof j !== "object") continue;
+    const { uuid, claim, verdict: v } = j as Record<string, unknown>;
+    if (typeof uuid !== "string" || typeof claim !== "string") continue;
+    if (v !== null && !CITE_VERDICTS.has(v as string)) continue;
+    out.push({ uuid, claim, verdict: (v as CiteVerdict) ?? null });
+  }
+  return out;
+}
+
+// Reconstructs each assistant message's Sources-chip marks from its persisted
+// citation_check row (message_checks.verdict, written by chat.ts's
+// persistChecks from verify/citation-marks.ts's CitationMarksRun — see that
+// file's `judged` field). Recomputes with aggregateMarks — the SAME fold a
+// live turn uses (worst verdict wins, an unjudged pair withholds the mark, a
+// doc whose only pairs are `about_document` pointers gets none) — rather than
+// trusting a stored summary, so a future change to that rule applies to old
+// rows too without a backfill. ONE query for the whole conversation (never
+// one per message), same discipline as the messages query in getConversation.
+// A message with no citation_check row, or one whose judged pairs aggregate
+// to nothing, is simply absent from the returned map.
+async function citationMarksFor(messageIds: string[]): Promise<Map<string, Record<string, CitationMark>>> {
+  const out = new Map<string, Record<string, CitationMark>>();
+  if (messageIds.length === 0) return out;
+  const rows = (await sql`
+    SELECT message_id, verdict FROM message_checks
+    WHERE kind = 'citation_check' AND message_id = ANY(${toUuidArrayLiteral(messageIds)}::uuid[])
+  `) as { message_id: string; verdict: unknown }[];
+  for (const row of rows) {
+    const judged = judgedPairsFrom(row.verdict);
+    if (!judged) continue;
+    const marks = aggregateMarks(judged);
+    if (Object.keys(marks).length > 0) out.set(row.message_id, marks);
+  }
+  return out;
+}
+
 // DESC-then-resort keeps the NEWEST 200 messages (a plain LIMIT keeps the
 // oldest) — display-only; the model's own context is separately bounded by
 // windowHistory() in chat-history.ts.
@@ -113,11 +178,12 @@ async function getConversation(userId: string, id: string): Promise<Conversation
   const conv = owned[0];
   const rows = (await sql`
     SELECT * FROM (
-      SELECT role, content, created_at, tool_calls
+      SELECT id, role, content, created_at, tool_calls
       FROM messages WHERE conversation_id = ${id}
       ORDER BY created_at DESC LIMIT 200
     ) t ORDER BY created_at
-  `) as { role: string; content: string; created_at: string | Date; tool_calls: unknown }[];
+  `) as { id: string; role: string; content: string; created_at: string | Date; tool_calls: unknown }[];
+  const marksByMessage = await citationMarksFor(rows.map((r) => r.id));
   return {
     id: conv.id,
     title: conv.title,
@@ -125,6 +191,7 @@ async function getConversation(userId: string, id: string): Promise<Conversation
     contextTokens: conv.context_tokens,
     messages: rows.map((r) => ({
       role: r.role, content: r.content, createdAt: new Date(r.created_at).toISOString(), toolCalls: r.tool_calls,
+      citationMarks: marksByMessage.get(r.id) ?? null,
     })),
   };
 }

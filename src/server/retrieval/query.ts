@@ -6,6 +6,7 @@
 import { type Indexes, type AtlasNode, ancestorChain, descendantIds, resolveNode } from "./indexes.ts";
 import { runLexical, runSemantic, rrfMerge, attributeSemanticHits, buildLeafScorer, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type SemanticResult, type Via } from "./search.ts";
 import { resolveEntity } from "./entity-resolve.ts";
+import { resolveTargetType } from "./doc-types.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { sql } from "../db.ts";
 import { livenessOf, withLivenessHint, type ToolResult } from "../chat/tools/tools.ts";
@@ -52,7 +53,17 @@ async function historySet(
   }
   if (since) { params.push(resolveSince(since)); conds.push(`committed_at >= $${params.length}`); }
   if (until) { params.push(resolveSince(until)); conds.push(`committed_at <= $${params.length}`); }
-  if (changeType) { params.push(changeType); conds.push(`change_type = $${params.length}`); }
+  // The history tools (atlas_history / atlas_changed_between /
+  // atlas_recent_changes) speak the user-facing vocabulary — added | modified |
+  // removed | moved — while Postgres and this tool's own enum store
+  // content/structural. A model that learned one wording got 0 rows from the
+  // other with no way to tell why (found 2026-09-23). Accept BOTH here and
+  // normalize; tools-history.ts owns the same mapping for its own direction.
+  if (changeType) {
+    const stored = ({ modified: "content", moved: "structural" } as Record<string, string>)[changeType] ?? changeType;
+    params.push(stored);
+    conds.push(`change_type = $${params.length}`);
+  }
   const rows = (await sql.unsafe(
     `SELECT DISTINCT doc_id FROM atlas_history WHERE ${conds.join(" AND ")}`,
     params,
@@ -193,6 +204,15 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     resolvedEntity = { slug: e.slug, name: e.name };
   }
 
+  // `target_type` accepts the atlas's OWN type names as well as the values
+  // documents carry ("Element Annotation" → `Annotation`) — see doc-types.ts.
+  // An unresolvable value filters to nothing, so it is DROPPED rather than
+  // applied — the search still returns what it would have found — and the
+  // response says the argument was ignored and why. Applying it would return
+  // 0 rows with no way to tell a typo from a silent atlas.
+  const targetType = a.target_type ? resolveTargetType(ix, a.target_type) : { type: null as string | null };
+  if (a.target_type) a = { ...a, target_type: targetType.type ?? undefined };
+
   const [hist, stat] = await Promise.all([
     historySet(a.since, a.until, a.change_type, a.recent_commits),
     Promise.resolve(a.status ? statusSet(ix, a.status) : null),
@@ -219,7 +239,21 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     droppedByFilters += ids.length - out.length;
     return out;
   };
-  // Named so the diagnostic can tell the caller WHICH argument to drop.
+  // Named so the diagnostic can tell the caller WHICH argument to drop. The
+  // STRUCTURAL filters (target_type / edge_types / via_entity_type) belong here
+  // too, even though they are applied further down rather than intersected
+  // above: measured 2026-09-23, an invalid `target_type: "Instance"` (not a doc
+  // type) or an invented edge name empties the set and, without an entry here,
+  // emitted no hint at all — the caller saw a bare `count: 0` and reported the
+  // atlas silent. `unknownFilterValues` names the ones that cannot match
+  // ANYTHING, which is a stronger statement than "these were applied".
+  const knownEdgeTypes = new Set(ix.edges.map((e) => e.edge_type));
+  const unknownFilterValues = [
+    targetType.problem ?? "",
+    ...(a.edge_types ?? [])
+      .filter((t) => !knownEdgeTypes.has(t))
+      .map((t) => `edge_types contains '${t}', which is not an edge type`),
+  ].filter(Boolean);
   const activeFilters = [
     a.recent_commits ? `recent_commits=${a.recent_commits}` : "",
     a.change_type ? `change_type=${a.change_type}` : "",
@@ -227,6 +261,9 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     a.until ? `until=${a.until}` : "",
     a.status ? `status=${a.status}` : "",
     a.ancestor_id ? `ancestor_id=${a.ancestor_id}` : "",
+    a.target_type ? `target_type=${a.target_type}` : "",
+    a.edge_types?.length ? `edge_types=${a.edge_types.join("|")}` : "",
+    a.via_entity_type ? `via_entity_type=${a.via_entity_type}` : "",
   ].filter(Boolean);
   const enrich = (nodes: AtlasNode[]) => nodes.map((n) => enrichNode(ix, n, a.enrich, !!a.include_params));
   // Cap any content-bearing result array to the output budget so a single call
@@ -245,11 +282,17 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
       ...rest,
       count: kept.length,
       ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
+      ...(targetType.resolvedFrom ? { resolved_target_type: { from: targetType.resolvedFrom, to: targetType.type } } : {}),
+      ...(unknownFilterValues.length && !emptyByFilters
+        ? { invalid_filter_values: unknownFilterValues, hint: `${unknownFilterValues.join("; ")}. That argument was IGNORED for this call — these results are unfiltered by it.` }
+        : {}),
       ...(emptyByFilters
         ? {
             filters_applied: activeFilters,
             ...(droppedByFilters > 0 ? { candidates_removed_by_filters: droppedByFilters } : {}),
+            ...(unknownFilterValues.length ? { invalid_filter_values: unknownFilterValues } : {}),
             hint:
+              (unknownFilterValues.length ? `${unknownFilterValues.join("; ")}. ` : "") +
               `0 results, but ${activeFilters.join(", ")} ${activeFilters.length === 1 ? "was" : "were"} applied` +
               (droppedByFilters > 0
                 ? ` and removed ${droppedByFilters} of ${candidatesBeforeFilters} candidate document(s).`

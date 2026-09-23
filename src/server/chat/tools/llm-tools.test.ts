@@ -100,7 +100,10 @@ test("tools that read empty args as absent offer null exactly on their optional 
   const aq = params("atlas_query");
   expect(aq.recent_commits.type).toEqual(["integer", "null"]);
   expect(aq.change_type.type).toEqual(["string", "null"]);
-  expect(aq.change_type.enum).toEqual(["added", "content", "structural", "removed", null]);
+  // Both vocabularies (2026-09-23): the history tools say modified/moved, this
+  // tool historically took the stored content/structural names, and query.ts
+  // normalizes either — so the enum carries all six plus the null-for-unset.
+  expect(aq.change_type.enum).toEqual(["added", "modified", "removed", "moved", "content", "structural", null]);
   expect(aq.direction.enum).toContain(null);
   // Strings keep "" as their unset value (a null there made gemma send query:null);
   // defaulted fields keep their default.
@@ -111,6 +114,11 @@ test("tools that read empty args as absent offer null exactly on their optional 
   expect(params("atlas_first_seen").event.enum).toContain(null);
   expect(params("atlas_first_seen").ids.type).toBe("array");
   expect(JSON.stringify([aq, params("atlas_first_seen")])).not.toContain("nullable");
-  // Tools that did not opt in are untouched.
-  expect(params("atlas_changed_between").change_type.type).toBe("string");
+  // The history tools opted in on 2026-09-23 for the same reason, so their
+  // change_type now carries the null too.
+  expect(params("atlas_changed_between").change_type.enum).toContain(null);
+  expect(params("atlas_recent_changes").change_type.enum).toContain(null);
+  expect(params("atlas_history").change_type.enum).toContain(null);
+  // A tool that did NOT opt in is untouched.
+  expect(params("atlas_entity").kind?.type ?? "string").toBe("string");
 });

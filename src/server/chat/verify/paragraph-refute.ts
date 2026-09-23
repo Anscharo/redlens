@@ -178,7 +178,7 @@ export function createParagraphRefuter(opts: {
       return r;
     }
     const s = await screenOne(index, text, evidence, myBurst);
-    const r: ParagraphRefute = needsGemma(s)
+    const r: ParagraphRefute = needsGemma(s, text)
       ? await gemmaOne(index, text, evidence)
       : { index, text, contradictions: [], notFound: [], discarded: 0, parsed: true, latencyMs: s!.latencyMs, usage: null, timedOut: false, screened: true };
     report(index, s, r);

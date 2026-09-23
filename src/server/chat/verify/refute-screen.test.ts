@@ -9,6 +9,7 @@ import type { EvidenceEntry } from "./verifier.ts";
 import {
   buildScreenRequest, needsGemma, readScreen, screenParagraph, statementsOf,
   SCREEN_CONTRADICTED_THRESHOLD, SCREEN_TOKENS_PER_QUESTION, UNIT_CRITERIA,
+  type ScreenResult,
 } from "./refute-screen.ts";
 
 const A = "11111111-1111-4111-8111-111111111111";
@@ -111,15 +112,15 @@ describe("readScreen / needsGemma", () => {
   it(`flags at max P(contradicted) ≥ ${SCREEN_CONTRADICTED_THRESHOLD}`, () => {
     const low = readScreen(req, runOf({ u0: choice("consistent", 0.1), u1: choice("consistent", 0.19) }))!;
     expect(low.flagged).toBe(false);
-    expect(needsGemma(low)).toBe(false);
+    expect(needsGemma(low, "Some paragraph with real prose in it.")).toBe(false);
     const high = readScreen(req, runOf({ u0: choice("consistent", 0.1), u1: choice("consistent", 0.2) }))!;
     expect(high).toMatchObject({ flagged: true, maxContradicted: 0.2, fits: true, latencyMs: 400 });
-    expect(needsGemma(high)).toBe(true);
+    expect(needsGemma(high, "Some paragraph with real prose in it.")).toBe(true);
   });
   it("an unanswered or foreign-verdict statement means the screen cannot vouch: null", () => {
     expect(readScreen(req, runOf({ u0: choice("consistent", 0) }))).toBeNull();
     expect(readScreen(req, runOf({ u0: choice("consistent", 0), u1: choice("toString", 0) }))).toBeNull();
-    expect(needsGemma(null)).toBe(true);
+    expect(needsGemma(null, "Some paragraph with real prose in it.")).toBe(true);
   });
 });
 
@@ -138,7 +139,7 @@ describe("screenParagraph", () => {
     const r = await screenParagraph({ question: "q", paragraph: "### Summary", evidence: [], ix, model: "m" });
     expect(calls).toBe(0);
     expect(r).toMatchObject({ flagged: false, statements: [], fits: true });
-    expect(needsGemma(r)).toBe(true);
+    expect(needsGemma(r, "Some paragraph with real prose in it.")).toBe(true);
   });
   it("parses a real-shaped response", async () => {
     globalThis.fetch = (async () =>
@@ -146,5 +147,34 @@ describe("screenParagraph", () => {
     const r = await screenParagraph({ question: "q", paragraph: "Spark holds three signer seats.", evidence: [], ix, model: "m" });
     expect(r).toMatchObject({ flagged: true, maxContradicted: 0.91, inputTokens: 900, costUsd: 0.0002, generationId: "gen-dec-1" });
     expect(r!.statements[0]).toEqual({ text: "Spark holds three signer seats.", verdict: "contradicted", p: 0.91 });
+  });
+});
+
+// Gate mode used to send every statement-less paragraph to gemma: 9 of the 16
+// it still called were headings or rules, and gemma found nothing in any.
+describe("needsGemma on statement-less paragraphs", () => {
+  const clean = (statements: ScreenResult["statements"] = []): ScreenResult => ({
+    flagged: false, maxContradicted: 0, statements, fits: true, latencyMs: 1,
+    estTokens: 10, inputTokens: null, costUsd: null, generationId: null,
+  });
+
+  it("skips a heading or a horizontal rule", () => {
+    expect(needsGemma(clean(), "## Key changes")).toBe(false);
+    expect(needsGemma(clean(), "---")).toBe(false);
+    expect(needsGemma(clean(), "### Threshold requirements")).toBe(false);
+  });
+
+  it("still sends a terse claim carrying a figure — the shape a number swap hides in", () => {
+    expect(needsGemma(clean(), "Threshold: 3 of 5")).toBe(true);
+    expect(needsGemma(clean(), "Signers: 7")).toBe(true);
+  });
+
+  it("still sends anything with a link, uuid or doc number", () => {
+    expect(needsGemma(clean(), "See [Rate Limits](/atlas/abc)")).toBe(true);
+    expect(needsGemma(clean(), "Per A.2.7.1.1.")).toBe(true);
+  });
+
+  it("still sends a paragraph that has prose but produced no statements", () => {
+    expect(needsGemma(clean(), "Because of that and the rest of it")).toBe(true);
   });
 });

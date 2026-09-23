@@ -3,13 +3,17 @@ import type { StoredMessage } from "../../lib/conversationsApi";
 
 // Pure mapping from persisted DB rows (GET /api/chat/conversations/:id) to
 // the in-memory ChatMsg shape useChatStream renders. Rehydration loses only
-// `rounds` (cosmetic — a "· N rounds" suffix; 0 renders cleanly) and the
-// post-answer checks — `verify` (the reliability-harness badge), the Sources
-// chip marks and the answer-coverage line — none persisted. `trace` (tool calls)
-// restores in FULL: ToolCallRecord's `ok`/`bytes` are non-nullable on write,
-// unlike the live-stream TraceRow which starts them null until tool_result
-// arrives. A restored message is always the reveal state: `draft` empty,
-// `generated: true` — there is no live stream to hydrate a draft from.
+// `rounds` (cosmetic — a "· N rounds" suffix; 0 renders cleanly) and two of
+// the post-answer checks — `verify` (the reliability-harness badge) and the
+// answer-coverage line — neither persisted. The Sources chip marks
+// (`citationMarks`) DO survive a reload: the server reconstructs them from
+// the persisted citation_check row with the same `aggregateMarks` fold a live
+// turn uses (src/server/chat/conversations.ts's citationMarksFor), so this
+// mapping just carries the field through. `trace` (tool calls) restores in
+// FULL: ToolCallRecord's `ok`/`bytes` are non-nullable on write, unlike the
+// live-stream TraceRow which starts them null until tool_result arrives. A
+// restored message is always the reveal state: `draft` empty, `generated:
+// true` — there is no live stream to hydrate a draft from.
 export function toChatMsgs(rows: StoredMessage[]): ChatMsg[] {
   return rows.map((row) => {
     const toolCalls = row.toolCalls ?? [];
@@ -30,11 +34,14 @@ export function toChatMsgs(rows: StoredMessage[]): ChatMsg[] {
       sources: toolCalls,
       done: true,
       verify: undefined,
-      // citation_marks is a live-turn event like verify_result — not
-      // persisted, so a reloaded message never carries stale marks.
-      citationMarks: undefined,
-      // Same for answer_coverage: the "didn't answer" / "didn't address" line
-      // is live-only, like the verify badge it sits under.
+      // Reconstructed server-side from the persisted citation_check row (see
+      // this file's top comment); null (no row, or nothing survived
+      // aggregation) becomes undefined, same as a message the live registry
+      // never judged.
+      citationMarks: row.citationMarks ?? undefined,
+      // answer_coverage is a live-turn event like verify_result — not
+      // persisted, so a reloaded message never carries a coverage line, like
+      // the verify badge it sits under.
       answerCoverage: undefined,
     };
   });

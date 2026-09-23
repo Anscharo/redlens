@@ -19,10 +19,14 @@ export const atlasQueryShape = {
     .describe("Docs changed in the last N commits of HEAD (commit_seq order) — prefer over since/until for 'recently'."),
   since: z.string().optional().describe("ISO date (YYYY-MM-DD) or relative ('30d') — docs changed on/after."),
   until: z.string().optional().describe("ISO date or relative — docs changed on/before."),
+  // Both vocabularies are accepted (query.ts normalizes): the history tools use
+  // added|modified|removed|moved, this tool historically used the stored
+  // content/structural names, and a model that learned one got silent 0-row
+  // answers from the other.
   change_type: z
-    .enum(["added", "content", "structural", "removed"])
+    .enum(["added", "modified", "removed", "moved", "content", "structural"])
     .optional()
-    .describe("added | content (text change) | structural (renumber/move) | removed."),
+    .describe("added | modified (text change) | moved (renumber/move) | removed — same values as the history tools."),
   status: z.string().optional().describe("Filter by instance status: Active, Suspended, Completed, Inactive."),
   ancestor_id: z.string().optional().describe("UUID or doc_no — restrict to descendants of this node."),
   include_params: z.boolean().optional().describe("Inline immediate child docs as 'params'."),

@@ -209,8 +209,19 @@ test("omitEmptyArgs drops blank strings, null, empty arrays and blank array elem
   });
 });
 
-test("only atlas_query and atlas_first_seen opt in to reading empty arguments as absent", () => {
-  expect(ATLAS_TOOLS.filter((t) => t.emptyArgsAbsent).map((t) => t.name).sort()).toEqual(["atlas_first_seen", "atlas_query"]);
+// The opt-in list is pinned on purpose: it changes what the model is SHOWN
+// (null-for-unset) as well as how args are read, so adding a tool here is a
+// deliberate act. atlas_query + atlas_first_seen came first (2026-09-22); the
+// three history tools followed once the same filled-in change_type showed up on
+// them (2026-09-23).
+test("exactly the tools with model-filled optional enums opt in to reading empty arguments as absent", () => {
+  expect(ATLAS_TOOLS.filter((t) => t.emptyArgsAbsent).map((t) => t.name).sort()).toEqual([
+    "atlas_changed_between",
+    "atlas_first_seen",
+    "atlas_history",
+    "atlas_query",
+    "atlas_recent_changes",
+  ]);
 });
 
 const FIRST_SEEN_FILLED = { ids: [""], title: "D1", title_prefix: "", type: "", doc_no_pattern: "", ancestor_id: "", entity: "", event: "added" };
