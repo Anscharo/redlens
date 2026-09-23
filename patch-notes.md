@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-09-23
+- Fixed the reader's expand control going missing from deeply nested sections while the Changed only filter was on
+
 ## 2026-09-22
 - Gave atlas pull-request previews five minutes to finish building, so large PRs no longer time out at two minutes.
 
