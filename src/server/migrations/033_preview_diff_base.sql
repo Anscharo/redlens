@@ -36,7 +36,10 @@
 --                      report of "hundreds of docs I never touched" is about.
 --
 -- All NULL on rows written before this migration, and on a cold-start build
--- that could not write diff artifacts at all. Overwritten on a same-sha
+-- that could not write diff artifacts at all. A ready bundle only touches
+-- last_access, so those rows stay NULL until something re-records them.
+-- The web boot runs diff-base-backfill.ts once: it recomputes the same
+-- record a same-sha rebuild would write. Overwritten again on a later
 -- rebuild (the row is keyed by sha); the per-build history is the
 -- `[preview] <sha8>: redlined vs …` log line.
 ALTER TABLE previews ADD COLUMN IF NOT EXISTS diff_base_type TEXT;

@@ -28,7 +28,8 @@ export interface PreviewRow {
    *  diff-base candidate a pinned-sha rebuild would otherwise lose. */
   default_branch: string | null;
   /** What the bundle was ACTUALLY redlined against — see
-   *  migrations/033_preview_diff_base.sql. All NULL on older rows. */
+   *  migrations/033_preview_diff_base.sql. NULL on rows that predate the
+   *  column until the boot backfill or a rebuild records them. */
   diff_base_type: string | null;
   diff_base_lca: boolean | null;
   diff_base: string | null;
