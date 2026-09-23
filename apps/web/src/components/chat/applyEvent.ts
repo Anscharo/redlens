@@ -112,6 +112,18 @@ export function applyEvent(m: ChatMsg, ev: ChatEvent): ChatMsg {
       // to, not clobber, marks already on screen.
       return { ...m, citationMarks: { ...m.citationMarks, ...ev.marks } };
 
+    case "answer_coverage": {
+      // Appends, never replaces — nothing shown is ever removed. The server
+      // sends at most one per turn; should a second ever land, the verdict
+      // already on screen stays and only newly named parts are added.
+      const prev = m.answerCoverage;
+      if (!prev) {
+        return { ...m, answerCoverage: { verdict: ev.verdict, missingParts: ev.missingParts, ...(ev.parts ? { parts: ev.parts } : {}) } };
+      }
+      const added = ev.missingParts.filter((p) => !prev.missingParts.includes(p));
+      return added.length === 0 ? m : { ...m, answerCoverage: { ...prev, missingParts: [...prev.missingParts, ...added] } };
+    }
+
     case "verify_result":
       return {
         ...m,

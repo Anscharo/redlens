@@ -29,6 +29,7 @@ import { computeOverall, evidenceFromResults, evidenceFromTranscript, priorTurns
 import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
 import { createParagraphRefuter, type ParagraphRefute } from "./verify/paragraph-refute.ts";
 import { runCitationMarks, type CitationMark } from "./verify/citation-marks.ts";
+import { judgeAnswerCoverage, type CoverageVerdict } from "./verify/answer-coverage.ts";
 import { createParagraphStream, type ParagraphEvidence } from "./verify/incremental.ts";
 import { atlasDescribe } from "./tools/tools.ts";
 import { isExternalMscTool } from "../external/envelope.ts";
@@ -40,7 +41,7 @@ type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type DoneEvent = Extract<ChatEvent, { type: "done" }>;
 
 export interface CheckRowMeta {
-  kind: "round_checks" | "verify" | "smalltalk_judge" | "citation_check";
+  kind: "round_checks" | "verify" | "smalltalk_judge" | "citation_check" | "answer_coverage";
   model: string | null;
   verdict: unknown;
   overall: VerifyOverall | null;
@@ -69,6 +70,13 @@ export type HarnessEvent =
   // one citation was judged. Keyed by uuid; a doc with no key gets no chip
   // change (nothing was judged for it, or its only citations were pointers).
   | { type: "citation_marks"; marks: Record<string, CitationMark> }
+  // "Did it answer the question?" (verify/answer-coverage.ts) — emitted at
+  // most once, after `answer_final` (and after `citation_marks`) and before
+  // `verify_result`/`done`. `verdict` is thresholded, not Jev's argmax:
+  // `answers` is the quiet default. `missingParts` names question parts the
+  // reply did not address (only on answers/declines); `parts` lists every
+  // judged part, present only for a question code split into ≥2 parts.
+  | { type: "answer_coverage"; verdict: CoverageVerdict; missingParts: string[]; parts?: string[] }
   // Deterministic checks (docs/chat-system.md §6) run against EACH paragraph
   // as it completes during streaming, not just once over the finished answer
   // — the substrate for a later per-paragraph MODEL audit. `index` counts
@@ -393,6 +401,31 @@ async function resolveCitationMarks(
   };
 }
 
+// Same contract as resolveCitationMarks: one event + one checksMeta row, from
+// both branches of runVerifiedChat below. judgeAnswerCoverage never rejects
+// (fail-open to null), and null means no event and no row — nothing was ruled.
+async function resolveAnswerCoverage(
+  promise: ReturnType<typeof judgeAnswerCoverage> | null,
+  model: string,
+): Promise<{ event: Extract<HarnessEvent, { type: "answer_coverage" }> | null; meta: CheckRowMeta | null }> {
+  const run = promise ? await promise : null;
+  if (!run) return { event: null, meta: null };
+  return {
+    event: {
+      type: "answer_coverage", verdict: run.verdict, missingParts: run.missingParts,
+      ...(run.parts.length > 0 ? { parts: run.parts.map((p) => p.text) } : {}),
+    },
+    meta: {
+      kind: "answer_coverage", model: run.rawToolOutput ? null : model,
+      // Raw distribution + per-part scores: the thresholds are ours, so a
+      // future move needs the distribution, not just the ruling.
+      verdict: { verdict: run.verdict, probabilities: run.probabilities, parts: run.parts, missingParts: run.missingParts, rawToolOutput: run.rawToolOutput },
+      overall: null, inputTokens: run.usage?.input ?? null, outputTokens: run.usage?.output ?? null,
+      generationId: run.generationId, latencyMs: run.latencyMs,
+    },
+  };
+}
+
 export async function* runVerifiedChat(opts: {
   ix: Indexes;
   messages: Msg[];
@@ -691,8 +724,13 @@ export async function* runVerifiedChat(opts: {
   // other harness call. The state is tiny (one message + the question's
   // criteria, ~340 input tokens, output free) but it is still a billed call —
   // ~$0.00002, now once per marker-free turn rather than once per conversation.
+  // Hoisted out of the block below: a turn the judge ruled small talk that
+  // still goes on to the full audit (a tool ran, or the answer carries a link)
+  // also skips the answer-coverage check further down.
+  let ruledSmalltalk = false;
   if (judgePromise) {
     const judge = await judgePromise; // long since resolved — it raced the whole answer
+    ruledSmalltalk = judge.smalltalk;
     checksMeta.push({
       kind: "smalltalk_judge", model: smalltalkJudgeModel,
       // The raw probability is recorded alongside the ruling: the threshold is
@@ -784,6 +822,25 @@ export async function* runVerifiedChat(opts: {
       })
     : null;
 
+  // "Did it answer the question?" (verify/answer-coverage.ts) — the same
+  // lifecycle as the marks above: started now, concurrent with the audit,
+  // resolved and emitted once before verify_result. Nothing earlier than
+  // answer_final reaches here, so the small-talk bypass and the checks-off /
+  // aborted / empty exits never run it. A turn the judge RULED small talk but
+  // that still gets audited is skipped too: the message expected no facts, so
+  // "did it answer?" has no meaning there (and that shape was never measured).
+  // It judges done.content as shown — including a /teach hint, which was not
+  // in the measured corpus.
+  const coverageModel = config.chatAnswerCoverageModel;
+  const coveragePromise =
+    coverageModel && !ruledSmalltalk
+      ? judgeAnswerCoverage({ question: opts.question, answer: done.content, model: coverageModel, signal: opts.signal, obs: opts.obs })
+      : null;
+  // Fail-open by construction (it never rejects), but nothing awaits it until
+  // the marks and the audit settle — mark it handled at creation all the same,
+  // for the same reason as the audit promise below.
+  coveragePromise?.catch(() => {});
+
   // verifierModel/paragraphMode were hoisted to the top of this function so
   // the per-paragraph refuter could be created before streaming started.
   // constEvidence is computed from the audited answer (done.content) itself,
@@ -832,6 +889,9 @@ export async function* runVerifiedChat(opts: {
     const cm = await resolveCitationMarks(citationMarksPromise, citationMarksModel);
     if (cm.event) yield cm.event;
     if (cm.meta) checksMeta.push(cm.meta);
+    const cov = await resolveAnswerCoverage(coveragePromise, coverageModel);
+    if (cov.event) yield cov.event;
+    if (cov.meta) checksMeta.push(cov.meta);
     const { run, modelLabel } = await auditPromise;
     verdict = run.verdict;
     checksMeta.push({
@@ -844,6 +904,9 @@ export async function* runVerifiedChat(opts: {
     const cm = await resolveCitationMarks(citationMarksPromise, citationMarksModel);
     if (cm.event) yield cm.event;
     if (cm.meta) checksMeta.push(cm.meta);
+    const cov = await resolveAnswerCoverage(coveragePromise, coverageModel);
+    if (cov.event) yield cov.event;
+    if (cov.meta) checksMeta.push(cov.meta);
   }
   const overall = verifierModel ? computeOverall(checks, verdict) : checks.failed ? "fail" : "unverified";
 

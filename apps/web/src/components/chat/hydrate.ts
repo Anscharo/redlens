@@ -3,8 +3,9 @@ import type { StoredMessage } from "../../lib/conversationsApi";
 
 // Pure mapping from persisted DB rows (GET /api/chat/conversations/:id) to
 // the in-memory ChatMsg shape useChatStream renders. Rehydration loses only
-// `rounds` (cosmetic — a "· N rounds" suffix; 0 renders cleanly) and `verify`
-// (the reliability-harness badge, not persisted). `trace` (tool calls)
+// `rounds` (cosmetic — a "· N rounds" suffix; 0 renders cleanly) and the
+// post-answer checks — `verify` (the reliability-harness badge), the Sources
+// chip marks and the answer-coverage line — none persisted. `trace` (tool calls)
 // restores in FULL: ToolCallRecord's `ok`/`bytes` are non-nullable on write,
 // unlike the live-stream TraceRow which starts them null until tool_result
 // arrives. A restored message is always the reveal state: `draft` empty,
@@ -32,6 +33,9 @@ export function toChatMsgs(rows: StoredMessage[]): ChatMsg[] {
       // citation_marks is a live-turn event like verify_result — not
       // persisted, so a reloaded message never carries stale marks.
       citationMarks: undefined,
+      // Same for answer_coverage: the "didn't answer" / "didn't address" line
+      // is live-only, like the verify badge it sits under.
+      answerCoverage: undefined,
     };
   });
 }

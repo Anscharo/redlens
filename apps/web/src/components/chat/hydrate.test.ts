@@ -36,6 +36,9 @@ describe("toChatMsgs", () => {
       expect(m.done).toBe(true);
       expect(m.rounds).toBe(0);
       expect(m.verify).toBeUndefined();
+      // Live-only post-answer checks, like the badge.
+      expect(m.citationMarks).toBeUndefined();
+      expect(m.answerCoverage).toBeUndefined();
     }
   });
 

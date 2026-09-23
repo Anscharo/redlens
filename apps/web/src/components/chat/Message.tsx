@@ -7,6 +7,7 @@ import { StageList, traceHeadline } from "./StageList";
 import { StageSlot } from "./StageSlot";
 import { stageSlotContent } from "./stageSlotContent";
 import { VerifyBadge } from "./VerifyBadge";
+import { AnswerFacts } from "./AnswerFacts";
 import type { ChatMsg, StageLogEntry } from "./useChatStream";
 
 // The stages that run on the answer once it exists. Their rows render AFTER
@@ -137,6 +138,9 @@ function AssistantTurn({
       {generated && !failedEmpty && !stoppedEmpty && (
         <>
           {msg.verify && <VerifyBadge verify={msg.verify} onAtlas={onAtlas} />}
+          {/* Directly after the badge: together they are the answer's
+              confidence — contradictions, coverage, sources backed. */}
+          <AnswerFacts coverage={msg.answerCoverage} marks={msg.citationMarks} />
           {msg.exports?.length ? <ExportChips exports={msg.exports} /> : null}
           {msg.done && <Sources sources={sources} marks={msg.citationMarks} onAtlas={onAtlas} />}
         </>

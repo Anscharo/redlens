@@ -103,6 +103,7 @@ describe("handleChat", () => {
   let savedTitleModel: string;
   let savedJudgeModel: string;
   let savedPrefetchJudgeModel: string;
+  let savedCoverageModel: string;
 
   afterAll(() => {
     // Restore config mutations so later files don't inherit a truthy
@@ -112,6 +113,7 @@ describe("handleChat", () => {
     config.chatTitleModel = savedTitleModel;
     config.chatSmalltalkJudgeModel = savedJudgeModel;
     config.chatPrefetchJudgeModel = savedPrefetchJudgeModel;
+    config.chatAnswerCoverageModel = savedCoverageModel;
   });
 
   beforeAll(() => {
@@ -120,6 +122,7 @@ describe("handleChat", () => {
     savedTitleModel = config.chatTitleModel;
     savedJudgeModel = config.chatSmalltalkJudgeModel;
     savedPrefetchJudgeModel = config.chatPrefetchJudgeModel;
+    savedCoverageModel = config.chatAnswerCoverageModel;
     config.jwtSecret ||= "test-jwt-secret";
     config.openrouterApiKey ||= "test-key";
     // Off by default for every pre-existing test (see the file-header note on
@@ -139,6 +142,10 @@ describe("handleChat", () => {
     // burn ~3.5s of askJev retries per test. The "prefetch judge" describe
     // block below turns it back on, with a mock that tells the two URLs apart.
     config.chatPrefetchJudgeModel = "";
+    // And the answer-coverage slot (verify/answer-coverage.ts, also defaults
+    // ON): it posts to /systemone after every answered turn. Its behavior is
+    // covered in chat-orchestrator.test.ts.
+    config.chatAnswerCoverageModel = "";
     setIndexes(loadIndexes());
     // Same shared-dispatcher install llm.test.ts performs — idempotent,
     // whichever file's beforeAll runs first wins the install.

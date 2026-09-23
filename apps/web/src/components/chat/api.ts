@@ -48,6 +48,19 @@ export interface CitationMark {
   claims: { claim: string; verdict: "supports" | "says_nothing" | "contradicts" }[];
 }
 
+// "Did it answer the question?" (server: verify/answer-coverage.ts) — one
+// ruling per turn over the question and the finished answer. `answers` is the
+// quiet default: the client shows nothing extra for it. `missingParts` are
+// parts of the user's own question the answer did not address (only ever set
+// alongside `answers`/`declines`); `parts` lists every judged part, present
+// only when the question was split into two or more.
+export type AnswerCoverageVerdict = "answers" | "declines" | "deflects" | "asks";
+export interface AnswerCoverage {
+  verdict: AnswerCoverageVerdict;
+  missingParts: string[];
+  parts?: string[];
+}
+
 // The streaming-vs-staged delivery split is gone: every token/clear is always
 // forwarded, and the orchestrator emits `status{stage:"synthesizing"}` once
 // per generation burst plus `answer_final` after citation repair (before
@@ -118,6 +131,11 @@ export type ChatEvent =
   // all (feature off, no citations, timeout), in which case no source chip
   // gets a mark.
   | { type: "citation_marks"; marks: Record<string, CitationMark> }
+  // Answer-coverage ruling (see AnswerCoverage above). Arrives at most once,
+  // after `answer_final` (and after `citation_marks`) and before
+  // `verify_result`/`done` — may never arrive at all (feature off, the check
+  // failed or timed out, small talk), in which case nothing is shown.
+  | ({ type: "answer_coverage" } & AnswerCoverage)
   | {
       type: "verify_result";
       overall: VerifyOverall;

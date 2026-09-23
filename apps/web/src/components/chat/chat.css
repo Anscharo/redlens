@@ -668,6 +668,24 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   font: 400 11.5px/1.4 "Source Code Pro", monospace;
 }
 .rlc-verify-notfound-list li + li { margin-top: 3px; }
+/* Answer-confidence facts (AnswerFacts.tsx): one muted mono line in the
+   badge's own type, tucked under it so badge + line read as one unit. The
+   flagged fact ("Didn't answer the question", "Didn't address: …") takes the
+   caution accent; its words carry the meaning, not the colour. */
+.rlc-answer-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--tan-3);
+  font: 400 11.5px/1.4 "Source Code Pro", monospace;
+  letter-spacing: 0.03em;
+}
+.rlc-verify + .rlc-answer-facts { margin-top: 5px; }
+.rlc-answer-facts li + li::before { content: "·"; margin-right: 8px; color: var(--tan-3); }
+.rlc-answer-facts li[data-status="flagged"] { color: var(--warn); }
 
 /* ── Trace rows + collapsed-checklist summary head ─────────────────────────
    The old standalone collapsible trace card is gone — trace rows now render

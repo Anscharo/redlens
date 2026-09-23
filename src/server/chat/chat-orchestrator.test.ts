@@ -145,6 +145,7 @@ function withModels(verifier: string, fn: () => Promise<void>, refuteMode: "answ
   const pj = config.chatSmalltalkJudgeModel;
   const pr = config.chatRefuteMode;
   const pc = config.chatCitationCheckModel;
+  const pa = config.chatAnswerCoverageModel;
   config.chatVerifierModel = verifier;
   // The judge slot defaults ON in config — zero it here so every test
   // exercises the audit path it was written for; bypass tests opt back in
@@ -156,11 +157,15 @@ function withModels(verifier: string, fn: () => Promise<void>, refuteMode: "answ
   // to account for an extra citation_marks event on every grounded turn.
   // Opt-in tests further down restore it explicitly.
   config.chatCitationCheckModel = "";
+  // Answer coverage too (verify/answer-coverage.ts) — same reason; its own
+  // tests at the end of this file opt back in with withCoverage.
+  config.chatAnswerCoverageModel = "";
   return fn().finally(() => {
     config.chatVerifierModel = pv;
     config.chatSmalltalkJudgeModel = pj;
     config.chatRefuteMode = pr;
     config.chatCitationCheckModel = pc;
+    config.chatAnswerCoverageModel = pa;
   });
 }
 
@@ -1174,4 +1179,207 @@ test("citation marks: chatCitationCheckModel='' disables the feature — no even
       );
       expect(events.some((e) => e.type === "citation_marks")).toBe(false);
     }),
+  ));
+
+// ── Answer coverage ("did it answer the question?", verify/answer-coverage.ts) ──
+// withModels zeroes chatAnswerCoverageModel; these opt back in. Coverage and
+// the citation marks both post to /systemone, so the stub dispatches on the
+// request's question ids — `responds` is coverage, `support` is a citation
+// judgment, `smalltalk` the bypass judge — and records which ones were asked.
+type JevHandlers = Partial<Record<"responds" | "support" | "smalltalk", (body: any) => Record<string, unknown>>>;
+function withJevStub(handlers: JevHandlers, fn: (asked: string[]) => Promise<void>): Promise<void> {
+  const prevFetch = globalThis.fetch;
+  const prevKey = config.openrouterApiKey;
+  config.openrouterApiKey = config.openrouterApiKey || "test-key"; // askJev refuses without one
+  const asked: string[] = [];
+  globalThis.fetch = (async (url: any, init: any) => {
+    if (!String(url).includes("/systemone")) return prevFetch(url, init);
+    const body = JSON.parse(init.body);
+    const kind = (["responds", "support", "smalltalk"] as const).find((k) => k in body.questions);
+    if (!kind || !handlers[kind]) throw new Error(`withJevStub: unexpected Jev request ${Object.keys(body.questions).join(",")}`);
+    asked.push(kind);
+    return new Response(
+      JSON.stringify({ answers: handlers[kind]!(body), usage: { input_tokens: 1200, output_tokens: 30, cost: 0.00007 }, id: `gen-dec-${kind}` }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+  return fn(asked).finally(() => {
+    globalThis.fetch = prevFetch;
+    config.openrouterApiKey = prevKey;
+  });
+}
+function withCoverage(model: string, fn: () => Promise<void>): Promise<void> {
+  const prev = config.chatAnswerCoverageModel;
+  config.chatAnswerCoverageModel = model;
+  return fn().finally(() => {
+    config.chatAnswerCoverageModel = prev;
+  });
+}
+const coverageChoice = (probabilities: Record<string, number>) => ({ type: "choice", choice: "answers", probabilities, confidence: 0.9 });
+const MULTI_Q = "Which agents have paid distribution rewards out and how much?";
+
+test("answer coverage: one event after answer_final and citation_marks, before verify_result, naming a dropped part", () =>
+  withModels("strong/verifier", () =>
+    withCitationCheck("cite/judge", () =>
+      withCoverage("cov/jev", () =>
+        withJevStub(
+          {
+            support: () => ({ support: { type: "choice", choice: "supports", probabilities: { supports: 1 }, confidence: 1 } }),
+            responds: (body) => {
+              expect(body.model).toBe("cov/jev");
+              expect(body.state.question).toBe(MULTI_Q);
+              return {
+                responds: coverageChoice({ answers: 0.97, declines: 0.02, deflects: 0.01, asks: 0 }),
+                part_0: { type: "noul", noul: 0.95 },
+                part_1: { type: "noul", noul: 0.12 },
+              };
+            },
+          },
+          async (asked) => {
+            const events = await collect(
+              runVerifiedChat({
+                ix, messages: [userMsg], question: MULTI_Q, maxIterations: 3,
+                stream: fakeStream([[textChunk(ANSWER_WITH_CITE), finishChunk("stop")]]),
+                jsonCall: fakeSlicedJson({}),
+              }),
+            );
+            expect(asked.filter((k) => k === "responds")).toHaveLength(1);
+            const cov = events.filter((e) => e.type === "answer_coverage");
+            expect(cov).toEqual([
+              { type: "answer_coverage", verdict: "answers", missingParts: ["how much"], parts: ["Which agents have paid distribution rewards out", "how much"] },
+            ]);
+            const at = (t: string) => events.findIndex((e) => e.type === t);
+            expect(at("answer_final")).toBeLessThan(at("citation_marks"));
+            expect(at("citation_marks")).toBeLessThan(at("answer_coverage"));
+            expect(at("answer_coverage")).toBeLessThan(at("verify_result"));
+            const row = lastDone(events).checksMeta.find((c) => c.kind === "answer_coverage")!;
+            expect(row.model).toBe("cov/jev");
+            expect(row.generationId).toBe("gen-dec-responds");
+            expect(row.inputTokens).toBe(1200);
+            expect((row.verdict as { probabilities: Record<string, number> }).probabilities.answers).toBe(0.97);
+          },
+        ),
+      ),
+    ),
+  ));
+
+test("answer coverage: a deflecting answer is ruled `deflects` on the no-verifier path too", () =>
+  withModels("", () =>
+    withCoverage("cov/jev", () =>
+      withJevStub({ responds: () => ({ responds: coverageChoice({ deflects: 0.54, asks: 0.46, answers: 0, declines: 0 }) }) }, async () => {
+        const events = await collect(
+          runVerifiedChat({
+            ix, messages: [userMsg], question: "who signs the multisigs?", maxIterations: 3,
+            stream: fakeStream([[textChunk("Let me get more specific information about the signers."), finishChunk("stop")]]),
+          }),
+        );
+        const cov = events.find((e) => e.type === "answer_coverage");
+        expect(cov).toEqual({ type: "answer_coverage", verdict: "deflects", missingParts: [] });
+        expect(events.at(-1)?.type).toBe("done");
+      }),
+    ),
+  ));
+
+test("answer coverage: raw tool output is ruled in code — no Jev request", () =>
+  withModels("strong/verifier", () =>
+    withCoverage("cov/jev", () =>
+      withJevStub({}, async (asked) => {
+        const events = await collect(
+          runVerifiedChat({
+            ix, messages: [userMsg], question: "how are primitives structured?", maxIterations: 3,
+            stream: fakeStream([[textChunk('{"id": ["A.2.2.5", "A.2.2.6"]}'), finishChunk("stop")]]),
+            jsonCall: fakeSlicedJson({}),
+          }),
+        );
+        expect(asked).toEqual([]);
+        expect(events.find((e) => e.type === "answer_coverage")).toEqual({ type: "answer_coverage", verdict: "deflects", missingParts: [] });
+        const row = lastDone(events).checksMeta.find((c) => c.kind === "answer_coverage")!;
+        expect(row.model).toBeNull();
+        expect((row.verdict as { rawToolOutput: boolean }).rawToolOutput).toBe(true);
+      }),
+    ),
+  ));
+
+test("answer coverage: chatAnswerCoverageModel='' — no event, no row, no request", () =>
+  withModels("strong/verifier", () =>
+    withJevStub({}, async (asked) => {
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([[textChunk("An answer."), finishChunk("stop")]]),
+          jsonCall: fakeSlicedJson({}),
+        }),
+      );
+      expect(asked).toEqual([]);
+      expect(events.some((e) => e.type === "answer_coverage")).toBe(false);
+      expect(lastDone(events).checksMeta.some((c) => c.kind === "answer_coverage")).toBe(false);
+    }),
+  ));
+
+test("answer coverage: a failed Jev call is silent — no event, the turn still finishes", () =>
+  withModels("strong/verifier", () =>
+    withCoverage("cov/jev", () =>
+      withJevStub({ responds: () => ({ responds: { type: "noul", noul: 0.5 } }) }, async () => {
+        const events = await collect(
+          runVerifiedChat({
+            ix, messages: [userMsg], question: "hi", maxIterations: 3,
+            stream: fakeStream([[textChunk("An answer."), finishChunk("stop")]]),
+            jsonCall: fakeSlicedJson({}),
+          }),
+        );
+        expect(events.some((e) => e.type === "answer_coverage")).toBe(false);
+        expect(events.some((e) => e.type === "verify_result")).toBe(true);
+        expect(events.at(-1)?.type).toBe("done");
+      }),
+    ),
+  ));
+
+test("answer coverage: skipped when the judge ruled the message small talk but the audit still runs", () =>
+  withModels("strong/verifier", () =>
+    withCoverage("cov/jev", () =>
+      withJevStub({ smalltalk: () => ({ smalltalk: { type: "noul", noul: 0.93 } }) }, async (asked) => {
+        const prev = config.chatSmalltalkJudgeModel;
+        config.chatSmalltalkJudgeModel = "fast/judge";
+        try {
+          // A link in the answer fails the bypass's answer-side condition, so
+          // the turn is audited even though the judge said small talk.
+          const events = await collect(
+            runVerifiedChat({
+              ix, messages: [userMsg], question: "thanks!", maxIterations: 3,
+              stream: fakeStream([[textChunk(`You're welcome! [Doc](/atlas/${CITE_UUID})`), finishChunk("stop")]]),
+              jsonCall: fakeSlicedJson({}),
+            }),
+          );
+          expect(asked).toEqual(["smalltalk"]);
+          expect(events.some((e) => e.type === "verify_result")).toBe(true);
+          expect(events.some((e) => e.type === "answer_coverage")).toBe(false);
+        } finally {
+          config.chatSmalltalkJudgeModel = prev;
+        }
+      }),
+    ),
+  ));
+
+test("answer coverage: the small-talk bypass never reaches it", () =>
+  withModels("strong/verifier", () =>
+    withCoverage("cov/jev", () =>
+      withJevStub({ smalltalk: () => ({ smalltalk: { type: "noul", noul: 0.93 } }) }, async (asked) => {
+        const prev = config.chatSmalltalkJudgeModel;
+        config.chatSmalltalkJudgeModel = "fast/judge";
+        try {
+          const events = await collect(
+            runVerifiedChat({
+              ix, messages: [userMsg], question: "hello", maxIterations: 3,
+              stream: fakeStream([[textChunk(GREETING), finishChunk("stop")]]),
+              jsonCall: fakeSlicedJson({}),
+            }),
+          );
+          expect(asked).toEqual(["smalltalk"]);
+          expect(events.some((e) => e.type === "answer_final")).toBe(false);
+          expect(events.some((e) => e.type === "answer_coverage")).toBe(false);
+        } finally {
+          config.chatSmalltalkJudgeModel = prev;
+        }
+      }),
+    ),
   ));

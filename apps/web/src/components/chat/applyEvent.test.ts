@@ -176,6 +176,33 @@ describe("applyEvent citation_marks", () => {
   });
 });
 
+describe("applyEvent answer_coverage", () => {
+  it("records the ruling on the message", () => {
+    const m = applyEvent(baseMsg(), { type: "answer_coverage", verdict: "answers", missingParts: ["when"], parts: ["who", "when"] });
+    expect(m.answerCoverage).toEqual({ verdict: "answers", missingParts: ["when"], parts: ["who", "when"] });
+  });
+
+  it("leaves `parts` off when the server sent none", () => {
+    const m = applyEvent(baseMsg(), { type: "answer_coverage", verdict: "deflects", missingParts: [] });
+    expect(m.answerCoverage).toEqual({ verdict: "deflects", missingParts: [] });
+  });
+
+  it("never replaces what is shown: a second event keeps the verdict and only adds new parts", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "answer_coverage", verdict: "answers", missingParts: ["when"] });
+    m = applyEvent(m, { type: "answer_coverage", verdict: "declines", missingParts: ["when", "how much"] });
+    expect(m.answerCoverage).toEqual({ verdict: "answers", missingParts: ["when", "how much"] });
+    const same = applyEvent(m, { type: "answer_coverage", verdict: "answers", missingParts: ["when"] });
+    expect(same).toBe(m);
+  });
+
+  it("survives done — done does not clear it", () => {
+    let m = applyEvent(baseMsg(), { type: "answer_coverage", verdict: "asks", missingParts: [] });
+    m = applyEvent(m, { type: "done", content: "Which set do you mean?", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] });
+    expect(m.answerCoverage?.verdict).toBe("asks");
+  });
+});
+
 describe("applyEvent facts / tool_call / tool_result", () => {
   it("facts rows are prepended at round 0", () => {
     const m = applyEvent(baseMsg({ rounds: 3, trace: [{ name: "atlas_query", args: {}, ok: true, bytes: 1, round: 3 }] }), {

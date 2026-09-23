@@ -1,4 +1,4 @@
-import type { CitationMark, ParamMismatch, ToolCallRecord, VerifyContradiction, VerifyOverall } from "./api";
+import type { AnswerCoverage, CitationMark, ParamMismatch, ToolCallRecord, VerifyContradiction, VerifyOverall } from "./api";
 
 // Shared ChatMsg/trace/verify shape, split out of useChatStream.ts so
 // applyEvent.ts (pure event-application logic) and useChatStream.ts (the
@@ -174,4 +174,8 @@ export interface ChatMsg {
   // clean". Live-session only — not persisted, same reasoning as
   // `verify`/`exports`/`reasoning` (see hydrate.ts).
   citationMarks?: Record<string, CitationMark>;
+  // "Did it answer the question?" ruling (server: `answer_coverage`). May
+  // never arrive — absent means no ruling, not "answered". Live-session only,
+  // same as `citationMarks` (see hydrate.ts).
+  answerCoverage?: AnswerCoverage;
 }
