@@ -97,6 +97,18 @@ export function compareParts(meta: PreviewMeta, active: ActiveBase | null): Comp
   return { subject, base: compareBase(meta, active), user };
 }
 
+/** Browser tab for a pull-request preview: "PR 88 preview on Sky Atlas by Redline -- feat/x — Title".
+ *  Null when this preview is not a pull request, so the open document keeps the tab. */
+export function previewTabTitle(meta: PreviewMeta | null): string | null {
+  if (!meta) return null;
+  const pull = meta.ref?.match(/^pull-(\d+)$/);
+  const n = meta.prNumber ?? (pull ? Number(pull[1]) : undefined);
+  if (n == null) return null;
+  const branch = meta.ref && !pull ? meta.ref : "";
+  const info = [branch, meta.prTitle?.trim() || ""].filter(Boolean).join(" — ");
+  return info ? `PR ${n} preview on Sky Atlas by Redline -- ${info}` : `PR ${n} preview on Sky Atlas by Redline`;
+}
+
 /** "Comparing HEAD — TITLE to BASE by USER", dropping any piece that is missing. */
 export function compareLine(meta: PreviewMeta, active: ActiveBase | null): string {
   const { subject, base, user } = compareParts(meta, active);

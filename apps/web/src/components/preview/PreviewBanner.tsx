@@ -8,6 +8,7 @@ import {
   compareParts,
   dismissAccessRepo,
   pullsPermissionCopy,
+  previewTabTitle,
   readDismissedAccessRepos,
   sourceLabel,
   sourceUrl,
@@ -18,7 +19,7 @@ import { Link } from "../Link";
 // Rendered by the App shell when a preview data source is active. Reads the
 // bundle's meta.json for the PR/branch label + author + state + GitHub source.
 
-export function PreviewBanner() {
+export function PreviewBanner({ onTabTitle }: { onTabTitle?: (title: string | null) => void }) {
   const { base, preview } = useDataSource();
   const { activeBase } = usePreviewDiff();
   const [location] = useLocation();
@@ -32,6 +33,10 @@ export function PreviewBanner() {
       .then(setMeta)
       .catch(() => {});
   }, [base, preview]);
+  useEffect(() => {
+    onTabTitle?.(preview ? previewTabTitle(meta) : null);
+    return () => onTabTitle?.(null);
+  }, [preview, meta, onTabTitle]);
   if (!preview) return null;
 
   // forkOwner is only set by the server for true fork previews — a PR whose

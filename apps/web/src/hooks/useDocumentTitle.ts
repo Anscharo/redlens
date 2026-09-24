@@ -8,12 +8,16 @@ const DEFAULT_TITLE = "Sky Atlas by Redline";
  * `null`/empty to fall back to the default.
  *
  * Callers compose the full title (e.g. `<doc> — Sky Atlas by Redline`).
+ *
+ * `active` false leaves the title alone. A parent that passes `active` true
+ * runs after its children, so it wins over a page that also sets the title.
  */
-export function useDocumentTitle(title: string | null | undefined) {
+export function useDocumentTitle(title: string | null | undefined, active = true) {
   useEffect(() => {
+    if (!active) return;
     document.title = title || DEFAULT_TITLE;
     return () => {
       document.title = DEFAULT_TITLE;
     };
-  }, [title]);
+  }, [title, active]);
 }

@@ -81,6 +81,14 @@ describe("PreviewBanner", () => {
     const link = await screen.findByRole("link", { name: "view PR #88 on GitHub ↗" });
     expect(link).toHaveAttribute("href", "https://github.com/sky-ecosystem/next-gen-atlas/pull/88");
     expect(screen.getByText(/Comparing feat\/x — Add a thing by alice/)).toBeTruthy();
+    const titles: Array<string | null> = [];
+    cleanup();
+    render(
+      <DataSourceContext.Provider value={PREVIEW_SOURCE}>
+        <PreviewBanner onTabTitle={(t) => titles.push(t)} />
+      </DataSourceContext.Provider>,
+    );
+    await waitFor(() => expect(titles.at(-1)).toBe("PR 88 preview on Sky Atlas by Redline -- feat/x — Add a thing"));
   });
 
   it("renders a FORK PREVIEW header with risk signals for an untrusted fork", async () => {

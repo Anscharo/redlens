@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { compareLine, baseSwitch, broadGrantCopy, diffBaseLabel, pullsPermissionCopy, dismissAccessRepo, readDismissedAccessRepos, type PreviewMeta, type PreviewBases } from "./previewMetaCopy";
+import { compareLine, previewTabTitle, baseSwitch, broadGrantCopy, diffBaseLabel, pullsPermissionCopy, dismissAccessRepo, readDismissedAccessRepos, type PreviewMeta, type PreviewBases } from "./previewMetaCopy";
 
 function meta(bases?: PreviewBases, extra: Partial<PreviewMeta> = {}): PreviewMeta {
   return { sha: "x", repo: "r", ref: "b", kind: "branch", ...extra, bases };
@@ -45,6 +45,25 @@ describe("compareLine", () => {
   it("falls back to the sky candidate before activeBase resolves", () => {
     const m = meta({ auto: "sky", sky: { repo: "acme/fork", ref: "feature", mergeBase: "x" } }, { ref: "feature" });
     expect(compareLine(m, null)).toBe("Comparing feature to acme/fork:feature");
+  });
+});
+
+describe("previewTabTitle", () => {
+  it("names the PR and the branch", () => {
+    expect(previewTabTitle(meta(undefined, { ref: "feat/x", prNumber: 88, prTitle: "Add a thing" }))).toBe(
+      "PR 88 preview on Sky Atlas by Redline -- feat/x — Add a thing",
+    );
+  });
+
+  it("uses a pull-N ref's number and title when there is no branch name", () => {
+    expect(previewTabTitle(meta(undefined, { ref: "pull-7", prTitle: "Spark" }))).toBe(
+      "PR 7 preview on Sky Atlas by Redline -- Spark",
+    );
+  });
+
+  it("is null for a branch that is not a pull request", () => {
+    expect(previewTabTitle(meta(undefined, { ref: "feature", kind: "branch" }))).toBeNull();
+    expect(previewTabTitle(null)).toBeNull();
   });
 });
 
