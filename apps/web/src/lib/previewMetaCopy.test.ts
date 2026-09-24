@@ -1,9 +1,41 @@
 import { describe, it, expect, vi } from "vitest";
-import { compareLine, previewTabTitle, baseSwitch, broadGrantCopy, diffBaseLabel, pullsPermissionCopy, dismissAccessRepo, readDismissedAccessRepos, type PreviewMeta, type PreviewBases } from "./previewMetaCopy";
+import { compareLine, compareParts, previewKind, previewTabTitle, baseSwitch, broadGrantCopy, diffBaseLabel, pullsPermissionCopy, dismissAccessRepo, readDismissedAccessRepos, type PreviewMeta, type PreviewBases } from "./previewMetaCopy";
 
 function meta(bases?: PreviewBases, extra: Partial<PreviewMeta> = {}): PreviewMeta {
   return { sha: "x", repo: "r", ref: "b", kind: "branch", ...extra, bases };
 }
+
+describe("compareParts", () => {
+  // The banner renders head, title, and base as three elements, so it needs the
+  // pieces the one-string `subject` folds together.
+  it("hands back the head and the title on their own", () => {
+    const m = meta({ auto: "sky", sky: { repo: "acme/fork", ref: "main", mergeBase: "x" } }, { ref: "feat/x", prTitle: "Add a thing" });
+    expect(compareParts(m, null)).toEqual({
+      head: "feat/x",
+      title: "Add a thing",
+      subject: "feat/x — Add a thing",
+      base: "acme/fork:main",
+    });
+  });
+
+  it("leaves a missing title empty rather than borrowing the head", () => {
+    expect(compareParts(meta(undefined, { ref: "sneaky" }), null)).toEqual({
+      head: "sneaky",
+      title: "",
+      subject: "sneaky",
+      base: "",
+    });
+  });
+});
+
+describe("previewKind", () => {
+  it("reads private first, then a fork owner, then a plain preview", () => {
+    expect(previewKind({ private: true, forkOwner: "mallory" })).toBe("private");
+    expect(previewKind({ forkOwner: "mallory" })).toBe("fork");
+    expect(previewKind({ repo: "sky-ecosystem/next-gen-atlas" })).toBe("preview");
+    expect(previewKind(null)).toBe("preview");
+  });
+});
 
 describe("compareLine", () => {
   it("names head, title, and base, and leaves the author out", () => {
