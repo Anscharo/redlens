@@ -36,6 +36,7 @@
 
 ## 2026-09-24
 - Chat answers now mark which sources back them and say when a reply didn't answer the question or skipped part of it
+- Reworded the preview bar and browser tab to name the pull request or branch, and added a Dismiss control on the Access notice that stays hidden in this browser
 
 ## 2026-09-23
 - Fixed the reader's expand control going missing from deeply nested sections while the Changed only filter was on

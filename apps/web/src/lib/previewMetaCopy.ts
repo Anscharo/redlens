@@ -65,62 +65,111 @@ export interface ActiveBase {
   auto: boolean;
 }
 
-export const CANONICAL_MAIN = "sky-ecosystem/next-gen-atlas:main";
-
-function plural(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? "" : "s"}`;
+/** Pieces of the banner sentence "Comparing HEAD — TITLE to BASE".
+ *  Empty strings are omitted by `compareLine`. The author is not part of the
+ *  sentence. Drift ("N docs differ", commits behind main) is intentionally
+ *  absent: `docsDiffer` counts the base tip against the live atlas, not the
+ *  redlines this preview renders. */
+export interface CompareParts {
+  subject: string;
+  base: string;
 }
 
-/** The "· redlined against X · …" segments for the banner, joined by " · ". */
-export function baseLine(meta: PreviewMeta, active: ActiveBase | null): string {
-  // Fall back to the server's own auto pick (from meta.json, which resolves
-  // before the diff does) rather than defaulting straight to the sky/old-
-  // bundle branch — otherwise a live-main or repo auto pick renders as sky
-  // (or nothing) for the moment before the diff provider's activeBase lands.
+function compareBase(meta: PreviewMeta, active: ActiveBase | null): string {
+  // Fall back to meta.bases.auto before the diff provider's activeBase lands,
+  // so the named base doesn't flicker in a beat later.
   const key = active?.key ?? meta.bases?.auto ?? null;
+  if (key === "live-main") return "live main";
+  if (key !== "repo" && key !== "sky") return "";
+  const cand =
+    active?.key === key && active.repo && active.ref
+      ? { repo: active.repo, ref: active.ref }
+      : meta.bases?.[key];
+  if (!cand?.repo || !cand.ref) return "";
+  return `${cand.repo}:${cand.ref}`;
+}
 
-  if (key === "live-main") {
-    const reason = meta.bases?.reason;
-    return `redlined against live main${reason ? ` (${reason})` : ""}`;
-  }
+export function compareParts(meta: PreviewMeta, active: ActiveBase | null): CompareParts {
+  const head = meta.ref?.trim() || "";
+  const title = meta.prTitle?.trim() || "";
+  const subject = head && title ? `${head} — ${title}` : head || title;
+  return { subject, base: compareBase(meta, active) };
+}
 
-  if (key === "repo") {
-    const repo = meta.bases?.repo;
-    if (!repo) return "";
-    const segments = [`redlined against ${repo.repo}:${repo.ref}`];
-    const drift = repo.drift;
-    // A PR against sky main directly makes the repo base identical to sky
-    // main — the drift segments would just repeat what the first segment
-    // already said, so they're dropped.
-    const isCanonical = `${repo.repo}:${repo.ref}` === CANONICAL_MAIN;
-    if (drift && !isCanonical) {
-      const { commitsAhead: ahead, commitsBehind: behind, docsDiffer } = drift;
-      if (ahead === 0 && behind === 0) {
-        segments.push(`base is up to date with ${CANONICAL_MAIN}`);
-      } else {
-        // A stale fork main with no unique commits (ahead === 0, the common
-        // case) is just "behind" — "forked 0 commits ago" would be noise.
-        if (ahead) segments.push(`base forked from ${CANONICAL_MAIN} ${plural(ahead, "commit")} ago`);
-        if (behind !== undefined) segments.push(`${plural(behind, "commit")} behind main`);
-      }
-      if (docsDiffer !== undefined) segments.push(`${plural(docsDiffer, "doc")} differ${docsDiffer === 1 ? "s" : ""}`);
-    }
-    return segments.join(" · ");
+/** Browser tab while a preview is open.
+ *  A pull request: "PR 88 preview on Sky Atlas by Redline -- feat/x — Title".
+ *  Anything else: "Preview feat/x on Sky Atlas by Redline".
+ *  Null only before meta arrives, so the open document keeps the tab until then. */
+export function previewTabTitle(meta: PreviewMeta | null): string | null {
+  if (!meta) return null;
+  const pull = meta.ref?.match(/^pull-(\d+)$/);
+  const n = meta.prNumber ?? (pull ? Number(pull[1]) : undefined);
+  if (n != null) {
+    const branch = meta.ref && !pull ? meta.ref : "";
+    const info = [branch, meta.prTitle?.trim() || ""].filter(Boolean).join(" — ");
+    return info ? `PR ${n} preview on Sky Atlas by Redline -- ${info}` : `PR ${n} preview on Sky Atlas by Redline`;
   }
+  const branch = meta.ref?.trim() || (meta.sha ? meta.sha.slice(0, 7) : "");
+  return branch ? `Preview ${branch} on Sky Atlas by Redline` : null;
+}
 
-  // key === "sky", or no resolved base at all (old bundle).
-  if (!meta.bases) {
-    // Old bundle: exactly today's copy, gated on forkOwner as before.
-    if (!meta.forkOwner) return "";
-    if (meta.behindBy === 0 && meta.aheadBy === 0) return `up to date with ${CANONICAL_MAIN}`;
-    if ((meta.behindBy ?? 0) > 0) return `${meta.behindBy} commits behind main`;
-    return "";
+/** "Comparing HEAD — TITLE to BASE", dropping any piece that is missing. */
+export function compareLine(meta: PreviewMeta, active: ActiveBase | null): string {
+  const { subject, base } = compareParts(meta, active);
+  if (!subject && !base) return "";
+  let line = subject ? `Comparing ${subject}` : "Comparing";
+  if (base) line += ` to ${base}`;
+  return line;
+}
+
+const CANONICAL_REPO = "sky-ecosystem/next-gen-atlas";
+
+/** Link back to the original source on GitHub (PR / branch / commit). */
+export function sourceUrl(m: PreviewMeta): string {
+  // Public canonical PRs live on sky-ecosystem/next-gen-atlas even when the
+  // head repo is a fork. Private `owner:repo:pull-N` previews keep kind
+  // "branch" (so the pr-state worker doesn't confuse them with canonical
+  // PR numbers) but still link back to the private repo's PR.
+  if (m.kind === "pr" && m.prNumber) return `https://github.com/${CANONICAL_REPO}/pull/${m.prNumber}`;
+  if (m.prNumber) return `https://github.com/${m.repo}/pull/${m.prNumber}`;
+  const pull = m.ref?.match(/^pull-(\d+)$/);
+  if (pull) return `https://github.com/${m.repo}/pull/${pull[1]}`;
+  if (m.kind === "branch") return `https://github.com/${m.repo}/tree/${m.ref}`;
+  return `https://github.com/${m.repo}/commit/${m.sha}`;
+}
+
+export function sourceLabel(m: PreviewMeta): string {
+  const pull = m.ref?.match(/^pull-(\d+)$/);
+  const n = m.prNumber ?? (pull ? Number(pull[1]) : undefined);
+  if (n != null && (m.kind === "pr" || m.prNumber != null || pull)) return `view PR ${n}`;
+  if (m.kind === "branch") return "view branch";
+  return "view commit";
+}
+
+const ACCESS_DISMISS_KEY = "sabr-preview-access-dismissed";
+
+/** Repos whose ACCESS notice this browser has dismissed. localStorage, so it
+ *  survives reloads on this machine. */
+export function readDismissedAccessRepos(): Set<string> {
+  try {
+    const raw = localStorage.getItem(ACCESS_DISMISS_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as { repos?: unknown };
+    if (!Array.isArray(parsed?.repos)) return new Set();
+    return new Set(parsed.repos.filter((r): r is string => typeof r === "string"));
+  } catch {
+    return new Set();
   }
-  const sky = meta.bases.sky;
-  if (!sky) return "";
-  if (sky.behindBy === 0 && sky.aheadBy === 0) return `up to date with ${CANONICAL_MAIN}`;
-  if ((sky.behindBy ?? 0) > 0) return `${sky.behindBy} commits behind main`;
-  return "";
+}
+
+export function dismissAccessRepo(repo: string): void {
+  try {
+    const repos = readDismissedAccessRepos();
+    repos.add(repo);
+    localStorage.setItem(ACCESS_DISMISS_KEY, JSON.stringify({ v: 1, repos: [...repos] }));
+  } catch {
+    // private mode / quota — the in-memory hide still lasts this view
+  }
 }
 
 /** Link target + label for the switch, or null when there is only one candidate. */

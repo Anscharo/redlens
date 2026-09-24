@@ -175,7 +175,7 @@ If an install was granted **All repositories** anyway, SAbR catches it after the
 fact: every private resolve reads the install's `repository_selection`, and
 when it is `all` the preview bar shows an **ACCESS** row naming the one repo the
 App needs, linking to the install's settings page (`installation.html_url`)
-where repository access is narrowed. Reloading the same preview after
+where repository access is narrowed. Dismiss hides that row on this browser. Reloading the same preview after
 narrowing updates the on-disk meta (no rebuild) and the row clears: a cached
 `repository_selection: all` is always re-checked against GitHub on the next
 private resolve, so the 30-minute installation cache never keeps the row up.

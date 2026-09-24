@@ -2,40 +2,32 @@ import { useEffect, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useDataSource } from "../../lib/dataSource";
 import { usePreviewDiff } from "../../lib/previewDiff";
-import { baseLine, baseSwitch, broadGrantCopy, pullsPermissionCopy, type PreviewMeta } from "../../lib/previewMetaCopy";
+import {
+  baseSwitch,
+  broadGrantCopy,
+  compareParts,
+  dismissAccessRepo,
+  pullsPermissionCopy,
+  previewTabTitle,
+  readDismissedAccessRepos,
+  sourceLabel,
+  sourceUrl,
+  type BannerNotice,
+  type PreviewMeta,
+} from "../../lib/previewMetaCopy";
+import { GitHubMark } from "../chat/glyphs";
 import { Link } from "../Link";
 
 // Rendered by the App shell when a preview data source is active. Reads the
 // bundle's meta.json for the PR/branch label + author + state + GitHub source.
-const CANONICAL_REPO = "sky-ecosystem/next-gen-atlas";
 
-// Link back to the original source on GitHub (PR / branch / commit).
-function sourceUrl(m: PreviewMeta): string {
-  // Public canonical PRs live on sky-ecosystem/next-gen-atlas even when the
-  // head repo is a fork. Private `owner:repo:pull-N` previews keep kind
-  // "branch" (so the pr-state worker doesn't confuse them with canonical
-  // PR numbers) but still link back to the private repo's PR.
-  if (m.kind === "pr" && m.prNumber) return `https://github.com/${CANONICAL_REPO}/pull/${m.prNumber}`;
-  if (m.prNumber) return `https://github.com/${m.repo}/pull/${m.prNumber}`;
-  const pull = m.ref?.match(/^pull-(\d+)$/);
-  if (pull) return `https://github.com/${m.repo}/pull/${pull[1]}`;
-  if (m.kind === "branch") return `https://github.com/${m.repo}/tree/${m.ref}`;
-  return `https://github.com/${m.repo}/commit/${m.sha}`;
-}
-
-function sourceLabel(m: PreviewMeta): string {
-  if (m.kind === "pr" && m.prNumber) return "view PR on GitHub ↗";
-  if (m.prNumber || /^pull-\d+$/.test(m.ref ?? "")) return "view PR on GitHub ↗";
-  if (m.kind === "branch") return "view branch ↗";
-  return "view commit ↗";
-}
-
-export function PreviewBanner() {
+export function PreviewBanner({ onTabTitle }: { onTabTitle?: (title: string | null) => void }) {
   const { base, preview } = useDataSource();
   const { activeBase } = usePreviewDiff();
   const [location] = useLocation();
   const search = useSearch();
   const [meta, setMeta] = useState<PreviewMeta | null>(null);
+  const [hiddenAccess, setHiddenAccess] = useState<ReadonlySet<string>>(() => readDismissedAccessRepos());
   useEffect(() => {
     if (!preview) return;
     fetch(`${base}meta.json`)
@@ -43,6 +35,10 @@ export function PreviewBanner() {
       .then(setMeta)
       .catch(() => {});
   }, [base, preview]);
+  useEffect(() => {
+    onTabTitle?.(preview ? previewTabTitle(meta) : null);
+    return () => onTabTitle?.(null);
+  }, [preview, meta, onTabTitle]);
   if (!preview) return null;
 
   // forkOwner is only set by the server for true fork previews — a PR whose
@@ -52,14 +48,17 @@ export function PreviewBanner() {
   // in the chip/label.
   const isFork = !!meta?.forkOwner;
   const isPrivate = !!meta?.private;
-  const label = meta?.prTitle ? `${meta.ref} — ${meta.prTitle}` : meta?.ref ?? preview.id;
+  const parts = meta ? compareParts(meta, activeBase ?? null) : null;
+  const subject = parts?.subject || preview.id;
   const src = meta ? sourceUrl(meta) : null;
-  const srcLabel = meta ? sourceLabel(meta) : "view commit ↗";
-  const line = meta ? baseLine(meta, activeBase ?? null) : "";
+  const srcLabel = meta ? sourceLabel(meta) : "view commit";
   // wouter's useSearch() strips the leading "?"; URLSearchParams doesn't care.
   const switchLink = meta ? baseSwitch(meta, activeBase ?? null, search) : null;
   // Install-owner nudges, one row each: a missing permission, an over-broad grant.
-  const notices = meta ? [pullsPermissionCopy(meta), broadGrantCopy(meta)].filter((n) => n !== null) : [];
+  // A dismissed ACCESS row stays hidden on this machine (localStorage).
+  const notices = (meta ? [pullsPermissionCopy(meta), broadGrantCopy(meta)] : []).filter(
+    (n): n is BannerNotice => n !== null && !(n.label === "ACCESS" && !!meta?.repo && hiddenAccess.has(meta.repo)),
+  );
   const perm = notices.length > 0;
   return (
     <div>
@@ -75,18 +74,9 @@ export function PreviewBanner() {
         {isPrivate ? "PRIVATE PREVIEW" : isFork ? "FORK PREVIEW" : "PREVIEW"}
       </span>
       <span>
-        Viewing {isPrivate ? "a private preview of" : isFork ? "unreviewed fork" : "preview"}{" "}
-        {src ? (
-          <a href={src} target="_blank" rel="noreferrer" style={{ color: "var(--tan)", textDecoration: "underline" }}>
-            <strong>{label}</strong>
-          </a>
-        ) : (
-          <strong>{label}</strong>
-        )}
-        {isFork ? ` · by ${meta!.forkOwner ?? meta!.repo!.split("/")[0]}` : ""}
-        {meta?.prAuthor ? ` · proposed by ${meta.prAuthor}` : ""}
-        {meta?.prState && meta.prState !== "open" ? ` · ${meta.prState}` : ""}
-        {line ? ` · ${line}` : ""}
+        {`Comparing ${subject}${parts?.base ? ` to ${parts.base}` : ""}${
+          meta?.prState && meta.prState !== "open" ? ` · ${meta.prState}` : ""
+        }`}
       </span>
       {switchLink && (
         // Compose with the current path (relative to the router base) so the
@@ -113,12 +103,12 @@ export function PreviewBanner() {
         </span>
       )}
       {src && (
-        <a href={src} target="_blank" rel="noreferrer" className="ml-auto" style={{ color: "var(--accent)" }}>
-          {srcLabel}
+        <a href={src} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1" style={{ color: "var(--accent)" }}>
+          {srcLabel} <GitHubMark size={14} />
         </a>
       )}
       <a href={import.meta.env.BASE_URL} className={src ? "" : "ml-auto"} style={{ color: "var(--accent)" }}>
-        exit preview
+        exit
       </a>
     </header>
     {notices.map((n) => (
@@ -129,11 +119,26 @@ export function PreviewBanner() {
       >
         <span style={{ color: "var(--red)", fontWeight: 600, letterSpacing: "0.05em" }}>{n.label}</span>
         <span>{n.body}</span>
-        {n.href ? (
-          <a href={n.href} target="_blank" rel="noreferrer" className="ml-auto" style={{ color: "var(--red)" }}>
-            {n.linkLabel}
-          </a>
-        ) : null}
+        <span className="ml-auto flex items-center gap-3">
+          {n.href ? (
+            <a href={n.href} target="_blank" rel="noreferrer" style={{ color: "var(--red)" }}>
+              {n.linkLabel}
+            </a>
+          ) : null}
+          {n.label === "ACCESS" && meta?.repo ? (
+            <button
+              type="button"
+              onClick={() => {
+                const repo = meta.repo!;
+                dismissAccessRepo(repo);
+                setHiddenAccess((prev) => new Set(prev).add(repo));
+              }}
+              style={{ color: "var(--red)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              Dismiss
+            </button>
+          ) : null}
+        </span>
       </p>
     ))}
     </div>

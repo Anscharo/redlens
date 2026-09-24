@@ -262,8 +262,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Turn a proposed Atlas edit into a readable, redlined view before it lands.",
         how: [
           "Open Preview and paste an Atlas PR, branch, or fork URL — or pick one from the open-PRs tab.",
-          "To preview a private repo, paste its GitHub URL or pull-request URL into the private-repo box — a pull request is redlined against its own base branch, a branch against the repo's default branch, and the default branch itself against the live sky-ecosystem/next-gen-atlas:main. If a private pull request is missing Pull requests: Read, the preview bar links to GitHub so the person who installed the App can grant it, then reload. If the App was granted every repository on the account, the bar names the one repo it needs and links to GitHub to narrow that grant.",
-          "The preview bar names the base in use and, when it isn't sky main, how far that base has drifted — use the `compare against … instead` link there to switch.",
+          "To preview a private repo, paste its GitHub URL or pull-request URL into the private-repo box — a pull request is redlined against its own base branch, a branch against the repo's default branch, and the default branch itself against the live sky-ecosystem/next-gen-atlas:main. If a private pull request is missing Pull requests: Read, the preview bar links to GitHub so the person who installed the App can grant it, then reload. If the App was granted every repository on the account, the bar names the one repo it needs and links to GitHub to narrow that grant. Dismiss hides that Access notice on this browser.",
+          "Use the `compare against … instead` link on the preview bar to switch bases.",
           "The Changed-only filter hides untouched sections; the rollup badge counts what moved.",
           "Watch for the ⚠ UUID-swap warning (a document's identity changed) and the build-error detail if the preview failed to build.",
           "History inside a preview is scoped to that preview, so you can see the change against what it edits.",

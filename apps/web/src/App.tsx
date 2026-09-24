@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
+import { useDocumentTitle } from "./hooks/useDocumentTitle";
 import { useLocation, useSearchParams, Switch, Route, Redirect } from "wouter";
 import { useSearchInput } from "./hooks/useSearchInput";
 import { useNavigation } from "./hooks/useNavigation";
@@ -145,6 +146,9 @@ export default function App() {
   // root redirects — searching navigates to HOME?q=… (results live there), and
   // bouncing that back to the reader would drop the query + loop.
   const { preview } = useDataSource();
+  const [previewTab, setPreviewTab] = useState<string | null>(null);
+  // Parent effect runs after the open page's title, so a PR preview keeps this tab.
+  useDocumentTitle(previewTab, previewTab != null);
   useEffect(() => {
     if (preview && location === ROUTES.HOME && !searchParams.get("q")) {
       navigate(ROUTES.ATLAS, { replace: true });
@@ -162,7 +166,7 @@ export default function App() {
       className={`app-shell flex flex-col pb-6 ${windowScroll ? "min-h-dvh" : "h-dvh"}`}
       style={{ background: "var(--bg)" }}
     >
-      <PreviewBanner />
+      <PreviewBanner onTabTitle={setPreviewTab} />
       <SearchBar
         inputRef={inputRef}
         query={query}

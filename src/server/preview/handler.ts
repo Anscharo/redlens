@@ -27,6 +27,7 @@ import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
 import { previewPaths, artifactPath, bundleReady, readMeta, writeMeta, touch, remove as removeBundle, type PreviewMeta } from "./cache.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
 import { getPreviewRow, touchPreview, isBlockedSha, listPreviews } from "./db.ts";
+import { fillPrivateDiffBaseOnOpen } from "./diff-base-backfill.ts";
 import { authorizePreviewAccess } from "./access.ts";
 import { appInstallUrl } from "./github-app.ts";
 
@@ -347,6 +348,9 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     }
     touch(sha);
     void touchPreview(sha).catch(() => {});
+    // Disk wiped → the rebuild below records the diff base. Disk still here
+    // and the row predates the columns → fill it without making this open wait.
+    if (r.private) fillPrivateDiffBaseOnOpen(r, meta);
     send({ phase: "ready", sha });
     return () => {};
   }
