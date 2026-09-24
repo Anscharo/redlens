@@ -72,7 +72,7 @@ export function PreviewBanner({ onTabTitle }: { onTabTitle?: (title: string | nu
         {isPrivate ? "PRIVATE PREVIEW" : isFork ? "FORK PREVIEW" : "PREVIEW"}
       </span>
       <span>
-        {`Comparing ${subject}${parts?.base ? ` to ${parts.base}` : ""}${parts?.user ? ` by ${parts.user}` : ""}${
+        {`Comparing ${subject}${parts?.base ? ` to ${parts.base}` : ""} ${
           meta?.prState && meta.prState !== "open" ? ` · ${meta.prState}` : ""
         }`}
       </span>
