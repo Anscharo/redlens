@@ -68,22 +68,11 @@ const REPO = "sky-ecosystem/next-gen-atlas";
 // atomized, consolidated), so nothing below needs to know which one a commit is in.
 // ---------------------------------------------------------------------------
 
-const { git, loadSnapshot } = makeAtlasGitSource(ATLAS_REPO);
+const { atlasCommits, loadSnapshot } = makeAtlasGitSource(ATLAS_REPO);
 
-/** Get all commits (oldest-first) that touch either the legacy monolithic
- *  Sky Atlas.md or the content/ tree (both the atomized and consolidated eras). */
-function getCommits() {
-  const raw = git(
-    `log --reverse --format="%H %aI %s" -- "${ATLAS_FILE}" "${CONTENT_DIR}"`,
-  );
-  return raw
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      const [hash, date, ...rest] = line.split(" ");
-      return { hash, date, message: rest.join(" ") };
-    });
-}
+/** All commits (oldest-first) that touch the atlas — shared with
+ *  build-doc-versions via atlas-git-source, so the two walks agree. */
+const getCommits = () => atlasCommits();
 
 
 // ---------------------------------------------------------------------------

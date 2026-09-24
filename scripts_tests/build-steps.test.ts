@@ -184,4 +184,26 @@ describe("atlas artifact store: worker publish is load-bearing (phase 4)", () =>
     expect(worker).not.toContain("web instances keep building their own");
     expect(worker).not.toMatch(/publish-artifacts failed[\s\S]*console\.warn/);
   });
+
+  it("atlas-worker kills a hung tick so Railway cron can retry", () => {
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    expect(worker).toContain("const HARD_CAP_MS = 15 * 60 * 1000");
+    expect(worker).toContain("atlas-worker: hard cap (15m) — exiting so cron can retry");
+    expect(worker).toContain("hardCap.unref()");
+    expect(worker).toMatch(/hard cap[\s\S]*process\.exit\(1\)/);
+  });
+
+  it("atlas-worker heartbeats on the rebuild path, not only the fast exit", () => {
+    // 2026-09-22: production cron rebuilt every 12 min (staleEmbeds=1) then
+    // sync.ts no-op'd; heartbeat lived only on the skip path, so freshness
+    // stayed 503 while Railway showed green ticks. After publish, not
+    // after integrity: a failed publish must leave freshness stale.
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    const calls = [...worker.matchAll(/await touchSyncHeartbeat\(/g)];
+    expect(calls.length).toBe(2);
+    const publish = worker.indexOf('run("bun", ["scripts/required/publish-artifacts.ts"])');
+    const hb = worker.lastIndexOf("await touchSyncHeartbeat(verifyDb)");
+    expect(publish).toBeGreaterThan(-1);
+    expect(hb).toBeGreaterThan(publish);
+  });
 });

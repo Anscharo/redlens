@@ -34,9 +34,14 @@
 -->
 
 
-## 2026-09-23
+## 2026-09-24
 - Chat answers now mark which sources back them and say when a reply didn't answer the question or skipped part of it
-- Removed the chat's "statements the retrieved sources don't cover" list
+
+## 2026-09-23
+- Fixed the reader's expand control going missing from deeply nested sections while the Changed only filter was on
+
+## 2026-09-22
+- Gave atlas pull-request previews five minutes to finish building, so large PRs no longer time out at two minutes.
 
 ## 2026-09-21
 - Private previews no longer compare against an old shared point in the repo's history; a pull request compares against its own base, a branch against the repo's default branch, and anything else against the live Atlas
