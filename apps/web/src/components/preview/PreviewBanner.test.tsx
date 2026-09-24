@@ -78,7 +78,7 @@ describe("PreviewBanner", () => {
     renderBanner(PREVIEW_SOURCE);
 
     expect(await screen.findByText("PREVIEW")).toBeTruthy();
-    const link = await screen.findByRole("link", { name: "PR 88" });
+    const link = await screen.findByRole("link", { name: "view PR 88" });
     expect(link).toHaveAttribute("href", "https://github.com/sky-ecosystem/next-gen-atlas/pull/88");
     expect(screen.getByText("Comparing feat/x — Add a thing")).toBeTruthy();
     expect(screen.queryByText(/by alice/)).toBeNull();
@@ -168,7 +168,7 @@ describe("PreviewBanner", () => {
     renderBanner(PREVIEW_SOURCE);
 
     expect(await screen.findByText("PRIVATE PREVIEW")).toBeTruthy();
-    const link = await screen.findByRole("link", { name: "PR 42" });
+    const link = await screen.findByRole("link", { name: "view PR 42" });
     expect(link).toHaveAttribute("href", "https://github.com/acme/secret-atlas/pull/42");
     expect(screen.getByText(/Comparing feature\/spark — Spark the atlas/)).toBeTruthy();
   });
@@ -183,7 +183,7 @@ describe("PreviewBanner", () => {
     });
     renderBanner(PREVIEW_SOURCE);
 
-    const link = await screen.findByRole("link", { name: "PR 7" });
+    const link = await screen.findByRole("link", { name: "view PR 7" });
     expect(link).toHaveAttribute("href", "https://github.com/acme/secret-atlas/pull/7");
   });
 
