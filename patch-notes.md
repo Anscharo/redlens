@@ -35,7 +35,7 @@
 
 
 ## 2026-09-24
-- Reworded the preview bar to name the branch, pull request, base, and author, and added a Dismiss control on the Access notice that stays hidden in this browser
+- Reworded the preview bar and browser tab to name the pull request and branch, and added a Dismiss control on the Access notice that stays hidden in this browser
 
 ## 2026-09-23
 - Fixed the reader's expand control going missing from deeply nested sections while the Changed only filter was on
