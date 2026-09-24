@@ -1,130 +1,10 @@
 {
   "backlog": [
     {
-      "taskKey": "u:0b6f25c1-fc39-44dc-bd6a-fc612cdb826e",
-      "uuid": "0b6f25c1-fc39-44dc-bd6a-fc612cdb826e",
-      "docNo": "A.1.9.1.3.2.3",
-      "title": "Changes To Approved Emergency Contact Mechanisms"
-    },
-    {
-      "taskKey": "u:2c577553-830f-4b9f-ab5f-dddd0fd62cfa",
-      "uuid": "2c577553-830f-4b9f-ab5f-dddd0fd62cfa",
-      "docNo": "A.1.10.2.3.2.2.3.2.2",
-      "title": "Prime Agent Publishes Spell Actions On Sky Forum"
-    },
-    {
-      "taskKey": "u:f2e395a1-a532-401a-ac15-b29d27916473",
-      "uuid": "f2e395a1-a532-401a-ac15-b29d27916473",
-      "docNo": "A.1.10.2.3.2.2.3.2.3",
-      "title": "Risk Assessment Review"
-    },
-    {
-      "taskKey": "u:78ec918d-cd9e-4326-bfa9-ab338e658a8b",
-      "uuid": "78ec918d-cd9e-4326-bfa9-ab338e658a8b",
-      "docNo": "A.1.10.2.3.2.3.1",
-      "title": "Execution Through StarGuard"
-    },
-    {
-      "taskKey": "u:45adb133-13b4-402c-8c2b-2473d78ff72e",
-      "uuid": "45adb133-13b4-402c-8c2b-2473d78ff72e",
-      "docNo": "A.1.10.2.5.2.3",
-      "title": "Morpho Deployment Verification Guide"
-    },
-    {
-      "taskKey": "u:cd57f7e4-6acd-431e-97fd-89c3453c8eba",
-      "uuid": "cd57f7e4-6acd-431e-97fd-89c3453c8eba",
-      "docNo": "A.1.10.3.2.3",
-      "title": "Debt Ceiling Breaker Exception"
-    },
-    {
-      "taskKey": "u:5247c795-7f9d-4d3f-a040-6bc9b070e2d4",
-      "uuid": "5247c795-7f9d-4d3f-a040-6bc9b070e2d4",
-      "docNo": "A.1.10.3.2.8",
-      "title": "Smart Burn Engine Breaker Exception"
-    },
-    {
-      "taskKey": "u:704fbaff-fa10-4c63-af5b-3ee5fd1ea6a8",
-      "uuid": "704fbaff-fa10-4c63-af5b-3ee5fd1ea6a8",
-      "docNo": "A.1.10.3.2.9",
-      "title": "PSM Breaker Exception"
-    },
-    {
-      "taskKey": "u:5533c091-e638-4c3d-92e8-43e3e7026078",
-      "uuid": "5533c091-e638-4c3d-92e8-43e3e7026078",
-      "docNo": "A.1.10.3.2.10",
-      "title": "Bounded External Access Modules"
-    },
-    {
       "taskKey": "u:ae05e069-0626-45f5-82d2-dbf39a5b2598",
       "uuid": "ae05e069-0626-45f5-82d2-dbf39a5b2598",
       "docNo": "A.1.10.3.2.10.5",
       "title": "Configurator Bounded External Access Module Exception"
-    },
-    {
-      "taskKey": "u:fbb0677a-3218-4649-9116-9f3c18e3ef90",
-      "uuid": "fbb0677a-3218-4649-9116-9f3c18e3ef90",
-      "docNo": "A.1.10.3.2.10.6",
-      "title": "Core Council Multisig Exception"
-    },
-    {
-      "taskKey": "u:1fd7d164-e9f3-4d6c-ab5e-0122bb415f8d",
-      "uuid": "1fd7d164-e9f3-4d6c-ab5e-0122bb415f8d",
-      "docNo": "A.1.10.3.2.11",
-      "title": "Stability Parameter Bounded External Access Module Breaker Exception"
-    },
-    {
-      "taskKey": "u:b9f3824c-31a5-472c-8a53-8166f3eeb7ee",
-      "uuid": "b9f3824c-31a5-472c-8a53-8166f3eeb7ee",
-      "docNo": "A.1.10.3.2.12",
-      "title": "stUSDS Bounded External Access Module Breaker Exception"
-    },
-    {
-      "taskKey": "u:2171fb2b-de83-44f2-92bf-26b59a1e8c71",
-      "uuid": "2171fb2b-de83-44f2-92bf-26b59a1e8c71",
-      "docNo": "A.1.10.3.2.13",
-      "title": "PASMom Exception"
-    },
-    {
-      "taskKey": "u:d5cfb5ed-20a9-42a0-9838-ef21e1115648",
-      "uuid": "d5cfb5ed-20a9-42a0-9838-ef21e1115648",
-      "docNo": "A.2.2.10.1.1.1.2",
-      "title": "Diamond PAU"
-    },
-    {
-      "taskKey": "u:a1b58d9d-7529-463e-af49-cbe9d07b7435",
-      "uuid": "a1b58d9d-7529-463e-af49-cbe9d07b7435",
-      "docNo": "A.2.2.10.1.1.1.2.1.7",
-      "title": "Maximum Exposure Tolerance"
-    },
-    {
-      "taskKey": "u:b76195f2-7494-43a4-919e-fa823303ad06",
-      "uuid": "b76195f2-7494-43a4-919e-fa823303ad06",
-      "docNo": "A.2.2.10.1.1.1.2.2.1",
-      "title": "Default Admin Role"
-    },
-    {
-      "taskKey": "u:e7a97395-ddd5-4ae8-874f-1bb3f247446a",
-      "uuid": "e7a97395-ddd5-4ae8-874f-1bb3f247446a",
-      "docNo": "A.2.2.10.1.1.1.2.2.3",
-      "title": "Allocator Role"
-    },
-    {
-      "taskKey": "u:636a39e4-5908-4fee-bae8-e0b11e0d9c55",
-      "uuid": "636a39e4-5908-4fee-bae8-e0b11e0d9c55",
-      "docNo": "A.2.2.10.1.1.1.2.2.4",
-      "title": "Actor"
-    },
-    {
-      "taskKey": "u:82a04ab9-158e-4c6e-9f2a-04ef68c3a2f0",
-      "uuid": "82a04ab9-158e-4c6e-9f2a-04ef68c3a2f0",
-      "docNo": "A.2.2.10.1.1.1.2.2.6",
-      "title": "Grantor"
-    },
-    {
-      "taskKey": "u:d823b872-fe99-4856-9096-55335357d55e",
-      "uuid": "d823b872-fe99-4856-9096-55335357d55e",
-      "docNo": "A.2.2.10.1.1.1.2.2.7",
-      "title": "Administered Agent Admin"
     },
     {
       "taskKey": "u:5e1f82c7-bcd6-46f8-aec0-3e767e55a93c",
@@ -145,58 +25,16 @@
       "title": "Timelock"
     },
     {
-      "taskKey": "u:781172a1-e2b2-4c7b-852a-3f8e89fec8ca",
-      "uuid": "781172a1-e2b2-4c7b-852a-3f8e89fec8ca",
-      "docNo": "A.2.2.10.1.1.1.2.3.9",
-      "title": "PASMom"
-    },
-    {
       "taskKey": "u:989171ed-5424-42ee-83f4-199e1149699c",
       "uuid": "989171ed-5424-42ee-83f4-199e1149699c",
       "docNo": "A.2.2.10.1.1.1.2.4",
       "title": "PAS"
     },
     {
-      "taskKey": "u:dc0e3a84-b542-4985-a41b-7ae2a3921cf3",
-      "uuid": "dc0e3a84-b542-4985-a41b-7ae2a3921cf3",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.1.1",
-      "title": "Hop Definition"
-    },
-    {
-      "taskKey": "u:f86fe54a-9770-41ad-8ad2-7c58090224ce",
-      "uuid": "f86fe54a-9770-41ad-8ad2-7c58090224ce",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.1.2",
-      "title": "Hop Default Value"
-    },
-    {
-      "taskKey": "u:942d6607-b92c-4779-8012-ea3b259ebf2b",
-      "uuid": "942d6607-b92c-4779-8012-ea3b259ebf2b",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.2.1",
-      "title": "Max Change Definition"
-    },
-    {
-      "taskKey": "u:0414677e-d79e-4d84-b0aa-209f0fa3ffe3",
-      "uuid": "0414677e-d79e-4d84-b0aa-209f0fa3ffe3",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.2.2",
-      "title": "Max Change Default Value"
-    },
-    {
-      "taskKey": "u:92a74fe1-3115-4cd7-bbf8-4e16fb4b0aa8",
-      "uuid": "92a74fe1-3115-4cd7-bbf8-4e16fb4b0aa8",
-      "docNo": "A.2.2.10.1.1.1.2.4.1.3",
-      "title": "Locked Unlimited Rate Limit Definition"
-    },
-    {
-      "taskKey": "u:9593a6c6-521b-4680-8119-cb1f08b9a3e3",
-      "uuid": "9593a6c6-521b-4680-8119-cb1f08b9a3e3",
-      "docNo": "A.2.2.10.1.1.1.2.4.2",
-      "title": "Enabled Diamond PAUs"
-    },
-    {
-      "taskKey": "u:e9b6e62c-a902-431d-8691-abf052919813",
-      "uuid": "e9b6e62c-a902-431d-8691-abf052919813",
-      "docNo": "A.2.2.10.1.1.1.2.4.2.1",
-      "title": "Grove Diamond PAU"
+      "taskKey": "u:9606346b-a7d3-4acf-93e3-c5f188504b83",
+      "uuid": "9606346b-a7d3-4acf-93e3-c5f188504b83",
+      "docNo": "A.2.2.10.1.1.1.2.4.2.2",
+      "title": "Osero Diamond PAU"
     },
     {
       "taskKey": "u:2091d01d-461a-4a02-9e82-986cc51960d4",
@@ -211,36 +49,6 @@
       "title": "Core Council Multisig"
     },
     {
-      "taskKey": "u:41157518-ec2f-4c4f-a112-5a1f07fc71dc",
-      "uuid": "41157518-ec2f-4c4f-a112-5a1f07fc71dc",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.1.1",
-      "title": "Core Council Multisig Address"
-    },
-    {
-      "taskKey": "u:70ce8011-7126-440d-b90d-010a3d97b43f",
-      "uuid": "70ce8011-7126-440d-b90d-010a3d97b43f",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.1.2",
-      "title": "Core Council Multisig Required Number Of Signers"
-    },
-    {
-      "taskKey": "u:366436ae-0bab-4fce-a144-64660ac47366",
-      "uuid": "366436ae-0bab-4fce-a144-64660ac47366",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.1.3",
-      "title": "Core Council Multisig Signers"
-    },
-    {
-      "taskKey": "u:c53506aa-7919-41b4-847b-28a015145f66",
-      "uuid": "c53506aa-7919-41b4-847b-28a015145f66",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.1.4",
-      "title": "Core Council Multisig Usage Standards"
-    },
-    {
-      "taskKey": "u:61f08711-db44-4c9f-98ad-f330e729398f",
-      "uuid": "61f08711-db44-4c9f-98ad-f330e729398f",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.1.5",
-      "title": "Core Council Multisig Modification"
-    },
-    {
       "taskKey": "u:a824d088-be58-4163-b382-54a95a728103",
       "uuid": "a824d088-be58-4163-b382-54a95a728103",
       "docNo": "A.2.2.10.1.1.1.2.4.3.2",
@@ -253,52 +61,10 @@
       "title": "Delayed Function Calls"
     },
     {
-      "taskKey": "u:8ead8771-c769-48d0-af2a-802099c61d42",
-      "uuid": "8ead8771-c769-48d0-af2a-802099c61d42",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.3.1",
-      "title": "Set Hop Function Call"
-    },
-    {
-      "taskKey": "u:da93e0a7-5fa1-4d93-af72-24557fbd9f24",
-      "uuid": "da93e0a7-5fa1-4d93-af72-24557fbd9f24",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.3.2",
-      "title": "Set Max Change Function Call"
-    },
-    {
-      "taskKey": "u:87da775d-430e-4db9-b58e-bbcf323e375a",
-      "uuid": "87da775d-430e-4db9-b58e-bbcf323e375a",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.3.3",
-      "title": "Add Rate Limits Function Call"
-    },
-    {
-      "taskKey": "u:2ef770b2-3636-4545-9aad-0f7cf94c0619",
-      "uuid": "2ef770b2-3636-4545-9aad-0f7cf94c0619",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.3.4",
-      "title": "Add Controller Function Call"
-    },
-    {
-      "taskKey": "u:bbdf1e6a-821b-43ec-aabf-e43a3bd6e113",
-      "uuid": "bbdf1e6a-821b-43ec-aabf-e43a3bd6e113",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.3.5",
-      "title": "Add Init Rate Limits Function Call"
-    },
-    {
       "taskKey": "u:010a904e-e0e0-4c1d-8460-b8e3118b680f",
       "uuid": "010a904e-e0e0-4c1d-8460-b8e3118b680f",
       "docNo": "A.2.2.10.1.1.1.2.4.3.3.6",
       "title": "Add Init Controller Actions Function Call"
-    },
-    {
-      "taskKey": "u:33d6773e-d3d8-4141-943b-bfac186574b1",
-      "uuid": "33d6773e-d3d8-4141-943b-bfac186574b1",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.3.7",
-      "title": "Add cBEAM Function Call"
-    },
-    {
-      "taskKey": "u:032164e4-cf66-4e79-bb8c-18f095a1cdef",
-      "uuid": "032164e4-cf66-4e79-bb8c-18f095a1cdef",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.3.8",
-      "title": "Start Function Call"
     },
     {
       "taskKey": "u:2c82cfd0-7a9a-464f-844d-ebc43b31c2a6",
@@ -307,76 +73,10 @@
       "title": "Immediate Function Calls"
     },
     {
-      "taskKey": "u:b6693635-4fc9-4a91-9c39-1cc075da506c",
-      "uuid": "b6693635-4fc9-4a91-9c39-1cc075da506c",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.4.1",
-      "title": "Del Rate Limits Function Call"
-    },
-    {
-      "taskKey": "u:61b01ab8-6c82-4ce6-91fd-cc5ffb7e1530",
-      "uuid": "61b01ab8-6c82-4ce6-91fd-cc5ffb7e1530",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.4.2",
-      "title": "Del Controller Function Call"
-    },
-    {
-      "taskKey": "u:623fe784-cca1-423d-b207-1990e903126d",
-      "uuid": "623fe784-cca1-423d-b207-1990e903126d",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.4.3",
-      "title": "Del Init Rate Limits Function Call"
-    },
-    {
       "taskKey": "u:88c0c2dd-f974-4690-8477-06e22d6dcd08",
       "uuid": "88c0c2dd-f974-4690-8477-06e22d6dcd08",
       "docNo": "A.2.2.10.1.1.1.2.4.3.4.4",
       "title": "Del Init Controller Actions Function Call"
-    },
-    {
-      "taskKey": "u:03280c06-8cab-47e0-acb7-9c7a30a5bf6a",
-      "uuid": "03280c06-8cab-47e0-acb7-9c7a30a5bf6a",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.4.5",
-      "title": "Del cBEAM Function Call"
-    },
-    {
-      "taskKey": "u:b18f6ed9-06c6-41a6-a54e-3e0e7f3c38bf",
-      "uuid": "b18f6ed9-06c6-41a6-a54e-3e0e7f3c38bf",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.4.6",
-      "title": "Set cBEAM For Rate Limits Function Call"
-    },
-    {
-      "taskKey": "u:9d6d19de-6a1c-410e-984a-3a7cbaf1e71d",
-      "uuid": "9d6d19de-6a1c-410e-984a-3a7cbaf1e71d",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.4.7",
-      "title": "Unset cBEAM For Rate Limits Function Call"
-    },
-    {
-      "taskKey": "u:c645c0d3-0282-4e93-a2ae-c99db3bcd421",
-      "uuid": "c645c0d3-0282-4e93-a2ae-c99db3bcd421",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.4.8",
-      "title": "Set cBEAM For Controller Function Call"
-    },
-    {
-      "taskKey": "u:0b853079-1362-45d8-99a4-a31bb584ef6c",
-      "uuid": "0b853079-1362-45d8-99a4-a31bb584ef6c",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.4.9",
-      "title": "Unset cBEAM For Controller Function Call"
-    },
-    {
-      "taskKey": "u:52895c20-8322-4cbf-800f-8ea107f00f85",
-      "uuid": "52895c20-8322-4cbf-800f-8ea107f00f85",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.4.10",
-      "title": "Stop Function Call"
-    },
-    {
-      "taskKey": "u:e049feea-5af3-4a8d-8766-36e348fd5d7b",
-      "uuid": "e049feea-5af3-4a8d-8766-36e348fd5d7b",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.5",
-      "title": "Restart After Halt"
-    },
-    {
-      "taskKey": "u:88e11076-5fe1-42a5-b2ba-bdb1bc929ec8",
-      "uuid": "88e11076-5fe1-42a5-b2ba-bdb1bc929ec8",
-      "docNo": "A.2.2.10.1.1.1.2.4.3.6",
-      "title": "PASMom"
     },
     {
       "taskKey": "u:45840a10-6c7c-453a-8218-4ab4d705012d",
@@ -385,40 +85,10 @@
       "title": "Configurator"
     },
     {
-      "taskKey": "u:7a98000b-c069-42f3-b1a4-8a3e7323a960",
-      "uuid": "7a98000b-c069-42f3-b1a4-8a3e7323a960",
-      "docNo": "A.2.2.10.1.1.1.2.4.4.1",
-      "title": "Operator Execution"
-    },
-    {
-      "taskKey": "u:e1a96b57-9c5e-469f-b7ac-5dac028eb726",
-      "uuid": "e1a96b57-9c5e-469f-b7ac-5dac028eb726",
-      "docNo": "A.2.2.10.1.1.1.2.4.4.2",
-      "title": "Public Communication"
-    },
-    {
-      "taskKey": "u:c9019bfd-424e-4284-b349-c8e5d9ed5c2d",
-      "uuid": "c9019bfd-424e-4284-b349-c8e5d9ed5c2d",
-      "docNo": "A.2.2.10.1.1.1.2.4.4.3",
-      "title": "Registered Operators"
-    },
-    {
       "taskKey": "u:da8d9885-3b28-478c-bbaa-ec88bdde91a9",
       "uuid": "da8d9885-3b28-478c-bbaa-ec88bdde91a9",
       "docNo": "A.2.2.10.1.1.1.2.4.4.3.1",
       "title": "Operator For The Grove Diamond PAU"
-    },
-    {
-      "taskKey": "u:5a5e59fd-693f-4511-b4b8-e2619ae60f89",
-      "uuid": "5a5e59fd-693f-4511-b4b8-e2619ae60f89",
-      "docNo": "A.2.2.10.1.1.1.2.4.4.3.1.1",
-      "title": "Grove Operator Multisig Address"
-    },
-    {
-      "taskKey": "u:dbbfa844-428c-4815-a657-6735c2361ebe",
-      "uuid": "dbbfa844-428c-4815-a657-6735c2361ebe",
-      "docNo": "A.2.2.10.1.1.1.2.4.4.3.1.2",
-      "title": "Grove Operator Multisig Required Number Of Signers"
     },
     {
       "taskKey": "u:776677da-0601-4b25-97f0-619cb8978415",
@@ -427,628 +97,112 @@
       "title": "Grove Operator Multisig Signers"
     },
     {
-      "taskKey": "u:6618063e-89c7-4ff0-806a-d46b32029dc6",
-      "uuid": "6618063e-89c7-4ff0-806a-d46b32029dc6",
-      "docNo": "A.2.2.10.1.1.1.2.4.4.3.1.4",
-      "title": "Grove Operator Multisig Usage Standards"
+      "taskKey": "u:e896c546-06e1-4bf7-83a1-d91fc5cfa71a",
+      "uuid": "e896c546-06e1-4bf7-83a1-d91fc5cfa71a",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3.2",
+      "title": "Operator For The Osero Diamond PAU"
     },
     {
-      "taskKey": "u:e3f61226-0c1a-4d83-9007-9ac2d21ed3da",
-      "uuid": "e3f61226-0c1a-4d83-9007-9ac2d21ed3da",
-      "docNo": "A.2.2.10.1.1.1.2.4.4.3.1.5",
-      "title": "Grove Operator Multisig Modification"
+      "taskKey": "u:9c59a5c5-300a-4694-99ed-46a43dfc7a67",
+      "uuid": "9c59a5c5-300a-4694-99ed-46a43dfc7a67",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3.2.1",
+      "title": "Osero Operator Multisig Address"
     },
     {
-      "taskKey": "u:d5240aa5-72c1-4f92-b22c-7a80a35d733c",
-      "uuid": "d5240aa5-72c1-4f92-b22c-7a80a35d733c",
-      "docNo": "A.2.2.10.1.1.1.2.4.5",
-      "title": "Transitional Measures"
+      "taskKey": "u:95aa5811-78f3-4c71-b037-fa81d95e166d",
+      "uuid": "95aa5811-78f3-4c71-b037-fa81d95e166d",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3.2.2",
+      "title": "Osero Operator Multisig Required Number Of Signers"
     },
     {
-      "taskKey": "u:8eea7011-c299-4861-bf2e-0adb78e3ef30",
-      "uuid": "8eea7011-c299-4861-bf2e-0adb78e3ef30",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.1.1.1",
-      "title": "Allocator Role"
+      "taskKey": "u:9882bb18-4f6b-4fa3-8d7f-d8dfbf9f25dc",
+      "uuid": "9882bb18-4f6b-4fa3-8d7f-d8dfbf9f25dc",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3.2.3",
+      "title": "Osero Operator Multisig Signers"
     },
     {
-      "taskKey": "u:53d3749c-ef45-45ed-9657-373580abe3cf",
-      "uuid": "53d3749c-ef45-45ed-9657-373580abe3cf",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.1.2.1",
-      "title": "Allocator Role"
+      "taskKey": "u:212ba83e-6552-4130-bc0e-c0b687601b4e",
+      "uuid": "212ba83e-6552-4130-bc0e-c0b687601b4e",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3.2.4",
+      "title": "Osero Operator Multisig Usage Standards"
     },
     {
-      "taskKey": "u:26eec581-240e-4214-85a4-ee9309b986d4",
-      "uuid": "26eec581-240e-4214-85a4-ee9309b986d4",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.2.1.1",
-      "title": "Allocator Role"
+      "taskKey": "u:3375bcc9-aca7-47be-b243-bee6d4126d7c",
+      "uuid": "3375bcc9-aca7-47be-b243-bee6d4126d7c",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.3.2.5",
+      "title": "Osero Operator Multisig Modification"
     },
     {
-      "taskKey": "u:c5a30d6c-6f3a-48a1-af35-39c0ee0bece4",
-      "uuid": "c5a30d6c-6f3a-48a1-af35-39c0ee0bece4",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.2.2.1",
-      "title": "Allocator Role"
+      "taskKey": "u:301e33b9-545f-4150-a14b-b0775096c2ea",
+      "uuid": "301e33b9-545f-4150-a14b-b0775096c2ea",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.4",
+      "title": "Registered Controllers"
     },
     {
-      "taskKey": "u:b2e3b84d-acbd-4704-b55e-e2026aa63058",
-      "uuid": "b2e3b84d-acbd-4704-b55e-e2026aa63058",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.3.1.1",
-      "title": "Allocator Role"
+      "taskKey": "u:d60d9a19-5661-42ac-9d52-11e3283e3740",
+      "uuid": "d60d9a19-5661-42ac-9d52-11e3283e3740",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.4.1",
+      "title": "Controller For The Grove Diamond PAU"
     },
     {
-      "taskKey": "u:75edeae6-46e4-4761-b2c7-0416038c97cf",
-      "uuid": "75edeae6-46e4-4761-b2c7-0416038c97cf",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.3.2.1",
-      "title": "Allocator Role"
+      "taskKey": "u:ee79ef13-d1ae-4fc7-9784-a5293c57bfe9",
+      "uuid": "ee79ef13-d1ae-4fc7-9784-a5293c57bfe9",
+      "docNo": "A.2.2.10.1.1.1.2.4.4.4.2",
+      "title": "Controller For The Osero Diamond PAU"
     },
     {
-      "taskKey": "u:f3c79493-8704-4d20-9eaa-e2e381f3920d",
-      "uuid": "f3c79493-8704-4d20-9eaa-e2e381f3920d",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.4.1.1",
-      "title": "Allocator Role"
+      "taskKey": "u:e3ec99ec-54c9-4fe7-8104-aee20c57ec57",
+      "uuid": "e3ec99ec-54c9-4fe7-8104-aee20c57ec57",
+      "docNo": "A.2.8.2.2.2.7.2.1",
+      "title": "Transfer Of Genesis Capital Allocation To Spark SubProxy"
     },
     {
-      "taskKey": "u:85a2ac37-da60-4a04-96eb-600f635ab388",
-      "uuid": "85a2ac37-da60-4a04-96eb-600f635ab388",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.4.2.1",
-      "title": "Allocator Role"
+      "taskKey": "u:c7a49d2a-72c2-438e-ab04-8ae284b811e0",
+      "uuid": "c7a49d2a-72c2-438e-ab04-8ae284b811e0",
+      "docNo": "A.2.8.2.2.2.7.2.2",
+      "title": "Transfer Of Genesis Capital Allocation To Grove SubProxy"
     },
     {
-      "taskKey": "u:417edcc0-3d50-48ba-8fc2-38b361dbc297",
-      "uuid": "417edcc0-3d50-48ba-8fc2-38b361dbc297",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.5",
-      "title": "Uniswap v3 Facet"
+      "taskKey": "u:c39702fb-bb6a-43c7-b208-18ddd279b1d3",
+      "uuid": "c39702fb-bb6a-43c7-b208-18ddd279b1d3",
+      "docNo": "A.2.8.2.4.2.1.2.1",
+      "title": "Transfer Of Genesis Capital Allocation To Obex SubProxy"
     },
     {
-      "taskKey": "u:955f7809-40e6-43a3-900d-6992a6e1d2ef",
-      "uuid": "955f7809-40e6-43a3-900d-6992a6e1d2ef",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.5.1.1",
-      "title": "Allocator Role"
+      "taskKey": "u:65638659-eb0d-4e5c-87e8-50705e3595b8",
+      "uuid": "65638659-eb0d-4e5c-87e8-50705e3595b8",
+      "docNo": "A.2.8.2.6.2.2.2.2",
+      "title": "Transfer Of Genesis Capital Allocation To Osero SubProxy"
     },
     {
-      "taskKey": "u:6cfcbc24-2d8d-40fe-bc90-ec679c084ef0",
-      "uuid": "6cfcbc24-2d8d-40fe-bc90-ec679c084ef0",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.5.2.1",
-      "title": "Allocator Role"
+      "taskKey": "u:36556509-d2b6-4932-8781-9bf4ecc90987",
+      "uuid": "36556509-d2b6-4932-8781-9bf4ecc90987",
+      "docNo": "A.2.8.2.7.2.2.2.1",
+      "title": "Transfer Of Genesis Capital Allocation To Skybase SubProxy"
     },
     {
-      "taskKey": "u:9b0217c7-8617-42c3-9e2e-b0b377607f50",
-      "uuid": "9b0217c7-8617-42c3-9e2e-b0b377607f50",
-      "docNo": "A.2.2.10.1.1.1.2.5.2.5.3.1",
-      "title": "Allocator Role"
+      "taskKey": "u:be600bf6-c0f2-42c5-ad5c-fd0cb429b628",
+      "uuid": "be600bf6-c0f2-42c5-ad5c-fd0cb429b628",
+      "docNo": "A.2.8.2.7.2.2.2.2",
+      "title": "Transfer Of Genesis Capital Allocation To USDS Demand Multisig"
     },
     {
-      "taskKey": "u:f671061e-11a0-4d3b-bb6e-9f4ee9a012a9",
-      "uuid": "f671061e-11a0-4d3b-bb6e-9f4ee9a012a9",
-      "docNo": "A.2.2.10.1.1.1.2.5.3.2",
-      "title": "Set RateLimit"
+      "taskKey": "u:e96da090-34ff-4445-a1d3-22cc69be2e51",
+      "uuid": "e96da090-34ff-4445-a1d3-22cc69be2e51",
+      "docNo": "A.3.2.2.1.1.1.1.5",
+      "title": "Reference Implementation"
     },
     {
-      "taskKey": "u:a85b7e8b-c4e9-44de-b717-efa4c8268d3b",
-      "uuid": "a85b7e8b-c4e9-44de-b717-efa4c8268d3b",
-      "docNo": "A.2.2.10.1.1.1.2.5.3.3",
-      "title": "Set Unlimited RateLimit"
+      "taskKey": "u:35ec7382-0613-4e74-b5ba-d86c647b1d73",
+      "uuid": "35ec7382-0613-4e74-b5ba-d86c647b1d73",
+      "docNo": "A.3.2.2.1.2.3.4",
+      "title": "Reference Implementation"
     },
     {
-      "taskKey": "u:686b81a9-450d-4340-a25a-5a069cbe8788",
-      "uuid": "686b81a9-450d-4340-a25a-5a069cbe8788",
-      "docNo": "A.2.2.10.1.1.1.3.1",
-      "title": "Role Configuration"
-    },
-    {
-      "taskKey": "u:881e768f-3438-4163-8965-a4bbd1752b94",
-      "uuid": "881e768f-3438-4163-8965-a4bbd1752b94",
-      "docNo": "A.2.2.10.1.1.1.3.2.1",
-      "title": "Eligible Loan Assets"
-    },
-    {
-      "taskKey": "u:fe70a940-5ada-48c5-8826-b361ef33275f",
-      "uuid": "fe70a940-5ada-48c5-8826-b361ef33275f",
-      "docNo": "A.2.2.10.1.1.1.3.2.2",
-      "title": "Eligible Collateral And Liquidation Loan-To-Value Limits"
-    },
-    {
-      "taskKey": "u:191fbabc-d4e1-4ec4-9ea8-35b80eb809b0",
-      "uuid": "191fbabc-d4e1-4ec4-9ea8-35b80eb809b0",
-      "docNo": "A.2.2.10.1.1.1.3.2.3.1",
-      "title": "Multi-Source Oracle Methodology"
-    },
-    {
-      "taskKey": "u:fe7c0ccf-c570-471a-815a-6b4b9cda5e29",
-      "uuid": "fe7c0ccf-c570-471a-815a-6b4b9cda5e29",
-      "docNo": "A.2.2.10.1.1.1.3.2.3.2",
-      "title": "Eligible Collateral Oracle Methodologies"
-    },
-    {
-      "taskKey": "u:079d2e2c-fa22-4f3c-a929-82d45af38097",
-      "uuid": "079d2e2c-fa22-4f3c-a929-82d45af38097",
-      "docNo": "A.2.2.10.1.1.1.3.2.3.3",
-      "title": "Temporary Single-Source Oracle Exception"
-    },
-    {
-      "taskKey": "u:c7723797-b2c8-4334-a185-592797456f87",
-      "uuid": "c7723797-b2c8-4334-a185-592797456f87",
-      "docNo": "A.2.2.10.1.1.1.3.2.3.4",
-      "title": "New Collateral Oracle Approval"
-    },
-    {
-      "taskKey": "u:4d30ef6e-bed6-4abd-b6dd-7c748e9d7ef1",
-      "uuid": "4d30ef6e-bed6-4abd-b6dd-7c748e9d7ef1",
-      "docNo": "A.2.2.10.1.1.1.3.2.4",
-      "title": "Interest Rate Requirements"
-    },
-    {
-      "taskKey": "u:14aba6cb-eb34-4780-84c1-908666835569",
-      "uuid": "14aba6cb-eb34-4780-84c1-908666835569",
-      "docNo": "A.2.2.10.1.1.1.3.3.1",
-      "title": "Vault Timelock Requirements"
-    },
-    {
-      "taskKey": "u:91ba9acf-6ed7-4214-8b6b-adfb03427ae1",
-      "uuid": "91ba9acf-6ed7-4214-8b6b-adfb03427ae1",
-      "docNo": "A.2.2.10.1.1.1.3.3.2",
-      "title": "Adapter Timelock Requirements"
-    },
-    {
-      "taskKey": "u:8e63ce99-4c7a-497f-a20a-92cba946b77d",
-      "uuid": "8e63ce99-4c7a-497f-a20a-92cba946b77d",
-      "docNo": "A.2.2.10.1.1.1.3.4",
-      "title": "Eligible Chains"
-    },
-    {
-      "taskKey": "u:41824fb1-a4e0-4f58-9095-0b3e646fb42c",
-      "uuid": "41824fb1-a4e0-4f58-9095-0b3e646fb42c",
-      "docNo": "A.2.2.10.1.1.1.3.5",
-      "title": "Transition And Compliance"
-    },
-    {
-      "taskKey": "u:f14bd41f-87a4-4cf9-aa04-189db73e0f08",
-      "uuid": "f14bd41f-87a4-4cf9-aa04-189db73e0f08",
-      "docNo": "A.2.2.10.1.1.1.6.1.1",
-      "title": "Pull Request Approval Requirements"
-    },
-    {
-      "taskKey": "u:a313bdfd-bb2e-4e0d-a040-4a816b50b74c",
-      "uuid": "a313bdfd-bb2e-4e0d-a040-4a816b50b74c",
-      "docNo": "A.2.2.10.1.1.1.6.2.1",
-      "title": "Liquidity Layer Freezer Multisig"
-    },
-    {
-      "taskKey": "u:040b5603-9c1c-4730-9e65-8be855db5f55",
-      "uuid": "040b5603-9c1c-4730-9e65-8be855db5f55",
-      "docNo": "A.2.2.10.1.1.1.6.2.1.1",
-      "title": "Required Number Of Signers"
-    },
-    {
-      "taskKey": "u:4723757a-405c-4eca-9044-f8a1ed5f4120",
-      "uuid": "4723757a-405c-4eca-9044-f8a1ed5f4120",
-      "docNo": "A.2.2.10.1.1.1.6.2.1.2",
-      "title": "Required Signers"
-    },
-    {
-      "taskKey": "u:3b9336c2-53c8-4967-ab45-a2f8c5a36556",
-      "uuid": "3b9336c2-53c8-4967-ab45-a2f8c5a36556",
-      "docNo": "A.2.2.10.1.1.1.6.2.1.3",
-      "title": "Default Configuration Deviations"
-    },
-    {
-      "taskKey": "u:5e7f23f6-4ff0-4a81-81f0-0b102b33dfbf",
-      "uuid": "5e7f23f6-4ff0-4a81-81f0-0b102b33dfbf",
-      "docNo": "A.2.2.10.1.1.1.6.2.1.3.1",
-      "title": "List Of Approved Deviations"
-    },
-    {
-      "taskKey": "u:c304cb9f-ab10-4d5b-8f94-588170b36a9e",
-      "uuid": "c304cb9f-ab10-4d5b-8f94-588170b36a9e",
-      "docNo": "A.2.2.10.1.1.1.6.2.1.3.1.0.6.1",
-      "title": "Approved Deviations"
-    },
-    {
-      "taskKey": "u:c09435ff-d876-442a-899c-ad494175500b",
-      "uuid": "c09435ff-d876-442a-899c-ad494175500b",
-      "docNo": "A.2.3.1.2.1",
-      "title": "Step 0: Net Revenue"
-    },
-    {
-      "taskKey": "u:c4ef7fd6-c70c-4fe9-9665-97ad17443390",
-      "uuid": "c4ef7fd6-c70c-4fe9-9665-97ad17443390",
-      "docNo": "A.2.3.1.5",
-      "title": "Allocation Modification"
-    },
-    {
-      "taskKey": "u:7f43aea7-9b81-48ef-b3ce-fdfae7e8a551",
-      "uuid": "7f43aea7-9b81-48ef-b3ce-fdfae7e8a551",
-      "docNo": "A.2.4.1.1",
-      "title": "Operational Processes"
-    },
-    {
-      "taskKey": "u:a8075d68-a5ba-4b4d-bce5-0ad58130f9e5",
-      "uuid": "a8075d68-a5ba-4b4d-bce5-0ad58130f9e5",
-      "docNo": "A.2.8.2.2.2.4.5.2.3",
-      "title": "Grove Foundation Grant Authorization: August 2026"
-    },
-    {
-      "taskKey": "u:bd2d15af-e32a-4ce9-a7ac-5a5ff1665fd4",
-      "uuid": "bd2d15af-e32a-4ce9-a7ac-5a5ff1665fd4",
-      "docNo": "A.2.8.2.2.2.4.5.2.4",
-      "title": "Grove Foundation Grant Authorization: September 2026"
-    },
-    {
-      "taskKey": "u:a176f67f-009f-44a0-a19b-169c2eb376a4",
-      "uuid": "a176f67f-009f-44a0-a19b-169c2eb376a4",
-      "docNo": "A.2.9.1.1.2.1",
-      "title": "Lawyer Registry Covered Areas"
-    },
-    {
-      "taskKey": "u:228f9955-6bba-4252-a101-5529e7a300b9",
-      "uuid": "228f9955-6bba-4252-a101-5529e7a300b9",
-      "docNo": "A.3.1.2.1",
-      "title": "Base Rate"
-    },
-    {
-      "taskKey": "u:e3a7ca35-0569-4867-bc64-e732622bda21",
-      "uuid": "e3a7ca35-0569-4867-bc64-e732622bda21",
-      "docNo": "A.3.1.2.2.2.1",
-      "title": "Sky Savings Rate Stability Parameter Bounded External Access Module Parameters"
-    },
-    {
-      "taskKey": "u:aff1868f-66aa-4252-851f-9343567a52eb",
-      "uuid": "aff1868f-66aa-4252-851f-9343567a52eb",
-      "docNo": "A.3.1.2.2.3",
-      "title": "Sky Savings Rate Current Value"
-    },
-    {
-      "taskKey": "u:335dd92b-cbd8-4d98-8d23-1dd57d98487d",
-      "uuid": "335dd92b-cbd8-4d98-8d23-1dd57d98487d",
-      "docNo": "A.3.1.2.4.1.1",
-      "title": "Dai Savings Rate Stability Parameter Bounded External Access Module Parameters"
-    },
-    {
-      "taskKey": "u:6b2b7302-e63b-457e-afeb-daab5ca7a7de",
-      "uuid": "6b2b7302-e63b-457e-afeb-daab5ca7a7de",
-      "docNo": "A.3.1.2.5",
-      "title": "Agent Credit Line Borrow Rate"
-    },
-    {
-      "taskKey": "u:154c3b5d-7a87-4dae-85f3-7d26deab9a31",
-      "uuid": "154c3b5d-7a87-4dae-85f3-7d26deab9a31",
-      "docNo": "A.3.1.2.7",
-      "title": "Rate Conventions"
-    },
-    {
-      "taskKey": "u:20aa9663-214b-46f5-8b37-53be387b996b",
-      "uuid": "20aa9663-214b-46f5-8b37-53be387b996b",
-      "docNo": "A.3.2.2.1.1.1.1.3.8.2",
-      "title": "Noncompliant Morpho Vault Allocations"
-    },
-    {
-      "taskKey": "u:bf561ea8-ab09-4ff5-a84d-2e92bcff997b",
-      "uuid": "bf561ea8-ab09-4ff5-a84d-2e92bcff997b",
-      "docNo": "A.3.3.2.7.1.1.3",
-      "title": "Lite Peg Stability Module Parameter Modification"
-    },
-    {
-      "taskKey": "u:ddb90fee-2851-4bf0-b924-f1d73e30ce7a",
-      "uuid": "ddb90fee-2851-4bf0-b924-f1d73e30ce7a",
-      "docNo": "A.3.5.2",
-      "title": "Smart Burn Engine Parameters"
-    },
-    {
-      "taskKey": "u:0803e6b5-5755-431c-9ef0-999115f6f897",
-      "uuid": "0803e6b5-5755-431c-9ef0-999115f6f897",
-      "docNo": "A.3.5.2.2.2",
-      "title": "Deployment"
-    },
-    {
-      "taskKey": "u:499570de-9fae-4009-be34-c3330266030a",
-      "uuid": "499570de-9fae-4009-be34-c3330266030a",
-      "docNo": "A.3.5.2.3",
-      "title": "Modification"
-    },
-    {
-      "taskKey": "u:b57ac61b-f6b1-4025-bd44-569d0f2afe2f",
-      "uuid": "b57ac61b-f6b1-4025-bd44-569d0f2afe2f",
-      "docNo": "A.3.5.2.4",
-      "title": "Smart Burn Engine Bounded External Access Module"
-    },
-    {
-      "taskKey": "u:2674da52-7a73-447f-811e-7dd40d23559f",
-      "uuid": "2674da52-7a73-447f-811e-7dd40d23559f",
-      "docNo": "A.3.5.2.4.5",
-      "title": "Operators"
-    },
-    {
-      "taskKey": "u:5ecdf33d-c8df-439c-98ac-892e62284797",
-      "uuid": "5ecdf33d-c8df-439c-98ac-892e62284797",
-      "docNo": "A.3.7.1.2.1.3",
-      "title": "ALLOCATOR-GROVE-A Parameters"
-    },
-    {
-      "taskKey": "u:17630a67-b287-4f44-bc60-f2a4f5d16cfa",
-      "uuid": "17630a67-b287-4f44-bc60-f2a4f5d16cfa",
-      "docNo": "A.3.7.1.2.1.7",
-      "title": "ALLOCATOR-PRYSM-A Parameters"
-    },
-    {
-      "taskKey": "u:b113ca06-9a25-4abf-81f1-53f419ffe2d2",
-      "uuid": "b113ca06-9a25-4abf-81f1-53f419ffe2d2",
-      "docNo": "A.3.7.1.3.1",
-      "title": "Definitions"
-    },
-    {
-      "taskKey": "u:2d4aa875-b7ea-49c3-9506-479f0b5d157c",
-      "uuid": "2d4aa875-b7ea-49c3-9506-479f0b5d157c",
-      "docNo": "A.3.7.1.3.4",
-      "title": "Parameter Adjustments"
-    },
-    {
-      "taskKey": "u:ae2b5d27-b666-4796-8791-b59d151daf41",
-      "uuid": "ae2b5d27-b666-4796-8791-b59d151daf41",
-      "docNo": "A.3.7.1.3.5.2",
-      "title": "Operator Update Process"
-    },
-    {
-      "taskKey": "u:d547c23a-049b-46b2-81fe-e6a4c0105555",
-      "uuid": "d547c23a-049b-46b2-81fe-e6a4c0105555",
-      "docNo": "A.6.1.1.1.2.6.1.3.1.5.3.4.2",
-      "title": "Timelocks"
-    },
-    {
-      "taskKey": "u:3c72575c-ce4e-4379-ba45-080f335851a1",
-      "uuid": "3c72575c-ce4e-4379-ba45-080f335851a1",
-      "docNo": "A.6.1.1.1.2.6.1.4.3.4.2.3",
-      "title": "Instance-specific Operational Processes"
-    },
-    {
-      "taskKey": "t:compromised key response|risk",
-      "uuid": "05dbbbcc-7702-4d17-a222-9c93356be7cd",
-      "docNo": "A.6.1.1.1.3.1.3.7.2",
-      "title": "Compromised Key Response"
-    },
-    {
-      "taskKey": "u:4999a374-380b-4694-a67c-0fa471b4cf43",
-      "uuid": "4999a374-380b-4694-a67c-0fa471b4cf43",
-      "docNo": "A.6.1.1.1.3.2.1.1.2.1.5",
-      "title": "USDT Risk Parameters"
-    },
-    {
-      "taskKey": "u:37ff9748-6f72-4adf-af97-0f90cb7154b4",
-      "uuid": "37ff9748-6f72-4adf-af97-0f90cb7154b4",
-      "docNo": "A.6.1.1.1.3.2.1.1.2.1.12",
-      "title": "LBTC Risk Parameters"
-    },
-    {
-      "taskKey": "u:119a4bbf-9a37-4a2c-bac9-11e969244bfe",
-      "uuid": "119a4bbf-9a37-4a2c-bac9-11e969244bfe",
-      "docNo": "A.6.1.1.1.3.2.1.1.2.1.19",
-      "title": "USDG Risk Parameters"
-    },
-    {
-      "taskKey": "u:8002fcc5-0e0d-4b4c-9b62-41b20503f448",
-      "uuid": "8002fcc5-0e0d-4b4c-9b62-41b20503f448",
-      "docNo": "A.6.1.1.1.3.2.1.1.2.1.20",
-      "title": "RLUSD Risk Parameters"
-    },
-    {
-      "taskKey": "u:aacc4fa0-3fd8-44f4-af79-7ec3d4128328",
-      "uuid": "aacc4fa0-3fd8-44f4-af79-7ec3d4128328",
-      "docNo": "A.6.1.1.1.3.2.1.1.2.2.1",
-      "title": "GNO Risk Parameters"
-    },
-    {
-      "taskKey": "u:dc3b3c32-f891-49fa-bdb4-8944d14e3d56",
-      "uuid": "dc3b3c32-f891-49fa-bdb4-8944d14e3d56",
-      "docNo": "A.6.1.1.1.3.2.1.1.2.2.2",
-      "title": "WETH Risk Parameters"
-    },
-    {
-      "taskKey": "u:2c982dbd-dee3-45ce-9e45-48d7ebc33acb",
-      "uuid": "2c982dbd-dee3-45ce-9e45-48d7ebc33acb",
-      "docNo": "A.6.1.1.1.3.2.1.1.2.2.4",
-      "title": "sDai Risk Parameters"
-    },
-    {
-      "taskKey": "u:a07d0682-9249-4a4f-b2a3-c0dfb163c683",
-      "uuid": "a07d0682-9249-4a4f-b2a3-c0dfb163c683",
-      "docNo": "A.6.1.1.1.3.2.1.1.2.2.5",
-      "title": "wstETH Risk Parameters"
-    },
-    {
-      "taskKey": "u:57bae006-ff07-4da7-adc3-ea3649ce7e38",
-      "uuid": "57bae006-ff07-4da7-adc3-ea3649ce7e38",
-      "docNo": "A.6.1.1.1.3.2.1.1.2.2.8",
-      "title": "WXDAI Risk Parameters"
-    },
-    {
-      "taskKey": "u:7410ed94-db95-437a-a4d2-9120036ec7bd",
-      "uuid": "7410ed94-db95-437a-a4d2-9120036ec7bd",
-      "docNo": "A.6.1.1.1.3.4.2.2.3",
-      "title": "Parameters"
-    },
-    {
-      "taskKey": "u:6f64ac9e-daf1-4339-8046-3894e57f4383",
-      "uuid": "6f64ac9e-daf1-4339-8046-3894e57f4383",
-      "docNo": "A.6.1.1.1.3.9.3.3",
-      "title": "Reporting of Curator Actions"
-    },
-    {
-      "taskKey": "u:218f889f-6a5d-46a8-b8a3-cb0a075825c2",
-      "uuid": "218f889f-6a5d-46a8-b8a3-cb0a075825c2",
-      "docNo": "A.6.1.1.1.3.9.4.1",
-      "title": "Polling Requirement"
-    },
-    {
-      "taskKey": "u:48e6eeb9-86c0-4bfa-8be0-e9917d163118",
-      "uuid": "48e6eeb9-86c0-4bfa-8be0-e9917d163118",
-      "docNo": "A.6.1.1.1.3.9.4.2",
-      "title": "Execution Authority"
-    },
-    {
-      "taskKey": "u:f87333c8-ec5e-4483-83a9-791e1f9f9634",
-      "uuid": "f87333c8-ec5e-4483-83a9-791e1f9f9634",
-      "docNo": "A.6.1.1.1.3.9.6.1",
-      "title": "Authorized Cancellers"
-    },
-    {
-      "taskKey": "u:0e572cad-bdf2-437f-b272-0cd634424b19",
-      "uuid": "0e572cad-bdf2-437f-b272-0cd634424b19",
-      "docNo": "A.6.1.1.1.3.9.6.2",
-      "title": "Cancellation Reasons"
-    },
-    {
-      "taskKey": "u:900c4a0d-ed93-41ad-b914-f84d50d6940e",
-      "uuid": "900c4a0d-ed93-41ad-b914-f84d50d6940e",
-      "docNo": "A.6.1.1.1.3.9.6.3",
-      "title": "Cancellation Authority"
-    },
-    {
-      "taskKey": "u:ea50c8da-008e-4f0f-b2df-ac666d5faf13",
-      "uuid": "ea50c8da-008e-4f0f-b2df-ac666d5faf13",
-      "docNo": "A.6.1.1.1.3.9.6.3.1",
-      "title": "Cancellation Authority Independence"
-    },
-    {
-      "taskKey": "u:817391bd-3748-479c-846e-f8d3e3ec56f4",
-      "uuid": "817391bd-3748-479c-846e-f8d3e3ec56f4",
-      "docNo": "A.6.1.1.1.3.9.7.1.5",
-      "title": "Cancellation Authority"
-    },
-    {
-      "taskKey": "u:3e8ed24b-da4a-4c3f-9a74-c3dd6a557abf",
-      "uuid": "3e8ed24b-da4a-4c3f-9a74-c3dd6a557abf",
-      "docNo": "A.6.1.1.1.3.9.7.2.1",
-      "title": "Spark USDS Morpho Vault - Ethereum Mainnet"
-    },
-    {
-      "taskKey": "u:603cf96e-5819-4e3d-942e-5290dd000847",
-      "uuid": "603cf96e-5819-4e3d-942e-5290dd000847",
-      "docNo": "A.6.1.1.1.3.9.7.2.2",
-      "title": "Spark Blue Chip USDC Morpho Vault - Ethereum Mainnet"
-    },
-    {
-      "taskKey": "u:5ef1e78f-e1d2-4b09-b00c-618e36ccb2d8",
-      "uuid": "5ef1e78f-e1d2-4b09-b00c-618e36ccb2d8",
-      "docNo": "A.6.1.1.1.3.9.7.2.3",
-      "title": "Spark Blue Chip USDT Morpho Vault - Ethereum Mainnet"
-    },
-    {
-      "taskKey": "u:85722a93-ec30-4e7f-883c-adde12b0ac6b",
-      "uuid": "85722a93-ec30-4e7f-883c-adde12b0ac6b",
-      "docNo": "A.6.1.1.1.3.9.7.2.4",
-      "title": "Spark USDC Morpho Vault - Base"
-    },
-    {
-      "taskKey": "u:67d8abe9-a398-4c7c-9e0d-ee48e97489e1",
-      "uuid": "67d8abe9-a398-4c7c-9e0d-ee48e97489e1",
-      "docNo": "A.6.1.1.1.3.9.7.2.5",
-      "title": "Sentora RLUSD Morpho Vault - Ethereum Mainnet"
-    },
-    {
-      "taskKey": "u:7e53acf8-10e7-4250-a05c-bab8354aa738",
-      "uuid": "7e53acf8-10e7-4250-a05c-bab8354aa738",
-      "docNo": "A.6.1.1.2.2.6.1.2.1.1.3.3.3",
-      "title": "USDS For USDC Swap Maximum"
-    },
-    {
-      "taskKey": "u:6ca30d6e-df7f-47f9-93c3-b20bae6762a3",
-      "uuid": "6ca30d6e-df7f-47f9-93c3-b20bae6762a3",
-      "docNo": "A.6.1.1.2.2.6.1.2.1.1.3.3.4",
-      "title": "USDC For USDS Swap Maximum"
-    },
-    {
-      "taskKey": "u:6823cc5a-6667-4754-a030-9ac7126b006e",
-      "uuid": "6823cc5a-6667-4754-a030-9ac7126b006e",
-      "docNo": "A.6.1.1.2.2.6.1.2.1.1.4.2",
-      "title": "Whitelisting Of ALM Proxy"
-    },
-    {
-      "taskKey": "u:0cf2ffe0-cb0b-4c3c-bd11-349cad3d4c98",
-      "uuid": "0cf2ffe0-cb0b-4c3c-bd11-349cad3d4c98",
-      "docNo": "A.6.1.1.2.2.6.1.2.2.1.2.2.3",
-      "title": "PSM Facet"
-    },
-    {
-      "taskKey": "u:df09edaf-7a92-4d8e-ae86-a9666a0bf082",
-      "uuid": "df09edaf-7a92-4d8e-ae86-a9666a0bf082",
-      "docNo": "A.6.1.1.3.2.6.1.2.2.1.1.2.1.2.5.1.1",
-      "title": "swapUSDSToUSDC Function"
-    },
-    {
-      "taskKey": "u:1b18072b-c409-4d2f-a333-1e5c3ae8ab90",
-      "uuid": "1b18072b-c409-4d2f-a333-1e5c3ae8ab90",
-      "docNo": "A.6.1.1.3.2.6.1.2.2.1.1.2.1.2.5.2.1",
-      "title": "swapUSDCToUSDS Function"
-    },
-    {
-      "taskKey": "u:c4932ae7-0bf2-46fe-bbca-4bdd675368c9",
-      "uuid": "c4932ae7-0bf2-46fe-bbca-4bdd675368c9",
-      "docNo": "A.6.1.1.3.2.6.1.2.2.2.3.1",
-      "title": "Remove Compromised Relayer As Freezer"
-    },
-    {
-      "taskKey": "u:0ec7c5be-32a2-4d3b-b856-71face6612a9",
-      "uuid": "0ec7c5be-32a2-4d3b-b856-71face6612a9",
-      "docNo": "A.6.1.1.5.2.6.1.2.2.1.2.1.2.6.1.1",
-      "title": "swapUSDSToUSDC Function"
-    },
-    {
-      "taskKey": "u:f0117433-4568-4b4b-bed6-fce75f85939a",
-      "uuid": "f0117433-4568-4b4b-bed6-fce75f85939a",
-      "docNo": "A.6.1.1.5.2.6.1.2.2.1.2.1.2.6.2.1",
-      "title": "swapUSDCToUSDS Function"
-    },
-    {
-      "taskKey": "u:b08f57de-599d-46e4-aabe-64b1db5a38ad",
-      "uuid": "b08f57de-599d-46e4-aabe-64b1db5a38ad",
-      "docNo": "A.6.1.1.6.2.6.1.2.2.1.2.1.2.6.1.1",
-      "title": "swapUSDSToUSDC Function"
-    },
-    {
-      "taskKey": "u:355f4606-5346-41d5-8ea7-2c4490d761e1",
-      "uuid": "355f4606-5346-41d5-8ea7-2c4490d761e1",
-      "docNo": "A.6.1.1.6.2.6.1.2.2.1.2.1.2.6.2.1",
-      "title": "swapUSDCToUSDS Function"
-    },
-    {
-      "taskKey": "u:0eed3609-62a2-4c5b-ae5b-4f78212252ee",
-      "uuid": "0eed3609-62a2-4c5b-ae5b-4f78212252ee",
-      "docNo": "A.6.1.1.7.2.6.1.2.1.1.1.2.1.5",
-      "title": "AdministeredAgent Contract"
-    },
-    {
-      "taskKey": "u:1830fb80-a44b-4aaf-b72c-7c4997cb9486",
-      "uuid": "1830fb80-a44b-4aaf-b72c-7c4997cb9486",
-      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.1",
-      "title": "Osero Relayer Multisig"
-    },
-    {
-      "taskKey": "u:f48b14c7-6dd1-4d10-b546-a604be45758c",
-      "uuid": "f48b14c7-6dd1-4d10-b546-a604be45758c",
-      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.2",
-      "title": "Core Operator Relayer Multisig"
-    },
-    {
-      "taskKey": "u:51460bc2-f5fb-4302-912a-ed3e6943aae0",
-      "uuid": "51460bc2-f5fb-4302-912a-ed3e6943aae0",
-      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.3",
-      "title": "Freezer Multisig"
-    },
-    {
-      "taskKey": "u:aae0e1ba-4ed0-4484-9187-3e53f3695ae8",
-      "uuid": "aae0e1ba-4ed0-4484-9187-3e53f3695ae8",
-      "docNo": "A.6.1.1.7.2.6.1.2.2.1.1",
-      "title": "Role Hierarchies And Permissions"
-    },
-    {
-      "taskKey": "u:39b320a8-240c-487d-9c72-25b8a2457a4b",
-      "uuid": "39b320a8-240c-487d-9c72-25b8a2457a4b",
-      "docNo": "A.6.1.1.7.2.6.1.2.2.3.1",
-      "title": "Remove Compromised Actor As Freezer"
-    },
-    {
-      "taskKey": "u:7ba1cc79-9a9f-460c-85b8-72181788397f",
-      "uuid": "7ba1cc79-9a9f-460c-85b8-72181788397f",
-      "docNo": "A.6.1.1.7.2.6.1.2.2.3.2",
-      "title": "Withdraw All SparkLend Positions"
+      "taskKey": "u:a51aef25-bf7e-4467-9678-0b1ea59fb47e",
+      "uuid": "a51aef25-bf7e-4467-9678-0b1ea59fb47e",
+      "docNo": "A.6.1.1.1.3.7.2.5.2",
+      "title": "Unapproved Products"
     }
   ]
 }
