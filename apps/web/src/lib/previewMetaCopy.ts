@@ -65,14 +65,14 @@ export interface ActiveBase {
   auto: boolean;
 }
 
-/** Pieces of the banner sentence "Comparing HEAD — TITLE to BASE by USER".
- *  Empty strings are omitted by `compareLine`. Drift ("N docs differ", commits
- *  behind main) is intentionally absent: `docsDiffer` counts the base tip
- *  against the live atlas, not the redlines this preview renders. */
+/** Pieces of the banner sentence "Comparing HEAD — TITLE to BASE".
+ *  Empty strings are omitted by `compareLine`. The author is not part of the
+ *  sentence. Drift ("N docs differ", commits behind main) is intentionally
+ *  absent: `docsDiffer` counts the base tip against the live atlas, not the
+ *  redlines this preview renders. */
 export interface CompareParts {
   subject: string;
   base: string;
-  user: string;
 }
 
 function compareBase(meta: PreviewMeta, active: ActiveBase | null): string {
@@ -93,8 +93,7 @@ export function compareParts(meta: PreviewMeta, active: ActiveBase | null): Comp
   const head = meta.ref?.trim() || "";
   const title = meta.prTitle?.trim() || "";
   const subject = head && title ? `${head} — ${title}` : head || title;
-  const user = meta.prAuthor?.trim() || meta.forkOwner?.trim() || "";
-  return { subject, base: compareBase(meta, active), user };
+  return { subject, base: compareBase(meta, active) };
 }
 
 /** Browser tab for a pull-request preview: "PR 88 preview on Sky Atlas by Redline -- feat/x — Title".
@@ -109,13 +108,12 @@ export function previewTabTitle(meta: PreviewMeta | null): string | null {
   return info ? `PR ${n} preview on Sky Atlas by Redline -- ${info}` : `PR ${n} preview on Sky Atlas by Redline`;
 }
 
-/** "Comparing HEAD — TITLE to BASE by USER", dropping any piece that is missing. */
+/** "Comparing HEAD — TITLE to BASE", dropping any piece that is missing. */
 export function compareLine(meta: PreviewMeta, active: ActiveBase | null): string {
-  const { subject, base, user } = compareParts(meta, active);
-  if (!subject && !base && !user) return "";
+  const { subject, base } = compareParts(meta, active);
+  if (!subject && !base) return "";
   let line = subject ? `Comparing ${subject}` : "Comparing";
   if (base) line += ` to ${base}`;
-  if (user) line += ` by ${user}`;
   return line;
 }
 

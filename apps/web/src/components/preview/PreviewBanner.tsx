@@ -12,6 +12,7 @@ import {
   readDismissedAccessRepos,
   sourceLabel,
   sourceUrl,
+  type BannerNotice,
   type PreviewMeta,
 } from "../../lib/previewMetaCopy";
 import { Link } from "../Link";
@@ -55,7 +56,7 @@ export function PreviewBanner({ onTabTitle }: { onTabTitle?: (title: string | nu
   // Install-owner nudges, one row each: a missing permission, an over-broad grant.
   // A dismissed ACCESS row stays hidden on this machine (localStorage).
   const notices = (meta ? [pullsPermissionCopy(meta), broadGrantCopy(meta)] : []).filter(
-    (n) => n !== null && !(n.label === "ACCESS" && !!meta?.repo && hiddenAccess.has(meta.repo)),
+    (n): n is BannerNotice => n !== null && !(n.label === "ACCESS" && !!meta?.repo && hiddenAccess.has(meta.repo)),
   );
   const perm = notices.length > 0;
   return (
@@ -72,7 +73,7 @@ export function PreviewBanner({ onTabTitle }: { onTabTitle?: (title: string | nu
         {isPrivate ? "PRIVATE PREVIEW" : isFork ? "FORK PREVIEW" : "PREVIEW"}
       </span>
       <span>
-        {`Comparing ${subject}${parts?.base ? ` to ${parts.base}` : ""} ${
+        {`Comparing ${subject}${parts?.base ? ` to ${parts.base}` : ""}${
           meta?.prState && meta.prState !== "open" ? ` · ${meta.prState}` : ""
         }`}
       </span>

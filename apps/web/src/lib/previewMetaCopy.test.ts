@@ -6,13 +6,13 @@ function meta(bases?: PreviewBases, extra: Partial<PreviewMeta> = {}): PreviewMe
 }
 
 describe("compareLine", () => {
-  it("names head, title, base, and author", () => {
+  it("names head, title, and base, and leaves the author out", () => {
     const m = meta(
       { auto: "repo", repo: { repo: "acme/fork", ref: "main", mergeBase: "x", drift: { sha: "s", docsDiffer: 0, vsAtlasCommit: "v" } } },
       { ref: "feat/x", prTitle: "Add a thing", prAuthor: "alice" },
     );
     expect(compareLine(m, { key: "repo", repo: "acme/fork", ref: "main", auto: true })).toBe(
-      "Comparing feat/x — Add a thing to acme/fork:main by alice",
+      "Comparing feat/x — Add a thing to acme/fork:main",
     );
   });
 
@@ -27,13 +27,13 @@ describe("compareLine", () => {
       },
     }, { ref: "feat/x", prAuthor: "alice" });
     expect(compareLine(m, { key: "repo", repo: "acme/fork", ref: "main", auto: true })).toBe(
-      "Comparing feat/x to acme/fork:main by alice",
+      "Comparing feat/x to acme/fork:main",
     );
-    expect(compareLine(m, { key: "repo", repo: "acme/fork", ref: "main", auto: true })).not.toMatch(/docs differ|redlined/);
+    expect(compareLine(m, { key: "repo", repo: "acme/fork", ref: "main", auto: true })).not.toMatch(/docs differ|redlined|by alice/);
   });
 
-  it("uses the fork owner when there is no PR author", () => {
-    expect(compareLine(meta(undefined, { ref: "sneaky", forkOwner: "mallory" }), null)).toBe("Comparing sneaky by mallory");
+  it("does not name the fork owner", () => {
+    expect(compareLine(meta(undefined, { ref: "sneaky", forkOwner: "mallory" }), null)).toBe("Comparing sneaky");
   });
 
   it("names live main, without the degraded reason", () => {
