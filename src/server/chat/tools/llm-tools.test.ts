@@ -119,6 +119,16 @@ test("tools that read empty args as absent offer null exactly on their optional 
   expect(params("atlas_changed_between").change_type.enum).toContain(null);
   expect(params("atlas_recent_changes").change_type.enum).toContain(null);
   expect(params("atlas_history").change_type.enum).toContain(null);
+  // atlas_edges and atlas_filter opted in the same day, for the two shapes the
+  // rule covers: optional enums with no default (from_type/to_type) and
+  // bounded optional integers (depth_min/depth_max). Both silently narrowed a
+  // whole-class listing when the model filled them in.
+  expect(params("atlas_edges").from_type.enum).toContain(null);
+  expect(params("atlas_edges").to_type.enum).toContain(null);
+  expect(params("atlas_filter").depth_min.type).toEqual(["integer", "null"]);
+  expect(params("atlas_filter").depth_max.type).toEqual(["integer", "null"]);
+  // Strings on those tools keep "" as their unset value, same as atlas_query.
+  for (const k of ["edge_type", "from_slug", "to_slug"]) expect(params("atlas_edges")[k].type).toBe("string");
   // A tool that did NOT opt in is untouched.
   expect(params("atlas_entity").kind?.type ?? "string").toBe("string");
 });

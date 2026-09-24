@@ -268,6 +268,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       limit: z.number().int().min(1).max(500).default(100),
       offset: z.number().int().min(0).default(0),
     },
+    // from_type/to_type are optional enums with no default — the shape a
+    // property-filling model cannot leave blank. An invented `from_type:
+    // "doc"` drops every entity-side edge, which is most of what this tool
+    // exists to enumerate.
+    emptyArgsAbsent: true,
     handler: (ix, a) =>
       atlasEdges(ix, {
         edge_type: a.edge_type as string | undefined,
@@ -327,7 +332,12 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       offset: z.number().int().min(0).default(0),
       include_content: z.boolean().default(false).describe("Include full content. Default false for slim listing rows."),
     },
-    handler: (ix, a) => atlasFilter(ix, a as Parameters<typeof atlasFilter>[1]),
+    // depth_min/depth_max are optional integers with no default, so a model
+    // that fills every property has no way to say "no depth range" — it
+    // invents one, and every document outside it silently stops matching on a
+    // tool whose whole job is a COMPLETE class listing.
+    emptyArgsAbsent: true,
+    handler: (ix, a) => atlasFilter(ix, omitEmptyArgs(a) as Parameters<typeof atlasFilter>[1]),
   },
   {
     name: "atlas_entity_params",
