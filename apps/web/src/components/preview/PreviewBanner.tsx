@@ -15,6 +15,7 @@ import {
   type BannerNotice,
   type PreviewMeta,
 } from "../../lib/previewMetaCopy";
+import { GitHubMark } from "../chat/glyphs";
 import { Link } from "../Link";
 
 // Rendered by the App shell when a preview data source is active. Reads the
@@ -50,7 +51,7 @@ export function PreviewBanner({ onTabTitle }: { onTabTitle?: (title: string | nu
   const parts = meta ? compareParts(meta, activeBase ?? null) : null;
   const subject = parts?.subject || preview.id;
   const src = meta ? sourceUrl(meta) : null;
-  const srcLabel = meta ? sourceLabel(meta) : "view commit ↗";
+  const srcLabel = meta ? sourceLabel(meta) : "commit";
   // wouter's useSearch() strips the leading "?"; URLSearchParams doesn't care.
   const switchLink = meta ? baseSwitch(meta, activeBase ?? null, search) : null;
   // Install-owner nudges, one row each: a missing permission, an over-broad grant.
@@ -102,12 +103,12 @@ export function PreviewBanner({ onTabTitle }: { onTabTitle?: (title: string | nu
         </span>
       )}
       {src && (
-        <a href={src} target="_blank" rel="noreferrer" className="ml-auto" style={{ color: "var(--accent)" }}>
-          {srcLabel}
+        <a href={src} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1" style={{ color: "var(--accent)" }}>
+          {srcLabel} <GitHubMark size={14} />
         </a>
       )}
       <a href={import.meta.env.BASE_URL} className={src ? "" : "ml-auto"} style={{ color: "var(--accent)" }}>
-        exit preview
+        exit
       </a>
     </header>
     {notices.map((n) => (
