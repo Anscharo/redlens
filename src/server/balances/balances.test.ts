@@ -138,6 +138,7 @@ beforeEach(() => {
   getCodeImpl = async () => "0x";
 });
 afterEach(() => {
+  dbShouldThrow = false;
   mock.restore();
 });
 
