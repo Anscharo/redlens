@@ -92,7 +92,7 @@
       "samples": []
     },
     "Core|addr,s:addr-of-is": {
-      "total": 182,
+      "total": 183,
       "uncovered": 0,
       "samples": []
     },
@@ -133,12 +133,12 @@
       ]
     },
     "Core|bullet-kv,uuid-link": {
-      "total": 9,
+      "total": 10,
       "uncovered": 0,
       "samples": []
     },
     "Core|plain": {
-      "total": 8221,
+      "total": 8225,
       "uncovered": 6326,
       "samples": [
         "A.0.1.1.1",
@@ -170,7 +170,7 @@
       "samples": []
     },
     "Core|s:modify-signers": {
-      "total": 26,
+      "total": 27,
       "uncovered": 0,
       "samples": []
     },
@@ -277,7 +277,7 @@
       "samples": []
     },
     "Core|uuid-link": {
-      "total": 1611,
+      "total": 1615,
       "uncovered": 0,
       "samples": []
     },
