@@ -33,9 +33,10 @@ interface JudgedPair {
 
 /**
  * Folds every judged (claim, doc) pair into one mark per doc — worst verdict
- * wins. A doc with an unjudged (null) pair gets NO mark: we don't claim what
- * we didn't check. A doc whose only pairs are `about_document` pointers also
- * gets no mark — a pointer citation makes no claim about the doc's content.
+ * wins. A doc with an unjudged (null) pair gets NO mark, including when
+ * another pair on it is `contradicts`: we don't claim what we didn't check.
+ * A doc whose only pairs are `about_document` pointers also gets no mark — a
+ * pointer citation makes no claim about the doc's content.
  */
 export function aggregateMarks(judged: JudgedPair[]): Record<string, CitationMark> {
   const byUuid = new Map<string, JudgedPair[]>();
@@ -46,6 +47,9 @@ export function aggregateMarks(judged: JudgedPair[]): Record<string, CitationMar
   }
   const out: Record<string, CitationMark> = {};
   for (const [uuid, pairs] of byUuid) {
+    // Before worst-verdict. A timed-out pair used to lose to `contradicts`,
+    // so a doc we had not finished checking still shipped as disputed.
+    if (pairs.some((p) => p.verdict === null)) continue;
     const claims = pairs
       .filter((p): p is JudgedPair & { verdict: "supports" | "says_nothing" | "contradicts" } =>
         p.verdict === "supports" || p.verdict === "says_nothing" || p.verdict === "contradicts",
@@ -53,7 +57,6 @@ export function aggregateMarks(judged: JudgedPair[]): Record<string, CitationMar
       .map((p) => ({ claim: p.claim, verdict: p.verdict }));
     let status: CitationMarkStatus;
     if (pairs.some((p) => p.verdict === "contradicts")) status = "disputed";
-    else if (pairs.some((p) => p.verdict === null)) continue; // an unjudged pair — say nothing rather than guess
     else if (pairs.some((p) => p.verdict === "says_nothing")) status = "unbacked";
     else if (pairs.some((p) => p.verdict === "supports")) status = "backed";
     else continue; // only `about_document` pointers — no content claim to mark
@@ -75,12 +78,18 @@ export interface CitationMarksRun {
 
 const EMPTY: CitationMarksRun = { marks: {}, judged: [], calls: 0, failed: 0, costUsd: 0, latencyMs: 0, confirm: null };
 
-const CONTRADICTS_WHY = "The cited document states something incompatible with this sentence.";
+const CONTRADICTS_WHY =
+  "The citation check compared this sentence to the cited document and found them incompatible. The evidence below is that document's full text.";
 
-/** Truncates the cited doc's content to a compact confirm-gate evidence span. */
-function evidenceSpanFor(ix: Indexes, uuid: string): string {
-  const content = ix.docMap.get(uuid)?.content ?? "";
-  return content.replace(/\s+/g, " ").trim().slice(0, 600);
+/**
+ * The cited document, in full. Confirm's contract is "agree only if THIS
+ * evidence states the incompatibility." A prefix of the document (the first
+ * 600 characters) made it disagree whenever the conflicting sentence sat
+ * past the cut, and that refusal was then stored as says_nothing — the chip
+ * asserted "doesn't cover" about a document confirm was never shown.
+ */
+function citedDocument(ix: Indexes, uuid: string): string {
+  return (ix.docMap.get(uuid)?.content ?? "").trim();
 }
 
 export async function runCitationMarks(p: {
@@ -133,7 +142,7 @@ export async function runCitationMarks(p: {
       contraIndexes.push(i);
       candidates.push({
         answer_span: r.pair.claim,
-        evidence_span: evidenceSpanFor(p.ix, r.pair.uuid),
+        evidence_span: citedDocument(p.ix, r.pair.uuid),
         why: CONTRADICTS_WHY,
         evidence_label: "",
         uuid: r.pair.uuid,
@@ -146,7 +155,10 @@ export async function runCitationMarks(p: {
     if (candidates.length > 0) {
       const run =
         p.jsonCall && p.confirmModel
-          ? await runConfirm({ call: p.jsonCall, model: p.confirmModel, answer: p.answer, candidates, signal, obs: p.obs })
+          ? await runConfirm({
+              call: p.jsonCall, model: p.confirmModel, answer: p.answer, candidates, signal, obs: p.obs,
+              evidenceIsDocument: true,
+            })
           : null;
       confirm = { candidates: candidates.length, agreed: run?.agreed.size ?? 0 };
       // NOT agreed (including "confirm unavailable/failed", which agrees with

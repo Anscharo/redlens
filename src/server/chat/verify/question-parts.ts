@@ -10,7 +10,10 @@
 // messages (176 of 203, dev DB, counts only) come out as ONE part.
 //
 // 1. Sentences: split after `?` or `;`, or after `.`/`!` followed by
-//    whitespace + a capital letter.
+//    whitespace + a capital letter. Not after a common abbreviation
+//    (`e.g.`, `i.e.`, `vs.`, `etc.`, `Mr.`, `Dr.`): a false split names a
+//    fragment the coverage line then says the answer didn't address. A missed
+//    split stays one part, which says nothing.
 // 2. Within a sentence, split at `, ` / `, and ` / `, or ` / ` and ` / ` or `
 //    ONLY when the next word is a wh-word (what which who whom whose when
 //    where why how whether); at `, and ` / `, or ` when the next word is an
@@ -22,7 +25,12 @@
 const WH = "what|which|who|whom|whose|when|where|why|how|whether";
 const AUX = "is|are|was|were|does|do|did|can|could|has|have|should|will|would";
 const PREP = "for|in|on|at|by|to|from|with|since";
-const SENTENCE_RE = /(?<=[?;])\s+|(?<=[.!])\s+(?=[A-Z])/;
+// The match is the whitespace AFTER the punctuation (lookbehind). A fresh
+// regex per call: a shared /g keeps lastIndex.
+const sentenceRe = () => /(?<=[?;])\s+|(?<=[.!])\s+(?=[A-Z])/g;
+// The characters immediately before that whitespace. `e.g.` / `i.e.` must not
+// open a new sentence; a missed split stays one part, which says nothing.
+const ABBREV_BEFORE = /(?:^|[\s,(])(?:e\.g|i\.e|vs|etc|mr|mrs|ms|dr)\.$/i;
 const CLAUSE_RE = new RegExp(
   `(?:,\\s*(?:and|or)\\s+|,\\s+|\\s+(?:and|or)\\s+)(?=(?:${WH})\\b)` +
     `|,\\s*(?:and|or)\\s+(?=(?:${AUX})\\b)` +
@@ -30,9 +38,23 @@ const CLAUSE_RE = new RegExp(
   "i",
 );
 
+/** Sentences, keeping an abbreviation's period attached to its own sentence. */
+function splitSentences(text: string): string[] {
+  const out: string[] = [];
+  let start = 0;
+  for (const m of text.matchAll(sentenceRe())) {
+    const punct = text[m.index - 1];
+    if (punct !== "?" && punct !== ";" && ABBREV_BEFORE.test(text.slice(0, m.index))) continue;
+    out.push(text.slice(start, m.index));
+    start = m.index + m[0].length;
+  }
+  out.push(text.slice(start));
+  return out;
+}
+
 export function splitQuestionParts(question: string): string[] {
   const out: string[] = [];
-  for (const sentence of question.trim().split(SENTENCE_RE)) {
+  for (const sentence of splitSentences(question.trim())) {
     for (const clause of sentence.split(CLAUSE_RE)) {
       const part = clause.trim().replace(/[?.;!\s]+$/, "").trim();
       if (part) out.push(part);

@@ -49,6 +49,14 @@ describe("aggregateMarks", () => {
       { uuid: A, claim: "c2", verdict: null },
     ]);
     expect(marks[A]).toBeUndefined();
+    // A confirmed contradiction does not override the unjudged pair. Worst
+    // verdict used to win here, so a doc we had not finished checking shipped
+    // as disputed.
+    const withContra = aggregateMarks([
+      { uuid: A, claim: "c1", verdict: "contradicts" },
+      { uuid: A, claim: "c2", verdict: null },
+    ]);
+    expect(withContra[A]).toBeUndefined();
   });
 
   it("says_nothing with no contradicts or null — unbacked", () => {
@@ -163,6 +171,32 @@ describe("runCitationMarks", () => {
     const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", jsonCall: confirmCall, confirmModel: "confirm-model" });
     expect(run.confirm).toEqual({ candidates: 1, agreed: 0 });
     expect(run.marks[A].status).toBe("unbacked");
+  });
+
+  it("confirm is shown the cited document in full, including text past the old 600-character cut", async () => {
+    const tail = "The threshold is seven signers, not three.";
+    const long = `${"The opening defines terms. ".repeat(40)}${tail}`;
+    expect(long.length).toBeGreaterThan(600);
+    const longIx = {
+      ...ix,
+      docMap: new Map(ix.docMap),
+    } as unknown as Indexes;
+    longIx.docMap.set(A, node(A, "Facilitator", long));
+    stubJudge((claim) => (claim.includes("Facilitators") ? "contradicts" : "supports"));
+    let shown = "";
+    const confirmCall: JsonCall = async (args) => {
+      shown = args.messages.map((m) => String(m.content)).join("\n");
+      return {
+        text: '{"agree":[1],"notes":""}',
+        usage: { input: 5, output: 5 },
+        generationId: "gen-confirm",
+        latencyMs: 5,
+      };
+    };
+    const run = await runCitationMarks({ answer: ANSWER, ix: longIx, model: "jev", jsonCall: confirmCall, confirmModel: "confirm-model" });
+    expect(shown).toContain(tail);
+    expect(shown).toContain("full text of the cited document");
+    expect(run.marks[A].status).toBe("disputed");
   });
 
   it("confirm absent (no jsonCall/confirmModel) also downgrades a contradicts to unbacked, never an unconfirmed disputed", async () => {

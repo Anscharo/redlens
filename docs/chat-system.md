@@ -758,9 +758,11 @@ nothing about, or merely get pointed at by the sentence linking it? — which is
 the one thing the pooled-evidence `refute` auditor structurally cannot see
 (repointing a link leaves its input byte-identical). A Jev `contradicts` never
 reaches the chip on its own: it becomes a `Contradiction` with `source:
-"cited-doc"` and must pass the same `confirm` gate as every other candidate;
-unconfirmed, it is downgraded to "doesn't cover this line". Per document,
-worst verdict wins; a document with any unjudged pair gets no mark, and a
+"cited-doc"` and must pass the same `confirm` gate as every other candidate.
+Confirm is shown that document's full text — the same text the citation
+check judged — not a prefix of it; unconfirmed, it is downgraded to "doesn't
+cover this line". Per document, worst verdict wins, but only among pairs that
+were actually judged: any unjudged pair withholds the mark entirely, and a
 pointer-only document ("the document X changes often") gets none either. The
 marks render on the Sources chips — a ✓ on every backed source, by explicit
 product decision, as an exception to the list-by-exception rule for stage

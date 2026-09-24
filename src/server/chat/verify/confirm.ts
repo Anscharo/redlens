@@ -20,16 +20,32 @@ const CONFIRM_PROMPT = [
   'Respond with STRICT JSON: {"agree":[1,3],"notes":"≤30 words"}',
 ].join("\n");
 
-export function buildConfirmPrompt(params: { answer: string; candidates: Contradiction[] }): Msg[] {
+// Citation marks have no quoted sentence — Jev returns a verdict, not a span.
+// The evidence for those candidates is the cited document. Saying "sentence"
+// at a whole document made the gate refuse, and the refusal was published as
+// "this source doesn't cover the line."
+const DOCUMENT_EVIDENCE = [
+  "When a candidate's evidence is labeled as the full text of the cited document, that text is the whole document, not one sentence.",
+  "Agree when the document states something incompatible with the answer sentence about the same subject.",
+  "Do not withhold agreement only because the evidence is longer than one sentence, and do not agree when the document merely does not mention the claim.",
+].join(" ");
+
+export function buildConfirmPrompt(params: {
+  answer: string;
+  candidates: Contradiction[];
+  evidenceIsDocument?: boolean;
+}): Msg[] {
   const { answer, candidates } = params;
+  const evidenceLabel = params.evidenceIsDocument ? "Evidence (full text of the cited document)" : "Evidence";
   const list = candidates
     .map(
       (c, i) =>
-        `${i + 1}. Answer: "${c.answer_span}"\n   Evidence: "${c.evidence_span}"\n   Auditor's reason: ${c.why}`,
+        `${i + 1}. Answer: "${c.answer_span}"\n   ${evidenceLabel}: "${c.evidence_span}"\n   Auditor's reason: ${c.why}`,
     )
     .join("\n\n");
+  const system = params.evidenceIsDocument ? `${CONFIRM_PROMPT}\n${DOCUMENT_EVIDENCE}` : CONFIRM_PROMPT;
   return [
-    { role: "system", content: CONFIRM_PROMPT },
+    { role: "system", content: system },
     { role: "user", content: [`## Answer\n${answer}`, `## Candidates\n${list}`].join("\n\n") },
   ];
 }
@@ -48,11 +64,17 @@ export async function runConfirm(params: {
   candidates: Contradiction[];
   signal?: AbortSignal;
   obs?: ErrorContext;
+  /** Citation marks pass the cited document. The refute path passes a quoted sentence. */
+  evidenceIsDocument?: boolean;
 }): Promise<ConfirmRun> {
   try {
     const res = await params.call({
       model: params.model,
-      messages: buildConfirmPrompt({ answer: params.answer, candidates: params.candidates }),
+      messages: buildConfirmPrompt({
+        answer: params.answer,
+        candidates: params.candidates,
+        evidenceIsDocument: params.evidenceIsDocument,
+      }),
       maxTokens: 1000,
       signal: params.signal,
     });

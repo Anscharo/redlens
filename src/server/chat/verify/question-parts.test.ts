@@ -53,9 +53,16 @@ describe("splitQuestionParts", () => {
     expect(splitQuestionParts(" ?! ")).toEqual([]);
   });
 
-  // Known, accepted: an abbreviation followed by a capital reads as a sentence
-  // end. The real-traffic figure (87% single-part) was measured with it.
-  it("splits after an abbreviation + capital (known limitation)", () => {
-    expect(splitQuestionParts("Which primes, e.g. Spark, have rewards?")).toEqual(["Which primes, e.g", "Spark, have rewards"]);
+  it("does not split a common abbreviation into a fragment the coverage line would name", () => {
+    expect(splitQuestionParts("Which primes, e.g. Spark, have rewards?")).toEqual(["Which primes, e.g. Spark, have rewards"]);
+    expect(splitQuestionParts("What changed, i.e. which parameters moved?")).toEqual(["What changed, i.e. which parameters moved"]);
+    expect(splitQuestionParts("How does Grove compare vs. Spark on fees?")).toEqual(["How does Grove compare vs. Spark on fees"]);
+  });
+
+  it("still splits a real sentence boundary after a period", () => {
+    expect(splitQuestionParts("List the primes. Which of them hold a multisig?")).toEqual([
+      "List the primes",
+      "Which of them hold a multisig",
+    ]);
   });
 });
