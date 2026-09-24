@@ -231,6 +231,27 @@ describe("Sources", () => {
     expect(flash).toHaveTextContent("The threshold is 7 signers");
   });
 
+  it("does not quote a claim the source only partly backs", () => {
+    render(
+      <Sources
+        sources={sourceFor(UUID)}
+        marks={{
+          [UUID]: {
+            status: "unbacked",
+            claims: [
+              { claim: "Reward payments cover distributions", verdict: "supports_in_part" },
+              { claim: "The threshold is 7 signers", verdict: "says_nothing" },
+            ],
+          },
+        }}
+        onAtlas={vi.fn()}
+      />,
+    );
+    const tip = showTip(screen.getByRole("link"));
+    expect(tip).toHaveTextContent('Not stated in this source: "The threshold is 7 signers"');
+    expect(tip).not.toHaveTextContent("Reward payments");
+  });
+
   it("leaves the muted mark's hover as the uncovered line, with no confidence", () => {
     render(
       <Sources
