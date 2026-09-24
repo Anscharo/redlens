@@ -508,6 +508,11 @@ const realBootDeps: BootDeps = {
   startPreviewSweeper: async () => {
     const { startPreviewSweeper } = await import("./preview/sweeper.ts");
     startPreviewSweeper();
+    // Rows built before the diff-base columns existed stay NULL forever if
+    // nobody rebuilds them (a ready bundle only bumps last_access). Fill
+    // those in the background; a no-op once every row has a record.
+    const { startPreviewDiffBaseBackfill } = await import("./preview/diff-base-backfill.ts");
+    startPreviewDiffBaseBackfill();
   },
 };
 
