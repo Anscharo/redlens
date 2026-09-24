@@ -38,7 +38,9 @@ function confidenceSentence(mark: CitationMark): string | null {
 function claimLines(mark: CitationMark): string[] {
   if (mark.status === "backed") return [];
   return mark.claims
-    .filter((c) => c.verdict !== "supports")
+    // Both supporting verdicts are silent. `supports_in_part` means the
+    // document backs the part it was cited for, which is not a finding.
+    .filter((c) => c.verdict !== "supports" && c.verdict !== "supports_in_part")
     .slice(0, MAX_CLAIMS_SHOWN)
     .map((c) => {
       const prefix = c.verdict === "contradicts" ? "This source says otherwise" : "Not stated in this source";

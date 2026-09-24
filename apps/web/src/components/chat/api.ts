@@ -45,7 +45,11 @@ export interface ParamMismatch {
 // the Sources chip renders as no mark rather than as any particular verdict.
 export interface CitationMark {
   status: "backed" | "unbacked" | "disputed";
-  claims: { claim: string; verdict: "supports" | "says_nothing" | "contradicts" }[];
+  // `supports_in_part` (2026-09-24): the document states one of a compound
+  // claim's assertions outright and says nothing about the rest. It WITHHOLDS
+  // the document's mark server-side rather than earning a ✓, so in practice it
+  // reaches this array only alongside another claim that did produce a mark.
+  claims: { claim: string; verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts" }[];
   /** 0–1 confidence in `status`. Absent on a mark folded before this was sent. */
   confidence?: number | null;
 }

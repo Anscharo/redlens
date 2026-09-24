@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from "bun:test";
+import type { CiteVerdict } from "./cite-support.ts";
 import { aggregateMarks, runCitationMarks } from "./citation-marks.ts";
 import { config } from "../../config.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
@@ -233,5 +234,32 @@ describe("runCitationMarks", () => {
     const run = await runCitationMarks({ answer: `Some claim [X](/atlas/${unknown}).`, ix, model: "jev" });
     expect(run.calls).toBe(0);
     expect(called).toBe(false);
+  });
+});
+
+describe("aggregateMarks: partial support", () => {
+  const U1 = "11111111-1111-4111-8111-111111111111";
+  const j = (claim: string, verdict: CiteVerdict, confidence: number | null = 0.9) => ({ uuid: U1, claim, verdict, confidence });
+
+  it("withholds the mark entirely — no check, no note", () => {
+    expect(aggregateMarks([j("distributions and integration boosts", "supports_in_part")])[U1]).toBeUndefined();
+  });
+
+  it("outranks supports, so one partial claim withholds the whole doc's mark", () => {
+    expect(aggregateMarks([j("a", "supports"), j("b", "supports_in_part")])[U1]).toBeUndefined();
+  });
+
+  // It withholds a ✓; it must not suppress a real finding on another claim.
+  it("loses to a contradiction or a says_nothing on the same doc", () => {
+    expect(aggregateMarks([j("a", "supports_in_part"), j("b", "contradicts")])[U1].status).toBe("disputed");
+    expect(aggregateMarks([j("a", "supports_in_part"), j("b", "says_nothing")])[U1].status).toBe("unbacked");
+  });
+
+  // A ✓'s confidence is the weakest FULL support. A verdict that never decides
+  // a status must never contribute a number to one either.
+  it("contributes no confidence to a status it did not decide", () => {
+    const mark = aggregateMarks([j("a", "supports", 0.8), j("b", "contradicts", 0.6), j("c", "supports_in_part", 0.1)])[U1];
+    expect(mark.status).toBe("disputed");
+    expect(mark.confidence).toBe(0.6);
   });
 });

@@ -22,7 +22,7 @@ export type CitationMarkStatus = "backed" | "unbacked" | "disputed";
 
 export interface CitationMark {
   status: CitationMarkStatus;
-  claims: { claim: string; verdict: "supports" | "says_nothing" | "contradicts" }[];
+  claims: { claim: string; verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts" }[];
   /**
    * Jev's confidence (0–1) in `status`. A ✓ is only as sure as its weakest
    * support; a ! is as sure as its clearest contradiction. Null when the
@@ -44,11 +44,19 @@ export function citeConfidence(n: unknown): number | null {
   return typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1 ? n : null;
 }
 
+// Which verdicts DECIDED a status. `supports_in_part` is absent on purpose:
+// it never decides one, because it never produces a mark at all.
+const DECIDING: Record<CitationMarkStatus, CiteVerdict[]> = {
+  disputed: ["contradicts"],
+  backed: ["supports"],
+  unbacked: ["says_nothing"],
+};
+
 function confidenceFor(status: CitationMarkStatus, pairs: JudgedPair[]): number | null {
-  const verdict = status === "disputed" ? "contradicts" : status === "backed" ? "supports" : "says_nothing";
+  const deciding = DECIDING[status];
   const values: number[] = [];
   for (const p of pairs) {
-    if (p.verdict !== verdict) continue;
+    if (!p.verdict || !deciding.includes(p.verdict)) continue;
     const c = citeConfidence(p.confidence);
     if (c !== null) values.push(c);
   }
@@ -76,13 +84,23 @@ export function aggregateMarks(judged: JudgedPair[]): Record<string, CitationMar
     // so a doc we had not finished checking still shipped as disputed.
     if (pairs.some((p) => p.verdict === null)) continue;
     const claims = pairs
-      .filter((p): p is JudgedPair & { verdict: "supports" | "says_nothing" | "contradicts" } =>
-        p.verdict === "supports" || p.verdict === "says_nothing" || p.verdict === "contradicts",
+      .filter((p): p is JudgedPair & { verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts" } =>
+        p.verdict === "supports" || p.verdict === "supports_in_part" || p.verdict === "says_nothing" || p.verdict === "contradicts",
       )
       .map((p) => ({ claim: p.claim, verdict: p.verdict }));
     let status: CitationMarkStatus;
     if (pairs.some((p) => p.verdict === "contradicts")) status = "disputed";
     else if (pairs.some((p) => p.verdict === "says_nothing")) status = "unbacked";
+    // `supports_in_part` WITHHOLDS the mark: no ✓, no note. The document backs
+    // the part it was cited for and is silent on the rest, so neither claim we
+    // can make about it is honest. A ✓ would certify a line the document only
+    // half states — and, on a mis-citation, would certify it loudly. The same
+    // rule an unjudged pair follows above: we don't claim what we didn't
+    // fully check. It sits BELOW `contradicts` and `says_nothing` in this
+    // ladder, so a real finding on another of the document's claims still
+    // shows; it sits ABOVE `supports`, so partial support on any claim is
+    // enough to withhold the whole document's mark.
+    else if (pairs.some((p) => p.verdict === "supports_in_part")) continue;
     else if (pairs.some((p) => p.verdict === "supports")) status = "backed";
     else continue; // only `about_document` pointers — no content claim to mark
     out[uuid] = { status, claims, confidence: confidenceFor(status, pairs) };

@@ -23,12 +23,12 @@ import type { Indexes } from "../../retrieval/indexes.ts";
 import type { CitationPair } from "./cite-pairs.ts";
 
 
-export type CiteVerdict = "supports" | "contradicts" | "says_nothing" | "about_document";
+export type CiteVerdict = "supports" | "supports_in_part" | "contradicts" | "says_nothing" | "about_document";
 // Exported as a value because a stored citation_check payload has to be
 // validated against the same list when it is read back (conversations.ts) —
 // the TS union alone can't do that, and a second literal copy is how a new
 // verdict comes to be silently dropped on reload only.
-export const VERDICTS: string[] = ["supports", "contradicts", "says_nothing", "about_document"];
+export const VERDICTS: string[] = ["supports", "supports_in_part", "contradicts", "says_nothing", "about_document"];
 
 // One narrow judgment. `says_nothing` has to be a first-class option, not an
 // absence: without it the model is forced to choose between two wrong answers
@@ -38,20 +38,52 @@ export const CITE_QUESTION = {
   type: "choice" as const,
   instructions:
     "Read the document in `cited_doc`. Decide how it relates to the single statement in `claim`, which was written with a link to that document as its source. Judge ONLY against `cited_doc`; other documents may also be relevant but are not the question.",
+  // Order is the gradient the reader cares about: fully backed, partly backed,
+  // silent, then contradicted. `about_document` sits last because it is a
+  // different axis — the claim was never sourced from the document at all.
+  // JSON key order reaches Jev as written, so this is a deliberate choice, not
+  // cosmetic. CITE_QUESTION_3 below keeps its own historical order on purpose:
+  // it is the eval's unchanged control arm, and reordering it would move its
+  // cache key and cost a re-measurement of a baseline that must not move.
   criteria: {
     supports:
       "The document states the claim, or the claim is a faithful paraphrase or direct consequence of what it states. A claim narrower than the document's wording still counts as supported.",
-    contradicts:
-      "The document states something incompatible with the claim — a different value, holder, date, status, count, or a different modality (the document says may where the claim says must).",
+    // The FOURTH false-flag cause, found 2026-09-24. A model writes one
+    // sentence asserting two things and cites it once — "managing reward
+    // payments for distributions and integration boosts", linked to a document
+    // about distribution reward payments only. `supports` demands the whole
+    // claim, so the least-wrong option was `says_nothing`, and the reader was
+    // told "Not stated in this source" about a document that states half of it
+    // outright. Unlike a two-citation sentence, where the position of each
+    // link says which half it answers for (cite-pairs.ts), one link on a
+    // compound sentence carries no such signal — so the honest answer is
+    // partial support, and only the judge can give it. Same shape as the two
+    // other added options here: a missing outcome read as a false flag.
+    //
+    // Checked, and it holds. A second Jev question over the same state ("does
+    // `claim` assert more than one separable thing?") was asked alongside this
+    // one on 2026-09-24. All 23 `supports_in_part` verdicts over 80 real
+    // citations landed on claims it independently called compound, mean P
+    // 0.71, against 10 of 45 for `supports`, mean P 0.29. Not one landed on a
+    // claim it called single. The judge is not softening a hard call here.
+    // That question is NOT in the code: asking it moved the answer it was
+    // checking, raising false flags on real citations from 4 to 7 across 10
+    // changed verdicts, for no gain in catch rate. Two questions in one
+    // request are cheap in round trips and not free in accuracy. Re-derive it
+    // from this note if the criteria or the model change.
+    supports_in_part:
+      "The claim asserts SEVERAL things and the document states at least one of them outright, while saying nothing about the rest. Use this only when the part the document does state is stated in full, and nothing in the document conflicts with the other parts. If the document merely covers the topic of a part without stating it, choose says_nothing instead; if it conflicts with any part, choose contradicts.",
     says_nothing:
       "The document is simply not about this claim, or covers the topic without stating what the claim asserts. Use this when the claim may well be true but this particular document does not establish it.",
+    contradicts:
+      "The document states something incompatible with the claim — a different value, holder, date, status, count, or a different modality (the document says may where the claim says must).",
     // The third false-flag cause the first bakeoff found. "Documents regarding
     // Instance Financial CRRs show high modification counts" links the doc it
     // is ABOUT; no document can state its own edit history, so without this
     // option the only honest answer was says_nothing — a false flag on a
     // correct citation. The link is a pointer, not a source.
     about_document:
-      "The claim is about the cited document ITSELF rather than drawn from what it says — that it exists, its title, where it sits in the atlas, how often it was edited, or that it is where some topic is covered. The link points the reader at the document; it is not offered as evidence for a fact the document states.",
+      "The claim is about the cited document ITSELF rather than drawn from what it says — that it exists, its title, where it sits in the atlas, how often it was edited, or that it is where some topic is covered. The link points the reader at the document; it is not offered as evidence for a fact the document states."
   },
 };
 

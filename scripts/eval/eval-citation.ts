@@ -127,7 +127,7 @@ for (const [label, sel] of [["3-option", (r: Row) => r.q3], ["+pointer", (r: Row
   const mix = (k: CaseKind) => {
     const rs = rows.filter((r) => r.c.kind === k);
     const c = (v: string) => rs.filter((r) => sel(r) === v).length;
-    return `supports ${c("supports")} / about_document ${c("about_document")} / says_nothing ${c("says_nothing")} / contradicts ${c("contradicts")} / failed ${rs.filter((r) => sel(r) === null).length}`;
+    return `supports ${c("supports")} / in_part ${c("supports_in_part")} / about_document ${c("about_document")} / says_nothing ${c("says_nothing")} / contradicts ${c("contradicts")} / failed ${rs.filter((r) => sel(r) === null).length}`;
   };
   console.log(`\n${label} verdict mix on REAL citations: ${mix("positive")}`);
   console.log(`${label} verdict mix on same_title:     ${mix("same_title")}`);

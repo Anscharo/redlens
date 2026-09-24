@@ -79,6 +79,15 @@ describe("buildCiteRequest", () => {
     expect(buildCiteRequest({ claim: "c", uuid: "99999999-9999-4999-8999-999999999999" }, ix)).toBeNull();
   });
 
+  // A second question over the same state costs no extra round trip, so it
+  // looks free. It is not: one was measured on 2026-09-24 and it moved the
+  // answer it was checking (see the supports_in_part criterion). Adding one
+  // back needs a measurement, not a reason.
+  it("asks exactly ONE question — a second one over the same state was measured and rejected", () => {
+    expect(Object.keys(buildCiteRequest({ claim: "c", uuid: A }, ix)!.questions)).toEqual(["support"]);
+    expect(Object.keys(buildCiteRequest({ claim: "c", uuid: A, context: "c and more" }, ix)!.questions)).toEqual(["support"]);
+  });
+
   // A pair with no context must produce the request it has ALWAYS produced —
   // same state keys, same question object by identity. That is what keeps the
   // clause change inert for single-citation sentences and keeps the bakeoff's
