@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadAtlas } from "../../lib/docs";
 import { atlasHref } from "@/lib/routes";
 import { track } from "../../lib/analytics";
 import { Tooltip } from "../Tooltip";
 import type { Source } from "./markdown";
 import type { CitationMark } from "./api";
+import { showClaimInAnswer } from "./claimHighlight";
 import { SourceMark, sourceTooltipContent } from "./SourceMark";
 
 interface ResolvedDoc {
@@ -32,6 +33,12 @@ export function Sources({
   onAtlas: (uuid: string) => void;
 }) {
   const [resolved, setResolved] = useState<Record<string, ResolvedDoc>>({});
+  const anchors = useRef(new Map<string, HTMLElement>());
+
+  function showClaim(uuid: string, claim: string) {
+    const answer = anchors.current.get(uuid)?.closest(".rlc-turn")?.querySelector(".rlc-answer");
+    if (answer instanceof HTMLElement) showClaimInAnswer(answer, claim);
+  }
 
   useEffect(() => {
     let alive = true;
@@ -63,9 +70,13 @@ export function Sources({
           // The whole pill is the hover target, not the glyph. Tooltip
           // renders the child alone when there is nothing to say.
           return (
-            <Tooltip key={s.uuid} content={sourceTooltipContent(mark)}>
+            <Tooltip key={s.uuid} content={sourceTooltipContent(mark, (claim) => showClaim(s.uuid, claim))}>
               <a
                 className="rlc-cite"
+                ref={(node) => {
+                  if (node) anchors.current.set(s.uuid, node);
+                  else anchors.current.delete(s.uuid);
+                }}
                 href={atlasHref(s.uuid)}
                 onClick={(e) => {
                   e.preventDefault();

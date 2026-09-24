@@ -493,6 +493,37 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-cite-mark[data-status="backed"] { color: var(--terminal-green); }
 .rlc-cite-mark[data-status="unbacked"] { color: var(--tan-3); }
 .rlc-cite-mark[data-status="disputed"] { color: var(--warn); }
+/* Quoted line inside the source tooltip. The tip is portaled to body, so this
+   cannot nest under .rlc-panel. mousedown is cancelled in JS so taking focus
+   doesn't unmount the tip before the click lands. */
+.rlc-cite-jump {
+  display: block;
+  width: 100%;
+  margin: 2px 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--tan-3);
+  text-underline-offset: 2px;
+}
+.rlc-cite-jump:hover { color: var(--tan); }
+/* Brief flash on the sentence a source tooltip just pointed at. */
+.rlc-claim-flash {
+  scroll-margin-top: 64px;
+  border-radius: 2px;
+  background-color: transparent;
+  color: inherit;
+  animation: rlc-claim-flash 1.2s ease-out;
+}
+@keyframes rlc-claim-flash {
+  0%, 40% { background-color: var(--row-pulse-flash); }
+  100% { background-color: transparent; }
+}
 
 /* ── Export / download chips (export_findings tool) ─────────────────────── */
 .rlc-exports { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 8px; }
@@ -1060,9 +1091,12 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-nomotion .rlc-twinkle,
 .rlc-nomotion .rlc-verify-dot,
 .rlc-nomotion .rlc-stage-marker,
-.rlc-nomotion .rlc-caret { animation: none !important; }
+.rlc-nomotion .rlc-caret,
+.rlc-nomotion .rlc-claim-flash { animation: none !important; }
+.rlc-nomotion .rlc-claim-flash { background-color: var(--row-pulse-flash); }
 .rlc-nomotion .rlc-caret { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
-  .rlc-panel, .rlc-turn, .rlc-jump, .rlc-menu, .rlc-limits-popover, .rlc-ember, .rlc-twinkle, .rlc-caret, .rlc-verify-dot, .rlc-stage-marker { animation: none !important; }
+  .rlc-panel, .rlc-turn, .rlc-jump, .rlc-menu, .rlc-limits-popover, .rlc-ember, .rlc-twinkle, .rlc-caret, .rlc-verify-dot, .rlc-stage-marker, .rlc-claim-flash { animation: none !important; }
   .rlc-caret { opacity: 1; }
+  .rlc-claim-flash { background-color: var(--row-pulse-flash); }
 }

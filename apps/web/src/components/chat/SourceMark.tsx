@@ -20,47 +20,75 @@ const GLYPH: Record<CitationMark["status"], string> = {
 const CLAIM_CHAR_CAP = 140;
 const MAX_CLAIMS_SHOWN = 5;
 
+// Display scale on Jev Choice confidence: how peaked the verdict distribution
+// is, not the probability of the chosen option and not a chance the line is
+// correct. Cuts are for wording only — they are not a calibrated operating point.
+const HIGH_CONFIDENCE = 0.75;
+const MEDIUM_CONFIDENCE = 0.45;
+
 function truncateClaim(claim: string): string {
   return claim.length > CLAIM_CHAR_CAP ? `${claim.slice(0, CLAIM_CHAR_CAP - 1)}…` : claim;
 }
 
-// "92% confident…" for the ✓ and the !. The muted dash's hover stays which
-// line isn't covered; a percent is only on the check and the warning.
+function confidenceWord(confidence: number): "High" | "Medium" | "Low" {
+  if (confidence >= HIGH_CONFIDENCE) return "High";
+  if (confidence >= MEDIUM_CONFIDENCE) return "Medium";
+  return "Low";
+}
+
+// "High confidence…" for the ✓ and the !. The muted dash's hover stays which
+// line isn't covered; a band is only on the check and the warning.
 function confidenceSentence(mark: CitationMark): string | null {
   if (mark.status !== "backed" && mark.status !== "disputed") return null;
   if (typeof mark.confidence !== "number" || !Number.isFinite(mark.confidence)) return null;
-  const pct = Math.round(Math.min(1, Math.max(0, mark.confidence)) * 100);
+  const word = confidenceWord(Math.min(1, Math.max(0, mark.confidence)));
   return mark.status === "backed"
-    ? `${pct}% confident this source backs the answer`
-    : `${pct}% confident this source says otherwise`;
+    ? `${word} confidence this source backs the answer`
+    : `${word} confidence this source says otherwise`;
 }
 
-function claimLines(mark: CitationMark): string[] {
-  if (mark.status === "backed") return [];
-  return mark.claims
-    // Both supporting verdicts are silent. `supports_in_part` means the
-    // document backs the part it was cited for, which is not a finding.
-    .filter((c) => c.verdict !== "supports" && c.verdict !== "supports_in_part")
-    .slice(0, MAX_CLAIMS_SHOWN)
-    .map((c) => {
-      const prefix = c.verdict === "contradicts" ? "This source says otherwise" : "Not stated in this source";
-      return `${prefix}: "${truncateClaim(c.claim)}"`;
-    });
+// Both supporting verdicts are silent. `supports_in_part` means the document
+// backs the part it was cited for, which is not a finding to quote.
+function isFinding(
+  verdict: CitationMark["claims"][number]["verdict"],
+): verdict is "says_nothing" | "contradicts" {
+  return verdict !== "supports" && verdict !== "supports_in_part";
+}
+
+function claimLabel(verdict: "says_nothing" | "contradicts", claim: string): string {
+  const prefix = verdict === "contradicts" ? "This source says otherwise" : "Not stated in this source";
+  return `${prefix}: "${truncateClaim(claim)}"`;
 }
 
 // Content for the shared Tooltip, shown when the whole source pill is hovered.
 // Null when this doc was never marked — the pill is just a link then.
-export function sourceTooltipContent(mark: CitationMark | undefined): ReactNode {
+// `onShowClaim` turns a quoted line into a control that highlights it above.
+export function sourceTooltipContent(
+  mark: CitationMark | undefined,
+  onShowClaim?: (claim: string) => void,
+): ReactNode {
   if (!mark) return null;
   const confidence = confidenceSentence(mark);
-  const lines = claimLines(mark);
-  if (lines.length === 0) return confidence ?? ACCESSIBLE_NAME[mark.status];
+  const claims = mark.status === "backed" ? [] : mark.claims.filter((c) => isFinding(c.verdict)).slice(0, MAX_CLAIMS_SHOWN);
+  if (claims.length === 0) return confidence ?? ACCESSIBLE_NAME[mark.status];
   return (
     <>
       {confidence && <div>{confidence}</div>}
-      {lines.map((line, i) => (
-        <div key={i}>{line}</div>
-      ))}
+      {claims.map((c, i) => {
+        const label = claimLabel(c.verdict, c.claim);
+        if (!onShowClaim) return <div key={i}>{label}</div>;
+        return (
+          <button
+            key={i}
+            type="button"
+            className="rlc-cite-jump"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onShowClaim(c.claim)}
+          >
+            {label}
+          </button>
+        );
+      })}
     </>
   );
 }

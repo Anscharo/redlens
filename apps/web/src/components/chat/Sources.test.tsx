@@ -160,10 +160,30 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const mark = screen.getByRole("img", { name: "88% confident this source backs the answer" });
+    const mark = screen.getByRole("img", { name: "High confidence this source backs the answer" });
     expect(mark).not.toHaveAttribute("title");
     const tip = showTip(screen.getByText("Some Doc"));
-    expect(tip).toHaveTextContent("88% confident this source backs the answer");
+    expect(tip).toHaveTextContent("High confidence this source backs the answer");
+  });
+
+  it("reads confidence as medium and low bands, not a percent", () => {
+    const { rerender } = render(
+      <Sources
+        sources={sourceFor(UUID)}
+        marks={{ [UUID]: { status: "backed", claims: [], confidence: 0.5 } }}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("img", { name: "Medium confidence this source backs the answer" })).toBeInTheDocument();
+    rerender(
+      <Sources
+        sources={sourceFor(UUID)}
+        marks={{ [UUID]: { status: "disputed", claims: [], confidence: 0.2 } }}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("img", { name: "Low confidence this source says otherwise" })).toBeInTheDocument();
+    expect(screen.queryByText(/%/)).toBeNull();
   });
 
   it("shows how sure the warning is, and which line, when hovering anywhere on the pill", () => {
@@ -181,8 +201,34 @@ describe("Sources", () => {
       />,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent("81% confident this source says otherwise");
+    expect(tip).toHaveTextContent("High confidence this source says otherwise");
     expect(tip).toHaveTextContent('This source says otherwise: "The threshold is 7 signers"');
+  });
+
+  it("highlights the quoted line in the answer when that tooltip line is clicked", () => {
+    render(
+      <div className="rlc-thread">
+        <div className="rlc-turn">
+          <div className="rlc-answer">The threshold is 7 signers before anything else happens.</div>
+          <Sources
+            sources={sourceFor(UUID)}
+            marks={{
+              [UUID]: {
+                status: "disputed",
+                confidence: 0.81,
+                claims: [{ claim: "The threshold is 7 signers", verdict: "contradicts" }],
+              },
+            }}
+            onAtlas={vi.fn()}
+          />
+        </div>
+      </div>,
+    );
+    showTip(screen.getByRole("link"));
+    fireEvent.click(screen.getByRole("button", { name: /The threshold is 7 signers/ }));
+    const flash = document.querySelector(".rlc-answer mark.rlc-claim-flash");
+    expect(flash).not.toBeNull();
+    expect(flash).toHaveTextContent("The threshold is 7 signers");
   });
 
   it("leaves the muted mark's hover as the uncovered line, with no confidence", () => {
@@ -201,7 +247,7 @@ describe("Sources", () => {
     );
     const tip = showTip(screen.getByRole("link"));
     expect(tip).toHaveTextContent('Not stated in this source: "The threshold is 7 signers"');
-    expect(tip).not.toHaveTextContent("% confident");
+    expect(tip).not.toHaveTextContent("confidence this source");
   });
 
   it("renders a disputed mark with a warning accessible name", () => {
