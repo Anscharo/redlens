@@ -7,6 +7,8 @@
     "vendor/**",
     "scripts/aux/ab-parse-check.mjs",
     "scripts/aux/eval-smalltalk-judge.ts",
+    "scripts/aux/eval-smalltalk-cases.ts",
+    "scripts/aux/eval-smalltalk-real.ts",
     "scripts/aux/test-addresses.mjs",
     "scripts/aux/label-quality.mjs",
     "scripts/aux/unlabeled-addresses.mjs",
