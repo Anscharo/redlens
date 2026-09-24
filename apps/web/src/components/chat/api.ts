@@ -46,6 +46,8 @@ export interface ParamMismatch {
 export interface CitationMark {
   status: "backed" | "unbacked" | "disputed";
   claims: { claim: string; verdict: "supports" | "says_nothing" | "contradicts" }[];
+  /** 0–1 confidence in `status`. Absent on a mark folded before this was sent. */
+  confidence?: number | null;
 }
 
 // "Did it answer the question?" (server: verify/answer-coverage.ts) — one

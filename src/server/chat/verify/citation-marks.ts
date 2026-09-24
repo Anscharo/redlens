@@ -23,12 +23,37 @@ export type CitationMarkStatus = "backed" | "unbacked" | "disputed";
 export interface CitationMark {
   status: CitationMarkStatus;
   claims: { claim: string; verdict: "supports" | "says_nothing" | "contradicts" }[];
+  /**
+   * Jev's confidence (0–1) in `status`. A ✓ is only as sure as its weakest
+   * support; a ! is as sure as its clearest contradiction. Null when the
+   * pairs that decided the status reported none.
+   */
+  confidence: number | null;
 }
 
 interface JudgedPair {
   uuid: string;
   claim: string;
   verdict: CiteVerdict | null;
+  /** Jev Choice confidence in `verdict`, 0–1. Absent on pairs stored before it was read back. */
+  confidence?: number | null;
+}
+
+/** A stored confidence outside 0–1 is not a confidence. */
+export function citeConfidence(n: unknown): number | null {
+  return typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1 ? n : null;
+}
+
+function confidenceFor(status: CitationMarkStatus, pairs: JudgedPair[]): number | null {
+  const verdict = status === "disputed" ? "contradicts" : status === "backed" ? "supports" : "says_nothing";
+  const values: number[] = [];
+  for (const p of pairs) {
+    if (p.verdict !== verdict) continue;
+    const c = citeConfidence(p.confidence);
+    if (c !== null) values.push(c);
+  }
+  if (values.length === 0) return null;
+  return status === "disputed" ? Math.max(...values) : Math.min(...values);
 }
 
 /**
@@ -60,7 +85,7 @@ export function aggregateMarks(judged: JudgedPair[]): Record<string, CitationMar
     else if (pairs.some((p) => p.verdict === "says_nothing")) status = "unbacked";
     else if (pairs.some((p) => p.verdict === "supports")) status = "backed";
     else continue; // only `about_document` pointers — no content claim to mark
-    out[uuid] = { status, claims };
+    out[uuid] = { status, claims, confidence: confidenceFor(status, pairs) };
   }
   return out;
 }
@@ -165,7 +190,9 @@ export async function runCitationMarks(p: {
       // nothing) downgrades to says_nothing — informational, never an
       // unconfirmed warning.
       contraIndexes.forEach((resultIndex, candidateIndex) => {
-        if (!run?.agreed.has(candidateIndex)) results[resultIndex] = { ...results[resultIndex], verdict: "says_nothing" };
+        // The number was confidence in `contradicts`. Confirm rejected that
+        // verdict, so it must not describe the downgraded "doesn't cover".
+        if (!run?.agreed.has(candidateIndex)) results[resultIndex] = { ...results[resultIndex], verdict: "says_nothing", confidence: null };
       });
     }
 

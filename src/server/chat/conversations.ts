@@ -6,7 +6,7 @@ import { sql, toUuidArrayLiteral } from "../db.ts";
 import { getSessionUser } from "../session.ts";
 import { json } from "../http.ts";
 import { HISTORY_BUDGET_CHARS } from "./chat-history.ts";
-import { aggregateMarks, type CitationMark } from "./verify/citation-marks.ts";
+import { aggregateMarks, citeConfidence, type CitationMark } from "./verify/citation-marks.ts";
 import { VERDICTS, type CiteVerdict } from "./verify/cite-support.ts";
 
 // Rough chars-per-token for the estimated-context fallback below. Estimation
@@ -121,17 +121,17 @@ const CITE_VERDICTS: ReadonlySet<string> = new Set(VERDICTS);
 // message (null) rather than failing the whole conversation load. A single
 // malformed pair within an otherwise-good row is dropped rather than
 // poisoning the row's other pairs.
-function judgedPairsFrom(verdict: unknown): { uuid: string; claim: string; verdict: CiteVerdict | null }[] | null {
+function judgedPairsFrom(verdict: unknown): { uuid: string; claim: string; verdict: CiteVerdict | null; confidence: number | null }[] | null {
   if (!verdict || typeof verdict !== "object") return null;
   const judged = (verdict as { judged?: unknown }).judged;
   if (!Array.isArray(judged)) return null;
-  const out: { uuid: string; claim: string; verdict: CiteVerdict | null }[] = [];
+  const out: { uuid: string; claim: string; verdict: CiteVerdict | null; confidence: number | null }[] = [];
   for (const j of judged) {
     if (!j || typeof j !== "object") continue;
-    const { uuid, claim, verdict: v } = j as Record<string, unknown>;
+    const { uuid, claim, verdict: v, confidence } = j as Record<string, unknown>;
     if (typeof uuid !== "string" || typeof claim !== "string") continue;
     if (v !== null && !CITE_VERDICTS.has(v as string)) continue;
-    out.push({ uuid, claim, verdict: (v as CiteVerdict) ?? null });
+    out.push({ uuid, claim, verdict: (v as CiteVerdict) ?? null, confidence: citeConfidence(confidence) });
   }
   return out;
 }

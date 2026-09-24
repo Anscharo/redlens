@@ -35,7 +35,7 @@
 
 
 ## 2026-09-24
-- Chat answers now mark which sources back them and say when a reply didn't answer the question or skipped part of it
+- Chat answers now mark which sources back them, show how sure that mark is when you hover the check or the warning, and say when a reply didn't answer the question or skipped part of it
 - Reworded the preview bar and browser tab to name the pull request or branch, and added a Dismiss control on the Access notice that stays hidden in this browser
 
 ## 2026-09-23

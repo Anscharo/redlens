@@ -178,7 +178,7 @@ function seedMessage(over: Partial<StoredMsg> & { conversation_id: string; role:
 // Seeds a message_checks row of kind citation_check, in the same shape
 // resolveCitationMarks/persistChecks write (chat-orchestrator.ts /
 // verify/citation-marks.ts's CitationMarksRun.judged).
-function seedCitationCheck(messageId: string, judged: { uuid: string; claim: string; verdict: string | null }[]): void {
+function seedCitationCheck(messageId: string, judged: { uuid: string; claim: string; verdict: string | null; confidence?: number | null }[]): void {
   msgChecks.push({ message_id: messageId, kind: "citation_check", verdict: { judged, counts: {}, confirm: null } });
 }
 
@@ -348,19 +348,23 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
       seedMessage({ conversation_id: "c-1", role: "user" });
       const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
       seedCitationCheck(assistant.id, [
-        { uuid: "doc-a", claim: "The threshold is 7 signers.", verdict: "supports" },
+        { uuid: "doc-a", claim: "The threshold is 7 signers.", verdict: "supports", confidence: 0.91 },
+        { uuid: "doc-a", claim: "Signers must be distinct.", verdict: "supports", confidence: 0.62 },
         { uuid: "doc-b", claim: "Rewards accrue daily.", verdict: null }, // unjudged — withholds the mark
-        { uuid: "doc-c", claim: "The fee is 10 bps.", verdict: "contradicts" },
+        { uuid: "doc-c", claim: "The fee is 10 bps.", verdict: "contradicts", confidence: 0.44 },
+        { uuid: "doc-c", claim: "The fee is fixed.", verdict: "contradicts", confidence: 0.8 },
       ]);
 
       const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
       const body = (await res.json()) as { messages: { role: string; citationMarks: unknown }[] };
       const marks = body.messages.find((m) => m.role === "assistant")!.citationMarks as Record<
         string,
-        { status: string }
+        { status: string; confidence: number | null }
       >;
       expect(marks["doc-a"].status).toBe("backed");
+      expect(marks["doc-a"].confidence).toBe(0.62); // weakest support
       expect(marks["doc-c"].status).toBe("disputed");
+      expect(marks["doc-c"].confidence).toBe(0.8); // clearest contradiction
       expect(marks["doc-b"]).toBeUndefined(); // unjudged pair — no mark, not a guess
     });
 

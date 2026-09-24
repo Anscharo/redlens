@@ -61,12 +61,12 @@ describe("aggregateMarks", () => {
 
   it("says_nothing with no contradicts or null — unbacked", () => {
     const marks = aggregateMarks([{ uuid: A, claim: "c1", verdict: "says_nothing" }]);
-    expect(marks[A]).toEqual({ status: "unbacked", claims: [{ claim: "c1", verdict: "says_nothing" }] });
+    expect(marks[A]).toEqual({ status: "unbacked", claims: [{ claim: "c1", verdict: "says_nothing" }], confidence: null });
   });
 
   it("only supports — backed", () => {
     const marks = aggregateMarks([{ uuid: A, claim: "c1", verdict: "supports" }]);
-    expect(marks[A]).toEqual({ status: "backed", claims: [{ claim: "c1", verdict: "supports" }] });
+    expect(marks[A]).toEqual({ status: "backed", claims: [{ claim: "c1", verdict: "supports" }], confidence: null });
   });
 
   it("only about_document pointers — no mark, and the pointer is excluded from claims on a mixed doc", () => {
@@ -75,7 +75,22 @@ describe("aggregateMarks", () => {
       { uuid: A, claim: "c1", verdict: "about_document" },
       { uuid: A, claim: "c2", verdict: "supports" },
     ]);
-    expect(marks[A]).toEqual({ status: "backed", claims: [{ claim: "c2", verdict: "supports" }] });
+    expect(marks[A]).toEqual({ status: "backed", claims: [{ claim: "c2", verdict: "supports" }], confidence: null });
+  });
+
+  it("a check is as sure as its weakest support, a warning as sure as its clearest contradiction", () => {
+    const backed = aggregateMarks([
+      { uuid: A, claim: "c1", verdict: "supports", confidence: 0.91 },
+      { uuid: A, claim: "c2", verdict: "supports", confidence: 0.64 },
+    ]);
+    expect(backed[A].confidence).toBe(0.64);
+    const disputed = aggregateMarks([
+      { uuid: B, claim: "c1", verdict: "supports", confidence: 0.99 },
+      { uuid: B, claim: "c2", verdict: "contradicts", confidence: 0.4 },
+      { uuid: B, claim: "c3", verdict: "contradicts", confidence: 0.87 },
+    ]);
+    expect(disputed[B].confidence).toBe(0.87);
+    expect(aggregateMarks([{ uuid: C, claim: "c1", verdict: "supports", confidence: 1.4 }])[C].confidence).toBeNull();
   });
 
   it("keeps docs independent — one doc's null does not affect another's mark", () => {
@@ -126,7 +141,7 @@ describe("runCitationMarks", () => {
     stubJudge(() => "supports");
     const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev" });
     expect(run.calls).toBe(2);
-    expect(run.marks[A]).toEqual({ status: "backed", claims: [{ claim: run.judged.find((j) => j.uuid === A)!.claim, verdict: "supports" }] });
+    expect(run.marks[A]).toEqual({ status: "backed", claims: [{ claim: run.judged.find((j) => j.uuid === A)!.claim, verdict: "supports" }], confidence: 1 });
     expect(run.marks[B].status).toBe("backed");
     expect(run.confirm).toBeNull(); // no contradicts — confirm never called
   });
@@ -171,6 +186,8 @@ describe("runCitationMarks", () => {
     const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", jsonCall: confirmCall, confirmModel: "confirm-model" });
     expect(run.confirm).toEqual({ candidates: 1, agreed: 0 });
     expect(run.marks[A].status).toBe("unbacked");
+    expect(run.marks[A].confidence).toBeNull();
+    expect(run.judged.find((j) => j.uuid === A)!.confidence).toBeNull();
   });
 
   it("confirm is shown the cited document in full, including text past the old 600-character cut", async () => {

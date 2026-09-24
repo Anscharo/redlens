@@ -139,6 +139,57 @@ describe("Sources", () => {
     expect(mark).toHaveAttribute("title", 'Not stated in this source: "The threshold is 7 signers"');
   });
 
+  it("shows how sure the check is when hovering a backed mark", () => {
+    render(
+      <Sources
+        sources={sourceFor(UUID)}
+        marks={{ [UUID]: { status: "backed", claims: [], confidence: 0.875 } }}
+        onAtlas={vi.fn()}
+      />,
+    );
+    const mark = screen.getByRole("img", { name: "88% confident this source backs the answer" });
+    expect(mark).toHaveAttribute("title", "88% confident this source backs the answer");
+  });
+
+  it("shows how sure the warning is, and still which line, when hovering a disputed mark", () => {
+    render(
+      <Sources
+        sources={sourceFor(UUID)}
+        marks={{
+          [UUID]: {
+            status: "disputed",
+            confidence: 0.81,
+            claims: [{ claim: "The threshold is 7 signers", verdict: "contradicts" }],
+          },
+        }}
+        onAtlas={vi.fn()}
+      />,
+    );
+    const mark = screen.getByRole("img", { name: "81% confident this source says otherwise" });
+    expect(mark).toHaveAttribute(
+      "title",
+      '81% confident this source says otherwise\nThis source says otherwise: "The threshold is 7 signers"',
+    );
+  });
+
+  it("leaves the muted mark's hover as the uncovered line, with no confidence", () => {
+    render(
+      <Sources
+        sources={sourceFor(UUID)}
+        marks={{
+          [UUID]: {
+            status: "unbacked",
+            confidence: 0.9,
+            claims: [{ claim: "The threshold is 7 signers", verdict: "says_nothing" }],
+          },
+        }}
+        onAtlas={vi.fn()}
+      />,
+    );
+    const mark = screen.getByRole("img", { name: "This source doesn't cover every line citing it" });
+    expect(mark).toHaveAttribute("title", 'Not stated in this source: "The threshold is 7 signers"');
+  });
+
   it("renders a disputed mark with a warning accessible name and lists the contradicted claim in the title", () => {
     render(
       <Sources
