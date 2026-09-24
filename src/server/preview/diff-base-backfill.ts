@@ -11,6 +11,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { sql } from "../db.ts";
+import { getPreviewRow } from "./db.ts";
 import { config } from "../config.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { installationToken } from "./github-app.ts";
@@ -47,8 +48,11 @@ export interface BackfillDeps {
   gh: (token: string) => GhClient;
   candidates: typeof resolveCandidates;
   live: (token: string) => Promise<LiveAtlas>;
-  /** Checkout `sha` in `repo` and parse it. Throws if the archive is gone. */
-  snapshotAt: (repo: string, sha: string, token: string) => Promise<Snapshot>;
+  /** Checkout `sha` in `repo` and parse it. Throws if the archive is gone.
+   *  `apiTarball` is required for a private repo: an installation-token Bearer
+   *  is honored on api.github.com/.../tarball/..., and ignored on the public
+   *  github.com/.../archive/... URL. */
+  snapshotAt: (repo: string, sha: string, token: string, apiTarball?: boolean) => Promise<Snapshot>;
   fill: (sha: string, meta: PreviewMeta, discovered: DiscoveredBase) => Promise<boolean>;
 }
 
@@ -69,10 +73,10 @@ async function servedAtlas(token: string): Promise<LiveAtlas> {
   return { commit, snapshot: await loadSnapshot(CANONICAL_REPO, commit, token) };
 }
 
-async function loadSnapshot(repo: string, sha: string, token: string): Promise<Snapshot> {
+async function loadSnapshot(repo: string, sha: string, token: string, apiTarball = false): Promise<Snapshot> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "preview-diff-base-"));
   try {
-    const { srcDir } = await fetchAndExtract(repo, sha, token, dir);
+    const { srcDir } = await fetchAndExtract(repo, sha, token, dir, undefined, { apiTarball });
     return snapshotFromSrcDir(srcDir);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -157,7 +161,7 @@ export async function backfillPreviewDiffBases(over: Partial<BackfillDeps> = {})
       const materialized = await materializeDiffBase(resolved, candidates, live, async (repo, sha) => {
         const hit = baseCache.get(sha);
         if (hit && sha !== resolved.sha) return hit;
-        const snap = await deps.snapshotAt(repo, sha, tokenForRow || token);
+        const snap = await deps.snapshotAt(repo, sha, tokenForRow || token, !!row.private);
         if (sha !== resolved.sha) baseCache.set(sha, snap);
         return snap;
       });
@@ -177,6 +181,52 @@ export async function backfillPreviewDiffBases(over: Partial<BackfillDeps> = {})
     }
   }
   return result;
+}
+
+const openInflight = new Set<string>();
+
+/** A private preview opened while its diff-base columns are still NULL.
+ *  Boot can miss it (no installation token that day). The bundle's own meta
+ *  is the record when the build wrote one; otherwise the same one-row pass
+ *  boot runs, now with the API tarball the installation token can read.
+ *  Detached — serving the bundle does not wait on it. */
+export function fillPrivateDiffBaseOnOpen(resolved: Resolved, meta: PreviewMeta | null): void {
+  if (!resolved.private || openInflight.has(resolved.sha)) return;
+  openInflight.add(resolved.sha);
+  void (async () => {
+    const sha8 = resolved.sha.slice(0, 8);
+    try {
+      const row = await getPreviewRow(resolved.sha);
+      if (!row || row.diff_base_type) return;
+      if (meta?.bases) {
+        const wrote = await fillPreviewDiffBase(sql as unknown as Parameters<typeof fillPreviewDiffBase>[0], resolved.sha, meta, {
+          ...(meta.prBase ? { prBase: meta.prBase } : {}),
+          ...(!meta.prBase && meta.defaultBranch ? { defaultBranch: meta.defaultBranch } : {}),
+        });
+        if (wrote) console.log(diffBaseLogLine(meta).replace(": ", ": backfill "));
+        return;
+      }
+      await backfillPreviewDiffBases({
+        list: async () => [
+          {
+            sha: row.sha,
+            repo: row.repo,
+            ref: row.ref,
+            kind: row.kind,
+            pr_number: row.pr_number,
+            private: true,
+            pr_base_repo: row.pr_base_repo,
+            pr_base_ref: row.pr_base_ref,
+            default_branch: row.default_branch,
+          },
+        ],
+      });
+    } catch (e) {
+      console.warn(`[preview] ${sha8}: diff-base backfill failed (${(e as Error).name || "Error"})`);
+    } finally {
+      openInflight.delete(resolved.sha);
+    }
+  })();
 }
 
 /** Detached boot hook. Quiet when there is nothing to fill. One advisory lock

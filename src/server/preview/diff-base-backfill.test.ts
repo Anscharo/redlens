@@ -282,6 +282,46 @@ test("backfillPreviewDiffBases records a PR against nga main as pr-base, and ski
   expect(logs.join("\n")).not.toContain("blimpa/next-gen-atlas");
 });
 
+test("backfillPreviewDiffBases fetches a private archive on the API tarball, with the installation token", async () => {
+  const snaps: { token: string; apiTarball?: boolean }[] = [];
+  const r = await backfillPreviewDiffBases(deps({
+    list: async () => [row({
+      sha: "p".repeat(40),
+      repo: "acme/secret-atlas",
+      ref: "mod",
+      kind: "branch",
+      pr_number: null,
+      private: true,
+      default_branch: "main",
+    })],
+    token: () => "service-token",
+    installationToken: async () => "inst-token",
+    gh: () => ({ fetchJson: async () => ({ ok: true, status: 200, json: {} }) }),
+    candidates: async () => ({ auto: "live-main", reason: "no base branch to compare against", compareOk: true }),
+    snapshotAt: async (_repo, sha, token, apiTarball) => {
+      snaps.push({ token, apiTarball });
+      return sha === "p".repeat(40) ? headSnap : liveSnap;
+    },
+    fill: async () => true,
+  }));
+  expect(r.filled).toBe(1);
+  expect(snaps.length).toBeGreaterThan(0);
+  expect(snaps.every((s) => s.token === "inst-token" && s.apiTarball === true)).toBe(true);
+});
+
+test("a public backfill keeps the public archive URL", async () => {
+  const snaps: { token: string; apiTarball?: boolean }[] = [];
+  await backfillPreviewDiffBases(deps({
+    list: async () => [row({ pr_base_repo: CANONICAL_REPO, pr_base_ref: "main" })],
+    token: () => "service-token",
+    snapshotAt: async (_repo, _sha, token, apiTarball) => {
+      snaps.push({ token, apiTarball });
+      return headSnap;
+    },
+  }));
+  expect(snaps.every((s) => s.token === "service-token" && s.apiTarball === false)).toBe(true);
+});
+
 test("backfillPreviewDiffBases skips a private row when the installation lookup throws", async () => {
   const r = await backfillPreviewDiffBases(deps({
     list: async () => [row({ sha: "p".repeat(40), repo: "acme/secret-atlas", ref: "mod", kind: "branch", pr_number: null, private: true })],
