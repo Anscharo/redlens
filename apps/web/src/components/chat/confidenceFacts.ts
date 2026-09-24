@@ -12,7 +12,7 @@ import type { AnswerCoverage, CitationMark } from "./api";
 export interface AnswerFact {
   key: "coverage" | "missing" | "sources";
   text: string;
-  /** "flagged" = the answer fell short of the question; "info" = a neutral fact. */
+  /** "flagged" = the answer fell short, or a checked source contradicts it; "info" = a neutral fact. */
   status: "flagged" | "info";
 }
 
@@ -47,7 +47,11 @@ export function answerFacts(coverage: AnswerCoverage | undefined, marks: Record<
   const marked = marks ? Object.values(marks) : [];
   if (marked.length > 0) {
     const backed = marked.filter((m) => m.status === "backed").length;
-    facts.push({ key: "sources", text: sourcesText(backed, marked.length), status: "info" });
+    // A disputed mark is a confirm-gated contradiction the verify badge does
+    // not repeat. An unbacked mark only means the document doesn't cover the
+    // citing line, so it stays a neutral count.
+    const disputed = marked.some((m) => m.status === "disputed");
+    facts.push({ key: "sources", text: sourcesText(backed, marked.length), status: disputed ? "flagged" : "info" });
   }
   return facts;
 }

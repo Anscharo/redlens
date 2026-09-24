@@ -28,6 +28,11 @@ describe("AnswerFacts", () => {
     expect(items.map((li) => li.getAttribute("data-status"))).toEqual(["flagged", "info"]);
   });
 
+  it("flags the sources count when a checked source is disputed", () => {
+    render(<AnswerFacts marks={{ a: { status: "backed", claims: [] }, b: { status: "disputed", claims: [] } }} />);
+    expect(screen.getByText("1 of 2 checked sources backs the answer")).toHaveAttribute("data-status", "flagged");
+  });
+
   it("says a deflecting answer didn't answer the question", () => {
     render(<AnswerFacts coverage={{ verdict: "deflects", missingParts: [] }} />);
     expect(screen.getByText("Didn't answer the question")).toHaveAttribute("data-status", "flagged");

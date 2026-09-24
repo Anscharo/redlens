@@ -820,8 +820,11 @@ copy in `confidenceFacts.ts`): nothing for `answers`; "Didn't answer the
 question" (`deflects`); "Asked you a clarifying question" (`asks`) and "Said
 the atlas doesn't cover this" (`declines`) as neutral facts; "Didn't address:
 “…”" for missing parts; plus "N of M checked sources back the answer" counted
-from `citation_marks`. The badge itself is the third fact (contradictions) and
-is not repeated. Raw distribution, per-part scores and latency persist as a
+from `citation_marks`. That count stays a neutral fact unless a checked source
+is `disputed` — a confirm-gated contradiction the badge does not repeat — in
+which case the line is flagged; an `unbacked` mark (the document doesn't cover
+the citing line) does not flag it. The badge itself is the third fact
+(whole-answer contradictions) and is not repeated. Raw distribution, per-part scores and latency persist as a
 `message_checks` row of kind `answer_coverage`; unlike the marks (which now
 rehydrate — see `citation_marks` above), the line is not rehydrated on
 reload. **Every threshold is in-sample** (311 real answers

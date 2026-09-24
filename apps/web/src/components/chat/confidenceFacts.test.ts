@@ -42,8 +42,13 @@ describe("answerFacts", () => {
   });
 
   it("counts checked sources and how many back the answer", () => {
-    const marks = { a: mark("backed"), b: mark("backed"), c: mark("unbacked"), d: mark("disputed") };
-    expect(answerFacts(undefined, marks)).toEqual([{ key: "sources", text: "2 of 4 checked sources back the answer", status: "info" }]);
+    const marks = { a: mark("backed"), b: mark("backed"), c: mark("unbacked") };
+    expect(answerFacts(undefined, marks)).toEqual([{ key: "sources", text: "2 of 3 checked sources back the answer", status: "info" }]);
+  });
+
+  it("flags the sources count when a checked source is disputed", () => {
+    const marks = { a: mark("backed"), b: mark("unbacked"), c: mark("disputed") };
+    expect(answerFacts(undefined, marks)).toEqual([{ key: "sources", text: "1 of 3 checked sources backs the answer", status: "flagged" }]);
   });
 
   it("agrees number in the sources fact", () => {

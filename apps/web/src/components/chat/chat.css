@@ -646,8 +646,9 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-verify-quote { color: var(--tan-2); font-style: italic; }
 /* Answer-confidence facts (AnswerFacts.tsx): one muted mono line in the
    badge's own type, tucked under it so badge + line read as one unit. The
-   flagged fact ("Didn't answer the question", "Didn't address: …") takes the
-   caution accent; its words carry the meaning, not the colour. */
+   flagged fact ("Didn't answer the question", "Didn't address: …", and the
+   sources count when a checked source is disputed) takes the caution accent;
+   its words carry the meaning, not the colour. */
 .rlc-answer-facts {
   display: flex;
   flex-wrap: wrap;
