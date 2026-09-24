@@ -6,7 +6,7 @@
  *   …Address                       "The address of the X on {Chain} is `0x…`."
  *   …(Required )Number Of Signers  "The X (currently )has a (default )M/N signing requirement." OR
  *                                  "The X's required number of signers is M (M) out of N (N)."
- *   …(Current )Signers             three prose/bullet shapes, see parseSignerGroups
+ *   …(Current )Signers             five prose/bullet shapes, see parseSignerGroups
  *   …Usage Standards               purpose prose
  *   …(Signer )Modification(s)      who may change the signers + invariants
  *
@@ -58,17 +58,26 @@ const SIGNER_BULLET_COUNT_RE = bulletField(String.raw`([^:\n]+?)`, String.raw`(\
 const SIGNER_GROUP_PLAIN_RE =
   /\b[a-z]+\s*\((\d+)\)\s+controlled by\s+(.+?)(?=\s*[,;.]|\s+and\s+[a-z]+\s*\(\d+\)|$)/gi;
 const SIGNER_INCLUDING_CLAUSE_RE = /,?\s*including\s+.*?(?=,\s*and\s+|\.\s|$)/gi;
+// "is five (5) signers" — the composition's own stated total. Compared against the
+// sum of parsed groups below: catches a future rephrase (e.g. the comma before the
+// final "and" clause moving) that would make SIGNER_INCLUDING_CLAUSE_RE strip too
+// much and silently drop a top-level group instead of failing loudly.
+const SIGNER_COMPOSITION_TOTAL_RE = /is\s+[a-z]+\s*\((\d+)\)\s+signers/i;
 // plain bullet roster ("- VoteWizard") — only read when the prose announces it
 const SIGNER_ROSTER_INTRO_RE = /has the following signers/i;
 const SIGNER_BULLET_PLAIN_RE = /^[-*]\s*([A-Za-z0-9_ .'-]+?)\s*$/gm;
+// "The signers of the X are controlled by Y. The specific signers will be specified
+// in a future iteration of the Atlas." — the controlling party IS known even though
+// the individual roster is deferred (A.2.2.10.1.1.1.2.4.4.3.1.3 "Grove Operator
+// Multisig Signers" — whose sibling Modification doc independently names the same
+// party as the one who may change the signers, so this is a real fact, not a guess).
+// Emitted as a group with a null count rather than dropped; a doc with NO named
+// controller at all still falls through to a genuine "did not parse" warning.
+const SIGNERS_DEFERRED_CONTROLLER_RE =
+  /controlled by\s+(.+?)\.\s*(?:the\s+)?specific signers will be specified in a future iteration/i;
 const MODIFICATION_RE = /^(.+?) can change the signers/ms;
 // "addresses controlled by the Core Facilitator" — bare role references
 const ROLE_PREFIX_RE = /^(Operational|Core)\s+(GovOps|Facilitator)\s+(.+)$/i;
-// "The specific signers will be specified in a future iteration of the Atlas." — the signers
-// child doc names who WILL control the (not-yet-chosen) signers but defers the roster itself.
-// Not a parse failure: there is nothing to parse yet (A.2.2.10.1.1.1.2.4.4.3.1.3 "Grove Operator
-// Multisig Signers").
-const SIGNERS_DEFERRED_RE = /signers will be specified in a future iteration/i;
 
 function childSuffix(title) {
   const t = title.trim();
@@ -95,6 +104,8 @@ export function parseSignerGroups(content) {
     groups.push({ name: m[2].trim(), count: Number(m[1]) });
   }
   if (groups.length) return groups;
+  const deferred = content.match(SIGNERS_DEFERRED_CONTROLLER_RE);
+  if (deferred) return [{ name: deferred[1].trim(), count: null }];
   if (SIGNER_ROSTER_INTRO_RE.test(content)) {
     for (const m of content.matchAll(SIGNER_BULLET_PLAIN_RE)) {
       groups.push({ name: m[1].trim(), count: 1 });
@@ -103,10 +114,14 @@ export function parseSignerGroups(content) {
   return groups;
 }
 
-// Signers content that explicitly defers the roster to a future Atlas iteration —
-// zero groups here is the atlas's own statement, not a parser miss.
-export function isDeferredSignerRoster(content) {
-  return SIGNERS_DEFERRED_RE.test(content);
+// Compares a composition's own stated total ("is five (5) signers") against the sum
+// of its parsed groups. Returns false when the content states no total at all — most
+// signer shapes don't — so this only ever adds a warning for the one shape it guards.
+export function signerCompositionMismatch(content, groups) {
+  const stated = content.match(SIGNER_COMPOSITION_TOTAL_RE)?.[1];
+  if (stated == null) return false;
+  const parsed = groups.reduce((sum, g) => sum + (g.count ?? 0), 0);
+  return Number(stated) !== parsed;
 }
 
 export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges) {
@@ -238,8 +253,10 @@ export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges)
         // Signers
         const signersContent = slot.signers.content ?? "";
         const groups = parseSignerGroups(signersContent);
-        if (!groups.length && !isDeferredSignerRoster(signersContent)) {
+        if (!groups.length) {
           warn(`signers did not parse: ${slot.signers.doc_no}`);
+        } else if (signerCompositionMismatch(signersContent, groups)) {
+          warn(`signers composition total mismatch: ${slot.signers.doc_no}`);
         }
         for (const g of groups) {
           const r = resolveParty(g.name, slot.signers, addEntity);
