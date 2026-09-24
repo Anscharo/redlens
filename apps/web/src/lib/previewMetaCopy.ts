@@ -141,9 +141,9 @@ export function sourceUrl(m: PreviewMeta): string {
 export function sourceLabel(m: PreviewMeta): string {
   const pull = m.ref?.match(/^pull-(\d+)$/);
   const n = m.prNumber ?? (pull ? Number(pull[1]) : undefined);
-  if (n != null && (m.kind === "pr" || m.prNumber != null || pull)) return `view PR #${n} on GitHub ↗`;
-  if (m.kind === "branch") return "view branch ↗";
-  return "view commit ↗";
+  if (n != null && (m.kind === "pr" || m.prNumber != null || pull)) return `PR ${n}`;
+  if (m.kind === "branch") return "branch";
+  return "commit";
 }
 
 const ACCESS_DISMISS_KEY = "sabr-preview-access-dismissed";
