@@ -71,6 +71,11 @@ export interface ActiveBase {
  *  absent: `docsDiffer` counts the base tip against the live atlas, not the
  *  redlines this preview renders. */
 export interface CompareParts {
+  /** The head ref — a branch name, or `pull-N` for a Contents-only private PR. */
+  head: string;
+  /** The PR title, when the bundle carries one. */
+  title: string;
+  /** "HEAD — TITLE", for the consumers that need one plain string. */
   subject: string;
   base: string;
 }
@@ -93,7 +98,19 @@ export function compareParts(meta: PreviewMeta, active: ActiveBase | null): Comp
   const head = meta.ref?.trim() || "";
   const title = meta.prTitle?.trim() || "";
   const subject = head && title ? `${head} — ${title}` : head || title;
-  return { subject, base: compareBase(meta, active) };
+  return { head, title, subject, base: compareBase(meta, active) };
+}
+
+/** Which treatment the banner wears. `forkOwner` is only set by the server for
+ *  true fork previews — a PR whose head lives on a fork is still a PR preview,
+ *  not a fork preview. Private previews never set `forkOwner` (the server
+ *  doesn't compute fork lineage for them), so "private" simply wins here. */
+export type PreviewKind = "preview" | "fork" | "private";
+
+export function previewKind(meta: PreviewMeta | null): PreviewKind {
+  if (meta?.private) return "private";
+  if (meta?.forkOwner) return "fork";
+  return "preview";
 }
 
 /** Browser tab while a preview is open.
