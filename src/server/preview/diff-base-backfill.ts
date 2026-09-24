@@ -58,7 +58,7 @@ export interface BackfillDeps {
 
 const LOCK_KEY = 4711_2033;
 
-async function servedAtlas(token: string): Promise<LiveAtlas> {
+export async function servedAtlas(token: string): Promise<LiveAtlas> {
   try {
     const ix = getIndexes();
     if (ix.meta.atlasCommit && ix.docMap.size > 0) {
@@ -73,10 +73,16 @@ async function servedAtlas(token: string): Promise<LiveAtlas> {
   return { commit, snapshot: await loadSnapshot(CANONICAL_REPO, commit, token) };
 }
 
-async function loadSnapshot(repo: string, sha: string, token: string, apiTarball = false): Promise<Snapshot> {
+export async function loadSnapshot(
+  repo: string,
+  sha: string,
+  token: string,
+  apiTarball = false,
+  extract: typeof fetchAndExtract = fetchAndExtract,
+): Promise<Snapshot> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "preview-diff-base-"));
   try {
-    const { srcDir } = await fetchAndExtract(repo, sha, token, dir, undefined, { apiTarball });
+    const { srcDir } = await extract(repo, sha, token, dir, undefined, { apiTarball });
     return snapshotFromSrcDir(srcDir);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -185,28 +191,41 @@ export async function backfillPreviewDiffBases(over: Partial<BackfillDeps> = {})
 
 const openInflight = new Set<string>();
 
+type OpenRow = BackfillRow & { diff_base_type: string | null };
+
 /** A private preview opened while its diff-base columns are still NULL.
  *  Boot can miss it (no installation token that day). The bundle's own meta
  *  is the record when the build wrote one; otherwise the same one-row pass
  *  boot runs, now with the API tarball the installation token can read.
- *  Detached — serving the bundle does not wait on it. */
-export function fillPrivateDiffBaseOnOpen(resolved: Resolved, meta: PreviewMeta | null): void {
+ *  Returns the in-flight job so a test can settle it; serving does not await it. */
+export function fillPrivateDiffBaseOnOpen(
+  resolved: Resolved,
+  meta: PreviewMeta | null,
+  deps: {
+    loadRow?: (sha: string) => Promise<OpenRow | null>;
+    fill?: (sha: string, meta: PreviewMeta, discovered: DiscoveredBase) => Promise<boolean>;
+    backfill?: typeof backfillPreviewDiffBases;
+  } = {},
+): Promise<void> | undefined {
   if (!resolved.private || openInflight.has(resolved.sha)) return;
   openInflight.add(resolved.sha);
-  void (async () => {
+  const loadRow = deps.loadRow ?? ((sha) => getPreviewRow(sha) as Promise<OpenRow | null>);
+  const fill = deps.fill ?? ((sha, m, discovered) => fillPreviewDiffBase(sql as unknown as Parameters<typeof fillPreviewDiffBase>[0], sha, m, discovered));
+  const backfill = deps.backfill ?? backfillPreviewDiffBases;
+  return (async () => {
     const sha8 = resolved.sha.slice(0, 8);
     try {
-      const row = await getPreviewRow(resolved.sha);
+      const row = await loadRow(resolved.sha);
       if (!row || row.diff_base_type) return;
       if (meta?.bases) {
-        const wrote = await fillPreviewDiffBase(sql as unknown as Parameters<typeof fillPreviewDiffBase>[0], resolved.sha, meta, {
+        const wrote = await fill(resolved.sha, meta, {
           ...(meta.prBase ? { prBase: meta.prBase } : {}),
           ...(!meta.prBase && meta.defaultBranch ? { defaultBranch: meta.defaultBranch } : {}),
         });
         if (wrote) console.log(diffBaseLogLine(meta).replace(": ", ": backfill "));
         return;
       }
-      await backfillPreviewDiffBases({
+      await backfill({
         list: async () => [
           {
             sha: row.sha,

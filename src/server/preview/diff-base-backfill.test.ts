@@ -1,4 +1,7 @@
 import { test, expect } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { CANONICAL_REPO, type GhClient } from "./resolve.ts";
 import { diffBaseHasLca, diffBaseLabel, diffBaseType } from "./diff-base-record.ts";
 import type { Candidate, Candidates } from "./pr-diff.ts";
@@ -10,7 +13,9 @@ import {
   resolveBackfillRow,
   type BackfillRow,
 } from "./diff-base-backfill-row.ts";
-import { backfillPreviewDiffBases, type BackfillDeps } from "./diff-base-backfill.ts";
+import { config } from "../config.ts";
+import { setIndexes, type Indexes } from "../retrieval/indexes.ts";
+import { backfillPreviewDiffBases, fillPrivateDiffBaseOnOpen, loadSnapshot, servedAtlas, startPreviewDiffBaseBackfill, type BackfillDeps } from "./diff-base-backfill.ts";
 
 const SHA = "h".repeat(40);
 const LIVE = "c".repeat(40);
@@ -352,4 +357,168 @@ test("backfillPreviewDiffBases logs the error name only when a row throws", asyn
   }
   expect(warns.join("\n")).toContain("SourceGoneError");
   expect(warns.join("\n")).not.toContain("acme/secret-atlas");
+});
+
+test("backfillPreviewDiffBases skips a row whose repo or head archive cannot be read, and one whose columns were just filled", async () => {
+  const r = await backfillPreviewDiffBases(deps({
+    list: async () => [
+      row({ repo: "acme/gone", ref: "feature", kind: "branch", pr_number: null }),
+      row({ sha: "e".repeat(40), pr_base_repo: CANONICAL_REPO, pr_base_ref: "main" }),
+      row({ sha: "f".repeat(40), pr_base_repo: CANONICAL_REPO, pr_base_ref: "main" }),
+    ],
+    gh: () => ({ fetchJson: async (p) => ({ ok: !String(p).includes("acme/gone"), status: 404, json: null }) }),
+    snapshotAt: async (_repo, sha) => {
+      if (sha === "e".repeat(40)) throw new Error("archive 404");
+      return headSnap;
+    },
+    fill: async () => false,
+  }));
+  expect(r).toEqual({ filled: 0, skipped: 3, failed: 0 });
+});
+
+test("backfillPreviewDiffBases reuses a merge-base snapshot across rows", async () => {
+  const OLD = "b".repeat(40);
+  const fetched: string[] = [];
+  await backfillPreviewDiffBases(deps({
+    list: async () => [
+      row({ sha: "a".repeat(40), pr_base_repo: "acme/fork", pr_base_ref: "develop" }),
+      row({ sha: "d".repeat(40), pr_base_repo: "acme/fork", pr_base_ref: "develop" }),
+    ],
+    candidates: async () => ({
+      auto: "repo" as const,
+      repo: { key: "repo" as const, repo: "acme/fork", ref: "develop", mergeBase: OLD },
+      compareOk: true,
+    }),
+    snapshotAt: async (_repo, sha) => {
+      fetched.push(sha);
+      return sha === OLD ? snap([["a", "1"]]) : headSnap;
+    },
+  }));
+  expect(fetched.filter((s) => s === OLD)).toEqual([OLD]);
+});
+
+const openRow = {
+  sha: "p".repeat(40),
+  repo: "acme/secret-atlas",
+  ref: "mod",
+  kind: "branch",
+  pr_number: null,
+  private: true,
+  pr_base_repo: null,
+  pr_base_ref: null,
+  default_branch: "main",
+  diff_base_type: null as string | null,
+};
+
+const privateResolved = {
+  repo: openRow.repo,
+  sha: openRow.sha,
+  kind: "branch" as const,
+  ref: openRow.ref,
+  private: true,
+};
+
+test("fillPrivateDiffBaseOnOpen ignores a public preview and a row that already has a record", async () => {
+  let loads = 0;
+  expect(fillPrivateDiffBaseOnOpen({ ...privateResolved, private: false }, null, { loadRow: async () => { loads++; return openRow; } })).toBeUndefined();
+  expect(loads).toBe(0);
+  await fillPrivateDiffBaseOnOpen(privateResolved, null, { loadRow: async () => ({ ...openRow, diff_base_type: "fork-default" }) });
+  expect(loads).toBe(0);
+});
+
+test("fillPrivateDiffBaseOnOpen stores the bundle's own base, and otherwise runs one private row", async () => {
+  const fills: PreviewMeta[] = [];
+  const listed: string[] = [];
+  const meta = {
+    sha: openRow.sha,
+    repo: openRow.repo,
+    ref: "mod",
+    kind: "branch" as const,
+    resolvedAt: "",
+    docCount: 1,
+    buildMs: 1,
+    private: true,
+    defaultBranch: "main",
+    bases: { auto: "repo" as const, repo: { repo: openRow.repo, ref: "main", mergeBase: LIVE } },
+    baseAtlasCommit: LIVE,
+    diffCounts: { added: 0, changed: 1 },
+  };
+  await fillPrivateDiffBaseOnOpen(privateResolved, meta, {
+    loadRow: async () => openRow,
+    fill: async (_sha, m) => { fills.push(m); return true; },
+  });
+  expect(fills).toHaveLength(1);
+  expect(diffBaseType(fills[0]!)).toBe("fork-default");
+  await fillPrivateDiffBaseOnOpen({ ...privateResolved, sha: "q".repeat(40) }, null, {
+    loadRow: async () => ({ ...openRow, sha: "q".repeat(40) }),
+    backfill: async (over = {}) => {
+      const rows = await over.list!();
+      listed.push(rows[0]!.sha);
+      return { filled: 1, skipped: 0, failed: 0 };
+    },
+  });
+  expect(listed).toEqual(["q".repeat(40)]);
+});
+
+test("fillPrivateDiffBaseOnOpen logs the error name only, and ignores a second open of the same sha", async () => {
+  const warns: string[] = [];
+  const orig = console.warn;
+  console.warn = (m?: unknown) => warns.push(String(m));
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  try {
+    const first = fillPrivateDiffBaseOnOpen(privateResolved, null, {
+      loadRow: async () => { await gate; throw Object.assign(new Error("acme/secret-atlas blew up"), { name: "SourceGoneError" }); },
+    });
+    expect(fillPrivateDiffBaseOnOpen(privateResolved, null, { loadRow: async () => openRow })).toBeUndefined();
+    release();
+    await first;
+  } finally {
+    console.warn = orig;
+  }
+  expect(warns.join("\n")).toContain("SourceGoneError");
+  expect(warns.join("\n")).not.toContain("acme/secret-atlas");
+});
+
+test("loadSnapshot parses the extracted checkout and removes its scratch dir", async () => {
+  const prev = process.env.ATLAS_MIN_NODES;
+  process.env.ATLAS_MIN_NODES = "0";
+  const src = fs.mkdtempSync(path.join(os.tmpdir(), "pv-src-"));
+  const seen: boolean[] = [];
+  try {
+    fs.mkdirSync(path.join(src, "content"), { recursive: true });
+    const id = "00000000-0000-4000-8000-000000000001";
+    fs.writeFileSync(
+      path.join(src, "content", "A.0 - Preamble.md"),
+      `# A.0 - Preamble [Core]  <!-- UUID: ${id} -->\n\nintro\n`,
+    );
+    const snap = await loadSnapshot("acme/atlas", "a".repeat(40), "tok", true, async (_repo, _sha, _token, dir, _caps, opts) => {
+      seen.push(opts?.apiTarball === true);
+      expect(fs.existsSync(dir)).toBe(true);
+      return { srcDir: src, docCount: 1 };
+    });
+    expect(seen).toEqual([true]);
+    expect(snap.get(id)?.doc_no).toBe("A.0");
+  } finally {
+    fs.rmSync(src, { recursive: true, force: true });
+    if (prev === undefined) delete process.env.ATLAS_MIN_NODES;
+    else process.env.ATLAS_MIN_NODES = prev;
+  }
+});
+
+test("servedAtlas returns the in-memory atlas without reading sync_state", async () => {
+  const commit = "d".repeat(40);
+  setIndexes({ meta: { atlasCommit: commit }, docMap: new Map([["n", { id: "n", doc_no: "A.0" }]]) } as unknown as Indexes);
+  try {
+    const live = await servedAtlas("tok");
+    expect(live.commit).toBe(commit);
+    expect(live.snapshot.get("n")?.doc_no).toBe("A.0");
+  } finally {
+    setIndexes(null as unknown as Indexes);
+  }
+});
+
+test("startPreviewDiffBaseBackfill returns before taking a lock when no token is configured", () => {
+  expect(config.githubToken).toBe("");
+  expect(startPreviewDiffBaseBackfill()).toBeUndefined();
 });
