@@ -766,12 +766,15 @@ were actually judged: any unjudged pair withholds the mark entirely, and a
 pointer-only document ("the document X changes often") gets none either. The
 marks render on the Sources chips — a ✓ on every backed source, by explicit
 product decision, as an exception to the list-by-exception rule for stage
-rows. Each mark carries `confidence` (0–1, or null): hovering the ✓ shows how
-sure the check is, the lowest confidence among the claims it supports; hovering
-the ! shows how sure the warning is, the highest confidence among the claims
-it contradicts. Confirm clearing a contradiction also clears that pair's
-confidence, so the muted mark does not inherit a number from a verdict it
-rejected, and the dash's hover stays the uncovered line. Started concurrently with the audit, so it never delays it; bounded by
+rows. Each mark carries `confidence` (0–1, or null): hovering anywhere on the
+source chip (the shared `Tooltip`, not a native `title`) shows how sure the
+check is. For a ✓ that is the lowest confidence among the claims it supports;
+for a ! the highest among the claims it contradicts, plus the line. The number
+is Jev's Choice confidence — how peaked the verdict distribution is — not the
+probability of the chosen option, and not the product of the two. Confirm
+clearing a contradiction also clears that pair's confidence, so the muted mark
+does not inherit a number from a verdict it rejected, and the dash's hover
+stays the uncovered line. Started concurrently with the audit, so it never delays it; bounded by
 its own 8 s deadline and fail-open (a timeout means no marks, never a warning).
 Raw verdicts persist as a `message_checks` row of kind `citation_check`.
 Unlike the verify badge and the answer-coverage line, the marks ARE

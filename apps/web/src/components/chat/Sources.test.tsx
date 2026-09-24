@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { AtlasNode } from "@/types";
 
@@ -124,7 +124,20 @@ describe("Sources", () => {
     expect(mark).toHaveAttribute("data-status", "backed");
   });
 
-  it("renders an unbacked mark with an informational accessible name and lists the unstated claim in the title", () => {
+  function showTip(target: HTMLElement) {
+    vi.useFakeTimers();
+    try {
+      fireEvent.mouseEnter(target);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      return screen.getByRole("tooltip");
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  it("renders an unbacked mark with an informational accessible name and no native title", () => {
     render(
       <Sources
         sources={sourceFor(UUID)}
@@ -136,10 +149,10 @@ describe("Sources", () => {
     );
     const mark = screen.getByRole("img", { name: "This source doesn't cover every line citing it" });
     expect(mark).toHaveAttribute("data-status", "unbacked");
-    expect(mark).toHaveAttribute("title", 'Not stated in this source: "The threshold is 7 signers"');
+    expect(mark).not.toHaveAttribute("title");
   });
 
-  it("shows how sure the check is when hovering a backed mark", () => {
+  it("shows how sure the check is when hovering the source title, not only the glyph", () => {
     render(
       <Sources
         sources={sourceFor(UUID)}
@@ -148,10 +161,12 @@ describe("Sources", () => {
       />,
     );
     const mark = screen.getByRole("img", { name: "88% confident this source backs the answer" });
-    expect(mark).toHaveAttribute("title", "88% confident this source backs the answer");
+    expect(mark).not.toHaveAttribute("title");
+    const tip = showTip(screen.getByText("Some Doc"));
+    expect(tip).toHaveTextContent("88% confident this source backs the answer");
   });
 
-  it("shows how sure the warning is, and still which line, when hovering a disputed mark", () => {
+  it("shows how sure the warning is, and which line, when hovering anywhere on the pill", () => {
     render(
       <Sources
         sources={sourceFor(UUID)}
@@ -165,11 +180,9 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const mark = screen.getByRole("img", { name: "81% confident this source says otherwise" });
-    expect(mark).toHaveAttribute(
-      "title",
-      '81% confident this source says otherwise\nThis source says otherwise: "The threshold is 7 signers"',
-    );
+    const tip = showTip(screen.getByRole("link"));
+    expect(tip).toHaveTextContent("81% confident this source says otherwise");
+    expect(tip).toHaveTextContent('This source says otherwise: "The threshold is 7 signers"');
   });
 
   it("leaves the muted mark's hover as the uncovered line, with no confidence", () => {
@@ -186,11 +199,12 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const mark = screen.getByRole("img", { name: "This source doesn't cover every line citing it" });
-    expect(mark).toHaveAttribute("title", 'Not stated in this source: "The threshold is 7 signers"');
+    const tip = showTip(screen.getByRole("link"));
+    expect(tip).toHaveTextContent('Not stated in this source: "The threshold is 7 signers"');
+    expect(tip).not.toHaveTextContent("% confident");
   });
 
-  it("renders a disputed mark with a warning accessible name and lists the contradicted claim in the title", () => {
+  it("renders a disputed mark with a warning accessible name", () => {
     render(
       <Sources
         sources={sourceFor(UUID)}
@@ -202,6 +216,6 @@ describe("Sources", () => {
     );
     const mark = screen.getByRole("img", { name: "This source may say otherwise" });
     expect(mark).toHaveAttribute("data-status", "disputed");
-    expect(mark).toHaveAttribute("title", 'This source says otherwise: "The threshold is 7 signers"');
+    expect(mark).not.toHaveAttribute("title");
   });
 });

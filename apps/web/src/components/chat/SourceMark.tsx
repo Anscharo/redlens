@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { CitationMark } from "./api";
 
 // Per-verdict copy for the mark's accessible name (and, for "backed", its
@@ -34,43 +35,45 @@ function confidenceSentence(mark: CitationMark): string | null {
     : `${pct}% confident this source says otherwise`;
 }
 
-// Native `title` tooltip text. For unbacked/disputed this lists every
-// non-"supports" claim so hovering explains exactly what the check found;
-// for backed the accessible name itself is enough. A ✓ or ! with a confidence
-// leads with that sentence.
-function tooltipText(mark: CitationMark): string {
-  const confidence = confidenceSentence(mark);
-  if (mark.status === "backed") return confidence ?? ACCESSIBLE_NAME.backed;
-  const lines = mark.claims
+function claimLines(mark: CitationMark): string[] {
+  if (mark.status === "backed") return [];
+  return mark.claims
     .filter((c) => c.verdict !== "supports")
     .slice(0, MAX_CLAIMS_SHOWN)
     .map((c) => {
       const prefix = c.verdict === "contradicts" ? "This source says otherwise" : "Not stated in this source";
       return `${prefix}: "${truncateClaim(c.claim)}"`;
     });
-  const detail = lines.length > 0 ? lines.join("\n") : ACCESSIBLE_NAME[mark.status];
-  return confidence ? `${confidence}\n${detail}` : detail;
+}
+
+// Content for the shared Tooltip, shown when the whole source pill is hovered.
+// Null when this doc was never marked — the pill is just a link then.
+export function sourceTooltipContent(mark: CitationMark | undefined): ReactNode {
+  if (!mark) return null;
+  const confidence = confidenceSentence(mark);
+  const lines = claimLines(mark);
+  if (lines.length === 0) return confidence ?? ACCESSIBLE_NAME[mark.status];
+  return (
+    <>
+      {confidence && <div>{confidence}</div>}
+      {lines.map((line, i) => (
+        <div key={i}>{line}</div>
+      ))}
+    </>
+  );
 }
 
 function accessibleName(mark: CitationMark): string {
   return confidenceSentence(mark) ?? ACCESSIBLE_NAME[mark.status];
 }
 
-// Appended to a Sources chip after the title — reports the post-answer
-// citation check's verdict for that doc. `role="img"` + `aria-label` exposes
-// the glyph's meaning to assistive tech (the glyph itself carries no
-// semantics); `title` gives sighted hover/focus users the per-claim detail.
-// Purely presentational/controlled — no data fetching, no local state.
+// Appended to a Sources chip after the title — the glyph only. Hover copy
+// lives on the pill (Sources.tsx wraps it in Tooltip); a `title` here would
+// be a second, native tooltip on the same hover.
 export function SourceMark({ mark }: { mark: CitationMark | undefined }) {
   if (!mark) return null;
   return (
-    <span
-      className="rlc-cite-mark"
-      data-status={mark.status}
-      role="img"
-      aria-label={accessibleName(mark)}
-      title={tooltipText(mark)}
-    >
+    <span className="rlc-cite-mark" data-status={mark.status} role="img" aria-label={accessibleName(mark)}>
       {GLYPH[mark.status]}
     </span>
   );

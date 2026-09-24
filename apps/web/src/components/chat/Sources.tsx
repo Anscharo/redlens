@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { loadAtlas } from "../../lib/docs";
 import { atlasHref } from "@/lib/routes";
 import { track } from "../../lib/analytics";
+import { Tooltip } from "../Tooltip";
 import type { Source } from "./markdown";
 import type { CitationMark } from "./api";
-import { SourceMark } from "./SourceMark";
+import { SourceMark, sourceTooltipContent } from "./SourceMark";
 
 interface ResolvedDoc {
   docNo: string;
@@ -58,21 +59,25 @@ export function Sources({
       <div className="rlc-sources-chips">
         {sources.map((s) => {
           const r = resolved[s.uuid];
+          const mark = marks?.[s.uuid];
+          // The whole pill is the hover target, not the glyph. Tooltip
+          // renders the child alone when there is nothing to say.
           return (
-            <a
-              key={s.uuid}
-              className="rlc-cite"
-              href={atlasHref(s.uuid)}
-              onClick={(e) => {
-                e.preventDefault();
-                track("chat_citation_click", { product: "chat", node_id: s.uuid });
-                onAtlas(s.uuid);
-              }}
-            >
-              {r?.docNo && <span className="rlc-cite-doc">{r.docNo}</span>}
-              <span className="rlc-cite-title">{r?.title ?? s.title}</span>
-              <SourceMark mark={marks?.[s.uuid]} />
-            </a>
+            <Tooltip key={s.uuid} content={sourceTooltipContent(mark)}>
+              <a
+                className="rlc-cite"
+                href={atlasHref(s.uuid)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  track("chat_citation_click", { product: "chat", node_id: s.uuid });
+                  onAtlas(s.uuid);
+                }}
+              >
+                {r?.docNo && <span className="rlc-cite-doc">{r.docNo}</span>}
+                <span className="rlc-cite-title">{r?.title ?? s.title}</span>
+                <SourceMark mark={mark} />
+              </a>
+            </Tooltip>
           );
         })}
       </div>
