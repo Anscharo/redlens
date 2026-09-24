@@ -80,7 +80,8 @@ describe("PreviewBanner", () => {
     expect(await screen.findByText("PREVIEW")).toBeTruthy();
     const link = await screen.findByRole("link", { name: "view PR #88 on GitHub ↗" });
     expect(link).toHaveAttribute("href", "https://github.com/sky-ecosystem/next-gen-atlas/pull/88");
-    expect(screen.getByText(/Comparing feat\/x — Add a thing by alice/)).toBeTruthy();
+    expect(screen.getByText("Comparing feat/x — Add a thing")).toBeTruthy();
+    expect(screen.queryByText(/by alice/)).toBeNull();
     const titles: Array<string | null> = [];
     cleanup();
     render(
@@ -371,7 +372,8 @@ describe("PreviewBanner", () => {
       forkOwner: "mallory", behindBy: 5,
     });
     renderBanner(PREVIEW_SOURCE);
-    expect(await screen.findByText(/Comparing sneaky by mallory/)).toBeTruthy();
+    expect(await screen.findByText("Comparing sneaky")).toBeTruthy();
+    expect(screen.queryByText(/by mallory/)).toBeNull();
     expect(screen.queryByText(/commits behind/)).toBeNull();
     expect(screen.queryByText(/redlined against/)).toBeNull();
   });
