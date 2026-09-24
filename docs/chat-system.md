@@ -832,13 +832,15 @@ carries the citation lane's own per-claim verdicts — which on a collision read
 "supports". The persisted `citation_check` row stays UNRECONCILED as that
 lane's calibration record; reconciliation runs again on reload through the
 same function, so a refresh cannot resurrect the disagreement. Each mark carries `confidence` (0–1, or null): hovering anywhere on the
-source chip (the shared `Tooltip`, not a native `title`) shows how sure the
-check is. For a ✓ that is the lowest confidence among the claims it supports;
-for a ! the highest among the claims it contradicts, plus the line. The number
-is Jev's Choice confidence — how peaked the verdict distribution is — not the
-probability of the chosen option, and not the product of the two. Confirm
+source chip (the shared `Tooltip`, not a native `title`) shows that as high,
+medium, or low confidence. High is at least 0.75, medium at least 0.45,
+otherwise low — a display reading of how peaked Jev's Choice distribution is,
+not the probability of the chosen option, and not a percent. For a ✓ that is
+the lowest confidence among the claims it supports; for a ! the highest among
+the claims it contradicts. The ! and the muted dash also quote the line, and
+clicking that quote scrolls to it and highlights it in the answer. Confirm
 clearing a contradiction also clears that pair's confidence, so the muted mark
-does not inherit a number from a verdict it rejected, and the dash's hover
+does not inherit a band from a verdict it rejected, and the dash's hover
 stays the uncovered line. Started concurrently with the audit, so it never delays it; bounded by
 its own 8 s deadline and fail-open (a timeout means no marks, never a warning).
 Raw verdicts persist as a `message_checks` row of kind `citation_check`.
@@ -1150,8 +1152,12 @@ parse failure already contributed nothing (`parsed: false`); this extends the
 same fail-toward-silence rule to the individual row.
 
 **Quoted spans that are not quotations.** `findUngroundedQuotes` is a hard
-failure — an inline quotation the sources do not contain is misattribution. But
-`extractQuotedSpans` reads *any* quoted span as a claimed verbatim atlas quote,
+failure — an inline quotation the sources do not contain is misattribution. A
+quote that is a real atlas document title is grounded even with no tool result
+and no markdown link: page context and earlier turns hand the model the title,
+and it quotes that (often beside a parenthetical doc number). Document bodies
+stay limited to retrieved evidence and cited docs, so an invented passage still
+fails. `extractQuotedSpans` still reads *any* other quoted span as a claimed verbatim atlas quote,
 and two shapes are not: a quoted QUESTION (the assistant inviting the reader to
 ask something) and a list item whose entire content is one quoted string (an
 example or suggestion). Both are now excluded. This was a live hard failure: an

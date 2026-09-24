@@ -235,6 +235,25 @@ test("a cited doc's TITLE grounds a quote of it", () => {
   }
 });
 
+test("a quoted atlas title is grounded with no citation link and no retrieved evidence", () => {
+  // Page context puts the viewed title in the prompt. The model quotes it and
+  // a parenthetical doc number, without a tool result or a markdown link.
+  // Observed on main: "quote not found … operational govops takes over operational duties".
+  const titled = [...ix.docMap.values()].find((d) => normalizeForMatch(d.title).length >= 25)!;
+  const looking = `since you were previously looking at "${titled.title}" (${titled.doc_no}), I will assume you mean that one.`;
+  expect(findUngroundedQuotes(looking, [], ix)).toEqual([]);
+  const incident = [...ix.docMap.values()].find((d) => d.title === "Operational GovOps Takes Over Operational Duties");
+  if (incident) {
+    const quoted = `looking at "Operational GovOps Takes Over Operational Duties" (${incident.doc_no})`;
+    expect(findUngroundedQuotes(quoted, [], ix)).toEqual([]);
+  }
+  // A title plus invented continuation is still a quotation of text we never retrieved.
+  const extended = `The atlas says "${titled.title} and then a completely invented continuation of the quotation."`;
+  expect(findUngroundedQuotes(extended, [], ix)).toHaveLength(1);
+  const invented = `looking at "Completely Fabricated Governance Handoff Ritual Title" somewhere.`;
+  expect(findUngroundedQuotes(invented, [], ix)).toHaveLength(1);
+});
+
 test("addresses must be copied from evidence; checksum casing is cosmetic", () => {
   const real = "0x1234567890AbcdEF1234567890aBcdef12345678";
   const evidence = [`{"address":"${real.toLowerCase()}","role":"pause_proxy"}`];

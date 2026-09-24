@@ -270,8 +270,32 @@ function quoteSegments(span: string): string[] {
     .filter((seg) => seg.length >= 12);
 }
 
+// Normalized atlas titles, cached per index. A quoted TITLE is atlas text even
+// when this turn never retrieved the document: page context and earlier turns
+// hand the model the title (and it quotes that, often with only a parenthetical
+// doc number). Bodies stay out of this list — an invented passage that happens
+// to exist somewhere unretrieved must still fail.
+const titleHaystacks = new WeakMap<Indexes, string[]>();
+
+function atlasTitles(ix: Indexes): string[] {
+  const cached = titleHaystacks.get(ix);
+  if (cached) return cached;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const doc of ix.docMap.values()) {
+    const t = normalizeForMatch(doc.title);
+    // Shorter than a checked segment, so it can never ground one.
+    if (t.length < 12 || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  titleHaystacks.set(ix, out);
+  return out;
+}
+
 // A quote is grounded if every verifiable segment appears in the turn's
-// tool-result evidence or in the title/content of any doc the answer cites.
+// tool-result evidence, in the title/content of any doc the answer cites, or
+// is itself (part of) an atlas document title.
 export function findUngroundedQuotes(answer: string, evidenceTexts: string[], ix: Indexes, question?: string): string[] {
   // A quoted span that the USER wrote — the answer echoing the question's own
   // term ("…specifically for \"Operational Facilitators.\"") — is a scare quote,
@@ -287,6 +311,7 @@ export function findUngroundedQuotes(answer: string, evidenceTexts: string[], ix
       const doc = ix.docMap.get(c.uuid);
       return normalizeForMatch(doc ? `${doc.title}\n${doc.content}` : "");
     }),
+    ...atlasTitles(ix),
   ];
   return spans.filter((s) => quoteSegments(s).some((seg) => !haystacks.some((h) => h.includes(seg))));
 }
