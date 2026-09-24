@@ -96,16 +96,21 @@ export function compareParts(meta: PreviewMeta, active: ActiveBase | null): Comp
   return { subject, base: compareBase(meta, active) };
 }
 
-/** Browser tab for a pull-request preview: "PR 88 preview on Sky Atlas by Redline -- feat/x — Title".
- *  Null when this preview is not a pull request, so the open document keeps the tab. */
+/** Browser tab while a preview is open.
+ *  A pull request: "PR 88 preview on Sky Atlas by Redline -- feat/x — Title".
+ *  Anything else: "Preview feat/x on Sky Atlas by Redline".
+ *  Null only before meta arrives, so the open document keeps the tab until then. */
 export function previewTabTitle(meta: PreviewMeta | null): string | null {
   if (!meta) return null;
   const pull = meta.ref?.match(/^pull-(\d+)$/);
   const n = meta.prNumber ?? (pull ? Number(pull[1]) : undefined);
-  if (n == null) return null;
-  const branch = meta.ref && !pull ? meta.ref : "";
-  const info = [branch, meta.prTitle?.trim() || ""].filter(Boolean).join(" — ");
-  return info ? `PR ${n} preview on Sky Atlas by Redline -- ${info}` : `PR ${n} preview on Sky Atlas by Redline`;
+  if (n != null) {
+    const branch = meta.ref && !pull ? meta.ref : "";
+    const info = [branch, meta.prTitle?.trim() || ""].filter(Boolean).join(" — ");
+    return info ? `PR ${n} preview on Sky Atlas by Redline -- ${info}` : `PR ${n} preview on Sky Atlas by Redline`;
+  }
+  const branch = meta.ref?.trim() || (meta.sha ? meta.sha.slice(0, 7) : "");
+  return branch ? `Preview ${branch} on Sky Atlas by Redline` : null;
 }
 
 /** "Comparing HEAD — TITLE to BASE", dropping any piece that is missing. */

@@ -60,6 +60,19 @@ describe("useDocumentTitle", () => {
     expect(document.title).toBe("PR 88 preview on Sky Atlas by Redline -- feat/x");
   });
 
+  it("a branch preview title wins when the preview is not a pull request", () => {
+    function Child() {
+      useDocumentTitle("Some Doc — Sky Atlas by Redline");
+      return null;
+    }
+    function Parent() {
+      useDocumentTitle("Preview feature on Sky Atlas by Redline");
+      return createElement(Child);
+    }
+    render(createElement(Parent));
+    expect(document.title).toBe("Preview feature on Sky Atlas by Redline");
+  });
+
   it("restores the default title on unmount", () => {
     const { unmount } = renderHook(() => useDocumentTitle("Some Doc"));
     expect(document.title).toBe("Some Doc");

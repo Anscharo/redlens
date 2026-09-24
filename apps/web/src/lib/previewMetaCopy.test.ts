@@ -61,8 +61,13 @@ describe("previewTabTitle", () => {
     );
   });
 
-  it("is null for a branch that is not a pull request", () => {
-    expect(previewTabTitle(meta(undefined, { ref: "feature", kind: "branch" }))).toBeNull();
+  it("names the branch when the preview is not a pull request", () => {
+    expect(previewTabTitle(meta(undefined, { ref: "feature", kind: "branch" }))).toBe(
+      "Preview feature on Sky Atlas by Redline",
+    );
+    expect(previewTabTitle(meta(undefined, { ref: "", sha: "abcdef1234567890", kind: "sha" }))).toBe(
+      "Preview abcdef1 on Sky Atlas by Redline",
+    );
     expect(previewTabTitle(null)).toBeNull();
   });
 });
