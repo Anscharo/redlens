@@ -1,6 +1,7 @@
-// How the `repo` diff-base candidate's BASE BRANCH TIP relates to sky main —
-// the banner's "base forked from sky main N commits ago · M commits behind
-// main · K docs differ". Distinct from the candidate's `mergeBase` (a point in
+// How the `repo` diff-base candidate's BASE BRANCH TIP relates to sky main.
+// `docsDiffer` counts documents that differ between that base tip and the live
+// atlas — not the redlines the preview renders (those are head vs this base).
+// The banner does not show it. Distinct from the candidate's `mergeBase` (a point in
 // the past, computed once at build time): this measures where the base
 // branch stands RIGHT NOW, so a stale fork shows its staleness even when the
 // preview itself hasn't moved.
