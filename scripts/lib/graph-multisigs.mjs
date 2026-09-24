@@ -51,12 +51,24 @@ const SIGNER_GROUP_RE =
   /\((\d+)\)\s*address(?:es)?(?:\s+(?:are|is))?\s+controlled by\s+(.+?)(?=\s*[,;.]|\s+and\s+[a-z]+\s*\(\d+\)|$)/gi;
 // "- Soter Labs: 2 signers"
 const SIGNER_BULLET_COUNT_RE = bulletField(String.raw`([^:\n]+?)`, String.raw`(\d+)\s*signers?`, "gim");
+// "four (4) controlled by the Operational Executor Agent, ... and one (1) controlled by the Prime Agent" —
+// composition breakdown without the word "address(es)" (A.2.2.10.1.1.1.6.2.1.2 "Required Signers").
+// A leading "including at least (N) controlled by …" clause describes how a group's own count is
+// internally composed, not additional signers — stripped before matching so it isn't double-counted.
+const SIGNER_GROUP_PLAIN_RE =
+  /\b[a-z]+\s*\((\d+)\)\s+controlled by\s+(.+?)(?=\s*[,;.]|\s+and\s+[a-z]+\s*\(\d+\)|$)/gi;
+const SIGNER_INCLUDING_CLAUSE_RE = /,?\s*including\s+.*?(?=,\s*and\s+|\.\s|$)/gi;
 // plain bullet roster ("- VoteWizard") — only read when the prose announces it
 const SIGNER_ROSTER_INTRO_RE = /has the following signers/i;
 const SIGNER_BULLET_PLAIN_RE = /^[-*]\s*([A-Za-z0-9_ .'-]+?)\s*$/gm;
 const MODIFICATION_RE = /^(.+?) can change the signers/ms;
 // "addresses controlled by the Core Facilitator" — bare role references
 const ROLE_PREFIX_RE = /^(Operational|Core)\s+(GovOps|Facilitator)\s+(.+)$/i;
+// "The specific signers will be specified in a future iteration of the Atlas." — the signers
+// child doc names who WILL control the (not-yet-chosen) signers but defers the roster itself.
+// Not a parse failure: there is nothing to parse yet (A.2.2.10.1.1.1.2.4.4.3.1.3 "Grove Operator
+// Multisig Signers").
+const SIGNERS_DEFERRED_RE = /signers will be specified in a future iteration/i;
 
 function childSuffix(title) {
   const t = title.trim();
@@ -78,12 +90,23 @@ export function parseSignerGroups(content) {
     groups.push({ name: m[1].trim(), count: Number(m[2]) });
   }
   if (groups.length) return groups;
+  const stripped = content.replace(SIGNER_INCLUDING_CLAUSE_RE, "");
+  for (const m of stripped.matchAll(SIGNER_GROUP_PLAIN_RE)) {
+    groups.push({ name: m[2].trim(), count: Number(m[1]) });
+  }
+  if (groups.length) return groups;
   if (SIGNER_ROSTER_INTRO_RE.test(content)) {
     for (const m of content.matchAll(SIGNER_BULLET_PLAIN_RE)) {
       groups.push({ name: m[1].trim(), count: 1 });
     }
   }
   return groups;
+}
+
+// Signers content that explicitly defers the roster to a future Atlas iteration —
+// zero groups here is the atlas's own statement, not a parser miss.
+export function isDeferredSignerRoster(content) {
+  return SIGNERS_DEFERRED_RE.test(content);
 }
 
 export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges) {
@@ -213,8 +236,11 @@ export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges)
         }
 
         // Signers
-        const groups = parseSignerGroups(slot.signers.content ?? "");
-        if (!groups.length) warn(`signers did not parse: ${slot.signers.doc_no}`);
+        const signersContent = slot.signers.content ?? "";
+        const groups = parseSignerGroups(signersContent);
+        if (!groups.length && !isDeferredSignerRoster(signersContent)) {
+          warn(`signers did not parse: ${slot.signers.doc_no}`);
+        }
         for (const g of groups) {
           const r = resolveParty(g.name, slot.signers, addEntity);
           if (!r) { warn(`unresolvable signer "${g.name}" (${slot.signers.doc_no})`); continue; }

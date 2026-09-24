@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 // @ts-expect-error — .mjs without types; runtime-only import.
-import { extractMultisigs, parseSignerGroups } from "../scripts/lib/graph-multisigs.mjs";
+import { extractMultisigs, parseSignerGroups, isDeferredSignerRoster } from "../scripts/lib/graph-multisigs.mjs";
 import { makeEntity } from "../scripts/lib/graph-patterns.mjs";
 
 afterEach(() => vi.restoreAllMocks());
@@ -74,6 +74,32 @@ describe("parseSignerGroups", () => {
 
   it("does not read a plain bullet roster without the intro sentence", () => {
     expect(parseSignerGroups("- VoteWizard\n- LDR")).toEqual([]);
+  });
+
+  it("parses the '<word> (N) controlled by X' composition shape, dropping an 'including' sub-clause", () => {
+    // A.2.2.10.1.1.1.6.2.1.2 "Required Signers"
+    const groups = parseSignerGroups(
+      "The default signer composition is five (5) signers: four (4) controlled by the Operational Executor Agent, including at least one (1) controlled by Operational GovOps and at least one (1) controlled by the Operational Facilitator, and one (1) controlled by the Prime Agent.",
+    );
+    expect(groups).toEqual([
+      { name: "the Operational Executor Agent", count: 4 },
+      { name: "the Prime Agent", count: 1 },
+    ]);
+  });
+});
+
+describe("isDeferredSignerRoster", () => {
+  it("recognizes the 'will be specified in a future iteration' placeholder shape", () => {
+    // A.2.2.10.1.1.1.2.4.4.3.1.3 "Grove Operator Multisig Signers"
+    expect(
+      isDeferredSignerRoster(
+        "The signers of the Grove Operator Multisig are controlled by Operational GovOps Soter Labs. The specific signers will be specified in a future iteration of the Atlas.",
+      ),
+    ).toBe(true);
+  });
+
+  it("does not fire on ordinary unparseable content", () => {
+    expect(isDeferredSignerRoster("Nothing structured here.")).toBe(false);
   });
 });
 
@@ -215,6 +241,31 @@ describe("extractMultisigs — warning branches", () => {
 
     expect(stats.signerEdges).toBe(0);
     expect(warns.some((w) => w.includes("signers did not parse"))).toBe(true);
+    vi.restoreAllMocks();
+  });
+
+  it("does not warn when the signers roster is explicitly deferred to a future Atlas iteration", () => {
+    const rootDocNo = "A.3.7.1.3.11";
+    const root = mkDoc("root-deferred", rootDocNo, "Deferred Signers Multisig");
+    const kids = fiveChildDocs(rootDocNo, "Deferred Signers Multisig", {
+      signers:
+        "The signers of the Deferred Signers Multisig are controlled by Operational GovOps Soter Labs. The specific signers will be specified in a future iteration of the Atlas.",
+      address:
+        "The address of the Deferred Signers Multisig on the Ethereum Mainnet is `0x1111111111111111111111111111111111111a`.",
+    });
+    const allDocs = [root, kids.threshold, kids.signers, kids.address, kids.usage, kids.modification];
+    const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
+    const docById = new Map(allDocs.map((d) => [d.id, d]));
+    const entityMap = new Map<string, any>();
+    const edges: any[] = [];
+    const warns: string[] = [];
+    vi.spyOn(console, "warn").mockImplementation((m) => void warns.push(String(m)));
+
+    const stats = extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges).run(makeAddEntity(entityMap));
+
+    expect(stats.signerEdges).toBe(0);
+    expect(warns.some((w) => w.includes("signers did not parse"))).toBe(false);
+    expect(stats.warnings).toBe(0);
     vi.restoreAllMocks();
   });
 
