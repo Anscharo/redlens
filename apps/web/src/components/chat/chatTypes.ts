@@ -170,11 +170,17 @@ export interface ChatMsg {
   // Per-source-doc citation verdicts from the post-answer citation check
   // (server: `citation_marks`), keyed by doc uuid. May never arrive (feature
   // off, no citations, timeout) — absent/undefined means no marks, not "all
-  // clean". Live-session only — not persisted, same reasoning as
-  // `verify`/`exports`/`reasoning` (see hydrate.ts).
+  // clean". RESTORES on reload: the server re-folds the persisted
+  // citation_check row through the same `aggregateMarks` a live turn uses,
+  // then reconciles it against the verify row's agreed contradictions
+  // (src/server/chat/conversations.ts, verify/disputes.ts). This comment used
+  // to say "live-session only, not persisted"; that was wrong for marks even
+  // before `verify` joined them — see hydrate.ts for what actually restores.
   citationMarks?: Record<string, CitationMark>;
   // "Did it answer the question?" ruling (server: `answer_coverage`). May
-  // never arrive — absent means no ruling, not "answered". Live-session only,
-  // same as `citationMarks` (see hydrate.ts).
+  // never arrive — absent means no ruling, not "answered". RESTORES on reload
+  // (conversations.ts's answerCoverageFor), like `citationMarks` and `verify`
+  // above; `parts` stays string[] here, while the stored row keeps the richer
+  // { text, p } judged parts the wire has never carried (see hydrate.ts).
   answerCoverage?: AnswerCoverage;
 }

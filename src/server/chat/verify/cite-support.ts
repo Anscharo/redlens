@@ -55,12 +55,38 @@ export const CITE_QUESTION = {
   },
 };
 
+type CiteQuestion = typeof CITE_QUESTION | { type: "choice"; instructions: string; criteria: Record<string, string> };
+
+/**
+ * The same question, scoped to ONE clause of a multi-citation sentence.
+ *
+ * Used only when the pair carries a `context` (cite-pairs.ts): the sentence
+ * cited several documents and this pair got the clause its own link is
+ * attached to. The clause usually cannot stand alone — "and the setup of
+ * Executor Accords" has no subject and no verb — so the whole sentence goes
+ * in as `sentence`, strictly as context for resolving who and what.
+ *
+ * Deliberately a SEPARATE question rather than an extra paragraph on the
+ * shared one: a single-citation pair's request then stays byte-identical to
+ * what it has always been, so this change cannot move a verdict on the ~86%
+ * of pairs it has nothing to do with — in production or in the bakeoff's
+ * disk cache. Derived from whichever base question is in play so the eval's
+ * two arms each keep their own criteria.
+ */
+export function scopedToClause<T extends CiteQuestion>(base: T): T {
+  return {
+    ...base,
+    instructions:
+      `${base.instructions} The sentence this claim came from cites SEVERAL documents; \`claim\` is only the part THIS document was cited for, and \`sentence\` is the full sentence it was taken from. Use \`sentence\` ONLY to resolve who or what \`claim\` refers to — its subject, and any pronoun such as "they" or "these". Judge ONLY \`claim\`: assertions elsewhere in the sentence belong to its other citations, and this document is not answerable for them.`,
+  };
+}
+
 /** The original three-option question, kept so the bakeoff can show what the pointer option buys. */
 export const CITE_QUESTION_3 = {
   ...CITE_QUESTION,
   criteria: { supports: CITE_QUESTION.criteria.supports, contradicts: CITE_QUESTION.criteria.contradicts, says_nothing: CITE_QUESTION.criteria.says_nothing },
 };
-type CiteQuestion = typeof CITE_QUESTION | typeof CITE_QUESTION_3;
+
 
 /**
  * Builds the request for one pair. Pure — no network — so the state and the
@@ -82,9 +108,13 @@ export function buildCiteRequest(
 ): { state: unknown; questions: Record<string, CiteQuestion> } | null {
   const doc = ix.docMap.get(pair.uuid);
   if (!doc) return null; // an unknown uuid is already a hard failure elsewhere
+  const base = opts.question ?? CITE_QUESTION;
+  // `sentence` and the clause-scoped question arrive together or not at all —
+  // state the model has no instruction for is worse than no state.
+  if (!pair.context) return { state: { claim: pair.claim, cited_doc: { title: doc.title, content: doc.content } }, questions: { support: base } };
   return {
-    state: { claim: pair.claim, cited_doc: { title: doc.title, content: doc.content } },
-    questions: { support: opts.question ?? CITE_QUESTION },
+    state: { claim: pair.claim, sentence: pair.context, cited_doc: { title: doc.title, content: doc.content } },
+    questions: { support: scopedToClause(base) },
   };
 }
 

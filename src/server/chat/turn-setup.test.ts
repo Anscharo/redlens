@@ -17,6 +17,8 @@ import { windowHistory } from "./chat-history.ts";
 import { filterTeachingsByJev, type PrefetchJudgement, type judgePrefetch } from "./prefetch-judge.ts";
 import { teachingRound } from "./teach/inject.ts";
 import type { RankedTeaching } from "./teach/match.ts";
+import { disputeRound } from "./dispute-round.ts";
+import type { AgreedContradiction } from "./verify/disputes.ts";
 import { prepareTurn } from "./turn-setup.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -131,5 +133,38 @@ describe("prepareTurn", () => {
       config.chatPrefetchJudgeModel = "typesafe/jev-test";
       config.chatPrefetch = saved.prefetch;
     }
+  });
+
+  describe("dispute round", () => {
+    const contradiction: AgreedContradiction = {
+      answer: "They carry out operational activities on behalf of the Prime Agents they serve.",
+      evidence: "GovOps actors carry out operational activities on behalf of Executor Agents.",
+      why: "Subject mismatch.",
+      uuid: "76405733-0000-0000-0000-000000000000",
+    };
+
+    it("inserts the dispute round right after history and before facts, when disputes are passed", async () => {
+      const message = "are you sure about that dispute? i think the question is who is \"they\"";
+      const history = [
+        { role: "user", content: "who does GovOps act for?" },
+        { role: "assistant", content: contradiction.answer },
+        { role: "user", content: message },
+      ];
+      const got = await prepareTurn({ ix, message, history, judge: fakeJudge(0.1), disputes: [contradiction] });
+      const want = disputeRound([contradiction]);
+      // messages[0] = system, [1..3] = the three history rows above, then the
+      // dispute round — whatever else (facts, teach) may follow it.
+      expect(got.messages.slice(4, 4 + want.length)).toEqual(want);
+    });
+
+    it("injects nothing when disputes is empty or omitted, and matches the pre-extraction assembly exactly", async () => {
+      const message = "What are the facilitators?";
+      const history = [{ role: "user", content: message }];
+      const want = await legacyAssemble(ix, message, history, undefined, [], fakeJudge(0.9));
+      const omitted = await prepareTurn({ ix, message, history, judge: fakeJudge(0.9) });
+      const empty = await prepareTurn({ ix, message, history, judge: fakeJudge(0.9), disputes: [] });
+      expect(omitted.messages).toEqual(want.messages);
+      expect(empty.messages).toEqual(want.messages);
+    });
   });
 });

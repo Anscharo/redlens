@@ -18,13 +18,21 @@
 //
 // Segmentation itself is `claimSegments` (verify-checks.ts), which decides the
 // sentence a trailing or dash-attributed citation belongs to.
-import { claimSegments, extractCitations, MD_LINK_SRC } from "./verify-checks.ts";
+import { CITATION_SRC, claimSegments, extractCitations, MD_LINK_SRC } from "./verify-checks.ts";
 
 export interface CitationPair {
   /** The claim, with its link markup stripped (link TEXT is usually the doc's own title, which would beg the question). */
   claim: string;
   /** The doc that claim links to. */
   uuid: string;
+  /**
+   * The full sentence `claim` was taken from, present ONLY when the two
+   * differ — i.e. when the sentence carried more than one citation and this
+   * pair got just the clause its own link is attached to. The judge needs it
+   * to resolve the subject and any pronouns ("and the setup of Executor
+   * Accords" has no verb of its own), but must not judge the rest of it.
+   */
+  context?: string;
 }
 
 const TABLE_ROW = /^\s*\|.*\|\s*$/;
@@ -82,8 +90,53 @@ export const MIN_CLAIM_WORDS = 3;
 export const realWords = (s: string) => (s.match(/[A-Za-z]{2,}/g) ?? []).length;
 
 /**
+ * The clause each citation in a segment is attached to: the text since the
+ * previous citation (or the start of the segment). Aligned index-for-index
+ * with `extractCitations(seg)`.
+ *
+ * A sentence that cites twice — "they validate agent creation [A] and the
+ * setup of Executor Accords [B]" — used to hand BOTH documents the WHOLE
+ * sentence, so each was asked to justify an assertion it was never cited for
+ * and `says_nothing` was the correct answer to the wrong question. Observed
+ * 2026-09-24; at baseline it accounted for most of the check's false flags,
+ * and it penalised exactly the careful citing style the citation dictate asks
+ * for (cite each clause where it sits) over dumping every link at the end.
+ *
+ * `null` where the clause is too thin to stand on its own — a link at the very
+ * start of a sentence ("As set out in [A], the threshold is seven"), or two
+ * links side by side with no words between them. Those fall back to the whole
+ * segment, which is exactly the old behaviour, so this can only ever narrow a
+ * claim that HAS its own clause and never truncates one that doesn't.
+ */
+function attributedClauses(seg: string): (string | null)[] {
+  const re = new RegExp(CITATION_SRC, "gi");
+  const spans: { start: number; end: number }[] = [];
+  for (let m = re.exec(seg); m; m = re.exec(seg)) spans.push({ start: m.index, end: m.index + m[0].length });
+
+  const out: (string | null)[] = [];
+  spans.forEach((sp, i) => {
+    // The text since the previous citation — PLUS, for the last citation, the
+    // tail after it. A trailing "." or a closing paren belongs to the clause
+    // it ends, and a lone citation must therefore reproduce the whole segment
+    // exactly: pieces are joined with a single space because that is what
+    // cleanClaim's own link-stripping does, so a single-citation pair's claim
+    // stays byte-identical to what it has always been.
+    const pieces = [seg.slice(i === 0 ? 0 : spans[i - 1].end, sp.start)];
+    if (i === spans.length - 1) pieces.push(seg.slice(sp.end));
+    const clause = cleanClaim(pieces.join(" "));
+    // Adjacent links share the clause before them, so inherit the last real
+    // one rather than falling all the way back to the whole sentence.
+    out.push(realWords(clause) >= MIN_CLAIM_WORDS ? clause : (out[out.length - 1] ?? null));
+  });
+  return out;
+}
+
+/**
  * Every (claim, cited doc) pair in an answer that is worth judging. De-duplicated
  * on (doc, claim), so a sentence repeated verbatim is one judgment, not two.
+ *
+ * A single-citation sentence is unchanged: its clause IS the whole sentence,
+ * so no `context` is attached and the judge sees exactly what it always did.
  */
 export function citationPairs(answer: string): CitationPair[] {
   const out: CitationPair[] = [];
@@ -91,14 +144,16 @@ export function citationPairs(answer: string): CitationPair[] {
   for (const seg of claimSegments(tablesAsProse(answer))) {
     const cites = extractCitations(seg);
     if (!cites.length) continue;
-    const claim = cleanClaim(seg);
-    if (realWords(claim) < MIN_CLAIM_WORDS) continue;
-    for (const c of cites) {
+    const whole = cleanClaim(seg);
+    if (realWords(whole) < MIN_CLAIM_WORDS) continue;
+    const clauses = attributedClauses(seg);
+    cites.forEach((c, i) => {
+      const claim = clauses[i] ?? whole;
       const key = `${c.uuid}|${claim}`;
-      if (seen.has(key)) continue;
+      if (seen.has(key)) return;
       seen.add(key);
-      out.push({ claim, uuid: c.uuid });
-    }
+      out.push(claim === whole ? { claim, uuid: c.uuid } : { claim, uuid: c.uuid, context: whole });
+    });
   }
   return out;
 }

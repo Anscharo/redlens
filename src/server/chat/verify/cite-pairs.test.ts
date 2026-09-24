@@ -51,3 +51,53 @@ describe("citationPairs", () => {
     expect(p.claim).toBe("Documents regarding Instance CRRs changed often.");
   });
 });
+
+describe("multi-citation sentences", () => {
+  // A sentence that cites twice used to hand BOTH documents the whole
+  // sentence, so each was asked to justify an assertion it was never cited
+  // for. Observed 2026-09-24: doc A (agent creation) was marked "not stated in
+  // this source" for a sentence whose OTHER half was about Executor Accords.
+  it("gives each citation the clause it is attached to, plus the sentence as context", () => {
+    const pairs = citationPairs(
+      `* They validate inputs for the creation of new agents [A](/atlas/${A}) and the setup of "Executor Accords" [B](/atlas/${B}).`,
+    );
+    expect(pairs).toHaveLength(2);
+    expect(pairs[0].claim).toBe("They validate inputs for the creation of new agents");
+    expect(pairs[1].claim).toBe('and the setup of "Executor Accords".');
+    // The second clause has no subject of its own — without the sentence it is
+    // unjudgeable, so context is required, not decorative.
+    expect(pairs[0].context).toContain("Executor Accords");
+    expect(pairs[1].context).toBe(pairs[0].context);
+  });
+
+  // The load-bearing property: this change must be inert for the ~86% of pairs
+  // it has nothing to do with, in production AND in the eval's disk cache.
+  it("leaves a single-citation sentence byte-identical, with no context", () => {
+    const [p] = citationPairs(`The threshold is seven signers [T](/atlas/${A}).`);
+    expect(p.claim).toBe("The threshold is seven signers.");
+    expect(p.context).toBeUndefined();
+  });
+
+  // The tail after the LAST citation belongs to its clause — a trailing period
+  // or closing paren is part of the sentence it ends.
+  it("gives the last citation the tail after it", () => {
+    const [p] = citationPairs(`Documents regarding \`Instance CRRs\` ([CRRs](/atlas/${A})) changed often.`);
+    expect(p.claim).toBe("Documents regarding Instance CRRs changed often.");
+    expect(p.context).toBeUndefined();
+  });
+
+  // A link at the very START has no clause before it; falling back to the whole
+  // sentence is exactly the old behaviour, so narrowing can never truncate a
+  // claim that has no clause of its own.
+  it("falls back to the whole sentence when a clause is too thin to stand alone", () => {
+    const [p] = citationPairs(`[As set out here](/atlas/${A}), the threshold is seven signers.`);
+    expect(p.claim).toContain("the threshold is seven signers");
+    expect(p.context).toBeUndefined();
+  });
+
+  it("adjacent links share the clause before them", () => {
+    const pairs = citationPairs(`The threshold is seven signers [A](/atlas/${A}) [B](/atlas/${B}).`);
+    expect(pairs).toHaveLength(2);
+    expect(pairs[1].claim).toContain("seven signers");
+  });
+});

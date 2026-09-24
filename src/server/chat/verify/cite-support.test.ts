@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach, beforeEach } from "bun:test";
-import { buildCiteRequest, judgeCitation, CITE_QUESTION } from "./cite-support.ts";
+import { buildCiteRequest, judgeCitation, scopedToClause, CITE_QUESTION } from "./cite-support.ts";
 import { citationPairs } from "./cite-pairs.ts";
 import { claimSegments } from "./verify-checks.ts";
 import { config } from "../../config.ts";
@@ -77,6 +77,36 @@ describe("buildCiteRequest", () => {
 
   it("returns null for an unknown uuid rather than inventing a document", () => {
     expect(buildCiteRequest({ claim: "c", uuid: "99999999-9999-4999-8999-999999999999" }, ix)).toBeNull();
+  });
+
+  // A pair with no context must produce the request it has ALWAYS produced —
+  // same state keys, same question object by identity. That is what keeps the
+  // clause change inert for single-citation sentences and keeps the bakeoff's
+  // disk cache hitting on them.
+  it("a pair with no context gets the unchanged question by identity, and no sentence field", () => {
+    const req = buildCiteRequest({ claim: "c", uuid: A }, ix)!;
+    expect(req.questions.support).toBe(CITE_QUESTION);
+    expect((req.state as Record<string, unknown>).sentence).toBeUndefined();
+  });
+
+  it("a pair WITH context gets the sentence and a clause-scoped question", () => {
+    const req = buildCiteRequest({ claim: "and the setup of Executor Accords", uuid: A, context: "They validate agent creation and the setup of Executor Accords" }, ix)!;
+    const state = req.state as Record<string, unknown>;
+    expect(state.sentence).toBe("They validate agent creation and the setup of Executor Accords");
+    const q = req.questions.support;
+    expect(q).not.toBe(CITE_QUESTION); // never mutates the shared question
+    expect(q.instructions).toContain("Judge ONLY `claim`");
+    expect(q.instructions).toContain(CITE_QUESTION.instructions); // criteria + base intent preserved
+    expect(q.criteria).toEqual(CITE_QUESTION.criteria);
+  });
+
+  // The two arrive together or not at all: state the model has no instruction
+  // for is worse than no state.
+  it("scopedToClause derives from whichever base question is in play", () => {
+    const three = { type: "choice" as const, instructions: "base.", criteria: { supports: "s", contradicts: "c", says_nothing: "n" } };
+    const scoped = scopedToClause(three);
+    expect(Object.keys(scoped.criteria)).toEqual(["supports", "contradicts", "says_nothing"]);
+    expect(scoped.instructions.startsWith("base.")).toBe(true);
   });
 });
 

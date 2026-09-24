@@ -16,6 +16,7 @@ import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } fr
 import type { PageContext } from "./system-prompt.ts";
 import { summarizeFacts } from "../facts/registry.ts";
 import { prepareTurn } from "./turn-setup.ts";
+import { agreedContradictionsFrom } from "./verify/disputes.ts";
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
 import { getWindowUsage } from "../rate-limit.ts";
@@ -185,22 +186,48 @@ export async function handleChat(req: Request): Promise<Response> {
     // deliberately NOT touching updated_at, the invariant `updated_at ≡ last
     // message time` holds exactly, served by the existing conversations_user index.
     await sql`INSERT INTO messages (conversation_id, role, content) VALUES (${convId}, 'user', ${body.message})`;
-    const [history] = (await Promise.all([
+    // The prior assistant answer's verify verdict (message_checks kind='verify'),
+    // if any — read alongside the history SELECT so the dispute round
+    // (dispute-round.ts, via prepareTurn below) costs no extra round trip.
+    // The LIMIT 1 sits in the SUBQUERY, not outside the join, and that is
+    // load-bearing: an INNER JOIN written flat would skip assistant messages
+    // that have NO verify row and hand back an OLDER answer's verdict. Not
+    // hypothetical — the small-talk bypass writes no verify row, so "ask,
+    // get a flag, say thanks, ask again" would inject a two-turn-old dispute
+    // under the heading "your previous answer". This shape asks only about
+    // THE last assistant message and returns nothing when it wasn't audited.
+    // .catch() degrades this ONE query to "no verdict found": a DB hiccup here
+    // must fall back to "no disputes injected" rather than failing the whole
+    // turn — the answer matters more than the annotation.
+    // Known, accepted gap: persistChecks (in persistAssistant, below) runs
+    // AFTER the stream's `done`, so a user who sends their next message while
+    // that write is still in flight gets no injection for THIS one turn —
+    // degrades to today's behaviour (no dispute round at all), never worse.
+    const [history, , lastVerify] = (await Promise.all([
       sql`SELECT role, content FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
       sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId}`,
-    ])) as [{ role: string; content: string }[], unknown];
+      sql`
+        SELECT mc.verdict FROM (
+          SELECT id FROM messages
+          WHERE conversation_id = ${convId} AND role = 'assistant'
+          ORDER BY created_at DESC LIMIT 1
+        ) m
+        JOIN message_checks mc ON mc.message_id = m.id AND mc.kind = 'verify'
+      `.catch(() => [] as { verdict: unknown }[]),
+    ])) as [{ role: string; content: string }[], unknown, { verdict: unknown }[]];
+    const disputes = agreedContradictionsFrom(lastVerify[0]?.verdict);
 
     const ix = getIndexes();
     const teachHits = await teachingsPromise; // already overlapped the two queries above
 
     // Everything the model reads before its first token — Jev judgement, tier
     // routing, system prompt, windowed history, facts round, Jev-filtered /teach
-    // notes — assembled by the one function the tool-choice eval also runs
-    // (turn-setup.ts). /teach never reaches any of it, so it never runs one:
-    // no judgement, no routing (reason "teach"), no model input.
+    // notes, the dispute round — assembled by the one function the tool-choice
+    // eval also runs (turn-setup.ts). /teach never reaches any of it, so it
+    // never runs one: no judgement, no routing (reason "teach"), no model input.
     const turn = teachCmd
       ? null
-      : await prepareTurn({ ix, message: body.message, history, pageContext: body.pageContext, teachHits });
+      : await prepareTurn({ ix, message: body.message, history, pageContext: body.pageContext, teachHits, disputes });
     const route = turn?.route ?? TEACH_ROUTE;
     const priorAssistants = history.filter((m) => m.role === "assistant").length;
 

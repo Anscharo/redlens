@@ -1,4 +1,5 @@
-import { apiUrl, type ToolCallRecord, type CitationMark } from "../components/chat/api";
+import { apiUrl, type AnswerCoverage, type ToolCallRecord, type CitationMark } from "../components/chat/api";
+import type { VerifyState } from "../components/chat/chatTypes";
 
 // Typed fetch wrappers for the /api/chat/conversations REST endpoints
 // (auth-gated via cookie), mirroring collectionsApi.ts. Backs the
@@ -31,9 +32,29 @@ export interface StoredMessage {
   // Per-cited-doc Sources-chip marks, reconstructed server-side from the
   // persisted citation_check row (src/server/chat/conversations.ts's
   // citationMarksFor) — null when there's nothing to show (no row, or the
-  // row's judged pairs aggregated to zero marks). See hydrate.ts for how
-  // this restores ChatMsg.citationMarks on rehydration.
+  // row's judged pairs aggregated to zero marks). Reconciled server-side
+  // against `verify`'s agreed contradictions before it reaches the wire (a
+  // doc an agreed contradiction is sourced to never shows a `backed` mark
+  // here). See hydrate.ts for how this restores ChatMsg.citationMarks on
+  // rehydration.
   citationMarks: Record<string, CitationMark> | null;
+  // Reliability-harness badge, reconstructed server-side from the persisted
+  // 'verify'/'round_checks' message_checks rows (conversations.ts's
+  // verifyFor) — null when no 'verify' row exists for this message (harness
+  // was off for the turn, or the row didn't parse). See hydrate.ts for how
+  // this restores ChatMsg.verify on rehydration. `status` is never
+  // "checking" here — a restored row is always already resolved — but keeps
+  // VerifyState's full type rather than narrowing it.
+  verify: VerifyState | null;
+  // "Did it answer the question?" ruling, reconstructed server-side from the
+  // persisted answer_coverage row (conversations.ts's answerCoverageFor) —
+  // null when no row exists for this message (the check was off, timed out,
+  // or the turn was ruled small talk) or the row didn't parse. Note `parts`
+  // is string[] here, as on the live wire: the STORED payload keeps the
+  // judged parts as { text, p } objects for calibration, and the server maps
+  // them down to their text exactly as the live event does. See hydrate.ts
+  // for how this restores ChatMsg.answerCoverage.
+  answerCoverage: AnswerCoverage | null;
 }
 
 export interface ConversationDetail {

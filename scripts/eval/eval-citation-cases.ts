@@ -41,6 +41,10 @@ export type CaseKind = "positive" | NegKind;
 export interface CiteCase {
   claim: string;
   uuid: string;
+  /** Carried through from CitationPair: the full sentence a multi-citation
+   *  clause came from. Must reach judgeCitation or the eval would measure the
+   *  narrowed claim WITHOUT the context that makes it judgeable. */
+  context?: string;
   kind: CaseKind;
   /** For a negative: the doc the sentence originally cited. */
   originalUuid?: string;
@@ -100,7 +104,7 @@ export function buildCases(ix: Indexes, kinds: Set<CaseKind>): CiteCase[] {
 
       const add = (kind: NegKind, uuid: string | null) => {
         if (!uuid || uuid === p.uuid || !kinds.has(kind)) return;
-        cases.push({ claim: p.claim, uuid, kind, originalUuid: p.uuid, source: file });
+        cases.push({ claim: p.claim, context: p.context, uuid, kind, originalUuid: p.uuid, source: file });
       };
       add("random", pick(allUuids, seed));
       add("parent", doc.parentId ?? null);

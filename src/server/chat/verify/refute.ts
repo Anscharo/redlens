@@ -26,6 +26,7 @@ export const REFUTE_PROMPT = [
   "Do not report omissions or missing list members.",
   "Entries marked [REFERENCE] are context SAbR injected (product guide, glossary, entity rows) — not atlas text; a faithful restatement of one is never a contradiction.",
   "Entries marked [USER NOTE, not Atlas] are this user's private /teach notes — never treat them as atlas text or as a quotation of the atlas.",
+  "Entries marked [NOT ATLAS] did not come from the atlas — never treat them as atlas text or as a quotation of the atlas.",
   "[E-prev] holds the assistant's earlier answers.",
   "Respond with STRICT JSON only.",
   '{"contradictions":[{"answer_span":"…","evidence_span":"…","why":"…"}],"notes":"≤30 words"}',
@@ -36,8 +37,18 @@ export function buildRefutePrompt(params: { question: string; answer: string; ev
   const evidenceBlock = evidence.length
     ? evidence
         .map((e) => {
+          // "unknown" is anything the source allowlist did not recognise as a
+          // registry atlas tool (verifier.ts's classifyToolSource). It must be
+          // marked, not left bare: an unmarked entry reads as retrieved atlas
+          // text, which is exactly the promotion the allowlist exists to stop.
           const tag =
-            e.sourceClass === "reference" ? " [REFERENCE]" : e.sourceClass === "user" ? " [USER NOTE, not Atlas]" : "";
+            e.sourceClass === "reference"
+              ? " [REFERENCE]"
+              : e.sourceClass === "user"
+                ? " [USER NOTE, not Atlas]"
+                : e.sourceClass === "unknown"
+                  ? " [NOT ATLAS]"
+                  : "";
           return `${e.label}${tag} ${e.tool}(${e.args}) →\n${e.content}`;
         })
         .join("\n\n")

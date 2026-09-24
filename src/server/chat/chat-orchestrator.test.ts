@@ -591,6 +591,23 @@ test("ungrounded turn: verification stages are suppressed, the audit still runs"
     expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify"]);
   }));
 
+test("small talk: the synthesizing row says Responding, not written from the evidence", () =>
+  withModels("strong/verifier", async () => {
+    // Nothing retrieved, nothing injected and no earlier turn to lean on. The
+    // old copy claimed the answer was "written from the evidence" under a row
+    // with no Sources and no lookups beneath it — a false claim on exactly the
+    // turns a reader is least likely to excuse it on.
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[textChunk("Hello! How can I help?"), finishChunk("stop")]]),
+        jsonCall: fakeSlicedJson({}),
+      }),
+    );
+    const details = events.filter((e) => e.type === "status").map((e) => (e.type === "status" ? e.detail : ""));
+    expect(details).toEqual(["Responding…"]);
+  }));
+
 test("no tools but earlier turns: the stages name the conversation as the basis", () =>
   withModels("strong/verifier", async () => {
     const history: Msg[] = [
@@ -1179,6 +1196,73 @@ test("citation marks: chatCitationCheckModel='' disables the feature — no even
       );
       expect(events.some((e) => e.type === "citation_marks")).toBe(false);
     }),
+  ));
+
+// Reconciliation against the refute/confirm audit (verify/disputes.ts):
+// observed 2026-09-24, one turn shipped a confirmed dispute AND a green ✓ on
+// the same doc in the Sources chips. withCiteJudge("supports") marks every
+// cited doc "backed" (a blanket /systemone stub, not doc-aware), so the only
+// way a doc ends up NOT backed on the wire is the reconciliation this test
+// exists to cover.
+test("citation marks: an agreed contradiction sourced to a doc withholds that doc's backed mark, but another doc's mark survives", () =>
+  withModels("strong/verifier", () =>
+    withCitationCheck("cite/judge", () =>
+      withCiteJudge("supports", async () => {
+        const uuid2 = [...ix.docMap.keys()].find((u) => u !== CITE_UUID)!;
+        // Two citations, each in its own sentence so citationPairs gives each
+        // its own claim (a shared segment would give both the same claim text
+        // — see cite-pairs.ts). Generic anchor text ("Doc"/"Doc2") matches the
+        // convention ANSWER_WITH_CITE already uses above — no title-mismatch
+        // repair to worry about.
+        const answer = [
+          `This document explains various governance details here [Doc](/atlas/${CITE_UUID}).`,
+          `This other doc explains different governance matters here [Doc2](/atlas/${uuid2}).`,
+        ].join(" ");
+        // A crafted history tool result whose JSON shape mirrors atlas_get's
+        // real `{"id":"<uuid>",...}` output closely enough for refute.ts's
+        // resolveUuid to resolve the contradiction to CITE_UUID specifically
+        // (nearest preceding id/uuid field before the matched evidence_span —
+        // see disputes.ts's header on how that resolution works, and its
+        // caveat that it is best-effort/heuristic).
+        const SNIPPET = "The archived note says the threshold is five of nine.";
+        const toolMsg: Msg = { role: "tool", tool_call_id: "call_1", content: JSON.stringify({ id: CITE_UUID, content: SNIPPET }) };
+        const refuteFixture = JSON.stringify({
+          contradictions: [{ answer_span: answer, evidence_span: SNIPPET, why: "contradicts the archived note" }],
+          not_found: [],
+          notes: "",
+        });
+        const events = await collect(
+          runVerifiedChat({
+            ix, messages: [userMsg, toolMsg], question: "hi", maxIterations: 3,
+            stream: fakeStream([[textChunk(answer), finishChunk("stop")]]),
+            jsonCall: fakeSlicedJson({ refute: [refuteFixture], confirm: [CONFIRM_AGREE] }),
+          }),
+        );
+
+        // The audit agreed a contradiction sourced to CITE_UUID — sanity-check
+        // the fixture actually produced what this test needs before asserting
+        // on the reconciliation itself.
+        const verify = events.find((e) => e.type === "verify_result")!;
+        expect(verify.type === "verify_result" && verify.overall).toBe("fail");
+        expect(verify.type === "verify_result" && verify.contradictions).toHaveLength(1);
+        expect(verify.type === "verify_result" && verify.contradictions[0].uuid).toBe(CITE_UUID);
+
+        const markEvents = events.filter((e) => e.type === "citation_marks");
+        expect(markEvents).toHaveLength(1);
+        const marks = (markEvents[0] as Extract<HarnessEvent, { type: "citation_marks" }>).marks;
+        // Withheld: an agreed contradiction is sourced to this doc — no
+        // `backed` (or any) mark for it reaches the wire.
+        expect(marks[CITE_UUID]).toBeUndefined();
+        // Untouched: the other cited doc has no contradiction against it.
+        expect(marks[uuid2]?.status).toBe("backed");
+
+        // Emission order is unchanged: citation_marks still lands before
+        // verify_result even though the audit is now resolved first.
+        const at = (t: string) => events.findIndex((e) => e.type === t);
+        expect(at("citation_marks")).toBeGreaterThan(-1);
+        expect(at("citation_marks")).toBeLessThan(at("verify_result"));
+      }),
+    ),
   ));
 
 // ── Answer coverage ("did it answer the question?", verify/answer-coverage.ts) ──

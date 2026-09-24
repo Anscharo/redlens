@@ -691,6 +691,45 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   see when composing a follow-up — it re-retrieves instead. Left as a
   separate decision: whether the answerer should get its own prior-tool-result
   replay, and at what budget cost.
+- **The one thing about a prior turn that IS replayed: its disputes**
+  (2026-09-24, `dispute-round.ts`). When the previous assistant answer carries
+  *agreed* contradictions, `prepareTurn` injects them as their own synthetic
+  tool round. Without it a follow-up like "are you sure about that dispute?"
+  had nothing to reason from — the flag was rendered for the user and was
+  invisible to the model, which answered by asking the user to paste the quote
+  back (observed 2026-09-24). It rides its own round rather than being appended
+  to the prior assistant `content` for three reasons: the model reads its own
+  `content` as its own prose; `chat-history.ts`'s `truncateOld` slices anything
+  past the lead paragraph off older turns, so the note would vanish exactly when
+  a user circles back to it; and `title.ts` reads assistant `content` verbatim.
+  Two rules the copy and the plumbing enforce together. The block states it is a
+  *check result, not a ruling* and warns that the check reads sentences in
+  isolation and can misread pronoun antecedents — the originating case was a
+  flag that was itself probably wrong ("who is *they*") — so the model can push
+  back instead of capitulating. And it is **excluded from evidence entirely**
+  (`verifier.ts`'s `isDisputeRound`): it quotes the model's own flagged sentence
+  verbatim, so leaving it classified as evidence would let quote-grounding
+  certify the very sentence the harness disputed the moment the model repeated
+  it. `sourceClass: "reference"` would not have been enough — that class is
+  pooled with atlas. The query reads the verdict of *the* last assistant
+  message, with `LIMIT 1` inside the subquery rather than outside an inner join:
+  a flat join skips unaudited answers (the small-talk bypass writes no `verify`
+  row) and would hand back a stale dispute under the heading "your previous
+  answer".
+- **Atlas provenance is an allowlist, never a default** (2026-09-24,
+  `verifier.ts`'s `classifyToolSource`). A tool result is `"atlas"` only if its
+  name is in the registry (`ATLAS_TOOLS`); `"external"`, `"reference"` (the
+  facts round) and `"user"` (/teach) are named explicitly, and everything else
+  is `"unknown"` and marked `[NOT ATLAS]` to the refute judge. This used to
+  default to `"atlas"`, which had it backwards — atlas text is the privileged
+  class quote-grounding certifies against, so anything unrecognised was being
+  promoted into it. Two real cases, not hypotheticals: `export_findings` (which
+  `llm-tools.ts` appends to `CHAT_TOOLS` outside `ATLAS_TOOLS`) and
+  `evidenceFromTranscript`'s own `{ tool: "unknown" }` fallback for a tool
+  message whose assistant `tool_call` is missing. The three filters that decided
+  "is this atlas text?" were separately-spelled blacklists (one of them keyed on
+  tool name rather than class); they now all route through `isAtlasText`, so a
+  new class cannot be silently admitted at three sites at once.
 
 ## 7. Guard rails (pure code, no model in the loop)
 
@@ -733,6 +772,21 @@ answer once (§1), rather than the server picking between two client shapes.
 
 Status rows accumulate every detail line they reported (`StageLogEntry.details`) and keep them after the stage completes — nothing shown in the checklist is ever replaced or removed.
 
+**Synthesizing's detail line is provenance-aware** (2026-09-24): the first token
+of a generation burst is preceded by `status{stage:"synthesizing"}` whose detail
+is "Writing an answer from the evidence…" only when the burst HAS a basis — a
+tool call this turn, material injected before the stream (facts, /teach), or
+`priorTurnsEvidence` from earlier turns. That is `grounded`'s definition from
+the post-answer pass, computed live. Otherwise the detail is "Responding…":
+claiming an answer was written from the evidence under a row with no Sources
+and no lookups beneath it is a false claim on exactly the turns (small talk, a
+conversational follow-up) a reader is least likely to excuse it on. It
+deliberately does NOT consult the small-talk judge, which runs after the answer
+— far too late for a status that precedes the first token. The stage id stays
+`synthesizing`: `stageSlotContent.ts`'s `synthesisSlot` keys the reasoning and
+live-draft slots off it, so a separate "responding" stage would cost those
+turns their draft disclosure.
+
 **Tense and per-paragraph disclosure (`StageList.tsx`, `ParagraphChecks.tsx`)**: a finished stage row reads in the simple past ("Looked for evidence") and only the currently-running row stays present continuous ("Looking for evidence") — a step that already happened shouldn't read as still happening. This is display-only: `stageLabel`/`stripTrailingEllipsis` pick the tense and drop a detail line's trailing "…"/"..." on a done row so it doesn't look like it's still going, but the logged `StageLogEntry.details` strings themselves are untouched, so the never-removed rule above still holds. The per-paragraph audit renders under the Verifying row (or the Comparing row on a deterministic-only turn, which never gets a Verifying row) — it is about checking the answer, not writing it — and follows the same "don't restate the default" instinct: `ParagraphChecks` renders one summary line (`N paragraphs checked`, plus `, no findings` / `, K flagged` / `, model check running` while any paragraph is still `pending`) and a row underneath only for a paragraph that has a deterministic finding or a model state worth naming on its own (`candidate`/`failed`) — a clean (`ok`) or still-pending paragraph gets no row, since the summary already accounts for it. `candidate` means the confirm gate has not resolved yet: `verify_result`/`done` clear it (same as `pending`), so a finished turn never keeps "possible contradiction, being confirmed" next to the badge.
 
 **`answer_final`** is a new `HarnessEvent`, `{ type: "answer_final", content
@@ -766,7 +820,18 @@ were actually judged: any unjudged pair withholds the mark entirely, and a
 pointer-only document ("the document X changes often") gets none either. The
 marks render on the Sources chips — a ✓ on every backed source, by explicit
 product decision, as an exception to the list-by-exception rule for stage
-rows. Each mark carries `confidence` (0–1, or null): hovering anywhere on the
+rows. Before they reach the wire they are **reconciled against the whole-turn
+verdict** (`verify/disputes.ts`'s `withoutDisputedMarks`): a document an
+*agreed* contradiction is sourced to has its ✓ withheld. The two lanes are
+independent by design and can disagree — observed 2026-09-24, one answer
+shipped a confirmed dispute on a document alongside a green ✓ on that same
+document in a single render. Only `backed` is withheld (a `disputed` mark
+means the lanes agree; an `unbacked` one asserts no support and is not in
+conflict), and it is dropped rather than flipped, because the chip's tooltip
+carries the citation lane's own per-claim verdicts — which on a collision read
+"supports". The persisted `citation_check` row stays UNRECONCILED as that
+lane's calibration record; reconciliation runs again on reload through the
+same function, so a refresh cannot resurrect the disagreement. Each mark carries `confidence` (0–1, or null): hovering anywhere on the
 source chip (the shared `Tooltip`, not a native `title`) shows how sure the
 check is. For a ✓ that is the lowest confidence among the claims it supports;
 for a ! the highest among the claims it contradicts, plus the line. The number
@@ -777,8 +842,10 @@ does not inherit a number from a verdict it rejected, and the dash's hover
 stays the uncovered line. Started concurrently with the audit, so it never delays it; bounded by
 its own 8 s deadline and fail-open (a timeout means no marks, never a warning).
 Raw verdicts persist as a `message_checks` row of kind `citation_check`.
-Unlike the verify badge and the answer-coverage line, the marks ARE
-rehydrated on reload (2026-09-23): `GET /api/chat/conversations/:id`
+Every post-answer check now rehydrates on reload — the marks first
+(2026-09-23), the verify badge and the answer-coverage line with it
+(2026-09-24), so a refresh no longer silently drops a turn's verification.
+`GET /api/chat/conversations/:id`
 (`conversations.ts`'s `citationMarksFor`) re-runs `aggregateMarks` over each
 assistant message's stored `judged` pairs — the same fold a live turn uses,
 so a later change to the aggregation rule applies to old rows too without a
@@ -788,6 +855,23 @@ pairs aggregate to zero marks, comes back `null` and renders like a message
 the live registry never judged. Measurement and the residual error classes:
 [`docs/plans/jev-typesafe.md`](plans/jev-typesafe.md) §A1.
 `CHAT_CITATION_CHECK_MODEL=""` turns it off.
+
+The **verify badge** restores the same way (`conversations.ts`'s `verifyFor`,
+parsers in `verify/persisted-verdict.ts`): agreed contradictions from the
+`verify` row, the deterministic findings from the `round_checks` row, and
+`status` recomputed with the live `computeOverall` rather than trusting the
+stored `overall` column. Two rules it must not break. The stored
+`Verdict.contradictions` holds **every** validated candidate, agreed and not,
+as the confirm gate's calibration record — so the restore applies the same hard
+`agreed` filter the wire does (`verify/disputes.ts`'s
+`agreedContradictionsFrom`, shared by both paths precisely so they cannot
+diverge), or a refresh would surface flags the confirm gate rejected. And a
+turn with the verifier model OFF but a FAILED deterministic check emits a red
+badge while persisting only a `round_checks` row — so that case restores from
+`round_checks` alone, mirroring `emitVerify`'s `verifierModel !== "" ||
+checks.failed` exactly; a `round_checks` row whose `failed` is false and which
+has no `verify` row still restores to nothing, because the live path emits
+nothing there either.
 
 **`answer_coverage`** (2026-09-22) is yielded at most once, after
 `answer_final` (and after `citation_marks`) and before `verify_result`/`done`:
@@ -833,9 +917,12 @@ is `disputed` — a confirm-gated contradiction the badge does not repeat — in
 which case the line is flagged; an `unbacked` mark (the document doesn't cover
 the citing line) does not flag it. The badge itself is the third fact
 (whole-answer contradictions) and is not repeated. Raw distribution, per-part scores and latency persist as a
-`message_checks` row of kind `answer_coverage`; unlike the marks (which now
-rehydrate — see `citation_marks` above), the line is not rehydrated on
-reload. **Every threshold is in-sample** (311 real answers
+`message_checks` row of kind `answer_coverage`, and the line now rehydrates
+from it (2026-09-24, `conversations.ts`'s `answerCoverageFor`) like the marks
+and the badge. Only the wire shape is restored: the stored `parts` are
+`{ text, p }` objects kept for calibration, mapped down to their text exactly
+as the live event does, and `probabilities`/`rawToolOutput` never reach the
+client. **Every threshold is in-sample** (311 real answers
 to 23 of our own bakeoff questions, tuned after reading the first run) and
 **no real-traffic false-fire pass has been run** — the same standing as the
 complexity lane; run one before lowering a floor. Known misfit: an apology
