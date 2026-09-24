@@ -51,7 +51,7 @@ export function PreviewBanner({ onTabTitle }: { onTabTitle?: (title: string | nu
   const parts = meta ? compareParts(meta, activeBase ?? null) : null;
   const subject = parts?.subject || preview.id;
   const src = meta ? sourceUrl(meta) : null;
-  const srcLabel = meta ? sourceLabel(meta) : "commit";
+  const srcLabel = meta ? sourceLabel(meta) : "view commit";
   // wouter's useSearch() strips the leading "?"; URLSearchParams doesn't care.
   const switchLink = meta ? baseSwitch(meta, activeBase ?? null, search) : null;
   // Install-owner nudges, one row each: a missing permission, an over-broad grant.
