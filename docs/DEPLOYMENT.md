@@ -553,6 +553,18 @@ running. Check three other things, in order:
    wrong `DATABASE_URL` / empty `sync_state` **fails** the run instead of
    logging a warning.
 
+**Worker log ends in `hard cap (15m)` or `tail budget (11m) spent`**
+→ Two different things. `tail budget` is **not** a failure: the tick already
+logged `heartbeat ok`, so docs, addresses and the published artifact set are
+committed, and only the best-effort tails (embeddings, history, doc-versions)
+were still running. Each is incremental, the run exits 0, and the next tick
+resumes where it stopped. Expect it on the first one or two ticks of a **new
+environment**, where `atlas_doc_embeddings` starts empty: ~11.6k docs at the
+measured ~620/min is ~19 minutes of backfill, more than one tick holds. Confirm
+it is converging by watching `staleEmbeds=` fall between runs.
+`hard cap (15m)` **is** a failure (exit 1): the tick never reached the
+heartbeat, so something before it hung — see the entry above.
+
 **atlas-update workflow pushes fail**
 → The bot isn't a branch-protection bypass actor (step 8d), or the
 `ATLAS_BOT_*` secrets are missing (step 9).

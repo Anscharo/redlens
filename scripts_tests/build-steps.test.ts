@@ -189,8 +189,36 @@ describe("atlas artifact store: worker publish is load-bearing (phase 4)", () =>
     const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
     expect(worker).toContain("const HARD_CAP_MS = 15 * 60 * 1000");
     expect(worker).toContain("atlas-worker: hard cap (15m) — exiting so cron can retry");
-    expect(worker).toContain("hardCap.unref()");
+    expect(worker).toContain("cap.unref()");
     expect(worker).toMatch(/hard cap[\s\S]*process\.exit\(1\)/);
+  });
+
+  // 2026-09-25: a cold atlas_doc_embeddings is ~19 minutes of backfill, so the
+  // flat 15m cap fired on the first tick of every new environment and reported
+  // exit(1) — a "crashed" worker whose served snapshot had in fact committed at
+  // T+12s. Running out of clock in the best-effort tails is partial progress the
+  // next tick resumes, so the post-heartbeat deadline exits 0 instead.
+  it("atlas-worker's post-heartbeat tail budget is a clean exit, armed on both paths", () => {
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    expect(worker).toContain("const TAIL_CAP_MS = 11 * 60 * 1000");
+    expect(worker).toMatch(/tail budget[\s\S]*process\.exit\(0\)/);
+    // Both heartbeat sites hand over to the tail deadline — the fast-exit path
+    // runs the same best-effort tails as the rebuild path.
+    const hbs = [...worker.matchAll(/await touchSyncHeartbeat\([^)]*\);\n\s*armTailCap\(\);/g)];
+    expect(hbs.length).toBe(2);
+  });
+
+  // The whole point of the tail deadline: the process must be gone before the
+  // next tick claims the same backlog. A cron period edited below the budget
+  // would silently reintroduce two workers re-embedding the same docs.
+  it("the tail budget stays under the worker's cron period", () => {
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    const toml = fs.readFileSync(path.join(ROOT, "railway.worker.toml"), "utf8");
+    const tailMin = Number(/const TAIL_CAP_MS = (\d+) \* 60 \* 1000/.exec(worker)?.[1]);
+    const everyMin = Number(/cronSchedule = "\*\/(\d+) \* \* \* \*"/.exec(toml)?.[1]);
+    expect(tailMin).toBeGreaterThan(0);
+    expect(everyMin).toBeGreaterThan(0);
+    expect(tailMin).toBeLessThan(everyMin);
   });
 
   it("atlas-worker heartbeats on the rebuild path, not only the fast exit", () => {
