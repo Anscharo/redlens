@@ -73,17 +73,28 @@ export function batchSizeFromEnv(env: NodeJS.ProcessEnv = process.env): number {
   return Number(env.EMBED_BATCH ?? 50);
 }
 
-// Wall-clock ceiling on one embedBatch attempt, retries included. Bounds a hung
-// provider socket, which is the one way this reconcile can stop making progress
-// without failing: a fetch that never returns never throws, so withRetry never
-// sees it, and on the boot path (atlas-updater.ts's detached spawn, no deadline
-// of its own) that process would sit on EMBED_LOCK_KEY until the web container
-// restarted, standing every worker tick down. Deliberately generous — a 50-text
-// batch measures ~5s and embedBatch's own backoff chain adds ~15s of sleeps, so
-// 120s never fires in normal operation and only ever cuts a socket that is gone.
-// A cut batch is skipped and retried next run, the same as any other failure.
-// Exported for the same reason as batchSizeFromEnv: so a test can assert the env
-// parsing without a provider.
+// Wall-clock ceiling on ONE deps.embedBatch call — the signal reaches fetch and
+// also gates embedBatch's own internal retry chain, so all of that fits inside
+// the budget. Without it a fetch that never returns never throws, so withRetry
+// never sees it and the call simply parks forever.
+//
+// PER ATTEMPT, NOT PER RUN, and the difference is the whole operational story. A
+// provider that answers nothing costs 3 x 120s + withRetry's 3s of backoff, then
+// that batch is skipped (`continue`) and the loop walks to the next one. Over a
+// cold 11,584-doc set that is 232 batches x 363s ~= 23 HOURS of walking, with
+// EMBED_LOCK_KEY held throughout — on the boot path (atlas-updater.ts's detached
+// spawn, no deadline of its own) every worker tick stands down for as long as it
+// lasts and `staleEmbeds=` stays flat. So this stops a single call parking
+// forever; it does NOT make a dead provider self-healing, and restarting the web
+// service is still the remedy for a flat count. A run-level circuit breaker (N
+// consecutive skipped batches => give up and free the lock) is what would close
+// that, and is deliberately not here yet.
+//
+// Deliberately generous — a 50-text batch measures ~5s and embedBatch's internal
+// backoff chain adds ~15s of sleeps, so 120s never fires in normal operation and
+// only ever cuts a socket that is already gone. A cut batch is skipped and
+// retried next run, the same as any other failure. Exported for the same reason
+// as batchSizeFromEnv: so a test can assert the env parsing without a provider.
 export function embedTimeoutFromEnv(env: NodeJS.ProcessEnv = process.env): number {
   return Number(env.EMBED_REQUEST_TIMEOUT_MS ?? 120_000);
 }
@@ -161,14 +172,18 @@ const EMBED_LOCK_KEY = 4711_2042;
  *  connection), the reconcile still runs unlocked: a missed lock costs tokens,
  *  a missed reconcile costs search.
  *
- *  The holders are not symmetric, which is what made this worth bounding. A
- *  worker that wedges mid-backfill is killed by its own tail deadline
- *  (atlas-worker.mjs) and the teardown drops the lock; startBootEmbeddings is a
- *  detached spawn with no deadline of its own, so a hung provider socket there
- *  would have held the lock until the web container restarted, standing every
- *  worker tick down while `staleEmbeds=` sat flat. embedTimeoutFromEnv is what
- *  closes that: the fetch now carries an AbortSignal, so the holder always either
- *  finishes or throws, and the lock is released either way. */
+ *  KNOWN EDGE. The holders are not symmetric. A worker that wedges mid-backfill
+ *  is killed by its own tail deadline (atlas-worker.mjs) and the teardown drops
+ *  the lock; startBootEmbeddings is a detached spawn with no deadline of its own.
+ *  embedTimeoutFromEnv stops a single call parking forever there, but it bounds
+ *  an ATTEMPT, not the run: against a provider that answers nothing the holder
+ *  skips each batch after ~363s and keeps walking — ~23 hours for a cold set —
+ *  holding this lock the whole time while every worker tick stands down and
+ *  `staleEmbeds=` sits flat. Bounded rather than silent: it can only start while
+ *  the table is empty (boot-embeddings' own precondition), lexical search is
+ *  unaffected, and every skipped tick logs the line below. The remedy is a web
+ *  restart, per docs/DEPLOYMENT.md; a run-level circuit breaker would make it
+ *  self-healing and is not here yet. */
 async function withEmbedLock(fn: () => Promise<void>): Promise<void> {
   let reserved: Awaited<ReturnType<typeof sql.reserve>> | null = null;
   // Tri-state, not a boolean: "could not ask" and "someone else has it" are
