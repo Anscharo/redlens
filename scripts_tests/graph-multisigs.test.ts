@@ -87,10 +87,20 @@ describe("parseSignerGroups", () => {
     ]);
   });
 
-  it("emits the named controller with a null count when the roster itself is deferred", () => {
-    // A.2.2.10.1.1.1.2.4.4.3.1.3 "Grove Operator Multisig Signers"
+  it("emits the named controller with a null count when the roster itself is deferred (placeholder present)", () => {
+    // A.2.2.10.1.1.1.2.4.4.3.1.3 "Grove Operator Multisig Signers", pre-PR#341 shape
     const groups = parseSignerGroups(
       "The signers of the Grove Operator Multisig are controlled by Operational GovOps Soter Labs. The specific signers will be specified in a future iteration of the Atlas.",
+    );
+    expect(groups).toEqual([{ name: "Operational GovOps Soter Labs", count: null }]);
+  });
+
+  it("emits the named controller with a null count when the count is omitted with no placeholder at all", () => {
+    // A.2.2.10.1.1.1.2.4.4.3.1.3 "Grove Operator Multisig Signers" and
+    // A.2.2.10.1.1.1.2.4.4.3.2.3 "Osero Operator Multisig Signers", as of atlas
+    // commit 6cd19248 (PR #341) — the "future iteration" placeholder was dropped.
+    const groups = parseSignerGroups(
+      "The signers of the Osero Operator Multisig are controlled by Operational GovOps Soter Labs.",
     );
     expect(groups).toEqual([{ name: "Operational GovOps Soter Labs", count: null }]);
   });
@@ -277,6 +287,37 @@ describe("extractMultisigs — warning branches", () => {
       address:
         "The address of the Deferred Signers Multisig on the Ethereum Mainnet is `0x1111111111111111111111111111111111111a`.",
       modification: "Operational GovOps Soter Labs can change the signers of the Deferred Signers Multisig.",
+    });
+    const allDocs = [root, kids.threshold, kids.signers, kids.address, kids.usage, kids.modification];
+    const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
+    const docById = new Map(allDocs.map((d) => [d.id, d]));
+    const entityMap = new Map<string, any>();
+    const soterLabs = makeEntity("soter-labs", "Soter Labs", "ecosystem_actor", {});
+    entityMap.set(soterLabs.slug, soterLabs);
+    const edges: any[] = [];
+    const warns: string[] = [];
+    vi.spyOn(console, "warn").mockImplementation((m) => void warns.push(String(m)));
+
+    const stats = extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges).run(makeAddEntity(entityMap));
+
+    expect(stats.signerEdges).toBe(1);
+    const e = edges.find((e) => e.edgeType === "signer_of");
+    expect(e.fromId).toBe(soterLabs.id);
+    expect(JSON.parse(e.meta)).toMatchObject({ signer_count: null });
+    expect(warns.some((w) => w.includes("signers did not parse"))).toBe(false);
+    expect(stats.warnings).toBe(0);
+    vi.restoreAllMocks();
+  });
+
+  it("emits the named controller with a null signer_count when the count is omitted with no placeholder, and does not warn", () => {
+    // Mirrors the real A.2.2.10.1.1.1.2.4.4.3.2.3 "Osero Operator Multisig Signers" shape.
+    const rootDocNo = "A.3.7.1.3.13";
+    const root = mkDoc("root-sole-controller", rootDocNo, "Sole Controller Multisig");
+    const kids = fiveChildDocs(rootDocNo, "Sole Controller Multisig", {
+      signers: "The signers of the Sole Controller Multisig are controlled by Operational GovOps Soter Labs.",
+      address:
+        "The address of the Sole Controller Multisig on the Ethereum Mainnet is `0x2222222222222222222222222222222222222c`.",
+      modification: "Operational GovOps Soter Labs can change the signers of the Sole Controller Multisig.",
     });
     const allDocs = [root, kids.threshold, kids.signers, kids.address, kids.usage, kids.modification];
     const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
