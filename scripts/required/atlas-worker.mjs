@@ -137,16 +137,52 @@ async function main() {
   const t0 = Date.now();
   const full = process.env.ATLAS_WORKER_FULL === "1";
 
-  // Railway skips the next cron tick while this process is still alive. A hung
-  // GitHub/RPC fetch before the heartbeat would otherwise block every later
-  // */12 run (observed 2026-09-17: four days of stale). Kill the tick so cron
-  // can retry. unref() so a successful exit isn't held open for the remainder.
+  // One timer, two deadlines, because the run has two halves whose timeouts mean
+  // opposite things.
+  //
+  // BEFORE the heartbeat everything is load-bearing. A hung GitHub/RPC fetch
+  // there blocks every later */12 run and leaves the served snapshot stale
+  // (observed 2026-09-17: four days of it), so the tick is killed and the run
+  // FAILS. Unchanged.
+  //
+  // AFTER it, sync.ts, the integrity gate and publish-artifacts have all
+  // committed and the only work left is runPostSyncTail — documented
+  // best-effort, and every lane of it incremental (embeddings upsert per
+  // EMBED_BATCH slice; history and doc-versions carry their own cursors). Running
+  // out of clock there is partial progress the next tick resumes, so it exits 0.
+  // One flat 15m cap reported that as a failed run instead, and a cold
+  // atlas_doc_embeddings could never beat it: 11,584 docs at the measured
+  // ~620/min is ~19 minutes, so the FIRST tick of every new environment was
+  // guaranteed to exit(1) (observed 2026-09-25, ~9,000 embedded, everything
+  // served already committed at T+12s).
+  //
+  // The tail deadline also sits UNDER the */12 cron period, so the process is
+  // always gone before the next tick claims the same backlog. At 15m it never
+  // was: that tick is either skipped (backfill gets 15m per 24m instead of 11m
+  // per 12m) or it overlaps and re-embeds what this process is already paying
+  // for. Measured from t0, floored at a minute — a build slow enough to eat the
+  // whole budget leaves the tails to the next tick rather than skipping the cap.
   const HARD_CAP_MS = 15 * 60 * 1000;
-  const hardCap = setTimeout(() => {
+  const TAIL_CAP_MS = 11 * 60 * 1000;
+  // unref() so a successful exit isn't held open for the remainder.
+  let cap = setTimeout(() => {
     console.error("atlas-worker: hard cap (15m) — exiting so cron can retry");
     process.exit(1);
   }, HARD_CAP_MS);
-  hardCap.unref();
+  cap.unref();
+  // Call right after touchSyncHeartbeat() on BOTH paths (fast-exit and rebuild):
+  // past that point the served snapshot is committed and only the tails remain.
+  const armTailCap = () => {
+    clearTimeout(cap);
+    cap = setTimeout(() => {
+      console.warn(
+        `atlas-worker: tail budget (${TAIL_CAP_MS / 60000}m) spent — the served snapshot is committed; ` +
+          "stopping cleanly so the next cron tick resumes the tails",
+      );
+      process.exit(0);
+    }, Math.max(60 * 1000, TAIL_CAP_MS - (Date.now() - t0)));
+    cap.unref();
+  };
 
   if (!process.env.DATABASE_URL) {
     console.error("atlas-worker: DATABASE_URL is required");
@@ -305,6 +341,7 @@ async function main() {
   if (!full && alreadyCurrent && noStaleEmbeds && structural.healthy && artifactsPublished) {
     console.log(`atlas-worker: already current at ${(syncState ?? "").slice(0, 12)} — skipping fetch/build`);
     await touchSyncHeartbeat(db);
+    armTailCap();
     await db.close();
     // Reconcile both independently incremental tails. Hash coverage can be
     // complete while grouping metadata is stale, and a failed history branch
@@ -380,6 +417,7 @@ async function main() {
   // web instances can fetch the artifact set. (Tails below are best-effort,
   // same as the fast-exit path which heartbeats before them.)
   await touchSyncHeartbeat(verifyDb);
+  armTailCap();
   await verifyDb.close();
 
   // ── Parallel: embeddings + history ───────────────────────────────────────
