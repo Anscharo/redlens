@@ -23,22 +23,26 @@ import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation
 import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
 import { gatedChat } from "./verify/stream-link-gate.ts";
 import { createCitationGate } from "./verify/definition-block-gate.ts";
-import { isUncheckableAnswer, judgeSmalltalk } from "./verify/smalltalk.ts";
+import { isUncheckableAnswer } from "./verify/smalltalk.ts";
+import { judgeSmalltalkJev } from "./verify/smalltalk-jev.ts";
+import { isAtlasText, classifyToolSource } from "./verify/verifier.ts";
 import { computeOverall, evidenceFromResults, evidenceFromTranscript, priorTurnsEvidence, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
 import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
 import { createParagraphRefuter, type ParagraphRefute } from "./verify/paragraph-refute.ts";
+import { runCitationMarks, type CitationMark } from "./verify/citation-marks.ts";
+import { agreedContradictionsFrom, withoutDisputedMarks } from "./verify/disputes.ts";
+import { judgeAnswerCoverage, type CoverageVerdict } from "./verify/answer-coverage.ts";
 import { createParagraphStream, type ParagraphEvidence } from "./verify/incremental.ts";
 import { atlasDescribe } from "./tools/tools.ts";
 import { isExternalMscTool } from "../external/envelope.ts";
 import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
 import { withTeachHint } from "./teach/hint.ts";
-import { isUserTeachingTool } from "./teach/inject.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type DoneEvent = Extract<ChatEvent, { type: "done" }>;
 
 export interface CheckRowMeta {
-  kind: "round_checks" | "verify" | "smalltalk_judge";
+  kind: "round_checks" | "verify" | "smalltalk_judge" | "citation_check" | "answer_coverage";
   model: string | null;
   verdict: unknown;
   overall: VerifyOverall | null;
@@ -62,6 +66,18 @@ export type HarnessEvent =
   // config-off/aborted/empty-content early exit; the client falls back to
   // revealing on `done` there.
   | { type: "answer_final"; content: string }
+  // Per-cited-doc Sources-chip mark (verify/citation-marks.ts) — emitted once,
+  // after `answer_final` and before `verify_result`/`done`, only when at least
+  // one citation was judged. Keyed by uuid; a doc with no key gets no chip
+  // change (nothing was judged for it, or its only citations were pointers).
+  | { type: "citation_marks"; marks: Record<string, CitationMark> }
+  // "Did it answer the question?" (verify/answer-coverage.ts) — emitted at
+  // most once, after `answer_final` (and after `citation_marks`) and before
+  // `verify_result`/`done`. `verdict` is thresholded, not Jev's argmax:
+  // `answers` is the quiet default. `missingParts` names question parts the
+  // reply did not address (only on answers/declines); `parts` lists every
+  // judged part, present only for a question code split into ≥2 parts.
+  | { type: "answer_coverage"; verdict: CoverageVerdict; missingParts: string[]; parts?: string[] }
   // Deterministic checks (docs/chat-system.md §6) run against EACH paragraph
   // as it completes during streaming, not just once over the finished answer
   // — the substrate for a later per-paragraph MODEL audit. `index` counts
@@ -89,7 +105,6 @@ export type HarnessEvent =
       // never reaches this wire — it stays only in the persisted Verdict
       // (message_checks.verdict) as the confirm gate's calibration record.
       contradictions: { answer: string; evidence: string; why: string; uuid: string | null }[];
-      notFound: string[];
       rulingIssued: boolean;
       invalidCitations: string[];
       invalidDocNos: string[];
@@ -166,7 +181,6 @@ function verifyEvent(
     // Unagreed candidates are dropped here — the confirm gate is hard, so a
     // candidate the second judge did not agree with must never reach the wire.
     contradictions: contradictions.filter((c) => c.agreed).map(asWire),
-    notFound: verdict?.not_found ?? [],
     rulingIssued: verdict?.ruling_issued ?? false,
     invalidCitations: checks.invalidCitations,
     invalidDocNos: checks.invalidDocNos,
@@ -279,7 +293,10 @@ const toolTextsOf = (transcript: Msg[]): string[] =>
 function splitFromTranscript(transcript: Msg[]): { atlasTexts: string[]; externalTexts: string[] } {
   const entries = evidenceFromTranscript(transcript, 500_000);
   return {
-    atlasTexts: entries.filter((e) => e.sourceClass !== "external" && e.sourceClass !== "user").map((e) => e.content),
+    // ALLOWLIST (verifier.ts's isAtlasText), not "everything that isn't
+    // external or user". Atlas text is the class quote-grounding certifies
+    // against, so an unrecognised tool result must never fall into it.
+    atlasTexts: entries.filter((e) => isAtlasText(e.sourceClass)).map((e) => e.content),
     externalTexts: entries.filter((e) => e.sourceClass === "external").map((e) => e.content),
   };
 }
@@ -362,6 +379,57 @@ async function runAudit(params: {
   return { run, modelLabel: `sliced(${[...new Set(Object.values(models))].join(",")})` };
 }
 
+// Resolves the citation-marks promise (or does nothing when the feature is
+// off) into the one event and one checksMeta row it can produce, so both call
+// sites in runVerifiedChat below — the verifierModel and no-verifierModel
+// paths — stay in lockstep on what "no marks" vs "nothing was judged" means.
+async function resolveCitationMarks(
+  promise: ReturnType<typeof runCitationMarks> | null,
+  model: string,
+): Promise<{ event: Extract<HarnessEvent, { type: "citation_marks" }> | null; meta: CheckRowMeta | null }> {
+  if (!promise) return { event: null, meta: null };
+  const run = await promise;
+  const event = Object.keys(run.marks).length > 0 ? ({ type: "citation_marks" as const, marks: run.marks }) : null;
+  if (run.judged.length === 0) return { event, meta: null };
+  // Only the raw judgements are stored. A per-status tally used to ride along,
+  // but conversations.ts deliberately re-folds `judged` through aggregateMarks
+  // on read rather than trusting a stored summary — so the tally had no reader
+  // and could only ever come to disagree with that fold.
+  return {
+    event,
+    meta: {
+      kind: "citation_check", model,
+      verdict: { judged: run.judged, confirm: run.confirm },
+      overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: run.latencyMs,
+    },
+  };
+}
+
+// Same contract as resolveCitationMarks: one event + one checksMeta row, from
+// both branches of runVerifiedChat below. judgeAnswerCoverage never rejects
+// (fail-open to null), and null means no event and no row — nothing was ruled.
+async function resolveAnswerCoverage(
+  promise: ReturnType<typeof judgeAnswerCoverage> | null,
+  model: string,
+): Promise<{ event: Extract<HarnessEvent, { type: "answer_coverage" }> | null; meta: CheckRowMeta | null }> {
+  const run = promise ? await promise : null;
+  if (!run) return { event: null, meta: null };
+  return {
+    event: {
+      type: "answer_coverage", verdict: run.verdict, missingParts: run.missingParts,
+      ...(run.parts.length > 0 ? { parts: run.parts.map((p) => p.text) } : {}),
+    },
+    meta: {
+      kind: "answer_coverage", model: run.rawToolOutput ? null : model,
+      // Raw distribution + per-part scores: the thresholds are ours, so a
+      // future move needs the distribution, not just the ruling.
+      verdict: { verdict: run.verdict, probabilities: run.probabilities, parts: run.parts, missingParts: run.missingParts, rawToolOutput: run.rawToolOutput },
+      overall: null, inputTokens: run.usage?.input ?? null, outputTokens: run.usage?.output ?? null,
+      generationId: run.generationId, latencyMs: run.latencyMs,
+    },
+  };
+}
+
 export async function* runVerifiedChat(opts: {
   ix: Indexes;
   messages: Msg[];
@@ -391,9 +459,7 @@ export async function* runVerifiedChat(opts: {
   // assistant tool_call name left to pair one with even if it were.
   const historyEntries = evidenceFromTranscript(opts.messages, Infinity);
   const historyTexts = historyEntries.map((e) => e.content);
-  const historyAtlasTexts = historyEntries
-    .filter((e) => e.sourceClass !== "external" && e.sourceClass !== "user")
-    .map((e) => e.content);
+  const historyAtlasTexts = historyEntries.filter((e) => isAtlasText(e.sourceClass)).map((e) => e.content);
   const gateEvidence: string[] = [...historyTexts];
   // This turn's tool results, named — the incremental checks below split them
   // by provenance the same way splitFromTranscript does for the whole-answer
@@ -453,7 +519,10 @@ export async function* runVerifiedChat(opts: {
   const paragraphEvidence = (): ParagraphEvidence => ({
     atlasTexts: [
       ...historyAtlasTexts,
-      ...gateResults.filter((r) => !isExternalMscTool(r.name) && !isUserTeachingTool(r.name)).map((r) => r.content),
+      // Same allowlist as the two sites above, reached by NAME here because
+      // gateResults carries no sourceClass — classifyToolSource is the single
+      // rule both spellings go through, so they cannot drift apart.
+      ...gateResults.filter((r) => isAtlasText(classifyToolSource(r.name))).map((r) => r.content),
     ],
     externalTexts: gateResults.filter((r) => isExternalMscTool(r.name)).map((r) => r.content),
     allTexts: gateEvidence,
@@ -514,17 +583,32 @@ export async function* runVerifiedChat(opts: {
 
   // ── Small-talk judge (concurrent — never blocks the answer) ──────────────
   // Fired alongside the conversationalist, not after it, so its ruling has
-  // resolved by the time the stream ends. Question-side gates keep it to at
-  // most one tiny call per conversation: only the FIRST user message (later
-  // turns lean on conversation context and always audit), and only when the
-  // message itself contains nothing groundable — "what is A.1.6?" needs no
-  // judge to be ruled factual. judgeSmalltalk never rejects (fail-closed
-  // internally), so an unconsumed promise is safe to abandon.
-  const smalltalkJudgeModel = opts.jsonCall ? config.chatSmalltalkJudgeModel : "";
-  const firstTurn = opts.messages.filter((m) => m.role === "user").length <= 1;
+  // resolved by the time the stream ends. Measured over 45 paired
+  // message_checks rows it was never the slower of the two — even a 58-char
+  // greeting answer outlasted it — so this is not on the critical path.
+  //
+  // ONE question-side gate: the message itself must contain nothing
+  // groundable ("what is A.1.6?" needs no judge to be ruled factual).
+  // judgeSmalltalkJev never rejects (fail-closed internally), so an unconsumed
+  // promise is safe to abandon, and it owns its own 5s deadline across retries.
+  //
+  // NO LONGER first-turn only (2026-09-22). The old gate meant a bare
+  // "thanks!" on turn 3 always paid a full audit. Every later-turn user
+  // message now gets the judge, on measured grounds: over 81 distinct real
+  // later-turn messages the two classes stayed as separable as on first turns
+  // — nothing at all landed between 0.42 and 0.91 — and the follow-up-shaped
+  // phrasings this newly exposes ("is that everything?", "so, thoughts?",
+  // "quick sanity check — does that sound right?") score at most 0.45, well
+  // under the 0.65 threshold. The judgment stays MESSAGE-ONLY: feeding it the
+  // prior turn was considered and rejected, because Jev's accuracy degrades as
+  // irrelevant state grows and judging the words alone already errs toward
+  // auditing, which is the safe direction. The bypass's other conditions
+  // (zero tools, uncheckable ANSWER) are unchanged and still do the heavy
+  // lifting on later turns.
+  const smalltalkJudgeModel = config.chatSmalltalkJudgeModel;
   const judgePromise =
-    smalltalkJudgeModel && firstTurn && isUncheckableAnswer(opts.question)
-      ? judgeSmalltalk({ call: opts.jsonCall!, model: smalltalkJudgeModel, question: opts.question, signal: opts.signal, obs: opts.obs })
+    smalltalkJudgeModel && isUncheckableAnswer(opts.question)
+      ? judgeSmalltalkJev({ question: opts.question, model: smalltalkJudgeModel, signal: opts.signal, obs: opts.obs })
       : null;
 
   // ── Conversationalist pass (answer streams at full speed) ────────────────
@@ -534,6 +618,21 @@ export async function* runVerifiedChat(opts: {
   // token of each burst is preceded by a "synthesizing" status so the client
   // can show it as a stage rather than silence before the draft appears.
   let announced = false;
+  // "Writing an answer from the evidence" is only TRUE when there is evidence.
+  // A turn that called no tools and had nothing injected is small talk or a
+  // conversational reply, and that copy reads as a false claim under a row
+  // with no Sources and no lookups beneath it. `historyEntries` is this turn's
+  // pre-stream material (the facts and /teach rounds; the dispute round is
+  // deliberately not evidence — see verifier.ts's classifyToolSource), and
+  // sawToolCall covers anything looked up mid-stream, and prevEvidence covers
+  // a turn grounded in EARLIER TURNS rather than a lookup — that one has no
+  // tool round and nothing injected, yet is genuinely written from evidence
+  // (its own later statuses say "against the conversation so far"). Together
+  // these are `grounded`'s definition at the post-answer pass below, just
+  // computed live. Deliberately NOT the small-talk judge: that runs after the
+  // answer (ruledSmalltalk, below), long after this status has to be sent.
+  const hasPriorBasis = historyEntries.length > 0 || prevEvidence !== null;
+  let sawToolCall = false;
   for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd, obs: opts.obs, jsonCall: opts.jsonCall, userQuestion: opts.question }), makeGate)) {
     if (ev.type === "done") {
       // Flush the trailing paragraph BEFORE breaking — this is still inside
@@ -555,6 +654,7 @@ export async function* runVerifiedChat(opts: {
       break; // held back — the harness emits its own terminal done
     }
     if (ev.type === "tool_call") {
+      sawToolCall = true; // this burst has evidence behind it — see hasPriorBasis
       resetParagraphs(); // the buffered draft is being set aside
       refuter?.reset(); // stale burst — its results are dropped when they land
       announced = false; // next generation round re-announces
@@ -570,7 +670,11 @@ export async function* runVerifiedChat(opts: {
     }
     if (ev.type === "token" && !announced) {
       announced = true;
-      yield { type: "status", stage: "synthesizing", detail: "Writing an answer from the evidence…" };
+      const groundedBurst = sawToolCall || hasPriorBasis;
+      yield {
+        type: "status", stage: "synthesizing",
+        detail: groundedBurst ? "Writing an answer from the evidence…" : "Responding…",
+      };
     }
     yield ev;
     if (ev.type === "token") {
@@ -623,8 +727,8 @@ export async function* runVerifiedChat(opts: {
   // ── Small-talk bypass ────────────────────────────────────────────────────
   // Skips the audit for pure greetings — behind deterministic conditions plus
   // the concurrent judge above, every one fail-closed toward auditing:
-  //   1. the judge fired at all (model configured + FIRST user message of the
-  //      conversation + the question itself contains nothing groundable);
+  //   1. the judge fired at all (model configured + the question itself
+  //      contains nothing groundable);
   //   2. zero tool rounds — the conversationalist itself judged no atlas was
   //      needed (the system prompt tells it plain conversation is tool-free);
   //   3. the answer contains nothing checkable — no doc numbers, links
@@ -642,13 +746,21 @@ export async function* runVerifiedChat(opts: {
   // always recorded in checksMeta when it fired — even if the ruling is
   // discarded because tools ran or the answer is checkable — so its tokens
   // land in message_checks and count toward the rate-limit window like every
-  // other harness call. The prompt is tiny (a few-line classifier + the user
-  // message, maxTokens 50), but it is still a billed call.
+  // other harness call. The state is tiny (one message + the question's
+  // criteria, ~340 input tokens, output free) but it is still a billed call —
+  // ~$0.00002, now once per marker-free turn rather than once per conversation.
+  // Hoisted out of the block below: a turn the judge ruled small talk that
+  // still goes on to the full audit (a tool ran, or the answer carries a link)
+  // also skips the answer-coverage check further down.
+  let ruledSmalltalk = false;
   if (judgePromise) {
     const judge = await judgePromise; // long since resolved — it raced the whole answer
+    ruledSmalltalk = judge.smalltalk;
     checksMeta.push({
       kind: "smalltalk_judge", model: smalltalkJudgeModel,
-      verdict: { smalltalk: judge.smalltalk }, overall: null,
+      // The raw probability is recorded alongside the ruling: the threshold is
+      // ours, so a future move needs the distribution, not just the verdict.
+      verdict: { smalltalk: judge.smalltalk, p: judge.p }, overall: null,
       inputTokens: judge.usage?.input ?? null, outputTokens: judge.usage?.output ?? null,
       generationId: judge.generationId, latencyMs: judge.latencyMs,
     });
@@ -723,6 +835,37 @@ export async function* runVerifiedChat(opts: {
   done = applyTeachHint(done);
   yield { type: "answer_final", content: done.content };
 
+  // Per-doc Sources-chip check (verify/citation-marks.ts) — started here,
+  // concurrently with the verifier audit below rather than serially after it;
+  // resolved and emitted once, after answer_final and before verify_result.
+  const citationMarksModel = config.chatCitationCheckModel;
+  const citationMarksPromise = citationMarksModel
+    ? runCitationMarks({
+        answer: done.content, ix: opts.ix, model: citationMarksModel,
+        jsonCall: opts.jsonCall, confirmModel: opts.jsonCall ? sliceModels().confirm : undefined,
+        signal: opts.signal, obs: opts.obs,
+      })
+    : null;
+
+  // "Did it answer the question?" (verify/answer-coverage.ts) — the same
+  // lifecycle as the marks above: started now, concurrent with the audit,
+  // resolved and emitted once before verify_result. Nothing earlier than
+  // answer_final reaches here, so the small-talk bypass and the checks-off /
+  // aborted / empty exits never run it. A turn the judge RULED small talk but
+  // that still gets audited is skipped too: the message expected no facts, so
+  // "did it answer?" has no meaning there (and that shape was never measured).
+  // It judges done.content as shown — including a /teach hint, which was not
+  // in the measured corpus.
+  const coverageModel = config.chatAnswerCoverageModel;
+  const coveragePromise =
+    coverageModel && !ruledSmalltalk
+      ? judgeAnswerCoverage({ question: opts.question, answer: done.content, model: coverageModel, signal: opts.signal, obs: opts.obs })
+      : null;
+  // Fail-open by construction (it never rejects), but nothing awaits it until
+  // the marks and the audit settle — mark it handled at creation all the same,
+  // for the same reason as the audit promise below.
+  coveragePromise?.catch(() => {});
+
   // verifierModel/paragraphMode were hoisted to the top of this function so
   // the per-paragraph refuter could be created before streaming started.
   // constEvidence is computed from the audited answer (done.content) itself,
@@ -734,6 +877,7 @@ export async function* runVerifiedChat(opts: {
     return [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...(ce ? [ce] : []), ...turnEvidence];
   };
   let verdict: Verdict | null = null;
+  let auditPromise: ReturnType<typeof runAudit> | null = null;
   if (verifierModel) {
     if (grounded) {
       const detail = paragraphMode
@@ -756,11 +900,34 @@ export async function* runVerifiedChat(opts: {
         yield { type: "paragraph_refute", index: r.index, parsed: r.parsed, candidates: r.contradictions.length };
       }
     }
-    const { run, modelLabel } = await runAudit({
+    // Started as a promise, not awaited yet — the post-answer checks below run
+    // concurrently with it rather than delaying its start.
+    auditPromise = runAudit({
       jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
       answer: done.content, evidence: baseEvidence(evidence, done.content), checks, signal: opts.signal, obs: opts.obs,
       paragraphRefutes, settleMs,
     });
+    // Nothing awaits the audit while those resolve, so a rejection in that
+    // window would be an UNHANDLED one. This no-op handler only marks it
+    // handled; the `await auditPromise` below still rethrows exactly as the
+    // old serial `await runAudit(...)` did.
+    auditPromise.catch(() => {});
+  }
+  // The audit is resolved FIRST here — before the marks event is built — so
+  // the marks can be reconciled against its verdict (verify/disputes.ts): an
+  // agreed contradiction sourced to a cited doc withholds that doc's ✓ from
+  // the Sources chips, so the reader can never see a confirmed dispute on a
+  // document sitting beside a green check for that SAME document in the same
+  // render (observed 2026-09-24 — see disputes.ts's header for the full
+  // design). The EMISSION order on the wire is UNCHANGED and still
+  // load-bearing — citation_marks, then answer_coverage, then verify_result
+  // (see HarnessEvent) — only the RESOLUTION order moved. Total latency is
+  // unchanged too: all three promises were already started concurrently
+  // above (or are null), and all three were already awaited before finish()
+  // regardless of the order they're awaited in here — don't "optimize" this
+  // back to resolving marks first.
+  if (auditPromise) {
+    const { run, modelLabel } = await auditPromise;
     verdict = run.verdict;
     checksMeta.push({
       kind: "verify", model: modelLabel, verdict: run.verdict,
@@ -769,6 +936,31 @@ export async function* runVerifiedChat(opts: {
       generationId: run.generationId, latencyMs: run.latencyMs,
     });
   }
+  const cm = await resolveCitationMarks(citationMarksPromise, citationMarksModel);
+  // Reconcile the WIRE event only. agreedContradictionsFrom takes a live
+  // Verdict object here and a persisted message_checks.verdict JSONB payload
+  // on the reload path (conversations.ts) — the two shapes are structurally
+  // identical, and using ONE function for both is deliberate so the two paths
+  // can never diverge on what counts as an agreed contradiction. The
+  // persisted checksMeta row below (`kind: "citation_check"`, cm.meta) is
+  // left UNRECONCILED on purpose — it is the citation lane's own calibration
+  // record, exactly like Verdict.contradictions stores every validated
+  // candidate (agreed and not); reconciling the stored row would erase the
+  // record of what the citation lane itself judged before the lanes were
+  // ever compared. This is a no-op on the no-verifierModel branch too
+  // (verdict stays null → agreedContradictionsFrom(null) → [] →
+  // withoutDisputedMarks returns `marks` unchanged), so citation-marks.ts's
+  // "both branches" contract still holds.
+  if (cm.event) {
+    const marks = withoutDisputedMarks(cm.event.marks, agreedContradictionsFrom(verdict));
+    // Mirrors resolveCitationMarks' own `Object.keys(run.marks).length > 0`
+    // guard: if reconciliation emptied the marks, emit no event at all.
+    if (Object.keys(marks).length > 0) yield { ...cm.event, marks };
+  }
+  if (cm.meta) checksMeta.push(cm.meta);
+  const cov = await resolveAnswerCoverage(coveragePromise, coverageModel);
+  if (cov.event) yield cov.event;
+  if (cov.meta) checksMeta.push(cov.meta);
   const overall = verifierModel ? computeOverall(checks, verdict) : checks.failed ? "fail" : "unverified";
 
   // Deterministic-only turns stay quiet unless something actually failed —

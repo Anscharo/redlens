@@ -9,7 +9,6 @@ function para(p: Partial<ParagraphRefute> & { index: number }): ParagraphRefute 
   return {
     text: `p${p.index}`,
     contradictions: [],
-    notFound: [],
     discarded: 0,
     parsed: true,
     latencyMs: 1,

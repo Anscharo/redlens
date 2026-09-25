@@ -56,8 +56,11 @@ export const FACTS: Fact[] = [
     id: "censuses",
     what: "Concept-census summaries (counts only) for questions phrased in census vocabulary.",
     summarize: (n) => `${n} census summar${n === 1 ? "y" : "ies"} (our own analysis)`,
-    run: ({ ix, question }) => {
-      const rows = censusPrefetchRows(ix, question);
+    // jevCensus (facts/types.ts) is the one FactContext field no other fact
+    // reads today — routeCensuses uses it to REPLACE the similarity lane, not
+    // add to it, when the pre-first-token judge ran (concepts-prefetch.ts).
+    run: ({ ix, question, jevCensus }) => {
+      const rows = censusPrefetchRows(ix, question, jevCensus);
       return { key: "censuses", value: rows, note: CENSUSES_NOTE, count: rows.length };
     },
   },

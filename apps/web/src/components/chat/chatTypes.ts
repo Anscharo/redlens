@@ -1,4 +1,4 @@
-import type { ParamMismatch, ToolCallRecord, VerifyContradiction, VerifyOverall } from "./api";
+import type { AnswerCoverage, CitationMark, ParamMismatch, ToolCallRecord, VerifyContradiction, VerifyOverall } from "./api";
 
 // Shared ChatMsg/trace/verify shape, split out of useChatStream.ts so
 // applyEvent.ts (pure event-application logic) and useChatStream.ts (the
@@ -24,15 +24,14 @@ export interface TraceRow {
 // Reliability-harness verdict for one assistant message. "checking" while the
 // audit is in flight. Refutation-only: the verifier never says what the
 // answer got right, only what the evidence contradicts — `contradictions`
-// (agreed by both auditors) drive `fail`, `rulingIssued` drives `warn`, and
-// `notFound` is informational only. A contradiction candidate the confirm
+// (agreed by both auditors) drive `fail` and `rulingIssued` drives `warn`.
+// A contradiction candidate the confirm
 // judge did NOT agree with never reaches this state at all — the confirm
 // gate is hard, and the unagreed candidate survives only in the persisted
 // Verdict (message_checks.verdict) as calibration data.
 export interface VerifyState {
   status: VerifyOverall | "checking";
   contradictions: VerifyContradiction[];
-  notFound: string[];
   rulingIssued: boolean;
   invalidCitations: string[];
   invalidDocNos: string[];
@@ -168,4 +167,20 @@ export interface ChatMsg {
   // its SupersededDraft.checks first). Live-session only — not persisted,
   // same as `exports`/`reasoning`.
   paragraphChecks?: ParagraphCheck[];
+  // Per-source-doc citation verdicts from the post-answer citation check
+  // (server: `citation_marks`), keyed by doc uuid. May never arrive (feature
+  // off, no citations, timeout) — absent/undefined means no marks, not "all
+  // clean". RESTORES on reload: the server re-folds the persisted
+  // citation_check row through the same `aggregateMarks` a live turn uses,
+  // then reconciles it against the verify row's agreed contradictions
+  // (src/server/chat/conversations.ts, verify/disputes.ts). This comment used
+  // to say "live-session only, not persisted"; that was wrong for marks even
+  // before `verify` joined them — see hydrate.ts for what actually restores.
+  citationMarks?: Record<string, CitationMark>;
+  // "Did it answer the question?" ruling (server: `answer_coverage`). May
+  // never arrive — absent means no ruling, not "answered". RESTORES on reload
+  // (conversations.ts's answerCoverageFor), like `citationMarks` and `verify`
+  // above; `parts` stays string[] here, while the stored row keeps the richer
+  // { text, p } judged parts the wire has never carried (see hydrate.ts).
+  answerCoverage?: AnswerCoverage;
 }

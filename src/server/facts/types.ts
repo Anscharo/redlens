@@ -9,6 +9,7 @@
 // and injects nothing. Anything that needs a model call is a tool, not a fact.
 import type { Indexes } from "../retrieval/indexes.ts";
 import type { PageContext } from "../chat/system-prompt.ts";
+import type { CensusSlug } from "../../lib/conceptsCensus.ts";
 
 export interface FactContext {
   ix: Indexes;
@@ -22,6 +23,16 @@ export interface FactContext {
    * trigger missed. A fact may still decline; it is a signal, not an order.
    */
   semanticHit?: boolean;
+  /**
+   * The pre-first-token Jev judgement's per-slug census scores (chat/
+   * prefetch-judge.ts), when that request ran. Only the census fact reads
+   * this today — it threads straight through to concepts-prefetch.ts's
+   * routeCensuses, which REPLACES the similarity lane with Jev when this is
+   * present rather than adding to it (see that file). Undefined on every
+   * turn the judge didn't run, was late, or failed — routing then falls back
+   * to regex + similarity exactly as before this field existed.
+   */
+  jevCensus?: Partial<Record<CensusSlug, number>>;
 }
 
 export interface FactBlock {

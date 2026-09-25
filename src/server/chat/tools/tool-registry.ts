@@ -48,7 +48,32 @@ export interface AtlasTool extends DescribedTool {
   whenToUse?: string;
   shape: z.ZodRawShape;
   annotations?: ToolAnnotations;
+  // Read "" / [] / [""] / null arguments as absent (omitEmptyArgs) — the chat
+  // transport strips them before zod validation too, so a null never fails it.
+  emptyArgsAbsent?: boolean;
   handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
+}
+
+// A model that fills EVERY declared property — the strong tier's does, on every
+// tool (pnpm eval:tools, 2026-09-22) — writes "" / [] / [""] for the ones it
+// means to leave out. None of those is ever a meaningful filter value, yet
+// `ids: [""]` beside a class filter tripped atlas_first_seen's "not both" error
+// on 12 of that model's 15 calls, and `edge_types: [""]` would intersect an
+// entity's docs to nothing. Blank array elements are dropped with the rest;
+// numbers and booleans pass through untouched (0 and false are real values).
+export function omitEmptyArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const blank = (v: unknown) => v === null || v === undefined || (typeof v === "string" && v.trim() === "");
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(args)) {
+    if (blank(v)) continue;
+    if (Array.isArray(v)) {
+      const kept = v.filter((x) => !blank(x));
+      if (kept.length) out[k] = kept;
+      continue;
+    }
+    out[k] = v;
+  }
+  return out;
 }
 
 // Combines `description` + `whenToUse` for the two AGENT consumers (chat's JSON
@@ -243,6 +268,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       limit: z.number().int().min(1).max(500).default(100),
       offset: z.number().int().min(0).default(0),
     },
+    // from_type/to_type are optional enums with no default — the shape a
+    // property-filling model cannot leave blank. An invented `from_type:
+    // "doc"` drops every entity-side edge, which is most of what this tool
+    // exists to enumerate.
+    emptyArgsAbsent: true,
     handler: (ix, a) =>
       atlasEdges(ix, {
         edge_type: a.edge_type as string | undefined,
@@ -302,7 +332,12 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       offset: z.number().int().min(0).default(0),
       include_content: z.boolean().default(false).describe("Include full content. Default false for slim listing rows."),
     },
-    handler: (ix, a) => atlasFilter(ix, a as Parameters<typeof atlasFilter>[1]),
+    // depth_min/depth_max are optional integers with no default, so a model
+    // that fills every property has no way to say "no depth range" — it
+    // invents one, and every document outside it silently stops matching on a
+    // tool whose whole job is a COMPLETE class listing.
+    emptyArgsAbsent: true,
+    handler: (ix, a) => atlasFilter(ix, omitEmptyArgs(a) as Parameters<typeof atlasFilter>[1]),
   },
   {
     name: "atlas_entity_params",
@@ -360,6 +395,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       with_diff: z.boolean().default(false).describe("Include line+word diffs in the response."),
     },
     handler: (ix, a) => atlasHistory(ix, a.id as string, a as Parameters<typeof atlasHistory>[2]),
+    // Same treatment as atlas_query (2026-09-23): the strong model fills every
+    // declared property, and an optional enum has no empty value — so it wrote a
+    // real change_type nobody asked for. `null` gives it a way to say "unset",
+    // and empty strings are read as absent.
+    emptyArgsAbsent: true,
   },
   {
     name: "atlas_recent_changes",
@@ -376,6 +416,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       k: z.number().int().min(1).max(200).default(50),
     },
     handler: (ix, a) => atlasRecentChanges(ix, a as Parameters<typeof atlasRecentChanges>[1]),
+    // Same treatment as atlas_query (2026-09-23): the strong model fills every
+    // declared property, and an optional enum has no empty value — so it wrote a
+    // real change_type nobody asked for. `null` gives it a way to say "unset",
+    // and empty strings are read as absent.
+    emptyArgsAbsent: true,
   },
   {
     name: "atlas_history_stats",
@@ -441,6 +486,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       limit: z.number().int().min(1).max(500).default(100),
     },
     handler: (ix, a) => atlasChangedBetween(ix, a as Parameters<typeof atlasChangedBetween>[1]),
+    // Same treatment as atlas_query (2026-09-23): the strong model fills every
+    // declared property, and an optional enum has no empty value — so it wrote a
+    // real change_type nobody asked for. `null` gives it a way to say "unset",
+    // and empty strings are read as absent.
+    emptyArgsAbsent: true,
   },
   {
     name: "atlas_first_seen",
@@ -473,7 +523,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
         .optional()
         .describe("Class mode only. `added` (default) = earliest added row; `modified` = earliest content edit."),
     },
-    handler: (ix, a) => atlasFirstSeen(ix, a as Parameters<typeof atlasFirstSeen>[1]),
+    emptyArgsAbsent: true,
+    handler: (ix, a) => atlasFirstSeen(ix, omitEmptyArgs(a) as Parameters<typeof atlasFirstSeen>[1]),
   },
   {
     name: "atlas_query",
@@ -488,7 +539,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "are intersected. Use instead of chaining atlas_search + atlas_get when the question spans dimensions. " +
       "Lean results by default — see `enrich`.",
     shape: atlasQueryShape,
-    handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
+    emptyArgsAbsent: true,
+    handler: (ix, a) => atlasQuery(ix, omitEmptyArgs(a) as unknown as QueryArgs),
   },
   // ── Curated reports (atlas_report_*) ──────────────────────────────────────
   // Model-ready rollups too expensive to assemble from primitive graph calls.

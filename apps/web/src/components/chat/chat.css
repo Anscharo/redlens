@@ -486,6 +486,51 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-cite:hover { background: var(--hover); border-color: var(--accent); }
 .rlc-cite-doc { font: 400 11.5px/1 "Source Code Pro", monospace; color: var(--tan-3); }
 .rlc-cite-title { font: 400 14px/1 var(--serif, "Lora", serif); color: var(--tan-2); }
+/* Post-answer citation-check mark, appended after the title. Five states, two
+   colours: every check is green, every warning amber. */
+.rlc-cite-mark { font: 400 12px/1 "Source Code Pro", monospace; }
+.rlc-cite-mark[data-status="backed"],
+.rlc-cite-mark[data-status="backed_weak"],
+.rlc-cite-mark[data-status="mixed"],
+.rlc-cite-mark[data-status="partial"] { color: var(--terminal-green); }
+.rlc-cite-mark[data-status="disputed"],
+.rlc-cite-mark[data-status="uncovered"] { color: var(--warn); }
+/* The warning half of a mark. `mixed` and `partial` pair it with their check —
+   the source backs the line it was cited for and something still wants the
+   reader's eye — and `uncovered` is this glyph on its own. */
+.rlc-cite-warn { color: var(--warn); margin-left: 2px; }
+.rlc-cite-mark[data-status="uncovered"] .rlc-cite-warn { margin-left: 0; }
+/* Quoted line inside the source tooltip. The tip is portaled to body, so this
+   cannot nest under .rlc-panel. mousedown is cancelled in JS so taking focus
+   doesn't unmount the tip before the click lands. */
+.rlc-cite-jump {
+  display: block;
+  width: 100%;
+  margin: 2px 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--tan-3);
+  text-underline-offset: 2px;
+}
+.rlc-cite-jump:hover { color: var(--tan); }
+/* Brief flash on the sentence a source tooltip just pointed at. */
+.rlc-claim-flash {
+  scroll-margin-top: 64px;
+  border-radius: 2px;
+  background-color: transparent;
+  color: inherit;
+  animation: rlc-claim-flash 1.2s ease-out;
+}
+@keyframes rlc-claim-flash {
+  0%, 40% { background-color: var(--row-pulse-flash); }
+  100% { background-color: transparent; }
+}
 
 /* ── Export / download chips (export_findings tool) ─────────────────────── */
 .rlc-exports { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 8px; }
@@ -637,30 +682,25 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-verify-claims li + li { margin-top: 4px; }
 .rlc-verify-claims li[data-status="contradicted"] code { color: var(--error-text); }
 .rlc-verify-quote { color: var(--tan-2); font-style: italic; }
-.rlc-verify-notfound { margin: 6px 0 0; }
-/* The disclosure toggle reuses .rlc-stage-toggle's plain-row treatment
-   (no border/background, pointer cursor) so it reads as "more detail
-   available" rather than as a warning — see the comment on NotFoundNote. */
-.rlc-verify-notfound-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+/* Answer-confidence facts (AnswerFacts.tsx): one muted mono line in the
+   badge's own type, tucked under it so badge + line read as one unit. The
+   flagged fact ("Didn't answer the question", "Didn't address: …", and the
+   sources count when a checked source is disputed) takes the caution accent;
+   its words carry the meaning, not the colour. */
+.rlc-answer-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 8px 0 0;
   padding: 0;
-  border: none;
-  background: transparent;
+  list-style: none;
   color: var(--tan-3);
   font: 400 11.5px/1.4 "Source Code Pro", monospace;
   letter-spacing: 0.03em;
-  cursor: pointer;
 }
-.rlc-verify-notfound-list {
-  margin: 4px 0 0;
-  padding-left: 16px;
-  list-style: disc;
-  color: var(--tan-3);
-  font: 400 11.5px/1.4 "Source Code Pro", monospace;
-}
-.rlc-verify-notfound-list li + li { margin-top: 3px; }
+.rlc-verify + .rlc-answer-facts { margin-top: 5px; }
+.rlc-answer-facts li + li::before { content: "·"; margin-right: 8px; color: var(--tan-3); }
+.rlc-answer-facts li[data-status="flagged"] { color: var(--warn); }
 
 /* ── Trace rows + collapsed-checklist summary head ─────────────────────────
    The old standalone collapsible trace card is gone — trace rows now render
@@ -1058,9 +1098,12 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-nomotion .rlc-twinkle,
 .rlc-nomotion .rlc-verify-dot,
 .rlc-nomotion .rlc-stage-marker,
-.rlc-nomotion .rlc-caret { animation: none !important; }
+.rlc-nomotion .rlc-caret,
+.rlc-nomotion .rlc-claim-flash { animation: none !important; }
+.rlc-nomotion .rlc-claim-flash { background-color: var(--row-pulse-flash); }
 .rlc-nomotion .rlc-caret { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
-  .rlc-panel, .rlc-turn, .rlc-jump, .rlc-menu, .rlc-limits-popover, .rlc-ember, .rlc-twinkle, .rlc-caret, .rlc-verify-dot, .rlc-stage-marker { animation: none !important; }
+  .rlc-panel, .rlc-turn, .rlc-jump, .rlc-menu, .rlc-limits-popover, .rlc-ember, .rlc-twinkle, .rlc-caret, .rlc-verify-dot, .rlc-stage-marker, .rlc-claim-flash { animation: none !important; }
   .rlc-caret { opacity: 1; }
+  .rlc-claim-flash { background-color: var(--row-pulse-flash); }
 }

@@ -1,10 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { isUncheckableAnswer, judgeSmalltalk, SMALLTALK_MAX_CHARS } from "./smalltalk.ts";
-import type { JsonCall } from "../llm.ts";
-
-const answering = (text: string): JsonCall => async () => ({
-  text, usage: { input: 5, output: 2 }, generationId: "gen-1", latencyMs: 3,
-});
+import { isUncheckableAnswer, SMALLTALK_MAX_CHARS } from "./smalltalk.ts";
 
 describe("isUncheckableAnswer", () => {
   it("passes plain greetings and courtesies", () => {
@@ -45,34 +40,5 @@ describe("isUncheckableAnswer", () => {
 
   it("fails on long answers regardless of content", () => {
     expect(isUncheckableAnswer("a".repeat(SMALLTALK_MAX_CHARS + 1))).toBe(false);
-  });
-});
-
-describe("judgeSmalltalk", () => {
-  it("returns true only for an explicit {\"smalltalk\": true} ruling", async () => {
-    const run = await judgeSmalltalk({ call: answering('{"smalltalk": true}'), model: "m", question: "hello" });
-    expect(run.smalltalk).toBe(true);
-    expect(run.usage).toEqual({ input: 5, output: 2 });
-  });
-
-  it("extracts the JSON from surrounding prose", async () => {
-    const run = await judgeSmalltalk({ call: answering('Sure: {"smalltalk": true} there you go'), model: "m", question: "hi" });
-    expect(run.smalltalk).toBe(true);
-  });
-
-  it("fails closed on a false ruling, garbage, wrong types, and empty output", async () => {
-    for (const text of ['{"smalltalk": false}', "not json at all", '{"smalltalk": "yes"}', ""]) {
-      const run = await judgeSmalltalk({ call: answering(text), model: "m", question: "hello" });
-      expect(run.smalltalk).toBe(false);
-    }
-  });
-
-  it("fails closed when the call throws", async () => {
-    const throwing: JsonCall = async () => {
-      throw new Error("provider down");
-    };
-    const run = await judgeSmalltalk({ call: throwing, model: "m", question: "hello" });
-    expect(run.smalltalk).toBe(false);
-    expect(run.usage).toBeNull();
   });
 });

@@ -21,6 +21,24 @@ test("buildConfirmPrompt carries only the answer + numbered candidates, never a 
   expect(content).toContain("2. Answer: \"Y is active\"");
   expect(content).toContain("count differs");
   expect(content).toContain("status differs");
+  expect(content).toContain("Evidence:");
+  expect(content).not.toContain("full text of the cited document");
+});
+
+test("buildConfirmPrompt labels citation-mark evidence as the whole document", () => {
+  const [, user] = buildConfirmPrompt({
+    answer: "The threshold is 3.",
+    candidates: [contradiction({ answer_span: "The threshold is 3.", evidence_span: "The threshold is seven.", why: "count differs" })],
+    evidenceIsDocument: true,
+  });
+  const content = String(user.content);
+  expect(content).toContain("Evidence (full text of the cited document): \"The threshold is seven.\"");
+  const [system] = buildConfirmPrompt({
+    answer: "a",
+    candidates: [contradiction()],
+    evidenceIsDocument: true,
+  });
+  expect(String(system.content)).toContain("whole document, not one sentence");
 });
 
 const call = (text: string): JsonCall => async () => ({ text, usage: { input: 5, output: 2 }, generationId: "g", latencyMs: 3 });

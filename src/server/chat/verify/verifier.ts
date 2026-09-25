@@ -9,9 +9,12 @@
 import type OpenAI from "openai";
 import { config } from "../../config.ts";
 import type { CheckReport } from "./verify-checks.ts";
+import type { ScreenRecord } from "./refute-screen-record.ts";
 import { isExternalMscTool } from "../../external/envelope.ts";
 import { FACT_TOOL_NAME } from "../../facts/registry.ts";
 import { isUserTeachingTool } from "../teach/inject.ts";
+import { DISPUTE_TOOL_NAME } from "../dispute-round.ts";
+import { TOOLS_BY_NAME } from "../tools/tool-registry.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -26,13 +29,12 @@ export interface Contradiction {
   why: string; // ≤ 20 words
   evidence_label: string; // "[E3]" — the entry the span matched
   uuid: string | null; // nearest `"id":"<uuid>"` (or "uuid") preceding the match inside that entry, else null
-  source: "model" | "param-table";
+  source: "model" | "param-table" | "cited-doc";
   agreed: boolean; // confirm-gate outcome
 }
 
 export interface Verdict {
   contradictions: Contradiction[]; // ALL validated candidates (agreed and not)
-  not_found: string[]; // ≤ 5, text only
   ruling_issued: boolean;
   notes: string; // refute + overreach notes, ≤ 600 chars (persistence only)
   refuteParsed: boolean; // the refute backbone parsed
@@ -46,7 +48,9 @@ export interface Verdict {
   // per-burst stats for the persisted verdict — count of paragraphs submitted,
   // how many parsed, how many raw candidates they produced before span
   // validation, how many were discarded by validation, and how many timed out.
-  paragraphs?: { count: number; parsed: number; candidates: number; discarded: number; timedOut: number };
+  // `screen`: one row per paragraph call when the Jev refute screen ran
+  // (CHAT_REFUTE_SCREEN, verify/refute-screen-record.ts) — its calibration record.
+  paragraphs?: { count: number; parsed: number; candidates: number; discarded: number; timedOut: number; screen?: ScreenRecord[] };
 }
 
 export type VerifyOverall = "pass" | "warn" | "fail" | "unverified";
@@ -90,7 +94,8 @@ export interface EvidenceEntry {
   // injecting it. Deliberately still grouped with atlas (not external) for
   // quote-grounding in splitFromTranscript: glossary definitions genuinely are
   // atlas text, and moving them out would start failing quotes that are real.
-  sourceClass?: "atlas" | "external" | "reference" | "user";
+  /** See classifyToolSource: "atlas" is EARNED by a registry tool, never assumed. */
+  sourceClass?: SourceClass;
 }
 
 // Budget a flat list of evidence entries to `maxChars`, newest-first (later
@@ -134,6 +139,66 @@ export function budgetEvidence(entries: EvidenceEntry[], maxChars: number): Evid
 
 // Pull the turn's tool calls + results out of the loop transcript, labeled
 // [E1..En] in chronological order, then budgeted (see budgetEvidence).
+export type SourceClass = "atlas" | "external" | "reference" | "user" | "unknown";
+
+/**
+ * What KIND of text a tool result is. Atlas provenance is an ALLOWLIST —
+ * earned by being a tool in the registry (tools/tool-registry.ts's
+ * ATLAS_TOOLS, via TOOLS_BY_NAME) — and everything unrecognised falls to
+ * "unknown".
+ *
+ * This used to default to "atlas", which had it exactly backwards. Atlas text
+ * is the privileged class: it is what quote-grounding will certify a quote
+ * against and what the refute auditor reads as authoritative. Defaulting to it
+ * meant any tool result the harness did not recognise was silently promoted to
+ * atlas evidence — and that was not hypothetical. `export_findings`
+ * (llm-tools.ts appends it to CHAT_TOOLS outside ATLAS_TOOLS, so it is not in
+ * the registry) was being classed as atlas, as was the `{ tool: "unknown" }`
+ * fallback below for a tool message whose assistant tool_call is missing.
+ *
+ * Order matters: the external-MSC check runs first because ask_external_msc is
+ * appended to CHAT_TOOLS outside ATLAS_TOOLS too, and the facts/teach rounds
+ * are synthetic names that are deliberately not registry tools.
+ */
+export function classifyToolSource(tool: string): SourceClass {
+  if (isExternalMscTool(tool)) return "external";
+  if (tool === FACT_TOOL_NAME) return "reference";
+  if (isUserTeachingTool(tool)) return "user";
+  return TOOLS_BY_NAME.has(tool) ? "atlas" : "unknown";
+}
+
+/**
+ * Does this class count as atlas text for grounding? "reference" is the facts
+ * prefetch round, which is atlas-derived (glossary rows, entity rows,
+ * censuses) and has always been grouped here deliberately.
+ *
+ * An ALLOWLIST on purpose, and every caller in chat-orchestrator.ts goes
+ * through it. The three filters that used to spell this out inline were
+ * blacklists ("not external and not user"), so adding a new class would have
+ * silently admitted it to the grounding pool at all three sites at once.
+ */
+export function isAtlasText(cls: SourceClass | undefined): boolean {
+  return cls === "atlas" || cls === "reference";
+}
+
+// The dispute round (dispute-round.ts) is NOT evidence and is dropped from
+// both extractors below. It is a note about the PREVIOUS turn's verifier
+// result, and it quotes the model's own flagged sentence verbatim — so left
+// in, it would fall through to the `"atlas"` default here and land in
+// `atlasTexts` (chat-orchestrator.ts groups "atlas" and "reference" together).
+// Quote-grounding would then certify the very sentence the harness disputed
+// the moment the model repeated it, and the refute auditor would read the
+// flag's own text as retrieved atlas material. A `"reference"` class would
+// not have helped: it is grouped with atlas too.
+//
+// The cost of dropping it is that a model which QUOTES the truncated atlas
+// span out of the dispute block gets an ungrounded-quote flag. That is the
+// conservative direction, and the block's own footer already tells the model
+// to look the source document up with atlas_get rather than quote the excerpt.
+function isDisputeRound(tool: string): boolean {
+  return tool === DISPUTE_TOOL_NAME;
+}
+
 export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chatVerifierEvidenceMaxChars): EvidenceEntry[] {
   const callById = new Map<string, { tool: string; args: string }>();
   const entries: EvidenceEntry[] = [];
@@ -145,18 +210,13 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
     }
     if (m.role === "tool" && typeof m.content === "string") {
       const call = callById.get(m.tool_call_id) ?? { tool: "unknown", args: "{}" };
+      if (isDisputeRound(call.tool)) continue; // not evidence — see isDisputeRound
       entries.push({
         label: `[E${entries.length + 1}]`,
         tool: call.tool,
         args: call.args,
         content: m.content,
-        sourceClass: isExternalMscTool(call.tool)
-          ? "external"
-          : call.tool === FACT_TOOL_NAME
-            ? "reference"
-            : isUserTeachingTool(call.tool)
-              ? "user"
-              : "atlas",
+        sourceClass: classifyToolSource(call.tool),
       });
     }
   }
@@ -173,18 +233,13 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
 // string to recover mid-stream (or, for history, chat.ts replays only
 // `{role, content}` — see docs/chat-system.md §6's Deferred note).
 export function evidenceFromResults(results: { name: string; content: string }[], maxChars = config.chatVerifierEvidenceMaxChars): EvidenceEntry[] {
-  const entries: EvidenceEntry[] = results.map((r, i) => ({
+  // Filtered BEFORE the map so the [E..] labels stay contiguous.
+  const entries: EvidenceEntry[] = results.filter((r) => !isDisputeRound(r.name)).map((r, i) => ({
     label: `[E${i + 1}]`,
     tool: r.name,
     args: "(streamed)",
     content: r.content,
-    sourceClass: isExternalMscTool(r.name)
-      ? "external"
-      : r.name === FACT_TOOL_NAME
-        ? "reference"
-        : isUserTeachingTool(r.name)
-          ? "user"
-          : "atlas",
+    sourceClass: classifyToolSource(r.name),
   }));
   return budgetEvidence(entries, maxChars);
 }

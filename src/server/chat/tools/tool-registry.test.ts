@@ -14,8 +14,8 @@
 // exercising the handler wiring, not re-testing DB query logic.
 import { test, expect, mock, beforeEach } from "bun:test";
 import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
-import { ATLAS_TOOLS, TOOLS_BY_NAME, toolDescription, type AtlasTool } from "./tool-registry.ts";
-import { execToolDetailed } from "./llm-tools.ts";
+import { ATLAS_TOOLS, TOOLS_BY_NAME, omitEmptyArgs, toolDescription, type AtlasTool } from "./tool-registry.ts";
+import { execToolDetailed, CHAT_TOOLS } from "./llm-tools.ts";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
 import { REPORT_CHAT_TOOLS } from "../../../lib/routes.ts";
 
@@ -194,4 +194,120 @@ test("execToolDetailed catches a throwing handler and returns its message as {er
   } finally {
     TOOLS_BY_NAME.set("atlas_describe", original);
   }
+});
+
+// ── empty arguments read as absent (emptyArgsAbsent) ─────────────────────────
+// The strong tier's model fills every declared property; these are its real
+// argument shapes from the 2026-09-22 eval:tools baseline.
+test("omitEmptyArgs drops blank strings, null, empty arrays and blank array elements; keeps numbers and booleans", () => {
+  expect(
+    omitEmptyArgs({ ids: [""], title: "Rate Limits", title_prefix: " ", type: "", event: "added", entity: null, edge_types: [] }),
+  ).toEqual({ title: "Rate Limits", event: "added" });
+  expect(omitEmptyArgs({ ids: ["", "A.1.9", null] })).toEqual({ ids: ["A.1.9"] });
+  expect(omitEmptyArgs({ k: 10, offset: 0, enrich: false, include_params: true, recent_commits: null })).toEqual({
+    k: 10, offset: 0, enrich: false, include_params: true,
+  });
+});
+
+// The opt-in list is pinned on purpose: it changes what the model is SHOWN
+// (null-for-unset) as well as how args are read, so adding a tool here is a
+// deliberate act. atlas_query + atlas_first_seen came first (2026-09-22); the
+// three history tools followed once the same filled-in change_type showed up on
+// them (2026-09-23), then atlas_edges + atlas_filter the same day.
+test("the opt-in list is exactly this, and changing it is a deliberate act", () => {
+  expect(ATLAS_TOOLS.filter((t) => t.emptyArgsAbsent).map((t) => t.name).sort()).toEqual([
+    "atlas_changed_between",
+    "atlas_edges",
+    "atlas_filter",
+    "atlas_first_seen",
+    "atlas_history",
+    "atlas_query",
+    "atlas_recent_changes",
+  ]);
+});
+
+// The list above says WHICH tools opted in; this says every tool that NEEDS to
+// has. The literal list alone let atlas_edges and atlas_filter sit out for a
+// day under a test whose name claimed the opposite — a new tool with an
+// optional enum or a bounded integer would have done the same. The predicate
+// is withNullForUnset's (llm-tools.ts): a property the model cannot leave
+// blank is one that is optional, has no default, and admits no empty value.
+test("every tool with a property the model cannot leave blank has opted in", () => {
+  const offenders: string[] = [];
+  for (const t of ATLAS_TOOLS) {
+    if (t.emptyArgsAbsent) continue;
+    const params = (CHAT_TOOLS.find((c) => c.type === "function" && c.function.name === t.name) as
+      | { function: { parameters: { properties?: Record<string, Record<string, unknown>>; required?: string[] } } }
+      | undefined)?.function.parameters;
+    const required = new Set(params?.required ?? []);
+    for (const [key, p] of Object.entries(params?.properties ?? {})) {
+      if (required.has(key) || "default" in p) continue;
+      if (Array.isArray(p.enum) || p.type === "integer" || p.type === "number") offenders.push(`${t.name}.${key}`);
+    }
+  }
+  expect(offenders).toEqual([]);
+});
+
+const FIRST_SEEN_FILLED = { ids: [""], title: "D1", title_prefix: "", type: "", doc_no_pattern: "", ancestor_id: "", entity: "", event: "added" };
+
+test("atlas_first_seen: ids:[\"\"] beside a class filter runs class mode instead of the ids-and-class error", async () => {
+  const ix = makeIx();
+  const out = JSON.parse((await execToolDetailed(ix, "atlas_first_seen", JSON.stringify(FIRST_SEEN_FILLED))).content);
+  expect(out.error).toBeUndefined();
+  expect(out.class_total).toBe(1);
+  // The MCP transport calls the handler directly, after its own zod pass.
+  const viaHandler = (await TOOLS_BY_NAME.get("atlas_first_seen")!.handler(ix, FIRST_SEEN_FILLED)) as Record<string, unknown>;
+  expect(viaHandler.error).toBeUndefined();
+  expect(viaHandler.class_total).toBe(1);
+});
+
+test("atlas_first_seen: a real ids list beside a real class filter is still refused", async () => {
+  const out = JSON.parse((await execToolDetailed(makeIx(), "atlas_first_seen", JSON.stringify({ ids: ["D1"], title: "D1" }))).content);
+  expect(out.error).toMatch(/not both/);
+});
+
+// The two 2026-09-23 opt-ins, both the shape a property-filling model cannot
+// leave blank: an invented from_type drops every entity-side edge, and an
+// invented depth band drops documents from a listing that claims completeness.
+test("atlas_edges: a filled-in-but-empty endpoint filter enumerates everything, entity-side edges included", async () => {
+  const ix = makeIx();
+  const filled = { edge_type: "", from_type: null, to_type: null, from_slug: "", to_slug: "" };
+  const out = JSON.parse((await execToolDetailed(ix, "atlas_edges", JSON.stringify(filled))).content);
+  expect(out.error).toBeUndefined();
+  // Every edge in the fixture, two of them entity-side — a from_type:"doc"
+  // the model invented on its own would have hidden both.
+  expect(out.total).toBe(8);
+  expect((out.edges as { from: { node_type: string } }[]).some((e) => e.from.node_type === "entity")).toBe(true);
+});
+
+test("atlas_filter: a null depth band lists the whole class, but a real depth_min:0 is still honoured", async () => {
+  const ix = makeIx();
+  const nulled = JSON.parse(
+    (await execToolDetailed(ix, "atlas_filter", JSON.stringify({ type: "Core", depth_min: null, depth_max: null }))).content,
+  );
+  expect(nulled.error).toBeUndefined();
+  expect(nulled.total).toBe(6); // every Core doc, depths 1..3
+  // 0 is a REAL value, not an "unset" one — omitEmptyArgs must not strip it.
+  const bounded = JSON.parse(
+    (await execToolDetailed(ix, "atlas_filter", JSON.stringify({ type: "Core", depth_min: 0, depth_max: 1 }))).content,
+  );
+  expect(bounded.total).toBe(2); // the two depth-1 Core docs, not the depth 2-3 ones
+});
+
+test("atlas_query: null for an unset filter is not an invalid-arguments error, and filters nothing", async () => {
+  const ix = makeIx();
+  const args = {
+    query: "governance", entity: "", edge_types: [], target_type: "", via_entity_type: "", recent_commits: null, since: "", until: "",
+    change_type: null, status: "", ancestor_id: "", include_params: false, direction: "both", k: 10, enrich: false, q: "",
+  };
+  const out = JSON.parse((await execToolDetailed(ix, "atlas_query", JSON.stringify(args))).content);
+  expect(out.error).toBeUndefined();
+  expect(out.filters_applied).toBeUndefined();
+  expect(out.results.map((r: { id: string }) => r.id)).toContain("D0");
+});
+
+test("atlas_query: edge_types:[\"\"] does not intersect an entity's docs to nothing", async () => {
+  const out = JSON.parse((await execToolDetailed(makeIx(), "atlas_query", JSON.stringify({ entity: "ent", edge_types: [""] }))).content);
+  expect(out.mode).toBe("entity_broad");
+  expect(Object.keys(out.by_relationship)).toContain("defines_entity");
 });

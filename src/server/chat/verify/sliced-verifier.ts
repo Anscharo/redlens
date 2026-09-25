@@ -95,7 +95,7 @@ export async function runSlicedVerifier(params: {
     : (() => {
         const refuteResult = results.find((r) => r.slice === "refute")!;
         return {
-          candidates: refuteResult.contradictions, notFound: refuteResult.notFound,
+          candidates: refuteResult.contradictions,
           discardedTotal: results.reduce((s, r) => s + r.discarded, 0), parsed: refuteResult.parsed,
           notes: "", usage: [] as { input: number; output: number }[], paragraphs: undefined,
         };
@@ -119,7 +119,6 @@ export async function runSlicedVerifier(params: {
   const verdict: Verdict | null = anyParsed
     ? {
         contradictions: candidates,
-        not_found: backbone.notFound,
         ruling_issued: overreachResult.rulingIssued,
         notes: buildNotes(results, backbone.discardedTotal, backbone.notes || undefined),
         refuteParsed: backbone.parsed,

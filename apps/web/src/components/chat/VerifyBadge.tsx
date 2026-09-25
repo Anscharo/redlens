@@ -23,41 +23,6 @@ function chipLabel(verify: VerifyState): string {
   return "caution: the answer issues a ruling";
 }
 
-// Disclosure for `verify.notFound` — statements the auditor couldn't locate
-// in evidence at all. Deliberately informational, never an error: it never
-// touches `hasFindings`/the chip (see the `notFound` comment in
-// chatTypes.ts/VerifyState), so its label must not imply something went
-// wrong. Same toggle language as the stage rows (.rlc-stage-toggle / the
-// trace caret) — a plain disclosure, not a warning.
-function NotFoundNote({ items }: { items: string[] }) {
-  const [open, setOpen] = useState(false);
-  const listId = useId();
-  if (items.length === 0) return null;
-  const n = items.length;
-  return (
-    <div className="rlc-verify-notfound">
-      <button
-        type="button"
-        className="rlc-verify-notfound-toggle"
-        aria-expanded={open}
-        aria-controls={listId}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className="rlc-trace-caret" data-open={open} aria-hidden="true">
-          ▾
-        </span>
-        {n} statement{n === 1 ? "" : "s"} the retrieved sources don't cover
-      </button>
-      {open && (
-        <ul id={listId} className="rlc-verify-notfound-list">
-          {items.map((s, i) => (
-            <li key={i}>{s}</li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 export function VerifyBadge({ verify, onAtlas }: { verify: VerifyState; onAtlas: (uuid: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -84,7 +49,6 @@ export function VerifyBadge({ verify, onAtlas }: { verify: VerifyState; onAtlas:
         <span className="rlc-verify-dot" aria-hidden="true" />
         {label}
       </button>
-      <NotFoundNote items={verify.notFound} />
       {open && <VerifyFindings id={findingsId} verify={verify} onAtlas={onAtlas} />}
     </div>
   );

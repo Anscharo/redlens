@@ -110,7 +110,6 @@ describe("Message", () => {
           verify: {
             status: "pass",
             contradictions: [],
-            notFound: [],
             rulingIssued: false,
             invalidCitations: [],
             invalidDocNos: [],
@@ -130,6 +129,46 @@ describe("Message", () => {
       />,
     );
     expect(screen.getByText("no contradictions found")).toBeInTheDocument();
+  });
+
+  it("puts the answer-confidence facts right after the verify badge, as one unit", () => {
+    const { container } = render(
+      <Message
+        msg={baseMsg({
+          content: "See [Doc](/atlas/11111111-1111-1111-1111-111111111111)",
+          done: true,
+          verify: {
+            status: "pass", contradictions: [], rulingIssued: false, invalidCitations: [], invalidDocNos: [],
+            docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [],
+            completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false,
+          },
+          answerCoverage: { verdict: "answers", missingParts: ["when"] },
+          citationMarks: { "11111111-1111-1111-1111-111111111111": { status: "backed", claims: [] } },
+        })}
+        streaming={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    const facts = screen.getByRole("list", { name: "Answer confidence" });
+    expect(container.querySelector(".rlc-verify")?.nextElementSibling).toBe(facts);
+    expect(facts).toHaveTextContent("Didn't address: “when”");
+    expect(facts).toHaveTextContent("1 of 1 checked source backs the answer");
+  });
+
+  it("shows the coverage line without a badge when no verifier ran", () => {
+    render(
+      <Message
+        msg={baseMsg({ content: "Let me look that up.", done: true, answerCoverage: { verdict: "deflects", missingParts: [] } })}
+        streaming={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Didn't answer the question")).toBeInTheDocument();
+  });
+
+  it("renders no confidence line when neither coverage nor marks arrived", () => {
+    render(<Message msg={baseMsg({ content: "an answer", done: true })} streaming={false} onAtlas={vi.fn()} />);
+    expect(screen.queryByRole("list", { name: "Answer confidence" })).toBeNull();
   });
 });
 
@@ -385,7 +424,6 @@ describe("Message answer reveal", () => {
 describe("Message provisional answer rendering", () => {
   const verify = {
     contradictions: [],
-    notFound: [],
     rulingIssued: false,
     invalidCitations: [],
     invalidDocNos: [],

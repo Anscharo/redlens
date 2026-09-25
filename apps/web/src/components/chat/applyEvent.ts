@@ -86,7 +86,6 @@ export function applyEvent(m: ChatMsg, ev: ChatEvent): ChatMsg {
               verify: {
                 status: "checking" as const,
                 contradictions: [],
-                notFound: [],
                 rulingIssued: false,
                 invalidCitations: [],
                 invalidDocNos: [],
@@ -105,6 +104,25 @@ export function applyEvent(m: ChatMsg, ev: ChatEvent): ChatMsg {
       };
     }
 
+    case "citation_marks":
+      // Merges by doc uuid rather than replacing wholesale — nothing shown is
+      // ever removed, same rule as the rest of the message. In practice the
+      // server sends exactly one of these per turn, but a re-send should add
+      // to, not clobber, marks already on screen.
+      return { ...m, citationMarks: { ...m.citationMarks, ...ev.marks } };
+
+    case "answer_coverage": {
+      // Appends, never replaces — nothing shown is ever removed. The server
+      // sends at most one per turn; should a second ever land, the verdict
+      // already on screen stays and only newly named parts are added.
+      const prev = m.answerCoverage;
+      if (!prev) {
+        return { ...m, answerCoverage: { verdict: ev.verdict, missingParts: ev.missingParts, ...(ev.parts ? { parts: ev.parts } : {}) } };
+      }
+      const added = ev.missingParts.filter((p) => !prev.missingParts.includes(p));
+      return added.length === 0 ? m : { ...m, answerCoverage: { ...prev, missingParts: [...prev.missingParts, ...added] } };
+    }
+
     case "verify_result":
       return {
         ...m,
@@ -116,7 +134,6 @@ export function applyEvent(m: ChatMsg, ev: ChatEvent): ChatMsg {
         verify: {
           status: ev.overall,
           contradictions: ev.contradictions,
-          notFound: ev.notFound ?? [],
           rulingIssued: ev.rulingIssued ?? false,
           invalidCitations: ev.invalidCitations,
           invalidDocNos: ev.invalidDocNos,

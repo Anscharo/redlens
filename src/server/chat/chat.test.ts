@@ -102,6 +102,8 @@ describe("handleChat", () => {
   let savedOpenrouterKey: string;
   let savedTitleModel: string;
   let savedJudgeModel: string;
+  let savedPrefetchJudgeModel: string;
+  let savedCoverageModel: string;
 
   afterAll(() => {
     // Restore config mutations so later files don't inherit a truthy
@@ -110,6 +112,8 @@ describe("handleChat", () => {
     config.openrouterApiKey = savedOpenrouterKey;
     config.chatTitleModel = savedTitleModel;
     config.chatSmalltalkJudgeModel = savedJudgeModel;
+    config.chatPrefetchJudgeModel = savedPrefetchJudgeModel;
+    config.chatAnswerCoverageModel = savedCoverageModel;
   });
 
   beforeAll(() => {
@@ -117,6 +121,8 @@ describe("handleChat", () => {
     savedOpenrouterKey = config.openrouterApiKey;
     savedTitleModel = config.chatTitleModel;
     savedJudgeModel = config.chatSmalltalkJudgeModel;
+    savedPrefetchJudgeModel = config.chatPrefetchJudgeModel;
+    savedCoverageModel = config.chatAnswerCoverageModel;
     config.jwtSecret ||= "test-jwt-secret";
     config.openrouterApiKey ||= "test-key";
     // Off by default for every pre-existing test (see the file-header note on
@@ -130,6 +136,16 @@ describe("handleChat", () => {
     // of a test's scripted SSE rounds. Bypass behavior is covered in
     // chat-orchestrator.test.ts, not here.
     config.chatSmalltalkJudgeModel = "";
+    // Same reason again, one more Jev slot (also defaults ON): a concurrent
+    // /systemone request from every non-/teach turn would hit this suite's
+    // single-URL fetch mocks (they all assume one chat-completion call) and
+    // burn ~3.5s of askJev retries per test. The "prefetch judge" describe
+    // block below turns it back on, with a mock that tells the two URLs apart.
+    config.chatPrefetchJudgeModel = "";
+    // And the answer-coverage slot (verify/answer-coverage.ts, also defaults
+    // ON): it posts to /systemone after every answered turn. Its behavior is
+    // covered in chat-orchestrator.test.ts.
+    config.chatAnswerCoverageModel = "";
     setIndexes(loadIndexes());
     // Same shared-dispatcher install llm.test.ts performs — idempotent,
     // whichever file's beforeAll runs first wins the install.
@@ -235,6 +251,60 @@ describe("handleChat", () => {
         const evs = await events(res);
         expect(evs.some((e) => e.type === "facts")).toBe(false);
         expect(evs.some((e) => e.stage === "recalling")).toBe(false);
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+  });
+
+  // The pre-first-token Jev judge (chat/prefetch-judge.ts, wired in chat.ts
+  // 2026-09-22). Off for every OTHER test in this file (see beforeAll above);
+  // this block turns it back on to prove the one behavior the wiring
+  // guarantees regardless of Jev's health: a late/failed/disabled judge must
+  // leave routing byte-identical to today.
+  describe("prefetch judge (pre-first-token Jev)", () => {
+    let savedModel: string;
+    let savedDeadline: number;
+
+    beforeAll(() => {
+      savedModel = config.chatPrefetchJudgeModel;
+      savedDeadline = config.chatPrefetchJudgeDeadlineMs;
+      config.chatPrefetchJudgeModel = "typesafe/jev-test";
+      config.chatPrefetchJudgeDeadlineMs = 50; // keep the test fast; the deadline itself isn't what's under test
+    });
+    afterAll(() => {
+      config.chatPrefetchJudgeModel = savedModel;
+      config.chatPrefetchJudgeDeadlineMs = savedDeadline;
+    });
+
+    it("a Jev timeout leaves tier routing identical to today", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      // One mock, two URLs: /systemone (the Jev call) hangs until the deadline
+      // aborts it — exactly the transport shape judgePrefetch's own test
+      // covers in isolation — while the ordinary chat-completion URL answers
+      // immediately, so only the judge's own deadline is under test here.
+      g.__llmFetchCurrentImpl = (async (url: unknown, init: { signal?: AbortSignal }) => {
+        if (String(url).includes("/systemone")) {
+          return new Promise<Response>((_, reject) => {
+            init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+          });
+        }
+        return sseResponse("Collateral onboarding runs through the Stability Scope's approval process.");
+      }) as unknown as typeof fetch;
+      try {
+        // Same question model-router.test.ts pins as "ordinary mid-size ...
+        // stays default" — the assertion below only holds if Jev genuinely
+        // contributed nothing, not if the question would have routed
+        // "default" anyway for an unrelated reason.
+        const res = await handleChat(
+          await authedRequest({ message: "How does the Stability Scope handle collateral onboarding?" }),
+        );
+        const evs = await events(res);
+        expect(evs.find((e) => e.type === "meta").tier).toBe("default");
+        expect(evs.find((e) => e.type === "done").content).toBe(
+          "Collateral onboarding runs through the Stability Scope's approval process.",
+        );
       } finally {
         g.__llmFetchCurrentImpl = prevImpl;
       }

@@ -4,18 +4,20 @@
 import { test, expect } from "bun:test";
 import type OpenAI from "openai";
 import { computeOverall, evidenceFromResults, evidenceFromTranscript, priorTurnsEvidence, type Contradiction, type Verdict } from "./verifier.ts";
+import { DISPUTE_TOOL_NAME } from "../dispute-round.ts";
+import { classifyToolSource, isAtlasText } from "./verifier.ts";
 import type { CheckReport } from "./verify-checks.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
-const cleanChecks: CheckReport = { citations: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], bareAtlasLinks: [], uncitedParagraphs: 0, ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], untracedNumbers: [], lowOverlapCitations: [], paramMismatches: [], completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false, failed: false };
+const cleanChecks: CheckReport = { citations: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], bareAtlasLinks: [], uncitedParagraphs: 0, ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], untracedNumbers: [], paramMismatches: [], completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false, failed: false };
 const failedChecks: CheckReport = { ...cleanChecks, invalidCitations: ["00000000-dead-beef-0000-000000000000"], failed: true };
 
 const contradiction = (over: Partial<Contradiction> = {}): Contradiction => ({
   answer_span: "a", evidence_span: "b", why: "w", evidence_label: "[E1]", uuid: null, source: "model", agreed: false, ...over,
 });
 const verdict = (over: Partial<Verdict> = {}): Verdict => ({
-  contradictions: [], not_found: [], ruling_issued: false, notes: "", refuteParsed: true, confirm: null, ...over,
+  contradictions: [], ruling_issued: false, notes: "", refuteParsed: true, confirm: null, ...over,
 });
 
 test("computeOverall: a deterministic check failure is un-appealable, even with a clean verdict", () => {
@@ -210,4 +212,72 @@ test("evidenceFromResults agrees with evidenceFromTranscript on labels, sourceCl
   // External MSC tools are classed the same way.
   const external = evidenceFromResults([{ name: "ask_external_msc", content: '{"not_atlas":true}' }], 1000);
   expect(external[0]!.sourceClass).toBe("external");
+});
+
+// The dispute round quotes the model's OWN flagged sentence back at it. If it
+// were classified like any other tool result it would default to sourceClass
+// "atlas" and land in atlasTexts — so quote-grounding would certify the very
+// sentence the harness disputed as soon as the model repeated it. Both
+// extractors must drop it outright; "reference" would not be enough, since
+// chat-orchestrator.ts groups "reference" with "atlas".
+test("the dispute round is dropped from evidence, and the labels around it stay contiguous", () => {
+  const transcript = [
+    { role: "assistant", content: null, tool_calls: [{ id: "a", type: "function", function: { name: "atlas_get", arguments: "{}" } }] },
+    { role: "tool", tool_call_id: "a", content: "real atlas text" },
+    { role: "assistant", content: null, tool_calls: [{ id: "b", type: "function", function: { name: DISPUTE_TOOL_NAME, arguments: "{}" } }] },
+    { role: "tool", tool_call_id: "b", content: 'Your sentence: "They serve the Prime Agents."' },
+    { role: "assistant", content: null, tool_calls: [{ id: "c", type: "function", function: { name: "atlas_search", arguments: "{}" } }] },
+    { role: "tool", tool_call_id: "c", content: "more atlas text" },
+  ] as unknown as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+
+  const fromTranscript = evidenceFromTranscript(transcript, 100_000);
+  expect(fromTranscript.map((e) => e.tool)).toEqual(["atlas_get", "atlas_search"]);
+  expect(fromTranscript.map((e) => e.label)).toEqual(["[E1]", "[E2]"]);
+  expect(JSON.stringify(fromTranscript)).not.toContain("They serve the Prime Agents");
+
+  const fromResults = evidenceFromResults(
+    [
+      { name: "atlas_get", content: "real atlas text" },
+      { name: DISPUTE_TOOL_NAME, content: 'Your sentence: "They serve the Prime Agents."' },
+      { name: "atlas_search", content: "more atlas text" },
+    ],
+    100_000,
+  );
+  expect(fromResults.map((e) => e.tool)).toEqual(["atlas_get", "atlas_search"]);
+  expect(fromResults.map((e) => e.label)).toEqual(["[E1]", "[E2]"]);
+});
+
+// Atlas provenance is EARNED, never assumed. This used to default to "atlas",
+// so any tool result the harness didn't recognise was silently promoted into
+// the pool quote-grounding certifies against.
+test("sourceClass is an allowlist: only registry tools are atlas, everything else is unknown", () => {
+  expect(classifyToolSource("atlas_get")).toBe("atlas"); // in ATLAS_TOOLS
+  expect(classifyToolSource("atlas_report_multisigs")).toBe("atlas");
+  expect(classifyToolSource("ask_external_msc")).toBe("external");
+  expect(classifyToolSource("atlas_prefetch")).toBe("reference"); // facts round
+  expect(classifyToolSource("user_teachings")).toBe("user");
+
+  // Real leaks this closed, not hypotheticals: export_findings is appended to
+  // CHAT_TOOLS outside ATLAS_TOOLS, and "unknown" is evidenceFromTranscript's
+  // own fallback for a tool message with no matching assistant tool_call.
+  expect(classifyToolSource("export_findings")).toBe("unknown");
+  expect(classifyToolSource("unknown")).toBe("unknown");
+  // An atlas-LOOKING name that isn't actually a registry tool gets nothing.
+  expect(classifyToolSource("atlas_totally_made_up")).toBe("unknown");
+
+  expect(isAtlasText("atlas")).toBe(true);
+  expect(isAtlasText("reference")).toBe(true); // facts are atlas-derived
+  expect(isAtlasText("unknown")).toBe(false);
+  expect(isAtlasText("external")).toBe(false);
+  expect(isAtlasText("user")).toBe(false);
+  expect(isAtlasText(undefined)).toBe(false);
+});
+
+test("an unrecognised tool's text does not become atlas evidence", () => {
+  const entries = evidenceFromResults(
+    [{ name: "export_findings", content: "written to disk" }, { name: "atlas_get", content: "real atlas text" }],
+    100_000,
+  );
+  expect(entries.map((e) => e.sourceClass)).toEqual(["unknown", "atlas"]);
+  expect(entries.filter((e) => isAtlasText(e.sourceClass)).map((e) => e.content)).toEqual(["real atlas text"]);
 });

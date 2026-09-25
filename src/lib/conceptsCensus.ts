@@ -132,7 +132,7 @@ export function censusEmptyScaffolding(all: AtlasNode[], hasDescendant = buildHa
 // Anchor: A.1.2.2.2 "List Of Document Types And Their Specifications" — its
 // direct children are "The <Name> Type" Type Specification docs (30 in the
 // corpus at authoring time). UUID-anchored per CLAUDE.md's doc_no rules.
-const TYPE_REGISTRY_UUID = "428b7f2e-30b0-4119-a10a-9c3496f19bd2"; // A.1.2.2.2
+export const TYPE_REGISTRY_UUID = "428b7f2e-30b0-4119-a10a-9c3496f19bd2"; // A.1.2.2.2
 // Registry type names whose corresponding `type:` field value uses different
 // wording — hand-verified aliases, not a guess (Facilitator-prefixed variants
 // collapse to the plain structural type; the Preamble uses the Scope type).

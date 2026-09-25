@@ -68,6 +68,14 @@ const canonicalHostRedirect =
 // CHAT_MODEL_STRONG with a copy of the same expression.
 const csv = (v: string | undefined): string[] => (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const chatModelStrongList = csv(process.env.CHAT_MODEL_STRONG);
+// The pinned Jev release every Jev-backed lane defaults to. Pinned, not
+// `~typesafe/jev-latest`, so a floating release can't move a shipped threshold
+// underneath us — which is why it is ONE constant: six copies meant a bump
+// could leave a single lane behind on the old model with every threshold
+// comment still claiming it was measured against the shipped one. Each lane
+// still reads its own env var, so `""` on any one of them disables that lane
+// alone (the repo's model-slot convention).
+const JEV_DEFAULT = "typesafe/jev-1.13";
 
 export const config = {
   port,
@@ -268,14 +276,78 @@ export const config = {
   chatVerifierSliceModels: process.env.CHAT_VERIFIER_SLICE_MODELS ?? "",
   // Small-talk bypass judge — one tiny question-side classification ("does
   // this message expect factual content?") that is the FINAL gate on skipping
-  // the audit for pure greetings (chat-orchestrator.ts + verify/smalltalk.ts).
-  // Defaults ON with the 2026-08-13 bakeoff winner (scripts/aux/
-  // eval-smalltalk-judge.ts: 100% on the 42-case set, 0 dangerous errors,
-  // 0 call failures, p50 722ms — beat gemma-4-31b's 22% timeout rate,
-  // nemotron-lightning's misrulings, and gpt-oss-safeguard's all-greetings-
-  // are-factual). Set CHAT_SMALLTALK_JUDGE_MODEL="" (empty) to disable the
-  // bypass outright — fail-closed: no judge, no skip, every turn audits.
-  chatSmalltalkJudgeModel: process.env.CHAT_SMALLTALK_JUDGE_MODEL ?? "google/gemma-4-26b-a4b-it",
+  // the audit for pure conversation (chat-orchestrator.ts +
+  // verify/smalltalk-jev.ts). Set CHAT_SMALLTALK_JUDGE_MODEL="" (empty) to
+  // disable the bypass outright — fail-closed: no judge, no skip, every turn
+  // audits. This stays the bypass's kill switch; CHAT_JEV_MODEL is the shared
+  // client default and must not be the only way to turn a chat feature off.
+  //
+  // Jev since 2026-09-22, replacing google/gemma-4-26b-a4b-it outright. The
+  // bakeoff (scripts/aux/eval-smalltalk-judge.ts, 420 calls over 84 labeled
+  // cases + 141 real messages) is in docs/plans/jev-typesafe.md §A0. Short
+  // version: gemma lost 6-8 cases in the DANGEROUS direction (factual ruled
+  // small talk) on the hard tier and failed ~2% of calls outright — and a
+  // failed judge silently costs the bypass. Jev: 100% on every run, zero call
+  // failures, and a typed probability instead of a JSON string that can come
+  // back unparseable. It is a Noul, so the threshold is ours, not the model's
+  // (SMALLTALK_JEV_THRESHOLD).
+  chatSmalltalkJudgeModel: process.env.CHAT_SMALLTALK_JUDGE_MODEL ?? JEV_DEFAULT,
+  // Jev (TypeSafe System One) — typed-judgment model reached through
+  // OpenRouter's /systemone endpoint with the SAME OPENROUTER_API_KEY (no new
+  // vendor or key). Version pinning lives in JEV_DEFAULT above, which every
+  // lane shares. This is askJev's fallback model — what a caller that passes
+  // no model of its own gets — plus the eval's slot (scripts/aux/
+  // eval-smalltalk-judge.ts). It is NOT a master kill switch: each lane below
+  // carries its own env var, so `""` here disables only callers that named no
+  // model, per the repo's model-slot convention.
+  chatJevModel: process.env.CHAT_JEV_MODEL ?? JEV_DEFAULT,
+  // Per-doc Sources-chip citation check (verify/citation-marks.ts): judges
+  // every (claim, cited doc) pair in the finished answer with Jev
+  // (cite-support.ts's judgeCitation) and sends the client one mark per
+  // cited doc — backed / unbacked ("doesn't cover a line") / disputed. Runs
+  // after answer_final, alongside the verifier audit, never gating delivery.
+  // "" disables the feature outright: no Jev calls, no `citation_marks` event.
+  chatCitationCheckModel: process.env.CHAT_CITATION_CHECK_MODEL ?? JEV_DEFAULT,
+  // Pre-first-token prefetch judge (chat/prefetch-judge.ts): ONE Jev request,
+  // read before routeTier/runFacts/the teach filter, under a hard
+  // chatPrefetchJudgeDeadlineMs cap that falls back to today's regex +
+  // on-device-similarity lanes on a miss. This is the ONE exception to
+  // model-router.ts's "nothing runs before the first token except code" rule
+  // — see that file's header, and docs/plans/jev-typesafe.md's "Research
+  // round 2026-09-22 — prefetch gating" for the measurement behind it: the
+  // archived pre-flight planner was dropped for taxing every turn 1.5-4s;
+  // this adds ≤600ms worst case, measured p50 373ms / p95 553ms / max 726ms
+  // on 145 real messages from a dev machine — live latency unmeasured. ""
+  // disables the call outright: no request, every downstream lane (tier
+  // routing, census routing, /teach filtering) behaves exactly as it does
+  // today.
+  chatPrefetchJudgeModel: process.env.CHAT_PREFETCH_JUDGE_MODEL ?? JEV_DEFAULT,
+  // Hard WALL-CLOCK deadline, owned by the caller exactly like
+  // verify/smalltalk-jev.ts — askJev's own timeoutMs is per-attempt and
+  // retries a 5xx three times with backoff, so this is what actually bounds
+  // the added latency. A miss (timeout, transport error, or an unparseable
+  // answer) is never worse than today: judgePrefetch returns null and every
+  // caller falls back to its existing lane.
+  chatPrefetchJudgeDeadlineMs: Number(process.env.CHAT_PREFETCH_JUDGE_DEADLINE_MS ?? 600),
+  // "Did it answer the question?" (verify/answer-coverage.ts): one Jev request
+  // over question + answer after `answer_final`, concurrent with the audit —
+  // a Choice (answers / declines / deflects / asks) plus one Noul per question
+  // part, so a dropped part can be NAMED. Measured 2026-09-22 (docs/plans/
+  // jev-typesafe.md §2): `deflects` caught 84/84 gold announcements, real
+  // answers topped out at 0.16; per-part Nouls separate under-answering where
+  // a `partial` option could not. "" disables it (no call, no event).
+  chatAnswerCoverageModel: process.env.CHAT_ANSWER_COVERAGE_MODEL ?? JEV_DEFAULT,
+  // Jev screen in front of the per-paragraph refute (verify/refute-screen.ts).
+  //   "shadow" (default) — Jev screens every paragraph and its verdict is
+  //       recorded beside gemma's; gemma still runs on every paragraph. This
+  //       is the measurement phase: the offline bakeoff (85/100 planted
+  //       contradictions at P ≥ 0.2, ~90% of clean paragraphs skippable) is
+  //       in-sample and was never compared against paragraph-mode gemma on
+  //       real traffic.
+  //   "gate" — gemma runs only on paragraphs Jev flags or cannot fit.
+  //   "off"  — no screen.
+  chatRefuteScreen: (process.env.CHAT_REFUTE_SCREEN ?? "shadow") as "off" | "shadow" | "gate",
+  chatRefuteScreenModel: process.env.CHAT_REFUTE_SCREEN_MODEL ?? JEV_DEFAULT,
   // Deterministic checks (free, pure code) — independent of the model slots.
   chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
   // Deterministic pre-lookup (glossary + entity match on the user's message)

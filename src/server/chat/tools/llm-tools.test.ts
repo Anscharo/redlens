@@ -90,3 +90,45 @@ test("execToolDetailed does not capture chat_tool_arg_stripped when every arg ke
   await freshExecToolDetailed(ix, "atlas_get", JSON.stringify({ id: "nope" }));
   expect(events.find((e) => e.event === "chat_tool_arg_stripped")).toBeUndefined();
 });
+
+// A model that fills every property can write "" / [] for an unset string or
+// array, but has no unset value for a number or an enum — those get null.
+test("tools that read empty args as absent offer null exactly on their optional number/enum properties without a default", () => {
+  const params = (name: string) =>
+    (CHAT_TOOLS.find((t) => t.type === "function" && t.function.name === name) as unknown as { function: { parameters: { properties: Record<string, Record<string, unknown>> } } })
+      .function.parameters.properties;
+  const aq = params("atlas_query");
+  expect(aq.recent_commits.type).toEqual(["integer", "null"]);
+  expect(aq.change_type.type).toEqual(["string", "null"]);
+  // Both vocabularies (2026-09-23): the history tools say modified/moved, this
+  // tool historically took the stored content/structural names, and query.ts
+  // normalizes either — so the enum carries all six plus the null-for-unset.
+  expect(aq.change_type.enum).toEqual(["added", "modified", "removed", "moved", "content", "structural", null]);
+  expect(aq.direction.enum).toContain(null);
+  // Strings keep "" as their unset value (a null there made gemma send query:null);
+  // defaulted fields keep their default.
+  for (const k of ["query", "entity", "since", "status", "ancestor_id"]) expect(aq[k].type).toBe("string");
+  expect(aq.edge_types.type).toBe("array");
+  expect(aq.k.type).toBe("integer");
+  expect(aq.enrich.type).toBe("boolean");
+  expect(params("atlas_first_seen").event.enum).toContain(null);
+  expect(params("atlas_first_seen").ids.type).toBe("array");
+  expect(JSON.stringify([aq, params("atlas_first_seen")])).not.toContain("nullable");
+  // The history tools opted in on 2026-09-23 for the same reason, so their
+  // change_type now carries the null too.
+  expect(params("atlas_changed_between").change_type.enum).toContain(null);
+  expect(params("atlas_recent_changes").change_type.enum).toContain(null);
+  expect(params("atlas_history").change_type.enum).toContain(null);
+  // atlas_edges and atlas_filter opted in the same day, for the two shapes the
+  // rule covers: optional enums with no default (from_type/to_type) and
+  // bounded optional integers (depth_min/depth_max). Both silently narrowed a
+  // whole-class listing when the model filled them in.
+  expect(params("atlas_edges").from_type.enum).toContain(null);
+  expect(params("atlas_edges").to_type.enum).toContain(null);
+  expect(params("atlas_filter").depth_min.type).toEqual(["integer", "null"]);
+  expect(params("atlas_filter").depth_max.type).toEqual(["integer", "null"]);
+  // Strings on those tools keep "" as their unset value, same as atlas_query.
+  for (const k of ["edge_type", "from_slug", "to_slug"]) expect(params("atlas_edges")[k].type).toBe("string");
+  // A tool that did NOT opt in is untouched.
+  expect(params("atlas_entity").kind?.type ?? "string").toBe("string");
+});

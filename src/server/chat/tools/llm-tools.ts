@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type OpenAI from "openai";
-import { ATLAS_TOOLS, TOOLS_BY_NAME, toolDescription } from "./tool-registry.ts";
+import { ATLAS_TOOLS, TOOLS_BY_NAME, omitEmptyArgs, toolDescription } from "./tool-registry.ts";
 import { EXPORT_TOOL_NAME, EXPORT_TOOL_SHAPE, EXPORT_TOOL_DESCRIPTION } from "./export-tool.ts";
 import {
   ASK_EXTERNAL_MSC,
@@ -25,12 +25,32 @@ function toJsonSchema(shape: z.ZodRawShape): Record<string, unknown> {
   return schema;
 }
 
+// A model that fills every declared property can leave a string or array
+// "unset" ("" / []), but not a number or an enum: the strong tier's model wrote
+// a real value there instead — recent_commits:1 + change_type:"content" on 12
+// of its 12 atlas_query calls, emptying 8 (pnpm eval:tools, 2026-09-22). So on
+// tools that read empty args as absent, exactly those properties (optional, no
+// default) also accept null. Encoded as a JSON Schema type array, as probed:
+// OpenAPI's `nullable: true` made that model invent filter values, and offering
+// null on strings too made gemma send query:null. Chat transport only — MCP
+// clients see the zod shape unchanged.
+function withNullForUnset(schema: Record<string, unknown>): Record<string, unknown> {
+  const required = new Set((schema.required as string[] | undefined) ?? []);
+  const props = schema.properties as Record<string, Record<string, unknown>>;
+  for (const [key, p] of Object.entries(props)) {
+    const noEmptyValue = Array.isArray(p.enum) || p.type === "integer" || p.type === "number";
+    if (required.has(key) || "default" in p || !noEmptyValue) continue;
+    props[key] = { ...p, type: [p.type, "null"], ...(Array.isArray(p.enum) ? { enum: [...p.enum, null] } : {}) };
+  }
+  return schema;
+}
+
 export const CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = ATLAS_TOOLS.map((t) => ({
   type: "function",
   function: {
     name: t.name,
     description: toolDescription(t),
-    parameters: toJsonSchema(t.shape),
+    parameters: t.emptyArgsAbsent ? withNullForUnset(toJsonSchema(t.shape)) : toJsonSchema(t.shape),
   },
 }));
 
@@ -118,7 +138,9 @@ export function applyChatToolBudget(rawJson: string, budget = config.chatToolRes
 export async function execToolDetailed(ix: Indexes, name: string, rawArgs: string, obs?: ErrorContext): Promise<ChatToolResult> {
   const tool = TOOLS_BY_NAME.get(name);
   if (!tool) return applyChatToolBudget(JSON.stringify({ error: `unknown tool: ${name}` }));
-  const raw = safeParseArgs(rawArgs);
+  // Before zod, not only in the handler: an optional field rejects null, so a
+  // null meaning "unset" must be gone by the time the shape is checked.
+  const raw = tool.emptyArgsAbsent ? omitEmptyArgs(safeParseArgs(rawArgs)) : safeParseArgs(rawArgs);
   const parsed = z.object(tool.shape).safeParse(raw);
   if (!parsed.success) {
     return applyChatToolBudget(JSON.stringify({ error: "invalid tool arguments", details: parsed.error.issues }));

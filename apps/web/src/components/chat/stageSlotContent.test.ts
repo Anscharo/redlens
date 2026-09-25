@@ -32,7 +32,6 @@ const entry = (over: Partial<StageLogEntry>): StageLogEntry => ({
 const cleanVerify: VerifyState = {
   status: "pass",
   contradictions: [],
-  notFound: [],
   rulingIssued: false,
   invalidCitations: [],
   invalidDocNos: [],

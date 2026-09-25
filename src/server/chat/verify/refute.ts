@@ -22,14 +22,14 @@ type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 export const REFUTE_PROMPT = [
   "You audit ONE thing: statements in the answer that the retrieved evidence CONTRADICTS — a different value, holder, date, status, count, or modality (must vs may).",
   "For each, copy the answer sentence verbatim into `answer_span`, copy the contradicting evidence VERBATIM into `evidence_span` (it is re-checked by code; an inexact span is discarded), and give ≤20 words `why`.",
-  "A statement the evidence merely does not mention is NOT a contradiction — never list it there.",
-  "Statements you could not locate in the evidence go in `not_found`, AT MOST 5 — each a full claim (subject plus what is said about it), never a bare topic or term.",
+  "A statement the evidence merely does not mention is NOT a contradiction — leave it out entirely.",
   "Do not report omissions or missing list members.",
   "Entries marked [REFERENCE] are context SAbR injected (product guide, glossary, entity rows) — not atlas text; a faithful restatement of one is never a contradiction.",
   "Entries marked [USER NOTE, not Atlas] are this user's private /teach notes — never treat them as atlas text or as a quotation of the atlas.",
+  "Entries marked [NOT ATLAS] did not come from the atlas — never treat them as atlas text or as a quotation of the atlas.",
   "[E-prev] holds the assistant's earlier answers.",
   "Respond with STRICT JSON only.",
-  '{"contradictions":[{"answer_span":"…","evidence_span":"…","why":"…"}],"not_found":["…"],"notes":"≤30 words"}',
+  '{"contradictions":[{"answer_span":"…","evidence_span":"…","why":"…"}],"notes":"≤30 words"}',
 ].join("\n");
 
 export function buildRefutePrompt(params: { question: string; answer: string; evidence: EvidenceEntry[] }): Msg[] {
@@ -37,8 +37,18 @@ export function buildRefutePrompt(params: { question: string; answer: string; ev
   const evidenceBlock = evidence.length
     ? evidence
         .map((e) => {
+          // "unknown" is anything the source allowlist did not recognise as a
+          // registry atlas tool (verifier.ts's classifyToolSource). It must be
+          // marked, not left bare: an unmarked entry reads as retrieved atlas
+          // text, which is exactly the promotion the allowlist exists to stop.
           const tag =
-            e.sourceClass === "reference" ? " [REFERENCE]" : e.sourceClass === "user" ? " [USER NOTE, not Atlas]" : "";
+            e.sourceClass === "reference"
+              ? " [REFERENCE]"
+              : e.sourceClass === "user"
+                ? " [USER NOTE, not Atlas]"
+                : e.sourceClass === "unknown"
+                  ? " [NOT ATLAS]"
+                  : "";
           return `${e.label}${tag} ${e.tool}(${e.args}) →\n${e.content}`;
         })
         .join("\n\n")
@@ -60,7 +70,6 @@ export interface RawContradiction {
 
 export interface RefuteParse {
   contradictions: RawContradiction[];
-  notFound: string[];
   notes: string;
 }
 
@@ -76,9 +85,7 @@ export function parseRefute(text: string): RefuteParse | null {
     if (!o.answer_span.trim() || !o.evidence_span.trim()) return [];
     return [{ answer_span: o.answer_span, evidence_span: o.evidence_span, why: typeof o.why === "string" ? o.why : "" }];
   });
-  const rawNotFound = Array.isArray(j.not_found) ? j.not_found : [];
-  const notFound = rawNotFound.filter((x): x is string => typeof x === "string").slice(0, 5);
-  return { contradictions, notFound, notes: typeof j.notes === "string" ? j.notes : "" };
+  return { contradictions, notes: typeof j.notes === "string" ? j.notes : "" };
 }
 
 // Nearest `"id":"<uuid>"` / `"uuid":"<uuid>"` preceding the matched span
@@ -151,21 +158,13 @@ export function validateContradictions(
   return { kept, discarded };
 }
 
-// `not_found` is the judge's OWN assertion of absence, and until now the one
-// output that reached the reader unchecked — observed live 2026-09-11: "the
-// savings rate" listed as uncovered while the evidence defined the Sky Savings
-// Rate two lines up. Hold it to code the way contradictions are: an entry
-// whose words occur together anywhere in the evidence is covered (a looser
-// bar than a contradiction's 0.8, because here overlap REMOVES a claim rather
-// than making one), and a bare topic or term is not a statement at all.
-export const NOT_FOUND_COVERED_THRESHOLD = 0.6;
-const NOT_FOUND_MIN_WORDS = 5;
-
-export function validateNotFound(entries: string[], evidence: EvidenceEntry[]): string[] {
-  return entries.filter((e) => {
-    const words = tokenize(e);
-    if (words.length < NOT_FOUND_MIN_WORDS) return false;
-    const { best } = locateSpan(e, evidence);
-    return best < NOT_FOUND_COVERED_THRESHOLD;
-  });
-}
+// The judge used to also return `not_found` — its own assertion that it could
+// not locate a statement in the evidence — which the reader saw as "N
+// statements the retrieved sources don't cover". It was the last surviving
+// channel of the pre-2026-09-10 "prove every claim supported" design that the
+// refutation-only redesign otherwise replaced, it never fed the verdict, and
+// it never produced signal: it needed a validation pass the day after it
+// shipped (a defined term listed as uncovered) and was still reporting the
+// answer's own headings, the user's question echoed back and colon lead-ins a
+// fortnight later. Removed entirely on 2026-09-23. Absence is now simply not
+// reported — which is what refutation-only meant in the first place.

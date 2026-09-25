@@ -38,6 +38,39 @@ export interface ParamMismatch {
   doc_no: string;
 }
 
+// Per-source-doc verdict from the post-answer citation check (server: judges
+// each (claim, cited doc) pair against that doc). Keyed by doc uuid on the
+// wire (see the `citation_marks` event below) — one entry per cited doc that
+// was actually checked; an uncited/unchecked doc gets no entry at all, which
+// the Sources chip renders as no mark rather than as any particular verdict.
+export interface CitationMark {
+  // What the chip draws: ✓✓ sure, ✓ unsure, ✓⚠ backs the line with a caveat,
+  // ⚠ the document does not cover a line citing it, ! a contradiction.
+  // See src/server/chat/verify/citation-marks.ts for how one is chosen.
+  status: "backed" | "backed_weak" | "mixed" | "partial" | "uncovered" | "disputed";
+  // `supports_in_part` (2026-09-24): the document states one of a compound
+  // claim's assertions outright and says nothing about the rest.
+  // `confidence` is per citing line, so the `mixed` tooltip can name which
+  // line the source backs surely and which only weakly.
+  claims: { claim: string; verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts"; confidence?: number | null }[];
+  /** 0–1 confidence in `status`, null where one number cannot describe it —
+   *  `mixed`, `partial` and `uncovered` name their citing lines instead. */
+  confidence?: number | null;
+}
+
+// "Did it answer the question?" (server: verify/answer-coverage.ts) — one
+// ruling per turn over the question and the finished answer. `answers` is the
+// quiet default: the client shows nothing extra for it. `missingParts` are
+// parts of the user's own question the answer did not address (only ever set
+// alongside `answers`/`declines`); `parts` lists every judged part, present
+// only when the question was split into two or more.
+export type AnswerCoverageVerdict = "answers" | "declines" | "deflects" | "asks";
+export interface AnswerCoverage {
+  verdict: AnswerCoverageVerdict;
+  missingParts: string[];
+  parts?: string[];
+}
+
 // The streaming-vs-staged delivery split is gone: every token/clear is always
 // forwarded, and the orchestrator emits `status{stage:"synthesizing"}` once
 // per generation burst plus `answer_final` after citation repair (before
@@ -102,6 +135,17 @@ export type ChatEvent =
   // content is final. If the server took an early exit, no `answer_final`
   // arrives and `done` is the reveal instead.
   | { type: "answer_final"; content: string }
+  // Post-answer citation check: one entry per cited doc the server actually
+  // judged against its content, keyed by doc uuid. Arrives after
+  // `answer_final` and before `verify_result`/`done` — may never arrive at
+  // all (feature off, no citations, timeout), in which case no source chip
+  // gets a mark.
+  | { type: "citation_marks"; marks: Record<string, CitationMark> }
+  // Answer-coverage ruling (see AnswerCoverage above). Arrives at most once,
+  // after `answer_final` (and after `citation_marks`) and before
+  // `verify_result`/`done` — may never arrive at all (feature off, the check
+  // failed or timed out, small talk), in which case nothing is shown.
+  | ({ type: "answer_coverage" } & AnswerCoverage)
   | {
       type: "verify_result";
       overall: VerifyOverall;
@@ -111,9 +155,6 @@ export type ChatEvent =
       // the confirm gate's calibration record.
       contradictions: VerifyContradiction[];
       // Statements the auditor could not locate in evidence at all, capped at
-      // 5. Informational only — never affects `overall`. Optional so an older
-      // server that predates this field still parses.
-      notFound?: string[];
       // The answer issued a ruling/verdict instead of reporting what the
       // atlas says (the `overreach` auditor). Optional for the same reason.
       rulingIssued?: boolean;
