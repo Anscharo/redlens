@@ -24,7 +24,10 @@ const report = buildStaleDatesReport(docs, FIXED_TODAY);
 const atlasContent = Object.values(docs)
   .map((d) => d.content)
   .join("\n");
-const hasGenesisClaim = atlasContent.includes("March 26, 2026");
+// Matches the future-tense phrasing specifically (not just the bare date):
+// once the Executive Vote passes, the atlas retenses to "was included in ...",
+// which the extractor correctly treats as historical, not a stale claim.
+const hasGenesisClaim = atlasContent.includes("will be included in the March 26, 2026");
 const hasJune18Claim = atlasContent.includes("June 18, 2026");
 
 describe("stale dates report", () => {
