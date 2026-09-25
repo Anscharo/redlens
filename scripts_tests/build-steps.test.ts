@@ -185,12 +185,21 @@ describe("atlas artifact store: worker publish is load-bearing (phase 4)", () =>
     expect(worker).not.toMatch(/publish-artifacts failed[\s\S]*console\.warn/);
   });
 
+  /** The exit code of the FIRST `process.exit` after `marker` — i.e. the one in
+   *  that log line's own callback. A greedy `/marker[\\s\\S]*exit\\((\\d)\\)/` matches
+   *  any later exit in the file instead, so it passed even with the tail
+   *  callback mutated to exit(1) (the fast-exit path's exit(0) satisfied it).
+   *  Non-greedy pins the callback body. */
+  function exitCodeAfter(worker: string, marker: string): string | undefined {
+    return new RegExp(`${marker}[\\s\\S]*?process\\.exit\\((\\d)\\)`).exec(worker)?.[1];
+  }
+
   it("atlas-worker kills a hung tick so Railway cron can retry", () => {
     const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
     expect(worker).toContain("const HARD_CAP_MS = 15 * 60 * 1000");
     expect(worker).toContain("atlas-worker: hard cap (15m) — exiting so cron can retry");
     expect(worker).toContain("cap.unref()");
-    expect(worker).toMatch(/hard cap[\s\S]*process\.exit\(1\)/);
+    expect(exitCodeAfter(worker, "hard cap \\(15m\\)")).toBe("1");
   });
 
   // 2026-09-25: a cold atlas_doc_embeddings is ~19 minutes of backfill, so the
@@ -201,11 +210,23 @@ describe("atlas artifact store: worker publish is load-bearing (phase 4)", () =>
   it("atlas-worker's post-heartbeat tail budget is a clean exit, armed on both paths", () => {
     const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
     expect(worker).toContain("const TAIL_CAP_MS = 11 * 60 * 1000");
-    expect(worker).toMatch(/tail budget[\s\S]*process\.exit\(0\)/);
+    expect(exitCodeAfter(worker, "tail budget")).toBe("0");
     // Both heartbeat sites hand over to the tail deadline — the fast-exit path
     // runs the same best-effort tails as the rebuild path.
     const hbs = [...worker.matchAll(/await touchSyncHeartbeat\([^)]*\);\n\s*armTailCap\(\);/g)];
     expect(hbs.length).toBe(2);
+  });
+
+  // Only sync-embeddings resumes mid-walk; build-history and build-doc-versions
+  // buffer and write once at the end, so a tail kill repeats their walk. The
+  // comment must keep saying so — an "every lane is incremental" claim is what
+  // the 2026-09-25 review caught, and it is the reason the budget is sized off
+  // history's cold walk rather than off the embed rate alone.
+  it("the worker does not claim all three tail lanes resume mid-walk", () => {
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    expect(worker).toMatch(/Only ONE of the three lanes actually resumes mid-walk/);
+    expect(worker).toMatch(/instead buffer the whole walk in memory and write once at/);
+    expect(worker).not.toMatch(/every lane of it incremental/);
   });
 
   // The whole point of the tail deadline: the process must be gone before the

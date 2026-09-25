@@ -160,22 +160,34 @@ async function main() {
   // FAILS. Unchanged.
   //
   // AFTER it, sync.ts, the integrity gate and publish-artifacts have all
-  // committed and the only work left is runPostSyncTail — documented
-  // best-effort, and every lane of it incremental (embeddings upsert per
-  // EMBED_BATCH slice; history and doc-versions carry their own cursors). Running
-  // out of clock there is partial progress the next tick resumes, so it exits 0.
-  // One flat 15m cap reported that as a failed run instead, and a cold
-  // atlas_doc_embeddings could never beat it: 11,584 docs at the measured
+  // committed and the only work left is runPostSyncTail, which is documented
+  // best-effort. Running out of clock there costs work, never committed state,
+  // so it exits 0. One flat 15m cap reported that as a failed run instead, and a
+  // cold atlas_doc_embeddings could never beat it: 11,584 docs at the measured
   // ~620/min is ~19 minutes, so the FIRST tick of every new environment was
   // guaranteed to exit(1) (observed 2026-09-25, ~9,000 embedded, everything
   // served already committed at T+12s).
   //
-  // The tail deadline also sits UNDER the */12 cron period, so the process is
-  // always gone before the next tick claims the same backlog. At 15m it never
-  // was: that tick is either skipped (backfill gets 15m per 24m instead of 11m
-  // per 12m) or it overlaps and re-embeds what this process is already paying
-  // for. Measured from t0, floored at a minute — a build slow enough to eat the
-  // whole budget leaves the tails to the next tick rather than skipping the cap.
+  // Only ONE of the three lanes actually resumes mid-walk, and the difference
+  // matters for how the budget is sized. sync-embeddings upserts per EMBED_BATCH
+  // slice, so a kill keeps every slice already written and the next tick carries
+  // on — that is the lane the budget exists for. build-history and
+  // build-doc-versions instead buffer the whole walk in memory and write once at
+  // the end (upsertHistory / replace-or-upsertDocVersions), so a kill mid-walk
+  // commits nothing and the next tick repeats it: work lost, not data. Both fit
+  // with room to spare — 112s and 22s cold, measured, against a 660s budget —
+  // and history, the slower one, would need ~1,000 atlas commits (from 175) to
+  // threaten it. If it ever does, it needs a per-commit flush or a budget of its
+  // own; don't just widen this one and call the comment still true.
+  //
+  // The tail deadline also sits under the */12 cron period, so the process is
+  // gone before the next tick claims the same backlog. At 15m it never was: that
+  // tick is either skipped (backfill gets 15m per 24m instead of 11m per 12m) or
+  // it overlaps and re-embeds what this process is already paying for. Measured
+  // from t0, floored at a minute, and the floor is the one case that can still
+  // outlive a tick — a heartbeat landing after minute 10 gets its minute anyway,
+  // in exchange for the tails not being skipped outright. Nothing observed comes
+  // close (T+12s), and Railway skipping that tick is the benign outcome.
   const HARD_CAP_MS = 15 * 60 * 1000;
   const TAIL_CAP_MS = 11 * 60 * 1000;
   // unref() so a successful exit isn't held open for the remainder.
