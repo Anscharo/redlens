@@ -35,13 +35,13 @@ export function SettlementVenueTable({
             </td>
             <td
               className="py-1 text-right mono text-[11px]"
-              style={{ color: v.profitToSky < 0 ? "var(--accent)" : "var(--tan-2)" }}
+              style={{ color: v.profitToSky < 0 ? "var(--msc-loss)" : "var(--tan-2)" }}
             >
               {formatUsd(v.profitToSky)}
             </td>
             <td
               className="py-1 text-right mono text-[11px]"
-              style={{ color: v.profitToGrove < 0 ? "var(--accent)" : "var(--tan-2)" }}
+              style={{ color: v.profitToGrove < 0 ? "var(--msc-loss)" : "var(--tan-2)" }}
             >
               {formatUsd(v.profitToGrove)}
             </td>
