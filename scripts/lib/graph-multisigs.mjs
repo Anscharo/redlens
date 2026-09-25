@@ -66,15 +66,23 @@ const SIGNER_COMPOSITION_TOTAL_RE = /is\s+[a-z]+\s*\((\d+)\)\s+signers/i;
 // plain bullet roster ("- VoteWizard") — only read when the prose announces it
 const SIGNER_ROSTER_INTRO_RE = /has the following signers/i;
 const SIGNER_BULLET_PLAIN_RE = /^[-*]\s*([A-Za-z0-9_ .'-]+?)\s*$/gm;
-// "The signers of the X are controlled by Y. The specific signers will be specified
-// in a future iteration of the Atlas." — the controlling party IS known even though
-// the individual roster is deferred (A.2.2.10.1.1.1.2.4.4.3.1.3 "Grove Operator
-// Multisig Signers" — whose sibling Modification doc independently names the same
-// party as the one who may change the signers, so this is a real fact, not a guess).
-// Emitted as a group with a null count rather than dropped; a doc with NO named
-// controller at all still falls through to a genuine "did not parse" warning.
-const SIGNERS_DEFERRED_CONTROLLER_RE =
-  /controlled by\s+(.+?)\.\s*(?:the\s+)?specific signers will be specified in a future iteration/i;
+// "The signers of the X are controlled by Y[, optionally: The specific signers
+// will be specified in a future iteration of the Atlas.]" — the controlling
+// party IS known even when the individual roster/count is omitted entirely
+// (A.2.2.10.1.1.1.2.4.4.3.1.3 "Grove Operator Multisig Signers", .3.2.3 "Osero
+// Operator Multisig Signers" — each sibling Modification doc independently
+// names the same party as the one who may change the signers, so this is a
+// real fact, not a guess). The trailing "future iteration" placeholder used to
+// be required (it was the only shape seen, on the Grove doc); atlas PR #341
+// (2026-09-21, commit 6cd19248) dropped that clause from the Grove doc and
+// reused the shorter shape verbatim for the new Osero doc — confirmed
+// atlas-wide as the only two Signers docs (of ~40) omitting an explicit N (N)
+// address(es) count, so this stays a narrow fallback, not a rewrite of the
+// primary shape. Emitted as a group with a null count rather than dropped; a
+// doc with NO named controller at all still falls through to a genuine "did
+// not parse" warning.
+const SIGNERS_SOLE_CONTROLLER_RE =
+  /^The signers of the .+? are controlled by\s+(.+?)\.(?:\s*(?:the\s+)?specific signers will be specified in a future iteration of the atlas\.)?\s*$/i;
 const MODIFICATION_RE = /^(.+?) can change the signers/ms;
 // "addresses controlled by the Core Facilitator" — bare role references
 const ROLE_PREFIX_RE = /^(Operational|Core)\s+(GovOps|Facilitator)\s+(.+)$/i;
@@ -104,8 +112,8 @@ export function parseSignerGroups(content) {
     groups.push({ name: m[2].trim(), count: Number(m[1]) });
   }
   if (groups.length) return groups;
-  const deferred = content.match(SIGNERS_DEFERRED_CONTROLLER_RE);
-  if (deferred) return [{ name: deferred[1].trim(), count: null }];
+  const soleController = content.match(SIGNERS_SOLE_CONTROLLER_RE);
+  if (soleController) return [{ name: soleController[1].trim(), count: null }];
   if (SIGNER_ROSTER_INTRO_RE.test(content)) {
     for (const m of content.matchAll(SIGNER_BULLET_PLAIN_RE)) {
       groups.push({ name: m[1].trim(), count: 1 });
