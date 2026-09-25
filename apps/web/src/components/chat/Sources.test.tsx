@@ -120,8 +120,9 @@ describe("Sources", () => {
     render(
       <Sources sources={sourceFor(UUID)} marks={{ [UUID]: { status: "backed", claims: [] } }} onAtlas={vi.fn()} />,
     );
-    const mark = screen.getByRole("img", { name: "Checked: this source backs the answer" });
+    const mark = screen.getByRole("img", { name: "High confidence this source backs the answer" });
     expect(mark).toHaveAttribute("data-status", "backed");
+    expect(mark).toHaveTextContent("✓✓");
   });
 
   function showTip(target: HTMLElement) {
@@ -137,26 +138,30 @@ describe("Sources", () => {
     }
   }
 
-  it("renders an unbacked mark with an informational accessible name and no native title", () => {
+  // A gap is a warning without a check: the document does not cover a line it
+  // was cited for, and the hover names the line.
+  it("renders a bare warning for an uncovered source", () => {
     render(
       <Sources
         sources={sourceFor(UUID)}
         marks={{
-          [UUID]: { status: "unbacked", claims: [{ claim: "The threshold is 7 signers", verdict: "says_nothing" }] },
+          [UUID]: { status: "uncovered", claims: [{ claim: "The threshold is 7 signers", verdict: "says_nothing" }] },
         }}
         onAtlas={vi.fn()}
       />,
     );
-    const mark = screen.getByRole("img", { name: "This source doesn't cover every line citing it" });
-    expect(mark).toHaveAttribute("data-status", "unbacked");
-    expect(mark).not.toHaveAttribute("title");
+    const mark = screen.getByRole("img", { name: 'Please double check source: “The threshold is 7 signers”' });
+    expect(mark).toHaveAttribute("data-status", "uncovered");
+    expect(mark).toHaveTextContent("⚠");
+    expect(mark).not.toHaveTextContent("✓");
+    expect(showTip(screen.getByRole("link"))).toHaveTextContent('Please double check source: “The threshold is 7 signers”');
   });
 
   it("shows how sure the check is when hovering the source title, not only the glyph", () => {
     render(
       <Sources
         sources={sourceFor(UUID)}
-        marks={{ [UUID]: { status: "backed", claims: [], confidence: 0.875 } }}
+        marks={{ [UUID]: { status: "backed", claims: [], confidence: 0.97 } }}
         onAtlas={vi.fn()}
       />,
     );
@@ -166,15 +171,19 @@ describe("Sources", () => {
     expect(tip).toHaveTextContent("High confidence this source backs the answer");
   });
 
-  it("reads confidence as medium and low bands, not a percent", () => {
+  // Two bands, on the one threshold the calibration pass measured. The three
+  // unmeasured ones this used to draw (0.75 / 0.45) are gone.
+  it("reads confidence as two bands, not a percent", () => {
     const { rerender } = render(
       <Sources
         sources={sourceFor(UUID)}
-        marks={{ [UUID]: { status: "backed", claims: [], confidence: 0.5 } }}
+        marks={{ [UUID]: { status: "backed_weak", claims: [], confidence: 0.5 } }}
         onAtlas={vi.fn()}
       />,
     );
-    expect(screen.getByRole("img", { name: "Medium confidence this source backs the answer" })).toBeInTheDocument();
+    const weak = screen.getByRole("img", { name: "Low confidence this source backs the answer" });
+    expect(weak).toHaveTextContent("✓");
+    expect(weak).not.toHaveTextContent("✓✓");
     rerender(
       <Sources
         sources={sourceFor(UUID)}
@@ -201,8 +210,8 @@ describe("Sources", () => {
       />,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent("High confidence this source says otherwise");
-    expect(tip).toHaveTextContent('This source says otherwise: "The threshold is 7 signers"');
+    expect(tip).toHaveTextContent("Low confidence this source says otherwise");
+    expect(tip).toHaveTextContent('This source says otherwise: “The threshold is 7 signers”');
   });
 
   it("highlights the quoted line in the answer when that tooltip line is clicked", () => {
@@ -237,7 +246,7 @@ describe("Sources", () => {
         sources={sourceFor(UUID)}
         marks={{
           [UUID]: {
-            status: "unbacked",
+            status: "uncovered",
             claims: [
               { claim: "Reward payments cover distributions", verdict: "supports_in_part" },
               { claim: "The threshold is 7 signers", verdict: "says_nothing" },
@@ -248,7 +257,7 @@ describe("Sources", () => {
       />,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent('Not stated in this source: "The threshold is 7 signers"');
+    expect(tip).toHaveTextContent('Please double check source: “The threshold is 7 signers”');
     expect(tip).not.toHaveTextContent("Reward payments");
   });
 
@@ -258,7 +267,7 @@ describe("Sources", () => {
         sources={sourceFor(UUID)}
         marks={{
           [UUID]: {
-            status: "unbacked",
+            status: "uncovered",
             confidence: 0.9,
             claims: [{ claim: "The threshold is 7 signers", verdict: "says_nothing" }],
           },
@@ -267,7 +276,7 @@ describe("Sources", () => {
       />,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent('Not stated in this source: "The threshold is 7 signers"');
+    expect(tip).toHaveTextContent('Please double check source: “The threshold is 7 signers”');
     expect(tip).not.toHaveTextContent("confidence this source");
   });
 
@@ -281,7 +290,7 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const mark = screen.getByRole("img", { name: "This source may say otherwise" });
+    const mark = screen.getByRole("img", { name: "Low confidence this source says otherwise" });
     expect(mark).toHaveAttribute("data-status", "disputed");
     expect(mark).not.toHaveAttribute("title");
   });

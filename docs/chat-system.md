@@ -804,8 +804,9 @@ to revealing on `done` there, same as it always could.
 
 **`citation_marks`** (2026-09-22) is yielded at most once, after `answer_final`
 and before `verify_result`/`done`: `{ type: "citation_marks", marks:
-Record<uuid, { status: "backed" | "unbacked" | "disputed", claims: [{ claim,
-verdict }] }> }`. It is the per-citation check (`verify/citation-marks.ts`):
+Record<uuid, { status, claims: [{ claim, verdict, confidence }] , confidence }> }`,
+where `status` is one of six (2026-09-25): `backed` ✓✓, `backed_weak` ✓,
+`mixed` ✓⚠, `partial` ✓⚠, `uncovered` ⚠, `disputed` !. It is the per-citation check (`verify/citation-marks.ts`):
 every (claim, cited doc) pair from `citationPairs` (`verify/cite-pairs.ts`) is
 judged by a Jev Choice — does *this* document support, contradict, say
 nothing about, or merely get pointed at by the sentence linking it? — which is
@@ -825,23 +826,46 @@ verdict** (`verify/disputes.ts`'s `withoutDisputedMarks`): a document an
 *agreed* contradiction is sourced to has its ✓ withheld. The two lanes are
 independent by design and can disagree — observed 2026-09-24, one answer
 shipped a confirmed dispute on a document alongside a green ✓ on that same
-document in a single render. Only `backed` is withheld (a `disputed` mark
-means the lanes agree; an `unbacked` one asserts no support and is not in
-conflict), and it is dropped rather than flipped, because the chip's tooltip
+document in a single render. Every check-bearing status is withheld (a `disputed` mark
+means the lanes agree; an `uncovered` one asserts no support and is not in
+conflict), and the mark is dropped rather than flipped, because the chip's tooltip
 carries the citation lane's own per-claim verdicts — which on a collision read
 "supports". The persisted `citation_check` row stays UNRECONCILED as that
 lane's calibration record; reconciliation runs again on reload through the
 same function, so a refresh cannot resurrect the disagreement. Each mark carries `confidence` (0–1, or null): hovering anywhere on the
-source chip (the shared `Tooltip`, not a native `title`) shows that as high,
-medium, or low confidence. High is at least 0.75, medium at least 0.45,
-otherwise low — a display reading of how peaked Jev's Choice distribution is,
-not the probability of the chosen option, and not a percent. For a ✓ that is
-the lowest confidence among the claims it supports; for a ! the highest among
-the claims it contradicts. The ! and the muted dash also quote the line, and
-clicking that quote scrolls to it and highlights it in the answer. Confirm
-clearing a contradiction also clears that pair's confidence, so the muted mark
-does not inherit a band from a verdict it rejected, and the dash's hover
-stays the uncovered line. Started concurrently with the audit, so it never delays it; bounded by
+source chip (the shared `Tooltip`, not a native `title`) reads it as **High**
+or **Low confidence**. Two bands, split at `MIN_BACKED_CONFIDENCE` = 0.95, and
+that is the only threshold in the lane. It replaced three bands cut at 0.75
+and 0.45 that were picked by feel and never measured.
+
+**0.95 comes from `pnpm eval:citation:calibration`** (2026-09-24, 57 checks
+over 80 real citations and 327 repointed ones). It is a CLIFF, not a scale: at
+or above it a check was right 29 times in 30, below it only 16 in 27, and of
+the 12 citations certified wrongly ELEVEN sat below it. That split is what
+transfers — unlike the raw rates, it does not depend on how many wrong
+citations the corpus holds. The same pass settled a second question: Jev's
+`confidence` and `probabilities[verdict]` differ by 0.034 on average and
+disagree about the threshold in 2 of 57 cases, so which one is displayed makes
+no measurable difference and `confidence` is kept.
+
+Full support then splits on that cliff. Every supporting line over it is
+`backed`, every line under it `backed_weak`, and a document with lines on both
+sides is `mixed` — which is why the rule is not simply "weakest support wins":
+a document that clearly backs one sentence and barely backs another is telling
+the reader something a single number hides, so that tooltip quotes both lines
+(75 characters each) instead of averaging them. `partial` is a
+`supports_in_part` verdict, and `uncovered` a `says_nothing` one; neither
+carries a number, because one value cannot describe a disagreement between
+lines. A warning is never gated on confidence — the calibration found the
+number carries no information there.
+
+The ⚠ statuses and the ! quote the lines they are about ("Please double check
+source: …" for a gap, "This source says otherwise: …" for a contradiction),
+and clicking a quote scrolls to it and highlights it in the answer. Quotes cut
+at 140 characters, at the last sentence end inside the budget, then the last
+clause break, then the last word break, never mid-word. Confirm clearing a
+contradiction also clears that pair's confidence, so a downgraded mark does not
+inherit a band from a verdict it rejected. Started concurrently with the audit, so it never delays it; bounded by
 its own 8 s deadline and fail-open (a timeout means no marks, never a warning).
 Raw verdicts persist as a `message_checks` row of kind `citation_check`.
 Every post-answer check now rehydrates on reload — the marks first
@@ -916,8 +940,11 @@ the atlas doesn't cover this" (`declines`) as neutral facts; "Didn't address:
 “…”" for missing parts; plus "N of M checked sources back the answer" counted
 from `citation_marks`. That count stays a neutral fact unless a checked source
 is `disputed` — a confirm-gated contradiction the badge does not repeat — in
-which case the line is flagged; an `unbacked` mark (the document doesn't cover
-the citing line) does not flag it. The badge itself is the third fact
+which case the line is flagged; an `uncovered` mark (the document doesn't cover
+the citing line) does not flag it. Every check-bearing status counts toward
+the "N of M" figure, weak and caveated ones included — the chip itself carries
+the caveat, and a count that silently dropped them would disagree with what
+the reader can see. The badge itself is the third fact
 (whole-answer contradictions) and is not repeated. Raw distribution, per-part scores and latency persist as a
 `message_checks` row of kind `answer_coverage`, and the line now rehydrates
 from it (2026-09-24, `conversations.ts`'s `answerCoverageFor`) like the marks

@@ -7,7 +7,7 @@
 // A `contradicts` verdict is not trusted on its own: it goes through the same
 // confirm gate the whole-turn verifier uses (verify/confirm.ts) before it is
 // allowed to mark a doc "disputed". An unconfirmed contradiction downgrades to
-// "unbacked" (informational) rather than shipping an unconfirmed warning —
+// "uncovered" (informational) rather than shipping an unconfirmed warning —
 // the confirm gate is a HARD gate here too, same rule as computeOverall's.
 import { withDeadline } from "../../jev.ts";
 import { citationPairs, type CitationPair } from "./cite-pairs.ts";
@@ -18,11 +18,22 @@ import type { Indexes } from "../../retrieval/indexes.ts";
 import type { JsonCall } from "../llm.ts";
 import { captureError, type ErrorContext } from "../../posthog-node.ts";
 
-export type CitationMarkStatus = "backed" | "unbacked" | "disputed";
+// What the reader sees on the chip. Ordered worst-first in aggregateMarks:
+// a contradiction outranks a gap, which outranks partial support, which
+// outranks any full support.
+//   disputed     !  — a confirmed contradiction
+//   uncovered    ⚠  — the document does not cover a line citing it
+//   partial      ✓⚠ — backs part of a compound claim, silent on the rest
+//   mixed        ✓⚠ — backs one citing line surely and another weakly
+//   backed_weak  ✓  — full support, but under the measured confidence cliff
+//   backed       ✓✓ — full support the judge is sure of
+export type CitationMarkStatus = "backed" | "backed_weak" | "mixed" | "partial" | "uncovered" | "disputed";
 
 export interface CitationMark {
   status: CitationMarkStatus;
-  claims: { claim: string; verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts" }[];
+  /** Per citing line. `confidence` is carried so the `mixed` tooltip can name
+   *  which line is sure and which is not. */
+  claims: { claim: string; verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts"; confidence?: number | null }[];
   /**
    * Jev's confidence (0–1) in `status`. A ✓ is only as sure as its weakest
    * support; a ! is as sure as its clearest contradiction. Null when the
@@ -44,16 +55,35 @@ export function citeConfidence(n: unknown): number | null {
   return typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1 ? n : null;
 }
 
-// Which verdicts DECIDED a status. `supports_in_part` is absent on purpose:
-// it never decides one, because it never produces a mark at all.
-const DECIDING: Record<CitationMarkStatus, CiteVerdict[]> = {
+/**
+ * The confidence cliff, and the only threshold in this file.
+ *
+ * Measured 2026-09-24 (`pnpm eval:citation:calibration`, 57 checks over 80
+ * real citations and 327 repointed ones). It is a CLIFF, not a scale: at or
+ * above 0.95 a check was right 29 times in 30, and below it only 16 in 27. Of
+ * the 12 citations certified wrongly, ELEVEN sat below 0.95. That split is
+ * what transfers — unlike the raw rates, it does not depend on how many wrong
+ * citations the corpus holds.
+ *
+ * The same pass found the number carries NO information on a warning, which
+ * is why `disputed` and `uncovered` are not split on it, and why there are two
+ * bands here rather than the three unmeasured ones the display used to draw.
+ */
+export const MIN_BACKED_CONFIDENCE = 0.95;
+
+// Which verdicts DECIDED a status, for the confidence the mark carries.
+// `mixed` and `partial` are absent: both are about DISAGREEMENT between citing
+// lines, so one number cannot describe them and their copy names the lines
+// instead. `uncovered` is absent because its tooltip quotes the lines too.
+const DECIDING: Partial<Record<CitationMarkStatus, CiteVerdict[]>> = {
   disputed: ["contradicts"],
   backed: ["supports"],
-  unbacked: ["says_nothing"],
+  backed_weak: ["supports"],
 };
 
 function confidenceFor(status: CitationMarkStatus, pairs: JudgedPair[]): number | null {
   const deciding = DECIDING[status];
+  if (!deciding) return null;
   const values: number[] = [];
   for (const p of pairs) {
     if (!p.verdict || !deciding.includes(p.verdict)) continue;
@@ -70,6 +100,15 @@ function confidenceFor(status: CitationMarkStatus, pairs: JudgedPair[]): number 
  * another pair on it is `contradicts`: we don't claim what we didn't check.
  * A doc whose only pairs are `about_document` pointers also gets no mark — a
  * pointer citation makes no claim about the doc's content.
+ *
+ * Full support then splits on MIN_BACKED_CONFIDENCE. Every supporting line
+ * over the cliff is `backed`, every line under it is `backed_weak`, and a
+ * document with lines on both sides is `mixed` — that last case is why the
+ * split is not simply "weakest support wins": a document that clearly backs
+ * one sentence and barely backs another is telling the reader something a
+ * single number hides. A supporting line with NO confidence counts as under
+ * the cliff; Jev always reports one on a live Choice, so a missing value means
+ * something went wrong, which is not a reason to promote the mark.
  */
 export function aggregateMarks(judged: JudgedPair[]): Record<string, CitationMark> {
   const byUuid = new Map<string, JudgedPair[]>();
@@ -87,22 +126,16 @@ export function aggregateMarks(judged: JudgedPair[]): Record<string, CitationMar
       .filter((p): p is JudgedPair & { verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts" } =>
         p.verdict === "supports" || p.verdict === "supports_in_part" || p.verdict === "says_nothing" || p.verdict === "contradicts",
       )
-      .map((p) => ({ claim: p.claim, verdict: p.verdict }));
+      .map((p) => ({ claim: p.claim, verdict: p.verdict, confidence: citeConfidence(p.confidence) }));
     let status: CitationMarkStatus;
     if (pairs.some((p) => p.verdict === "contradicts")) status = "disputed";
-    else if (pairs.some((p) => p.verdict === "says_nothing")) status = "unbacked";
-    // `supports_in_part` WITHHOLDS the mark: no ✓, no note. The document backs
-    // the part it was cited for and is silent on the rest, so neither claim we
-    // can make about it is honest. A ✓ would certify a line the document only
-    // half states — and, on a mis-citation, would certify it loudly. The same
-    // rule an unjudged pair follows above: we don't claim what we didn't
-    // fully check. It sits BELOW `contradicts` and `says_nothing` in this
-    // ladder, so a real finding on another of the document's claims still
-    // shows; it sits ABOVE `supports`, so partial support on any claim is
-    // enough to withhold the whole document's mark.
-    else if (pairs.some((p) => p.verdict === "supports_in_part")) continue;
-    else if (pairs.some((p) => p.verdict === "supports")) status = "backed";
-    else continue; // only `about_document` pointers — no content claim to mark
+    else if (pairs.some((p) => p.verdict === "says_nothing")) status = "uncovered";
+    else if (pairs.some((p) => p.verdict === "supports_in_part")) status = "partial";
+    else if (pairs.some((p) => p.verdict === "supports")) {
+      const sure = pairs.filter((p) => p.verdict === "supports" && (citeConfidence(p.confidence) ?? 0) >= MIN_BACKED_CONFIDENCE).length;
+      const total = pairs.filter((p) => p.verdict === "supports").length;
+      status = sure === total ? "backed" : sure === 0 ? "backed_weak" : "mixed";
+    } else continue; // only `about_document` pointers — no content claim to mark
     out[uuid] = { status, claims, confidence: confidenceFor(status, pairs) };
   }
   return out;

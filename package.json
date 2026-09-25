@@ -59,6 +59,7 @@
     "eval:census": "bun scripts/eval/eval-census.ts",
     "eval:complexity": "bun scripts/eval/eval-complexity.ts",
     "eval:citation": "bun scripts/eval/eval-citation.ts",
+    "eval:citation:calibration": "bun scripts/eval/eval-citation-calibration.ts",
     "eval:announce": "bun scripts/eval/eval-announce.ts",
     "eval:completeness": "bun scripts/eval/eval-completeness.ts",
     "eval:tools": "bun scripts/eval/eval-tools.ts",

@@ -10,7 +10,7 @@ const UUID_B = "22222222-2222-2222-2222-222222222222";
 
 const backedMark: CitationMark = { status: "backed", claims: [{ claim: "x", verdict: "supports" }], confidence: 0.9 };
 const disputedMark: CitationMark = { status: "disputed", claims: [{ claim: "x", verdict: "contradicts" }], confidence: 0.7 };
-const unbackedMark: CitationMark = { status: "unbacked", claims: [{ claim: "x", verdict: "says_nothing" }], confidence: null };
+const unbackedMark: CitationMark = { status: "uncovered", claims: [{ claim: "x", verdict: "says_nothing" }], confidence: null };
 
 // ── agreedContradictionsFrom ────────────────────────────────────────────────
 

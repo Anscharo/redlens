@@ -44,13 +44,17 @@ export interface ParamMismatch {
 // was actually checked; an uncited/unchecked doc gets no entry at all, which
 // the Sources chip renders as no mark rather than as any particular verdict.
 export interface CitationMark {
-  status: "backed" | "unbacked" | "disputed";
+  // What the chip draws: ✓✓ sure, ✓ unsure, ✓⚠ backs the line with a caveat,
+  // ⚠ the document does not cover a line citing it, ! a contradiction.
+  // See src/server/chat/verify/citation-marks.ts for how one is chosen.
+  status: "backed" | "backed_weak" | "mixed" | "partial" | "uncovered" | "disputed";
   // `supports_in_part` (2026-09-24): the document states one of a compound
-  // claim's assertions outright and says nothing about the rest. It WITHHOLDS
-  // the document's mark server-side rather than earning a ✓, so in practice it
-  // reaches this array only alongside another claim that did produce a mark.
-  claims: { claim: string; verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts" }[];
-  /** 0–1 confidence in `status`. Absent on a mark folded before this was sent. */
+  // claim's assertions outright and says nothing about the rest.
+  // `confidence` is per citing line, so the `mixed` tooltip can name which
+  // line the source backs surely and which only weakly.
+  claims: { claim: string; verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts"; confidence?: number | null }[];
+  /** 0–1 confidence in `status`, null where one number cannot describe it —
+   *  `mixed`, `partial` and `uncovered` name their citing lines instead. */
   confidence?: number | null;
 }
 

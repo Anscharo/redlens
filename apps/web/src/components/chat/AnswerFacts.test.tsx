@@ -18,7 +18,7 @@ describe("AnswerFacts", () => {
     render(
       <AnswerFacts
         coverage={{ verdict: "answers", missingParts: ["when"] }}
-        marks={{ a: { status: "backed", claims: [] }, b: { status: "unbacked", claims: [] } }}
+        marks={{ a: { status: "backed", claims: [] }, b: { status: "uncovered", claims: [] } }}
       />,
     );
     const list = screen.getByRole("list", { name: "Answer confidence" });

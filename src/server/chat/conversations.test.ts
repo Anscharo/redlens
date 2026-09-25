@@ -447,7 +447,10 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
         string,
         { status: string; confidence: number | null }
       >;
-      expect(marks["doc-a"].status).toBe("backed");
+      // Both supporting lines sit under MIN_BACKED_CONFIDENCE, so the reload
+      // re-derives the weak check — proving the CURRENT fold runs on read
+      // rather than a status stored when the turn ran.
+      expect(marks["doc-a"].status).toBe("backed_weak");
       expect(marks["doc-a"].confidence).toBe(0.62); // weakest support
       expect(marks["doc-c"].status).toBe("disputed");
       expect(marks["doc-c"].confidence).toBe(0.8); // clearest contradiction

@@ -46,7 +46,10 @@ export function answerFacts(coverage: AnswerCoverage | undefined, marks: Record<
   }
   const marked = marks ? Object.values(marks) : [];
   if (marked.length > 0) {
-    const backed = marked.filter((m) => m.status === "backed").length;
+    // Any status that draws a check counts as backing, including the weak and
+    // caveated ones — the chip itself carries the caveat, and a count that
+    // silently dropped them would disagree with what the reader can see.
+    const backed = marked.filter((m) => m.status !== "uncovered" && m.status !== "disputed").length;
     // A disputed mark is a confirm-gated contradiction the verify badge does
     // not repeat. An unbacked mark only means the document doesn't cover the
     // citing line, so it stays a neutral count.

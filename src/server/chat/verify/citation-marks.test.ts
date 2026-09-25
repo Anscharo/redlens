@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import type { CiteVerdict } from "./cite-support.ts";
-import { aggregateMarks, runCitationMarks } from "./citation-marks.ts";
+import { aggregateMarks, runCitationMarks, MIN_BACKED_CONFIDENCE } from "./citation-marks.ts";
 import { config } from "../../config.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import type { JsonCall } from "../llm.ts";
@@ -39,8 +39,8 @@ describe("aggregateMarks", () => {
     ]);
     expect(marks[A].status).toBe("disputed");
     expect(marks[A].claims).toEqual([
-      { claim: "c1", verdict: "supports" },
-      { claim: "c2", verdict: "contradicts" },
+      { claim: "c1", verdict: "supports", confidence: null },
+      { claim: "c2", verdict: "contradicts", confidence: null },
     ]);
   });
 
@@ -60,14 +60,15 @@ describe("aggregateMarks", () => {
     expect(withContra[A]).toBeUndefined();
   });
 
-  it("says_nothing with no contradicts or null — unbacked", () => {
+  it("says_nothing with no contradicts or null — uncovered", () => {
     const marks = aggregateMarks([{ uuid: A, claim: "c1", verdict: "says_nothing" }]);
-    expect(marks[A]).toEqual({ status: "unbacked", claims: [{ claim: "c1", verdict: "says_nothing" }], confidence: null });
+    expect(marks[A]).toEqual({ status: "uncovered", claims: [{ claim: "c1", verdict: "says_nothing", confidence: null }], confidence: null });
   });
 
-  it("only supports — backed", () => {
+  // No confidence reported, so the support cannot clear the cliff.
+  it("only supports — a weak backing without a number", () => {
     const marks = aggregateMarks([{ uuid: A, claim: "c1", verdict: "supports" }]);
-    expect(marks[A]).toEqual({ status: "backed", claims: [{ claim: "c1", verdict: "supports" }], confidence: null });
+    expect(marks[A]).toEqual({ status: "backed_weak", claims: [{ claim: "c1", verdict: "supports", confidence: null }], confidence: null });
   });
 
   it("only about_document pointers — no mark, and the pointer is excluded from claims on a mixed doc", () => {
@@ -76,22 +77,7 @@ describe("aggregateMarks", () => {
       { uuid: A, claim: "c1", verdict: "about_document" },
       { uuid: A, claim: "c2", verdict: "supports" },
     ]);
-    expect(marks[A]).toEqual({ status: "backed", claims: [{ claim: "c2", verdict: "supports" }], confidence: null });
-  });
-
-  it("a check is as sure as its weakest support, a warning as sure as its clearest contradiction", () => {
-    const backed = aggregateMarks([
-      { uuid: A, claim: "c1", verdict: "supports", confidence: 0.91 },
-      { uuid: A, claim: "c2", verdict: "supports", confidence: 0.64 },
-    ]);
-    expect(backed[A].confidence).toBe(0.64);
-    const disputed = aggregateMarks([
-      { uuid: B, claim: "c1", verdict: "supports", confidence: 0.99 },
-      { uuid: B, claim: "c2", verdict: "contradicts", confidence: 0.4 },
-      { uuid: B, claim: "c3", verdict: "contradicts", confidence: 0.87 },
-    ]);
-    expect(disputed[B].confidence).toBe(0.87);
-    expect(aggregateMarks([{ uuid: C, claim: "c1", verdict: "supports", confidence: 1.4 }])[C].confidence).toBeNull();
+    expect(marks[A]).toEqual({ status: "backed_weak", claims: [{ claim: "c2", verdict: "supports", confidence: null }], confidence: null });
   });
 
   it("keeps docs independent — one doc's null does not affect another's mark", () => {
@@ -100,7 +86,7 @@ describe("aggregateMarks", () => {
       { uuid: B, claim: "c2", verdict: "supports" },
     ]);
     expect(marks[A]).toBeUndefined();
-    expect(marks[B].status).toBe("backed");
+    expect(marks[B].status).toBe("backed_weak"); // no confidence reported
   });
 });
 
@@ -142,7 +128,7 @@ describe("runCitationMarks", () => {
     stubJudge(() => "supports");
     const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev" });
     expect(run.calls).toBe(2);
-    expect(run.marks[A]).toEqual({ status: "backed", claims: [{ claim: run.judged.find((j) => j.uuid === A)!.claim, verdict: "supports" }], confidence: 1 });
+    expect(run.marks[A]).toEqual({ status: "backed", claims: [{ claim: run.judged.find((j) => j.uuid === A)!.claim, verdict: "supports", confidence: 1 }], confidence: 1 });
     expect(run.marks[B].status).toBe("backed");
     expect(run.confirm).toBeNull(); // no contradicts — confirm never called
   });
@@ -186,7 +172,7 @@ describe("runCitationMarks", () => {
     });
     const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", jsonCall: confirmCall, confirmModel: "confirm-model" });
     expect(run.confirm).toEqual({ candidates: 1, agreed: 0 });
-    expect(run.marks[A].status).toBe("unbacked");
+    expect(run.marks[A].status).toBe("uncovered");
     expect(run.marks[A].confidence).toBeNull();
     expect(run.judged.find((j) => j.uuid === A)!.confidence).toBeNull();
   });
@@ -221,7 +207,7 @@ describe("runCitationMarks", () => {
     stubJudge((claim) => (claim.includes("Facilitators") ? "contradicts" : "supports"));
     const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev" });
     expect(run.confirm).toEqual({ candidates: 1, agreed: 0 });
-    expect(run.marks[A].status).toBe("unbacked");
+    expect(run.marks[A].status).toBe("uncovered");
   });
 
   it("skips a citation to a uuid not in ix.docMap", async () => {
@@ -237,29 +223,51 @@ describe("runCitationMarks", () => {
   });
 });
 
-describe("aggregateMarks: partial support", () => {
+describe("aggregateMarks: how full support splits", () => {
   const U1 = "11111111-1111-4111-8111-111111111111";
-  const j = (claim: string, verdict: CiteVerdict, confidence: number | null = 0.9) => ({ uuid: U1, claim, verdict, confidence });
+  const j = (claim: string, verdict: CiteVerdict, confidence: number | null = 0.99) => ({ uuid: U1, claim, verdict, confidence });
 
-  it("withholds the mark entirely — no check, no note", () => {
-    expect(aggregateMarks([j("distributions and integration boosts", "supports_in_part")])[U1]).toBeUndefined();
+  it("every supporting line over the cliff is a plain backing", () => {
+    expect(aggregateMarks([j("a", "supports", 0.99), j("b", "supports", MIN_BACKED_CONFIDENCE)])[U1].status).toBe("backed");
   });
 
-  it("outranks supports, so one partial claim withholds the whole doc's mark", () => {
-    expect(aggregateMarks([j("a", "supports"), j("b", "supports_in_part")])[U1]).toBeUndefined();
+  it("every supporting line under the cliff is a weak backing", () => {
+    expect(aggregateMarks([j("a", "supports", 0.94), j("b", "supports", 0.5)])[U1].status).toBe("backed_weak");
   });
 
-  // It withholds a ✓; it must not suppress a real finding on another claim.
-  it("loses to a contradiction or a says_nothing on the same doc", () => {
-    expect(aggregateMarks([j("a", "supports_in_part"), j("b", "contradicts")])[U1].status).toBe("disputed");
-    expect(aggregateMarks([j("a", "supports_in_part"), j("b", "says_nothing")])[U1].status).toBe("unbacked");
+  // The case a single number hides: this document clearly backs one sentence
+  // and barely backs another, which is worth saying rather than averaging.
+  it("lines on both sides of the cliff are mixed", () => {
+    const mark = aggregateMarks([j("a", "supports", 0.99), j("b", "supports", 0.93)])[U1];
+    expect(mark.status).toBe("mixed");
+    // The tooltip names both lines, so both confidences have to survive.
+    expect(mark.claims.map((c) => c.confidence)).toEqual([0.99, 0.93]);
   });
 
-  // A ✓'s confidence is the weakest FULL support. A verdict that never decides
-  // a status must never contribute a number to one either.
-  it("contributes no confidence to a status it did not decide", () => {
-    const mark = aggregateMarks([j("a", "supports", 0.8), j("b", "contradicts", 0.6), j("c", "supports_in_part", 0.1)])[U1];
-    expect(mark.status).toBe("disputed");
-    expect(mark.confidence).toBe(0.6);
+  // Jev always reports a confidence on a live Choice, so a missing one means
+  // something went wrong. That is not a reason to promote the mark.
+  it("counts a supporting line with no confidence as under the cliff", () => {
+    expect(aggregateMarks([j("a", "supports", null)])[U1].status).toBe("backed_weak");
+  });
+
+  it("gives partial support a mark of its own, below every full backing", () => {
+    expect(aggregateMarks([j("a", "supports_in_part", 0.88)])[U1].status).toBe("partial");
+    expect(aggregateMarks([j("a", "supports", 0.99), j("b", "supports_in_part", 0.9)])[U1].status).toBe("partial");
+  });
+
+  // Worst verdict still wins over all of it.
+  it("loses to a contradiction and to an uncovered line", () => {
+    expect(aggregateMarks([j("a", "supports_in_part", 0.9), j("b", "contradicts", 0.2)])[U1].status).toBe("disputed");
+    expect(aggregateMarks([j("a", "supports", 0.99), j("b", "says_nothing", 0.2)])[U1].status).toBe("uncovered");
+  });
+
+  // A check is only as sure as its weakest support; a warning as sure as its
+  // clearest contradiction. Neither `mixed` nor `partial` carries a number —
+  // one value cannot describe a disagreement between lines.
+  it("carries a number only where one number can describe the status", () => {
+    expect(aggregateMarks([j("a", "supports", 0.99), j("b", "supports", 0.96)])[U1].confidence).toBe(0.96);
+    expect(aggregateMarks([j("a", "contradicts", 0.4), j("b", "contradicts", 0.87)])[U1].confidence).toBe(0.87);
+    expect(aggregateMarks([j("a", "supports", 0.99), j("b", "supports", 0.93)])[U1].confidence).toBeNull();
+    expect(aggregateMarks([j("a", "supports_in_part", 0.9)])[U1].confidence).toBeNull();
   });
 });

@@ -90,7 +90,11 @@ export function withoutDisputedMarks(
 ): Record<string, CitationMark> {
   const disputed = new Set(contradictions.map((c) => c.uuid).filter((u): u is string => u !== null));
   if (disputed.size === 0) return marks;
-  const collides = Object.entries(marks).filter(([uuid, m]) => m.status === "backed" && disputed.has(uuid));
+  // Every status that draws a check, not just the strongest one — a weak or
+  // caveated check on a document an agreed contradiction is sourced to is the
+  // same contradiction in a quieter voice.
+  const BACKING = ["backed", "backed_weak", "mixed", "partial"];
+  const collides = Object.entries(marks).filter(([uuid, m]) => BACKING.includes(m.status) && disputed.has(uuid));
   if (collides.length === 0) return marks;
   const out = { ...marks };
   for (const [uuid] of collides) delete out[uuid];
