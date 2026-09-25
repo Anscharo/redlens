@@ -148,7 +148,7 @@ e. **Set the worker variables:**
 | `DATABASE_URL` | **yes** | Same Postgres as the web service |
 | `GITHUB_TOKEN` | **yes** | `gh pr view` for history PR metadata — no stored creds in container |
 | `OPENROUTER_API_KEY` | optional | Embeddings — skipped gracefully if unset |
-| `ATLAS_WORKER_FULL=1` | optional | Force a full history rebuild from the beginning |
+| `ATLAS_WORKER_FULL=1` | optional | Force a full history rebuild from the beginning. **Not needed to seed a fresh DB** — an empty `atlas_history` / `atlas_doc_versions` gives a null cursor and both walks run in full by themselves. Leaving it set costs a full rewalk (~174 `gh pr view` calls, uncached — no volume) plus a disabled fast-exit on *every* tick |
 | `CHAINSTATE_REFRESH_SECONDS` | optional | Age past which the worker re-runs the contract-state multicall sweep (default `86400`, daily; `604800` for the weekly cadence the old committed-file workflow had) |
 | `ETH_RPC_URL` | optional | Mainnet RPC for that sweep; the public `CHAIN_RPC.ethereum` default is used when unset |
 | `BALANCES_REFRESH_SECONDS` | optional | Age past which an address's token balances are eligible for the worker's rolling refresh (default `86400`, daily). A lookup still happens at most hourly |

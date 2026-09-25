@@ -14,7 +14,12 @@
 # Optional:
 #   GITHUB_TOKEN        — `gh api` calls for PR metadata in build-history
 #   OPENROUTER_API_KEY  — embeddings (skipped gracefully if unset)
-#   ATLAS_WORKER_FULL=1 — force full history rebuild (ignore Postgres cursor)
+#   ATLAS_WORKER_FULL=1 — force full history rebuild (ignore Postgres cursor).
+#                         NOT needed for a fresh DB (per-PR environments
+#                         included): an empty atlas_history / atlas_doc_versions
+#                         yields a null cursor and both scripts walk everything
+#                         on their own. Left set, it re-walks every tick and
+#                         disables the fast-exit — see atlas-worker.mjs.
 #   ETH_RPC_URL / RPC_URL_<CHAIN> — RPC overrides for chain-state + balances
 #   CHAINSTATE_REFRESH_SECONDS — contract-state snapshot cadence (default daily)
 #   BALANCES_REFRESH_SECONDS / BALANCES_REFRESH_BATCH — rolling address-balance

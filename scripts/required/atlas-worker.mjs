@@ -136,6 +136,20 @@ async function getUpstreamSha() {
 async function main() {
   const t0 = Date.now();
   const full = process.env.ATLAS_WORKER_FULL === "1";
+  // Not needed to bootstrap an empty DB — build-history and build-doc-versions
+  // both read their own cursor, both get null from an empty (or missing) table,
+  // and both then walk everything anyway. All the flag adds is on every LATER
+  // tick: it makes the fast-exit unreachable, turns doc-versions' append into a
+  // drop-and-rewrite of the whole table, and re-walks all ~175 commits — and
+  // with them ~174 `gh pr view` calls, since .cache/github-prs is local disk and
+  // no Railway service mounts a volume, so every cron container starts cold.
+  // At */12 that is ~870 GitHub API calls an hour against a 5,000/hr budget.
+  if (full) {
+    console.warn(
+      "atlas-worker: ATLAS_WORKER_FULL=1 — forcing full history + doc-versions walks and disabling the fast-exit. " +
+        "Unset it unless you are deliberately rewalking; an empty DB walks fully on its own.",
+    );
+  }
 
   // One timer, two deadlines, because the run has two halves whose timeouts mean
   // opposite things.
