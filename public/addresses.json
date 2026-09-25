@@ -845,6 +845,22 @@
       "ethereum"
     ]
   },
+  "0x42d1038017e466b413aa44ae798e30fb80b2e180": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
   "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431": {
     "chain": "base",
     "chains": [

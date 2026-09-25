@@ -80,7 +80,9 @@ describe("PreviewBanner", () => {
     expect(await screen.findByText("PREVIEW")).toBeTruthy();
     const link = await screen.findByRole("link", { name: "view PR 88" });
     expect(link).toHaveAttribute("href", "https://github.com/sky-ecosystem/next-gen-atlas/pull/88");
-    expect(screen.getByText("Comparing feat/x — Add a thing")).toBeTruthy();
+    expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing feat/x — Add a thing");
+    expect(screen.getByText("feat/x").tagName).toBe("EM");
+    expect(screen.getByText("Add a thing").tagName).toBe("STRONG");
     expect(screen.queryByText(/by alice/)).toBeNull();
     const titles: Array<string | null> = [];
     cleanup();
@@ -114,7 +116,8 @@ describe("PreviewBanner", () => {
     vi.spyOn(globalThis, "fetch").mockReturnValue(new Promise(() => {}) as Promise<Response>);
     renderBanner(PREVIEW_SOURCE);
     expect(screen.getByText("PREVIEW")).toBeTruthy();
-    expect(screen.getByText("Comparing pr-88")).toBeTruthy();
+    expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing pr-88");
+    expect(screen.getByText("pr-88").tagName).toBe("EM");
   });
 
   it("singularises the new-address warning for a single address", async () => {
@@ -150,7 +153,7 @@ describe("PreviewBanner", () => {
     expect(await screen.findByText("PRIVATE PREVIEW")).toBeTruthy();
     expect(screen.queryByText("PREVIEW")).toBeNull();
     expect(screen.queryByText("FORK PREVIEW")).toBeNull();
-    expect(screen.getByText(/Comparing feature/)).toBeTruthy();
+    expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing feature");
     expect(screen.queryByText(/a private preview of/)).toBeNull();
     expect(screen.queryByText(/redlined against/)).toBeNull();
   });
@@ -170,7 +173,7 @@ describe("PreviewBanner", () => {
     expect(await screen.findByText("PRIVATE PREVIEW")).toBeTruthy();
     const link = await screen.findByRole("link", { name: "view PR 42" });
     expect(link).toHaveAttribute("href", "https://github.com/acme/secret-atlas/pull/42");
-    expect(screen.getByText(/Comparing feature\/spark — Spark the atlas/)).toBeTruthy();
+    expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing feature/spark — Spark the atlas");
   });
 
   it("links a private pull-N ref (Contents-only fallback) to the private repo's pull", async () => {
@@ -212,7 +215,10 @@ describe("PreviewBanner", () => {
       },
     });
     renderBanner(PREVIEW_SOURCE);
-    expect(await screen.findByText(/Comparing main to acme\/fork:main/)).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing main to acme/fork:main"),
+    );
+    expect(screen.getByText("acme/fork:main").tagName).toBe("EM");
     expect(screen.queryByText(/redlined against/)).toBeNull();
     expect(screen.queryByText(/docs differ/)).toBeNull();
   });
@@ -224,7 +230,9 @@ describe("PreviewBanner", () => {
       bases: { auto: "sky", sky: { repo: "acme/secret-atlas", ref: "feature", mergeBase: "x", behindBy: 4 } },
     });
     renderBanner(PREVIEW_SOURCE);
-    expect(await screen.findByText(/Comparing feature to acme\/secret-atlas:feature/)).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing feature to acme/secret-atlas:feature"),
+    );
     expect(screen.queryByText(/commits behind/)).toBeNull();
   });
 
@@ -290,7 +298,7 @@ describe("PreviewBanner", () => {
       bases: { auto: "live-main", reason: "no fork point found" },
     });
     renderBanner(PREVIEW_SOURCE);
-    expect(await screen.findByText(/Comparing main to live main/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing main to live main"));
     expect(screen.queryByText(/no fork point found/)).toBeNull();
   });
 
@@ -372,7 +380,7 @@ describe("PreviewBanner", () => {
       forkOwner: "mallory", behindBy: 5,
     });
     renderBanner(PREVIEW_SOURCE);
-    expect(await screen.findByText("Comparing sneaky")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/^Comparing/)).toHaveTextContent("Comparing sneaky"));
     expect(screen.queryByText(/by mallory/)).toBeNull();
     expect(screen.queryByText(/commits behind/)).toBeNull();
     expect(screen.queryByText(/redlined against/)).toBeNull();
