@@ -183,11 +183,17 @@ async function main() {
   // The tail deadline also sits under the */12 cron period, so the process is
   // gone before the next tick claims the same backlog. At 15m it never was: that
   // tick is either skipped (backfill gets 15m per 24m instead of 11m per 12m) or
-  // it overlaps and re-embeds what this process is already paying for. Measured
-  // from t0, floored at a minute, and the floor is the one case that can still
-  // outlive a tick — a heartbeat landing after minute 10 gets its minute anyway,
-  // in exchange for the tails not being skipped outright. Nothing observed comes
-  // close (T+12s), and Railway skipping that tick is the benign outcome.
+  // it overlaps and re-embeds what this process is already paying for.
+  //
+  // Measured from t0 and floored at a minute, which gives TWO distinct thresholds
+  // — don't conflate them. The floor ENGAGES once the heartbeat lands past minute
+  // 10 (660 - hb < 60), but it only pushes the exit past the */12 TICK once the
+  // heartbeat lands past minute 11 (hb + 60 > 720). In between, minute 10 to 11,
+  // the floor is active and the process still exits inside its own tick. Only a
+  // heartbeat after minute 11 outlives one, and that is the deliberate trade: a
+  // very late heartbeat gets its minute rather than having the tails skipped
+  // outright. Nothing observed comes near either threshold (T+12s), and Railway
+  // skipping the overlapped tick is the benign outcome anyway.
   const HARD_CAP_MS = 15 * 60 * 1000;
   const TAIL_CAP_MS = 11 * 60 * 1000;
   // unref() so a successful exit isn't held open for the remainder.

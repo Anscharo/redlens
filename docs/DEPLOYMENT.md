@@ -576,11 +576,17 @@ so something before it hung — see the entry above.
 this tick stood down. Normally that is the *other* legitimate writer finishing its
 own pass and the count resumes falling. If it stays flat over several ticks, the
 holder is wedged: **restart the web service**, whose `boot-embeddings` spawn is
-detached and would otherwise hold the lock for as long as its process lives.
-Waiting for another worker tick cannot clear it. `EMBED_REQUEST_TIMEOUT_MS`
-(default 120s) is what bounds this — lower it only if you have a reason, since a
-value under ~20s starts cutting healthy batches mid-retry. Lexical search is
-unaffected throughout; only semantic retrieval degrades.
+detached and holds the lock for as long as its process lives. Waiting for another
+worker tick cannot clear it.
+
+`EMBED_REQUEST_TIMEOUT_MS` (default 120s) does **not** rescue this on its own — it
+bounds one embed attempt, not the run. Against a provider that answers nothing
+each batch costs ~363s (3 attempts plus backoff) and is then skipped, so the
+holder keeps walking: ~23 hours for a cold 11.6k-doc set, lock held throughout.
+Restarting the web service is the remedy, not waiting it out. Lower the timeout
+only if you have a reason — under ~20s it starts cutting healthy batches
+mid-retry. Lexical search is unaffected throughout; only semantic retrieval
+degrades.
 
 **atlas-update workflow pushes fail**
 → The bot isn't a branch-protection bypass actor (step 8d), or the

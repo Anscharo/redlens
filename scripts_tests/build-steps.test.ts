@@ -242,6 +242,35 @@ describe("atlas artifact store: worker publish is load-bearing (phase 4)", () =>
     expect(tailMin).toBeLessThan(everyMin);
   });
 
+  // `Math.max(FLOOR, TAIL_CAP_MS - elapsed)` has TWO thresholds, and the comment
+  // blended them at first: the floor ENGAGES once the heartbeat passes
+  // TAIL_CAP - FLOOR, but the */12 tick is only OUTLIVED once it passes
+  // CRON - FLOOR. With 660s / 60s / 720s that is minute 10 vs minute 11, and
+  // between them the floor is active while the process still exits inside its own
+  // tick. Asserted as arithmetic so a change to any of the three constants shows
+  // which of the two thresholds moved.
+  it("the floor engages a full minute before it can outlive a tick", () => {
+    const worker = fs.readFileSync(path.join(ROOT, "scripts/required/atlas-worker.mjs"), "utf8");
+    const toml = fs.readFileSync(path.join(ROOT, "railway.worker.toml"), "utf8");
+    const tail = Number(/const TAIL_CAP_MS = (\d+) \* 60 \* 1000/.exec(worker)?.[1]) * 60;
+    const cron = Number(/cronSchedule = "\*\/(\d+) \* \* \* \*"/.exec(toml)?.[1]) * 60;
+    const floor = Number(/Math\.max\((\d+) \* 1000, TAIL_CAP_MS/.exec(worker)?.[1]);
+    expect(floor).toBe(60);
+
+    const deadline = (hb: number) => hb + Math.max(floor, tail - hb);
+    // Floor inactive: the deadline is exactly the budget, wherever the heartbeat lands.
+    expect(deadline(12)).toBe(tail);
+    expect(deadline(tail - floor)).toBe(tail);
+    // Floor active from there, but still inside the tick all the way to CRON - FLOOR.
+    expect(deadline(tail - floor + 1)).toBeGreaterThan(tail);
+    expect(deadline(cron - floor)).toBe(cron);
+    // Only past CRON - FLOOR does the process outlive its own tick.
+    expect(deadline(cron - floor + 1)).toBeGreaterThan(cron);
+    // The two thresholds are distinct, and the gap between them is CRON - TAIL.
+    expect(cron - floor - (tail - floor)).toBe(cron - tail);
+    expect(cron - tail).toBeGreaterThan(0);
+  });
+
   it("atlas-worker heartbeats on the rebuild path, not only the fast exit", () => {
     // 2026-09-22: production cron rebuilt every 12 min (staleEmbeds=1) then
     // sync.ts no-op'd; heartbeat lived only on the skip path, so freshness
