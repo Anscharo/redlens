@@ -84,19 +84,24 @@ const rows = await pool(cases, 6, async (c: CiteCase) => {
 });
 console.log(`network calls ${calls} | spend $${spend.toFixed(4)}\n`);
 
-// What the READER sees. `supports` is the only verdict that earns a ✓:
-// supports_in_part withholds the mark and about_document produces none
-// (citation-marks.ts). says_nothing/contradicts produce the warning.
-const shown = (v: CiteVerdict | null) => (v === "supports" ? "check" : v === "says_nothing" || v === "contradicts" ? "warning" : "none");
+// What the READER sees (citation-marks.ts). `supports` earns a check on its
+// own; `supports_in_part` earns a check WITH a warning, which is a third thing
+// and is scored apart rather than folded into either — a caveated check makes
+// a weaker promise than a plain one. `about_document` produces no mark.
+const shown = (v: CiteVerdict | null) =>
+  v === "supports" ? "check" : v === "supports_in_part" ? "caveat" : v === "says_nothing" || v === "contradicts" ? "warning" : "none";
 // A check is RIGHT on a real citation and WRONG on a repointed one. A warning
 // is the reverse.
 const correct = (r: { c: CiteCase; verdict: CiteVerdict | null }) => {
   const real = r.c.kind === "positive";
-  return shown(r.verdict) === "check" ? real : !real;
+  // A check or a caveated check both assert the source backs the line, so both
+  // are right on a real citation and wrong on a repointed one. A warning is
+  // the reverse.
+  return shown(r.verdict) === "warning" ? !real : real;
 };
 
 const BUCKETS = [0, 0.5, 0.7, 0.8, 0.9, 0.95, 1.0001];
-function table(label: string, mark: "check" | "warning", num: (r: (typeof rows)[number]) => number | null): void {
+function table(label: string, mark: "check" | "caveat" | "warning", num: (r: (typeof rows)[number]) => number | null): void {
   const rs = rows.filter((r) => shown(r.verdict) === mark && num(r) !== null);
   console.log(`\n${label} — ${rs.length} ${mark}s shown`);
   if (!rs.length) return;
@@ -123,7 +128,7 @@ function table(label: string, mark: "check" | "warning", num: (r: (typeof rows)[
 const pOf = (r: (typeof rows)[number]) => (r.verdict && r.probabilities ? (r.probabilities[r.verdict] ?? null) : null);
 const cOf = (r: (typeof rows)[number]) => r.confidence;
 
-for (const mark of ["check", "warning"] as const) {
+for (const mark of ["check", "caveat", "warning"] as const) {
   table(`CONFIDENCE (what we display today)`, mark, cOf);
   table(`P(verdict) (what we throw away)`, mark, pOf);
 }

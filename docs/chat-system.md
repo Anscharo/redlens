@@ -859,13 +859,25 @@ carries a number, because one value cannot describe a disagreement between
 lines. A warning is never gated on confidence — the calibration found the
 number carries no information there.
 
-The ⚠ statuses and the ! quote the lines they are about ("Please double check
-source: …" for a gap, "This source says otherwise: …" for a contradiction),
-and clicking a quote scrolls to it and highlights it in the answer. Quotes cut
-at 140 characters, at the last sentence end inside the budget, then the last
-clause break, then the last word break, never mid-word. Confirm clearing a
-contradiction also clears that pair's confidence, so a downgraded mark does not
-inherit a band from a verdict it rejected. Started concurrently with the audit, so it never delays it; bounded by
+**Only the two full-support statuses carry a confidence word.** `backed` reads
+"High confidence this source backs the answer" and `backed_weak` "Low
+confidence"; the STATUS carries the band, so nothing on the client re-reads a
+number. A contradiction and a gap get no band at all, which is what the
+measurement supports — 0.95 was measured on checks, and putting the same word
+on a warning would reintroduce a split the data does not have.
+
+**Every status that has something to look at quotes the line, and every quoted
+line is a button** that scrolls to that sentence in the answer and highlights
+it. A headline never inlines a quote, because a quote inside a headline is a
+string and cannot be clicked: `mixed` and `partial` refer to a line as
+"citation A" / "citation B" and render the lines beneath, while `uncovered`
+("Not stated in this source. Please double-check: …") and `disputed` ("This
+source says otherwise: …") label themselves and need no headline. `partial`
+quotes the partly-stated line specifically — a document that fully backs one
+citing line and partly backs another would otherwise read as a caveat on both.
+Quotes cut at 140 characters, at the last sentence end inside the budget, then
+the last clause break, then the last word break, never mid-word. Confirm
+clearing a contradiction also clears that pair's confidence. Started concurrently with the audit, so it never delays it; bounded by
 its own 8 s deadline and fail-open (a timeout means no marks, never a warning).
 Raw verdicts persist as a `message_checks` row of kind `citation_check`.
 Every post-answer check now rehydrates on reload — the marks first

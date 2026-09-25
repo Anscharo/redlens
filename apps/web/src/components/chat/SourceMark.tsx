@@ -21,9 +21,12 @@ const GLYPH: Record<Status, string> = {
 const WARN = "⚠";
 
 const CLAIM_CHAR_CAP = 140;
-// Two quotes share one sentence in the `mixed` tooltip, so each gets less room.
-const INLINE_CLAIM_CAP = 75;
 const MAX_CLAIMS_SHOWN = 5;
+// Quoted lines a headline can point at. Every quoted line is its own element,
+// so each one is a button that scrolls to that sentence in the answer — which
+// is why a headline REFERS to a line by letter instead of inlining the quote.
+// An inlined quote is a string inside a headline and can never be clicked.
+const LETTERS = ["A", "B", "C", "D", "E"];
 
 // A cut mid-word, or mid-clause, changes what the reader thinks was checked.
 // Prefer the last sentence end inside the budget, then the last clause break,
@@ -43,56 +46,88 @@ function truncateClaim(claim: string, cap = CLAIM_CHAR_CAP): string {
   return `${claim.slice(0, cut).trimEnd()}…`;
 }
 
-const quote = (claim: string, cap?: number) => `“${truncateClaim(claim, cap)}”`;
+const quote = (claim: string) => `“${truncateClaim(claim)}”`;
 
 // The whole confidence vocabulary. There used to be three bands cut at 0.75
-// and 0.45, chosen by feel and never measured. There are two now, and they sit
-// on the one threshold the calibration pass actually found
-// (MIN_BACKED_CONFIDENCE in verify/citation-marks.ts): at or above it a check
-// was right 29 times in 30, below it 16 in 27. Nothing else earns a word.
+// and 0.45, chosen by feel and never measured. There are two now, and the
+// STATUS carries them: MIN_BACKED_CONFIDENCE (verify/citation-marks.ts) split
+// full support into `backed` and `backed_weak` server-side, so nothing here
+// re-reads a number. That threshold was measured on CHECKS — 29 of 30 right
+// above it, 16 of 27 below — and the same pass found confidence carries no
+// information on a warning, so no warning gets a band.
 const SURE = "High confidence";
 const UNSURE = "Low confidence";
-const SURE_AT = 0.95;
 
-const isSure = (confidence: number | null | undefined) =>
-  typeof confidence === "number" && Number.isFinite(confidence) && confidence >= SURE_AT;
+// Which citing lines a status quotes, in the order its headline refers to
+// them. Every one becomes a button that jumps to the sentence in the answer.
+function quotedClaims(mark: CitationMark): Claim[] {
+  const of = (...verdicts: Claim["verdict"][]) => mark.claims.filter((c) => verdicts.includes(c.verdict));
+  switch (mark.status) {
+    case "backed":
+    case "backed_weak":
+      return []; // nothing to look at — the headline says it all
+    case "mixed": {
+      // The surest supporting line and the weakest, which is exactly what the
+      // status means. Sorted so the headline's A and B always line up.
+      const sorted = of("supports").sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+      return sorted.length > 1 ? [sorted[0], sorted[sorted.length - 1]] : sorted;
+    }
+    case "partial":
+      // Naming the partly-stated line is what tells the reader which sentence
+      // the caveat is about. Without it, a document that fully backs one line
+      // and partly backs another reads as a caveat on both.
+      return of("supports_in_part").slice(0, MAX_CLAIMS_SHOWN);
+    case "uncovered":
+      return of("says_nothing").slice(0, MAX_CLAIMS_SHOWN);
+    case "disputed":
+      return of("contradicts", "says_nothing").slice(0, MAX_CLAIMS_SHOWN);
+  }
+}
 
-// The headline sentence, above any quoted lines. Null where the quoted lines
-// say it better on their own.
-function summary(mark: CitationMark): string | null {
+// The headline above the quoted lines. Null where the lines say it better on
+// their own — a contradiction and a gap both label themselves.
+function summary(mark: CitationMark, quoted: Claim[]): string | null {
   switch (mark.status) {
     case "backed":
       return `${SURE} this source backs the answer`;
     case "backed_weak":
       return `${UNSURE} this source backs the answer`;
-    case "mixed": {
-      const sorted = mark.claims
-        .filter((c) => c.verdict === "supports")
-        .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
-      const sure = sorted[0];
-      const unsure = sorted[sorted.length - 1];
-      if (!sure || sure === unsure) return `${SURE} this source backs the answer`;
-      return `${SURE} this source supports ${quote(sure.claim, INLINE_CLAIM_CAP)} but ${UNSURE.toLowerCase()} it supports ${quote(unsure.claim, INLINE_CLAIM_CAP)}`;
-    }
+    case "mixed":
+      return quoted.length > 1
+        ? `${SURE} this source supports citation A but ${UNSURE.toLowerCase()} it supports citation B`
+        : `${SURE} this source backs the answer`;
     case "partial":
-      return "This document supports part but maybe not all it is being asked to support";
+      return quoted.length > 1
+        ? "This source states part of each citation below and says nothing about the rest"
+        : "This source states part of citation A and says nothing about the rest";
     case "uncovered":
-      return null; // every uncovered line is quoted below instead
     case "disputed":
-      return `${isSure(mark.confidence) ? SURE : UNSURE} this source says otherwise`;
+      return null;
   }
 }
 
-// Which citing lines get quoted under the headline. A supporting line is not a
-// finding, and `mixed` already names both of its lines in the headline.
-const isFinding = (verdict: Claim["verdict"]): verdict is "says_nothing" | "contradicts" =>
-  verdict === "says_nothing" || verdict === "contradicts";
-
-function claimLabel(verdict: "says_nothing" | "contradicts", claim: string): string {
-  return verdict === "contradicts"
-    ? `This source says otherwise: ${quote(claim)}`
-    : `Please double check source: ${quote(claim)}`;
+// A line the headline points at by letter, or a line that labels itself.
+function claimLabel(claim: Claim, index: number): string {
+  switch (claim.verdict) {
+    case "contradicts":
+      return `This source says otherwise: ${quote(claim.claim)}`;
+    case "says_nothing":
+      return `Not stated in this source. Please double-check: ${quote(claim.claim)}`;
+    default:
+      return `${LETTERS[index] ?? "•"}: ${quote(claim.claim)}`;
+  }
 }
+
+// Stands in for the accessible name when a status has no headline and no line
+// survived — defensive only, since both of those statuses require a claim.
+const BARE_NAME: Record<Status, string> = {
+  backed: "This source backs the answer",
+  backed_weak: "This source backs the answer",
+  mixed: "This source backs the answer",
+  partial: "This source states part of what cites it",
+  uncovered: "This source doesn't cover a line citing it",
+  disputed: "This source says otherwise",
+};
 
 // Content for the shared Tooltip, shown when the whole source pill is hovered.
 // Null when this doc was never marked — the pill is just a link then.
@@ -102,15 +137,14 @@ export function sourceTooltipContent(
   onShowClaim?: (claim: string) => void,
 ): ReactNode {
   if (!mark) return null;
-  const headline = summary(mark);
-  const quotable = (c: Claim): c is Claim & { verdict: "says_nothing" | "contradicts" } => isFinding(c.verdict);
-  const claims = mark.status === "mixed" ? [] : mark.claims.filter(quotable).slice(0, MAX_CLAIMS_SHOWN);
-  if (claims.length === 0) return headline;
+  const quoted = quotedClaims(mark);
+  const headline = summary(mark, quoted);
+  if (quoted.length === 0) return headline ?? BARE_NAME[mark.status];
   return (
     <>
       {headline && <div>{headline}</div>}
-      {claims.map((c, i) => {
-        const label = claimLabel(c.verdict, c.claim);
+      {quoted.map((c, i) => {
+        const label = claimLabel(c, i);
         if (!onShowClaim) return <div key={i}>{label}</div>;
         return (
           <button
@@ -128,13 +162,11 @@ export function sourceTooltipContent(
   );
 }
 
-// The accessible name has to stand alone, so an `uncovered` mark — which has
-// no headline — borrows its first quoted line.
+// The accessible name has to stand alone, so a status with no headline borrows
+// its first quoted line.
 function accessibleName(mark: CitationMark): string {
-  const headline = summary(mark);
-  if (headline) return headline;
-  const first = mark.claims.find((c): c is Claim & { verdict: "says_nothing" | "contradicts" } => isFinding(c.verdict));
-  return first ? claimLabel(first.verdict, first.claim) : "This source was checked";
+  const quoted = quotedClaims(mark);
+  return summary(mark, quoted) ?? (quoted[0] ? claimLabel(quoted[0], 0) : BARE_NAME[mark.status]);
 }
 
 // Appended to a Sources chip after the title — the glyph only. Hover copy
@@ -143,10 +175,9 @@ function accessibleName(mark: CitationMark): string {
 export function SourceMark({ mark }: { mark: CitationMark | undefined }) {
   if (!mark) return null;
   const glyph = GLYPH[mark.status];
-  const check = glyph.replace(WARN, "");
   return (
     <span className="rlc-cite-mark" data-status={mark.status} role="img" aria-label={accessibleName(mark)}>
-      {check}
+      {glyph.replace(WARN, "")}
       {glyph.includes(WARN) && <span className="rlc-cite-warn">{WARN}</span>}
     </span>
   );
