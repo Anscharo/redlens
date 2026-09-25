@@ -73,6 +73,21 @@ export function batchSizeFromEnv(env: NodeJS.ProcessEnv = process.env): number {
   return Number(env.EMBED_BATCH ?? 50);
 }
 
+// Wall-clock ceiling on one embedBatch attempt, retries included. Bounds a hung
+// provider socket, which is the one way this reconcile can stop making progress
+// without failing: a fetch that never returns never throws, so withRetry never
+// sees it, and on the boot path (atlas-updater.ts's detached spawn, no deadline
+// of its own) that process would sit on EMBED_LOCK_KEY until the web container
+// restarted, standing every worker tick down. Deliberately generous — a 50-text
+// batch measures ~5s and embedBatch's own backoff chain adds ~15s of sleeps, so
+// 120s never fires in normal operation and only ever cuts a socket that is gone.
+// A cut batch is skipped and retried next run, the same as any other failure.
+// Exported for the same reason as batchSizeFromEnv: so a test can assert the env
+// parsing without a provider.
+export function embedTimeoutFromEnv(env: NodeJS.ProcessEnv = process.env): number {
+  return Number(env.EMBED_REQUEST_TIMEOUT_MS ?? 120_000);
+}
+
 // Retry transient embedding failures (flaky OpenRouter) with exponential backoff.
 // Per-batch upserts mean partial progress already persists; a batch that still
 // fails after retries is skipped (stays stale, retried next run) rather than
@@ -114,7 +129,9 @@ export interface EmbedDeps {
 }
 const realEmbedDeps: EmbedDeps = {
   runMigrations,
-  embedBatch: (texts) => embedBatch(texts),
+  // A FRESH signal per call, so each withRetry attempt gets its own full budget
+  // rather than sharing one deadline across all three.
+  embedBatch: (texts) => embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv())),
   batch: batchSizeFromEnv(),
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
 };
@@ -144,15 +161,14 @@ const EMBED_LOCK_KEY = 4711_2042;
  *  connection), the reconcile still runs unlocked: a missed lock costs tokens,
  *  a missed reconcile costs search.
  *
- *  KNOWN EDGE, and the one thing this trades away: the two automatic holders are
- *  not symmetric. A worker that wedges mid-backfill is killed by its own tail
- *  deadline (atlas-worker.mjs) and the container teardown drops the lock, but
- *  startBootEmbeddings is detached with no deadline and this path passes
- *  embedBatch no AbortSignal, so a hung provider socket there can hold the lock
- *  across worker ticks and stall the backfill. Bounded rather than silent: it can
- *  only start while the table is still empty (that is boot-embeddings' own
- *  precondition), any web restart releases it, lexical search is unaffected, and
- *  every skipped tick logs the line below while `staleEmbeds=` stops falling. */
+ *  The holders are not symmetric, which is what made this worth bounding. A
+ *  worker that wedges mid-backfill is killed by its own tail deadline
+ *  (atlas-worker.mjs) and the teardown drops the lock; startBootEmbeddings is a
+ *  detached spawn with no deadline of its own, so a hung provider socket there
+ *  would have held the lock until the web container restarted, standing every
+ *  worker tick down while `staleEmbeds=` sat flat. embedTimeoutFromEnv is what
+ *  closes that: the fetch now carries an AbortSignal, so the holder always either
+ *  finishes or throws, and the lock is released either way. */
 async function withEmbedLock(fn: () => Promise<void>): Promise<void> {
   let reserved: Awaited<ReturnType<typeof sql.reserve>> | null = null;
   // Tri-state, not a boolean: "could not ask" and "someone else has it" are

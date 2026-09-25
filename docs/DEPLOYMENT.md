@@ -556,14 +556,31 @@ running. Check three other things, in order:
 **Worker log ends in `hard cap (15m)` or `tail budget (11m) spent`**
 → Two different things. `tail budget` is **not** a failure: the tick already
 logged `heartbeat ok`, so docs, addresses and the published artifact set are
-committed, and only the best-effort tails (embeddings, history, doc-versions)
-were still running. Each is incremental, the run exits 0, and the next tick
-resumes where it stopped. Expect it on the first one or two ticks of a **new
-environment**, where `atlas_doc_embeddings` starts empty: ~11.6k docs at the
-measured ~620/min is ~19 minutes of backfill, more than one tick holds. Confirm
-it is converging by watching `staleEmbeds=` fall between runs.
-`hard cap (15m)` **is** a failure (exit 1): the tick never reached the
-heartbeat, so something before it hung — see the entry above.
+committed, and only the best-effort tails were still running. The run exits 0.
+Expect it on the first one or two ticks of a **new environment**, where
+`atlas_doc_embeddings` starts empty: ~11.6k docs at the measured ~620/min is ~19
+minutes of backfill, more than one tick holds. Confirm it is converging by
+watching `staleEmbeds=` fall between runs.
+
+Only **embeddings** resume where they stopped (upserted per batch). `build-history`
+and `build-doc-versions` buffer their walk and write once at the end, so a tail
+kill mid-walk repeats that walk next tick — work lost, never committed data. Both
+finish far inside the budget (112s and 22s cold, vs 660s), so in practice only
+embeddings ever span ticks.
+
+`hard cap (15m)` **is** a failure (exit 1): the tick never reached the heartbeat,
+so something before it hung — see the entry above.
+
+**`staleEmbeds=` is flat across ticks and the log says `another reconcile holds the lock`**
+→ Not the backfill converging slowly — something else holds `EMBED_LOCK_KEY` and
+this tick stood down. Normally that is the *other* legitimate writer finishing its
+own pass and the count resumes falling. If it stays flat over several ticks, the
+holder is wedged: **restart the web service**, whose `boot-embeddings` spawn is
+detached and would otherwise hold the lock for as long as its process lives.
+Waiting for another worker tick cannot clear it. `EMBED_REQUEST_TIMEOUT_MS`
+(default 120s) is what bounds this — lower it only if you have a reason, since a
+value under ~20s starts cutting healthy batches mid-retry. Lexical search is
+unaffected throughout; only semantic retrieval degrades.
 
 **atlas-update workflow pushes fail**
 → The bot isn't a branch-protection bypass actor (step 8d), or the

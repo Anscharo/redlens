@@ -143,7 +143,7 @@ mock.module("./db.ts", () => ({
   fromUuidArray,
 }));
 
-const { main, batchSizeFromEnv, withRetry } = await import("./sync-embeddings.ts");
+const { main, batchSizeFromEnv, embedTimeoutFromEnv, withRetry } = await import("./sync-embeddings.ts");
 const { config } = await import("./config.ts");
 
 function doc(id: string, doc_no: string, content: string, overrides: Partial<AtlasNode> = {}): AtlasNode {
@@ -204,6 +204,36 @@ describe("batchSizeFromEnv", () => {
 
   it("defaults to the real process.env", () => {
     expect(batchSizeFromEnv()).toBe(Number(process.env.EMBED_BATCH ?? 50));
+  });
+});
+
+// A hung provider socket is the one way this reconcile stops making progress
+// without failing — a fetch that never returns never throws, so withRetry never
+// sees it — and under EMBED_LOCK_KEY that also stands every worker tick down.
+// The ceiling is what makes the lock holder always finish or throw.
+describe("embedTimeoutFromEnv", () => {
+  it("reads EMBED_REQUEST_TIMEOUT_MS from the given env", () => {
+    expect(embedTimeoutFromEnv({ EMBED_REQUEST_TIMEOUT_MS: "5000" })).toBe(5000);
+  });
+
+  it("defaults to 120s — generous enough that a healthy batch never trips it", () => {
+    // A 50-text batch measures ~5s, and embedBatch's own backoff chain adds ~15s
+    // of sleeps; the default must clear both by a wide margin or it turns normal
+    // retry behaviour into skipped batches.
+    expect(embedTimeoutFromEnv({})).toBe(120_000);
+    expect(embedTimeoutFromEnv({})).toBeGreaterThan(20_000);
+  });
+
+  it("defaults to the real process.env", () => {
+    expect(embedTimeoutFromEnv()).toBe(Number(process.env.EMBED_REQUEST_TIMEOUT_MS ?? 120_000));
+  });
+
+  it("the real embedBatch dep passes a FRESH signal per call", async () => {
+    // One shared deadline across all three withRetry attempts would let attempt 1
+    // burn the whole budget and abort 2 and 3 before they were sent. Asserted on
+    // the source because realEmbedDeps dials a real provider.
+    const src = await Bun.file(new URL("./sync-embeddings.ts", import.meta.url)).text();
+    expect(src).toContain("embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv()))");
   });
 });
 
