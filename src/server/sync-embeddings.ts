@@ -119,9 +119,79 @@ const realEmbedDeps: EmbedDeps = {
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
 };
 
+// One reconcile at a time, across every caller — arbitrary fixed key, like
+// migrate.ts's 4711_2026 and preview/diff-base-backfill.ts's 4711_2033; all that
+// matters is that the three callers agree and the three keys stay distinct.
+const EMBED_LOCK_KEY = 4711_2042;
+
+/** Runs `fn` under EMBED_LOCK_KEY, or skips it when another process holds it.
+ *
+ *  Three callers can overlap, and on a COLD atlas_doc_embeddings all three want
+ *  the same ~11.6k vectors: the atlas worker's post-sync tail, the web service's
+ *  startBootEmbeddings (atlas-updater.ts — it fires precisely when the table is
+ *  empty, i.e. exactly the cold case), and a hand-run `pnpm sync:embeddings`.
+ *  The upserts are idempotent so this was never a correctness bug, but a cold
+ *  backfill is the one run long enough (~19 min) for a second walker to pay the
+ *  provider twice for vectors the first is already buying.
+ *
+ *  `pg_try_advisory_lock`, not a blocking wait: a queued second process would
+ *  hold a container open doing nothing until its own deadline killed it. The
+ *  lock is session-scoped, so a killed process or a torn-down cron container
+ *  releases it on disconnect — there is no stale lock to reap, which is what
+ *  makes skipping safe rather than a way to strand the backfill.
+ *
+ *  Fails OPEN. If the lock cannot be taken at all (reserve unsupported, a dead
+ *  connection), the reconcile still runs unlocked: a missed lock costs tokens,
+ *  a missed reconcile costs search.
+ *
+ *  KNOWN EDGE, and the one thing this trades away: the two automatic holders are
+ *  not symmetric. A worker that wedges mid-backfill is killed by its own tail
+ *  deadline (atlas-worker.mjs) and the container teardown drops the lock, but
+ *  startBootEmbeddings is detached with no deadline and this path passes
+ *  embedBatch no AbortSignal, so a hung provider socket there can hold the lock
+ *  across worker ticks and stall the backfill. Bounded rather than silent: it can
+ *  only start while the table is still empty (that is boot-embeddings' own
+ *  precondition), any web restart releases it, lexical search is unaffected, and
+ *  every skipped tick logs the line below while `staleEmbeds=` stops falling. */
+async function withEmbedLock(fn: () => Promise<void>): Promise<void> {
+  let reserved: Awaited<ReturnType<typeof sql.reserve>> | null = null;
+  // Tri-state, not a boolean: "could not ask" and "someone else has it" are
+  // opposite answers, and collapsing them is how a fail-open lock turns into a
+  // reconcile that never runs. The skip below therefore sits INSIDE the try, so
+  // one finally hands the reservation back on every path.
+  let state: "mine" | "held" | "unavailable" = "unavailable";
+  try {
+    reserved = await sql.reserve();
+    const rows = (await reserved`SELECT pg_try_advisory_lock(${EMBED_LOCK_KEY})`) as {
+      pg_try_advisory_lock: boolean;
+    }[];
+    state = rows[0]?.pg_try_advisory_lock ? "mine" : "held";
+  } catch (e) {
+    console.warn(`sync:embeddings — advisory lock unavailable (${(e as Error).message}); proceeding unlocked`);
+  }
+  try {
+    if (state === "held") {
+      console.log("sync:embeddings — another reconcile holds the lock; skipping (same stale set, same result)");
+      return;
+    }
+    await fn();
+  } finally {
+    if (reserved) {
+      if (state === "mine") {
+        try {
+          await reserved`SELECT pg_advisory_unlock(${EMBED_LOCK_KEY})`;
+        } catch {
+          /* connection already dead — the lock dies with the session */
+        }
+      }
+      reserved.release();
+    }
+  }
+}
+
 export async function main(deps: EmbedDeps = realEmbedDeps) {
   try {
-    await runEmbedReconcile(deps);
+    await withEmbedLock(() => runEmbedReconcile(deps));
   } finally {
     await sql.end();
   }
