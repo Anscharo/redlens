@@ -930,7 +930,7 @@ one asserts a sureness the measurement does not support. `unread` and
 hiding them would make the harness silent about the very thing it knows.
 
 `backed` is ✓✓ with the sentence above. `disputed` is ! and quotes the
-contradicted line ("This document says otherwise: …"). `uncovered` is ⚠ and
+contradicted line ("This document contradicts this line: …"). `uncovered` is ⚠ and
 quotes the line the document fails to cover; `unread` is ⚠ and quotes the line
 that states what the document says when only a record about it was read. None
 of the three carries a confidence word — 0.95 was measured on checks, and the same pass found the

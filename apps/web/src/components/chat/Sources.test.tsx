@@ -202,7 +202,7 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const disputed = screen.getByRole("img", { name: 'This document says otherwise: “The fee is 10 bps”' });
+    const disputed = screen.getByRole("img", { name: 'This document contradicts this line: “The fee is 10 bps”' });
     expect(disputed).toHaveAttribute("data-status", "disputed");
     expect(disputed).toHaveTextContent("!");
     expect(screen.queryByText(/%/)).toBeNull();
@@ -223,7 +223,7 @@ describe("Sources", () => {
       />,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent('This document says otherwise: “The threshold is 7 signers”');
+    expect(tip).toHaveTextContent('This document contradicts this line: “The threshold is 7 signers”');
     // No band on a warning. The 0.95 threshold was measured on CHECKS, and the
     // same pass found confidence carries no information on a contradiction.
     expect(tip).not.toHaveTextContent("confidence");
@@ -272,7 +272,7 @@ describe("Sources", () => {
       />,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent('This document says otherwise: “The threshold is 7 signers”');
+    expect(tip).toHaveTextContent('This document contradicts this line: “The threshold is 7 signers”');
     expect(tip).not.toHaveTextContent("Reward payments");
     expect(tip).not.toHaveTextContent("confidence");
   });
@@ -287,7 +287,7 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const mark = screen.getByRole("img", { name: 'This document says otherwise: “The threshold is 7 signers”' });
+    const mark = screen.getByRole("img", { name: 'This document contradicts this line: “The threshold is 7 signers”' });
     expect(mark).toHaveAttribute("data-status", "disputed");
     expect(mark).not.toHaveAttribute("title");
   });

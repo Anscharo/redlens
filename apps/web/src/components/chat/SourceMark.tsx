@@ -58,7 +58,7 @@ function quotedLines(mark: CitationMark): Claim[] {
 function claimLabel(claim: Claim): string {
   switch (claim.verdict) {
     case "contradicts":
-      return `This document says otherwise: ${quote(claim.claim)}`;
+      return `This document contradicts this line: ${quote(claim.claim)}`;
     case "states_content":
       return `States what the document says: ${quote(claim.claim)}`;
     default:
@@ -69,7 +69,7 @@ function claimLabel(claim: Claim): string {
 // Stands in when a status has no quoted line left — defensive only, since
 // each of the three requires the claim that produced it.
 const BARE: Record<string, string> = {
-  disputed: "This document says otherwise",
+  disputed: "This document contradicts a line that cites it",
   uncovered: "This document doesn't cover a line citing it",
   unread: "Only a record about this document was read, not the document",
 };
