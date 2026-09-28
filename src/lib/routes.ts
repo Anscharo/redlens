@@ -33,6 +33,12 @@ export const ROUTES = {
   REPORTS_POTENTIAL_MISTAKES: "/reports/potential-mistakes",
 } as const;
 
+// The preview INDEX is deliberately absent from ROUTES: main.tsx resolves
+// `/preview` from window.location before the SPA router mounts, so it has no
+// <Route> and cannot be reached with wouter's navigate() — that would leave
+// App with nothing matching. Reach it with a full page load.
+export const PREVIEW_INDEX_PATH = "/preview";
+
 export type NavPage = "atlas" | "radar" | "reports";
 
 export const NAV_PAGE_ROUTES: Record<NavPage, string> = {

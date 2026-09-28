@@ -3,7 +3,9 @@
  * Requires `pnpm build:index` to have run first.
  *
  * Coverage:
- *  - Every documented search hint in SearchHints.tsx
+ *  - Each search OPERATOR the query language supports (this file does not
+ *    import HINT_GROUPS and is not a mirror of the cheat sheet — that the
+ *    page's own examples return documents is search-hints.artifact.test.ts)
  *  - Prefix search correctness (partial words, no stemmer)
  *  - Index still stores surface forms (plural/singular are not stemmed)
  *  - Backtick-wrapped inline-code terms
@@ -54,10 +56,11 @@ beforeAll(() => {
 });
 
 // ---------------------------------------------------------------------------
-// Search hints — one test per documented example in SearchHints.tsx
+// Search operators — one test per operator, independent of which examples
+// the /search-hints page happens to list today.
 // ---------------------------------------------------------------------------
 
-describe("hint: govern — prefix matches automatically", () => {
+describe("syntax: govern — prefix matches automatically", () => {
   it("partial word 'govern' returns governance-related results", () => {
     const results = ms.search("govern", SEARCH_OPTS);
     expect(results.length).toBeGreaterThan(0);
@@ -71,7 +74,7 @@ describe("hint: govern — prefix matches automatically", () => {
   });
 });
 
-describe("hint: 0x* — nodes containing an Ethereum address", () => {
+describe("syntax: 0x* — nodes containing an Ethereum address", () => {
   it("'0x' prefix returns docs whose content contains an on-chain address", () => {
     // The tokenizer splits on '*', so '0x*' and '0x' are equivalent queries
     const results = ms.search("0x", SEARCH_OPTS);
@@ -83,7 +86,7 @@ describe("hint: 0x* — nodes containing an Ethereum address", () => {
   });
 });
 
-describe("hint: MCD_VAT — chainlog id lookup", () => {
+describe("syntax: MCD_VAT — chainlog id lookup", () => {
   it("MCD_VAT resolves to a known address via chainlog", () => {
     const addr = chainlogToAddr.get("MCD_VAT");
     expect(addr).toBeDefined();
@@ -122,7 +125,7 @@ describe("hint: MCD_VAT — chainlog id lookup", () => {
   });
 });
 
-describe("hint: A.1.2 — doc number jumps directly to a section", () => {
+describe("syntax: A.1.2 — doc number jumps directly to a section", () => {
   it("byDocNo map resolves A.1.2 to its atlas document", () => {
     const doc = byDocNo.get("A.1.2");
     expect(doc).toBeDefined();
@@ -140,7 +143,7 @@ describe("hint: A.1.2 — doc number jumps directly to a section", () => {
   });
 });
 
-describe("hint: a491d7d0 — partial UUID prefix jumps to the doc", () => {
+describe("syntax: a491d7d0 — partial UUID prefix jumps to the doc", () => {
   it("UUID_PREFIX_RE accepts an 8-hex fragment, rejects shorter hex-ish words", () => {
     expect(UUID_PREFIX_RE.test("a491d7d0")).toBe(true);
     expect(UUID_PREFIX_RE.test("facade")).toBe(false);
@@ -189,7 +192,7 @@ describe('hint: "properly implemented" — exact phrase', () => {
   });
 });
 
-describe("hint: title:facilitator — search only in the title field", () => {
+describe("syntax: title:facilitator — search only in the title field", () => {
   it("fields:['title'] returns zero content-only results", () => {
     const results = ms.search("facilitator", { ...SEARCH_OPTS, fields: ["title"] });
     expect(results.length).toBeGreaterThan(0);
@@ -199,7 +202,7 @@ describe("hint: title:facilitator — search only in the title field", () => {
   });
 });
 
-describe("hint: type:Annotation — filter by node type", () => {
+describe("syntax: type:Annotation — filter by node type", () => {
   it("type post-filter restricts to Annotation nodes only", () => {
     const results = ms
       .search("governance", SEARCH_OPTS)
@@ -211,7 +214,7 @@ describe("hint: type:Annotation — filter by node type", () => {
   });
 });
 
-describe("hint: type:Scenario_Variation — multi-word type via underscore", () => {
+describe("syntax: type:Scenario_Variation — multi-word type via underscore", () => {
   it("Scenario Variation nodes exist in the atlas", () => {
     const svDocs = Object.values(docs).filter((d) => d.type === "Scenario Variation");
     expect(svDocs.length).toBeGreaterThan(0);
@@ -229,14 +232,20 @@ describe("hint: type:Scenario_Variation — multi-word type via underscore", () 
   });
 });
 
-describe("hint: in:A.1.2 delegate — restrict results to a section subtree", () => {
-  it("scope filter keeps only docs whose doc_no is within the prefix", () => {
-    const prefix = "A.1.2";
+describe("syntax: in:A.1.6 delegate — restrict results to a section subtree", () => {
+  it("scope filter keeps only docs whose doc_no is within the prefix, and keeps some", () => {
+    // A.1.6 is Aligned Delegates. The non-empty assertion is load-bearing: this
+    // test read in:A.1.2 until 2026-09-28, where no document matches "delegate",
+    // so the containment loop below iterated an EMPTY set and passed while the
+    // hint it mirrored returned nothing for readers who clicked it.
+    const prefix = "A.1.6";
     const allDelegates = ms.search("delegate", SEARCH_OPTS);
     const scoped = allDelegates.filter((r) => {
       const no = docs[r.id as string]?.doc_no ?? "";
       return no === prefix || no.startsWith(prefix + ".");
     });
+    expect(scoped.length).toBeGreaterThan(0);
+    expect(scoped.length).toBeLessThan(allDelegates.length);
     for (const r of scoped) {
       const no = docs[r.id as string].doc_no;
       expect(no === prefix || no.startsWith(prefix + ".")).toBe(true);
@@ -257,7 +266,7 @@ describe("hint: in:A.1.2 delegate — restrict results to a section subtree", ()
   });
 });
 
-describe("hint: misaligment~1 — fuzzy match allows character edits", () => {
+describe("syntax: misaligment~1 — fuzzy match allows character edits", () => {
   it("'misaligment' with fuzzy:1 finds 'misalignment' (1 missing char)", () => {
     // "misaligment" is missing the 'n' — edit distance 1 from "misalignment"
     const results = ms.search("misaligment", { ...SEARCH_OPTS, prefix: false, fuzzy: 1 });
@@ -276,7 +285,7 @@ describe("hint: misaligment~1 — fuzzy match allows character edits", () => {
   });
 });
 
-describe("hint: alignment -slippery — exclude a term", () => {
+describe("syntax: alignment -slippery — exclude a term", () => {
   it("exclusion post-filter removes docs containing the excluded term", () => {
     const allAlignment = ms.search("alignment", SEARCH_OPTS);
     expect(allAlignment.length).toBeGreaterThan(0);
@@ -295,7 +304,7 @@ describe("hint: alignment -slippery — exclude a term", () => {
   });
 });
 
-describe("hint: type:Core title:quorum — combine field filters", () => {
+describe("syntax: type:Core title:quorum — combine field filters", () => {
   it("title-restricted 'quorum' combined with Core type filter returns Core nodes with quorum in title", () => {
     const results = ms
       .search("quorum", { ...SEARCH_OPTS, fields: ["title"] })
@@ -309,7 +318,7 @@ describe("hint: type:Core title:quorum — combine field filters", () => {
   });
 });
 
-describe("hint: 'delegatedSigners' — single-quote case-sensitive phrase", () => {
+describe("syntax: 'delegatedSigners' — single-quote case-sensitive phrase", () => {
   // The hint documents: single quotes → case-sensitive exact match.
   // Case-sensitivity is enforced by the worker's post-filter using
   // doc.content.includes(phrase) (not lowercased), not by MiniSearch itself.
