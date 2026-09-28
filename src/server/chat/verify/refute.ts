@@ -32,6 +32,17 @@ export const REFUTE_PROMPT = [
   '{"contradictions":[{"answer_span":"…","evidence_span":"…","why":"…"}],"notes":"≤30 words"}',
 ].join("\n");
 
+// Appended to the system prompt ONLY when a change-log entry is actually
+// present. A line added to the shared prompt reaches every turn, and a second
+// instruction can move a verdict on answers it has nothing to do with — the
+// same interference that sank the compound-question experiment on 2026-09-24.
+// History evidence is rare (1 record in 568 across the eval corpora), so
+// injecting unconditionally would spend that risk on every answer to serve
+// almost none of them. This way the prompt is byte-identical for every turn
+// without history evidence, which is provable rather than measured.
+const CHANGE_LOG_RULE =
+  "Entries marked [CHANGE LOG, not Atlas text] are commit metadata — dates, pull-request titles, commit messages, change counts. They say WHEN a document changed, never what it says; never read them as the atlas stating something.";
+
 export function buildRefutePrompt(params: { question: string; answer: string; evidence: EvidenceEntry[] }): Msg[] {
   const { question, answer, evidence } = params;
   const evidenceBlock = evidence.length
@@ -46,15 +57,20 @@ export function buildRefutePrompt(params: { question: string; answer: string; ev
               ? " [REFERENCE]"
               : e.sourceClass === "user"
                 ? " [USER NOTE, not Atlas]"
-                : e.sourceClass === "unknown"
-                  ? " [NOT ATLAS]"
-                  : "";
+                : e.sourceClass === "history"
+                  ? " [CHANGE LOG, not Atlas text]"
+                  : e.sourceClass === "unknown"
+                    ? " [NOT ATLAS]"
+                    : "";
           return `${e.label}${tag} ${e.tool}(${e.args}) →\n${e.content}`;
         })
         .join("\n\n")
     : "(no tools were called this turn — nothing to compare against)";
   return [
-    { role: "system", content: REFUTE_PROMPT },
+    {
+      role: "system",
+      content: evidence.some((e) => e.sourceClass === "history") ? `${REFUTE_PROMPT}\n${CHANGE_LOG_RULE}` : REFUTE_PROMPT,
+    },
     {
       role: "user",
       content: [`## Question\n${question}`, `## Answer to audit\n${answer}`, `## Evidence retrieved this turn\n${evidenceBlock}`].join("\n\n"),

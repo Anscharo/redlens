@@ -136,3 +136,23 @@ test("validateContradictions: an unlocatable answer_span is discarded even when 
   expect(kept).toHaveLength(0);
   expect(discarded).toBe(1);
 });
+
+test("buildRefutePrompt marks change-log evidence so the judge cannot read it as atlas text", () => {
+  const [system, user] = buildRefutePrompt({
+    question: "q",
+    answer: "a",
+    evidence: [{ label: "[E1]", tool: "atlas_history", args: "{}", content: '[{"pr":"#336"}]', sourceClass: "history" }],
+  });
+  expect(String(user.content)).toContain("[E1] [CHANGE LOG, not Atlas text]");
+  expect(String(system.content)).toContain("WHEN a document changed, never what it says");
+});
+
+// The load-bearing half. A line added to the shared prompt reaches every turn,
+// and a second instruction can move a verdict on answers it has nothing to do
+// with. History evidence is 1 record in 568 across the eval corpora, so the
+// rule is injected only where it applies and the prompt is otherwise identical.
+test("a turn with no change-log evidence gets the prompt byte-for-byte unchanged", () => {
+  const [system] = buildRefutePrompt({ question: "q", answer: "a", evidence: [ev("some atlas text", "atlas")] });
+  expect(system.content).toBe(REFUTE_PROMPT);
+  expect(String(system.content)).not.toContain("CHANGE LOG");
+});

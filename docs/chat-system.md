@@ -716,6 +716,26 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   a flat join skips unaudited answers (the small-talk bypass writes no `verify`
   row) and would hand back a stale dispute under the heading "your previous
   answer".
+- **A document's edit history is not its content** (2026-09-28,
+  `verifier.ts`'s `HISTORY_TOOLS`). The six registry tools that return commit
+  metadata — `atlas_history`, `atlas_recent_changes`, `atlas_history_stats`,
+  `atlas_pr`, `atlas_changed_between`, `atlas_first_seen` — get
+  `sourceClass: "history"` instead of falling through to `"atlas"`, and
+  `refute.ts` marks those entries `[CHANGE LOG, not Atlas text]` so the judge
+  never reads a pull-request title or a commit message as the atlas stating
+  something. `isAtlasText` ADMITS the class, which is deliberate and against
+  the obvious reading: the pool's only consumers are fabrication checks —
+  `findUngroundedQuotes` asks whether a quoted span exists in anything we
+  retrieved, with every cited document and every atlas title already in the
+  same haystack — so excluding change-log text would hard-fail an answer that
+  correctly quotes a real commit message, while the failure it would prevent
+  costs only a missed flag. The provenance question is answered where it
+  belongs: the marker above, and `cite-pairs.ts` dropping history CLAIMS before
+  the citation judge sees them. The `[CHANGE LOG…]` rule is appended to the
+  refute system prompt ONLY when such an entry is present — history evidence is
+  1 record in 568 across the eval corpora, so injecting it on every turn would
+  spend prompt-interference risk on answers it has nothing to do with.
+
 - **Atlas provenance is an allowlist, never a default** (2026-09-24,
   `verifier.ts`'s `classifyToolSource`). A tool result is `"atlas"` only if its
   name is in the registry (`ATLAS_TOOLS`); `"external"`, `"reference"` (the

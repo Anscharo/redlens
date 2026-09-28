@@ -281,3 +281,31 @@ test("an unrecognised tool's text does not become atlas evidence", () => {
   expect(entries.map((e) => e.sourceClass)).toEqual(["unknown", "atlas"]);
   expect(entries.filter((e) => isAtlasText(e.sourceClass)).map((e) => e.content)).toEqual(["real atlas text"]);
 });
+
+// A document's edit history is not its content. The history tools return
+// commit metadata — dates, pull-request titles, commit messages, change counts
+// — and the refute judge must not read that as the atlas stating something.
+test("history tools get their own source class, ahead of the registry default", () => {
+  for (const tool of ["atlas_history", "atlas_recent_changes", "atlas_history_stats", "atlas_pr", "atlas_changed_between", "atlas_first_seen"]) {
+    expect(classifyToolSource(tool)).toBe("history");
+  }
+  // Every one is in the registry, so without the check ahead of it they would
+  // all fall through to "atlas".
+  expect(classifyToolSource("atlas_get")).toBe("atlas");
+});
+
+// Deliberate, and against the obvious reading — see isAtlasText's comment. The
+// pool's consumers are fabrication checks, so excluding change-log text would
+// hard-fail an answer that correctly quotes a real commit message.
+test("history text stays in the grounding pool, so quoting a real commit message is not a fabrication", () => {
+  expect(isAtlasText("history")).toBe(true);
+  const entries = evidenceFromResults(
+    [
+      { name: "atlas_history", content: '[{"pr":"#336","message":"set USDS burn rate limits to unlimited"}]' },
+      { name: "ask_external_msc", content: "{}" },
+    ],
+    100_000,
+  );
+  expect(entries.map((e) => e.sourceClass)).toEqual(["history", "external"]);
+  expect(entries.filter((e) => isAtlasText(e.sourceClass))).toHaveLength(1);
+});

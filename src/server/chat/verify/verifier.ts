@@ -139,7 +139,20 @@ export function budgetEvidence(entries: EvidenceEntry[], maxChars: number): Evid
 
 // Pull the turn's tool calls + results out of the loop transcript, labeled
 // [E1..En] in chronological order, then budgeted (see budgetEvidence).
-export type SourceClass = "atlas" | "external" | "reference" | "user" | "unknown";
+export type SourceClass = "atlas" | "history" | "external" | "reference" | "user" | "unknown";
+
+// The registry tools that return COMMIT METADATA rather than document text:
+// dates, pull-request titles, commit messages, change counts. A document's
+// edit history is not its content — the same distinction cite-pairs.ts draws
+// for claims, applied here to evidence.
+const HISTORY_TOOLS = new Set([
+  "atlas_history",
+  "atlas_recent_changes",
+  "atlas_history_stats",
+  "atlas_pr",
+  "atlas_changed_between",
+  "atlas_first_seen",
+]);
 
 /**
  * What KIND of text a tool result is. Atlas provenance is an ALLOWLIST —
@@ -164,6 +177,7 @@ export function classifyToolSource(tool: string): SourceClass {
   if (isExternalMscTool(tool)) return "external";
   if (tool === FACT_TOOL_NAME) return "reference";
   if (isUserTeachingTool(tool)) return "user";
+  if (HISTORY_TOOLS.has(tool)) return "history";
   return TOOLS_BY_NAME.has(tool) ? "atlas" : "unknown";
 }
 
@@ -172,13 +186,26 @@ export function classifyToolSource(tool: string): SourceClass {
  * prefetch round, which is atlas-derived (glossary rows, entity rows,
  * censuses) and has always been grouped here deliberately.
  *
+ * "history" is admitted too, and that is a deliberate call against the obvious
+ * reading. The pool's only consumers are FABRICATION checks — findUngroundedQuotes
+ * asks "does this quoted span exist in anything we retrieved", with every cited
+ * document and every atlas title already in the same haystack, and the address
+ * and figure checks ask the same of their own spans. Excluding change-log text
+ * would therefore hard-fail an answer that correctly quotes a real commit
+ * message, which is a false flag on correct behaviour, and the failure it would
+ * prevent — a fabricated atlas quote that happens to appear verbatim in a commit
+ * message — costs only a missed flag. The provenance question that class exists
+ * for is answered where it belongs: refute.ts marks the entries so the judge
+ * never reads a change log as retrieved atlas text, and cite-pairs.ts drops
+ * history CLAIMS before the citation judge ever sees them.
+ *
  * An ALLOWLIST on purpose, and every caller in chat-orchestrator.ts goes
  * through it. The three filters that used to spell this out inline were
  * blacklists ("not external and not user"), so adding a new class would have
  * silently admitted it to the grounding pool at all three sites at once.
  */
 export function isAtlasText(cls: SourceClass | undefined): boolean {
-  return cls === "atlas" || cls === "reference";
+  return cls === "atlas" || cls === "reference" || cls === "history";
 }
 
 // The dispute round (dispute-round.ts) is NOT evidence and is dropped from
