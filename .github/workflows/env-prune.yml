@@ -1,0 +1,112 @@
+name: Prune PR environments
+
+# Deletes the GitHub *deployment environment* records that Railway's per-PR
+# environments leave behind. Railway de-provisions its own environment when a PR
+# closes; GitHub never removes the repository Environment row it auto-created for
+# that deployment name, so /settings/environments accumulates one dead row per
+# PR forever (~100 by 2026-09). See scripts/aux/prune-pr-environments.mjs for
+# what is and is not safe to delete — the script is dry-run by default and only
+# ever considers names that parse as a PR environment.
+#
+# THE DEFAULT GITHUB_TOKEN CANNOT DO THIS. Deleting an environment needs
+# repo-admin rights, and neither `administration` nor `environments` is a
+# grantable `permissions:` key — there is no setting that makes GITHUB_TOKEN
+# work, which is why this reads its own token from a secret. Fill ENV_PRUNE_TOKEN
+# (in the `env-prune` environment) one of three ways, easiest first:
+#   1. A fine-grained PAT scoped to THIS repo only, with Administration: write
+#      plus Pull requests: read. One secret, nothing else to maintain.
+#      (Environments: write alone returns 403 — community discussion #58868.)
+#   2. A dedicated minimal GitHub App installed on this repo with the same two
+#      permissions: add an `actions/create-github-app-token@v1` step like
+#      atlas-update.yml's and feed its `token` output into GITHUB_TOKEN below.
+#   3. Reuse the ATLAS_BOT App by adding Administration: write to it. Lowest
+#      setup cost, but that App's key is already used by four workflows and can
+#      push to main, so this widens the blast radius of all of them. Prefer 1/2.
+#
+# Two triggers on purpose. `pull_request_target: closed` is the prompt path; the
+# daily cron is the backstop, and is not redundant:
+#   - GitHub does not deliver a pull_request run for every close (notably PRs
+#     closed while conflicted), so close events alone leak environments.
+#   - A Railway deployment_status that lands AFTER we delete the record makes
+#     GitHub re-create the environment. The cron mops those up.
+
+on:
+  pull_request_target:
+    types: [closed]
+  schedule:
+    - cron: "41 7 * * *" # daily 07:41 UTC — off the hour, clear of the other crons
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        # Defaults ON so a manual run reports before it deletes. The cron is
+        # unaffected: a scheduled run carries no inputs, so dry_run reads null
+        # and the inverted test below still yields --apply.
+        description: "Report only, delete nothing"
+        type: boolean
+        default: true
+      orphans:
+        description: "Also delete PR envs whose number resolves to no PR at all"
+        type: boolean
+        default: false
+
+# contents: read is for actions/checkout and nothing else — the prune itself runs
+# on ENV_PRUNE_TOKEN, because GITHUB_TOKEN cannot be granted environment rights
+# at any setting. Do not add more here hoping to avoid the secret; it cannot work.
+permissions:
+  contents: read
+
+# Never let two prunes race the same delete list.
+concurrency:
+  group: env-prune
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    # Holds ENV_PRUNE_TOKEN. Keep the secret environment-scoped rather than
+    # repo-wide so an admin-capable token is not readable by every workflow.
+    environment: env-prune
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      # install: false — the script imports only node:* and global fetch.
+      - uses: ./.github/actions/setup
+        with:
+          install: false
+
+      - name: Fail loudly on a missing token
+        env:
+          TOKEN: ${{ secrets.ENV_PRUNE_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "ENV_PRUNE_TOKEN is not set on the 'env-prune' environment." >&2
+            echo "See this workflow's header comment for the three ways to fill it." >&2
+            exit 1
+          fi
+
+      # pull_request_target (not pull_request) so the run can read the secret:
+      # pull_request withholds secrets from fork PRs, which would make the prompt
+      # path silently no-op for them. Safe here because nothing from the PR is
+      # checked out or executed — pull_request_target checks out the base branch,
+      # and the only PR-derived value used is the number, passed as --pr.
+      - name: Prune (single PR)
+        if: github.event_name == 'pull_request_target'
+        env:
+          GITHUB_TOKEN: ${{ secrets.ENV_PRUNE_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: node scripts/aux/prune-pr-environments.mjs --apply --pr "$PR"
+
+      # Both ternaries put the NON-EMPTY string in the true branch on purpose.
+      # GitHub's `a && b || c` yields the operand, and '' is falsy — so
+      # `dry_run && '' || '--apply'` would hand back '--apply' even on a dry run.
+      # Inverting the apply test is what makes the dry-run box actually work.
+      # On schedule there are no inputs, so both read null: apply, no orphans.
+      - name: Prune (full sweep)
+        if: github.event_name != 'pull_request_target'
+        env:
+          GITHUB_TOKEN: ${{ secrets.ENV_PRUNE_TOKEN }}
+          APPLY: ${{ inputs.dry_run != true && '--apply' || '' }}
+          ORPHANS: ${{ inputs.orphans == true && '--orphans' || '' }}
+        run: node scripts/aux/prune-pr-environments.mjs $APPLY $ORPHANS

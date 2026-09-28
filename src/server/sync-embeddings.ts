@@ -73,6 +73,32 @@ export function batchSizeFromEnv(env: NodeJS.ProcessEnv = process.env): number {
   return Number(env.EMBED_BATCH ?? 50);
 }
 
+// Wall-clock ceiling on ONE deps.embedBatch call — the signal reaches fetch and
+// also gates embedBatch's own internal retry chain, so all of that fits inside
+// the budget. Without it a fetch that never returns never throws, so withRetry
+// never sees it and the call simply parks forever.
+//
+// PER ATTEMPT, NOT PER RUN, and the difference is the whole operational story. A
+// provider that answers nothing costs 3 x 120s + withRetry's 3s of backoff, then
+// that batch is skipped (`continue`) and the loop walks to the next one. Over a
+// cold 11,584-doc set that is 232 batches x 363s ~= 23 HOURS of walking, with
+// EMBED_LOCK_KEY held throughout — on the boot path (atlas-updater.ts's detached
+// spawn, no deadline of its own) every worker tick stands down for as long as it
+// lasts and `staleEmbeds=` stays flat. So this stops a single call parking
+// forever; it does NOT make a dead provider self-healing, and restarting the web
+// service is still the remedy for a flat count. A run-level circuit breaker (N
+// consecutive skipped batches => give up and free the lock) is what would close
+// that, and is deliberately not here yet.
+//
+// Deliberately generous — a 50-text batch measures ~5s and embedBatch's internal
+// backoff chain adds ~15s of sleeps, so 120s never fires in normal operation and
+// only ever cuts a socket that is already gone. A cut batch is skipped and
+// retried next run, the same as any other failure. Exported for the same reason
+// as batchSizeFromEnv: so a test can assert the env parsing without a provider.
+export function embedTimeoutFromEnv(env: NodeJS.ProcessEnv = process.env): number {
+  return Number(env.EMBED_REQUEST_TIMEOUT_MS ?? 120_000);
+}
+
 // Retry transient embedding failures (flaky OpenRouter) with exponential backoff.
 // Per-batch upserts mean partial progress already persists; a batch that still
 // fails after retries is skipped (stays stale, retried next run) rather than
@@ -114,14 +140,89 @@ export interface EmbedDeps {
 }
 const realEmbedDeps: EmbedDeps = {
   runMigrations,
-  embedBatch: (texts) => embedBatch(texts),
+  // A FRESH signal per call, so each withRetry attempt gets its own full budget
+  // rather than sharing one deadline across all three.
+  embedBatch: (texts) => embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv())),
   batch: batchSizeFromEnv(),
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
 };
 
+// One reconcile at a time, across every caller — arbitrary fixed key, like
+// migrate.ts's 4711_2026 and preview/diff-base-backfill.ts's 4711_2033; all that
+// matters is that the three callers agree and the three keys stay distinct.
+const EMBED_LOCK_KEY = 4711_2042;
+
+/** Runs `fn` under EMBED_LOCK_KEY, or skips it when another process holds it.
+ *
+ *  Three callers can overlap, and on a COLD atlas_doc_embeddings all three want
+ *  the same ~11.6k vectors: the atlas worker's post-sync tail, the web service's
+ *  startBootEmbeddings (atlas-updater.ts — it fires precisely when the table is
+ *  empty, i.e. exactly the cold case), and a hand-run `pnpm sync:embeddings`.
+ *  The upserts are idempotent so this was never a correctness bug, but a cold
+ *  backfill is the one run long enough (~19 min) for a second walker to pay the
+ *  provider twice for vectors the first is already buying.
+ *
+ *  `pg_try_advisory_lock`, not a blocking wait: a queued second process would
+ *  hold a container open doing nothing until its own deadline killed it. The
+ *  lock is session-scoped, so a killed process or a torn-down cron container
+ *  releases it on disconnect — there is no stale lock to reap, which is what
+ *  makes skipping safe rather than a way to strand the backfill.
+ *
+ *  Fails OPEN. If the lock cannot be taken at all (reserve unsupported, a dead
+ *  connection), the reconcile still runs unlocked: a missed lock costs tokens,
+ *  a missed reconcile costs search.
+ *
+ *  KNOWN EDGE. The holders are not symmetric. A worker that wedges mid-backfill
+ *  is killed by its own tail deadline (atlas-worker.mjs) and the teardown drops
+ *  the lock; startBootEmbeddings is a detached spawn with no deadline of its own.
+ *  embedTimeoutFromEnv stops a single call parking forever there, but it bounds
+ *  an ATTEMPT, not the run: against a provider that answers nothing the holder
+ *  skips each batch after ~363s and keeps walking — ~23 hours for a cold set —
+ *  holding this lock the whole time while every worker tick stands down and
+ *  `staleEmbeds=` sits flat. Bounded rather than silent: it can only start while
+ *  the table is empty (boot-embeddings' own precondition), lexical search is
+ *  unaffected, and every skipped tick logs the line below. The remedy is a web
+ *  restart, per docs/DEPLOYMENT.md; a run-level circuit breaker would make it
+ *  self-healing and is not here yet. */
+async function withEmbedLock(fn: () => Promise<void>): Promise<void> {
+  let reserved: Awaited<ReturnType<typeof sql.reserve>> | null = null;
+  // Tri-state, not a boolean: "could not ask" and "someone else has it" are
+  // opposite answers, and collapsing them is how a fail-open lock turns into a
+  // reconcile that never runs. The skip below therefore sits INSIDE the try, so
+  // one finally hands the reservation back on every path.
+  let state: "mine" | "held" | "unavailable" = "unavailable";
+  try {
+    reserved = await sql.reserve();
+    const rows = (await reserved`SELECT pg_try_advisory_lock(${EMBED_LOCK_KEY})`) as {
+      pg_try_advisory_lock: boolean;
+    }[];
+    state = rows[0]?.pg_try_advisory_lock ? "mine" : "held";
+  } catch (e) {
+    console.warn(`sync:embeddings — advisory lock unavailable (${(e as Error).message}); proceeding unlocked`);
+  }
+  try {
+    if (state === "held") {
+      console.log("sync:embeddings — another reconcile holds the lock; skipping (same stale set, same result)");
+      return;
+    }
+    await fn();
+  } finally {
+    if (reserved) {
+      if (state === "mine") {
+        try {
+          await reserved`SELECT pg_advisory_unlock(${EMBED_LOCK_KEY})`;
+        } catch {
+          /* connection already dead — the lock dies with the session */
+        }
+      }
+      reserved.release();
+    }
+  }
+}
+
 export async function main(deps: EmbedDeps = realEmbedDeps) {
   try {
-    await runEmbedReconcile(deps);
+    await withEmbedLock(() => runEmbedReconcile(deps));
   } finally {
     await sql.end();
   }

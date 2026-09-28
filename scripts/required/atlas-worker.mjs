@@ -136,17 +136,85 @@ async function getUpstreamSha() {
 async function main() {
   const t0 = Date.now();
   const full = process.env.ATLAS_WORKER_FULL === "1";
+  // Not needed to bootstrap an empty DB — build-history and build-doc-versions
+  // both read their own cursor, both get null from an empty (or missing) table,
+  // and both then walk everything anyway. All the flag adds is on every LATER
+  // tick: it makes the fast-exit unreachable, turns doc-versions' append into a
+  // drop-and-rewrite of the whole table, and re-walks all ~175 commits — and
+  // with them ~174 `gh pr view` calls, since .cache/github-prs is local disk and
+  // no Railway service mounts a volume, so every cron container starts cold.
+  // At */12 that is ~870 GitHub API calls an hour against a 5,000/hr budget.
+  if (full) {
+    console.warn(
+      "atlas-worker: ATLAS_WORKER_FULL=1 — forcing full history + doc-versions walks and disabling the fast-exit. " +
+        "Unset it unless you are deliberately rewalking; an empty DB walks fully on its own.",
+    );
+  }
 
-  // Railway skips the next cron tick while this process is still alive. A hung
-  // GitHub/RPC fetch before the heartbeat would otherwise block every later
-  // */12 run (observed 2026-09-17: four days of stale). Kill the tick so cron
-  // can retry. unref() so a successful exit isn't held open for the remainder.
+  // One timer, two deadlines, because the run has two halves whose timeouts mean
+  // opposite things.
+  //
+  // BEFORE the heartbeat everything is load-bearing. A hung GitHub/RPC fetch
+  // there blocks every later */12 run and leaves the served snapshot stale
+  // (observed 2026-09-17: four days of it), so the tick is killed and the run
+  // FAILS. Unchanged.
+  //
+  // AFTER it, sync.ts, the integrity gate and publish-artifacts have all
+  // committed and the only work left is runPostSyncTail, which is documented
+  // best-effort. Running out of clock there costs work, never committed state,
+  // so it exits 0. One flat 15m cap reported that as a failed run instead, and a
+  // cold atlas_doc_embeddings could never beat it: 11,584 docs at the measured
+  // ~620/min is ~19 minutes, so the FIRST tick of every new environment was
+  // guaranteed to exit(1) (observed 2026-09-25, ~9,000 embedded, everything
+  // served already committed at T+12s).
+  //
+  // Only ONE of the three lanes actually resumes mid-walk, and the difference
+  // matters for how the budget is sized. sync-embeddings upserts per EMBED_BATCH
+  // slice, so a kill keeps every slice already written and the next tick carries
+  // on — that is the lane the budget exists for. build-history and
+  // build-doc-versions instead buffer the whole walk in memory and write once at
+  // the end (upsertHistory / replace-or-upsertDocVersions), so a kill mid-walk
+  // commits nothing and the next tick repeats it: work lost, not data. Both fit
+  // with room to spare — 112s and 22s cold, measured, against a 660s budget —
+  // and history, the slower one, would need ~1,000 atlas commits (from 175) to
+  // threaten it. If it ever does, it needs a per-commit flush or a budget of its
+  // own; don't just widen this one and call the comment still true.
+  //
+  // The tail deadline also sits under the */12 cron period, so the process is
+  // gone before the next tick claims the same backlog. At 15m it never was: that
+  // tick is either skipped (backfill gets 15m per 24m instead of 11m per 12m) or
+  // it overlaps and re-embeds what this process is already paying for.
+  //
+  // Measured from t0 and floored at a minute, which gives TWO distinct thresholds
+  // — don't conflate them. The floor ENGAGES once the heartbeat lands past minute
+  // 10 (660 - hb < 60), but it only pushes the exit past the */12 TICK once the
+  // heartbeat lands past minute 11 (hb + 60 > 720). In between, minute 10 to 11,
+  // the floor is active and the process still exits inside its own tick. Only a
+  // heartbeat after minute 11 outlives one, and that is the deliberate trade: a
+  // very late heartbeat gets its minute rather than having the tails skipped
+  // outright. Nothing observed comes near either threshold (T+12s), and Railway
+  // skipping the overlapped tick is the benign outcome anyway.
   const HARD_CAP_MS = 15 * 60 * 1000;
-  const hardCap = setTimeout(() => {
+  const TAIL_CAP_MS = 11 * 60 * 1000;
+  // unref() so a successful exit isn't held open for the remainder.
+  let cap = setTimeout(() => {
     console.error("atlas-worker: hard cap (15m) — exiting so cron can retry");
     process.exit(1);
   }, HARD_CAP_MS);
-  hardCap.unref();
+  cap.unref();
+  // Call right after touchSyncHeartbeat() on BOTH paths (fast-exit and rebuild):
+  // past that point the served snapshot is committed and only the tails remain.
+  const armTailCap = () => {
+    clearTimeout(cap);
+    cap = setTimeout(() => {
+      console.warn(
+        `atlas-worker: tail budget (${TAIL_CAP_MS / 60000}m) spent — the served snapshot is committed; ` +
+          "stopping cleanly so the next cron tick resumes the tails",
+      );
+      process.exit(0);
+    }, Math.max(60 * 1000, TAIL_CAP_MS - (Date.now() - t0)));
+    cap.unref();
+  };
 
   if (!process.env.DATABASE_URL) {
     console.error("atlas-worker: DATABASE_URL is required");
@@ -305,6 +373,7 @@ async function main() {
   if (!full && alreadyCurrent && noStaleEmbeds && structural.healthy && artifactsPublished) {
     console.log(`atlas-worker: already current at ${(syncState ?? "").slice(0, 12)} — skipping fetch/build`);
     await touchSyncHeartbeat(db);
+    armTailCap();
     await db.close();
     // Reconcile both independently incremental tails. Hash coverage can be
     // complete while grouping metadata is stale, and a failed history branch
@@ -380,6 +449,7 @@ async function main() {
   // web instances can fetch the artifact set. (Tails below are best-effort,
   // same as the fast-exit path which heartbeats before them.)
   await touchSyncHeartbeat(verifyDb);
+  armTailCap();
   await verifyDb.close();
 
   // ── Parallel: embeddings + history ───────────────────────────────────────

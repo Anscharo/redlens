@@ -2857,11 +2857,11 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove Di
     "title": "Off-chain Operational Parameters",
   },
   {
-    "content": "Total exposure through this Instance may not exceed 25,000,000 USDS.",
+    "content": "Total exposure through this Instance may not exceed 100,000,000 USDS.",
     "title": "Maximum Exposure",
   },
   {
-    "content": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 10%.",
+    "content": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 2%.",
     "title": "CRR",
   },
   {
@@ -4179,11 +4179,11 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenize
     "title": "Off-chain Operational Parameters",
   },
   {
-    "content": "Total exposure through this Instance may not exceed 50,000,000 USDS.",
+    "content": "Total exposure through this Instance may not exceed 500,000,000 USDS.",
     "title": "Maximum Exposure",
   },
   {
-    "content": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 1.5%.",
+    "content": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 0.5%.",
     "title": "CRR",
   },
   {
@@ -14505,7 +14505,7 @@ exports[`instances > allocation-system instances 1`] = `
       "Aggregate Deposit RateLimitID": "The aggregate deposit RateLimitID is: \`0xd3384d5424cd179640223010fed859f38b86b26e5e0b9ee88b87321b98882f57\`.",
       "Aggregate Withdrawal RateLimitID": "The aggregate withdrawal RateLimitID is: \`0xbe8cbf4b779bbe60101d88f64a8afcc8fdf78863df4303da9047b66fcf427734\`.",
       "Asset Supplied By Grove Liquidity Layer": "USDC and AUSD",
-      "CRR": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 10%.",
+      "CRR": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 2%.",
       "Deposit Rate Limits": "The deposit rate limits are:
 
 - Aggregate: \`maxAmount\`: 25,000,000 (normalized), \`slope\`: 25,000,000 (normalized) per day
@@ -14513,7 +14513,7 @@ exports[`instances > allocation-system instances 1`] = `
 - USDC: \`maxAmount\`: 25,000,000 USDC, \`slope\`: 25,000,000 USDC per day",
       "Deposit RateLimitID (AUSD)": "The deposit RateLimitID for AUSD is: \`0x89c0cb8c17898781d7c1776eafcf73fd0b570659ad5c3791ddcbefe66b001541\`.",
       "Deposit RateLimitID (USDC)": "The deposit RateLimitID for USDC is: \`0x71efb11b03476e40dcc1ade629d360114fcbf838d70a3211270f69414ba9a187\`.",
-      "Maximum Exposure": "Total exposure through this Instance may not exceed 25,000,000 USDS.",
+      "Maximum Exposure": "Total exposure through this Instance may not exceed 100,000,000 USDS.",
       "Network": "Ethereum Mainnet",
       "Pool Address": "0xbAFeAd7c60Ea473758ED6c6021505E8BBd7e8E5d",
       "Swap Rate Limits / maxSlippage": "0.1%",
@@ -14805,13 +14805,13 @@ exports[`instances > allocation-system instances 1`] = `
     "params": {
       "Asset Supplied By Grove Liquidity Layer": "USDS",
       "Basin Contract Address": "0xf08943f817e1F902dEbC884c7B19Ea5764594Ac9",
-      "CRR": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 1.5%.",
+      "CRR": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 0.5%.",
       "Centrifuge ERC-7540 Vault Address": "0xFE6920eB6C421f1179cA8c8d4170530CDBdfd77A",
       "Inflow Rate Limits / maxAmount": "50,000,000 USDS",
       "Inflow Rate Limits / slope": "50,000,000 USDS per day",
       "Inflow RateLimitID": "0x44ad4f925dffddd260f6ba5813208bf35b11b254e79611cbc8443c1504f68e68",
       "JTRSY Rate Provider Address": "0x29209ceCFeFa6f675E6f1f829320D67cE2b025E5",
-      "Maximum Exposure": "Total exposure through this Instance may not exceed 50,000,000 USDS.",
+      "Maximum Exposure": "Total exposure through this Instance may not exceed 500,000,000 USDS.",
       "Network": "Ethereum Mainnet",
       "Outflow Rate Limits / maxAmount": "Unlimited",
       "Outflow RateLimitID": "0x0d8db6f922b464d5eb8ac718bef62b82b05d9bd0ea5dafd09ccd0461d4d98e12",
