@@ -20,8 +20,11 @@ export const HINT_GROUPS: SearchHintGroup[] = [
     note: "Filters combine with plain terms in any order.",
     hints: [
       {
+        // A.1.6 is Aligned Delegates: 62 of its 76 documents match "delegate",
+        // so the example survives ordinary edits. search-hints.artifact.test.ts
+        // fails if a renumbering ever empties it.
         label: "in:DOC_NUMBER",
-        query: "in:A.1.2 delegate",
+        query: "in:A.1.6 delegate",
         description: "Restrict results to a section subtree",
       },
       {
@@ -30,15 +33,19 @@ export const HINT_GROUPS: SearchHintGroup[] = [
         description: "Prefix with - to exclude a term",
       },
       {
-        label: "field: title",
-        query: "title:facilitator",
-        description: "Search only in the title field",
+        // title:/content:/doc_no: and type: are the same idea to a reader, so
+        // they are one row each rather than the three separate "field:"/"type:"/
+        // "type (spaces)" rows this replaced. Quoting is verified in
+        // search-hints.artifact.test.ts: title:"Aligned Delegate" returns
+        // exactly the 18 documents with that text in their title.
+        label: '[field]:"Term"',
+        query: 'title:"Risk"',
+        description: "Risk must be in the title field — also content: and doc_no:",
       },
-      { label: "field: type", query: "type:Annotation", description: "Filter by node type" },
       {
-        label: "type (spaces)",
+        label: '[field]:"Two Words"',
         query: "type:Scenario_Variation",
-        description: 'Underscore for multi-word types, or quote: type:"Scenario Variation"',
+        description: 'type must be Scenario Variation — underscore, or quote it: type:"Scenario Variation"',
       },
     ],
   },
@@ -47,19 +54,14 @@ export const HINT_GROUPS: SearchHintGroup[] = [
     note: "Stack as many as you like — every filter applies at once.",
     hints: [
       {
-        label: "type + field",
-        query: "type:Core title:quorum",
-        description: "Mix field filters and broad terms",
-      },
-      {
         label: "scope + type + phrase",
         query: 'in:A.1 type:Core "alignment requirement"',
         description: "Restrict to a section subtree, filter by node type, match an exact phrase",
       },
       {
-        label: "field + type + exclude",
+        label: "filters + exclude",
         query: "title:facilitator type:Core -operational",
-        description: "Search within the title field, filter by type, and drop an unwanted term",
+        description: "Two field filters plus an exclusion, all applied at once",
       },
     ],
   },

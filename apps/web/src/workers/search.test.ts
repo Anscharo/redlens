@@ -229,14 +229,20 @@ describe("hint: type:Scenario_Variation — multi-word type via underscore", () 
   });
 });
 
-describe("hint: in:A.1.2 delegate — restrict results to a section subtree", () => {
-  it("scope filter keeps only docs whose doc_no is within the prefix", () => {
-    const prefix = "A.1.2";
+describe("hint: in:A.1.6 delegate — restrict results to a section subtree", () => {
+  it("scope filter keeps only docs whose doc_no is within the prefix, and keeps some", () => {
+    // A.1.6 is Aligned Delegates. The non-empty assertion is load-bearing: this
+    // test read in:A.1.2 until 2026-09-28, where no document matches "delegate",
+    // so the containment loop below iterated an EMPTY set and passed while the
+    // hint it mirrored returned nothing for readers who clicked it.
+    const prefix = "A.1.6";
     const allDelegates = ms.search("delegate", SEARCH_OPTS);
     const scoped = allDelegates.filter((r) => {
       const no = docs[r.id as string]?.doc_no ?? "";
       return no === prefix || no.startsWith(prefix + ".");
     });
+    expect(scoped.length).toBeGreaterThan(0);
+    expect(scoped.length).toBeLessThan(allDelegates.length);
     for (const r of scoped) {
       const no = docs[r.id as string].doc_no;
       expect(no === prefix || no.startsWith(prefix + ".")).toBe(true);
