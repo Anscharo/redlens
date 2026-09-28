@@ -29,7 +29,7 @@ import { isAtlasText, classifyToolSource } from "./verify/verifier.ts";
 import { computeOverall, evidenceFromResults, evidenceFromTranscript, priorTurnsEvidence, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
 import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
 import { createParagraphRefuter, type ParagraphRefute } from "./verify/paragraph-refute.ts";
-import { runCitationMarks, type CitationMark } from "./verify/citation-marks.ts";
+import { runCitationMarks, shownMarks, type CitationMark } from "./verify/citation-marks.ts";
 import { docProvenance } from "./verify/provenance.ts";
 import { agreedContradictionsFrom, withoutDisputedMarks } from "./verify/disputes.ts";
 import { judgeAnswerCoverage, type CoverageVerdict } from "./verify/answer-coverage.ts";
@@ -157,9 +157,8 @@ export function describeCall(name: string, args: Record<string, unknown>): strin
 //
 // The count is LOOKUPS, not sources, and the word matters. It is
 // `evidence.length` — one per tool result — while everything further down the
-// answer counts CITED DOCUMENTS: the chip row's "sources · 7"
-// (Sources.tsx) and the fact line's "N of M checked sources"
-// (confidenceFacts.ts). One turn can answer four lookups with seven cited
+// answer counts CITED DOCUMENTS: the chip row's "citations · 7"
+// (Sources.tsx). One turn can answer four lookups with seven cited
 // documents, so the same word carried two counts on one screen and a reader
 // had no way to tell them apart. "Sources" now means a cited document
 // everywhere it appears; a tool call is a lookup.
@@ -401,7 +400,11 @@ async function resolveCitationMarks(
 ): Promise<{ event: Extract<HarnessEvent, { type: "citation_marks" }> | null; meta: CheckRowMeta | null }> {
   if (!promise) return { event: null, meta: null };
   const run = await promise;
-  const event = Object.keys(run.marks).length > 0 ? ({ type: "citation_marks" as const, marks: run.marks }) : null;
+  // The stored row keeps every judgement (`run.judged`). The chip only gets a
+  // sure document match or a confirmed contradiction — a weaker mark asserts
+  // a confidence the calibration does not support.
+  const marks = shownMarks(run.marks);
+  const event = Object.keys(marks).length > 0 ? ({ type: "citation_marks" as const, marks }) : null;
   if (run.judged.length === 0) return { event, meta: null };
   // Only the raw judgements are stored. A per-status tally used to ride along,
   // but conversations.ts deliberately re-folds `judged` through aggregateMarks

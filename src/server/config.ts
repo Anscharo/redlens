@@ -304,7 +304,8 @@ export const config = {
   // Per-doc Sources-chip citation check (verify/citation-marks.ts): judges
   // every (claim, cited doc) pair in the finished answer with Jev
   // (cite-support.ts's judgeCitation) and sends the client one mark per
-  // cited doc — backed / unbacked ("doesn't cover a line") / disputed. Runs
+  // cited doc. The chip receives only a sure document match or a confirmed
+  // contradiction; every other verdict stays on the stored citation_check row. Runs
   // after answer_final, alongside the verifier audit, never gating delivery.
   // "" disables the feature outright: no Jev calls, no `citation_marks` event.
   chatCitationCheckModel: process.env.CHAT_CITATION_CHECK_MODEL ?? JEV_DEFAULT,

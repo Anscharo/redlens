@@ -24,19 +24,26 @@ import type { Indexes } from "../../retrieval/indexes.ts";
 import type { JsonCall } from "../llm.ts";
 import { captureError, type ErrorContext } from "../../posthog-node.ts";
 
-// What the reader sees on the chip. Ordered worst-first in aggregateMarks:
+// What the fold can produce. Ordered worst-first in aggregateMarks:
 // a contradiction outranks a gap, which outranks partial support, which
 // outranks any full support.
-//   disputed     !  — a confirmed contradiction
+//   disputed     !  — a confirmed contradiction. SHOWN.
 //   unread       ⚠  — the answer states what the document SAYS, but the turn
-//                     only looked up a record ABOUT it (a change event, a
-//                     listing row). Nothing retrieved can settle that claim.
-//   uncovered    ⚠  — the document does not cover a line citing it
-//   partial      ✓⚠ — backs part of a compound claim, silent on the rest
-//   mixed        ✓⚠ — backs one citing line surely and another weakly
-//   backed_weak  ✓  — full support, but under the measured confidence cliff
-//   backed       ✓✓ — full support the judge is sure of
+//                     only looked up a record ABOUT it. Recorded, not shown.
+//   uncovered    ⚠  — the document does not cover a line citing it. Recorded, not shown.
+//   partial      ✓⚠ — backs part of a compound claim. Recorded, not shown.
+//   mixed        ✓⚠ — one citing line sure, another under the cliff. Recorded, not shown.
+//   backed_weak  ✓  — full support under the measured cliff. Recorded, not shown.
+//   backed       ✓✓ — full support the judge is sure of. SHOWN.
+//
+// The reader only ever sees `backed` and `disputed` (`shownMarks`). The other
+// five stay on the persisted `judged` pairs so a later calibration can score
+// them. A check under the cliff was right 16 of 27 times; painting that as a
+// mark asserts a confidence the measurement does not support.
 export type CitationMarkStatus = "backed" | "backed_weak" | "mixed" | "partial" | "unread" | "uncovered" | "disputed";
+
+/** Statuses that reach the Sources chip. Everything else is calibration data. */
+const SHOWN_STATUS: ReadonlySet<CitationMarkStatus> = new Set(["backed", "disputed"]);
 
 export interface CitationMark {
   status: CitationMarkStatus;
@@ -51,12 +58,18 @@ export interface CitationMark {
   confidence: number | null;
 }
 
+/** Which question produced the verdict. `record` is cite-metadata.ts (a change
+ *  event or listing row); `content` is cite-support.ts (the document). Absent
+ *  on rows stored before the field existed — those were document questions. */
+export type CiteLane = "content" | "record";
+
 interface JudgedPair {
   uuid: string;
   claim: string;
   verdict: MarkVerdict | null;
   /** Jev Choice confidence in `verdict`, 0–1. Absent on pairs stored before it was read back. */
   confidence?: number | null;
+  lane?: CiteLane;
 }
 
 /** A stored confidence outside 0–1 is not a confidence. */
@@ -144,12 +157,37 @@ export function aggregateMarks(judged: JudgedPair[]): Record<string, CitationMar
     else if (pairs.some((p) => p.verdict === "states_content")) status = "unread";
     else if (pairs.some((p) => p.verdict === "says_nothing")) status = "uncovered";
     else if (pairs.some((p) => p.verdict === "supports_in_part")) status = "partial";
-    else if (pairs.some((p) => p.verdict === "supports")) {
-      const sure = pairs.filter((p) => p.verdict === "supports" && (citeConfidence(p.confidence) ?? 0) >= MIN_BACKED_CONFIDENCE).length;
-      const total = pairs.filter((p) => p.verdict === "supports").length;
-      status = sure === total ? "backed" : sure === 0 ? "backed_weak" : "mixed";
-    } else continue; // only `about_document` pointers — no content claim to mark
+    else if (pairs.some(documentSupport)) {
+      // A `supports` from the RECORD question (a date, a PR number) is not
+      // "this document states the line." Counting it here painted a ✓✓ on a
+      // document the turn never read. The pair stays on `judged`.
+      const supporting = pairs.filter(documentSupport);
+      const sure = supporting.filter((p) => (citeConfidence(p.confidence) ?? 0) >= MIN_BACKED_CONFIDENCE).length;
+      status = sure === supporting.length ? "backed" : sure === 0 ? "backed_weak" : "mixed";
+    } else continue; // pointers, or support that only a record can give — nothing to mark
     out[uuid] = { status, claims, confidence: confidenceFor(status, pairs) };
+  }
+  return out;
+}
+
+/** Document-question support. A record-lane `supports` matches a change row,
+ *  not the document's text, so it must not earn a ✓✓. */
+function documentSupport(p: JudgedPair): boolean {
+  return p.verdict === "supports" && p.lane !== "record";
+}
+
+/**
+ * The marks a reader is allowed to see: a sure document match (✓✓) and a
+ * confirmed contradiction (!). Every other status is kept on the stored
+ * `judged` pairs and dropped here. Returns the same object when nothing is
+ * hidden, so a turn that is already only those two allocates nothing.
+ */
+export function shownMarks(marks: Record<string, CitationMark>): Record<string, CitationMark> {
+  const hidden = Object.values(marks).some((m) => !SHOWN_STATUS.has(m.status));
+  if (!hidden) return marks;
+  const out: Record<string, CitationMark> = {};
+  for (const [uuid, mark] of Object.entries(marks)) {
+    if (SHOWN_STATUS.has(mark.status)) out[uuid] = mark;
   }
   return out;
 }
@@ -157,7 +195,7 @@ export function aggregateMarks(judged: JudgedPair[]): Record<string, CitationMar
 export interface CitationMarksRun {
   marks: Record<string, CitationMark>;
   /** Raw per-pair verdicts, for persistence (checksMeta), not the wire event. */
-  judged: { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null }[];
+  judged: { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null; lane: CiteLane }[];
   calls: number;
   failed: number;
   costUsd: number;
@@ -231,7 +269,7 @@ export async function runCitationMarks(p: {
     const deadlineMs = p.deadlineMs ?? 8000;
     const signal = withDeadline(deadlineMs, p.signal);
 
-    const results: { pair: CitationPair; verdict: MarkVerdict | null; confidence: number | null; costUsd: number | null }[] = new Array(
+    const results: { pair: CitationPair; verdict: MarkVerdict | null; confidence: number | null; costUsd: number | null; lane: CiteLane }[] = new Array(
       pairs.length,
     );
     let nextIndex = 0;
@@ -244,13 +282,14 @@ export async function runCitationMarks(p: {
         if (i >= pairs.length) return;
         calls++;
         const prov = p.provenance?.get(pairs[i].uuid);
+        const lane: CiteLane = prov?.kind === "identity" ? "record" : "content";
         const j =
-          prov?.kind === "identity"
-            ? await judgeMetadata({ claim: pairs[i].claim, record: prov.record, model: p.model, signal })
+          lane === "record"
+            ? await judgeMetadata({ claim: pairs[i].claim, record: prov!.record, model: p.model, signal })
             : await judgeCitation({ pair: pairs[i], ix: p.ix, model: p.model, signal });
         if (j.verdict === null) failed++;
         if (j.costUsd) costUsd += j.costUsd;
-        results[i] = { pair: pairs[i], verdict: j.verdict, confidence: j.confidence, costUsd: j.costUsd };
+        results[i] = { pair: pairs[i], verdict: j.verdict, confidence: j.confidence, costUsd: j.costUsd, lane };
       }
     };
     const workerCount = Math.min(p.concurrency ?? 6, pairs.length);
@@ -295,7 +334,7 @@ export async function runCitationMarks(p: {
       });
     }
 
-    const judged = results.map((r) => ({ uuid: r.pair.uuid, claim: r.pair.claim, verdict: r.verdict, confidence: r.confidence }));
+    const judged = results.map((r) => ({ uuid: r.pair.uuid, claim: r.pair.claim, verdict: r.verdict, confidence: r.confidence, lane: r.lane }));
     const marks = aggregateMarks(judged);
     return { marks, judged, calls, failed, costUsd, latencyMs: Date.now() - t0, confirm };
   } catch (err) {

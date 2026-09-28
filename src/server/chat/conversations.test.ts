@@ -189,7 +189,7 @@ function seedMessage(over: Partial<StoredMsg> & { conversation_id: string; role:
 // Seeds a message_checks row of kind citation_check, in the same shape
 // resolveCitationMarks/persistChecks write (chat-orchestrator.ts /
 // verify/citation-marks.ts's CitationMarksRun.judged).
-function seedCitationCheck(messageId: string, judged: { uuid: string; claim: string; verdict: string | null; confidence?: number | null }[]): void {
+function seedCitationCheck(messageId: string, judged: { uuid: string; claim: string; verdict: string | null; confidence?: number | null; lane?: "content" | "record" }[]): void {
   msgChecks.push({ message_id: messageId, kind: "citation_check", verdict: { judged, counts: {}, confirm: null } });
 }
 
@@ -439,6 +439,8 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
         { uuid: "doc-b", claim: "Rewards accrue daily.", verdict: null }, // unjudged — withholds the mark
         { uuid: "doc-c", claim: "The fee is 10 bps.", verdict: "contradicts", confidence: 0.44 },
         { uuid: "doc-c", claim: "The fee is fixed.", verdict: "contradicts", confidence: 0.8 },
+        { uuid: "doc-d", claim: "Agents publish Artifacts.", verdict: "supports", confidence: 0.99 },
+        { uuid: "doc-e", claim: "Updated in PR 336.", verdict: "supports", confidence: 1, lane: "record" },
       ]);
 
       const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
@@ -447,13 +449,14 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
         string,
         { status: string; confidence: number | null }
       >;
-      // Both supporting lines sit under MIN_BACKED_CONFIDENCE, so the reload
-      // re-derives the weak check — proving the CURRENT fold runs on read
-      // rather than a status stored when the turn ran.
-      expect(marks["doc-a"].status).toBe("backed_weak");
-      expect(marks["doc-a"].confidence).toBe(0.62); // weakest support
+      // Reload re-folds `judged` and then keeps only what a chip may draw.
+      // doc-a is real support under the cliff: recorded, not returned.
+      // doc-d clears the cliff. doc-e matched a change record, not the document.
+      expect(marks["doc-a"]).toBeUndefined();
+      expect(marks["doc-d"].status).toBe("backed");
       expect(marks["doc-c"].status).toBe("disputed");
       expect(marks["doc-c"].confidence).toBe(0.8); // clearest contradiction
+      expect(marks["doc-e"]).toBeUndefined();
       expect(marks["doc-b"]).toBeUndefined(); // unjudged pair — no mark, not a guess
     });
 
@@ -556,7 +559,7 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
       const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
       // 76405733-…: the doc from the 2026-09-24 collision this reconciliation fixes.
       const doc = "76405733-0000-0000-0000-000000000000";
-      seedCitationCheck(assistant.id, [{ uuid: doc, claim: "The threshold is 7 signers.", verdict: "supports", confidence: 0.9 }]);
+      seedCitationCheck(assistant.id, [{ uuid: doc, claim: "The threshold is 7 signers.", verdict: "supports", confidence: 0.99 }]);
       seedVerifyCheck(assistant.id, {
         overall: "fail",
         contradictions: [{ answer_span: "The threshold is 7 signers.", evidence_span: "The threshold is 5 signers.", uuid: doc, agreed: true }],
@@ -573,7 +576,7 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
       const token = await authed();
       seedConversation({ id: "c-1", user_id: "user-1" });
       const assistant = seedMessage({ conversation_id: "c-1", role: "assistant", id: "m-assistant" });
-      seedCitationCheck(assistant.id, [{ uuid: "doc-a", claim: "x", verdict: "supports" }]);
+      seedCitationCheck(assistant.id, [{ uuid: "doc-a", claim: "x", verdict: "supports", confidence: 0.99 }]);
 
       const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
       const body = (await res.json()) as { messages: { role: string; verify: unknown; citationMarks: Record<string, unknown> | null }[] };

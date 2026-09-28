@@ -547,8 +547,7 @@ test("verifier pass: checking status counts real sources, verify_result pass", (
     // One tool result → one evidence entry: singular, and never "0 sources".
     const checking = events.find((e) => e.type === "status" && e.stage === "checking")!;
     expect(checking.type === "status" && checking.detail).toBe("Cross-checking the answer against what 1 lookup returned…");
-    // "Sources" means a CITED DOCUMENT everywhere the reader meets it — the
-    // chip row's "sources · N" and the fact line's "N of M checked sources".
+    // A cited document is a "citation" on the chip row ("citations · N").
     // This count is tool results, which is a different number, and using the
     // same word for both put two counts on one screen with nothing to tell
     // them apart.

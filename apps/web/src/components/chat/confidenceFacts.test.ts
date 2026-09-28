@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answerFacts, missingPartsText, sourcesText } from "./confidenceFacts";
+import { answerFacts, disputedMarksText, missingPartsText } from "./confidenceFacts";
 import type { CitationMark } from "./api";
 
 const mark = (status: CitationMark["status"]): CitationMark => ({ status, claims: [] });
@@ -41,24 +41,26 @@ describe("answerFacts", () => {
     expect(facts.map((f) => f.key)).toEqual(["coverage"]);
   });
 
-  it("counts checked citations and how many are backed", () => {
-    const marks = { a: mark("backed"), b: mark("backed"), c: mark("uncovered") };
-    expect(answerFacts(undefined, marks)).toEqual([{ key: "sources", text: "2 of 3 checked citations are backed", status: "info" }]);
+  it("says nothing for sure matches and for marks the chip does not draw", () => {
+    expect(answerFacts(undefined, { a: mark("backed"), b: mark("backed"), c: mark("uncovered") })).toEqual([]);
+    expect(answerFacts(undefined, { a: mark("backed_weak"), b: mark("unread") })).toEqual([]);
   });
 
-  it("flags the citations count when a checked citation is disputed", () => {
+  it("flags the line when a marked citation is disputed, and ignores marks the chip does not draw", () => {
     const marks = { a: mark("backed"), b: mark("uncovered"), c: mark("disputed") };
-    expect(answerFacts(undefined, marks)).toEqual([{ key: "sources", text: "1 of 3 checked citations is backed", status: "flagged" }]);
+    expect(answerFacts(undefined, marks)).toEqual([{ key: "sources", text: "A marked citation may say otherwise", status: "flagged" }]);
+    expect(answerFacts(undefined, { a: mark("disputed"), b: mark("disputed") })).toEqual([
+      { key: "sources", text: "2 marked citations may say otherwise", status: "flagged" },
+    ]);
   });
 
   it("agrees number in the citations fact", () => {
-    expect(sourcesText(1, 1)).toBe("1 of 1 checked citation is backed");
-    expect(sourcesText(1, 3)).toBe("1 of 3 checked citations is backed");
-    expect(sourcesText(0, 2)).toBe("0 of 2 checked citations are backed");
+    expect(disputedMarksText(1)).toBe("A marked citation may say otherwise");
+    expect(disputedMarksText(2)).toBe("2 marked citations may say otherwise");
   });
 
   it("orders coverage, then missing parts, then sources", () => {
-    const facts = answerFacts({ verdict: "declines", missingParts: ["for which chains"] }, { a: mark("backed") });
+    const facts = answerFacts({ verdict: "declines", missingParts: ["for which chains"] }, { a: mark("disputed") });
     expect(facts.map((f) => f.key)).toEqual(["coverage", "missing", "sources"]);
   });
 });

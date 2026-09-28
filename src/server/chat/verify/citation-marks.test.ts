@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import type { CiteVerdict } from "./cite-support.ts";
-import { aggregateMarks, runCitationMarks, MIN_BACKED_CONFIDENCE } from "./citation-marks.ts";
+import { aggregateMarks, runCitationMarks, shownMarks, MIN_BACKED_CONFIDENCE, type CitationMark } from "./citation-marks.ts";
 import { config } from "../../config.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import type { JsonCall } from "../llm.ts";
@@ -270,6 +270,32 @@ describe("aggregateMarks: how full support splits", () => {
     expect(aggregateMarks([j("a", "supports", 0.99), j("b", "supports", 0.93)])[U1].confidence).toBeNull();
     expect(aggregateMarks([j("a", "supports_in_part", 0.9)])[U1].confidence).toBeNull();
   });
+
+  it("a record-lane support is stored by the caller and does not become a document mark", () => {
+    expect(aggregateMarks([{ uuid: U1, claim: "Updated in PR 336", verdict: "supports", confidence: 1, lane: "record" }])[U1]).toBeUndefined();
+    const mixed = aggregateMarks([
+      { uuid: U1, claim: "The fee is 10 bps", verdict: "supports", confidence: 0.99, lane: "content" },
+      { uuid: U1, claim: "Updated in PR 336", verdict: "supports", confidence: 1, lane: "record" },
+    ]);
+    expect(mixed[U1].status).toBe("backed");
+  });
+});
+
+describe("shownMarks", () => {
+  const mark = (status: "backed" | "backed_weak" | "disputed" | "uncovered" | "unread"): CitationMark =>
+    ({ status, claims: [], confidence: null });
+
+  it("keeps a sure match and a confirmed contradiction, and drops everything else", () => {
+    const marks = { a: mark("backed"), b: mark("backed_weak"), c: mark("disputed"), d: mark("uncovered"), e: mark("unread") };
+    const shown = shownMarks(marks);
+    expect(Object.keys(shown).sort()).toEqual(["a", "c"]);
+    expect(shown).not.toBe(marks);
+  });
+
+  it("returns the same object when every mark is already showable", () => {
+    const marks = { a: mark("backed"), c: mark("disputed") };
+    expect(shownMarks(marks)).toBe(marks);
+  });
 });
 
 // Provenance picks the QUESTION, not merely whether to ask one. The judge used
@@ -313,7 +339,8 @@ describe("routing by provenance", () => {
     const record = { doc_id: A, committed_at: "2026-09-17", pr_number: 336, pr_title: "Atlas Edit Proposal" };
     const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", provenance: prov(A, "identity", record) });
     expect(asked).toEqual(["metadata"]);
-    expect(run.marks[A].status).toBe("backed");
+    expect(run.marks[A]).toBeUndefined();
+    expect(run.judged.find((j) => j.uuid === A)).toMatchObject({ verdict: "supports", lane: "record", confidence: 1 });
   });
 
   // "the Rate Limits was updated … to set the rate limits to unlimited" — the

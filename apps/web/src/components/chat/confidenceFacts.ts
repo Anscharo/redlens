@@ -4,7 +4,7 @@ import type { AnswerCoverage, CitationMark } from "./api";
 // badge (decision 2026-09-22: confidence is shown as plain facts, never a
 // percentage). Three facts make up the unit:
 //   1. coverage — did the reply answer the question (server: answer_coverage);
-//   2. sources  — how many of the checked sources back it (from citation_marks);
+//   2. sources  — a marked citation may say otherwise (only when a chip is !);
 //   3. contradictions — the verify badge itself; not repeated here.
 // Pure, so the copy and the "say nothing by default" rule are testable
 // without React. List by exception: an `answers` ruling adds nothing.
@@ -28,17 +28,12 @@ export function missingPartsText(parts: string[]): string {
   return `Didn't address: ${parts.map((p) => `“${p}”`).join(", ")}`;
 }
 
-// M = cited docs the check marked, N = the backed ones. "checked" is
-// load-bearing: a citation the check never judged has no mark and is not
-// counted, so M can be smaller than the chip count — a document the turn
-// never retrieved is deliberately not checkable (verify/provenance.ts).
-//
-// "Citation" throughout, never "source". That word used to count three
-// different things on one screen: tool results in the stage line, cited
-// documents here and on the chip row. A tool call is a lookup, what the
-// answer cites is a citation, and the thing it points at is a document.
-export function sourcesText(backed: number, checked: number): string {
-  return `${backed} of ${checked} checked citation${checked === 1 ? "" : "s"} ${backed === 1 ? "is" : "are"} backed`;
+// Said only when a chip carries !. The ✓✓ chips already state the sure
+// matches, and a "N of M are backed" line counted checks we deliberately
+// do not show. "Citation", never "source": a tool call is a lookup, what
+// the answer cites is a citation, and the thing it points at is a document.
+export function disputedMarksText(count: number): string {
+  return count === 1 ? "A marked citation may say otherwise" : `${count} marked citations may say otherwise`;
 }
 
 export function answerFacts(coverage: AnswerCoverage | undefined, marks: Record<string, CitationMark> | undefined): AnswerFact[] {
@@ -50,22 +45,12 @@ export function answerFacts(coverage: AnswerCoverage | undefined, marks: Record<
   if (coverage && (coverage.verdict === "answers" || coverage.verdict === "declines") && coverage.missingParts.length > 0) {
     facts.push({ key: "missing", text: missingPartsText(coverage.missingParts), status: "flagged" });
   }
-  const marked = marks ? Object.values(marks) : [];
-  if (marked.length > 0) {
-    // Any status that draws a check counts as backing, including the weak and
-    // caveated ones — the chip itself carries the caveat, and a count that
-    // silently dropped them would disagree with what the reader can see.
-    // Every status that draws a check counts as backed, caveated ones
-    // included — the chip carries the caveat. `unread` draws no check: the
-    // answer stated what a document says while the turn only looked up a
-    // record about it, which is the opposite of backed.
-    const NOT_BACKED = ["uncovered", "disputed", "unread"];
-    const backed = marked.filter((m) => !NOT_BACKED.includes(m.status)).length;
-    // A disputed mark is a confirm-gated contradiction the verify badge does
-    // not repeat. An unbacked mark only means the document doesn't cover the
-    // citing line, so it stays a neutral count.
-    const disputed = marked.some((m) => m.status === "disputed");
-    facts.push({ key: "sources", text: sourcesText(backed, marked.length), status: disputed ? "flagged" : "info" });
-  }
+  // Only the two marks a chip can draw. A row of ✓✓ already says what a
+  // "N of N are backed" line would repeat, so the line appears only when a
+  // confirmed contradiction is among them — the badge does not repeat that,
+  // and a count that included the hidden checks would ask about marks we
+  // chose not to show.
+  const disputed = marks ? Object.values(marks).filter((m) => m.status === "disputed").length : 0;
+  if (disputed > 0) facts.push({ key: "sources", text: disputedMarksText(disputed), status: "flagged" });
   return facts;
 }

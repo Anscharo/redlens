@@ -6,7 +6,7 @@ import { sql, toUuidArrayLiteral } from "../db.ts";
 import { getSessionUser } from "../session.ts";
 import { json } from "../http.ts";
 import { HISTORY_BUDGET_CHARS } from "./chat-history.ts";
-import { aggregateMarks, type CitationMark } from "./verify/citation-marks.ts";
+import { aggregateMarks, shownMarks, type CitationMark } from "./verify/citation-marks.ts";
 import { withoutDisputedMarks } from "./verify/disputes.ts";
 import {
   judgedPairsFrom,
@@ -133,16 +133,12 @@ async function listConversations(userId: string): Promise<ConversationListOut[]>
 }
 
 // Reconstructs each assistant message's Sources-chip marks from its persisted
-// citation_check row (message_checks.verdict, written by chat.ts's
-// persistChecks from verify/citation-marks.ts's CitationMarksRun — see that
-// file's `judged` field). Recomputes with aggregateMarks — the SAME fold a
-// live turn uses (worst verdict wins, an unjudged pair withholds the mark, a
-// doc whose only pairs are `about_document` pointers gets none) — rather than
-// trusting a stored summary, so a future change to that rule applies to old
-// rows too without a backfill. ONE query for the whole conversation (never
-// one per message), same discipline as the messages query in getConversation.
-// A message with no citation_check row, or one whose judged pairs aggregate
-// to nothing, is simply absent from the returned map.
+// citation_check row. Recomputes with aggregateMarks — the same fold a live
+// turn uses — then `shownMarks`, so a reload draws the same two glyphs the
+// live event did and a later change to either rule applies to old rows
+// without a backfill. The stored `judged` pairs are not trimmed. ONE query
+// for the whole conversation. A message with no citation_check row, or one
+// whose pairs produce nothing a chip may draw, is absent from the map.
 async function citationMarksFor(messageIds: string[]): Promise<Map<string, Record<string, CitationMark>>> {
   const out = new Map<string, Record<string, CitationMark>>();
   if (messageIds.length === 0) return out;
@@ -153,7 +149,7 @@ async function citationMarksFor(messageIds: string[]): Promise<Map<string, Recor
   for (const row of rows) {
     const judged = judgedPairsFrom(row.verdict);
     if (!judged) continue;
-    const marks = aggregateMarks(judged);
+    const marks = shownMarks(aggregateMarks(judged));
     if (Object.keys(marks).length > 0) out.set(row.message_id, marks);
   }
   return out;

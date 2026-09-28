@@ -120,7 +120,7 @@ describe("Sources", () => {
     render(
       <Sources sources={sourceFor(UUID)} marks={{ [UUID]: { status: "backed", claims: [] } }} onAtlas={vi.fn()} />,
     );
-    const mark = screen.getByRole("img", { name: "High confidence this document backs the answer" });
+    const mark = screen.getByRole("img", { name: "High confidence this document states the lines that cite it" });
     expect(mark).toHaveAttribute("data-status", "backed");
     expect(mark).toHaveTextContent("✓✓");
   });
@@ -138,23 +138,22 @@ describe("Sources", () => {
     }
   }
 
-  // A gap is a warning without a check: the document does not cover a line it
-  // was cited for, and the hover names the line.
-  it("renders a bare warning for an uncovered source", () => {
-    render(
-      <Sources
-        sources={sourceFor(UUID)}
-        marks={{
-          [UUID]: { status: "uncovered", claims: [{ claim: "The threshold is 7 signers", verdict: "says_nothing" }] },
-        }}
-        onAtlas={vi.fn()}
-      />,
-    );
-    const mark = screen.getByRole("img", { name: 'Not stated in this document. Please double-check: “The threshold is 7 signers”' });
-    expect(mark).toHaveAttribute("data-status", "uncovered");
-    expect(mark).toHaveTextContent("⚠");
-    expect(mark).not.toHaveTextContent("✓");
-    expect(showTip(screen.getByRole("link"))).toHaveTextContent('Not stated in this document. Please double-check: “The threshold is 7 signers”');
+  // Anything short of a sure match or a confirmed contradiction is silence.
+  // The judgement is stored server-side; the chip must not ask the reader to
+  // adjudicate it.
+  it("renders no mark for a check that is not a sure match or a confirmed contradiction", () => {
+    const hidden = ["backed_weak", "mixed", "partial", "unread", "uncovered"] as const;
+    for (const status of hidden) {
+      const { unmount } = render(
+        <Sources
+          sources={sourceFor(UUID)}
+          marks={{ [UUID]: { status, claims: [{ claim: "The threshold is 7 signers", verdict: "says_nothing" }] } }}
+          onAtlas={vi.fn()}
+        />,
+      );
+      expect(screen.queryByRole("img")).toBeNull();
+      unmount();
+    }
   });
 
   it("shows how sure the check is when hovering the source title, not only the glyph", () => {
@@ -165,35 +164,23 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const mark = screen.getByRole("img", { name: "High confidence this document backs the answer" });
+    const mark = screen.getByRole("img", { name: "High confidence this document states the lines that cite it" });
     expect(mark).not.toHaveAttribute("title");
     const tip = showTip(screen.getByText("Some Doc"));
-    expect(tip).toHaveTextContent("High confidence this document backs the answer");
+    expect(tip).toHaveTextContent("High confidence this document states the lines that cite it");
   });
 
-  // Two bands, on the one threshold the calibration pass measured. The three
-  // unmeasured ones this used to draw (0.75 / 0.45) are gone.
-  it("reads confidence as two bands, not a percent", () => {
-    const { rerender } = render(
-      <Sources
-        sources={sourceFor(UUID)}
-        marks={{ [UUID]: { status: "backed_weak", claims: [], confidence: 0.5 } }}
-        onAtlas={vi.fn()}
-      />,
-    );
-    const weak = screen.getByRole("img", { name: "Low confidence this document backs the answer" });
-    expect(weak).toHaveTextContent("✓");
-    expect(weak).not.toHaveTextContent("✓✓");
-    rerender(
+  it("names a confirmed contradiction without a confidence band or a percent", () => {
+    render(
       <Sources
         sources={sourceFor(UUID)}
         marks={{ [UUID]: { status: "disputed", claims: [{ claim: "The fee is 10 bps", verdict: "contradicts" }], confidence: 0.2 } }}
         onAtlas={vi.fn()}
       />,
     );
-    // A warning takes its accessible name from the line it is about, never a band.
     const disputed = screen.getByRole("img", { name: 'This source says otherwise: “The fee is 10 bps”' });
     expect(disputed).toHaveAttribute("data-status", "disputed");
+    expect(disputed).toHaveTextContent("!");
     expect(screen.queryByText(/%/)).toBeNull();
   });
 
@@ -244,16 +231,16 @@ describe("Sources", () => {
     expect(flash).toHaveTextContent("The threshold is 7 signers");
   });
 
-  it("does not quote a claim the source only partly backs", () => {
+  it("quotes only the contradicted line, not a line the document merely fails to cover", () => {
     render(
       <Sources
         sources={sourceFor(UUID)}
         marks={{
           [UUID]: {
-            status: "uncovered",
+            status: "disputed",
             claims: [
-              { claim: "Reward payments cover distributions", verdict: "supports_in_part" },
-              { claim: "The threshold is 7 signers", verdict: "says_nothing" },
+              { claim: "Reward payments cover distributions", verdict: "says_nothing" },
+              { claim: "The threshold is 7 signers", verdict: "contradicts" },
             ],
           },
         }}
@@ -261,85 +248,9 @@ describe("Sources", () => {
       />,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent('Not stated in this document. Please double-check: “The threshold is 7 signers”');
+    expect(tip).toHaveTextContent('This source says otherwise: “The threshold is 7 signers”');
     expect(tip).not.toHaveTextContent("Reward payments");
-  });
-
-  it("leaves the gap warning's hover as the uncovered line, with no confidence band", () => {
-    render(
-      <Sources
-        sources={sourceFor(UUID)}
-        marks={{
-          [UUID]: {
-            status: "uncovered",
-            confidence: 0.9,
-            claims: [{ claim: "The threshold is 7 signers", verdict: "says_nothing" }],
-          },
-        }}
-        onAtlas={vi.fn()}
-      />,
-    );
-    const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent('Not stated in this document. Please double-check: “The threshold is 7 signers”');
-    expect(tip).not.toHaveTextContent("confidence this source");
-  });
-
-  // A headline that inlines its quotes cannot be clicked. Both caveat marks
-  // refer to a line by letter and render it as its own jump button.
-  it("mixed names both lines by letter and makes each one clickable", () => {
-    render(
-      <div className="rlc-thread">
-        <div className="rlc-turn">
-          <div className="rlc-answer">Agents maintain their Artifact. Agents keep the Scaffold aligned.</div>
-          <Sources
-            sources={sourceFor(UUID)}
-            marks={{
-              [UUID]: {
-                status: "mixed",
-                claims: [
-                  { claim: "Agents maintain their Artifact", verdict: "supports", confidence: 0.99 },
-                  { claim: "Agents keep the Scaffold aligned", verdict: "supports", confidence: 0.93 },
-                ],
-              },
-            }}
-            onAtlas={vi.fn()}
-          />
-        </div>
-      </div>,
-    );
-    const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent("High confidence this document supports citation A but low confidence it supports citation B");
-    // Sorted by confidence, so A is always the sure one.
-    expect(screen.getByRole("button", { name: /^A:/ })).toHaveTextContent("Agents maintain their Artifact");
-    expect(screen.getByRole("button", { name: /^B:/ })).toHaveTextContent("Agents keep the Scaffold aligned");
-    fireEvent.click(screen.getByRole("button", { name: /^B:/ }));
-    expect(document.querySelector(".rlc-answer mark.rlc-claim-flash")).toHaveTextContent("Agents keep the Scaffold aligned");
-  });
-
-  // Naming the partly-stated line is what tells the reader WHICH sentence the
-  // caveat is about. A document that fully backs one line and partly backs
-  // another would otherwise read as a caveat on both.
-  it("partial quotes the partly-stated line and leaves a fully backed one alone", () => {
-    render(
-      <Sources
-        sources={sourceFor(UUID)}
-        marks={{
-          [UUID]: {
-            status: "partial",
-            claims: [
-              { claim: "Core GovOps review Agent Artifacts", verdict: "supports", confidence: 0.99 },
-              { claim: "They validate agent creation and Executor Accords", verdict: "supports_in_part", confidence: 0.88 },
-            ],
-          },
-        }}
-        onAtlas={vi.fn()}
-      />,
-    );
-    const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent("This document states part of citation A and says nothing about the rest");
-    expect(screen.getByRole("button", { name: /^A:/ })).toHaveTextContent("They validate agent creation and Executor Accords");
-    expect(tip).not.toHaveTextContent("Core GovOps review Agent Artifacts");
-    expect(tip).not.toHaveTextContent("maybe");
+    expect(tip).not.toHaveTextContent("confidence");
   });
 
   it("renders a disputed mark with a warning accessible name", () => {

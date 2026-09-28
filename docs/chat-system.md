@@ -825,8 +825,10 @@ to revealing on `done` there, same as it always could.
 **`citation_marks`** (2026-09-22) is yielded at most once, after `answer_final`
 and before `verify_result`/`done`: `{ type: "citation_marks", marks:
 Record<uuid, { status, claims: [{ claim, verdict, confidence }] , confidence }> }`,
-where `status` is one of seven: `backed` ✓✓, `backed_weak` ✓, `mixed` ✓⚠,
-`partial` ✓⚠, `unread` ⚠, `uncovered` ⚠, `disputed` !. It is the per-citation check (`verify/citation-marks.ts`):
+where `status` on the wire is one of two: `backed` ✓✓ or `disputed` !. The fold
+still computes five more (`backed_weak`, `mixed`, `partial`, `unread`,
+`uncovered`) and `shownMarks` drops them before the event and again on reload.
+Those judgements stay on the stored `judged` pairs. It is the per-citation check (`verify/citation-marks.ts`):
 every (claim, cited doc) pair from `citationPairs` (`verify/cite-pairs.ts`) is
 judged by a Jev Choice — does *this* document support, contradict, say
 nothing about, or merely get pointed at by the sentence linking it? — which is
@@ -896,11 +898,12 @@ conflict), and the mark is dropped rather than flipped, because the chip's toolt
 carries the citation lane's own per-claim verdicts — which on a collision read
 "supports". The persisted `citation_check` row stays UNRECONCILED as that
 lane's calibration record; reconciliation runs again on reload through the
-same function, so a refresh cannot resurrect the disagreement. Each mark carries `confidence` (0–1, or null): hovering anywhere on the
-source chip (the shared `Tooltip`, not a native `title`) reads it as **High**
-or **Low confidence**. Two bands, split at `MIN_BACKED_CONFIDENCE` = 0.95, and
-that is the only threshold in the lane. It replaced three bands cut at 0.75
-and 0.45 that were picked by feel and never measured.
+same function, so a refresh cannot resurrect the disagreement. A ✓✓ chip reads **High confidence this document states the lines that cite it**.
+That is the question the check asked. "Backs the answer" was a wider claim than
+the evidence. There is no low-confidence chip: below `MIN_BACKED_CONFIDENCE` =
+0.95 the same pass was right 16 of 27 times, and that mark is not sent. The
+threshold is the only one in the lane. It replaced three bands cut at 0.75 and
+0.45 that were picked by feel and never measured.
 
 **0.95 comes from `pnpm eval:citation:calibration`** (2026-09-24, 57 checks
 over 80 real citations and 327 repointed ones). It is a CLIFF, not a scale: at
@@ -914,33 +917,23 @@ no measurable difference and `confidence` is kept.
 
 Full support then splits on that cliff. Every supporting line over it is
 `backed`, every line under it `backed_weak`, and a document with lines on both
-sides is `mixed` — which is why the rule is not simply "weakest support wins":
-a document that clearly backs one sentence and barely backs another is telling
-the reader something a single number hides, so that tooltip quotes both lines
-(75 characters each) instead of averaging them. `partial` is a
-`supports_in_part` verdict, and `uncovered` a `says_nothing` one; neither
-carries a number, because one value cannot describe a disagreement between
-lines. A warning is never gated on confidence — the calibration found the
-number carries no information there.
+sides is `mixed`. `partial` is a `supports_in_part` verdict, and `uncovered` a
+`says_nothing` one. Only `backed` and `disputed` are sent to the chip; the
+rest are kept so the cliff can be re-measured. A warning is never gated on
+confidence — the calibration found the number carries no information there.
 
-**Only the two full-support statuses carry a confidence word.** `backed` reads
-"High confidence this source backs the answer" and `backed_weak` "Low
-confidence"; the STATUS carries the band, so nothing on the client re-reads a
-number. A contradiction and a gap get no band at all, which is what the
-measurement supports — 0.95 was measured on checks, and putting the same word
-on a warning would reintroduce a split the data does not have.
+**The chip draws two glyphs.** `backed` is ✓✓ with the sentence above. `disputed`
+is ! and quotes the contradicted line ("This source says otherwise: …"), with
+no confidence word — 0.95 was measured on checks, and the same pass found the
+number carries no information on a warning. A `supports` from the record
+question (a date or a pull request on a change row) does not become `backed`:
+that match is not the document stating the line. It stays on `judged` with
+`lane: "record"`.
 
-**Every status that has something to look at quotes the line, and every quoted
-line is a button** that scrolls to that sentence in the answer and highlights
-it. A headline never inlines a quote, because a quote inside a headline is a
-string and cannot be clicked: `mixed` and `partial` refer to a line as
-"citation A" / "citation B" and render the lines beneath, while `uncovered`
-("Not stated in this source. Please double-check: …") and `disputed` ("This
-source says otherwise: …") label themselves and need no headline. `partial`
-quotes the partly-stated line specifically — a document that fully backs one
-citing line and partly backs another would otherwise read as a caveat on both.
-Quotes cut at 140 characters, at the last sentence end inside the budget, then
-the last clause break, then the last word break, never mid-word. Confirm
+**A contradicted line is a button** that scrolls to that sentence in the answer
+and highlights it. Quotes cut at 140 characters, at the last sentence end inside
+the budget, then the last clause break, then the last word break, never mid-word.
+Confirm
 clearing a contradiction also clears that pair's confidence. Started concurrently with the audit, so it never delays it; bounded by
 its own 8 s deadline and fail-open (a timeout means no marks, never a warning).
 Raw verdicts persist as a `message_checks` row of kind `citation_check`.
@@ -1013,14 +1006,8 @@ ruled small talk that is audited anyway. The client renders it as the
 copy in `confidenceFacts.ts`): nothing for `answers`; "Didn't answer the
 question" (`deflects`); "Asked you a clarifying question" (`asks`) and "Said
 the atlas doesn't cover this" (`declines`) as neutral facts; "Didn't address:
-“…”" for missing parts; plus "N of M checked sources back the answer" counted
-from `citation_marks`. That count stays a neutral fact unless a checked source
-is `disputed` — a confirm-gated contradiction the badge does not repeat — in
-which case the line is flagged; an `uncovered` mark (the document doesn't cover
-the citing line) does not flag it. Every check-bearing status counts toward
-the "N of M" figure, weak and caveated ones included — the chip itself carries
-the caveat, and a count that silently dropped them would disagree with what
-the reader can see. The badge itself is the third fact
+“…”" for missing parts; and, only when a chip is `disputed`, "A marked citation may say otherwise"
+(or the plural), flagged. A row of ✓✓ adds no line. The badge itself is the third fact
 (whole-answer contradictions) and is not repeated. Raw distribution, per-part scores and latency persist as a
 `message_checks` row of kind `answer_coverage`, and the line now rehydrates
 from it (2026-09-24, `conversations.ts`'s `answerCoverageFor`) like the marks

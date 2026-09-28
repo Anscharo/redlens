@@ -49,6 +49,20 @@ describe("judgedPairsFrom", () => {
     const out = judgedPairsFrom({ judged: [{ uuid: "doc-a", claim: "x", verdict: "supports", confidence: 5 }] });
     expect(out![0].confidence).toBeNull();
   });
+
+  it("keeps a record-question verdict and its lane", () => {
+    const out = judgedPairsFrom({
+      judged: [{ uuid: "doc-a", claim: "Updated in PR 336", verdict: "states_content", confidence: 0.9, lane: "record" }],
+    });
+    expect(out).toEqual([{ uuid: "doc-a", claim: "Updated in PR 336", verdict: "states_content", confidence: 0.9, lane: "record" }]);
+  });
+
+  it("omits a lane it does not recognise, and a missing one", () => {
+    const out = judgedPairsFrom({
+      judged: [{ uuid: "doc-a", claim: "x", verdict: "supports", lane: "snippet" }],
+    });
+    expect(out![0].lane).toBeUndefined();
+  });
 });
 
 describe("deterministicChecksFrom", () => {

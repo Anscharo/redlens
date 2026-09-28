@@ -8,8 +8,9 @@
 // partial write from a crashed process — degrades to "nothing usable" for
 // that one field or row rather than failing the whole conversation load.
 // Callers (conversations.ts) rely on that.
-import { citeConfidence } from "./citation-marks.ts";
-import { VERDICTS, type CiteVerdict } from "./cite-support.ts";
+import { citeConfidence, type CiteLane, type MarkVerdict } from "./citation-marks.ts";
+import { VERDICTS } from "./cite-support.ts";
+import { METADATA_VERDICTS } from "./cite-metadata.ts";
 import { agreedContradictionsFrom, type AgreedContradiction } from "./disputes.ts";
 import { computeOverall, type Verdict, type Contradiction, type VerifyOverall } from "./verifier.ts";
 import type { CheckReport } from "./verify-checks.ts";
@@ -44,7 +45,9 @@ export interface VerifyOut {
 // taken from the module that defines them so a new verdict can't be accepted
 // live and dropped on reload. Anything else in a stored `verdict` field means
 // a future/changed shape, not this one.
-const CITE_VERDICTS: ReadonlySet<string> = new Set(VERDICTS);
+// Content verdicts plus the record-question's `states_content`. Dropping that
+// one on read used to erase the pair the calibration row was kept to study.
+const CITE_VERDICTS: ReadonlySet<string> = new Set([...VERDICTS, ...METADATA_VERDICTS]);
 
 // Defensive parse of a message_checks.verdict payload (JSONB, already
 // deserialized to a JS value by Bun.sql) into aggregateMarks' input shape.
@@ -53,17 +56,22 @@ const CITE_VERDICTS: ReadonlySet<string> = new Set(VERDICTS);
 // message (null) rather than failing the whole conversation load. A single
 // malformed pair within an otherwise-good row is dropped rather than
 // poisoning the row's other pairs.
-export function judgedPairsFrom(verdict: unknown): { uuid: string; claim: string; verdict: CiteVerdict | null; confidence: number | null }[] | null {
+export function judgedPairsFrom(verdict: unknown): { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null; lane?: CiteLane }[] | null {
   if (!verdict || typeof verdict !== "object") return null;
   const judged = (verdict as { judged?: unknown }).judged;
   if (!Array.isArray(judged)) return null;
-  const out: { uuid: string; claim: string; verdict: CiteVerdict | null; confidence: number | null }[] = [];
+  const out: { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null; lane?: CiteLane }[] = [];
   for (const j of judged) {
     if (!j || typeof j !== "object") continue;
-    const { uuid, claim, verdict: v, confidence } = j as Record<string, unknown>;
+    const { uuid, claim, verdict: v, confidence, lane } = j as Record<string, unknown>;
     if (typeof uuid !== "string" || typeof claim !== "string") continue;
     if (v !== null && !CITE_VERDICTS.has(v as string)) continue;
-    out.push({ uuid, claim, verdict: (v as CiteVerdict) ?? null, confidence: citeConfidence(confidence) });
+    const pair: { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null; lane?: CiteLane } = {
+      uuid, claim, verdict: (v as MarkVerdict) ?? null, confidence: citeConfidence(confidence),
+    };
+    // Absent on rows from before the field. Those pairs were document questions.
+    if (lane === "content" || lane === "record") pair.lane = lane;
+    out.push(pair);
   }
   return out;
 }

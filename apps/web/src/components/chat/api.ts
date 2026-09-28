@@ -44,10 +44,10 @@ export interface ParamMismatch {
 // was actually checked; an uncited/unchecked doc gets no entry at all, which
 // the Sources chip renders as no mark rather than as any particular verdict.
 export interface CitationMark {
-  // What the chip draws: ✓✓ sure, ✓ unsure, ✓⚠ backs the line with a caveat,
-  // ⚠ either the document does not cover a line citing it (`uncovered`) or
-  // the answer stated what it SAYS while the turn only looked up a record
-  // ABOUT it (`unread`), ! a contradiction.
+  // What the chip draws. Only `backed` (✓✓ — sure this document states the
+  // lines that cite it) and `disputed` (! — a confirmed contradiction) are
+  // sent. The other statuses are computed and stored, and the chip renders
+  // them as no mark if one ever arrives.
   // See src/server/chat/verify/citation-marks.ts for how one is chosen.
   status: "backed" | "backed_weak" | "mixed" | "partial" | "unread" | "uncovered" | "disputed";
   // `supports_in_part` (2026-09-24): the document states one of a compound
