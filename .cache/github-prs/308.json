@@ -1,0 +1,10 @@
+{
+  "number": 308,
+  "title": "Atlas Edit Proposal — 2026-08-24",
+  "body": "On behalf of Core GovOps, we are submitting the Atlas Edit Weekly Cycle proposal below.\n\nThis proposal includes the following edits:\n\n- **Specify The PAS (Parallelized Allocation System) — Describes the PAS module, its operational process, the governance process, and the emergency mechanism, which together let authorized operators adjust a Diamond PAU's rate limits within governance-set bounds without a full Executive Vote each time.\n- **Add Security Specifications For Pull Request Approvals And Freezer Multisigs — Requires two approvals from distinct individuals or entities before merging pull requests in Prime Agent Liquidity Layer GitHub repositories. Sets a default Liquidity Layer Freezer Multisig of five signers, with deviations requiring approval from the Protocol Security Workstream Lead and Core GovOps.\n- **Correct Net Revenue Recognition Basis — Recognizes Prime Agent income and expenses in the month the Monthly Settlement Cycle covers, instead of only when funds move through the Sky Surplus Buffer. Also recognizes certain Stability Fees and savings-rate interest as they accrue, rather than on a cash basis.\n- **Add New-Entity Verification Requirement To Authorized Forum Accounts — Requires an entity's Operational Executor Agent, or the Core Facilitator if it has none, to verify the entity's legitimacy before it can be added to Authorized Forum Accounts.\n- **Update Osero SparkLend USDS Instance Off-Chain Parameters — Updates the off-chain parameters for Osero's SparkLend allocation: reduces the CRR to 10% and increases the maximum exposure to 25 million USDS, in accordance with the Core Council Risk Advisor's recommendation.\n- **Standardize Language Across GSM Pause Delay Exceptions — Standardizes the language used across GSM Pause Delay Exceptions.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/308",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

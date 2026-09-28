@@ -5,6 +5,7 @@ on:
     paths:
       - "scripts/required/build-history.mjs"
       - "scripts/lib/history-classify.mjs"
+      - "scripts/lib/github-pr-cache.mjs"
       - "scripts_tests/history-canaries.test.ts"
       - "scripts_tests/history-classify.test.ts"
   workflow_dispatch:

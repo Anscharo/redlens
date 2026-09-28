@@ -12,6 +12,7 @@
     "snap:chainstate": "bun scripts/required/fetch-chain-state.mjs",
     "build:graph": "node scripts/required/build-graph.mjs",
     "build:oea-report": "bun scripts/required/build-oea-report.ts",
+    "history:prs": "node scripts/aux/warm-pr-cache.mjs",
     "build:history": "bun scripts/required/build-history.mjs",
     "build:doc-versions": "bun scripts/required/build-doc-versions.mjs",
     "htmlhist:prepare": "bun scripts/htmlhist/prepare-html-history.mjs",
