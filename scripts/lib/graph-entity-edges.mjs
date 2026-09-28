@@ -21,6 +21,9 @@ import {
   isDescriptiveRP,
   ALIGNED_DELEGATES_UUID,
   UUID_LINK_RE,
+  PRIME_FOUNDATION_RE,
+  PROVIDES_SERVICES_RE,
+  cleanOrgProseName,
 } from "./graph-patterns.mjs";
 import { DUTY_ROLES, findRoleDuties } from "./graph-duties.mjs";
 import { warnDriftCount } from "./graph-tripwires.mjs";
@@ -619,21 +622,14 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   }
 
   // --- 2w. Org-to-org prose relations ---
-  // Two conservative sentence shapes; an edge is emitted only when BOTH
-  // endpoints resolve to existing entities (unresolved matches are logged,
-  // never guessed — these are long-tail color, recall is deliberately low).
+  // Two conservative sentence shapes (PRIME_FOUNDATION_RE / PROVIDES_SERVICES_RE,
+  // shared with graph-entities.mjs's Phase 1p — see graph-patterns.mjs); an
+  // edge is emitted only when BOTH endpoints resolve to existing entities
+  // (unresolved matches are logged, never guessed — these are long-tail
+  // color, recall is deliberately low).
   //   "Rubicon is the Prime Foundation associated with Obex."  → prime_foundation_of
   //   "Phoenix Labs is a development company that provides services to the
   //    Spark Foundation"                                       → provides_services_to
-  //   "Treadstone is the development company that provides services to
-  //    Rubicon." (A.6.1.1.5.2.1.1.3.1.1.6) — "is THE ... company" phrasing,
-  //    added alongside "is a/an" 2026-09-28 (atlas-health sweep) once the
-  //    dedicated Development Company docs (1b2) showed every agent uses one
-  //    of the two interchangeably.
-  const PRIME_FOUNDATION_RE =
-    /\b([A-Z][A-Za-z0-9'&. -]+?) is the Prime Foundation associated with (?:the )?([A-Z][A-Za-z0-9'&. -]+?)[.,]/g;
-  const PROVIDES_SERVICES_RE =
-    /\b([A-Z][A-Za-z0-9'&. -]+?) is (?:an?|the) [a-z -]*company that provides services to (?:the )?([A-Z][A-Za-z0-9'&. -]+?)[.,]/g;
   {
     let emitted = 0,
       skipped = 0;
@@ -646,8 +642,8 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
       ]) {
         re.lastIndex = 0;
         for (const m of content.matchAll(re)) {
-          const fromName = m[1].trim().replace(/^the\s+/i, "");
-          const toName = m[2].trim().replace(/^the\s+/i, "");
+          const fromName = cleanOrgProseName(m[1]);
+          const toName = cleanOrgProseName(m[2]);
           const from = entityByName(fromName);
           const to = entityByName(toName);
           if (!from || !to || from.id === to.id) {
