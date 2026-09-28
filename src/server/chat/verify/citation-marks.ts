@@ -29,21 +29,27 @@ import { captureError, type ErrorContext } from "../../posthog-node.ts";
 // outranks any full support.
 //   disputed     !  — a confirmed contradiction. SHOWN.
 //   unread       ⚠  — the answer states what the document SAYS, but the turn
-//                     only looked up a record ABOUT it. Recorded, not shown.
-//   uncovered    ⚠  — the document does not cover a line citing it. Recorded, not shown.
+//                     only looked up a record ABOUT it. SHOWN.
+//   uncovered    ⚠  — the document does not cover a line citing it. SHOWN.
 //   partial      ✓⚠ — backs part of a compound claim. Recorded, not shown.
 //   mixed        ✓⚠ — one citing line sure, another under the cliff. Recorded, not shown.
 //   backed_weak  ✓  — full support under the measured cliff. Recorded, not shown.
 //   backed       ✓✓ — full support the judge is sure of. SHOWN.
 //
-// The reader only ever sees `backed` and `disputed` (`shownMarks`). The other
-// five stay on the persisted `judged` pairs so a later calibration can score
-// them. A check under the cliff was right 16 of 27 times; painting that as a
-// mark asserts a confidence the measurement does not support.
+// Four of the seven reach the reader (`shownMarks`); the three that do not are
+// `backed_weak`, `mixed` and `partial`, which stay on the persisted `judged`
+// pairs so a later calibration can score them. The line between them is what
+// the status MEASURES, not how bad it is. Those three are weak CONFIDENCE — a
+// check under the cliff was right 16 of 27 times, so drawing one asserts a
+// sureness the measurement does not support. `unread` and `uncovered` are
+// categorical FINDINGS, not weak numbers: the document does not cover a line
+// citing it, or the answer stated what it says while the turn only read a
+// record about it. Hiding those would make the harness silent about the very
+// thing it knows.
 export type CitationMarkStatus = "backed" | "backed_weak" | "mixed" | "partial" | "unread" | "uncovered" | "disputed";
 
 /** Statuses that reach the Sources chip. Everything else is calibration data. */
-const SHOWN_STATUS: ReadonlySet<CitationMarkStatus> = new Set(["backed", "disputed"]);
+const SHOWN_STATUS: ReadonlySet<CitationMarkStatus> = new Set(["backed", "disputed", "unread", "uncovered"]);
 
 export interface CitationMark {
   status: CitationMarkStatus;
@@ -177,8 +183,11 @@ function documentSupport(p: JudgedPair): boolean {
 }
 
 /**
- * The marks a reader is allowed to see: a sure document match (✓✓) and a
- * confirmed contradiction (!). Every other status is kept on the stored
+ * The marks a reader is allowed to see: a sure document match (✓✓), a
+ * confirmed contradiction (!), and the two warnings (⚠) — a document that
+ * does not cover a line citing it, and a line that states what a document
+ * says when only a record about it was read. Every weak-confidence status is
+ * kept on the stored
  * `judged` pairs and dropped here. Returns the same object when nothing is
  * hidden, so a turn that is already only those two allocates nothing.
  */

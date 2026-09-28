@@ -141,17 +141,41 @@ describe("Sources", () => {
   // Anything short of a sure match or a confirmed contradiction is silence.
   // The judgement is stored server-side; the chip must not ask the reader to
   // adjudicate it.
-  it("renders no mark for a check that is not a sure match or a confirmed contradiction", () => {
-    const hidden = ["backed_weak", "mixed", "partial", "unread", "uncovered"] as const;
-    for (const status of hidden) {
+  // Only the weak-CONFIDENCE folds are hidden. A check under the measured
+  // cliff was right 16 of 27 times, so drawing one asserts a sureness the
+  // measurement does not support.
+  it("renders no mark for a check the measurement cannot stand behind", () => {
+    for (const status of ["backed_weak", "mixed", "partial"] as const) {
       const { unmount } = render(
         <Sources
           sources={sourceFor(UUID)}
-          marks={{ [UUID]: { status, claims: [{ claim: "The threshold is 7 signers", verdict: "says_nothing" }] } }}
+          marks={{ [UUID]: { status, claims: [{ claim: "The threshold is 7 signers", verdict: "supports" }] } }}
           onAtlas={vi.fn()}
         />,
       );
       expect(screen.queryByRole("img")).toBeNull();
+      unmount();
+    }
+  });
+
+  // These two are categorical findings, not weak numbers, so they are drawn.
+  // Hiding them would leave the harness silent about what it knows.
+  it("draws a warning for a gap and for a line stated from a record alone", () => {
+    const cases = [
+      ["uncovered", "says_nothing", "Not stated in this document. Please double-check: “The threshold is 7 signers”"],
+      ["unread", "states_content", "States what the document says: “The threshold is 7 signers”"],
+    ] as const;
+    for (const [status, verdict, name] of cases) {
+      const { unmount } = render(
+        <Sources
+          sources={sourceFor(UUID)}
+          marks={{ [UUID]: { status, claims: [{ claim: "The threshold is 7 signers", verdict }] } }}
+          onAtlas={vi.fn()}
+        />,
+      );
+      const glyph = screen.getByRole("img", { name });
+      expect(glyph).toHaveAttribute("data-status", status);
+      expect(glyph).toHaveTextContent("⚠");
       unmount();
     }
   });
@@ -178,7 +202,7 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const disputed = screen.getByRole("img", { name: 'This source says otherwise: “The fee is 10 bps”' });
+    const disputed = screen.getByRole("img", { name: 'This document says otherwise: “The fee is 10 bps”' });
     expect(disputed).toHaveAttribute("data-status", "disputed");
     expect(disputed).toHaveTextContent("!");
     expect(screen.queryByText(/%/)).toBeNull();
@@ -199,7 +223,7 @@ describe("Sources", () => {
       />,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent('This source says otherwise: “The threshold is 7 signers”');
+    expect(tip).toHaveTextContent('This document says otherwise: “The threshold is 7 signers”');
     // No band on a warning. The 0.95 threshold was measured on CHECKS, and the
     // same pass found confidence carries no information on a contradiction.
     expect(tip).not.toHaveTextContent("confidence");
@@ -248,7 +272,7 @@ describe("Sources", () => {
       />,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent('This source says otherwise: “The threshold is 7 signers”');
+    expect(tip).toHaveTextContent('This document says otherwise: “The threshold is 7 signers”');
     expect(tip).not.toHaveTextContent("Reward payments");
     expect(tip).not.toHaveTextContent("confidence");
   });
@@ -263,7 +287,7 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const mark = screen.getByRole("img", { name: 'This source says otherwise: “The threshold is 7 signers”' });
+    const mark = screen.getByRole("img", { name: 'This document says otherwise: “The threshold is 7 signers”' });
     expect(mark).toHaveAttribute("data-status", "disputed");
     expect(mark).not.toHaveAttribute("title");
   });

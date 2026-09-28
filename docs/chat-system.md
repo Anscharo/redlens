@@ -918,13 +918,22 @@ no measurable difference and `confidence` is kept.
 Full support then splits on that cliff. Every supporting line over it is
 `backed`, every line under it `backed_weak`, and a document with lines on both
 sides is `mixed`. `partial` is a `supports_in_part` verdict, and `uncovered` a
-`says_nothing` one. Only `backed` and `disputed` are sent to the chip; the
-rest are kept so the cliff can be re-measured. A warning is never gated on
-confidence — the calibration found the number carries no information there.
+`says_nothing` one. A warning is never gated on confidence — the calibration
+found the number carries no information there.
 
-**The chip draws two glyphs.** `backed` is ✓✓ with the sentence above. `disputed`
-is ! and quotes the contradicted line ("This source says otherwise: …"), with
-no confidence word — 0.95 was measured on checks, and the same pass found the
+**Four of the seven reach the chip**, and the line between them is what a
+status MEASURES rather than how bad it is. `backed_weak`, `mixed` and
+`partial` are weak CONFIDENCE and stay on the stored `judged` pairs so the
+cliff can be re-measured: a check under it was right 16 of 27 times, so drawing
+one asserts a sureness the measurement does not support. `unread` and
+`uncovered` are categorical FINDINGS, not weak numbers, so they are drawn —
+hiding them would make the harness silent about the very thing it knows.
+
+`backed` is ✓✓ with the sentence above. `disputed` is ! and quotes the
+contradicted line ("This document says otherwise: …"). `uncovered` is ⚠ and
+quotes the line the document fails to cover; `unread` is ⚠ and quotes the line
+that states what the document says when only a record about it was read. None
+of the three carries a confidence word — 0.95 was measured on checks, and the same pass found the
 number carries no information on a warning. A `supports` from the record
 question (a date or a pull request on a change row) does not become `backed`:
 that match is not the document stating the line. It stays on `judged` with

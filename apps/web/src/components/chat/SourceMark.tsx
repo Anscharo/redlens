@@ -3,12 +3,18 @@ import type { CitationMark } from "./api";
 
 type Claim = CitationMark["claims"][number];
 
-// The chip shows two marks and nothing else. A sure document match (✓✓) and a
-// confirmed contradiction (!). Weaker folds — a check under the measured
-// cliff, a partial, a gap, a change-record match — stay on the stored
-// judgement and never reach a reader. A false check and a false warning both
-// ask the reader to adjudicate something the measurement does not support.
-const SHOWN = new Set<CitationMark["status"]>(["backed", "disputed"]);
+// The four marks a chip can draw. Mirrors SHOWN_STATUS in
+// verify/citation-marks.ts, which already filters before the wire — this is
+// the guard for a stored row folded under an older rule. Keep the two in step.
+//
+// What stays hidden is the weak-CONFIDENCE group (`backed_weak`, `mixed`,
+// `partial`): a check under the measured cliff was right 16 of 27 times, so
+// drawing one asserts a sureness the measurement does not support. `unread`
+// and `uncovered` are categorical findings rather than weak numbers, so they
+// are drawn — hiding them would make the harness silent about what it knows.
+const SHOWN = new Set<CitationMark["status"]>(["backed", "disputed", "unread", "uncovered"]);
+
+const GLYPH: Record<string, string> = { backed: "✓✓", disputed: "!", unread: "⚠", uncovered: "⚠" };
 
 const CLAIM_CHAR_CAP = 140;
 const MAX_CLAIMS_SHOWN = 5;
@@ -36,18 +42,42 @@ function shown(mark: CitationMark | undefined): mark is CitationMark {
   return !!mark && SHOWN.has(mark.status);
 }
 
-function contradicted(mark: CitationMark): Claim[] {
-  return mark.claims.filter((c) => c.verdict === "contradicts").slice(0, MAX_CLAIMS_SHOWN);
+// The citing lines each status quotes. A supporting line is never quoted —
+// the ✓✓ already says it, and there is nothing for the reader to adjudicate.
+const QUOTED: Record<string, Claim["verdict"]> = {
+  disputed: "contradicts",
+  uncovered: "says_nothing",
+  unread: "states_content",
+};
+
+function quotedLines(mark: CitationMark): Claim[] {
+  const want = QUOTED[mark.status];
+  return want ? mark.claims.filter((c) => c.verdict === want).slice(0, MAX_CLAIMS_SHOWN) : [];
 }
 
 function claimLabel(claim: Claim): string {
-  return `This source says otherwise: ${quote(claim.claim)}`;
+  switch (claim.verdict) {
+    case "contradicts":
+      return `This document says otherwise: ${quote(claim.claim)}`;
+    case "states_content":
+      return `States what the document says: ${quote(claim.claim)}`;
+    default:
+      return `Not stated in this document. Please double-check: ${quote(claim.claim)}`;
+  }
 }
+
+// Stands in when a status has no quoted line left — defensive only, since
+// each of the three requires the claim that produced it.
+const BARE: Record<string, string> = {
+  disputed: "This document says otherwise",
+  uncovered: "This document doesn't cover a line citing it",
+  unread: "Only a record about this document was read, not the document",
+};
 
 function accessibleName(mark: CitationMark): string {
   if (mark.status === "backed") return BACKED_LINE;
-  const line = contradicted(mark)[0];
-  return line ? claimLabel(line) : "This document says otherwise";
+  const line = quotedLines(mark)[0];
+  return line ? claimLabel(line) : BARE[mark.status];
 }
 
 // Content for the shared Tooltip, shown when the whole source pill is hovered.
@@ -60,10 +90,12 @@ export function sourceTooltipContent(
 ): ReactNode {
   if (!shown(mark)) return null;
   if (mark.status === "backed") return BACKED_LINE;
-  const lines = contradicted(mark);
-  if (lines.length === 0) return "This document says otherwise";
+  const lines = quotedLines(mark);
+  if (lines.length === 0) return BARE[mark.status];
+  const headline = mark.status === "unread" ? "Only a change record was read, not the document" : null;
   return (
     <>
+      {headline && <div>{headline}</div>}
       {lines.map((c, i) => {
         const label = claimLabel(c);
         if (!onShowClaim) return <div key={i}>{label}</div>;
@@ -90,7 +122,7 @@ export function SourceMark({ mark }: { mark: CitationMark | undefined }) {
   if (!shown(mark)) return null;
   return (
     <span className="rlc-cite-mark" data-status={mark.status} role="img" aria-label={accessibleName(mark)}>
-      {mark.status === "backed" ? "✓✓" : "!"}
+      {GLYPH[mark.status]}
     </span>
   );
 }

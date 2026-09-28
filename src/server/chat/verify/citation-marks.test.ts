@@ -282,13 +282,16 @@ describe("aggregateMarks: how full support splits", () => {
 });
 
 describe("shownMarks", () => {
-  const mark = (status: "backed" | "backed_weak" | "disputed" | "uncovered" | "unread"): CitationMark =>
+  const mark = (status: CitationMark["status"]): CitationMark =>
     ({ status, claims: [], confidence: null });
 
-  it("keeps a sure match and a confirmed contradiction, and drops everything else", () => {
-    const marks = { a: mark("backed"), b: mark("backed_weak"), c: mark("disputed"), d: mark("uncovered"), e: mark("unread") };
+  // The line is what a status MEASURES, not how bad it is. `backed_weak`,
+  // `mixed` and `partial` are weak CONFIDENCE and stay hidden; `uncovered` and
+  // `unread` are categorical findings and are drawn.
+  it("keeps the sure match, the contradiction and the two warnings, dropping the weak checks", () => {
+    const marks = { a: mark("backed"), b: mark("backed_weak"), c: mark("disputed"), d: mark("uncovered"), e: mark("unread"), f: mark("mixed") };
     const shown = shownMarks(marks);
-    expect(Object.keys(shown).sort()).toEqual(["a", "c"]);
+    expect(Object.keys(shown).sort()).toEqual(["a", "c", "d", "e"]);
     expect(shown).not.toBe(marks);
   });
 
