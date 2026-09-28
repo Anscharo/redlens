@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useSearch } from "./useSearch";
 import { useUrlState, urlString, urlEnum } from "./useUrlState";
-import { ROUTES, type SearchScope } from "@/lib/routes";
+import { ROUTES, PREVIEW_INDEX_PATH, type SearchScope } from "@/lib/routes";
 import { track } from "../lib/analytics";
 import { useRecentSearches, useRecordRecentSearch } from "../lib/recentSearches";
 
@@ -67,6 +67,32 @@ export function applyMode(query: string, mode: SearchMode): string {
   return fieldTokens.length > 0 ? `${fieldTokens.join(" ")} ${wrapped}` : wrapped;
 }
 
+// Slash shortcuts, resolved for BOTH entry points (typing an exact command and
+// clicking a row on the `/` cheat sheet) so the two can never disagree.
+//
+// `/preview` is a full page load on purpose: main.tsx resolves it from
+// window.location before the SPA router mounts, so it has no <Route> and
+// wouter's navigate() would just leave App with nothing matching. The reload
+// also correctly exits a /preview/<id> session back to the index.
+type SlashTarget = { spa: string } | { load: string };
+
+const SLASH_TARGETS: Record<string, SlashTarget> = {
+  "/reports": { spa: ROUTES.REPORTS },
+  "/radar": { spa: ROUTES.RADAR },
+  "/features": { spa: ROUTES.FEATURES },
+  "/h": { spa: ROUTES.SEARCH_HINTS },
+  "/preview": { load: PREVIEW_INDEX_PATH },
+};
+
+/** Runs `q` as a slash command; true when it was one (caller should stop). */
+export function runSlashCommand(q: string, navigate: (to: string) => void): boolean {
+  const target = SLASH_TARGETS[q];
+  if (!target) return false;
+  if ("load" in target) window.location.assign(target.load);
+  else navigate(target.spa);
+  return true;
+}
+
 export function useSearchInput(location: string, navigate: (to: string) => void, scope: SearchScope) {
   const { state, search, ready } = useSearch();
   const [queryParam, setQueryParam] = useUrlState("q", queryCodec);
@@ -98,9 +124,7 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const q = e.target.value;
-      if (q === "/reports") { navigate(ROUTES.REPORTS); return; }
-      if (q === "/radar") { navigate(ROUTES.RADAR); return; }
-      if (q === "/h") { navigate(ROUTES.SEARCH_HINTS); return; }
+      if (runSlashCommand(q, navigate)) return;
       if (scope === "atlas" && location !== ROUTES.HOME) {
         const np = new URLSearchParams();
         if (q) np.set("q", q);
@@ -117,9 +141,7 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
 
   const handleHintClick = useCallback(
     (q: string) => {
-      if (q === "/reports") { navigate(ROUTES.REPORTS); return; }
-      if (q === "/radar") { navigate(ROUTES.RADAR); return; }
-      if (q === "/h") { navigate(ROUTES.SEARCH_HINTS); return; }
+      if (runSlashCommand(q, navigate)) return;
       if (/~\d/.test(q)) setMode("broad");
       setQueryParam(q || null);
     },
