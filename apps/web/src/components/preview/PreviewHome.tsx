@@ -8,9 +8,15 @@ import type { Entry } from "./types";
 
 // /preview index: paste a PR / branch / fork URL (or id) → generate a preview;
 // below, "my recent previews" — strictly the INTERSECTION of what this browser
-// has opened (localStorage) and what is live in the DB (GET /api/preview/list).
-// Local-only entries (DB wiped / sha blocked) and DB-only entries (other
-// people's previews) are both hidden.
+// has opened (localStorage) and what is live in the DB. Local-only entries (DB
+// wiped / sha blocked) are hidden; other people's previews were never asked for.
+//
+// The DB side is GET /api/preview/mine?shas=… , NOT the public /list: /list
+// excludes every private row by design, so against it the intersection silently
+// dropped every private-repo preview this browser had legitimately opened.
+// /mine answers for the shas we send and re-checks repo access per private row,
+// so a private preview shows up for the person who may see it and for no one
+// else. Sending no shas (a first visit) skips the request entirely.
 
 interface DbRow {
   sha: string;
@@ -23,6 +29,7 @@ interface DbRow {
   pr_state: string | null;
   doc_count: number;
   last_access: string;
+  private?: boolean;
 }
 
 function mergeEntries(rows: DbRow[]): Entry[] {
@@ -39,7 +46,7 @@ function mergeEntries(rows: DbRow[]): Entry[] {
     out.set(l.id, {
       id: l.id,
       title: db.pr_title ?? undefined,
-      detail: [db.pr_author && `by ${db.pr_author}`, db.pr_state && db.pr_state !== "open" && db.pr_state, `${db.doc_count} docs`]
+      detail: [db.private && "private", db.pr_author && `by ${db.pr_author}`, db.pr_state && db.pr_state !== "open" && db.pr_state, `${db.doc_count} docs`]
         .filter(Boolean)
         .join(" · "),
       at: l.at,
@@ -64,7 +71,9 @@ export function PreviewHome() {
   }, []);
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}api/preview/list`)
+    const shas = [...new Set(localPreviews().map((p) => p.sha))];
+    if (shas.length === 0) return; // nothing opened in this browser — nothing to ask about
+    fetch(`${import.meta.env.BASE_URL}api/preview/mine?shas=${shas.join(",")}`)
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setRows(Array.isArray(d) ? d : []))
       .catch(() => {});

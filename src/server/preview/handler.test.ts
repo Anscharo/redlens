@@ -1254,6 +1254,82 @@ test("resolveId: sha rebuild of a plain branch row (null base columns) reconstru
 // /api/preview/list — untested by any existing case.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// /api/preview/mine — the session-scoped listing. The security property under
+// test: a PRIVATE row reaches the caller only when authorizePreviewAccess says
+// "ok"; every other decision drops it silently (no 401/403 that would confirm
+// the preview exists).
+// ---------------------------------------------------------------------------
+
+const PUB_SHA = "b".repeat(40);
+const PRIV_SHA = "c".repeat(40);
+const pubRow = { sha: PUB_SHA, repo: "blimpa/next-gen-atlas", ref: "pull-9", private: false };
+const privRow = { sha: PRIV_SHA, repo: TEST_REPO, ref: "main", private: true };
+
+async function mine(query: string) {
+  const { handlePreview } = await freshHandler();
+  const path = "/api/preview/mine";
+  return Promise.resolve(handlePreview(new Request(`http://x${path}?${query}`), stubServer, path));
+}
+
+test("/api/preview/mine returns a public row without any access check", async () => {
+  dbQueued = [[pubRow]];
+  const res = await mine(`shas=${PUB_SHA}`);
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual([pubRow]);
+  expect(accessCalls).toHaveLength(0);
+  // Session-scoped: never cacheable by a shared proxy, and no allow-origin.
+  expect(res.headers.get("cache-control")).toBe("private, no-store");
+  expect(res.headers.get("access-control-allow-origin")).toBeNull();
+});
+
+test("/api/preview/mine returns a private row once its repo is authorized", async () => {
+  accessDecision = "ok";
+  dbQueued = [[privRow]];
+  const res = await mine(`shas=${PRIV_SHA}`);
+  expect(await res.json()).toEqual([privRow]);
+  expect(accessCalls).toEqual([{ repo: TEST_REPO }]);
+});
+
+test("/api/preview/mine drops a private row on every non-ok decision, silently", async () => {
+  for (const decision of ["forbidden", "login-required", "unavailable"] as AccessDecision[]) {
+    accessDecision = decision;
+    dbQueued = [[privRow, pubRow]];
+    const res = await mine(`shas=${PRIV_SHA},${PUB_SHA}`);
+    expect(res.status).toBe(200); // never 401/403 — that would confirm the preview exists
+    expect(await res.json()).toEqual([pubRow]);
+  }
+});
+
+test("/api/preview/mine checks each private repo once, however many of its shas are asked for", async () => {
+  const sha2 = "d".repeat(40);
+  dbQueued = [[privRow, { ...privRow, sha: sha2 }]];
+  const res = await mine(`shas=${PRIV_SHA},${sha2}`);
+  expect(await res.json()).toHaveLength(2);
+  expect(accessCalls).toHaveLength(1); // every push makes a new sha; one permission check covers them
+});
+
+test("/api/preview/mine ignores junk shas, answers [] with no query at all", async () => {
+  dbQueued = [[pubRow]];
+  const res = await mine(`shas=not-a-sha,${PUB_SHA.toUpperCase()},,xyz`);
+  expect(await res.json()).toEqual([pubRow]); // the 40-hex one survives, case-folded
+
+  dbQueued = [new Error("must not be queried")];
+  const empty = await mine("shas=nope");
+  expect(empty.status).toBe(200);
+  expect(await empty.json()).toEqual([]);
+
+  const none = await mine("");
+  expect(await none.json()).toEqual([]);
+});
+
+test("/api/preview/mine empties the tab rather than erroring when the query throws", async () => {
+  dbQueued = [new Error("connection reset")];
+  const res = await mine(`shas=${PUB_SHA}`);
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual([]);
+});
+
 test("/api/preview/list returns the live rows on success, or [] if the query throws", async () => {
   const { call } = await freshHandler();
   dbQueued = [[{ sha: "abc", repo: "r/r", ref: "main" }]];

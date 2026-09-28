@@ -32,6 +32,7 @@ const {
   previewsTodayCountForOwner,
   previewsTodayCountForRepo,
   listPreviews,
+  listPreviewsByShas,
   isBlockedSha,
   blockedShas,
 } = await import("./db.ts");
@@ -231,11 +232,13 @@ test("previewsTodayCountForRepo defaults to 0 when no row comes back", async () 
   expect(await previewsTodayCountForRepo("acme/atlas-fork")).toBe(0);
 });
 
-test("listPreviews returns rows, limit defaults to 50", async () => {
+test("listPreviews returns rows, limit defaults to 200", async () => {
   queued.push([{ sha: "s1" }, { sha: "s2" }]);
   const rows = await listPreviews();
   expect(rows).toHaveLength(2);
-  expect(calls[0]!.values).toContain(50);
+  // A global `ORDER BY last_access DESC LIMIT n` window: too small a default
+  // silently drops a caller's own older previews once other people's are newer.
+  expect(calls[0]!.values).toContain(200);
 });
 
 test("listPreviews excludes private rows", async () => {
@@ -248,6 +251,26 @@ test("listPreviews respects an explicit limit", async () => {
   queued.push([]);
   await listPreviews(5);
   expect(calls[0]!.values).toContain(5);
+});
+
+test("listPreviewsByShas queries the given shas as one text[] literal, private rows INCLUDED", async () => {
+  queued.push([{ sha: "s1", private: true }]);
+  const rows = await listPreviewsByShas(["s1", "s2"]);
+  expect(rows).toHaveLength(1);
+  const q = calls[0]!.strings.join("");
+  // The point of this query vs listPreviews: private rows come back (handler.ts
+  // authorizes each one per visitor), and there is no last_access window to fall
+  // out of. Blocked rows stay invisible, as everywhere else.
+  expect(q).not.toContain("private = false");
+  expect(q).toContain("blocked_at IS NULL");
+  expect(q).toContain("::text[]");
+  // One bound literal, not a JS array parameter (see pg-array.ts).
+  expect(calls[0]!.values).toEqual(["{s1,s2}"]);
+});
+
+test("listPreviewsByShas skips the round trip on an empty sha list", async () => {
+  expect(await listPreviewsByShas([])).toEqual([]);
+  expect(calls).toHaveLength(0);
 });
 
 test("isBlockedSha true/false", async () => {

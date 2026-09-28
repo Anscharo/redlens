@@ -4,6 +4,9 @@
 //   GET /:id/events           SSE build-status stream (drives the build)
 //   GET /:sha/diff.json        added/changed doc ids vs current main
 //   GET /:sha/<artifact>.json  allowlisted bundle artifact
+//   GET /list                  public listing (no private rows, ever)
+//   GET /mine?shas=…           session-scoped listing for the caller's own shas,
+//                              private rows included once access is authorized
 
 import fs from "node:fs";
 import path from "node:path";
@@ -26,7 +29,7 @@ import {
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
 import { previewPaths, artifactPath, bundleReady, readMeta, writeMeta, touch, remove as removeBundle, type PreviewMeta } from "./cache.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
-import { getPreviewRow, touchPreview, isBlockedSha, listPreviews } from "./db.ts";
+import { getPreviewRow, touchPreview, isBlockedSha, listPreviews, listPreviewsByShas, type PreviewRow } from "./db.ts";
 import { fillPrivateDiffBaseOnOpen } from "./diff-base-backfill.ts";
 import { authorizePreviewAccess } from "./access.ts";
 import { appInstallUrl } from "./github-app.ts";
@@ -438,6 +441,62 @@ async function artifactResponse(req: Request, sha: string, name: string): Promis
   return res;
 }
 
+// GET /api/preview/mine?shas=<comma-separated 40-hex> — backs the /preview
+// index's "my recent previews" tab. The browser sends the shas its localStorage
+// remembers and gets back the rows for THOSE shas only; it never asks for, and
+// can never be handed, a list of what other people have previewed.
+//
+// This is the one listing that discloses private previews, so it is gated the
+// same way the sha-keyed bundle routes are: a private row is emitted only after
+// authorizePreviewAccess says THIS visitor may see that repo (fail-closed —
+// "login-required"/"forbidden"/"unavailable" all drop the row silently, so a
+// caller guessing shas can't tell "no such preview" from "not yours"). Public
+// rows need no check: they are already served by /list to anyone.
+//
+// A sha the caller doesn't know is unguessable, and one it does know it already
+// holds — so accepting a sha list adds no disclosure of its own.
+const MINE_MAX_SHAS = 50; // headroom over previewLocal.ts's MAX_LOCAL (30) — bounds the per-repo access checks below
+
+async function minePreviews(req: Request): Promise<Response> {
+  const raw = new URL(req.url).searchParams.get("shas") ?? "";
+  const shas = [
+    ...new Set(
+      raw
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => SHA_RE.test(s)), // anything else is dropped, not 400'd: one stale entry must not blank the list
+    ),
+  ].slice(0, MINE_MAX_SHAS);
+  if (shas.length === 0) return json([], 200, PRIVATE_HEADERS);
+
+  let rows: PreviewRow[];
+  try {
+    rows = await listPreviewsByShas(shas);
+  } catch {
+    return json([], 200, PRIVATE_HEADERS); // same soft-fail as /list — a DB hiccup empties the tab, it doesn't error it
+  }
+
+  const out: PreviewRow[] = [];
+  // Memoized per repo: several previews of one private repo (every push makes a
+  // new sha) then cost ONE permission check, not one each. access.ts caches
+  // across requests too; this keeps a single response internally consistent.
+  const allowedRepo = new Map<string, boolean>();
+  for (const row of rows) {
+    if (!row.private) {
+      out.push(row);
+      continue;
+    }
+    let allowed = allowedRepo.get(row.repo);
+    if (allowed === undefined) {
+      const decision = await authorizePreviewAccess(req, row.repo).catch(() => "unavailable" as const);
+      allowed = decision === "ok";
+      allowedRepo.set(row.repo, allowed);
+    }
+    if (allowed) out.push(row);
+  }
+  return json(out, 200, PRIVATE_HEADERS);
+}
+
 // Local shorthand over the shared helper (http.ts): every preview response
 // carries the CORS+noindex pair unless a private bundle swaps in PRIVATE_HEADERS,
 // so the header argument is positional here rather than an options object.
@@ -455,6 +514,10 @@ export function handlePreview(req: Request, server: Server<unknown>, pathname: s
       .then((rows) => json(rows, 200))
       .catch(() => json([], 200));
   }
+  // GET /api/preview/mine — the caller's OWN previews (private ones included,
+  // each behind its repo's access check). Session-scoped, so it carries
+  // PRIVATE_HEADERS rather than CORS: never cacheable by a shared proxy.
+  if (segs.length === 1 && segs[0] === "mine") return minePreviews(req);
   // GET /api/preview/open-prs — open PRs against the canonical atlas, for the
   // /preview index "open atlas prs" tab.
   if (segs.length === 1 && segs[0] === "open-prs") {

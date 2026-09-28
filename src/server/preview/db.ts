@@ -128,16 +128,39 @@ export async function previewsTodayCountForRepo(repo: string): Promise<number> {
   return rows[0]?.n ?? 0;
 }
 
-/** Live previews for the /preview index page, newest-touched first. Blocked
+/** Live previews for the public /preview listing, newest-touched first. Blocked
  *  rows are invisible. Private rows never leave the DB for this public index —
- *  they're served only through the access-checked sha-keyed routes. */
-export async function listPreviews(limit = 50): Promise<PreviewRow[]> {
+ *  they're served only through the access-checked sha-keyed routes, and to their
+ *  authorized viewer through listPreviewsByShas below. */
+export async function listPreviews(limit = 200): Promise<PreviewRow[]> {
   return (await sql`
     SELECT sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, last_access
     FROM previews
     WHERE blocked_at IS NULL AND private = false
     ORDER BY last_access DESC
     LIMIT ${limit}
+  `) as PreviewRow[];
+}
+
+/** Rows for a caller-supplied sha list — the /preview index's "my recent
+ *  previews" lookup, which intersects this browser's localStorage with what is
+ *  still live. Unlike listPreviews it DOES return private rows, so its one
+ *  caller (handler.ts's /api/preview/mine) MUST authorize each private row's
+ *  repo against the visitor before disclosing it. Sha-scoped rather than
+ *  windowed: asking for the ~30 shas a browser remembers can't push a caller's
+ *  own older previews out the way a global `ORDER BY last_access LIMIT n` does.
+ *
+ *  Every sha must already be 40-hex — the caller validates, and that is what
+ *  makes the unquoted array literal safe here (a hex-only element set can't
+ *  carry a comma, brace or quote). See pg-array.ts for why a JS array cannot be
+ *  bound as a Postgres array directly. */
+export async function listPreviewsByShas(shas: readonly string[]): Promise<PreviewRow[]> {
+  if (shas.length === 0) return []; // an empty literal would match nothing anyway — skip the round trip
+  return (await sql`
+    SELECT sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, last_access, private
+    FROM previews
+    WHERE sha = ANY(${`{${shas.join(",")}}`}::text[]) AND blocked_at IS NULL
+    ORDER BY last_access DESC
   `) as PreviewRow[];
 }
 

@@ -3,6 +3,11 @@
 // localStorage opens and what's still live in the DB (AND-semantics), and parses
 // pasted input into a preview id to gate the Preview button. fetch + localStorage
 // are driven directly; parsePreviewInput runs for real.
+//
+// The DB side must be GET /api/preview/mine (sha-scoped, session-authorized),
+// never the public /list — /list drops every private row, which made private
+// previews vanish from this tab. Asserted below, since the bug is invisible in a
+// test that only mocks "some fetch".
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
@@ -72,6 +77,44 @@ describe("PreviewHome recent list (AND-semantics)", () => {
     expect(screen.queryByText("pull-2")).toBeNull();
     expect(screen.getByText("First PR")).toBeInTheDocument();
     expect(screen.getByText("by alice · 5 docs")).toBeInTheDocument();
+  });
+
+  it("asks /api/preview/mine for exactly the shas this browser remembers", async () => {
+    localStorage.setItem(
+      "preview-history",
+      JSON.stringify([
+        { id: "pull-1", sha: "aaa", at: 100 },
+        { id: "acme:secret-atlas:main", sha: "bbb", at: 200 },
+      ]),
+    );
+    mockList([]);
+    render(<PreviewHome />);
+    await screen.findByPlaceholderText(/Paste a next-gen-atlas/);
+
+    const url = String(vi.mocked(globalThis.fetch).mock.calls[0]![0]);
+    expect(url).toContain("api/preview/mine?shas=");
+    expect(url).toContain("aaa");
+    expect(url).toContain("bbb");
+    expect(url).not.toContain("api/preview/list");
+  });
+
+  it("makes no request at all when this browser has opened nothing", async () => {
+    mockList([]);
+    render(<PreviewHome />);
+    await screen.findByPlaceholderText(/Paste a next-gen-atlas/);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it("lists a private preview the server authorized, tagged private", async () => {
+    localStorage.setItem("preview-history", JSON.stringify([{ id: "acme:secret-atlas:main", sha: "bbb", at: 1 }]));
+    mockList([
+      dbRow({ sha: "bbb", repo: "acme/secret-atlas", kind: "branch", pr_number: null, pr_state: null, private: true, doc_count: 12 }),
+    ]);
+    render(<PreviewHome />);
+
+    expect(await screen.findByText("my recent previews · 1")).toBeInTheDocument();
+    expect(screen.getByText("acme:secret-atlas:main")).toBeInTheDocument();
+    expect(screen.getByText("private · 12 docs")).toBeInTheDocument();
   });
 
   it("shows an empty recent tab (no count) when there's no intersection", async () => {
