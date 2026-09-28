@@ -143,7 +143,10 @@ describe("Message", () => {
             completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false,
           },
           answerCoverage: { verdict: "answers", missingParts: ["when"] },
-          citationMarks: { "11111111-1111-1111-1111-111111111111": { status: "backed", claims: [] } },
+          // Disputed, not backed: a ✓✓ chip yields no fact line now (the chips
+          // already say it), so a backed mark would leave only one fact and
+          // stop this testing that the facts group as one unit.
+          citationMarks: { "11111111-1111-1111-1111-111111111111": { status: "disputed", claims: [] } },
         })}
         streaming={false}
         onAtlas={vi.fn()}
@@ -152,7 +155,7 @@ describe("Message", () => {
     const facts = screen.getByRole("list", { name: "Answer confidence" });
     expect(container.querySelector(".rlc-verify")?.nextElementSibling).toBe(facts);
     expect(facts).toHaveTextContent("Didn't address: “when”");
-    expect(facts).toHaveTextContent("1 of 1 checked citation is backed");
+    expect(facts).toHaveTextContent("A marked citation may say otherwise");
   });
 
   it("shows the coverage line without a badge when no verifier ran", () => {
