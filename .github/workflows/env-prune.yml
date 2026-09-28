@@ -38,9 +38,12 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
+        # Defaults ON so a manual run reports before it deletes. The cron is
+        # unaffected: a scheduled run carries no inputs, so dry_run reads null
+        # and the inverted test below still yields --apply.
         description: "Report only, delete nothing"
         type: boolean
-        default: false
+        default: true
       orphans:
         description: "Also delete PR envs whose number resolves to no PR at all"
         type: boolean

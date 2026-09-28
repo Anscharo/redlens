@@ -7,28 +7,28 @@
  * auto-creates a repository Environment for any environment name a deployment
  * names. Railway de-provisions its own environment when the PR closes, but
  * nothing on the GitHub side ever removes the record — so /settings/environments
- * grows one dead row per PR, forever. They are inert (no secrets, no protection
- * rules), just noise that buries the real environments: github-pages, CI,
- * atlas-update-main-bypass, and Railway's long-lived prod/development.
+ * grows one dead row per PR, forever (113 environments by 2026-09, 101 of them
+ * dead PR rows).
  *
  * Deleting one does NOT touch Railway (already gone) and does NOT touch the PR.
  * It DOES delete that environment's deployment records, so the "Deployments"
  * links on those closed PRs stop resolving. That is the whole cost.
  *
- * SAFETY: dry-run by default — pass --apply to actually delete. Only names that
- * parse as a PR environment are ever candidates (prNumberFromRailwayEnv, shared
- * with the deploy gate and tested in scripts_tests/deploy-skip.test.ts); everything
- * else is kept without being looked at, so a misparse cannot reach a real
- * environment. A candidate whose PR is still OPEN is kept. A candidate whose
- * number resolves to no PR at all is reported but kept unless --orphans, since
- * that means the parse was wrong more often than it means the PR vanished.
+ * SAFETY: dry-run by default — pass --apply to actually delete. Every keep/delete
+ * rule lives in scripts/lib/prune-plan.mjs and is unit-tested in
+ * scripts_tests/prune-plan.test.ts; this file is only the I/O around them. In
+ * short: a name must parse as a PR environment to be a candidate at all, a
+ * candidate whose PR is still OPEN is kept, a candidate whose number resolves to
+ * no PR is reported but kept unless --orphans, and PROTECTED_ENVIRONMENTS can
+ * never be touched whatever the parse says.
  *
- * TOKEN: needs repo-admin rights. A classic PAT with `repo` works; a
- * fine-grained PAT needs Administration: write (Environments: write alone 403s —
- * github.com/orgs/community/discussions/58868). The Actions GITHUB_TOKEN CANNOT
- * do this at any permissions: setting, because neither `administration` nor
- * `environments` is a grantable key — which is why env-prune.yml reads its own
- * token from a secret. Read from GITHUB_TOKEN / GH_TOKEN, else `gh auth token`.
+ * TOKEN: needs repo-admin rights AND pull-request read. A classic PAT with
+ * `repo` covers both; a fine-grained PAT needs Administration: write (
+ * Environments: write alone 403s — github.com/orgs/community/discussions/58868)
+ * plus Pull requests: read. The Actions GITHUB_TOKEN CANNOT do this at any
+ * permissions: setting, because neither `administration` nor `environments` is a
+ * grantable key — which is why env-prune.yml reads its own token from a secret.
+ * Read from GITHUB_TOKEN / GH_TOKEN, else `gh auth token`.
  *
  * Flags:
  *   --apply         actually delete (default: dry run)
@@ -39,14 +39,22 @@
  */
 
 import { execFileSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { prNumberFromRailwayEnv } from "../lib/deploy-skip.mjs";
+import {
+  looksLikeMissingPrScope,
+  parsePruneArgs,
+  planPrune,
+  selectCandidates,
+} from "../lib/prune-plan.mjs";
 
 // GITHUB_API_URL is set by Actions itself (and points at the host on GHES), so
 // honouring it costs nothing and keeps the script pointable at a mock.
 const API = process.env.GITHUB_API_URL || "https://api.github.com";
 
 const sh = (cmd, args) => execFileSync(cmd, args, { encoding: "utf8" }).trim();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function resolveRepo(explicit) {
   if (explicit) return explicit;
@@ -64,12 +72,10 @@ function resolveToken() {
   } catch {
     throw new Error(
       "no token. Set GITHUB_TOKEN (classic PAT with `repo`, or fine-grained with\n" +
-        "Administration: write) or sign in with `gh auth login`.",
+        "Administration: write + Pull requests: read) or sign in with `gh auth login`.",
     );
   }
 }
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function makeApi(token) {
   /**
@@ -77,10 +83,11 @@ function makeApi(token) {
    *   BECAUSE a fine-grained token without the right permission answers 404, not
    *   403 — so blanket 404 tolerance would turn "no access to this repo" into a
    *   cheerful "0 environments, nothing to delete". Only the PR lookup, where a
-   *   missing PR is a real answer, passes it.
+   *   missing PR is a real answer, passes it — and looksLikeMissingPrScope then
+   *   catches the case where that answer was really a scope problem.
    */
-  return async function api(method, path, { allow404 = false, retried = false } = {}) {
-    const res = await fetch(`${API}${path}`, {
+  return async function api(method, apiPath, { allow404 = false, retried = false } = {}) {
+    const res = await fetch(`${API}${apiPath}`, {
       method,
       headers: {
         authorization: `Bearer ${token}`,
@@ -104,16 +111,16 @@ function makeApi(token) {
       const waitSec = Number(res.headers.get("retry-after")) || 60;
       console.error(`  rate limited, waiting ${waitSec}s then retrying once…`);
       await sleep(waitSec * 1000);
-      return api(method, path, { allow404, retried: true });
+      return api(method, apiPath, { allow404, retried: true });
     }
     if (res.status === 403 || res.status === 404) {
       throw new Error(
-        `${method} ${path} → ${res.status}. Most likely the token lacks repo-admin\n` +
+        `${method} ${apiPath} → ${res.status}. Most likely the token lacks repo-admin\n` +
           "rights: a classic PAT needs `repo`, a fine-grained one needs Administration:\n" +
           `write. GitHub answers 404 (not 403) for a permission it will not confirm.\n${text.slice(0, 200)}`,
       );
     }
-    throw new Error(`${method} ${path} → ${res.status}: ${text.slice(0, 300)}`);
+    throw new Error(`${method} ${apiPath} → ${res.status}: ${text.slice(0, 300)}`);
   };
 }
 
@@ -134,9 +141,7 @@ async function prStates(api, repo, numbers) {
   await Promise.all(
     Array.from({ length: 8 }, async () => {
       for (let pr = queue.pop(); pr !== undefined; pr = queue.pop()) {
-        const { status, body } = await api("GET", `/repos/${repo}/pulls/${pr}`, {
-          allow404: true,
-        });
+        const { status, body } = await api("GET", `/repos/${repo}/pulls/${pr}`, { allow404: true });
         states.set(pr, status === 404 ? "missing" : body.state);
       }
     }),
@@ -145,47 +150,28 @@ async function prStates(api, repo, numbers) {
 }
 
 async function main(argv) {
-  const flag = (n) => argv.includes(n);
-  const value = (n) => (argv.indexOf(n) === -1 ? undefined : argv[argv.indexOf(n) + 1]);
-  const apply = flag("--apply");
-  const orphans = flag("--orphans");
-  let onlyPr;
-  if (value("--pr") !== undefined) {
-    onlyPr = Number(value("--pr"));
-    if (!Number.isInteger(onlyPr) || onlyPr <= 0) {
-      // Never fall through to a full sweep: on a pull_request close the caller
-      // meant one PR, and an unparsed number would silently widen the blast
-      // radius to every environment in the repo.
-      throw new Error(`--pr expects a positive integer, got ${JSON.stringify(value("--pr"))}`);
-    }
-  }
-  const keeps = argv.flatMap((a, i) => (a === "--keep" ? [argv[i + 1]] : [])).filter(Boolean);
-
-  // Belt-and-braces: these can't parse as PR envs anyway, but say so out loud.
-  const never = new Set(
-    ["github-pages", "CI", "atlas-update-main-bypass", ...keeps].map((n) => n.toLowerCase()),
-  );
-
-  const repo = resolveRepo(value("--repo"));
+  const { apply, orphans, onlyPr, keeps, repo: repoArg } = parsePruneArgs(argv);
+  const repo = resolveRepo(repoArg);
   const api = makeApi(resolveToken());
 
   const environments = await listEnvironments(api, repo);
-  const candidates = [];
-  let kept = 0;
-  for (const env of environments) {
-    const pr = never.has(env.name.toLowerCase()) ? null : prNumberFromRailwayEnv(env.name);
-    if (pr === null || (onlyPr !== undefined && pr !== onlyPr)) kept += 1;
-    else candidates.push({ name: env.name, pr });
+  const { candidates, keptCount } = selectCandidates(environments, { onlyPr, keeps });
+  const states = await prStates(api, repo, candidates.map((c) => c.pr));
+
+  if (looksLikeMissingPrScope(candidates, states)) {
+    throw new Error(
+      `all ${candidates.length} PR lookups returned 404, which is a token scope problem,\n` +
+        "not a repo where every PR vanished. A fine-grained token needs Pull requests:\n" +
+        "read alongside Administration: write. Refusing to prune — with --orphans this\n" +
+        "would have deleted environments belonging to OPEN PRs.",
+    );
   }
 
-  const states = await prStates(api, repo, candidates.map((c) => c.pr));
-  const by = (s) => candidates.filter((c) => states.get(c.pr) === s);
-  const [stale, open, unknown] = [by("closed"), by("open"), by("missing")];
-  const doomed = orphans ? [...stale, ...unknown] : stale;
+  const { open, stale, unknown, doomed } = planPrune(candidates, states, { orphans });
 
-  console.log(`${repo}: ${environments.length} environments`);
   const keptLabel = onlyPr === undefined ? "not a prunable PR environment" : `outside PR #${onlyPr}`;
-  console.log(`  ${kept} ${keptLabel} (kept, untouched)`);
+  console.log(`${repo}: ${environments.length} environments`);
+  console.log(`  ${keptCount} ${keptLabel} (kept, untouched)`);
   console.log(`  ${open.length} PR environments whose PR is still open (kept)`);
   console.log(
     `  ${unknown.length} whose PR number resolves to nothing` +
@@ -198,7 +184,6 @@ async function main(argv) {
     console.log("\nnothing to delete.");
     return;
   }
-
   if (!apply) {
     for (const c of doomed) console.log(`      - ${c.name} (PR #${c.pr})`);
     console.log(`\ndry run — re-run with --apply to delete these ${doomed.length}.`);
@@ -229,7 +214,11 @@ async function main(argv) {
   }
 }
 
-main(process.argv.slice(2)).catch((err) => {
-  console.error(err instanceof Error ? err.message : String(err));
-  process.exit(1);
-});
+// Guarded so a test can import this file without firing real API calls.
+// Node 22 has no import.meta.main, hence the argv comparison.
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  main(process.argv.slice(2)).catch((err) => {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });
+}
