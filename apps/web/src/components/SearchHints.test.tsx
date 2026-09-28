@@ -16,9 +16,25 @@ describe("SearchHints (cheat sheet table)", () => {
     expect(
       screen.getByText("Double quotes — literal substring match, case-insensitive"),
     ).toBeTruthy();
-    expect(screen.getByText("subsidy")).toBeTruthy();
-    expect(screen.getByText("singular/plural")).toBeTruthy();
     expect(screen.getByText("MCD_VAT")).toBeTruthy();
+  });
+
+  it("groups the hints under category headings", () => {
+    render(<SearchHints onSearch={vi.fn()} />);
+    const headings = screen
+      .getAllByRole("columnheader")
+      .map((th) => th.textContent ?? "")
+      .filter((t) => t.includes("Narrow") || t.includes("Combine") || t.includes("modes") || t.includes("identifier"));
+    expect(headings).toHaveLength(4);
+    // "Narrow a search" leads: in:/exclude are the least discoverable syntax.
+    expect(headings[0]).toContain("Narrow a search");
+  });
+
+  it("drops the retired fuzzy and singular/plural rows", () => {
+    render(<SearchHints onSearch={vi.fn()} />);
+    expect(screen.queryByText("misaligment~1")).toBeNull();
+    expect(screen.queryByText("singular/plural")).toBeNull();
+    expect(screen.queryByText("subsidy")).toBeNull();
   });
 
   it("calls onSearch with the example query when a row is clicked", () => {

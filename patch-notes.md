@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-09-28
+- Reorganised the search help page into categories and dropped the rarely used hints
+
 ## 2026-09-24
 - Reworded the preview bar and browser tab to name the pull request or branch, and added a Dismiss control on the Access notice that stays hidden in this browser
 

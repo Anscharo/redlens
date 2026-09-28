@@ -3,7 +3,7 @@
  * Requires `pnpm build:index` to have run first.
  *
  * Coverage:
- *  - Every documented search hint in SearchHints.tsx
+ *  - Every documented search hint in lib/searchHintsData.ts
  *  - Prefix search correctness (partial words, no stemmer)
  *  - Index still stores surface forms (plural/singular are not stemmed)
  *  - Backtick-wrapped inline-code terms
@@ -54,7 +54,7 @@ beforeAll(() => {
 });
 
 // ---------------------------------------------------------------------------
-// Search hints — one test per documented example in SearchHints.tsx
+// Search hints — one test per documented example in lib/searchHintsData.ts
 // ---------------------------------------------------------------------------
 
 describe("hint: govern — prefix matches automatically", () => {
@@ -257,7 +257,9 @@ describe("hint: in:A.1.2 delegate — restrict results to a section subtree", ()
   });
 });
 
-describe("hint: misaligment~1 — fuzzy match allows character edits", () => {
+// ~N fuzzy matching still works; it was dropped from the hints page (2026-09-28)
+// as too niche to list, not from the search code.
+describe("syntax: misaligment~1 — fuzzy match allows character edits", () => {
   it("'misaligment' with fuzzy:1 finds 'misalignment' (1 missing char)", () => {
     // "misaligment" is missing the 'n' — edit distance 1 from "misalignment"
     const results = ms.search("misaligment", { ...SEARCH_OPTS, prefix: false, fuzzy: 1 });

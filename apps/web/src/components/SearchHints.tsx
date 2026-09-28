@@ -1,77 +1,7 @@
+import { Fragment } from "react";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { SLASH_COMMANDS } from "../lib/shortcuts";
-
-const HINTS: { label: string; query: string; description: string }[] = [
-  {
-    label: "broad",
-    query: "govern",
-    description: "Default mode — partial words match automatically, case-insensitive",
-  },
-  {
-    label: "singular/plural",
-    query: "subsidy",
-    description: "Broad mode also matches the other number (subsidies); exact wording ranks first",
-  },
-  {
-    label: "phrase",
-    query: '"properly implemented"',
-    description: "Double quotes — literal substring match, case-insensitive",
-  },
-  {
-    label: "strict",
-    query: "'delegatedSigners'",
-    description: "Single quotes — literal substring match, case-sensitive",
-  },
-  { label: "fuzzy", query: "misaligment~1", description: "~N allows N character edits" },
-  { label: "0x address", query: "0xbe8e3e", description: "All nodes containing matched Ethereum address" },
-  {
-    label: "chainlog id",
-    query: "MCD_VAT",
-    description: "All nodes referencing a Sky chainlog contract",
-  },
-  { label: "doc number", query: "A.1.2", description: "Jump directly to a section by number" },
-  {
-    label: "uuid",
-    query: "a491d7d0",
-    description: "Jump to a doc by UUID — the full id, or a partial prefix (8+ hex)",
-  },
-  {
-    label: "field: title",
-    query: "title:facilitator",
-    description: "Search only in the title field",
-  },
-  { label: "field: type", query: "type:Annotation", description: "Filter by node type" },
-  {
-    label: "type (spaces)",
-    query: "type:Scenario_Variation",
-    description: 'Underscore for multi-word types, or quote: type:"Scenario Variation"',
-  },
-  {
-    label: "scope",
-    query: "in:A.1.2 delegate",
-    description: "Restrict results to a section subtree",
-  },
-  {
-    label: "exclude term",
-    query: "alignment -slippery",
-    description: "Prefix with - to exclude a term",
-  },
-  {
-    label: "combine fields",
-    query: "type:Core title:quorum",
-    description: "Mix field filters and broad terms",
-  },
-  {
-    label: "scope + type + phrase",
-    query: 'in:A.1 type:Core "alignment requirement"',
-    description: "Restrict to a section subtree, filter by node type, match an exact phrase",
-  },
-  {
-    label: "field + type + exclude",
-    query: "title:facilitator type:Core -operational",
-    description: "Search within the title field, filter by type, and drop an unwanted term",
-  },
-];
+import { HINT_GROUPS } from "../lib/searchHintsData";
 
 export function SearchHintsPage({ onHintClick }: { onHintClick: (q: string) => void }) {
   useDocumentTitle("Search Hints: Sky Atlas by Redline");
@@ -125,16 +55,32 @@ export function SearchHints({
           </tr>
         </thead>
         <tbody>
-          {HINTS.map((h) => (
-            <tr
-              key={h.query}
-              onClick={() => onSearch(h.query)}
-              className="hint-row cursor-pointer even:bg-[var(--surface)]"
-            >
-              <td className="mono text-tan-3 pr-6 py-1.5 whitespace-nowrap">{h.label}</td>
-              <td className="mono text-accent pr-6 py-1.5 whitespace-nowrap">{h.query}</td>
-              <td className="text-tan-3 py-1.5 hidden sm:table-cell">{h.description}</td>
-            </tr>
+          {HINT_GROUPS.map((g, gi) => (
+            <Fragment key={g.title}>
+              <tr>
+                <th
+                  scope="colgroup"
+                  colSpan={3}
+                  className={`text-left font-normal pb-2 ${gi === 0 ? "" : "pt-7"}`}
+                >
+                  <div className="flex flex-wrap items-baseline gap-x-3 pb-1 border-b border-[var(--border)]">
+                    <span className="mono uppercase tracking-wider text-tan">{g.title}</span>
+                    {g.note && <span className="text-tan-3">{g.note}</span>}
+                  </div>
+                </th>
+              </tr>
+              {g.hints.map((h, i) => (
+                <tr
+                  key={h.query}
+                  onClick={() => onSearch(h.query)}
+                  className={`hint-row cursor-pointer ${i % 2 === 1 ? "bg-[var(--surface)]" : ""}`}
+                >
+                  <td className="mono text-tan-3 pr-6 py-1.5 whitespace-nowrap">{h.label}</td>
+                  <td className="mono text-accent pr-6 py-1.5 whitespace-nowrap">{h.query}</td>
+                  <td className="text-tan-3 py-1.5 hidden sm:table-cell">{h.description}</td>
+                </tr>
+              ))}
+            </Fragment>
           ))}
         </tbody>
       </table>
