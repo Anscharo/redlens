@@ -49,10 +49,16 @@ export function shouldSkipDeploy(files) {
  *   "Redline Atlas / redlens-pr-292"    (service-name-pr-N — current)
  *   "Redline Atlas / pr-85d143-128"     (random slug + PR number — older)
  *   "redlens-pr-292"
+ *
+ * The leading (?:^|[^a-z0-9]) is load-bearing: without it "expr-12" parses as PR
+ * 12, because "pr-12" is a substring of it. That boundary is what makes the
+ * result safe to act on destructively — `pnpm env:prune` deletes an environment
+ * on the strength of this parse, so a word merely ENDING in "pr-<n>" must not
+ * look like a PR environment.
  */
 export function prNumberFromRailwayEnv(envName) {
   const slug = String(envName).split("/").pop()?.trim() ?? "";
-  const m = /pr-(?:[a-f0-9]+-)?(\d+)$/i.exec(slug);
+  const m = /(?:^|[^a-z0-9])pr-(?:[a-f0-9]+-)?(\d+)$/i.exec(slug);
   return m ? Number(m[1]) : null;
 }
 
