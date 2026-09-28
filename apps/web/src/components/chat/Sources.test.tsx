@@ -37,7 +37,7 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    expect(screen.getByText("sources · 1")).toBeInTheDocument();
+    expect(screen.getByText("citations · 1")).toBeInTheDocument();
     expect(screen.getByText("Some Doc")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("A.1.1")).toBeInTheDocument());
   });
@@ -120,7 +120,7 @@ describe("Sources", () => {
     render(
       <Sources sources={sourceFor(UUID)} marks={{ [UUID]: { status: "backed", claims: [] } }} onAtlas={vi.fn()} />,
     );
-    const mark = screen.getByRole("img", { name: "High confidence this source backs the answer" });
+    const mark = screen.getByRole("img", { name: "High confidence this document backs the answer" });
     expect(mark).toHaveAttribute("data-status", "backed");
     expect(mark).toHaveTextContent("✓✓");
   });
@@ -150,11 +150,11 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const mark = screen.getByRole("img", { name: 'Not stated in this source. Please double-check: “The threshold is 7 signers”' });
+    const mark = screen.getByRole("img", { name: 'Not stated in this document. Please double-check: “The threshold is 7 signers”' });
     expect(mark).toHaveAttribute("data-status", "uncovered");
     expect(mark).toHaveTextContent("⚠");
     expect(mark).not.toHaveTextContent("✓");
-    expect(showTip(screen.getByRole("link"))).toHaveTextContent('Not stated in this source. Please double-check: “The threshold is 7 signers”');
+    expect(showTip(screen.getByRole("link"))).toHaveTextContent('Not stated in this document. Please double-check: “The threshold is 7 signers”');
   });
 
   it("shows how sure the check is when hovering the source title, not only the glyph", () => {
@@ -165,10 +165,10 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const mark = screen.getByRole("img", { name: "High confidence this source backs the answer" });
+    const mark = screen.getByRole("img", { name: "High confidence this document backs the answer" });
     expect(mark).not.toHaveAttribute("title");
     const tip = showTip(screen.getByText("Some Doc"));
-    expect(tip).toHaveTextContent("High confidence this source backs the answer");
+    expect(tip).toHaveTextContent("High confidence this document backs the answer");
   });
 
   // Two bands, on the one threshold the calibration pass measured. The three
@@ -181,7 +181,7 @@ describe("Sources", () => {
         onAtlas={vi.fn()}
       />,
     );
-    const weak = screen.getByRole("img", { name: "Low confidence this source backs the answer" });
+    const weak = screen.getByRole("img", { name: "Low confidence this document backs the answer" });
     expect(weak).toHaveTextContent("✓");
     expect(weak).not.toHaveTextContent("✓✓");
     rerender(
@@ -261,7 +261,7 @@ describe("Sources", () => {
       />,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent('Not stated in this source. Please double-check: “The threshold is 7 signers”');
+    expect(tip).toHaveTextContent('Not stated in this document. Please double-check: “The threshold is 7 signers”');
     expect(tip).not.toHaveTextContent("Reward payments");
   });
 
@@ -280,7 +280,7 @@ describe("Sources", () => {
       />,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent('Not stated in this source. Please double-check: “The threshold is 7 signers”');
+    expect(tip).toHaveTextContent('Not stated in this document. Please double-check: “The threshold is 7 signers”');
     expect(tip).not.toHaveTextContent("confidence this source");
   });
 
@@ -308,7 +308,7 @@ describe("Sources", () => {
       </div>,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent("High confidence this source supports citation A but low confidence it supports citation B");
+    expect(tip).toHaveTextContent("High confidence this document supports citation A but low confidence it supports citation B");
     // Sorted by confidence, so A is always the sure one.
     expect(screen.getByRole("button", { name: /^A:/ })).toHaveTextContent("Agents maintain their Artifact");
     expect(screen.getByRole("button", { name: /^B:/ })).toHaveTextContent("Agents keep the Scaffold aligned");
@@ -336,7 +336,7 @@ describe("Sources", () => {
       />,
     );
     const tip = showTip(screen.getByRole("link"));
-    expect(tip).toHaveTextContent("This source states part of citation A and says nothing about the rest");
+    expect(tip).toHaveTextContent("This document states part of citation A and says nothing about the rest");
     expect(screen.getByRole("button", { name: /^A:/ })).toHaveTextContent("They validate agent creation and Executor Accords");
     expect(tip).not.toHaveTextContent("Core GovOps review Agent Artifacts");
     expect(tip).not.toHaveTextContent("maybe");

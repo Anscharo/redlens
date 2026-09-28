@@ -53,7 +53,7 @@ describe("Message", () => {
         onAtlas={vi.fn()}
       />,
     );
-    expect(screen.getByText("sources · 1")).toBeInTheDocument();
+    expect(screen.getByText("citations · 1")).toBeInTheDocument();
   });
 
   it("shows a distinct failed-turn notice for a done, empty, failed assistant message", () => {
@@ -152,7 +152,7 @@ describe("Message", () => {
     const facts = screen.getByRole("list", { name: "Answer confidence" });
     expect(container.querySelector(".rlc-verify")?.nextElementSibling).toBe(facts);
     expect(facts).toHaveTextContent("Didn't address: “when”");
-    expect(facts).toHaveTextContent("1 of 1 checked source backs the answer");
+    expect(facts).toHaveTextContent("1 of 1 checked citation is backed");
   });
 
   it("shows the coverage line without a badge when no verifier ran", () => {

@@ -271,3 +271,74 @@ describe("aggregateMarks: how full support splits", () => {
     expect(aggregateMarks([j("a", "supports_in_part", 0.9)])[U1].confidence).toBeNull();
   });
 });
+
+// Provenance picks the QUESTION, not merely whether to ask one. The judge used
+// to be handed the full indexed document for every citation, including ones the
+// model had only seen named — which is how "Not stated in this source" reached
+// readers about citations that were never sourcing content.
+describe("routing by provenance", () => {
+  const prov = (uuid: string, kind: "content" | "identity", record: unknown) =>
+    new Map([[uuid, { kind, record, tool: kind === "identity" ? "atlas_recent_changes" : "atlas_get" }]]);
+
+  // Records which question id each request carried: "support" is the content
+  // judge (cite-support.ts), "metadata" the record judge (cite-metadata.ts).
+  function stubBoth(choice: string) {
+    const asked: string[] = [];
+    globalThis.fetch = (async (_u: unknown, init: { body: string }) => {
+      const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
+      const id = Object.keys(body.questions)[0];
+      asked.push(id);
+      return new Response(
+        JSON.stringify({
+          answers: { [id]: { type: "choice", choice, probabilities: { [choice]: 1 }, confidence: 1 } },
+          usage: { input_tokens: 1, output_tokens: 1, cost: 0 },
+          id: "gen-dec-1",
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+    return asked;
+  }
+
+  it("asks the document question when the turn read the document", async () => {
+    const asked = stubBoth("supports");
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", provenance: prov(A, "content", {}) });
+    expect(asked).toEqual(["support"]);
+    expect(run.marks[A].status).toBe("backed");
+  });
+
+  // The reported bug: the turn saw a change event, never the document.
+  it("asks the record question when the turn saw only a record about it", async () => {
+    const asked = stubBoth("supports");
+    const record = { doc_id: A, committed_at: "2026-09-17", pr_number: 336, pr_title: "Atlas Edit Proposal" };
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", provenance: prov(A, "identity", record) });
+    expect(asked).toEqual(["metadata"]);
+    expect(run.marks[A].status).toBe("backed");
+  });
+
+  // "the Rate Limits was updated … to set the rate limits to unlimited" — the
+  // date and PR are checkable against the record; what the document now says
+  // is not, and no record can settle it.
+  it("marks a claim that states document content from a record alone", async () => {
+    stubBoth("states_content");
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", provenance: prov(A, "identity", { doc_id: A }) });
+    expect(run.marks[A].status).toBe("unread");
+  });
+
+  // Silence, not a guess. A follow-up turn re-citing a document read LAST turn
+  // has no provenance at all, and we cannot check what we did not see.
+  it("makes no request and no mark for a citation the turn never retrieved", async () => {
+    const asked = stubBoth("supports");
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", provenance: prov(A, "content", {}) });
+    expect(asked).toHaveLength(1); // only A — B was cited but never retrieved
+    expect(run.marks[B]).toBeUndefined();
+  });
+
+  // Omitting the map is different from an empty one: callers predating this,
+  // and the checks-off path, must behave exactly as they did.
+  it("falls back to the document question when no map is supplied", async () => {
+    const asked = stubBoth("supports");
+    await runCitationMarks({ answer: ANSWER, ix, model: "jev" });
+    expect(asked).toEqual(["support", "support"]);
+  });
+});

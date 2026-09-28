@@ -24,13 +24,13 @@ describe("AnswerFacts", () => {
     const list = screen.getByRole("list", { name: "Answer confidence" });
     const items = screen.getAllByRole("listitem");
     expect(list).toContainElement(items[0]);
-    expect(items.map((li) => li.textContent)).toEqual(["Didn't address: “when”", "1 of 2 checked sources backs the answer"]);
+    expect(items.map((li) => li.textContent)).toEqual(["Didn't address: “when”", "1 of 2 checked citations is backed"]);
     expect(items.map((li) => li.getAttribute("data-status"))).toEqual(["flagged", "info"]);
   });
 
-  it("flags the sources count when a checked source is disputed", () => {
+  it("flags the citations count when a checked citation is disputed", () => {
     render(<AnswerFacts marks={{ a: { status: "backed", claims: [] }, b: { status: "disputed", claims: [] } }} />);
-    expect(screen.getByText("1 of 2 checked sources backs the answer")).toHaveAttribute("data-status", "flagged");
+    expect(screen.getByText("1 of 2 checked citations is backed")).toHaveAttribute("data-status", "flagged");
   });
 
   it("says a deflecting answer didn't answer the question", () => {

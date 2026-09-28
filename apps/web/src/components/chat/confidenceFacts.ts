@@ -28,11 +28,17 @@ export function missingPartsText(parts: string[]): string {
   return `Didn't address: ${parts.map((p) => `“${p}”`).join(", ")}`;
 }
 
-// M = docs the citation check marked (backed / unbacked / disputed), N = the
-// backed ones. "checked" is load-bearing: a cited doc the check never judged
-// has no mark and is not counted, so M can be smaller than the Sources count.
+// M = cited docs the check marked, N = the backed ones. "checked" is
+// load-bearing: a citation the check never judged has no mark and is not
+// counted, so M can be smaller than the chip count — a document the turn
+// never retrieved is deliberately not checkable (verify/provenance.ts).
+//
+// "Citation" throughout, never "source". That word used to count three
+// different things on one screen: tool results in the stage line, cited
+// documents here and on the chip row. A tool call is a lookup, what the
+// answer cites is a citation, and the thing it points at is a document.
 export function sourcesText(backed: number, checked: number): string {
-  return `${backed} of ${checked} checked source${checked === 1 ? "" : "s"} ${backed === 1 ? "backs" : "back"} the answer`;
+  return `${backed} of ${checked} checked citation${checked === 1 ? "" : "s"} ${backed === 1 ? "is" : "are"} backed`;
 }
 
 export function answerFacts(coverage: AnswerCoverage | undefined, marks: Record<string, CitationMark> | undefined): AnswerFact[] {
@@ -49,7 +55,12 @@ export function answerFacts(coverage: AnswerCoverage | undefined, marks: Record<
     // Any status that draws a check counts as backing, including the weak and
     // caveated ones — the chip itself carries the caveat, and a count that
     // silently dropped them would disagree with what the reader can see.
-    const backed = marked.filter((m) => m.status !== "uncovered" && m.status !== "disputed").length;
+    // Every status that draws a check counts as backed, caveated ones
+    // included — the chip carries the caveat. `unread` draws no check: the
+    // answer stated what a document says while the turn only looked up a
+    // record about it, which is the opposite of backed.
+    const NOT_BACKED = ["uncovered", "disputed", "unread"];
+    const backed = marked.filter((m) => !NOT_BACKED.includes(m.status)).length;
     // A disputed mark is a confirm-gated contradiction the verify badge does
     // not repeat. An unbacked mark only means the document doesn't cover the
     // citing line, so it stays a neutral count.

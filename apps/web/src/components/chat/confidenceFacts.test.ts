@@ -41,20 +41,20 @@ describe("answerFacts", () => {
     expect(facts.map((f) => f.key)).toEqual(["coverage"]);
   });
 
-  it("counts checked sources and how many back the answer", () => {
+  it("counts checked citations and how many are backed", () => {
     const marks = { a: mark("backed"), b: mark("backed"), c: mark("uncovered") };
-    expect(answerFacts(undefined, marks)).toEqual([{ key: "sources", text: "2 of 3 checked sources back the answer", status: "info" }]);
+    expect(answerFacts(undefined, marks)).toEqual([{ key: "sources", text: "2 of 3 checked citations are backed", status: "info" }]);
   });
 
-  it("flags the sources count when a checked source is disputed", () => {
+  it("flags the citations count when a checked citation is disputed", () => {
     const marks = { a: mark("backed"), b: mark("uncovered"), c: mark("disputed") };
-    expect(answerFacts(undefined, marks)).toEqual([{ key: "sources", text: "1 of 3 checked sources backs the answer", status: "flagged" }]);
+    expect(answerFacts(undefined, marks)).toEqual([{ key: "sources", text: "1 of 3 checked citations is backed", status: "flagged" }]);
   });
 
-  it("agrees number in the sources fact", () => {
-    expect(sourcesText(1, 1)).toBe("1 of 1 checked source backs the answer");
-    expect(sourcesText(1, 3)).toBe("1 of 3 checked sources backs the answer");
-    expect(sourcesText(0, 2)).toBe("0 of 2 checked sources back the answer");
+  it("agrees number in the citations fact", () => {
+    expect(sourcesText(1, 1)).toBe("1 of 1 checked citation is backed");
+    expect(sourcesText(1, 3)).toBe("1 of 3 checked citations is backed");
+    expect(sourcesText(0, 2)).toBe("0 of 2 checked citations are backed");
   });
 
   it("orders coverage, then missing parts, then sources", () => {

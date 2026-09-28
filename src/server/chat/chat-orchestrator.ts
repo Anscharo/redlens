@@ -30,6 +30,7 @@ import { computeOverall, evidenceFromResults, evidenceFromTranscript, priorTurns
 import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
 import { createParagraphRefuter, type ParagraphRefute } from "./verify/paragraph-refute.ts";
 import { runCitationMarks, type CitationMark } from "./verify/citation-marks.ts";
+import { docProvenance } from "./verify/provenance.ts";
 import { agreedContradictionsFrom, withoutDisputedMarks } from "./verify/disputes.ts";
 import { judgeAnswerCoverage, type CoverageVerdict } from "./verify/answer-coverage.ts";
 import { createParagraphStream, type ParagraphEvidence } from "./verify/incremental.ts";
@@ -149,21 +150,32 @@ export function describeCall(name: string, args: Record<string, unknown>): strin
 
 // Copy for the verification stages. A turn can reach the audit with nothing
 // retrieved — a meta-question, or a follow-up answered from the conversation —
-// and "against 0 sources" reads as a broken counter rather than a state. A
+// and "against 0 lookups" reads as a broken counter rather than a state. A
 // count is printed only when it is real; the call site suppresses the stage
 // entirely when there is no basis to name at all (see `grounded`), so the
 // sourceless branch here only ever describes conversation grounding.
-function checkingDetail(citations: number, sources: number): string {
+//
+// The count is LOOKUPS, not sources, and the word matters. It is
+// `evidence.length` — one per tool result — while everything further down the
+// answer counts CITED DOCUMENTS: the chip row's "sources · 7"
+// (Sources.tsx) and the fact line's "N of M checked sources"
+// (confidenceFacts.ts). One turn can answer four lookups with seven cited
+// documents, so the same word carried two counts on one screen and a reader
+// had no way to tell them apart. "Sources" now means a cited document
+// everywhere it appears; a tool call is a lookup.
+const lookups = (n: number) => `${n} lookup${n === 1 ? "" : "s"}`;
+
+function checkingDetail(citations: number, evidenceCount: number): string {
   const subject = citations > 0 ? `${citations} cited claim${citations === 1 ? "" : "s"}` : "the answer";
-  if (sources > 0) return `Cross-checking ${subject} against ${sources} source${sources === 1 ? "" : "s"}…`;
+  if (evidenceCount > 0) return `Cross-checking ${subject} against what ${lookups(evidenceCount)} returned…`;
   return `Cross-checking ${subject} against earlier turns of this conversation…`;
 }
 
 // Paragraph-mode twin: the audit already ran per paragraph, so the subject is
 // paragraph count rather than citation count.
-function checkingDetailParagraphs(paragraphs: number, sources: number): string {
+function checkingDetailParagraphs(paragraphs: number, evidenceCount: number): string {
   const subject = paragraphs > 0 ? `${paragraphs} paragraph${paragraphs === 1 ? "" : "s"}` : "the answer";
-  if (sources > 0) return `Cross-checking ${subject} against ${sources} source${sources === 1 ? "" : "s"}…`;
+  if (evidenceCount > 0) return `Cross-checking ${subject} against what ${lookups(evidenceCount)} returned…`;
   return `Cross-checking ${subject} against earlier turns of this conversation…`;
 }
 
@@ -802,7 +814,7 @@ export async function* runVerifiedChat(opts: {
   if (grounded) {
     yield {
       type: "status", stage: "comparing",
-      detail: evidence.length > 0 ? "Comparing the draft against the retrieved sources…" : "Comparing the draft against the conversation so far…",
+      detail: evidence.length > 0 ? "Comparing the draft against what was looked up…" : "Comparing the draft against the conversation so far…",
     };
   }
   try {
@@ -839,10 +851,20 @@ export async function* runVerifiedChat(opts: {
   // concurrently with the verifier audit below rather than serially after it;
   // resolved and emitted once, after answer_final and before verify_result.
   const citationMarksModel = config.chatCitationCheckModel;
+  // What this turn actually retrieved, per document (verify/provenance.ts).
+  // It decides which question each citation gets: the document's own text for
+  // one the model read, its change record for one the model only saw named,
+  // and no question at all for one the turn never retrieved.
+  //
+  // Built from the RAW transcript, not from `evidence` above: that array is
+  // budgeted to chatVerifierEvidenceMaxChars with newest-first eviction, so a
+  // document the model genuinely read early in a tool-heavy turn can be
+  // missing from it, and reading provenance there would call it unretrieved.
   const citationMarksPromise = citationMarksModel
     ? runCitationMarks({
         answer: done.content, ix: opts.ix, model: citationMarksModel,
         jsonCall: opts.jsonCall, confirmModel: opts.jsonCall ? sliceModels().confirm : undefined,
+        provenance: docProvenance(done.transcript, opts.ix),
         signal: opts.signal, obs: opts.obs,
       })
     : null;

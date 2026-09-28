@@ -13,6 +13,7 @@ const GLYPH: Record<Status, string> = {
   backed_weak: "✓",
   mixed: "✓⚠",
   partial: "✓⚠",
+  unread: "⚠",
   uncovered: "⚠",
   disputed: "!",
 };
@@ -77,6 +78,8 @@ function quotedClaims(mark: CitationMark): Claim[] {
       // the caveat is about. Without it, a document that fully backs one line
       // and partly backs another reads as a caveat on both.
       return of("supports_in_part").slice(0, MAX_CLAIMS_SHOWN);
+    case "unread":
+      return of("states_content").slice(0, MAX_CLAIMS_SHOWN);
     case "uncovered":
       return of("says_nothing").slice(0, MAX_CLAIMS_SHOWN);
     case "disputed":
@@ -89,17 +92,23 @@ function quotedClaims(mark: CitationMark): Claim[] {
 function summary(mark: CitationMark, quoted: Claim[]): string | null {
   switch (mark.status) {
     case "backed":
-      return `${SURE} this source backs the answer`;
+      return `${SURE} this document backs the answer`;
     case "backed_weak":
-      return `${UNSURE} this source backs the answer`;
+      return `${UNSURE} this document backs the answer`;
     case "mixed":
       return quoted.length > 1
-        ? `${SURE} this source supports citation A but ${UNSURE.toLowerCase()} it supports citation B`
-        : `${SURE} this source backs the answer`;
+        ? `${SURE} this document supports citation A but ${UNSURE.toLowerCase()} it supports citation B`
+        : `${SURE} this document backs the answer`;
     case "partial":
       return quoted.length > 1
-        ? "This source states part of each citation below and says nothing about the rest"
-        : "This source states part of citation A and says nothing about the rest";
+        ? "This document states part of each citation below and says nothing about the rest"
+        : "This document states part of citation A and says nothing about the rest";
+    case "unread":
+      // The turn looked up a record ABOUT this document — a change event, a
+      // listing row — and the answer went on to state what the document says.
+      // Nothing retrieved can settle that, so the honest line names the gap
+      // rather than pretending to a verdict.
+      return "This states what the document says, but only a record of its change was looked up";
     case "uncovered":
     case "disputed":
       return null;
@@ -109,10 +118,12 @@ function summary(mark: CitationMark, quoted: Claim[]): string | null {
 // A line the headline points at by letter, or a line that labels itself.
 function claimLabel(claim: Claim, index: number): string {
   switch (claim.verdict) {
+    case "states_content":
+      return `Stated as what the document says, but only its change record was looked up: ${quote(claim.claim)}`;
     case "contradicts":
       return `This source says otherwise: ${quote(claim.claim)}`;
     case "says_nothing":
-      return `Not stated in this source. Please double-check: ${quote(claim.claim)}`;
+      return `Not stated in this document. Please double-check: ${quote(claim.claim)}`;
     default:
       return `${LETTERS[index] ?? "•"}: ${quote(claim.claim)}`;
   }
@@ -121,12 +132,13 @@ function claimLabel(claim: Claim, index: number): string {
 // Stands in for the accessible name when a status has no headline and no line
 // survived — defensive only, since both of those statuses require a claim.
 const BARE_NAME: Record<Status, string> = {
-  backed: "This source backs the answer",
-  backed_weak: "This source backs the answer",
-  mixed: "This source backs the answer",
-  partial: "This source states part of what cites it",
-  uncovered: "This source doesn't cover a line citing it",
-  disputed: "This source says otherwise",
+  backed: "This document backs the answer",
+  backed_weak: "This document backs the answer",
+  mixed: "This document backs the answer",
+  partial: "This document states part of what cites it",
+  unread: "Only a record about this document was looked up",
+  uncovered: "This document doesn't cover a line citing it",
+  disputed: "This document says otherwise",
 };
 
 // Content for the shared Tooltip, shown when the whole source pill is hovered.

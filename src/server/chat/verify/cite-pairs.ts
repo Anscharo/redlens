@@ -115,42 +115,15 @@ function cleanClaim(seg: string): string {
 export const MIN_CLAIM_WORDS = 3;
 export const realWords = (s: string) => (s.match(/[A-Za-z]{2,}/g) ?? []).length;
 
-/**
- * Is this claim about the document's HISTORY rather than its content?
- *
- * A document can never state its own edit history, so pairing one with a
- * sentence about when it changed asks a question with no honest answer. The
- * judge has an `about_document` option for exactly this, but leaning on it
- * costs a request and gets the verdict wrong when the sentence ALSO restates
- * what the document now says — observed 2026-09-28, where "the Rate Limits
- * was updated on September 17 (PR #336) to set the USDS burn and USDC-to-USDS
- * swap rate limits to unlimited" came back `supports_in_part`, because the
- * document does state the current value outright.
- *
- * These shapes are unambiguous, so they are dropped in code before any model
- * sees them: the pair produces no mark at all, which is the honest output.
- * Fail-safe in both directions — a miss falls through to the judge exactly as
- * before, and a false positive withholds a mark rather than asserting one.
- *
- * The facts themselves come from the history tools (`atlas_history`,
- * `atlas_recent_changes`, `atlas_first_seen`), and a citation beside them
- * points the reader at the document rather than sourcing the claim from it.
- */
-const HISTORY_CLAIM: RegExp[] = [
-  /\bPR\s*#\d+/i, // "(PR #336)"
-  /\bchanged\s+\d+\s+times?\b/i,
-  /\b(?:was|were|has been|have been)\s+(?:updated|changed|added|removed|created|renumbered|revised|renamed)\b/i,
-  /\bfirst\s+(?:seen|appeared|added|introduced)\b/i,
-  /\b(?:last|most recently)\s+(?:updated|changed|edited|modified)\b/i,
-  /\bmodification counts?\b/i,
-  // "The history also records the Grove proposal to make … unlimited" — the
-  // sentence names the change record as its own source, and the verbs it uses
-  // for the change itself ("to make") are too generic to match on.
-  /\b(?:the\s+)?(?:atlas\s+)?history\s+(?:also\s+)?(?:records|shows|notes|indicates|contains)\b/i,
-  /\bchange\s+(?:log|history)\b/i,
-];
-
-export const isHistoryClaim = (claim: string) => HISTORY_CLAIM.some((re) => re.test(claim));
+// Whether a claim was sourced from a document's CONTENT or only from a record
+// about it is not decided here any more. It used to be, by a list of regexes
+// matching "(PR #336)", "was updated", "the history records" and so on — a
+// semantic judgment written as pattern matching, which kept missing new
+// phrasings ("Updates to implementation stages and a correction to reference
+// implementations" has no verb and no date at all) and was replaced on
+// 2026-09-28 by verify/provenance.ts. That reads what the turn actually
+// retrieved, so a change-log answer is recognised by where its facts came
+// from rather than by how its sentences are worded.
 
 /**
  * Does this claim end where its own citations began?
@@ -242,10 +215,6 @@ export function citationPairs(answer: string): CitationPair[] {
     if (!cites.length) continue;
     const whole = cleanClaim(seg);
     if (realWords(whole) < MIN_CLAIM_WORDS) continue;
-    // Tested on the WHOLE sentence, not the clause: a sentence about history
-    // cites nothing for its content, and splitting it at the links can leave a
-    // clause with the dates and verbs removed ("The Rate Limits" on its own).
-    if (isHistoryClaim(whole)) continue;
     const clauses = attributedClauses(seg);
     cites.forEach((c, i) => {
       const claim = clauses[i] ?? whole;

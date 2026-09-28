@@ -62,7 +62,7 @@ export function Sources({
   if (!sources.length) return null;
   return (
     <div className="rlc-sources">
-      <p className="rlc-sources-label">sources · {sources.length}</p>
+      <p className="rlc-sources-label">citations · {sources.length}</p>
       <div className="rlc-sources-chips">
         {sources.map((s) => {
           const r = resolved[s.uuid];

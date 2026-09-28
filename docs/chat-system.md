@@ -825,8 +825,8 @@ to revealing on `done` there, same as it always could.
 **`citation_marks`** (2026-09-22) is yielded at most once, after `answer_final`
 and before `verify_result`/`done`: `{ type: "citation_marks", marks:
 Record<uuid, { status, claims: [{ claim, verdict, confidence }] , confidence }> }`,
-where `status` is one of six (2026-09-25): `backed` ✓✓, `backed_weak` ✓,
-`mixed` ✓⚠, `partial` ✓⚠, `uncovered` ⚠, `disputed` !. It is the per-citation check (`verify/citation-marks.ts`):
+where `status` is one of seven: `backed` ✓✓, `backed_weak` ✓, `mixed` ✓⚠,
+`partial` ✓⚠, `unread` ⚠, `uncovered` ⚠, `disputed` !. It is the per-citation check (`verify/citation-marks.ts`):
 every (claim, cited doc) pair from `citationPairs` (`verify/cite-pairs.ts`) is
 judged by a Jev Choice — does *this* document support, contradict, say
 nothing about, or merely get pointed at by the sentence linking it? — which is
@@ -836,26 +836,49 @@ reaches the chip on its own: it becomes a `Contradiction` with `source:
 "cited-doc"` and must pass the same `confirm` gate as every other candidate.
 Confirm is shown that document's full text — the same text the citation
 check judged — not a prefix of it; unconfirmed, it is downgraded to "doesn't
-cover this line". **Two extraction rules keep the judge from being asked an unanswerable
-question** (both 2026-09-28, `cite-pairs.ts`). A claim about the document's
-HISTORY never becomes a pair at all: a document cannot state its own edit
-history, so "(PR #336)", "changed N times", "was updated", "first seen" and
-"modification counts" are dropped in code, before any request. Leaning on the
-judge's `about_document` option instead costs a request and gets the verdict
-wrong when the sentence ALSO restates what the document now says — observed
-2026-09-28, where a sentence about a September rate-limit change came back
-`supports_in_part` because the document does state the current value. The
-filter is fail-safe both ways: a miss falls through to the judge exactly as
-before, and a false positive withholds a mark rather than asserting one.
-Subtler history phrasings still land on `about_document`, which is unchanged.
+cover this line". **Provenance picks the question** (2026-09-28, `verify/provenance.ts`). The judge
+used to be handed the FULL indexed document for every citation, whatever the turn
+actually retrieved — so a line written from a 240-character `atlas_search` snippet,
+or from an `atlas_recent_changes` row carrying only a uuid and a title, was judged
+against the whole document and came back "Not stated in this source" about a
+citation that was never sourcing content. Three rounds of regex filters tried to
+pattern-match the wording of such sentences; they kept missing new phrasings and
+were deleted.
 
-And a link used as a NOUN keeps its text. Stripping every link turned "the
-[Rate Limits](…) was updated" into "the was updated", destroying the very
-words that mark a sentence as being about the document. A link led by a
-determiner is prose and keeps its text; anywhere else — including a
-parenthesis wrapping only the link — it is a source marker and goes, so an
-ordinary trailing citation is byte-identical to what it always was and the
-bakeoff's disk cache still hits on it.
+`docProvenance(transcript, ix)` walks the turn's parsed tool results and classifies
+each atlas uuid. The rule is per-ROW, not per-tool, because every content-bearing
+result also ships identity-only uuids in the same payload (`parent_id`,
+`ancestors[].id`, `sources[].uuid`): a uuid is **content** when the same object also
+carries a text key — `content`, `snippet`, `quote`, `duty`, `context`, `definition`,
+`diff` — and it is that object's own handle (`id`, `uuid`, `doc_id`, `docId`,
+`node_id`); otherwise **identity**. Matching the uuid VALUE rather than a key name is
+what keeps it from rotting across a surface that spells the key a dozen ways, and
+`ix.docMap.has()` is what excludes entity ids, which are uuid-shaped by construction.
+It reads the RAW transcript, never `evidence`, which is budgeted with newest-first
+eviction and would report a document the model genuinely read as never retrieved.
+
+Then, per citation:
+
+| provenance | question | evidence |
+|---|---|---|
+| content | "does this document state the claim?" (`cite-support.ts`) | the indexed document — a misquote is a misquote however little of it the model read |
+| identity | "does the claim read this record correctly?" (`cite-metadata.ts`) | that one record — one history event, one listing row, never the whole result |
+| none | no question, no mark | — |
+
+The record question's load-bearing option is `states_content`: a claim asserting what
+the document SAYS, when only its having changed is on record. A change record reports
+that a document changed, never its new text, so nothing retrieved can settle such a
+claim — it folds to the `unread` mark, above `uncovered` in the ladder because "you
+stated what this document says and never read it" is more actionable than "the record
+doesn't cover this".
+
+A citation the turn never retrieved gets **silence**. We cannot check what we did not
+see, and the system prompt already forbids linking a document the turn did not
+retrieve, so such a citation is either a legitimate carry-over from an earlier turn
+(`chat.ts` replays history as `{role, content}`, leaving last turn's lookups no trace)
+or a prompt violation. Neither is checkable. Omitting the map entirely is different
+from an empty one — no map means provenance is not engaged and every citation takes
+the document question, which is what the checks-off path does.
 
 Per document, worst verdict wins, but only among pairs that
 were actually judged: any unjudged pair withholds the mark entirely, and a

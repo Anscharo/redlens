@@ -546,7 +546,13 @@ test("verifier pass: checking status counts real sources, verify_result pass", (
     ]);
     // One tool result → one evidence entry: singular, and never "0 sources".
     const checking = events.find((e) => e.type === "status" && e.stage === "checking")!;
-    expect(checking.type === "status" && checking.detail).toBe("Cross-checking the answer against 1 source…");
+    expect(checking.type === "status" && checking.detail).toBe("Cross-checking the answer against what 1 lookup returned…");
+    // "Sources" means a CITED DOCUMENT everywhere the reader meets it — the
+    // chip row's "sources · N" and the fact line's "N of M checked sources".
+    // This count is tool results, which is a different number, and using the
+    // same word for both put two counts on one screen with nothing to tell
+    // them apart.
+    expect(checking.type === "status" && checking.detail).not.toContain("source");
     const verify = events.find((e) => e.type === "verify_result")!;
     expect(verify.type === "verify_result" && verify.overall).toBe("pass");
     expect(verify.type === "verify_result" && verify.contradictions).toEqual([]);
@@ -577,7 +583,7 @@ test("comparing status fires on a grounded turn even with no verifier model", ()
 test("ungrounded turn: verification stages are suppressed, the audit still runs", () =>
   withModels("strong/verifier", async () => {
     // Nothing retrieved this turn and no earlier turns to fall back on, so
-    // there is no basis to name — "against 0 sources" must never be announced.
+    // there is no basis to name — "against 0 lookups" must never be announced.
     // The audit itself is unchanged (a no-retrieval answer is the most
     // hallucination-prone case); only the ticker goes quiet.
     const events = await collect(
@@ -1133,6 +1139,12 @@ function withCiteJudge(verdict: string, fn: () => Promise<void>): Promise<void> 
 // stripped, not a bare "See [Doc](...)".
 const [CITE_UUID] = ix.docMap.keys();
 const ANSWER_WITH_CITE = `This document explains various governance details here [Doc](/atlas/${CITE_UUID}).`;
+// The turn must actually RETRIEVE what it cites. verify/provenance.ts reads
+// the transcript to decide which question each citation gets, and a document
+// the turn never looked up gets no mark at all — so a fixture that cites out
+// of thin air now tests the unretrieved path, not the backed one. This round
+// runs the real atlas_get, which puts the document's content in the transcript.
+const RETRIEVE_CITED = [toolChunk("atlas_get", JSON.stringify({ id: CITE_UUID })), finishChunk("tool_calls")];
 
 test("citation marks: one event after answer_final and before verify_result, backed on a supports verdict", () =>
   withModels("strong/verifier", () =>
@@ -1141,7 +1153,7 @@ test("citation marks: one event after answer_final and before verify_result, bac
         const events = await collect(
           runVerifiedChat({
             ix, messages: [userMsg], question: "hi", maxIterations: 3,
-            stream: fakeStream([[textChunk(ANSWER_WITH_CITE), finishChunk("stop")]]),
+            stream: fakeStream([RETRIEVE_CITED, [textChunk(ANSWER_WITH_CITE), finishChunk("stop")]]),
             jsonCall: fakeSlicedJson({}),
           }),
         );
@@ -1190,7 +1202,7 @@ test("citation marks: chatCitationCheckModel='' disables the feature — no even
       const events = await collect(
         runVerifiedChat({
           ix, messages: [userMsg], question: "hi", maxIterations: 3,
-          stream: fakeStream([[textChunk(ANSWER_WITH_CITE), finishChunk("stop")]]),
+          stream: fakeStream([RETRIEVE_CITED, [textChunk(ANSWER_WITH_CITE), finishChunk("stop")]]),
           jsonCall: fakeSlicedJson({}),
         }),
       );
@@ -1226,6 +1238,14 @@ test("citation marks: an agreed contradiction sourced to a doc withholds that do
         // caveat that it is best-effort/heuristic).
         const SNIPPET = "The archived note says the threshold is five of nine.";
         const toolMsg: Msg = { role: "tool", tool_call_id: "call_1", content: JSON.stringify({ id: CITE_UUID, content: SNIPPET }) };
+        // uuid2 has to be retrieved too, in its OWN entry. A citation to a doc
+        // the turn never looked up now gets no mark at all
+        // (verify/provenance.ts), and keeping it in a separate entry leaves
+        // refute's nearest-preceding-id resolution for CITE_UUID untouched.
+        const toolMsg2: Msg = {
+          role: "tool", tool_call_id: "call_2",
+          content: JSON.stringify({ id: uuid2, content: "A second document with its own unrelated content." }),
+        };
         const refuteFixture = JSON.stringify({
           contradictions: [{ answer_span: answer, evidence_span: SNIPPET, why: "contradicts the archived note" }],
           not_found: [],
@@ -1233,7 +1253,7 @@ test("citation marks: an agreed contradiction sourced to a doc withholds that do
         });
         const events = await collect(
           runVerifiedChat({
-            ix, messages: [userMsg, toolMsg], question: "hi", maxIterations: 3,
+            ix, messages: [userMsg, toolMsg, toolMsg2], question: "hi", maxIterations: 3,
             stream: fakeStream([[textChunk(answer), finishChunk("stop")]]),
             jsonCall: fakeSlicedJson({ refute: [refuteFixture], confirm: [CONFIRM_AGREE] }),
           }),
@@ -1323,7 +1343,7 @@ test("answer coverage: one event after answer_final and citation_marks, before v
             const events = await collect(
               runVerifiedChat({
                 ix, messages: [userMsg], question: MULTI_Q, maxIterations: 3,
-                stream: fakeStream([[textChunk(ANSWER_WITH_CITE), finishChunk("stop")]]),
+                stream: fakeStream([RETRIEVE_CITED, [textChunk(ANSWER_WITH_CITE), finishChunk("stop")]]),
                 jsonCall: fakeSlicedJson({}),
               }),
             );

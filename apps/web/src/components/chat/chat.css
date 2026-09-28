@@ -494,12 +494,14 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-cite-mark[data-status="mixed"],
 .rlc-cite-mark[data-status="partial"] { color: var(--terminal-green); }
 .rlc-cite-mark[data-status="disputed"],
+.rlc-cite-mark[data-status="unread"],
 .rlc-cite-mark[data-status="uncovered"] { color: var(--warn); }
 /* The warning half of a mark. `mixed` and `partial` pair it with their check —
    the source backs the line it was cited for and something still wants the
    reader's eye — and `uncovered` is this glyph on its own. */
 .rlc-cite-warn { color: var(--warn); margin-left: 2px; }
-.rlc-cite-mark[data-status="uncovered"] .rlc-cite-warn { margin-left: 0; }
+.rlc-cite-mark[data-status="uncovered"] .rlc-cite-warn,
+.rlc-cite-mark[data-status="unread"] .rlc-cite-warn { margin-left: 0; }
 /* Quoted line inside the source tooltip. The tip is portaled to body, so this
    cannot nest under .rlc-panel. mousedown is cancelled in JS so taking focus
    doesn't unmount the tip before the click lands. */

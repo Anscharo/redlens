@@ -12,6 +12,12 @@
 import { withDeadline } from "../../jev.ts";
 import { citationPairs, type CitationPair } from "./cite-pairs.ts";
 import { judgeCitation, type CiteVerdict } from "./cite-support.ts";
+import { judgeMetadata, type MetadataVerdict } from "./cite-metadata.ts";
+
+/** What either judge can return. The two lanes share one results array, one
+ *  fold, and one persisted row, so the marks layer speaks both vocabularies. */
+export type MarkVerdict = CiteVerdict | MetadataVerdict;
+import type { DocProvenance } from "./provenance.ts";
 import { runConfirm } from "./confirm.ts";
 import type { Contradiction } from "./verifier.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
@@ -22,18 +28,21 @@ import { captureError, type ErrorContext } from "../../posthog-node.ts";
 // a contradiction outranks a gap, which outranks partial support, which
 // outranks any full support.
 //   disputed     !  — a confirmed contradiction
+//   unread       ⚠  — the answer states what the document SAYS, but the turn
+//                     only looked up a record ABOUT it (a change event, a
+//                     listing row). Nothing retrieved can settle that claim.
 //   uncovered    ⚠  — the document does not cover a line citing it
 //   partial      ✓⚠ — backs part of a compound claim, silent on the rest
 //   mixed        ✓⚠ — backs one citing line surely and another weakly
 //   backed_weak  ✓  — full support, but under the measured confidence cliff
 //   backed       ✓✓ — full support the judge is sure of
-export type CitationMarkStatus = "backed" | "backed_weak" | "mixed" | "partial" | "uncovered" | "disputed";
+export type CitationMarkStatus = "backed" | "backed_weak" | "mixed" | "partial" | "unread" | "uncovered" | "disputed";
 
 export interface CitationMark {
   status: CitationMarkStatus;
   /** Per citing line. `confidence` is carried so the `mixed` tooltip can name
    *  which line is sure and which is not. */
-  claims: { claim: string; verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts"; confidence?: number | null }[];
+  claims: { claim: string; verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts" | "states_content"; confidence?: number | null }[];
   /**
    * Jev's confidence (0–1) in `status`. A ✓ is only as sure as its weakest
    * support; a ! is as sure as its clearest contradiction. Null when the
@@ -45,7 +54,7 @@ export interface CitationMark {
 interface JudgedPair {
   uuid: string;
   claim: string;
-  verdict: CiteVerdict | null;
+  verdict: MarkVerdict | null;
   /** Jev Choice confidence in `verdict`, 0–1. Absent on pairs stored before it was read back. */
   confidence?: number | null;
 }
@@ -75,7 +84,7 @@ export const MIN_BACKED_CONFIDENCE = 0.95;
 // `mixed` and `partial` are absent: both are about DISAGREEMENT between citing
 // lines, so one number cannot describe them and their copy names the lines
 // instead. `uncovered` is absent because its tooltip quotes the lines too.
-const DECIDING: Partial<Record<CitationMarkStatus, CiteVerdict[]>> = {
+const DECIDING: Partial<Record<CitationMarkStatus, MarkVerdict[]>> = {
   disputed: ["contradicts"],
   backed: ["supports"],
   backed_weak: ["supports"],
@@ -123,12 +132,16 @@ export function aggregateMarks(judged: JudgedPair[]): Record<string, CitationMar
     // so a doc we had not finished checking still shipped as disputed.
     if (pairs.some((p) => p.verdict === null)) continue;
     const claims = pairs
-      .filter((p): p is JudgedPair & { verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts" } =>
-        p.verdict === "supports" || p.verdict === "supports_in_part" || p.verdict === "says_nothing" || p.verdict === "contradicts",
+      .filter((p): p is JudgedPair & { verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts" | "states_content" } =>
+        p.verdict === "supports" || p.verdict === "supports_in_part" || p.verdict === "says_nothing" ||
+        p.verdict === "contradicts" || p.verdict === "states_content",
       )
       .map((p) => ({ claim: p.claim, verdict: p.verdict, confidence: citeConfidence(p.confidence) }));
     let status: CitationMarkStatus;
     if (pairs.some((p) => p.verdict === "contradicts")) status = "disputed";
+    // Above `uncovered` on purpose: "you stated what this document says and
+    // never read it" is more actionable than "the record doesn't cover this".
+    else if (pairs.some((p) => p.verdict === "states_content")) status = "unread";
     else if (pairs.some((p) => p.verdict === "says_nothing")) status = "uncovered";
     else if (pairs.some((p) => p.verdict === "supports_in_part")) status = "partial";
     else if (pairs.some((p) => p.verdict === "supports")) {
@@ -144,7 +157,7 @@ export function aggregateMarks(judged: JudgedPair[]): Record<string, CitationMar
 export interface CitationMarksRun {
   marks: Record<string, CitationMark>;
   /** Raw per-pair verdicts, for persistence (checksMeta), not the wire event. */
-  judged: { uuid: string; claim: string; verdict: CiteVerdict | null; confidence: number | null }[];
+  judged: { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null }[];
   calls: number;
   failed: number;
   costUsd: number;
@@ -177,17 +190,48 @@ export async function runCitationMarks(p: {
   signal?: AbortSignal;
   deadlineMs?: number;
   concurrency?: number;
+  /**
+   * What this turn actually retrieved, per document uuid (verify/provenance.ts).
+   * It picks the QUESTION, not whether to ask one:
+   *
+   *   content  — the model saw the document's text. "Does this document state
+   *              the claim?", judged against the indexed document. A misquote.
+   *   identity — the model saw only a record ABOUT the document: a change
+   *              event, a listing row. The claim was never sourced from the
+   *              document's content, so that question has no honest answer and
+   *              returns "Not stated in this source" about a citation that was
+   *              never sourcing content. Ask instead whether the claim reads
+   *              its own record correctly (cite-metadata.ts). A misreading.
+   *   missing  — the document was not retrieved this turn at all, so NO mark
+   *              is produced and no request is made. We cannot check what we
+   *              did not see, and saying so is the honest output: the system
+   *              prompt already forbids linking a document the turn did not
+   *              retrieve, so this is either a legitimate carry-over from an
+   *              earlier turn (chat.ts replays history as {role, content}, so
+   *              last turn's lookups leave no trace here) or a prompt
+   *              violation. Neither is checkable.
+   *
+   * Omitting the map entirely is different from an empty one: no map means
+   * provenance is not engaged and every pair takes the content question, which
+   * is what the tests and any caller predating this do.
+   */
+  provenance?: Map<string, DocProvenance>;
   obs?: ErrorContext;
 }): Promise<CitationMarksRun> {
   try {
-    const pairs: CitationPair[] = citationPairs(p.answer).filter((pair) => p.ix.docMap.has(pair.uuid));
+    // A citation to a document this turn never retrieved is dropped before any
+    // request: see `provenance` above. Only when a map was supplied — without
+    // one, provenance is not engaged and nothing is filtered.
+    const pairs: CitationPair[] = citationPairs(p.answer)
+      .filter((pair) => p.ix.docMap.has(pair.uuid))
+      .filter((pair) => !p.provenance || p.provenance.has(pair.uuid));
     if (pairs.length === 0) return EMPTY;
 
     const t0 = Date.now();
     const deadlineMs = p.deadlineMs ?? 8000;
     const signal = withDeadline(deadlineMs, p.signal);
 
-    const results: { pair: CitationPair; verdict: CiteVerdict | null; confidence: number | null; costUsd: number | null }[] = new Array(
+    const results: { pair: CitationPair; verdict: MarkVerdict | null; confidence: number | null; costUsd: number | null }[] = new Array(
       pairs.length,
     );
     let nextIndex = 0;
@@ -199,7 +243,11 @@ export async function runCitationMarks(p: {
         const i = nextIndex++;
         if (i >= pairs.length) return;
         calls++;
-        const j = await judgeCitation({ pair: pairs[i], ix: p.ix, model: p.model, signal });
+        const prov = p.provenance?.get(pairs[i].uuid);
+        const j =
+          prov?.kind === "identity"
+            ? await judgeMetadata({ claim: pairs[i].claim, record: prov.record, model: p.model, signal })
+            : await judgeCitation({ pair: pairs[i], ix: p.ix, model: p.model, signal });
         if (j.verdict === null) failed++;
         if (j.costUsd) costUsd += j.costUsd;
         results[i] = { pair: pairs[i], verdict: j.verdict, confidence: j.confidence, costUsd: j.costUsd };

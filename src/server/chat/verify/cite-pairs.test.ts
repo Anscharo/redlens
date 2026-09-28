@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { citationPairs, isHistoryClaim, isLeadIn, tablesAsProse } from "./cite-pairs.ts";
+import { citationPairs, isLeadIn, tablesAsProse } from "./cite-pairs.ts";
 
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
@@ -145,31 +145,6 @@ describe("links used as nouns", () => {
 // A document cannot state its own edit history, so pairing one with a sentence
 // about when it changed asks a question with no honest answer. These shapes are
 // unambiguous, so they never reach the judge.
-describe("claims about a document's history", () => {
-  it("makes no pair for the shapes the history tools produce", () => {
-    const histories = [
-      `On September 17, 2026 (PR #336), the [Rate Limits](/atlas/${A}) was updated to unlimited.`,
-      `The [Rate Limits](/atlas/${A}) document changed 6 times this year.`,
-      `This parameter was first seen in the [Rate Limits](/atlas/${A}) document.`,
-      `The [Rate Limits](/atlas/${A}) was last updated in August [x](/atlas/${B}).`,
-      `Documents regarding CRRs ([CRRs](/atlas/${A})) show high modification counts.`,
-    ];
-    for (const answer of histories) expect(citationPairs(answer)).toEqual([]);
-  });
-
-  // The observed failure: the sentence is about the document's history AND
-  // restates what the document now says, so the judge called it partial
-  // support. The date and the PR number settle it before a request is made.
-  it("drops a history claim even when it restates current content", () => {
-    expect(isHistoryClaim("the Rate Limits was updated to set the USDS burn rate limits to unlimited.")).toBe(true);
-  });
-
-  it("leaves an ordinary content claim alone", () => {
-    expect(isHistoryClaim("The USDS burn rate limit is unlimited.")).toBe(false);
-    expect(isHistoryClaim("Core GovOps validate the Founder's inputs.")).toBe(false);
-    expect(citationPairs(`The USDS burn rate limit is unlimited [Rate Limits](/atlas/${A}).`)).toHaveLength(1);
-  });
-});
 
 // "Not stated in this source" on a sentence that was never a claim. Reported
 // 2026-09-28. Two causes, both deterministic.
@@ -180,12 +155,6 @@ describe("sentences that are not claims", () => {
     expect(citationPairs(`This affected documents such as [Rate Limits](/atlas/${A}), [Swap](/atlas/${B}).`)).toEqual([]);
     expect(citationPairs(`The Distribution Reward Payments are: [List](/atlas/${A}).`)).toEqual([]);
     expect(citationPairs(`For the full set see [List](/atlas/${A}).`)).toEqual([]);
-  });
-
-  it("catches a sentence that names the change record as its source", () => {
-    expect(isHistoryClaim("The history also records the Grove proposal to make swap rate limits unlimited")).toBe(true);
-    expect(isHistoryClaim("The atlas history shows three edits to this document")).toBe(true);
-    expect(isHistoryClaim("The change log records the rename")).toBe(true);
   });
 
   // A colon alone is NOT the signal. It regularly ends a claim with its own
@@ -201,7 +170,6 @@ describe("sentences that are not claims", () => {
   it("leaves a real claim alone, including one containing the same words", () => {
     expect(isLeadIn("The USDS burn rate limit is unlimited.")).toBe(false);
     expect(isLeadIn("Documents such as this one are reviewed by Core GovOps.")).toBe(false);
-    expect(isHistoryClaim("Core GovOps validate the Founder's inputs.")).toBe(false);
     expect(citationPairs(`Documents such as this one are reviewed by Core GovOps [G](/atlas/${A}).`)).toHaveLength(1);
   });
 });
