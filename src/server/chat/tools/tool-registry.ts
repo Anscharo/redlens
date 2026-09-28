@@ -48,8 +48,10 @@ export interface AtlasTool extends DescribedTool {
   whenToUse?: string;
   shape: z.ZodRawShape;
   annotations?: ToolAnnotations;
-  // Read "" / [] / [""] / null arguments as absent (omitEmptyArgs) — the chat
-  // transport strips them before zod validation too, so a null never fails it.
+  // Read "" / [] / [""] / null arguments as absent. invokeTool() applies this
+  // for EVERY consumer, so a handler never has to strip its own arguments; the
+  // chat transport additionally strips before zod, because an optional field
+  // rejects null and the shape is checked before invokeTool is reached.
   emptyArgsAbsent?: boolean;
   handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
 }
@@ -74,6 +76,25 @@ export function omitEmptyArgs(args: Record<string, unknown>): Record<string, unk
     out[k] = v;
   }
   return out;
+}
+
+/**
+ * The ONE place a tool's arguments meet its handler. Both transports call it —
+ * chat (llm-tools.ts) and MCP (server/mcp.ts) — so `emptyArgsAbsent` is honoured
+ * once here instead of per handler, and a tool cannot opt in for chat while the
+ * MCP surface reads its blanks as real filters. That split was live until
+ * 2026-09-28: four of the seven opted-in tools stripped only in the chat
+ * transport, so an MCP client sending `type: ""` had it intersected to nothing.
+ *
+ * Typed structurally rather than as AtlasTool so ExternalTool passes too; it
+ * declares no `emptyArgsAbsent`, so its args are handed over untouched.
+ */
+export function invokeTool<T extends { emptyArgsAbsent?: boolean; handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult> }>(
+  ix: Indexes,
+  tool: T,
+  args: Record<string, unknown>,
+): ToolResult | Promise<ToolResult> {
+  return tool.handler(ix, tool.emptyArgsAbsent ? omitEmptyArgs(args) : args);
 }
 
 // Combines `description` + `whenToUse` for the two AGENT consumers (chat's JSON
@@ -337,7 +358,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     // invents one, and every document outside it silently stops matching on a
     // tool whose whole job is a COMPLETE class listing.
     emptyArgsAbsent: true,
-    handler: (ix, a) => atlasFilter(ix, omitEmptyArgs(a) as Parameters<typeof atlasFilter>[1]),
+    handler: (ix, a) => atlasFilter(ix, a as Parameters<typeof atlasFilter>[1]),
   },
   {
     name: "atlas_entity_params",
@@ -524,7 +545,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
         .describe("Class mode only. `added` (default) = earliest added row; `modified` = earliest content edit."),
     },
     emptyArgsAbsent: true,
-    handler: (ix, a) => atlasFirstSeen(ix, omitEmptyArgs(a) as Parameters<typeof atlasFirstSeen>[1]),
+    handler: (ix, a) => atlasFirstSeen(ix, a as Parameters<typeof atlasFirstSeen>[1]),
   },
   {
     name: "atlas_query",
@@ -540,7 +561,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "Lean results by default — see `enrich`.",
     shape: atlasQueryShape,
     emptyArgsAbsent: true,
-    handler: (ix, a) => atlasQuery(ix, omitEmptyArgs(a) as unknown as QueryArgs),
+    handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
   },
   // ── Curated reports (atlas_report_*) ──────────────────────────────────────
   // Model-ready rollups too expensive to assemble from primitive graph calls.

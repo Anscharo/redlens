@@ -14,7 +14,7 @@
 // exercising the handler wiring, not re-testing DB query logic.
 import { test, expect, mock, beforeEach } from "bun:test";
 import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
-import { ATLAS_TOOLS, TOOLS_BY_NAME, omitEmptyArgs, toolDescription, type AtlasTool } from "./tool-registry.ts";
+import { ATLAS_TOOLS, TOOLS_BY_NAME, invokeTool, omitEmptyArgs, toolDescription, type AtlasTool } from "./tool-registry.ts";
 import { execToolDetailed, CHAT_TOOLS } from "./llm-tools.ts";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
 import { REPORT_CHAT_TOOLS } from "../../../lib/routes.ts";
@@ -255,10 +255,11 @@ test("atlas_first_seen: ids:[\"\"] beside a class filter runs class mode instead
   const out = JSON.parse((await execToolDetailed(ix, "atlas_first_seen", JSON.stringify(FIRST_SEEN_FILLED))).content);
   expect(out.error).toBeUndefined();
   expect(out.class_total).toBe(1);
-  // The MCP transport calls the handler directly, after its own zod pass.
-  const viaHandler = (await TOOLS_BY_NAME.get("atlas_first_seen")!.handler(ix, FIRST_SEEN_FILLED)) as Record<string, unknown>;
-  expect(viaHandler.error).toBeUndefined();
-  expect(viaHandler.class_total).toBe(1);
+  // The MCP transport reaches the handler through invokeTool, after its own
+  // zod pass — so it must read these blanks exactly as the chat transport did.
+  const viaMcp = (await invokeTool(ix, TOOLS_BY_NAME.get("atlas_first_seen")!, FIRST_SEEN_FILLED)) as Record<string, unknown>;
+  expect(viaMcp.error).toBeUndefined();
+  expect(viaMcp.class_total).toBe(1);
 });
 
 test("atlas_first_seen: a real ids list beside a real class filter is still refused", async () => {
@@ -278,6 +279,16 @@ test("atlas_edges: a filled-in-but-empty endpoint filter enumerates everything, 
   // the model invented on its own would have hidden both.
   expect(out.total).toBe(8);
   expect((out.edges as { from: { node_type: string } }[]).some((e) => e.from.node_type === "entity")).toBe(true);
+
+  // atlas_edges is one of the four that stripped ONLY in the chat transport
+  // until 2026-09-28: on the MCP surface a blank from_type hid every
+  // entity-side edge. `null` never reaches an MCP callback (the SDK's zod pass
+  // rejects it for an optional field), so the blanks that get there are "".
+  const viaMcp = (await invokeTool(ix, TOOLS_BY_NAME.get("atlas_edges")!, {
+    edge_type: "", from_type: "", to_type: "", from_slug: "", to_slug: "",
+  })) as Record<string, unknown>;
+  expect(viaMcp.error).toBeUndefined();
+  expect(viaMcp.total).toBe(8);
 });
 
 test("atlas_filter: a null depth band lists the whole class, but a real depth_min:0 is still honoured", async () => {
@@ -310,4 +321,45 @@ test("atlas_query: edge_types:[\"\"] does not intersect an entity's docs to noth
   const out = JSON.parse((await execToolDetailed(makeIx(), "atlas_query", JSON.stringify({ entity: "ent", edge_types: [""] }))).content);
   expect(out.mode).toBe("entity_broad");
   expect(Object.keys(out.by_relationship)).toContain("defines_entity");
+});
+
+// ── one seam for empty-argument stripping (invokeTool) ───────────────────────
+// Until 2026-09-28 the rule lived in two places: the chat transport stripped
+// for all seven opted-in tools, but only three handlers stripped for
+// themselves, so the MCP surface (server/mcp.ts, which calls the handler
+// directly) read `type: ""` as a real filter and intersected the result to
+// nothing. invokeTool is now the single place args meet a handler.
+
+test("invokeTool strips blanks when the tool opted in, and passes them through when it did not", async () => {
+  const seen: Record<string, unknown>[] = [];
+  const stub = (emptyArgsAbsent?: boolean) => ({
+    emptyArgsAbsent,
+    handler: (_ix: Indexes, a: Record<string, unknown>) => {
+      seen.push(a);
+      return { ok: true } as unknown as ReturnType<AtlasTool["handler"]>;
+    },
+  });
+  const args = { type: "", ids: [""], title: "Rate Limits" };
+  await invokeTool({} as Indexes, stub(true), { ...args });
+  await invokeTool({} as Indexes, stub(undefined), { ...args });
+  expect(seen[0]).toEqual({ title: "Rate Limits" });
+  expect(seen[1]).toEqual(args);
+});
+
+// The write-once guard. A new tool must not strip in its own handler (that is
+// what let the two transports drift), and a new transport must not call
+// `.handler(` directly (that is what left MCP out).
+test("no handler strips its own arguments, and every transport goes through invokeTool", async () => {
+  const registry = await Bun.file(new URL("./tool-registry.ts", import.meta.url)).text();
+  const handlerStrips = registry
+    .split("\n")
+    .filter((l) => l.includes("handler:") && l.includes("omitEmptyArgs("));
+  expect(handlerStrips).toEqual([]);
+
+  for (const rel of ["./llm-tools.ts", "../../mcp.ts"]) {
+    const src = await Bun.file(new URL(rel, import.meta.url)).text();
+    // The only place a tool handler may be reached is invokeTool.
+    expect(src).not.toMatch(/\b(?:t|tool)\.handler\(/);
+    expect(src).toContain("invokeTool(");
+  }
 });

@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type OpenAI from "openai";
-import { ATLAS_TOOLS, TOOLS_BY_NAME, omitEmptyArgs, toolDescription } from "./tool-registry.ts";
+import { ATLAS_TOOLS, TOOLS_BY_NAME, invokeTool, omitEmptyArgs, toolDescription } from "./tool-registry.ts";
 import { EXPORT_TOOL_NAME, EXPORT_TOOL_SHAPE, EXPORT_TOOL_DESCRIPTION } from "./export-tool.ts";
 import {
   ASK_EXTERNAL_MSC,
@@ -152,7 +152,7 @@ export async function execToolDetailed(ix: Indexes, name: string, rawArgs: strin
   const strippedKeys = Object.keys(raw).filter((k) => !(k in tool.shape));
   if (strippedKeys.length) captureEvent("chat_tool_arg_stripped", obs, { tool: name, keys: strippedKeys });
   try {
-    return applyChatToolBudget(JSON.stringify(await tool.handler(ix, parsed.data as Record<string, unknown>)));
+    return applyChatToolBudget(JSON.stringify(await invokeTool(ix, tool, parsed.data as Record<string, unknown>)));
   } catch (e) {
     // The model still gets a usable {error} tool result (never breaks the turn),
     // but a tool handler throwing is a real bug worth alerting on, not silent.
