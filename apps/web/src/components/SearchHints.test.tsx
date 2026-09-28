@@ -21,8 +21,10 @@ describe("SearchHints (cheat sheet table)", () => {
 
   it("groups the hints under category headings", () => {
     render(<SearchHints onSearch={vi.fn()} />);
+    // rowheader, not columnheader: the group headings label the rows beneath
+    // them (scope="rowgroup"), which is the whole point of the grouping.
     const headings = screen
-      .getAllByRole("columnheader")
+      .getAllByRole("rowheader")
       .map((th) => th.textContent ?? "")
       .filter((t) => t.includes("Narrow") || t.includes("Combine") || t.includes("modes") || t.includes("identifier"));
     expect(headings).toHaveLength(4);

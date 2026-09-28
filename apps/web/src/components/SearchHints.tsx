@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { SLASH_COMMANDS } from "../lib/shortcuts";
 import { HINT_GROUPS } from "../lib/searchHintsData";
@@ -54,35 +53,36 @@ export function SearchHints({
             <th className="mono text-tan-3 font-normal pb-3 hidden sm:table-cell">Explanation</th>
           </tr>
         </thead>
-        <tbody>
-          {HINT_GROUPS.map((g, gi) => (
-            <Fragment key={g.title}>
-              <tr>
-                <th
-                  scope="colgroup"
-                  colSpan={3}
-                  className={`text-left font-normal pb-2 ${gi === 0 ? "" : "pt-7"}`}
-                >
-                  <div className="flex flex-wrap items-baseline gap-x-3 pb-1 border-b border-[var(--border)]">
-                    <span className="mono uppercase tracking-wider text-tan">{g.title}</span>
-                    {g.note && <span className="text-tan-3">{g.note}</span>}
-                  </div>
-                </th>
+        {HINT_GROUPS.map((g, gi) => (
+          // One tbody per group with scope="rowgroup": these headings label the
+          // ROWS that follow, not a group of columns. Separate tbodies also give
+          // the stripe back to CSS nth-child, so the rows carry no index math.
+          <tbody key={g.title}>
+            <tr>
+              <th
+                scope="rowgroup"
+                colSpan={3}
+                className={`text-left font-normal pb-2 ${gi === 0 ? "" : "pt-7"}`}
+              >
+                <div className="flex flex-wrap items-baseline gap-x-3 pb-1 border-b border-[var(--border)]">
+                  <span className="mono uppercase tracking-wider text-tan">{g.title}</span>
+                  {g.note && <span className="text-tan-3">{g.note}</span>}
+                </div>
+              </th>
+            </tr>
+            {g.hints.map((h) => (
+              <tr
+                key={h.query}
+                onClick={() => onSearch(h.query)}
+                className="hint-row cursor-pointer even:bg-[var(--surface)]"
+              >
+                <td className="mono text-tan-3 pr-6 py-1.5 whitespace-nowrap">{h.label}</td>
+                <td className="mono text-accent pr-6 py-1.5 whitespace-nowrap">{h.query}</td>
+                <td className="text-tan-3 py-1.5 hidden sm:table-cell">{h.description}</td>
               </tr>
-              {g.hints.map((h, i) => (
-                <tr
-                  key={h.query}
-                  onClick={() => onSearch(h.query)}
-                  className={`hint-row cursor-pointer ${i % 2 === 1 ? "bg-[var(--surface)]" : ""}`}
-                >
-                  <td className="mono text-tan-3 pr-6 py-1.5 whitespace-nowrap">{h.label}</td>
-                  <td className="mono text-accent pr-6 py-1.5 whitespace-nowrap">{h.query}</td>
-                  <td className="text-tan-3 py-1.5 hidden sm:table-cell">{h.description}</td>
-                </tr>
-              ))}
-            </Fragment>
-          ))}
-        </tbody>
+            ))}
+          </tbody>
+        ))}
       </table>
     </div>
   );

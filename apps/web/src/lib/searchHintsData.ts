@@ -35,9 +35,10 @@ export const HINT_GROUPS: SearchHintGroup[] = [
       {
         // title:/content:/doc_no: and type: are the same idea to a reader, so
         // they are one row each rather than the three separate "field:"/"type:"/
-        // "type (spaces)" rows this replaced. Quoting is verified in
-        // search-hints.artifact.test.ts: title:"Aligned Delegate" returns
-        // exactly the 18 documents with that text in their title.
+        // "type (spaces)" rows this replaced. That a QUOTED multi-word value
+        // really is field-restricted (and not just phrase-matched anywhere) is
+        // asserted in search-hints.artifact.test.ts against title:"Aligned
+        // Delegate", whose expected hit set is derived from docs.json.
         label: '[field]:"Term"',
         query: 'title:"Risk"',
         description: "Risk must be in the title field — also content: and doc_no:",

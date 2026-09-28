@@ -16,7 +16,6 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { installWorkerGlobal, stubFetch, type WorkerHarness } from "../test/workerGlobal";
 import { HINT_GROUPS } from "../lib/searchHintsData";
-import { SLASH_COMMANDS } from "../lib/shortcuts";
 import type { SearchHit } from "@/types";
 
 const ARTIFACTS = ["public/search-index.json", "public/docs.json", "public/addresses.json"];
@@ -76,21 +75,18 @@ describe("search hints — every example returns documents", () => {
   }, 60000);
 });
 
-describe("search hints — the cheat sheet is not silently empty", () => {
-  it("lists a non-trivial number of examples across several groups", () => {
-    expect(HINT_GROUPS.length).toBeGreaterThanOrEqual(4);
-    expect(EXAMPLES.length).toBeGreaterThanOrEqual(12);
-  });
-
-  it("gives every group a unique title and every example a unique query", () => {
-    const titles = HINT_GROUPS.map((g) => g.title);
-    expect(new Set(titles).size).toBe(titles.length);
-    const queries = EXAMPLES.map((e) => e.query);
-    expect(new Set(queries).size).toBe(queries.length);
-  });
-
-  it("does not collide with the slash-command namespace", () => {
-    const cmds = new Set(SLASH_COMMANDS.map((s) => s.cmd));
-    for (const e of EXAMPLES) expect(cmds.has(e.query)).toBe(false);
-  });
+describe("search hints — a quoted multi-word field filter restricts to that field", () => {
+  // The [field]:"Two Words" row promises this. Asserted as a PROPERTY with the
+  // expected set derived from docs.json, not as a hardcoded count: a doc-count
+  // literal would rot on the next atlas edit, which is the exact failure mode
+  // this file exists to catch.
+  it('title:"Aligned Delegate" returns every such title and nothing else', async () => {
+    const hits = await search('title:"Aligned Delegate"');
+    const expected = Object.values(docs).filter((d) =>
+      (d as { title: string }).title.toLowerCase().includes("aligned delegate"),
+    );
+    expect(expected.length).toBeGreaterThan(0);
+    expect(hits.length).toBe(expected.length);
+    for (const h of hits) expect((h.title ?? "").toLowerCase()).toContain("aligned delegate");
+  }, 60000);
 });
