@@ -1,13 +1,14 @@
 # Privacy Policy
 
-_Last updated: 11 August 2026_
+_Last updated: 28 September 2026_
 
 This is the privacy policy for the Sky Atlas reader at **atlas.redline.support**
 ("the app"). It is written to be short and plain.
 
 The short version: you can read the atlas without an account and without giving
-us anything personal. If you sign in and use the chatbot, we store your
-conversations and your basic account details so the feature works.
+us anything personal. If you sign in, we store your basic account details, plus
+your chatbot conversations, anything you save, and which atlas previews you have
+opened, so those features work.
 
 ---
 
@@ -88,17 +89,17 @@ each one needs.
 
 Anonymous analytics is retained by our analytics provider on a rolling basis.
 Account details, chats, Collections, and your list of opened previews are kept
-until you delete them (see section 6). Feedback is kept for as long as the issue it reports is useful to
-us.
+until you delete them (see section 6). Feedback is kept for as long as the issue
+it reports is useful to us.
 
 ## 6. Your choices and rights
 
 - **Delete your account and data** — open your profile menu and go to
   **Preferences → Delete account**. This permanently deletes your account along
-  with all of your chats, Collections, and your list of opened previews. Any feedback you sent is unlinked from
-  your account rather than deleted, so the bug reports stay usable — once
-  unlinked it is no longer connected to you. If you want a feedback message
-  removed outright, contact us (section 8).
+  with all of your chats, Collections, and your list of opened previews. Any
+  feedback you sent is unlinked from your account rather than deleted, so the
+  bug reports stay usable — once unlinked it is no longer connected to you. If
+  you want a feedback message removed outright, contact us (section 8).
 - You can use the atlas reader without signing in at all; the chatbot, saved
   Collections, and previews of private repositories are the only features that
   need an account. Previews you open without signing in are remembered by your
