@@ -20,7 +20,7 @@ export const HINT_GROUPS: SearchHintGroup[] = [
     note: "Filters combine with plain terms in any order.",
     hints: [
       {
-        label: "in: scope",
+        label: "in:DOC_NUMBER",
         query: "in:A.1.2 delegate",
         description: "Restrict results to a section subtree",
       },
