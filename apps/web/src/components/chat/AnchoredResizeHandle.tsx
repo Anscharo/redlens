@@ -41,7 +41,11 @@ function useAnchoredResize() {
       return;
     }
     root.style.setProperty("--rlc-anchored-w", `${applied}px`);
-    return () => root.style.removeProperty("--rlc-anchored-w");
+    // removeProperty returns the previous value. An implicit return makes the
+    // cleanup `() => string`, which is not a valid effect destructor.
+    return () => {
+      root.style.removeProperty("--rlc-anchored-w");
+    };
   }, [applied, narrow]);
 
   // The drag has to start from the width on screen. Until the user has dragged,
