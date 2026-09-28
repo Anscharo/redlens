@@ -34,10 +34,12 @@
 -->
 
 
-## 2026-09-24
+## 2026-09-28
 - Chat answers now put a double check on a source when the check is sure the document states the citing lines, mark a source with ! when it says otherwise, and say when a reply didn't answer the question or skipped part of it
-- Reworded the preview bar and browser tab to name the pull request or branch, and added a Dismiss control on the Access notice that stays hidden in this browser
 - Source checks and disputed statements now stay on a chat answer after a reload, and you can ask the chat about a statement it flagged
+
+## 2026-09-24
+- Reworded the preview bar and browser tab to name the pull request or branch, and added a Dismiss control on the Access notice that stays hidden in this browser
 
 ## 2026-09-23
 - Fixed the reader's expand control going missing from deeply nested sections while the Changed only filter was on
