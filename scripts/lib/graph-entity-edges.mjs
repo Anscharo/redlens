@@ -625,10 +625,15 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   //   "Rubicon is the Prime Foundation associated with Obex."  → prime_foundation_of
   //   "Phoenix Labs is a development company that provides services to the
   //    Spark Foundation"                                       → provides_services_to
+  //   "Treadstone is the development company that provides services to
+  //    Rubicon." (A.6.1.1.5.2.1.1.3.1.1.6) — "is THE ... company" phrasing,
+  //    added alongside "is a/an" 2026-09-28 (atlas-health sweep) once the
+  //    dedicated Development Company docs (1b2) showed every agent uses one
+  //    of the two interchangeably.
   const PRIME_FOUNDATION_RE =
     /\b([A-Z][A-Za-z0-9'&. -]+?) is the Prime Foundation associated with (?:the )?([A-Z][A-Za-z0-9'&. -]+?)[.,]/g;
   const PROVIDES_SERVICES_RE =
-    /\b([A-Z][A-Za-z0-9'&. -]+?) is an? [a-z -]*company that provides services to (?:the )?([A-Z][A-Za-z0-9'&. -]+?)[.,]/g;
+    /\b([A-Z][A-Za-z0-9'&. -]+?) is (?:an?|the) [a-z -]*company that provides services to (?:the )?([A-Z][A-Za-z0-9'&. -]+?)[.,]/g;
   {
     let emitted = 0,
       skipped = 0;

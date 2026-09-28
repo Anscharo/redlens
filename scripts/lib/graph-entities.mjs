@@ -526,6 +526,71 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     });
   }
 
+  // --- 1p. Agent Foundation & Development Company (dedicated legal-entity docs) ---
+  // Runs last, after every other entity source (accord parties, ERG, grants)
+  // has had first claim on a name — this step only fills a gap or corrects a
+  // type, never overwrites an existing entity's provenance.
+  // Every Agent artifact subtree (A.6.1.1.N.*) carries a "Foundation" doc
+  // ("<Name> is the Prime Foundation associated with <Agent>.") and usually a
+  // sibling "Development Company" doc ("<Name> is a|the ... company that
+  // provides services to <Foundation|Agent>."). The org-prose edge extractor
+  // (Phase 2w, prime_foundation_of / provides_services_to) reads these same
+  // sentences but only creates EDGES — it requires both named entities to
+  // already exist, and several agents' foundations/dev companies were never
+  // otherwise named anywhere (no accord party list, no ERG membership), so
+  // those facts were silently dropped (atlas-health sweep 2026-09-28: Grove's
+  // "Grove Development Company" A.6.1.1.2.2.1.1.3.1.1.5, Skybase's "Ekliptyka"
+  // A.6.1.1.4.2.1.1.3.1.1.6). Anchoring on the doc's own title (rather than
+  // scanning all content) keeps this precise.
+  {
+    // fragile: doc_no prefix
+    const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
+    const FOUNDATION_TITLE_RE =
+      /^(?:The\s+)?([A-Z][A-Za-z0-9'&. -]+?) is the Prime Foundation associated with ([A-Z][A-Za-z0-9'&. -]+?)\./;
+    const DEV_CO_TITLE_RE =
+      /^([A-Z][A-Za-z0-9'&. -]+?) is (?:an?|the) [a-z -]*company that provides services to (?:the )?([A-Z][A-Za-z0-9'&. -]+?)\./;
+
+    // A dedicated legal-entity doc is the atlas's own canonical statement of
+    // what this entity is — more reliable than the "Foundation" name-suffix
+    // heuristic used to classify accord party members above (1m), which
+    // mislabels a foundation branded without the word "Foundation" itself
+    // (e.g. Obex's "Rubicon", named a development_company by that heuristic
+    // until corrected here). Only the type is corrected for an
+    // already-existing entity — its original defining_doc_id/meta (e.g. the
+    // accord party doc that first named it) is left untouched.
+    function registerLegalEntity(slug, name, entity_type, docId, meta) {
+      const existing = entityMap.get(slug);
+      if (existing) {
+        if (existing.entity_type !== entity_type) existing.entity_type = entity_type;
+        return existing;
+      }
+      return addEntity(slug, name, entity_type, null, docId, meta);
+    }
+
+    for (const d of allDocs) {
+      if (!AGENT_ARTIFACT_RE.test(d.doc_no)) continue;
+      if (d.title === "Foundation") {
+        const m = d.content?.match(FOUNDATION_TITLE_RE);
+        if (m) {
+          const name = m[1].trim();
+          registerLegalEntity(slugify(name), name, "foundation", d.id, {
+            source: "agent_foundation_doc",
+            source_doc_no: d.doc_no,
+          });
+        }
+      } else if (d.title === "Development Company") {
+        const m = d.content?.match(DEV_CO_TITLE_RE);
+        if (m) {
+          const name = m[1].trim();
+          registerLegalEntity(slugify(name), name, "development_company", d.id, {
+            source: "agent_dev_co_doc",
+            source_doc_no: d.doc_no,
+          });
+        }
+      }
+    }
+  }
+
   const entityByDocId = new Map();
   for (const e of entityMap.values()) {
     if (e.defining_doc_id) entityByDocId.set(e.defining_doc_id, e);

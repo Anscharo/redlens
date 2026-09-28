@@ -343,6 +343,42 @@ function buildCorpus() {
     content: "The Keel Foundation is the Prime Foundation associated with Keel. Its mandate is to support Keel.",
   });
 
+  // 1p: dedicated Foundation/Development Company docs, run last so they only
+  // fill a gap or correct a type — never clobber an existing entity's
+  // provenance. Obex's accord (A.2.8.2.4.1.1.2) names "Rubicon" as a plain
+  // party member, which the "Foundation" suffix heuristic (1m) defaults to
+  // development_company; the dedicated Foundation doc corrects it, without
+  // losing the accord's defining_doc_id/meta. Pattern has no accord and no
+  // Foundation doc at all — its Development Company doc is the ONLY place
+  // "Pattern Dev Co." is ever named, exercising the fresh-create branch, and
+  // uses the "is THE development company" phrasing (vs. Spark's "is A").
+  const obexDoc = mkDoc({ id: uid(60), doc_no: "A.6.1.1.5", title: "Obex" });
+  const obexAccordPartyDoc = mkDoc({
+    id: uid(61),
+    doc_no: "A.2.8.2.4.1.1.2",
+    title: "Obex Details",
+    content: "The party 'Obex' comprises the Obex Prime Agent, Rubicon, and Treadstone.",
+  });
+  const obexFoundationDoc = mkDoc({
+    id: uid(62),
+    doc_no: "A.6.1.1.5.2.1.1.3.1.1.5",
+    title: "Foundation",
+    content: "Rubicon is the Prime Foundation associated with Obex. Its mandate is to support the development, growth, and adoption of Obex.",
+  });
+  const obexDevCoDoc = mkDoc({
+    id: uid(63),
+    doc_no: "A.6.1.1.5.2.1.1.3.1.1.6",
+    title: "Development Company",
+    content: "Treadstone is the development company that provides services to Rubicon.",
+  });
+  const patternDoc = mkDoc({ id: uid(64), doc_no: "A.6.1.1.6", title: "Pattern" });
+  const patternDevCoDoc = mkDoc({
+    id: uid(65),
+    doc_no: "A.6.1.1.6.2.1.1.3.1.1.5",
+    title: "Development Company",
+    content: "Pattern Dev Co. is the development company that provides services to Pattern.",
+  });
+
   // Pattern 14: Instance (Active tier, Spark/Distribution Reward) + Invocation
   // (In Progress tier, Grove/Integration Boost) + per-agent Primitive entities.
   const currentPrimitivesDoc = mkDoc({
@@ -421,6 +457,7 @@ function buildCorpus() {
     stepDoc1, stepDoc2,
     dutyDoc1, dutyDoc2, dutyDoc3, dutyDoc4, dutyDoc5,
     orgDoc1, orgDoc2, orgDoc3,
+    obexDoc, obexAccordPartyDoc, obexFoundationDoc, obexDevCoDoc, patternDoc, patternDevCoDoc,
     currentPrimitivesDoc,
     primRootDR, statusDocDR, activeInstancesTier, icdDR, paramsDocDR, rewardCodeLeaf, customParamsLeaf, miscLeaf,
     primRootIB, inProgressTier, icdIB, invocationStatusDoc, paramsDocIB, partnerNameLeaf,
@@ -535,6 +572,27 @@ describe("extractEntities — realistic corpus", () => {
 
   it("short-circuits the Sky party onto the sky-core bootstrap (no 'sky-party' composite)", () => {
     expect(e("sky-party")).toBeUndefined();
+  });
+
+  it("corrects a foundation misclassified as development_company by the accord's name-suffix heuristic (1p, Rubicon/Obex)", () => {
+    // 1m's suffix heuristic defaults "Rubicon" (no "Foundation" in the name)
+    // to development_company; the dedicated Foundation doc is authoritative.
+    const rubicon = e("rubicon")!;
+    expect(rubicon.entity_type).toBe("foundation");
+    // Provenance from the accord (its first source) is preserved, not
+    // overwritten by the correcting step.
+    expect(JSON.parse(rubicon.meta).source).toBe("accord_party_member");
+  });
+
+  it("leaves an already-correctly-classified accord member alone (1p, Treadstone/Obex)", () => {
+    expect(e("treadstone")).toMatchObject({ entity_type: "development_company" });
+    expect(JSON.parse(e("treadstone")!.meta).source).toBe("accord_party_member");
+  });
+
+  it("creates a Development Company entity that exists nowhere else in the atlas (1p, Pattern Dev Co., 'is THE development company' phrasing)", () => {
+    const devCo = e("pattern-dev-co")!;
+    expect(devCo).toMatchObject({ name: "Pattern Dev Co.", entity_type: "development_company" });
+    expect(devCo.defining_doc_id).toBe(docByDocNo.get("A.6.1.1.6.2.1.1.3.1.1.5")!.id);
   });
 
   it("models an atomic party ('is the entity owning...') as composite_party with no members resolved", () => {
