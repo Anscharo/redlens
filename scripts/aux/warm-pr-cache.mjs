@@ -4,15 +4,19 @@
 // reaches the network, and the build is offline and reproducible.
 //
 // The hourly bump (.github/workflows/atlas-update.yml) is the only caller that
-// runs unattended. It is also the only place that knows which atlas PRs are new,
-// which is why the fetch lives there and not in the worker: the Railway worker
-// has `gh` and a token, but an ephemeral container cannot commit what it fetched.
+// runs unattended, because an ephemeral worker container cannot commit what it
+// fetched. It passes `--all`, which is what makes a miss recoverable: a range
+// walk asks for each commit once, and the next bump starts at the SHA this one
+// committed, so a PR skipped by a rejected token would never be requested again.
+// `--all` re-derives the missing set from the files on disk, so the next hour
+// fills whatever this hour skipped, and an already-cached PR costs one existsSync.
 //
-//   pnpm history:prs <since-sha> <until-sha>   # the commits a bump added
-//   pnpm history:prs --all                     # every atlas commit, first fill
+//   pnpm history:prs --all                     # every atlas commit
+//   pnpm history:prs <since-sha> <until-sha>   # one range, for a targeted fill
 //
-// Prints a one-line count to stderr. Never fails the caller: a PR it cannot
-// reach is reported and skipped, leaving that history row without PR metadata.
+// Prints a one-line count to stderr and exits 1 when a record could not be
+// written, so a rejected token is visible rather than silent. The bump step sets
+// continue-on-error, so that exit reports the miss without holding up the bump.
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -47,4 +51,6 @@ let fetched = 0;
 for (const n of missing) {
   if (await fetchPr(n)) fetched += 1;
 }
-console.error(`pr cache: ${numbers.length - missing.length} cached, ${fetched} fetched, ${missing.length - fetched} failed`);
+const failed = missing.length - fetched;
+console.error(`pr cache: ${numbers.length - missing.length} cached, ${fetched} fetched, ${failed} failed`);
+if (failed > 0) process.exit(1);

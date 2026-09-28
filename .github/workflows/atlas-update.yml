@@ -138,24 +138,33 @@ jobs:
             -- ATLAS_MARKDOWN_SYNTAX.md > /tmp/spec-diff.txt || true
 
       # Fetch the pull-request metadata (title, body, author, review counts) for
-      # the commits this bump brought in, so the committed .cache/github-prs
-      # records stay current. Every atlas commit is a PR, and this is the only
-      # job that both knows which PRs are new and can commit what it fetched —
-      # the Railway worker has `gh` and a token, but its container is discarded.
+      # the atlas commits, so the committed .cache/github-prs records stay
+      # current. Every atlas commit is a PR, and this is the only job that can
+      # commit what it fetched — the Railway worker has `gh` and a token, but
+      # its container is discarded.
       #
-      # `github.token` rather than the App token: the read is against the public
-      # upstream repo, which is outside the ATLAS_BOT installation.
+      # `--all`, not this bump's range: the range a bump adds is asked for once,
+      # and the next bump starts where this one ended, so a PR skipped by a
+      # rejected token would never be requested again. `--all` re-derives the
+      # missing set from the files on disk, so the next hour retries the gap and
+      # an already-cached PR costs one existsSync.
       #
-      # Degrades gracefully like the address refresh above: a record it cannot
-      # reach is skipped, and that history row simply carries no PR metadata.
-      - name: Cache PR metadata for the new atlas commits
+      # TOKEN: the read is against sky-ecosystem/next-gen-atlas, which no token
+      # issued to this repository can reach — both `github.token` and the
+      # ATLAS_BOT installation token stop at the repository that holds the
+      # workflow, and `gh pr view --json` is GraphQL, which has no anonymous
+      # path. ATLAS_PR_TOKEN is a PAT with public-repo read, the same kind of
+      # credential docs/DEPLOYMENT.md gives the worker.
+      #
+      # Degrades gracefully like the address refresh above: the warmer exits 1
+      # when a record could not be written, so a rejected token shows up as a
+      # failed step, and continue-on-error still lets the bump land.
+      - name: Cache PR metadata for the atlas commits
         if: steps.atlas.outputs.proceed == 'true'
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          pnpm history:prs "${{ steps.atlas.outputs.old_full }}" \
-            "${{ steps.atlas.outputs.new_full }}"
+          GH_TOKEN: ${{ secrets.ATLAS_PR_TOKEN }}
+        run: pnpm history:prs --all
 
       - name: Commit and push to atlas-update branch
         if: steps.atlas.outputs.proceed == 'true'
@@ -170,9 +179,10 @@ jobs:
           # address step above (no-op when ETHERSCAN_API_KEY is absent, so the
           # add is harmless then). Keeping them in the bump commit prevents
           # addresses.json from drifting out of sync with docs.json over time.
-          # .cache/github-prs holds the PR records fetched by the step above.
-          # They are committed because build:history must also run where nothing
-          # can fetch them: a `pnpm dev` preflight offline, and the canary job.
+          # .cache/github-prs holds the PR records fetched by the step above
+          # (nothing to add when that step was skipped or found none). They are
+          # committed because build:history must also run where nothing can
+          # fetch them: a `pnpm dev` preflight offline, and the canary job.
           git add vendor/next-gen-atlas graph-snapshots/__snapshots__ \
             .github/atlas-census-baseline.json .github/govops-census-baseline.json \
             .github/risk-census-baseline.json .github/concepts-census-baseline.json \
