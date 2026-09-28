@@ -149,12 +149,13 @@ jobs:
       # missing set from the files on disk, so the next hour retries the gap and
       # an already-cached PR costs one existsSync.
       #
-      # TOKEN: the read is against sky-ecosystem/next-gen-atlas, which no token
-      # issued to this repository can reach — both `github.token` and the
-      # ATLAS_BOT installation token stop at the repository that holds the
-      # workflow, and `gh pr view --json` is GraphQL, which has no anonymous
-      # path. ATLAS_PR_TOKEN is a PAT with public-repo read, the same kind of
-      # credential docs/DEPLOYMENT.md gives the worker.
+      # TOKEN: `github.token`, measured rather than assumed. The read is against
+      # sky-ecosystem/next-gen-atlas, another org's repository, and review here
+      # argued that an installation token cannot reach it. A probe on this
+      # branch says otherwise: `gh pr view --repo sky-ecosystem/next-gen-atlas
+      # --json title` returned the title, as did the REST pull and reviews
+      # endpoints. Its permissions stop at this repository for WRITES; public
+      # reads elsewhere are allowed. Run 36396641101, 2026-09-28.
       #
       # Degrades gracefully like the address refresh above: the warmer exits 1
       # when a record could not be written, so a rejected token shows up as a
@@ -163,7 +164,7 @@ jobs:
         if: steps.atlas.outputs.proceed == 'true'
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.ATLAS_PR_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: pnpm history:prs --all
 
       - name: Commit and push to atlas-update branch
