@@ -58,7 +58,7 @@ describe("applyEvent answer_final / done", () => {
 
   it("done resolves a stranded 'checking' verify so it doesn't spin forever", () => {
     const m = applyEvent(
-      baseMsg({ verify: { status: "checking", contradictions: [], notFound: [], rulingIssued: false, invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [], completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false } }),
+      baseMsg({ verify: { status: "checking", contradictions: [], rulingIssued: false, invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], paramMismatches: [], completenessFailures: [], missingExternalDisclaimer: false, mscCitedAsAtlas: [], lengthCapped: false } }),
       { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
     );
     expect(m.verify).toBeUndefined();
@@ -148,6 +148,58 @@ describe("applyEvent status", () => {
     });
     m = applyEvent(m, { type: "status", stage: "checking", detail: "again" });
     expect(m.verify?.status).toBe("pass");
+  });
+});
+
+describe("applyEvent citation_marks", () => {
+  const UUID_A = "11111111-1111-1111-1111-111111111111";
+  const UUID_B = "22222222-2222-2222-2222-222222222222";
+
+  it("sets citationMarks from the event, keyed by doc uuid", () => {
+    const m = applyEvent(baseMsg(), {
+      type: "citation_marks",
+      marks: { [UUID_A]: { status: "backed", claims: [{ claim: "X is Y", verdict: "supports" }] } },
+    });
+    expect(m.citationMarks).toEqual({
+      [UUID_A]: { status: "backed", claims: [{ claim: "X is Y", verdict: "supports" }] },
+    });
+  });
+
+  it("merges a later citation_marks onto an earlier one rather than replacing it", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "citation_marks", marks: { [UUID_A]: { status: "backed", claims: [] } } });
+    m = applyEvent(m, { type: "citation_marks", marks: { [UUID_B]: { status: "disputed", claims: [] } } });
+    expect(m.citationMarks).toEqual({
+      [UUID_A]: { status: "backed", claims: [] },
+      [UUID_B]: { status: "disputed", claims: [] },
+    });
+  });
+});
+
+describe("applyEvent answer_coverage", () => {
+  it("records the ruling on the message", () => {
+    const m = applyEvent(baseMsg(), { type: "answer_coverage", verdict: "answers", missingParts: ["when"], parts: ["who", "when"] });
+    expect(m.answerCoverage).toEqual({ verdict: "answers", missingParts: ["when"], parts: ["who", "when"] });
+  });
+
+  it("leaves `parts` off when the server sent none", () => {
+    const m = applyEvent(baseMsg(), { type: "answer_coverage", verdict: "deflects", missingParts: [] });
+    expect(m.answerCoverage).toEqual({ verdict: "deflects", missingParts: [] });
+  });
+
+  it("never replaces what is shown: a second event keeps the verdict and only adds new parts", () => {
+    let m = baseMsg();
+    m = applyEvent(m, { type: "answer_coverage", verdict: "answers", missingParts: ["when"] });
+    m = applyEvent(m, { type: "answer_coverage", verdict: "declines", missingParts: ["when", "how much"] });
+    expect(m.answerCoverage).toEqual({ verdict: "answers", missingParts: ["when", "how much"] });
+    const same = applyEvent(m, { type: "answer_coverage", verdict: "answers", missingParts: ["when"] });
+    expect(same).toBe(m);
+  });
+
+  it("survives done — done does not clear it", () => {
+    let m = applyEvent(baseMsg(), { type: "answer_coverage", verdict: "asks", missingParts: [] });
+    m = applyEvent(m, { type: "done", content: "Which set do you mean?", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] });
+    expect(m.answerCoverage?.verdict).toBe("asks");
   });
 });
 

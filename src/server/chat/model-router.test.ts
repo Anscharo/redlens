@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { routeTier, resolveTierModels, citationStyleFor, iterationsForTier } from "./model-router.ts";
+import { JEV_COMPLEXITY_THRESHOLD } from "./prefetch-judge.ts";
 import { config } from "../config.ts";
 
 describe("routeTier", () => {
@@ -75,6 +76,43 @@ describe("routeTier", () => {
 
   test("ordinary mid-size questions stay default", () => {
     expect(routeTier("How does the Stability Scope handle collateral onboarding?").tier).toBe("default");
+  });
+
+  // Fourth lane, 2026-09-22 — the one exception to "nothing runs before the
+  // first token except code" (see this file's header). Its own reason, "jev",
+  // so chat_route_reason meters it for free, same convention as "similarity".
+  describe("jevComplexity", () => {
+    const q = "How does the Stability Scope handle collateral onboarding?"; // pinned "stays default" above
+
+    test("at or above the threshold routes strong with reason jev", () => {
+      expect(routeTier(q, { jevComplexity: JEV_COMPLEXITY_THRESHOLD })).toEqual({ tier: "strong", reason: "jev" });
+      expect(routeTier(q, { jevComplexity: 0.9 }).reason).toBe("jev");
+    });
+
+    test("just below the threshold leaves the prior result untouched", () => {
+      expect(routeTier(q, { jevComplexity: JEV_COMPLEXITY_THRESHOLD - 0.01 })).toEqual({ tier: "default", reason: "default" });
+    });
+
+    test("undefined or null is a no-op — byte-identical to calling routeTier with no opts at all", () => {
+      expect(routeTier(q, { jevComplexity: undefined })).toEqual(routeTier(q));
+      expect(routeTier(q, { jevComplexity: null })).toEqual(routeTier(q));
+      // …including for every question the rest of this describe block pins.
+      expect(routeTier("What are all of the roles and positions designated by the Atlas?", { jevComplexity: null }).reason).toBe(
+        "enumeration",
+      );
+    });
+
+    test("a deterministic regex signal still wins and keeps its OWN reason, even with a high jevComplexity", () => {
+      const r = routeTier("What are all of the roles and positions designated by the Atlas?", { jevComplexity: 0.99 });
+      expect(r).toEqual({ tier: "strong", reason: "enumeration" });
+    });
+
+    test("composes with followUp — a jev fire outranks even the doc-ref fast shape", () => {
+      // "and A.2.3?" is pinned fast/doc-ref above with no jevComplexity; a
+      // high score here must still win, since the lane sits ABOVE the fast
+      // check in routeTier's own order.
+      expect(routeTier("and A.2.3?", { followUp: true, jevComplexity: 0.9 })).toEqual({ tier: "strong", reason: "jev" });
+    });
   });
 
   // Second lane. The regexes are high-precision and low-recall — measured 0 of

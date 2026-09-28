@@ -1,48 +1,41 @@
-// Offline bakeoff for the small-talk judge model (CHAT_SMALLTALK_JUDGE_MODEL).
-// Runs the SHIPPED judge path — judgeSmalltalk's prompt, parse, timeout, and
-// the production OpenRouter JsonCall — over a labeled set of marker-free
-// messages (the deterministic prefilter guarantees only such messages ever
-// reach the judge in production). Reports accuracy split by error direction:
-// a false "smalltalk" on a factual question bypasses the audit (dangerous);
-// a false "factual" on a greeting merely audits it (harmless). Usage:
-//   bun scripts/aux/eval-smalltalk-judge.ts
-import { judgeSmalltalk } from "../../src/server/chat/verify/smalltalk.ts";
-import { openrouterJson } from "../../src/server/chat/llm.ts";
+// Offline bakeoff for the small-talk judge seat (CHAT_SMALLTALK_JUDGE_MODEL).
+// Runs the SHIPPED judge path — judgeSmalltalkJev's Noul over the production
+// /systemone client — so this measures the function the server actually runs,
+// never a reimplementation. Cases: scripts/aux/eval-smalltalk-cases.ts.
+//
+// JUDGE_MODELS takes any number of Jev models, so this is still a bakeoff: it
+// is how a new Jev release gets compared against the pinned one before the
+// pin moves. The retired chat-model arm (gemma, prompted for JSON) was deleted
+// with its judge on 2026-09-22; docs/plans/jev-typesafe.md §A0 keeps its
+// numbers.
+//
+// Reports accuracy split by ERROR DIRECTION, because the two are not
+// symmetric: a false "smalltalk" on a factual question bypasses the audit
+// (DANGEROUS); a false "factual" on a greeting merely audits it (harmless).
+// The bypass is fail-closed by design, so the operating point for a
+// probability-valued arm is set from the dangerous side: the LOWEST threshold
+// at which no factual case is ruled small talk. (Lowest, not highest —
+// raising the threshold only ever removes dangerous errors, so the smallest
+// threshold that reaches zero is the one that keeps the most greeting recall.)
+//
+// Usage:  bun scripts/aux/eval-smalltalk-judge.ts
+//         JUDGE_MODELS="typesafe/jev-1.13,~typesafe/jev-latest" bun …
+import { judgeSmalltalkJev, SMALLTALK_JEV_THRESHOLD } from "../../src/server/chat/verify/smalltalk-jev.ts";
+import { config } from "../../src/server/config.ts";
+import { CASES } from "./eval-smalltalk-cases.ts";
 import fs from "node:fs";
 import path from "node:path";
 
-const MODELS = (process.env.JUDGE_MODELS ?? [
-  "google/gemma-4-31b-it",
-  "google/gemma-4-26b-a4b-it",
-  "nvidia/nemotron-3.5-lightning-20260807:nitro",
-  "openai/gpt-oss-safeguard-20b",
-].join(",")).split(",").map((s) => s.trim()).filter(Boolean);
-const PASSES = 2;
+const MODELS = (process.env.JUDGE_MODELS ?? config.chatJevModel)
+  .split(",").map((s) => s.trim()).filter(Boolean);
+const PASSES = Number(process.env.JUDGE_PASSES ?? 2);
 const CONCURRENCY = 6;
 
-// Labels follow the shipped JUDGE_PROMPT semantics: true ONLY for pure
-// conversation whose reply needs no factual content.
-const SMALLTALK: string[] = [
-  "hello", "Hi there!", "hey", "good morning", "thanks!",
-  "thank you so much, that was really helpful", "ok great", "bye",
-  "goodbye, have a nice day", "👋", "are you there?", "test",
-  "how are you?", "lol", "cool, thanks. you're pretty good at this",
-];
-const FACTUAL: string[] = [
-  "is the stability fee controlled by governance?", "does sky have a treasury?",
-  "who runs the protocol?", "what can you do?", "who are you?", "help",
-  "can you summarize the atlas?", "what is a scope?", "tell me about facilitators",
-  "how do payments work?", "is there a rewards program?",
-  "hey, quick question — who approves budgets?",
-  "thanks! also, what is an executor agent?", "yo what's the deal with multisigs",
-  "explain governance to me", "are stablecoins risky?", "should I trust this protocol?",
-  "what changed recently?", "where can I find the rules about penalties?",
-  "do facilitators get paid?", "hola, ¿qué es un scope?",
-  "how does this compare to maker?", "give me a quick overview", "what's new?",
-  "is the atlas up to date?", "any updates?", "anything interesting happen lately?",
-];
-
-interface CaseResult { q: string; expected: boolean; got: boolean; failed: boolean; latencyMs: number | null }
+interface CaseResult {
+  q: string; expected: boolean; hard: boolean;
+  got: boolean; p: number | null; failed: boolean;
+  latencyMs: number | null; costUsd: number | null;
+}
 
 async function pool<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
@@ -66,47 +59,92 @@ const quantile = (xs: number[], q: number) => {
   return s[Math.min(s.length - 1, Math.floor(q * s.length))];
 };
 
-const cases = [
-  ...SMALLTALK.map((q) => ({ q, expected: true })),
-  ...FACTUAL.map((q) => ({ q, expected: false })),
-];
+/** Counts at one decision rule, over any slice of results. */
+function tally(rs: CaseResult[], fired: (r: CaseResult) => boolean) {
+  const ok = rs.filter((r) => !r.failed);
+  const dangerous = ok.filter((r) => !r.expected && fired(r));
+  const missed = ok.filter((r) => r.expected && !fired(r));
+  const correct = ok.length - dangerous.length - missed.length;
+  return { n: ok.length, correct, dangerous, missed, factual: ok.filter((r) => !r.expected).length, small: ok.filter((r) => r.expected).length };
+}
 
+function reportSlice(label: string, rs: CaseResult[], fired: (r: CaseResult) => boolean) {
+  const t = tally(rs, fired);
+  console.log(
+    `  ${label.padEnd(12)} n=${String(t.n).padStart(3)}  accuracy ${pct(t.correct, t.n).padStart(6)}` +
+      `  DANGEROUS ${String(t.dangerous.length).padStart(2)}/${String(t.factual).padStart(3)} (${pct(t.dangerous.length, t.factual)})` +
+      `  missed-smalltalk ${String(t.missed.length).padStart(2)}/${t.small}`,
+  );
+  return t;
+}
+
+const runs = CASES.flatMap((c) => Array.from({ length: PASSES }, () => c));
 const report: Record<string, unknown> = {};
+
 for (const model of MODELS) {
-  const runs = cases.flatMap((c) => Array.from({ length: PASSES }, () => c));
   const t0 = Date.now();
   const results: CaseResult[] = await pool(runs, CONCURRENCY, async (c) => {
-    const r = await judgeSmalltalk({ call: openrouterJson, model, question: c.q });
-    return { q: c.q, expected: c.expected, got: r.smalltalk, failed: r.usage === null, latencyMs: r.latencyMs };
+    // threshold 0 keeps the raw probability meaningful for the sweep; the
+    // boolean is re-derived below at the shipped threshold.
+    const r = await judgeSmalltalkJev({ question: c.q, model, threshold: 0 });
+    return { q: c.q, expected: c.expected, hard: c.hard, got: r.smalltalk, p: r.p, failed: r.p === null, latencyMs: r.latencyMs, costUsd: r.costUsd };
   });
   const wall = Date.now() - t0;
-
   const ok = results.filter((r) => !r.failed);
-  const correct = ok.filter((r) => r.got === r.expected);
-  // Dangerous direction: judge says smalltalk on a factual question → bypass.
-  const dangerous = ok.filter((r) => !r.expected && r.got);
-  // Harmless direction: greeting ruled factual → it just gets audited.
-  const missed = ok.filter((r) => r.expected && !r.got);
   const lats = ok.map((r) => r.latencyMs!).filter((n) => n != null);
+  const cost = ok.reduce((s, r) => s + (r.costUsd ?? 0), 0);
 
   console.log(`\n=== ${model} ===`);
-  console.log(
-    `calls ${results.length} | failures ${results.length - ok.length} | accuracy ${pct(correct.length, ok.length)}` +
-      ` | DANGEROUS smalltalk-on-factual ${dangerous.length}/${PASSES * FACTUAL.length} (${pct(dangerous.length, PASSES * FACTUAL.length)})` +
-      ` | missed smalltalk ${missed.length}/${PASSES * SMALLTALK.length}`,
-  );
-  console.log(`latency p50 ${quantile(lats, 0.5)}ms | p95 ${quantile(lats, 0.95)}ms | wall ${wall}ms`);
-  const wrong = [...new Set([...dangerous, ...missed].map((r) => `${r.expected ? "[missed]" : "[DANGER]"} ${r.q}`))];
-  for (const w of wrong) console.log(`  ${w}`);
+  console.log(`calls ${results.length} | failures ${results.length - ok.length} | latency p50 ${quantile(lats, 0.5)}ms p95 ${quantile(lats, 0.95)}ms | wall ${wall}ms` + (cost ? ` | cost $${cost.toFixed(5)} ($${(cost / ok.length).toFixed(7)}/call)` : ""));
+
+  const sweep: { thr: number; dangerous: number; missed: number }[] = [];
+  let operating: number | null = null;
+  let fired: (r: CaseResult) => boolean;
+
+  {
+    // The threshold is OURS — sweep it and pick from the dangerous side.
+    for (let t = 0; t <= 1.0001; t += 0.05) {
+      const thr = Number(t.toFixed(2));
+      const s = tally(ok, (r) => (r.p ?? 0) >= thr);
+      sweep.push({ thr, dangerous: s.dangerous.length, missed: s.missed.length });
+    }
+    const clean = sweep.filter((s) => s.dangerous === 0);
+    operating = clean.length ? clean[0].thr : null;
+    console.log("  threshold sweep (dangerous / missed-smalltalk), * = SHIPPED (SMALLTALK_JEV_THRESHOLD):");
+    console.log("   " + sweep.map((s) => `${Math.abs(s.thr - SMALLTALK_JEV_THRESHOLD) < 0.025 ? "*" : ""}${s.thr.toFixed(2)}:${s.dangerous}/${s.missed}`).join("  "));
+    // The real bar: the highest probability any FACTUAL case drew. A usable
+    // threshold must sit above it, and greeting recall there is the cost.
+    const maxFactualP = Math.max(...ok.filter((r) => !r.expected).map((r) => r.p ?? 0));
+    const minSmallP = Math.min(...ok.filter((r) => r.expected).map((r) => r.p ?? 1));
+    console.log(`  separation: highest P(smalltalk) on a FACTUAL case = ${maxFactualP.toFixed(3)} | lowest on a SMALL-TALK case = ${minSmallP.toFixed(3)}` +
+      (minSmallP > maxFactualP ? "  → fully separable" : "  → OVERLAP, no threshold is clean"));
+    console.log(`  operating point (lowest threshold with 0 dangerous): ${operating === null ? "NONE — Jev loses this seat on these cases" : operating.toFixed(2)}`);
+    // Score at the SHIPPED constant, not at the point this run just fitted —
+    // the eval must measure the rule the server would actually apply
+    // (eval-census.ts's rule). The fitted point is printed above for contrast;
+    // it is in-sample, and the real held-out check is real traffic.
+    console.log(`  scoring below at the SHIPPED threshold ${SMALLTALK_JEV_THRESHOLD} (fitted point shown above for contrast — it is in-sample)`);
+    fired = (r) => (r.p ?? 0) >= SMALLTALK_JEV_THRESHOLD;
+    report[`${model}:sweep`] = { sweep, operating, shipped: SMALLTALK_JEV_THRESHOLD, maxFactualP, minSmallP };
+  }
+
+  const all = reportSlice("ALL", ok, fired);
+  reportSlice("base(42)", ok.filter((r) => !r.hard), fired);
+  reportSlice("HARD", ok.filter((r) => r.hard), fired);
+
+  const wrong = [...new Set([...all.dangerous, ...all.missed].map((r) => `${r.expected ? "[missed]" : "[DANGER]"} ${r.hard ? "(hard) " : ""}${r.q}${r.p === null ? "" : ` p=${r.p.toFixed(2)}`}`))].sort();
+  for (const w of wrong) console.log(`    ${w}`);
   if (results.length - ok.length > 0) {
     const failedQs = [...new Set(results.filter((r) => r.failed).map((r) => r.q))];
     console.log(`  [call-failures] ${failedQs.slice(0, 5).join(" | ")}${failedQs.length > 5 ? " …" : ""}`);
   }
+
   report[model] = {
     calls: results.length, failures: results.length - ok.length,
-    accuracy: ok.length ? correct.length / ok.length : null,
-    dangerousFalsePositives: dangerous.length, missedSmalltalk: missed.length,
-    p50: quantile(lats, 0.5), p95: quantile(lats, 0.95), wallMs: wall,
+    accuracy: all.n ? all.correct / all.n : null,
+    dangerousFalsePositives: all.dangerous.length, missedSmalltalk: all.missed.length,
+    operatingThreshold: operating,
+    p50: quantile(lats, 0.5), p95: quantile(lats, 0.95), wallMs: wall, costUsd: cost || null,
     wrong, results,
   };
 }

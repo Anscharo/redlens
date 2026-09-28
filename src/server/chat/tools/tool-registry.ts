@@ -48,7 +48,71 @@ export interface AtlasTool extends DescribedTool {
   whenToUse?: string;
   shape: z.ZodRawShape;
   annotations?: ToolAnnotations;
+  // Read "" / [] / [""] / null arguments as absent. invokeTool() applies this
+  // for EVERY consumer, so a handler never has to strip its own arguments; the
+  // chat transport additionally strips before zod, because an optional field
+  // rejects null and the shape is checked before invokeTool is reached.
+  emptyArgsAbsent?: boolean;
   handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
+}
+
+// A model that fills EVERY declared property — the strong tier's does, on every
+// tool (pnpm eval:tools, 2026-09-22) — writes "" / [] / [""] for the ones it
+// means to leave out. None of those is ever a meaningful filter value, yet
+// `ids: [""]` beside a class filter tripped atlas_first_seen's "not both" error
+// on 12 of that model's 15 calls, and `edge_types: [""]` would intersect an
+// entity's docs to nothing. Blank array elements are dropped with the rest;
+// numbers and booleans pass through untouched (0 and false are real values).
+export function omitEmptyArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const blank = (v: unknown) => v === null || v === undefined || (typeof v === "string" && v.trim() === "");
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(args)) {
+    if (blank(v)) continue;
+    if (Array.isArray(v)) {
+      const kept = v.filter((x) => !blank(x));
+      if (kept.length) out[k] = kept;
+      continue;
+    }
+    out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * The ONE place a tool's arguments meet its handler. Both transports call it —
+ * chat (llm-tools.ts) and MCP (server/mcp.ts) — so `emptyArgsAbsent` is honoured
+ * once here instead of per handler, and a tool cannot opt in for chat while the
+ * MCP surface reads its blanks as real filters. That split was live until
+ * 2026-09-28: four of the seven opted-in tools stripped only in the chat
+ * transport, so an MCP client sending `type: ""` had it intersected to nothing.
+ *
+ * Only OPTIONAL properties are stripped. "An empty value is not a filter" is a
+ * statement about filters; a REQUIRED property's blank is the caller's problem
+ * and the handler already reports it (`commit_a '' not found in history`).
+ * Dropping it instead hands the handler an absent argument its own contract says
+ * cannot be absent — `atlas_changed_between` threw on `opts.commit_a.slice`
+ * rather than answering. The chat transport never showed this because it strips
+ * BEFORE zod, so a missing required key becomes a clean "invalid tool
+ * arguments"; MCP's SDK validates first and `""` passes, so there is nothing
+ * left to catch it. A key the shape does not declare is stripped like an
+ * optional one: only an explicitly required property is restored, and zod drops
+ * undeclared keys anyway, so no handler can be relying on one.
+ *
+ * Typed structurally rather than as AtlasTool so ExternalTool passes too; it
+ * declares no `emptyArgsAbsent`, so its args are handed over untouched.
+ */
+export function invokeTool<T extends { emptyArgsAbsent?: boolean; shape: z.ZodRawShape; handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult> }>(
+  ix: Indexes,
+  tool: T,
+  args: Record<string, unknown>,
+): ToolResult | Promise<ToolResult> {
+  if (!tool.emptyArgsAbsent) return tool.handler(ix, args);
+  const stripped = omitEmptyArgs(args);
+  for (const k of Object.keys(args)) {
+    if (k in stripped) continue;
+    if (tool.shape[k]?.isOptional() === false) stripped[k] = args[k];
+  }
+  return tool.handler(ix, stripped);
 }
 
 // Combines `description` + `whenToUse` for the two AGENT consumers (chat's JSON
@@ -243,6 +307,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       limit: z.number().int().min(1).max(500).default(100),
       offset: z.number().int().min(0).default(0),
     },
+    // from_type/to_type are optional enums with no default — the shape a
+    // property-filling model cannot leave blank. An invented `from_type:
+    // "doc"` drops every entity-side edge, which is most of what this tool
+    // exists to enumerate.
+    emptyArgsAbsent: true,
     handler: (ix, a) =>
       atlasEdges(ix, {
         edge_type: a.edge_type as string | undefined,
@@ -302,6 +371,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       offset: z.number().int().min(0).default(0),
       include_content: z.boolean().default(false).describe("Include full content. Default false for slim listing rows."),
     },
+    // depth_min/depth_max are optional integers with no default, so a model
+    // that fills every property has no way to say "no depth range" — it
+    // invents one, and every document outside it silently stops matching on a
+    // tool whose whole job is a COMPLETE class listing.
+    emptyArgsAbsent: true,
     handler: (ix, a) => atlasFilter(ix, a as Parameters<typeof atlasFilter>[1]),
   },
   {
@@ -360,6 +434,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       with_diff: z.boolean().default(false).describe("Include line+word diffs in the response."),
     },
     handler: (ix, a) => atlasHistory(ix, a.id as string, a as Parameters<typeof atlasHistory>[2]),
+    // Same treatment as atlas_query (2026-09-23): the strong model fills every
+    // declared property, and an optional enum has no empty value — so it wrote a
+    // real change_type nobody asked for. `null` gives it a way to say "unset",
+    // and empty strings are read as absent.
+    emptyArgsAbsent: true,
   },
   {
     name: "atlas_recent_changes",
@@ -376,6 +455,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       k: z.number().int().min(1).max(200).default(50),
     },
     handler: (ix, a) => atlasRecentChanges(ix, a as Parameters<typeof atlasRecentChanges>[1]),
+    // Same treatment as atlas_query (2026-09-23): the strong model fills every
+    // declared property, and an optional enum has no empty value — so it wrote a
+    // real change_type nobody asked for. `null` gives it a way to say "unset",
+    // and empty strings are read as absent.
+    emptyArgsAbsent: true,
   },
   {
     name: "atlas_history_stats",
@@ -441,6 +525,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       limit: z.number().int().min(1).max(500).default(100),
     },
     handler: (ix, a) => atlasChangedBetween(ix, a as Parameters<typeof atlasChangedBetween>[1]),
+    // Same treatment as atlas_query (2026-09-23): the strong model fills every
+    // declared property, and an optional enum has no empty value — so it wrote a
+    // real change_type nobody asked for. `null` gives it a way to say "unset",
+    // and empty strings are read as absent.
+    emptyArgsAbsent: true,
   },
   {
     name: "atlas_first_seen",
@@ -473,6 +562,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
         .optional()
         .describe("Class mode only. `added` (default) = earliest added row; `modified` = earliest content edit."),
     },
+    emptyArgsAbsent: true,
     handler: (ix, a) => atlasFirstSeen(ix, a as Parameters<typeof atlasFirstSeen>[1]),
   },
   {
@@ -488,6 +578,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "are intersected. Use instead of chaining atlas_search + atlas_get when the question spans dimensions. " +
       "Lean results by default — see `enrich`.",
     shape: atlasQueryShape,
+    emptyArgsAbsent: true,
     handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
   },
   // ── Curated reports (atlas_report_*) ──────────────────────────────────────

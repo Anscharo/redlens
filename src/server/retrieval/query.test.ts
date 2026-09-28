@@ -324,6 +324,34 @@ describe("zero results with filters applied", () => {
     expect(String(out.hint)).toContain("retry without these arguments");
   });
 
+  // Measured 2026-09-23 on the strong tier: every invalid `target_type` /
+  // `edge_types` value emptied its search, and because those filters were not
+  // in the diagnostic the caller got a bare count:0 and reported the atlas
+  // silent. The value is named as impossible, not merely "applied".
+  it("drops an impossible target_type, still returns results, and says it was ignored", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { query: "spark", target_type: "Instance", k: 10, enrich: false })) as Record<string, unknown>;
+    expect((out.invalid_filter_values as string[])[0]).toContain("Instance");
+    expect(String(out.hint)).toContain("IGNORED");
+    expect(out.count).not.toBe(0); // the search itself still ran
+  });
+
+  it("names an invented edge type the same way", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, {
+      query: "spark", entity: "spark", edge_types: ["not_a_real_edge"], k: 10, enrich: false,
+    })) as Record<string, unknown>;
+    expect(String(out.hint)).toContain("not an edge type");
+  });
+
+  it("stays quiet about a VALID target_type that simply matched nothing", async () => {
+    const { ix } = buildFixture();
+    const out = (await atlasQuery(ix, { query: "zzzznotarealterm", target_type: "Core", k: 10, enrich: false })) as Record<string, unknown>;
+    expect(out.count).toBe(0);
+    expect(out.invalid_filter_values).toBeUndefined();
+    expect(String(out.hint ?? "")).not.toContain("is not a document type");
+  });
+
   it("stays silent when a query legitimately finds nothing with no filters", async () => {
     const { ix } = buildFixture();
     const out = (await atlasQuery(ix, { query: "zzzznotarealterm", k: 10, enrich: false })) as Record<string, unknown>;

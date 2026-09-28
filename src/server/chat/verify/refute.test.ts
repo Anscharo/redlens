@@ -1,7 +1,7 @@
 // Refute-slice unit tests: prompt shape, parsing, and the code backstop
 // (validateContradictions) that re-checks both spans before a candidate can
 // ever reach the confirm gate.
-import { describe, test, expect } from "bun:test";
+import { test, expect } from "bun:test";
 import { buildRefutePrompt, parseRefute, validateContradictions, REFUTE_PROMPT } from "./refute.ts";
 import type { EvidenceEntry } from "./verifier.ts";
 
@@ -33,7 +33,7 @@ test("buildRefutePrompt lists no evidence gracefully", () => {
   expect(String(user.content)).toContain("no tools were called");
 });
 
-test("parseRefute salvages fenced JSON, drops rows missing a span, caps not_found at 5", () => {
+test("parseRefute salvages fenced JSON and drops rows missing a span", () => {
   const text = [
     "```json",
     JSON.stringify({
@@ -42,7 +42,6 @@ test("parseRefute salvages fenced JSON, drops rows missing a span, caps not_foun
         { answer_span: "no evidence span here", why: "missing evidence_span" }, // dropped
         { evidence_span: "no answer span", why: "missing answer_span" }, // dropped
       ],
-      not_found: ["a", "b", "c", "d", "e", "f", "g"],
       notes: "n",
     }),
     "```",
@@ -50,7 +49,6 @@ test("parseRefute salvages fenced JSON, drops rows missing a span, caps not_foun
   const parsed = parseRefute(text)!;
   expect(parsed.contradictions).toHaveLength(1);
   expect(parsed.contradictions[0].answer_span).toBe("X is 5");
-  expect(parsed.notFound).toHaveLength(5);
   expect(parsed.notes).toBe("n");
 });
 
@@ -139,18 +137,22 @@ test("validateContradictions: an unlocatable answer_span is discarded even when 
   expect(discarded).toBe(1);
 });
 
-describe("validateNotFound", () => {
-  const evidence = [
-    { label: "[E1]", tool: "atlas_get", args: "{}", content: JSON.stringify({ content: "The Sky Savings Rate (\"SSR\") is the rate that USDS holders can earn on their USDS within the Sky Savings Rate smart contracts." }) },
-  ];
-  test("drops an entry the evidence covers, and a bare topic that is not a statement", async () => {
-    const { validateNotFound } = await import("./refute.ts");
-    expect(validateNotFound(["the savings rate"], evidence)).toEqual([]); // topic, and covered
-    expect(validateNotFound(["USDS holders can earn the rate within the Sky Savings Rate smart contracts"], evidence)).toEqual([]); // covered
+test("buildRefutePrompt marks change-log evidence so the judge cannot read it as atlas text", () => {
+  const [system, user] = buildRefutePrompt({
+    question: "q",
+    answer: "a",
+    evidence: [{ label: "[E1]", tool: "atlas_history", args: "{}", content: '[{"pr":"#336"}]', sourceClass: "history" }],
   });
-  test("keeps a full statement the evidence genuinely does not cover", async () => {
-    const { validateNotFound } = await import("./refute.ts");
-    const claim = "Aligned Delegates are paid a fixed retainer from the Accessibility Reserve every quarter";
-    expect(validateNotFound([claim], evidence)).toEqual([claim]);
-  });
+  expect(String(user.content)).toContain("[E1] [CHANGE LOG, not Atlas text]");
+  expect(String(system.content)).toContain("WHEN a document changed, never what it says");
+});
+
+// The load-bearing half. A line added to the shared prompt reaches every turn,
+// and a second instruction can move a verdict on answers it has nothing to do
+// with. History evidence is 1 record in 568 across the eval corpora, so the
+// rule is injected only where it applies and the prompt is otherwise identical.
+test("a turn with no change-log evidence gets the prompt byte-for-byte unchanged", () => {
+  const [system] = buildRefutePrompt({ question: "q", answer: "a", evidence: [ev("some atlas text", "atlas")] });
+  expect(system.content).toBe(REFUTE_PROMPT);
+  expect(String(system.content)).not.toContain("CHANGE LOG");
 });
