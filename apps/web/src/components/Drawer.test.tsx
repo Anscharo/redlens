@@ -134,6 +134,54 @@ describe("Drawer", () => {
     expect(drawerDiv.style.width).toBe("250px");
   });
 
+  it("collapses when the docked chat leaves less than the breakpoint beside it", () => {
+    stubMatchMedia(false);
+    const prevWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: 1400 });
+    document.body.classList.add("rlc-anchored");
+    const shell = document.createElement("div");
+    shell.className = "app-shell";
+    shell.style.paddingRight = "700px";
+    document.body.appendChild(shell);
+    try {
+      render(
+        <Drawer open onClose={() => {}} breakpoint={1050}>
+          <p>sidebar content</p>
+        </Drawer>,
+      );
+      // 1400 − 700 = 700, under the 1050 tree breakpoint, even though the
+      // viewport media query itself does not match.
+      expect(document.querySelector(".fixed.inset-0")).toBeInTheDocument();
+    } finally {
+      shell.remove();
+      document.body.classList.remove("rlc-anchored");
+      Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: prevWidth });
+    }
+  });
+
+  it("stays in the page when the docked chat still leaves room past the breakpoint", () => {
+    stubMatchMedia(false);
+    const prevWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: 1400 });
+    document.body.classList.add("rlc-anchored");
+    const shell = document.createElement("div");
+    shell.className = "app-shell";
+    shell.style.paddingRight = "200px";
+    document.body.appendChild(shell);
+    try {
+      render(
+        <Drawer open onClose={() => {}} breakpoint={1050}>
+          <p>sidebar content</p>
+        </Drawer>,
+      );
+      expect(document.querySelector(".fixed.inset-0")).toBeNull();
+    } finally {
+      shell.remove();
+      document.body.classList.remove("rlc-anchored");
+      Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: prevWidth });
+    }
+  });
+
   it("reacts to a matchMedia change event (resize crossing the breakpoint)", () => {
     const mm = stubMatchMedia(false);
     render(

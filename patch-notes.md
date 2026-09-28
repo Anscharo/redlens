@@ -35,6 +35,7 @@
 
 
 ## 2026-09-28
+- Added a drag handle on the docked chat so it can be widened up to 55% of the window, and the sidebars fold so the open document stays readable
 - Reorganised the search help page into categories and dropped the rarely used hints
 - Chat answers now put a double check on a source when the check is sure the document states the citing lines, mark a source with ! when it says otherwise, and say when a reply didn't answer the question or skipped part of it
 - Source checks and disputed statements now stay on a chat answer after a reload, and you can ask the chat about a statement it flagged
