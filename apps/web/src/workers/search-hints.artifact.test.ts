@@ -11,7 +11,7 @@
 // Runs the genuine worker over the REAL built artifacts (not the fixtures
 // search.worker.test.ts uses), because the point is whether these queries hit
 // THIS atlas, not whether the operators parse.
-import { describe, it, expect, afterEach, beforeAll, vi } from "vitest";
+import { describe, it, expect, afterAll, beforeAll, vi } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { installWorkerGlobal, stubFetch, type WorkerHarness } from "../test/workerGlobal";
@@ -34,28 +34,34 @@ beforeAll(() => {
   addresses = JSON.parse(readFileSync(resolve("public/addresses.json"), "utf8"));
 });
 
+// ONE worker for the whole file: the index is 3.7MB and reloading it per
+// example would dominate the run. This also matches how the app uses it —
+// one long-lived worker answering many queries.
 let harness: WorkerHarness | null = null;
+let queryId = 0;
 
-afterEach(() => {
+beforeAll(async () => {
+  harness = installWorkerGlobal("");
+  stubFetch({ "search-index.json": indexJson });
+  vi.resetModules();
+  await import("./search.worker.ts");
+  harness.dispatch({ type: "preload", docs, addresses });
+  await harness.waitFor((m) => m.type === "ready", 60000);
+}, 120000);
+
+afterAll(() => {
   harness?.restore();
   harness = null;
   vi.unstubAllGlobals();
   vi.resetModules();
 });
 
-let queryId = 0;
-
 async function search(q: string): Promise<SearchHit[]> {
-  const h = installWorkerGlobal("");
-  harness = h;
-  stubFetch({ "search-index.json": indexJson });
-  vi.resetModules();
-  await import("./search.worker.ts");
-  h.dispatch({ type: "preload", docs, addresses });
-  await h.waitFor((m) => m.type === "ready", 30000);
+  const h = harness!;
   const id = ++queryId;
+  const from = h.posted.length;
   h.dispatch({ type: "query", id, q });
-  const msg = await h.waitFor((m) => m.type === "results" && m.id === id, 30000);
+  const msg = await h.waitFor((m) => m.type === "results" && m.id === id, 30000, from);
   return msg.hits as SearchHit[];
 }
 
