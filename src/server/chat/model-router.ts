@@ -1,13 +1,27 @@
 // Rules-based per-turn model routing. Classifies the user's message into a
-// tier from free deterministic signals only — never a model pre-flight call,
-// same principle as the harness's escalation gate: nothing runs before the
-// first token except code. Tiers resolve to an OpenRouter model chain
-// (primary + fallbacks); unset tier slots inherit the default chain, so with
-// no env configured routing is a no-op and CHAT_MODEL behaves as before.
+// tier from free deterministic signals plus two cheap embedding lanes — never
+// a model pre-flight call, same principle as the harness's escalation gate:
+// nothing runs before the first token except code. Tiers resolve to an
+// OpenRouter model chain (primary + fallbacks); unset tier slots inherit the
+// default chain, so with no env configured routing is a no-op and CHAT_MODEL
+// behaves as before.
+//
+// ONE exception to "nothing runs before the first token except code",
+// decided 2026-09-22 (docs/plans/jev-typesafe.md, "Research round 2026-09-22
+// — prefetch gating"): chat.ts may run exactly one Jev request ahead of this
+// function, under a hard 600ms deadline (config.chatPrefetchJudgeDeadlineMs),
+// and pass its complexity score in as `jevComplexity`. A late, failed, or
+// disabled judge means `jevComplexity` is undefined/null and this function
+// behaves byte-identically to before the exception existed. The earlier
+// pre-flight planner was dropped for taxing every turn 1.5-4s; this adds
+// ≤600ms worst case — measured p50 373ms / p95 553ms / max 726ms on 145 real
+// dev messages (live latency unmeasured). See prefetch-judge.ts for the
+// request and JEV_COMPLEXITY_THRESHOLD for the operating point.
 import { config } from "../config.ts";
 import type { CitationStyle } from "./system-prompt.ts";
 import { looksComplex } from "./complexity.ts";
 import { EXTREMUM_Q_RE } from "./verify/completeness.ts";
+import { JEV_COMPLEXITY_THRESHOLD } from "./prefetch-judge.ts";
 
 export type ModelTier = "fast" | "default" | "strong";
 
@@ -55,7 +69,7 @@ const STRONG_SIGNALS: [RegExp, string][] = [
   [EXTREMUM_Q_RE, "extremum"],
 ];
 
-export function routeTier(question: string, opts: { followUp?: boolean } = {}): Route {
+export function routeTier(question: string, opts: { followUp?: boolean; jevComplexity?: number | null } = {}): Route {
   const q = question.trim();
   for (const [re, reason] of STRONG_SIGNALS) {
     if (re.test(q)) return { tier: "strong", reason };
@@ -72,6 +86,15 @@ export function routeTier(question: string, opts: { followUp?: boolean } = {}): 
   // Its own `reason` so PostHog's chat_route_reason meters the lane's fire rate
   // with no new instrumentation. No-op when CHAT_FACT_SIMILARITY=0.
   if (looksComplex(q)) return { tier: "strong", reason: "similarity" };
+
+  // Third lane, OR'd with the two above — see this file's header for the
+  // exception it is. `jevComplexity` is undefined/null on every turn where
+  // the pre-flight judge didn't run, was late, or failed, so this branch is a
+  // pure no-op then. reason "jev" meters the lane in chat_route_reason for
+  // free, same as "similarity" above.
+  if (opts.jevComplexity != null && opts.jevComplexity >= JEV_COMPLEXITY_THRESHOLD) {
+    return { tier: "strong", reason: "jev" };
+  }
 
   // Fast only for clearly-scoped short lookups. A terse follow-up without a doc
   // reference stays default — its brevity leans on conversation context, not on
