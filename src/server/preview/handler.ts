@@ -5,8 +5,9 @@
 //   GET /:sha/diff.json        added/changed doc ids vs current main
 //   GET /:sha/<artifact>.json  allowlisted bundle artifact
 //   GET /list                  public listing (no private rows, ever)
-//   GET /mine?shas=…           session-scoped listing for the caller's own shas,
-//                              private rows included once access is authorized
+//   GET /mine?shas=…           the caller's own previews: their account history
+//                              plus the shas their browser remembers, with
+//                              private rows released only once access is authorized
 
 import fs from "node:fs";
 import path from "node:path";
@@ -29,9 +30,19 @@ import {
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
 import { previewPaths, artifactPath, bundleReady, readMeta, writeMeta, touch, remove as removeBundle, type PreviewMeta } from "./cache.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
-import { getPreviewRow, touchPreview, isBlockedSha, listPreviews, listPreviewsByShas, type PreviewRow } from "./db.ts";
+import {
+  getPreviewRow,
+  touchPreview,
+  isBlockedSha,
+  listPreviews,
+  listPreviewsByShas,
+  listPreviewOpens,
+  recordPreviewOpen,
+  type PreviewRow,
+} from "./db.ts";
 import { fillPrivateDiffBaseOnOpen } from "./diff-base-backfill.ts";
 import { authorizePreviewAccess } from "./access.ts";
+import { getSessionUser } from "../session.ts";
 import { appInstallUrl } from "./github-app.ts";
 
 const SHA_RE = /^[0-9a-f]{40}$/i;
@@ -276,6 +287,20 @@ export function syncBroadGrantMeta(
   return next;
 }
 
+/** Record a signed-in visitor's open against their ACCOUNT, so /preview's recent
+ *  list follows them to their next browser. Anonymous visitors get nothing here —
+ *  their localStorage record (previewLocal.ts) is the only one, by design.
+ *
+ *  Called once per `ready`, which is the earliest point that is true: the sha is
+ *  resolved, the takedown check has passed, a private repo has been authorized,
+ *  and the build (which upserts the previews row this later JOINs to) is done.
+ *  Exported for the test that drives it without an SSE stream. */
+export async function rememberPreviewOpen(req: Request, previewId: string, sha: string): Promise<void> {
+  const session = await getSessionUser(req);
+  if (!session) return;
+  await recordPreviewOpen(session.user.id, previewId, sha);
+}
+
 // Returns the unsubscribe fn for the SSE stream (noop if it terminated synchronously).
 async function drive(req: Request, rawId: string, ip: string, send: (ev: PreviewEvent) => void): Promise<() => void> {
   if (rateLimited(ip)) {
@@ -319,6 +344,14 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     }
   }
   const sha = r.sha;
+  // Every `ready` this stream emits — from the cached bundle below or from a
+  // build — is an open by this visitor, so route them all through one wrapper
+  // rather than remembering to record at each site. Fire-and-forget: the
+  // account history must never delay, or fail, opening a preview.
+  const sendRecording = (ev: PreviewEvent) => {
+    if (ev.phase === "ready") void rememberPreviewOpen(req, rawId, sha).catch(() => {});
+    send(ev);
+  };
   // Admin takedown: a blocked sha neither serves its cached bundle nor rebuilds.
   if (await isBlockedSha(sha).catch(() => false)) {
     removeBundle(sha);
@@ -339,7 +372,7 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     const meta = readMeta(sha);
     if ((r.prBase && !meta?.prBase) || (r.defaultBranch && !meta?.defaultBranch && !meta?.prBase)) {
       getOrStartBuild(r);
-      return subscribeBuild(sha, send);
+      return subscribeBuild(sha, sendRecording);
     }
     // Banner-only: keep ACCESS in sync with the live install without a rebuild.
     // `authRequired` is the tell that r came from resolvePrivateBranch this
@@ -354,11 +387,11 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     // Disk wiped → the rebuild below records the diff base. Disk still here
     // and the row predates the columns → fill it without making this open wait.
     if (r.private) fillPrivateDiffBaseOnOpen(r, meta);
-    send({ phase: "ready", sha });
+    sendRecording({ phase: "ready", sha });
     return () => {};
   }
   getOrStartBuild(r);
-  return subscribeBuild(sha, send);
+  return subscribeBuild(sha, sendRecording);
 }
 
 // Resolve serveability + privacy for a sha-keyed response. Gating on bundleReady
@@ -442,16 +475,27 @@ async function artifactResponse(req: Request, sha: string, name: string): Promis
 }
 
 // GET /api/preview/mine?shas=<comma-separated 40-hex> — backs the /preview
-// index's "my recent previews" tab. The browser sends the shas its localStorage
-// remembers and gets back the rows for THOSE shas only; it never asks for, and
-// can never be handed, a list of what other people have previewed.
+// index's "my recent previews" tab. TWO sources, unioned:
+//
+//   the ACCOUNT — every preview this signed-in visitor has opened, on any
+//     device (preview_opens, written at `ready` below). This is the one a
+//     logged-in person expects: their history follows the account, not a
+//     browser profile.
+//   the BROWSER — the shas its localStorage sent. Still load-bearing: it is the
+//     whole story for an anonymous visitor, and for a signed-in one it covers
+//     what they opened before the account history existed or while logged out.
+//
+// Either way it only ever answers for previews the CALLER opened; it never
+// asks for, and can never be handed, a list of what other people have previewed.
 //
 // This is the one listing that discloses private previews, so it is gated the
 // same way the sha-keyed bundle routes are: a private row is emitted only after
 // authorizePreviewAccess says THIS visitor may see that repo (fail-closed —
 // "login-required"/"forbidden"/"unavailable" all drop the row silently, so a
-// caller guessing shas can't tell "no such preview" from "not yours"). Public
-// rows need no check: they are already served by /list to anyone.
+// caller guessing shas can't tell "no such preview" from "not yours"). That
+// re-check matters most on the account path, where the open may predate a
+// revoked collaborator grant by weeks. Public rows need no check: they are
+// already served by /list to anyone.
 //
 // A sha the caller doesn't know is unguessable, and one it does know it already
 // holds — so accepting a sha list adds no disclosure of its own.
@@ -467,14 +511,20 @@ async function minePreviews(req: Request): Promise<Response> {
         .filter((s) => SHA_RE.test(s)), // anything else is dropped, not 400'd: one stale entry must not blank the list
     ),
   ].slice(0, MINE_MAX_SHAS);
-  if (shas.length === 0) return json([], 200, PRIVATE_HEADERS);
+  const session = await getSessionUser(req).catch(() => null);
+  if (shas.length === 0 && !session) return json([], 200, PRIVATE_HEADERS);
 
-  let rows: PreviewRow[];
-  try {
-    rows = await listPreviewsByShas(shas);
-  } catch {
-    return json([], 200, PRIVATE_HEADERS); // same soft-fail as /list — a DB hiccup empties the tab, it doesn't error it
-  }
+  // Each source soft-fails on its own: a DB hiccup on one must not blank the
+  // other, and neither ever turns into an error the tab has to render.
+  const [opens, byShas] = await Promise.all([
+    session ? listPreviewOpens(session.user.id).catch(() => []) : Promise.resolve([]),
+    shas.length > 0 ? listPreviewsByShas(shas).catch(() => []) : Promise.resolve([]),
+  ]);
+  // No cross-source dedup: an account row carries the preview_id it was opened
+  // under, a browser row doesn't, and the same sha can legitimately have been
+  // opened under two ids (`pull-346` and its bare commit). The client keys by
+  // id, so a duplicated sha costs one row of JSON and loses nothing.
+  const rows: PreviewRow[] = [...opens, ...byShas];
 
   const out: PreviewRow[] = [];
   // Memoized per repo: several previews of one private repo (every push makes a

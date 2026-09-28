@@ -16,8 +16,12 @@ import "@testing-library/jest-dom/vitest";
 // The private-repo form (and the profile button) are gated on usersEnabled(),
 // which is compiled off in the vitest build (__USERS_ENABLED__ = false). Mock it
 // so we can drive both states: `h.usersOn` toggles it per test.
-const h = vi.hoisted(() => ({ usersOn: false }));
+const h = vi.hoisted(() => ({ usersOn: false, user: null as { id: string } | null }));
 vi.mock("../../lib/usersEnabled", () => ({ usersEnabled: () => h.usersOn }));
+// PreviewHome reads useAuth() to know whether there is an account history to ask
+// for (and to word the empty state). The real hook needs an AuthProvider + a
+// /api/auth/me round trip; `h.user` drives it directly instead.
+vi.mock("../chat/auth", () => ({ useAuth: () => ({ user: h.user, loading: false }) }));
 // ProfileButton needs an AuthProvider (supplied by main.tsx in production, not in
 // this isolated render); stub it — these tests are about the private form, not it.
 vi.mock("../chat/ProfileButton", () => ({ ProfileButton: () => null }));
@@ -50,6 +54,7 @@ function mockList(rows: unknown[]) {
 beforeEach(() => {
   localStorage.clear();
   h.usersOn = false;
+  h.user = null;
   mockList([]);
 });
 afterEach(() => {
@@ -57,6 +62,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
   h.usersOn = false;
+  h.user = null;
 });
 
 describe("PreviewHome recent list (AND-semantics)", () => {
@@ -98,7 +104,7 @@ describe("PreviewHome recent list (AND-semantics)", () => {
     expect(url).not.toContain("api/preview/list");
   });
 
-  it("makes no request at all when this browser has opened nothing", async () => {
+  it("makes no request at all when this browser has opened nothing and nobody is signed in", async () => {
     mockList([]);
     render(<PreviewHome />);
     await screen.findByPlaceholderText(/Paste a next-gen-atlas/);
@@ -115,6 +121,39 @@ describe("PreviewHome recent list (AND-semantics)", () => {
     expect(await screen.findByText("my recent previews · 1")).toBeInTheDocument();
     expect(screen.getByText("acme:secret-atlas:main")).toBeInTheDocument();
     expect(screen.getByText("private · 12 docs")).toBeInTheDocument();
+  });
+
+  it("lists a signed-in account's opens even when this browser has no record of them", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    // Nothing in localStorage: this is the other-browser case the account history exists for.
+    mockList([
+      dbRow({ sha: "ccc", pr_title: "Opened elsewhere", pr_author: "me", doc_count: 3, preview_id: "pull-7", opened_at: "2026-09-20T00:00:00Z" }),
+    ]);
+    render(<PreviewHome />);
+
+    expect(await screen.findByText("my recent previews · 1")).toBeInTheDocument();
+    expect(screen.getByText("pull-7")).toBeInTheDocument();
+    expect(screen.getByText("Opened elsewhere")).toBeInTheDocument();
+    // Signed in, the list spans browsers — the empty-state promise must not say otherwise.
+    expect(screen.queryByText(/No previews opened/)).toBeNull();
+  });
+
+  it("asks the server even with an empty localStorage when signed in, and not when signed out", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    mockList([]);
+    render(<PreviewHome />);
+    await screen.findByPlaceholderText(/Paste a next-gen-atlas/);
+    expect(String(vi.mocked(globalThis.fetch).mock.calls[0]![0])).toContain("api/preview/mine?shas=");
+  });
+
+  it("words the empty state for the account, not the browser, when signed in", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    mockList([]);
+    render(<PreviewHome />);
+    expect(await screen.findByText("No previews opened yet.")).toBeInTheDocument();
   });
 
   it("shows an empty recent tab (no count) when there's no intersection", async () => {

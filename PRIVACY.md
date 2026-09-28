@@ -48,6 +48,10 @@ If you sign in, the following is stored against your account.
 - **Usage and costs** — token counts and the AI cost of your chats, used for
   fair-use limits and to understand running costs.
 - **Saved Collections** — any lists of atlas documents you choose to save.
+- **Previews you open** — for each atlas preview you open while signed in, the
+  pull request, branch or repository it names and when you last opened it. We
+  keep this so the Preview page can show you your recent previews on any
+  browser you sign in from, instead of only the one you opened them in.
 
 We do **not** sell your data, show you ads, or use it to build an advertising
 profile.
@@ -83,20 +87,22 @@ each one needs.
 ## 5. How long we keep data
 
 Anonymous analytics is retained by our analytics provider on a rolling basis.
-Account details, chats, and Collections are kept until you delete them (see
-section 6). Feedback is kept for as long as the issue it reports is useful to
+Account details, chats, Collections, and your list of opened previews are kept
+until you delete them (see section 6). Feedback is kept for as long as the issue it reports is useful to
 us.
 
 ## 6. Your choices and rights
 
 - **Delete your account and data** — open your profile menu and go to
   **Preferences → Delete account**. This permanently deletes your account along
-  with all of your chats and Collections. Any feedback you sent is unlinked from
+  with all of your chats, Collections, and your list of opened previews. Any feedback you sent is unlinked from
   your account rather than deleted, so the bug reports stay usable — once
   unlinked it is no longer connected to you. If you want a feedback message
   removed outright, contact us (section 8).
-- You can use the atlas reader without signing in at all; the chatbot and saved
-  Collections are the only features that need an account.
+- You can use the atlas reader without signing in at all; the chatbot, saved
+  Collections, and previews of private repositories are the only features that
+  need an account. Previews you open without signing in are remembered by your
+  browser alone and are never linked to an account.
 
 ## 7. Changes
 

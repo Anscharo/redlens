@@ -29,6 +29,12 @@ describe("PreviewPrTabs recent tab", () => {
     expect(screen.getByText("No previews opened in this browser yet.")).toBeInTheDocument();
   });
 
+  it("words the empty state for the account when the list is account-scoped", () => {
+    render(<PreviewPrTabs entries={[]} accountScoped />);
+    // Signed in the list spans browsers, so the browser-scoped promise would be wrong.
+    expect(screen.getByText("No previews opened yet.")).toBeInTheDocument();
+  });
+
   it("lists entries with title, id, and detail, and links to the preview gate", () => {
     const entries: Entry[] = [{ id: "pull-42", title: "Fix typo", detail: "3 docs", at: 1 }];
     render(<PreviewPrTabs entries={entries} />);

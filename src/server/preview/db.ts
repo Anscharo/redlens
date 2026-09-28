@@ -164,6 +164,48 @@ export async function listPreviewsByShas(shas: readonly string[]): Promise<Previ
   `) as PreviewRow[];
 }
 
+/** An account-recorded open, joined to its preview row. `preview_id` is what the
+ *  visitor actually opened (and what the index links back to); `opened_at` is
+ *  their own last open of it, which is what the list sorts on — NOT the row's
+ *  last_access, which anyone's visit moves. */
+export interface PreviewOpenRow extends PreviewRow {
+  preview_id: string;
+  opened_at: string;
+}
+
+/** Remember that `userId` opened `previewId`, currently built at `sha`. Called
+ *  on every `ready` the SSE stream emits, so it records what was actually
+ *  served — and, for a private repo, only after access was authorized. One row
+ *  per (user, preview id): a pushed branch updates the sha in place rather than
+ *  accruing a row per commit (migrations/035_preview_opens.sql). */
+export async function recordPreviewOpen(userId: string, previewId: string, sha: string): Promise<void> {
+  await sql`
+    INSERT INTO preview_opens (user_id, preview_id, sha)
+    VALUES (${userId}, ${previewId}, ${sha})
+    ON CONFLICT (user_id, preview_id) DO UPDATE SET
+      sha = EXCLUDED.sha,
+      last_opened_at = now()
+  `;
+}
+
+/** This user's own preview history, newest open first. The JOIN is what keeps a
+ *  blocked sha — or one whose previews row is gone — out of the list without
+ *  needing to delete anything here. Private rows come back like listPreviewsByShas:
+ *  the caller re-checks repo access per row before disclosing them, because a
+ *  collaborator can be removed long after the open was recorded. */
+export async function listPreviewOpens(userId: string, limit = 50): Promise<PreviewOpenRow[]> {
+  return (await sql`
+    SELECT o.preview_id, o.last_opened_at AS opened_at,
+           p.sha, p.repo, p.ref, p.kind, p.pr_number, p.pr_title, p.pr_author, p.pr_state,
+           p.doc_count, p.last_access, p.private
+    FROM preview_opens o
+    JOIN previews p ON p.sha = o.sha
+    WHERE o.user_id = ${userId} AND p.blocked_at IS NULL
+    ORDER BY o.last_opened_at DESC
+    LIMIT ${limit}
+  `) as PreviewOpenRow[];
+}
+
 /** Admin-takedown check: a blocked sha must never build or serve. */
 export async function isBlockedSha(sha: string): Promise<boolean> {
   const rows = (await sql`SELECT 1 FROM previews WHERE sha = ${sha} AND blocked_at IS NOT NULL`) as unknown[];

@@ -33,6 +33,8 @@ const {
   previewsTodayCountForRepo,
   listPreviews,
   listPreviewsByShas,
+  recordPreviewOpen,
+  listPreviewOpens,
   isBlockedSha,
   blockedShas,
 } = await import("./db.ts");
@@ -271,6 +273,30 @@ test("listPreviewsByShas queries the given shas as one text[] literal, private r
 test("listPreviewsByShas skips the round trip on an empty sha list", async () => {
   expect(await listPreviewsByShas([])).toEqual([]);
   expect(calls).toHaveLength(0);
+});
+
+test("recordPreviewOpen upserts one row per (user, preview id), moving the sha forward", async () => {
+  queued.push([]);
+  await recordPreviewOpen("user-1", "acme:secret-atlas:main", "s2");
+  const q = calls[0]!.strings.join("");
+  expect(q).toContain("INSERT INTO preview_opens");
+  // A pushed branch must move the existing row's sha, not accrue one row per commit.
+  expect(q).toContain("ON CONFLICT (user_id, preview_id) DO UPDATE");
+  expect(q).toContain("sha = EXCLUDED.sha");
+  expect(calls[0]!.values).toEqual(["user-1", "acme:secret-atlas:main", "s2"]);
+});
+
+test("listPreviewOpens joins previews, hides blocked rows, sorts by the USER's own open", async () => {
+  queued.push([{ preview_id: "pull-1", sha: "s1", opened_at: "2026-09-01T00:00:00Z" }]);
+  const rows = await listPreviewOpens("user-1");
+  expect(rows).toHaveLength(1);
+  const q = calls[0]!.strings.join("");
+  expect(q).toContain("FROM preview_opens o");
+  expect(q).toContain("JOIN previews p ON p.sha = o.sha"); // a gone/unknown sha drops out, no delete needed
+  expect(q).toContain("p.blocked_at IS NULL");
+  // last_access is moved by ANYONE's visit; this list is ordered by the caller's own open.
+  expect(q).toContain("ORDER BY o.last_opened_at DESC");
+  expect(calls[0]!.values).toEqual(["user-1", 50]);
 });
 
 test("isBlockedSha true/false", async () => {

@@ -39,8 +39,12 @@ mock.module("./access.ts", () => ({
 // test in this file needing to think about it (a plain array is still the
 // common case and behaves exactly as before).
 let dbQueued: unknown[] = [];
+// Every query the handler issues, so a test can assert a WRITE happened (the
+// account-history INSERT) and not only what a read returned.
+let dbCalls: { sql: string; values: unknown[] }[] = [];
 mock.module("../db.ts", () => ({
-  sql(_strings: TemplateStringsArray, ..._values: unknown[]) {
+  sql(strings: TemplateStringsArray, ...values: unknown[]) {
+    dbCalls.push({ sql: [...strings].join("?"), values });
     const next = dbQueued.shift();
     if (next instanceof Error) return Promise.reject(next);
     return Promise.resolve(next ?? []);
@@ -61,7 +65,23 @@ beforeEach(() => {
   accessDecision = "ok";
   accessCalls = [];
   dbQueued = [];
+  dbCalls = [];
+  sessionUser = null;
 });
+
+// The signed-in visitor for the current test, applied as a REAL signed session
+// cookie below rather than a mock.module("../session.ts"): bun's module mocks are
+// process-global and survive mock.restore(), so a partial session factory would
+// strip signSession/SESSION_COOKIE from sibling suites that build their own auth
+// cookies. Same reasoning, same approach as access.test.ts.
+let sessionUser: { id: string; provider: string } | null = null;
+config.jwtSecret ||= "test-jwt-secret";
+const { signSession, SESSION_COOKIE } = await import("../session.ts");
+async function authHeaders(): Promise<Headers> {
+  const headers = new Headers();
+  if (sessionUser) headers.set("cookie", `${SESSION_COOKIE}=${await signSession(sessionUser)}`);
+  return headers;
+}
 
 const SHA = "a".repeat(40);
 const stubServer = { requestIP: () => ({ address: "1.2.3.4" }) } as any;
@@ -1269,7 +1289,8 @@ const privRow = { sha: PRIV_SHA, repo: TEST_REPO, ref: "main", private: true };
 async function mine(query: string) {
   const { handlePreview } = await freshHandler();
   const path = "/api/preview/mine";
-  return Promise.resolve(handlePreview(new Request(`http://x${path}?${query}`), stubServer, path));
+  const req = new Request(`http://x${path}?${query}`, { headers: await authHeaders() });
+  return Promise.resolve(handlePreview(req, stubServer, path));
 }
 
 test("/api/preview/mine returns a public row without any access check", async () => {
@@ -1328,6 +1349,92 @@ test("/api/preview/mine empties the tab rather than erroring when the query thro
   const res = await mine(`shas=${PUB_SHA}`);
   expect(res.status).toBe(200);
   expect(await res.json()).toEqual([]);
+});
+
+// --- the ACCOUNT half: preview_opens, so the list follows the person ----------
+
+const openRow = { ...pubRow, preview_id: "pull-9", opened_at: "2026-09-20T00:00:00Z" };
+
+test("/api/preview/mine returns a signed-in caller's account history with NO shas sent", async () => {
+  sessionUser = { id: "user-1", provider: "github" };
+  dbQueued = [[openRow]]; // listPreviewOpens only — no sha list, so no second query
+  const res = await mine("");
+  expect(await res.json()).toEqual([openRow]); // preview_id rides along: the client links by it
+  expect(dbCalls.some((c) => c.sql.includes("FROM preview_opens o"))).toBe(true);
+});
+
+test("/api/preview/mine unions the account history with this browser's shas", async () => {
+  sessionUser = { id: "user-1", provider: "github" };
+  dbQueued = [[openRow], [pubRow]]; // opens, then the sha lookup
+  const res = await mine(`shas=${PUB_SHA}`);
+  // Same sha from both sources is NOT deduped server-side — the account row
+  // carries the id it was opened under, the browser row doesn't, and the client
+  // keys by id. Losing either could lose an id.
+  expect(await res.json()).toEqual([openRow, pubRow]);
+});
+
+test("/api/preview/mine re-checks access on a recorded PRIVATE open (a grant can be revoked later)", async () => {
+  sessionUser = { id: "user-1", provider: "github" };
+  accessDecision = "forbidden";
+  dbQueued = [[{ ...privRow, preview_id: "acme:secret-atlas:main", opened_at: "2026-09-20T00:00:00Z" }]];
+  const res = await mine("");
+  expect(await res.json()).toEqual([]); // recorded, but no longer theirs to see
+  expect(accessCalls).toEqual([{ repo: TEST_REPO }]);
+});
+
+test("/api/preview/mine asks nothing of the DB for an anonymous caller with no shas", async () => {
+  dbQueued = [new Error("must not be queried")];
+  const res = await mine("");
+  expect(await res.json()).toEqual([]);
+  expect(dbCalls).toHaveLength(0);
+});
+
+test("/api/preview/mine keeps one source's failure from blanking the other", async () => {
+  sessionUser = { id: "user-1", provider: "github" };
+  dbQueued = [new Error("opens query died"), [pubRow]];
+  const res = await mine(`shas=${PUB_SHA}`);
+  expect(await res.json()).toEqual([pubRow]);
+});
+
+test("rememberPreviewOpen records against the account, and does nothing when signed out", async () => {
+  const { handlePreview: _ } = await freshHandler();
+  const { rememberPreviewOpen } = await import("./handler.ts");
+
+  sessionUser = { id: "user-1", provider: "github" };
+  dbQueued = [[]];
+  await rememberPreviewOpen(new Request("http://x/", { headers: await authHeaders() }), "pull-9", PUB_SHA);
+  const write = dbCalls.find((c) => c.sql.includes("INSERT INTO preview_opens"));
+  expect(write?.values).toEqual(["user-1", "pull-9", PUB_SHA]);
+
+  // Anonymous: localStorage is the only record — nothing is written server-side.
+  dbCalls = [];
+  sessionUser = null;
+  await rememberPreviewOpen(new Request("http://x/"), "pull-9", PUB_SHA);
+  expect(dbCalls).toHaveLength(0);
+});
+
+test("a ready SSE open records the account history for a signed-in visitor", async () => {
+  const { handlePreview, previewPaths, writeMeta } = await freshHandler();
+  const sha = "e".repeat(40);
+  makeReadyBundle(previewPaths, writeMeta, sha, { repo: "blimpa/next-gen-atlas" });
+  sessionUser = { id: "user-1", provider: "github" };
+  // resolveId's sha branch reads the previews row; then touchPreview + the INSERT.
+  dbQueued = [
+    [{ sha, repo: "blimpa/next-gen-atlas", ref: "main", kind: "branch", private: false, pr_base_repo: null, pr_base_ref: null, default_branch: null }],
+    [], // isBlockedSha
+    [], // touchPreview
+    [], // recordPreviewOpen
+  ];
+  const path = `/api/preview/${sha}/events`;
+  const res = await Promise.resolve(
+    handlePreview(new Request(`http://x${path}`, { headers: await authHeaders() }), stubServer, path),
+  );
+  const body = await res.text();
+  expect(body).toContain('"phase":"ready"');
+  // The write is fire-and-forget (an open must never wait on it) — let the
+  // already-queued promise settle before asserting.
+  await new Promise((r) => setTimeout(r, 0));
+  expect(dbCalls.some((c) => c.sql.includes("INSERT INTO preview_opens"))).toBe(true);
 });
 
 test("/api/preview/list returns the live rows on success, or [] if the query throws", async () => {

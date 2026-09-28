@@ -2,10 +2,13 @@ import { useEffect, useState, type ReactNode } from "react";
 import { track } from "../../lib/analytics";
 import type { Entry } from "./types";
 
-// The tabbed list under the /preview input box. "my recent prs" is the
-// browser-local intersection list (passed in as `entries`); "open atlas prs"
-// lazily loads every PR currently open against sky-ecosystem/next-gen-atlas
-// (GET /api/preview/open-prs, server-cached). Both link into the preview gate.
+// The tabbed list under the /preview input box. "my recent previews" is the
+// caller's own list (passed in as `entries`); "open atlas prs" lazily loads every
+// PR currently open against sky-ecosystem/next-gen-atlas (GET
+// /api/preview/open-prs, server-cached). Both link into the preview gate.
+//
+// `accountScoped` is only about the empty state's copy: signed in, the list is
+// the account's and spans browsers, so promising "in this browser" would be wrong.
 
 const ATLAS_PRS_URL = "https://github.com/sky-ecosystem/next-gen-atlas/pulls";
 const href = (pid: string) => `${import.meta.env.BASE_URL}preview/${encodeURIComponent(pid)}`;
@@ -20,7 +23,7 @@ interface OpenPr {
 
 type Tab = "recent" | "open";
 
-export function PreviewPrTabs({ entries }: { entries: Entry[] }) {
+export function PreviewPrTabs({ entries, accountScoped = false }: { entries: Entry[]; accountScoped?: boolean }) {
   const [tab, setTab] = useState<Tab>("recent");
   const [openPrs, setOpenPrs] = useState<OpenPr[] | null>(null); // null = not loaded yet
   const [openErr, setOpenErr] = useState(false);
@@ -71,7 +74,7 @@ export function PreviewPrTabs({ entries }: { entries: Entry[] }) {
       {tab === "recent" ? (
         entries.length === 0 ? (
           <p className="mono text-xs py-2" style={{ color: "var(--tan-3)" }}>
-            No previews opened in this browser yet.
+            {accountScoped ? "No previews opened yet." : "No previews opened in this browser yet."}
           </p>
         ) : (
           <ul>

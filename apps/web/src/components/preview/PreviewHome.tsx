@@ -1,64 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { parsePreviewInput, parsePrivateInput, isPrivatePrId, localPreviews } from "../../lib/previewLocal";
+import { mergeRecentPreviews, type MineRow } from "../../lib/previewRecent";
 import { initAnalytics, register, track, pageview } from "../../lib/analytics";
 import { ProfileButton } from "../chat/ProfileButton";
+import { useAuth } from "../chat/auth";
 import { usersEnabled } from "../../lib/usersEnabled";
 import { PreviewPrTabs } from "./PreviewPrTabs";
-import type { Entry } from "./types";
 
 // /preview index: paste a PR / branch / fork URL (or id) → generate a preview;
-// below, "my recent previews" — strictly the INTERSECTION of what this browser
-// has opened (localStorage) and what is live in the DB. Local-only entries (DB
-// wiped / sha blocked) are hidden; other people's previews were never asked for.
+// below, "my recent previews", from GET /api/preview/mine — never the public
+// /list, which excludes every private row by design and so silently dropped
+// every private-repo preview the visitor had legitimately opened.
 //
-// The DB side is GET /api/preview/mine?shas=… , NOT the public /list: /list
-// excludes every private row by design, so against it the intersection silently
-// dropped every private-repo preview this browser had legitimately opened.
-// /mine answers for the shas we send and re-checks repo access per private row,
-// so a private preview shows up for the person who may see it and for no one
-// else. Sending no shas (a first visit) skips the request entirely.
-
-interface DbRow {
-  sha: string;
-  repo: string;
-  ref: string;
-  kind: string;
-  pr_number: number | null;
-  pr_title: string | null;
-  pr_author: string | null;
-  pr_state: string | null;
-  doc_count: number;
-  last_access: string;
-  private?: boolean;
-}
-
-function mergeEntries(rows: DbRow[]): Entry[] {
-  const bySha = new Map(rows.map((r) => [r.sha, r]));
-  const out = new Map<string, Entry>();
-  for (const l of localPreviews()) {
-    const db = bySha.get(l.sha);
-    if (!db) continue; // AND-semantics: must still be live in the DB
-    const prev = out.get(l.id);
-    if (prev) {
-      prev.at = Math.max(prev.at, l.at);
-      continue;
-    }
-    out.set(l.id, {
-      id: l.id,
-      title: db.pr_title ?? undefined,
-      detail: [db.private && "private", db.pr_author && `by ${db.pr_author}`, db.pr_state && db.pr_state !== "open" && db.pr_state, `${db.doc_count} docs`]
-        .filter(Boolean)
-        .join(" · "),
-      at: l.at,
-    });
-  }
-  return [...out.values()].sort((a, b) => b.at - a.at);
-}
+// Signed in, the list is the ACCOUNT's: the server records each open and answers
+// with them, so the history follows the person to their next browser. We still
+// send this browser's localStorage shas either way — they are the whole list for
+// an anonymous visitor, and they cover what a signed-in one opened before the
+// account history existed or while logged out. mergeRecentPreviews (lib/
+// previewRecent.ts) folds the two together; a local entry the server can't
+// confirm is still hidden, so a wiped DB or a blocked sha leaves no dead row.
 
 export function PreviewHome() {
   const [input, setInput] = useState("");
   const [privateInput, setPrivateInput] = useState("");
-  const [rows, setRows] = useState<DbRow[]>([]);
+  const [rows, setRows] = useState<MineRow[]>([]);
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?.id ?? null; // the effect below depends on WHO, not on the user object's identity
   const id = useMemo(() => parsePreviewInput(input), [input]);
   const privateId = useMemo(() => parsePrivateInput(privateInput), [privateInput]);
 
@@ -71,15 +38,18 @@ export function PreviewHome() {
   }, []);
 
   useEffect(() => {
+    // Wait for the session probe so this asks once, knowing whether there is an
+    // account history to include (authLoading is already false when logins are off).
+    if (authLoading) return;
     const shas = [...new Set(localPreviews().map((p) => p.sha))];
-    if (shas.length === 0) return; // nothing opened in this browser — nothing to ask about
-    fetch(`${import.meta.env.BASE_URL}api/preview/mine?shas=${shas.join(",")}`)
+    if (shas.length === 0 && !userId) return; // nothing opened here, no account — nothing to ask about
+    fetch(`${import.meta.env.BASE_URL}api/preview/mine?shas=${shas.join(",")}`, { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setRows(Array.isArray(d) ? d : []))
       .catch(() => {});
-  }, []);
+  }, [authLoading, userId]);
 
-  const entries = useMemo(() => mergeEntries(rows), [rows]);
+  const entries = useMemo(() => mergeRecentPreviews(rows), [rows]);
 
   return (
     <div className="min-h-dvh flex flex-col items-center px-6 pt-[18vh] relative" style={{ background: "var(--bg)" }}>
@@ -185,7 +155,7 @@ export function PreviewHome() {
         </section>
       )}
 
-      <PreviewPrTabs entries={entries} />
+      <PreviewPrTabs entries={entries} accountScoped={!!user} />
       <a href={import.meta.env.BASE_URL} className="mono text-xs mt-10" style={{ color: "var(--tan-3)" }}>
         ← live atlas
       </a>
