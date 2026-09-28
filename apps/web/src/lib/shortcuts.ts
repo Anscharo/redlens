@@ -5,10 +5,15 @@
 // The keyboard-shortcut registry that used to live here was dropped along
 // with the feedback modal's shortcuts list — nothing rendered it.
 
+// Display order for the `/` cheat sheet. Every entry needs a destination in
+// SLASH_TARGETS (useSearchInput.ts) — shortcuts.test.ts holds the two in sync,
+// so a command listed here can never be a no-op when typed or clicked.
 export const SLASH_COMMANDS: { cmd: string; description: string }[] = [
   { cmd: "/reports", description: "Open the reports index" },
   { cmd: "/radar", description: "Open the radar actor index" },
+  { cmd: "/features", description: "Open the features guide" },
   { cmd: "/h", description: "Open the search syntax reference" },
+  { cmd: "/preview", description: "Open the atlas preview index" },
 ];
 
 /** True when `t` is an element that consumes typed keystrokes as text input —

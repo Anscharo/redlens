@@ -94,6 +94,29 @@ export const COMPRISES_RE = /The party ['‘]([^'’]+)['’] comprises\s+(.+?)\
 // property."). The party still signs the accord, it just has no members to list.
 export const ATOMIC_PARTY_RE = /The party ['‘]([^'’]+)['’]\s+is\b/i;
 
+// Org-to-org prose (Pattern 20): the same two sentence shapes are read by two
+// consumers — graph-entity-edges.mjs's free-content scan (Phase 2w, emits
+// prime_foundation_of/provides_services_to edges) and graph-entities.mjs's
+// title-anchored Foundation/Development Company doc read (Phase 1p, creates/
+// corrects the entities those edges need). Shared here so the two can't drift
+// apart the way they did before 2026-09-28 (one had its own `(?:The\s+)?`
+// prefix-strip baked into the regex; the other post-processed the capture
+// with `cleanOrgProseName` below — same result today, but two copies of one
+// rule). `g` flag: both consumers reset `lastIndex` before use, whether via
+// `matchAll` (2w) or a single `exec` (1p).
+//   "The Spark Foundation is the Prime Foundation associated with Spark."
+//   "Rubicon is the Prime Foundation associated with Obex."
+export const PRIME_FOUNDATION_RE =
+  /\b([A-Z][A-Za-z0-9'&. -]+?) is the Prime Foundation associated with (?:the )?([A-Z][A-Za-z0-9'&. -]+?)[.,]/g;
+//   "Phoenix Labs is a development company that provides services to the Spark Foundation."
+//   "Treadstone is the development company that provides services to Rubicon." (A.6.1.1.5.2.1.1.3.1.1.6 — "is THE ... company")
+export const PROVIDES_SERVICES_RE =
+  /\b([A-Z][A-Za-z0-9'&. -]+?) is (?:an?|the) [a-z -]*company that provides services to (?:the )?([A-Z][A-Za-z0-9'&. -]+?)[.,]/g;
+// A leading article survives the capture ("The Spark Foundation" — the regex
+// can't tell "The" apart from a real name word) and is stripped here instead,
+// so both consumers clean a captured name identically.
+export const cleanOrgProseName = (raw) => raw.trim().replace(/^the\s+/i, "");
+
 // The atlas writes structured fields as bullet key/value lines:
 //   "- Recipient: Sky Frontier Foundation"
 //   "- Soter Labs: 2 signers"
