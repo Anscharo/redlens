@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { HEADER_OFFSET } from "../lib/layout";
 import { useResizeDrag } from "../hooks/useResizeDrag";
 import { useIsNarrow } from "../hooks/useAvailableWidth";
