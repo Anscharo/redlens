@@ -1,18 +1,7 @@
 import { useState, useEffect } from "react";
 import { HEADER_OFFSET } from "../lib/layout";
 import { useResizeDrag } from "../hooks/useResizeDrag";
-
-function useIsNarrow(maxWidth: number) {
-  const [narrow, setNarrow] = useState(() => window.innerWidth < maxWidth);
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${maxWidth - 1}px)`);
-    const handler = (e: MediaQueryListEvent) => setNarrow(e.matches);
-    mq.addEventListener("change", handler);
-    setNarrow(mq.matches);
-    return () => mq.removeEventListener("change", handler);
-  }, [maxWidth]);
-  return narrow;
-}
+import { useIsNarrow } from "../hooks/useAvailableWidth";
 
 interface DrawerProps {
   open: boolean;

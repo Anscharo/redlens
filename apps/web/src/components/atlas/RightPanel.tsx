@@ -170,7 +170,7 @@ export function RightPanel({
   return (
     <>
       <nav
-        className="flex gap-2 border-b shrink-0"
+        className="flex flex-wrap gap-2 border-b shrink-0"
         style={{ borderColor: "var(--border)", padding: "10px 16px" }}
         aria-label="Panel sections"
       >

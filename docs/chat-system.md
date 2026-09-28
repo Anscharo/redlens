@@ -37,7 +37,8 @@ placements persisted in localStorage. The anchored column starts at
 `clamp(340px, 30vw, 460px)` and can be dragged wider from its left edge, up to
 55% of the window (`AnchoredResizeHandle`; the pixel width is persisted as
 `rlc-anchored-w` and applied as `--rlc-anchored-w`, which the shell gutter
-reads too). `useChatStream.send(text, pageContext)`
+reads too). Sidebar breakpoints use the width beside that column, and the
+notes panel shrinks (down to 200px) so the open document keeps at least 400px. `useChatStream.send(text, pageContext)`
 POSTs `{ message, conversationId, pageContext }` to `/api/chat`, then reads the
 response as a raw stream (not `EventSource`, since it's a POST), buffering on
 `\n\n` and parsing `data:` SSE frames into typed `ChatEvent`s. A `dispatch()`
