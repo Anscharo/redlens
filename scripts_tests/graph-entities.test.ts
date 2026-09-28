@@ -695,11 +695,18 @@ describe("extractEntities — 1p Agent Foundation/Development Company edge cases
       title: "Foundation",
       content: "This document does not use the expected sentence shape.",
     });
-    const allDocs = [sparkDoc, unparsableFoundationDoc];
+    const unparsableDevCoDoc = mkDoc({
+      id: uid(75),
+      doc_no: "A.6.1.1.1.2.1.1.3.1.1.5",
+      title: "Development Company",
+      content: "This document does not use the expected sentence shape either.",
+    });
+    const allDocs = [sparkDoc, unparsableFoundationDoc, unparsableDevCoDoc];
     const docById = new Map(allDocs.map((d) => [d.id, d]));
     const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
     extractEntities(allDocs, docById, docByDocNo, {});
     expect(warns.some((w) => w.includes(unparsableFoundationDoc.doc_no) && w.includes("did not parse"))).toBe(true);
+    expect(warns.some((w) => w.includes(unparsableDevCoDoc.doc_no) && w.includes("did not parse"))).toBe(true);
   });
 });
 
