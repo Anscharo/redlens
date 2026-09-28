@@ -56,21 +56,24 @@ const CITE_VERDICTS: ReadonlySet<string> = new Set([...VERDICTS, ...METADATA_VER
 // message (null) rather than failing the whole conversation load. A single
 // malformed pair within an otherwise-good row is dropped rather than
 // poisoning the row's other pairs.
-export function judgedPairsFrom(verdict: unknown): { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null; lane?: CiteLane }[] | null {
+export function judgedPairsFrom(verdict: unknown): { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null; lane?: CiteLane; confirmed?: boolean }[] | null {
   if (!verdict || typeof verdict !== "object") return null;
   const judged = (verdict as { judged?: unknown }).judged;
   if (!Array.isArray(judged)) return null;
-  const out: { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null; lane?: CiteLane }[] = [];
+  const out: { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null; lane?: CiteLane; confirmed?: boolean }[] = [];
   for (const j of judged) {
     if (!j || typeof j !== "object") continue;
-    const { uuid, claim, verdict: v, confidence, lane } = j as Record<string, unknown>;
+    const { uuid, claim, verdict: v, confidence, lane, confirmed } = j as Record<string, unknown>;
     if (typeof uuid !== "string" || typeof claim !== "string") continue;
     if (v !== null && !CITE_VERDICTS.has(v as string)) continue;
-    const pair: { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null; lane?: CiteLane } = {
+    const pair: { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null; lane?: CiteLane; confirmed?: boolean } = {
       uuid, claim, verdict: (v as MarkVerdict) ?? null, confidence: citeConfidence(confidence),
     };
     // Absent on rows from before the field. Those pairs were document questions.
     if (lane === "content" || lane === "record") pair.lane = lane;
+    // Absent on rows from before the field. A stored `contradicts` then had
+    // already passed confirm, because a refusal was rewritten to a gap.
+    if (confirmed === true || confirmed === false) pair.confirmed = confirmed;
     out.push(pair);
   }
   return out;

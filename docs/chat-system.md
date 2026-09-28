@@ -837,8 +837,12 @@ the one thing the pooled-evidence `refute` auditor structurally cannot see
 reaches the chip on its own: it becomes a `Contradiction` with `source:
 "cited-doc"` and must pass the same `confirm` gate as every other candidate.
 Confirm is shown that document's full text — the same text the citation
-check judged — not a prefix of it; unconfirmed, it is downgraded to "doesn't
-cover this line". **Provenance picks the question** (2026-09-28, `verify/provenance.ts`). The judge
+check judged — not a prefix of it. Unconfirmed, the pair stays `contradicts`
+with `confirmed: false` and is left off the chip. It is not rewritten to a
+gap: that status is a shown warning, and confirm's refusal is not evidence
+the document is silent. A record-lane contradiction is not sent to confirm.
+Confirm would be shown the document, not the change record, so it draws
+nothing until confirm is given the record. **Provenance picks the question** (2026-09-28, `verify/provenance.ts`). The judge
 used to be handed the FULL indexed document for every citation, whatever the turn
 actually retrieved — so a line written from a 240-character `atlas_search` snippet,
 or from an `atlas_recent_changes` row carrying only a uuid and a title, was judged

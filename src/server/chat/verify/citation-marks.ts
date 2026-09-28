@@ -4,11 +4,16 @@
 // client shows this on the answer's Sources chips, not on the answer text
 // itself, so it never gates or rewrites what already streamed.
 //
-// A `contradicts` verdict is not trusted on its own: it goes through the same
-// confirm gate the whole-turn verifier uses (verify/confirm.ts) before it is
-// allowed to mark a doc "disputed". An unconfirmed contradiction downgrades to
-// "uncovered" (informational) rather than shipping an unconfirmed warning —
-// the confirm gate is a HARD gate here too, same rule as computeOverall's.
+// A `contradicts` verdict is not trusted on its own: a content-lane one goes
+// through the same confirm gate the whole-turn verifier uses (verify/confirm.ts)
+// before it is allowed to mark a doc "disputed". Confirm refusing — or never
+// being asked — leaves the stored verdict as `contradicts` with `confirmed:
+// false` and off the chip. It is not rewritten to a gap: that status is a
+// shown warning, and confirm's refusal is not evidence the document is silent.
+// A record-lane contradiction is not sent to confirm at all. Confirm would be
+// shown the document, not the change record, and would disagree about a
+// conflict the document does not contain. It draws nothing until confirm is
+// given the record.
 import { withDeadline } from "../../jev.ts";
 import { citationPairs, type CitationPair } from "./cite-pairs.ts";
 import { judgeCitation, type CiteVerdict } from "./cite-support.ts";
@@ -76,6 +81,19 @@ interface JudgedPair {
   /** Jev Choice confidence in `verdict`, 0–1. Absent on pairs stored before it was read back. */
   confidence?: number | null;
   lane?: CiteLane;
+  /**
+   * Set only on `contradicts`. `false` means confirm did not agree, or was
+   * not asked (a record-lane contradiction, or confirm unavailable). Those
+   * pairs stay on the stored row and do not enter the fold. Absent means a
+   * row from before the field: a stored `contradicts` then had already passed
+   * confirm, because a refusal was rewritten away.
+   */
+  confirmed?: boolean;
+}
+
+/** A contradiction confirm did not stand behind. It must not become ! or ⚠. */
+function unconfirmedContradiction(p: JudgedPair): boolean {
+  return p.verdict === "contradicts" && p.confirmed === false;
 }
 
 /** A stored confidence outside 0–1 is not a confidence. */
@@ -149,29 +167,33 @@ export function aggregateMarks(judged: JudgedPair[]): Record<string, CitationMar
   for (const [uuid, pairs] of byUuid) {
     // Before worst-verdict. A timed-out pair used to lose to `contradicts`,
     // so a doc we had not finished checking still shipped as disputed.
-    if (pairs.some((p) => p.verdict === null)) continue;
-    const claims = pairs
+    // An unconfirmed contradiction is not a gap and not a dispute. Drop it
+    // before the fold so it cannot paint either chip. The pair stays on `judged`.
+    const live = pairs.filter((p) => !unconfirmedContradiction(p));
+    if (live.length === 0) continue;
+    if (live.some((p) => p.verdict === null)) continue;
+    const claims = live
       .filter((p): p is JudgedPair & { verdict: "supports" | "supports_in_part" | "says_nothing" | "contradicts" | "states_content" } =>
         p.verdict === "supports" || p.verdict === "supports_in_part" || p.verdict === "says_nothing" ||
         p.verdict === "contradicts" || p.verdict === "states_content",
       )
       .map((p) => ({ claim: p.claim, verdict: p.verdict, confidence: citeConfidence(p.confidence) }));
     let status: CitationMarkStatus;
-    if (pairs.some((p) => p.verdict === "contradicts")) status = "disputed";
+    if (live.some((p) => p.verdict === "contradicts")) status = "disputed";
     // Above `uncovered` on purpose: "you stated what this document says and
     // never read it" is more actionable than "the record doesn't cover this".
-    else if (pairs.some((p) => p.verdict === "states_content")) status = "unread";
-    else if (pairs.some((p) => p.verdict === "says_nothing")) status = "uncovered";
-    else if (pairs.some((p) => p.verdict === "supports_in_part")) status = "partial";
-    else if (pairs.some(documentSupport)) {
+    else if (live.some((p) => p.verdict === "states_content")) status = "unread";
+    else if (live.some((p) => p.verdict === "says_nothing")) status = "uncovered";
+    else if (live.some((p) => p.verdict === "supports_in_part")) status = "partial";
+    else if (live.some(documentSupport)) {
       // A `supports` from the RECORD question (a date, a PR number) is not
       // "this document states the line." Counting it here painted a ✓✓ on a
       // document the turn never read. The pair stays on `judged`.
-      const supporting = pairs.filter(documentSupport);
+      const supporting = live.filter(documentSupport);
       const sure = supporting.filter((p) => (citeConfidence(p.confidence) ?? 0) >= MIN_BACKED_CONFIDENCE).length;
       status = sure === supporting.length ? "backed" : sure === 0 ? "backed_weak" : "mixed";
     } else continue; // pointers, or support that only a record can give — nothing to mark
-    out[uuid] = { status, claims, confidence: confidenceFor(status, pairs) };
+    out[uuid] = { status, claims, confidence: confidenceFor(status, live) };
   }
   return out;
 }
@@ -204,7 +226,7 @@ export function shownMarks(marks: Record<string, CitationMark>): Record<string, 
 export interface CitationMarksRun {
   marks: Record<string, CitationMark>;
   /** Raw per-pair verdicts, for persistence (checksMeta), not the wire event. */
-  judged: { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null; lane: CiteLane }[];
+  judged: { uuid: string; claim: string; verdict: MarkVerdict | null; confidence: number | null; lane: CiteLane; confirmed?: boolean }[];
   calls: number;
   failed: number;
   costUsd: number;
@@ -278,7 +300,7 @@ export async function runCitationMarks(p: {
     const deadlineMs = p.deadlineMs ?? 8000;
     const signal = withDeadline(deadlineMs, p.signal);
 
-    const results: { pair: CitationPair; verdict: MarkVerdict | null; confidence: number | null; costUsd: number | null; lane: CiteLane }[] = new Array(
+    const results: { pair: CitationPair; verdict: MarkVerdict | null; confidence: number | null; costUsd: number | null; lane: CiteLane; confirmed?: boolean }[] = new Array(
       pairs.length,
     );
     let nextIndex = 0;
@@ -304,13 +326,20 @@ export async function runCitationMarks(p: {
     const workerCount = Math.min(p.concurrency ?? 6, pairs.length);
     await Promise.all(Array.from({ length: workerCount }, worker));
 
-    // Every `contradicts` pair becomes a confirm-gate candidate — same
-    // discipline the whole-turn verifier applies before it will call
-    // something a hard fail (verifier.ts's computeOverall).
+    // Content-lane `contradicts` goes through confirm against the document —
+    // same discipline the whole-turn verifier applies before a hard fail.
+    // A record-lane `contradicts` does not: the evidence confirm would see is
+    // the document, and the question was about the change record. Showing
+    // that pair as "doesn't cover" was confirm disagreeing with evidence it
+    // was never given. It stays `contradicts`, unconfirmed, and unmarked.
     const contraIndexes: number[] = [];
     const candidates: Contradiction[] = [];
     results.forEach((r, i) => {
       if (r.verdict !== "contradicts") return;
+      if (r.lane === "record") {
+        results[i] = { ...r, confirmed: false };
+        return;
+      }
       contraIndexes.push(i);
       candidates.push({
         answer_span: r.pair.claim,
@@ -334,16 +363,22 @@ export async function runCitationMarks(p: {
           : null;
       confirm = { candidates: candidates.length, agreed: run?.agreed.size ?? 0 };
       // NOT agreed (including "confirm unavailable/failed", which agrees with
-      // nothing) downgrades to says_nothing — informational, never an
-      // unconfirmed warning.
+      // nothing) keeps the original verdict. The confidence was Jev's
+      // confidence in `contradicts`; it stays, and `confirmed: false` is what
+      // keeps the pair off the chip.
       contraIndexes.forEach((resultIndex, candidateIndex) => {
-        // The number was confidence in `contradicts`. Confirm rejected that
-        // verdict, so it must not describe the downgraded "doesn't cover".
-        if (!run?.agreed.has(candidateIndex)) results[resultIndex] = { ...results[resultIndex], verdict: "says_nothing", confidence: null };
+        results[resultIndex] = { ...results[resultIndex], confirmed: run?.agreed.has(candidateIndex) ?? false };
       });
     }
 
-    const judged = results.map((r) => ({ uuid: r.pair.uuid, claim: r.pair.claim, verdict: r.verdict, confidence: r.confidence, lane: r.lane }));
+    const judged = results.map((r) => ({
+      uuid: r.pair.uuid,
+      claim: r.pair.claim,
+      verdict: r.verdict,
+      confidence: r.confidence,
+      lane: r.lane,
+      ...(r.confirmed === undefined ? {} : { confirmed: r.confirmed }),
+    }));
     const marks = aggregateMarks(judged);
     return { marks, judged, calls, failed, costUsd, latencyMs: Date.now() - t0, confirm };
   } catch (err) {

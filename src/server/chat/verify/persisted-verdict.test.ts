@@ -50,6 +50,20 @@ describe("judgedPairsFrom", () => {
     expect(out![0].confidence).toBeNull();
   });
 
+  it("keeps an unconfirmed contradiction as contradicts", () => {
+    const out = judgedPairsFrom({
+      judged: [{ uuid: "doc-a", claim: "PR 336", verdict: "contradicts", confidence: 0.8, lane: "record", confirmed: false }],
+    });
+    expect(out).toEqual([{ uuid: "doc-a", claim: "PR 336", verdict: "contradicts", confidence: 0.8, lane: "record", confirmed: false }]);
+  });
+
+  it("drops a confirmed flag that is not a boolean", () => {
+    const out = judgedPairsFrom({
+      judged: [{ uuid: "doc-a", claim: "x", verdict: "contradicts", confirmed: "no" }],
+    });
+    expect(out![0].confirmed).toBeUndefined();
+  });
+
   it("keeps a record-question verdict and its lane", () => {
     const out = judgedPairsFrom({
       judged: [{ uuid: "doc-a", claim: "Updated in PR 336", verdict: "states_content", confidence: 0.9, lane: "record" }],

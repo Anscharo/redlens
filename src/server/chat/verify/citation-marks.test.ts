@@ -71,6 +71,16 @@ describe("aggregateMarks", () => {
     expect(marks[A]).toEqual({ status: "backed_weak", claims: [{ claim: "c1", verdict: "supports", confidence: null }], confidence: null });
   });
 
+  it("an unconfirmed contradiction draws nothing, and does not hide a sure line", () => {
+    expect(aggregateMarks([{ uuid: A, claim: "c1", verdict: "contradicts", confirmed: false }])[A]).toBeUndefined();
+    const marks = aggregateMarks([
+      { uuid: A, claim: "c1", verdict: "supports", confidence: 0.99 },
+      { uuid: A, claim: "c2", verdict: "contradicts", confirmed: false, confidence: 0.9 },
+    ]);
+    expect(marks[A].status).toBe("backed");
+    expect(marks[A].claims.map((c) => c.verdict)).toEqual(["supports"]);
+  });
+
   it("only about_document pointers — no mark, and the pointer is excluded from claims on a mixed doc", () => {
     expect(aggregateMarks([{ uuid: A, claim: "c1", verdict: "about_document" }])[A]).toBeUndefined();
     const marks = aggregateMarks([
@@ -160,9 +170,10 @@ describe("runCitationMarks", () => {
     expect(run.confirm).toEqual({ candidates: 1, agreed: 1 });
     expect(run.marks[A].status).toBe("disputed");
     expect(run.marks[B].status).toBe("backed");
+    expect(run.judged.find((j) => j.uuid === A)).toMatchObject({ verdict: "contradicts", confirmed: true, confidence: 1 });
   });
 
-  it("confirm DISAGREE downgrades to unbacked, not disputed", async () => {
+  it("confirm DISAGREE keeps contradicts off the chip, and does not call it a gap", async () => {
     stubJudge((claim) => (claim.includes("Facilitators") ? "contradicts" : "supports"));
     const confirmCall: JsonCall = async () => ({
       text: '{"agree":[],"notes":""}',
@@ -172,9 +183,9 @@ describe("runCitationMarks", () => {
     });
     const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", jsonCall: confirmCall, confirmModel: "confirm-model" });
     expect(run.confirm).toEqual({ candidates: 1, agreed: 0 });
-    expect(run.marks[A].status).toBe("uncovered");
-    expect(run.marks[A].confidence).toBeNull();
-    expect(run.judged.find((j) => j.uuid === A)!.confidence).toBeNull();
+    expect(run.marks[A]).toBeUndefined();
+    expect(run.marks[B].status).toBe("backed");
+    expect(run.judged.find((j) => j.uuid === A)).toMatchObject({ verdict: "contradicts", confirmed: false, confidence: 1 });
   });
 
   it("confirm is shown the cited document in full, including text past the old 600-character cut", async () => {
@@ -203,11 +214,12 @@ describe("runCitationMarks", () => {
     expect(run.marks[A].status).toBe("disputed");
   });
 
-  it("confirm absent (no jsonCall/confirmModel) also downgrades a contradicts to unbacked, never an unconfirmed disputed", async () => {
+  it("confirm absent (no jsonCall/confirmModel) also leaves contradicts off the chip", async () => {
     stubJudge((claim) => (claim.includes("Facilitators") ? "contradicts" : "supports"));
     const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev" });
     expect(run.confirm).toEqual({ candidates: 1, agreed: 0 });
-    expect(run.marks[A].status).toBe("uncovered");
+    expect(run.marks[A]).toBeUndefined();
+    expect(run.judged.find((j) => j.uuid === A)).toMatchObject({ verdict: "contradicts", confirmed: false });
   });
 
   it("skips a citation to a uuid not in ix.docMap", async () => {
@@ -349,6 +361,27 @@ describe("routing by provenance", () => {
   // "the Rate Limits was updated … to set the rate limits to unlimited" — the
   // date and PR are checkable against the record; what the document now says
   // is not, and no record can settle it.
+  it("does not confirm a record contradiction against the document, and draws nothing", async () => {
+    stubBoth("contradicts");
+    let confirmCalled = false;
+    const confirmCall: JsonCall = async () => {
+      confirmCalled = true;
+      return { text: '{"agree":[1],"notes":""}', usage: { input: 1, output: 1 }, generationId: "g", latencyMs: 1 };
+    };
+    const run = await runCitationMarks({
+      answer: ANSWER,
+      ix,
+      model: "jev",
+      provenance: prov(A, "identity", { doc_id: A, pr_number: 336 }),
+      jsonCall: confirmCall,
+      confirmModel: "confirm-model",
+    });
+    expect(confirmCalled).toBe(false);
+    expect(run.confirm).toBeNull();
+    expect(run.marks[A]).toBeUndefined();
+    expect(run.judged.find((j) => j.uuid === A)).toMatchObject({ verdict: "contradicts", lane: "record", confirmed: false, confidence: 1 });
+  });
+
   it("marks a claim that states document content from a record alone", async () => {
     stubBoth("states_content");
     const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", provenance: prov(A, "identity", { doc_id: A }) });
