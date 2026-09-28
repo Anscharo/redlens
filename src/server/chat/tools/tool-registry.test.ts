@@ -13,6 +13,7 @@
 // tools-history.test.ts's pure summarizeHistoryStats tests), so this is about
 // exercising the handler wiring, not re-testing DB query logic.
 import { test, expect, mock, beforeEach } from "bun:test";
+import { z } from "zod";
 import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
 import { ATLAS_TOOLS, TOOLS_BY_NAME, invokeTool, omitEmptyArgs, toolDescription, type AtlasTool } from "./tool-registry.ts";
 import { execToolDetailed, CHAT_TOOLS } from "./llm-tools.ts";
@@ -334,6 +335,7 @@ test("invokeTool strips blanks when the tool opted in, and passes them through w
   const seen: Record<string, unknown>[] = [];
   const stub = (emptyArgsAbsent?: boolean) => ({
     emptyArgsAbsent,
+    shape: { type: z.string().optional(), ids: z.array(z.string()).optional(), title: z.string().optional() },
     handler: (_ix: Indexes, a: Record<string, unknown>) => {
       seen.push(a);
       return { ok: true } as unknown as ReturnType<AtlasTool["handler"]>;
@@ -362,4 +364,18 @@ test("no handler strips its own arguments, and every transport goes through invo
     expect(src).not.toMatch(/\b(?:t|tool)\.handler\(/);
     expect(src).toContain("invokeTool(");
   }
+});
+
+// A REQUIRED property's blank is NOT a filter, so invokeTool leaves it in place.
+// Stripping it handed atlas_changed_between an absent commit_a and it threw on
+// `opts.commit_a.slice` — on MCP a throw is a protocol error, strictly worse
+// than the clean "not found" the handler already returns. Chat never showed
+// this: it strips before zod, so a missing required key is rejected there.
+test("invokeTool keeps a blank on a required property, so the handler still reports it", async () => {
+  const ix = makeIx();
+  mockDb([]);
+  const out = (await invokeTool(ix, TOOLS_BY_NAME.get("atlas_changed_between")!, {
+    commit_a: "", commit_b: "", change_type: "", entity: "",
+  })) as Record<string, unknown>;
+  expect(String(out.error)).toMatch(/commit_a/);
 });

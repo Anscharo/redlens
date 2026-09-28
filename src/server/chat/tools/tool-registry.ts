@@ -86,15 +86,33 @@ export function omitEmptyArgs(args: Record<string, unknown>): Record<string, unk
  * 2026-09-28: four of the seven opted-in tools stripped only in the chat
  * transport, so an MCP client sending `type: ""` had it intersected to nothing.
  *
+ * Only OPTIONAL properties are stripped. "An empty value is not a filter" is a
+ * statement about filters; a REQUIRED property's blank is the caller's problem
+ * and the handler already reports it (`commit_a '' not found in history`).
+ * Dropping it instead hands the handler an absent argument its own contract says
+ * cannot be absent — `atlas_changed_between` threw on `opts.commit_a.slice`
+ * rather than answering. The chat transport never showed this because it strips
+ * BEFORE zod, so a missing required key becomes a clean "invalid tool
+ * arguments"; MCP's SDK validates first and `""` passes, so there is nothing
+ * left to catch it. A key the shape does not declare is stripped like an
+ * optional one: only an explicitly required property is restored, and zod drops
+ * undeclared keys anyway, so no handler can be relying on one.
+ *
  * Typed structurally rather than as AtlasTool so ExternalTool passes too; it
  * declares no `emptyArgsAbsent`, so its args are handed over untouched.
  */
-export function invokeTool<T extends { emptyArgsAbsent?: boolean; handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult> }>(
+export function invokeTool<T extends { emptyArgsAbsent?: boolean; shape: z.ZodRawShape; handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult> }>(
   ix: Indexes,
   tool: T,
   args: Record<string, unknown>,
 ): ToolResult | Promise<ToolResult> {
-  return tool.handler(ix, tool.emptyArgsAbsent ? omitEmptyArgs(args) : args);
+  if (!tool.emptyArgsAbsent) return tool.handler(ix, args);
+  const stripped = omitEmptyArgs(args);
+  for (const k of Object.keys(args)) {
+    if (k in stripped) continue;
+    if (tool.shape[k]?.isOptional() === false) stripped[k] = args[k];
+  }
+  return tool.handler(ix, stripped);
 }
 
 // Combines `description` + `whenToUse` for the two AGENT consumers (chat's JSON
