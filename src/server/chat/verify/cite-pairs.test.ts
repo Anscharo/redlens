@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { citationPairs, isHistoryClaim, tablesAsProse } from "./cite-pairs.ts";
+import { citationPairs, isHistoryClaim, isLeadIn, tablesAsProse } from "./cite-pairs.ts";
 
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
@@ -168,5 +168,40 @@ describe("claims about a document's history", () => {
     expect(isHistoryClaim("The USDS burn rate limit is unlimited.")).toBe(false);
     expect(isHistoryClaim("Core GovOps validate the Founder's inputs.")).toBe(false);
     expect(citationPairs(`The USDS burn rate limit is unlimited [Rate Limits](/atlas/${A}).`)).toHaveLength(1);
+  });
+});
+
+// "Not stated in this source" on a sentence that was never a claim. Reported
+// 2026-09-28. Two causes, both deterministic.
+describe("sentences that are not claims", () => {
+  it("makes no pair when the links WERE the claim", () => {
+    // Stripping the list leaves "This affected documents such as", which the
+    // judge then reads against a document and correctly calls unstated.
+    expect(citationPairs(`This affected documents such as [Rate Limits](/atlas/${A}), [Swap](/atlas/${B}).`)).toEqual([]);
+    expect(citationPairs(`The Distribution Reward Payments are: [List](/atlas/${A}).`)).toEqual([]);
+    expect(citationPairs(`For the full set see [List](/atlas/${A}).`)).toEqual([]);
+  });
+
+  it("catches a sentence that names the change record as its source", () => {
+    expect(isHistoryClaim("The history also records the Grove proposal to make swap rate limits unlimited")).toBe(true);
+    expect(isHistoryClaim("The atlas history shows three edits to this document")).toBe(true);
+    expect(isHistoryClaim("The change log records the rename")).toBe(true);
+  });
+
+  // A colon alone is NOT the signal. It regularly ends a claim with its own
+  // substance that merely introduces examples, and a bare-colon rule threw
+  // this real one away when it was first written.
+  it("keeps a claim whose colon introduces examples", () => {
+    expect(isLeadIn("All multisigs must adhere to two baseline standards unless explicitly exempted:")).toBe(false);
+    expect(citationPairs(`All multisigs must adhere to two baseline standards [M](/atlas/${A}):`)).toHaveLength(1);
+  });
+
+  // The gate is about where a sentence ENDS, not what it contains, so an
+  // ordinary claim carrying any of those words mid-sentence survives.
+  it("leaves a real claim alone, including one containing the same words", () => {
+    expect(isLeadIn("The USDS burn rate limit is unlimited.")).toBe(false);
+    expect(isLeadIn("Documents such as this one are reviewed by Core GovOps.")).toBe(false);
+    expect(isHistoryClaim("Core GovOps validate the Founder's inputs.")).toBe(false);
+    expect(citationPairs(`Documents such as this one are reviewed by Core GovOps [G](/atlas/${A}).`)).toHaveLength(1);
   });
 });

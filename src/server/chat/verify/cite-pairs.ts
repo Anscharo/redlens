@@ -143,9 +143,41 @@ const HISTORY_CLAIM: RegExp[] = [
   /\bfirst\s+(?:seen|appeared|added|introduced)\b/i,
   /\b(?:last|most recently)\s+(?:updated|changed|edited|modified)\b/i,
   /\bmodification counts?\b/i,
+  // "The history also records the Grove proposal to make … unlimited" — the
+  // sentence names the change record as its own source, and the verbs it uses
+  // for the change itself ("to make") are too generic to match on.
+  /\b(?:the\s+)?(?:atlas\s+)?history\s+(?:also\s+)?(?:records|shows|notes|indicates|contains)\b/i,
+  /\bchange\s+(?:log|history)\b/i,
 ];
 
 export const isHistoryClaim = (claim: string) => HISTORY_CLAIM.some((re) => re.test(claim));
+
+/**
+ * Does this claim end where its own citations began?
+ *
+ * "This affected documents such as [A](…), [B](…)." asserts nothing on its
+ * own — the substance WAS the list, and stripping the links leaves "This
+ * affected documents such as". The judge then reads a sentence fragment
+ * against a document and quite correctly says the document does not state it,
+ * which reaches the reader as "Not stated in this source" about a citation
+ * that was never a claim. Observed 2026-09-28; "The Distribution Reward
+ * Payments are:" is the same shape and was a false flag in the 2026-09-24
+ * bakeoff too.
+ *
+ * The signal is a dangling CONNECTOR or copula at the end, optionally followed
+ * by a colon — NOT a colon on its own. A colon regularly ends a claim that has
+ * its own substance and merely introduces examples: "all multisigs must adhere
+ * to two baseline standards unless explicitly exempted:" is a real claim and a
+ * bare-colon rule threw it away. Checked after trailing punctuation is stripped,
+ * so "are:." reads as "are:".
+ *
+ * This sits beside MIN_CLAIM_WORDS: both ask whether there is a claim here at
+ * all, and neither needs a model to answer it.
+ */
+const DANGLING_TAIL =
+  /\b(?:such as|including|includes|like|for example|namely|as follows|e\.g|i\.e|see|and|or|with|is|are|was|were)\b\s*:?\s*$/i;
+
+export const isLeadIn = (claim: string) => DANGLING_TAIL.test(claim.replace(/[.\s]+$/, ""));
 
 /**
  * The clause each citation in a segment is attached to: the text since the
@@ -217,6 +249,8 @@ export function citationPairs(answer: string): CitationPair[] {
     const clauses = attributedClauses(seg);
     cites.forEach((c, i) => {
       const claim = clauses[i] ?? whole;
+      // The links WERE the claim — see isLeadIn. Nothing here to check.
+      if (isLeadIn(claim)) return;
       const key = `${c.uuid}|${claim}`;
       if (seen.has(key)) return;
       seen.add(key);
