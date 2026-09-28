@@ -294,7 +294,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Formulas quoted from the atlas render as math, the same way they do in the document reader.",
           'Scroll up while a reply is arriving and the thread holds still — the "New messages below" button jumps you to the newest text.',
           "The usage meter under the composer shows your usage / credits; click the pie to see every limit.",
-          "Dock the panel to the side with the dock icon in the header, or pop it out to a floating window.",
+          "Dock the panel to the side with the dock icon in the header — drag its left edge to widen it, up to 55% of the window — or pop it out to a floating window.",
           'Past chats live under "Conversations" in the profile menu, and as "continue a previous chat" in an empty panel.',
         ],
         note: "Asking a question requires signing in — use the sign-in control at the right of the top bar, or the Sign in buttons in the panel.",

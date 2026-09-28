@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-09-28
+- Added a drag handle on the docked chat so it can be widened up to 55% of the window
+
 ## 2026-09-24
 - Reworded the preview bar and browser tab to name the pull request or branch, and added a Dismiss control on the Access notice that stays hidden in this browser
 

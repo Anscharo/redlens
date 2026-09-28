@@ -33,7 +33,11 @@ embed text, indexes), `src/server/facts/` (auto-injected knowledge). Client:
 
 `ChatWidget` is a floating panel (⌘K/Ctrl-K to open, Esc to close) mounted once
 in the app shell, with `float` (corner card) and `anchored` (right column)
-placements persisted in localStorage. `useChatStream.send(text, pageContext)`
+placements persisted in localStorage. The anchored column starts at
+`clamp(340px, 30vw, 460px)` and can be dragged wider from its left edge, up to
+55% of the window (`AnchoredResizeHandle`; the pixel width is persisted as
+`rlc-anchored-w` and applied as `--rlc-anchored-w`, which the shell gutter
+reads too). `useChatStream.send(text, pageContext)`
 POSTs `{ message, conversationId, pageContext }` to `/api/chat`, then reads the
 response as a raw stream (not `EventSource`, since it's a POST), buffering on
 `\n\n` and parsing `data:` SSE frames into typed `ChatEvent`s. A `dispatch()`
