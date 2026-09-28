@@ -1,0 +1,10 @@
+{
+  "number": 330,
+  "title": "2026-09-10 Spell Parameter Updates",
+  "body": "Updated DC-IAM parameters for gap, line, and ttl values.",
+  "author": "MakerJanSky",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/330",
+  "commentCount": 1,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

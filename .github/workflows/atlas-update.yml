@@ -137,6 +137,26 @@ jobs:
             "${{ steps.atlas.outputs.old_full }}" "${{ steps.atlas.outputs.new_full }}" \
             -- ATLAS_MARKDOWN_SYNTAX.md > /tmp/spec-diff.txt || true
 
+      # Fetch the pull-request metadata (title, body, author, review counts) for
+      # the commits this bump brought in, so the committed .cache/github-prs
+      # records stay current. Every atlas commit is a PR, and this is the only
+      # job that both knows which PRs are new and can commit what it fetched —
+      # the Railway worker has `gh` and a token, but its container is discarded.
+      #
+      # `github.token` rather than the App token: the read is against the public
+      # upstream repo, which is outside the ATLAS_BOT installation.
+      #
+      # Degrades gracefully like the address refresh above: a record it cannot
+      # reach is skipped, and that history row simply carries no PR metadata.
+      - name: Cache PR metadata for the new atlas commits
+        if: steps.atlas.outputs.proceed == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pnpm history:prs "${{ steps.atlas.outputs.old_full }}" \
+            "${{ steps.atlas.outputs.new_full }}"
+
       - name: Commit and push to atlas-update branch
         if: steps.atlas.outputs.proceed == 'true'
         id: push
@@ -150,11 +170,14 @@ jobs:
           # address step above (no-op when ETHERSCAN_API_KEY is absent, so the
           # add is harmless then). Keeping them in the bump commit prevents
           # addresses.json from drifting out of sync with docs.json over time.
+          # .cache/github-prs holds the PR records fetched by the step above.
+          # They are committed because build:history must also run where nothing
+          # can fetch them: a `pnpm dev` preflight offline, and the canary job.
           git add vendor/next-gen-atlas graph-snapshots/__snapshots__ \
             .github/atlas-census-baseline.json .github/govops-census-baseline.json \
             .github/risk-census-baseline.json .github/concepts-census-baseline.json \
             .github/chains-census-baseline.json \
-            public/addresses.json .cache/etherscan
+            public/addresses.json .cache/etherscan .cache/github-prs
           git commit -m "chore: bump atlas submodule → ${SHORT}"
           git push origin "$BRANCH" --force
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"

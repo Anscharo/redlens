@@ -1,0 +1,10 @@
+{
+  "number": 341,
+  "title": "Atlas Edit Proposal — 2026-09-21",
+  "body": "## Summary\n\nThis proposal includes the following edits:\n\n- **Enable Osero's Diamond PAU** - Adds Osero's Diamond PAU to the Parallelized Allocation System documents.\n- **Record Grove's TGE And Genesis Transfer** - Records Grove's July 6, 2026 Token Generation Event and April 13, 2026 Genesis Capital Allocation transfer.\n- **Correct The Python Reference Implementations** - Formats the three Python reference implementations as fenced code blocks and fixes the time-weighted utilization implementation.\n- **Housekeeping Updates** - Aligns Grove's Diamond PAU Operator wording and records its Controller's Configurator status; updates completed Genesis Capital Allocation and Monthly Settlement Cycle language; and corrects a Spark cross-reference.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/341",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}
