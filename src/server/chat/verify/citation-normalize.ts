@@ -1,7 +1,7 @@
 // Reference-style citation normalization (docs/plans/reference-citations.md).
 // The entire checking layer — CITATION_SRC, extractCitations, findBareAtlasLinks,
 // findDocNoMismatches, MD_LINK_SRC, normalizeForMatch, findUngroundedQuotes,
-// findLowOverlapCitations, repairCitations — keys on the INLINE citation shape
+// citationPairs (cite-pairs.ts), repairCitations — keys on the INLINE citation shape
 // `[text](/atlas/<uuid>)`. Rather than teach each of them markdown reference
 // links, one pure pass expands them into that canonical shape and runs first.
 //

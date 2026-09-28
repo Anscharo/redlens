@@ -1,33 +1,38 @@
 // POST /api/chat — the agentic chat endpoint. Auth-gated, SSE-streamed. Owns
-// auth + conversation persistence; the tool-calling control flow lives in the
-// pure runChat() loop (chat-loop.ts), the LLM stream in llm.ts.
+// auth + conversation persistence; everything that shapes the turn before the
+// first model call (Jev judgement, tier routing, system prompt, history window,
+// facts, /teach notes) lives in prepareTurn (turn-setup.ts), the tool-calling
+// control flow in the pure runChat() loop (chat-loop.ts), the LLM stream in llm.ts.
 //
 // Order (per advisor): create conversation (if new) + persist the USER message
 // BEFORE streaming; persist the ASSISTANT message AFTER the stream completes —
 // never partial content.
-import type OpenAI from "openai";
 import { sql } from "../db.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { getSessionUser } from "../session.ts";
 import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
-import { routeTier, resolveTierModels, citationStyleFor, iterationsForTier } from "./model-router.ts";
+import type { Route } from "./model-router.ts";
 import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
-import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
-import { runFacts, factRound, summarizeFacts } from "../facts/registry.ts";
-import { windowHistory } from "./chat-history.ts";
+import type { PageContext } from "./system-prompt.ts";
+import { summarizeFacts } from "../facts/registry.ts";
+import { prepareTurn } from "./turn-setup.ts";
+import { agreedContradictionsFrom } from "./verify/disputes.ts";
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
 import { getWindowUsage } from "../rate-limit.ts";
 import { tryAcquireChatSlot, releaseChatSlot } from "./concurrency.ts";
 import { json } from "../http.ts";
 import { fetchCommons } from "./credits.ts";
-import { captureError, type ErrorContext } from "../posthog-node.ts";
+import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
 import { parseTeachCommand } from "./teach/parse.ts";
 import { runTeachCommand } from "./teach/handle.ts";
-import { matchTeachings } from "./teach/match.ts";
-import { teachingRound, summarizeTeachings } from "./teach/inject.ts";
+import { matchTeachings, type RankedTeaching } from "./teach/match.ts";
+import { summarizeTeachings } from "./teach/inject.ts";
+import { routeCensuses } from "../concepts-prefetch.ts";
 
-type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
+// /teach is its own path (review + persist, no atlas harness), so it never
+// runs prepareTurn and records reason "teach".
+const TEACH_ROUTE: Route = { tier: "default", reason: "teach" };
 
 interface ChatBody {
   message: string;
@@ -153,6 +158,25 @@ export async function handleChat(req: Request): Promise<Response> {
       return json({ error: "conversation_not_found" }, 404);
     }
 
+    // Computed here (not next to the other routing below) so it can gate the
+    // /teach lookup kicked off immediately after — /teach never reads a
+    // matched teaching, so a turn that opens with it must not pay for one.
+    const teachCmd = config.chatTeach ? parseTeachCommand(body.message) : null;
+
+    // Kick off the matched-/teach lookup as early as possible — it only needs
+    // userId + message, so it overlaps the user-message INSERT and history
+    // SELECT immediately below instead of stacking after them. .catch() at
+    // creation, not at the await site below: this promise sits unawaited for
+    // a while, so a DB blip must be swallowed right here or Bun sees it as an
+    // unhandled rejection before anything ever awaits it.
+    const teachingsPromise: Promise<RankedTeaching[]> =
+      !teachCmd && config.chatTeach
+        ? matchTeachings(userId, body.message).catch((err) => {
+            captureError(err, {}, { stage: "teach_match", conversationId: convId });
+            return [] as RankedTeaching[];
+          })
+        : Promise.resolve([] as RankedTeaching[]);
+
     // Persist the user message before streaming, then load history (includes it).
     // The updated_at bump runs alongside the history SELECT — independent
     // writes, no added latency — so a conversation whose stream later aborts or
@@ -162,62 +186,50 @@ export async function handleChat(req: Request): Promise<Response> {
     // deliberately NOT touching updated_at, the invariant `updated_at ≡ last
     // message time` holds exactly, served by the existing conversations_user index.
     await sql`INSERT INTO messages (conversation_id, role, content) VALUES (${convId}, 'user', ${body.message})`;
-    const [history] = (await Promise.all([
+    // The prior assistant answer's verify verdict (message_checks kind='verify'),
+    // if any — read alongside the history SELECT so the dispute round
+    // (dispute-round.ts, via prepareTurn below) costs no extra round trip.
+    // The LIMIT 1 sits in the SUBQUERY, not outside the join, and that is
+    // load-bearing: an INNER JOIN written flat would skip assistant messages
+    // that have NO verify row and hand back an OLDER answer's verdict. Not
+    // hypothetical — the small-talk bypass writes no verify row, so "ask,
+    // get a flag, say thanks, ask again" would inject a two-turn-old dispute
+    // under the heading "your previous answer". This shape asks only about
+    // THE last assistant message and returns nothing when it wasn't audited.
+    // .catch() degrades this ONE query to "no verdict found": a DB hiccup here
+    // must fall back to "no disputes injected" rather than failing the whole
+    // turn — the answer matters more than the annotation.
+    // Known, accepted gap: persistChecks (in persistAssistant, below) runs
+    // AFTER the stream's `done`, so a user who sends their next message while
+    // that write is still in flight gets no injection for THIS one turn —
+    // degrades to today's behaviour (no dispute round at all), never worse.
+    const [history, , lastVerify] = (await Promise.all([
       sql`SELECT role, content FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
       sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId}`,
-    ])) as [{ role: string; content: string }[], unknown];
+      sql`
+        SELECT mc.verdict FROM (
+          SELECT id FROM messages
+          WHERE conversation_id = ${convId} AND role = 'assistant'
+          ORDER BY created_at DESC LIMIT 1
+        ) m
+        JOIN message_checks mc ON mc.message_id = m.id AND mc.kind = 'verify'
+      `.catch(() => [] as { verdict: unknown }[]),
+    ])) as [{ role: string; content: string }[], unknown, { verdict: unknown }[]];
+    const disputes = agreedContradictionsFrom(lastVerify[0]?.verdict);
 
     const ix = getIndexes();
-    const teachCmd = config.chatTeach ? parseTeachCommand(body.message) : null;
+    const teachHits = await teachingsPromise; // already overlapped the two queries above
 
-    // Per-turn tier routing (rules-based, free): pick the model chain before any
-    // LLM work. Follow-up turns (an assistant reply already in history) never
-    // route fast on brevity alone — see model-router.ts. This runs BEFORE the
-    // system prompt is built because the citation format the prompt asks for
-    // depends on which model will read it. /teach is its own path (review +
-    // persist, no atlas harness) and records reason "teach".
+    // Everything the model reads before its first token — Jev judgement, tier
+    // routing, system prompt, windowed history, facts round, Jev-filtered /teach
+    // notes, the dispute round — assembled by the one function the tool-choice
+    // eval also runs (turn-setup.ts). /teach never reaches any of it, so it
+    // never runs one: no judgement, no routing (reason "teach"), no model input.
+    const turn = teachCmd
+      ? null
+      : await prepareTurn({ ix, message: body.message, history, pageContext: body.pageContext, teachHits, disputes });
+    const route = turn?.route ?? TEACH_ROUTE;
     const priorAssistants = history.filter((m) => m.role === "assistant").length;
-    const route = teachCmd
-      ? { tier: "default" as const, reason: "teach" }
-      : routeTier(body.message, { followUp: priorAssistants > 0 });
-    const models = resolveTierModels(route.tier);
-    const maxIterations = iterationsForTier(route.tier);
-
-    // The DB keeps the full conversation; the model gets a windowed replay
-    // (recent turns verbatim, older ones truncated, hard char budget) so long
-    // conversations never grow the per-round context without bound.
-    const messages: Msg[] = teachCmd
-      ? []
-      : [
-          { role: "system", content: buildSystemPrompt(ix, body.pageContext, citationStyleFor(models[0]), undefined, maxIterations) },
-          ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-        ];
-
-    // Facts (facts/registry.ts): deterministic, pure-code knowledge blocks that
-    // fire on the question — glossary definitions, entity rows, concept censuses,
-    // app documentation. Seeded as a synthetic tool round after the user message
-    // so a question they already answer needs ONE request instead of tool-round →
-    // answer-round. Injects nothing on a miss; the harness treats what they do
-    // inject as ordinary turn evidence.
-    const facts = !teachCmd && config.chatPrefetch
-      ? runFacts({ ix, question: body.message, page: body.pageContext })
-      : null;
-    if (facts) messages.push(...factRound(body.message, facts));
-
-    // Matched /teach notes for THIS user only. A miss (none, or the table not
-    // migrated yet) injects nothing — never fail a turn over a teaching lookup.
-    let teachings: Awaited<ReturnType<typeof matchTeachings>> | null = null;
-    if (!teachCmd && config.chatTeach) {
-      try {
-        const hits = await matchTeachings(userId, body.message);
-        if (hits.length > 0) {
-          teachings = hits;
-          messages.push(...teachingRound(body.message, hits));
-        }
-      } catch (err) {
-        captureError(err, {}, { stage: "teach_match", conversationId: convId });
-      }
-    }
 
     const startedAt = Date.now();
     const encoder = new TextEncoder();
@@ -234,6 +246,30 @@ export async function handleChat(req: Request): Promise<Response> {
       traceId: crypto.randomUUID(),
       properties: { chat_tier: route.tier, chat_route_reason: route.reason },
     };
+
+    // Telemetry for the pre-first-token judge — gated the same as the call
+    // itself, so a disabled/teach turn emits nothing. Held until `obs` exists
+    // (rather than fired right after the await above) so it joins this turn's
+    // trace. Counts and slugs only, never note text or ids beyond a count —
+    // this is a conversation-keyed event, not a user-content one.
+    if (turn && config.chatPrefetchJudgeModel) {
+      const { judgement, jevLatencyMs } = turn;
+      const teachKept = turn.teachings?.length ?? 0;
+      captureEvent("chat_prefetch_judge", obs, {
+        latency_ms: jevLatencyMs,
+        timed_out: judgement === null && jevLatencyMs >= config.chatPrefetchJudgeDeadlineMs,
+        complexity_p: judgement?.complexity ?? null,
+        // routeCensuses IS the function the fact called, so this reports what
+        // was actually injected. Re-deriving the threshold inline instead
+        // ignored MAX_CENSUSES (reporting 4 when 3 were injected) and claimed
+        // fires on turns where chatPrefetch is off and nothing ran at all —
+        // the parallel reimplementation concepts-prefetch.ts warns against.
+        census_fired: judgement && config.chatPrefetch ? routeCensuses(body.message, undefined, judgement.census) : [],
+        teach_kept: teachKept,
+        teach_dropped: teachHits.length - teachKept,
+      });
+    }
+
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         const send = (e: { type: string } & Record<string, unknown>) =>
@@ -279,6 +315,9 @@ export async function handleChat(req: Request): Promise<Response> {
             }
             return;
           }
+
+          // Past the /teach branch every turn ran prepareTurn above.
+          const { messages, models, maxIterations, facts, teachings } = turn!;
 
           // Facts ran before the model did, and they shape the answer — so say so
           // rather than letting injected context look like the model knowing

@@ -12,7 +12,10 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const TO_PG: Record<string, string> = { modified: "content", moved: "structural" };
 // Map stored value → user-facing.
 const FROM_PG: Record<string, string> = { content: "modified", structural: "moved" };
-function pgType(t: string) { return TO_PG[t] ?? t; }
+// Exported: retrieval/query.ts accepts the same two vocabularies on atlas_query
+// and must normalize them identically — a second copy of this map is how one
+// side silently returns zero rows for a name the other accepts.
+export function pgType(t: string) { return TO_PG[t] ?? t; }
 function userType(t: string) { return FROM_PG[t] ?? t; }
 
 // Reconstructed history splits into two classes that must not be collapsed.

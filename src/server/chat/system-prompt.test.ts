@@ -305,3 +305,22 @@ describe("MSC disambiguation", () => {
     expect(p).toMatch(/never state that MSC figures, rankings or venues are unavailable/);
   });
 });
+
+// Observed 2026-09-28: a "what changed last week?" answer linked its Osero and
+// Genesis bullets and left the Technical Corrections bullets bare. The tool
+// guide named atlas_history_stats and atlas_first_seen but never the two tools
+// that answer the question, so nothing told the model the events carry the
+// changed document's id.
+describe("change-history guidance", () => {
+  it("tells the model to link the document a change is about", () => {
+    const prompt = buildSystemPrompt(ix);
+    expect(prompt).toContain("atlas_recent_changes");
+    expect(prompt).toContain("LINK the document each change is about");
+  });
+
+  // The deeper rule: a commit message says a document CHANGED, not what it now
+  // says. Asserting new content from a PR title is the failure underneath.
+  it("separates what an event records from what the document now says", () => {
+    expect(buildSystemPrompt(ix)).toContain("never what it now says");
+  });
+});

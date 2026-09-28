@@ -2,6 +2,7 @@
 // see the chatbot plan; OpenRouter is the provider-abstraction layer, so a
 // model/provider swap is a one-config CHAT_MODEL change). Embeddings keep their
 // own direct-fetch path in embed.ts; this is the chat-completions surface only.
+import { createHash } from "node:crypto";
 import OpenAI from "openai";
 import { OpenAI as PostHogOpenAI } from "@posthog/ai/openai";
 import { config } from "../config.ts";
@@ -80,6 +81,21 @@ function posthogParams(obs: ChatObservability, surface: string): Record<string, 
     posthogPrivacyMode: !config.chatCaptureContent,
     posthogProperties: { chat_surface: surface, ...obs.properties },
   };
+}
+
+// OpenRouter sticky routing: with a `session_id`, every request of a
+// conversation goes to the same provider, so the prompt-cache that provider
+// built on the first round (system prompt + ~11k tokens of tool definitions)
+// is warm for every later round and turn. Without it OpenRouter keys stickiness
+// on a hash of the first system message — and ours changes whenever the user
+// navigates, because the current page rides in it. Measured before this
+// (PostHog, 30 days): gemma-4-31b read 15% of its input from cache vs 66% for
+// gpt-5.6-luna, and gemma's time-to-first-token climbs steeply with input
+// size. The raw conversation id never leaves the server — only a hash of it.
+// (Tier A of the 2026-09-22 context review: no prompt text changes.)
+export function sessionParam(obs: ChatObservability): { session_id?: string } {
+  if (!obs.distinctId) return {};
+  return { session_id: createHash("sha256").update(`sabr-chat:${obs.distinctId}`).digest("hex").slice(0, 32) };
 }
 
 // Non-streamed JSON-mode call for the reliability harness's grader role
@@ -174,6 +190,7 @@ export function makeOpenrouterStream(obs: ChatObservability = {}, models: string
         max_tokens: config.chatMaxOutputTokens,
         stream: true,
         stream_options: { include_usage: true },
+        ...sessionParam(obs),
         // Deliberately NO `reasoning` param. Forwarding a reasoning delta to
         // the client is unconditional (chat-loop.ts's reasoningDelta), and the
         // strong tier's model already reasons unprompted on ~98% of

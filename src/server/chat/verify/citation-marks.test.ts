@@ -1,0 +1,407 @@
+import { describe, expect, it, beforeEach, afterEach } from "bun:test";
+import type { CiteVerdict } from "./cite-support.ts";
+import { aggregateMarks, runCitationMarks, shownMarks, MIN_BACKED_CONFIDENCE, type CitationMark } from "./citation-marks.ts";
+import { config } from "../../config.ts";
+import type { Indexes } from "../../retrieval/indexes.ts";
+import type { JsonCall } from "../llm.ts";
+
+const A = "11111111-1111-4111-8111-111111111111";
+const B = "22222222-2222-4222-8222-222222222222";
+const C = "33333333-3333-4333-8333-333333333333";
+
+const node = (id: string, title: string, content: string) =>
+  ({ id, title, content, parentId: null, doc_no: "A.1", type: "Core", depth: 1, order: 0, addressRefs: [] }) as any;
+
+const ix = {
+  docMap: new Map([
+    [A, node(A, "Facilitator", "Facilitators are contracted by Executor Agents.")],
+    [B, node(B, "Rate Limits", "Rate limits apply to the instance.")],
+    [C, node(C, "History", "This document tracks edit history.")],
+  ]),
+  childrenIndex: new Map(),
+} as unknown as Indexes;
+
+const realFetch = globalThis.fetch;
+const realKey = config.openrouterApiKey;
+beforeEach(() => {
+  config.openrouterApiKey = "test-key";
+});
+afterEach(() => {
+  globalThis.fetch = realFetch;
+  config.openrouterApiKey = realKey;
+});
+
+describe("aggregateMarks", () => {
+  it("any contradicts wins over everything else — disputed", () => {
+    const marks = aggregateMarks([
+      { uuid: A, claim: "c1", verdict: "supports" },
+      { uuid: A, claim: "c2", verdict: "contradicts" },
+    ]);
+    expect(marks[A].status).toBe("disputed");
+    expect(marks[A].claims).toEqual([
+      { claim: "c1", verdict: "supports", confidence: null },
+      { claim: "c2", verdict: "contradicts", confidence: null },
+    ]);
+  });
+
+  it("an unjudged (null) pair suppresses any mark — we don't claim what we didn't check", () => {
+    const marks = aggregateMarks([
+      { uuid: A, claim: "c1", verdict: "supports" },
+      { uuid: A, claim: "c2", verdict: null },
+    ]);
+    expect(marks[A]).toBeUndefined();
+    // A confirmed contradiction does not override the unjudged pair. Worst
+    // verdict used to win here, so a doc we had not finished checking shipped
+    // as disputed.
+    const withContra = aggregateMarks([
+      { uuid: A, claim: "c1", verdict: "contradicts" },
+      { uuid: A, claim: "c2", verdict: null },
+    ]);
+    expect(withContra[A]).toBeUndefined();
+  });
+
+  it("says_nothing with no contradicts or null — uncovered", () => {
+    const marks = aggregateMarks([{ uuid: A, claim: "c1", verdict: "says_nothing" }]);
+    expect(marks[A]).toEqual({ status: "uncovered", claims: [{ claim: "c1", verdict: "says_nothing", confidence: null }], confidence: null });
+  });
+
+  // No confidence reported, so the support cannot clear the cliff.
+  it("only supports — a weak backing without a number", () => {
+    const marks = aggregateMarks([{ uuid: A, claim: "c1", verdict: "supports" }]);
+    expect(marks[A]).toEqual({ status: "backed_weak", claims: [{ claim: "c1", verdict: "supports", confidence: null }], confidence: null });
+  });
+
+  it("an unconfirmed contradiction draws nothing, and does not hide a sure line", () => {
+    expect(aggregateMarks([{ uuid: A, claim: "c1", verdict: "contradicts", confirmed: false }])[A]).toBeUndefined();
+    const marks = aggregateMarks([
+      { uuid: A, claim: "c1", verdict: "supports", confidence: 0.99 },
+      { uuid: A, claim: "c2", verdict: "contradicts", confirmed: false, confidence: 0.9 },
+    ]);
+    expect(marks[A].status).toBe("backed");
+    expect(marks[A].claims.map((c) => c.verdict)).toEqual(["supports"]);
+  });
+
+  it("only about_document pointers — no mark, and the pointer is excluded from claims on a mixed doc", () => {
+    expect(aggregateMarks([{ uuid: A, claim: "c1", verdict: "about_document" }])[A]).toBeUndefined();
+    const marks = aggregateMarks([
+      { uuid: A, claim: "c1", verdict: "about_document" },
+      { uuid: A, claim: "c2", verdict: "supports" },
+    ]);
+    expect(marks[A]).toEqual({ status: "backed_weak", claims: [{ claim: "c2", verdict: "supports", confidence: null }], confidence: null });
+  });
+
+  it("keeps docs independent — one doc's null does not affect another's mark", () => {
+    const marks = aggregateMarks([
+      { uuid: A, claim: "c1", verdict: null },
+      { uuid: B, claim: "c2", verdict: "supports" },
+    ]);
+    expect(marks[A]).toBeUndefined();
+    expect(marks[B].status).toBe("backed_weak"); // no confidence reported
+  });
+});
+
+// Stubs the /systemone endpoint judgeCitation posts to. `verdictFor` maps a
+// claim to the verdict Jev should return for it; unmatched claims answer
+// "supports" so a fixture only has to name what it cares about.
+function stubJudge(verdictFor: (claim: string) => string) {
+  globalThis.fetch = (async (url: any, init: any) => {
+    if (!String(url).includes("/systemone")) throw new Error("unexpected fetch: " + url);
+    const body = JSON.parse(init.body);
+    const claim = (body.state as { claim: string }).claim;
+    const choice = verdictFor(claim);
+    return new Response(
+      JSON.stringify({
+        answers: { support: { type: "choice", choice, probabilities: { [choice]: 1 }, confidence: 1 } },
+        usage: { input_tokens: 10, output_tokens: 2, cost: 0.000001 },
+        id: "gen-dec-1",
+      }),
+      { status: 200 },
+    );
+  }) as unknown as typeof fetch;
+}
+
+const ANSWER = `Facilitators are contracted by agents [Facilitator](/atlas/${A}). Rate limits apply [Rate Limits](/atlas/${B}).`;
+
+describe("runCitationMarks", () => {
+  it("makes no network call and returns empty marks when the answer has no citations", async () => {
+    let called = false;
+    globalThis.fetch = (async () => {
+      called = true;
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    const run = await runCitationMarks({ answer: "Just prose, no links at all.", ix, model: "jev" });
+    expect(run).toEqual({ marks: {}, judged: [], calls: 0, failed: 0, costUsd: 0, latencyMs: 0, confirm: null });
+    expect(called).toBe(false);
+  });
+
+  it("judges each pair and produces a backed mark", async () => {
+    stubJudge(() => "supports");
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev" });
+    expect(run.calls).toBe(2);
+    expect(run.marks[A]).toEqual({ status: "backed", claims: [{ claim: run.judged.find((j) => j.uuid === A)!.claim, verdict: "supports", confidence: 1 }], confidence: 1 });
+    expect(run.marks[B].status).toBe("backed");
+    expect(run.confirm).toBeNull(); // no contradicts — confirm never called
+  });
+
+  it("a pending judge call still returns within the deadline, counted as failed", async () => {
+    // Never resolves on its own — but DOES honor the AbortSignal, same as a
+    // real fetch would, so this exercises the deadline path rather than
+    // hanging on a mock that ignores cancellation altogether.
+    globalThis.fetch = ((_url: any, init: any) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+      })) as unknown as typeof fetch;
+    const t0 = Date.now();
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", deadlineMs: 100 });
+    expect(Date.now() - t0).toBeLessThan(2000); // generous margin over the 100ms deadline
+    expect(run.failed).toBe(2);
+    expect(run.marks).toEqual({}); // both verdicts null — no mark, not a guess
+  });
+
+  it("confirm AGREE keeps a contradicts verdict as disputed", async () => {
+    stubJudge((claim) => (claim.includes("Facilitators") ? "contradicts" : "supports"));
+    const confirmCall: JsonCall = async () => ({
+      text: '{"agree":[1],"notes":""}',
+      usage: { input: 5, output: 5 },
+      generationId: "gen-confirm",
+      latencyMs: 5,
+    });
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", jsonCall: confirmCall, confirmModel: "confirm-model" });
+    expect(run.confirm).toEqual({ candidates: 1, agreed: 1 });
+    expect(run.marks[A].status).toBe("disputed");
+    expect(run.marks[B].status).toBe("backed");
+    expect(run.judged.find((j) => j.uuid === A)).toMatchObject({ verdict: "contradicts", confirmed: true, confidence: 1 });
+  });
+
+  it("confirm DISAGREE keeps contradicts off the chip, and does not call it a gap", async () => {
+    stubJudge((claim) => (claim.includes("Facilitators") ? "contradicts" : "supports"));
+    const confirmCall: JsonCall = async () => ({
+      text: '{"agree":[],"notes":""}',
+      usage: { input: 5, output: 5 },
+      generationId: "gen-confirm",
+      latencyMs: 5,
+    });
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", jsonCall: confirmCall, confirmModel: "confirm-model" });
+    expect(run.confirm).toEqual({ candidates: 1, agreed: 0 });
+    expect(run.marks[A]).toBeUndefined();
+    expect(run.marks[B].status).toBe("backed");
+    expect(run.judged.find((j) => j.uuid === A)).toMatchObject({ verdict: "contradicts", confirmed: false, confidence: 1 });
+  });
+
+  it("confirm is shown the cited document in full, including text past the old 600-character cut", async () => {
+    const tail = "The threshold is seven signers, not three.";
+    const long = `${"The opening defines terms. ".repeat(40)}${tail}`;
+    expect(long.length).toBeGreaterThan(600);
+    const longIx = {
+      ...ix,
+      docMap: new Map(ix.docMap),
+    } as unknown as Indexes;
+    longIx.docMap.set(A, node(A, "Facilitator", long));
+    stubJudge((claim) => (claim.includes("Facilitators") ? "contradicts" : "supports"));
+    let shown = "";
+    const confirmCall: JsonCall = async (args) => {
+      shown = args.messages.map((m) => String(m.content)).join("\n");
+      return {
+        text: '{"agree":[1],"notes":""}',
+        usage: { input: 5, output: 5 },
+        generationId: "gen-confirm",
+        latencyMs: 5,
+      };
+    };
+    const run = await runCitationMarks({ answer: ANSWER, ix: longIx, model: "jev", jsonCall: confirmCall, confirmModel: "confirm-model" });
+    expect(shown).toContain(tail);
+    expect(shown).toContain("full text of the cited document");
+    expect(run.marks[A].status).toBe("disputed");
+  });
+
+  it("confirm absent (no jsonCall/confirmModel) also leaves contradicts off the chip", async () => {
+    stubJudge((claim) => (claim.includes("Facilitators") ? "contradicts" : "supports"));
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev" });
+    expect(run.confirm).toEqual({ candidates: 1, agreed: 0 });
+    expect(run.marks[A]).toBeUndefined();
+    expect(run.judged.find((j) => j.uuid === A)).toMatchObject({ verdict: "contradicts", confirmed: false });
+  });
+
+  it("skips a citation to a uuid not in ix.docMap", async () => {
+    const unknown = "44444444-4444-4444-8444-444444444444";
+    let called = false;
+    globalThis.fetch = (async () => {
+      called = true;
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    const run = await runCitationMarks({ answer: `Some claim [X](/atlas/${unknown}).`, ix, model: "jev" });
+    expect(run.calls).toBe(0);
+    expect(called).toBe(false);
+  });
+});
+
+describe("aggregateMarks: how full support splits", () => {
+  const U1 = "11111111-1111-4111-8111-111111111111";
+  const j = (claim: string, verdict: CiteVerdict, confidence: number | null = 0.99) => ({ uuid: U1, claim, verdict, confidence });
+
+  it("every supporting line over the cliff is a plain backing", () => {
+    expect(aggregateMarks([j("a", "supports", 0.99), j("b", "supports", MIN_BACKED_CONFIDENCE)])[U1].status).toBe("backed");
+  });
+
+  it("every supporting line under the cliff is a weak backing", () => {
+    expect(aggregateMarks([j("a", "supports", 0.94), j("b", "supports", 0.5)])[U1].status).toBe("backed_weak");
+  });
+
+  // The case a single number hides: this document clearly backs one sentence
+  // and barely backs another, which is worth saying rather than averaging.
+  it("lines on both sides of the cliff are mixed", () => {
+    const mark = aggregateMarks([j("a", "supports", 0.99), j("b", "supports", 0.93)])[U1];
+    expect(mark.status).toBe("mixed");
+    // The tooltip names both lines, so both confidences have to survive.
+    expect(mark.claims.map((c) => c.confidence)).toEqual([0.99, 0.93]);
+  });
+
+  // Jev always reports a confidence on a live Choice, so a missing one means
+  // something went wrong. That is not a reason to promote the mark.
+  it("counts a supporting line with no confidence as under the cliff", () => {
+    expect(aggregateMarks([j("a", "supports", null)])[U1].status).toBe("backed_weak");
+  });
+
+  it("gives partial support a mark of its own, below every full backing", () => {
+    expect(aggregateMarks([j("a", "supports_in_part", 0.88)])[U1].status).toBe("partial");
+    expect(aggregateMarks([j("a", "supports", 0.99), j("b", "supports_in_part", 0.9)])[U1].status).toBe("partial");
+  });
+
+  // Worst verdict still wins over all of it.
+  it("loses to a contradiction and to an uncovered line", () => {
+    expect(aggregateMarks([j("a", "supports_in_part", 0.9), j("b", "contradicts", 0.2)])[U1].status).toBe("disputed");
+    expect(aggregateMarks([j("a", "supports", 0.99), j("b", "says_nothing", 0.2)])[U1].status).toBe("uncovered");
+  });
+
+  // A check is only as sure as its weakest support; a warning as sure as its
+  // clearest contradiction. Neither `mixed` nor `partial` carries a number —
+  // one value cannot describe a disagreement between lines.
+  it("carries a number only where one number can describe the status", () => {
+    expect(aggregateMarks([j("a", "supports", 0.99), j("b", "supports", 0.96)])[U1].confidence).toBe(0.96);
+    expect(aggregateMarks([j("a", "contradicts", 0.4), j("b", "contradicts", 0.87)])[U1].confidence).toBe(0.87);
+    expect(aggregateMarks([j("a", "supports", 0.99), j("b", "supports", 0.93)])[U1].confidence).toBeNull();
+    expect(aggregateMarks([j("a", "supports_in_part", 0.9)])[U1].confidence).toBeNull();
+  });
+
+  it("a record-lane support is stored by the caller and does not become a document mark", () => {
+    expect(aggregateMarks([{ uuid: U1, claim: "Updated in PR 336", verdict: "supports", confidence: 1, lane: "record" }])[U1]).toBeUndefined();
+    const mixed = aggregateMarks([
+      { uuid: U1, claim: "The fee is 10 bps", verdict: "supports", confidence: 0.99, lane: "content" },
+      { uuid: U1, claim: "Updated in PR 336", verdict: "supports", confidence: 1, lane: "record" },
+    ]);
+    expect(mixed[U1].status).toBe("backed");
+  });
+});
+
+describe("shownMarks", () => {
+  const mark = (status: CitationMark["status"]): CitationMark =>
+    ({ status, claims: [], confidence: null });
+
+  // The line is what a status MEASURES, not how bad it is. `backed_weak`,
+  // `mixed` and `partial` are weak CONFIDENCE and stay hidden; `uncovered` and
+  // `unread` are categorical findings and are drawn.
+  it("keeps the sure match, the contradiction and the two warnings, dropping the weak checks", () => {
+    const marks = { a: mark("backed"), b: mark("backed_weak"), c: mark("disputed"), d: mark("uncovered"), e: mark("unread"), f: mark("mixed") };
+    const shown = shownMarks(marks);
+    expect(Object.keys(shown).sort()).toEqual(["a", "c", "d", "e"]);
+    expect(shown).not.toBe(marks);
+  });
+
+  it("returns the same object when every mark is already showable", () => {
+    const marks = { a: mark("backed"), c: mark("disputed") };
+    expect(shownMarks(marks)).toBe(marks);
+  });
+});
+
+// Provenance picks the QUESTION, not merely whether to ask one. The judge used
+// to be handed the full indexed document for every citation, including ones the
+// model had only seen named — which is how "Not stated in this source" reached
+// readers about citations that were never sourcing content.
+describe("routing by provenance", () => {
+  const prov = (uuid: string, kind: "content" | "identity", record: unknown) =>
+    new Map([[uuid, { kind, record, tool: kind === "identity" ? "atlas_recent_changes" : "atlas_get" }]]);
+
+  // Records which question id each request carried: "support" is the content
+  // judge (cite-support.ts), "metadata" the record judge (cite-metadata.ts).
+  function stubBoth(choice: string) {
+    const asked: string[] = [];
+    globalThis.fetch = (async (_u: unknown, init: { body: string }) => {
+      const body = JSON.parse(init.body) as { questions: Record<string, unknown> };
+      const id = Object.keys(body.questions)[0];
+      asked.push(id);
+      return new Response(
+        JSON.stringify({
+          answers: { [id]: { type: "choice", choice, probabilities: { [choice]: 1 }, confidence: 1 } },
+          usage: { input_tokens: 1, output_tokens: 1, cost: 0 },
+          id: "gen-dec-1",
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+    return asked;
+  }
+
+  it("asks the document question when the turn read the document", async () => {
+    const asked = stubBoth("supports");
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", provenance: prov(A, "content", {}) });
+    expect(asked).toEqual(["support"]);
+    expect(run.marks[A].status).toBe("backed");
+  });
+
+  // The reported bug: the turn saw a change event, never the document.
+  it("asks the record question when the turn saw only a record about it", async () => {
+    const asked = stubBoth("supports");
+    const record = { doc_id: A, committed_at: "2026-09-17", pr_number: 336, pr_title: "Atlas Edit Proposal" };
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", provenance: prov(A, "identity", record) });
+    expect(asked).toEqual(["metadata"]);
+    expect(run.marks[A]).toBeUndefined();
+    expect(run.judged.find((j) => j.uuid === A)).toMatchObject({ verdict: "supports", lane: "record", confidence: 1 });
+  });
+
+  // "the Rate Limits was updated … to set the rate limits to unlimited" — the
+  // date and PR are checkable against the record; what the document now says
+  // is not, and no record can settle it.
+  it("does not confirm a record contradiction against the document, and draws nothing", async () => {
+    stubBoth("contradicts");
+    let confirmCalled = false;
+    const confirmCall: JsonCall = async () => {
+      confirmCalled = true;
+      return { text: '{"agree":[1],"notes":""}', usage: { input: 1, output: 1 }, generationId: "g", latencyMs: 1 };
+    };
+    const run = await runCitationMarks({
+      answer: ANSWER,
+      ix,
+      model: "jev",
+      provenance: prov(A, "identity", { doc_id: A, pr_number: 336 }),
+      jsonCall: confirmCall,
+      confirmModel: "confirm-model",
+    });
+    expect(confirmCalled).toBe(false);
+    expect(run.confirm).toBeNull();
+    expect(run.marks[A]).toBeUndefined();
+    expect(run.judged.find((j) => j.uuid === A)).toMatchObject({ verdict: "contradicts", lane: "record", confirmed: false, confidence: 1 });
+  });
+
+  it("marks a claim that states document content from a record alone", async () => {
+    stubBoth("states_content");
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", provenance: prov(A, "identity", { doc_id: A }) });
+    expect(run.marks[A].status).toBe("unread");
+  });
+
+  // Silence, not a guess. A follow-up turn re-citing a document read LAST turn
+  // has no provenance at all, and we cannot check what we did not see.
+  it("makes no request and no mark for a citation the turn never retrieved", async () => {
+    const asked = stubBoth("supports");
+    const run = await runCitationMarks({ answer: ANSWER, ix, model: "jev", provenance: prov(A, "content", {}) });
+    expect(asked).toHaveLength(1); // only A — B was cited but never retrieved
+    expect(run.marks[B]).toBeUndefined();
+  });
+
+  // Omitting the map is different from an empty one: callers predating this,
+  // and the checks-off path, must behave exactly as they did.
+  it("falls back to the document question when no map is supplied", async () => {
+    const asked = stubBoth("supports");
+    await runCitationMarks({ answer: ANSWER, ix, model: "jev" });
+    expect(asked).toEqual(["support", "support"]);
+  });
+});

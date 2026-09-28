@@ -57,7 +57,6 @@ describe("StageSlot / checks", () => {
   const verify: VerifyState = {
     status: "fail",
     contradictions: [],
-    notFound: [],
     rulingIssued: true,
     invalidCitations: [],
     invalidDocNos: [],

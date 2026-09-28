@@ -10,7 +10,6 @@ afterEach(cleanup);
 const base: VerifyState = {
   status: "fail",
   contradictions: [],
-  notFound: [],
   rulingIssued: false,
   invalidCitations: [],
   invalidDocNos: [],

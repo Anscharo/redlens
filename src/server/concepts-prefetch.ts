@@ -38,6 +38,7 @@ import { config } from "./config.ts";
 import type { Indexes } from "./retrieval/indexes.ts";
 import { conceptsCensusFor, censusSummary, type CensusSummaryRow } from "./chat/tools/tools-censuses.ts";
 import type { CensusSlug } from "../lib/conceptsCensus.ts";
+import { JEV_CENSUS_THRESHOLD } from "./chat/prefetch-judge.ts";
 
 // A question phrased across several census vocabularies is usually about the
 // catalog itself — three summaries orient without flooding the transcript.
@@ -160,21 +161,40 @@ export const CENSUS_NEGATIVE_PROTOTYPES = [
 ];
 
 /**
- * Which census slugs (if any) this question routes to — regex ∪ similarity,
- * capped at MAX_CENSUSES, regex-first (its order is the existing tie-break).
- * The one routing function: production calls it with no override (`margin`
- * defaults to `config.chatCensusSimilarityMargin`), and `pnpm eval:census`
- * calls this exact function with an override to sweep thresholds — never a
- * parallel reimplementation of the arithmetic, which would let eval and
- * server silently diverge (see facts/similarity.ts's identical note on
- * looksLikeFactQuestion).
+ * Which census slugs (if any) this question routes to — regex ∪ (similarity
+ * OR Jev), capped at MAX_CENSUSES, regex-first (its order is the existing
+ * tie-break). The one routing function: production calls it with no override
+ * (`margin` defaults to `config.chatCensusSimilarityMargin`), and
+ * `pnpm eval:census` calls this exact function with an override to sweep
+ * thresholds — never a parallel reimplementation of the arithmetic, which
+ * would let eval and server silently diverge (see facts/similarity.ts's
+ * identical note on looksLikeFactQuestion).
+ *
+ * `jevCensus` (chat/prefetch-judge.ts's pre-first-token judgement, threaded
+ * in via facts/types.ts's FactContext) REPLACES the similarity lane rather
+ * than adding to it when present — measured 2026-09-22: on 145 real messages
+ * the similarity lane fired 7 times and was wrong every time, while Jev at
+ * JEV_CENSUS_THRESHOLD fired zero. Absent (the judge didn't run, was late, or
+ * failed), behavior is exactly today's regex ∪ similarity.
  *
  * Small-talk gated, atlas-subject NOT gated (constraint: a census question
  * already names atlas vocabulary — see header). `config.chatFactSimilarity`
- * is the shared kill switch for every embedding lane (features' and this one).
+ * is the shared kill switch for the similarity lane only — `jevCensus`, when
+ * passed, is governed by chat.ts's own chatPrefetchJudgeModel gate instead.
  */
-export function routeCensuses(question: string, margin = config.chatCensusSimilarityMargin): CensusSlug[] {
+export function routeCensuses(
+  question: string,
+  margin = config.chatCensusSimilarityMargin,
+  jevCensus?: Partial<Record<CensusSlug, number>>,
+): CensusSlug[] {
   const regexSlugs = matchConceptCensuses(question);
+  if (jevCensus) {
+    const jevSlugs = (Object.entries(jevCensus) as [CensusSlug, number][])
+      .filter(([, p]) => p >= JEV_CENSUS_THRESHOLD)
+      .sort((a, b) => b[1] - a[1])
+      .map(([slug]) => slug);
+    return [...new Set([...regexSlugs, ...jevSlugs])].slice(0, MAX_CENSUSES);
+  }
   if (!config.chatFactSimilarity || isSmallTalk(question)) return regexSlugs;
   const ranked = rankPrototypeSets(question, CENSUS_PROTOTYPES, CENSUS_NEGATIVE_PROTOTYPES);
   const simSlugs = ranked.filter((r) => r.margin >= margin).map((r) => r.slug as CensusSlug);
@@ -190,8 +210,12 @@ export const CENSUSES_NOTE =
   "When answering from them, attribute explicitly ('our census shows…', 'our analysis finds…'); " +
   "never present them as something the atlas itself states.";
 
-export function censusPrefetchRows(ix: Indexes, question: string): CensusPrefetchRow[] {
-  const slugs = routeCensuses(question);
+export function censusPrefetchRows(
+  ix: Indexes,
+  question: string,
+  jevCensus?: Partial<Record<CensusSlug, number>>,
+): CensusPrefetchRow[] {
+  const slugs = routeCensuses(question, undefined, jevCensus);
   if (slugs.length === 0) return [];
   const all = conceptsCensusFor(ix);
   return slugs.map((slug) => ({

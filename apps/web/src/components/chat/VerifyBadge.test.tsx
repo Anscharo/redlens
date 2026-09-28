@@ -9,7 +9,6 @@ afterEach(cleanup);
 
 const base: Omit<VerifyState, "status"> = {
   contradictions: [],
-  notFound: [],
   rulingIssued: false,
   invalidCitations: [],
   invalidDocNos: [],
@@ -89,34 +88,6 @@ describe("VerifyBadge", () => {
     const verify: VerifyState = { ...base, status: "warn", rulingIssued: true };
     render(<VerifyBadge verify={verify} onAtlas={noop} />);
     expect(screen.getByRole("button")).toHaveTextContent("caution: the answer issues a ruling");
-  });
-
-  it("renders no not-found disclosure when notFound is empty", () => {
-    render(<VerifyBadge verify={{ ...base, status: "pass" }} onAtlas={noop} />);
-    expect(screen.queryByText(/retrieved sources/)).not.toBeInTheDocument();
-  });
-
-  it("shows a collapsed not-found disclosure below the chip on pass, not counted as an issue", () => {
-    render(<VerifyBadge verify={{ ...base, status: "pass", notFound: ["Sky has 12 facilitators", "the cap is 100"] }} onAtlas={noop} />);
-    const chip = screen.getByRole("button", { name: /no contradictions found/ });
-    expect(chip).toBeDisabled(); // notFound never makes the chip expandable
-
-    const toggle = screen.getByRole("button", { name: "2 statements the retrieved sources don't cover" });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(toggle).toHaveAttribute("aria-controls");
-    expect(screen.queryByText("Sky has 12 facilitators")).not.toBeInTheDocument();
-
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    const list = document.getElementById(toggle.getAttribute("aria-controls")!);
-    expect(list).toHaveClass("rlc-verify-notfound-list");
-    expect(screen.getByText("Sky has 12 facilitators")).toBeInTheDocument();
-    expect(screen.getByText("the cap is 100")).toBeInTheDocument();
-  });
-
-  it("singularizes the not-found disclosure label for one statement", () => {
-    render(<VerifyBadge verify={{ ...base, status: "pass", notFound: ["only one"] }} onAtlas={noop} />);
-    expect(screen.getByRole("button", { name: "1 statement the retrieved sources don't cover" })).toBeInTheDocument();
   });
 
   // Regression: a param mismatch is a HARD server-side failure that can be the

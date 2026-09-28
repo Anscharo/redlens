@@ -19,7 +19,7 @@ const NOTE =
   "These notes are for this user only.";
 
 export function summarizeTeachings(n: number): string {
-  return n === 1 ? "1 of your notes" : `${n} of your notes`;
+  return `${n} of your notes`;
 }
 
 export function teachingRound(question: string, rows: RankedTeaching[]): Msg[] {
