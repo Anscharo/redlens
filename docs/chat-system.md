@@ -816,7 +816,28 @@ reaches the chip on its own: it becomes a `Contradiction` with `source:
 "cited-doc"` and must pass the same `confirm` gate as every other candidate.
 Confirm is shown that document's full text — the same text the citation
 check judged — not a prefix of it; unconfirmed, it is downgraded to "doesn't
-cover this line". Per document, worst verdict wins, but only among pairs that
+cover this line". **Two extraction rules keep the judge from being asked an unanswerable
+question** (both 2026-09-28, `cite-pairs.ts`). A claim about the document's
+HISTORY never becomes a pair at all: a document cannot state its own edit
+history, so "(PR #336)", "changed N times", "was updated", "first seen" and
+"modification counts" are dropped in code, before any request. Leaning on the
+judge's `about_document` option instead costs a request and gets the verdict
+wrong when the sentence ALSO restates what the document now says — observed
+2026-09-28, where a sentence about a September rate-limit change came back
+`supports_in_part` because the document does state the current value. The
+filter is fail-safe both ways: a miss falls through to the judge exactly as
+before, and a false positive withholds a mark rather than asserting one.
+Subtler history phrasings still land on `about_document`, which is unchanged.
+
+And a link used as a NOUN keeps its text. Stripping every link turned "the
+[Rate Limits](…) was updated" into "the was updated", destroying the very
+words that mark a sentence as being about the document. A link led by a
+determiner is prose and keeps its text; anywhere else — including a
+parenthesis wrapping only the link — it is a source marker and goes, so an
+ordinary trailing citation is byte-identical to what it always was and the
+bakeoff's disk cache still hits on it.
+
+Per document, worst verdict wins, but only among pairs that
 were actually judged: any unjudged pair withholds the mark entirely, and a
 pointer-only document ("the document X changes often") gets none either. The
 marks render on the Sources chips — a ✓ on every backed source, by explicit

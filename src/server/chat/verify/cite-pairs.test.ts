@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { citationPairs, tablesAsProse } from "./cite-pairs.ts";
+import { citationPairs, isHistoryClaim, tablesAsProse } from "./cite-pairs.ts";
 
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
@@ -99,5 +99,74 @@ describe("multi-citation sentences", () => {
     const pairs = citationPairs(`The threshold is seven signers [A](/atlas/${A}) [B](/atlas/${B}).`);
     expect(pairs).toHaveLength(2);
     expect(pairs[1].claim).toContain("seven signers");
+  });
+});
+
+// A link right after a determiner or an open paren is a NOUN in the sentence,
+// not a source marker. Dropping it left a hole: "the [Rate Limits](…) was
+// updated" became "the was updated", which is not a claim at all. Observed
+// 2026-09-28, and it hit hardest on the sentences `about_document` exists to
+// catch, because it destroyed the words marking them as ABOUT the document.
+describe("links used as nouns", () => {
+  it("keeps the link text when a determiner leads it", () => {
+    const [p] = citationPairs(`* Under the [Rate Limits](/atlas/${A}), the USDS burn limit is unlimited.`);
+    expect(p.claim).toBe("Under the Rate Limits, the USDS burn limit is unlimited.");
+  });
+
+  // A parenthesis wrapping only the link is a source marker too, so the rule
+  // is determiners alone. The empty parens get swept up as they always were.
+  it("drops a link that a parenthesis merely wraps", () => {
+    const [p] = citationPairs(`Documents regarding CRRs ([CRRs](/atlas/${A})) change often.`);
+    expect(p.claim).toBe("Documents regarding CRRs change often.");
+  });
+
+  // The other shape: prose follows the link, but it is still an aside. Keeping
+  // the title here would hand the judge the cited document's own name inside
+  // the claim it is meant to check.
+  it("drops it when the sentence already reads without it", () => {
+    const pairs = citationPairs(
+      `* They validate inputs for new agents [A](/atlas/${A}) and the setup of accords [B](/atlas/${B}).`,
+    );
+    expect(pairs[0].claim).toBe("They validate inputs for new agents");
+    expect(pairs[0].claim).not.toContain("A");
+  });
+
+  // THE load-bearing one. A trailing citation is the overwhelming majority of
+  // pairs, and its claim must stay byte-identical: `claim === whole` is what
+  // keeps `context` off the pair, the request shape unchanged, and the
+  // bakeoff's disk cache hitting.
+  it("leaves an ordinary trailing citation exactly as it was", () => {
+    const [p] = citationPairs(`The USDS burn rate limit is unlimited [Rate Limits](/atlas/${A}).`);
+    expect(p.claim).toBe("The USDS burn rate limit is unlimited.");
+    expect(p.context).toBeUndefined();
+  });
+});
+
+// A document cannot state its own edit history, so pairing one with a sentence
+// about when it changed asks a question with no honest answer. These shapes are
+// unambiguous, so they never reach the judge.
+describe("claims about a document's history", () => {
+  it("makes no pair for the shapes the history tools produce", () => {
+    const histories = [
+      `On September 17, 2026 (PR #336), the [Rate Limits](/atlas/${A}) was updated to unlimited.`,
+      `The [Rate Limits](/atlas/${A}) document changed 6 times this year.`,
+      `This parameter was first seen in the [Rate Limits](/atlas/${A}) document.`,
+      `The [Rate Limits](/atlas/${A}) was last updated in August [x](/atlas/${B}).`,
+      `Documents regarding CRRs ([CRRs](/atlas/${A})) show high modification counts.`,
+    ];
+    for (const answer of histories) expect(citationPairs(answer)).toEqual([]);
+  });
+
+  // The observed failure: the sentence is about the document's history AND
+  // restates what the document now says, so the judge called it partial
+  // support. The date and the PR number settle it before a request is made.
+  it("drops a history claim even when it restates current content", () => {
+    expect(isHistoryClaim("the Rate Limits was updated to set the USDS burn rate limits to unlimited.")).toBe(true);
+  });
+
+  it("leaves an ordinary content claim alone", () => {
+    expect(isHistoryClaim("The USDS burn rate limit is unlimited.")).toBe(false);
+    expect(isHistoryClaim("Core GovOps validate the Founder's inputs.")).toBe(false);
+    expect(citationPairs(`The USDS burn rate limit is unlimited [Rate Limits](/atlas/${A}).`)).toHaveLength(1);
   });
 });

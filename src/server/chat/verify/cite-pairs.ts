@@ -69,13 +69,39 @@ export function tablesAsProse(answer: string): string {
   return out.join("\n");
 }
 
+/**
+ * Is this link being used as a NOUN in the sentence rather than as a source
+ * marker? A link sitting right after a determiner or an opening paren is part
+ * of the prose, and dropping it leaves a sentence with a hole in it:
+ * "the [Rate Limits](…) was updated" became "the was updated", which is not a
+ * claim at all. Observed 2026-09-28.
+ *
+ * That hole matters most for exactly the sentences the `about_document`
+ * verdict exists to catch — "the X was updated on …", "the X document changed
+ * N times" — because the words it destroys are the ones that mark the sentence
+ * as being ABOUT the document rather than drawn from it.
+ *
+ * Anywhere else the link is an aside and dropping it leaves valid prose:
+ * "…for new agents [A](…) and the setup of…" reads correctly without it, and
+ * keeping the title there would hand the judge the cited document's own name
+ * inside the claim it is meant to check. A parenthesis wrapping only the link
+ * — "CRRs ([CRRs](…)) change often" — is a source marker too, and the empty
+ * parens it leaves behind are swept up by cleanClaim below.
+ */
+const NOUN_LINK_LEAD = /\b(?:the|a|an|this|that|these|those)\s+$/i;
+export const isNounLink = (before: string) => NOUN_LINK_LEAD.test(before.slice(-24));
+
 /** Link-stripped, markup-stripped, with the debris stripped links leave behind. */
 function cleanClaim(seg: string): string {
   return seg
-    .replace(new RegExp(MD_LINK_SRC, "g"), " ")
+    .replace(new RegExp(MD_LINK_SRC, "g"), (_m: string, text: string, offset: number, whole: string) =>
+      isNounLink(whole.slice(0, offset)) ? text : " ",
+    )
     .replace(/^\s*(?:[-*+]|\d+\.)\s+/, "") // list marker
     .replace(/\*\*|__|`/g, "")
     .replace(/\(\s*[,;\s]*\)/g, "") // "( )" and "( , )" left by removed links
+    .replace(/\(\s+/g, "(") // "( CRRs )" left by a kept noun link
+    .replace(/\s+\)/g, ")")
     .replace(/\s+([,.;:])/g, "$1")
     .replace(/([,;])(?:\s*[,;])+/g, "$1")
     .replace(/\s+/g, " ")
@@ -88,6 +114,38 @@ function cleanClaim(seg: string): string {
 // second copy is a silent way for them to stop meaning the same thing.
 export const MIN_CLAIM_WORDS = 3;
 export const realWords = (s: string) => (s.match(/[A-Za-z]{2,}/g) ?? []).length;
+
+/**
+ * Is this claim about the document's HISTORY rather than its content?
+ *
+ * A document can never state its own edit history, so pairing one with a
+ * sentence about when it changed asks a question with no honest answer. The
+ * judge has an `about_document` option for exactly this, but leaning on it
+ * costs a request and gets the verdict wrong when the sentence ALSO restates
+ * what the document now says — observed 2026-09-28, where "the Rate Limits
+ * was updated on September 17 (PR #336) to set the USDS burn and USDC-to-USDS
+ * swap rate limits to unlimited" came back `supports_in_part`, because the
+ * document does state the current value outright.
+ *
+ * These shapes are unambiguous, so they are dropped in code before any model
+ * sees them: the pair produces no mark at all, which is the honest output.
+ * Fail-safe in both directions — a miss falls through to the judge exactly as
+ * before, and a false positive withholds a mark rather than asserting one.
+ *
+ * The facts themselves come from the history tools (`atlas_history`,
+ * `atlas_recent_changes`, `atlas_first_seen`), and a citation beside them
+ * points the reader at the document rather than sourcing the claim from it.
+ */
+const HISTORY_CLAIM: RegExp[] = [
+  /\bPR\s*#\d+/i, // "(PR #336)"
+  /\bchanged\s+\d+\s+times?\b/i,
+  /\b(?:was|were|has been|have been)\s+(?:updated|changed|added|removed|created|renumbered|revised|renamed)\b/i,
+  /\bfirst\s+(?:seen|appeared|added|introduced)\b/i,
+  /\b(?:last|most recently)\s+(?:updated|changed|edited|modified)\b/i,
+  /\bmodification counts?\b/i,
+];
+
+export const isHistoryClaim = (claim: string) => HISTORY_CLAIM.some((re) => re.test(claim));
 
 /**
  * The clause each citation in a segment is attached to: the text since the
@@ -121,7 +179,13 @@ function attributedClauses(seg: string): (string | null)[] {
     // exactly: pieces are joined with a single space because that is what
     // cleanClaim's own link-stripping does, so a single-citation pair's claim
     // stays byte-identical to what it has always been.
-    const pieces = [seg.slice(i === 0 ? 0 : spans[i - 1].end, sp.start)];
+    const before = seg.slice(i === 0 ? 0 : spans[i - 1].end, sp.start);
+    // This citation's own link text, when it is prose rather than a marker.
+    // cleanClaim applies the SAME rule to the whole segment, and the two must
+    // agree or a single-citation claim stops equalling `whole` — which would
+    // attach a spurious `context` to every pair and change every request.
+    const own = isNounLink(before) ? seg.slice(sp.start, sp.end).replace(new RegExp(MD_LINK_SRC), "$1") : " ";
+    const pieces = [before, own];
     if (i === spans.length - 1) pieces.push(seg.slice(sp.end));
     const clause = cleanClaim(pieces.join(" "));
     // Adjacent links share the clause before them, so inherit the last real
@@ -146,6 +210,10 @@ export function citationPairs(answer: string): CitationPair[] {
     if (!cites.length) continue;
     const whole = cleanClaim(seg);
     if (realWords(whole) < MIN_CLAIM_WORDS) continue;
+    // Tested on the WHOLE sentence, not the clause: a sentence about history
+    // cites nothing for its content, and splitting it at the links can leave a
+    // clause with the dates and verbs removed ("The Rate Limits" on its own).
+    if (isHistoryClaim(whole)) continue;
     const clauses = attributedClauses(seg);
     cites.forEach((c, i) => {
       const claim = clauses[i] ?? whole;
