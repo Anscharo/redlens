@@ -1,0 +1,10 @@
+{
+  "number": 136,
+  "title": "add python script to generate UUIDs for new documents",
+  "body": "Adds a python script that looks for headers without a UUID assigned, if any are found it will generate an UUID and add it in the correct format",
+  "author": "0xldr",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/136",
+  "commentCount": 6,
+  "reviewCount": 3,
+  "approvalCount": 1
+}
