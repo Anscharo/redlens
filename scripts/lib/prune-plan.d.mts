@@ -13,8 +13,6 @@ export interface PruneArgs {
   repo: string | undefined;
 }
 
-export type PrState = "open" | "closed" | "missing";
-
 export function isProtected(name: string, extraKeeps?: string[]): boolean;
 export function parsePruneArgs(argv: string[]): PruneArgs;
 export function selectCandidates(
