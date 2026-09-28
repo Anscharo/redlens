@@ -67,6 +67,13 @@ describe("isProtected", () => {
     }
   });
 
+  // The pruner must not be able to delete the environment it runs in.
+  it("protects the prune workflow's own environment", () => {
+    expect(PROTECTED_ENVIRONMENTS).toContain("env-prune");
+    expect(isProtected("env-prune")).toBe(true);
+    expect(selectCandidates(envs("env-prune")).candidates).toEqual([]);
+  });
+
   it("is case-insensitive and honours --keep additions", () => {
     expect(isProtected("GITHUB-PAGES")).toBe(true);
     expect(isProtected("Redline Atlas / redlens-pr-401")).toBe(false);

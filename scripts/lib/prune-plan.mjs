@@ -23,6 +23,13 @@ export const PROTECTED_ENVIRONMENTS = Object.freeze([
   "redlens (Preview)",
   "miraculous-prosperity",
   "scintillating-delight",
+  // The prune workflow's OWN environment, which GitHub auto-creates the first
+  // time env-prune.yml runs (the same on-demand creation that produced all the
+  // dead Railway rows). It cannot parse as a PR environment — "prune" is not
+  // "pr-" — so the regex already spares it, but the one environment that must
+  // never be deleted is the one the pruner runs in, and that is not a thing to
+  // leave resting on a regex.
+  "env-prune",
 ]);
 
 /**
