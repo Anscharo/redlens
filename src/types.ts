@@ -1,3 +1,5 @@
+import type { SearchLane, SemanticStrategy } from "./lib/searchSemantic.ts";
+
 export type ReportId =
   | "of-responsibilities"
   | "gov-ops-responsibilities"
@@ -79,17 +81,50 @@ export interface SearchHit {
   labels?: HitLabel[]; // scope / agent / ICD provenance clues (left gutter)
   chainlogId?: string; // set when result was found via chainlog reverse-lookup
   chainlogAddress?: string; // the resolved address for chainlog matches
+  // ── semantic lane (src/lib/searchSemantic.ts) ──
+  // True when the pgvector leg returned this document. A hit can be BOTH
+  // semantic and lexical (matchReason is then non-empty too) — that is the
+  // point of the woven strategy, and the UI marks it as both.
+  semantic?: boolean;
+  semanticScore?: number; // cosine similarity, 0..1
+  // Grouped-embedding provenance: the anchor this hit was retrieved under and
+  // attributed down from. Present only when the group differs from the hit.
+  viaTitle?: string;
 }
+
+// How the semantic leg of the current result set fared. "none" = none was
+// wanted (the strategy is off, the lexical lane already answered under the
+// fallback strategy, or the query was an identifier lookup); "pending" = the
+// lexical half is on screen and a semantic round-trip is in flight;
+// "unavailable" = this deployment cannot answer the lane at all.
+export type SemanticLegStatus = "none" | "pending" | "done" | "skipped" | "unavailable";
 
 // Worker message types — search
 export type WorkerInMessage =
-  | { type: "query"; id: number; q: string }
+  // `lane` picks which index to query and `sem` how the semantic leg blends
+  // into the lexical one; both default to today's behaviour when absent, so an
+  // older main thread and this worker stay compatible.
+  | { type: "query"; id: number; q: string; lane?: SearchLane; sem?: SemanticStrategy }
   | { type: "ping" }
   | { type: "preload"; docs: Record<string, AtlasNode>; addresses: Record<string, AddressInfo> };
 
+// A single query can produce TWO `results` messages under the same id: the
+// lexical half immediately (semantic: "pending"), then the fused set once the
+// semantic round-trip lands. Consumers must accept a second reply for an id
+// they already rendered rather than treating it as stale.
 export type WorkerOutMessage =
   | { type: "ready" }
-  | { type: "results"; id: number; hits: SearchHit[]; durationMs: number }
+  | {
+      type: "results";
+      id: number;
+      hits: SearchHit[];
+      durationMs: number;
+      lane: SearchLane;
+      semantic: SemanticLegStatus;
+      // Why the leg degraded, when semantic === "skipped" (embed timeout,
+      // provider error). Shown to the user, not swallowed.
+      semanticNote?: string;
+    }
   | { type: "error"; id?: number; message: string }; // no id for init-time failures
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,13 @@
-import { useEffect, useRef, useCallback, useDeferredValue } from "react";
+import { useEffect, useMemo, useRef, useCallback, useDeferredValue } from "react";
 import { useSearch } from "./useSearch";
 import { useUrlState, urlString, urlEnum } from "./useUrlState";
+import {
+  SEARCH_LANES,
+  SEMANTIC_STRATEGIES,
+  type SearchLane,
+  type SemanticStrategy,
+} from "@/lib/searchSemantic";
+import { semanticSearchAvailable, semanticStrategyDefault } from "../lib/semanticSearchConfig";
 import { ROUTES, PREVIEW_INDEX_PATH, type SearchScope } from "@/lib/routes";
 import { track } from "../lib/analytics";
 import { useRecentSearches, useRecordRecentSearch } from "../lib/recentSearches";
@@ -11,6 +18,7 @@ export type SearchMode = "broad" | "phrase" | "strict";
 
 const MODES: readonly SearchMode[] = ["broad", "phrase", "strict"];
 const modeCodec = urlEnum<SearchMode>("broad", MODES);
+const laneCodec = urlEnum<SearchLane>("lexical", SEARCH_LANES);
 
 // Strips field:value tokens and -exclusions, leaving only the free search text.
 function stripFieldTokens(q: string): string {
@@ -97,6 +105,17 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   const { state, search, ready } = useSearch();
   const [queryParam, setQueryParam] = useUrlState("q", queryCodec);
   const [mode, setMode] = useUrlState("mode", modeCodec);
+  // Which index the results page queries (?lane=), and how the semantic leg
+  // blends into the lexical one (?sem=). The blend's default is the
+  // DEPLOYMENT's, read from the serve-time injection, so an operator can change
+  // it without a rebuild — which is why the codec is built here and not at
+  // module scope: `window` is not readable when this module is evaluated.
+  const [laneParam, setLane] = useUrlState("lane", laneCodec);
+  const semCodec = useMemo(() => urlEnum<SemanticStrategy>(semanticStrategyDefault(), SEMANTIC_STRATEGIES), []);
+  const [sem] = useUrlState("sem", semCodec);
+  // A shared ?lane=semantic link opened against a deployment that can't answer
+  // it would otherwise search an index that is permanently empty.
+  const lane: SearchLane = laneParam === "semantic" && !semanticSearchAvailable() ? "lexical" : laneParam;
   const query = queryParam ?? "";
   const deferredQuery = useDeferredValue(query);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -118,8 +137,8 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     if (location !== ROUTES.HOME) { search(""); return; }
     if (deferredQuery.startsWith("/")) { search(""); return; }
     const withMode = applyMode(deferredQuery, mode);
-    search(withMode.trim() ? withMode : "");
-  }, [deferredQuery, mode, location, search]);
+    search(withMode.trim() ? withMode : "", { lane, sem });
+  }, [deferredQuery, mode, location, search, lane, sem]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,11 +229,22 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     });
   }, [query, mode, setQueryParam, inputRef]);
 
+  // Switching lane re-runs the current query against the other index; nothing
+  // else about the search changes, so the query param is left alone.
+  const selectLane = useCallback((next: SearchLane) => {
+    track("search_lane_change", { product: "search", lane: next });
+    setLane(next);
+  }, [setLane]);
+
   return {
     query, activeMode, isMixed,
     inputRef, handleChange, clearQuery,
     wrapModeClick, broadSearch,
     state, ready, handleHintClick,
     recentSearches, selectRecent,
+    // `sem` is exposed but has no control of its own: it is a per-deployment
+    // default, overridable per session with ?sem= (the param sticks across
+    // searches, so it is a usable A/B switch) rather than a fourth pill.
+    lane, selectLane, sem,
   };
 }

@@ -69,8 +69,15 @@ export const SearchResult = memo(function SearchResult({ hit, rank, onResultClic
 
   const reason = hit.chainlogId ? hit.matchReason.replace(/^chainlog \+ /, "") : hit.matchReason;
 
+  // A semantic hit has a non-empty matchReason only when the wording matched
+  // too (the woven strategy fuses both legs onto one row). Saying so is the
+  // point: "found both ways" is a stronger result than either alone.
+  const semanticTitle = hit.viaTitle
+    ? `Matched by meaning, retrieved under "${hit.viaTitle}"`
+    : "Matched by meaning, not by the words you typed";
+
   return (
-    <div className="search-result relative">
+    <div className="search-result relative" data-semantic={hit.semantic ? "true" : undefined}>
       {/* Per-result selection checkbox — hidden until hover (or when checked),
           top-right like the reader's node checkbox. Adds this doc to the current
           selection. */}
@@ -90,6 +97,16 @@ export const SearchResult = memo(function SearchResult({ hit, rank, onResultClic
             <span className="text-[9px] text-tan-3">via chainlog</span>
             <span className="text-[10px] font-medium text-accent">{hit.chainlogId}</span>
             <span className="text-[9px] text-tan-3">{shortAddress}</span>
+          </>
+        ) : hit.semantic ? (
+          // Deliberately louder than every other match note on the page: a
+          // semantic hit can share no word with the query, so a reader who
+          // can't see WHY it is here needs the answer without hunting for it.
+          <>
+            <span className="search-semantic-mark text-[10px]" title={semanticTitle}>
+              semantic match
+            </span>
+            {reason && <span className="text-[9px] text-tan-3">+ {reason}</span>}
           </>
         ) : (
           <>

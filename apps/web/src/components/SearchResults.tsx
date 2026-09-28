@@ -1,7 +1,8 @@
 import { memo, useCallback, useEffect, useRef } from "react";
-import { Link } from "./Link";
 import { SearchResult } from "./SearchResult";
 import { SearchHints } from "./SearchHints";
+import { SearchStatusLine } from "./SearchStatusLine";
+import { EntityResults } from "./EntityResults";
 import type { SearchHit } from "@/types";
 import type { SearchState } from "../hooks/useSearch";
 import type { SearchMode } from "../hooks/useSearchInput";
@@ -11,12 +12,15 @@ import { useSearchTracking } from "../hooks/useSearchTracking";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useEntitySearch } from "../hooks/useEntitySearch";
 import { track } from "../lib/analytics";
-import { ENTITY_TYPE_LABEL, ENTITY_TYPE_COLOR, SUBTYPE_LABEL } from "../lib/entityGraph";
+import { semanticSearchAvailable } from "../lib/semanticSearchConfig";
+import type { SearchLane } from "@/lib/searchSemantic";
 
 interface Props {
   state: SearchState;
   query: string;
   mode: SearchMode;
+  lane: SearchLane;
+  onLaneSelect: (lane: SearchLane) => void;
   onHintClick: (query: string) => void;
   onBroadSearch: (query: string) => void;
 }
@@ -28,6 +32,8 @@ export const SearchResults = memo(function SearchResults({
   state,
   query,
   mode,
+  lane,
+  onLaneSelect,
   onHintClick,
   onBroadSearch,
 }: Props) {
@@ -76,8 +82,21 @@ export const SearchResults = memo(function SearchResults({
   );
 
   const entityHits = useEntitySearch(query);
+  // The entities lane makes this list the whole page; on the wording lane it is
+  // an overlay above the document hits, as it has always been. The meaning lane
+  // shows no entities at all — mixing a name-matched list into a result set
+  // built entirely by meaning would blur what that lane is demonstrating.
+  const entitiesOnly = lane === "graph";
+  const showEntities = lane !== "semantic";
 
-  const noResults = state.status === "done" && hits.length === 0;
+  // A semantic leg still in flight is a search still running: the "no results"
+  // line and both retry suggestions have to wait for it, or the fallback
+  // strategy's whole reason for existing flashes past before it can help.
+  const semanticPending = state.status === "done" && state.semantic === "pending";
+  // On the entities lane the document hits are computed but never shown, so
+  // "nothing found" has to mean nothing in the list the reader is looking at.
+  const resultCount = entitiesOnly ? entityHits.length : hits.length;
+  const noResults = state.status === "done" && resultCount === 0 && !semanticPending;
   // Query is non-broad when mode pill is phrase/strict, or user typed explicit quotes
   const isNonBroad = mode !== "broad" || query.includes('"') || query.includes("'");
   const strippedQuery = query.replace(/["']/g, "").replace(/\s+/g, " ").trim();
@@ -92,68 +111,43 @@ export const SearchResults = memo(function SearchResults({
           .join(" ")
       : null;
 
-  const displayed = hits.slice(0, visible);
-  const remaining = hits.length - displayed.length;
+  const displayed = entitiesOnly ? [] : hits.slice(0, visible);
+  const remaining = entitiesOnly ? 0 : hits.length - displayed.length;
 
   const scrollRef = useRef<HTMLElement>(null);
   // Wait until results are rendered before restoring — otherwise we'd scroll
   // an empty container and clobber the saved offset.
-  useScrollRestore(scrollRef, state.status === "done" && displayed.length > 0, ["n"]);
+  useScrollRestore(
+    scrollRef,
+    state.status === "done" && (displayed.length > 0 || (entitiesOnly && entityHits.length > 0)),
+    ["n"],
+  );
 
   return (
     <main ref={scrollRef} className="flex-1 overflow-y-auto">
       <div className="max-w-2xl mx-auto w-full">
-        {entityHits.length > 0 && (
-          <>
-            <div className="px-4 py-2 text-xs border-b mono text-tan-3 border-border">
-              Agents · Alignment Conservers · Governance Operators {entityHits.length}
-            </div>
-            <ul>
-              {entityHits.map(({ participant, href }, i) => (
-                <li key={participant.id}>
-                  <Link
-                    to={href}
-                    className="search-result-link px-4 py-3 flex items-center gap-3"
-                    onClick={() =>
-                      track("search_result_click", {
-                        product: "search",
-                        result_kind: "entity",
-                        query: shownQuery.current,
-                        rank: i + 1, // 1-based, within the entity list
-                        in_top_5: i < 5,
-                        ms_to_click: Math.round(performance.now() - shownAt.current),
-                        result_count: entityHits.length,
-                        entity_id: participant.id,
-                        entity_slug: participant.slug,
-                        entity_type: participant.et,
-                      })
-                    }
-                  >
-                    <span
-                      className="inline-block w-2.5 h-2.5 rounded-full shrink-0 mr-3"
-                      style={{ background: ENTITY_TYPE_COLOR[participant.et] ?? "var(--entity-fallback)" }}
-                    />
-                    <span className="text-sm font-semibold text-tan">{participant.name}</span>
-                    <span className="mono text-[10px] text-tan-3 ml-4">
-                      {ENTITY_TYPE_LABEL[participant.et] ?? participant.et}
-                      {participant.st
-                        ? ` · ${SUBTYPE_LABEL[participant.st] ?? participant.st}`
-                        : ""}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
         {(state.status === "searching" || state.status === "done") && (
-          <div className="px-4 py-2 text-xs border-b mono text-tan-3 border-border">
-            {state.status === "searching"
-              ? "searching…"
-              : hits.length === 0
-                ? `no results for "${state.query}"`
-                : `${displayed.length < hits.length ? `${displayed.length} of ` : ""}${hits.length} result${hits.length !== 1 ? "s" : ""} · ${state.durationMs.toFixed(0)}ms`}
-          </div>
+          <SearchStatusLine
+            state={state}
+            shown={entitiesOnly ? entityHits.length : displayed.length}
+            total={resultCount}
+            durationMs={entitiesOnly || state.status !== "done" ? null : state.durationMs}
+            lane={lane}
+            onLaneSelect={onLaneSelect}
+            semanticAvailable={semanticSearchAvailable()}
+          />
+        )}
+        {showEntities && (
+          <EntityResults
+            hits={entityHits}
+            query={shownQuery.current}
+            shownAt={shownAt.current}
+            heading={
+              entitiesOnly
+                ? "Entities"
+                : `Agents · Alignment Conservers · Governance Operators ${entityHits.length}`
+            }
+          />
         )}
         {suggestBroad && (
           <div className="px-4 py-2 border-b border-border">

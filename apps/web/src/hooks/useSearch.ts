@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { SearchHit, WorkerOutMessage } from "@/types";
+import type { SearchHit, SemanticLegStatus, WorkerOutMessage } from "@/types";
+import type { SearchLane, SemanticStrategy } from "@/lib/searchSemantic";
 import { loadAtlas } from "../lib/docs";
 import { loadAddresses } from "../lib/addresses";
 import { captureException } from "../lib/analytics";
@@ -9,8 +10,31 @@ export type SearchState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "searching" }
-  | { status: "done"; hits: SearchHit[]; durationMs: number; query: string }
+  | {
+      status: "done";
+      hits: SearchHit[];
+      durationMs: number;
+      query: string;
+      /** Which index answered — see lib/searchSemantic.ts. */
+      lane: SearchLane;
+      /**
+       * State of the semantic leg for THIS result set. "pending" means the
+       * lexical half is what's on screen and a second `done` for the same query
+       * is still coming — consumers must not read it as a finished search.
+       */
+      semantic: SemanticLegStatus;
+      /** Why the leg degraded, when semantic === "skipped". */
+      semanticNote?: string;
+    }
   | { status: "error"; message: string };
+
+/** Which lane to query, and how the semantic leg blends into the lexical one. */
+export interface SearchOptions {
+  lane: SearchLane;
+  sem: SemanticStrategy;
+}
+
+const DEFAULT_OPTIONS: SearchOptions = { lane: "lexical", sem: "off" };
 
 export function useSearch() {
   const { base } = useDataSource();
@@ -20,7 +44,7 @@ export function useSearch() {
   const [state, setState] = useState<SearchState>({ status: "loading" });
   const pendingId = useRef(0);
   const lastQuery = useRef("");
-  const pendingBeforeReady = useRef<{ q: string; id: number } | null>(null);
+  const pendingBeforeReady = useRef<{ q: string; id: number; opts: SearchOptions } | null>(null);
 
   useEffect(() => {
     readyRef.current = false;
@@ -52,17 +76,23 @@ export function useSearch() {
           pendingBeforeReady.current = null;
           lastQuery.current = pending.q;
           // State is already "searching" — skip idle flash, go straight to results
-          worker.postMessage({ type: "query", id: pending.id, q: pending.q });
+          worker.postMessage({ type: "query", id: pending.id, q: pending.q, ...pending.opts });
         } else {
           setState({ status: "idle" });
         }
       } else if (msg.type === "results") {
+        // A query can answer TWICE under one id: the lexical half arrives with
+        // semantic "pending", then the fused set replaces it. Both are current,
+        // so this compares ids only — never "have I already answered this id".
         if (msg.id === pendingId.current) {
           setState({
             status: "done",
             hits: msg.hits,
             durationMs: msg.durationMs,
             query: lastQuery.current,
+            lane: msg.lane,
+            semantic: msg.semantic,
+            ...(msg.semanticNote ? { semanticNote: msg.semanticNote } : {}),
           });
         }
       } else if (msg.type === "error") {
@@ -82,7 +112,7 @@ export function useSearch() {
     return () => worker.terminate();
   }, [base]);
 
-  const search = useCallback((q: string) => {
+  const search = useCallback((q: string, opts: SearchOptions = DEFAULT_OPTIONS) => {
     const worker = workerRef.current;
     if (!worker) return;
 
@@ -98,11 +128,11 @@ export function useSearch() {
     setState({ status: "searching" });
 
     if (!readyRef.current) {
-      pendingBeforeReady.current = { q: trimmed, id };
+      pendingBeforeReady.current = { q: trimmed, id, opts };
       return;
     }
 
-    worker.postMessage({ type: "query", id, q: trimmed });
+    worker.postMessage({ type: "query", id, q: trimmed, ...opts });
   }, []);
 
   return { state, search, ready };

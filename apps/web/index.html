@@ -26,6 +26,14 @@
       // environment expose a single provider. An UNreplaced placeholder still
       // begins with "{{" → treated as "not injected" (see src/lib/authProviders.ts).
       window.__AUTH_PROVIDERS__ = "{{AUTH_PROVIDERS}}";
+      // Semantic search lane (src/lib/searchSemantic.ts). Two independent facts,
+      // both substituted at serve time: whether this deployment CAN answer the
+      // lane at all (an embedding key exists), and how it blends into the
+      // default lexical lane by default ("off" | "fallback" | "woven"). Same
+      // quoted-compare safety as the flags above — an unreplaced placeholder on
+      // static hosting reads as unavailable, which is correct there (no /api).
+      window.__SEMANTIC_SEARCH__ = "{{SEMANTIC_SEARCH}}" === "true";
+      window.__SEMANTIC_STRATEGY__ = "{{SEMANTIC_STRATEGY}}";
     </script>
     <script>
       // Applies the persisted theme before first paint, so a light-mode user

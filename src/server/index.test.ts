@@ -31,6 +31,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 import type { Server } from "bun";
 import { config } from "./config.ts";
+import { semanticSearchAvailable } from "./search-semantic.ts";
 import { buildIndexes, setIndexes, getIndexes, rebuildFromDisk } from "./retrieval/indexes.ts";
 import { broadcastAtlasUpdate, sseClientCount } from "./sse.ts";
 import { renderCard } from "./og-image.ts";
@@ -167,7 +168,8 @@ fs.writeFileSync(
   path.join(distDir, "index.html"),
   "<!doctype html><html><head>{{OG_TAGS}}</head><body>" +
     '<script>window.__ATLAS_SHA__="{{ATLAS_SHA}}";window.__USERS_ENABLED__={{USERS_ENABLED}};' +
-    'window.__CHAT_ENABLED__={{CHAT_ENABLED}};window.__AUTH_PROVIDERS__="{{AUTH_PROVIDERS}}";</script>' +
+    'window.__CHAT_ENABLED__={{CHAT_ENABLED}};window.__AUTH_PROVIDERS__="{{AUTH_PROVIDERS}}";' +
+    'window.__SEMANTIC_SEARCH__="{{SEMANTIC_SEARCH}}"==="true";window.__SEMANTIC_STRATEGY__="{{SEMANTIC_STRATEGY}}";</script>' +
     "</body></html>",
 );
 fs.writeFileSync(path.join(distDir, "icon-mid.png"), Buffer.from("fake-icon-bytes"));
@@ -549,6 +551,13 @@ describe("handleRequest — SPA fallback + OG tag substitution", () => {
     expect(html).toContain(`window.__ATLAS_SHA__="${ATLAS_SHA}"`);
     expect(html).not.toContain("{{OG_TAGS}}");
     expect(html).not.toContain("{{ATLAS_SHA}}");
+    // The semantic search lane's two serve-time facts: whether this deployment
+    // can answer it, and the default blend. An UNREPLACED placeholder would
+    // leave the client reading "{{SEMANTIC_STRATEGY}}" as a strategy.
+    expect(html).toContain(`window.__SEMANTIC_SEARCH__="${semanticSearchAvailable()}"`);
+    expect(html).toContain(`window.__SEMANTIC_STRATEGY__="${config.searchSemanticStrategy}"`);
+    expect(html).not.toContain("{{SEMANTIC_SEARCH}}");
+    expect(html).not.toContain("{{SEMANTIC_STRATEGY}}");
   });
 
   it("soft-404s an unresolvable dynamic route (unknown radar actor) but still serves the SPA shell", async () => {

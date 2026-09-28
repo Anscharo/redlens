@@ -4,7 +4,8 @@ import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/re
 import "@testing-library/jest-dom/vitest";
 import { SearchResults } from "./SearchResults";
 import type { SearchState } from "../hooks/useSearch";
-import { makeSearchHit, makeGraphEntity } from "../test/fixtures";
+import type { SearchLane } from "@/lib/searchSemantic";
+import { makeSearchHit, makeGraphEntity, makeSearchState } from "../test/fixtures";
 
 const mocks = vi.hoisted(() => ({
   searchEntities: vi.fn(),
@@ -26,20 +27,23 @@ beforeEach(() => {
 
 function setup(
   state: SearchState,
-  overrides: Partial<{ query: string; mode: "broad" | "phrase" | "strict"; onHintClick: (q: string) => void; onBroadSearch: (q: string) => void }> = {},
+  overrides: Partial<{ query: string; mode: "broad" | "phrase" | "strict"; lane: SearchLane; onHintClick: (q: string) => void; onBroadSearch: (q: string) => void; onLaneSelect: (lane: SearchLane) => void }> = {},
 ) {
   const onHintClick = overrides.onHintClick ?? vi.fn();
   const onBroadSearch = overrides.onBroadSearch ?? vi.fn();
+  const onLaneSelect = overrides.onLaneSelect ?? vi.fn();
   const utils = render(
     <SearchResults
       state={state}
       query={overrides.query ?? ""}
       mode={overrides.mode ?? "broad"}
+      lane={overrides.lane ?? "lexical"}
+      onLaneSelect={onLaneSelect}
       onHintClick={onHintClick}
       onBroadSearch={onBroadSearch}
     />,
   );
-  return { ...utils, onHintClick, onBroadSearch };
+  return { ...utils, onHintClick, onBroadSearch, onLaneSelect };
 }
 
 describe("SearchResults status branches", () => {
@@ -74,7 +78,7 @@ describe("SearchResults status branches", () => {
       makeSearchHit({ title: "Alpha", titleHtml: "Alpha" }),
       makeSearchHit({ title: "Beta", titleHtml: "Beta" }),
     ];
-    setup({ status: "done", hits, durationMs: 12.4, query: "vat" }, { query: "vat" });
+    setup(makeSearchState({ hits, durationMs: 12.4 }), { query: "vat" });
     expect(screen.getByText(/2 results · 12ms/)).toBeTruthy();
     expect(screen.getByText("Alpha")).toBeTruthy();
     expect(screen.getByText("Beta")).toBeTruthy();
@@ -82,14 +86,14 @@ describe("SearchResults status branches", () => {
 
   it("done status with a single hit uses singular 'result'", () => {
     setup(
-      { status: "done", hits: [makeSearchHit()], durationMs: 1, query: "vat" },
+      makeSearchState({ hits: [makeSearchHit()] }),
       { query: "vat" },
     );
     expect(screen.getByText(/1 result ·/)).toBeTruthy();
   });
 
   it("done status with zero hits shows the no-results message", () => {
-    setup({ status: "done", hits: [], durationMs: 3, query: "zzz" }, { query: "zzz" });
+    setup(makeSearchState({ durationMs: 3, query: "zzz" }), { query: "zzz" });
     expect(screen.getByText('no results for "zzz"')).toBeTruthy();
   });
 });
@@ -97,7 +101,7 @@ describe("SearchResults status branches", () => {
 describe("SearchResults no-results suggestions", () => {
   it("suggests a broad search when the mode is non-broad and there are no results", () => {
     const { onBroadSearch } = setup(
-      { status: "done", hits: [], durationMs: 1, query: '"delegated signers"' },
+      makeSearchState({ query: '"delegated signers"' }),
       { query: '"delegated signers"', mode: "phrase" },
     );
     const btn = screen.getByText(/try broad:/);
@@ -107,7 +111,7 @@ describe("SearchResults no-results suggestions", () => {
 
   it("suggests a fuzzy search when broad mode yields no results and query has no ~", () => {
     const { onHintClick } = setup(
-      { status: "done", hits: [], durationMs: 1, query: "delegated signers" },
+      makeSearchState({ query: "delegated signers" }),
       { query: "delegated signers", mode: "broad" },
     );
     const btn = screen.getByText(/try fuzzy:/);
@@ -117,7 +121,7 @@ describe("SearchResults no-results suggestions", () => {
 
   it("does not suggest fuzzy when the query already contains ~", () => {
     setup(
-      { status: "done", hits: [], durationMs: 1, query: "delegated~1" },
+      makeSearchState({ query: "delegated~1" }),
       { query: "delegated~1", mode: "broad" },
     );
     expect(screen.queryByText(/try fuzzy:/)).toBeNull();
@@ -125,7 +129,7 @@ describe("SearchResults no-results suggestions", () => {
 
   it("does not suggest broad or fuzzy when there are results", () => {
     setup(
-      { status: "done", hits: [makeSearchHit()], durationMs: 1, query: "vat" },
+      makeSearchState({ hits: [makeSearchHit()] }),
       { query: "vat" },
     );
     expect(screen.queryByText(/try broad:/)).toBeNull();
@@ -142,7 +146,7 @@ describe("SearchResults pagination", () => {
       makeSearchHit({ title: "Three", titleHtml: "Three" }),
       makeSearchHit({ title: "Four", titleHtml: "Four" }),
     ];
-    setup({ status: "done", hits, durationMs: 1, query: "vat" }, { query: "vat" });
+    setup(makeSearchState({ hits }), { query: "vat" });
 
     expect(screen.getByText("One")).toBeTruthy();
     expect(screen.getByText("Two")).toBeTruthy();
@@ -171,7 +175,7 @@ describe("SearchResults entity hits", () => {
       },
     ]);
     setup(
-      { status: "done", hits: [], durationMs: 1, query: "keel" },
+      makeSearchState({ query: "keel" }),
       { query: "keel" },
     );
     await waitFor(() => expect(screen.getByText("Keel")).toBeTruthy());

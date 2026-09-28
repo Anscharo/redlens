@@ -8,9 +8,8 @@ import { config } from "../config.ts";
 import { compactProse } from "../../lib/shortenTitle.ts";
 import { rewriteSemanticHit, type Via, type LeafSemanticScore } from "./embed-units.ts";
 import { expandQueryTokens, partitionByOriginalTerms } from "../../lib/searchInflect.ts";
+import { rrfFuse } from "../../lib/searchSemantic.ts";
 export type { Via };
-
-const RRF_K = 60;
 
 // Race a promise against a timeout, clearing the timer either way. Used to bound
 // the query-time embed so a slow provider can't hang the retrieve path.
@@ -134,21 +133,23 @@ export async function runSemantic(
   }
 }
 
+// Fusion itself lives in lib/searchSemantic.ts `rrfFuse`, shared with the
+// reader's woven search lane so agent retrieval and the search bar can never
+// rank a hybrid result set differently. This wrapper only carries the per-hit
+// metadata RRF has no opinion about (which legs found it, the raw score, the
+// grouped-anchor provenance).
 export function rrfMerge(lex: Hit[], sem: Hit[]): MergedHit[] {
+  const fused = rrfFuse([lex.map((h) => h.id), sem.map((h) => h.id)]);
   const acc = new Map<string, MergedHit>();
-  const bump = (h: Hit) => {
-    const inc = 1 / (RRF_K + h.rank + 1);
+  for (const h of [...lex, ...sem]) {
     const prev = acc.get(h.id);
     if (prev) {
-      prev.rrf_score += inc;
       if (!prev.sources.includes(h.source)) prev.sources.push(h.source);
       if (h.via && !prev.via) prev.via = h.via;
     } else {
-      acc.set(h.id, { id: h.id, sources: [h.source], rrf_score: inc, score: h.score, via: h.via });
+      acc.set(h.id, { id: h.id, sources: [h.source], rrf_score: fused.get(h.id) ?? 0, score: h.score, via: h.via });
     }
-  };
-  for (const h of lex) bump(h);
-  for (const h of sem) bump(h);
+  }
   return [...acc.values()].sort((a, b) => b.rrf_score - a.rrf_score);
 }
 

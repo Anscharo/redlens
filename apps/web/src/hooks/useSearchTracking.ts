@@ -35,6 +35,12 @@ export function useSearchTracking(state: SearchState, mode: SearchMode): void {
 
   useEffect(() => {
     if (state.status !== "done" || !state.query || state.query.startsWith("/")) return;
+    // A semantic leg still in flight means this result set will be replaced by a
+    // fused one under the same query — logging now would record a result_count
+    // the user never saw settle, and the query+mode dedup would then suppress
+    // the real one. The leg always posts (it catches its own failures), so
+    // waiting cannot drop the event.
+    if (state.semantic === "pending") return;
     pending.current = { query: state.query, mode, result_count: state.hits.length, base };
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(flush, DEBOUNCE_MS);

@@ -78,7 +78,7 @@ export default function App() {
   // box filters that report's rows (query stays in ?q= on the same route).
   const reportScopeCfg = REPORT_SCOPE_CONFIG[location];
 
-  const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick, recentSearches, selectRecent } =
+  const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick, recentSearches, selectRecent, lane, selectLane } =
     useSearchInput(location, navigate, scope);
   const { navigateToNode, handleViewChange } = useNavigation({
     navigate,
@@ -226,6 +226,8 @@ export default function App() {
                   state={state}
                   query={query}
                   mode={activeMode}
+                  lane={lane}
+                  onLaneSelect={selectLane}
                   onHintClick={handleHintClick}
                   onBroadSearch={broadSearch}
                 />

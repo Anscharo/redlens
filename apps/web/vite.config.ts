@@ -156,6 +156,11 @@ export default defineConfig(() => {
           .replaceAll("{{USERS_ENABLED}}", String(usersEnabled))
           .replaceAll("{{CHAT_ENABLED}}", String(chatEnabled))
           .replaceAll("{{AUTH_PROVIDERS}}", devProviders.join(","))
+          // Semantic search lane: dev mirrors the server's own gating off the
+          // same env vars (dev.mjs forwards them). An embedding key is the one
+          // hard requirement — see src/server/search-semantic.ts.
+          .replaceAll("{{SEMANTIC_SEARCH}}", String(has("OPENROUTER_API_KEY")))
+          .replaceAll("{{SEMANTIC_STRATEGY}}", process.env.SEARCH_SEMANTIC_STRATEGY || "fallback")
           .replaceAll("{{OG_TAGS}}", ogTags);
       },
     },

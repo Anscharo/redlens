@@ -1,0 +1,136 @@
+// Shared contract for the reader's semantic search lane.
+//
+// The atlas already has a semantic backend — pgvector over `atlas_doc_embeddings`,
+// built for chat retrieval (src/server/retrieval/search.ts `runSemantic`). This
+// module is the narrow, isomorphic piece that lets the SEARCH BAR use it too:
+// the wire shape of GET /api/search/semantic, the two knobs that decide when the
+// lane runs, and the pure rank fusion both sides agree on.
+//
+// Deliberately dependency-free (no node:, no DOM, no React): it is imported by
+// the Bun server, the search web worker, and React components alike.
+
+/** Which index the results page is querying. Variant 3's three-way toggle. */
+export const SEARCH_LANES = ["lexical", "graph", "semantic"] as const;
+export type SearchLane = (typeof SEARCH_LANES)[number];
+
+/**
+ * How the semantic leg blends into the DEFAULT (lexical) lane:
+ *   off      — never call it; lexical only, exactly as before this feature.
+ *   fallback — call it only when lexical returned nothing (variant 2). Free in
+ *              the common case: a query that already matched costs no embed.
+ *   woven    — always call it and fuse both legs by RRF (variant 1). One embed
+ *              per settled query, so it is the expensive one.
+ * The explicit `semantic` lane ignores this — picking that lane IS the request.
+ */
+export const SEMANTIC_STRATEGIES = ["off", "fallback", "woven"] as const;
+export type SemanticStrategy = (typeof SEMANTIC_STRATEGIES)[number];
+
+export function isSemanticStrategy(v: unknown): v is SemanticStrategy {
+  return typeof v === "string" && (SEMANTIC_STRATEGIES as readonly string[]).includes(v);
+}
+
+export function isSearchLane(v: unknown): v is SearchLane {
+  return typeof v === "string" && (SEARCH_LANES as readonly string[]).includes(v);
+}
+
+/** One scored document id. The client owns docs.json, so no text crosses the wire. */
+export interface SemanticSearchHit {
+  id: string;
+  /** Cosine similarity, 0..1 (already above config.semanticMinScore). */
+  score: number;
+  /**
+   * Set when the hit was retrieved through a grouped embedding anchor and
+   * attributed down to this leaf — the title of the group it was found under.
+   * Surfaced in the UI because "why is this a match?" is otherwise invisible
+   * for a hit that shares no word with the query.
+   */
+  viaTitle?: string;
+}
+
+export interface SemanticSearchResponse {
+  hits: SemanticSearchHit[];
+  /**
+   * Non-null when the leg was wanted but degraded at RUNTIME (embed timeout,
+   * provider error, pgvector error). An unconfigured deployment is not
+   * degradation — it reports `available: false` instead.
+   */
+  skipped: string | null;
+  /** False when this deployment has no embedding key: the lane can never work. */
+  available: boolean;
+}
+
+/** Longest query we will embed. Matches the reports-search lane's ceiling. */
+export const MAX_SEMANTIC_QUERY = 200;
+
+/**
+ * Shortest query worth an embed. A one- or two-character prefix carries no
+ * meaning to score against, and the lexical lane's prefix match already owns
+ * that case — this is what stops "a", "ac", "acc" each buying a round-trip.
+ */
+export const MIN_SEMANTIC_QUERY = 3;
+
+/**
+ * Pause after the last keystroke before the semantic round-trip. Longer than
+ * the /reports lane's 200ms because this one costs an OpenRouter embedding
+ * call, not a local wasm run.
+ */
+export const SEMANTIC_DEBOUNCE_MS = 400;
+
+/** Is `q` worth sending to the semantic backend at all? */
+export function semanticWorthAsking(q: string): boolean {
+  const t = q.trim();
+  return t.length >= MIN_SEMANTIC_QUERY && t.length <= MAX_SEMANTIC_QUERY;
+}
+
+// Structured, lexical-only query syntax: a field filter (title:, type:, in:,
+// content:, doc_no:), an exclusion (-word), or the fuzzy operator (foo~2).
+// Matches what the search worker parses out before it reaches MiniSearch.
+const LEXICAL_SYNTAX_RE = /\b\w+:\S|(?:^|\s)-\w|\S~\d/;
+
+/**
+ * The text to embed for `q`, or null when the semantic lane should stand down.
+ *
+ * It stands down on structured syntax, and that is a correctness rule rather
+ * than a nicety: `type:`, `in:` and `-word` are enforced by the LEXICAL leg
+ * against the document map, so a semantic hit would come back unfiltered and a
+ * search for `type:Core rewards` would be answered partly with documents that
+ * are not Core. Rather than reimplement those filters over the semantic result
+ * set, a query precise enough to use them is left to the lane that honours it.
+ *
+ * Quoted phrases DO pass, with the quote characters dropped: a phrase search
+ * that found nothing literally is exactly where meaning-matching earns its
+ * keep, and every such hit is labelled as a semantic match, so nothing claims
+ * to contain a phrase it does not.
+ */
+export function semanticQueryOf(q: string): string | null {
+  if (LEXICAL_SYNTAX_RE.test(q)) return null;
+  // Truncate BEFORE the length check, not after: a pasted paragraph is exactly
+  // the query meaning-matching can help with, and refusing it over its length
+  // would be the one case where the lane stands down for no reason.
+  const bare = q.replace(/["']/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_SEMANTIC_QUERY).trim();
+  return semanticWorthAsking(bare) ? bare : null;
+}
+
+// Reciprocal Rank Fusion constant. 60 is the value the chat retrieval path
+// already fuses with (src/server/retrieval/search.ts) — kept identical so the
+// reader and the agent rank a hybrid result set the same way.
+export const RRF_K = 60;
+
+/**
+ * Reciprocal Rank Fusion over any number of ranked id lists.
+ *
+ * Pure and shared: the server's `rrfMerge` delegates here so the reader's woven
+ * lane and chat's hybrid retrieval can never drift apart on ranking. Ties keep
+ * the order of first appearance, which makes the fusion stable for a lexical
+ * list that is re-fused as the semantic leg lands.
+ */
+export function rrfFuse(lists: readonly (readonly string[])[]): Map<string, number> {
+  const acc = new Map<string, number>();
+  for (const list of lists) {
+    for (let rank = 0; rank < list.length; rank++) {
+      const id = list[rank];
+      acc.set(id, (acc.get(id) ?? 0) + 1 / (RRF_K + rank + 1));
+    }
+  }
+  return acc;
+}

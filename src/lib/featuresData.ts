@@ -136,6 +136,15 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         ],
       },
       {
+        name: "Wording, entities or meaning",
+        what: "Three indexes behind the same search box: the words you typed, the relationship graph's parties, or what a document is about.",
+        how: [
+          "Search, then use the wording / entities / meaning pills on the right of the result count line to switch index.",
+          "On the wording lane, a result the meaning index also found is labelled semantic match — it can share no word with your query.",
+        ],
+        note: "The meaning lane needs a deployment configured for it; where it is not, that pill is disabled and says so. How much meaning-matching joins the default wording results is a per-deployment setting, so on some deployments it only steps in when wording found nothing.",
+      },
+      {
         name: "Jump-to",
         what: "Go straight to a document or entity by identifier.",
         how: [

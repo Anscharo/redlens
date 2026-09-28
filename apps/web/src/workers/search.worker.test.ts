@@ -18,6 +18,7 @@ import {
   MCD_VAT_ADDR,
 } from "../test/workerFixtures";
 import type { SearchHit } from "@/types";
+import { SEMANTIC_DEBOUNCE_MS } from "@/lib/searchSemantic";
 
 let harness: WorkerHarness | null = null;
 
@@ -493,5 +494,173 @@ describe("inflection", () => {
     const only = hits.find((h) => h.id === IDS.subsidiesOnly);
     expect(only?.snippet).toContain("<mark>");
     expect(only?.snippet.toLowerCase()).toMatch(/subsid/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Semantic lane (end-to-end through the message protocol)
+// ---------------------------------------------------------------------------
+
+// The lexical half and the fused half arrive as two `results` messages under one
+// id, so these tests correlate on the message's own `semantic` field rather than
+// on arrival order alone.
+describe("semantic lane", () => {
+  type Results = { type: "results"; id: number; hits: SearchHit[]; lane: string; semantic: string; semanticNote?: string };
+
+  /** initSearchWorker, but with the semantic endpoint stubbed too. */
+  async function withSemantic(body: unknown, opts?: { calls?: string[] }) {
+    const h = installWorkerGlobal("");
+    harness = h;
+    // Suffix routing: the semantic request URL ends in the k parameter.
+    stubFetch(
+      { "search-index.json": makeSearchIndexJson(), "&k=60": body },
+      { calls: opts?.calls },
+    );
+    vi.resetModules();
+    await import("./search.worker.ts");
+    h.dispatch({ type: "preload", docs: makeDocsRecord(), addresses: makeAddresses() });
+    await h.waitFor((m) => m.type === "ready");
+    return h;
+  }
+
+  function ask(h: WorkerHarness, q: string, extra: Record<string, unknown>) {
+    const id = ++queryId;
+    h.dispatch({ type: "query", id, q, ...extra });
+    return id;
+  }
+
+  it("off: answers once, with no semantic leg and no network call", async () => {
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    const id = ask(h, "governance", { lane: "lexical", sem: "off" });
+    const first = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
+    expect(first.semantic).toBe("none");
+    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
+    expect(h.ofType("results").filter((m) => m.id === id)).toHaveLength(1);
+    expect(calls.some((u) => u.includes("/api/search/semantic"))).toBe(false);
+  });
+
+  it("fallback: a query the wording lane answered buys no embed", async () => {
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    const id = ask(h, "governance", { lane: "lexical", sem: "fallback" });
+    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
+    expect(msg.hits.length).toBeGreaterThan(0);
+    expect(msg.semantic).toBe("none");
+    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
+    expect(calls.some((u) => u.includes("/api/search/semantic"))).toBe(false);
+  });
+
+  it("fallback: a dead-end query is answered by meaning, and the hits are marked", async () => {
+    const h = await withSemantic({
+      hits: [{ id: IDS.facilitatorCore, score: 0.74, viaTitle: "Quorum group" }],
+      skipped: null,
+      available: true,
+    });
+    const id = ask(h, "zzzznothingmatchesthis", { lane: "lexical", sem: "fallback" });
+    const pending = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
+    // The interim message must say a leg is coming — otherwise the UI shows
+    // "no results" for the debounce plus a round-trip.
+    expect(pending.hits).toEqual([]);
+    expect(pending.semantic).toBe("pending");
+
+    const done = (await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done")) as Results;
+    expect(done.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore]);
+    expect(done.hits[0].semantic).toBe(true);
+    expect(done.hits[0].semanticScore).toBe(0.74);
+    expect(done.hits[0].viaTitle).toBe("Quorum group");
+    // Nothing about the wording matched, and an empty reason is what the result
+    // row renders as a bare "semantic match".
+    expect(done.hits[0].matchReason).toBe("");
+  });
+
+  it("leaves a meaning-only hit unhighlighted, with the document's opening as its snippet", async () => {
+    const h = await withSemantic({
+      hits: [{ id: IDS.facilitatorCore, score: 0.7 }],
+      skipped: null,
+      available: true,
+    });
+    // "the" occurs in this fixture's content; under term highlighting it would
+    // be marked, asserting a wording match the row's own label denies.
+    const id = ask(h, "the zzzznothingmatches", { lane: "semantic", sem: "off" });
+    const done = (await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done")) as Results;
+    const hit = done.hits[0];
+    expect(hit.snippet).not.toContain("<mark>");
+    expect(hit.titleHtml).not.toContain("<mark>");
+    expect(hit.snippet.startsWith("…")).toBe(false); // opened at the head, not a window
+  });
+
+  it("woven: a wording hit the semantic leg also returned is marked as both", async () => {
+    const h = await withSemantic({
+      hits: [{ id: IDS.facilitatorCore, score: 0.9 }, { id: IDS.addrOnly, score: 0.6 }],
+      skipped: null,
+      available: true,
+    });
+    const id = ask(h, "quorum", { lane: "lexical", sem: "woven" });
+    const first = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
+    expect(first.semantic).toBe("pending");
+    expect(first.hits.map((x) => x.id)).toContain(IDS.facilitatorCore);
+
+    const done = (await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done")) as Results;
+    const both = done.hits.find((x) => x.id === IDS.facilitatorCore)!;
+    expect(both.semantic).toBe(true);
+    expect(both.matchReason).toContain("title"); // kept its lexical row
+    expect(both.titleHtml).toContain("<mark>");  // and its highlighting
+    // The meaning-only hit joined the same list.
+    expect(done.hits.map((x) => x.id)).toContain(IDS.addrOnly);
+  });
+
+  it("the semantic lane withholds the wording list and answers only once", async () => {
+    const h = await withSemantic({ hits: [{ id: IDS.addrOnly, score: 0.5 }], skipped: null, available: true });
+    const id = ask(h, "quorum", { lane: "semantic", sem: "off" });
+    const done = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
+    // One message, and it contains what the meaning index returned — not the
+    // lexical hits for "quorum", which the worker computed and discarded.
+    expect(done.semantic).toBe("done");
+    expect(done.hits.map((x) => x.id)).toEqual([IDS.addrOnly]);
+    expect(h.ofType("results").filter((m) => m.id === id)).toHaveLength(1);
+  });
+
+  it("the semantic lane falls back to wording for a doc-number paste", async () => {
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    const id = ask(h, "A.1.2", { lane: "semantic", sem: "woven" });
+    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
+    // An identifier has one right answer; it must not be a dead end on this
+    // lane, and must not spend an embedding call.
+    expect(msg.semantic).toBe("none");
+    expect(msg.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore]);
+    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
+    expect(calls.some((u) => u.includes("/api/search/semantic"))).toBe(false);
+  });
+
+  it("the entities lane never reaches the semantic endpoint", async () => {
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    const id = ask(h, "governance", { lane: "graph", sem: "woven" });
+    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
+    expect(msg.semantic).toBe("none");
+    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
+    expect(calls.some((u) => u.includes("/api/search/semantic"))).toBe(false);
+  });
+
+  it("reports an unconfigured backend without discarding the wording hits", async () => {
+    const h = await withSemantic({ hits: [], skipped: null, available: false });
+    const id = ask(h, "quorum", { lane: "lexical", sem: "woven" });
+    const done = (await h.waitFor(
+      (m) => m.type === "results" && m.id === id && m.semantic === "unavailable",
+    )) as Results;
+    expect(done.hits.length).toBeGreaterThan(0);
+  });
+
+  it("a missing lane/sem behaves exactly as before the feature existed", async () => {
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    const id = ask(h, "governance", {});
+    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
+    expect(msg.lane).toBe("lexical");
+    expect(msg.semantic).toBe("none");
+    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
+    expect(calls.some((u) => u.includes("/api/search/semantic"))).toBe(false);
   });
 });

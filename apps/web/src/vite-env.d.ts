@@ -23,4 +23,10 @@ interface Window {
   // "github,google"), injected into index.html at serve time. Read via
   // src/lib/authProviders.ts, never directly.
   __AUTH_PROVIDERS__?: string;
+  // Semantic search lane, injected into index.html at serve time: whether this
+  // deployment can answer /api/search/semantic (an embedding key exists), and
+  // the default blend strategy for the lexical lane. Read via
+  // src/lib/semanticSearchConfig.ts, never directly.
+  __SEMANTIC_SEARCH__?: boolean;
+  __SEMANTIC_STRATEGY__?: string;
 }

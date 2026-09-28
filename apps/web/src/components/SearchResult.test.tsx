@@ -40,6 +40,42 @@ describe("SearchResult", () => {
     expect(screen.getByText("title + content")).toBeTruthy();
   });
 
+  it("marks a meaning-only hit as a semantic match instead of showing 'matched'", () => {
+    // A semantic hit can share no word with the query, so the row has to say
+    // WHY it is here — and say it more loudly than the ordinary match note.
+    const { container } = setup({ semantic: true, semanticScore: 0.74, matchReason: "" });
+    expect(screen.getByText("semantic match")).toBeTruthy();
+    expect(screen.queryByText("matched")).toBeNull();
+    // The whole row is marked, not only the note, so a woven result set reads
+    // as two kinds of hit while scrolling.
+    expect(container.querySelector('[data-semantic="true"]')).toBeTruthy();
+  });
+
+  it("shows the lexical reason alongside the mark when a hit was found both ways", () => {
+    setup({ semantic: true, matchReason: "title + content" });
+    expect(screen.getByText("semantic match")).toBeTruthy();
+    expect(screen.getByText("+ title + content")).toBeTruthy();
+  });
+
+  it("names the grouped anchor a semantic hit was attributed from", () => {
+    setup({ semantic: true, matchReason: "", viaTitle: "Fluid sUSDS Vault" });
+    expect(screen.getByText("semantic match").getAttribute("title")).toContain("Fluid sUSDS Vault");
+  });
+
+  it("leaves a plain lexical hit unmarked", () => {
+    const { container } = setup({ matchReason: "title" });
+    expect(container.querySelector("[data-semantic]")).toBeNull();
+    expect(screen.queryByText("semantic match")).toBeNull();
+  });
+
+  it("prefers the chainlog branch over the semantic mark", () => {
+    // Both can be true at once under the woven strategy; a chainlog id is the
+    // more specific, more actionable provenance.
+    setup({ semantic: true, chainlogId: "MCD_VAT", chainlogAddress: "0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B" });
+    expect(screen.getByText("MCD_VAT")).toBeTruthy();
+    expect(screen.queryByText("semantic match")).toBeNull();
+  });
+
   it("shows chainlog id + shortened address instead of the match reason when chainlogId is set", () => {
     // Note: when hit.chainlogId is set, the component computes a stripped
     // `reason` (matchReason with "chainlog + " removed) but never renders it —

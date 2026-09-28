@@ -4,13 +4,22 @@ import type {
   AtlasNode,
   AddressInfo,
   SearchHit,
+  SemanticLegStatus,
   WorkerInMessage,
   WorkerOutMessage,
 } from "@/types";
+import type { SearchLane, SemanticSearchResponse, SemanticStrategy } from "@/lib/searchSemantic";
 import { fetchText } from "@/lib/verify";
 import { buildSnippet, highlightTerms, extractPhrases } from "@/lib/searchHighlight";
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
+import {
+  CHAINLOG_RE,
+  DOC_NO_RE,
+  cancelSemanticLeg,
+  runSemanticLeg,
+  semanticLegQuery,
+} from "./searchSemanticLeg";
 import { MINISEARCH_OPTIONS } from "@/lib/searchOptions";
 import { counterpartTerm, expandQueryTokens, partitionByOriginalTerms } from "@/lib/searchInflect";
 import { computeLabels } from "../lib/hitLabels";
@@ -29,9 +38,6 @@ const addrToNodeIds: Map<string, string[]> = new Map();
 // Exact doc_no → node for fast direct-navigation lookups
 const byDocNo: Map<string, AtlasNode> = new Map();
 
-const CHAINLOG_RE = /^[A-Z][A-Z0-9_]{2,}$/;
-// Doc number pattern for fast exact-lookup: e.g. "A.1.2", "A.1.2.3.4", "NR-12"
-const DOC_NO_RE = /^[A-Z][A-Z0-9]*(?:\.\w+)+$|^NR-\d+$/i;
 // Ticker pattern: all-caps tokens that the stemmer would mangle.
 // NOTE: the phrase-filter substring check means "USDC" also matches "USDCe" in content.
 const TICKER_RE = /^[a-z]{0,2}[A-Z]{2,}[0-9]*$/;
@@ -419,6 +425,42 @@ function search(q: string): SearchHit[] {
   return [...both, ...chainlogOnly, ...searchOnly];
 }
 
+// ─── semantic lane ──────────────────────────────────────────────────────────
+//
+// The decisions and the fusion live in searchSemanticLeg.ts; what stays here is
+// the part that needs this worker's state. GET /api/search/semantic returns ids
+// and cosine scores only, and this worker already holds the whole corpus plus
+// every function that turns a document into a rendered hit (docToHit,
+// buildSnippet, highlightTerms, computeLabels) — so hydration belongs here and
+// nowhere else, or docs.json and the highlighting would need a second copy.
+
+/**
+ * Turn scored ids into rendered hits, marked as semantic.
+ *
+ * Deliberately UNhighlighted, and the snippet is the document's opening rather
+ * than a window around a matched term. Nothing about the wording matched, so
+ * there is no term to centre on — and highlighting the query's words anyway
+ * marks whatever stopwords happen to occur ("to", "are"), which both looks
+ * broken and asserts a wording match the row's own label denies. A document
+ * found by BOTH legs keeps its lexical hit, highlighting included; see
+ * `weaveSemantic`.
+ */
+function hydrateSemantic(scored: SemanticSearchResponse["hits"]): SearchHit[] {
+  const out: SearchHit[] = [];
+  for (const s of scored) {
+    const doc = docs[s.id];
+    if (!doc) continue; // scored a doc these artifacts don't have (sha skew)
+    // matchReason stays empty on purpose: it is what the result row renders as
+    // a bare semantic mark, with no "+ <lexical reason>" beside it.
+    const hit = docToHit(doc, s.score, buildSnippet(doc.content, [], [], []), [], "");
+    hit.semantic = true;
+    hit.semanticScore = s.score;
+    if (s.viaTitle) hit.viaTitle = s.viaTitle;
+    out.push(hit);
+  }
+  return out;
+}
+
 self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
   const msg = e.data;
   if (msg.type === "preload") {
@@ -430,9 +472,37 @@ self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
     return;
   }
   if (msg.type === "query") {
-    const t0 = performance.now();
-    const hits = search(msg.q);
-    post({ type: "results", id: msg.id, hits, durationMs: performance.now() - t0 });
+    cancelSemanticLeg();
+    const startedAt = performance.now();
+    const lane: SearchLane = msg.lane ?? "lexical";
+    const sem: SemanticStrategy = msg.sem ?? "off";
+    // Lexical always runs, even on the semantic lane. Two things need it: the
+    // fallback strategy decides on its COUNT, and it is the semantic lane's
+    // escape hatch for a query the semantic leg declines (a UUID paste, a
+    // `type:` filter) — that lane answering nothing at all would be a dead end.
+    const lexical = search(msg.q);
+    const query = semanticLegQuery(msg.q, lane, sem, lexical.length, (id) => chainlogToAddr.has(id));
+    const reply = (hits: SearchHit[], semantic: SemanticLegStatus) =>
+      post({ type: "results", id: msg.id, hits, durationMs: performance.now() - startedAt, lane, semantic });
+
+    if (query === null) {
+      reply(lexical, "none");
+      return;
+    }
+    // On the semantic lane the lexical list is withheld: that lane is meant to
+    // read as a DIFFERENT index, not as a re-ranking of the same one, so the
+    // main thread stays in its searching state until the scored ids land. Every
+    // other lane shows its lexical half now and re-posts the fused set after.
+    if (lane !== "semantic") reply(lexical, "pending");
+    runSemanticLeg({
+      id: msg.id,
+      query,
+      lane,
+      lexical: lane === "semantic" ? [] : lexical,
+      startedAt,
+      hydrate: hydrateSemantic,
+      post,
+    });
   }
 });
 
