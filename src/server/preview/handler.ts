@@ -289,7 +289,11 @@ export function syncBroadGrantMeta(
 export async function rememberPreviewOpen(req: Request, previewId: string, sha: string): Promise<void> {
   const session = await getSessionUser(req);
   if (!session) return;
-  await recordPreviewOpen(session.user.id, previewId, sha);
+  // A bare-sha id is case-insensitive (resolveId already lowercases it), so record
+  // it lowercased or `/preview/ABC…` and `/preview/abc…` become two rows for one
+  // preview. Every other id form keeps its case: a branch name is case-SENSITIVE
+  // in git, so `owner:repo:Fix` and `owner:repo:fix` are genuinely different refs.
+  await recordPreviewOpen(session.user.id, SHA_RE.test(previewId) ? previewId.toLowerCase() : previewId, sha);
 }
 
 // Returns the unsubscribe fn for the SSE stream (noop if it terminated synchronously).

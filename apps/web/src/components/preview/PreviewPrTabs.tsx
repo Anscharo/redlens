@@ -83,7 +83,15 @@ export function PreviewPrTabs({ entries, accountScoped = false }: { entries: Ent
                 <a
                   href={href(e.id)}
                   className="flex items-baseline gap-3 py-2 px-1 hover:bg-hover rounded"
-                  onClick={() => track("preview_recent_click", { product: "preview", preview_id: e.id })}
+                  onClick={() =>
+                    // A private preview's id IS the private owner/repo (and branch),
+                    // so it must not leave the browser — same rule the private-repo
+                    // form follows in PreviewHome. Coarse fields only for those.
+                    track(
+                      "preview_recent_click",
+                      e.private ? { product: "preview", private: true } : { product: "preview", preview_id: e.id },
+                    )
+                  }
                 >
                   <span className="mono text-sm shrink-0" style={{ color: "var(--accent)" }}>{e.id}</span>
                   {e.title && <span className="text-sm truncate" style={{ color: "var(--tan)" }}>{e.title}</span>}

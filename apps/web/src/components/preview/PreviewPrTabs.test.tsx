@@ -10,9 +10,15 @@ import "@testing-library/jest-dom/vitest";
 import { PreviewPrTabs } from "./PreviewPrTabs";
 import type { Entry } from "./types";
 
+// A private preview's id is its private owner/repo — the click event must not
+// carry it off-box, so capture what track() is actually handed.
+const analytics = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock("../../lib/analytics", () => ({ track: analytics.track }));
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  analytics.track.mockClear();
 });
 
 function mockOpenPrs(body: unknown, ok = true) {
@@ -43,6 +49,23 @@ describe("PreviewPrTabs recent tab", () => {
     expect(screen.getByText("Fix typo")).toBeInTheDocument();
     expect(screen.getByText("3 docs")).toBeInTheDocument();
     expect(screen.getByText("pull-42").closest("a")).toHaveAttribute("href", "/preview/pull-42");
+  });
+
+  it("reports a public recent-preview click with its id", () => {
+    render(<PreviewPrTabs entries={[{ id: "pull-42", detail: "3 docs", at: 1 }]} />);
+    fireEvent.click(screen.getByText("pull-42"));
+    expect(analytics.track).toHaveBeenCalledWith("preview_recent_click", { product: "preview", preview_id: "pull-42" });
+  });
+
+  it("never sends a PRIVATE preview's id to analytics", () => {
+    const entries: Entry[] = [{ id: "acme:secret-atlas:main", detail: "private · 4 docs", at: 1, private: true }];
+    render(<PreviewPrTabs entries={entries} />);
+    fireEvent.click(screen.getByText("acme:secret-atlas:main"));
+    // Same rule the private-repo form follows: coarse fields only, no identifier.
+    expect(analytics.track).toHaveBeenCalledWith("preview_recent_click", { product: "preview", private: true });
+    const payload = analytics.track.mock.calls[0]![1] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("preview_id");
+    expect(JSON.stringify(payload)).not.toContain("secret-atlas");
   });
 
   it("omits the title span when an entry has no title", () => {

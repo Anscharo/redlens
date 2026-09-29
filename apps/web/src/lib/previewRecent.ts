@@ -67,6 +67,6 @@ export function mergeRecentPreviews(rows: MineRow[], local: LocalPreview[]): Ent
     if (row) offer(l.id, row, l.at);
   }
   return [...best.entries()]
-    .map(([id, { row, at }]) => ({ id, title: row.pr_title ?? undefined, detail: detailOf(row), at }))
+    .map(([id, { row, at }]) => ({ id, title: row.pr_title ?? undefined, detail: detailOf(row), at, private: !!row.private }))
     .sort((a, b) => b.at - a.at);
 }

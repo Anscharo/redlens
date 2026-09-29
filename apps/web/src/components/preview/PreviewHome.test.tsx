@@ -173,6 +173,34 @@ describe("PreviewHome recent list (AND-semantics)", () => {
     expect(screen.queryByText("Secret work")).toBeNull();
   });
 
+  it("clears on sign-out even while the replacement fetch is still in flight", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    localStorage.setItem("preview-history", JSON.stringify([{ id: "pull-1", sha: "aaa", at: 5 }]));
+    // First load resolves; the post-sign-out refetch never does, standing in for a
+    // slow or failed request. The private row must go the moment the user changes,
+    // not whenever (or if) that fetch lands.
+    let call = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      call++;
+      return call === 1
+        ? Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve([
+                dbRow({ sha: "ccc", repo: "acme/secret-atlas", private: true, pr_title: "Secret work", preview_id: "acme:secret-atlas:main", opened_at: "2026-09-20T00:00:00Z" }),
+              ]),
+          } as Response)
+        : new Promise<Response>(() => {});
+    });
+    const view = render(<PreviewHome />);
+    expect(await screen.findByText("Secret work")).toBeInTheDocument();
+
+    h.user = null;
+    view.rerender(<PreviewHome />);
+    expect(screen.queryByText("Secret work")).toBeNull();
+  });
+
   it("shows an empty recent tab (no count) when there's no intersection", async () => {
     localStorage.setItem("preview-history", JSON.stringify([{ id: "pull-9", sha: "zzz", at: 1 }]));
     mockList([dbRow({ sha: "aaa" })]);

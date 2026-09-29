@@ -6,4 +6,7 @@ export interface Entry {
   title?: string;
   detail: string;
   at: number;
+  /** The preview is of a private repo, so `id` names a private owner/repo and
+   *  must not leave the browser in analytics. See PreviewPrTabs's click handler. */
+  private?: boolean;
 }

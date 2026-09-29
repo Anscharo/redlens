@@ -44,15 +44,14 @@ export function PreviewHome() {
     // Wait for the session probe so this asks once, knowing whether there is an
     // account history to include (authLoading is already false when logins are off).
     if (authLoading) return;
+    // Clear FIRST, on every identity change: whatever is on screen belongs to the
+    // session that just ended. Waiting for the replacement fetch would leave the
+    // previous user's rows — private repo ids and titles among them — visible to
+    // whoever uses this browser next, and indefinitely if that fetch fails.
+    setRecent({ rows: [], local: [] });
     const local = localPreviews();
     const shas = [...new Set(local.map((p) => p.sha))];
-    if (shas.length === 0 && !userId) {
-      // Nothing to ask about — and signing out lands here, so CLEAR rather than
-      // return: the previous user's rows (private repo ids and titles among
-      // them) must not stay on screen for whoever uses this browser next.
-      setRecent({ rows: [], local: [] });
-      return;
-    }
+    if (shas.length === 0 && !userId) return; // nothing opened here, no account — nothing to ask about
     // `alive` drops a response whose request is no longer the current one: when
     // userId flips, the signed-in answer must not land after the signed-out one.
     let alive = true;

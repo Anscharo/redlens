@@ -16,7 +16,7 @@ describe("mergeRecentPreviews", () => {
   it("lists an account row on its own — no local record required", () => {
     const rows = [row({ sha: "aaa", preview_id: "pull-1", opened_at: "2026-09-20T00:00:00Z", pr_title: "T" })];
     expect(mergeRecentPreviews(rows, [])).toEqual([
-      { id: "pull-1", title: "T", detail: "0 docs", at: Date.parse("2026-09-20T00:00:00Z") },
+      { id: "pull-1", title: "T", detail: "0 docs", at: Date.parse("2026-09-20T00:00:00Z"), private: false },
     ]);
   });
 
@@ -37,7 +37,7 @@ describe("mergeRecentPreviews", () => {
     // One entry, not two: the branch was pushed, so the local open is newer and
     // its row carries the current title/doc count.
     expect(mergeRecentPreviews(rows, local)).toEqual([
-      { id: "owner:repo:main", title: "Fresh", detail: "9 docs", at: Date.parse("2026-09-25T00:00:00Z") },
+      { id: "owner:repo:main", title: "Fresh", detail: "9 docs", at: Date.parse("2026-09-25T00:00:00Z"), private: false },
     ]);
   });
 
@@ -53,11 +53,14 @@ describe("mergeRecentPreviews", () => {
 
   it("tags a private row and keeps a non-open PR state in the detail", () => {
     const rows = [row({ sha: "a", preview_id: "p", opened_at: "", private: true, pr_author: "amy", pr_state: "merged", doc_count: 4 })];
-    expect(mergeRecentPreviews(rows, [])[0]!.detail).toBe("private · by amy · merged · 4 docs");
+    const entry = mergeRecentPreviews(rows, [])[0]!;
+    expect(entry.detail).toBe("private · by amy · merged · 4 docs");
+    // The flag, not just the copy: PreviewPrTabs reads it to withhold the id from analytics.
+    expect(entry.private).toBe(true);
   });
 
   it("survives an unparseable opened_at rather than dropping the row", () => {
     const rows = [row({ sha: "a", preview_id: "p", opened_at: "not a date" })];
-    expect(mergeRecentPreviews(rows, [])).toEqual([{ id: "p", title: undefined, detail: "0 docs", at: 0 }]);
+    expect(mergeRecentPreviews(rows, [])).toEqual([{ id: "p", title: undefined, detail: "0 docs", at: 0, private: false }]);
   });
 });

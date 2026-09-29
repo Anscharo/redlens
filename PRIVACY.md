@@ -50,9 +50,10 @@ If you sign in, the following is stored against your account.
   fair-use limits and to understand running costs.
 - **Saved Collections** — any lists of atlas documents you choose to save.
 - **Previews you open** — for each atlas preview you open while signed in, the
-  pull request, branch or repository it names and when you last opened it. We
-  keep this so the Preview page can show you your recent previews on any
-  browser you sign in from, instead of only the one you opened them in.
+  pull request, branch or repository it names, the exact commit it was built
+  from, and when you last opened it. We keep this so the Preview page can show
+  you your recent previews on any browser you sign in from, instead of only the
+  one you opened them in.
 
 We do **not** sell your data, show you ads, or use it to build an advertising
 profile.
@@ -103,7 +104,9 @@ it reports is useful to us.
 - You can use the atlas reader without signing in at all; the chatbot, saved
   Collections, and previews of private repositories are the only features that
   need an account. Previews you open without signing in are remembered by your
-  browser alone and are never linked to an account.
+  browser alone and are never linked to an account — the Preview page does send
+  those commit ids to the server to ask which are still available, but nothing
+  about them is stored against you.
 
 ## 7. Changes
 
