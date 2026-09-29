@@ -26,7 +26,12 @@ const ARGS_CHARS = 400;
 // call with the prefetch / teachings / dispute payload.
 const SYNTHETIC_TOOL_IDS = new Set(["call_prefetch", "call_dispute_flags", "call_teachings"]);
 
-const ARRAY_KEYS = ["results", "records", "rows", "items", "hits", "documents", "edges", "nodes", "children"];
+// Listing keys only. `ancestors` is a breadcrumb repeated on every atlas_get;
+// treating the first object-array as the payload recorded the breadcrumb and
+// dropped the document (measured on trace 0e97e0a6). `children` is often an
+// empty array on atlas_neighbors and must not hide `siblings`.
+const LIST_KEYS = ["results", "records", "rows", "items", "hits", "documents", "edges", "nodes", "siblings", "children"];
+const BREADCRUMB_KEYS = new Set(["ancestors", "sources", "addressRefs"]);
 const IDENTITY_KEYS = ["id", "uuid", "doc_id", "doc_no", "title", "name", "address", "chain", "slug", "type", "role"];
 const SNIPPET_KEYS = ["snippet", "content", "definition", "text", "summary"];
 
@@ -71,17 +76,47 @@ function fitCard(body: string, footer: string): string {
   return `${body.slice(0, room)}…${tail}`;
 }
 
+function nonEmptyObjs(v: unknown): Record<string, unknown>[] | null {
+  if (!Array.isArray(v)) return null;
+  const objs = v.filter(isObj);
+  return objs.length ? objs : null;
+}
+
+function isDoc(obj: Record<string, unknown>): boolean {
+  return typeof obj.id === "string" && (
+    typeof obj.title === "string" || typeof obj.doc_no === "string" || typeof obj.content === "string"
+  );
+}
+
 function itemsFrom(parsed: unknown): Record<string, unknown>[] {
   if (Array.isArray(parsed)) return parsed.filter(isObj).slice(0, RECALL_MAX_ITEMS);
   if (!isObj(parsed)) return [];
-  for (const key of ARRAY_KEYS) {
-    const v = parsed[key];
-    if (Array.isArray(v)) return v.filter(isObj).slice(0, RECALL_MAX_ITEMS);
+  const items: Record<string, unknown>[] = [];
+  // A single fetched document is the payload. Its ancestor chain is not.
+  if (isDoc(parsed)) items.push(parsed);
+  else {
+    if (isObj(parsed.target) && isDoc(parsed.target)) items.push(parsed.target);
+    if (isObj(parsed.parent) && isDoc(parsed.parent)) items.push(parsed.parent);
+    for (const key of LIST_KEYS) {
+      const objs = nonEmptyObjs(parsed[key]);
+      if (objs) {
+        items.push(...objs);
+        break;
+      }
+    }
   }
-  for (const v of Object.values(parsed)) {
-    if (Array.isArray(v) && v.some(isObj)) return v.filter(isObj).slice(0, RECALL_MAX_ITEMS);
+  if (items.length === 0) {
+    for (const [key, v] of Object.entries(parsed)) {
+      if (BREADCRUMB_KEYS.has(key)) continue;
+      const objs = nonEmptyObjs(v);
+      if (objs) {
+        items.push(...objs);
+        break;
+      }
+    }
   }
-  return [parsed];
+  if (items.length === 0) items.push(parsed);
+  return items.slice(0, RECALL_MAX_ITEMS);
 }
 
 function itemLine(obj: Record<string, unknown>): string {
@@ -97,14 +132,23 @@ function itemLine(obj: Record<string, unknown>): string {
 }
 
 function argsBrief(args: Record<string, unknown>): string {
+  // Tool calls in the trace ship every optional field as "" / [] / false.
+  // The card only needs the fields that were actually set, so a later turn
+  // can see the query rather than a wall of empty defaults.
+  const slim: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(args ?? {})) {
+    if (v === "" || v === null || v === false) continue;
+    if (Array.isArray(v) && v.length === 0) continue;
+    slim[key] = v;
+  }
   let raw: string;
   try {
-    raw = JSON.stringify(args ?? {});
+    raw = JSON.stringify(slim);
   } catch {
     return "{}";
   }
   if (raw.length <= ARGS_CHARS) return raw;
-  return JSON.stringify({ note: "arguments shortened", keys: Object.keys(args ?? {}) });
+  return JSON.stringify({ note: "arguments shortened", keys: Object.keys(slim) });
 }
 
 /** Arguments string replayed with a stored call. Large bodies (exports) stay out of later turns. */
@@ -139,7 +183,7 @@ export function toolRecall(name: string, args: Record<string, unknown>, raw: str
 
   const lines = [head];
   if (isObj(parsed)) {
-    for (const key of ["count", "total", "truncated", "hint", "error"] as const) {
+    for (const key of ["count", "total", "truncated", "hint", "liveness_hint", "error"] as const) {
       const v = parsed[key];
       if (typeof v === "string" && v.trim()) lines.push(`${key}: ${clip(v, 240)}`);
       else if (typeof v === "number" || typeof v === "boolean") lines.push(`${key}: ${v}`);

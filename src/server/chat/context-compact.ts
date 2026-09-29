@@ -27,6 +27,12 @@ type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 export const COMPACT_RATIO = 0.9;
 /** User + assistant rows left verbatim. Three exchanges, plus the question being answered when it falls inside the suffix. */
 export const COMPACT_TAIL = 6;
+// Prose and the tool schemas both land near 4 chars/token. A measured
+// gpt-5.6-luna turn (trace 0e97e0a6, 2026-09-21) was 18,976 input tokens for
+// 44,728 chars of messages plus 41,712 chars of tool definitions — about 4.6
+// chars/token together. The raw tokens/message-chars ratio was 2.4 only
+// because the schemas are in the token count and not in the message chars.
+// Do not lower this to 2.4; that would compact a thread that still fits.
 export const CHARS_PER_TOKEN = 4;
 /**
  * Tool schemas (~11k tokens, see llm.ts sessionParam) plus the system prompt.
