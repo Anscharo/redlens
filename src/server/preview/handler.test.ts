@@ -1355,7 +1355,7 @@ test("/api/preview/mine absorbs a burst, then refuses past the window's limit", 
   dbQueued = [new Error("must not be queried again")];
   const limited = await mine("");
   expect(limited.status).toBe(429);
-  expect(limited.headers.get("retry-after")).toBe("1");
+  expect(limited.headers.get("retry-after")).toBe("2");
   expect(limited.headers.get("cache-control")).toBe("private, no-store"); // still never shared-cacheable
   expect(dbCalls).toHaveLength(0);
 });

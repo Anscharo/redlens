@@ -93,8 +93,8 @@ export function rateLimited(ip: string): boolean {
 // refreshing, which an interval-per-request does (see the 429-on-first-fetch
 // bug that shipped with the 2s version).
 export const mineHits = new Map<string, { n: number; reset: number }>();
-export const MINE_WINDOW_MS = 1_000;
-export const MINE_LIMIT = 10; // more than a person can produce in a second; far under a loop
+export const MINE_WINDOW_MS = 2_000;
+export const MINE_LIMIT = 8; // more than a person can produce in two seconds; far under a loop
 export function mineRateLimited(userId: string, now = Date.now()): boolean {
   const w = mineHits.get(userId);
   if (!w || now > w.reset) {
@@ -511,7 +511,7 @@ async function minePreviews(req: Request): Promise<Response> {
   if (session && mineRateLimited(session.user.id)) {
     // 429 rather than an empty 200: the client must be able to tell "nothing to
     // show" from "ask again", and it leaves the list it already has on screen.
-    return json({ error: "rate-limited" }, 429, { ...PRIVATE_HEADERS, "retry-after": "1" });
+    return json({ error: "rate-limited" }, 429, { ...PRIVATE_HEADERS, "retry-after": "2" });
   }
   const rows = await collectMineRows(session?.user.id ?? null, shas);
   return json(await visibleToVisitor(req, rows), 200, PRIVATE_HEADERS);

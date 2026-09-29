@@ -25,7 +25,7 @@ import { PreviewPrTabs } from "./PreviewPrTabs";
 function retryAfterMs(res: Response): number {
   const raw = res.headers.get("retry-after");
   const secs = raw === null ? Number.NaN : Number(raw);
-  return Number.isFinite(secs) ? Math.min(Math.max(secs, 0), 5) * 1000 : 1000;
+  return Number.isFinite(secs) ? Math.min(Math.max(secs, 0), 5) * 1000 : 2000;
 }
 
 export function PreviewHome() {
