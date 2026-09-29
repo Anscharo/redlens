@@ -8,7 +8,6 @@ import type { SearchHit, SemanticLegStatus, WorkerOutMessage } from "@/types";
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix } from "../lib/uuidSearch";
 import {
-  rrfFuse,
   semanticQueryOf,
   SEMANTIC_DEBOUNCE_MS,
   type SearchLane,
@@ -17,9 +16,8 @@ import {
   type SemanticStrategy,
 } from "@/lib/searchSemantic";
 
-// How many semantically-scored documents to ask for. Larger than a screenful
-// because under the woven strategy RRF can bury a semantic hit behind lexical
-// ones — but not unbounded: every id costs a pgvector row on the server.
+// How many semantically-scored documents to ask for. A few screenfuls, so the
+// list is worth scrolling — but not unbounded: every id costs a pgvector row.
 export const SEMANTIC_K = 60;
 
 // Sky chainlog id shape, e.g. MCD_VAT. A doc number for the fast exact-lookup
@@ -69,33 +67,6 @@ export function semanticLegQuery(
   return semanticQueryOf(trimmed);
 }
 
-/**
- * Fuse the lexical and semantic result lists by RRF (the woven strategy).
- *
- * A document found by both keeps its LEXICAL hit — that one carries the
- * highlighted title and the snippet built around the matched term, which a
- * semantic hit cannot reconstruct — and is additionally marked semantic, so the
- * UI can say it was found both ways. Semantic-only hits keep an empty
- * matchReason, which is what renders as the bare "semantic match" mark.
- */
-export function weaveSemantic(lex: SearchHit[], sem: SearchHit[]): SearchHit[] {
-  if (sem.length === 0) return lex;
-  if (lex.length === 0) return sem;
-  const fused = rrfFuse([lex.map((h) => h.id), sem.map((h) => h.id)]);
-  const semById = new Map(sem.map((h) => [h.id, h]));
-  const merged: SearchHit[] = lex.map((h) => {
-    const s = semById.get(h.id);
-    return s ? { ...h, semantic: true, semanticScore: s.semanticScore, viaTitle: s.viaTitle } : h;
-  });
-  const lexIds = new Set(lex.map((h) => h.id));
-  for (const h of sem) if (!lexIds.has(h.id)) merged.push(h);
-  // Stable sort on the fused score: equal scores keep insertion order, so the
-  // lexical ranking survives wherever RRF has nothing to say.
-  return merged
-    .map((h, i) => ({ h, i, r: fused.get(h.id) ?? 0 }))
-    .sort((a, b) => b.r - a.r || a.i - b.i)
-    .map(({ h }) => h);
-}
 
 /** What the response says about the leg's own health. */
 export function legStatus(body: SemanticSearchResponse): SemanticLegStatus {
@@ -144,7 +115,12 @@ export interface SemanticLegRun {
 // data-source base changes — so an atlas bump or a preview switch gets a fresh
 // worker and a fresh cache, and nothing here can serve ids from another commit.
 const CACHE_MAX = 50;
-const cache = new Map<string, SemanticSearchResponse>();
+/** The response, plus what it COST to fetch — see `postFused` on why. */
+interface CachedLeg {
+  body: SemanticSearchResponse;
+  durationMs: number;
+}
+const cache = new Map<string, CachedLeg>();
 
 /** Test seam: drop everything this worker has scored. */
 export function clearSemanticCache(): void {
@@ -156,25 +132,36 @@ function cacheKey(q: SemanticQuery): string {
   return q.scope ? `${q.scope}\u0000${q.query}` : q.query;
 }
 
-function remember(query: string, body: SemanticSearchResponse): void {
+function remember(query: string, entry: CachedLeg): void {
   // A DEGRADED answer is never cached. `skipped` means the embed timed out or
   // the provider erred on this attempt — caching it would pin a transient
   // failure to this query for the life of the worker, and the next lane flip
   // would report a stale outage instead of retrying.
-  if (body.skipped) return;
+  if (entry.body.skipped) return;
   cache.delete(query); // re-insert so Map iteration order is LRU
-  cache.set(query, body);
+  cache.set(query, entry);
   if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
 }
 
-/** Build and post the finished message for `body` — the one fuse+post path. */
-function postFused(run: SemanticLegRun, body: SemanticSearchResponse): void {
+/**
+ * Build and post the finished message — the one post path.
+ *
+ * `durationMs` is what the search COST, not how long this call took. A replay
+ * from cache is ~1 ms, and reporting that would make the time on screen change
+ * every time the reader flipped lanes and came back — the number would look
+ * like a measurement of the click rather than of the search.
+ */
+function postFused(run: SemanticLegRun, body: SemanticSearchResponse, durationMs: number): void {
   const sem = run.hydrate(Array.isArray(body.hits) ? body.hits : []);
   run.post({
     type: "results",
     id: run.id,
-    hits: run.lane === "semantic" ? sem : weaveSemantic(run.lexical, sem),
-    durationMs: performance.now() - run.startedAt,
+    // Always a REPLACEMENT, never a merge. On the semantic lane the wording
+    // list was never fetched; on the wording lane the leg only runs under the
+    // fallback strategy, which by definition means wording returned nothing.
+    // (Fusing the two was the `woven` strategy, dropped 2026-09-29.)
+    hits: sem,
+    durationMs,
     lane: run.lane,
     semantic: legStatus(body),
     ...(body.skipped ? { semanticNote: body.skipped } : {}),
@@ -190,11 +177,11 @@ function postFused(run: SemanticLegRun, body: SemanticSearchResponse): void {
  */
 export function answerFromCache(run: SemanticLegRun): boolean {
   const key = cacheKey(run.query);
-  const body = cache.get(key);
-  if (!body) return false;
+  const entry = cache.get(key);
+  if (!entry) return false;
   cache.delete(key); // touch: most recently used goes last
-  cache.set(key, body);
-  postFused(run, body);
+  cache.set(key, entry);
+  postFused(run, entry.body, entry.durationMs);
   return true;
 }
 
@@ -215,8 +202,9 @@ export function runSemanticLeg(run: SemanticLegRun): void {
       })
       .then((body) => {
         if (ac.signal.aborted) return;
-        remember(cacheKey(run.query), body);
-        postFused(run, body);
+        const durationMs = performance.now() - run.startedAt;
+        remember(cacheKey(run.query), { body, durationMs });
+        postFused(run, body, durationMs);
       })
       .catch((err: unknown) => {
         if (ac.signal.aborted || (err instanceof DOMException && err.name === "AbortError")) return;

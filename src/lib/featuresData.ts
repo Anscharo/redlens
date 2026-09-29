@@ -130,7 +130,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           'Type terms for a broad search (partial words match). Wrap a phrase in double quotes for a literal substring (case-insensitive), or single quotes for case-sensitive.',
           "Broad search also matches the singular or plural of each word; documents that use your exact word rank first.",
-          "Add ~N to a term to allow N character edits — misaligment~1.",
+          "Add ~N to a term to allow N character edits — misaligment~1. You rarely need it: a search that finds nothing offers a spelling correction you can click.",
           "Filter with title:, type:, and in:<doc number>; drop a term with a leading -.",
           "Type / for slash commands, or /h for the full query-syntax reference.",
         ],
@@ -144,7 +144,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "A result the meaning index found is labelled semantic match and shows its similarity score; it can share no word at all with your query.",
           "Add in:<doc number> to scope meaning search to one subtree — in:A.6 who approves rewards searches only the Agent Scope.",
         ],
-        note: "The meaning lane needs a deployment configured for it; where it is not, that pill is disabled and says so. How much meaning-matching joins the default wording results is a per-deployment setting, so on some deployments it only steps in when wording found nothing.",
+        note: "The meaning lane needs a deployment configured for it; where it is not, that pill is disabled and says so. On the wording lane meaning-matching only steps in when wording found nothing, and some deployments turn it off entirely.",
       },
       {
         name: "Jump-to",

@@ -46,7 +46,7 @@ describe("SearchResult", () => {
     const { container } = setup({ semantic: true, semanticScore: 0.74, matchReason: "" });
     expect(screen.getByText("semantic match")).toBeTruthy();
     expect(screen.queryByText("matched")).toBeNull();
-    // The whole row is marked, not only the note, so a woven result set reads
+    // The whole row is marked, not only the note, so a mixed result set reads
     // as two kinds of hit while scrolling.
     expect(container.querySelector('[data-semantic="true"]')).toBeTruthy();
   });
@@ -88,8 +88,8 @@ describe("SearchResult", () => {
   });
 
   it("prefers the chainlog branch over the semantic mark", () => {
-    // Both can be true at once under the woven strategy; a chainlog id is the
-    // more specific, more actionable provenance.
+    // Both can be true on one hit; a chainlog id is the more specific, more
+    // actionable provenance, so it wins the gutter.
     setup({ semantic: true, chainlogId: "MCD_VAT", chainlogAddress: "0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B" });
     expect(screen.getByText("MCD_VAT")).toBeTruthy();
     expect(screen.queryByText("semantic match")).toBeNull();

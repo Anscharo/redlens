@@ -148,11 +148,10 @@ export async function runSemantic(
   }
 }
 
-// Fusion itself lives in lib/searchSemantic.ts `rrfFuse`, shared with the
-// reader's woven search lane so agent retrieval and the search bar can never
-// rank a hybrid result set differently. This wrapper only carries the per-hit
-// metadata RRF has no opinion about (which legs found it, the raw score, the
-// grouped-anchor provenance).
+// Fusion itself lives in lib/searchSemantic.ts `rrfFuse`, so there is one
+// implementation of it rather than a second copy here. This wrapper only
+// carries the per-hit metadata RRF has no opinion about (which legs found it,
+// the raw score, the grouped-anchor provenance).
 /**
  * The `AND …` fragment restricting retrieval to an `in:` doc-number subtree,
  * or "" when there is no scope. Split out so its shape is assertable without a

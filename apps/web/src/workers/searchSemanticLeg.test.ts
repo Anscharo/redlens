@@ -12,7 +12,6 @@ import {
   legStatus,
   runSemanticLeg,
   semanticLegQuery,
-  weaveSemantic,
 } from "./searchSemanticLeg";
 import { SEMANTIC_DEBOUNCE_MS, type SemanticSearchResponse } from "@/lib/searchSemantic";
 import type { SearchHit, WorkerOutMessage } from "@/types";
@@ -57,7 +56,7 @@ describe("isIdentifierQuery", () => {
 
 describe("semanticLegQuery", () => {
   it("never runs on the entities lane", () => {
-    expect(semanticLegQuery("rewards", "graph", "woven", () => 0, NO_CHAINLOG)).toBeNull();
+    expect(semanticLegQuery("rewards", "graph", "fallback", () => 0, NO_CHAINLOG)).toBeNull();
   });
 
   it("off: never runs", () => {
@@ -69,59 +68,14 @@ describe("semanticLegQuery", () => {
     expect(semanticLegQuery("rewards", "lexical", "fallback", () => 0, NO_CHAINLOG)).toEqual({ query: "rewards" });
   });
 
-  it("woven: runs whatever the wording lane found", () => {
-    expect(semanticLegQuery("rewards", "lexical", "woven", () => 3, NO_CHAINLOG)).toEqual({ query: "rewards" });
-    expect(semanticLegQuery("rewards", "lexical", "woven", () => 0, NO_CHAINLOG)).toEqual({ query: "rewards" });
-  });
-
   it("the semantic lane runs even under the off strategy — picking it IS the request", () => {
     expect(semanticLegQuery("rewards", "semantic", "off", () => 9, NO_CHAINLOG)).toEqual({ query: "rewards" });
   });
 
   it("stands down on an identifier or structured syntax, on every lane", () => {
-    expect(semanticLegQuery("A.2.7.1", "semantic", "woven", () => 0, NO_CHAINLOG)).toBeNull();
-    expect(semanticLegQuery("type:Core rewards", "semantic", "woven", () => 0, NO_CHAINLOG)).toBeNull();
-    expect(semanticLegQuery("ab", "semantic", "woven", () => 0, NO_CHAINLOG)).toBeNull();
-  });
-});
-
-describe("weaveSemantic", () => {
-  it("marks a document found by both legs but keeps its lexical row", () => {
-    const lex = [hit("a"), hit("b", { matchReason: "content", titleHtml: "<mark>b</mark>" })];
-    const sem = [hit("b", { semantic: true, semanticScore: 0.81, matchReason: "", titleHtml: "b" })];
-    const woven = weaveSemantic(lex, sem);
-    const b = woven.find((h) => h.id === "b")!;
-    // The highlighted title and the term-centred snippet only exist on the
-    // lexical hit; the semantic one cannot reconstruct them.
-    expect(b.titleHtml).toBe("<mark>b</mark>");
-    expect(b.matchReason).toBe("content");
-    expect(b.semantic).toBe(true);
-    expect(b.semanticScore).toBe(0.81);
-    // Found by both ⇒ fused above a single-leg hit.
-    expect(woven[0].id).toBe("b");
-  });
-
-  it("appends meaning-only hits, carrying their group provenance", () => {
-    const lex = [hit("a")];
-    const sem = [hit("z", { semantic: true, semanticScore: 0.7, matchReason: "", viaTitle: "Fluid Vault" })];
-    const woven = weaveSemantic(lex, sem);
-    expect(woven.map((h) => h.id)).toEqual(["a", "z"]);
-    expect(woven[1].viaTitle).toBe("Fluid Vault");
-    expect(woven[0].semantic).toBeUndefined();
-  });
-
-  it("preserves lexical order among hits RRF cannot separate", () => {
-    const lex = [hit("a"), hit("b"), hit("c")];
-    // Nothing overlaps, so the fused scores mirror each list's own ranks: the
-    // lexical ordering has to survive rather than being shuffled.
-    expect(weaveSemantic(lex, []).map((h) => h.id)).toEqual(["a", "b", "c"]);
-  });
-
-  it("passes either list through untouched when the other is empty", () => {
-    const lex = [hit("a")];
-    const sem = [hit("z", { semantic: true })];
-    expect(weaveSemantic(lex, [])).toBe(lex);
-    expect(weaveSemantic([], sem)).toBe(sem);
+    expect(semanticLegQuery("A.2.7.1", "semantic", "fallback", () => 0, NO_CHAINLOG)).toBeNull();
+    expect(semanticLegQuery("type:Core rewards", "semantic", "fallback", () => 0, NO_CHAINLOG)).toBeNull();
+    expect(semanticLegQuery("ab", "semantic", "fallback", () => 0, NO_CHAINLOG)).toBeNull();
   });
 });
 
@@ -162,7 +116,7 @@ describe("runSemanticLeg", () => {
     const { posted, post } = collector();
     runSemanticLeg({
       id: 4, query: { query: "who approves rewards" }, lane: "lexical",
-      lexical: [hit("a")], startedAt: 0, hydrate, post,
+      lexical: [], startedAt: 0, hydrate, post,
     });
 
     await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS - 1);
@@ -175,7 +129,9 @@ describe("runSemanticLeg", () => {
     const msg = posted[0] as Extract<WorkerOutMessage, { type: "results" }>;
     expect(msg.id).toBe(4);
     expect(msg.semantic).toBe("done");
-    expect(msg.hits.map((h) => h.id)).toEqual(["a", "z"]);
+    // A REPLACEMENT, not a merge: on the wording lane the leg only runs under
+    // the fallback strategy, which means wording returned nothing.
+    expect(msg.hits.map((h) => h.id)).toEqual(["z"]);
   });
 
   it("on the semantic lane posts only the scored hits, not the lexical ones", async () => {
@@ -314,6 +270,20 @@ describe("scored-id cache", () => {
     clearSemanticCache();
     const { post } = collector();
     expect(answerFromCache({ id: 2, query: { query: "rewards" }, ...base, post })).toBe(false);
+  });
+
+  it("replays the time the search COST, not the time the replay took", async () => {
+    vi.useFakeTimers();
+    const calls: string[] = [];
+    const posted = await prime("who approves rewards", { hits: [], skipped: null, available: true }, calls);
+    const first = (posted[0] as Extract<WorkerOutMessage, { type: "results" }>).durationMs;
+    expect(first).toBeGreaterThan(0); // the debounce alone puts it past zero
+
+    const { posted: replayed, post } = collector();
+    // startedAt is NOW, so an elapsed-time reading would be ~0 and the number on
+    // screen would change every time the reader flipped lanes and came back.
+    answerFromCache({ id: 2, query: { query: "who approves rewards" }, ...base, startedAt: performance.now(), post });
+    expect((replayed[0] as Extract<WorkerOutMessage, { type: "results" }>).durationMs).toBe(first);
   });
 
   it("evicts least-recently-used beyond its bound", async () => {

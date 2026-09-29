@@ -82,9 +82,10 @@ export interface SearchHit {
   chainlogId?: string; // set when result was found via chainlog reverse-lookup
   chainlogAddress?: string; // the resolved address for chainlog matches
   // ── semantic lane (src/lib/searchSemantic.ts) ──
-  // True when the pgvector leg returned this document. A hit can be BOTH
-  // semantic and lexical (matchReason is then non-empty too) — that is the
-  // point of the woven strategy, and the UI marks it as both.
+  // True when the pgvector leg returned this document. A hit CAN in principle
+  // be both semantic and lexical (matchReason non-empty too) and the row marks
+  // it as both — though the reader's leg replaces rather than merges since
+  // `woven` was dropped, so nothing produces that combination today.
   semantic?: boolean;
   semanticScore?: number; // cosine similarity, 0..1
   // Grouped-embedding provenance: the anchor this hit was retrieved under and
@@ -124,6 +125,10 @@ export type WorkerOutMessage =
       // Why the leg degraded, when semantic === "skipped" (embed timeout,
       // provider error). Shown to the user, not swallowed.
       semanticNote?: string;
+      // A spelling correction for a query that found nothing — already verified
+      // to return results, so offering it is never a dead end. Absent whenever
+      // there were hits, or nothing better than the query itself was found.
+      didYouMean?: string;
     }
   | { type: "error"; id?: number; message: string }; // no id for init-time failures
 

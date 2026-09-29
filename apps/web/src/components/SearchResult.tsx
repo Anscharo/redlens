@@ -69,9 +69,9 @@ export const SearchResult = memo(function SearchResult({ hit, rank, onResultClic
 
   const reason = hit.chainlogId ? hit.matchReason.replace(/^chainlog \+ /, "") : hit.matchReason;
 
-  // A semantic hit has a non-empty matchReason only when the wording matched
-  // too (the woven strategy fuses both legs onto one row). Saying so is the
-  // point: "found both ways" is a stronger result than either alone.
+  // A semantic hit has a non-empty matchReason only if the wording matched too.
+  // Nothing produces that today (the leg replaces rather than merges), but the
+  // row stays able to say "found both ways", which is the stronger result.
   const semanticTitle = hit.viaTitle
     ? `Matched by meaning, retrieved under "${hit.viaTitle}"`
     : "Matched by meaning, not by the words you typed";

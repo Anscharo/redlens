@@ -440,11 +440,53 @@ function search(q: string): SearchHit[] {
 // pills pays for another whole-corpus MiniSearch pass — which for a broad query
 // is the slowest thing on the page. One result set is held, and it is the same
 // array the main thread is already rendering.
-let lastLexical: { q: string; hits: SearchHit[] } | null = null;
+//
+// `durationMs` is remembered with it for the same reason `postFused` remembers
+// the leg's: a memo hit costs ~0 ms, and reporting that would make the time on
+// screen change every time the reader flipped lanes and came back.
+let lastLexical: { q: string; hits: SearchHit[]; durationMs: number } | null = null;
 
-function lexicalFor(q: string): SearchHit[] {
-  if (lastLexical?.q !== q) lastLexical = { q, hits: search(q) };
-  return lastLexical.hits;
+function lexicalFor(q: string): { hits: SearchHit[]; durationMs: number } {
+  if (lastLexical?.q !== q) {
+    const t0 = performance.now();
+    const hits = search(q);
+    lastLexical = { q, hits, durationMs: performance.now() - t0 };
+  }
+  return lastLexical;
+}
+
+// ─── did you mean ───────────────────────────────────────────────────────────
+
+/**
+ * A spelling correction for a query that found nothing, or null.
+ *
+ * MiniSearch's own `autoSuggest` over the indexed terms, with two corrections
+ * applied on top. It can return SEVERAL near terms for one query word
+ * ("facilitater" -> "facilitators facilitator"), so the suggestion is trimmed
+ * to the word count the reader typed. And every candidate is re-run before it
+ * is offered: a "did you mean" that also finds nothing is worse than staying
+ * quiet, and fuzzy term matching alone cannot promise the corrected phrase
+ * matches any document.
+ */
+function didYouMean(q: string): string | undefined {
+  if (!idx) return undefined;
+  const trimmed = q.trim();
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return undefined;
+  let suggestions: { suggestion: string }[];
+  try {
+    suggestions = idx.autoSuggest(trimmed, { fuzzy: 0.2, prefix: false }).slice(0, 3);
+  } catch {
+    return undefined; // a query shape autoSuggest can't parse is not an error here
+  }
+  for (const s of suggestions) {
+    const parts = s.suggestion.split(/\s+/).filter(Boolean);
+    for (const cand of [parts.slice(0, words.length).join(" "), s.suggestion]) {
+      if (!cand || cand.toLowerCase() === trimmed.toLowerCase()) continue;
+      if (search(cand).length > 0) return cand;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -496,19 +538,33 @@ self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
     // so the semantic lane, which discards the list whenever the leg does take
     // the query, never pays for the pass at all.
     const lexical = () => lexicalFor(msg.q);
-    const query = semanticLegQuery(msg.q, lane, sem, () => lexical().length, (id) => chainlogToAddr.has(id));
-    const reply = (hits: SearchHit[], semantic: SemanticLegStatus) =>
-      post({ type: "results", id: msg.id, hits, durationMs: performance.now() - startedAt, lane, semantic });
+    const query = semanticLegQuery(msg.q, lane, sem, () => lexical().hits.length, (id) => chainlogToAddr.has(id));
+    // A "did you mean" is only ever offered for a query that found nothing —
+    // and only on a lane that is actually showing the wording index, since a
+    // spelling correction says nothing about a meaning or entity search.
+    const reply = (hits: SearchHit[], semantic: SemanticLegStatus, durationMs: number) =>
+      post({
+        type: "results",
+        id: msg.id,
+        hits,
+        durationMs,
+        lane,
+        semantic,
+        ...(hits.length === 0 && lane === "lexical" && semantic !== "pending"
+          ? { didYouMean: didYouMean(msg.q) }
+          : {}),
+      });
 
     if (query === null) {
-      reply(lexical(), "none");
+      const lex = lexical();
+      reply(lex.hits, "none", lex.durationMs);
       return;
     }
     const run = {
       id: msg.id,
       query,
       lane,
-      lexical: lane === "semantic" ? [] : lexical(),
+      lexical: lane === "semantic" ? [] : lexical().hits,
       startedAt,
       hydrate: hydrateSemantic,
       post,
@@ -518,9 +574,8 @@ self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
     if (answerFromCache(run)) return;
     // On the semantic lane the lexical list is withheld: that lane is meant to
     // read as a DIFFERENT index, not as a re-ranking of the same one, so the
-    // main thread stays in its searching state until the scored ids land. Every
-    // other lane shows its lexical half now and re-posts the fused set after.
-    if (lane !== "semantic") reply(run.lexical, "pending");
+    // main thread stays in its searching state until the scored ids land.
+    if (lane !== "semantic") reply(run.lexical, "pending", performance.now() - startedAt);
     runSemanticLeg(run);
   }
 });

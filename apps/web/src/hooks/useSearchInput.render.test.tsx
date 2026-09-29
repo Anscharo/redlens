@@ -71,12 +71,12 @@ describe("useSearchInput (rendered)", () => {
   });
 
   it("reads ?lane and ?sem, and falls back off an unavailable meaning lane", () => {
-    setup("/?q=governance&lane=semantic&sem=woven", "/");
+    setup("/?q=governance&lane=semantic&sem=off", "/");
     // window.__SEMANTIC_SEARCH__ is unset here, so a shared ?lane=semantic link
     // must not leave the reader searching a permanently empty index.
     expect(api.lane).toBe("lexical");
-    expect(api.sem).toBe("woven");
-    expect(search).toHaveBeenLastCalledWith("governance", { lane: "lexical", sem: "woven" });
+    expect(api.sem).toBe("off");
+    expect(search).toHaveBeenLastCalledWith("governance", { lane: "lexical", sem: "off" });
   });
 
   it("uses the meaning lane when the deployment can answer it", () => {

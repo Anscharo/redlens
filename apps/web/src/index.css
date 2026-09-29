@@ -2010,6 +2010,19 @@ a.atlas-annotates:focus-visible {
   background: var(--hover);
 }
 
+/* The corrected query offered when a search found nothing. Reads as the link
+   it behaves like — the whole point is that it is obviously clickable. */
+.did-you-mean {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.did-you-mean:hover,
+.did-you-mean:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
 /* ─── Semantic ("meaning") search lane ─── */
 
 /* A semantic hit can share no word at all with the query, so this is

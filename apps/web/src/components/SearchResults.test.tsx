@@ -109,14 +109,27 @@ describe("SearchResults no-results suggestions", () => {
     expect(onBroadSearch).toHaveBeenCalledWith("delegated signers");
   });
 
-  it("suggests a fuzzy search when broad mode yields no results and query has no ~", () => {
-    const { onHintClick } = setup(
-      makeSearchState({ query: "delegated signers" }),
-      { query: "delegated signers", mode: "broad" },
-    );
-    const btn = screen.getByText(/try fuzzy:/);
+  it("offers a clickable spelling correction when a search found nothing", () => {
+    const onHintClick = vi.fn();
+    setup(makeSearchState({ query: "governence", didYouMean: "governance" }), {
+      query: "governence",
+      onHintClick,
+    });
+    const btn = screen.getByRole("button", { name: "governance" });
     fireEvent.click(btn);
-    expect(onHintClick).toHaveBeenCalledWith("delegated~2 signers~2");
+    expect(onHintClick).toHaveBeenCalledWith("governance");
+  });
+
+  it("offers nothing when the worker found no correction worth making", () => {
+    // A "did you mean" the worker could not verify is worse than silence.
+    setup(makeSearchState({ query: "zzzznope" }), { query: "zzzznope" });
+    expect(screen.queryByText(/Did you mean/)).toBeNull();
+  });
+
+  it("never suggests the ~ fuzzy operator — that asked the reader to learn syntax", () => {
+    setup(makeSearchState({ query: "governence", didYouMean: "governance" }), { query: "governence" });
+    expect(screen.queryByText(/try fuzzy/)).toBeNull();
+    expect(screen.queryByText(/~2/)).toBeNull();
   });
 
   it("does not suggest fuzzy when the query already contains ~", () => {

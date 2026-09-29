@@ -253,16 +253,16 @@ export const config = {
   // repeat is instant (no network, no cost, no timeout exposure). 0 disables it.
   queryEmbedCacheSize: Number(process.env.QUERY_EMBED_CACHE_SIZE ?? 512),
 
-  // How the READER's search bar blends the semantic leg into its default
-  // (lexical) lane — "off" | "fallback" | "woven", see lib/searchSemantic.ts.
+  // What the READER's search bar does with the semantic leg on its default
+  // (wording) lane — "off" | "fallback", see lib/searchSemantic.ts.
   // Injected into index.html so it can be changed per deployment without a
   // frontend rebuild, and overridable per query with ?sem= for comparison.
   //
-  // Default "fallback" on cost, not on quality: "woven" buys one OpenRouter
-  // embedding call for EVERY settled search on a public page, while "fallback"
-  // pays only when the lexical lane found nothing — which is precisely the
-  // search that is currently a dead end. Raise it to "woven" once the spend of
-  // an always-on lane is a decision someone has made deliberately.
+  // "fallback" pays for an embedding call only when the wording lane found
+  // nothing — precisely the search that is otherwise a dead end. The third
+  // option, "woven" (always run the leg, fuse both sets by RRF), was dropped
+  // 2026-09-29: the interleaved list read worse than either lane alone, and it
+  // bought an OpenRouter call on every settled search on a public page to do it.
   searchSemanticStrategy: SEARCH_SEMANTIC_STRATEGY,
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.

@@ -504,6 +504,60 @@ describe("inflection", () => {
 // The lexical half and the fused half arrive as two `results` messages under one
 // id, so these tests correlate on the message's own `semantic` field rather than
 // on arrival order alone.
+describe("did you mean", () => {
+  type Results = { type: "results"; hits: SearchHit[]; didYouMean?: string; durationMs: number };
+
+  async function ask(q: string, extra: Record<string, unknown> = {}) {
+    const s = await initSearchWorker();
+    const id = ++queryId;
+    s.h.dispatch({ type: "query", id, q, ...extra });
+    return (await s.h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
+  }
+
+  it("corrects a misspelling of an indexed term", async () => {
+    // "quorum" is in the fixture corpus; "quorem" is not.
+    const msg = await ask("quorem");
+    expect(msg.hits).toEqual([]);
+    expect(msg.didYouMean).toBe("quorum");
+  });
+
+  it("offers nothing when the query already found results", async () => {
+    const msg = await ask("quorum");
+    expect(msg.hits.length).toBeGreaterThan(0);
+    expect(msg.didYouMean).toBeUndefined();
+  });
+
+  it("offers nothing rather than a correction that also finds nothing", async () => {
+    const msg = await ask("zzzzqqqxnope");
+    expect(msg.hits).toEqual([]);
+    expect(msg.didYouMean).toBeUndefined();
+  });
+
+  it("stays on the wording lane — a spelling fix says nothing about meaning or entities", async () => {
+    for (const lane of ["graph", "semantic"] as const) {
+      const msg = await ask("quorem", { lane });
+      expect(msg.didYouMean).toBeUndefined();
+    }
+  });
+});
+
+describe("remembered search time", () => {
+  it("replays the time the wording search COST, not the time the replay took", async () => {
+    const s = await initSearchWorker();
+    const run = async (lane: string) => {
+      const id = ++queryId;
+      s.h.dispatch({ type: "query", id, q: "quorum", lane });
+      const m = await s.h.waitFor((x) => x.type === "results" && x.id === id);
+      return m.durationMs as number;
+    };
+    const first = await run("lexical");
+    // Flipping away and back must not re-time the memo hit: a number that
+    // changed on every flip would be measuring the click, not the search.
+    await run("graph");
+    expect(await run("lexical")).toBe(first);
+  });
+});
+
 describe("semantic lane", () => {
   type Results = { type: "results"; id: number; hits: SearchHit[]; lane: string; semantic: string; semanticNote?: string };
 
@@ -589,24 +643,17 @@ describe("semantic lane", () => {
     expect(hit.snippet.startsWith("…")).toBe(false); // opened at the head, not a window
   });
 
-  it("woven: a wording hit the semantic leg also returned is marked as both", async () => {
+  it("fallback: the meaning hits REPLACE the empty wording list, never merge into one", async () => {
     const h = await withSemantic({
       hits: [{ id: IDS.facilitatorCore, score: 0.9 }, { id: IDS.addrOnly, score: 0.6 }],
       skipped: null,
       available: true,
     });
-    const id = ask(h, "quorum", { lane: "lexical", sem: "woven" });
-    const first = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
-    expect(first.semantic).toBe("pending");
-    expect(first.hits.map((x) => x.id)).toContain(IDS.facilitatorCore);
-
+    const id = ask(h, "zzzznothingmatchesthis", { lane: "lexical", sem: "fallback" });
     const done = (await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done")) as Results;
-    const both = done.hits.find((x) => x.id === IDS.facilitatorCore)!;
-    expect(both.semantic).toBe(true);
-    expect(both.matchReason).toContain("title"); // kept its lexical row
-    expect(both.titleHtml).toContain("<mark>");  // and its highlighting
-    // The meaning-only hit joined the same list.
-    expect(done.hits.map((x) => x.id)).toContain(IDS.addrOnly);
+    // Interleaving the two lists was the `woven` strategy, dropped 2026-09-29.
+    expect(done.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore, IDS.addrOnly]);
+    expect(done.hits.every((x) => x.semantic)).toBe(true);
   });
 
   it("the semantic lane withholds the wording list and answers only once", async () => {
@@ -623,7 +670,7 @@ describe("semantic lane", () => {
   it("the semantic lane falls back to wording for a doc-number paste", async () => {
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
-    const id = ask(h, "A.1.2", { lane: "semantic", sem: "woven" });
+    const id = ask(h, "A.1.2", { lane: "semantic", sem: "fallback" });
     const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
     // An identifier has one right answer; it must not be a dead end on this
     // lane, and must not spend an embedding call.
@@ -636,20 +683,22 @@ describe("semantic lane", () => {
   it("the entities lane never reaches the semantic endpoint", async () => {
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
-    const id = ask(h, "governance", { lane: "graph", sem: "woven" });
+    const id = ask(h, "governance", { lane: "graph", sem: "fallback" });
     const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
     expect(msg.semantic).toBe("none");
     await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
     expect(calls.some((u) => u.includes("/api/search/semantic"))).toBe(false);
   });
 
-  it("reports an unconfigured backend without discarding the wording hits", async () => {
+  it("reports an unconfigured backend rather than staying silent", async () => {
     const h = await withSemantic({ hits: [], skipped: null, available: false });
-    const id = ask(h, "quorum", { lane: "lexical", sem: "woven" });
+    const id = ask(h, "zzzznothingmatchesthis", { lane: "lexical", sem: "fallback" });
     const done = (await h.waitFor(
       (m) => m.type === "results" && m.id === id && m.semantic === "unavailable",
     )) as Results;
-    expect(done.hits.length).toBeGreaterThan(0);
+    // Nothing to show, but the reader is told WHY rather than seeing a bare
+    // "no results" for a lane that was never able to run.
+    expect(done.hits).toEqual([]);
   });
 
   it("flipping lane on the same query scores it once, and replays instantly", async () => {
@@ -660,16 +709,16 @@ describe("semantic lane", () => {
     );
     const semanticCalls = () => calls.filter((u) => u.includes("/api/search/semantic"));
 
-    // Wording lane, woven: the leg runs and the answer is cached.
-    const first = ask(h, "quorum", { lane: "lexical", sem: "woven" });
+    // Wording lane, fallback: wording finds nothing, the leg runs, answer cached.
+    const first = ask(h, "zzzznothingmatchesthis", { lane: "lexical", sem: "fallback" });
     await h.waitFor((m) => m.type === "results" && m.id === first && m.semantic === "done");
     expect(semanticCalls()).toHaveLength(1);
 
     // Flip to meaning, then back. Same query text, so the scored ids are the
     // same answer — neither flip may re-embed or re-query pgvector.
-    const second = ask(h, "quorum", { lane: "semantic", sem: "woven" });
+    const second = ask(h, "zzzznothingmatchesthis", { lane: "semantic", sem: "fallback" });
     const onMeaning = (await h.waitFor((m) => m.type === "results" && m.id === second)) as Results;
-    const third = ask(h, "quorum", { lane: "lexical", sem: "woven" });
+    const third = ask(h, "zzzznothingmatchesthis", { lane: "lexical", sem: "fallback" });
     const backOnWording = (await h.waitFor((m) => m.type === "results" && m.id === third)) as Results;
 
     expect(semanticCalls()).toHaveLength(1);
@@ -679,9 +728,9 @@ describe("semantic lane", () => {
       expect(msg.semantic).toBe("done");
       expect(h.ofType("results").filter((m) => m.id === id)).toHaveLength(1);
     }
-    // Each flip is still fused for the lane it landed on.
+    // Both lanes show the same scored set — the leg replaces, it never merges.
     expect(onMeaning.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore]);
-    expect(backOnWording.hits.length).toBeGreaterThan(1);
+    expect(backOnWording.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore]);
   });
 
   it("re-scores after a degraded leg rather than replaying the outage", async () => {
@@ -689,11 +738,11 @@ describe("semantic lane", () => {
     const h = await withSemantic({ hits: [], skipped: "embed timed out", available: true }, { calls });
     const semanticCalls = () => calls.filter((u) => u.includes("/api/search/semantic"));
 
-    const first = ask(h, "quorum", { lane: "lexical", sem: "woven" });
+    const first = ask(h, "zzzznothingmatchesthis", { lane: "lexical", sem: "fallback" });
     await h.waitFor((m) => m.type === "results" && m.id === first && m.semantic === "skipped");
     expect(semanticCalls()).toHaveLength(1);
 
-    const second = ask(h, "quorum", { lane: "lexical", sem: "woven" });
+    const second = ask(h, "zzzznothingmatchesthis", { lane: "lexical", sem: "fallback" });
     await h.waitFor((m) => m.type === "results" && m.id === second && m.semantic === "skipped");
     expect(semanticCalls()).toHaveLength(2);
   });
@@ -734,7 +783,7 @@ describe("semantic lane", () => {
   it("still stands down when in: is mixed with syntax only the lexical leg enforces", async () => {
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
-    const id = ask(h, "in:A.1 type:Core quorum", { lane: "semantic", sem: "woven" });
+    const id = ask(h, "in:A.1 type:Core quorum", { lane: "semantic", sem: "fallback" });
     const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
     expect(msg.semantic).toBe("none");
     await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));

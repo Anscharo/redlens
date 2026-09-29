@@ -25,6 +25,8 @@ export type SearchState =
       semantic: SemanticLegStatus;
       /** Why the leg degraded, when semantic === "skipped". */
       semanticNote?: string;
+      /** A verified spelling correction, when this query found nothing. */
+      didYouMean?: string;
     }
   | { status: "error"; message: string };
 
@@ -93,6 +95,7 @@ export function useSearch() {
             lane: msg.lane,
             semantic: msg.semantic,
             ...(msg.semanticNote ? { semanticNote: msg.semanticNote } : {}),
+            ...(msg.didYouMean ? { didYouMean: msg.didYouMean } : {}),
           });
         }
       } else if (msg.type === "error") {

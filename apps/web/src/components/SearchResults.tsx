@@ -102,15 +102,10 @@ export const SearchResults = memo(function SearchResults({
   const isNonBroad = mode !== "broad" || query.includes('"') || query.includes("'");
   const strippedQuery = query.replace(/["']/g, "").replace(/\s+/g, " ").trim();
   const suggestBroad = noResults && isNonBroad && strippedQuery;
-  const suggestFuzzy =
-    noResults && !isNonBroad && !query.includes("~")
-      ? query
-          .trim()
-          .split(/\s+/)
-          .filter(Boolean)
-          .map((w) => (w.includes(":") || w.startsWith("-") ? w : `${w}~2`))
-          .join(" ")
-      : null;
+  // A spelling correction the worker already re-ran, so clicking it cannot land
+  // on another empty page. This replaced a "try fuzzy: accounting~2" hint, which
+  // asked the reader to learn an operator in order to recover from a typo.
+  const didYouMean = noResults && state.status === "done" ? state.didYouMean : undefined;
 
   const displayed = entitiesOnly ? [] : hits.slice(0, visible);
   const remaining = entitiesOnly ? 0 : hits.length - displayed.length;
@@ -151,14 +146,13 @@ export const SearchResults = memo(function SearchResults({
             </button>
           </div>
         )}
-        {suggestFuzzy && (
-          <div className="px-4 py-2 border-b border-border">
-            <button
-              onClick={() => onHintClick(suggestFuzzy)}
-              className="text-xs mono text-tan-3 hover:text-accent"
-            >
-              try fuzzy: {suggestFuzzy}
+        {didYouMean && (
+          <div className="px-4 py-3 border-b border-border text-sm text-tan-2">
+            Did you mean{" "}
+            <button onClick={() => onHintClick(didYouMean)} className="did-you-mean">
+              {didYouMean}
             </button>
+            ?
           </div>
         )}
         {displayed.length > 0 && (

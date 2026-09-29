@@ -14,15 +14,20 @@ export const SEARCH_LANES = ["lexical", "graph", "semantic"] as const;
 export type SearchLane = (typeof SEARCH_LANES)[number];
 
 /**
- * How the semantic leg blends into the DEFAULT (lexical) lane:
- *   off      — never call it; lexical only, exactly as before this feature.
- *   fallback — call it only when lexical returned nothing (variant 2). Free in
- *              the common case: a query that already matched costs no embed.
- *   woven    — always call it and fuse both legs by RRF (variant 1). One embed
- *              per settled query, so it is the expensive one.
+ * What the semantic leg does on the DEFAULT (wording) lane:
+ *   off      — never call it; wording only.
+ *   fallback — call it only when wording returned nothing. Free in the common
+ *              case, since a query that already matched costs no embed.
  * The explicit `semantic` lane ignores this — picking that lane IS the request.
+ *
+ * There used to be a third, `woven`, which always called the leg and fused both
+ * result sets by RRF. Dropped 2026-09-29: interleaving meaning-matched rows
+ * into a wording result set made the list harder to read, not better, and it
+ * bought one embedding call on every settled search to do it. The consequence
+ * is that the leg now only ever REPLACES a result set, never merges into one —
+ * see `postFused`.
  */
-export const SEMANTIC_STRATEGIES = ["off", "fallback", "woven"] as const;
+export const SEMANTIC_STRATEGIES = ["off", "fallback"] as const;
 export type SemanticStrategy = (typeof SEMANTIC_STRATEGIES)[number];
 
 export function isSemanticStrategy(v: unknown): v is SemanticStrategy {
@@ -176,8 +181,8 @@ export const RRF_K = 60;
 /**
  * Reciprocal Rank Fusion over any number of ranked id lists.
  *
- * Pure and shared: the server's `rrfMerge` delegates here so the reader's woven
- * lane and chat's hybrid retrieval can never drift apart on ranking. Ties keep
+ * Pure and shared: the server's `rrfMerge` delegates here, so chat's hybrid
+ * retrieval has one fusion and not a second copy of it. Ties keep
  * the order of first appearance, which makes the fusion stable for a lexical
  * list that is re-fused as the semantic leg lands.
  */
