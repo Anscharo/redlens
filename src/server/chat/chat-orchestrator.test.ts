@@ -1001,7 +1001,7 @@ test("paragraph mode: one paragraph_refute event per paragraph, all landing befo
       const events = await collect(
         runVerifiedChat({
           ix, messages: [userMsg], question: "hi", maxIterations: 3,
-          stream: fakeStream([[textChunk("First paragraph.\n\nSecond paragraph."), finishChunk("stop")]]),
+          stream: fakeStream([[textChunk("First paragraph states a claim.\n\nSecond paragraph states a claim."), finishChunk("stop")]]),
           jsonCall: fakeSlicedJson({}, jsonCalls),
         }),
       );
@@ -1027,14 +1027,14 @@ test("paragraph mode: a per-paragraph contradiction is confirmed and reaches the
       const events = await collect(
         runVerifiedChat({
           ix, messages: [userMsg], question: "hi", maxIterations: 3,
-          stream: fakeStream([[textChunk("Bad paragraph."), finishChunk("stop")]]),
-          jsonCall: fakeSlicedJson({ refute: [sliceFail("Bad paragraph.")], confirm: [CONFIRM_AGREE] }),
+          stream: fakeStream([[textChunk("The bad paragraph states a wrong schema fact."), finishChunk("stop")]]),
+          jsonCall: fakeSlicedJson({ refute: [sliceFail("The bad paragraph states a wrong schema fact.")], confirm: [CONFIRM_AGREE] }),
         }),
       );
       const verify = events.find((e) => e.type === "verify_result")!;
       expect(verify.type === "verify_result" && verify.overall).toBe("fail");
       expect(verify.type === "verify_result" && verify.contradictions).toHaveLength(1);
-      expect(verify.type === "verify_result" && verify.contradictions[0]).toMatchObject({ answer: "Bad paragraph.", evidence: REAL_SPAN });
+      expect(verify.type === "verify_result" && verify.contradictions[0]).toMatchObject({ answer: "The bad paragraph states a wrong schema fact.", evidence: REAL_SPAN });
     },
     "paragraph",
   ));
@@ -1044,8 +1044,8 @@ test("paragraph mode: a tool_call between bursts drops the earlier burst's refut
     "strong/verifier",
     async () => {
       const rounds = [
-        [textChunk("Pre-tool paragraph.\n\n"), toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
-        [textChunk("Post-tool paragraph."), finishChunk("stop")],
+        [textChunk("Pre-tool paragraph states a claim.\n\n"), toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+        [textChunk("Post-tool paragraph states a claim."), finishChunk("stop")],
       ];
       const events = await collect(
         runVerifiedChat({

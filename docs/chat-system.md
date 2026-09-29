@@ -539,7 +539,7 @@ is the only suffix that changes and a provider prefix cache can reuse the
 evidence across the calls. `[E-const]` is appended after that shared block,
 because it is the only entry computed from the paragraph itself: a paragraph
 that names a parameter lengthens the tail, and the evidence before it still
-matches. A cache miss still bills the full set once per call, which is why call count rather
+matches. A paragraph `hasCheckableContent` rejects — a heading or a horizontal rule, with no figure, link, or doc number — is recorded clean and never starts a call. A cache miss still bills the full set once per call, which is why call count rather
 than paragraph count is what scales input tokens when the prefix is cold. A `tool_call` or `clear` — the draft being set aside
 — resets the refuter to a new burst; a call still in flight from the old burst
 writes nothing when it lands (checked at land time via an integer burst tag),

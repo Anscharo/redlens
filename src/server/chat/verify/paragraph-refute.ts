@@ -15,7 +15,9 @@
 // `settle()` time. Every call still carries the full evidence set, but
 // `buildRefutePrompt` places that block BEFORE the paragraph, so the
 // paragraph is the only suffix that changes and a prefix cache can reuse the
-// evidence. A cache miss still bills the full set once per call.
+// evidence. A cache miss still bills the full set once per call. A paragraph
+// with nothing checkable — a heading or a rule, `hasCheckableContent` — is
+// recorded clean and never starts a call.
 //
 // Jev screen (refute-screen.ts, CHAT_REFUTE_SCREEN), inside the same semaphore
 // slot so a long answer can't fan out into a burst of Jev calls:
@@ -33,7 +35,7 @@ import type { Indexes } from "../../retrieval/indexes.ts";
 import { captureEvent, type ErrorContext } from "../../posthog-node.ts";
 import type { Contradiction, EvidenceEntry } from "./verifier.ts";
 import { runSlice } from "./verifier-slices.ts";
-import { needsGemma, screenParagraph, type ScreenResult } from "./refute-screen.ts";
+import { hasCheckableContent, needsGemma, screenParagraph, type ScreenResult } from "./refute-screen.ts";
 
 export type RefuteScreenMode = "off" | "shadow" | "gate";
 export type ScreenFn = (text: string, evidence: EvidenceEntry[]) => Promise<ScreenResult | null>;
@@ -70,6 +72,10 @@ export interface ParagraphRefuter {
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const failedRefute = (index: number, text: string, timedOut: boolean): ParagraphRefute => ({
   index, text, contradictions: [], discarded: 0, parsed: false, latencyMs: null, usage: null, timedOut,
+});
+/** Nothing to audit (a heading, a rule). Parsed clean so the backbone does not go unverified. */
+const uncheckedRefute = (index: number, text: string): ParagraphRefute => ({
+  index, text, contradictions: [], discarded: 0, parsed: true, latencyMs: null, usage: null, timedOut: false,
 });
 
 /** Normalizes the mode; a typo'd value falls to "shadow", which never changes what the reader sees. */
@@ -191,6 +197,13 @@ export function createParagraphRefuter(opts: {
     inFlight.set(
       key,
       (async () => {
+        // Before the slot. A heading must not take a concurrency place or build the evidence block.
+        if (!hasCheckableContent(text)) {
+          if (myBurst !== burst) return;
+          results.set(key, uncheckedRefute(key, text));
+          landed.push(key);
+          return;
+        }
         await acquire();
         try {
           const result = await runOne(key, text, myBurst);
