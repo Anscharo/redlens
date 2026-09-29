@@ -105,8 +105,9 @@ it reports is useful to us.
   Collections, and previews of private repositories are the only features that
   need an account. Previews you open without signing in are remembered by your
   browser alone and are never linked to an account — the Preview page does send
-  those commit ids to the server to ask which are still available, but nothing
-  about them is stored against you.
+  those commit ids, and when you opened each of them, to the server to ask which
+  are still available and to put them in order, but nothing about them is stored
+  against you.
 
 ## 7. Changes
 
