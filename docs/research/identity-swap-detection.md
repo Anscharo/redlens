@@ -3,8 +3,8 @@
 Working notes for the preview "identity changed" badge
 (`src/server/preview/identity.ts`). Written 2026-09-29 after
 next-gen-atlas#346 badged three documents that had only been respelled.
-Status: **the defect is fixed and shipped**; everything under "Open threads"
-is unfinished and safe to pick up in any order.
+Status: **the defect and its long-body residual are fixed**; one thread (8)
+is open and needs a decision.
 
 ## What the badge claims, and why that is hard
 
@@ -30,9 +30,9 @@ back badged. Two independent causes:
    the spaces, so `Whitelisting Of ALMProxy` and `Whitelisting Of ALM Proxy`
    read as different titles.
 
-Fix: short bodies route through `bodyWhollyReplaced`, which measures ordered
-**word** containment (2.0% false flags / 5.4% missed at t=0.50); both title
-checks compare a separator-squashed form.
+Fix: short bodies were routed to ordered **word** containment (2.0% false
+flags / 5.4% missed at t=0.50); both title checks compare a separator-squashed
+form. The routing itself was replaced later the same day — see thread 7.
 
 ## Harness
 
@@ -156,7 +156,7 @@ a guess. Options, cheapest first:
 This is risk reduction rather than accuracy, and it is independent of every
 other thread — worth doing regardless of which measure wins.
 
-### 5. Embeddings — PAUSED, do not resume without reading this
+### 5. Embeddings — ternlight rejected; Qwen3 is a real signal, OPEN as a decision
 
 Two framings, both measured for ternlight (on-device, ~2ms, no network) and
 **both rejected**:
@@ -177,32 +177,98 @@ Two framings, both measured for ternlight (on-device, ~2ms, no network) and
   The whole prize is ~0.1pp off a 2.0% false-flag rate, on a 32-doc residual
   where "2" is nearly noise.
 
-**Qwen3 was never measured** — the cloud container had no `OPENROUTER_API_KEY`.
-The `--qwen` arm is written and wired to `src/server/retrieval/embed.ts`'s
-`embedBatch`, the same client the atlas search embeds with, so it measures the
-vectors production would actually have. Responses disk-cache to
-`.cache/identity-bakeoff/qwen.json`, so a rerun is free.
+**Qwen3 is now measured** (2026-09-29, `bun
+scripts/aux/identity-cosine-distribution.ts --qwen`, 12,374 bodies, vectors
+cached in `.cache/identity-bakeoff/qwen-cosine.json`), on the real corpus
+rather than the 32-row synthetic residual.
 
-To resume locally:
+**The question it was kept open for no longer exists.** The veto was meant to
+rescue cosmetic edits wrongly flagged. After thread 7 the gate flags **0 of
+2,544** real cosmetic edits, so there is nothing to rescue. The 15 it used to
+flag scored `word = 1.000` and were lost in routing, before any similarity
+measure was asked.
 
-```bash
-export OPENROUTER_API_KEY=...          # or put it in .env
-bun scripts/aux/identity-overlap-bakeoff.ts --tern --qwen
-```
+What the gate still flags among real edits is 195 `semantic` ones. There a
+veto does separate, and Qwen does it better than ternlight:
 
-The open question is **only the veto framing**. The measure argument above
-does not depend on model strength and should not be re-litigated without new
-evidence. But the veto only needs confidence in the *easy* direction — "this
-is the same sentence, respelled" — which is exactly where a 4096-dim hosted
-model should be better calibrated than a 384-dim ternary one. If it widens
-that narrow `>0.85` window into something robust, it is worth the WASM-free
-network cost; if it does not, close the thread.
+| veto when | Qwen: real edits spared | Qwen: swaps lost | ternlight: spared | ternlight: lost |
+|---|---|---|---|---|
+| cos > 0.85 | 83 of 195 | 37 of 2,387 | 12 | 5 |
+| cos > 0.90 | 37 of 195 | 4 of 2,387 | 6 | 1 |
+| cos > 0.95 | 12 of 195 | 0 of 2,387 | 1 | 0 |
 
-Before trusting any veto number, **enlarge the residual**. Thirty-two rows is
-too few to set an operating point on. The cheapest source of more real
-negatives is `atlas_history` — real per-doc before/after pairs across the whole
-upstream history, reconstructable from its stored `DiffLine[]` the same way
-the harness already reconstructs them from `patches.json`.
+**The claim above that a stronger embedding should do worse is wrong for
+Qwen3.** It was inferred from ternlight. Head to head on the same 9,526 pairs
+(`bun scripts/aux/identity-embedding-vs-word.ts`):
+
+| measure alone | real edits ranked above sibling swaps (AUC) | above unrelated swaps |
+|---|---|---|
+| line overlap | 0.650 | 0.661 |
+| word containment | 0.977 | 0.993 |
+| Qwen3 cosine | 0.970 | 0.999 |
+
+Alone, the word measure is still the better of the two: at 10% of sibling
+swaps missed it flags 251 of 6,983 real edits, Qwen 620. But the two agree only
+in part (correlation 0.56 over real edits), so a rule that asks both does
+better than either. Each rule below was scored on two disjoint halves of the
+pairs; both halves are shown.
+
+| rule | real edits flagged | sibling swaps missed | unrelated missed |
+|---|---|---|---|
+| shipped: line <= 0.15 and word <= 0.50 | 2.7% / 2.9% | 11.9% / 12.3% | 1.6% / 2.4% |
+| word <= 0.50 alone (thread 8) | 3.2% / 3.4% | 10.9% / 11.7% | 1.6% / 2.3% |
+| word <= 0.60 and Qwen <= 0.85 | 1.8% / 2.2% | 14.1% / 11.1% | 1.3% / 1.6% |
+| shipped, or Qwen <= 0.70 | 3.2% / 3.3% | 10.1% / 9.2% | 0.4% / 1.1% |
+
+So on this mixed sample Qwen buys either about a quarter fewer flags on real
+edits at about the same misses, or 2 to 3 points fewer sibling misses for half
+a point more flags. No rule flags a
+cosmetic edit. This sibling sample is mostly one-line bodies, which is why its
+miss rates are far below the 49% of the 4-to-20-line band in thread 7.
+
+**On bodies of 4 to 20 lines the embedding is the best measure, alone.**
+`bun scripts/aux/identity-embedding-vs-word.ts --band mid`: 782 real edits,
+and every live body in the band paired with up to three of its siblings (2,673
+swaps) and with unrelated bodies (1,500).
+
+| measure alone, 4-20 lines | real edits ranked above sibling swaps (AUC) | semantic edits only |
+|---|---|---|
+| line overlap | 0.838 | 0.772 |
+| word containment | 0.964 | 0.922 |
+| Qwen3 cosine | 0.992 | 0.985 |
+
+| rule, 4-20 lines | real edits flagged | sibling swaps missed | unrelated missed |
+|---|---|---|---|
+| shipped: line <= 0.15 and word <= 0.50 | 4.3% / 4.3% | 50.1% / 49.9% | 1.3% / 0.7% |
+| word <= 0.50 alone (thread 8) | 4.9% / 4.9% | 13.5% / 12.9% | 0.5% / 0.0% |
+| Qwen <= 0.80 alone | 0.8% / 1.5% | 8.0% / 10.2% | 0.0% / 0.0% |
+| Qwen <= 0.85 alone | 2.6% / 4.3% | 5.5% / 6.7% | 0.0% / 0.0% |
+
+`Qwen <= 0.80` beats the shipped rule and the word-only rule on both columns
+at once. A rule search over 220 combinations of the three measures, chosen on
+one half and reported on the other, found nothing without the embedding that
+comes close, and with it the best rules at low flag rates are the embedding
+alone. The reason is the size: a longer body gives the embedding a subject to
+hold on to, which an edit keeps (p05 0.885) and a sibling does not (p50
+0.538). On one-line template siblings that subject is nearly the same, which
+is why the mixed sample above shows a smaller gain.
+
+The counts behind the flag rates are small — 3 and 6 real edits of 391 — so
+the rates are good to about a point, not a tenth. The swaps it still misses
+are template siblings: parameter lists that differ in one token a line.
+
+What stands between this and shipping:
+
+- **The flagged real edits are not known to be wrong flags.** The gate reaches
+  the body test only after a title change, `atlas_history` stores no title,
+  and an edit that rewrites the title and most of the body may deserve the
+  badge.
+- **The swaps are synthetic**, and the thresholds were chosen on this corpus.
+  The one known real swap, the Ozone fixture, is a one-line body, so no real
+  swap exists to check the 4-to-20-line result against.
+- **It needs a network call** at preview build time, for the few documents
+  that pass the title gate, with a fallback to the shipped rule when the call
+  fails. The module itself has no IO today.
 
 ### 6. History as a signal — two obvious uses checked and rejected, one real
 
@@ -280,22 +346,22 @@ from those 2,641 labelled edits and measure how many the shipped gate badges.
 That is a real false-accusation rate, and it is the number that should decide
 whether thread 1 (IDF) is worth shipping.
 
-### 7. The real-corpus result, and the residual it exposed
+### 7. The real-corpus result, and the residual it exposed — DONE
 
 `bun scripts/aux/identity-real-corpus.ts` scores `bodyWhollyReplaced` — the
-shipped function, routed exactly as it routes in production — against 2,544
+shipped function, which at the time of this table routed by size — against 2,544
 real human-labelled cosmetic edits (`change_kind` ∈ lint/typo) pulled from
 `/api/history/batch` with their real diffs.
 
 | | cosmetic edits wrongly flagged |
 |---|---|
 | pre-fix (`lineOverlap` on every body) | **52.00%** (1323/2544) |
-| shipped | **0.59%** (15/2544) |
-| shipped, bodies ≤3 lines | **0.00%** (0/2106) |
-| shipped, bodies >3 lines | **3.42%** (15/438) |
+| routed by size | **0.59%** (15/2544) |
+| routed by size, bodies ≤3 lines | **0.00%** (0/2106) |
+| routed by size, bodies >3 lines | **3.42%** (15/438) |
 
 So the real false-accusation rate was 52%, not the 87% the synthetic
-population estimated, and the fix takes it to 0.59%.
+population estimated, and the first fix took it to 0.59%.
 
 **Every one of the 15 survivors is the SAME DEFECT, one size up.** They are
 4-to-16-line documents, and all 15 score `word = 1.000` — the word measure
@@ -305,19 +371,43 @@ re-indents a bullet list (`        ◦` → `    -`) changes *every* line, so th
 shared-line ratio collapses to 0.000–0.143 exactly as it did for one-liners.
 Titles include "Reward Payment", "Rate Limit IDs", "stUSDS Risk Parameters".
 
-The obvious fix is to stop routing on size and take
-`max(lineOverlap, orderedWordContainment)` for every body — flag only when
-*both* measures say replaced. All 15 would be spared, since word is already
-1.000 on them. **Not done, and not yet measured**: the cost is in missed real
-swaps, and the real corpus has no true-swap population to measure that on, so
-it needs the synthetic positives from the bakeoff. Do that before changing it.
+**Fixed 2026-09-29.** `bodyWhollyReplaced` no longer routes on size. It asks
+both measures of every body and flags only when both say replaced:
+`lineOverlap <= 0.15` **and** word containment `<= 0.50`.
 
-One caveat found while measuring: `orderedWordContainment`'s cost cap
-(`a.length * b.length > 400_000`, ~632 words a side) degrades to a binary
-normalized-substring test, which returns **0** for a body whose only change is
-non-whitespace punctuation — a bullet-glyph swap in a 657-word doc scored
-`word = 0.000` when the text was untouched. Any fix that leans harder on the
-word measure should revisit that fallback.
+The miss cost could not be measured with what existed: the bakeoff's positives
+are one-line bodies only. `bun scripts/aux/identity-long-body.ts` builds the
+multi-line ones — a live body paired with an unrelated body, and with a
+sibling under the same parent — in three size bands, and scores every
+candidate on both sides.
+
+| | routed (before) | both (shipped) | word only |
+|---|---|---|---|
+| real cosmetic edits flagged (2,544) | 15 | **0** | 0 |
+| real semantic edits flagged (4,439) | 254 (5.72%) | **195 (4.39%)** | 231 (5.20%) |
+| sibling swaps missed, 1-3 lines | 7.9% | 8.0% | 7.9% |
+| sibling swaps missed, 4-20 lines | 48.3% | 49.1% | 13.3% |
+| sibling swaps missed, >20 lines | 7.0% | 7.0% | 2.6% |
+| unrelated swaps missed, 4-20 lines | 1.1% | 1.1% | 0.0% |
+
+Asking both measures can only remove flags, so the cost is the difference
+between the first two columns: 1 more sibling swap missed in 1,000 short
+bodies, 8 more in 1,000 mid-sized ones, none elsewhere. The >20-line band rests
+on only 23 live bodies.
+
+**The cost cap was a second, separate defect, also fixed.** Past ~632 words a
+side `orderedWordContainment` answers 0 for *any* change at all, not only for
+punctuation: 10 real edits hit it, and 5 of them scored `word = 0.000` against
+a true value of 0.928-1.000. One is a one-line, 690-word body, so the shipped
+short-body branch was flagging it. The body test now uses `bodyWordsKept`,
+which runs the same comparison in full up to `BODY_TEST_MAX_CELLS` (2,000
+words a side; the largest real edit, 1,223 x 1,290 words, takes 48ms) and
+leaves anything larger to the line measure. `orderedWordContainment` keeps its
+cap, which is right for the relocation link it was written for.
+
+A third candidate, comparing lines by their words so that a changed glyph or
+indent no longer breaks a line match, spared 14 of the 15 and is not needed
+once the word measure has a say.
 
 Scope of the corpus, stated because it bounds every number above: only entries
 whose stored diff reconstructs a whole body are usable (build-history trims to
@@ -326,18 +416,167 @@ dropped 78 of 7,136; `atlas_history` stores no title, so this measures the
 **body test** only — which is the right target, since the gate reaches it only
 once a title has changed.
 
+### 8. The line measure misses half the mid-sized sibling swaps — OPEN, a decision
+
+Found while measuring thread 7, and older than it: on bodies of 4 to 20 lines
+the line measure misses **48%** of sibling swaps, before and after the fix.
+Template siblings share their table header, their separator row and their
+lead-in line ("The Risk parameters are:"), and three shared lines in ten clear
+the 0.15 bar. In that band `line` sits at p50 0.100 and p75 0.400.
+
+Word containment alone (`word <= 0.50` on every body) misses 13.3% there. It
+is not a free win, which is why it did not ship with thread 7:
+
+- it **adds** flags where the gate has none today, and a wrong flag is the
+  costly direction. On real semantic edits it flags 231 of 4,439 against the
+  shipped 195;
+- the threshold is inherited from short bodies. Swept over long bodies, 0.45
+  to 0.55 is flat on real edits (37-38 of 357 flagged) and 0.40 starts to miss
+  unrelated swaps.
+
+What it still misses is mostly beyond any content measure: sibling parameter
+lists that differ in one token per line ("Supply cap: 500,000,000 USDG" against
+"Supply cap: 500,000 WETH") score 0.71-0.83.
+
+The decision is whether catching 36 more sibling swaps in 100 is worth 36 more
+flagged semantic edits in 4,439. **Read thread 5 first**: on this band the
+Qwen3 embedding alone misses fewer swaps than the word measure and flags fewer
+real edits, so word-only is the better answer only if a network call is ruled
+out. Both numbers come from
+`bun scripts/aux/identity-long-body.ts`; `--samples` prints examples of each.
+
+### 9. How far a real edit moves a document's embedding — a description
+
+Asked out of curiosity, recorded because the numbers place every threshold
+above in context. `cos(before, after)` over the 6,983 real edits, beside two
+populations that are not edits. `bun scripts/aux/identity-cosine-distribution.ts
+[--qwen]`; per-pair scores land in `.cache/identity-bakeoff/cosine.json`.
+
+| population | n | ternlight p05 | p50 | p95 | Qwen3 p05 | p50 | p95 |
+|---|---|---|---|---|---|---|---|
+| edit, `lint` | 1,450 | 0.980 | 1.000 | 1.000 | 0.984 | 0.997 | 0.999 |
+| edit, `typo` | 1,094 | 0.989 | 0.997 | 0.999 | 0.993 | 1.000 | 1.000 |
+| edit, `semantic` | 4,439 | 0.592 | 0.938 | 1.000 | 0.765 | 0.953 | 0.999 |
+| not an edit, sibling | 1,045 | 0.137 | 0.481 | 0.817 | 0.425 | 0.693 | 0.870 |
+| not an edit, unrelated | 1,498 | -0.006 | 0.163 | 0.423 | 0.285 | 0.435 | 0.618 |
+
+- A cosmetic edit barely moves the vector: at least 97% of lint and typo edits stay
+  above 0.95 on both models.
+- The two models rank lint and typo in opposite order. Ternlight's tokenizer
+  discards most whitespace and punctuation, so 84% of lint edits score 0.999
+  or more. Qwen reads the markup and scores a typo fix higher than a lint pass.
+- Semantic edits have a long lower tail and siblings a long upper one, and the
+  two overlap. No single cut separates them: on Qwen, `cos <= 0.85` puts 11.0%
+  of real edits below it and leaves 7.5% of siblings above it.
+- Qwen's floor is high. Two unrelated atlas documents score 0.435 at the
+  median, so its usable range is about 0.4 to 1.0, not 0 to 1.
+- Ternlight reads the first 128 tokens only. An edit past that point scores
+  exactly 1, which inflates its long-body rows.
+
+### 10. Reusing the search vector, and what real retitles showed — MEASURED
+
+Preview semantic search will store one vector for each changed document. The
+gate would like to reuse it, since embedding every changed document a second
+time for the gate alone doubles the calls. But threads 5 and 9 measured the
+raw **body**, and search stores something else
+(`src/server/retrieval/embed-units.ts`, policy `kv_records_breadcrumbs`):
+title plus link-stripped body for most documents, and a folded key:value text
+under a breadcrumb for the rest. `bun scripts/aux/identity-search-vector.ts`
+scores both on the same pairs.
+
+Its negatives are new, and they are the gate's true input: **every document
+in the atlas git history that kept its UUID across a commit while its title
+changed** — 316 judgeable ones over 37 of 178 commits. Its swaps take siblings
+by **document number**, not by `parentId`.
+
+**Reuse works.** The search vector ranks real retitles above swaps as well as
+the body vector does:
+
+| real retitles ranked above sibling swaps (AUC) | body vector | search vector |
+|---|---|---|
+| bodies of 1 to 3 lines (214 retitles) | 0.866 | 0.859 |
+| bodies of 4 to 20 lines (70 retitles) | 0.969 | 0.965 |
+
+The title lowers every score a little — by 0.027 at the median on short
+bodies and 0.004 on longer ones — and lowers swaps about as much, so the
+ranking holds and only the cut moves. **A threshold must be chosen on search
+vectors, not carried over from body vectors.**
+
+**One exception: 940 of 11,584 documents are not stored as themselves.** A
+group anchor's vector covers its folded children, and some single documents
+carry a breadcrumb. 32 of the 316 real retitles are of that kind, and in 10
+the shape differed between the two sides, which makes the two vectors texts of
+different kinds. One scored 0.545 with a byte-identical body. For these the
+gate should use the shipped rule and no vector.
+
+**What the real retitles showed, which the earlier threads could not:**
+
+| rule | retitles flagged, 1-3 lines | siblings missed | retitles flagged, 4-20 lines | siblings missed |
+|---|---|---|---|---|
+| routed by size (before thread 7) | 9.8% (21/214) | 34.3% | 10.0% (7/70) | 78.6% |
+| shipped body test | 9.8% (21/214) | 34.5% | 5.7% (4/70) | 80.8% |
+| word <= 0.50 alone (thread 8) | 9.8% (21/214) | 34.3% | 8.6% (6/70) | 32.7% |
+| word <= 0.70 alone | 15.0% (32/214) | 22.7% | 10.0% (7/70) | 21.8% |
+| search <= 0.70 alone | 12.6% (27/214) | 45.2% | 0.0% (0/70) | 61.5% |
+| search <= 0.80 alone | 23.4% (50/214) | 20.7% | 4.3% (3/70) | 27.0% |
+| search <= 0.85 alone | 36.0% (77/214) | 9.7% | 8.6% (6/70) | 17.8% |
+| shipped, or search <= 0.80 | 26.2% (56/214) | 14.9% | 7.1% (5/70) | 23.6% |
+
+| real retitles ranked above sibling swaps (AUC) | line | word | search vector |
+|---|---|---|---|
+| bodies of 1 to 3 lines | 0.613 | 0.884 | 0.859 |
+| bodies of 4 to 20 lines | 0.844 | 0.947 | 0.965 |
+
+- **On bodies of 4 to 20 lines the embedding is the best single measure.**
+  `search <= 0.80` flags 3 of 70 real retitles and misses 27.0% of swaps; the
+  word measure at its best comparable point flags 6 and misses 32.7%. With 70
+  retitles the difference is three documents, so it is an indication and not
+  a proof.
+- **On bodies of 1 to 3 lines the word measure is better**, and no cut on the
+  vector beats the shipped rule on both columns. A one-line sibling is too
+  close in meaning.
+- **Thread 7's rule holds on true siblings.** Against the routed gate it flags
+  3 fewer real retitles in the mid band for 2.2 points more misses, and changes
+  nothing in the short band.
+- **The miss rates in threads 5, 7 and 8 are too low.** Those scripts took
+  siblings by `parentId`. The heading depth is capped at 6 and 10,435 of 11,584
+  documents sit at that cap; of those, 600 have a `parentId` that is their
+  document-number parent. So only 13-14% of the "sibling" pairs were true
+  siblings; the rest share a more distant ancestor. On true siblings the shipped test misses 35% of short
+  swaps and 81% of mid-sized ones, not 8% and 49%. Every comparison
+  BETWEEN rules in those threads was made on one population and still stands;
+  the absolute rates do not.
+- **"Retitles flagged" is not a false-flag rate.** The retitles are unlabelled,
+  and reading the ones the gate flags shows both kinds. "Sky Ecosystem
+  Emergency Response" → "Discord" and "RWA Instance Contract" → "Basin Factory
+  Contract" are real repurposings, in upstream main. "Launch Agent 4 Details"
+  → "Obex Details" is a rename the gate should have spared, and it is a known
+  open defect: the body keeps exactly 9 of its 18 words (0.50, and the test is
+  `<=`), and the rename replaces three of the title's four words, so
+  `titleSubstitution` yields no key and no campaign can form. "Launch Agent 6
+  Details" → "Osero Details" fails the same way. The whole shipped
+  gate flags 22 of the 316.
+
+That last point is also the best lead in this document: **upstream history
+contains real repurposed UUIDs**, so a labelled set of real positives can be
+built by reading the few dozen retitles any rule flags (`--samples` prints
+them). Every miss rate above rests on synthetic swaps until someone does.
+
 ## Ordering
 
-**3, 4, 6-groundtruth and 1 are done.** What is left, in order:
+**1, 3, 4, 6-groundtruth and 7 are done.** Two items are open, and both are
+decisions rather than measurements:
 
-1. **The >3-line residual** (thread 7) — the same defect one size up, 15 real
-   documents, with an obvious fix that needs its miss-cost measured first.
-   This is the only open item with a known live defect behind it.
-2. **5** (embeddings) — only the Qwen veto framing, and only if the residual
-   above turns out to matter. Everything else there is measured and rejected.
+- **8** — whether long bodies should be judged on words alone.
+- **5** — whether the gate should also ask the Qwen3 embedding. If both are
+  taken up, measure them together: they compete for the same misses. Thread 10
+  narrows it: reuse the search vector, for bodies of 4 lines or more, and not
+  for the 8% of documents stored as a group.
 
-**2** is a corroborator at best; do not build it as a gate. **1** (IDF) is
-closed: the real corpus shows it has no headroom.
+Before either, **label the real retitles** (thread 10). It is an afternoon of
+reading and it replaces the synthetic swaps behind every miss rate here.
+
+**2** is a corroborator at best; do not build it as a gate.
 
 Three ideas in **6** are checked and dead — don't re-derive them: the churn
 prior (points the wrong way), the `change_kind` reuse (classifies #346
