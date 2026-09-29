@@ -536,8 +536,10 @@ at flush time, keyed by the first overflowing paragraph's index. Every call
 still carries the full evidence set. `buildRefutePrompt` orders the user
 message as question, then that evidence, then the paragraph, so the paragraph
 is the only suffix that changes and a provider prefix cache can reuse the
-evidence across the calls. A paragraph that attaches its own `[E-const]` rows
-changes the evidence block, and that call's prefix diverges there. A cache
+evidence across the calls. `[E-const]` is appended after that shared block,
+because it is the only entry computed from the paragraph itself: a paragraph
+that names a parameter lengthens the tail, and the evidence before it still
+matches. A cache
 miss still bills the full set once per call, which is why call count rather
 than paragraph count is what scales input tokens when the prefix is cold. A `tool_call` or `clear` — the draft being set aside
 — resets the refuter to a new burst; a call still in flight from the old burst
@@ -1089,11 +1091,12 @@ in 2026-09 and does not use it.)
 fixed overhead — a ~5.5k-token system prompt and ~11k tokens of tool
 definitions. Two changes keep that overhead cacheable without altering a word
 the model reads:
-- `makeOpenrouterStream` sends `session_id` = a hash of the conversation id
-  (`sessionParam`), so OpenRouter routes the whole conversation to one provider
-  and that provider's prompt cache stays warm. By default OpenRouter keys that
-  routing on a hash of the first system message, and ours changes whenever the
-  user navigates, because the current page is part of it.
+- `makeOpenrouterStream` and `makeOpenrouterJson` both send `session_id` = a
+  hash of the conversation id (`sessionParam`), so OpenRouter routes the
+  answer rounds and the verifier calls to one provider and that provider's
+  prompt cache stays warm. By default OpenRouter keys that routing on a hash
+  of the first system message plus the first user message, and the verifier's
+  user message changes with every paragraph.
 - The per-turn date/commit line sits at the end of the system prompt
   (`## Session`), just before `## Current page`, so two days share a 99.2%
   identical prefix instead of ~3%.

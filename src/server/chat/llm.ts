@@ -100,6 +100,8 @@ export function sessionParam(obs: ChatObservability): { session_id?: string } {
 
 // Non-streamed JSON-mode call for the reliability harness's grader role
 // (verifier). temperature:0 — these are judges, not writers.
+// sessionParam is the same hash the answer stream sends, so these calls pin
+// to the provider endpoint that holds the conversation's prompt cache.
 // The injection seam mirroring ChatStream: orchestrator/verifier unit
 // tests swap in a fake JsonCall, no network.
 export type JsonCall = (params: {
@@ -153,6 +155,7 @@ export function makeOpenrouterJson(obs: ChatObservability = {}, surface = "atlas
         temperature: 0,
         response_format: { type: "json_object" },
         ...(maxTokens ? { max_tokens: maxTokens } : {}),
+        ...sessionParam(obs),
         ...posthogParams(obs, surface),
       } as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
       { signal },

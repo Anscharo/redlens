@@ -583,10 +583,14 @@ export async function* runVerifiedChat(opts: {
   // losing that name would silently drop both its [REFERENCE] class and its
   // budget-eviction exemption for every per-paragraph call.
   const historyResults = historyEntries.map((e) => ({ name: e.tool, content: e.content }));
+  // [E-const] is last. It is the only entry that depends on this paragraph.
+  // Schema, earlier answers, and this turn's tool results are identical across
+  // the paragraphs, and buildRefutePrompt places the paragraph after the
+  // evidence, so that shared block is a prefix a provider cache can reuse.
   const paragraphEvidenceFor = (paragraphText: string): EvidenceEntry[] => {
     const ce = constEvidence(opts.ix, paragraphText);
     const turnEvidence = evidenceFromResults([...historyResults, ...gateResults]);
-    return [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...(ce ? [ce] : []), ...turnEvidence];
+    return [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...turnEvidence, ...(ce ? [ce] : [])];
   };
   const refuter = paragraphMode
     ? createParagraphRefuter({
@@ -899,7 +903,8 @@ export async function* runVerifiedChat(opts: {
   // it audits.
   const baseEvidence = (turnEvidence: EvidenceEntry[], answerText: string) => {
     const ce = constEvidence(opts.ix, answerText);
-    return [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...(ce ? [ce] : []), ...turnEvidence];
+    // Same order as paragraphEvidenceFor: parameter rows after the shared block.
+    return [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...turnEvidence, ...(ce ? [ce] : [])];
   };
   let verdict: Verdict | null = null;
   let auditPromise: ReturnType<typeof runAudit> | null = null;

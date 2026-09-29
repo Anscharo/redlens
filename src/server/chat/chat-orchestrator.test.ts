@@ -716,6 +716,14 @@ test("[E-const] standing evidence: included when the answer mentions a known par
     expect(refutePrompt).toContain("[E-const]");
     expect(refutePrompt).toContain("atlas_param_table");
     expect(refutePrompt).toContain(name);
+    // Parameter rows follow the shared evidence and precede the paragraph,
+    // so a paragraph that names one does not split the cacheable prefix.
+    const schemaAt = refutePrompt.indexOf("[E0]");
+    const constAt = refutePrompt.indexOf("[E-const]");
+    const answerAt = refutePrompt.indexOf("## Answer to audit");
+    expect(schemaAt).toBeGreaterThanOrEqual(0);
+    expect(constAt).toBeGreaterThan(schemaAt);
+    expect(answerAt).toBeGreaterThan(constAt);
     // No candidate was ever produced (SLICE_EMPTY), so confirm never fired.
     expect(capturedBySlice.has("confirm")).toBe(false);
 

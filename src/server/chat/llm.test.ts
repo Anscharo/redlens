@@ -153,8 +153,26 @@ describe("makeOpenrouterJson", () => {
     expect(body.temperature).toBe(0);
     expect(body.response_format).toEqual({ type: "json_object" });
     expect(body.max_tokens).toBe(100);
+    // No conversation on this call → no sticky-routing key.
+    expect("session_id" in body).toBe(false);
     // No PostHog key configured in this test env → no posthog* params leak into the body.
     expect(Object.keys(body).some((k) => k.toLowerCase().startsWith("posthog"))).toBe(false);
+  });
+
+  it("sends the same session_id as the answer stream when the conversation is known", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    const fakeFetch = (async (_url: string, init?: RequestInit) => {
+      capturedBody = JSON.parse(String(init?.body));
+      return new Response(JSON.stringify({ id: "gen-s", choices: [{ message: { content: "{}" } }] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+
+    const obs = { distinctId: "conv-a" };
+    const jsonCall = makeOpenrouterJson(obs);
+    await withFetch(fakeFetch, () => jsonCall({ model: "m", messages: [] }));
+    expect((capturedBody as { session_id?: string }).session_id).toBe(sessionParam(obs).session_id);
   });
 
   it("omits max_tokens entirely when not provided", async () => {
