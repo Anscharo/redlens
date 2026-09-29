@@ -226,10 +226,64 @@ negatives is `atlas_history` — real per-doc before/after pairs across the whol
 upstream history, reconstructable from its stored `DiffLine[]` the same way
 the harness already reconstructs them from `patches.json`.
 
+### 6. History as a signal — two obvious uses checked and rejected, one real
+
+Probed 2026-09-29 against live `atlas_history` / `atlas_history_stats`. The two
+approaches that come to mind first both fail on the very case that prompted
+this, so check them before reaching for them again.
+
+**Per-UUID churn prior — points the WRONG way.** The idea: a UUID that is
+rewritten constantly is a template slot, so don't be alarmed. Measured on
+`5c795414` (one of the three #346 docs): six events in its entire life, of
+which only **two** are `modified` — and one of those two is PR 223, *"remove
+non breaking space characters"*. The rest are the two layout migrations and
+its birth. History says this document is **stable**. Fed in as a prior, that
+makes the accusation look *more* credible, not less. The document's stability
+is real; what was wrong is the gate's reading of the edit, not its reading of
+the document.
+
+**The existing `change_kind` classifier — would not have fired.**
+`scripts/lib/history-classify.mjs` already classifies every historical edit as
+lint / typo / semantic, which looks like the same judgement this gate needs.
+It isn't, at the sizes that matter: `classifyDiff` requires ≤4 changed
+alphanumeric characters with no run over 2 to call something a typo, and
+#346 changes `ALMProxy`/`LitePSM`/`must be`/`will effectively allow` — it
+classifies **semantic**. The `classifyPrTitle` override doesn't help either:
+it keys on phrases like "whitespace" or "fix typos", and #346's PR is titled
+*"Atlas Edit Proposal — 2026-09-28"*. Both lanes miss.
+
+**What history is actually good for — fingerprint lineage.**
+`atlas_doc_versions` (migration 034) stores one row per *state* of every
+document: `(doc_id, commit_seq, commit_sha, fingerprint)`. That turns
+`relocationTarget` from an in-diff heuristic into a corpus-wide lookup — ask
+whether this UUID's **old fingerprint reappears under a different UUID**, at
+any commit, rather than only among the docs this one PR happened to add. A
+confirmed relocation is *evidence* of repurposing rather than an inference
+from similarity, which is exactly what thread 4 wants the badge to rest on,
+and it is an indexed query instead of the O(n) scan the current code does.
+
+**And the reason the whole concern is well-founded**, from
+`atlas_history_stats`: in 2026-Q1 mechanical edits (907 `lint` + 448 `typo`)
+**outnumbered** semantic ones (609); 2026-Q2 ran 506 + 436 against 992. Bulk
+cosmetic passes are a routine mode of change in this corpus, not an edge case.
+#346 is that genre, and so is PR 223, which touched this very document.
+
+**The ground-truth use is still the biggest one.** 55,610 real change events,
+~42,000 git-derived with real per-doc diffs — the real evaluation corpus every
+number in this note lacks. Note `change_kind` is mostly `unspecified` until
+`pnpm build:history --full` is run against migration 006, which is already on
+CLAUDE.md's pending list.
+
 ## Ordering
 
-**3 is done.** Of what is left: **1** (IDF — measured, dominates the shipped
-measure, only needs a DF map threaded in) → **4** (copy, pure risk reduction
-and independent of everything else) → **5** (embeddings, only if the residual
-turns out to matter). **2** is a corroborator at best; do not build it as a
-gate.
+**3 is done.** Of what is left: **6-lineage** (fingerprint relocation across
+history — the only idea that replaces inference with evidence) → **4** (copy,
+pure risk reduction and independent of everything else) → **1** (IDF —
+measured, dominates the shipped measure, but only 2.0% → 1.7%) → **5**
+(embeddings, only if the residual turns out to matter). **2** is a
+corroborator at best; do not build it as a gate. In **6**, the churn prior and
+the `change_kind` reuse are both checked and dead — don't re-derive them.
+
+Whatever is picked up next, **measure it before building it**. Thread 3 was
+built on reasoning and measured afterwards; the measurement happened to come
+back clean, which does not make the order right.
