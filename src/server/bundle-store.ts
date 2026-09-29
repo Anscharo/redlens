@@ -112,6 +112,11 @@ const PREVIEW_ALLOWLIST = new Set([
   "diff.repo.json",
   "patches.sky.json",
   "patches.repo.json",
+  // The identity gate's verdict by meaning, written AFTER the bundle is ready
+  // (preview/identity-refine.ts). identity.json is the `auto` one.
+  "identity.json",
+  "identity.sky.json",
+  "identity.repo.json",
 ]);
 
 export const MAIN_STORE: BundleStore = {
@@ -297,6 +302,9 @@ const NOT_MATERIALISED = new Set([
   "diff.repo.json",
   "patches.sky.json",
   "patches.repo.json",
+  "identity.json",
+  "identity.sky.json",
+  "identity.repo.json",
 ]);
 
 /** Names a bundle writer may materialise into <sha>'s artifact dir. */

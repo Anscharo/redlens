@@ -25,6 +25,7 @@ import {
 } from "./resolve.ts";
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
 import { previewPaths, artifactPath, bundleReady, readMeta, writeMeta, touch, remove as removeBundle, type PreviewMeta } from "./cache.ts";
+import { IDENTITY_FILES, isRefining } from "./identity-refine.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
 import { getPreviewRow, touchPreview, isBlockedSha, listPreviews } from "./db.ts";
 import { fillPrivateDiffBaseOnOpen } from "./diff-base-backfill.ts";
@@ -415,6 +416,8 @@ async function diffResponse(req: Request, sha: string): Promise<Response> {
   return json(diff, 200, headers);
 }
 
+const isIdentityFile = (name: string) => (IDENTITY_FILES as readonly string[]).includes(name);
+
 async function artifactResponse(req: Request, sha: string, name: string): Promise<Response> {
   const gated = await gateSha(req, sha);
   if ("deny" in gated) return gated.deny;
@@ -433,6 +436,9 @@ async function artifactResponse(req: Request, sha: string, name: string): Promis
   }
   // Plain artifacts go through the shared bundle reader (path + gzip + 404).
   const res = await serveBundleArtifact(PREVIEW_STORE, sha, name, req, headers);
+  // identity*.json is written after the bundle is ready. While it is being
+  // made the answer is "not yet", which the reader retries; a 404 is final.
+  if (!res && isIdentityFile(name) && isRefining(sha)) return json({ status: "pending" }, 202, { ...headers, "Retry-After": "2" });
   if (!res) return json({ error: "not-found" }, 404, headers);
   touch(sha);
   return res;

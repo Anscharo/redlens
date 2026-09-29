@@ -23,7 +23,7 @@
 
 import { lcsOps } from "../../src/lib/diffCore.ts";
 import {
-  bodyWhollyReplaced, bodyWordsKept, lineOverlap, orderedWordContainment,
+  bodyWhollyReplaced, bodyWordsKept, lineOverlap, orderedWordContainment, sameTitle, words,
   REPLACE_MAX_OVERLAP, REPLACE_MAX_WORD_OVERLAP, SHORT_BODY_MAX_LINES, JUDGEABLE_MIN_WORDS,
 } from "../../src/server/preview/identity.ts";
 import { loadCorpus, lineCount, wordCount, prng, type LiveDoc } from "./identity-corpus.ts";
@@ -31,7 +31,6 @@ import { loadCorpus, lineCount, wordCount, prng, type LiveDoc } from "./identity
 const args = process.argv.slice(2);
 const ORIGIN = args.includes("--origin") ? args[args.indexOf("--origin") + 1] : "https://atlas.redline.support";
 
-const words = (t: string | undefined) => (t ?? "").toLowerCase().match(/[a-z0-9]+/g) ?? [];
 
 // Candidate B's measure: lineOverlap, but two lines are equal when their WORDS
 // are equal, so a changed bullet glyph or indent no longer breaks the match.
@@ -83,7 +82,6 @@ const main = async () => {
   // Synthetic swaps, by the size of the OLD body (the side the gate routes on).
   const { pick } = prng(7);
   const band = (lo: number, hi: number) => live.filter((d) => { const n = lineCount(d.content); return n >= lo && n <= hi; });
-  const titleKey = (d: LiveDoc) => (d.title ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
   const pairs = (olds: LiveDoc[], news: (o: LiveDoc) => LiveDoc[], n: number): Row[] => {
     const out: Row[] = [];
     for (let i = 0; i < n * 3 && out.length < n; i++) {
@@ -92,7 +90,7 @@ const main = async () => {
       if (!pool.length) continue;
       const c = pick(pool);
       // Same title never reaches the body test, and an identical body is not a swap.
-      if (c.id === o.id || titleKey(c) === titleKey(o) || c.content === o.content) continue;
+      if (c.id === o.id || sameTitle(c.title, o.title) || c.content === o.content) continue;
       const r = score(o.content ?? "", c.content ?? "");
       if (r) out.push(r);
     }

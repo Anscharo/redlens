@@ -10,16 +10,10 @@
 // construction: the same title under another agent ("Keel Details" holding
 // "Obex Details"). No vectors and no network; the gate runs on lines and words.
 
-import path from "node:path";
-import { makeAtlasGitSource } from "../lib/atlas-git-source.mjs";
-import { cleanContent } from "../lib/atlas-parser.mjs";
 import { bodyWhollyReplaced, renameScore, JUDGEABLE_MIN_WORDS, type SwapNode } from "../../src/server/preview/identity.ts";
-import { wordCount, prng, quantile } from "./identity-corpus.ts";
+import { parentOf, prng, quantile, share, swappable, walkRetitles, wordCount } from "./identity-corpus.ts";
 
 const SAMPLES = process.argv.includes("--samples");
-const { atlasCommits, loadSnapshot } = makeAtlasGitSource(path.resolve(import.meta.dir, "../../vendor/next-gen-atlas"));
-const squash = (t: string | undefined) => (t ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
-const nodes = (snap: Map<string, any>) => new Map<string, SwapNode>([...snap].map(([id, e]) => [id, { id, doc_no: e.doc_no, title: e.title, content: cleanContent((e.content ?? "").split("\n")) }]));
 
 interface Pair { group: string; a: SwapNode; b: SwapNode; replaced: boolean; score: number | null; note: string }
 const pairs: Pair[] = [];
@@ -28,18 +22,13 @@ const add = (group: string, a: SwapNode, b: SwapNode, note = "") => {
   pairs.push({ group, a, b, replaced: bodyWhollyReplaced(a.content, b.content), score: renameScore(a, b), note });
 };
 
-let prev: Map<string, SwapNode> | null = null;
-for (const c of atlasCommits("origin/main")) {
-  const cur = nodes(loadSnapshot(c.hash) as Map<string, any>);
-  if (prev) for (const [id, b] of cur) { const a = prev.get(id); if (a && squash(a.title) !== squash(b.title)) add("real retitle", a, b, `${c.hash.slice(0, 7)} ${c.date.slice(0, 10)}`); }
-  prev = cur;
-}
+const latest = walkRetitles((c, before, after, ids) => {
+  for (const id of ids) add("real retitle", before.get(id)!, after.get(id)!, `${c.hash.slice(0, 7)} ${c.date.slice(0, 10)}`);
+});
 
-const live = [...prev!.values()].filter((n) => wordCount(n.content) >= JUDGEABLE_MIN_WORDS);
+const live: SwapNode[] = [...latest.values()].filter((n) => wordCount(n.content) >= JUDGEABLE_MIN_WORDS);
 const { pick, rnd } = prng(7);
-const parentOf = (n: SwapNode) => n.doc_no.slice(0, Math.max(0, n.doc_no.lastIndexOf(".")));
 const group = <K,>(key: (n: SwapNode) => K) => { const m = new Map<K, SwapNode[]>(); for (const n of live) (m.get(key(n)) ?? m.set(key(n), []).get(key(n))!).push(n); return m; };
-const swappable = (o: SwapNode, c: SwapNode) => o.id !== c.id && squash(o.title) !== squash(c.title) && o.content !== c.content;
 const byParent = group(parentOf);
 // Cousins: titles that differ only in their FIRST word(s) — the agent's name —
 // found by grouping on the title with its first word removed.
@@ -56,7 +45,6 @@ for (const o of shuffled) {
   if (nUnrel < 3000) { const c = pick(live); if (swappable(o, c)) { nUnrel++; add("unrelated swap", o, c); } }
 }
 
-const share = (n: number, d: number) => (d ? `${n} of ${d} (${((100 * n) / d).toFixed(1)}%)` : "n/a");
 console.log(`
 WHAT THIS TESTS
   The gate calls a body REPLACED when few of its lines and words survive. A

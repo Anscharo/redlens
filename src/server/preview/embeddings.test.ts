@@ -56,9 +56,9 @@ describe("buildPreviewEmbeddings", () => {
     const file = readFile(dir);
     expect(file.rows.map((r) => r.id)).toEqual([CHANGED.id]);
     expect(file.rows[0]).toMatchObject({ hash: hashOf(CHANGED), memberIds: [CHANGED.id], attributionOnly: false });
-    expect(decodeVector(file.rows[0].vector)).toEqual(axis(0));
+    expect([...decodeVector(file.rows[0].vector)]).toEqual(axis(0));
     expect(file.missing).toBe(0);
-    expect(pv?.byHash.get(hashOf(CHANGED))).toEqual(axis(0));
+    expect([...pv!.byHash.get(hashOf(CHANGED))!]).toEqual(axis(0));
   });
 
   test("copies a vector the live store holds under another document, and embeds nothing", async () => {
@@ -67,7 +67,7 @@ describe("buildPreviewEmbeddings", () => {
     const d = deps({ liveVectors: async (hashes) => new Map(hashes.map((h) => [h, axis(2)])) });
     await buildPreviewEmbeddings(dir, d);
     expect(d.embedded).toEqual([]);
-    expect(decodeVector(readFile(dir).rows[0].vector)).toEqual(axis(2));
+    expect([...decodeVector(readFile(dir).rows[0].vector)]).toEqual(axis(2));
   });
 
   test("a document stored as a group is not one the gate can compare", async () => {
@@ -117,7 +117,7 @@ describe("buildPreviewEmbeddings", () => {
 describe("the stored vector", () => {
   test("survives the file to float32 precision", () => {
     const v = [0.123456789, -0.5, 0, 1];
-    const back = decodeVector(encodeVector(v));
+    const back = decodeVector(encodeVector(Float32Array.from(v)));
     expect(back.length).toBe(4);
     back.forEach((x, i) => expect(x).toBeCloseTo(v[i], 6));
   });
@@ -157,26 +157,34 @@ describe("bodySimilarity", () => {
     expect(group).toBeUndefined();
   });
 
-  test("gives the provider a signal that can still abort, after the build lane has returned", async () => {
+  test("gives the provider a live signal of its own, after the build lane has returned", async () => {
     const dir = bundle([CHANGED]);
     const signals: (AbortSignal | undefined)[] = [];
     const d = deps({ embedBatch: async (texts, signal) => { signals.push(signal); return texts.map(() => axis(0)); } });
     const pv = (await buildPreviewEmbeddings(dir, d))!;
     await bodySimilarity(snap([OLD]), snap([CHANGED]), pv);
-    // The old-side call gets a signal of its own, not the lane's spent one.
     expect(signals.length).toBe(2);
-    expect(signals[1]).not.toBe(pv.signal);
-    expect(signals[1]).toBeDefined();
+    expect(signals[1]).not.toBe(signals[0]);
+    expect(signals[1]?.aborted).toBe(false);
   });
 
-  test("sends nothing to the provider once the build lane's signal has aborted", async () => {
+  test("sends nothing to the provider once a budget is spent, or the build has ended", async () => {
     const dir = bundle([CHANGED]);
     const d = deps();
     const pv = (await buildPreviewEmbeddings(dir, d))!;
-    const spent = new AbortController();
-    spent.abort();
-    expect(await bodySimilarity(snap([OLD]), snap([CHANGED]), { ...pv, signal: spent.signal })).toBeUndefined();
+    expect(await bodySimilarity(snap([OLD]), snap([CHANGED]), { ...pv, spent: true })).toBeUndefined();
+    const ended = new AbortController();
+    ended.abort();
+    expect(await bodySimilarity(snap([OLD]), snap([CHANGED]), { ...pv, outer: ended.signal })).toBeUndefined();
     expect(d.embedded).toEqual([buildEmbedText(CHANGED)]);
+  });
+
+  test("a spent budget still reads the live store, which costs no provider call", async () => {
+    const dir = bundle([CHANGED]);
+    const d = deps({ liveVectors: async (hashes) => new Map(hashes.filter((h) => h === hashOf(OLD)).map((h) => [h, axis(1)])) });
+    const pv = (await buildPreviewEmbeddings(dir, d))!;
+    const score = await bodySimilarity(snap([OLD]), snap([CHANGED]), { ...pv, spent: true });
+    expect(score?.(CHANGED.id)).toBe(0);
   });
 
   test("a provider failure leaves the gate without a score, and does not throw", async () => {

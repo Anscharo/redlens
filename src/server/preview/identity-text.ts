@@ -6,15 +6,22 @@
 // curation. There is one implementation; a change there changes the gate.
 
 import { lcsOps } from "../../lib/diffCore";
-import * as contain from "../../../scripts/lib/ordered-containment.mjs";
+import { words, wordsInOrder } from "../../../scripts/lib/ordered-containment.mjs";
+
+// norm                    lower-cased, whitespace runs collapsed
+// words                   the letters-and-digits words of a text, lower-cased
+// wordsInOrder            how many of a's words appear in b, in order; no cost cap
+// orderedWordContainment  that count as a fraction of a, typo-tolerant. 0 below
+//                         four words. COST-CAPPED: past ~632 words a side it
+//                         falls back to an exact substring test and answers 0
+//                         or 1. Right for a relocation link (decline when
+//                         unsure), wrong for the body test — use bodyWordsKept.
+export { norm, words, wordsInOrder, orderedWordContainment } from "../../../scripts/lib/ordered-containment.mjs";
 
 // The body test compares words in full up to this many cells (2,000 words a
 // side): the largest real edit, 1,223 x 1,290 words, takes 48ms, and the test
 // runs once per retitled document, not once per pair.
 export const BODY_TEST_MAX_CELLS = 4_000_000;
-
-export const norm = (t: string | undefined): string => contain.norm(t);
-export const words = (t: string | undefined): string[] => contain.words(t);
 
 export function lines(t: string | undefined): string[] {
   return (t ?? "")
@@ -22,23 +29,6 @@ export function lines(t: string | undefined): string[] {
     .map((l) => l.trim())
     .filter(Boolean);
 }
-
-/** Fraction of `oldText`'s words that appear, IN ORDER (LCS), inside `candText`
- *  — words matched fuzzily so subword typos don't break the alignment, and
- *  `candText` may carry extra words (the LCS skips them). 1.0 = the whole old
- *  body is present (possibly expanded); ~0 = unrelated. 0 below four words.
- *
- *  Cost-capped: when both bodies exceed ~632 words it falls back to an exact
- *  substring test. Deliberately binary — a relocated-but-reformatted giant doc
- *  returns 0 (declines the relocation link) rather than risk a slow or wrong
- *  fuzzy match. Right for a relocation link, wrong for the body test: use
- *  bodyWordsKept there. */
-export function orderedWordContainment(oldText: string | undefined, candText: string | undefined): number {
-  return contain.orderedWordContainment(oldText, candText);
-}
-
-/** How many of `a`'s words appear in `b`, in order. No cost cap. O(a·b). */
-export const wordsInOrder = (a: string[], b: string[]): number => contain.wordsInOrder(a, b);
 
 /** Fraction of the old body's words still present, in order, in the new body —
  *  orderedWordContainment without its binary fallback, which answers 0 for ANY

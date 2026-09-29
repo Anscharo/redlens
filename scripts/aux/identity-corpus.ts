@@ -6,6 +6,12 @@
 // same corpus; pass `--refresh` to a caller to refetch.
 
 import fs from "node:fs";
+import path from "node:path";
+import { makeAtlasGitSource } from "../lib/atlas-git-source.mjs";
+import { cleanContent } from "../lib/atlas-parser.mjs";
+import { embedBatch } from "../../src/server/retrieval/embed.ts";
+import { resolve } from "../../src/server/preview/embeddings-store.ts";
+import { lines, sameTitle, words, type SwapNode } from "../../src/server/preview/identity.ts";
 
 export type Kind = "lint" | "typo" | "semantic";
 export interface Edit { id: string; kind: Kind; before: string; after: string }
@@ -32,8 +38,8 @@ export function sides(dl: any[]): [string, string] | null {
   return [a.join("\n"), b.join("\n")];
 }
 
-export const lineCount = (t: string | undefined) => (t ?? "").split("\n").map((l) => l.trim()).filter(Boolean).length;
-export const wordCount = (t: string | undefined) => ((t ?? "").toLowerCase().match(/[a-z0-9]+/g) ?? []).length;
+export const lineCount = (t: string | undefined) => lines(t).length;
+export const wordCount = (t: string | undefined) => words(t).length;
 
 export async function loadCorpus(origin: string, refresh = false): Promise<{ docs: Record<string, LiveDoc>; edits: Edit[]; elided: number }> {
   const file = `${CACHE_DIR}/corpus.json`;
@@ -89,42 +95,41 @@ export function quantile(xs: number[], p: number): number {
 
 const QWEN_CACHE = `${CACHE_DIR}/qwen-cosine.json`;
 
-/** Qwen3 vectors for `texts`, through the SAME client the atlas search embeds
- *  with. Cached on disk one vector per line, so a rerun costs nothing. With
- *  `embed` false it reads the cache only and makes no network call; texts
- *  without a vector are then simply absent from the map. */
+/** Qwen3 vectors for `texts`, keyed by the text. Cached on disk one vector per
+ *  line, so a rerun costs nothing. With `embed` false it reads the cache only
+ *  and makes no network call; texts without a vector are then absent from the
+ *  map. The batching and the provider client are the preview build's own
+ *  (embeddings-store.ts `resolve`), so a script measures the vectors
+ *  production would hold. */
 export async function qwenVectors(texts: string[], embed: boolean): Promise<Map<string, Float32Array>> {
-  const vecs = new Map<string, Float32Array>();
+  const byHash = new Map<string, Float32Array>();
   if (fs.existsSync(QWEN_CACHE)) {
     for (const l of fs.readFileSync(QWEN_CACHE, "utf8").split("\n")) {
       if (!l) continue;
       try {
         const [t, v] = JSON.parse(l) as [string, number[]];
-        vecs.set(t, Float32Array.from(v));
+        byHash.set(t, Float32Array.from(v));
       } catch {
         // a run killed mid-write leaves one partial line; that text is re-embedded
       }
     }
   }
-  const todo = [...new Set(texts)].filter((t) => !vecs.has(t));
-  console.log(`qwen: ${vecs.size} cached, ${todo.length} ${embed ? "to embed" : "missing"}`);
-  if (!embed || !todo.length) return vecs;
-  const { embedBatch } = await import("../../src/server/retrieval/embed.ts");
+  const todo = [...new Set(texts)].filter((t) => !byHash.has(t));
+  console.log(`qwen: ${byHash.size} cached, ${todo.length} ${embed ? "to embed" : "missing"}`);
+  if (!embed || !todo.length) return byHash;
   fs.mkdirSync(CACHE_DIR, { recursive: true });
-  const batches: string[][] = [];
-  for (let i = 0; i < todo.length; i += 64) batches.push(todo.slice(i, i + 64));
-  let done = 0;
-  const worker = async () => {
-    for (let batch = batches.shift(); batch; batch = batches.shift()) {
-      const out = await embedBatch(batch);
-      batch.forEach((t, j) => vecs.set(t, Float32Array.from(out[j])));
+  const deps = {
+    enabled: true,
+    liveHashes: async () => new Map<string, string>(),
+    liveVectors: async () => new Map<string, number[]>(),
+    embedBatch: async (batch: string[], signal?: AbortSignal) => {
+      const out = await embedBatch(batch, signal);
       fs.appendFileSync(QWEN_CACHE, batch.map((t, j) => JSON.stringify([t, out[j].map((x) => +x.toFixed(5))])).join("\n") + "\n");
-      process.stdout.write(`\r  embedded ${(done += batch.length)}/${todo.length}`);
-    }
+      return out;
+    },
   };
-  await Promise.all(Array.from({ length: 8 }, worker));
-  console.log("");
-  return vecs;
+  await resolve(new Map(todo.map((t) => [t, t])), { byHash, deps }, new AbortController().signal);
+  return byHash;
 }
 
 /** Cosine of two unit vectors. NaN when either is missing. */
@@ -133,4 +138,59 @@ export function dot(a: Float32Array | undefined, b: Float32Array | undefined): n
   let d = 0;
   for (let i = 0; i < a.length; i++) d += a[i] * b[i];
   return d;
+}
+
+// ---- shared by the scripts that score pairs ---------------------------------
+
+/** The chance that a random member of `pos` scores HIGHER than one of `neg`. */
+export function auc(pos: number[], neg: number[]): number {
+  if (!pos.length || !neg.length) return NaN;
+  const all = [...pos.map((v) => [v, 1] as const), ...neg.map((v) => [v, 0] as const)].sort((a, b) => a[0] - b[0]);
+  let rankSum = 0, i = 0;
+  while (i < all.length) {
+    let j = i;
+    while (j < all.length && all[j][0] === all[i][0]) j++;
+    for (let k = i; k < j; k++) if (all[k][1]) rankSum += (i + j + 1) / 2;
+    i = j;
+  }
+  return (rankSum - (pos.length * (pos.length + 1)) / 2) / (pos.length * neg.length);
+}
+
+export const share = (n: number, d: number) => (d ? `${n} of ${d} (${((100 * n) / d).toFixed(1)}%)` : "n/a");
+
+/** The document-number parent. NOT `parentId`: heading depth is capped at 6,
+ *  so for most documents `parentId` names a more distant ancestor. */
+export const parentOf = (n: { doc_no: string }) => n.doc_no.slice(0, Math.max(0, n.doc_no.lastIndexOf(".")));
+
+/** Could `c` stand in `o`'s slot as a swap the body test would see? The gate's
+ *  own title test, so a script and the gate agree on what a retitle is. */
+export const swappable = (o: SwapNode, c: SwapNode) => o.id !== c.id && !sameTitle(o.title, c.title) && o.content !== c.content;
+
+export interface HistoryNode extends SwapNode { title: string; type: string; content: string }
+
+const atlasRepo = path.resolve(import.meta.dir, "../../vendor/next-gen-atlas");
+export const atlasGit = () => makeAtlasGitSource(atlasRepo);
+
+/** A git snapshot as cleaned nodes, keyed by UUID. */
+export function snapshotNodes(snapshot: Map<string, any>): Map<string, HistoryNode> {
+  return new Map([...snapshot].map(([id, e]) => [id, { id, doc_no: e.doc_no, title: e.title, type: e.type, content: cleanContent((e.content ?? "").split("\n")) }]));
+}
+
+/** Walk the atlas history and call `visit` for every commit in which at least
+ *  one document kept its UUID and changed its title — the gate's true input.
+ *  `ids` are those documents. Returns the latest snapshot. */
+export function walkRetitles(
+  visit: (c: { hash: string; date: string }, before: Map<string, HistoryNode>, after: Map<string, HistoryNode>, ids: string[]) => void,
+): Map<string, HistoryNode> {
+  const { atlasCommits, loadSnapshot } = atlasGit();
+  let prev: Map<string, HistoryNode> | null = null;
+  for (const c of atlasCommits("origin/main")) {
+    const cur = snapshotNodes(loadSnapshot(c.hash) as Map<string, any>);
+    if (prev) {
+      const ids = [...cur.keys()].filter((id) => prev!.has(id) && !sameTitle(prev!.get(id)!.title, cur.get(id)!.title));
+      if (ids.length) visit(c, prev, cur, ids);
+    }
+    prev = cur;
+  }
+  return prev!;
 }

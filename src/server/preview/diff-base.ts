@@ -20,7 +20,8 @@ import { getIndexes } from "../retrieval/indexes.ts";
 import { resolveCandidates, type Candidates } from "./pr-diff.ts";
 import { snapshotFromDocsJson, type Snapshot } from "./snapshot.ts";
 import { computeDiffArtifacts, writeDiffArtifacts } from "./diff-artifacts.ts";
-import { writeCandidateDiffs, type SimilarityFor } from "./diff-base-write.ts";
+import { writeCandidateDiffs } from "./diff-base-write.ts";
+import { refineJob, type RefineJob } from "./identity-refine.ts";
 import type { Resolved } from "./resolve.ts";
 import type { PreviewBases, PreviewPaths } from "./cache.ts";
 
@@ -30,6 +31,9 @@ export interface DiffBasesResult {
   /** Set when the artifacts could not be written at all (cold start:
    *  getIndexes() threw) — the reader falls back to the serve-time vs-main diff. */
   artifactsSkipped?: string;
+  /** What the later verdict by meaning needs, one entry for each diff written
+   *  (identity-refine.ts). Empty when no diff was written. */
+  refine: RefineJob[];
 }
 
 /**
@@ -73,8 +77,6 @@ export async function writeDiffBases(
     paths: PreviewPaths;
     /** build.ts wraps deps.fetchAndExtract(repo, sha, token, dir, undefined, { apiTarball: priv }) */
     fetchTree: (repo: string, sha: string, dir: string) => Promise<{ srcDir: string }>;
-    /** The identity gate's similarity, when this build has vectors. */
-    similarityFor?: SimilarityFor;
   },
 ): Promise<DiffBasesResult> {
   const candidates = await candidatesP;
@@ -86,7 +88,7 @@ export async function writeDiffBases(
   } catch (e) {
     const msg = (e as Error).message;
     console.warn(`[preview] ${sha8}: diff artifacts skipped (${msg}) — reader falls back to the serve-time diff`);
-    return { candidates, bases: { auto: "live-main", reason: "indexes not loaded" }, artifactsSkipped: msg };
+    return { candidates, bases: { auto: "live-main", reason: "indexes not loaded" }, artifactsSkipped: msg, refine: [] };
   }
 
   const head = snapshotFromDocsJson(opts.paths.outDir);
@@ -101,11 +103,12 @@ export async function writeDiffBases(
     const why =
       candidates.reason ?? (opts.priv ? "no base branch to compare against" : candidates.compareOk ? "no merge base" : "compare failed");
     console.warn(`[preview] ${sha8}: ${why} — diffing against live main`);
-    writeDiffArtifacts(opts.paths.outDir, computeDiffArtifacts(mainDocs, head, mainDocs, await opts.similarityFor?.(mainDocs, head)));
-    return { candidates, bases: { auto: "live-main", reason: why } };
+    const a = computeDiffArtifacts(mainDocs, head, mainDocs);
+    writeDiffArtifacts(opts.paths.outDir, a);
+    return { candidates, bases: { auto: "live-main", reason: why }, refine: [refineJob(["identity.json"], mainDocs, head, a.diff)] };
   }
 
-  const bases = await writeCandidateDiffs(candidates, {
+  const { bases, refine } = await writeCandidateDiffs(candidates, {
     resolved: opts.resolved,
     token: opts.token,
     priv: opts.priv,
@@ -115,7 +118,6 @@ export async function writeDiffBases(
     head,
     mainDocs,
     live,
-    similarityFor: opts.similarityFor,
   });
-  return { candidates, bases };
+  return { candidates, bases, refine };
 }

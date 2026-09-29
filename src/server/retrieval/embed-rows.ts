@@ -18,7 +18,14 @@ export interface EmbedRow {
   hash: string;
   memberIds: string[];
   attributionOnly: boolean;
+  /** The row embeds the document as ITSELF — its title and body — and not a
+   *  folded group or a breadcrumbed record. Only such a vector can be compared
+   *  with another version of the same document (preview/embeddings-similarity.ts). */
+  plain: boolean;
 }
+
+/** Atlas order. It decides which rows a capped run embeds first. */
+export const byDocNo = (a: { doc_no: string }, b: { doc_no: string }) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true });
 
 /** The shipping grouping policy, or one_to_one when the configured name is unknown. */
 export function shippedPolicy(): GroupPolicy {
@@ -27,7 +34,7 @@ export function shippedPolicy(): GroupPolicy {
     : "one_to_one";
 }
 
-export function planEmbedRows(docs: AtlasNode[], policy: GroupPolicy = shippedPolicy()): { rows: EmbedRow[]; units: EmbedUnit[] } {
+export function planEmbedRows(docs: AtlasNode[], policy: GroupPolicy): { rows: EmbedRow[]; units: EmbedUnit[] } {
   const byId = new Map(docs.map((d) => [d.id, d]));
   // No opts: cap and crumb depth/root were env knobs that measured as no-ops and
   // were removed. Policies carry their own defaults (kv_records_breadcrumbs keeps the
@@ -52,6 +59,7 @@ export function planEmbedRows(docs: AtlasNode[], policy: GroupPolicy = shippedPo
       hash: contentHash(d),
       memberIds: [d.id],
       attributionOnly: true,
+      plain: true,
     }));
 
   // Folded members keep contentHash(d) — the same 1:1 hash they had before
@@ -68,6 +76,7 @@ export function planEmbedRows(docs: AtlasNode[], policy: GroupPolicy = shippedPo
         hash: u.hash,
         memberIds: u.memberIds,
         attributionOnly: foldedSet.has(u.anchorId),
+        plain: !!anchor && u.text === buildEmbedText(anchor),
       };
     })
     .concat(attributionUnits);

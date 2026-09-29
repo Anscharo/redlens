@@ -21,21 +21,22 @@ import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.ts";
 import { EMBED_DIM } from "../retrieval/embed.ts";
-import { planEmbedRows, shippedPolicy } from "../retrieval/embed-rows.ts";
-import { contentHash } from "../retrieval/embed-text.ts";
+import { byDocNo, planEmbedRows, shippedPolicy } from "../retrieval/embed-rows.ts";
+import { withDeadline } from "../jev.ts";
 import type { AtlasNode } from "../../types.ts";
-import { deadline, encodeVector, realVectorDeps, resolve, type PreviewEmbeddingsJson, type PreviewVectors, type VectorDeps } from "./embeddings-store.ts";
+import { encodeVector, realVectorDeps, resolve, type PreviewEmbeddingsJson, type PreviewVectors, type VectorDeps } from "./embeddings-store.ts";
 
-export * from "./embeddings-store.ts";
-export * from "./embeddings-similarity.ts";
+export { decodeVector, encodeVector, realVectorDeps } from "./embeddings-store.ts";
+export type { PreviewEmbeddingsJson, PreviewVectorRow, PreviewVectors, VectorDeps } from "./embeddings-store.ts";
+export { bodySimilarity } from "./embeddings-similarity.ts";
 
 export const EMBEDDINGS_FILE = "embeddings.json";
 // A preview that shares no text with the live atlas would embed all of it.
 // Past this many texts the rest are left out, nearest the top of the atlas
 // first; search on that preview is then partial, and the file says by how much.
-export const MAX_TEXTS = 2000;
+const MAX_TEXTS = 2000;
 // The whole lane, lookups included. A preview build has five minutes in all.
-export const BUDGET_MS = 60_000;
+const BUDGET_MS = 60_000;
 
 /**
  * Embed what the preview changed and write <outDir>/embeddings.json. Resolves
@@ -45,43 +46,34 @@ export const BUDGET_MS = 60_000;
  */
 export async function buildPreviewEmbeddings(outDir: string, deps: VectorDeps = realVectorDeps, outer?: AbortSignal): Promise<PreviewVectors | null> {
   if (!deps.enabled || outer?.aborted) return null;
-  const { abort, timer } = deadline(BUDGET_MS, outer);
+  const signal = withDeadline(BUDGET_MS, outer);
   try {
     const nodes = Object.values(JSON.parse(fs.readFileSync(path.join(outDir, "docs.json"), "utf8")).nodes) as AtlasNode[];
     const policy = shippedPolicy();
     const { rows } = planEmbedRows(nodes, policy);
-    const byId = new Map(nodes.map((n) => [n.id, n]));
 
     const live = await deps.liveHashes();
-    const need = rows
-      .filter((r) => live.get(r.id) !== r.hash)
-      .sort((a, b) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true }));
+    const need = rows.filter((r) => live.get(r.id) !== r.hash).sort(byDocNo);
     const pv: PreviewVectors = {
       byHash: new Map(),
-      plain: new Set(rows.filter((r) => r.hash === contentHash(byId.get(r.id)!)).map((r) => r.id)),
+      plain: new Set(rows.filter((r) => r.plain).map((r) => r.id)),
       deps,
-      signal: abort.signal,
+      outer,
+      spent: false,
     };
-    await resolve(new Map(need.map((r) => [r.hash, r.text])), pv, abort.signal, MAX_TEXTS);
+    await resolve(new Map(need.map((r) => [r.hash, r.text])), pv, signal, MAX_TEXTS);
     if (outer?.aborted) return null;
+    pv.spent = signal.aborted;
 
-    const out: PreviewEmbeddingsJson = {
-      model: config.embedModel,
-      dim: EMBED_DIM,
-      policy,
-      rows: need
-        .filter((r) => pv.byHash.has(r.hash))
-        .map((r) => ({ id: r.id, hash: r.hash, memberIds: r.memberIds, attributionOnly: r.attributionOnly, vector: encodeVector(pv.byHash.get(r.hash)!) })),
-      missing: 0,
-    };
-    out.missing = need.length - out.rows.length;
+    const written = need
+      .filter((r) => pv.byHash.has(r.hash))
+      .map((r) => ({ id: r.id, hash: r.hash, memberIds: r.memberIds, attributionOnly: r.attributionOnly, vector: encodeVector(pv.byHash.get(r.hash)!) }));
+    const out: PreviewEmbeddingsJson = { model: config.embedModel, dim: EMBED_DIM, policy, rows: written, missing: need.length - written.length };
     fs.writeFileSync(path.join(outDir, EMBEDDINGS_FILE), JSON.stringify(out));
-    console.log(`[preview] embeddings: ${need.length} rows differ from the live store, ${out.rows.length} written${out.missing ? `, ${out.missing} missing` : ""}`);
+    console.log(`[preview] embeddings: ${need.length} rows differ from the live store, ${written.length} written${out.missing ? `, ${out.missing} missing` : ""}`);
     return pv;
   } catch (e) {
     console.warn(`[preview] embeddings skipped (${(e as Error).message}) — the identity gate judges by lines and words`);
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }

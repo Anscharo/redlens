@@ -106,6 +106,7 @@ describe("writeDiffBases", () => {
       });
       expect(result.artifactsSkipped).toBeDefined();
       expect(result.bases).toEqual({ auto: "live-main", reason: "indexes not loaded" });
+      expect(result.refine).toEqual([]); // no diff written, nothing to judge later
       expect(fs.existsSync(path.join(paths.outDir, "diff.json"))).toBe(false);
     } finally {
       restore();
@@ -126,6 +127,8 @@ describe("writeDiffBases", () => {
           { resolved: RESOLVED, token: "t", priv: false, sha: "nolm1", paths, fetchTree: async () => ({ srcDir: "" }) },
         );
         expect(result.bases).toEqual({ auto: "live-main", reason: "compare failed" });
+        // One job for the one diff written, under the `auto` name.
+        expect(result.refine.map((j) => j.files)).toEqual([["identity.json"]]);
         expect(fs.existsSync(path.join(paths.outDir, "diff.json"))).toBe(true);
         expect(fs.existsSync(path.join(paths.outDir, "patches.json"))).toBe(true);
         expect(fs.existsSync(path.join(paths.outDir, "diff.sky.json"))).toBe(false);
@@ -180,6 +183,8 @@ describe("writeDiffBases", () => {
         });
 
         expect(result.bases.auto).toBe("repo");
+        // One job for each base, and the `auto` one is also identity.json.
+        expect(result.refine.map((j) => j.files)).toEqual([["identity.sky.json"], ["identity.repo.json", "identity.json"]]);
         // No /branches/<ref> lookup succeeded (404), so base-drift never resolved a tip.
         expect(result.bases.repo?.drift).toBeUndefined();
         expect(result.bases.sky).toMatchObject({ repo: "sky-ecosystem/next-gen-atlas", ref: "main", mergeBase: "sky-mb" });
@@ -291,6 +296,7 @@ describe("writeDiffBases", () => {
         expect(result.bases.sky).toBeUndefined();
         expect(result.bases.auto).toBe("live-main");
         expect(result.bases.reason).toContain("base unreacha unavailable");
+        expect(result.refine.map((j) => j.files)).toEqual([["identity.json"]]);
         expect(fs.existsSync(path.join(paths.outDir, "diff.sky.json"))).toBe(false);
         expect(fs.existsSync(path.join(paths.outDir, "diff.json"))).toBe(true);
         expect(warnings.some((w) => w.includes("unavailable") && w.includes("diffing against live main"))).toBe(true);

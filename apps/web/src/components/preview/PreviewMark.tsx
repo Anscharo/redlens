@@ -1,4 +1,5 @@
 import { usePreviewDiff } from "../../lib/previewDiff";
+import { isReassigned } from "../../lib/identitySwap";
 import { Tooltip } from "../Tooltip";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
@@ -43,7 +44,7 @@ export function PreviewMark({ nodeId, className }: { nodeId: string; className?:
   const former = diff.formerUuid[nodeId];
 
   // An uncorroborated swap (no movedTo) is described, not accused — see above.
-  if (swap && !swap.movedTo) {
+  if (swap && !isReassigned(swap)) {
     return (
       <Tooltip
         content={
@@ -67,7 +68,7 @@ export function PreviewMark({ nodeId, className }: { nodeId: string; className?:
   }
 
   if (swap || former) {
-    const content = swap?.movedTo ? (
+    const content = isReassigned(swap) ? (
       <span>
         Identity changed in this preview — UUID <span className="mono">{nodeId}</span> now holds a
         different document: “{swap.oldTitle}” <span className="enlargen">→</span> “{swap.newTitle}”.{" "}

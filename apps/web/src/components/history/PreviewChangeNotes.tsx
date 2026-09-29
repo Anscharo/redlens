@@ -1,4 +1,5 @@
 import type { FormerUuid, IdentitySwap } from "../../lib/previewDiff";
+import { isReassigned } from "../../lib/identitySwap";
 
 // The ⚠ glyph renders small for its weight next to 11px mono — size it up 25%.
 export const WARN_GLYPH = { fontSize: "1.25em" };
@@ -30,16 +31,16 @@ export function PreviewChangeNotes({ swap, former, renumber, retitle, source, ha
     <>
       {/* ⚠ only where the displaced content was found (movedTo). Without that
           the swap is described, not accused — the same rule as PreviewMark. */}
-      {swap?.movedTo && (
+      {isReassigned(swap) && (
         <p className="my-2 leading-snug" style={{ color: "var(--warn)" }}>
           <span style={WARN_GLYPH}>⚠</span> Identity changed — this UUID now holds a different document: “{swap.oldTitle}” <span className="enlargen">→</span> “{swap.newTitle}”.{" "}
-          {`The previous content moved to ${swap.movedTo.doc_no} (“${swap.movedTo.title}”) under a new UUID.`}
+          The previous content moved to {swap.movedTo.doc_no} (“{swap.movedTo.title}”) under a new UUID.
         </p>
       )}
-      {swap && !swap.movedTo && (
+      {swap && !isReassigned(swap) && (
         <p className="my-2 leading-snug" style={{ color: "var(--lilac)" }}>
           Rewritten — both the title and the body were replaced: “{swap.oldTitle}” <span className="enlargen">→</span> “{swap.newTitle}”.{" "}
-          {`The previous content was not traced to a single new document in this ${source}.`}
+          The previous content was not traced to a single new document in this {source}.
         </p>
       )}
       {former && (

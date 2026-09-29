@@ -1266,3 +1266,60 @@ test("/api/preview/list returns the live rows on success, or [] if the query thr
   expect(failed.status).toBe(200); // never surfaces the DB error to the client
   expect(await failed.json()).toEqual([]);
 });
+
+// ---------------------------------------------------------------------------
+// identity.json is written AFTER the bundle is ready. The reader must be able
+// to tell "not yet" from "never", and a private bundle's verdict is as private
+// as the rest of it.
+
+const SHA_IDENTITY = "8".repeat(40);
+const SHA_IDENTITY_PRIVATE = "9".repeat(40);
+
+test("identity.json: 202 while the verdict is being made, the file once written, 404 when none is coming", async () => {
+  const { call, previewPaths, writeMeta } = await freshHandler();
+  const { startRefine, stopRefine } = await import("./identity-refine.ts");
+  makeReadyBundle(previewPaths, writeMeta, SHA_IDENTITY, { private: false });
+  const url = `/api/preview/${SHA_IDENTITY}/identity.json`;
+
+  // No lane, no file: nothing is coming (no API key, or a bundle built before this).
+  expect((await call(url)).status).toBe(404);
+
+  let finish!: () => void;
+  const lane = startRefine(SHA_IDENTITY, previewPaths(SHA_IDENTITY).outDir, [{ files: ["identity.json"], reference: new Map(), head: new Map(), added: [], changed: [] }], () => new Promise<void>((r) => (finish = r)));
+  try {
+    const pending = await call(url);
+    expect(pending.status).toBe(202);
+    expect(pending.headers.get("retry-after")).toBe("2");
+    expect(await pending.json()).toEqual({ status: "pending" });
+    // Only the identity files answer 202. Any other missing file is a 404.
+    expect((await call(`/api/preview/${SHA_IDENTITY}/patches.json`)).status).toBe(404);
+
+    fs.writeFileSync(path.join(previewPaths(SHA_IDENTITY).outDir, "identity.json"), JSON.stringify({ identitySwap: { x: { oldTitle: "A", newTitle: "B" } }, formerUuid: {} }));
+    const done = await call(url);
+    expect(done.status).toBe(200);
+    expect(((await done.json()) as any).identitySwap.x.newTitle).toBe("B");
+  } finally {
+    await Promise.resolve();
+    finish?.();
+    await lane;
+    stopRefine(SHA_IDENTITY);
+  }
+});
+
+test("identity.json: a private bundle's pending answer is gated like its files", async () => {
+  const { call, previewPaths, writeMeta } = await freshHandler();
+  const { startRefine, stopRefine } = await import("./identity-refine.ts");
+  makeReadyBundle(previewPaths, writeMeta, SHA_IDENTITY_PRIVATE, { private: true });
+  const lane = startRefine(SHA_IDENTITY_PRIVATE, previewPaths(SHA_IDENTITY_PRIVATE).outDir, [{ files: ["identity.json"], reference: new Map(), head: new Map(), added: [], changed: [] }], () => new Promise<void>(() => {}));
+  void lane;
+  try {
+    accessDecision = "forbidden";
+    expect((await call(`/api/preview/${SHA_IDENTITY_PRIVATE}/identity.json`)).status).toBe(403);
+    accessDecision = "ok";
+    const res = await call(`/api/preview/${SHA_IDENTITY_PRIVATE}/identity.json`);
+    expect(res.status).toBe(202);
+    expect(res.headers.get("cache-control")).toBe("private, no-store");
+  } finally {
+    stopRefine(SHA_IDENTITY_PRIVATE);
+  }
+});

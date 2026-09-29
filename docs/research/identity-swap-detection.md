@@ -627,33 +627,47 @@ described truthfully by "rewritten". The lines-and-words rule flagged two of
 the five. The five share one commit, so they are one event, not five
 independent ones.
 
-**What was built** (`src/server/preview/embeddings.ts`, `REPLACE_MAX_COSINE` in
-`identity.ts`):
+**What was built** (`src/server/preview/embeddings.ts`,
+`identity-refine.ts`, and `REPLACE_MAX_COSINE` in `identity-body.ts`):
 
-- The preview build embeds every row that differs from the live store and
-  writes `embeddings.json` into the bundle, in the row shape of
-  `atlas_doc_embeddings`. Rows are matched by content hash, so unchanged text
-  costs nothing. Preview search can read the same file.
-- The gate judges a retitled body of more than 3 lines by the cosine of its
-  old and new vector, bar 0.85. Shorter bodies, documents stored as a group,
-  and any preview without vectors keep the lines-and-words rule.
+- **The build does not wait for vectors.** It writes `diff.json` with the
+  verdict by lines and words, and the preview is ready. The first version
+  waited, which added the whole embedding time to every preview.
+- **Afterwards**, detached from the build, the lane embeds every row that
+  differs from the live store and writes `embeddings.json` into the bundle, in
+  the row shape of `atlas_doc_embeddings`. Rows are matched by content hash, so
+  unchanged text costs nothing. Preview search can read the same file.
+- It then judges each retitled body of more than 3 lines by the cosine of its
+  old and new vector, bar 0.85, and writes the **whole** verdict to
+  `identity.json` (`identity.<key>.json` for each diff base). Shorter bodies
+  and documents stored as a group keep the lines-and-words rule.
 - The old side comes from the live store by content hash, and is embedded
   only when the preview's base is behind live main.
+- **The reader** loads `identity.json` after the page is up and replaces the
+  warnings `diff.json` gave it. The handler answers 202 while the file is
+  being made and 404 when none is coming.
+
+The file holds the whole verdict and not a list of additions, because a
+document the vector spares must be able to lose its mark.
 
 Replayed end to end against the real store and provider
 (`bun scripts/aux/identity-replay.ts`), upstream 93f7f49 as a preview of its
-parent: 520 rows embedded in 11 seconds, a 3.0 MB file, and the gate flags 10
-documents where lines and words flagged 7. The three it adds are the three
-repurposed steps the old rule missed. The cosines it computes from the live
-store's vectors match the measurement script's for the same pairs, so the
+parent: the build's own diff takes 0.3 seconds; the later lane embeds 520 rows
+and writes a 3.0 MB file in 10 to 15 seconds. The verdict by meaning flags 10
+documents where lines and words flagged 7, and the three it adds are the
+three repurposed steps the old rule missed. The cosines it computes from the
+live store's vectors match the measurement script's for the same pairs, so the
 stored vector and the measured one are the same thing.
 
-Two properties to know. `diff.json` for one sha now depends on whether the
-provider answered when the bundle was built; a bundle built without vectors
-is judged by lines and words, silently apart from a log line. And
-`embeddings.json` is written but not yet read from disk or served: it is not
-on the preview allowlist, and preview search will need an entry there and a
-reader (`decodeVector`).
+Three properties to know:
+
+- A warning can appear, or change, a few seconds after a preview opens.
+- With no API key, a failed provider or a restart during the lane, no
+  `identity.json` is written and the verdict by lines and words stands. A log
+  line records it.
+- `embeddings.json` is written but not yet read from disk or served: it is not
+  on the preview allowlist, and preview search will need an entry there and a
+  reader (`decodeVector`).
 
 ### 11. The entity rename — DONE
 

@@ -27,8 +27,8 @@
 // miss rates are too low. identity-search-vector.ts takes siblings by document
 // number and scores real retitles — prefer it.
 
-import { bodyWhollyReplaced, bodyWordsKept, lineOverlap, JUDGEABLE_MIN_WORDS, REPLACE_MAX_OVERLAP, SHORT_BODY_MAX_LINES } from "../../src/server/preview/identity.ts";
-import { loadCorpus, lineCount, wordCount, prng, quantile, qwenVectors, dot, type LiveDoc } from "./identity-corpus.ts";
+import { bodyWhollyReplaced, bodyWordsKept, lineOverlap, sameTitle, JUDGEABLE_MIN_WORDS, REPLACE_MAX_OVERLAP, SHORT_BODY_MAX_LINES } from "../../src/server/preview/identity.ts";
+import { auc, loadCorpus, lineCount, wordCount, prng, quantile, qwenVectors, dot, type LiveDoc } from "./identity-corpus.ts";
 
 const args = process.argv.slice(2);
 const opt = (n: string, d: string) => (args.includes(n) ? args[args.indexOf(n) + 1] : d);
@@ -49,9 +49,8 @@ const live = Object.values(docs).filter((d) => wordCount(d.content) >= JUDGEABLE
 const byParent = new Map<string, LiveDoc[]>();
 for (const d of live) if (d.parentId) (byParent.get(d.parentId) ?? byParent.set(d.parentId, []).get(d.parentId)!).push(d);
 const inMid = (t: string | undefined) => { const n = lineCount(t); return n >= MID[0] && n <= MID[1]; };
-const titleKey = (d: LiveDoc) => (d.title ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 // Same title never reaches the body test, and an identical body is not a swap.
-const swappable = (o: LiveDoc, c: LiveDoc) => o.id !== c.id && titleKey(o) !== titleKey(c) && o.content !== c.content;
+const swappable = (o: LiveDoc, c: LiveDoc) => o.id !== c.id && !sameTitle(o.title, c.title) && o.content !== c.content;
 
 if (BAND === "mid") {
   for (const e of edits) if (inMid(e.before)) add(e.kind, e.before, e.after);
@@ -96,18 +95,6 @@ const cosmetic = (p: P) => p.group === "lint" || p.group === "typo";
 const E = scored.filter(isEdit), S = scored.filter((p) => p.group === "sibling"), U = scored.filter((p) => p.group === "unrelated");
 console.log(`band ${BAND}: ${E.length} real edits (${E.filter(cosmetic).length} cosmetic), ${S.length} sibling swaps, ${U.length} unrelated swaps; ${unscored} pairs dropped for want of a vector`);
 
-// AUC: the chance that a random edit scores HIGHER than a random swap.
-function auc(pos: number[], neg: number[]) {
-  const all = [...pos.map((v) => [v, 1] as const), ...neg.map((v) => [v, 0] as const)].sort((a, b) => a[0] - b[0]);
-  let rankSum = 0, i = 0;
-  while (i < all.length) {
-    let j = i;
-    while (j < all.length && all[j][0] === all[i][0]) j++;
-    for (let k = i; k < j; k++) if (all[k][1]) rankSum += (i + j + 1) / 2;
-    i = j;
-  }
-  return (rankSum - (pos.length * (pos.length + 1)) / 2) / (pos.length * neg.length);
-}
 const pc = (n: number, d: number) => (d ? ((100 * n) / d).toFixed(1) : "n/a");
 const count = (xs: P[], f: (p: P) => boolean) => xs.filter(f).length;
 

@@ -12,7 +12,7 @@ import { runMigrations } from "./migrate.ts";
 import { embedBatch, EMBED_DIM } from "./retrieval/embed.ts";
 import { docRowToNode, loadDocMetaSnapshot } from "./retrieval/indexes.ts";
 import type { EmbedUnit } from "./retrieval/embed-units.ts";
-import { planEmbedRows, shippedPolicy, type EmbedRow } from "./retrieval/embed-rows.ts";
+import { byDocNo, planEmbedRows, shippedPolicy } from "./retrieval/embed-rows.ts";
 
 interface HaveRow {
   hash: string;
@@ -20,7 +20,6 @@ interface HaveRow {
   memberIds: unknown;
 }
 
-type WantedRow = EmbedRow;
 
 // Empty uuid[] is the column default and means "this row is itself" (migration 022).
 //
@@ -269,7 +268,6 @@ async function runEmbedReconcile(deps: EmbedDeps): Promise<void> {
   // preview's vectors stay comparable to the ones stored here.
   const { rows: wanted, units } = planEmbedRows(docs, policy);
 
-  const byDocNo = (a: WantedRow, b: WantedRow) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true });
   const toEmbed = wanted.filter((q) => {
     const h = have.get(q.id);
     return !h || h.hash !== q.hash;

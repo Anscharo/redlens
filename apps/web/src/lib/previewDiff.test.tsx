@@ -324,3 +324,43 @@ describe("usePreviewPatch", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+// The identity warnings arrive twice: at once from diff.json, judged by lines
+// and words, and later from identity.json, judged by meaning.
+describe("usePreviewDiff — the identity verdict by meaning", () => {
+  const answer = (status: number, body: unknown = {}) => Promise.resolve({ ok: status === 200, status, json: () => Promise.resolve(body) } as Response);
+  const DIFF = { added: [], changed: ["a", "b"], identitySwap: { a: { oldTitle: "Old A", newTitle: "New A" } }, formerUuid: {} };
+
+  it("replaces diff.json's warnings with the later verdict, for the same base", async () => {
+    dataSourceValue = { base: "/api/preview/lazy/", preview: { id: "lazy", sha: "deadbeef" } };
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith("meta.json")) return answer(200, { bases: { auto: "repo", repo: { repo: "o/r", ref: "main" } } });
+      if (url.endsWith("diff.repo.json")) return answer(200, DIFF);
+      if (url.endsWith("identity.repo.json")) return answer(200, { identitySwap: { b: { oldTitle: "Old B", newTitle: "New B" } }, formerUuid: {} });
+      return answer(404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => usePreviewDiff(), { wrapper });
+    // The verdict spares `a` and flags `b`: both changes reach the reader.
+    await waitFor(() => expect(result.current.identitySwap.b?.newTitle).toBe("New B"));
+    expect(result.current.identitySwap.a).toBeUndefined();
+    // Everything else diff.json said stands.
+    expect([...result.current.changed]).toEqual(["a", "b"]);
+    expect(result.current.activeBase?.key).toBe("repo");
+  });
+
+  it("keeps diff.json's warnings when no verdict is coming", async () => {
+    dataSourceValue = { base: "/api/preview/none/", preview: { id: "none", sha: "deadbeef" } };
+    const fetchMock = vi.fn((url: string) => {
+      if (url.endsWith("meta.json")) return answer(200, {});
+      if (url.endsWith("diff.json")) return answer(200, DIFF);
+      return answer(404);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => usePreviewDiff(), { wrapper });
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith("identity.json"))).toBe(true));
+    expect(result.current.identitySwap.a?.newTitle).toBe("New A");
+  });
+});

@@ -60,19 +60,17 @@ export function detectIdentitySwaps(args: {
     if (!bodyReplaced(main.content, prev.content, similarity?.(id))) continue; // body largely preserved → edit
 
     const moved = relocationTarget(main.content, mainById, addedIds, previewById);
-    // A title that's a specialization/rename of the old (one contains the other,
-    // e.g. "…Agent" → "…Agent Ozone") is a refinement, not a swap — UNLESS the
-    // old content demonstrably relocated to a new doc, which means the uuid
-    // really was repurposed.
-    if (titlesRelated(main.title, prev.title) && !moved) continue;
-    // Likewise a retitle that is this document's share of a bulk rename: other
-    // documents in the same diff took the identical edit, which is a fact about
-    // the PR that no single document can see. Yields to a demonstrated
-    // relocation for the same reason titlesRelated does.
-    if (renamed.has(id) && !moved) continue;
-    // Likewise a body that changed only by the substitution the title made: an
-    // entity rename, which needs no second document to show itself.
-    if (!moved && (renameScore(main, prev) ?? 0) >= RENAME_MIN_KEPT) continue;
+    // Three ways the title shows a rename and not a swap. Each yields to a
+    // demonstrated relocation: old content found under a new UUID means this
+    // one really was repurposed.
+    //   - one title contains the other ("…Agent" → "…Agent Ozone"): a refinement;
+    //   - other documents in this diff took the identical title edit: a bulk
+    //     rename, a fact about the PR that no single document can see;
+    //   - the body changed only by the substitution the title made: an entity
+    //     rename, which needs no second document to show itself.
+    const isRename = () =>
+      titlesRelated(main.title, prev.title) || renamed.has(id) || (renameScore(main, prev) ?? 0) >= RENAME_MIN_KEPT;
+    if (!moved && isRename()) continue;
 
     const swap: IdentitySwap = { oldTitle: main.title ?? "", newTitle: prev.title ?? "" };
     if (moved) {

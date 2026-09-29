@@ -21,7 +21,7 @@ import path from "node:path";
 import { contentDiff } from "./patch-diff.ts";
 import { diffSnapshots, type Snapshot } from "./snapshot.ts";
 import type { DiffLine } from "../../lib/history";
-import { detectIdentitySwaps, type BodySimilarity, type IdentitySwap, type FormerUuid } from "./identity.ts";
+import { detectIdentitySwaps, type IdentitySwap, type FormerUuid } from "./identity.ts";
 
 export interface PreviewDiffJson {
   added: string[];
@@ -37,10 +37,6 @@ export function computeDiffArtifacts(
   base: Snapshot,
   head: Snapshot,
   reference: Snapshot,
-  // How alike each retitled document's old and new search vectors are, for
-  // the identity gate. Optional and soft: without it the gate judges by lines
-  // and words, as it did before previews had vectors.
-  similarity?: BodySimilarity,
 ): { diff: PreviewDiffJson; patches: Record<string, DiffLine[]> } {
   // Which docs this preview adds/changes, by DOCUMENT IDENTITY rather than by
   // changed filename. Filenames stopped identifying documents when the atlas
@@ -108,8 +104,11 @@ export function computeDiffArtifacts(
   // UUID-identity reassignment: a stable uuid whose underlying document was
   // wholly replaced (title changed + body rewritten), and — best effort —
   // where the displaced old content moved to. Treated as a distinct WARNING
-  // in the UI, not an ordinary +/Δ.
-  const { identitySwap, formerUuid } = detectIdentitySwaps({ changed, added, mainById: reference, previewById: head, similarity });
+  // in the UI, not an ordinary +/Δ. Judged here by lines and words, which
+  // costs no network: the build must not wait on vectors. The verdict by
+  // meaning follows in identity.json (identity-refine.ts), which the reader
+  // loads after the page is up.
+  const { identitySwap, formerUuid } = detectIdentitySwaps({ changed, added, mainById: reference, previewById: head });
 
   return { diff: { added, changed, renumbered, retitled, reusedSlot, identitySwap, formerUuid }, patches };
 }

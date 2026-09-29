@@ -39,11 +39,15 @@ export function bodyWhollyReplaced(oldBody: string | undefined, newBody: string 
   return kept === null || kept <= REPLACE_MAX_WORD_OVERLAP;
 }
 
+/** Is this body one the gate judges by meaning, given a vector? */
+function judgedByMeaning(oldBody: string | undefined): boolean {
+  return lines(oldBody).length > SHORT_BODY_MAX_LINES && words(oldBody).length >= JUDGEABLE_MIN_WORDS;
+}
+
 /** The body test the gate applies: by meaning for a body long enough to carry
  *  one, when a similarity is known; by lines and words otherwise. */
 export function bodyReplaced(oldBody: string | undefined, newBody: string | undefined, cosine?: number): boolean {
-  if (cosine === undefined || lines(oldBody).length <= SHORT_BODY_MAX_LINES) return bodyWhollyReplaced(oldBody, newBody);
-  if (words(oldBody).length < JUDGEABLE_MIN_WORDS) return false;
+  if (cosine === undefined || !judgedByMeaning(oldBody)) return bodyWhollyReplaced(oldBody, newBody);
   return cosine <= REPLACE_MAX_COSINE;
 }
 
@@ -52,14 +56,15 @@ export function bodyReplaced(oldBody: string | undefined, newBody: string | unde
  *  or a document being blanked, and the same title — including one respelled
  *  around its separators — is an ordinary edit, whatever happened to the body. */
 export function isRetitleCandidate(main: SwapNode, prev: SwapNode): boolean {
-  if (!norm(main.content) || !norm(prev.content)) return false;
-  return !sameTitle(main.title, prev.title);
+  // The title first: nearly every document keeps it, and comparing two titles
+  // costs far less than normalising two bodies.
+  if (sameTitle(main.title, prev.title)) return false;
+  return !!norm(main.content) && !!norm(prev.content);
 }
 
 /** Would the gate consult a similarity for this pair? The caller uses it to
  *  fetch vectors for these documents only: the pairs detectIdentitySwaps takes
  *  to bodyReplaced with a body of the right size. */
 export function wantsSimilarity(main: SwapNode | undefined, prev: SwapNode | undefined): boolean {
-  if (!main || !prev || !isRetitleCandidate(main, prev)) return false;
-  return lines(main.content).length > SHORT_BODY_MAX_LINES && words(main.content).length >= JUDGEABLE_MIN_WORDS;
+  return !!main && !!prev && isRetitleCandidate(main, prev) && judgedByMeaning(main.content);
 }

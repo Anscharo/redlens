@@ -3,18 +3,19 @@
 // (identity.ts) is pure; this is the IO it is handed.
 
 import { buildEmbedText, contentHash } from "../retrieval/embed-text.ts";
-import { deadline, resolve, type PreviewVectors } from "./embeddings-store.ts";
+import { withDeadline } from "../jev.ts";
+import { resolve, type PreviewVectors } from "./embeddings-store.ts";
 import { wantsSimilarity, type BodySimilarity } from "./identity.ts";
 import type { Snapshot, SnapshotDoc } from "./snapshot.ts";
 
 // The identity gate's own lookups, per reference snapshot. They run after the
-// budget above has ended, on the build's critical path, and the provider
-// client has no timeout of its own.
-export const SIMILARITY_BUDGET_MS = 20_000;
+// build lane's budget (embeddings.ts BUDGET_MS) has ended, on the build's
+// critical path, and the provider client has no timeout of its own.
+const SIMILARITY_BUDGET_MS = 20_000;
 
 const embedText = (d: SnapshotDoc) => buildEmbedText({ title: d.title ?? "", content: d.content ?? "" });
 
-function cosine(a: number[], b: number[]): number {
+function cosine(a: Float32Array, b: Float32Array): number {
   let d = 0;
   for (let i = 0; i < a.length; i++) d += a[i] * b[i]; // both are unit vectors
   return d;
@@ -31,9 +32,10 @@ function cosine(a: number[], b: number[]): number {
  * the store has moved past, and those few documents are embedded here.
  */
 export async function bodySimilarity(reference: Snapshot, head: Snapshot, pv: PreviewVectors): Promise<BodySimilarity | undefined> {
-  // Its own deadline: the build lane's timer was cleared when that lane
-  // returned, so pv.signal alone would let a stalled provider hold the build.
-  const { abort, timer } = deadline(SIMILARITY_BUDGET_MS, pv.signal);
+  // Its own deadline: the build lane's has passed. Once a budget is spent the
+  // signal starts out aborted, so the live store is still read and the
+  // provider is not asked.
+  const signal = pv.spent ? AbortSignal.abort() : withDeadline(SIMILARITY_BUDGET_MS, pv.outer);
   try {
     const pairs: { id: string; oldHash: string; newHash: string }[] = [];
     const texts = new Map<string, string>();
@@ -47,7 +49,8 @@ export async function bodySimilarity(reference: Snapshot, head: Snapshot, pv: Pr
       pairs.push(pair);
     }
     if (!pairs.length) return undefined;
-    await resolve(texts, pv, abort.signal);
+    await resolve(texts, pv, signal);
+    if (signal.aborted && !pv.outer?.aborted) pv.spent = true;
     const scores = new Map<string, number>();
     for (const p of pairs) {
       const a = pv.byHash.get(p.oldHash), b = pv.byHash.get(p.newHash);
@@ -57,7 +60,5 @@ export async function bodySimilarity(reference: Snapshot, head: Snapshot, pv: Pr
   } catch (e) {
     console.warn(`[preview] identity similarity skipped (${(e as Error).message})`);
     return undefined;
-  } finally {
-    clearTimeout(timer);
   }
 }

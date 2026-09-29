@@ -21,13 +21,15 @@ export interface PreviewVectorRow {
   vector: string;
 }
 
-export function encodeVector(v: number[]): string {
-  return Buffer.from(new Float32Array(v).buffer).toString("base64");
+export function encodeVector(v: Float32Array): string {
+  return Buffer.from(v.buffer, v.byteOffset, v.byteLength).toString("base64");
 }
 
-export function decodeVector(s: string): number[] {
+export function decodeVector(s: string): Float32Array {
   const b = Buffer.from(s, "base64");
-  return [...new Float32Array(b.buffer, b.byteOffset, b.byteLength / 4)];
+  // A copy, not a view: a Buffer may start at an offset that is not a
+  // multiple of four, which a Float32Array view refuses.
+  return new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
 }
 
 export interface PreviewEmbeddingsJson {
@@ -75,31 +77,24 @@ export const realVectorDeps: VectorDeps = {
 export interface PreviewVectors {
   /** Every vector this build resolved, by content hash. Grows as the gate
    *  resolves old-side texts. */
-  byHash: Map<string, number[]>;
+  byHash: Map<string, Float32Array>;
   /** Documents the preview stores as THEMSELVES — title and body, not a folded
    *  group or a breadcrumbed record. Only these have a vector the gate can use. */
   plain: Set<string>;
   deps: VectorDeps;
-  /** Aborted when the build lane ran out of time or the build ended. Once it
-   *  is, no further text is sent to the provider. */
-  signal: AbortSignal;
-}
-
-/** A controller that aborts after `ms`, or as soon as `outer` does. The
- *  caller clears `timer` when its work is done. */
-export function deadline(ms: number, outer?: AbortSignal): { abort: AbortController; timer: ReturnType<typeof setTimeout> } {
-  const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), ms);
-  if (outer?.aborted) abort.abort();
-  else outer?.addEventListener("abort", () => abort.abort(), { once: true });
-  return { abort, timer };
+  /** The build's own signal: aborted when the build ends. */
+  outer?: AbortSignal;
+  /** A time budget ran out waiting on the provider. From then on no further
+   *  text is sent to it: a provider that stalled once is not asked again, so a
+   *  build pays for the stall one time, not once per diff base. */
+  spent: boolean;
 }
 
 /** Vectors for texts by hash: memory, then the live store, then the provider. */
 export async function resolve(texts: Map<string, string>, pv: Pick<PreviewVectors, "byHash" | "deps">, signal: AbortSignal, max = Infinity): Promise<void> {
   const wanted = [...texts.keys()].filter((h) => !pv.byHash.has(h));
   if (!wanted.length) return;
-  for (const [h, v] of await pv.deps.liveVectors(wanted)) pv.byHash.set(h, v);
+  for (const [h, v] of await pv.deps.liveVectors(wanted)) pv.byHash.set(h, Float32Array.from(v));
   const todo = wanted.filter((h) => !pv.byHash.has(h)).slice(0, max);
   const batches: string[][] = [];
   for (let i = 0; i < todo.length; i += BATCH) batches.push(todo.slice(i, i + BATCH));
@@ -107,7 +102,7 @@ export async function resolve(texts: Map<string, string>, pv: Pick<PreviewVector
     for (let batch = batches.shift(); batch && !signal.aborted; batch = batches.shift()) {
       try {
         const out = await pv.deps.embedBatch(batch.map((h) => texts.get(h)!), signal);
-        batch.forEach((h, j) => pv.byHash.set(h, out[j]));
+        batch.forEach((h, j) => pv.byHash.set(h, Float32Array.from(out[j])));
       } catch (e) {
         // One failed batch costs its own rows, not the file.
         console.warn(`[preview] embedding batch of ${batch.length} failed: ${(e as Error).message}`);
