@@ -143,6 +143,26 @@ first. It covers the next variant: a campaign that changes a real word
 ("Whitelisting" → "Allowlisting") across N docs, which would otherwise land as
 N separate accusations.
 
+**Measured after building, which was the wrong order** —
+`bun scripts/aux/identity-campaign-check.ts`, over the live atlas's 4,405
+distinct titles:
+
+- only **0.21% of independent swaps produce a substitution key at all** (the
+  half-the-title guard doing the work);
+- across 2,000 simulated 50-document PRs — 100,000 swaps — the rule
+  **suppressed nothing**;
+- it spared a real one-word terminology pass in **18 of 18** sibling families.
+
+The exposure it does carry is **correlated, not random, and cannot be tuned
+out**: if several sibling docs are all repointed from one entity to another in
+one PR, their titles take the identical substitution and every one is spared.
+At the level of titles alone, "the Keel docs now hold the Obex docs" and "we
+renamed Keel to Obex" *are the same edit* — the rule takes the benign reading
+on purpose. What separates them is the displaced content, which is why a
+member with a demonstrated relocation is still flagged. Residual: a correlated
+mass repurposing whose old content appears nowhere in the diff. Accepted; it
+reads as a rename to a human too.
+
 ### 4. Make the un-corroborated case descriptive rather than accusatory
 
 Today `movedTo` is best-effort: a swap is flagged even when the displaced

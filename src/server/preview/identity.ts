@@ -118,6 +118,22 @@ export const JUDGEABLE_MIN_WORDS = 6;
 // leave most of each title standing. A wholesale retitle yields no key at all,
 // so a family of documents genuinely replaced en masse cannot be waved through
 // by agreeing with each other.
+//
+// Measured after the fact (`bun scripts/aux/identity-campaign-check.ts`, over
+// the live atlas's 4,405 distinct titles): only 0.21% of INDEPENDENT swaps
+// produce a key at all, and across 2,000 simulated 50-document PRs — 100,000
+// swaps — the rule suppressed nothing, while sparing a real one-word
+// terminology pass in 18 of 18 sibling families.
+//
+// The exposure it does carry is correlated, not random, and cannot be tuned
+// out because it is the rule's premise: if several sibling documents are all
+// repointed from one entity to another in a single PR, their titles take the
+// identical substitution and every one is spared. At the level of titles
+// alone, "the Keel docs now hold the Obex docs" and "we renamed Keel to Obex"
+// ARE the same edit; what tells them apart is the displaced content, which is
+// exactly why a member with a demonstrated relocation stays flagged. So the
+// residual is: a correlated mass repurposing whose old content appears nowhere
+// in the diff. Accepted — it reads as a rename to a human reader too.
 export const CAMPAIGN_MIN_DOCS = 2;
 export const CAMPAIGN_MIN_TITLE_KEPT = 0.5;
 // Relocation match: the displaced content should reappear inside the new home —
