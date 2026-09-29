@@ -9,28 +9,18 @@ interface Props {
   query: string;
   /** performance.now() at which the list was shown, for time-to-click. */
   shownAt: number;
-  /**
-   * Header shown above the list, rendered verbatim. The entities lane makes
-   * this list the whole page, so it names the index and the count line above
-   * already states the count; as an overlay above doc hits it names the entity
-   * kinds (which is what tells a reader why these rows differ) and carries its
-   * own count, since the line above is counting documents.
-   */
-  heading: string;
 }
 
 /**
  * Graph entity hits — Agents, Facilitators, Conservers, Instances, Primitives.
- * Rendered above doc results on the wording lane, and on its own as the whole
- * result list on the entities lane.
+ * The whole result list on the entities lane, and rendered nowhere else.
  */
-export function EntityResults({ hits, query, shownAt, heading }: Props) {
+export function EntityResults({ hits, query, shownAt }: Props) {
   if (hits.length === 0) return null;
   return (
     <>
-      <div className="px-4 py-2 text-xs border-b mono text-tan-3 border-border">
-        {heading}
-      </div>
+      {/* No count here — the line above is already counting this very list. */}
+      <div className="px-4 py-2 text-xs border-b mono text-tan-3 border-border">Entities</div>
       <ul>
         {hits.map(({ participant, href }, i) => (
           <li key={participant.id}>

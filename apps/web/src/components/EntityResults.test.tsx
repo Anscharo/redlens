@@ -15,7 +15,7 @@ afterEach(() => {
   track.mockClear();
 });
 
-function setup(count: number, heading = "Entities") {
+function setup(count: number) {
   const hits = Array.from({ length: count }, (_, i) => ({
     participant: makeGraphEntity({ id: `e${i}`, slug: `slug-${i}`, name: `Entity ${i}`, et: "agent" }),
     score: 3,
@@ -24,7 +24,7 @@ function setup(count: number, heading = "Entities") {
   const { hook } = memoryLocation({ path: "/", record: true });
   render(
     <Router hook={hook}>
-      <EntityResults hits={hits} query="spark" shownAt={0} heading={heading} />
+      <EntityResults hits={hits} query="spark" shownAt={0} />
     </Router>,
   );
   return hits;
@@ -32,17 +32,14 @@ function setup(count: number, heading = "Entities") {
 
 describe("EntityResults", () => {
   it("renders nothing at all when there are no entity hits", () => {
-    const { container } = render(<EntityResults hits={[]} query="q" shownAt={0} heading="Entities" />);
+    const { container } = render(<EntityResults hits={[]} query="q" shownAt={0} />);
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders the heading verbatim — the caller decides whether it carries a count", () => {
-    setup(2, "Agents · Alignment Conservers · Governance Operators 2");
-    expect(screen.getByText("Agents · Alignment Conservers · Governance Operators 2")).toBeTruthy();
-    cleanup();
-    // As the whole page, the count line above already states the count.
-    setup(2, "Entities");
+  it("heads the list without repeating the count the line above already states", () => {
+    setup(2);
     expect(screen.getByText("Entities")).toBeTruthy();
+    expect(screen.queryByText(/Entities\s*2/)).toBeNull();
   });
 
   it("links each entity to its radar page", () => {

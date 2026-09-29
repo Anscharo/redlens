@@ -81,13 +81,14 @@ export const SearchResults = memo(function SearchResults({
     [hits.length],
   );
 
-  const entityHits = useEntitySearch(query);
-  // The entities lane makes this list the whole page; on the wording lane it is
-  // an overlay above the document hits, as it has always been. The meaning lane
-  // shows no entities at all — mixing a name-matched list into a result set
-  // built entirely by meaning would blur what that lane is demonstrating.
+  // Entities are their OWN lane now, and appear nowhere else. They used to ride
+  // above every wording search as an overlay; once the lane existed that became
+  // the same list in two places, pushing the document hits down the page on
+  // every query that happened to share a word with an actor's name. Passing an
+  // empty query off-lane also stops the graph worker doing the matching work at
+  // all, rather than matching and then discarding.
   const entitiesOnly = lane === "graph";
-  const showEntities = lane !== "semantic";
+  const entityHits = useEntitySearch(entitiesOnly ? query : "");
 
   // A semantic leg still in flight is a search still running: the "no results"
   // line and both retry suggestions have to wait for it, or the fallback
@@ -137,17 +138,8 @@ export const SearchResults = memo(function SearchResults({
             semanticAvailable={semanticSearchAvailable()}
           />
         )}
-        {showEntities && (
-          <EntityResults
-            hits={entityHits}
-            query={shownQuery.current}
-            shownAt={shownAt.current}
-            heading={
-              entitiesOnly
-                ? "Entities"
-                : `Agents · Alignment Conservers · Governance Operators ${entityHits.length}`
-            }
-          />
+        {entitiesOnly && (
+          <EntityResults hits={entityHits} query={shownQuery.current} shownAt={shownAt.current} />
         )}
         {suggestBroad && (
           <div className="px-4 py-2 border-b border-border">

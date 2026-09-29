@@ -51,6 +51,25 @@ describe("SearchResult", () => {
     expect(container.querySelector('[data-semantic="true"]')).toBeTruthy();
   });
 
+  it("shows the cosine similarity score beside the mark", () => {
+    setup({ semantic: true, semanticScore: 0.7412, matchReason: "" });
+    expect(screen.getByText("cos 0.74")).toBeTruthy();
+    // The unrounded value stays reachable, for anyone comparing close neighbours.
+    expect(screen.getByText("cos 0.74").getAttribute("title")).toContain("0.7412");
+  });
+
+  it("omits the score when the hit carries none", () => {
+    setup({ semantic: true, matchReason: "" });
+    expect(screen.getByText("semantic match")).toBeTruthy();
+    expect(screen.queryByText(/^cos /)).toBeNull();
+  });
+
+  it("shows the score on a hit found both ways too", () => {
+    setup({ semantic: true, semanticScore: 0.9, matchReason: "title" });
+    expect(screen.getByText("cos 0.90")).toBeTruthy();
+    expect(screen.getByText("+ title")).toBeTruthy();
+  });
+
   it("shows the lexical reason alongside the mark when a hit was found both ways", () => {
     setup({ semantic: true, matchReason: "title + content" });
     expect(screen.getByText("semantic match")).toBeTruthy();

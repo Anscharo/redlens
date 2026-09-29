@@ -106,6 +106,17 @@ export const SearchResult = memo(function SearchResult({ hit, rank, onResultClic
             <span className="search-semantic-mark text-[10px]" title={semanticTitle}>
               semantic match
             </span>
+            {hit.semanticScore !== undefined && (
+              // The raw cosine, two places — enough to rank neighbours against
+              // each other, which is the whole use for it, without implying a
+              // precision the embedding does not have.
+              <span
+                className="text-[10px] text-tan-2"
+                title={`Cosine similarity between your query and this document: ${hit.semanticScore} (0–1)`}
+              >
+                cos {hit.semanticScore.toFixed(2)}
+              </span>
+            )}
             {reason && <span className="text-[9px] text-tan-3">+ {reason}</span>}
           </>
         ) : (

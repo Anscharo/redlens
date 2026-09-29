@@ -44,19 +44,24 @@ export function isIdentifierQuery(trimmed: string, isKnownChainlog: (s: string) 
 /**
  * The text to embed for this query under this lane + strategy, or null when no
  * semantic round-trip should happen at all.
+ *
+ * `lexicalCount` is a THUNK, not a number: only the fallback strategy needs it,
+ * and on the semantic lane the lexical list is discarded anyway — so taking it
+ * lazily is what lets the caller skip a whole-corpus MiniSearch run it would
+ * throw away on every keystroke typed into that lane.
  */
 export function semanticLegQuery(
   q: string,
   lane: SearchLane,
   sem: SemanticStrategy,
-  lexicalCount: number,
+  lexicalCount: () => number,
   isKnownChainlog: (s: string) => boolean,
 ): string | null {
   if (lane === "graph") return null; // entities are the graph worker's job
   if (lane !== "semantic") {
     // Picking the semantic lane IS the request; otherwise the strategy decides.
     if (sem === "off") return null;
-    if (sem === "fallback" && lexicalCount > 0) return null;
+    if (sem === "fallback" && lexicalCount() > 0) return null;
   }
   const trimmed = q.trim();
   if (isIdentifierQuery(trimmed, isKnownChainlog)) return null;
@@ -126,6 +131,66 @@ export interface SemanticLegRun {
   post: (msg: WorkerOutMessage) => void;
 }
 
+// ─── scored-id cache ────────────────────────────────────────────────────────
+//
+// Keyed by the cleaned query text, which is all the request is made of (k is a
+// constant; the type filter stands the lane down entirely, see semanticQueryOf).
+// So the SAME text asked for on a different lane is the same answer, and
+// flipping between the pills must not re-embed, re-query pgvector, or make the
+// reader wait out the debounce again.
+//
+// Scope is this worker, which useSearch tears down and rebuilds whenever the
+// data-source base changes — so an atlas bump or a preview switch gets a fresh
+// worker and a fresh cache, and nothing here can serve ids from another commit.
+const CACHE_MAX = 50;
+const cache = new Map<string, SemanticSearchResponse>();
+
+/** Test seam: drop everything this worker has scored. */
+export function clearSemanticCache(): void {
+  cache.clear();
+}
+
+function remember(query: string, body: SemanticSearchResponse): void {
+  // A DEGRADED answer is never cached. `skipped` means the embed timed out or
+  // the provider erred on this attempt — caching it would pin a transient
+  // failure to this query for the life of the worker, and the next lane flip
+  // would report a stale outage instead of retrying.
+  if (body.skipped) return;
+  cache.delete(query); // re-insert so Map iteration order is LRU
+  cache.set(query, body);
+  if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
+}
+
+/** Build and post the finished message for `body` — the one fuse+post path. */
+function postFused(run: SemanticLegRun, body: SemanticSearchResponse): void {
+  const sem = run.hydrate(Array.isArray(body.hits) ? body.hits : []);
+  run.post({
+    type: "results",
+    id: run.id,
+    hits: run.lane === "semantic" ? sem : weaveSemantic(run.lexical, sem),
+    durationMs: performance.now() - run.startedAt,
+    lane: run.lane,
+    semantic: legStatus(body),
+    ...(body.skipped ? { semanticNote: body.skipped } : {}),
+  });
+}
+
+/**
+ * Answer straight from the cache when this query has already been scored, and
+ * say whether it did. A hit skips the debounce as well as the request: the
+ * whole point is that a lane flip feels instant, and there is nothing to wait
+ * for. The caller must not post its own interim "pending" message when this
+ * returns true — the answer is already final.
+ */
+export function answerFromCache(run: SemanticLegRun): boolean {
+  const body = cache.get(run.query);
+  if (!body) return false;
+  cache.delete(run.query); // touch: most recently used goes last
+  cache.set(run.query, body);
+  postFused(run, body);
+  return true;
+}
+
 /** Debounce, fetch, fuse, post. Cancels any leg already scheduled or in flight. */
 export function runSemanticLeg(run: SemanticLegRun): void {
   cancelSemanticLeg();
@@ -141,16 +206,8 @@ export function runSemanticLeg(run: SemanticLegRun): void {
       })
       .then((body) => {
         if (ac.signal.aborted) return;
-        const sem = run.hydrate(Array.isArray(body.hits) ? body.hits : []);
-        run.post({
-          type: "results",
-          id: run.id,
-          hits: run.lane === "semantic" ? sem : weaveSemantic(run.lexical, sem),
-          durationMs: performance.now() - run.startedAt,
-          lane: run.lane,
-          semantic: legStatus(body),
-          ...(body.skipped ? { semanticNote: body.skipped } : {}),
-        });
+        remember(run.query, body);
+        postFused(run, body);
       })
       .catch((err: unknown) => {
         if (ac.signal.aborted || (err instanceof DOMException && err.name === "AbortError")) return;

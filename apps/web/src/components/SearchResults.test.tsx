@@ -175,19 +175,36 @@ describe("SearchResults entity hits", () => {
       },
     ]);
     setup(
-      makeSearchState({ query: "keel" }),
-      { query: "keel" },
+      makeSearchState({ query: "keel", lane: "graph" }),
+      { query: "keel", lane: "graph" },
     );
     await waitFor(() => expect(screen.getByText("Keel")).toBeTruthy());
     expect(screen.getByText("Keel Ops")).toBeTruthy();
-    expect(screen.getByText(/Agents · Alignment Conservers · Governance Operators 2/)).toBeTruthy();
+    expect(screen.getByText("Entities")).toBeTruthy();
     const link = screen.getByText("Keel").closest("a")!;
     expect(link).toHaveAttribute("href", "/radar/keel");
     expect(mocks.searchEntities).toHaveBeenCalledWith("keel");
   });
 
+  it("shows no entities, and asks the graph worker for none, off the entities lane", async () => {
+    // They used to ride above every wording search; once the lane existed that
+    // was the same list in two places, pushing the document hits down the page.
+    mocks.searchEntities.mockResolvedValue([
+      { participant: makeGraphEntity({ id: "e-1", slug: "keel", name: "Keel", et: "agent" }), score: 3, href: "/radar/keel" },
+    ]);
+    for (const lane of ["lexical", "semantic"] as const) {
+      cleanup();
+      mocks.searchEntities.mockClear();
+      setup(makeSearchState({ query: "keel", lane }), { query: "keel", lane });
+      await waitFor(() => expect(screen.getByText(/result/)).toBeTruthy());
+      expect(screen.queryByText("Keel")).toBeNull();
+      expect(screen.queryByText("Entities")).toBeNull();
+      expect(mocks.searchEntities).not.toHaveBeenCalled();
+    }
+  });
+
   it("does not query the graph worker for an empty or slash-prefixed query", () => {
-    setup({ status: "idle" }, { query: "/reports" });
+    setup({ status: "idle" }, { query: "/reports", lane: "graph" });
     expect(mocks.searchEntities).not.toHaveBeenCalled();
     expect(screen.queryByText("Keel")).toBeNull();
   });

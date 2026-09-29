@@ -5,7 +5,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   SEMANTIC_K,
+  answerFromCache,
   cancelSemanticLeg,
+  clearSemanticCache,
   isIdentifierQuery,
   legStatus,
   runSemanticLeg,
@@ -35,6 +37,7 @@ function hit(id: string, over: Partial<SearchHit> = {}): SearchHit {
 
 afterEach(() => {
   cancelSemanticLeg();
+  clearSemanticCache();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -54,31 +57,31 @@ describe("isIdentifierQuery", () => {
 
 describe("semanticLegQuery", () => {
   it("never runs on the entities lane", () => {
-    expect(semanticLegQuery("rewards", "graph", "woven", 0, NO_CHAINLOG)).toBeNull();
+    expect(semanticLegQuery("rewards", "graph", "woven", () => 0, NO_CHAINLOG)).toBeNull();
   });
 
   it("off: never runs", () => {
-    expect(semanticLegQuery("rewards", "lexical", "off", 0, NO_CHAINLOG)).toBeNull();
+    expect(semanticLegQuery("rewards", "lexical", "off", () => 0, NO_CHAINLOG)).toBeNull();
   });
 
   it("fallback: runs only when the wording lane found nothing", () => {
-    expect(semanticLegQuery("rewards", "lexical", "fallback", 3, NO_CHAINLOG)).toBeNull();
-    expect(semanticLegQuery("rewards", "lexical", "fallback", 0, NO_CHAINLOG)).toBe("rewards");
+    expect(semanticLegQuery("rewards", "lexical", "fallback", () => 3, NO_CHAINLOG)).toBeNull();
+    expect(semanticLegQuery("rewards", "lexical", "fallback", () => 0, NO_CHAINLOG)).toBe("rewards");
   });
 
   it("woven: runs whatever the wording lane found", () => {
-    expect(semanticLegQuery("rewards", "lexical", "woven", 3, NO_CHAINLOG)).toBe("rewards");
-    expect(semanticLegQuery("rewards", "lexical", "woven", 0, NO_CHAINLOG)).toBe("rewards");
+    expect(semanticLegQuery("rewards", "lexical", "woven", () => 3, NO_CHAINLOG)).toBe("rewards");
+    expect(semanticLegQuery("rewards", "lexical", "woven", () => 0, NO_CHAINLOG)).toBe("rewards");
   });
 
   it("the semantic lane runs even under the off strategy — picking it IS the request", () => {
-    expect(semanticLegQuery("rewards", "semantic", "off", 9, NO_CHAINLOG)).toBe("rewards");
+    expect(semanticLegQuery("rewards", "semantic", "off", () => 9, NO_CHAINLOG)).toBe("rewards");
   });
 
   it("stands down on an identifier or structured syntax, on every lane", () => {
-    expect(semanticLegQuery("A.2.7.1", "semantic", "woven", 0, NO_CHAINLOG)).toBeNull();
-    expect(semanticLegQuery("type:Core rewards", "semantic", "woven", 0, NO_CHAINLOG)).toBeNull();
-    expect(semanticLegQuery("ab", "semantic", "woven", 0, NO_CHAINLOG)).toBeNull();
+    expect(semanticLegQuery("A.2.7.1", "semantic", "woven", () => 0, NO_CHAINLOG)).toBeNull();
+    expect(semanticLegQuery("type:Core rewards", "semantic", "woven", () => 0, NO_CHAINLOG)).toBeNull();
+    expect(semanticLegQuery("ab", "semantic", "woven", () => 0, NO_CHAINLOG)).toBeNull();
   });
 });
 
@@ -240,5 +243,88 @@ describe("runSemanticLeg", () => {
     await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS + 50);
     expect(calls).toHaveLength(0);
     expect(posted).toHaveLength(0);
+  });
+});
+
+describe("scored-id cache", () => {
+  const base = { lane: "lexical" as const, lexical: [hit("a")], startedAt: 0, hydrate };
+
+  /** Run one leg to completion, so its response lands in the cache. */
+  async function prime(query: string, body: SemanticSearchResponse, calls: string[]) {
+    const { posted, post } = collector();
+    stubSemantic(body, calls);
+    runSemanticLeg({ id: 1, query, ...base, post });
+    await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS + 1);
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+    return posted;
+  }
+
+  it("answers a repeat query with no request and no debounce", async () => {
+    vi.useFakeTimers();
+    const calls: string[] = [];
+    await prime("who approves rewards", { hits: [{ id: "z", score: 0.7 }], skipped: null, available: true }, calls);
+    expect(calls).toHaveLength(1);
+
+    // The lane flip: same text, different lane, and it must be final at once —
+    // a reader clicking between the pills is not waiting for a round-trip.
+    const { posted, post } = collector();
+    const answered = answerFromCache({ id: 2, query: "who approves rewards", ...base, lane: "semantic", lexical: [], post });
+    expect(answered).toBe(true);
+    expect(calls).toHaveLength(1); // nothing new on the wire
+    expect(posted).toHaveLength(1);
+    const msg = posted[0] as Extract<WorkerOutMessage, { type: "results" }>;
+    expect(msg.id).toBe(2);
+    expect(msg.semantic).toBe("done");
+    // Fused for the lane it is being replayed on, not the one that filled it.
+    expect(msg.hits.map((h) => h.id)).toEqual(["z"]);
+  });
+
+  it("misses on a different query", async () => {
+    vi.useFakeTimers();
+    const calls: string[] = [];
+    await prime("rewards", { hits: [], skipped: null, available: true }, calls);
+    const { posted, post } = collector();
+    expect(answerFromCache({ id: 2, query: "something else", ...base, post })).toBe(false);
+    expect(posted).toHaveLength(0);
+  });
+
+  it("caches an unconfigured backend — that answer cannot change within a worker", async () => {
+    vi.useFakeTimers();
+    const calls: string[] = [];
+    await prime("rewards", { hits: [], skipped: null, available: false }, calls);
+    const { posted, post } = collector();
+    expect(answerFromCache({ id: 2, query: "rewards", ...base, post })).toBe(true);
+    expect((posted[0] as Extract<WorkerOutMessage, { type: "results" }>).semantic).toBe("unavailable");
+  });
+
+  it("never caches a degraded leg — a timeout must not pin an outage to the query", async () => {
+    vi.useFakeTimers();
+    const calls: string[] = [];
+    await prime("rewards", { hits: [], skipped: "embed timed out", available: true }, calls);
+    const { posted, post } = collector();
+    // A retry has to reach the network again rather than replaying the failure.
+    expect(answerFromCache({ id: 2, query: "rewards", ...base, post })).toBe(false);
+    expect(posted).toHaveLength(0);
+  });
+
+  it("clearSemanticCache drops what was scored", async () => {
+    vi.useFakeTimers();
+    const calls: string[] = [];
+    await prime("rewards", { hits: [], skipped: null, available: true }, calls);
+    clearSemanticCache();
+    const { post } = collector();
+    expect(answerFromCache({ id: 2, query: "rewards", ...base, post })).toBe(false);
+  });
+
+  it("evicts least-recently-used beyond its bound", async () => {
+    vi.useFakeTimers();
+    const calls: string[] = [];
+    const body = { hits: [], skipped: null, available: true };
+    for (let i = 0; i < 51; i++) await prime(`query number ${i}`, body, calls);
+    const { post } = collector();
+    // The first is gone; the newest is not. An unbounded map in a worker that
+    // lives as long as the tab is a leak, not a cache.
+    expect(answerFromCache({ id: 99, query: "query number 0", ...base, post })).toBe(false);
+    expect(answerFromCache({ id: 99, query: "query number 50", ...base, post })).toBe(true);
   });
 });

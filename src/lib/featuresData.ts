@@ -140,7 +140,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         what: "Three indexes behind the same search box: the words you typed, the relationship graph's parties, or what a document is about.",
         how: [
           "Search, then use the wording / entities / meaning pills on the right of the result count line to switch index.",
-          "On the wording lane, a result the meaning index also found is labelled semantic match — it can share no word with your query.",
+          "Entities — Agents, Conservers, Instances, Primitives and the rest — are on the entities pill; they no longer appear above wording results.",
+          "A result the meaning index found is labelled semantic match and shows its similarity score; it can share no word at all with your query.",
         ],
         note: "The meaning lane needs a deployment configured for it; where it is not, that pill is disabled and says so. How much meaning-matching joins the default wording results is a per-deployment setting, so on some deployments it only steps in when wording found nothing.",
       },

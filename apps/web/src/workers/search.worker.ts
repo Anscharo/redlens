@@ -16,6 +16,7 @@ import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
 import {
   CHAINLOG_RE,
   DOC_NO_RE,
+  answerFromCache,
   cancelSemanticLeg,
   runSemanticLeg,
   semanticLegQuery,
@@ -434,6 +435,18 @@ function search(q: string): SearchHit[] {
 // buildSnippet, highlightTerms, computeLabels) — so hydration belongs here and
 // nowhere else, or docs.json and the highlighting would need a second copy.
 
+// One-entry memo of the last lexical run. Switching lane re-sends the SAME
+// query text against a different index, so without this every flip between the
+// pills pays for another whole-corpus MiniSearch pass — which for a broad query
+// is the slowest thing on the page. One result set is held, and it is the same
+// array the main thread is already rendering.
+let lastLexical: { q: string; hits: SearchHit[] } | null = null;
+
+function lexicalFor(q: string): SearchHit[] {
+  if (lastLexical?.q !== q) lastLexical = { q, hits: search(q) };
+  return lastLexical.hits;
+}
+
 /**
  * Turn scored ids into rendered hits, marked as semantic.
  *
@@ -476,33 +489,39 @@ self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
     const startedAt = performance.now();
     const lane: SearchLane = msg.lane ?? "lexical";
     const sem: SemanticStrategy = msg.sem ?? "off";
-    // Lexical always runs, even on the semantic lane. Two things need it: the
-    // fallback strategy decides on its COUNT, and it is the semantic lane's
-    // escape hatch for a query the semantic leg declines (a UUID paste, a
-    // `type:` filter) — that lane answering nothing at all would be a dead end.
-    const lexical = search(msg.q);
-    const query = semanticLegQuery(msg.q, lane, sem, lexical.length, (id) => chainlogToAddr.has(id));
+    // Lexical is still needed on every lane but one: the fallback strategy
+    // decides on its COUNT, and it is the semantic lane's escape hatch for a
+    // query the leg declines (a UUID paste, a `type:` filter) — that lane
+    // answering nothing at all would be a dead end. It is taken through a thunk
+    // so the semantic lane, which discards the list whenever the leg does take
+    // the query, never pays for the pass at all.
+    const lexical = () => lexicalFor(msg.q);
+    const query = semanticLegQuery(msg.q, lane, sem, () => lexical().length, (id) => chainlogToAddr.has(id));
     const reply = (hits: SearchHit[], semantic: SemanticLegStatus) =>
       post({ type: "results", id: msg.id, hits, durationMs: performance.now() - startedAt, lane, semantic });
 
     if (query === null) {
-      reply(lexical, "none");
+      reply(lexical(), "none");
       return;
     }
+    const run = {
+      id: msg.id,
+      query,
+      lane,
+      lexical: lane === "semantic" ? [] : lexical(),
+      startedAt,
+      hydrate: hydrateSemantic,
+      post,
+    };
+    // Already scored this text? Then the answer is final now — no debounce, no
+    // request, and no interim "pending" message, because nothing is pending.
+    if (answerFromCache(run)) return;
     // On the semantic lane the lexical list is withheld: that lane is meant to
     // read as a DIFFERENT index, not as a re-ranking of the same one, so the
     // main thread stays in its searching state until the scored ids land. Every
     // other lane shows its lexical half now and re-posts the fused set after.
-    if (lane !== "semantic") reply(lexical, "pending");
-    runSemanticLeg({
-      id: msg.id,
-      query,
-      lane,
-      lexical: lane === "semantic" ? [] : lexical,
-      startedAt,
-      hydrate: hydrateSemantic,
-      post,
-    });
+    if (lane !== "semantic") reply(run.lexical, "pending");
+    runSemanticLeg(run);
   }
 });
 

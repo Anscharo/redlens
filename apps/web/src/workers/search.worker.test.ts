@@ -653,6 +653,52 @@ describe("semantic lane", () => {
     expect(done.hits.length).toBeGreaterThan(0);
   });
 
+  it("flipping lane on the same query scores it once, and replays instantly", async () => {
+    const calls: string[] = [];
+    const h = await withSemantic(
+      { hits: [{ id: IDS.facilitatorCore, score: 0.9 }], skipped: null, available: true },
+      { calls },
+    );
+    const semanticCalls = () => calls.filter((u) => u.includes("/api/search/semantic"));
+
+    // Wording lane, woven: the leg runs and the answer is cached.
+    const first = ask(h, "quorum", { lane: "lexical", sem: "woven" });
+    await h.waitFor((m) => m.type === "results" && m.id === first && m.semantic === "done");
+    expect(semanticCalls()).toHaveLength(1);
+
+    // Flip to meaning, then back. Same query text, so the scored ids are the
+    // same answer — neither flip may re-embed or re-query pgvector.
+    const second = ask(h, "quorum", { lane: "semantic", sem: "woven" });
+    const onMeaning = (await h.waitFor((m) => m.type === "results" && m.id === second)) as Results;
+    const third = ask(h, "quorum", { lane: "lexical", sem: "woven" });
+    const backOnWording = (await h.waitFor((m) => m.type === "results" && m.id === third)) as Results;
+
+    expect(semanticCalls()).toHaveLength(1);
+    // A cache hit is FINAL: no interim "pending" for either flip, because there
+    // is nothing to wait for.
+    for (const [id, msg] of [[second, onMeaning], [third, backOnWording]] as const) {
+      expect(msg.semantic).toBe("done");
+      expect(h.ofType("results").filter((m) => m.id === id)).toHaveLength(1);
+    }
+    // Each flip is still fused for the lane it landed on.
+    expect(onMeaning.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore]);
+    expect(backOnWording.hits.length).toBeGreaterThan(1);
+  });
+
+  it("re-scores after a degraded leg rather than replaying the outage", async () => {
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: "embed timed out", available: true }, { calls });
+    const semanticCalls = () => calls.filter((u) => u.includes("/api/search/semantic"));
+
+    const first = ask(h, "quorum", { lane: "lexical", sem: "woven" });
+    await h.waitFor((m) => m.type === "results" && m.id === first && m.semantic === "skipped");
+    expect(semanticCalls()).toHaveLength(1);
+
+    const second = ask(h, "quorum", { lane: "lexical", sem: "woven" });
+    await h.waitFor((m) => m.type === "results" && m.id === second && m.semantic === "skipped");
+    expect(semanticCalls()).toHaveLength(2);
+  });
+
   it("a missing lane/sem behaves exactly as before the feature existed", async () => {
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
