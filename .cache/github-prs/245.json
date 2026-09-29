@@ -1,0 +1,10 @@
+{
+  "number": 245,
+  "title": "Add script for composing and hashing Atlas file",
+  "body": "Adds compose_and_hash script to allow maintainers and end-users to generate a SHA3_256 hash of the Atlas content to assist verification.\n\nIntended use case is for a proposal author to run the script locally when they have committed any changes and they can then share this hash to allow reviewers to validate the hash matches when they run it locally.",
+  "author": "0xldr",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/245",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}
