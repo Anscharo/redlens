@@ -35,9 +35,6 @@
 
 ## 2026-09-29
 - Recent previews now follow your signed-in account across browsers, and include previews of private repositories
-
-
-## 2026-09-29
 - A search that finds nothing now offers a spelling correction you can click, instead of suggesting a fuzzy-search operator to type
 - Meaning search now honours in:DOC_NUMBER, so you can ask what a subtree says about something rather than searching the whole Atlas
 - Search now runs on three indexes — pick wording, entities or meaning with the pills above the results — so entity matches have their own view and a hit found by meaning is labelled semantic match with its similarity score
