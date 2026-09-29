@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { config } from "./config.ts";
 import {
   SEMANTIC_K_DEFAULT,
@@ -10,6 +10,8 @@ import {
   toWireHits,
 } from "./search-semantic.ts";
 import type { SemanticSearchResponse } from "../lib/searchSemantic.ts";
+import { _clearIndexes, buildIndexes, getIndexes, setIndexes } from "./retrieval/indexes.ts";
+import type { AtlasNode, Indexes } from "./retrieval/indexes.ts";
 
 // config is a plain mutable object; restore whatever this process actually has
 // so no later test file in the same `bun test` run inherits our value.
@@ -135,5 +137,83 @@ describe("query guards", () => {
     config.openrouterApiKey = "";
     const body = await semanticDocSearch("liquidation penalties", { k: 5, type: "Core" });
     expect(body).toEqual({ hits: [], skipped: null, available: false });
+  });
+});
+
+// ── the whole pipeline, with the embed failing ──────────────────────────────
+//
+// Everything between the key check and the response — the over-fetch sizing,
+// the lexical leg that feeds leaf attribution, the type and scope filters —
+// only runs with indexes loaded, and until now nothing exercised it: the cases
+// above all stop at the key check. The embed is failed deliberately (a 1ms
+// budget, the same lever src/server/retrieval/search.test.ts pulls) rather than
+// stubbed into succeeding, because that is the only way to reach this code
+// without a database AND without a network call: `runSemantic` swallows its own
+// failure, so the rest of the pipeline runs exactly as it does in production
+// with a degraded leg.
+describe("with indexes loaded", () => {
+  const node = (id: string, doc_no: string, title: string): AtlasNode =>
+    ({ id, doc_no, title, type: "Core", depth: 2, parentId: null, order: 0, content: `${title} body` }) as AtlasNode;
+
+  let prevIx: Indexes | null = null;
+  const prevTimeout = config.semanticEmbedTimeoutMs;
+
+  beforeAll(() => {
+    try {
+      prevIx = getIndexes();
+    } catch {
+      prevIx = null; // cold — restore to cold, not to a fixture
+    }
+    setIndexes(buildIndexes([node("d1", "A.6.1", "Rewards"), node("d2", "A.2.1", "Quorum")], [], [], { atlasCommit: "test" }));
+  });
+  afterAll(() => {
+    if (prevIx) setIndexes(prevIx);
+    else _clearIndexes();
+    config.semanticEmbedTimeoutMs = prevTimeout;
+  });
+
+  it("degrades to an empty, reason-carrying answer when the embed fails", async () => {
+    config.openrouterApiKey = "sk-test";
+    config.semanticEmbedTimeoutMs = 1;
+    const body = await semanticDocSearch("who approves rewards", { k: 5 });
+    expect(body.available).toBe(true);
+    expect(body.hits).toEqual([]);
+    // The reason is the leg's own, not an exception: the reader keeps whatever
+    // is on screen and is told why there is nothing new.
+    expect(body.skipped).toMatch(/timed out|embed/i);
+  });
+
+  it("answers 200 with the reason when something OUTSIDE the leg throws", async () => {
+    // A cold boot: the route can be hit before the indexes are loaded. The
+    // leg's own failures never reach here (runSemantic swallows them), so a
+    // throw means the server, not the search — and the reader must keep the
+    // results already on screen rather than have them replaced by an error.
+    config.openrouterApiKey = "sk-test";
+    const loaded = getIndexes();
+    _clearIndexes();
+    try {
+      const res = await handleSemanticSearch(new Request("http://x/api/search/semantic?q=who%20approves"));
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as SemanticSearchResponse;
+      expect(body.hits).toEqual([]);
+      expect(body.skipped).toMatch(/indexes not loaded/);
+      expect(body.available).toBe(true);
+    } finally {
+      setIndexes(loaded);
+    }
+  });
+
+  it("answers a scoped query the same way, over-fetching rather than 404ing", async () => {
+    // A scope filters AFTER the nearest-neighbour cut, which is why the query
+    // asks for more than k — and a degraded leg must still answer 200.
+    config.openrouterApiKey = "sk-test";
+    config.semanticEmbedTimeoutMs = 1;
+    const res = await handleSemanticSearch(
+      new Request("http://x/api/search/semantic?q=who%20approves%20rewards&in=a.6&type=Core&k=5"),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as SemanticSearchResponse;
+    expect(body.hits).toEqual([]);
+    expect(body.skipped).toBeTruthy();
   });
 });
