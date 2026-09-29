@@ -2,7 +2,6 @@
 // third corroborator ported from the UUID-swap detector. Verifies order-sensitivity,
 // typo tolerance, the boilerplate-sibling margin, and candidate ranking.
 import { describe, it, expect } from "vitest";
-// @ts-expect-error — .mjs without types
 import { orderedWordContainment, sameDocScore, wordEq, bestByContainment, findContainer } from "../scripts/lib/ordered-containment.mjs";
 
 describe("orderedWordContainment", () => {
@@ -40,7 +39,7 @@ describe("sameDocScore + bestByContainment", () => {
       { key: "sibling", content: "the penalty conduit reverses payments from the integrator each block" },
     ];
     const { best, bestScore, margin } = bestByContainment(subject, cands);
-    expect(best.key).toBe("match");
+    expect(best?.key).toBe("match");
     expect(bestScore).toBeGreaterThan(0.8);
     expect(margin).toBeGreaterThan(0.05); // distinguishable from the near-identical sibling
   });

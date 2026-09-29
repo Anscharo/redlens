@@ -56,6 +56,41 @@ describe("PreviewMark", () => {
     expect(screen.queryByLabelText("changed in this preview")).toBeNull();
   });
 
+  // ⚠ is an accusation and is spent only where relocationTarget found the
+  // displaced content. Without that the detector has inferred the swap from a
+  // retitle plus a rewritten body — which is how next-gen-atlas#346's
+  // respelling pass earned three warnings.
+  it("renders Δ, NOT ⚠, for a swap with no corroborating relocation", () => {
+    setDiff({
+      changed: new Set(["x"]),
+      identitySwap: { x: { oldTitle: "Operational GovOps", newTitle: "Sky Primitives" } },
+    });
+    render(<PreviewMark nodeId="x" />);
+    const mark = screen.getByLabelText("retitled and rewritten in this preview");
+    expect(mark).toHaveTextContent("Δ");
+    expect(screen.queryByLabelText("identity reassigned in this preview")).toBeNull();
+  });
+
+  it("the uncorroborated tooltip describes the edit instead of claiming a swap", () => {
+    vi.useFakeTimers();
+    try {
+      setDiff({
+        changed: new Set(["x"]),
+        identitySwap: { x: { oldTitle: "Operational GovOps", newTitle: "Sky Primitives" } },
+      });
+      render(<PreviewMark nodeId="x" />);
+      fireEvent.mouseEnter(screen.getByLabelText("retitled and rewritten in this preview"));
+      act(() => {
+        vi.advanceTimersByTime(400); // past the 300ms tooltip delay
+      });
+      const tip = screen.getByRole("tooltip");
+      expect(tip).toHaveTextContent("both the title and the body were replaced");
+      expect(tip).not.toHaveTextContent("now holds a different document");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("renders ⚠ for a repurposed UUID, overriding the Δ", () => {
     setDiff({
       changed: new Set(["x"]),
