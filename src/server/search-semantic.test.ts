@@ -157,12 +157,13 @@ describe("query guards", () => {
 // without a database AND without a network call: `runSemantic` swallows its own
 // failure, so the rest of the pipeline runs exactly as it does in production
 // with a degraded leg.
-describe("with indexes loaded", () => {
-  const node = (id: string, doc_no: string, title: string): AtlasNode =>
-    ({ id, doc_no, title, type: "Core", depth: 2, parentId: null, order: 0, content: `${title} body` }) as AtlasNode;
+const node = (id: string, doc_no: string, title: string): AtlasNode =>
+  ({ id, doc_no, title, type: "Core", depth: 2, parentId: null, order: 0, content: `${title} body` }) as AtlasNode;
 
+describe("with indexes loaded", () => {
   let prevIx: Indexes | null = null;
   const prevTimeout = config.semanticEmbedTimeoutMs;
+  const prevFetch = globalThis.fetch;
 
   beforeAll(() => {
     try {
@@ -171,11 +172,15 @@ describe("with indexes loaded", () => {
       prevIx = null; // cold — restore to cold, not to a fixture
     }
     setIndexes(buildIndexes([node("d1", "A.6.1", "Rewards"), node("d2", "A.2.1", "Quorum")], [], [], { atlasCommit: "test" }));
+    // The 1ms budget below is what fails the embed; this is what keeps it from
+    // leaving the process while it does.
+    globalThis.fetch = (() => Promise.reject(new Error("no network in tests"))) as unknown as typeof fetch;
   });
   afterAll(() => {
     if (prevIx) setIndexes(prevIx);
     else _clearIndexes();
     config.semanticEmbedTimeoutMs = prevTimeout;
+    globalThis.fetch = prevFetch;
   });
 
   it("degrades to an empty, reason-carrying answer when the embed fails", async () => {
@@ -225,6 +230,36 @@ describe("with indexes loaded", () => {
 });
 
 describe("the shared budget", () => {
+  // Installed here rather than inherited: whether `getIndexes()` throws decides
+  // whether the request stops at the gate or runs on into `runSemantic`, and
+  // which it does depended on what an earlier file in the same `bun test`
+  // process happened to leave behind. It cost two 5s CI timeouts — locally the
+  // indexes were clear, so the embed was never reached; in CI they were set, so
+  // a live OpenRouter call ran into its 1+2+4+8s retry backoff. State this test
+  // depends on is now stated by this test.
+  let prevIx: Indexes | null = null;
+  const prevFetch = globalThis.fetch;
+  const prevTimeout = config.semanticEmbedTimeoutMs;
+
+  beforeAll(() => {
+    try {
+      prevIx = getIndexes();
+    } catch {
+      prevIx = null;
+    }
+    setIndexes(buildIndexes([node("d1", "A.6.1", "Rewards")], [], [], { atlasCommit: "test" }));
+    // Nothing here is about the embed, and a test must not reach the network to
+    // find out whether a budget gate let it past. Fail it instantly instead.
+    config.semanticEmbedTimeoutMs = 1;
+    globalThis.fetch = (() => Promise.reject(new Error("no network in tests"))) as unknown as typeof fetch;
+  });
+  afterAll(() => {
+    if (prevIx) setIndexes(prevIx);
+    else _clearIndexes();
+    config.semanticEmbedTimeoutMs = prevTimeout;
+    globalThis.fetch = prevFetch;
+  });
+
   it("429s with a retry-after once the minute's budget is spent", async () => {
     config.openrouterApiKey = "sk-test";
     config.searchSemanticRpm = 1;
