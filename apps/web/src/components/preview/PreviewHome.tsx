@@ -1,57 +1,47 @@
 import { useEffect, useMemo, useState } from "react";
-import { parsePreviewInput, parsePrivateInput, isPrivatePrId, localPreviews } from "../../lib/previewLocal";
+import { parsePreviewInput, parsePrivateInput, isPrivatePrId, localPreviews, type LocalPreview } from "../../lib/previewLocal";
+import { mergeRecentPreviews, mineQuery, type MineRow } from "../../lib/previewRecent";
 import { initAnalytics, register, track, pageview } from "../../lib/analytics";
 import { ProfileButton } from "../chat/ProfileButton";
+import { useAuth } from "../chat/auth";
 import { usersEnabled } from "../../lib/usersEnabled";
 import { PreviewPrTabs } from "./PreviewPrTabs";
-import type { Entry } from "./types";
 
 // /preview index: paste a PR / branch / fork URL (or id) → generate a preview;
-// below, "my recent previews" — strictly the INTERSECTION of what this browser
-// has opened (localStorage) and what is live in the DB (GET /api/preview/list).
-// Local-only entries (DB wiped / sha blocked) and DB-only entries (other
-// people's previews) are both hidden.
+// below, "my recent previews", from GET /api/preview/mine — never the public
+// /list, which excludes every private row by design and so silently dropped
+// every private-repo preview the visitor had legitimately opened.
+//
+// Signed in, the list is the ACCOUNT's: the server records each open and answers
+// with them, so the history follows the person to their next browser. We still
+// send this browser's localStorage shas and open times either way — they are the
+// whole list for an anonymous visitor, and they cover what a signed-in one
+// opened before the account history existed or while logged out. mergeRecentPreviews (lib/
+// previewRecent.ts) folds the two together; a local entry the server can't
+// confirm is still hidden, so a wiped DB or a blocked sha leaves no dead row.
 
-interface DbRow {
-  sha: string;
-  repo: string;
-  ref: string;
-  kind: string;
-  pr_number: number | null;
-  pr_title: string | null;
-  pr_author: string | null;
-  pr_state: string | null;
-  doc_count: number;
-  last_access: string;
-}
-
-function mergeEntries(rows: DbRow[]): Entry[] {
-  const bySha = new Map(rows.map((r) => [r.sha, r]));
-  const out = new Map<string, Entry>();
-  for (const l of localPreviews()) {
-    const db = bySha.get(l.sha);
-    if (!db) continue; // AND-semantics: must still be live in the DB
-    const prev = out.get(l.id);
-    if (prev) {
-      prev.at = Math.max(prev.at, l.at);
-      continue;
-    }
-    out.set(l.id, {
-      id: l.id,
-      title: db.pr_title ?? undefined,
-      detail: [db.pr_author && `by ${db.pr_author}`, db.pr_state && db.pr_state !== "open" && db.pr_state, `${db.doc_count} docs`]
-        .filter(Boolean)
-        .join(" · "),
-      at: l.at,
-    });
-  }
-  return [...out.values()].sort((a, b) => b.at - a.at);
+/** Retry-After (seconds) as milliseconds, clamped. Absent or unparseable falls
+ *  back to the server's own interval; a rogue value can't park the list forever. */
+function retryAfterMs(res: Response): number {
+  const raw = res.headers.get("retry-after");
+  const secs = raw === null ? Number.NaN : Number(raw);
+  return Number.isFinite(secs) ? Math.min(Math.max(secs, 0), 5) * 1000 : 2000;
 }
 
 export function PreviewHome() {
   const [input, setInput] = useState("");
   const [privateInput, setPrivateInput] = useState("");
-  const [rows, setRows] = useState<DbRow[]>([]);
+  // The recent list travels as one value: the server rows, the exact localStorage
+  // snapshot whose shas were sent for them, and WHOSE they are. Keeping the three
+  // together is what stops the merge pairing rows with a later snapshot, and what
+  // makes a previous session's rows unrenderable rather than merely overwritten.
+  const [recent, setRecent] = useState<{ userId: string | null; rows: MineRow[]; local: LocalPreview[] }>({
+    userId: null,
+    rows: [],
+    local: [],
+  });
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?.id ?? null; // the effect below depends on WHO, not on the user object's identity
   const id = useMemo(() => parsePreviewInput(input), [input]);
   const privateId = useMemo(() => parsePrivateInput(privateInput), [privateInput]);
 
@@ -64,13 +54,50 @@ export function PreviewHome() {
   }, []);
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}api/preview/list`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d) => setRows(Array.isArray(d) ? d : []))
-      .catch(() => {});
-  }, []);
+    // Wait for the session probe so this asks once, knowing whether there is an
+    // account history to include (authLoading is already false when logins are off).
+    if (authLoading) return;
+    const local = localPreviews();
+    if (local.length === 0 && !userId) {
+      setRecent({ userId, rows: [], local: [] }); // nothing opened here, no account — nothing to ask about
+      return;
+    }
+    const load = async (retried = false): Promise<void> => {
+      // `at` is this browser's own open time, so a signed-out open can be ranked
+      // against the account history. The server collapses a branch to one slot.
+      const res = await fetch(`${import.meta.env.BASE_URL}api/preview/mine?${mineQuery(local)}`, {
+        credentials: "same-origin",
+      });
+      // The per-account window can refuse a tab whose FIRST fetch this is — a
+      // second tab, another device, or a reload inside the window. That tab has
+      // no list to keep, so dropping the refusal silently would leave the empty
+      // state claiming "No previews opened yet". Honour Retry-After, once.
+      if (res.status === 429 && !retried) {
+        await new Promise((r) => setTimeout(r, retryAfterMs(res)));
+        return load(true);
+      }
+      // Any other failure (a 5xx, offline, a second refusal) leaves the list
+      // exactly as it is rather than blanking it.
+      if (!res.ok) return;
+      const rows = await res.json();
+      // Every response is stamped with the identity it was fetched for, which is
+      // what makes a late answer from a previous session harmless — the render
+      // guard below won't display it. Deliberately NOT an `alive` cleanup flag:
+      // that discards a response whose effect has been torn down, which is
+      // exactly what dev's double-invoked effect does to the good first answer.
+      if (Array.isArray(rows)) setRecent({ userId, rows, local });
+    };
+    void load().catch(() => {});
+  }, [authLoading, userId]);
 
-  const entries = useMemo(() => mergeEntries(rows), [rows]);
+  // Rows are rendered only while they still belong to the signed-in visitor. The
+  // moment that changes, the previous session's rows — private repo ids and titles
+  // among them — stop being displayable, without waiting on a fetch that may be
+  // slow, rate-limited, or never come back at all.
+  const entries = useMemo(
+    () => (recent.userId === userId ? mergeRecentPreviews(recent.rows, recent.local) : []),
+    [recent, userId],
+  );
 
   return (
     <div className="min-h-dvh flex flex-col items-center px-6 pt-[18vh] relative" style={{ background: "var(--bg)" }}>
@@ -94,7 +121,7 @@ export function PreviewHome() {
         sky-ecosystem/next-gen-atlas repo.
       </p>
       <form
-        className="flex gap-2 w-full max-w-xl"
+        className="flex gap-2 w-full max-w-[972px]"
         onSubmit={(e) => {
           e.preventDefault();
           // Capture what was entered — including inputs that fail to parse, which
@@ -127,7 +154,7 @@ export function PreviewHome() {
       )}
 
       {usersEnabled() && (
-        <section className="w-full max-w-xl mt-8 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
+        <section className="w-full max-w-[972px] mt-8 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
           <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--tan)" }}>
             Preview a private repo
           </h2>
@@ -176,7 +203,7 @@ export function PreviewHome() {
         </section>
       )}
 
-      <PreviewPrTabs entries={entries} />
+      <PreviewPrTabs entries={entries} accountScoped={!!user} />
       <a href={import.meta.env.BASE_URL} className="mono text-xs mt-10" style={{ color: "var(--tan-3)" }}>
         ← live atlas
       </a>

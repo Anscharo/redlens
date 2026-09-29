@@ -10,9 +10,15 @@ import "@testing-library/jest-dom/vitest";
 import { PreviewPrTabs } from "./PreviewPrTabs";
 import type { Entry } from "./types";
 
+// A private preview's id is its private owner/repo — the click event must not
+// carry it off-box, so capture what track() is actually handed.
+const analytics = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock("../../lib/analytics", () => ({ track: analytics.track }));
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  analytics.track.mockClear();
 });
 
 function mockOpenPrs(body: unknown, ok = true) {
@@ -29,6 +35,12 @@ describe("PreviewPrTabs recent tab", () => {
     expect(screen.getByText("No previews opened in this browser yet.")).toBeInTheDocument();
   });
 
+  it("words the empty state for the account when the list is account-scoped", () => {
+    render(<PreviewPrTabs entries={[]} accountScoped />);
+    // Signed in the list spans browsers, so the browser-scoped promise would be wrong.
+    expect(screen.getByText("No previews opened yet.")).toBeInTheDocument();
+  });
+
   it("lists entries with title, id, and detail, and links to the preview gate", () => {
     const entries: Entry[] = [{ id: "pull-42", title: "Fix typo", detail: "3 docs", at: 1 }];
     render(<PreviewPrTabs entries={entries} />);
@@ -37,6 +49,42 @@ describe("PreviewPrTabs recent tab", () => {
     expect(screen.getByText("Fix typo")).toBeInTheDocument();
     expect(screen.getByText("3 docs")).toBeInTheDocument();
     expect(screen.getByText("pull-42").closest("a")).toHaveAttribute("href", "/preview/pull-42");
+  });
+
+  it("reports a public recent-preview click with its id", () => {
+    render(<PreviewPrTabs entries={[{ id: "pull-42", detail: "3 docs", at: 1 }]} />);
+    fireEvent.click(screen.getByText("pull-42"));
+    expect(analytics.track).toHaveBeenCalledWith("preview_recent_click", { product: "preview", preview_id: "pull-42" });
+  });
+
+  it("never sends a PRIVATE preview's id to analytics", () => {
+    const entries: Entry[] = [{ id: "acme:secret-atlas:main", detail: "private · 4 docs", at: 1, private: true }];
+    render(<PreviewPrTabs entries={entries} />);
+    fireEvent.click(screen.getByText("acme:secret-atlas:main"));
+    // Same rule the private-repo form follows: coarse fields only, no identifier.
+    expect(analytics.track).toHaveBeenCalledWith("preview_recent_click", { product: "preview", private: true });
+    const payload = analytics.track.mock.calls[0]![1] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty("preview_id");
+    expect(JSON.stringify(payload)).not.toContain("secret-atlas");
+  });
+
+  it("leads with the PR number and shows the repo, like the open-PRs tab", () => {
+    const entries: Entry[] = [
+      { id: "blimpa:next-gen-atlas:pull-9", title: "Fork PR", detail: "2 docs", at: 1, prNumber: 9, repo: "blimpa/next-gen-atlas" },
+    ];
+    render(<PreviewPrTabs entries={entries} />);
+    expect(screen.getByText("#9")).toBeInTheDocument();
+    expect(screen.getByText("blimpa/next-gen-atlas")).toBeInTheDocument();
+    // The link still goes to the preview id, not to `pull-9`: a fork's PR numbers
+    // are repo-local, so the id is what resolves.
+    expect(screen.getByText("#9").closest("a")).toHaveAttribute("href", "/preview/blimpa%3Anext-gen-atlas%3Apull-9");
+  });
+
+  it("falls back to the preview id when a row has no PR number", () => {
+    const entries: Entry[] = [{ id: "acme:atlas:main", detail: "1 doc", at: 1, prNumber: null, repo: "acme/atlas" }];
+    render(<PreviewPrTabs entries={entries} />);
+    expect(screen.getByText("acme:atlas:main")).toBeInTheDocument(); // a branch preview's only label
+    expect(screen.getByText("acme/atlas")).toBeInTheDocument();
   });
 
   it("omits the title span when an entry has no title", () => {

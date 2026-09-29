@@ -31,7 +31,9 @@ const {
   previewsTodayCount,
   previewsTodayCountForOwner,
   previewsTodayCountForRepo,
-  listPreviews,
+  listPreviewsByShas,
+  recordPreviewOpen,
+  listPreviewOpens,
   isBlockedSha,
   blockedShas,
 } = await import("./db.ts");
@@ -231,23 +233,69 @@ test("previewsTodayCountForRepo defaults to 0 when no row comes back", async () 
   expect(await previewsTodayCountForRepo("acme/atlas-fork")).toBe(0);
 });
 
-test("listPreviews returns rows, limit defaults to 50", async () => {
-  queued.push([{ sha: "s1" }, { sha: "s2" }]);
-  const rows = await listPreviews();
-  expect(rows).toHaveLength(2);
-  expect(calls[0]!.values).toContain(50);
+test("listPreviewsByShas queries the given shas as one text[] literal, private rows INCLUDED", async () => {
+  queued.push([{ sha: "s1", private: true }]);
+  const rows = await listPreviewsByShas(["s1", "s2"]);
+  expect(rows).toHaveLength(1);
+  const q = calls[0]!.strings.join("");
+  // Private rows come back (mine.ts's visiblePreviews is what filters them), and
+  // there is no last_access window to fall out of. Blocked rows stay invisible.
+  expect(q).not.toContain("private = false");
+  expect(q).toContain("blocked_at IS NULL");
+  expect(q).toContain("::text[]");
+  // One bound literal, not a JS array parameter (see pg-array.ts).
+  expect(calls[0]!.values).toEqual(["{s1,s2}"]);
 });
 
-test("listPreviews excludes private rows", async () => {
-  queued.push([]);
-  await listPreviews();
-  expect(calls[0]!.strings.join("")).toContain("private = false");
+test("listPreviewsByShas skips the round trip on an empty sha list", async () => {
+  expect(await listPreviewsByShas([])).toEqual([]);
+  expect(calls).toHaveLength(0);
 });
 
-test("listPreviews respects an explicit limit", async () => {
+test("both mine-facing queries project the same disclosed column set", async () => {
+  // MinePreviewRow is the shape that leaves the server; the two SELECT lists are
+  // not type-checked against it, so a column added to one and not the other shows
+  // up as undefined in half the list instead of failing.
+  queued.push([], []);
+  await listPreviewsByShas(["s1"]);
+  await listPreviewOpens("user-1");
+  // "SELECT o.preview_id, o.last_opened_at AS opened_at, p.sha, …" → [opened_at, preview_id, sha, …]
+  const cols = (q: string) =>
+    q
+      .slice(q.indexOf("SELECT") + "SELECT".length, q.indexOf("FROM"))
+      .split(",")
+      .map((c) => c.trim().replace(/^[op]\./, "").replace(/^.*\sAS\s+/i, ""))
+      .filter(Boolean)
+      .sort();
+  const shaCols = cols(calls[0]!.strings.join(""));
+  const openCols = cols(calls[1]!.strings.join(""));
+  // The opens query adds exactly the account-only pair.
+  expect(openCols.filter((c) => !shaCols.includes(c))).toEqual(["opened_at", "preview_id"]);
+  expect(shaCols.filter((c) => !openCols.includes(c))).toEqual([]);
+});
+
+test("recordPreviewOpen upserts one row per (user, preview id), moving the sha forward", async () => {
   queued.push([]);
-  await listPreviews(5);
-  expect(calls[0]!.values).toContain(5);
+  await recordPreviewOpen("user-1", "acme:secret-atlas:main", "s2");
+  const q = calls[0]!.strings.join("");
+  expect(q).toContain("INSERT INTO preview_opens");
+  // A pushed branch must move the existing row's sha, not accrue one row per commit.
+  expect(q).toContain("ON CONFLICT (user_id, preview_id) DO UPDATE");
+  expect(q).toContain("sha = EXCLUDED.sha");
+  expect(calls[0]!.values).toEqual(["user-1", "acme:secret-atlas:main", "s2"]);
+});
+
+test("listPreviewOpens joins previews, hides blocked rows, sorts by the USER's own open", async () => {
+  queued.push([{ preview_id: "pull-1", sha: "s1", opened_at: "2026-09-01T00:00:00Z" }]);
+  const rows = await listPreviewOpens("user-1");
+  expect(rows).toHaveLength(1);
+  const q = calls[0]!.strings.join("");
+  expect(q).toContain("FROM preview_opens o");
+  expect(q).toContain("JOIN previews p ON p.sha = o.sha"); // a gone/unknown sha drops out, no delete needed
+  expect(q).toContain("p.blocked_at IS NULL");
+  // last_access is moved by ANYONE's visit; this list is ordered by the caller's own open.
+  expect(q).toContain("ORDER BY o.last_opened_at DESC");
+  expect(calls[0]!.values).toEqual(["user-1", 50]);
 });
 
 test("isBlockedSha true/false", async () => {
