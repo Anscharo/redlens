@@ -669,8 +669,11 @@ describe("semantic lane", () => {
     await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
     expect(sem()).toHaveLength(0);
     // But it is a WAIT, not a refusal: a reader who stops mid-word still gets an
-    // answer, or the lane would hang on a query it never resolves.
-    await new Promise((r) => setTimeout(r, SEMANTIC_PARTIAL_DEBOUNCE_MS - SEMANTIC_DEBOUNCE_MS + 60));
+    // answer, or the lane would hang on a query it never resolves. Polled rather
+    // than slept for, so a loaded runner slipping the timer is not a failure —
+    // the assertion above is the one that has to be exact.
+    const deadline = Date.now() + SEMANTIC_PARTIAL_DEBOUNCE_MS;
+    while (sem().length === 0 && Date.now() < deadline) await new Promise((r) => setTimeout(r, 25));
     expect(sem()).toHaveLength(1);
   });
 
