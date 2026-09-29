@@ -12,9 +12,13 @@ import type { SwapNode } from "./identity-types.ts";
 // one-sentence templates ("The party 'Sky' comprises…").
 export const RENAME_MIN_KEPT = 0.9;
 // A bulk rename: this many documents in one diff took the identical title
-// substitution. Low, because titleSubstitution already refuses a substitution
-// that replaces most of a title.
-export const CAMPAIGN_MIN_DOCS = 2;
+// substitution. Three, not two: two documents that were each REPLACED can share
+// a title edit by chance, and the rule would then hide both. Measured
+// 2026-09-29 over the atlas history: of 364 real retitles the rule alone
+// spares 5, in groups of 15, 4 and 3 — none in a group of two — so the higher
+// bar costs nothing there. (It was 2 until a review of #430 pointed out that
+// the reasoning beside it argued from three documents.)
+export const CAMPAIGN_MIN_DOCS = 3;
 
 /** Was this document RENAMED IN PLACE — its body changed by the same
  *  substitution its title underwent, and by little else? Returns the fraction
