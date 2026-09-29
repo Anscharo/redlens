@@ -3,6 +3,7 @@ import { SparkMark } from "./glyphs";
 import { Message } from "./Message";
 import { Composer } from "./Composer";
 import { SignInButtons } from "./SignInButtons";
+import { AnchoredResizeHandle } from "./AnchoredResizeHandle";
 import { ChatHeader } from "./ChatHeader";
 import { ChatEmptyState, STARTERS } from "./ChatEmptyState";
 import { ContextLine } from "./ContextPie";
@@ -178,6 +179,7 @@ export function ChatPanel({
           />
         </Composer>
       )}
+      {placement === "anchored" && <AnchoredResizeHandle />}
     </section>
   );
 }

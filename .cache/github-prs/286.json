@@ -1,0 +1,10 @@
+{
+  "number": 286,
+  "title": "Atlas Edit Proposal — 2026-08-03",
+  "body": "- **Add Rate Conventions And A Settlement Methodology For The Monthly Settlement Cycle** — Adds a Rate Conventions rule: Atlas rates default to annual percentage yields, and the Base Rate and Agent Credit Line Borrow Rate are re-declared as yields. Also adds a Settlement Methodology section covering the Prime Agent interest-expense calculation and the attribution of third-party, asynchronous, and cross-chain positions, and clarifies the subsidized borrow-rate formula to fix its month counter at zero in the first month. Separately, changes Distribution Reward tracking from first-in-first-out to the most recent marking event.\n\n- **Add A Smart Burn Engine Bounded External Access Module** — Adds the SBE-BEAM, letting a whitelisted 4-of-6 Operator Multisig adjust the Smart Burn Engine's kbump and hop parameters within governance-set bounds without an Executive Vote or the GSM Pause Delay, and adjust its burn parameter up to a technical 100% cap, so the buyback can stay aligned with the Treasury Management Function allocation as conditions change.\n\n- **Relocate Ended Keel Demand Side Instances To Completed Instances** — Relocates three ended Keel demand side Instances from Active Instances to Completed Instances. Structural relocation only.\n\n- **Remove An Erroneous Notion Link From The Keel Admin Functions Document** — Removes an erroneous Notion review link that was embedded in a cross-reference.\n\n- **Add Uniswap v3 Controller Functions And Regroup Diamond PAU Functions** — Adds three new Uniswap v3 controller functions (Add Liquidity, Remove Liquidity, Swap) to the Diamond PAU in the Sky Core shared section, and restructures the existing Controller Functions from a flat list into five facet-grouped sections (USDS, Aave v3, Basin, PSM, Uniswap v3) to accommodate them.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/286",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

@@ -1,0 +1,10 @@
+{
+  "number": 174,
+  "title": "Adjust Order of NR Docs and Update Markdown Syntax",
+  "body": "This PR:\r\n- Adjusts the order of the Needed Research Docs to be the first child under their respective parent doc\r\n- Updates Markdown Syntax to reflect ordering change",
+  "author": "Coolcatcatio",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/174",
+  "commentCount": 0,
+  "reviewCount": 3,
+  "approvalCount": 1
+}
