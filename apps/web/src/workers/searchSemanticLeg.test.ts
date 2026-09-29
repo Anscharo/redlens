@@ -13,7 +13,7 @@ import {
   runSemanticLeg,
   semanticDebounceMs,
   semanticLegQuery,
-  type TermShape,
+  type WordShape,
 } from "./searchSemanticLeg";
 import {
   SEMANTIC_DEBOUNCE_MS,
@@ -116,29 +116,29 @@ function stubSemantic(body: SemanticSearchResponse | { status: number }, calls: 
 }
 
 describe("semanticDebounceMs", () => {
-  const probe = (shape: TermShape) => () => shape;
+  const shape = (s: WordShape) => () => s;
 
-  it("waits longer on a word the corpus only has the beginning of", () => {
+  it("waits longer on a word only the beginning of which is known", () => {
     // "collater" on the way to "collateral": the embed would score a fragment
     // no document contains, which is the one round-trip certain to be wasted.
-    expect(semanticDebounceMs("collater", probe("prefix"))).toBe(SEMANTIC_PARTIAL_DEBOUNCE_MS);
+    expect(semanticDebounceMs("collater", shape("partial"))).toBe(SEMANTIC_PARTIAL_DEBOUNCE_MS);
   });
 
   it("does not wait longer for a word the corpus has as written", () => {
-    expect(semanticDebounceMs("collateral", probe("term"))).toBe(SEMANTIC_DEBOUNCE_MS);
+    expect(semanticDebounceMs("collateral", shape("whole"))).toBe(SEMANTIC_DEBOUNCE_MS);
   });
 
   it("does not wait longer for a word the corpus has never heard of", () => {
     // Nothing completes it, so there is nothing to wait FOR — and a query made
     // of words the atlas does not use is precisely the semantic lane's case.
-    expect(semanticDebounceMs("hypernova", probe("unknown"))).toBe(SEMANTIC_DEBOUNCE_MS);
+    expect(semanticDebounceMs("hypernova", shape("unknown"))).toBe(SEMANTIC_DEBOUNCE_MS);
   });
 
   it("never asks the index about a token that is not a word", () => {
     const asked: string[] = [];
-    const spy = (w: string): TermShape => {
+    const spy = (w: string): WordShape => {
       asked.push(w);
-      return "prefix";
+      return "partial";
     };
     expect(semanticDebounceMs("rewards in:A.6", spy)).toBe(SEMANTIC_DEBOUNCE_MS);
     expect(semanticDebounceMs("who approves rewards ", spy)).toBe(SEMANTIC_DEBOUNCE_MS);

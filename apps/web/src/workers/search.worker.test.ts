@@ -677,6 +677,20 @@ describe("semantic lane", () => {
     expect(sem()).toHaveLength(1);
   });
 
+  it("does not delay an ordinary English word that merely STARTS an atlas term", async () => {
+    // "slipper" is a whole English word, and also the first seven letters of
+    // "slippery", which is the only form this corpus uses. Judged by the atlas
+    // index alone it is indistinguishable from a half-typed word, and 5.5% of
+    // the 10k most frequent English words sit in that position — they are also
+    // disproportionately the words a meaning search is phrased in. The English
+    // list (src/data/common-words.txt) is what tells the two apart.
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    ask(h, "slipper", { lane: "semantic", sem: "off" });
+    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
+    expect(calls.filter((u) => u.includes("/api/search/semantic"))).toHaveLength(1);
+  });
+
   it("a finished word buys its embed at the short debounce", async () => {
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });

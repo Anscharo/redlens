@@ -71,26 +71,28 @@ export function semanticLegQuery(
 
 
 /**
- * What the lexical index knows about a word the reader has typed:
- *   term    — it is a word the corpus contains, as written.
- *   prefix  — only the beginning of one, so it is probably still being typed.
- *   unknown — nothing in the corpus starts with it; there is nothing to wait
- *             for, and this is exactly the query meaning-matching is for.
+ * What the reader's trailing word looks like:
+ *   whole   — a finished word: an English word, or one this atlas uses as
+ *             written. Either way there is nothing to wait for.
+ *   partial — only the START of a word the atlas uses, and not a word itself,
+ *             so it is probably still being typed.
+ *   unknown — no atlas term starts with it and it is not an English word we
+ *             know; nothing completes it, so waiting would achieve nothing.
+ *
+ * Only `partial` waits — and note that `unknown` does NOT. A query made of
+ * words this atlas never uses is precisely what the meaning lane exists for,
+ * and it must never be the case that phrasing a question in your own
+ * vocabulary makes the search slower than quoting the atlas back at it.
  */
-export type TermShape = "term" | "prefix" | "unknown";
+export type WordShape = "whole" | "partial" | "unknown";
 
 /**
  * How long to wait after this keystroke before spending an embedding call.
- *
- * The trailing word is checked against the corpus rather than against a length
- * or a character class, because only the corpus can tell "collater" (on the way
- * to a word 11,584 documents use) from "hypernova" (a word none of them use,
- * which is finished as far as anything here can know).
  */
-export function semanticDebounceMs(q: string, probe: (word: string) => TermShape): number {
+export function semanticDebounceMs(q: string, shapeOf: (word: string) => WordShape): number {
   const word = trailingWord(q);
   if (word === null) return SEMANTIC_DEBOUNCE_MS;
-  return probe(word) === "prefix" ? SEMANTIC_PARTIAL_DEBOUNCE_MS : SEMANTIC_DEBOUNCE_MS;
+  return shapeOf(word) === "partial" ? SEMANTIC_PARTIAL_DEBOUNCE_MS : SEMANTIC_DEBOUNCE_MS;
 }
 
 /** What the response says about the leg's own health. */

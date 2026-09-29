@@ -37,6 +37,7 @@
     "census:concepts": "bun scripts/required/check-concepts-census.mjs",
     "census:chains": "bun scripts/required/check-chains-census.mjs",
     "chains:add": "node scripts/aux/add-chain.mjs",
+    "words:fetch": "bun scripts/aux/fetch-common-words.mjs",
     "env:prune": "node scripts/aux/prune-pr-environments.mjs",
     "settlements:parse": "node scripts/aux/parse-settlements.mjs",
     "processes:check": "node scripts/required/check-processes-dirty.mjs",
