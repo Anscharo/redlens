@@ -71,15 +71,24 @@ token by its inverse document frequency over the corpus instead.
 
 Measured over the same populations:
 
-| measure | t | ordinary edit flagged | real swap missed | siblings missed |
+| measure | t | ordinary edit flagged | real swap missed | hard siblings missed |
 |---|---|---|---|---|
 | word (shipped) | 0.50 | 2.0% | 5.4% | 9.3% |
-| **idf** | **0.40** | **0.9%** | **5.0%** | **7.0%** |
-| idf | 0.30 | 0.2% | 8.5% | — |
+| idf | 0.40 | 0.9% | 5.0% | 9.3% |
+| **idf** | **0.45** | **1.7%** | **4.0%** | **7.5%** |
 
-At t=0.40 it **dominates the shipped measure on both axes** — less than half
-the false flags *and* fewer missed swaps. The three #346 docs score 0.62–0.81,
-still well clear.
+**idf at 0.45 dominates the shipped measure on all three columns** — fewer
+false flags, fewer missed swaps, and better on the hard sibling case that
+every similarity approach struggles with. idf at 0.40 also dominates on the
+first two while tying on siblings, if you want the lower false-flag rate. The
+three #346 docs score 0.62–0.81, still well clear either way.
+
+Compare only at *matched* false-flag rates — the arms are not comparable
+threshold-for-threshold, and an earlier version of this note mistakenly
+credited idf's 0.50 sibling number (7.0%) to its 0.40 row. Down at the very
+low end (≤0.4% false flags) the unweighted measure is still competitive; the
+gain is in the middle of the range, which is where a usable operating point
+sits.
 
 To ship it: document frequency can be built in-process from the base
 snapshot, which the preview build has already parsed, so `identity.ts` stays
@@ -88,31 +97,51 @@ rather than imported. Scratch implementation is in this session's notes —
 it is ~20 lines, the same DP as `orderedWordContainment` with `+idf(w)` in
 place of `+1`. Re-measure before picking the threshold; 0.40 is from one run.
 
-### 2. Structural corroboration — probably the biggest single win
+### 2. Structural corroboration — WEAKER THAN IT LOOKS, do not require it
 
-A content rewrite in place changes *only* content. A genuine repurposing
-almost always disturbs something structural too: the doc moves to a different
-parent, its type changes, its children are replaced by different UUIDs, or its
-doc number moves. Requiring **content replacement AND at least one structural
-change** would have silenced all three #346 docs (`renumbered` was empty for
-them) at close to zero cost in recall.
+The idea: a rewrite-in-place changes *only* content, so a genuine repurposing
+should also disturb something structural — a different parent, a changed type,
+replaced children, a moved doc number. Requiring content replacement **and** a
+structural change would have silenced all three #346 docs.
 
-Prerequisite: `SnapshotDoc` (`src/server/preview/snapshot.ts`) currently
-carries only `id, doc_no, title, content, contentHash`. `parentId` and `type`
-are available in both builders for free — `loadAtlasSource` yields them and
-`docs.json` stores them — so widening the type is a two-line change in
-`snapshotFromSrcDir` and `snapshotFromDocsJson`.
+**It would also have missed the case this feature was built for.** The
+canonical real repurposing — the Ozone fork fixture pinned in
+`identity.test.ts` — is a UUID that *kept its doc number* while being
+repurposed from "Operational GovOps" to "Sky Primitives", in place. Requiring
+corroboration turns the one known true positive into a miss. A UUID can be
+repurposed without moving, and in a fork that is the normal shape.
 
-### 3. Corpus-level rename detection — targets #346's class exactly
+So this is a **corroborator, not a gate**: useful for ranking confidence, or
+for choosing between "identity changed" and softer copy (thread 4), never as a
+precondition. Noted because the shape is tempting and the counterexample is
+already in the test suite.
 
-The per-doc gate structurally cannot see that **all three #346 docs had the
-same old title and the same new title**. Three UUIDs independently repurposed
-to an identical new title is implausible; one rename campaign is obvious.
+If used that way, the prerequisite is small: `SnapshotDoc`
+(`src/server/preview/snapshot.ts`) carries only
+`id, doc_no, title, content, contentHash`, but `parentId` and `type` come free
+from both builders — `loadAtlasSource` yields them and `docs.json` stores
+them — so widening the type is two lines in `snapshotFromSrcDir` and
+`snapshotFromDocsJson`.
 
-Detect a shared transformation across the changed set — identical
-(oldTitle → newTitle) pairs, or the same substring substitution applied to
-several docs — and suppress the swap for every member. Cheap, deterministic,
-and it generalises to every future terminology pass.
+### 3. Corpus-level rename detection — DONE
+
+Shipped. `renameCampaigns` groups the changed docs by the word-level
+substitution their titles underwent (`titleSubstitution` builds the key from an
+LCS, so "Whitelisting Of ALMProxy" → "Whitelisting Of ALM Proxy" and "Reporting
+Of ALMProxy" → "Reporting Of ALM Proxy" share one key). A key held by
+`CAMPAIGN_MIN_DOCS` (2) or more documents is a terminology pass, and every
+member is spared.
+
+Two guards keep it from being a loophole: a substitution that leaves less than
+`CAMPAIGN_MIN_TITLE_KEPT` (half) of the longer title standing yields **no key
+at all**, so a family of documents genuinely replaced en masse cannot wave
+itself through by agreeing; and a campaign member with demonstrably relocated
+content is still flagged, the same carve-out `titlesRelated` uses.
+
+Note this does not itself fix #346 — `sameTitle` catches a pure respelling
+first. It covers the next variant: a campaign that changes a real word
+("Whitelisting" → "Allowlisting") across N docs, which would otherwise land as
+N separate accusations.
 
 ### 4. Make the un-corroborated case descriptive rather than accusatory
 
@@ -179,7 +208,8 @@ the harness already reconstructs them from `patches.json`.
 
 ## Ordering
 
-If picking this up cold: **3** (corpus-level rename, cheapest and kills the
-reported class outright) → **2** (structural corroboration, biggest accuracy
-win) → **1** (IDF, already measured as a strict improvement) → **4** (copy) →
-**5** (embeddings, only if the residual turns out to matter).
+**3 is done.** Of what is left: **1** (IDF — measured, dominates the shipped
+measure, only needs a DF map threaded in) → **4** (copy, pure risk reduction
+and independent of everything else) → **5** (embeddings, only if the residual
+turns out to matter). **2** is a corroborator at best; do not build it as a
+gate.

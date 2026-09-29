@@ -38,7 +38,40 @@ const ORIGIN = opt("--origin", "https://atlas.redline.support");
 const USE_TERN = flag("--tern");
 
 const USE_QWEN = flag("--qwen");
-const ARMS = ["line", "word", ...(USE_TERN ? (["tern"] as const) : []), ...(USE_QWEN ? (["qwen"] as const) : [])] as const;
+const ARMS = ["line", "word", "idf", ...(USE_TERN ? (["tern"] as const) : []), ...(USE_QWEN ? (["qwen"] as const) : [])] as const;
+
+// IDF arm. Same lexical axis as `word` and the same DP — but each matched token
+// contributes its inverse document frequency instead of 1. The unweighted LCS
+// is dominated by stopwords, while the token that actually decides the hard
+// sibling case is the entity name ("Keel" vs "Obex"), which is rare and
+// therefore nearly weightless. Document frequency comes from the live corpus;
+// in production it would come from the base snapshot the build already parsed.
+const df = new Map<string, number>();
+let docCount = 0;
+const idfToks = (t: string | undefined) => (t ?? "").toLowerCase().match(/[a-z0-9_]+/g) ?? [];
+function buildDf(contents: string[]): void {
+  docCount = contents.length;
+  for (const c of contents) for (const w of new Set(idfToks(c))) df.set(w, (df.get(w) ?? 0) + 1);
+}
+const idfOf = (w: string) => Math.log(docCount / (1 + (df.get(w) ?? 0)));
+function idfContainment(oldT: string | undefined, newT: string | undefined): number {
+  const a = idfToks(oldT), b = idfToks(newT);
+  if (a.length < RELOCATION_MIN_WORDS_LOCAL) return 1;
+  const total = a.reduce((sum, w) => sum + idfOf(w), 0);
+  if (total <= 0) return 1;
+  if (a.length * b.length > 400_000) return 0; // same cost cap as orderedWordContainment
+  const dp = new Array<number>(b.length + 1).fill(0);
+  for (let i = 1; i <= a.length; i++) {
+    let diag = 0;
+    for (let j = 1; j <= b.length; j++) {
+      const up = dp[j];
+      dp[j] = a[i - 1] === b[j - 1] ? diag + idfOf(a[i - 1]) : Math.max(dp[j], dp[j - 1]);
+      diag = up;
+    }
+  }
+  return dp[b.length] / total;
+}
+const RELOCATION_MIN_WORDS_LOCAL = 4;
 
 const tern = USE_TERN ? (require("@ternlight/base") as typeof import("@ternlight/base")) : null;
 const vecs = new Map<string, Float32Array>();
@@ -81,8 +114,10 @@ function qwenCos(a: string, b: string): number {
   return d;
 }
 
-type Row = { line: number; word: number; tern: number; qwen: number; a: string; b: string };
-const score = (a: string, b: string): Row => ({ line: lineOverlap(a, b), word: orderedWordContainment(a, b), tern: cos(a, b), qwen: 0, a, b });
+type Row = { line: number; word: number; idf: number; tern: number; qwen: number; a: string; b: string };
+const score = (a: string, b: string): Row => ({
+  line: lineOverlap(a, b), word: orderedWordContainment(a, b), idf: idfContainment(a, b), tern: cos(a, b), qwen: 0, a, b,
+});
 
 async function getJson<T>(path: string): Promise<T> {
   const r = await fetch(`${ORIGIN}${path}`);
@@ -123,6 +158,7 @@ function stats(name: string, rows: Row[]) {
 
 const main = async () => {
   const docs = (await getJson<{ nodes: Record<string, any> }>("/docs.json")).nodes;
+  buildDf(Object.values(docs).map((n: any) => String(n.content ?? "")));
   const diff = await getJson<{ changed: string[]; identitySwap: Record<string, unknown> }>(`/api/preview/${PREVIEW_SHA}/diff.json`);
   const patches = await getJson<Record<string, any[]>>(`/api/preview/${PREVIEW_SHA}/patches.json`);
 
@@ -167,8 +203,12 @@ const main = async () => {
   console.log("\n=== AS A MEASURE — a swap is flagged when the measure is <= t ===");
   for (const k of ARMS) {
     console.log(`  ${String(k)}`);
-    for (const t of [0, 0.15, 0.4, 0.45, 0.5, 0.53, 0.6, 0.67, 0.75]) {
-      console.log(`    t=${t.toFixed(2)}  ordinary-edit-flagged=${pct(neg, (r) => (r[k] as number) <= t)}%  real-swap-missed=${pct(pos, (r) => (r[k] as number) > t)}%`);
+    for (const t of [0, 0.15, 0.3, 0.4, 0.45, 0.5, 0.53, 0.6, 0.67, 0.75]) {
+      console.log(
+        `    t=${t.toFixed(2)}  ordinary-edit-flagged=${pct(neg, (r) => (r[k] as number) <= t)}%` +
+        `  real-swap-missed=${pct(pos, (r) => (r[k] as number) > t)}%` +
+        `  (hard siblings missed=${pct(siblings, (r) => (r[k] as number) > t)}%)`,
+      );
     }
   }
 

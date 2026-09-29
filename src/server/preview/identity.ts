@@ -105,6 +105,21 @@ export const REPLACE_MAX_WORD_OVERLAP = 0.5;
 // A body with fewer words than this carries too little signal to call either
 // way — every measure is dominated by stopwords — so we never flag it.
 export const JUDGEABLE_MIN_WORDS = 6;
+// Bulk-rename detection. The per-document gate structurally cannot see that
+// several documents in the same PR were retitled by the SAME edit: three UUIDs
+// independently repurposed to an identical new title is implausible, one
+// terminology pass is obvious. atlas#346 was exactly that — `ALMProxy` → `ALM
+// Proxy` across three docs — and while the respelling itself is now caught by
+// sameTitle, a campaign that changes a real word ("Whitelisting" →
+// "Allowlisting") is not, and would land as N separate accusations.
+//
+// Two docs sharing a substitution is already a strong signal, so the bar is
+// low; what keeps it honest is the second condition, that the substitution
+// leave most of each title standing. A wholesale retitle yields no key at all,
+// so a family of documents genuinely replaced en masse cannot be waved through
+// by agreeing with each other.
+export const CAMPAIGN_MIN_DOCS = 2;
+export const CAMPAIGN_MIN_TITLE_KEPT = 0.5;
 // Relocation match: the displaced content should reappear inside the new home —
 // in order, and (nearly) in full — tolerating subword typo fixes and extra text
 // the move tacked on. We measure it as ordered word containment (an LCS over
@@ -286,6 +301,66 @@ export function relocationTarget(
   return match;
 }
 
+/** A canonical key for the edit that turned `oldT` into `newT`, or null when
+ *  they are too different to call it an edit at all. Built from a word-level
+ *  LCS, so "Whitelisting Of ALMProxy" → "Whitelisting Of ALM Proxy" and
+ *  "Reporting Of ALMProxy" → "Reporting Of ALM Proxy" produce the SAME key:
+ *  that is what lets two documents recognise each other as parts of one rename.
+ *  Returns null when less than CAMPAIGN_MIN_TITLE_KEPT of the longer title
+ *  survives — at that point it is a different title, not a substitution, and
+ *  must not be able to form a campaign. */
+export function titleSubstitution(oldT: string | undefined, newT: string | undefined): string | null {
+  const a = words(oldT);
+  const b = words(newT);
+  if (!a.length || !b.length) return null;
+  const ops = lcsOps(a, b);
+  const kept = ops.filter(([op]) => op === "=").length;
+  if (kept / Math.max(a.length, b.length) < CAMPAIGN_MIN_TITLE_KEPT) return null;
+  // Collapse each run of removals/additions into one removed→added pair, in
+  // order, so the key describes the substitution and not its position.
+  const parts: string[] = [];
+  let removed: string[] = [];
+  let added: string[] = [];
+  const flush = () => {
+    if (removed.length || added.length) parts.push(`-${removed.join(" ")}+${added.join(" ")}`);
+    removed = [];
+    added = [];
+  };
+  for (const [op, w] of ops) {
+    if (op === "=") flush();
+    else if (op === "-") removed.push(w);
+    else added.push(w);
+  }
+  flush();
+  return parts.length ? parts.join("|") : null;
+}
+
+/** The changed documents whose retitle is one document's share of a bulk
+ *  rename — the same substitution applied across at least CAMPAIGN_MIN_DOCS of
+ *  them. A corpus-level judgement, so it is computed once per diff rather than
+ *  per document. */
+export function renameCampaigns(args: {
+  changed: Iterable<string>;
+  mainById: Map<string, SwapNode>;
+  previewById: Map<string, SwapNode>;
+}): Set<string> {
+  const byEdit = new Map<string, string[]>();
+  for (const id of args.changed) {
+    const main = args.mainById.get(id);
+    const prev = args.previewById.get(id);
+    if (!main || !prev) continue;
+    const key = titleSubstitution(main.title, prev.title);
+    if (!key) continue;
+    const group = byEdit.get(key);
+    group ? group.push(id) : byEdit.set(key, [id]);
+  }
+  const members = new Set<string>();
+  for (const ids of byEdit.values()) {
+    if (ids.length >= CAMPAIGN_MIN_DOCS) for (const id of ids) members.add(id);
+  }
+  return members;
+}
+
 /** Classify identity swaps in a computed diff. `changed`/`added` are the UUID
  *  sets from mapChangedDocs; the maps are keyed by UUID for the live atlas and
  *  this preview respectively. */
@@ -299,6 +374,7 @@ export function detectIdentitySwaps(args: {
   const identitySwap: Record<string, IdentitySwap> = {};
   const formerUuid: Record<string, FormerUuid> = {};
   const addedIds = [...added];
+  const renamed = renameCampaigns({ changed, mainById, previewById });
 
   for (const id of changed) {
     const main = mainById.get(id);
@@ -318,6 +394,11 @@ export function detectIdentitySwaps(args: {
     // old content demonstrably relocated to a new doc, which means the uuid
     // really was repurposed.
     if (titlesRelated(main.title, prev.title) && !moved) continue;
+    // Likewise a retitle that is this document's share of a bulk rename: other
+    // documents in the same diff took the identical edit, which is a fact about
+    // the PR that no single document can see. Yields to a demonstrated
+    // relocation for the same reason titlesRelated does.
+    if (renamed.has(id) && !moved) continue;
 
     const swap: IdentitySwap = { oldTitle: main.title ?? "", newTitle: prev.title ?? "" };
     if (moved) {

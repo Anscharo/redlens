@@ -1,6 +1,6 @@
 // Run via `bun test src/server`. Pure unit tests — no DB, no network.
 import { describe, it, expect } from "bun:test";
-import { detectIdentitySwaps, bodyWhollyReplaced, lineOverlap, orderedWordContainment, type SwapNode } from "./identity.ts";
+import { detectIdentitySwaps, bodyWhollyReplaced, lineOverlap, orderedWordContainment, renameCampaigns, titleSubstitution, type SwapNode } from "./identity.ts";
 
 function mapOf(nodes: SwapNode[]): Map<string, SwapNode> {
   return new Map(nodes.map((n) => [n.id, n]));
@@ -197,6 +197,95 @@ describe("detectIdentitySwaps", () => {
       previewById: mapOf([{ id: "x", doc_no: "A.1", title: "Ceiling", content: "The cap is 9m." }]),
     });
     expect(identitySwap.x).toBeUndefined();
+  });
+});
+
+describe("bulk renames", () => {
+  // A campaign that changes a REAL word, so squashTitle can't equate the two
+  // titles and each doc would otherwise be judged alone. Bodies are wholly
+  // replaced, so only the campaign rule stands between these and three badges.
+  const campaign = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `d${i}`,
+      before: { id: `d${i}`, doc_no: `A.${i}`, title: `Whitelisting Of Proxy ${i}`, content: OZONE_OLD },
+      after: { id: `d${i}`, doc_no: `A.${i}`, title: `Allowlisting Of Proxy ${i}`, content: SKY_PRIMITIVES },
+    }));
+
+  function run(n: number) {
+    const docs = campaign(n);
+    return detectIdentitySwaps({
+      changed: docs.map((d) => d.id), added: [],
+      mainById: mapOf(docs.map((d) => d.before)),
+      previewById: mapOf(docs.map((d) => d.after)),
+    });
+  }
+
+  it("does NOT flag documents sharing one retitle across the diff", () => {
+    expect(Object.keys(run(3).identitySwap)).toEqual([]);
+  });
+
+  it("STILL flags the same retitle when only one document takes it", () => {
+    // Below CAMPAIGN_MIN_DOCS there is no campaign to infer — one document
+    // retitled and rewritten is exactly what the badge is for.
+    expect(Object.keys(run(1).identitySwap)).toEqual(["d0"]);
+  });
+
+  it("does NOT let a wholesale retitle form a campaign", () => {
+    // A family of documents genuinely replaced en masse all change title the
+    // same way — by changing all of it. That must yield no key, so agreeing
+    // with each other cannot wave them through.
+    const docs = Array.from({ length: 4 }, (_, i) => ({
+      id: `d${i}`,
+      before: { id: `d${i}`, doc_no: `A.${i}`, title: "Operational GovOps", content: OZONE_OLD },
+      after: { id: `d${i}`, doc_no: `A.${i}`, title: "Sky Primitives", content: SKY_PRIMITIVES },
+    }));
+    const { identitySwap } = detectIdentitySwaps({
+      changed: docs.map((d) => d.id), added: [],
+      mainById: mapOf(docs.map((d) => d.before)),
+      previewById: mapOf(docs.map((d) => d.after)),
+    });
+    expect(Object.keys(identitySwap).sort()).toEqual(["d0", "d1", "d2", "d3"]);
+  });
+
+  it("a campaign still yields to demonstrably relocated content", () => {
+    // Two docs take the same retitle, but one's old body turns up in a new
+    // uuid — the rename is coincidental, that uuid really was repurposed.
+    const main = mapOf([
+      { id: "x", doc_no: "A.1", title: "Whitelisting Of Proxy One", content: OZONE_OLD },
+      { id: "y", doc_no: "A.2", title: "Whitelisting Of Proxy Two", content: "Unrelated body text that stays put across this diff entirely." },
+    ]);
+    const preview = mapOf([
+      { id: "x", doc_no: "A.1", title: "Allowlisting Of Proxy One", content: SKY_PRIMITIVES },
+      { id: "y", doc_no: "A.2", title: "Allowlisting Of Proxy Two", content: "A different body altogether, sharing nothing with what stood here." },
+      { id: "z", doc_no: "A.9", title: "Archive", content: OZONE_MOVED },
+    ]);
+    const { identitySwap } = detectIdentitySwaps({ changed: ["x", "y"], added: ["z"], mainById: main, previewById: preview });
+    expect(identitySwap.x?.movedTo?.id).toBe("z");
+    expect(identitySwap.y).toBeUndefined(); // no relocation → campaign holds
+  });
+
+  it("titleSubstitution: same edit → same key, different edit or wholesale retitle → not grouped", () => {
+    const k = titleSubstitution("Whitelisting Of ALMProxy", "Whitelisting Of ALM Proxy");
+    expect(k).toBeTruthy();
+    expect(titleSubstitution("Reporting Of ALMProxy", "Reporting Of ALM Proxy")).toBe(k!); // same campaign
+    expect(titleSubstitution("Whitelisting Of ALMProxy", "Whitelisting Of LitePSM")).not.toBe(k!);
+    expect(titleSubstitution("Operational GovOps", "Sky Primitives")).toBeNull(); // nothing survives
+    expect(titleSubstitution("Reward Rate", "Reward Rate")).toBeNull(); // no edit at all
+  });
+
+  it("renameCampaigns groups by the edit, not by the title", () => {
+    const main = mapOf([
+      { id: "a", doc_no: "A.1", title: "Whitelisting Of ALMProxy", content: "x" },
+      { id: "b", doc_no: "A.2", title: "Reporting Of ALMProxy", content: "x" },
+      { id: "c", doc_no: "A.3", title: "Staking Of LitePSM", content: "x" },
+    ]);
+    const preview = mapOf([
+      { id: "a", doc_no: "A.1", title: "Whitelisting Of ALM Proxy", content: "y" },
+      { id: "b", doc_no: "A.2", title: "Reporting Of ALM Proxy", content: "y" },
+      { id: "c", doc_no: "A.3", title: "Staking Of Lite PSM", content: "y" }, // a DIFFERENT substitution
+    ]);
+    const members = renameCampaigns({ changed: ["a", "b", "c"], mainById: main, previewById: preview });
+    expect([...members].sort()).toEqual(["a", "b"]); // c is alone in its edit
   });
 });
 
