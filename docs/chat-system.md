@@ -532,9 +532,14 @@ verdict is mostly ready by generation end instead of one more whole-answer
 round trip after it). Concurrency is capped (`CHAT_REFUTE_CONCURRENCY`,
 default 3) via a simple semaphore; paragraphs at or beyond
 `CHAT_REFUTE_MAX_PARAGRAPHS` (default 8) are concatenated into ONE extra call
-at flush time, keyed by the first overflowing paragraph's index — every call
-carries the full evidence set, so call count rather than paragraph count is
-what scales input tokens. A `tool_call` or `clear` — the draft being set aside
+at flush time, keyed by the first overflowing paragraph's index. Every call
+still carries the full evidence set. `buildRefutePrompt` orders the user
+message as question, then that evidence, then the paragraph, so the paragraph
+is the only suffix that changes and a provider prefix cache can reuse the
+evidence across the calls. A paragraph that attaches its own `[E-const]` rows
+changes the evidence block, and that call's prefix diverges there. A cache
+miss still bills the full set once per call, which is why call count rather
+than paragraph count is what scales input tokens when the prefix is cold. A `tool_call` or `clear` — the draft being set aside
 — resets the refuter to a new burst; a call still in flight from the old burst
 writes nothing when it lands (checked at land time via an integer burst tag),
 so a stale paragraph's contradiction can never leak into the shipped verdict.

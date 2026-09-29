@@ -12,8 +12,10 @@
 // `clear` that sets the draft aside drops stale results without cancelling
 // in-flight requests. Concurrency is a simple semaphore. Paragraphs at or
 // beyond `maxParagraphs` are buffered and concatenated into ONE extra call at
-// `settle()` time — every call carries the full evidence set, so call count,
-// not paragraph count, scales input tokens.
+// `settle()` time. Every call still carries the full evidence set, but
+// `buildRefutePrompt` places that block BEFORE the paragraph, so the
+// paragraph is the only suffix that changes and a prefix cache can reuse the
+// evidence. A cache miss still bills the full set once per call.
 //
 // Jev screen (refute-screen.ts, CHAT_REFUTE_SCREEN), inside the same semaphore
 // slot so a long answer can't fan out into a burst of Jev calls:
