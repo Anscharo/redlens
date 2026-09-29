@@ -36,7 +36,7 @@ export const MINE_MAX_SHAS = 50;
  *  the visitor's own open. Each distinct private repo among them costs a live
  *  GitHub permission check (access.ts, ~60s cache), so this is what bounds the
  *  slowest possible response; the checks themselves run concurrently. */
-export const MINE_MAX_PRIVATE = 6;
+export const MINE_MAX_PRIVATE = 8;
 
 /**
  * The ONE way to get preview rows for a visitor: collect both sources, then drop
@@ -96,7 +96,7 @@ async function collectMineRows(userId: string | null, shas: string[]): Promise<M
   ]);
   // A browser row whose sha an account row already covers is the SAME preview,
   // so drop it: kept, both halves occupy a slot in visibleToVisitor's private cap
-  // and a signed-in visitor sees three of their six private previews. The account
+  // and a signed-in visitor sees four of their eight private previews. The account
   // row is the one kept — it carries the preview_id — and the client resolves its
   // local ids through the sha map, so that row still answers for them.
   //
@@ -134,7 +134,7 @@ async function visibleToVisitor(
   // makes a new sha) then cost ONE permission check, not one each. Concurrent
   // because a cold cache would otherwise serialize up to MINE_MAX_PRIVATE
   // round trips into the response; GitHub's App limits are per installation and
-  // three calls deep, so six at once is nowhere near them.
+  // three calls deep, so eight at once is nowhere near them.
   const repos = [...new Set(candidates.map((r) => r.repo))];
   const decisions = new Map(
     await Promise.all(

@@ -138,9 +138,11 @@ test("one permission check per private REPO, however many of its shas are listed
 });
 
 test("only the MINE_MAX_PRIVATE newest private previews are considered", async () => {
-  // 9 private previews of distinct repos, oldest first — only the 6 newest may
-  // be checked, and the response must be exactly those.
-  const rows = Array.from({ length: 9 }, (_, i) =>
+  // Three more private previews than the cap, of distinct repos, oldest first:
+  // only the newest MINE_MAX_PRIVATE may be checked, and the response must be
+  // exactly those.
+  const total = MINE_MAX_PRIVATE + 3;
+  const rows = Array.from({ length: total }, (_, i) =>
     row({
       sha: SHA(String(i)),
       repo: `acme/secret-${i}`,
@@ -152,7 +154,8 @@ test("only the MINE_MAX_PRIVATE newest private previews are considered", async (
   const authorize = mock(ok);
   const out = await run(rows, null, { shas: [], authorize });
   expect(authorize).toHaveBeenCalledTimes(MINE_MAX_PRIVATE);
-  expect(out.map((r) => ("preview_id" in r ? r.preview_id : r.sha))).toEqual(["p-3", "p-4", "p-5", "p-6", "p-7", "p-8"]);
+  const newest = Array.from({ length: MINE_MAX_PRIVATE }, (_, i) => `p-${total - MINE_MAX_PRIVATE + i}`);
+  expect(out.map((r) => ("preview_id" in r ? r.preview_id : r.sha))).toEqual(newest);
 });
 
 test("a preview this browser ALSO remembers does not consume two of the private slots", async () => {
