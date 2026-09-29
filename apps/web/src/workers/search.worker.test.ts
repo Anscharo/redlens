@@ -511,9 +511,8 @@ describe("semantic lane", () => {
   async function withSemantic(body: unknown, opts?: { calls?: string[] }) {
     const h = installWorkerGlobal("");
     harness = h;
-    // Suffix routing: the semantic request URL ends in the k parameter.
     stubFetch(
-      { "search-index.json": makeSearchIndexJson(), "&k=60": body },
+      { "search-index.json": makeSearchIndexJson(), "/api/search/semantic": body },
       { calls: opts?.calls },
     );
     vi.resetModules();
@@ -697,6 +696,49 @@ describe("semantic lane", () => {
     const second = ask(h, "quorum", { lane: "lexical", sem: "woven" });
     await h.waitFor((m) => m.type === "results" && m.id === second && m.semantic === "skipped");
     expect(semanticCalls()).toHaveLength(2);
+  });
+
+  it("passes an in: subtree to the backend instead of embedding the filter text", async () => {
+    const calls: string[] = [];
+    const h = await withSemantic(
+      { hits: [{ id: IDS.facilitatorCore, score: 0.8 }], skipped: null, available: true },
+      { calls },
+    );
+    const id = ask(h, "in:A.1 quorum requirements", { lane: "semantic", sem: "off" });
+    await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done");
+    const url = calls.find((u) => u.includes("/api/search/semantic"))!;
+    // The scope rides as its own parameter. Left in the text, the model would be
+    // scoring documents against the literal string "in:A.1".
+    expect(url).toContain("q=quorum%20requirements");
+    expect(url).toContain("in=A.1");
+    expect(url).not.toContain("in%3AA.1");
+  });
+
+  it("keeps the scope in the cache key — a different subtree is a different answer", async () => {
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    const semanticCalls = () => calls.filter((u) => u.includes("/api/search/semantic"));
+
+    const a = ask(h, "in:A.1 quorum", { lane: "semantic", sem: "off" });
+    await h.waitFor((m) => m.type === "results" && m.id === a && m.semantic === "done");
+    const b = ask(h, "in:A.4 quorum", { lane: "semantic", sem: "off" });
+    await h.waitFor((m) => m.type === "results" && m.id === b && m.semantic === "done");
+    expect(semanticCalls()).toHaveLength(2);
+
+    // ...and the same subtree still replays from cache.
+    const again = ask(h, "in:A.1 quorum", { lane: "semantic", sem: "off" });
+    await h.waitFor((m) => m.type === "results" && m.id === again);
+    expect(semanticCalls()).toHaveLength(2);
+  });
+
+  it("still stands down when in: is mixed with syntax only the lexical leg enforces", async () => {
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    const id = ask(h, "in:A.1 type:Core quorum", { lane: "semantic", sem: "woven" });
+    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
+    expect(msg.semantic).toBe("none");
+    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
+    expect(calls.some((u) => u.includes("/api/search/semantic"))).toBe(false);
   });
 
   it("a missing lane/sem behaves exactly as before the feature existed", async () => {

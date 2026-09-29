@@ -59,6 +59,14 @@ export interface SemanticSearchResponse {
   available: boolean;
 }
 
+/** What to ask the semantic backend, once the query's filters are split out. */
+export interface SemanticQuery {
+  /** The text to embed — filters removed, quotes dropped. */
+  query: string;
+  /** An `in:` doc-number subtree the results must fall inside, upper-cased. */
+  scope?: string;
+}
+
 /** Longest query we will embed. Matches the reports-search lane's ceiling. */
 export const MAX_SEMANTIC_QUERY = 200;
 
@@ -82,10 +90,45 @@ export function semanticWorthAsking(q: string): boolean {
   return t.length >= MIN_SEMANTIC_QUERY && t.length <= MAX_SEMANTIC_QUERY;
 }
 
-// Structured, lexical-only query syntax: a field filter (title:, type:, in:,
+// Structured, lexical-only query syntax: a field filter (title:, type:,
 // content:, doc_no:), an exclusion (-word), or the fuzzy operator (foo~2).
 // Matches what the search worker parses out before it reaches MiniSearch.
-const LEXICAL_SYNTAX_RE = /\b\w+:\S|(?:^|\s)-\w|\S~\d/;
+//
+// `in:` is deliberately EXEMPT — it is a doc-number subtree filter, and unlike
+// the others it can be enforced on the semantic side too (doc_no is a column on
+// atlas_doc_meta, which the semantic query already joins). See semanticQueryOf.
+const LEXICAL_SYNTAX_RE = /\b(?!in:)\w+:\S|(?:^|\s)-\w|\S~\d/;
+
+/** The `in:A.6.1` subtree filter, as the search worker parses it. */
+const IN_SCOPE_RE = /\bin:(\S+)/gi;
+
+/**
+ * Is `docNo` inside the `in:` subtree `scope`? The document itself counts, and
+ * so does anything under it — the same rule the lexical leg applies, stated
+ * once so the two legs cannot disagree about what `in:A.2` includes.
+ *
+ * Compares on the dotted SEGMENT, never the raw string: `A.2` must not swallow
+ * `A.22`, which a bare startsWith would.
+ */
+export function inScope(docNo: string, scope: string): boolean {
+  const d = docNo.toUpperCase();
+  const s = scope.toUpperCase();
+  return d === s || d.startsWith(`${s}.`);
+}
+
+/**
+ * Could an EMBEDDING ANCHOR at `docNo` hold a member inside `scope`?
+ *
+ * Grouped anchors are ancestors of their members (embed-units.ts `emit` walks
+ * the subtree under the anchor), so an anchor ABOVE the scope can carry leaves
+ * inside it — `in:A.6.1.1.1.3.7` is served by an anchor at `A.6.1.1.1.3`. A
+ * retrieval filter that kept only in-scope anchors would drop exactly those.
+ * So the SQL side is deliberately permissive in this one direction, and the
+ * exact `inScope` test is applied after attribution, where the LEAF is known.
+ */
+export function anchorCouldServeScope(docNo: string, scope: string): boolean {
+  return inScope(docNo, scope) || inScope(scope, docNo);
+}
 
 /**
  * The text to embed for `q`, or null when the semantic lane should stand down.
@@ -102,13 +145,27 @@ const LEXICAL_SYNTAX_RE = /\b\w+:\S|(?:^|\s)-\w|\S~\d/;
  * keep, and every such hit is labelled as a semantic match, so nothing claims
  * to contain a phrase it does not.
  */
-export function semanticQueryOf(q: string): string | null {
+export function semanticQueryOf(q: string): SemanticQuery | null {
   if (LEXICAL_SYNTAX_RE.test(q)) return null;
+  // Pull `in:` out before anything else: it is a filter, not something to
+  // embed. Leaving it in the text would have the model scoring documents
+  // against the literal string "in:A.6.1".
+  let scope: string | undefined;
+  const withoutScope = q.replace(IN_SCOPE_RE, (_, p: string) => {
+    scope = p.toUpperCase();
+    return " ";
+  });
   // Truncate BEFORE the length check, not after: a pasted paragraph is exactly
   // the query meaning-matching can help with, and refusing it over its length
   // would be the one case where the lane stands down for no reason.
-  const bare = q.replace(/["']/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_SEMANTIC_QUERY).trim();
-  return semanticWorthAsking(bare) ? bare : null;
+  const bare = withoutScope
+    .replace(/["']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_SEMANTIC_QUERY)
+    .trim();
+  if (!semanticWorthAsking(bare)) return null;
+  return scope ? { query: bare, scope } : { query: bare };
 }
 
 // Reciprocal Rank Fusion constant. 60 is the value the chat retrieval path

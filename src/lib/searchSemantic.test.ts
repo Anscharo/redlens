@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   RRF_K,
+  anchorCouldServeScope,
+  inScope,
   SEARCH_LANES,
   SEMANTIC_STRATEGIES,
   isSearchLane,
@@ -58,22 +60,21 @@ describe("semanticWorthAsking", () => {
 });
 
 describe("semanticQueryOf", () => {
-  it("passes plain prose through", () => {
-    expect(semanticQueryOf("who signs off on a rewards change")).toBe(
-      "who signs off on a rewards change",
-    );
+  it("passes plain prose through, with no scope", () => {
+    expect(semanticQueryOf("who signs off on a rewards change")).toEqual({
+      query: "who signs off on a rewards change",
+    });
   });
 
   it("drops quote markers but keeps the words", () => {
-    expect(semanticQueryOf('"threshold requirements"')).toBe("threshold requirements");
-    expect(semanticQueryOf("'Delegated Signers'")).toBe("Delegated Signers");
+    expect(semanticQueryOf('"threshold requirements"')).toEqual({ query: "threshold requirements" });
+    expect(semanticQueryOf("'Delegated Signers'")).toEqual({ query: "Delegated Signers" });
   });
 
   it("stands down on structured syntax the lexical leg alone enforces", () => {
     // Every one of these would otherwise come back UNFILTERED from the semantic
     // leg — a `type:Core` search answered partly with documents that aren't Core.
     expect(semanticQueryOf("type:Core rewards")).toBeNull();
-    expect(semanticQueryOf("in:A.2 governance")).toBeNull();
     expect(semanticQueryOf("title:Facilitator")).toBeNull();
     expect(semanticQueryOf("governance -rewards")).toBeNull();
     expect(semanticQueryOf("misaligment~1")).toBeNull();
@@ -85,12 +86,72 @@ describe("semanticQueryOf", () => {
   });
 
   it("truncates rather than sending an unbounded string", () => {
-    expect(semanticQueryOf("word ".repeat(200))!.length).toBeLessThanOrEqual(MAX_SEMANTIC_QUERY);
+    expect(semanticQueryOf("word ".repeat(200))!.query.length).toBeLessThanOrEqual(MAX_SEMANTIC_QUERY);
+  });
+
+  it("splits an in: subtree out of the text instead of embedding it", () => {
+    // Left in, the model would be scoring documents against the literal
+    // string "in:A.6.1" — which is not what the reader asked about.
+    expect(semanticQueryOf("in:A.6.1 who approves rewards")).toEqual({
+      query: "who approves rewards",
+      scope: "A.6.1",
+    });
+    expect(semanticQueryOf("who approves rewards in:a.6.1")).toEqual({
+      query: "who approves rewards",
+      scope: "A.6.1",
+    });
+  });
+
+  it("still stands down when in: is combined with syntax only the lexical leg enforces", () => {
+    expect(semanticQueryOf("in:A.6 type:Core rewards")).toBeNull();
+    expect(semanticQueryOf("in:A.6 rewards -bridge")).toBeNull();
+  });
+
+  it("stands down on a scope with nothing left to score", () => {
+    expect(semanticQueryOf("in:A.6.1")).toBeNull();
+  });
+
+  it("does not mistake a word merely ending in 'in' for the in: filter", () => {
+    expect(semanticQueryOf("min:5 rewards")).toBeNull();
   });
 
   it("does not mistake a bare colon or hyphen for field syntax", () => {
     // A trailing colon and a mid-word hyphen are ordinary prose, not filters.
-    expect(semanticQueryOf("what about this: governance")).toBe("what about this: governance");
-    expect(semanticQueryOf("sub-proxy spell")).toBe("sub-proxy spell");
+    expect(semanticQueryOf("what about this: governance")).toEqual({ query: "what about this: governance" });
+    expect(semanticQueryOf("sub-proxy spell")).toEqual({ query: "sub-proxy spell" });
+  });
+});
+
+describe("inScope", () => {
+  it("includes the document itself and everything under it", () => {
+    expect(inScope("A.2", "A.2")).toBe(true);
+    expect(inScope("A.2.1.4", "A.2")).toBe(true);
+    expect(inScope("a.2.1.4", "A.2")).toBe(true); // case-insensitive, like the lexical leg
+  });
+
+  it("compares on the dotted segment, so A.2 does not swallow A.22", () => {
+    expect(inScope("A.22", "A.2")).toBe(false);
+    expect(inScope("A.22.1", "A.2")).toBe(false);
+    expect(inScope("B.2.1", "A.2")).toBe(false);
+  });
+
+  it("a parent is not inside its child", () => {
+    expect(inScope("A.2", "A.2.1")).toBe(false);
+  });
+});
+
+describe("anchorCouldServeScope", () => {
+  it("keeps anchors ABOVE the scope — they hold the leaves inside it", () => {
+    // Grouped anchors are ancestors of their members, so an anchor at A.6.1.1
+    // can carry a leaf at A.6.1.1.3.7. Filtering anchors to the scope alone
+    // would drop exactly the rows the scope was asking for.
+    expect(anchorCouldServeScope("A.6.1.1", "A.6.1.1.3.7")).toBe(true);
+    expect(anchorCouldServeScope("A.6.1.1.3.7.2", "A.6.1.1.3.7")).toBe(true);
+    expect(anchorCouldServeScope("A.6.1.1.3.7", "A.6.1.1.3.7")).toBe(true);
+  });
+
+  it("drops anchors on another branch entirely", () => {
+    expect(anchorCouldServeScope("A.2.1", "A.6.1.1")).toBe(false);
+    expect(anchorCouldServeScope("A.62", "A.6.1")).toBe(false);
   });
 });

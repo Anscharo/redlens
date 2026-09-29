@@ -12,6 +12,7 @@ import {
   semanticQueryOf,
   SEMANTIC_DEBOUNCE_MS,
   type SearchLane,
+  type SemanticQuery,
   type SemanticSearchResponse,
   type SemanticStrategy,
 } from "@/lib/searchSemantic";
@@ -42,8 +43,8 @@ export function isIdentifierQuery(trimmed: string, isKnownChainlog: (s: string) 
 }
 
 /**
- * The text to embed for this query under this lane + strategy, or null when no
- * semantic round-trip should happen at all.
+ * What to ask the semantic backend for this query under this lane + strategy —
+ * the text to embed plus any `in:` scope — or null for no round-trip at all.
  *
  * `lexicalCount` is a THUNK, not a number: only the fallback strategy needs it,
  * and on the semantic lane the lexical list is discarded anyway — so taking it
@@ -56,7 +57,7 @@ export function semanticLegQuery(
   sem: SemanticStrategy,
   lexicalCount: () => number,
   isKnownChainlog: (s: string) => boolean,
-): string | null {
+): SemanticQuery | null {
   if (lane === "graph") return null; // entities are the graph worker's job
   if (lane !== "semantic") {
     // Picking the semantic lane IS the request; otherwise the strategy decides.
@@ -119,8 +120,8 @@ export function cancelSemanticLeg(): void {
 
 export interface SemanticLegRun {
   id: number;
-  /** The already-cleaned text to embed (see semanticLegQuery). */
-  query: string;
+  /** The already-split request: text to embed, plus any `in:` scope. */
+  query: SemanticQuery;
   lane: SearchLane;
   /** Lexical hits to fuse with — empty on the semantic lane. */
   lexical: SearchHit[];
@@ -148,6 +149,11 @@ const cache = new Map<string, SemanticSearchResponse>();
 /** Test seam: drop everything this worker has scored. */
 export function clearSemanticCache(): void {
   cache.clear();
+}
+
+/** Cache key. The scope narrows the result set, so it belongs in the key. */
+function cacheKey(q: SemanticQuery): string {
+  return q.scope ? `${q.scope}\u0000${q.query}` : q.query;
 }
 
 function remember(query: string, body: SemanticSearchResponse): void {
@@ -183,10 +189,11 @@ function postFused(run: SemanticLegRun, body: SemanticSearchResponse): void {
  * returns true — the answer is already final.
  */
 export function answerFromCache(run: SemanticLegRun): boolean {
-  const body = cache.get(run.query);
+  const key = cacheKey(run.query);
+  const body = cache.get(key);
   if (!body) return false;
-  cache.delete(run.query); // touch: most recently used goes last
-  cache.set(run.query, body);
+  cache.delete(key); // touch: most recently used goes last
+  cache.set(key, body);
   postFused(run, body);
   return true;
 }
@@ -198,7 +205,9 @@ export function runSemanticLeg(run: SemanticLegRun): void {
     semTimer = null;
     const ac = new AbortController();
     semAbort = ac;
-    const url = `/api/search/semantic?q=${encodeURIComponent(run.query)}&k=${SEMANTIC_K}`;
+    const url =
+      `/api/search/semantic?q=${encodeURIComponent(run.query.query)}&k=${SEMANTIC_K}` +
+      (run.query.scope ? `&in=${encodeURIComponent(run.query.scope)}` : "");
     void fetch(url, { signal: ac.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error(`semantic search: ${res.status}`);
@@ -206,7 +215,7 @@ export function runSemanticLeg(run: SemanticLegRun): void {
       })
       .then((body) => {
         if (ac.signal.aborted) return;
-        remember(run.query, body);
+        remember(cacheKey(run.query), body);
         postFused(run, body);
       })
       .catch((err: unknown) => {

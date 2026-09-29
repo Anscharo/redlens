@@ -98,3 +98,77 @@ test("embedQuery cache is bypassed when size is 0", async () => {
     config.queryEmbedCacheSize = prevCap;
   }
 });
+
+// ─── query instruction prefix ───────────────────────────────────────────────
+// Qwen3-Embedding is asymmetric: the query carries an instruction, the document
+// does not. Embedding both raw — which this codebase did until 2026-09-29 — is
+// the documented 1-5% retrieval loss.
+
+/** Capture the exact `input` array each embeddings request sent. */
+function captureEmbedInput() {
+  const inputs: string[][] = [];
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    inputs.push((JSON.parse(String(init.body)) as { input: string[] }).input);
+    return new Response(JSON.stringify({ data: [{ embedding: [1, 0, 0], index: 0 }] }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }) as unknown as typeof fetch;
+  return inputs;
+}
+
+test("embedQuery applies the instruction prefix; embedBatch (documents) never does", async () => {
+  const prevKey = config.openrouterApiKey;
+  const prevPrefix = config.embedQueryPrefix;
+  config.openrouterApiKey = "test-key";
+  config.embedQueryPrefix = "Instruct: task\nQuery: ";
+  try {
+    const inputs = captureEmbedInput();
+    await embedQuery("who approves rewards");
+    expect(inputs[0]).toEqual(["Instruct: task\nQuery: who approves rewards"]);
+
+    // The document path is the raw text — collapsing the asymmetry would undo
+    // the very thing the prefix exists to create.
+    await embedBatch(["who approves rewards"]);
+    expect(inputs[1]).toEqual(["who approves rewards"]);
+  } finally {
+    config.openrouterApiKey = prevKey;
+    config.embedQueryPrefix = prevPrefix;
+  }
+});
+
+test("an empty prefix restores the previous behaviour exactly", async () => {
+  const prevKey = config.openrouterApiKey;
+  const prevPrefix = config.embedQueryPrefix;
+  config.openrouterApiKey = "test-key";
+  config.embedQueryPrefix = "";
+  try {
+    const inputs = captureEmbedInput();
+    await embedQuery("who approves rewards");
+    expect(inputs[0]).toEqual(["who approves rewards"]);
+  } finally {
+    config.openrouterApiKey = prevKey;
+    config.embedQueryPrefix = prevPrefix;
+  }
+});
+
+test("the query cache keys on the prefix, so flipping it cannot serve a stale vector", async () => {
+  const prevKey = config.openrouterApiKey;
+  const prevPrefix = config.embedQueryPrefix;
+  config.openrouterApiKey = "test-key";
+  try {
+    config.embedQueryPrefix = "Instruct: A\nQuery: ";
+    const inputs = captureEmbedInput();
+    await embedQuery("rewards");
+    await embedQuery("rewards"); // cache hit — same prefix
+    expect(inputs).toHaveLength(1);
+
+    config.embedQueryPrefix = "Instruct: B\nQuery: ";
+    await embedQuery("rewards"); // different prefix ⇒ different vector ⇒ must refetch
+    expect(inputs).toHaveLength(2);
+    expect(inputs[1]).toEqual(["Instruct: B\nQuery: rewards"]);
+  } finally {
+    config.openrouterApiKey = prevKey;
+    config.embedQueryPrefix = prevPrefix;
+  }
+});

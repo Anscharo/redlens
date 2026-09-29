@@ -142,6 +142,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Search, then use the wording / entities / meaning pills on the right of the result count line to switch index.",
           "Entities — Agents, Conservers, Instances, Primitives and the rest — are on the entities pill; they no longer appear above wording results.",
           "A result the meaning index found is labelled semantic match and shows its similarity score; it can share no word at all with your query.",
+          "Add in:<doc number> to scope meaning search to one subtree — in:A.6 who approves rewards searches only the Agent Scope.",
         ],
         note: "The meaning lane needs a deployment configured for it; where it is not, that pill is disabled and says so. How much meaning-matching joins the default wording results is a per-deployment setting, so on some deployments it only steps in when wording found nothing.",
       },

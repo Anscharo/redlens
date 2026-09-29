@@ -78,6 +78,16 @@ export async function runSemantic(
   query: string,
   type: string | undefined,
   k: number,
+  /**
+   * An `in:` doc-number subtree to restrict retrieval to. Pushed into the SQL
+   * rather than applied afterwards: post-filtering a k-sized nearest-neighbour
+   * list returns whatever of it happens to fall in the subtree, which for a
+   * narrow scope is usually nothing. Deliberately PERMISSIVE — it also keeps
+   * anchors ABOVE the scope, because a grouped anchor is an ancestor of its
+   * members and carries the leaves inside it. The exact test runs after
+   * attribution; see `anchorCouldServeScope`.
+   */
+  scope?: string,
 ): Promise<SemanticResult> {
   if (!config.openrouterApiKey) return { hits: [], skipped: null }; // no key → permanent config state, not degradation
   // Bound the embed: on timeout or provider failure, degrade to lexical-only
@@ -102,9 +112,9 @@ export async function runSemantic(
       // not compete in search itself, or the grouping they were folded out of is undone.
       `SELECT m.id, m.type, e.member_ids, 1 - (e.embedding <=> $1::vector) AS score
        FROM atlas_doc_embeddings e JOIN atlas_doc_meta m ON m.id = e.doc_id
-       WHERE NOT e.attribution_only
+       WHERE NOT e.attribution_only${semanticScopeSql(scope)}
        ORDER BY e.embedding <=> $1::vector LIMIT $2`,
-      [lit, overFetch],
+      scope ? [lit, overFetch, scope] : [lit, overFetch],
     )) as { id: string; type: string; score: number; member_ids?: unknown }[];
 
     const out: Hit[] = [];
@@ -138,6 +148,23 @@ export async function runSemantic(
 // rank a hybrid result set differently. This wrapper only carries the per-hit
 // metadata RRF has no opinion about (which legs found it, the raw score, the
 // grouped-anchor provenance).
+/**
+ * The `AND …` fragment restricting retrieval to an `in:` doc-number subtree,
+ * or "" when there is no scope. Split out so its shape is assertable without a
+ * database — the clause is the SQL twin of `anchorCouldServeScope`, and the two
+ * must keep saying the same thing:
+ *   · the anchor IS the scope                       (m.doc_no = $3)
+ *   · the anchor is INSIDE it                       (m.doc_no LIKE $3 || '.%')
+ *   · the anchor is an ANCESTOR of it, so it may    ($3 LIKE m.doc_no || '.%')
+ *     hold members inside it
+ * Every comparison appends the dot, so `A.2` cannot match `A.22`. `$3` is bound
+ * by the caller; the scope string is never interpolated into the statement.
+ */
+export function semanticScopeSql(scope: string | undefined): string {
+  if (!scope) return "";
+  return " AND (m.doc_no = $3 OR m.doc_no LIKE $3 || '.%' OR $3 LIKE m.doc_no || '.%')";
+}
+
 export function rrfMerge(lex: Hit[], sem: Hit[]): MergedHit[] {
   const fused = rrfFuse([lex.map((h) => h.id), sem.map((h) => h.id)]);
   const acc = new Map<string, MergedHit>();

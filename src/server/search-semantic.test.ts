@@ -102,6 +102,25 @@ describe("availability", () => {
   });
 });
 
+describe("in: scoping", () => {
+  it("reaches semanticDocSearch upper-cased, and degrades like any other query", async () => {
+    config.openrouterApiKey = "";
+    const res = await handleSemanticSearch(
+      new Request("http://x/api/search/semantic?q=who%20approves&in=a.6.1"),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ hits: [], skipped: null, available: false });
+  });
+
+  it("is absent, not empty-string, when no scope was asked for", async () => {
+    // An empty `in=` must not become a scope that matches nothing.
+    config.openrouterApiKey = "";
+    const res = await handleSemanticSearch(new Request("http://x/api/search/semantic?q=who%20approves&in="));
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as SemanticSearchResponse).hits).toEqual([]);
+  });
+});
+
 describe("query guards", () => {
   it("returns nothing, and embeds nothing, for a query too short to score", async () => {
     // A real key is set here: reaching the embed would be a network call.

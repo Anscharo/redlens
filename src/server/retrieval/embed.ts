@@ -79,11 +79,24 @@ export function _clearQueryEmbedCache(): void {
   queryEmbedCache.clear();
 }
 
+/**
+ * Embed a QUERY — the asymmetric half of the pair.
+ *
+ * `config.embedQueryPrefix` is applied here and NOWHERE else: documents are
+ * embedded raw by sync-embeddings.ts, which is exactly what an instruct-tuned
+ * embedding model asks for. Applying it to documents too would collapse the
+ * asymmetry the model was trained with.
+ *
+ * The prefix is part of the cache key (via cacheKey → config.embedModel is
+ * already there, and the prefixed text is what gets hashed), so flipping
+ * EMBED_QUERY_PREFIX cannot serve a vector embedded under the other setting.
+ */
 export async function embedQuery(text: string, signal?: AbortSignal): Promise<number[]> {
+  const prefixed = config.embedQueryPrefix + text;
   const cap = config.queryEmbedCacheSize;
-  if (cap <= 0) return (await embedBatch([text], signal))[0];
+  if (cap <= 0) return (await embedBatch([prefixed], signal))[0];
 
-  const key = cacheKey(text);
+  const key = cacheKey(prefixed);
   const hit = queryEmbedCache.get(key);
   if (hit) {
     // Bump recency: delete + re-insert moves it to the tail.
@@ -92,7 +105,7 @@ export async function embedQuery(text: string, signal?: AbortSignal): Promise<nu
     return hit;
   }
 
-  const vec = (await embedBatch([text], signal))[0];
+  const vec = (await embedBatch([prefixed], signal))[0];
   queryEmbedCache.set(key, vec);
   // Evict least-recently-used entries (Map iteration is insertion order).
   while (queryEmbedCache.size > cap) {

@@ -11,7 +11,7 @@
 // themselves and restore the PINNED empty state (not ambient) in afterEach,
 // so the pin holds for every case that follows them.
 import { test, expect, describe, it, beforeAll, afterAll, afterEach } from "bun:test";
-import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
+import { rrfMerge, semanticScopeSql, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
 import { config } from "../config.ts";
 import type { AtlasNode, Indexes } from "./indexes.ts";
 import { MINISEARCH_OPTIONS } from "../../lib/searchOptions.ts";
@@ -290,5 +290,34 @@ describe("runLexical inflection", () => {
   it("does not expand USDS", () => {
     const ix = lexicalIx([{ id: "a", title: "Token", content: "USDS savings" }]);
     expect(runLexical(ix, "USDS", undefined, 10).map((h) => h.id)).toEqual(["a"]);
+  });
+});
+
+describe("semanticScopeSql", () => {
+  it("is empty without a scope, so the unscoped statement is byte-identical to before", () => {
+    expect(semanticScopeSql(undefined)).toBe("");
+    expect(semanticScopeSql("")).toBe("");
+  });
+
+  it("binds $3 rather than interpolating the scope into the statement", () => {
+    const clause = semanticScopeSql("A.6.1'; DROP TABLE atlas_doc_meta; --");
+    expect(clause).not.toContain("DROP TABLE");
+    expect(clause).toContain("$3");
+  });
+
+  it("covers the anchor being the scope, inside it, or an ancestor of it", () => {
+    // The SQL twin of anchorCouldServeScope — a grouped anchor above the scope
+    // carries the leaves inside it, so dropping those would empty the result.
+    const clause = semanticScopeSql("A.6.1");
+    expect(clause).toContain("m.doc_no = $3");
+    expect(clause).toContain("m.doc_no LIKE $3 || '.%'");
+    expect(clause).toContain("$3 LIKE m.doc_no || '.%'");
+  });
+
+  it("appends the dot on every comparison, so A.2 cannot match A.22", () => {
+    const clause = semanticScopeSql("A.2");
+    // No bare-prefix LIKE anywhere: every LIKE operand carries the separator.
+    expect(clause).not.toMatch(/LIKE \$3 \|\| '%'/);
+    expect(clause.match(/\|\| '\.%'/g)).toHaveLength(2);
   });
 });

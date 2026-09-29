@@ -28,6 +28,7 @@ import {
 } from "./retrieval/search.ts";
 import {
   MAX_SEMANTIC_QUERY,
+  inScope,
   semanticWorthAsking,
   type SemanticSearchHit,
   type SemanticSearchResponse,
@@ -55,7 +56,7 @@ export function clampK(raw: string | null): number {
 
 export async function semanticDocSearch(
   query: string,
-  opts: { k?: number; type?: string } = {},
+  opts: { k?: number; type?: string; scope?: string } = {},
 ): Promise<SemanticSearchResponse> {
   const available = semanticSearchAvailable();
   const q = query.trim().slice(0, MAX_SEMANTIC_QUERY);
@@ -66,8 +67,11 @@ export async function semanticDocSearch(
   // Over-fetch when a type filter is in play: the filter runs AFTER leaf-pick
   // (a grouped parent can carry a different type from the leaf it resolves to),
   // so filtering a k-sized list would return fewer than k matching hits.
-  const fetchK = opts.type ? Math.min(k * 4, SEMANTIC_K_MAX) : k;
-  const semResult = await runSemantic(ix, q, opts.type, fetchK);
+  // Over-fetch when anything filters AFTER the nearest-neighbour cut: a type
+  // filter runs post-leaf-pick, and an `in:` scope admits ancestor anchors that
+  // may attribute to a leaf outside it. Both shrink the list after the SQL LIMIT.
+  const fetchK = opts.type || opts.scope ? Math.min(k * 4, SEMANTIC_K_MAX) : k;
+  const semResult = await runSemantic(ix, q, opts.type, fetchK, opts.scope);
   const lex = runLexical(ix, q, opts.type, fetchK);
   const attributed = attributeSemanticHits(
     q,
@@ -77,11 +81,17 @@ export async function semanticDocSearch(
     await buildLeafScorer(q, semResult.hits, ix),
   );
 
-  return {
-    hits: toWireHits(filterByType(attributed, ix, opts.type), ix.docMap, k),
-    skipped: semResult.skipped,
-    available,
-  };
+  // The SQL scope clause is permissive on purpose (it keeps ancestor anchors);
+  // this is the exact test, and it runs on the LEAF the hit was attributed to,
+  // which is the id the reader will actually open.
+  const typed = filterByType(attributed, ix, opts.type);
+  const scoped = opts.scope
+    ? typed.filter((h) => {
+        const n = ix.docMap.get(h.id);
+        return !!n && inScope(n.doc_no, opts.scope!);
+      })
+    : typed;
+  return { hits: toWireHits(scoped, ix.docMap, k), skipped: semResult.skipped, available };
 }
 
 /**
@@ -122,8 +132,9 @@ export async function handleSemanticSearch(req: Request): Promise<Response> {
   const params = new URL(req.url).searchParams;
   const q = params.get("q") ?? "";
   const type = params.get("type") ?? undefined;
+  const scope = params.get("in")?.toUpperCase() || undefined;
   try {
-    const body = await semanticDocSearch(q, { k: clampK(params.get("k")), type });
+    const body = await semanticDocSearch(q, { k: clampK(params.get("k")), type, scope });
     return json(body);
   } catch (err) {
     // A thrown failure here means something outside the semantic leg broke

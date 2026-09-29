@@ -164,6 +164,23 @@ export const config = {
   // commons meter is simply absent and the shared-pool gate never fires.
   openrouterManagementKey: process.env.OPENROUTER_MANAGEMENT_KEY ?? "",
   embedModel: process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b",
+  // Instruction prefix applied to QUERIES only — never to documents.
+  //
+  // Qwen3-Embedding is an ASYMMETRIC, instruct-tuned model: its own model card
+  // specifies `Instruct: <task>\nQuery: <text>` on the query side with documents
+  // embedded raw, and reports a 1-5% retrieval drop when the instruction is
+  // omitted. Until 2026-09-29 this codebase embedded queries and documents
+  // through the identical path with no prefix, which is the omitted case.
+  //
+  // Query-side only, so changing it re-embeds NOTHING — the stored document
+  // vectors are already raw, which is what this model wants. That also makes it
+  // instantly reversible: set EMBED_QUERY_PREFIX="" to go back.
+  //
+  // Swap the text if you swap EMBED_MODEL to a symmetric model (text-embedding-3,
+  // bge-m3): for those the prefix is noise, and "" is correct.
+  embedQueryPrefix:
+    process.env.EMBED_QUERY_PREFIX ??
+    "Instruct: Given a question about the Sky Atlas governance documents, retrieve the passages that answer it\nQuery: ",
   // Grouping policy for atlas_doc_embeddings. A CODE CONSTANT, not an env var.
   //
   // Decided 2026-08-18 on the paraphrased query set with semantic leaf attribution
