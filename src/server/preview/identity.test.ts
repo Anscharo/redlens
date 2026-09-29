@@ -1,6 +1,6 @@
 // Run via `bun test src/server`. Pure unit tests — no DB, no network.
 import { describe, it, expect } from "bun:test";
-import { detectIdentitySwaps, bodyReplaced, bodyWhollyReplaced, bodyWordsKept, lineOverlap, orderedWordContainment, renameCampaigns, titleSubstitution, wantsSimilarity, REPLACE_MAX_COSINE, type SwapNode } from "./identity.ts";
+import { detectIdentitySwaps, renameScore, RENAME_MIN_KEPT, bodyReplaced, bodyWhollyReplaced, bodyWordsKept, lineOverlap, orderedWordContainment, renameCampaigns, titleSubstitution, wantsSimilarity, REPLACE_MAX_COSINE, type SwapNode } from "./identity.ts";
 
 function mapOf(nodes: SwapNode[]): Map<string, SwapNode> {
   return new Map(nodes.map((n) => [n.id, n]));
@@ -43,6 +43,43 @@ const STEP_NEW = [
   "```",
 ].join("\n");
 const STEP_COSINE = 0.718;
+
+describe("detectIdentitySwaps — a document renamed in place", () => {
+  // Real, from upstream next-gen-atlas 32b0cc1 (2025-11-30), which renamed the
+  // agent. The name fills the sentence, so exactly 9 of its 18 words survive.
+  const OLD = "The party ‘Launch Agent 4’ comprises the Launch Agent 4 Prime Agent, Launch Agent 4 Foundation, and Rubicon.";
+  const NEW = "The party 'Obex' comprises the Obex Prime Agent, Obex Foundation, and Rubicon.";
+  const was: SwapNode = { id: "665a", doc_no: "A.6.1", title: "Launch Agent 4 Details", content: OLD };
+  const now: SwapNode = { id: "665a", doc_no: "A.6.1", title: "Obex Details", content: NEW };
+  const run = (main: SwapNode[], preview: SwapNode[], added: string[] = []) =>
+    detectIdentitySwaps({ changed: ["665a"], added, mainById: mapOf(main), previewById: mapOf(preview) }).identitySwap;
+
+  it("spares an entity rename that the word measure reads as a replacement", () => {
+    expect(bodyWhollyReplaced(OLD, NEW)).toBe(true);
+    expect(renameScore(was, now)).toBe(1);
+    expect(run([was], [now])).toEqual({});
+  });
+
+  it("still flags a sibling that holds the same template under another name", () => {
+    // "Sky Details" holding "Grove Details": the title makes the same kind of
+    // substitution, and the bodies are not the same sentence. Scores 0.833.
+    const sky: SwapNode = { id: "665a", doc_no: "A.6.1", title: "Sky Details", content: "The party 'Sky' comprises Sky Core and its Governance Facilitators." };
+    const grove: SwapNode = { id: "665a", doc_no: "A.6.1", title: "Grove Details", content: "The party 'Grove' comprises the Grove Prime Agent and Grove Foundation." };
+    expect(renameScore(sky, grove)!).toBeLessThan(RENAME_MIN_KEPT);
+    expect(Object.keys(run([sky], [grove]))).toEqual(["665a"]);
+  });
+
+  it("has no score when the title made no substitution, or the body holds none of its words", () => {
+    expect(renameScore({ ...was, title: "Details" }, { ...now, title: "Details Of The Party" })).toBeNull(); // words only added
+    expect(renameScore({ ...was, content: "The allocation is 21,000,000 USDS, paid monthly." }, now)).toBeNull();
+  });
+
+  it("yields to a demonstrated relocation: the old content moved, so the UUID was repurposed", () => {
+    const moved: SwapNode = { id: "new1", doc_no: "A.6.9", title: "Launch Agent 4 Details", content: OLD };
+    const swaps = run([was], [now, moved], ["new1"]);
+    expect(swaps["665a"]?.movedTo?.id).toBe("new1");
+  });
+});
 
 describe("detectIdentitySwaps — judged by meaning when a similarity is supplied", () => {
   const main = mapOf([{ id: "2c2b", doc_no: "A.6.1.4", title: "Approve Contract Spend", content: STEP_OLD }]);

@@ -606,9 +606,36 @@ is judged by lines and words, silently apart from a log line. And
 on the preview allowlist, and preview search will need an entry there and a
 reader (`decodeVector`).
 
+### 11. The entity rename — DONE
+
+The false flag thread 10 found: "Launch Agent 4 Details" → "Obex Details". The
+body names the agent four times in one sentence, so exactly 9 of its 18 words
+survive, and the bulk-rename rule cannot help because the rename replaces
+three of the title's four words and yields no key.
+
+`renameScore` applies the title's own substitution to the old body and
+measures what then survives. At `RENAME_MIN_KEPT` (0.90) or more the document
+was renamed in place and is spared, unless its old content demonstrably moved.
+It needs no second document to agree.
+
+`bun scripts/aux/identity-rename-check.ts`, over the pairs the body test calls
+replaced:
+
+| spared at >= 0.90 | |
+|---|---|
+| real retitles | 2 of 29, both entity renames |
+| sibling swaps | 0 of 1,846 |
+| cousin swaps (same title, another agent) | 0 of 1,444 |
+| unrelated swaps | 1 of 2,944 |
+
+The two renames score 1.000 and the next real retitle 0.537. At 0.80 the rule
+starts to spare swaps between one-sentence templates ("The party 'Sky'
+comprises…" holding "The party 'Grove' comprises…", 0.833), which is why the
+bar is 0.90. The whole gate now flags 20 of the 316 real retitles, from 22.
+
 ## Ordering
 
-**1, 3, 4, 5, 6-groundtruth, 7 and 10 are done.** The gate judges longer
+**1, 3, 4, 5, 6-groundtruth, 7, 10 and 11 are done.** The gate judges longer
 bodies by the search vector (thread 10). What is left:
 
 - **8** — whether long bodies should be judged on words alone. It now matters
@@ -617,8 +644,6 @@ bodies by the search vector (thread 10). What is left:
 - **Short bodies** miss 35% of true sibling swaps and no measure tried here
   does better. The real retitles of 1 to 3 lines are unread; labelling them is
   the next measurement, and it is reading, not building.
-- **The rename false flag** in thread 10 ("Launch Agent 4 Details" → "Obex
-  Details") is open.
 
 **2** is a corroborator at best; do not build it as a gate.
 

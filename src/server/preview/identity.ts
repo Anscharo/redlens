@@ -182,6 +182,21 @@ export const REPLACE_MAX_COSINE = 0.85;
 // exactly why a member with a demonstrated relocation stays flagged. So the
 // residual is: a correlated mass repurposing whose old content appears nowhere
 // in the diff. Accepted — it reads as a rename to a human reader too.
+// A document is RENAMED IN PLACE when, once the title's own substitution is
+// applied to the old body, at least this much of it survives (renameScore).
+// Measured 2026-09-29 (`bun scripts/aux/identity-rename-check.ts`) over the
+// pairs the body test calls replaced:
+//
+//   spared at >= 0.90    real retitles   2 of 29      both are entity renames
+//                        sibling swaps   0 of 1,846
+//                        cousin swaps    0 of 1,444   same title, another agent
+//                        unrelated       1 of 2,944
+//
+// The two renames score 1.000 and the next real retitle 0.537, so the bar has
+// room on both sides. At 0.80 it starts to spare swaps between one-sentence
+// templates ("The party 'Sky' comprises…" holding "The party 'Grove'
+// comprises…"), which is the bar's reason for being this high.
+export const RENAME_MIN_KEPT = 0.9;
 export const CAMPAIGN_MIN_DOCS = 2;
 export const CAMPAIGN_MIN_TITLE_KEPT = 0.5;
 // Relocation match: the displaced content should reappear inside the new home —
@@ -462,6 +477,60 @@ export function titleSubstitution(oldT: string | undefined, newT: string | undef
   return parts.length ? parts.join("|") : null;
 }
 
+/** Each run of words the retitle removed, with the run that replaced it. A
+ *  run that was only removed, or only added, is not a substitution. */
+function titleSubstitutions(oldT: string | undefined, newT: string | undefined): [string[], string[]][] {
+  const out: [string[], string[]][] = [];
+  let removed: string[] = [];
+  let added: string[] = [];
+  const flush = () => {
+    if (removed.length && added.length) out.push([removed, added]);
+    removed = [];
+    added = [];
+  };
+  for (const [op, w] of lcsOps(words(oldT), words(newT))) {
+    if (op === "=") flush();
+    else if (op === "-") removed.push(w);
+    else added.push(w);
+  }
+  flush();
+  // Longest first, so "Launch Agent 4" is replaced before any shorter run could
+  // claim one of its words.
+  return out.sort((x, y) => y[0].length - x[0].length);
+}
+
+/** Was this document RENAMED IN PLACE — its body changed by the same
+ *  substitution its title underwent, and by little else? Returns the fraction
+ *  of the old body's words that survive into the new one once that
+ *  substitution is applied, or null when the title made no substitution or the
+ *  body holds none of the words it replaced.
+ *
+ *  This is the case an entity rename produces and the word measure misreads:
+ *  "Launch Agent 4 Details" → "Obex Details", whose one-sentence body names
+ *  the agent four times, keeps exactly 9 of its 18 words. It needs no second
+ *  document to agree, unlike renameCampaigns, and that rule cannot help here
+ *  anyway: the rename replaces three of the title's four words, so it yields
+ *  no campaign key. */
+export function renameScore(main: SwapNode, prev: SwapNode): number | null {
+  const subs = titleSubstitutions(main.title, prev.title);
+  if (!subs.length) return null;
+  const old = words(main.content);
+  const renamed: string[] = [];
+  let replaced = 0;
+  for (let i = 0; i < old.length; ) {
+    const sub = subs.find(([from]) => from.every((w, k) => old[i + k] === w));
+    if (sub) {
+      renamed.push(...sub[1]);
+      i += sub[0].length;
+      replaced++;
+    } else renamed.push(old[i++]);
+  }
+  if (!replaced) return null;
+  const now = words(prev.content);
+  if (renamed.length * now.length > BODY_TEST_MAX_CELLS) return null;
+  return wordsInOrder(renamed, now) / renamed.length;
+}
+
 /** The changed documents whose retitle is one document's share of a bulk
  *  rename — the same substitution applied across at least CAMPAIGN_MIN_DOCS of
  *  them. A corpus-level judgement, so it is computed once per diff rather than
@@ -529,6 +598,9 @@ export function detectIdentitySwaps(args: {
     // the PR that no single document can see. Yields to a demonstrated
     // relocation for the same reason titlesRelated does.
     if (renamed.has(id) && !moved) continue;
+    // Likewise a body that changed only by the substitution the title made: an
+    // entity rename, which needs no second document to show itself.
+    if ((renameScore(main, prev) ?? 0) >= RENAME_MIN_KEPT && !moved) continue;
 
     const swap: IdentitySwap = { oldTitle: main.title ?? "", newTitle: prev.title ?? "" };
     if (moved) {
