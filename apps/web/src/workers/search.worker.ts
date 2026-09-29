@@ -19,7 +19,9 @@ import {
   answerFromCache,
   cancelSemanticLeg,
   runSemanticLeg,
+  semanticDebounceMs,
   semanticLegQuery,
+  type TermShape,
 } from "./searchSemanticLeg";
 import { MINISEARCH_OPTIONS } from "@/lib/searchOptions";
 import { counterpartTerm, expandQueryTokens, partitionByOriginalTerms } from "@/lib/searchInflect";
@@ -455,6 +457,45 @@ function lexicalFor(q: string): { hits: SearchHit[]; durationMs: number } {
   return lastLexical;
 }
 
+/**
+ * Is `word` a word this corpus has, only the start of one, or neither?
+ *
+ * Reads MiniSearch's own term dictionary, which is a radix tree: `has` is one
+ * walk down the word and `atPrefix(...).keys().next()` stops at the first term
+ * under it, so the probe costs nothing like a search — which matters, because it
+ * runs on every keystroke and the whole point is to NOT do corpus-sized work
+ * before deciding whether to wait.
+ *
+ * `_index` is declared `protected` rather than public, so this is the one place
+ * that reaches for it, behind a shape check that degrades to "unknown" (the
+ * permissive answer: search now) if a MiniSearch upgrade ever moves it.
+ * `semanticDebounceMs`'s test pins the behaviour against a real index, so that
+ * upgrade fails the suite rather than quietly disabling the wait.
+ *
+ * The word is normalised through the index's OWN `processTerm`, so the probe
+ * cannot disagree with the dictionary it is reading about what a term looks
+ * like. A token that normalises away (under two characters) counts as a prefix:
+ * a one-letter word is a word in progress.
+ */
+interface TermTree {
+  has(key: string): boolean;
+  atPrefix(prefix: string): { keys(): Iterator<string> };
+}
+
+function probeTerm(word: string): TermShape {
+  const tree = (idx as unknown as { _index?: TermTree })._index;
+  if (!tree || typeof tree.has !== "function" || typeof tree.atPrefix !== "function") return "unknown";
+  const processed = MINISEARCH_OPTIONS.processTerm?.(word, "content");
+  const term = typeof processed === "string" ? processed : null;
+  if (!term) return "prefix";
+  try {
+    if (tree.has(term)) return "term";
+    return tree.atPrefix(term).keys().next().done === false ? "prefix" : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 // ─── did you mean ───────────────────────────────────────────────────────────
 
 /**
@@ -566,6 +607,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
       lane,
       lexical: lane === "semantic" ? [] : lexical().hits,
       startedAt,
+      debounceMs: semanticDebounceMs(msg.q, probeTerm),
       hydrate: hydrateSemantic,
       post,
     };

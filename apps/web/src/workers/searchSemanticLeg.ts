@@ -9,7 +9,9 @@ import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix } from "../lib/uuidSearch";
 import {
   semanticQueryOf,
+  trailingWord,
   SEMANTIC_DEBOUNCE_MS,
+  SEMANTIC_PARTIAL_DEBOUNCE_MS,
   type SearchLane,
   type SemanticQuery,
   type SemanticSearchResponse,
@@ -68,6 +70,29 @@ export function semanticLegQuery(
 }
 
 
+/**
+ * What the lexical index knows about a word the reader has typed:
+ *   term    — it is a word the corpus contains, as written.
+ *   prefix  — only the beginning of one, so it is probably still being typed.
+ *   unknown — nothing in the corpus starts with it; there is nothing to wait
+ *             for, and this is exactly the query meaning-matching is for.
+ */
+export type TermShape = "term" | "prefix" | "unknown";
+
+/**
+ * How long to wait after this keystroke before spending an embedding call.
+ *
+ * The trailing word is checked against the corpus rather than against a length
+ * or a character class, because only the corpus can tell "collater" (on the way
+ * to a word 11,584 documents use) from "hypernova" (a word none of them use,
+ * which is finished as far as anything here can know).
+ */
+export function semanticDebounceMs(q: string, probe: (word: string) => TermShape): number {
+  const word = trailingWord(q);
+  if (word === null) return SEMANTIC_DEBOUNCE_MS;
+  return probe(word) === "prefix" ? SEMANTIC_PARTIAL_DEBOUNCE_MS : SEMANTIC_DEBOUNCE_MS;
+}
+
 /** What the response says about the leg's own health. */
 export function legStatus(body: SemanticSearchResponse): SemanticLegStatus {
   if (!body.available) return "unavailable";
@@ -98,6 +123,8 @@ export interface SemanticLegRun {
   lexical: SearchHit[];
   /** performance.now() at the time the query arrived, for one honest duration. */
   startedAt: number;
+  /** Keystroke pause before the request — see `semanticDebounceMs`. */
+  debounceMs: number;
   /** Scored ids → rendered hits. Owned by the worker (it holds the doc map). */
   hydrate: (scored: SemanticSearchResponse["hits"]) => SearchHit[];
   post: (msg: WorkerOutMessage) => void;
@@ -221,5 +248,5 @@ export function runSemanticLeg(run: SemanticLegRun): void {
           semanticNote: err instanceof Error ? err.message : String(err),
         });
       });
-  }, SEMANTIC_DEBOUNCE_MS);
+  }, run.debounceMs);
 }

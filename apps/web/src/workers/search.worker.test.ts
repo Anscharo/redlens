@@ -18,7 +18,7 @@ import {
   MCD_VAT_ADDR,
 } from "../test/workerFixtures";
 import type { SearchHit } from "@/types";
-import { SEMANTIC_DEBOUNCE_MS } from "@/lib/searchSemantic";
+import { SEMANTIC_DEBOUNCE_MS, SEMANTIC_PARTIAL_DEBOUNCE_MS } from "@/lib/searchSemantic";
 
 let harness: WorkerHarness | null = null;
 
@@ -654,6 +654,32 @@ describe("semantic lane", () => {
     // Interleaving the two lists was the `woven` strategy, dropped 2026-09-29.
     expect(done.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore, IDS.addrOnly]);
     expect(done.hits.every((x) => x.semantic)).toBe(true);
+  });
+
+  it("holds the embed back while the last word is still being typed", async () => {
+    // The wait is decided by asking MiniSearch's own term dictionary whether the
+    // trailing word is a whole word or only the start of one — so this also pins
+    // the probe against a REAL index: if it stopped reading the dictionary, every
+    // query would fire at the short debounce and the first assertion would fail.
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    const sem = () => calls.filter((u) => u.includes("/api/search/semantic"));
+
+    ask(h, "governan", { lane: "semantic", sem: "off" }); // on the way to "governance"
+    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
+    expect(sem()).toHaveLength(0);
+    // But it is a WAIT, not a refusal: a reader who stops mid-word still gets an
+    // answer, or the lane would hang on a query it never resolves.
+    await new Promise((r) => setTimeout(r, SEMANTIC_PARTIAL_DEBOUNCE_MS - SEMANTIC_DEBOUNCE_MS + 60));
+    expect(sem()).toHaveLength(1);
+  });
+
+  it("a finished word buys its embed at the short debounce", async () => {
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    ask(h, "governance", { lane: "semantic", sem: "off" });
+    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
+    expect(calls.filter((u) => u.includes("/api/search/semantic"))).toHaveLength(1);
   });
 
   it("the semantic lane withholds the wording list and answers only once", async () => {

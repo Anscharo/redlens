@@ -10,6 +10,7 @@ import {
   rrfFuse,
   semanticQueryOf,
   semanticWorthAsking,
+  trailingWord,
   MAX_SEMANTIC_QUERY,
 } from "./searchSemantic";
 
@@ -153,5 +154,33 @@ describe("anchorCouldServeScope", () => {
   it("drops anchors on another branch entirely", () => {
     expect(anchorCouldServeScope("A.2.1", "A.6.1.1")).toBe(false);
     expect(anchorCouldServeScope("A.62", "A.6.1")).toBe(false);
+  });
+});
+
+describe("trailingWord", () => {
+  it("returns the word still being typed", () => {
+    expect(trailingWord("collater")).toBe("collater");
+    expect(trailingWord("who approves collater")).toBe("collater");
+  });
+
+  it("a trailing space or punctuation commits the word", () => {
+    // You do not type a space into the middle of a word, so there is nothing
+    // left to wait for.
+    expect(trailingWord("collateral ")).toBe(null);
+    expect(trailingWord("rewards, ")).toBe(null);
+    expect(trailingWord("who approves rewards?")).toBe(null);
+  });
+
+  it("strips the operators a word can be wearing", () => {
+    expect(trailingWord("-fees")).toBe("fees");
+    expect(trailingWord("title:facilitator")).toBe("facilitator");
+    expect(trailingWord("facilitator~2")).toBe("facilitator");
+  });
+
+  it("is not fooled by things that are not words in progress", () => {
+    expect(trailingWord("")).toBe(null);
+    expect(trailingWord("in:A.6")).toBe(null); // a subtree filter
+    expect(trailingWord("A.2.7.1")).toBe(null); // an identifier
+    expect(trailingWord("2026")).toBe(null); // a figure
   });
 });

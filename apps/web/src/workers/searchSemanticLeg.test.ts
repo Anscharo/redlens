@@ -11,9 +11,15 @@ import {
   isIdentifierQuery,
   legStatus,
   runSemanticLeg,
+  semanticDebounceMs,
   semanticLegQuery,
+  type TermShape,
 } from "./searchSemanticLeg";
-import { SEMANTIC_DEBOUNCE_MS, type SemanticSearchResponse } from "@/lib/searchSemantic";
+import {
+  SEMANTIC_DEBOUNCE_MS,
+  SEMANTIC_PARTIAL_DEBOUNCE_MS,
+  type SemanticSearchResponse,
+} from "@/lib/searchSemantic";
 import type { SearchHit, WorkerOutMessage } from "@/types";
 
 const NO_CHAINLOG = () => false;
@@ -109,6 +115,37 @@ function stubSemantic(body: SemanticSearchResponse | { status: number }, calls: 
   return calls;
 }
 
+describe("semanticDebounceMs", () => {
+  const probe = (shape: TermShape) => () => shape;
+
+  it("waits longer on a word the corpus only has the beginning of", () => {
+    // "collater" on the way to "collateral": the embed would score a fragment
+    // no document contains, which is the one round-trip certain to be wasted.
+    expect(semanticDebounceMs("collater", probe("prefix"))).toBe(SEMANTIC_PARTIAL_DEBOUNCE_MS);
+  });
+
+  it("does not wait longer for a word the corpus has as written", () => {
+    expect(semanticDebounceMs("collateral", probe("term"))).toBe(SEMANTIC_DEBOUNCE_MS);
+  });
+
+  it("does not wait longer for a word the corpus has never heard of", () => {
+    // Nothing completes it, so there is nothing to wait FOR — and a query made
+    // of words the atlas does not use is precisely the semantic lane's case.
+    expect(semanticDebounceMs("hypernova", probe("unknown"))).toBe(SEMANTIC_DEBOUNCE_MS);
+  });
+
+  it("never asks the index about a token that is not a word", () => {
+    const asked: string[] = [];
+    const spy = (w: string): TermShape => {
+      asked.push(w);
+      return "prefix";
+    };
+    expect(semanticDebounceMs("rewards in:A.6", spy)).toBe(SEMANTIC_DEBOUNCE_MS);
+    expect(semanticDebounceMs("who approves rewards ", spy)).toBe(SEMANTIC_DEBOUNCE_MS);
+    expect(asked).toEqual([]);
+  });
+});
+
 describe("runSemanticLeg", () => {
   it("waits out the debounce before spending an embed, then posts the fused set", async () => {
     vi.useFakeTimers();
@@ -116,7 +153,7 @@ describe("runSemanticLeg", () => {
     const { posted, post } = collector();
     runSemanticLeg({
       id: 4, query: { query: "who approves rewards" }, lane: "lexical",
-      lexical: [], startedAt: 0, hydrate, post,
+      lexical: [], startedAt: 0, debounceMs: SEMANTIC_DEBOUNCE_MS, hydrate, post,
     });
 
     await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS - 1);
@@ -140,7 +177,7 @@ describe("runSemanticLeg", () => {
     const { posted, post } = collector();
     runSemanticLeg({
       id: 1, query: { query: "meaning" }, lane: "semantic",
-      lexical: [], startedAt: 0, hydrate, post,
+      lexical: [], startedAt: 0, debounceMs: SEMANTIC_DEBOUNCE_MS, hydrate, post,
     });
     await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS + 1);
     await vi.waitFor(() => expect(posted).toHaveLength(1));
@@ -154,7 +191,7 @@ describe("runSemanticLeg", () => {
     const { posted, post } = collector();
     runSemanticLeg({
       id: 2, query: { query: "rewards policy" }, lane: "lexical",
-      lexical: [hit("a")], startedAt: 0, hydrate, post,
+      lexical: [hit("a")], startedAt: 0, debounceMs: SEMANTIC_DEBOUNCE_MS, hydrate, post,
     });
     await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS + 1);
     await vi.waitFor(() => expect(posted).toHaveLength(1));
@@ -170,7 +207,7 @@ describe("runSemanticLeg", () => {
     vi.useFakeTimers();
     stubSemantic({ hits: [], skipped: "embed timed out after 10000ms", available: true });
     const { posted, post } = collector();
-    runSemanticLeg({ id: 3, query: { query: "rewards" }, lane: "lexical", lexical: [], startedAt: 0, hydrate, post });
+    runSemanticLeg({ id: 3, query: { query: "rewards" }, lane: "lexical", lexical: [], startedAt: 0, debounceMs: SEMANTIC_DEBOUNCE_MS, hydrate, post });
     await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS + 1);
     await vi.waitFor(() => expect(posted).toHaveLength(1));
     const msg = posted[0] as Extract<WorkerOutMessage, { type: "results" }>;
@@ -182,7 +219,7 @@ describe("runSemanticLeg", () => {
     vi.useFakeTimers();
     const calls = stubSemantic({ hits: [], skipped: null, available: true });
     const { post } = collector();
-    const base = { lane: "lexical" as const, lexical: [], startedAt: 0, hydrate, post };
+    const base = { lane: "lexical" as const, lexical: [], startedAt: 0, debounceMs: SEMANTIC_DEBOUNCE_MS, hydrate, post };
     runSemanticLeg({ id: 1, query: { query: "gov" }, ...base });
     await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS - 50);
     runSemanticLeg({ id: 2, query: { query: "gover" }, ...base });
@@ -194,7 +231,7 @@ describe("runSemanticLeg", () => {
     vi.useFakeTimers();
     const calls = stubSemantic({ hits: [], skipped: null, available: true });
     const { posted, post } = collector();
-    runSemanticLeg({ id: 1, query: { query: "gov" }, lane: "lexical", lexical: [], startedAt: 0, hydrate, post });
+    runSemanticLeg({ id: 1, query: { query: "gov" }, lane: "lexical", lexical: [], startedAt: 0, debounceMs: SEMANTIC_DEBOUNCE_MS, hydrate, post });
     cancelSemanticLeg();
     await vi.advanceTimersByTimeAsync(SEMANTIC_DEBOUNCE_MS + 50);
     expect(calls).toHaveLength(0);
@@ -203,7 +240,7 @@ describe("runSemanticLeg", () => {
 });
 
 describe("scored-id cache", () => {
-  const base = { lane: "lexical" as const, lexical: [hit("a")], startedAt: 0, hydrate };
+  const base = { lane: "lexical" as const, lexical: [hit("a")], startedAt: 0, debounceMs: SEMANTIC_DEBOUNCE_MS, hydrate };
 
   /** Run one leg to completion, so its response lands in the cache. */
   async function prime(query: string, body: SemanticSearchResponse, calls: string[]) {
@@ -282,7 +319,7 @@ describe("scored-id cache", () => {
     const { posted: replayed, post } = collector();
     // startedAt is NOW, so an elapsed-time reading would be ~0 and the number on
     // screen would change every time the reader flipped lanes and came back.
-    answerFromCache({ id: 2, query: { query: "who approves rewards" }, ...base, startedAt: performance.now(), post });
+    answerFromCache({ id: 2, query: { query: "who approves rewards" }, ...base, startedAt: performance.now(), debounceMs: SEMANTIC_DEBOUNCE_MS, post });
     expect((replayed[0] as Extract<WorkerOutMessage, { type: "results" }>).durationMs).toBe(first);
   });
 
