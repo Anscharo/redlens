@@ -10,12 +10,89 @@
  *   pnpm eval:retrieval -- --backend openrouter --reuse-db --models qwen/qwen3-embedding-8b --policies one_to_one,breadcrumbs --subset 40
  *     ^ reuse a prod/staging DATABASE_URL's embeddings by content_hash (read-only); only cache-miss units are embedded
  *   pnpm eval:retrieval -- --rerank bm25
+ *   pnpm eval:retrieval -- --reuse-db --rerank jev --rerank-pool 30            (Jev noul per (query, leaf) pair)
+ *   pnpm eval:retrieval -- --reuse-db --rerank qwen3 --rerank-pool 30 --hybrid  (Qwen3-Reranker-4B via local Ollama, see eval-rerankers.ts)
  *   pnpm eval:retrieval -- --prefix "Instruct: Given a web search query, retrieve relevant passages that answer the query\\nQuery: "
  *   pnpm eval:retrieval -- --no-prefix     (bare queries; the default arm embeds with config.embedQueryPrefix)
  *
  * Default backend is OpenRouter when OPENROUTER_API_KEY is set, else TF-IDF
  * (offline proxy for grouping architecture — not a substitute for the neural
  * bakeoff). Writes .cache/eval-retrieval.json.
+ *
+ * ══ RERANKERS (2026-09-29) — one Jev CHOICE over the whole list wins; pairwise scoring loses ══
+ * --reuse-db, generic prefix, --rerank-pool 30: the reranker reorders the final
+ * 30-leaf list the shipped path returns and the top 10 is scored. `control` is that
+ * list's own top 10; the exact ceiling@30 (a relevant leaf anywhere in the 30) is
+ * 0.659 semantic-only / 0.709 hybrid. Jev = one Noul or Score per (query, leaf) pair
+ * against path + title + 1,200-char body, 12 concurrent; Qwen3-Reranker-4B Q8 via
+ * local Ollama, P(yes) from next-token logprobs, sequential.
+ *
+ *   semantic-only          recall  exact  disambig   mrr   per query    cost/arm
+ *   control (no rerank)     0.816  0.648    0.625   0.629
+ *   jev noul (strict)       0.782  0.615    0.550   0.451   1.0 s        $0.12
+ *   jev noul (neutral)      0.810  0.609    0.550   0.543   1.4 s        $0.12
+ *   jev score (4 levels)    0.782  0.615    0.500   0.463   1.4 s        $0.13
+ *   qwen3-reranker-4b       0.721  0.564    0.375   0.511   9.1 s local  $0
+ *   jev CHOICE (1 call)     0.832  0.659    0.625   0.634   0.5 s        $0.05
+ *   jev CHOICE, pool 60     0.883  0.682    0.625   0.656   0.5 s        $0.09   (exact ceiling@60 0.687)
+ *   --hybrid
+ *   control (no rerank)     0.933  0.670    0.575   0.599
+ *   jev noul (strict)       0.855  0.648    0.525   0.495
+ *   jev noul (neutral)      0.944  0.637    0.400   0.787
+ *   jev score (4 levels)    0.916  0.642    0.400   0.587
+ *   qwen3-reranker-4b       0.933  0.615    0.400   0.708   8.8 s local  $0
+ *   jev CHOICE (1 call)     0.944  0.698    0.625   0.815   0.5 s        $0.05
+ *   jev CHOICE, pool 60     0.955  0.721    0.650   0.802   0.5 s        $0.08   (exact ceiling@60 0.721; list avg 55 — see below)
+ *
+ * The shape that works is COMPARATIVE: one request per query, every candidate in
+ * the state, a Choice whose options are the candidates, ranked by the option
+ * probabilities (rerankJevChoice). Every pairwise arm — a Noul or Score per
+ * (query, candidate) that never sees the other candidates — lost exact and
+ * disambiguation. The Choice arm reaches the exact ceiling of its list in three of
+ * four runs (semantic 0.659 = ceiling@30; hybrid 0.721 = ceiling@60), 30-60x fewer
+ * requests, 0.5 s p50 per query (p95 0.7 s), ~$0.0003-0.0005 a query.
+ *
+ * Read the two lanes apart. HYBRID (chat) moves a lot: exact_mrr — mrr counted only
+ * on exact leaves, from the JSON — 0.387 -> 0.645 at pool 30, so the rank-1
+ * promotions land on the exact leaf, not an ancestor. SEMANTIC-ONLY (the reader
+ * lane) at pool 30 is flat: exact +2 queries, exact_mrr 0.524 -> 0.521, and icd-param
+ * / hub / directory mrr each dip a little — the list was already at its ceiling.
+ * At pool 60 the reader lane moves (recall 0.816 -> 0.883, exact +6 queries,
+ * exact_mrr 0.542) because the ceiling rose 0.659 -> 0.687: the reader's limit is
+ * candidates that never reach the list, and the wider pool is what buys them.
+ *
+ * What the Choice IS: with p50 option probability 0.00 and p90 0.01-0.03 it puts
+ * nearly all mass on one or two candidates; below the pick the order is retrieval
+ * order. A best-answer picker on top of retrieval, not a re-sort — which is why it
+ * cannot lose much and why a reader list below rank 1 looks unchanged.
+ *
+ * Run-to-run noise: the hybrid pool-30 Choice arm rerun end to end gave recall 0.944 /
+ * exact 0.698 / disambig 0.625 / mrr 0.814 / exact_mrr 0.651 against 0.944 / 0.698 /
+ * 0.625 / 0.815 / 0.645 — the deltas above are not noise.
+ *
+ * Hybrid "pool 60" is NOT a 60-anchor pool: poolK keeps RERANK_POOL (50) anchors
+ * under --hybrid and the lexical leg adds K=10, so the fused list averaged 55 ids
+ * (9,761 scores / 179 queries). The semantic-only 60 is a true 60.
+ *
+ * The headline for the pairwise arms: there was almost no exact gain available. Control exact 0.648 against
+ * an exact ceiling of 0.659 (semantic-only) and 0.670 against 0.709 (hybrid) means
+ * retrieval already puts the exact leaf in the top 10 for 94-98% of the queries where
+ * it made the top 30 at all; the 29-34% of queries with no exact leaf in the 30 are a
+ * RECALL problem no reranker over 30 can touch. Widening the pool (60, 100) is the
+ * untested follow-up; Jev cost scales linearly with it.
+ *
+ * What moves: every Jev arm puts the PROSE answer first (control-slice mrr 0.70 ->
+ * 0.96 hybrid) and every reranker loses ICD disambiguation (exact 0.575 -> 0.400):
+ * near-identical parameter templates for different products cannot be told apart
+ * from 1,200 characters of one candidate. The strict Noul's false-criteria named
+ * "a parent, sibling or index of the answer", which IS the answer for the hub and
+ * directory slices (hub mrr 1.0 -> 0.27); the neutral wording repairs that, and the
+ * two wordings differed by more than Noul-vs-Score did. Jev scores are low-mass
+ * (p50 0.13-0.27), so much of the order is the tiebreak on retrieval rank. The one
+ * arm with an upside is neutral Noul + hybrid: mrr 0.599 -> 0.787 (mrr credits an
+ * ancestor, so part of that is a parent promoted over the exact leaf) for exact
+ * -0.033 and disambiguation -0.175. Qwen3-Reranker-4B semantic-only was below control
+ * on every headline metric (directory mrr was the one slice it won, 0.850 vs 0.804).
  *
  * ══ QUERY PREFIX (2026-09-29) — generic Qwen instruction, config.embedQueryPrefix ══
  * --reuse-db on a local DB holding production's Qwen vectors, 179 queries, one policy.
@@ -310,6 +387,7 @@ import {
 import { generateRetrievalQueries, type RetrievalQuery } from "./eval-retrieval-queries.ts";
 import { lexicalOverlap } from "./eval-retrieval-paraphrase.ts";
 import { contentHash as oneToOneHash } from "../../src/server/retrieval/embed-text.ts";
+import { rerank, type Reranker } from "./eval-rerankers.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const argv = process.argv.slice(2);
@@ -320,7 +398,12 @@ const CAP = flag("cap")[0] ? Number(flag("cap")[0]) : undefined;
 const CAPS = (flag("caps")[0]?.split(",") ?? []).map(Number).filter((n) => Number.isFinite(n));
 const BACKEND = (flag("backend")[0] ?? (config.openrouterApiKey ? "openrouter" : "tfidf")) as "tfidf" | "openrouter";
 const MODELS = flag("models")[0]?.split(",") ?? [config.embedModel];
-const RERANK = (flag("rerank")[0] ?? "none") as "none" | "bm25";
+const RERANK = (flag("rerank")[0] ?? "none") as Reranker;
+// jev / qwen3 rerank the FINAL leaf list (what the shipped path returns for k = N),
+// not the anchor pool bm25 works on. N is the reranker's ceiling: recall@N of the
+// list is printed beside every arm.
+const LEAF_RERANK = RERANK !== "none" && RERANK !== "bm25";
+const RERANK_N = Number(flag("rerank-pool")[0] ?? 30);
 const COLLAPSE = argv.includes("--collapse");
 const HYBRID = argv.includes("--hybrid");
 const REUSE_DB = argv.includes("--reuse-db");
@@ -764,6 +847,13 @@ for (const policy of POLICIES) {
       }
 
       const ranked: string[][] = [];
+      // Leaf-rerank arms only: the same N-list's top-K without reranking (the
+      // control), and whether a relevant doc was in the list at all (the ceiling).
+      const controlRanked: string[][] = [];
+      const ceilingHits: boolean[] = [];
+      const rerankMs: number[] = [];
+      const rerankScores: number[] = [];
+      let rerankCost = 0;
       const qEmbedMs: number[] = [];
       // Anchor index built ONCE per arm. Looking this up with units.find() inside the
       // per-query/per-pool loops was ~179 x 50 x 11,340 array scans and made the run
@@ -771,7 +861,7 @@ for (const policy of POLICIES) {
       const unitByAnchor = new Map(units.map((u) => [u.anchorId, u]));
       for (const q of queries) {
         let pool: { id: string; text: string; score: number }[];
-        const poolK = RERANK === "bm25" || HYBRID ? RERANK_POOL : K;
+        const poolK = RERANK === "bm25" || HYBRID ? RERANK_POOL : LEAF_RERANK ? RERANK_N : K;
         if (BACKEND === "tfidf") {
           pool = rankTfidf(q.query, units, tfidfVecs!, idf!, poolK);
         } else {
@@ -796,7 +886,7 @@ for (const policy of POLICIES) {
             .slice(0, poolK);
         }
         if (RERANK === "bm25") pool = bm25Rerank(q.query, pool).slice(0, K);
-        else pool = pool.slice(0, HYBRID ? RERANK_POOL : K);
+        else pool = pool.slice(0, HYBRID ? RERANK_POOL : LEAF_RERANK ? RERANK_N : K);
 
         // Semantic leaf attribution, mirroring search.ts's buildLeafScorer: strip the
         // top-K retrieved anchor titles from the query, embed that residual ONCE, and
@@ -845,10 +935,22 @@ for (const policy of POLICIES) {
             const n = docMap.get(r.id);
             return { id: r.id, doc_no: n?.doc_no ?? "" };
           });
-          const semIds = attributeRank(q.query, pool, units, docMap, K, lexHits, leafScorer);
-          ranked.push(rrfFuse(lexHits.map((h) => h.id), semIds, K));
+          const n = LEAF_RERANK ? RERANK_N : K;
+          const semIds = attributeRank(q.query, pool, units, docMap, n, lexHits, leafScorer);
+          ranked.push(rrfFuse(lexHits.map((h) => h.id), semIds, n));
         } else {
-          ranked.push(attributeRank(q.query, pool.slice(0, K), units, docMap, K, lexHits, leafScorer));
+          const n = LEAF_RERANK ? RERANK_N : K;
+          ranked.push(attributeRank(q.query, pool.slice(0, n), units, docMap, n, lexHits, leafScorer));
+        }
+        if (LEAF_RERANK) {
+          const list = ranked.pop()!;
+          controlRanked.push(list.slice(0, K));
+          ceilingHits.push(list.some((id) => q.relevant.includes(id)));
+          const out = await rerank(RERANK, q.query, list, docMap);
+          rerankMs.push(out.ms);
+          rerankScores.push(...out.scores);
+          rerankCost += out.cost;
+          ranked.push(out.ids.slice(0, K));
         }
       }
 
@@ -872,6 +974,26 @@ for (const policy of POLICIES) {
       console.log(
         `  ${policy} cap=${cap ?? "none"} ${BACKEND === "tfidf" ? "tfidf" : model} rerank=${RERANK} hybrid=${HYBRID} recall@${K}=${m.recall_at_k.toFixed(3)} exact=${m.exact_recall_at_k.toFixed(3)} disambig=${dis} mrr=${m.mrr.toFixed(3)}`,
       );
+      if (LEAF_RERANK) {
+        const c = metrics(controlRanked, queries, docMap);
+        const cdis = c.disambiguation_accuracy == null ? "-" : c.disambiguation_accuracy.toFixed(3);
+        const ceiling = ceilingHits.filter(Boolean).length / ceilingHits.length;
+        const sorted = [...rerankScores].sort((a, b) => a - b);
+        const sp = (x: number) => sorted[Math.floor(x * (sorted.length - 1))]!.toFixed(2);
+        console.log(
+          `    control (same ${RERANK_N}-list, no rerank): recall@${K}=${c.recall_at_k.toFixed(3)} exact=${c.exact_recall_at_k.toFixed(3)} disambig=${cdis} mrr=${c.mrr.toFixed(3)}   exact ceiling@${RERANK_N}=${ceiling.toFixed(3)} (a relevant LEAF in the list; recall@K also credits ancestors)`,
+        );
+        console.log(
+          `    rerank per query: p50 ${(pctTimes(rerankMs, 50) ?? 0).toFixed(0)}ms p95 ${(pctTimes(rerankMs, 95) ?? 0).toFixed(0)}ms   cost $${rerankCost.toFixed(3)}   scores p10 ${sp(0.1)} p50 ${sp(0.5)} p90 ${sp(0.9)} (n=${sorted.length})`,
+        );
+        for (const [sl, x] of Object.entries(c.slices)) {
+          console.log(`      control ${sl}: recall=${x.recall_at_k.toFixed(3)} exact=${x.exact_recall_at_k.toFixed(3)} mrr=${x.mrr.toFixed(3)}`);
+        }
+        (results[results.length - 1] as Record<string, unknown>).rerank_detail = {
+          pool: RERANK_N, ceiling_recall: ceiling, control: c, cost_usd: rerankCost,
+          rerank_ms: { p50: pctTimes(rerankMs, 50), p95: pctTimes(rerankMs, 95) },
+        };
+      }
       for (const [sl, s] of Object.entries(m.slices)) {
         console.log(
           `    ${sl}: n=${s.n} recall=${s.recall_at_k.toFixed(3)} exact=${s.exact_recall_at_k.toFixed(3)} mrr=${s.mrr.toFixed(3)}`,

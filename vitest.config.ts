@@ -63,7 +63,7 @@ export default defineConfig({
     },
     // src/server runs under `bun test` (it imports Bun's SQL, absent in node-vitest).
     // scripts/eval/*.test.ts files that import bun:test run under `test:server`,
-    // not vitest (eval-verifier-mutations + eval-retrieval-queries + eval-tools-score).
+    // not vitest (eval-verifier-mutations + eval-retrieval-queries + eval-tools-score + eval-rerankers).
     // e2e/*.spec.ts are Playwright specs (browser/API against a live deploy).
     // The helper *.test.ts files stay in Vitest so readiness/transport parsing
     // can be exercised without a live deployment.
@@ -77,6 +77,7 @@ export default defineConfig({
       "scripts/eval/eval-verifier-mutations.test.ts",
       "scripts/eval/eval-retrieval-queries.test.ts",
       "scripts/eval/eval-tools-score.test.ts",
+      "scripts/eval/eval-rerankers.test.ts",
       "e2e/**/*.spec.ts",
     ],
   },
