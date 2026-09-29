@@ -20,7 +20,7 @@ import { getIndexes } from "../retrieval/indexes.ts";
 import { resolveCandidates, type Candidates } from "./pr-diff.ts";
 import { snapshotFromDocsJson, type Snapshot } from "./snapshot.ts";
 import { computeDiffArtifacts, writeDiffArtifacts } from "./diff-artifacts.ts";
-import { writeCandidateDiffs } from "./diff-base-write.ts";
+import { writeCandidateDiffs, type SimilarityFor } from "./diff-base-write.ts";
 import type { Resolved } from "./resolve.ts";
 import type { PreviewBases, PreviewPaths } from "./cache.ts";
 
@@ -73,6 +73,8 @@ export async function writeDiffBases(
     paths: PreviewPaths;
     /** build.ts wraps deps.fetchAndExtract(repo, sha, token, dir, undefined, { apiTarball: priv }) */
     fetchTree: (repo: string, sha: string, dir: string) => Promise<{ srcDir: string }>;
+    /** The identity gate's similarity, when this build has vectors. */
+    similarityFor?: SimilarityFor;
   },
 ): Promise<DiffBasesResult> {
   const candidates = await candidatesP;
@@ -99,7 +101,7 @@ export async function writeDiffBases(
     const why =
       candidates.reason ?? (opts.priv ? "no base branch to compare against" : candidates.compareOk ? "no merge base" : "compare failed");
     console.warn(`[preview] ${sha8}: ${why} — diffing against live main`);
-    writeDiffArtifacts(opts.paths.outDir, computeDiffArtifacts(mainDocs, head, mainDocs));
+    writeDiffArtifacts(opts.paths.outDir, computeDiffArtifacts(mainDocs, head, mainDocs, await opts.similarityFor?.(mainDocs, head)));
     return { candidates, bases: { auto: "live-main", reason: why } };
   }
 
@@ -113,6 +115,7 @@ export async function writeDiffBases(
     head,
     mainDocs,
     live,
+    similarityFor: opts.similarityFor,
   });
   return { candidates, bases };
 }

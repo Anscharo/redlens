@@ -8,12 +8,11 @@
 //   bun src/server/sync-embeddings.ts   # embed all new/changed docs
 import { sql, toVectorLiteral, toUuidArrayLiteral } from "./db.ts";
 import { fromUuidArray } from "./pg-array.ts";
-import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
 import { embedBatch, EMBED_DIM } from "./retrieval/embed.ts";
 import { docRowToNode, loadDocMetaSnapshot } from "./retrieval/indexes.ts";
-import { buildUnits, foldedIds, GROUP_POLICIES, type EmbedUnit, type GroupPolicy } from "./retrieval/embed-units.ts";
-import { buildEmbedText, contentHash } from "./retrieval/embed-text.ts";
+import type { EmbedUnit } from "./retrieval/embed-units.ts";
+import { planEmbedRows, shippedPolicy, type EmbedRow } from "./retrieval/embed-rows.ts";
 
 interface HaveRow {
   hash: string;
@@ -21,14 +20,7 @@ interface HaveRow {
   memberIds: unknown;
 }
 
-interface WantedRow {
-  id: string;
-  doc_no: string;
-  text: string;
-  hash: string;
-  memberIds: string[];
-  attributionOnly: boolean;
-}
+type WantedRow = EmbedRow;
 
 // Empty uuid[] is the column default and means "this row is itself" (migration 022).
 //
@@ -272,53 +264,10 @@ async function runEmbedReconcile(deps: EmbedDeps): Promise<void> {
     ]),
   );
 
-  const byId = new Map(docs.map((d) => [d.id, d]));
-
-  const policy = (GROUP_POLICIES as readonly string[]).includes(config.embedGroupPolicy)
-    ? (config.embedGroupPolicy as GroupPolicy)
-    : "one_to_one";
-  // No opts: cap and crumb depth/root were env knobs that measured as no-ops and
-  // were removed. Policies carry their own defaults (kv_records_breadcrumbs keeps the
-  // root crumb internally because that one IS load-bearing — without it 13 units come
-  // out byte-identical to another, i.e. duplicate vectors nothing can rank apart).
-  const units = buildUnits(docs, policy, {});
-  const folded = [...foldedIds(units)];
-  // Folded members used to be DELETED. They are now embedded 1:1 and stored with
-  // attribution_only = true (migration 023): excluded from search, read only to decide
-  // WHICH member of an already-retrieved group a query wanted. That step was measured
-  // at 34% accurate with term overlap vs ~51% against vectors, and is the single
-  // largest loss in the pipeline — retrieval finds the right group for essentially
-  // every ICD query and attribution throws two thirds of them away.
-  const foldedSet = new Set(folded);
-  const attributionUnits: WantedRow[] = folded
-    .map((id) => byId.get(id))
-    .filter((d): d is NonNullable<typeof d> => !!d)
-    .map((d) => ({
-      id: d.id,
-      doc_no: d.doc_no,
-      text: buildEmbedText(d),
-      hash: contentHash(d),
-      memberIds: [d.id],
-      attributionOnly: true,
-    }));
-
-  // Folded members keep contentHash(d) — the same 1:1 hash they had before
-  // grouping — so a policy switch (one_to_one → icd_params) is invisible to a
-  // hash-only stale check. Those rows still need attribution_only / member_ids
-  // written or they keep competing in search.ts's WHERE NOT attribution_only.
-  const wanted: WantedRow[] = units
-    .map((u) => {
-      const anchor = byId.get(u.anchorId);
-      return {
-        id: u.anchorId,
-        doc_no: anchor?.doc_no ?? "",
-        text: u.text,
-        hash: u.hash,
-        memberIds: u.memberIds,
-        attributionOnly: foldedSet.has(u.anchorId),
-      };
-    })
-    .concat(attributionUnits);
+  const policy = shippedPolicy();
+  // Row planning is shared with the preview build (preview/embeddings.ts), so a
+  // preview's vectors stay comparable to the ones stored here.
+  const { rows: wanted, units } = planEmbedRows(docs, policy);
 
   const byDocNo = (a: WantedRow, b: WantedRow) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true });
   const toEmbed = wanted.filter((q) => {

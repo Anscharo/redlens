@@ -17,6 +17,7 @@ import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts
 import { startCandidates, writeDiffBases } from "./diff-base.ts";
 import { readDiffCounts, diffBaseLogLine } from "./diff-base-record.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
+import { buildPreviewEmbeddings, bodySimilarity, type PreviewVectors } from "./embeddings.ts";
 import {
   upsertPreview,
   isKnownSha,
@@ -314,6 +315,7 @@ export interface BuildDeps {
   fetchAndExtract: typeof fetchAndExtract;
   spawnBuild: typeof spawnBuild;
   upsertPreview: (meta: PreviewMeta) => Promise<void>;
+  buildPreviewEmbeddings: (outDir: string) => Promise<PreviewVectors | null>;
 }
 
 const realBuildDeps: BuildDeps = {
@@ -325,6 +327,7 @@ const realBuildDeps: BuildDeps = {
   fetchAndExtract,
   spawnBuild,
   upsertPreview,
+  buildPreviewEmbeddings,
 };
 
 async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realBuildDeps): Promise<void> {
@@ -403,6 +406,10 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       // non-zero → build-failed (with the violation surfaced), never a 500.
       const index = await deps.spawnBuild(["scripts/required/build-index.mjs"], base);
       if (index.code !== 0) return fail(f, sha, "build-failed", buildErrorTail(index.stderr));
+      // The preview's vectors need only docs.json too, and they wait on the
+      // network, so they overlap the two builds below. Soft: null on any
+      // failure, and the identity gate then judges by lines and words.
+      const vectorsP = deps.buildPreviewEmbeddings(paths.outDir).catch(() => null);
       // graph + glossary both consume only build-index's docs.json and write
       // disjoint files (graph: graph/relations/addresses.atlas; glossary:
       // glossary) — run them concurrently.
@@ -439,12 +446,14 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       // change the build outcome by itself — a skipped artifact just means the
       // reader falls back to the serve-time vs-main diff. The head's docs.json
       // must already be on disk, so this can only run after the build above.
+      const vectors = await vectorsP;
       const db = await writeDiffBases(Promise.resolve(candidates), {
         resolved,
         token,
         priv,
         sha,
         paths,
+        similarityFor: vectors ? (reference, head) => bodySimilarity(reference, head, vectors) : undefined,
         fetchTree: (repo, s, dir) => deps.fetchAndExtract(repo, s, token, dir, undefined, { apiTarball: priv }),
       });
 
@@ -555,6 +564,8 @@ export async function __runBuildForTest(resolved: Resolved, deps: Partial<BuildD
     done: false,
     promise: Promise.resolve(),
   };
-  await runBuild(f, resolved, { ...realBuildDeps, ...deps });
+  // No vectors unless a test asks for them: the real lane reaches Postgres
+  // and the embedding provider.
+  await runBuild(f, resolved, { ...realBuildDeps, buildPreviewEmbeddings: async () => null, ...deps });
   return f.current;
 }

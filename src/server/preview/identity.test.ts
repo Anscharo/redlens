@@ -1,6 +1,6 @@
 // Run via `bun test src/server`. Pure unit tests — no DB, no network.
 import { describe, it, expect } from "bun:test";
-import { detectIdentitySwaps, bodyWhollyReplaced, bodyWordsKept, lineOverlap, orderedWordContainment, renameCampaigns, titleSubstitution, type SwapNode } from "./identity.ts";
+import { detectIdentitySwaps, bodyReplaced, bodyWhollyReplaced, bodyWordsKept, lineOverlap, orderedWordContainment, renameCampaigns, titleSubstitution, wantsSimilarity, REPLACE_MAX_COSINE, type SwapNode } from "./identity.ts";
 
 function mapOf(nodes: SwapNode[]): Map<string, SwapNode> {
   return new Map(nodes.map((n) => [n.id, n]));
@@ -15,6 +15,83 @@ const SKY_PRIMITIVES = "The documents herein implement the Sky Primitives for Oz
 const OZONE_MOVED = OZONE_OLD + " Soter Labs plays a crucial role in implementing Prime Agent strategies.";
 const OZONE_MOVED_TYPO = OZONE_OLD.replace("Operational", "Operatonal") + " Soter Labs plays a crucial role here."; // subword typo
 const OZONE_SUBST = OZONE_OLD.replace("Soter Labs", "Acme Corp"); // a real word substitution, not a typo
+
+// A real repurposed UUID, from upstream next-gen-atlas 93f7f49 (2026-07-30),
+// which reordered the steps of a procedure: 2c2b3e9a held the approval step and
+// now holds the swap step. The first real multi-line swap this suite pins.
+// Measured on the search vector (title + body): cosine 0.718.
+const STEP_OLD = [
+  "The operator must approve the PSM to spend USDC. The approval is needed for the PSM to be able to execute a `swap` of USDC.",
+  "",
+  "```",
+  "proxy.doCall(",
+  "    address(usdc),",
+  "    abi.encodeCall(usdc.approve, (address(psm), usdcAmount))",
+  ");",
+  "```",
+].join("\n");
+const STEP_NEW = [
+  "The operator must swap USDC to DAI through the PSM using `sellGemNoFee` (1:1, no fee), routed through the `_swapUSDCToDAI` helper. The PSM can only supply as much DAI as it currently holds, so the operation first computes the maximum USDC swappable in one call as the PSM's DAI balance divided by `psmTo18ConversionFactor`.",
+  "",
+  "```",
+  "function _swapUSDCToDAI(IALMProxy proxy, IPSMLike psm, uint256 usdcAmount) internal {",
+  "        proxy.doCall(",
+  "            address(psm),",
+  "            abi.encodeCall(psm.sellGemNoFee, (address(proxy), usdcAmount))",
+  "        );",
+  "    }",
+  "```",
+].join("\n");
+const STEP_COSINE = 0.718;
+
+describe("detectIdentitySwaps — judged by meaning when a similarity is supplied", () => {
+  const main = mapOf([{ id: "2c2b", doc_no: "A.6.1.4", title: "Approve Contract Spend", content: STEP_OLD }]);
+  const preview = mapOf([{ id: "2c2b", doc_no: "A.6.1.4", title: "Swap USDC To DAI", content: STEP_NEW }]);
+  const run = (similarity?: (id: string) => number | undefined) =>
+    detectIdentitySwaps({ changed: ["2c2b"], added: [], mainById: main, previewById: preview, similarity }).identitySwap;
+
+  it("catches a real repurposed step that lines and words let through", () => {
+    // The two steps share their code scaffold and their vocabulary, so more
+    // than half the old words survive in order and the word measure says
+    // "edited". This is the blind spot the vector closes.
+    expect(bodyWhollyReplaced(STEP_OLD, STEP_NEW)).toBe(false);
+    expect(run()).toEqual({});
+    expect(run(() => STEP_COSINE)["2c2b"]).toMatchObject({ oldTitle: "Approve Contract Spend", newTitle: "Swap USDC To DAI" });
+  });
+
+  it("spares a retitled document whose meaning held", () => {
+    // Every plain rename in the measured history scores 0.905 or more.
+    expect(run(() => 0.905)).toEqual({});
+  });
+
+  it("falls back to lines and words when the caller has no score for the document", () => {
+    expect(run(() => undefined)).toEqual({});
+  });
+
+  it("never judges a body of three lines or fewer by meaning", () => {
+    // On short bodies no cosine bar beat the word measure, so a low score
+    // must not flag a one-line body the word measure calls an edit.
+    const one = "The ALMProxy for Keel is whitelisted on the LitePSM contract and reviewed yearly.";
+    const m = mapOf([{ id: "x", doc_no: "A.1", title: "Whitelisting", content: one }]);
+    const p = mapOf([{ id: "x", doc_no: "A.1", title: "Allowlisting Rules", content: one.replace("ALMProxy", "ALM Proxy") }]);
+    expect(detectIdentitySwaps({ changed: ["x"], added: [], mainById: m, previewById: p, similarity: () => 0.1 }).identitySwap).toEqual({});
+  });
+
+  it("bodyReplaced: the bar is inclusive, and a body too small to judge is never replaced", () => {
+    expect(bodyReplaced(STEP_OLD, STEP_NEW, REPLACE_MAX_COSINE)).toBe(true);
+    expect(bodyReplaced(STEP_OLD, STEP_NEW, REPLACE_MAX_COSINE + 0.001)).toBe(false);
+    expect(bodyReplaced("a\nb\nc\nd", "w\nx\ny\nz", 0.1)).toBe(false);
+  });
+
+  it("wantsSimilarity: only a retitled, judgeable body of more than three lines", () => {
+    const node = (title: string, content: string): SwapNode => ({ id: "x", doc_no: "A.1", title, content });
+    expect(wantsSimilarity(node("Approve Contract Spend", STEP_OLD), node("Swap USDC To DAI", STEP_NEW))).toBe(true);
+    expect(wantsSimilarity(node("Approve Contract Spend", STEP_OLD), node("Approve  Contract-Spend", STEP_NEW))).toBe(false); // same title, respelled
+    expect(wantsSimilarity(node("Operational GovOps", OZONE_OLD), node("Sky Primitives", SKY_PRIMITIVES))).toBe(false); // one line
+    expect(wantsSimilarity(node("Approve Contract Spend", STEP_OLD), node("Swap USDC To DAI", ""))).toBe(false); // blanked
+    expect(wantsSimilarity(undefined, node("Swap USDC To DAI", STEP_NEW))).toBe(false);
+  });
+});
 
 describe("detectIdentitySwaps", () => {
   it("flags a repurposed UUID and links to where the old content moved (expanded)", () => {

@@ -20,6 +20,11 @@ import type { Candidates, Candidate } from "./pr-diff.ts";
 import type { BaseKey, BaseCandidateMeta, PreviewBases, PreviewPaths } from "./cache.ts";
 import type { DiffLine } from "../../lib/history";
 import type { Indexes } from "../retrieval/indexes.ts";
+import type { BodySimilarity } from "./identity.ts";
+
+/** The identity gate's similarity for one reference snapshot — see
+ *  embeddings.ts bodySimilarity. Absent when the preview has no vectors. */
+export type SimilarityFor = (reference: Snapshot, head: Snapshot) => Promise<BodySimilarity | undefined>;
 
 export interface WriteCandidateDiffsOpts {
   resolved: Resolved;
@@ -31,6 +36,7 @@ export interface WriteCandidateDiffsOpts {
   head: Snapshot;
   mainDocs: Snapshot;
   live: Indexes;
+  similarityFor?: SimilarityFor;
 }
 
 function stripKey(c: Candidate): BaseCandidateMeta {
@@ -55,7 +61,7 @@ function writeDiffPair(outDir: string, key: BaseKey, a: { diff: PreviewDiffJson;
  * "live-main" with a reason (and the vs-main pair goes to diff.json).
  */
 export async function writeCandidateDiffs(candidates: Candidates, opts: WriteCandidateDiffsOpts): Promise<PreviewBases> {
-  const { resolved, token, priv, sha8, paths, fetchTree, head, mainDocs, live } = opts;
+  const { resolved, token, priv, sha8, paths, fetchTree, head, mainDocs, live, similarityFor } = opts;
 
   const present = (["sky", "repo"] as const).filter((k) => candidates[k]);
   const loaded = new Map<string, Snapshot>();
@@ -86,7 +92,8 @@ export async function writeCandidateDiffs(candidates: Candidates, opts: WriteCan
     // sky renders against live main (today's behaviour); repo renders against
     // its OWN merge base so a PR's redline never shows drift main or the base
     // branch picked up independently of the change under review.
-    writeDiffPair(paths.outDir, key, computeDiffArtifacts(base, head, key === "repo" ? base : mainDocs));
+    const reference = key === "repo" ? base : mainDocs;
+    writeDiffPair(paths.outDir, key, computeDiffArtifacts(base, head, reference, await similarityFor?.(reference, head)));
   }
 
   let auto: PreviewBases["auto"] = candidates.auto;
@@ -96,7 +103,7 @@ export async function writeCandidateDiffs(candidates: Candidates, opts: WriteCan
     auto = kept[0] ?? "live-main";
   }
   if (auto === "live-main") {
-    writeDiffArtifacts(paths.outDir, computeDiffArtifacts(mainDocs, head, mainDocs));
+    writeDiffArtifacts(paths.outDir, computeDiffArtifacts(mainDocs, head, mainDocs, await similarityFor?.(mainDocs, head)));
   } else {
     fs.copyFileSync(path.join(paths.outDir, `diff.${auto}.json`), path.join(paths.outDir, "diff.json"));
     fs.copyFileSync(path.join(paths.outDir, `patches.${auto}.json`), path.join(paths.outDir, "patches.json"));

@@ -123,6 +123,36 @@ export const JUDGEABLE_MIN_WORDS = 6;
 // side). Measured 2026-09-29: the largest real edit, 1,223 x 1,290 words, takes
 // 48ms, and the test runs once per retitled document, not once per pair.
 export const BODY_TEST_MAX_CELLS = 4_000_000;
+// A body of more than SHORT_BODY_MAX_LINES lines is judged by MEANING when the
+// caller can supply it: the cosine between the old and the new document's
+// search vectors (Qwen3, title + link-stripped body — the vector preview
+// search stores anyway, see preview/embeddings.ts). At or below this bar the
+// document is a different one.
+//
+// Measured 2026-09-29 on the gate's true input — the 70 documents of 4 to 20
+// lines that kept their UUID across an upstream commit while their title
+// changed — against 1,409 swaps between true siblings
+// (`bun scripts/aux/identity-search-vector.ts`):
+//
+//   rule                  real retitles flagged   sibling swaps missed
+//   lines AND words             4 of 70                  80.8%
+//   words <= 0.50 alone         6 of 70                  32.7%
+//   cosine <= 0.80              3 of 70                  27.0%
+//   cosine <= 0.85              6 of 70                  17.8%   <- this bar
+//
+// The flagged retitles were then read by hand, which is what picks 0.85 over
+// 0.80. Five are real repurposings — upstream 93f7f49 reordered the steps of a
+// procedure, so each UUID now holds a different step — and they score 0.713 to
+// 0.833: the lower bar would miss two of the five. The sixth, at 0.846, is a
+// procedure cut down to a one-sentence directory stub, which "rewritten"
+// describes truthfully. Every plain rename scores 0.905 or more. The word
+// measure alone also flags "Pre-Pioneer Incentive Pool" → "Pioneer Incentive
+// Pool" (words kept 0.458), a real edit the vector spares at 0.913.
+//
+// NOT used for shorter bodies: on 214 real retitles of 1 to 3 lines no cosine
+// bar beats the word measure on both columns (a one-line sibling is too close
+// in meaning), so they keep bodyWhollyReplaced.
+export const REPLACE_MAX_COSINE = 0.85;
 // Bulk-rename detection. The per-document gate structurally cannot see that
 // several documents in the same PR were retitled by the SAME edit: three UUIDs
 // independently repurposed to an identical new title is implausible, one
@@ -337,6 +367,31 @@ export function bodyWhollyReplaced(oldBody: string | undefined, newBody: string 
   return kept === null || kept <= REPLACE_MAX_WORD_OVERLAP;
 }
 
+/** The cosine between a document's old and new search vectors, or undefined
+ *  when the caller has none for it — no vectors at all, a vector that failed
+ *  to load, or a document search stores as a GROUP, whose vector is not a
+ *  vector of the document alone. Supplied by the caller so this module stays
+ *  free of IO; the same shape as embed-units' LeafSemanticScore. */
+export type BodySimilarity = (id: string) => number | undefined;
+
+/** The body test the gate applies: by meaning for a body long enough to carry
+ *  one, when a similarity is known; by lines and words otherwise. */
+export function bodyReplaced(oldBody: string | undefined, newBody: string | undefined, cosine?: number): boolean {
+  if (cosine === undefined || lines(oldBody).length <= SHORT_BODY_MAX_LINES) return bodyWhollyReplaced(oldBody, newBody);
+  if (words(oldBody).length < JUDGEABLE_MIN_WORDS) return false;
+  return cosine <= REPLACE_MAX_COSINE;
+}
+
+/** Would the gate consult a similarity for this pair? The caller uses it to
+ *  fetch vectors for these documents only. Mirrors the conditions under which
+ *  detectIdentitySwaps reaches bodyReplaced with a body of the right size. */
+export function wantsSimilarity(main: SwapNode | undefined, prev: SwapNode | undefined): boolean {
+  if (!main || !prev) return false;
+  if (!norm(main.content) || !norm(prev.content)) return false;
+  if (sameTitle(main.title, prev.title)) return false;
+  return lines(main.content).length > SHORT_BODY_MAX_LINES && words(main.content).length >= JUDGEABLE_MIN_WORDS;
+}
+
 /** Find where the displaced (old) content went. Conservative by design — a wrong
  *  match puts a misleading "moved to" link on the swap AND a false ⚠ on an
  *  innocent new doc, so we only claim a relocation when the evidence is strong:
@@ -442,8 +497,10 @@ export function detectIdentitySwaps(args: {
   added: Iterable<string>;
   mainById: Map<string, SwapNode>;
   previewById: Map<string, SwapNode>;
+  /** Optional: see BodySimilarity. Absent, every body is judged by lines and words. */
+  similarity?: BodySimilarity;
 }): { identitySwap: Record<string, IdentitySwap>; formerUuid: Record<string, FormerUuid> } {
-  const { changed, added, mainById, previewById } = args;
+  const { changed, added, mainById, previewById, similarity } = args;
   const identitySwap: Record<string, IdentitySwap> = {};
   const formerUuid: Record<string, FormerUuid> = {};
   const addedIds = [...added];
@@ -459,7 +516,7 @@ export function detectIdentitySwaps(args: {
     // Same title — including one respelled around its separators — is an
     // ordinary edit, whatever happened to the body.
     if (sameTitle(main.title, prev.title)) continue;
-    if (!bodyWhollyReplaced(main.content, prev.content)) continue; // body largely preserved → edit
+    if (!bodyReplaced(main.content, prev.content, similarity?.(id))) continue; // body largely preserved → edit
 
     const moved = relocationTarget(main.content, mainById, addedIds, previewById);
     // A title that's a specialization/rename of the old (one contains the other,

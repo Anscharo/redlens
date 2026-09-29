@@ -17,6 +17,17 @@ const ID2 = "00000000-0000-4000-8000-000000000002";
 const ID3 = "00000000-0000-4000-8000-000000000003";
 
 describe("computeDiffArtifacts", () => {
+  test("hands the similarity to the identity gate", () => {
+    const body = (w: string) => [`The operator must ${w} the contract before the call.`, "```", `proxy.${w}(amount);`, "second line of the call", "```"].join("\n");
+    const base = snap([{ id: ID1, doc_no: "A.1", title: "Approve Spend", content: body("approve"), contentHash: "b" }]);
+    const head = snap([{ id: ID1, doc_no: "A.1", title: "Swap Tokens", content: body("swap"), contentHash: "h" }]);
+    // Nearly every word survives, so lines and words call it an edit…
+    expect(computeDiffArtifacts(base, head, base).diff.identitySwap).toEqual({});
+    // …and a low similarity calls it a different document.
+    const { diff } = computeDiffArtifacts(base, head, base, (id) => (id === ID1 ? 0.5 : undefined));
+    expect(Object.keys(diff.identitySwap)).toEqual([ID1]);
+  });
+
   test("added doc: patch is all pure additions, no other fields touched", () => {
     const base: Snapshot = snap([]);
     const live: Snapshot = snap([]);

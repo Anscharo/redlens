@@ -1047,3 +1047,66 @@ test("canonical PR against sky main collapses to a single sky candidate: bases.a
     setIndexes(prevIndexes as never);
   }
 });
+
+// ---------------------------------------------------------------------------
+// The preview's vectors reach the identity gate. Every hop is pinned here:
+// runBuild awaits the vectors, hands writeDiffBases a similarity, and
+// computeDiffArtifacts gives it to detectIdentitySwaps. Drop any one of them
+// and lines-and-words decides — which calls this pair an edit.
+
+test("doc-level diff: a retitled document is judged by its vectors when the build has them", async () => {
+  const body = (w: string) => [`The operator must ${w} the contract before the call.`, "```", `proxy.${w}(amount);`, "second line of the call", "```"].join("\n");
+  const node = (title: string, content: string) => ({ id: U(1), doc_no: "A.1", title, type: "Core", depth: 2, parentId: null, order: 0, addressRefs: [], content });
+  const before = node("Approve Spend", body("approve"));
+  const after = node("Swap Tokens", body("swap"));
+  config.githubToken = "tok";
+  stubGitHub(null);
+
+  let prevIndexes: unknown;
+  try {
+    prevIndexes = getIndexes();
+  } catch {
+    prevIndexes = undefined;
+  }
+  setIndexes({ docMap: new Map([[before.id, before]]), meta: { atlasCommit: "live-sha" } } as never);
+  const origWarn = console.warn;
+  console.warn = () => {};
+
+  // Old and new text on different axes: a cosine of 0, a different document.
+  const vectors = (): BuildDeps["buildPreviewEmbeddings"] => async () => ({
+    byHash: new Map(),
+    plain: new Set([after.id]),
+    signal: new AbortController().signal,
+    deps: {
+      enabled: true,
+      liveHashes: async () => new Map(),
+      liveVectors: async () => new Map(),
+      embedBatch: async (texts) => texts.map((t) => (t.startsWith("Approve") ? [1, 0] : [0, 1])),
+    },
+  });
+  const build = async (sha: string, buildPreviewEmbeddings?: BuildDeps["buildPreviewEmbeddings"]) => {
+    builtShas.push(sha);
+    const resolved: Resolved = { repo: CANONICAL_REPO, sha, kind: "branch", ref: "spark", private: false };
+    const ev = await __runBuildForTest(resolved, {
+      isBlockedSha: async () => false,
+      isKnownSha: async () => true,
+      forkGate: async () => ({ tier: undefined, count: async () => 0, quota: 10 }),
+      fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 1 }),
+      spawnBuild: spawnWithDocs({ [after.id]: after }),
+      upsertPreview: async () => {},
+      ...(buildPreviewEmbeddings ? { buildPreviewEmbeddings } : {}),
+    });
+    expect(ev.phase).toBe("ready");
+    return JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.json"), "utf8"));
+  };
+
+  try {
+    expect((await build("vect0001")).identitySwap).toEqual({});
+    expect(Object.keys((await build("vect0002", vectors())).identitySwap)).toEqual([after.id]);
+    // A lane that throws is a lane without vectors, never a failed build.
+    expect((await build("vect0003", async () => { throw new Error("provider down"); })).identitySwap).toEqual({});
+  } finally {
+    console.warn = origWarn;
+    setIndexes(prevIndexes as never);
+  }
+});

@@ -3,8 +3,9 @@
 Working notes for the preview "identity changed" badge
 (`src/server/preview/identity.ts`). Written 2026-09-29 after
 next-gen-atlas#346 badged three documents that had only been respelled.
-Status: **the defect and its long-body residual are fixed**; one thread (8)
-is open and needs a decision.
+Status: **the defect and its long-body residual are fixed, and longer bodies
+are now judged by the search vector**. "Ordering" at the end lists what is
+open.
 
 ## What the badge claims, and why that is hard
 
@@ -156,7 +157,7 @@ a guess. Options, cheapest first:
 This is risk reduction rather than accuracy, and it is independent of every
 other thread — worth doing regardless of which measure wins.
 
-### 5. Embeddings — ternlight rejected; Qwen3 is a real signal, OPEN as a decision
+### 5. Embeddings — ternlight rejected; Qwen3 adopted for longer bodies (thread 10)
 
 Two framings, both measured for ternlight (on-device, ~2ms, no network) and
 **both rejected**:
@@ -473,7 +474,7 @@ populations that are not edits. `bun scripts/aux/identity-cosine-distribution.ts
 - Ternlight reads the first 128 tokens only. An edit past that point scores
   exactly 1, which inflates its long-body rows.
 
-### 10. Reusing the search vector, and what real retitles showed — MEASURED
+### 10. Reusing the search vector, and what real retitles showed — BUILT
 
 Preview semantic search will store one vector for each changed document. The
 gate would like to reuse it, since embedding every changed document a second
@@ -562,19 +563,62 @@ contains real repurposed UUIDs**, so a labelled set of real positives can be
 built by reading the few dozen retitles any rule flags (`--samples` prints
 them). Every miss rate above rests on synthetic swaps until someone does.
 
+**The mid-sized ones are now read, and they set the bar.** Of the 70 real
+retitles of 4 to 20 lines, 11 score 0.95 or less on the search vector:
+
+| search cosine | what it is | how many |
+|---|---|---|
+| 0.713 to 0.833 | a procedure step holding a different step (upstream 93f7f49 reordered a procedure) | 5 |
+| 0.846 | a procedure cut down to a one-sentence directory stub | 1 |
+| 0.905 to 0.923 | a rename (LayerZero → SkyLink, Support Facilitators → Core Facilitator), four times, and one content edit | 5 |
+
+The five at the top are real repurposed UUIDs. A bar of 0.80 misses two of
+them; **0.85 catches all five**, and the one further document it flags is
+described truthfully by "rewritten". The lines-and-words rule flagged two of
+the five. The five share one commit, so they are one event, not five
+independent ones.
+
+**What was built** (`src/server/preview/embeddings.ts`, `REPLACE_MAX_COSINE` in
+`identity.ts`):
+
+- The preview build embeds every row that differs from the live store and
+  writes `embeddings.json` into the bundle, in the row shape of
+  `atlas_doc_embeddings`. Rows are matched by content hash, so unchanged text
+  costs nothing. Preview search can read the same file.
+- The gate judges a retitled body of more than 3 lines by the cosine of its
+  old and new vector, bar 0.85. Shorter bodies, documents stored as a group,
+  and any preview without vectors keep the lines-and-words rule.
+- The old side comes from the live store by content hash, and is embedded
+  only when the preview's base is behind live main.
+
+Replayed end to end against the real store and provider
+(`bun scripts/aux/identity-replay.ts`), upstream 93f7f49 as a preview of its
+parent: 520 rows embedded in 11 seconds, a 3.0 MB file, and the gate flags 10
+documents where lines and words flagged 7. The three it adds are the three
+repurposed steps the old rule missed. The cosines it computes from the live
+store's vectors match the measurement script's for the same pairs, so the
+stored vector and the measured one are the same thing.
+
+Two properties to know. `diff.json` for one sha now depends on whether the
+provider answered when the bundle was built; a bundle built without vectors
+is judged by lines and words, silently apart from a log line. And
+`embeddings.json` is written but not yet read from disk or served: it is not
+on the preview allowlist, and preview search will need an entry there and a
+reader (`decodeVector`).
+
 ## Ordering
 
-**1, 3, 4, 6-groundtruth and 7 are done.** Two items are open, and both are
-decisions rather than measurements:
+**1, 3, 4, 5, 6-groundtruth, 7 and 10 are done.** The gate judges longer
+bodies by the search vector (thread 10). What is left:
 
-- **8** — whether long bodies should be judged on words alone.
-- **5** — whether the gate should also ask the Qwen3 embedding. If both are
-  taken up, measure them together: they compete for the same misses. Thread 10
-  narrows it: reuse the search vector, for bodies of 4 lines or more, and not
-  for the 8% of documents stored as a group.
-
-Before either, **label the real retitles** (thread 10). It is an afternoon of
-reading and it replaces the synthetic swaps behind every miss rate here.
+- **8** — whether long bodies should be judged on words alone. It now matters
+  only where the gate has no vector: a preview built without an API key, and
+  the 8% of documents stored as a group.
+- **Short bodies** miss 35% of true sibling swaps and no measure tried here
+  does better. The real retitles of 1 to 3 lines are unread; labelling them is
+  the next measurement, and it is reading, not building.
+- **The rename false flag** in thread 10 ("Launch Agent 4 Details" → "Obex
+  Details") is open.
 
 **2** is a corroborator at best; do not build it as a gate.
 
