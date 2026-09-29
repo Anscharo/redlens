@@ -35,7 +35,7 @@
 
 
 ## 2026-09-29
-- Stopped previews marking documents "identity changed" when a pull request only renamed them, whether by respelling one title or by applying the same rename across several documents
+- Stopped previews marking documents "identity changed" when a pull request only renamed or reformatted them, whether by respelling one title, applying the same rename across several documents, or re-indenting a list
 - Previews now say a document was "rewritten" rather than "identity changed" when there is no sign of where its previous content went
 
 ## 2026-09-28

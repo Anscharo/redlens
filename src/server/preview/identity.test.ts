@@ -1,6 +1,6 @@
 // Run via `bun test src/server`. Pure unit tests — no DB, no network.
 import { describe, it, expect } from "bun:test";
-import { detectIdentitySwaps, bodyWhollyReplaced, lineOverlap, orderedWordContainment, renameCampaigns, titleSubstitution, type SwapNode } from "./identity.ts";
+import { detectIdentitySwaps, bodyWhollyReplaced, bodyWordsKept, lineOverlap, orderedWordContainment, renameCampaigns, titleSubstitution, type SwapNode } from "./identity.ts";
 
 function mapOf(nodes: SwapNode[]): Map<string, SwapNode> {
   return new Map(nodes.map((n) => [n.id, n]));
@@ -306,26 +306,51 @@ describe("similarity helpers", () => {
     expect(orderedWordContainment("one two three", "one two three four")).toBe(0); // below RELOCATION_MIN_WORDS
   });
 
-  it("lineOverlap is BINARY on a one-line body — the defect bodyWhollyReplaced exists to route around", () => {
+  it("lineOverlap is BINARY on a one-line body — why it never decides alone", () => {
     // Not a wish, a fact about the measure: the LCS runs over two 1-element
     // arrays, so a single changed word and a wholesale replacement both score
-    // 0. 83% of the live atlas is one line. If this ever stops being true,
-    // bodyWhollyReplaced's short-body branch can be reconsidered — until then,
-    // never route a short body back through lineOverlap.
+    // 0. 83% of the live atlas is one line, which is why bodyWhollyReplaced
+    // requires the word measure to agree before it calls a body replaced.
     const one = "The ALMProxy for Keel is whitelisted on the LitePSM contract today.";
     expect(lineOverlap(one, one.replace("ALMProxy", "ALM Proxy"))).toBe(0); // one word
     expect(lineOverlap(one, SKY_PRIMITIVES)).toBe(0); // a different document
   });
 
-  it("bodyWhollyReplaced: word-granular under the line cap, line-granular above it", () => {
+  it("bodyWhollyReplaced: replaced only when the lines AND the words are both gone", () => {
     const one = "The ALMProxy for Keel is whitelisted on the LitePSM contract and reviewed yearly.";
     expect(bodyWhollyReplaced(one, one.replace("ALMProxy", "ALM Proxy"))).toBe(false); // small edit
     expect(bodyWhollyReplaced(OZONE_OLD, SKY_PRIMITIVES)).toBe(true); // different document
-    // Above the cap the original line measure still rules: many lines, few shared.
     const many = ["alpha line", "beta line", "gamma line", "delta line", "epsilon line"].join("\n");
     expect(bodyWhollyReplaced(many, many)).toBe(false);
     expect(bodyWhollyReplaced(many, ["one", "two", "three", "four", "five"].join("\n"))).toBe(true);
     // Too little text to judge.
     expect(bodyWhollyReplaced("The rate is 5%.", "The cap is 9m.")).toBe(false);
+  });
+
+  it("bodyWhollyReplaced: a re-indented bullet list is not a replacement", () => {
+    // The shape of all 15 real lint edits the size-routed gate still badged: a
+    // glyph and indent change touches EVERY line, so no line survives, while
+    // every word does.
+    const before = [
+      "The parameters of the pool are:",
+      "        ◦ Supply cap: 500,000,000 USDS",
+      "        ◦ Borrow cap: 250,000,000 USDS",
+      "        ◦ Liquidation threshold: 85%",
+      "        ◦ Reserve factor: 10%",
+    ].join("\n");
+    const after = before.replace(/ {8}◦/g, "    -").replace("are:", "are :");
+    expect(lineOverlap(before, after)).toBe(0);
+    expect(bodyWhollyReplaced(before, after)).toBe(false);
+  });
+
+  it("bodyWordsKept: compares a large body in full, where orderedWordContainment gives up", () => {
+    // Over ~632 words a side orderedWordContainment answers 0 for any change
+    // at all. Right for a relocation link, wrong for the body test.
+    const big = Array.from({ length: 250 }, (_, i) => `- entry${i} holds value${i}`).join("\n");
+    const edited = big.replace("entry125 holds", "entry125 now holds").replace(/^- /gm, "* ");
+    expect(orderedWordContainment(big, edited)).toBe(0);
+    expect(bodyWordsKept(big, edited)).toBe(1);
+    expect(bodyWhollyReplaced(big, edited)).toBe(false);
+    expect(bodyWordsKept("", "anything")).toBeNull();
   });
 });

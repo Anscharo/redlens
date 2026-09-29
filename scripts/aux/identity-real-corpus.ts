@@ -107,10 +107,9 @@ const main = async () => {
   // Keep only entries whose diff reconstructs a WHOLE body, and which carry
   // enough text for the gate to judge at all (it declines below this).
   // `shipped` is bodyWhollyReplaced itself — the function that actually gates
-  // the badge. The individual measures are reported too, but ONLY over the
-  // subpopulation each one is used on: the gate routes by line count, so
-  // scoring word/idf over long bodies (which never reach them) measures
-  // nothing that ships.
+  // the badge. The word/idf comparison below is over SHORT bodies only, the
+  // population thread 1 asked about; since 2026-09-29 the gate asks the word
+  // measure of every body, and identity-long-body.ts measures the long ones.
   type Row = { kind: string; id: string; lines: number; shipped: boolean; line: number; word: number; idf: number };
   const rows: Row[] = [];
   let elided = 0, tooShort = 0;
@@ -152,7 +151,7 @@ const main = async () => {
     console.log(`  ${label.padEnd(9)} all=${pct(pop, (r) => r.line <= REPLACE_MAX_OVERLAP).padStart(6)}% (${n(pop, (r) => r.line <= REPLACE_MAX_OVERLAP)})`);
   }
 
-  console.log(`\n=== THREAD 1: word vs idf, over the SHORT bodies they actually gate ===`);
+  console.log(`\n=== THREAD 1: word vs idf, over SHORT bodies (3 lines or fewer) ===`);
   console.log(`  measure  threshold   cosmetic flagged        semantic flagged`);
   for (const t of [0.4, 0.45, 0.5, 0.53, 0.6]) {
     const mark = t === REPLACE_MAX_WORD_OVERLAP ? "  <- shipped" : "";

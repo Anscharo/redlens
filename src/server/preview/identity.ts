@@ -50,10 +50,16 @@ export const REPLACE_MAX_OVERLAP = 0.15;
 // identical) or 0.0 — a one-word typo fix scores the same as a wholesale
 // replacement, and 0.15 is unreachable from above. That is what put an
 // "identity changed" badge on next-gen-atlas#346's `ALMProxy` → `ALM Proxy`
-// spelling pass. So a short body is measured by WORD containment instead, which
+// spelling pass. So the body must ALSO be replaced by WORD containment, which
 // degrades smoothly, with its own (necessarily higher) bar: unrelated prose
 // still shares its stopwords, so word overlap never approaches zero the way
 // line overlap does.
+//
+// The gate first ROUTED on this line count — word measure at or under it, line
+// measure above — and that left the same defect one size up: a lint pass that
+// re-indents a bullet list changes every line of a 4-to-16-line body. It now
+// asks both measures of every body (see bodyWhollyReplaced), so this is only
+// the boundary the measurement scripts report on either side of.
 export const SHORT_BODY_MAX_LINES = 3;
 // Measured 2026-09-29 over the live atlas — ~1,600 ordinary edits (the 19 real
 // edits in atlas#346, plus one-line live docs with 5/10/20/30% of their words
@@ -78,8 +84,9 @@ export const SHORT_BODY_MAX_LINES = 3;
 //   AS A MEASURE, replacing the word containment: worse at every operating
 //   point. At 0.67 it costs 5.9% false flags for 7.7% missed, where the word
 //   measure gets 13.7%/2.8% — it buys a lower false-flag rate only by missing
-//   3x the swaps. This is structural, and a stronger embedding should be
-//   expected to do WORSE, not better: the discriminator this gate needs is
+//   3x the swaps. This was read as structural, with a stronger embedding
+//   expected to do WORSE. Measured later, that was wrong about Qwen3 — see the
+//   note after this block. The reasoning as it stood: the discriminator this gate needs is
 //   LEXICAL (are these the same words, in the same order), not semantic, since
 //   the hard true-swap case is two sibling template docs differing only in
 //   which entity fills the slot — near-identical in meaning by construction.
@@ -101,10 +108,21 @@ export const SHORT_BODY_MAX_LINES = 3;
 //
 // Rerun both framings: `bun scripts/aux/identity-overlap-bakeoff.ts --tern`
 // (add --qwen for the hosted Qwen3 arm; needs OPENROUTER_API_KEY).
+//
+// Both rejections above are about TERNLIGHT. The hosted Qwen3 embedding,
+// measured 2026-09-29 on the real edits, ranks them above sibling swaps about
+// as well as the word measure does alone (AUC 0.970 against 0.977) and agrees
+// with it only in part (correlation 0.56), so the two combined beat either.
+// Not used here: it needs a network call. The numbers and the candidate rules
+// are in docs/research/identity-swap-detection.md, thread 5.
 export const REPLACE_MAX_WORD_OVERLAP = 0.5;
 // A body with fewer words than this carries too little signal to call either
 // way — every measure is dominated by stopwords — so we never flag it.
 export const JUDGEABLE_MIN_WORDS = 6;
+// The body test compares words in full up to this many cells (2,000 words a
+// side). Measured 2026-09-29: the largest real edit, 1,223 x 1,290 words, takes
+// 48ms, and the test runs once per retitled document, not once per pair.
+export const BODY_TEST_MAX_CELLS = 4_000_000;
 // Bulk-rename detection. The per-document gate structurally cannot see that
 // several documents in the same PR were retitled by the SAME edit: three UUIDs
 // independently repurposed to an identical new title is implausible, one
@@ -199,6 +217,12 @@ export function orderedWordContainment(oldText: string | undefined, candText: st
   // a relocated-but-reformatted giant doc returns 0 (declines the relocation
   // link) rather than risk a slow or wrong fuzzy match; the swap is still flagged.
   if (a.length * b.length > 400_000) return norm(candText).includes(norm(oldText)) ? 1 : 0;
+  return wordsInOrder(a, b) / a.length;
+}
+
+/** How many of `a`'s words appear in `b`, in order — an LCS over words with
+ *  fuzzy word equality. O(a·b). */
+function wordsInOrder(a: string[], b: string[]): number {
   const dp = new Array<number>(b.length + 1).fill(0);
   for (let i = 1; i <= a.length; i++) {
     let diag = 0;
@@ -208,7 +232,20 @@ export function orderedWordContainment(oldText: string | undefined, candText: st
       diag = up;
     }
   }
-  return dp[b.length] / a.length;
+  return dp[b.length];
+}
+
+/** Fraction of the old body's words still present, in order, in the new body —
+ *  orderedWordContainment without its binary fallback, for the body test. That
+ *  fallback answers 0 for ANY change to a body over ~632 words, which is right
+ *  for a relocation link (decline when unsure) and wrong here, where 0 means
+ *  "replaced". Returns null when the bodies are too large to compare in full. */
+export function bodyWordsKept(oldBody: string | undefined, newBody: string | undefined): number | null {
+  const a = words(oldBody);
+  const b = words(newBody);
+  if (a.length === 0) return null;
+  if (a.length * b.length > BODY_TEST_MAX_CELLS) return null;
+  return wordsInOrder(a, b) / a.length;
 }
 
 /** Title reduced to its letters and digits. Collapsing whitespace RUNS is not
@@ -263,22 +300,41 @@ export function lineOverlap(a: string | undefined, b: string | undefined): numbe
 }
 
 /** Was this uuid's body REPLACED (a different document now lives here), as
- *  opposed to edited? Granularity is chosen by the old body's size, because the
- *  two measures are not interchangeable:
- *    - several lines → shared-LINE ratio, the original measure (a long body
- *      that shares few whole lines really has been rewritten, and
- *      orderedWordContainment's cost cap degrades to a binary substring test
- *      on bodies this size);
- *    - up to SHORT_BODY_MAX_LINES → ordered WORD containment, because line
- *      granularity has no resolution here at all (see SHORT_BODY_MAX_LINES).
+ *  opposed to edited? Only when BOTH measures say so: few of its lines survive
+ *  AND few of its words do. Each covers the other's blind spot — the line
+ *  measure cannot tell a typo from a replacement in a one-line body, or a
+ *  re-indented list from a rewritten one, and the word measure sees both.
+ *
+ *  Measured 2026-09-29 (`bun scripts/aux/identity-long-body.ts`) against the
+ *  gate this replaced, which routed by size and asked one measure:
+ *
+ *                                            routed        both
+ *    real cosmetic edits flagged (2,544)     15 (0.59%)    0
+ *    real semantic edits flagged (4,439)    254 (5.72%)  195 (4.39%)
+ *    sibling swaps missed, 1-3 lines          7.9%         8.0%
+ *    sibling swaps missed, 4-20 lines        48.3%        49.1%
+ *    unrelated swaps missed                  unchanged in every size band
+ *
+ *  "Sibling" in this table means same `parentId`, and only about one such
+ *  pair in seven is a true sibling by document number. On true siblings both
+ *  columns miss more (35% and 81%, thread 10). The comparison between the two
+ *  rules stands.
+ *
+ *  Asking both can only REMOVE flags, so the cost is bounded by that miss
+ *  column. The 48% is not this rule's doing: the line measure misses half the
+ *  sibling swaps in that band by itself, because template siblings share their
+ *  table headers and lead-in lines. Word containment alone would miss 13.3%
+ *  there, for 231 semantic edits flagged instead of 195 — it ADDS flags, so it
+ *  is a separate decision (docs/research/identity-swap-detection.md, thread 8).
+ *
  *  A body too small to judge is never a replacement — it cannot carry the
- *  evidence, and a wrong ⚠ is worse than a missed one. */
+ *  evidence, and a wrong ⚠ is worse than a missed one. One too large to
+ *  compare word by word is left to the line measure. */
 export function bodyWhollyReplaced(oldBody: string | undefined, newBody: string | undefined): boolean {
   if (words(oldBody).length < JUDGEABLE_MIN_WORDS) return false;
-  if (lines(oldBody).length <= SHORT_BODY_MAX_LINES) {
-    return orderedWordContainment(oldBody, newBody) <= REPLACE_MAX_WORD_OVERLAP;
-  }
-  return lineOverlap(oldBody, newBody) <= REPLACE_MAX_OVERLAP;
+  if (lineOverlap(oldBody, newBody) > REPLACE_MAX_OVERLAP) return false;
+  const kept = bodyWordsKept(oldBody, newBody);
+  return kept === null || kept <= REPLACE_MAX_WORD_OVERLAP;
 }
 
 /** Find where the displaced (old) content went. Conservative by design — a wrong
