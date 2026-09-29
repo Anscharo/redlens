@@ -72,20 +72,35 @@ export const SHORT_BODY_MAX_LINES = 3;
 // are the cheap direction: a missed swap leaves an ordinary Δ, while a false ⚠
 // on an innocent doc is the thing users report.
 //
-// An on-device embedding lane (ternlight) was measured here and REJECTED —
-// don't re-add it. Alone it is worse at every operating point (at 0.67: 5.9%
-// false flags for 7.7% missed, vs the word measure's 13.7%/2.8% — i.e. it buys
-// its lower false-flag rate by missing 3x the swaps). As a SECOND gate on top
-// of the word measure, `word<=0.5 & tern<=0.8` moves false flags 2.0% → 1.9%
-// while missed swaps go 5.4% → 6.1%. The reason is structural, so a stronger
-// embedding is not expected to fix it: the discriminator this gate needs is
-// LEXICAL (are these the same words, in the same order), not semantic. The hard
-// true-swap case is two sibling template docs that differ only in which entity
-// fills the slot — semantically near-identical by construction. Ternlight
-// already shows the gradient: it scores the hard siblings (p50 0.469) far
-// closer than unrelated docs (p50 0.171), i.e. it is MOST confused exactly
-// where the gate must be sharpest. Rerun both arms with
-// `bun scripts/aux/identity-overlap-bakeoff.ts --tern`.
+// An on-device embedding lane (ternlight) was measured here, two ways, and
+// REJECTED both times — but for different reasons, so quote the right one:
+//
+//   AS A MEASURE, replacing the word containment: worse at every operating
+//   point. At 0.67 it costs 5.9% false flags for 7.7% missed, where the word
+//   measure gets 13.7%/2.8% — it buys a lower false-flag rate only by missing
+//   3x the swaps. This is structural, and a stronger embedding should be
+//   expected to do WORSE, not better: the discriminator this gate needs is
+//   LEXICAL (are these the same words, in the same order), not semantic, since
+//   the hard true-swap case is two sibling template docs differing only in
+//   which entity fills the slot — near-identical in meaning by construction.
+//   Ternlight already shows that gradient, scoring the hard siblings (p50
+//   0.469) far closer than unrelated docs (p50 0.171): it is most confused
+//   exactly where the gate must be sharpest.
+//
+//   AS A ONE-SIDED VETO over word<=0.50 (flag, unless the embedding is very
+//   sure the meaning survived): mildly POSITIVE, and too small to buy. The
+//   separation runs the right way — inside the flagged net, ordinary edits sit
+//   at p50 0.592 and real swaps at p50 0.256 — but the usable operating point
+//   is narrow. At tern>0.85 it rescues 2 of 32 wrongly-flagged edits for 1 of
+//   1,285 real swaps; slacken it to >0.80 and the trade inverts (2 rescued, 9
+//   lost); tighten it to >0.90 and nothing moves at all. So the whole prize is
+//   ~0.1pp off a 2.0% false-flag rate, on a 32-doc residual where "2" is
+//   nearly noise — paid for by loading WASM into a module whose no-IO purity
+//   is why it is trivially testable. If that residual ever gets big enough to
+//   matter, re-measure before assuming this still holds.
+//
+// Rerun both framings: `bun scripts/aux/identity-overlap-bakeoff.ts --tern`
+// (add --qwen for the hosted Qwen3 arm; needs OPENROUTER_API_KEY).
 export const REPLACE_MAX_WORD_OVERLAP = 0.5;
 // A body with fewer words than this carries too little signal to call either
 // way — every measure is dominated by stopwords — so we never flag it.
