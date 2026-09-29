@@ -14,6 +14,20 @@ import { atlasHref } from "@/lib/routes";
 // swapped doc is also "changed"; a doc that received relocated content is also
 // "added"). Renders nothing outside preview (empty diff). Used in the reader
 // (CollapsibleNode) and the minitree (TreeRow).
+//
+// ⚠ IS AN ACCUSATION, so it is spent only where there is evidence. "This UUID
+// now holds a different document" is a claim about what happened, and the only
+// thing that demonstrates it is finding where the displaced content WENT
+// (swap.movedTo, from relocationTarget). Without that the detector has seen a
+// retitle plus a rewritten body and inferred the rest — which is exactly how
+// next-gen-atlas#346's respelling pass earned three warnings.
+//
+// So an uncorroborated swap renders as an ordinary Δ, and its tooltip states
+// only what is observed: the title and the body were both replaced. That
+// sentence is true whichever way the inference would have gone, and it costs
+// the reader nothing when it is a rewrite. The detector still records it as an
+// identity swap in diff.json — this is a presentation decision about how loudly
+// to say it, not a change to what is detected.
 
 function DocLink({ id, label }: { id: string; label: string }) {
   return (
@@ -28,19 +42,37 @@ export function PreviewMark({ nodeId, className }: { nodeId: string; className?:
   const swap = diff.identitySwap[nodeId];
   const former = diff.formerUuid[nodeId];
 
+  // An uncorroborated swap (no movedTo) is described, not accused — see above.
+  if (swap && !swap.movedTo) {
+    return (
+      <Tooltip
+        content={
+          <span>
+            Rewritten in this preview — both the title and the body were replaced: “{swap.oldTitle}”{" "}
+            <span className="enlargen">→</span> “{swap.newTitle}”. The previous content does not
+            appear anywhere else in this preview, so there is no way to tell a thorough rewrite from
+            a different document taking over this UUID.
+          </span>
+        }
+      >
+        <span
+          className={className}
+          aria-label="retitled and rewritten in this preview"
+          style={{ color: "var(--tan)", fontWeight: 700, flexShrink: 0, cursor: "help" }}
+        >
+          Δ
+        </span>
+      </Tooltip>
+    );
+  }
+
   if (swap || former) {
-    const content = swap ? (
+    const content = swap?.movedTo ? (
       <span>
         Identity changed in this preview — UUID <span className="mono">{nodeId}</span> now holds a
         different document: “{swap.oldTitle}” <span className="enlargen">→</span> “{swap.newTitle}”.{" "}
-        {swap.movedTo ? (
-          <>
-            The previous content moved to{" "}
-            <DocLink id={swap.movedTo.id} label={`${swap.movedTo.doc_no} “${swap.movedTo.title}”`} />.
-          </>
-        ) : (
-          "The previous content is not present in this preview."
-        )}
+        The previous content moved to{" "}
+        <DocLink id={swap.movedTo.id} label={`${swap.movedTo.doc_no} “${swap.movedTo.title}”`} />.
       </span>
     ) : former ? (
       <span>

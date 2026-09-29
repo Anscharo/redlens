@@ -181,7 +181,12 @@ const main = async () => {
 
   const unrelated = Array.from({ length: 800 }, () => { const a = pick(oneLiners), b = pick(oneLiners); return a.id === b.id ? null : score(a.content, b.content); }).filter(Boolean) as Row[];
   const byParent = new Map<string, any[]>();
-  for (const n of oneLiners) if (n.parentId) { const g = byParent.get(n.parentId); g ? g.push(n) : byParent.set(n.parentId, [n]); }
+  for (const n of oneLiners) {
+    if (!n.parentId) continue;
+    const g = byParent.get(n.parentId);
+    if (g) g.push(n);
+    else byParent.set(n.parentId, [n]);
+  }
   const sibGroups = [...byParent.values()].filter((g) => g.length >= 2);
   const siblings = Array.from({ length: 800 }, () => { const g = pick(sibGroups); const a = pick(g), b = pick(g); return a.id === b.id ? null : score(a.content, b.content); }).filter(Boolean) as Row[];
 

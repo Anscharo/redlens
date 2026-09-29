@@ -368,7 +368,8 @@ export function renameCampaigns(args: {
     const key = titleSubstitution(main.title, prev.title);
     if (!key) continue;
     const group = byEdit.get(key);
-    group ? group.push(id) : byEdit.set(key, [id]);
+    if (group) group.push(id);
+    else byEdit.set(key, [id]);
   }
   const members = new Set<string>();
   for (const ids of byEdit.values()) {

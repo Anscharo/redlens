@@ -61,41 +61,19 @@ often template docs occur in the atlas.
 
 ## Open threads
 
-### 1. IDF-weighted lexical overlap — measured, Pareto-better, not yet shipped
+### 1. IDF-weighted lexical overlap — CLOSED, don't ship it
 
-**This is the most promising thread and it needs no network.** The plain word
-LCS counts every matched token as 1, so stopwords dominate. But the
-discriminating token in the hard sibling case is the *entity name* (`Keel` vs
-`Obex`) — rare, and therefore nearly weightless today. Weight each matched
-token by its inverse document frequency over the corpus instead.
+Measured against synthetic negatives it looked like a strict Pareto win
+(t=0.45: 1.7% false flags vs the shipped 2.0%, and better on misses). Measured
+against the **real** labelled corpus it has **no headroom at all**: over the
+2,106 real cosmetic edits to short bodies — the only place it would be used —
+the shipped word measure and idf both flag **0.00%**. There is nothing to
+recover. On real semantic edits idf is if anything slightly worse (4.88% at
+t=0.45 vs word's 4.75% at the shipped 0.50).
 
-Measured over the same populations:
-
-| measure | t | ordinary edit flagged | real swap missed | hard siblings missed |
-|---|---|---|---|---|
-| word (shipped) | 0.50 | 2.0% | 5.4% | 9.3% |
-| idf | 0.40 | 0.9% | 5.0% | 9.3% |
-| **idf** | **0.45** | **1.7%** | **4.0%** | **7.5%** |
-
-**idf at 0.45 dominates the shipped measure on all three columns** — fewer
-false flags, fewer missed swaps, and better on the hard sibling case that
-every similarity approach struggles with. idf at 0.40 also dominates on the
-first two while tying on siblings, if you want the lower false-flag rate. The
-three #346 docs score 0.62–0.81, still well clear either way.
-
-Compare only at *matched* false-flag rates — the arms are not comparable
-threshold-for-threshold, and an earlier version of this note mistakenly
-credited idf's 0.50 sibling number (7.0%) to its 0.40 row. Down at the very
-low end (≤0.4% false flags) the unweighted measure is still competitive; the
-gain is in the middle of the range, which is where a usable operating point
-sits.
-
-To ship it: document frequency can be built in-process from the base
-snapshot, which the preview build has already parsed, so `identity.ts` stays
-no-IO if the DF map (or an `idf(token)` function) is passed in as an argument
-rather than imported. Scratch implementation is in this session's notes —
-it is ~20 lines, the same DP as `orderedWordContainment` with `+idf(w)` in
-place of `+1`. Re-measure before picking the threshold; 0.40 is from one run.
+The 2.0% → 1.7% gain was an artifact of the synthetic negatives (live
+one-liners with random words substituted), which are harsher and differently
+shaped than real lint/typo edits. Harness: `scripts/aux/identity-real-corpus.ts`.
 
 ### 2. Structural corroboration — WEAKER THAN IT LOOKS, do not require it
 
@@ -163,7 +141,7 @@ member with a demonstrated relocation is still flagged. Residual: a correlated
 mass repurposing whose old content appears nowhere in the diff. Accepted; it
 reads as a rename to a human too.
 
-### 4. Make the un-corroborated case descriptive rather than accusatory
+### 4. Make the un-corroborated case descriptive rather than accusatory — DONE
 
 Today `movedTo` is best-effort: a swap is flagged even when the displaced
 content cannot be found. But "this UUID's document was displaced" is the
@@ -302,14 +280,64 @@ from those 2,641 labelled edits and measure how many the shipped gate badges.
 That is a real false-accusation rate, and it is the number that should decide
 whether thread 1 (IDF) is worth shipping.
 
+### 7. The real-corpus result, and the residual it exposed
+
+`bun scripts/aux/identity-real-corpus.ts` scores `bodyWhollyReplaced` — the
+shipped function, routed exactly as it routes in production — against 2,544
+real human-labelled cosmetic edits (`change_kind` ∈ lint/typo) pulled from
+`/api/history/batch` with their real diffs.
+
+| | cosmetic edits wrongly flagged |
+|---|---|
+| pre-fix (`lineOverlap` on every body) | **52.00%** (1323/2544) |
+| shipped | **0.59%** (15/2544) |
+| shipped, bodies ≤3 lines | **0.00%** (0/2106) |
+| shipped, bodies >3 lines | **3.42%** (15/438) |
+
+So the real false-accusation rate was 52%, not the 87% the synthetic
+population estimated, and the fix takes it to 0.59%.
+
+**Every one of the 15 survivors is the SAME DEFECT, one size up.** They are
+4-to-16-line documents, and all 15 score `word = 1.000` — the word measure
+knows the body is fully intact. They are flagged only because
+`SHORT_BODY_MAX_LINES = 3` routes them to `lineOverlap`, and a lint pass that
+re-indents a bullet list (`        ◦` → `    -`) changes *every* line, so the
+shared-line ratio collapses to 0.000–0.143 exactly as it did for one-liners.
+Titles include "Reward Payment", "Rate Limit IDs", "stUSDS Risk Parameters".
+
+The obvious fix is to stop routing on size and take
+`max(lineOverlap, orderedWordContainment)` for every body — flag only when
+*both* measures say replaced. All 15 would be spared, since word is already
+1.000 on them. **Not done, and not yet measured**: the cost is in missed real
+swaps, and the real corpus has no true-swap population to measure that on, so
+it needs the synthetic positives from the bakeoff. Do that before changing it.
+
+One caveat found while measuring: `orderedWordContainment`'s cost cap
+(`a.length * b.length > 400_000`, ~632 words a side) degrades to a binary
+normalized-substring test, which returns **0** for a body whose only change is
+non-whitespace punctuation — a bullet-glyph swap in a 657-word doc scored
+`word = 0.000` when the text was untouched. Any fix that leans harder on the
+word measure should revisit that fallback.
+
+Scope of the corpus, stated because it bounds every number above: only entries
+whose stored diff reconstructs a whole body are usable (build-history trims to
+changed lines ± context with `…` between hunks and caps at 20 lines), which
+dropped 78 of 7,136; `atlas_history` stores no title, so this measures the
+**body test** only — which is the right target, since the gate reaches it only
+once a title has changed.
+
 ## Ordering
 
-**3 is done.** Of what is left: **6-groundtruth** (re-measure the gate against
-the 2,641 real labelled cosmetic edits — it costs nothing and it decides the
-rest) → **4** (copy, pure risk reduction and independent of everything else) →
-**1** (IDF — measured, dominates the shipped measure, but only 2.0% → 1.7%,
-so let the real corpus decide) → **5** (embeddings, only if the residual turns
-out to matter). **2** is a corroborator at best; do not build it as a gate.
+**3, 4, 6-groundtruth and 1 are done.** What is left, in order:
+
+1. **The >3-line residual** (thread 7) — the same defect one size up, 15 real
+   documents, with an obvious fix that needs its miss-cost measured first.
+   This is the only open item with a known live defect behind it.
+2. **5** (embeddings) — only the Qwen veto framing, and only if the residual
+   above turns out to matter. Everything else there is measured and rejected.
+
+**2** is a corroborator at best; do not build it as a gate. **1** (IDF) is
+closed: the real corpus shows it has no headroom.
 
 Three ideas in **6** are checked and dead — don't re-derive them: the churn
 prior (points the wrong way), the `change_kind` reuse (classifies #346

@@ -75,7 +75,8 @@ const main = async () => {
   for (const t of titles) {
     const head = t.split(/\s+/).slice(0, 3).join(" ").toLowerCase();
     const g = families.get(head);
-    g ? g.push(t) : families.set(head, [t]);
+    if (g) g.push(t);
+    else families.set(head, [t]);
   }
   const big = [...families.values()].filter((g) => g.length >= CAMPAIGN_MIN_DOCS);
   let fired = 0;
