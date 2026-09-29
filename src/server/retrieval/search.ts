@@ -3,7 +3,7 @@
 import { type Indexes } from "./indexes.ts";
 import { sql, toVectorLiteral, toUuidArrayLiteral } from "../db.ts";
 import { fromUuidArray } from "../pg-array.ts";
-import { embedQuery } from "./embed.ts";
+import { embedQuery, type EmbedDiag } from "./embed.ts";
 import { config } from "../config.ts";
 import { compactProse } from "../../lib/shortenTitle.ts";
 import { rewriteSemanticHit, type Via, type LeafSemanticScore } from "./embed-units.ts";
@@ -73,6 +73,24 @@ export function runLexical(ix: Indexes, query: string, type: string | undefined,
   return results.slice(0, k).map((r, i) => ({ id: r.id as string, rank: i, score: r.score, source: "lexical" }));
 }
 
+/**
+ * What to report when an embed fails, preferring the PROVIDER's own words.
+ *
+ * `withTimeout` reports the stopwatch, which is what the race saw, not what
+ * went wrong: the retry backoff outlives the timeout, so a 403 or a 429 reaches
+ * the user as "embed timed out after 10000ms". When the provider said
+ * something, say that too — it is the difference between a reader knowing the
+ * key is wrong and a reader thinking the internet is slow.
+ */
+export function embedFailureReason(err: unknown, diag: EmbedDiag): string {
+  const raced = err instanceof Error ? err.message : String(err);
+  if (!diag.lastError || diag.lastError === raced) return raced;
+  // Bounded: this lands in a one-line status under the search box, and the
+  // provider's body is already capped at 300 chars upstream.
+  const cause = diag.lastError.length > 140 ? `${diag.lastError.slice(0, 140)}…` : diag.lastError;
+  return `${raced} — provider said: ${cause}`;
+}
+
 export async function runSemantic(
   _ix: Indexes,
   query: string,
@@ -102,8 +120,9 @@ export async function runSemantic(
   // instead of throwing into the caller (a bare pgvector error used to escape
   // uncaught, silently swallowed by the caller's own `.catch(() => [])`).
   const ac = new AbortController();
+  const diag: EmbedDiag = {};
   try {
-    const vec = await withTimeout(embedQuery(query, ac.signal), config.semanticEmbedTimeoutMs, "embed");
+    const vec = await withTimeout(embedQuery(query, ac.signal, diag), config.semanticEmbedTimeoutMs, "embed");
     const lit = toVectorLiteral(vec);
     const overFetch = type ? Math.min(k * 4, 200) : k;
     // NOT attribution_only: folded members keep a vector purely so an already
@@ -142,7 +161,7 @@ export async function runSemantic(
     return { hits: out, skipped: null };
   } catch (err) {
     ac.abort(); // no-op if the failure was past the embed stage
-    const reason = (err as Error).message;
+    const reason = embedFailureReason(err, diag);
     console.warn(`  semantic leg skipped: ${reason}`);
     return { hits: [], skipped: reason };
   }
@@ -268,10 +287,11 @@ export async function buildLeafScorer(
     .slice(0, RESIDUAL_ANCHOR_K)
     .map((h) => ix.docMap.get(h.id)?.title)
     .filter((t): t is string => !!t);
+  const diag: EmbedDiag = {};
   try {
     const ac = new AbortController();
     const vec = await withTimeout(
-      embedQuery(residualQuery(query, titles), ac.signal),
+      embedQuery(residualQuery(query, titles), ac.signal, diag),
       config.semanticEmbedTimeoutMs,
       "residual embed",
     );
@@ -285,7 +305,7 @@ export async function buildLeafScorer(
     const byId = new Map(rows.map((r) => [r.doc_id, Number(r.score)]));
     return (id: string) => byId.get(id);
   } catch (err) {
-    console.warn(`  leaf attribution fell back to lexical: ${(err as Error).message}`);
+    console.warn(`  leaf attribution fell back to lexical: ${embedFailureReason(err, diag)}`);
     return undefined;
   }
 }

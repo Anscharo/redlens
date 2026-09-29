@@ -2,7 +2,7 @@
 // retry loop, so a timed-out query-time embed can't keep hammering OpenRouter
 // in the background (PR #137 review — Codex P2 / Claude residual-limitation note).
 import { test, expect, afterEach } from "bun:test";
-import { embedBatch, embedQuery, _clearQueryEmbedCache } from "./embed.ts";
+import { embedBatch, embedQuery, _clearQueryEmbedCache, type EmbedDiag } from "./embed.ts";
 import { config } from "../config.ts";
 
 const realFetch = globalThis.fetch;
@@ -170,5 +170,54 @@ test("the query cache keys on the prefix, so flipping it cannot serve a stale ve
   } finally {
     config.openrouterApiKey = prevKey;
     config.embedQueryPrefix = prevPrefix;
+  }
+});
+
+// ─── the cause surviving a racing timeout ───────────────────────────────────
+
+test("embedBatch records the provider's real error across every retry", async () => {
+  const prevKey = config.openrouterApiKey;
+  config.openrouterApiKey = "test-key";
+  try {
+    globalThis.fetch = (async () =>
+      new Response("invalid api key", { status: 401 })) as unknown as typeof fetch;
+    const diag: EmbedDiag = {};
+    const ac = new AbortController();
+    ac.abort(); // stop after the first attempt, no 15s of real sleeping
+    await expect(embedBatch(["q"], ac.signal, 0, diag)).rejects.toThrow(/401/);
+    // This is what the UI needs: the provider's words, not the stopwatch's.
+    expect(diag.lastError).toContain("embeddings 401");
+  } finally {
+    config.openrouterApiKey = prevKey;
+  }
+});
+
+test("embedQuery threads the diagnostic through to the caller", async () => {
+  const prevKey = config.openrouterApiKey;
+  config.openrouterApiKey = "test-key";
+  try {
+    globalThis.fetch = (async () =>
+      new Response("rate limited", { status: 429 })) as unknown as typeof fetch;
+    const diag: EmbedDiag = {};
+    const ac = new AbortController();
+    ac.abort();
+    await expect(embedQuery("q", ac.signal, diag)).rejects.toThrow(/429/);
+    expect(diag.lastError).toContain("embeddings 429");
+  } finally {
+    config.openrouterApiKey = prevKey;
+  }
+});
+
+test("a cache hit leaves the diagnostic untouched — nothing went wrong", async () => {
+  const prevKey = config.openrouterApiKey;
+  config.openrouterApiKey = "test-key";
+  try {
+    stubEmbedFetch();
+    await embedQuery("cached query");
+    const diag: EmbedDiag = {};
+    await embedQuery("cached query", undefined, diag);
+    expect(diag.lastError).toBeUndefined();
+  } finally {
+    config.openrouterApiKey = prevKey;
   }
 });

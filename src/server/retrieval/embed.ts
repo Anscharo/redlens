@@ -27,7 +27,29 @@ function sliceNormalize(vec: number[], dim: number): number[] {
 // `signal` lets a caller cancel the request AND its retry loop (the query path
 // races it against a timeout — see search.ts). Without it a timed-out embed
 // would keep fetching/retrying against OpenRouter in the background for ~15s.
-export async function embedBatch(texts: string[], signal?: AbortSignal, attempt = 0): Promise<number[][]> {
+/**
+ * Somewhere to record what the provider ACTUALLY said, so a caller racing this
+ * against a deadline can report the cause instead of the stopwatch.
+ *
+ * The retry schedule sleeps 1+2+4+8 = 15s, which outlives every caller's
+ * budget (`semanticEmbedTimeoutMs` is 10s). So a plain 403, 429 or 500 fails on
+ * the first attempt, disappears into the backoff, and the timeout fires first —
+ * the caller's `Promise.race` settles on "timed out" and the real error is
+ * discarded with the abandoned promise. That made "embed timed out after
+ * 10000ms" the one message the UI could show and the one least likely to be
+ * true. Recorded here, it survives the race.
+ */
+export interface EmbedDiag {
+  /** The last error the provider itself returned, across all attempts. */
+  lastError?: string;
+}
+
+export async function embedBatch(
+  texts: string[],
+  signal?: AbortSignal,
+  attempt = 0,
+  diag?: EmbedDiag,
+): Promise<number[][]> {
   if (!config.openrouterApiKey) throw new Error("OPENROUTER_API_KEY is not set");
   try {
     const res = await fetch(`${config.openrouterBaseUrl}/embeddings`, {
@@ -51,6 +73,9 @@ export async function embedBatch(texts: string[], signal?: AbortSignal, attempt 
     for (const d of json.data) out[d.index] = sliceNormalize(d.embedding, EMBED_DIM);
     return out;
   } catch (err) {
+    // Recorded BEFORE the give-up checks, so the cause survives however this
+    // attempt ends — including the abort a racing timeout triggers.
+    if (diag) diag.lastError = (err as Error).message;
     // Aborted (caller gave up / timed out) or out of retries → stop now; don't
     // sleep+retry against a request nobody is waiting for.
     if (signal?.aborted || attempt >= 4) throw err;
@@ -58,7 +83,7 @@ export async function embedBatch(texts: string[], signal?: AbortSignal, attempt 
     console.warn(`  embed retry ${attempt + 1} in ${wait}ms: ${(err as Error).message}`);
     await Bun.sleep(wait);
     if (signal?.aborted) throw err;
-    return embedBatch(texts, signal, attempt + 1);
+    return embedBatch(texts, signal, attempt + 1, diag);
   }
 }
 
@@ -91,10 +116,10 @@ export function _clearQueryEmbedCache(): void {
  * already there, and the prefixed text is what gets hashed), so flipping
  * EMBED_QUERY_PREFIX cannot serve a vector embedded under the other setting.
  */
-export async function embedQuery(text: string, signal?: AbortSignal): Promise<number[]> {
+export async function embedQuery(text: string, signal?: AbortSignal, diag?: EmbedDiag): Promise<number[]> {
   const prefixed = config.embedQueryPrefix + text;
   const cap = config.queryEmbedCacheSize;
-  if (cap <= 0) return (await embedBatch([prefixed], signal))[0];
+  if (cap <= 0) return (await embedBatch([prefixed], signal, 0, diag))[0];
 
   const key = cacheKey(prefixed);
   const hit = queryEmbedCache.get(key);
@@ -105,7 +130,7 @@ export async function embedQuery(text: string, signal?: AbortSignal): Promise<nu
     return hit;
   }
 
-  const vec = (await embedBatch([prefixed], signal))[0];
+  const vec = (await embedBatch([prefixed], signal, 0, diag))[0];
   queryEmbedCache.set(key, vec);
   // Evict least-recently-used entries (Map iteration is insertion order).
   while (queryEmbedCache.size > cap) {

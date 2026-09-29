@@ -11,7 +11,7 @@
 // themselves and restore the PINNED empty state (not ambient) in afterEach,
 // so the pin holds for every case that follows them.
 import { test, expect, describe, it, beforeAll, afterAll, afterEach } from "bun:test";
-import { rrfMerge, semanticScopeSql, SCOPED_SCAN_SETTING, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
+import { rrfMerge, semanticScopeSql, embedFailureReason, SCOPED_SCAN_SETTING, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
 import { config } from "../config.ts";
 import type { AtlasNode, Indexes } from "./indexes.ts";
 import { MINISEARCH_OPTIONS } from "../../lib/searchOptions.ts";
@@ -330,5 +330,44 @@ describe("semanticScopeSql", () => {
     const src = fs.readFileSync(path.join(import.meta.dir, "./search.ts"), "utf8");
     expect(src).toContain("tx.unsafe(SCOPED_SCAN_SETTING)");
     expect(src).toContain("tx.unsafe(stmt, [lit, overFetch, scope])");
+  });
+});
+
+// ─── embed failure reporting ────────────────────────────────────────────────
+// The retry backoff (1+2+4+8 = 15s) outlives every caller's budget, so a plain
+// provider error loses the race to the 10s timeout and reached the UI as "embed
+// timed out". These pin the cause surviving that race.
+
+describe("embedFailureReason", () => {
+  it("reports the raced error alone when the provider never spoke", () => {
+    expect(embedFailureReason(new Error("embed timed out after 10000ms"), {})).toBe(
+      "embed timed out after 10000ms",
+    );
+  });
+
+  it("adds what the provider actually said to a timeout", () => {
+    const reason = embedFailureReason(new Error("embed timed out after 10000ms"), {
+      lastError: "embeddings 401: invalid api key",
+    });
+    // A reader seeing only the stopwatch would think the internet was slow.
+    expect(reason).toContain("embed timed out after 10000ms");
+    expect(reason).toContain("embeddings 401: invalid api key");
+  });
+
+  it("does not repeat itself when the raced error IS the provider's", () => {
+    const same = "embeddings 429: rate limited";
+    expect(embedFailureReason(new Error(same), { lastError: same })).toBe(same);
+  });
+
+  it("bounds the provider's body — this lands in a one-line status", () => {
+    const reason = embedFailureReason(new Error("embed timed out after 10000ms"), {
+      lastError: `embeddings 500: ${"x".repeat(400)}`,
+    });
+    expect(reason.length).toBeLessThan(220);
+    expect(reason).toContain("…");
+  });
+
+  it("survives a non-Error rejection", () => {
+    expect(embedFailureReason("plain string", {})).toBe("plain string");
   });
 });
