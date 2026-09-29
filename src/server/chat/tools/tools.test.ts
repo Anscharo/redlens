@@ -3,10 +3,26 @@
 // tools-graph.test.ts (same module) and tool-registry.test.ts's end-to-end
 // pass; this file targets atlasGet's bulk/truncation branches, atlasSearch's
 // mode/phrase-filter branches, and atlasGetAddress's DB + graph-edge path.
-import { test, expect, mock, beforeEach } from "bun:test";
+import { test, expect, mock, beforeEach, beforeAll, afterAll } from "bun:test";
 import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
 import { config } from "../../config.ts";
+
+// The semantic leg is inert only while `config.openrouterApiKey` is falsy, and
+// leaving that to ambient env is a trap: bun auto-loads `.env.local`, and this
+// repo's containers now inject OPENROUTER_API_KEY, so every keyless assertion
+// below silently became a LIVE embedding request — four retries with 1s/2s/4s/8s
+// of real sleep, which blows the 5s test timeout rather than failing honestly.
+// Pinned here the same way src/server/retrieval/search.test.ts pins it.
+let prevOpenRouterKey: string;
+beforeAll(() => {
+  prevOpenRouterKey = config.openrouterApiKey;
+  config.openrouterApiKey = "";
+});
+afterAll(() => {
+  config.openrouterApiKey = prevOpenRouterKey;
+});
+
 
 function mockDb(rows: unknown[] = []) {
   const fn = Object.assign(
