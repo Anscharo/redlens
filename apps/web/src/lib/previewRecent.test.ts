@@ -2,7 +2,7 @@
 // previews" tab. Pure — BOTH sides are arguments (it reads no storage of its
 // own), so no jsdom and no localStorage stubbing here.
 import { describe, it, expect } from "vitest";
-import { mergeRecentPreviews, type MineRow } from "./previewRecent";
+import { mergeRecentPreviews, mineQuery, type MineRow } from "./previewRecent";
 
 function row(over: Partial<MineRow> & { sha: string }): MineRow {
   return {
@@ -11,6 +11,20 @@ function row(over: Partial<MineRow> & { sha: string }): MineRow {
     doc_count: 0, ...over,
   };
 }
+
+describe("mineQuery", () => {
+  it("pairs each sha with this browser's open time, keeping the newer of a repeat", () => {
+    expect(mineQuery([
+      { id: "pull-1", sha: "aaa", at: 100 },
+      { id: "pull-1", sha: "aaa", at: 300 },
+      { id: "owner:repo:main", sha: "bbb", at: 200 },
+    ])).toBe("shas=aaa,bbb&at=300,200");
+  });
+
+  it("sends an empty pair when this browser has opened nothing", () => {
+    expect(mineQuery([])).toBe("shas=&at=");
+  });
+});
 
 describe("mergeRecentPreviews", () => {
   it("lists an account row on its own — no local record required", () => {

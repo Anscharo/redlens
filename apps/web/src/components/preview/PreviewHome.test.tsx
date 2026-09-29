@@ -101,9 +101,7 @@ describe("PreviewHome recent list (AND-semantics)", () => {
     await screen.findByPlaceholderText(/Paste a next-gen-atlas/);
 
     const url = String(vi.mocked(globalThis.fetch).mock.calls[0]![0]);
-    expect(url).toContain("api/preview/mine?shas=");
-    expect(url).toContain("aaa");
-    expect(url).toContain("bbb");
+    expect(url).toContain("api/preview/mine?shas=aaa,bbb&at=100,200");
     expect(url).not.toContain("api/preview/list");
   });
 

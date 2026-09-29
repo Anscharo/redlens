@@ -31,6 +31,24 @@ export interface MineRow {
   opened_at?: string;
 }
 
+/** `?shas=&at=` for GET /api/preview/mine. A repeated sha keeps the newer open.
+ *  `at` is this browser's clock (epoch ms); the server ranks signed-out opens
+ *  by it. */
+export function mineQuery(local: LocalPreview[]): string {
+  const best = new Map<string, number>();
+  for (const p of local) {
+    const prev = best.get(p.sha);
+    if (prev === undefined || p.at > prev) best.set(p.sha, p.at);
+  }
+  const shas: string[] = [];
+  const ats: string[] = [];
+  for (const [sha, at] of best) {
+    shas.push(sha);
+    ats.push(String(at));
+  }
+  return `shas=${shas.join(",")}&at=${ats.join(",")}`;
+}
+
 function detailOf(row: MineRow): string {
   return [
     row.private && "private",

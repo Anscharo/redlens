@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { parsePreviewInput, parsePrivateInput, isPrivatePrId, localPreviews, type LocalPreview } from "../../lib/previewLocal";
-import { mergeRecentPreviews, type MineRow } from "../../lib/previewRecent";
+import { mergeRecentPreviews, mineQuery, type MineRow } from "../../lib/previewRecent";
 import { initAnalytics, register, track, pageview } from "../../lib/analytics";
 import { ProfileButton } from "../chat/ProfileButton";
 import { useAuth } from "../chat/auth";
@@ -14,9 +14,9 @@ import { PreviewPrTabs } from "./PreviewPrTabs";
 //
 // Signed in, the list is the ACCOUNT's: the server records each open and answers
 // with them, so the history follows the person to their next browser. We still
-// send this browser's localStorage shas either way — they are the whole list for
-// an anonymous visitor, and they cover what a signed-in one opened before the
-// account history existed or while logged out. mergeRecentPreviews (lib/
+// send this browser's localStorage shas and open times either way — they are the
+// whole list for an anonymous visitor, and they cover what a signed-in one
+// opened before the account history existed or while logged out. mergeRecentPreviews (lib/
 // previewRecent.ts) folds the two together; a local entry the server can't
 // confirm is still hidden, so a wiped DB or a blocked sha leaves no dead row.
 
@@ -58,16 +58,17 @@ export function PreviewHome() {
     // account history to include (authLoading is already false when logins are off).
     if (authLoading) return;
     const local = localPreviews();
-    const shas = [...new Set(local.map((p) => p.sha))];
-    if (shas.length === 0 && !userId) {
+    if (local.length === 0 && !userId) {
       setRecent({ userId, rows: [], local: [] }); // nothing opened here, no account — nothing to ask about
       return;
     }
     const load = async (retried = false): Promise<void> => {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/preview/mine?shas=${shas.join(",")}`, {
+      // `at` is this browser's own open time, so a signed-out open can be ranked
+      // against the account history. The server collapses a branch to one slot.
+      const res = await fetch(`${import.meta.env.BASE_URL}api/preview/mine?${mineQuery(local)}`, {
         credentials: "same-origin",
       });
-      // The per-account interval can refuse a tab whose FIRST fetch this is — a
+      // The per-account window can refuse a tab whose FIRST fetch this is — a
       // second tab, another device, or a reload inside the window. That tab has
       // no list to keep, so dropping the refusal silently would leave the empty
       // state claiming "No previews opened yet". Honour Retry-After, once.

@@ -25,7 +25,7 @@ mock.module("../db.ts", () => ({
   fromUuidArray,
 }));
 
-const { parseShaList, visiblePreviews, MINE_MAX_SHAS, MINE_MAX_PRIVATE } = await import("./mine.ts");
+const { parseShaList, parseLocalOpens, visiblePreviews, MINE_MAX_SHAS, MINE_MAX_PRIVATE } = await import("./mine.ts");
 type MineRow = Awaited<ReturnType<typeof visiblePreviews>>[number];
 
 afterAll(() => mock.restore());
@@ -47,15 +47,21 @@ const ok = () => Promise.resolve("ok" as AccessDecision);
 
 /** Drive the one exported path. `opens` answers the account query and `byShas`
  *  the sha query, in that order (an Error on either rejects it); pass null for
- *  userId or [] for shas to leave that source unqueried. */
+ *  userId or [] for shas to leave that source unqueried. `browserAt` is the
+ *  clock from `?at=`. */
 function run(
   opens: unknown,
   byShas: unknown,
-  opts: { userId?: string | null; shas?: string[]; authorize?: (req: Request, repo: string) => Promise<AccessDecision> } = {},
+  opts: {
+    userId?: string | null;
+    shas?: string[];
+    authorize?: (req: Request, repo: string) => Promise<AccessDecision>;
+    browserAt?: ReadonlyMap<string, number>;
+  } = {},
 ) {
-  const { userId = "user-1", shas = [SHA("z")], authorize = ok } = opts;
+  const { userId = "user-1", shas = [SHA("z")], authorize = ok, browserAt } = opts;
   queued = [opens, byShas].filter((_, i) => (i === 0 ? userId !== null : shas.length > 0));
-  return visiblePreviews(req, userId, shas, authorize);
+  return visiblePreviews(req, userId, shas, authorize, browserAt);
 }
 
 // --- parseShaList -------------------------------------------------------------
@@ -69,6 +75,16 @@ test("parseShaList keeps 40-hex shas, case-folded and deduped, and drops the res
 test("parseShaList caps the list, so one request's DB work stays bounded", () => {
   const many = Array.from({ length: MINE_MAX_SHAS + 20 }, (_, i) => i.toString(16).padStart(40, "0"));
   expect(parseShaList(many.join(",")).length).toBe(MINE_MAX_SHAS);
+});
+
+test("parseLocalOpens aligns at with shas, keeps the newer time, and drops junk", () => {
+  const a = SHA("a");
+  const b = SHA("b");
+  expect(parseLocalOpens(`${a},nope,${a},${b}`, "100,5,250,bogus")).toEqual([
+    { sha: a, at: 250 },
+    { sha: b, at: 0 },
+  ]);
+  expect(parseLocalOpens(null, null)).toEqual([]);
 });
 
 // --- collection: which sources are queried, and how failures behave ----------
@@ -128,13 +144,13 @@ test("input order is preserved when private rows are mixed in", async () => {
   expect((await run(rows, null, { shas: [] })).map((r) => r.sha)).toEqual([SHA("a"), SHA("b"), SHA("c")]);
 });
 
-test("one permission check per private REPO, however many of its shas are listed", async () => {
-  const rows = ["a", "b", "c"].map((c) =>
-    row({ sha: SHA(c), repo: "acme/secret", private: true, preview_id: `p-${c}`, opened_at: "2026-09-02T00:00:00Z" }),
+test("one permission check per private REPO, across its branches", async () => {
+  const rows = ["main", "dev", "wip"].map((ref, i) =>
+    row({ sha: SHA(String(i)), repo: "acme/secret", ref, private: true, preview_id: `p-${ref}`, opened_at: "2026-09-02T00:00:00Z" }),
   );
   const authorize = mock(ok);
-  expect(await run(rows, null, { shas: [], authorize })).toHaveLength(3);
-  expect(authorize).toHaveBeenCalledTimes(1); // every push makes a new sha; the grant is per repo
+  expect(await run(rows, null, { shas: [], authorize })).toHaveLength(3); // three branches, three previews
+  expect(authorize).toHaveBeenCalledTimes(1); // the grant is per repo
 });
 
 test("only the MINE_MAX_PRIVATE newest private previews are considered", async () => {
@@ -175,22 +191,58 @@ test("a preview this browser ALSO remembers does not consume two of the private 
     { shas: previews.map((p) => p.sha) },
   );
   const distinct = new Set(out.map((r) => r.sha));
-  expect(distinct.size).toBe(MINE_MAX_PRIVATE); // all six survive, not three
+  expect(distinct.size).toBe(MINE_MAX_PRIVATE); // every preview survives, not half
 });
 
-test("recency comes from the visitor's own open, falling back to last_access", () => {
-  const mine = row({ sha: SHA("a"), repo: "acme/one", private: true, preview_id: "mine", opened_at: "2026-09-25T00:00:00Z", last_access: "2020-01-01T00:00:00Z" });
-  const other = row({ sha: SHA("b"), repo: "acme/two", private: true, last_access: "2026-09-24T00:00:00Z" });
-  // Fill all but one slot with rows newer than both, so exactly one of these two
-  // gets in. `mine` wins on the visitor's own open even though ANY visit made
-  // `other`'s last_access look newer than mine's.
+test("a browser row ranks by the timestamp the browser sent, never by last_access", async () => {
+  // Anyone's visit made `stale` look newest. With no `at` it ranks oldest.
+  const stale = row({ sha: SHA("a"), repo: "acme/one", ref: "main", private: true, last_access: "2026-09-27T00:00:00Z" });
+  const told = row({ sha: SHA("b"), repo: "acme/two", ref: "main", private: true, last_access: "2020-01-01T00:00:00Z" });
   const pad = Array.from({ length: MINE_MAX_PRIVATE - 1 }, (_, i) =>
-    row({ sha: SHA(`x${i}`), repo: `acme/pad-${i}`, private: true, preview_id: `pad-${i}`, opened_at: "2026-09-26T00:00:00Z" }),
+    row({ sha: SHA(String(i)), repo: `acme/pad-${i}`, ref: "main", private: true, preview_id: `pad-${i}`, opened_at: "2026-09-26T00:00:00Z" }),
   );
-  return run([...pad, other, mine], null, { shas: [] }).then((out) => {
-    expect(out.map((r) => r.sha)).toContain(SHA("a"));
-    expect(out.map((r) => r.sha)).not.toContain(SHA("b"));
-  });
+  const browserAt = new Map([[SHA("b"), Date.parse("2026-09-27T00:00:00Z")]]);
+  const out = await run(pad, [stale, told], { shas: [SHA("a"), SHA("b")], browserAt });
+  expect(out.map((r) => r.sha)).toContain(SHA("b"));
+  expect(out.map((r) => r.sha)).not.toContain(SHA("a"));
+});
+
+test("an account row and a local sha of the same branch take one private slot", async () => {
+  // The pair is the newest thing in the list. Counted twice, it would fill two
+  // of the eight slots and push `older` out. Counted once, `older` still fits.
+  const account = row({ sha: SHA("a"), repo: "acme/secret", ref: "main", private: true, preview_id: "acme:secret:main", opened_at: "2026-09-28T00:00:00Z" });
+  const browser = row({ sha: SHA("b"), repo: "acme/secret", ref: "main", private: true, last_access: "2026-09-27T00:00:00Z" });
+  const mids = Array.from({ length: MINE_MAX_PRIVATE - 2 }, (_, i) =>
+    row({ sha: SHA(String(i)), repo: `acme/mid-${i}`, ref: "main", private: true, preview_id: `mid-${i}`, opened_at: "2026-09-26T00:00:00Z" }),
+  );
+  const older = row({ sha: SHA("z"), repo: "acme/older", ref: "dev", private: true, preview_id: "older", opened_at: "2026-09-01T00:00:00Z" });
+  const browserAt = new Map([[SHA("b"), Date.parse("2026-09-27T00:00:00Z")]]);
+  const authorize = mock(ok);
+  const out = await run([older, ...mids, account], [browser], { shas: [SHA("b")], authorize, browserAt });
+  const shas = out.map((r) => r.sha);
+  expect(shas).toContain(SHA("z"));
+  expect(shas).toContain(SHA("a")); // the account open is the newer of the pair
+  expect(shas).not.toContain(SHA("b"));
+  expect(authorize).toHaveBeenCalledTimes(MINE_MAX_PRIVATE);
+  expect(authorize).toHaveBeenCalledWith(req, "acme/secret");
+});
+
+test("a newer signed-out open supplies the row when it is the same branch", async () => {
+  const account = row({ sha: SHA("a"), repo: "acme/secret", ref: "main", private: true, preview_id: "acme:secret:main", opened_at: "2026-09-01T00:00:00Z", pr_title: "Stale" });
+  const browser = row({ sha: SHA("b"), repo: "acme/secret", ref: "main", private: true, pr_title: "Fresh" });
+  const browserAt = new Map([[SHA("b"), Date.parse("2026-09-20T00:00:00Z")]]);
+  const out = await run([account], [browser], { shas: [SHA("b")], browserAt });
+  expect(out.map((r) => r.sha)).toEqual([SHA("b")]);
+});
+
+test("two branches and a pull request of one private repo stay three previews and cost one check", async () => {
+  const main = row({ sha: SHA("a"), repo: "acme/secret", ref: "main", private: true, preview_id: "p-main", opened_at: "2026-09-02T00:00:00Z" });
+  const dev = row({ sha: SHA("b"), repo: "acme/secret", ref: "dev", private: true, preview_id: "p-dev", opened_at: "2026-09-01T00:00:00Z" });
+  const pr = row({ sha: SHA("c"), repo: "acme/secret", ref: "dev", pr_number: 4, private: true, preview_id: "p-pr", opened_at: "2026-09-03T00:00:00Z" });
+  const authorize = mock(ok);
+  const out = await run([main, dev, pr], null, { shas: [], authorize });
+  expect(out).toHaveLength(3); // branch, other branch, and the PR are three previews
+  expect(authorize).toHaveBeenCalledTimes(1);
 });
 
 test("the private access checks run concurrently, not one after another", async () => {

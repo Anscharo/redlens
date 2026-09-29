@@ -4,9 +4,10 @@
 //   GET /:id/events           SSE build-status stream (drives the build)
 //   GET /:sha/diff.json        added/changed doc ids vs current main
 //   GET /:sha/<artifact>.json  allowlisted bundle artifact
-//   GET /mine?shas=…           the caller's own previews: their account history
-//                              plus the shas their browser remembers, with
-//                              private rows released only once access is authorized
+//   GET /mine?shas=…&at=…      the caller's own previews: their account history
+//                              plus the shas their browser remembers (with that
+//                              browser's open time), private rows released only
+//                              once access is authorized
 
 import fs from "node:fs";
 import path from "node:path";
@@ -30,7 +31,7 @@ import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
 import { previewPaths, artifactPath, bundleReady, readMeta, writeMeta, touch, remove as removeBundle, type PreviewMeta } from "./cache.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
 import { getPreviewRow, touchPreview, isBlockedSha, recordPreviewOpen } from "./db.ts";
-import { parseShaList, visiblePreviews } from "./mine.ts";
+import { parseLocalOpens, visiblePreviews } from "./mine.ts";
 import { fillPrivateDiffBaseOnOpen } from "./diff-base-backfill.ts";
 import { authorizePreviewAccess } from "./access.ts";
 import { getSessionUser } from "../session.ts";
@@ -500,20 +501,27 @@ async function artifactResponse(req: Request, sha: string, name: string): Promis
   return res;
 }
 
-// GET /api/preview/mine?shas=<comma-separated 40-hex> — the /preview index's
-// "my recent previews" list. What it collects, and what a visitor is allowed to
-// see of it, lives in mine.ts; this is only the HTTP shell. Session-scoped, so
-// PRIVATE_HEADERS (no allow-origin, no-store): never cacheable by a shared proxy.
+// GET /api/preview/mine?shas=<comma-separated 40-hex>&at=<epoch ms, aligned> —
+// the /preview index's "my recent previews" list. What it collects, and what a
+// visitor is allowed to see of it, lives in mine.ts; this is only the HTTP shell.
+// Session-scoped, so PRIVATE_HEADERS (no allow-origin, no-store): never
+// cacheable by a shared proxy.
 async function minePreviews(req: Request): Promise<Response> {
-  const shas = parseShaList(new URL(req.url).searchParams.get("shas"));
+  const url = new URL(req.url);
+  const local = parseLocalOpens(url.searchParams.get("shas"), url.searchParams.get("at"));
   const session = await getSessionUser(req).catch(() => null);
-  if (shas.length === 0 && !session) return json([], 200, PRIVATE_HEADERS);
+  if (local.length === 0 && !session) return json([], 200, PRIVATE_HEADERS);
   if (session && mineRateLimited(session.user.id)) {
     // 429 rather than an empty 200: the client must be able to tell "nothing to
     // show" from "ask again", and it leaves the list it already has on screen.
     return json({ error: "rate-limited" }, 429, { ...PRIVATE_HEADERS, "retry-after": "2" });
   }
-  return json(await visiblePreviews(req, session?.user.id ?? null, shas), 200, PRIVATE_HEADERS);
+  const browserAt = new Map(local.map((l) => [l.sha, l.at]));
+  return json(
+    await visiblePreviews(req, session?.user.id ?? null, local.map((l) => l.sha), authorizePreviewAccess, browserAt),
+    200,
+    PRIVATE_HEADERS,
+  );
 }
 
 // Local shorthand over the shared helper (http.ts): every preview response
