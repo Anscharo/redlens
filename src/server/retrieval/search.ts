@@ -106,16 +106,21 @@ export async function runSemantic(
     const vec = await withTimeout(embedQuery(query, ac.signal), config.semanticEmbedTimeoutMs, "embed");
     const lit = toVectorLiteral(vec);
     const overFetch = type ? Math.min(k * 4, 200) : k;
-    const rows = (await sql.unsafe(
-      // NOT attribution_only: folded members keep a vector purely so an already
-      // retrieved group can be attributed to the right leaf (migration 023). They must
-      // not compete in search itself, or the grouping they were folded out of is undone.
-      `SELECT m.id, m.type, e.member_ids, 1 - (e.embedding <=> $1::vector) AS score
+    // NOT attribution_only: folded members keep a vector purely so an already
+    // retrieved group can be attributed to the right leaf (migration 023). They must
+    // not compete in search itself, or the grouping they were folded out of is undone.
+    const stmt = `SELECT m.id, m.type, e.member_ids, 1 - (e.embedding <=> $1::vector) AS score
        FROM atlas_doc_embeddings e JOIN atlas_doc_meta m ON m.id = e.doc_id
        WHERE NOT e.attribution_only${semanticScopeSql(scope)}
-       ORDER BY e.embedding <=> $1::vector LIMIT $2`,
-      scope ? [lit, overFetch, scope] : [lit, overFetch],
-    )) as { id: string; type: string; score: number; member_ids?: unknown }[];
+       ORDER BY e.embedding <=> $1::vector LIMIT $2`;
+    const rows = (
+      scope
+        ? await sql.begin(async (tx) => {
+            await tx.unsafe(SCOPED_SCAN_SETTING);
+            return tx.unsafe(stmt, [lit, overFetch, scope]);
+          })
+        : await sql.unsafe(stmt, [lit, overFetch])
+    ) as { id: string; type: string; score: number; member_ids?: unknown }[];
 
     const out: Hit[] = [];
     for (const r of rows) {
@@ -160,6 +165,27 @@ export async function runSemantic(
  * Every comparison appends the dot, so `A.2` cannot match `A.22`. `$3` is bound
  * by the caller; the scope string is never interpolated into the statement.
  */
+/**
+ * Planner setting a SCOPED query runs under, inside its own transaction.
+ *
+ * An HNSW index scan is approximate in a way that breaks a filtered query: it
+ * walks the graph for `hnsw.ef_search` (default 40) nearest candidates and
+ * Postgres applies the WHERE clause to THOSE, so `in:A.6` with LIMIT 40
+ * returned 3 rows — the 3 of the 40 globally nearest anchors that happened to
+ * sit under A.6 (measured 2026-09-29 with EXPLAIN ANALYZE: index scan 38 rows,
+ * 3 survive the join). Every scope narrower than the whole atlas is hit, and
+ * the wider the scope the more it looks like it worked.
+ *
+ * Disabling the index scan for the statement forces an exact pass over every
+ * searchable vector: 6,810 anchors × 1,024 dims measured at 50 ms, against 11 ms
+ * for the broken indexed plan. Chosen over pgvector 0.8's
+ * `hnsw.iterative_scan = relaxed_order` (40 rows in 40 ms) because it is exact,
+ * needs no pgvector version, and a scoped query is the rare case — the
+ * unscoped statement keeps the index untouched. `SET LOCAL` dies with the
+ * transaction, so no other statement on the pooled connection inherits it.
+ */
+export const SCOPED_SCAN_SETTING = "SET LOCAL enable_indexscan = off";
+
 export function semanticScopeSql(scope: string | undefined): string {
   if (!scope) return "";
   return " AND (m.doc_no = $3 OR m.doc_no LIKE $3 || '.%' OR $3 LIKE m.doc_no || '.%')";

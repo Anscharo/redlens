@@ -11,7 +11,7 @@
 // themselves and restore the PINNED empty state (not ambient) in afterEach,
 // so the pin holds for every case that follows them.
 import { test, expect, describe, it, beforeAll, afterAll, afterEach } from "bun:test";
-import { rrfMerge, semanticScopeSql, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
+import { rrfMerge, semanticScopeSql, SCOPED_SCAN_SETTING, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
 import { config } from "../config.ts";
 import type { AtlasNode, Indexes } from "./indexes.ts";
 import { MINISEARCH_OPTIONS } from "../../lib/searchOptions.ts";
@@ -319,5 +319,16 @@ describe("semanticScopeSql", () => {
     // No bare-prefix LIKE anywhere: every LIKE operand carries the separator.
     expect(clause).not.toMatch(/LIKE \$3 \|\| '%'/);
     expect(clause.match(/\|\| '\.%'/g)).toHaveLength(2);
+  });
+
+  it("runs a scoped statement under an exact scan, inside its own transaction", () => {
+    // An HNSW scan finds ef_search (40) global neighbours and THEN filters them:
+    // measured 2026-09-29, `in:A.6` LIMIT 40 returned 3 rows through the index and
+    // 40 with the index scan disabled. The setting must be SET LOCAL so the pooled
+    // connection does not carry it into the next, unscoped query.
+    expect(SCOPED_SCAN_SETTING).toMatch(/^SET LOCAL /);
+    const src = fs.readFileSync(path.join(import.meta.dir, "./search.ts"), "utf8");
+    expect(src).toContain("tx.unsafe(SCOPED_SCAN_SETTING)");
+    expect(src).toContain("tx.unsafe(stmt, [lit, overFetch, scope])");
   });
 });

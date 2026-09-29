@@ -11,10 +11,29 @@
  *     ^ reuse a prod/staging DATABASE_URL's embeddings by content_hash (read-only); only cache-miss units are embedded
  *   pnpm eval:retrieval -- --rerank bm25
  *   pnpm eval:retrieval -- --prefix "Instruct: Given a web search query, retrieve relevant passages that answer the query\\nQuery: "
+ *   pnpm eval:retrieval -- --no-prefix     (bare queries; the default arm embeds with config.embedQueryPrefix)
  *
  * Default backend is OpenRouter when OPENROUTER_API_KEY is set, else TF-IDF
  * (offline proxy for grouping architecture — not a substitute for the neural
  * bakeoff). Writes .cache/eval-retrieval.json.
+ *
+ * ══ QUERY PREFIX (2026-09-29) — generic Qwen instruction, config.embedQueryPrefix ══
+ * --reuse-db on a local DB holding production's Qwen vectors, 179 queries, one policy.
+ *
+ *   semantic-only           recall  exact  disambig   mrr   control
+ *   --no-prefix              0.771  0.575    0.450   0.547   0.725
+ *   "Sky Atlas governance"   0.777  0.559    0.425   0.607   0.875
+ *   generic (shipped)        0.844  0.670    0.650   0.648   0.925
+ *   --hybrid
+ *   --no-prefix              0.899  0.615    0.500   0.700   0.875
+ *   "Sky Atlas governance"   0.922  0.592    0.375   0.634   0.975
+ *   generic (shipped)        0.922  0.659    0.575   0.642   0.975
+ *
+ * The domain wording trades configuration slices for prose; the generic wording
+ * improves every slice on recall/exact. Hybrid mrr is the one number no prefix
+ * wins: icd-disambiguation mrr 0.854 -> 0.611 (n=40; its exact 0.500 -> 0.575, so
+ * the right doc is in the top 10 more often but ranks first less often) and hub
+ * 0.956 -> 0.813 (n=15). Chat consumes top-k tool results, not rank 1.
  *
  * ══ DECISION (2026-08-18) — kv_records_breadcrumbs, hardcoded, no env var ══
  * First comparison made on BOTH the paraphrased query set AND production's semantic
@@ -313,7 +332,14 @@ const CRUMB_DEPTH = flag("crumb-depth")[0] ? Number(flag("crumb-depth")[0]) : un
 // identical (same duplicate count, same same-title separation) yet differ by 11 of
 // 40 disambiguation queries — so this has to be run neurally.
 const CRUMB_STRATS = flag("crumb-strategies")[0]?.split(",").map((x) => x.trim()).filter(Boolean) ?? [];
-const PREFIX = flag("prefix")[0] ?? "";
+// Query instruction prefix. `embedQuery` applies config.embedQueryPrefix itself
+// (EMBED_QUERY_PREFIX), so the flag OVERRIDES that value rather than stacking a
+// second prefix on top of it. flag() drops an empty argument, so the bare-query
+// arm is `--no-prefix`. PREFIX is what the run actually embedded with, for the report.
+const PREFIX_FLAG = flag("prefix")[0];
+if (argv.includes("--no-prefix")) config.embedQueryPrefix = "";
+else if (PREFIX_FLAG !== undefined) config.embedQueryPrefix = PREFIX_FLAG;
+const PREFIX = config.embedQueryPrefix;
 const SUBSET = flag("subset")[0] ? Number(flag("subset")[0]) : undefined;
 const K = Number(flag("k")[0] ?? 10);
 const RERANK_POOL = 50;
@@ -744,7 +770,6 @@ for (const policy of POLICIES) {
       // look hung.
       const unitByAnchor = new Map(units.map((u) => [u.anchorId, u]));
       for (const q of queries) {
-        const qText = BACKEND === "openrouter" && PREFIX ? `${PREFIX}${q.query}` : q.query;
         let pool: { id: string; text: string; score: number }[];
         const poolK = RERANK === "bm25" || HYBRID ? RERANK_POOL : K;
         if (BACKEND === "tfidf") {
@@ -755,7 +780,7 @@ for (const policy of POLICIES) {
           const t0 = performance.now();
           let qv: number[];
           try {
-            qv = await embedQuery(qText);
+            qv = await embedQuery(q.query);
           } finally {
             config.embedModel = prev;
           }
