@@ -144,7 +144,7 @@ test("only the MINE_MAX_PRIVATE newest private previews are considered", async (
   const authorize = mock(ok);
   const out = await visibleToVisitor(req, rows, authorize);
   expect(authorize).toHaveBeenCalledTimes(MINE_MAX_PRIVATE);
-  expect(out.map((r) => r.preview_id)).toEqual(["p-3", "p-4", "p-5", "p-6", "p-7", "p-8"]);
+  expect(out.map((r) => ("preview_id" in r ? r.preview_id : r.sha))).toEqual(["p-3", "p-4", "p-5", "p-6", "p-7", "p-8"]);
 });
 
 test("recency comes from the visitor's own open, falling back to last_access", () => {

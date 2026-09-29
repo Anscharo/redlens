@@ -6,7 +6,7 @@ import { mergeRecentPreviews, type MineRow } from "./previewRecent";
 
 function row(over: Partial<MineRow> & { sha: string }): MineRow {
   return {
-    repo: "sky-ecosystem/next-gen-atlas",
+    repo: "sky-ecosystem/next-gen-atlas", ref: "pull-1",
     pr_number: 1, pr_title: null, pr_author: null, pr_state: "open",
     doc_count: 0, ...over,
   };
@@ -24,6 +24,7 @@ describe("mergeRecentPreviews", () => {
         private: false,
         prNumber: 1,
         repo: "sky-ecosystem/next-gen-atlas",
+        ref: "pull-1",
       },
     ]);
   });
@@ -53,6 +54,7 @@ describe("mergeRecentPreviews", () => {
         private: false,
         prNumber: 1,
         repo: "sky-ecosystem/next-gen-atlas",
+        ref: "pull-1",
       },
     ]);
   });
@@ -86,7 +88,7 @@ describe("mergeRecentPreviews", () => {
   it("survives an unparseable opened_at rather than dropping the row", () => {
     const rows = [row({ sha: "a", preview_id: "p", opened_at: "not a date" })];
     expect(mergeRecentPreviews(rows, [])).toEqual([
-      { id: "p", title: undefined, detail: "0 docs", at: 0, private: false, prNumber: 1, repo: "sky-ecosystem/next-gen-atlas" },
+      { id: "p", title: undefined, detail: "0 docs", at: 0, private: false, prNumber: 1, repo: "sky-ecosystem/next-gen-atlas", ref: "pull-1" },
     ]);
   });
 });

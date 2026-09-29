@@ -101,7 +101,7 @@ export function PreviewHome() {
         sky-ecosystem/next-gen-atlas repo.
       </p>
       <form
-        className="flex gap-2 w-full max-w-xl"
+        className="flex gap-2 w-full max-w-[45rem]"
         onSubmit={(e) => {
           e.preventDefault();
           // Capture what was entered — including inputs that fail to parse, which
@@ -134,7 +134,7 @@ export function PreviewHome() {
       )}
 
       {usersEnabled() && (
-        <section className="w-full max-w-xl mt-8 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
+        <section className="w-full max-w-[45rem] mt-8 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
           <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--tan)" }}>
             Preview a private repo
           </h2>
