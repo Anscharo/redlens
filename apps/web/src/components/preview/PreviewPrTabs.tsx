@@ -60,7 +60,7 @@ export function PreviewPrTabs({ entries, accountScoped = false }: { entries: Ent
   };
 
   return (
-    <section className="w-full max-w-[45rem] mt-10">
+    <section className="w-full max-w-[972px] mt-10">
       <div className="flex items-center gap-4 mb-3 border-b" style={{ borderColor: "var(--border)" }}>
         <TabButton active={tab === "recent"} onClick={() => select("recent")}>
           my recent previews{entries.length ? ` · ${entries.length}` : ""}
