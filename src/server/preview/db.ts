@@ -128,17 +128,89 @@ export async function previewsTodayCountForRepo(repo: string): Promise<number> {
   return rows[0]?.n ?? 0;
 }
 
-/** Live previews for the /preview index page, newest-touched first. Blocked
- *  rows are invisible. Private rows never leave the DB for this public index —
- *  they're served only through the access-checked sha-keyed routes. */
-export async function listPreviews(limit = 50): Promise<PreviewRow[]> {
+/** The columns the two "my previews" queries project — deliberately narrower than
+ *  PreviewRow, because this is the shape that LEAVES the server (preview/mine.ts →
+ *  GET /api/preview/mine). Adding a field here is a decision to disclose it; both
+ *  SELECT lists below must match it, since neither query is type-checked against
+ *  the DB. `private` rides along because the caller has to know which rows need an
+ *  access check — mine.ts's visiblePreviews is the one path that applies it. */
+export interface MinePreviewRow {
+  sha: string;
+  repo: string;
+  ref: string;
+  kind: string;
+  pr_number: number | null;
+  pr_title: string | null;
+  pr_author: string | null;
+  pr_state: string | null;
+  doc_count: number;
+  last_access: string;
+  private: boolean;
+}
+
+/** Rows for a caller-supplied sha list — the /preview index's "my recent
+ *  previews" lookup, which intersects this browser's localStorage with what is
+ *  still live. It DOES return private rows, so every caller must pass them through
+ *  mine.ts's visiblePreviews, the one path that decides disclosure.
+ *  Sha-scoped rather than windowed: asking for the ~30 shas a browser remembers
+ *  can't push a caller's own older previews out the way a global
+ *  `ORDER BY last_access LIMIT n` would.
+ *
+ *  Every sha must already be 40-hex — the caller validates, and that is what
+ *  makes the unquoted array literal safe here (a hex-only element set can't
+ *  carry a comma, brace or quote). See pg-array.ts for why a JS array cannot be
+ *  bound as a Postgres array directly. */
+export async function listPreviewsByShas(shas: readonly string[]): Promise<MinePreviewRow[]> {
+  if (shas.length === 0) return []; // an empty literal would match nothing anyway — skip the round trip
   return (await sql`
-    SELECT sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, last_access
+    SELECT sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, last_access, private
     FROM previews
-    WHERE blocked_at IS NULL AND private = false
+    WHERE sha = ANY(${`{${shas.join(",")}}`}::text[]) AND blocked_at IS NULL
     ORDER BY last_access DESC
+  `) as MinePreviewRow[];
+}
+
+/** An account-recorded open, joined to its preview row. `preview_id` is what the
+ *  visitor actually opened (and what the index links back to); `opened_at` is
+ *  their own last open of it, which is what the list sorts on — NOT the row's
+ *  last_access, which anyone's visit moves. Postgres returns both timestamps as
+ *  Date objects; they are typed as the ISO strings the JSON response carries. */
+export interface PreviewOpenRow extends MinePreviewRow {
+  preview_id: string;
+  opened_at: string;
+}
+
+/** Remember that `userId` opened `previewId`, currently built at `sha`. Called
+ *  on every `ready` the SSE stream emits, so it records what was actually
+ *  served — and, for a private repo, only after access was authorized. One row
+ *  per (user, preview id): a pushed branch updates the sha in place rather than
+ *  accruing a row per commit (migrations/035_preview_opens.sql). */
+export async function recordPreviewOpen(userId: string, previewId: string, sha: string): Promise<void> {
+  await sql`
+    INSERT INTO preview_opens (user_id, preview_id, sha)
+    VALUES (${userId}, ${previewId}, ${sha})
+    ON CONFLICT (user_id, preview_id) DO UPDATE SET
+      sha = EXCLUDED.sha,
+      last_opened_at = now()
+  `;
+}
+
+/** This user's own preview history, newest open first. The JOIN is what keeps a
+ *  blocked sha — or one whose previews row is gone — out of the list without
+ *  needing to delete anything here. Private rows come back like listPreviewsByShas:
+ *  disclosure is mine.ts's visiblePreviews to decide, because a collaborator can
+ *  be removed long after the open was recorded. */
+export async function listPreviewOpens(userId: string, limit = 50): Promise<PreviewOpenRow[]> {
+  return (await sql`
+    SELECT o.preview_id, o.last_opened_at AS opened_at,
+           p.sha, p.repo, p.ref, p.kind, p.pr_number, p.pr_title, p.pr_author, p.pr_state,
+           p.doc_count, p.last_access, p.private
+    FROM preview_opens o
+    JOIN previews p ON p.sha = o.sha
+    WHERE o.user_id = ${userId} AND p.blocked_at IS NULL
+    ORDER BY o.last_opened_at DESC
     LIMIT ${limit}
-  `) as PreviewRow[];
+  `) as PreviewOpenRow[];
 }
 
 /** Admin-takedown check: a blocked sha must never build or serve. */

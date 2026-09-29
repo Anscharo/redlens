@@ -123,8 +123,15 @@ export function ProfileButton() {
               <button
                 className="rlc-menu-item text-[12.5px] text-red"
                 onClick={() => {
-                  // Confirm before an irreversible wipe of chats + Collections.
-                  if (!window.confirm("Delete your account and all your chats and Collections? This can't be undone.")) return;
+                  // Confirm before an irreversible wipe. Name everything the
+                  // delete actually takes (PRIVACY.md §6 is the same list) —
+                  // preview history cascades with the account too.
+                  if (
+                    !window.confirm(
+                      "Delete your account and all your chats, Collections, and preview history? This can't be undone.",
+                    )
+                  )
+                    return;
                   setOpen(false);
                   void deleteAccount().then((ok) => {
                     if (!ok) window.alert("Couldn't delete your account. Please try again.");

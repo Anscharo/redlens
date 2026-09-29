@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-09-29
+- Recent previews now follow your signed-in account across browsers, and include previews of private repositories
+
 
 ## 2026-09-28
 - Added a drag handle on the docked chat so it can be widened up to 55% of the window, and the sidebars fold so the open document stays readable

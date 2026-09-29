@@ -100,8 +100,8 @@ export async function upsertUser(
 }
 
 // Permanently delete a user and everything owned by them. ON DELETE CASCADE on
-// conversations/collections (→ messages/collection_items, migrations 003/014)
-// means this one statement erases all of their stored data.
+// conversations/collections/preview_opens (→ messages/collection_items,
+// migrations 003/014/035) means this one statement erases all of their stored data.
 export async function deleteAccount(userId: string): Promise<void> {
   await sql`DELETE FROM users WHERE id = ${userId}`;
 }
