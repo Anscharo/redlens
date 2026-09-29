@@ -1,7 +1,9 @@
 # Detecting a repurposed UUID without accusing an innocent document
 
 Working notes for the preview "identity changed" badge
-(`src/server/preview/identity.ts`). Written 2026-09-29 after
+(`src/server/preview/identity.ts` and the `identity-*.ts` files beside it).
+**This document holds the measurements; the code holds only the bars.** "The
+bars in the code", below, says which thread set each one. Written 2026-09-29 after
 next-gen-atlas#346 badged three documents that had only been respelled.
 Status: **the defect and its long-body residual are fixed, and longer bodies
 are now judged by the search vector**. "Ordering" at the end lists what is
@@ -34,6 +36,53 @@ back badged. Two independent causes:
 Fix: short bodies were routed to ordered **word** containment (2.0% false
 flags / 5.4% missed at t=0.50); both title checks compare a separator-squashed
 form. The routing itself was replaced later the same day — see thread 7.
+
+The bakeoff that picked the word bar, over ~1,600 ordinary edits (the 19 real
+edits in atlas#346, plus one-line live docs with 5/10/20/30% of their words
+substituted) and ~1,400 swaps (two unrelated one-liners, and two sibling
+one-liners that share their template):
+
+| measure | threshold | ordinary edit flagged | real swap missed |
+|---|---|---|---|
+| line | any | 87.0% | 0.1% |
+| word | 0.45 | 0.4% | 7.3% |
+| word | **0.50** | 2.0% | 5.4% |
+| word | 0.60 | 6.6% | 3.7% |
+
+The line measure is flat across every threshold, which is the defect. 0.50 is
+the smallest sum of the two errors. Ordinary edits sit far above it: the real
+#346 bodies score 0.79 to 0.92, and an edit that substitutes 10% of the words
+has a p05 of 0.76.
+
+## The bars in the code
+
+Each constant, its value, and the thread that measured it. Re-measure before
+moving one.
+
+| constant | file | value | meaning | set by |
+|---|---|---|---|---|
+| `REPLACE_MAX_OVERLAP` | `identity-body.ts` | 0.15 | replaced by lines: at most this share of old lines survive | the original gate; never decides alone since thread 7 |
+| `REPLACE_MAX_WORD_OVERLAP` | `identity-body.ts` | 0.50 | replaced by words: at most this share of old words survive, in order | the table above; threads 7 and 8 |
+| `REPLACE_MAX_COSINE` | `identity-body.ts` | 0.85 | replaced by meaning: cosine of the old and new search vector | thread 10 |
+| `SHORT_BODY_MAX_LINES` | `identity-body.ts` | 3 | bodies longer than this are judged by meaning when a vector is known | thread 10 |
+| `JUDGEABLE_MIN_WORDS` | `identity-body.ts` | 6 | a smaller body is never flagged | stopwords dominate below it |
+| `BODY_TEST_MAX_CELLS` | `identity-text.ts` | 4,000,000 | largest word comparison made in full | thread 7 |
+| `RENAME_MIN_KEPT` | `identity-rename.ts` | 0.90 | renamed in place: share of the old body that survives the title's substitution | thread 11 |
+| `CAMPAIGN_MIN_DOCS` | `identity-rename.ts` | 2 | documents that must share one title substitution | thread 3 |
+| `CAMPAIGN_MIN_TITLE_KEPT` | `identity-titles.ts` | 0.50 | share of the longer title a substitution must leave standing | thread 3 |
+| `RELOCATION_MIN_RATIO` | `identity-relocation.ts` | 0.95 | share of the old content found, in order, in its new home | see below |
+| `RELOCATION_MIN_CHARS`, `RELOCATION_MIN_WORDS` | `identity-relocation.ts` | 25, 4 | the old content must be this distinctive | see below |
+
+The relocation match uses ordered word containment, not a bag of words. A
+loose word-overlap heuristic gave a false-positive rate of about 22% over the
+live atlas, matching shared boilerplate such as "Completed Instances
+Directory" and "Failed Invocations". 0.95 is used, not 0.90, so that a real
+word substitution between near-duplicate template documents ("Fluid" against
+"Securitize") falls below the bar while a subword typo still counts.
+
+The word matching is one implementation, in
+`scripts/lib/ordered-containment.mjs`, shared with the HTML-era history
+curation. A change there changes the gate.
 
 ## Harness
 

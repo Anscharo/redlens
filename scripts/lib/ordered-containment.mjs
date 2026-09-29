@@ -1,6 +1,7 @@
-// Ordered, typo-tolerant word containment — ported from the preview UUID-swap detector
-// (src/server/preview/identity.ts, PR #108) for use as an INDEPENDENT third corroborator
-// in HTML-era auto-curation (plan §10.4).
+// Ordered, typo-tolerant word containment. Written for the preview UUID-swap detector
+// (PR #108) and moved here for use as an INDEPENDENT third corroborator in HTML-era
+// auto-curation (plan §10.4). The detector now imports it back (src/server/preview/
+// identity-text.ts), so there is ONE implementation: a change here changes both.
 //
 // WHY this and not more shingle-Jaccard. The reverse matcher (greedy shingle) and the
 // forward tracer (mutual-best shingle) are BOTH bag-of-8-grams overlap, so they share a
@@ -10,8 +11,8 @@
 // That makes it methodologically independent of the two shingle passes — strongest where
 // they are weakest — so agreement between it and the reverse matcher is real corroboration.
 
-const words = (t) => (t ?? "").toLowerCase().match(/[a-z0-9]+/g) ?? [];
-const norm = (t) => (t ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+export const words = (t) => (t ?? "").toLowerCase().match(/[a-z0-9]+/g) ?? [];
+export const norm = (t) => (t ?? "").toLowerCase().replace(/\s+/g, " ").trim();
 
 export const MIN_WORDS = 4; // shorter bodies aren't distinctive enough to corroborate
 export const wordCount = (t) => words(t).length;
@@ -52,6 +53,13 @@ export function orderedWordContainment(a, b) {
   const A = words(a), B = words(b);
   if (A.length < MIN_WORDS) return 0;
   if (A.length * B.length > 400_000) return norm(b).includes(norm(a)) ? 1 : 0;
+  return wordsInOrder(A, B) / A.length;
+}
+
+// How many of A's words appear in B, in order — the LCS itself, over word lists, with
+// no cost cap. O(A·B). The preview identity gate calls it directly for its body test,
+// where the cap's binary fallback would read any change to a large body as a replacement.
+export function wordsInOrder(A, B) {
   const dp = new Array(B.length + 1).fill(0);
   for (let i = 1; i <= A.length; i++) {
     let diag = 0;
@@ -61,7 +69,7 @@ export function orderedWordContainment(a, b) {
       diag = up;
     }
   }
-  return dp[B.length] / A.length;
+  return dp[B.length];
 }
 
 // Symmetric "are these the same document?" score: the better-preserved direction. High

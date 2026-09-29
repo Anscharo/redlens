@@ -1,6 +1,6 @@
 // Which measure decides "this uuid now holds a DIFFERENT document" for a SHORT
 // atlas body? Offline bakeoff behind REPLACE_MAX_WORD_OVERLAP in
-// src/server/preview/identity.ts. Not on the `pnpm build` chain — it needs the
+// src/server/preview/identity-body.ts. Not on the `pnpm build` chain — it needs the
 // network (live docs.json + a preview's diff/patches).
 //
 //   bun scripts/aux/identity-overlap-bakeoff.ts [--preview-sha <sha>] [--tern] [--qwen]
@@ -17,7 +17,8 @@
 // `--tern` adds the on-device ternlight embedding as a third arm, `--qwen` the
 // hosted Qwen3 one the atlas search uses (needs OPENROUTER_API_KEY; responses
 // are disk-cached under .cache/identity-bakeoff). Both were measured and
-// rejected 2026-09-29 — see the constant's comment; kept behind flags so the
+// rejected 2026-09-29 — see docs/research/identity-swap-detection.md, thread
+// 5; kept behind flags so the
 // rejection can be re-checked rather than re-argued.
 //
 // Each embedding is scored two ways, because they are different proposals:
