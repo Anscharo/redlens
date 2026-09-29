@@ -1,22 +1,25 @@
 // The /preview index's "my recent previews" data layer: the row shape
 // GET /api/preview/mine answers with, and the merge that turns it plus this
-// browser's localStorage record into the list the tab renders. Pure (no React),
-// so the merge rules are testable without rendering the page.
+// browser's localStorage record into the list the tab renders.
+//
+// Pure — no React, no storage, no clock: both sources are arguments. The caller
+// reads localStorage ONCE per fetch and passes that same snapshot here, so the
+// list can't be merged against a newer store than the one whose shas were sent.
 
-import { localPreviews, type LocalPreview } from "./previewLocal";
+import type { LocalPreview } from "./previewLocal";
 import type { Entry } from "../components/preview/types";
 
+/** Mirrors the server's MinePreviewRow / PreviewOpenRow (src/server/preview/db.ts,
+ *  shipped by preview/mine.ts) — narrowed to the fields this merge actually reads.
+ *  A hand-written mirror, as elsewhere in the app (see components/chat/api.ts):
+ *  apps/web deliberately imports no server module, so renaming a column there
+ *  means renaming it here. */
 export interface MineRow {
   sha: string;
-  repo: string;
-  ref: string;
-  kind: string;
-  pr_number: number | null;
   pr_title: string | null;
   pr_author: string | null;
   pr_state: string | null;
   doc_count: number;
-  last_access: string;
   private?: boolean;
   /** ACCOUNT rows only: the id this visitor opened, and their own last open of
    *  it. A row that came back solely because this browser sent its sha carries
@@ -49,7 +52,7 @@ function detailOf(row: MineRow): string {
  *  Where both describe the same id, the NEWER open wins the row too, not just
  *  the timestamp: a pushed branch moves its title and doc count, and the stale
  *  side would otherwise label the entry. */
-export function mergeRecentPreviews(rows: MineRow[], local: LocalPreview[] = localPreviews()): Entry[] {
+export function mergeRecentPreviews(rows: MineRow[], local: LocalPreview[]): Entry[] {
   const bySha = new Map(rows.map((r) => [r.sha, r]));
   const best = new Map<string, { row: MineRow; at: number }>();
   const offer = (id: string, row: MineRow, at: number) => {

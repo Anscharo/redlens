@@ -31,7 +31,6 @@ const {
   previewsTodayCount,
   previewsTodayCountForOwner,
   previewsTodayCountForRepo,
-  listPreviews,
   listPreviewsByShas,
   recordPreviewOpen,
   listPreviewOpens,
@@ -234,35 +233,13 @@ test("previewsTodayCountForRepo defaults to 0 when no row comes back", async () 
   expect(await previewsTodayCountForRepo("acme/atlas-fork")).toBe(0);
 });
 
-test("listPreviews returns rows, limit defaults to 200", async () => {
-  queued.push([{ sha: "s1" }, { sha: "s2" }]);
-  const rows = await listPreviews();
-  expect(rows).toHaveLength(2);
-  // A global `ORDER BY last_access DESC LIMIT n` window: too small a default
-  // silently drops a caller's own older previews once other people's are newer.
-  expect(calls[0]!.values).toContain(200);
-});
-
-test("listPreviews excludes private rows", async () => {
-  queued.push([]);
-  await listPreviews();
-  expect(calls[0]!.strings.join("")).toContain("private = false");
-});
-
-test("listPreviews respects an explicit limit", async () => {
-  queued.push([]);
-  await listPreviews(5);
-  expect(calls[0]!.values).toContain(5);
-});
-
 test("listPreviewsByShas queries the given shas as one text[] literal, private rows INCLUDED", async () => {
   queued.push([{ sha: "s1", private: true }]);
   const rows = await listPreviewsByShas(["s1", "s2"]);
   expect(rows).toHaveLength(1);
   const q = calls[0]!.strings.join("");
-  // The point of this query vs listPreviews: private rows come back (handler.ts
-  // authorizes each one per visitor), and there is no last_access window to fall
-  // out of. Blocked rows stay invisible, as everywhere else.
+  // Private rows come back (mine.ts's visibleToVisitor is what filters them), and
+  // there is no last_access window to fall out of. Blocked rows stay invisible.
   expect(q).not.toContain("private = false");
   expect(q).toContain("blocked_at IS NULL");
   expect(q).toContain("::text[]");
@@ -273,6 +250,28 @@ test("listPreviewsByShas queries the given shas as one text[] literal, private r
 test("listPreviewsByShas skips the round trip on an empty sha list", async () => {
   expect(await listPreviewsByShas([])).toEqual([]);
   expect(calls).toHaveLength(0);
+});
+
+test("both mine-facing queries project the same disclosed column set", async () => {
+  // MinePreviewRow is the shape that leaves the server; the two SELECT lists are
+  // not type-checked against it, so a column added to one and not the other shows
+  // up as undefined in half the list instead of failing.
+  queued.push([], []);
+  await listPreviewsByShas(["s1"]);
+  await listPreviewOpens("user-1");
+  // "SELECT o.preview_id, o.last_opened_at AS opened_at, p.sha, …" → [opened_at, preview_id, sha, …]
+  const cols = (q: string) =>
+    q
+      .slice(q.indexOf("SELECT") + "SELECT".length, q.indexOf("FROM"))
+      .split(",")
+      .map((c) => c.trim().replace(/^[op]\./, "").replace(/^.*\sAS\s+/i, ""))
+      .filter(Boolean)
+      .sort();
+  const shaCols = cols(calls[0]!.strings.join(""));
+  const openCols = cols(calls[1]!.strings.join(""));
+  // The opens query adds exactly the account-only pair.
+  expect(openCols.filter((c) => !shaCols.includes(c))).toEqual(["opened_at", "preview_id"]);
+  expect(shaCols.filter((c) => !openCols.includes(c))).toEqual([]);
 });
 
 test("recordPreviewOpen upserts one row per (user, preview id), moving the sha forward", async () => {

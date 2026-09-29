@@ -1,5 +1,6 @@
 // mergeRecentPreviews: the two-source merge behind /preview's "my recent
-// previews" tab. Pure — the localStorage side is passed in, so no jsdom needed.
+// previews" tab. Pure — BOTH sides are arguments (it reads no storage of its
+// own), so no jsdom and no localStorage stubbing here.
 import { describe, it, expect } from "vitest";
 import { mergeRecentPreviews, type MineRow } from "./previewRecent";
 

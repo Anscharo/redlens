@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { parsePreviewInput, parsePrivateInput, isPrivatePrId, localPreviews } from "../../lib/previewLocal";
+import { parsePreviewInput, parsePrivateInput, isPrivatePrId, localPreviews, type LocalPreview } from "../../lib/previewLocal";
 import { mergeRecentPreviews, type MineRow } from "../../lib/previewRecent";
 import { initAnalytics, register, track, pageview } from "../../lib/analytics";
 import { ProfileButton } from "../chat/ProfileButton";
@@ -23,7 +23,10 @@ import { PreviewPrTabs } from "./PreviewPrTabs";
 export function PreviewHome() {
   const [input, setInput] = useState("");
   const [privateInput, setPrivateInput] = useState("");
-  const [rows, setRows] = useState<MineRow[]>([]);
+  // Both halves of the recent list move together: the server rows and the exact
+  // localStorage snapshot whose shas were sent for them. Keeping them in one
+  // state is what stops the merge from pairing rows with a later snapshot.
+  const [recent, setRecent] = useState<{ rows: MineRow[]; local: LocalPreview[] }>({ rows: [], local: [] });
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id ?? null; // the effect below depends on WHO, not on the user object's identity
   const id = useMemo(() => parsePreviewInput(input), [input]);
@@ -41,15 +44,28 @@ export function PreviewHome() {
     // Wait for the session probe so this asks once, knowing whether there is an
     // account history to include (authLoading is already false when logins are off).
     if (authLoading) return;
-    const shas = [...new Set(localPreviews().map((p) => p.sha))];
-    if (shas.length === 0 && !userId) return; // nothing opened here, no account — nothing to ask about
+    const local = localPreviews();
+    const shas = [...new Set(local.map((p) => p.sha))];
+    if (shas.length === 0 && !userId) {
+      // Nothing to ask about — and signing out lands here, so CLEAR rather than
+      // return: the previous user's rows (private repo ids and titles among
+      // them) must not stay on screen for whoever uses this browser next.
+      setRecent({ rows: [], local: [] });
+      return;
+    }
+    // `alive` drops a response whose request is no longer the current one: when
+    // userId flips, the signed-in answer must not land after the signed-out one.
+    let alive = true;
     fetch(`${import.meta.env.BASE_URL}api/preview/mine?shas=${shas.join(",")}`, { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : []))
-      .then((d) => setRows(Array.isArray(d) ? d : []))
+      .then((d) => alive && setRecent({ rows: Array.isArray(d) ? d : [], local }))
       .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, [authLoading, userId]);
 
-  const entries = useMemo(() => mergeRecentPreviews(rows), [rows]);
+  const entries = useMemo(() => mergeRecentPreviews(recent.rows, recent.local), [recent]);
 
   return (
     <div className="min-h-dvh flex flex-col items-center px-6 pt-[18vh] relative" style={{ background: "var(--bg)" }}>

@@ -4,7 +4,6 @@
 //   GET /:id/events           SSE build-status stream (drives the build)
 //   GET /:sha/diff.json        added/changed doc ids vs current main
 //   GET /:sha/<artifact>.json  allowlisted bundle artifact
-//   GET /list                  public listing (no private rows, ever)
 //   GET /mine?shas=…           the caller's own previews: their account history
 //                              plus the shas their browser remembers, with
 //                              private rows released only once access is authorized
@@ -30,16 +29,8 @@ import {
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
 import { previewPaths, artifactPath, bundleReady, readMeta, writeMeta, touch, remove as removeBundle, type PreviewMeta } from "./cache.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
-import {
-  getPreviewRow,
-  touchPreview,
-  isBlockedSha,
-  listPreviews,
-  listPreviewsByShas,
-  listPreviewOpens,
-  recordPreviewOpen,
-  type PreviewRow,
-} from "./db.ts";
+import { getPreviewRow, touchPreview, isBlockedSha, recordPreviewOpen } from "./db.ts";
+import { collectMineRows, parseShaList, visibleToVisitor } from "./mine.ts";
 import { fillPrivateDiffBaseOnOpen } from "./diff-base-backfill.ts";
 import { authorizePreviewAccess } from "./access.ts";
 import { getSessionUser } from "../session.ts";
@@ -474,77 +465,16 @@ async function artifactResponse(req: Request, sha: string, name: string): Promis
   return res;
 }
 
-// GET /api/preview/mine?shas=<comma-separated 40-hex> — backs the /preview
-// index's "my recent previews" tab. TWO sources, unioned:
-//
-//   the ACCOUNT — every preview this signed-in visitor has opened, on any
-//     device (preview_opens, written at `ready` below). This is the one a
-//     logged-in person expects: their history follows the account, not a
-//     browser profile.
-//   the BROWSER — the shas its localStorage sent. Still load-bearing: it is the
-//     whole story for an anonymous visitor, and for a signed-in one it covers
-//     what they opened before the account history existed or while logged out.
-//
-// Either way it only ever answers for previews the CALLER opened; it never
-// asks for, and can never be handed, a list of what other people have previewed.
-//
-// This is the one listing that discloses private previews, so it is gated the
-// same way the sha-keyed bundle routes are: a private row is emitted only after
-// authorizePreviewAccess says THIS visitor may see that repo (fail-closed —
-// "login-required"/"forbidden"/"unavailable" all drop the row silently, so a
-// caller guessing shas can't tell "no such preview" from "not yours"). That
-// re-check matters most on the account path, where the open may predate a
-// revoked collaborator grant by weeks. Public rows need no check: they are
-// already served by /list to anyone.
-//
-// A sha the caller doesn't know is unguessable, and one it does know it already
-// holds — so accepting a sha list adds no disclosure of its own.
-const MINE_MAX_SHAS = 50; // headroom over previewLocal.ts's MAX_LOCAL (30) — bounds the per-repo access checks below
-
+// GET /api/preview/mine?shas=<comma-separated 40-hex> — the /preview index's
+// "my recent previews" list. What it collects, and what a visitor is allowed to
+// see of it, lives in mine.ts; this is only the HTTP shell. Session-scoped, so
+// PRIVATE_HEADERS (no allow-origin, no-store): never cacheable by a shared proxy.
 async function minePreviews(req: Request): Promise<Response> {
-  const raw = new URL(req.url).searchParams.get("shas") ?? "";
-  const shas = [
-    ...new Set(
-      raw
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter((s) => SHA_RE.test(s)), // anything else is dropped, not 400'd: one stale entry must not blank the list
-    ),
-  ].slice(0, MINE_MAX_SHAS);
+  const shas = parseShaList(new URL(req.url).searchParams.get("shas"));
   const session = await getSessionUser(req).catch(() => null);
   if (shas.length === 0 && !session) return json([], 200, PRIVATE_HEADERS);
-
-  // Each source soft-fails on its own: a DB hiccup on one must not blank the
-  // other, and neither ever turns into an error the tab has to render.
-  const [opens, byShas] = await Promise.all([
-    session ? listPreviewOpens(session.user.id).catch(() => []) : Promise.resolve([]),
-    shas.length > 0 ? listPreviewsByShas(shas).catch(() => []) : Promise.resolve([]),
-  ]);
-  // No cross-source dedup: an account row carries the preview_id it was opened
-  // under, a browser row doesn't, and the same sha can legitimately have been
-  // opened under two ids (`pull-346` and its bare commit). The client keys by
-  // id, so a duplicated sha costs one row of JSON and loses nothing.
-  const rows: PreviewRow[] = [...opens, ...byShas];
-
-  const out: PreviewRow[] = [];
-  // Memoized per repo: several previews of one private repo (every push makes a
-  // new sha) then cost ONE permission check, not one each. access.ts caches
-  // across requests too; this keeps a single response internally consistent.
-  const allowedRepo = new Map<string, boolean>();
-  for (const row of rows) {
-    if (!row.private) {
-      out.push(row);
-      continue;
-    }
-    let allowed = allowedRepo.get(row.repo);
-    if (allowed === undefined) {
-      const decision = await authorizePreviewAccess(req, row.repo).catch(() => "unavailable" as const);
-      allowed = decision === "ok";
-      allowedRepo.set(row.repo, allowed);
-    }
-    if (allowed) out.push(row);
-  }
-  return json(out, 200, PRIVATE_HEADERS);
+  const rows = await collectMineRows(session?.user.id ?? null, shas);
+  return json(await visibleToVisitor(req, rows), 200, PRIVATE_HEADERS);
 }
 
 // Local shorthand over the shared helper (http.ts): every preview response
@@ -558,15 +488,10 @@ function json(body: unknown, status: number, headers: Record<string, string> = C
 export function handlePreview(req: Request, server: Server<unknown>, pathname: string): Response | Promise<Response> {
   const rest = pathname.slice("/api/preview/".length);
   const segs = rest.split("/").filter(Boolean);
-  // GET /api/preview/list — live previews for the /preview index page.
-  if (segs.length === 1 && segs[0] === "list") {
-    return listPreviews()
-      .then((rows) => json(rows, 200))
-      .catch(() => json([], 200));
-  }
   // GET /api/preview/mine — the caller's OWN previews (private ones included,
-  // each behind its repo's access check). Session-scoped, so it carries
-  // PRIVATE_HEADERS rather than CORS: never cacheable by a shared proxy.
+  // each behind its repo's access check). There is deliberately no public
+  // listing route: the one that existed ranked every preview anyone had opened,
+  // and nothing consumed it once this one landed.
   if (segs.length === 1 && segs[0] === "mine") return minePreviews(req);
   // GET /api/preview/open-prs — open PRs against the canonical atlas, for the
   // /preview index "open atlas prs" tab.

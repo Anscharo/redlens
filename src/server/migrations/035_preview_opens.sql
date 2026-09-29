@@ -15,12 +15,14 @@
 -- open must never fail because that row moved. user_id's ON DELETE CASCADE is
 -- load-bearing — Preferences → Delete account is one DELETE FROM users
 -- (auth.ts deleteAccount), and this history has to go with it.
+-- Only last_opened_at is kept. A first_opened_at would be personal data nothing
+-- reads, which PRIVACY.md would then have to account for; add it the day a
+-- feature needs it.
 CREATE TABLE IF NOT EXISTS preview_opens (
-  user_id         UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  preview_id      TEXT        NOT NULL,           -- the id the visitor opened (previewLocal.ts's grammar)
-  sha             TEXT        NOT NULL,           -- newest resolved commit for that id
-  first_opened_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  last_opened_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  user_id        UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  preview_id     TEXT        NOT NULL,            -- the id the visitor opened (previewLocal.ts's grammar)
+  sha            TEXT        NOT NULL,            -- newest resolved commit for that id
+  last_opened_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, preview_id)
 );
 

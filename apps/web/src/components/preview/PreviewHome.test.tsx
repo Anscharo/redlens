@@ -156,6 +156,23 @@ describe("PreviewHome recent list (AND-semantics)", () => {
     expect(await screen.findByText("No previews opened yet.")).toBeInTheDocument();
   });
 
+  it("clears the account's rows on sign-out instead of leaving them on screen", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    // A private preview from the account history — nothing in localStorage, so
+    // after sign-out there is nothing left to legitimately show.
+    mockList([
+      dbRow({ sha: "ccc", repo: "acme/secret-atlas", private: true, pr_title: "Secret work", preview_id: "acme:secret-atlas:main", opened_at: "2026-09-20T00:00:00Z" }),
+    ]);
+    const view = render(<PreviewHome />);
+    expect(await screen.findByText("Secret work")).toBeInTheDocument();
+
+    h.user = null; // signed out — the next person at this browser must not see it
+    view.rerender(<PreviewHome />);
+    expect(await screen.findByText("No previews opened in this browser yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Secret work")).toBeNull();
+  });
+
   it("shows an empty recent tab (no count) when there's no intersection", async () => {
     localStorage.setItem("preview-history", JSON.stringify([{ id: "pull-9", sha: "zzz", at: 1 }]));
     mockList([dbRow({ sha: "aaa" })]);
