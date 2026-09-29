@@ -1339,20 +1339,25 @@ test("/api/preview/mine asks nothing of the DB for an anonymous caller with no s
   expect(dbCalls).toHaveLength(0);
 });
 
-test("/api/preview/mine holds a signed-in caller to one request per interval", async () => {
+test("/api/preview/mine absorbs a burst, then refuses past the window's limit", async () => {
+  const { MINE_LIMIT } = await import("./handler.ts");
   sessionUser = { id: "user-1", provider: "github" };
 
-  dbQueued = [[pubRow]];
-  expect((await mine("")).status).toBe(200);
+  // A person opening tabs or refreshing must never be refused.
+  for (let i = 0; i < MINE_LIMIT; i++) {
+    dbQueued = [[pubRow]];
+    expect((await mine("")).status).toBe(200);
+  }
+  expect(dbCalls.filter((c) => c.sql.includes("FROM preview_opens o"))).toHaveLength(MINE_LIMIT);
 
+  // Past the limit, the expensive work (DB + up to 6 GitHub checks) is skipped.
+  dbCalls = [];
   dbQueued = [new Error("must not be queried again")];
   const limited = await mine("");
   expect(limited.status).toBe(429);
-  expect(limited.headers.get("retry-after")).toBe("2");
+  expect(limited.headers.get("retry-after")).toBe("1");
   expect(limited.headers.get("cache-control")).toBe("private, no-store"); // still never shared-cacheable
-  // The point of the limit: the expensive work (DB + up to 6 GitHub checks) is skipped.
-  expect(dbCalls.some((c) => c.sql.includes("FROM preview_opens o"))).toBe(true);
-  expect(dbCalls.filter((c) => c.sql.includes("FROM preview_opens o"))).toHaveLength(1);
+  expect(dbCalls).toHaveLength(0);
 });
 
 test("/api/preview/mine's interval is per account, and leaves anonymous callers alone", async () => {
@@ -1373,12 +1378,12 @@ test("/api/preview/mine's interval is per account, and leaves anonymous callers 
   expect((await mine(`shas=${PUB_SHA}`)).status).toBe(200);
 });
 
-test("mineRateLimited lets the same account through once the interval has passed", async () => {
-  const { mineRateLimited, MINE_MIN_INTERVAL_MS } = await import("./handler.ts");
+test("mineRateLimited counts a window, and opens a fresh one when it expires", async () => {
+  const { mineRateLimited, MINE_WINDOW_MS, MINE_LIMIT } = await import("./handler.ts");
   const t0 = 1_000_000;
-  expect(mineRateLimited("user-1", t0)).toBe(false);
-  expect(mineRateLimited("user-1", t0 + MINE_MIN_INTERVAL_MS - 1)).toBe(true);
-  expect(mineRateLimited("user-1", t0 + MINE_MIN_INTERVAL_MS)).toBe(false);
+  for (let i = 0; i < MINE_LIMIT; i++) expect(mineRateLimited("user-1", t0)).toBe(false);
+  expect(mineRateLimited("user-1", t0)).toBe(true); // one past the limit, same window
+  expect(mineRateLimited("user-1", t0 + MINE_WINDOW_MS + 1)).toBe(false); // window rolled
 });
 
 test("there is no public preview listing route any more", async () => {
