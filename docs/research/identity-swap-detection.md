@@ -252,15 +252,29 @@ classifies **semantic**. The `classifyPrTitle` override doesn't help either:
 it keys on phrases like "whitespace" or "fix typos", and #346's PR is titled
 *"Atlas Edit Proposal — 2026-09-28"*. Both lanes miss.
 
-**What history is actually good for — fingerprint lineage.**
-`atlas_doc_versions` (migration 034) stores one row per *state* of every
-document: `(doc_id, commit_seq, commit_sha, fingerprint)`. That turns
-`relocationTarget` from an in-diff heuristic into a corpus-wide lookup — ask
-whether this UUID's **old fingerprint reappears under a different UUID**, at
-any commit, rather than only among the docs this one PR happened to add. A
-confirmed relocation is *evidence* of repurposing rather than an inference
-from similarity, which is exactly what thread 4 wants the badge to rest on,
-and it is an indexed query instead of the O(n) scan the current code does.
+**Fingerprint lineage — proposed, then withdrawn. A PREVIEW IS NOT IN THESE
+TABLES.** `atlas_history` and `atlas_doc_versions` are built by walking the git
+log of **upstream main**. A PR branch's or a fork's commits are not in that
+log, so a preview's own documents have **no rows at all** — the DB knows the
+base side and nothing else.
+
+That kills the idea as first written. It proposed asking whether this UUID's
+old fingerprint *reappears under a different UUID*, as a corpus-wide version of
+`relocationTarget`. But in a preview the displaced content reappears **inside
+the PR**, which history has never seen, so the lookup searches the one place
+the answer cannot be.
+
+The reverse direction is mechanically sound — fingerprint the preview's NEW
+content locally and look it up, and a hit under a different `doc_id` means this
+UUID now holds a document that exists elsewhere upstream. It is still not worth
+a DB call: `computeDiffArtifacts` already holds the **entire** upstream state at
+the merge base as the `base` snapshot, in memory. Anything about what exists
+upstream *right now* is already answerable there, for free.
+
+So history's only unique contribution to the gate is content that existed
+upstream **in the past but not now** — a fork reviving something deleted months
+ago. Real, but narrow, and not what #346 was. Don't build the lineage lookup
+for the general case.
 
 **And the reason the whole concern is well-founded**, from
 `atlas_history_stats`: in 2026-Q1 mechanical edits (907 `lint` + 448 `typo`)
@@ -268,21 +282,40 @@ and it is an indexed query instead of the O(n) scan the current code does.
 cosmetic passes are a routine mode of change in this corpus, not an edge case.
 #346 is that genre, and so is PR 223, which touched this very document.
 
-**The ground-truth use is still the biggest one.** 55,610 real change events,
-~42,000 git-derived with real per-doc diffs — the real evaluation corpus every
-number in this note lacks. Note `change_kind` is mostly `unspecified` until
-`pnpm build:history --full` is run against migration 006, which is already on
-CLAUDE.md's pending list.
+**The ground-truth use is the one that survives, and it is the biggest.** It is
+unaffected by the above because it is *offline and upstream-only* — it evaluates
+the gate rather than feeding it, so it never needs to see a preview.
+
+The migration-006 backfill has in fact already run (confirmed 2026-09 against
+production): 7,494 of ~7,635 `modified` rows are labelled. That is a real
+corpus of **2,641 genuine cosmetic edits** — 1,519 `lint` + 1,122 `typo` —
+against 4,853 `semantic` ones, with real before/after diffs. It replaces the
+synthetic negatives (live one-liners with random words substituted) that every
+false-flag number in this note rests on.
+
+It also settles the base rate: **~35% of all classified atlas edits are
+cosmetic.** Roughly one edit in three is #346's genre, so the
+false-accusation risk is structural, not a one-off.
+
+Next step when someone picks this up: re-run the bakeoff's negative population
+from those 2,641 labelled edits and measure how many the shipped gate badges.
+That is a real false-accusation rate, and it is the number that should decide
+whether thread 1 (IDF) is worth shipping.
 
 ## Ordering
 
-**3 is done.** Of what is left: **6-lineage** (fingerprint relocation across
-history — the only idea that replaces inference with evidence) → **4** (copy,
-pure risk reduction and independent of everything else) → **1** (IDF —
-measured, dominates the shipped measure, but only 2.0% → 1.7%) → **5**
-(embeddings, only if the residual turns out to matter). **2** is a
-corroborator at best; do not build it as a gate. In **6**, the churn prior and
-the `change_kind` reuse are both checked and dead — don't re-derive them.
+**3 is done.** Of what is left: **6-groundtruth** (re-measure the gate against
+the 2,641 real labelled cosmetic edits — it costs nothing and it decides the
+rest) → **4** (copy, pure risk reduction and independent of everything else) →
+**1** (IDF — measured, dominates the shipped measure, but only 2.0% → 1.7%,
+so let the real corpus decide) → **5** (embeddings, only if the residual turns
+out to matter). **2** is a corroborator at best; do not build it as a gate.
+
+Three ideas in **6** are checked and dead — don't re-derive them: the churn
+prior (points the wrong way), the `change_kind` reuse (classifies #346
+semantic), and the fingerprint-lineage lookup (a preview has no rows in these
+tables, and the base snapshot already answers the present-tense question in
+memory).
 
 Whatever is picked up next, **measure it before building it**. Thread 3 was
 built on reasoning and measured afterwards; the measurement happened to come
