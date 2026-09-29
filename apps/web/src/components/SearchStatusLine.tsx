@@ -13,6 +13,14 @@ interface Props {
    * search's duration next to an entity count would be a made-up number.
    */
   durationMs: number | null;
+  /**
+   * True while a lane the reader is looking at still has work in flight.
+   * Passed in rather than derived here, because the two legs that can be
+   * pending report through different channels — the meaning one on the search
+   * worker's message, the entity one through the graph worker's own state —
+   * and this line must not say "no results" while either is running.
+   */
+  pending: boolean;
   lane: SearchLane;
   onLaneSelect: (lane: SearchLane) => void;
   semanticAvailable: boolean;
@@ -41,11 +49,8 @@ function semanticNote(state: SearchState, lane: SearchLane): string | null {
 }
 
 /** The result count / progress line above the list, plus the lane picker. */
-export function SearchStatusLine({ state, shown, total, durationMs, lane, onLaneSelect, semanticAvailable }: Props) {
+export function SearchStatusLine({ state, shown, total, durationMs, pending, lane, onLaneSelect, semanticAvailable }: Props) {
   const note = semanticNote(state, lane);
-  // A pending leg is still a search in progress, whatever the lexical half
-  // returned — "no results" must not be shown while more are on the way.
-  const pending = state.status === "done" && state.semantic === "pending";
   let count: string;
   if (state.status !== "done") count = "searching…";
   else if (total === 0) count = pending ? "searching…" : `no results for "${state.query}"`;

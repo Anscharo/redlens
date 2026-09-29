@@ -88,16 +88,18 @@ export const SearchResults = memo(function SearchResults({
   // empty query off-lane also stops the graph worker doing the matching work at
   // all, rather than matching and then discarding.
   const entitiesOnly = lane === "graph";
-  const entityHits = useEntitySearch(entitiesOnly ? query : "");
+  const { hits: entityHits, loading: entitiesLoading } = useEntitySearch(entitiesOnly ? query : "");
 
-  // A semantic leg still in flight is a search still running: the "no results"
-  // line and both retry suggestions have to wait for it, or the fallback
-  // strategy's whole reason for existing flashes past before it can help.
+  // A leg still in flight is a search still running: the "no results" line and
+  // both retry suggestions have to wait for it. Two legs can be in flight, and
+  // each needs its own signal — the meaning one reports through the worker's
+  // message, the entity one through the graph worker's own loading state.
   const semanticPending = state.status === "done" && state.semantic === "pending";
   // On the entities lane the document hits are computed but never shown, so
   // "nothing found" has to mean nothing in the list the reader is looking at.
   const resultCount = entitiesOnly ? entityHits.length : hits.length;
-  const noResults = state.status === "done" && resultCount === 0 && !semanticPending;
+  const pending = semanticPending || (entitiesOnly && entitiesLoading);
+  const noResults = state.status === "done" && resultCount === 0 && !pending;
   // Query is non-broad when mode pill is phrase/strict, or user typed explicit quotes
   const isNonBroad = mode !== "broad" || query.includes('"') || query.includes("'");
   const strippedQuery = query.replace(/["']/g, "").replace(/\s+/g, " ").trim();
@@ -128,6 +130,7 @@ export const SearchResults = memo(function SearchResults({
             shown={entitiesOnly ? entityHits.length : displayed.length}
             total={resultCount}
             durationMs={entitiesOnly || state.status !== "done" ? null : state.durationMs}
+            pending={pending}
             lane={lane}
             onLaneSelect={onLaneSelect}
             semanticAvailable={semanticSearchAvailable()}

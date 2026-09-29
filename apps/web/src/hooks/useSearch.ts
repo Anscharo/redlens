@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { SearchHit, SemanticLegStatus, WorkerOutMessage } from "@/types";
-import type { SearchLane, SemanticStrategy } from "@/lib/searchSemantic";
+import type { SearchLane } from "@/lib/searchSemantic";
 import { loadAtlas } from "../lib/docs";
 import { loadAddresses } from "../lib/addresses";
 import { captureException } from "../lib/analytics";
@@ -30,13 +30,12 @@ export type SearchState =
     }
   | { status: "error"; message: string };
 
-/** Which lane to query, and how the semantic leg blends into the lexical one. */
+/** Which index to query. Meaning-matched rows come back on `semantic` only. */
 export interface SearchOptions {
   lane: SearchLane;
-  sem: SemanticStrategy;
 }
 
-const DEFAULT_OPTIONS: SearchOptions = { lane: "lexical", sem: "off" };
+const DEFAULT_OPTIONS: SearchOptions = { lane: "lexical" };
 
 export function useSearch() {
   const { base } = useDataSource();

@@ -1,4 +1,4 @@
-import type { SearchLane, SemanticStrategy } from "./lib/searchSemantic.ts";
+import type { SearchLane } from "./lib/searchSemantic.ts";
 
 export type ReportId =
   | "of-responsibilities"
@@ -94,18 +94,17 @@ export interface SearchHit {
 }
 
 // How the semantic leg of the current result set fared. "none" = none was
-// wanted (the strategy is off, the lexical lane already answered under the
-// fallback strategy, or the query was an identifier lookup); "pending" = the
-// lexical half is on screen and a semantic round-trip is in flight;
-// "unavailable" = this deployment cannot answer the lane at all.
+// wanted (the reader is on another lane, or the query was an identifier lookup
+// the lexical fast paths already answer); "pending" = a round-trip is in
+// flight; "unavailable" = this deployment cannot answer the lane at all.
 export type SemanticLegStatus = "none" | "pending" | "done" | "skipped" | "unavailable";
 
 // Worker message types — search
 export type WorkerInMessage =
-  // `lane` picks which index to query and `sem` how the semantic leg blends
-  // into the lexical one; both default to today's behaviour when absent, so an
-  // older main thread and this worker stay compatible.
-  | { type: "query"; id: number; q: string; lane?: SearchLane; sem?: SemanticStrategy }
+  // `lane` picks which index to query, and picking the semantic one IS the
+  // request for a meaning search. Absent means the wording lane, so an older
+  // main thread and this worker stay compatible.
+  | { type: "query"; id: number; q: string; lane?: SearchLane }
   | { type: "ping" }
   | { type: "preload"; docs: Record<string, AtlasNode>; addresses: Record<string, AddressInfo> };
 

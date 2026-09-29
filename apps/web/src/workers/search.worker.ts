@@ -8,7 +8,7 @@ import type {
   WorkerInMessage,
   WorkerOutMessage,
 } from "@/types";
-import type { SearchLane, SemanticSearchResponse, SemanticStrategy } from "@/lib/searchSemantic";
+import type { SearchLane, SemanticSearchResponse } from "@/lib/searchSemantic";
 import { fetchText } from "@/lib/verify";
 import { buildSnippet, highlightTerms, extractPhrases } from "@/lib/searchHighlight";
 import { UUID_RE } from "@/lib/patterns";
@@ -580,15 +580,13 @@ self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
     cancelSemanticLeg();
     const startedAt = performance.now();
     const lane: SearchLane = msg.lane ?? "lexical";
-    const sem: SemanticStrategy = msg.sem ?? "off";
-    // Lexical is still needed on every lane but one: the fallback strategy
-    // decides on its COUNT, and it is the semantic lane's escape hatch for a
-    // query the leg declines (a UUID paste, a `type:` filter) — that lane
+    // Lexical is still needed on the semantic lane as its escape hatch: for a
+    // query the leg declines (a UUID paste, a `type:` filter) that lane
     // answering nothing at all would be a dead end. It is taken through a thunk
-    // so the semantic lane, which discards the list whenever the leg does take
-    // the query, never pays for the pass at all.
+    // so the lane never pays for a whole-corpus pass it discards whenever the
+    // leg DOES take the query.
     const lexical = () => lexicalFor(msg.q);
-    const query = semanticLegQuery(msg.q, lane, sem, () => lexical().hits.length, (id) => chainlogToAddr.has(id));
+    const query = semanticLegQuery(msg.q, lane, (id) => chainlogToAddr.has(id));
     // A "did you mean" is only ever offered for a query that found nothing —
     // and only on a lane that is actually showing the wording index, since a
     // spelling correction says nothing about a meaning or entity search.

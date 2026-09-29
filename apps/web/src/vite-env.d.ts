@@ -28,5 +28,4 @@ interface Window {
   // the default blend strategy for the lexical lane. Read via
   // src/lib/semanticSearchConfig.ts, never directly.
   __SEMANTIC_SEARCH__?: boolean;
-  __SEMANTIC_STRATEGY__?: string;
 }

@@ -67,16 +67,15 @@ describe("useSearchInput (rendered)", () => {
     // blend strategy. No injected window flags in jsdom → the wording lane and
     // a semantic leg that never runs.
     expect(search).toHaveBeenCalled();
-    expect(search).toHaveBeenLastCalledWith('"governance"', { lane: "lexical", sem: "off" });
+    expect(search).toHaveBeenLastCalledWith('"governance"', { lane: "lexical" });
   });
 
-  it("reads ?lane and ?sem, and falls back off an unavailable meaning lane", () => {
-    setup("/?q=governance&lane=semantic&sem=off", "/");
+  it("reads ?lane, and falls back off an unavailable meaning lane", () => {
+    setup("/?q=governance&lane=semantic", "/");
     // window.__SEMANTIC_SEARCH__ is unset here, so a shared ?lane=semantic link
     // must not leave the reader searching a permanently empty index.
     expect(api.lane).toBe("lexical");
-    expect(api.sem).toBe("off");
-    expect(search).toHaveBeenLastCalledWith("governance", { lane: "lexical", sem: "off" });
+    expect(search).toHaveBeenLastCalledWith("governance", { lane: "lexical" });
   });
 
   it("uses the meaning lane when the deployment can answer it", () => {
@@ -84,9 +83,7 @@ describe("useSearchInput (rendered)", () => {
     try {
       setup("/?q=governance&lane=semantic", "/");
       expect(api.lane).toBe("semantic");
-      // No injected strategy, but the lane IS available → the documented
-      // default blend ("fallback"), not "off".
-      expect(search).toHaveBeenLastCalledWith("governance", { lane: "semantic", sem: "fallback" });
+      expect(search).toHaveBeenLastCalledWith("governance", { lane: "semantic" });
     } finally {
       delete window.__SEMANTIC_SEARCH__;
     }
@@ -158,7 +155,7 @@ describe("useSearchInput (rendered)", () => {
     expect(api.lane).toBe("graph");
     // Switching index must not touch the query itself.
     expect(api.query).toBe("governance");
-    expect(search).toHaveBeenLastCalledWith("governance", { lane: "graph", sem: "off" });
+    expect(search).toHaveBeenLastCalledWith("governance", { lane: "graph" });
   });
 
   it("wrapModeClick toggles a phrase back off to bare text", () => {

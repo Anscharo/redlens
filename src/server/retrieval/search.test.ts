@@ -309,15 +309,25 @@ describe("semanticScopeSql", () => {
     // The SQL twin of anchorCouldServeScope — a grouped anchor above the scope
     // carries the leaves inside it, so dropping those would empty the result.
     const clause = semanticScopeSql("A.6.1");
-    expect(clause).toContain("m.doc_no = $3");
-    expect(clause).toContain("m.doc_no LIKE $3 || '.%'");
-    expect(clause).toContain("$3 LIKE m.doc_no || '.%'");
+    expect(clause).toContain("upper(m.doc_no) = upper($3)");
+    expect(clause).toContain("upper(m.doc_no) LIKE upper($3) || '.%'");
+    expect(clause).toContain("upper($3) LIKE upper(m.doc_no) || '.%'");
+  });
+
+  it("compares case-insensitively, like its `inScope` twin", () => {
+    // Three doc numbers in the current atlas end in a lowercase `.var1`
+    // (Scenario Variations). Comparing an upper-cased scope against a raw
+    // m.doc_no made `in:…​.var1` match nothing and the lane answer empty with
+    // no reason — a silent miss, the worst shape a filter bug can take.
+    const clause = semanticScopeSql("A.1.5.5.0.4.1.1.1.VAR1");
+    expect(clause).not.toMatch(/[^(]m\.doc_no/); // never a bare column side
+    expect(clause.match(/upper\(m\.doc_no\)/g)).toHaveLength(3);
   });
 
   it("appends the dot on every comparison, so A.2 cannot match A.22", () => {
     const clause = semanticScopeSql("A.2");
     // No bare-prefix LIKE anywhere: every LIKE operand carries the separator.
-    expect(clause).not.toMatch(/LIKE \$3 \|\| '%'/);
+    expect(clause).not.toMatch(/LIKE upper\(\$3\) \|\| '%'/);
     expect(clause.match(/\|\| '\.%'/g)).toHaveLength(2);
   });
 

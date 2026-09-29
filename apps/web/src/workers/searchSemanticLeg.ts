@@ -15,7 +15,6 @@ import {
   type SearchLane,
   type SemanticQuery,
   type SemanticSearchResponse,
-  type SemanticStrategy,
 } from "@/lib/searchSemantic";
 
 // How many semantically-scored documents to ask for. A few screenfuls, so the
@@ -43,27 +42,20 @@ export function isIdentifierQuery(trimmed: string, isKnownChainlog: (s: string) 
 }
 
 /**
- * What to ask the semantic backend for this query under this lane + strategy —
- * the text to embed plus any `in:` scope — or null for no round-trip at all.
+ * What to ask the semantic backend for this query on this lane — the text to
+ * embed plus any `in:` scope — or null for no round-trip at all.
  *
- * `lexicalCount` is a THUNK, not a number: only the fallback strategy needs it,
- * and on the semantic lane the lexical list is discarded anyway — so taking it
- * lazily is what lets the caller skip a whole-corpus MiniSearch run it would
- * throw away on every keystroke typed into that lane.
+ * Only the `semantic` lane asks. Picking that lane IS the request; on every
+ * other lane the reader asked for a different index and gets that index, so a
+ * wording search that finds nothing says so (and offers a spelling correction)
+ * next to a pill offering the other one.
  */
 export function semanticLegQuery(
   q: string,
   lane: SearchLane,
-  sem: SemanticStrategy,
-  lexicalCount: () => number,
   isKnownChainlog: (s: string) => boolean,
 ): SemanticQuery | null {
-  if (lane === "graph") return null; // entities are the graph worker's job
-  if (lane !== "semantic") {
-    // Picking the semantic lane IS the request; otherwise the strategy decides.
-    if (sem === "off") return null;
-    if (sem === "fallback" && lexicalCount() > 0) return null;
-  }
+  if (lane !== "semantic") return null;
   const trimmed = q.trim();
   if (isIdentifierQuery(trimmed, isKnownChainlog)) return null;
   return semanticQueryOf(trimmed);
@@ -226,6 +218,9 @@ export function runSemanticLeg(run: SemanticLegRun): void {
       (run.query.scope ? `&in=${encodeURIComponent(run.query.scope)}` : "");
     void fetch(url, { signal: ac.signal })
       .then(async (res) => {
+        // A shared budget, not this reader's: say so in words they can act on
+        // rather than showing them a status code they cannot.
+        if (res.status === 429) throw new Error("the meaning index is busy — try again in a moment");
         if (!res.ok) throw new Error(`semantic search: ${res.status}`);
         return (await res.json()) as SemanticSearchResponse;
       })

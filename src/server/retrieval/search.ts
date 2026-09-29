@@ -206,7 +206,14 @@ export const SCOPED_SCAN_SETTING = "SET LOCAL enable_indexscan = off";
 
 export function semanticScopeSql(scope: string | undefined): string {
   if (!scope) return "";
-  return " AND (m.doc_no = $3 OR m.doc_no LIKE $3 || '.%' OR $3 LIKE m.doc_no || '.%')";
+  // Both sides upper-cased, like `inScope` — the twin this clause has to keep
+  // agreeing with. Three doc numbers in the current atlas end in a lowercase
+  // `.var1` (Scenario Variations), so comparing a caller's upper-cased scope
+  // against a raw `m.doc_no` made `in:A.1.5.5.0.4.1.1.1.var1` match nothing at
+  // all and the lane answer an empty list with no reason given. `upper($3)`
+  // rather than trusting the caller: the SQL cannot see that invariant, and it
+  // costs nothing here — a scoped statement already runs without the index.
+  return " AND (upper(m.doc_no) = upper($3) OR upper(m.doc_no) LIKE upper($3) || '.%' OR upper($3) LIKE upper(m.doc_no) || '.%')";
 }
 
 export function rrfMerge(lex: Hit[], sem: Hit[]): MergedHit[] {

@@ -50,3 +50,33 @@ describe("SearchLaneToggle", () => {
     expect(screen.getByText("entities")).not.toBeDisabled();
   });
 });
+
+describe("keyboard", () => {
+  it("moves between lanes with the arrow keys, wrapping", () => {
+    // The roles promise this; nothing in the DOM delivers it on its own.
+    const onSelect = vi.fn();
+    render(<SearchLaneToggle lane="lexical" onSelect={onSelect} semanticAvailable />);
+    const group = screen.getByRole("radiogroup");
+    fireEvent.keyDown(group, { key: "ArrowRight" });
+    expect(onSelect).toHaveBeenLastCalledWith("graph");
+    onSelect.mockClear();
+    fireEvent.keyDown(group, { key: "ArrowLeft" });
+    expect(onSelect).toHaveBeenLastCalledWith("semantic"); // wraps off the first
+  });
+
+  it("skips a lane this deployment cannot answer", () => {
+    const onSelect = vi.fn();
+    render(<SearchLaneToggle lane="graph" onSelect={onSelect} semanticAvailable={false} />);
+    fireEvent.keyDown(screen.getByRole("radiogroup"), { key: "ArrowRight" });
+    // meaning is disabled, so "next" wraps past it to wording rather than
+    // moving focus onto a pill that cannot be chosen.
+    expect(onSelect).toHaveBeenLastCalledWith("lexical");
+  });
+
+  it("keeps exactly one pill in the tab order", () => {
+    render(<SearchLaneToggle lane="graph" onSelect={vi.fn()} semanticAvailable />);
+    const inTabOrder = screen.getAllByRole("radio").filter((b) => b.getAttribute("tabindex") === "0");
+    expect(inTabOrder).toHaveLength(1);
+    expect(inTabOrder[0]).toHaveTextContent("entities");
+  });
+});

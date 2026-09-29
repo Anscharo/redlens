@@ -1,18 +1,9 @@
 // Runtime config for the Railway Bun MCP service. All values come from env so
 // the same image runs locally (docker Postgres) and on Railway unchanged.
 import { resolve } from "node:path";
-import { isSemanticStrategy, type SemanticStrategy } from "../lib/searchSemantic.ts";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const port = Number(process.env.PORT ?? 3000);
-
-// Resolved once, and typed: an unrecognised value falls back rather than
-// reaching the browser as a strategy the client's enum does not know.
-const SEARCH_SEMANTIC_STRATEGY: SemanticStrategy = isSemanticStrategy(
-  process.env.SEARCH_SEMANTIC_STRATEGY,
-)
-  ? process.env.SEARCH_SEMANTIC_STRATEGY
-  : "fallback";
 
 // Login/chat gating, resolved once. `usersRequested` is the raw operator intent;
 // the surface only becomes available (`usersEnabled`) when a JWT secret also
@@ -253,17 +244,12 @@ export const config = {
   // repeat is instant (no network, no cost, no timeout exposure). 0 disables it.
   queryEmbedCacheSize: Number(process.env.QUERY_EMBED_CACHE_SIZE ?? 512),
 
-  // What the READER's search bar does with the semantic leg on its default
-  // (wording) lane — "off" | "fallback", see lib/searchSemantic.ts.
-  // Injected into index.html so it can be changed per deployment without a
-  // frontend rebuild, and overridable per query with ?sem= for comparison.
-  //
-  // "fallback" pays for an embedding call only when the wording lane found
-  // nothing — precisely the search that is otherwise a dead end. The third
-  // option, "woven" (always run the leg, fuse both sets by RRF), was dropped
-  // 2026-09-29: the interleaved list read worse than either lane alone, and it
-  // bought an OpenRouter call on every settled search on a public page to do it.
-  searchSemanticStrategy: SEARCH_SEMANTIC_STRATEGY,
+  // Shared per-minute budget for the reader's meaning lane (see
+  // search-semantic-limit.ts). Sized from what it costs, not from a guess at
+  // traffic: one settled search is one embedding call, and a reader refining a
+  // question runs a handful per minute, so 60 carries roughly 15 people
+  // searching at once. 0 disables the gate entirely.
+  searchSemanticRpm: Number(process.env.SEARCH_SEMANTIC_RPM ?? 60),
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "google/gemma-4-31b-it",

@@ -144,7 +144,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "A result the meaning index found is labelled semantic match and shows its similarity score; it can share no word at all with your query.",
           "Add in:<doc number> to scope meaning search to one subtree — in:A.6 who approves rewards searches only the Agent Scope.",
         ],
-        note: "The meaning lane needs a deployment configured for it; where it is not, that pill is disabled and says so. On the wording lane meaning-matching only steps in when wording found nothing, and some deployments turn it off entirely.",
+        note: "Meaning-matched results appear on the meaning pill and nowhere else — wording searches stay wording searches. That pill needs a deployment configured for it; where it is not, it is disabled and says so.",
       },
       {
         name: "Jump-to",

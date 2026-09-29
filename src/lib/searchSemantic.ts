@@ -9,30 +9,23 @@
 // Deliberately dependency-free (no node:, no DOM, no React): it is imported by
 // the Bun server, the search web worker, and React components alike.
 
-/** Which index the results page is querying. Variant 3's three-way toggle. */
+/**
+ * Which index the results page is querying — the three pills on the count line.
+ *
+ * Meaning-matched results appear on the `semantic` lane and NOWHERE else. There
+ * used to be a second knob (`?sem=`, `off` | `fallback` | `woven`) letting the
+ * leg run under the wording lane too: `woven` fused both result sets and was
+ * dropped 2026-09-29 for making the list harder to read, and `fallback` ran the
+ * leg whenever wording found nothing. `fallback` went the same way 2026-09-30,
+ * for the reason that killed `woven`: a reader on the wording lane asked for a
+ * wording search, and quietly answering with a different index — one whose rows
+ * can share no word with the query — is a worse answer than an honest empty one
+ * next to a pill that offers the other index. It also cost the spelling
+ * correction, which is only offered for a wording search that found nothing and
+ * so never survived the leg replacing that result set.
+ */
 export const SEARCH_LANES = ["lexical", "graph", "semantic"] as const;
 export type SearchLane = (typeof SEARCH_LANES)[number];
-
-/**
- * What the semantic leg does on the DEFAULT (wording) lane:
- *   off      — never call it; wording only.
- *   fallback — call it only when wording returned nothing. Free in the common
- *              case, since a query that already matched costs no embed.
- * The explicit `semantic` lane ignores this — picking that lane IS the request.
- *
- * There used to be a third, `woven`, which always called the leg and fused both
- * result sets by RRF. Dropped 2026-09-29: interleaving meaning-matched rows
- * into a wording result set made the list harder to read, not better, and it
- * bought one embedding call on every settled search to do it. The consequence
- * is that the leg now only ever REPLACES a result set, never merges into one —
- * see `postFused`.
- */
-export const SEMANTIC_STRATEGIES = ["off", "fallback"] as const;
-export type SemanticStrategy = (typeof SEMANTIC_STRATEGIES)[number];
-
-export function isSemanticStrategy(v: unknown): v is SemanticStrategy {
-  return typeof v === "string" && (SEMANTIC_STRATEGIES as readonly string[]).includes(v);
-}
 
 export function isSearchLane(v: unknown): v is SearchLane {
   return typeof v === "string" && (SEARCH_LANES as readonly string[]).includes(v);
@@ -145,7 +138,11 @@ export function semanticWorthAsking(q: string): boolean {
 // `in:` is deliberately EXEMPT — it is a doc-number subtree filter, and unlike
 // the others it can be enforced on the semantic side too (doc_no is a column on
 // atlas_doc_meta, which the semantic query already joins). See semanticQueryOf.
-const LEXICAL_SYNTAX_RE = /\b(?!in:)\w+:\S|(?:^|\s)-\w|\S~\d/;
+// Case-INSENSITIVE, and that matters only for the `in:` exemption: the
+// lexical leg parses the scope with a /gi regex, so `In:A.6` is a scope
+// there. Without the flag here the same query read as unknown structured
+// syntax and stood the whole lane down.
+const LEXICAL_SYNTAX_RE = /\b(?!in:)\w+:\S|(?:^|\s)-\w|\S~\d/i;
 
 /** The `in:A.6.1` subtree filter, as the search worker parses it. */
 const IN_SCOPE_RE = /\bin:(\S+)/gi;

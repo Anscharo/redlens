@@ -11,13 +11,19 @@ import {
 } from "./search-semantic.ts";
 import type { SemanticSearchResponse } from "../lib/searchSemantic.ts";
 import { _clearIndexes, buildIndexes, getIndexes, setIndexes } from "./retrieval/indexes.ts";
+import { _resetSemanticBudget } from "./search-semantic-limit.ts";
 import type { AtlasNode, Indexes } from "./retrieval/indexes.ts";
 
 // config is a plain mutable object; restore whatever this process actually has
 // so no later test file in the same `bun test` run inherits our value.
 const REAL_KEY = config.openrouterApiKey;
+const REAL_RPM = config.searchSemanticRpm;
 afterEach(() => {
   config.openrouterApiKey = REAL_KEY;
+  config.searchSemanticRpm = REAL_RPM;
+  // The budget is process-wide: a case that drains it would otherwise 429
+  // every later case in this file, and the one after it in the run.
+  _resetSemanticBudget();
 });
 
 async function get(qs: string): Promise<SemanticSearchResponse> {
@@ -215,5 +221,35 @@ describe("with indexes loaded", () => {
     const body = (await res.json()) as SemanticSearchResponse;
     expect(body.hits).toEqual([]);
     expect(body.skipped).toBeTruthy();
+  });
+});
+
+describe("the shared budget", () => {
+  it("429s with a retry-after once the minute's budget is spent", async () => {
+    config.openrouterApiKey = "sk-test";
+    config.searchSemanticRpm = 1;
+    _resetSemanticBudget();
+    // The route is public and unauthenticated, and each answered query spends
+    // an OpenRouter call (two, once a grouped anchor is retrieved), so the
+    // budget is global rather than per-caller — see search-semantic-limit.ts.
+    const first = await handleSemanticSearch(new Request("http://x/api/search/semantic?q=who%20approves"));
+    expect(first.status).not.toBe(429);
+    const second = await handleSemanticSearch(new Request("http://x/api/search/semantic?q=who%20decides"));
+    expect(second.status).toBe(429);
+    expect(Number(second.headers.get("retry-after"))).toBeGreaterThan(0);
+  });
+
+  it("does not charge a query that was never going to embed", async () => {
+    // Too short to score, and an unconfigured deployment: neither reaches the
+    // provider, so neither may burn budget a real search needs.
+    config.searchSemanticRpm = 1;
+    _resetSemanticBudget();
+    config.openrouterApiKey = "sk-test";
+    expect((await handleSemanticSearch(new Request("http://x/api/search/semantic?q=ab"))).status).toBe(200);
+    config.openrouterApiKey = "";
+    expect((await handleSemanticSearch(new Request("http://x/api/search/semantic?q=governance"))).status).toBe(200);
+    // The one token is still there for the query that needs it.
+    config.openrouterApiKey = "sk-test";
+    expect((await handleSemanticSearch(new Request("http://x/api/search/semantic?q=governance"))).status).not.toBe(429);
   });
 });

@@ -27,6 +27,7 @@ function setup(state: SearchState, over: Partial<Parameters<typeof SearchStatusL
       shown={0}
       total={0}
       durationMs={state.status === "done" ? state.durationMs : null}
+      pending={state.status === "done" && state.semantic === "pending"}
       lane="lexical"
       onLaneSelect={vi.fn()}
       semanticAvailable
@@ -90,5 +91,17 @@ describe("SearchStatusLine", () => {
   it("carries the lane picker", () => {
     setup(done());
     expect(screen.getByRole("radiogroup", { name: "Search index" })).toBeTruthy();
+  });
+});
+
+describe("a lane still loading", () => {
+  it("says searching, not 'no results', while the caller reports work in flight", () => {
+    // The entities lane is the case this exists for: its hits come from the
+    // graph worker, which has no `state.semantic` to report through, so the
+    // page used to say "no results for …" on every keystroke until
+    // relations.json finished loading.
+    setup(done({ semantic: "none" }), { total: 0, pending: true, lane: "graph" });
+    expect(screen.getByText("searching…")).toBeInTheDocument();
+    expect(screen.queryByText(/no results/)).toBeNull();
   });
 });

@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { semanticSearchAvailable, semanticStrategyDefault } from "./semanticSearchConfig";
+import { semanticSearchAvailable } from "./semanticSearchConfig";
 
 afterEach(() => {
   delete window.__SEMANTIC_SEARCH__;
-  delete window.__SEMANTIC_STRATEGY__;
 });
 
 describe("semanticSearchAvailable", () => {
@@ -19,31 +18,5 @@ describe("semanticSearchAvailable", () => {
     expect(semanticSearchAvailable()).toBe(false);
     window.__SEMANTIC_SEARCH__ = true;
     expect(semanticSearchAvailable()).toBe(true);
-  });
-});
-
-describe("semanticStrategyDefault", () => {
-  it("is off whenever the lane cannot be answered, whatever the strategy says", () => {
-    window.__SEMANTIC_STRATEGY__ = "fallback";
-    expect(semanticStrategyDefault()).toBe("off");
-  });
-
-  it("uses the injected strategy when the lane is available", () => {
-    window.__SEMANTIC_SEARCH__ = true;
-    window.__SEMANTIC_STRATEGY__ = "off";
-    expect(semanticStrategyDefault()).toBe("off");
-    window.__SEMANTIC_STRATEGY__ = "fallback";
-    expect(semanticStrategyDefault()).toBe("fallback");
-  });
-
-  it("falls back to the documented default for a missing or bogus value", () => {
-    window.__SEMANTIC_SEARCH__ = true;
-    expect(semanticStrategyDefault()).toBe("fallback");
-    window.__SEMANTIC_STRATEGY__ = "{{SEMANTIC_STRATEGY}}";
-    expect(semanticStrategyDefault()).toBe("fallback");
-    // "woven" was a real strategy until 2026-09-29; a stale link carrying it
-    // must fall back, not resurrect it.
-    window.__SEMANTIC_STRATEGY__ = "woven";
-    expect(semanticStrategyDefault()).toBe("fallback");
   });
 });

@@ -4,9 +4,7 @@ import {
   anchorCouldServeScope,
   inScope,
   SEARCH_LANES,
-  SEMANTIC_STRATEGIES,
   isSearchLane,
-  isSemanticStrategy,
   rrfFuse,
   semanticQueryOf,
   semanticWorthAsking,
@@ -14,16 +12,39 @@ import {
   MAX_SEMANTIC_QUERY,
 } from "./searchSemantic";
 
-describe("strategy / lane guards", () => {
-  it("accept exactly the declared members", () => {
-    for (const s of SEMANTIC_STRATEGIES) expect(isSemanticStrategy(s)).toBe(true);
+describe("lane guard", () => {
+  it("accepts exactly the declared lanes", () => {
     for (const l of SEARCH_LANES) expect(isSearchLane(l)).toBe(true);
-    // A bad env var or a hand-edited URL must not reach the client as a
-    // strategy its own enum doesn't know.
-    for (const bad of ["hybrid", "", "OFF", null, undefined, 1, {}]) {
-      expect(isSemanticStrategy(bad)).toBe(false);
+    // A hand-edited URL must not reach the client as a lane its own enum does
+    // not know. "fallback"/"woven" were blend strategies, never lanes, and are
+    // both retired — a stale link carrying one must not resurrect anything.
+    for (const bad of ["hybrid", "fallback", "woven", "", "LEXICAL", null, undefined, 1, {}]) {
       expect(isSearchLane(bad)).toBe(false);
     }
+  });
+});
+
+describe("semanticQueryOf — in: scoping", () => {
+  it("splits the scope out of the embedded text", () => {
+    expect(semanticQueryOf("who approves rewards in:A.6")).toEqual({
+      query: "who approves rewards",
+      scope: "A.6",
+    });
+  });
+
+  it("takes the scope however it is capitalised", () => {
+    // The lexical leg parses `in:` with a /gi regex. When only this side was
+    // case-sensitive, `In:A.6` read as unknown structured syntax and stood the
+    // entire meaning lane down instead of scoping it.
+    for (const q of ["rewards In:A.6", "rewards IN:a.6", "rewards in:A.6"]) {
+      expect(semanticQueryOf(q)).toEqual({ query: "rewards", scope: "A.6" });
+    }
+  });
+
+  it("still stands down on the filters only the lexical leg enforces", () => {
+    expect(semanticQueryOf("type:Core rewards")).toBeNull();
+    expect(semanticQueryOf("rewards -fees")).toBeNull();
+    expect(semanticQueryOf("rewards~2")).toBeNull();
   });
 });
 

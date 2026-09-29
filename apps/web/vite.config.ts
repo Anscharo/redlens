@@ -160,7 +160,6 @@ export default defineConfig(() => {
           // same env vars (dev.mjs forwards them). An embedding key is the one
           // hard requirement — see src/server/search-semantic.ts.
           .replaceAll("{{SEMANTIC_SEARCH}}", String(has("OPENROUTER_API_KEY")))
-          .replaceAll("{{SEMANTIC_STRATEGY}}", process.env.SEARCH_SEMANTIC_STRATEGY || "fallback")
           .replaceAll("{{OG_TAGS}}", ogTags);
       },
     },

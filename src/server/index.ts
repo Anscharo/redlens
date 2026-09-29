@@ -382,7 +382,6 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
     .replace("{{CHAT_ENABLED}}", String(config.chatEnabled))
     .replace("{{AUTH_PROVIDERS}}", config.authProvidersCsv)
     .replace("{{SEMANTIC_SEARCH}}", String(semanticSearchAvailable()))
-    .replace("{{SEMANTIC_STRATEGY}}", config.searchSemanticStrategy)
     .replace("{{OG_TAGS}}", ogTags);
   const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
   // Bare `/preview` too, not just `/preview/<id>` — the homepage card links to

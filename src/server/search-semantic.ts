@@ -26,6 +26,8 @@ import {
   filterByType,
   type Via,
 } from "./retrieval/search.ts";
+import { rateLimited } from "./feedback-limits.ts";
+import { spendSemanticBudget } from "./search-semantic-limit.ts";
 import {
   MAX_SEMANTIC_QUERY,
   inScope,
@@ -48,6 +50,17 @@ export function semanticSearchAvailable(): boolean {
   return !!config.openrouterApiKey;
 }
 
+/**
+ * Would answering this query actually SPEND anything?
+ *
+ * One rule, read by two callers: the search itself, to return early, and the
+ * budget gate, so a query that was never going to embed — too short, or a
+ * deployment with no key — cannot burn a token that a real search needs.
+ */
+export function wouldSpendEmbed(query: string): boolean {
+  return semanticSearchAvailable() && semanticWorthAsking(query.trim().slice(0, MAX_SEMANTIC_QUERY));
+}
+
 export function clampK(raw: string | null): number {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return SEMANTIC_K_DEFAULT;
@@ -60,7 +73,7 @@ export async function semanticDocSearch(
 ): Promise<SemanticSearchResponse> {
   const available = semanticSearchAvailable();
   const q = query.trim().slice(0, MAX_SEMANTIC_QUERY);
-  if (!available || !semanticWorthAsking(q)) return { hits: [], skipped: null, available };
+  if (!wouldSpendEmbed(query)) return { hits: [], skipped: null, available };
 
   const k = opts.k ?? SEMANTIC_K_DEFAULT;
   const ix = getIndexes();
@@ -133,6 +146,12 @@ export async function handleSemanticSearch(req: Request): Promise<Response> {
   const q = params.get("q") ?? "";
   const type = params.get("type") ?? undefined;
   const scope = params.get("in")?.toUpperCase() || undefined;
+  // Before the work, not after: the point of the gate is that the embed never
+  // happens. A query that would not have spent anything is not charged for.
+  if (wouldSpendEmbed(q)) {
+    const budget = spendSemanticBudget();
+    if (!budget.ok) return rateLimited(budget.retryAfter);
+  }
   try {
     const body = await semanticDocSearch(q, { k: clampK(params.get("k")), type, scope });
     return json(body);

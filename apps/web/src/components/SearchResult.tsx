@@ -110,9 +110,20 @@ export const SearchResult = memo(function SearchResult({ hit, rank, onResultClic
               // The raw cosine, two places — enough to rank neighbours against
               // each other, which is the whole use for it, without implying a
               // precision the embedding does not have.
+              //
+              // WHOSE score it is depends on how the row was found. A hit
+              // retrieved through a grouped embedding anchor keeps the ANCHOR's
+              // cosine (attributeSemanticHits rewrites the id to the leaf and
+              // leaves the score alone), so for those the honest reading is
+              // "the group this came from", not "this document" — and `viaTitle`
+              // is exactly the flag for that, since it is set on the same rows.
               <span
                 className="text-[10px] text-tan-2"
-                title={`Cosine similarity between your query and this document: ${hit.semanticScore} (0–1)`}
+                title={
+                  hit.viaTitle
+                    ? `Cosine similarity between your query and "${hit.viaTitle}", the group this document was found in: ${hit.semanticScore} (0–1)`
+                    : `Cosine similarity between your query and this document: ${hit.semanticScore} (0–1)`
+                }
               >
                 cos {hit.semanticScore.toFixed(2)}
               </span>
