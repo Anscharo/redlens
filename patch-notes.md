@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-09-29
+- Stopped previews marking a document "identity changed" when a pull request only respelled its title and edited its text
+
 ## 2026-09-28
 - Added a drag handle on the docked chat so it can be widened up to 55% of the window, and the sidebars fold so the open document stays readable
 - Reorganised the search help page into categories and dropped the rarely used hints

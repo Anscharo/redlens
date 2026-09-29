@@ -1,6 +1,6 @@
 // Run via `bun test src/server`. Pure unit tests — no DB, no network.
 import { describe, it, expect } from "bun:test";
-import { detectIdentitySwaps, lineOverlap, orderedWordContainment, type SwapNode } from "./identity.ts";
+import { detectIdentitySwaps, bodyWhollyReplaced, lineOverlap, orderedWordContainment, type SwapNode } from "./identity.ts";
 
 function mapOf(nodes: SwapNode[]): Map<string, SwapNode> {
   return new Map(nodes.map((n) => [n.id, n]));
@@ -131,6 +131,73 @@ describe("detectIdentitySwaps", () => {
     });
     expect(blanked.identitySwap.x).toBeUndefined();
   });
+
+  // Regression — next-gen-atlas#346 (preview sha e60a8a36). A spelling pass
+  // (`ALMProxy` → `ALM Proxy`, `LitePSM` → `Lite PSM`) retitled and edited three
+  // one-line docs, and all three came back badged "identity changed". Two
+  // independent defects, so both sides are pinned: the title was only respelled
+  // around its separators, AND the body edit was tiny — but the body lives on a
+  // single line, where lineOverlap can only answer 1 or 0.
+  const ALM = [
+    {
+      id: "810671ff-8674-4178-a7ce-dd98c112688d",
+      old: "The ALMProxy for Keel is whitelisted on the LitePSM. This allows Keel to call `buyGemNoFee` and `sellGemNoFee` on the `MCD_LITE_PSM_USDC_A` contract.",
+      neu: "The ALM Proxy for Keel is whitelisted on the Lite PSM. This allows Keel to call `buyGemNoFee` and `sellGemNoFee` on the `MCD_LITE_PSM_USDC_A` contract.",
+    },
+    {
+      id: "5c795414-020c-432d-91b6-a7d72495452e",
+      old: "The ALMProxy for Obex must be whitelisted on the LitePSM. This will effectively allow Obex to call `buyGemNoFee` and `sellGemNoFee` on the `MCD_LITE_PSM_USDC_A` contract.",
+      neu: "The ALM Proxy for Obex is whitelisted on the Lite PSM. This allows Obex to call `buyGemNoFee` and `sellGemNoFee` on the `MCD_LITE_PSM_USDC_A` contract.",
+    },
+    {
+      id: "a8094362-4ca8-4bf0-a1d8-bbed3c80d61c",
+      old: "The ALMProxy for Pattern must be whitelisted on the LitePSM. This will effectively allow Pattern to call `buyGemNoFee` and `sellGemNoFee` on the `MCD_LITE_PSM_USDC_A` contract.",
+      neu: "The ALM Proxy for Pattern is whitelisted on the Lite PSM. This allows Pattern to call `buyGemNoFee` and `sellGemNoFee` on the `MCD_LITE_PSM_USDC_A` contract.",
+    },
+  ];
+
+  it.each(ALM)("does NOT flag atlas#346's ALMProxy respelling ($id)", ({ id, old, neu }) => {
+    const { identitySwap } = detectIdentitySwaps({
+      changed: [id], added: [],
+      mainById: mapOf([{ id, doc_no: "A.2.9.3.1", title: "Whitelisting Of ALMProxy", content: old }]),
+      previewById: mapOf([{ id, doc_no: "A.2.9.3.1", title: "Whitelisting Of ALM Proxy", content: neu }]),
+    });
+    expect(identitySwap[id]).toBeUndefined();
+  });
+
+  it("does NOT flag a one-line body whose title AND wording both changed, when the text survives", () => {
+    // The general form of the #346 case: an unrelated retitle (nothing to do
+    // with the old title) on top of a small one-line body edit. The title gate
+    // does NOT save this one — only the word-granular body measure does.
+    const old = "The reward rate for the Star is reviewed by the Facilitator each quarter and published on chain.";
+    const neu = "The reward rate for the Star is reviewed by the Operational Facilitator every quarter and published on chain.";
+    const { identitySwap } = detectIdentitySwaps({
+      changed: ["x"], added: [],
+      mainById: mapOf([{ id: "x", doc_no: "A.1", title: "Reward Rate Review", content: old }]),
+      previewById: mapOf([{ id: "x", doc_no: "A.1", title: "Quarterly Cadence", content: neu }]),
+    });
+    expect(identitySwap.x).toBeUndefined();
+  });
+
+  it("STILL flags a one-line body genuinely replaced by a different document", () => {
+    // The true positive the word-granular measure must not cost us: same shape
+    // as the case above (one line, retitled), but the text is gone.
+    const { identitySwap } = detectIdentitySwaps({
+      changed: ["x"], added: [],
+      mainById: mapOf([{ id: "x", doc_no: "A.1", title: "Reward Rate Review", content: OZONE_OLD }]),
+      previewById: mapOf([{ id: "x", doc_no: "A.1", title: "Sky Primitives", content: SKY_PRIMITIVES }]),
+    });
+    expect(identitySwap.x).toBeDefined();
+  });
+
+  it("does NOT flag a body too short to carry evidence either way", () => {
+    const { identitySwap } = detectIdentitySwaps({
+      changed: ["x"], added: [],
+      mainById: mapOf([{ id: "x", doc_no: "A.1", title: "Rate", content: "The rate is 5%." }]),
+      previewById: mapOf([{ id: "x", doc_no: "A.1", title: "Ceiling", content: "The cap is 9m." }]),
+    });
+    expect(identitySwap.x).toBeUndefined();
+  });
 });
 
 describe("similarity helpers", () => {
@@ -148,5 +215,28 @@ describe("similarity helpers", () => {
     expect(orderedWordContainment(OZONE_OLD, OZONE_SUBST)).toBeLessThan(0.95); // real word changed
     expect(orderedWordContainment(OZONE_OLD, SKY_PRIMITIVES)).toBeLessThan(0.5);
     expect(orderedWordContainment("one two three", "one two three four")).toBe(0); // below RELOCATION_MIN_WORDS
+  });
+
+  it("lineOverlap is BINARY on a one-line body — the defect bodyWhollyReplaced exists to route around", () => {
+    // Not a wish, a fact about the measure: the LCS runs over two 1-element
+    // arrays, so a single changed word and a wholesale replacement both score
+    // 0. 83% of the live atlas is one line. If this ever stops being true,
+    // bodyWhollyReplaced's short-body branch can be reconsidered — until then,
+    // never route a short body back through lineOverlap.
+    const one = "The ALMProxy for Keel is whitelisted on the LitePSM contract today.";
+    expect(lineOverlap(one, one.replace("ALMProxy", "ALM Proxy"))).toBe(0); // one word
+    expect(lineOverlap(one, SKY_PRIMITIVES)).toBe(0); // a different document
+  });
+
+  it("bodyWhollyReplaced: word-granular under the line cap, line-granular above it", () => {
+    const one = "The ALMProxy for Keel is whitelisted on the LitePSM contract and reviewed yearly.";
+    expect(bodyWhollyReplaced(one, one.replace("ALMProxy", "ALM Proxy"))).toBe(false); // small edit
+    expect(bodyWhollyReplaced(OZONE_OLD, SKY_PRIMITIVES)).toBe(true); // different document
+    // Above the cap the original line measure still rules: many lines, few shared.
+    const many = ["alpha line", "beta line", "gamma line", "delta line", "epsilon line"].join("\n");
+    expect(bodyWhollyReplaced(many, many)).toBe(false);
+    expect(bodyWhollyReplaced(many, ["one", "two", "three", "four", "five"].join("\n"))).toBe(true);
+    // Too little text to judge.
+    expect(bodyWhollyReplaced("The rate is 5%.", "The cap is 9m.")).toBe(false);
   });
 });

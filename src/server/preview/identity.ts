@@ -43,6 +43,53 @@ export interface SwapNode {
 // below this). A high bar by design — we flag true document replacements, never
 // ordinary big edits that keep the same title.
 export const REPLACE_MAX_OVERLAP = 0.15;
+// …but the shared-LINE ratio only has resolution on a body with several lines,
+// and 83% of the live atlas is a SINGLE line (measured 2026-09-29 over the
+// 11,584-doc atlas; 91% are three lines or fewer). For a one-line body the LCS
+// runs over two 1-element arrays, so lineOverlap can only return 1.0 (byte
+// identical) or 0.0 — a one-word typo fix scores the same as a wholesale
+// replacement, and 0.15 is unreachable from above. That is what put an
+// "identity changed" badge on next-gen-atlas#346's `ALMProxy` → `ALM Proxy`
+// spelling pass. So a short body is measured by WORD containment instead, which
+// degrades smoothly, with its own (necessarily higher) bar: unrelated prose
+// still shares its stopwords, so word overlap never approaches zero the way
+// line overlap does.
+export const SHORT_BODY_MAX_LINES = 3;
+// Measured 2026-09-29 over the live atlas — ~1,600 ordinary edits (the 19 real
+// edits in atlas#346, plus one-line live docs with 5/10/20/30% of their words
+// substituted) against ~1,400 true swaps (two unrelated one-liners, and the
+// hard case: two SIBLING one-liners that share their template boilerplate):
+//
+//   measure        threshold   ordinary edit flagged   real swap missed
+//   line (shipped)      any*                   87.0%               0.1%
+//   word                0.45                    0.4%               7.3%
+//   word                0.50                    2.0%               5.4%  ← min sum
+//   word                0.60                    6.6%               3.7%
+//  *the line measure is flat across every threshold — that IS the defect.
+//
+// Ordinary edits sit far above 0.50 (the real #346 bodies score 0.79–0.92; a
+// 10%-word-substitution edit has a p05 of 0.76), and the errors it does make
+// are the cheap direction: a missed swap leaves an ordinary Δ, while a false ⚠
+// on an innocent doc is the thing users report.
+//
+// An on-device embedding lane (ternlight) was measured here and REJECTED —
+// don't re-add it. Alone it is worse at every operating point (at 0.67: 5.9%
+// false flags for 7.7% missed, vs the word measure's 13.7%/2.8% — i.e. it buys
+// its lower false-flag rate by missing 3x the swaps). As a SECOND gate on top
+// of the word measure, `word<=0.5 & tern<=0.8` moves false flags 2.0% → 1.9%
+// while missed swaps go 5.4% → 6.1%. The reason is structural, so a stronger
+// embedding is not expected to fix it: the discriminator this gate needs is
+// LEXICAL (are these the same words, in the same order), not semantic. The hard
+// true-swap case is two sibling template docs that differ only in which entity
+// fills the slot — semantically near-identical by construction. Ternlight
+// already shows the gradient: it scores the hard siblings (p50 0.469) far
+// closer than unrelated docs (p50 0.171), i.e. it is MOST confused exactly
+// where the gate must be sharpest. Rerun both arms with
+// `bun scripts/aux/identity-overlap-bakeoff.ts --tern`.
+export const REPLACE_MAX_WORD_OVERLAP = 0.5;
+// A body with fewer words than this carries too little signal to call either
+// way — every measure is dominated by stopwords — so we never flag it.
+export const JUDGEABLE_MIN_WORDS = 6;
 // Relocation match: the displaced content should reappear inside the new home —
 // in order, and (nearly) in full — tolerating subword typo fixes and extra text
 // the move tacked on. We measure it as ordered word containment (an LCS over
@@ -118,16 +165,29 @@ export function orderedWordContainment(oldText: string | undefined, candText: st
   return dp[b.length] / a.length;
 }
 
-function normTitle(t: string | undefined): string {
-  return (t ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+/** Title reduced to its letters and digits. Collapsing whitespace RUNS is not
+ *  enough — that reads "Whitelisting Of ALMProxy" and "Whitelisting Of ALM
+ *  Proxy" as two different titles, when they are the same title respelled.
+ *  Squashing the separators entirely is what makes a spelling/punctuation
+ *  normalisation (`ALMProxy` → `ALM Proxy`, `Lite-PSM` → `Lite PSM`) read as
+ *  the cosmetic rename it is. */
+function squashTitle(t: string | undefined): string {
+  return (t ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+/** The same document under a respelled name — not a retitle at all. */
+function sameTitle(a: string | undefined, b: string | undefined): boolean {
+  return squashTitle(a) === squashTitle(b);
 }
 
 /** Are these titles a specialization/rename of each other (one contains the
  *  other) rather than two unrelated documents? e.g. "Operational Executor Agent"
- *  → "Operational Executor Agent Ozone". Both must be non-empty. */
+ *  → "Operational Executor Agent Ozone". Compared on the squashed form so a
+ *  respelling inside the shared part ("ALMProxy Whitelisting" → "ALM Proxy
+ *  Whitelisting Of Keel") does not break the containment. Both must be non-empty. */
 function titlesRelated(a: string | undefined, b: string | undefined): boolean {
-  const na = normTitle(a);
-  const nb = normTitle(b);
+  const na = squashTitle(a);
+  const nb = squashTitle(b);
   if (!na || !nb) return false;
   return na.includes(nb) || nb.includes(na);
 }
@@ -154,6 +214,25 @@ export function lineOverlap(a: string | undefined, b: string | undefined): numbe
   if (la.length === 0 || lb.length === 0) return 0;
   const shared = lcsOps(la, lb).filter(([op]) => op === "=").length;
   return shared / la.length;
+}
+
+/** Was this uuid's body REPLACED (a different document now lives here), as
+ *  opposed to edited? Granularity is chosen by the old body's size, because the
+ *  two measures are not interchangeable:
+ *    - several lines → shared-LINE ratio, the original measure (a long body
+ *      that shares few whole lines really has been rewritten, and
+ *      orderedWordContainment's cost cap degrades to a binary substring test
+ *      on bodies this size);
+ *    - up to SHORT_BODY_MAX_LINES → ordered WORD containment, because line
+ *      granularity has no resolution here at all (see SHORT_BODY_MAX_LINES).
+ *  A body too small to judge is never a replacement — it cannot carry the
+ *  evidence, and a wrong ⚠ is worse than a missed one. */
+export function bodyWhollyReplaced(oldBody: string | undefined, newBody: string | undefined): boolean {
+  if (words(oldBody).length < JUDGEABLE_MIN_WORDS) return false;
+  if (lines(oldBody).length <= SHORT_BODY_MAX_LINES) {
+    return orderedWordContainment(oldBody, newBody) <= REPLACE_MAX_WORD_OVERLAP;
+  }
+  return lineOverlap(oldBody, newBody) <= REPLACE_MAX_OVERLAP;
 }
 
 /** Find where the displaced (old) content went. Conservative by design — a wrong
@@ -213,8 +292,10 @@ export function detectIdentitySwaps(args: {
     // A swap replaces one real document with another. If either side is empty,
     // it's a stub being filled in or a doc being blanked — not an identity swap.
     if (!norm(main.content) || !norm(prev.content)) continue;
-    if (normTitle(main.title) === normTitle(prev.title)) continue; // same title → ordinary edit
-    if (lineOverlap(main.content, prev.content) > REPLACE_MAX_OVERLAP) continue; // body largely preserved → edit
+    // Same title — including one respelled around its separators — is an
+    // ordinary edit, whatever happened to the body.
+    if (sameTitle(main.title, prev.title)) continue;
+    if (!bodyWhollyReplaced(main.content, prev.content)) continue; // body largely preserved → edit
 
     const moved = relocationTarget(main.content, mainById, addedIds, previewById);
     // A title that's a specialization/rename of the old (one contains the other,
