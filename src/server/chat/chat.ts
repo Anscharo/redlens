@@ -1,7 +1,9 @@
 // POST /api/chat — the agentic chat endpoint. Auth-gated, SSE-streamed. Owns
 // auth + conversation persistence; everything that shapes the turn before the
-// first model call (Jev judgement, tier routing, system prompt, history window,
-// facts, /teach notes) lives in prepareTurn (turn-setup.ts), the tool-calling
+// first model call (Jev judgement, tier routing, system prompt, full history,
+// facts, /teach notes) lives in prepareTurn (turn-setup.ts). History replay
+// and the 90% context compaction live in context-compact.ts; lookup cards
+// for earlier tool calls live in tool-recall.ts. The tool-calling
 // control flow in the pure runChat() loop (chat-loop.ts), the LLM stream in llm.ts.
 //
 // Order (per advisor): create conversation (if new) + persist the USER message
@@ -16,6 +18,8 @@ import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } fr
 import type { PageContext } from "./system-prompt.ts";
 import { summarizeFacts } from "../facts/registry.ts";
 import { prepareTurn } from "./turn-setup.ts";
+import { compactForReplay, rowsAfterCursor, type ReplayRow } from "./context-compact.ts";
+import { attachRecall, type RecallToolCall } from "./tool-recall.ts";
 import { agreedContradictionsFrom } from "./verify/disputes.ts";
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
@@ -203,8 +207,8 @@ export async function handleChat(req: Request): Promise<Response> {
     // AFTER the stream's `done`, so a user who sends their next message while
     // that write is still in flight gets no injection for THIS one turn —
     // degrades to today's behaviour (no dispute round at all), never worse.
-    const [history, , lastVerify] = (await Promise.all([
-      sql`SELECT role, content FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
+    const [historyRows, , lastVerify, convState] = (await Promise.all([
+      sql`SELECT id, role, content, tool_calls FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
       sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId}`,
       sql`
         SELECT mc.verdict FROM (
@@ -214,38 +218,79 @@ export async function handleChat(req: Request): Promise<Response> {
         ) m
         JOIN message_checks mc ON mc.message_id = m.id AND mc.kind = 'verify'
       `.catch(() => [] as { verdict: unknown }[]),
-    ])) as [{ role: string; content: string }[], unknown, { verdict: unknown }[]];
+      sql`SELECT summary, summary_upto_id FROM conversations WHERE id = ${convId}`,
+    ])) as [
+      { id: string; role: string; content: string; tool_calls: RecallToolCall[] | null }[],
+      unknown,
+      { verdict: unknown }[],
+      { summary: string | null; summary_upto_id: string | null }[],
+    ];
     const disputes = agreedContradictionsFrom(lastVerify[0]?.verdict);
+    let summary = convState[0]?.summary ?? null;
+    let history: ReplayRow[] = rowsAfterCursor(
+      historyRows.map((r) => ({ id: r.id, role: r.role, content: r.content, toolCalls: r.tool_calls })),
+      convState[0]?.summary_upto_id,
+    );
+    // Trace id is minted here so a compaction call (rare — only the turn that
+    // crosses 90% of the window) lands in the same trace as the answer.
+    // Route properties are filled in after prepareTurn, below.
+    const obs = {
+      distinctId: convId,
+      traceId: crypto.randomUUID(),
+      properties: {} as Record<string, unknown>,
+    };
+    // Compaction runs before the first token of the turn that would cross
+    // 90% of the context window, and only then. A failure leaves the full
+    // tail in place. The summary pair is stable until the next compaction,
+    // so the turns in between keep a cacheable prefix.
+    if (!teachCmd && config.chatSummaryModel) {
+      const compacted = await compactForReplay({
+        rows: history,
+        summary,
+        windowTokens: config.chatContextWindowTokens,
+        call: makeOpenrouterJson(obs, "atlas-chat-summary"),
+        model: config.chatSummaryModel,
+        timeoutMs: config.chatSummaryTimeoutMs,
+      });
+      if (compacted.compacted && compacted.uptoId) {
+        summary = compacted.summary;
+        history = compacted.rows;
+        await sql`
+          UPDATE conversations SET summary = ${summary}, summary_upto_id = ${compacted.uptoId} WHERE id = ${convId}
+        `.catch((err) => {
+          captureError(err, obs, { stage: "compact_summary" });
+        });
+      }
+    }
 
     const ix = getIndexes();
     const teachHits = await teachingsPromise; // already overlapped the two queries above
 
     // Everything the model reads before its first token — Jev judgement, tier
-    // routing, system prompt, windowed history, facts round, Jev-filtered /teach
-    // notes, the dispute round — assembled by the one function the tool-choice
-    // eval also runs (turn-setup.ts). /teach never reaches any of it, so it
-    // never runs one: no judgement, no routing (reason "teach"), no model input.
+    // routing, system prompt, full history (plus a stable summary once the
+    // thread has been compacted), facts round, Jev-filtered /teach notes, the
+    // dispute round — assembled by the one function the tool-choice eval also
+    // runs (turn-setup.ts). /teach never reaches any of it, so it never runs
+    // one: no judgement, no routing (reason "teach"), no model input.
     const turn = teachCmd
       ? null
-      : await prepareTurn({ ix, message: body.message, history, pageContext: body.pageContext, teachHits, disputes });
+      : await prepareTurn({ ix, message: body.message, history, summary, pageContext: body.pageContext, teachHits, disputes });
     const route = turn?.route ?? TEACH_ROUTE;
     const priorAssistants = history.filter((m) => m.role === "assistant").length;
 
     const startedAt = Date.now();
     const encoder = new TextEncoder();
-    // PostHog AI observability: one trace per turn (fresh id, conversation id as
-    // a filterable property). distinctId is the CONVERSATION, not the signed-in
-    // user — semi-anonymous analytics: turns of one conversation stay grouped
-    // together in PostHog, but no user identity is sent (userId stays DB-only,
-    // via conversations.user_id, never leaves the server). The SAME obs feeds the
-    // answer stream, the harness jsonCall (verifier), and error capture,
-    // so every generation AND every error of the turn lands in one trace. No-op
-    // when POSTHOG_KEY is unset (both factories fall back to the plain client).
-    const obs = {
-      distinctId: convId,
-      traceId: crypto.randomUUID(),
-      properties: { chat_tier: route.tier, chat_route_reason: route.reason },
-    };
+    // PostHog AI observability: one trace per turn (id minted above, before
+    // compaction, so a summary call shares it). distinctId is the CONVERSATION,
+    // not the signed-in user — semi-anonymous analytics: turns of one
+    // conversation stay grouped together in PostHog, but no user identity is
+    // sent (userId stays DB-only, via conversations.user_id, never leaves the
+    // server). The SAME obs feeds the answer stream, the harness jsonCall
+    // (verifier), and error capture, so every generation AND every error of
+    // the turn lands in one trace. No-op when POSTHOG_KEY is unset (both
+    // factories fall back to the plain client).
+    obs.properties.chat_tier = route.tier;
+    obs.properties.chat_route_reason = route.reason;
 
     // Telemetry for the pre-first-token judge — gated the same as the call
     // itself, so a disabled/teach turn emits nothing. Held until `obs` exists
@@ -411,7 +456,9 @@ export async function persistAssistant(
   userId: string, convId: string, done: HarnessDone, latencyMs: number, obs?: ErrorContext,
 ): Promise<void> {
   // Raw array + ::jsonb (see resolveConversation note) — not JSON.stringify'd.
-  const toolCalls = done.toolCalls.length ? done.toolCalls : null;
+  // Lookup cards are computed once, here, from this turn's full tool results,
+  // and stored on the row. Later turns replay the card, not the raw payload.
+  const toolCalls = done.toolCalls.length ? attachRecall(done.toolCalls, done.transcript) : null;
 
   // Harness (verifier) tokens count toward the conversation totals and
   // the rate-limit window (via the usage_events row below) — never toward the

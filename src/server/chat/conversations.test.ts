@@ -41,9 +41,7 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
   queryLog.push({ text, values });
 
   if (text.includes("FROM conversations c") && text.includes("JOIN messages m")) {
-    // Value order mirrors the template: the LEAST() budget param precedes the
-    // WHERE user_id param.
-    const [budget, userId] = values as [number, string];
+    const [userId] = values as [string];
     const rows = conversations
       .filter((c) => c.user_id === userId)
       .filter((c) => msgs.some((m) => m.conversation_id === c.id && m.role === "assistant"))
@@ -53,7 +51,7 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
           id: c.id, title: c.title, updated_at: c.updated_at,
           message_count: convMsgs.length,
           context_tokens: newestAssistantContextTokens(c.id),
-          history_chars: Math.min(convMsgs.reduce((s, m) => s + m.content.length, 0), budget),
+          history_chars: convMsgs.reduce((s, m) => s + m.content.length, 0),
         };
       })
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
@@ -364,17 +362,15 @@ describe("GET /api/chat/conversations (list)", () => {
     expect(row.contextEstimated).toBe(true);
   });
 
-  it("caps the estimate at the windowHistory replay budget", async () => {
+  it("estimates from the full stored text, with no character cap", async () => {
     const token = await authed();
     seedConversation({ id: "c-huge", user_id: "user-1" });
-    // 40k chars stored, but only 24k (the replay budget) can ever re-enter
-    // context — the estimate must reflect the cap, not the raw size.
     seedMessage({ conversation_id: "c-huge", role: "user", content: "q".repeat(10_000) });
     seedMessage({ conversation_id: "c-huge", role: "assistant", content: "a".repeat(30_000), context_tokens: null });
 
     const res = await handleConversations(req("/api/chat/conversations", { cookie: token }));
     const body = (await res.json()) as { id: string; contextTokens: number | null; contextEstimated: boolean }[];
-    expect(body.find((c) => c.id === "c-huge")!.contextTokens).toBe(6_000); // 24_000 / 4
+    expect(body.find((c) => c.id === "c-huge")!.contextTokens).toBe(10_000); // 40_000 / 4
   });
 });
 
@@ -393,7 +389,7 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
     seedMessage({ conversation_id: "c-1", role: "user", content: "question" });
     seedMessage({
       conversation_id: "c-1", role: "assistant", content: "answer",
-      tool_calls: [{ name: "atlas_search", args: { q: "x" }, ok: true, bytes: 42 }],
+      tool_calls: [{ name: "atlas_search", args: { q: "x" }, ok: true, bytes: 42, recall: "atlas_search({})", recall_id: "rcall_1" }],
     });
 
     const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));

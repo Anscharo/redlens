@@ -5,7 +5,6 @@
 import { sql, toUuidArrayLiteral } from "../db.ts";
 import { getSessionUser } from "../session.ts";
 import { json } from "../http.ts";
-import { HISTORY_BUDGET_CHARS } from "./chat-history.ts";
 import { aggregateMarks, shownMarks, type CitationMark } from "./verify/citation-marks.ts";
 import { withoutDisputedMarks } from "./verify/disputes.ts";
 import {
@@ -28,8 +27,9 @@ interface ConversationListOut {
   // The newest assistant message's context_tokens — the real per-round
   // context size (see migration 020), not the cumulative input_tokens. For
   // legacy conversations that predate the column (no measured value on any
-  // row), this falls back to an ESTIMATE — stored message chars, capped at
-  // the windowHistory replay budget, over CHARS_PER_TOKEN — flagged below.
+  // row), this falls back to an ESTIMATE — stored message chars over
+  // CHARS_PER_TOKEN — flagged below. The estimate is an upper bound: messages
+  // already folded into conversations.summary are still counted.
   contextTokens: number | null;
   // True when contextTokens is the estimate, not a measured prompt size —
   // the UI renders it with a "~".
@@ -105,7 +105,7 @@ async function listConversations(userId: string): Promise<ConversationListOut[]>
     SELECT t.id, t.title, t.updated_at, t.message_count, t.history_chars, last.context_tokens
     FROM (
       SELECT c.id, c.title, c.updated_at, count(m.id)::int AS message_count,
-        LEAST(COALESCE(sum(length(m.content)), 0), ${HISTORY_BUDGET_CHARS})::int AS history_chars
+        COALESCE(sum(length(m.content)), 0)::int AS history_chars
       FROM conversations c
       JOIN messages m ON m.conversation_id = c.id
       WHERE c.user_id = ${userId}
@@ -123,10 +123,9 @@ async function listConversations(userId: string): Promise<ConversationListOut[]>
   `) as { id: string; title: string | null; updated_at: string | Date; message_count: number; context_tokens: number | null; history_chars: number }[];
   return rows.map((r) => ({
     id: r.id, title: r.title, updatedAt: new Date(r.updated_at).toISOString(), messageCount: r.message_count,
-    // history_chars is already capped at the replay budget, so the estimate
-    // is "what replaying this conversation's text could cost", not its raw
-    // size — an upper bound that ignores truncation of old turns, and a
-    // lower bound in that it excludes the system prompt and tool results.
+    // Uncapped stored text / 4. Upper bound once a summary exists (folded
+    // messages are still in the sum) and a lower bound in that it excludes
+    // the system prompt and lookup cards.
     contextTokens: r.context_tokens ?? Math.ceil(r.history_chars / CHARS_PER_TOKEN),
     contextEstimated: r.context_tokens == null,
   }));
@@ -230,9 +229,21 @@ function answerCoverageFor(
   return out;
 }
 
+// Lookup cards (recall / recall_id) are model-replay fields. The client trace
+// only reads name, args, ok, bytes — strip the rest so a reloaded chat does
+// not ship the card text.
+function toolCallsForClient(raw: unknown): unknown {
+  if (!Array.isArray(raw)) return raw;
+  return raw.map((t) => {
+    if (!t || typeof t !== "object") return t;
+    const { recall: _recall, recall_id: _id, ...rest } = t as Record<string, unknown>;
+    return rest;
+  });
+}
+
 // DESC-then-resort keeps the NEWEST 200 messages (a plain LIMIT keeps the
-// oldest) — display-only; the model's own context is separately bounded by
-// windowHistory() in chat-history.ts.
+// oldest) — display-only. The model replays every row until context-compact
+// folds a prefix into conversations.summary.
 async function getConversation(userId: string, id: string): Promise<ConversationDetailOut | null> {
   const owned = (await sql`
     SELECT c.id, c.title, c.updated_at,
@@ -267,7 +278,7 @@ async function getConversation(userId: string, id: string): Promise<Conversation
       const marks = marksByMessage.get(r.id) ?? null;
       const verify = verifyByMessage.get(r.id) ?? null;
       return {
-        role: r.role, content: r.content, createdAt: new Date(r.created_at).toISOString(), toolCalls: r.tool_calls,
+        role: r.role, content: r.content, createdAt: new Date(r.created_at).toISOString(), toolCalls: toolCallsForClient(r.tool_calls),
         // Reconciled against this message's own agreed contradictions before
         // returning — see MessageOut.citationMarks' comment and disputes.ts.
         citationMarks: marks ? withoutDisputedMarks(marks, verify?.contradictions ?? []) : null,

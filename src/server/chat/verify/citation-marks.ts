@@ -276,8 +276,8 @@ export async function runCitationMarks(p: {
    *              did not see, and saying so is the honest output: the system
    *              prompt already forbids linking a document the turn did not
    *              retrieve, so this is either a legitimate carry-over from an
-   *              earlier turn (chat.ts replays history as {role, content}, so
-   *              last turn's lookups leave no trace here) or a prompt
+   *              earlier turn (a lookup card is replayed, but it is not the
+   *              document — evidenceFromTranscript skips rcall_ ids) or a prompt
    *              violation. Neither is checkable.
    *
    * Omitting the map entirely is different from an empty one: no map means

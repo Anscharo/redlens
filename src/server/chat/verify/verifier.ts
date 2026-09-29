@@ -14,6 +14,8 @@ import { isExternalMscTool } from "../../external/envelope.ts";
 import { FACT_TOOL_NAME } from "../../facts/registry.ts";
 import { isUserTeachingTool } from "../teach/inject.ts";
 import { DISPUTE_TOOL_NAME } from "../dispute-round.ts";
+import { SUMMARY_ACK } from "../context-compact.ts";
+import { RECALL_ID_PREFIX } from "../tool-recall.ts";
 import { TOOLS_BY_NAME } from "../tools/tool-registry.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -236,6 +238,10 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
       }
     }
     if (m.role === "tool" && typeof m.content === "string") {
+      // Lookup cards replayed from earlier turns (tool-recall.ts). They are
+      // handles and excerpts, not the documents, and quote-grounding must not
+      // certify a sentence against one.
+      if (m.tool_call_id.startsWith(RECALL_ID_PREFIX)) continue;
       const call = callById.get(m.tool_call_id) ?? { tool: "unknown", args: "{}" };
       if (isDisputeRound(call.tool)) continue; // not evidence — see isDisputeRound
       entries.push({
@@ -257,8 +263,8 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
 // labels/sourceClass rule, same newest-first budget with prefetch reserved —
 // factored through the shared `budgetEvidence` so the two paths cannot diverge
 // on policy. `args` is always "(streamed)": there is no tool_call arguments
-// string to recover mid-stream (or, for history, chat.ts replays only
-// `{role, content}` — see docs/chat-system.md §6's Deferred note).
+// string to recover mid-stream. Lookup cards from earlier turns are skipped
+// by evidenceFromTranscript (rcall_ ids) and never reach this function.
 export function evidenceFromResults(results: { name: string; content: string }[], maxChars = config.chatVerifierEvidenceMaxChars): EvidenceEntry[] {
   // Filtered BEFORE the map so the [E..] labels stay contiguous.
   const entries: EvidenceEntry[] = results.filter((r) => !isDisputeRound(r.name)).map((r, i) => ({
@@ -280,7 +286,7 @@ export function priorTurnsEvidence(transcript: Msg[], maxChars = 8000): Evidence
   const lastUser = transcript.findLastIndex((m) => m.role === "user");
   const answers = transcript
     .slice(0, Math.max(lastUser, 0))
-    .filter((m) => m.role === "assistant" && typeof m.content === "string" && m.content.trim() !== "")
+    .filter((m) => m.role === "assistant" && typeof m.content === "string" && m.content.trim() !== "" && m.content !== SUMMARY_ACK)
     .map((m) => m.content as string);
   if (answers.length === 0) return null;
   // Newest-first budget, same policy as tool evidence: recent turns matter most.

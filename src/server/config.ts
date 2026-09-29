@@ -226,6 +226,12 @@ export const config = {
   // context, so the honest ceiling is the chain minimum. Swap alongside
   // CHAT_MODEL / CHAT_MODEL_* when the chains change.
   chatContextWindowTokens: Number(process.env.CHAT_CONTEXT_WINDOW_TOKENS ?? 200_000),
+  // Narrative compaction of a chat prefix once the replay reaches 90% of
+  // chatContextWindowTokens (context-compact.ts). Defaults to the chat model.
+  // CHAT_SUMMARY_MODEL="" disables compaction; the full transcript is sent
+  // until the provider rejects it.
+  chatSummaryModel: process.env.CHAT_SUMMARY_MODEL ?? process.env.CHAT_MODEL ?? "google/gemma-4-31b-it",
+  chatSummaryTimeoutMs: Number(process.env.CHAT_SUMMARY_TIMEOUT_MS ?? 60_000),
   // NOTE: the OFFLINE HTML-era curation model knobs (selector/cluster/frontier/audit)
   // used to live here but had zero runtime readers in src/server — every reader is
   // one of the scripts/htmlhist/*.mjs offline tools. Moved to
