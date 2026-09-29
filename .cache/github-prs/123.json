@@ -1,0 +1,10 @@
+{
+  "number": 123,
+  "title": "Add comprehensive Atlas Markdown syntax documentation",
+  "body": "Add complete syntax specification for Atlas Markdown format, including UUID requirements, document hierarchy, title line patterns, numbering rules, extra fields syntax, and validation guidelines.",
+  "author": "pppdns",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/123",
+  "commentCount": 0,
+  "reviewCount": 2,
+  "approvalCount": 1
+}

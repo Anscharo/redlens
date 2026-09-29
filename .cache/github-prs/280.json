@@ -1,0 +1,10 @@
+{
+  "number": 280,
+  "title": "Atlas Edit Proposal — 2026-07-20",
+  "body": "## Atlas Edit Weekly Cycle Proposal — 2026-07-20\n\nThis proposal includes the following edits:\n\n- **Reduce The Sky Spread And Update The Reference Rate To SOFR** — Reduces the Sky Spread from 0.1% to 0%; the total spread between the Sky Savings Rate and the Base Rate is now the 0.2% Distribution Reward Fee alone, and the Agent Rate rises to equal the Base Rate. Also updates the reference rate for the subsidized-borrowing formula and the Actively Stabilizing Collateral incentive from the Treasury Bill Rate to the Secured Overnight Financing Rate (SOFR).\n\n- **Migrate Per-Agent Foundation And Development Company Into Standard Parameters** — Promotes Prime Agents' Foundation and Development Company entries from Custom Instance Parameters to standard parameters of the instance. Structural relocation only; it does not change which entities are associated with any Agent.\n\n- **Correct A Mislabeled Capital Term (RRC → CRR)** — Corrects a single mislabeled term, changing \"Instance Total RRC\" to \"Instance Total CRR\" in the rule that sets a 100% value when a component RRC cannot be calculated. A 100% figure is a Capital Ratio Requirement, not a Required Risk Capital amount, so this is a terminology fix, not a change to the rule.\n\n- **Rename SEJRC To PEJRC Across The Atlas** — Renames the abbreviation for Prime-External Junior Risk Capital from SEJRC to PEJRC across the Atlas.\n\n- **Rename Spark's Paxos Instances To The Via-Paxos Convention** — Renames Spark's four Paxos stablecoin-transfer Instances to the \"X To Y Via Paxos\" form, clarifying the direction of each transfer. Naming only; no parameters change.\n\n- **Repoint Ecosystem Operational References Repository Links To The Soter Labs Organization** — Updates the Ecosystem Operational References repository links from the Atlas Axis organization to the Soter Labs organization, following the repository's move.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/280",
+  "commentCount": 1,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

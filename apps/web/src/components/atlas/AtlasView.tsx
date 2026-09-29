@@ -147,7 +147,7 @@ export function AtlasView({
             </button>
           </div>
         )}
-        <div className="flex-1 flex" style={ATLAS_GRID_STYLE}>
+        <div id="atlas-reader-row" className="flex-1 flex" style={ATLAS_GRID_STYLE}>
           <AtlasReader
             id={id}
             selectedId={selectedId}

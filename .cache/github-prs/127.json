@@ -1,0 +1,10 @@
+{
+  "number": 127,
+  "title": "Atlas Validator GitHub action: fix permission error by removing the auto-comment feature",
+  "body": "Problem:\r\n- PRs from external forks failed with \"Resource not accessible by integration\" (403) when trying to post PR comments, because `pull_request` trigger has read-only permissions for fork PRs\r\n- Initial fix using `pull_request_target` introduced security concerns flagged by GitHub Copilot, and had complex setup requirements (special checkout ref, extra permissions)\r\n\r\nSolution:\r\n- Dismissed `pull_request_target` approach entirely\r\n- Simplified to standard `pull_request` trigger which works for all PRs, including PRs coming from forks\r\n- Removed PR comment functionality in favor of GitHub's native features:\r\n  - Inline annotations on Files Changed tab\r\n  - Job Summary with detailed validation report\r\n  - Check pass/fail status\r\n\r\nBenefits:\r\n- No security concerns\r\n- Works identically for internal branches and external forks\r\n- No special permissions or configuration needed\r\n- Simpler setup",
+  "author": "pppdns",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/127",
+  "commentCount": 1,
+  "reviewCount": 2,
+  "approvalCount": 1
+}

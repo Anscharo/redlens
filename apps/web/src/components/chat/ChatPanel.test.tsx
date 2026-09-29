@@ -390,6 +390,21 @@ describe("ChatPanel header", () => {
     renderPanel({ placement: "anchored" });
     expect(screen.getByTitle("Pop out to a floating window")).toBeInTheDocument();
   });
+
+  it("offers a resize handle on the docked panel only", () => {
+    const prev = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: 1200 });
+    try {
+      renderPanel();
+      expect(screen.queryByRole("separator", { name: "Resize chat" })).not.toBeInTheDocument();
+      cleanup();
+      renderPanel({ placement: "anchored" });
+      expect(screen.getByRole("separator", { name: "Resize chat" })).toBeInTheDocument();
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: prev });
+      document.documentElement.style.removeProperty("--rlc-anchored-w");
+    }
+  });
 });
 
 // The thread only detaches when it actually overflows, and jsdom has no

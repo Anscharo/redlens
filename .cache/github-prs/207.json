@@ -1,0 +1,10 @@
+{
+  "number": 207,
+  "title": "Add /explain-edit skill for community proposal analysis",
+  "body": "## Summary\n\nAdds a Claude Code skill (`/explain-edit`) that helps community members understand Atlas edit proposals in plain language. Delegates and voters can run this skill against any PR to get:\n\n- A plain-language breakdown of what changed and why it matters\n- Changes grouped by topic, not raw document numbers\n- Context from PR descriptions and linked forum posts\n- Optional on-chain parameter verification for technical edits\n\n## Usage\n\nCommunity members with Claude Code installed can run:\n```\n/explain-edit 200\n```\nto get a breakdown of PR #200 (or any PR number/branch).\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/207",
+  "commentCount": 0,
+  "reviewCount": 2,
+  "approvalCount": 2
+}
