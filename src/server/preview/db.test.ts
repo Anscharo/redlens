@@ -238,7 +238,7 @@ test("listPreviewsByShas queries the given shas as one text[] literal, private r
   const rows = await listPreviewsByShas(["s1", "s2"]);
   expect(rows).toHaveLength(1);
   const q = calls[0]!.strings.join("");
-  // Private rows come back (mine.ts's visibleToVisitor is what filters them), and
+  // Private rows come back (mine.ts's visiblePreviews is what filters them), and
   // there is no last_access window to fall out of. Blocked rows stay invisible.
   expect(q).not.toContain("private = false");
   expect(q).toContain("blocked_at IS NULL");

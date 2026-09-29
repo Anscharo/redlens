@@ -3,6 +3,10 @@
 // the sha list, collect the two sources, decide what this visitor may see. The
 // handler keeps only the HTTP shell.
 //
+// Exactly two exports do the work: parseShaList and visiblePreviews. Collection
+// and the disclosure filter are private, so rows that have not been through the
+// filter cannot leave this module.
+//
 // TWO SOURCES, unioned:
 //   the ACCOUNT — every preview this signed-in visitor opened, on any device
 //     (preview_opens, written at `ready`). What a logged-in person expects:
@@ -34,6 +38,28 @@ export const MINE_MAX_SHAS = 50;
  *  slowest possible response; the checks themselves run concurrently. */
 export const MINE_MAX_PRIVATE = 6;
 
+/**
+ * The ONE way to get preview rows for a visitor: collect both sources, then drop
+ * everything they may not see. Collection and disclosure stay separate functions
+ * — they are separate jobs, and the filter's rules are worth reading on their own
+ * — but both are private to this module, so there is no way to obtain the
+ * unfiltered rows from outside it. That is the point: the disclosure filter used
+ * to be a step a caller had to remember, and a future `json(await collect(…))`
+ * would have shipped private rows with nothing to stop it.
+ *
+ * `authorize` is the seam the tests drive (same idea as build.ts's `deps`): it
+ * keeps this suite off a process-global mock of ./access.ts, which access.test.ts
+ * links for real.
+ */
+export async function visiblePreviews(
+  req: Request,
+  userId: string | null,
+  shas: string[],
+  authorize: (req: Request, repo: string) => Promise<AccessDecision> = authorizePreviewAccess,
+): Promise<MineRow[]> {
+  return visibleToVisitor(req, await collectMineRows(userId, shas), authorize);
+}
+
 /** `?shas=` → the 40-hex shas worth querying. Junk entries are dropped rather
  *  than 400'd: one stale localStorage record must not blank the whole list. */
 export function parseShaList(raw: string | null): string[] {
@@ -63,7 +89,7 @@ function openedAt(row: MineRow): number {
 
 /** Both sources, in one call. Each fails on its own: a DB hiccup on one must not
  *  blank the other, and neither ever becomes an error the tab has to render. */
-export async function collectMineRows(userId: string | null, shas: string[]): Promise<MineRow[]> {
+async function collectMineRows(userId: string | null, shas: string[]): Promise<MineRow[]> {
   const [opens, byShas] = await Promise.all([
     userId ? listPreviewOpens(userId).catch(() => []) : Promise.resolve([]),
     shas.length > 0 ? listPreviewsByShas(shas).catch(() => []) : Promise.resolve([]),
@@ -94,15 +120,11 @@ export async function collectMineRows(userId: string | null, shas: string[]): Pr
  * open, because a collaborator grant can be revoked weeks after it.
  *
  * Input order is preserved — the client sorts by its own recency anyway.
- *
- * `authorize` is the seam the tests drive (same idea as build.ts's `deps`): it
- * keeps this suite off a process-global mock of ./access.ts, which access.test.ts
- * links for real.
  */
-export async function visibleToVisitor(
+async function visibleToVisitor(
   req: Request,
   rows: MineRow[],
-  authorize: (req: Request, repo: string) => Promise<AccessDecision> = authorizePreviewAccess,
+  authorize: (req: Request, repo: string) => Promise<AccessDecision>,
 ): Promise<MineRow[]> {
   const candidates = rows
     .filter((r) => r.private)

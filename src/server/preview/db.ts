@@ -133,7 +133,7 @@ export async function previewsTodayCountForRepo(repo: string): Promise<number> {
  *  GET /api/preview/mine). Adding a field here is a decision to disclose it; both
  *  SELECT lists below must match it, since neither query is type-checked against
  *  the DB. `private` rides along because the caller has to know which rows need an
- *  access check — mine.ts's visibleToVisitor is the one place that applies it. */
+ *  access check — mine.ts's visiblePreviews is the one path that applies it. */
 export interface MinePreviewRow {
   sha: string;
   repo: string;
@@ -151,7 +151,7 @@ export interface MinePreviewRow {
 /** Rows for a caller-supplied sha list — the /preview index's "my recent
  *  previews" lookup, which intersects this browser's localStorage with what is
  *  still live. It DOES return private rows, so every caller must pass them through
- *  mine.ts's visibleToVisitor, which is the one place that decides disclosure.
+ *  mine.ts's visiblePreviews, the one path that decides disclosure.
  *  Sha-scoped rather than windowed: asking for the ~30 shas a browser remembers
  *  can't push a caller's own older previews out the way a global
  *  `ORDER BY last_access LIMIT n` would.
@@ -198,7 +198,7 @@ export async function recordPreviewOpen(userId: string, previewId: string, sha: 
 /** This user's own preview history, newest open first. The JOIN is what keeps a
  *  blocked sha — or one whose previews row is gone — out of the list without
  *  needing to delete anything here. Private rows come back like listPreviewsByShas:
- *  disclosure is mine.ts's visibleToVisitor to decide, because a collaborator can
+ *  disclosure is mine.ts's visiblePreviews to decide, because a collaborator can
  *  be removed long after the open was recorded. */
 export async function listPreviewOpens(userId: string, limit = 50): Promise<PreviewOpenRow[]> {
   return (await sql`

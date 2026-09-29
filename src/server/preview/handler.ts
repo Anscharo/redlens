@@ -30,7 +30,7 @@ import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
 import { previewPaths, artifactPath, bundleReady, readMeta, writeMeta, touch, remove as removeBundle, type PreviewMeta } from "./cache.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
 import { getPreviewRow, touchPreview, isBlockedSha, recordPreviewOpen } from "./db.ts";
-import { collectMineRows, parseShaList, visibleToVisitor } from "./mine.ts";
+import { parseShaList, visiblePreviews } from "./mine.ts";
 import { fillPrivateDiffBaseOnOpen } from "./diff-base-backfill.ts";
 import { authorizePreviewAccess } from "./access.ts";
 import { getSessionUser } from "../session.ts";
@@ -513,8 +513,7 @@ async function minePreviews(req: Request): Promise<Response> {
     // show" from "ask again", and it leaves the list it already has on screen.
     return json({ error: "rate-limited" }, 429, { ...PRIVATE_HEADERS, "retry-after": "2" });
   }
-  const rows = await collectMineRows(session?.user.id ?? null, shas);
-  return json(await visibleToVisitor(req, rows), 200, PRIVATE_HEADERS);
+  return json(await visiblePreviews(req, session?.user.id ?? null, shas), 200, PRIVATE_HEADERS);
 }
 
 // Local shorthand over the shared helper (http.ts): every preview response
