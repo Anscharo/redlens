@@ -49,9 +49,9 @@ export function PreviewMark({ nodeId, className }: { nodeId: string; className?:
         content={
           <span>
             Rewritten in this preview — both the title and the body were replaced: “{swap.oldTitle}”{" "}
-            <span className="enlargen">→</span> “{swap.newTitle}”. The previous content does not
-            appear anywhere else in this preview, so there is no way to tell a thorough rewrite from
-            a different document taking over this UUID.
+            <span className="enlargen">→</span> “{swap.newTitle}”. The previous content was not
+            traced to a single new document in this preview, so there is no way to tell a thorough
+            rewrite from a different document taking over this UUID.
           </span>
         }
       >

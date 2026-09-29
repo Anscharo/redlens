@@ -304,6 +304,27 @@ describe("detectIdentitySwaps", () => {
     expect(identitySwap.x).toBeDefined();
   });
 
+  it("reads a title whose NUMBER changed as a retitle, not as a respelling", () => {
+    // "1.0" → "10" drops a separator between two digits. Squashing it away
+    // would read the two titles as one and skip the gate.
+    const { identitySwap } = detectIdentitySwaps({
+      changed: ["x"], added: [],
+      mainById: mapOf([{ id: "x", doc_no: "A.1", title: "Version 1.0", content: OZONE_OLD }]),
+      previewById: mapOf([{ id: "x", doc_no: "A.1", title: "Version 10", content: SKY_PRIMITIVES }]),
+    });
+    expect(identitySwap.x).toBeDefined();
+  });
+
+  it("reads `changed` once, so an iterator is as good as an array", () => {
+    const main = mapOf([{ id: "x", doc_no: "A.1", title: "Reward Rate Review", content: OZONE_OLD }]);
+    const { identitySwap } = detectIdentitySwaps({
+      changed: main.keys(), added: [],
+      mainById: main,
+      previewById: mapOf([{ id: "x", doc_no: "A.1", title: "Sky Primitives", content: SKY_PRIMITIVES }]),
+    });
+    expect(identitySwap.x).toBeDefined();
+  });
+
   it("does NOT flag a body too short to carry evidence either way", () => {
     const { identitySwap } = detectIdentitySwaps({
       changed: ["x"], added: [],

@@ -88,6 +88,22 @@ describe("buildPreviewEmbeddings", () => {
     expect(readFile(dir)).toMatchObject({ rows: [], missing: 1 });
   });
 
+  test("a build that has ended: no provider call, no file", async () => {
+    const ended = new AbortController();
+    ended.abort();
+    const before = bundle([CHANGED]);
+    const d = deps();
+    expect(await buildPreviewEmbeddings(before, d, ended.signal)).toBeNull();
+    expect(d.embedded).toEqual([]);
+    // Ended while the lane was waiting on the live store.
+    const during = bundle([CHANGED]);
+    const mid = new AbortController();
+    const d2 = deps({ liveVectors: async () => { mid.abort(); return new Map(); } });
+    expect(await buildPreviewEmbeddings(during, d2, mid.signal)).toBeNull();
+    expect(d2.embedded).toEqual([]);
+    expect(fs.existsSync(path.join(during, EMBEDDINGS_FILE))).toBe(false);
+  });
+
   test("no key, or no live store: no vectors, no file, no throw", async () => {
     const off = bundle([CHANGED]);
     expect(await buildPreviewEmbeddings(off, deps({ enabled: false }))).toBeNull();
@@ -139,6 +155,28 @@ describe("bodySimilarity", () => {
     expect(sameTitle).toBeUndefined();
     const group = await bodySimilarity(snap([{ ...GROUP[0], title: "Pauser Multisig", content: STEPS }]), snap([{ ...GROUP[0], content: STEPS }]), pv);
     expect(group).toBeUndefined();
+  });
+
+  test("gives the provider a signal that can still abort, after the build lane has returned", async () => {
+    const dir = bundle([CHANGED]);
+    const signals: (AbortSignal | undefined)[] = [];
+    const d = deps({ embedBatch: async (texts, signal) => { signals.push(signal); return texts.map(() => axis(0)); } });
+    const pv = (await buildPreviewEmbeddings(dir, d))!;
+    await bodySimilarity(snap([OLD]), snap([CHANGED]), pv);
+    // The old-side call gets a signal of its own, not the lane's spent one.
+    expect(signals.length).toBe(2);
+    expect(signals[1]).not.toBe(pv.signal);
+    expect(signals[1]).toBeDefined();
+  });
+
+  test("sends nothing to the provider once the build lane's signal has aborted", async () => {
+    const dir = bundle([CHANGED]);
+    const d = deps();
+    const pv = (await buildPreviewEmbeddings(dir, d))!;
+    const spent = new AbortController();
+    spent.abort();
+    expect(await bodySimilarity(snap([OLD]), snap([CHANGED]), { ...pv, signal: spent.signal })).toBeUndefined();
+    expect(d.embedded).toEqual([buildEmbedText(CHANGED)]);
   });
 
   test("a provider failure leaves the gate without a score, and does not throw", async () => {

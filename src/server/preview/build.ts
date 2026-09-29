@@ -17,7 +17,7 @@ import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts
 import { startCandidates, writeDiffBases } from "./diff-base.ts";
 import { readDiffCounts, diffBaseLogLine } from "./diff-base-record.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
-import { buildPreviewEmbeddings, bodySimilarity, type PreviewVectors } from "./embeddings.ts";
+import { buildPreviewEmbeddings, bodySimilarity, realVectorDeps, type PreviewVectors } from "./embeddings.ts";
 import {
   upsertPreview,
   isKnownSha,
@@ -315,7 +315,7 @@ export interface BuildDeps {
   fetchAndExtract: typeof fetchAndExtract;
   spawnBuild: typeof spawnBuild;
   upsertPreview: (meta: PreviewMeta) => Promise<void>;
-  buildPreviewEmbeddings: (outDir: string) => Promise<PreviewVectors | null>;
+  buildPreviewEmbeddings: (outDir: string, signal?: AbortSignal) => Promise<PreviewVectors | null>;
 }
 
 const realBuildDeps: BuildDeps = {
@@ -327,7 +327,7 @@ const realBuildDeps: BuildDeps = {
   fetchAndExtract,
   spawnBuild,
   upsertPreview,
-  buildPreviewEmbeddings,
+  buildPreviewEmbeddings: (outDir, signal) => buildPreviewEmbeddings(outDir, realVectorDeps, signal),
 };
 
 async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realBuildDeps): Promise<void> {
@@ -384,6 +384,9 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       return;
     }
     await acquire();
+    // Ends the vector lane with the build: a build that fails or is rejected
+    // must not keep calling the embedding provider.
+    const vectorsAbort = new AbortController();
     try {
       emit(f, { phase: "fetching", sha });
       // Diff-base candidate resolution is an independent GitHub round-trip (or,
@@ -409,7 +412,7 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       // The preview's vectors need only docs.json too, and they wait on the
       // network, so they overlap the two builds below. Soft: null on any
       // failure, and the identity gate then judges by lines and words.
-      const vectorsP = deps.buildPreviewEmbeddings(paths.outDir).catch(() => null);
+      const vectorsP = deps.buildPreviewEmbeddings(paths.outDir, vectorsAbort.signal).catch(() => null);
       // graph + glossary both consume only build-index's docs.json and write
       // disjoint files (graph: graph/relations/addresses.atlas; glossary:
       // glossary) — run them concurrently.
@@ -510,6 +513,7 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       emit(f, { phase: "ready", sha });
       evictLru(undefined, undefined, inflightShas());
     } finally {
+      vectorsAbort.abort();
       release();
     }
   } catch (e) {

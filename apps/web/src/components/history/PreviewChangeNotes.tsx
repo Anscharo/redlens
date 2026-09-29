@@ -17,7 +17,8 @@ interface PreviewChangeNotesProps {
 }
 
 // Prose notes about *how* a doc changed in this preview: the ⚠ identity
-// paragraphs, the renumber/retitle lines, and — when a Changed doc has none
+// paragraphs (and the plain "rewritten" one for a swap with no sign of where
+// the old content went), the renumber/retitle lines, and — when a Changed doc has none
 // of those and no line diff either — one neutral fallback sentence. Neutral
 // on purpose: the cause may be main having caught up with the branch's edit,
 // a raw-only edit the parser normalises away, or a hash-only change — the
@@ -27,12 +28,18 @@ export function PreviewChangeNotes({ swap, former, renumber, retitle, source, ha
   const silent = status === "Changed" && !hasPatch && !renumber && !retitle && !swap;
   return (
     <>
-      {swap && (
+      {/* ⚠ only where the displaced content was found (movedTo). Without that
+          the swap is described, not accused — the same rule as PreviewMark. */}
+      {swap?.movedTo && (
         <p className="my-2 leading-snug" style={{ color: "var(--warn)" }}>
           <span style={WARN_GLYPH}>⚠</span> Identity changed — this UUID now holds a different document: “{swap.oldTitle}” <span className="enlargen">→</span> “{swap.newTitle}”.{" "}
-          {swap.movedTo
-            ? `The previous content moved to ${swap.movedTo.doc_no} (“${swap.movedTo.title}”) under a new UUID.`
-            : `The previous content is not present in this ${source}.`}
+          {`The previous content moved to ${swap.movedTo.doc_no} (“${swap.movedTo.title}”) under a new UUID.`}
+        </p>
+      )}
+      {swap && !swap.movedTo && (
+        <p className="my-2 leading-snug" style={{ color: "var(--lilac)" }}>
+          Rewritten — both the title and the body were replaced: “{swap.oldTitle}” <span className="enlargen">→</span> “{swap.newTitle}”.{" "}
+          {`The previous content was not traced to a single new document in this ${source}.`}
         </p>
       )}
       {former && (

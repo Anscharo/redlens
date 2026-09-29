@@ -298,9 +298,13 @@ export function bodyWordsKept(oldBody: string | undefined, newBody: string | und
  *  Proxy" as two different titles, when they are the same title respelled.
  *  Squashing the separators entirely is what makes a spelling/punctuation
  *  normalisation (`ALMProxy` → `ALM Proxy`, `Lite-PSM` → `Lite PSM`) read as
- *  the cosmetic rename it is. */
+ *  the cosmetic rename it is. A separator BETWEEN TWO DIGITS is kept, as one
+ *  dot: "Version 1.0" and "Version 10" are different titles, not respellings. */
 function squashTitle(t: string | undefined): string {
-  return (t ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const digit = (c: string | undefined) => c !== undefined && c >= "0" && c <= "9";
+  return (t ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, (sep, at: number, all: string) => (digit(all[at - 1]) && digit(all[at + sep.length]) ? "." : ""));
 }
 
 /** The same document under a respelled name — not a retitle at all. */
@@ -397,13 +401,20 @@ export function bodyReplaced(oldBody: string | undefined, newBody: string | unde
   return cosine <= REPLACE_MAX_COSINE;
 }
 
-/** Would the gate consult a similarity for this pair? The caller uses it to
- *  fetch vectors for these documents only. Mirrors the conditions under which
- *  detectIdentitySwaps reaches bodyReplaced with a body of the right size. */
-export function wantsSimilarity(main: SwapNode | undefined, prev: SwapNode | undefined): boolean {
-  if (!main || !prev) return false;
+/** Does this pair reach the body test at all? A swap replaces one real
+ *  document with another: if either side is empty it is a stub being filled in
+ *  or a document being blanked, and the same title — including one respelled
+ *  around its separators — is an ordinary edit, whatever happened to the body. */
+function isRetitleCandidate(main: SwapNode, prev: SwapNode): boolean {
   if (!norm(main.content) || !norm(prev.content)) return false;
-  if (sameTitle(main.title, prev.title)) return false;
+  return !sameTitle(main.title, prev.title);
+}
+
+/** Would the gate consult a similarity for this pair? The caller uses it to
+ *  fetch vectors for these documents only: the pairs detectIdentitySwaps takes
+ *  to bodyReplaced with a body of the right size. */
+export function wantsSimilarity(main: SwapNode | undefined, prev: SwapNode | undefined): boolean {
+  if (!main || !prev || !isRetitleCandidate(main, prev)) return false;
   return lines(main.content).length > SHORT_BODY_MAX_LINES && words(main.content).length >= JUDGEABLE_MIN_WORDS;
 }
 
@@ -458,13 +469,20 @@ export function titleSubstitution(oldT: string | undefined, newT: string | undef
   const ops = lcsOps(a, b);
   const kept = ops.filter(([op]) => op === "=").length;
   if (kept / Math.max(a.length, b.length) < CAMPAIGN_MIN_TITLE_KEPT) return null;
-  // Collapse each run of removals/additions into one removed→added pair, in
-  // order, so the key describes the substitution and not its position.
-  const parts: string[] = [];
+  // One removed→added pair per run, in order, so the key describes the
+  // substitution and not its position.
+  const parts = changeRuns(ops).map(([removed, added]) => `-${removed.join(" ")}+${added.join(" ")}`);
+  return parts.length ? parts.join("|") : null;
+}
+
+/** Each run of removals and additions between two kept words, collapsed into
+ *  one [removed, added] pair. Either side of a pair may be empty. */
+function changeRuns(ops: [string, string][]): [string[], string[]][] {
+  const out: [string[], string[]][] = [];
   let removed: string[] = [];
   let added: string[] = [];
   const flush = () => {
-    if (removed.length || added.length) parts.push(`-${removed.join(" ")}+${added.join(" ")}`);
+    if (removed.length || added.length) out.push([removed, added]);
     removed = [];
     added = [];
   };
@@ -474,29 +492,17 @@ export function titleSubstitution(oldT: string | undefined, newT: string | undef
     else added.push(w);
   }
   flush();
-  return parts.length ? parts.join("|") : null;
+  return out;
 }
 
 /** Each run of words the retitle removed, with the run that replaced it. A
  *  run that was only removed, or only added, is not a substitution. */
 function titleSubstitutions(oldT: string | undefined, newT: string | undefined): [string[], string[]][] {
-  const out: [string[], string[]][] = [];
-  let removed: string[] = [];
-  let added: string[] = [];
-  const flush = () => {
-    if (removed.length && added.length) out.push([removed, added]);
-    removed = [];
-    added = [];
-  };
-  for (const [op, w] of lcsOps(words(oldT), words(newT))) {
-    if (op === "=") flush();
-    else if (op === "-") removed.push(w);
-    else added.push(w);
-  }
-  flush();
   // Longest first, so "Launch Agent 4" is replaced before any shorter run could
   // claim one of its words.
-  return out.sort((x, y) => y[0].length - x[0].length);
+  return changeRuns(lcsOps(words(oldT), words(newT)))
+    .filter(([removed, added]) => removed.length && added.length)
+    .sort((x, y) => y[0].length - x[0].length);
 }
 
 /** Was this document RENAMED IN PLACE — its body changed by the same
@@ -573,18 +579,15 @@ export function detectIdentitySwaps(args: {
   const identitySwap: Record<string, IdentitySwap> = {};
   const formerUuid: Record<string, FormerUuid> = {};
   const addedIds = [...added];
-  const renamed = renameCampaigns({ changed, mainById, previewById });
+  // Read once: `changed` is walked twice below, and an iterator (a Map's
+  // keys()) would be spent by the first walk.
+  const changedIds = [...changed];
+  const renamed = renameCampaigns({ changed: changedIds, mainById, previewById });
 
-  for (const id of changed) {
+  for (const id of changedIds) {
     const main = mainById.get(id);
     const prev = previewById.get(id);
-    if (!main || !prev) continue;
-    // A swap replaces one real document with another. If either side is empty,
-    // it's a stub being filled in or a doc being blanked — not an identity swap.
-    if (!norm(main.content) || !norm(prev.content)) continue;
-    // Same title — including one respelled around its separators — is an
-    // ordinary edit, whatever happened to the body.
-    if (sameTitle(main.title, prev.title)) continue;
+    if (!main || !prev || !isRetitleCandidate(main, prev)) continue;
     if (!bodyReplaced(main.content, prev.content, similarity?.(id))) continue; // body largely preserved → edit
 
     const moved = relocationTarget(main.content, mainById, addedIds, previewById);
@@ -600,7 +603,7 @@ export function detectIdentitySwaps(args: {
     if (renamed.has(id) && !moved) continue;
     // Likewise a body that changed only by the substitution the title made: an
     // entity rename, which needs no second document to show itself.
-    if ((renameScore(main, prev) ?? 0) >= RENAME_MIN_KEPT && !moved) continue;
+    if (!moved && (renameScore(main, prev) ?? 0) >= RENAME_MIN_KEPT) continue;
 
     const swap: IdentitySwap = { oldTitle: main.title ?? "", newTitle: prev.title ?? "" };
     if (moved) {
