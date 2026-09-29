@@ -61,12 +61,16 @@ mock.module("../db.ts", () => ({
 
 afterAll(() => mock.restore());
 
-beforeEach(() => {
+beforeEach(async () => {
   accessDecision = "ok";
   accessCalls = [];
   dbQueued = [];
   dbCalls = [];
   sessionUser = null;
+  // /mine's per-user interval is module state, so one test's request would
+  // otherwise 429 the next test that reuses the same account id.
+  const { mineHits } = await import("./handler.ts");
+  mineHits.clear();
 });
 
 // The signed-in visitor for the current test, applied as a REAL signed session
@@ -77,6 +81,15 @@ beforeEach(() => {
 let sessionUser: { id: string; provider: string } | null = null;
 config.jwtSecret ||= "test-jwt-secret";
 const { signSession, SESSION_COOKIE } = await import("../session.ts");
+/** Poll `cond` until it holds or the deadline passes. For assertions on work the
+ *  server deliberately does NOT await (the account-history write), where a fixed
+ *  sleep is either flaky or needlessly slow. */
+async function settles(cond: () => boolean, timeoutMs = 1000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (!cond() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 5));
+  return cond();
+}
+
 async function authHeaders(): Promise<Headers> {
   const headers = new Headers();
   if (sessionUser) headers.set("cookie", `${SESSION_COOKIE}=${await signSession(sessionUser)}`);
@@ -1326,6 +1339,48 @@ test("/api/preview/mine asks nothing of the DB for an anonymous caller with no s
   expect(dbCalls).toHaveLength(0);
 });
 
+test("/api/preview/mine holds a signed-in caller to one request per interval", async () => {
+  sessionUser = { id: "user-1", provider: "github" };
+
+  dbQueued = [[pubRow]];
+  expect((await mine("")).status).toBe(200);
+
+  dbQueued = [new Error("must not be queried again")];
+  const limited = await mine("");
+  expect(limited.status).toBe(429);
+  expect(limited.headers.get("retry-after")).toBe("2");
+  expect(limited.headers.get("cache-control")).toBe("private, no-store"); // still never shared-cacheable
+  // The point of the limit: the expensive work (DB + up to 6 GitHub checks) is skipped.
+  expect(dbCalls.some((c) => c.sql.includes("FROM preview_opens o"))).toBe(true);
+  expect(dbCalls.filter((c) => c.sql.includes("FROM preview_opens o"))).toHaveLength(1);
+});
+
+test("/api/preview/mine's interval is per account, and leaves anonymous callers alone", async () => {
+  sessionUser = { id: "user-1", provider: "github" };
+  dbQueued = [[pubRow]];
+  expect((await mine("")).status).toBe(200);
+
+  // A second account is unaffected by the first one's request.
+  sessionUser = { id: "user-2", provider: "github" };
+  dbQueued = [[pubRow]];
+  expect((await mine("")).status).toBe(200);
+
+  // Anonymous callers cost one DB query and no GitHub call, so they are not
+  // keyed here at all — back-to-back requests both answer.
+  sessionUser = null;
+  dbQueued = [[pubRow], [pubRow]];
+  expect((await mine(`shas=${PUB_SHA}`)).status).toBe(200);
+  expect((await mine(`shas=${PUB_SHA}`)).status).toBe(200);
+});
+
+test("mineRateLimited lets the same account through once the interval has passed", async () => {
+  const { mineRateLimited, MINE_MIN_INTERVAL_MS } = await import("./handler.ts");
+  const t0 = 1_000_000;
+  expect(mineRateLimited("user-1", t0)).toBe(false);
+  expect(mineRateLimited("user-1", t0 + MINE_MIN_INTERVAL_MS - 1)).toBe(true);
+  expect(mineRateLimited("user-1", t0 + MINE_MIN_INTERVAL_MS)).toBe(false);
+});
+
 test("there is no public preview listing route any more", async () => {
   const { handlePreview } = await freshHandler();
   const res = await Promise.resolve(handlePreview(new Request("http://x/api/preview/list"), stubServer, "/api/preview/list"));
@@ -1368,8 +1423,8 @@ test("a ready SSE open records the account history for a signed-in visitor", asy
   );
   const body = await res.text();
   expect(body).toContain('"phase":"ready"');
-  // The write is fire-and-forget (an open must never wait on it) — let the
-  // already-queued promise settle before asserting.
-  await new Promise((r) => setTimeout(r, 0));
-  expect(dbCalls.some((c) => c.sql.includes("INSERT INTO preview_opens"))).toBe(true);
+  // The write is fire-and-forget (an open must never wait on it) and goes through
+  // an async JWT verify first, so poll to a deadline rather than assuming it has
+  // landed after one tick — a single setTimeout(0) here was flaky under load.
+  expect(await settles(() => dbCalls.some((c) => c.sql.includes("INSERT INTO preview_opens")))).toBe(true);
 });

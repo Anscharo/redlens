@@ -23,10 +23,15 @@ import { PreviewPrTabs } from "./PreviewPrTabs";
 export function PreviewHome() {
   const [input, setInput] = useState("");
   const [privateInput, setPrivateInput] = useState("");
-  // Both halves of the recent list move together: the server rows and the exact
-  // localStorage snapshot whose shas were sent for them. Keeping them in one
-  // state is what stops the merge from pairing rows with a later snapshot.
-  const [recent, setRecent] = useState<{ rows: MineRow[]; local: LocalPreview[] }>({ rows: [], local: [] });
+  // The recent list travels as one value: the server rows, the exact localStorage
+  // snapshot whose shas were sent for them, and WHOSE they are. Keeping the three
+  // together is what stops the merge pairing rows with a later snapshot, and what
+  // makes a previous session's rows unrenderable rather than merely overwritten.
+  const [recent, setRecent] = useState<{ userId: string | null; rows: MineRow[]; local: LocalPreview[] }>({
+    userId: null,
+    rows: [],
+    local: [],
+  });
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id ?? null; // the effect below depends on WHO, not on the user object's identity
   const id = useMemo(() => parsePreviewInput(input), [input]);
@@ -44,27 +49,35 @@ export function PreviewHome() {
     // Wait for the session probe so this asks once, knowing whether there is an
     // account history to include (authLoading is already false when logins are off).
     if (authLoading) return;
-    // Clear FIRST, on every identity change: whatever is on screen belongs to the
-    // session that just ended. Waiting for the replacement fetch would leave the
-    // previous user's rows — private repo ids and titles among them — visible to
-    // whoever uses this browser next, and indefinitely if that fetch fails.
-    setRecent({ rows: [], local: [] });
     const local = localPreviews();
     const shas = [...new Set(local.map((p) => p.sha))];
-    if (shas.length === 0 && !userId) return; // nothing opened here, no account — nothing to ask about
-    // `alive` drops a response whose request is no longer the current one: when
-    // userId flips, the signed-in answer must not land after the signed-out one.
-    let alive = true;
+    if (shas.length === 0 && !userId) {
+      setRecent({ userId, rows: [], local: [] }); // nothing opened here, no account — nothing to ask about
+      return;
+    }
     fetch(`${import.meta.env.BASE_URL}api/preview/mine?shas=${shas.join(",")}`, { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d) => alive && setRecent({ rows: Array.isArray(d) ? d : [], local }))
+      // A failure (429 from the per-user interval, a 5xx, offline) leaves the list
+      // exactly as it is. Blanking it would make a rate-limited refresh look like
+      // "you have no recent previews".
+      .then((r) => (r.ok ? r.json() : null))
+      // Every response is stamped with the identity it was fetched for, which is
+      // what makes a late answer from a previous session harmless — the render
+      // guard below won't display it. Deliberately NOT an `alive` cleanup flag:
+      // that discards a response whose effect has been torn down, which is
+      // exactly what dev's double-invoked effect does to the good first answer,
+      // leaving only the rate-limited second one.
+      .then((d) => Array.isArray(d) && setRecent({ userId, rows: d, local }))
       .catch(() => {});
-    return () => {
-      alive = false;
-    };
   }, [authLoading, userId]);
 
-  const entries = useMemo(() => mergeRecentPreviews(recent.rows, recent.local), [recent]);
+  // Rows are rendered only while they still belong to the signed-in visitor. The
+  // moment that changes, the previous session's rows — private repo ids and titles
+  // among them — stop being displayable, without waiting on a fetch that may be
+  // slow, rate-limited, or never come back at all.
+  const entries = useMemo(
+    () => (recent.userId === userId ? mergeRecentPreviews(recent.rows, recent.local) : []),
+    [recent, userId],
+  );
 
   return (
     <div className="min-h-dvh flex flex-col items-center px-6 pt-[18vh] relative" style={{ background: "var(--bg)" }}>

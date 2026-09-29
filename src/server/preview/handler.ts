@@ -78,6 +78,25 @@ export function rateLimited(ip: string): boolean {
   return w.n > IP_LIMIT;
 }
 
+// Per-USER minimum interval on /mine. Keyed on the account rather than the IP
+// because the cost this protects is per account: up to MINE_MAX_PRIVATE live
+// GitHub permission checks per request, which only a signed-in caller can
+// trigger. An anonymous /mine is one DB query and no GitHub call, so it is left
+// to the ordinary route limits. The page fetches once per load, so 2s is far
+// under any honest use and still collapses a refresh-held key.
+export const mineHits = new Map<string, number>(); // userId → last request (ms)
+export const MINE_MIN_INTERVAL_MS = 2_000;
+export function mineRateLimited(userId: string, now = Date.now()): boolean {
+  const last = mineHits.get(userId);
+  if (last !== undefined && now - last < MINE_MIN_INTERVAL_MS) return true;
+  // Sweep whatever is already past its interval when the map grows large.
+  if (mineHits.size > 5000) {
+    for (const [k, t] of mineHits) if (now - t >= MINE_MIN_INTERVAL_MS) mineHits.delete(k);
+  }
+  mineHits.set(userId, now);
+  return false;
+}
+
 // Diff cache keyed by (preview sha, current main atlas sha).
 // Exported for the eviction regression test only — not otherwise consumed
 // outside this module.
@@ -477,6 +496,11 @@ async function minePreviews(req: Request): Promise<Response> {
   const shas = parseShaList(new URL(req.url).searchParams.get("shas"));
   const session = await getSessionUser(req).catch(() => null);
   if (shas.length === 0 && !session) return json([], 200, PRIVATE_HEADERS);
+  if (session && mineRateLimited(session.user.id)) {
+    // 429 rather than an empty 200: the client must be able to tell "nothing to
+    // show" from "ask again", and it leaves the list it already has on screen.
+    return json({ error: "rate-limited" }, 429, { ...PRIVATE_HEADERS, "retry-after": "2" });
+  }
   const rows = await collectMineRows(session?.user.id ?? null, shas);
   return json(await visibleToVisitor(req, rows), 200, PRIVATE_HEADERS);
 }

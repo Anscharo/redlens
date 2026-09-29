@@ -9,8 +9,9 @@
 // previews vanish from this tab. Asserted below, since the bug is invisible in a
 // test that only mocks "some fetch".
 
+import { StrictMode } from "react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, act, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 // The private-repo form (and the profile button) are gated on usersEnabled(),
@@ -199,6 +200,44 @@ describe("PreviewHome recent list (AND-semantics)", () => {
     h.user = null;
     view.rerender(<PreviewHome />);
     expect(screen.queryByText("Secret work")).toBeNull();
+  });
+
+  it("still lists previews under StrictMode, whose second fetch the server rate-limits", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    localStorage.setItem("preview-history", JSON.stringify([{ id: "pull-1", sha: "aaa", at: 5 }]));
+    // StrictMode double-invokes the effect in dev, and the server holds an
+    // account to one /mine per interval — so the second call 429s. Neither the
+    // teardown of the first effect nor the refused second answer may blank the
+    // list, or dev permanently reads "you have no recent previews".
+    let call = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      call++;
+      if (call === 1) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([dbRow({ sha: "aaa", pr_title: "First PR" })]) } as Response);
+      }
+      // The refusal LANDS LAST, as a real round trip would. Resolving it inline
+      // would let it settle a microtask ahead of the first answer's .json() hop
+      // and be harmlessly overwritten — hiding whether the list actually
+      // survives a 429 or just wins a race.
+      return new Promise<Response>((resolve) =>
+        setTimeout(() => resolve({ ok: false, status: 429, json: () => Promise.resolve({ error: "rate-limited" }) } as Response), 10),
+      );
+    });
+
+    render(
+      <StrictMode>
+        <PreviewHome />
+      </StrictMode>,
+    );
+    expect(await screen.findByText("First PR")).toBeInTheDocument();
+    await waitFor(() => expect(call).toBe(2)); // the double-invoke really happened
+    // Assert AFTER the refused response has settled — checking only on arrival of
+    // the first would pass even if the 429 then blanked the list.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    expect(screen.getByText("First PR")).toBeInTheDocument();
   });
 
   it("shows an empty recent tab (no count) when there's no intersection", async () => {
