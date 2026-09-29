@@ -87,7 +87,7 @@ describe("planCompaction", () => {
     expect(plan!.tail).toHaveLength(COMPACT_TAIL);
     expect(plan!.tail.at(-1)?.content).toBe("m9");
     expect(plan!.fold).toHaveLength(10 - COMPACT_TAIL);
-    expect(plan!.uptoId).toBe(plan!.fold.at(-1)?.id);
+    expect(plan!.uptoId).toBe("id-3");
   });
 
   it("returns null without an id to point the cursor at", () => {
@@ -148,7 +148,7 @@ describe("compactForReplay", () => {
     });
     expect(out.compacted).toBe(true);
     expect(out.summary).toContain("UUID abc");
-    expect(out.uptoId).toBe(rows[rows.length - COMPACT_TAIL - 1].id);
+    expect(out.uptoId).toBe("id-1");
     expect(out.rows.map((r) => r.id)).toEqual(rows.slice(-COMPACT_TAIL).map((r) => r.id));
     expect(out.rows.at(-1)?.content).toBe(rows.at(-1)?.content);
   });
