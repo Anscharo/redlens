@@ -210,6 +210,26 @@ describe("PreviewHome recent list (AND-semantics)", () => {
     expect(screen.queryByText("Secret work")).toBeNull();
   });
 
+  it("recovers when the FIRST fetch of a tab is the one rate-limited", async () => {
+    h.usersOn = true;
+    h.user = { id: "user-1" };
+    localStorage.setItem("preview-history", JSON.stringify([{ id: "pull-1", sha: "aaa", at: 5 }]));
+    // A second tab, another device, or a reload inside the per-account window:
+    // this tab has no list to fall back on, so a silently-dropped 429 would leave
+    // the account empty state claiming "No previews opened yet".
+    let call = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+      call++;
+      return call === 1
+        ? Promise.resolve({ ok: false, status: 429, headers: new Headers({ "retry-after": "0" }), json: () => Promise.resolve({ error: "rate-limited" }) } as Response)
+        : Promise.resolve({ ok: true, json: () => Promise.resolve([dbRow({ sha: "aaa", pr_title: "First PR" })]) } as Response);
+    });
+
+    render(<PreviewHome />);
+    expect(await screen.findByText("First PR")).toBeInTheDocument();
+    expect(screen.queryByText("No previews opened yet.")).toBeNull();
+  });
+
   it("still lists previews under StrictMode, whose second fetch the server rate-limits", async () => {
     h.usersOn = true;
     h.user = { id: "user-1" };
@@ -229,7 +249,16 @@ describe("PreviewHome recent list (AND-semantics)", () => {
       // and be harmlessly overwritten — hiding whether the list actually
       // survives a 429 or just wins a race.
       return new Promise<Response>((resolve) =>
-        setTimeout(() => resolve({ ok: false, status: 429, json: () => Promise.resolve({ error: "rate-limited" }) } as Response), 10),
+        setTimeout(
+          () =>
+            resolve({
+              ok: false,
+              status: 429,
+              headers: new Headers({ "retry-after": "0" }),
+              json: () => Promise.resolve({ error: "rate-limited" }),
+            } as Response),
+          10,
+        ),
       );
     });
 
@@ -239,7 +268,7 @@ describe("PreviewHome recent list (AND-semantics)", () => {
       </StrictMode>,
     );
     expect(await screen.findByText("First PR")).toBeInTheDocument();
-    await waitFor(() => expect(call).toBe(2)); // the double-invoke really happened
+    await waitFor(() => expect(call).toBeGreaterThanOrEqual(2)); // the double-invoke really happened
     // Assert AFTER the refused response has settled — checking only on arrival of
     // the first would pass even if the 429 then blanked the list.
     await act(async () => {

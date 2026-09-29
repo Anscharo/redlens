@@ -147,6 +147,30 @@ test("only the MINE_MAX_PRIVATE newest private previews are considered", async (
   expect(out.map((r) => ("preview_id" in r ? r.preview_id : r.sha))).toEqual(["p-3", "p-4", "p-5", "p-6", "p-7", "p-8"]);
 });
 
+test("a preview this browser ALSO remembers does not consume two of the private slots", async () => {
+  // The signed-in case this feature exists for: the account row and the browser's
+  // own sha row describe ONE preview. Counting both halves the effective cap.
+  const previews = Array.from({ length: MINE_MAX_PRIVATE }, (_, i) => ({
+    sha: SHA(String(i)),
+    repo: `acme/secret-${i}`,
+    private: true,
+    opened_at: new Date(Date.UTC(2026, 8, i + 1)).toISOString(),
+    preview_id: `p-${i}`,
+  }));
+  queued = [
+    previews.map(row), // account history
+    // the same previews as the browser sees them: no preview_id, no opened_at
+    previews.map((p) => row({ sha: p.sha, repo: p.repo, private: true, last_access: p.opened_at })),
+  ];
+  const rows = await collectMineRows(
+    "user-1",
+    previews.map((p) => p.sha),
+  );
+  const out = await visibleToVisitor(req, rows, ok);
+  const distinct = new Set(out.map((r) => r.sha));
+  expect(distinct.size).toBe(MINE_MAX_PRIVATE); // all six survive, not three
+});
+
 test("recency comes from the visitor's own open, falling back to last_access", () => {
   const mine = row({ sha: SHA("a"), repo: "acme/one", private: true, preview_id: "mine", opened_at: "2026-09-25T00:00:00Z", last_access: "2020-01-01T00:00:00Z" });
   const other = row({ sha: SHA("b"), repo: "acme/two", private: true, last_access: "2026-09-24T00:00:00Z" });

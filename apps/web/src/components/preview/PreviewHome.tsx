@@ -20,6 +20,14 @@ import { PreviewPrTabs } from "./PreviewPrTabs";
 // previewRecent.ts) folds the two together; a local entry the server can't
 // confirm is still hidden, so a wiped DB or a blocked sha leaves no dead row.
 
+/** Retry-After (seconds) as milliseconds, clamped. Absent or unparseable falls
+ *  back to the server's own interval; a rogue value can't park the list forever. */
+function retryAfterMs(res: Response): number {
+  const raw = res.headers.get("retry-after");
+  const secs = raw === null ? Number.NaN : Number(raw);
+  return Number.isFinite(secs) ? Math.min(Math.max(secs, 0), 5) * 1000 : 2000;
+}
+
 export function PreviewHome() {
   const [input, setInput] = useState("");
   const [privateInput, setPrivateInput] = useState("");
@@ -55,19 +63,30 @@ export function PreviewHome() {
       setRecent({ userId, rows: [], local: [] }); // nothing opened here, no account — nothing to ask about
       return;
     }
-    fetch(`${import.meta.env.BASE_URL}api/preview/mine?shas=${shas.join(",")}`, { credentials: "same-origin" })
-      // A failure (429 from the per-user interval, a 5xx, offline) leaves the list
-      // exactly as it is. Blanking it would make a rate-limited refresh look like
-      // "you have no recent previews".
-      .then((r) => (r.ok ? r.json() : null))
+    const load = async (retried = false): Promise<void> => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/preview/mine?shas=${shas.join(",")}`, {
+        credentials: "same-origin",
+      });
+      // The per-account interval can refuse a tab whose FIRST fetch this is — a
+      // second tab, another device, or a reload inside the window. That tab has
+      // no list to keep, so dropping the refusal silently would leave the empty
+      // state claiming "No previews opened yet". Honour Retry-After, once.
+      if (res.status === 429 && !retried) {
+        await new Promise((r) => setTimeout(r, retryAfterMs(res)));
+        return load(true);
+      }
+      // Any other failure (a 5xx, offline, a second refusal) leaves the list
+      // exactly as it is rather than blanking it.
+      if (!res.ok) return;
+      const rows = await res.json();
       // Every response is stamped with the identity it was fetched for, which is
       // what makes a late answer from a previous session harmless — the render
       // guard below won't display it. Deliberately NOT an `alive` cleanup flag:
       // that discards a response whose effect has been torn down, which is
-      // exactly what dev's double-invoked effect does to the good first answer,
-      // leaving only the rate-limited second one.
-      .then((d) => Array.isArray(d) && setRecent({ userId, rows: d, local }))
-      .catch(() => {});
+      // exactly what dev's double-invoked effect does to the good first answer.
+      if (Array.isArray(rows)) setRecent({ userId, rows, local });
+    };
+    void load().catch(() => {});
   }, [authLoading, userId]);
 
   // Rows are rendered only while they still belong to the signed-in visitor. The

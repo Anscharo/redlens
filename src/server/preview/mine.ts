@@ -68,11 +68,17 @@ export async function collectMineRows(userId: string | null, shas: string[]): Pr
     userId ? listPreviewOpens(userId).catch(() => []) : Promise.resolve([]),
     shas.length > 0 ? listPreviewsByShas(shas).catch(() => []) : Promise.resolve([]),
   ]);
-  // No cross-source dedup: an account row carries the preview_id it was opened
-  // under, a browser row doesn't, and the same sha can legitimately have been
-  // opened under two ids (`pull-346` and its bare commit). The client keys by
-  // id, so a duplicated sha costs one row of JSON and loses nothing.
-  return [...opens, ...byShas];
+  // A browser row whose sha an account row already covers is the SAME preview,
+  // so drop it: kept, both halves occupy a slot in visibleToVisitor's private cap
+  // and a signed-in visitor sees three of their six private previews. The account
+  // row is the one kept — it carries the preview_id — and the client resolves its
+  // local ids through the sha map, so that row still answers for them.
+  //
+  // Nothing beyond that is deduped: the same sha can legitimately have been opened
+  // under two ids (`pull-346` and its bare commit), and each of those is its own
+  // account row.
+  const fromAccount = new Set(opens.map((r) => r.sha));
+  return [...opens, ...byShas.filter((r) => !fromAccount.has(r.sha))];
 }
 
 /**
