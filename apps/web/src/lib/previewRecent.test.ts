@@ -6,9 +6,9 @@ import { mergeRecentPreviews, type MineRow } from "./previewRecent";
 
 function row(over: Partial<MineRow> & { sha: string }): MineRow {
   return {
-    repo: "sky-ecosystem/next-gen-atlas", ref: "x", kind: "pr",
+    repo: "sky-ecosystem/next-gen-atlas",
     pr_number: 1, pr_title: null, pr_author: null, pr_state: "open",
-    doc_count: 0, last_access: "", ...over,
+    doc_count: 0, ...over,
   };
 }
 
@@ -16,7 +16,15 @@ describe("mergeRecentPreviews", () => {
   it("lists an account row on its own — no local record required", () => {
     const rows = [row({ sha: "aaa", preview_id: "pull-1", opened_at: "2026-09-20T00:00:00Z", pr_title: "T" })];
     expect(mergeRecentPreviews(rows, [])).toEqual([
-      { id: "pull-1", title: "T", detail: "0 docs", at: Date.parse("2026-09-20T00:00:00Z"), private: false },
+      {
+        id: "pull-1",
+        title: "T",
+        detail: "0 docs",
+        at: Date.parse("2026-09-20T00:00:00Z"),
+        private: false,
+        prNumber: 1,
+        repo: "sky-ecosystem/next-gen-atlas",
+      },
     ]);
   });
 
@@ -37,7 +45,15 @@ describe("mergeRecentPreviews", () => {
     // One entry, not two: the branch was pushed, so the local open is newer and
     // its row carries the current title/doc count.
     expect(mergeRecentPreviews(rows, local)).toEqual([
-      { id: "owner:repo:main", title: "Fresh", detail: "9 docs", at: Date.parse("2026-09-25T00:00:00Z"), private: false },
+      {
+        id: "owner:repo:main",
+        title: "Fresh",
+        detail: "9 docs",
+        at: Date.parse("2026-09-25T00:00:00Z"),
+        private: false,
+        prNumber: 1,
+        repo: "sky-ecosystem/next-gen-atlas",
+      },
     ]);
   });
 
@@ -59,8 +75,18 @@ describe("mergeRecentPreviews", () => {
     expect(entry.private).toBe(true);
   });
 
+  it("carries the PR number and repo the row is rendered from", () => {
+    const rows = [row({ sha: "a", preview_id: "blimpa:next-gen-atlas:pull-9", opened_at: "", pr_number: 9, repo: "blimpa/next-gen-atlas" })];
+    expect(mergeRecentPreviews(rows, [])[0]).toMatchObject({ prNumber: 9, repo: "blimpa/next-gen-atlas" });
+    // A branch preview has no PR; the row falls back to its id for a label.
+    const branch = [row({ sha: "b", preview_id: "acme:atlas:main", opened_at: "", pr_number: null, repo: "acme/atlas" })];
+    expect(mergeRecentPreviews(branch, [])[0]).toMatchObject({ prNumber: null, repo: "acme/atlas" });
+  });
+
   it("survives an unparseable opened_at rather than dropping the row", () => {
     const rows = [row({ sha: "a", preview_id: "p", opened_at: "not a date" })];
-    expect(mergeRecentPreviews(rows, [])).toEqual([{ id: "p", title: undefined, detail: "0 docs", at: 0, private: false }]);
+    expect(mergeRecentPreviews(rows, [])).toEqual([
+      { id: "p", title: undefined, detail: "0 docs", at: 0, private: false, prNumber: 1, repo: "sky-ecosystem/next-gen-atlas" },
+    ]);
   });
 });

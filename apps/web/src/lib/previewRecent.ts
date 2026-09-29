@@ -16,6 +16,9 @@ import type { Entry } from "../components/preview/types";
  *  means renaming it here. */
 export interface MineRow {
   sha: string;
+  repo: string;
+  ref: string;
+  pr_number: number | null;
   pr_title: string | null;
   pr_author: string | null;
   pr_state: string | null;
@@ -67,6 +70,15 @@ export function mergeRecentPreviews(rows: MineRow[], local: LocalPreview[]): Ent
     if (row) offer(l.id, row, l.at);
   }
   return [...best.entries()]
-    .map(([id, { row, at }]) => ({ id, title: row.pr_title ?? undefined, detail: detailOf(row), at, private: !!row.private }))
+    .map(([id, { row, at }]) => ({
+      id,
+      title: row.pr_title ?? undefined,
+      detail: detailOf(row),
+      at,
+      private: !!row.private,
+      prNumber: row.pr_number,
+      repo: row.repo,
+      ref: row.ref,
+    }))
     .sort((a, b) => b.at - a.at);
 }

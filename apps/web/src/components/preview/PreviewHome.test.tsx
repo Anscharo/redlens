@@ -39,7 +39,7 @@ import { PreviewHome } from "./PreviewHome";
 
 function dbRow(over: Record<string, unknown>) {
   return {
-    sha: "aaa", repo: "sky-ecosystem/next-gen-atlas", ref: "x", kind: "pr",
+    sha: "aaa", repo: "sky-ecosystem/next-gen-atlas", ref: "pull-1", kind: "pr",
     pr_number: 1, pr_title: null, pr_author: null, pr_state: "open",
     doc_count: 0, last_access: "", ...over,
   };
@@ -80,10 +80,12 @@ describe("PreviewHome recent list (AND-semantics)", () => {
     render(<PreviewHome />);
 
     expect(await screen.findByText("my recent previews · 1")).toBeInTheDocument();
-    expect(screen.getByText("pull-1")).toBeInTheDocument();
-    expect(screen.queryByText("pull-2")).toBeNull();
+    // The row leads with the PR number, like the open-PRs tab, and names its repo.
+    expect(screen.getByText("#1")).toBeInTheDocument();
+    expect(screen.getByText("sky-ecosystem/next-gen-atlas")).toBeInTheDocument();
     expect(screen.getByText("First PR")).toBeInTheDocument();
     expect(screen.getByText("by alice · 5 docs")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1); // the DB-less pull-2 is not rendered
   });
 
   it("asks /api/preview/mine for exactly the shas this browser remembers", async () => {
@@ -115,13 +117,17 @@ describe("PreviewHome recent list (AND-semantics)", () => {
   it("lists a private preview the server authorized, tagged private", async () => {
     localStorage.setItem("preview-history", JSON.stringify([{ id: "acme:secret-atlas:main", sha: "bbb", at: 1 }]));
     mockList([
-      dbRow({ sha: "bbb", repo: "acme/secret-atlas", kind: "branch", pr_number: null, pr_state: null, private: true, doc_count: 12 }),
+      dbRow({ sha: "bbb", repo: "acme/secret-atlas", ref: "main", kind: "branch", pr_number: null, pr_state: null, private: true, doc_count: 12 }),
     ]);
     render(<PreviewHome />);
 
     expect(await screen.findByText("my recent previews · 1")).toBeInTheDocument();
-    expect(screen.getByText("acme:secret-atlas:main")).toBeInTheDocument();
+    // No PR, so the row leads with the ref — the id would only repeat the repo column.
+    expect(screen.getByText("main")).toBeInTheDocument();
+    expect(screen.getByText("acme/secret-atlas")).toBeInTheDocument();
     expect(screen.getByText("private · 12 docs")).toBeInTheDocument();
+    // The link still resolves the preview id, which is what the server understands.
+    expect(screen.getByText("main").closest("a")).toHaveAttribute("href", "/preview/acme%3Asecret-atlas%3Amain");
   });
 
   it("lists a signed-in account's opens even when this browser has no record of them", async () => {
@@ -129,13 +135,15 @@ describe("PreviewHome recent list (AND-semantics)", () => {
     h.user = { id: "user-1" };
     // Nothing in localStorage: this is the other-browser case the account history exists for.
     mockList([
-      dbRow({ sha: "ccc", pr_title: "Opened elsewhere", pr_author: "me", doc_count: 3, preview_id: "pull-7", opened_at: "2026-09-20T00:00:00Z" }),
+      dbRow({ sha: "ccc", repo: "blimpa/next-gen-atlas", pr_number: 7, pr_title: "Opened elsewhere", pr_author: "me", doc_count: 3, preview_id: "pull-7", opened_at: "2026-09-20T00:00:00Z" }),
     ]);
     render(<PreviewHome />);
 
     expect(await screen.findByText("my recent previews · 1")).toBeInTheDocument();
-    expect(screen.getByText("pull-7")).toBeInTheDocument();
+    expect(screen.getByText("#7")).toBeInTheDocument();
+    expect(screen.getByText("blimpa/next-gen-atlas")).toBeInTheDocument();
     expect(screen.getByText("Opened elsewhere")).toBeInTheDocument();
+    expect(screen.getByText("Opened elsewhere").closest("a")).toHaveAttribute("href", "/preview/pull-7");
     // Signed in, the list spans browsers — the empty-state promise must not say otherwise.
     expect(screen.queryByText(/No previews opened/)).toBeNull();
   });

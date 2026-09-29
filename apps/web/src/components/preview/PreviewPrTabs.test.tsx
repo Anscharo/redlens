@@ -68,6 +68,25 @@ describe("PreviewPrTabs recent tab", () => {
     expect(JSON.stringify(payload)).not.toContain("secret-atlas");
   });
 
+  it("leads with the PR number and shows the repo, like the open-PRs tab", () => {
+    const entries: Entry[] = [
+      { id: "blimpa:next-gen-atlas:pull-9", title: "Fork PR", detail: "2 docs", at: 1, prNumber: 9, repo: "blimpa/next-gen-atlas" },
+    ];
+    render(<PreviewPrTabs entries={entries} />);
+    expect(screen.getByText("#9")).toBeInTheDocument();
+    expect(screen.getByText("blimpa/next-gen-atlas")).toBeInTheDocument();
+    // The link still goes to the preview id, not to `pull-9`: a fork's PR numbers
+    // are repo-local, so the id is what resolves.
+    expect(screen.getByText("#9").closest("a")).toHaveAttribute("href", "/preview/blimpa%3Anext-gen-atlas%3Apull-9");
+  });
+
+  it("falls back to the preview id when a row has no PR number", () => {
+    const entries: Entry[] = [{ id: "acme:atlas:main", detail: "1 doc", at: 1, prNumber: null, repo: "acme/atlas" }];
+    render(<PreviewPrTabs entries={entries} />);
+    expect(screen.getByText("acme:atlas:main")).toBeInTheDocument(); // a branch preview's only label
+    expect(screen.getByText("acme/atlas")).toBeInTheDocument();
+  });
+
   it("omits the title span when an entry has no title", () => {
     const entries: Entry[] = [{ id: "pull-7", detail: "1 doc", at: 1 }];
     render(<PreviewPrTabs entries={entries} />);
