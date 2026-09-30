@@ -11,7 +11,9 @@
 // themselves and restore the PINNED empty state (not ambient) in afterEach,
 // so the pin holds for every case that follows them.
 import { test, expect, describe, it, beforeAll, afterAll, afterEach } from "bun:test";
-import { rrfMerge, semanticScopeSql, embedFailureReason, SCOPED_SCAN_SETTING, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, attributeSemanticHits, residualQuery, filterByType, type Hit } from "./search.ts";
+import { rrfMerge, semanticScopeSql, embedFailureReason, SCOPED_SCAN_SETTING, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, runLexical, attributeSemanticHits, residualQuery, lexicalResidual, buildLeafScorer, filterByType, type Hit } from "./search.ts";
+import { fuseLeafScores, GROUP_ECHO_PENALTY, type LeafRow } from "./embed-units.ts";
+import { _clearQueryEmbedCache } from "./embed.ts";
 import { config } from "../config.ts";
 import type { AtlasNode, Indexes } from "./indexes.ts";
 import { MINISEARCH_OPTIONS } from "../../lib/searchOptions.ts";
@@ -46,6 +48,11 @@ afterEach(() => {
   config.openrouterApiKey = ""; // back to the beforeAll pin, not ambient env
   config.semanticEmbedTimeoutMs = prevTimeout;
   globalThis.fetch = prevFetch;
+  // The query-embed LRU is PROCESS-wide. The one-round-trip tests below stub a
+  // successful embed, so without this they leave a vector cached for their query
+  // text and the next FILE's embed-timeout test never reaches the network to time
+  // out — which is how it failed once, a file away, with nothing to point at.
+  _clearQueryEmbedCache();
 });
 
 test("runSemantic returns skipped:null (no reason) when no API key is configured — permanent config state, not degradation", async () => {
@@ -73,6 +80,159 @@ test("runSemantic reports a skip reason when the embed call times out", async ()
 // zz-db-integration.test.ts ("a semantic-leg failure degrades to lexical-only
 // instead of failing the whole query" — pgvector rejects immediately, no
 // retry loop involved).
+
+// ── one round trip, not two ─────────────────────────────────────────────────
+//
+// The point of the 2026-09-30 change. Leaf attribution needs a SECOND query
+// vector (the residual), and the cost of an embed is the round trip, not the
+// payload — measured 2.3s p50 for one text and the same for two. So the residual
+// has to ride in the query's own call, which is only possible because its text
+// comes from the LEXICAL leg (in-memory, available before the embed) rather than
+// from the semantic results.
+test("runSemantic embeds the query and the residual in ONE request, and hands both vectors back", async () => {
+  config.openrouterApiKey = "test-key";
+  config.semanticEmbedTimeoutMs = 5_000;
+  const bodies: unknown[] = [];
+  globalThis.fetch = ((_u: string, init: { body: string }) => {
+    bodies.push(JSON.parse(init.body));
+    const input = (JSON.parse(init.body) as { input: string[] }).input;
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({ data: input.map((_t, i) => ({ index: i, embedding: Array.from({ length: 1024 }, () => 0.03) })) }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+  }) as unknown as typeof fetch;
+
+  const res = await runSemantic(ix, "who approves rewards", undefined, 5, undefined, "approves rewards");
+  // ONE call, carrying BOTH texts — a second call here is the regression this
+  // test exists for.
+  expect(bodies).toHaveLength(1);
+  expect((bodies[0] as { input: string[] }).input).toHaveLength(2);
+  // pgvector is unreachable in this suite, so the leg degrades — and a degraded
+  // leg reports no vectors, because with no hits there is nothing to attribute.
+  expect(res.skipped).toBeTruthy();
+  expect(res.vecs).toBeUndefined();
+});
+
+test("runSemantic sends ONE text when the residual came back identical to the query", async () => {
+  // Nothing was left to strip. Embedding the same text twice would be paying for
+  // a vector we already have.
+  config.openrouterApiKey = "test-key";
+  config.semanticEmbedTimeoutMs = 5_000;
+  let inputs: string[] = [];
+  globalThis.fetch = ((_u: string, init: { body: string }) => {
+    inputs = (JSON.parse(init.body) as { input: string[] }).input;
+    return Promise.resolve(
+      new Response(JSON.stringify({ data: inputs.map((_t, i) => ({ index: i, embedding: Array.from({ length: 1024 }, () => 0.02) })) }), {
+        status: 200, headers: { "content-type": "application/json" },
+      }),
+    );
+  }) as unknown as typeof fetch;
+  await runSemantic(ix, "governance", undefined, 5, undefined, "governance");
+  expect(inputs).toHaveLength(1);
+});
+
+test("buildLeafScorer never embeds — it cannot time out any more", async () => {
+  // It used to make the second call itself, with its own timeout and its own
+  // EmbedDiag. Any fetch from here is that call coming back.
+  let calls = 0;
+  globalThis.fetch = (() => { calls++; return Promise.reject(new Error("no")); }) as unknown as typeof fetch;
+  const grouped: Hit[] = [{ id: "g", rank: 0, score: 0.8, source: "semantic", memberIds: ["m1", "m2"] }];
+  const vecs = { query: Array.from({ length: 1024 }, () => 0.01), residual: Array.from({ length: 1024 }, () => 0.02) };
+  // pgvector is unreachable here, so this returns undefined (attribution falls
+  // back to the lexical pick) — without having gone near the network.
+  expect(await buildLeafScorer(grouped, vecs)).toBeUndefined();
+  expect(calls).toBe(0);
+});
+
+test("buildLeafScorer stands down when there is no residual vector, rather than guessing", async () => {
+  const grouped: Hit[] = [{ id: "g", rank: 0, score: 0.8, source: "semantic", memberIds: ["m1", "m2"] }];
+  expect(await buildLeafScorer(grouped, undefined)).toBeUndefined();
+  expect(await buildLeafScorer(grouped, { query: [0.1] })).toBeUndefined();
+});
+
+describe("fuseLeafScores", () => {
+  const row = (doc_id: string, anchor_id: string, residual_sim: number, query_sim: number, group_sim: number): LeafRow =>
+    ({ doc_id, anchor_id, residual_sim, query_sim, group_sim });
+
+  it("ranks within each group, not across them", () => {
+    // A crowded group's also-ran must not outrank a small group's best: choosing
+    // a leaf is a choice among THAT group's members.
+    const fused = fuseLeafScores([
+      row("big1", "A", 0.9, 0.9, 0.1), row("big2", "A", 0.8, 0.8, 0.1), row("big3", "A", 0.7, 0.7, 0.1),
+      row("small1", "B", 0.2, 0.2, 0.1), row("small2", "B", 0.1, 0.1, 0.1),
+    ]);
+    // Each group's top member gets the same top-rank score.
+    expect(fused.get("big1")).toBeCloseTo(fused.get("small1")!, 12);
+    expect(fused.get("big1")!).toBeGreaterThan(fused.get("big2")!);
+    expect(fused.get("small1")!).toBeGreaterThan(fused.get("small2")!);
+  });
+
+  it("demotes the member that merely echoes its group's name", () => {
+    // The real shape of the case the residual exists for: a member that repeats
+    // the instance name matches the QUERY as well as the one that answers it
+    // (the query contains that name), but less well the RESIDUAL (which has the
+    // name stripped), and it sits far closer to its own anchor. Both rankings
+    // then agree, and fusion keeps the answer.
+    const fused = fuseLeafScores([
+      row("echo", "A", 0.40, 0.80, 0.95),
+      row("answer", "A", 0.55, 0.78, 0.10),
+    ]);
+    expect(fused.get("answer")!).toBeGreaterThan(fused.get("echo")!);
+  });
+
+  it("lets the residual ranking carry a member the echo term would not pick", () => {
+    // The two rankings disagree; fusion keeps the one both rate highest overall.
+    const fused = fuseLeafScores([
+      row("byResidual", "A", 0.90, 0.10, 0.10),
+      row("byEcho", "A", 0.10, 0.90, 0.10),
+      row("neither", "A", 0.05, 0.05, 0.90),
+    ]);
+    expect(fused.get("neither")!).toBeLessThan(fused.get("byResidual")!);
+    expect(fused.get("neither")!).toBeLessThan(fused.get("byEcho")!);
+  });
+
+  it("reads Postgres numerics that arrive as strings", () => {
+    // pgvector arithmetic can come back as a string; Number() around every term
+    // is what keeps the ordering from becoming lexicographic.
+    const fused = fuseLeafScores([
+      { doc_id: "a", anchor_id: "A", residual_sim: "0.9" as never, query_sim: "0.9" as never, group_sim: "0.1" as never },
+      { doc_id: "b", anchor_id: "A", residual_sim: "0.10" as never, query_sim: "0.10" as never, group_sim: "0.1" as never },
+    ]);
+    expect(fused.get("a")!).toBeGreaterThan(fused.get("b")!);
+  });
+
+  it("keeps the penalty a documented constant rather than a magic number", () => {
+    expect(GROUP_ECHO_PENALTY).toBe(0.25);
+  });
+});
+
+describe("lexicalResidual", () => {
+  const docMap = new Map([
+    ["a", { title: "Fluid sUSDS ERC4626 Vault" }],
+    ["b", { title: "Network" }],
+  ]) as unknown as Parameters<typeof lexicalResidual>[2];
+
+  it("strips the words the lexical leg's own titles already explain", () => {
+    const lex: Hit[] = [
+      { id: "a", rank: 0, score: 1, source: "lexical" },
+      { id: "b", rank: 1, score: 1, source: "lexical" },
+    ];
+    // "which chain is the Fluid sUSDS vault on" keeps only what discriminates
+    // INSIDE the group; the instance name is carried by every member.
+    expect(lexicalResidual("what network is the Fluid sUSDS vault on", lex, docMap)).toBe("what is the on");
+  });
+
+  it("keeps the whole query when the titles would strip everything", () => {
+    const lex: Hit[] = [{ id: "b", rank: 0, score: 1, source: "lexical" }];
+    expect(lexicalResidual("network", lex, docMap)).toBe("network");
+  });
+
+  it("is empty-safe when the lexical leg found nothing", () => {
+    expect(lexicalResidual("who approves rewards", [], docMap)).toBe("who approves rewards");
+  });
+});
 
 test("withTimeout resolves when the promise beats the deadline", async () => {
   const v = await withTimeout(Promise.resolve(42), 1000, "x");

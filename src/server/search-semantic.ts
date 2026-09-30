@@ -19,6 +19,7 @@ import { json } from "./http.ts";
 import { config } from "./config.ts";
 import { getIndexes } from "./retrieval/indexes.ts";
 import {
+  lexicalResidual,
   runLexical,
   runSemantic,
   attributeSemanticHits,
@@ -84,14 +85,20 @@ export async function semanticDocSearch(
   // filter runs post-leaf-pick, and an `in:` scope admits ancestor anchors that
   // may attribute to a leaf outside it. Both shrink the list after the SQL LIMIT.
   const fetchK = opts.type || opts.scope ? Math.min(k * 4, SEMANTIC_K_MAX) : k;
-  const semResult = await runSemantic(ix, q, opts.type, fetchK, opts.scope);
+  // The lexical leg FIRST, and not only because attribution reads its doc
+  // numbers: it is in-memory MiniSearch, so the residual that leaf attribution
+  // scores members against can be built from it here and embedded in the
+  // query's own round trip. Built after the semantic call — from its anchor
+  // titles, as it was until 2026-09-30 — it cost a second ~2.3s embed, half the
+  // request. See `lexicalResidual`.
   const lex = runLexical(ix, q, opts.type, fetchK);
+  const semResult = await runSemantic(ix, q, opts.type, fetchK, opts.scope, lexicalResidual(q, lex, ix.docMap));
   const attributed = attributeSemanticHits(
     q,
     lex,
     semResult.hits,
     ix,
-    await buildLeafScorer(q, semResult.hits, ix),
+    await buildLeafScorer(semResult.hits, semResult.vecs),
   );
 
   // The SQL scope clause is permissive on purpose (it keeps ancestor anchors);

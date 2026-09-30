@@ -1,8 +1,8 @@
 // Run under `bun test`. Verifies the AbortSignal actually cancels the embed
 // retry loop, so a timed-out query-time embed can't keep hammering OpenRouter
 // in the background (PR #137 review — Codex P2 / Claude residual-limitation note).
-import { test, expect, afterEach } from "bun:test";
-import { embedBatch, embedQuery, _clearQueryEmbedCache, type EmbedDiag } from "./embed.ts";
+import { test, expect, describe, it, afterEach } from "bun:test";
+import { embedBatch, embedQueries, embedQuery, EMBED_DIM, _clearQueryEmbedCache, type EmbedDiag } from "./embed.ts";
 import { config } from "../config.ts";
 
 const realFetch = globalThis.fetch;
@@ -220,4 +220,72 @@ test("a cache hit leaves the diagnostic untouched — nothing went wrong", async
   } finally {
     config.openrouterApiKey = prevKey;
   }
+});
+
+describe("embedQueries", () => {
+  const REAL_KEY = config.openrouterApiKey;
+  const prevFetch = globalThis.fetch;
+  afterEach(() => {
+    config.openrouterApiKey = REAL_KEY;
+    globalThis.fetch = prevFetch;
+    _clearQueryEmbedCache();
+  });
+
+  function stub(calls: string[][]) {
+    globalThis.fetch = ((_u: string, init: { body: string }) => {
+      const input = (JSON.parse(init.body) as { input: string[] }).input;
+      calls.push(input);
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ data: input.map((t, i) => ({ index: i, embedding: Array.from({ length: EMBED_DIM }, () => t.length / 100) })) }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+    }) as unknown as typeof fetch;
+  }
+
+  it("sends every text in ONE request, in order", async () => {
+    // The reason this exists: an embed costs a round trip, not a payload, so a
+    // caller that needs two vectors must ask for them together.
+    config.openrouterApiKey = "sk-test";
+    const calls: string[][] = [];
+    stub(calls);
+    const [a, b] = await embedQueries(["who approves rewards", "approves rewards"]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toHaveLength(2);
+    expect(a).toHaveLength(EMBED_DIM);
+    expect(b).toHaveLength(EMBED_DIM);
+    // Order is the caller's, not the provider's — mapped by response `index`.
+    expect(a).not.toEqual(b);
+  });
+
+  it("applies the query prefix to each text, like embedQuery", async () => {
+    config.openrouterApiKey = "sk-test";
+    const calls: string[][] = [];
+    stub(calls);
+    await embedQueries(["alpha", "beta"]);
+    for (const sent of calls[0]!) expect(sent.startsWith(config.embedQueryPrefix)).toBe(true);
+  });
+
+  it("serves a cached text without putting it in the batch", async () => {
+    config.openrouterApiKey = "sk-test";
+    const calls: string[][] = [];
+    stub(calls);
+    const [first] = await embedQueries(["governance"]);
+    const [again, fresh] = await embedQueries(["governance", "rewards"]);
+    expect(again).toEqual(first);
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).toHaveLength(1); // only the miss
+    expect(fresh).toHaveLength(EMBED_DIM);
+  });
+
+  it("fills the same cache embedQuery reads", async () => {
+    config.openrouterApiKey = "sk-test";
+    const calls: string[][] = [];
+    stub(calls);
+    const [batched] = await embedQueries(["shared text"]);
+    const single = await embedQuery("shared text");
+    expect(single).toEqual(batched);
+    expect(calls).toHaveLength(1); // embedQuery hit the cache the batch filled
+  });
 });

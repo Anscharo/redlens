@@ -383,6 +383,8 @@ import {
   isDocNoDescendant,
   type GroupPolicy,
   type EmbedUnit,
+  fuseLeafScores,
+  type LeafRow,
 } from "../../src/server/retrieval/embed-units.ts";
 import { generateRetrievalQueries, type RetrievalQuery } from "./eval-retrieval-queries.ts";
 import { lexicalOverlap } from "./eval-retrieval-paraphrase.ts";
@@ -859,6 +861,9 @@ for (const policy of POLICIES) {
       // per-query/per-pool loops was ~179 x 50 x 11,340 array scans and made the run
       // look hung.
       const unitByAnchor = new Map(units.map((u) => [u.anchorId, u]));
+      // anchor → its index in `units`, which is the index into `neural`: leaf
+      // attribution needs the anchor's own (grouped) vector for the group-echo term.
+      const unitIndex = new Map(units.map((u, i) => [u.anchorId, i]));
       for (const q of queries) {
         let pool: { id: string; text: string; score: number }[];
         const poolK = RERANK === "bm25" || HYBRID ? RERANK_POOL : LEAF_RERANK ? RERANK_N : K;
@@ -874,6 +879,7 @@ for (const policy of POLICIES) {
           } finally {
             config.embedModel = prev;
           }
+          queryVec = qv; // leaf attribution scores against this too — see below
           qEmbedMs.push(performance.now() - t0);
           pool = units
             .map((u, i) => {
@@ -888,16 +894,27 @@ for (const policy of POLICIES) {
         if (RERANK === "bm25") pool = bm25Rerank(q.query, pool).slice(0, K);
         else pool = pool.slice(0, HYBRID ? RERANK_POOL : LEAF_RERANK ? RERANK_N : K);
 
-        // Semantic leaf attribution, mirroring search.ts's buildLeafScorer: strip the
-        // top-K retrieved anchor titles from the query, embed that residual ONCE, and
-        // score members by cosine against their own vectors. Neural arms only — the
-        // TF-IDF backend has no query vector to compare against.
+        // Semantic leaf attribution, mirroring search.ts: score members by the
+        // FUSION of two rankings (cosine to a residual query, and cosine to the
+        // query minus a penalty for looking like their own group anchor) via the
+        // shared `fuseLeafScores` — imported, not reimplemented, so the eval and
+        // production cannot drift on the rule.
+        //
+        // One deliberate divergence: production builds the residual from the
+        // LEXICAL leg's titles, because those exist before the embed and so cost
+        // no second round trip. This harness has no MiniSearch leg (its lexical
+        // arm is TF-IDF, and semantic-only arms have none at all), so it strips
+        // its own pool's titles instead and pays the extra embed — latency is
+        // free offline. That makes the eval's attribution a slight OVER-estimate
+        // of production's, constant across arms, which is what matters for
+        // comparing grouping policies and models.
         let leafScorer: ((id: string) => number | undefined) | undefined;
+        let queryVec: number[] | null = null;
         // Only worth an embed when something in the pool is actually a GROUP. For
         // one_to_one every unit is a single doc, so there is nothing to attribute and
         // the residual call would be 179 wasted round-trips per run.
         const poolHasGroup = pool.some((r) => (unitByAnchor.get(r.id)?.memberIds.length ?? 0) > 1);
-        if (BACKEND === "openrouter" && cachedVectors && poolHasGroup) {
+        if (BACKEND === "openrouter" && cachedVectors && poolHasGroup && queryVec && neural) {
           const anchorTitles = pool
             .slice(0, RESIDUAL_ANCHOR_K)
             .map((r) => docMap.get(r.id)?.title)
@@ -911,21 +928,31 @@ for (const policy of POLICIES) {
           } finally {
             config.embedModel = prev2;
           }
-          const scoreById = new Map<string, number>();
+          const dot = (a: number[], b: number[]) => { let d = 0; for (let j = 0; j < a.length; j++) d += a[j]! * b[j]!; return d; };
+          const rows: LeafRow[] = [];
+          const seen = new Set<string>();
           for (const r of pool) {
             const u = unitByAnchor.get(r.id);
             if ((u?.memberIds.length ?? 0) <= 1) continue; // singletons need no attribution
+            const ai = unitIndex.get(r.id);
+            const av = ai === undefined ? undefined : neural[ai];
+            if (!av) continue;
             for (const mid of u?.memberIds ?? []) {
-              if (scoreById.has(mid)) continue;
+              if (seen.has(mid)) continue;
               const n = docMap.get(mid);
               const v = n ? cachedVectors.get(oneToOneHash(n)) : undefined;
               if (!v) continue;
-              let sc = 0;
-              for (let j = 0; j < rv.length; j++) sc += rv[j]! * v[j]!;
-              scoreById.set(mid, sc);
+              seen.add(mid);
+              rows.push({
+                doc_id: mid, anchor_id: r.id,
+                residual_sim: dot(rv, v), query_sim: dot(queryVec, v), group_sim: dot(av, v),
+              });
             }
           }
-          if (scoreById.size >= 2) leafScorer = (id: string) => scoreById.get(id);
+          if (rows.length >= 2) {
+            const fused = fuseLeafScores(rows);
+            leafScorer = (id: string) => fused.get(id);
+          }
         }
 
         let lexHits: { id: string; doc_no: string }[] = [];

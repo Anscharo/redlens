@@ -3,10 +3,10 @@
 import { type Indexes } from "./indexes.ts";
 import { sql, toVectorLiteral, toUuidArrayLiteral } from "../db.ts";
 import { fromUuidArray } from "../pg-array.ts";
-import { embedQuery, type EmbedDiag } from "./embed.ts";
+import { embedQueries, type EmbedDiag } from "./embed.ts";
 import { config } from "../config.ts";
 import { compactProse } from "../../lib/shortenTitle.ts";
-import { rewriteSemanticHit, type Via, type LeafSemanticScore } from "./embed-units.ts";
+import { rewriteSemanticHit, type Via, type LeafSemanticScore, fuseLeafScores, type LeafRow } from "./embed-units.ts";
 import { expandQueryTokens, partitionByOriginalTerms } from "../../lib/searchInflect.ts";
 import { rrfFuse } from "../../lib/searchSemantic.ts";
 export type { Via };
@@ -39,6 +39,13 @@ export interface Hit {
 export interface SemanticResult {
   hits: Hit[];
   skipped: string | null;
+  /**
+   * The vectors this leg embedded, handed back so leaf attribution can reuse
+   * them instead of paying its own round trip. `residual` is present only when
+   * the caller asked for one. Absent on any degraded or skipped leg — which is
+   * exactly when attribution should fall back to the lexical pick.
+   */
+  vecs?: { query: number[]; residual?: number[] };
 }
 
 export interface MergedHit {
@@ -106,6 +113,15 @@ export async function runSemantic(
    * attribution; see `anchorCouldServeScope`.
    */
   scope?: string,
+  /**
+   * A second text to embed IN THE SAME ROUND TRIP as the query — the residual
+   * leaf attribution scores group members against (see `lexicalResidual`). It is
+   * embedded here rather than by `buildLeafScorer` because the cost of an embed
+   * is the round trip and not the payload (measured 2026-09-30: two texts ~2.3s
+   * p50, the same as one), so a residual computed AFTER this call cost a second
+   * 2.3s — half the request — for a vector that could have ridden along.
+   */
+  residualText?: string,
 ): Promise<SemanticResult> {
   if (!config.openrouterApiKey) return { hits: [], skipped: null }; // no key → permanent config state, not degradation
   // Bound the embed: on timeout or provider failure, degrade to lexical-only
@@ -122,7 +138,16 @@ export async function runSemantic(
   const ac = new AbortController();
   const diag: EmbedDiag = {};
   try {
-    const vec = await withTimeout(embedQuery(query, ac.signal, diag), config.semanticEmbedTimeoutMs, "embed");
+    const wanted = residualText && residualText !== query ? [query, residualText] : [query];
+    const embedded = await withTimeout(
+      embedQueries(wanted, ac.signal, diag),
+      config.semanticEmbedTimeoutMs,
+      "embed",
+    );
+    const vec = embedded[0]!;
+    // The residual is the query itself when nothing was left to strip; reuse the
+    // one vector rather than sending the same text twice.
+    const residualVec = residualText ? (embedded[1] ?? vec) : undefined;
     const lit = toVectorLiteral(vec);
     const overFetch = type ? Math.min(k * 4, 200) : k;
     // NOT attribution_only: folded members keep a vector purely so an already
@@ -158,7 +183,7 @@ export async function runSemantic(
       });
       if (out.length >= overFetch) break;
     }
-    return { hits: out, skipped: null };
+    return { hits: out, skipped: null, vecs: { query: vec, ...(residualVec ? { residual: residualVec } : {}) } };
   } catch (err) {
     ac.abort(); // no-op if the failure was past the embed stage
     const reason = embedFailureReason(err, diag);
@@ -273,46 +298,74 @@ export function attributeSemanticHits(
   });
 }
 
-// Build the semantic leaf-scorer for one query: embed the residual once, fetch the
-// members' stored vectors (migration 023's attribution_only rows), and score by
-// cosine. ONE extra embed per query regardless of how many groups were hit — the
-// per-group variant measured only 2 points better (53% vs 51%) for N times the calls.
-//
-// Best-effort by design: any failure (embed timeout, missing vectors, no DB) returns
-// undefined and attribution falls back to the lexical path, which is what shipped
-// before. Retrieval quality degrades to the old behaviour, never to an error.
+/**
+ * The residual text to score group members against, built from the LEXICAL leg.
+ *
+ * Inside a group the instance name discriminates nothing — every member carries
+ * it — so the question minus those words is what picks the leaf. That rule is
+ * load-bearing: measured 2026-09-30 over 98 queries whose target is folded into
+ * a group, scoring members against the plain query vector instead of a residual
+ * collapses ICD disambiguation from 62.5% to 2.5%, worse than no semantic
+ * attribution at all.
+ *
+ * The titles come from the lexical leg rather than the semantic one, and that is
+ * the whole latency fix: `runLexical` is in-memory MiniSearch, so its titles
+ * exist BEFORE the embed, which lets the residual ride in the query's own round
+ * trip. Stripping the semantic leg's titles needs its results first, which is a
+ * second 2.3s round trip — half the request.
+ */
+export function lexicalResidual(query: string, lex: Hit[], docMap: Indexes["docMap"]): string {
+  const titles = lex
+    .slice(0, RESIDUAL_ANCHOR_K)
+    .map((h) => docMap.get(h.id)?.title)
+    .filter((t): t is string => !!t);
+  return residualQuery(query, titles);
+}
+
+/**
+ * Score group members so `pickLeaf` can choose one, using only vectors the
+ * request already has — see `fuseLeafScores` for the rule and its measurement.
+ *
+ * Best-effort by design: no vectors, no DB, or fewer than two scorable members
+ * returns undefined and attribution falls back to the lexical pick. It no longer
+ * embeds anything, so it can no longer time out.
+ */
 export async function buildLeafScorer(
-  query: string,
   sem: Hit[],
-  ix: Indexes,
+  vecs: SemanticResult["vecs"],
 ): Promise<LeafSemanticScore | undefined> {
+  if (!vecs?.residual) return undefined;
   const grouped = sem.filter((h) => (h.memberIds?.length ?? 0) > 1);
   if (grouped.length === 0) return undefined;
-  const memberIds = [...new Set(grouped.flatMap((h) => h.memberIds ?? []))];
-  if (memberIds.length === 0) return undefined;
-  const titles = sem
-    .slice(0, RESIDUAL_ANCHOR_K)
-    .map((h) => ix.docMap.get(h.id)?.title)
-    .filter((t): t is string => !!t);
-  const diag: EmbedDiag = {};
+  // member → its anchor, so the group-echo term and the ranks are per group. A
+  // member belongs to one group (embed-units folds it once), so first wins.
+  const anchorOf = new Map<string, string>();
+  for (const h of grouped) for (const id of h.memberIds ?? []) if (!anchorOf.has(id)) anchorOf.set(id, h.id);
+  if (anchorOf.size === 0) return undefined;
+  const members = [...anchorOf.keys()];
   try {
-    const ac = new AbortController();
-    const vec = await withTimeout(
-      embedQuery(residualQuery(query, titles), ac.signal, diag),
-      config.semanticEmbedTimeoutMs,
-      "residual embed",
-    );
-    const lit = toVectorLiteral(vec);
     const rows = (await sql.unsafe(
-      `SELECT doc_id, 1 - (embedding <=> $1::vector) AS score
-       FROM atlas_doc_embeddings WHERE doc_id = ANY($2::uuid[])`,
-      [lit, toUuidArrayLiteral(memberIds)],
-    )) as { doc_id: string; score: number }[];
+      // One round trip, three cosines per member: against the residual, against
+      // the query, and against its own anchor's stored (grouped) vector.
+      `SELECT m.doc_id, p.anchor_id,
+              1 - (m.embedding <=> $1::vector) AS residual_sim,
+              1 - (m.embedding <=> $2::vector) AS query_sim,
+              1 - (m.embedding <=> a.embedding) AS group_sim
+         FROM unnest($3::uuid[], $4::uuid[]) AS p(member_id, anchor_id)
+         JOIN atlas_doc_embeddings m ON m.doc_id = p.member_id
+         JOIN atlas_doc_embeddings a ON a.doc_id = p.anchor_id`,
+      [
+        toVectorLiteral(vecs.residual),
+        toVectorLiteral(vecs.query),
+        toUuidArrayLiteral(members),
+        toUuidArrayLiteral(members.map((id) => anchorOf.get(id)!)),
+      ],
+    )) as LeafRow[];
     if (rows.length < 2) return undefined;
-    const byId = new Map(rows.map((r) => [r.doc_id, Number(r.score)]));
-    return (id: string) => byId.get(id);
+    const fused = fuseLeafScores(rows);
+    return (id: string) => fused.get(id);
   } catch (err) {
-    console.warn(`  leaf attribution fell back to lexical: ${embedFailureReason(err, diag)}`);
+    console.warn(`  leaf attribution fell back to lexical: ${(err as Error).message}`);
     return undefined;
   }
 }

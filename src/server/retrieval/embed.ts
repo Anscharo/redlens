@@ -116,6 +116,54 @@ export function _clearQueryEmbedCache(): void {
  * already there, and the prefixed text is what gets hashed), so flipping
  * EMBED_QUERY_PREFIX cannot serve a vector embedded under the other setting.
  */
+/**
+ * Embed SEVERAL queries in one round trip, cache included.
+ *
+ * The cost of an embed here is the round trip, not the payload: measured
+ * 2026-09-30, two texts in one call take the same ~2.3s p50 as one. So anything
+ * that needs a second query vector should ask for it HERE, alongside the first,
+ * rather than in its own call — see `runSemantic`, whose leaf attribution used to
+ * pay a second 2.3s for the residual query it scores members against.
+ *
+ * Per-text LRU semantics are preserved: cached texts are served without touching
+ * the network, and only the misses go into the batch.
+ */
+export async function embedQueries(texts: string[], signal?: AbortSignal, diag?: EmbedDiag): Promise<number[][]> {
+  const out = new Array<number[] | undefined>(texts.length);
+  const missIndexes: number[] = [];
+  const cap = config.queryEmbedCacheSize;
+  texts.forEach((t, i) => {
+    const key = cacheKey(config.embedQueryPrefix + t);
+    const hit = cap > 0 ? queryEmbedCache.get(key) : undefined;
+    if (hit) {
+      queryEmbedCache.delete(key);
+      queryEmbedCache.set(key, hit); // bump recency, like embedQuery
+      out[i] = hit;
+    } else missIndexes.push(i);
+  });
+  if (missIndexes.length > 0) {
+    const vecs = await embedBatch(
+      missIndexes.map((i) => config.embedQueryPrefix + texts[i]!),
+      signal,
+      0,
+      diag,
+    );
+    missIndexes.forEach((i, j) => {
+      const v = vecs[j]!;
+      out[i] = v;
+      if (cap > 0) {
+        queryEmbedCache.set(cacheKey(config.embedQueryPrefix + texts[i]!), v);
+        while (queryEmbedCache.size > cap) {
+          const oldest = queryEmbedCache.keys().next().value;
+          if (oldest === undefined) break;
+          queryEmbedCache.delete(oldest);
+        }
+      }
+    });
+  }
+  return out as number[][];
+}
+
 export async function embedQuery(text: string, signal?: AbortSignal, diag?: EmbedDiag): Promise<number[]> {
   const prefixed = config.embedQueryPrefix + text;
   const cap = config.queryEmbedCacheSize;

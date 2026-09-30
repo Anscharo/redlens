@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-09-30
+- Chat answers and meaning search now come back about two seconds faster
+
 ## 2026-09-29
 - Recent previews now follow your signed-in account across browsers, and include previews of private repositories
 - A search that finds nothing now offers a spelling correction you can click, instead of suggesting a fuzzy-search operator to type

@@ -6,7 +6,7 @@
 // address / query land alongside in Task #6 once the pg + embedding layers
 // exist; they take the same Indexes plus a SQL handle.
 import { type Indexes, ancestorChain, resolveNode, type AtlasNode } from "../../retrieval/indexes.ts";
-import { runLexical, runSemantic, rrfMerge, attributeSemanticHits, buildLeafScorer, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
+import { lexicalResidual, runLexical, runSemantic, rrfMerge, attributeSemanticHits, buildLeafScorer, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { statsSection } from "./tools-stats.ts";
 import { censusesSection } from "./tools-censuses.ts";
@@ -153,16 +153,23 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
   const hasPhrases = phrases.length > 0 || casePhrases.length > 0;
   const fetchK = mode === "lexical" && !hasPhrases ? k : Math.min(k * 4, 200);
 
-  const [lex, semResult] = await Promise.all([
-    mode === "semantic" ? Promise.resolve([]) : Promise.resolve(runLexical(ix, query, type, fetchK)),
+  // The lexical leg is synchronous in-memory MiniSearch, so nothing is lost by
+  // running it first — and leaf attribution's residual, built from its titles,
+  // then rides in the query's own embed round trip rather than buying a second
+  // one (see `lexicalResidual`). `semantic` mode still computes it for that
+  // residual, and still keeps it out of the results.
+  const lexAll = runLexical(ix, query, type, fetchK);
+  const lex = mode === "semantic" ? [] : lexAll;
+  const semResult =
     mode === "lexical"
-      ? Promise.resolve<SemanticResult>({ hits: [], skipped: null })
-      // runSemantic no longer throws on a normal degraded-leg failure; this
-      // catch is defensive-only, preserving the reason rather than the old
-      // information-destroying `.catch(() => [])`.
-      : runSemantic(ix, query, type, fetchK).catch((err) => ({ hits: [], skipped: (err as Error).message })),
-  ]);
-  const sem = attributeSemanticHits(query, lex, semResult.hits, ix, await buildLeafScorer(query, semResult.hits, ix));
+      ? ({ hits: [], skipped: null } satisfies SemanticResult)
+      : await runSemantic(
+          ix, query, type, fetchK, undefined, lexicalResidual(query, lexAll, ix.docMap),
+          // runSemantic no longer throws on a normal degraded-leg failure; this
+          // catch is defensive-only, preserving the reason rather than the old
+          // information-destroying `.catch(() => [])`.
+        ).catch((err): SemanticResult => ({ hits: [], skipped: (err as Error).message }));
+  const sem = attributeSemanticHits(query, lex, semResult.hits, ix, await buildLeafScorer(semResult.hits, semResult.vecs));
 
   let merged: MergedHit[];
   if (mode === "lexical") merged = lex.map((h) => ({ id: h.id, sources: ["lexical"], rrf_score: 0, score: h.score }));
