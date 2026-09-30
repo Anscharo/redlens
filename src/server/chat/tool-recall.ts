@@ -12,10 +12,25 @@
 // deterministic extract of handles (ids, titles, doc numbers, a short
 // excerpt) so the model can re-call the tool. It is not evidence the
 // verifier may ground a quote against — evidenceFromTranscript skips ids
-// that start with RECALL_ID_PREFIX.
+// that isRecallToolId recognizes.
 import { randomUUID } from "node:crypto";
 
+/**
+ * Replay tool-call ids. New cards are `rcall` plus 20 hex characters: no `_`
+ * or `-`, which some providers reject in `tool_call_id`. Rows written before
+ * that change are `rcall_<uuid>` and stay valid — replay reads the stored id,
+ * it does not remint it. `isRecallToolId` recognizes both so a card never
+ * becomes verifier evidence.
+ */
 export const RECALL_ID_PREFIX = "rcall_";
+
+export function isRecallToolId(id: string): boolean {
+  return id.startsWith(RECALL_ID_PREFIX) || /^rcall[0-9a-f]{20}$/.test(id);
+}
+
+function mintRecallId(): string {
+  return `rcall${randomUUID().replace(/-/g, "").slice(0, 20)}`;
+}
 export const RECALL_MAX_CHARS = 1_800;
 export const RECALL_MAX_ITEMS = 12;
 const SNIPPET_CHARS = 280;
@@ -217,7 +232,7 @@ export function attachRecall(calls: RecallToolCall[], transcript: TranscriptMsg[
   const contents = recalledToolContents(transcript);
   return calls.map((call, i) => ({
     ...call,
-    recall_id: call.recall_id ?? `${RECALL_ID_PREFIX}${randomUUID()}`,
+    recall_id: call.recall_id ?? mintRecallId(),
     recall: call.recall ?? toolRecall(call.name, call.args ?? {}, contents[i] ?? "", call.ok),
   }));
 }

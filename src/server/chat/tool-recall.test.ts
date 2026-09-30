@@ -105,7 +105,7 @@ describe("attachRecall", () => {
       [{ name: "atlas_search", args: { query: "freezer" }, ok: true, bytes: searchResult.length }],
       transcript,
     );
-    expect(card.recall_id?.startsWith("rcall_")).toBe(true);
+    expect(card.recall_id).toMatch(/^rcall[0-9a-f]{20}$/);
     expect(card.recall).toContain("title=Freezer");
     const again = attachRecall([card], transcript);
     expect(again[0].recall_id).toBe(card.recall_id);

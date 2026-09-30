@@ -174,7 +174,10 @@ the replay reaches 90% of `CHAT_CONTEXT_WINDOW_TOKENS` (default 200k, the
 smallest window in the routing chain). That turn summarizes the prefix once
 into `conversations.summary` and keeps a short tail. The summary is a stable
 message pair after the system prompt — provider caches match a byte-identical
-prefix, so the summary is not rewritten on the turns in between. Earlier tool
+prefix, so the summary is not rewritten on the turns in between. A failed
+summary (timeout, error, or unparseable output) leaves the full thread in
+place and is not retried for five minutes, so a model outage does not add
+the summary timeout to every later turn. Earlier tool
 results are not replayed raw. Each call is reduced to a lookup card once, when
 the turn is saved (`tool-recall.ts`), and that card is what later turns see.
 
@@ -700,7 +703,7 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   round (`context-compact.ts`'s `historyReplay`). The card is not regenerated
   on read: a rewritten card would change bytes in the middle of the prompt and
   drop the provider cache for everything after it. `evidenceFromTranscript`
-  skips ids prefixed `rcall_`, so a card cannot ground a quote — the answerer
+  skips recall ids (`rcall` plus 20 hex, or an older `rcall_` id), so a card cannot ground a quote — the answerer
   still has to retrieve the document on the turn that cites it.
   `priorTurnsEvidence` still hands the verifier earlier answers as `[E-prev]`.
 - **The one thing about a prior turn that IS replayed: its disputes**
@@ -891,7 +894,7 @@ doesn't cover this".
 A citation the turn never retrieved gets **silence**. We cannot check what we did not
 see, and the system prompt already forbids linking a document the turn did not
 retrieve, so such a citation is either a legitimate carry-over from an earlier turn
-(a lookup card from an earlier turn is not a retrieval — `evidenceFromTranscript` skips `rcall_` ids — so last turn's document text is not in this turn unless the tool is called again)
+(a lookup card from an earlier turn is not a retrieval — `evidenceFromTranscript` skips recall ids — so last turn's document text is not in this turn unless the tool is called again)
 or a prompt violation. Neither is checkable. Omitting the map entirely is different
 from an empty one — no map means provenance is not engaged and every citation takes
 the document question, which is what the checks-off path does.

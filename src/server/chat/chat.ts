@@ -18,7 +18,14 @@ import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } fr
 import type { PageContext } from "./system-prompt.ts";
 import { summarizeFacts } from "../facts/registry.ts";
 import { prepareTurn } from "./turn-setup.ts";
-import { compactForReplay, rowsAfterCursor, type ReplayRow } from "./context-compact.ts";
+import {
+  clearSummaryFailure,
+  compactForReplay,
+  noteSummaryFailure,
+  rowsAfterCursor,
+  summaryCoolingDown,
+  type ReplayRow,
+} from "./context-compact.ts";
 import { attachRecall, type RecallToolCall } from "./tool-recall.ts";
 import { agreedContradictionsFrom } from "./verify/disputes.ts";
 import { titleConversation, buildTitleTranscript } from "./title.ts";
@@ -241,9 +248,11 @@ export async function handleChat(req: Request): Promise<Response> {
     };
     // Compaction runs before the first token of the turn that would cross
     // 90% of the context window, and only then. A failure leaves the full
-    // tail in place. The summary pair is stable until the next compaction,
-    // so the turns in between keep a cacheable prefix.
-    if (!teachCmd && config.chatSummaryModel) {
+    // tail in place and is not retried for SUMMARY_FAILURE_COOLDOWN_MS, so a
+    // hung summary model does not add chatSummaryTimeoutMs to every later
+    // turn. The summary pair is stable until the next compaction, so the
+    // turns in between keep a cacheable prefix.
+    if (!teachCmd && config.chatSummaryModel && !summaryCoolingDown(convId)) {
       const compacted = await compactForReplay({
         rows: history,
         summary,
@@ -252,9 +261,15 @@ export async function handleChat(req: Request): Promise<Response> {
         model: config.chatSummaryModel,
         timeoutMs: config.chatSummaryTimeoutMs,
       });
+      if (compacted.failed) noteSummaryFailure(convId);
       if (compacted.compacted && compacted.uptoId) {
+        clearSummaryFailure(convId);
         summary = compacted.summary;
         history = compacted.rows;
+        // This turn replays `summary` from memory. If the write fails, the
+        // next turn re-reads the old cursor and compacts again — a second,
+        // different summary, and a cache miss. The error is captured; the
+        // turn still answers.
         await sql`
           UPDATE conversations SET summary = ${summary}, summary_upto_id = ${compacted.uptoId} WHERE id = ${convId}
         `.catch((err) => {

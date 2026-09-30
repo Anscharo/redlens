@@ -15,7 +15,7 @@ import { FACT_TOOL_NAME } from "../../facts/registry.ts";
 import { isUserTeachingTool } from "../teach/inject.ts";
 import { DISPUTE_TOOL_NAME } from "../dispute-round.ts";
 import { SUMMARY_ACK } from "../context-compact.ts";
-import { RECALL_ID_PREFIX } from "../tool-recall.ts";
+import { isRecallToolId } from "../tool-recall.ts";
 import { TOOLS_BY_NAME } from "../tools/tool-registry.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -241,7 +241,7 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
       // Lookup cards replayed from earlier turns (tool-recall.ts). They are
       // handles and excerpts, not the documents, and quote-grounding must not
       // certify a sentence against one.
-      if (m.tool_call_id.startsWith(RECALL_ID_PREFIX)) continue;
+      if (isRecallToolId(m.tool_call_id)) continue;
       const call = callById.get(m.tool_call_id) ?? { tool: "unknown", args: "{}" };
       if (isDisputeRound(call.tool)) continue; // not evidence — see isDisputeRound
       entries.push({
@@ -264,7 +264,7 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
 // factored through the shared `budgetEvidence` so the two paths cannot diverge
 // on policy. `args` is always "(streamed)": there is no tool_call arguments
 // string to recover mid-stream. Lookup cards from earlier turns are skipped
-// by evidenceFromTranscript (rcall_ ids) and never reach this function.
+// by evidenceFromTranscript (recall ids) and never reach this function.
 export function evidenceFromResults(results: { name: string; content: string }[], maxChars = config.chatVerifierEvidenceMaxChars): EvidenceEntry[] {
   // Filtered BEFORE the map so the [E..] labels stay contiguous.
   const entries: EvidenceEntry[] = results.filter((r) => !isDisputeRound(r.name)).map((r, i) => ({

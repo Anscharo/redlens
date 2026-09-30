@@ -4,7 +4,11 @@ import {
   COMPACT_RATIO,
   COMPACT_TAIL,
   CONTEXT_OVERHEAD_TOKENS,
+  clearSummaryFailure,
   compactForReplay,
+  noteSummaryFailure,
+  SUMMARY_FAILURE_COOLDOWN_MS,
+  summaryCoolingDown,
   historyReplay,
   needsCompaction,
   parseSummary,
@@ -147,6 +151,7 @@ describe("compactForReplay", () => {
       rows, summary: null, windowTokens: window, overheadTokens: 0, call, model: "test-model", timeoutMs: 1_000,
     });
     expect(out.compacted).toBe(true);
+    expect(out.failed).toBe(false);
     expect(out.summary).toContain("UUID abc");
     expect(out.uptoId).toBe("id-1");
     expect(out.rows.map((r) => r.id)).toEqual(rows.slice(-COMPACT_TAIL).map((r) => r.id));
@@ -201,8 +206,44 @@ describe("compactForReplay", () => {
       rows, summary: "prior", windowTokens: 100, overheadTokens: 0, call: fail, model: "test-model", timeoutMs: 1_000,
     });
     expect(out.compacted).toBe(false);
+    expect(out.failed).toBe(true);
     expect(out.rows).toBe(rows);
     expect(out.summary).toBe("prior");
+  });
+
+  it("marks an unparseable summary as a failure without dropping the thread", async () => {
+    const junk: JsonCall = async () => ({
+      text: "nope",
+      usage: { input: 1, output: 1 },
+      generationId: "gen-junk",
+      latencyMs: 1,
+    });
+    const rows = Array.from({ length: 8 }, (_, i) => row(`id-${i}`, "user", "x".repeat(2_000)));
+    const out = await compactForReplay({
+      rows, summary: null, windowTokens: 100, overheadTokens: 0, call: junk, model: "test-model", timeoutMs: 1_000,
+    });
+    expect(out.failed).toBe(true);
+    expect(out.compacted).toBe(false);
+    expect(out.rows).toBe(rows);
+  });
+});
+
+describe("summary failure cooldown", () => {
+  it("skips another attempt until the cooldown elapses, then forgets it", () => {
+    const conv = "conv-summary-backoff-wait";
+    clearSummaryFailure(conv);
+    expect(summaryCoolingDown(conv, 1_000)).toBe(false);
+    noteSummaryFailure(conv, 1_000);
+    expect(summaryCoolingDown(conv, 1_000 + 60_000)).toBe(true);
+    expect(summaryCoolingDown(conv, 1_000 + SUMMARY_FAILURE_COOLDOWN_MS)).toBe(false);
+    expect(summaryCoolingDown(conv, 1_000 + SUMMARY_FAILURE_COOLDOWN_MS + 1)).toBe(false);
+  });
+
+  it("a cleared failure is eligible immediately", () => {
+    const conv = "conv-summary-backoff-clear";
+    noteSummaryFailure(conv, 5_000);
+    clearSummaryFailure(conv);
+    expect(summaryCoolingDown(conv, 5_001)).toBe(false);
   });
 });
 
@@ -216,6 +257,21 @@ describe("verifier and recall cards", () => {
         tool_calls: [{ id: "rcall_fixed", type: "function" as const, function: { name: "atlas_get", arguments: "{}" } }],
       },
       { role: "tool" as const, tool_call_id: "rcall_fixed", content: "atlas_get\n- id=abc\nRe-call atlas_get for the full result before quoting it." },
+      { role: "assistant" as const, content: "answer" },
+    ];
+    expect(evidenceFromTranscript(transcript)).toEqual([]);
+  });
+
+  it("does not treat a hyphen-free recall id as atlas evidence", () => {
+    const id = "rcall0123456789abcdef0123";
+    const transcript = [
+      { role: "user" as const, content: "q" },
+      {
+        role: "assistant" as const,
+        content: null,
+        tool_calls: [{ id, type: "function" as const, function: { name: "atlas_get", arguments: "{}" } }],
+      },
+      { role: "tool" as const, tool_call_id: id, content: "atlas_get\n- id=abc\nRe-call atlas_get for the full result before quoting it." },
       { role: "assistant" as const, content: "answer" },
     ];
     expect(evidenceFromTranscript(transcript)).toEqual([]);

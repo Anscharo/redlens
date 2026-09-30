@@ -253,26 +253,61 @@ export interface CompactResult {
   summary: string | null;
   uptoId: string | null;
   compacted: boolean;
+  /**
+   * A summary call ran and produced nothing (timeout, error, unparseable
+   * output). The full rows are still returned. The caller should back off
+   * so the next turn does not pay the timeout again.
+   */
+  failed: boolean;
+}
+
+/**
+ * How long chat.ts skips another summary after `failed`. A provider outage
+ * must not add chatSummaryTimeoutMs of dead air to every later turn of a
+ * thread that is still over the line. In-memory and per process: a restart
+ * retries on the next turn, which is the right time to try again.
+ */
+export const SUMMARY_FAILURE_COOLDOWN_MS = 5 * 60_000;
+
+const summaryRetryAt = new Map<string, number>();
+
+export function summaryCoolingDown(convId: string, now = Date.now()): boolean {
+  const until = summaryRetryAt.get(convId);
+  if (until == null) return false;
+  if (now >= until) {
+    summaryRetryAt.delete(convId);
+    return false;
+  }
+  return true;
+}
+
+export function noteSummaryFailure(convId: string, now = Date.now()): void {
+  summaryRetryAt.set(convId, now + SUMMARY_FAILURE_COOLDOWN_MS);
+}
+
+export function clearSummaryFailure(convId: string): void {
+  summaryRetryAt.delete(convId);
 }
 
 /**
  * Compact when the replay is at 90% of the window. On any failure (timeout,
  * empty model, unparseable summary) the full rows are returned unchanged —
  * a missed compaction degrades to a large prompt, never a dropped thread.
+ * `failed` is set only when a summary call was actually attempted.
  */
 export async function compactForReplay(input: CompactInput): Promise<CompactResult> {
   const { rows, summary, windowTokens, call, model, timeoutMs } = input;
   const overhead = input.overheadTokens ?? CONTEXT_OVERHEAD_TOKENS;
-  const unchanged: CompactResult = { rows, summary, uptoId: null, compacted: false };
+  const unchanged: CompactResult = { rows, summary, uptoId: null, compacted: false, failed: false };
   if (!model) return unchanged;
   if (!needsCompaction(summary, rows, windowTokens, overhead)) return unchanged;
   const plan = planCompaction(rows);
   if (!plan) return unchanged;
   try {
     const next = await summarizeFold(summary, plan.fold, call, model, windowTokens, timeoutMs);
-    if (!next) return unchanged;
-    return { rows: plan.tail, summary: next, uptoId: plan.uptoId, compacted: true };
+    if (!next) return { ...unchanged, failed: true };
+    return { rows: plan.tail, summary: next, uptoId: plan.uptoId, compacted: true, failed: false };
   } catch {
-    return unchanged;
+    return { ...unchanged, failed: true };
   }
 }
