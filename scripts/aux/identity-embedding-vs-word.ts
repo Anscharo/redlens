@@ -183,6 +183,7 @@ const front = (xs: typeof pts) => xs
 for (const [title, pool] of [["WITHOUT the embedding (line and word only)", pts.filter((p) => !p.usesQwen)], ["WITH the embedding allowed", pts]] as const) {
   console.log(`\n  best rules ${title}:`);
   console.log(`    ${"rule".padEnd(44)} half 1: edits flagged / siblings missed      half 2: edits flagged / siblings missed / unrelated missed`);
+  console.log('\n U1', u1)
   for (const p of front(pool)) {
     console.log(`    ${p.name.padEnd(44)} ${pc(p.flags, e1.length).padStart(5)}% / ${pc(p.miss, s1.length).padStart(5)}%` +
       `                          ${pc(count(e2, p.f), e2.length).padStart(5)}% (${count(e2, (x) => p.f(x) && cosmetic(x))} cosmetic) / ${pc(count(s2, (x) => !p.f(x)), s2.length).padStart(5)}% / ${pc(count(u2, (x) => !p.f(x)), u2.length).padStart(4)}%`);

@@ -12,6 +12,7 @@ import { cleanContent } from "../lib/atlas-parser.mjs";
 import { embedBatch } from "../../src/server/retrieval/embed.ts";
 import { resolve } from "../../src/server/preview/embeddings-store.ts";
 import { lines, sameTitle, words, type SwapNode } from "../../src/server/preview/identity.ts";
+import { fetchRemoteNodes } from "../lib/fetchNodes.ts"
 
 export type Kind = "lint" | "typo" | "semantic";
 export interface Edit { id: string; kind: Kind; before: string; after: string }
@@ -45,9 +46,7 @@ export async function loadCorpus(origin: string, refresh = false): Promise<{ doc
   const file = `${CACHE_DIR}/corpus.json`;
   if (!refresh && fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, "utf8"));
 
-  const docsRes = await fetch(`${origin}/docs.json`);
-  if (!docsRes.ok) throw new Error(`docs.json ${docsRes.status}`);
-  const nodes = (await docsRes.json()).nodes as Record<string, any>;
+  const nodes = await fetchRemoteNodes(origin);
   const docs: Record<string, LiveDoc> = {};
   for (const [id, n] of Object.entries(nodes)) docs[id] = { id, title: n.title, content: n.content, parentId: n.parentId };
 
@@ -79,6 +78,8 @@ export async function loadCorpus(origin: string, refresh = false): Promise<{ doc
   fs.writeFileSync(file, JSON.stringify(out));
   return out;
 }
+
+
 
 // Deterministic PRNG so a rerun reproduces the published numbers.
 export function prng(seed = 7) {
