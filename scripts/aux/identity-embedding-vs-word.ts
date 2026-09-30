@@ -174,7 +174,7 @@ for (const useLine of [false, true]) {
     grid.push([`${pre}(word<=${w.toFixed(2)} OR qwen<=${q.toFixed(2)})`, (p) => gate(p) && (p.word <= w || p.qwen <= q)]);
   }
 }
-const e1 = half(0)(E), s1 = half(0)(S), u1 = half(0)(U), e2 = half(1)(E), s2 = half(1)(S), u2 = half(1)(U);
+const e1 = half(0)(E), s1 = half(0)(S), e2 = half(1)(E), s2 = half(1)(S), u2 = half(1)(U);
 const pts = grid.map(([name, f]) => ({ name, f, flags: count(e1, f), miss: count(s1, (p) => !f(p)), usesQwen: name.includes("qwen") }));
 const front = (xs: typeof pts) => xs
   .filter((a) => !xs.some((b) => (b.flags <= a.flags && b.miss < a.miss) || (b.flags < a.flags && b.miss <= a.miss)))
@@ -183,7 +183,6 @@ const front = (xs: typeof pts) => xs
 for (const [title, pool] of [["WITHOUT the embedding (line and word only)", pts.filter((p) => !p.usesQwen)], ["WITH the embedding allowed", pts]] as const) {
   console.log(`\n  best rules ${title}:`);
   console.log(`    ${"rule".padEnd(44)} half 1: edits flagged / siblings missed      half 2: edits flagged / siblings missed / unrelated missed`);
-  console.log('\n U1', u1)
   for (const p of front(pool)) {
     console.log(`    ${p.name.padEnd(44)} ${pc(p.flags, e1.length).padStart(5)}% / ${pc(p.miss, s1.length).padStart(5)}%` +
       `                          ${pc(count(e2, p.f), e2.length).padStart(5)}% (${count(e2, (x) => p.f(x) && cosmetic(x))} cosmetic) / ${pc(count(s2, (x) => !p.f(x)), s2.length).padStart(5)}% / ${pc(count(u2, (x) => !p.f(x)), u2.length).padStart(4)}%`);

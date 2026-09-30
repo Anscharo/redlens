@@ -12,7 +12,7 @@ import { cleanContent } from "../lib/atlas-parser.mjs";
 import { embedBatch } from "../../src/server/retrieval/embed.ts";
 import { resolve } from "../../src/server/preview/embeddings-store.ts";
 import { lines, sameTitle, words, type SwapNode } from "../../src/server/preview/identity.ts";
-import { fetchRemoteNodes } from "./fetchNodes.ts"
+import { fetchRemoteNodes } from "./fetchNodes.ts";
 
 export type Kind = "lint" | "typo" | "semantic";
 export interface Edit { id: string; kind: Kind; before: string; after: string }
@@ -78,8 +78,6 @@ export async function loadCorpus(origin: string, refresh = false): Promise<{ doc
   fs.writeFileSync(file, JSON.stringify(out));
   return out;
 }
-
-
 
 // Deterministic PRNG so a rerun reproduces the published numbers.
 export function prng(seed = 7) {
