@@ -51,6 +51,12 @@ describe("askJev request shape", () => {
     expect(calls[0].body.questions.smalltalk.type).toBe("noul");
   });
 
+  it("sends the OpenRouter X-Title attribution header", async () => {
+    const calls = stubFetch([ok(noulBody)]);
+    await askJev({ state: {}, questions: q, model: "typesafe/jev-1.13" });
+    expect(calls[0].headers["X-Title"]).toStartWith("Sky Atlas Redline");
+  });
+
   it("maps usage, cost and generation id off the response", async () => {
     stubFetch([ok(noulBody)]);
     const run = await askJev({ state: {}, questions: q, model: "m" });

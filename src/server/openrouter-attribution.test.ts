@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { openrouterAppTitle } from "./openrouter-attribution.ts";
+import { openrouterAppTitle, openrouterAttributionHeaders } from "./openrouter-attribution.ts";
 
 const KEYS = ["RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT", "OPENROUTER_APP_KIND"] as const;
 const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
@@ -39,4 +39,26 @@ test("evals win over environment", () => {
   process.argv[1] = "/repo/scripts/aux/x.ts";
   process.env.OPENROUTER_APP_KIND = "eval";
   expect(openrouterAppTitle()).toBe("Sky Atlas Redline Evals");
+});
+
+test("falls back to RAILWAY_ENVIRONMENT, and past empty/blank values to Local", () => {
+  clear();
+  process.env.RAILWAY_ENVIRONMENT = "staging";
+  expect(openrouterAppTitle()).toBe("Sky Atlas Redline (staging)");
+  process.env.RAILWAY_ENVIRONMENT_NAME = "";
+  expect(openrouterAppTitle()).toBe("Sky Atlas Redline (staging)");
+  process.env.RAILWAY_ENVIRONMENT_NAME = "  ";
+  process.env.RAILWAY_ENVIRONMENT = "  ";
+  expect(openrouterAppTitle()).toBe("Sky Atlas Redline (Local)");
+});
+
+test("detects eval scripts on Windows-style paths", () => {
+  clear();
+  process.argv[1] = "C:\\repo\\scripts\\eval\\eval-golden.ts";
+  expect(openrouterAppTitle()).toBe("Sky Atlas Redline Evals");
+});
+
+test("headers carry the title as X-Title", () => {
+  clear();
+  expect(openrouterAttributionHeaders()).toEqual({ "X-Title": "Sky Atlas Redline (Local)" });
 });

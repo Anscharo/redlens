@@ -11,9 +11,11 @@ const isEval = (): boolean =>
 
 export function openrouterAppTitle(): string {
   if (isEval()) return `${BASE} Evals`;
-  // Read live (not via config) so the name is never stale and the eval check
-  // above stays independent of config load order. Case is kept as Railway gives it.
-  const env = (process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.RAILWAY_ENVIRONMENT ?? "").trim();
+  // Read at call time (not via config) so this stays independent of config load
+  // order. Callers that cache a client (chat) freeze the title at first use.
+  // `||` not `??`: an empty NAME var must fall through to the second. Case is
+  // kept as Railway gives it.
+  const env = (process.env.RAILWAY_ENVIRONMENT_NAME?.trim() || process.env.RAILWAY_ENVIRONMENT?.trim() || "");
   return `${BASE} (${env || "Local"})`;
 }
 

@@ -12,8 +12,6 @@ import type { ChatStream } from "./chat-loop.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
-const DEFAULT_HEADERS = openrouterAttributionHeaders(); // OpenRouter attribution.
-
 let client: OpenAI | null = null;
 
 // Lazy singleton — constructing without a key is fine; the loop guards on it.
@@ -24,7 +22,7 @@ export function getClient(): OpenAI {
     client = new OpenAI({
       apiKey: config.openrouterApiKey,
       baseURL: config.openrouterBaseUrl,
-      defaultHeaders: DEFAULT_HEADERS,
+      defaultHeaders: openrouterAttributionHeaders(), // OpenRouter attribution, fixed when the singleton is built.
     });
   }
   return client;
@@ -43,7 +41,7 @@ function getChatClient(): OpenAI {
     ? new PostHogOpenAI({
         apiKey: config.openrouterApiKey,
         baseURL: config.openrouterBaseUrl,
-        defaultHeaders: DEFAULT_HEADERS,
+        defaultHeaders: openrouterAttributionHeaders(), // OpenRouter attribution, fixed when the singleton is built.
         posthog,
       })
     : getClient();

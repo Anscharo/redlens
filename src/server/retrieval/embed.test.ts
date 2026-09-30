@@ -98,3 +98,19 @@ test("embedQuery cache is bypassed when size is 0", async () => {
     config.queryEmbedCacheSize = prevCap;
   }
 });
+
+test("embedBatch sends the OpenRouter X-Title attribution header", async () => {
+  const prevKey = config.openrouterApiKey;
+  config.openrouterApiKey = "test-key";
+  let sent: Record<string, string> = {};
+  globalThis.fetch = (async (_url: any, init: any) => {
+    sent = init.headers;
+    return new Response(JSON.stringify({ data: [{ embedding: [1, 0, 0], index: 0 }] }), { status: 200 });
+  }) as unknown as typeof fetch;
+  try {
+    await embedBatch(["x"]);
+    expect(sent["X-Title"]).toStartWith("Sky Atlas Redline");
+  } finally {
+    config.openrouterApiKey = prevKey;
+  }
+});
