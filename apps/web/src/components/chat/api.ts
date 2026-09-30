@@ -183,7 +183,14 @@ export type ChatEvent =
       usage: { input: number; output: number };
       generationId: string | null;
       toolCalls: ToolCallRecord[];
-      // True context size of the turn (last llm round's prompt_tokens).
+      // What the NEXT turn of this conversation will read: its replay plus the
+      // standing system prompt + tool schemas (server: contextUsedTokens). This
+      // is what the meter shows — it only grows until a fold, and a fold is the
+      // one thing that makes it drop.
+      contextUsed?: number;
+      // The measured prompt_tokens of this turn's last model round. Kept for
+      // cost/telemetry; NOT the meter, because it counts tool results the next
+      // turn never replays, so it fell as often as it rose.
       // Optional so an older server (pre this field) still parses.
       contextTokens?: number | null;
     }

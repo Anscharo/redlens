@@ -562,9 +562,10 @@ describe("handleChat", () => {
     ];
     sqlHandlers.push((text) => {
       if (text.includes("FROM usage_events")) return [{ tokens: opts.tokens ?? 0 }];
+      if (text.includes("SELECT summary, summary_upto_id")) return [{ summary: null, summary_upto_id: null }];
       if (text.includes("conversations WHERE id")) return [{ id: convId }];
       if (text.includes("INSERT INTO conversations")) return [{ id: convId }];
-      if (text.includes("SELECT role, content FROM messages")) return history;
+      if (text.includes("SELECT id, role, content, tool_calls FROM messages")) return history;
       if (text.includes("UPDATE conversations SET updated_at")) return [];
       if (text.includes("INSERT INTO messages") && text.includes("RETURNING id")) return [{ id: "msg-1" }];
       return undefined;

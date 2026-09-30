@@ -1,6 +1,6 @@
 // Everything that shapes a chat turn BEFORE the first model call, in one place:
 // the pre-first-token Jev judgement, tier routing, the system prompt, the
-// windowed history, the facts round and the /teach notes round. The SSE route
+// full history, the facts round and the /teach notes round. The SSE route
 // (chat.ts) and the tool-choice eval (scripts/eval/eval-tools.ts) both call
 // prepareTurn, so an eval measures the turn production actually sends — the
 // older evals built only a system prompt + one user message, which is a
@@ -16,7 +16,7 @@ import { config } from "../config.ts";
 import { routeTier, resolveTierModels, citationStyleFor, iterationsForTier, type ModelTier, type Route } from "./model-router.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
 import { runFacts, factRound, type FactInjection } from "../facts/registry.ts";
-import { windowHistory, type HistoryRow } from "./chat-history.ts";
+import { historyReplay, summaryReplay, type ReplayRow } from "./context-compact.ts";
 import { judgePrefetch, filterTeachingsByJev, type PrefetchJudgement } from "./prefetch-judge.ts";
 import { teachingRound } from "./teach/inject.ts";
 import type { RankedTeaching } from "./teach/match.ts";
@@ -28,10 +28,15 @@ type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 export interface TurnInput {
   ix: Indexes;
   message: string;
-  /** The conversation exactly as chat.ts loads it: every stored row, oldest
-   *  first, INCLUDING the user message just persisted for this turn. Both the
-   *  history window and follow-up routing read it that way. */
-  history: HistoryRow[];
+  /** The conversation exactly as chat.ts loads it: every stored row still
+   *  outside the compaction cursor, oldest first, INCLUDING the user message
+   *  just persisted for this turn. Follow-up routing reads it that way.
+   *  Messages already folded into `summary` are not in this array. */
+  history: ReplayRow[];
+  /** Stable summary of turns folded at the context-window line. Null until
+   *  the first compaction. Replay puts it in its own message pair so later
+   *  turns append after a byte-identical prefix. */
+  summary?: string | null;
   pageContext?: PageContext;
   /** This user's matched /teach notes (chat.ts's DB lookup). An eval has no
    *  user, so it passes none. */
@@ -94,12 +99,14 @@ export async function prepareTurn(input: TurnInput): Promise<PreparedTurn> {
   const models = resolveTierModels(route.tier);
   const maxIterations = iterationsForTier(route.tier);
 
-  // The DB keeps the full conversation; the model gets a windowed replay
-  // (recent turns verbatim, older ones truncated, hard char budget) so long
-  // conversations never grow the per-round context without bound.
+  // Full transcript. Older turns stay verbatim until compactForReplay (called
+  // from chat.ts before this) replaces a prefix with `summary` at 90% of the
+  // model window. Lookup cards ride inside history rows and expand here into
+  // a tool round that was written once, at persist time.
   const messages: Msg[] = [
     { role: "system", content: buildSystemPrompt(ix, pageContext, citationStyleFor(models[0]), undefined, maxIterations) },
-    ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    ...(input.summary ? summaryReplay(input.summary) : []),
+    ...historyReplay(history),
   ];
 
   // Dispute round (dispute-round.ts): agreed verifier contradictions against

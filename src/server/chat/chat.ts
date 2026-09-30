@@ -1,7 +1,11 @@
 // POST /api/chat — the agentic chat endpoint. Auth-gated, SSE-streamed. Owns
 // auth + conversation persistence; everything that shapes the turn before the
-// first model call (Jev judgement, tier routing, system prompt, history window,
-// facts, /teach notes) lives in prepareTurn (turn-setup.ts), the tool-calling
+// first model call (Jev judgement, tier routing, system prompt, full history,
+// facts, /teach notes) lives in prepareTurn (turn-setup.ts). History replay
+// and the 90% context compaction live in context-compact.ts (with its one
+// summarization call in context-summary.ts and the provider-rejection recovery
+// in context-overflow.ts); lookup cards
+// for earlier tool calls live in tool-recall.ts. The tool-calling
 // control flow in the pure runChat() loop (chat-loop.ts), the LLM stream in llm.ts.
 //
 // Order (per advisor): create conversation (if new) + persist the USER message
@@ -16,6 +20,23 @@ import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } fr
 import type { PageContext } from "./system-prompt.ts";
 import { summarizeFacts } from "../facts/registry.ts";
 import { prepareTurn } from "./turn-setup.ts";
+import {
+  clearSummaryFailure,
+  compactForReplay,
+  contextUsedTokens,
+  noteSummaryFailure,
+  rowsAfterCursor,
+  summaryCoolingDown,
+  type ReplayRow,
+} from "./context-compact.ts";
+import {
+  clearContextOverflow,
+  isContextOverflowError,
+  noteContextOverflow,
+  shouldForceFold,
+} from "./context-overflow.ts";
+import { attachRecall } from "./tool-recall.ts";
+import type { RecallToolCall } from "./tool-recall-card.ts";
 import { agreedContradictionsFrom } from "./verify/disputes.ts";
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
@@ -203,9 +224,12 @@ export async function handleChat(req: Request): Promise<Response> {
     // AFTER the stream's `done`, so a user who sends their next message while
     // that write is still in flight gets no injection for THIS one turn —
     // degrades to today's behaviour (no dispute round at all), never worse.
-    const [history, , lastVerify] = (await Promise.all([
-      sql`SELECT role, content FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
-      sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId}`,
+    const [historyRows, convState, lastVerify] = (await Promise.all([
+      sql`SELECT id, role, content, tool_calls FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
+      // updated_at bump + the compaction cursor in one statement: the summary
+      // columns live on the row this UPDATE already touches, so reading them
+      // back costs nothing and saves a fourth round-trip per turn.
+      sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId} RETURNING summary, summary_upto_id`,
       sql`
         SELECT mc.verdict FROM (
           SELECT id FROM messages
@@ -214,38 +238,99 @@ export async function handleChat(req: Request): Promise<Response> {
         ) m
         JOIN message_checks mc ON mc.message_id = m.id AND mc.kind = 'verify'
       `.catch(() => [] as { verdict: unknown }[]),
-    ])) as [{ role: string; content: string }[], unknown, { verdict: unknown }[]];
+    ])) as [
+      { id: string; role: string; content: string; tool_calls: RecallToolCall[] | null }[],
+      { summary: string | null; summary_upto_id: string | null }[],
+      { verdict: unknown }[],
+    ];
     const disputes = agreedContradictionsFrom(lastVerify[0]?.verdict);
+    let summary = convState[0]?.summary ?? null;
+    let history: ReplayRow[] = rowsAfterCursor(
+      historyRows.map((r) => ({ id: r.id, role: r.role, content: r.content, toolCalls: r.tool_calls })),
+      convState[0]?.summary_upto_id,
+    );
+    // Trace id is minted here so a compaction call (rare — only the turn that
+    // crosses 90% of the window) lands in the same trace as the answer.
+    // Route properties are filled in after prepareTurn, below.
+    const obs = {
+      distinctId: convId,
+      traceId: crypto.randomUUID(),
+      properties: {} as Record<string, unknown>,
+    };
+    // Compaction runs before the first token of the turn that would cross
+    // 90% of the context window, and only then. A failure leaves the full
+    // tail in place and is not retried for SUMMARY_FAILURE_COOLDOWN_MS, so a
+    // hung summary model does not add chatSummaryTimeoutMs to every later
+    // turn. The summary pair is stable until the next compaction, so the
+    // turns in between keep a cacheable prefix.
+    //
+    // `force` is the recovery path: the provider rejected this conversation
+    // for length on an earlier turn, so the 4-chars/token estimate was wrong
+    // here and this turn folds regardless of it (context-overflow.ts). It also
+    // overrides the failure cooldown — without a fold the turn is going to be
+    // rejected again anyway, so paying the timeout is the better bet.
+    // At most ONE forced fold per rejection — context-overflow.ts owns that
+    // state machine; this file only asks the question and reports the outcome.
+    const forceCompact = shouldForceFold(convId);
+    if (!teachCmd && config.chatSummaryModel && (forceCompact || !summaryCoolingDown(convId))) {
+      const compacted = await compactForReplay({
+        rows: history,
+        summary,
+        windowTokens: config.chatContextWindowTokens,
+        call: makeOpenrouterJson(obs, "atlas-chat-summary"),
+        model: config.chatSummaryModel,
+        timeoutMs: config.chatSummaryTimeoutMs,
+        force: forceCompact,
+      });
+      if (compacted.failed) noteSummaryFailure(convId);
+      if (compacted.compacted) {
+        clearSummaryFailure(convId);
+        clearContextOverflow(convId);
+        summary = compacted.summary;
+        history = compacted.rows;
+        // This turn replays `summary` from memory. If the write fails, the
+        // next turn re-reads the old cursor and compacts again — a second,
+        // different summary, and a cache miss. The error is captured; the
+        // turn still answers.
+        await sql`
+          UPDATE conversations SET summary = ${summary}, summary_upto_id = ${compacted.uptoId} WHERE id = ${convId}
+        `.catch((err) => {
+          captureError(err, obs, { stage: "compact_summary" });
+        });
+      }
+    }
 
     const ix = getIndexes();
     const teachHits = await teachingsPromise; // already overlapped the two queries above
 
     // Everything the model reads before its first token — Jev judgement, tier
-    // routing, system prompt, windowed history, facts round, Jev-filtered /teach
-    // notes, the dispute round — assembled by the one function the tool-choice
-    // eval also runs (turn-setup.ts). /teach never reaches any of it, so it
-    // never runs one: no judgement, no routing (reason "teach"), no model input.
+    // routing, system prompt, full history (plus a stable summary once the
+    // thread has been compacted), facts round, Jev-filtered /teach notes, the
+    // dispute round — assembled by the one function the tool-choice eval also
+    // runs (turn-setup.ts). /teach never reaches any of it, so it never runs
+    // one: no judgement, no routing (reason "teach"), no model input.
     const turn = teachCmd
       ? null
-      : await prepareTurn({ ix, message: body.message, history, pageContext: body.pageContext, teachHits, disputes });
+      : await prepareTurn({ ix, message: body.message, history, summary, pageContext: body.pageContext, teachHits, disputes });
     const route = turn?.route ?? TEACH_ROUTE;
-    const priorAssistants = history.filter((m) => m.role === "assistant").length;
+    // Counted over the STORED rows, not the replayed ones: titling fires on
+    // turns 1/4/10 of a conversation's life, and `history` drops everything a
+    // compaction folded away — counting that would re-title a long thread.
+    const priorAssistants = historyRows.filter((m) => m.role === "assistant").length;
 
     const startedAt = Date.now();
     const encoder = new TextEncoder();
-    // PostHog AI observability: one trace per turn (fresh id, conversation id as
-    // a filterable property). distinctId is the CONVERSATION, not the signed-in
-    // user — semi-anonymous analytics: turns of one conversation stay grouped
-    // together in PostHog, but no user identity is sent (userId stays DB-only,
-    // via conversations.user_id, never leaves the server). The SAME obs feeds the
-    // answer stream, the harness jsonCall (verifier), and error capture,
-    // so every generation AND every error of the turn lands in one trace. No-op
-    // when POSTHOG_KEY is unset (both factories fall back to the plain client).
-    const obs = {
-      distinctId: convId,
-      traceId: crypto.randomUUID(),
-      properties: { chat_tier: route.tier, chat_route_reason: route.reason },
-    };
+    // PostHog AI observability: one trace per turn (id minted above, before
+    // compaction, so a summary call shares it). distinctId is the CONVERSATION,
+    // not the signed-in user — semi-anonymous analytics: turns of one
+    // conversation stay grouped together in PostHog, but no user identity is
+    // sent (userId stays DB-only, via conversations.user_id, never leaves the
+    // server). The SAME obs feeds the answer stream, the harness jsonCall
+    // (verifier), and error capture, so every generation AND every error of
+    // the turn lands in one trace. No-op when POSTHOG_KEY is unset (both
+    // factories fall back to the plain client).
+    obs.properties.chat_tier = route.tier;
+    obs.properties.chat_route_reason = route.reason;
 
     // Telemetry for the pre-first-token judge — gated the same as the call
     // itself, so a disabled/teach turn emits nothing. Held until `obs` exists
@@ -269,6 +354,15 @@ export async function handleChat(req: Request): Promise<Response> {
         teach_dropped: teachHits.length - teachKept,
       });
     }
+
+    // What the NEXT turn of this conversation will read, once this answer is
+    // stored: the replay plus the standing prefix (context-compact.ts). This is
+    // what the composer's meter shows, and it is the same arithmetic
+    // needsCompaction uses — a number that only grows until a fold, rather than
+    // the measured prompt of one round, which rises with a turn's tool results
+    // and drops again on the next turn that needs none.
+    const usedAfter = (answer: string, toolCalls: RecallToolCall[]): number =>
+      contextUsedTokens(summary, [...history, { role: "assistant", content: answer, toolCalls }]);
 
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
@@ -303,7 +397,7 @@ export async function handleChat(req: Request): Promise<Response> {
               checksMeta: [],
             };
             send({ type: "answer_final", content: done.content });
-            send(sanitizeDone(done));
+            send({ ...sanitizeDone(done), contextUsed: usedAfter(done.content, []) });
             if (!req.signal.aborted) {
               await persistAssistant(userId, convId, done, Date.now() - startedAt, obs);
               const TITLE_AT_TURNS = new Set([1, 4, 10]);
@@ -342,6 +436,7 @@ export async function handleChat(req: Request): Promise<Response> {
           }
 
           let done: HarnessDone | null = null;
+          let carded: RecallToolCall[] = [];
           const chatStream = makeOpenrouterStream(obs, models);
           // runVerifiedChat = runChat wrapped in the reliability harness (status
           // events, deterministic checks, verifier audit — model slots are
@@ -355,14 +450,19 @@ export async function handleChat(req: Request): Promise<Response> {
           })) {
             if (ev.type === "done") {
               done = ev as HarnessDone;
-              send(sanitizeDone(done));
+              // Lookup cards are minted ONCE here, before the number that
+              // counts them goes on the wire, and the same carded calls are
+              // what persistAssistant stores — so the size the meter reports
+              // is the size the next turn actually replays.
+              carded = done.toolCalls.length ? attachRecall(done.toolCalls, done.transcript) : [];
+              send({ ...sanitizeDone(done), contextUsed: usedAfter(done.content, carded) });
             } else {
               send(ev);
             }
           }
           // Don't persist an empty assistant row for an aborted turn.
           if (done && !req.signal.aborted) {
-            await persistAssistant(userId, convId, done, Date.now() - startedAt, obs);
+            await persistAssistant(userId, convId, { ...done, toolCalls: carded }, Date.now() - startedAt, obs);
             // Cheap LLM titling on turns 1/4/10 only (≤3 calls per conversation
             // total; see title.ts). Unawaited + .catch()'d so it can never
             // surface as an unhandled rejection or delay the stream's own
@@ -380,7 +480,21 @@ export async function handleChat(req: Request): Promise<Response> {
         } catch (err) {
           if (!req.signal.aborted) {
             captureError(err, obs, { stage: "stream_handler" });
-            send({ type: "error", message: (err as Error).message });
+            // A provider that rejects the request for length is the one error
+            // we can act on: flag the conversation so its next turn folds the
+            // prefix even though our estimate said it fit, and say so in
+            // words the user can act on instead of forwarding a raw 400.
+            if (isContextOverflowError(err)) {
+              // Flags the conversation AND returns the user-facing wording, so
+              // what we promise and what the next turn does cannot drift apart.
+              const message = noteContextOverflow(convId, {
+                forcedThisTurn: forceCompact,
+                compactionEnabled: !!config.chatSummaryModel,
+              });
+              send({ type: "error", message });
+            } else {
+              send({ type: "error", message: (err as Error).message });
+            }
           }
         } finally {
           releaseChatSlot(userId);
@@ -411,7 +525,9 @@ export async function persistAssistant(
   userId: string, convId: string, done: HarnessDone, latencyMs: number, obs?: ErrorContext,
 ): Promise<void> {
   // Raw array + ::jsonb (see resolveConversation note) — not JSON.stringify'd.
-  const toolCalls = done.toolCalls.length ? done.toolCalls : null;
+  // Lookup cards are computed once, here, from this turn's full tool results,
+  // and stored on the row. Later turns replay the card, not the raw payload.
+  const toolCalls = done.toolCalls.length ? attachRecall(done.toolCalls, done.transcript) : null;
 
   // Harness (verifier) tokens count toward the conversation totals and
   // the rate-limit window (via the usage_events row below) — never toward the

@@ -5,7 +5,12 @@
 import { sql, toUuidArrayLiteral } from "../db.ts";
 import { getSessionUser } from "../session.ts";
 import { json } from "../http.ts";
-import { HISTORY_BUDGET_CHARS } from "./chat-history.ts";
+// The context figures here and the compaction trigger must be the SAME
+// arithmetic, or the badge describes a different thread than the one we decide
+// to fold. contextUsedTokens is that one function; CHARS_PER_TOKEN is only for
+// the list, which estimates in SQL rather than loading every row.
+import { CHARS_PER_TOKEN, CONTEXT_OVERHEAD_TOKENS, contextUsedTokens, rowsAfterCursor, type ReplayRow } from "./context-compact.ts";
+import type { RecallToolCall } from "./tool-recall-card.ts";
 import { aggregateMarks, shownMarks, type CitationMark } from "./verify/citation-marks.ts";
 import { withoutDisputedMarks } from "./verify/disputes.ts";
 import {
@@ -16,23 +21,21 @@ import {
   type AnswerCoverageOut,
 } from "./verify/persisted-verdict.ts";
 
-// Rough chars-per-token for the estimated-context fallback below. Estimation
-// only — measured rows never touch it.
-const CHARS_PER_TOKEN = 4;
+
 
 interface ConversationListOut {
   id: string;
   title: string | null;
   updatedAt: string;
   messageCount: number;
-  // The newest assistant message's context_tokens — the real per-round
-  // context size (see migration 020), not the cumulative input_tokens. For
-  // legacy conversations that predate the column (no measured value on any
-  // row), this falls back to an ESTIMATE — stored message chars, capped at
-  // the windowHistory replay budget, over CHARS_PER_TOKEN — flagged below.
-  contextTokens: number | null;
-  // True when contextTokens is the estimate, not a measured prompt size —
-  // the UI renders it with a "~".
+  // How full this conversation's REPLAY is — the rows a turn would send plus
+  // the standing prefix, estimated in SQL (see listConversations). Not the
+  // measured prompt_tokens of a past round: that counts one turn's tool
+  // results, which never come back, so it fell as often as it rose. The
+  // measured value is still stored per message for cost and calibration.
+  contextTokens: number;
+  // Always true here: the list estimates rather than loading every row's
+  // lookup cards. The UI renders it with a "~".
   contextEstimated: boolean;
 }
 
@@ -72,12 +75,13 @@ interface ConversationDetailOut {
   id: string;
   title: string | null;
   updatedAt: string;
-  // MEASURED-only, unlike the list: the newest assistant message's
-  // context_tokens, null when unmeasured — deliberately NO estimate fallback
-  // here. This value seeds the live panel's context meter/edge line, which
-  // turns red near full; showing a chars/4 guess there as a hot warning would
-  // mislead, whereas the list card renders its estimate as a muted "~" note.
-  contextTokens: number | null;
+  // The EXACT replay size (contextUsedTokens over this conversation's own rows
+  // and cards), where the list settles for a SQL approximation. It seeds the
+  // live panel's meter/edge line, so a reopened chat reads the same as the turn
+  // that produced it, and both track the one quantity a fold reacts to.
+  // Previously the newest row's measured prompt_tokens, which described one
+  // past round rather than this conversation.
+  contextTokens: number;
   messages: MessageOut[];
 }
 
@@ -97,38 +101,40 @@ const MAX_TITLE_LEN = 120;
 // fires after persistAssistant). EXISTS(...role='assistant') is what hides
 // it. The JOIN stays alongside it only because messageCount is displayed.
 async function listConversations(userId: string): Promise<ConversationListOut[]> {
-  // Aggregate + LIMIT first, then the LATERAL over the surviving ≤100 rows —
-  // joined before the GROUP BY, its execution count would be plan-dependent
-  // (potentially once per message row); this shape caps it at 100 regardless
-  // of what the planner picks.
+  // One aggregate per conversation. The cursor LATERAL resolves one row by
+  // primary key per conversation, not per message, because it is correlated on
+  // c.summary_upto_id rather than on m.
   const rows = (await sql`
-    SELECT t.id, t.title, t.updated_at, t.message_count, t.history_chars, last.context_tokens
+    SELECT t.id, t.title, t.updated_at, t.message_count, t.replay_chars
     FROM (
       SELECT c.id, c.title, c.updated_at, count(m.id)::int AS message_count,
-        LEAST(COALESCE(sum(length(m.content)), 0), ${HISTORY_BUDGET_CHARS})::int AS history_chars
+        -- Only the rows a turn would REPLAY: everything after the compaction
+        -- cursor, plus the summary that stands in for what came before. Summing
+        -- every row instead counted messages already folded away, so a
+        -- compacted conversation read as its pre-fold size forever.
+        COALESCE(sum(length(m.content)) FILTER (WHERE cut.at IS NULL OR m.created_at > cut.at), 0)::int
+          + COALESCE(length(c.summary), 0)::int AS replay_chars
       FROM conversations c
       JOIN messages m ON m.conversation_id = c.id
+      LEFT JOIN LATERAL (SELECT cm.created_at AS at FROM messages cm WHERE cm.id = c.summary_upto_id) cut ON true
       WHERE c.user_id = ${userId}
         AND EXISTS (SELECT 1 FROM messages a WHERE a.conversation_id = c.id AND a.role = 'assistant')
-      GROUP BY c.id, c.title, c.updated_at
+      GROUP BY c.id, c.title, c.updated_at, c.summary
       ORDER BY c.updated_at DESC
       LIMIT 100
     ) t
-    LEFT JOIN LATERAL (
-      SELECT lm.context_tokens FROM messages lm
-      WHERE lm.conversation_id = t.id AND lm.role = 'assistant'
-      ORDER BY lm.created_at DESC LIMIT 1
-    ) last ON true
     ORDER BY t.updated_at DESC
-  `) as { id: string; title: string | null; updated_at: string | Date; message_count: number; context_tokens: number | null; history_chars: number }[];
+  `) as { id: string; title: string | null; updated_at: string | Date; message_count: number; replay_chars: number }[];
   return rows.map((r) => ({
     id: r.id, title: r.title, updatedAt: new Date(r.updated_at).toISOString(), messageCount: r.message_count,
-    // history_chars is already capped at the replay budget, so the estimate
-    // is "what replaying this conversation's text could cost", not its raw
-    // size — an upper bound that ignores truncation of old turns, and a
-    // lower bound in that it excludes the system prompt and tool results.
-    contextTokens: r.context_tokens ?? Math.ceil(r.history_chars / CHARS_PER_TOKEN),
-    contextEstimated: r.context_tokens == null,
+    // Replayed text / 4, plus the standing prefix — the same shape as
+    // contextUsedTokens, which the detail route and the live meter compute
+    // exactly. Approximated here because the exact figure needs every row's
+    // lookup cards loaded, and this is a list of up to 100 conversations: it
+    // omits those cards and the summary's replay wrapper, so it reads a little
+    // low on a tool-heavy thread. Always an estimate, hence contextEstimated.
+    contextTokens: Math.ceil(r.replay_chars / CHARS_PER_TOKEN) + CONTEXT_OVERHEAD_TOKENS,
+    contextEstimated: true,
   }));
 }
 
@@ -230,17 +236,34 @@ function answerCoverageFor(
   return out;
 }
 
+// Lookup cards (recall / recall_id) are model-replay fields. The client trace
+// only reads name, args, ok, bytes — strip the rest so a reloaded chat does
+// not ship the card text.
+function toolCallsForClient(raw: unknown): unknown {
+  if (!Array.isArray(raw)) return raw;
+  return raw.map((t) => {
+    if (!t || typeof t !== "object") return t;
+    const { recall: _recall, recall_id: _id, ...rest } = t as Record<string, unknown>;
+    return rest;
+  });
+}
+
+/** A stored row as the replay estimator reads it (content + its lookup cards). */
+function toReplayRow(r: { id: string; role: string; content: string; tool_calls: unknown }): ReplayRow {
+  return { id: r.id, role: r.role, content: r.content, toolCalls: (r.tool_calls ?? null) as RecallToolCall[] | null };
+}
+
 // DESC-then-resort keeps the NEWEST 200 messages (a plain LIMIT keeps the
-// oldest) — display-only; the model's own context is separately bounded by
-// windowHistory() in chat-history.ts.
+// oldest) — display-only. The model replays every row until context-compact
+// folds a prefix into conversations.summary.
 async function getConversation(userId: string, id: string): Promise<ConversationDetailOut | null> {
   const owned = (await sql`
-    SELECT c.id, c.title, c.updated_at,
-      (SELECT lm.context_tokens FROM messages lm
-       WHERE lm.conversation_id = c.id AND lm.role = 'assistant'
-       ORDER BY lm.created_at DESC LIMIT 1) AS context_tokens
+    SELECT c.id, c.title, c.updated_at, c.summary, c.summary_upto_id
     FROM conversations c WHERE c.id = ${id} AND c.user_id = ${userId}
-  `) as { id: string; title: string | null; updated_at: string | Date; context_tokens: number | null }[];
+  `) as {
+    id: string; title: string | null; updated_at: string | Date;
+    summary: string | null; summary_upto_id: string | null;
+  }[];
   if (!owned.length) return null;
   const conv = owned[0];
   const rows = (await sql`
@@ -262,12 +285,19 @@ async function getConversation(userId: string, id: string): Promise<Conversation
     id: conv.id,
     title: conv.title,
     updatedAt: new Date(conv.updated_at).toISOString(),
-    contextTokens: conv.context_tokens,
+    // Exactly what the next turn will read — the same function the compaction
+    // gate calls, over the same rows, including each row's lookup cards. So the
+    // meter a reopened chat shows is the meter the live turn showed, and both
+    // move only when the replay itself does. (Bounded by the 200-row fetch
+    // above: a thread that has never folded and still holds more than 200
+    // messages would read low, which needs ~200 short messages — far below the
+    // fold line — to happen at all.)
+    contextTokens: contextUsedTokens(conv.summary, rowsAfterCursor(rows.map(toReplayRow), conv.summary_upto_id)),
     messages: rows.map((r) => {
       const marks = marksByMessage.get(r.id) ?? null;
       const verify = verifyByMessage.get(r.id) ?? null;
       return {
-        role: r.role, content: r.content, createdAt: new Date(r.created_at).toISOString(), toolCalls: r.tool_calls,
+        role: r.role, content: r.content, createdAt: new Date(r.created_at).toISOString(), toolCalls: toolCallsForClient(r.tool_calls),
         // Reconciled against this message's own agreed contradictions before
         // returning — see MessageOut.citationMarks' comment and disputes.ts.
         citationMarks: marks ? withoutDisputedMarks(marks, verify?.contradictions ?? []) : null,

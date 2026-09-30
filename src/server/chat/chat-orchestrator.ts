@@ -467,11 +467,10 @@ export async function* runVerifiedChat(opts: {
   // emitting the link as written, with the post-answer pass as the safety net.
   // History tool texts count as atlas evidence for the incremental checks
   // below, same as splitFromTranscript classifies them. In practice this is
-  // the facts prefetch round (sourceClass "reference", grouped with atlas),
-  // not earlier turns' raw tool results — §6's Deferred list notes
-  // `chat.ts` replays only `{role, content}` for history, so a genuine prior
-  // tool result is never in `opts.messages` to begin with, and there is no
-  // assistant tool_call name left to pair one with even if it were.
+  // the facts prefetch round (sourceClass "reference", grouped with atlas).
+  // Lookup cards from earlier turns are in `opts.messages` but
+  // evidenceFromTranscript skips `rcall_` ids, so a card never becomes gate
+  // evidence — quoting still requires a retrieval on this turn.
   const historyEntries = evidenceFromTranscript(opts.messages, Infinity);
   const historyTexts = historyEntries.map((e) => e.content);
   const historyAtlasTexts = historyEntries.filter((e) => isAtlasText(e.sourceClass)).map((e) => e.content);

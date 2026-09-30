@@ -13,7 +13,7 @@ import { CENSUS_SLUGS, type CensusSlug } from "../../lib/conceptsCensus.ts";
 import { routeTier, resolveTierModels, citationStyleFor, iterationsForTier } from "./model-router.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
 import { runFacts, factRound } from "../facts/registry.ts";
-import { windowHistory } from "./chat-history.ts";
+import { historyReplay, summaryReplay } from "./context-compact.ts";
 import { filterTeachingsByJev, type PrefetchJudgement, type judgePrefetch } from "./prefetch-judge.ts";
 import { teachingRound } from "./teach/inject.ts";
 import type { RankedTeaching } from "./teach/match.ts";
@@ -25,7 +25,15 @@ type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type Judge = typeof judgePrefetch;
 type Row = { role: string; content: string };
 
-async function legacyAssemble(ix: Indexes, message: string, history: Row[], pageContext: PageContext | undefined, teachHits: RankedTeaching[], judgePrefetch: Judge) {
+async function legacyAssemble(
+  ix: Indexes,
+  message: string,
+  history: Row[],
+  pageContext: PageContext | undefined,
+  teachHits: RankedTeaching[],
+  judgePrefetch: Judge,
+  summary?: string | null,
+) {
   const judgement = config.chatPrefetchJudgeModel
     ? await judgePrefetch({ question: message, notes: teachHits.map((h) => ({ id: h.id, subject: h.subject, content: h.content })) })
     : null;
@@ -35,7 +43,8 @@ async function legacyAssemble(ix: Indexes, message: string, history: Row[], page
   const maxIterations = iterationsForTier(route.tier);
   const messages: Msg[] = [
     { role: "system", content: buildSystemPrompt(ix, pageContext, citationStyleFor(models[0]), undefined, maxIterations) },
-    ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    ...(summary ? summaryReplay(summary) : []),
+    ...historyReplay(history),
   ];
   const facts = config.chatPrefetch ? runFacts({ ix, question: message, page: pageContext, jevCensus: judgement?.census }) : null;
   if (facts) messages.push(...factRound(message, facts));
@@ -133,6 +142,49 @@ describe("prepareTurn", () => {
       config.chatPrefetchJudgeModel = "typesafe/jev-test";
       config.chatPrefetch = saved.prefetch;
     }
+  });
+
+  it("replays an early answer in full and puts a summary ahead of the thread", async () => {
+    const early = "Lead.\n\n" + "detail ".repeat(400);
+    const message = "and the rest?";
+    const history = [
+      { role: "user", content: "what is the freezer?" },
+      { role: "assistant", content: early },
+      { role: "user", content: message },
+    ];
+    const summary = "The freezer multisig was explained.";
+    const got = await prepareTurn({ ix, message, history, summary, judge: fakeJudge(0.1) });
+    const contents = got.messages.map((m) => (typeof m.content === "string" ? m.content : ""));
+    expect(contents[1]).toContain(summary);
+    expect(contents.join("\n")).toContain(early);
+    expect(contents.join("\n")).not.toContain("[earlier message truncated]");
+  });
+
+  it("replays a stored lookup card as a tool round before that answer", async () => {
+    const message = "what was that address?";
+    const history = [
+      { role: "user", content: "where is the freezer?" },
+      {
+        role: "assistant",
+        content: "It is on ethereum.",
+        toolCalls: [{
+          name: "atlas_get_address",
+          args: { address: "0xabc" },
+          ok: true,
+          bytes: 40,
+          recall: "atlas_get_address({\"address\":\"0xabc\"})\n- address=0xabc",
+          recall_id: "rcall_fixed",
+        }],
+      },
+      { role: "user", content: message },
+    ];
+    const got = await prepareTurn({ ix, message, history, judge: fakeJudge(0.1) });
+    const tool = got.messages.find((m) => m.role === "tool");
+    expect(tool && "content" in tool && tool.content).toContain("address=0xabc");
+    const answerAt = got.messages.findIndex((m) => m.role === "assistant" && m.content === "It is on ethereum.");
+    const toolAt = got.messages.findIndex((m) => m.role === "tool");
+    expect(toolAt).toBeGreaterThan(0);
+    expect(answerAt).toBeGreaterThan(toolAt);
   });
 
   describe("dispute round", () => {
