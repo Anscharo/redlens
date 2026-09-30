@@ -85,7 +85,7 @@ describe("needsCompaction", () => {
 });
 
 describe("contextUsedTokens", () => {
-  it("is the number needsCompaction compares against the line, so the meter cannot disagree with a fold", () => {
+  it("is the number needsCompaction compares against the line, so the meter cannot disagree with a compaction", () => {
     const rows = Array.from({ length: 8 }, (_, i) => row(String(i), i % 2 ? "assistant" : "user", "x".repeat(4_000)));
     const window = 12_000;
     const used = contextUsedTokens(null, rows, 0);
@@ -117,13 +117,13 @@ describe("contextUsedTokens", () => {
 });
 
 describe("planCompaction", () => {
-  it("folds the prefix and keeps the tail, including the current question", () => {
+  it("summarizes the prefix and keeps the tail, including the current question", () => {
     const rows = Array.from({ length: 10 }, (_, i) => row(`id-${i}`, i % 2 ? "assistant" : "user", `m${i}`));
     const plan = planCompaction(rows);
     expect(plan).not.toBeNull();
     expect(plan!.tail).toHaveLength(COMPACT_TAIL);
     expect(plan!.tail.at(-1)?.content).toBe("m9");
-    expect(plan!.fold).toHaveLength(10 - COMPACT_TAIL);
+    expect(plan!.prefix).toHaveLength(10 - COMPACT_TAIL);
     expect(plan!.uptoId).toBe("id-3");
   });
 
@@ -134,7 +134,7 @@ describe("planCompaction", () => {
 });
 
 describe("rowsAfterCursor", () => {
-  it("drops through the folded message and keeps everything after", () => {
+  it("drops through the compacted message and keeps everything after", () => {
     const rows = [row("a", "user", "1"), row("b", "assistant", "2"), row("c", "user", "3")];
     expect(rowsAfterCursor(rows, "b").map((r) => r.id)).toEqual(["c"]);
   });
@@ -202,7 +202,7 @@ describe("compactForReplay", () => {
     expect(out.rows).toBe(rows);
   });
 
-  it("folds under the line when forced, keeping the shorter tail", async () => {
+  it("compacts under the line when forced, keeping the shorter tail", async () => {
     const rows = Array.from({ length: 8 }, (_, i) => row(`id-${i}`, i % 2 ? "assistant" : "user", "short"));
     expect(needsCompaction(null, rows, 200_000)).toBe(false);
     const out = await compactForReplay({
@@ -214,7 +214,7 @@ describe("compactForReplay", () => {
     expect(out.uptoId).toBe("id-5");
   });
 
-  it("folds an oversized prefix oldest-first into one summary", async () => {
+  it("summarizes an oversized prefix oldest-first into one summary", async () => {
     const seen: string[] = [];
     const chunked: JsonCall = async (req) => {
       const user = req.messages.find((m) => m.role === "user");
@@ -226,7 +226,7 @@ describe("compactForReplay", () => {
         latencyMs: 1,
       };
     };
-    // 12 rows so the six-row tail still fits while the six-row fold is larger
+    // 12 rows so the six-row tail still fits while the six-row prefix is larger
     // than one summarization budget (windowTokens * 0.7 * 4 chars).
     const rows = Array.from({ length: 12 }, (_, i) => row(`id-${i}`, "user", "y".repeat(50_000)));
     const out = await compactForReplay({
@@ -242,8 +242,8 @@ describe("compactForReplay", () => {
 
   it("shrinks the tail when the rows it would keep verbatim are over the line themselves", async () => {
     // Ten messages at the per-message cap against a small configured window:
-    // folding "everything but six" would leave a prompt the provider rejects
-    // again, and no later fold could fix it. The tail shrinks instead, and the
+    // compacting "everything but six" would leave a prompt the provider rejects
+    // again, and no later compaction could fix it. The tail shrinks instead, and the
     // question being answered always survives.
     const rows = Array.from({ length: 10 }, (_, i) => row(`id-${i}`, i % 2 ? "assistant" : "user", "x".repeat(28_000)));
     const out = await compactForReplay({

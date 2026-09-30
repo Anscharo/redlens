@@ -3,7 +3,7 @@ import {
   clearContextOverflow,
   isContextOverflowError,
   noteContextOverflow,
-  shouldForceFold,
+  shouldForceCompaction,
 } from "./context-overflow.ts";
 
 const ON = { forcedThisTurn: false, compactionEnabled: true };
@@ -26,7 +26,7 @@ describe("isContextOverflowError", () => {
   it("leaves every other failure alone", () => {
     expect(isContextOverflowError(new Error("llm call timeout"))).toBe(false);
     expect(isContextOverflowError(new Error("rate limit exceeded"))).toBe(false);
-    // An OUTPUT-token complaint is not a thread that needs folding.
+    // An OUTPUT-token complaint is not a thread that needs compacting.
     expect(isContextOverflowError(new Error("max_tokens is too large: 200000 > 32768"))).toBe(false);
     expect(isContextOverflowError(new Error("Please reduce the number of completions"))).toBe(false);
     expect(isContextOverflowError({ error: "upstream provider is down" })).toBe(false);
@@ -37,23 +37,23 @@ describe("isContextOverflowError", () => {
 });
 
 describe("the overflow state machine", () => {
-  it("arms one forced fold, then stands down", () => {
-    const conv = "conv-overflow-one-fold";
-    expect(shouldForceFold(conv)).toBe(false);
+  it("arms one forced compaction, then stands down", () => {
+    const conv = "conv-overflow-one-compaction";
+    expect(shouldForceCompaction(conv)).toBe(false);
 
-    // First rejection: the next turn should fold, and we say so.
+    // First rejection: the next turn should compact, and we say so.
     const first = noteContextOverflow(conv, ON);
     expect(first).toContain("condensed first");
-    expect(shouldForceFold(conv)).toBe(true);
+    expect(shouldForceCompaction(conv)).toBe(true);
 
-    // That fold ran and the provider rejected the turn anyway.
+    // That compaction ran and the provider rejected the turn anyway.
     const second = noteContextOverflow(conv, { ...ON, forcedThisTurn: true });
     expect(second).toContain("a new chat");
-    expect(shouldForceFold(conv)).toBe(false);
+    expect(shouldForceCompaction(conv)).toBe(false);
 
     // Every later message: no forced summary call, and no promise of one.
     expect(noteContextOverflow(conv, ON)).toContain("a new chat");
-    expect(shouldForceFold(conv)).toBe(false);
+    expect(shouldForceCompaction(conv)).toBe(false);
   });
 
   it("promises nothing when compaction is switched off", () => {
@@ -64,22 +64,22 @@ describe("the overflow state machine", () => {
     expect(message).not.toContain("condensed first");
   });
 
-  it("a landed fold clears both verdicts", () => {
+  it("a landed compaction clears both verdicts", () => {
     const conv = "conv-overflow-cleared";
     noteContextOverflow(conv, { ...ON, forcedThisTurn: true });
     clearContextOverflow(conv);
-    expect(shouldForceFold(conv)).toBe(false);
-    // Back to a clean slate: the next rejection arms a fold again.
+    expect(shouldForceCompaction(conv)).toBe(false);
+    // Back to a clean slate: the next rejection arms a compaction again.
     expect(noteContextOverflow(conv, ON)).toContain("condensed first");
-    expect(shouldForceFold(conv)).toBe(true);
+    expect(shouldForceCompaction(conv)).toBe(true);
   });
 
   it("does not leak across conversations and expires after a day", () => {
     const conv = "conv-overflow-expiry";
     noteContextOverflow(conv, ON, 0);
-    expect(shouldForceFold("conv-overflow-other", 0)).toBe(false);
-    expect(shouldForceFold(conv, 23 * 60 * 60_000)).toBe(true);
-    expect(shouldForceFold(conv, 25 * 60 * 60_000)).toBe(false);
+    expect(shouldForceCompaction("conv-overflow-other", 0)).toBe(false);
+    expect(shouldForceCompaction(conv, 23 * 60 * 60_000)).toBe(true);
+    expect(shouldForceCompaction(conv, 25 * 60 * 60_000)).toBe(false);
   });
 
   it("flows into the client's fixed suffix: no trailing period, no retry advice of its own", () => {

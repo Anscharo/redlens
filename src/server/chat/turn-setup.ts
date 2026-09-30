@@ -31,9 +31,9 @@ export interface TurnInput {
   /** The conversation exactly as chat.ts loads it: every stored row still
    *  outside the compaction cursor, oldest first, INCLUDING the user message
    *  just persisted for this turn. Follow-up routing reads it that way.
-   *  Messages already folded into `summary` are not in this array. */
+   *  Messages already compacted into `summary` are not in this array. */
   history: ReplayRow[];
-  /** Stable summary of turns folded at the context-window line. Null until
+  /** Stable summary of turns compacted at the context-window line. Null until
    *  the first compaction. Replay puts it in its own message pair so later
    *  turns append after a byte-identical prefix. */
   summary?: string | null;

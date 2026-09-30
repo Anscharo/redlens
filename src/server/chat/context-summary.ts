@@ -1,5 +1,6 @@
-// The one LLM call compaction makes: fold a chat prefix into a dense briefing.
-// context-compact.ts decides WHEN to fold and WHAT to keep verbatim; this file
+// The one LLM call compaction makes: summarize a chat prefix into a dense
+// briefing. context-compact.ts decides WHEN to compact and WHAT to keep
+// verbatim; this file
 // is the summarizer and nothing else, so the deciding half stays pure.
 import { callWithTimeout, type JsonCall } from "./llm.ts";
 import { parseJsonish } from "./verify/slice-json.ts";
@@ -34,7 +35,7 @@ function summaryPart(summary: string | null): string | null {
 }
 
 /** Rows (and any previous summary) as the plain text the summarizer reads. */
-export function renderFold(summary: string | null, rows: ReplayRow[]): string {
+export function renderPrefix(summary: string | null, rows: ReplayRow[]): string {
   const parts = [summaryPart(summary), ...rows.map(rowPart)].filter((p): p is string => p !== null);
   return parts.join(PART_SEP);
 }
@@ -76,15 +77,15 @@ async function summarizeChunk(call: JsonCall, model: string, text: string, timeo
 }
 
 /**
- * Summarize `fold`, folding any existing summary in. One call when the prefix
+ * Summarize `prefix`, merging any existing summary in. One call when the prefix
  * fits `budgetChars`; otherwise oldest-first chunks, each chunk's summary
  * becoming the prior for the next, so a single compaction still ends as one
  * stable summary. The budget is computed by the caller, which owns every other
  * context budget (context-compact.ts).
  */
-export async function summarizeFold(
+export async function summarizePrefix(
   summary: string | null,
-  fold: ReplayRow[],
+  prefix: ReplayRow[],
   call: JsonCall,
   model: string,
   budget: number,
@@ -92,19 +93,19 @@ export async function summarizeFold(
 ): Promise<string | null> {
   // Each row is rendered ONCE, here, and the chunk boundary is then chosen by
   // adding up lengths. Re-rendering a growing candidate to measure it made
-  // packing quadratic in the fold's characters: a 1,240-row fold spent ~550 ms
-  // of the pre-first-token path building ~380 MB of throwaway strings, and it
-  // paid that even when the whole fold fitted in one chunk.
-  const parts = fold.map(rowPart);
+  // packing quadratic in the prefix's characters: a 1,240-row prefix spent
+  // ~550 ms building ~380 MB of throwaway strings, and it paid that even when
+  // the whole prefix fitted in one chunk.
+  const parts = prefix.map(rowPart);
   let prior = summary;
   let at = 0;
   let produced: string | null = null;
-  while (at < fold.length) {
+  while (at < prefix.length) {
     const head = summaryPart(prior);
     const chunk: string[] = head ? [head] : [];
     let chars = head ? head.length : 0;
     let taken = 0;
-    while (at + taken < fold.length) {
+    while (at + taken < prefix.length) {
       const part = parts[at + taken];
       // The oldest row of a chunk is always taken, however large: a row that
       // cannot fit on its own is clamped below rather than looping forever.
