@@ -58,6 +58,7 @@
     "eval:wiki-ab": "bun scripts/eval/eval-wiki-ab.ts",
     "eval:bakeoff": "bun scripts/eval/eval-bakeoff.ts",
     "eval:retrieval": "bun scripts/eval/eval-retrieval.ts",
+    "eval:leaf-attribution": "bun scripts/eval/eval-leaf-attribution.ts",
     "eval:facts": "bun scripts/eval/eval-facts.ts",
     "eval:census": "bun scripts/eval/eval-census.ts",
     "eval:complexity": "bun scripts/eval/eval-complexity.ts",
