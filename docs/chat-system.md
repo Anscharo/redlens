@@ -191,7 +191,12 @@ the provider itself rejects a request for length, the user gets a
 plain-language message instead of a raw 400, and the conversation is flagged so
 its **next** turn folds the prefix whether or not the estimate says it fits,
 keeping only `COMPACT_TAIL_FORCED` rows verbatim and overriding the
-five-minute failure cooldown. So the thread heals on the next message. There is
+five-minute failure cooldown. So the thread heals on the next message. Exactly
+one forced fold is spent per rejection: if the request is rejected again after
+it, the verbatim tail itself is too large, and the conversation is marked
+`foldIsSpent` so later turns neither pay another summary call for it nor
+promise one — they ask for a new chat. A fold that does land clears both
+verdicts, since the thread has shrunk. There is
 deliberately no retry inside the same turn: it would mean re-running everything
 before the first token (Jev judgement, facts round, `/teach` filtering) or
 duplicating `prepareTurn`'s assembly, and the same message re-sent takes the

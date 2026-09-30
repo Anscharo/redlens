@@ -32,8 +32,10 @@ import {
   clearContextOverflow,
   contextOverflowMessage,
   contextOverflowPending,
+  foldIsSpent,
   isContextOverflowError,
   markContextOverflow,
+  markFoldSpent,
 } from "./context-overflow.ts";
 import { attachRecall } from "./tool-recall.ts";
 import type { RecallToolCall } from "./tool-recall-card.ts";
@@ -268,7 +270,10 @@ export async function handleChat(req: Request): Promise<Response> {
     // here and this turn folds regardless of it (context-overflow.ts). It also
     // overrides the failure cooldown — without a fold the turn is going to be
     // rejected again anyway, so paying the timeout is the better bet.
-    const forceCompact = contextOverflowPending(convId);
+    // Force at most ONE fold per overflow: `foldIsSpent` means a forced fold
+    // already ran on this conversation and the provider rejected the turn
+    // anyway, so another summary call would buy nothing.
+    const forceCompact = contextOverflowPending(convId) && !foldIsSpent(convId);
     if (!teachCmd && config.chatSummaryModel && (forceCompact || !summaryCoolingDown(convId))) {
       const compacted = await compactForReplay({
         rows: history,
@@ -467,12 +472,14 @@ export async function handleChat(req: Request): Promise<Response> {
             // prefix even though our estimate said it fit, and say so in
             // words the user can act on instead of forwarding a raw 400.
             if (isContextOverflowError(err)) {
-              markContextOverflow(convId);
-              // A turn that already folded under `force` and still overflowed
-              // cannot be fixed by folding again — the verbatim tail itself is
-              // too large — so stop promising a condensed retry and say what
-              // does help.
-              send({ type: "error", message: contextOverflowMessage(!!config.chatSummaryModel && !forceCompact) });
+              // A fold has been tried on this conversation (this turn, or an
+              // earlier one) and the request was rejected anyway: the verbatim
+              // tail itself is too large, so record that folding is spent
+              // rather than re-arming it, and stop promising a condensed retry.
+              const foldTried = forceCompact || foldIsSpent(convId);
+              if (foldTried) markFoldSpent(convId);
+              else markContextOverflow(convId);
+              send({ type: "error", message: contextOverflowMessage(!!config.chatSummaryModel && !foldTried) });
             } else {
               send({ type: "error", message: (err as Error).message });
             }

@@ -24,13 +24,16 @@ import { convFlags } from "./conv-flags.ts";
 // messages", Anthropic's "prompt is too long: N tokens > M maximum", the
 // `context_length_exceeded` code, and OpenRouter's own "This endpoint's
 // maximum context length is N tokens".
+// The phrases name what was too big (context, prompt, messages, input) rather
+// than just "too long" or "reduce the length": an output-token complaint
+// ("max_tokens is too large") must not read as a thread that needs folding.
 const OVERFLOW_PATTERNS = [
   /context[ _-]?length/i,
   /context[ _-]?window/i,
   /maximum context/i,
   /prompt is too long/i,
-  /too many (?:input )?tokens/i,
-  /reduce the (?:length|number) of/i,
+  /too many input tokens/i,
+  /reduce the (?:length|number) of (?:the )?(?:messages|prompt|input|conversation)/i,
   /request too large/i,
 ];
 
@@ -67,6 +70,7 @@ export function isContextOverflowError(err: unknown): boolean {
 const OVERFLOW_TTL_MS = 24 * 60 * 60_000;
 
 const overflowed = convFlags(OVERFLOW_TTL_MS);
+const foldSpent = convFlags(OVERFLOW_TTL_MS);
 
 export function markContextOverflow(convId: string, now = Date.now()): void {
   overflowed.set(convId, now);
@@ -76,8 +80,25 @@ export function contextOverflowPending(convId: string, now = Date.now()): boolea
   return overflowed.has(convId, now);
 }
 
+/**
+ * A forced fold ran and the request was rejected anyway: the verbatim tail
+ * itself is too large, so folding is spent on this conversation. Later turns
+ * must not pay another summary call for it, and must not promise one — without
+ * this, every message in a thread the user keeps using would buy one wasted
+ * summary call and the same rejection, for a day.
+ */
+export function markFoldSpent(convId: string, now = Date.now()): void {
+  foldSpent.set(convId, now);
+}
+
+export function foldIsSpent(convId: string, now = Date.now()): boolean {
+  return foldSpent.has(convId, now);
+}
+
+/** Called when a fold DOES land: the thread shrank, so both verdicts are stale. */
 export function clearContextOverflow(convId: string): void {
   overflowed.clear(convId);
+  foldSpent.clear(convId);
 }
 
 /**

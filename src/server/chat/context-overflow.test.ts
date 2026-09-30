@@ -3,8 +3,10 @@ import {
   clearContextOverflow,
   contextOverflowMessage,
   contextOverflowPending,
+  foldIsSpent,
   isContextOverflowError,
   markContextOverflow,
+  markFoldSpent,
 } from "./context-overflow.ts";
 
 describe("isContextOverflowError", () => {
@@ -25,6 +27,9 @@ describe("isContextOverflowError", () => {
   it("leaves every other failure alone", () => {
     expect(isContextOverflowError(new Error("llm call timeout"))).toBe(false);
     expect(isContextOverflowError(new Error("rate limit exceeded"))).toBe(false);
+    // An OUTPUT-token complaint is not a thread that needs folding.
+    expect(isContextOverflowError(new Error("max_tokens is too large: 200000 > 32768"))).toBe(false);
+    expect(isContextOverflowError(new Error("Please reduce the number of completions"))).toBe(false);
     expect(isContextOverflowError({ error: "upstream provider is down" })).toBe(false);
     expect(isContextOverflowError(null)).toBe(false);
     expect(isContextOverflowError(undefined)).toBe(false);
@@ -40,6 +45,19 @@ describe("the overflow flag", () => {
     expect(contextOverflowPending(conv)).toBe(true);
     clearContextOverflow(conv);
     expect(contextOverflowPending(conv)).toBe(false);
+  });
+
+  it("records a spent fold separately, and a landed fold clears both", () => {
+    const conv = "conv-overflow-fold-spent";
+    expect(foldIsSpent(conv)).toBe(false);
+    markContextOverflow(conv);
+    markFoldSpent(conv);
+    // Both are up: the route reads this as "do not force another summary call".
+    expect(contextOverflowPending(conv)).toBe(true);
+    expect(foldIsSpent(conv)).toBe(true);
+    clearContextOverflow(conv);
+    expect(contextOverflowPending(conv)).toBe(false);
+    expect(foldIsSpent(conv)).toBe(false);
   });
 
   it("does not leak across conversations and expires after a day", () => {
