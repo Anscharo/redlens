@@ -196,11 +196,24 @@ thread is condensed.
 Only the **recovery** path still compacts before the turn and awaits it: there
 the provider has already rejected the thread, so the turn cannot proceed until
 the prefix is smaller. `compact-turn.ts` is the single entry point for both, and
-it holds one in-flight flag per conversation so that several turns sent while a
-summary is running do not each start their own. In-memory is enough: the summary
-and its cursor are written in ONE statement, so a missed guard costs a duplicate
-call and never a mismatch — whichever write lands last leaves a summary covering
-exactly up to its own cursor. The summarizer is pinned to
+it holds one in-flight flag **per conversation, per process** so that several
+turns sent while a summary is running do not each start their own. In-memory is
+deliberate rather than a DB row: across replicas two processes can still
+summarize the same conversation at once, and that is fine, because the summary
+and its cursor are written in ONE statement — a missed guard costs a duplicate
+call and never a mismatch, since whichever write lands last leaves a summary
+covering exactly up to its own cursor. `compactTurn` reports whether the guards
+let it through (`attempted`), and the forced caller passes THAT to
+`context-overflow.ts` rather than its own intent, so a forced compaction skipped
+for an in-flight one does not spend the single attempt per rejection.
+
+Two consequences of running after the answer, both accepted. A turn the client
+**aborts** never reaches the compaction call — it sits inside the same
+`!req.signal.aborted` guard as `persistAssistant`, because the answer it
+summarizes past is only stored on that branch — so a conversation whose turns are
+all cancelled is left to the rejection backstop below. And the turn that crosses
+the line replays the thread un-compacted along with the turn or two after it,
+which is the safety argument above rather than a gap. The summarizer is pinned to
 `openai/gpt-5.6-luna` (`CHAT_SUMMARY_MODEL`) rather than following `CHAT_MODEL`:
 one compaction per thread, reading up to ~140k tokens, whose output every later turn
 of that conversation then answers from and which is never rewritten — so it is

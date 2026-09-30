@@ -4,15 +4,22 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import { toUuidArrayLiteral, fromUuidArray } from "../pg-array.ts";
 import type { JsonCall } from "./llm.ts";
-import { COMPACT_TAIL, clearSummaryFailure, noteSummaryFailure, type ReplayRow } from "./context-compact.ts";
+import {
+  COMPACT_TAIL,
+  clearSummaryFailure,
+  noteSummaryFailure,
+  summaryCoolingDown,
+  type ReplayRow,
+} from "./context-compact.ts";
 import { clearContextOverflow } from "./context-overflow.ts";
 
 type Row = Record<string, unknown>;
 let queryLog: { text: string; values: unknown[] }[] = [];
+let sqlRejects = false;
 
 function sqlMockFn(strings: TemplateStringsArray, ...values: unknown[]): Promise<Row[]> {
   queryLog.push({ text: strings.join("¶"), values });
-  return Promise.resolve([]);
+  return sqlRejects ? Promise.reject(new Error("write failed")) : Promise.resolve([]);
 }
 
 mock.module("../db.ts", () => ({
@@ -45,6 +52,7 @@ const hangs = (): JsonCall => () => new Promise(() => {});
 
 afterEach(() => {
   queryLog = [];
+  sqlRejects = false;
 });
 
 describe("compactTurn", () => {
@@ -162,6 +170,106 @@ describe("compactTurn", () => {
     expect(calls).toBeGreaterThan(0);
     expect(forced.summary).toBe("A summary long enough to be kept by parseSummary.");
     clearSummaryFailure(conv);
+    clearContextOverflow(conv);
+  });
+  it("makes no call and no write on a thread under the line", async () => {
+    // The most common path now: this runs after EVERY answer, and almost every
+    // answer leaves the thread well under COMPACT_RATIO of the window.
+    const conv = "conv-under-line";
+    clearSummaryFailure(conv);
+    let called = false;
+    const out = await compactTurn({
+      convId: conv,
+      rows: rows(COMPACT_TAIL + 4),
+      summary: null,
+      call: (async () => {
+        called = true;
+        return { text: "{}", usage: { input: 1, output: 1 }, generationId: "g", latencyMs: 1 };
+      }) as JsonCall,
+      obs,
+    });
+
+    expect(called).toBe(false);
+    expect(out.summary).toBeNull();
+    expect(queryLog).toHaveLength(0);
+    // The guards let it through — it simply found nothing to do, so a retry
+    // would find nothing either. See CompactTurnResult.attempted.
+    expect(out.attempted).toBe(true);
+    expect(compactionInFlight(conv)).toBe(false);
+  });
+
+  it("marks the failure cooldown when the summary call produces nothing usable", async () => {
+    const conv = "conv-unusable";
+    clearSummaryFailure(conv);
+    // Parses, but too short for parseSummary to keep — a failed summary, not a throw.
+    const junk: JsonCall = async () => ({
+      text: "nope",
+      usage: { input: 1, output: 1 },
+      generationId: "g",
+      latencyMs: 1,
+    });
+    const out = await compactTurn({
+      convId: conv,
+      rows: rows(COMPACT_TAIL + 4),
+      summary: null,
+      call: junk,
+      obs,
+      force: true,
+    });
+
+    expect(out.summary).toBeNull();
+    // Without this the next turn pays the timeout again immediately.
+    expect(summaryCoolingDown(conv)).toBe(true);
+    expect(queryLog.filter((q) => q.text.includes("UPDATE conversations"))).toHaveLength(0);
+    clearSummaryFailure(conv);
+  });
+
+  it("captures a failed write instead of throwing — the answer has already shipped", async () => {
+    const conv = "conv-write-fails";
+    clearSummaryFailure(conv);
+    sqlRejects = true;
+    const out = await compactTurn({
+      convId: conv,
+      rows: rows(COMPACT_TAIL + 4),
+      summary: null,
+      call: summarizes("A summary long enough to survive parseSummary."),
+      obs,
+      force: true,
+    });
+
+    // Resolves, and still reports the summary it computed: this turn replays it
+    // from memory even though the next turn will re-read the old cursor.
+    expect(out.summary).toBe("A summary long enough to survive parseSummary.");
+    expect(compactionInFlight(conv)).toBe(false);
+    clearContextOverflow(conv);
+  });
+
+  it("keeps a valid cursor when the last row has no id, as the post-answer call passes", async () => {
+    // chat.ts appends the answer with no id (replayAfter). This pins the reason
+    // that is safe: the last row always lands in the verbatim tail, never at the
+    // end of the prefix, so it can never become summary_upto_id.
+    const conv = "conv-no-id-last";
+    clearSummaryFailure(conv);
+    const withIds = rows(COMPACT_TAIL + 4);
+    const input: ReplayRow[] = [...withIds, { role: "assistant", content: "the answer", toolCalls: [] }];
+
+    const out = await compactTurn({
+      convId: conv,
+      rows: input,
+      summary: null,
+      call: summarizes("A summary long enough to survive parseSummary."),
+      obs,
+      force: true,
+    });
+
+    const write = queryLog.find((q) => q.text.includes("UPDATE conversations"));
+    expect(write).toBeDefined();
+    // A real message id, never undefined and never the id-less appended row.
+    const cursor = write!.values.find((v): v is string => typeof v === "string" && v.startsWith("m"));
+    expect(cursor).toBeDefined();
+    expect(withIds.map((r) => r.id)).toContain(cursor);
+    // And the id-less row survives in the replay rather than being summarized away.
+    expect(out.rows[out.rows.length - 1]).toMatchObject({ content: "the answer" });
     clearContextOverflow(conv);
   });
 });

@@ -69,13 +69,21 @@ export interface CompactTurnResult {
   summary: string | null;
   rows: ReplayRow[];
   /**
-   * Whether a summary call was actually made — false when a guard stood this
-   * one down (no model, cooling off, or one already in flight for this
-   * conversation). The forced caller reports this, NOT its own intent, to
-   * context-overflow.ts: a forced compaction that was skipped because another
-   * was already running must not spend the one attempt per rejection, or the
-   * user is told to start a new chat while the summary that would have fixed
-   * the thread is landing.
+   * Whether compaction got as far as it could this turn: the guards let it
+   * through and compactForReplay ran. NOT the same as "the model was called" —
+   * a run that finds nothing to compact (under the line on the ordinary path,
+   * or an empty prefix on the forced one) still reports true, which is the
+   * right answer for the only consumer below, because retrying cannot help.
+   *
+   * False means a guard stood this one down — no summary model, cooling off
+   * after a failure, or one already in flight for this conversation — and a
+   * later turn CAN usefully try again.
+   *
+   * That distinction is the point. The forced caller reports this value to
+   * context-overflow.ts as `forcedThisTurn` rather than its own intent, so a
+   * forced compaction skipped because another was already running does not
+   * spend the one attempt per rejection — otherwise the user is told to start a
+   * new chat while the summary that would have fixed the thread is landing.
    */
   attempted: boolean;
 }

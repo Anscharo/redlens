@@ -1,7 +1,7 @@
 // The one LLM call compaction makes: summarize a chat prefix into a dense
 // briefing. context-compact.ts decides WHEN to compact and WHAT to keep
-// verbatim; this file
-// is the summarizer and nothing else, so the deciding half stays pure.
+// verbatim; this file is the summarizer and nothing else, so the deciding half
+// stays pure.
 import { callWithTimeout, type JsonCall } from "./llm.ts";
 import { parseJsonish } from "./verify/slice-json.ts";
 import type { ReplayRow } from "./context-compact.ts";
