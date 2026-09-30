@@ -30,8 +30,10 @@ const read = (dir: string, name: string) => JSON.parse(fs.readFileSync(path.join
 const deps = (over: Partial<VectorDeps> = {}): VectorDeps => ({
   enabled: true,
   liveHashes: async () => new Map(),
-  liveVectors: async () => new Map(),
+  knownVectors: async () => new Map(),
   embedBatch: async (texts) => texts.map((t) => (t.startsWith("Approve") ? [1, 0] : [0, 1])),
+  saveVectors: async () => {},
+  evictVectors: async () => {},
   ...over,
 });
 const job = (files: string[]) => refineJob(files, snap(OLD), snap(NEW), { added: [], changed: [ID] });

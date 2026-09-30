@@ -4,7 +4,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildPreviewEmbeddings, bodySimilarity, decodeVector, encodeVector, EMBEDDINGS_FILE, type PreviewEmbeddingsJson, type VectorDeps } from "./embeddings.ts";
+import { buildPreviewEmbeddings, bodySimilarity, EMBEDDINGS_INDEX_FILE, type PreviewEmbeddingsIndex, type VectorDeps } from "./embeddings.ts";
 import { buildEmbedText, contentHash } from "../retrieval/embed-text.ts";
 import type { Snapshot, SnapshotDoc } from "./snapshot.ts";
 
@@ -19,22 +19,28 @@ function bundle(docs: Doc[]): string {
   fs.writeFileSync(path.join(dir, "docs.json"), JSON.stringify({ nodes }));
   return dir;
 }
-const readFile = (dir: string) => JSON.parse(fs.readFileSync(path.join(dir, EMBEDDINGS_FILE), "utf8")) as PreviewEmbeddingsJson;
+const readFile = (dir: string) => JSON.parse(fs.readFileSync(path.join(dir, EMBEDDINGS_INDEX_FILE), "utf8")) as PreviewEmbeddingsIndex;
 const hashOf = (d: { title: string; content: string }) => contentHash(d);
 
 /** A unit vector along one axis, so a cosine is 1 (same axis) or 0. */
 const axis = (i: number) => { const v = [0, 0, 0, 0]; v[i] = 1; return v; };
 
-function deps(over: Partial<VectorDeps> & { embedded?: string[] } = {}): VectorDeps & { embedded: string[] } {
+/** Stubs that record what was sent to the provider, what was kept, and how
+ *  often eviction ran. `kept` may be handed in, to stand for an earlier build. */
+function deps(over: Partial<VectorDeps> & { embedded?: string[]; kept?: Map<string, number[]> } = {}) {
   const embedded = over.embedded ?? [];
-  return {
+  const kept = over.kept ?? new Map<string, number[]>();
+  const evictions = { n: 0 };
+  const d: VectorDeps = {
     enabled: true,
     liveHashes: async () => new Map(),
-    liveVectors: async () => new Map(),
+    knownVectors: async (hashes) => new Map(hashes.filter((h) => kept.has(h)).map((h) => [h, kept.get(h)!])),
     embedBatch: async (texts) => { embedded.push(...texts); return texts.map(() => axis(0)); },
+    saveVectors: async (entries) => { for (const [h, v] of entries) kept.set(h, v); },
+    evictVectors: async () => { evictions.n++; },
     ...over,
-    embedded,
   };
+  return Object.assign(d, { embedded, kept, evictions });
 }
 
 const STEPS = "The operator must approve the contract.\nIt then waits for the receipt.\nIt records the amount.\nIt reports the result to the relayer.";
@@ -55,19 +61,60 @@ describe("buildPreviewEmbeddings", () => {
     expect(d.embedded).toEqual([buildEmbedText(CHANGED)]);
     const file = readFile(dir);
     expect(file.rows.map((r) => r.id)).toEqual([CHANGED.id]);
-    expect(file.rows[0]).toMatchObject({ hash: hashOf(CHANGED), memberIds: [CHANGED.id], attributionOnly: false });
-    expect([...decodeVector(file.rows[0].vector)]).toEqual(axis(0));
+    // The index names the vector by its hash and does not hold it.
+    expect(file.rows[0]).toEqual({ id: CHANGED.id, hash: hashOf(CHANGED), memberIds: [CHANGED.id], attributionOnly: false });
     expect(file.missing).toBe(0);
     expect([...pv!.byHash.get(hashOf(CHANGED))!]).toEqual(axis(0));
+    // What the provider made is kept, and eviction ran once for the run.
+    expect(d.kept.get(hashOf(CHANGED))).toEqual(axis(0));
+    expect(d.evictions.n).toBe(1);
+  });
+
+  test("a REBUILD asks the provider for nothing: every vector is already kept", async () => {
+    const first = deps();
+    await buildPreviewEmbeddings(bundle([CHANGED, ...GROUP]), first);
+    expect(first.embedded.length).toBeGreaterThan(0);
+
+    // The bundle is gone; what was kept is not.
+    const again = deps({ kept: first.kept });
+    const dir = bundle([CHANGED, ...GROUP]);
+    const pv = await buildPreviewEmbeddings(dir, again);
+    expect(again.embedded).toEqual([]);
+    expect(readFile(dir).missing).toBe(0);
+    expect(pv?.byHash.size).toBe(first.kept.size);
+    expect(again.evictions.n).toBe(0); // nothing was saved, so nothing to evict
+  });
+
+  test("a later commit of the same pull request embeds only what that commit changed", async () => {
+    const first = deps();
+    await buildPreviewEmbeddings(bundle([CHANGED, ...GROUP]), first);
+    const next = deps({ kept: first.kept });
+    const edited = { ...CHANGED, content: STEPS + "\nIt then closes the position." };
+    await buildPreviewEmbeddings(bundle([edited, ...GROUP]), next);
+    expect(next.embedded).toEqual([buildEmbedText(edited)]);
+  });
+
+  test("a vector that cannot be kept is still used by this run", async () => {
+    const origWarn = console.warn;
+    console.warn = () => {};
+    try {
+      const dir = bundle([CHANGED]);
+      const pv = await buildPreviewEmbeddings(dir, deps({ saveVectors: async () => { throw new Error("database down"); } }));
+      expect([...pv!.byHash.get(hashOf(CHANGED))!]).toEqual(axis(0));
+      expect(readFile(dir).missing).toBe(0);
+    } finally {
+      console.warn = origWarn;
+    }
   });
 
   test("copies a vector the live store holds under another document, and embeds nothing", async () => {
     // The same text under a new UUID — a document that moved.
     const dir = bundle([CHANGED]);
-    const d = deps({ liveVectors: async (hashes) => new Map(hashes.map((h) => [h, axis(2)])) });
-    await buildPreviewEmbeddings(dir, d);
+    const d = deps({ knownVectors: async (hashes) => new Map(hashes.map((h) => [h, axis(2)])) });
+    const pv = await buildPreviewEmbeddings(dir, d);
     expect(d.embedded).toEqual([]);
-    expect([...decodeVector(readFile(dir).rows[0].vector)]).toEqual(axis(2));
+    expect([...pv!.byHash.get(hashOf(CHANGED))!]).toEqual(axis(2));
+    expect(readFile(dir).rows[0].hash).toBe(hashOf(CHANGED));
   });
 
   test("a document stored as a group is not one the gate can compare", async () => {
@@ -98,28 +145,19 @@ describe("buildPreviewEmbeddings", () => {
     // Ended while the lane was waiting on the live store.
     const during = bundle([CHANGED]);
     const mid = new AbortController();
-    const d2 = deps({ liveVectors: async () => { mid.abort(); return new Map(); } });
+    const d2 = deps({ knownVectors: async () => { mid.abort(); return new Map(); } });
     expect(await buildPreviewEmbeddings(during, d2, mid.signal)).toBeNull();
     expect(d2.embedded).toEqual([]);
-    expect(fs.existsSync(path.join(during, EMBEDDINGS_FILE))).toBe(false);
+    expect(fs.existsSync(path.join(during, EMBEDDINGS_INDEX_FILE))).toBe(false);
   });
 
   test("no key, or no live store: no vectors, no file, no throw", async () => {
     const off = bundle([CHANGED]);
     expect(await buildPreviewEmbeddings(off, deps({ enabled: false }))).toBeNull();
-    expect(fs.existsSync(path.join(off, EMBEDDINGS_FILE))).toBe(false);
+    expect(fs.existsSync(path.join(off, EMBEDDINGS_INDEX_FILE))).toBe(false);
     const down = bundle([CHANGED]);
     expect(await buildPreviewEmbeddings(down, deps({ liveHashes: async () => { throw new Error("connection refused"); } }))).toBeNull();
-    expect(fs.existsSync(path.join(down, EMBEDDINGS_FILE))).toBe(false);
-  });
-});
-
-describe("the stored vector", () => {
-  test("survives the file to float32 precision", () => {
-    const v = [0.123456789, -0.5, 0, 1];
-    const back = decodeVector(encodeVector(Float32Array.from(v)));
-    expect(back.length).toBe(4);
-    back.forEach((x, i) => expect(x).toBeCloseTo(v[i], 6));
+    expect(fs.existsSync(path.join(down, EMBEDDINGS_INDEX_FILE))).toBe(false);
   });
 });
 
@@ -131,7 +169,7 @@ describe("bodySimilarity", () => {
     const dir = bundle([CHANGED]);
     const d = deps({
       embedBatch: async (texts) => { d.embedded.push(...texts); return texts.map(() => axis(0)); },
-      liveVectors: async (hashes) => new Map(hashes.filter((h) => h === hashOf(OLD)).map((h) => [h, axis(1)])),
+      knownVectors: async (hashes) => new Map(hashes.filter((h) => h === hashOf(OLD)).map((h) => [h, axis(1)])),
     });
     const pv = (await buildPreviewEmbeddings(dir, d))!;
     const score = await bodySimilarity(snap([OLD]), snap([CHANGED]), pv);
@@ -181,7 +219,7 @@ describe("bodySimilarity", () => {
 
   test("a spent budget still reads the live store, which costs no provider call", async () => {
     const dir = bundle([CHANGED]);
-    const d = deps({ liveVectors: async (hashes) => new Map(hashes.filter((h) => h === hashOf(OLD)).map((h) => [h, axis(1)])) });
+    const d = deps({ knownVectors: async (hashes) => new Map(hashes.filter((h) => h === hashOf(OLD)).map((h) => [h, axis(1)])) });
     const pv = (await buildPreviewEmbeddings(dir, d))!;
     const score = await bodySimilarity(snap([OLD]), snap([CHANGED]), { ...pv, spent: true });
     expect(score?.(CHANGED.id)).toBe(0);

@@ -1,43 +1,32 @@
-// Where a preview's vectors come from, and the shape they are stored in:
-// the row format of embeddings.json, the live store and the provider behind
-// one injectable interface, and the lookup that tries memory, then the live
-// store, then the provider. See embeddings.ts for what the lane is for.
+// Where a preview's vectors come from: the kept vectors, the live store and
+// the provider, behind one injectable interface, and the lookup that tries
+// memory, then what is kept, then the provider. See embeddings.ts for what the
+// lane is for, and vector-cache.ts for where vectors are kept.
 
 import { sql } from "../db.ts";
 import { config } from "../config.ts";
 import { embedBatch } from "../retrieval/embed.ts";
+import { evictVectors, readVectors, saveVectors } from "./vector-cache.ts";
 
 const BATCH = 64;
 const PARALLEL = 4;
 
-/** One row of the file — the same fields as an atlas_doc_embeddings row. */
-export interface PreviewVectorRow {
+/** One row of embeddings-index.json: which vector a row of the preview needs.
+ *  The same fields as an atlas_doc_embeddings row, with the vector left out —
+ *  it is kept once, by `hash`, in preview_vectors (vector-cache.ts). */
+export interface PreviewIndexRow {
   id: string;
   hash: string;
   memberIds: string[];
   attributionOnly: boolean;
-  /** The vector as base64 of its little-endian float32 values — see
-   *  decodeVector. As JSON numbers 520 rows came to 11.3 MB; this is 2.9 MB. */
-  vector: string;
 }
 
-export function encodeVector(v: Float32Array): string {
-  return Buffer.from(v.buffer, v.byteOffset, v.byteLength).toString("base64");
-}
-
-export function decodeVector(s: string): Float32Array {
-  const b = Buffer.from(s, "base64");
-  // A copy, not a view: a Buffer may start at an offset that is not a
-  // multiple of four, which a Float32Array view refuses.
-  return new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
-}
-
-export interface PreviewEmbeddingsJson {
+export interface PreviewEmbeddingsIndex {
   model: string;
   dim: number;
   policy: string;
-  rows: PreviewVectorRow[];
-  /** Rows that needed a vector and did not get one (over MAX_TEXTS, or a failed batch). */
+  rows: PreviewIndexRow[];
+  /** Rows whose vector could not be had (over MAX_TEXTS, or a failed batch). */
   missing: number;
 }
 
@@ -46,9 +35,14 @@ export interface VectorDeps {
   enabled: boolean;
   /** doc_id → content_hash, for every row of the live store. */
   liveHashes: () => Promise<Map<string, string>>;
-  /** The live vectors whose content hash is one of these, keyed by hash. */
-  liveVectors: (hashes: string[]) => Promise<Map<string, number[]>>;
+  /** The vectors already held for these content hashes, keyed by hash: the
+   *  ones kept from earlier previews and the live atlas's own. */
+  knownVectors: (hashes: string[]) => Promise<Map<string, number[]>>;
   embedBatch: (texts: string[], signal?: AbortSignal) => Promise<number[][]>;
+  /** Keep vectors the provider just made, so no rebuild asks for them again. */
+  saveVectors: (entries: [hash: string, vector: number[]][]) => Promise<void>;
+  /** Called once after a run that saved something. */
+  evictVectors: () => Promise<unknown>;
 }
 
 export const realVectorDeps: VectorDeps = {
@@ -59,18 +53,10 @@ export const realVectorDeps: VectorDeps = {
     const rows = (await sql`SELECT doc_id, content_hash FROM atlas_doc_embeddings`) as { doc_id: string; content_hash: string }[];
     return new Map(rows.map((r) => [r.doc_id, r.content_hash]));
   },
-  liveVectors: async (hashes) => {
-    if (!hashes.length) return new Map();
-    // The RAW array with a ::jsonb cast — see pg-array.ts. pgvector's text form
-    // is a JSON array, so it parses as one.
-    const rows = (await sql`
-      SELECT DISTINCT ON (content_hash) content_hash, embedding::text AS v
-        FROM atlas_doc_embeddings
-       WHERE content_hash IN (SELECT jsonb_array_elements_text(${hashes}::jsonb))
-    `) as { content_hash: string; v: string }[];
-    return new Map(rows.map((r) => [r.content_hash, JSON.parse(r.v) as number[]]));
-  },
+  knownVectors: (hashes) => readVectors(hashes),
   embedBatch,
+  saveVectors: (entries) => saveVectors(entries),
+  evictVectors: () => evictVectors(),
 };
 
 /** What the rest of the build keeps in memory after the file is written. */
@@ -90,25 +76,34 @@ export interface PreviewVectors {
   spent: boolean;
 }
 
-/** Vectors for texts by hash: memory, then the live store, then the provider. */
+/** Vectors for texts by hash: memory, then what is kept, then the provider.
+ *  What the provider makes is kept for the next build. */
 export async function resolve(texts: Map<string, string>, pv: Pick<PreviewVectors, "byHash" | "deps">, signal: AbortSignal, max = Infinity): Promise<void> {
   const wanted = [...texts.keys()].filter((h) => !pv.byHash.has(h));
   if (!wanted.length) return;
-  for (const [h, v] of await pv.deps.liveVectors(wanted)) pv.byHash.set(h, Float32Array.from(v));
+  for (const [h, v] of await pv.deps.knownVectors(wanted)) pv.byHash.set(h, Float32Array.from(v));
   const todo = wanted.filter((h) => !pv.byHash.has(h)).slice(0, max);
   const batches: string[][] = [];
   for (let i = 0; i < todo.length; i += BATCH) batches.push(todo.slice(i, i + BATCH));
+  let saved = false;
   const worker = async () => {
     for (let batch = batches.shift(); batch && !signal.aborted; batch = batches.shift()) {
+      let out: number[][];
       try {
-        const out = await pv.deps.embedBatch(batch.map((h) => texts.get(h)!), signal);
-        batch.forEach((h, j) => pv.byHash.set(h, Float32Array.from(out[j])));
+        out = await pv.deps.embedBatch(batch.map((h) => texts.get(h)!), signal);
       } catch (e) {
-        // One failed batch costs its own rows, not the file.
+        // One failed batch costs its own rows, not the run.
         console.warn(`[preview] embedding batch of ${batch.length} failed: ${(e as Error).message}`);
+        continue;
       }
+      batch.forEach((h, j) => pv.byHash.set(h, Float32Array.from(out[j])));
+      // Keeping them is a saving for next time, never a condition of this run.
+      await pv.deps
+        .saveVectors(batch.map((h, j) => [h, out[j]]))
+        .then(() => (saved = true))
+        .catch((e) => console.warn(`[preview] vectors not kept: ${(e as Error).message}`));
     }
   };
   await Promise.all(Array.from({ length: PARALLEL }, worker));
+  if (saved) await pv.deps.evictVectors().catch(() => {});
 }
-

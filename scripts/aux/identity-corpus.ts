@@ -121,7 +121,10 @@ export async function qwenVectors(texts: string[], embed: boolean): Promise<Map<
   const deps = {
     enabled: true,
     liveHashes: async () => new Map<string, string>(),
-    liveVectors: async () => new Map<string, number[]>(),
+    knownVectors: async () => new Map<string, number[]>(),
+    // The script's own cache is the file above, written as each batch arrives.
+    saveVectors: async () => {},
+    evictVectors: async () => {},
     embedBatch: async (batch: string[], signal?: AbortSignal) => {
       const out = await embedBatch(batch, signal);
       fs.appendFileSync(QWEN_CACHE, batch.map((t, j) => JSON.stringify([t, out[j].map((x) => +x.toFixed(5))])).join("\n") + "\n");

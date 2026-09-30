@@ -634,9 +634,11 @@ independent ones.
   verdict by lines and words, and the preview is ready. The first version
   waited, which added the whole embedding time to every preview.
 - **Afterwards**, detached from the build, the lane embeds every row that
-  differs from the live store and writes `embeddings.json` into the bundle, in
-  the row shape of `atlas_doc_embeddings`. Rows are matched by content hash, so
-  unchanged text costs nothing. Preview search can read the same file.
+  differs from the live store, keeps the vectors in `preview_vectors`, and
+  writes `embeddings-index.json` into the bundle: the rows in the shape of
+  `atlas_doc_embeddings`, without their vectors. Rows are matched by content
+  hash, so unchanged text costs nothing. Preview search can read the same
+  index.
 - It then judges each retitled body of more than 3 lines by the cosine of its
   old and new vector, bar 0.85, and writes the **whole** verdict to
   `identity.json` (`identity.<key>.json` for each diff base). Shorter bodies
@@ -659,15 +661,36 @@ three repurposed steps the old rule missed. The cosines it computes from the
 live store's vectors match the measurement script's for the same pairs, so the
 stored vector and the measured one are the same thing.
 
+**Where preview vectors live** (2026-09-30). A bundle is removed often — when
+the live atlas moves, about hourly; past 20 bundles; on every restart — and
+the next visit rebuilds it. A vector depends only on its text and the model,
+so the vectors outlive the bundle: they are kept in Postgres, table
+`preview_vectors` (migration 036, `vector-cache.ts`), keyed by model and
+content hash, capped at 20,000 rows (about 120 MB, measured) with the least
+recently used removed first. The bundle holds only `embeddings-index.json`, a
+list of which rows need which hash, with no vectors in it. Measured on the
+replay: the first build takes 13.3 seconds after the preview is ready; a
+rebuild takes 0.5 seconds and asks the provider for nothing. A later commit of
+the same pull request embeds only what it changed.
+
+Postgres and not a Railway bucket: one query returns every vector a preview
+needs, where a bucket has no batch read (one request for each vector) and no
+lifecycle rules ("not yet supported" in Railway's documentation), so eviction
+would be ours to write and the last-used time ours to track. The table holds a
+hash and a vector only — no repo, commit, document id or text — which matters
+because private previews are embedded too. The move to a bucket, should it
+come, is the one module `vector-cache.ts`. A restart does not lose the vectors
+any more; only a model change ages them out.
+
 Three properties to know:
 
 - A warning can appear, or change, a few seconds after a preview opens.
 - With no API key, a failed provider or a restart during the lane, no
   `identity.json` is written and the verdict by lines and words stands. A log
   line records it.
-- `embeddings.json` is written but not yet read from disk or served: it is not
-  on the preview allowlist, and preview search will need an entry there and a
-  reader (`decodeVector`).
+- `embeddings-index.json` is written but not yet read from disk or served: it
+  is not on the preview allowlist. Preview search will need an entry there,
+  and will read each row's vector from `preview_vectors` by hash.
 
 ### 11. The entity rename — DONE
 

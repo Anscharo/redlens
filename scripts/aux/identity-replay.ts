@@ -5,7 +5,9 @@
 //
 //   bun scripts/aux/identity-replay.ts [<atlas-commit>]      default 93f7f49
 //
-// Needs DATABASE_URL (a synced atlas_doc_embeddings) and OPENROUTER_API_KEY.
+// Needs DATABASE_URL (a synced atlas_doc_embeddings, migrations applied) and
+// OPENROUTER_API_KEY. Run it TWICE to see what a rebuild costs: the second run
+// finds every vector kept in preview_vectors and asks the provider for nothing.
 // Embeds every row of that commit the live store lacks — 520 for the default,
 // about 11 seconds — and prints what the gate flags with and without vectors,
 // with the time the build waits for beside the time the later lane takes.
@@ -14,7 +16,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { EMBEDDINGS_FILE } from "../../src/server/preview/embeddings.ts";
+import { EMBEDDINGS_INDEX_FILE } from "../../src/server/preview/embeddings.ts";
 import { computeDiffArtifacts } from "../../src/server/preview/diff-artifacts.ts";
 import { refineIdentity, refineJob, type IdentityJson } from "../../src/server/preview/identity-refine.ts";
 import { sql } from "../../src/server/db.ts";
@@ -45,8 +47,9 @@ await refineIdentity(dir, [refineJob(["identity.json"], base, head, before)]);
 const wrote = fs.existsSync(path.join(dir, "identity.json"));
 console.log(`the later lane: ${Date.now() - t1}ms — identity.json ${wrote ? "written" : "NOT written (no API key, or the provider failed)"}`);
 if (wrote) {
-  const file = JSON.parse(fs.readFileSync(path.join(dir, EMBEDDINGS_FILE), "utf8"));
-  console.log(`embeddings.json: model=${file.model} dim=${file.dim} policy=${file.policy} rows=${file.rows.length} missing=${file.missing} size=${(fs.statSync(path.join(dir, EMBEDDINGS_FILE)).size / 1e6).toFixed(1)}MB`);
+  const index = JSON.parse(fs.readFileSync(path.join(dir, EMBEDDINGS_INDEX_FILE), "utf8"));
+  const kept = (await sql`SELECT count(*)::int AS n, pg_size_pretty(pg_total_relation_size('preview_vectors')) AS size FROM preview_vectors`) as { n: number; size: string }[];
+  console.log(`embeddings-index.json: model=${index.model} policy=${index.policy} rows=${index.rows.length} missing=${index.missing} size=${(fs.statSync(path.join(dir, EMBEDDINGS_INDEX_FILE)).size / 1e3).toFixed(0)}KB; preview_vectors holds ${kept[0].n} vectors, ${kept[0].size}`);
   const after = JSON.parse(fs.readFileSync(path.join(dir, "identity.json"), "utf8")) as IdentityJson;
   console.log(`flagged WITHOUT vectors: ${Object.keys(before.identitySwap).length}; WITH vectors: ${Object.keys(after.identitySwap).length}`);
   const ids = new Set([...Object.keys(before.identitySwap), ...Object.keys(after.identitySwap)]);
