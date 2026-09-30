@@ -12,7 +12,7 @@ import { cleanContent } from "../lib/atlas-parser.mjs";
 import { embedBatch } from "../../src/server/retrieval/embed.ts";
 import { resolve } from "../../src/server/preview/embeddings-store.ts";
 import { lines, sameTitle, words, type SwapNode } from "../../src/server/preview/identity.ts";
-import { fetchRemoteNodes } from "../lib/fetchNodes.ts"
+import { fetchRemoteNodes } from "./fetchNodes.ts"
 
 export type Kind = "lint" | "typo" | "semantic";
 export interface Edit { id: string; kind: Kind; before: string; after: string }

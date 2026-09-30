@@ -15,7 +15,7 @@
 // across a family of template documents.
 
 import { renameCampaigns, titleSubstitution, CAMPAIGN_MIN_DOCS, type SwapNode } from "../../src/server/preview/identity.ts";
-import { fetchRemoteNodes } from "../lib/fetchNodes.ts";
+import { fetchRemoteNodes } from "./fetchNodes.ts";
 const args = process.argv.slice(2);
 const opt = (n: string, d: number) => { const i = args.indexOf(n); return i >= 0 ? Number(args[i + 1] ?? d) : d; };
 const PRS = opt("--prs", 2000);

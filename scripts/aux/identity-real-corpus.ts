@@ -24,7 +24,7 @@
 //     through?" — which is precisely what atlas#346 was.
 
 import { bodyWhollyReplaced, lineOverlap, orderedWordContainment, REPLACE_MAX_OVERLAP, REPLACE_MAX_WORD_OVERLAP, SHORT_BODY_MAX_LINES, JUDGEABLE_MIN_WORDS } from "../../src/server/preview/identity.ts";
-import { fetchRemoteNodes } from "../lib/fetchNodes.ts";
+import { fetchRemoteNodes } from "./fetchNodes.ts";
 
 const args = process.argv.slice(2);
 const ORIGIN = args.includes("--origin") ? args[args.indexOf("--origin") + 1] : "https://atlas.redline.support";
