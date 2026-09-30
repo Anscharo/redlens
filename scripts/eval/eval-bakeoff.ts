@@ -183,11 +183,14 @@ async function judgeAnswer(q: BakeoffQuery, evidence: string, answer: string): P
 
 async function runOne(model: string, q: BakeoffQuery): Promise<RunResult> {
   const started = Date.now();
-  const base = {
-    model, id: q.id, score: null as number | null, judge: null as JudgeScores | null,
+  // Annotated, not inferred: the catch path below returns `{...base}` as a
+  // RunResult, so a field missing here ships a malformed row rather than
+  // failing. `refs.usesBeforeBlock` was missing exactly that way.
+  const base: RunResult = {
+    model, id: q.id, score: null, judge: null,
     fabrications: { rawInvalidCitations: 0, repaired: 0, stripped: 0, invalidDocNos: 0, ungroundedQuotes: 0, ungroundedValues: 0, undefinedLabels: 0 },
-    refs: { usedRefStyle: false, blockFirst: false, definitions: 0, undefinedLabels: 0, unusedLabels: 0, multiLabel: 0, shippedBrackets: 0, valueCitations: 0 },
-    citations: 0, rounds: 0, toolCalls: 0, latencyMs: 0, usage: { input: 0, output: 0 }, answer: "", error: null as string | null,
+    refs: { usedRefStyle: false, blockFirst: false, usesBeforeBlock: 0, definitions: 0, undefinedLabels: 0, unusedLabels: 0, multiLabel: 0, shippedBrackets: 0, valueCitations: 0 },
+    citations: 0, rounds: 0, toolCalls: 0, latencyMs: 0, usage: { input: 0, output: 0 }, answer: "", error: null,
   };
   try {
     const messages = [

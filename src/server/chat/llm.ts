@@ -87,19 +87,34 @@ function posthogParams(obs: ChatObservability, surface: string): Record<string, 
 // conversation goes to the same provider, so the prompt-cache that provider
 // built on the first round (system prompt + ~11k tokens of tool definitions)
 // is warm for every later round and turn. Without it OpenRouter keys stickiness
-// on a hash of the first system message — and ours changes whenever the user
-// navigates, because the current page rides in it. Measured before this
-// (PostHog, 30 days): gemma-4-31b read 15% of its input from cache vs 66% for
-// gpt-5.6-luna, and gemma's time-to-first-token climbs steeply with input
-// size. The raw conversation id never leaves the server — only a hash of it.
+// on a hash of the first system message AND the first non-system message
+// (https://openrouter.ai/docs/features/prompt-caching) — the system half
+// changes whenever the user navigates, because the current page rides in it,
+// and the user half changes every round. An explicit session_id also makes
+// stickiness start on the first successful request rather than only once a
+// cache hit has been observed; a session expires after 10 idle minutes.
+// Measured before this (PostHog, 30 days): gemma-4-31b read 15% of its input
+// from cache vs 66% for gpt-5.6-luna, and gemma's time-to-first-token climbs
+// steeply with input size.
+// The raw conversation id never leaves the server — only a hash of it.
 // (Tier A of the 2026-09-22 context review: no prompt text changes.)
 export function sessionParam(obs: ChatObservability): { session_id?: string } {
   if (!obs.distinctId) return {};
   return { session_id: createHash("sha256").update(`sabr-chat:${obs.distinctId}`).digest("hex").slice(0, 32) };
 }
 
+// Every request param derived from `obs`, in one place, so a new one cannot
+// reach one factory below and not the other.
+function obsParams(obs: ChatObservability, surface: string): Record<string, unknown> {
+  return { ...sessionParam(obs), ...posthogParams(obs, surface) };
+}
+
 // Non-streamed JSON-mode call for the reliability harness's grader role
 // (verifier). temperature:0 — these are judges, not writers.
+// The session pin applies to EVERY caller of this factory — title.ts and
+// teach-review too, not just the verifier — so the paragraph-refute fan-out
+// (CHAT_REFUTE_CONCURRENCY, default 3) lands on one endpoint. A per-endpoint
+// rate limit would show up as verifier latency.
 // The injection seam mirroring ChatStream: orchestrator/verifier unit
 // tests swap in a fake JsonCall, no network.
 export type JsonCall = (params: {
@@ -153,7 +168,10 @@ export function makeOpenrouterJson(obs: ChatObservability = {}, surface = "atlas
         temperature: 0,
         response_format: { type: "json_object" },
         ...(maxTokens ? { max_tokens: maxTokens } : {}),
-        ...posthogParams(obs, surface),
+        // Not hoisted to factory scope: posthogParams reads getPosthog(), so
+        // computing it once at creation would bake in PostHog's init state.
+        // The session hash is microseconds; correctness wins over that.
+        ...obsParams(obs, surface),
       } as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
       { signal },
     );
@@ -190,7 +208,6 @@ export function makeOpenrouterStream(obs: ChatObservability = {}, models: string
         max_tokens: config.chatMaxOutputTokens,
         stream: true,
         stream_options: { include_usage: true },
-        ...sessionParam(obs),
         // Deliberately NO `reasoning` param. Forwarding a reasoning delta to
         // the client is unconditional (chat-loop.ts's reasoningDelta), and the
         // strong tier's model already reasons unprompted on ~98% of
@@ -205,7 +222,7 @@ export function makeOpenrouterStream(obs: ChatObservability = {}, models: string
         // single global knob could only be set to a value that measurement
         // rejects for at least one tier, so there isn't one; if this is ever
         // revisited it has to be per-tier.
-        ...posthogParams(obs, "atlas-chat"),
+        ...obsParams(obs, "atlas-chat"),
       } as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
       { signal },
     );

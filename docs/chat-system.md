@@ -532,10 +532,35 @@ verdict is mostly ready by generation end instead of one more whole-answer
 round trip after it). Concurrency is capped (`CHAT_REFUTE_CONCURRENCY`,
 default 3) via a simple semaphore; paragraphs at or beyond
 `CHAT_REFUTE_MAX_PARAGRAPHS` (default 8) are concatenated into ONE extra call
-at flush time, keyed by the first overflowing paragraph's index — every call
-carries the full evidence set, so call count rather than paragraph count is
-what scales input tokens. A `tool_call` or `clear` — the draft being set aside
-— resets the refuter to a new burst; a call still in flight from the old burst
+at flush time, keyed by the first overflowing paragraph's index. Every call
+still carries the full evidence set. `buildRefutePrompt` orders the user
+message as question, then that evidence, then the paragraph, so the paragraph
+is the only suffix that changes and a provider prefix cache can reuse the
+evidence across the calls. `[E-const]` is appended after that shared block,
+because it is the only entry computed from the paragraph itself: a paragraph
+that names a parameter lengthens the tail, and the evidence before it still
+matches. A cache miss still bills the full set once per call, which is why
+call count rather than paragraph count is what scales input tokens when the
+prefix is cold.
+
+A paragraph `hasCheckableContent` rejects never starts a call at all: `submit`
+records it `parsed: true` with no usage and no latency, so the backbone does not
+degrade to `unverified` over a heading. The test runs *before* the
+`CHAT_REFUTE_MAX_PARAGRAPHS` routing, so an uncheckable paragraph costs no call,
+no concurrency slot and no place in that budget — and one past the cap is
+dropped rather than concatenated into the overflow batch and billed with it.
+That test is the same one `needsGemma`
+already applied in `gate` mode — this makes `off` and `shadow` agree with it —
+and it is deliberately loose: fewer than `MIN_CLAIM_WORDS` real words AND no
+groundable marker, where a marker is any figure, link, doc number, address,
+code span or reference label (`hasGroundableMarker`). So `## Signers` and a
+`---` rule are skipped while `It is 3.` is not, because a number is the
+auditor's business however short the sentence. `mergeParagraphRefutes` filters
+null usage rather than summing it, and paragraph-mode latency is the wall-clock
+`settleMs`, so a skipped paragraph reads as zero cost, never as missing data.
+
+A `tool_call` or `clear` — the draft being set aside — resets the refuter to a
+new burst; a call still in flight from the old burst
 writes nothing when it lands (checked at land time via an integer burst tag),
 so a stale paragraph's contradiction can never leak into the shipped verdict.
 `refuteParsed` on the merged `Verdict` now means "every paragraph of the FINAL
@@ -552,8 +577,14 @@ to fall back to the pre-2026-09 one-call-over-the-finished-answer behavior;
 **Jev screen in front of the per-paragraph refute (2026-09-22,
 `verify/refute-screen.ts`, `CHAT_REFUTE_SCREEN`).** Each paragraph also goes to
 one Jev request. The state is the paragraph, the documents it cites (read in
-full from the atlas index, not from tool excerpts), and the most relevant
-tool-output records. Each statement gets a Choice over
+full from the atlas index, not from tool excerpts), the deterministic
+`[E-const]` parameter rows, and the most relevant tool-output records — at most
+8 of them, by IDF-weighted overlap, with cited-matching records always kept.
+The cited docs and the parameter rows are their own classes and do not compete
+for those 8 slots (they did until 2026-09-30: the parameter rows carry `doc_no`
+and `uuid`, so a paragraph citing a doc whose parameter it also named scored
+every row as cited-matching and spent tool-record slots on rows already in the
+state). Each statement gets a Choice over
 consistent / contradicted / unsupported, and a paragraph is flagged at
 P(contradicted) ≥ 0.2. The modes:
 - `shadow` (the default): the screen runs beside gemma and changes nothing the
@@ -1084,11 +1115,20 @@ in 2026-09 and does not use it.)
 fixed overhead — a ~5.5k-token system prompt and ~11k tokens of tool
 definitions. Two changes keep that overhead cacheable without altering a word
 the model reads:
-- `makeOpenrouterStream` sends `session_id` = a hash of the conversation id
-  (`sessionParam`), so OpenRouter routes the whole conversation to one provider
-  and that provider's prompt cache stays warm. By default OpenRouter keys that
-  routing on a hash of the first system message, and ours changes whenever the
-  user navigates, because the current page is part of it.
+- `makeOpenrouterStream` and `makeOpenrouterJson` both send `session_id` = a
+  hash of the conversation id (`sessionParam`), so OpenRouter routes every
+  JSON-mode call of a conversation — the verifier slices, and also title
+  generation and teach-review, which share the same factory — to the provider
+  the answer rounds went to, and that provider's prompt cache stays warm.
+  Without it OpenRouter derives the key itself: it "identifies conversations by
+  hashing the first system (or developer) message and the first non-system
+  message in each request"
+  ([sticky routing](https://openrouter.ai/docs/features/prompt-caching)), and
+  the verifier's user message changes with every paragraph, so each paragraph
+  would look like a new conversation. An explicit `session_id` also makes
+  stickiness start on the first successful request instead of only after a
+  cache hit is observed. Sessions expire after 10 minutes idle, so this helps
+  within a turn and across a quick follow-up, not across a long pause.
 - The per-turn date/commit line sits at the end of the system prompt
   (`## Session`), just before `## Current page`, so two days share a 99.2%
   identical prefix instead of ~3%.

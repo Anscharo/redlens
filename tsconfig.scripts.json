@@ -1,0 +1,21 @@
+{
+  /* Typechecks the TypeScript under scripts/, which no project covered before.
+     Options come from tsconfig.server.json via `extends`; the four below are
+     the deliberate differences.
+
+     A glob, not a list of trees, so a new scripts/foo/ is covered the day it
+     appears. "strict" is stricter than the server project on purpose — it is
+     what makes an implicitly-any parameter an error. "allowJs" is for the one
+     .mjs helper these trees import that has no .d.mts. scripts/lib is excluded
+     because its 13 files are all *.test.ts and carry 62 errors of their own; no
+     non-test .ts lives there, so nothing goes unchecked by leaving it out. */
+  "extends": "./tsconfig.server.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.scripts.tsbuildinfo",
+    "strict": true,
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": ["scripts/**/*.ts"],
+  "exclude": ["scripts/lib/**"]
+}

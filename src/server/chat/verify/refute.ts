@@ -66,6 +66,10 @@ export function buildRefutePrompt(params: { question: string; answer: string; ev
         })
         .join("\n\n")
     : "(no tools were called this turn — nothing to compare against)";
+  // Section order is load-bearing for the provider prompt cache. Paragraph
+  // mode sends this prompt once per closed paragraph with the same evidence
+  // and a different paragraph. Caches match a byte-identical prefix, so the
+  // paragraph — the only part that changes — is the suffix.
   return [
     {
       role: "system",
@@ -73,7 +77,7 @@ export function buildRefutePrompt(params: { question: string; answer: string; ev
     },
     {
       role: "user",
-      content: [`## Question\n${question}`, `## Answer to audit\n${answer}`, `## Evidence retrieved this turn\n${evidenceBlock}`].join("\n\n"),
+      content: [`## Question\n${question}`, `## Evidence retrieved this turn\n${evidenceBlock}`, `## Answer to audit\n${answer}`].join("\n\n"),
     },
   ];
 }

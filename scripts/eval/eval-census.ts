@@ -34,7 +34,6 @@ import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { config } from "../../src/server/config.ts";
 import type { CensusSlug } from "../../src/lib/conceptsCensus.ts";
 
-const MAX_CENSUSES = 3;
 // Same recall-favoring weighting as eval-facts.ts, for the same reason: a
 // miss loses an answer, a false fire wastes a few hundred bytes the model can
 // ignore. BETA is even more defensible here given the smaller payload.
