@@ -6,12 +6,13 @@ import { createHash } from "node:crypto";
 import OpenAI from "openai";
 import { OpenAI as PostHogOpenAI } from "@posthog/ai/openai";
 import { config } from "../config.ts";
+import { openrouterAttributionHeaders } from "../openrouter-attribution.ts";
 import { getPosthog } from "../posthog-node.ts";
 import type { ChatStream } from "./chat-loop.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
-const DEFAULT_HEADERS = { "X-Title": "Sky Atlas by Redline" }; // OpenRouter attribution.
+const DEFAULT_HEADERS = openrouterAttributionHeaders(); // OpenRouter attribution.
 
 let client: OpenAI | null = null;
 

@@ -5,6 +5,7 @@
 // the server honors the param. HNSW caps indexed vectors at 2000 dims — 1024 is
 // safe and load-bearing.
 import { config } from "../config.ts";
+import { openrouterAttributionHeaders } from "../openrouter-attribution.ts";
 
 // Embedding dimension. A CODE CONSTANT, not env-configurable: it MUST equal the
 // `vector(N)` in migrations/001_init_atlas.sql and the built HNSW index. Changing
@@ -35,6 +36,7 @@ export async function embedBatch(texts: string[], signal?: AbortSignal, attempt 
       headers: {
         authorization: `Bearer ${config.openrouterApiKey}`,
         "content-type": "application/json",
+        ...openrouterAttributionHeaders(),
       },
       body: JSON.stringify({ model: config.embedModel, input: texts, dimensions: EMBED_DIM }),
       signal,

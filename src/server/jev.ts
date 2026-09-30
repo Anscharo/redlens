@@ -11,6 +11,7 @@
 // run in parallel over ONE `state` and are blind to each other, so a caller
 // that needs answer A to build state B must make two requests.
 import { config } from "./config.ts";
+import { openrouterAttributionHeaders } from "./openrouter-attribution.ts";
 
 // `questions` is a RECORD keyed by caller-chosen id, not an array — the API
 // rejects an array outright. Ids are for code only; they are never shown to
@@ -115,6 +116,7 @@ export async function askJev(params: {
       headers: {
         authorization: `Bearer ${config.openrouterApiKey}`,
         "content-type": "application/json",
+        ...openrouterAttributionHeaders(),
       },
       body: JSON.stringify({ model, state: params.state, questions: params.questions }),
       signal,
