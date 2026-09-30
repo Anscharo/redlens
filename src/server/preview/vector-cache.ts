@@ -1,4 +1,4 @@
-// The ONLY module that touches preview_vectors (migration 035): vectors made
+// The ONLY module that touches preview_vectors (migration 036): vectors made
 // for previews, kept so that a rebuild finds them and asks the provider for
 // nothing. Behind two functions, so that moving the store elsewhere is this
 // one file rewritten.
@@ -24,6 +24,12 @@ type Db = typeof realSql;
  * Every known vector among `hashes`, keyed by hash: the ones kept here, and the
  * ones the LIVE atlas already holds for the same text (atlas_doc_embeddings),
  * in one round trip.
+ *
+ * The live rows carry no model column. They are the vectors search compares
+ * every query against, so they are the current model's by the same assumption
+ * search itself makes; a model change means re-syncing them (sync-embeddings
+ * keys staleness on the content hash and would not do it by itself). The rows
+ * kept here ARE keyed by model, so a change cannot mix them.
  */
 export async function readVectors(hashes: string[], db: Db = realSql, model: string = config.embedModel): Promise<Map<string, number[]>> {
   if (!hashes.length) return new Map();

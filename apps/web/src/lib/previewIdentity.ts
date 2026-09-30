@@ -18,11 +18,20 @@ export interface IdentityVerdict {
 // vectors and 20 for each diff base.
 export const IDENTITY_WAITS_MS = [2000, 3000, 5000, 5000, 10_000, 10_000, 15_000, 15_000, 30_000, 30_000];
 
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+/** A wait that `signal` can cut short. The abort listener is removed when the
+ *  timer wins, so ten waits on one signal do not leave ten listeners behind. */
+export function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new Error("aborted"));
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener("abort", () => { clearTimeout(t); reject(new Error("aborted")); }, { once: true });
+    const onAbort = () => {
+      clearTimeout(t);
+      reject(new Error("aborted"));
+    };
+    const t = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 
@@ -35,7 +44,7 @@ export async function loadIdentityVerdict(
   opts: { signal?: AbortSignal; fetch?: typeof fetch; wait?: (ms: number, signal?: AbortSignal) => Promise<void> } = {},
 ): Promise<IdentityVerdict | null> {
   const get = opts.fetch ?? fetch;
-  const wait = opts.wait ?? sleep;
+  const wait = opts.wait ?? abortableSleep;
   const url = key ? `${base}identity.${key}.json` : `${base}identity.json`;
   try {
     for (let attempt = 0; ; attempt++) {

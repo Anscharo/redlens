@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { IDENTITY_WAITS_MS, loadIdentityVerdict } from "./previewIdentity";
+import { describe, expect, it, vi } from "vitest";
+import { abortableSleep, IDENTITY_WAITS_MS, loadIdentityVerdict } from "./previewIdentity";
 
 const res = (status: number, body: unknown = {}) => ({ status, json: async () => body }) as Response;
 const VERDICT = { identitySwap: { a: { oldTitle: "Approve", newTitle: "Swap" } }, formerUuid: {} };
@@ -15,6 +15,42 @@ function harness(answers: Response[]) {
     wait: async (ms: number) => { waits.push(ms); },
   };
 }
+
+describe("abortableSleep", () => {
+  it("resolves after the wait", async () => {
+    const t0 = Date.now();
+    await abortableSleep(15);
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(10);
+  });
+
+  it("rejects at once on a signal already aborted, and when the signal aborts during the wait", async () => {
+    const spent = new AbortController();
+    spent.abort();
+    await expect(abortableSleep(1000, spent.signal)).rejects.toThrow("aborted");
+    const c = new AbortController();
+    const p = abortableSleep(1000, c.signal);
+    c.abort();
+    await expect(p).rejects.toThrow("aborted");
+  });
+
+  it("leaves no listener on the signal once the timer wins", async () => {
+    const c = new AbortController();
+    const spy = vi.spyOn(c.signal, "removeEventListener");
+    await abortableSleep(5, c.signal);
+    expect(spy).toHaveBeenCalledWith("abort", expect.any(Function));
+  });
+
+  it("is the wait loadIdentityVerdict uses when none is injected", async () => {
+    // Real timers: the first wait is two seconds, and the signal cuts it short.
+    const c = new AbortController();
+    let n = 0;
+    const get = (async () => { n++; setTimeout(() => c.abort(), 5); return res(202); }) as unknown as typeof fetch;
+    const t0 = Date.now();
+    expect(await loadIdentityVerdict("/p/", null, { fetch: get, signal: c.signal })).toBeNull();
+    expect(n).toBe(1);
+    expect(Date.now() - t0).toBeLessThan(1000);
+  });
+});
 
 describe("loadIdentityVerdict", () => {
   it("returns the verdict when the file is there", async () => {

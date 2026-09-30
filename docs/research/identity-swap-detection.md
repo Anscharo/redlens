@@ -681,7 +681,7 @@ document the vector spares must be able to lose its mark.
 Replayed end to end against the real store and provider
 (`bun scripts/aux/identity-replay.ts`), upstream 93f7f49 as a preview of its
 parent: the build's own diff takes 0.3 seconds; the later lane embeds 520 rows
-and writes a 3.0 MB file in 10 to 15 seconds. The verdict by meaning flags 10
+and writes the index in 10 to 15 seconds. The verdict by meaning flags 10
 documents where lines and words flagged 7, and the three it adds are the
 three repurposed steps the old rule missed. The cosines it computes from the
 live store's vectors match the measurement script's for the same pairs, so the
