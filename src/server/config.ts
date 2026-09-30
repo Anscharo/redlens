@@ -227,10 +227,20 @@ export const config = {
   // CHAT_MODEL / CHAT_MODEL_* when the chains change.
   chatContextWindowTokens: Number(process.env.CHAT_CONTEXT_WINDOW_TOKENS ?? 200_000),
   // Narrative compaction of a chat prefix once the replay reaches 90% of
-  // chatContextWindowTokens (context-compact.ts). Defaults to the chat model.
+  // chatContextWindowTokens (context-compact.ts).
+  //
+  // Pinned to luna rather than following CHAT_MODEL, deliberately: this call
+  // reads up to SUMMARY_INPUT_RATIO of the whole window (~140k tokens) and its
+  // output becomes the conversation's PERMANENT replayed prefix — every later
+  // turn answers from it, and it is never rewritten. That is a different job
+  // from answering one turn, so it should not silently change whenever the
+  // default chat model does, and it is worth a stronger model than the default
+  // tier: one fold per thread, against an answer quality that persists for the
+  // rest of that thread's life. luna is already in the routing chain, so the
+  // 200k ceiling above still holds for it.
   // CHAT_SUMMARY_MODEL="" disables compaction; the full transcript is sent
-  // until the provider rejects it.
-  chatSummaryModel: process.env.CHAT_SUMMARY_MODEL ?? process.env.CHAT_MODEL ?? "google/gemma-4-31b-it",
+  // until the provider rejects it (context-overflow.ts then recovers).
+  chatSummaryModel: process.env.CHAT_SUMMARY_MODEL ?? "openai/gpt-5.6-luna",
   chatSummaryTimeoutMs: Number(process.env.CHAT_SUMMARY_TIMEOUT_MS ?? 60_000),
   // NOTE: the OFFLINE HTML-era curation model knobs (selector/cluster/frontier/audit)
   // used to live here but had zero runtime readers in src/server — every reader is

@@ -174,7 +174,11 @@ thread (`context-compact.ts` decides what to replay and when to fold;
 replayed verbatim until the replay reaches 90% of
 `CHAT_CONTEXT_WINDOW_TOKENS` (default 200k, the
 smallest window in the routing chain). That turn summarizes the prefix once
-into `conversations.summary` and keeps a short tail. The summary is a stable
+into `conversations.summary` and keeps a short tail. The summarizer is pinned to
+`openai/gpt-5.6-luna` (`CHAT_SUMMARY_MODEL`) rather than following `CHAT_MODEL`:
+one fold per thread, reading up to ~140k tokens, whose output every later turn
+of that conversation then answers from and which is never rewritten — so it is
+worth a strong model and should not change whenever the default chat model does. The summary is a stable
 message pair after the system prompt — provider caches match a byte-identical
 prefix, so the summary is not rewritten on the turns in between. A failed
 summary (timeout, error, or unparseable output) leaves the full thread in
