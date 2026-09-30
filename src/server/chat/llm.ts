@@ -87,8 +87,13 @@ function posthogParams(obs: ChatObservability, surface: string): Record<string, 
 // conversation goes to the same provider, so the prompt-cache that provider
 // built on the first round (system prompt + ~11k tokens of tool definitions)
 // is warm for every later round and turn. Without it OpenRouter keys stickiness
-// on a hash of the first system message — and ours changes whenever the user
-// navigates, because the current page rides in it. Measured before this
+// on a hash of the first system message AND the first non-system message
+// (https://openrouter.ai/docs/features/prompt-caching) — the system half
+// changes whenever the user navigates, because the current page rides in it,
+// and the user half changes every round. An explicit session_id also makes
+// stickiness start on the first successful request rather than only once a
+// cache hit has been observed; a session expires after 10 idle minutes.
+// Measured before this
 // (PostHog, 30 days): gemma-4-31b read 15% of its input from cache vs 66% for
 // gpt-5.6-luna, and gemma's time-to-first-token climbs steeply with input
 // size. The raw conversation id never leaves the server — only a hash of it.
@@ -100,8 +105,14 @@ export function sessionParam(obs: ChatObservability): { session_id?: string } {
 
 // Non-streamed JSON-mode call for the reliability harness's grader role
 // (verifier). temperature:0 — these are judges, not writers.
-// sessionParam is the same hash the answer stream sends, so these calls pin
-// to the provider endpoint that holds the conversation's prompt cache.
+// sessionParam is the same hash the answer stream sends, so these calls pin to
+// the provider endpoint holding the conversation's prompt cache. That pin
+// applies to EVERY caller of this factory, not just the verifier: title.ts and
+// chat.ts's teach-review also pass the conversation's obs. Intentional — one
+// provider per conversation — but it means the paragraph-refute fan-out
+// (CHAT_REFUTE_CONCURRENCY, default 3) lands on a single endpoint, so a
+// per-endpoint rate limit shows up as verifier latency. Watch
+// $ai_time_to_first_token on the verifier surfaces.
 // The injection seam mirroring ChatStream: orchestrator/verifier unit
 // tests swap in a fake JsonCall, no network.
 export type JsonCall = (params: {

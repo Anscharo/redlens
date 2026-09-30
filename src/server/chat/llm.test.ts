@@ -172,7 +172,7 @@ describe("makeOpenrouterJson", () => {
     const obs = { distinctId: "conv-a" };
     const jsonCall = makeOpenrouterJson(obs);
     await withFetch(fakeFetch, () => jsonCall({ model: "m", messages: [] }));
-    expect((capturedBody as { session_id?: string }).session_id).toBe(sessionParam(obs).session_id);
+    expect((capturedBody as unknown as { session_id?: string }).session_id).toBe(sessionParam(obs).session_id);
   });
 
   it("omits max_tokens entirely when not provided", async () => {

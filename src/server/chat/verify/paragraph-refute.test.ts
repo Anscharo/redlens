@@ -166,6 +166,29 @@ test("a heading or a rule is recorded clean and never calls the model", async ()
   expect(mergeParagraphRefutes(results).parsed).toBe(true);
 });
 
+// The skip's real boundary is not "heading vs prose" — it is MIN_CLAIM_WORDS
+// real words OR any groundable marker. A bare "Yes." has neither and is
+// skipped; the same sentence carrying a figure is not, because a number is the
+// auditor's business however short the sentence. Pinned here because the
+// threshold now decides verification COVERAGE, not just screen cost.
+test("a short prose-only line is skipped, but the same length with a figure audits", async () => {
+  const { call, concurrentCounts } = fakeCall();
+  const refuter = createParagraphRefuter({ ...base, call, concurrency: 2, maxParagraphs: 100 });
+  refuter.submit(0, "Yes.");
+  refuter.submit(1, "It is 3.");
+  const results = await refuter.settle(5000);
+  expect(results.map((r) => r.index)).toEqual([0, 1]);
+  expect(results[0]).toMatchObject({ parsed: true, usage: null, latencyMs: null });
+  expect(results[1]).toMatchObject({ parsed: true, usage: { input: 1, output: 1 } });
+  expect(concurrentCounts).toHaveLength(1); // only the figure line reached the model
+  // A skipped paragraph is zero cost, not missing data: the merge filters null
+  // usage rather than summing it, and still counts the paragraph as parsed.
+  const merged = mergeParagraphRefutes(results);
+  expect(merged.usage).toEqual([{ input: 1, output: 1 }]);
+  expect(merged.paragraphs).toMatchObject({ count: 2, parsed: 2, timedOut: 0 });
+  expect(merged.parsed).toBe(true);
+});
+
 // ── Jev screen modes (CHAT_REFUTE_SCREEN) ────────────────────────────────────
 // An injected screen stands in for refute-screen.ts's screenParagraph, and a
 // fixture gemma returns ONE span-valid contradiction, so "gemma's outcome" is
