@@ -17,6 +17,7 @@ import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts
 import { startCandidates, writeDiffBases } from "./diff-base.ts";
 import { readDiffCounts, diffBaseLogLine } from "./diff-base-record.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
+import { refineIdentity, startRefine, stopRefine, type RefineJob } from "./identity-refine.ts";
 import {
   upsertPreview,
   isKnownSha,
@@ -314,6 +315,7 @@ export interface BuildDeps {
   fetchAndExtract: typeof fetchAndExtract;
   spawnBuild: typeof spawnBuild;
   upsertPreview: (meta: PreviewMeta) => Promise<void>;
+  refineIdentity: (outDir: string, jobs: RefineJob[], signal?: AbortSignal) => Promise<void>;
 }
 
 const realBuildDeps: BuildDeps = {
@@ -325,6 +327,7 @@ const realBuildDeps: BuildDeps = {
   fetchAndExtract,
   spawnBuild,
   upsertPreview,
+  refineIdentity,
 };
 
 async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realBuildDeps): Promise<void> {
@@ -381,6 +384,9 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       return;
     }
     await acquire();
+    // A rebuild replaces the bundle: a verdict still being made for the old one
+    // must not land in the new directory.
+    stopRefine(sha);
     try {
       emit(f, { phase: "fetching", sha });
       // Diff-base candidate resolution is an independent GitHub round-trip (or,
@@ -500,6 +506,10 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       console.log(diffBaseLogLine(meta));
       emit(f, { phase: "ready", sha });
       evictLru(undefined, undefined, inflightShas());
+      // The preview is ready and served from here on. The identity verdict by
+      // meaning waits on the embedding provider, so it is made now, detached,
+      // and lands in identity.json for the reader to pick up.
+      void startRefine(sha, paths.outDir, db.refine, deps.refineIdentity);
     } finally {
       release();
     }
@@ -555,6 +565,8 @@ export async function __runBuildForTest(resolved: Resolved, deps: Partial<BuildD
     done: false,
     promise: Promise.resolve(),
   };
-  await runBuild(f, resolved, { ...realBuildDeps, ...deps });
+  // No verdict by meaning unless a test asks for it: the real lane reaches
+  // Postgres and the embedding provider.
+  await runBuild(f, resolved, { ...realBuildDeps, refineIdentity: async () => {}, ...deps });
   return f.current;
 }

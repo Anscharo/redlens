@@ -26,7 +26,9 @@ export interface HistoryEntry {
   /** Per-node line diff */
   diff?: DiffLine[];
   /** Significance of a modified edit: "lint" = whitespace-only, "typo" =
-   *  ≤8 chars letter-edit, "semantic" = real content change. Only set for
+   *  ≤4 alphanumeric chars changed with no run over 2, "semantic" = real
+   *  content change (scripts/lib/history-classify.mjs is the implementation —
+   *  it is stricter than "≤8 chars", which this comment used to claim). Only set for
    *  `changeType: "modified"`. */
   changeKind?: "lint" | "typo" | "semantic";
   /** Source path for `changeType: "moved"` */

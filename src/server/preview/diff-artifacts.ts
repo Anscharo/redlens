@@ -104,7 +104,10 @@ export function computeDiffArtifacts(
   // UUID-identity reassignment: a stable uuid whose underlying document was
   // wholly replaced (title changed + body rewritten), and — best effort —
   // where the displaced old content moved to. Treated as a distinct WARNING
-  // in the UI, not an ordinary +/Δ.
+  // in the UI, not an ordinary +/Δ. Judged here by lines and words, which
+  // costs no network: the build must not wait on vectors. The verdict by
+  // meaning follows in identity.json (identity-refine.ts), which the reader
+  // loads after the page is up.
   const { identitySwap, formerUuid } = detectIdentitySwaps({ changed, added, mainById: reference, previewById: head });
 
   return { diff: { added, changed, renumbered, retitled, reusedSlot, identitySwap, formerUuid }, patches };

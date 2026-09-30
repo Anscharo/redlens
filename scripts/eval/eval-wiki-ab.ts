@@ -14,7 +14,7 @@ import path from "node:path";
 import type OpenAI from "openai";
 import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { buildSystemPrompt } from "../../src/server/chat/system-prompt.ts";
-import { runVerifiedChat, type CheckRowMeta } from "../../src/server/chat/chat-orchestrator.ts";
+import { runVerifiedChat, type HarnessDone } from "../../src/server/chat/chat-orchestrator.ts";
 import { makeOpenrouterStream, openrouterJson } from "../../src/server/chat/llm.ts";
 import { runDeterministicChecks } from "../../src/server/chat/verify/verify-checks.ts";
 import { evidenceFromTranscript } from "../../src/server/chat/verify/verifier.ts";
@@ -136,13 +136,15 @@ async function runOne(q: BakeoffQuery, arm: Arm): Promise<Result> {
       { role: "system", content: SYSTEM[arm] },
       { role: "user", content: q.query },
     ];
-    let done: (Extract<Awaited<ReturnType<typeof gen.next>>["value"], { type: "done" }> & { checksMeta: CheckRowMeta[] }) | null = null;
+    let done: HarnessDone | null = null;
     const gen = runVerifiedChat({
       ix, messages, stream: makeOpenrouterStream({}, [config.chatModel]), jsonCall: openrouterJson,
       question: q.query, signal: AbortSignal.timeout(300_000), maxIterations: config.chatMaxIterations,
     });
     for await (const ev of gen) {
-      if (ev.type === "done") done = ev as typeof done;
+      // Never `ev as typeof done`: inside the body that is the NARROWED type of
+      // `done`, which here is `null`, so it asserts the event away to nothing.
+      if (ev.type === "done") done = ev as HarnessDone;
     }
     if (!done) throw new Error("no done event");
 

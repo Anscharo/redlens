@@ -68,6 +68,24 @@ describe("buildScreenRequest", () => {
     expect(JSON.stringify(req.state.evidence)).not.toContain("weather");
   });
 
+  // The fixture's param rows carry the cited doc's doc_no and uuid on purpose:
+  // that is what makes them cited-matching, which is the case that used to eat
+  // the tool-record slots.
+  it("param rows are not candidates for the tool-record budget, even when cited-matching", () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({ id: `r${i}`, text: `Spark multisig signer ${i}` }));
+    const params = Array.from({ length: 6 }, (_, i) => ({ name: `Spark multisig signer cap ${i}`, value: i, doc_no: "A.1.2", uuid: A }));
+    const req = buildScreenRequest({
+      question: "q",
+      paragraph: `The Spark multisig signer seats are capped ([Signer Threshold](/atlas/${A})).`,
+      evidence: [ev("[E1]", "atlas_query", rows), ev("[E-const]", "atlas_param_table", params)],
+      ix,
+    });
+    expect(req.counts.constRecords).toBe(6);
+    expect(req.counts.toolRecords).toBe(8);
+    // Every param row still reaches the model, via the core.
+    expect(req.state.evidence.filter((e) => e.source.startsWith("[E-const]"))).toHaveLength(6);
+  });
+
   it("always carries the [E-const] param rows", () => {
     const req = buildScreenRequest({
       question: "q", paragraph: "Nothing in common with anything here at all.",

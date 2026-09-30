@@ -33,13 +33,15 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-09-30
+- Made previews catch a longer document that was replaced by a different one even when the two share most of their wording
+
 ## 2026-09-29
 - Chat keeps earlier questions in a long conversation, and condenses the thread only when it is close to the model's context limit
 - The chat's context meter now measures the whole conversation, so it rises as you talk and only falls when the thread is condensed
 - Stopped previews marking documents "identity changed" when a pull request only renamed or reformatted them, whether by respelling one title, applying the same rename across several documents, or re-indenting a list
 - Changed previews to say a document was "rewritten" rather than "identity changed" when there is no sign of where its previous content went
 - Recent previews now follow your signed-in account across browsers, and include previews of private repositories
-
 
 ## 2026-09-28
 - Added a drag handle on the docked chat so it can be widened up to 55% of the window, and the sidebars fold so the open document stays readable
