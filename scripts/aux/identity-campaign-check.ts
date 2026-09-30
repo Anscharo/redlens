@@ -15,7 +15,7 @@
 // across a family of template documents.
 
 import { renameCampaigns, titleSubstitution, CAMPAIGN_MIN_DOCS, type SwapNode } from "../../src/server/preview/identity.ts";
-
+import { fetchRemoteNodes } from "./fetchNodes.ts";
 const args = process.argv.slice(2);
 const opt = (n: string, d: number) => { const i = args.indexOf(n); return i >= 0 ? Number(args[i + 1] ?? d) : d; };
 const PRS = opt("--prs", 2000);
@@ -27,8 +27,8 @@ const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff
 const pick = <T,>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)];
 
 const main = async () => {
-  const res = await fetch(`${ORIGIN}/docs.json`);
-  const docs = Object.values((await res.json()).nodes) as any[];
+  const nodes = await fetchRemoteNodes(ORIGIN);
+  const docs = Object.values(nodes)
   const titles = [...new Set(docs.map((d) => String(d.title ?? "")).filter((t) => t.trim()))];
   console.log(`live atlas: ${docs.length} docs, ${titles.length} distinct titles`);
 

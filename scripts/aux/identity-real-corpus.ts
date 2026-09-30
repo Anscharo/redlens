@@ -24,6 +24,7 @@
 //     through?" — which is precisely what atlas#346 was.
 
 import { bodyWhollyReplaced, lineOverlap, orderedWordContainment, REPLACE_MAX_OVERLAP, REPLACE_MAX_WORD_OVERLAP, SHORT_BODY_MAX_LINES, JUDGEABLE_MIN_WORDS } from "../../src/server/preview/identity.ts";
+import { fetchRemoteNodes } from "./fetchNodes.ts";
 
 const args = process.argv.slice(2);
 const ORIGIN = args.includes("--origin") ? args[args.indexOf("--origin") + 1] : "https://atlas.redline.support";
@@ -71,8 +72,7 @@ function sides(dl: any[]): [string, string] | null {
 }
 
 const main = async () => {
-  const docsRes = await fetch(`${ORIGIN}/docs.json`);
-  const nodes = (await docsRes.json()).nodes as Record<string, any>;
+  const nodes = await fetchRemoteNodes(ORIGIN);
   const ids = Object.keys(nodes);
   docCount = ids.length;
   for (const n of Object.values(nodes)) for (const w of new Set(toks(String(n.content ?? "")))) df.set(w, (df.get(w) ?? 0) + 1);
