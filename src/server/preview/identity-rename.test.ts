@@ -1,6 +1,6 @@
 // Run via `bun test src/server`. Pure unit tests — no DB, no network.
 import { describe, it, expect } from "bun:test";
-import { detectIdentitySwaps, bodyWhollyReplaced, renameCampaigns, renameScore, titleSubstitution, RENAME_MIN_KEPT, type SwapNode } from "./identity.ts";
+import { detectIdentitySwaps, bodyWhollyReplaced, renameCampaigns, renameScore, titleSubstitution, CAMPAIGN_MIN_DOCS, RENAME_MIN_KEPT, type SwapNode } from "./identity.ts";
 import { mapOf, OZONE_OLD, OZONE_MOVED, SKY_PRIMITIVES } from "./identity-fixtures.ts";
 
 describe("detectIdentitySwaps — a document renamed in place", () => {
@@ -71,6 +71,13 @@ describe("bulk renames", () => {
     expect(Object.keys(run(1).identitySwap)).toEqual(["d0"]);
   });
 
+  it("STILL flags a pair: two replaced documents can share a title edit by chance", () => {
+    // The rule hides every member of a campaign, so its bar is three. In the
+    // atlas history no real bulk rename was smaller than that.
+    expect(CAMPAIGN_MIN_DOCS).toBe(3);
+    expect(Object.keys(run(2).identitySwap).sort()).toEqual(["d0", "d1"]);
+  });
+
   it("does NOT let a wholesale retitle form a campaign", () => {
     // A family of documents genuinely replaced en masse all change title the
     // same way — by changing all of it. That must yield no key, so agreeing
@@ -89,20 +96,23 @@ describe("bulk renames", () => {
   });
 
   it("a campaign still yields to demonstrably relocated content", () => {
-    // Two docs take the same retitle, but one's old body turns up in a new
+    // Three docs take the same retitle, but one's old body turns up in a new
     // uuid — the rename is coincidental, that uuid really was repurposed.
     const main = mapOf([
       { id: "x", doc_no: "A.1", title: "Whitelisting Of Proxy One", content: OZONE_OLD },
       { id: "y", doc_no: "A.2", title: "Whitelisting Of Proxy Two", content: "Unrelated body text that stays put across this diff entirely." },
+      { id: "w", doc_no: "A.3", title: "Whitelisting Of Proxy Three", content: "A third body, which also stays where it is in this diff." },
     ]);
     const preview = mapOf([
       { id: "x", doc_no: "A.1", title: "Allowlisting Of Proxy One", content: SKY_PRIMITIVES },
       { id: "y", doc_no: "A.2", title: "Allowlisting Of Proxy Two", content: "A different body altogether, sharing nothing with what stood here." },
+      { id: "w", doc_no: "A.3", title: "Allowlisting Of Proxy Three", content: "Replaced as well, by a sentence with no word in common at all." },
       { id: "z", doc_no: "A.9", title: "Archive", content: OZONE_MOVED },
     ]);
-    const { identitySwap } = detectIdentitySwaps({ changed: ["x", "y"], added: ["z"], mainById: main, previewById: preview });
+    const { identitySwap } = detectIdentitySwaps({ changed: ["x", "y", "w"], added: ["z"], mainById: main, previewById: preview });
     expect(identitySwap.x?.movedTo?.id).toBe("z");
     expect(identitySwap.y).toBeUndefined(); // no relocation → campaign holds
+    expect(identitySwap.w).toBeUndefined();
   });
 
   it("titleSubstitution: same edit → same key, different edit or wholesale retitle → not grouped", () => {
@@ -119,13 +129,15 @@ describe("bulk renames", () => {
       { id: "a", doc_no: "A.1", title: "Whitelisting Of ALMProxy", content: "x" },
       { id: "b", doc_no: "A.2", title: "Reporting Of ALMProxy", content: "x" },
       { id: "c", doc_no: "A.3", title: "Staking Of LitePSM", content: "x" },
+      { id: "d", doc_no: "A.4", title: "Custody Of ALMProxy", content: "x" },
     ]);
     const preview = mapOf([
       { id: "a", doc_no: "A.1", title: "Whitelisting Of ALM Proxy", content: "y" },
       { id: "b", doc_no: "A.2", title: "Reporting Of ALM Proxy", content: "y" },
       { id: "c", doc_no: "A.3", title: "Staking Of Lite PSM", content: "y" }, // a DIFFERENT substitution
+      { id: "d", doc_no: "A.4", title: "Custody Of ALM Proxy", content: "y" },
     ]);
-    const members = renameCampaigns({ changed: ["a", "b", "c"], mainById: main, previewById: preview });
-    expect([...members].sort()).toEqual(["a", "b"]); // c is alone in its edit
+    const members = renameCampaigns({ changed: ["a", "b", "c", "d"], mainById: main, previewById: preview });
+    expect([...members].sort()).toEqual(["a", "b", "d"]); // c is alone in its edit
   });
 });
