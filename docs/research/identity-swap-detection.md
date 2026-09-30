@@ -166,6 +166,32 @@ at all**, so a family of documents genuinely replaced en masse cannot wave
 itself through by agreeing; and a campaign member with demonstrably relocated
 content is still flagged, the same carve-out `titlesRelated` uses.
 
+**The bar is three documents, not two** (2026-09-30, after a review of #430
+noted that the constant said 2 while the reasoning argued from three). Two
+replaced documents can share a title edit by chance, and at 2 the rule hid
+both. Backtested two ways:
+
+- On real history — the 364 retitles that reach the body test — the rule
+  alone spares 5 documents, in groups of 15, 4 and 3, and none in a group of
+  two. The gate flags the same 20 documents at either bar.
+- On synthetic terminology passes over real title families (a common word
+  replaced in every member's title, and every body wholly replaced, so that
+  only this rule stands between the family and a mark), by family size:
+
+| members | families | whole family spared at bar 2 | at bar 3 | at bar 4 |
+|---|---|---|---|---|
+| 2 | 42 | 42 | 0 | 0 |
+| 3 | 12 | 11 | 11 | 0 |
+| 4 | 3 | 2 | 2 | 2 |
+| 5 or more | 3 | 3 | 3 | 3 |
+
+So the higher bar gives up the pairs. That is the intended trade: a pair whose
+titles AND bodies were both wholly replaced now reads "Rewritten", which is
+true of it, and a pair of real replacements that happen to share a title edit
+is caught. A pair whose bodies follow the rename is still spared by
+`renameScore` (thread 11), and one whose bodies survive is never flagged at
+all. `bun scripts/aux/identity-campaign-check.ts` prints the table.
+
 Note this does not itself fix #346 — `sameTitle` catches a pure respelling
 first. It covers the next variant: a campaign that changes a real word
 ("Whitelisting" → "Allowlisting") across N docs, which would otherwise land as

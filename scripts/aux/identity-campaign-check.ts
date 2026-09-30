@@ -70,7 +70,11 @@ const main = async () => {
   );
   for (const e of examples) console.log(`    e.g. ${e}`);
 
-  // The benefit direction: a terminology pass across real sibling titles.
+  // The benefit direction: a terminology pass across real sibling titles. A
+  // family is the titles that share their first three words; the pass replaces
+  // one common word in every member that has it. Every family and every word
+  // pair is tried, and the outcome is given for the shipped bar AND the bars
+  // either side of it, since the bar is what this measures.
   const families = new Map<string, string[]>();
   for (const t of titles) {
     const head = t.split(/\s+/).slice(0, 3).join(" ").toLowerCase();
@@ -78,24 +82,31 @@ const main = async () => {
     if (g) g.push(t);
     else families.set(head, [t]);
   }
-  const big = [...families.values()].filter((g) => g.length >= CAMPAIGN_MIN_DOCS);
-  let fired = 0;
   const WORDS = [["of", "for"], ["the", "each"], ["and", "plus"]];
-  let tried = 0;
-  for (const fam of big.slice(0, 500)) {
-    const [from, to] = pick(WORDS);
-    const members = fam.filter((t) => new RegExp(`\\b${from}\\b`, "i").test(t)).slice(0, 4);
-    if (members.length < CAMPAIGN_MIN_DOCS) continue;
-    tried++;
-    const main_ = new Map<string, SwapNode>(), prev = new Map<string, SwapNode>();
-    members.forEach((t, i) => {
-      main_.set(`d${i}`, { id: `d${i}`, doc_no: `A.${i}`, title: t, content: "x" });
-      prev.set(`d${i}`, { id: `d${i}`, doc_no: `A.${i}`, title: t.replace(new RegExp(`\\b${from}\\b`, "gi"), to), content: "y" });
-    });
-    if (renameCampaigns({ changed: [...main_.keys()], mainById: main_, previewById: prev }).size === members.length) fired++;
+  // by family size: [families, spared at bar 2, spared at bar 3, spared at bar 4]
+  const bySize = new Map<number, [number, number, number, number]>();
+  for (const fam of families.values()) {
+    for (const [from, to] of WORDS) {
+      const members = fam.filter((t) => new RegExp(`\\b${from}\\b`, "i").test(t));
+      if (members.length < 2) continue;
+      const keys = members.map((t) => titleSubstitution(t, t.replace(new RegExp(`\\b${from}\\b`, "gi"), to)));
+      const count = new Map<string | null, number>();
+      for (const k of keys) count.set(k, (count.get(k) ?? 0) + 1);
+      const sparedAt = (bar: number) => keys.every((k) => k !== null && (count.get(k) ?? 0) >= bar);
+      const size = Math.min(members.length, 5);
+      const row = bySize.get(size) ?? [0, 0, 0, 0];
+      row[0]++;
+      if (sparedAt(2)) row[1]++;
+      if (sparedAt(3)) row[2]++;
+      if (sparedAt(4)) row[3]++;
+      bySize.set(size, row);
+    }
   }
-  console.log(`\nBENEFIT: a one-word terminology pass across real sibling titles`);
-  console.log(`  families tested: ${tried}; rule spared the whole family in ${fired} (${tried ? ((100 * fired) / tried).toFixed(1) : "0"}%)`);
+  console.log(`\nBENEFIT: a one-word terminology pass across real sibling titles (shipped bar: ${CAMPAIGN_MIN_DOCS})`);
+  console.log(`  members   families   whole family spared at bar 2 / bar 3 / bar 4`);
+  for (const [size, [n, s2, s3, s4]] of [...bySize].sort((x, y) => x[0] - y[0])) {
+    console.log(`  ${(size === 5 ? "5+" : String(size)).padStart(7)}   ${String(n).padStart(8)}   ${String(s2).padStart(5)} / ${String(s3).padStart(5)} / ${String(s4).padStart(5)}`);
+  }
 
   // The residual risk, stated rather than averaged away. The batches above draw
   // INDEPENDENT swaps, which is why they never collide. A CORRELATED mass
