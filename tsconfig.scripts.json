@@ -1,35 +1,14 @@
 {
-  /* Typechecks the TypeScript under scripts/, which no project covered until
-     2026-09-30 — see the `needsGemma` arity bug fixed alongside this, which
-     survived for months because `tsc` never read the call site.
+  /* Typechecks the TypeScript under scripts/, which no project covered before.
+     Options come from tsconfig.server.json via `extends`; the four below are
+     the deliberate differences.
 
-     A GLOB with one exclusion, deliberately not a list of trees: a new
-     `scripts/foo/` is then covered the day it appears, rather than waiting for
-     someone to remember this file exists. That is the same failure this project
-     was added to stop.
-
-     Options come from tsconfig.server.json via `extends` so they cannot drift.
-     Three deliberate additions:
-
-     - "strict": the server project does not set it. New coverage starts strict
-       rather than being tightened later against a moving target, and it is what
-       makes an implicitly-any callback parameter an error. Note the asymmetry:
-       scripts/ imports broadly from src/server, so those files are strict-checked
-       HERE while tsconfig.server.json still checks them without it. They are
-       strict-clean today; the tidier end state is `strict` in the server project
-       and none here.
-     - "allowJs" with "checkJs" off, so `scripts/lib/natural-sort.mjs` infers
-       instead of erroring TS7016. It is the one .mjs helper these trees import
-       that has no .d.mts — 20 others under scripts/ do, and a declaration wins
-       over the source where both exist.
-     - excluding scripts/lib, whose 13 files are ALL *.test.ts and carry 62 errors
-       between them. No non-test .ts lives there, so nothing is skipped by leaving
-       it out: what these trees import from scripts/lib is .mjs. Those tests are
-       covered by no project at all — tsconfig.test.json takes only test files
-       under src plus scripts_tests — and want their own pass.
-
-     Careful editing these comments: a glob containing a star-slash closes the
-     block early, which is why the exclusion above is described in words. */
+     A glob, not a list of trees, so a new scripts/foo/ is covered the day it
+     appears. "strict" is stricter than the server project on purpose — it is
+     what makes an implicitly-any parameter an error. "allowJs" is for the one
+     .mjs helper these trees import that has no .d.mts. scripts/lib is excluded
+     because its 13 files are all *.test.ts and carry 62 errors of their own; no
+     non-test .ts lives there, so nothing goes unchecked by leaving it out. */
   "extends": "./tsconfig.server.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.scripts.tsbuildinfo",

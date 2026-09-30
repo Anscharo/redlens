@@ -583,10 +583,10 @@ export async function* runVerifiedChat(opts: {
   // losing that name would silently drop both its [REFERENCE] class and its
   // budget-eviction exemption for every per-paragraph call.
   const historyResults = historyEntries.map((e) => ({ name: e.tool, content: e.content }));
-  // [E0] is a pure function of the index, so it is identical for every refute
-  // call of this turn. atlasDescribe walks the whole graph (every doc, every
-  // edge twice) and the result is stringified, so building it once instead of
-  // once per paragraph keeps ~9 full-corpus scans off the streaming path.
+  // Once per turn, not once per paragraph: atlasDescribe walks the whole graph
+  // (every doc, every edge twice) and stringifies it, and the result is a pure
+  // function of the index — so this keeps ~9 full-corpus scans off the
+  // streaming path.
   const schemaEv = schemaEvidence(opts.ix);
   // ONE assembly order, shared by the per-paragraph and whole-answer refute
   // prompts. [E-const] goes last because it is the only entry derived from the
@@ -902,12 +902,10 @@ export async function* runVerifiedChat(opts: {
   // for the same reason as the audit promise below.
   coveragePromise?.catch(() => {});
 
-  // verifierModel/paragraphMode were hoisted to the top of this function so
-  // the per-paragraph refuter could be created before streaming started, and
-  // the whole-answer audit shares `refuteEvidence` with the per-paragraph path
-  // so neither can drift from the other's section order. [E-const] is still
-  // derived from the audited text (done.content) rather than computed once up
-  // front, which is why that text is a parameter.
+  // verifierModel/paragraphMode were hoisted to the top of this function so the
+  // per-paragraph refuter could be created before streaming started, and
+  // `refuteEvidence` with it — the whole-answer audit calls the same builder
+  // below, with done.content as the audited text.
   let verdict: Verdict | null = null;
   let auditPromise: ReturnType<typeof runAudit> | null = null;
   if (verifierModel) {

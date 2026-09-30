@@ -93,31 +93,28 @@ function posthogParams(obs: ChatObservability, surface: string): Record<string, 
 // and the user half changes every round. An explicit session_id also makes
 // stickiness start on the first successful request rather than only once a
 // cache hit has been observed; a session expires after 10 idle minutes.
-// Measured before this (PostHog, 30 days): gemma-4-31b read 15% of its input from cache vs 66% for
-// gpt-5.6-luna, and gemma's time-to-first-token climbs steeply with input
-// size. The raw conversation id never leaves the server — only a hash of it.
+// Measured before this (PostHog, 30 days): gemma-4-31b read 15% of its input
+// from cache vs 66% for gpt-5.6-luna, and gemma's time-to-first-token climbs
+// steeply with input size.
+// The raw conversation id never leaves the server — only a hash of it.
 // (Tier A of the 2026-09-22 context review: no prompt text changes.)
 export function sessionParam(obs: ChatObservability): { session_id?: string } {
   if (!obs.distinctId) return {};
   return { session_id: createHash("sha256").update(`sabr-chat:${obs.distinctId}`).digest("hex").slice(0, 32) };
 }
 
-// Every request param derived from `obs`, in one place. Both factories below
-// spread this: the bug it prevents is the one this function was added to fix —
-// an obs-derived provider param (session_id) reaching the streaming factory and
-// not the JSON one, with nothing making that visible.
+// Every request param derived from `obs`, in one place, so a new one cannot
+// reach one factory below and not the other.
 function obsParams(obs: ChatObservability, surface: string): Record<string, unknown> {
   return { ...sessionParam(obs), ...posthogParams(obs, surface) };
 }
 
 // Non-streamed JSON-mode call for the reliability harness's grader role
 // (verifier). temperature:0 — these are judges, not writers.
-// The session pin applies to EVERY caller of this factory, not just the
-// verifier: title.ts and chat.ts's teach-review pass the conversation's obs
-// too. Intentional — one provider per conversation — but it means the
-// paragraph-refute fan-out (CHAT_REFUTE_CONCURRENCY, default 3) lands on a
-// single endpoint, so a per-endpoint rate limit shows up as verifier latency.
-// Watch $ai_time_to_first_token on the verifier surfaces.
+// The session pin applies to EVERY caller of this factory — title.ts and
+// teach-review too, not just the verifier — so the paragraph-refute fan-out
+// (CHAT_REFUTE_CONCURRENCY, default 3) lands on one endpoint. A per-endpoint
+// rate limit would show up as verifier latency.
 // The injection seam mirroring ChatStream: orchestrator/verifier unit
 // tests swap in a fake JsonCall, no network.
 export type JsonCall = (params: {
