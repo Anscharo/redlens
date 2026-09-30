@@ -53,8 +53,16 @@ describe("the overflow flag", () => {
 
 describe("contextOverflowMessage", () => {
   it("only promises a condensed retry when compaction is configured", () => {
-    expect(contextOverflowMessage(true)).toContain("Send your message again");
-    expect(contextOverflowMessage(false)).toContain("Start a new chat");
-    expect(contextOverflowMessage(false)).not.toContain("Send your message again");
+    expect(contextOverflowMessage(true)).toContain("condensed first");
+    expect(contextOverflowMessage(false)).toContain("new chat");
+    expect(contextOverflowMessage(false)).not.toContain("condensed first");
+  });
+
+  it("flows into the client's fixed suffix: no trailing period, no retry advice of its own", () => {
+    // ErrorNote renders `{message} — send another message to try again.`
+    for (const message of [contextOverflowMessage(true), contextOverflowMessage(false)]) {
+      expect(message.endsWith(".")).toBe(false);
+      expect(message).not.toContain("try again");
+    }
   });
 });

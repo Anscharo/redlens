@@ -82,11 +82,13 @@ export function clearContextOverflow(convId: string): void {
 
 /**
  * What the user reads instead of the provider's 400. `canCompact` is whether
- * CHAT_SUMMARY_MODEL is set: with compaction off there is nothing the next
- * turn can do differently, so the message must not promise that it will.
+ * CHAT_SUMMARY_MODEL is set: with compaction off there is nothing the next turn
+ * can do differently, so the message must not promise that it will. No trailing
+ * period and no "try again" of its own — ErrorNote appends "— send another
+ * message to try again." to whatever an error event carries.
  */
 export function contextOverflowMessage(canCompact: boolean): string {
   return canCompact
-    ? "This conversation has grown longer than the model can read in one request. Send your message again — the earlier turns will be condensed first. If it happens a second time, start a new chat."
-    : "This conversation has grown longer than the model can read in one request. Start a new chat to continue — condensing long conversations is turned off on this deployment.";
+    ? "This conversation has outgrown what the model can read in one request, so the earlier turns will be condensed first"
+    : "This conversation has outgrown what the model can read in one request, and condensing long conversations is switched off here, so a new chat is the way on";
 }

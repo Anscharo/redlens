@@ -2,7 +2,9 @@
 // auth + conversation persistence; everything that shapes the turn before the
 // first model call (Jev judgement, tier routing, system prompt, full history,
 // facts, /teach notes) lives in prepareTurn (turn-setup.ts). History replay
-// and the 90% context compaction live in context-compact.ts; lookup cards
+// and the 90% context compaction live in context-compact.ts (with its one
+// summarization call in context-summary.ts and the provider-rejection recovery
+// in context-overflow.ts); lookup cards
 // for earlier tool calls live in tool-recall.ts. The tool-calling
 // control flow in the pure runChat() loop (chat-loop.ts), the LLM stream in llm.ts.
 //
@@ -466,7 +468,11 @@ export async function handleChat(req: Request): Promise<Response> {
             // words the user can act on instead of forwarding a raw 400.
             if (isContextOverflowError(err)) {
               markContextOverflow(convId);
-              send({ type: "error", message: contextOverflowMessage(!!config.chatSummaryModel) });
+              // A turn that already folded under `force` and still overflowed
+              // cannot be fixed by folding again — the verbatim tail itself is
+              // too large — so stop promising a condensed retry and say what
+              // does help.
+              send({ type: "error", message: contextOverflowMessage(!!config.chatSummaryModel && !forceCompact) });
             } else {
               send({ type: "error", message: (err as Error).message });
             }
