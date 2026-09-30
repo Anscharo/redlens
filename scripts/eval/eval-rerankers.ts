@@ -6,7 +6,7 @@
 // leaves for semantic-only, the RRF fusion for --hybrid. Recall@N of that list
 // is the reranker's ceiling; the eval prints it beside every arm.
 import type { AtlasNode } from "../../src/types.ts";
-import { askJev, withDeadline } from "../../src/server/jev.ts";
+import { askJev, withDeadline, type JevQuestion } from "../../src/server/jev.ts";
 
 export type Reranker = "none" | "bm25" | "jev" | "jev-neutral" | "jev-score" | "jev-choice" | "qwen3";
 
@@ -90,7 +90,7 @@ const JEV_QUESTION_SCORE = {
 const JEV_CONCURRENCY = 12;
 
 /** One request per (query, candidate): no request sees another candidate. */
-export async function rerankJev(query: string, ids: string[], docMap: Map<string, AtlasNode>, question: object = JEV_QUESTION): Promise<RerankOutcome> {
+export async function rerankJev(query: string, ids: string[], docMap: Map<string, AtlasNode>, question: JevQuestion = JEV_QUESTION): Promise<RerankOutcome> {
   const t0 = performance.now();
   const scores = new Array<number>(ids.length).fill(0);
   let cost = 0;

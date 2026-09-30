@@ -20,5 +20,11 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/server"]
+  /* scripts/eval and scripts/assess are compiled in THIS project, not one of
+     their own: they import deep into src/server, and a separate project resolved
+     a different module graph (it reported errors here that this project does
+     not). They were in no tsconfig until 2026-09-30, which is how a
+     use-before-declaration TDZ crash in eval-retrieval.ts's neural path shipped
+     — the tfidf lane takes the other branch, so no test hit it either. */
+  "include": ["src/server", "scripts/eval", "scripts/assess"]
 }

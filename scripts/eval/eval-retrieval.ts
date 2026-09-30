@@ -764,6 +764,8 @@ interface ArmResult {
   units: number;
   query_embed_ms: { p50: number | null; p95: number | null };
   metrics: ReturnType<typeof metrics>;
+  /** Leaf-rerank arms only: the paired control, ceiling, cost and latency. */
+  rerank_detail?: unknown;
 }
 
 const results: ArmResult[] = [];
@@ -865,6 +867,14 @@ for (const policy of POLICIES) {
       // attribution needs the anchor's own (grouped) vector for the group-echo term.
       const unitIndex = new Map(units.map((u, i) => [u.anchorId, i]));
       for (const q of queries) {
+        // Hoisted above the backend branch: the neural arm assigns it after embedding
+        // the query, and the residual-attribution block below reads it. Declared after
+        // that assignment instead, it was a TDZ ReferenceError on the first query of
+        // every --backend openrouter run — and once merely hoisted, its `= null` ran
+        // after the assignment and silently disabled residual attribution. Neither was
+        // reachable by CI: the tfidf lane takes the other branch, and scripts/eval/ was
+        // in no tsconfig, so `tsc` never saw the file.
+        let queryVec: number[] | null = null;
         let pool: { id: string; text: string; score: number }[];
         const poolK = RERANK === "bm25" || HYBRID ? RERANK_POOL : LEAF_RERANK ? RERANK_N : K;
         if (BACKEND === "tfidf") {
@@ -909,7 +919,6 @@ for (const policy of POLICIES) {
         // of production's, constant across arms, which is what matters for
         // comparing grouping policies and models.
         let leafScorer: ((id: string) => number | undefined) | undefined;
-        let queryVec: number[] | null = null;
         // Only worth an embed when something in the pool is actually a GROUP. For
         // one_to_one every unit is a single doc, so there is nothing to attribute and
         // the residual call would be 179 wasted round-trips per run.
@@ -1016,7 +1025,7 @@ for (const policy of POLICIES) {
         for (const [sl, x] of Object.entries(c.slices)) {
           console.log(`      control ${sl}: recall=${x.recall_at_k.toFixed(3)} exact=${x.exact_recall_at_k.toFixed(3)} mrr=${x.mrr.toFixed(3)}`);
         }
-        (results[results.length - 1] as Record<string, unknown>).rerank_detail = {
+        results[results.length - 1]!.rerank_detail = {
           pool: RERANK_N, ceiling_recall: ceiling, control: c, cost_usd: rerankCost,
           rerank_ms: { p50: pctTimes(rerankMs, 50), p95: pctTimes(rerankMs, 95) },
         };

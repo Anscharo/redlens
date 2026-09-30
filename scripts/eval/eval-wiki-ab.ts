@@ -146,13 +146,13 @@ async function runOne(q: BakeoffQuery, arm: Arm): Promise<Result> {
     }
     if (!done) throw new Error("no done event");
 
-    const t = done.transcript;
+    const t: Msg[] = done.transcript;
     const toolTexts = t.filter((m) => m.role === "tool" && typeof m.content === "string").map((m) => m.content as string);
     const c = runDeterministicChecks(done.content, toolTexts, ix, {
       question: q.query,
       evidence: evidenceFromTranscript(t),
     });
-    const meta = done.checksMeta ?? [];
+    const meta: CheckRowMeta[] = done.checksMeta ?? [];
     return {
       ...base,
       toolRounds: t.filter((m) => m.role === "assistant" && "tool_calls" in m && Array.isArray(m.tool_calls) && m.tool_calls.length > 0).length,

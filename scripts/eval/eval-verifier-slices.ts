@@ -55,7 +55,7 @@ if (!config.openrouterApiKey) {
   process.exit(1);
 }
 const ix = loadIndexes();
-type Corpus = SavedRun & { audit?: { verdict: "clean" | "defect"; notes: string } | null; sourceModel?: string };
+type Corpus = SavedRun & { audit?: { verdict: "clean" | "defect" | "borderline"; notes: string } | null; sourceModel?: string };
 const all: Corpus[] = fs.readdirSync(EVIDENCE_DIR).filter((f) => f.endsWith(".json"))
   .map((f) => JSON.parse(fs.readFileSync(path.join(EVIDENCE_DIR, f), "utf8")) as Corpus);
 // Audited real defects are graded separately and are never mutation bases.

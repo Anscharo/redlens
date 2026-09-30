@@ -29,7 +29,7 @@ function onTarget(span: string, units: string[]): boolean {
 const gAny = (r: Row) => (r.gemma?.candidates.length ?? 0) > 0;
 const gTarget = (r: Row) => !!r.gemma?.candidates.some((x) => onTarget(x.answer_span, r.c.targetUnits));
 const flagged = (r: Row) => r.screen?.flagged === true;
-const routes = (r: Row) => needsGemma(r.screen);
+const routes = (r: Row) => needsGemma(r.screen, r.c.paragraph);
 const frac = (a: number, b: number) => `${a}/${b}${b ? ` (${Math.round((100 * a) / b)}%)` : ""}`;
 const pct = (xs: number[], p: number) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor((p / 100) * xs.length))] : NaN);
 const count = (rs: Row[], f: (r: Row) => boolean) => rs.filter(f).length;
