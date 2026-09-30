@@ -130,14 +130,14 @@ describe("PreviewHistory preview entry", () => {
     expect(line.textContent).toContain("New");
   });
 
-  it("omits the retitled note under an identity swap (the ⚠ paragraph already carries both titles)", () => {
+  it("omits the retitled note under an identity swap (the swap paragraph already carries both titles)", () => {
     setDiff({
       changed: new Set(["n1"]),
       retitled: { n1: ["Operational GovOps", "Sky Primitives"] },
       identitySwap: { n1: { oldTitle: "Operational GovOps", newTitle: "Sky Primitives" } },
     });
     render(<PreviewHistory nodeId="n1" />);
-    expect(screen.getByText(/Identity changed/)).toBeInTheDocument();
+    expect(screen.getByText(/both the title and the body were replaced/)).toBeInTheDocument();
     expect(screen.queryByText(/retitled/)).toBeNull();
   });
 
@@ -189,13 +189,15 @@ describe("PreviewHistory preview entry", () => {
     expect(screen.getByText("⚠")).toHaveStyle({ fontSize: "1.25em" });
   });
 
-  it("notes when a swapped UUID's previous content is not present in the preview", () => {
+  it("describes a swap with no relocation as rewritten, not as an identity change", () => {
     setDiff({
       changed: new Set(["n1"]),
       identitySwap: { n1: { oldTitle: "Operational GovOps", newTitle: "Sky Primitives" } },
     });
     render(<PreviewHistory nodeId="n1" />);
-    expect(screen.getByText(/previous content is not present in this preview/)).toBeInTheDocument();
+    expect(screen.getByText(/previous content was not traced to a single new document in this preview/)).toBeInTheDocument();
+    expect(screen.queryByText(/Identity changed/)).toBeNull();
+    expect(screen.queryByText("⚠")).toBeNull();
   });
 
   it("shows the ⚠ former-UUID warning on a doc that received relocated content", () => {
