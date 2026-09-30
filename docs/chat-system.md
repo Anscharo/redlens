@@ -555,8 +555,8 @@ auditor's business however short the sentence. `mergeParagraphRefutes` filters
 null usage rather than summing it, and paragraph-mode latency is the wall-clock
 `settleMs`, so a skipped paragraph reads as zero cost, never as missing data.
 
-A `tool_call` or `clear` — the draft being set aside
-— resets the refuter to a new burst; a call still in flight from the old burst
+A `tool_call` or `clear` — the draft being set aside — resets the refuter to a
+new burst; a call still in flight from the old burst
 writes nothing when it lands (checked at land time via an integer burst tag),
 so a stale paragraph's contradiction can never leak into the shipped verdict.
 `refuteParsed` on the merged `Verdict` now means "every paragraph of the FINAL
