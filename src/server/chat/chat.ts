@@ -476,6 +476,12 @@ export async function handleChat(req: Request): Promise<Response> {
               // earlier one) and the request was rejected anyway: the verbatim
               // tail itself is too large, so record that folding is spent
               // rather than re-arming it, and stop promising a condensed retry.
+              // `forceCompact` says a fold was ASKED FOR this turn, not that
+              // one landed — compactForReplay also returns unchanged when the
+              // summary call fails or the tail is too short to plan. Spent is
+              // still the right verdict there: a summary model that just failed
+              // cannot rescue the next turn either, and a fold that does land
+              // later (through the ordinary estimate path) clears both flags.
               const foldTried = forceCompact || foldIsSpent(convId);
               if (foldTried) markFoldSpent(convId);
               else markContextOverflow(convId);
