@@ -104,7 +104,9 @@ function titleTruncate(content: string, maxChars: number): string {
 // Newest-first trim used ONLY by the titling prompt. Not the chat replay.
 function windowTitleHistory(history: HistoryRow[]): HistoryRow[] {
   const { keepRecent, oldMaxChars, budgetChars } = TITLE_WINDOW;
-  const rows = history.filter((m) => m.content.trim() !== "");
+  // No empty-row filter: buildTitleTranscript, the only caller, already dropped
+  // them before slicing out the first user message.
+  const rows = history;
   const kept: HistoryRow[] = [];
   let spent = 0;
   for (let i = rows.length - 1; i >= 0; i--) {

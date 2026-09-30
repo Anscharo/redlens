@@ -12,7 +12,7 @@
 // write, and the oldest entry is evicted once `max` conversations are held.
 const MAX_FLAGS = 2_000;
 
-export interface ConvFlags {
+interface ConvFlags {
   /** Raise the flag for this conversation. It expires ttlMs from now. */
   set(convId: string, now?: number): void;
   /** True while the flag is up. Reading an expired flag drops it. */

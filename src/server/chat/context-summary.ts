@@ -2,10 +2,11 @@
 // context-compact.ts decides WHEN to fold and WHAT to keep verbatim; this file
 // is the summarizer and nothing else, so the deciding half stays pure.
 import { callWithTimeout, type JsonCall } from "./llm.ts";
+import { parseJsonish } from "./verify/slice-json.ts";
 import type { ReplayRow } from "./context-compact.ts";
 
 /** A stored summary is capped so the card that replaces the prefix cannot itself sit on the compaction line. */
-const SUMMARY_MAX_CHARS = 12_000;
+export const SUMMARY_MAX_CHARS = 12_000;
 
 const SUMMARY_SYSTEM = [
   "You compact a governance-research chat so a later turn can continue it.",
@@ -19,30 +20,42 @@ const SUMMARY_SYSTEM = [
   'Respond with STRICT JSON only: {"summary":"…"}',
 ].join("\n");
 
+const PART_SEP = "\n\n";
+
+/** One row as the summarizer reads it: its text plus its lookup cards. Null when it has neither. */
+function rowPart(row: ReplayRow): string | null {
+  const recalls = (row.toolCalls ?? []).map((t) => t.recall).filter((s): s is string => !!s && s.trim() !== "");
+  const body = [row.content, ...recalls].filter((s) => s.trim() !== "").join("\n");
+  return body.trim() ? `${row.role}:\n${body}` : null;
+}
+
+function summaryPart(summary: string | null): string | null {
+  return summary?.trim() ? `Previous summary:\n${summary.trim()}` : null;
+}
+
 /** Rows (and any previous summary) as the plain text the summarizer reads. */
 export function renderFold(summary: string | null, rows: ReplayRow[]): string {
-  const parts: string[] = [];
-  if (summary?.trim()) parts.push(`Previous summary:\n${summary.trim()}`);
-  for (const row of rows) {
-    const recalls = (row.toolCalls ?? []).map((t) => t.recall).filter((s): s is string => !!s && s.trim() !== "");
-    const body = [row.content, ...recalls].filter((s) => s.trim() !== "").join("\n");
-    if (body.trim()) parts.push(`${row.role}:\n${body}`);
-  }
-  return parts.join("\n\n");
+  const parts = [summaryPart(summary), ...rows.map(rowPart)].filter((p): p is string => p !== null);
+  return parts.join(PART_SEP);
 }
 
 export function parseSummary(raw: string): string | null {
-  const stripped = raw.replace(/```(?:json)?/g, "").trim();
-  try {
-    const parsed = JSON.parse(stripped) as { summary?: unknown };
-    if (parsed && typeof parsed === "object" && typeof parsed.summary === "string" && parsed.summary.trim()) {
-      return parsed.summary.trim().slice(0, SUMMARY_MAX_CHARS);
-    }
-  } catch {
-    // Prose fallback below.
+  // parseJsonish, not JSON.parse: this is the most truncation-prone of the
+  // JSON-mode calls (900 words asked for inside one string, against
+  // maxTokens 2048), and it is the one whose output is STORED as a
+  // conversation's cache-stable prefix. The shared repair closes a cut-off
+  // string and its open braces, so a clipped generation yields the summary
+  // that was written instead of falling through to the prose branch and
+  // storing a `{"summary":"…` fragment forever.
+  const parsed = parseJsonish(raw);
+  if (parsed && typeof parsed.summary === "string" && parsed.summary.trim()) {
+    return parsed.summary.trim().slice(0, SUMMARY_MAX_CHARS);
   }
-  const text = stripped.trim();
-  if (text.length < 40) return null;
+  // Prose fallback: a model that ignored the format but wrote a real briefing.
+  // A leading `{` means it tried JSON and parseJsonish could not rescue it —
+  // that is a broken envelope, not a summary.
+  const text = raw.replace(/```(?:json)?/g, "").trim();
+  if (text.length < 40 || text.startsWith("{")) return null;
   return text.slice(0, SUMMARY_MAX_CHARS);
 }
 
@@ -77,15 +90,32 @@ export async function summarizeFold(
   budget: number,
   timeoutMs: number,
 ): Promise<string | null> {
+  // Each row is rendered ONCE, here, and the chunk boundary is then chosen by
+  // adding up lengths. Re-rendering a growing candidate to measure it made
+  // packing quadratic in the fold's characters: a 1,240-row fold spent ~550 ms
+  // of the pre-first-token path building ~380 MB of throwaway strings, and it
+  // paid that even when the whole fold fitted in one chunk.
+  const parts = fold.map(rowPart);
   let prior = summary;
-  let pending = fold;
+  let at = 0;
   let produced: string | null = null;
-  while (pending.length > 0) {
-    let take = 1;
-    while (take < pending.length && renderFold(prior, pending.slice(0, take + 1)).length <= budget) take++;
-    const chunk = pending.slice(0, take);
-    pending = pending.slice(take);
-    let text = renderFold(prior, chunk);
+  while (at < fold.length) {
+    const head = summaryPart(prior);
+    const chunk: string[] = head ? [head] : [];
+    let chars = head ? head.length : 0;
+    let taken = 0;
+    while (at + taken < fold.length) {
+      const part = parts[at + taken];
+      // The oldest row of a chunk is always taken, however large: a row that
+      // cannot fit on its own is clamped below rather than looping forever.
+      const grown = part === null ? chars : chars + (chunk.length > 0 ? PART_SEP.length : 0) + part.length;
+      if (taken > 0 && grown > budget) break;
+      if (part !== null) chunk.push(part);
+      chars = grown;
+      taken++;
+    }
+    at += taken;
+    let text = chunk.join(PART_SEP);
     if (text.length > budget) text = text.slice(0, budget);
     const next = await summarizeChunk(call, model, text, timeoutMs);
     if (!next) return null;

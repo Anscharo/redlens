@@ -137,8 +137,11 @@ describe("compactForReplay", () => {
   });
 
   it("replaces the prefix once and leaves the tail verbatim", async () => {
-    const rows = Array.from({ length: 8 }, (_, i) => row(`id-${i}`, i % 2 ? "assistant" : "user", "x".repeat(2_000)));
-    const window = 100;
+    // Sized like a real thread rather than a toy one: the six rows left
+    // verbatim have to fit under the line, or planWithinLine shrinks the tail
+    // (covered separately below).
+    const rows = Array.from({ length: 8 }, (_, i) => row(`id-${i}`, i % 2 ? "assistant" : "user", "x".repeat(40_000)));
+    const window = 80_000;
     expect(needsCompaction(null, rows, window, 0)).toBe(true);
     const out = await compactForReplay({
       rows, summary: null, windowTokens: window, overheadTokens: 0, call, model: "test-model", timeoutMs: 1_000,
@@ -190,9 +193,11 @@ describe("compactForReplay", () => {
         latencyMs: 1,
       };
     };
-    const rows = Array.from({ length: 8 }, (_, i) => row(`id-${i}`, "user", "y".repeat(500)));
+    // 12 rows so the six-row tail still fits while the six-row fold is larger
+    // than one summarization budget (windowTokens * 0.7 * 4 chars).
+    const rows = Array.from({ length: 12 }, (_, i) => row(`id-${i}`, "user", "y".repeat(50_000)));
     const out = await compactForReplay({
-      rows, summary: null, windowTokens: 100, overheadTokens: 0, call: chunked, model: "m", timeoutMs: 1_000,
+      rows, summary: null, windowTokens: 100_000, overheadTokens: 0, call: chunked, model: "m", timeoutMs: 1_000,
     });
     expect(out.compacted).toBe(true);
     expect(seen.length).toBeGreaterThan(1);
@@ -200,6 +205,20 @@ describe("compactForReplay", () => {
     expect(seen[1]).toContain("chunk-1");
     expect(out.summary).toBe(`chunk-${seen.length}`);
     expect(out.rows).toHaveLength(COMPACT_TAIL);
+  });
+
+  it("shrinks the tail when the rows it would keep verbatim are over the line themselves", async () => {
+    // Ten messages at the per-message cap against a small configured window:
+    // folding "everything but six" would leave a prompt the provider rejects
+    // again, and no later fold could fix it. The tail shrinks instead, and the
+    // question being answered always survives.
+    const rows = Array.from({ length: 10 }, (_, i) => row(`id-${i}`, i % 2 ? "assistant" : "user", "x".repeat(28_000)));
+    const out = await compactForReplay({
+      rows, summary: null, windowTokens: 20_000, overheadTokens: 0, call, model: "test-model", timeoutMs: 1_000,
+    });
+    expect(out.compacted).toBe(true);
+    expect(out.rows.length).toBeLessThan(COMPACT_TAIL);
+    expect(out.rows.at(-1)?.id).toBe("id-9");
   });
 
   it("keeps the full thread when the summary call fails", async () => {

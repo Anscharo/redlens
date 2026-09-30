@@ -30,12 +30,9 @@ import {
 } from "./context-compact.ts";
 import {
   clearContextOverflow,
-  contextOverflowMessage,
-  contextOverflowPending,
-  foldIsSpent,
   isContextOverflowError,
-  markContextOverflow,
-  markFoldSpent,
+  noteContextOverflow,
+  shouldForceFold,
 } from "./context-overflow.ts";
 import { attachRecall } from "./tool-recall.ts";
 import type { RecallToolCall } from "./tool-recall-card.ts";
@@ -226,9 +223,12 @@ export async function handleChat(req: Request): Promise<Response> {
     // AFTER the stream's `done`, so a user who sends their next message while
     // that write is still in flight gets no injection for THIS one turn —
     // degrades to today's behaviour (no dispute round at all), never worse.
-    const [historyRows, , lastVerify, convState] = (await Promise.all([
+    const [historyRows, convState, lastVerify] = (await Promise.all([
       sql`SELECT id, role, content, tool_calls FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
-      sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId}`,
+      // updated_at bump + the compaction cursor in one statement: the summary
+      // columns live on the row this UPDATE already touches, so reading them
+      // back costs nothing and saves a fourth round-trip per turn.
+      sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId} RETURNING summary, summary_upto_id`,
       sql`
         SELECT mc.verdict FROM (
           SELECT id FROM messages
@@ -237,12 +237,10 @@ export async function handleChat(req: Request): Promise<Response> {
         ) m
         JOIN message_checks mc ON mc.message_id = m.id AND mc.kind = 'verify'
       `.catch(() => [] as { verdict: unknown }[]),
-      sql`SELECT summary, summary_upto_id FROM conversations WHERE id = ${convId}`,
     ])) as [
       { id: string; role: string; content: string; tool_calls: RecallToolCall[] | null }[],
-      unknown,
-      { verdict: unknown }[],
       { summary: string | null; summary_upto_id: string | null }[],
+      { verdict: unknown }[],
     ];
     const disputes = agreedContradictionsFrom(lastVerify[0]?.verdict);
     let summary = convState[0]?.summary ?? null;
@@ -270,10 +268,9 @@ export async function handleChat(req: Request): Promise<Response> {
     // here and this turn folds regardless of it (context-overflow.ts). It also
     // overrides the failure cooldown — without a fold the turn is going to be
     // rejected again anyway, so paying the timeout is the better bet.
-    // Force at most ONE fold per overflow: `foldIsSpent` means a forced fold
-    // already ran on this conversation and the provider rejected the turn
-    // anyway, so another summary call would buy nothing.
-    const forceCompact = contextOverflowPending(convId) && !foldIsSpent(convId);
+    // At most ONE forced fold per rejection — context-overflow.ts owns that
+    // state machine; this file only asks the question and reports the outcome.
+    const forceCompact = shouldForceFold(convId);
     if (!teachCmd && config.chatSummaryModel && (forceCompact || !summaryCoolingDown(convId))) {
       const compacted = await compactForReplay({
         rows: history,
@@ -285,7 +282,7 @@ export async function handleChat(req: Request): Promise<Response> {
         force: forceCompact,
       });
       if (compacted.failed) noteSummaryFailure(convId);
-      if (compacted.compacted && compacted.uptoId) {
+      if (compacted.compacted) {
         clearSummaryFailure(convId);
         clearContextOverflow(convId);
         summary = compacted.summary;
@@ -472,20 +469,13 @@ export async function handleChat(req: Request): Promise<Response> {
             // prefix even though our estimate said it fit, and say so in
             // words the user can act on instead of forwarding a raw 400.
             if (isContextOverflowError(err)) {
-              // A fold has been tried on this conversation (this turn, or an
-              // earlier one) and the request was rejected anyway: the verbatim
-              // tail itself is too large, so record that folding is spent
-              // rather than re-arming it, and stop promising a condensed retry.
-              // `forceCompact` says a fold was ASKED FOR this turn, not that
-              // one landed — compactForReplay also returns unchanged when the
-              // summary call fails or the tail is too short to plan. Spent is
-              // still the right verdict there: a summary model that just failed
-              // cannot rescue the next turn either, and a fold that does land
-              // later (through the ordinary estimate path) clears both flags.
-              const foldTried = forceCompact || foldIsSpent(convId);
-              if (foldTried) markFoldSpent(convId);
-              else markContextOverflow(convId);
-              send({ type: "error", message: contextOverflowMessage(!!config.chatSummaryModel && !foldTried) });
+              // Flags the conversation AND returns the user-facing wording, so
+              // what we promise and what the next turn does cannot drift apart.
+              const message = noteContextOverflow(convId, {
+                forcedThisTurn: forceCompact,
+                compactionEnabled: !!config.chatSummaryModel,
+              });
+              send({ type: "error", message });
             } else {
               send({ type: "error", message: (err as Error).message });
             }

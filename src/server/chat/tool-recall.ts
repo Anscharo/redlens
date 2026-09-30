@@ -21,7 +21,7 @@ import { toolRecall, type RecallToolCall } from "./tool-recall-card.ts";
  * it does not remint it. `isRecallToolId` recognizes both so a card never
  * becomes verifier evidence.
  */
-export const RECALL_ID_PREFIX = "rcall_";
+const RECALL_ID_PREFIX = "rcall_";
 
 export function isRecallToolId(id: string | undefined | null): boolean {
   if (typeof id !== "string") return false;
@@ -58,6 +58,9 @@ export function recalledToolContents(transcript: TranscriptMsg[]): string[] {
  * Attach a recall card and a stable id to each persisted tool call.
  * Ids are random and stored — replay reads them back, it does not mint new
  * ones, so the tool_call_id prefix stays byte-identical across turns.
+ * Idempotent by the same rule: a call that already carries a card keeps that
+ * card and that id, so re-running this over stored rows cannot rewrite bytes
+ * an earlier turn's prompt cache was built on.
  */
 export function attachRecall(calls: RecallToolCall[], transcript: TranscriptMsg[]): RecallToolCall[] {
   const contents = recalledToolContents(transcript);

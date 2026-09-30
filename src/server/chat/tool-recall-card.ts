@@ -6,8 +6,9 @@
 // so the model can re-call the tool. It is NOT evidence the verifier may
 // ground a quote against — evidenceFromTranscript skips ids that
 // isRecallToolId recognizes.
-export const RECALL_MAX_CHARS = 1_800;
-export const RECALL_MAX_ITEMS = 12;
+import type { ToolCallRecord } from "./chat-loop.ts";
+const RECALL_MAX_CHARS = 1_800;
+const RECALL_MAX_ITEMS = 12;
 const SNIPPET_CHARS = 280;
 const ARGS_CHARS = 400;
 
@@ -20,13 +21,13 @@ const BREADCRUMB_KEYS = new Set(["ancestors", "sources", "addressRefs"]);
 const IDENTITY_KEYS = ["id", "uuid", "doc_id", "doc_no", "title", "name", "address", "chain", "slug", "type", "role"];
 const SNIPPET_KEYS = ["snippet", "content", "definition", "text", "summary"];
 
-export interface RecallToolCall {
-  name: string;
-  args: Record<string, unknown>;
-  ok: boolean;
-  bytes: number;
-  truncated?: boolean;
-  originalBytes?: number;
+/**
+ * A persisted tool call: exactly what the loop recorded, plus the two replay
+ * fields. Extends ToolCallRecord rather than restating it — attachRecall is
+ * handed `done.toolCalls`, so the shapes have to stay identical, and a field
+ * added to the loop's record must not silently drop out of the stored row.
+ */
+export interface RecallToolCall extends ToolCallRecord {
   /** Deterministic extract. Absent on rows written before recall existed. */
   recall?: string;
   /** Stable tool_call id for replay. Minted once at persist time. */

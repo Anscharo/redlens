@@ -1,13 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
   clearContextOverflow,
-  contextOverflowMessage,
-  contextOverflowPending,
-  foldIsSpent,
   isContextOverflowError,
-  markContextOverflow,
-  markFoldSpent,
+  noteContextOverflow,
+  shouldForceFold,
 } from "./context-overflow.ts";
+
+const ON = { forcedThisTurn: false, compactionEnabled: true };
 
 describe("isContextOverflowError", () => {
   it("recognizes the wordings providers actually return", () => {
@@ -37,48 +36,60 @@ describe("isContextOverflowError", () => {
   });
 });
 
-describe("the overflow flag", () => {
-  it("is raised for the conversation and cleared by a fold", () => {
-    const conv = "conv-overflow-flag";
-    expect(contextOverflowPending(conv)).toBe(false);
-    markContextOverflow(conv);
-    expect(contextOverflowPending(conv)).toBe(true);
-    clearContextOverflow(conv);
-    expect(contextOverflowPending(conv)).toBe(false);
+describe("the overflow state machine", () => {
+  it("arms one forced fold, then stands down", () => {
+    const conv = "conv-overflow-one-fold";
+    expect(shouldForceFold(conv)).toBe(false);
+
+    // First rejection: the next turn should fold, and we say so.
+    const first = noteContextOverflow(conv, ON);
+    expect(first).toContain("condensed first");
+    expect(shouldForceFold(conv)).toBe(true);
+
+    // That fold ran and the provider rejected the turn anyway.
+    const second = noteContextOverflow(conv, { ...ON, forcedThisTurn: true });
+    expect(second).toContain("a new chat");
+    expect(shouldForceFold(conv)).toBe(false);
+
+    // Every later message: no forced summary call, and no promise of one.
+    expect(noteContextOverflow(conv, ON)).toContain("a new chat");
+    expect(shouldForceFold(conv)).toBe(false);
   });
 
-  it("records a spent fold separately, and a landed fold clears both", () => {
-    const conv = "conv-overflow-fold-spent";
-    expect(foldIsSpent(conv)).toBe(false);
-    markContextOverflow(conv);
-    markFoldSpent(conv);
-    // Both are up: the route reads this as "do not force another summary call".
-    expect(contextOverflowPending(conv)).toBe(true);
-    expect(foldIsSpent(conv)).toBe(true);
+  it("promises nothing when compaction is switched off", () => {
+    const conv = "conv-overflow-no-compaction";
     clearContextOverflow(conv);
-    expect(contextOverflowPending(conv)).toBe(false);
-    expect(foldIsSpent(conv)).toBe(false);
+    const message = noteContextOverflow(conv, { forcedThisTurn: false, compactionEnabled: false });
+    expect(message).toContain("a new chat");
+    expect(message).not.toContain("condensed first");
+  });
+
+  it("a landed fold clears both verdicts", () => {
+    const conv = "conv-overflow-cleared";
+    noteContextOverflow(conv, { ...ON, forcedThisTurn: true });
+    clearContextOverflow(conv);
+    expect(shouldForceFold(conv)).toBe(false);
+    // Back to a clean slate: the next rejection arms a fold again.
+    expect(noteContextOverflow(conv, ON)).toContain("condensed first");
+    expect(shouldForceFold(conv)).toBe(true);
   });
 
   it("does not leak across conversations and expires after a day", () => {
     const conv = "conv-overflow-expiry";
-    markContextOverflow(conv, 0);
-    expect(contextOverflowPending("conv-overflow-other", 0)).toBe(false);
-    expect(contextOverflowPending(conv, 23 * 60 * 60_000)).toBe(true);
-    expect(contextOverflowPending(conv, 25 * 60 * 60_000)).toBe(false);
-  });
-});
-
-describe("contextOverflowMessage", () => {
-  it("only promises a condensed retry when compaction is configured", () => {
-    expect(contextOverflowMessage(true)).toContain("condensed first");
-    expect(contextOverflowMessage(false)).toContain("new chat");
-    expect(contextOverflowMessage(false)).not.toContain("condensed first");
+    noteContextOverflow(conv, ON, 0);
+    expect(shouldForceFold("conv-overflow-other", 0)).toBe(false);
+    expect(shouldForceFold(conv, 23 * 60 * 60_000)).toBe(true);
+    expect(shouldForceFold(conv, 25 * 60 * 60_000)).toBe(false);
   });
 
   it("flows into the client's fixed suffix: no trailing period, no retry advice of its own", () => {
     // ErrorNote renders `{message} — send another message to try again.`
-    for (const message of [contextOverflowMessage(true), contextOverflowMessage(false)]) {
+    const conv = "conv-overflow-copy";
+    clearContextOverflow(conv);
+    for (const message of [
+      noteContextOverflow(conv, ON),
+      noteContextOverflow(conv, { ...ON, forcedThisTurn: true }),
+    ]) {
       expect(message.endsWith(".")).toBe(false);
       expect(message).not.toContain("try again");
     }

@@ -196,7 +196,18 @@ one forced fold is spent per rejection: if the request is rejected again after
 it, the verbatim tail itself is too large, and the conversation is marked
 `foldIsSpent` so later turns neither pay another summary call for it nor
 promise one — they ask for a new chat. A fold that does land clears both
-verdicts, since the thread has shrunk. There is
+verdicts, since the thread has shrunk. `shouldForceFold` and
+`noteContextOverflow` are the whole surface: the flag and the wording are one
+decision, so what the notice promises cannot drift from what the next turn does.
+
+Folding also shrinks its own tail rather than trusting the row count:
+`planWithinLine` drops a tail row at a time, down to the question being
+answered, until the rows left verbatim (plus a summary at its cap) are
+themselves under the line. For any ordinary thread the six-row tail is far
+under it and nothing shrinks — it exists so that six messages at
+`MAX_MESSAGE_BYTES`, or a small configured `CHAT_CONTEXT_WINDOW_TOKENS`, cannot
+produce the one outcome the design cannot recover from: a fold that leaves a
+prompt still over the line, which no later fold can fix. There is
 deliberately no retry inside the same turn: it would mean re-running everything
 before the first token (Jev judgement, facts round, `/teach` filtering) or
 duplicating `prepareTurn`'s assembly, and the same message re-sent takes the

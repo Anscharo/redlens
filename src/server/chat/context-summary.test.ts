@@ -16,6 +16,17 @@ describe("parseSummary", () => {
     const prose = "The user asked about the freezer and the threshold was not resolved.";
     expect(parseSummary(prose)).toBe(prose);
   });
+
+  it("recovers the summary from a generation cut off mid-string", () => {
+    // The 2048-token cap clips this call routinely, and the result is STORED
+    // as the thread's prefix — the shared repair must salvage it.
+    const cut = '{"summary":"The user asked about the freezer and the threshold was left open';
+    expect(parseSummary(cut)).toBe("The user asked about the freezer and the threshold was left open");
+  });
+
+  it("rejects a broken JSON envelope instead of storing it as prose", () => {
+    expect(parseSummary('{"summary": 12345, "note": "wrong type"}')).toBeNull();
+  });
 });
 
 describe("renderFold", () => {

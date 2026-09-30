@@ -5,6 +5,10 @@
 import { sql, toUuidArrayLiteral } from "../db.ts";
 import { getSessionUser } from "../session.ts";
 import { json } from "../http.ts";
+// The estimated-context fallback below and the compaction trigger must agree on
+// what a char costs, or the "~N tokens" badge describes a different thread than
+// the one we decide to fold. One constant, measured in context-compact.ts.
+import { CHARS_PER_TOKEN } from "./context-compact.ts";
 import { aggregateMarks, shownMarks, type CitationMark } from "./verify/citation-marks.ts";
 import { withoutDisputedMarks } from "./verify/disputes.ts";
 import {
@@ -15,9 +19,7 @@ import {
   type AnswerCoverageOut,
 } from "./verify/persisted-verdict.ts";
 
-// Rough chars-per-token for the estimated-context fallback below. Estimation
-// only — measured rows never touch it.
-const CHARS_PER_TOKEN = 4;
+
 
 interface ConversationListOut {
   id: string;

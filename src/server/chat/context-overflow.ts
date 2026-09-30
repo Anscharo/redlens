@@ -70,46 +70,52 @@ export function isContextOverflowError(err: unknown): boolean {
 const OVERFLOW_TTL_MS = 24 * 60 * 60_000;
 
 const overflowed = convFlags(OVERFLOW_TTL_MS);
+// A forced fold ran and the request was rejected anyway: the verbatim tail
+// itself is too large, so folding is spent on this conversation. Without this
+// second verdict, every later message in a thread the user keeps using would
+// buy one wasted summary call and the same rejection, for a day.
 const foldSpent = convFlags(OVERFLOW_TTL_MS);
 
-export function markContextOverflow(convId: string, now = Date.now()): void {
-  overflowed.set(convId, now);
-}
-
-export function contextOverflowPending(convId: string, now = Date.now()): boolean {
-  return overflowed.has(convId, now);
+/**
+ * Should this turn fold even though the estimate says the thread fits? True
+ * once the provider has rejected the thread, until a fold has been tried.
+ * The two flags are read nowhere else: the caller asks this question and
+ * `noteContextOverflow` below, so the state machine cannot be re-derived
+ * (differently) at a call site.
+ */
+export function shouldForceFold(convId: string, now = Date.now()): boolean {
+  return overflowed.has(convId, now) && !foldSpent.has(convId, now);
 }
 
 /**
- * A forced fold ran and the request was rejected anyway: the verbatim tail
- * itself is too large, so folding is spent on this conversation. Later turns
- * must not pay another summary call for it, and must not promise one — without
- * this, every message in a thread the user keeps using would buy one wasted
- * summary call and the same rejection, for a day.
+ * Record a length rejection and return what to tell the user. One function
+ * because the flag and the copy are the same decision: promising "the earlier
+ * turns will be condensed" is only honest while a fold is still available.
+ *
+ * `forcedThisTurn` is whether this turn already folded under `shouldForceFold`
+ * — asked for, not necessarily landed: compactForReplay also returns unchanged
+ * when the summary call fails. Spent is still the right verdict there, since a
+ * summary model that just failed cannot rescue the next turn either, and a fold
+ * that does land later clears both flags.
+ *
+ * The message carries no trailing period and no "try again" of its own:
+ * ErrorNote appends "— send another message to try again." to every error event.
  */
-export function markFoldSpent(convId: string, now = Date.now()): void {
-  foldSpent.set(convId, now);
-}
-
-export function foldIsSpent(convId: string, now = Date.now()): boolean {
-  return foldSpent.has(convId, now);
+export function noteContextOverflow(
+  convId: string,
+  opts: { forcedThisTurn: boolean; compactionEnabled: boolean },
+  now = Date.now(),
+): string {
+  const foldTried = opts.forcedThisTurn || foldSpent.has(convId, now);
+  if (foldTried) foldSpent.set(convId, now);
+  else overflowed.set(convId, now);
+  return opts.compactionEnabled && !foldTried
+    ? "This conversation has outgrown what the model can read in one request, so the earlier turns will be condensed first"
+    : "This conversation has outgrown what the model can read in one request, and condensing it further will not help, so a new chat is the way on";
 }
 
 /** Called when a fold DOES land: the thread shrank, so both verdicts are stale. */
 export function clearContextOverflow(convId: string): void {
   overflowed.clear(convId);
   foldSpent.clear(convId);
-}
-
-/**
- * What the user reads instead of the provider's 400. `canCompact` is whether
- * CHAT_SUMMARY_MODEL is set: with compaction off there is nothing the next turn
- * can do differently, so the message must not promise that it will. No trailing
- * period and no "try again" of its own — ErrorNote appends "— send another
- * message to try again." to whatever an error event carries.
- */
-export function contextOverflowMessage(canCompact: boolean): string {
-  return canCompact
-    ? "This conversation has outgrown what the model can read in one request, so the earlier turns will be condensed first"
-    : "This conversation has outgrown what the model can read in one request, and condensing long conversations is switched off here, so a new chat is the way on";
 }

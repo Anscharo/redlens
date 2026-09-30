@@ -24,7 +24,7 @@
 // every turn would throw away the rest of the conversation on top of that.
 import type OpenAI from "openai";
 import type { JsonCall } from "./llm.ts";
-import { summarizeFold } from "./context-summary.ts";
+import { summarizeFold, SUMMARY_MAX_CHARS } from "./context-summary.ts";
 import { convFlags } from "./conv-flags.ts";
 import { replayArguments, type RecallToolCall } from "./tool-recall-card.ts";
 
@@ -161,6 +161,36 @@ export function planCompaction(rows: ReplayRow[], tailCount = COMPACT_TAIL): Com
   return { fold, tail, uptoId };
 }
 
+/**
+ * The plan whose verbatim tail is itself under the line, shrinking the tail a
+ * row at a time from `tailCount` down to the current user message alone.
+ *
+ * A tail of ordinary rows is nowhere near the line, so this returns
+ * `planCompaction(rows, tailCount)` on the first try for every real
+ * conversation. It exists for the one case that a fold otherwise cannot
+ * rescue: six rows that are themselves most of the window (a user may send
+ * MAX_MESSAGE_BYTES per message, and one assistant row can carry several
+ * lookup cards). Folding "everything but six rows" there produces a prompt
+ * that is still over the line, which the provider rejects and no further fold
+ * can fix. The summary that replaces the prefix is counted at its cap, since
+ * its real length is not known until the model has written it.
+ */
+function planWithinLine(
+  rows: ReplayRow[],
+  tailCount: number,
+  windowTokens: number,
+  overheadTokens: number,
+): CompactionPlan | null {
+  const summaryTokens = Math.ceil(SUMMARY_MAX_CHARS / CHARS_PER_TOKEN);
+  for (let n = tailCount; n >= 1; n--) {
+    const plan = planCompaction(rows, n);
+    if (!plan) continue; // fewer tail rows may still leave a foldable prefix
+    const tailTokens = replayTokens(null, plan.tail) + summaryTokens + overheadTokens;
+    if (tailTokens < windowTokens * COMPACT_RATIO || n === 1) return plan;
+  }
+  return null;
+}
+
 /** Drop rows already folded into the stored summary. Unknown cursor → replay everything (do not hide the thread). */
 export function rowsAfterCursor(rows: ReplayRow[], uptoId: string | null | undefined): ReplayRow[] {
   if (!uptoId) return rows;
@@ -185,18 +215,19 @@ export interface CompactInput {
   force?: boolean;
 }
 
-export interface CompactResult {
-  rows: ReplayRow[];
-  summary: string | null;
-  uptoId: string | null;
-  compacted: boolean;
-  /**
-   * A summary call ran and produced nothing (timeout, error, unparseable
-   * output). The full rows are still returned. The caller should back off
-   * so the next turn does not pay the timeout again.
-   */
-  failed: boolean;
-}
+/**
+ * A fold either happened — and then there is a summary AND a cursor to store
+ * it against — or it did not. Saying that in the type means the caller writes
+ * `if (result.compacted)` instead of re-checking `uptoId` to find out whether
+ * a null cursor is a state it has to handle.
+ *
+ * `failed` marks a summary call that ran and produced nothing (timeout, error,
+ * unparseable output). The full rows are still returned; the caller backs off
+ * so the next turn does not pay the timeout again.
+ */
+export type CompactResult =
+  | { compacted: true; rows: ReplayRow[]; summary: string; uptoId: string; failed: false }
+  | { compacted: false; rows: ReplayRow[]; summary: string | null; uptoId: null; failed: boolean };
 
 /**
  * How long chat.ts skips another summary after `failed`. A provider outage
@@ -230,10 +261,10 @@ export function clearSummaryFailure(convId: string): void {
 export async function compactForReplay(input: CompactInput): Promise<CompactResult> {
   const { rows, summary, windowTokens, call, model, timeoutMs, force } = input;
   const overhead = input.overheadTokens ?? CONTEXT_OVERHEAD_TOKENS;
-  const unchanged: CompactResult = { rows, summary, uptoId: null, compacted: false, failed: false };
+  const unchanged = { rows, summary, uptoId: null, compacted: false as const, failed: false };
   if (!model) return unchanged;
   if (!force && !needsCompaction(summary, rows, windowTokens, overhead)) return unchanged;
-  const plan = planCompaction(rows, force ? COMPACT_TAIL_FORCED : COMPACT_TAIL);
+  const plan = planWithinLine(rows, force ? COMPACT_TAIL_FORCED : COMPACT_TAIL, windowTokens, overhead);
   if (!plan) return unchanged;
   const budget = Math.floor(windowTokens * SUMMARY_INPUT_RATIO * CHARS_PER_TOKEN);
   try {
