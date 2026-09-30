@@ -577,8 +577,14 @@ to fall back to the pre-2026-09 one-call-over-the-finished-answer behavior;
 **Jev screen in front of the per-paragraph refute (2026-09-22,
 `verify/refute-screen.ts`, `CHAT_REFUTE_SCREEN`).** Each paragraph also goes to
 one Jev request. The state is the paragraph, the documents it cites (read in
-full from the atlas index, not from tool excerpts), and the most relevant
-tool-output records. Each statement gets a Choice over
+full from the atlas index, not from tool excerpts), the deterministic
+`[E-const]` parameter rows, and the most relevant tool-output records — at most
+8 of them, by IDF-weighted overlap, with cited-matching records always kept.
+The cited docs and the parameter rows are their own classes and do not compete
+for those 8 slots (they did until 2026-09-30: the parameter rows carry `doc_no`
+and `uuid`, so a paragraph citing a doc whose parameter it also named scored
+every row as cited-matching and spent tool-record slots on rows already in the
+state). Each statement gets a Choice over
 consistent / contradicted / unsupported, and a paragraph is flagged at
 P(contradicted) ≥ 0.2. The modes:
 - `shadow` (the default): the screen runs beside gemma and changes nothing the

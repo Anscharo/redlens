@@ -68,6 +68,27 @@ describe("buildScreenRequest", () => {
     expect(JSON.stringify(req.state.evidence)).not.toContain("weather");
   });
 
+  // The param rows are their own evidence class: they go in the core
+  // unconditionally, so they must not compete for the tool-record slots. They
+  // carry doc_no and uuid per row, so a paragraph that cites a doc whose
+  // parameter it also names makes every one of them cited-matching — which
+  // used to score them Infinity, sort them to the front of the ranking, and
+  // leave only the slice remainder for actual tool output.
+  it("param rows are not candidates for the tool-record budget, even when cited-matching", () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({ id: `r${i}`, text: `Spark multisig signer ${i}` }));
+    const params = Array.from({ length: 6 }, (_, i) => ({ name: `Spark multisig signer cap ${i}`, value: i, doc_no: "A.1.2", uuid: A }));
+    const req = buildScreenRequest({
+      question: "q",
+      paragraph: `The Spark multisig signer seats are capped ([Signer Threshold](/atlas/${A})).`,
+      evidence: [ev("[E1]", "atlas_query", rows), ev("[E-const]", "atlas_param_table", params)],
+      ix,
+    });
+    expect(req.counts.constRecords).toBe(6);
+    expect(req.counts.toolRecords).toBe(8);
+    // Every param row still reaches the model, via the core.
+    expect(req.state.evidence.filter((e) => e.source.startsWith("[E-const]"))).toHaveLength(6);
+  });
+
   it("always carries the [E-const] param rows", () => {
     const req = buildScreenRequest({
       question: "q", paragraph: "Nothing in common with anything here at all.",

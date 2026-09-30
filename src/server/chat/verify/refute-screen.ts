@@ -89,7 +89,19 @@ const toolEntry = (r: EvidenceRecord) => ({ source: `${r.entry} ${r.tool}${r.pat
 export function buildScreenRequest(p: { question: string; paragraph: string; evidence: EvidenceEntry[]; ix: Indexes }): ScreenRequest {
   const statements = statementsOf(p.paragraph);
   const recs = recordsOf(p.evidence.filter((e) => e.label !== "[E0]"));
+  // The param rows go in the core unconditionally, so they are NOT candidates
+  // for the tool-record slots and are kept out of the ranking entirely — both
+  // its output and its statistics. They used to be ranked alongside the tool
+  // records and then skipped on the way out, which spent part of the budget on
+  // records already in the core: each row carries doc_no and uuid, so a
+  // paragraph citing a doc whose parameter it also names scored every row
+  // Infinity (citedRecordPositions), sorted them to the front, and left only
+  // the remainder of `max(8, cited.size)` for actual tool output — with up to
+  // CONST_EVIDENCE_CAP (40) rows, that could starve the screen of tool
+  // evidence on exactly the specific, citation-bearing paragraphs it is most
+  // needed for.
   const constRecs = recs.filter((r) => r.entry === "[E-const]");
+  const toolRecs = recs.filter((r) => r.entry !== "[E-const]");
   const docs = citedDocs(p.paragraph, p.ix).map((d) => ({
     source: `atlas document ${d.doc_no} (cited by the paragraph)`,
     record: { id: d.id, doc_no: d.doc_no, title: d.title, type: d.type, content: d.content },
@@ -104,8 +116,7 @@ export function buildScreenRequest(p: { question: string; paragraph: string; evi
   // so every kept record paid two JSON.parse and an extra JSON.stringify.
   const kept: { rec: EvidenceRecord; entry: ReturnType<typeof toolEntry> }[] = [];
   let dropped = 0;
-  for (const r of rankRecords(p.paragraph, recs, p.ix, 8)) {
-    if (r.entry === "[E-const]") continue; // already in the core
+  for (const r of rankRecords(p.paragraph, toolRecs, p.ix, 8)) {
     const entry = toolEntry(r);
     const add = JSON.stringify(entry).length + 1;
     if (fits && chars + add <= budgetChars) {
