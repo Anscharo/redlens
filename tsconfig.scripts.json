@@ -1,26 +1,35 @@
 {
-  /* Typechecks the TypeScript under scripts/. Added 2026-09-30 because nothing
-     did: `scripts/eval/eval-refute-screen-report.ts` called `needsGemma(r.screen)`
-     for months after `needsGemma` gained a required second parameter, so it
-     passed `undefined` and threw inside `hasCheckableContent` — crashing
-     `pnpm eval:refute-screen` at its reporting stage. tsc would have caught the
-     arity on the day the signature changed.
+  /* Typechecks the TypeScript under scripts/, which no project covered until
+     2026-09-30 — see the `needsGemma` arity bug fixed alongside this, which
+     survived for months because `tsc` never read the call site.
 
-     Options mirror tsconfig.server.json via `extends` (bundler resolution,
-     .ts-extension imports, erasableSyntaxOnly — the scripts run under bun) so
-     the two cannot drift. Two deliberate additions:
+     A GLOB with one exclusion, deliberately not a list of trees: a new
+     `scripts/foo/` is then covered the day it appears, rather than waiting for
+     someone to remember this file exists. That is the same failure this project
+     was added to stop.
 
-     - "strict": the server project does not set it, but this coverage is new, so
-       it starts strict rather than being tightened later against a moving
-       target. It is what makes an implicitly-any callback parameter an error.
-     - "allowJs" with "checkJs" off: scripts/*.ts import sibling .mjs helpers
-       (e.g. scripts/lib/natural-sort.mjs). Letting tsc read those infers real
-       types instead of `any`, which is both better than TS7016 and better than a
-       hand-written .d.mts that could drift from the JS.
+     Options come from tsconfig.server.json via `extends` so they cannot drift.
+     Three deliberate additions:
 
-     NOT included: scripts/lib, which carries 62 errors of its own and wants its
-     own pass. Its .ts files still enter this program where the trees below
-     import them, so nothing they export goes unchecked at the call site. */
+     - "strict": the server project does not set it. New coverage starts strict
+       rather than being tightened later against a moving target, and it is what
+       makes an implicitly-any callback parameter an error. Note the asymmetry:
+       scripts/ imports broadly from src/server, so those files are strict-checked
+       HERE while tsconfig.server.json still checks them without it. They are
+       strict-clean today; the tidier end state is `strict` in the server project
+       and none here.
+     - "allowJs" with "checkJs" off, so `scripts/lib/natural-sort.mjs` infers
+       instead of erroring TS7016. It is the one .mjs helper these trees import
+       that has no .d.mts — 20 others under scripts/ do, and a declaration wins
+       over the source where both exist.
+     - excluding scripts/lib, whose 13 files are ALL *.test.ts and carry 62 errors
+       between them. No non-test .ts lives there, so nothing is skipped by leaving
+       it out: what these trees import from scripts/lib is .mjs. Those tests are
+       covered by no project at all — tsconfig.test.json takes only test files
+       under src plus scripts_tests — and want their own pass.
+
+     Careful editing these comments: a glob containing a star-slash closes the
+     block early, which is why the exclusion above is described in words. */
   "extends": "./tsconfig.server.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.scripts.tsbuildinfo",
@@ -28,10 +37,6 @@
     "allowJs": true,
     "checkJs": false
   },
-  "include": [
-    "scripts/eval/**/*.ts",
-    "scripts/aux/**/*.ts",
-    "scripts/assess/**/*.ts",
-    "scripts/required/**/*.ts"
-  ]
+  "include": ["scripts/**/*.ts"],
+  "exclude": ["scripts/lib/**"]
 }

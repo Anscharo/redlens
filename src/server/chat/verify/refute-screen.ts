@@ -10,10 +10,12 @@
 // round part 3): Jev 0.40 s p50 per paragraph vs gemma 3.8 s p50 with 2 of 10
 // spot calls running into the 45 s timeout.
 //
-// Evidence: every doc the paragraph cites, read in FULL from the atlas index
-// (tool results can be excerpts), then tool-output records — cited-matching
-// first, then top-8 by overlap (refute-screen-evidence.ts) — then the
-// deterministic param-table rows. The schema entry [E0] is left out: it stops
+// Evidence, in the order it is emitted: every doc the paragraph cites, read in
+// FULL from the atlas index (tool results can be excerpts), then the
+// deterministic param-table rows — those two are the core, always kept — then
+// tool-output records, cited-matching first and at most 8 by overlap
+// (refute-screen-evidence.ts). Only that last class is ranked; the core does not
+// compete for its slots. The schema entry [E0] is left out: it stops
 // gemma reading true schema facts (doc counts, type vocabularies) as invented,
 // and is pure distraction for a per-statement judgment.
 import { askJev, choiceOf, withDeadline, type JevRun } from "../../jev.ts";
@@ -89,17 +91,11 @@ const toolEntry = (r: EvidenceRecord) => ({ source: `${r.entry} ${r.tool}${r.pat
 export function buildScreenRequest(p: { question: string; paragraph: string; evidence: EvidenceEntry[]; ix: Indexes }): ScreenRequest {
   const statements = statementsOf(p.paragraph);
   const recs = recordsOf(p.evidence.filter((e) => e.label !== "[E0]"));
-  // The param rows go in the core unconditionally, so they are NOT candidates
-  // for the tool-record slots and are kept out of the ranking entirely — both
-  // its output and its statistics. They used to be ranked alongside the tool
-  // records and then skipped on the way out, which spent part of the budget on
-  // records already in the core: each row carries doc_no and uuid, so a
-  // paragraph citing a doc whose parameter it also names scored every row
-  // Infinity (citedRecordPositions), sorted them to the front, and left only
-  // the remainder of `max(8, cited.size)` for actual tool output — with up to
-  // CONST_EVIDENCE_CAP (40) rows, that could starve the screen of tool
-  // evidence on exactly the specific, citation-bearing paragraphs it is most
-  // needed for.
+  // Param rows are their own class: in the core unconditionally, so they are
+  // kept out of the ranking entirely — its output AND its statistics. Ranking
+  // them spent tool-record slots on records already in the state, and worse:
+  // each row carries doc_no and uuid, so a paragraph citing a doc whose
+  // parameter it also names scored every row Infinity (citedRecordPositions).
   const constRecs = recs.filter((r) => r.entry === "[E-const]");
   const toolRecs = recs.filter((r) => r.entry !== "[E-const]");
   const docs = citedDocs(p.paragraph, p.ix).map((d) => ({

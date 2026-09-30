@@ -14,8 +14,7 @@ import path from "node:path";
 import type OpenAI from "openai";
 import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { buildSystemPrompt } from "../../src/server/chat/system-prompt.ts";
-import { runVerifiedChat, type CheckRowMeta } from "../../src/server/chat/chat-orchestrator.ts";
-import type { ChatEvent } from "../../src/server/chat/chat-loop.ts";
+import { runVerifiedChat, type HarnessDone } from "../../src/server/chat/chat-orchestrator.ts";
 import { makeOpenrouterStream, openrouterJson } from "../../src/server/chat/llm.ts";
 import { runDeterministicChecks } from "../../src/server/chat/verify/verify-checks.ts";
 import { evidenceFromTranscript } from "../../src/server/chat/verify/verifier.ts";
@@ -24,8 +23,6 @@ import { BAKEOFF_QUERIES, type BakeoffQuery } from "./eval-bakeoff-queries.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type Arm = "base" | "wiki";
-/** The orchestrator's `done` event plus the check rows it attaches. */
-type WikiDone = Extract<ChatEvent, { type: "done" }> & { checksMeta: CheckRowMeta[] };
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const argv = process.argv.slice(2);
@@ -139,20 +136,15 @@ async function runOne(q: BakeoffQuery, arm: Arm): Promise<Result> {
       { role: "system", content: SYSTEM[arm] },
       { role: "user", content: q.query },
     ];
-    // Named type, not `Extract<Awaited<ReturnType<typeof gen.next>>["value"], …>`:
-    // that chain resolved to `any`, so every callback over `done.transcript`
-    // below silently took an implicitly-any parameter. This is the same
-    // derivation chat-orchestrator.ts uses for its own DoneEvent.
-    let done: WikiDone | null = null;
+    let done: HarnessDone | null = null;
     const gen = runVerifiedChat({
       ix, messages, stream: makeOpenrouterStream({}, [config.chatModel]), jsonCall: openrouterJson,
       question: q.query, signal: AbortSignal.timeout(300_000), maxIterations: config.chatMaxIterations,
     });
     for await (const ev of gen) {
-      // `ev as WikiDone`, never `ev as typeof done`: inside the body `typeof done`
-      // is the NARROWED type, which here is `null` — so that spelling asserted
-      // the event to null and poisoned every read of `done` below.
-      if (ev.type === "done") done = ev as WikiDone;
+      // Never `ev as typeof done`: inside the body that is the NARROWED type of
+      // `done`, which here is `null`, so it asserts the event away to nothing.
+      if (ev.type === "done") done = ev as HarnessDone;
     }
     if (!done) throw new Error("no done event");
 
