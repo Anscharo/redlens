@@ -3,6 +3,7 @@ import { useDataSource } from "./dataSource";
 import { usePreviewView } from "./previewView";
 import type { ActiveBase, PreviewBaseKey, PreviewBases } from "./previewMetaCopy";
 import type { DiffLine } from "@/lib/history";
+import { loadIdentityVerdict } from "./previewIdentity";
 
 // Doc ids the preview adds / changes vs current main (from GET diff.json).
 // Drives the green new/changed redline indicators. `renumbered` maps a changed
@@ -107,6 +108,7 @@ export function PreviewDiffProvider({ children }: { children: ReactNode }) {
       return;
     }
     let live = true;
+    const gone = new AbortController();
     async function run() {
       const meta: { bases?: PreviewBases } | null = await fetch(`${base}meta.json`)
         .then((r) => (r.ok ? r.json() : null))
@@ -114,11 +116,15 @@ export function PreviewDiffProvider({ children }: { children: ReactNode }) {
       if (!live) return;
       const { fetchKey, activeBase } = resolveBase(baseKey, meta?.bases);
       const url = fetchKey ? `${base}diff.${fetchKey}.json` : `${base}diff.json`;
+      // Which pair answered: a keyed 404 falls back to the `auto` pair, and the
+      // identity verdict loaded below must describe the same comparison.
+      let usedKey = fetchKey;
       const d = await fetch(url)
         .then((r) => {
           if (r.ok) return r.json();
-          if (fetchKey) return fetch(`${base}diff.json`).then((r2) => (r2.ok ? r2.json() : null));
-          return null;
+          if (!fetchKey) return null;
+          usedKey = null;
+          return fetch(`${base}diff.json`).then((r2) => (r2.ok ? r2.json() : null));
         })
         .catch(() => null);
       if (!live || !d) return;
@@ -137,10 +143,16 @@ export function PreviewDiffProvider({ children }: { children: ReactNode }) {
         formerUuid: d.formerUuid ?? {},
         activeBase,
       });
+      // diff.json judged identity by lines and words so that the build did
+      // not wait on document vectors. The verdict by meaning arrives later
+      // and replaces it; with none coming, what is shown stands.
+      const verdict = await loadIdentityVerdict(base, usedKey, { signal: gone.signal });
+      if (live && verdict) setDiff((now) => ({ ...now, ...verdict }));
     }
     run();
     return () => {
       live = false;
+      gone.abort();
     };
   }, [base, preview, baseKey]);
   return <PreviewDiffContext.Provider value={diff}>{children}</PreviewDiffContext.Provider>;
