@@ -83,7 +83,15 @@ export function summaryReplay(summary: string): Msg[] {
 }
 
 function callsWithRecall(row: ReplayRow): RecallToolCall[] {
-  return (row.toolCalls ?? []).filter((t) => t.recall && t.recall_id);
+  // Array-check, not just a null-check: this reads a jsonb column. Written the
+  // way persistAssistant writes it (a raw array + ::jsonb) it comes back
+  // parsed, but a double-encoded value — `JSON.stringify` through the same cast
+  // — comes back as a STRING, and .filter on that throws. Replay runs on the
+  // chat turn AND, since the context meter, on the conversation-detail read, so
+  // one malformed legacy row would take out reopening that chat rather than
+  // just losing its cards.
+  if (!Array.isArray(row.toolCalls)) return [];
+  return row.toolCalls.filter((t) => t && t.recall && t.recall_id);
 }
 
 /** Stored rows → the messages the model actually sees. No truncation. */
@@ -128,6 +136,28 @@ export function replayTokens(summary: string | null, rows: ReplayRow[]): number 
   return Math.ceil(chars / CHARS_PER_TOKEN);
 }
 
+/**
+ * What a turn that reads this conversation costs: the replay it starts from,
+ * plus the standing prefix it is always sent with.
+ *
+ * This is the number the UI meters, and `needsCompaction` is this same number
+ * compared against 90% of the window — deliberately one function, because the
+ * two used to be different quantities and the meter could therefore disagree
+ * with when a fold actually fired. It is NOT the measured `prompt_tokens` of a
+ * past round: that counts one turn's tool results, which the next turn never
+ * replays (they come back as ~1.8k lookup cards), so a tool-heavy turn measured
+ * far above what the conversation actually carries and the meter fell back on
+ * the following turn. Cost and rate limiting still use the measured value;
+ * "how full is this conversation" is this one.
+ */
+export function contextUsedTokens(
+  summary: string | null,
+  rows: ReplayRow[],
+  overheadTokens = CONTEXT_OVERHEAD_TOKENS,
+): number {
+  return replayTokens(summary, rows) + overheadTokens;
+}
+
 export function needsCompaction(
   summary: string | null,
   rows: ReplayRow[],
@@ -135,7 +165,7 @@ export function needsCompaction(
   overheadTokens = CONTEXT_OVERHEAD_TOKENS,
 ): boolean {
   if (rows.length <= COMPACT_TAIL) return false;
-  return replayTokens(summary, rows) + overheadTokens >= windowTokens * COMPACT_RATIO;
+  return contextUsedTokens(summary, rows, overheadTokens) >= windowTokens * COMPACT_RATIO;
 }
 
 export interface CompactionPlan {

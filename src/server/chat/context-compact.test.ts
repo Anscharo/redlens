@@ -4,6 +4,7 @@ import {
   COMPACT_RATIO,
   COMPACT_TAIL,
   CONTEXT_OVERHEAD_TOKENS,
+  contextUsedTokens,
   clearSummaryFailure,
   compactForReplay,
   noteSummaryFailure,
@@ -80,6 +81,38 @@ describe("needsCompaction", () => {
     const window = Math.floor((tokens + CONTEXT_OVERHEAD_TOKENS) / COMPACT_RATIO);
     expect(needsCompaction(null, rows, window)).toBe(true);
     expect(needsCompaction(null, rows, window * 2)).toBe(false);
+  });
+});
+
+describe("contextUsedTokens", () => {
+  it("is the number needsCompaction compares against the line, so the meter cannot disagree with a fold", () => {
+    const rows = Array.from({ length: 8 }, (_, i) => row(String(i), i % 2 ? "assistant" : "user", "x".repeat(4_000)));
+    const window = 12_000;
+    const used = contextUsedTokens(null, rows, 0);
+    expect(used).toBe(replayTokens(null, rows));
+    // Same inputs, same verdict — one function, two readers.
+    expect(used >= window * COMPACT_RATIO).toBe(needsCompaction(null, rows, window, 0));
+  });
+
+  it("counts the standing prefix and the lookup cards a turn replays", () => {
+    const bare = [row("1", "user", "q"), row("2", "assistant", "a")];
+    expect(contextUsedTokens(null, bare)).toBeGreaterThanOrEqual(CONTEXT_OVERHEAD_TOKENS);
+    const carded: ReplayRow[] = [
+      bare[0],
+      {
+        ...bare[1],
+        toolCalls: [{ name: "atlas_get", args: {}, ok: true, bytes: 1, recall: "c".repeat(1_600), recall_id: "rcall0123456789abcdef0123" }],
+      },
+    ];
+    expect(contextUsedTokens(null, carded)).toBeGreaterThan(contextUsedTokens(null, bare) + 350);
+  });
+
+  it("does not throw on a row whose tool_calls came back as a double-encoded string", () => {
+    // A jsonb column written with JSON.stringify reads back as a STRING, and
+    // this runs on the conversation-detail read as well as the chat turn.
+    const malformed = [{ id: "1", role: "assistant", content: "a", toolCalls: '[{"recall":"x"}]' as never }];
+    expect(() => contextUsedTokens(null, malformed)).not.toThrow();
+    expect(historyReplay(malformed).map((m) => m.role)).toEqual(["assistant"]);
   });
 });
 

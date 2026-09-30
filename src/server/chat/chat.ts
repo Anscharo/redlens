@@ -23,6 +23,7 @@ import { prepareTurn } from "./turn-setup.ts";
 import {
   clearSummaryFailure,
   compactForReplay,
+  contextUsedTokens,
   noteSummaryFailure,
   rowsAfterCursor,
   summaryCoolingDown,
@@ -354,6 +355,15 @@ export async function handleChat(req: Request): Promise<Response> {
       });
     }
 
+    // What the NEXT turn of this conversation will read, once this answer is
+    // stored: the replay plus the standing prefix (context-compact.ts). This is
+    // what the composer's meter shows, and it is the same arithmetic
+    // needsCompaction uses — a number that only grows until a fold, rather than
+    // the measured prompt of one round, which rises with a turn's tool results
+    // and drops again on the next turn that needs none.
+    const usedAfter = (answer: string, toolCalls: RecallToolCall[]): number =>
+      contextUsedTokens(summary, [...history, { role: "assistant", content: answer, toolCalls }]);
+
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         const send = (e: { type: string } & Record<string, unknown>) =>
@@ -387,7 +397,7 @@ export async function handleChat(req: Request): Promise<Response> {
               checksMeta: [],
             };
             send({ type: "answer_final", content: done.content });
-            send(sanitizeDone(done));
+            send({ ...sanitizeDone(done), contextUsed: usedAfter(done.content, []) });
             if (!req.signal.aborted) {
               await persistAssistant(userId, convId, done, Date.now() - startedAt, obs);
               const TITLE_AT_TURNS = new Set([1, 4, 10]);
@@ -426,6 +436,7 @@ export async function handleChat(req: Request): Promise<Response> {
           }
 
           let done: HarnessDone | null = null;
+          let carded: RecallToolCall[] = [];
           const chatStream = makeOpenrouterStream(obs, models);
           // runVerifiedChat = runChat wrapped in the reliability harness (status
           // events, deterministic checks, verifier audit — model slots are
@@ -439,14 +450,19 @@ export async function handleChat(req: Request): Promise<Response> {
           })) {
             if (ev.type === "done") {
               done = ev as HarnessDone;
-              send(sanitizeDone(done));
+              // Lookup cards are minted ONCE here, before the number that
+              // counts them goes on the wire, and the same carded calls are
+              // what persistAssistant stores — so the size the meter reports
+              // is the size the next turn actually replays.
+              carded = done.toolCalls.length ? attachRecall(done.toolCalls, done.transcript) : [];
+              send({ ...sanitizeDone(done), contextUsed: usedAfter(done.content, carded) });
             } else {
               send(ev);
             }
           }
           // Don't persist an empty assistant row for an aborted turn.
           if (done && !req.signal.aborted) {
-            await persistAssistant(userId, convId, done, Date.now() - startedAt, obs);
+            await persistAssistant(userId, convId, { ...done, toolCalls: carded }, Date.now() - startedAt, obs);
             // Cheap LLM titling on turns 1/4/10 only (≤3 calls per conversation
             // total; see title.ts). Unawaited + .catch()'d so it can never
             // surface as an unhandled rejection or delay the stream's own

@@ -8,9 +8,13 @@
 // collections), tests seed the fake conversations/messages arrays directly.
 import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { toUuidArrayLiteral, fromUuidArray } from "../pg-array.ts";
+import { CONTEXT_OVERHEAD_TOKENS, contextUsedTokens } from "./context-compact.ts";
 import { SignJWT } from "jose";
 
-interface Conv { id: string; user_id: string; title: string | null; title_source: string; updated_at: string }
+interface Conv {
+  id: string; user_id: string; title: string | null; title_source: string; updated_at: string;
+  summary: string | null; summary_upto_id: string | null;
+}
 interface StoredMsg {
   id: string; conversation_id: string; role: string; content: string; created_at: string; tool_calls: unknown;
   context_tokens: number | null;
@@ -27,13 +31,17 @@ function nowIso(): string {
   return new Date(Date.now() + idCounter).toISOString();
 }
 
-// The newest assistant message's context_tokens for a conversation — mirrors
-// the LATERAL/subselect both real queries use (newest by created_at DESC).
-function newestAssistantContextTokens(convId: string): number | null {
-  const assistants = msgs
-    .filter((m) => m.conversation_id === convId && m.role === "assistant")
-    .sort((a, b) => b.created_at.localeCompare(a.created_at));
-  return assistants[0]?.context_tokens ?? null;
+// Mirrors the list query's replay_chars: the content of every row AFTER the
+// compaction cursor, plus the stored summary that stands in for what came
+// before. Rows already folded away are not part of a replay and must not be
+// counted — the whole point of the cursor FILTER in the real SQL.
+function replayChars(c: Conv): number {
+  const convMsgs = msgs
+    .filter((m) => m.conversation_id === c.id)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const cut = c.summary_upto_id ? convMsgs.find((m) => m.id === c.summary_upto_id) : undefined;
+  const replayed = cut ? convMsgs.filter((m) => m.created_at > cut.created_at) : convMsgs;
+  return replayed.reduce((n, m) => n + m.content.length, 0) + (c.summary?.length ?? 0);
 }
 
 function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
@@ -50,8 +58,7 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
         return {
           id: c.id, title: c.title, updated_at: c.updated_at,
           message_count: convMsgs.length,
-          context_tokens: newestAssistantContextTokens(c.id),
-          history_chars: convMsgs.reduce((s, m) => s + m.content.length, 0),
+          replay_chars: replayChars(c),
         };
       })
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
@@ -62,7 +69,7 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
     const [id, userId] = values as [string, string];
     const c = conversations.find((x) => x.id === id && x.user_id === userId);
     return Promise.resolve(
-      c ? [{ id: c.id, title: c.title, updated_at: c.updated_at, context_tokens: newestAssistantContextTokens(c.id) }] : [],
+      c ? [{ id: c.id, title: c.title, updated_at: c.updated_at, summary: c.summary, summary_upto_id: c.summary_upto_id }] : [],
     );
   }
   if (text.includes("FROM messages WHERE conversation_id") && text.includes("LIMIT 200")) {
@@ -173,7 +180,7 @@ function req(path: string, init: RequestInit & { cookie?: string } = {}): Reques
 }
 
 function seedConversation(over: Partial<Conv> & { id: string; user_id: string }): Conv {
-  const c: Conv = { title: null, title_source: "seed", updated_at: nowIso(), ...over };
+  const c: Conv = { title: null, title_source: "seed", updated_at: nowIso(), summary: null, summary_upto_id: null, ...over };
   conversations.push(c);
   return c;
 }
@@ -333,44 +340,44 @@ describe("GET /api/chat/conversations (list)", () => {
     expect(res.headers.get("set-cookie")).not.toBeNull();
   });
 
-  it("carries the newest assistant message's contextTokens per row", async () => {
+  it("reports the replay size — stored text plus the standing prefix — not a measured round", async () => {
     const token = await authed();
     seedConversation({ id: "c-1", user_id: "user-1" });
-    seedMessage({ conversation_id: "c-1", role: "user" });
-    seedMessage({ conversation_id: "c-1", role: "assistant", context_tokens: 4_200 });
-    // A later assistant reply supersedes the earlier one's context_tokens.
-    seedMessage({ conversation_id: "c-1", role: "assistant", context_tokens: 9_100 });
+    seedMessage({ conversation_id: "c-1", role: "user", content: "a".repeat(1_000) });
+    // A measured prompt of 9,100 tokens on the newest row is DELIBERATELY not
+    // what the meter shows: it counted that turn's tool results, which the next
+    // turn never replays.
+    seedMessage({ conversation_id: "c-1", role: "assistant", content: "b".repeat(7_000), context_tokens: 9_100 });
 
     const res = await handleConversations(req("/api/chat/conversations", { cookie: token }));
-    const body = (await res.json()) as { id: string; contextTokens: number | null; contextEstimated: boolean }[];
-    expect(body.find((c) => c.id === "c-1")!.contextTokens).toBe(9_100);
-    expect(body.find((c) => c.id === "c-1")!.contextEstimated).toBe(false);
-  });
-
-  it("falls back to an estimate (flagged) for legacy rows with no measured context", async () => {
-    const token = await authed();
-    seedConversation({ id: "c-legacy", user_id: "user-1" });
-    seedMessage({ conversation_id: "c-legacy", role: "user", content: "a".repeat(1_000) });
-    // Legacy row (predates the column, or no usage chunk was ever seen): null.
-    seedMessage({ conversation_id: "c-legacy", role: "assistant", content: "b".repeat(7_000), context_tokens: null });
-
-    const res = await handleConversations(req("/api/chat/conversations", { cookie: token }));
-    const body = (await res.json()) as { id: string; contextTokens: number | null; contextEstimated: boolean }[];
-    const row = body.find((c) => c.id === "c-legacy")!;
-    // 8,000 chars of stored text / 4 chars-per-token.
-    expect(row.contextTokens).toBe(2_000);
+    const body = (await res.json()) as { id: string; contextTokens: number; contextEstimated: boolean }[];
+    const row = body.find((c) => c.id === "c-1")!;
+    // 8,000 chars / 4, plus the system prompt + tool schemas every turn carries.
+    expect(row.contextTokens).toBe(2_000 + CONTEXT_OVERHEAD_TOKENS);
+    // Always an estimate now: the list does not load each row's lookup cards.
     expect(row.contextEstimated).toBe(true);
   });
 
-  it("estimates from the full stored text, with no character cap", async () => {
+  it("counts only what a turn would replay, so a folded conversation stops reading at its pre-fold size", async () => {
     const token = await authed();
-    seedConversation({ id: "c-huge", user_id: "user-1" });
-    seedMessage({ conversation_id: "c-huge", role: "user", content: "q".repeat(10_000) });
-    seedMessage({ conversation_id: "c-huge", role: "assistant", content: "a".repeat(30_000), context_tokens: null });
+    seedConversation({ id: "c-folded", user_id: "user-1" });
+    const folded = [
+      seedMessage({ conversation_id: "c-folded", role: "user", content: "x".repeat(40_000) }),
+      seedMessage({ conversation_id: "c-folded", role: "assistant", content: "y".repeat(40_000) }),
+    ];
+    seedMessage({ conversation_id: "c-folded", role: "user", content: "z".repeat(1_000) });
+    seedMessage({ conversation_id: "c-folded", role: "assistant", content: "w".repeat(1_000) });
+    // The first exchange has been folded into a 400-char summary.
+    conversations.find((c) => c.id === "c-folded")!.summary = "s".repeat(400);
+    conversations.find((c) => c.id === "c-folded")!.summary_upto_id = folded[1].id;
 
     const res = await handleConversations(req("/api/chat/conversations", { cookie: token }));
-    const body = (await res.json()) as { id: string; contextTokens: number | null; contextEstimated: boolean }[];
-    expect(body.find((c) => c.id === "c-huge")!.contextTokens).toBe(10_000); // 40_000 / 4
+    const body = (await res.json()) as { id: string; contextTokens: number; messageCount: number }[];
+    const row = body.find((c) => c.id === "c-folded")!;
+    // 2,000 replayed chars + 400 of summary, NOT the 82,000 stored.
+    expect(row.contextTokens).toBe(600 + CONTEXT_OVERHEAD_TOKENS);
+    // The message count still counts every stored row — it is a count, not a size.
+    expect(row.messageCount).toBe(4);
   });
 });
 
@@ -400,27 +407,44 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
     expect(body.messages[1].toolCalls).toEqual([{ name: "atlas_search", args: { q: "x" }, ok: true, bytes: 42 }]);
   });
 
-  it("carries top-level contextTokens from the newest assistant message", async () => {
+  it("carries the EXACT replay size, lookup cards included, so reopening does not move the meter", async () => {
     const token = await authed();
     seedConversation({ id: "c-1", user_id: "user-1" });
-    seedMessage({ conversation_id: "c-1", role: "user" });
-    seedMessage({ conversation_id: "c-1", role: "assistant", context_tokens: 3_000 });
-    seedMessage({ conversation_id: "c-1", role: "assistant", context_tokens: 7_500 });
+    seedMessage({ conversation_id: "c-1", role: "user", content: "q".repeat(400) });
+    seedMessage({
+      conversation_id: "c-1", role: "assistant", content: "a".repeat(400), context_tokens: 7_500,
+      tool_calls: [{ name: "atlas_get", args: { id: "abc" }, ok: true, bytes: 9, recall: "c".repeat(800), recall_id: "rcall0123456789abcdef0123" }],
+    });
 
     const res = await handleConversations(req("/api/chat/conversations/c-1", { cookie: token }));
-    const body = (await res.json()) as { contextTokens: number | null };
-    expect(body.contextTokens).toBe(7_500);
+    const body = (await res.json()) as { contextTokens: number };
+    // The card is part of the replay, so it is counted — and the measured
+    // 7,500 is not what is reported.
+    const expected = contextUsedTokens(null, [
+      { id: "m0", role: "user", content: "q".repeat(400) },
+      {
+        id: "m1", role: "assistant", content: "a".repeat(400),
+        toolCalls: [{ name: "atlas_get", args: { id: "abc" }, ok: true, bytes: 9, recall: "c".repeat(800), recall_id: "rcall0123456789abcdef0123" }],
+      },
+    ]);
+    expect(body.contextTokens).toBe(expected);
+    expect(body.contextTokens).toBeGreaterThan(CONTEXT_OVERHEAD_TOKENS + 200);
   });
 
-  it("contextTokens is null when no assistant message has one", async () => {
+  it("drops folded rows and counts the summary in their place", async () => {
     const token = await authed();
     seedConversation({ id: "c-2", user_id: "user-1" });
-    seedMessage({ conversation_id: "c-2", role: "user" });
-    seedMessage({ conversation_id: "c-2", role: "assistant" });
+    const cut = seedMessage({ conversation_id: "c-2", role: "assistant", content: "old".repeat(4_000) });
+    seedMessage({ conversation_id: "c-2", role: "user", content: "new" });
+    conversations.find((c) => c.id === "c-2")!.summary = "brief";
+    conversations.find((c) => c.id === "c-2")!.summary_upto_id = cut.id;
 
     const res = await handleConversations(req("/api/chat/conversations/c-2", { cookie: token }));
-    const body = (await res.json()) as { contextTokens: number | null };
-    expect(body.contextTokens).toBeNull();
+    const body = (await res.json()) as { contextTokens: number };
+    // 12,000 chars of folded content are gone; what is left is the summary pair
+    // plus one short row, so the figure sits just above the standing prefix.
+    expect(body.contextTokens).toBeLessThan(CONTEXT_OVERHEAD_TOKENS + 500);
+    expect(body.contextTokens).toBeGreaterThan(CONTEXT_OVERHEAD_TOKENS);
   });
 
   describe("citationMarks (survives reload — reconstructed from message_checks)", () => {

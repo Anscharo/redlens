@@ -55,7 +55,10 @@ export function buildLimits(
       label: "context window",
       scope: "this chat",
       pct: ratioPct(contextTokens, contextWindowTokens),
-      detail: ctxKnown ? `${formatTokens(contextTokens)} / ${formatTokens(contextWindowTokens)}` : null,
+      // "~": the server estimates the replay size (4 chars/token) rather than
+      // reporting a measured prompt — it is the number compaction acts on, but
+      // it is an estimate, and the conversation list marks its own the same way.
+      detail: ctxKnown ? `~${formatTokens(contextTokens)} / ${formatTokens(contextWindowTokens)}` : null,
       color: "var(--accent)",
     },
     {

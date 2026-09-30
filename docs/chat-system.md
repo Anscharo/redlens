@@ -204,6 +204,24 @@ verdicts, since the thread has shrunk. `shouldForceFold` and
 `noteContextOverflow` are the whole surface: the flag and the wording are one
 decision, so what the notice promises cannot drift from what the next turn does.
 
+**What the meter shows.** `LimitsMeter`/`ContextPie`'s context figure is
+`contextUsedTokens` — the replay a turn sends plus the standing prefix — carried
+live on the `done` event as `contextUsed` and recomputed from stored rows by the
+conversation-detail route, so reopening a chat does not move it. It is
+deliberately NOT the measured `prompt_tokens` the meter used to show: that
+counts one turn's raw tool results, which the next turn never replays (they come
+back as ≤1.8k lookup cards), so a tool-heavy turn measured far above what the
+conversation actually carries and the number fell again on the next turn that
+needed no tools. It also omitted nothing — it was exact — but exact about the
+wrong quantity, and it could not be compared against the fold line at all,
+because compaction decides on the estimate. Now one function answers both, and
+the number only drops when a fold actually happens. The measured
+`messages.context_tokens` is still written per row for cost, telemetry and as
+the calibration signal for the estimate; it just does not drive the meter. The
+conversations LIST approximates the same quantity in SQL (replayed rows after
+the cursor + the summary + the prefix) because loading every row's cards for up
+to 100 conversations is not worth 1%, and marks it `~`.
+
 Folding also shrinks its own tail rather than trusting the row count:
 `planWithinLine` drops a tail row at a time, down to the question being
 answered, until the rows left verbatim (plus a summary at its cap) are

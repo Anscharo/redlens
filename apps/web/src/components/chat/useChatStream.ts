@@ -107,8 +107,9 @@ export function useChatStream(handlers: StreamHandlers = {}) {
   // newly hydrated array and corrupt it. Aborting first — before the
   // request even changes — closes that window (see the
   // chat-conversation-memory plan §6).
-  // `contextTokens` seeds the pie from the restored conversation's newest
-  // assistant turn (ConversationDetail.contextTokens); defaults to null for
+  // `contextTokens` seeds the pie from the restored conversation's replay size
+  // (ConversationDetail.contextTokens, the same quantity a live turn reports as
+  // contextUsed — so reopening a chat does not move the meter); null for
   // a fresh chat and any caller that predates this field.
   const hydrate = useCallback((id: string | null, msgs: ChatMsg[], contextTokens: number | null = null) => {
     abortRef.current?.abort();
@@ -155,7 +156,10 @@ export function useChatStream(handlers: StreamHandlers = {}) {
         }
         case "done":
           patchLast((m) => applyEvent(m, ev));
-          setContextTokens(ev.contextTokens ?? null);
+          // contextUsed (the replay the next turn starts from) is the meter;
+          // contextTokens (one round's measured prompt) is the pre-meter
+          // fallback, kept so an older server still moves the pie.
+          setContextTokens(ev.contextUsed ?? ev.contextTokens ?? null);
           break;
         default:
           patchLast((m) => applyEvent(m, ev));
