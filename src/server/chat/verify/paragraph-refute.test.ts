@@ -147,7 +147,16 @@ test("drain() returns what landed since the last drain, independently of settle(
   expect(refuter.drain()).toEqual([]);
 });
 
-test("a heading or a rule is recorded clean and never calls the model", async () => {
+// This asserts the WIRING of the skip, not the predicate: `hasCheckableContent`
+// is consulted, the skipped paragraph takes no slot and builds no evidence, and
+// the merge reads it as zero cost rather than missing data. The predicate's own
+// boundary cases live with the predicate, in refute-screen.test.ts.
+//
+// "Yes." is the case worth having here alongside the heading: the boundary is
+// not "heading vs prose" but MIN_CLAIM_WORDS real words OR any groundable
+// marker, so "It is 3." must still audit — a number is the auditor's business
+// however short the sentence. That is now a COVERAGE rule, not just screen cost.
+test("a paragraph with nothing to audit is recorded clean, takes no slot, and builds no evidence", async () => {
   let evidenceBuilds = 0;
   const { call, concurrentCounts } = fakeCall();
   const refuter = createParagraphRefuter({
@@ -156,37 +165,40 @@ test("a heading or a rule is recorded clean and never calls the model", async ()
   });
   refuter.submit(0, "## Closest vault-specific examples");
   refuter.submit(1, "---");
-  refuter.submit(2, "Threshold: 3 of 5");
+  refuter.submit(2, "Yes.");
+  refuter.submit(3, "It is 3.");
   const results = await refuter.settle(5000);
-  expect(results.map((r) => r.index)).toEqual([0, 1, 2]);
-  expect(results[0]).toMatchObject({ parsed: true, contradictions: [], timedOut: false, usage: null });
-  expect(results[1]).toMatchObject({ parsed: true, contradictions: [] });
-  expect(concurrentCounts).toHaveLength(1); // the figure line still audits
-  expect(evidenceBuilds).toBe(1);
-  expect(mergeParagraphRefutes(results).parsed).toBe(true);
-});
-
-// The skip's real boundary is not "heading vs prose" — it is MIN_CLAIM_WORDS
-// real words OR any groundable marker. A bare "Yes." has neither and is
-// skipped; the same sentence carrying a figure is not, because a number is the
-// auditor's business however short the sentence. Pinned here because the
-// threshold now decides verification COVERAGE, not just screen cost.
-test("a short prose-only line is skipped, but the same length with a figure audits", async () => {
-  const { call, concurrentCounts } = fakeCall();
-  const refuter = createParagraphRefuter({ ...base, call, concurrency: 2, maxParagraphs: 100 });
-  refuter.submit(0, "Yes.");
-  refuter.submit(1, "It is 3.");
-  const results = await refuter.settle(5000);
-  expect(results.map((r) => r.index)).toEqual([0, 1]);
-  expect(results[0]).toMatchObject({ parsed: true, usage: null, latencyMs: null });
-  expect(results[1]).toMatchObject({ parsed: true, usage: { input: 1, output: 1 } });
+  expect(results.map((r) => r.index)).toEqual([0, 1, 2, 3]);
+  for (const i of [0, 1, 2]) {
+    expect(results[i]).toMatchObject({ parsed: true, contradictions: [], timedOut: false, usage: null, latencyMs: null });
+  }
+  expect(results[3]).toMatchObject({ parsed: true, usage: { input: 1, output: 1 } });
   expect(concurrentCounts).toHaveLength(1); // only the figure line reached the model
-  // A skipped paragraph is zero cost, not missing data: the merge filters null
-  // usage rather than summing it, and still counts the paragraph as parsed.
+  expect(evidenceBuilds).toBe(1);
+  // Zero cost, not missing data: the merge filters null usage rather than
+  // summing it, and still counts every paragraph as parsed.
   const merged = mergeParagraphRefutes(results);
   expect(merged.usage).toEqual([{ input: 1, output: 1 }]);
-  expect(merged.paragraphs).toMatchObject({ count: 2, parsed: 2, timedOut: 0 });
+  expect(merged.paragraphs).toMatchObject({ count: 4, parsed: 4, timedOut: 0 });
   expect(merged.parsed).toBe(true);
+});
+
+// The skip now happens in `submit`, ahead of the maxParagraphs routing, so an
+// uncheckable paragraph past the cap is dropped rather than concatenated into
+// the overflow batch and billed with it. With maxParagraphs: 1 the heading at
+// index 1 would otherwise have become overflow text.
+test("an uncheckable paragraph past maxParagraphs is skipped, not folded into the overflow call", async () => {
+  const { call, concurrentCounts } = fakeCall();
+  const refuter = createParagraphRefuter({ ...base, call, concurrency: 2, maxParagraphs: 1 });
+  refuter.submit(0, claim("First point"));
+  refuter.submit(1, "## A heading past the cap");
+  refuter.submit(2, claim("Third point"));
+  const results = await refuter.settle(5000);
+  expect(results.map((r) => r.index)).toEqual([0, 1, 2]);
+  expect(results[1]).toMatchObject({ parsed: true, usage: null, latencyMs: null });
+  // Two calls: the in-cap paragraph and ONE overflow call carrying index 2 only.
+  expect(concurrentCounts).toHaveLength(2);
+  expect(results[2].text).not.toContain("heading past the cap");
 });
 
 // ── Jev screen modes (CHAT_REFUTE_SCREEN) ────────────────────────────────────

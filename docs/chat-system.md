@@ -543,9 +543,13 @@ matches. A cache miss still bills the full set once per call, which is why
 call count rather than paragraph count is what scales input tokens when the
 prefix is cold.
 
-A paragraph `hasCheckableContent` rejects never starts a call at all: it is
-recorded `parsed: true` with no usage and no latency, so the backbone does not
-degrade to `unverified` over a heading. That test is the same one `needsGemma`
+A paragraph `hasCheckableContent` rejects never starts a call at all: `submit`
+records it `parsed: true` with no usage and no latency, so the backbone does not
+degrade to `unverified` over a heading. The test runs *before* the
+`CHAT_REFUTE_MAX_PARAGRAPHS` routing, so an uncheckable paragraph costs no call,
+no concurrency slot and no place in that budget — and one past the cap is
+dropped rather than concatenated into the overflow batch and billed with it.
+That test is the same one `needsGemma`
 already applied in `gate` mode — this makes `off` and `shadow` agree with it —
 and it is deliberately loose: fewer than `MIN_CLAIM_WORDS` real words AND no
 groundable marker, where a marker is any figure, link, doc number, address,

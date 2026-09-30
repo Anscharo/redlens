@@ -576,22 +576,29 @@ export async function* runVerifiedChat(opts: {
   // from done.transcript after the loop (the last `user` message is the same
   // one either way; only tool/assistant messages of THIS turn get appended
   // after it), so both the per-paragraph evidence below and the whole-answer
-  // baseEvidence further down share this one computation.
+  // refuteEvidence call further down share this one computation.
   const prevEvidence = priorTurnsEvidence(opts.messages);
   // Named history tool results (name preserved, unlike historyTexts' flat
   // strings) so evidenceFromResults can classify the prefetch round by name —
   // losing that name would silently drop both its [REFERENCE] class and its
   // budget-eviction exemption for every per-paragraph call.
   const historyResults = historyEntries.map((e) => ({ name: e.tool, content: e.content }));
-  // [E-const] is last. It is the only entry that depends on this paragraph.
-  // Schema, earlier answers, and this turn's tool results are identical across
-  // the paragraphs, and buildRefutePrompt places the paragraph after the
-  // evidence, so that shared block is a prefix a provider cache can reuse.
-  const paragraphEvidenceFor = (paragraphText: string): EvidenceEntry[] => {
-    const ce = constEvidence(opts.ix, paragraphText);
-    const turnEvidence = evidenceFromResults([...historyResults, ...gateResults]);
-    return [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...turnEvidence, ...(ce ? [ce] : [])];
+  // [E0] is a pure function of the index, so it is identical for every refute
+  // call of this turn. atlasDescribe walks the whole graph (every doc, every
+  // edge twice) and the result is stringified, so building it once instead of
+  // once per paragraph keeps ~9 full-corpus scans off the streaming path.
+  const schemaEv = schemaEvidence(opts.ix);
+  // ONE assembly order, shared by the per-paragraph and whole-answer refute
+  // prompts. [E-const] goes last because it is the only entry derived from the
+  // text being audited, and buildRefutePrompt puts that text after the
+  // evidence — so everything ahead of [E-const] is a byte-identical prefix
+  // across the fan-out, which is what a provider's cache can reuse.
+  const refuteEvidence = (turnEvidence: EvidenceEntry[], auditedText: string): EvidenceEntry[] => {
+    const ce = constEvidence(opts.ix, auditedText);
+    return [schemaEv, ...(prevEvidence ? [prevEvidence] : []), ...turnEvidence, ...(ce ? [ce] : [])];
   };
+  const paragraphEvidenceFor = (paragraphText: string): EvidenceEntry[] =>
+    refuteEvidence(evidenceFromResults([...historyResults, ...gateResults]), paragraphText);
   const refuter = paragraphMode
     ? createParagraphRefuter({
         call: opts.jsonCall!, model: sliceModels().refute, ix: opts.ix, question: opts.question,
@@ -896,16 +903,11 @@ export async function* runVerifiedChat(opts: {
   coveragePromise?.catch(() => {});
 
   // verifierModel/paragraphMode were hoisted to the top of this function so
-  // the per-paragraph refuter could be created before streaming started.
-  // constEvidence is computed from the audited answer (done.content) itself,
-  // not once up front — kept as a function of answerText since baseEvidence
-  // is shared with runAudit below and must stay in sync with whatever text
-  // it audits.
-  const baseEvidence = (turnEvidence: EvidenceEntry[], answerText: string) => {
-    const ce = constEvidence(opts.ix, answerText);
-    // Same order as paragraphEvidenceFor: parameter rows after the shared block.
-    return [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...turnEvidence, ...(ce ? [ce] : [])];
-  };
+  // the per-paragraph refuter could be created before streaming started, and
+  // the whole-answer audit shares `refuteEvidence` with the per-paragraph path
+  // so neither can drift from the other's section order. [E-const] is still
+  // derived from the audited text (done.content) rather than computed once up
+  // front, which is why that text is a parameter.
   let verdict: Verdict | null = null;
   let auditPromise: ReturnType<typeof runAudit> | null = null;
   if (verifierModel) {
@@ -934,7 +936,7 @@ export async function* runVerifiedChat(opts: {
     // concurrently with it rather than delaying its start.
     auditPromise = runAudit({
       jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
-      answer: done.content, evidence: baseEvidence(evidence, done.content), checks, signal: opts.signal, obs: opts.obs,
+      answer: done.content, evidence: refuteEvidence(evidence, done.content), checks, signal: opts.signal, obs: opts.obs,
       paragraphRefutes, settleMs,
     });
     // Nothing awaits the audit while those resolve, so a rejection in that

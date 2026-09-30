@@ -12,12 +12,12 @@
 // `clear` that sets the draft aside drops stale results without cancelling
 // in-flight requests. Concurrency is a simple semaphore. Paragraphs at or
 // beyond `maxParagraphs` are buffered and concatenated into ONE extra call at
-// `settle()` time. Every call still carries the full evidence set, but
-// `buildRefutePrompt` places that block BEFORE the paragraph, so the
-// paragraph is the only suffix that changes and a prefix cache can reuse the
-// evidence. A cache miss still bills the full set once per call. A paragraph
-// with nothing checkable — a heading or a rule, `hasCheckableContent` — is
-// recorded clean and never starts a call.
+// `settle()` time. Every call still carries the full evidence set, so call
+// count rather than paragraph count is what scales input tokens; the section
+// order that lets a provider cache reuse that set across the calls belongs to
+// `buildRefutePrompt` (refute.ts) and is explained there. A paragraph with
+// nothing checkable (`hasCheckableContent`) is recorded clean in `submit` and
+// never reaches a call, a slot, or the maxParagraphs budget.
 //
 // Jev screen (refute-screen.ts, CHAT_REFUTE_SCREEN), inside the same semaphore
 // slot so a long answer can't fan out into a burst of Jev calls:
@@ -70,12 +70,21 @@ export interface ParagraphRefuter {
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+/**
+ * The no-candidates, no-cost result shape. One source of these defaults, so a
+ * field added to ParagraphRefute is reasoned about once rather than at each of
+ * the places that build an empty one.
+ */
+const blankRefute = (index: number, text: string): ParagraphRefute => ({
+  index, text, contradictions: [], discarded: 0, parsed: false, latencyMs: null, usage: null, timedOut: false,
+});
+/** A call that reached the model but produced no usable verdict. */
 const failedRefute = (index: number, text: string, timedOut: boolean): ParagraphRefute => ({
-  index, text, contradictions: [], discarded: 0, parsed: false, latencyMs: null, usage: null, timedOut,
+  ...blankRefute(index, text), timedOut,
 });
 /** Nothing to audit (a heading, a rule). Parsed clean so the backbone does not go unverified. */
 const uncheckedRefute = (index: number, text: string): ParagraphRefute => ({
-  index, text, contradictions: [], discarded: 0, parsed: true, latencyMs: null, usage: null, timedOut: false,
+  ...blankRefute(index, text), parsed: true,
 });
 
 /** Normalizes the mode; a typo'd value falls to "shadow", which never changes what the reader sees. */
@@ -187,9 +196,15 @@ export function createParagraphRefuter(opts: {
     const s = await screenOne(index, text, evidence, myBurst);
     const r: ParagraphRefute = needsGemma(s, text)
       ? await gemmaOne(index, text, evidence)
-      : { index, text, contradictions: [], discarded: 0, parsed: true, latencyMs: s!.latencyMs, usage: null, timedOut: false, screened: true };
+      : { ...blankRefute(index, text), parsed: true, latencyMs: s!.latencyMs, screened: true };
     report(index, s, r);
     return { ...r, screen: { mode, result: s } };
+  }
+
+  /** The one place a result becomes visible to drain()/settle(). */
+  function land(key: number, r: ParagraphRefute): void {
+    results.set(key, r);
+    landed.push(key);
   }
 
   function startTask(key: number, text: string): void {
@@ -197,19 +212,11 @@ export function createParagraphRefuter(opts: {
     inFlight.set(
       key,
       (async () => {
-        // Before the slot. A heading must not take a concurrency place or build the evidence block.
-        if (!hasCheckableContent(text)) {
-          if (myBurst !== burst) return;
-          results.set(key, uncheckedRefute(key, text));
-          landed.push(key);
-          return;
-        }
         await acquire();
         try {
           const result = await runOne(key, text, myBurst);
           if (myBurst !== burst) return; // stale burst — dropped, never written
-          results.set(key, result);
-          landed.push(key);
+          land(key, result);
         } finally {
           release();
         }
@@ -220,6 +227,13 @@ export function createParagraphRefuter(opts: {
   return {
     submit(index, text) {
       textByIndex.set(index, text);
+      // Decided here, ahead of the maxParagraphs routing, so a paragraph with
+      // nothing to audit costs neither a call nor a slot nor a place in the
+      // budget — and so a heading PAST the cap is skipped rather than
+      // concatenated into the overflow batch and billed with it. Synchronous
+      // bookkeeping, so it needs no burst tag: `burst` only moves in reset(),
+      // which cannot interleave with this call.
+      if (!hasCheckableContent(text)) return land(index, uncheckedRefute(index, text));
       if (index >= opts.maxParagraphs) overflow.push(index);
       else startTask(index, text);
     },

@@ -163,6 +163,12 @@ export function needsGemma(s: ScreenResult | null, paragraph: string): boolean {
   if (!s || !s.fits || s.flagged) return true;
   // Nothing the screen could judge: send it to gemma anyway UNLESS there is
   // nothing to check in the first place.
+  // Since 2026-09-30 paragraph-refute.ts's `submit` applies the same
+  // `hasCheckableContent` test before a paragraph reaches the screen at all, so
+  // in production this arm now only ever returns true. Kept as written rather
+  // than reduced to `return true`: the predicate is this function's own
+  // contract, and coupling it to a caller's filtering would break silently if
+  // that filter ever moved. The skip itself lives in `submit`.
   if (s.statements.length === 0) return hasCheckableContent(paragraph);
   return false;
 }

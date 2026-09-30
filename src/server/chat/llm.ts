@@ -93,8 +93,7 @@ function posthogParams(obs: ChatObservability, surface: string): Record<string, 
 // and the user half changes every round. An explicit session_id also makes
 // stickiness start on the first successful request rather than only once a
 // cache hit has been observed; a session expires after 10 idle minutes.
-// Measured before this
-// (PostHog, 30 days): gemma-4-31b read 15% of its input from cache vs 66% for
+// Measured before this (PostHog, 30 days): gemma-4-31b read 15% of its input from cache vs 66% for
 // gpt-5.6-luna, and gemma's time-to-first-token climbs steeply with input
 // size. The raw conversation id never leaves the server — only a hash of it.
 // (Tier A of the 2026-09-22 context review: no prompt text changes.)
@@ -103,16 +102,22 @@ export function sessionParam(obs: ChatObservability): { session_id?: string } {
   return { session_id: createHash("sha256").update(`sabr-chat:${obs.distinctId}`).digest("hex").slice(0, 32) };
 }
 
+// Every request param derived from `obs`, in one place. Both factories below
+// spread this: the bug it prevents is the one this function was added to fix —
+// an obs-derived provider param (session_id) reaching the streaming factory and
+// not the JSON one, with nothing making that visible.
+function obsParams(obs: ChatObservability, surface: string): Record<string, unknown> {
+  return { ...sessionParam(obs), ...posthogParams(obs, surface) };
+}
+
 // Non-streamed JSON-mode call for the reliability harness's grader role
 // (verifier). temperature:0 — these are judges, not writers.
-// sessionParam is the same hash the answer stream sends, so these calls pin to
-// the provider endpoint holding the conversation's prompt cache. That pin
-// applies to EVERY caller of this factory, not just the verifier: title.ts and
-// chat.ts's teach-review also pass the conversation's obs. Intentional — one
-// provider per conversation — but it means the paragraph-refute fan-out
-// (CHAT_REFUTE_CONCURRENCY, default 3) lands on a single endpoint, so a
-// per-endpoint rate limit shows up as verifier latency. Watch
-// $ai_time_to_first_token on the verifier surfaces.
+// The session pin applies to EVERY caller of this factory, not just the
+// verifier: title.ts and chat.ts's teach-review pass the conversation's obs
+// too. Intentional — one provider per conversation — but it means the
+// paragraph-refute fan-out (CHAT_REFUTE_CONCURRENCY, default 3) lands on a
+// single endpoint, so a per-endpoint rate limit shows up as verifier latency.
+// Watch $ai_time_to_first_token on the verifier surfaces.
 // The injection seam mirroring ChatStream: orchestrator/verifier unit
 // tests swap in a fake JsonCall, no network.
 export type JsonCall = (params: {
@@ -166,8 +171,10 @@ export function makeOpenrouterJson(obs: ChatObservability = {}, surface = "atlas
         temperature: 0,
         response_format: { type: "json_object" },
         ...(maxTokens ? { max_tokens: maxTokens } : {}),
-        ...sessionParam(obs),
-        ...posthogParams(obs, surface),
+        // Not hoisted to factory scope: posthogParams reads getPosthog(), so
+        // computing it once at creation would bake in PostHog's init state.
+        // The session hash is microseconds; correctness wins over that.
+        ...obsParams(obs, surface),
       } as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
       { signal },
     );
@@ -204,7 +211,6 @@ export function makeOpenrouterStream(obs: ChatObservability = {}, models: string
         max_tokens: config.chatMaxOutputTokens,
         stream: true,
         stream_options: { include_usage: true },
-        ...sessionParam(obs),
         // Deliberately NO `reasoning` param. Forwarding a reasoning delta to
         // the client is unconditional (chat-loop.ts's reasoningDelta), and the
         // strong tier's model already reasons unprompted on ~98% of
@@ -219,7 +225,7 @@ export function makeOpenrouterStream(obs: ChatObservability = {}, models: string
         // single global knob could only be set to a value that measurement
         // rejects for at least one tier, so there isn't one; if this is ever
         // revisited it has to be per-tier.
-        ...posthogParams(obs, "atlas-chat"),
+        ...obsParams(obs, "atlas-chat"),
       } as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
       { signal },
     );
