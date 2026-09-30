@@ -34,7 +34,9 @@ import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { config } from "../../src/server/config.ts";
 import type { CensusSlug } from "../../src/lib/conceptsCensus.ts";
 
-const MAX_CENSUSES = 3;
+// No local MAX_CENSUSES: the cap is private to concepts-prefetch.ts and applied
+// inside routeCensuses, which this eval calls — a second copy here could drift
+// from the shipped one while still looking authoritative.
 // Same recall-favoring weighting as eval-facts.ts, for the same reason: a
 // miss loses an answer, a false fire wastes a few hundred bytes the model can
 // ignore. BETA is even more defensible here given the smaller payload.

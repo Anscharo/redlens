@@ -1,0 +1,37 @@
+{
+  /* Typechecks the TypeScript under scripts/. Added 2026-09-30 because nothing
+     did: `scripts/eval/eval-refute-screen-report.ts` called `needsGemma(r.screen)`
+     for months after `needsGemma` gained a required second parameter, so it
+     passed `undefined` and threw inside `hasCheckableContent` — crashing
+     `pnpm eval:refute-screen` at its reporting stage. tsc would have caught the
+     arity on the day the signature changed.
+
+     Options mirror tsconfig.server.json via `extends` (bundler resolution,
+     .ts-extension imports, erasableSyntaxOnly — the scripts run under bun) so
+     the two cannot drift. Two deliberate additions:
+
+     - "strict": the server project does not set it, but this coverage is new, so
+       it starts strict rather than being tightened later against a moving
+       target. It is what makes an implicitly-any callback parameter an error.
+     - "allowJs" with "checkJs" off: scripts/*.ts import sibling .mjs helpers
+       (e.g. scripts/lib/natural-sort.mjs). Letting tsc read those infers real
+       types instead of `any`, which is both better than TS7016 and better than a
+       hand-written .d.mts that could drift from the JS.
+
+     NOT included: scripts/lib, which carries 62 errors of its own and wants its
+     own pass. Its .ts files still enter this program where the trees below
+     import them, so nothing they export goes unchecked at the call site. */
+  "extends": "./tsconfig.server.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.scripts.tsbuildinfo",
+    "strict": true,
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": [
+    "scripts/eval/**/*.ts",
+    "scripts/aux/**/*.ts",
+    "scripts/assess/**/*.ts",
+    "scripts/required/**/*.ts"
+  ]
+}
