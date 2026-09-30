@@ -26,7 +26,15 @@ import {
   summaryCoolingDown,
   type ReplayRow,
 } from "./context-compact.ts";
-import { attachRecall, type RecallToolCall } from "./tool-recall.ts";
+import {
+  clearContextOverflow,
+  contextOverflowMessage,
+  contextOverflowPending,
+  isContextOverflowError,
+  markContextOverflow,
+} from "./context-overflow.ts";
+import { attachRecall } from "./tool-recall.ts";
+import type { RecallToolCall } from "./tool-recall-card.ts";
 import { agreedContradictionsFrom } from "./verify/disputes.ts";
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
@@ -252,7 +260,14 @@ export async function handleChat(req: Request): Promise<Response> {
     // hung summary model does not add chatSummaryTimeoutMs to every later
     // turn. The summary pair is stable until the next compaction, so the
     // turns in between keep a cacheable prefix.
-    if (!teachCmd && config.chatSummaryModel && !summaryCoolingDown(convId)) {
+    //
+    // `force` is the recovery path: the provider rejected this conversation
+    // for length on an earlier turn, so the 4-chars/token estimate was wrong
+    // here and this turn folds regardless of it (context-overflow.ts). It also
+    // overrides the failure cooldown — without a fold the turn is going to be
+    // rejected again anyway, so paying the timeout is the better bet.
+    const forceCompact = contextOverflowPending(convId);
+    if (!teachCmd && config.chatSummaryModel && (forceCompact || !summaryCoolingDown(convId))) {
       const compacted = await compactForReplay({
         rows: history,
         summary,
@@ -260,10 +275,12 @@ export async function handleChat(req: Request): Promise<Response> {
         call: makeOpenrouterJson(obs, "atlas-chat-summary"),
         model: config.chatSummaryModel,
         timeoutMs: config.chatSummaryTimeoutMs,
+        force: forceCompact,
       });
       if (compacted.failed) noteSummaryFailure(convId);
       if (compacted.compacted && compacted.uptoId) {
         clearSummaryFailure(convId);
+        clearContextOverflow(convId);
         summary = compacted.summary;
         history = compacted.rows;
         // This turn replays `summary` from memory. If the write fails, the
@@ -291,7 +308,10 @@ export async function handleChat(req: Request): Promise<Response> {
       ? null
       : await prepareTurn({ ix, message: body.message, history, summary, pageContext: body.pageContext, teachHits, disputes });
     const route = turn?.route ?? TEACH_ROUTE;
-    const priorAssistants = history.filter((m) => m.role === "assistant").length;
+    // Counted over the STORED rows, not the replayed ones: titling fires on
+    // turns 1/4/10 of a conversation's life, and `history` drops everything a
+    // compaction folded away — counting that would re-title a long thread.
+    const priorAssistants = historyRows.filter((m) => m.role === "assistant").length;
 
     const startedAt = Date.now();
     const encoder = new TextEncoder();
@@ -440,7 +460,16 @@ export async function handleChat(req: Request): Promise<Response> {
         } catch (err) {
           if (!req.signal.aborted) {
             captureError(err, obs, { stage: "stream_handler" });
-            send({ type: "error", message: (err as Error).message });
+            // A provider that rejects the request for length is the one error
+            // we can act on: flag the conversation so its next turn folds the
+            // prefix even though our estimate said it fit, and say so in
+            // words the user can act on instead of forwarding a raw 400.
+            if (isContextOverflowError(err)) {
+              markContextOverflow(convId);
+              send({ type: "error", message: contextOverflowMessage(!!config.chatSummaryModel) });
+            } else {
+              send({ type: "error", message: (err as Error).message });
+            }
           }
         } finally {
           releaseChatSlot(userId);

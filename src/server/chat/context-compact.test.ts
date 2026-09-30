@@ -11,12 +11,12 @@ import {
   summaryCoolingDown,
   historyReplay,
   needsCompaction,
-  parseSummary,
   planCompaction,
   replayTokens,
   rowsAfterCursor,
   SUMMARY_ACK,
   summaryReplay,
+  COMPACT_TAIL_FORCED,
   type ReplayRow,
 } from "./context-compact.ts";
 import { evidenceFromTranscript, priorTurnsEvidence } from "./verify/verifier.ts";
@@ -128,13 +128,6 @@ describe("summaryReplay", () => {
   });
 });
 
-describe("parseSummary", () => {
-  it("reads the JSON summary and rejects a short non-answer", () => {
-    expect(parseSummary('{"summary":"Kept the UUID abc."}')).toBe("Kept the UUID abc.");
-    expect(parseSummary("nope")).toBeNull();
-  });
-});
-
 describe("compactForReplay", () => {
   const call: JsonCall = async () => ({
     text: '{"summary":"User asked about the freezer. UUID abc. Still open: the threshold."}',
@@ -171,6 +164,18 @@ describe("compactForReplay", () => {
     expect(called).toBe(false);
     expect(out.compacted).toBe(false);
     expect(out.rows).toBe(rows);
+  });
+
+  it("folds under the line when forced, keeping the shorter tail", async () => {
+    const rows = Array.from({ length: 8 }, (_, i) => row(`id-${i}`, i % 2 ? "assistant" : "user", "short"));
+    expect(needsCompaction(null, rows, 200_000)).toBe(false);
+    const out = await compactForReplay({
+      rows, summary: null, windowTokens: 200_000, call, model: "test-model", timeoutMs: 1_000, force: true,
+    });
+    expect(out.compacted).toBe(true);
+    expect(out.rows).toHaveLength(COMPACT_TAIL_FORCED);
+    expect(out.rows.at(-1)?.id).toBe("id-7");
+    expect(out.uptoId).toBe("id-5");
   });
 
   it("folds an oversized prefix oldest-first into one summary", async () => {

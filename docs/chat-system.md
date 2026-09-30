@@ -169,8 +169,10 @@ the literal list of models measured clean for the format (`openai/gpt-5.6-luna`,
 `CHAT_MODEL_STRONG`, so swapping the strong tier doesn't silently change what
 format an unmeasured model gets asked for. The pipeline accepts both from every
 model regardless; see `docs/plans/reference-citations.md`. History is the full
-thread (`context-compact.ts`): every stored message is replayed verbatim until
-the replay reaches 90% of `CHAT_CONTEXT_WINDOW_TOKENS` (default 200k, the
+thread (`context-compact.ts` decides what to replay and when to fold;
+`context-summary.ts` is the one summarization call): every stored message is
+replayed verbatim until the replay reaches 90% of
+`CHAT_CONTEXT_WINDOW_TOKENS` (default 200k, the
 smallest window in the routing chain). That turn summarizes the prefix once
 into `conversations.summary` and keeps a short tail. The summary is a stable
 message pair after the system prompt — provider caches match a byte-identical
@@ -179,7 +181,24 @@ summary (timeout, error, or unparseable output) leaves the full thread in
 place and is not retried for five minutes, so a model outage does not add
 the summary timeout to every later turn. Earlier tool
 results are not replayed raw. Each call is reduced to a lookup card once, when
-the turn is saved (`tool-recall.ts`), and that card is what later turns see.
+the turn is saved (`tool-recall.ts` for the ids and pairing,
+`tool-recall-card.ts` for the card text), and that card is what later turns see.
+
+That 90% line is an **estimate** (4 chars/token, measured on a real turn — see
+`CHARS_PER_TOKEN`), and it can be wrong in the unsafe direction on a
+JSON-heavy or non-English thread. `context-overflow.ts` is the backstop: when
+the provider itself rejects a request for length, the user gets a
+plain-language message instead of a raw 400, and the conversation is flagged so
+its **next** turn folds the prefix whether or not the estimate says it fits,
+keeping only `COMPACT_TAIL_FORCED` rows verbatim and overriding the
+five-minute failure cooldown. So the thread heals on the next message. There is
+deliberately no retry inside the same turn: it would mean re-running everything
+before the first token (Jev judgement, facts round, `/teach` filtering) or
+duplicating `prepareTurn`'s assembly, and the same message re-sent takes the
+healed path. With `CHAT_SUMMARY_MODEL=""` there is no fold to force, and the
+message says to start a new chat instead. Both flags (summary cooldown,
+overflow) are per-process and bounded — `conv-flags.ts`, swept and capped, so a
+conversation that fails once and is never reopened cannot hold an entry.
 
 The prompt also carries a **"Drafting messages to a third party"** section:
 composing a message, email, or forum reply about the atlas for someone else is
