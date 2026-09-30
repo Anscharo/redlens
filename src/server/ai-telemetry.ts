@@ -10,6 +10,8 @@
 import { openrouterEnvironment } from "./openrouter-attribution.ts";
 import { getPosthog } from "./posthog-node.ts";
 
+type Sink = { capture: (e: { distinctId: string; event: string; properties: Record<string, unknown> }) => void };
+
 export interface AiCall {
   kind: "generation" | "embedding";
   surface: string;
@@ -28,8 +30,8 @@ export interface AiCall {
 // helper. Success only: a failed request is billed nothing and is reported by
 // the caller's own error path. No prompt/response text — these lanes carry
 // user questions and answer text, and `CHAT_CAPTURE_CONTENT` is chat-only.
-export function captureAiCall(c: AiCall): void {
-  const ph = getPosthog();
+// `ph` is the test seam (a stub sink) — avoids a process-wide mock.module.
+export function captureAiCall(c: AiCall, ph: Sink | null = getPosthog()): void {
   if (!ph) return;
   try {
     ph.capture({

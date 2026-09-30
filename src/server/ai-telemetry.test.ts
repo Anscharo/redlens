@@ -1,15 +1,12 @@
-import { beforeEach, expect, mock, test } from "bun:test";
+import { beforeEach, expect, test } from "bun:test";
+import { captureAiCall as capture, type AiCall } from "./ai-telemetry.ts";
 
 const captured: any[] = [];
-let enabled = true;
-mock.module("./posthog-node.ts", () => ({
-  getPosthog: () => (enabled ? { capture: (e: any) => captured.push(e) } : null),
-}));
-const { captureAiCall } = await import("./ai-telemetry.ts");
+const sink = { capture: (e: any) => void captured.push(e) };
+const captureAiCall = (c: AiCall) => capture(c, sink);
 
 beforeEach(() => {
   captured.length = 0;
-  enabled = true;
 });
 
 test("generation event carries surface, tokens, cost, environment and trace", () => {
@@ -40,7 +37,6 @@ test("embedding event without a conversation is anonymous and has no output toke
 });
 
 test("is a silent no-op without PostHog", () => {
-  enabled = false;
-  captureAiCall({ kind: "generation", surface: "x", model: "m", inputTokens: 1, latencyMs: 1 });
+  capture({ kind: "generation", surface: "x", model: "m", inputTokens: 1, latencyMs: 1 }, null);
   expect(captured).toHaveLength(0);
 });
