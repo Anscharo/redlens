@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import OpenAI from "openai";
 import { OpenAI as PostHogOpenAI } from "@posthog/ai/openai";
 import { config } from "../config.ts";
-import { openrouterAttributionHeaders } from "../openrouter-attribution.ts";
+import { openrouterAttributionHeaders, openrouterEnvironment } from "../openrouter-attribution.ts";
 import { getPosthog } from "../posthog-node.ts";
 import type { ChatStream } from "./chat-loop.ts";
 
@@ -78,7 +78,7 @@ function posthogParams(obs: ChatObservability, surface: string): Record<string, 
     posthogDistinctId: obs.distinctId,
     posthogTraceId: obs.traceId,
     posthogPrivacyMode: !config.chatCaptureContent,
-    posthogProperties: { chat_surface: surface, ...obs.properties },
+    posthogProperties: { chat_surface: surface, environment: openrouterEnvironment(), ...obs.properties },
   };
 }
 

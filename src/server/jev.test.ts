@@ -57,6 +57,12 @@ describe("askJev request shape", () => {
     expect(calls[0].headers["X-Title"]).toStartWith("Sky Atlas Redline");
   });
 
+  it("labels the lane it was called for (PostHog surface) without changing the request", async () => {
+    const calls = stubFetch([ok(noulBody)]);
+    await askJev({ state: {}, questions: q, model: "typesafe/jev-1.13", lane: "smalltalk" });
+    expect(calls[0].body).not.toHaveProperty("lane");
+  });
+
   it("maps usage, cost and generation id off the response", async () => {
     stubFetch([ok(noulBody)]);
     const run = await askJev({ state: {}, questions: q, model: "m" });

@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { openrouterAppTitle, openrouterAttributionHeaders } from "./openrouter-attribution.ts";
+import { openrouterAppTitle, openrouterAttributionHeaders, openrouterEnvironment } from "./openrouter-attribution.ts";
 
 const KEYS = ["RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT", "OPENROUTER_APP_KIND"] as const;
 const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
@@ -61,4 +61,13 @@ test("detects eval scripts on Windows-style paths", () => {
 test("headers carry the title as X-Title", () => {
   clear();
   expect(openrouterAttributionHeaders()).toEqual({ "X-Title": "Sky Atlas Redline (Local)" });
+});
+
+test("PostHog environment label: local, Railway name, eval", () => {
+  clear();
+  expect(openrouterEnvironment()).toBe("local");
+  process.env.RAILWAY_ENVIRONMENT_NAME = "production";
+  expect(openrouterEnvironment()).toBe("production");
+  process.env.OPENROUTER_APP_KIND = "eval";
+  expect(openrouterEnvironment()).toBe("eval");
 });
