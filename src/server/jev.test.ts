@@ -59,7 +59,7 @@ describe("askJev request shape", () => {
 
   it("labels the lane it was called for (PostHog surface) without changing the request", async () => {
     const calls = stubFetch([ok(noulBody)]);
-    await askJev({ lane: "test", state: {}, questions: q, model: "typesafe/jev-1.13", lane: "smalltalk" });
+    await askJev({ state: {}, questions: q, model: "typesafe/jev-1.13", lane: "smalltalk" });
     expect(calls[0].body).not.toHaveProperty("lane");
   });
 
