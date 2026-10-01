@@ -11,6 +11,8 @@
 // run in parallel over ONE `state` and are blind to each other, so a caller
 // that needs answer A to build state B must make two requests.
 import { config } from "./config.ts";
+import { captureAiCall } from "./ai-telemetry.ts";
+import { openrouterAttributionHeaders } from "./openrouter-attribution.ts";
 
 // `questions` is a RECORD keyed by caller-chosen id, not an array — the API
 // rejects an array outright. Ids are for code only; they are never shown to
@@ -100,6 +102,10 @@ export async function askJev(params: {
   signal?: AbortSignal;
   timeoutMs?: number;
   attempt?: number;
+  /** Which task this is — PostHog `chat_surface` "jev:<lane>" and `jev_task`. */
+  lane: string;
+  /** Turn context, when the caller has one, so the call joins the turn's trace. */
+  obs?: { distinctId?: string; traceId?: string };
 }): Promise<JevRun> {
   if (!config.openrouterApiKey) throw new Error("OPENROUTER_API_KEY is not set");
   const model = params.model || config.chatJevModel;
@@ -115,6 +121,7 @@ export async function askJev(params: {
       headers: {
         authorization: `Bearer ${config.openrouterApiKey}`,
         "content-type": "application/json",
+        ...openrouterAttributionHeaders(),
       },
       body: JSON.stringify({ model, state: params.state, questions: params.questions }),
       signal,
@@ -130,12 +137,25 @@ export async function askJev(params: {
     if (!json.answers || typeof json.answers !== "object") {
       throw Object.assign(new Error(`systemone: no answers in response`), { fatal: true });
     }
+    const latencyMs = Date.now() - t0;
+    captureAiCall({
+      kind: "generation",
+      surface: `jev:${params.lane}`,
+      jevTask: params.lane,
+      model,
+      inputTokens: json.usage?.input_tokens ?? 0,
+      outputTokens: json.usage?.output_tokens ?? 0,
+      costUsd: json.usage?.cost,
+      latencyMs,
+      distinctId: params.obs?.distinctId,
+      traceId: params.obs?.traceId,
+    });
     return {
       answers: json.answers,
       usage: json.usage ? { input: json.usage.input_tokens ?? 0, output: json.usage.output_tokens ?? 0 } : null,
       cost: json.usage?.cost ?? null,
       generationId: json.id ?? null,
-      latencyMs: Date.now() - t0,
+      latencyMs,
     };
   } catch (err) {
     if ((err as { fatal?: boolean }).fatal || params.signal?.aborted || attempt >= 3) throw err;

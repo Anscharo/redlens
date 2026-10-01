@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseSummary, renderFold, summarizeFold } from "./context-summary.ts";
+import { parseSummary, renderPrefix, summarizePrefix } from "./context-summary.ts";
 import type { JsonCall } from "./llm.ts";
 import type { ReplayRow } from "./context-compact.ts";
 
@@ -29,9 +29,9 @@ describe("parseSummary", () => {
   });
 });
 
-describe("renderFold", () => {
+describe("renderPrefix", () => {
   it("carries the previous summary and each row's lookup cards", () => {
-    const text = renderFold("Earlier: the freezer.", [
+    const text = renderPrefix("Earlier: the freezer.", [
       { id: "1", role: "user", content: "and the threshold?" },
       {
         id: "2",
@@ -46,7 +46,7 @@ describe("renderFold", () => {
   });
 });
 
-describe("summarizeFold", () => {
+describe("summarizePrefix", () => {
   const ok = (text: string): JsonCall => async () => ({
     text,
     usage: { input: 1, output: 1 },
@@ -55,7 +55,7 @@ describe("summarizeFold", () => {
   });
 
   it("returns null when the model produces nothing usable", async () => {
-    const out = await summarizeFold(null, [row("1", "user", "q")], ok("nope"), "m", 10_000, 1_000);
+    const out = await summarizePrefix(null, [row("1", "user", "q")], ok("nope"), "m", 10_000, 1_000);
     expect(out).toBeNull();
   });
 
@@ -63,10 +63,10 @@ describe("summarizeFold", () => {
     let seen = "";
     const call: JsonCall = async (req) => {
       seen = String(req.messages.find((m) => m.role === "user")?.content ?? "");
-      return { text: '{"summary":"Folded the oversized row."}', usage: { input: 1, output: 1 }, generationId: null, latencyMs: 1 };
+      return { text: '{"summary":"Compacted the oversized row."}', usage: { input: 1, output: 1 }, generationId: null, latencyMs: 1 };
     };
-    const out = await summarizeFold(null, [row("1", "user", "x".repeat(5_000))], call, "m", 500, 1_000);
-    expect(out).toBe("Folded the oversized row.");
+    const out = await summarizePrefix(null, [row("1", "user", "x".repeat(5_000))], call, "m", 500, 1_000);
+    expect(out).toBe("Compacted the oversized row.");
     expect(seen.length).toBe(500);
   });
 });
@@ -90,7 +90,7 @@ it("never folds a review note into the summary input", async () => {
       review: { badge: "failed verification", findings: ["quote not found in any retrieved source: “a quote”"], disputes: [], coverage: null, marks: [] },
     },
   ];
-  const out = await summarizeFold(null, rows, call, "m", 12_000, 1_000);
+  const out = await summarizePrefix(null, rows, call, "m", 12_000, 1_000);
   expect(out).toBe("They asked about budgets.");
   expect(seen).toContain("who approves budgets?");
   expect(seen).not.toContain("failed verification");

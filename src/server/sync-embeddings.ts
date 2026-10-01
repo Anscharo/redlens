@@ -10,6 +10,7 @@ import { sql, toVectorLiteral, toUuidArrayLiteral } from "./db.ts";
 import { fromUuidArray } from "./pg-array.ts";
 import { runMigrations } from "./migrate.ts";
 import { embedBatch, EMBED_DIM } from "./retrieval/embed.ts";
+import { shutdownPosthog } from "./posthog-node.ts";
 import { docRowToNode, loadDocMetaSnapshot } from "./retrieval/indexes.ts";
 import type { EmbedUnit } from "./retrieval/embed-units.ts";
 import { byDocNo, planEmbedRows, shippedPolicy } from "./retrieval/embed-rows.ts";
@@ -133,7 +134,7 @@ const realEmbedDeps: EmbedDeps = {
   runMigrations,
   // A FRESH signal per call, so each withRetry attempt gets its own full budget
   // rather than sharing one deadline across all three.
-  embedBatch: (texts) => embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv())),
+  embedBatch: (texts) => embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv()), 0, "embed-sync"),
   batch: batchSizeFromEnv(),
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
 };
@@ -360,4 +361,6 @@ async function runEmbedReconcile(deps: EmbedDeps): Promise<void> {
 // of module load.
 if (import.meta.main) {
   await main();
+  // Short-lived process: flush the batched embed-sync events before it exits.
+  await shutdownPosthog();
 }

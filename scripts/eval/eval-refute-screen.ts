@@ -99,7 +99,7 @@ async function jevArm(c: Case): Promise<ScreenResult | null> {
     const hit = cacheGet<CachedJev>(CACHE.jev, k);
     if (hit) return hit;
     try {
-      const fresh = await askJev({ state: req.state, questions: req.questions, model: JEV_MODEL, timeoutMs: 30_000 });
+      const fresh = await askJev({ lane: "eval-refute-screen", state: req.state, questions: req.questions, model: JEV_MODEL, timeoutMs: 30_000 });
       spent.jevCalls++;
       spent.jevNew += fresh.cost ?? 0;
       cachePut(CACHE.jev, k, fresh);

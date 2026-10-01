@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemePicker } from "./ThemePicker";
-import { THEMES, THEME_KEY, DEFAULT_THEME } from "../../lib/theme";
+import { THEMES, THEME_KEY, INITIAL_THEME } from "../../lib/theme";
 
 // The picker is a roving-tabindex radiogroup, and its keyboard half is the part
 // nothing else exercises: ThemeButton renders it, but does not drive arrow keys.
@@ -33,7 +33,7 @@ describe("ThemePicker", () => {
       const row = screen.getByText(t.label).closest("button")!;
       const mark = row.querySelector(".rlc-theme-mark");
       expect(mark).toBeTruthy();
-      if (t.id === DEFAULT_THEME) {
+      if (t.id === INITIAL_THEME) {
         expect(mark!.textContent).toBe("✓");
         expect(mark!.querySelector("[data-glyph]")).toBeNull();
       } else {
@@ -51,14 +51,14 @@ describe("ThemePicker", () => {
     expect(tabbable).toHaveLength(1);
     expect(tabbable[0].getAttribute("aria-checked")).toBe("true");
     expect(tabbable[0].textContent).toContain(
-      THEMES.find((t) => t.id === DEFAULT_THEME)!.label,
+      THEMES.find((t) => t.id === INITIAL_THEME)!.label,
     );
   });
 
   it("selects a theme on click and persists it", async () => {
     const user = userEvent.setup();
     render(<ThemePicker />);
-    const target = THEMES.find((t) => t.id !== DEFAULT_THEME)!;
+    const target = THEMES.find((t) => t.id !== INITIAL_THEME)!;
 
     await user.click(screen.getByText(target.label).closest("button")!);
 
@@ -74,7 +74,7 @@ describe("ThemePicker", () => {
   ])("moves selection with $key", async ({ key, delta }) => {
     const user = userEvent.setup();
     render(<ThemePicker />);
-    const from = THEMES.findIndex((t) => t.id === DEFAULT_THEME);
+    const from = THEMES.findIndex((t) => t.id === INITIAL_THEME);
     act(() => rows()[from].focus());
 
     await user.keyboard(key);

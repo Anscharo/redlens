@@ -101,6 +101,7 @@ export async function judgeQuoteAttribution(params: {
     spans.map(async (s): Promise<{ j: QuoteAttributionJudgement; usage: QuoteAttributionRun["usage"]; cost: number | null }> => {
       try {
         const run = await askJev({
+          lane: "quote-attribution",
           // The lead-in is capped harder than the passage: it is context for
           // reading the passage, and a long one is a paragraph of prose whose
           // tail says nothing about attribution.

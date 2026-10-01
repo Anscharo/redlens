@@ -6,12 +6,11 @@ import { createHash } from "node:crypto";
 import OpenAI from "openai";
 import { OpenAI as PostHogOpenAI } from "@posthog/ai/openai";
 import { config } from "../config.ts";
+import { openrouterAttributionHeaders, openrouterEnvironment } from "../openrouter-attribution.ts";
 import { getPosthog } from "../posthog-node.ts";
 import type { ChatStream } from "./chat-loop.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
-
-const DEFAULT_HEADERS = { "X-Title": "Sky Atlas by Redline" }; // OpenRouter attribution.
 
 let client: OpenAI | null = null;
 
@@ -23,7 +22,7 @@ export function getClient(): OpenAI {
     client = new OpenAI({
       apiKey: config.openrouterApiKey,
       baseURL: config.openrouterBaseUrl,
-      defaultHeaders: DEFAULT_HEADERS,
+      defaultHeaders: openrouterAttributionHeaders(), // OpenRouter attribution, fixed when the singleton is built.
     });
   }
   return client;
@@ -42,7 +41,7 @@ function getChatClient(): OpenAI {
     ? new PostHogOpenAI({
         apiKey: config.openrouterApiKey,
         baseURL: config.openrouterBaseUrl,
-        defaultHeaders: DEFAULT_HEADERS,
+        defaultHeaders: openrouterAttributionHeaders(), // OpenRouter attribution, fixed when the singleton is built.
         posthog,
       })
     : getClient();
@@ -79,7 +78,7 @@ function posthogParams(obs: ChatObservability, surface: string): Record<string, 
     posthogDistinctId: obs.distinctId,
     posthogTraceId: obs.traceId,
     posthogPrivacyMode: !config.chatCaptureContent,
-    posthogProperties: { chat_surface: surface, ...obs.properties },
+    posthogProperties: { chat_surface: surface, environment: openrouterEnvironment(), ...obs.properties },
   };
 }
 

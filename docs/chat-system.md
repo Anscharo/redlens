@@ -169,14 +169,53 @@ the literal list of models measured clean for the format (`openai/gpt-5.6-luna`,
 `CHAT_MODEL_STRONG`, so swapping the strong tier doesn't silently change what
 format an unmeasured model gets asked for. The pipeline accepts both from every
 model regardless; see `docs/plans/reference-citations.md`. History is the full
-thread (`context-compact.ts` decides what to replay and when to fold;
-`context-summary.ts` is the one summarization call): every stored message is
+thread (`context-compact.ts` decides what to replay and when to compact,
+`compact-turn.ts` drives it, `context-summary.ts` is the one summarization
+call): every stored message is
 replayed verbatim until the replay reaches 90% of
 `CHAT_CONTEXT_WINDOW_TOKENS` (default 200k, the
 smallest window in the routing chain). That turn summarizes the prefix once
-into `conversations.summary` and keeps a short tail. The summarizer is pinned to
+into `conversations.summary` and keeps a short tail.
+
+**Compaction runs AFTER the answer, not before the first token.** The summary it
+writes is read by the NEXT turn and never by the one that builds it, so the user
+is never waiting on it. It used to run before the turn, and that was a real
+stall: nothing can reach the browser until the route handler has returned its
+Response, so the turn that crossed the line showed a pending request with zero
+bytes for up to `CHAT_SUMMARY_TIMEOUT_MS` (60s) — no stream and no stage ticker,
+indistinguishable from a hang. Running it after `persistAssistant`, unawaited
+(the shape titling already uses), removes that wait rather than narrating it. It
+is safe because a thread at the 90% line still fits the window by design, so the
+turn or two that replay it un-compacted while the summary is being built are
+under the model's limit — and if the estimate was wrong, that is the rejection
+backstop below rather than a new failure mode. One consequence worth knowing:
+the meter reports the pre-compaction size on the turn that crosses the line and
+drops on the next, which is what it already promises — it falls only when the
+thread is condensed.
+
+Only the **recovery** path still compacts before the turn and awaits it: there
+the provider has already rejected the thread, so the turn cannot proceed until
+the prefix is smaller. `compact-turn.ts` is the single entry point for both, and
+it holds one in-flight flag **per conversation, per process** so that several
+turns sent while a summary is running do not each start their own. In-memory is
+deliberate rather than a DB row: across replicas two processes can still
+summarize the same conversation at once, and that is fine, because the summary
+and its cursor are written in ONE statement — a missed guard costs a duplicate
+call and never a mismatch, since whichever write lands last leaves a summary
+covering exactly up to its own cursor. `compactTurn` reports whether the guards
+let it through (`attempted`), and the forced caller passes THAT to
+`context-overflow.ts` rather than its own intent, so a forced compaction skipped
+for an in-flight one does not spend the single attempt per rejection.
+
+Two consequences of running after the answer, both accepted. A turn the client
+**aborts** never reaches the compaction call — it sits inside the same
+`!req.signal.aborted` guard as `persistAssistant`, because the answer it
+summarizes past is only stored on that branch — so a conversation whose turns are
+all cancelled is left to the rejection backstop below. And the turn that crosses
+the line replays the thread un-compacted along with the turn or two after it,
+which is the safety argument above rather than a gap. The summarizer is pinned to
 `openai/gpt-5.6-luna` (`CHAT_SUMMARY_MODEL`) rather than following `CHAT_MODEL`:
-one fold per thread, reading up to ~140k tokens, whose output every later turn
+one compaction per thread, reading up to ~140k tokens, whose output every later turn
 of that conversation then answers from and which is never rewritten — so it is
 worth a strong model and should not change whenever the default chat model does. The summary is a stable
 message pair after the system prompt — provider caches match a byte-identical
@@ -193,14 +232,14 @@ That 90% line is an **estimate** (4 chars/token, measured on a real turn — see
 JSON-heavy or non-English thread. `context-overflow.ts` is the backstop: when
 the provider itself rejects a request for length, the user gets a
 plain-language message instead of a raw 400, and the conversation is flagged so
-its **next** turn folds the prefix whether or not the estimate says it fits,
+its **next** turn compacts the prefix whether or not the estimate says it fits,
 keeping only `COMPACT_TAIL_FORCED` rows verbatim and overriding the
 five-minute failure cooldown. So the thread heals on the next message. Exactly
-one forced fold is spent per rejection: if the request is rejected again after
-it, the verbatim tail itself is too large, and the conversation is marked
-`foldIsSpent` so later turns neither pay another summary call for it nor
-promise one — they ask for a new chat. A fold that does land clears both
-verdicts, since the thread has shrunk. `shouldForceFold` and
+one forced compaction is spent per rejection: if the request is rejected again
+after it, the verbatim tail itself is too large, and the conversation is marked
+`forcedCompactionSpent` so later turns neither pay another summary call for it
+nor promise one — they ask for a new chat. A compaction that does land clears
+both verdicts, since the thread has shrunk. `shouldForceCompaction` and
 `noteContextOverflow` are the whole surface: the flag and the wording are one
 decision, so what the notice promises cannot drift from what the next turn does.
 
@@ -213,29 +252,29 @@ counts one turn's raw tool results, which the next turn never replays (they come
 back as ≤1.8k lookup cards), so a tool-heavy turn measured far above what the
 conversation actually carries and the number fell again on the next turn that
 needed no tools. It also omitted nothing — it was exact — but exact about the
-wrong quantity, and it could not be compared against the fold line at all,
+wrong quantity, and it could not be compared against the compaction line at all,
 because compaction decides on the estimate. Now one function answers both, and
-the number only drops when a fold actually happens. The measured
+the number only drops when a compaction actually happens. The measured
 `messages.context_tokens` is still written per row for cost, telemetry and as
 the calibration signal for the estimate; it just does not drive the meter. The
 conversations LIST approximates the same quantity in SQL (replayed rows after
 the cursor + the summary + the prefix) because loading every row's cards for up
 to 100 conversations is not worth 1%, and marks it `~`.
 
-Folding also shrinks its own tail rather than trusting the row count:
+Compaction also shrinks its own tail rather than trusting the row count:
 `planWithinLine` drops a tail row at a time, down to the question being
 answered, until the rows left verbatim (plus a summary at its cap) are
 themselves under the line. For any ordinary thread the six-row tail is far
 under it and nothing shrinks — it exists so that six messages at
 `MAX_MESSAGE_BYTES`, or a small configured `CHAT_CONTEXT_WINDOW_TOKENS`, cannot
-produce the one outcome the design cannot recover from: a fold that leaves a
-prompt still over the line, which no later fold can fix. There is
+produce the one outcome the design cannot recover from: a compaction that leaves
+a prompt still over the line, which no later compaction can fix. There is
 deliberately no retry inside the same turn: it would mean re-running everything
 before the first token (Jev judgement, facts round, `/teach` filtering) or
 duplicating `prepareTurn`'s assembly, and the same message re-sent takes the
-healed path. With `CHAT_SUMMARY_MODEL=""` there is no fold to force, and the
-message says to start a new chat instead. Both flags (summary cooldown,
-overflow) are per-process and bounded — `conv-flags.ts`, swept and capped, so a
+healed path. With `CHAT_SUMMARY_MODEL=""` there is no compaction to force, and the
+message says to start a new chat instead. All the flags (summary cooldown,
+overflow, compaction in flight) are per-process and bounded — `conv-flags.ts`, swept and capped, so a
 conversation that fails once and is never reopened cannot hold an entry.
 
 The prompt also carries a **"Drafting messages to a third party"** section:

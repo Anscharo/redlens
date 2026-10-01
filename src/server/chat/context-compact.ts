@@ -1,5 +1,5 @@
 // Conversation replay for /api/chat: what the model sees of the thread, and
-// when a prefix of it is folded away. The summarizer itself is one call in
+// when a prefix of it is compacted away. The summarizer itself is one call in
 // context-summary.ts; everything here except compactForReplay is pure.
 //
 // Every stored message is replayed in full. There is no per-message character
@@ -8,13 +8,13 @@
 // config.chatContextWindowTokens (default 200k, the smallest model in the
 // routing chain) the prefix is summarized once and replaced by that summary.
 // The estimate can still be wrong in the unsafe direction, so a provider that
-// rejects the request forces a fold on the next turn — see context-overflow.ts.
+// rejects the request forces a compaction on the next turn — see context-overflow.ts.
 //
 // Prompt caches are sequential. A provider reuses a cached prefix only while
 // every byte up to that point matches the previous request. So:
 //   - between compactions the prompt only grows by append (new user message,
 //     new lookup cards, new answer);
-//   - compaction rewrites the prefix ONCE, folding a large chunk (everything
+//   - compaction rewrites the prefix ONCE, summarizing a large chunk (everything
 //     but a short tail) so the next many turns stay under the line and the
 //     new summary is stable;
 //   - lookup cards are not rebuilt on read (tool-recall.ts).
@@ -24,7 +24,7 @@
 // every turn would throw away the rest of the conversation on top of that.
 import type OpenAI from "openai";
 import type { JsonCall } from "./llm.ts";
-import { summarizeFold, SUMMARY_MAX_CHARS } from "./context-summary.ts";
+import { summarizePrefix, SUMMARY_MAX_CHARS } from "./context-summary.ts";
 import { convFlags } from "./conv-flags.ts";
 import { replayArguments, type RecallToolCall } from "./tool-recall-card.ts";
 import { reviewRound } from "./review-round.ts";
@@ -36,11 +36,11 @@ export const COMPACT_RATIO = 0.9;
 /** User + assistant rows left verbatim. Three exchanges, plus the question being answered when it falls inside the suffix. */
 export const COMPACT_TAIL = 6;
 /**
- * Tail kept by a FORCED fold (the provider already rejected this thread's
+ * Tail kept by a FORCED compaction (the provider already rejected this thread's
  * length, context-overflow.ts). The estimate below has been proven wrong on
- * this conversation, so a forced fold does not trust it a second time: it
+ * this conversation, so a forced compaction does not trust it a second time: it
  * keeps the shortest useful tail — the question being answered and the
- * exchange before it — and folds everything else.
+ * exchange before it — and summarizes everything else.
  */
 export const COMPACT_TAIL_FORCED = 2;
 // Prose and the tool schemas both land near 4 chars/token. A measured
@@ -56,7 +56,7 @@ export const CHARS_PER_TOKEN = 4;
  * the standing prefix is included.
  */
 export const CONTEXT_OVERHEAD_TOKENS = 20_000;
-/** Share of the window one summarization call may read, so folding cannot itself overflow. */
+/** Share of the window one summarization call may read, so compacting cannot itself overflow. */
 const SUMMARY_INPUT_RATIO = 0.7;
 
 export interface ReplayRow {
@@ -157,7 +157,7 @@ export function replayTokens(summary: string | null, rows: ReplayRow[]): number 
  * This is the number the UI meters, and `needsCompaction` is this same number
  * compared against 90% of the window — deliberately one function, because the
  * two used to be different quantities and the meter could therefore disagree
- * with when a fold actually fired. It is NOT the measured `prompt_tokens` of a
+ * with when a compaction actually fired. It is NOT the measured `prompt_tokens` of a
  * past round: that counts one turn's tool results, which the next turn never
  * replays (they come back as ~1.8k lookup cards), so a tool-heavy turn measured
  * far above what the conversation actually carries and the meter fell back on
@@ -183,26 +183,26 @@ export function needsCompaction(
 }
 
 export interface CompactionPlan {
-  fold: ReplayRow[];
+  prefix: ReplayRow[];
   tail: ReplayRow[];
   uptoId: string;
 }
 
 /**
- * Fold everything before a verbatim suffix. The suffix is the cache-stable
+ * Summarize everything before a verbatim suffix. The suffix is the cache-stable
  * tail: after this runs, later turns only append. Returns null when there is
  * nothing with an id to point summary_upto_id at (evals, tests, a tail-only
  * thread). The current user message is the last row and stays in the tail.
  */
 export function planCompaction(rows: ReplayRow[], tailCount = COMPACT_TAIL): CompactionPlan | null {
   if (rows.length <= tailCount) return null;
-  const fold = rows.slice(0, rows.length - tailCount);
+  const prefix = rows.slice(0, rows.length - tailCount);
   const tail = rows.slice(rows.length - tailCount);
-  // The cursor is the last folded row. An earlier id would summarize rows
+  // The cursor is the last compacted row. An earlier id would summarize rows
   // the next turn also replays, and a missing id would hide them.
-  const uptoId = fold[fold.length - 1]?.id;
+  const uptoId = prefix[prefix.length - 1]?.id;
   if (!uptoId) return null;
-  return { fold, tail, uptoId };
+  return { prefix, tail, uptoId };
 }
 
 /**
@@ -211,11 +211,11 @@ export function planCompaction(rows: ReplayRow[], tailCount = COMPACT_TAIL): Com
  *
  * A tail of ordinary rows is nowhere near the line, so this returns
  * `planCompaction(rows, tailCount)` on the first try for every real
- * conversation. It exists for the one case that a fold otherwise cannot
+ * conversation. It exists for the one case that a compaction otherwise cannot
  * rescue: six rows that are themselves most of the window (a user may send
  * MAX_MESSAGE_BYTES per message, and one assistant row can carry several
- * lookup cards). Folding "everything but six rows" there produces a prompt
- * that is still over the line, which the provider rejects and no further fold
+ * lookup cards). Compacting "everything but six rows" there produces a prompt
+ * that is still over the line, which the provider rejects and no further compaction
  * can fix. The summary that replaces the prefix is counted at its cap, since
  * its real length is not known until the model has written it.
  */
@@ -228,14 +228,14 @@ function planWithinLine(
   const summaryTokens = Math.ceil(SUMMARY_MAX_CHARS / CHARS_PER_TOKEN);
   for (let n = tailCount; n >= 1; n--) {
     const plan = planCompaction(rows, n);
-    if (!plan) continue; // fewer tail rows may still leave a foldable prefix
+    if (!plan) continue; // fewer tail rows may still leave a compactable prefix
     const tailTokens = replayTokens(null, plan.tail) + summaryTokens + overheadTokens;
     if (tailTokens < windowTokens * COMPACT_RATIO || n === 1) return plan;
   }
   return null;
 }
 
-/** Drop rows already folded into the stored summary. Unknown cursor → replay everything (do not hide the thread). */
+/** Drop rows already compacted into the stored summary. Unknown cursor → replay everything (do not hide the thread). */
 export function rowsAfterCursor(rows: ReplayRow[], uptoId: string | null | undefined): ReplayRow[] {
   if (!uptoId) return rows;
   const i = rows.findIndex((r) => r.id === uptoId);
@@ -252,7 +252,7 @@ export interface CompactInput {
   model: string;
   timeoutMs: number;
   /**
-   * Fold even though the estimate says the thread fits, keeping
+   * Compact even though the estimate says the thread fits, keeping
    * COMPACT_TAIL_FORCED rows. Set when the provider rejected this
    * conversation for length (context-overflow.ts).
    */
@@ -260,7 +260,7 @@ export interface CompactInput {
 }
 
 /**
- * A fold either happened — and then there is a summary AND a cursor to store
+ * A compaction either happened — and then there is a summary AND a cursor to store
  * it against — or it did not. Saying that in the type means the caller writes
  * `if (result.compacted)` instead of re-checking `uptoId` to find out whether
  * a null cursor is a state it has to handle.
@@ -312,7 +312,7 @@ export async function compactForReplay(input: CompactInput): Promise<CompactResu
   if (!plan) return unchanged;
   const budget = Math.floor(windowTokens * SUMMARY_INPUT_RATIO * CHARS_PER_TOKEN);
   try {
-    const next = await summarizeFold(summary, plan.fold, call, model, budget, timeoutMs);
+    const next = await summarizePrefix(summary, plan.prefix, call, model, budget, timeoutMs);
     if (!next) return { ...unchanged, failed: true };
     return { rows: plan.tail, summary: next, uptoId: plan.uptoId, compacted: true, failed: false };
   } catch {
