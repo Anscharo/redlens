@@ -12,3 +12,12 @@ if git diff --cached --name-only --diff-filter=ACM | grep -q '^patch-notes\.md$'
     exit 1
   fi
 fi
+
+# Size ratchet + present-tense comments, only when source is staged.
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '^(src|apps/web/src|scripts)/.*\.(m?[jt]sx?)$'; then
+  if ! pnpm run --silent check:size || ! pnpm run --silent check:comments; then
+    echo
+    echo "Commit aborted: see above (or 'git commit --no-verify' to skip)."
+    exit 1
+  fi
+fi
