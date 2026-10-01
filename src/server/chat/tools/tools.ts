@@ -177,8 +177,8 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
   // briefing ranking, no lexical list (docs/plans/atlas-doc-briefings.md).
   else if (mode === "semantic")
     merged = fuseBriefings(sem, semResult.briefingHits).map((h) => ({ id: h.id, sources: [h.source], rrf_score: 0, score: h.score, via: h.via }));
-  // Three-way fusion (lexical, attributed semantic, briefings) is unmeasured:
-  // the eval refuses `--briefings` with `--hybrid`.
+  // Three-way fusion (lexical, attributed semantic, briefings); the measured
+  // gain is in the comment at `rrfMerge`.
   else merged = rrfMerge(lex, sem, semResult.briefingHits);
   merged = filterByType(merged, ix, type);
 

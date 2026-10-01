@@ -41,8 +41,9 @@
  *   pnpm eval:retrieval -- --backend openrouter --offline --briefings none,s1 --briefing-file public/doc-briefings.json
  *     ^ every embed goes through .cache/eval-vectors.bin (+ .idx.json), keyed model + sha256(text sent); --offline reads
  *       only that cache and exits 1 with a count when a vector is missing. --reuse-db also copies the DB vectors it
- *       uses into the cache, so a later --offline run needs no database. Briefing arms do not combine with --rerank
- *       or --hybrid.
+ *       uses into the cache, so a later --offline run needs no database. Briefing arms do not combine with --rerank;
+ *       --hybrid works with s2docs only (the chat's three-way fusion: whole corpus, exact +4.5 [1.7, 7.8] on
+ *       questions and +3.4 [0.6, 6.7] on keywords, 2026-10-01).
  *   pnpm eval:retrieval -- --backend ternlight --briefings none,s1,s2,s2docs --briefing-file .cache/atlas-briefings/pilot-sonnet.json
  *   pnpm eval:retrieval -- --backend ollama --models qwen3-embedding:8b --briefings none,s2docs     (--doc-prefix for models that want one)
  *     ^ LOCAL embedders, for when there is no API credit: ternlight (the 384-dim WASM model the chat facts use, 128-token

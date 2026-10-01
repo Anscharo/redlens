@@ -219,11 +219,13 @@ export const config = {
   // briefed in the cycle that sees it and a 7,681-document restructuring clears in
   // about two days at under $11 a day. 0 turns the write pass off.
   briefingsPerCycle: Number(process.env.BRIEFINGS_PER_CYCLE ?? 186),
-  // No default model id on purpose: a hardcoded OpenRouter id goes stale. Production
-  // sets the Sonnet id OpenRouter lists, the model the seed corpus was written with;
-  // the id is stamped on every row. UNSET means the write pass is off, while the
-  // seed load and the embed pass still run.
-  briefingModel: process.env.BRIEFING_MODEL ?? "",
+  // Gemini 3.8 Flash by default. Measured 2026-10-01 against Sonnet on the same
+  // 2,331 pilot documents (exact recall@10, 178 queries): −0.6 [−5.1, 3.9] on
+  // questions, +4.5 [0.6, 8.4] on keywords, at about a quarter of the cost
+  // (~$0.50 per 1,000 documents). Sonnet subagents wrote the first 8,958 rows and
+  // those stay; the id is stamped on every row. BRIEFING_MODEL="" turns the write
+  // pass off, while the seed load and the embed pass still run.
+  briefingModel: process.env.BRIEFING_MODEL ?? "google/gemini-3.8-flash",
 
   // Semantic search relevance floor (cosine, 0..1). pgvector's ORDER BY returns
   // the k nearest docs regardless of absolute similarity, so a query with few

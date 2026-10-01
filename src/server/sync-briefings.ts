@@ -570,7 +570,9 @@ function realDeps(): BriefingDeps {
         {
           model: config.briefingModel,
           temperature: 0,
-          max_tokens: 12_000,
+          // 20,000, not 12,000: Gemini 3.8 Flash was cut off once in 31 pilot
+          // chunks at 12,000 and came within 500 tokens twice more.
+          max_tokens: 20_000,
           messages: [
             { role: "system", content: system },
             { role: "user", content: user },

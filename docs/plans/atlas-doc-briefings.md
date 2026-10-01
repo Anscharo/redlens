@@ -206,9 +206,62 @@ Baseline falls to exact 0.615, recall@10 0.682.
 - Caveat: readers typed those log entries into a word-matching box before the meaning lane existed,
   so the shape may drift toward questions once it ships. The two runs bracket that.
 
-**Next, in order:** write the remaining 5,503 briefings with Sonnet subagents (`pnpm briefings:plan
---force` replaces the pilot work directory; copy `pilot-opus.json` out first if it still matters);
-rerun this eval on the full corpus (`--pool all`, which is unbiased once coverage is complete). The production change is built. Briefings live in their own table, `atlas_doc_briefings`
+**2026-10-01, 77% coverage (8,958 of 11,584 documents; 4,867 of 6,810 units in the covered pool).**
+Sonnet subagents wrote 2,872 more rows. The remaining 2,626 documents are left to the atlas worker's
+write pass after deployment. `qwen/qwen3-embedding-8b`, 179 queries, covered pool, `s2docs:both`
+against no briefings, paired bootstrap:
+
+| Lane | Query shape | Exact recall@10, none → briefings | Gain |
+|---|---|---|---|
+| semantic | questions | 0.642 → 0.765 | +12.3 [7.8, 17.3] |
+| semantic | keywords | 0.570 → 0.682 | +11.2 [6.7, 16.2] |
+| hybrid, three-way | questions | 0.665 → 0.704 | +3.9 [1.1, 6.7] |
+| hybrid, three-way | keywords | 0.598 → 0.615 | +1.7 [−0.6, 4.5] |
+
+- Semantic lane: instance disambiguation and instance parameters gain 20 points each on both query
+  shapes. The gain did not shrink as the pool grew from 684 to 3,049 to 4,867 units.
+- Hybrid: the gain is small because the lexical list already finds most of what the briefings add.
+  Unit-level recall does not move (0.927 both ways on questions). Overall MRR falls slightly
+  (0.612 → 0.602 on questions, 0.585 → 0.577 on keywords), and on instance disambiguation it falls
+  from 0.511 to 0.400 and from 0.529 to 0.430: more right documents reach the top 10, but they sit
+  lower. Instance parameters on keywords lose one query (−2.5 [−7.5, 0.0]).
+
+**2026-10-01, writer comparison: Gemini 3.8 Flash against Sonnet.** `google/gemini-3.8-flash` wrote the
+same 2,331 pilot documents through OpenRouter with the worker's own prompt (`BRIEFING_REPLY_INSTRUCTIONS`).
+Same pool for both (683 units, 178 queries), `s2docs:both`, exact recall@10:
+
+| Query shape | None | Sonnet | Gemini | Gemini − Sonnet | Gemini / Sonnet better |
+|---|---|---|---|---|---|
+| questions | 0.697 | 0.820 | 0.815 | −0.6 [−5.1, 3.9] | 8 / 9 |
+| keywords | 0.624 | 0.708 | 0.753 | +4.5 [0.6, 8.4] | 11 / 3 |
+
+- No difference on questions. On keywords Gemini is ahead, and the gain is all instance disambiguation
+  (+17.5 [5.0, 30.0]). Sonnet is ahead on kv-record with questions (4 queries to 0).
+- Gemini's briefings are shorter (median 113 characters against 160) and almost always carry two
+  questions (3 questions in 10 rows against 153).
+- Reliability over 31 requests at `max_tokens` 12,000: one reply cut off, two provider errors mid-reply,
+  one reply with a broken JSON line, one row with a mangled UUID. All four chunks passed on a retry.
+  Two more replies used over 11,500 tokens, so 12,000 is too close for this model.
+- Cost $1.21 for the 31 chunks plus retries, about $0.50 per 1,000 documents. A chunk takes 45 to 60 seconds.
+- Worker path: `BRIEFING_MODEL=google/gemini-3.8-flash BRIEFINGS_PER_CYCLE=394 pnpm sync:briefings`
+  briefed 394 of 394 documents in 7 chunks with no failure, 76 seconds with the embed pass. Those rows
+  are in the local database only.
+- Every query the two writers split on, with both briefings for its target: `docs/research/briefing-writer-comparison.md`.
+- `google/gemini-3.8-flash:batch` is refused by the chat completions endpoint, so the worker cannot use it as built.
+
+**2026-10-01, whole corpus (11,584 of 11,584 documents; Sonnet 8,958, Gemini 2,626; `--pool all`, 6,810 units).**
+
+| Lane | Query shape | Exact recall@10, none → briefings | Gain | Gained / lost | MRR |
+|---|---|---|---|---|---|
+| semantic | questions | 0.631 → 0.760 | +12.8 [7.8, 17.9] | 23 / 0 | 0.583 → 0.620 |
+| semantic | keywords | 0.564 → 0.676 | +11.2 [6.7, 15.6] | 20 / 0 | 0.542 → 0.597 |
+| hybrid, three-way | questions | 0.659 → 0.704 | +4.5 [1.7, 7.8] | 8 / 0 | 0.626 → 0.582 |
+| hybrid, three-way | keywords | 0.587 → 0.620 | +3.4 [0.6, 6.7] | 7 / 1 | 0.607 → 0.572 |
+
+The semantic lane gains on both measures. The hybrid lane gains exact hits on both query shapes
+(kv-record +16.7 [4.2, 33.3] on questions) and loses rank inside the top 10.
+
+**Done.** The production change is built. Briefings live in their own table, `atlas_doc_briefings`
 (migration 037), and not in columns on `atlas_doc_embeddings`, so migration 024's index predicate
 stays untouched. `src/server/sync-briefings.ts` is the fourth worker tail and runs three passes:
 seed from the committed file, write for new and changed documents, and embed. `fuseBriefings` in

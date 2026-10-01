@@ -293,9 +293,11 @@ export function semanticScopeSql(scope: string | undefined): string {
 }
 
 // `briefings` is a third list in the SAME rrfFuse call: one RRF stage, never a
-// fusion of a fusion. UNMEASURED — the retrieval eval measured briefings only
-// against the attributed leaf list (`fuseBriefings`) and refuses `--briefings`
-// with `--hybrid`, so the three-way hybrid fusion is a follow-up eval.
+// fusion of a fusion. Measured 2026-10-01 on the whole corpus (`--hybrid
+// --briefings none,s2docs --pool all`, 179 queries, exact recall@10): +4.5
+// [1.7, 7.8] on questions, +3.4 [0.6, 6.7] on keywords. Smaller than the semantic
+// lane's gain because the lexical list already finds most of what the briefings
+// add, and MRR falls (0.626 → 0.582 on questions).
 /**
  * The reader's fusion: the attributed leaf list and the briefing list, by rank,
  * once. Measured on qwen3-embedding-8b over 179 queries (docs/plans/

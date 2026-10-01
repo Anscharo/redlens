@@ -385,7 +385,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     ).catch((err): SemanticResult => ({ hits: [], briefingHits: [], skipped: (err as Error).message }));
     const sem = attributeSemanticHits(query, lex, semResult.hits, ix, await buildLeafScorer(semResult.hits, semResult.vecs));
     semSkipped = semResult.skipped;
-    // Three-way fusion is unmeasured: the eval refuses `--briefings` with `--hybrid`.
+    // Three-way fusion; the measured gain is in the comment at `rrfMerge`.
     let merged = filterByType(rrfMerge(lex, sem, semResult.briefingHits), ix, a.target_type);
     // Quoted phrases require an exact match — same shared post-filter
     // atlas_search applies, so the two tools agree on phrase queries.

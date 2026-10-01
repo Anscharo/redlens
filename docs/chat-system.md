@@ -1264,8 +1264,13 @@ Chat retrieval calls the same `runSemantic` as the reader's meaning lane. Since
 vector against `atlas_doc_briefings`. The hybrid lane (`tools.ts`, `query.ts`)
 now fuses three lists in one RRF stage: lexical, attributed semantic and
 briefings. `atlas_search` with `mode="semantic"` fuses only the attributed leaves
-with the briefings, which is the form the eval measured. The eval refuses
-`--briefings` with `--hybrid`, so the three-way form has no number yet. MCP
+with the briefings, which is the form the eval measured first. The three-way
+form was measured 2026-10-01 on the whole corpus (`--hybrid --briefings none,s2docs
+--pool all`, 179 queries, exact recall@10): +4.5 [1.7, 7.8] on questions and
++3.4 [0.6, 6.7] on keywords, against +12.8 and +11.2 on the semantic lane
+alone. The lexical list already finds most of what the briefings add, and MRR
+falls (0.626 → 0.582 on questions): more right documents reach the top 10, but
+they sit lower. MCP
 clients see the same tools, so both forms reach them too. The measured gains and the design are in the semantic-lane
 note in `CLAUDE.md` and in `docs/plans/atlas-doc-briefings.md`.
 
