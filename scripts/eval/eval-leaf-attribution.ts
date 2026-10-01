@@ -19,7 +19,8 @@
 // Measured over 98 grouped-target queries (2026-09-30):
 //
 //   lexical                     29.6%   no vectors at all
-//   plain query vector          13.3%   worse than lexical — see below
+//   plainQuery                  15.3%   worse than lexical — see below (the scratch
+//                                       run this was ported from reported 13.3%)
 //   lexResid                    39.8%   residual from the lexical leg
 //   rrfU0.25                    43.9%   SHIPPED — one round trip
 //   rrf(lexResid,demoteA0.5)    44.9%   needs a vector that does not exist
@@ -27,8 +28,8 @@
 //
 // Do not "simplify" attribution to the plain query vector: subtracting a
 // per-GROUP constant cannot reorder that group's members, so it collapses ICD
-// disambiguation to 2.5%. The per-MEMBER `cos(m, anchor)` penalty is what makes
-// a free arm work at all — "prefer the member that answers the question over
+// disambiguation to 5.0% (2 of 40; the scratch run reported 2.5%). The
+// per-MEMBER `cos(m, anchor)` penalty is what makes a free arm work at all — "prefer the member that answers the question over
 // the one that merely echoes the group's name".
 //
 //   pnpm eval:leaf-attribution                 # uses .cache vectors, embeds misses
@@ -48,6 +49,7 @@ import { generateRetrievalQueries, type RetrievalQuery } from "./eval-retrieval-
 import { MINISEARCH_OPTIONS } from "../../src/lib/searchOptions.ts";
 import { expandQueryTokens, partitionByOriginalTerms } from "../../src/lib/searchInflect.ts";
 import { config } from "../../src/server/config.ts";
+import { formatBootstrap, pairedBootstrap } from "./eval-bootstrap.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const argv = process.argv.slice(2);
@@ -182,7 +184,7 @@ console.log(`cache: ${Object.keys(vecs).length} vectors → ${path.relative(ROOT
 
 // ---- arms ------------------------------------------------------------------
 const LAMBDAS = [0.25, 0.5, 0.75];
-const ARMS = ["lexical", "semResid", "lexResid", ...LAMBDAS.map((l) => `demoteU${l}`),
+const ARMS = ["lexical", "plainQuery", "semResid", "lexResid", ...LAMBDAS.map((l) => `demoteU${l}`),
   ...LAMBDAS.map((l) => `rrfU${l}`), "rrf(lexResid,demoteA0.5)"];
 const hit: Record<string, number> = Object.fromEntries(ARMS.map((a) => [a, 0]));
 const bySlice = new Map<string, Record<string, number>>();
@@ -215,6 +217,8 @@ for (const c of cases) {
 
   const picks: Record<string, string> = {
     lexical: pickLeaf(c.x.query, members, anchor).node.id,
+    // The header's "plain query vector" row: the arm nobody should simplify to.
+    plainQuery: best((r) => cos(qv, r.v)),
     semResid: rv ? best((r) => cos(rv, r.v)) : "",
     lexResid: lv ? best((r) => cos(lv, r.v)) : "",
   };
@@ -249,23 +253,8 @@ for (const [s, b] of bySlice) {
 // is within-query. A 4-point gap on 98 queries is worth nothing if the
 // resampling distribution straddles zero — which is exactly what it does for
 // the shipped arm against the old two-round-trip rule.
-function boot(a: string, b: string): string {
-  const diffs: number[] = [];
-  let wins = 0;
-  for (let r = 0; r < R; r++) {
-    let d = 0;
-    for (let i = 0; i < n; i++) { const t = trace[(Math.random() * n) | 0]!; d += t[a]! - t[b]!; }
-    diffs.push((100 * d) / n);
-    if (d > 0) wins++;
-  }
-  diffs.sort((x, y) => x - y);
-  const point = (100 * trace.reduce((s, t) => s + t[a]! - t[b]!, 0)) / n;
-  return `${a} − ${b}: ${point.toFixed(1)} pts  95% CI ` +
-    `[${diffs[Math.floor(R * 0.025)]!.toFixed(1)}, ${diffs[Math.floor(R * 0.975)]!.toFixed(1)}]  ` +
-    `P(${a} better)=${(wins / R).toFixed(2)}`;
-}
 console.log(`\npaired bootstrap (${R} resamples of the same ${n} queries):`);
 for (const pair of [["lexResid", "semResid"], ["rrfU0.25", "semResid"], ["rrfU0.25", "lexResid"],
   ["lexResid", "lexical"], ["rrfU0.25", "lexical"]] as const) {
-  console.log(`  ${boot(pair[0], pair[1])}`);
+  console.log(`  ${formatBootstrap(pair[0], pair[1], pairedBootstrap(trace, pair[0], pair[1], { resamples: R }))}`);
 }

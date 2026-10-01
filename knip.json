@@ -31,6 +31,7 @@
     "scripts/lib/mistakes-sweep.d.mts",
     "scripts/lib/mistakes-corpus.d.mts",
     "scripts/lib/ordered-containment.d.mts",
+    "scripts/lib/doc-briefings.d.mts",
     "scripts/required/check-govops-census.d.mts"
   ],
   "workspaces": {
