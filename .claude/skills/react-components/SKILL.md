@@ -94,7 +94,7 @@ owns `useDocumentTitle` and the `report_view` event *so a new report cannot forg
 That centralisation is the point, and 13 pages depend on it. **Don't refactor it, and don't
 cite it as precedent** — it is the shape this section is steering new components away from.
 
-This is also how you stay within the SAbR size rules: max 3 components per file, plus the size limits in CLAUDE.md (`pnpm check:size`). Grandfathered offenders live in `.github/size-baseline.json` and may only shrink.
+This is also how you stay within the SAbR size rules: max 3 components per file, plus the size limits in CLAUDE.md (`pnpm check:size`). Grandfathered offenders are pinned at their current size in `.oxlintrc.size.json`.
 
 ## 2. Extend the native element's props **[new code]**
 

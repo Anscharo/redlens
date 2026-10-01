@@ -148,7 +148,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: git fetch --no-tags --depth=1 origin ${{ github.event.pull_request.base.sha }}
 
-      - name: File/function size ratchet
+      - name: File/function size limits (oxlint)
         continue-on-error: true
         run: pnpm check:size
         env:

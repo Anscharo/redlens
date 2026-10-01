@@ -175,7 +175,7 @@ src/components/atlas/RightPanel.tsx:88 — [a11y] Icon-only close button has no 
 
 Reporting these as new problems makes reviews noisy and trains people to ignore them:
 
-- **Grandfathered oversized files and functions**, listed in `.github/size-baseline.json`. `pnpm check:size` already fails any that grow, so don't report their size.
+- **Grandfathered oversized files and functions**, pinned in `.oxlintrc.size.json`. `pnpm check:size` already fails any that grow, so don't report their size.
 - **Absence of `cn` / `tailwind-merge` / CVA** — deliberately not used here.
 - **Absence of `data-slot`** — deliberately not used here.
 - **Native `disabled` instead of `aria-disabled`** — the house choice (18 vs 0).

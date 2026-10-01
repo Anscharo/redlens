@@ -132,7 +132,6 @@
     "exceljs": "4.4.0",
     "jsdom": "29.1.1",
     "knip": "6.6.0",
-    "oxc-parser": "0.126.0",
     "oxlint": "1.62.0",
     "turndown": "7.2.4",
     "turndown-plugin-gfm": "1.0.2",
