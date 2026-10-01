@@ -5785,6 +5785,127 @@ function cancelMapleRedemption(address mapleToken, uint256 shares) external
 ]
 `;
 
+exports[`allocation-system sub-doc content > Osero > Ethereum Mainnet - Gauntlet USDC Prime Morpho Vault V2 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation Coverage",
+  },
+  {
+    "content": "The documents herein define the parameters of the Gauntlet USDC Prime Morpho Vault V2 Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers.",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Morpho",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDC",
+    "title": "Asset Supplied By Osero Liquidity Layer",
+  },
+  {
+    "content": "ogusdcp",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0x802148D518A6De2aF866f9A61ffB5e5C39156dB2\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow are defined in the subdocuments herein.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The inflow RateLimitID is: \`0xfc26a91cf7b79b531d45dcc431ee59e4f2504f51cb33e2b67960808a104c92ef\`.",
+    "title": "Inflow RateLimitID",
+  },
+  {
+    "content": "The outflow RateLimitID is: \`0xcab6bfa8f90f2360ea56d52b48e71b2b98ee14414a2fd578d01dcfeb41cf97ca\`.",
+    "title": "Outflow RateLimitID",
+  },
+  {
+    "content": "The current \`maxAmount\` and \`slope\` for this conduit's inflow/outflow are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The deposit rate limits are:
+- \`maxAmount\`: 5,000,000 USDC
+- \`slope\`: 0 USDC per day",
+    "title": "Deposit Rate Limits",
+  },
+  {
+    "content": "The withdrawal rate limits are:
+- \`maxAmount\`: Unlimited",
+    "title": "Withdrawal Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The \`maxSlippage\` for this Instance will be specified in a future iteration of the Osero Artifact.",
+    "title": "Max Slippage",
+  },
+  {
+    "content": "The Maximum Exposure for this Instance is 5,000,000 USDC.",
+    "title": "Maximum Exposure",
+  },
+  {
+    "content": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 100%.",
+    "title": "Capital Ratio Requirement",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Osero Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+  {
+    "content": "The documents herein contain operational parameters or configuration details unique to this Instance that deviate from or otherwise supplement the general Osero Liquidity Layer parameters.",
+    "title": "Instance-specific Operational Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3\`",
+    "title": "Owner Role Address",
+  },
+  {
+    "content": "\`0x256DaC8fad2788F4182A42cE8F26029F0DEd7cf9\`",
+    "title": "Curator Role Address",
+  },
+  {
+    "content": "The Allocator role is held by the Gauntlet Allocator address \`0x6939A35d32E9bE623e08aA0bceD96D4baC170bB3\` and the Vault Curator Multisig \`0x256DaC8fad2788F4182A42cE8F26029F0DEd7cf9\`.",
+    "title": "Allocator Role Address",
+  },
+  {
+    "content": "The Sentinel role is held by the Gauntlet Sentinel address \`0x6a0dC94d80429dd4B03E8838CE8d6BEE725bE39B\` and the Soter Labs Vault Sentinel Multisig \`0xf51A112fB2cB63E3CB3eeB7feA8c7c58625868C7\`.",
+    "title": "Sentinel Role Address",
+  },
+  {
+    "content": "Controllers now have protections that require a \`maxExchangeRate\` to be set for deposits. The following ensures 1 share can represent at most 2 USDC.
+- \`setMaxExchangeRate(OGUSDCP_VAULT, 1e18, 2e6)\`",
+    "title": "Max Exchange Rate",
+  },
+]
+`;
+
 exports[`allocation-system sub-doc content > Osero > Ethereum Mainnet - SparkLend USDS 1`] = `
 [
   {
@@ -11900,27 +12021,27 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 9,
   "annotates": 101,
   "can_modify_signers_of": 33,
-  "cites": 2255,
+  "cites": 2270,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 424,
+  "defines_entity": 425,
   "duty_for": 867,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 9,
   "governance_channel": 10,
-  "has_address": 295,
+  "has_address": 297,
   "has_status": 136,
   "holds_role_for": 5,
   "implements": 188,
-  "instance_of": 209,
+  "instance_of": 210,
   "integration_partner_of": 10,
   "invocation_of": 5,
-  "invoked_by": 214,
+  "invoked_by": 215,
   "listed_in": 49,
-  "located_at": 207,
-  "mentions": 705,
+  "located_at": 208,
+  "mentions": 713,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -11928,7 +12049,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "prime_foundation_of": 5,
   "process_step_responsible_party_for": 32,
   "provides_services_to": 6,
-  "proxies_to": 88,
+  "proxies_to": 90,
   "ranked_delegate_for": 3,
   "responsible_party_for": 69,
   "signer_of": 69,
@@ -15201,6 +15322,28 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.7",
+    "name": "Ethereum Mainnet - Gauntlet USDC Prime Morpho Vault V2",
+    "params": {
+      "Asset Supplied By Osero Liquidity Layer": "USDC",
+      "Capital Ratio Requirement": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 100%.",
+      "Deposit Rate Limits / maxAmount": "5,000,000 USDC",
+      "Deposit Rate Limits / slope": "0 USDC per day",
+      "Inflow RateLimitID": "0xfc26a91cf7b79b531d45dcc431ee59e4f2504f51cb33e2b67960808a104c92ef",
+      "Max Slippage": "The \`maxSlippage\` for this Instance will be specified in a future iteration of the Osero Artifact.",
+      "Maximum Exposure": "The Maximum Exposure for this Instance is 5,000,000 USDC.",
+      "Network": "Ethereum Mainnet",
+      "Outflow RateLimitID": "0xcab6bfa8f90f2360ea56d52b48e71b2b98ee14414a2fd578d01dcfeb41cf97ca",
+      "Target Protocol": "Morpho",
+      "Token": "ogusdcp",
+      "Token Address": "0x802148D518A6De2aF866f9A61ffB5e5C39156dB2",
+      "Underlying Asset Address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "Withdrawal Rate Limits / maxAmount": "Unlimited",
+    },
+    "slug": "osero-allocation-system-ethereum-mainnet-gauntlet-usdc-prime-morpho-vault-v2",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.7",
     "name": "Ethereum Mainnet - SparkLend USDS",
     "params": {
       "Asset Supplied By Osero Liquidity Layer": "USDS",
@@ -15477,7 +15620,7 @@ exports[`instances > instance counts by type 1`] = `
 {
   "agent-creation": 8,
   "agent-token": 8,
-  "allocation-system": 125,
+  "allocation-system": 126,
   "core-governance-reward": 1,
   "distribution-reward": 15,
   "ecosystem-upkeep-fee": 8,

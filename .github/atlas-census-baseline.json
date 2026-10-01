@@ -82,7 +82,7 @@
       ]
     },
     "Core|addr": {
-      "total": 425,
+      "total": 429,
       "uncovered": 0,
       "samples": []
     },
@@ -111,6 +111,11 @@
       "uncovered": 0,
       "samples": []
     },
+    "Core|addr,s:role-held-by": {
+      "total": 2,
+      "uncovered": 0,
+      "samples": []
+    },
     "Core|addr,s:serves-as,uuid-link": {
       "total": 1,
       "uncovered": 0,
@@ -122,8 +127,8 @@
       "samples": []
     },
     "Core|bullet-kv": {
-      "total": 372,
-      "uncovered": 133,
+      "total": 376,
+      "uncovered": 135,
       "samples": [
         "A.3.3.2.7.1.1.2",
         "A.3.7.1.1.1.1",
@@ -138,8 +143,8 @@
       "samples": []
     },
     "Core|plain": {
-      "total": 8225,
-      "uncovered": 6326,
+      "total": 8267,
+      "uncovered": 6360,
       "samples": [
         "A.0.1.1.1",
         "A.0.1.1.10",
@@ -191,8 +196,8 @@
       "samples": []
     },
     "Core|s:role-for-is": {
-      "total": 44,
-      "uncovered": 22,
+      "total": 47,
+      "uncovered": 24,
       "samples": [
         "A.1.10.2.1.9",
         "A.1.10.2.4.2.3.3",
@@ -202,7 +207,7 @@
       ]
     },
     "Core|s:role-for-is,uuid-link": {
-      "total": 28,
+      "total": 30,
       "uncovered": 0,
       "samples": []
     },
@@ -277,7 +282,7 @@
       "samples": []
     },
     "Core|uuid-link": {
-      "total": 1615,
+      "total": 1625,
       "uncovered": 0,
       "samples": []
     },
