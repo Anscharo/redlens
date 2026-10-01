@@ -85,7 +85,7 @@ export async function judgePrefetch(params: {
   });
 
   try {
-    const run = await askJev({ state, questions, model, signal, timeoutMs: deadlineMs });
+    const run = await askJev({ lane: "prefetch-judge", state, questions, model, signal, timeoutMs: deadlineMs });
     const census = {} as Record<CensusSlug, number>;
     for (const slug of CENSUS_SLUGS) census[slug] = noulOf(run, slug) ?? 0;
     const teach: Record<string, number> = {};

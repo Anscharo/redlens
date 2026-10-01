@@ -10,10 +10,12 @@
 // round part 3): Jev 0.40 s p50 per paragraph vs gemma 3.8 s p50 with 2 of 10
 // spot calls running into the 45 s timeout.
 //
-// Evidence: every doc the paragraph cites, read in FULL from the atlas index
-// (tool results can be excerpts), then tool-output records — cited-matching
-// first, then top-8 by overlap (refute-screen-evidence.ts) — then the
-// deterministic param-table rows. The schema entry [E0] is left out: it stops
+// Evidence, in the order it is emitted: every doc the paragraph cites, read in
+// FULL from the atlas index (tool results can be excerpts), then the
+// deterministic param-table rows — those two are the core, always kept — then
+// tool-output records, cited-matching first and at most 8 by overlap
+// (refute-screen-evidence.ts). Only that last class is ranked; the core does not
+// compete for its slots. The schema entry [E0] is left out: it stops
 // gemma reading true schema facts (doc counts, type vocabularies) as invented,
 // and is pure distraction for a per-statement judgment.
 import { askJev, choiceOf, withDeadline, type JevRun } from "../../jev.ts";
@@ -89,7 +91,13 @@ const toolEntry = (r: EvidenceRecord) => ({ source: `${r.entry} ${r.tool}${r.pat
 export function buildScreenRequest(p: { question: string; paragraph: string; evidence: EvidenceEntry[]; ix: Indexes }): ScreenRequest {
   const statements = statementsOf(p.paragraph);
   const recs = recordsOf(p.evidence.filter((e) => e.label !== "[E0]"));
+  // Param rows are their own class: in the core unconditionally, so they are
+  // kept out of the ranking entirely — its output AND its statistics. Ranking
+  // them spent tool-record slots on records already in the state, and worse:
+  // each row carries doc_no and uuid, so a paragraph citing a doc whose
+  // parameter it also names scored every row Infinity (citedRecordPositions).
   const constRecs = recs.filter((r) => r.entry === "[E-const]");
+  const toolRecs = recs.filter((r) => r.entry !== "[E-const]");
   const docs = citedDocs(p.paragraph, p.ix).map((d) => ({
     source: `atlas document ${d.doc_no} (cited by the paragraph)`,
     record: { id: d.id, doc_no: d.doc_no, title: d.title, type: d.type, content: d.content },
@@ -104,8 +112,7 @@ export function buildScreenRequest(p: { question: string; paragraph: string; evi
   // so every kept record paid two JSON.parse and an extra JSON.stringify.
   const kept: { rec: EvidenceRecord; entry: ReturnType<typeof toolEntry> }[] = [];
   let dropped = 0;
-  for (const r of rankRecords(p.paragraph, recs, p.ix, 8)) {
-    if (r.entry === "[E-const]") continue; // already in the core
+  for (const r of rankRecords(p.paragraph, toolRecs, p.ix, 8)) {
     const entry = toolEntry(r);
     const add = JSON.stringify(entry).length + 1;
     if (fits && chars + add <= budgetChars) {
@@ -163,6 +170,12 @@ export function needsGemma(s: ScreenResult | null, paragraph: string): boolean {
   if (!s || !s.fits || s.flagged) return true;
   // Nothing the screen could judge: send it to gemma anyway UNLESS there is
   // nothing to check in the first place.
+  // Since 2026-09-30 paragraph-refute.ts's `submit` applies the same
+  // `hasCheckableContent` test before a paragraph reaches the screen at all, so
+  // in production this arm now only ever returns true. Kept as written rather
+  // than reduced to `return true`: the predicate is this function's own
+  // contract, and coupling it to a caller's filtering would break silently if
+  // that filter ever moved. The skip itself lives in `submit`.
   if (s.statements.length === 0) return hasCheckableContent(paragraph);
   return false;
 }
@@ -205,7 +218,7 @@ export async function screenParagraph(p: {
     if (!req.fits || req.statements.length === 0) return unsent(req);
     const deadlineMs = p.deadlineMs ?? SCREEN_DEADLINE_MS;
     const signal = withDeadline(deadlineMs, p.signal);
-    const run = await askJev({ state: req.state, questions: req.questions, model: p.model, signal, timeoutMs: deadlineMs });
+    const run = await askJev({ lane: "refute-screen", obs: p.obs, state: req.state, questions: req.questions, model: p.model, signal, timeoutMs: deadlineMs });
     return readScreen(req, run);
   } catch (err) {
     // Reported, then null → gemma runs. Shadow mode is a MEASUREMENT phase, so

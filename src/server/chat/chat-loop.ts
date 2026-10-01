@@ -395,8 +395,8 @@ export async function* runChat(opts: {
     // streamed tool_calls deltas — some report "stop". Gating on finish_reason
     // silently dropped those accumulated calls, and whatever (usually empty)
     // content had streamed became the final answer instead — an empty answer
-    // that then gets persisted and filtered out by windowHistory, so the turn
-    // vanishes. Still excluded on `last`, the forced-text final iteration
+    // that then gets persisted as an empty assistant row. Still excluded on
+    // `last`, the forced-text final iteration
     // (toolChoice:"none"), where a tool round is never valid.
     //
     // A pending slot can be unusable — empty/missing id or name — if a stream

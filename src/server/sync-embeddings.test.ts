@@ -233,7 +233,7 @@ describe("embedTimeoutFromEnv", () => {
     // burn the whole budget and abort 2 and 3 before they were sent. Asserted on
     // the source because realEmbedDeps dials a real provider.
     const src = await Bun.file(new URL("./sync-embeddings.ts", import.meta.url)).text();
-    expect(src).toContain("embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv()))");
+    expect(src).toContain('embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv()), 0, "embed-sync")');
   });
 });
 

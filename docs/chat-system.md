@@ -135,7 +135,7 @@ checklist), `Sources`, `LimitsMeter` + `ContextPie` (usage and context size),
 6. **Persist the user message** before streaming, then reload full history.
 7. **Build the model input** — `prepareTurn` (`turn-setup.ts`): the Jev
    prefetch judgement, tier routing (`routeTier` + `resolveTierModels`), system
-   prompt, windowed history, facts round and Jev-filtered `/teach` notes. It is
+   prompt, full history, facts round and Jev-filtered `/teach` notes. It is
    the one assembly `pnpm eval:tools` also runs; the per-user `/teach` lookup
    stays in `chat.ts` and comes in as an argument.
 8. **Model tier routing** — part of step 7, decided before the prompt is
@@ -168,8 +168,75 @@ the literal list of models measured clean for the format (`openai/gpt-5.6-luna`,
 `openai/gpt-5-mini`), independent of whichever model currently sits in
 `CHAT_MODEL_STRONG`, so swapping the strong tier doesn't silently change what
 format an unmeasured model gets asked for. The pipeline accepts both from every
-model regardless; see `docs/plans/reference-citations.md`. History is windowed
-to a hard char budget (`chat-history.ts`).
+model regardless; see `docs/plans/reference-citations.md`. History is the full
+thread (`context-compact.ts` decides what to replay and when to fold;
+`context-summary.ts` is the one summarization call): every stored message is
+replayed verbatim until the replay reaches 90% of
+`CHAT_CONTEXT_WINDOW_TOKENS` (default 200k, the
+smallest window in the routing chain). That turn summarizes the prefix once
+into `conversations.summary` and keeps a short tail. The summarizer is pinned to
+`openai/gpt-5.6-luna` (`CHAT_SUMMARY_MODEL`) rather than following `CHAT_MODEL`:
+one fold per thread, reading up to ~140k tokens, whose output every later turn
+of that conversation then answers from and which is never rewritten — so it is
+worth a strong model and should not change whenever the default chat model does. The summary is a stable
+message pair after the system prompt — provider caches match a byte-identical
+prefix, so the summary is not rewritten on the turns in between. A failed
+summary (timeout, error, or unparseable output) leaves the full thread in
+place and is not retried for five minutes, so a model outage does not add
+the summary timeout to every later turn. Earlier tool
+results are not replayed raw. Each call is reduced to a lookup card once, when
+the turn is saved (`tool-recall.ts` for the ids and pairing,
+`tool-recall-card.ts` for the card text), and that card is what later turns see.
+
+That 90% line is an **estimate** (4 chars/token, measured on a real turn — see
+`CHARS_PER_TOKEN`), and it can be wrong in the unsafe direction on a
+JSON-heavy or non-English thread. `context-overflow.ts` is the backstop: when
+the provider itself rejects a request for length, the user gets a
+plain-language message instead of a raw 400, and the conversation is flagged so
+its **next** turn folds the prefix whether or not the estimate says it fits,
+keeping only `COMPACT_TAIL_FORCED` rows verbatim and overriding the
+five-minute failure cooldown. So the thread heals on the next message. Exactly
+one forced fold is spent per rejection: if the request is rejected again after
+it, the verbatim tail itself is too large, and the conversation is marked
+`foldIsSpent` so later turns neither pay another summary call for it nor
+promise one — they ask for a new chat. A fold that does land clears both
+verdicts, since the thread has shrunk. `shouldForceFold` and
+`noteContextOverflow` are the whole surface: the flag and the wording are one
+decision, so what the notice promises cannot drift from what the next turn does.
+
+**What the meter shows.** `LimitsMeter`/`ContextPie`'s context figure is
+`contextUsedTokens` — the replay a turn sends plus the standing prefix — carried
+live on the `done` event as `contextUsed` and recomputed from stored rows by the
+conversation-detail route, so reopening a chat does not move it. It is
+deliberately NOT the measured `prompt_tokens` the meter used to show: that
+counts one turn's raw tool results, which the next turn never replays (they come
+back as ≤1.8k lookup cards), so a tool-heavy turn measured far above what the
+conversation actually carries and the number fell again on the next turn that
+needed no tools. It also omitted nothing — it was exact — but exact about the
+wrong quantity, and it could not be compared against the fold line at all,
+because compaction decides on the estimate. Now one function answers both, and
+the number only drops when a fold actually happens. The measured
+`messages.context_tokens` is still written per row for cost, telemetry and as
+the calibration signal for the estimate; it just does not drive the meter. The
+conversations LIST approximates the same quantity in SQL (replayed rows after
+the cursor + the summary + the prefix) because loading every row's cards for up
+to 100 conversations is not worth 1%, and marks it `~`.
+
+Folding also shrinks its own tail rather than trusting the row count:
+`planWithinLine` drops a tail row at a time, down to the question being
+answered, until the rows left verbatim (plus a summary at its cap) are
+themselves under the line. For any ordinary thread the six-row tail is far
+under it and nothing shrinks — it exists so that six messages at
+`MAX_MESSAGE_BYTES`, or a small configured `CHAT_CONTEXT_WINDOW_TOKENS`, cannot
+produce the one outcome the design cannot recover from: a fold that leaves a
+prompt still over the line, which no later fold can fix. There is
+deliberately no retry inside the same turn: it would mean re-running everything
+before the first token (Jev judgement, facts round, `/teach` filtering) or
+duplicating `prepareTurn`'s assembly, and the same message re-sent takes the
+healed path. With `CHAT_SUMMARY_MODEL=""` there is no fold to force, and the
+message says to start a new chat instead. Both flags (summary cooldown,
+overflow) are per-process and bounded — `conv-flags.ts`, swept and capped, so a
+conversation that fails once and is never reopened cannot hold an entry.
 
 The prompt also carries a **"Drafting messages to a third party"** section:
 composing a message, email, or forum reply about the atlas for someone else is
@@ -532,10 +599,35 @@ verdict is mostly ready by generation end instead of one more whole-answer
 round trip after it). Concurrency is capped (`CHAT_REFUTE_CONCURRENCY`,
 default 3) via a simple semaphore; paragraphs at or beyond
 `CHAT_REFUTE_MAX_PARAGRAPHS` (default 8) are concatenated into ONE extra call
-at flush time, keyed by the first overflowing paragraph's index — every call
-carries the full evidence set, so call count rather than paragraph count is
-what scales input tokens. A `tool_call` or `clear` — the draft being set aside
-— resets the refuter to a new burst; a call still in flight from the old burst
+at flush time, keyed by the first overflowing paragraph's index. Every call
+still carries the full evidence set. `buildRefutePrompt` orders the user
+message as question, then that evidence, then the paragraph, so the paragraph
+is the only suffix that changes and a provider prefix cache can reuse the
+evidence across the calls. `[E-const]` is appended after that shared block,
+because it is the only entry computed from the paragraph itself: a paragraph
+that names a parameter lengthens the tail, and the evidence before it still
+matches. A cache miss still bills the full set once per call, which is why
+call count rather than paragraph count is what scales input tokens when the
+prefix is cold.
+
+A paragraph `hasCheckableContent` rejects never starts a call at all: `submit`
+records it `parsed: true` with no usage and no latency, so the backbone does not
+degrade to `unverified` over a heading. The test runs *before* the
+`CHAT_REFUTE_MAX_PARAGRAPHS` routing, so an uncheckable paragraph costs no call,
+no concurrency slot and no place in that budget — and one past the cap is
+dropped rather than concatenated into the overflow batch and billed with it.
+That test is the same one `needsGemma`
+already applied in `gate` mode — this makes `off` and `shadow` agree with it —
+and it is deliberately loose: fewer than `MIN_CLAIM_WORDS` real words AND no
+groundable marker, where a marker is any figure, link, doc number, address,
+code span or reference label (`hasGroundableMarker`). So `## Signers` and a
+`---` rule are skipped while `It is 3.` is not, because a number is the
+auditor's business however short the sentence. `mergeParagraphRefutes` filters
+null usage rather than summing it, and paragraph-mode latency is the wall-clock
+`settleMs`, so a skipped paragraph reads as zero cost, never as missing data.
+
+A `tool_call` or `clear` — the draft being set aside — resets the refuter to a
+new burst; a call still in flight from the old burst
 writes nothing when it lands (checked at land time via an integer burst tag),
 so a stale paragraph's contradiction can never leak into the shipped verdict.
 `refuteParsed` on the merged `Verdict` now means "every paragraph of the FINAL
@@ -552,8 +644,14 @@ to fall back to the pre-2026-09 one-call-over-the-finished-answer behavior;
 **Jev screen in front of the per-paragraph refute (2026-09-22,
 `verify/refute-screen.ts`, `CHAT_REFUTE_SCREEN`).** Each paragraph also goes to
 one Jev request. The state is the paragraph, the documents it cites (read in
-full from the atlas index, not from tool excerpts), and the most relevant
-tool-output records. Each statement gets a Choice over
+full from the atlas index, not from tool excerpts), the deterministic
+`[E-const]` parameter rows, and the most relevant tool-output records — at most
+8 of them, by IDF-weighted overlap, with cited-matching records always kept.
+The cited docs and the parameter rows are their own classes and do not compete
+for those 8 slots (they did until 2026-09-30: the parameter rows carry `doc_no`
+and `uuid`, so a paragraph citing a doc whose parameter it also named scored
+every row as cited-matching and spent tool-record slots on rows already in the
+state). Each statement gets a Choice over
 consistent / contradicted / unsupported, and a paragraph is flagged at
 P(contradicted) ≥ 0.2. The modes:
 - `shadow` (the default): the screen runs beside gemma and changes nothing the
@@ -686,16 +784,16 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   grades either mode against the same corpus, so measure with that rather than
   by feel before adjusting `CHAT_REFUTE_CONCURRENCY` /
   `CHAT_REFUTE_MAX_PARAGRAPHS`.
-- **Prior-turn tool evidence is never replayed to the answerer.** `chat.ts`
-  replays only `{role, content}` for history, so the model that writes a
-  follow-up answer never sees this turn's or earlier turns' raw tool results —
-  only `priorTurnsEvidence` hands the *verifier* a summary of earlier answers
-  (§6.1's `verifier.ts`) as `[E-prev]`. The system prompt tells the model that
-  atlas material already in the conversation counts as grounding, which is
-  true for the verifier's evidence but not for what the answerer itself can
-  see when composing a follow-up — it re-retrieves instead. Left as a
-  separate decision: whether the answerer should get its own prior-tool-result
-  replay, and at what budget cost.
+- **Prior-turn tool results are replayed as lookup cards, not raw payloads.**
+  `tool-recall.ts` writes one deterministic card per call when the assistant
+  row is saved (ids, titles, doc numbers, a short excerpt, and an instruction
+  to re-call before quoting). Later turns expand that stored card into a tool
+  round (`context-compact.ts`'s `historyReplay`). The card is not regenerated
+  on read: a rewritten card would change bytes in the middle of the prompt and
+  drop the provider cache for everything after it. `evidenceFromTranscript`
+  skips recall ids (`rcall` plus 20 hex, or an older `rcall_` id), so a card cannot ground a quote — the answerer
+  still has to retrieve the document on the turn that cites it.
+  `priorTurnsEvidence` still hands the verifier earlier answers as `[E-prev]`.
 - **The one thing about a prior turn that IS replayed: its disputes**
   (2026-09-24, `dispute-round.ts`). When the previous assistant answer carries
   *agreed* contradictions, `prepareTurn` injects them as their own synthetic
@@ -703,10 +801,8 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   had nothing to reason from — the flag was rendered for the user and was
   invisible to the model, which answered by asking the user to paste the quote
   back (observed 2026-09-24). It rides its own round rather than being appended
-  to the prior assistant `content` for three reasons: the model reads its own
-  `content` as its own prose; `chat-history.ts`'s `truncateOld` slices anything
-  past the lead paragraph off older turns, so the note would vanish exactly when
-  a user circles back to it; and `title.ts` reads assistant `content` verbatim.
+  to the prior assistant `content` for two reasons: the model reads its own
+  `content` as its own prose, and `title.ts` reads assistant `content` verbatim.
   Two rules the copy and the plumbing enforce together. The block states it is a
   *check result, not a ruling* and warns that the check reads sentences in
   isolation and can misread pronoun antecedents — the originating case was a
@@ -886,7 +982,7 @@ doesn't cover this".
 A citation the turn never retrieved gets **silence**. We cannot check what we did not
 see, and the system prompt already forbids linking a document the turn did not
 retrieve, so such a citation is either a legitimate carry-over from an earlier turn
-(`chat.ts` replays history as `{role, content}`, leaving last turn's lookups no trace)
+(a lookup card from an earlier turn is not a retrieval — `evidenceFromTranscript` skips recall ids — so last turn's document text is not in this turn unless the tool is called again)
 or a prompt violation. Neither is checkable. Omitting the map entirely is different
 from an empty one — no map means provenance is not engaged and every citation takes
 the document question, which is what the checks-off path does.
@@ -1084,11 +1180,20 @@ in 2026-09 and does not use it.)
 fixed overhead — a ~5.5k-token system prompt and ~11k tokens of tool
 definitions. Two changes keep that overhead cacheable without altering a word
 the model reads:
-- `makeOpenrouterStream` sends `session_id` = a hash of the conversation id
-  (`sessionParam`), so OpenRouter routes the whole conversation to one provider
-  and that provider's prompt cache stays warm. By default OpenRouter keys that
-  routing on a hash of the first system message, and ours changes whenever the
-  user navigates, because the current page is part of it.
+- `makeOpenrouterStream` and `makeOpenrouterJson` both send `session_id` = a
+  hash of the conversation id (`sessionParam`), so OpenRouter routes every
+  JSON-mode call of a conversation — the verifier slices, and also title
+  generation and teach-review, which share the same factory — to the provider
+  the answer rounds went to, and that provider's prompt cache stays warm.
+  Without it OpenRouter derives the key itself: it "identifies conversations by
+  hashing the first system (or developer) message and the first non-system
+  message in each request"
+  ([sticky routing](https://openrouter.ai/docs/features/prompt-caching)), and
+  the verifier's user message changes with every paragraph, so each paragraph
+  would look like a new conversation. An explicit `session_id` also makes
+  stickiness start on the first successful request instead of only after a
+  cache hit is observed. Sessions expire after 10 minutes idle, so this helps
+  within a turn and across a quick follow-up, not across a long pause.
 - The per-turn date/commit line sits at the end of the system prompt
   (`## Session`), just before `## Current page`, so two days share a 99.2%
   identical prefix instead of ~3%.

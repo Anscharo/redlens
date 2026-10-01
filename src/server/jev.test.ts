@@ -40,7 +40,7 @@ const q = { smalltalk: { type: "noul" as const, instructions: "is it small talk"
 describe("askJev request shape", () => {
   it("posts to /systemone with the bearer key, the pinned model, and a RECORD of questions", async () => {
     const calls = stubFetch([ok(noulBody)]);
-    await askJev({ state: { message: "hi" }, questions: q, model: "typesafe/jev-1.13" });
+    await askJev({ lane: "test", state: { message: "hi" }, questions: q, model: "typesafe/jev-1.13" });
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe(`${config.openrouterBaseUrl}/systemone`);
     expect(calls[0].headers.authorization).toBe(`Bearer ${config.openrouterApiKey}`);
@@ -51,9 +51,21 @@ describe("askJev request shape", () => {
     expect(calls[0].body.questions.smalltalk.type).toBe("noul");
   });
 
+  it("sends the OpenRouter X-Title attribution header", async () => {
+    const calls = stubFetch([ok(noulBody)]);
+    await askJev({ lane: "test", state: {}, questions: q, model: "typesafe/jev-1.13" });
+    expect(calls[0].headers["X-Title"]).toStartWith("Sky Atlas Redline");
+  });
+
+  it("labels the lane it was called for (PostHog surface) without changing the request", async () => {
+    const calls = stubFetch([ok(noulBody)]);
+    await askJev({ state: {}, questions: q, model: "typesafe/jev-1.13", lane: "smalltalk" });
+    expect(calls[0].body).not.toHaveProperty("lane");
+  });
+
   it("maps usage, cost and generation id off the response", async () => {
     stubFetch([ok(noulBody)]);
-    const run = await askJev({ state: {}, questions: q, model: "m" });
+    const run = await askJev({ lane: "test", state: {}, questions: q, model: "m" });
     expect(run.usage).toEqual({ input: 340, output: 22 });
     expect(run.cost).toBe(0.00001428);
     expect(run.generationId).toBe("gen-dec-123");
@@ -81,20 +93,20 @@ describe("answer accessors", () => {
 describe("askJev failure handling", () => {
   it("throws immediately on a 400 — a malformed question does not improve on retry", async () => {
     const calls = stubFetch([new Response("bad question", { status: 400 })]);
-    await expect(askJev({ state: {}, questions: q, model: "m" })).rejects.toThrow(/systemone 400/);
+    await expect(askJev({ lane: "test", state: {}, questions: q, model: "m" })).rejects.toThrow(/systemone 400/);
     expect(calls).toHaveLength(1);
   });
 
   it("retries a 429 and succeeds", async () => {
     const calls = stubFetch([new Response("slow down", { status: 429 }), ok(noulBody)]);
-    const run = await askJev({ state: {}, questions: q, model: "m" });
+    const run = await askJev({ lane: "test", state: {}, questions: q, model: "m" });
     expect(calls.length).toBe(2);
     expect(noulOf(run, "smalltalk")).toBe(0.96);
   });
 
   it("retries a 5xx and gives up after a bounded number of attempts", async () => {
     const calls = stubFetch([() => new Response("boom", { status: 503 })]);
-    await expect(askJev({ state: {}, questions: q, model: "m" })).rejects.toThrow(/systemone 503/);
+    await expect(askJev({ lane: "test", state: {}, questions: q, model: "m" })).rejects.toThrow(/systemone 503/);
     expect(calls).toHaveLength(4); // initial + 3 retries
   });
 
@@ -106,7 +118,7 @@ describe("askJev failure handling", () => {
         return new Response("boom", { status: 503 });
       },
     ]);
-    await expect(askJev({ state: {}, questions: q, model: "m", signal: ac.signal })).rejects.toThrow();
+    await expect(askJev({ lane: "test", state: {}, questions: q, model: "m", signal: ac.signal })).rejects.toThrow();
     expect(calls).toHaveLength(1);
   });
 
@@ -118,21 +130,21 @@ describe("askJev failure handling", () => {
     stubFetch([() => new Response("boom", { status: 503 })]);
     const t0 = Date.now();
     await expect(
-      askJev({ state: {}, questions: q, model: "m", signal: AbortSignal.timeout(100) }),
+      askJev({ lane: "test", state: {}, questions: q, model: "m", signal: AbortSignal.timeout(100) }),
     ).rejects.toThrow();
     expect(Date.now() - t0).toBeLessThan(400);
   });
 
   it("throws on a response carrying no answers rather than returning an empty run", async () => {
     stubFetch([ok({ id: "gen-dec-1" })]);
-    await expect(askJev({ state: {}, questions: q, model: "m" })).rejects.toThrow(/no answers/);
+    await expect(askJev({ lane: "test", state: {}, questions: q, model: "m" })).rejects.toThrow(/no answers/);
   });
 
   it("throws when no model is configured", async () => {
     const prev = config.chatJevModel;
     config.chatJevModel = "";
     try {
-      await expect(askJev({ state: {}, questions: q })).rejects.toThrow(/CHAT_JEV_MODEL/);
+      await expect(askJev({ lane: "test", state: {}, questions: q })).rejects.toThrow(/CHAT_JEV_MODEL/);
     } finally {
       config.chatJevModel = prev;
     }
@@ -140,6 +152,6 @@ describe("askJev failure handling", () => {
 
   it("throws when no API key is set", async () => {
     config.openrouterApiKey = "";
-    await expect(askJev({ state: {}, questions: q, model: "m" })).rejects.toThrow(/OPENROUTER_API_KEY/);
+    await expect(askJev({ lane: "test", state: {}, questions: q, model: "m" })).rejects.toThrow(/OPENROUTER_API_KEY/);
   });
 });

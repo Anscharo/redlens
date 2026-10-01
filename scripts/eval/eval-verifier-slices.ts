@@ -55,6 +55,11 @@ if (!config.openrouterApiKey) {
   process.exit(1);
 }
 const ix = loadIndexes();
+// "borderline" is load-bearing, not hypothetical: the corpus carries one, and
+// the filter below excludes it from BOTH pools. The union omitted it, so the
+// exclusion read as a comparison against an impossible value — delete that
+// comparison on the strength of the type and the borderline entry silently
+// becomes an FCR baseline.
 type Corpus = SavedRun & { audit?: { verdict: "clean" | "defect" | "borderline"; notes: string } | null; sourceModel?: string };
 const all: Corpus[] = fs.readdirSync(EVIDENCE_DIR).filter((f) => f.endsWith(".json"))
   .map((f) => JSON.parse(fs.readFileSync(path.join(EVIDENCE_DIR, f), "utf8")) as Corpus);

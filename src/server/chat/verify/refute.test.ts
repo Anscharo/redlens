@@ -33,6 +33,25 @@ test("buildRefutePrompt lists no evidence gracefully", () => {
   expect(String(user.content)).toContain("no tools were called");
 });
 
+// Paragraph mode resends this prompt once per paragraph. The evidence is the
+// shared prefix; the paragraph is the suffix. A provider cache matches a
+// byte-identical prefix, so this order is what lets the later calls reuse it.
+test("buildRefutePrompt puts the evidence block before the paragraph", () => {
+  const [, user] = buildRefutePrompt({
+    question: "the question",
+    answer: "the paragraph",
+    evidence: [ev("some atlas text", "atlas")],
+  });
+  const content = String(user.content);
+  const questionAt = content.indexOf("## Question");
+  const evidenceAt = content.indexOf("## Evidence retrieved this turn");
+  const answerAt = content.indexOf("## Answer to audit");
+  expect(questionAt).toBe(0);
+  expect(evidenceAt).toBeGreaterThan(questionAt);
+  expect(answerAt).toBeGreaterThan(evidenceAt);
+  expect(content.endsWith("the paragraph")).toBe(true);
+});
+
 test("parseRefute salvages fenced JSON and drops rows missing a span", () => {
   const text = [
     "```json",

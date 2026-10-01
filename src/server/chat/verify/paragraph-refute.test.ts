@@ -13,6 +13,9 @@ type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
 const ix = buildIndexes([], [], [], {});
 const CLEAN = '{"contradictions":[],"not_found":[],"notes":""}';
+// Three real words, so hasCheckableContent lets these through to the model.
+// A bare "paragraph 0" is a heading-shaped skip and would never take a slot.
+const claim = (label: string) => `${label} states a concrete threshold.`;
 // Screen OFF here so these burst/semaphore tests are deterministic whatever
 // CHAT_REFUTE_SCREEN says; the screen modes have their own tests below.
 const base = {
@@ -36,7 +39,7 @@ function fakeCall(delayMs = 5): { call: JsonCall; concurrentCounts: number[] } {
 test("5 paragraphs at concurrency 2 land in submit order, never more than 2 in flight at once", async () => {
   const { call, concurrentCounts } = fakeCall();
   const refuter = createParagraphRefuter({ ...base, call, concurrency: 2, maxParagraphs: 100 });
-  for (let i = 0; i < 5; i++) refuter.submit(i, `paragraph ${i}`);
+  for (let i = 0; i < 5; i++) refuter.submit(i, claim(`Point ${i}`));
   const results = await refuter.settle(5000);
   expect(results.map((r) => r.index)).toEqual([0, 1, 2, 3, 4]);
   expect(results.every((r) => r.parsed && !r.timedOut)).toBe(true);
@@ -48,13 +51,13 @@ test("reset() drops results of the old burst — even ones that resolve later", 
   const call: JsonCall = () => new Promise((resolve) => resolvers.push(resolve));
   const refuter = createParagraphRefuter({ ...base, call, concurrency: 2, maxParagraphs: 100 });
 
-  refuter.submit(0, "old paragraph"); // starts immediately (concurrency headroom)
+  refuter.submit(0, claim("The old paragraph")); // starts immediately (concurrency headroom)
   await Promise.resolve();
   await Promise.resolve();
   expect(resolvers).toHaveLength(1);
 
   refuter.reset(); // new burst — the in-flight call above is now stale
-  refuter.submit(0, "new paragraph"); // same index, new burst
+  refuter.submit(0, claim("The new paragraph")); // same index, new burst
   await Promise.resolve();
   await Promise.resolve();
   expect(resolvers).toHaveLength(2);
@@ -79,12 +82,12 @@ test("reset() drops results of the old burst — even ones that resolve later", 
 test("settle() returns timedOut for a hung call within the deadline, not after it", async () => {
   const hungCall: JsonCall = () => new Promise(() => {}); // never resolves
   const refuter = createParagraphRefuter({ ...base, call: hungCall, concurrency: 2, maxParagraphs: 100 });
-  refuter.submit(0, "paragraph");
+  refuter.submit(0, claim("This paragraph"));
   const start = Date.now();
   const results = await refuter.settle(50);
   expect(Date.now() - start).toBeLessThan(1000);
   expect(results).toHaveLength(1);
-  expect(results[0]).toMatchObject({ index: 0, text: "paragraph", parsed: false, timedOut: true });
+  expect(results[0]).toMatchObject({ index: 0, text: claim("This paragraph"), parsed: false, timedOut: true });
 });
 
 test("paragraphs at or beyond maxParagraphs are concatenated into ONE extra call, keyed by the first overflow index", async () => {
@@ -95,13 +98,13 @@ test("paragraphs at or beyond maxParagraphs are concatenated into ONE extra call
   };
   const refuter = createParagraphRefuter({ ...base, call, concurrency: 3, maxParagraphs: 3 });
   // 0,1,2 run individually (under the cap); 3,4 overflow into one batched call.
-  for (let i = 0; i < 5; i++) refuter.submit(i, `paragraph ${i}`);
+  for (let i = 0; i < 5; i++) refuter.submit(i, claim(`Point ${i}`));
   const results = await refuter.settle(5000);
 
   expect(calls).toHaveLength(4); // 3 individual + 1 batch
   expect(results.map((r) => r.index)).toEqual([0, 1, 2, 3]);
-  const batchMsg = calls[3]!.find((m) => typeof m.content === "string" && (m.content as string).includes("paragraph 3"))!;
-  expect(batchMsg.content as string).toContain("paragraph 4");
+  const batchMsg = calls[3]!.find((m) => typeof m.content === "string" && (m.content as string).includes("Point 3"))!;
+  expect(batchMsg.content as string).toContain("Point 4");
 });
 
 test("reset() never lets the new burst exceed concurrency, even with a queued old-burst task still pending a slot", async () => {
@@ -110,15 +113,15 @@ test("reset() never lets the new burst exceed concurrency, even with a queued ol
   // 3 paragraphs at concurrency 2: 0 and 1 start immediately, 2 is queued
   // (waiting for a slot) — this is the old burst's queued waiter reset()
   // must not silently drop or let corrupt the semaphore count.
-  refuter.submit(0, "a");
-  refuter.submit(1, "b");
-  refuter.submit(2, "c");
+  refuter.submit(0, claim("Alpha"));
+  refuter.submit(1, claim("Bravo"));
+  refuter.submit(2, claim("Charlie"));
   await Promise.resolve();
   await Promise.resolve();
 
   refuter.reset(); // new burst — 0/1 are still running, 2 is still queued
-  refuter.submit(0, "x");
-  refuter.submit(1, "y");
+  refuter.submit(0, claim("Xray"));
+  refuter.submit(1, claim("Yankee"));
 
   const results = await refuter.settle(5000);
   // Only the NEW burst's two paragraphs are ever reported.
@@ -132,7 +135,7 @@ test("reset() never lets the new burst exceed concurrency, even with a queued ol
 test("drain() returns what landed since the last drain, independently of settle() having also observed it", async () => {
   const { call } = fakeCall(1);
   const refuter = createParagraphRefuter({ ...base, call, concurrency: 5, maxParagraphs: 100 });
-  refuter.submit(0, "a");
+  refuter.submit(0, claim("Alpha"));
   expect(refuter.drain()).toEqual([]); // nothing landed yet
   const settled = await refuter.settle(5000);
   expect(settled.map((r) => r.index)).toEqual([0]);
@@ -142,6 +145,60 @@ test("drain() returns what landed since the last drain, independently of settle(
   expect(refuter.drain().map((r) => r.index)).toEqual([0]);
   // A second drain() call sees nothing new.
   expect(refuter.drain()).toEqual([]);
+});
+
+// This asserts the WIRING of the skip, not the predicate: `hasCheckableContent`
+// is consulted, the skipped paragraph takes no slot and builds no evidence, and
+// the merge reads it as zero cost rather than missing data. The predicate's own
+// boundary cases live with the predicate, in refute-screen.test.ts.
+//
+// "Yes." is the case worth having here alongside the heading: the boundary is
+// not "heading vs prose" but MIN_CLAIM_WORDS real words OR any groundable
+// marker, so "It is 3." must still audit — a number is the auditor's business
+// however short the sentence. That is now a COVERAGE rule, not just screen cost.
+test("a paragraph with nothing to audit is recorded clean, takes no slot, and builds no evidence", async () => {
+  let evidenceBuilds = 0;
+  const { call, concurrentCounts } = fakeCall();
+  const refuter = createParagraphRefuter({
+    ...base, call, concurrency: 2, maxParagraphs: 100,
+    evidence: () => (evidenceBuilds++, []),
+  });
+  refuter.submit(0, "## Closest vault-specific examples");
+  refuter.submit(1, "---");
+  refuter.submit(2, "Yes.");
+  refuter.submit(3, "It is 3.");
+  const results = await refuter.settle(5000);
+  expect(results.map((r) => r.index)).toEqual([0, 1, 2, 3]);
+  for (const i of [0, 1, 2]) {
+    expect(results[i]).toMatchObject({ parsed: true, contradictions: [], timedOut: false, usage: null, latencyMs: null });
+  }
+  expect(results[3]).toMatchObject({ parsed: true, usage: { input: 1, output: 1 } });
+  expect(concurrentCounts).toHaveLength(1); // only the figure line reached the model
+  expect(evidenceBuilds).toBe(1);
+  // Zero cost, not missing data: the merge filters null usage rather than
+  // summing it, and still counts every paragraph as parsed.
+  const merged = mergeParagraphRefutes(results);
+  expect(merged.usage).toEqual([{ input: 1, output: 1 }]);
+  expect(merged.paragraphs).toMatchObject({ count: 4, parsed: 4, timedOut: 0 });
+  expect(merged.parsed).toBe(true);
+});
+
+// The skip now happens in `submit`, ahead of the maxParagraphs routing, so an
+// uncheckable paragraph past the cap is dropped rather than concatenated into
+// the overflow batch and billed with it. With maxParagraphs: 1 the heading at
+// index 1 would otherwise have become overflow text.
+test("an uncheckable paragraph past maxParagraphs is skipped, not folded into the overflow call", async () => {
+  const { call, concurrentCounts } = fakeCall();
+  const refuter = createParagraphRefuter({ ...base, call, concurrency: 2, maxParagraphs: 1 });
+  refuter.submit(0, claim("First point"));
+  refuter.submit(1, "## A heading past the cap");
+  refuter.submit(2, claim("Third point"));
+  const results = await refuter.settle(5000);
+  expect(results.map((r) => r.index)).toEqual([0, 1, 2]);
+  expect(results[1]).toMatchObject({ parsed: true, usage: null, latencyMs: null });
+  // Two calls: the in-cap paragraph and ONE overflow call carrying index 2 only.
+  expect(concurrentCounts).toHaveLength(2);
+  expect(results[2].text).not.toContain("heading past the cap");
 });
 
 // ── Jev screen modes (CHAT_REFUTE_SCREEN) ────────────────────────────────────

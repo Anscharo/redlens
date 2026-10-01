@@ -14,6 +14,7 @@ import { config } from "../config.ts";
 import { CANONICAL_REPO, type Resolved } from "./resolve.ts";
 import { rebuildFromDisk, getIndexes, setIndexes, type AtlasNode } from "../retrieval/indexes.ts";
 import { snapshotFromSrcDir } from "./snapshot.ts";
+import { isRefining, stopRefine } from "./identity-refine.ts";
 
 const tmpDirs: string[] = [];
 function mkTmp(): string {
@@ -1043,6 +1044,103 @@ test("canonical PR against sky main collapses to a single sky candidate: bases.a
     expect(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.json"), "utf8")).toBe(diffSky);
   } finally {
     globalThis.fetch = origFetch;
+    console.warn = origWarn;
+    setIndexes(prevIndexes as never);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The build does not wait for the identity verdict by meaning. It is ready
+// with the verdict by lines and words in diff.json, and hands the later lane
+// what it needs.
+
+test("doc-level diff: the build is ready before the verdict by meaning, and hands the lane one job for each diff", async () => {
+  const body = (w: string) => [`The operator must ${w} the contract before the call.`, "```", `proxy.${w}(amount);`, "second line of the call", "```"].join("\n");
+  const node = (title: string, content: string) => ({ id: U(1), doc_no: "A.1", title, type: "Core", depth: 2, parentId: null, order: 0, addressRefs: [], content });
+  const before = node("Approve Spend", body("approve"));
+  const after = node("Swap Tokens", body("swap"));
+  const sha = "lazy0001";
+  builtShas.push(sha);
+  config.githubToken = "tok";
+  stubGitHub(null);
+
+  let prevIndexes: unknown;
+  try {
+    prevIndexes = getIndexes();
+  } catch {
+    prevIndexes = undefined;
+  }
+  setIndexes({ docMap: new Map([[before.id, before]]), meta: { atlasCommit: "live-sha" } } as never);
+  const origWarn = console.warn;
+  console.warn = () => {};
+
+  // A lane that never finishes: if the build waited on it, this test would hang.
+  const seen: { outDir: string; files: string[][]; changed: string[][] }[] = [];
+  const refineIdentity: BuildDeps["refineIdentity"] = (outDir, jobs) => {
+    seen.push({ outDir, files: jobs.map((j) => j.files), changed: jobs.map((j) => j.changed) });
+    return new Promise(() => {});
+  };
+
+  try {
+    const resolved: Resolved = { repo: CANONICAL_REPO, sha, kind: "branch", ref: "spark", private: false };
+    const ev = await __runBuildForTest(resolved, {
+      isBlockedSha: async () => false,
+      isKnownSha: async () => true,
+      forkGate: async () => ({ tier: undefined, count: async () => 0, quota: 10 }),
+      fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 1 }),
+      spawnBuild: spawnWithDocs({ [after.id]: after }),
+      upsertPreview: async () => {},
+      refineIdentity,
+    });
+    expect(ev.phase).toBe("ready");
+    // diff.json holds the verdict by lines and words: nearly every word of
+    // this body survives, so it reads as an edit.
+    const diff = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.json"), "utf8"));
+    expect(diff.identitySwap).toEqual({});
+    await Promise.resolve(); // the lane starts on the next tick
+    expect(seen).toEqual([{ outDir: previewPaths(sha).outDir, files: [["identity.json"]], changed: [[after.id]] }]);
+    expect(isRefining(sha)).toBe(true);
+    expect(fs.existsSync(path.join(previewPaths(sha).outDir, "identity.json"))).toBe(false);
+  } finally {
+    stopRefine(sha);
+    console.warn = origWarn;
+    setIndexes(prevIndexes as never);
+  }
+});
+
+test("doc-level diff: a lane that throws leaves a ready build ready", async () => {
+  const sha = "lazy0002";
+  builtShas.push(sha);
+  config.githubToken = "tok";
+  stubGitHub(null);
+  let prevIndexes: unknown;
+  try {
+    prevIndexes = getIndexes();
+  } catch {
+    prevIndexes = undefined;
+  }
+  setIndexes({ docMap: new Map(), meta: { atlasCommit: "live-sha" } } as never);
+  const origWarn = console.warn;
+  const warnings: string[] = [];
+  console.warn = (m: string) => warnings.push(String(m));
+  try {
+    const resolved: Resolved = { repo: CANONICAL_REPO, sha, kind: "branch", ref: "spark", private: false };
+    const ev = await __runBuildForTest(resolved, {
+      isBlockedSha: async () => false,
+      isKnownSha: async () => true,
+      forkGate: async () => ({ tier: undefined, count: async () => 0, quota: 10 }),
+      fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 1 }),
+      spawnBuild: fakeSpawn(),
+      upsertPreview: async () => {},
+      refineIdentity: async () => {
+        throw new Error("provider down");
+      },
+    });
+    expect(ev.phase).toBe("ready");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(isRefining(sha)).toBe(false);
+    expect(warnings.some((w) => w.includes("identity verdict by meaning skipped (provider down)"))).toBe(true);
+  } finally {
     console.warn = origWarn;
     setIndexes(prevIndexes as never);
   }

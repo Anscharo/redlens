@@ -13,10 +13,6 @@
 //   - the model reads its own `content` as its own prior prose — an appended
 //     verifier note would look like something it said, not context handed to
 //     it from outside;
-//   - chat-history.ts's `truncateOld` slices anything past the lead paragraph
-//     off turns older than `keepRecent` — a note appended past the lead
-//     paragraph would silently disappear a couple of turns later, right when
-//     a user is most likely to circle back and ask about it;
 //   - title.ts's transcript builder reads assistant `content` verbatim to
 //     title the conversation — a dispute note baked into content would leak
 //     into a conversation title.

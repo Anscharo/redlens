@@ -1,5 +1,5 @@
 // One tool-choice eval run: production's pre-first-token assembly
-// (prepareTurn — Jev judgement, tier routing, system prompt, history window,
+// (prepareTurn — Jev judgement, tier routing, system prompt, full history,
 // facts round) feeding production's tool loop (runChat), real models through
 // the routed OpenRouter chain, ending at the model's first answer.
 //

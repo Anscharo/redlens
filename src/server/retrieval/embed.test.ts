@@ -192,6 +192,22 @@ test("embedBatch records the provider's real error across every retry", async ()
   }
 });
 
+test("embedBatch sends the OpenRouter X-Title attribution header", async () => {
+  const prevKey = config.openrouterApiKey;
+  config.openrouterApiKey = "test-key";
+  let sent: Record<string, string> = {};
+  globalThis.fetch = (async (_url: any, init: any) => {
+    sent = init.headers;
+    return new Response(JSON.stringify({ data: [{ embedding: [1, 0, 0], index: 0 }] }), { status: 200 });
+  }) as unknown as typeof fetch;
+  try {
+    await embedBatch(["x"]);
+    expect(sent["X-Title"]).toStartWith("Sky Atlas Redline");
+  } finally {
+    config.openrouterApiKey = prevKey;
+  }
+});
+
 test("embedQuery threads the diagnostic through to the caller", async () => {
   const prevKey = config.openrouterApiKey;
   config.openrouterApiKey = "test-key";

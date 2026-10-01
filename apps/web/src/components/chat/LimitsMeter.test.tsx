@@ -20,7 +20,7 @@ const usage62 = { tokens: 62, limit: 100, resetsAt: "2026-01-01T00:41:00Z", exce
 describe("LimitsMeter displayed-limit selection", () => {
   it("shows context window when it's the only known limit", () => {
     setup({ contextTokens: 18200, contextWindowTokens: 128000 });
-    expect(screen.getByText("context window · 14% · 18.2k / 128k")).toBeInTheDocument();
+    expect(screen.getByText("context window · 14% · ~18.2k / 128k")).toBeInTheDocument();
   });
 
   it("shows time limit when it's the only known limit", () => {
@@ -47,7 +47,7 @@ describe("LimitsMeter displayed-limit selection", () => {
       usage: usage62,
       commons: { used: 17.4, total: 20, remaining: 2.6 },
     });
-    expect(screen.getByText("context window · 14% · 18.2k / 128k")).toBeInTheDocument();
+    expect(screen.getByText("context window · 14% · ~18.2k / 128k")).toBeInTheDocument();
     expect(screen.queryByText(/^time limit/)).toBeNull();
   });
 
@@ -93,7 +93,7 @@ describe("LimitsMeter takeover thresholds", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
     setup({ ...ctx14, usage: usageAt(95) });
-    expect(screen.getByText("context window · 14% · 18.2k / 128k")).toBeInTheDocument();
+    expect(screen.getByText("context window · 14% · ~18.2k / 128k")).toBeInTheDocument();
     expect(pieStroke()).toHaveAttribute("stroke", "var(--accent)");
   });
 
@@ -105,7 +105,7 @@ describe("LimitsMeter takeover thresholds", () => {
 
   it("keeps context just below the shared-credits threshold", () => {
     setup({ ...ctx14, commons: { used: 19.88, total: 20, remaining: 0.12 } }); // 99.4%
-    expect(screen.getByText("context window · 14% · 18.2k / 128k")).toBeInTheDocument();
+    expect(screen.getByText("context window · 14% · ~18.2k / 128k")).toBeInTheDocument();
   });
 
   it("shows the fuller of the two when both are past their thresholds", () => {
@@ -178,7 +178,7 @@ describe("LimitsMeter popover", () => {
     fireEvent.click(pie);
     expect(pie).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("context window")).toBeInTheDocument();
-    expect(screen.getByText("14% · 18.2k / 128k")).toBeInTheDocument();
+    expect(screen.getByText("14% · ~18.2k / 128k")).toBeInTheDocument();
     expect(screen.getByText("time limit")).toBeInTheDocument();
     expect(screen.getByText("shared credits")).toBeInTheDocument();
     expect(screen.getByText("94% used · $1.30 left of $20.00")).toBeInTheDocument();

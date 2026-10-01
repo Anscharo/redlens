@@ -310,6 +310,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "The usage meter under the composer shows your usage / credits; click the pie to see every limit.",
           "Dock the panel to the side with the dock icon in the header — drag its left edge to widen it, up to 55% of the window — or pop it out to a floating window. A wide docked chat folds the tree and notes sidebars so the open document stays readable.",
           'Past chats live under "Conversations" in the profile menu, and as "continue a previous chat" in an empty panel.',
+          "Earlier questions in the same chat stay in the thread. A very long chat is condensed on its own when the conversation is close to the model's context limit.",
         ],
         note: "Asking a question requires signing in — use the sign-in control at the right of the top bar, or the Sign in buttons in the panel.",
       },

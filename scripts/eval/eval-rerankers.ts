@@ -99,6 +99,7 @@ export async function rerankJev(query: string, ids: string[], docMap: Map<string
     while (next < ids.length) {
       const i = next++;
       const run = await askJev({
+        lane: "eval-rerank",
         state: { query, candidate: candidateText(ids[i]!, docMap) },
         questions: { answers: question },
         signal: withDeadline(20_000),
@@ -131,6 +132,7 @@ export async function rerankJevChoice(query: string, ids: string[], docMap: Map<
   });
   criteria.none = "No candidate answers the query.";
   const run = await askJev({
+    lane: "eval-rerank",
     state: { query, candidates },
     questions: {
       best: {

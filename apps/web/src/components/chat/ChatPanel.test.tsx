@@ -263,7 +263,8 @@ describe("ChatPanel context-size indicator", () => {
 
   it("passes contextTokens/contextWindow through to the composer's LimitsMeter", () => {
     renderPanel({ session: { contextTokens: 12800, contextWindow: 128000 } });
-    expect(screen.getByText("context window · 10% · 12.8k / 128k")).toBeInTheDocument();
+    // "~": the figure is the server's replay-size estimate, not a measured prompt.
+    expect(screen.getByText("context window · 10% · ~12.8k / 128k")).toBeInTheDocument();
   });
 });
 
