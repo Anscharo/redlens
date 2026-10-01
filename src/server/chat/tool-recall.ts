@@ -34,8 +34,8 @@ function mintRecallId(): string {
 
 // Synthetic tool rounds seeded before the model runs. Their tool messages
 // sit in the same transcript as real results; recall must not pair a real
-// call with the prefetch / teachings / dispute payload.
-const SYNTHETIC_TOOL_IDS = new Set(["call_prefetch", "call_dispute_flags", "call_teachings"]);
+// call with the prefetch / teachings / review-note payload.
+const SYNTHETIC_TOOL_IDS = new Set(["call_prefetch", "call_review_notes", "call_teachings"]);
 
 interface TranscriptMsg {
   role: string;

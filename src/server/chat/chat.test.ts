@@ -219,6 +219,53 @@ describe("handleChat", () => {
       .map((l) => JSON.parse(l.slice("data: ".length)));
   }
 
+  // The check rows the USER SAW, replayed back to the model (review-round.ts).
+  // Without them "why was verification failed?" has nothing to reason from.
+  describe("review notes", () => {
+    it("reads the newest answers' check rows with the LIMIT inside the subquery", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("An answer.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "why was verification failed?" }));
+        await res.text();
+        const q = queryLog.find((row) => row.text.includes("JOIN message_checks"));
+        expect(q).toBeDefined();
+        // Applied to the JOIN this would cap ROWS, not answers, and silently drop
+        // an answer's findings — several kinds exist per message.
+        const sub = q!.text.slice(0, q!.text.indexOf("JOIN message_checks"));
+        expect(sub).toContain("LIMIT");
+        expect(sub).toContain("role = 'assistant'");
+        // All four kinds a note is built from, in ONE query.
+        for (const kind of ["verify", "round_checks", "answer_coverage", "citation_check"]) {
+          expect(q!.text).toContain(kind);
+        }
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("still answers the turn when the check-rows query fails", async () => {
+      // Degrades to "no ledger", exactly as the single-verdict lookup it replaces
+      // did: the answer matters more than the annotation.
+      installHappyHandlers();
+      sqlHandlers.unshift((text) => {
+        if (text.includes("JOIN message_checks")) throw new Error("db hiccup");
+        return undefined;
+      });
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("An answer anyway.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "why was verification failed?" }));
+        const evs = await events(res);
+        expect(evs.some((e) => e.type === "done")).toBe(true);
+        expect(evs.find((e) => e.type === "answer_final").content).toBe("An answer anyway.");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+  });
+
   // Facts inject knowledge before the model runs (src/server/facts). The turn
   // has to SAY so: a trace row per fact, and a stage the ticker shows.
   describe("facts", () => {

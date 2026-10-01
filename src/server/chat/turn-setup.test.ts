@@ -17,7 +17,7 @@ import { historyReplay, summaryReplay } from "./context-compact.ts";
 import { filterTeachingsByJev, type PrefetchJudgement, type judgePrefetch } from "./prefetch-judge.ts";
 import { teachingRound } from "./teach/inject.ts";
 import type { RankedTeaching } from "./teach/match.ts";
-import { disputeRound } from "./dispute-round.ts";
+import { reviewRound } from "./review-round.ts";
 import type { AgreedContradiction } from "./verify/disputes.ts";
 import { prepareTurn } from "./turn-setup.ts";
 
@@ -195,28 +195,40 @@ describe("prepareTurn", () => {
       uuid: "76405733-0000-0000-0000-000000000000",
     };
 
-    it("inserts the dispute round right after history and before facts, when disputes are passed", async () => {
+    it("inserts the review round right after history and before facts, when a row carries a note", async () => {
       const message = "are you sure about that dispute? i think the question is who is \"they\"";
+      const review = {
+        badge: "1 statement disputed by the atlas",
+        findings: [],
+        disputes: [contradiction],
+        coverage: null,
+        marks: [],
+      };
       const history = [
         { role: "user", content: "who does GovOps act for?" },
-        { role: "assistant", content: contradiction.answer },
+        { role: "assistant", content: contradiction.answer, review },
         { role: "user", content: message },
       ];
-      const got = await prepareTurn({ ix, message, history, judge: fakeJudge(0.1), disputes: [contradiction] });
-      const want = disputeRound([contradiction]);
+      const got = await prepareTurn({ ix, message, history, judge: fakeJudge(0.1) });
+      const want = reviewRound(history);
+      expect(want).toHaveLength(2);
       // messages[0] = system, [1..3] = the three history rows above, then the
-      // dispute round — whatever else (facts, teach) may follow it.
+      // review round — whatever else (facts, teach) may follow it.
       expect(got.messages.slice(4, 4 + want.length)).toEqual(want);
     });
 
-    it("injects nothing when disputes is empty or omitted, and matches the pre-extraction assembly exactly", async () => {
+    it("injects nothing when no row carries a note, and matches the pre-extraction assembly exactly", async () => {
       const message = "What are the facilitators?";
       const history = [{ role: "user", content: message }];
       const want = await legacyAssemble(ix, message, history, undefined, [], fakeJudge(0.9));
-      const omitted = await prepareTurn({ ix, message, history, judge: fakeJudge(0.9) });
-      const empty = await prepareTurn({ ix, message, history, judge: fakeJudge(0.9), disputes: [] });
-      expect(omitted.messages).toEqual(want.messages);
-      expect(empty.messages).toEqual(want.messages);
+      const got = await prepareTurn({ ix, message, history, judge: fakeJudge(0.9) });
+      expect(got.messages).toEqual(want.messages);
+      // An assistant row with an explicitly null note is the same as no note.
+      const withNull = await prepareTurn({
+        ix, message, judge: fakeJudge(0.9),
+        history: [{ role: "assistant", content: "An earlier answer.", review: null }, { role: "user", content: message }],
+      });
+      expect(withNull.messages.some((m) => m.role === "tool" && String(m.content).includes("check results"))).toBe(false);
     });
   });
 });
