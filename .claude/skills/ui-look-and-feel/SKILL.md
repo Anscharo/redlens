@@ -143,7 +143,7 @@ token in index.css should also be registered there** so it's editable/audited.
 - Base is `/` (served from the domain root); `import.meta.env.BASE_URL` is `"/"`. Root-relative URL strings work directly.
 - `prefers-reduced-motion` is respected for the expand animation and row pulse —
   extend that block when adding motion.
-- Max ~150 lines/file, max 3 components/file. Shared visual primitives go in
+- Max 3 components/file; the size limits in CLAUDE.md (`pnpm check:size`). Shared visual primitives go in
   `index.css` as a class, not copy-pasted inline styles.
 
 ## App shell map (what each view is)

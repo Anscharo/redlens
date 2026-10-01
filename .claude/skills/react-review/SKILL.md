@@ -141,7 +141,7 @@ that introduces a colour is a theme change whether or not it was meant as one.
 
 ### D. Repo conventions
 
-22. **File over ~150 lines**, or more than 3 components per file — but see §4.
+22. **More than 3 components per file.** Size is `pnpm check:size`'s job; review the seams a split should follow, not the line count.
 23. **`export default`** (only `App.tsx` and `NodeContentInner.tsx` are allowed), or `React.FC`.
 24. **Data/row-building logic inside a component** rather than a pure `src/lib/*` module.
     This is the convention most worth defending: it is what makes the logic testable without
@@ -175,10 +175,7 @@ src/components/atlas/RightPanel.tsx:88 — [a11y] Icon-only close button has no 
 
 Reporting these as new problems makes reviews noisy and trains people to ignore them:
 
-- **The existing files over 150 lines** (`AtlasReader.tsx` 696, `TreeSidebar.tsx` 513,
-  `CollapsibleNode.tsx` 465, `ActorHistory.tsx` 437, …). `CLAUDE.md`
-  records these as known debt to be split *when touched*. Flag it only if the diff makes such a
-  file meaningfully longer.
+- **Grandfathered oversized files and functions**, pinned in `.oxlintrc.size.json`. `pnpm check:size` already fails any that grow, so don't report their size.
 - **Absence of `cn` / `tailwind-merge` / CVA** — deliberately not used here.
 - **Absence of `data-slot`** — deliberately not used here.
 - **Native `disabled` instead of `aria-disabled`** — the house choice (18 vs 0).
