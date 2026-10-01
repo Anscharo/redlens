@@ -365,6 +365,29 @@ export const config = {
   //   "off"  — no screen.
   chatRefuteScreen: (process.env.CHAT_REFUTE_SCREEN ?? "shadow") as "off" | "shadow" | "gate",
   chatRefuteScreenModel: process.env.CHAT_REFUTE_SCREEN_MODEL ?? JEV_DEFAULT,
+  // Quote-attribution lane (verify/quote-attribution.ts): asks Jev, per
+  // ungrounded quoted span, whether the answer PRESENTS it as wording taken
+  // from a source — the use-vs-mention judgement verify-checks.ts used to make
+  // with a regex over how much of the line was bold. Runs after answer_final,
+  // never gates delivery.
+  //   "shadow" (default) — the lane runs and its judgements are recorded, but
+  //       severity is unchanged: an ungrounded span still hard-fails exactly as
+  //       it does today. The margin below has NOT been measured — the bakeoff
+  //       (scripts/eval/eval-quote-attribution.ts) has never been run, because
+  //       the OpenRouter account it needs returns 402 and the real-traffic
+  //       false-fire check needs a DATABASE_URL. This is the measurement phase
+  //       and it is deliberately behaviour-neutral.
+  //   "gate" — a span with no machine-certain attribution (tier B) hard-fails
+  //       ONLY when P ≥ chatQuoteAttributionMargin. This is the mode that stops
+  //       failing honest answers for their own callouts; do NOT enable it before
+  //       the bakeoff has set the margin on real traffic, because a false fire
+  //       here is a red badge on an honest answer — the exact bug being fixed.
+  //   "off"  — no call; severity identical to "shadow".
+  chatQuoteAttribution: (process.env.CHAT_QUOTE_ATTRIBUTION ?? "shadow") as "off" | "shadow" | "gate",
+  chatQuoteAttributionModel: process.env.CHAT_QUOTE_ATTRIBUTION_MODEL ?? JEV_DEFAULT,
+  // UNMEASURED placeholder, only consulted in "gate". 0.5 is the neutral point
+  // of a Noul, chosen precisely because it encodes no claim about the data.
+  chatQuoteAttributionMargin: Number(process.env.CHAT_QUOTE_ATTRIBUTION_MARGIN ?? 0.5),
   // Deterministic checks (free, pure code) — independent of the model slots.
   chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
   // Deterministic pre-lookup (glossary + entity match on the user's message)

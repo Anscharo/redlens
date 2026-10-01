@@ -1494,3 +1494,132 @@ test("answer coverage: the small-talk bypass never reaches it", () =>
       }),
     ),
   ));
+
+// --- Quote-attribution lane: shadow mode must be behaviour-neutral -----------
+// The lane asks Jev whether an ungrounded quoted span is presented as a
+// quotation at all. Its margin has NEVER been measured (402 on the account the
+// bakeoff needs; no DATABASE_URL for the real-traffic false-fire check), so it
+// ships in "shadow": it records a judgement and changes NOTHING. A shadow lane
+// that moves the badge is a bug, not a soft launch — these tests are what say so.
+const CALLOUT_ANSWER = [
+  "Most atlas churn is renumbering rather than substantive change.",
+  "",
+  "Some other framing entirely:",
+  "",
+  "> This sentence appears in no retrieved source at all, and is long enough to be checked.",
+].join("\n");
+
+async function runCallout(): Promise<HarnessDone> {
+  const events = await collect(
+    runVerifiedChat({
+      ix, messages: [userMsg], question: "how much does atlas churn matter?", maxIterations: 3,
+      stream: fakeStream([[textChunk(CALLOUT_ANSWER), finishChunk("stop")]]),
+    }),
+  );
+  return lastDone(events);
+}
+
+test("shadow: the ungrounded span still fails, exactly as it does without the lane", async () => {
+  const realMode = config.chatQuoteAttribution;
+  const realFetch = globalThis.fetch;
+  const realKey = config.openrouterApiKey;
+  try {
+    // Jev would rule this self-authored (p well under the margin). Under `gate`
+    // that would clear the span; under `shadow` it must change nothing.
+    config.openrouterApiKey = "test-key";
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ answers: { quoted: { type: "noul", noul: 0.02 } } }), { status: 200 })) as unknown as typeof fetch;
+
+    config.chatQuoteAttribution = "shadow";
+    const shadow = await runCallout();
+    config.chatQuoteAttribution = "off";
+    const off = await runCallout();
+
+    const verdictOf = (d: HarnessDone) => {
+      const row = d.checksMeta.find((c) => c.kind === "round_checks")!.verdict as { checks: { ungroundedQuotes: string[]; failed: boolean } };
+      return row.checks;
+    };
+    // Severity is identical with the lane on and off, and the span still fails.
+    expect(verdictOf(shadow)).toEqual(verdictOf(off));
+    expect(verdictOf(shadow).failed).toBe(true);
+    expect(verdictOf(shadow).ungroundedQuotes).toHaveLength(1);
+
+    // The judgement IS recorded, with the raw probability and what `gate` would
+    // have done — that record is the entire point of shadow mode.
+    const qa = shadow.checksMeta.find((c) => c.kind === "quote_attribution");
+    expect(qa).toBeDefined();
+    const v = qa!.verdict as { mode: string; judgements: { p: number | null }[]; wouldPromote: string[] };
+    expect(v.mode).toBe("shadow");
+    expect(v.judgements[0].p).toBe(0.02);
+    expect(v.wouldPromote).toEqual([]); // 0.02 < margin → gate would have cleared it
+    // ...and "off" makes no call at all.
+    expect(off.checksMeta.some((c) => c.kind === "quote_attribution")).toBe(false);
+  } finally {
+    config.chatQuoteAttribution = realMode;
+    config.openrouterApiKey = realKey;
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("shadow: a failed Jev call is recorded as null and still changes nothing", async () => {
+  const realMode = config.chatQuoteAttribution;
+  const realFetch = globalThis.fetch;
+  const realKey = config.openrouterApiKey;
+  try {
+    config.openrouterApiKey = "test-key";
+    // 400 is fatal in askJev — no retries, so this stays fast.
+    globalThis.fetch = (async () => new Response("nope", { status: 400 })) as unknown as typeof fetch;
+    config.chatQuoteAttribution = "shadow";
+    const done = await runCallout();
+    const row = done.checksMeta.find((c) => c.kind === "round_checks")!.verdict as { checks: { failed: boolean } };
+    expect(row.checks.failed).toBe(true);
+    const v = done.checksMeta.find((c) => c.kind === "quote_attribution")!.verdict as {
+      judgements: { p: number | null }[]; wouldPromote: string[];
+    };
+    expect(v.judgements[0].p).toBeNull();
+    expect(v.wouldPromote).toEqual([]); // fail-open: a null never promotes
+  } finally {
+    config.chatQuoteAttribution = realMode;
+    config.openrouterApiKey = realKey;
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("the lane is not asked about a span code already settled (tier A)", async () => {
+  const realMode = config.chatQuoteAttribution;
+  const realFetch = globalThis.fetch;
+  const realKey = config.openrouterApiKey;
+  let calls = 0;
+  try {
+    config.openrouterApiKey = "test-key";
+    // The citation-marks and answer-coverage lanes are Jev calls too, so count
+    // only requests carrying THIS lane's question id.
+    globalThis.fetch = (async (_url: any, init: any) => {
+      if (JSON.parse(init.body).questions?.quoted) calls++;
+      return new Response(JSON.stringify({ answers: { quoted: { type: "noul", noul: 0.9 } } }), { status: 200 });
+    }) as typeof fetch;
+    config.chatQuoteAttribution = "shadow";
+    const uuid = ix.docMap.keys().next().value as string;
+    const attributed = [
+      `[Some Doc](/atlas/${uuid}) states:`,
+      "",
+      "> This sentence appears in no retrieved source at all, and is long enough to be checked.",
+    ].join("\n");
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "what does it say?", maxIterations: 3,
+        stream: fakeStream([[textChunk(attributed), finishChunk("stop")]]),
+      }),
+    );
+    const done = lastDone(events);
+    // Attributed + ungrounded is the real crime: pure code, no model consulted.
+    expect(calls).toBe(0);
+    expect(done.checksMeta.some((c) => c.kind === "quote_attribution")).toBe(false);
+    const row = done.checksMeta.find((c) => c.kind === "round_checks")!.verdict as { checks: { failed: boolean } };
+    expect(row.checks.failed).toBe(true);
+  } finally {
+    config.chatQuoteAttribution = realMode;
+    config.openrouterApiKey = realKey;
+    globalThis.fetch = realFetch;
+  }
+});
