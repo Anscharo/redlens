@@ -65,7 +65,13 @@ describe("SearchStatusLine", () => {
     setup(done({ semantic: "pending" }));
     expect(screen.queryByText('no results for "rewards"')).toBeNull();
     expect(screen.getByText("searching…")).toBeTruthy();
-    expect(screen.getByText("scoring by meaning…")).toBeTruthy();
+  });
+
+  it("leaves the in-flight wording to the progress bar instead of repeating it", () => {
+    // <SemanticProgress /> renders on this exact condition and names the stage,
+    // so a note here was the same sentence twice, quieter, directly under it.
+    setup(done({ semantic: "pending" }));
+    expect(screen.queryByText(/scoring by meaning/)).toBeNull();
   });
 
   it("surfaces a degraded leg with its reason rather than swallowing it", () => {

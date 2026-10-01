@@ -46,6 +46,26 @@ function setup(
   return { ...utils, onHintClick, onBroadSearch, onLaneSelect };
 }
 
+describe("SearchResults meaning-lane progress", () => {
+  it("shows the progress bar while the meaning leg is in flight", async () => {
+    setup(makeSearchState({ semantic: "pending" }), { query: "vat", lane: "semantic" });
+    // The bar waits out its own appear delay, so this is a real timer.
+    await waitFor(() => expect(screen.getByText("Computing multidimensional vectors")).toBeTruthy());
+  });
+
+  it("shows no bar once the meaning leg has answered", () => {
+    setup(makeSearchState({ semantic: "done" }), { query: "vat", lane: "semantic" });
+    expect(screen.queryByText("Computing multidimensional vectors")).toBeNull();
+  });
+
+  it("shows no bar for an entity search, which makes no round trip to promise", async () => {
+    // entitiesLoading also sets `pending`, so gating the bar on that shared flag
+    // would put a "Computing multidimensional vectors" bar over a graph lookup.
+    setup(makeSearchState({ semantic: "none" }), { query: "spark", lane: "graph" });
+    await waitFor(() => expect(screen.queryByText("Computing multidimensional vectors")).toBeNull());
+  });
+});
+
 describe("SearchResults status branches", () => {
   it("idle status with a slash query renders SearchHints", () => {
     setup({ status: "idle" }, { query: "/r" });
