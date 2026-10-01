@@ -1259,6 +1259,15 @@ rather than a regression. Lexical fallback still covers any failure. Hybrid
 search then fuses ancestor/descendant lexical+semantic pairs onto the more
 specific doc (`via` on the tool result).
 
+Chat retrieval calls the same `runSemantic` as the reader's meaning lane. Since
+2026-10-01 it also returns a list of briefing hits, ranked by the same query
+vector against `atlas_doc_briefings`. The hybrid lane (`tools.ts`, `query.ts`)
+now fuses three lists in one RRF stage: lexical, attributed semantic and
+briefings. The eval measured only the two-list form, attributed leaves with
+briefings, and it refuses `--briefings` with `--hybrid`, so the three-way form
+has no number yet. The measured gains and the design are in the semantic-lane
+note in `CLAUDE.md` and in `docs/plans/atlas-doc-briefings.md`.
+
 ## 10. Data model (Postgres)
 
 `conversations`, `messages` (assistant content written post-stream, never

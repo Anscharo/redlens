@@ -427,6 +427,7 @@ import {
   fuseLeafScores,
   type LeafRow,
 } from "../../src/server/retrieval/embed-units.ts";
+import { briefingEmbedText } from "../lib/doc-briefings.mjs";
 import { generateRetrievalQueries, type RetrievalQuery } from "./eval-retrieval-queries.ts";
 import { lexicalOverlap } from "./eval-retrieval-paraphrase.ts";
 import { buildEmbedText, contentHash as oneToOneHash } from "../../src/server/retrieval/embed-text.ts";
@@ -1064,10 +1065,10 @@ if (briefings.size > 0) {
   }
 }
 
-const blockOf = (row: BriefingRow, mode: BriefingText): string => {
-  const qs = (row.questions ?? []).join("\n");
-  return mode === "briefing" ? row.briefing : mode === "questions" ? qs : `${row.briefing}\n${qs}`;
-};
+// "both" is the production recipe itself (sync-briefings embeds the same text),
+// so the numbers measured here are the ones the stored vectors can reach.
+const blockOf = (row: BriefingRow, mode: BriefingText): string =>
+  mode === "briefing" ? row.briefing : mode === "questions" ? (row.questions ?? []).join("\n") : briefingEmbedText(row);
 
 interface Arm {
   name: BriefingArmName;

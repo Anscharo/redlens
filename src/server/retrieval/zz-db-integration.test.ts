@@ -217,6 +217,8 @@ describe("atlasQuery — semantic search leg (DB-backed, mocked)", () => {
     const ix = buildIndexes([lexOnly, semOnly], [], [], { atlasCommit: "t" });
 
     unsafeImpl = (query) => {
+      // The briefing statement rides the same connection; this case has none.
+      if (query.includes("atlas_doc_briefings")) return Promise.resolve([]);
       expect(query).toContain("atlas_doc_embeddings");
       return Promise.resolve([{ id: "sem-only", type: "Core", score: 0.9 }]);
     };
@@ -236,8 +238,8 @@ describe("atlasQuery — semantic search leg (DB-backed, mocked)", () => {
     const prevMin = config.semanticMinScore;
     config.semanticMinScore = 0.5;
     try {
-      unsafeImpl = () =>
-        Promise.resolve([
+      unsafeImpl = (query) =>
+        Promise.resolve(query.includes("atlas_doc_briefings") ? [] : [
           { id: "a", type: "Core", score: 0.9 },
           { id: "b", type: "Core", score: 0.1 }, // below floor — and everything after it too
         ]);

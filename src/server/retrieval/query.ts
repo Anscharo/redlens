@@ -382,10 +382,11 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
       // runSemantic no longer throws on a normal degraded-leg failure; this
       // catch is defensive-only, preserving the reason rather than the old
       // information-destroying `.catch(() => [])`.
-    ).catch((err): SemanticResult => ({ hits: [], skipped: (err as Error).message }));
+    ).catch((err): SemanticResult => ({ hits: [], briefingHits: [], skipped: (err as Error).message }));
     const sem = attributeSemanticHits(query, lex, semResult.hits, ix, await buildLeafScorer(semResult.hits, semResult.vecs));
     semSkipped = semResult.skipped;
-    let merged = filterByType(rrfMerge(lex, sem), ix, a.target_type);
+    // Three-way fusion is unmeasured: the eval refuses `--briefings` with `--hybrid`.
+    let merged = filterByType(rrfMerge(lex, sem, semResult.briefingHits), ix, a.target_type);
     // Quoted phrases require an exact match — same shared post-filter
     // atlas_search applies, so the two tools agree on phrase queries.
     if (phrases.length || casePhrases.length) {

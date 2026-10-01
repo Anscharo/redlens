@@ -162,19 +162,21 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
   const lex = mode === "semantic" ? [] : lexAll;
   const semResult =
     mode === "lexical"
-      ? ({ hits: [], skipped: null } satisfies SemanticResult)
+      ? ({ hits: [], briefingHits: [], skipped: null } satisfies SemanticResult)
       : await runSemantic(
           ix, query, type, fetchK, undefined, lexicalResidual(query, lexAll, ix.docMap),
           // runSemantic no longer throws on a normal degraded-leg failure; this
           // catch is defensive-only, preserving the reason rather than the old
           // information-destroying `.catch(() => [])`.
-        ).catch((err): SemanticResult => ({ hits: [], skipped: (err as Error).message }));
+        ).catch((err): SemanticResult => ({ hits: [], briefingHits: [], skipped: (err as Error).message }));
   const sem = attributeSemanticHits(query, lex, semResult.hits, ix, await buildLeafScorer(semResult.hits, semResult.vecs));
 
   let merged: MergedHit[];
   if (mode === "lexical") merged = lex.map((h) => ({ id: h.id, sources: ["lexical"], rrf_score: 0, score: h.score }));
   else if (mode === "semantic") merged = sem.map((h) => ({ id: h.id, sources: ["semantic"], rrf_score: 0, score: h.score, via: h.via }));
-  else merged = rrfMerge(lex, sem);
+  // Three-way fusion (lexical, attributed semantic, briefings) is unmeasured:
+  // the eval refuses `--briefings` with `--hybrid`.
+  else merged = rrfMerge(lex, sem, semResult.briefingHits);
   merged = filterByType(merged, ix, type);
 
   const resolved = merged

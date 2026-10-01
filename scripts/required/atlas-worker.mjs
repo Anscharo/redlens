@@ -99,6 +99,16 @@ async function runPostSyncTail(full) {
       name: "doc-versions",
       promise: runAsync("bun", ["scripts/required/build-doc-versions.mjs", ...(full ? ["--full"] : [])]),
     },
+    {
+      // Placement-aware document briefings (atlas_doc_briefings): seed from the
+      // committed file, write for new and changed documents, embed. Under
+      // --no-fetch the flag is argv-only here, so the child is told through its
+      // env that it must not spend on the model.
+      name: "briefings",
+      promise: runAsync("bun", ["src/server/sync-briefings.ts"], {
+        env: { ...process.env, ...(NO_FETCH ? { ATLAS_WORKER_NO_FETCH: "1" } : {}) },
+      }),
+    },
   ];
   const results = await Promise.allSettled(jobs.map((job) => job.promise));
   for (let i = 0; i < results.length; i++) {
@@ -168,10 +178,12 @@ async function main() {
   // guaranteed to exit(1) (observed 2026-09-25, ~9,000 embedded, everything
   // served already committed at T+12s).
   //
-  // Only ONE of the three lanes actually resumes mid-walk, and the difference
+  // Only TWO of the four lanes actually resume mid-walk, and the difference
   // matters for how the budget is sized. sync-embeddings upserts per EMBED_BATCH
   // slice, so a kill keeps every slice already written and the next tick carries
-  // on — that is the lane the budget exists for. build-history and
+  // on — that is the lane the budget exists for. sync-briefings does the same
+  // (rows per model chunk, vectors per slice) and stops starting model requests
+  // after BRIEFINGS_DEADLINE_MS (default 8m), so this cap rarely meets it. build-history and
   // build-doc-versions instead buffer the whole walk in memory and write once at
   // the end (upsertHistory / replace-or-upsertDocVersions), so a kill mid-walk
   // commits nothing and the next tick repeats it: work lost, not data. Both fit
@@ -379,7 +391,7 @@ async function main() {
     // complete while grouping metadata is stale, and a failed history branch
     // must recover even when no later Atlas commit arrives.
     if (!NO_FETCH) {
-      console.log("atlas-worker: reconciling embeddings + history + doc-versions");
+      console.log("atlas-worker: reconciling embeddings + history + doc-versions + briefings");
       await runPostSyncTail(false);
     }
     process.exit(0);

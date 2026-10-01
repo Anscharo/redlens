@@ -1,7 +1,7 @@
 {
   "version": 1,
   "atlasSha": "6cd19248e0961587154ebd6a8ef69878142b1261",
-  "sweptAt": "2026-09-30",
+  "sweptAt": "2026-10-01",
   "docs": {
     "4f6fda1e-7450-4065-8095-e93cb10b3a2a": "7fd68a3766373e99",
     "5e2e1397-ff87-43ce-a742-e5a68dc89a44": "39042aa20b6f1931",
@@ -6083,7 +6083,12 @@
     "9ad5e114-dd9f-4caf-a255-d830011c784d": "a51e03e98f62bc8a",
     "101f1885-e1ba-49f8-93f8-2c7d45288d2c": "452d1815ebab2e9c",
     "8cfee319-727d-459b-ae67-cac3bec157d9": "7fdcf5f90cd4df18",
-    "3b9b8910-e26b-4bc3-9889-7ee18bdc94f1": "b25282a4d859bc4e"
+    "3b9b8910-e26b-4bc3-9889-7ee18bdc94f1": "b25282a4d859bc4e",
+    "56b15d7d-cdd4-4594-bd95-4f094564ac04": "78ee9715b08d4eff",
+    "8650a584-01f8-45d6-882b-c14eab9879c4": "70d65c47671e5cdf",
+    "b5c97151-07b9-4679-8896-478ccafa86b9": "6e17b8253168717b",
+    "b62f852c-db59-4bf8-a72c-0b825961563d": "8a82e08b10f2ce08",
+    "c7d62f28-1d64-4632-8cd8-4f2b44c51bba": "4f38b072e74dfc2b"
   },
   "complete": false
 }

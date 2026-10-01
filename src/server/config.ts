@@ -210,6 +210,21 @@ export const config = {
   // without env mutation + reimport. Duplicating the `?? 50` default here
   // would just create a second place for it to drift.
 
+  // Document briefings (sync-briefings.ts): the atlas worker writes a short
+  // placement-aware description for each NEW or CHANGED document, and the seed
+  // file public/doc-briefings.json covers the rest. briefingsPerCycle caps how many
+  // documents one worker run writes, sized from atlas history, per commit: median
+  // 8-9 documents, p90 ~250, p99 ~1,200, max 7,681, and 21 of 172 commits above
+  // 186. 186 is at most three model requests of 80 rows, so an ordinary commit is
+  // briefed in the cycle that sees it and a 7,681-document restructuring clears in
+  // about two days at under $11 a day. 0 turns the write pass off.
+  briefingsPerCycle: Number(process.env.BRIEFINGS_PER_CYCLE ?? 186),
+  // No default model id on purpose: a hardcoded OpenRouter id goes stale. Production
+  // sets the Sonnet id OpenRouter lists, the model the seed corpus was written with;
+  // the id is stamped on every row. UNSET means the write pass is off, while the
+  // seed load and the embed pass still run.
+  briefingModel: process.env.BRIEFING_MODEL ?? "",
+
   // Semantic search relevance floor (cosine, 0..1). pgvector's ORDER BY returns
   // the k nearest docs regardless of absolute similarity, so a query with few
   // true matches drags in unrelated neighbors that then occupy top slots after

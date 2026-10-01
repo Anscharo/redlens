@@ -25,7 +25,7 @@ export interface Hit {
   id: string;
   rank: number;
   score: number;
-  source: "lexical" | "semantic";
+  source: "lexical" | "semantic" | "briefing";
   memberIds?: string[];
   via?: Via;
 }
@@ -38,6 +38,15 @@ export interface Hit {
 // would carry a "skipped" note).
 export interface SemanticResult {
   hits: Hit[];
+  /**
+   * Nearest briefing vectors (`atlas_doc_briefings`), best first, from the same
+   * query vector as `hits`. Always present: `[]` when the leg is skipped, when
+   * no document has an embedded briefing yet, or when this statement failed on
+   * its own (a failure here leaves `hits` untouched). Document ids, not groups,
+   * so there is nothing to attribute; fuse with `fuseBriefings` (reader) or
+   * pass to `rrfMerge` (chat).
+   */
+  briefingHits: Hit[];
   skipped: string | null;
   /**
    * The vectors this leg embedded, handed back so leaf attribution can reuse
@@ -123,7 +132,7 @@ export async function runSemantic(
    */
   residualText?: string,
 ): Promise<SemanticResult> {
-  if (!config.openrouterApiKey) return { hits: [], skipped: null }; // no key → permanent config state, not degradation
+  if (!config.openrouterApiKey) return { hits: [], briefingHits: [], skipped: null }; // no key → permanent config state, not degradation
   // Bound the embed: on timeout or provider failure, degrade to lexical-only
   // instead of hanging the whole retrieve (embedBatch's backoff can reach ~15s,
   // which blew the e2e atlas_query timeout). Lexical hits still answer the query.
@@ -183,12 +192,54 @@ export async function runSemantic(
       });
       if (out.length >= overFetch) break;
     }
-    return { hits: out, skipped: null, vecs: { query: vec, ...(residualVec ? { residual: residualVec } : {}) } };
+    const briefingHits = await runBriefings(lit, Math.max(overFetch, 50), scope);
+    return { hits: out, briefingHits, skipped: null, vecs: { query: vec, ...(residualVec ? { residual: residualVec } : {}) } };
   } catch (err) {
     ac.abort(); // no-op if the failure was past the embed stage
     const reason = embedFailureReason(err, diag);
     console.warn(`  semantic leg skipped: ${reason}`);
-    return { hits: [], skipped: reason };
+    return { hits: [], briefingHits: [], skipped: reason };
+  }
+}
+
+/**
+ * The briefing statement: nearest embedded briefings to the query vector the
+ * unit statement already used. Its own try/catch, because a missing table or a
+ * bad index must cost the reader the briefing list and nothing else — the unit
+ * hits are already in hand.
+ *
+ * WHERE must stay `b.embedding IS NOT NULL` plus the scope clause: that is the
+ * predicate of the partial index `atlas_doc_briefings_hnsw` (migration 037), and
+ * a different one stops the planner using it, the same tie the unit query has to
+ * migration 024.
+ *
+ * NO `semanticMinScore` floor. The eval that measured the gain applied none, and
+ * cosines against briefing text are not calibrated against the 0.3 the unit
+ * leg uses; the fusion ranks by position, so a weak tail costs little.
+ *
+ * A scoped query runs in its own transaction under the same `SET LOCAL
+ * enable_indexscan = off` as the unit statement, for the same reason. It is a
+ * second transaction rather than the unit statement's, because an error inside
+ * one aborts it and would take the unit rows down with it.
+ */
+async function runBriefings(lit: string, limit: number, scope: string | undefined): Promise<Hit[]> {
+  try {
+    const stmt = `SELECT b.doc_id AS id, 1 - (b.embedding <=> $1::vector) AS score
+       FROM atlas_doc_briefings b JOIN atlas_doc_meta m ON m.id = b.doc_id
+       WHERE b.embedding IS NOT NULL${semanticScopeSql(scope)}
+       ORDER BY b.embedding <=> $1::vector LIMIT $2`;
+    const rows = (
+      scope
+        ? await sql.begin(async (tx) => {
+            await tx.unsafe(SCOPED_SCAN_SETTING);
+            return tx.unsafe(stmt, [lit, limit, scope]);
+          })
+        : await sql.unsafe(stmt, [lit, limit])
+    ) as { id: string; score: number }[];
+    return rows.map((r, i) => ({ id: r.id, rank: i, score: Number(r.score), source: "briefing" }));
+  } catch (err) {
+    console.warn(`  briefing leg skipped: ${(err as Error).message}`);
+    return [];
   }
 }
 
@@ -241,10 +292,42 @@ export function semanticScopeSql(scope: string | undefined): string {
   return " AND (upper(m.doc_no) = upper($3) OR upper(m.doc_no) LIKE upper($3) || '.%' OR upper($3) LIKE upper(m.doc_no) || '.%')";
 }
 
-export function rrfMerge(lex: Hit[], sem: Hit[]): MergedHit[] {
-  const fused = rrfFuse([lex.map((h) => h.id), sem.map((h) => h.id)]);
+// `briefings` is a third list in the SAME rrfFuse call: one RRF stage, never a
+// fusion of a fusion. UNMEASURED — the retrieval eval measured briefings only
+// against the attributed leaf list (`fuseBriefings`) and refuses `--briefings`
+// with `--hybrid`, so the three-way hybrid fusion is a follow-up eval.
+/**
+ * The reader's fusion: the attributed leaf list and the briefing list, by rank,
+ * once. Measured on qwen3-embedding-8b over 179 queries (docs/plans/
+ * atlas-doc-briefings.md): exact recall@10 +12.3 [7.8, 17.3] on the pilot pool
+ * and +10.6 [5.6, 15.6] on the half-corpus pool for question-shaped queries,
+ * +8.4 [4.5, 12.3] for keyword-shaped ones. 20 to 22 queries gained, 0 to 1
+ * lost. Prepending the briefing to the document's own text gained nothing, and
+ * a second ranking over unit anchors only gained +2.8, so the briefing is its
+ * own vector.
+ *
+ * Output is ordered by fused score, ties by the leaf list's order. Each hit
+ * keeps its own cosine as `score` and prefers the leaf's `via`. An id in both
+ * lists stays a "semantic" hit with the leaf's score; a briefing-only id is a
+ * "briefing" hit. With no briefings the leaves come back as they were.
+ */
+export function fuseBriefings(leaves: Hit[], briefings: Hit[]): Hit[] {
+  if (briefings.length === 0) return leaves;
+  const fused = rrfFuse([leaves.map((h) => h.id), briefings.map((h) => h.id)]);
+  const byId = new Map<string, Hit>();
+  for (const h of leaves) if (!byId.has(h.id)) byId.set(h.id, h);
+  for (const h of briefings) if (!byId.has(h.id)) byId.set(h.id, h);
+  return [...byId.values()]
+    .sort((a, b) => (fused.get(b.id) ?? 0) - (fused.get(a.id) ?? 0))
+    .map((h, i) => ({ ...h, rank: i }));
+}
+
+export function rrfMerge(lex: Hit[], sem: Hit[], briefings: Hit[] = []): MergedHit[] {
+  const lists = [lex.map((h) => h.id), sem.map((h) => h.id)];
+  if (briefings.length > 0) lists.push(briefings.map((h) => h.id));
+  const fused = rrfFuse(lists);
   const acc = new Map<string, MergedHit>();
-  for (const h of [...lex, ...sem]) {
+  for (const h of [...lex, ...sem, ...briefings]) {
     const prev = acc.get(h.id);
     if (prev) {
       if (!prev.sources.includes(h.source)) prev.sources.push(h.source);

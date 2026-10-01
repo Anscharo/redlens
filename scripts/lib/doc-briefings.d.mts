@@ -54,6 +54,8 @@ export const ARTIFACT_VERSION: number;
 export const BRIEFING_MIN: number;
 export const BRIEFING_MAX: number;
 export const AGENT_INSTRUCTIONS: string;
+export const BRIEFING_REPLY_INSTRUCTIONS: string;
+export const BRIEFING_MAX_FAILURES: number;
 
 export function parentKey(docNo: string): string;
 export function unlink(text: string): string;
@@ -93,3 +95,49 @@ export function mergeBriefings(
   removed?: string[],
   model?: string | null,
 ): { briefings: Record<string, BriefingRow>; added: number; replaced: number; kept: number };
+
+/** What a stored row needs for the seed and queue rules. */
+export interface StoredBriefing {
+  briefing: string;
+  digest: string;
+  context_digest: string;
+  failures: number;
+  failed_context: string | null;
+}
+
+export function briefingEmbedText(row: { briefing: string; questions?: string[] | null }): string;
+export function contextDigest(
+  node: BriefingNode,
+  tree: BriefingTree,
+  citations: Map<string, Citation[]>,
+): string;
+export function seedAction(
+  have: Pick<StoredBriefing, "briefing" | "digest"> | undefined,
+  seed: { digest: string },
+  liveDigest: string | undefined,
+): "insert" | "replace" | "keep" | "skip";
+export function briefingQueue(
+  docs: BriefingNode[],
+  rows: Map<string, Pick<StoredBriefing, "briefing" | "context_digest" | "failures" | "failed_context">>,
+  cap: number,
+  ctx?: { tree?: BriefingTree; citations?: Map<string, Citation[]> },
+): string[];
+
+export function serializeArtifact(briefings: Record<string, BriefingRow>, atlasSha: string | null): string;
+export function briefingTextDiffers(
+  a: { briefing: string; questions?: string[] | null } | undefined,
+  b: { briefing: string; questions?: string[] | null } | undefined,
+): boolean;
+export function pullBriefings(
+  rows: {
+    doc_id: string;
+    briefing: string;
+    questions: string[];
+    digest: string;
+    model: string | null;
+  }[],
+): Record<string, BriefingRow>;
+export function countDiffering(
+  file: Record<string, { briefing: string; questions?: string[] | null }>,
+  pulled: Record<string, { briefing: string; questions?: string[] | null }>,
+): number;

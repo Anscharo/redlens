@@ -208,12 +208,12 @@ Baseline falls to exact 0.615, recall@10 0.682.
 
 **Next, in order:** write the remaining 5,503 briefings with Sonnet subagents (`pnpm briefings:plan
 --force` replaces the pilot work directory; copy `pilot-opus.json` out first if it still matters);
-rerun this eval on the full corpus (`--pool all`, which is unbiased once coverage is complete); then
-the production change — a `briefing_embedding` column on every `atlas_doc_embeddings` row that has a
-briefing, its own HNSW index over ALL such rows (not `WHERE NOT attribution_only`: the point is that
-folded leaves are searchable), `briefing_hash` as the staleness key in `sync-embeddings.ts`,
-briefings reaching the embedder through Postgres, and in `runSemantic` a second ranking by the same
-query vector fused with the attributed leaf list by the shared `rrfFuse`; Part 4.
+rerun this eval on the full corpus (`--pool all`, which is unbiased once coverage is complete). The production change is built. Briefings live in their own table, `atlas_doc_briefings`
+(migration 037), and not in columns on `atlas_doc_embeddings`, so migration 024's index predicate
+stays untouched. `src/server/sync-briefings.ts` is the fourth worker tail and runs three passes:
+seed from the committed file, write for new and changed documents, and embed. `fuseBriefings` in
+`search.ts` fuses the briefing list with the attributed leaf list in one RRF stage, and
+`pnpm briefings:pull` copies the database rows back into the file. Part 4 is done.
 
 ## Branch
 
@@ -325,6 +325,8 @@ re-embeds exactly the changed units **with no new invalidation machinery**. Gate
 comparable in the eval.
 
 ### Arm S2 — two vectors, two cosines, one round trip
+
+**Superseded.** Production uses a separate `atlas_doc_briefings` table and a second ranking fused after attribution, not columns on `atlas_doc_embeddings`. The text below records what was measured.
 
 - **Migration** `src/server/migrations/0NN_briefing_embeddings.sql`:
   `briefing_embedding vector(1024)` (nullable) and `briefing_hash TEXT` on

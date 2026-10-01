@@ -11,6 +11,8 @@
 //                                               holds agent output or pilot files
 //   pnpm briefings:merge --model=NAME          fold agent output into the artifact
 //                        [--adopt] [--dry-run]
+//   pnpm briefings:pull  [--dry-run]           refresh the artifact and the state from
+//                                               the database rows (needs DATABASE_URL)
 //
 // The writing happens between `plan` and `merge`, by subagents: one per chunk,
 // each reading `.cache/atlas-briefings/INSTRUCTIONS.md` and one
@@ -27,19 +29,22 @@ import { execFileSync } from "node:child_process";
 import { loadAtlasSource } from "../lib/atlas-source.mjs";
 import {
   AGENT_INSTRUCTIONS,
-  ARTIFACT_VERSION,
+  BRIEFING_MAX_FAILURES,
   buildCitations,
   buildTree,
+  countDiffering,
   isComplete,
   mergeBriefings,
   packSets,
   parseRows,
   planBriefings,
+  pullBriefings,
   renderQueue,
+  serializeArtifact,
   spreadSample,
   validateBriefing,
 } from "../lib/doc-briefings.mjs";
-import { advanceState, docsToEvaluate, emptyState, isStateUsable } from "../lib/mistakes-sweep.mjs";
+import { advanceState, docDigest, docsToEvaluate, emptyState, isStateUsable } from "../lib/mistakes-sweep.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const ATLAS = path.join(ROOT, "vendor/next-gen-atlas");
@@ -109,6 +114,29 @@ async function evalTargetDocs(nodes) {
   return nodes.filter((n) => queued.has(n.id)).map((n) => n.id);
 }
 
+/** Every briefing row in the database, or throws. The database is the live
+ *  record: the worker writes there, and this reads it back. `questions` is a
+ *  jsonb column and comes back parsed (postgres-jsonb skill); a string is
+ *  tolerated in case a driver version hands it back raw. */
+async function readDbRows() {
+  const { SQL } = await import("bun");
+  const sql = new SQL({ url: process.env.DATABASE_URL, max: 1, connectionTimeout: 5 });
+  try {
+    const rows = await sql`
+      SELECT doc_id, briefing, questions, digest, model, failures
+      FROM atlas_doc_briefings
+    `;
+    return rows.map((r) => ({
+      ...r,
+      questions: typeof r.questions === "string" ? JSON.parse(r.questions) : r.questions,
+    }));
+  } finally {
+    await sql.end();
+  }
+}
+
+const atLimit = (rows) => rows.filter((r) => r.failures >= BRIEFING_MAX_FAILURES).length;
+
 // --- status -----------------------------------------------------------------
 if (cmd === "status") {
   const { nodes, layout, state, stale } = load();
@@ -118,6 +146,18 @@ if (cmd === "status") {
   const artifact = readJson(ARTIFACT, null);
   console.log(`described: ${artifact ? Object.keys(artifact.briefings ?? {}).length : 0} documents in ${rel(ARTIFACT)}`);
   console.log(`last pass: ${state.sweptAt ?? "never"} @ ${(state.atlasSha ?? "—").slice(0, 8)}`);
+  // The database is the live record, so the file can be behind it. Never fatal:
+  // a down database leaves the file-only output above.
+  if (process.env.DATABASE_URL) {
+    try {
+      const rows = await readDbRows();
+      const differing = countDiffering(artifact?.briefings ?? {}, pullBriefings(rows));
+      console.log(`database: ${differing} rows newer than the file (run \`pnpm briefings:pull\`)`);
+      console.log(`database: ${atLimit(rows)} rows at the failure limit (${BRIEFING_MAX_FAILURES})`);
+    } catch (e) {
+      console.log(`database: unreachable or no briefings table (${String(e?.message ?? e).split("\n")[0].slice(0, 80)})`);
+    }
+  }
   process.exit(0);
 }
 
@@ -274,14 +314,7 @@ if (cmd === "merge") {
     process.exit(0);
   }
 
-  // One row per line: a rewrite of one description is a one-line diff.
-  const body = Object.entries(merged.briefings)
-    .map(([uuid, row]) => `${JSON.stringify(uuid)}:${JSON.stringify(row)}`)
-    .join(",\n");
-  fs.writeFileSync(
-    target,
-    `{"version":${ARTIFACT_VERSION},"atlasSha":${JSON.stringify(sha)},"briefings":{\n${body}\n}}\n`,
-  );
+  fs.writeFileSync(target, serializeArtifact(merged.briefings, sha));
   if (pilot) {
     console.log(`\nwrote ${rel(target)} (pilot — state and ${rel(ARTIFACT)} untouched; --adopt commits these rows)`);
     process.exit(0);
@@ -295,5 +328,39 @@ if (cmd === "merge") {
   process.exit(0);
 }
 
-console.error(`unknown command "${cmd}" — expected status | plan | merge`);
+// --- pull -------------------------------------------------------------------
+if (cmd === "pull") {
+  if (!process.env.DATABASE_URL) {
+    console.error("[briefings] DATABASE_URL is not set — pull reads the briefings from the database");
+    process.exit(1);
+  }
+  const { nodes, nodeMap, state } = load();
+  const rows = await readDbRows();
+  const pulled = pullBriefings(rows);
+  const file = readJson(ARTIFACT, { briefings: {} }).briefings ?? {};
+  const sha = atlasSha();
+
+  console.log(`rows pulled: ${Object.keys(pulled).length} (of ${rows.length} in the table)`);
+  console.log(`  differ from ${rel(ARTIFACT)}: ${countDiffering(file, pulled)}`);
+  console.log(`  at the failure limit (${BRIEFING_MAX_FAILURES}): ${atLimit(rows)}`);
+
+  if (flag("dry-run")) {
+    console.log("\n--dry-run: nothing written");
+    process.exit(0);
+  }
+
+  fs.writeFileSync(ARTIFACT, serializeArtifact(pulled, sha));
+  // A row counts as described only when it was written for the live version of
+  // its document. A row from an older version stays queued for the next plan.
+  const current = Object.entries(pulled)
+    .filter(([uuid, row]) => nodeMap[uuid] && row.digest === docDigest(nodeMap[uuid]))
+    .map(([uuid]) => uuid);
+  const next = advanceState(state, nodeMap, current, [], sha);
+  next.complete = state.complete === true || isComplete(nodes, next);
+  fs.writeFileSync(STATE, `${JSON.stringify(next, null, 2)}\n`);
+  console.log(`\nwrote ${rel(ARTIFACT)} and ${rel(STATE)} (${current.length} rows current)`);
+  process.exit(0);
+}
+
+console.error(`unknown command "${cmd}" — expected status | plan | merge | pull`);
 process.exit(1);

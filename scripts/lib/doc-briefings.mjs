@@ -32,6 +32,8 @@
 //
 // Everything here is pure — the CLI (scripts/aux/doc-briefings.mjs) owns I/O.
 
+import { createHash } from "node:crypto";
+
 import { UUID_LINK_RE } from "./graph-patterns.mjs";
 import { docDigest, planSweep } from "./mistakes-sweep.mjs";
 
@@ -399,9 +401,8 @@ export function mergeBriefings(previous, incoming, nodeMap, removed = [], model 
   return { briefings, added, replaced, kept: Object.keys(briefings).length - added - replaced };
 }
 
-/** What each agent is told. Written once to the work directory; every agent
- *  reads it from there, which keeps the per-agent prompt to two paths. */
-export const AGENT_INSTRUCTIONS = `# Writing retrieval descriptions for Sky Atlas documents
+/** What every writer is told, however the rows come back. */
+const INSTRUCTIONS_BODY = `# Writing retrieval descriptions for Sky Atlas documents
 
 The Sky Atlas is a large governance rulebook. Most of its documents are one line
 long. What such a document means comes from where it sits in the tree and from
@@ -445,8 +446,146 @@ question could not equally be asked of a sibling.
 - One row for each WRITE document. No row for a CONTEXT ONLY document.
 - Every row carries at least two questions, however short the document. A row
   with one question is rejected and its document counts as not described.
-- Write the rows to the output path you were given, as JSON Lines: one object
+`;
+
+/** What each subagent is told. Written once to the work directory; every agent
+ *  reads it from there, which keeps the per-agent prompt to two paths. */
+export const AGENT_INSTRUCTIONS = `${INSTRUCTIONS_BODY}- Write the rows to the output path you were given, as JSON Lines: one object
   per line, no code fence, no commentary, no blank lines between rows.
 - Write the file even if the chunk has no WRITE document.
 - Reply with the number of rows you wrote and nothing else.
 `;
+
+/** What the atlas worker's model is told: the same body, but the rows come back
+ *  as the reply, since a chat completion has no file to write. */
+export const BRIEFING_REPLY_INSTRUCTIONS = `${INSTRUCTIONS_BODY}- Reply with the rows as JSON Lines and nothing else: one object per line, no code
+  fence, no commentary, no blank lines between rows.
+- Reply with an empty message if the chunk has no WRITE document.
+`;
+
+/** The exact text a briefing is embedded as. The retrieval eval's "both" block
+ *  and the worker's embed pass both call this, so the vectors production stores
+ *  are the ones the eval measured. `questions` is tolerated missing because the
+ *  eval reads rows from a file a hand edit may have thinned. */
+export function briefingEmbedText(row) {
+  return `${row.briefing}\n${(row.questions ?? []).join("\n")}`;
+}
+
+/**
+ * What a briefing was written from, beyond the document itself.
+ *
+ * A briefing is built from the document, its parent and the documents that cite
+ * it. The document's own digest does not move when a parent is renamed or a
+ * citer changes, so this folds all three in: the node's digest, its parent's
+ * ('' for a root) and the sorted digests of its citers. A sibling edit moves
+ * none of them, so it re-queues nothing.
+ */
+export function contextDigest(node, tree, citations) {
+  const parent = tree.setOf.get(node.id)?.parent;
+  const citers = (citations.get(node.id) ?? []).map((c) => docDigest(c.from)).sort();
+  return createHash("sha256")
+    .update([docDigest(node), parent ? docDigest(parent) : "", ...citers].join("\u0000"))
+    .digest("hex")
+    .slice(0, 16);
+}
+
+/**
+ * What a seed row (public/doc-briefings.json) does to the database.
+ *
+ * `have` is the stored row or undefined; a placeholder (`briefing === ''`, it
+ * only carries a failure count) counts as no row. `seed` is { digest },
+ * `liveDigest` the digest of the live document, or undefined when the document
+ * is not live.
+ *
+ *   skip     the document is gone: the foreign key would reject the row
+ *   insert   no row (or a placeholder) and the document is live
+ *   replace  the row is stale and the seed is current
+ *   keep     anything else, including a worker row at the live digest — at equal
+ *            digests the database wins, so the file is a seed and not an editor
+ */
+export function seedAction(have, seed, liveDigest) {
+  if (liveDigest === undefined) return "skip";
+  if (!have || have.briefing === "") return "insert";
+  if (have.digest !== seed.digest && seed.digest === liveDigest) return "replace";
+  return "keep";
+}
+
+/** After this many validation failures at one context digest a document is left
+ *  alone until its context changes. */
+export const BRIEFING_MAX_FAILURES = 3;
+
+/**
+ * The documents the worker owes a briefing, in atlas order, cut to `cap`.
+ *
+ * `docs` are live nodes in atlas order, `rows` a Map<uuid, { briefing,
+ * context_digest, failures, failed_context }>. Owed: no row or a placeholder, or a
+ * row written for another context (see contextDigest). A document that has failed
+ * validation BRIEFING_MAX_FAILURES times at the live context is left out. The
+ * count is kept against `failed_context`, not the row's own context_digest, which
+ * describes its text and so differs from the live one for every stale row. A
+ * context change makes the two differ again, so the document queues again. `tree` and `citations`
+ * are computed from `docs` unless the caller already holds them.
+ */
+export function briefingQueue(
+  docs,
+  rows,
+  cap,
+  { tree = buildTree(docs), citations = buildCitations(docs) } = {},
+) {
+  const queue = [];
+  if (cap <= 0) return queue;
+  for (const doc of docs) {
+    const row = rows.get(doc.id);
+    const context = contextDigest(doc, tree, citations);
+    const owed = !row || row.briefing === "" || row.context_digest !== context;
+    if (!owed) continue;
+    if (row && row.failures >= BRIEFING_MAX_FAILURES && row.failed_context === context) continue;
+    queue.push(doc.id);
+    if (queue.length >= cap) break;
+  }
+  return queue;
+}
+
+/**
+ * The text of public/doc-briefings.json. `merge` and `pull` both write through
+ * this, so the two cannot produce different shapes. One row per line, so a
+ * rewrite of one briefing is a one-line diff. `briefings` must already be in
+ * the order to write (UUID order, which `mergeBriefings` and `pullBriefings`
+ * both give).
+ */
+export function serializeArtifact(briefings, atlasSha) {
+  const body = Object.entries(briefings)
+    .map(([uuid, row]) => `${JSON.stringify(uuid)}:${JSON.stringify(row)}`)
+    .join(",\n");
+  return `{"version":${ARTIFACT_VERSION},"atlasSha":${JSON.stringify(atlasSha)},"briefings":{\n${body}\n}}\n`;
+}
+
+/** True when two rows say different things. Only the text counts: `digest` and
+ *  `model` move with a rewrite, and a row that moved without its text moving
+ *  changes nothing a reader could see. */
+export function briefingTextDiffers(a, b) {
+  if (!a || !b) return true;
+  return briefingEmbedText(a) !== briefingEmbedText(b);
+}
+
+/**
+ * Shape database rows as artifact rows, in UUID order.
+ *
+ * `rows` are { doc_id, briefing, questions, digest, model }. A placeholder row
+ * (`briefing === ''`, it only carries a failure count) is not a briefing and is
+ * left out. Key order inside a row matches `mergeBriefings`, so a row the
+ * database took from the file serialises to the same bytes.
+ */
+export function pullBriefings(rows) {
+  const out = {};
+  for (const row of [...rows].sort((a, b) => (a.doc_id < b.doc_id ? -1 : a.doc_id > b.doc_id ? 1 : 0))) {
+    if (row.briefing === "") continue;
+    out[row.doc_id] = { briefing: row.briefing, questions: row.questions, digest: row.digest, model: row.model ?? null };
+  }
+  return out;
+}
+
+/** How many of `pulled` are not in `file` or say something different. */
+export function countDiffering(file, pulled) {
+  return Object.entries(pulled).filter(([uuid, row]) => briefingTextDiffers(file[uuid], row)).length;
+}

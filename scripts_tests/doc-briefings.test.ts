@@ -5,6 +5,15 @@
 import { describe, it, expect } from "vitest";
 import {
   AGENT_INSTRUCTIONS,
+  BRIEFING_REPLY_INSTRUCTIONS,
+  briefingEmbedText,
+  briefingTextDiffers,
+  countDiffering,
+  pullBriefings,
+  serializeArtifact,
+  briefingQueue,
+  contextDigest,
+  seedAction,
   buildCitations,
   buildDependents,
   buildTree,
@@ -268,5 +277,185 @@ describe("instructions", () => {
     // The instructions are read by every agent; a doc number in them is an
     // example to copy.
     expect(AGENT_INSTRUCTIONS).not.toMatch(/\b[A-Z]\.\d/);
+    expect(BRIEFING_REPLY_INSTRUCTIONS).not.toMatch(/\b[A-Z]\.\d/);
+  });
+
+  it("share one body and differ only in how the rows are delivered", () => {
+    const body = AGENT_INSTRUCTIONS.slice(0, AGENT_INSTRUCTIONS.indexOf("- Write the rows to the output path"));
+    expect(body.length).toBeGreaterThan(1000);
+    expect(BRIEFING_REPLY_INSTRUCTIONS.startsWith(body)).toBe(true);
+    expect(AGENT_INSTRUCTIONS).toMatch(/output path/);
+    expect(BRIEFING_REPLY_INSTRUCTIONS).not.toMatch(/output path|Write tool/);
+    expect(BRIEFING_REPLY_INSTRUCTIONS).toMatch(/no code\s+fence, no commentary/);
+  });
+});
+
+describe("briefingEmbedText", () => {
+  it("is the briefing, a newline, then the questions one per line", () => {
+    expect(briefingEmbedText({ briefing: "B", questions: ["Q1?", "Q2?"] })).toBe("B\nQ1?\nQ2?");
+    expect(briefingEmbedText({ briefing: "B" })).toBe("B\n");
+  });
+});
+
+describe("contextDigest", () => {
+  const digestOf = (nodes: Node[], n: number) => {
+    const tree = buildTree(nodes);
+    return contextDigest(nodes[n - 1], tree, buildCitations(nodes));
+  };
+
+  it("is 16 hex characters and stable", () => {
+    expect(digestOf(corpus(), 3)).toMatch(/^[0-9a-f]{16}$/);
+    expect(digestOf(corpus(), 3)).toBe(digestOf(corpus(), 3));
+  });
+
+  it("moves for a child when the parent is renamed, and not for a sibling edit", () => {
+    const before = digestOf(corpus(), 3);
+    const renamed = corpus();
+    renamed[1] = { ...renamed[1], title: "Renamed parent", contentHash: "other" };
+    expect(digestOf(renamed, 3)).not.toBe(before);
+    // Documents 2 and 4 are siblings and 4 does not cite 2, so editing 4 leaves 2 alone.
+    const sibling = corpus();
+    sibling[3] = { ...sibling[3], contentHash: "edited" };
+    expect(digestOf(sibling, 2)).toBe(digestOf(corpus(), 2));
+  });
+
+  it("moves when a citer changes", () => {
+    const changed = corpus();
+    changed[3] = { ...changed[3], contentHash: "edited" };
+    expect(digestOf(changed, 3)).not.toBe(digestOf(corpus(), 3));
+  });
+});
+
+describe("seedAction", () => {
+  const seed = { digest: "d1" };
+  it("inserts when there is no row, or only a placeholder", () => {
+    expect(seedAction(undefined, seed, "d1")).toBe("insert");
+    expect(seedAction({ briefing: "", digest: "x" }, seed, "d1")).toBe("insert");
+  });
+  it("replaces a stale row when the seed is current", () => {
+    expect(seedAction({ briefing: "old", digest: "d0" }, seed, "d1")).toBe("replace");
+  });
+  it("keeps a row at the live digest, and a stale row when the seed is stale too", () => {
+    expect(seedAction({ briefing: "worker text", digest: "d1" }, seed, "d1")).toBe("keep");
+    expect(seedAction({ briefing: "old", digest: "d0" }, seed, "d2")).toBe("keep");
+  });
+  it("skips a document that is not live", () => {
+    expect(seedAction(undefined, seed, undefined)).toBe("skip");
+    expect(seedAction({ briefing: "old", digest: "d0" }, seed, undefined)).toBe("skip");
+  });
+});
+
+describe("briefingQueue", () => {
+  const rowAt = (nodes: Node[], n: number, over = {}) => {
+    const tree = buildTree(nodes);
+    return {
+      briefing: "text",
+      context_digest: contextDigest(nodes[n - 1], tree, buildCitations(nodes)),
+      failures: 0,
+      failed_context: null as string | null,
+      ...over,
+    };
+  };
+
+  it("queues documents with no row or a placeholder, in atlas order", () => {
+    const nodes = corpus();
+    const rows = new Map([
+      [uuid(1), rowAt(nodes, 1)],
+      [uuid(3), rowAt(nodes, 3, { briefing: "" })],
+    ]);
+    expect(briefingQueue(nodes, rows, 10)).toEqual([uuid(2), uuid(3), uuid(4)]);
+  });
+
+  it("cuts to the cap, and a cap of 0 queues nothing", () => {
+    const nodes = corpus();
+    expect(briefingQueue(nodes, new Map(), 2)).toEqual([uuid(1), uuid(2)]);
+    expect(briefingQueue(nodes, new Map(), 0)).toEqual([]);
+  });
+
+  it("leaves a stale text row that failed three times at the live context, until the context moves", () => {
+    const nodes = corpus();
+    const rows = new Map(nodes.map((_, i) => [uuid(i + 1), rowAt(nodes, i + 1)]));
+    // Document 2 is briefed at context C0; its parent is renamed, so the live context is C1.
+    const c1 = corpus();
+    c1[0] = { ...c1[0], title: "Renamed", contentHash: "other" };
+    const live1 = contextDigest(c1[1], buildTree(c1), buildCitations(c1));
+    rows.set(uuid(2), rowAt(nodes, 2, { failures: 2, failed_context: live1 }));
+    expect(briefingQueue(c1, rows, 10)).toContain(uuid(2));
+    rows.set(uuid(2), rowAt(nodes, 2, { failures: 3, failed_context: live1 }));
+    expect(briefingQueue(c1, rows, 10)).not.toContain(uuid(2));
+    // The live context moves again (C2): the spent count belongs to C1, so it queues again.
+    const c2 = corpus();
+    c2[0] = { ...c2[0], title: "Renamed again", contentHash: "again" };
+    expect(briefingQueue(c2, rows, 10)).toContain(uuid(2));
+  });
+
+  it("leaves a placeholder that failed three times at the live context, until the context moves", () => {
+    const nodes = corpus();
+    const rows = new Map(nodes.map((_, i) => [uuid(i + 1), rowAt(nodes, i + 1)]));
+    rows.set(uuid(2), rowAt(nodes, 2, { briefing: "", failures: 3, failed_context: rowAt(nodes, 2).context_digest }));
+    expect(briefingQueue(nodes, rows, 10)).toEqual([]);
+    rows.set(uuid(2), rowAt(nodes, 2, { briefing: "", failures: 2 }));
+    expect(briefingQueue(nodes, rows, 10)).toEqual([uuid(2)]);
+    // The parent is renamed: document 2's stored context no longer matches, so it queues again.
+    const renamed = corpus();
+    renamed[0] = { ...renamed[0], title: "Renamed", contentHash: "other" };
+    rows.set(uuid(2), rowAt(nodes, 2, { briefing: "", failures: 3, failed_context: rowAt(nodes, 2).context_digest }));
+    expect(briefingQueue(renamed, rows, 10)).toContain(uuid(2));
+  });
+
+  it("re-queues a briefed document whose context changed", () => {
+    const nodes = corpus();
+    const rows = new Map(nodes.map((_, i) => [uuid(i + 1), rowAt(nodes, i + 1)]));
+    expect(briefingQueue(nodes, rows, 10)).toEqual([]);
+    const changed = corpus();
+    changed[3] = { ...changed[3], contentHash: "edited" };
+    // 4 itself moved, and 3 is cited by 4.
+    expect(briefingQueue(changed, rows, 10)).toEqual([uuid(3), uuid(4)]);
+  });
+});
+
+describe("pull: the artifact the database writes back", () => {
+  const row = (n: number, over = {}) => ({
+    doc_id: uuid(n),
+    briefing: `Briefing for document ${n}, long enough to be a real one.`,
+    questions: [`What is document ${n}?`, `Where does document ${n} sit?`],
+    digest: `digest-${n}`,
+    model: "m",
+    ...over,
+  });
+
+  it("serialises one row per line and parses back to the same rows", () => {
+    const pulled = pullBriefings([row(2), row(1)]);
+    const text = serializeArtifact(pulled, "abc");
+    expect(text.split("\n")).toHaveLength(5); // head, two rows, tail, trailing newline
+    const parsed = JSON.parse(text);
+    expect(parsed.atlasSha).toBe("abc");
+    expect(parsed.briefings).toEqual(pulled);
+    expect(Object.keys(parsed.briefings)).toEqual([uuid(1), uuid(2)]);
+  });
+
+  it("writes the same bytes as a merge for the same row", () => {
+    const n = node(1, "A.1");
+    const merged = mergeBriefings({}, [{ uuid: n.id, entry: { briefing: "x".repeat(50), questions: ["Why?", "How come?"] } }], { [n.id]: n }, [], "m");
+    const pulled = pullBriefings([
+      { doc_id: n.id, briefing: "x".repeat(50), questions: ["Why?", "How come?"], digest: docDigest(n), model: "m" },
+    ]);
+    expect(serializeArtifact(pulled, "s")).toBe(serializeArtifact(merged.briefings, "s"));
+  });
+
+  it("leaves placeholder rows out", () => {
+    expect(Object.keys(pullBriefings([row(1), row(2, { briefing: "" })]))).toEqual([uuid(1)]);
+  });
+
+  it("counts a row as differing when it is new or its text moved, not when only the digest did", () => {
+    const file = pullBriefings([row(1), row(2)]);
+    const pulled = pullBriefings([
+      row(1, { digest: "other", model: "n" }),
+      row(2, { questions: ["Something else entirely?"] }),
+      row(3),
+    ]);
+    expect(briefingTextDiffers(file[uuid(1)], pulled[uuid(1)])).toBe(false);
+    expect(countDiffering(file, pulled)).toBe(2);
+    expect(countDiffering(pulled, pulled)).toBe(0);
   });
 });

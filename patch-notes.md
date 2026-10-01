@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-01
+- Meaning search now also matches a short briefing written for each document, so a one-line document is found by what it is about
+
 ## 2026-09-30
 - Made previews catch a longer document that was replaced by a different one even when the two share most of their wording
 - Chat answers and meaning search now come back about two seconds faster
