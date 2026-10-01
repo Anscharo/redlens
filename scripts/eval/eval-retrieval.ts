@@ -545,8 +545,13 @@ if (POOL_FLAG !== undefined && POOL_FLAG !== "all" && POOL_FLAG !== "covered") {
   process.exit(1);
 }
 const NEEDS_BRIEFINGS = BRIEFING_ARMS.some((a) => a !== "none");
-if (NEEDS_BRIEFINGS && (RERANK !== "none" || HYBRID)) {
-  console.error("briefing arms (s1, s2, s2docs) do not support --rerank or --hybrid; run those without --briefings.");
+// --hybrid is allowed with the per-document arm only: that is the chat's hybrid
+// lane — lexical, attributed semantic and briefing lists fused in ONE RRF stage
+// (search.ts `rrfMerge`) — and the reason the arm is measured here at all. The
+// eval's lexical leg is TF-IDF, not MiniSearch, so the number is a proxy for
+// the shape of the effect, not production's exact figure.
+if (NEEDS_BRIEFINGS && (RERANK !== "none" || (HYBRID && BRIEFING_ARMS.some((a) => a !== "none" && a !== "s2docs")))) {
+  console.error("briefing arms do not support --rerank; --hybrid is supported for s2docs only (the chat's three-way fusion).");
   process.exit(1);
 }
 if (OFFLINE && BACKEND === "tfidf") {
@@ -945,13 +950,14 @@ function attributeRank(
   return ids;
 }
 
-function rrfFuse(lexIds: string[], semIds: string[], k: number): string[] {
+function rrfFuse(lexIds: string[], semIds: string[], k: number, moreIds: string[] = []): string[] {
   const acc = new Map<string, number>();
   const bump = (ids: string[]) => {
     ids.forEach((id, rank) => acc.set(id, (acc.get(id) ?? 0) + 1 / (60 + rank + 1)));
   };
   bump(lexIds);
   bump(semIds);
+  bump(moreIds);
   return [...acc.entries()].sort((a, b) => b[1] - a[1]).slice(0, k).map(([id]) => id);
 }
 
@@ -1375,7 +1381,9 @@ for (const policy of POLICIES) {
           });
           const n = LEAF_RERANK ? RERANK_N : K;
           const semIds = attributeRank(q.query, pool, units, docMap, n, lexHits, leafScorer);
-          ranked.push(rrfFuse(lexHits.map((h) => h.id), semIds, n));
+          // s2docs under --hybrid: the three-way fusion the chat's hybrid lane runs.
+          const briefIds = arm.name === "s2docs" && blockIndex ? blockIndex.rank(q.query, queryVec, RERANK_POOL) : [];
+          ranked.push(rrfFuse(lexHits.map((h) => h.id), semIds, n, briefIds));
         } else {
           const n = LEAF_RERANK ? RERANK_N : K;
           const leaves = attributeRank(q.query, pool.slice(0, n), units, docMap, n, lexHits, leafScorer);
