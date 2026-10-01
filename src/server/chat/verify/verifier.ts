@@ -13,7 +13,7 @@ import type { ScreenRecord } from "./refute-screen-record.ts";
 import { isExternalMscTool } from "../../external/envelope.ts";
 import { FACT_TOOL_NAME } from "../../facts/registry.ts";
 import { isUserTeachingTool } from "../teach/inject.ts";
-import { DISPUTE_TOOL_NAME } from "../dispute-round.ts";
+import { isReviewRound } from "../review-round.ts";
 import { SUMMARY_ACK } from "../context-compact.ts";
 import { isRecallToolId } from "../tool-recall.ts";
 import { TOOLS_BY_NAME } from "../tools/tool-registry.ts";
@@ -210,7 +210,7 @@ export function isAtlasText(cls: SourceClass | undefined): boolean {
   return cls === "atlas" || cls === "reference" || cls === "history";
 }
 
-// The dispute round (dispute-round.ts) is NOT evidence and is dropped from
+// The review round (review-round.ts) is NOT evidence and is dropped from
 // both extractors below. It is a note about the PREVIOUS turn's verifier
 // result, and it quotes the model's own flagged sentence verbatim — so left
 // in, it would fall through to the `"atlas"` default here and land in
@@ -224,9 +224,7 @@ export function isAtlasText(cls: SourceClass | undefined): boolean {
 // span out of the dispute block gets an ungrounded-quote flag. That is the
 // conservative direction, and the block's own footer already tells the model
 // to look the source document up with atlas_get rather than quote the excerpt.
-function isDisputeRound(tool: string): boolean {
-  return tool === DISPUTE_TOOL_NAME;
-}
+
 
 export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chatVerifierEvidenceMaxChars): EvidenceEntry[] {
   const callById = new Map<string, { tool: string; args: string }>();
@@ -243,7 +241,7 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
       // certify a sentence against one.
       if (isRecallToolId(m.tool_call_id)) continue;
       const call = callById.get(m.tool_call_id) ?? { tool: "unknown", args: "{}" };
-      if (isDisputeRound(call.tool)) continue; // not evidence — see isDisputeRound
+      if (isReviewRound(call.tool)) continue; // not evidence — see the comment above
       entries.push({
         label: `[E${entries.length + 1}]`,
         tool: call.tool,
@@ -267,7 +265,7 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
 // by evidenceFromTranscript (recall ids) and never reach this function.
 export function evidenceFromResults(results: { name: string; content: string }[], maxChars = config.chatVerifierEvidenceMaxChars): EvidenceEntry[] {
   // Filtered BEFORE the map so the [E..] labels stay contiguous.
-  const entries: EvidenceEntry[] = results.filter((r) => !isDisputeRound(r.name)).map((r, i) => ({
+  const entries: EvidenceEntry[] = results.filter((r) => !isReviewRound(r.name)).map((r, i) => ({
     label: `[E${i + 1}]`,
     tool: r.name,
     args: "(streamed)",

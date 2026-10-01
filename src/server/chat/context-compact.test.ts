@@ -334,3 +334,62 @@ describe("verifier and recall cards", () => {
     expect(evidenceFromTranscript(transcript)).toEqual([]);
   });
 });
+
+// --- Review notes: counted, but invisible to the history prefix --------------
+describe("ReplayRow.review", () => {
+  const note = {
+    badge: "failed verification",
+    findings: ["quote not found in any retrieved source: “a quote”"],
+    disputes: [],
+    coverage: null,
+    marks: [],
+  };
+  const rows = (review: typeof note | null): ReplayRow[] => [
+    { id: "m1", role: "user", content: "who approves budgets?" },
+    { id: "m2", role: "assistant", content: "The Governance Scope does.", review },
+  ];
+
+  it("leaves historyReplay byte-identical — the prefix is cache-stable", () => {
+    // The whole point of the note riding a separate tail round: the history
+    // prefix a provider caches must not change because a verdict landed.
+    expect(historyReplay(rows(note))).toEqual(historyReplay(rows(null)));
+  });
+
+  it("IS counted by replayTokens, so the meter and the 90% line see it", () => {
+    const withNote = replayTokens(null, rows(note));
+    const without = replayTokens(null, rows(null));
+    expect(withNote).toBeGreaterThan(without);
+    // And through every function that routes via replayTokens.
+    expect(contextUsedTokens(null, rows(note))).toBeGreaterThan(contextUsedTokens(null, rows(null)));
+  });
+
+  it("can be what tips a conversation over the compaction line", () => {
+    // needsCompaction short-circuits at rows.length <= COMPACT_TAIL, so this
+    // needs a thread longer than the tail to exercise the threshold at all.
+    const long = (review: typeof note | null): ReplayRow[] => [
+      ...Array.from({ length: COMPACT_TAIL + 2 }, (_, i) => ({ id: `m${i}`, role: i % 2 ? "assistant" : "user", content: `message ${i} of the thread` })),
+      { id: "last", role: "assistant", content: "The Governance Scope does.", review },
+    ];
+    const bare = contextUsedTokens(null, long(null), 0);
+    const noted = contextUsedTokens(null, long(note), 0);
+    expect(noted).toBeGreaterThan(bare);
+    // A window where the un-noted thread fits and the noted one does not: the
+    // note is real context, so it must be able to trigger a compaction.
+    const window = Math.floor(noted / COMPACT_RATIO);
+    expect(needsCompaction(null, long(null), window, 0)).toBe(false);
+    expect(needsCompaction(null, long(note), window, 0)).toBe(true);
+  });
+
+  it("a thread of clean answers costs nothing — notes are by exception", () => {
+    expect(replayTokens(null, rows(null))).toBe(replayTokens(null, [
+      { id: "m1", role: "user", content: "who approves budgets?" },
+      { id: "m2", role: "assistant", content: "The Governance Scope does." },
+    ]));
+  });
+
+  it("is dropped by the compaction cursor along with its row", () => {
+    // rowsAfterCursor runs before reviewRound, so a folded answer's note goes
+    // with it: the summary is a durable prefix and verdict text is perishable.
+    expect(rowsAfterCursor(rows(note), "m2")).toEqual([]);
+  });
+});

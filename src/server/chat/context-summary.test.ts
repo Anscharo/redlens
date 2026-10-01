@@ -70,3 +70,29 @@ describe("summarizePrefix", () => {
     expect(seen.length).toBe(500);
   });
 });
+
+// A review note must never reach the summarizer. The summary is a durable,
+// cache-stable prefix and SUMMARY_SYSTEM instructs reporting requests as things
+// SAID — a verifier note folded into it would read back as fact, and it would eat
+// the summary's own char cap. rowPart reads only content + recalls, so this holds
+// by construction; the test is here because "by construction" is one refactor
+// away from false.
+it("never folds a review note into the summary input", async () => {
+  let seen = "";
+  const call: JsonCall = async (req) => {
+    seen = req.messages.map((m) => String(m.content ?? "")).join("\n");
+    return { text: '{"summary":"They asked about budgets."}', usage: { input: 1, output: 1 }, generationId: null, latencyMs: 1 };
+  };
+  const rows: ReplayRow[] = [
+    { id: "m1", role: "user", content: "who approves budgets?" },
+    {
+      id: "m2", role: "assistant", content: "The Governance Scope does.",
+      review: { badge: "failed verification", findings: ["quote not found in any retrieved source: “a quote”"], disputes: [], coverage: null, marks: [] },
+    },
+  ];
+  const out = await summarizePrefix(null, rows, call, "m", 12_000, 1_000);
+  expect(out).toBe("They asked about budgets.");
+  expect(seen).toContain("who approves budgets?");
+  expect(seen).not.toContain("failed verification");
+  expect(seen).not.toContain("quote not found");
+});

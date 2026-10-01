@@ -27,6 +27,8 @@ import type { JsonCall } from "./llm.ts";
 import { summarizePrefix, SUMMARY_MAX_CHARS } from "./context-summary.ts";
 import { convFlags } from "./conv-flags.ts";
 import { replayArguments, type RecallToolCall } from "./tool-recall-card.ts";
+import { reviewRound } from "./review-round.ts";
+import type { ReviewNote } from "./verify/review-note.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -62,6 +64,14 @@ export interface ReplayRow {
   role: string;
   content: string;
   toolCalls?: RecallToolCall[] | null;
+  /**
+   * The check results the USER saw under this answer (verify/review-note.ts).
+   * Purely additive and deliberately NOT read by historyReplay or rowPart: the
+   * history prefix stays byte-identical with or without it, and the summarizer
+   * never sees it. It reaches the model only through review-round.ts's one tail
+   * round, which is why `replayTokens` below has to count it separately.
+   */
+  review?: ReviewNote | null;
 }
 
 /**
@@ -131,7 +141,11 @@ function messageChars(m: Msg): number {
 }
 
 export function replayTokens(summary: string | null, rows: ReplayRow[]): number {
-  const msgs = [...(summary ? summaryReplay(summary) : []), ...historyReplay(rows)];
+  // The review round is real context the turn is sent, so it is counted here and
+  // not anywhere else: contextUsedTokens, needsCompaction and planWithinLine all
+  // route through this one function, which is what keeps the meter, the 90%
+  // trigger and the tail sizing a single quantity.
+  const msgs = [...(summary ? summaryReplay(summary) : []), ...historyReplay(rows), ...reviewRound(rows)];
   const chars = msgs.reduce((s, m) => s + messageChars(m), 0);
   return Math.ceil(chars / CHARS_PER_TOKEN);
 }

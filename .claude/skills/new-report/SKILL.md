@@ -166,7 +166,7 @@ uncited normative claims. See CLAUDE.md "Citation dictate".
 
 - Semantic HTML (`<table>`, `<button>`, `<a>`/`<Link>`, headings); `<Link>`/anchors over
   `onNavigate` callbacks for row navigation.
-- Max ~150 lines / ≤3 components per file — split big tables into subcomponents
+- ≤3 components per file and the size limits in CLAUDE.md (`pnpm check:size`). Split big tables into subcomponents.
   (`OGCategoryTable`, `RewardsPrimitiveTable` are examples).
 - **Never hardcode doc_nos as identifiers** — key on UUIDs; doc_nos only in comments.
 - `node:` prefixed stdlib imports in any build-side code.

@@ -35,6 +35,8 @@
 
 ## 2026-10-01
 - Made the light theme the default for new visitors instead of following the device setting
+- Stopped the chat's verification badge from failing an answer for its own summary callouts
+- The chat assistant can now see the verification results and citation marks shown under its earlier answers, so it can explain them when asked
 
 ## 2026-09-30
 - Made previews catch a longer document that was replaced by a different one even when the two share most of their wording

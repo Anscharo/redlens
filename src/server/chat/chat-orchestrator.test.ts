@@ -1494,3 +1494,222 @@ test("answer coverage: the small-talk bypass never reaches it", () =>
       }),
     ),
   ));
+
+// --- Quote-attribution lane: shadow mode must be behaviour-neutral -----------
+// The lane asks Jev whether an ungrounded quoted span is presented as a
+// quotation at all. Its margin has NEVER been measured (402 on the account the
+// bakeoff needs; no DATABASE_URL for the real-traffic false-fire check), so it
+// ships in "shadow": it records a judgement and changes NOTHING. A shadow lane
+// that moves the badge is a bug, not a soft launch — these tests are what say so.
+const CALLOUT_ANSWER = [
+  "Most atlas churn is renumbering rather than substantive change.",
+  "",
+  "Some other framing entirely:",
+  "",
+  "> This sentence appears in no retrieved source at all, and is long enough to be checked.",
+].join("\n");
+
+async function runCallout(): Promise<HarnessDone> {
+  const events = await collect(
+    runVerifiedChat({
+      ix, messages: [userMsg], question: "how much does atlas churn matter?", maxIterations: 3,
+      stream: fakeStream([[textChunk(CALLOUT_ANSWER), finishChunk("stop")]]),
+    }),
+  );
+  return lastDone(events);
+}
+
+test("shadow: the ungrounded span still fails, exactly as it does without the lane", async () => {
+  const realMode = config.chatQuoteAttribution;
+  const realFetch = globalThis.fetch;
+  const realKey = config.openrouterApiKey;
+  try {
+    // Jev would rule this self-authored (p well under the margin). Under `gate`
+    // that would clear the span; under `shadow` it must change nothing.
+    config.openrouterApiKey = "test-key";
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ answers: { quoted: { type: "noul", noul: 0.02 } } }), { status: 200 })) as unknown as typeof fetch;
+
+    config.chatQuoteAttribution = "shadow";
+    const shadow = await runCallout();
+    config.chatQuoteAttribution = "off";
+    const off = await runCallout();
+
+    const verdictOf = (d: HarnessDone) => {
+      const row = d.checksMeta.find((c) => c.kind === "round_checks")!.verdict as { checks: { ungroundedQuotes: string[]; failed: boolean } };
+      return row.checks;
+    };
+    // Severity is identical with the lane on and off, and the span still fails.
+    expect(verdictOf(shadow)).toEqual(verdictOf(off));
+    expect(verdictOf(shadow).failed).toBe(true);
+    expect(verdictOf(shadow).ungroundedQuotes).toHaveLength(1);
+
+    // The judgement IS recorded, with the raw probability and what `gate` would
+    // have done — that record is the entire point of shadow mode.
+    const qa = shadow.checksMeta.find((c) => c.kind === "quote_attribution");
+    expect(qa).toBeDefined();
+    const v = qa!.verdict as { mode: string; judgements: { p: number | null }[]; wouldPromote: string[] };
+    expect(v.mode).toBe("shadow");
+    expect(v.judgements[0].p).toBe(0.02);
+    expect(v.wouldPromote).toEqual([]); // 0.02 < margin → gate would have cleared it
+    // ...and "off" makes no call at all.
+    expect(off.checksMeta.some((c) => c.kind === "quote_attribution")).toBe(false);
+  } finally {
+    config.chatQuoteAttribution = realMode;
+    config.openrouterApiKey = realKey;
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("shadow: a failed Jev call is recorded as null and still changes nothing", async () => {
+  const realMode = config.chatQuoteAttribution;
+  const realFetch = globalThis.fetch;
+  const realKey = config.openrouterApiKey;
+  try {
+    config.openrouterApiKey = "test-key";
+    // 400 is fatal in askJev — no retries, so this stays fast.
+    globalThis.fetch = (async () => new Response("nope", { status: 400 })) as unknown as typeof fetch;
+    config.chatQuoteAttribution = "shadow";
+    const done = await runCallout();
+    const row = done.checksMeta.find((c) => c.kind === "round_checks")!.verdict as { checks: { failed: boolean } };
+    expect(row.checks.failed).toBe(true);
+    const v = done.checksMeta.find((c) => c.kind === "quote_attribution")!.verdict as {
+      judgements: { p: number | null }[]; wouldPromote: string[];
+    };
+    expect(v.judgements[0].p).toBeNull();
+    expect(v.wouldPromote).toEqual([]); // fail-open: a null never promotes
+  } finally {
+    config.chatQuoteAttribution = realMode;
+    config.openrouterApiKey = realKey;
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("the lane is not asked about a span code already settled (tier A)", async () => {
+  const realMode = config.chatQuoteAttribution;
+  const realFetch = globalThis.fetch;
+  const realKey = config.openrouterApiKey;
+  let calls = 0;
+  try {
+    config.openrouterApiKey = "test-key";
+    // The citation-marks and answer-coverage lanes are Jev calls too, so count
+    // only requests carrying THIS lane's question id.
+    globalThis.fetch = (async (_url: any, init: any) => {
+      if (JSON.parse(init.body).questions?.quoted) calls++;
+      return new Response(JSON.stringify({ answers: { quoted: { type: "noul", noul: 0.9 } } }), { status: 200 });
+    }) as typeof fetch;
+    config.chatQuoteAttribution = "shadow";
+    const uuid = ix.docMap.keys().next().value as string;
+    const attributed = [
+      `[Some Doc](/atlas/${uuid}) states:`,
+      "",
+      "> This sentence appears in no retrieved source at all, and is long enough to be checked.",
+    ].join("\n");
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "what does it say?", maxIterations: 3,
+        stream: fakeStream([[textChunk(attributed), finishChunk("stop")]]),
+      }),
+    );
+    const done = lastDone(events);
+    // Attributed + ungrounded is the real crime: pure code, no model consulted.
+    expect(calls).toBe(0);
+    expect(done.checksMeta.some((c) => c.kind === "quote_attribution")).toBe(false);
+    const row = done.checksMeta.find((c) => c.kind === "round_checks")!.verdict as { checks: { failed: boolean } };
+    expect(row.checks.failed).toBe(true);
+  } finally {
+    config.chatQuoteAttribution = realMode;
+    config.openrouterApiKey = realKey;
+    globalThis.fetch = realFetch;
+  }
+});
+
+// toolTextsOf is what feeds findUngroundedAddresses and findUntracedNumbers, and
+// it took every role:"tool" content — so an address or figure that appeared ONLY
+// in the review round counted as retrieved. verifier.ts:213-226 refuses that round
+// as evidence for the model audit ("the conservative direction"); this silently
+// undid it for the code checks. Closed 2026-10-01.
+//
+// NOTE the quote check was never affected: it reads evidenceSplit.atlasTexts,
+// built by splitFromTranscript -> evidenceFromTranscript, which already excluded
+// the round. An address is the right probe precisely because it cannot be
+// paraphrased or derived — it is copied from a tool result or invented.
+test("an address seen only in the review round is not grounded", async () => {
+  const ADDR = "0x1f2e3d4c5b6a79889776655443322110aabbccdd";
+  const reviewMsgs: Msg[] = [
+    {
+      role: "assistant", content: null,
+      tool_calls: [{ id: "call_review_notes", type: "function", function: { name: "atlas_review_notes", arguments: "{}" } }],
+    },
+    { role: "tool", tool_call_id: "call_review_notes", content: `Atlas text it was flagged against: "the multisig at ${ADDR}"` },
+  ];
+  const events = await collect(
+    runVerifiedChat({
+      ix, messages: [userMsg, ...reviewMsgs], question: "are you sure about that flag?", maxIterations: 3,
+      stream: fakeStream([[textChunk(`You are right — the multisig is ${ADDR}.`), finishChunk("stop")]]),
+    }),
+  );
+  const row = lastDone(events).checksMeta.find((c) => c.kind === "round_checks")!.verdict as {
+    checks: { ungroundedAddresses: string[]; failed: boolean };
+  };
+  expect(row.checks.ungroundedAddresses).toEqual([ADDR]);
+  expect(row.checks.failed).toBe(true);
+});
+
+// `gate` was documented as "promotes on P >= margin" and did nothing — the
+// judgements were recorded and ungroundedQuotes was never filtered (PR #436
+// review). These assert the mode is real, so flipping it can never again be a
+// silent no-op.
+//
+// Asserted on the EMITTED verify_result, not the round_checks row: that row is
+// pushed before answer_final and is the raw deterministic finding, deliberately
+// pre-gate (the quote_attribution row records what the lane then did with it).
+// The event is what the reader sees.
+async function calloutEventsIn(mode: "shadow" | "gate" | "off", noul: number | null): Promise<HarnessEvent[]> {
+  const realMode = config.chatQuoteAttribution;
+  const realFetch = globalThis.fetch;
+  const realKey = config.openrouterApiKey;
+  try {
+    config.openrouterApiKey = "test-key";
+    globalThis.fetch = (async (_u: any, init: any) => {
+      if (noul === null) return new Response("nope", { status: 400 }); // fatal in askJev: no retries
+      const body = JSON.parse(init.body);
+      if (!body.questions?.quoted) return new Response(JSON.stringify({ answers: {} }), { status: 200 });
+      return new Response(JSON.stringify({ answers: { quoted: { type: "noul", noul } } }), { status: 200 });
+    }) as unknown as typeof fetch;
+    config.chatQuoteAttribution = mode;
+    return await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "how much does atlas churn matter?", maxIterations: 3,
+        stream: fakeStream([[textChunk(CALLOUT_ANSWER), finishChunk("stop")]]),
+      }),
+    );
+  } finally {
+    config.chatQuoteAttribution = realMode;
+    config.openrouterApiKey = realKey;
+    globalThis.fetch = realFetch;
+  }
+}
+const verifyOf = (evs: HarnessEvent[]) => evs.find((e) => e.type === "verify_result") as undefined | { overall: string; ungroundedQuotes: string[] };
+
+test("gate: a span the model says is NOT presented as a quotation stops failing the turn", async () => {
+  // No verifier model is configured here, so emitVerify reduces to checks.failed:
+  // a cleared span means no badge at all, which is exactly the user-visible change.
+  expect(verifyOf(await calloutEventsIn("gate", 0.02))).toBeUndefined();
+  // The same answer and the same judgement in shadow still fails — the whole
+  // point of the mode being a mode.
+  const shadowed = verifyOf(await calloutEventsIn("shadow", 0.02));
+  expect(shadowed?.overall).toBe("fail");
+  expect(shadowed?.ungroundedQuotes).toHaveLength(1);
+});
+
+test("gate: a span the model says IS presented as a quotation still fails", async () => {
+  const gated = verifyOf(await calloutEventsIn("gate", 0.99));
+  expect(gated?.overall).toBe("fail");
+  expect(gated?.ungroundedQuotes).toHaveLength(1);
+});
+
+test("gate: a failed judgement is fail-open — a null never clears a span", async () => {
+  const gated = verifyOf(await calloutEventsIn("gate", null));
+  expect(gated?.overall).toBe("fail");
+});

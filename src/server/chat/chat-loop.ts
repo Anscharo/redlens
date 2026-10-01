@@ -24,6 +24,7 @@ import { ASK_EXTERNAL_MSC, runAskExternalMsc } from "./tools/external-tools.ts";
 import { isExternalMscTool } from "../external/envelope.ts";
 import { isUserTeachingTool } from "./teach/inject.ts";
 import { isRepetitionLoop } from "./repetition-guard.ts";
+import { isReviewRound } from "./review-round.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type Chunk = OpenAI.Chat.Completions.ChatCompletionChunk;
@@ -206,6 +207,12 @@ export function exportEvidence(msgs: Msg[]): ExportEvidence {
     if (typeof m.content !== "string") continue;
     if (m.role === "tool") {
       if (teachingIds.has(m.tool_call_id)) continue;
+      // The review round (review-round.ts) is verifier output about this
+      // conversation, not atlas text — and an exported file is held to the
+      // STRICTEST reading of CLAUDE.md's citation dictate, so certifying a quote
+      // against a check result is the worst place for it. Excluded here for the
+      // same reason the teach notes above are.
+      if (isReviewRound(m.tool_call_id)) continue;
       (externalIds.has(m.tool_call_id) ? externalTexts : atlasTexts).push(m.content);
     } else if (m.role === "assistant") atlasTexts.push(m.content);
   }

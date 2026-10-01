@@ -116,5 +116,5 @@ unilaterally.
 - `pnpm exec tsc -b` clean; verify UI by screenshot against the dev server; shape
   changes to `CrossViewData` update the types in `src/lib/crossview.ts` + the
   `crossviewShape.test.ts` expectations in the same commit.
-- Max ~150 lines/file, ≤3 components/file; `node:` import prefix; semantic HTML; CSS over
+- the size limits in CLAUDE.md (`pnpm check:size`), ≤3 components/file; `node:` import prefix; semantic HTML; CSS over
   JS for hover/click.

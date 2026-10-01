@@ -17,6 +17,7 @@ import {
   findUngroundedCitationValues,
   findUntracedNumbers,
   findUngroundedQuotes,
+  findUngroundedQuoteSpans,
   claimSegments,
   findMscCitedAsAtlas,
   runDeterministicChecks,
@@ -811,4 +812,202 @@ test("a verbatim LaTeX quote matches its JSON-encoded evidence (backslashes and 
   expect(findUngroundedQuotes(answer, evidence, ix)).toEqual([]);
   // Symmetry must not make an invented formula pass.
   expect(findUngroundedQuotes('The atlas defines it as "$\\text{RRC} = k \\times \\text{EAD} \\div \\text{Gold reserves}$" here.', evidence, ix)).toHaveLength(1);
+});
+
+// --- Incident fixtures: plain-prose self-authored callouts (2026-10-01) -------
+// Three live hard-failures from one answer about atlas churn. The model used
+// blockquotes as CALLOUTS, each introduced by a lead-in that names itself as the
+// author ("The practical lesson is:"), and each was scored as invented atlas
+// text. isSelfAuthoredCallout missed all three: it requires >=90% of the line to
+// be bold, and these are plain prose. A human reader would not read any of them
+// as atlas attribution.
+const CALLOUT_LEAD_INS = [
+  "The practical lesson is:",
+  "But it has an important practical consequence:",
+  "The central conclusion is:",
+];
+
+test("a plain-prose blockquote callout after a self-authorship lead-in is not a quotation", () => {
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  for (const lead of CALLOUT_LEAD_INS) {
+    const answer = [
+      "Most atlas churn is renumbering rather than substantive change.",
+      "",
+      lead,
+      "",
+      "> Treat a changed document number as a label change until the body digest moves as well.",
+    ].join("\n");
+    expect(findUngroundedQuotes(answer, evidence, ix)).toEqual([]);
+  }
+});
+
+test("an attributed blockquote whose text is absent from the evidence still hard-fails", () => {
+  // The other half of the same change: when the lead-in BOTH names a source and
+  // asserts it says this, an unmatched span is the real crime and stays a pure
+  // deterministic failure with no model in the loop.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const answer = [
+    `[Stability Scope](/atlas/${realUuid}) states:`,
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuotes(answer, evidence, ix)).toHaveLength(1);
+});
+
+test("a self-authorship lead-in that CITES a source does not excuse the blockquote", () => {
+  // The exemption is a conjunction. Once the lead-in names a document the author
+  // is attributing, however they phrase the rest of the line, so an invented
+  // passage under it must still be caught.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const cited = [
+    `Per [Stability Scope](/atlas/${realUuid}), the central conclusion is:`,
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuotes(cited, evidence, ix)).toHaveLength(1);
+  // A doc_no in the lead-in counts as a citation too.
+  const docNo = [
+    "Reading A.2.4.1, the bottom line is:",
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuotes(docNo, evidence, ix)).toHaveLength(1);
+});
+
+test("the lead-in applies to a whole blockquote block, and does not leak past it", () => {
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  // Two lines of ONE block, both exempt from the single lead-in above them.
+  const block = [
+    "The practical lesson is:",
+    "",
+    "> Renumbering is not a substantive change to a document.",
+    "> Compare body digests before you treat a move as an edit.",
+  ].join("\n");
+  expect(findUngroundedQuotes(block, evidence, ix)).toEqual([]);
+  // A later block under ordinary prose is NOT covered by the earlier lead-in.
+  const later = [
+    "The practical lesson is:",
+    "",
+    "> Renumbering is not a substantive change to a document.",
+    "",
+    "The atlas is explicit about seizure:",
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuotes(later, evidence, ix)).toHaveLength(1);
+});
+
+// --- Tier split: what code can settle vs what needs a model -------------------
+test("tier A — a lead-in that names a source AND asserts it says this", () => {
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const attributed = [
+    `[Stability Scope](/atlas/${realUuid}) states:`,
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  const spans = findUngroundedQuoteSpans(attributed, evidence, ix);
+  expect(spans).toHaveLength(1);
+  expect(spans[0].attributed).toBe(true);
+});
+
+test("tier B — naming a document without asserting its contents is not attribution", () => {
+  // The distinction the regex could not make, and the reason the hard half is
+  // narrow: "covers" describes a document, "states:" quotes from it.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const describes = [
+    `[Stability Scope](/atlas/${realUuid}) covers the protocol rates in detail.`,
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  const spans = findUngroundedQuoteSpans(describes, evidence, ix);
+  expect(spans).toHaveLength(1);
+  expect(spans[0].attributed).toBe(false);
+});
+
+test("tier B — an unattributed blockquote, and an assertion with no source named", () => {
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const bare = "> Facilitators may unilaterally seize treasury funds whenever convenient.";
+  expect(findUngroundedQuoteSpans(bare, evidence, ix)[0].attributed).toBe(false);
+  // An assertion verb with no citation is still tier B: "the atlas says" names no
+  // document, so code cannot check it against anything in particular.
+  const noCite = ["The atlas states:", "", bare].join("\n");
+  expect(findUngroundedQuoteSpans(noCite, evidence, ix)[0].attributed).toBe(false);
+});
+
+test("a negated lead-in is an absence claim, never an attribution", () => {
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const denied = [
+    `[Stability Scope](/atlas/${realUuid}) does not state:`,
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuoteSpans(denied, evidence, ix)[0].attributed).toBe(false);
+});
+
+test("a grounded quote is not a span at either tier", () => {
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const good = [
+    `[Stability Scope](/atlas/${realUuid}) states:`,
+    "",
+    "> The Stability Scope governs the protocol rates for all instances.",
+  ].join("\n");
+  expect(findUngroundedQuoteSpans(good, evidence, ix)).toEqual([]);
+});
+
+// --- Review findings on PR #436 (2026-10-01) ---------------------------------
+// All three were confirmed by probe before being fixed; each failed first.
+
+test("tier A reads only the LEAD-IN, never the quoted text or what follows it", () => {
+  // The lead-in was `${leadIn}\n${quotedLine}`, so ASSERTION_VERB and
+  // CITATION_MARKER matched words INSIDE the span. A self-authored callout that
+  // happens to contain `required`/`requires` and a citation was therefore classed
+  // tier A — a deterministic hard failure that never reaches the model, which is
+  // precisely the bug this whole change exists to remove, reintroduced for cited
+  // callouts.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const inQuote = [
+    "Here is how it plays out for operators:",
+    "",
+    `> A Prime Agent is required to reconcile before the cycle closes, per [A.2.1](/atlas/${realUuid}).`,
+  ].join("\n");
+  expect(findUngroundedQuoteSpans(inQuote, evidence, ix)[0].attributed).toBe(false);
+
+  // Same for an inline quote whose assertion verb and citation sit AFTER it —
+  // the answer says "My own summary", so it is the opposite of attribution.
+  const after = `My own summary: "operators reconcile the cycle before it closes and publish the result" — which requires [A.2.1](/atlas/${realUuid}).`;
+  expect(findUngroundedQuoteSpans(after, evidence, ix)[0].attributed).toBe(false);
+
+  // And the genuine shape still is tier A.
+  const real = [`[Stability Scope](/atlas/${realUuid}) states:`, "", "> Facilitators may seize treasury funds whenever convenient."].join("\n");
+  expect(findUngroundedQuoteSpans(real, evidence, ix)[0].attributed).toBe(true);
+});
+
+test("a self-authorship phrase does not excuse a lead-in that asserts the source says this", () => {
+  // The exemption dropped the span from grounding ENTIRELY, not just from tier A,
+  // and matched anywhere in the lead-in — so "The atlas text, in short, reads:"
+  // over a fabricated quote was never checked at all and would have passed.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const smuggled = [
+    "The atlas text, in short, reads:",
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuoteSpans(smuggled, evidence, ix)).toHaveLength(1);
+
+  // The real incidents must still be exempt: no assertion verb, no citation.
+  for (const lead of CALLOUT_LEAD_INS) {
+    const answer = [lead, "", "> Treat a changed document number as a label change until the body digest moves."].join("\n");
+    expect(findUngroundedQuoteSpans(answer, evidence, ix)).toEqual([]);
+  }
+});
+
+test("the self-authorship phrase must introduce the quote, not merely appear earlier", () => {
+  // It matched anywhere in what can be a long paragraph tail.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const buried = [
+    "My read of the rewards section is that it is mostly settled. Turning to seizure, the document is explicit:",
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuoteSpans(buried, evidence, ix)).toHaveLength(1);
 });
