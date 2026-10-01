@@ -17,6 +17,7 @@ import { config } from "../config.ts";
 import { createRoundChecker } from "./verify/round-checks.ts";
 import { runDeterministicChecks, findUngroundedQuoteSpans, type CheckReport } from "./verify/verify-checks.ts";
 import { judgeQuoteAttribution, spansPresentedAsQuotation } from "./verify/quote-attribution.ts";
+import { isReviewRound } from "./review-round.ts";
 import { findParamsMentioned, type ParamMismatch } from "./verify/param-checks.ts";
 import type { CompletenessEvidence } from "./verify/completeness.ts";
 import { createLinkJudge, displayText, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
@@ -301,8 +302,16 @@ function repairedChecks(
   return { ...checks, lengthCapped, failed: true };
 }
 
+// Every real tool result, and NOT the synthetic review round. That round carries
+// verifier output about this same conversation, including a truncated atlas span
+// per flag, so leaving it in let the deterministic checks certify a quote against
+// the verifier's own excerpt — exactly what verifier.ts:213-226 deliberately
+// refuses to do for the model audit ("the conservative direction"). It was in here
+// until 2026-10-01 because this filter predates the synthetic round entirely.
 const toolTextsOf = (transcript: Msg[]): string[] =>
-  transcript.filter((m) => m.role === "tool" && typeof m.content === "string").map((m) => m.content as string);
+  transcript
+    .filter((m) => m.role === "tool" && typeof m.content === "string" && !isReviewRound(m.tool_call_id))
+    .map((m) => m.content as string);
 
 function splitFromTranscript(transcript: Msg[]): { atlasTexts: string[]; externalTexts: string[] } {
   const entries = evidenceFromTranscript(transcript, 500_000);

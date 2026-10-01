@@ -37,7 +37,16 @@ import {
 } from "./context-overflow.ts";
 import { attachRecall } from "./tool-recall.ts";
 import type { RecallToolCall } from "./tool-recall-card.ts";
-import { agreedContradictionsFrom } from "./verify/disputes.ts";
+import { reviewNoteFromChecks, type ReviewNote } from "./verify/review-note.ts";
+import { REVIEW_LOOKBACK } from "./review-round.ts";
+
+/** One message_checks row, carrying the message it belongs to. */
+interface CheckRowWithMessage {
+  message_id: string;
+  kind: string;
+  verdict: unknown;
+  overall: string | null;
+}
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
 import { getWindowUsage } from "../rate-limit.ts";
@@ -209,7 +218,7 @@ export async function handleChat(req: Request): Promise<Response> {
     await sql`INSERT INTO messages (conversation_id, role, content) VALUES (${convId}, 'user', ${body.message})`;
     // The prior assistant answer's verify verdict (message_checks kind='verify'),
     // if any — read alongside the history SELECT so the dispute round
-    // (dispute-round.ts, via prepareTurn below) costs no extra round trip.
+    // (review-round.ts, via prepareTurn below) costs no extra round trip.
     // The LIMIT 1 sits in the SUBQUERY, not outside the join, and that is
     // load-bearing: an INNER JOIN written flat would skip assistant messages
     // that have NO verify row and hand back an OLDER answer's verdict. Not
@@ -224,29 +233,46 @@ export async function handleChat(req: Request): Promise<Response> {
     // AFTER the stream's `done`, so a user who sends their next message while
     // that write is still in flight gets no injection for THIS one turn —
     // degrades to today's behaviour (no dispute round at all), never worse.
-    const [historyRows, convState, lastVerify] = (await Promise.all([
+    const [historyRows, convState, checkRows] = (await Promise.all([
       sql`SELECT id, role, content, tool_calls FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
       // updated_at bump + the compaction cursor in one statement: the summary
       // columns live on the row this UPDATE already touches, so reading them
       // back costs nothing and saves a fourth round-trip per turn.
       sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId} RETURNING summary, summary_upto_id`,
+      // The check rows the USER SAW, for the newest REVIEW_LOOKBACK answers.
+      // Deliberately NOT a join onto the history SELECT above: message_checks has
+      // several kinds per message, so joining there would multiply history rows,
+      // and leaving that query byte-identical keeps its test mock untouched.
+      // The LIMIT stays inside the subquery — applied to the join it would cap
+      // ROWS, not answers, and silently drop an answer's findings.
       sql`
-        SELECT mc.verdict FROM (
+        SELECT mc.message_id, mc.kind, mc.verdict, mc.overall FROM (
           SELECT id FROM messages
           WHERE conversation_id = ${convId} AND role = 'assistant'
-          ORDER BY created_at DESC LIMIT 1
+          ORDER BY created_at DESC LIMIT ${REVIEW_LOOKBACK}
         ) m
-        JOIN message_checks mc ON mc.message_id = m.id AND mc.kind = 'verify'
-      `.catch(() => [] as { verdict: unknown }[]),
+        JOIN message_checks mc ON mc.message_id = m.id
+         AND mc.kind IN ('verify', 'round_checks', 'answer_coverage', 'citation_check')
+      `.catch(() => [] as CheckRowWithMessage[]),
     ])) as [
       { id: string; role: string; content: string; tool_calls: RecallToolCall[] | null }[],
       { summary: string | null; summary_upto_id: string | null }[],
-      { verdict: unknown }[],
+      CheckRowWithMessage[],
     ];
-    const disputes = agreedContradictionsFrom(lastVerify[0]?.verdict);
+    // One note per message, built through the same readers the browser uses on
+    // reload (verify/review-note.ts), so the model and the reader cannot disagree
+    // about what the badge said.
+    const notesByMessage = new Map<string, ReviewNote | null>();
+    for (const row of checkRows) {
+      if (notesByMessage.has(row.message_id)) continue;
+      notesByMessage.set(row.message_id, reviewNoteFromChecks(checkRows.filter((r) => r.message_id === row.message_id)));
+    }
     let summary = convState[0]?.summary ?? null;
     let history: ReplayRow[] = rowsAfterCursor(
-      historyRows.map((r) => ({ id: r.id, role: r.role, content: r.content, toolCalls: r.tool_calls })),
+      historyRows.map((r) => ({
+        id: r.id, role: r.role, content: r.content, toolCalls: r.tool_calls,
+        review: notesByMessage.get(r.id) ?? null,
+      })),
       convState[0]?.summary_upto_id,
     );
     // Trace id is minted here so a compaction call (rare — only the turn that
@@ -306,12 +332,12 @@ export async function handleChat(req: Request): Promise<Response> {
     // Everything the model reads before its first token — Jev judgement, tier
     // routing, system prompt, full history (plus a stable summary once the
     // thread has been compacted), facts round, Jev-filtered /teach notes, the
-    // dispute round — assembled by the one function the tool-choice eval also
+    // review round — assembled by the one function the tool-choice eval also
     // runs (turn-setup.ts). /teach never reaches any of it, so it never runs
     // one: no judgement, no routing (reason "teach"), no model input.
     const turn = teachCmd
       ? null
-      : await prepareTurn({ ix, message: body.message, history, summary, pageContext: body.pageContext, teachHits, disputes });
+      : await prepareTurn({ ix, message: body.message, history, summary, pageContext: body.pageContext, teachHits });
     const route = turn?.route ?? TEACH_ROUTE;
     // Counted over the STORED rows, not the replayed ones: titling fires on
     // turns 1/4/10 of a conversation's life, and `history` drops everything a
@@ -361,8 +387,17 @@ export async function handleChat(req: Request): Promise<Response> {
     // needsCompaction uses — a number that only grows until a fold, rather than
     // the measured prompt of one round, which rises with a turn's tool results
     // and drops again on the next turn that needs none.
-    const usedAfter = (answer: string, toolCalls: RecallToolCall[]): number =>
-      contextUsedTokens(summary, [...history, { role: "assistant", content: answer, toolCalls }]);
+    // `checksMeta` is this turn's own check rows, so the answer just produced
+    // carries its own review note into the meter — otherwise the number would
+    // jump on the NEXT turn, when the stored rows finally become readable.
+    const usedAfter = (answer: string, toolCalls: RecallToolCall[], checksMeta: CheckRowMeta[] = []): number =>
+      contextUsedTokens(summary, [
+        ...history,
+        {
+          role: "assistant", content: answer, toolCalls,
+          review: reviewNoteFromChecks(checksMeta.map((c) => ({ kind: c.kind, verdict: c.verdict, overall: c.overall }))),
+        },
+      ]);
 
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
@@ -397,7 +432,7 @@ export async function handleChat(req: Request): Promise<Response> {
               checksMeta: [],
             };
             send({ type: "answer_final", content: done.content });
-            send({ ...sanitizeDone(done), contextUsed: usedAfter(done.content, []) });
+            send({ ...sanitizeDone(done), contextUsed: usedAfter(done.content, [], done.checksMeta) });
             if (!req.signal.aborted) {
               await persistAssistant(userId, convId, done, Date.now() - startedAt, obs);
               const TITLE_AT_TURNS = new Set([1, 4, 10]);
@@ -455,7 +490,7 @@ export async function handleChat(req: Request): Promise<Response> {
               // what persistAssistant stores — so the size the meter reports
               // is the size the next turn actually replays.
               carded = done.toolCalls.length ? attachRecall(done.toolCalls, done.transcript) : [];
-              send({ ...sanitizeDone(done), contextUsed: usedAfter(done.content, carded) });
+              send({ ...sanitizeDone(done), contextUsed: usedAfter(done.content, carded, done.checksMeta) });
             } else {
               send(ev);
             }

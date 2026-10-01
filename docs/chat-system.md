@@ -794,29 +794,62 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   skips recall ids (`rcall` plus 20 hex, or an older `rcall_` id), so a card cannot ground a quote — the answerer
   still has to retrieve the document on the turn that cites it.
   `priorTurnsEvidence` still hands the verifier earlier answers as `[E-prev]`.
-- **The one thing about a prior turn that IS replayed: its disputes**
-  (2026-09-24, `dispute-round.ts`). When the previous assistant answer carries
-  *agreed* contradictions, `prepareTurn` injects them as their own synthetic
-  tool round. Without it a follow-up like "are you sure about that dispute?"
-  had nothing to reason from — the flag was rendered for the user and was
-  invisible to the model, which answered by asking the user to paste the quote
-  back (observed 2026-09-24). It rides its own round rather than being appended
-  to the prior assistant `content` for two reasons: the model reads its own
-  `content` as its own prose, and `title.ts` reads assistant `content` verbatim.
-  Two rules the copy and the plumbing enforce together. The block states it is a
-  *check result, not a ruling* and warns that the check reads sentences in
+- **What a prior turn replays: the check results the user can SEE**
+  (2026-09-24 as disputes only; generalized 2026-10-01, `review-round.ts` +
+  `verify/review-note.ts`). The browser renders a verification badge and its
+  findings, the Sources chips and an answer-coverage line under every answer;
+  the replay carried none of it, because `chat.ts`'s history SELECT reads four
+  columns. So a user pointing at the screen ("why was verification failed?") was
+  asking about something the model had never seen, and it answered with
+  speculation — observed twice: once as a dispute the model asked the user to
+  paste back (2026-09-24), once as three guesses and a clarifying question that
+  only became a correct answer after the user pasted the failure text in by hand.
+  One note per answer is built from the stored `message_checks` rows **through the
+  same readers the browser uses on reload** (`restoreVerify` recomputes
+  `computeOverall` rather than trusting the stored `overall`), so the model and the
+  reader cannot disagree about what the badge said. The findings' wording is not
+  re-authored: `describeFindings` already mirrors `VerifyFindings.tsx` sentence for
+  sentence and is reused.
+  Listed **by exception**, because most answers pass: the newest answer gets a
+  full block (badge, findings, ≤3 agreed contradictions, coverage, the chips that
+  are not a plain ✓) and older ones a single ≤240-char digest line; a passing
+  badge on an older answer is omitted and the lead says so. Bounded at
+  `REVIEW_ROUND_MAX_CHARS` = 8,000 (~2,000 tokens, ≤1.25% of the replay budget)
+  with digests dropped oldest-first, and **O(1) in thread length** — which is why
+  it is one tail round rather than an annotation per row. Answers are anchored by
+  ordinal-from-latest plus a 60-char lead of their own text, never by message id:
+  `ReplayRow.id` exists only as the compaction cursor and never reaches the model.
+  It rides its own round rather than being appended to the prior assistant
+  `content` for three reasons: the model reads its own `content` as its own prose,
+  `priorTurnsEvidence` treats assistant content as evidence (so a note there would
+  ground the answer it audits), and `title.ts` reads assistant `content` verbatim.
+  Two rules the copy and the plumbing enforce together. The block states these are
+  *check results, not rulings* and warns that the checks read sentences in
   isolation and can misread pronoun antecedents — the originating case was a
   flag that was itself probably wrong ("who is *they*") — so the model can push
-  back instead of capitulating. And it is **excluded from evidence entirely**
-  (`verifier.ts`'s `isDisputeRound`): it quotes the model's own flagged sentence
-  verbatim, so leaving it classified as evidence would let quote-grounding
-  certify the very sentence the harness disputed the moment the model repeated
-  it. `sourceClass: "reference"` would not have been enough — that class is
-  pooled with atlas. The query reads the verdict of *the* last assistant
-  message, with `LIMIT 1` inside the subquery rather than outside an inner join:
-  a flat join skips unaudited answers (the small-talk bypass writes no `verify`
-  row) and would hand back a stale dispute under the heading "your previous
-  answer".
+  back instead of capitulating. And it is **excluded from evidence entirely**, at
+  **four** sites via one shared `isReviewRound` predicate: `verifier.ts`
+  (both `evidenceFromTranscript` and `evidenceFromResults`), `tool-recall.ts`'s
+  `SYNTHETIC_TOOL_IDS`, `chat-orchestrator.ts`'s `toolTextsOf`, and
+  `chat-loop.ts`'s `exportEvidence`. Only the first two excluded the dispute round
+  it replaces; the other two **leaked** until 2026-10-01, so an address or figure
+  appearing only in the round counted as retrieved (the quote check was never
+  affected — it reads `evidenceSplit.atlasTexts`, built by `splitFromTranscript`,
+  which already excluded it). `sourceClass: "reference"` would not have been
+  enough — that class is pooled with atlas.
+  The query reads the newest `REVIEW_LOOKBACK` = 12 answers' rows for the four
+  kinds a note needs, with the `LIMIT` inside the subquery rather than outside an
+  inner join: applied to the join it would cap ROWS, not answers, and several
+  kinds exist per message, so an answer's findings would be silently dropped. It
+  is deliberately NOT a join onto the history SELECT (that would multiply history
+  rows) and it keeps its `.catch(() => [])`, so a DB error degrades to "no
+  ledger". It is **counted by `replayTokens`**, so the meter, the 90% compaction
+  trigger and the tail sizing stay one quantity — and `conversations.ts`'s
+  `toReplayRow` sets it too, or a reopened thread would meter low. Compaction
+  **strips** it: `rowsAfterCursor` drops folded rows before the round is built and
+  `rowPart` reads only content + recalls, so the summarizer never sees a verdict
+  (it would read back as fact, and eat the summary's char cap). Accepted gap: a
+  question about a badge on an answer older than the tail gets speculation again.
 - **A document's edit history is not its content** (2026-09-28,
   `verifier.ts`'s `HISTORY_TOOLS`). The six registry tools that return commit
   metadata — `atlas_history`, `atlas_recent_changes`, `atlas_history_stats`,

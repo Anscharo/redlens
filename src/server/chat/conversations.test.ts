@@ -431,6 +431,32 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
     expect(body.contextTokens).toBeGreaterThan(CONTEXT_OVERHEAD_TOKENS + 200);
   });
 
+  // The review round is real context the next turn is sent, so the meter here has
+  // to include it or a reopened conversation reads lower than the turn it is about
+  // to send. toReplayRow is where that is easy to forget.
+  it("counts the review note in the meter, so reopening still matches the live turn", async () => {
+    const token = await authed();
+    seedConversation({ id: "c-note", user_id: "user-1" });
+    seedMessage({ conversation_id: "c-note", role: "user", content: "who approves budgets?" });
+    const assistant = seedMessage({ conversation_id: "c-note", role: "assistant", content: "The Governance Scope does." });
+    seedVerifyCheck(assistant.id, {
+      overall: "fail",
+      contradictions: [{ answer_span: "The fee is 10 bps.", evidence_span: "The fee is 8 bps.", uuid: "doc-c", agreed: true }],
+    });
+
+    const withNote = (await (await handleConversations(req("/api/chat/conversations/c-note", { cookie: token }))).json()) as {
+      contextTokens: number;
+    };
+    // The same conversation with no check row at all is the control.
+    seedConversation({ id: "c-bare", user_id: "user-1" });
+    seedMessage({ conversation_id: "c-bare", role: "user", content: "who approves budgets?" });
+    seedMessage({ conversation_id: "c-bare", role: "assistant", content: "The Governance Scope does." });
+    const bare = (await (await handleConversations(req("/api/chat/conversations/c-bare", { cookie: token }))).json()) as {
+      contextTokens: number;
+    };
+    expect(withNote.contextTokens).toBeGreaterThan(bare.contextTokens);
+  });
+
   it("drops folded rows and counts the summary in their place", async () => {
     const token = await authed();
     seedConversation({ id: "c-2", user_id: "user-1" });

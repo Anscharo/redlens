@@ -1623,3 +1623,35 @@ test("the lane is not asked about a span code already settled (tier A)", async (
     globalThis.fetch = realFetch;
   }
 });
+
+// toolTextsOf is what feeds findUngroundedAddresses and findUntracedNumbers, and
+// it took every role:"tool" content — so an address or figure that appeared ONLY
+// in the review round counted as retrieved. verifier.ts:213-226 refuses that round
+// as evidence for the model audit ("the conservative direction"); this silently
+// undid it for the code checks. Closed 2026-10-01.
+//
+// NOTE the quote check was never affected: it reads evidenceSplit.atlasTexts,
+// built by splitFromTranscript -> evidenceFromTranscript, which already excluded
+// the round. An address is the right probe precisely because it cannot be
+// paraphrased or derived — it is copied from a tool result or invented.
+test("an address seen only in the review round is not grounded", async () => {
+  const ADDR = "0x1f2e3d4c5b6a79889776655443322110aabbccdd";
+  const reviewMsgs: Msg[] = [
+    {
+      role: "assistant", content: null,
+      tool_calls: [{ id: "call_review_notes", type: "function", function: { name: "atlas_review_notes", arguments: "{}" } }],
+    },
+    { role: "tool", tool_call_id: "call_review_notes", content: `Atlas text it was flagged against: "the multisig at ${ADDR}"` },
+  ];
+  const events = await collect(
+    runVerifiedChat({
+      ix, messages: [userMsg, ...reviewMsgs], question: "are you sure about that flag?", maxIterations: 3,
+      stream: fakeStream([[textChunk(`You are right — the multisig is ${ADDR}.`), finishChunk("stop")]]),
+    }),
+  );
+  const row = lastDone(events).checksMeta.find((c) => c.kind === "round_checks")!.verdict as {
+    checks: { ungroundedAddresses: string[]; failed: boolean };
+  };
+  expect(row.checks.ungroundedAddresses).toEqual([ADDR]);
+  expect(row.checks.failed).toBe(true);
+});

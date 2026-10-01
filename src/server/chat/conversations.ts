@@ -20,6 +20,7 @@ import {
   type VerifyOut,
   type AnswerCoverageOut,
 } from "./verify/persisted-verdict.ts";
+import { reviewNoteFrom, type ReviewNote } from "./verify/review-note.ts";
 
 
 
@@ -248,9 +249,19 @@ function toolCallsForClient(raw: unknown): unknown {
   });
 }
 
-/** A stored row as the replay estimator reads it (content + its lookup cards). */
-function toReplayRow(r: { id: string; role: string; content: string; tool_calls: unknown }): ReplayRow {
-  return { id: r.id, role: r.role, content: r.content, toolCalls: (r.tool_calls ?? null) as RecallToolCall[] | null };
+/**
+ * A stored row as the replay estimator reads it (content + its lookup cards +
+ * the review note the next turn will replay).
+ *
+ * The note HAS to be here, not just on the live path: contextUsedTokens counts
+ * the review round, so a reopened conversation that omitted it would meter lower
+ * than the turn it is about to send.
+ */
+function toReplayRow(
+  r: { id: string; role: string; content: string; tool_calls: unknown },
+  review: ReviewNote | null = null,
+): ReplayRow {
+  return { id: r.id, role: r.role, content: r.content, toolCalls: (r.tool_calls ?? null) as RecallToolCall[] | null, review };
 }
 
 // DESC-then-resort keeps the NEWEST 200 messages (a plain LIMIT keeps the
@@ -281,6 +292,15 @@ async function getConversation(userId: string, id: string): Promise<Conversation
   const [marksByMessage, checksRows] = await Promise.all([citationMarksFor(assistantIds), checksRowsFor(assistantIds)]);
   const verifyByMessage = verifyFor(checksRows);
   const coverageByMessage = answerCoverageFor(checksRows);
+  // reviewNoteFrom is the formatter half of review-note.ts, taking the values
+  // this function has already restored rather than re-reading the rows — so the
+  // meter here and the round the next turn sends are built from one formatter.
+  const noteFor = (id: string): ReviewNote | null =>
+    reviewNoteFrom({
+      verify: verifyByMessage.get(id) ?? null,
+      coverage: coverageByMessage.get(id) ?? null,
+      marks: marksByMessage.get(id) ?? {},
+    });
   return {
     id: conv.id,
     title: conv.title,
@@ -292,7 +312,7 @@ async function getConversation(userId: string, id: string): Promise<Conversation
     // above: a thread that has never folded and still holds more than 200
     // messages would read low, which needs ~200 short messages — far below the
     // fold line — to happen at all.)
-    contextTokens: contextUsedTokens(conv.summary, rowsAfterCursor(rows.map(toReplayRow), conv.summary_upto_id)),
+    contextTokens: contextUsedTokens(conv.summary, rowsAfterCursor(rows.map((r) => toReplayRow(r, noteFor(r.id))), conv.summary_upto_id)),
     messages: rows.map((r) => {
       const marks = marksByMessage.get(r.id) ?? null;
       const verify = verifyByMessage.get(r.id) ?? null;
