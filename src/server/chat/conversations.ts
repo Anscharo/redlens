@@ -7,7 +7,7 @@ import { getSessionUser } from "../session.ts";
 import { json } from "../http.ts";
 // The context figures here and the compaction trigger must be the SAME
 // arithmetic, or the badge describes a different thread than the one we decide
-// to fold. contextUsedTokens is that one function; CHARS_PER_TOKEN is only for
+// to compact. contextUsedTokens is that one function; CHARS_PER_TOKEN is only for
 // the list, which estimates in SQL rather than loading every row.
 import { CHARS_PER_TOKEN, CONTEXT_OVERHEAD_TOKENS, contextUsedTokens, rowsAfterCursor, type ReplayRow } from "./context-compact.ts";
 import type { RecallToolCall } from "./tool-recall-card.ts";
@@ -78,7 +78,7 @@ interface ConversationDetailOut {
   // The EXACT replay size (contextUsedTokens over this conversation's own rows
   // and cards), where the list settles for a SQL approximation. It seeds the
   // live panel's meter/edge line, so a reopened chat reads the same as the turn
-  // that produced it, and both track the one quantity a fold reacts to.
+  // that produced it, and both track the one quantity a compaction reacts to.
   // Previously the newest row's measured prompt_tokens, which described one
   // past round rather than this conversation.
   contextTokens: number;
@@ -110,8 +110,8 @@ async function listConversations(userId: string): Promise<ConversationListOut[]>
       SELECT c.id, c.title, c.updated_at, count(m.id)::int AS message_count,
         -- Only the rows a turn would REPLAY: everything after the compaction
         -- cursor, plus the summary that stands in for what came before. Summing
-        -- every row instead counted messages already folded away, so a
-        -- compacted conversation read as its pre-fold size forever.
+        -- every row instead counted messages already compacted away, so a
+        -- compacted conversation read as its pre-compaction size forever.
         COALESCE(sum(length(m.content)) FILTER (WHERE cut.at IS NULL OR m.created_at > cut.at), 0)::int
           + COALESCE(length(c.summary), 0)::int AS replay_chars
       FROM conversations c
@@ -255,7 +255,7 @@ function toReplayRow(r: { id: string; role: string; content: string; tool_calls:
 
 // DESC-then-resort keeps the NEWEST 200 messages (a plain LIMIT keeps the
 // oldest) — display-only. The model replays every row until context-compact
-// folds a prefix into conversations.summary.
+// compacts a prefix into conversations.summary.
 async function getConversation(userId: string, id: string): Promise<ConversationDetailOut | null> {
   const owned = (await sql`
     SELECT c.id, c.title, c.updated_at, c.summary, c.summary_upto_id
@@ -289,9 +289,9 @@ async function getConversation(userId: string, id: string): Promise<Conversation
     // gate calls, over the same rows, including each row's lookup cards. So the
     // meter a reopened chat shows is the meter the live turn showed, and both
     // move only when the replay itself does. (Bounded by the 200-row fetch
-    // above: a thread that has never folded and still holds more than 200
+    // above: a thread that has never compacted and still holds more than 200
     // messages would read low, which needs ~200 short messages — far below the
-    // fold line — to happen at all.)
+    // compaction line — to happen at all.)
     contextTokens: contextUsedTokens(conv.summary, rowsAfterCursor(rows.map(toReplayRow), conv.summary_upto_id)),
     messages: rows.map((r) => {
       const marks = marksByMessage.get(r.id) ?? null;

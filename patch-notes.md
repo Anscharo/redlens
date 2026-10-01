@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-01
+- Made the light theme the default for new visitors instead of following the device setting
+
 ## 2026-09-30
 - Made previews catch a longer document that was replaced by a different one even when the two share most of their wording
 - Chat answers and meaning search now come back about two seconds faster
