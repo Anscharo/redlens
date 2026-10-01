@@ -122,7 +122,7 @@ export async function judgeAnswerCoverage(params: {
   const signal = withDeadline(deadlineMs, params.signal);
   try {
     const { state, questions, parts } = buildCoverageRequest(params.question, params.answer);
-    const run = await askJev({ state, questions, model: params.model, signal, timeoutMs: deadlineMs });
+    const run = await askJev({ lane: "answer-coverage", state, questions, model: params.model, signal, timeoutMs: deadlineMs });
     const choice = choiceOf(run, "responds");
     if (!choice) return null; // wrong answer type — a question-definition bug, not a ruling
     const verdict = coverageVerdict(choice.probabilities);

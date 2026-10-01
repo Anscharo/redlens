@@ -218,7 +218,7 @@ export async function screenParagraph(p: {
     if (!req.fits || req.statements.length === 0) return unsent(req);
     const deadlineMs = p.deadlineMs ?? SCREEN_DEADLINE_MS;
     const signal = withDeadline(deadlineMs, p.signal);
-    const run = await askJev({ state: req.state, questions: req.questions, model: p.model, signal, timeoutMs: deadlineMs });
+    const run = await askJev({ lane: "refute-screen", obs: p.obs, state: req.state, questions: req.questions, model: p.model, signal, timeoutMs: deadlineMs });
     return readScreen(req, run);
   } catch (err) {
     // Reported, then null → gemma runs. Shadow mode is a MEASUREMENT phase, so

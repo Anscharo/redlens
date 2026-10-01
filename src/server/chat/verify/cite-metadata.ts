@@ -109,7 +109,7 @@ export async function judgeMetadata(params: {
   const deadlineMs = params.timeoutMs ?? 8000;
   const signal = withDeadline(deadlineMs, params.signal);
   try {
-    const run = await askJev({ state: req.state, questions: req.questions, model: params.model, signal, timeoutMs: deadlineMs });
+    const run = await askJev({ lane: "cite-metadata", state: req.state, questions: req.questions, model: params.model, signal, timeoutMs: deadlineMs });
     const c: JevChoiceAnswer | null = choiceOf(run, "metadata");
     if (!c || !METADATA_VERDICTS.includes(c.choice)) return FAILED;
     return {

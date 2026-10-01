@@ -5,6 +5,8 @@
 // the server honors the param. HNSW caps indexed vectors at 2000 dims — 1024 is
 // safe and load-bearing.
 import { config } from "../config.ts";
+import { captureAiCall } from "../ai-telemetry.ts";
+import { openrouterAttributionHeaders } from "../openrouter-attribution.ts";
 
 // Embedding dimension. A CODE CONSTANT, not env-configurable: it MUST equal the
 // `vector(N)` in migrations/001_init_atlas.sql and the built HNSW index. Changing
@@ -14,6 +16,7 @@ export const EMBED_DIM = 1024;
 
 interface EmbedResponse {
   data: { embedding: number[]; index: number }[];
+  usage?: { prompt_tokens?: number; total_tokens?: number; cost?: number };
 }
 
 function sliceNormalize(vec: number[], dim: number): number[] {
@@ -27,14 +30,23 @@ function sliceNormalize(vec: number[], dim: number): number[] {
 // `signal` lets a caller cancel the request AND its retry loop (the query path
 // races it against a timeout — see search.ts). Without it a timed-out embed
 // would keep fetching/retrying against OpenRouter in the background for ~15s.
-export async function embedBatch(texts: string[], signal?: AbortSignal, attempt = 0): Promise<number[][]> {
+// `surface` is only the PostHog label (embed-query from embedQuery, else the
+// generic embed-batch) so query-time and sync-time embedding spend separate.
+export async function embedBatch(
+  texts: string[],
+  signal?: AbortSignal,
+  attempt = 0,
+  surface = "embed-batch",
+): Promise<number[][]> {
   if (!config.openrouterApiKey) throw new Error("OPENROUTER_API_KEY is not set");
+  const t0 = Date.now();
   try {
     const res = await fetch(`${config.openrouterBaseUrl}/embeddings`, {
       method: "POST",
       headers: {
         authorization: `Bearer ${config.openrouterApiKey}`,
         "content-type": "application/json",
+        ...openrouterAttributionHeaders(),
       },
       body: JSON.stringify({ model: config.embedModel, input: texts, dimensions: EMBED_DIM }),
       signal,
@@ -49,6 +61,14 @@ export async function embedBatch(texts: string[], signal?: AbortSignal, attempt 
     // Map by the response `index` field, not array position.
     const out = new Array<number[]>(texts.length);
     for (const d of json.data) out[d.index] = sliceNormalize(d.embedding, EMBED_DIM);
+    captureAiCall({
+      kind: "embedding",
+      surface,
+      model: config.embedModel,
+      inputTokens: json.usage?.prompt_tokens ?? json.usage?.total_tokens ?? 0,
+      costUsd: json.usage?.cost,
+      latencyMs: Date.now() - t0,
+    });
     return out;
   } catch (err) {
     // Aborted (caller gave up / timed out) or out of retries → stop now; don't
@@ -58,7 +78,7 @@ export async function embedBatch(texts: string[], signal?: AbortSignal, attempt 
     console.warn(`  embed retry ${attempt + 1} in ${wait}ms: ${(err as Error).message}`);
     await Bun.sleep(wait);
     if (signal?.aborted) throw err;
-    return embedBatch(texts, signal, attempt + 1);
+    return embedBatch(texts, signal, attempt + 1, surface);
   }
 }
 
@@ -81,7 +101,7 @@ export function _clearQueryEmbedCache(): void {
 
 export async function embedQuery(text: string, signal?: AbortSignal): Promise<number[]> {
   const cap = config.queryEmbedCacheSize;
-  if (cap <= 0) return (await embedBatch([text], signal))[0];
+  if (cap <= 0) return (await embedBatch([text], signal, 0, "embed-query"))[0];
 
   const key = cacheKey(text);
   const hit = queryEmbedCache.get(key);
@@ -92,7 +112,7 @@ export async function embedQuery(text: string, signal?: AbortSignal): Promise<nu
     return hit;
   }
 
-  const vec = (await embedBatch([text], signal))[0];
+  const vec = (await embedBatch([text], signal, 0, "embed-query"))[0];
   queryEmbedCache.set(key, vec);
   // Evict least-recently-used entries (Map iteration is insertion order).
   while (queryEmbedCache.size > cap) {
