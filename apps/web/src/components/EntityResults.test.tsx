@@ -38,7 +38,13 @@ describe("EntityResults", () => {
 
   it("says what the lane holds once it has settled on no hits", () => {
     render(<EntityResults hits={[]} query="q" shownAt={0} settled />);
-    expect(screen.getByText(/entities extracted from mentions in the atlas will show here/i)).toBeTruthy();
+    // Asserted verbatim rather than by fragment so the category names stay the
+    // ones the rows themselves are labelled with — "GovOps", not "Gov Ops".
+    expect(
+      screen.getByText(
+        "Sky Ecosystem Agents, Facilitators, GovOps, Development Companies and other entities extracted from mentions in the atlas will show here",
+      ),
+    ).toBeTruthy();
   });
 
   it("sets the hint larger than the chrome around it, and names no colour of its own", () => {

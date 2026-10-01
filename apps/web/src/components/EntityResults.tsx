@@ -18,9 +18,14 @@ interface Props {
   settled: boolean;
 }
 
-/** What the entities lane holds, for a reader whose query matched none of it. */
+/**
+ * What the entities lane holds, for a reader whose query matched none of it.
+ * "GovOps" is one word here because that is the label on the rows this sentence
+ * is describing (ENTITY_TYPE_LABEL.govops_org) and the Radar group heading above
+ * them — spelling it "Gov Ops" here would be the only place in the app that does.
+ */
 const EMPTY_HINT =
-  "Sky Ecosystem Agents, Facilitators, Gov Ops, Development Companies and other entities extracted from mentions in the atlas will show here";
+  "Sky Ecosystem Agents, Facilitators, GovOps, Development Companies and other entities extracted from mentions in the atlas will show here";
 
 /**
  * Graph entity hits — Agents, Facilitators, Conservers, Instances, Primitives.
