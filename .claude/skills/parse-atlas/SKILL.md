@@ -694,7 +694,7 @@ Every `Integration Partner Name` param value on an integration-boost instance/in
 ### Pattern 20: Spell Team + org-to-org prose
 
 - **Spell Team** (`SPELL_TEAM_UUID = 4862ed4e-097b-42fa-a197-1d407d220a77`, "Spell Team Configuration"): `"Sky has two teams of technical contributors for Spell development, Dewiz, and Sidestream."` → each team gets `holds_role_for` → the doc with `meta.role = "spell_team_member"` (rides the Pattern 11 roleBindings mechanism).
-- **Org prose** (`graph-entity-edges.mjs` 2w): two conservative shapes, edges emitted **only when both endpoints already resolve to entities** (unresolved matches are logged and skipped — recall deliberately low):
+- **Org prose** (`graph-entity-edges/org-prose.mjs`, 2w): two conservative shapes, edges emitted **only when both endpoints already resolve to entities** (unresolved matches are logged and skipped — recall deliberately low):
   - `"X is the Prime Foundation associated with Y."` → `prime_foundation_of`
   - `"X is a|an|the [...] development company that provides services to [the] Y"` → `provides_services_to` (both "is a" and "is the" phrasings occur — e.g. Phoenix Labs "is a", Treadstone "is the")
 - **Pattern 20b — agent Foundation/Development Company docs** (`graph-entities.mjs` 1p, runs last in Phase 1, BEFORE org prose — a Phase 2 step — ever runs): every Agent artifact (`A.6.1.1.N.*`) usually carries its own `"Foundation"` doc (`"<Name> is the Prime Foundation associated with <Agent>."`) and `"Development Company"` doc (same sentence shapes as org prose, and the SAME shared regexes — `PRIME_FOUNDATION_RE`/`PROVIDES_SERVICES_RE`/`cleanOrgProseName` in `graph-patterns.mjs`, so the two consumers can't drift on what counts as a match). Several agents' foundation/dev-co are named **nowhere else** in the atlas (no accord party list, no ERG membership) — e.g. Grove Development Company, Ekliptyka (Skybase), Pattern Dev Co. — so scanning free prose for edges alone silently drops them (found 2026-09-28 atlas-health sweep). This step title-anchors on the two doc titles (not free content scanning) to register/correct the entity directly: creates it if missing, or corrects `entity_type` if an accord already misclassified it by the name-suffix heuristic (Pattern 12) — Obex's Rubicon is the case that needs correcting. The correction only applies when the existing entity is itself `development_company` or `ecosystem_actor` — anything else (an agent, a composite_party, …) whose slug collides with the doc's named subject is left alone and a `[drift]` warning fires, since retyping it would be silent graph corruption, not a fix. It never overwrites an existing entity's `defining_doc_id`/`meta` — the correction (`corrected_type_by`, `corrected_type_source_doc_no`) is recorded alongside the original provenance. A title-anchored doc whose sentence doesn't match either shared regex also warns (`did not parse`), the same as the Spell Team parser (1k2).
@@ -954,7 +954,7 @@ can_modify_signers_of              entity  → entity   authorized modifier → 
 validator_of                       entity  → entity   bridge_validator → bridge; source [roster doc_no]
 ```
 
-**Role duties and process-step responsibilities** (`graph-entity-edges.mjs`):
+**Role duties and process-step responsibilities** (`graph-entity-edges/duty-for.mjs` and `graph-entity-edges/process-step-responsible-party-for.mjs`):
 
 ```
 duty_for                           entity  → doc      role-holder org → the doc stating the duty; meta {role_declared, match, quote}
