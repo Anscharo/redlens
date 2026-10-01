@@ -236,9 +236,9 @@ describe("embedTimeoutFromEnv", () => {
     // Matched as a PREFIX on purpose. The property under test is that the signal
     // is CONSTRUCTED INLINE at the call site — a hoisted `const s = timeout(...)`
     // passed in would share one deadline, and still matches nothing here. How
-    // many arguments follow it is incidental, and pinning the whole list made
-    // this test fail the moment a `diag` parameter landed ahead of the surface
-    // label (semantic search's embed diagnostics, merged 2026-10-01). The call is
+    // many arguments follow it is incidental: pinning the whole list breaks this
+    // test whenever a parameter lands ahead of the surface label, as `diag` does.
+    // The call is
     // `embedBatch(texts, AbortSignal.timeout(...), 0, undefined, "embed-sync")`.
     const src = await Bun.file(new URL("./sync-embeddings.ts", import.meta.url)).text();
     expect(src).toContain("embedBatch(texts, AbortSignal.timeout(embedTimeoutFromEnv())");

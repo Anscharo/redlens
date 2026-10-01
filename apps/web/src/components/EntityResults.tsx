@@ -11,9 +11,10 @@ interface Props {
   shownAt: number;
   /**
    * The search has finished and the graph worker has answered. Gates the
-   * empty-state copy below: an unsettled lane has no hits YET, and saying
-   * "entities will show here" mid-lookup is the same mistake as the "no
-   * results" this lane used to flash before it had a loading state.
+   * empty-state copy below: an unsettled lane has no hits YET, and promising
+   * that entities "will show here" mid-lookup is the same error as rendering
+   * "no results" before the lane has answered, which is what the lane's
+   * loading state exists to prevent.
    */
   settled: boolean;
 }
