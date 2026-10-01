@@ -145,3 +145,23 @@ export function spansPresentedAsQuotation(run: QuoteAttributionRun, margin: numb
   for (const j of run.judgements) if (j.p !== null && j.p >= margin) out.add(j.span);
   return out;
 }
+
+/**
+ * Which tier-B spans a `gate`-mode caller may CLEAR: the ones the model
+ * affirmatively judged to be the assistant's own words.
+ *
+ * The distinction from "not in `spansPresentedAsQuotation`" is load-bearing and
+ * was a live bug on PR #436. That set holds `p >= margin`, so its complement
+ * silently folds together two different things: a span judged BELOW the margin
+ * (the model read it as self-authored — safe to clear) and a span with NO
+ * judgement at all (`p: null` from a timeout or transport error, or never asked
+ * because it fell past QUOTE_ATTRIBUTION_MAX_SPANS). Gating on the complement
+ * therefore let a Jev outage clear every quote finding the deterministic check
+ * had made. Fail-open means a failed call must not hard-fail an answer; it does
+ * NOT mean a failed call may erase a failure code already found on its own.
+ */
+export function spansJudgedNotQuotation(run: QuoteAttributionRun, margin: number): Set<string> {
+  const out = new Set<string>();
+  for (const j of run.judgements) if (j.p !== null && j.p < margin) out.add(j.span);
+  return out;
+}

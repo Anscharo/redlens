@@ -15,8 +15,8 @@ import type { JsonCall } from "./llm.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { config } from "../config.ts";
 import { createRoundChecker } from "./verify/round-checks.ts";
-import { runDeterministicChecks, findUngroundedQuoteSpans, type CheckReport } from "./verify/verify-checks.ts";
-import { judgeQuoteAttribution, spansPresentedAsQuotation } from "./verify/quote-attribution.ts";
+import { runDeterministicChecks, findUngroundedQuoteSpans, isFailed, type CheckReport } from "./verify/verify-checks.ts";
+import { judgeQuoteAttribution, spansPresentedAsQuotation, spansJudgedNotQuotation } from "./verify/quote-attribution.ts";
 import { isReviewRound } from "./review-round.ts";
 import { findParamsMentioned, type ParamMismatch } from "./verify/param-checks.ts";
 import type { CompletenessEvidence } from "./verify/completeness.ts";
@@ -994,6 +994,33 @@ export async function* runVerifiedChat(opts: {
   // above (or are null), and all three were already awaited before finish()
   // regardless of the order they're awaited in here — don't "optimize" this
   // back to resolving marks first.
+  // The quote-attribution lane is resolved HERE, before the audit row is built,
+  // because in `gate` mode it changes `checks` — and the verify row below stores
+  // computeOverall(checks, …), so a later filter would persist a verdict that
+  // disagrees with the badge the reader sees.
+  //
+  // Reviewed on PR #436: `gate` was documented as "promotes on P >= margin" and
+  // did nothing at all — the judgements were recorded and `ungroundedQuotes` was
+  // never filtered, so `shadow` and `gate` were byte-identical and flipping the
+  // mode would have been a silent no-op.
+  const quoteAttribution = quoteAttributionPromise ? await quoteAttributionPromise : null;
+  if (quoteAttribution && config.chatQuoteAttribution === "gate") {
+    // Only tier-B spans are the lane's to clear; tier A never reached it.
+    const tierB = new Set(quoteSpans.map((s) => s.text));
+    // spansJudgedNotQuotation, NOT the complement of spansPresentedAsQuotation:
+    // a span whose judgement failed, or that fell past the lane's span cap, has
+    // no verdict and must KEEP its finding. Fail-open means a Jev outage never
+    // hard-fails an answer; it must not also mean an outage clears every quote
+    // finding the deterministic check made on its own.
+    const cleared = spansJudgedNotQuotation(quoteAttribution, config.chatQuoteAttributionMargin);
+    const ungroundedQuotes = checks.ungroundedQuotes.filter((q) => !(tierB.has(q) && cleared.has(q)));
+    if (ungroundedQuotes.length !== checks.ungroundedQuotes.length) {
+      // isFailed, not a local re-OR: dropping a span must be able to clear the
+      // turn, and only if nothing else failed it.
+      checks = { ...checks, ungroundedQuotes, failed: isFailed({ ...checks, ungroundedQuotes }) };
+    }
+  }
+
   if (auditPromise) {
     const { run, modelLabel } = await auditPromise;
     verdict = run.verdict;
@@ -1029,12 +1056,12 @@ export async function* runVerifiedChat(opts: {
   const cov = await resolveAnswerCoverage(coveragePromise, coverageModel);
   if (cov.event) yield cov.event;
   if (cov.meta) checksMeta.push(cov.meta);
-  // Recorded, never acted on in "shadow". The row is this lane's own calibration
+  // Recorded either way; ACTED ON above only in `gate`. The row is this lane's own calibration
   // record — the same role Verdict.contradictions plays for the audit — and it is
   // what the bakeoff will be fitted against, so it stores the raw probability per
   // span and the mode that was in force, not a decision.
-  if (quoteAttributionPromise) {
-    const qa = await quoteAttributionPromise;
+  if (quoteAttribution) {
+    const qa = quoteAttribution;
     checksMeta.push({
       kind: "quote_attribution", model: config.chatQuoteAttributionModel,
       verdict: {

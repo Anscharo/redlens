@@ -953,3 +953,61 @@ test("a grounded quote is not a span at either tier", () => {
   ].join("\n");
   expect(findUngroundedQuoteSpans(good, evidence, ix)).toEqual([]);
 });
+
+// --- Review findings on PR #436 (2026-10-01) ---------------------------------
+// All three were confirmed by probe before being fixed; each failed first.
+
+test("tier A reads only the LEAD-IN, never the quoted text or what follows it", () => {
+  // The lead-in was `${leadIn}\n${quotedLine}`, so ASSERTION_VERB and
+  // CITATION_MARKER matched words INSIDE the span. A self-authored callout that
+  // happens to contain `required`/`requires` and a citation was therefore classed
+  // tier A — a deterministic hard failure that never reaches the model, which is
+  // precisely the bug this whole change exists to remove, reintroduced for cited
+  // callouts.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const inQuote = [
+    "Here is how it plays out for operators:",
+    "",
+    `> A Prime Agent is required to reconcile before the cycle closes, per [A.2.1](/atlas/${realUuid}).`,
+  ].join("\n");
+  expect(findUngroundedQuoteSpans(inQuote, evidence, ix)[0].attributed).toBe(false);
+
+  // Same for an inline quote whose assertion verb and citation sit AFTER it —
+  // the answer says "My own summary", so it is the opposite of attribution.
+  const after = `My own summary: "operators reconcile the cycle before it closes and publish the result" — which requires [A.2.1](/atlas/${realUuid}).`;
+  expect(findUngroundedQuoteSpans(after, evidence, ix)[0].attributed).toBe(false);
+
+  // And the genuine shape still is tier A.
+  const real = [`[Stability Scope](/atlas/${realUuid}) states:`, "", "> Facilitators may seize treasury funds whenever convenient."].join("\n");
+  expect(findUngroundedQuoteSpans(real, evidence, ix)[0].attributed).toBe(true);
+});
+
+test("a self-authorship phrase does not excuse a lead-in that asserts the source says this", () => {
+  // The exemption dropped the span from grounding ENTIRELY, not just from tier A,
+  // and matched anywhere in the lead-in — so "The atlas text, in short, reads:"
+  // over a fabricated quote was never checked at all and would have passed.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const smuggled = [
+    "The atlas text, in short, reads:",
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuoteSpans(smuggled, evidence, ix)).toHaveLength(1);
+
+  // The real incidents must still be exempt: no assertion verb, no citation.
+  for (const lead of CALLOUT_LEAD_INS) {
+    const answer = [lead, "", "> Treat a changed document number as a label change until the body digest moves."].join("\n");
+    expect(findUngroundedQuoteSpans(answer, evidence, ix)).toEqual([]);
+  }
+});
+
+test("the self-authorship phrase must introduce the quote, not merely appear earlier", () => {
+  // It matched anywhere in what can be a long paragraph tail.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const buried = [
+    "My read of the rewards section is that it is mostly settled. Turning to seizure, the document is explicit:",
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuoteSpans(buried, evidence, ix)).toHaveLength(1);
+});

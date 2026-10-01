@@ -1655,3 +1655,61 @@ test("an address seen only in the review round is not grounded", async () => {
   expect(row.checks.ungroundedAddresses).toEqual([ADDR]);
   expect(row.checks.failed).toBe(true);
 });
+
+// `gate` was documented as "promotes on P >= margin" and did nothing — the
+// judgements were recorded and ungroundedQuotes was never filtered (PR #436
+// review). These assert the mode is real, so flipping it can never again be a
+// silent no-op.
+//
+// Asserted on the EMITTED verify_result, not the round_checks row: that row is
+// pushed before answer_final and is the raw deterministic finding, deliberately
+// pre-gate (the quote_attribution row records what the lane then did with it).
+// The event is what the reader sees.
+async function calloutEventsIn(mode: "shadow" | "gate" | "off", noul: number | null): Promise<HarnessEvent[]> {
+  const realMode = config.chatQuoteAttribution;
+  const realFetch = globalThis.fetch;
+  const realKey = config.openrouterApiKey;
+  try {
+    config.openrouterApiKey = "test-key";
+    globalThis.fetch = (async (_u: any, init: any) => {
+      if (noul === null) return new Response("nope", { status: 400 }); // fatal in askJev: no retries
+      const body = JSON.parse(init.body);
+      if (!body.questions?.quoted) return new Response(JSON.stringify({ answers: {} }), { status: 200 });
+      return new Response(JSON.stringify({ answers: { quoted: { type: "noul", noul } } }), { status: 200 });
+    }) as unknown as typeof fetch;
+    config.chatQuoteAttribution = mode;
+    return await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "how much does atlas churn matter?", maxIterations: 3,
+        stream: fakeStream([[textChunk(CALLOUT_ANSWER), finishChunk("stop")]]),
+      }),
+    );
+  } finally {
+    config.chatQuoteAttribution = realMode;
+    config.openrouterApiKey = realKey;
+    globalThis.fetch = realFetch;
+  }
+}
+const verifyOf = (evs: HarnessEvent[]) => evs.find((e) => e.type === "verify_result") as undefined | { overall: string; ungroundedQuotes: string[] };
+
+test("gate: a span the model says is NOT presented as a quotation stops failing the turn", async () => {
+  // No verifier model is configured here, so emitVerify reduces to checks.failed:
+  // a cleared span means no badge at all, which is exactly the user-visible change.
+  expect(verifyOf(await calloutEventsIn("gate", 0.02))).toBeUndefined();
+  // The same answer and the same judgement in shadow still fails — the whole
+  // point of the mode being a mode.
+  const shadowed = verifyOf(await calloutEventsIn("shadow", 0.02));
+  expect(shadowed?.overall).toBe("fail");
+  expect(shadowed?.ungroundedQuotes).toHaveLength(1);
+});
+
+test("gate: a span the model says IS presented as a quotation still fails", async () => {
+  const gated = verifyOf(await calloutEventsIn("gate", 0.99));
+  expect(gated?.overall).toBe("fail");
+  expect(gated?.ungroundedQuotes).toHaveLength(1);
+});
+
+test("gate: a failed judgement is fail-open — a null never clears a span", async () => {
+  const gated = verifyOf(await calloutEventsIn("gate", null));
+  expect(gated?.overall).toBe("fail");
+});
