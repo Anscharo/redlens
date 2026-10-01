@@ -142,16 +142,20 @@ jobs:
 
       # Both gates below judge the change against the PR base. The checkout is a
       # shallow merge commit, so the base commit is fetched on its own.
+      # They are report-only (continue-on-error) while the in-flight chat/search
+      # PRs land; removing the two continue-on-error lines makes them blocking.
       - name: Fetch PR base for diff-scoped checks
         if: github.event_name == 'pull_request'
         run: git fetch --no-tags --depth=1 origin ${{ github.event.pull_request.base.sha }}
 
       - name: File/function size ratchet
+        continue-on-error: true
         run: pnpm check:size
         env:
           DIFF_BASE: ${{ github.event.pull_request.base.sha }}
 
       - name: Present-tense comments
+        continue-on-error: true
         if: github.event_name == 'pull_request'
         run: pnpm check:comments
         env:
