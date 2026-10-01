@@ -17,6 +17,7 @@ import {
   findUngroundedCitationValues,
   findUntracedNumbers,
   findUngroundedQuotes,
+  findUngroundedQuoteSpans,
   claimSegments,
   findMscCitedAsAtlas,
   runDeterministicChecks,
@@ -894,4 +895,61 @@ test("the lead-in applies to a whole blockquote block, and does not leak past it
     "> Facilitators may unilaterally seize treasury funds whenever convenient.",
   ].join("\n");
   expect(findUngroundedQuotes(later, evidence, ix)).toHaveLength(1);
+});
+
+// --- Tier split: what code can settle vs what needs a model -------------------
+test("tier A — a lead-in that names a source AND asserts it says this", () => {
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const attributed = [
+    `[Stability Scope](/atlas/${realUuid}) states:`,
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  const spans = findUngroundedQuoteSpans(attributed, evidence, ix);
+  expect(spans).toHaveLength(1);
+  expect(spans[0].attributed).toBe(true);
+});
+
+test("tier B — naming a document without asserting its contents is not attribution", () => {
+  // The distinction the regex could not make, and the reason the hard half is
+  // narrow: "covers" describes a document, "states:" quotes from it.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const describes = [
+    `[Stability Scope](/atlas/${realUuid}) covers the protocol rates in detail.`,
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  const spans = findUngroundedQuoteSpans(describes, evidence, ix);
+  expect(spans).toHaveLength(1);
+  expect(spans[0].attributed).toBe(false);
+});
+
+test("tier B — an unattributed blockquote, and an assertion with no source named", () => {
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const bare = "> Facilitators may unilaterally seize treasury funds whenever convenient.";
+  expect(findUngroundedQuoteSpans(bare, evidence, ix)[0].attributed).toBe(false);
+  // An assertion verb with no citation is still tier B: "the atlas says" names no
+  // document, so code cannot check it against anything in particular.
+  const noCite = ["The atlas states:", "", bare].join("\n");
+  expect(findUngroundedQuoteSpans(noCite, evidence, ix)[0].attributed).toBe(false);
+});
+
+test("a negated lead-in is an absence claim, never an attribution", () => {
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const denied = [
+    `[Stability Scope](/atlas/${realUuid}) does not state:`,
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuoteSpans(denied, evidence, ix)[0].attributed).toBe(false);
+});
+
+test("a grounded quote is not a span at either tier", () => {
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const good = [
+    `[Stability Scope](/atlas/${realUuid}) states:`,
+    "",
+    "> The Stability Scope governs the protocol rates for all instances.",
+  ].join("\n");
+  expect(findUngroundedQuoteSpans(good, evidence, ix)).toEqual([]);
 });
