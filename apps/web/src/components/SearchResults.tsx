@@ -137,7 +137,12 @@ export const SearchResults = memo(function SearchResults({
           />
         )}
         {entitiesOnly && (
-          <EntityResults hits={entityHits} query={shownQuery.current} shownAt={shownAt.current} />
+          <EntityResults
+            hits={entityHits}
+            query={shownQuery.current}
+            shownAt={shownAt.current}
+            settled={state.status === "done" && !pending}
+          />
         )}
         {suggestBroad && (
           <div className="px-4 py-2 border-b border-border">

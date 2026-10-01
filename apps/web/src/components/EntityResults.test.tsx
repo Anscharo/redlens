@@ -24,16 +24,36 @@ function setup(count: number) {
   const { hook } = memoryLocation({ path: "/", record: true });
   render(
     <Router hook={hook}>
-      <EntityResults hits={hits} query="spark" shownAt={0} />
+      <EntityResults hits={hits} query="spark" shownAt={0} settled />
     </Router>,
   );
   return hits;
 }
 
 describe("EntityResults", () => {
-  it("renders nothing at all when there are no entity hits", () => {
-    const { container } = render(<EntityResults hits={[]} query="q" shownAt={0} />);
+  it("renders nothing while the lane has not settled — no hits YET is not no hits", () => {
+    const { container } = render(<EntityResults hits={[]} query="q" shownAt={0} settled={false} />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it("says what the lane holds once it has settled on no hits", () => {
+    render(<EntityResults hits={[]} query="q" shownAt={0} settled />);
+    expect(screen.getByText(/entities extracted from mentions in the atlas will show here/i)).toBeTruthy();
+  });
+
+  it("sets the hint larger than the chrome around it, and names no colour of its own", () => {
+    const { container } = render(<EntityResults hits={[]} query="q" shownAt={0} settled />);
+    const hint = container.querySelector("p");
+    // text-base over the text-xs/text-sm everything else on this lane uses, and
+    // a token rather than a literal — a literal is invisible to the contrast
+    // test and breaks in every theme but the one it was written for.
+    expect(hint?.className).toContain("text-base");
+    expect(hint?.className).toContain("text-tan-2");
+  });
+
+  it("drops the hint as soon as there is a list to show instead", () => {
+    setup(2);
+    expect(screen.queryByText(/will show here/i)).toBeNull();
   });
 
   it("heads the list without repeating the count the line above already states", () => {

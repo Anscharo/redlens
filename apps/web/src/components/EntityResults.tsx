@@ -9,14 +9,30 @@ interface Props {
   query: string;
   /** performance.now() at which the list was shown, for time-to-click. */
   shownAt: number;
+  /**
+   * The search has finished and the graph worker has answered. Gates the
+   * empty-state copy below: an unsettled lane has no hits YET, and saying
+   * "entities will show here" mid-lookup is the same mistake as the "no
+   * results" this lane used to flash before it had a loading state.
+   */
+  settled: boolean;
 }
+
+/** What the entities lane holds, for a reader whose query matched none of it. */
+const EMPTY_HINT =
+  "Sky Ecosystem Agents, Facilitators, Gov Ops, Development Companies and other entities extracted from mentions in the atlas will show here";
 
 /**
  * Graph entity hits — Agents, Facilitators, Conservers, Instances, Primitives.
  * The whole result list on the entities lane, and rendered nowhere else.
  */
-export function EntityResults({ hits, query, shownAt }: Props) {
-  if (hits.length === 0) return null;
+export function EntityResults({ hits, query, shownAt, settled }: Props) {
+  if (hits.length === 0) {
+    if (!settled) return null;
+    // Deliberately larger than everything else under the count line: it is the
+    // only thing on the page, and it is prose to read rather than chrome to scan.
+    return <p className="px-4 py-6 text-base leading-relaxed text-tan-2">{EMPTY_HINT}</p>;
+  }
   return (
     <>
       {/* No count here — the line above is already counting this very list. */}
