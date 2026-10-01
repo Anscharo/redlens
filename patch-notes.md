@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-01
+- Stopped the chat's verification badge from failing an answer for its own summary callouts
+
 ## 2026-09-30
 - Made previews catch a longer document that was replaced by a different one even when the two share most of their wording
 

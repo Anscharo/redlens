@@ -172,6 +172,27 @@ function isSelfAuthoredCallout(line: string): boolean {
   return bold / plain.length >= BOLD_LINE_MIN;
 }
 
+// The same callout, introduced in PLAIN PROSE. `isSelfAuthoredCallout` reads the
+// quoted line itself and needs it to be ~entirely bold, which is the narrower
+// half of the convention: models just as often write `The practical lesson is:`
+// and then put an unbolded one-sentence synthesis in a blockquote. Observed live
+// 2026-10-01 — one answer about atlas churn did it three times
+// ("The practical lesson is:", "But it has an important practical consequence:",
+// "The central conclusion is:"), all three were scored as invented atlas text,
+// and the turn hard-failed on an answer no reader would have taken as quoting.
+//
+// The discriminator is the LEAD-IN, not the quoted line: a lead-in whose subject
+// is the answer or the reader rather than a document says the author is about to
+// speak for themselves. It is a closed list, and it is a CONJUNCTION with "no
+// citation in the lead-in" — once the author names a source they are attributing,
+// so `Per [X](/atlas/…), the central conclusion is:` stays checked.
+const SELF_AUTHORSHIP_LEAD =
+  /\b(?:practical\s+(?:lesson|consequence|implication)|central\s+(?:conclusion|point)|bottom\s+line|key\s+takeaway|takeaway|upshot|net\s+effect|in\s+short|in\s+summary|to\s+summari[sz]e|my\s+read|what\s+this\s+means|the\s+(?:net|overall)\s+picture)\b/i;
+
+function isSelfAuthorshipLeadIn(leadIn: string): boolean {
+  return SELF_AUTHORSHIP_LEAD.test(leadIn) && !CITATION_MARKER.test(leadIn);
+}
+
 // A quoted TERM the answer denies is a mention, not a quotation: `the atlas
 // does not contain an organization called "X"`. Such a term can never appear
 // in the evidence — its absence IS the claim — so demanding grounding fires
@@ -215,11 +236,26 @@ function quotedPairs(line: string): { text: string; start: number; end: number }
 // text itself (atlas docs contain inline links) and still collapses to its text.
 const TRAILING_CITATIONS = /(?:\s*(?:\[[^\]]+\]\([^)\s]+\)|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))+\s*[.,;:]?\s*$/i;
 
-export function extractQuotedSpans(answer: string): string[] {
+// `leadInSeed` is the lead-in already in force when this text begins — used by
+// the incremental pass, which checks ONE paragraph at a time and would otherwise
+// never see the line that introduced a blockquote (the lead-in and the block are
+// separate paragraphs, so they never arrive together). Without it the streaming
+// `paragraph_check` would report a callout the final whole-answer pass clears,
+// and the user would watch a finding appear and then vanish.
+export function extractQuotedSpans(answer: string, leadInSeed = ""): string[] {
   const spans: string[] = [];
+  // `leadIn` is the last non-empty line ABOVE the current blockquote block. A
+  // blockquote line never updates it, so every line of a multi-line block shares
+  // the one lead-in that introduced the block, and a blank line between the two
+  // does not clear it.
+  let leadIn = leadInSeed;
   for (const line of answer.split("\n")) {
     const bq = line.match(/^\s*>\s?(.+)$/);
-    if (bq && !isAttributionLine(bq[1]) && !isSelfAuthoredCallout(bq[1])) {
+    if (!bq) {
+      if (line.trim()) leadIn = line;
+      continue;
+    }
+    if (!isAttributionLine(bq[1]) && !isSelfAuthoredCallout(bq[1]) && !isSelfAuthorshipLeadIn(leadIn)) {
       spans.push(stripQuoteDecoration(bq[1].replace(TRAILING_CITATIONS, "")));
     }
   }
@@ -296,14 +332,20 @@ function atlasTitles(ix: Indexes): string[] {
 // A quote is grounded if every verifiable segment appears in the turn's
 // tool-result evidence, in the title/content of any doc the answer cites, or
 // is itself (part of) an atlas document title.
-export function findUngroundedQuotes(answer: string, evidenceTexts: string[], ix: Indexes, question?: string): string[] {
+export function findUngroundedQuotes(
+  answer: string,
+  evidenceTexts: string[],
+  ix: Indexes,
+  question?: string,
+  leadInSeed?: string,
+): string[] {
   // A quoted span that the USER wrote — the answer echoing the question's own
   // term ("…specifically for \"Operational Facilitators.\"") — is a scare quote,
   // not a passage copied from a rule document. Observed live 2026-09-10 as a
   // hard fail on an answer whose only quotation was the reader's phrase.
   const q = question ? normalizeForMatch(question) : "";
   const bare = (s: string) => s.replace(/^[\s"',.;:!?()—–-]+|[\s"',.;:!?()—–-]+$/g, "");
-  const spans = extractQuotedSpans(answer).filter((s) => !(q && q.includes(bare(s))));
+  const spans = extractQuotedSpans(answer, leadInSeed).filter((s) => !(q && q.includes(bare(s))));
   if (spans.length === 0) return [];
   const haystacks = [
     ...evidenceTexts.map(normalizeForMatch),

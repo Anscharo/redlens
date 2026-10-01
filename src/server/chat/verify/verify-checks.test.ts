@@ -812,3 +812,86 @@ test("a verbatim LaTeX quote matches its JSON-encoded evidence (backslashes and 
   // Symmetry must not make an invented formula pass.
   expect(findUngroundedQuotes('The atlas defines it as "$\\text{RRC} = k \\times \\text{EAD} \\div \\text{Gold reserves}$" here.', evidence, ix)).toHaveLength(1);
 });
+
+// --- Incident fixtures: plain-prose self-authored callouts (2026-10-01) -------
+// Three live hard-failures from one answer about atlas churn. The model used
+// blockquotes as CALLOUTS, each introduced by a lead-in that names itself as the
+// author ("The practical lesson is:"), and each was scored as invented atlas
+// text. isSelfAuthoredCallout missed all three: it requires >=90% of the line to
+// be bold, and these are plain prose. A human reader would not read any of them
+// as atlas attribution.
+const CALLOUT_LEAD_INS = [
+  "The practical lesson is:",
+  "But it has an important practical consequence:",
+  "The central conclusion is:",
+];
+
+test("a plain-prose blockquote callout after a self-authorship lead-in is not a quotation", () => {
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  for (const lead of CALLOUT_LEAD_INS) {
+    const answer = [
+      "Most atlas churn is renumbering rather than substantive change.",
+      "",
+      lead,
+      "",
+      "> Treat a changed document number as a label change until the body digest moves as well.",
+    ].join("\n");
+    expect(findUngroundedQuotes(answer, evidence, ix)).toEqual([]);
+  }
+});
+
+test("an attributed blockquote whose text is absent from the evidence still hard-fails", () => {
+  // The other half of the same change: when the lead-in BOTH names a source and
+  // asserts it says this, an unmatched span is the real crime and stays a pure
+  // deterministic failure with no model in the loop.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const answer = [
+    `[Stability Scope](/atlas/${realUuid}) states:`,
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuotes(answer, evidence, ix)).toHaveLength(1);
+});
+
+test("a self-authorship lead-in that CITES a source does not excuse the blockquote", () => {
+  // The exemption is a conjunction. Once the lead-in names a document the author
+  // is attributing, however they phrase the rest of the line, so an invented
+  // passage under it must still be caught.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const cited = [
+    `Per [Stability Scope](/atlas/${realUuid}), the central conclusion is:`,
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuotes(cited, evidence, ix)).toHaveLength(1);
+  // A doc_no in the lead-in counts as a citation too.
+  const docNo = [
+    "Reading A.2.4.1, the bottom line is:",
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuotes(docNo, evidence, ix)).toHaveLength(1);
+});
+
+test("the lead-in applies to a whole blockquote block, and does not leak past it", () => {
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  // Two lines of ONE block, both exempt from the single lead-in above them.
+  const block = [
+    "The practical lesson is:",
+    "",
+    "> Renumbering is not a substantive change to a document.",
+    "> Compare body digests before you treat a move as an edit.",
+  ].join("\n");
+  expect(findUngroundedQuotes(block, evidence, ix)).toEqual([]);
+  // A later block under ordinary prose is NOT covered by the earlier lead-in.
+  const later = [
+    "The practical lesson is:",
+    "",
+    "> Renumbering is not a substantive change to a document.",
+    "",
+    "The atlas is explicit about seizure:",
+    "",
+    "> Facilitators may unilaterally seize treasury funds whenever convenient.",
+  ].join("\n");
+  expect(findUngroundedQuotes(later, evidence, ix)).toHaveLength(1);
+});
