@@ -103,7 +103,7 @@ export async function askJev(params: {
   timeoutMs?: number;
   attempt?: number;
   /** Which task this is — PostHog `chat_surface` "jev:<lane>" and `jev_task`. */
-  lane?: string;
+  lane: string;
   /** Turn context, when the caller has one, so the call joins the turn's trace. */
   obs?: { distinctId?: string; traceId?: string };
 }): Promise<JevRun> {
@@ -140,8 +140,8 @@ export async function askJev(params: {
     const latencyMs = Date.now() - t0;
     captureAiCall({
       kind: "generation",
-      surface: `jev:${params.lane ?? "unlabelled"}`,
-      jevTask: params.lane ?? "unlabelled",
+      surface: `jev:${params.lane}`,
+      jevTask: params.lane,
       model,
       inputTokens: json.usage?.input_tokens ?? 0,
       outputTokens: json.usage?.output_tokens ?? 0,

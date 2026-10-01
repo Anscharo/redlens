@@ -6,7 +6,7 @@
 //   atlas-chat / atlas-chat-verify / -summary / -title / -teach-review  (wrapper, llm.ts)
 //   jev:<task> + jev_task=<task>: prefetch-judge, smalltalk, answer-coverage,
 //     cite-support, cite-metadata, refute-screen                        (askJev)
-//   embed-query / embed-batch                                          (embed.ts)
+//   embed-query / embed-batch / embed-sync (atlas worker)                                         (embed.ts)
 import { openrouterEnvironment } from "./openrouter-attribution.ts";
 import { getPosthog } from "./posthog-node.ts";
 

@@ -88,7 +88,8 @@ export async function judgeSmalltalkJev(params: {
   const deadlineMs = params.timeoutMs ?? 5000;
   const signal = withDeadline(deadlineMs, params.signal);
   try {
-    const run = await askJev({ lane: "smalltalk",
+    const run = await askJev({
+      lane: "smalltalk",
       state: { message: params.question.slice(0, 2000) },
       questions: { smalltalk: SMALLTALK_QUESTION },
       model: params.model,
