@@ -317,8 +317,8 @@
   "empty-scaffolding": {
     "counts": {
       "total": 1088,
-      "empty": 932,
-      "populated": 156
+      "empty": 930,
+      "populated": 158
     },
     "members": [
       {
@@ -1771,7 +1771,7 @@
         "uuid": "70ddaca1-07ca-402f-bf3b-cfab52a8f360",
         "doc_no": "A.6.1.1.2.2.6.1.1.3",
         "title": "Completed Instances Directory",
-        "bucket": "empty"
+        "bucket": "populated"
       },
       {
         "uuid": "19280fed-ef24-4c95-843a-4abaec1d8bb6",
@@ -1801,7 +1801,7 @@
         "uuid": "fd06fedd-819d-4e0a-a266-ecf5ede0343b",
         "doc_no": "A.6.1.1.2.2.6.1.4",
         "title": "Completed Instances",
-        "bucket": "empty"
+        "bucket": "populated"
       },
       {
         "uuid": "0bf496c2-5a2a-4ec3-8354-bc0dea0657c8",
@@ -7981,13 +7981,13 @@
   },
   "title-templates": {
     "counts": {
-      "total": 1092,
+      "total": 1095,
       "Primitive Hub Document": 136,
       "Global Activation Status": 140,
       "Hub Data Repository": 136,
       "Single Instance Configuration Document": 48,
-      "Parameters": 226,
-      "Rate Limits": 143,
+      "Parameters": 227,
+      "Rate Limits": 145,
       "Initial Planning": 85,
       "Operational GovOps Review": 85,
       "Artifact Edit Proposal": 85,
@@ -9129,6 +9129,24 @@
         "bucket": "Rate Limits"
       },
       {
+        "uuid": "6cb7f6a1-c8fe-4f23-b812-4e17e556c5eb",
+        "doc_no": "A.6.1.1.1.2.6.1.3.6.1.2.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "76b38f05-c7bb-4633-9fb0-3a3f17dd57a8",
+        "doc_no": "A.6.1.1.1.2.6.1.3.6.1.2.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "6160b63f-6195-4be6-91e3-792ee9bc1c43",
+        "doc_no": "A.6.1.1.1.2.6.1.3.6.1.2.4.2.2",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
         "uuid": "9f44d3eb-b1d4-490e-bab2-8f39b73dc6ad",
         "doc_no": "A.6.1.1.1.2.6.1.4.1.1.2",
         "title": "Parameters",
@@ -10167,98 +10185,50 @@
         "bucket": "Rate Limits"
       },
       {
-        "uuid": "7cdf8908-1adc-421d-9c71-37d138f99b20",
+        "uuid": "74f5efe4-582c-4b44-9235-71495f81ae51",
         "doc_no": "A.6.1.1.2.2.6.1.3.1.7.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "a907ce48-a651-4cc9-a382-82e989f3ee50",
+        "uuid": "fdf5c673-201d-4866-8e95-d041f481f3cc",
         "doc_no": "A.6.1.1.2.2.6.1.3.1.7.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
-        "uuid": "74f5efe4-582c-4b44-9235-71495f81ae51",
+        "uuid": "284c435d-c60f-4d62-82e6-f70b9fd18170",
         "doc_no": "A.6.1.1.2.2.6.1.3.1.7.2.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "fdf5c673-201d-4866-8e95-d041f481f3cc",
+        "uuid": "194a91d6-902b-4e2f-b416-cfd681addbde",
         "doc_no": "A.6.1.1.2.2.6.1.3.1.7.2.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
-        "uuid": "f7048cf9-6517-48b9-8768-74a0160a8cea",
+        "uuid": "d4091127-bd5c-4ff6-ba9c-de7bd8553e61",
         "doc_no": "A.6.1.1.2.2.6.1.3.1.7.3.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "72af86dd-3a15-4245-8a90-5ae8100f49d9",
+        "uuid": "93fbe9e3-88b0-4160-b4cb-52b5333a0926",
         "doc_no": "A.6.1.1.2.2.6.1.3.1.7.3.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
       {
-        "uuid": "284c435d-c60f-4d62-82e6-f70b9fd18170",
+        "uuid": "293cd41c-79b0-4608-835c-be22d2ee01ee",
         "doc_no": "A.6.1.1.2.2.6.1.3.1.7.4.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "194a91d6-902b-4e2f-b416-cfd681addbde",
-        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.4.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "7b251172-7a60-4240-af72-cacaca9fe3cc",
-        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.5.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "b94aa9b1-62c6-40dc-8b92-cc677ebac016",
-        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.5.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "da718c05-b351-43dd-a12a-75fe5bc0b4cf",
-        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.6.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "5ecbe8da-00f2-4d72-ab79-6276eae3bc0f",
-        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.6.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "d4091127-bd5c-4ff6-ba9c-de7bd8553e61",
-        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.7.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "93fbe9e3-88b0-4160-b4cb-52b5333a0926",
-        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.7.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "293cd41c-79b0-4608-835c-be22d2ee01ee",
-        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.8.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
         "uuid": "53101acf-dfcc-4a36-b3d7-5ae93c8c154a",
-        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.8.2.4",
+        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.4.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -10467,38 +10437,14 @@
         "bucket": "Rate Limits"
       },
       {
-        "uuid": "b72d1498-2f89-40ec-8c14-08ce2a84af8c",
+        "uuid": "cc56a3cf-d085-487a-b1c5-fb1371db5978",
         "doc_no": "A.6.1.1.2.2.6.1.3.3.1.1.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "d394483b-e739-4346-948b-488fb942a48f",
-        "doc_no": "A.6.1.1.2.2.6.1.3.3.1.1.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "cc56a3cf-d085-487a-b1c5-fb1371db5978",
-        "doc_no": "A.6.1.1.2.2.6.1.3.3.1.2.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
         "uuid": "87cf2cfd-f7b6-4275-b212-eb9d6a85796e",
-        "doc_no": "A.6.1.1.2.2.6.1.3.3.1.2.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "8a19e28f-444a-4603-8905-0c6b1bfa9155",
-        "doc_no": "A.6.1.1.2.2.6.1.3.3.2.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
-        "uuid": "881815fb-a206-4e1a-9852-c701d5ba4e92",
-        "doc_no": "A.6.1.1.2.2.6.1.3.3.2.2.4",
+        "doc_no": "A.6.1.1.2.2.6.1.3.3.1.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -10559,6 +10505,78 @@
       {
         "uuid": "5325d4d3-6e93-4ea1-86f3-91d538be03ed",
         "doc_no": "A.6.1.1.2.2.6.1.3.7.2.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "7cdf8908-1adc-421d-9c71-37d138f99b20",
+        "doc_no": "A.6.1.1.2.2.6.1.4.1.1.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "a907ce48-a651-4cc9-a382-82e989f3ee50",
+        "doc_no": "A.6.1.1.2.2.6.1.4.1.1.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "f7048cf9-6517-48b9-8768-74a0160a8cea",
+        "doc_no": "A.6.1.1.2.2.6.1.4.1.1.2.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "72af86dd-3a15-4245-8a90-5ae8100f49d9",
+        "doc_no": "A.6.1.1.2.2.6.1.4.1.1.2.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "7b251172-7a60-4240-af72-cacaca9fe3cc",
+        "doc_no": "A.6.1.1.2.2.6.1.4.1.1.3.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "b94aa9b1-62c6-40dc-8b92-cc677ebac016",
+        "doc_no": "A.6.1.1.2.2.6.1.4.1.1.3.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "da718c05-b351-43dd-a12a-75fe5bc0b4cf",
+        "doc_no": "A.6.1.1.2.2.6.1.4.1.1.4.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "5ecbe8da-00f2-4d72-ab79-6276eae3bc0f",
+        "doc_no": "A.6.1.1.2.2.6.1.4.1.1.4.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "b72d1498-2f89-40ec-8c14-08ce2a84af8c",
+        "doc_no": "A.6.1.1.2.2.6.1.4.2.1.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "d394483b-e739-4346-948b-488fb942a48f",
+        "doc_no": "A.6.1.1.2.2.6.1.4.2.1.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "8a19e28f-444a-4603-8905-0c6b1bfa9155",
+        "doc_no": "A.6.1.1.2.2.6.1.4.2.1.2.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "881815fb-a206-4e1a-9852-c701d5ba4e92",
+        "doc_no": "A.6.1.1.2.2.6.1.4.2.1.2.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -15051,8 +15069,8 @@
   },
   "cross-scope-duplication": {
     "counts": {
-      "total": 162,
-      "groups": 66
+      "total": 165,
+      "groups": 67
     },
     "members": [
       {
@@ -15180,6 +15198,12 @@
         "doc_no": "A.2.2.10.1.1.1.2.2.2",
         "title": "Controller Role",
         "bucket": "controller role"
+      },
+      {
+        "uuid": "82a04ab9-158e-4c6e-9f2a-04ef68c3a2f0",
+        "doc_no": "A.2.2.10.1.1.1.2.2.6",
+        "title": "Grantor",
+        "bucket": "grantor"
       },
       {
         "uuid": "c9ecd9c2-dd1b-426b-8e52-66a2b1892289",
@@ -15834,6 +15858,18 @@
         "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.4.1",
         "title": "Short Term Transitionary Measures",
         "bucket": "short term transitionary measures"
+      },
+      {
+        "uuid": "e4272501-fb7c-4ee2-8b15-6f7263317c8b",
+        "doc_no": "A.6.1.1.1.2.6.1.2.2.1.1.5.1.2",
+        "title": "Controller Role",
+        "bucket": "controller role"
+      },
+      {
+        "uuid": "64f794c9-db5f-4875-a800-3da12f4c5bec",
+        "doc_no": "A.6.1.1.1.2.6.1.2.2.1.1.5.1.5",
+        "title": "Grantor",
+        "bucket": "grantor"
       },
       {
         "uuid": "89577062-a38b-4cf7-a1ae-33c0bcff1cca",
