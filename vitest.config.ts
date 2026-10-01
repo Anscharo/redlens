@@ -59,6 +59,8 @@ export default defineConfig({
         // (atlas-html/history-identity/ordered-containment) are deliberately NOT
         // excluded — they have real scripts_tests/ coverage already.
         "scripts/lib/run-thread.mjs",
+        // Thin git wrapper for the check:size / check:comments dev gates; no logic worth a test.
+        "scripts/lib/diff-base.mjs",
       ],
     },
     // src/server runs under `bun test` (it imports Bun's SQL, absent in node-vitest).
