@@ -373,6 +373,36 @@
       "title": "Transfer Of USDS To Gnosis"
     },
     {
+      "taskKey": "u:3afc0502-e0ba-45a1-ae05-fe539053cf07",
+      "uuid": "3afc0502-e0ba-45a1-ae05-fe539053cf07",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.3.1.5",
+      "title": "AdministeredAgent Contract"
+    },
+    {
+      "taskKey": "u:fc3f9328-6fdc-4571-a515-5a193acacd0a",
+      "uuid": "fc3f9328-6fdc-4571-a515-5a193acacd0a",
+      "docNo": "A.6.1.1.1.2.6.1.2.2.1.1.5.1.3",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:bd20f786-b4af-4d5b-b29a-d84050a8fa2d",
+      "uuid": "bd20f786-b4af-4d5b-b29a-d84050a8fa2d",
+      "docNo": "A.6.1.1.1.2.6.1.2.2.1.1.5.1.4",
+      "title": "Freezer Role"
+    },
+    {
+      "taskKey": "u:64f794c9-db5f-4875-a800-3da12f4c5bec",
+      "uuid": "64f794c9-db5f-4875-a800-3da12f4c5bec",
+      "docNo": "A.6.1.1.1.2.6.1.2.2.1.1.5.1.5",
+      "title": "Grantor"
+    },
+    {
+      "taskKey": "u:173f0dbd-7c3b-4435-8a8d-04d76478a9df",
+      "uuid": "173f0dbd-7c3b-4435-8a8d-04d76478a9df",
+      "docNo": "A.6.1.1.1.2.6.1.3.6.1.2.4.2.1",
+      "title": "Spark Savings USDC Risk Parameters"
+    },
+    {
       "taskKey": "u:a51aef25-bf7e-4467-9678-0b1ea59fb47e",
       "uuid": "a51aef25-bf7e-4467-9678-0b1ea59fb47e",
       "docNo": "A.6.1.1.1.3.7.2.5.2",
