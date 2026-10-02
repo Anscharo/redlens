@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import { ancestorsFromGit, deployEquivalentShas } from "../scripts/lib/deploy-equivalent.mjs";
 
@@ -44,8 +48,21 @@ describe("ancestorsFromGit", () => {
     expect(ancestorsFromGit("head", "base", 20, git)).toEqual([]);
   });
 
-  it("reads the real history of this checkout", () => {
-    const [first] = ancestorsFromGit("HEAD", "HEAD~2", 5);
-    expect(first?.sha).toMatch(/^[0-9a-f]{40}$/);
+  it("parses real git output for the arguments it builds", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "deploy-equivalent-"));
+    const run = (args: string[]) => execFileSync("git", ["-C", dir, ...args], { encoding: "utf8" });
+    const git = (args: string[]) => run(args).split("\n").filter(Boolean);
+    run(["init", "-q"]);
+    const commit = (file: string) => {
+      fs.writeFileSync(path.join(dir, file), file);
+      run(["add", file]);
+      run(["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", file]);
+      return run(["rev-parse", "HEAD"]).trim();
+    };
+    const base = commit("base.ts");
+    const code = commit("app.ts");
+    const head = commit("NOTES.md");
+    expect(ancestorsFromGit(head, base, 20, git)).toEqual([{ sha: code, changedSinceHead: ["NOTES.md"] }]);
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 });
