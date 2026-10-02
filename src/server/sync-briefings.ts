@@ -77,7 +77,7 @@ function deadlineAt(env: NodeJS.ProcessEnv = process.env): number {
   return startedAt + Number(env.BRIEFINGS_DEADLINE_MS ?? 8 * 60_000);
 }
 
-function realDeps(): BriefingDeps {
+export function realDeps(): BriefingDeps {
   return {
     runMigrations,
     store: realStore,
