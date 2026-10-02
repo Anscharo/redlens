@@ -4,6 +4,7 @@ import { SearchResultSelectBox } from "./SearchResultSelectBox";
 import { SearchResultMatchNote } from "./SearchResultMatchNote";
 import { realDepth, depthColor } from "@/lib/depth";
 import { atlasHref } from "@/lib/routes";
+import { useDataSource } from "../lib/dataSource";
 import type { HitLabel, SearchHit } from "@/types";
 
 interface Props {
@@ -64,13 +65,14 @@ function GutterLabel({ label }: { label: HitLabel }) {
 }
 
 export const SearchResult = memo(function SearchResult({ hit, rank, onResultClick }: Props) {
+  const isPreview = !!useDataSource().preview;
   const color = depthColor(realDepth(hit.doc_no));
   return (
     <div className="search-result relative" data-semantic={hit.semantic ? "true" : undefined}>
       {/* Per-result selection checkbox — hidden until hover (or when checked),
           top-right like the reader's node checkbox. Adds this doc to the current
           selection. */}
-      <SearchResultSelectBox nodeId={hit.id} title={hit.title} />
+      {!isPreview && <SearchResultSelectBox nodeId={hit.id} title={hit.title} />}
       {/* Provenance labels — float left on wide screens, inline on narrow */}
       {hit.labels && hit.labels.length > 0 && (
         <div className="lg:absolute lg:right-full lg:mr-3 lg:top-3 lg:w-[140px] lg:p-0 px-4 pt-2 mono flex flex-wrap lg:flex-col items-start lg:items-stretch justify-start gap-1">

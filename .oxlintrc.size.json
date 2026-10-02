@@ -161,7 +161,6 @@
     { "files": ["scripts/lib/graph-doc-edges.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 81, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/graph-duties.mjs"], "rules": { "max-lines": ["error", { "max": 275, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 57, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/graph-entities.mjs"], "rules": { "max-lines": ["error", { "max": 471, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 432, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["scripts/lib/graph-entity-edges.mjs"], "rules": { "max-lines": ["error", { "max": 525, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 504, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/graph-instances.mjs"], "rules": { "max-lines": ["error", { "max": 202, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/graph-multisigs.mjs"], "rules": { "max-lines": ["error", { "max": 202, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 133, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/graph-omni.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 61, "skipBlankLines": true, "skipComments": true }] } },

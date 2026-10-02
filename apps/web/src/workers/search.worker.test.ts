@@ -217,6 +217,23 @@ describe("search operators", () => {
     for (const h of hits) expect(docs[h.id].type).toBe("Annotation");
   });
 
+  it("an underscored identifier matches literally, not as its parts", async () => {
+    const s = await initSearchWorker();
+    expect((await s.query("MCD_JUG")).length).toBe(0); // shares only "mcd" with the fixture
+    expect((await s.query("mcd_vat")).map((h) => h.id)).toContain(IDS.facilitatorCore);
+    expect((await s.query("mcd_v")).map((h) => h.id)).toContain(IDS.facilitatorCore); // prefix
+    expect((await s.query("vat")).map((h) => h.id)).toContain(IDS.facilitatorCore); // part
+  });
+
+  it("a bare underscore finds docs containing it", async () => {
+    const s = await initSearchWorker();
+    for (const q of ['"_"']) {
+      const ids = (await s.query(q)).map((h) => h.id);
+      expect(ids).toContain(IDS.facilitatorCore);
+      expect(ids).not.toContain(IDS.scope);
+    }
+  });
+
   it("multi-word type via underscore (Scenario_Variation)", async () => {
     const s = await initSearchWorker();
     const hits = await s.query("type:Scenario_Variation delegate");

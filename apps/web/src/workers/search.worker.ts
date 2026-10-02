@@ -13,7 +13,7 @@ import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
 import { CHAINLOG_RE, DOC_NO_RE, cancelSemanticLeg } from "./searchSemanticLeg";
 import { answerQuery, createLexicalMemo, hydrateSemantic, type QueryDeps } from "./searchWorkerLanes";
-import { MINISEARCH_OPTIONS } from "@/lib/searchOptions";
+import { MINISEARCH_OPTIONS, MINISEARCH_SEARCH_OPTIONS } from "@/lib/searchOptions";
 import { counterpartTerm, expandQueryTokens, partitionByOriginalTerms } from "@/lib/searchInflect";
 import { computeLabels } from "../lib/hitLabels";
 
@@ -295,7 +295,9 @@ function search(q: string): SearchHit[] {
       }
     : undefined;
 
-  const queryEmpty = !finalQuery;
+  // A query with no indexable token (e.g. a bare "_") can only be answered by
+  // the literal phrase filter, so scan instead of asking MiniSearch.
+  const queryEmpty = !/[\p{L}\p{N}]{2}/u.test(finalQuery) && (!finalQuery || lowerPhrases.length + casePhrases.length > 0);
 
   type MiniResult = { id: unknown; score: number; terms: string[]; queryTerms: string[]; match: Record<string, string[]> };
   let results: MiniResult[];
@@ -309,7 +311,7 @@ function search(q: string): SearchHit[] {
     const expansion = expandQueryTokens(finalQuery.split(/\s+/).filter(Boolean));
     const searchQuery = expansion.extra.length > 0 ? `${finalQuery} ${expansion.extra.join(" ")}` : finalQuery;
     results = idx.search(searchQuery, {
-      prefix: true,
+      ...MINISEARCH_SEARCH_OPTIONS, prefix: true,
       fuzzy: fuzzyLevel || false,
       boost: { title: 10, doc_no: 5, type: 2 },
       combineWith: "OR",

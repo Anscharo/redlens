@@ -9,7 +9,7 @@ import type MiniSearch from "minisearch";
 import type { AtlasNode, SearchHit, SemanticLegStatus, WorkerOutMessage } from "@/types";
 import type { SearchLane, SemanticSearchResponse } from "@/lib/searchSemantic";
 import { buildSnippet } from "@/lib/searchHighlight";
-import { MINISEARCH_OPTIONS } from "@/lib/searchOptions";
+import { MINISEARCH_SEARCH_OPTIONS } from "@/lib/searchOptions";
 import { isCommonWord } from "./commonWords";
 import {
   answerFromCache,
@@ -77,17 +77,19 @@ interface TermTree {
  * worker test pins the behaviour against a real index, so that upgrade fails
  * the suite rather than quietly disabling the wait.
  *
- * The word is normalised through the index's OWN `processTerm`, so the probe
- * cannot disagree with the dictionary it is reading about what a term looks
- * like. A token that normalises away (under two characters) counts as partial:
- * a one-letter word is a word in progress.
+ * The word is normalised through the QUERY side's own `processTerm`
+ * (`MINISEARCH_SEARCH_OPTIONS`), so the probe cannot disagree with the lane's
+ * own query about what a term looks like. The indexing `processTerm` is the
+ * wrong one here: it may return an ARRAY — the whole token plus its
+ * `_`-separated parts — and `mcd_vat` would then read as a word in progress and
+ * buy the long debounce. A token that normalises away (under two characters)
+ * counts as partial: a one-letter word is a word in progress.
  */
 export function wordShapeIn(idx: MiniSearch | null, word: string): WordShape {
   if (isCommonWord(word)) return "whole";
   const tree = (idx as unknown as { _index?: TermTree } | null)?._index;
   if (!tree || typeof tree.has !== "function" || typeof tree.atPrefix !== "function") return "unknown";
-  const processed = MINISEARCH_OPTIONS.processTerm?.(word, "content");
-  const term = typeof processed === "string" ? processed : null;
+  const term = MINISEARCH_SEARCH_OPTIONS.processTerm(word);
   if (!term) return "partial";
   try {
     if (tree.has(term)) return "whole";
