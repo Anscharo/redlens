@@ -61,14 +61,13 @@ describe("isIdentifierQuery", () => {
 });
 
 describe("semanticLegQuery", () => {
-  it("only the meaning lane asks — wording and entities never do", () => {
+  it("only the meaning lane asks — the wording lane never does", () => {
     // The whole point of the pill: a reader on the wording lane asked for a
     // wording search, and a meaning-matched row can share no word with their
     // query. Answering one with the other is a worse answer than an honest
     // empty one, and it also costs the spelling correction, which is only
     // offered for a wording search that found nothing.
     expect(semanticLegQuery("rewards", "lexical", NO_CHAINLOG)).toBeNull();
-    expect(semanticLegQuery("rewards", "graph", NO_CHAINLOG)).toBeNull();
     expect(semanticLegQuery("rewards", "semantic", NO_CHAINLOG)).toEqual({ query: "rewards" });
   });
 

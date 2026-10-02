@@ -2,7 +2,6 @@ import { memo, useCallback, useEffect, useRef } from "react";
 import { SearchResult } from "./SearchResult";
 import { SearchHints } from "./SearchHints";
 import { SearchStatusLine } from "./SearchStatusLine";
-import { EntityResults } from "./EntityResults";
 import { SemanticProgress } from "./SemanticProgress";
 import type { SearchHit } from "@/types";
 import type { SearchState } from "../hooks/useSearch";
@@ -11,7 +10,6 @@ import { useUrlState, urlInt } from "../hooks/useUrlState";
 import { useScrollRestore } from "../hooks/useScrollRestore";
 import { useSearchTracking } from "../hooks/useSearchTracking";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-import { useEntitySearch } from "../hooks/useEntitySearch";
 import { track } from "../lib/analytics";
 import { semanticSearchAvailable } from "../lib/semanticSearchConfig";
 import type { SearchLane } from "@/lib/searchSemantic";
@@ -82,24 +80,11 @@ export const SearchResults = memo(function SearchResults({
     [hits.length],
   );
 
-  // Entities are their OWN lane, and appear nowhere else: an overlay above every
-  // wording search is the same list in two places, pushing the document hits
-  // down the page on every query that happens to share a word with an actor's
-  // name. Passing an empty query off-lane also stops the graph worker doing the
-  // matching work at all, rather than matching and then discarding.
-  const entitiesOnly = lane === "graph";
-  const { hits: entityHits, loading: entitiesLoading } = useEntitySearch(entitiesOnly ? query : "");
-
-  // A leg still in flight is a search still running: the "no results" line and
-  // both retry suggestions have to wait for it. Two legs can be in flight, and
-  // each needs its own signal — the meaning one reports through the worker's
-  // message, the entity one through the graph worker's own loading state.
+  // A meaning leg still in flight is a search still running: the "no results"
+  // line and both retry suggestions have to wait for it.
   const semanticPending = state.status === "done" && state.semantic === "pending";
-  // On the entities lane the document hits are computed but never shown, so
-  // "nothing found" has to mean nothing in the list the reader is looking at.
-  const resultCount = entitiesOnly ? entityHits.length : hits.length;
-  const pending = semanticPending || (entitiesOnly && entitiesLoading);
-  const noResults = state.status === "done" && resultCount === 0 && !pending;
+  const pending = semanticPending;
+  const noResults = state.status === "done" && hits.length === 0 && !pending;
   // Query is non-broad when mode pill is phrase/strict, or user typed explicit quotes
   const isNonBroad = mode !== "broad" || query.includes('"') || query.includes("'");
   const strippedQuery = query.replace(/["']/g, "").replace(/\s+/g, " ").trim();
@@ -113,17 +98,13 @@ export const SearchResults = memo(function SearchResults({
   // asked the reader to learn an operator in order to recover from a typo.
   const didYouMean = noResults && state.status === "done" ? state.didYouMean : undefined;
 
-  const displayed = entitiesOnly ? [] : hits.slice(0, visible);
-  const remaining = entitiesOnly ? 0 : hits.length - displayed.length;
+  const displayed = hits.slice(0, visible);
+  const remaining = hits.length - displayed.length;
 
   const scrollRef = useRef<HTMLElement>(null);
   // Wait until results are rendered before restoring — otherwise we'd scroll
   // an empty container and clobber the saved offset.
-  useScrollRestore(
-    scrollRef,
-    state.status === "done" && (displayed.length > 0 || (entitiesOnly && entityHits.length > 0)),
-    ["n"],
-  );
+  useScrollRestore(scrollRef, state.status === "done" && displayed.length > 0, ["n"]);
 
   return (
     <main ref={scrollRef} className="flex-1 overflow-y-auto">
@@ -131,34 +112,21 @@ export const SearchResults = memo(function SearchResults({
         {(state.status === "searching" || state.status === "done") && (
           <SearchStatusLine
             state={state}
-            shown={entitiesOnly ? entityHits.length : displayed.length}
-            total={resultCount}
-            durationMs={entitiesOnly || state.status !== "done" ? null : state.durationMs}
+            shown={displayed.length}
+            total={hits.length}
+            durationMs={state.status !== "done" ? null : state.durationMs}
             pending={pending}
             lane={lane}
             onLaneSelect={onLaneSelect}
             semanticAvailable={semanticSearchAvailable()}
           />
         )}
-        {/* Gated on the MEANING leg alone, not the shared `pending`: the entity
-            leg answers from a worker already holding the graph and needs no
-            reassurance, and a bar over an entity search would be promising a
-            round trip that is not happening.
-
-            Keyed on the query so a second search restarts the stages. Usually
+        {/* Keyed on the query so a second search restarts the stages. Usually
             the intervening "searching" state unmounts it anyway, but two
             queries that both settle straight into a pending leg would otherwise
             leave the second one inheriting the first's timer, reading
             "Comparing Results" on a search that just began. */}
         {semanticPending && <SemanticProgress key={query} />}
-        {entitiesOnly && (
-          <EntityResults
-            hits={entityHits}
-            query={shownQuery.current}
-            shownAt={shownAt.current}
-            settled={state.status === "done" && !pending}
-          />
-        )}
         {suggestBroad && (
           <div className="px-4 py-2 border-b border-border">
             <button

@@ -550,11 +550,9 @@ describe("did you mean", () => {
     expect(msg.didYouMean).toBeUndefined();
   });
 
-  it("stays on the wording lane — a spelling fix says nothing about meaning or entities", async () => {
-    for (const lane of ["graph", "semantic"] as const) {
-      const msg = await ask("quorem", { lane });
-      expect(msg.didYouMean).toBeUndefined();
-    }
+  it("stays on the wording lane — a spelling fix says nothing about meaning", async () => {
+    const msg = await ask("quorem", { lane: "semantic" });
+    expect(msg.didYouMean).toBeUndefined();
   });
 });
 
@@ -570,7 +568,7 @@ describe("remembered search time", () => {
     const first = await run("lexical");
     // Flipping away and back must not re-time the memo hit: a number that
     // changed on every flip would be measuring the click, not the search.
-    await run("graph");
+    await run("semantic");
     expect(await run("lexical")).toBe(first);
   });
 });
@@ -746,16 +744,6 @@ describe("semantic lane", () => {
     // lane, and must not spend an embedding call.
     expect(msg.semantic).toBe("none");
     expect(msg.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore]);
-    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
-    expect(calls.some((u) => u.includes("/api/search/semantic"))).toBe(false);
-  });
-
-  it("the entities lane never reaches the semantic endpoint", async () => {
-    const calls: string[] = [];
-    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
-    const id = ask(h, "governance", { lane: "graph" });
-    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
-    expect(msg.semantic).toBe("none");
     await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
     expect(calls.some((u) => u.includes("/api/search/semantic"))).toBe(false);
   });

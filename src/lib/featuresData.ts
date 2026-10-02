@@ -136,11 +136,10 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         ],
       },
       {
-        name: "Wording, entities or meaning",
-        what: "Three indexes behind the same search box: the words you typed, the relationship graph's parties, or what a document is about.",
+        name: "Wording or meaning",
+        what: "Two indexes behind the same search box: the words you typed, or what a document is about.",
         how: [
-          "Search, then use the wording / entities / meaning pills on the right of the result count line to switch index.",
-          "Entities — Agents, Conservers, Instances, Primitives and the rest — are on the entities pill; they no longer appear above wording results.",
+          "Search, then use the wording / meaning pills on the right of the result count line to switch index.",
           "A result the meaning index found is labelled semantic match and shows its similarity score; it can share no word at all with your query.",
           "Add in:<doc number> to scope meaning search to one subtree — in:A.6 who approves rewards searches only the Agent Scope.",
           "On the meaning pill the a* / \"a\" / Aa mode buttons are greyed out, and any other search syntax you type — type:, title:, -word, ~2, quotes — is dropped, with a note above the results naming what it dropped. in: is the exception and still applies.",
@@ -168,6 +167,14 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     route: "/radar",
     blurb: "Dashboards for every party in the Sky ecosystem — Agents, Facilitators, Alignment Conservers, and more.",
     features: [
+      {
+        name: "Radar search",
+        what: "Find actors, primitive instances, parameter values, addresses and relationships from one box.",
+        how: [
+          "Type in the search box on Radar. Each result opens the matching part of the actor page.",
+          "From the main search, the link on the result count line carries your query to Radar.",
+        ],
+      },
       {
         name: "Actor dashboards",
         what: "A full profile per party: responsibilities, primitives, relationships, rewards, invoked instances, on-chain state, contact, and its own change history.",

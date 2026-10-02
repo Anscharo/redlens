@@ -2830,6 +2830,28 @@ a.atlas-annotates:focus-visible {
   cursor: pointer;
 }
 
+/* Target of a Radar search link: a short accent outline that fades out. */
+[data-arrived] {
+  animation: radar-arrived 1.6s ease-out;
+}
+@keyframes radar-arrived {
+  from {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+  to {
+    outline: 2px solid transparent;
+    outline-offset: 4px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-arrived] {
+    animation: none;
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+}
+
 /* ─── Meaning-lane progress bar (SemanticProgress) ─── */
 /* A 6s fill, not a measurement — see the component for why there is no real
    progress to report. `forwards` holds it at full if the search outruns the

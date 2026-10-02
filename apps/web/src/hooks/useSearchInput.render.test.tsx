@@ -162,13 +162,23 @@ describe("useSearchInput (rendered)", () => {
   });
 
   it("selectLane records the change and re-runs the query against the other index", () => {
-    setup("/?q=governance", "/");
-    act(() => api.selectLane("graph"));
-    expect(track).toHaveBeenCalledWith("search_lane_change", { product: "search", lane: "graph" });
-    expect(api.lane).toBe("graph");
-    // Switching index must not touch the query itself.
-    expect(api.query).toBe("governance");
-    expect(search).toHaveBeenLastCalledWith("governance", { lane: "graph" });
+    window.__SEMANTIC_SEARCH__ = true;
+    try {
+      setup("/?q=governance", "/");
+      act(() => api.selectLane("semantic"));
+      expect(track).toHaveBeenCalledWith("search_lane_change", { product: "search", lane: "semantic" });
+      expect(api.lane).toBe("semantic");
+      // Switching index must not touch the query itself.
+      expect(api.query).toBe("governance");
+      expect(search).toHaveBeenLastCalledWith("governance", { lane: "semantic" });
+    } finally {
+      delete window.__SEMANTIC_SEARCH__;
+    }
+  });
+
+  it("decodes a retired ?lane=graph link to the wording lane", () => {
+    setup("/?q=governance&lane=graph", "/");
+    expect(api.lane).toBe("lexical");
   });
 
   it("wrapModeClick toggles a phrase back off to bare text", () => {

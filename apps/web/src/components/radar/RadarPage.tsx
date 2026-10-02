@@ -15,6 +15,9 @@ import { Drawer, DrawerToggle } from "../Drawer";
 import { Loading } from "../Loading";
 import { RadarProvider } from "./RadarContext";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { useRadarSearch } from "../../hooks/useRadarSearch";
+import { filterSidebarGroups } from "./filterSidebarGroups";
+import { RadarSearchResults } from "./RadarSearchResults";
 import { recordVisit } from "../../lib/visitHistory";
 import { actorHref, settlementsHref } from "@/lib/routes";
 
@@ -36,19 +39,9 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
   const graph = use(loadGraph(base));
 
   const sidebarGroups = useMemo(() => buildSidebarActors(graph, docs), [graph, docs]);
-  const filteredGroups = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return sidebarGroups;
-    // The search pill promises "name, role" — a role query matches a group's
-    // label ("facilitator", "prime") and keeps that whole group.
-    return sidebarGroups
-      .map((g) =>
-        g.label.toLowerCase().includes(q)
-          ? g
-          : { ...g, actors: g.actors.filter((a) => a.name.toLowerCase().includes(q)) },
-      )
-      .filter((g) => g.actors.length > 0);
-  }, [sidebarGroups, query]);
+  const filteredGroups = useMemo(() => filterSidebarGroups(sidebarGroups, query), [sidebarGroups, query]);
+  const searchGroups = useRadarSearch(graph, query);
+  const searching = query.trim() !== "";
 
   const rewardsIndex = useMemo(() => buildRewardsIndex(docs, graph), [docs, graph]);
   const allActiveDataRows = useMemo(() => buildActiveDataRows(docs, graph), [docs, graph]);
@@ -58,7 +51,9 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
     return buildActorProfile(actorSlug, graph, docs, rewardsIndex, allActiveDataRows);
   }, [actorSlug, graph, docs, rewardsIndex, allActiveDataRows]);
 
-  const title = !actorSlug
+  const title = searching
+    ? "Radar search: Sky Atlas by Redline"
+    : !actorSlug
     ? "Redline Radar for Sky Atlas"
     : !profile
       ? null
@@ -69,13 +64,13 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
 
   // Append the actor / settlements page to the visit log once it resolves.
   useEffect(() => {
-    if (!actorSlug || !profile) return;
+    if (searching || !actorSlug || !profile) return;
     const path = page === "settlements" ? settlementsHref(actorSlug) : actorHref(actorSlug);
     const label = page === "settlements"
       ? `${profile.entity.name} · Monthly settlement`
       : profile.entity.name;
     void recordVisit({ path, label, base: routerBase });
-  }, [actorSlug, profile, routerBase, page]);
+  }, [actorSlug, profile, routerBase, page, searching]);
 
   return (
     <RadarProvider value={{ docs }}>
@@ -87,7 +82,9 @@ function RadarLoaded({ query, actorSlug, page, drawerOpen, onDrawerClose }: Inne
       >
         <ActorList groups={filteredGroups} selectedSlug={actorSlug ?? null} />
       </Drawer>
-      {!actorSlug ? (
+      {searching ? (
+        searchGroups ? <RadarSearchResults query={query} groups={searchGroups} /> : <Loading />
+      ) : !actorSlug ? (
         <PrimitiveDashboard agents={primitiveStats} />
       ) : !profile ? (
         <Loading>actor not found</Loading>

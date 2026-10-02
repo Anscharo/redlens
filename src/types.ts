@@ -181,21 +181,13 @@ export interface SerializedSubgraph {
   edges: Array<{ key: string; src: string; tgt: string; attrs: Record<string, unknown> }>;
 }
 
-// Search-page entity overlay hit (graph worker `search-entities`).
-export interface EntitySearchHit {
-  participant: GraphEntity;
-  score: number; // 3 exact, 2 prefix, 1 substring / inflection
-  href: string;
-}
-
 // Worker message types — graph
 export type GraphWorkerInMessage =
   | { type: "ping" }
   | { type: "edges"; id: string }
   | { type: "entity"; slug: string }
   | { type: "neighbors"; id: string; depth?: number }
-  | { type: "subgraph"; rootId: string; depth: number }
-  | { type: "search-entities"; id: number; q: string };
+  | { type: "subgraph"; rootId: string; depth: number };
 
 export type GraphWorkerOutMessage =
   | { type: "ready" }
@@ -203,5 +195,4 @@ export type GraphWorkerOutMessage =
   | { type: "entity"; slug: string; entity: GraphEntity | null; edges: ResolvedEdge[] }
   | ({ type: "neighbors"; id: string } & SerializedSubgraph)
   | ({ type: "subgraph"; rootId: string } & SerializedSubgraph)
-  | { type: "search-entities"; id: number; hits: EntitySearchHit[] }
   | { type: "error"; message: string };

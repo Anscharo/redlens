@@ -14,17 +14,6 @@ export const ENTITY_TYPE_LABEL: Record<string, string> = {
   bridge: "Bridge",
 };
 
-export const SUBTYPE_LABEL: Record<string, string> = {
-  prime: "Prime",
-  executor: "Executor",
-  aligned_delegate: "Aligned Delegate",
-  operational: "Operational",
-  core: "Core",
-  individual: "Individual",
-  integration_partner: "Integration Partner",
-  bridge_validator: "Bridge Validator",
-};
-
 /** Labels vary by the edge's direction relative to the viewer.
  *  `forward` reads "**src** *verb* **tgt**"; `reverse` reads "**tgt** *verb* **src**". */
 const EDGE_TYPE_LABELS: Record<string, { forward: string; reverse: string }> = {

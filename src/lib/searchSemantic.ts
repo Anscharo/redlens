@@ -10,7 +10,7 @@
 // the Bun server, the search web worker, and React components alike.
 
 /**
- * Which index the results page is querying — the three pills on the count line.
+ * Which index the results page is querying — the two pills on the count line.
  *
  * Meaning-matched results appear on the `semantic` lane and NOWHERE else. The
  * lane is the ONLY knob: the leg never blends into the wording lane, neither by
@@ -22,7 +22,7 @@
  * spelling correction, which is only offered for a wording search that found
  * nothing, and so cannot survive the leg replacing that result set.
  */
-export const SEARCH_LANES = ["lexical", "graph", "semantic"] as const;
+export const SEARCH_LANES = ["lexical", "semantic"] as const;
 export type SearchLane = (typeof SEARCH_LANES)[number];
 
 export function isSearchLane(v: unknown): v is SearchLane {

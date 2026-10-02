@@ -35,6 +35,8 @@
 
 ## 2026-10-02
 
+- Moved entity search to Radar: the Radar search box now finds actors, instances, parameters, addresses and relationships.
+- Removed the entities pill from search results.
 - Fixed search so words with underscores, like erc4626_redeem, are searched as one word.
 - Showed equivalent documents from other Prime Agents and owning-agent labels when viewing a preview.
 
