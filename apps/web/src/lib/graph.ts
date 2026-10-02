@@ -3,7 +3,6 @@ import type {
   GraphEntity,
   RelationEdge,
   GraphWorkerOutMessage,
-  EntitySearchHit,
 } from "@/types";
 import { fetchJson } from "@/lib/verify";
 import { captureException } from "./analytics";
@@ -14,7 +13,6 @@ import type { GraphData } from "@/lib/graphData";
 // can import it without this worker/analytics layer. Re-exported here so
 // existing `import type { GraphData } from "./graph"` callers keep working.
 export type { GraphData } from "@/lib/graphData";
-export type { EntitySearchHit } from "@/types";
 
 // Module-level cache for the raw graph data (used by reports/radar).
 // Cache the raw graph data per data-source base (used by reports/radar). A
@@ -66,8 +64,6 @@ const readyCallbacks: Array<{ resolve: () => void; reject: (e: Error) => void }>
 
 // Pending callbacks keyed by request id.
 const edgePending = new Map<string, (r: EdgeResult) => void>();
-const entitySearchPending = new Map<number, (hits: EntitySearchHit[]) => void>();
-let entitySearchSeq = 0;
 
 // If the worker dies mid-request the response never arrives, leaking the pending
 // callback and hanging the awaiting promise forever. Register every request with
@@ -137,12 +133,6 @@ function getWorker(): Worker {
       if (cb) { edgePending.delete(msg.id); cb({ outbound: msg.outbound, inbound: msg.inbound }); }
       return;
     }
-
-    if (msg.type === "search-entities") {
-      const cb = entitySearchPending.get(msg.id);
-      if (cb) { entitySearchPending.delete(msg.id); cb(msg.hits); }
-      return;
-    }
   });
 
   // Worker-script load / uncaught errors never arrive as a message, so the
@@ -198,15 +188,5 @@ export async function getEdges(id: string): Promise<EdgeResult> {
   return new Promise((resolve, reject) => {
     registerPending(edgePending, id, resolve, reject, "edges");
     w.postMessage({ type: "edges", id });
-  });
-}
-
-export async function searchEntities(q: string): Promise<EntitySearchHit[]> {
-  const w = getWorker();
-  await whenReady();
-  const id = ++entitySearchSeq;
-  return new Promise((resolve, reject) => {
-    registerPending(entitySearchPending, id, resolve, reject, "search-entities");
-    w.postMessage({ type: "search-entities", id, q });
   });
 }

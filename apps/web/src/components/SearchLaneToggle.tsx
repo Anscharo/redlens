@@ -10,10 +10,6 @@ const LANE_COPY: Record<SearchLane, { label: string; title: string }> = {
     label: "wording",
     title: "Wording — the words you typed, matched against titles and text (lexical search)",
   },
-  graph: {
-    label: "entities",
-    title: "Entities — Agents, Facilitators, Conservers, Instances and Primitives by name, from the relationship graph",
-  },
   semantic: {
     label: "meaning",
     title: "Meaning — documents scored by what they are about, even when they share no word with your query (semantic search)",
@@ -28,8 +24,8 @@ interface Props {
 }
 
 /**
- * Three-way index picker for the results page. A radiogroup, because the lanes
- * are mutually exclusive — one index is being queried, not three toggles.
+ * Two-way index picker for the results page. A radiogroup, because the lanes
+ * are mutually exclusive — one index is being queried, not two toggles.
  *
  * The roles do NOT bring keyboard behaviour with them, whatever an earlier
  * comment here claimed: a radiogroup that announces itself as one and then

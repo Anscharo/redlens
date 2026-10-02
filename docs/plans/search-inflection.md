@@ -1,6 +1,6 @@
 # Frontend + server search: singular ↔ plural without stemming
 
-Status: **shipped**. Query-time inflection in the reader worker, server
+Status: **shipped**. The entity overlay described in section 3 has moved to Radar search (`src/lib/radarSearch.ts`) and no longer runs in the main search bar. Query-time inflection in the reader worker, server
 `runLexical`, and the graph-worker entity overlay, ranked so original-term
 hits sit above inflection-only hits. The MiniSearch index still stores
 surface forms (`processTerm` is unchanged).

@@ -1,4 +1,6 @@
 import { SearchLaneToggle } from "./SearchLaneToggle";
+import { Link } from "./Link";
+import { ROUTES } from "@/lib/routes";
 import type { SearchState } from "../hooks/useSearch";
 import { MIN_SEMANTIC_QUERY, semanticLaneLimit, type SearchLane } from "@/lib/searchSemantic";
 
@@ -7,19 +9,9 @@ interface Props {
   /** Rows actually on screen; equal to `total` until "show more" paginates. */
   shown: number;
   total: number;
-  /**
-   * Milliseconds to report, or null to omit. The entities lane has no timing of
-   * its own (the graph worker doesn't report one), and showing the document
-   * search's duration next to an entity count would be a made-up number.
-   */
+  /** Milliseconds to report, or null to omit when there is no honest figure. */
   durationMs: number | null;
-  /**
-   * True while a lane the reader is looking at still has work in flight.
-   * Passed in rather than derived here, because the two legs that can be
-   * pending report through different channels — the meaning one on the search
-   * worker's message, the entity one through the graph worker's own state —
-   * and this line must not say "no results" while either is running.
-   */
+  /** True while the lane the reader is looking at still has work in flight. */
   pending: boolean;
   lane: SearchLane;
   onLaneSelect: (lane: SearchLane) => void;
@@ -100,6 +92,11 @@ export function SearchStatusLine({ state, shown, total, durationMs, pending, lan
     <div className="px-4 py-2 text-xs border-b mono text-tan-3 border-border flex flex-wrap items-center gap-x-3 gap-y-1">
       <span>{count}</span>
       {note && <span className="search-semantic-note">{note}</span>}
+      {state.status === "done" && state.query && (
+        <Link to={`${ROUTES.RADAR}?q=${encodeURIComponent(state.query)}`} className="hover:text-accent">
+          Search actors and instances on Radar →
+        </Link>
+      )}
       <span className="ml-auto">
         <SearchLaneToggle lane={lane} onSelect={onLaneSelect} semanticAvailable={semanticAvailable} />
       </span>

@@ -60,10 +60,9 @@
     "reader_split_close": { "props": { "node_id": "uuid", "split_id": "uuid" } },
     "atlas_search": { "props": { "query": "string", "mode": "broad | phrase | strict", "result_count": "number" } },
     "search_result_click": { "props": {
-      "result_kind": "doc | entity", "query": "string", "rank": "number (1-based)",
+      "result_kind": "doc", "query": "string", "rank": "number (1-based)",
       "in_top_5": "bool", "ms_to_click": "number", "result_count": "number",
-      "node_id": "uuid? (doc)", "doc_type": "string? (doc)",
-      "entity_id": "uuid? (entity)", "entity_slug": "string? (entity)", "entity_type": "string? (entity)"
+      "node_id": "uuid", "doc_type": "string"
     } },
     "report_open": { "props": { "report_id": "string" } },
     "report_view": { "props": { "report": "oea-assessment | risk-rules", "row_count": "number", "stale_count": "number", "unassessed_count": "number", "untriaged_count": "number? (risk only)", "rubric_version": "string|null" } },
@@ -178,7 +177,7 @@
         { "name": "Click rank distribution", "type": "trends", "viz": "bar", "series": [{ "event": "search_result_click", "math": "total" }], "breakdown": { "property": "rank", "type": "event" } },
         { "name": "% clicks in top 5", "type": "trends", "viz": "bar", "series": [{ "event": "search_result_click", "math": "total" }], "breakdown": { "property": "in_top_5", "type": "event" } },
         { "name": "Time-to-click (ms)", "type": "trends", "viz": "line", "series": [{ "event": "search_result_click", "math": "median", "math_property": "ms_to_click", "label": "p50" }, { "event": "search_result_click", "math": "p90", "math_property": "ms_to_click", "label": "p90" }] },
-        { "name": "Doc vs entity clicks", "type": "trends", "viz": "bar", "series": [{ "event": "search_result_click", "math": "total" }], "breakdown": { "property": "result_kind", "type": "event" } },
+        { "name": "Search clicks by result kind (entity clicks are the radar_search_result_click event, product radar)", "type": "trends", "viz": "bar", "series": [{ "event": "search_result_click", "math": "total" }], "breakdown": { "property": "result_kind", "type": "event" } },
         { "name": "Search mode usage (at search time)", "type": "trends", "viz": "bar", "series": [{ "event": "atlas_search", "math": "total" }], "breakdown": { "property": "mode", "type": "event" } },
         { "name": "Search mode pill clicks", "type": "trends", "viz": "bar", "question": "How often users explicitly switch broad/phrase/strict via the pills (vs. typing quotes).", "series": [{ "event": "search_mode_change", "math": "total" }], "breakdown": { "property": "mode", "type": "event" } }
       ]

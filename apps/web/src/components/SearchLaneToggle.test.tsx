@@ -18,8 +18,8 @@ describe("SearchLaneToggle", () => {
   it("is a radiogroup with one option per index, in reader wording", () => {
     setup();
     expect(screen.getByRole("radiogroup", { name: "Search index" })).toBeTruthy();
-    expect(screen.getAllByRole("radio")).toHaveLength(3);
-    for (const label of ["wording", "entities", "meaning"]) {
+    expect(screen.getAllByRole("radio")).toHaveLength(2);
+    for (const label of ["wording", "meaning"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
   });
@@ -35,8 +35,8 @@ describe("SearchLaneToggle", () => {
 
   it("reports the picked lane", () => {
     const { onSelect } = setup();
-    fireEvent.click(screen.getByText("entities"));
-    expect(onSelect).toHaveBeenCalledWith("graph");
+    fireEvent.click(screen.getByText("meaning"));
+    expect(onSelect).toHaveBeenCalledWith("semantic");
   });
 
   it("disables only the meaning lane when the deployment cannot answer it", () => {
@@ -45,9 +45,8 @@ describe("SearchLaneToggle", () => {
     expect(meaning).toBeDisabled();
     fireEvent.click(meaning);
     expect(onSelect).not.toHaveBeenCalled();
-    // The other two lanes are local and keep working.
+    // The wording lane is local and keeps working.
     expect(screen.getByText("wording")).not.toBeDisabled();
-    expect(screen.getByText("entities")).not.toBeDisabled();
   });
 });
 
@@ -58,7 +57,7 @@ describe("keyboard", () => {
     render(<SearchLaneToggle lane="lexical" onSelect={onSelect} semanticAvailable />);
     const group = screen.getByRole("radiogroup");
     fireEvent.keyDown(group, { key: "ArrowRight" });
-    expect(onSelect).toHaveBeenLastCalledWith("graph");
+    expect(onSelect).toHaveBeenLastCalledWith("semantic");
     onSelect.mockClear();
     fireEvent.keyDown(group, { key: "ArrowLeft" });
     expect(onSelect).toHaveBeenLastCalledWith("semantic"); // wraps off the first
@@ -66,17 +65,17 @@ describe("keyboard", () => {
 
   it("skips a lane this deployment cannot answer", () => {
     const onSelect = vi.fn();
-    render(<SearchLaneToggle lane="graph" onSelect={onSelect} semanticAvailable={false} />);
+    render(<SearchLaneToggle lane="lexical" onSelect={onSelect} semanticAvailable={false} />);
     fireEvent.keyDown(screen.getByRole("radiogroup"), { key: "ArrowRight" });
-    // meaning is disabled, so "next" wraps past it to wording rather than
+    // meaning is disabled, so "next" stays on wording rather than
     // moving focus onto a pill that cannot be chosen.
     expect(onSelect).toHaveBeenLastCalledWith("lexical");
   });
 
   it("keeps exactly one pill in the tab order", () => {
-    render(<SearchLaneToggle lane="graph" onSelect={vi.fn()} semanticAvailable />);
+    render(<SearchLaneToggle lane="semantic" onSelect={vi.fn()} semanticAvailable />);
     const inTabOrder = screen.getAllByRole("radio").filter((b) => b.getAttribute("tabindex") === "0");
     expect(inTabOrder).toHaveLength(1);
-    expect(inTabOrder[0]).toHaveTextContent("entities");
+    expect(inTabOrder[0]).toHaveTextContent("meaning");
   });
 });
