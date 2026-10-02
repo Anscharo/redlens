@@ -7981,13 +7981,13 @@
   },
   "title-templates": {
     "counts": {
-      "total": 1095,
+      "total": 1097,
       "Primitive Hub Document": 136,
       "Global Activation Status": 140,
       "Hub Data Repository": 136,
       "Single Instance Configuration Document": 48,
-      "Parameters": 227,
-      "Rate Limits": 145,
+      "Parameters": 228,
+      "Rate Limits": 146,
       "Initial Planning": 85,
       "Operational GovOps Review": 85,
       "Artifact Edit Proposal": 85,
@@ -10229,6 +10229,18 @@
       {
         "uuid": "53101acf-dfcc-4a36-b3d7-5ae93c8c154a",
         "doc_no": "A.6.1.1.2.2.6.1.3.1.7.4.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "076e1ab3-ee5c-4348-a522-58c904dd178f",
+        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.5.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "83a5117a-0acb-4fb5-b4c4-7c008e45f810",
+        "doc_no": "A.6.1.1.2.2.6.1.3.1.7.5.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
