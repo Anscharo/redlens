@@ -1,7 +1,7 @@
 // Re-authorizing a conversation that holds private preview text, and the
 // privacy flag a turn carries. The database and the GitHub check are injected.
 import { test, expect } from "bun:test";
-import { conversationScope, reauthorizeRepos, pageNamesNonCanonicalPreview } from "./conversation-access.ts";
+import { conversationScope, reauthorizeRepos, pageNamesNonCanonicalPreview, chatToolContext } from "./conversation-access.ts";
 import { withholdsContent } from "./llm.ts";
 import type { AccessDecision } from "../preview/access.ts";
 
@@ -54,4 +54,15 @@ test("a page inside a non-canonical preview turns privacy on; a canonical PR doe
 
 test("withholdsContent: a private conversation never captures text", () => {
   expect(withholdsContent({ privacyMode: true })).toBe(true);
+});
+
+test("chatToolContext: reading private text records it, then flips the turn's obs to privacy mode", async () => {
+  const order: string[] = [];
+  const scope = { privacyMode: false, onPrivateAccess: async (repo: string) => void order.push(`record ${repo}`) };
+  const obs: { privacyMode?: boolean } = { privacyMode: false };
+  const ctx = chatToolContext("u1", new AbortController().signal, scope, obs);
+  expect(ctx).toMatchObject({ surface: "chat", userId: "u1" });
+  await ctx.onPrivateAccess!("a/b");
+  expect(order).toEqual(["record a/b"]);
+  expect(obs.privacyMode).toBe(true);
 });

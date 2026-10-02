@@ -10,6 +10,7 @@ import { getModel } from "./llm.ts";
 import type { PageContext } from "./system-prompt.ts";
 import { authorizeUserRepoAccess, type AccessDecision } from "../preview/access.ts";
 import { CANONICAL_REPO, decodeId } from "../preview/resolve.ts";
+import type { ToolCallContext } from "./tools/tool-context.ts";
 
 export interface ChatBody {
   message: string;
@@ -99,6 +100,26 @@ export async function conversationScope(
       if (recorded.has(repo)) return;
       await record(conv.id, repo);
       recorded.add(repo);
+    },
+  };
+}
+
+/** The context a chat turn's tools run under. The private-text hook records the
+ *  repo and then turns on `obs.privacyMode`, before the text reaches the model,
+ *  so the round that carries it and every later call skip content capture. */
+export function chatToolContext(
+  userId: string,
+  signal: AbortSignal,
+  scope: ConversationScope,
+  obs: { privacyMode?: boolean },
+): ToolCallContext {
+  return {
+    surface: "chat",
+    userId,
+    signal,
+    onPrivateAccess: async (repo) => {
+      await scope.onPrivateAccess(repo);
+      obs.privacyMode = true;
     },
   };
 }

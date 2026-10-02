@@ -15,7 +15,7 @@ import { sql } from "../db.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { getSessionUser } from "../session.ts";
 import { makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
-import { resolveConversation, conversationScope, type ChatBody } from "./conversation-access.ts";
+import { resolveConversation, conversationScope, chatToolContext, type ChatBody } from "./conversation-access.ts";
 import type { Route } from "./model-router.ts";
 import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { summarizeFacts } from "../facts/registry.ts";
@@ -443,17 +443,7 @@ export async function handleChat(req: Request): Promise<Response> {
           for await (const ev of runVerifiedChat({
             ix, messages, stream: chatStream, jsonCall: makeOpenrouterJson(obs),
             question: body.message, signal: req.signal, obs, maxIterations,
-            toolCtx: {
-              surface: "chat",
-              userId,
-              signal: req.signal,
-              // Recorded before the private text reaches the model, so this
-              // round's call and every later one skip content capture.
-              onPrivateAccess: async (repo) => {
-                await scope.onPrivateAccess(repo);
-                obs.privacyMode = true;
-              },
-            },
+            toolCtx: chatToolContext(userId, req.signal, scope, obs),
           })) {
             if (ev.type === "done") {
               done = ev as HarnessDone;

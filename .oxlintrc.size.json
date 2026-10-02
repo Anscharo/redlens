@@ -196,7 +196,7 @@
     { "files": ["src/server/chat/chat-orchestrator.ts"], "rules": { "max-lines": ["error", { "max": 538, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 292, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/chat.ts"], "rules": { "max-lines": ["error", { "max": 361, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 254, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/conversations.ts"], "rules": { "max-lines": ["error", { "max": 224, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/chat/system-prompt.ts"], "rules": { "max-lines": ["error", { "max": 191, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 108, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/server/chat/system-prompt.ts"], "rules": { "max-lines": ["error", { "max": 153, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 108, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/teach/handle.ts"], "rules": { "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/teach/review.ts"], "rules": { "max-lines-per-function": ["error", { "max": 51, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/tools/tool-registry.ts"], "rules": { "max-lines": ["error", { "max": 583, "skipBlankLines": true, "skipComments": true }] } },
