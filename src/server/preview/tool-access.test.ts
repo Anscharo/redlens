@@ -170,6 +170,15 @@ test("chat: the build path is rate limited per user; a ready bundle is not", asy
   expect(calls.build).toBe(0);
 });
 
+test("chat: a private bundle behind a resolution that did not say private is still authorized", async () => {
+  const privateMeta = () => meta({ private: true, repo: "acme/secret" });
+  const denied = deps({ meta: privateMeta, authorize: async () => "forbidden" }).d;
+  expect((await openPreviewForTool(7, { surface: "chat", userId: "u" }, {}, denied)).status).toBe("not-found");
+  const { d, calls } = deps({ meta: privateMeta });
+  expect((await openPreviewForTool(7, { surface: "chat", userId: "u" }, {}, d)).status).toBe("ready");
+  expect(calls.authorize).toEqual(["acme/secret"]);
+});
+
 test("chat: a taken-down sha is not-found", async () => {
   const { d } = deps({ takedown: async () => true });
   expect((await openPreviewForTool(7, { surface: "chat", userId: "u" }, {}, d)).status).toBe("not-found");

@@ -134,7 +134,7 @@ async function openForChat(id: string, ctx: ToolCallContext, waitMs: number, d: 
   if (await d.takedown(r.sha)) return { status: "not-found", id };
   if (d.ready(r.sha)) {
     const meta = d.meta(r.sha);
-    if (!meta) return { status: "not-found", id };
+    if (!meta || !(await bundleAuthorized(meta, r, userId, d))) return { status: "not-found", id };
     d.touch(r.sha);
     return { status: "ready", id, sha: r.sha, meta };
   }
@@ -144,7 +144,16 @@ async function openForChat(id: string, ctx: ToolCallContext, waitMs: number, d: 
   if (ev?.phase === "failed") return { status: "failed", id, code: ev.code ?? "build-failed" };
   // A build that finished between start and subscribe emits nothing; the disk says.
   const meta = d.ready(r.sha) ? d.meta(r.sha) : null;
+  if (meta && !(await bundleAuthorized(meta, r, userId, d))) return { status: "not-found", id };
   return meta ? { status: "ready", id, sha: r.sha, meta } : { status: "building", id, sha: r.sha };
+}
+
+/** The bundle's own meta decides privacy, as gateSha does for the reader: a
+ *  private bundle reached through a resolution that did not say private (a
+ *  stale previews row) is authorized here before it is served. */
+async function bundleAuthorized(meta: PreviewMeta, r: Resolved, userId: string | undefined, d: ToolAccessDeps): Promise<boolean> {
+  if (!meta.private || r.private) return true;
+  return !!userId && (await d.authorize(userId, meta.repo)) === "ok";
 }
 
 /** Open the preview `rawId` names for a tool call, under `ctx`'s privileges. */
