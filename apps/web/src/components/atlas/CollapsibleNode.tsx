@@ -385,7 +385,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         }
       }}
     >
-      <NodeSelectBox nodeId={node.id} title={node.title} />
+      {!isPreview && <NodeSelectBox nodeId={node.id} title={node.title} />}
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
         {annotates ? (
