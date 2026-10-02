@@ -75,8 +75,6 @@
     { "files": ["apps/web/src/components/reports/ProcessCurationPanel.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 92, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/reports/RewardsPrimitiveTable.tsx"], "rules": { "max-lines": ["error", { "max": 229, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 129, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/reports/RoleCategoryTable.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 91, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/components/reports/useProcessesState.ts"], "rules": { "max-lines-per-function": ["error", { "max": 52, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/components/reports/useRoleReportState.ts"], "rules": { "max-lines-per-function": ["error", { "max": 73, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/selection/SaveCollectionModal.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 118, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/selection/SelectionTreeToggle.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 109, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/tree/TreeRow.tsx"], "rules": { "max-lines": ["error", { "max": 205, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 144, "skipBlankLines": true, "skipComments": true }] } },
