@@ -1,6 +1,8 @@
 import { lazy } from "react";
 import type { ComponentType, LazyExoticComponent } from "react";
 import { ROUTES } from "@/lib/routes";
+import { reportPath } from "@/lib/reports/registry";
+import type { ReportId } from "@/types";
 import type { SearchMode } from "../hooks/useSearchInput";
 
 // Retries a failed dynamic import once before propagating the error.
@@ -56,7 +58,6 @@ export const SharedCollectionOpener = lazyImport(
 export interface RouteCtx {
   query: string;
   mode: SearchMode;
-  navigateToNode: (id: string) => void;
 }
 
 export interface SimpleRoute {
@@ -64,6 +65,25 @@ export interface SimpleRoute {
   Component: ComponentType<any>;
   props?: (ctx: RouteCtx) => Record<string, unknown>;
 }
+
+const searchProps = (c: RouteCtx) => ({ query: c.query, mode: c.mode });
+
+// The page for each report in src/lib/reports/registry.ts, at /reports/<id>.
+// Keyed by ReportId, so a registered report without a page fails to compile.
+const REPORT_PAGES: Record<ReportId, Omit<SimpleRoute, "path">> = {
+  "of-responsibilities": { Component: OpFacilitatorsReport, props: searchProps },
+  "gov-ops-responsibilities": { Component: OpGovOpsReport, props: searchProps },
+  "oea-assessment": { Component: OeaAssessmentReport, props: searchProps },
+  "onchain-addresses": { Component: OnchainAddressesReport, props: searchProps },
+  rewards: { Component: RewardsReport, props: searchProps },
+  "risk-rules": { Component: RiskRulesReport, props: searchProps },
+  processes: { Component: ProcessesReport, props: searchProps },
+  "active-data": { Component: ActiveDataReport, props: searchProps },
+  crossview: { Component: CrossViewPage, props: () => ({ tab: "shape" }) },
+  "potential-mistakes": { Component: PotentialMistakesReport, props: searchProps },
+  "stale-dates": { Component: StaleDatesReport, props: searchProps },
+  "mod-frequency": { Component: ModFrequencyReport, props: searchProps },
+};
 
 // Report/page routes that are just <Suspense><Component .../></Suspense> with
 // no route params and no custom children — rendered by App.tsx's Switch with
@@ -74,26 +94,8 @@ export interface SimpleRoute {
 // explicit in App.tsx.
 export const SIMPLE_ROUTES: SimpleRoute[] = [
   { path: ROUTES.REPORTS, Component: ReportsIndex, props: (c) => ({ query: c.query }) },
-  { path: ROUTES.REPORTS_OF_RESPONSIBILITIES, Component: OpFacilitatorsReport, props: (c) => ({ query: c.query, mode: c.mode }) },
-  { path: ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES, Component: OpGovOpsReport, props: (c) => ({ query: c.query, mode: c.mode }) },
-  { path: ROUTES.REPORTS_ACTIVE_DATA, Component: ActiveDataReport, props: (c) => ({ query: c.query, mode: c.mode }) },
-  { path: ROUTES.REPORTS_REWARDS, Component: RewardsReport, props: (c) => ({ query: c.query, mode: c.mode }) },
-  { path: ROUTES.REPORTS_ONCHAIN_ADDRESSES, Component: OnchainAddressesReport, props: (c) => ({ query: c.query, mode: c.mode }) },
-  { path: ROUTES.REPORTS_STALE_DATES, Component: StaleDatesReport, props: (c) => ({ query: c.query, mode: c.mode }) },
-  { path: ROUTES.REPORTS_MOD_FREQUENCY, Component: ModFrequencyReport, props: (c) => ({ query: c.query, mode: c.mode }) },
-  { path: ROUTES.REPORTS_POTENTIAL_MISTAKES, Component: PotentialMistakesReport, props: (c) => ({ query: c.query, mode: c.mode }) },
-  { path: ROUTES.REPORTS_OEA_ASSESSMENT, Component: OeaAssessmentReport, props: (c) => ({ query: c.query, mode: c.mode }) },
-  {
-    path: ROUTES.REPORTS_RISK_RULES,
-    Component: RiskRulesReport,
-    props: (c) => ({ query: c.query, mode: c.mode, onNavigate: c.navigateToNode }),
-  },
+  ...(Object.entries(REPORT_PAGES) as [ReportId, Omit<SimpleRoute, "path">][]).map(([id, page]) => ({ path: reportPath(id), ...page })),
   { path: ROUTES.REPORTS_RISK_RUBRIC, Component: RubricPage },
-  {
-    path: ROUTES.REPORTS_PROCESSES,
-    Component: ProcessesReport,
-    props: (c) => ({ onNavigate: c.navigateToNode, query: c.query, mode: c.mode }),
-  },
   { path: ROUTES.RADAR, Component: RadarPage, props: (c) => ({ query: c.query }) },
   { path: ROUTES.PROVENANCE, Component: ProvenancePage },
   { path: ROUTES.PRIVACY, Component: PrivacyPage },
@@ -102,7 +104,6 @@ export const SIMPLE_ROUTES: SimpleRoute[] = [
   { path: ROUTES.REPORTS_CROSSVIEW_CONCEPTS, Component: CrossViewPage, props: () => ({ tab: "concepts" }) },
   { path: ROUTES.REPORTS_CROSSVIEW_AUDIT, Component: CrossViewPage, props: () => ({ tab: "audit" }) },
   { path: ROUTES.REPORTS_CROSSVIEW_GLOSSARY, Component: CrossViewPage, props: () => ({ tab: "glossary" }) },
-  { path: ROUTES.REPORTS_CROSSVIEW, Component: CrossViewPage, props: () => ({ tab: "shape" }) },
   { path: ROUTES.FEATURES, Component: FeaturesPage },
   { path: ROUTES.COLLECTIONS, Component: CollectionsPage },
   { path: ROUTES.HISTORY, Component: VisitsPage },

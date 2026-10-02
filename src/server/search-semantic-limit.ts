@@ -2,10 +2,10 @@
 //
 // That route is PUBLIC and UNAUTHENTICATED — the reader's meaning lane has no
 // login — and every request that gets past the guards spends real money and
-// real database time: one OpenRouter embedding call, a second one for leaf
-// attribution whenever a grouped anchor is retrieved (which is nearly always),
-// and, for an `in:` scope, an exact pass over every searchable vector. Nothing
-// else on this server exposes that cost without a session behind it.
+// real database time: one OpenRouter embedding call — it carries both the query
+// and leaf attribution's residual, so attribution adds no second one — and, for
+// an `in:` scope, an exact pass over every searchable vector. Nothing else on
+// this server exposes that cost without a session behind it.
 //
 // GLOBAL, not per-caller, and deliberately so. Per-IP is the usual shape, but
 // the thing being protected here is a shared external budget: one caller
