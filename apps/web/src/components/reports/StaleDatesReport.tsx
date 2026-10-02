@@ -77,7 +77,6 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
   return (
     <ReportShell
       report={REPORT}
-      title="Stale Dates"
       maxWidth="max-w-4xl"
       description={
         <>

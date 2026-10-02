@@ -49,7 +49,6 @@ export function RoleResponsibilityReport<R extends RoleRow>({
   return (
     <ReportShell
       report={config.reportId}
-      title={config.heading}
       description={
         <>
           {config.introText}{" "}

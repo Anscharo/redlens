@@ -80,7 +80,6 @@ export function RiskRulesReport({ query, mode, onNavigate }: { query: string; mo
   return (
     <ReportShell
       report={REPORT}
-      title="Risk Rules Assessment"
       description="Every atlas paragraph that defines a risk-management rule, parameter, or process — peg maintenance, allocation risk, and smart contract security — scored 1–5 for precision and weak/mid/strong for penalties and incentives."
       note={
         <>

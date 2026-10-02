@@ -80,7 +80,6 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
   return (
     <ReportShell
       report={REPORT}
-      title="Modification Frequency"
       maxWidth="max-w-4xl"
       description={
         <>

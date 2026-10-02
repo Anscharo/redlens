@@ -48,7 +48,6 @@ export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: 
   return (
     <ReportShell
       report={REPORT}
-      title="Atlas Processes"
       maxWidth="max-w-6xl"
       description={
         <>

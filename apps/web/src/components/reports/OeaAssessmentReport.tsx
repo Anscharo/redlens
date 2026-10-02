@@ -68,7 +68,6 @@ export function OeaAssessmentReport({ query, mode }: { query: string; mode: Repo
   return (
     <ReportShell
       report={REPORT}
-      title="OEA Task Assessment"
       description={
         <>
           Every task the Operational Executor Agent performs — via its GovOps and Facilitator actors or

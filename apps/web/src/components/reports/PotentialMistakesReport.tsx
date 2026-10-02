@@ -84,7 +84,6 @@ export function PotentialMistakesReport({ query, mode }: { query: string; mode: 
   return (
     <ReportShell
       report={REPORT}
-      title="Potential Mistakes"
       // Chrome (title, provenance, filters) stays in the default 5xl column.
       // The table is `fullWidth` so it can use the window minus the shell's
       // px-6 gutter without stretching that column to match.

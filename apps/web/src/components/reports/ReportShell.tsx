@@ -9,16 +9,15 @@
 // renders outside the centered column.
 import type { ReactNode } from "react";
 import type { ReportId } from "@/types";
+import { REPORT_TITLES } from "@/lib/routes";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { FilterSummary } from "./FilterSummary";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { useReportView } from "./useReportQuery";
 
 export interface ReportShellProps {
-  /** Analytics slug + report id (also the `report` property on every event). */
+  /** Report id: the analytics `report` property, and the h1 is its registered title. The document title defaults to "<title>: Sky Atlas by Redline". */
   report: ReportId;
-  /** h1 text. The document title defaults to "<title>: Sky Atlas by Redline". */
-  title: string;
   documentTitle?: string;
   description?: ReactNode;
   /** Second, muted line under the description (e.g. the assessment provenance). */
@@ -63,7 +62,6 @@ export function ReportCountRow({ count, actions }: { count?: ReactNode; actions?
 
 export function ReportShell({
   report,
-  title,
   documentTitle,
   description,
   note,
@@ -82,6 +80,7 @@ export function ReportShell({
   children,
   fullWidth,
 }: ReportShellProps) {
+  const title = REPORT_TITLES[report];
   useDocumentTitle(documentTitle ?? `${title}: Sky Atlas by Redline`);
   useReportView(report, ready ?? !loading, viewProps);
   const showCountRow = count != null || actions != null;

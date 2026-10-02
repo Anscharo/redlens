@@ -101,7 +101,6 @@ export function ActiveDataReport({ query, mode }: { query: string; mode: ReportM
   return (
     <ReportShell
       report={REPORT}
-      title="Active Data Index"
       maxWidth="max-w-7xl"
       description={
         <>

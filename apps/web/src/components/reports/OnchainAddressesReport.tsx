@@ -66,7 +66,6 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
   return (
     <ReportShell
       report={REPORT}
-      title="On-Chain Addresses"
       maxWidth="max-w-7xl"
       description={
         <>

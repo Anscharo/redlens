@@ -82,7 +82,6 @@ export function RewardsReport({ query, mode }: { query: string; mode: ReportMode
   return (
     <ReportShell
       report={REPORT}
-      title="Integrator Reward Relationships"
       maxWidth="max-w-6xl"
       description={
         <>
