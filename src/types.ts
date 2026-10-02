@@ -1,16 +1,6 @@
 export type ReportId =
-  | "of-responsibilities"
-  | "gov-ops-responsibilities"
-  | "active-data"
-  | "rewards"
-  | "processes"
-  | "stale-dates"
-  | "oea-assessment"
-  | "risk-rules"
-  | "onchain-addresses"
-  | "mod-frequency"
-  | "crossview"
-  | "potential-mistakes";
+  // Derived from the report registry; declare a report in src/lib/reports/.
+  import("./lib/reports/registry").ReportId;
 
 export interface AtlasNode {
   id: string;

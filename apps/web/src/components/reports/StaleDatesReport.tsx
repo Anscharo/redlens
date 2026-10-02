@@ -1,83 +1,36 @@
-import { useMemo } from "react";
-import { loadDocs } from "../../lib/docs";
-import { useLoaded } from "../../hooks/useAtlasData";
-import { useUTCDay } from "../../hooks/useUTCDay";
-import { buildStaleDatesReport, staleDatesToCSV, DUE_SOON_DAYS } from "@/lib/staleDates";
-import { filterRows, type ReportMode } from "@/lib/reportFilter";
+import { staleDatesToCSV, type StaleDatesReport as StaleDates } from "@/lib/staleDates";
+import { type ReportMode } from "@/lib/reportFilter";
 import type { ReportId } from "@/types";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { ReportShell } from "./ReportShell";
 import { StaleDatesSection } from "./StaleDatesSection";
-import { useReportQuery } from "./useReportQuery";
-import { staleSearchFields, STALE_SEARCHES } from "@/lib/staleDatesSearch";
+import { STALE_SEARCHES } from "@/lib/staleDatesSearch";
+import { useStaleDatesState } from "./useStaleDatesState";
 
 const REPORT: ReportId = "stale-dates";
 
-const SECTIONS: {
-  key: "upcoming" | "dueSoon" | "stale";
-  title: string;
-  hint: string;
-  tone: string;
-  textTone?: string; // heading text when the bar tone is too dark to read on --bg
-}[] = [
-  {
-    key: "upcoming",
-    title: "Upcoming",
-    hint: "The atlas's live calendar — future claims with dates still ahead.",
-    tone: "var(--accent)",
-  },
-  {
-    key: "dueSoon",
-    title: `Due within ${DUE_SOON_DAYS} days`,
-    hint: "Future claims about to cross today — stale soon unless the atlas is updated.",
-    tone: "var(--warn)",
-  },
-  {
-    key: "stale",
-    title: "Stale",
-    hint: "The date has passed but the atlas still phrases the event as future.",
-    tone: "var(--red)", // left bar only — keeps the selected-node idiom
-    textTone: "var(--error-text)", // --red is below 3:1 on --bg; use the accessible alias
-  },
-];
+const claimCount = (r: StaleDates) => r.stale.length + r.dueSoon.length + r.upcoming.length;
+
+/** `csvReport` is the on-screen (filtered) buckets; `report` is the full scan. */
+function StaleDatesCsvButton({ csvReport, report, query }: { csvReport: StaleDates; report: StaleDates; query: string }) {
+  return (
+    <DownloadCsvButton
+      report={REPORT}
+      filename="stale-dates.csv"
+      rowCount={claimCount(csvReport)}
+      build={() => staleDatesToCSV(csvReport)}
+      fullRowCount={claimCount(report)}
+      buildFull={() => staleDatesToCSV(report)}
+      query={query}
+    />
+  );
+}
 
 export function StaleDatesReport({ query, mode }: { query: string; mode: ReportMode }) {
-  // A load failure re-throws out of useLoaded into the route's ErrorBoundary,
-  // which owns the error + retry UI for every page (the report used to carry
-  // its own copy).
-  const docs = useLoaded(loadDocs);
-  const day = useUTCDay();
-
-  // Recomputed from the loaded atlas + the current UTC day — no build step
-  // involved, and the day-keyed memo re-buckets a tab left open past midnight.
-  const report = useMemo(
-    () => (docs ? buildStaleDatesReport(docs, new Date(`${day}T12:00:00Z`)) : null),
-    [docs, day],
-  );
-
-  // Text filter applies within each bucket; buckets keep their order/heading.
-  const rq = useReportQuery(query, mode);
-  const sections = useMemo(
-    () =>
-      report ? SECTIONS.map((s) => ({ ...s, claims: filterRows(report[s.key], rq, staleSearchFields) })) : null,
-    [report, rq],
-  );
-  const anyShown = sections?.some((s) => s.claims.length > 0) ?? false;
-
-  // The CSV exports what's on screen — the filtered buckets, not the full scan
-  // — so a downloaded file matches the active query (totalDateMentions is the
-  // scan tally and stays informational).
-  const csvReport = useMemo(() => {
-    if (!report || !sections) return null;
-    const claimsFor = (key: (typeof SECTIONS)[number]["key"]) =>
-      [...(sections.find((s) => s.key === key)?.claims ?? [])];
-    return { ...report, upcoming: claimsFor("upcoming"), dueSoon: claimsFor("dueSoon"), stale: claimsFor("stale") };
-  }, [report, sections]);
-
+  const { report, rq, sections, csvReport, anyShown } = useStaleDatesState(query, mode);
   return (
     <ReportShell
       report={REPORT}
-      title="Stale Dates"
       maxWidth="max-w-4xl"
       description={
         <>
@@ -90,17 +43,7 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
       query={query}
       searches={STALE_SEARCHES}
       actions={
-        csvReport && report ? (
-          <DownloadCsvButton
-            report={REPORT}
-            filename="stale-dates.csv"
-            rowCount={csvReport.stale.length + csvReport.dueSoon.length + csvReport.upcoming.length}
-            build={() => staleDatesToCSV(csvReport)}
-            fullRowCount={report.stale.length + report.dueSoon.length + report.upcoming.length}
-            buildFull={() => staleDatesToCSV(report)}
-            query={query}
-          />
-        ) : undefined
+        csvReport && report ? <StaleDatesCsvButton csvReport={csvReport} report={report} query={query} /> : undefined
       }
       loading={!report || !sections}
       viewProps={{ row_count: report?.totalDateMentions ?? 0 }}
@@ -109,17 +52,7 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
       {/* A query that clears every bucket shows only the no-rows line — not
           three empty section headings. */}
       {(anyShown || !query.trim()) &&
-        sections?.map((s) => (
-          <StaleDatesSection
-            key={s.key}
-            title={s.title}
-            hint={s.hint}
-            claims={s.claims}
-            tone={s.tone}
-            textTone={s.textTone}
-            rq={rq}
-          />
-        ))}
+        sections?.map(({ key, ...section }) => <StaleDatesSection key={key} {...section} rq={rq} />)}
     </ReportShell>
   );
 }

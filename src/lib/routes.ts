@@ -1,3 +1,8 @@
+import { REPORTS, reportPath } from "./reports/registry";
+import type { ScopeConfig } from "./reports/types";
+
+export type { ScopeConfig };
+
 export const ROUTES = {
   HOME: "/",
   ATLAS: "/atlas",
@@ -73,53 +78,27 @@ export function usesWindowScroll(location: string): boolean {
 
 export type SearchScope = "atlas" | "radar" | "reports";
 
-export interface ScopeConfig {
-  label: string;
-  placeholder: string;
-}
-
 export const SCOPE_CONFIG: Record<SearchScope, ScopeConfig> = {
   atlas:   { label: "atlas",   placeholder: "Search the Atlas or type /h for query help" },
   radar:   { label: "radar",   placeholder: "Filter actors — name, role" },
   reports: { label: "reports", placeholder: "Search reports — name, category, or topic" },
 };
 
-// Per-report search-pill config: on a report page the pill shows a short
-// report name and typing filters that report's rows in place. Keyed by exact
-// route. The rubric page is deliberately absent (it's prose, not a report) —
-// it falls back to the generic "reports" pill.
-export const REPORT_SCOPE_CONFIG: Partial<Record<string, ScopeConfig>> = {
-  [ROUTES.REPORTS_OF_RESPONSIBILITIES]:     { label: "op-fac",  placeholder: "Filter duties — facilitator, agent, text" },
-  [ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES]: { label: "govops",  placeholder: "Filter duties — govops, agent, text" },
-  [ROUTES.REPORTS_ACTIVE_DATA]:             { label: "active",  placeholder: "Filter rows — title, party, agent" },
-  [ROUTES.REPORTS_REWARDS]:                 { label: "rewards", placeholder: "Filter instances — name, partner, address" },
-  [ROUTES.REPORTS_PROCESSES]:               { label: "proc",    placeholder: "Filter processes — title, doc no" },
-  [ROUTES.REPORTS_STALE_DATES]:             { label: "stale",   placeholder: "Filter claims — date, doc, text" },
-  [ROUTES.REPORTS_OEA_ASSESSMENT]:          { label: "oea",     placeholder: "Filter tasks — title, agent, text" },
-  [ROUTES.REPORTS_RISK_RULES]:              { label: "risk",    placeholder: "Filter rules — title, doc no, text" },
-  [ROUTES.REPORTS_ONCHAIN_ADDRESSES]:       { label: "addrs",   placeholder: "Filter addresses — address, owner, chainlog, chain, doc" },
-  [ROUTES.REPORTS_MOD_FREQUENCY]:           { label: "modfreq", placeholder: "Filter docs — doc no, title, type, section" },
-  [ROUTES.REPORTS_POTENTIAL_MISTAKES]:      { label: "mistakes", placeholder: "Filter findings — doc no, title, quoted text, issue" },
-};
+// Per-report search-pill config, keyed by exact route: on a report page the
+// pill shows a short report name and typing filters that report's rows in
+// place. The rubric page has none (it is prose, not a report) and falls back to
+// the generic "reports" pill.
+export const REPORT_SCOPE_CONFIG: Partial<Record<string, ScopeConfig>> = Object.fromEntries(
+  REPORTS.flatMap((r) => ("scope" in r ? [[reportPath(r.id), r.scope]] : [])),
+);
 
-// Reports whose data is also exposed to the chat agent as a one-call
-// `atlas_report_*` tool. Keyed by report route → tool name. Every report in
-// REPORT_TITLES is name-aware in chat (launcher + system prompt); only these
-// get the stronger "pull/query this report in one call" treatment. Add a tool
-// here when analytics show a report page is used enough to justify one.
-// The tool names are validated server-side (src/server/chat/system-prompt.ts)
-// against the live tool registry before they ever reach the model.
-export const REPORT_CHAT_TOOLS: Partial<Record<string, string>> = {
-  [ROUTES.REPORTS_OF_RESPONSIBILITIES]: "atlas_report_facilitator_responsibilities",
-  [ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES]: "atlas_report_govops_responsibilities",
-  [ROUTES.REPORTS_ACTIVE_DATA]: "atlas_report_active_data",
-  [ROUTES.REPORTS_REWARDS]: "atlas_report_rewards",
-  [ROUTES.REPORTS_STALE_DATES]: "atlas_report_stale_dates",
-  [ROUTES.REPORTS_PROCESSES]: "atlas_report_processes",
-  [ROUTES.REPORTS_OEA_ASSESSMENT]: "atlas_report_oea_assessment",
-  [ROUTES.REPORTS_RISK_RULES]: "atlas_report_risk_rules",
-  [ROUTES.REPORTS_ONCHAIN_ADDRESSES]: "atlas_report_addresses",
-};
+// Report route → the `atlas_report_*` tool that returns it in one call. Every
+// report is name-aware in chat through REPORT_TITLES; only these get the
+// "pull/query this report in one call" treatment. system-prompt.ts validates
+// the names against the live tool registry before they reach the model.
+export const REPORT_CHAT_TOOLS: Partial<Record<string, string>> = Object.fromEntries(
+  REPORTS.flatMap((r) => ("chatTool" in r ? [[reportPath(r.id), r.chatTool]] : [])),
+);
 
 // Top-level pages that carry a constant title, for the same consumers as
 // REPORT_TITLES below. Keyed by route. /radar/<slug> is deliberately absent —
@@ -128,44 +107,15 @@ export const PAGE_TITLES: Record<string, string> = {
   [ROUTES.RADAR]: "Radar",
 };
 
-// Canonical report id → display title. Single source of truth shared by the
-// reports index (ReportsIndex) and visit-history capture (usePageVisitTracking).
-// Keyed by report id (the /reports/<id> slug); the rubric sub-page is deliberately
-// absent (it's prose, not a listed report).
-export const REPORT_TITLES: Record<string, string> = {
-  "of-responsibilities": "Operational Facilitator Responsibilities",
-  "gov-ops-responsibilities": "Operational GovOps Responsibilities",
-  "oea-assessment": "OEA Task Assessment",
-  "active-data": "Active Data Index",
-  rewards: "Integrator Reward Relationships",
-  "risk-rules": "Risk Rules Assessment",
-  "stale-dates": "Stale Dates",
-  processes: "Atlas Processes",
-  "onchain-addresses": "On-Chain Addresses",
-  "mod-frequency": "Modification Frequency",
-  crossview: "Atlas CrossView",
-  "potential-mistakes": "Potential Mistakes",
-};
+// Report id (the /reports/<id> slug) → display title, for the reports index,
+// visit history, OG cards and the chat's page context. The rubric sub-page is
+// absent: it is prose, not a listed report.
+export const REPORT_TITLES: Record<string, string> = Object.fromEntries(REPORTS.map((r) => [r.id, r.title]));
 
-// One-line "what this report shows" — the same copy the /reports index cards
-// render. These are SAbR's own report concepts (e.g. "stale dates" is not
-// atlas vocabulary), so the chat's page-context line also carries this text —
-// without it the model has nothing but a report title to answer "what is
-// this" questions with. Keyed by REPORT_TITLES id.
-export const REPORT_DESCRIPTIONS: Record<string, string> = {
-  "of-responsibilities": "Every Atlas section mandating action from an Operational Facilitator, grouped by duty type with per-agent filtering.",
-  "gov-ops-responsibilities": "Every Atlas section mandating action from an Operational or Core GovOps — role definitions, per-executor assignments, scattered duties, and Active Data they maintain as Responsible Party.",
-  "oea-assessment": "Every task the Operational Executor Agent performs, rated weak/mid/strong for definitional precision and for incentives/penalties — AI-drafted against a fixed rubric, human-reviewed, with per-task reasoning.",
-  "active-data": "All Active Data sections, their Responsible Parties, edit processes, and agent assignments — with CSV export.",
-  rewards: "Every Distribution Reward and Integration Boost instance each Prime Agent has invoked — reward codes, partner names, and on-chain reward addresses.",
-  "risk-rules": "Every atlas paragraph defining a risk rule — peg maintenance, allocation risk, smart contract security — scored 1–5 for precision and weak/mid/strong for penalties and incentives, AI-drafted against a fixed rubric and human-reviewed.",
-  "onchain-addresses": "Every on-chain address the Atlas mentions — with its CHAIN_LOG name, associated owner, chain, type (EOA, Multisig, Token, Sky internal contract, other), and the docs it appears in, with CSV export.",
-  "stale-dates": "Future-tense claims checked against today — dates the atlas still phrases as upcoming but that have already passed, plus claims due within the next week. Not an atlas concept: computed by SAbR from atlas prose against the current date.",
-  "mod-frequency": "An edit timeline by month, week, or commit, a per-section and per-type share matching a typed ≤/> edit-count filter (with the Agent Scope split out by agent, each downloadable separately), and the matching document list.",
-  processes: "The curated inventory of governance, settlement, lifecycle, and operational processes — title, doc number, step count, status, responsible party.",
-  crossview: "The Atlas as functional chunks: hierarchical weight maps of scopes, agent artifacts, and primitives, a cross-cutting concept catalog with its audit trail, and the glossary of defined terms.",
-  "potential-mistakes": "Suspected defects in the Atlas source text — typos, grammar slips, broken cross-references, wrong figures and internal contradictions, each quoted and linked to its document. Not an atlas concept and not a build artifact: an LLM-generated sweep that is re-run by hand, so findings can lag the current Atlas.",
-};
+// Report id → one line on what it shows. These are SAbR's own report concepts,
+// so the chat's page-context line carries this text too: without it the model
+// has only a title to answer "what is this" with.
+export const REPORT_DESCRIPTIONS: Record<string, string> = Object.fromEntries(REPORTS.map((r) => [r.id, r.description]));
 
 // URL builders for SPA links. Use these with wouter's <Link to={...}> so back-button
 // restores the exact destination URL.

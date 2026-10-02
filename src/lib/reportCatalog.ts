@@ -1,47 +1,21 @@
-// The /reports index catalog: which reports exist, how they group, where each
-// one's data comes from, and the per-card copy search embeds.
+// The /reports index catalog: the report registry (src/lib/reports/) arranged
+// into the index's subject groups, plus the provenance badge copy and the
+// per-card text search embeds.
 //
-// Kept as a pure module (no React) so the grouping is testable without
-// rendering, per the house rule that report data logic lives in src/lib/.
-// Filtering lives in reportIndexSearch.ts (lexical + optional semantic ids) —
-// this file must not import that module, or the server embedder and the
-// catalog completeness check would share a cycle.
-//
-// Titles and descriptions stay in routes.ts — they are shared with visit-history
-// capture and the chat's page-context line. This module adds the two things
-// the index itself needs: grouping and provenance. Search (and ReportsIndex)
-// both read from here so a new report can't be listed in one and invisible
-// to the other.
+// A pure module (no React), so the grouping is testable without rendering.
+// Filtering lives in reportIndexSearch.ts; this file must not import it, or the
+// server embedder and the catalog completeness check would share a cycle.
 
 import type { ReportId } from "../types";
-import { REPORT_TITLES, REPORT_DESCRIPTIONS } from "./routes";
+import { REPORT_GROUP_DEFS } from "./reports/groups";
+import { REPORTS } from "./reports/registry";
+import type { ReportProvenance } from "./reports/types";
 
-/**
- * Where a report's rows come from — the axis that tells a reader how much to
- * trust what they are looking at, and how current it is.
- *
- * `live` is the norm and is deliberately NOT badged in the UI: badging 8 of 12
- * cards identically would be noise. A badge means "there is a caveat here".
- */
-export type ReportProvenance =
-  | "live" // recomputed from the served atlas on every visit
-  | "ai-assessed" // LLM-drafted against a published rubric, human-reviewed
-  | "curated"; // hand-maintained; can lag the atlas until someone refreshes it
+export type { ReportProvenance };
 
-export const REPORT_PROVENANCE: Record<ReportId, ReportProvenance> = {
-  "of-responsibilities": "live",
-  "gov-ops-responsibilities": "live",
-  "oea-assessment": "ai-assessed",
-  "active-data": "live",
-  rewards: "live",
-  "risk-rules": "ai-assessed",
-  "onchain-addresses": "live",
-  "stale-dates": "live",
-  "mod-frequency": "live",
-  processes: "curated",
-  crossview: "live",
-  "potential-mistakes": "ai-assessed",
-};
+export const REPORT_PROVENANCE: Record<ReportId, ReportProvenance> = Object.fromEntries(
+  REPORTS.map((r) => [r.id, r.provenance]),
+) as Record<ReportId, ReportProvenance>;
 
 /** Badge text. `live` has no badge, so no label. */
 export const PROVENANCE_LABELS: Record<Exclude<ReportProvenance, "live">, string> = {
@@ -64,38 +38,12 @@ export interface ReportGroup {
   reports: ReportId[];
 }
 
-/**
- * Grouped by subject — what each report is *about* — because that is how people
- * browse. Provenance rides along as a per-card badge rather than a second set of
- * sections, so neither axis has to distort the other.
- */
-export const REPORT_GROUPS: ReportGroup[] = [
-  {
-    title: "Roles & duties",
-    hint: "Who the Atlas obliges to do what.",
-    reports: ["of-responsibilities", "gov-ops-responsibilities", "oea-assessment"],
-  },
-  {
-    title: "On-chain & money",
-    hint: "Addresses the Atlas names and the reward relationships it records.",
-    reports: ["onchain-addresses", "rewards"],
-  },
-  {
-    title: "Rules & risk",
-    hint: "The constraints the Atlas places on behaviour.",
-    reports: ["risk-rules"],
-  },
-  {
-    title: "Atlas structure",
-    hint: "How the Atlas is put together and what it contains.",
-    reports: ["processes", "active-data", "crossview"],
-  },
-  {
-    title: "Atlas health",
-    hint: "Whether the Atlas is accurate, current, and how it is changing.",
-    reports: ["potential-mistakes", "stale-dates", "mod-frequency"],
-  },
-];
+/** Index sections in display order; within a group, reports keep registry order. */
+export const REPORT_GROUPS: ReportGroup[] = REPORT_GROUP_DEFS.map((g) => ({
+  title: g.title,
+  hint: g.hint,
+  reports: REPORTS.filter((r) => r.group === g.key).map((r) => r.id),
+}));
 
 export interface ReportCard {
   id: ReportId;
@@ -114,15 +62,11 @@ export interface ReportCardGroup {
   cards: ReportCard[];
 }
 
+const BY_ID = new Map(REPORTS.map((r) => [r.id as ReportId, r]));
+
 function toCard(id: ReportId, category: string, hint: string): ReportCard {
-  return {
-    id,
-    title: REPORT_TITLES[id],
-    description: REPORT_DESCRIPTIONS[id],
-    provenance: REPORT_PROVENANCE[id],
-    category,
-    hint,
-  };
+  const r = BY_ID.get(id)!;
+  return { id, title: r.title, description: r.description, provenance: r.provenance, category, hint };
 }
 
 /** Every report id the index renders — the completeness check's input. */
