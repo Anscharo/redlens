@@ -706,6 +706,18 @@ describe("semantic lane", () => {
     expect(calls.filter((u) => u.includes("/api/search/semantic"))).toHaveLength(1);
   });
 
+  it("treats an underscore identifier as finished, not half typed", async () => {
+    // The INDEXING processTerm returns an array for a `_` word — the whole token
+    // plus its parts — so a probe that only accepts a string reads every one of
+    // them as a word in progress and buys the long wait. The probe asks the QUERY
+    // side, which returns the whole token, and the dictionary holds it.
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    ask(h, "erc4626_redeem", { lane: "semantic" });
+    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
+    expect(calls.filter((u) => u.includes("/api/search/semantic"))).toHaveLength(1);
+  });
+
   it("a finished word buys its embed at the short debounce", async () => {
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
