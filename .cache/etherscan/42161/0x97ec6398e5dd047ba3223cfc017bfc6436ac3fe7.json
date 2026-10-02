@@ -1,0 +1,10 @@
+{
+  "fetchedAt": "2026-10-01T21:41:04.895Z",
+  "chainid": 42161,
+  "address": "0x97ec6398e5dd047ba3223cfc017bfc6436ac3fe7",
+  "contractName": "SafeProxy",
+  "abi": "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_singleton\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\"}]",
+  "proxy": false,
+  "implementation": "",
+  "sourceCode": "{{\r\n  \"language\": \"Solidity\",\r\n  \"sources\": {\r\n    \"SafeProxy.sol\": {\r\n      \"content\": \"// SPDX-License-Identifier: LGPL-3.0-only\\n/* solhint-disable one-contract-per-file */\\npragma solidity >=0.7.0 <0.9.0;\\n\\ninterface IProxy {\\n    function masterCopy() external view returns (address);\\n}\\n\\ncontract SafeProxy {\\n    address internal singleton;\\n\\n    constructor(address _singleton) {\\n        require(_singleton != address(0), \\\"Invalid singleton address provided\\\");\\n        singleton = _singleton;\\n    }\\n\\n    fallback() external payable {\\n        assembly {\\n            let _singleton := sload(0)\\n            if eq(shr(224, calldataload(0)), 0xa619486e) {\\n                mstore(0x6c, shl(96, _singleton))\\n                return(0x60, 0x20)\\n            }\\n            calldatacopy(0, 0, calldatasize())\\n            let success := delegatecall(gas(), _singleton, 0, calldatasize(), 0, 0)\\n            returndatacopy(0, 0, returndatasize())\\n            if iszero(success) {\\n                revert(0, returndatasize())\\n            }\\n            return(0, returndatasize())\\n        }\\n    }\\n}\"\r\n    }\r\n  },\r\n  \"settings\": {\r\n    \"optimizer\": {\r\n      \"runs\": 200,\r\n      \"enabled\": false\r\n    },\r\n    \"evmVersion\": \"istanbul\",\r\n    \"outputSelection\": {\r\n      \"*\": {\r\n        \"*\": [\r\n          \"evm.bytecode\",\r\n          \"evm.deployedBytecode\",\r\n          \"devdoc\",\r\n          \"userdoc\",\r\n          \"metadata\",\r\n          \"abi\"\r\n        ]\r\n      }\r\n    }\r\n  }\r\n}}"
+}
