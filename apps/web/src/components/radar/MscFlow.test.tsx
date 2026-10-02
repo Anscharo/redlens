@@ -1,0 +1,245 @@
+// @vitest-environment jsdom
+import { describe, it, expect, afterEach } from "vitest";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { layoutMscFlow, HIT_MIN_T, NODE_W, PIPE_HALF, GROUP_HEADING_SIZE, HEADER_SIZE, LABEL_X, SKY_LABEL_X, sourceBarX, sourceBracket } from "../../lib/mscFlowLayout";
+import type { PrimeFlowTotals } from "@/lib/settlementsOverview";
+import { MscFlow } from "./MscFlow";
+import type { OverviewPrime } from "./MscRingPrime";
+
+const flow = (over: Partial<PrimeFlowTotals> = {}): PrimeFlowTotals => ({
+  prime: "spark",
+  month: "2026-07",
+  sky: 10_000_000,
+  kept: 2_000_000,
+  demand: 1_500_000,
+  cof: 9_900_000,
+  sde: 100_000,
+  demandParts: { agentRate: 1_400_000, distributionRewards: 100_000 },
+  latestMonth: "2026-07",
+  ...over,
+});
+
+function primes(flows: PrimeFlowTotals[]): OverviewPrime[] {
+  return flows.map((f) => ({
+    flow: f,
+    label: f.prime === "spark" ? "Spark" : f.prime,
+    bandColor: "var(--msc-prime-1)",
+    to: f.prime === "obex" ? null : `/radar/${f.prime}-party/settlements`,
+  }));
+}
+
+afterEach(cleanup);
+
+describe("MscFlow", () => {
+  it("brackets the demand-side rows in Sky's blue, so Sky is at both ends", () => {
+    const flows = [flow({ prime: "keel", sky: 0, cof: 0, sde: 0, kept: 0, demand: 36_231, demandParts: { agentRate: 32_004, distributionRewards: 4_227 } })];
+    const layout = layoutMscFlow(flows);
+    const { container } = render(<MscFlow layout={layout} primes={primes(flows)} month="2026-07" centerFigure="$0" />);
+    const bracket = container.querySelector("path.msc-flow-sky-bracket")!;
+    expect(bracket).toBeInTheDocument();
+    // In Sky's own blue like the bar on the right, stroked not filled, and
+    // with no label of its own — the heading carries the name and the total.
+    expect(bracket).toHaveStyle({ stroke: "var(--msc-sky)" });
+    expect(bracket.getAttribute("style")).toContain("fill: none");
+    expect(bracket.getAttribute("d")).toBe(sourceBracket(layout.sources)!.path);
+    expect(screen.getByText("OWED BY SKY | $36k")).toBeInTheDocument();
+    // It stands to the LEFT of the labels it gathers, and the node it
+    // replaced is gone: no ribbons run into the demand-side bars.
+    expect(sourceBracket(layout.sources)!.x).toBeLessThan(LABEL_X);
+    expect(container.querySelector(".msc-flow-sky-source")).not.toBeInTheDocument();
+    const fromLeft = [...container.querySelectorAll("path.msc-ring-slice")].filter((p) => !p.closest(".msc-ring-prime"));
+    expect(fromLeft).toEqual([]);
+  });
+
+  it("staggers each source bar to its own label, one shared gap wide", () => {
+    const flows = [flow()];
+    const layout = layoutMscFlow(flows);
+    const { container } = render(<MscFlow layout={layout} primes={primes(flows)} month="2026-07" centerFigure="$10.00M" />);
+    const barX = (kind: string) => Number(container.querySelector(`.msc-flow-source[data-kind="${kind}"] rect`)!.getAttribute("x"));
+    for (const s of layout.sources) expect(barX(s.kind)).toBe(sourceBarX(s.kind));
+    // "supply-side kept" is the shortest name, so its bar is the leftmost.
+    expect(barX("kept")).toBeLessThan(barX("cof"));
+    // Every label still starts at the same x whatever its bar does.
+    const labels = [...container.querySelectorAll(".msc-flow-source text.msc-ring-label")];
+    expect(labels.map((t) => t.getAttribute("x"))).toEqual(labels.map(() => String(LABEL_X)));
+  });
+
+  it("draws no bracket in a month with no demand side", () => {
+    const flows = [flow({ demand: 0, demandParts: {} })];
+    const { container } = render(<MscFlow layout={layoutMscFlow(flows)} primes={primes(flows)} month="2026-07" centerFigure="$10.00M" />);
+    expect(container.querySelector("path.msc-flow-sky-bracket")).not.toBeInTheDocument();
+    expect(screen.queryByText(/OWED BY SKY/)).not.toBeInTheDocument();
+  });
+
+  it("draws no bracket around a lone demand-side row, but still heads it", () => {
+    const flows = [flow({ prime: "keel", sky: 0, cof: 0, sde: 0, kept: 0, demand: 32_004, demandParts: { agentRate: 32_004 } })];
+    const { container } = render(<MscFlow layout={layoutMscFlow(flows)} primes={primes(flows)} month="2026-07" centerFigure="$0" />);
+    expect(container.querySelector("path.msc-flow-sky-bracket")).not.toBeInTheDocument();
+    expect(screen.getByText("OWED BY SKY | $32k")).toBeInTheDocument();
+  });
+
+  it("pads a hairline ribbon's hit area without drawing anything", () => {
+    // sde is a hairline against cof in this fixture (100k against 9.9M).
+    const flows = [flow(), flow({ prime: "grove", sky: 5_000_000, cof: 4_900_000, sde: 100_000 })];
+    const l = layoutMscFlow(flows);
+    const { container } = render(<MscFlow layout={l} primes={primes(flows)} month="2026-07" centerFigure="$15.00M" />);
+    const thin = l.agents.flatMap((a) => [...a.inbound, ...a.outbound]).filter((x) => x.geom.t < HIT_MIN_T);
+    const fat = l.agents.flatMap((a) => [...a.inbound, ...a.outbound]).filter((x) => x.geom.t >= HIT_MIN_T);
+    expect(thin.length).toBeGreaterThan(0);
+    const hits = [...container.querySelectorAll("path.msc-flow-hit")];
+    // One per thin ribbon, and none for a ribbon already wide enough to hit.
+    expect(hits).toHaveLength(thin.length);
+    for (const h of hits) {
+      const d = h.getAttribute("d");
+      const ribbon = thin.find((x) => x.path === d)!;
+      expect(ribbon).toBeDefined();
+      // The stroke pads the ribbon out to exactly the minimum target.
+      expect(ribbon.geom.t + Number(h.getAttribute("stroke-width"))).toBeCloseTo(HIT_MIN_T, 6);
+      // It lives inside its ribbon's own mark, so hovering it lights that
+      // ribbon rather than nothing.
+      expect(h.closest(".msc-ring-mark")).not.toBeNull();
+    }
+    for (const x of fat) {
+      expect(hits.some((h) => h.getAttribute("d") === x.path)).toBe(false);
+    }
+  });
+
+  it("speaks the orbit's mark vocabulary, so the key, hover and pills carry over", () => {
+    const flows = [flow(), flow({ prime: "grove", sky: 5_000_000, cof: 5_000_000, sde: 0, kept: 1_000_000, demand: 0, demandParts: {} })];
+    const { container } = render(<MscFlow layout={layoutMscFlow(flows)} primes={primes(flows)} month="2026-07" centerFigure="$15.00M" />);
+    expect(screen.getByLabelText("Monthly Settlement Cycle flows for Jul 2026").tagName).toBe("FIGURE");
+    expect(container.querySelector("svg.msc-ring.msc-flow")).toBeInTheDocument();
+    // One mark per line item, the ribbon in the item's own fill class.
+    expect(container.querySelector('.msc-ring-prime[data-prime="spark"] .msc-ring-mark[data-mark="spark::cof"] path.msc-ring-slice.msc-ring-cof')).toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-mark[data-mark="spark::agentRate"] path.msc-ring-agentRate')).toBeInTheDocument();
+    // No stubs: a mark is its ribbon and nothing else.
+    expect(container.querySelector("rect.msc-flow-stub")).not.toBeInTheDocument();
+    // Column headers over the three node groups — bigger than the group caption.
+    expect(screen.getByText("SOURCE")).toHaveAttribute("font-size", String(HEADER_SIZE));
+    expect(screen.getByText("PRIME")).toHaveAttribute("font-size", String(HEADER_SIZE));
+    expect(screen.getByText("SKY")).toHaveAttribute("font-size", String(HEADER_SIZE));
+    // The earned group has NO heading any more — its line items name
+    // themselves and the band above the seam is what separates the groups.
+    expect(screen.queryByText(/EARNED IN THE PRIME/)).not.toBeInTheDocument();
+    // The Sky group's heading carries its total, so the node needs no label.
+    const heading = screen.getByText(/^OWED BY SKY \| \$/);
+    expect(heading).toHaveAttribute("font-size", String(GROUP_HEADING_SIZE));
+    // Every left-hand label is flush left in the same gutter.
+    for (const t of [screen.getByText("SOURCE"), heading, screen.getByText("supply-side kept")]) {
+      expect(t).toHaveAttribute("text-anchor", "start");
+      expect(t).toHaveAttribute("x", String(LABEL_X));
+    }
+    // The right column is anchored the other way: SKY and the To Sky line
+    // both end at the canvas' right margin, and To Sky is centred on the
+    // bar's own height the way a source label is centred on its bar.
+    const toSky = screen.getByText("To Sky");
+    for (const t of [screen.getByText("SKY"), toSky]) {
+      expect(t).toHaveAttribute("text-anchor", "end");
+      expect(t).toHaveAttribute("x", String(SKY_LABEL_X));
+    }
+    // The To Sky line sits BESIDE Sky's bar, centred on it.
+    const skyBar = layoutMscFlow(flows).sky;
+    expect(Number(toSky.getAttribute("y"))).toBeCloseTo(skyBar.y + skyBar.h / 2 + 18, 6);
+    expect(skyBar.x + NODE_W).toBeLessThan(SKY_LABEL_X);
+    // "Name | $x" under the bar as three anchored runs on ONE line: the pipe
+    // centred on the column, the name ending left of it, the gross starting
+    // right of it — so the pipes line up with nothing measured.
+    const agent = layoutMscFlow(flows).agents[0];
+    const primeLabel = screen.getByText("Spark");
+    expect(primeLabel).toHaveAttribute("text-anchor", "end");
+    expect(Number(primeLabel.getAttribute("x"))).toBeCloseTo(agent.labelX - PIPE_HALF, 6);
+    const pipe = [...container.querySelectorAll("text")].find((t) => t.textContent === "|")!;
+    expect(pipe).toHaveAttribute("text-anchor", "middle");
+    expect(Number(pipe.getAttribute("x"))).toBeCloseTo(agent.labelX, 6);
+    // All three share the one baseline, below the bar.
+    expect(Number(pipe.getAttribute("y"))).toBe(Number(primeLabel.getAttribute("y")));
+    expect(Number(pipe.getAttribute("y"))).toBeGreaterThan(agent.y + agent.h);
+    expect(container.querySelector('.msc-flow-source[data-kind="kept"][data-origin="earned"]')).toBeInTheDocument();
+    expect(container.querySelector('.msc-flow-source[data-kind="agentRate"][data-origin="sky"]')).toBeInTheDocument();
+    // Sky's column names no Prime; the share pill does.
+    expect(container.querySelector('.msc-ring-figure[data-kind="sky"]')).not.toBeInTheDocument();
+    // The To-Sky ribbons are one mark (the orbit's arrow), tagged by component.
+    const sky = container.querySelector('.msc-ring-mark[data-mark="spark::sky"]')!;
+    expect(sky.querySelector("path.msc-ring-arrow.msc-ring-cof[data-cof]")).toBeInTheDocument();
+    expect(sky.querySelector("path.msc-ring-arrow.msc-ring-sde[data-sde]")).toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-mark[data-mark="grove::sky"] [data-sde]')).not.toBeInTheDocument();
+    // Sky's bar: one wedge group per Prime, colored by type.
+    expect(container.querySelectorAll('.msc-ring-mark[data-mark="spark::share"] rect.msc-ring-sky-wedge[data-prime="spark"]')).toHaveLength(2);
+    expect(container.querySelectorAll('.msc-ring-mark[data-mark="grove::share"] rect.msc-ring-sky-wedge')).toHaveLength(1);
+    // Pills name the number; the To-Sky pill carries its components.
+    expect(screen.getByText("$9.90M cost of funds → Sky")).toBeInTheDocument();
+    expect(screen.getByText("$10.00M to Sky — 74% of what flowed through Spark")).toBeInTheDocument();
+    expect(screen.getByText("$13.50M through Spark: To Sky + supply-side kept + demand-side")).toBeInTheDocument();
+    // The sum has no name — not in the Atlas, and not one of ours either.
+    expect(screen.queryByText(/gross revenue/i)).not.toBeInTheDocument();
+    expect(screen.getByText("$10.00M to Sky from Spark")).toBeInTheDocument();
+    // Pills paint last.
+    const kids = [...container.querySelector("svg")!.children];
+    expect(kids[kids.length - 1]).toHaveClass("msc-ring-pills");
+    // Source bars in the left gutter, named the key's way.
+    expect(screen.getByText("CoF · earned toward cost of funds")).toBeInTheDocument();
+    expect(screen.getByText("supply-side kept")).toBeInTheDocument();
+    // The Prime links to its page with the same accessible name as the orbit.
+    expect(screen.getByRole("link", { name: /^Spark, Jul 2026: owed Sky \$10.00M/ })).toHaveAttribute("href", "/radar/spark-party/settlements");
+    // Generated hover rules: focus on a Prime fades the rest.
+    const style = container.querySelector("style")!.textContent!;
+    expect(style).toContain('.msc-ring-mark[data-mark="spark::share"]:hover');
+    expect(style).toContain('.msc-ring-pill[data-mark="grove::kept"] { opacity: 1; }');
+  });
+
+  it("carries a supply-side loss on the gross pill instead of drawing a gap", () => {
+    const flows = [flow({ prime: "grove", sky: 3_000_000, cof: 3_000_000, sde: 0, kept: -1_000_000, demand: 100_000, demandParts: { agentRate: 100_000 } })];
+    const { container } = render(<MscFlow layout={layoutMscFlow(flows)} primes={primes(flows)} month="2026-07" centerFigure="$3.00M" />);
+    expect(container.querySelector(".msc-ring-hole")).not.toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-mark[data-mark="grove::loss"]')).not.toBeInTheDocument();
+    expect(screen.getByText("−$1.00M supply-side loss")).toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-mark[data-mark="grove::kept"]')).not.toBeInTheDocument();
+  });
+
+  it("starts unzoomed: the whole drawing in frame, no reset control, and a hint for the gesture", () => {
+    const flows = [flow()];
+    const layout = layoutMscFlow(flows);
+    const { container } = render(<MscFlow layout={layout} primes={primes(flows)} month="2026-07" centerFigure="$10.00M" />);
+    const svg = container.querySelector("svg.msc-flow")!;
+    expect(svg).toHaveAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
+    expect(svg).toHaveAttribute("data-state", "default");
+    expect(svg.querySelector("desc")!.textContent).toMatch(/zoom/i);
+    expect(screen.queryByRole("button", { name: "Reset zoom" })).not.toBeInTheDocument();
+  });
+
+  it("clips the drawing to the current zoom, and leaves the pill layer outside the clip", () => {
+    const flows = [flow()];
+    const layout = layoutMscFlow(flows);
+    const { container } = render(<MscFlow layout={layout} primes={primes(flows)} month="2026-07" centerFigure="$10.00M" />);
+    const svg = container.querySelector("svg.msc-flow")!;
+    const clipBox = () =>
+      ["x", "y", "width", "height"]
+        .map((a) => Number(container.querySelector("clipPath > rect")!.getAttribute(a)))
+        .join(" ");
+    // `.msc-ring` sets overflow: visible so the pills can escape, so the
+    // drawing needs its own clip — and it is the view, not the canvas.
+    const id = container.querySelector("clipPath")!.getAttribute("id")!;
+    expect(id).toMatch(/^msc-flow-clip-[A-Za-z0-9]+$/);
+    const content = container.querySelector("g.msc-flow-content")!;
+    expect(content.getAttribute("clip-path")).toBe(`url(#${id})`);
+    expect(content.querySelector('.msc-ring-prime[data-prime="spark"]')).toBeInTheDocument();
+    expect(clipBox()).toBe(svg.getAttribute("viewBox"));
+    // The pills paint last, OUTSIDE the clip, so one on an edge mark reads whole.
+    const pills = container.querySelector("g.msc-ring-pills")!;
+    expect(pills.parentElement).toBe(svg);
+    expect(pills.closest("g.msc-flow-content")).toBeNull();
+    // Zoom in: the clip rect follows the viewBox rather than staying the canvas.
+    fireEvent.wheel(svg, { deltaY: -400, clientX: 0, clientY: 0 });
+    expect(svg.getAttribute("viewBox")).not.toBe(`0 0 ${layout.width} ${layout.height}`);
+    expect(Number(container.querySelector("clipPath > rect")!.getAttribute("width"))).toBeLessThan(layout.width);
+    expect(clipBox()).toBe(svg.getAttribute("viewBox"));
+  });
+
+  it("renders an unmatched Prime unlinked", () => {
+    const flows = [flow({ prime: "obex" })];
+    const { container } = render(<MscFlow layout={layoutMscFlow(flows)} primes={primes(flows)} month="2026-07" centerFigure="$10.00M" />);
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(container.querySelector('.msc-ring-prime[data-prime="obex"] rect.msc-flow-agent')).toBeInTheDocument();
+  });
+});

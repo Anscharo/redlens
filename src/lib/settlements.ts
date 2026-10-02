@@ -177,6 +177,40 @@ export function teaserFigure(report: SettlementReport): { amount: number; suffix
   return { amount: sky, suffix: "to Sky" };
 }
 
+// There is deliberately no `grossByMonth` / "gross revenue" helper here any
+// more. It summed sky + kept + demand, which adds what a Prime owes Sky to
+// what Sky owes the Prime — two settlement amounts running in opposite
+// directions (A.2.4.1.2.2.1.1.2 and A.2.4.1.2.2.1.1.1) that the Atlas never
+// totals, and "gross revenue" is not an Atlas term. Use `cycleTotals` and
+// keep the three apart.
+
+/** The most cycles any settlement chart shows at once: a year. */
+export const CYCLE_WINDOW = 12;
+
+/** The window of at most `size` rows (chronological input) ending `offset`
+ *  rows before the last one — offset 0 is the trailing year. The window is
+ *  always full when there are enough rows, so paging never shows a stub. */
+export function cycleWindow<T>(
+  rows: readonly T[],
+  offset = 0,
+  size = CYCLE_WINDOW,
+): { rows: T[]; earlier: boolean; later: boolean } {
+  const end = rows.length - Math.min(Math.max(0, offset), Math.max(0, rows.length - size));
+  const start = Math.max(0, end - size);
+  return { rows: rows.slice(start, end), earlier: start > 0, later: end < rows.length };
+}
+
+/** The window offset that keeps row `index` on screen: the current offset
+ *  when the row is already in its window, else the window that ends on
+ *  the row (a selected month is never hidden by paging). */
+export function windowOffsetFor(total: number, offset: number, index: number, size = CYCLE_WINDOW): number {
+  const max = Math.max(0, total - size);
+  const o = Math.min(Math.max(0, offset), max);
+  const end = total - o;
+  if (index >= end - size && index < end) return o;
+  return Math.min(total - 1 - index, max);
+}
+
 /** Summary three-way: Sky take, supply-side kept (`par − CoF`), demand-side. */
 export interface ThreeWayMonth {
   month: string;
@@ -236,6 +270,53 @@ export function activeDemandSeries(reports: readonly SettlementReport[]) {
   return DEMAND_SERIES.filter((s) =>
     reports.some((r) => Math.abs(demandPart(r.headline, s.key)) >= NEAR_ZERO),
   );
+}
+
+/** The two sides are summed SEPARATELY and never added together. The
+ *  Monthly Settlement Cycle settles them as two amounts running in
+ *  opposite directions: what a Prime owes Sky for Supply Side Primitives
+ *  (A.2.4.1.2.2.1.1.2) and what Sky owes the Prime for Demand Side
+ *  Primitives and the Agent Rate (A.2.4.1.2.2.1.1.1). They are settled in
+ *  the same vote (A.2.4.1.2.2.1.1.3), but the Atlas defines no term for
+ *  their sum — so neither do we. */
+
+/** Supply-side kept (`par − CoF`), summed over the given months. Signed: a
+ *  month whose cost of funds outran its revenue is a loss. */
+export function supplyKeptTotal(reports: readonly SettlementReport[]): number {
+  return reports.reduce((sum, r) => sum + supplyKept(r), 0);
+}
+
+/** What the Prime owed Sky, summed over the given months. */
+export function skyTotal(reports: readonly SettlementReport[]): number {
+  return reports.reduce((sum, r) => sum + r.headline.skyRevenue, 0);
+}
+
+/** The three running totals of a window of cycles, kept APART. There is no
+ *  fourth field on purpose: adding them would mix what the Prime owes Sky
+ *  with what Sky owes the Prime, and the Atlas defines no such total. */
+export interface CycleTotals {
+  sky: number;
+  kept: number;
+  demand: number;
+}
+
+export function cycleTotals(reports: readonly SettlementReport[]): CycleTotals {
+  return { sky: skyTotal(reports), kept: supplyKeptTotal(reports), demand: demandSideTotal(reports) };
+}
+
+/** Which total leads the actor page's card: what went to Sky, unless this
+ *  Prime sent Sky nothing over the window (Keel and Skybase never do), in
+ *  which case the demand side is the only figure it has. */
+export function leadCycleTotal(t: CycleTotals): { amount: number; label: string } {
+  if (Math.abs(t.sky) >= NEAR_ZERO) return { amount: t.sky, label: "to Sky" };
+  if (Math.abs(t.demand) >= NEAR_ZERO) return { amount: t.demand, label: "demand-side from Sky" };
+  return { amount: t.kept, label: "supply-side kept" };
+}
+
+/** Demand-side (agent rate + rewards) over the given months — what Sky
+ *  owes the Prime, not what the Prime kept out of its own revenue. */
+export function demandSideTotal(reports: readonly SettlementReport[]): number {
+  return reports.reduce((sum, r) => sum + demandSideRevenue(r.headline), 0);
 }
 
 export function venuePnlCount(report: SettlementReport): number {

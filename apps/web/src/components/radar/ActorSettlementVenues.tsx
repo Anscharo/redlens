@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useUrlState, urlString } from "../../hooks/useUrlState";
 import {
   hasMultiVenuePnl,
   hasVenueAum,
@@ -6,13 +6,32 @@ import {
   type SettlementReport,
 } from "../../lib/settlements";
 import { Tooltip } from "../Tooltip";
+import { useTweened } from "../../hooks/useTweened";
+import { tweenVenues } from "../../lib/mscTween";
 import { SettlementVenuePnl } from "./SettlementSankey";
 import { SettlementAum } from "./SettlementAum";
 
-export function ActorSettlementVenues({ report, name }: { report: SettlementReport; name: string }) {
+const venuesCodec = urlString(null);
+/** A month change on the venue charts, slower than the overview's: a
+ *  Sankey re-threading a dozen ribbons at once needs the time to be seen. */
+export const SETTLE_TWEEN_MS = 1500;
+
+export function ActorSettlementVenues({
+  report,
+  name,
+}: {
+  report: SettlementReport;
+  name: string;
+}) {
+  // A month change is drawn as a transition: the rows tween (mscTween.ts)
+  // and the Sankey and AUM bars lay out from them every frame.
+  const venues = useTweened(report.venues, tweenVenues, SETTLE_TWEEN_MS);
   const multi = hasMultiVenuePnl(report);
   const aum = hasVenueAum(report);
-  const [view, setView] = useState<"pnl" | "aum">("pnl");
+  // ?venues=aum; PnL is the default and needs no param.
+  const [venuesParam, setVenuesParam] = useUrlState("venues", venuesCodec);
+  const view: "pnl" | "aum" = venuesParam === "aum" ? "aum" : "pnl";
+  const setView = (v: "pnl" | "aum") => setVenuesParam(v === "aum" ? "aum" : null);
   const toggle = multi && aum;
   const showPnl = multi && (!toggle || view === "pnl");
   const showAum = aum && (!multi || view === "aum");
@@ -58,8 +77,10 @@ export function ActorSettlementVenues({ report, name }: { report: SettlementRepo
           </Tooltip>
         </div>
       )}
-      {showPnl && <SettlementVenuePnl venues={report.venues} primeLabel={name} />}
-      {showAum && <SettlementAum venues={report.venues} />}
+      {showPnl && (
+        <SettlementVenuePnl venues={venues} primeLabel={name} month={report.month} />
+      )}
+      {showAum && <SettlementAum venues={venues} />}
     </>
   );
 }

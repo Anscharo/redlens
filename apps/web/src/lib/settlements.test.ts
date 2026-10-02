@@ -17,6 +17,8 @@ import {
   supplyKept,
   isDemandSideCycle,
   teaserFigure,
+  cycleWindow,
+  windowOffsetFor,
   summaryThreeWay,
   threeWayPeaks,
   barFillStyle,
@@ -27,6 +29,10 @@ import {
   collapseAum,
   EMPTY_SETTLEMENTS,
   settlementsArtifactMissing,
+  supplyKeptTotal,
+  demandSideTotal,
+  cycleTotals,
+  leadCycleTotal,
   type SettlementHeadline,
   type SettlementReport,
   type SettlementsBundle,
@@ -161,6 +167,40 @@ describe("demand-side cycles", () => {
     expect(teaserFigure(keel)).toEqual({ amount: 36_231, suffix: "kept" });
   });
 
+  it("keeps the three sides of a window apart, and leads with the one that exists", () => {
+    const r = report();
+    // sky 60, kept 100 − 40 = 60, no demand.
+    expect(cycleTotals([r])).toEqual({ sky: 60, kept: 60, demand: 0 });
+    expect(leadCycleTotal(cycleTotals([r]))).toEqual({ amount: 60, label: "to Sky" });
+    // A demand-only Prime sent Sky nothing, so the demand side leads.
+    expect(cycleTotals([keel])).toEqual({ sky: 0, kept: 0, demand: 36_231 });
+    expect(leadCycleTotal(cycleTotals([keel]))).toEqual({ amount: 36_231, label: "demand-side from Sky" });
+    // A supply-side loss stays negative rather than being netted away.
+    const loss = report({ month: "2026-06", headline: { ...report().headline, primeAgentRevenue: 20, cof: 40 } });
+    expect(cycleTotals([loss, r])).toEqual({ sky: 120, kept: 40, demand: 0 });
+    expect(cycleTotals([])).toEqual({ sky: 0, kept: 0, demand: 0 });
+  });
+
+  it("windows a run of cycles to a trailing year, paged a full window at a time and never a stub", () => {
+    const run = Array.from({ length: 15 }, (_, i) => i + 1);
+    expect(cycleWindow(run)).toEqual({ rows: run.slice(3), earlier: true, later: false });
+    // Paging back a full window is clamped so the window stays full.
+    expect(cycleWindow(run, 12)).toEqual({ rows: run.slice(0, 12), earlier: false, later: true });
+    expect(cycleWindow(run, 2)).toEqual({ rows: run.slice(1, 13), earlier: true, later: true });
+    expect(cycleWindow([1, 2, 3])).toEqual({ rows: [1, 2, 3], earlier: false, later: false });
+    expect(cycleWindow([1, 2, 3], 5)).toEqual({ rows: [1, 2, 3], earlier: false, later: false });
+    expect(cycleWindow([], 0)).toEqual({ rows: [], earlier: false, later: false });
+  });
+
+  it("keeps a selected cycle on screen: the offset holds while it is in view, else the window ends on it", () => {
+    expect(windowOffsetFor(15, 0, 14)).toBe(0);
+    expect(windowOffsetFor(15, 0, 3)).toBe(0);
+    expect(windowOffsetFor(15, 0, 2)).toBe(3); // clamped to a full window (rows 0..11)
+    expect(windowOffsetFor(15, 3, 0)).toBe(3);
+    expect(windowOffsetFor(15, 3, 13)).toBe(1); // window ends on row 13
+    expect(windowOffsetFor(5, 0, 2)).toBe(0);
+  });
+
   it("splits the Summary into Sky / supply kept / demand-side", () => {
     // kept is prime_agent_revenue (100) − cof (40), not profitToGrove (40).
     expect(summaryThreeWay(report())).toEqual({ month: "2026-07", sky: 60, kept: 60, demand: 0 });
@@ -232,6 +272,25 @@ describe("demand-side cycles", () => {
     expect(sky + kept + demand).toBe(h.primeAgentRevenue + demand + h.sdeRevenue);
   });
 
+  it("sums each side of the cycle over a window of months, separately", () => {
+    const many = Array.from({ length: 13 }, (_, i) => {
+      const d = new Date(Date.UTC(2025, i, 1));
+      const month = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+      return report({
+        month,
+        headline: { ...report().headline, primeAgentRevenue: 10, cof: 4, agentRate: 3 },
+      });
+    });
+    const windowed = cycleWindow(many).rows;
+    expect(windowed).toHaveLength(12);
+    expect(windowed[0]!.month).toBe("2025-02");
+    expect(windowed.at(-1)!.month).toBe("2026-01");
+    expect(cycleWindow(many.slice(0, 8)).rows).toHaveLength(8);
+    // The two sides never merge into one figure: kept = 10 − 4, demand = 3.
+    expect(supplyKeptTotal(windowed)).toBe(6 * 12);
+    expect(demandSideTotal(windowed)).toBe(3 * 12);
+  });
+
   it("activates demand-series that appear in any month", () => {
     expect(activeDemandSeries([keel]).map((s) => s.key)).toEqual(["agentRate", "distributionRewards"]);
     expect(activeDemandSeries([skybase]).map((s) => s.key)).toEqual([
@@ -255,7 +314,7 @@ describe("demand-side cycles", () => {
     expect(hasVenueAum(keel)).toBe(false);
   });
 
-  it("folds AUM tails into Other", () => {
+  it("keeps the largest AUM venues, largest first, and folds the tail into Other", () => {
     const many = Array.from({ length: 15 }, (_, i) => ({
       id: `v${i}`,
       label: `V${i}`,
@@ -264,7 +323,7 @@ describe("demand-side cycles", () => {
     }));
     const out = collapseAum(many, 4);
     expect(out).toHaveLength(5);
-    expect(out[0]!.id).toBe("v0");
+    expect(out.slice(0, 4).map((v) => v.id)).toEqual(["v0", "v1", "v2", "v3"]);
     expect(out[4]!.label).toMatch(/Other venues \(11\)/);
     expect(out[4]!.valueEom).toBe(many.slice(4).reduce((n, v) => n + v.valueEom, 0));
   });
@@ -286,9 +345,14 @@ describe("loadSettlements", () => {
     expect(fetchJson.mock.calls[0][0]).toMatch(/settlements\.json$/);
   });
 
-  it("returns EMPTY_SETTLEMENTS when the artifact is missing, and retries next call", async () => {
+  it("returns EMPTY_SETTLEMENTS when the artifact is missing, and keeps that one promise (use() re-reads it)", async () => {
     fetchJson.mockRejectedValueOnce(new Error("settlements.json: 404"));
-    await expect(loadSettlements()).resolves.toBe(EMPTY_SETTLEMENTS);
+    const first = loadSettlements();
+    await expect(first).resolves.toBe(EMPTY_SETTLEMENTS);
+    expect(loadSettlements()).toBe(first);
+    expect(fetchJson).toHaveBeenCalledTimes(1);
+    // A reset (tests, or a deliberate refetch) tries the network again.
+    resetSettlementsCache();
     fetchJson.mockResolvedValueOnce({ source: {}, reports: [report()] });
     await expect(loadSettlements()).resolves.toEqual({ source: {}, reports: [report()] });
     expect(fetchJson).toHaveBeenCalledTimes(2);
