@@ -10,6 +10,7 @@
 // via sanitizeDone before events reach a client.
 import type OpenAI from "openai";
 import { runChat, type ChatEvent, type RoundInfo } from "./chat-loop.ts";
+import type { ToolCallContext } from "./tools/tool-context.ts";
 import type { ChatStream } from "./chat-loop.ts";
 import type { JsonCall } from "./llm.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
@@ -466,6 +467,7 @@ export async function* runVerifiedChat(opts: {
   signal?: AbortSignal;
   maxIterations?: number;
   obs?: ErrorContext;
+  toolCtx?: ToolCallContext;
 }): AsyncGenerator<HarnessEvent> {
   const max = Math.max(1, opts.maxIterations ?? config.chatMaxIterations);
   const checker = createRoundChecker();
@@ -670,7 +672,7 @@ export async function* runVerifiedChat(opts: {
   // answer (ruledSmalltalk, below), long after this status has to be sent.
   const hasPriorBasis = historyEntries.length > 0 || prevEvidence !== null;
   let sawToolCall = false;
-  for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd, obs: opts.obs, jsonCall: opts.jsonCall, userQuestion: opts.question }), makeGate)) {
+  for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd, obs: opts.obs, jsonCall: opts.jsonCall, userQuestion: opts.question, toolCtx: opts.toolCtx }), makeGate)) {
     if (ev.type === "done") {
       // Flush the trailing paragraph BEFORE breaking — this is still inside
       // the streaming loop, ahead of the bypass/checks-off exits below, so it

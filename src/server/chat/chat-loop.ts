@@ -11,6 +11,7 @@
 //   - usage + generation id are surfaced for rate-limiting + cost backfill
 import type OpenAI from "openai";
 import { execToolDetailed } from "./tools/llm-tools.ts";
+import type { ToolCallContext } from "./tools/tool-context.ts";
 import { CHAT_TOOLS } from "./tools/llm-tools.ts";
 import { safeParseArgs } from "./tools/llm-tools.ts";
 import { EXPORT_TOOL_NAME, buildExportArtifact, redactExportArgs } from "./tools/export-tool.ts";
@@ -21,6 +22,9 @@ import type { Indexes } from "../retrieval/indexes.ts";
 import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
 import type { JsonCall } from "./llm.ts";
 import { ASK_EXTERNAL_MSC, runAskExternalMsc } from "./tools/external-tools.ts";
+
+// Chat-only tools the loop runs itself instead of handing to execToolDetailed.
+const LOOP_HANDLED = new Set([EXPORT_TOOL_NAME, ASK_EXTERNAL_MSC]);
 import { isExternalMscTool } from "../external/envelope.ts";
 import { isUserTeachingTool } from "./teach/inject.ts";
 import { isRepetitionLoop } from "./repetition-guard.ts";
@@ -229,6 +233,7 @@ export async function* runChat(opts: {
   obs?: ErrorContext;
   jsonCall?: JsonCall;
   userQuestion?: string;
+  toolCtx?: ToolCallContext;
 }): AsyncGenerator<ChatEvent> {
   const msgs: Msg[] = [...opts.messages];
   const max = Math.max(1, opts.maxIterations ?? config.chatMaxIterations);
@@ -445,9 +450,8 @@ export async function* runChat(opts: {
       });
       const parsedCalls = calls.map((c) => ({ id: c.id, name: c.name, raw: c.args, args: safeParseArgs(c.args) }));
       for (const c of parsedCalls) yield { type: "tool_call", name: c.name, args: c.args };
-      const skipExec = (name: string) => name === EXPORT_TOOL_NAME || name === ASK_EXTERNAL_MSC;
       const results = await Promise.all(
-        parsedCalls.map((c) => (skipExec(c.name) ? Promise.resolve(null) : execToolDetailed(opts.ix, c.name, c.raw, opts.obs))),
+        parsedCalls.map((c) => (LOOP_HANDLED.has(c.name) ? null : execToolDetailed(opts.ix, c.name, c.raw, opts.obs, opts.toolCtx))),
       );
       const roundResults: RoundInfo["results"] = [];
       for (let i = 0; i < parsedCalls.length; i++) {

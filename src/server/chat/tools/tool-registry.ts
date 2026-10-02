@@ -5,8 +5,7 @@
 // The chat model gets the exact same tools an MCP client (ask-atlas) sees.
 import { z } from "zod";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
-import { type Indexes } from "../../retrieval/indexes.ts";
-import { atlasDescribe, atlasGet, atlasSearch, atlasGetAddress, type ToolResult, type SearchArgs } from "./tools.ts";
+import { atlasDescribe, atlasGet, atlasSearch, atlasGetAddress, type SearchArgs } from "./tools.ts";
 import { atlasQuery, type QueryArgs } from "../../retrieval/query.ts";
 import { atlasQueryShape } from "../../retrieval/query-schema.ts";
 import { atlasNeighbors, atlasTraverse, atlasEntity, atlasEntities, atlasEdges, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
@@ -26,6 +25,8 @@ import {
   buildOnchainAddressesReport,
 } from "../../reports/index.ts";
 import { atlasFirstSeen } from "../../history/first-seen.ts";
+import type { AtlasHandler } from "./invoke-tool.ts";
+import { PREVIEW_TOOLS } from "./tools-preview.ts";
 
 // The two fields toolDescription() assembles — shared with ExternalTool.
 export interface DescribedTool {
@@ -53,67 +54,10 @@ export interface AtlasTool extends DescribedTool {
   // chat transport additionally strips before zod, because an optional field
   // rejects null and the shape is checked before invokeTool is reached.
   emptyArgsAbsent?: boolean;
-  handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
+  handler: AtlasHandler;
 }
 
-// A model that fills EVERY declared property — the strong tier's does, on every
-// tool (pnpm eval:tools, 2026-09-22) — writes "" / [] / [""] for the ones it
-// means to leave out. None of those is ever a meaningful filter value, yet
-// `ids: [""]` beside a class filter tripped atlas_first_seen's "not both" error
-// on 12 of that model's 15 calls, and `edge_types: [""]` would intersect an
-// entity's docs to nothing. Blank array elements are dropped with the rest;
-// numbers and booleans pass through untouched (0 and false are real values).
-export function omitEmptyArgs(args: Record<string, unknown>): Record<string, unknown> {
-  const blank = (v: unknown) => v === null || v === undefined || (typeof v === "string" && v.trim() === "");
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(args)) {
-    if (blank(v)) continue;
-    if (Array.isArray(v)) {
-      const kept = v.filter((x) => !blank(x));
-      if (kept.length) out[k] = kept;
-      continue;
-    }
-    out[k] = v;
-  }
-  return out;
-}
-
-/**
- * The ONE place a tool's arguments meet its handler. Both transports call it —
- * chat (llm-tools.ts) and MCP (server/mcp.ts) — so `emptyArgsAbsent` is honoured
- * once here instead of per handler, and a tool cannot opt in for chat while the
- * MCP surface reads its blanks as real filters. That split was live until
- * 2026-09-28: four of the seven opted-in tools stripped only in the chat
- * transport, so an MCP client sending `type: ""` had it intersected to nothing.
- *
- * Only OPTIONAL properties are stripped. "An empty value is not a filter" is a
- * statement about filters; a REQUIRED property's blank is the caller's problem
- * and the handler already reports it (`commit_a '' not found in history`).
- * Dropping it instead hands the handler an absent argument its own contract says
- * cannot be absent — `atlas_changed_between` threw on `opts.commit_a.slice`
- * rather than answering. The chat transport never showed this because it strips
- * BEFORE zod, so a missing required key becomes a clean "invalid tool
- * arguments"; MCP's SDK validates first and `""` passes, so there is nothing
- * left to catch it. A key the shape does not declare is stripped like an
- * optional one: only an explicitly required property is restored, and zod drops
- * undeclared keys anyway, so no handler can be relying on one.
- *
- * Typed structurally rather than as AtlasTool so ExternalTool passes too; it
- * declares no `emptyArgsAbsent`, so its args are handed over untouched.
- */
-export function invokeTool<T extends { emptyArgsAbsent?: boolean; shape: z.ZodRawShape; handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult> }>(
-  ix: Indexes,
-  tool: T,
-  args: Record<string, unknown>,
-): ToolResult | Promise<ToolResult> {
-  if (!tool.emptyArgsAbsent) return tool.handler(ix, args);
-  const stripped = omitEmptyArgs(args);
-  for (const k of Object.keys(args)) {
-    if (k in stripped) continue;
-    if (tool.shape[k]?.isOptional() === false) stripped[k] = args[k];
-  }
-  return tool.handler(ix, stripped);
-}
+export { omitEmptyArgs, invokeTool, type AtlasHandler } from "./invoke-tool.ts";
 
 // Combines `description` + `whenToUse` for the two AGENT consumers (chat's JSON
 // Schema, MCP's tool registration) so they never drift apart. The /connect
@@ -502,7 +446,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   {
     name: "atlas_pr",
     whenToUse:
-      "The question names a specific GitHub PR number and asks what it touched.",
+      "The question names a specific MERGED GitHub PR and asks what it touched. An open, unmerged PR has no history yet: use atlas_preview_diff.",
     annotations: readOnlyAtlasTool("Atlas PR"),
     description: "What did PR #N touch? Returns every doc affected by a single GitHub PR against next-gen-atlas, with per-doc summary/description from the PR body.",
     shape: {
@@ -704,6 +648,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
     handler: (ix, a) => buildOnchainAddressesReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
+  ...PREVIEW_TOOLS,
 ];
 
 export const TOOLS_BY_NAME: Map<string, AtlasTool> = new Map(ATLAS_TOOLS.map((t) => [t.name, t]));

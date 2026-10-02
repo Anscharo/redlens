@@ -16,6 +16,7 @@ import { test, expect, mock, beforeEach } from "bun:test";
 import { z } from "zod";
 import { toUuidArrayLiteral, fromUuidArray } from "../../pg-array.ts";
 import { ATLAS_TOOLS, TOOLS_BY_NAME, invokeTool, omitEmptyArgs, toolDescription, type AtlasTool } from "./tool-registry.ts";
+import { PREVIEW_TOOLS } from "./tools-preview.ts";
 import { execToolDetailed, CHAT_TOOLS } from "./llm-tools.ts";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
 import { REPORT_CHAT_TOOLS } from "../../../lib/routes.ts";
@@ -113,12 +114,16 @@ test("REPORT_CHAT_TOOLS names only registered tools — a route wired to a renam
   }
 });
 
-test("every tool is read-only/non-destructive/idempotent and closed-world", () => {
+// The preview tools are the one open-world group: their answer follows GitHub's
+// live PR state, not only the served atlas.
+const OPEN_WORLD = new Set(PREVIEW_TOOLS.map((t) => t.name));
+
+test("every tool is read-only/non-destructive/idempotent, and closed-world unless it reads GitHub", () => {
   for (const t of ATLAS_TOOLS) {
     expect(t.annotations?.readOnlyHint).toBe(true);
     expect(t.annotations?.destructiveHint).toBe(false);
     expect(t.annotations?.idempotentHint).toBe(true);
-    expect(t.annotations?.openWorldHint).toBe(false);
+    expect(t.annotations?.openWorldHint).toBe(OPEN_WORLD.has(t.name));
     expect(t.annotations?.title).toBeTruthy();
   }
 });
@@ -155,6 +160,9 @@ const ARGS: Record<string, Record<string, unknown>> = {
   atlas_report_oea_assessment: {},
   atlas_report_risk_rules: {},
   atlas_report_addresses: {},
+  atlas_open_prs: {},
+  atlas_preview_diff: { preview_id: 1 },
+  atlas_preview_get: { preview_id: "pull-1", ids: ["D1"] },
 };
 
 test("ARGS fixture covers exactly the registered tool set (fails loudly on drift)", () => {
@@ -163,11 +171,19 @@ test("ARGS fixture covers exactly the registered tool set (fails loudly on drift
 
 test("every registered tool executes end-to-end via execToolDetailed without throwing", async () => {
   const ix = makeIx();
-  for (const tool of ATLAS_TOOLS) {
-    const args = ARGS[tool.name];
-    const result = await execToolDetailed(ix, tool.name, JSON.stringify(args));
-    expect(typeof result.content).toBe("string");
-    expect(() => JSON.parse(result.content)).not.toThrow();
+  // The preview tools ask GitHub for the open-PR list; answer it offline.
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
+    String(input).includes("api.github.com") ? Response.json([]) : realFetch(input, init)) as typeof fetch;
+  try {
+    for (const tool of ATLAS_TOOLS) {
+      const args = ARGS[tool.name];
+      const result = await execToolDetailed(ix, tool.name, JSON.stringify(args));
+      expect(typeof result.content).toBe("string");
+      expect(() => JSON.parse(result.content)).not.toThrow();
+    }
+  } finally {
+    globalThis.fetch = realFetch;
   }
 });
 
@@ -222,6 +238,7 @@ test("the opt-in list is exactly this, and changing it is a deliberate act", () 
     "atlas_filter",
     "atlas_first_seen",
     "atlas_history",
+    "atlas_preview_diff",
     "atlas_query",
     "atlas_recent_changes",
   ]);
@@ -378,4 +395,25 @@ test("invokeTool keeps a blank on a required property, so the handler still repo
     commit_a: "", commit_b: "", change_type: "", entity: "",
   })) as Record<string, unknown>;
   expect(String(out.error)).toMatch(/commit_a/);
+});
+
+// ── caller context reaches the handler ───────────────────────────────────────
+test("invokeTool hands the caller's context to the handler, defaulting to anonymous MCP", async () => {
+  const seen: unknown[] = [];
+  const tool = { shape: {}, handler: (_ix: unknown, _a: unknown, ctx: unknown) => (seen.push(ctx), {}) };
+  await invokeTool(makeIx(), tool, {});
+  await invokeTool(makeIx(), tool, {}, { surface: "chat", userId: "u1" });
+  expect(seen).toEqual([{ surface: "mcp" }, { surface: "chat", userId: "u1" }]);
+});
+
+test("execToolDetailed forwards the chat context to the tool", async () => {
+  const original = TOOLS_BY_NAME.get("atlas_describe")!;
+  let seen: unknown;
+  TOOLS_BY_NAME.set("atlas_describe", { ...original, handler: (_ix, _a, ctx) => ((seen = ctx), {}) });
+  try {
+    await execToolDetailed(makeIx(), "atlas_describe", "{}", undefined, { surface: "chat", userId: "u2" });
+    expect(seen).toEqual({ surface: "chat", userId: "u2" });
+  } finally {
+    TOOLS_BY_NAME.set("atlas_describe", original);
+  }
 });

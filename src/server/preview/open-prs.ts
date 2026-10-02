@@ -18,11 +18,13 @@ export interface OpenPr {
 let openPrsCache: { at: number; v: OpenPr[] } | null = null;
 const OPEN_PRS_TTL_MS = 5 * 60_000;
 
-export async function openAtlasPrs(): Promise<OpenPr[]> {
+/** The open PRs, or null when GitHub did not answer and nothing is cached — so a
+ *  tool can say "unavailable" rather than "there are none". */
+export async function fetchOpenPrs(): Promise<OpenPr[] | null> {
   const now = Date.now();
   if (openPrsCache && now - openPrsCache.at < OPEN_PRS_TTL_MS) return openPrsCache.v;
   const r = await gh.fetchJson(`/repos/${CANONICAL_REPO}/pulls?state=open&sort=updated&direction=desc&per_page=100`);
-  if (!r.ok || !Array.isArray(r.json)) return openPrsCache?.v ?? []; // serve stale on a GitHub hiccup
+  if (!r.ok || !Array.isArray(r.json)) return openPrsCache?.v ?? null; // serve stale on a GitHub hiccup
   const prs: OpenPr[] = r.json.map((p: any) => ({
     number: p.number,
     title: p.title ?? "",
@@ -36,3 +38,6 @@ export async function openAtlasPrs(): Promise<OpenPr[]> {
   openPrsCache = { at: now, v: prs };
   return prs;
 }
+
+/** The /preview index's list: an unanswered GitHub reads as an empty tab. */
+export const openAtlasPrs = async (): Promise<OpenPr[]> => (await fetchOpenPrs()) ?? [];

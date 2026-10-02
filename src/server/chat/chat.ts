@@ -466,6 +466,7 @@ export async function handleChat(req: Request): Promise<Response> {
           for await (const ev of runVerifiedChat({
             ix, messages, stream: chatStream, jsonCall: makeOpenrouterJson(obs),
             question: body.message, signal: req.signal, obs, maxIterations,
+            toolCtx: { surface: "chat", userId, signal: req.signal },
           })) {
             if (ev.type === "done") {
               done = ev as HarnessDone;
