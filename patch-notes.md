@@ -36,6 +36,7 @@
 ## 2026-10-02
 
 - Fixed search so words with underscores, like erc4626_redeem, are searched as one word.
+- Showed equivalent documents from other Prime Agents and owning-agent labels when viewing a preview.
 
 ## 2026-10-01
 - Made the light theme the default for new visitors instead of following the device setting
