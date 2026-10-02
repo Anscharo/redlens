@@ -464,6 +464,7 @@ mixed as evidence:
 | Params | `atlas_params`, `atlas_entity_params` |
 | Addresses | `atlas_get_address` |
 | History | `atlas_history`, `atlas_history_stats`, `atlas_recent_changes`, `atlas_changed_between`, `atlas_first_seen`, `atlas_pr` |
+| PR previews (unmerged) | `atlas_open_prs` (open nga PRs), `atlas_preview_diff` (what a preview adds/changes/removes, with patches), `atlas_preview_get` (a preview's full text beside the live text). Handlers take the `ToolCallContext` (`tools/tool-context.ts`) and open previews through `preview/tool-access.ts`: MCP is anonymous and reads only already-built, public, canonical `pull-N` previews, never building; chat may build (waiting `CHAT_PREVIEW_BUILD_WAIT_MS`) and may open a private repo after the live collaborator check, with a private preview it cannot see reading exactly like a missing one. Proposed text is cited as `/preview/<sha>/atlas?id=<uuid>`, never `/atlas/<uuid>`. |
 | Curated reports | `atlas_report_multisigs`, `atlas_report_primitive_matrix`, `atlas_report_rewards`, `atlas_report_active_data`, `atlas_report_facilitator_responsibilities`, `atlas_report_govops_responsibilities`, `atlas_report_stale_dates`, `atlas_report_processes`, `atlas_report_oea_assessment`, `atlas_report_risk_rules`, `atlas_report_addresses` |
 | Output | `export_findings` (chat-only; emits the `export` SSE event) |
 | External (not Atlas) | `external_msc` (MCP) and `ask_external_msc` (chat-only sub-agent). Curated Monthly Settlement Cycle views from Soter Labs workbooks + Sky Forum permalinks. Views: `month`/`series`/`venues` are per-prime and **require** `prime` (their errors return `available_primes` so a wrong guess self-corrects rather than reading as "no data"); `compare` ranks primes for one month; `aggregate` is the cross-prime, multi-month roll-up (ecosystem + per-prime totals, an ecosystem `by_month` series, top venues across every prime) — it covers only the latest month unless `month: "all"` or `from`/`to` is passed, and always returns `months_available` so a default call can widen on the next round; `terms` needs nothing. `aggregate` computes supply-side revenue as `prime_agent_revenue − cof` per prime — never `Σ` per-venue `Profit to Grove`, which drops non-venue revenue and spread reimbursement (a $7.29M gap, all Spark) — nests `cof`/`sde` under `to_sky` rather than beside it, treats `value_eom` as a stock (latest, not summed), and returns a `foot_delta` that re-checks the three-way identity; it also flags a range whose months have different numbers of published workbooks, since such a "highest month" is partly a coverage artifact. The deterministic brief (`briefFromView`) has a branch for every money view, aggregate included — it is what the main model reads when the sub-model returns nothing usable, and an empty one reads as "the tool returned no figures". See `.claude/skills/settlement-reports/SKILL.md`. Tool results carry `source_class: "external"`; the verifier ignores them for Atlas quote-grounding and requires the non-Atlas disclaimer. |
@@ -909,6 +910,18 @@ One follow-up the refutation-only overhaul surfaced but did not build:
   1 record in 568 across the eval corpora, so injecting it on every turn would
   spend prompt-interference risk on answers it has nothing to do with.
 
+- **A PR preview's text is a proposal** (`verifier.ts`'s `PREVIEW_TOOLS`).
+  `atlas_preview_diff` / `atlas_preview_get` results are `sourceClass:
+  "preview"`: admitted to the grounding pool (a correct quote of proposed text
+  must ground), marked `[PROPOSED PR TEXT, not the live Atlas]` to the refute
+  judge with a rule appended only when such an entry is present, and exempt —
+  by `verify/preview-evidence.ts`, keyed on the `source_class` marker that leads
+  every result — from the invalid-doc_no and parameter-mismatch checks for the
+  doc_nos and values that appear in them, since a faithful review names
+  documents and figures the live Atlas does not have yet. `atlas_open_prs` is
+  history-class. Preview citations are not `/atlas/` links, so citation repair,
+  the stream link gate and the Sources chips leave them alone.
+
 - **Atlas provenance is an allowlist, never a default** (2026-09-24,
   `verifier.ts`'s `classifyToolSource`). A tool result is `"atlas"` only if its
   name is in the registry (`ATLAS_TOOLS`); `"external"`, `"reference"` (the
@@ -1330,7 +1343,18 @@ verdicts are annotate-only — kept rather than dropped since it costs nothing
 idle and a migration to remove it isn't worth the churn. Retrieval tables are
 `atlas_doc_meta`, `atlas_doc_embeddings` (`vector(1024)` + HNSW cosine index),
 `atlas_addresses`, and `atlas_history`, with `sync_state`/`sync_log` as the
-"what's loaded" pointer. Document content, full-text (MiniSearch), and the graph
+"what's loaded" pointer.
+
+`conversations.private_repos` (migration 037) lists the private repos whose PR
+preview text a conversation's tools have read. A preview tool records the repo
+(`conversation-access.ts`) before returning the text, and withholds the text if
+it cannot. Every later turn and every reopen (`GET /api/chat/conversations/:id`)
+re-checks the user's live access to each listed repo and answers 403
+`preview_access_revoked` once any is gone (503 `access_check_unavailable` when
+GitHub cannot answer). A conversation with a non-empty list, or a turn asked
+from inside a fork or private preview, sends PostHog metadata only
+(`ChatObservability.privacyMode`). Known limits: the conversation's title stays
+in the user's own list, and a browser's local resume snapshot is not revoked. Document content, full-text (MiniSearch), and the graph
 live **in memory** (loaded once at boot, kept fresh by an in-process updater);
 Postgres holds only what benefits from SQL.
 

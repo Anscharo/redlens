@@ -35,6 +35,7 @@
 
 ## 2026-10-02
 
+- Added chat questions about open Atlas pull requests, including reviewing a PR from inside its preview.
 - Fixed search so words with underscores, like erc4626_redeem, are searched as one word.
 - Showed equivalent documents from other Prime Agents and owning-agent labels when viewing a preview.
 
