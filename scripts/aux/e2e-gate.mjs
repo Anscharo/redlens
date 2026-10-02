@@ -17,8 +17,9 @@
 //
 //   markdown-only diff -> pass immediately. Nothing will deploy, so there is
 //                         nothing for E2E to verify.
-//   anything else      -> wait for a run of e2e.yml at this head SHA and mirror
-//                         its verdict.
+//   anything else      -> wait for a run of e2e.yml at this head SHA, or at an
+//                         older PR commit that deploys the same app (see
+//                         deployEquivalentShas), and mirror its verdict.
 //
 // Runs are matched by WORKFLOW FILE, never by job name. Two reasons, both real:
 // Railway emits a deployment_status per service and per environment, so a single
@@ -29,7 +30,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { deployEquivalentShasFromGit } from "../lib/deploy-equivalent.mjs";
 import { shouldSkipDeploy } from "../lib/deploy-skip.mjs";
+import { fetchPullRequest, fetchRuns } from "./e2e-gate-github.mjs";
 
 // When imported by the test rather than run as a CLI, only the pure helpers
 // load — the polling main block below is skipped.
@@ -175,41 +178,6 @@ export async function waitForE2eVerdict({
   return result;
 }
 
-/** One place to shape an API request, so auth can never be half-applied. */
-function githubHeaders(token) {
-  return {
-    Accept: "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
-    "User-Agent": "redlens-e2e-gate",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-}
-
-async function fetchRuns({ apiBase, repo, workflow, sha, token }) {
-  const url = `${apiBase}/repos/${repo}/actions/workflows/${workflow}/runs?head_sha=${sha}&per_page=100`;
-  const res = await fetch(url, { headers: githubHeaders(token) });
-  if (!res.ok) throw new Error(`GitHub API ${res.status} ${res.statusText} for ${url}`);
-  const body = await res.json();
-  return Array.isArray(body.workflow_runs) ? body.workflow_runs : [];
-}
-
-/**
- * Current state of the PR, or null when it cannot be determined. A failed read
- * is deliberately indistinguishable from "still open": the PR check is an early
- * exit from the wait, never a reason to change the verdict, so an API blip must
- * leave the gate exactly as it was.
- */
-async function fetchPullRequest({ apiBase, repo, prNumber, token }) {
-  if (!prNumber) return null;
-  try {
-    const res = await fetch(`${apiBase}/repos/${repo}/pulls/${prNumber}`, { headers: githubHeaders(token) });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
-
 function summarize(lines) {
   const file = process.env.GITHUB_STEP_SUMMARY;
   if (!file) return;
@@ -241,10 +209,11 @@ if (isMain) {
     process.exit(0);
   }
 
+  const shas = deployEquivalentShasFromGit(sha, process.env.BASE_SHA);
   console.log(
     changed.length
-      ? `${changed.length} changed path(s) are deploy-relevant; waiting for E2E at ${sha}.`
-      : `could not read a changed-file list from '${changedFile}'; failing open and waiting for E2E at ${sha}.`,
+      ? `${changed.length} changed path(s) are deploy-relevant; waiting for E2E at ${shas.join(", ")}.`
+      : `could not read a changed-file list from '${changedFile}'; failing open and waiting for E2E at ${shas.join(", ")}.`,
   );
 
   const apiBase = (process.env.GITHUB_API_URL ?? "https://api.github.com").replace(/\/+$/, "");
@@ -261,7 +230,7 @@ if (isMain) {
   const timeoutSeconds = num(process.env.E2E_GATE_TIMEOUT_SECONDS, 2400);
 
   const result = await waitForE2eVerdict({
-    fetchRuns: () => fetchRuns({ apiBase, repo, workflow, sha, token }),
+    fetchRuns: () => fetchRuns({ apiBase, repo, workflow, shas, token }),
     fetchPullRequest: () => fetchPullRequest({ apiBase, repo, prNumber, token }),
     pollSeconds,
     timeoutSeconds,
