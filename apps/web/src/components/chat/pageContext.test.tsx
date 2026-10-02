@@ -158,3 +158,27 @@ describe("usePageContext", () => {
     expect(result.current.reportTool).toBeUndefined();
   });
 });
+
+describe("usePageContext inside a preview", () => {
+  it("carries the preview id and sha, and names the PR in the chip", async () => {
+    const { DataSourceContext } = await import("../../lib/dataSource");
+    const { hook } = memoryLocation({ path: `${ROUTES.ATLAS}?id=11111111-1111-1111-1111-111111111111`, record: true });
+    const source = { base: "/api/preview/abc/", preview: { id: "pull-42", sha: "c".repeat(40) } };
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <DataSourceContext.Provider value={source}>
+        <Router hook={hook} searchHook={() => "id=11111111-1111-1111-1111-111111111111"}>
+          {children}
+        </Router>
+      </DataSourceContext.Provider>
+    );
+    const { result } = renderHook(() => usePageContext(), { wrapper });
+    await waitFor(() => expect(result.current.nodeDocNo).toBe("A.1.1"));
+    expect(result.current).toMatchObject({
+      previewId: "pull-42",
+      previewSha: "c".repeat(40),
+      chip: "preview · PR #42 · A.1.1",
+      placeholder: "Ask about this PR…",
+    });
+    expect(toPageContext(result.current)).toMatchObject({ previewId: "pull-42", nodeId: "11111111-1111-1111-1111-111111111111" });
+  });
+});

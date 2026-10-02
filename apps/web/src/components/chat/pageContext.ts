@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useLocation, useSearchParams } from "wouter";
 import { ROUTES, REPORT_CHAT_TOOLS, REPORT_TITLES } from "@/lib/routes";
 import { loadAtlas } from "../../lib/docs";
+import { useDataSource, type PreviewInfo } from "../../lib/dataSource";
+import { previewLabel } from "../../lib/previewLocal";
 
-// Mirrors the server's PageContext (src/server/chat/system-prompt.ts) plus the
+// Mirrors the server's PageContext (src/server/chat/page-context.ts) plus the
 // UI-only fields the launcher/composer render (short, placeholder, chip).
 export interface PageContext {
   path?: string;
@@ -15,6 +17,8 @@ export interface PageContext {
   reportName?: string;
   reportTool?: string; // atlas_report_* tool backing this report page, if any
   reportFilter?: string; // the report page's active text filter (search box), if any
+  previewId?: string; // the PR preview this page is inside (its /preview/<id> segment)
+  previewSha?: string; // that preview's built commit
 }
 
 export interface PageContextView extends PageContext {
@@ -56,9 +60,32 @@ const baseContext = {
   chip: "atlas",
 };
 
-// Derives page context from the wouter route. Atlas node titles are resolved
-// asynchronously from the cached docs.json (loadAtlas is memoised).
+// Inside a preview every page is about the PR: the chip and composer say so,
+// and the preview id rides along so "review this PR" needs no PR number.
+function inPreview(view: PageContextView, p: PreviewInfo): PageContextView {
+  const doc = view.nodeDocNo ? ` · ${view.nodeDocNo}` : "";
+  return {
+    ...view,
+    previewId: p.id,
+    previewSha: p.sha,
+    short: "Ask about this PR",
+    placeholder: "Ask about this PR…",
+    chip: `preview · ${previewLabel(p.id)}${doc}`,
+  };
+}
+
+// Derives page context from the wouter route and the data source. Inside a
+// preview the router base is the preview's, so the same routes apply.
 export function usePageContext(): PageContextView {
+  const ds = useDataSource();
+  const view = useRouteContext(ds.base);
+  return ds.preview ? inPreview(view, ds.preview) : view;
+}
+
+// Atlas node titles are resolved asynchronously from the cached docs.json
+// (loadAtlas is memoised per base) — the preview's own, inside a preview, so a
+// document only the PR adds still gets its title.
+function useRouteContext(base: string): PageContextView {
   const [location] = useLocation();
   const [searchParams] = useSearchParams();
   const nodeId = location === ROUTES.ATLAS ? searchParams.get("id") : null;
@@ -70,7 +97,7 @@ export function usePageContext(): PageContextView {
       setNode(null);
       return;
     }
-    loadAtlas()
+    loadAtlas(base)
       .then((b) => {
         if (!alive) return;
         const n = b.docs[nodeId];
@@ -80,7 +107,7 @@ export function usePageContext(): PageContextView {
     return () => {
       alive = false;
     };
-  }, [nodeId]);
+  }, [nodeId, base]);
 
   // Atlas node page
   if (nodeId) {

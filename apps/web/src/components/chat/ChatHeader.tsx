@@ -1,4 +1,5 @@
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
+import { ConversationsLink } from "./ConversationsLink";
 import { ROUTES } from "@/lib/routes";
 import { SparkMark, DockRightIcon, FloatIcon, ConversationsIcon } from "./glyphs";
 import type { Placement } from "./types";
@@ -31,9 +32,9 @@ export function ChatHeader({ title, onNewChat, onClose, placement, onTogglePlace
           <ConversationsIcon />
         </button>
       ) : (
-        <Link className="rlc-iconbtn" to={ROUTES.CONVERSATIONS} title="Conversations" aria-label="Conversations">
+        <ConversationsLink className="rlc-iconbtn" title="Conversations" aria-label="Conversations">
           <ConversationsIcon />
-        </Link>
+        </ConversationsLink>
       )}
       <SparkMark size={15} />
       <div>

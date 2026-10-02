@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "../Link";
+import { ConversationsLink } from "./ConversationsLink";
 import { SparkMark } from "./glyphs";
 import { track } from "../../lib/analytics";
 import { listConversations, type ConversationSummary } from "../../lib/conversationsApi";
-import { ROUTES } from "@/lib/routes";
 import type { PageContextView } from "./pageContext";
 
 // Each starter is a showcase, so each must be ANSWERABLE with citations — the
@@ -116,9 +115,7 @@ export function ChatEmptyState({ authed, context, onSend, onOpenConversation }: 
               </button>
             ))}
           </div>
-          <Link to={ROUTES.CONVERSATIONS} className="text-xs mono text-accent hover:underline block mt-2">
-            See all conversations →
-          </Link>
+          <ConversationsLink className="text-xs mono text-accent hover:underline block mt-2">See all conversations →</ConversationsLink>
         </div>
       )}
     </div>

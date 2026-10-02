@@ -196,8 +196,12 @@ export const atlasUrlOrEmpty = (id?: string | null) => (id ? atlasUrl(id) : "");
 // app, e.g. a downloaded Markdown export opened locally or on another host.
 // Reuses atlasUrl, so it degrades to the relative `/atlas?id=<id>` in a DOM-free
 // context (still the correct route shape, just not origin-qualified).
+// A PR preview citation (`/preview/<sha>/atlas?id=<id>`) is already a real
+// route, so it only gains the origin.
 export const absolutizeAtlasLinks = (markdown: string): string =>
-  markdown.replace(/\]\(\/atlas\/([^)\s]+)\)/g, (_m, id: string) => `](${atlasUrl(id)})`);
+  markdown
+    .replace(/\]\(\/atlas\/([^)\s]+)\)/g, (_m, id: string) => `](${atlasUrl(id)})`)
+    .replace(/\]\((\/preview\/[^)\s]+)\)/g, (_m, path: string) => `](${typeof window !== "undefined" ? window.location.origin : ""}${path})`);
 export const actorHref = (slug: string, fragment?: string) =>
   `${ROUTES.RADAR}/${slug}${fragment ? `#${fragment}` : ""}`;
 export const settlementsHref = (slug: string) => `${ROUTES.RADAR}/${slug}/settlements`;

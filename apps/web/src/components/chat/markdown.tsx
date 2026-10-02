@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { atlasHref } from "@/lib/routes";
+import { useDataSource } from "../../lib/dataSource";
 import { DEFINITION_RE, normalizeLabel, parseDefinitions, unwrapCodeCitations } from "./citations";
 import { useMathPlugins, closeOpenMathFence } from "./chatMath";
 
@@ -8,6 +9,10 @@ import { useMathPlugins, closeOpenMathFence } from "./chatMath";
 // (system-prompt.ts forces UUID hrefs). We intercept those, SPA-navigate via
 // onAtlas, and let any other href fall through to a normal new-tab link.
 const ATLAS_HREF_RE = /^\/atlas\/([0-9a-f-]{36})$/i;
+// A PR preview's copy of a document (the preview tools' `cite` form). Inside
+// that same preview it opens in place like an atlas citation; anywhere else it
+// is an ordinary link to the preview reader.
+const PREVIEW_HREF_RE = /^\/preview\/([0-9a-f]{40})\/atlas\?id=([0-9a-f-]{36})$/i;
 
 // One combined scan over the answer text, tried most-specific-first at each
 // `[`:
@@ -105,13 +110,23 @@ export function balanceFences(text: string): string {
   return closeOpenMathFence(closed);
 }
 
+// The uuid an in-app citation opens: an atlas link, or a link to the preview
+// being viewed (`previewSha`). Null for anything that leaves the page.
+function inAppUuid(href: string | undefined, previewSha: string | undefined): string | null {
+  if (!href) return null;
+  const atlas = ATLAS_HREF_RE.exec(href);
+  if (atlas) return atlas[1].toLowerCase();
+  const pv = PREVIEW_HREF_RE.exec(href);
+  return pv && previewSha && pv[1].toLowerCase() === previewSha.toLowerCase() ? pv[2].toLowerCase() : null;
+}
+
 export function AtlasMarkdown({ content, onAtlas }: { content: string; onAtlas: (uuid: string) => void }) {
+  const previewSha = useDataSource().preview?.sha;
   const components = useMemo<Components>(
     () => ({
       a({ href, children, ...props }) {
-        const m = href ? ATLAS_HREF_RE.exec(href) : null;
-        if (m) {
-          const uuid = m[1].toLowerCase();
+        const uuid = inAppUuid(href, previewSha);
+        if (uuid) {
           return (
             <a
               href={atlasHref(uuid)}
@@ -131,7 +146,7 @@ export function AtlasMarkdown({ content, onAtlas }: { content: string; onAtlas: 
         );
       },
     }),
-    [onAtlas],
+    [onAtlas, previewSha],
   );
 
   const { remarkPlugins, rehypePlugins } = useMathPlugins(content);

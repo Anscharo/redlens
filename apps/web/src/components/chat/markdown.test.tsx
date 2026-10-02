@@ -311,3 +311,29 @@ describe("renderer agreement (extractSources tracks what AtlasMarkdown actually 
     expect(renderedAtlasUuids(content)).toEqual(["57a0be8f-c0d8-4d0c-bb99-ca3e63da5058"]);
   });
 });
+
+describe("AtlasMarkdown — PR preview citations", () => {
+  const SHA = "c".repeat(40);
+  const UUID = "11111111-1111-1111-1111-111111111111";
+  const content = `[New rule](/preview/${SHA}/atlas?id=${UUID})`;
+
+  it("opens in place inside the preview it points at", async () => {
+    const { DataSourceContext } = await import("../../lib/dataSource");
+    const onAtlas = vi.fn();
+    render(
+      <DataSourceContext.Provider value={{ base: "/api/preview/x/", preview: { id: "pull-1", sha: SHA } }}>
+        <AtlasMarkdown content={content} onAtlas={onAtlas} />
+      </DataSourceContext.Provider>,
+    );
+    fireEvent.click(screen.getByText("New rule"));
+    expect(onAtlas).toHaveBeenCalledWith(UUID);
+  });
+
+  it("is an ordinary new-tab link anywhere else", () => {
+    const onAtlas = vi.fn();
+    render(<AtlasMarkdown content={content} onAtlas={onAtlas} />);
+    const link = screen.getByText("New rule");
+    expect(link.getAttribute("href")).toBe(`/preview/${SHA}/atlas?id=${UUID}`);
+    expect(link.getAttribute("target")).toBe("_blank");
+  });
+});
