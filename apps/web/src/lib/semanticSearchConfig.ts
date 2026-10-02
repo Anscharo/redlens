@@ -8,11 +8,9 @@
 // with populated `atlas_doc_embeddings`. Static hosting leaves the placeholder
 // unreplaced, which reads as unavailable; correct, since there is no /api there.
 //
-// There used to be a second injection beside it, `__SEMANTIC_STRATEGY__`,
-// choosing how the meaning leg blended into the WORDING lane. Both blends are
-// gone (`woven` 2026-09-29, `fallback` 2026-09-30) — meaning-matched rows now
-// appear on the meaning lane and nowhere else — so a deployment has nothing
-// left to choose: either it can answer that lane or it cannot.
+// This is the ONLY semantic injection. Meaning-matched rows appear on the
+// meaning lane and nowhere else, so there is no blend for a deployment to
+// choose: either it can answer that lane or it cannot.
 export function semanticSearchAvailable(): boolean {
   return window.__SEMANTIC_SEARCH__ === true;
 }

@@ -177,10 +177,9 @@ function postFused(run: SemanticLegRun, body: SemanticSearchResponse, durationMs
   run.post({
     type: "results",
     id: run.id,
-    // Always a REPLACEMENT, never a merge. On the semantic lane the wording
-    // list was never fetched; on the wording lane the leg only runs under the
-    // fallback strategy, which by definition means wording returned nothing.
-    // (Fusing the two was the `woven` strategy, dropped 2026-09-29.)
+    // Always a REPLACEMENT, never a merge: the leg runs on the meaning lane
+    // alone, where the wording list was never fetched. Fusing the two lists
+    // reads worse than either on its own.
     hits: sem,
     durationMs,
     lane: run.lane,

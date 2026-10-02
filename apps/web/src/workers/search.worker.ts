@@ -4,27 +4,16 @@ import type {
   AtlasNode,
   AddressInfo,
   SearchHit,
-  SemanticLegStatus,
   WorkerInMessage,
   WorkerOutMessage,
 } from "@/types";
-import type { SearchLane, SemanticSearchResponse } from "@/lib/searchSemantic";
 import { fetchText } from "@/lib/verify";
 import { buildSnippet, highlightTerms, extractPhrases } from "@/lib/searchHighlight";
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
-import {
-  CHAINLOG_RE,
-  DOC_NO_RE,
-  answerFromCache,
-  cancelSemanticLeg,
-  runSemanticLeg,
-  semanticDebounceMs,
-  semanticLegQuery,
-  type WordShape,
-} from "./searchSemanticLeg";
-import { isCommonWord } from "./commonWords";
-import { MINISEARCH_OPTIONS } from "@/lib/searchOptions";
+import { CHAINLOG_RE, DOC_NO_RE, cancelSemanticLeg } from "./searchSemanticLeg";
+import { answerQuery, createLexicalMemo, hydrateSemantic, type QueryDeps } from "./searchWorkerLanes";
+import { MINISEARCH_OPTIONS, MINISEARCH_SEARCH_OPTIONS } from "@/lib/searchOptions";
 import { counterpartTerm, expandQueryTokens, partitionByOriginalTerms } from "@/lib/searchInflect";
 import { computeLabels } from "../lib/hitLabels";
 
@@ -306,7 +295,9 @@ function search(q: string): SearchHit[] {
       }
     : undefined;
 
-  const queryEmpty = !finalQuery;
+  // A query with no indexable token (e.g. a bare "_") can only be answered by
+  // the literal phrase filter, so scan instead of asking MiniSearch.
+  const queryEmpty = !/[\p{L}\p{N}]{2}/u.test(finalQuery) && (!finalQuery || lowerPhrases.length + casePhrases.length > 0);
 
   type MiniResult = { id: unknown; score: number; terms: string[]; queryTerms: string[]; match: Record<string, string[]> };
   let results: MiniResult[];
@@ -320,7 +311,7 @@ function search(q: string): SearchHit[] {
     const expansion = expandQueryTokens(finalQuery.split(/\s+/).filter(Boolean));
     const searchQuery = expansion.extra.length > 0 ? `${finalQuery} ${expansion.extra.join(" ")}` : finalQuery;
     results = idx.search(searchQuery, {
-      prefix: true,
+      ...MINISEARCH_SEARCH_OPTIONS, prefix: true,
       fuzzy: fuzzyLevel || false,
       boost: { title: 10, doc_no: 5, type: 2 },
       combineWith: "OR",
@@ -431,140 +422,22 @@ function search(q: string): SearchHit[] {
 
 // ─── semantic lane ──────────────────────────────────────────────────────────
 //
-// The decisions and the fusion live in searchSemanticLeg.ts; what stays here is
-// the part that needs this worker's state. GET /api/search/semantic returns ids
-// and cosine scores only, and this worker already holds the whole corpus plus
-// every function that turns a document into a rendered hit (docToHit,
-// buildSnippet, highlightTerms, computeLabels) — so hydration belongs here and
-// nowhere else, or docs.json and the highlighting would need a second copy.
-
-// One-entry memo of the last lexical run. Switching lane re-sends the SAME
-// query text against a different index, so without this every flip between the
-// pills pays for another whole-corpus MiniSearch pass — which for a broad query
-// is the slowest thing on the page. One result set is held, and it is the same
-// array the main thread is already rendering.
-//
-// `durationMs` is remembered with it for the same reason `postFused` remembers
-// the leg's: a memo hit costs ~0 ms, and reporting that would make the time on
-// screen change every time the reader flipped lanes and came back.
-let lastLexical: { q: string; hits: SearchHit[]; durationMs: number } | null = null;
-
-function lexicalFor(q: string): { hits: SearchHit[]; durationMs: number } {
-  if (lastLexical?.q !== q) {
-    const t0 = performance.now();
-    const hits = search(q);
-    lastLexical = { q, hits, durationMs: performance.now() - t0 };
-  }
-  return lastLexical;
-}
-
-/**
- * Is `word` finished, or is the reader still typing it?
- *
- * Two dictionaries, asked in this order, because they fail in opposite
- * directions. The English list knows "home" and "care" are whole words but has
- * never heard of "facilitator" or "usds"; the atlas's own term index knows
- * every word the corpus uses but only those, so it reads an ordinary English
- * word it happens not to use as the beginning of one it does. A word is
- * finished if EITHER says so.
- *
- * The atlas half reads MiniSearch's term dictionary, which is a radix tree:
- * `has` is one walk down the word and `atPrefix(...).keys().next()` stops at
- * the first term under it, so the probe costs nothing like a search — which
- * matters, because it runs on every keystroke and its whole job is to decide
- * whether to do corpus-sized work.
- *
- * `_index` is declared `protected` rather than public, so this is the one place
- * that reaches for it, behind a shape check that degrades to "unknown" (the
- * permissive answer: search now) if a MiniSearch upgrade ever moves it. The
- * worker test pins the behaviour against a real index, so that upgrade fails
- * the suite rather than quietly disabling the wait.
- *
- * The word is normalised through the index's OWN `processTerm`, so the probe
- * cannot disagree with the dictionary it is reading about what a term looks
- * like. A token that normalises away (under two characters) counts as partial:
- * a one-letter word is a word in progress.
- */
-interface TermTree {
-  has(key: string): boolean;
-  atPrefix(prefix: string): { keys(): Iterator<string> };
-}
-
-function wordShape(word: string): WordShape {
-  if (isCommonWord(word)) return "whole";
-  const tree = (idx as unknown as { _index?: TermTree })._index;
-  if (!tree || typeof tree.has !== "function" || typeof tree.atPrefix !== "function") return "unknown";
-  const processed = MINISEARCH_OPTIONS.processTerm?.(word, "content");
-  const term = typeof processed === "string" ? processed : null;
-  if (!term) return "partial";
-  try {
-    if (tree.has(term)) return "whole";
-    return tree.atPrefix(term).keys().next().done === false ? "partial" : "unknown";
-  } catch {
-    return "unknown";
-  }
-}
-
-// ─── did you mean ───────────────────────────────────────────────────────────
-
-/**
- * A spelling correction for a query that found nothing, or null.
- *
- * MiniSearch's own `autoSuggest` over the indexed terms, with two corrections
- * applied on top. It can return SEVERAL near terms for one query word
- * ("facilitater" -> "facilitators facilitator"), so the suggestion is trimmed
- * to the word count the reader typed. And every candidate is re-run before it
- * is offered: a "did you mean" that also finds nothing is worse than staying
- * quiet, and fuzzy term matching alone cannot promise the corrected phrase
- * matches any document.
- */
-function didYouMean(q: string): string | undefined {
-  if (!idx) return undefined;
-  const trimmed = q.trim();
-  const words = trimmed.split(/\s+/).filter(Boolean);
-  if (words.length === 0) return undefined;
-  let suggestions: { suggestion: string }[];
-  try {
-    suggestions = idx.autoSuggest(trimmed, { fuzzy: 0.2, prefix: false }).slice(0, 3);
-  } catch {
-    return undefined; // a query shape autoSuggest can't parse is not an error here
-  }
-  for (const s of suggestions) {
-    const parts = s.suggestion.split(/\s+/).filter(Boolean);
-    for (const cand of [parts.slice(0, words.length).join(" "), s.suggestion]) {
-      if (!cand || cand.toLowerCase() === trimmed.toLowerCase()) continue;
-      if (search(cand).length > 0) return cand;
-    }
-  }
-  return undefined;
-}
-
-/**
- * Turn scored ids into rendered hits, marked as semantic.
- *
- * Deliberately UNhighlighted, and the snippet is the document's opening rather
- * than a window around a matched term. Nothing about the wording matched, so
- * there is no term to centre on — and highlighting the query's words anyway
- * marks whatever stopwords happen to occur ("to", "are"), which both looks
- * broken and asserts a wording match the row's own label denies. A document
- * found by BOTH legs keeps its lexical hit, highlighting included; see
- * `weaveSemantic`.
- */
-function hydrateSemantic(scored: SemanticSearchResponse["hits"]): SearchHit[] {
-  const out: SearchHit[] = [];
-  for (const s of scored) {
-    const doc = docs[s.id];
-    if (!doc) continue; // scored a doc these artifacts don't have (sha skew)
-    // matchReason stays empty on purpose: it is what the result row renders as
-    // a bare semantic mark, with no "+ <lexical reason>" beside it.
-    const hit = docToHit(doc, s.score, buildSnippet(doc.content, [], [], []), [], "");
-    hit.semantic = true;
-    hit.semanticScore = s.score;
-    if (s.viaTitle) hit.viaTitle = s.viaTitle;
-    out.push(hit);
-  }
-  return out;
-}
+// The lane's decisions and fusion live in searchSemanticLeg.ts and the rest in
+// searchWorkerLanes.ts. What stays here is only the binding to this worker's
+// state: GET /api/search/semantic returns ids and cosine scores, and this worker
+// holds the corpus plus every function that turns a document into a rendered
+// hit, so hydration is wired here and nowhere else, or docs.json and the
+// highlighting would need a second copy.
+const queryDeps: QueryDeps = {
+  index: () => idx,
+  search,
+  lexicalFor: createLexicalMemo(search),
+  // matchReason stays empty on purpose: it is what the result row renders as a
+  // bare semantic mark, with no "+ <lexical reason>" beside it.
+  hydrate: (scored) => hydrateSemantic(scored, docs, (doc, score, snippet) => docToHit(doc, score, snippet, [], "")),
+  knowsChainlog: (id) => chainlogToAddr.has(id),
+  post,
+};
 
 self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
   const msg = e.data;
@@ -578,54 +451,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
   }
   if (msg.type === "query") {
     cancelSemanticLeg();
-    const startedAt = performance.now();
-    const lane: SearchLane = msg.lane ?? "lexical";
-    // Lexical is still needed on the semantic lane as its escape hatch: for a
-    // query the leg declines (a UUID paste, a `type:` filter) that lane
-    // answering nothing at all would be a dead end. It is taken through a thunk
-    // so the lane never pays for a whole-corpus pass it discards whenever the
-    // leg DOES take the query.
-    const lexical = () => lexicalFor(msg.q);
-    const query = semanticLegQuery(msg.q, lane, (id) => chainlogToAddr.has(id));
-    // A "did you mean" is only ever offered for a query that found nothing —
-    // and only on a lane that is actually showing the wording index, since a
-    // spelling correction says nothing about a meaning or entity search.
-    const reply = (hits: SearchHit[], semantic: SemanticLegStatus, durationMs: number) =>
-      post({
-        type: "results",
-        id: msg.id,
-        hits,
-        durationMs,
-        lane,
-        semantic,
-        ...(hits.length === 0 && lane === "lexical" && semantic !== "pending"
-          ? { didYouMean: didYouMean(msg.q) }
-          : {}),
-      });
-
-    if (query === null) {
-      const lex = lexical();
-      reply(lex.hits, "none", lex.durationMs);
-      return;
-    }
-    const run = {
-      id: msg.id,
-      query,
-      lane,
-      lexical: lane === "semantic" ? [] : lexical().hits,
-      startedAt,
-      debounceMs: semanticDebounceMs(msg.q, wordShape),
-      hydrate: hydrateSemantic,
-      post,
-    };
-    // Already scored this text? Then the answer is final now — no debounce, no
-    // request, and no interim "pending" message, because nothing is pending.
-    if (answerFromCache(run)) return;
-    // On the semantic lane the lexical list is withheld: that lane is meant to
-    // read as a DIFFERENT index, not as a re-ranking of the same one, so the
-    // main thread stays in its searching state until the scored ids land.
-    if (lane !== "semantic") reply(run.lexical, "pending", performance.now() - startedAt);
-    runSemanticLeg(run);
+    answerQuery(msg, queryDeps);
   }
 });
 

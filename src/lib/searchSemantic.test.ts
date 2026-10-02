@@ -7,6 +7,7 @@ import {
   isSearchLane,
   rrfFuse,
   semanticQueryOf,
+  semanticLaneLimit,
   semanticWorthAsking,
   trailingWord,
   MAX_SEMANTIC_QUERY,
@@ -41,10 +42,9 @@ describe("semanticQueryOf — in: scoping", () => {
     }
   });
 
-  it("still stands down on the filters only the lexical leg enforces", () => {
-    expect(semanticQueryOf("type:Core rewards")).toBeNull();
-    expect(semanticQueryOf("rewards -fees")).toBeNull();
-    expect(semanticQueryOf("rewards~2")).toBeNull();
+  it("strips the filters only the lexical leg enforces, keeping the scope", () => {
+    expect(semanticQueryOf("in:A.6 type:Core rewards")).toEqual({ query: "rewards", scope: "A.6" });
+    expect(semanticQueryOf("in:A.6 rewards -fees")).toEqual({ query: "rewards", scope: "A.6" });
   });
 });
 
@@ -93,12 +93,17 @@ describe("semanticQueryOf", () => {
     expect(semanticQueryOf("'Delegated Signers'")).toEqual({ query: "Delegated Signers" });
   });
 
-  it("stands down on structured syntax the lexical leg alone enforces", () => {
-    // Every one of these would otherwise come back UNFILTERED from the semantic
-    // leg — a `type:Core` search answered partly with documents that aren't Core.
-    expect(semanticQueryOf("type:Core rewards")).toBeNull();
+  it("strips structured syntax rather than embedding it", () => {
+    // This lane scores whole documents, so there is no string for any of these
+    // to act on. They come out of the embedded text and the reader is told —
+    // see semanticLaneLimit, which reports exactly what went.
+    expect(semanticQueryOf("type:Core rewards")).toEqual({ query: "rewards" });
+    expect(semanticQueryOf("governance -rewards")).toEqual({ query: "governance" });
+    expect(semanticQueryOf("rewards misaligment~1")).toEqual({ query: "rewards" });
+  });
+
+  it("stands down when stripping leaves nothing long enough to score", () => {
     expect(semanticQueryOf("title:Facilitator")).toBeNull();
-    expect(semanticQueryOf("governance -rewards")).toBeNull();
     expect(semanticQueryOf("misaligment~1")).toBeNull();
   });
 
@@ -124,9 +129,9 @@ describe("semanticQueryOf", () => {
     });
   });
 
-  it("still stands down when in: is combined with syntax only the lexical leg enforces", () => {
-    expect(semanticQueryOf("in:A.6 type:Core rewards")).toBeNull();
-    expect(semanticQueryOf("in:A.6 rewards -bridge")).toBeNull();
+  it("keeps the in: scope while stripping the syntax beside it", () => {
+    expect(semanticQueryOf("in:A.6 type:Core rewards")).toEqual({ query: "rewards", scope: "A.6" });
+    expect(semanticQueryOf("in:A.6 rewards -bridge")).toEqual({ query: "rewards", scope: "A.6" });
   });
 
   it("stands down on a scope with nothing left to score", () => {
@@ -134,7 +139,8 @@ describe("semanticQueryOf", () => {
   });
 
   it("does not mistake a word merely ending in 'in' for the in: filter", () => {
-    expect(semanticQueryOf("min:5 rewards")).toBeNull();
+    // `min:5` is an ordinary field filter: stripped, not read as a scope.
+    expect(semanticQueryOf("min:5 rewards")).toEqual({ query: "rewards" });
   });
 
   it("does not mistake a bare colon or hyphen for field syntax", () => {
@@ -203,5 +209,54 @@ describe("trailingWord", () => {
     expect(trailingWord("in:A.6")).toBe(null); // a subtree filter
     expect(trailingWord("A.2.7.1")).toBe(null); // an identifier
     expect(trailingWord("2026")).toBe(null); // a figure
+  });
+});
+
+describe("semanticLaneLimit", () => {
+  it("says nothing about a query this lane answers as typed", () => {
+    expect(semanticLaneLimit("who approves rewards")).toBeNull();
+    expect(semanticLaneLimit("in:A.6 who approves rewards")).toBeNull();
+  });
+
+  it("names each dropped operator verbatim, so the reader sees what went", () => {
+    expect(semanticLaneLimit("type:Core rewards")).toEqual({ kind: "ignored", syntax: ["type:Core"] });
+    expect(semanticLaneLimit("rewards -fees")).toEqual({ kind: "ignored", syntax: ["-fees"] });
+    expect(semanticLaneLimit("rewards misaligment~1")).toEqual({
+      kind: "ignored",
+      syntax: ["misaligment~1"],
+    });
+  });
+
+  it("reports quoting separately — the words survive, the literal match does not", () => {
+    expect(semanticLaneLimit('"threshold requirements"')).toEqual({ kind: "ignored", syntax: ['"…"'] });
+    expect(semanticLaneLimit("'Delegated Signers'")).toEqual({ kind: "ignored", syntax: ["'…'"] });
+  });
+
+  it("does not count the quotes inside a field filter's own value twice", () => {
+    expect(semanticLaneLimit('type:"Type Specification" rewards')).toEqual({
+      kind: "ignored",
+      syntax: ['type:"Type Specification"'],
+    });
+  });
+
+  it("never names in: — this lane honours it", () => {
+    expect(semanticLaneLimit("in:A.6 type:Core rewards")).toEqual({
+      kind: "ignored",
+      syntax: ["type:Core"],
+    });
+  });
+
+  it("reports a query too short to score, with nothing stripped", () => {
+    expect(semanticLaneLimit("ab")).toEqual({ kind: "too-short", syntax: [] });
+  });
+
+  it("prefers too-short over ignored: the lexical leg answered, and it DID filter", () => {
+    // Reporting `-fees` as ignored here would be false — nothing embeddable was
+    // left, so the lane stood down and the leg that honours the exclusion ran.
+    expect(semanticLaneLimit("-fees")).toEqual({ kind: "too-short", syntax: ["-fees"] });
+    expect(semanticLaneLimit("title:Facilitator")).toEqual({
+      kind: "too-short",
+      syntax: ["title:Facilitator"],
+    });
   });
 });

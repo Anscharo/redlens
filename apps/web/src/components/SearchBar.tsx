@@ -1,6 +1,6 @@
 import { Link } from "./Link";
 import { NavBar, type NavBarProps } from "./NavBar";
-import { Tooltip } from "./Tooltip";
+import { SearchModePills } from "./SearchModePills";
 import { RecentSearches } from "./RecentSearches";
 import { useRecentDropdown } from "../hooks/useRecentDropdown";
 import { SCOPE_CONFIG, type ScopeConfig, type SearchScope } from "@/lib/routes";
@@ -8,17 +8,8 @@ import type { SearchMode } from "../hooks/useSearchInput";
 import type { RecentSuggestion } from "../lib/recentSearches";
 import type { RefObject } from "react";
 
-const MODES: SearchMode[] = ["broad", "phrase", "strict"];
 const RECENT_LISTBOX_ID = "recent-search-listbox";
 const MAX_SUGGESTIONS = 6;
-
-const MODE_CONFIG: Record<SearchMode, { symbol: string; title: string }> = {
-  broad:  { symbol: "a*",  title: "Broad — prefix match on each word, case-insensitive" },
-  phrase: { symbol: '"a"', title: "Phrase — literal substring, case-insensitive" },
-  strict: { symbol: "Aa",  title: "Strict — literal substring, case-sensitive" },
-};
-
-const MIXED_TOOLTIP = "Advanced mode enabled due to mixed use of quoted and unquoted terms";
 
 interface Props extends NavBarProps {
   inputRef: RefObject<HTMLInputElement | null>;
@@ -35,6 +26,11 @@ interface Props extends NavBarProps {
   // Show the broad/phrase/strict mode pills. Defaults to atlas scope only;
   // report pages opt in (their filters honor the same mode semantics).
   showModes?: boolean;
+  // Why the mode pills cannot be used right now, or undefined when they can.
+  // All three describe how a STRING is matched, so a lane that matches no
+  // strings disables them rather than offering a setting with no effect; the
+  // text becomes their tooltip, so it has to say why.
+  modesDisabledReason?: string;
   recentSearches?: RecentSuggestion[];
   onRecentSelect?: (query: string, rank: number) => void;
   // Pressing Enter on a typed query (not while picking a recent) calls this;
@@ -54,6 +50,7 @@ export function SearchBar({
   scope,
   scopeCfg,
   showModes,
+  modesDisabledReason,
   recentSearches = [],
   onRecentSelect,
   onSubmit,
@@ -202,34 +199,12 @@ export function SearchBar({
           </div>
 
           {modesVisible && (
-            <div className="flex gap-2 shrink-0">
-              {MODES.map((m) => {
-                const { symbol } = MODE_CONFIG[m];
-                const active = !isMixed && mode === m;
-                const tooltip = isMixed ? MIXED_TOOLTIP : MODE_CONFIG[m].title;
-                return (
-                  <Tooltip key={m} content={tooltip}>
-                    <span className="flex">
-                      <button
-                        type="button"
-                        onClick={() => onSetMode(m)}
-                        aria-label={tooltip}
-                        aria-pressed={active}
-                        disabled={isMixed}
-                        className="mode-pill mono w-8 flex items-center justify-center text-[11px] rounded-sm border disabled:opacity-40 disabled:cursor-not-allowed"
-                        style={{
-                          color: active ? "var(--tan)" : "var(--gray)",
-                          borderColor: active ? "var(--accent)" : "var(--border)",
-                          background: active ? "var(--hover)" : "transparent",
-                        }}
-                      >
-                        {symbol}
-                      </button>
-                    </span>
-                  </Tooltip>
-                );
-              })}
-            </div>
+            <SearchModePills
+              mode={mode}
+              isMixed={isMixed}
+              onSetMode={onSetMode}
+              disabledReason={modesDisabledReason}
+            />
           )}
         </div>
       </div>

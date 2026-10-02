@@ -18,16 +18,8 @@
 import { json } from "./http.ts";
 import { config } from "./config.ts";
 import { getIndexes } from "./retrieval/indexes.ts";
-import {
-  lexicalResidual,
-  runLexical,
-  runSemantic,
-  attributeSemanticHits,
-  buildLeafScorer,
-  filterByType,
-  fuseBriefings,
-  type Via,
-} from "./retrieval/search.ts";
+import { runLexical, runSemantic, filterByType, fuseBriefings, type Via } from "./retrieval/search.ts";
+import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "./retrieval/leaf-attribution.ts";
 import { rateLimited } from "./feedback-limits.ts";
 import { spendSemanticBudget } from "./search-semantic-limit.ts";
 import {
@@ -89,9 +81,9 @@ export async function semanticDocSearch(
   // The lexical leg FIRST, and not only because attribution reads its doc
   // numbers: it is in-memory MiniSearch, so the residual that leaf attribution
   // scores members against can be built from it here and embedded in the
-  // query's own round trip. Built after the semantic call — from its anchor
-  // titles, as it was until 2026-09-30 — it cost a second ~2.3s embed, half the
-  // request. See `lexicalResidual`.
+  // query's own round trip. Building it after the semantic call, from that
+  // call's anchor titles, costs a second ~2.3s embed — half the request. See
+  // `lexicalResidual`.
   const lex = runLexical(ix, q, opts.type, fetchK);
   const semResult = await runSemantic(ix, q, opts.type, fetchK, opts.scope, lexicalResidual(q, lex, ix.docMap));
   const attributed = attributeSemanticHits(

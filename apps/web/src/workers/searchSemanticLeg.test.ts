@@ -65,17 +65,20 @@ describe("semanticLegQuery", () => {
     // The whole point of the pill: a reader on the wording lane asked for a
     // wording search, and a meaning-matched row can share no word with their
     // query. Answering one with the other is a worse answer than an honest
-    // empty one (and it used to cost the spelling correction, which is only
-    // offered for a wording search that found nothing).
+    // empty one, and it also costs the spelling correction, which is only
+    // offered for a wording search that found nothing.
     expect(semanticLegQuery("rewards", "lexical", NO_CHAINLOG)).toBeNull();
     expect(semanticLegQuery("rewards", "graph", NO_CHAINLOG)).toBeNull();
     expect(semanticLegQuery("rewards", "semantic", NO_CHAINLOG)).toEqual({ query: "rewards" });
   });
 
-  it("stands down on an identifier or structured syntax even there", () => {
+  it("stands down on an identifier, or on a query too short to score", () => {
     expect(semanticLegQuery("A.2.7.1", "semantic", NO_CHAINLOG)).toBeNull();
-    expect(semanticLegQuery("type:Core rewards", "semantic", NO_CHAINLOG)).toBeNull();
     expect(semanticLegQuery("ab", "semantic", NO_CHAINLOG)).toBeNull();
+  });
+
+  it("strips structured syntax and asks anyway — the reader is told it was dropped", () => {
+    expect(semanticLegQuery("type:Core rewards", "semantic", NO_CHAINLOG)).toEqual({ query: "rewards" });
   });
 
   it("carries an in: scope through", () => {

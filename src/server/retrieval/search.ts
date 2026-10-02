@@ -4,12 +4,13 @@ import { type Indexes } from "./indexes.ts";
 import { sql, toVectorLiteral } from "../db.ts";
 import { embedQueries, type EmbedDiag } from "./embed.ts";
 import { config } from "../config.ts";
+import { MINISEARCH_SEARCH_OPTIONS } from "../../lib/searchOptions.ts";
 import { compactProse } from "../../lib/shortenTitle.ts";
-import { rewriteSemanticHit, type Via, type LeafSemanticScore } from "./embed-units.ts";
+import { type Via } from "./embed-units.ts";
 import { expandQueryTokens, partitionByOriginalTerms } from "../../lib/searchInflect.ts";
 import { rrfFuse } from "../../lib/searchSemantic.ts";
 import { fuseBriefings, runBriefings, SCOPED_SCAN_SETTING, semanticScopeSql, unitHits } from "./briefings.ts";
-export { buildLeafScorer, fuseBriefings, SCOPED_SCAN_SETTING, semanticScopeSql } from "./briefings.ts";
+export { fuseBriefings, SCOPED_SCAN_SETTING, semanticScopeSql } from "./briefings.ts";
 export type { Via };
 
 // Race a promise against a timeout, clearing the timer either way. Used to bound
@@ -74,9 +75,8 @@ export function runLexical(ix: Indexes, query: string, type: string | undefined,
   const expansion = expandQueryTokens(tokens);
   const q = expansion.extra.length > 0 ? `${query} ${expansion.extra.join(" ")}` : query;
   let results = ix.mini.search(q, {
-    boost: { title: 10, doc_no: 5, type: 2 },
-    prefix: true,
-    fuzzy: false,
+    ...MINISEARCH_SEARCH_OPTIONS, boost: { title: 10, doc_no: 5, type: 2 },
+    prefix: true, fuzzy: false,
     combineWith: "OR",
   });
   if (expansion.extra.length > 0) {
@@ -127,9 +127,9 @@ export async function runSemantic(
    * A second text to embed IN THE SAME ROUND TRIP as the query — the residual
    * leaf attribution scores group members against (see `lexicalResidual`). It is
    * embedded here rather than by `buildLeafScorer` because the cost of an embed
-   * is the round trip and not the payload (measured 2026-09-30: two texts ~2.3s
-   * p50, the same as one), so a residual computed AFTER this call cost a second
-   * 2.3s — half the request — for a vector that could have ridden along.
+   * is the round trip and not the payload (two texts measure ~2.3s p50, the same
+   * as one), so a residual computed AFTER this call costs a second 2.3s — half
+   * the request — for a vector that could have ridden along.
    */
   residualText?: string,
 ): Promise<SemanticResult> {
@@ -222,72 +222,6 @@ export function mergeForMode(mode: "lexical" | "semantic" | "hybrid", lex: Hit[]
   if (mode === "lexical") return lex.map((h) => ({ id: h.id, sources: ["lexical"], rrf_score: 0, score: h.score }));
   if (mode === "hybrid") return rrfMerge(lex, sem, briefings);
   return fuseBriefings(sem, briefings).map((h) => ({ id: h.id, sources: [h.source], rrf_score: 0, score: h.score, via: h.via }));
-}
-
-// Number of retrieved anchor titles whose words are stripped to build the residual
-// query. Measured 2026-08-18 (scripts/aux/leaf-attribution-experiment.ts): attribution
-// accuracy rises 40% (top-1) -> 50% (top-10) -> 51% (top-20) and falls back to 46% by
-// top-50 as genuine question words start being stripped. 20 is the measured peak.
-const RESIDUAL_ANCHOR_K = 20;
-
-// The question minus the words the retrieved groups already account for.
-//
-// A query names the thing it is about ("… Ethereum Mainnet - Fluid sUSDS ERC4626
-// Vault …"), and that long name dominates the embedding: members win by echoing the
-// instance name rather than by answering the question, so the anchor itself and
-// same-named values outrank the member that holds the answer. INSIDE a group the
-// instance name discriminates nothing. Stripping the union of the top-K anchor titles
-// leaves the part that actually chooses between members.
-export function residualQuery(query: string, anchorTitles: string[]): string {
-  const strip = new Set<string>();
-  for (const t of anchorTitles) for (const w of t.toLowerCase().match(/[a-z0-9]+/g) ?? []) strip.add(w);
-  const kept = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !strip.has(w));
-  // Everything stripped => nothing left to discriminate on; keep the original.
-  return kept.length ? kept.join(" ") : query;
-}
-
-// Attribute grouped semantic hits to a leaf (term overlap) and fuse a
-// parent/child pair onto the more specific id before RRF, so lexical child +
-// semantic parent become one hit.
-export function attributeSemanticHits(
-  query: string,
-  lex: Hit[],
-  sem: Hit[],
-  ix: Indexes,
-  semantic?: LeafSemanticScore,
-): Hit[] {
-  const lexNos = lex.map((h) => {
-    const n = ix.docMap.get(h.id);
-    return { id: h.id, doc_no: n?.doc_no ?? "" };
-  });
-  return sem.map((h) => {
-    const rw = rewriteSemanticHit(query, h.id, h.memberIds, lexNos, ix.docMap, semantic);
-    return { ...h, id: rw.id, via: rw.via };
-  });
-}
-
-/**
- * The residual text to score group members against, built from the LEXICAL leg.
- *
- * Inside a group the instance name discriminates nothing — every member carries
- * it — so the question minus those words is what picks the leaf. That rule is
- * load-bearing: measured 2026-09-30 over 98 queries whose target is folded into
- * a group, scoring members against the plain query vector instead of a residual
- * collapses ICD disambiguation from 62.5% to 2.5%, worse than no semantic
- * attribution at all.
- *
- * The titles come from the lexical leg rather than the semantic one, and that is
- * the whole latency fix: `runLexical` is in-memory MiniSearch, so its titles
- * exist BEFORE the embed, which lets the residual ride in the query's own round
- * trip. Stripping the semantic leg's titles needs its results first, which is a
- * second 2.3s round trip — half the request.
- */
-export function lexicalResidual(query: string, lex: Hit[], docMap: Indexes["docMap"]): string {
-  const titles = lex
-    .slice(0, RESIDUAL_ANCHOR_K)
-    .map((h) => docMap.get(h.id)?.title)
-    .filter((t): t is string => !!t);
-  return residualQuery(query, titles);
 }
 
 // Type / phrase filters run AFTER leaf-pick so a quoted leaf value is not

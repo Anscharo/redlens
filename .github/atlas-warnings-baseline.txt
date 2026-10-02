@@ -5,6 +5,7 @@
   [drift-count] duty_for[executor] unresolved: 0
   [drift-count] duty_for[facilitator] unresolved: 0
   [drift-count] duty_for[govops] unresolved: 0
+  [drift-count] org-prose unresolved: 0
   [drift-count] org-prose unresolved: 1-9
   [drift-count] process_step_responsible_party_for unresolved: 10-49
   [drift-count] responsible_party_for unresolved: 1-9

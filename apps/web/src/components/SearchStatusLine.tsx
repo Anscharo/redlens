@@ -1,6 +1,6 @@
 import { SearchLaneToggle } from "./SearchLaneToggle";
 import type { SearchState } from "../hooks/useSearch";
-import type { SearchLane } from "@/lib/searchSemantic";
+import { MIN_SEMANTIC_QUERY, semanticLaneLimit, type SearchLane } from "@/lib/searchSemantic";
 
 interface Props {
   state: SearchState;
@@ -45,10 +45,36 @@ function semanticNote(state: SearchState, lane: SearchLane): string | null {
     case "none":
       // Only worth saying on the lane the reader explicitly picked: they asked
       // for meaning and got wording, and silence would read as a bad result set.
-      return lane === "semantic" ? "nothing to score by meaning — showing wording matches" : null;
+      // The limit names WHY where it can; an identifier query falls back to the
+      // general sentence, since the lexical lane answered it exactly.
+      if (lane !== "semantic") return null;
+      return limitNote(state.query) ?? "nothing to score by meaning — showing wording matches";
     default:
-      return null;
+      // The leg ran. Say something only where it could not honour the query as
+      // typed — a filter that has no string to act on here.
+      return lane === "semantic" ? limitNote(state.query) : null;
   }
+}
+
+/**
+ * What the meaning lane could not do with the query, in the reader's own words.
+ *
+ * This is the one place that explains the lane's contract at the moment it bites:
+ * it scores whole documents, so string syntax has nothing to act on and is
+ * dropped rather than silently half-applied. `in:` is never named here — it is a
+ * doc-number filter the lane does honour.
+ */
+function limitNote(query: string): string | null {
+  const limit = semanticLaneLimit(query);
+  if (!limit) return null;
+  const syntax = limit.syntax.join(" ");
+  if (limit.kind === "ignored") {
+    return `${syntax} ignored — meaning search scores whole documents, not strings`;
+  }
+  if (limit.syntax.length > 0) {
+    return `nothing left to score by meaning after ${syntax} — showing wording matches`;
+  }
+  return `too short to score by meaning (${MIN_SEMANTIC_QUERY} characters minimum) — showing wording matches`;
 }
 
 /** The result count / progress line above the list, plus the lane picker. */

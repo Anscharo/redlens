@@ -4,7 +4,8 @@
 // intersected. Ports the CF worker's logic with D1 recursive CTEs replaced by
 // graphology traversals + the in-memory doc map, and Vectorize by pgvector.
 import { type Indexes, type AtlasNode, ancestorChain, descendantIds, resolveNode } from "./indexes.ts";
-import { lexicalResidual, runLexical, runSemantic, rrfMerge, attributeSemanticHits, buildLeafScorer, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type SemanticResult, type Via } from "./search.ts";
+import { runLexical, runSemantic, rrfMerge, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type SemanticResult, type Via } from "./search.ts";
+import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "./leaf-attribution.ts";
 import { resolveEntity } from "./entity-resolve.ts";
 import { resolveTargetType } from "./doc-types.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
@@ -372,8 +373,8 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   if (query) {
     const { phrases, casePhrases } = extractPhrases(query);
     const fetchK = Math.min(a.k * 4, 200);
-    // Sequential where it used to be a Promise.all, and it costs nothing: the
-    // lexical leg is synchronous in-memory MiniSearch, and running it first is
+    // Sequential rather than a Promise.all, and it costs nothing: the lexical
+    // leg is synchronous in-memory MiniSearch, and running it first is
     // what lets leaf attribution's residual be embedded in the query's own round
     // trip instead of a second one (see `lexicalResidual`).
     const lex = runLexical(ix, query, a.target_type, fetchK);

@@ -17,7 +17,7 @@ export interface SearchHintGroup {
 export const HINT_GROUPS: SearchHintGroup[] = [
   {
     title: "Narrow a search",
-    note: "Filters combine with plain terms in any order.",
+    note: "Filters combine with plain terms in any order. On the meaning pill only in: applies — the rest are dropped, and the line above the results names which.",
     hints: [
       {
         // A.1.6 is Aligned Delegates: 62 of its 76 documents match "delegate",
@@ -68,7 +68,7 @@ export const HINT_GROUPS: SearchHintGroup[] = [
   },
   {
     title: "Match modes",
-    note: 'The a* / "a" / Aa buttons beside the search bar switch between these three.',
+    note: 'The a* / "a" / Aa buttons beside the search bar switch between these three. They are greyed out on the meaning pill, which scores whole documents rather than strings.',
     hints: [
       {
         label: "broad",

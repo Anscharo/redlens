@@ -1,12 +1,12 @@
-// The pgvector statements behind semantic search: the unit statement, the
-// briefing statement over `atlas_doc_briefings`, the scope clause they share,
-// leaf scoring, and the reader's fusion of the briefing list with the leaves.
-import { sql, toVectorLiteral, toUuidArrayLiteral } from "../db.ts";
+// The pgvector statements behind semantic search: the briefing statement over
+// `atlas_doc_briefings`, the scope clause it shares with the unit statement,
+// unit rows to hits, and the reader's fusion of the briefing list with the
+// leaves. Leaf scoring is leaf-attribution.ts.
+import { sql } from "../db.ts";
 import { fromUuidArray } from "../pg-array.ts";
 import { config } from "../config.ts";
 import { rrfFuse } from "../../lib/searchSemantic.ts";
-import { fuseLeafScores, leafRuleFor, type LeafRow, type LeafSemanticScore } from "./embed-units.ts";
-import type { Hit, SemanticResult } from "./search.ts";
+import type { Hit } from "./search.ts";
 
 /**
  * Planner setting a SCOPED query runs under, inside its own transaction.
@@ -126,54 +126,6 @@ export function fuseBriefings(leaves: Hit[], briefings: Hit[]): Hit[] {
   return [...byId.values()]
     .sort((a, b) => (fused.get(b.id) ?? 0) - (fused.get(a.id) ?? 0))
     .map((h, i) => ({ ...h, rank: i }));
-}
-
-/**
- * Score group members so `pickLeaf` can choose one, using only vectors the
- * request already has — see `fuseLeafScores` for the rule and its measurement.
- *
- * Best-effort by design: no vectors, no DB, or fewer than two scorable members
- * returns undefined and attribution falls back to the lexical pick. It embeds
- * nothing, so it cannot time out.
- */
-export async function buildLeafScorer(
-  sem: Hit[],
-  vecs: SemanticResult["vecs"],
-): Promise<LeafSemanticScore | undefined> {
-  if (!vecs?.residual) return undefined;
-  const grouped = sem.filter((h) => (h.memberIds?.length ?? 0) > 1);
-  if (grouped.length === 0) return undefined;
-  // member → its anchor, so the group-echo term and the ranks are per group. A
-  // member belongs to one group (embed-units folds it once), so first wins.
-  const anchorOf = new Map<string, string>();
-  for (const h of grouped) for (const id of h.memberIds ?? []) if (!anchorOf.has(id)) anchorOf.set(id, h.id);
-  if (anchorOf.size === 0) return undefined;
-  const members = [...anchorOf.keys()];
-  try {
-    const rows = (await sql.unsafe(
-      // One round trip, three cosines per member: against the residual, against
-      // the query, and against its own anchor's stored (grouped) vector.
-      `SELECT m.doc_id, p.anchor_id,
-              1 - (m.embedding <=> $1::vector) AS residual_sim,
-              1 - (m.embedding <=> $2::vector) AS query_sim,
-              1 - (m.embedding <=> a.embedding) AS group_sim
-         FROM unnest($3::uuid[], $4::uuid[]) AS p(member_id, anchor_id)
-         JOIN atlas_doc_embeddings m ON m.doc_id = p.member_id
-         JOIN atlas_doc_embeddings a ON a.doc_id = p.anchor_id`,
-      [
-        toVectorLiteral(vecs.residual),
-        toVectorLiteral(vecs.query),
-        toUuidArrayLiteral(members),
-        toUuidArrayLiteral(members.map((id) => anchorOf.get(id)!)),
-      ],
-    )) as LeafRow[];
-    if (rows.length < 2) return undefined;
-    const fused = fuseLeafScores(rows, leafRuleFor(config.embedModel));
-    return (id: string) => fused.get(id);
-  } catch (err) {
-    console.warn(`  leaf attribution fell back to lexical: ${(err as Error).message}`);
-    return undefined;
-  }
 }
 
 // Rows are ordered by ascending distance (descending cosine).

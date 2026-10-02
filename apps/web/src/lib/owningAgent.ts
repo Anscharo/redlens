@@ -11,26 +11,19 @@ export function abbreviateAgentName(name: string): string {
   return name.replace(/\bExecutor\b/g, "Exec.");
 }
 
-// The agent (prime or executor) whose subtree a doc lives under, or null.
-// Every agent is a graph participant (et === "agent") whose `did` is its root
-// doc; a doc is "under" it when that root doc is one of the doc's ancestors.
-// We walk the doc_no ancestor chain from nearest to furthest and return the
-// closest agent — the most specific owner (an executor nested under a prime
-// wins over the prime). Self is excluded: an agent's own root doc isn't "under"
-// an agent, it *is* one.
-export function findOwningAgent(
-  targetId: string,
-  atlas: Pick<AtlasBundle, "docs" | "docNoToId">,
-  graph: GraphData | null,
-): string | null {
-  if (!graph) return null;
+// Root doc id → name for every agent participant (prime or executor). Every
+// agent is a graph participant (et === "agent") whose `did` is its root doc.
+function agentNamesByRootDoc(graph: GraphData | null): Map<string, string> {
   const nameByDoc = new Map<string, string>();
-  for (const p of graph.participants) {
+  for (const p of graph?.participants ?? []) {
     if (p.et === "agent" && p.did) nameByDoc.set(p.did, p.name);
   }
-  if (nameByDoc.size === 0) return null;
+  return nameByDoc;
+}
 
-  const ancestors: AtlasNode[] = buildAncestors(atlas.docs, atlas.docNoToId, targetId);
+// Nearest agent over a doc's ancestor chain (self excluded — an agent's own
+// root doc isn't "under" an agent, it *is* one), abbreviated for the pill.
+function nearestAgent(ancestors: AtlasNode[], nameByDoc: Map<string, string>): string | null {
   for (let i = ancestors.length - 1; i >= 0; i--) {
     const name = nameByDoc.get(ancestors[i].id);
     if (name) return abbreviateAgentName(name);
@@ -38,32 +31,35 @@ export function findOwningAgent(
   return null;
 }
 
+// The agent (prime or executor) whose subtree a doc lives under, or null: a doc
+// is "under" an agent when that agent's root doc is one of the doc's ancestors.
+// The doc_no ancestor chain is walked from nearest to furthest so the most
+// specific owner wins (an executor nested under a prime wins over the prime).
+export function findOwningAgent(
+  targetId: string,
+  atlas: Pick<AtlasBundle, "docs" | "docNoToId">,
+  graph: GraphData | null,
+): string | null {
+  const nameByDoc = agentNamesByRootDoc(graph);
+  if (nameByDoc.size === 0) return null;
+  return nearestAgent(buildAncestors(atlas.docs, atlas.docNoToId, targetId), nameByDoc);
+}
+
 // Precompute the owning-agent name for every doc, so the reader can look up a
 // pill per row without walking ancestors on each render. Same nearest-agent /
 // self-excluded rule as findOwningAgent, resolved over the doc_no ancestor chain
-// (robust to the depth-6 parentId flattening). Returns an empty map in preview
-// (no graph) or when no agents exist.
+// (robust to the depth-6 parentId flattening). Returns an empty map when the
+// graph hasn't loaded (or failed to) or when no agents exist.
 export function buildOwningAgentMap(
   atlas: Pick<AtlasBundle, "docs" | "docNoToId">,
   graph: GraphData | null,
 ): Map<string, string> {
   const map = new Map<string, string>();
-  if (!graph) return map;
-  const nameByDoc = new Map<string, string>();
-  for (const p of graph.participants) {
-    if (p.et === "agent" && p.did) nameByDoc.set(p.did, p.name);
-  }
+  const nameByDoc = agentNamesByRootDoc(graph);
   if (nameByDoc.size === 0) return map;
-
   for (const id of Object.keys(atlas.docs)) {
-    const ancestors = buildAncestors(atlas.docs, atlas.docNoToId, id);
-    for (let i = ancestors.length - 1; i >= 0; i--) {
-      const name = nameByDoc.get(ancestors[i].id);
-      if (name) {
-        map.set(id, abbreviateAgentName(name));
-        break;
-      }
-    }
+    const name = nearestAgent(buildAncestors(atlas.docs, atlas.docNoToId, id), nameByDoc);
+    if (name) map.set(id, name);
   }
   return map;
 }

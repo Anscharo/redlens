@@ -1327,7 +1327,7 @@ results and so bought a second embed — and an embed costs a round trip, not a
 payload (~2.3s p50 whether it carries one text or two), so that was half the
 request. The residual is now built from the **lexical** leg's titles, which
 `runLexical` has in memory before the embed, and rides in the query's own call;
-members are then scored by `fuseLeafScores` (`embed-units.ts`) — an RRF fusion of
+members are then scored by `fuseLeafScores` (`retrieval/leaf-scores.ts`) — an RRF fusion of
 cosine-to-residual with cosine-to-query-minus-a-penalty-for-resembling-its-own-anchor.
 Measured 43.9% against the old rule's 48.0%: −4.1 points, 95% CI [−14.3, +6.1]
 over 4,000 paired resamples, i.e. not distinguishable on this sample, against

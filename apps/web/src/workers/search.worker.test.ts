@@ -217,6 +217,23 @@ describe("search operators", () => {
     for (const h of hits) expect(docs[h.id].type).toBe("Annotation");
   });
 
+  it("an underscored identifier matches literally, not as its parts", async () => {
+    const s = await initSearchWorker();
+    expect((await s.query("MCD_JUG")).length).toBe(0); // shares only "mcd" with the fixture
+    expect((await s.query("mcd_vat")).map((h) => h.id)).toContain(IDS.facilitatorCore);
+    expect((await s.query("mcd_v")).map((h) => h.id)).toContain(IDS.facilitatorCore); // prefix
+    expect((await s.query("vat")).map((h) => h.id)).toContain(IDS.facilitatorCore); // part
+  });
+
+  it("a bare underscore finds docs containing it", async () => {
+    const s = await initSearchWorker();
+    for (const q of ['"_"']) {
+      const ids = (await s.query(q)).map((h) => h.id);
+      expect(ids).toContain(IDS.facilitatorCore);
+      expect(ids).not.toContain(IDS.scope);
+    }
+  });
+
   it("multi-word type via underscore (Scenario_Variation)", async () => {
     const s = await initSearchWorker();
     const hits = await s.query("type:Scenario_Variation delegate");
@@ -594,10 +611,9 @@ describe("semantic lane", () => {
   });
 
   it("the wording lane never embeds, not even for a query it answered with nothing", async () => {
-    // The `fallback` strategy used to run the leg here. Dropped 2026-09-30:
-    // a reader on this lane asked for a wording search, and an empty one that
-    // offers a spelling correction and a pill to the other index beats a
-    // silent switch to rows that share no word with the query.
+    // A reader on this lane asked for a wording search, so an empty answer that
+    // offers a spelling correction and a pill to the other index beats a silent
+    // switch to rows that share no word with the query.
     const calls: string[] = [];
     const h = await withSemantic({ hits: [{ id: IDS.facilitatorCore, score: 0.8 }], skipped: null, available: true }, { calls });
     const id = ask(h, "zzzznothingmatchesthis", { lane: "lexical" });
@@ -649,7 +665,8 @@ describe("semantic lane", () => {
     });
     const id = ask(h, "zzzznothingmatchesthis", { lane: "semantic" });
     const done = (await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done")) as Results;
-    // Interleaving the two lists was the `woven` strategy, dropped 2026-09-29.
+    // The meaning lane answers with the semantic list alone, never interleaved
+    // with the wording one.
     expect(done.hits.map((x) => x.id)).toEqual([IDS.facilitatorCore, IDS.addrOnly]);
     expect(done.hits.every((x) => x.semantic)).toBe(true);
   });
@@ -685,6 +702,18 @@ describe("semantic lane", () => {
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
     ask(h, "slipper", { lane: "semantic" });
+    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
+    expect(calls.filter((u) => u.includes("/api/search/semantic"))).toHaveLength(1);
+  });
+
+  it("treats an underscore identifier as finished, not half typed", async () => {
+    // The INDEXING processTerm returns an array for a `_` word — the whole token
+    // plus its parts — so a probe that only accepts a string reads every one of
+    // them as a word in progress and buys the long wait. The probe asks the QUERY
+    // side, which returns the whole token, and the dictionary holds it.
+    const calls: string[] = [];
+    const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
+    ask(h, "erc4626_redeem", { lane: "semantic" });
     await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
     expect(calls.filter((u) => u.includes("/api/search/semantic"))).toHaveLength(1);
   });
@@ -821,14 +850,18 @@ describe("semantic lane", () => {
     expect(semanticCalls()).toHaveLength(2);
   });
 
-  it("still stands down when in: is mixed with syntax only the lexical leg enforces", async () => {
+  it("keeps the in: scope and strips the filter beside it, rather than standing down", async () => {
+    // `in:` is a doc-number filter the semantic query honours in SQL; `type:` has
+    // no string to act on here, so it is dropped and the status line says so.
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
     const id = ask(h, "in:A.1 type:Core quorum", { lane: "semantic" });
-    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
-    expect(msg.semantic).toBe("none");
-    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
-    expect(calls.some((u) => u.includes("/api/search/semantic"))).toBe(false);
+    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done")) as Results;
+    expect(msg.semantic).toBe("done");
+    const url = calls.find((u) => u.includes("/api/search/semantic"))!;
+    expect(url).toContain("q=quorum");
+    expect(url).toContain("in=A.1");
+    expect(url).not.toContain("type");
   });
 
   it("a missing lane/sem behaves exactly as before the feature existed", async () => {

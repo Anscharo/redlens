@@ -18,7 +18,10 @@
   },
   "overrides": [
     { "files": ["**/*.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 75, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/App.tsx"], "rules": { "max-lines": ["error", { "max": 273, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 235, "skipBlankLines": true, "skipComments": true }] } },
+    // Raised by 4 / 3 in total: the lane pill's `lane` / `onLaneSelect` props and the
+    // mode pills' disabled-reason, all JSX plumbing through the shell, plus that
+    // reason's copy. None of it can live anywhere but the shell that renders the bar.
+    { "files": ["apps/web/src/App.tsx"], "rules": { "max-lines": ["error", { "max": 277, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 238, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/admin/ColorPickerModal.tsx"], "rules": { "max-lines": ["error", { "max": 231, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 187, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/admin/PalettePage.tsx"], "rules": { "max-lines": ["error", { "max": 211, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 197, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/admin/PalettePreview.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 103, "skipBlankLines": true, "skipComments": true }] } },
@@ -29,7 +32,9 @@
     { "files": ["apps/web/src/components/Drawer.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 88, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/FeaturesPage.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 79, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/Footer.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 82, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/components/SearchBar.tsx"], "rules": { "max-lines": ["error", { "max": 200, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 167, "skipBlankLines": true, "skipComments": true }] } },
+    // max-lines entry dropped: the mode pills moved to SearchModePills.tsx and the
+    // file is back inside the 180 limit. The function pin drops 167 -> 146 with it.
+    { "files": ["apps/web/src/components/SearchBar.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 146, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/SearchResults.tsx"], "rules": { "max-lines": ["error", { "max": 190, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 166, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/Tooltip.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 149, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/components/atlas/AtlasAnnotations.tsx"], "rules": { "max-lines-per-function": ["error", { "max": 111, "skipBlankLines": true, "skipComments": true }] } },
@@ -111,7 +116,9 @@
     { "files": ["apps/web/src/lib/visitHistory.ts"], "rules": { "max-lines": ["error", { "max": 191, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/test/workerFixtures.ts"], "rules": { "max-lines": ["error", { "max": 229, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 153, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["apps/web/src/test/workerGlobal.ts"], "rules": { "max-lines-per-function": ["error", { "max": 53, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["apps/web/src/workers/search.worker.ts"], "rules": { "max-lines": ["error", { "max": 341, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 243, "skipBlankLines": true, "skipComments": true }] } },
+    // Raised by 7: the semantic lane's helpers live in searchWorkerLanes.ts, but binding
+    // them to this worker's own index, corpus and hit renderer can only happen here.
+    { "files": ["apps/web/src/workers/search.worker.ts"], "rules": { "max-lines": ["error", { "max": 348, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 243, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/assess/assess-risk.ts"], "rules": { "max-lines": ["error", { "max": 196, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/aux/atlas-history/enumerate-onchain-polls.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 73, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/aux/coverage-areas.mjs"], "rules": { "max-lines": ["error", { "max": 316, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 74, "skipBlankLines": true, "skipComments": true }] } },
@@ -154,7 +161,6 @@
     { "files": ["scripts/lib/graph-doc-edges.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 81, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/graph-duties.mjs"], "rules": { "max-lines": ["error", { "max": 275, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 57, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/graph-entities.mjs"], "rules": { "max-lines": ["error", { "max": 471, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 432, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["scripts/lib/graph-entity-edges.mjs"], "rules": { "max-lines": ["error", { "max": 525, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 504, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/graph-instances.mjs"], "rules": { "max-lines": ["error", { "max": 202, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/graph-multisigs.mjs"], "rules": { "max-lines": ["error", { "max": 202, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 133, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["scripts/lib/graph-omni.mjs"], "rules": { "max-lines-per-function": ["error", { "max": 61, "skipBlankLines": true, "skipComments": true }] } },
@@ -181,7 +187,10 @@
     { "files": ["src/lib/conceptsCensus.ts"], "rules": { "max-lines": ["error", { "max": 285, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/crossviewShape.ts"], "rules": { "max-lines-per-function": ["error", { "max": 125, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/facilitatorResponsibilities.ts"], "rules": { "max-lines": ["error", { "max": 215, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 126, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 366, "skipBlankLines": true, "skipComments": true }] } },
+    // Raised by 12: one Features-guide entry for the search lanes, plus the line on what
+    // the meaning lane drops. Extending this file by an entry is how the guide is meant to
+    // grow; a split would scatter one catalog.
+    { "files": ["src/lib/featuresData.ts"], "rules": { "max-lines": ["error", { "max": 378, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/govopsResponsibilities.ts"], "rules": { "max-lines": ["error", { "max": 205, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 116, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/oeaTasks.ts"], "rules": { "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/lib/onchainAddressesIndex.ts"], "rules": { "max-lines": ["error", { "max": 345, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 57, "skipBlankLines": true, "skipComments": true }] } },
@@ -203,7 +212,9 @@
     { "files": ["src/server/chat/tools/tool-registry.ts"], "rules": { "max-lines": ["error", { "max": 607, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/tools/tools-graph.ts"], "rules": { "max-lines": ["error", { "max": 416, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 69, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/tools/tools-history.ts"], "rules": { "max-lines": ["error", { "max": 453, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 97, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/chat/tools/tools.ts"], "rules": { "max-lines": ["error", { "max": 188, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 54, "skipBlankLines": true, "skipComments": true }] } },
+    // atlasSearch runs the lexical leg first and threads its residual into runSemantic,
+    // which is the call site itself — see retrieval/leaf-attribution.ts.
+    { "files": ["src/server/chat/tools/tools.ts"], "rules": { "max-lines": ["error", { "max": 189, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 54, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/citation-marks.ts"], "rules": { "max-lines": ["error", { "max": 203, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 93, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/completeness.ts"], "rules": { "max-lines": ["error", { "max": 194, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/chat/verify/definition-block-gate.ts"], "rules": { "max-lines-per-function": ["error", { "max": 80, "skipBlankLines": true, "skipComments": true }] } },
@@ -221,7 +232,9 @@
     { "files": ["src/server/history/first-seen.ts"], "rules": { "max-lines": ["error", { "max": 194, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 53, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/history/history-curate.ts"], "rules": { "max-lines-per-function": ["error", { "max": 52, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/history/history-db.ts"], "rules": { "max-lines": ["error", { "max": 276, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/index.ts"], "rules": { "max-lines": ["error", { "max": 336, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 128, "skipBlankLines": true, "skipComments": true }] } },
+    // Raised by 3 / 1: one route-table entry (/api/search/semantic) and its placeholder
+    // replacement — the appended-line-per-registry shape, not growth inside a function.
+    { "files": ["src/server/index.ts"], "rules": { "max-lines": ["error", { "max": 339, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 129, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/jev.ts"], "rules": { "max-lines-per-function": ["error", { "max": 67, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/mcp.ts"], "rules": { "max-lines-per-function": ["error", { "max": 67, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/og-image.ts"], "rules": { "max-lines": ["error", { "max": 209, "skipBlankLines": true, "skipComments": true }] } },
@@ -235,9 +248,10 @@
     { "files": ["src/server/reports/multisigs.ts"], "rules": { "max-lines-per-function": ["error", { "max": 71, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/reports/primitive-matrix.ts"], "rules": { "max-lines-per-function": ["error", { "max": 96, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/retrieval/embed-units.ts"], "rules": { "max-lines": ["error", { "max": 515, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 52, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/retrieval/indexes.ts"], "rules": { "max-lines": ["error", { "max": 272, "skipBlankLines": true, "skipComments": true }] } },
+    // Raised by 3: `_clearIndexes` resets this module's own `state`, so it cannot live
+    // anywhere else.
+    { "files": ["src/server/retrieval/indexes.ts"], "rules": { "max-lines": ["error", { "max": 275, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/retrieval/query.ts"], "rules": { "max-lines": ["error", { "max": 315, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 172, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/retrieval/search.ts"], "rules": { "max-lines": ["error", { "max": 207, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/sync-embeddings.ts"], "rules": { "max-lines": ["error", { "max": 216, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 102, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/sync.ts"], "rules": { "max-lines-per-function": ["error", { "max": 122, "skipBlankLines": true, "skipComments": true }] } }
   ]

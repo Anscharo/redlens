@@ -89,6 +89,19 @@ describe("useSearchInput (rendered)", () => {
     }
   });
 
+  it("does not apply the mode wrap on the meaning lane", () => {
+    // A `?mode=strict` left over from a wording search would quote the query,
+    // and the lane would then strip those quotes and report them back as
+    // ignored syntax the reader never typed.
+    window.__SEMANTIC_SEARCH__ = true;
+    try {
+      setup("/?q=governance&mode=strict&lane=semantic", "/");
+      expect(search).toHaveBeenLastCalledWith("governance", { lane: "semantic" });
+    } finally {
+      delete window.__SEMANTIC_SEARCH__;
+    }
+  });
+
   it("off HOME, clears the search worker (search(''))", () => {
     setup("/atlas?q=governance", "/atlas");
     expect(search).toHaveBeenLastCalledWith("");

@@ -6,7 +6,8 @@
 // address / query land alongside in Task #6 once the pg + embedding layers
 // exist; they take the same Indexes plus a SQL handle.
 import { type Indexes, ancestorChain, resolveNode, type AtlasNode } from "../../retrieval/indexes.ts";
-import { lexicalResidual, runLexical, runSemantic, mergeForMode, attributeSemanticHits, buildLeafScorer, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
+import { runLexical, runSemantic, mergeForMode, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
+import { lexicalResidual, attributeSemanticHits, buildLeafScorer } from "../../retrieval/leaf-attribution.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { statsSection } from "./tools-stats.ts";
 import { censusesSection } from "./tools-censuses.ts";
@@ -165,9 +166,9 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
       ? ({ hits: [], briefingHits: [], skipped: null } satisfies SemanticResult)
       : await runSemantic(
           ix, query, type, fetchK, undefined, lexicalResidual(query, lexAll, ix.docMap),
-          // runSemantic no longer throws on a normal degraded-leg failure; this
-          // catch is defensive-only, preserving the reason rather than the old
-          // information-destroying `.catch(() => [])`.
+          // runSemantic reports a degraded leg in `skipped` rather than
+          // throwing, so this catch is defensive only — and it keeps the reason
+          // instead of discarding it.
         ).catch((err): SemanticResult => ({ hits: [], briefingHits: [], skipped: (err as Error).message }));
   const sem = attributeSemanticHits(query, lex, semResult.hits, ix, await buildLeafScorer(semResult.hits, semResult.vecs));
 

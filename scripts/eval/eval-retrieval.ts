@@ -66,7 +66,7 @@
  * (offline proxy for grouping architecture — not a substitute for the neural
  * bakeoff). Writes .cache/eval-retrieval.json.
  *
- * ══ RERANKERS (2026-09-29) — one Jev CHOICE over the whole list wins; pairwise scoring loses ══
+ * ══ RERANKERS — one Jev CHOICE over the whole list wins; pairwise scoring loses ══
  * --reuse-db, generic prefix, --rerank-pool 30: the reranker reorders the final
  * 30-leaf list the shipped path returns and the top 10 is scored. `control` is that
  * list's own top 10; the exact ceiling@30 (a relevant leaf anywhere in the 30) is
@@ -141,7 +141,7 @@
  * -0.033 and disambiguation -0.175. Qwen3-Reranker-4B semantic-only was below control
  * on every headline metric (directory mrr was the one slice it won, 0.850 vs 0.804).
  *
- * ══ QUERY PREFIX (2026-09-29) — generic Qwen instruction, config.embedQueryPrefix ══
+ * ══ QUERY PREFIX — generic Qwen instruction, config.embedQueryPrefix ══
  * --reuse-db on a local DB holding production's Qwen vectors, 179 queries, one policy.
  *
  *   semantic-only           recall  exact  disambig   mrr   control
@@ -427,9 +427,8 @@ import {
   unitHash,
   GROUP_POLICIES,
   type EmbedUnit,
-  fuseLeafScores, leafRuleFor,
-  type LeafRow,
 } from "../../src/server/retrieval/embed-units.ts";
+import { fuseLeafScores, leafRuleFor, type LeafRow } from "../../src/server/retrieval/leaf-scores.ts";
 import { generateRetrievalQueries, type RetrievalQuery } from "./eval-retrieval-queries.ts";
 import { buildEmbedText, contentHash as oneToOneHash } from "../../src/server/retrieval/embed-text.ts";
 import { rerank } from "./eval-rerankers.ts";

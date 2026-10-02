@@ -103,6 +103,7 @@ function setupMocks({
   deepError = null,
   retry = vi.fn(),
   preview = null,
+  base = "",
   selectedId = "node-1",
   annotations = EMPTY_ANNOTATIONS,
 }: {
@@ -111,12 +112,13 @@ function setupMocks({
   deepError?: Error | null;
   retry?: () => void;
   preview?: { id: string; sha: string } | null;
+  base?: string;
   selectedId?: string | null;
   annotations?: typeof EMPTY_ANNOTATIONS;
 }) {
   useAtlasDataMock.mockReturnValue({ data, shallowError, deepError, retry });
   useLoadedMock.mockReturnValue(null);
-  useDataSourceMock.mockReturnValue({ base: "", preview });
+  useDataSourceMock.mockReturnValue({ base, preview });
   useAtlasSelectionMock.mockReturnValue({ selectedId, handleNavigate: vi.fn() });
   useNodeAnnotationsMock.mockReturnValue(annotations);
   buildOwningAgentMapMock.mockReturnValue(new Map());
@@ -286,14 +288,21 @@ describe("AtlasView normal render", () => {
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
-  it("passes null graph to useNodeAnnotations in preview mode (hides cousins)", () => {
+  it("loads the graph from the data-source base and passes it through in preview (cousins + owning agents)", async () => {
+    const { loadGraph } = await import("../../lib/graph");
     const node = makeNode({ id: "node-1", doc_no: "A.1" });
     const atlas = makeAtlasBundle([node]);
     const data = makeLoadedData({ atlas, complete: true });
-    setupMocks({ data, preview: { id: "pr-1", sha: "abc" } });
+    const graph = { participants: [], instances: [], invocations: [], primitives: [], edges: [] };
+    setupMocks({ data, preview: { id: "pr-1", sha: "abc" }, base: "/api/preview/abc/" });
+    useLoadedMock.mockReturnValue(graph);
     render(<AtlasView {...baseProps()} />);
-    // 4th positional arg to useNodeAnnotations(id, data, graph) — graph must be null in preview.
-    const lastCall = useNodeAnnotationsMock.mock.calls.at(-1)!;
-    expect(lastCall[2]).toBeNull();
+    // The loader handed to useLoaded must fetch the preview bundle's relations.json.
+    const loader = useLoadedMock.mock.calls.at(-1)![0] as () => unknown;
+    loader();
+    expect(loadGraph).toHaveBeenLastCalledWith("/api/preview/abc/");
+    // useNodeAnnotations(id, data, graph) and buildOwningAgentMap(atlas, graph) get the preview graph.
+    expect(useNodeAnnotationsMock.mock.calls.at(-1)![2]).toBe(graph);
+    expect(buildOwningAgentMapMock.mock.calls.at(-1)![1]).toBe(graph);
   });
 });

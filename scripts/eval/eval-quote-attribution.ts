@@ -131,7 +131,7 @@ async function main() {
   }
 
   // The check that actually matters, and the one the labeled corpus cannot
-  // stand in for. CLAUDE.md records a census lane whose labeled-corpus-only
+  // stand in for. src/server/facts/CLAUDE.md records a census lane whose labeled-corpus-only
   // margin fired on 12 of 67 real messages the synthetic negatives never
   // produced. The equivalent here: real assistant answers carry callout shapes
   // nobody thought to write down.
