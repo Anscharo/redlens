@@ -93,19 +93,23 @@ function extractAddresses(content, titleChain) {
 // canonical copy in src/lib/searchOptions.ts (this .mjs runs under node and
 // can't import that .ts, hence the duplicated literal). Mirror any change there.
 // ---------------------------------------------------------------------------
+// Index-side term processing; the query side drops the `_` parts (see
+// MINISEARCH_SEARCH_OPTIONS in src/lib/searchOptions.ts).
+function indexTerms(term) {
+  // Strip leading/trailing non-word chars so backtick-wrapped tokens like
+  // `delegatedSigners` index as "delegatedsigners" not "`delegatedsigners`".
+  const whole = term.replace(/^[^a-zA-Z0-9_]+|[^a-zA-Z0-9_]+$/g, "").toLowerCase();
+  if (whole.length < 2) return null;
+  if (!whole.includes("_")) return whole;
+  return [whole, ...whole.split("_").filter((p) => p.length >= 2)];
+}
+
 function buildIndex(nodes) {
   const ms = new MiniSearch({
     fields: ["title", "doc_no", "type", "content"],
     idField: "id",
     tokenize: (text) => text.split(/(?:[\n\r\p{Z}]|(?!_)\p{P})+/u),
-    processTerm: (term) => {
-      // Strip leading/trailing non-word chars so backtick-wrapped tokens like
-      // `delegatedSigners` index as "delegatedsigners" not "`delegatedsigners`".
-      const whole = term.replace(/^[^a-zA-Z0-9_]+|[^a-zA-Z0-9_]+$/g, "").toLowerCase();
-      if (whole.length < 2) return null;
-      if (!whole.includes("_")) return whole;
-      return [whole, ...whole.split("_").filter((p) => p.length >= 2)];
-    },
+    processTerm: indexTerms,
   });
   ms.addAll(
     nodes.map((n) => ({

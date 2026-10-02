@@ -85,11 +85,6 @@ export const HINT_GROUPS: SearchHintGroup[] = [
         query: "'delegatedSigners'",
         description: "Single quotes — literal substring match, case-sensitive",
       },
-      {
-        label: "identifier",
-        query: "erc4626_redeem",
-        description: "An underscore is part of the word: erc4626_redeem matches that identifier (and erc4626_re as a prefix), not every doc with erc4626 or redeem",
-      },
     ],
   },
   {
