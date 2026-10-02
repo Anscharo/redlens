@@ -26,10 +26,10 @@ describe("instanceSignalParams", () => {
   it("drops blacklisted keys and maps tuples", () => {
     const params = instanceSignalParams({
       params: {
-        Rate: ["5%", "doc-1"],
-        "Tracking Methodology": ["see doc", ""],
-        "Operational Executor Agent": ["x", ""],
-        Other: ["y", ""],
+        Rate: ["5%", "doc-1", "A.1"],
+        "Tracking Methodology": ["see doc", "", ""],
+        "Operational Executor Agent": ["x", "", ""],
+        Other: ["y", "", ""],
       },
     });
     expect(params).toEqual([
