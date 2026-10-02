@@ -14,10 +14,10 @@
 import { sql } from "../db.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { getSessionUser } from "../session.ts";
-import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
+import { makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
+import { resolveConversation, conversationScope, type ChatBody } from "./conversation-access.ts";
 import type { Route } from "./model-router.ts";
 import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
-import type { PageContext } from "./system-prompt.ts";
 import { summarizeFacts } from "../facts/registry.ts";
 import { prepareTurn } from "./turn-setup.ts";
 import { contextUsedTokens, rowsAfterCursor, type ReplayRow } from "./context-compact.ts";
@@ -52,12 +52,6 @@ import { routeCensuses } from "../concepts-prefetch.ts";
 // runs prepareTurn and records reason "teach".
 const TEACH_ROUTE: Route = { tier: "default", reason: "teach" };
 
-interface ChatBody {
-  message: string;
-  conversationId?: string;
-  pageContext?: PageContext;
-}
-
 // Generous cap on raw user input: well above any real prompt (typical chat
 // UIs cap in the low thousands of characters) but far below what would blow
 // past the model's context window or get shipped/persisted as multi-MB rows.
@@ -68,27 +62,6 @@ export function messageExceedsLimit(message: string, limitBytes = MAX_MESSAGE_BY
   return Buffer.byteLength(message, "utf8") > limitBytes;
 }
 
-
-// Resolve the target conversation: verify ownership of an existing one, or open
-// a new row. Returns null if the id was supplied but isn't the caller's.
-async function resolveConversation(userId: string, body: ChatBody): Promise<string | null> {
-  if (body.conversationId) {
-    const owned = (await sql`
-      SELECT id FROM conversations WHERE id = ${body.conversationId} AND user_id = ${userId}
-    `) as { id: string }[];
-    return owned[0]?.id ?? null;
-  }
-  // Pass the RAW object (not JSON.stringify'd) + ::jsonb cast — Bun JSON-encodes
-  // the value once for the cast; pre-stringifying double-encodes it into a jsonb
-  // string scalar. Matches the jsonb pattern in sync.ts.
-  const pc = body.pageContext ?? null;
-  const created = (await sql`
-    INSERT INTO conversations (user_id, model, page_context, title)
-    VALUES (${userId}, ${getModel()}, ${pc}::jsonb, ${body.message.slice(0, 60)})
-    RETURNING id
-  `) as { id: string }[];
-  return created[0].id;
-}
 
 export async function handleChat(req: Request): Promise<Response> {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -171,10 +144,13 @@ export async function handleChat(req: Request): Promise<Response> {
       );
     }
 
-    const convId = await resolveConversation(userId, body);
-    if (!convId) {
+    const conv = await resolveConversation(userId, body);
+    if (!conv) {
       return json({ error: "conversation_not_found" }, 404);
     }
+    const convId = conv.id;
+    const scope = await conversationScope(userId, conv, body.pageContext);
+    if ("denied" in scope) return json({ error: scope.denied }, scope.status);
 
     // Computed here (not next to the other routing below) so it can gate the
     // /teach lookup kicked off immediately after — /teach never reads a
@@ -270,6 +246,7 @@ export async function handleChat(req: Request): Promise<Response> {
       distinctId: convId,
       traceId: crypto.randomUUID(),
       properties: {} as Record<string, unknown>,
+      privacyMode: scope.privacyMode,
     };
     // Compaction runs AFTER the answer — see the call below and compact-turn.ts.
     // The summary it writes is read by the NEXT turn, so making this one wait
@@ -466,7 +443,17 @@ export async function handleChat(req: Request): Promise<Response> {
           for await (const ev of runVerifiedChat({
             ix, messages, stream: chatStream, jsonCall: makeOpenrouterJson(obs),
             question: body.message, signal: req.signal, obs, maxIterations,
-            toolCtx: { surface: "chat", userId, signal: req.signal },
+            toolCtx: {
+              surface: "chat",
+              userId,
+              signal: req.signal,
+              // Recorded before the private text reaches the model, so this
+              // round's call and every later one skip content capture.
+              onPrivateAccess: async (repo) => {
+                await scope.onPrivateAccess(repo);
+                obs.privacyMode = true;
+              },
+            },
           })) {
             if (ev.type === "done") {
               done = ev as HarnessDone;

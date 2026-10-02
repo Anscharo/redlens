@@ -21,6 +21,7 @@ import {
   type AnswerCoverageOut,
 } from "./verify/persisted-verdict.ts";
 import { reviewNoteFrom, type ReviewNote } from "./verify/review-note.ts";
+import { reauthorizeRepos, type ScopeDenied } from "./conversation-access.ts";
 
 
 
@@ -267,16 +268,19 @@ function toReplayRow(
 // DESC-then-resort keeps the NEWEST 200 messages (a plain LIMIT keeps the
 // oldest) — display-only. The model replays every row until context-compact
 // compacts a prefix into conversations.summary.
-async function getConversation(userId: string, id: string): Promise<ConversationDetailOut | null> {
+async function getConversation(userId: string, id: string): Promise<ConversationDetailOut | ScopeDenied | null> {
   const owned = (await sql`
-    SELECT c.id, c.title, c.updated_at, c.summary, c.summary_upto_id
+    SELECT c.id, c.title, c.updated_at, c.summary, c.summary_upto_id, c.private_repos
     FROM conversations c WHERE c.id = ${id} AND c.user_id = ${userId}
   `) as {
     id: string; title: string | null; updated_at: string | Date;
-    summary: string | null; summary_upto_id: string | null;
+    summary: string | null; summary_upto_id: string | null; private_repos?: string[] | null;
   }[];
   if (!owned.length) return null;
   const conv = owned[0];
+  // Its rows may hold private preview text: reopen only while access holds.
+  const denied = await reauthorizeRepos(userId, conv.private_repos ?? []);
+  if (denied) return denied;
   const rows = (await sql`
     SELECT * FROM (
       SELECT id, role, content, created_at, tool_calls
@@ -375,6 +379,7 @@ export async function handleConversations(req: Request): Promise<Response> {
   if (id && req.method === "GET") {
     const conv = await getConversation(userId, id);
     if (!conv) return json({ error: "not_found" }, 404);
+    if ("denied" in conv) return json({ error: conv.denied }, conv.status);
     return json(conv, 200, session.refresh);
   }
 

@@ -65,6 +65,10 @@ export interface ChatObservability {
   distinctId?: string;
   traceId?: string;
   properties?: Record<string, unknown>;
+  /** The conversation has read private-repo text (chat/conversation-access.ts):
+   *  token, latency and cost only, whatever CHAT_CAPTURE_CONTENT says. Read per
+   *  request, so setting it mid-turn covers every later call. */
+  privacyMode?: boolean;
 }
 
 // posthog* params for a create() body — only when PostHog is on (else the plain
@@ -72,12 +76,14 @@ export interface ChatObservability {
 // config.chatCaptureContent: false (the default) captures $ai_input/$ai_output_choices
 // (the actual prompt/response text) alongside token/latency/cost metadata; set
 // CHAT_CAPTURE_CONTENT=0 to fall back to metadata-only.
+export const withholdsContent = (obs: ChatObservability): boolean => !!obs.privacyMode || !config.chatCaptureContent;
+
 function posthogParams(obs: ChatObservability, surface: string): Record<string, unknown> {
   if (!getPosthog()) return {};
   return {
     posthogDistinctId: obs.distinctId,
     posthogTraceId: obs.traceId,
-    posthogPrivacyMode: !config.chatCaptureContent,
+    posthogPrivacyMode: withholdsContent(obs),
     posthogProperties: { chat_surface: surface, environment: openrouterEnvironment(), ...obs.properties },
   };
 }

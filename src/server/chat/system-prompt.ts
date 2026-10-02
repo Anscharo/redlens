@@ -5,35 +5,10 @@
 import { atlasDescribe } from "./tools/tools.ts";
 import { config } from "../config.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
-import { TOOLS_BY_NAME } from "./tools/tool-registry.ts";
-import { REPORT_TITLES, REPORT_DESCRIPTIONS } from "../../lib/routes.ts";
 
-// reportName on the wire is the display title (REPORT_TITLES[id]), not the id —
-// reverse-look-up to find the matching one-line description, if any.
-const TITLE_TO_REPORT_ID: Record<string, string> = Object.fromEntries(
-  Object.entries(REPORT_TITLES).map(([id, title]) => [title, id]),
-);
-
-export interface PageContext {
-  path?: string; // route, e.g. /atlas/<uuid>
-  nodeId?: string; // selected atlas node UUID
-  nodeTitle?: string;
-  nodeDocNo?: string;
-  actorSlug?: string; // radar actor
-  mscMonth?: string; // selected MSC month on /radar/:slug/settlements (YYYY-MM)
-  reportName?: string;
-  reportTool?: string; // client hint: the atlas_report_* tool backing this report page
-  reportFilter?: string; // the report page's active text filter, if any
-}
-
-// The client sends reportTool as a hint; never trust it verbatim in the prompt.
-// Accept it only if it names a real, registered atlas_report_* tool — otherwise
-// a stray/renamed/hostile value can't steer the model at a non-existent tool.
-export function validReportTool(ctx?: PageContext): string | null {
-  const t = ctx?.reportTool;
-  if (!t || !t.startsWith("atlas_report_")) return null;
-  return TOOLS_BY_NAME.has(t) ? t : null;
-}
+// The current page, as the client reports it — see page-context.ts.
+export { type PageContext, validReportTool, pageContextLine } from "./page-context.ts";
+import { type PageContext, validReportTool, pageContextLine } from "./page-context.ts";
 
 interface Describe {
   doc_types: { type: string; count: number }[];
@@ -66,26 +41,6 @@ export function agentArtifactRoster(ix: Indexes): string | null {
   if (primes.length) parts.push(`Prime Agents: ${fmt(primes)}.`);
   if (execs.length) parts.push(`Executor Agents: ${fmt(execs)}.`);
   return parts.join(" ");
-}
-
-export function pageContextLine(ctx?: PageContext): string | null {
-  if (!ctx) return null;
-  if (ctx.nodeId) return `Atlas node "${ctx.nodeTitle ?? ctx.nodeId}"${ctx.nodeDocNo ? ` (${ctx.nodeDocNo})` : ""}, UUID ${ctx.nodeId}`;
-  if (ctx.actorSlug) {
-    const settlements = ctx.path?.includes("/settlements");
-    if (settlements) {
-      const month = ctx.mscMonth ? ` month ${ctx.mscMonth}` : "";
-      return `Radar monthly settlement page for "${ctx.actorSlug}"${month}. Dollar figures are not Atlas — call ask_external_msc with view=month, actor_slug="${ctx.actorSlug}"${ctx.mscMonth ? `, month="${ctx.mscMonth}"` : ""}.`;
-    }
-    return `Radar actor page for "${ctx.actorSlug}"`;
-  }
-  if (ctx.reportName) {
-    const id = TITLE_TO_REPORT_ID[ctx.reportName];
-    const description = id ? REPORT_DESCRIPTIONS[id] : undefined;
-    return `Report: ${ctx.reportName}${description ? ` — ${description}` : ""}`;
-  }
-  if (ctx.path) return `Route ${ctx.path}`;
-  return null;
 }
 
 // Which citation format the prompt ASKS for. The pipeline accepts both from
