@@ -4,7 +4,7 @@
 import { test, expect } from "bun:test";
 import type OpenAI from "openai";
 import { computeOverall, evidenceFromResults, evidenceFromTranscript, priorTurnsEvidence, type Contradiction, type Verdict } from "./verifier.ts";
-import { DISPUTE_TOOL_NAME } from "../dispute-round.ts";
+import { REVIEW_TOOL_NAME } from "../review-round.ts";
 import { classifyToolSource, isAtlasText } from "./verifier.ts";
 import type { CheckReport } from "./verify-checks.ts";
 
@@ -224,7 +224,7 @@ test("the dispute round is dropped from evidence, and the labels around it stay 
   const transcript = [
     { role: "assistant", content: null, tool_calls: [{ id: "a", type: "function", function: { name: "atlas_get", arguments: "{}" } }] },
     { role: "tool", tool_call_id: "a", content: "real atlas text" },
-    { role: "assistant", content: null, tool_calls: [{ id: "b", type: "function", function: { name: DISPUTE_TOOL_NAME, arguments: "{}" } }] },
+    { role: "assistant", content: null, tool_calls: [{ id: "b", type: "function", function: { name: REVIEW_TOOL_NAME, arguments: "{}" } }] },
     { role: "tool", tool_call_id: "b", content: 'Your sentence: "They serve the Prime Agents."' },
     { role: "assistant", content: null, tool_calls: [{ id: "c", type: "function", function: { name: "atlas_search", arguments: "{}" } }] },
     { role: "tool", tool_call_id: "c", content: "more atlas text" },
@@ -238,7 +238,7 @@ test("the dispute round is dropped from evidence, and the labels around it stay 
   const fromResults = evidenceFromResults(
     [
       { name: "atlas_get", content: "real atlas text" },
-      { name: DISPUTE_TOOL_NAME, content: 'Your sentence: "They serve the Prime Agents."' },
+      { name: REVIEW_TOOL_NAME, content: 'Your sentence: "They serve the Prime Agents."' },
       { name: "atlas_search", content: "more atlas text" },
     ],
     100_000,

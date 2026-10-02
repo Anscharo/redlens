@@ -33,7 +33,7 @@ function nowIso(): string {
 
 // Mirrors the list query's replay_chars: the content of every row AFTER the
 // compaction cursor, plus the stored summary that stands in for what came
-// before. Rows already folded away are not part of a replay and must not be
+// before. Rows already compacted away are not part of a replay and must not be
 // counted — the whole point of the cursor FILTER in the real SQL.
 function replayChars(c: Conv): number {
   const convMsgs = msgs
@@ -358,22 +358,22 @@ describe("GET /api/chat/conversations (list)", () => {
     expect(row.contextEstimated).toBe(true);
   });
 
-  it("counts only what a turn would replay, so a folded conversation stops reading at its pre-fold size", async () => {
+  it("counts only what a turn would replay, so a compacted conversation stops reading at its pre-compaction size", async () => {
     const token = await authed();
-    seedConversation({ id: "c-folded", user_id: "user-1" });
-    const folded = [
-      seedMessage({ conversation_id: "c-folded", role: "user", content: "x".repeat(40_000) }),
-      seedMessage({ conversation_id: "c-folded", role: "assistant", content: "y".repeat(40_000) }),
+    seedConversation({ id: "c-compacted", user_id: "user-1" });
+    const compactedRows = [
+      seedMessage({ conversation_id: "c-compacted", role: "user", content: "x".repeat(40_000) }),
+      seedMessage({ conversation_id: "c-compacted", role: "assistant", content: "y".repeat(40_000) }),
     ];
-    seedMessage({ conversation_id: "c-folded", role: "user", content: "z".repeat(1_000) });
-    seedMessage({ conversation_id: "c-folded", role: "assistant", content: "w".repeat(1_000) });
-    // The first exchange has been folded into a 400-char summary.
-    conversations.find((c) => c.id === "c-folded")!.summary = "s".repeat(400);
-    conversations.find((c) => c.id === "c-folded")!.summary_upto_id = folded[1].id;
+    seedMessage({ conversation_id: "c-compacted", role: "user", content: "z".repeat(1_000) });
+    seedMessage({ conversation_id: "c-compacted", role: "assistant", content: "w".repeat(1_000) });
+    // The first exchange has been compacted into a 400-char summary.
+    conversations.find((c) => c.id === "c-compacted")!.summary = "s".repeat(400);
+    conversations.find((c) => c.id === "c-compacted")!.summary_upto_id = compactedRows[1].id;
 
     const res = await handleConversations(req("/api/chat/conversations", { cookie: token }));
     const body = (await res.json()) as { id: string; contextTokens: number; messageCount: number }[];
-    const row = body.find((c) => c.id === "c-folded")!;
+    const row = body.find((c) => c.id === "c-compacted")!;
     // 2,000 replayed chars + 400 of summary, NOT the 82,000 stored.
     expect(row.contextTokens).toBe(600 + CONTEXT_OVERHEAD_TOKENS);
     // The message count still counts every stored row — it is a count, not a size.
@@ -431,7 +431,33 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
     expect(body.contextTokens).toBeGreaterThan(CONTEXT_OVERHEAD_TOKENS + 200);
   });
 
-  it("drops folded rows and counts the summary in their place", async () => {
+  // The review round is real context the next turn is sent, so the meter here has
+  // to include it or a reopened conversation reads lower than the turn it is about
+  // to send. toReplayRow is where that is easy to forget.
+  it("counts the review note in the meter, so reopening still matches the live turn", async () => {
+    const token = await authed();
+    seedConversation({ id: "c-note", user_id: "user-1" });
+    seedMessage({ conversation_id: "c-note", role: "user", content: "who approves budgets?" });
+    const assistant = seedMessage({ conversation_id: "c-note", role: "assistant", content: "The Governance Scope does." });
+    seedVerifyCheck(assistant.id, {
+      overall: "fail",
+      contradictions: [{ answer_span: "The fee is 10 bps.", evidence_span: "The fee is 8 bps.", uuid: "doc-c", agreed: true }],
+    });
+
+    const withNote = (await (await handleConversations(req("/api/chat/conversations/c-note", { cookie: token }))).json()) as {
+      contextTokens: number;
+    };
+    // The same conversation with no check row at all is the control.
+    seedConversation({ id: "c-bare", user_id: "user-1" });
+    seedMessage({ conversation_id: "c-bare", role: "user", content: "who approves budgets?" });
+    seedMessage({ conversation_id: "c-bare", role: "assistant", content: "The Governance Scope does." });
+    const bare = (await (await handleConversations(req("/api/chat/conversations/c-bare", { cookie: token }))).json()) as {
+      contextTokens: number;
+    };
+    expect(withNote.contextTokens).toBeGreaterThan(bare.contextTokens);
+  });
+
+  it("drops compacted rows and counts the summary in their place", async () => {
     const token = await authed();
     seedConversation({ id: "c-2", user_id: "user-1" });
     const cut = seedMessage({ conversation_id: "c-2", role: "assistant", content: "old".repeat(4_000) });
@@ -441,7 +467,7 @@ describe("GET /api/chat/conversations/:id (detail)", () => {
 
     const res = await handleConversations(req("/api/chat/conversations/c-2", { cookie: token }));
     const body = (await res.json()) as { contextTokens: number };
-    // 12,000 chars of folded content are gone; what is left is the summary pair
+    // 12,000 chars of compacted content are gone; what is left is the summary pair
     // plus one short row, so the figure sits just above the standing prefix.
     expect(body.contextTokens).toBeLessThan(CONTEXT_OVERHEAD_TOKENS + 500);
     expect(body.contextTokens).toBeGreaterThan(CONTEXT_OVERHEAD_TOKENS);

@@ -9,14 +9,36 @@ interface Props {
   query: string;
   /** performance.now() at which the list was shown, for time-to-click. */
   shownAt: number;
+  /**
+   * The search has finished and the graph worker has answered. Gates the
+   * empty-state copy below: an unsettled lane has no hits YET, and promising
+   * that entities "will show here" mid-lookup is the same error as rendering
+   * "no results" before the lane has answered, which is what the lane's
+   * loading state exists to prevent.
+   */
+  settled: boolean;
 }
+
+/**
+ * What the entities lane holds, for a reader whose query matched none of it.
+ * "GovOps" is one word here because that is the label on the rows this sentence
+ * is describing (ENTITY_TYPE_LABEL.govops_org) and the Radar group heading above
+ * them — spelling it "Gov Ops" here would be the only place in the app that does.
+ */
+const EMPTY_HINT =
+  "Sky Ecosystem Agents, Facilitators, GovOps, Development Companies and other entities extracted from mentions in the atlas will show here";
 
 /**
  * Graph entity hits — Agents, Facilitators, Conservers, Instances, Primitives.
  * The whole result list on the entities lane, and rendered nowhere else.
  */
-export function EntityResults({ hits, query, shownAt }: Props) {
-  if (hits.length === 0) return null;
+export function EntityResults({ hits, query, shownAt, settled }: Props) {
+  if (hits.length === 0) {
+    if (!settled) return null;
+    // Deliberately larger than everything else under the count line: it is the
+    // only thing on the page, and it is prose to read rather than chrome to scan.
+    return <p className="px-4 py-6 text-base leading-relaxed text-tan-2">{EMPTY_HINT}</p>;
+  }
   return (
     <>
       {/* No count here — the line above is already counting this very list. */}

@@ -20,8 +20,7 @@ import { historyReplay, summaryReplay, type ReplayRow } from "./context-compact.
 import { judgePrefetch, filterTeachingsByJev, type PrefetchJudgement } from "./prefetch-judge.ts";
 import { teachingRound } from "./teach/inject.ts";
 import type { RankedTeaching } from "./teach/match.ts";
-import { disputeRound } from "./dispute-round.ts";
-import type { AgreedContradiction } from "./verify/disputes.ts";
+import { reviewRound } from "./review-round.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -31,9 +30,9 @@ export interface TurnInput {
   /** The conversation exactly as chat.ts loads it: every stored row still
    *  outside the compaction cursor, oldest first, INCLUDING the user message
    *  just persisted for this turn. Follow-up routing reads it that way.
-   *  Messages already folded into `summary` are not in this array. */
+   *  Messages already compacted into `summary` are not in this array. */
   history: ReplayRow[];
-  /** Stable summary of turns folded at the context-window line. Null until
+  /** Stable summary of turns compacted at the context-window line. Null until
    *  the first compaction. Replay puts it in its own message pair so later
    *  turns append after a byte-identical prefix. */
   summary?: string | null;
@@ -41,11 +40,6 @@ export interface TurnInput {
   /** This user's matched /teach notes (chat.ts's DB lookup). An eval has no
    *  user, so it passes none. */
   teachHits?: RankedTeaching[];
-  /** Agreed verifier contradictions against the PRIOR assistant answer in
-   *  this conversation (chat.ts's message_checks lookup, parsed by
-   *  verify/disputes.ts's agreedContradictionsFrom). An eval has no prior
-   *  turn's persisted verdict to read, so it passes none. */
-  disputes?: AgreedContradiction[];
   /** The Jev call, injectable for tests. Defaults to judgePrefetch. */
   judge?: typeof judgePrefetch;
   /** Evals only: run this tier's model chain whatever routing says, so a
@@ -109,7 +103,7 @@ export async function prepareTurn(input: TurnInput): Promise<PreparedTurn> {
     ...historyReplay(history),
   ];
 
-  // Dispute round (dispute-round.ts): agreed verifier contradictions against
+  // Review round (review-round.ts): the check results the user saw against
   // the PRIOR assistant answer, already shown to the user directly beneath
   // it — surfaced here so a follow-up question about the flag ("are you sure
   // about that?") has something to reason from. Chronology caveat: `history`'s
@@ -118,8 +112,7 @@ export async function prepareTurn(input: TurnInput): Promise<PreparedTurn> {
   // facts and teach rounds below already accept, and harmless for the same
   // reason: it's a synthetic tool round, not a claim about what came "before"
   // the user spoke.
-  const disputes = input.disputes ?? [];
-  if (disputes.length > 0) messages.push(...disputeRound(disputes));
+  messages.push(...reviewRound(history));
 
   // Facts (facts/registry.ts): deterministic, pure-code knowledge blocks that
   // fire on the question — glossary definitions, entity rows, concept censuses,

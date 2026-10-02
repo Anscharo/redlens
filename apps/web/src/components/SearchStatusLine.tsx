@@ -27,14 +27,17 @@ interface Props {
 }
 
 // What the count line says about the semantic leg, when there is anything to
-// say. A pending leg is the load-bearing one: without it a fallback search
-// reads "no results" for the ~400ms + round-trip before the meaning hits land,
-// which is exactly the moment a reader gives up and retypes.
+// say. The states worth a note are the ones that END badly: a leg still in
+// flight is reported by <SemanticProgress />, which renders on exactly this
+// condition and names the stage it is on, so a note here would stack a second
+// quieter copy of the same sentence under it. What must NOT be lost with it is
+// `count` reading "searching…" rather than "no results" while the leg runs —
+// that is the flash a reader retypes over, and it is below, not here.
 function semanticNote(state: SearchState, lane: SearchLane): string | null {
   if (state.status !== "done") return null;
   switch (state.semantic) {
     case "pending":
-      return "scoring by meaning…";
+      return null;
     case "skipped":
       return `meaning search unavailable — ${state.semanticNote ?? "it failed"}`;
     case "unavailable":

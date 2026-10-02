@@ -825,3 +825,25 @@ test("exportEvidence keeps user teachings out of both atlas and external evidenc
   expect(ev.atlasTexts).toContain("ATLAS: Spark Freeze document text");
   expect(ev.externalTexts).toEqual(["MSC: to_sky 5"]);
 });
+
+// The review round (review-round.ts) is verifier output ABOUT this conversation,
+// including a truncated atlas span per flag. It fell into atlasTexts until
+// 2026-10-01 because this function excluded only the teaching ids — so an export
+// could certify a quote against a check result. An exported file is held to the
+// strictest reading of CLAUDE.md's citation dictate, which makes it the worst
+// place for that.
+test("exportEvidence keeps the review round out of atlas evidence", () => {
+  const msgs: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: "user", content: "are you sure about that flag?" },
+    { role: "assistant", content: null, tool_calls: [
+      { id: "call_review_notes", type: "function", function: { name: "atlas_review_notes", arguments: "{}" } },
+      { id: "t2", type: "function", function: { name: "atlas_get", arguments: "{}" } },
+    ] },
+    { role: "tool", tool_call_id: "call_review_notes", content: "CHECK: Atlas text it was flagged against: \"a truncated span\"" },
+    { role: "tool", tool_call_id: "t2", content: "ATLAS: the real document text" },
+  ];
+  const ev = exportEvidence(msgs);
+  expect(ev.atlasTexts.some((t) => t.startsWith("CHECK:"))).toBe(false);
+  expect(ev.externalTexts.some((t) => t.startsWith("CHECK:"))).toBe(false);
+  expect(ev.atlasTexts).toContain("ATLAS: the real document text");
+});

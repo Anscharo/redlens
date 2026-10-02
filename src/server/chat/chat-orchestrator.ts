@@ -15,7 +15,9 @@ import type { JsonCall } from "./llm.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { config } from "../config.ts";
 import { createRoundChecker } from "./verify/round-checks.ts";
-import { runDeterministicChecks, type CheckReport } from "./verify/verify-checks.ts";
+import { runDeterministicChecks, findUngroundedQuoteSpans, isFailed, type CheckReport } from "./verify/verify-checks.ts";
+import { judgeQuoteAttribution, spansPresentedAsQuotation, spansJudgedNotQuotation } from "./verify/quote-attribution.ts";
+import { isReviewRound } from "./review-round.ts";
 import { findParamsMentioned, type ParamMismatch } from "./verify/param-checks.ts";
 import type { CompletenessEvidence } from "./verify/completeness.ts";
 import { createLinkJudge, displayText, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
@@ -43,7 +45,9 @@ type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type DoneEvent = Extract<ChatEvent, { type: "done" }>;
 
 export interface CheckRowMeta {
-  kind: "round_checks" | "verify" | "smalltalk_judge" | "citation_check" | "answer_coverage";
+  // `message_checks.kind` is plain TEXT with no CHECK constraint (migration 014),
+  // so this union is the only vocabulary and a new kind needs no migration.
+  kind: "round_checks" | "verify" | "smalltalk_judge" | "citation_check" | "answer_coverage" | "quote_attribution";
   model: string | null;
   verdict: unknown;
   overall: VerifyOverall | null;
@@ -298,8 +302,16 @@ function repairedChecks(
   return { ...checks, lengthCapped, failed: true };
 }
 
+// Every real tool result, and NOT the synthetic review round. That round carries
+// verifier output about this same conversation, including a truncated atlas span
+// per flag, so leaving it in let the deterministic checks certify a quote against
+// the verifier's own excerpt — exactly what verifier.ts:213-226 deliberately
+// refuses to do for the model audit ("the conservative direction"). It was in here
+// until 2026-10-01 because this filter predates the synthetic round entirely.
 const toolTextsOf = (transcript: Msg[]): string[] =>
-  transcript.filter((m) => m.role === "tool" && typeof m.content === "string").map((m) => m.content as string);
+  transcript
+    .filter((m) => m.role === "tool" && typeof m.content === "string" && !isReviewRound(m.tool_call_id))
+    .map((m) => m.content as string);
 
 function splitFromTranscript(transcript: Msg[]): { atlasTexts: string[]; externalTexts: string[] } {
   const entries = evidenceFromTranscript(transcript, 500_000);
@@ -815,6 +827,9 @@ export async function* runVerifiedChat(opts: {
   const evidence = evidenceFromTranscript(done.transcript);
   let toolTexts: string[];
   let checks: CheckReport;
+  // Kept so the quote-attribution lane can reuse the same atlas/external split
+  // the deterministic checks were run against, rather than re-deriving it.
+  let evidenceSplit: { atlasTexts: string[]; externalTexts: string[] } = { atlasTexts: [], externalTexts: [] };
   // prevEvidence was hoisted to the top of this function (paragraph mode needs
   // it before `done` exists) — identical result either way, see that comment.
   // Entering verification is progress worth surfacing — but only when there is
@@ -834,10 +849,11 @@ export async function* runVerifiedChat(opts: {
     toolTexts = toolTextsOf(done.transcript);
     const { refs, repair, identifiers } = normalizeAndRepair(done.content, toolTexts, opts.ix);
     if (repair.content !== done.content) done = { ...done, content: repair.content };
+    evidenceSplit = splitFromTranscript(done.transcript);
     checks = repairedChecks(done.content, toolTexts, opts.ix, done.lengthCapped, {
       question: opts.question,
       evidence,
-    }, splitFromTranscript(done.transcript));
+    }, evidenceSplit);
     checksMeta.push({
       kind: "round_checks", model: null,
       verdict: {
@@ -901,6 +917,29 @@ export async function* runVerifiedChat(opts: {
   // for the same reason as the audit promise below.
   coveragePromise?.catch(() => {});
 
+  // Quote attribution (verify/quote-attribution.ts) — same lifecycle again:
+  // started here, resolved before verify_result. It asks, per ungrounded quoted
+  // span whose lead-in does NOT already settle the matter in code, whether the
+  // answer presents that span as wording taken from a source.
+  //
+  // In "shadow" (the shipped default) the judgements are RECORDED AND NOTHING
+  // ELSE: `checks` is not touched, so severity, `failed` and the badge are
+  // exactly what they are on main. The margin has never been measured — see
+  // config.chatQuoteAttribution — and until it is, this lane must not be able to
+  // move a verdict in either direction.
+  const quoteSpans =
+    config.chatQuoteAttribution === "off" || !config.chatQuoteAttributionModel
+      ? []
+      : findUngroundedQuoteSpans(done.content, evidenceSplit.atlasTexts, opts.ix, opts.question).filter((s) => !s.attributed);
+  const quoteAttributionPromise =
+    quoteSpans.length > 0
+      ? judgeQuoteAttribution({
+          spans: quoteSpans, model: config.chatQuoteAttributionModel,
+          signal: opts.signal, obs: opts.obs,
+        })
+      : null;
+  quoteAttributionPromise?.catch(() => {});
+
   // verifierModel/paragraphMode were hoisted to the top of this function so the
   // per-paragraph refuter could be created before streaming started, and
   // `refuteEvidence` with it — the whole-answer audit calls the same builder
@@ -955,6 +994,33 @@ export async function* runVerifiedChat(opts: {
   // above (or are null), and all three were already awaited before finish()
   // regardless of the order they're awaited in here — don't "optimize" this
   // back to resolving marks first.
+  // The quote-attribution lane is resolved HERE, before the audit row is built,
+  // because in `gate` mode it changes `checks` — and the verify row below stores
+  // computeOverall(checks, …), so a later filter would persist a verdict that
+  // disagrees with the badge the reader sees.
+  //
+  // Reviewed on PR #436: `gate` was documented as "promotes on P >= margin" and
+  // did nothing at all — the judgements were recorded and `ungroundedQuotes` was
+  // never filtered, so `shadow` and `gate` were byte-identical and flipping the
+  // mode would have been a silent no-op.
+  const quoteAttribution = quoteAttributionPromise ? await quoteAttributionPromise : null;
+  if (quoteAttribution && config.chatQuoteAttribution === "gate") {
+    // Only tier-B spans are the lane's to clear; tier A never reached it.
+    const tierB = new Set(quoteSpans.map((s) => s.text));
+    // spansJudgedNotQuotation, NOT the complement of spansPresentedAsQuotation:
+    // a span whose judgement failed, or that fell past the lane's span cap, has
+    // no verdict and must KEEP its finding. Fail-open means a Jev outage never
+    // hard-fails an answer; it must not also mean an outage clears every quote
+    // finding the deterministic check made on its own.
+    const cleared = spansJudgedNotQuotation(quoteAttribution, config.chatQuoteAttributionMargin);
+    const ungroundedQuotes = checks.ungroundedQuotes.filter((q) => !(tierB.has(q) && cleared.has(q)));
+    if (ungroundedQuotes.length !== checks.ungroundedQuotes.length) {
+      // isFailed, not a local re-OR: dropping a span must be able to clear the
+      // turn, and only if nothing else failed it.
+      checks = { ...checks, ungroundedQuotes, failed: isFailed({ ...checks, ungroundedQuotes }) };
+    }
+  }
+
   if (auditPromise) {
     const { run, modelLabel } = await auditPromise;
     verdict = run.verdict;
@@ -990,6 +1056,28 @@ export async function* runVerifiedChat(opts: {
   const cov = await resolveAnswerCoverage(coveragePromise, coverageModel);
   if (cov.event) yield cov.event;
   if (cov.meta) checksMeta.push(cov.meta);
+  // Recorded either way; ACTED ON above only in `gate`. The row is this lane's own calibration
+  // record — the same role Verdict.contradictions plays for the audit — and it is
+  // what the bakeoff will be fitted against, so it stores the raw probability per
+  // span and the mode that was in force, not a decision.
+  if (quoteAttribution) {
+    const qa = quoteAttribution;
+    checksMeta.push({
+      kind: "quote_attribution", model: config.chatQuoteAttributionModel,
+      verdict: {
+        mode: config.chatQuoteAttribution,
+        margin: config.chatQuoteAttributionMargin,
+        judgements: qa.judgements,
+        // What severity WOULD have changed to under `gate`, recorded so the
+        // shadow run can be scored without replaying the answer.
+        wouldPromote: [...spansPresentedAsQuotation(qa, config.chatQuoteAttributionMargin)],
+        spansConsidered: quoteSpans.length,
+      },
+      overall: null,
+      inputTokens: qa.usage?.input ?? null, outputTokens: qa.usage?.output ?? null,
+      generationId: null, latencyMs: qa.latencyMs,
+    });
+  }
   const overall = verifierModel ? computeOverall(checks, verdict) : checks.failed ? "fail" : "unverified";
 
   // Deterministic-only turns stay quiet unless something actually failed —

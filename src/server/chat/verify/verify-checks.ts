@@ -172,6 +172,25 @@ function isSelfAuthoredCallout(line: string): boolean {
   return bold / plain.length >= BOLD_LINE_MIN;
 }
 
+// The same callout, introduced in PLAIN PROSE. `isSelfAuthoredCallout` reads the
+// quoted line itself and needs it to be ~entirely bold, which is the narrower
+// half of the convention: models just as often write `The practical lesson is:`
+// and then put an unbolded one-sentence synthesis in a blockquote. Observed live
+// 2026-10-01 — one answer about atlas churn did it three times
+// ("The practical lesson is:", "But it has an important practical consequence:",
+// "The central conclusion is:"), all three were scored as invented atlas text,
+// and the turn hard-failed on an answer no reader would have taken as quoting.
+//
+// The discriminator is the LEAD-IN, not the quoted line: a lead-in whose subject
+// is the answer or the reader rather than a document says the author is about to
+// speak for themselves. It is a closed list, and it is a CONJUNCTION with "no
+// citation in the lead-in" — once the author names a source they are attributing,
+// so `Per [X](/atlas/…), the central conclusion is:` stays checked.
+const SELF_AUTHORSHIP_LEAD =
+  /\b(?:practical\s+(?:lesson|consequence|implication)|central\s+(?:conclusion|point)|bottom\s+line|key\s+takeaway|takeaway|upshot|net\s+effect|in\s+short|in\s+summary|to\s+summari[sz]e|my\s+read|what\s+this\s+means|the\s+(?:net|overall)\s+picture)\b/i;
+
+
+
 // A quoted TERM the answer denies is a mention, not a quotation: `the atlas
 // does not contain an organization called "X"`. Such a term can never appear
 // in the evidence — its absence IS the claim — so demanding grounding fires
@@ -191,6 +210,61 @@ export const ABSENCE = String.raw`(?:(?:does|do|did|is|are|was|were)\s+not\s+\w*
 const DENIAL_BEFORE = new RegExp(ABSENCE + String.raw`[^.!?;:]{0,40}$`, "i");
 const DENIAL_AFTER = new RegExp(String.raw`^[^.!?;:]{0,80}?` + ABSENCE, "i");
 const MAX_DENIED_TERM = 60;
+
+// Deliberately NOT ABSENCE_VERB un-negated, which is what this started as.
+// Negation changes which verbs are diagnostic: `does not cover` is a clean
+// denial, but `covers` describes a document TOPICALLY and says nothing about the
+// text below it being in it — the very use-vs-mention distinction this tier is
+// supposed to get right. Same for `mentions`, `addresses`, `refers to`, `names`,
+// `appears`, `includes`. So the containment verbs are listed explicitly here,
+// and the list is kept NARROW on purpose: tier A is the only route to a
+// code-only hard failure, so a false positive here is a red badge on an honest
+// answer, while a miss merely sends the span to the model instead.
+const ASSERTION_VERB =
+  /\b(?:states?|stated|says?|said|reads?|defines?|defined|specifies|specified|prescribes?|prescribed|prohibits?|prohibited|requires?|required|lists?|listed|notes?|noted|declares?|declared|provides?|provided|sets? out|puts? it|according to|per|verbatim|quot(?:e|es|ed|ing))\b/i;
+const ABSENCE_TEST = new RegExp(ABSENCE, "i");
+
+/**
+ * Tier A — the lead-in BOTH names a source and asserts that it says this.
+ *
+ * This is the only half of "is the answer claiming to quote?" that code can
+ * settle: `[Title](/atlas/<uuid>) states:` is unambiguous, needs no language
+ * judgement, and works with no model configured. Naming a document is NOT
+ * enough on its own — `A.1.7.1 covers Operational Facilitators` describes a doc,
+ * `A.1.7.1 states:` asserts its contents, and only the second makes the text
+ * below a quotation (ASSERTION_VERB's comment has why that distinction cannot
+ * reuse the absence-verb list). A negated lead-in ("the atlas does not state")
+ * is an absence claim, not an attribution, so it is excluded.
+ *
+ * Everything else ungrounded is tier B: a real question about use vs mention,
+ * which is a model's job (verify/quote-attribution.ts) and which this file
+ * previously answered with a regex over how much of the line was bold.
+ */
+export function isAttributedLeadIn(leadIn: string): boolean {
+  return CITATION_MARKER.test(leadIn) && ASSERTION_VERB.test(leadIn) && !ABSENCE_TEST.test(leadIn);
+}
+
+/**
+ * The phrase has to INTRODUCE the quote, not merely appear somewhere in the
+ * lead-in — which can be a whole paragraph tail. Reviewed on PR #436: matching
+ * anywhere meant "My read of the rewards section is that it is mostly settled.
+ * Turning to seizure, the document is explicit:" exempted a quote the second
+ * clause plainly attributes. So only the LAST clause is read.
+ *
+ * And it is now a three-way conjunction: an ASSERTION_VERB anywhere in the
+ * lead-in defeats the exemption outright. Without that, "The atlas text, in
+ * short, reads:" dropped a fabricated quote from grounding ENTIRELY — the
+ * exemption removes the span before it is ever checked, so a hole here is a
+ * fabricated quote passing, not merely a tier misassignment.
+ */
+function isSelfAuthorshipLeadIn(leadIn: string): boolean {
+  const lastClause = leadIn.split(/[.!?;]\s|\n/).filter((c) => c.trim()).at(-1) ?? "";
+  return (
+    SELF_AUTHORSHIP_LEAD.test(lastClause) &&
+    !CITATION_MARKER.test(leadIn) &&
+    !ASSERTION_VERB.test(leadIn)
+  );
+}
 
 // Quote characters pair in document order: 1st opens, 2nd closes, 3rd opens…
 // Extracting with a single regex desyncs that pairing whenever a span is
@@ -215,12 +289,46 @@ function quotedPairs(line: string): { text: string; start: number; end: number }
 // text itself (atlas docs contain inline links) and still collapses to its text.
 const TRAILING_CITATIONS = /(?:\s*(?:\[[^\]]+\]\([^)\s]+\)|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))+\s*[.,;:]?\s*$/i;
 
-export function extractQuotedSpans(answer: string): string[] {
-  const spans: string[] = [];
+// `leadInSeed` is the lead-in already in force when this text begins — used by
+// the incremental pass, which checks ONE paragraph at a time and would otherwise
+// never see the line that introduced a blockquote (the lead-in and the block are
+// separate paragraphs, so they never arrive together). Without it the streaming
+// `paragraph_check` would report a callout the final whole-answer pass clears,
+// and the user would watch a finding appear and then vanish.
+export interface QuotedSpan {
+  /** Normalized span text — the key every grounding check matches on. */
+  text: string;
+  /**
+   * The line that introduced it: the last non-empty line above a blockquote
+   * block, or the prose before an inline quote's opening mark. This is where
+   * attribution is actually declared, so it is what decides whether an
+   * ungrounded span is a deterministic failure or a question for a model.
+   */
+  leadIn: string;
+}
+
+export function extractQuotedSpanRecords(answer: string, leadInSeed = ""): QuotedSpan[] {
+  const spans: QuotedSpan[] = [];
+  // `leadIn` is the last non-empty line ABOVE the current blockquote block. A
+  // blockquote line never updates it, so every line of a multi-line block shares
+  // the one lead-in that introduced the block, and a blank line between the two
+  // does not clear it.
+  let leadIn = leadInSeed;
   for (const line of answer.split("\n")) {
     const bq = line.match(/^\s*>\s?(.+)$/);
-    if (bq && !isAttributionLine(bq[1]) && !isSelfAuthoredCallout(bq[1])) {
-      spans.push(stripQuoteDecoration(bq[1].replace(TRAILING_CITATIONS, "")));
+    if (!bq) {
+      if (line.trim()) leadIn = line;
+      continue;
+    }
+    if (!isAttributionLine(bq[1]) && !isSelfAuthoredCallout(bq[1]) && !isSelfAuthorshipLeadIn(leadIn)) {
+      // The lead-in is the line ABOVE, and ONLY that. Reviewed on PR #436: this
+      // used to append the quoted line, so ASSERTION_VERB matched words inside
+      // the span — a self-authored callout containing `required` plus a citation
+      // became tier A, a deterministic hard failure that never reaches the model.
+      // A trailing `— [Title](/atlas/…)` on the block line is handled by
+      // isAttributionLine and TRAILING_CITATIONS; it is a citation without an
+      // assertion, which this file's own rule makes tier B anyway.
+      spans.push({ text: stripQuoteDecoration(bq[1].replace(TRAILING_CITATIONS, "")), leadIn });
     }
   }
   // Inline pass: collapse markdown links to their text FIRST — a quote inside
@@ -252,10 +360,30 @@ export function extractQuotedSpans(answer: string): string[] {
       const beforeQuote = line.slice(0, q.start);
       const afterQuote = line.slice(q.end + 1);
       if (/^\s*[-*+]\s*$/.test(beforeQuote) && /^[.?!,;:]*\s*$/.test(afterQuote)) continue;
-      spans.push(q.text);
+      // For an inline quote the lead-in is the prose BEFORE it on the same line
+      // (`The document states "…"`). What follows is deliberately excluded, for
+      // the same reason as the blockquote above: `My own summary: "…" — which
+      // requires [A.2.1](/atlas/…)` is the opposite of an attribution, and
+      // reading the tail classed it tier A.
+      spans.push({ text: q.text, leadIn: beforeQuote });
     }
   }
-  return [...new Set(spans.map((s) => normalizeForMatch(s)).filter((s) => s.length >= 25))];
+  // Dedupe on normalized text, keeping the FIRST occurrence's lead-in: a span
+  // repeated verbatim is one quotation, and the first place it appears is where
+  // the author said what it was.
+  const out: QuotedSpan[] = [];
+  const seen = new Set<string>();
+  for (const s of spans) {
+    const text = normalizeForMatch(s.text);
+    if (text.length < 25 || seen.has(text)) continue;
+    seen.add(text);
+    out.push({ text, leadIn: s.leadIn });
+  }
+  return out;
+}
+
+export function extractQuotedSpans(answer: string, leadInSeed = ""): string[] {
+  return extractQuotedSpanRecords(answer, leadInSeed).map((s) => s.text);
 }
 
 // Quotation conventions are not evidence differences: "..." elision and
@@ -296,14 +424,36 @@ function atlasTitles(ix: Indexes): string[] {
 // A quote is grounded if every verifiable segment appears in the turn's
 // tool-result evidence, in the title/content of any doc the answer cites, or
 // is itself (part of) an atlas document title.
-export function findUngroundedQuotes(answer: string, evidenceTexts: string[], ix: Indexes, question?: string): string[] {
+export function findUngroundedQuotes(
+  answer: string,
+  evidenceTexts: string[],
+  ix: Indexes,
+  question?: string,
+  leadInSeed?: string,
+): string[] {
+  return findUngroundedQuoteSpans(answer, evidenceTexts, ix, question, leadInSeed).map((s) => s.text);
+}
+
+/**
+ * The same scan, keeping each ungrounded span's lead-in so the caller can tier
+ * it. `attributed` is tier A (see isAttributedLeadIn): a deterministic hard
+ * failure. The rest are tier B — candidates for the Jev attribution lane, which
+ * decides whether the answer was presenting them as source text at all.
+ */
+export function findUngroundedQuoteSpans(
+  answer: string,
+  evidenceTexts: string[],
+  ix: Indexes,
+  question?: string,
+  leadInSeed?: string,
+): (QuotedSpan & { attributed: boolean })[] {
   // A quoted span that the USER wrote — the answer echoing the question's own
   // term ("…specifically for \"Operational Facilitators.\"") — is a scare quote,
   // not a passage copied from a rule document. Observed live 2026-09-10 as a
   // hard fail on an answer whose only quotation was the reader's phrase.
   const q = question ? normalizeForMatch(question) : "";
   const bare = (s: string) => s.replace(/^[\s"',.;:!?()—–-]+|[\s"',.;:!?()—–-]+$/g, "");
-  const spans = extractQuotedSpans(answer).filter((s) => !(q && q.includes(bare(s))));
+  const spans = extractQuotedSpanRecords(answer, leadInSeed).filter((s) => !(q && q.includes(bare(s.text))));
   if (spans.length === 0) return [];
   const haystacks = [
     ...evidenceTexts.map(normalizeForMatch),
@@ -313,7 +463,9 @@ export function findUngroundedQuotes(answer: string, evidenceTexts: string[], ix
     }),
     ...atlasTitles(ix),
   ];
-  return spans.filter((s) => quoteSegments(s).some((seg) => !haystacks.some((h) => h.includes(seg))));
+  return spans
+    .filter((s) => quoteSegments(s.text).some((seg) => !haystacks.some((h) => h.includes(seg))))
+    .map((s) => ({ ...s, attributed: isAttributedLeadIn(s.leadIn) }));
 }
 
 // An on-chain address cannot be paraphrased, computed, or converted — it is
@@ -651,16 +803,49 @@ export function runDeterministicChecks(
     missingExternalDisclaimer,
     mscCitedAsAtlas,
     lengthCapped: false,
-    failed:
-      invalidCitations.length > 0 ||
-      invalidDocNos.length > 0 ||
-      docNoMismatches.length > 0 ||
-      ungroundedQuotes.length > 0 ||
-      ungroundedAddresses.length > 0 ||
-      ungroundedCitationValues.length > 0 ||
-      paramMismatches.length > 0 ||
-      completenessFailures.length > 0 ||
-      missingExternalDisclaimer ||
-      mscCitedAsAtlas.length > 0,
+    failed: isFailed({
+      invalidCitations, invalidDocNos, docNoMismatches, ungroundedQuotes, ungroundedAddresses,
+      ungroundedCitationValues, paramMismatches, completenessFailures, missingExternalDisclaimer,
+      mscCitedAsAtlas, lengthCapped: false,
+    }),
   };
+}
+
+/**
+ * The hard-failure rule, as ONE function.
+ *
+ * `gate` mode (chat-orchestrator.ts) drops tier-B spans from `ungroundedQuotes`
+ * after a model has judged them, and then has to recompute this — so it cannot
+ * be an inline expression any more, or the two would drift and a dropped span
+ * would leave `failed` true with nothing to show for it. Soft signals (bare
+ * links, uncited paragraphs, untraced numbers) inform; they don't fail.
+ *
+ * `lengthCapped` is included here although the original inline expression did
+ * not have it, and that is deliberate rather than a drift: this function always
+ * receives `false` from runDeterministicChecks (which cannot know), so the base
+ * path is unchanged — but chat-orchestrator.ts's repairedChecks folds a capped
+ * answer in by setting `failed: true` outright, so a gate-mode recompute that
+ * ignored the flag would silently clear a real length-cap failure.
+ */
+export function isFailed(
+  r: Pick<
+    CheckReport,
+    | "invalidCitations" | "invalidDocNos" | "docNoMismatches" | "ungroundedQuotes" | "ungroundedAddresses"
+    | "ungroundedCitationValues" | "paramMismatches" | "completenessFailures" | "missingExternalDisclaimer"
+    | "mscCitedAsAtlas" | "lengthCapped"
+  >,
+): boolean {
+  return (
+    r.invalidCitations.length > 0 ||
+    r.invalidDocNos.length > 0 ||
+    r.docNoMismatches.length > 0 ||
+    r.ungroundedQuotes.length > 0 ||
+    r.ungroundedAddresses.length > 0 ||
+    r.ungroundedCitationValues.length > 0 ||
+    r.paramMismatches.length > 0 ||
+    r.completenessFailures.length > 0 ||
+    r.missingExternalDisclaimer ||
+    r.mscCitedAsAtlas.length > 0 ||
+    r.lengthCapped
+  );
 }

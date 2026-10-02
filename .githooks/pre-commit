@@ -12,3 +12,10 @@ if git diff --cached --name-only --diff-filter=ACM | grep -q '^patch-notes\.md$'
     exit 1
   fi
 fi
+
+# Size ratchet + present-tense comments, only when source is staged. Report-only,
+# matching CI: findings print but never abort the commit.
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '^(src|apps/web/src|scripts)/.*\.(m?[jt]sx?)$'; then
+  pnpm run --silent check:size || echo "(check:size is report-only for now; fix what you can.)"
+  pnpm run --silent check:comments || echo "(check:comments is report-only for now; fix what you can.)"
+fi

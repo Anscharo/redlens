@@ -1,0 +1,15 @@
+{
+  // Advisory size limits. `pnpm check:size` runs this config over changed files
+  // only and never fails on it; the hard limits are in .oxlintrc.size.json.
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "off" },
+  "plugins": [],
+  "ignorePatterns": ["**/*.test.*", "**/*.spec.*", "**/*.d.ts", "**/*.d.mts", "**/__tests__/**", "**/__snapshots__/**"],
+  "rules": {
+    "max-lines": ["warn", { "max": 120, "skipBlankLines": true, "skipComments": true }],
+    "max-lines-per-function": ["warn", { "max": 20, "skipBlankLines": true, "skipComments": true }]
+  },
+  "overrides": [
+    { "files": ["**/*.tsx"], "rules": { "max-lines-per-function": ["warn", { "max": 30, "skipBlankLines": true, "skipComments": true }] } }
+  ]
+}

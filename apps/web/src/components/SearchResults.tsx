@@ -3,6 +3,7 @@ import { SearchResult } from "./SearchResult";
 import { SearchHints } from "./SearchHints";
 import { SearchStatusLine } from "./SearchStatusLine";
 import { EntityResults } from "./EntityResults";
+import { SemanticProgress } from "./SemanticProgress";
 import type { SearchHit } from "@/types";
 import type { SearchState } from "../hooks/useSearch";
 import type { SearchMode } from "../hooks/useSearchInput";
@@ -136,8 +137,24 @@ export const SearchResults = memo(function SearchResults({
             semanticAvailable={semanticSearchAvailable()}
           />
         )}
+        {/* Gated on the MEANING leg alone, not the shared `pending`: the entity
+            leg answers from a worker already holding the graph and needs no
+            reassurance, and a bar over an entity search would be promising a
+            round trip that is not happening.
+
+            Keyed on the query so a second search restarts the stages. Usually
+            the intervening "searching" state unmounts it anyway, but two
+            queries that both settle straight into a pending leg would otherwise
+            leave the second one inheriting the first's timer, reading
+            "Comparing Results" on a search that just began. */}
+        {semanticPending && <SemanticProgress key={query} />}
         {entitiesOnly && (
-          <EntityResults hits={entityHits} query={shownQuery.current} shownAt={shownAt.current} />
+          <EntityResults
+            hits={entityHits}
+            query={shownQuery.current}
+            shownAt={shownAt.current}
+            settled={state.status === "done" && !pending}
+          />
         )}
         {suggestBroad && (
           <div className="px-4 py-2 border-b border-border">

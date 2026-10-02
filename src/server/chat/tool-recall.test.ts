@@ -9,10 +9,10 @@ const searchResult = JSON.stringify({
 });
 
 describe("attachRecall", () => {
-  it("skips synthetic prefetch and dispute tool messages and mints a stable id", () => {
+  it("skips synthetic prefetch and review-note tool messages and mints a stable id", () => {
     const transcript = [
       { role: "tool", tool_call_id: "call_prefetch", content: "{\"facts\":true}" },
-      { role: "tool", tool_call_id: "call_dispute_flags", content: "{\"dispute\":true}" },
+      { role: "tool", tool_call_id: "call_review_notes", content: "{\"review\":true}" },
       { role: "tool", tool_call_id: "call_abc", content: searchResult },
     ];
     expect(recalledToolContents(transcript)).toEqual([searchResult]);

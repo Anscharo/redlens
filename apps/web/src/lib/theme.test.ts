@@ -60,22 +60,23 @@ afterEach(() => {
 });
 
 describe("useTheme", () => {
-  it("defaults to DEFAULT_THEME with empty storage", async () => {
-    const { useTheme, DEFAULT_THEME } = await freshModule();
+  it("defaults to INITIAL_THEME (light) with empty storage", async () => {
+    const { useTheme, INITIAL_THEME } = await freshModule();
     const { result } = renderHook(() => useTheme());
-    expect(result.current.theme).toBe(DEFAULT_THEME);
+    expect(result.current.theme).toBe(INITIAL_THEME);
+    expect(INITIAL_THEME).toBe("light");
   });
 
   // Garbage or unrecognised storage falls back to the DEFAULT_THEME, never a
   // partial match — "Light" (wrong case) and "" are both real values a stale
   // client or a manual edit could leave behind, and neither is "light".
   it.each(["solarized-neon", "", "Light"])(
-    "falls back to DEFAULT_THEME for stored value %j",
+    "falls back to INITIAL_THEME for stored value %j",
     async (stored) => {
       localStorage.setItem(KEY, stored);
-      const { useTheme, DEFAULT_THEME } = await freshModule();
+      const { useTheme, INITIAL_THEME } = await freshModule();
       const { result } = renderHook(() => useTheme());
-      expect(result.current.theme).toBe(DEFAULT_THEME);
+      expect(result.current.theme).toBe(INITIAL_THEME);
     },
   );
 
@@ -104,9 +105,15 @@ describe("useTheme", () => {
   });
 
   it("syncs the snapshot on a cross-tab storage event", async () => {
-    const { useTheme, DEFAULT_THEME } = await freshModule();
+    const { useTheme } = await freshModule();
     const { result } = renderHook(() => useTheme());
-    expect(result.current.theme).toBe(DEFAULT_THEME);
+    expect(result.current.theme).toBe("light");
+
+    act(() => {
+      localStorage.setItem(KEY, "dark");
+      window.dispatchEvent(new Event("storage"));
+    });
+    expect(result.current.theme).toBe("dark");
 
     act(() => {
       localStorage.setItem(KEY, "light");
@@ -187,29 +194,18 @@ describe("applyTheme", () => {
   });
 });
 
-// An untouched visitor follows their device; a visitor who has chosen never
-// does. That split is the whole contract, and every case below is one side of
-// it — including the two that regressed a real product decision when this was
-// added (an explicit pick must survive an OS flip, in both directions).
+// The OS preference is ignored: light is the initial theme either way, and a
+// stored pick always wins.
 describe("system colour-scheme preference", () => {
-  it("uses SYSTEM_LIGHT_THEME on a light-mode device with no stored choice", async () => {
-    stubSystem(true);
-    const { useTheme, SYSTEM_LIGHT_THEME } = await freshModule();
+  it.each([true, false])("uses INITIAL_THEME when the device prefers light=%s", async (prefersLight) => {
+    stubSystem(prefersLight);
+    const { useTheme, INITIAL_THEME } = await freshModule();
     const { result } = renderHook(() => useTheme());
-    expect(result.current.theme).toBe(SYSTEM_LIGHT_THEME);
+    expect(result.current.theme).toBe(INITIAL_THEME);
     expect(result.current.scheme).toBe("light");
   });
 
-  it("uses DEFAULT_THEME on a dark-mode device with no stored choice", async () => {
-    stubSystem(false);
-    const { useTheme, DEFAULT_THEME } = await freshModule();
-    const { result } = renderHook(() => useTheme());
-    expect(result.current.theme).toBe(DEFAULT_THEME);
-  });
-
-  // The precedence rule. A stored pick is a deliberate act and outranks the
-  // device — otherwise choosing "Dark" on a light-mode laptop would not stick.
-  it("lets a stored choice outrank the device", async () => {
+  it("lets a stored choice outrank the initial theme", async () => {
     stubSystem(true);
     localStorage.setItem(KEY, "giedi");
     const { useTheme } = await freshModule();
@@ -217,38 +213,12 @@ describe("system colour-scheme preference", () => {
     expect(result.current.theme).toBe("giedi");
   });
 
-  // Unrecognised storage is not a choice — a stale id from an older build
-  // should land on the device preference, not on the hardcoded default.
-  it("falls through to the device for an unrecognised stored value", async () => {
-    stubSystem(true);
-    localStorage.setItem(KEY, "solarized-neon");
-    const { useTheme, SYSTEM_LIGHT_THEME } = await freshModule();
-    const { result } = renderHook(() => useTheme());
-    expect(result.current.theme).toBe(SYSTEM_LIGHT_THEME);
-  });
-
-  it("tracks the device flipping to light while no choice is stored", async () => {
-    const sys = stubSystem(false);
-    const { useTheme, DEFAULT_THEME, SYSTEM_LIGHT_THEME } = await freshModule();
-    const { result } = renderHook(() => useTheme());
-    expect(result.current.theme).toBe(DEFAULT_THEME);
-
-    act(() => sys.flip(true));
-
-    expect(result.current.theme).toBe(SYSTEM_LIGHT_THEME);
-    // The DOM has to move with it, or the store and the page disagree.
-    expect(document.documentElement.getAttribute("data-scheme")).toBe("light");
-  });
-
-  it("ignores the device flipping once a choice has been stored", async () => {
+  it("does not follow the device flipping", async () => {
     const sys = stubSystem(false);
     const { useTheme } = await freshModule();
     const { result } = renderHook(() => useTheme());
-    act(() => result.current.setTheme("giedi"));
-
+    act(() => sys.flip(false));
     act(() => sys.flip(true));
-
-    expect(result.current.theme).toBe("giedi");
-    expect(document.documentElement.getAttribute("data-theme")).toBe("giedi");
+    expect(result.current.theme).toBe("light");
   });
 });

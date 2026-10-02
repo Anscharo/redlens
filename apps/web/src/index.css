@@ -2829,3 +2829,35 @@ a.atlas-annotates:focus-visible {
 .msc-venue-row {
   cursor: pointer;
 }
+
+/* ─── Meaning-lane progress bar (SemanticProgress) ─── */
+/* A 6s fill, not a measurement — see the component for why there is no real
+   progress to report. `forwards` holds it at full if the search outruns the
+   animation; the component unmounts when the leg answers, so a parked full bar
+   always means "still going". The duration is mirrored in SemanticProgress.tsx
+   as SEMANTIC_PROGRESS_MS; a test pins the two together. */
+.semantic-progress-track {
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--border);
+}
+.semantic-progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  animation: semantic-progress-fill 6000ms ease-out forwards;
+}
+@keyframes semantic-progress-fill {
+  to {
+    width: 100%;
+  }
+}
+/* No motion means no bar at all here. A static track reads as a stalled search
+   and a static FULL one reads as a finished one — the stage label below carries
+   the same information without either misreading. */
+@media (prefers-reduced-motion: reduce) {
+  .semantic-progress-track {
+    display: none;
+  }
+}

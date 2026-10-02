@@ -1,0 +1,10 @@
+{
+  "number": 346,
+  "title": "Atlas Edit Proposal — 2026-09-28",
+  "body": "## Summary\n\nThis proposal includes the following edits:\n\n- **Onboard The Gauntlet USDC Prime Morpho Vault To The Osero Liquidity Layer** - Adds the Instance Configuration Document for the Gauntlet USDC Prime Morpho Vault V2 and enables the ERC-4626 and PSM Facets on the Osero Diamond PAU.\n- **Document The ERC-4626 Facet Controller Functions** - Defines the deposit, withdraw, and redeem functions of the ERC-4626 Facet, and adds an Osero process for withdrawing all ERC-4626 vault positions.\n- **Exempt The Force Deallocate Penalty From Morpho Vault Timelock Minimums** - Requires that setting the force deallocate penalty not be subject to a timelock delay (previously seven days).\n- **Housekeeping Updates** - Records the December 15, 2025 Genesis Capital Allocation transfers, completed Foundation grant transfers, and November 27, 2025 Gnosis payment. Corrects the Osero Initial Allocation distribution to identify both destinations, aligns controller action wording for consistency, updates completed ALM Proxy whitelisting language, and formats the Sky Core Solidity excerpts.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/346",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

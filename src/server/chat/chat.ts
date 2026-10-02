@@ -2,9 +2,9 @@
 // auth + conversation persistence; everything that shapes the turn before the
 // first model call (Jev judgement, tier routing, system prompt, full history,
 // facts, /teach notes) lives in prepareTurn (turn-setup.ts). History replay
-// and the 90% context compaction live in context-compact.ts (with its one
-// summarization call in context-summary.ts and the provider-rejection recovery
-// in context-overflow.ts); lookup cards
+// and the 90% context compaction live in context-compact.ts (driven by
+// compact-turn.ts, with its one summarization call in context-summary.ts and the
+// provider-rejection recovery in context-overflow.ts); lookup cards
 // for earlier tool calls live in tool-recall.ts. The tool-calling
 // control flow in the pure runChat() loop (chat-loop.ts), the LLM stream in llm.ts.
 //
@@ -20,24 +20,21 @@ import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } fr
 import type { PageContext } from "./system-prompt.ts";
 import { summarizeFacts } from "../facts/registry.ts";
 import { prepareTurn } from "./turn-setup.ts";
-import {
-  clearSummaryFailure,
-  compactForReplay,
-  contextUsedTokens,
-  noteSummaryFailure,
-  rowsAfterCursor,
-  summaryCoolingDown,
-  type ReplayRow,
-} from "./context-compact.ts";
-import {
-  clearContextOverflow,
-  isContextOverflowError,
-  noteContextOverflow,
-  shouldForceFold,
-} from "./context-overflow.ts";
+import { contextUsedTokens, rowsAfterCursor, type ReplayRow } from "./context-compact.ts";
+import { compactTurn } from "./compact-turn.ts";
+import { isContextOverflowError, noteContextOverflow, shouldForceCompaction } from "./context-overflow.ts";
 import { attachRecall } from "./tool-recall.ts";
 import type { RecallToolCall } from "./tool-recall-card.ts";
-import { agreedContradictionsFrom } from "./verify/disputes.ts";
+import { reviewNoteFromChecks, type ReviewNote } from "./verify/review-note.ts";
+import { REVIEW_LOOKBACK } from "./review-round.ts";
+
+/** One message_checks row, carrying the message it belongs to. */
+interface CheckRowWithMessage {
+  message_id: string;
+  kind: string;
+  verdict: unknown;
+  overall: string | null;
+}
 import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
 import { getWindowUsage } from "../rate-limit.ts";
@@ -209,7 +206,7 @@ export async function handleChat(req: Request): Promise<Response> {
     await sql`INSERT INTO messages (conversation_id, role, content) VALUES (${convId}, 'user', ${body.message})`;
     // The prior assistant answer's verify verdict (message_checks kind='verify'),
     // if any — read alongside the history SELECT so the dispute round
-    // (dispute-round.ts, via prepareTurn below) costs no extra round trip.
+    // (review-round.ts, via prepareTurn below) costs no extra round trip.
     // The LIMIT 1 sits in the SUBQUERY, not outside the join, and that is
     // load-bearing: an INNER JOIN written flat would skip assistant messages
     // that have NO verify row and hand back an OLDER answer's verdict. Not
@@ -224,29 +221,46 @@ export async function handleChat(req: Request): Promise<Response> {
     // AFTER the stream's `done`, so a user who sends their next message while
     // that write is still in flight gets no injection for THIS one turn —
     // degrades to today's behaviour (no dispute round at all), never worse.
-    const [historyRows, convState, lastVerify] = (await Promise.all([
+    const [historyRows, convState, checkRows] = (await Promise.all([
       sql`SELECT id, role, content, tool_calls FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
       // updated_at bump + the compaction cursor in one statement: the summary
       // columns live on the row this UPDATE already touches, so reading them
       // back costs nothing and saves a fourth round-trip per turn.
       sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId} RETURNING summary, summary_upto_id`,
+      // The check rows the USER SAW, for the newest REVIEW_LOOKBACK answers.
+      // Deliberately NOT a join onto the history SELECT above: message_checks has
+      // several kinds per message, so joining there would multiply history rows,
+      // and leaving that query byte-identical keeps its test mock untouched.
+      // The LIMIT stays inside the subquery — applied to the join it would cap
+      // ROWS, not answers, and silently drop an answer's findings.
       sql`
-        SELECT mc.verdict FROM (
+        SELECT mc.message_id, mc.kind, mc.verdict, mc.overall FROM (
           SELECT id FROM messages
           WHERE conversation_id = ${convId} AND role = 'assistant'
-          ORDER BY created_at DESC LIMIT 1
+          ORDER BY created_at DESC LIMIT ${REVIEW_LOOKBACK}
         ) m
-        JOIN message_checks mc ON mc.message_id = m.id AND mc.kind = 'verify'
-      `.catch(() => [] as { verdict: unknown }[]),
+        JOIN message_checks mc ON mc.message_id = m.id
+         AND mc.kind IN ('verify', 'round_checks', 'answer_coverage', 'citation_check')
+      `.catch(() => [] as CheckRowWithMessage[]),
     ])) as [
       { id: string; role: string; content: string; tool_calls: RecallToolCall[] | null }[],
       { summary: string | null; summary_upto_id: string | null }[],
-      { verdict: unknown }[],
+      CheckRowWithMessage[],
     ];
-    const disputes = agreedContradictionsFrom(lastVerify[0]?.verdict);
+    // One note per message, built through the same readers the browser uses on
+    // reload (verify/review-note.ts), so the model and the reader cannot disagree
+    // about what the badge said.
+    const notesByMessage = new Map<string, ReviewNote | null>();
+    for (const row of checkRows) {
+      if (notesByMessage.has(row.message_id)) continue;
+      notesByMessage.set(row.message_id, reviewNoteFromChecks(checkRows.filter((r) => r.message_id === row.message_id)));
+    }
     let summary = convState[0]?.summary ?? null;
     let history: ReplayRow[] = rowsAfterCursor(
-      historyRows.map((r) => ({ id: r.id, role: r.role, content: r.content, toolCalls: r.tool_calls })),
+      historyRows.map((r) => ({
+        id: r.id, role: r.role, content: r.content, toolCalls: r.tool_calls,
+        review: notesByMessage.get(r.id) ?? null,
+      })),
       convState[0]?.summary_upto_id,
     );
     // Trace id is minted here so a compaction call (rare — only the turn that
@@ -257,47 +271,36 @@ export async function handleChat(req: Request): Promise<Response> {
       traceId: crypto.randomUUID(),
       properties: {} as Record<string, unknown>,
     };
-    // Compaction runs before the first token of the turn that would cross
-    // 90% of the context window, and only then. A failure leaves the full
-    // tail in place and is not retried for SUMMARY_FAILURE_COOLDOWN_MS, so a
-    // hung summary model does not add chatSummaryTimeoutMs to every later
-    // turn. The summary pair is stable until the next compaction, so the
-    // turns in between keep a cacheable prefix.
+    // Compaction runs AFTER the answer — see the call below and compact-turn.ts.
+    // The summary it writes is read by the NEXT turn, so making this one wait
+    // for it bought nothing and cost up to chatSummaryTimeoutMs of a response
+    // that had not started yet.
     //
-    // `force` is the recovery path: the provider rejected this conversation
-    // for length on an earlier turn, so the 4-chars/token estimate was wrong
-    // here and this turn folds regardless of it (context-overflow.ts). It also
-    // overrides the failure cooldown — without a fold the turn is going to be
-    // rejected again anyway, so paying the timeout is the better bet.
-    // At most ONE forced fold per rejection — context-overflow.ts owns that
-    // state machine; this file only asks the question and reports the outcome.
-    const forceCompact = shouldForceFold(convId);
-    if (!teachCmd && config.chatSummaryModel && (forceCompact || !summaryCoolingDown(convId))) {
-      const compacted = await compactForReplay({
+    // The exception is recovery: the provider rejected this conversation for
+    // length on an earlier turn, so the 4-chars/token estimate was wrong here
+    // and this turn cannot proceed until the prefix is smaller. It also
+    // overrides the failure cooldown — without a smaller prefix the turn is
+    // going to be rejected again anyway, so paying the timeout is the better
+    // bet. At most ONE forced compaction per rejection: context-overflow.ts owns
+    // that state machine; this file only asks the question and reports the
+    // outcome — and reports what actually happened, not what it intended:
+    // `forcedCompaction` is what the catch block below passes as
+    // `forcedThisTurn`, so a forced compaction that a guard stood down (one was
+    // already in flight for this conversation) does not spend the one attempt
+    // per rejection.
+    let forcedCompaction = false;
+    if (!teachCmd && shouldForceCompaction(convId)) {
+      const compacted = await compactTurn({
+        convId,
         rows: history,
         summary,
-        windowTokens: config.chatContextWindowTokens,
         call: makeOpenrouterJson(obs, "atlas-chat-summary"),
-        model: config.chatSummaryModel,
-        timeoutMs: config.chatSummaryTimeoutMs,
-        force: forceCompact,
+        obs,
+        force: true,
       });
-      if (compacted.failed) noteSummaryFailure(convId);
-      if (compacted.compacted) {
-        clearSummaryFailure(convId);
-        clearContextOverflow(convId);
-        summary = compacted.summary;
-        history = compacted.rows;
-        // This turn replays `summary` from memory. If the write fails, the
-        // next turn re-reads the old cursor and compacts again — a second,
-        // different summary, and a cache miss. The error is captured; the
-        // turn still answers.
-        await sql`
-          UPDATE conversations SET summary = ${summary}, summary_upto_id = ${compacted.uptoId} WHERE id = ${convId}
-        `.catch((err) => {
-          captureError(err, obs, { stage: "compact_summary" });
-        });
-      }
+      summary = compacted.summary;
+      history = compacted.rows;
+      forcedCompaction = compacted.attempted;
     }
 
     const ix = getIndexes();
@@ -306,16 +309,16 @@ export async function handleChat(req: Request): Promise<Response> {
     // Everything the model reads before its first token — Jev judgement, tier
     // routing, system prompt, full history (plus a stable summary once the
     // thread has been compacted), facts round, Jev-filtered /teach notes, the
-    // dispute round — assembled by the one function the tool-choice eval also
+    // review round — assembled by the one function the tool-choice eval also
     // runs (turn-setup.ts). /teach never reaches any of it, so it never runs
     // one: no judgement, no routing (reason "teach"), no model input.
     const turn = teachCmd
       ? null
-      : await prepareTurn({ ix, message: body.message, history, summary, pageContext: body.pageContext, teachHits, disputes });
+      : await prepareTurn({ ix, message: body.message, history, summary, pageContext: body.pageContext, teachHits });
     const route = turn?.route ?? TEACH_ROUTE;
     // Counted over the STORED rows, not the replayed ones: titling fires on
     // turns 1/4/10 of a conversation's life, and `history` drops everything a
-    // compaction folded away — counting that would re-title a long thread.
+    // compaction summarized away — counting that would re-title a long thread.
     const priorAssistants = historyRows.filter((m) => m.role === "assistant").length;
 
     const startedAt = Date.now();
@@ -356,13 +359,29 @@ export async function handleChat(req: Request): Promise<Response> {
     }
 
     // What the NEXT turn of this conversation will read, once this answer is
-    // stored: the replay plus the standing prefix (context-compact.ts). This is
-    // what the composer's meter shows, and it is the same arithmetic
-    // needsCompaction uses — a number that only grows until a fold, rather than
-    // the measured prompt of one round, which rises with a turn's tool results
-    // and drops again on the next turn that needs none.
-    const usedAfter = (answer: string, toolCalls: RecallToolCall[]): number =>
-      contextUsedTokens(summary, [...history, { role: "assistant", content: answer, toolCalls }]);
+    // stored. Defined once and used twice — by the meter below and by the
+    // compaction that runs after the answer — so the size the user is shown and
+    // the rows we summarize can never describe different threads.
+    //
+    // `checksMeta` is this turn's own check rows, so the answer just produced
+    // carries its own review note (verify/review-note.ts). Attached HERE rather
+    // than in usedAfter so the compaction path gets the note-bearing rows too,
+    // keeping the one-definition invariant above intact — otherwise the meter
+    // would count the note and the rows handed to compaction would not.
+    const replayAfter = (answer: string, toolCalls: RecallToolCall[], checksMeta: CheckRowMeta[] = []): ReplayRow[] => [
+      ...history,
+      {
+        role: "assistant", content: answer, toolCalls,
+        review: reviewNoteFromChecks(checksMeta.map((c) => ({ kind: c.kind, verdict: c.verdict, overall: c.overall }))),
+      },
+    ];
+    // That replay plus the standing prefix (context-compact.ts) is what the
+    // composer's meter shows, and it is the same arithmetic needsCompaction
+    // uses — a number that only grows until a compaction, rather than the
+    // measured prompt of one round, which rises with a turn's tool results and
+    // drops again on the next turn that needs none.
+    const usedAfter = (answer: string, toolCalls: RecallToolCall[], checksMeta: CheckRowMeta[] = []): number =>
+      contextUsedTokens(summary, replayAfter(answer, toolCalls, checksMeta));
 
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
@@ -397,7 +416,7 @@ export async function handleChat(req: Request): Promise<Response> {
               checksMeta: [],
             };
             send({ type: "answer_final", content: done.content });
-            send({ ...sanitizeDone(done), contextUsed: usedAfter(done.content, []) });
+            send({ ...sanitizeDone(done), contextUsed: usedAfter(done.content, [], done.checksMeta) });
             if (!req.signal.aborted) {
               await persistAssistant(userId, convId, done, Date.now() - startedAt, obs);
               const TITLE_AT_TURNS = new Set([1, 4, 10]);
@@ -455,7 +474,7 @@ export async function handleChat(req: Request): Promise<Response> {
               // what persistAssistant stores — so the size the meter reports
               // is the size the next turn actually replays.
               carded = done.toolCalls.length ? attachRecall(done.toolCalls, done.transcript) : [];
-              send({ ...sanitizeDone(done), contextUsed: usedAfter(done.content, carded) });
+              send({ ...sanitizeDone(done), contextUsed: usedAfter(done.content, carded, done.checksMeta) });
             } else {
               send(ev);
             }
@@ -463,6 +482,17 @@ export async function handleChat(req: Request): Promise<Response> {
           // Don't persist an empty assistant row for an aborted turn.
           if (done && !req.signal.aborted) {
             await persistAssistant(userId, convId, { ...done, toolCalls: carded }, Date.now() - startedAt, obs);
+            // Compact here rather than before the first token: this summary is
+            // for the NEXT turn, so nobody is waiting on it. Unawaited for the
+            // same reason titling below is, and inside this guard because the
+            // answer it summarizes past is only stored on this branch.
+            void compactTurn({
+              convId,
+              rows: replayAfter(done.content, carded, done.checksMeta),
+              summary,
+              call: makeOpenrouterJson(obs, "atlas-chat-summary"),
+              obs,
+            }).catch((err) => captureError(err, obs, { stage: "compact_summary" }));
             // Cheap LLM titling on turns 1/4/10 only (≤3 calls per conversation
             // total; see title.ts). Unawaited + .catch()'d so it can never
             // surface as an unhandled rejection or delay the stream's own
@@ -481,14 +511,14 @@ export async function handleChat(req: Request): Promise<Response> {
           if (!req.signal.aborted) {
             captureError(err, obs, { stage: "stream_handler" });
             // A provider that rejects the request for length is the one error
-            // we can act on: flag the conversation so its next turn folds the
+            // we can act on: flag the conversation so its next turn compacts the
             // prefix even though our estimate said it fit, and say so in
             // words the user can act on instead of forwarding a raw 400.
             if (isContextOverflowError(err)) {
               // Flags the conversation AND returns the user-facing wording, so
               // what we promise and what the next turn does cannot drift apart.
               const message = noteContextOverflow(convId, {
-                forcedThisTurn: forceCompact,
+                forcedThisTurn: forcedCompaction,
                 compactionEnabled: !!config.chatSummaryModel,
               });
               send({ type: "error", message });

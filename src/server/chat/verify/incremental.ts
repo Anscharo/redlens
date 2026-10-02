@@ -74,7 +74,7 @@ export function describeFindings(r: PartialReport): string[] {
 export function checkParagraph(
   paragraph: string,
   definitions: string,
-  ctx: { ix: Indexes; question: string; evidence: ParagraphEvidence },
+  ctx: { ix: Indexes; question: string; evidence: ParagraphEvidence; leadIn?: string },
 ): { text: string; findings: string[] } {
   // The spec form is `expandReferenceLinks(definitions + "\n\n" + paragraph)`;
   // skipping the join when there are no definitions avoids prepending two
@@ -91,7 +91,7 @@ export function checkParagraph(
     invalidCitations: findInvalidCitationUuids(citations, ctx.ix),
     invalidDocNos: findInvalidDocNos(content, ctx.ix),
     docNoMismatches: findDocNoMismatches(citations, ctx.ix),
-    ungroundedQuotes: findUngroundedQuotes(content, ctx.evidence.atlasTexts, ctx.ix, ctx.question),
+    ungroundedQuotes: findUngroundedQuotes(content, ctx.evidence.atlasTexts, ctx.ix, ctx.question, ctx.leadIn),
     ungroundedAddresses: findUngroundedAddresses(content, ctx.evidence.allTexts),
     ungroundedCitationValues: findUngroundedCitationValues(content, ctx.evidence.atlasTexts, ctx.ix),
     paramMismatches: findParamMismatches(content, ctx.ix),
@@ -117,12 +117,21 @@ export function createParagraphStream(ctx: {
 }): ParagraphStream {
   const seg = createParagraphSegmenter();
   let index = 0;
+  // A blockquote's lead-in is the paragraph BEFORE it, so it has already closed
+  // and been checked by the time the block arrives. Carry its last non-empty
+  // line forward; a blockquote paragraph does not become the next lead-in, for
+  // the same reason the whole-answer scan does not let one.
+  let leadIn = "";
   const checkOne = (paragraph: string): ParagraphCheck => {
     const { text, findings } = checkParagraph(paragraph, seg.definitions(), {
       ix: ctx.ix,
       question: ctx.question,
       evidence: ctx.evidence(),
+      leadIn,
     });
+    const lines = paragraph.split("\n").filter((l) => l.trim());
+    const last = lines[lines.length - 1];
+    if (last && !/^\s*>/.test(last)) leadIn = last;
     return { index: index++, text, findings };
   };
   return {

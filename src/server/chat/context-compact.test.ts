@@ -85,7 +85,7 @@ describe("needsCompaction", () => {
 });
 
 describe("contextUsedTokens", () => {
-  it("is the number needsCompaction compares against the line, so the meter cannot disagree with a fold", () => {
+  it("is the number needsCompaction compares against the line, so the meter cannot disagree with a compaction", () => {
     const rows = Array.from({ length: 8 }, (_, i) => row(String(i), i % 2 ? "assistant" : "user", "x".repeat(4_000)));
     const window = 12_000;
     const used = contextUsedTokens(null, rows, 0);
@@ -117,13 +117,13 @@ describe("contextUsedTokens", () => {
 });
 
 describe("planCompaction", () => {
-  it("folds the prefix and keeps the tail, including the current question", () => {
+  it("summarizes the prefix and keeps the tail, including the current question", () => {
     const rows = Array.from({ length: 10 }, (_, i) => row(`id-${i}`, i % 2 ? "assistant" : "user", `m${i}`));
     const plan = planCompaction(rows);
     expect(plan).not.toBeNull();
     expect(plan!.tail).toHaveLength(COMPACT_TAIL);
     expect(plan!.tail.at(-1)?.content).toBe("m9");
-    expect(plan!.fold).toHaveLength(10 - COMPACT_TAIL);
+    expect(plan!.prefix).toHaveLength(10 - COMPACT_TAIL);
     expect(plan!.uptoId).toBe("id-3");
   });
 
@@ -134,7 +134,7 @@ describe("planCompaction", () => {
 });
 
 describe("rowsAfterCursor", () => {
-  it("drops through the folded message and keeps everything after", () => {
+  it("drops through the compacted message and keeps everything after", () => {
     const rows = [row("a", "user", "1"), row("b", "assistant", "2"), row("c", "user", "3")];
     expect(rowsAfterCursor(rows, "b").map((r) => r.id)).toEqual(["c"]);
   });
@@ -202,7 +202,7 @@ describe("compactForReplay", () => {
     expect(out.rows).toBe(rows);
   });
 
-  it("folds under the line when forced, keeping the shorter tail", async () => {
+  it("compacts under the line when forced, keeping the shorter tail", async () => {
     const rows = Array.from({ length: 8 }, (_, i) => row(`id-${i}`, i % 2 ? "assistant" : "user", "short"));
     expect(needsCompaction(null, rows, 200_000)).toBe(false);
     const out = await compactForReplay({
@@ -214,7 +214,7 @@ describe("compactForReplay", () => {
     expect(out.uptoId).toBe("id-5");
   });
 
-  it("folds an oversized prefix oldest-first into one summary", async () => {
+  it("summarizes an oversized prefix oldest-first into one summary", async () => {
     const seen: string[] = [];
     const chunked: JsonCall = async (req) => {
       const user = req.messages.find((m) => m.role === "user");
@@ -226,7 +226,7 @@ describe("compactForReplay", () => {
         latencyMs: 1,
       };
     };
-    // 12 rows so the six-row tail still fits while the six-row fold is larger
+    // 12 rows so the six-row tail still fits while the six-row prefix is larger
     // than one summarization budget (windowTokens * 0.7 * 4 chars).
     const rows = Array.from({ length: 12 }, (_, i) => row(`id-${i}`, "user", "y".repeat(50_000)));
     const out = await compactForReplay({
@@ -242,8 +242,8 @@ describe("compactForReplay", () => {
 
   it("shrinks the tail when the rows it would keep verbatim are over the line themselves", async () => {
     // Ten messages at the per-message cap against a small configured window:
-    // folding "everything but six" would leave a prompt the provider rejects
-    // again, and no later fold could fix it. The tail shrinks instead, and the
+    // compacting "everything but six" would leave a prompt the provider rejects
+    // again, and no later compaction could fix it. The tail shrinks instead, and the
     // question being answered always survives.
     const rows = Array.from({ length: 10 }, (_, i) => row(`id-${i}`, i % 2 ? "assistant" : "user", "x".repeat(28_000)));
     const out = await compactForReplay({
@@ -332,5 +332,64 @@ describe("verifier and recall cards", () => {
       { role: "assistant" as const, content: "answer" },
     ];
     expect(evidenceFromTranscript(transcript)).toEqual([]);
+  });
+});
+
+// --- Review notes: counted, but invisible to the history prefix --------------
+describe("ReplayRow.review", () => {
+  const note = {
+    badge: "failed verification",
+    findings: ["quote not found in any retrieved source: “a quote”"],
+    disputes: [],
+    coverage: null,
+    marks: [],
+  };
+  const rows = (review: typeof note | null): ReplayRow[] => [
+    { id: "m1", role: "user", content: "who approves budgets?" },
+    { id: "m2", role: "assistant", content: "The Governance Scope does.", review },
+  ];
+
+  it("leaves historyReplay byte-identical — the prefix is cache-stable", () => {
+    // The whole point of the note riding a separate tail round: the history
+    // prefix a provider caches must not change because a verdict landed.
+    expect(historyReplay(rows(note))).toEqual(historyReplay(rows(null)));
+  });
+
+  it("IS counted by replayTokens, so the meter and the 90% line see it", () => {
+    const withNote = replayTokens(null, rows(note));
+    const without = replayTokens(null, rows(null));
+    expect(withNote).toBeGreaterThan(without);
+    // And through every function that routes via replayTokens.
+    expect(contextUsedTokens(null, rows(note))).toBeGreaterThan(contextUsedTokens(null, rows(null)));
+  });
+
+  it("can be what tips a conversation over the compaction line", () => {
+    // needsCompaction short-circuits at rows.length <= COMPACT_TAIL, so this
+    // needs a thread longer than the tail to exercise the threshold at all.
+    const long = (review: typeof note | null): ReplayRow[] => [
+      ...Array.from({ length: COMPACT_TAIL + 2 }, (_, i) => ({ id: `m${i}`, role: i % 2 ? "assistant" : "user", content: `message ${i} of the thread` })),
+      { id: "last", role: "assistant", content: "The Governance Scope does.", review },
+    ];
+    const bare = contextUsedTokens(null, long(null), 0);
+    const noted = contextUsedTokens(null, long(note), 0);
+    expect(noted).toBeGreaterThan(bare);
+    // A window where the un-noted thread fits and the noted one does not: the
+    // note is real context, so it must be able to trigger a compaction.
+    const window = Math.floor(noted / COMPACT_RATIO);
+    expect(needsCompaction(null, long(null), window, 0)).toBe(false);
+    expect(needsCompaction(null, long(note), window, 0)).toBe(true);
+  });
+
+  it("a thread of clean answers costs nothing — notes are by exception", () => {
+    expect(replayTokens(null, rows(null))).toBe(replayTokens(null, [
+      { id: "m1", role: "user", content: "who approves budgets?" },
+      { id: "m2", role: "assistant", content: "The Governance Scope does." },
+    ]));
+  });
+
+  it("is dropped by the compaction cursor along with its row", () => {
+    // rowsAfterCursor runs before reviewRound, so a folded answer's note goes
+    // with it: the summary is a durable prefix and verdict text is perishable.
+    expect(rowsAfterCursor(rows(note), "m2")).toEqual([]);
   });
 });
