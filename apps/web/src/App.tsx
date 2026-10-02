@@ -159,7 +159,7 @@ export default function App() {
 
   // Shared props context for the SIMPLE_ROUTES table (see lib/lazyRoutes.tsx)
   // — the subset of this render's values any of those routes' props() need.
-  const routeCtx = { query, mode: activeMode, navigateToNode };
+  const routeCtx = { query, mode: activeMode };
 
   return (
     <div

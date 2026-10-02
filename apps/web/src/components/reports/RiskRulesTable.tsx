@@ -8,7 +8,8 @@ import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "@/lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
 import { EMPTY_QUERY, hiddenMatches, type ReportQuery } from "@/lib/reportFilter";
-import { Highlight, MatchAside } from "./Highlight";
+import { Highlight, MatchAside } from "./Highlight";import { useNavigateToNode } from "../../hooks/useNavigation";
+
 
 const SCORE_STYLE: Record<Preciseness, string> = {
   1: "bg-[color-mix(in_srgb,var(--red)_35%,transparent)] text-tan",
@@ -24,13 +25,13 @@ export function ScorePill({ s }: { s: Preciseness | null }) {
 }
 
 function ExpandedBody({
-  row, docs, onNavigate, rq,
+  row, docs, rq,
 }: {
   row: RiskRow;
   docs: Record<string, AtlasNode>;
-  onNavigate: (id: string) => void;
   rq: ReportQuery;
 }) {
+  const onNavigate = useNavigateToNode();
   const e = row.entry;
   // Expanded agent-copy rows (taskKey rewritten to u:<uuid> by joinRisk while
   // the shared entry keeps its t:… key) show their OWN paragraph, not the
@@ -110,13 +111,12 @@ function DomainPills({ row }: { row: RiskRow }) {
 }
 
 export function RiskTable({
-  rows, docs, expandedKey, onToggle, onNavigate, rq = EMPTY_QUERY,
+  rows, docs, expandedKey, onToggle, rq = EMPTY_QUERY,
 }: {
   rows: readonly RiskRow[];
   docs: Record<string, AtlasNode>;
   expandedKey: string | null;
   onToggle: (row: RiskRow) => void;
-  onNavigate: (id: string) => void;
   rq?: ReportQuery;
 }) {
   const { visible, remaining, showMore } = usePagedRows(rows);
@@ -173,7 +173,7 @@ export function RiskTable({
               expanded && (
                 <tr key={`${row.candidate.taskKey}:x`} className="border-t border-[var(--border)]">
                   <td colSpan={5} className="py-3 px-3 bg-[color-mix(in_srgb,var(--surface)_60%,transparent)]">
-                    <ExpandedBody row={row} docs={docs} onNavigate={onNavigate} rq={rq} />
+                    <ExpandedBody row={row} docs={docs} rq={rq} />
                   </td>
                 </tr>
               ),

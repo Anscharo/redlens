@@ -58,7 +58,6 @@ export const SharedCollectionOpener = lazyImport(
 export interface RouteCtx {
   query: string;
   mode: SearchMode;
-  navigateToNode: (id: string) => void;
 }
 
 export interface SimpleRoute {
@@ -77,8 +76,8 @@ const REPORT_PAGES: Record<ReportId, Omit<SimpleRoute, "path">> = {
   "oea-assessment": { Component: OeaAssessmentReport, props: searchProps },
   "onchain-addresses": { Component: OnchainAddressesReport, props: searchProps },
   rewards: { Component: RewardsReport, props: searchProps },
-  "risk-rules": { Component: RiskRulesReport, props: (c) => ({ ...searchProps(c), onNavigate: c.navigateToNode }) },
-  processes: { Component: ProcessesReport, props: (c) => ({ ...searchProps(c), onNavigate: c.navigateToNode }) },
+  "risk-rules": { Component: RiskRulesReport, props: searchProps },
+  processes: { Component: ProcessesReport, props: searchProps },
   "active-data": { Component: ActiveDataReport, props: searchProps },
   crossview: { Component: CrossViewPage, props: () => ({ tab: "shape" }) },
   "potential-mistakes": { Component: PotentialMistakesReport, props: searchProps },

@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useLocation } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import { track } from "../lib/analytics";
 
@@ -50,4 +51,11 @@ export function useNavigation({
   );
 
   return { navigateToNode, handleViewChange };
+}
+
+/** navigateToNode for a component that links into the atlas from outside the
+ *  reader, such as a report's expanded row, so the route need not pass it down. */
+export function useNavigateToNode(): (id: string) => void {
+  const [, navigate] = useLocation();
+  return useNavigation({ navigate, nodeId: null }).navigateToNode;
 }

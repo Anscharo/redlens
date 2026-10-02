@@ -12,7 +12,7 @@ import { useProcessesState } from "./useProcessesState";
 
 const REPORT: ReportId = "processes";
 
-export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: string) => void; query: string; mode: ReportMode }) {
+export function ProcessesReport({ query, mode }: { query: string; mode: ReportMode }) {
   // Curated explorer URLs for addresses in process docs on direct visits.
   useHydrateAddressMap();
   const s = useProcessesState(query, mode);
@@ -103,7 +103,6 @@ export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: 
             childrenByParentDocNo={s.childrenByParentDocNo}
             expandedUuid={expandedUuid}
             onToggle={toggleExpanded}
-            onNavigate={onNavigate}
             ignoresByUuid={ignoresByUuid}
             onMark={s.ignores.mark}
             onUnmark={s.ignores.unmark}

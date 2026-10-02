@@ -33,7 +33,7 @@ const statusCodec = categoryCodec<RiskRowStatus>({ fresh: "fresh", stale: "stale
 // pill click stays responsive.
 const DEFER = { transition: true };
 
-export function RiskRulesReport({ query, mode, onNavigate }: { query: string; mode: ReportMode; onNavigate: (id: string) => void }) {
+export function RiskRulesReport({ query, mode }: { query: string; mode: ReportMode }) {
   const atlas = useLoaded(loadAtlas);
   const artifact = useLoaded(loadRiskAssessment);
   // Curated explorer URLs for address linkification in quotes on direct visits.
@@ -137,7 +137,7 @@ export function RiskRulesReport({ query, mode, onNavigate }: { query: string; mo
       noRows={join.rows.length > 0 && filtered.length === 0}
     >
       {atlas && filtered.length > 0 && (
-        <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} onNavigate={onNavigate} rq={rq} />
+        <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} rq={rq} />
       )}
     </ReportShell>
   );

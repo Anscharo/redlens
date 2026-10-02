@@ -40,7 +40,6 @@ export function ProcessRow({
   stepChildren,
   expanded,
   onToggle,
-  onNavigate,
   existing,
   onMark,
   onUnmark,
@@ -51,7 +50,6 @@ export function ProcessRow({
   stepChildren: AtlasNode[];
   expanded: boolean;
   onToggle: () => void;
-  onNavigate: (id: string) => void;
   existing: LocalIgnore | undefined;
   onMark: (uuid: string, reason: string) => void;
   onUnmark: (uuid: string) => void;
@@ -103,7 +101,6 @@ export function ProcessRow({
             <ProcessExpandedBody
               node={node}
               steps={stepChildren}
-              onNavigate={onNavigate}
               existing={existing}
               onMark={onMark}
               onUnmark={onUnmark}

@@ -7,22 +7,22 @@ import { NodeContent } from "../NodeContent";
 import { ProcessCurationPanel } from "./ProcessCurationPanel";
 import type { LocalIgnore } from "../../lib/curationStore";
 import type { AtlasNode } from "@/types";
+import { useNavigateToNode } from "../../hooks/useNavigation";
 
 export function ProcessExpandedBody({
   node,
   steps,
-  onNavigate,
   existing,
   onMark,
   onUnmark,
 }: {
   node: AtlasNode;
   steps: AtlasNode[];
-  onNavigate: (id: string) => void;
   existing: LocalIgnore | undefined;
   onMark: (uuid: string, reason: string) => void;
   onUnmark: (uuid: string) => void;
 }) {
+  const onNavigate = useNavigateToNode();
   return (
     <div className="px-6 py-5 bg-[var(--bg)] border-l-2 border-[var(--accent)]">
       <div className="flex flex-col lg:flex-row gap-6">

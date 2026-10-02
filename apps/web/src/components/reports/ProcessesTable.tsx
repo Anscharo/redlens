@@ -23,7 +23,6 @@ export function ProcessesTable({
   childrenByParentDocNo,
   expandedUuid,
   onToggle,
-  onNavigate,
   ignoresByUuid,
   onMark,
   onUnmark,
@@ -35,7 +34,6 @@ export function ProcessesTable({
   childrenByParentDocNo: Map<string, AtlasNode[]>;
   expandedUuid: string | null;
   onToggle: (uuid: string) => void;
-  onNavigate: (id: string) => void;
   ignoresByUuid: Map<string, LocalIgnore>;
   onMark: (uuid: string, reason: string) => void;
   onUnmark: (uuid: string) => void;
@@ -68,7 +66,6 @@ export function ProcessesTable({
                 stepChildren={stepChildren}
                 expanded={expandedUuid === r.uuid}
                 onToggle={() => onToggle(r.uuid)}
-                onNavigate={onNavigate}
                 existing={ignoresByUuid.get(r.uuid)}
                 onMark={onMark}
                 onUnmark={onUnmark}
