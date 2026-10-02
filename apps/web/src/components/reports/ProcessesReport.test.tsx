@@ -84,7 +84,7 @@ describe("ProcessesReport row expand", () => {
   it("preserves active filter params in the URL when a row is expanded", async () => {
     window.history.pushState({}, "", "/reports/processes?status=active&shape=inline&category=Governance&ignored=1");
 
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
 
     const row = await screen.findByText("First Process");
     fireEvent.click(row.closest("tr")!);
@@ -101,7 +101,7 @@ describe("ProcessesReport row expand", () => {
   it("removes only the expanded param when the same row is toggled closed", async () => {
     window.history.pushState({}, "", "/reports/processes?status=active&expanded=uuid-1");
 
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
 
     const row = await screen.findByText("First Process");
     fireEvent.click(row.closest("tr")!);
@@ -114,7 +114,7 @@ describe("ProcessesReport row expand", () => {
 
 describe("ProcessesReport filtering", () => {
   it("shows all three processes across both categories with no filters active", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
     await screen.findByText("First Process");
     expect(screen.getByText("Second Process")).toBeInTheDocument();
     expect(screen.getByText("Third Process")).toBeInTheDocument();
@@ -124,7 +124,7 @@ describe("ProcessesReport filtering", () => {
   });
 
   it("filters to a single category when its pill is clicked", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
     await screen.findByText("First Process");
 
     fireEvent.click(screen.getByRole("button", { name: "Settlement" }));
@@ -139,7 +139,7 @@ describe("ProcessesReport filtering", () => {
   });
 
   it("clears the category filter when the same pill is clicked again", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
     await screen.findByText("First Process");
 
     const pill = screen.getByRole("button", { name: "Settlement" });
@@ -153,7 +153,7 @@ describe("ProcessesReport filtering", () => {
   });
 
   it("filters by status pill", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
     await screen.findByText("First Process");
 
     fireEvent.click(screen.getByRole("button", { name: "deferred-stub" }));
@@ -163,7 +163,7 @@ describe("ProcessesReport filtering", () => {
   });
 
   it("filters by shape pill", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
     await screen.findByText("First Process");
 
     fireEvent.click(screen.getByRole("button", { name: "child" }));
@@ -174,7 +174,7 @@ describe("ProcessesReport filtering", () => {
   });
 
   it("filters rows via the query prop (title search)", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="Second" mode="broad" />);
+    render(<ProcessesReport query="Second" mode="broad" />);
     // The matched query text is highlighted (split across a <mark>), so match
     // on the link's accessible name rather than a literal text node.
     await screen.findByRole("link", { name: "Second Process" });
@@ -185,13 +185,13 @@ describe("ProcessesReport filtering", () => {
   });
 
   it("shows the no-rows-match state when the query matches nothing", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="zzz-nonexistent" mode="broad" />);
+    render(<ProcessesReport query="zzz-nonexistent" mode="broad" />);
     await screen.findByText("0 processes");
     expect(screen.queryByText("First Process")).not.toBeInTheDocument();
   });
 
   it("expanding a child-shape process lists its doc_no step children", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
     const row = await screen.findByText("Third Process");
 
     fireEvent.click(row.closest("tr")!);
@@ -203,7 +203,7 @@ describe("ProcessesReport filtering", () => {
   });
 
   it("downloads the full CSV report", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
     await screen.findByText("First Process");
 
     fireEvent.click(screen.getByText("Download full report"));
@@ -219,7 +219,7 @@ describe("ProcessesReport filtering", () => {
 
 describe("ProcessesReport curation", () => {
   it("marks a row as NonProcess from the expanded panel and reflects it in the curation bar", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
     const row = await screen.findByText("First Process");
 
     // No curation bar until something is marked.
@@ -237,7 +237,7 @@ describe("ProcessesReport curation", () => {
   });
 
   it("reveals a marked row again via Show ignored, with an ignored badge", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
     const row = await screen.findByText("First Process");
 
     fireEvent.click(row.closest("tr")!);
@@ -255,7 +255,7 @@ describe("ProcessesReport curation", () => {
   });
 
   it("unmarks a row from the expanded panel, clearing the curation bar", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
     const row = await screen.findByText("First Process");
 
     fireEvent.click(row.closest("tr")!);
@@ -270,7 +270,7 @@ describe("ProcessesReport curation", () => {
   });
 
   it("exports the expected decisions.json shape after marking a row", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
     const row = await screen.findByText("First Process");
 
     fireEvent.click(row.closest("tr")!);
@@ -288,7 +288,7 @@ describe("ProcessesReport curation", () => {
   });
 
   it("clears all local marks via Clear all", async () => {
-    render(<ProcessesReport onNavigate={() => {}} query="" mode="broad" />);
+    render(<ProcessesReport query="" mode="broad" />);
     const row = await screen.findByText("First Process");
 
     fireEvent.click(row.closest("tr")!);

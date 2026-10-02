@@ -124,7 +124,7 @@ afterEach(() => {
 
 describe("RiskRulesReport", () => {
   it("renders one row per candidate with a summary strip", async () => {
-    render(<RiskRulesReport query="" mode="broad" onNavigate={() => {}} />);
+    render(<RiskRulesReport query="" mode="broad" />);
     await screen.findByText("Debt Ceiling Rule");
     expect(screen.getByText("Emergency Shutdown Trigger")).toBeInTheDocument();
     expect(screen.getByText(/2 Atlas sections match the filter/)).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe("RiskRulesReport", () => {
   });
 
   it("filters rows via the single-select precision (score) pills", async () => {
-    render(<RiskRulesReport query="" mode="broad" onNavigate={() => {}} />);
+    render(<RiskRulesReport query="" mode="broad" />);
     await screen.findByText("Debt Ceiling Rule");
 
     const scorePill = screen.getByRole("button", { name: /^4/ });
@@ -149,7 +149,7 @@ describe("RiskRulesReport", () => {
   });
 
   it("filters rows via the domain (multi-select) pills", async () => {
-    render(<RiskRulesReport query="" mode="broad" onNavigate={() => {}} />);
+    render(<RiskRulesReport query="" mode="broad" />);
     await screen.findByText("Debt Ceiling Rule");
 
     fireEvent.click(screen.getByRole("button", { name: /Smart Contract Security/ }));
@@ -161,7 +161,7 @@ describe("RiskRulesReport", () => {
   });
 
   it("filters rows via the in-report text query prop", async () => {
-    const { container } = render(<RiskRulesReport query="shutdown" mode="broad" onNavigate={() => {}} />);
+    const { container } = render(<RiskRulesReport query="shutdown" mode="broad" />);
     await screen.findByText("A.1.9.1");
     expect(container.textContent).toContain("Emergency");
     expect(container.textContent).toContain("Trigger");
@@ -169,12 +169,12 @@ describe("RiskRulesReport", () => {
   });
 
   it("shows the NoRowsMatch state when nothing matches the query", async () => {
-    render(<RiskRulesReport query="zzz-no-match" mode="broad" onNavigate={() => {}} />);
+    render(<RiskRulesReport query="zzz-no-match" mode="broad" />);
     await screen.findByText(/no.*match/i);
   });
 
   it("expands a row to show precision/incentives reasoning on click", async () => {
-    render(<RiskRulesReport query="" mode="broad" onNavigate={() => {}} />);
+    render(<RiskRulesReport query="" mode="broad" />);
     const row = await screen.findByText("Debt Ceiling Rule");
     fireEvent.click(row.closest("tr")!);
     expect(await screen.findByText("Names a concrete numeric ceiling.")).toBeInTheDocument();
@@ -182,21 +182,21 @@ describe("RiskRulesReport", () => {
   });
 
   it("shows the unassessed placeholder for rows without an entry", async () => {
-    render(<RiskRulesReport query="" mode="broad" onNavigate={() => {}} />);
+    render(<RiskRulesReport query="" mode="broad" />);
     const row = await screen.findByText("Emergency Shutdown Trigger");
     fireEvent.click(row.closest("tr")!);
     expect(await screen.findByText(/Not yet assessed/)).toBeInTheDocument();
   });
 
   it("shows CSV download controls once rows load", async () => {
-    render(<RiskRulesReport query="" mode="broad" onNavigate={() => {}} />);
+    render(<RiskRulesReport query="" mode="broad" />);
     await screen.findByText("Debt Ceiling Rule");
     expect(screen.getByRole("button", { name: "Download full report" })).toBeInTheDocument();
   });
 
   it("renders no CSV controls when there are zero rows", async () => {
     mockJoin = { rows: [], untriaged: 0, rejected: 0 };
-    render(<RiskRulesReport query="" mode="broad" onNavigate={() => {}} />);
+    render(<RiskRulesReport query="" mode="broad" />);
     await screen.findByText("Risk Rules Assessment");
     expect(screen.queryByRole("button", { name: "Download full report" })).not.toBeInTheDocument();
   });

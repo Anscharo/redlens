@@ -10,7 +10,6 @@ import type { ReportId } from "@/types";
 
 export interface RoleReportConfig<R extends RoleRow> {
   reportId: ReportId; // analytics report id + CSV export slug
-  heading: string; // h1 text
   introText: string; // sentence before the atlas link ("Every Atlas section mandating...")
   introDocUuid: string; // atlas link target; also the doc_no source (never hardcode the label)
   introLinkSuffix: string; // e.g. "Facilitators" | "GovOps", appended after the resolved doc_no

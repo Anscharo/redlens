@@ -21,7 +21,7 @@ afterEach(() => {
 describe("ReportShell", () => {
   it("renders the standard chrome and derives the document title from the heading", () => {
     render(
-      <ReportShell report="active-data" title="Active Data Index" query="" count="2 sections">
+      <ReportShell report="active-data" query="" count="2 sections">
         <p>body</p>
       </ReportShell>,
     );
@@ -34,12 +34,12 @@ describe("ReportShell", () => {
 
   it("fires report_view once, with the page's extra properties", () => {
     const { rerender } = render(
-      <ReportShell report="rewards" title="Rewards" query="" viewProps={{ row_count: 12 }}>
+      <ReportShell report="rewards" query="" viewProps={{ row_count: 12 }}>
         <p>body</p>
       </ReportShell>,
     );
     rerender(
-      <ReportShell report="rewards" title="Rewards" query="" viewProps={{ row_count: 12 }}>
+      <ReportShell report="rewards" query="" viewProps={{ row_count: 12 }}>
         <p>body again</p>
       </ReportShell>,
     );
@@ -50,7 +50,7 @@ describe("ReportShell", () => {
 
   it("holds report_view until the page is ready, then fires with the ready-time props", () => {
     const { rerender } = render(
-      <ReportShell report="risk-rules" title="Risk" query="" ready={false} viewProps={{ row_count: 0 }} loading>
+      <ReportShell report="risk-rules" query="" ready={false} viewProps={{ row_count: 0 }} loading>
         <p>body</p>
       </ReportShell>,
     );
@@ -58,7 +58,7 @@ describe("ReportShell", () => {
     expect(track).not.toHaveBeenCalled();
 
     rerender(
-      <ReportShell report="risk-rules" title="Risk" query="" ready viewProps={{ row_count: 7 }}>
+      <ReportShell report="risk-rules" query="" ready viewProps={{ row_count: 7 }}>
         <p>body</p>
       </ReportShell>,
     );
@@ -67,14 +67,14 @@ describe("ReportShell", () => {
 
   it("shows the no-rows line and hides the body while loading", () => {
     const { rerender } = render(
-      <ReportShell report="processes" title="Processes" query="zzz" loading>
+      <ReportShell report="processes" query="zzz" loading>
         <p>rows</p>
       </ReportShell>,
     );
     expect(screen.queryByText("rows")).not.toBeInTheDocument();
 
     rerender(
-      <ReportShell report="processes" title="Processes" query="zzz" noRows>
+      <ReportShell report="processes" query="zzz" noRows>
         <p>rows</p>
       </ReportShell>,
     );
