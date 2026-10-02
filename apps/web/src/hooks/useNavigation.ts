@@ -3,59 +3,51 @@ import { useLocation } from "wouter";
 import { ROUTES } from "@/lib/routes";
 import { track } from "../lib/analytics";
 
-// Read a param from the live URL at click time so it rides along on every
+// Copy params from the live URL at click time so they ride along on every
 // atlas-internal navigation (split stays open, active tab stays active).
-function currentParam(key: string): string | null {
-  if (typeof window === "undefined") return null;
-  return new URLSearchParams(window.location.search).get(key);
+function carryParams(params: URLSearchParams, keys: string[]): URLSearchParams {
+  if (typeof window === "undefined") return params;
+  const live = new URLSearchParams(window.location.search);
+  for (const key of keys) {
+    const value = live.get(key);
+    if (value) params.set(key, value);
+  }
+  return params;
 }
 
-export function useNavigation({
-  navigate,
-  nodeId,
-}: {
-  navigate: (to: string) => void;
-  nodeId: string | null;
-}) {
-  const navigateToNode = useCallback(
-    (id: string) => {
-      const params = new URLSearchParams();
-      params.set("id", id);
-      const split = currentParam("split");
-      if (split) params.set("split", split);
-      const view = currentParam("view");
-      if (view) params.set("view", view);
-      // Keep subset filters active across doc clicks: opening a doc from a
-      // filtered list should stay filtered, not jump to All.
-      const subset = currentParam("subset");
-      if (subset) params.set("subset", subset);
-      navigate(`${ROUTES.ATLAS}?${params}`);
-    },
+type Navigate = (to: string) => void;
+type RightTab = "notes" | "glossary" | "history";
+
+/** Opens a node in the reader. Subset filters stay active across doc clicks:
+ *  opening a doc from a filtered list stays filtered rather than jumping to All. */
+function useNodeNavigator(navigate: Navigate): (id: string) => void {
+  return useCallback(
+    (id: string) => navigate(`${ROUTES.ATLAS}?${carryParams(new URLSearchParams({ id }), ["split", "view", "subset"])}`),
     [navigate],
   );
+}
 
-  const handleViewChange = useCallback(
-    (v: "notes" | "glossary" | "history") => {
+/** Switches the reader's right panel. Notes is the default panel, so it rides the URL with no ?view= param. */
+function useViewChange(navigate: Navigate, nodeId: string | null): (v: RightTab) => void {
+  return useCallback(
+    (v: RightTab) => {
       track("atlas_view_tab", { node_id: nodeId, view: v });
       const params = new URLSearchParams();
       if (nodeId) params.set("id", nodeId);
-      // Notes is the default panel, so it rides the URL with no ?view= param.
       if (v !== "notes") params.set("view", v);
-      const split = currentParam("split");
-      if (split) params.set("split", split);
-      const subset = currentParam("subset");
-      if (subset) params.set("subset", subset);
-      navigate(`${ROUTES.ATLAS}?${params}`);
+      navigate(`${ROUTES.ATLAS}?${carryParams(params, ["split", "subset"])}`);
     },
     [navigate, nodeId],
   );
+}
 
-  return { navigateToNode, handleViewChange };
+export function useNavigation({ navigate, nodeId }: { navigate: Navigate; nodeId: string | null }) {
+  return { navigateToNode: useNodeNavigator(navigate), handleViewChange: useViewChange(navigate, nodeId) };
 }
 
 /** navigateToNode for a component that links into the atlas from outside the
  *  reader, such as a report's expanded row, so the route need not pass it down. */
 export function useNavigateToNode(): (id: string) => void {
   const [, navigate] = useLocation();
-  return useNavigation({ navigate, nodeId: null }).navigateToNode;
+  return useNodeNavigator(navigate);
 }
