@@ -14,8 +14,7 @@ import {
 import { REPORT_TITLES, REPORT_DESCRIPTIONS } from "./routes";
 
 describe("catalog completeness", () => {
-  // The real failure this guards: adding a report to ReportId/routes.ts and
-  // forgetting the index, so it ships unreachable from /reports.
+  // A report whose group key matches no section would ship unreachable from /reports.
   it("places every known report in exactly one group", () => {
     const ids = catalogReportIds();
     const known = Object.keys(REPORT_TITLES).sort();

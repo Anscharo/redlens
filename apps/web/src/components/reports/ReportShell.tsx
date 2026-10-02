@@ -9,16 +9,16 @@
 // renders outside the centered column.
 import type { ReactNode } from "react";
 import type { ReportId } from "@/types";
+import { REPORT_TITLES } from "@/lib/routes";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { FilterSummary } from "./FilterSummary";
-import { NoRowsMatch } from "./NoRowsMatch";
+import { ReportBody } from "./ReportBody";
+import { ReportHeader } from "./ReportHeader";
 import { useReportView } from "./useReportQuery";
 
 export interface ReportShellProps {
-  /** Analytics slug + report id (also the `report` property on every event). */
+  /** Report id: the analytics `report` property, and the h1 is its registered title. The document title defaults to "<title>: Sky Atlas by Redline". */
   report: ReportId;
-  /** h1 text. The document title defaults to "<title>: Sky Atlas by Redline". */
-  title: string;
   documentTitle?: string;
   description?: ReactNode;
   /** Second, muted line under the description (e.g. the assessment provenance). */
@@ -61,59 +61,25 @@ export function ReportCountRow({ count, actions }: { count?: ReactNode; actions?
   );
 }
 
-export function ReportShell({
-  report,
-  title,
-  documentTitle,
-  description,
-  note,
-  noteTitle,
-  maxWidth = "max-w-5xl",
-  controls,
-  query,
-  filters,
-  searches,
-  count,
-  actions,
-  loading = false,
-  ready,
-  viewProps,
-  noRows = false,
-  children,
-  fullWidth,
-}: ReportShellProps) {
-  useDocumentTitle(documentTitle ?? `${title}: Sky Atlas by Redline`);
-  useReportView(report, ready ?? !loading, viewProps);
+export function ReportShell(props: ReportShellProps) {
+  const { report, maxWidth = "max-w-5xl", query, count, actions, loading = false } = props;
+  const title = REPORT_TITLES[report];
+  useDocumentTitle(props.documentTitle ?? `${title}: Sky Atlas by Redline`);
+  useReportView(report, props.ready ?? !loading, props.viewProps);
   const showCountRow = count != null || actions != null;
 
   return (
     <div className="px-6 py-6">
       <div className={`${maxWidth} mx-auto`}>
-        <p className="mono text-xs text-tan-3 mb-1">report</p>
-        <h1 className="text-xl font-semibold mb-1" style={{ color: "var(--tan)" }}>
-          {title}
-        </h1>
-        {description && (
-          <p className={`text-sm text-tan-3 ${note ? "mb-1" : "mb-5"}`}>{description}</p>
-        )}
-        {note && (
-          <p className="mono text-xs text-tan-3 mb-4" title={noteTitle}>
-            {note}
-          </p>
-        )}
-        {controls}
-        <FilterSummary query={query} filters={filters} searches={searches} />
+        <ReportHeader title={title} description={props.description} note={props.note} noteTitle={props.noteTitle} />
+        {props.controls}
+        <FilterSummary query={query} filters={props.filters} searches={props.searches} />
         {showCountRow && <ReportCountRow count={count} actions={actions} />}
-        {loading ? (
-          <p className="mono text-xs text-tan-3">Loading…</p>
-        ) : (
-          <>
-            {noRows && <NoRowsMatch query={query} />}
-            {children}
-          </>
-        )}
+        <ReportBody loading={loading} noRows={props.noRows ?? false} query={query}>
+          {props.children}
+        </ReportBody>
       </div>
-      {!loading && fullWidth}
+      {!loading && props.fullWidth}
     </div>
   );
 }

@@ -39,6 +39,7 @@
     "chains:add": "node scripts/aux/add-chain.mjs",
     "words:fetch": "bun scripts/aux/fetch-common-words.mjs",
     "env:prune": "node scripts/aux/prune-pr-environments.mjs",
+    "env:example": "bun scripts/aux/env-example.ts",
     "settlements:parse": "node scripts/aux/parse-settlements.mjs",
     "processes:check": "node scripts/required/check-processes-dirty.mjs",
     "processes:triage": "bash scripts/aux/processes-triage.sh",
