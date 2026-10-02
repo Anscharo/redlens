@@ -5,6 +5,7 @@ import { sql, toVectorLiteral, toUuidArrayLiteral } from "../db.ts";
 import { fromUuidArray } from "../pg-array.ts";
 import { embedQuery } from "./embed.ts";
 import { config } from "../config.ts";
+import { MINISEARCH_SEARCH_OPTIONS } from "../../lib/searchOptions.ts";
 import { compactProse } from "../../lib/shortenTitle.ts";
 import { rewriteSemanticHit, type Via, type LeafSemanticScore } from "./embed-units.ts";
 import { expandQueryTokens, partitionByOriginalTerms } from "../../lib/searchInflect.ts";
@@ -58,9 +59,8 @@ export function runLexical(ix: Indexes, query: string, type: string | undefined,
   const expansion = expandQueryTokens(tokens);
   const q = expansion.extra.length > 0 ? `${query} ${expansion.extra.join(" ")}` : query;
   let results = ix.mini.search(q, {
-    boost: { title: 10, doc_no: 5, type: 2 },
-    prefix: true,
-    fuzzy: false,
+    ...MINISEARCH_SEARCH_OPTIONS, boost: { title: 10, doc_no: 5, type: 2 },
+    prefix: true, fuzzy: false,
     combineWith: "OR",
   });
   if (expansion.extra.length > 0) {
