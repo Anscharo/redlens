@@ -821,14 +821,18 @@ describe("semantic lane", () => {
     expect(semanticCalls()).toHaveLength(2);
   });
 
-  it("still stands down when in: is mixed with syntax only the lexical leg enforces", async () => {
+  it("keeps the in: scope and strips the filter beside it, rather than standing down", async () => {
+    // `in:` is a doc-number filter the semantic query honours in SQL; `type:` has
+    // no string to act on here, so it is dropped and the status line says so.
     const calls: string[] = [];
     const h = await withSemantic({ hits: [], skipped: null, available: true }, { calls });
     const id = ask(h, "in:A.1 type:Core quorum", { lane: "semantic" });
-    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id)) as Results;
-    expect(msg.semantic).toBe("none");
-    await new Promise((r) => setTimeout(r, SEMANTIC_DEBOUNCE_MS + 60));
-    expect(calls.some((u) => u.includes("/api/search/semantic"))).toBe(false);
+    const msg = (await h.waitFor((m) => m.type === "results" && m.id === id && m.semantic === "done")) as Results;
+    expect(msg.semantic).toBe("done");
+    const url = calls.find((u) => u.includes("/api/search/semantic"))!;
+    expect(url).toContain("q=quorum");
+    expect(url).toContain("in=A.1");
+    expect(url).not.toContain("type");
   });
 
   it("a missing lane/sem behaves exactly as before the feature existed", async () => {

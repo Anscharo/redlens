@@ -129,18 +129,24 @@ export function semanticWorthAsking(q: string): boolean {
   return t.length >= MIN_SEMANTIC_QUERY && t.length <= MAX_SEMANTIC_QUERY;
 }
 
-// Structured, lexical-only query syntax: a field filter (title:, type:,
-// content:, doc_no:), an exclusion (-word), or the fuzzy operator (foo~2).
-// Matches what the search worker parses out before it reaches MiniSearch.
+// Structured, lexical-only query syntax, in the three shapes the search worker
+// parses out before MiniSearch sees them: a field filter (title:, type:,
+// content:, doc_no:), an exclusion (-word), and the fuzzy operator (foo~2).
+// Each captures the whole token, because the reader is told verbatim which ones
+// the meaning lane dropped.
 //
 // `in:` is deliberately EXEMPT — it is a doc-number subtree filter, and unlike
-// the others it can be enforced on the semantic side too (doc_no is a column on
+// the others it IS honoured on the meaning lane (doc_no is a column on
 // atlas_doc_meta, which the semantic query already joins). See semanticQueryOf.
-// Case-INSENSITIVE, and that matters only for the `in:` exemption: the
-// lexical leg parses the scope with a /gi regex, so `In:A.6` is a scope
-// there. Without the flag here the same query read as unknown structured
-// syntax and stood the whole lane down.
-const LEXICAL_SYNTAX_RE = /\b(?!in:)\w+:\S|(?:^|\s)-\w|\S~\d/i;
+// Case-INSENSITIVE, and that matters only for the `in:` exemption: the lexical
+// leg parses the scope with a /gi regex, so `In:A.6` is a scope there, and
+// without the flag here the same query would read as a filter to drop.
+//
+// A field filter's value may be quoted, so it is matched whole — that keeps the
+// quotes inside `type:"Type Specification"` out of the quoting report below.
+const FIELD_FILTER_RE = /\b(?!in:)\w+:(?:"[^"]*"|'[^']*'|\S+)/gi;
+const EXCLUSION_RE = /(^|\s)(-\w+)/g;
+const FUZZY_RE = /\S+~\d+/g;
 
 /** The `in:A.6.1` subtree filter, as the search worker parses it. */
 const IN_SCOPE_RE = /\bin:(\S+)/gi;
@@ -174,14 +180,50 @@ export function anchorCouldServeScope(docNo: string, scope: string): boolean {
 }
 
 /**
- * The text to embed for `q`, or null when the semantic lane should stand down.
+ * Split `q` into the text this lane can embed, the `in:` scope it honours, and
+ * the lexical-only syntax it cannot.
  *
- * It stands down on structured syntax, and that is a correctness rule rather
- * than a nicety: `type:`, `in:` and `-word` are enforced by the LEXICAL leg
- * against the document map, so a semantic hit would come back unfiltered and a
- * search for `type:Core rewards` would be answered partly with documents that
- * are not Core. Rather than reimplement those filters over the semantic result
- * set, a query precise enough to use them is left to the lane that honours it.
+ * ONE function, because the strip and the reader-facing note must never
+ * disagree about what was dropped: `semanticQueryOf` sends `bare`, and
+ * `semanticLaneLimit` reports `ignored`.
+ *
+ * `in:` comes out first because it is a filter and not something to embed —
+ * left in the text, the model would score documents against the literal string
+ * "in:A.6.1". Everything else in `ignored` is simply removed: this lane scores
+ * whole documents, so there is no string for a field filter, an exclusion, a
+ * fuzzy operator or a quoted phrase to act on. The reader is told, rather than
+ * being answered as though their filter had applied.
+ *
+ * The truncation is BEFORE the length check, not after: a pasted paragraph is
+ * exactly the query meaning-matching can help with, and refusing it over its
+ * length would be the one case where the lane stands down for no reason.
+ */
+function planSemantic(q: string): { bare: string; scope?: string; ignored: string[] } {
+  let scope: string | undefined;
+  const withoutScope = q.replace(IN_SCOPE_RE, (_, p: string) => {
+    scope = p.toUpperCase();
+    return " ";
+  });
+  const ignored: string[] = [];
+  const rest = withoutScope
+    .replace(FIELD_FILTER_RE, (m) => { ignored.push(m); return " "; })
+    .replace(EXCLUSION_RE, (_m, lead: string, word: string) => { ignored.push(word); return lead; })
+    .replace(FUZZY_RE, (m) => { ignored.push(m); return " "; });
+  // Quoting is reported separately from the operators because its consequence
+  // differs: the words survive the strip, only the promise of a literal match
+  // does not. Each mark is named once, as the reader typed it.
+  for (const mark of ['"', "'"]) if (rest.includes(mark)) ignored.push(`${mark}…${mark}`);
+  const bare = rest
+    .replace(/["']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_SEMANTIC_QUERY)
+    .trim();
+  return scope ? { bare, scope, ignored } : { bare, ignored };
+}
+
+/**
+ * The request to send for `q`, or null when there is nothing left to score.
  *
  * Quoted phrases DO pass, with the quote characters dropped: a phrase search
  * that found nothing literally is exactly where meaning-matching earns its
@@ -189,26 +231,28 @@ export function anchorCouldServeScope(docNo: string, scope: string): boolean {
  * to contain a phrase it does not.
  */
 export function semanticQueryOf(q: string): SemanticQuery | null {
-  if (LEXICAL_SYNTAX_RE.test(q)) return null;
-  // Pull `in:` out before anything else: it is a filter, not something to
-  // embed. Leaving it in the text would have the model scoring documents
-  // against the literal string "in:A.6.1".
-  let scope: string | undefined;
-  const withoutScope = q.replace(IN_SCOPE_RE, (_, p: string) => {
-    scope = p.toUpperCase();
-    return " ";
-  });
-  // Truncate BEFORE the length check, not after: a pasted paragraph is exactly
-  // the query meaning-matching can help with, and refusing it over its length
-  // would be the one case where the lane stands down for no reason.
-  const bare = withoutScope
-    .replace(/["']/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, MAX_SEMANTIC_QUERY)
-    .trim();
-  if (!semanticWorthAsking(bare)) return null;
-  return scope ? { query: bare, scope } : { query: bare };
+  const p = planSemantic(q);
+  if (!semanticWorthAsking(p.bare)) return null;
+  return p.scope ? { query: p.bare, scope: p.scope } : { query: p.bare };
+}
+
+/**
+ * What the meaning lane could not honour for `q`, or null when it answers the
+ * query exactly as typed. Drives the note above the results.
+ *
+ * `too-short` WINS over `ignored`, because the two describe different legs: with
+ * nothing embeddable left the lane stands down and the lexical leg answers, and
+ * that leg does honour the syntax — calling it ignored would be false. `syntax`
+ * rides along in both so the note can name what emptied the query.
+ */
+export type SemanticLaneLimit =
+  | { kind: "ignored"; syntax: string[] }
+  | { kind: "too-short"; syntax: string[] };
+
+export function semanticLaneLimit(q: string): SemanticLaneLimit | null {
+  const p = planSemantic(q);
+  if (!semanticWorthAsking(p.bare)) return { kind: "too-short", syntax: p.ignored };
+  return p.ignored.length > 0 ? { kind: "ignored", syntax: p.ignored } : null;
 }
 
 // Reciprocal Rank Fusion constant. 60 is the value the chat retrieval path

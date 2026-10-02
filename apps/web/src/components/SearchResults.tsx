@@ -103,7 +103,11 @@ export const SearchResults = memo(function SearchResults({
   // Query is non-broad when mode pill is phrase/strict, or user typed explicit quotes
   const isNonBroad = mode !== "broad" || query.includes('"') || query.includes("'");
   const strippedQuery = query.replace(/["']/g, "").replace(/\s+/g, " ").trim();
-  const suggestBroad = noResults && isNonBroad && strippedQuery;
+  // Only on the wording lane, the same rule the worker applies to `didYouMean`:
+  // the meaning lane drops the quotes before embedding, so re-running the same
+  // words "broad" there would send the identical request and get the identical
+  // empty answer — the status line says they were ignored instead.
+  const suggestBroad = noResults && lane === "lexical" && isNonBroad && strippedQuery;
   // A spelling correction the worker already re-ran, so clicking it cannot land
   // on another empty page. This replaced a "try fuzzy: accounting~2" hint, which
   // asked the reader to learn an operator in order to recover from a typo.

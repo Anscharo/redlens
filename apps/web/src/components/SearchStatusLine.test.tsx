@@ -100,6 +100,58 @@ describe("SearchStatusLine", () => {
   });
 });
 
+describe("syntax the meaning lane cannot honour", () => {
+  it("names what was stripped, and why, beside the results it did find", () => {
+    setup(done({ semantic: "done", query: "type:Core rewards", lane: "semantic" }), {
+      lane: "semantic",
+      shown: 5,
+      total: 5,
+    });
+    expect(
+      screen.getByText("type:Core ignored — meaning search scores whole documents, not strings"),
+    ).toBeInTheDocument();
+  });
+
+  it("lists every dropped operator, quoting included", () => {
+    setup(done({ semantic: "done", query: 'type:Core "sky core" -fees', lane: "semantic" }), {
+      lane: "semantic",
+      shown: 2,
+      total: 2,
+    });
+    expect(screen.getByText(/type:Core -fees "…" ignored/)).toBeInTheDocument();
+  });
+
+  it("never names in: — that filter is honoured here", () => {
+    setup(done({ semantic: "done", query: "in:A.6 who approves rewards", lane: "semantic" }), {
+      lane: "semantic",
+      shown: 3,
+      total: 3,
+    });
+    expect(screen.queryByText(/ignored/)).toBeNull();
+  });
+
+  it("says a query is too short to score, rather than just 'nothing to score'", () => {
+    setup(done({ semantic: "none", query: "ab", lane: "semantic" }), { lane: "semantic" });
+    expect(
+      screen.getByText("too short to score by meaning (3 characters minimum) — showing wording matches"),
+    ).toBeInTheDocument();
+  });
+
+  it("says what emptied the query when stripping is what left it too short", () => {
+    // NOT "ignored": nothing embeddable was left, so the lane stood down and the
+    // lexical leg answered — and that leg DID apply the exclusion.
+    setup(done({ semantic: "none", query: "-fees", lane: "semantic" }), { lane: "semantic" });
+    expect(
+      screen.getByText("nothing left to score by meaning after -fees — showing wording matches"),
+    ).toBeInTheDocument();
+  });
+
+  it("stays quiet on the wording lane, which honours the syntax", () => {
+    setup(done({ semantic: "none", query: "type:Core rewards" }), { shown: 1, total: 1 });
+    expect(screen.queryByText(/ignored/)).toBeNull();
+  });
+});
+
 describe("a lane still loading", () => {
   it("says searching, not 'no results', while the caller reports work in flight", () => {
     // The entities lane is the case this exists for: its hits come from the

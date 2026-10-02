@@ -167,7 +167,11 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   useEffect(() => {
     if (location !== ROUTES.HOME) { search(""); return; }
     if (deferredQuery.startsWith("/")) { search(""); return; }
-    const withMode = applyMode(deferredQuery, mode);
+    // The mode wrap is NOT applied on the meaning lane: `?mode=strict` left over
+    // from a wording search would quote the query, and this lane would then both
+    // strip those quotes and report them back as ignored syntax the reader never
+    // typed. The pills are disabled there for the same reason.
+    const withMode = lane === "semantic" ? deferredQuery : applyMode(deferredQuery, mode);
     search(withMode.trim() ? withMode : "", { lane });
   }, [deferredQuery, mode, location, search, lane]);
 

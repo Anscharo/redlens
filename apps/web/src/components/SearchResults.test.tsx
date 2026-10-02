@@ -168,6 +168,17 @@ describe("SearchResults no-results suggestions", () => {
     expect(screen.queryByText(/try broad:/)).toBeNull();
     expect(screen.queryByText(/try fuzzy:/)).toBeNull();
   });
+
+  it("does not offer 'try broad' off the wording lane", () => {
+    // The meaning lane drops the quotes before embedding, so re-running the same
+    // words broad would send the identical request — the status line says the
+    // quoting was ignored instead.
+    setup(
+      makeSearchState({ query: '"delegated signers"', lane: "semantic", semantic: "done" }),
+      { query: '"delegated signers"', mode: "phrase", lane: "semantic" },
+    );
+    expect(screen.queryByText(/try broad:/)).toBeNull();
+  });
 });
 
 describe("SearchResults pagination", () => {
