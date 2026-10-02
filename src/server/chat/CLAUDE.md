@@ -1,18 +1,22 @@
 # Chat server
 
-Context the chat injects before the model runs is the fact registry, and the similarity lanes that `complexity.ts`, `announcement.ts` and `prefetch-judge.ts` use are documented with it: see `src/server/facts/CLAUDE.md`. Add a fact there, never by editing `chat.ts`.
+How the chat works end to end (loop, tools, harness, guard rails, delivery, SSE contract, evals): [`docs/chat-system.md`](../../../docs/chat-system.md). Read it before changing anything under `src/server/chat/` or `apps/web/src/components/chat/`. The plans in `docs/plans/archive/` record intent only, not current behaviour.
 
-Two distinctions the chat must never blur, and where each is enforced: **this chat vs the whole web app** (the features fact's `chat` / `app` split) and **the Atlas vs our extraction** — the atlas is the source documents; entities, relations, roles, addresses, params, censuses and every report built on them are SAbR's parse of them. That one is stated globally in the system prompt's "Entity traversal (live graph)" section, and reinforced by the features fact's `vocabulary` block and `CENSUSES_NOTE`.
+Context injected before the model runs is the fact registry, and the similarity lanes that `complexity.ts`, `announcement.ts` and `prefetch-judge.ts` use are documented with it: see `src/server/facts/CLAUDE.md`. Add a fact there, never by editing `chat.ts`.
 
-## Chat reliability harness
+## Two distinctions the chat never blurs
 
-**How the chat system works today: [`docs/chat-system.md`](../../../docs/chat-system.md)** — the canonical
-end-to-end technical doc (loop, tools, harness, guard rails, delivery, SSE contract, evals).
-Read it before changing anything under `src/server/chat/` or `apps/web/src/components/chat/`. The
-plans that produced the system are archived in `docs/plans/archive/` — intent only, not current
-behavior. Remaining work:
+- **This chat vs the whole web app**: enforced by the features fact's `chat` / `app` split.
+- **The Atlas vs our extraction**: the Atlas is the source documents; entities, relations, roles, addresses, params, censuses and every report built on them are SAbR's parse of them. The system prompt's "Entity traversal (live graph)" section states it, and the features fact's `vocabulary` block and `CENSUSES_NOTE` reinforce it.
 
-- ~~Wire in verifier-slices~~ **Done 2026-08-06, refutation-only since 2026-09-10**: the verifier no longer scores what an answer gets right, only what the evidence contradicts. Two concurrent auditors (`refute`, `overreach`) plus one conditional `confirm` call (runs only when ≥1 candidate survived code span-validation, so a clean answer pays nothing extra) replace the old 4-slice `claims`/`figures`/`sets`/`overreach` split; `verifier.ts`'s single-prompt `runVerifier` survives solely for `pnpm eval:verifier`. Per-slice models via `CHAT_VERIFIER_SLICE_MODELS="refute=m1,overreach=m2,confirm=m3"`. Keep `CHAT_VERIFIER_MODEL` as gemma-4 until `pnpm eval:slices`, re-targeted at the new three-auditor shape, says otherwise.
-- ~~Wave 2: parameter table / liveness / absence contract~~ **Done 2026-08-07**, re-plumbed for refutation-only 2026-09-10 (STATUS notes in synlang-wiki.md §3.1/§3.2): `src/lib/paramIndex.ts` (1,019 rows) + `src/lib/liveness.ts` (1,224 tags) are derived in `buildIndexes()` — never stale vs served docs, no healer dependency; `atlas_params` tool + liveness tags/hint on tool-result rows. The parameter table and the absence contract (`verify/absence.ts`) now both feed the `refute`/`confirm` pipeline as ordinary candidate contradictions rather than their own refuted/grounded/unverified outcomes. Remaining wiki-plan parts (v2 card rerun, attach-on-hit, Phase 2, A.6 rollup) are DEFERRED pending further investigation — status ledger at the top of docs/research/constraints-wiki.md; do not build them without a new decision.
-- **Class completeness (not started):** superlative / exhaustive questions (`oldest`, `all`) cannot be answered from ranked search. Plan: [`docs/plans/chat-class-completeness.md`](../../../docs/plans/chat-class-completeness.md) — `atlas_filter` by title + honest `{total, has_more}`, class-mode `atlas_first_seen` (title/type filter, not a new tool), a completeness fail surfaced in the badge, eval so search-and-stop cannot regress.
-- **Incremental per-paragraph checking (2026-09-10):** the server now runs the deterministic verification passes per paragraph as the answer streams (`paragraph_check` events, rendered under the Verifying step — or Comparing when no model is configured) — the model's `refute` audit now also runs per paragraph, concurrently with generation, and reports each result as `paragraph_refute` (`CHAT_REFUTE_MODE`, default `paragraph`).
+## Verifier
+
+- The verifier is refutation-only: it reports what the evidence contradicts, never what an answer gets right. Two concurrent auditors (`refute`, `overreach`) run on every answer, and a `confirm` call runs only when at least one candidate survives code span validation, so a clean answer pays nothing extra.
+- The auditors live in `verify/sliced-verifier.ts` (`runSlicedVerifier`). Per-slice models: `CHAT_VERIFIER_SLICE_MODELS="refute=m1,overreach=m2,confirm=m3"`. `CHAT_VERIFIER_MODEL` stays on gemma-4 until `pnpm eval:verifier` or `pnpm eval:slices` says otherwise.
+- The parameter table (`src/lib/paramIndex.ts`), liveness tags (`src/lib/liveness.ts`) and the absence contract (`verify/absence.ts`) feed the `refute`/`confirm` pipeline as candidate contradictions, not as outcomes of their own. The two indexes are derived in `buildIndexes()`, so they are never stale against the served docs.
+- The deterministic verification passes run per paragraph as the answer streams (`paragraph_check` events). With `CHAT_REFUTE_MODE=paragraph` (the default) the `refute` audit also runs per paragraph, concurrently with generation, and reports `paragraph_refute`.
+
+## Not built
+
+- **Class completeness**: superlative and exhaustive questions (`oldest`, `all`) cannot be answered from ranked search. Plan: [`docs/plans/chat-class-completeness.md`](../../../docs/plans/chat-class-completeness.md).
+- The deferred parts of the constraints-wiki plan (v2 card rerun, attach-on-hit, Phase 2, A.6 rollup) need a new decision before anyone builds them; the status ledger is at the top of `docs/research/constraints-wiki.md`.
