@@ -6,7 +6,7 @@
 // address / query land alongside in Task #6 once the pg + embedding layers
 // exist; they take the same Indexes plus a SQL handle.
 import { type Indexes, ancestorChain, resolveNode, type AtlasNode } from "../../retrieval/indexes.ts";
-import { lexicalResidual, runLexical, runSemantic, rrfMerge, fuseBriefings, attributeSemanticHits, buildLeafScorer, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
+import { lexicalResidual, runLexical, runSemantic, mergeForMode, attributeSemanticHits, buildLeafScorer, filterByType, buildAgentSnippet, extractPhrases, matchesPhrases, type MergedHit, type SemanticResult } from "../../retrieval/search.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { statsSection } from "./tools-stats.ts";
 import { censusesSection } from "./tools-censuses.ts";
@@ -171,16 +171,7 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
         ).catch((err): SemanticResult => ({ hits: [], briefingHits: [], skipped: (err as Error).message }));
   const sem = attributeSemanticHits(query, lex, semResult.hits, ix, await buildLeafScorer(semResult.hits, semResult.vecs));
 
-  let merged: MergedHit[];
-  if (mode === "lexical") merged = lex.map((h) => ({ id: h.id, sources: ["lexical"], rrf_score: 0, score: h.score }));
-  // `semantic` is the measured arm exactly: attributed leaves fused once with the
-  // briefing ranking, no lexical list (docs/plans/atlas-doc-briefings.md).
-  else if (mode === "semantic")
-    merged = fuseBriefings(sem, semResult.briefingHits).map((h) => ({ id: h.id, sources: [h.source], rrf_score: 0, score: h.score, via: h.via }));
-  // Three-way fusion (lexical, attributed semantic, briefings); the measured
-  // gain is in the comment at `rrfMerge`.
-  else merged = rrfMerge(lex, sem, semResult.briefingHits);
-  merged = filterByType(merged, ix, type);
+  const merged = filterByType(mergeForMode(mode, lex, sem, semResult.briefingHits), ix, type);
 
   const resolved = merged
     .map((m) => ({ m, n: ix.docMap.get(m.id) }))

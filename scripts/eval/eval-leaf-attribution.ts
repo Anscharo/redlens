@@ -84,10 +84,7 @@ async function seedFromDb(): Promise<number> {
   try {
     const rows = (await sql`SELECT DISTINCT ON (content_hash) content_hash, embedding::text AS embedding
                               FROM atlas_doc_embeddings`) as { content_hash: string; embedding: string }[];
-    for (const r of rows) {
-      const key = `H\u0000${r.content_hash}`;
-      if (!vecs[key]) vecs[key] = r.embedding.replace(/^\[|\]$/g, "").split(",").map(Number);
-    }
+    for (const r of rows) vecs[`H\u0000${r.content_hash}`] ??= r.embedding.replace(/^\[|\]$/g, "").split(",").map(Number);
     return rows.length;
   } finally {
     await sql.end();
@@ -98,8 +95,7 @@ async function fill(keys: Map<string, string>): Promise<void> {
   const missing = [...keys].filter(([k]) => !vecs[k]);
   if (missing.length === 0) return;
   if (DRY) {
-    const chars = missing.reduce((n, [, t]) => n + t.length, 0);
-    console.log(`--dry-run: would embed ${missing.length} texts (${chars} chars, ${Math.ceil(missing.length / 50)} batches)`);
+    console.log(`--dry-run: would embed ${missing.length} texts (${missing.reduce((n, [, t]) => n + t.length, 0)} chars, ${Math.ceil(missing.length / 50)} batches)`);
     return;
   }
   console.log(`embedding ${missing.length} missing vectors…`);
@@ -130,9 +126,7 @@ const wanted = new Map<string, string>();
 for (const u of units) wanted.set(`H\u0000${unitHash(u.text)}`, u.text);
 for (const c of cases) {
   wanted.set(`Q\u0000${c.x.query}`, config.embedQueryPrefix + c.x.query);
-  const anchor = byId.get(c.unit.anchorId);
-  if (anchor) wanted.set(`H\u0000${contentHash(anchor)}`, buildEmbedText(anchor));
-  for (const id of c.unit.memberIds) {
+  for (const id of [c.unit.anchorId, ...c.unit.memberIds]) {
     const m = byId.get(id);
     if (m) wanted.set(`H\u0000${contentHash(m)}`, buildEmbedText(m));
   }

@@ -1,14 +1,15 @@
 // Search: lexical (minisearch, in-memory) + semantic (pgvector) + RRF merge.
 // Both legs return id+rank+score; callers resolve full nodes from the doc map.
 import { type Indexes } from "./indexes.ts";
-import { sql, toVectorLiteral, toUuidArrayLiteral } from "../db.ts";
-import { fromUuidArray } from "../pg-array.ts";
+import { sql, toVectorLiteral } from "../db.ts";
 import { embedQueries, type EmbedDiag } from "./embed.ts";
 import { config } from "../config.ts";
 import { compactProse } from "../../lib/shortenTitle.ts";
-import { rewriteSemanticHit, type Via, type LeafSemanticScore, fuseLeafScores, type LeafRow } from "./embed-units.ts";
+import { rewriteSemanticHit, type Via, type LeafSemanticScore } from "./embed-units.ts";
 import { expandQueryTokens, partitionByOriginalTerms } from "../../lib/searchInflect.ts";
 import { rrfFuse } from "../../lib/searchSemantic.ts";
+import { fuseBriefings, runBriefings, SCOPED_SCAN_SETTING, semanticScopeSql, unitHits } from "./briefings.ts";
+export { buildLeafScorer, fuseBriefings, SCOPED_SCAN_SETTING, semanticScopeSql } from "./briefings.ts";
 export type { Via };
 
 // Race a promise against a timeout, clearing the timer either way. Used to bound
@@ -174,24 +175,7 @@ export async function runSemantic(
           })
         : await sql.unsafe(stmt, [lit, overFetch])
     ) as { id: string; type: string; score: number; member_ids?: unknown }[];
-
-    const out: Hit[] = [];
-    for (const r of rows) {
-      // Rows are ordered by ascending distance (descending cosine), so once one
-      // falls below the relevance floor, every later row does too — stop.
-      if (r.score < config.semanticMinScore) break;
-      // Do not type-filter here: a grouped parent may have a different type
-      // from the leaf we rewrite to. Callers filter after attributeSemanticHits.
-      const memberIds = fromUuidArray(r.member_ids);
-      out.push({
-        id: r.id,
-        rank: out.length,
-        score: r.score,
-        source: "semantic",
-        memberIds: memberIds.length > 0 ? memberIds : undefined,
-      });
-      if (out.length >= overFetch) break;
-    }
+    const out = unitHits(rows, overFetch);
     const briefingHits = await runBriefings(lit, Math.max(overFetch, 50), scope);
     return { hits: out, briefingHits, skipped: null, vecs: { query: vec, ...(residualVec ? { residual: residualVec } : {}) } };
   } catch (err) {
@@ -202,128 +186,16 @@ export async function runSemantic(
   }
 }
 
-/**
- * The briefing statement: nearest embedded briefings to the query vector the
- * unit statement already used. Its own try/catch, because a missing table or a
- * bad index must cost the reader the briefing list and nothing else — the unit
- * hits are already in hand.
- *
- * WHERE must stay `b.embedding IS NOT NULL` plus the scope clause: that is the
- * predicate of the partial index `atlas_doc_briefings_hnsw` (migration 037), and
- * a different one stops the planner using it, the same tie the unit query has to
- * migration 024.
- *
- * NO `semanticMinScore` floor. The eval that measured the gain applied none, and
- * cosines against briefing text are not calibrated against the 0.3 the unit
- * leg uses; the fusion ranks by position, so a weak tail costs little.
- *
- * A scoped query runs in its own transaction under the same `SET LOCAL
- * enable_indexscan = off` as the unit statement, for the same reason. It is a
- * second transaction rather than the unit statement's, because an error inside
- * one aborts it and would take the unit rows down with it.
- */
-async function runBriefings(lit: string, limit: number, scope: string | undefined): Promise<Hit[]> {
-  try {
-    const stmt = `SELECT b.doc_id AS id, 1 - (b.embedding <=> $1::vector) AS score
-       FROM atlas_doc_briefings b JOIN atlas_doc_meta m ON m.id = b.doc_id
-       WHERE b.embedding IS NOT NULL${semanticScopeSql(scope)}
-       ORDER BY b.embedding <=> $1::vector LIMIT $2`;
-    const rows = (
-      scope
-        ? await sql.begin(async (tx) => {
-            await tx.unsafe(SCOPED_SCAN_SETTING);
-            return tx.unsafe(stmt, [lit, limit, scope]);
-          })
-        : await sql.unsafe(stmt, [lit, limit])
-    ) as { id: string; score: number }[];
-    return rows.map((r, i) => ({ id: r.id, rank: i, score: Number(r.score), source: "briefing" }));
-  } catch (err) {
-    console.warn(`  briefing leg skipped: ${(err as Error).message}`);
-    return [];
-  }
-}
-
 // Fusion itself lives in lib/searchSemantic.ts `rrfFuse`, so there is one
 // implementation of it rather than a second copy here. This wrapper only
 // carries the per-hit metadata RRF has no opinion about (which legs found it,
 // the raw score, the grouped-anchor provenance).
-/**
- * The `AND …` fragment restricting retrieval to an `in:` doc-number subtree,
- * or "" when there is no scope. Split out so its shape is assertable without a
- * database — the clause is the SQL twin of `anchorCouldServeScope`, and the two
- * must keep saying the same thing:
- *   · the anchor IS the scope                       (m.doc_no = $3)
- *   · the anchor is INSIDE it                       (m.doc_no LIKE $3 || '.%')
- *   · the anchor is an ANCESTOR of it, so it may    ($3 LIKE m.doc_no || '.%')
- *     hold members inside it
- * Every comparison appends the dot, so `A.2` cannot match `A.22`. `$3` is bound
- * by the caller; the scope string is never interpolated into the statement.
- */
-/**
- * Planner setting a SCOPED query runs under, inside its own transaction.
- *
- * An HNSW index scan is approximate in a way that breaks a filtered query: it
- * walks the graph for `hnsw.ef_search` (default 40) nearest candidates and
- * Postgres applies the WHERE clause to THOSE, so `in:A.6` with LIMIT 40
- * returned 3 rows — the 3 of the 40 globally nearest anchors that happened to
- * sit under A.6 (measured 2026-09-29 with EXPLAIN ANALYZE: index scan 38 rows,
- * 3 survive the join). Every scope narrower than the whole atlas is hit, and
- * the wider the scope the more it looks like it worked.
- *
- * Disabling the index scan for the statement forces an exact pass over every
- * searchable vector: 6,810 anchors × 1,024 dims measured at 50 ms, against 11 ms
- * for the broken indexed plan. Chosen over pgvector 0.8's
- * `hnsw.iterative_scan = relaxed_order` (40 rows in 40 ms) because it is exact,
- * needs no pgvector version, and a scoped query is the rare case — the
- * unscoped statement keeps the index untouched. `SET LOCAL` dies with the
- * transaction, so no other statement on the pooled connection inherits it.
- */
-export const SCOPED_SCAN_SETTING = "SET LOCAL enable_indexscan = off";
-
-export function semanticScopeSql(scope: string | undefined): string {
-  if (!scope) return "";
-  // Both sides upper-cased, like `inScope` — the twin this clause has to keep
-  // agreeing with. Three doc numbers in the current atlas end in a lowercase
-  // `.var1` (Scenario Variations), so comparing a caller's upper-cased scope
-  // against a raw `m.doc_no` made `in:A.1.5.5.0.4.1.1.1.var1` match nothing at
-  // all and the lane answer an empty list with no reason given. `upper($3)`
-  // rather than trusting the caller: the SQL cannot see that invariant, and it
-  // costs nothing here — a scoped statement already runs without the index.
-  return " AND (upper(m.doc_no) = upper($3) OR upper(m.doc_no) LIKE upper($3) || '.%' OR upper($3) LIKE upper(m.doc_no) || '.%')";
-}
-
 // `briefings` is a third list in the SAME rrfFuse call: one RRF stage, never a
-// fusion of a fusion. Measured 2026-10-01 on the whole corpus (`--hybrid
+// fusion of a fusion. Measured on the whole corpus (`--hybrid
 // --briefings none,s2docs --pool all`, 179 queries, exact recall@10): +4.5
 // [1.7, 7.8] on questions, +3.4 [0.6, 6.7] on keywords. Smaller than the semantic
 // lane's gain because the lexical list already finds most of what the briefings
 // add, and MRR falls (0.626 → 0.582 on questions).
-/**
- * The reader's fusion: the attributed leaf list and the briefing list, by rank,
- * once. Measured on qwen3-embedding-8b over 179 queries (docs/plans/
- * atlas-doc-briefings.md): exact recall@10 +12.3 [7.8, 17.3] on the pilot pool
- * and +10.6 [5.6, 15.6] on the half-corpus pool for question-shaped queries,
- * +8.4 [4.5, 12.3] for keyword-shaped ones. 20 to 22 queries gained, 0 to 1
- * lost. Prepending the briefing to the document's own text gained nothing, and
- * a second ranking over unit anchors only gained +2.8, so the briefing is its
- * own vector.
- *
- * Output is ordered by fused score, ties by the leaf list's order. Each hit
- * keeps its own cosine as `score` and prefers the leaf's `via`. An id in both
- * lists stays a "semantic" hit with the leaf's score; a briefing-only id is a
- * "briefing" hit. With no briefings the leaves come back as they were.
- */
-export function fuseBriefings(leaves: Hit[], briefings: Hit[]): Hit[] {
-  if (briefings.length === 0) return leaves;
-  const fused = rrfFuse([leaves.map((h) => h.id), briefings.map((h) => h.id)]);
-  const byId = new Map<string, Hit>();
-  for (const h of leaves) if (!byId.has(h.id)) byId.set(h.id, h);
-  for (const h of briefings) if (!byId.has(h.id)) byId.set(h.id, h);
-  return [...byId.values()]
-    .sort((a, b) => (fused.get(b.id) ?? 0) - (fused.get(a.id) ?? 0))
-    .map((h, i) => ({ ...h, rank: i }));
-}
-
 export function rrfMerge(lex: Hit[], sem: Hit[], briefings: Hit[] = []): MergedHit[] {
   const lists = [lex.map((h) => h.id), sem.map((h) => h.id)];
   if (briefings.length > 0) lists.push(briefings.map((h) => h.id));
@@ -339,6 +211,17 @@ export function rrfMerge(lex: Hit[], sem: Hit[], briefings: Hit[] = []): MergedH
     }
   }
   return [...acc.values()].sort((a, b) => b.rrf_score - a.rrf_score);
+}
+
+// The merge `atlas_search` runs for each mode. `semantic` is the measured arm
+// exactly: attributed leaves fused once with the briefing ranking, no lexical
+// list (docs/plans/atlas-doc-briefings.md). `hybrid` is the three-way fusion
+// (lexical, attributed semantic, briefings); its measured gain is in the
+// comment at `rrfMerge`.
+export function mergeForMode(mode: "lexical" | "semantic" | "hybrid", lex: Hit[], sem: Hit[], briefings: Hit[]): MergedHit[] {
+  if (mode === "lexical") return lex.map((h) => ({ id: h.id, sources: ["lexical"], rrf_score: 0, score: h.score }));
+  if (mode === "hybrid") return rrfMerge(lex, sem, briefings);
+  return fuseBriefings(sem, briefings).map((h) => ({ id: h.id, sources: [h.source], rrf_score: 0, score: h.score, via: h.via }));
 }
 
 // Number of retrieved anchor titles whose words are stripped to build the residual
@@ -405,54 +288,6 @@ export function lexicalResidual(query: string, lex: Hit[], docMap: Indexes["docM
     .map((h) => docMap.get(h.id)?.title)
     .filter((t): t is string => !!t);
   return residualQuery(query, titles);
-}
-
-/**
- * Score group members so `pickLeaf` can choose one, using only vectors the
- * request already has — see `fuseLeafScores` for the rule and its measurement.
- *
- * Best-effort by design: no vectors, no DB, or fewer than two scorable members
- * returns undefined and attribution falls back to the lexical pick. It no longer
- * embeds anything, so it can no longer time out.
- */
-export async function buildLeafScorer(
-  sem: Hit[],
-  vecs: SemanticResult["vecs"],
-): Promise<LeafSemanticScore | undefined> {
-  if (!vecs?.residual) return undefined;
-  const grouped = sem.filter((h) => (h.memberIds?.length ?? 0) > 1);
-  if (grouped.length === 0) return undefined;
-  // member → its anchor, so the group-echo term and the ranks are per group. A
-  // member belongs to one group (embed-units folds it once), so first wins.
-  const anchorOf = new Map<string, string>();
-  for (const h of grouped) for (const id of h.memberIds ?? []) if (!anchorOf.has(id)) anchorOf.set(id, h.id);
-  if (anchorOf.size === 0) return undefined;
-  const members = [...anchorOf.keys()];
-  try {
-    const rows = (await sql.unsafe(
-      // One round trip, three cosines per member: against the residual, against
-      // the query, and against its own anchor's stored (grouped) vector.
-      `SELECT m.doc_id, p.anchor_id,
-              1 - (m.embedding <=> $1::vector) AS residual_sim,
-              1 - (m.embedding <=> $2::vector) AS query_sim,
-              1 - (m.embedding <=> a.embedding) AS group_sim
-         FROM unnest($3::uuid[], $4::uuid[]) AS p(member_id, anchor_id)
-         JOIN atlas_doc_embeddings m ON m.doc_id = p.member_id
-         JOIN atlas_doc_embeddings a ON a.doc_id = p.anchor_id`,
-      [
-        toVectorLiteral(vecs.residual),
-        toVectorLiteral(vecs.query),
-        toUuidArrayLiteral(members),
-        toUuidArrayLiteral(members.map((id) => anchorOf.get(id)!)),
-      ],
-    )) as LeafRow[];
-    if (rows.length < 2) return undefined;
-    const fused = fuseLeafScores(rows);
-    return (id: string) => fused.get(id);
-  } catch (err) {
-    console.warn(`  leaf attribution fell back to lexical: ${(err as Error).message}`);
-    return undefined;
-  }
 }
 
 // Type / phrase filters run AFTER leaf-pick so a quoted leaf value is not

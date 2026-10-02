@@ -19,7 +19,7 @@
  *       --briefing-text value (`none` runs once). s1 prepends the anchor's block to its unit text (one vector); s2 adds a
  *       second ranking over the blocks alone and fuses by RRF; s2docs ranks every covered document by its own block and
  *       fuses that list with the attributed leaf list. Block = briefing | questions | briefing + questions.
- *       MEASURED 2026-09-30, qwen3-embedding-8b, --reuse-db, Sonnet-written pilot briefings, pool covered (684 of
+ *       MEASURED on qwen3-embedding-8b, --reuse-db, Sonnet-written pilot briefings, pool covered (684 of
  *       6,810 units; 179 queries), exact recall@10 against none (0.698), paired bootstrap:
  *         s1 both −0.6 [−4.5, 2.8]   s2 both −0.6 [−2.8, 1.7]   s2docs both +12.3 [7.8, 17.3] (22 queries gained, 0 lost)
  *       Only s2docs separates, and it separates from s1 and s2 as well (+12.8 each). tfidf and ternlight agree.
@@ -43,7 +43,7 @@
  *       only that cache and exits 1 with a count when a vector is missing. --reuse-db also copies the DB vectors it
  *       uses into the cache, so a later --offline run needs no database. Briefing arms do not combine with --rerank;
  *       --hybrid works with s2docs only (the chat's three-way fusion: whole corpus, exact +4.5 [1.7, 7.8] on
- *       questions and +3.4 [0.6, 6.7] on keywords, 2026-10-01).
+ *       questions and +3.4 [0.6, 6.7] on keywords).
  *   pnpm eval:retrieval -- --backend ternlight --briefings none,s1,s2,s2docs --briefing-file .cache/atlas-briefings/pilot-sonnet.json
  *   pnpm eval:retrieval -- --backend ollama --models qwen3-embedding:8b --briefings none,s2docs     (--doc-prefix for models that want one)
  *     ^ LOCAL embedders, for when there is no API credit: ternlight (the 384-dim WASM model the chat facts use, 128-token
@@ -52,7 +52,7 @@
  *       measure the ARMS against each other inside one embedding space; they are not the production model, and a
  *       number from them is not a number for qwen3-embedding-8b. Vectors cache under .cache/eval-local/<backend>-<model>/.
  *       Check the embedder before trusting it: the run warns when the `none` arm finds under 30% of the lexical-control
- *       queries, which a working model cannot do. nomic-embed-text through Ollama 0.20.4 did exactly that (2026-09-30:
+ *       queries, which a working model cannot do. nomic-embed-text through Ollama 0.20.4 did exactly that (measured:
  *       recall@10 0.039; a query that was a document's own title ranked that document 241st of 308), batched or single,
  *       with or without its task prefixes — so --models is required for ollama rather than defaulting to it.
  *
@@ -416,558 +416,32 @@ import fs from "node:fs";
 import path from "node:path";
 import type { AtlasNode } from "../../src/types.ts";
 import { config } from "../../src/server/config.ts";
-import { embedBatch, embedQuery } from "../../src/server/retrieval/embed.ts";
 import {
   buildUnits,
   unitHash,
   GROUP_POLICIES,
-  rewriteSemanticHit,
-  isDocNoDescendant,
-  type GroupPolicy,
   type EmbedUnit,
   fuseLeafScores,
   type LeafRow,
 } from "../../src/server/retrieval/embed-units.ts";
-import { briefingEmbedText } from "../lib/doc-briefings.mjs";
 import { generateRetrievalQueries, type RetrievalQuery } from "./eval-retrieval-queries.ts";
-import { lexicalOverlap } from "./eval-retrieval-paraphrase.ts";
 import { buildEmbedText, contentHash as oneToOneHash } from "../../src/server/retrieval/embed-text.ts";
-import { rerank, type Reranker } from "./eval-rerankers.ts";
-import { competingSets, fullyCovered } from "./eval-briefing-coverage.ts";
-import { formatBootstrap, pairedBootstrap, type BootstrapResult } from "./eval-bootstrap.ts";
-import { openVectorCache, type VectorCache } from "./eval-vector-cache.ts";
-
-const ROOT = path.resolve(import.meta.dir, "../..");
-const argv = process.argv.slice(2);
-const flag = (name: string) => argv.flatMap((a, i) => (a === `--${name}` && argv[i + 1] ? [argv[i + 1]] : []));
-
-const POLICIES = (flag("policies")[0]?.split(",") ?? ["one_to_one", "icd_params", "breadcrumbs", "directory_direct", "hub_stubs"]) as GroupPolicy[];
-const CAP = flag("cap")[0] ? Number(flag("cap")[0]) : undefined;
-const CAPS = (flag("caps")[0]?.split(",") ?? []).map(Number).filter((n) => Number.isFinite(n));
-const BACKEND = (flag("backend")[0] ?? (config.openrouterApiKey ? "openrouter" : "tfidf")) as "tfidf" | "openrouter" | "ternlight" | "ollama";
-if (!["tfidf", "openrouter", "ternlight", "ollama"].includes(BACKEND)) {
-  console.error(`unknown --backend "${BACKEND}"; expected tfidf, openrouter, ternlight or ollama`);
-  process.exit(1);
-}
-// Embedders that run on this machine. See the header: they compare arms, they do
-// not stand in for the production model.
-const LOCAL = BACKEND === "ternlight" || BACKEND === "ollama";
-const OLLAMA_HOST = process.env.OLLAMA_HOST ?? "http://localhost:11434";
-const MODELS =
-  flag("models")[0]?.split(",") ?? (BACKEND === "ternlight" ? ["ternlight"] : BACKEND === "ollama" ? [] : [config.embedModel]);
-if (MODELS.length === 0) {
-  console.error("--backend ollama needs --models <name>, an embedding model that `ollama list` shows.");
-  process.exit(1);
-}
-// Some local models want a prefix on the DOCUMENT side too (nomic: "search_document: ").
-// Qwen3 and ternlight take documents raw.
-const DOC_PREFIX = flag("doc-prefix")[0] ?? "";
-const RERANK = (flag("rerank")[0] ?? "none") as Reranker;
-// jev / qwen3 rerank the FINAL leaf list (what the shipped path returns for k = N),
-// not the anchor pool bm25 works on. N is the reranker's ceiling: recall@N of the
-// list is printed beside every arm.
-const LEAF_RERANK = RERANK !== "none" && RERANK !== "bm25";
-const RERANK_N = Number(flag("rerank-pool")[0] ?? 30);
-const COLLAPSE = argv.includes("--collapse");
-const HYBRID = argv.includes("--hybrid");
-const REUSE_DB = argv.includes("--reuse-db");
-const CRUMB_DEPTH = flag("crumb-depth")[0] ? Number(flag("crumb-depth")[0]) : undefined;
-// Sweep breadcrumb selection strategies (comma-separated, see CRUMB_STRATEGIES in
-// embed-units.ts). Cheap to sweep: only ~143 units' text depends on the crumb, so
-// every extra strategy costs ~143 embeddings and the rest reuse cached vectors.
-// No offline proxy predicts the winner — full vs nearest:2 are structurally
-// identical (same duplicate count, same same-title separation) yet differ by 11 of
-// 40 disambiguation queries — so this has to be run neurally.
-const CRUMB_STRATS = flag("crumb-strategies")[0]?.split(",").map((x) => x.trim()).filter(Boolean) ?? [];
-// Query instruction prefix. `embedQuery` applies config.embedQueryPrefix itself
-// (EMBED_QUERY_PREFIX), so the flag OVERRIDES that value rather than stacking a
-// second prefix on top of it. flag() drops an empty argument, so the bare-query
-// arm is `--no-prefix`. PREFIX is what the run actually embedded with, for the report.
-const PREFIX_FLAG = flag("prefix")[0];
-if (argv.includes("--no-prefix")) config.embedQueryPrefix = "";
-else if (PREFIX_FLAG !== undefined) config.embedQueryPrefix = PREFIX_FLAG;
-// The configured prefix is Qwen3's instruction. ternlight is symmetric, so it is noise there.
-else if (BACKEND === "ternlight") config.embedQueryPrefix = "";
-const PREFIX = config.embedQueryPrefix;
-const SUBSET = flag("subset")[0] ? Number(flag("subset")[0]) : undefined;
-// --query-style keywords rewrites every generated query to the shape readers
-// actually type. 128 of the 139 non-control queries the generator writes start
-// with a question word and run 8-13 words; the search box's own log (PostHog
-// `atlas_search`, 180 days to 2026-10-01) is one to three content words with
-// almost no question in it — "subsidy", "USDS Facet", "freezer multisig",
-// "operational facilitator authority". The rewrite drops question and function
-// words and the template verbs, keeps the content words in order, and lowercases,
-// so "which chain does Ethereum Mainnet - SparkLend USDS run on" becomes
-// "ethereum mainnet - sparklend usds chain". Every arm sees the same rewrite.
-const QUERY_STYLE = (flag("query-style")[0] ?? "natural") as "natural" | "keywords";
-if (QUERY_STYLE !== "natural" && QUERY_STYLE !== "keywords") {
-  console.error(`unknown --query-style "${QUERY_STYLE}"; expected natural or keywords`);
-  process.exit(1);
-}
-const KEYWORD_STOP = new Set([
-  "what", "which", "who", "whom", "whose", "how", "where", "when", "why", "does", "do", "did", "is", "are", "was",
-  "were", "be", "can", "could", "should", "would", "will", "the", "a", "an", "of", "on", "in", "into", "under", "with",
-  "for", "to", "from", "by", "at", "its", "it", "this", "that", "these", "those", "there", "and", "or", "much", "many",
-  "quickly", "run", "keep", "track", "covered", "specify", "specifies", "put", "integrate", "integrates", "integrated",
-]);
-function keywordQuery(q: string): string {
-  const kept = q.split(/\s+/).filter((w) => !KEYWORD_STOP.has(w.toLowerCase().replace(/[?,.]+$/, "")));
-  return (kept.length ? kept : q.split(/\s+/)).join(" ").toLowerCase();
-}
-const K = Number(flag("k")[0] ?? 10);
-const RERANK_POOL = 50;
-
-// Briefing arms. See the header. `none` is today's behaviour; every other value is
-// one arm, and each runs once per --briefing-text value.
-const BRIEFING_ARM_NAMES = ["none", "s1", "s2", "s2docs"] as const;
-const BRIEFING_TEXT_NAMES = ["briefing", "questions", "both"] as const;
-type BriefingArmName = (typeof BRIEFING_ARM_NAMES)[number];
-type BriefingText = (typeof BRIEFING_TEXT_NAMES)[number];
-const listFlag = (name: string, dflt: string[]) => flag(name)[0]?.split(",").map((x) => x.trim()).filter(Boolean) ?? dflt;
-const BRIEFING_ARMS = listFlag("briefings", ["none"]);
-const BRIEFING_TEXTS = listFlag("briefing-text", ["both"]);
-const BRIEFING_FILE = path.resolve(ROOT, flag("briefing-file")[0] ?? "public/doc-briefings.json");
-const POOL_FLAG = flag("pool")[0];
-const OFFLINE = argv.includes("--offline");
-for (const a of BRIEFING_ARMS) {
-  if (!(BRIEFING_ARM_NAMES as readonly string[]).includes(a)) {
-    console.error(`unknown --briefings value "${a}"; expected ${BRIEFING_ARM_NAMES.join(", ")}`);
-    process.exit(1);
-  }
-}
-for (const t of BRIEFING_TEXTS) {
-  if (!(BRIEFING_TEXT_NAMES as readonly string[]).includes(t)) {
-    console.error(`unknown --briefing-text value "${t}"; expected ${BRIEFING_TEXT_NAMES.join(", ")}`);
-    process.exit(1);
-  }
-}
-if (POOL_FLAG !== undefined && POOL_FLAG !== "all" && POOL_FLAG !== "covered") {
-  console.error(`unknown --pool value "${POOL_FLAG}"; expected all or covered`);
-  process.exit(1);
-}
-const NEEDS_BRIEFINGS = BRIEFING_ARMS.some((a) => a !== "none");
-// --hybrid is allowed with the per-document arm only: that is the chat's hybrid
-// lane — lexical, attributed semantic and briefing lists fused in ONE RRF stage
-// (search.ts `rrfMerge`) — and the reason the arm is measured here at all. The
-// eval's lexical leg is TF-IDF, not MiniSearch, so the number is a proxy for
-// the shape of the effect, not production's exact figure.
-if (NEEDS_BRIEFINGS && (RERANK !== "none" || (HYBRID && BRIEFING_ARMS.some((a) => a !== "none" && a !== "s2docs")))) {
-  console.error("briefing arms do not support --rerank; --hybrid is supported for s2docs only (the chat's three-way fusion).");
-  process.exit(1);
-}
-if (OFFLINE && BACKEND === "tfidf") {
-  console.error("--offline reads a vector cache; pass --backend openrouter, ternlight or ollama.");
-  process.exit(1);
-}
-if (OFFLINE && REUSE_DB) {
-  console.error("--offline and --reuse-db conflict: run --reuse-db once to fill the cache, then --offline.");
-  process.exit(1);
-}
-// Matches search.ts's RESIDUAL_ANCHOR_K — the measured peak (51% at top-20).
-const RESIDUAL_ANCHOR_K = 20;
-
-// Local copy of search.ts's residualQuery (importing search.ts would drag in Bun's
-// SQL and the whole server DB layer for a pure string helper).
-function residualQueryText(query: string, anchorTitles: string[]): string {
-  const strip = new Set<string>();
-  for (const t of anchorTitles) for (const w of t.toLowerCase().match(/[a-z0-9]+/g) ?? []) strip.add(w);
-  const kept = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => !strip.has(w));
-  return kept.length ? kept.join(" ") : query;
-}
-const OUT = flag("out")[0] ?? path.join(ROOT, ".cache", "eval-retrieval.json");
-
-function tokenize(s: string): string[] {
-  return (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t) => t.length >= 2);
-}
-
-function idfMap(docs: string[][]): Map<string, number> {
-  const df = new Map<string, number>();
-  for (const toks of docs) {
-    for (const t of new Set(toks)) df.set(t, (df.get(t) ?? 0) + 1);
-  }
-  const n = docs.length;
-  const idf = new Map<string, number>();
-  for (const [t, c] of df) idf.set(t, Math.log((n + 1) / (c + 1)) + 1);
-  return idf;
-}
-
-function tfidfVec(toks: string[], idf: Map<string, number>): Map<string, number> {
-  const tf = new Map<string, number>();
-  for (const t of toks) tf.set(t, (tf.get(t) ?? 0) + 1);
-  const v = new Map<string, number>();
-  let n = 0;
-  for (const [t, c] of tf) {
-    const w = (c / toks.length) * (idf.get(t) ?? 0);
-    v.set(t, w);
-    n += w * w;
-  }
-  const norm = Math.sqrt(n) || 1;
-  for (const [t, w] of v) v.set(t, w / norm);
-  return v;
-}
-
-function cosine(a: Map<string, number>, b: Map<string, number>): number {
-  let s = 0;
-  const [small, large] = a.size < b.size ? [a, b] : [b, a];
-  for (const [t, w] of small) s += w * (large.get(t) ?? 0);
-  return s;
-}
-
-function bm25Rerank(query: string, pool: { id: string; text: string; score: number }[]): { id: string; text: string; score: number }[] {
-  const q = tokenize(query);
-  return [...pool]
-    .map((p) => {
-      const toks = tokenize(p.text);
-      let s = 0;
-      for (const t of q) s += toks.includes(t) ? 1 : 0;
-      return { ...p, score: s + p.score * 0.01 };
-    })
-    .sort((a, b) => b.score - a.score);
-}
-
-function metrics(ranked: string[][], queries: RetrievalQuery[], docMap: Map<string, AtlasNode>) {
-  let rec = 0;
-  let mrr = 0;
-  let exactRec = 0;
-  let exactMrr = 0;
-  let disN = 0;
-  let disExact = 0;
-  const bySlice: Record<string, { n: number; recall: number; mrr: number; exact: number; exactMrr: number }> = {};
-  const perQuery: { id: string; slice: string; hit: 0 | 1; exact: 0 | 1 }[] = [];
-  const hitAt = (hits: string[], rel: Set<string>, ancestors: boolean) => {
-    for (let i = 0; i < hits.length; i++) {
-      const id = hits[i]!;
-      if (rel.has(id)) return i;
-      if (!ancestors) continue;
-      const n = docMap.get(id);
-      if (!n) continue;
-      for (const r of rel) {
-        const leaf = docMap.get(r);
-        if (leaf && isDocNoDescendant(leaf.doc_no, n.doc_no)) return i;
-      }
-    }
-    return -1;
-  };
-  for (let i = 0; i < queries.length; i++) {
-    const q = queries[i]!;
-    const rel = new Set(q.relevant);
-    const hits = ranked[i]!;
-    const found = hitAt(hits, rel, true);
-    const exact = hitAt(hits, rel, false);
-    const hit = found >= 0;
-    perQuery.push({ id: q.id, slice: q.slice, hit: hit ? 1 : 0, exact: exact >= 0 ? 1 : 0 });
-    if (hit) rec++;
-    if (hit) mrr += 1 / (found + 1);
-    if (exact >= 0) {
-      exactRec++;
-      exactMrr += 1 / (exact + 1);
-    }
-    if (q.slice === "icd-disambiguation") {
-      disN++;
-      if (exact >= 0) disExact++;
-    }
-    const sl = q.slice;
-    const b = bySlice[sl] ?? { n: 0, recall: 0, mrr: 0, exact: 0, exactMrr: 0 };
-    b.n++;
-    if (hit) b.recall++;
-    if (hit) b.mrr += 1 / (found + 1);
-    if (exact >= 0) {
-      b.exact++;
-      b.exactMrr += 1 / (exact + 1);
-    }
-    bySlice[sl] = b;
-  }
-  const n = queries.length || 1;
-  const slices: Record<string, { n: number; recall_at_k: number; mrr: number; exact_recall_at_k: number; exact_mrr: number }> = {};
-  for (const [sl, b] of Object.entries(bySlice)) {
-    slices[sl] = {
-      n: b.n,
-      recall_at_k: b.recall / b.n,
-      mrr: b.mrr / b.n,
-      exact_recall_at_k: b.exact / b.n,
-      exact_mrr: b.exactMrr / b.n,
-    };
-  }
-  return {
-    n: queries.length,
-    recall_at_k: rec / n,
-    mrr: mrr / n,
-    exact_recall_at_k: exactRec / n,
-    exact_mrr: exactMrr / n,
-    disambiguation_accuracy: disN ? disExact / disN : null,
-    slices,
-    per_query: perQuery,
-  };
-}
-
-function parseVecLiteral(s: string): number[] {
-  return s.replace(/^\[|\]$/g, "").split(",").map(Number);
-}
-
-// Read-only: pull embeddings from DATABASE_URL keyed by content_hash. A unit
-// whose embed TEXT is byte-identical to an already-embedded doc (same
-// content_hash) reuses that vector instead of paying to re-embed it — e.g. the
-// one_to_one baseline is ~fully covered by a prod/staging DB, and only the docs
-// a grouping/breadcrumb policy actually rewrites are cache misses.
-// NOTE: any change to buildEmbedText's definition invalidates the cache for the
-// docs it actually alters — measured 2026-08-17, adding link-stripping took the
-// baseline hit rate from 99.4% to 84.2% (1,730 one-time misses) against a DB
-// embedded beforehand. Unchanged text still hits, so re-baseline once and it
-// returns to ~99%. content_hash
-// keys the text, NOT the model, so the DB must have been embedded with the SAME
-// model as `--models` (mixing embedding spaces silently wrecks rankings) —
-// hence --reuse-db is single-model and never writes to the DB.
-async function loadCachedVectors(): Promise<Map<string, number[]>> {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("--reuse-db requires DATABASE_URL (a read-only embedding cache)");
-  const { SQL } = await import("bun");
-  const sql = new SQL({ url, max: 2 });
-  const out = new Map<string, number[]>();
-  try {
-    const rows = (await sql`SELECT DISTINCT ON (content_hash) content_hash, embedding::text AS embedding FROM atlas_doc_embeddings`) as {
-      content_hash: string;
-      embedding: string;
-    }[];
-    for (const r of rows) out.set(r.content_hash, parseVecLiteral(r.embedding));
-  } finally {
-    await sql.end();
-  }
-  return out;
-}
-
-// ── Vector cache layer ────────────────────────────────────────────────────────
-// Every neural embed goes through .cache/eval-vectors.{bin,idx.json}, keyed
-// `${model}\0${sha256 of the exact text sent}`. Lookup order: the persistent
-// cache, then --reuse-db's DB rows (copied into the cache on use, so a later
-// --offline run needs no database), then the network. The in-memory cache also
-// does what `freshByModel` did: an unchanged text is embedded once per run.
-let vecCache: VectorCache | null = null;
-let cachedVectors: Map<string, number[]> | null = null;
-let offlineMissing = 0;
-// The document prefix is part of the key: the same model embeds the same text to a
-// different vector under a different prefix.
-const vecKey = (model: string, hash: string) => `${model}${DOC_PREFIX ? `\u0001${DOC_PREFIX}` : ""}\u0000${hash}`;
-
-const normalized = (v: ArrayLike<number>): number[] => {
-  let n = 0;
-  for (let i = 0; i < v.length; i++) n += v[i]! * v[i]!;
-  const norm = Math.sqrt(n) || 1;
-  return Array.from(v, (x) => x / norm);
-};
-
-// Embed on this machine. `texts` arrive with whatever prefix they need already on.
-async function embedLocal(texts: string[], model: string): Promise<number[][]> {
-  if (BACKEND === "ternlight") {
-    const tl = await import("@ternlight/base");
-    return texts.map((t) => normalized(tl.embed(t)));
-  }
-  const res = await fetch(`${OLLAMA_HOST}/api/embed`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ model, input: texts, truncate: true }),
-  });
-  if (!res.ok) throw new Error(`ollama ${res.status}: ${(await res.text()).slice(0, 200)} — is \`ollama serve\` running and \`${model}\` pulled?`);
-  const json = (await res.json()) as { embeddings: number[][] };
-  return json.embeddings.map(normalized);
-}
-
-function lookupVector(model: string, hash: string): number[] | undefined {
-  const key = vecKey(model, hash);
-  const hit = vecCache?.get(key);
-  if (hit) return hit;
-  const db = cachedVectors?.get(hash);
-  if (db) {
-    vecCache?.set(key, db);
-    return db;
-  }
-  return undefined;
-}
-
-async function withModel<T>(model: string, fn: () => Promise<T>): Promise<T> {
-  const prev = config.embedModel;
-  config.embedModel = model;
-  try {
-    return await fn();
-  } finally {
-    config.embedModel = prev;
-  }
-}
-
-// hash → text in, hash → vector out. Documents carry NO query prefix. Progress logs
-// every batch since a big miss set is otherwise silent for minutes.
-async function resolveVectors(entries: Map<string, string>, model: string, what: string): Promise<Map<string, number[]>> {
-  const out = new Map<string, number[]>();
-  const miss: [string, string][] = [];
-  for (const [hash, text] of entries) {
-    const v = lookupVector(model, hash);
-    if (v) out.set(hash, v);
-    else miss.push([hash, text]);
-  }
-  if (OFFLINE) {
-    offlineMissing += miss.length;
-  } else {
-    for (let i = 0; i < miss.length; i += 50) {
-      const slice = miss.slice(i, i + 50);
-      const vecs = LOCAL
-        ? await embedLocal(slice.map(([, text]) => DOC_PREFIX + text), model)
-        : await withModel(model, () => embedBatch(slice.map(([, text]) => text)));
-      slice.forEach(([hash], j) => {
-        out.set(hash, vecs[j]!);
-        vecCache?.set(vecKey(model, hash), vecs[j]!);
-      });
-      console.log(`    embedded ${Math.min(i + 50, miss.length)}/${miss.length} distinct misses (${what})`);
-    }
-  }
-  console.log(`  ${what}: reused ${entries.size - miss.length}/${entries.size}, ${OFFLINE ? "missing" : "embedded"} ${miss.length} with ${model}`);
-  return out;
-}
-
-// One query vector, the prefix included in the cache key. null only when --offline
-// and the vector is not cached (counted, and the run stops at the end of the arm).
-async function getQueryVector(text: string, model: string, timings: number[]): Promise<number[] | null> {
-  const hash = unitHash(config.embedQueryPrefix + text);
-  const hit = lookupVector(model, hash);
-  if (hit) return hit;
-  if (OFFLINE) {
-    offlineMissing++;
-    return null;
-  }
-  const t0 = performance.now();
-  const v = LOCAL ? (await embedLocal([config.embedQueryPrefix + text], model))[0]! : await withModel(model, () => embedQuery(text));
-  timings.push(performance.now() - t0);
-  vecCache?.set(vecKey(model, hash), v);
-  return v;
-}
-
-// Embed many query texts in batched requests, into the cache. getQueryVector costs
-// one round trip per text (2-4 s each on OpenRouter), and an arm needs up to two
-// per query: the first briefing run spent 21 minutes on one arm that way. A query
-// is embedded exactly as embedQuery does it — the prefix, then embedBatch — so
-// these are the same vectors, 50 to a request.
-async function prefetchQueryVectors(texts: string[], model: string, what: string): Promise<void> {
-  if (OFFLINE) return;
-  const miss = [...new Set(texts)].filter((t) => !lookupVector(model, unitHash(config.embedQueryPrefix + t)));
-  for (let i = 0; i < miss.length; i += 50) {
-    const slice = miss.slice(i, i + 50).map((t) => config.embedQueryPrefix + t);
-    const vecs = LOCAL ? await embedLocal(slice, model) : await withModel(model, () => embedBatch(slice));
-    slice.forEach((t, j) => vecCache?.set(vecKey(model, unitHash(t)), vecs[j]!));
-  }
-  if (miss.length) console.log(`  ${what}: embedded ${miss.length} in ${Math.ceil(miss.length / 50)} batched request(s)`);
-}
-
-function failIfOfflineMissing(): void {
-  if (offlineMissing === 0) return;
-  console.error(`--offline: ${offlineMissing} vector(s) needed by this run are not in the vector cache. Run once without --offline (with an API key, or --reuse-db) to fill it.`);
-  process.exit(1);
-}
-
-const dot = (a: number[], b: number[]) => {
-  let d = 0;
-  for (let j = 0; j < a.length; j++) d += a[j]! * b[j]!;
-  return d;
-};
-
-// A second, independent index over a list of texts (the briefing blocks): rank(query)
-// returns the ids best-first. TF-IDF builds its own idf over these texts; neural
-// resolves one vector per distinct text through the cache.
-interface BlockIndex {
-  ids: string[];
-  rank(query: string, queryVec: number[] | null, k: number): string[];
-}
-async function buildBlockIndex(ids: string[], texts: string[], model: string, what: string): Promise<BlockIndex> {
-  if (BACKEND === "tfidf") {
-    const toks = texts.map(tokenize);
-    const idf = idfMap(toks);
-    const vecs = toks.map((t) => tfidfVec(t, idf));
-    return {
-      ids,
-      rank(query, _qv, k) {
-        const qv = tfidfVec(tokenize(query), idf);
-        return ids
-          .map((id, i) => ({ id, score: cosine(qv, vecs[i]!) }))
-          .sort((a, b) => b.score - a.score)
-          .slice(0, k)
-          .map((r) => r.id);
-      },
-    };
-  }
-  const byHash = new Map(texts.map((t) => [unitHash(t), t]));
-  const got = await resolveVectors(byHash, model, what);
-  const vecs = texts.map((t) => got.get(unitHash(t)) ?? []);
-  return {
-    ids,
-    rank(_query, qv, k) {
-      if (!qv) return [];
-      return ids
-        .map((id, i) => ({ id, score: vecs[i]!.length ? dot(qv, vecs[i]!) : -Infinity }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, k)
-        .map((r) => r.id);
-    },
-  };
-}
-
-function rankTfidf(query: string, units: EmbedUnit[], vecs: Map<string, number>[], idf: Map<string, number>, k: number): { id: string; text: string; score: number }[] {
-  const qv = tfidfVec(tokenize(query), idf);
-  return units
-    .map((u, i) => ({ id: u.anchorId, text: u.text, score: cosine(qv, vecs[i]!) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, k);
-}
-
-function attributeRank(
-  query: string,
-  ranked: { id: string; text: string; score: number }[],
-  units: EmbedUnit[],
-  docMap: Map<string, AtlasNode>,
-  k: number,
-  lexHits: { id: string; doc_no: string }[] = [],
-  // Semantic leaf scorer, mirroring what search.ts builds in production. WITHOUT it
-  // this harness measured lexical attribution (~34% accurate) while production runs
-  // the residual-embedding one (~51%) — so a policy comparison run here would have
-  // been decided by the wrong attribution, and attribution is the larger effect.
-  semantic?: (id: string) => number | undefined,
-): string[] {
-  const byAnchor = new Map(units.map((u) => [u.anchorId, u]));
-  const lex =
-    lexHits.length > 0
-      ? lexHits
-      : COLLAPSE
-        ? ranked.map((r) => {
-            const n = docMap.get(r.id);
-            return { id: r.id, doc_no: n?.doc_no ?? "" };
-          })
-        : [];
-  const ids: string[] = [];
-  const seen = new Set<string>();
-  for (const r of ranked) {
-    const u = byAnchor.get(r.id);
-    const rw = rewriteSemanticHit(query, r.id, u?.memberIds, lex, docMap, semantic);
-    if (seen.has(rw.id)) continue;
-    seen.add(rw.id);
-    ids.push(rw.id);
-    if (ids.length >= k) break;
-  }
-  return ids;
-}
-
-function rrfFuse(lexIds: string[], semIds: string[], k: number, moreIds: string[] = []): string[] {
-  const acc = new Map<string, number>();
-  const bump = (ids: string[]) => {
-    ids.forEach((id, rank) => acc.set(id, (acc.get(id) ?? 0) + 1 / (60 + rank + 1)));
-  };
-  bump(lexIds);
-  bump(semIds);
-  bump(moreIds);
-  return [...acc.entries()].sort((a, b) => b[1] - a[1]).slice(0, k).map(([id]) => id);
-}
-
-function pctTimes(xs: number[], p: number): number | null {
-  if (xs.length === 0) return null;
-  const s = [...xs].sort((a, b) => a - b);
-  const i = Math.min(s.length - 1, Math.max(0, Math.ceil((p / 100) * s.length) - 1));
-  return s[i]!;
-}
+import { rerank } from "./eval-rerankers.ts";
+import { runBootstrap, writeReport } from "./eval-retrieval-bootstrap.ts";
+import { ARMS, blockIndexFor, blockOf, loadBriefingPool, prependBlocks, selectPool } from "./eval-retrieval-briefings.ts";
+import {
+  BACKEND, CAP, CAPS, COLLAPSE, CRUMB_DEPTH, CRUMB_STRATS, HYBRID, K, LEAF_RERANK, LOCAL, MODELS, OFFLINE, OUT, POLICIES,
+  PREFIX, QUERY_STYLE, RERANK, RERANK_N, RERANK_POOL, RESIDUAL_ANCHOR_K, REUSE_DB, ROOT, SUBSET,
+} from "./eval-retrieval-flags.ts";
+import { attributeRank, metrics } from "./eval-retrieval-metrics.ts";
+import {
+  bm25Rerank, dot, idfMap, keywordQuery, pctTimes, rankTfidf, residualQueryText, rrfFuse, tfidfVec, tokenize, type PoolRow,
+} from "./eval-retrieval-rank.ts";
+import { printArm, printQueryDiagnostics, printRerankDetail, printSlices, type ArmResult } from "./eval-retrieval-report.ts";
+import {
+  failIfOfflineMissing, getQueryVector, loadReuseDb, lookupVector, openVectorSources, prefetchQueryVectors, resolveVectors,
+  vectorState,
+} from "./eval-retrieval-vectors.ts";
 
 const docsFile = JSON.parse(fs.readFileSync(path.join(ROOT, "public/docs.json"), "utf8")) as {
   nodes: Record<string, AtlasNode>;
@@ -981,156 +455,19 @@ if (QUERY_STYLE === "keywords") {
 }
 if (SUBSET && Number.isFinite(SUBSET)) queries = queries.slice(0, SUBSET);
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
-
-// Arm-differential coverage. A slice whose targets are treated identically by both
-// policies cannot measure the difference between them, however good its metrics look:
-// the 2026-08-17 run scored kv-record 0.417→0.500 on 3/24 differential queries and was
-// therefore uninformative. Print it up front so that failure mode is never silent.
-// Lexical leakage: how much of each question is already present verbatim in its own
-// answer. High means the question is a restatement of the document, so BM25 wins it
-// outright and the run says nothing about semantic retrieval. Until 2026-08-18 the
-// icd-param slice sat at ~1.00 (39 of 40 queries contained the answer text) and every
-// conclusion drawn from it was really a conclusion about string matching. Printed per
-// slice so that can never quietly return.
-{
-  const bySlice = new Map<string, { sum: number; n: number; ctrl: boolean }>();
-  for (const q of queries) {
-    const target = docMap.get(q.relevant[0] ?? "");
-    if (!target) continue;
-    const ov = lexicalOverlap(q.query, `${target.title} ${target.content ?? ""}`);
-    const b = bySlice.get(q.slice) ?? { sum: 0, n: 0, ctrl: false };
-    b.sum += ov;
-    b.n++;
-    b.ctrl = b.ctrl || q.lexicalControl === true;
-    bySlice.set(q.slice, b);
-  }
-  const parts = [...bySlice.entries()].map(([sl, b]) => {
-    const v = (b.sum / b.n).toFixed(2);
-    return `${sl} ${v}${b.ctrl ? "*" : ""}`;
-  });
-  console.log(`lexical overlap by slice (* = deliberate lexical control): ${parts.join("  ")}`);
-  const dupes = queries.length - new Set(queries.map((q) => q.query)).size;
-  if (dupes > 0) console.log(`  ⚠ ${dupes} duplicate query strings — same question, different answers, unanswerable`);
-}
-
-const differentialQs = queries.filter((q) => q.differential !== undefined);
-if (differentialQs.length) {
-  const n = differentialQs.filter((q) => q.differential).length;
-  console.log(
-    `arm-differential coverage: ${n}/${differentialQs.length} flagged queries target docs the arms treat differently` +
-      (n < differentialQs.length / 4 ? "  ⚠ too low to attribute any delta to the policy" : ""),
-  );
-}
+printQueryDiagnostics(queries, docMap);
 
 if (BACKEND === "openrouter" && !OFFLINE && !config.openrouterApiKey) {
   console.error("OPENROUTER_API_KEY is not set — use --backend tfidf, set the key, or run --offline against a filled cache.");
   process.exit(1);
 }
-if (BACKEND === "openrouter") vecCache = openVectorCache();
-if (LOCAL) {
-  // One cache per local model: their dimensions differ (ternlight 384, nomic 768)
-  // and a cache file holds one dimension.
-  const dir = path.join(ROOT, ".cache", "eval-local", `${BACKEND}-${MODELS.join("+").replace(/[^\w.+-]/g, "_")}`);
-  fs.mkdirSync(dir, { recursive: true });
-  vecCache = openVectorCache(dir);
-}
-
-// Briefings: which documents have one, and what pool the run may draw from. The
-// pilot covers part of the atlas, so a briefing arm scored over everything would
-// reward a document for being covered rather than for being right.
-interface BriefingRow {
-  briefing: string;
-  questions?: string[];
-}
-const briefings = new Map<string, BriefingRow>();
-if (NEEDS_BRIEFINGS || POOL_FLAG === "covered") {
-  if (!fs.existsSync(BRIEFING_FILE)) {
-    console.error(`briefing file not found: ${BRIEFING_FILE}\n  pass --briefing-file <path> (default public/doc-briefings.json), or drop the briefing arms.`);
-    process.exit(1);
-  }
-  const file = JSON.parse(fs.readFileSync(BRIEFING_FILE, "utf8")) as { briefings?: Record<string, BriefingRow> };
-  for (const [id, row] of Object.entries(file.briefings ?? {})) {
-    if (docMap.has(id) && typeof row?.briefing === "string") briefings.set(id, row);
-  }
-}
-const covered: ReadonlySet<string> = new Set(briefings.keys());
-const fullCoverage = covered.size >= docs.length;
-const POOL: "all" | "covered" = (POOL_FLAG as "all" | "covered" | undefined) ?? (NEEDS_BRIEFINGS && !fullCoverage ? "covered" : "all");
-if (briefings.size > 0) {
-  const why = POOL_FLAG
-    ? "set by --pool"
-    : POOL === "covered"
-      ? `default: ${covered.size} of ${docs.length} documents have a briefing`
-      : fullCoverage
-        ? "default: every document has a briefing"
-        : "default: no briefing arm requested";
-  console.log(`briefings: ${covered.size}/${docs.length} documents from ${path.relative(ROOT, BRIEFING_FILE)}; pool=${POOL} (${why})`);
-  if (POOL === "all" && NEEDS_BRIEFINGS && !fullCoverage) {
-    console.warn(
-      `  ⚠⚠ --pool all with PARTIAL briefing coverage (${covered.size}/${docs.length}): briefing arms are biased toward covered documents. A covered document gets a signal its uncovered competitor does not, so a gain here is not evidence the briefings help. Use --pool covered.`,
-    );
-  }
-}
-
-// "both" is the production recipe itself (sync-briefings embeds the same text),
-// so the numbers measured here are the ones the stored vectors can reach.
-const blockOf = (row: BriefingRow, mode: BriefingText): string =>
-  mode === "briefing" ? row.briefing : mode === "questions" ? (row.questions ?? []).join("\n") : briefingEmbedText(row);
-
-interface Arm {
-  name: BriefingArmName;
-  text: BriefingText | null;
-  label: string;
-}
-const ARMS: Arm[] = BRIEFING_ARMS.flatMap((name) =>
-  name === "none"
-    ? [{ name, text: null, label: "none" } as Arm]
-    : BRIEFING_TEXTS.map((text) => ({ name, text, label: `${name}:${text}` }) as Arm),
-);
-
-type Metrics = Omit<ReturnType<typeof metrics>, "per_query">;
-interface ArmResult {
-  policy: string;
-  model: string;
-  backend: string;
-  rerank: string;
-  collapse: boolean;
-  hybrid: boolean;
-  prefix: boolean;
-  cap: number | null;
-  crumb_depth: number | null;
-  crumb_strategy: string | null;
-  units: number;
-  /** Arm name: none | s1 | s2 | s2docs. */
-  briefings: BriefingArmName;
-  /** Which text the block holds; null for `none`. */
-  briefing_text: BriefingText | null;
-  /** all | covered: the candidate pool and scored queries this arm ran over. */
-  pool: "all" | "covered";
-  query_embed_ms: { p50: number | null; p95: number | null };
-  metrics: Metrics;
-  /** Per scored query: id, slice, top-K hit (ancestors count), exact leaf hit. */
-  per_query: ReturnType<typeof metrics>["per_query"];
-  /** Leaf-rerank arms only: the paired control, ceiling, cost and latency. */
-  rerank_detail?: unknown;
-}
+openVectorSources();
+const { briefings, covered, POOL } = loadBriefingPool(docs, docMap);
 
 const results: ArmResult[] = [];
 const capList = CAPS.length > 0 ? CAPS : [CAP !== undefined && !Number.isNaN(CAP) ? CAP : null];
 
-if (REUSE_DB) {
-  if (BACKEND !== "openrouter") {
-    console.error("--reuse-db reuses neural vectors; pass --backend openrouter.");
-    process.exit(1);
-  }
-  if (MODELS.length !== 1) {
-    console.error("--reuse-db is single-model (the DB was embedded with one model); pass exactly one --models value matching it.");
-    process.exit(1);
-  }
-  console.log(`loading cached embeddings from DATABASE_URL (read-only) — must be embedded with ${MODELS[0]}…`);
-  cachedVectors = await loadCachedVectors();
-  console.log(`  cache: ${cachedVectors.size} distinct content_hashes`);
-}
+if (REUSE_DB) await loadReuseDb();
 
 let lexUnits: EmbedUnit[] | null = null;
 let lexIdf: Map<string, number> | null = null;
@@ -1159,23 +496,7 @@ for (const policy of POLICIES) {
       `policy=${policy} cap=${cap ?? "none"}${strat ? ` crumb=${strat}` : CRUMB_DEPTH ? ` crumbDepth=${CRUMB_DEPTH}` : ""} units=${allUnits.length} backend=${BACKEND}`,
     );
 
-    // The pool: under `covered`, units whose anchor and every member have a briefing,
-    // and queries whose whole competing set does. Applied to EVERY arm, `none` too,
-    // so the arms differ only in what they are given.
-    const poolUnits =
-      POOL === "covered" ? allUnits.filter((u) => covered.has(u.anchorId) && u.memberIds.every((id) => covered.has(id))) : allUnits;
-    const competing = POOL === "covered" ? competingSets(docs, allUnits, queries) : null;
-    const scoredQueries = competing ? queries.filter((q) => fullyCovered(competing.get(q.id), covered)) : queries;
-    if (briefings.size > 0) {
-      const perSlice = new Map<string, { scored: number; total: number }>();
-      for (const q of queries) perSlice.set(q.slice, { scored: 0, total: 0, ...perSlice.get(q.slice) });
-      for (const q of queries) perSlice.get(q.slice)!.total++;
-      for (const q of scoredQueries) perSlice.get(q.slice)!.scored++;
-      console.log(
-        `  coverage: queries scored ${scoredQueries.length}/${queries.length}  units in pool ${poolUnits.length}/${allUnits.length}  documents covered ${covered.size}/${docs.length}`,
-      );
-      for (const [sl, c] of perSlice) console.log(`    ${sl}: queries scored ${c.scored}/${c.total}`);
-    }
+    const { poolUnits, scoredQueries } = selectPool(docs, allUnits, queries, covered, POOL);
     if (scoredQueries.length === 0 || poolUnits.length === 0) {
       console.log(`  no queries scored under pool=${POOL} (${poolUnits.length} units, ${scoredQueries.length} queries): the briefings do not cover any query's whole competing set. Skipping this policy.`);
       continue;
@@ -1187,16 +508,7 @@ for (const policy of POLICIES) {
         const row = briefings.get(id);
         return row && arm.text ? blockOf(row, arm.text) : undefined;
       };
-      // s1: the block rides in the unit's own text, so one vector carries both.
-      const units =
-        arm.name === "s1"
-          ? poolUnits.map((u) => {
-              const b = block(u.anchorId);
-              if (b === undefined) return u;
-              const text = `${b}\n\n${u.text}`;
-              return { ...u, text, hash: unitHash(text) };
-            })
-          : poolUnits;
+      const units = arm.name === "s1" ? prependBlocks(poolUnits, block) : poolUnits;
 
       let tfidfVecs: Map<string, number>[] | null = null;
       let idf: Map<string, number> | null = null;
@@ -1229,16 +541,7 @@ for (const policy of POLICIES) {
         }
       }
 
-      // s2: a second ranking over the anchors' blocks alone. s2docs: a ranking over
-      // every covered document in the pool, folded members included.
-      let blockIndex: BlockIndex | null = null;
-      if (arm.name === "s2") {
-        const ids = units.filter((u) => block(u.anchorId) !== undefined).map((u) => u.anchorId);
-        blockIndex = await buildBlockIndex(ids, ids.map((id) => block(id)!), model, `${policy} ${arm.label} anchor blocks`);
-      } else if (arm.name === "s2docs") {
-        const ids = [...new Set(units.flatMap((u) => [u.anchorId, ...u.memberIds]))].filter((id) => block(id) !== undefined);
-        blockIndex = await buildBlockIndex(ids, ids.map((id) => block(id)!), model, `${policy} ${arm.label} document blocks`);
-      }
+      const blockIndex = await blockIndexFor(arm, units, block, model, policy);
       if (blockIndex) failIfOfflineMissing();
 
       const ranked: string[][] = [];
@@ -1257,7 +560,6 @@ for (const policy of POLICIES) {
       // anchor → its index in `units`, which is the index into `neural`: leaf
       // attribution needs the anchor's own (grouped) vector for the group-echo term.
       const unitIndex = new Map(units.map((u, i) => [u.anchorId, i]));
-      type PoolRow = { id: string; text: string; score: number };
       const poolK = RERANK === "bm25" || HYBRID ? RERANK_POOL : LEAF_RERANK ? RERANK_N : K;
       // s2 ranks the anchors twice, so its first list must be long enough to fuse.
       const rankLen = arm.name === "s2" ? RERANK_POOL : poolK;
@@ -1286,7 +588,7 @@ for (const policy of POLICIES) {
             .map((r) => docMap.get(r.id)?.title)
             .filter((t): t is string => !!t),
         );
-      const attributes = BACKEND !== "tfidf" && Boolean(cachedVectors || OFFLINE || LOCAL);
+      const attributes = BACKEND !== "tfidf" && Boolean(vectorState.cachedVectors || OFFLINE || LOCAL);
       if (BACKEND !== "tfidf" && neural) {
         await prefetchQueryVectors(scoredQueries.map((q) => q.query), model, `${arm.label} queries`);
         if (attributes) {
@@ -1381,13 +683,13 @@ for (const policy of POLICIES) {
             return { id: r.id, doc_no: n?.doc_no ?? "" };
           });
           const n = LEAF_RERANK ? RERANK_N : K;
-          const semIds = attributeRank(q.query, pool, units, docMap, n, lexHits, leafScorer);
+          const semIds = attributeRank(q.query, pool, units, docMap, n, COLLAPSE, lexHits, leafScorer);
           // s2docs under --hybrid: the three-way fusion the chat's hybrid lane runs.
           const briefIds = arm.name === "s2docs" && blockIndex ? blockIndex.rank(q.query, queryVec, RERANK_POOL) : [];
           ranked.push(rrfFuse(lexHits.map((h) => h.id), semIds, n, briefIds));
         } else {
           const n = LEAF_RERANK ? RERANK_N : K;
-          const leaves = attributeRank(q.query, pool.slice(0, n), units, docMap, n, lexHits, leafScorer);
+          const leaves = attributeRank(q.query, pool.slice(0, n), units, docMap, n, COLLAPSE, lexHits, leafScorer);
           ranked.push(
             arm.name === "s2docs" && blockIndex ? rrfFuse(leaves, blockIndex.rank(q.query, queryVec, RERANK_POOL), n) : leaves,
           );
@@ -1404,10 +706,10 @@ for (const policy of POLICIES) {
         }
       }
       failIfOfflineMissing();
-      vecCache?.save();
+      vectorState.vecCache?.save();
 
       const { per_query, ...m } = metrics(ranked, scoredQueries, docMap);
-      results.push({
+      const result: ArmResult = {
         policy,
         model: BACKEND === "tfidf" ? "tfidf" : model,
         backend: BACKEND,
@@ -1425,7 +727,8 @@ for (const policy of POLICIES) {
         query_embed_ms: { p50: pctTimes(qEmbedMs, 50), p95: pctTimes(qEmbedMs, 95) },
         metrics: m,
         per_query,
-      });
+      };
+      results.push(result);
       // The control slice reuses each target's own wording, so any working embedder
       // finds most of it. One that does not is broken, and every delta it reports
       // is noise — say so before the numbers are read.
@@ -1435,108 +738,17 @@ for (const policy of POLICIES) {
           `  ⚠⚠ ${model} found ${(control.recall_at_k * 100).toFixed(0)}% of the lexical-control queries. The embedder is returning unusable vectors; do not read the numbers below.`,
         );
       }
-      const dis = m.disambiguation_accuracy == null ? "-" : m.disambiguation_accuracy.toFixed(3);
-      console.log(
-        `  ${policy} cap=${cap ?? "none"} ${BACKEND === "tfidf" ? "tfidf" : model} rerank=${RERANK} hybrid=${HYBRID} recall@${K}=${m.recall_at_k.toFixed(3)} exact=${m.exact_recall_at_k.toFixed(3)} disambig=${dis} mrr=${m.mrr.toFixed(3)} briefings=${arm.label} pool=${POOL}`,
-      );
+      printArm(result, arm.label, String(cap ?? "none"));
       if (LEAF_RERANK) {
-        const c = metrics(controlRanked, scoredQueries, docMap);
-        const cdis = c.disambiguation_accuracy == null ? "-" : c.disambiguation_accuracy.toFixed(3);
-        const ceiling = ceilingHits.filter(Boolean).length / ceilingHits.length;
-        const sorted = [...rerankScores].sort((a, b) => a - b);
-        const sp = (x: number) => sorted[Math.floor(x * (sorted.length - 1))]!.toFixed(2);
-        console.log(
-          `    control (same ${RERANK_N}-list, no rerank): recall@${K}=${c.recall_at_k.toFixed(3)} exact=${c.exact_recall_at_k.toFixed(3)} disambig=${cdis} mrr=${c.mrr.toFixed(3)}   exact ceiling@${RERANK_N}=${ceiling.toFixed(3)} (a relevant LEAF in the list; recall@K also credits ancestors)`,
-        );
-        console.log(
-          `    rerank per query: p50 ${(pctTimes(rerankMs, 50) ?? 0).toFixed(0)}ms p95 ${(pctTimes(rerankMs, 95) ?? 0).toFixed(0)}ms   cost $${rerankCost.toFixed(3)}   scores p10 ${sp(0.1)} p50 ${sp(0.5)} p90 ${sp(0.9)} (n=${sorted.length})`,
-        );
-        for (const [sl, x] of Object.entries(c.slices)) {
-          console.log(`      control ${sl}: recall=${x.recall_at_k.toFixed(3)} exact=${x.exact_recall_at_k.toFixed(3)} mrr=${x.mrr.toFixed(3)}`);
-        }
-        results[results.length - 1]!.rerank_detail = {
-          pool: RERANK_N, ceiling_recall: ceiling, control: c, cost_usd: rerankCost,
-          rerank_ms: { p50: pctTimes(rerankMs, 50), p95: pctTimes(rerankMs, 95) },
-        };
+        result.rerank_detail = printRerankDetail({
+          control: metrics(controlRanked, scoredQueries, docMap), ceilingHits, ms: rerankMs, scores: rerankScores, cost: rerankCost,
+        });
       }
-      for (const [sl, s] of Object.entries(m.slices)) {
-        console.log(
-          `    ${sl}: n=${s.n} recall=${s.recall_at_k.toFixed(3)} exact=${s.exact_recall_at_k.toFixed(3)} mrr=${s.mrr.toFixed(3)}`,
-        );
-      }
+      printSlices(m);
      }
     }
    }
   }
 }
 
-// Paired bootstrap of every briefing arm against the `none` arm of the same policy,
-// cap, crumb setting and model. Both arms scored the same queries (same pool), so
-// rows pair by index. Per slice only where n >= 15: below that the interval says
-// nothing a reader should act on.
-interface BootstrapRow extends BootstrapResult {
-  arm: string;
-  vs: "none";
-  policy: string;
-  cap: number | null;
-  crumb: string | number | null;
-  model: string;
-  metric: "exact" | "hit";
-  slice: string | null;
-}
-const bootstrapRows: BootstrapRow[] = [];
-const SLICE_MIN = 15;
-const armKey = (r: ArmResult) => `${r.policy}|${r.cap}|${r.crumb_strategy}|${r.crumb_depth}|${r.model}`;
-const armLabel = (r: ArmResult) => (r.briefing_text ? `${r.briefings}:${r.briefing_text}` : r.briefings);
-if (NEEDS_BRIEFINGS && !BRIEFING_ARMS.includes("none")) {
-  console.log("\nno bootstrap: add `none` to --briefings to pair each briefing arm with its baseline.");
-}
-for (const base of results.filter((r) => r.briefings === "none")) {
-  const rivals = results.filter((r) => r.briefings !== "none" && armKey(r) === armKey(base));
-  if (rivals.length === 0) continue;
-  console.log(
-    `\npaired bootstrap vs none — policy=${base.policy} cap=${base.cap ?? "none"} crumb=${base.crumb_strategy ?? base.crumb_depth ?? "none"} model=${base.model} (pool=${base.pool}, ${base.per_query.length} queries scored)`,
-  );
-  if (base.per_query.length === 0) {
-    console.log("  no queries scored; nothing to bootstrap.");
-    continue;
-  }
-  for (const rival of rivals) {
-    const label = armLabel(rival);
-    for (const metric of ["exact", "hit"] as const) {
-      const scopes: (string | null)[] = [null, ...new Set(base.per_query.map((p) => p.slice))];
-      for (const slice of scopes) {
-        const rows = base.per_query.flatMap((p, i) =>
-          slice === null || p.slice === slice ? [{ [label]: rival.per_query[i]![metric], none: p[metric] }] : [],
-        );
-        if (slice !== null && rows.length < SLICE_MIN) continue;
-        const r = pairedBootstrap(rows, label, "none");
-        console.log(`  ${metric.padEnd(5)} ${(slice ?? "overall").padEnd(20)} n=${String(r.n).padStart(3)}  ${formatBootstrap(label, "none", r)}`);
-        bootstrapRows.push({ ...r, arm: label, vs: "none", policy: base.policy, cap: base.cap, crumb: base.crumb_strategy ?? base.crumb_depth, model: base.model, metric, slice });
-      }
-    }
-  }
-}
-
-const report = {
-  generated_at: new Date().toISOString(),
-  backend: BACKEND,
-  k: K,
-  hybrid: HYBRID,
-  prefix: PREFIX || null,
-  query_style: QUERY_STYLE,
-  pool: POOL,
-  briefing_file: briefings.size > 0 ? path.relative(ROOT, BRIEFING_FILE) : null,
-  briefing_documents: covered.size,
-  query_count: queries.length,
-  queries: queries.map((q) => ({
-    id: q.id,
-    slice: q.slice,
-    query: q.query,
-    ...(q.differential !== undefined ? { differential: q.differential } : {}),
-  })),
-  results,
-  bootstrap: bootstrapRows,
-};
-fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
-console.log(`wrote ${OUT}`);
+writeReport(queries, results, runBootstrap(results), POOL, covered.size);
