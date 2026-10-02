@@ -71,9 +71,6 @@ export async function semanticDocSearch(
 
   const k = opts.k ?? SEMANTIC_K_DEFAULT;
   const ix = getIndexes();
-  // Over-fetch when a type filter is in play: the filter runs AFTER leaf-pick
-  // (a grouped parent can carry a different type from the leaf it resolves to),
-  // so filtering a k-sized list would return fewer than k matching hits.
   // Over-fetch when anything filters AFTER the nearest-neighbour cut: a type
   // filter runs post-leaf-pick, and an `in:` scope admits ancestor anchors that
   // may attribute to a leaf outside it. Both shrink the list after the SQL LIMIT.
