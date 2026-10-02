@@ -76,11 +76,13 @@ export const MAX_SEMANTIC_QUERY = 200;
 export const MIN_SEMANTIC_QUERY = 3;
 
 /**
- * Pause after the last keystroke before the semantic round-trip. Longer than
- * the /reports lane's 200ms because this one costs an OpenRouter embedding
- * call, not a local wasm run.
+ * Pause after the last keystroke before the semantic round-trip. It matches
+ * the /reports lane's 200ms even though this one costs an OpenRouter embedding
+ * call: the embed round trip is the slow part of the search, so the pause is
+ * kept short, and the per-minute budget (search-semantic-limit.ts) caps the
+ * extra calls a shorter pause sends.
  */
-export const SEMANTIC_DEBOUNCE_MS = 400;
+export const SEMANTIC_DEBOUNCE_MS = 200;
 
 /**
  * The pause instead when the query's last word is still HALF TYPED — a strict
@@ -96,10 +98,10 @@ export const SEMANTIC_DEBOUNCE_MS = 400;
  * atlas spells differently types something the index never completes), so a
  * hard gate would leave those queries with no meaning search at all, and the
  * semantic lane hanging on a spinner that resolves only if they type more.
- * Over a second of stillness mid-word means the reader has stopped, and a
+ * Over half a second of stillness mid-word means the reader has stopped, and a
  * reader who has stopped gets an answer.
  */
-export const SEMANTIC_PARTIAL_DEBOUNCE_MS = 1200;
+export const SEMANTIC_PARTIAL_DEBOUNCE_MS = 600;
 
 // A trailing token that cannot be a word in progress: an operator, a field
 // filter, a doc number, a bare figure. Stripped or rejected before the index is
