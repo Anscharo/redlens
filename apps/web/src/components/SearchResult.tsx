@@ -3,7 +3,7 @@ import { AtlasLink } from "./AtlasLink";
 import { SearchResultSelectBox } from "./SearchResultSelectBox";
 import { realDepth, depthColor } from "@/lib/depth";
 import { atlasHref } from "@/lib/routes";
-import { useDataSource } from "@/lib/dataSource";
+import { useDataSource } from "../lib/dataSource";
 import { shortAddr } from "../lib/format";
 import type { HitLabel, SearchHit } from "@/types";
 
