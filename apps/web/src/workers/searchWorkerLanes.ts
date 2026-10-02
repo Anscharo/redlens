@@ -10,13 +10,11 @@ import type { AtlasNode, SearchHit, SemanticLegStatus, WorkerOutMessage } from "
 import type { SearchLane, SemanticSearchResponse } from "@/lib/searchSemantic";
 import { buildSnippet } from "@/lib/searchHighlight";
 import { MINISEARCH_SEARCH_OPTIONS } from "@/lib/searchOptions";
-import { isCommonWord } from "./commonWords";
+import { heldWords } from "@/lib/wordShape";
 import {
   answerFromCache,
   runSemanticLeg,
-  semanticDebounceMs,
   semanticLegQuery,
-  type WordShape,
 } from "./searchSemanticLeg";
 
 /** A lexical run, with what it cost. */
@@ -52,50 +50,31 @@ export function createLexicalMemo(search: (q: string) => SearchHit[]): (q: strin
 
 interface TermTree {
   has(key: string): boolean;
-  atPrefix(prefix: string): { keys(): Iterator<string> };
 }
 
 /**
- * Is `word` finished, or is the reader still typing it?
+ * Is `token` a term the atlas index holds, as written?
  *
- * Two dictionaries, asked in this order, because they fail in opposite
- * directions. The English list knows "home" and "care" are whole words but has
- * never heard of "facilitator" or "usds"; the atlas's own term index knows
- * every word the corpus uses but only those, so it reads an ordinary English
- * word it happens not to use as the beginning of one it does. A word is
- * finished if EITHER says so.
+ * Reads MiniSearch's term dictionary, a radix tree, so the probe is one walk
+ * down the word and costs nothing like a search. `_index` is declared
+ * `protected`, so this is the one place that reaches for it, behind a shape
+ * check that answers false if a MiniSearch upgrade moves it. The worker test
+ * pins the behaviour against a real index, so that upgrade fails the suite.
  *
- * The atlas half reads MiniSearch's term dictionary, which is a radix tree:
- * `has` is one walk down the word and `atPrefix(...).keys().next()` stops at
- * the first term under it, so the probe costs nothing like a search — which
- * matters, because it runs on every keystroke and its whole job is to decide
- * whether to do corpus-sized work.
- *
- * `_index` is declared `protected` rather than public, so this is the one place
- * that reaches for it, behind a shape check that degrades to "unknown" (the
- * permissive answer: search now) if a MiniSearch upgrade ever moves it. The
- * worker test pins the behaviour against a real index, so that upgrade fails
- * the suite rather than quietly disabling the wait.
- *
- * The word is normalised through the QUERY side's own `processTerm`
+ * The token goes through the QUERY side's `processTerm`
  * (`MINISEARCH_SEARCH_OPTIONS`), so the probe cannot disagree with the lane's
- * own query about what a term looks like. The indexing `processTerm` is the
- * wrong one here: it may return an ARRAY — the whole token plus its
- * `_`-separated parts — and `mcd_vat` would then read as a word in progress and
- * buy the long debounce. A token that normalises away (under two characters)
- * counts as partial: a one-letter word is a word in progress.
+ * own query about what a term looks like. The indexing `processTerm` may return
+ * an array, which is the wrong shape here.
  */
-export function wordShapeIn(idx: MiniSearch | null, word: string): WordShape {
-  if (isCommonWord(word)) return "whole";
+export function isIndexedTerm(idx: MiniSearch | null, token: string): boolean {
   const tree = (idx as unknown as { _index?: TermTree } | null)?._index;
-  if (!tree || typeof tree.has !== "function" || typeof tree.atPrefix !== "function") return "unknown";
-  const term = MINISEARCH_SEARCH_OPTIONS.processTerm(word);
-  if (!term) return "partial";
+  if (!tree || typeof tree.has !== "function") return false;
+  const term = MINISEARCH_SEARCH_OPTIONS.processTerm(token);
+  if (!term) return false;
   try {
-    if (tree.has(term)) return "whole";
-    return tree.atPrefix(term).keys().next().done === false ? "partial" : "unknown";
+    return tree.has(term);
   } catch {
-    return "unknown";
+    return false;
   }
 }
 
@@ -184,7 +163,7 @@ export interface QueryDeps {
  * with `semantic: "pending"`, then the fused set — so a consumer must accept a
  * second reply rather than reading it as stale.
  */
-export function answerQuery(msg: { id: number; q: string; lane?: SearchLane }, deps: QueryDeps): void {
+export function answerQuery(msg: { id: number; q: string; lane?: SearchLane; force?: boolean }, deps: QueryDeps): void {
   const startedAt = performance.now();
   const lane: SearchLane = msg.lane ?? "lexical";
   // Lexical is still needed on the semantic lane as its escape hatch: for a
@@ -197,7 +176,7 @@ export function answerQuery(msg: { id: number; q: string; lane?: SearchLane }, d
   // A "did you mean" is only ever offered for a query that found nothing — and
   // only on a lane that is actually showing the wording index, since a spelling
   // correction says nothing about a meaning or entity search.
-  const reply = (hits: SearchHit[], semantic: SemanticLegStatus, durationMs: number) =>
+  const reply = (hits: SearchHit[], semantic: SemanticLegStatus, durationMs: number, held?: string[]) =>
     deps.post({
       type: "results",
       id: msg.id,
@@ -205,6 +184,7 @@ export function answerQuery(msg: { id: number; q: string; lane?: SearchLane }, d
       durationMs,
       lane,
       semantic,
+      ...(held ? { heldWords: held } : {}),
       ...(hits.length === 0 && lane === "lexical" && semantic !== "pending"
         ? { didYouMean: didYouMean(deps.index(), msg.q, deps.search) }
         : {}),
@@ -215,15 +195,23 @@ export function answerQuery(msg: { id: number; q: string; lane?: SearchLane }, d
     reply(lex.hits, "none", lex.durationMs);
     return;
   }
+  // Text that does not look like words is not worth an embed. Once the pause
+  // ends the wording hits answer instead, with the held words named, until the
+  // reader forces it.
+  const held = msg.force ? [] : heldWords(query.query, (t) => isIndexedTerm(deps.index(), t));
+  const hold = () => {
+    const lex = lexical();
+    reply(lex.hits, "none", lex.durationMs, held);
+  };
   const run = {
     id: msg.id,
     query,
     lane,
     lexical: lane === "semantic" ? [] : lexical().hits,
     startedAt,
-    debounceMs: semanticDebounceMs(msg.q, (word) => wordShapeIn(deps.index(), word)),
     hydrate: deps.hydrate,
     post: deps.post,
+    ...(held.length > 0 ? { hold } : {}),
   };
   // Already scored this text? Then the answer is final now — no debounce, no
   // request, and no interim "pending" message, because nothing is pending.

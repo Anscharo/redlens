@@ -80,50 +80,7 @@ export const MIN_SEMANTIC_QUERY = 3;
  * kept short, and the per-minute budget (search-semantic-limit.ts) caps the
  * extra calls a shorter pause sends.
  */
-export const SEMANTIC_DEBOUNCE_MS = 200;
-
-/**
- * The pause instead when the query's last word is still HALF TYPED — a strict
- * prefix of a word the corpus has, like "collater" on the way to "collateral".
- *
- * Embedding a truncated word is the one request guaranteed to be wasted: the
- * vector is scored against whole documents, so a fragment no document contains
- * lands somewhere arbitrary in the space and the reader pays a round-trip to be
- * shown it. Waiting is strictly better than guessing.
- *
- * It is a longer WAIT and not a refusal on purpose. Nothing here can tell a
- * half-typed word from a deliberate one (a reader searching for a word the
- * atlas spells differently types something the index never completes), so a
- * hard gate would leave those queries with no meaning search at all, and the
- * semantic lane hanging on a spinner that resolves only if they type more.
- * Over half a second of stillness mid-word means the reader has stopped, and a
- * reader who has stopped gets an answer.
- */
-export const SEMANTIC_PARTIAL_DEBOUNCE_MS = 600;
-
-// A trailing token that cannot be a word in progress: an operator, a field
-// filter, a doc number, a bare figure. Stripped or rejected before the index is
-// asked about it.
-const TRAILING_FIELD_RE = /^\w+:/;
-const TRAILING_WORDISH_RE = /^[A-Za-z][\w-]*$/;
-
-/**
- * The word the reader may still be typing, or null when the query looks
- * settled.
- *
- * Whitespace or punctuation at the end means the word was committed — you do
- * not type a space or a comma into the middle of a word. Anything that is not
- * plain word characters starting with a letter is not a word in progress
- * either: `in:A.6`, `type:Core`, `-fees`, `A.2.7` and `2026` are all either
- * filters the lane strips out or identifiers it stands down on.
- */
-export function trailingWord(q: string): string | null {
-  if (q !== q.replace(/\s+$/, "")) return null;
-  const last = q.split(/\s+/).pop() ?? "";
-  const bare = last.replace(TRAILING_FIELD_RE, "").replace(/^[-+]/, "").replace(/~\d*$/, "");
-  if (!TRAILING_WORDISH_RE.test(bare)) return null;
-  return bare;
-}
+export const SEMANTIC_DEBOUNCE_MS = 256;
 
 /** Is `q` worth sending to the semantic backend at all? */
 export function semanticWorthAsking(q: string): boolean {

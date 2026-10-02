@@ -35,6 +35,7 @@
 
 ## 2026-10-02
 
+- Meaning search now pauses on text that doesn't look like words; press Enter to search anyway
 - Fixed search so words with underscores, like erc4626_redeem, are searched as one word.
 - Showed equivalent documents from other Prime Agents and owning-agent labels when viewing a preview.
 
