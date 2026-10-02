@@ -1,0 +1,119 @@
+;; definitions-curated.synlang — hand-curated STRUCTURE stated in the A.0.1.1 Definitions.
+;;
+;; The generated file (definitions.synlang) carries each term's prose as a string; this
+;; file carries the relations that prose states in words, as queryable facts. Every fact
+;; cites the atlas document (UUID) whose text states it. Slugs match the generated file
+;; so the two Spaces join on the same symbols. Nothing here goes beyond A.0.1.1's own text.
+
+;; ---------------------------------------------------------------------------
+;; Class hierarchy — the always-on subclass-of / instance-of protocols derive the
+;; transitive closure, so (subclass-of operational-executor-agent agent) is answerable
+;; although no fact states it. Every class must be declared before it is used.
+;; ---------------------------------------------------------------------------
+(declare-class agent)
+(declare-class prime-agent)
+(declare-class executor-agent)
+(declare-class operational-executor-agent)
+(declare-class core-council-executor-agent)
+(declare-class alignment-conserver)
+(declare-class aligned-delegate)
+(declare-class facilitator)
+(declare-class operational-executor-facilitator)
+(declare-class core-council-executor-facilitator)
+(declare-class govops)
+(declare-class operational-executor-govops)
+(declare-class core-council-govops)
+(declare-class alignment-artifact)
+(declare-class scope-alignment-artifact)
+(declare-class scope)
+
+;; Agent sub-types: "The Agent sub-types currently defined in the Atlas include 1) Prime Agent
+;; and 2) Executor Agent, with the Executor Agent sub-type further divided into Operational
+;; Executor Agents and Core Executor Agents."
+(subclass-of prime-agent agent)                            ; cites 3c18e6a7-95b8-44e9-8da6-1eadf3fdd356
+(subclass-of executor-agent agent)                         ; cites 3c18e6a7-95b8-44e9-8da6-1eadf3fdd356
+(subclass-of operational-executor-agent executor-agent)    ; cites ac514975-66ad-4b43-8f76-42cac5ca599d
+(subclass-of core-council-executor-agent executor-agent)   ; cites ac514975-66ad-4b43-8f76-42cac5ca599d, 2a440474-20d1-4703-a57b-35e0cebb881c
+
+;; Alignment Conserver kinds: "Aligned Delegates (ADs) are anonymous Alignment Conservers";
+;; "Facilitators are anonymous Alignment Conservers with responsibility over specific Scopes."
+(subclass-of aligned-delegate alignment-conserver)         ; cites 8ea04ed4-7075-45e6-b6ed-a52b7506f4a8
+(subclass-of facilitator alignment-conserver)              ; cites 912e0161-3448-470f-9cf6-d1a26d76acab
+
+;; Facilitator kinds
+(subclass-of operational-executor-facilitator facilitator)     ; cites 2d984fe4-c1d7-4ac3-835b-19f19a3a5505
+(subclass-of core-council-executor-facilitator facilitator)    ; cites 453e9bfb-2776-486d-b451-35742e49e0ab
+
+;; GovOps kinds: "... are GovOps actors that operate within Operational Executor Agents" /
+;; "... within Core Executor Agents."
+(subclass-of operational-executor-govops govops)           ; cites 80c7e2e1-a2af-47dd-80c7-aee6823cca91
+(subclass-of core-council-govops govops)                   ; cites e512e890-629f-450f-a14d-a3ea06a369c0
+
+;; Artifacts: "A Scope Artifact is an Alignment Artifact designed to align ... within a specific Scope"
+(subclass-of scope-alignment-artifact alignment-artifact)  ; cites 10cb8335-18e3-466e-9a0a-b076c1719de5
+
+;; Where a kind operates: "GovOps actors are specialized Ecosystem Actors operating within Executor
+;; Agent entities" — the two GovOps kinds operate within the two Executor kinds.
+(operates-within operational-executor-govops operational-executor-agent)   ; cites 80c7e2e1-a2af-47dd-80c7-aee6823cca91
+(operates-within core-council-govops core-council-executor-agent)          ; cites e512e890-629f-450f-a14d-a3ea06a369c0
+
+;; ---------------------------------------------------------------------------
+;; The six Scopes — "A Scope is a particular focus area of Sky. There are six Scopes:"
+;; ---------------------------------------------------------------------------
+(scope-count 6)                                            ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe
+(instance-of governance-scope scope)                       ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe, 72f9b4d1-695b-489c-a060-db0013ba0466
+(instance-of support-scope scope)                          ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe, 334492f3-db84-4f8b-9593-93cefe72900a
+(instance-of stability-scope scope)                        ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe, 6a900766-15ff-49b1-bed5-59f58b9c49c7
+(instance-of protocol-scope scope)                         ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe, b24446c1-44d2-408a-9077-d397fa173132
+(instance-of accessibility-scope scope)                    ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe, 1109f780-d48a-4712-8106-848952b684a4
+(instance-of agent-scope scope)                            ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe, 87dafa99-c36e-4e68-ac19-fccac4b3834d
+(scope-focus governance-scope "Alignment Artifact interpretation and balance of powers")        ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe
+(scope-focus support-scope "ecosystem support, tools, and activities, including the Sky Primitives") ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe
+(scope-focus stability-scope "financial stability and the core USDS Stablecoin product")        ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe
+(scope-focus protocol-scope "technical development, maintenance, and security")                 ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe
+(scope-focus accessibility-scope "frontends and distribution")                                  ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe
+(scope-focus agent-scope "all Agent Artifacts")                                                 ; cites f30e56f9-da71-44bc-ab3b-9b13348794fe
+
+;; ---------------------------------------------------------------------------
+;; Structured facts the prose states outright (numbers, addresses, composition, obligations)
+;; ---------------------------------------------------------------------------
+;; "The Atlas ... consists of Immutable Documents and Adaptive Documents."
+(consists-of the-atlas immutable-documents)                ; cites 98223867-c60a-4b28-9401-94fc1ed9b4cd
+(consists-of the-atlas adaptive-documents)                 ; cites 98223867-c60a-4b28-9401-94fc1ed9b4cd
+
+;; "The Sky Frontier Foundation's multisig address is `0xca5183FB9997046fbd9bA8113139bf5a5Af122A0`."
+(multisig sky-frontier-foundation "0xca5183FB9997046fbd9bA8113139bf5a5Af122A0")   ; cites 05d714e5-9428-4978-ac57-e3885b4e4c41
+
+;; "The Council begins with a single seat ... targeting up to seven members in the long term."
+(core-council-initial-seats 1)                             ; cites 5a03a0c4-a47a-409c-9b23-52ac93e63d45
+(core-council-target-seats 7)                              ; cites 5a03a0c4-a47a-409c-9b23-52ac93e63d45
+
+;; "Each Operational Executor Agent must comprise at least one Facilitator and at least one
+;; GovOps actor." / "... must maintain Operational Collateral"
+(min-count operational-executor-agent facilitator 1)       ; cites 23253343-23e3-440f-90c0-43d3437c2098
+(min-count operational-executor-agent govops 1)            ; cites 23253343-23e3-440f-90c0-43d3437c2098
+(must-maintain operational-executor-agent operational-collateral)   ; cites 23253343-23e3-440f-90c0-43d3437c2098
+
+;; "Agent Artifacts must be aligned with, and are fully subordinate to, the Sky Core Atlas."
+(subordinate-to agent-artifact sky-core-atlas)             ; cites 8d081c1a-6393-4aaf-8914-8959cdf2fee3
+
+;; "Scope Artifacts must not be changed beyond the Scope boundaries defined by the Atlas;
+;; this constitutes Slippery Slope Misalignment."
+(prohibited scope-alignment-artifact change-beyond-scope-boundaries)   ; cites 10cb8335-18e3-466e-9a0a-b076c1719de5
+(constitutes change-beyond-scope-boundaries slippery-slope-misalignment) ; cites 10cb8335-18e3-466e-9a0a-b076c1719de5
+
+;; "Prime Agents cannot be active in the Sky Ecosystem unless they have an active
+;; 'Operational Executor Accord'"
+(requires-active prime-agent operational-executor-accord)  ; cites ac514975-66ad-4b43-8f76-42cac5ca599d
+
+;; "Prime Agents are the only Agent type that can access all Sky Primitives" /
+;; "Prime Agents must rely on Operational Executor Agents for implementation."
+(can-access-all prime-agent sky-primitives)                ; cites a8454271-c090-4084-b022-4430e3def93c
+(relies-on prime-agent operational-executor-agent)         ; cites a8454271-c090-4084-b022-4430e3def93c
+
+;; "Core Executor Agents ... oversee the activities of Operational Executors" /
+;; "act as checks on Operational Executor Agents"
+(oversees core-council-executor-agent operational-executor-agent)   ; cites ac514975-66ad-4b43-8f76-42cac5ca599d, 2a440474-20d1-4703-a57b-35e0cebb881c
+
+;; "The forum is located at https://forum.skyeco.com/"
+(url sky-forum "https://forum.skyeco.com/")                ; cites e78e8fbb-0602-4e67-8c44-88b1f0b30704
