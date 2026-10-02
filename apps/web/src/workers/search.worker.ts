@@ -8,7 +8,7 @@ import type {
   WorkerOutMessage,
 } from "@/types";
 import { fetchText } from "@/lib/verify";
-import { buildSnippet, highlightTerms, extractPhrases } from "@/lib/searchHighlight";
+import { buildSnippet, highlightTerms, extractPhrases, isUnderscoreIdentifier } from "@/lib/searchHighlight";
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
 import { MINISEARCH_OPTIONS } from "@/lib/searchOptions";
@@ -169,6 +169,10 @@ function search(q: string): SearchHit[] {
   for (const word of restWords) {
     if (word.startsWith("-")) continue;
     const bare = word.replace(/^[+\-~]/, "").replace(/[~^*]\d*$/, "");
+    if (isUnderscoreIdentifier(bare) && !phrases.includes(bare) && !casePhrases.includes(bare)) {
+      phrases.push(bare);
+      continue;
+    }
     if (
       bare.length >= 3 &&
       bare.length <= 8 &&
@@ -296,7 +300,10 @@ function search(q: string): SearchHit[] {
       }
     : undefined;
 
-  const queryEmpty = !finalQuery;
+  // A query with no indexable token (e.g. a bare "_") can only be answered by
+  // the literal phrase filter, so scan instead of asking MiniSearch.
+  const hasIndexableToken = /[\p{L}\p{N}]{2}/u.test(finalQuery);
+  const queryEmpty = !finalQuery || (!hasIndexableToken && (lowerPhrases.length > 0 || casePhrases.length > 0));
 
   type MiniResult = { id: unknown; score: number; terms: string[]; queryTerms: string[]; match: Record<string, string[]> };
   let results: MiniResult[];

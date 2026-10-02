@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-10-02
+
+- Fixed search so words with underscores, like MAX_UINT, and a lone underscore match literally.
+
 ## 2026-10-01
 - Made the light theme the default for new visitors instead of following the device setting
 - Stopped the chat's verification badge from failing an answer for its own summary callouts

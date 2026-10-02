@@ -85,6 +85,11 @@ export const HINT_GROUPS: SearchHintGroup[] = [
         query: "'delegatedSigners'",
         description: "Single quotes — literal substring match, case-sensitive",
       },
+      {
+        label: "identifier",
+        query: "MAX_UINT",
+        description: "A word containing an underscore matches literally, so MAX_UINT does not also match MAX or UINT alone",
+      },
     ],
   },
   {
