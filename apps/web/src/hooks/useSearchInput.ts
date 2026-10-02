@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useSearch } from "./useSearch";
+import { useSearchAnyway } from "./useSearchAnyway";
 import { useUrlState, urlString, urlEnum } from "./useUrlState";
 import { SEARCH_LANES, type SearchLane } from "@/lib/searchSemantic";
 import { semanticSearchAvailable } from "../lib/semanticSearchConfig";
@@ -147,6 +148,7 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   const [queryParam, setQueryParam] = useUrlState("q", queryCodec);
   const [mode, setMode] = useUrlState("mode", modeCodec);
   const { lane, selectLane } = useSearchLane();
+  const searchAnyway = useSearchAnyway(state, lane, search);
   const query = queryParam ?? "";
   const deferredQuery = useDeferredValue(query);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -246,6 +248,6 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     wrapModeClick, broadSearch,
     state, ready, handleHintClick,
     recentSearches, selectRecent,
-    lane, selectLane,
+    lane, selectLane, searchAnyway,
   };
 }

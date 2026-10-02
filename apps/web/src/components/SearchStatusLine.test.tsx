@@ -158,6 +158,21 @@ describe("a lane still loading", () => {
     expect(screen.getByText("searching…")).toBeInTheDocument();
     expect(screen.queryByText(/no results/)).toBeNull();
   });
+
+  it("names a held word and says Enter searches anyway, on the meaning lane", () => {
+    setup(done({ lane: "semantic", query: "xkcdq", heldWords: ["xkcdq"] }), { lane: "semantic" });
+    expect(screen.getByText(/“xkcdq” doesn't look like a word.*press Enter to search by meaning anyway/)).toBeTruthy();
+  });
+
+  it("uses the plural for several held words", () => {
+    setup(done({ lane: "semantic", query: "xkcdq qzx", heldWords: ["xkcdq", "qzx"] }), { lane: "semantic" });
+    expect(screen.getByText(/“xkcdq”, “qzx” don't look like words/)).toBeTruthy();
+  });
+
+  it("says nothing about held words off the meaning lane", () => {
+    setup(done({ heldWords: ["xkcdq"] }));
+    expect(screen.queryByText(/look like/)).toBeNull();
+  });
 });
 
 describe("Radar link", () => {
