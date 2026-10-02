@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { Link } from "../Link";
+import { useArrivalTarget } from "../../hooks/useArrivalTarget";
 import { AtlasLink } from "../AtlasLink";
 import type { ActorProfile } from "../../lib/actorIndex";
 import { ENTITY_TYPE_LABEL, ENTITY_TYPE_COLOR } from "../../lib/entityGraph";
@@ -22,16 +22,7 @@ interface Props {
 }
 
 export function ActorDashboard({ profile }: Props) {
-  useEffect(() => {
-    const hash = window.location.hash.slice(1);
-    if (!hash) return;
-    const el = document.getElementById(hash);
-    document.querySelectorAll("[data-arrived]").forEach((p) => {
-      if (p !== el) p.removeAttribute("data-arrived");
-    });
-    el?.setAttribute("data-arrived", "");
-    el?.scrollIntoView({ behavior: "instant", block: "start" });
-  });
+  useArrivalTarget(profile.entity.id);
 
   const {
     entity,

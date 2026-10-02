@@ -230,4 +230,17 @@ describe("ActorDashboard link targets", () => {
     expect(el).not.toHaveAttribute("data-arrived");
     window.location.hash = "";
   });
+
+  it("scrolls once per arrival, not on every re-render", () => {
+    window.location.hash = "#primitives";
+    const scroll = vi.mocked(Element.prototype.scrollIntoView);
+    scroll.mockClear();
+    const { rerender } = render(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    expect(scroll).toHaveBeenCalledTimes(1);
+    rerender(<ActorDashboard profile={profile({ primitives: [{} as never] })} />);
+    expect(scroll).toHaveBeenCalledTimes(1);
+    rerender(<ActorDashboard profile={profile({ entity: entity({ id: "e2" }), primitives: [{} as never] })} />);
+    expect(scroll).toHaveBeenCalledTimes(2);
+    window.location.hash = "";
+  });
 });
