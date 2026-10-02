@@ -35,7 +35,7 @@
 
 ## 2026-10-02
 
-- Fixed search so words with underscores, like MAX_UINT, and a lone underscore match literally.
+- Fixed search so words with underscores, like erc4626_redeem, are searched as one word.
 
 ## 2026-10-01
 - Made the light theme the default for new visitors instead of following the device setting

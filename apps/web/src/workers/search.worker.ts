@@ -8,10 +8,10 @@ import type {
   WorkerOutMessage,
 } from "@/types";
 import { fetchText } from "@/lib/verify";
-import { buildSnippet, highlightTerms, extractPhrases, isUnderscoreIdentifier } from "@/lib/searchHighlight";
+import { buildSnippet, highlightTerms, extractPhrases } from "@/lib/searchHighlight";
 import { UUID_RE } from "@/lib/patterns";
 import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
-import { MINISEARCH_OPTIONS } from "@/lib/searchOptions";
+import { MINISEARCH_OPTIONS, MINISEARCH_SEARCH_OPTIONS } from "@/lib/searchOptions";
 import { counterpartTerm, expandQueryTokens, partitionByOriginalTerms } from "@/lib/searchInflect";
 import { computeLabels } from "../lib/hitLabels";
 
@@ -169,10 +169,6 @@ function search(q: string): SearchHit[] {
   for (const word of restWords) {
     if (word.startsWith("-")) continue;
     const bare = word.replace(/^[+\-~]/, "").replace(/[~^*]\d*$/, "");
-    if (isUnderscoreIdentifier(bare) && !phrases.includes(bare) && !casePhrases.includes(bare)) {
-      phrases.push(bare);
-      continue;
-    }
     if (
       bare.length >= 3 &&
       bare.length <= 8 &&
@@ -317,6 +313,7 @@ function search(q: string): SearchHit[] {
     const expansion = expandQueryTokens(finalQuery.split(/\s+/).filter(Boolean));
     const searchQuery = expansion.extra.length > 0 ? `${finalQuery} ${expansion.extra.join(" ")}` : finalQuery;
     results = idx.search(searchQuery, {
+      ...MINISEARCH_SEARCH_OPTIONS,
       prefix: true,
       fuzzy: fuzzyLevel || false,
       boost: { title: 10, doc_no: 5, type: 2 },

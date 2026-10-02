@@ -106,12 +106,6 @@ export function highlightTerms(
   return applyHighlight(text, terms, phrases, casePhrases);
 }
 
-// A bare word of [A-Za-z0-9_] containing `_` (MAX_UINT, __init__, a lone _).
-// MiniSearch tokenizes on `_` (Unicode punctuation), so such a word is matched
-// as a literal phrase instead of as `max OR uint`.
-const UNDERSCORE_IDENT_RE = /^(?=.*_)[A-Za-z0-9_]+$/;
-export const isUnderscoreIdentifier = (word: string): boolean => UNDERSCORE_IDENT_RE.test(word);
-
 export function extractPhrases(q: string): {
   phrases: string[];
   casePhrases: string[];

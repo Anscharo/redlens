@@ -97,11 +97,14 @@ function buildIndex(nodes) {
   const ms = new MiniSearch({
     fields: ["title", "doc_no", "type", "content"],
     idField: "id",
+    tokenize: (text) => text.split(/(?:[\n\r\p{Z}]|(?!_)\p{P})+/u),
     processTerm: (term) => {
-      // Strip leading/trailing non-alphanumeric chars so backtick-wrapped tokens
-      // like `delegatedSigners` index as "delegatedsigners" not "`delegatedsigners`".
-      const lower = term.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, "").toLowerCase();
-      return lower.length >= 2 ? lower : null;
+      // Strip leading/trailing non-word chars so backtick-wrapped tokens like
+      // `delegatedSigners` index as "delegatedsigners" not "`delegatedsigners`".
+      const whole = term.replace(/^[^a-zA-Z0-9_]+|[^a-zA-Z0-9_]+$/g, "").toLowerCase();
+      if (whole.length < 2) return null;
+      if (!whole.includes("_")) return whole;
+      return [whole, ...whole.split("_").filter((p) => p.length >= 2)];
     },
   });
   ms.addAll(
