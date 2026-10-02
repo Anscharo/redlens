@@ -229,7 +229,7 @@
     { "files": ["src/server/preview/diff-base-backfill.ts"], "rules": { "max-lines": ["error", { "max": 253, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/preview/diff-base-write.ts"], "rules": { "max-lines-per-function": ["error", { "max": 72, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/preview/github-app.ts"], "rules": { "max-lines": ["error", { "max": 217, "skipBlankLines": true, "skipComments": true }] } },
-    { "files": ["src/server/preview/handler.ts"], "rules": { "max-lines": ["error", { "max": 374, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 63, "skipBlankLines": true, "skipComments": true }] } },
+    { "files": ["src/server/preview/handler.ts"], "rules": { "max-lines": ["error", { "max": 262, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/preview/resolve.ts"], "rules": { "max-lines": ["error", { "max": 313, "skipBlankLines": true, "skipComments": true }], "max-lines-per-function": ["error", { "max": 60, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/reports/multisigs.ts"], "rules": { "max-lines-per-function": ["error", { "max": 71, "skipBlankLines": true, "skipComments": true }] } },
     { "files": ["src/server/reports/primitive-matrix.ts"], "rules": { "max-lines-per-function": ["error", { "max": 96, "skipBlankLines": true, "skipComments": true }] } },

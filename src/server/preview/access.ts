@@ -70,11 +70,19 @@ export function __resetAccessCacheForTest(): void {
 export async function authorizePreviewAccess(req: Request, repo: string): Promise<AccessDecision> {
   const session = await getSessionUser(req);
   if (!session) return "login-required";
+  return authorizeUserRepoAccess(session.user.id, repo);
+}
 
+/**
+ * The same decision for a caller that already holds a signed-in user id rather
+ * than a Request (chat tools). It runs the identical live permission check and
+ * shares the decision cache, so the guardrail above holds for every caller.
+ */
+export async function authorizeUserRepoAccess(userId: string, repo: string): Promise<AccessDecision> {
   let rows: UserRow[];
   try {
     rows = (await sql`
-      SELECT provider, provider_id, github_login FROM users WHERE id = ${session.user.id}
+      SELECT provider, provider_id, github_login FROM users WHERE id = ${userId}
     `) as UserRow[];
   } catch {
     // A transient Postgres failure must map to the gate's retryable "unavailable"

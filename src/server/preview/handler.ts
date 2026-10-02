@@ -12,31 +12,28 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Server } from "bun";
-import { config } from "../config.ts";
 import { json as httpJson, PREVIEW_CORS } from "../http.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { diffDocs } from "../atlas-refresh.ts";
 import type { AtlasNode } from "../retrieval/indexes.ts";
-import {
-  CANONICAL_REPO,
-  decodeId,
-  gateError,
-  makeGhClient,
-  resolveRef,
-  resolvePrivateBranch,
-  type Resolved,
-  type PendingPrivate,
-} from "./resolve.ts";
+import { decodeId, type Resolved } from "./resolve.ts";
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
-import { previewPaths, artifactPath, bundleReady, readMeta, writeMeta, touch, remove as removeBundle, type PreviewMeta } from "./cache.ts";
+import { previewPaths, artifactPath, bundleReady, readMeta, writeMeta, touch, type PreviewMeta } from "./cache.ts";
 import { IDENTITY_FILES, isRefining } from "./identity-refine.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
-import { getPreviewRow, touchPreview, isBlockedSha, recordPreviewOpen } from "./db.ts";
+import { getPreviewRow, touchPreview, recordPreviewOpen } from "./db.ts";
 import { parseLocalOpens, visiblePreviews } from "./mine.ts";
 import { fillPrivateDiffBaseOnOpen } from "./diff-base-backfill.ts";
 import { authorizePreviewAccess } from "./access.ts";
 import { getSessionUser } from "../session.ts";
 import { appInstallUrl } from "./github-app.ts";
+import { rateLimited, mineRateLimited } from "./rate-limit.ts";
+import { openAtlasPrs } from "./open-prs.ts";
+import { resolveAuthorized, takedownBlocked, needsBaseRebuild } from "./open-gate.ts";
+
+// Split-out modules, re-exported so existing importers keep one entry point.
+export { resolveId, resolveCache, RESOLVE_CACHE_MAX } from "./resolve-id.ts";
+export { rateLimited, ipHits, IP_LIMIT, mineRateLimited, mineHits, MINE_WINDOW_MS, MINE_LIMIT } from "./rate-limit.ts";
 
 const SHA_RE = /^[0-9a-f]{40}$/i;
 // noindex on every preview response: unreviewed (possibly fork) content must
@@ -48,161 +45,12 @@ const CORS = PREVIEW_CORS;
 // Private-preview responses: NO access-control-allow-origin — a shared
 // CDN/proxy must not cache one user's private docs for the next visitor (G6).
 const PRIVATE_HEADERS = { "cache-control": "private, no-store", "x-robots-tag": "noindex" };
-const gh = makeGhClient(config.githubToken);
-
-// Resolution TTL cache (per raw id). Tracks the branch/PR tip so a pushed commit
-// is picked up within ~60s without re-hitting GitHub on every request.
-// Exported (with the cap) for the eviction regression test only — not otherwise
-// consumed outside this module. Mirrors the diffCache/DIFF_CACHE_MAX pattern below.
-type ResolveResult = Resolved | { error: "gate-rejected" | "not-found" | "not-a-fork" | "app-not-installed" } | PendingPrivate;
-export const resolveCache = new Map<string, { at: number; v: ResolveResult }>();
-const RESOLVE_TTL_MS = 60_000;
-export const RESOLVE_CACHE_MAX = 1000; // FIFO cap — prevents indefinite growth under scanner traffic
-
-// Per-IP fixed window on the build-triggering events endpoint. Exported for
-// direct testing of the threshold + the size>5000 sweep, both otherwise only
-// reachable by driving thousands of real HTTP calls through handlePreview.
-export const ipHits = new Map<string, { n: number; reset: number }>();
-const IP_WINDOW_MS = 10 * 60_000;
-export const IP_LIMIT = 30;
-export function rateLimited(ip: string): boolean {
-  const now = Date.now();
-  const w = ipHits.get(ip);
-  if (!w || now > w.reset) {
-    // Sweep expired entries when the map grows large (scanner IPs that never return).
-    if (ipHits.size > 5000) {
-      for (const [k, v] of ipHits) if (now > v.reset) ipHits.delete(k);
-    }
-    ipHits.set(ip, { n: 1, reset: now + IP_WINDOW_MS });
-    return false;
-  }
-  w.n++;
-  return w.n > IP_LIMIT;
-}
-
-// Per-USER window on /mine, keyed on the account rather than the IP because the
-// cost it protects is per account: up to MINE_MAX_PRIVATE live GitHub permission
-// checks per request, which only a signed-in caller can trigger. An anonymous
-// /mine is one DB query and no GitHub call, so it stays on the ordinary limits.
-//
-// Deliberately BURST-TOLERANT, not a minimum interval. With a warm decision
-// cache a request costs two DB queries and NO GitHub call (access.ts caches
-// ok/forbidden per user+repo for ~60s), so the common case needs no protection
-// at all. What is left uncached is the degraded case: "unavailable" is never
-// cached, by design, so while GitHub is failing every request re-asks it, once
-// per private repo. A limit only has to stop a runaway loop from riding that —
-// it must not punish a person opening a second tab, another device, or
-// refreshing, which an interval-per-request does (see the 429-on-first-fetch
-// bug that shipped with the 2s version).
-export const mineHits = new Map<string, { n: number; reset: number }>();
-export const MINE_WINDOW_MS = 2_000;
-export const MINE_LIMIT = 8; // more than a person can produce in two seconds; far under a loop
-export function mineRateLimited(userId: string, now = Date.now()): boolean {
-  const w = mineHits.get(userId);
-  if (!w || now > w.reset) {
-    // Sweep expired entries when the map grows large (same shape as rateLimited above).
-    if (mineHits.size > 5000) {
-      for (const [k, v] of mineHits) if (now > v.reset) mineHits.delete(k);
-    }
-    mineHits.set(userId, { n: 1, reset: now + MINE_WINDOW_MS });
-    return false;
-  }
-  w.n++;
-  return w.n > MINE_LIMIT;
-}
 
 // Diff cache keyed by (preview sha, current main atlas sha).
 // Exported for the eviction regression test only — not otherwise consumed
 // outside this module.
 export const diffCache = new Map<string, { added: string[]; changed: string[] }>();
 export const DIFF_CACHE_MAX = 1000; // FIFO cap — matches the resolveCache pattern above
-
-// Open PRs against the canonical atlas, for the /preview index "open atlas prs"
-// tab. Cached ~5 min — the pulls list is rate-limited and rarely changes, and
-// many index visitors would otherwise each spend a GitHub call.
-interface OpenPr { number: number; title: string; author: string; draft: boolean; updatedAt: string }
-let openPrsCache: { at: number; v: OpenPr[] } | null = null;
-const OPEN_PRS_TTL_MS = 5 * 60_000;
-
-async function openAtlasPrs(): Promise<OpenPr[]> {
-  const now = Date.now();
-  if (openPrsCache && now - openPrsCache.at < OPEN_PRS_TTL_MS) return openPrsCache.v;
-  const r = await gh.fetchJson(`/repos/${CANONICAL_REPO}/pulls?state=open&sort=updated&direction=desc&per_page=100`);
-  if (!r.ok || !Array.isArray(r.json)) return openPrsCache?.v ?? []; // serve stale on a GitHub hiccup
-  const prs: OpenPr[] = r.json.map((p: any) => ({
-    number: p.number,
-    title: p.title ?? "",
-    author: p.user?.login ?? "",
-    draft: !!p.draft,
-    updatedAt: p.updated_at ?? "",
-  }));
-  openPrsCache = { at: now, v: prs };
-  return prs;
-}
-
-// Exported for direct testing of the sha-rebuild branch (kind/prBase
-// reconstruction from a previews row) without driving the full /events SSE
-// flow + a real background build; every other caller is internal (drive()).
-export async function resolveId(rawId: string): Promise<ResolveResult> {
-  const hit = resolveCache.get(rawId);
-  const now = Date.now();
-  if (hit && now - hit.at < RESOLVE_TTL_MS) return hit.v;
-
-  const parsed = decodeId(rawId);
-  let v: ResolveResult;
-  if (!parsed) {
-    v = { error: "not-found" };
-  } else if (parsed.kind === "sha") {
-    // Pinned sha: recover repo from the previews table (durability for a wiped bundle).
-    const row = await getPreviewRow(parsed.sha);
-    v = row
-      ? {
-          repo: row.repo,
-          sha: row.sha,
-          // Rebuild the ORIGINAL kind, not a hardcoded "branch": a canonical PR
-          // row must come back as kind "pr" so build.ts's fork/trust screening
-          // (keys on kind === "pr", not on the presence of `pr`) never gives it
-          // fork treatment, and so pr-state.ts's `kind = 'pr'`-filtered UPDATE
-          // still finds it. Everything else (fork/private PRs, plain branches)
-          // stays "branch" exactly as resolveRef/resolvePrivateBranch produced it.
-          kind: row.kind === "pr" ? "pr" : "branch",
-          ref: row.ref,
-          pr: row.pr_number
-            ? { number: row.pr_number, title: row.pr_title ?? "", author: row.pr_author ?? "", state: (row.pr_state as any) ?? "open" }
-            : undefined,
-          // No sha here (see Resolved.prBase) — base-drift re-resolves the tip
-          // rather than trusting a persisted one. The candidate resolver
-          // (pr-diff.ts) keys on `prBase`, never `pr.number`, so this never
-          // sends a private PR's number at canonical /pulls/N.
-          prBase: row.pr_base_repo && row.pr_base_ref ? { repo: row.pr_base_repo, ref: row.pr_base_ref } : undefined,
-          // Same round-trip for a fork branch's `repo` candidate: without it a
-          // rebuilt bundle would redline against sky only and lose the switch.
-          defaultBranch: row.default_branch ?? undefined,
-          private: row.private,
-        }
-      : { error: "not-found" };
-  } else if (gateError(parsed)) {
-    // Not unit-tested directly: gateError (resolve.ts, out of scope here) is
-    // hardcoded to always return null ("reserved for future grammar-level
-    // gates"), so no input reaches this branch's body without changing that
-    // file. bun's `/* v8 ignore */` comment did not suppress this line in this
-    // file despite matching the syntax used elsewhere in the codebase — left
-    // as a known, harmless gap rather than a directive that silently doesn't do
-    // what it claims.
-    v = { error: "gate-rejected" };
-  } else {
-    v = await resolveRef(parsed, gh);
-  }
-  // Don't cache app-not-installed: it flips to resolvable the instant the owner
-  // installs the App on the repo, and a stale 60s error would make a fresh
-  // install look like it didn't take — the user reloads and still sees "not
-  // installed". Every other outcome is stable enough for the short TTL.
-  if (!("error" in v) || v.error !== "app-not-installed") {
-    resolveCache.set(rawId, { at: now, v });
-    if (resolveCache.size > RESOLVE_CACHE_MAX) resolveCache.delete(resolveCache.keys().next().value!);
-  }
-  return v;
-}
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream",
@@ -336,41 +184,19 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     return () => {};
   }
   send({ phase: "resolving" });
-  const resolved = await resolveId(rawId);
-  if ("error" in resolved) {
-    send({ phase: "failed", code: resolved.error, message: await failInstallMessage(resolved.error, repoOfId(rawId)) });
+  // G3/G7: open-gate authorizes a private repo BEFORE any sha-bearing event
+  // (isBlockedSha/bundleReady/build) reaches an unauthorized caller.
+  const opened = await resolveAuthorized(rawId, (repo) => authorizePreviewAccess(req, repo));
+  if ("denied" in opened) {
+    const d = opened.denied;
+    if (d === "login-required" || d === "forbidden" || d === "unavailable") {
+      send({ phase: "failed", code: d === "login-required" ? "auth-required" : d });
+    } else {
+      send({ phase: "failed", code: d, message: await failInstallMessage(d, opened.repo ?? repoOfId(rawId)) });
+    }
     return () => {};
   }
-  // G3/G7: for a private repo, authorize BEFORE any sha-bearing event
-  // (isBlockedSha/bundleReady/build) reaches an unauthorized caller — and, for a
-  // deferred-private resolution, before the branch/PR→sha lookup itself, so an
-  // unauthorized caller can never probe branch or PR existence. The resolve cache may
-  // hold a private Resolved (incl. sha) or the PendingPrivate marker, but the
-  // authorization decision is never cached; it's re-run per request against the
-  // live session/collaborator state.
-  let r: Resolved;
-  if ("authRequired" in resolved) {
-    const d = await authorizePreviewAccess(req, resolved.repo);
-    if (d !== "ok") {
-      send({ phase: "failed", code: d === "login-required" ? "auth-required" : d });
-      return () => {};
-    }
-    const done = await resolvePrivateBranch(resolved.repo, resolved.ref);
-    if ("error" in done) {
-      send({ phase: "failed", code: done.error, message: await failInstallMessage(done.error, resolved.repo) });
-      return () => {};
-    }
-    r = done;
-  } else {
-    r = resolved;
-    if (r.private) {
-      const d = await authorizePreviewAccess(req, r.repo);
-      if (d !== "ok") {
-        send({ phase: "failed", code: d === "login-required" ? "auth-required" : d });
-        return () => {};
-      }
-    }
-  }
+  const { r, viaPrivateResolve } = opened;
   const sha = r.sha;
   // Every `ready` this stream emits — from the cached bundle below or from a
   // build — is an open by this visitor, so route them all through one wrapper
@@ -380,33 +206,20 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     if (ev.phase === "ready") void rememberPreviewOpen(req, rawId, sha).catch(() => {});
     send(ev);
   };
-  // Admin takedown: a blocked sha neither serves its cached bundle nor rebuilds.
-  if (await isBlockedSha(sha).catch(() => false)) {
-    removeBundle(sha);
+  if (await takedownBlocked(sha)) {
     send({ phase: "failed", code: "not-found" });
     return () => {};
   }
   if (bundleReady(sha)) {
-    // A private PR first built without Pull requests:read has no prBase on
-    // disk. After the owner grants it, this same id re-resolves with prBase —
-    // rebuild so the redline switches onto the PR's own base instead of
-    // serving the fallback bundle. Same-sha, so the quota (new-sha) gate
-    // doesn't fire. A bundle that already recorded a prBase is left alone.
-    // Same for a bundle that recorded NO base at all (a Contents-only private
-    // PR built before the default branch stood in for the missing prBase, or
-    // one whose default-branch lookup failed that day): once resolve has a
-    // default branch, rebuild so the `repo` candidate exists. Never downgrades
-    // — a bundle that holds a real prBase keeps it even if Pulls later 403s.
     const meta = readMeta(sha);
-    if ((r.prBase && !meta?.prBase) || (r.defaultBranch && !meta?.defaultBranch && !meta?.prBase)) {
+    if (needsBaseRebuild(r, meta)) {
       getOrStartBuild(r);
       return subscribeBuild(sha, sendRecording);
     }
     // Banner-only: keep ACCESS in sync with the live install without a rebuild.
-    // `authRequired` is the tell that r came from resolvePrivateBranch this
-    // request (fresh repository_selection). A SHA/DB resolve must not run this
-    // — it never carries grantTooBroad, and would clear a still-valid row.
-    if (meta && "authRequired" in resolved) {
+    // Only a resolvePrivateBranch result carries a fresh repository_selection;
+    // a SHA/DB resolve never carries grantTooBroad and would clear a valid row.
+    if (meta && viaPrivateResolve) {
       const synced = syncBroadGrantMeta(meta, r);
       if (synced) writeMeta(sha, synced);
     }

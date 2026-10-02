@@ -31,6 +31,19 @@ describe("computeDiffArtifacts", () => {
     expect(diff.retitled).toEqual({});
   });
 
+  test("removed doc: in the base, gone from the head → listed in removed, no patch", () => {
+    const base = snap([
+      { id: ID1, doc_no: "A.1", title: "One", content: "kept", contentHash: "h1" },
+      { id: ID2, doc_no: "A.2", title: "Two", content: "dropped", contentHash: "h2" },
+    ]);
+    const head = snap([{ id: ID1, doc_no: "A.1", title: "One", content: "kept", contentHash: "h1" }]);
+    const { diff, patches } = computeDiffArtifacts(base, head, base);
+    expect(diff.removed).toEqual([ID2]);
+    expect(diff.added).toEqual([]);
+    expect(diff.changed).toEqual([]);
+    expect(patches[ID2]).toBeUndefined();
+  });
+
   test("changed doc: patch is computed vs LIVE, not vs base", () => {
     const base = snap([{ id: ID1, doc_no: "A.1", title: "One", content: "aaa aaa", contentHash: "b1" }]);
     const live = snap([{ id: ID1, doc_no: "A.1", title: "One", content: "bbb bbb", contentHash: "l1" }]);

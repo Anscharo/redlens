@@ -73,7 +73,7 @@ mock.module("../db.ts", () => ({
   fromUuidArray,
 }));
 
-const { authorizePreviewAccess, __resetAccessCacheForTest } = await import("./access.ts");
+const { authorizePreviewAccess, authorizeUserRepoAccess, __resetAccessCacheForTest } = await import("./access.ts");
 const { signSession, SESSION_COOKIE } = await import("../session.ts");
 
 const REPO = "sky-ecosystem/next-gen-atlas";
@@ -170,4 +170,19 @@ test("negative caching: two consecutive forbidden calls invoke userRepoPermissio
   expect(await authorizePreviewAccess(await req(), REPO)).toBe("forbidden");
   expect(await authorizePreviewAccess(await req(), REPO)).toBe("forbidden");
   expect(permFetches).toBe(1); // second call hit the negative cache
+});
+
+test("authorizeUserRepoAccess: same decision as the request wrapper, sharing its cache", async () => {
+  sessionResult = { user: { id: "u8", provider: "github" } };
+  queuedUserRows = [{ provider: "github", provider_id: "42", github_login: "frank" }];
+  permMode = "grant";
+  grantUserId = 42;
+  expect(await authorizeUserRepoAccess("u8", REPO)).toBe("ok");
+  expect(await authorizePreviewAccess(await req(), REPO)).toBe("ok");
+  expect(permFetches).toBe(1); // the wrapper hit the cache the core filled
+});
+
+test("authorizeUserRepoAccess: an unknown user id is forbidden", async () => {
+  queuedUserRows = [];
+  expect(await authorizeUserRepoAccess("nobody", REPO)).toBe("forbidden");
 });
